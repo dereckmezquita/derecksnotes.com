@@ -39,3 +39,22 @@ Now I will write the code for the server this is file `server.ts`. We are using 
 npm install --save express
 npm install --save-dev @types/express
 ```
+
+## Webpack setup
+
+Install webpack as a dev dependency:
+
+```bash
+npm install -D webpack webpack-cli
+```
+In order to use webpack we need to define a script in our `package.json` this will allow us to say: `npm run build`.
+
+We add this to our `package.json`:
+
+
+```json
+"scripts": {
+    "dev": "webpack --config client/webpack.config.js --mode development",
+    "pro": "webpack --config client/webpack.config.js --mode production --env.production"
+}
+```
