@@ -58,3 +58,21 @@ We add this to our `package.json`:
     "pro": "webpack --config client/webpack.config.js --mode production --env.production"
 }
 ```
+
+## Webpack loaders
+
+Loaders allow you to load other assets, images, css, sass etc.
+
+### `sass` loader
+
+```bash
+npm install -D sass style-loader css-loader sass-loader
+```
+
+### html plugin
+
+Plugins are more powerful.
+
+```bash
+npm install -D html-webpack-plugin
+```
