@@ -34,6 +34,11 @@ module.exports = {
         new HtmlWebpackPlugin({
             filename: "index.html",
             template: path.resolve(__dirname, 'src/index.ejs')
+        }),
+        new HtmlWebpackPlugin({
+            filename: "courses.html",
+            template: path.resolve(__dirname, 'src/courses.ejs'),
+            header: { 'title': "Courses" }
         })
     ],
 }
