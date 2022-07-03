@@ -76,3 +76,18 @@ Plugins are more powerful.
 ```bash
 npm install -D html-webpack-plugin
 ```
+
+## `ejs`
+
+```bash
+npm install --save-dev -g ejs
+```
+
+https://stackoverflow.com/questions/45150819/html-webpack-plugin-not-parsing-ejs-variables
+
+```txt
+<% 'Scriptlet' tag, for control-flow, no output
+<%_ 'Whitespace Slurping' Scriptlet tag, strips all whitespace before it
+<%= Outputs the value into the template (escaped)
+<%- Outputs the unescaped value into the template
+```
