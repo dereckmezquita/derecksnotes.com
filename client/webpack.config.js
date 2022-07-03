@@ -1,6 +1,5 @@
 
 const path = require('path');
-const fs = require('fs');
 
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
@@ -37,8 +36,7 @@ module.exports = {
         }),
         new HtmlWebpackPlugin({
             filename: "courses.html",
-            template: path.resolve(__dirname, 'src/courses.ejs'),
-            header: { 'title': "Courses" }
+            template: path.resolve(__dirname, 'src/courses.ejs')
         })
     ],
 }
