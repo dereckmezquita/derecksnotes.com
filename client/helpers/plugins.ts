@@ -8,6 +8,7 @@ interface PluginConfig {
     filename: string;
     template: string;
     chunks?: string[];
+    inject?: boolean;
 }
 
 export const makePlugins = (configs: PluginConfig[]): Object[] => {
