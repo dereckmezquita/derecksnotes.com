@@ -91,3 +91,49 @@ https://stackoverflow.com/questions/45150819/html-webpack-plugin-not-parsing-ejs
 <%= Outputs the value into the template (escaped)
 <%- Outputs the unescaped value into the template
 ```
+
+## `mariadb`
+
+```bash
+brew install mariadb
+
+sudo mariadb -u root
+```
+
+```sql
+use mysql;
+SET PASSWORD FOR 'root'@'localhost' = PASSWORD('new_password');
+```
+
+To login to `mariadb`
+
+```bash
+mariadb -u root -p
+```
+
+In order to execute a prepared statement do as such:
+
+```ts
+import mysql from 'mysql';
+
+const con = mysql.createConnection({
+    host: '127.0.0.1',
+    user: 'root',
+    password: 'assword',
+    database: 'users'
+});
+
+con.connect(undefined, err => {
+    if (err) console.error(err);
+});
+
+const user = [["pepperedjerky", "myactualpasswordplzdontstealit"]];
+
+con.query('INSERT INTO users VALUES ?', [user], (err, results, fields) => {
+    if (err) console.error(err);
+
+    console.log(results);
+});
+
+con.end();
+```
