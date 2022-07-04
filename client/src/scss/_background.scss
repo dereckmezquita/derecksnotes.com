@@ -1,0 +1,36 @@
+
+@mixin lined_grid_background {
+    /* Lined grid */
+    background-size: 12px 12px;
+    background-image: linear-gradient(to right, $backgroundGrid 1px, transparent 1px), linear-gradient(to bottom, $backgroundGrid 1px, transparent 1px);
+
+    // box-shadow: $site_vignetting;
+}
+
+@mixin dotted_grid_background {
+    background-size: 10px 10px;
+    background-image: radial-gradient(circle, #000000 1px, rgba(0, 0, 0, 0) 1px);
+
+    // box-shadow: $site_vignetting;
+}
+
+// Background, border and other element colours
+$border: #CCC;
+$shadow: rgba(153, 153, 153, 0.5);
+
+$background: rgb(255, 255, 255);
+$background_grid: rgb(240, 240, 240);
+$content_background: rgba(255, 255, 255, 0.65);
+$content_background_solid: rgba(255, 255, 255, 1);
+$prompt_background: rgba(255, 255, 255, 0.3);
+
+$site_vignetting: 0 0 50px rgba(100, 100, 40, 0.8) inset;
+$card_vignetting: 0 0 20px rgba(100, 100, 40, 0.2) inset;
+
+$card_background: rgba(255, 255, 255, 0.55);
+$card_background_hover:rgba(255, 255, 255, 1);
+$sepia_filter: sepia(10%);
+
+$figure_background: rgb(255, 255, 255);
+$figure_border: #DDD;
+$figure_shadow: rgba(153, 153, 153, 0.2);
