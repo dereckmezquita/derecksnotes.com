@@ -1,13 +1,16 @@
 
 const path = require('path');
 import { makePlugins } from './helpers/plugins';
-import { WebpackManifestPlugin } from 'webpack-manifest-plugin';
+import HtmlWebpackPlugin from 'html-webpack-plugin';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
+const FixStyleOnlyEntriesPlugin = require("webpack-fix-style-only-entries");
 
 const plugins = makePlugins([
     {
         filename: "index.html",
         template: "index.ejs",
-        chunks: ["card_entries"]
+        chunks: ["card_entries", "styles"],
+        inject: true
     },
     {
         filename: "portfolio.html",
@@ -52,10 +55,8 @@ module.exports = {
                 test: /\.scss$/,
                 exclude: /node_modules/,
                 use: [
-                    {
-                        loader: 'file-loader',
-                        options: { outputPath: 'css/', name: '[name].min.css'}
-                    },
+                    MiniCssExtractPlugin.loader,
+                    'css-loader',
                     'sass-loader'
                 ]
             },
@@ -74,11 +75,13 @@ module.exports = {
         extensions: ['.ts', '.js']
     },
     output: {
-        filename: 'js/[name].js',
+        filename: 'js/[contenthash].js',
         path: path.resolve(__dirname, 'public'),
         clean: true
     },
     plugins: [
-        ...plugins
+        ...plugins,
+        new FixStyleOnlyEntriesPlugin(),
+        new MiniCssExtractPlugin({filename: "css/[contenthash].css"})
     ]
 }
