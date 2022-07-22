@@ -1,7 +1,6 @@
 
 const path = require('path');
 import { makePlugins } from './helpers/plugins';
-import HtmlWebpackPlugin from 'html-webpack-plugin';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 const FixStyleOnlyEntriesPlugin = require("webpack-fix-style-only-entries");
 
