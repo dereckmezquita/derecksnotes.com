@@ -5,6 +5,11 @@ const _ = undefined;
 
 export const router = Router();
 
+router.use((req, res, next) => {
+    console.log(`[${new Date().toLocaleString()}] ${req.method} @ ${req.url}`);
+    next();
+})
+
 router.get('/getPost', (req, res) => {
     const postId = req.query.postId;
 
