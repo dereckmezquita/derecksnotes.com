@@ -1,8 +1,8 @@
 
-const path = require('path');
+import path from 'path';
 import { makePlugins } from './helpers/plugins';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
-const FixStyleOnlyEntriesPlugin = require("webpack-fix-style-only-entries");
+const FixStyleOnlyEntriesPlugin = require('webpack-fix-style-only-entries');
 
 const plugins = makePlugins([
     {
@@ -67,9 +67,18 @@ module.exports = {
                         title: "Bruh"
                     }
                 }
+            },
+            // https://stackoverflow.com/questions/68634225/webpack-5-file-loader-generates-a-copy-of-fonts-with-hash-name
+            {
+                test: /\.(woff(2)?|ttf|eot)$/,
+                type: 'asset/resource',
+                generator: {
+                    filename: './fonts/[name][ext]',
+                },
             }
         ]
     },
+    watch: true,
     resolve: {
         extensions: ['.ts', '.js']
     },
