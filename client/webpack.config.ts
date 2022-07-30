@@ -34,6 +34,7 @@ module.exports = {
     entry: {
         bundle: path.resolve(__dirname, 'src/ts/index.ts'),
         card_entries: path.resolve(__dirname, 'src/ts/card_entries.ts'),
+        mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js'),
         styles: path.resolve(__dirname, 'src/scss/main.scss')
     },
     module: {
@@ -63,6 +64,7 @@ module.exports = {
                 test: /\.ejs$/,
                 loader: 'ejs-webpack-loader',
                 options: {
+                    root: path.resolve(__dirname, 'app'),
                     data: {
                         title: "Bruh"
                     }
@@ -73,8 +75,19 @@ module.exports = {
                 test: /\.(woff(2)?|ttf|eot)$/,
                 type: 'asset/resource',
                 generator: {
-                    filename: './fonts/[name][ext]',
-                },
+                    filename: './fonts/[name][ext]'
+                }
+            },
+            {
+                test: /\.(png|jpg|svg|gif)$/,
+                use: [
+                    {
+                        loader: 'file-loader',
+                        options: {
+                            name: '[name].[ext]'
+                        }
+                    }
+                ]
             }
         ]
     },
@@ -90,6 +103,6 @@ module.exports = {
     plugins: [
         ...plugins,
         new FixStyleOnlyEntriesPlugin(),
-        new MiniCssExtractPlugin({filename: "css/[contenthash].css"})
+        new MiniCssExtractPlugin({ filename: "css/[contenthash].css" })
     ]
 }
