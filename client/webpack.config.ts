@@ -2,9 +2,11 @@
 import path from 'path';
 import { makePlugins } from './helpers/plugins';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
+import CopyPlugin from 'copy-webpack-plugin';
+
 const FixStyleOnlyEntriesPlugin = require('webpack-fix-style-only-entries');
 
-const plugins = makePlugins([
+const plugins: Object[] = makePlugins([
     {
         filename: "index.html",
         template: "index.ejs",
@@ -64,7 +66,7 @@ module.exports = {
                 test: /\.ejs$/,
                 loader: 'ejs-webpack-loader',
                 options: {
-                    root: path.resolve(__dirname, 'app'),
+                    root: path.resolve(__dirname, 'public'),
                     data: {
                         title: "Bruh"
                     }
@@ -79,15 +81,11 @@ module.exports = {
                 }
             },
             {
-                test: /\.(png|jpg|svg|gif)$/,
-                use: [
-                    {
-                        loader: 'file-loader',
-                        options: {
-                            name: '[name].[ext]'
-                        }
-                    }
-                ]
+                test: /\.(png|svg|jpg|jpeg|gif)$/,
+                type: 'asset/resource',
+                generator: {
+                    filename: './images/[name][ext]'
+                }
             }
         ]
     },
@@ -103,6 +101,16 @@ module.exports = {
     plugins: [
         ...plugins,
         new FixStyleOnlyEntriesPlugin(),
-        new MiniCssExtractPlugin({ filename: "css/[contenthash].css" })
+        new MiniCssExtractPlugin({ filename: "css/[contenthash].css" }),
+        new CopyPlugin({
+            patterns: [
+                { // https://stackoverflow.com/questions/45036810/webpack-copying-files-from-source-to-public-using-copywebpackplugin
+                    context: './src/',
+                    from: "./**/*\.(png|svg|jpg|jpeg|gif)",
+                    to: "./",
+                    noErrorOnMissing: true
+                }
+            ]
+        })
     ]
 }
