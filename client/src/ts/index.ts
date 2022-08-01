@@ -1,8 +1,9 @@
 
 // ------------------------
-import cryptoPrices from "./modules/price_tickers";
-cryptoPrices();
+import "./modules/price_tickers";
 
 // ------------------------
-import { flexNav } from "./modules/flex_nav";
-(window as Window).flexNav = flexNav;
+import "./modules/flex_nav";
+
+// ------------------------
+import "./modules/clock";
