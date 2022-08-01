@@ -10,7 +10,7 @@ const plugins: Object[] = makePlugins([
     {
         filename: "index.html",
         template: "index.ejs",
-        chunks: ["price_tickers", "card_entries", "styles"],
+        chunks: ["bundle", "card_entries", "styles"],
         inject: true
     },
     {
@@ -36,7 +36,6 @@ module.exports = {
     entry: {
         bundle: path.resolve(__dirname, 'src/ts/index.ts'),
         card_entries: path.resolve(__dirname, 'src/ts/card_entries.ts'),
-        price_tickers: path.resolve(__dirname, 'src/ts/price_tickers.ts'),
         mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js'),
         styles: path.resolve(__dirname, 'src/scss/main.scss')
     },
