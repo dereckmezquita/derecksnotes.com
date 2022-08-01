@@ -1,5 +1,5 @@
 
-export default cryptoPrices;
+cryptoPrices();
 
 async function cryptoPrices(): Promise<void> {
     type NameTicker = {

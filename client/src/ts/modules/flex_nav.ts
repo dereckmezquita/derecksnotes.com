@@ -11,4 +11,4 @@ function flexNav() {
 
 };
 
-export { flexNav };
+(window as Window).flexNav = flexNav;
