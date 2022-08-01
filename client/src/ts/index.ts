@@ -1,2 +1,2 @@
 
-alert("Hello from a TypeScript file that's been compiled to JavaScript!");
+// alert("Hello from a TypeScript file that's been compiled to JavaScript!");
