@@ -137,3 +137,11 @@ con.query('INSERT INTO users VALUES ?', [user], (err, results, fields) => {
 
 con.end();
 ```
+
+## MongoDB
+
+Import data to database from a JSON file:
+
+```bash
+mongoimport --jsonArray --db testdb --collection docs --file fakeusers.json
+```
