@@ -32,9 +32,9 @@ const plugins: Object[] = makePlugins([
         filename: "tools.html",
         template: "tools.ejs"
     },
-    ...createEntriesPlugins("blog") as any
+    ...createEntriesPlugins("blog") as any,
     // ...createEntriesPlugins("courses") as any,
-    // ...createEntriesPlugins("exercises") as any,
+    ...createEntriesPlugins("exercises") as any
     // ...createEntriesPlugins("portfolio") as any,
     // ...createEntriesPlugins("tools") as any
 ]);
@@ -45,8 +45,12 @@ module.exports = {
         bundle: path.resolve(__dirname, 'src/ts/index.ts'),
         card_entries: path.resolve(__dirname, 'src/ts/card_entries.ts'),
         set_entry_title: path.resolve(__dirname, 'src/ts/modules/set_entry_title.ts'),
-        mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js'),
-        styles: path.resolve(__dirname, 'src/scss/main.scss')
+        // functionality scripts
+        word_count: path.resolve(__dirname, 'src/ts/word_count.ts'),
+        // styles chunks
+        styles: path.resolve(__dirname, 'src/scss/main.scss'),
+        // libraries chunks
+        mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js')
     },
     module: {
         rules: [
@@ -115,7 +119,7 @@ module.exports = {
             patterns: [
                 { // https://stackoverflow.com/questions/45036810/webpack-copying-files-from-source-to-public-using-copywebpackplugin
                     context: './src/',
-                    from: "./**/*\.(png|svg|jpg|jpeg|gif)",
+                    from: "./**/*\.(png|svg|jpg|jpeg|gif|mov)",
                     to: "./",
                     noErrorOnMissing: true
                 }
