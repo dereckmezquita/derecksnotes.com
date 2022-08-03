@@ -33,9 +33,10 @@ bottom=$'
 
 </html>'
 
-for file in $(ls ./src/blog/*ejs); do
+for file in $(ls ./src/exercises/entries/*html); do
     echo $file
-    echo -e "$top" > temp/$(basename $file)
-    cat $file >> temp/$(basename $file)
-    echo -e "$bottom" >> temp/$(basename $file)
+    new_file=$(echo $file | sed 's/\.html/\.ejs/g')
+    echo -e "$top" > temp/$(basename $new_file)
+    cat $file >> temp/$(basename $new_file)
+    echo -e "$bottom" >> temp/$(basename $new_file)
 done
