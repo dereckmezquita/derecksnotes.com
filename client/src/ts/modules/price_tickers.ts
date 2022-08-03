@@ -9,7 +9,7 @@ async function cryptoPrices(): Promise<void> {
 
     const coins: NameTicker[] = [
         { name: "bitcoin", ticker: "BTC" },
-        { name: "digibyte", ticker: "DGB" },
+        // { name: "digibyte", ticker: "DGB" },
         { name: "monero", ticker: "XMR" }
     ]
 
