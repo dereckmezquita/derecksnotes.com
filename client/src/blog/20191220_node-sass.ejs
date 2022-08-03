@@ -1,0 +1,130 @@
+<title>Node JS: compile SASS automatically</title>
+<h1>Node JS: compile SASS automatically</h1>
+<p>
+    Install node-sass, watch the directories of your choice, and output to a directory of your choice. This will compile your code from SASS to CSS. Also included install set up a Node JS environment.
+</p>
+
+<h2>Install Node JS</h2>
+<p>
+    Start by installing <a target="_blank" href="https://nodejs.org/en/">Node JS</a> from their site. This is a simple installation handled by an installation manager. Easy.
+</p>
+
+<h2>Initialise node package manager (NPM)</h2>
+<pre class="brush: bash">
+    Dereck@MacBook-Pro testNode % npm init -y
+    Wrote to /Users/Dereck/Desktop/testNode/package.json:
+
+    {
+        "name": "testNode",
+        "version": "1.0.0",
+        "description": "",
+        "main": "index.js",
+        "scripts": {
+            "test": "echo \"Error: no test specified\" && exit 1"
+        },
+        "keywords": [],
+        "author": "",
+        "license": "ISC"
+    }
+
+
+    Dereck@MacBook-Pro testNode % 
+</pre>
+<p>
+    Now we have to initialised the environement. Start by making a directory for your project opening it up in VSCode then opening the terminal. Type: npm init. If you wish to avoid filling in the descriptions add the option -y.
+</p>
+<p>
+    This will have created a package.json file in your root directory, or which ever you were in at the time.
+</p>
+
+<h2>Install node-sass</h2>
+<pre class="brush: bash">
+    Dereck@MacBook-Pro testNode % npm install node-sass
+    ⸨  ░░░░░░░░░░░░░░░░⸩ ⠼ fetchMetadata: sill resolveWithNewModule ajv@6.10.2 checking installable status
+</pre>
+<p>
+    Simple command install node-sass. It will do as soon above. Then you will get a package-lock.json along with a node_modules directory be generated when it's done. 
+</p>
+<pre class="brush: bash">
+    Dereck@MacBook-Pro testNode % npm install node-sass
+
+    > node-sass@4.13.0 install /Users/Dereck/Desktop/testNode/node_modules/node-sass
+    > node scripts/install.js
+
+    Cached binary found at /Users/Dereck/.npm/node-sass/4.13.0/darwin-x64-72_binding.node
+
+    > node-sass@4.13.0 postinstall /Users/Dereck/Desktop/testNode/node_modules/node-sass
+    > node scripts/build.js
+
+    Binary found at /Users/Dereck/Desktop/testNode/node_modules/node-sass/vendor/darwin-x64-72/binding.node
+    Testing binary
+    Binary is fine
+    npm notice created a lockfile as package-lock.json. You should commit this file.
+    npm WARN testNode@1.0.0 No description
+    npm WARN testNode@1.0.0 No repository field.
+
+    + node-sass@4.13.0
+    added 174 packages from 138 contributors and audited 529 packages in 7.599s
+    found 0 vulnerabilities
+
+    Dereck@MacBook-Pro testNode % 
+</pre>
+<h2>Input, output</h2>
+<p>
+    Create your styles directories; do so however you wish just have one to be watched as input, and another as output. We will tell it which is which in the package.json file. Go to it and you should see something like:
+</p>
+<pre class="brush: bash">
+    {
+        "name": "testNode",
+        "version": "1.0.0",
+        "description": "",
+        "main": "index.js",
+        "scripts": {
+            "test": "echo \"Error: no test specified\" && exit 1"
+        },
+        "keywords": [],
+        "author": "",
+        "license": "ISC",
+        "dependencies": {
+            "node-sass": "^4.13.0"
+        }
+    }
+</pre>
+<p>
+    Just make the following change to the scripts key:
+</p>
+<pre class="brush: bash">
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "scss": "node-sass --watch src/styles -o dist/styles"
+    }
+</pre>
+
+<h2>Run it and watch sass</h2>
+<pre class="brush: bash">
+    Dereck@MacBook-Pro test % npm run scss
+
+    > test@1.0.0 scss /Users/Dereck/Desktop/test
+    > node-sass --watch sass -o css
+    
+    => changed: /Users/Dereck/Desktop/test/sass/main.scss
+    Rendering Complete, saving .css file...
+    Wrote CSS to /Users/Dereck/Desktop/test/css/main.css
+</pre>
+<p>
+    Just type <code>npm run scss</code> in the terminal and that should do it. You should see something like the above. The terminal will be left "hanging", this is indication that it is watching your directories and compiling, when you save it should run automatically.
+</p>
+
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <li id="">
+        <a target="_blank" href="https://nodejs.org/en/">Node JS</a>
+    </li>
+</ol>
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>

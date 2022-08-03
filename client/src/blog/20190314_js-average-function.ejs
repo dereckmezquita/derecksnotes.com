@@ -1,0 +1,89 @@
+<title>JavaScript: average an array</title>
+
+<h1>JavaScript: average an array</h1>
+<p>
+    Short little JS problem from uDemy course <a href="https://www.udemy.com/the-complete-javascript-course/">The
+        Complete JavaScript Course 2019</a>. This is from coding challenge two. What we want to do here is simply to
+    take the average of all numbers inside of an array. Sounds pretty simple right? So let's do it!
+</p>
+<p>
+    John and Mike both play basketball in different teams. In the latest 3 games, John's team scored 89, 120 and 103
+    points, while Mike's team scored 116, 94 and 123 points.
+</p>
+<ol>
+    <li>
+        Calculate the average score for each team
+    </li>
+    <li>
+        Decide which teams wins in average (highest average score), and print the winner to the console. Also include
+        the average score in the output.
+    </li>
+    <li>
+        Then change the scores to show different winners. Don't forget to take into account there might be a draw (the
+        same average score)
+    </li>
+    <li>
+        EXTRA: Mary also plays basketball, and her team scored 97, 134 and 105 points. Like before, log the average
+        winner to the console. HINT: you will need the && operator to take the decision. If you can't solve this one,
+        just watch the solution, it's no problem :)
+    </li>
+    <li>
+        Like before, change the scores to generate different winners, keeping in mind there might be draws.
+    </li>
+</ol>
+<p>
+    Here's my solution:
+</p>
+<pre class="brush: js">
+    let scoreJohn = [89, 120, 103];
+    let scoreMike = [116, 94, 123];
+    let scoreMarry = [97, 134, 105];
+    
+    function average(score) {
+        let total = 0;
+        for(let i = 0; i &lt; score.length; i++) {
+            total += score[i];
+        }
+        let avgScore = Math.floor(total/score.length);
+        return avgScore;
+    }
+    
+    let avgScoreJohn = average(scoreJohn);
+    let avgScoreMike = average(scoreMike);
+    let avgScoreMarry = average(scoreMarry);
+    let winner;
+    
+    if(avgScoreJohn > avgScoreMike && avgScoreJohn > avgScoreMarry) {
+        winner = "John";
+    } else if (avgScoreMike > avgScoreJohn && avgScoreMike > avgScoreMarry) {
+        winner = "Mike";
+    } else if (avgScoreMarry > avgScoreJohn && avgScoreMarry > avgScoreMike) {
+        winner = "Marry";
+    } else {
+        winner = "...it's a tie!";
+    }
+    
+    console.log("John's average score was " + avgScoreJohn);
+    console.log("Mike's average score was " + avgScoreMike);
+    console.log("Marry's average score was " + avgScoreMarry);
+    
+    console.log("The winners of this years tournament are " + winner);
+    
+</pre>
+
+<p>
+    That's it, it's simple enough! Posted this for my own future reference and for others to use.
+</p>
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <!-- <li id="githubCrypto">
+            <a href="" target="_blank"></a>
+        </li> -->
+</ol>
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>

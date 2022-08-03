@@ -1,0 +1,110 @@
+<title>Server login: SSH keys</title>
+<h1>Server login: SSH keys</h1>
+<p>
+    Here I will explain to you how to SSH into a server; headless. Note this is a guide purely for Mac or Unix based OSs. I performed this on a MacBook Pro.
+</p>
+
+<h2>System information</h2>
+
+<p>
+    Get the public IP or domain associated to the server, make sure port forwarding for the appropriate port is set. The public external IP for connecting to the server we want is: <code>ssh account-name@domain-or-ip.com</code>.
+</p>
+<p>
+    Get system information:
+</p>
+
+<pre class="brush: bash">
+    [account-name@login-01 ~]$ uname -a
+    Linux login-01 X.XX.X-XXX.XX.X.elX.xYY_XX #1 SMP Tue Jun 18 16:35:19 UTC 2019 x86_64 x86_64 x86_64 GNU/Linux
+</pre>
+
+<h2>Creating and storing an SSH key</h2>
+<p>
+    This is all done on the client machine, the machine which will connect to the server. You should store the resulting files, by default on MacOS this will be the hidden directory at: <code>~/.ssh/</code>
+</p>
+<p>
+    Entering a file name will create a custom named file, when you want to then SSH you will simply have to pass the file name to the command: <code>ssh -i ~/.ssh/yourcustomfilename</code>.
+</p>
+<code>
+    dereck@dereck-MBP ~ % ssh-keygen -t rsa      
+</code>
+
+<pre class="brush: bash">
+    dereck@dereck-MBP .ssh % ssh-keygen -t rsa  
+    Generating public/private rsa key pair.
+    Enter file in which to save the key (/Users/dereck/.ssh/id_rsa): server-name
+    Enter passphrase (empty for no passphrase): 
+    Enter same passphrase again: 
+    Your identification has been saved in server-name.
+    Your public key has been saved in server-name.pub.
+    The key fingerprint is:
+    SHA256: taEjFHcmTHcmEjwRsT8kEjUgHBvkaGMoFHT8kLUQ dereck@dereck-MBP
+    The key's randomart image is:
+    +---[RSA 2048]----+
+    |O*+    o*.+.o .  |
+    |o*.  . o.*oOo. + |
+    |O*+   = +  o*.+ +|
+    |o. . o o  oo.o = |
+    | E      S . . .  |
+    |      o*.+ +     |
+    |            .   +|
+    |      o      . o |
+    |   .   +      o  |
+    +----[SHA256]-----+
+    dereck@dereck-MBP .ssh % ls
+    dereck_id_rsa		config			server-name
+    dereck_id_rsa.pub	known_hosts		server-name.pub
+    dereck@dereck-MBP .ssh % 
+</pre>
+
+<h2>Send the public key to the server</h2>
+<p>
+    Copy the public key to the server with this command: <code>ssh-copy-id -i ~/.ssh/server-name.pub account-name@domain-or-ip.com</code>
+</p>
+<p>
+    First install through brew <code>ssh-copy-id</code>.
+</p>
+<pre class="brush: bash">
+    dereck@dereck-MBP ~ % ssh-copy-id -i ~/.ssh/server-name.pub account-name@domain-or-ip.com
+    /usr/bin/ssh-copy-id: INFO: Source of key(s) to be installed: "/Users/dereck/.ssh/server-name.pub"
+    /usr/bin/ssh-copy-id: INFO: attempting to log in with the new key(s), to filter out any that are already installed
+    /usr/bin/ssh-copy-id: INFO: 1 key(s) remain to be installed -- if you are prompted now it is to install the new keys
+    account-name@domain-or-ip.com's password: 
+
+    Number of key(s) added:        1
+
+    Now try logging into the machine, with:   "ssh 'account-name@domain-or-ip.com'"
+    and check to make sure that only the key(s) you wanted were added.
+
+    dereck@dereck-MBP ~ % 
+</pre>
+<p>
+    Now the public is copied to the server.
+</p>
+
+<h2>Create a command file for logging in</h2>
+<p>
+    Just create a file and add the extension <code>.command</code>. In the file we'll write this: 
+</p>
+<pre class="brush: bash">
+    ssh account-name@domain-or-ip.com -i ~/.ssh/server-name
+</pre>
+<p>
+    Now just double click the file and you're logged in.`
+</p>
+
+<h2>Fixing permissions</h2>
+<p>
+    If after all this something is not working you need to give yourself permission to execute the file and read the private key; try: <code>chmod u+rx ~/.ssh/server-name</code>
+</p>
+
+<!-- <a aria-describedby="foot-label" href="#"></a> -->
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+</ol>
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>

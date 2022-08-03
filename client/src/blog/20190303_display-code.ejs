@@ -1,0 +1,115 @@
+<title>How to: Display code in HTML</title>
+
+    <h1>How to: Display code in HTML</h1>
+        <p>
+            Simple question, I've been wanting to try and display code inside an HTML page, <em>ie</em> this blog for a while. This in order to log my progress, and for future reference. If the code is found to be useful enough, and I have enough snippets, I will consider opening a new section on this site: "programming". This website is all custom built, HTML5, CSS3, and JavaScript. Since this is the case, then there are no handy plugins to do such things for like with wordpress.
+        </p>
+        <p>
+            So I started simply by searching for some syntax highlighting libraries. I was sure some existed, and did not want to go around making my own stylesheets and targeting HTML etc; although I must admit this was my first thought.
+        </p>
+        <p>
+            I first came across <a href="https://highlightjs.org" target="_blank">highlight.js</a>. It seemed like a good project, but when I first tried I had some issues with the configuration so I decided to go with <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a> instead.
+        </p>
+        <h2>Download the files</h2>
+        <p>
+            Honestly for a novice this might have been rather confusing. I wanted to use custom configurations as well so, I was being told by the documentation that I would have to build my library through the github files. Well I cheated. I went on the website where they were displaying code, inspected and downloaded all of the necessary files, so as to avoid having to make a build. And well it worked. I downloaded the following:
+        </p>
+        <ul>
+            <li>
+                <a href="/libraries/syntaxhighlighter/shAutoloader.js" download>shAutoloader.js</a>
+            </li>
+            <li>
+                <a href="/libraries/syntaxhighlighter/sshBrushCss.js" download>sshBrushCss.js</a>
+            </li>
+            <li>
+                <a href="/libraries/syntaxhighlighter/sshBrushJScript.js" download>sshBrushJScript.js</a>
+            </li>
+            <li>
+                <a href="/libraries/syntaxhighlighter/sshBrushLatex.js" download>sshBrushLatex.js</a>
+            </li>
+            <li>
+                <a href="/libraries/syntaxhighlighter/sshBrushPhp.js" download>sshBrushPhp.js</a>
+            </li>
+            <li>
+                <a href="/libraries/syntaxhighlighter/sshBrushXml.js" download>sshBrushXml.js</a>
+            </li>
+            <li>
+                <a href="/libraries/syntaxhighlighter/sshCore.js" download>sshCore.css</a>
+            </li>
+            <li>
+                <a href="/libraries/syntaxhighlighter/sshCore.js" download>sshCore.js</a>
+            </li>
+            <li>
+                <a href="/libraries/syntaxhighlighter/sshThemeDefault.js" download>sshThemeDefault.css</a>
+            </li>
+            <li>
+                <a href="/libraries/syntaxhighlighter/sshThemeEmacs.js" download>sshThemeEmacs.css</a>
+            </li>
+        </ul>
+        <p>
+            If you'd like to download these files simply click the links above. Note that I did not end up using all of those files. 
+        </p>
+        <h2>Including the files</h2>
+        <p>
+            Now I simply included the links to the files in my header and that was it for that. Also I've recently started organising all external files into a libraries folder. Where I keep well all of my libraries, keeps things nice and neat. Shown below the code I included in my header.
+        </p>
+        <pre class="brush: xml">
+            <!-- Syntax Highlighter -->
+                <script type="text/javascript" src="/libraries/syntaxhighlighter/shCore.js"></script>
+                <script type="text/javascript" src="/libraries/syntaxhighlighter/shBrushXml.js"></script>
+                <script type="text/javascript" src="/libraries/syntaxhighlighter/shBrushJScript.js"></script>
+                <script type="text/javascript" src="/libraries/syntaxhighlighter/shBrushCss.js"></script>
+
+                <link href="/libraries/syntaxhighlighter/shCore.css" rel="stylesheet" type="text/css"/>
+                <link href="/libraries/syntaxhighlighter/shThemeDefault.css" rel="stylesheet" type="text/css"/>
+        </pre>
+        <p>
+            Once that was done I just needed to test it out. There are two methods for using the library, I decided to go with the <code>pre</code> method, as it is much cleaner and simpler. Here a test, an example of some code below using the JavaScript brush:
+        </p>
+        <pre class="brush: js">
+            // This is a test
+            let index = ["BDic_2ALinker", "BDic_activator", "BDic_agar", "BDic_agaropectin", "BDic_agarose", "BDic_ahl", "BDic_allostericRegulation", "BDic_alphaVirus", "BDic_amphipathic", "BDic_amphoteric"]
+
+            for(let i = 0; i &lt; index.length; i++) {
+                console.log(index[i]);
+            }
+        </pre>
+        <h2>Using the library</h2>
+        <p>
+            Note that when the pre method is used in conjunction with the js brush, you must convert all less than symbols, &lt;, to the actual HTML code written as &amp;lt;. Once that is done, include the following elements with the appropriate class attribute to specify the brush to use.
+        </p>
+        <pre class="brush: xml">
+            <!-- Use the pre element tags with the appropriate class, shown below. -->
+            <pre class="brush: js">
+                // Your code goes here!
+                let index = ["BDic_2ALinker", "BDic_activator", "BDic_agar", "BDic_agaropectin", "BDic_agarose", "BDic_ahl", "BDic_allostericRegulation", "BDic_alphaVirus", "BDic_amphipathic", "BDic_amphoteric"]
+    
+                for(let i = 0; i &lt; index.length; i++) {
+                    console.log(index[i]);
+                }
+            </pre>
+
+            <!-- You must also include the following script at the bottom of your page below the pre elements
+            This so that the library executes, shown: -->
+
+                <script type="text/javascript">
+                    SyntaxHighlighter.all()
+                </script>
+        </pre>
+        <p>
+            That's it! That's how you install and use <a href="http://alexgorbatchev.com/SyntaxHighlighter/">SyntaxHighlighter</a>!
+        </p>
+
+        <ol class="foot-notes">
+            <div class="foot-notes-head">
+                Footnotes:
+            </div>
+            <li>
+                I got the custom LaTeX brush from here: <a href="https://www.mikrom.cz/syntaxhighlighter-evolved-brush-other-programming-languages/">mikrom.cz</a>. Apparently it's no longer available, so I've decided to include here for my future use (in case I lose it) or for others to use.
+            </li>
+        </ol>
+
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>

@@ -1,0 +1,67 @@
+<title>Nginx server</title>
+<h1>Nginx server</h1>
+
+<p>
+    Here will quickly cover the basics of installing and setting up an Nginx server. These are the pure bare bones with minimal configuration.
+</p>
+
+<h2>Host machine</h2>
+<p>
+    Need a small host machine, a personal machine or even an RPI is suitable. A VPS is standard as well. We will be using a Unix based machine of course. Here I will be doing it on my personal machine to be more specific.
+</p>
+<p>
+    I want to use this server to host websites while I work on them. This can of course be done on a distant machine through an ssh connection. Please note that you must be the root user for the following.
+</p>
+
+<h2>Download Nginx</h2>
+<pre class="brush: bash">
+    Work@Derecks-MBP local % cd /usr/local 
+    Work@Derecks-MBP local % sudo mkdir src
+    Password:
+    Work@Derecks-MBP local % cd src 
+</pre>
+
+<pre class="brush: bash">
+    Work@Derecks-MBP src % sudo wget http://nginx.org/download/nginx-1.17.10.tar.gz
+    --2020-04-19 21:29:56--  http://nginx.org/download/nginx-1.17.10.tar.gz
+    Resolving nginx.org (nginx.org)... 62.210.92.35, 95.211.80.227
+    Connecting to nginx.org (nginx.org)|62.210.92.35|:80... connected.
+    HTTP request sent, awaiting response... 200 OK
+    Length: 1039541 (1015K) [application/octet-stream]
+    Saving to: ‘nginx-1.17.10.tar.gz’
+
+    nginx-1.17.10.tar.gz        100%[==========================================>]   1015K   627KB/s    in 1.6s    
+
+    2020-04-19 21:29:57 (627 KB/s) - ‘nginx-1.17.10.tar.gz’ saved [1039541/1039541]
+</pre>
+
+<h2>Download the PCRE library</h2>
+<p>
+    This is a library that is needed for the http_rewrite_module, and also for regular expression support in the location directive. All we have to do here is download the library and extract it.
+</p>
+
+<pre class="brush: bash">
+    Work@Derecks-MBP src % sudo wget https://ftp.pcre.org/pub/pcre/pcre2-10.34.tar.gz
+    --2020-04-19 21:33:45--  https://ftp.pcre.org/pub/pcre/pcre2-10.34.tar.gz
+    Resolving ftp.pcre.org (ftp.pcre.org)... 131.111.8.88
+    Connecting to ftp.pcre.org (ftp.pcre.org)|131.111.8.88|:443... connected.
+    HTTP request sent, awaiting response... 200 OK
+    Length: 2271533 (2.2M) [application/x-gunzip]
+    Saving to: ‘pcre2-10.34.tar.gz’
+
+    pcre2-10.34.tar.gz          100%[==========================================>]   2.17M   993KB/s    in 2.2s    
+
+    2020-04-19 21:33:48 (993 KB/s) - ‘pcre2-10.34.tar.gz’ saved [2271533/2271533]
+</pre>
+
+
+
+<!-- <a aria-describedby="footLabel" href="#"></a> -->
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <li id="">
+        <a href="" target="_blank"></a>
+    </li>
+</ol>

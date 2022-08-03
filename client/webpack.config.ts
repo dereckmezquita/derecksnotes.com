@@ -1,10 +1,13 @@
 
 import path from 'path';
-import { makePlugins } from './helpers/plugins';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import CopyPlugin from 'copy-webpack-plugin';
 
 const FixStyleOnlyEntriesPlugin = require('webpack-fix-style-only-entries');
+
+// ----------------------------
+import { makePlugins } from './helpers/plugins';
+import { createEntriesPlugins } from './helpers/sections';
 
 const plugins: Object[] = makePlugins([
     {
@@ -28,7 +31,12 @@ const plugins: Object[] = makePlugins([
     {
         filename: "tools.html",
         template: "tools.ejs"
-    }
+    },
+    ...createEntriesPlugins("blog") as any
+    // ...createEntriesPlugins("courses") as any,
+    // ...createEntriesPlugins("exercises") as any,
+    // ...createEntriesPlugins("portfolio") as any,
+    // ...createEntriesPlugins("tools") as any
 ]);
 
 module.exports = {

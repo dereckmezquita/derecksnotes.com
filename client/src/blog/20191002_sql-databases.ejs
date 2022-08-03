@@ -1,0 +1,387 @@
+<title>MySql Databases</title>
+<h1>MySql Databases</h1>
+
+<p>
+    Here are all the interactions with the Mac terminal I did with Guy, on the October 02, 2019. The goal was to connect to the MySql database on my local server by using the mac terminal. To do this we first tried isntalling mysql onto my machine as I ran the <code>mysql</code> command in the terminal and that did not work; done through brew.
+</p>
+<p>
+    Finally we found that the way to run the MySql application from the termninal was to use the file path; Guy mentioned setting "global variables" I believe he called it on windows. So that you don't have to use the path anymore. The path and command for the application was: <code>/Applications/MAMP/Library/bin/mysql -u root -p</code>
+</p>
+
+<pre class="brush: bash">
+    Last login: Wed Oct  2 10:32:35 on ttys000
+    MBP-de-Dereck:~ Dereck$ telnet
+    telnet> ^C
+    MBP-de-Dereck:~ Dereck$ telnet
+    telnet> 127.0.0.1 3306
+    ?Invalid command
+    telnet> o
+    (to) 127.0.0.1 3306
+    Trying 127.0.0.1...
+    Connected to localhost.
+    Escape character is '^]'.
+    J
+    5.7.23?D4i#kK!vxF~	*_mysql_native_passwordConnection closed by foreign host.
+    MBP-de-Dereck:~ Dereck$ mysql
+    -bash: mysql: command not found
+    MBP-de-Dereck:~ Dereck$ brew info mysql
+    mysql: stable 8.0.17 (bottled)
+    Open source relational database management system
+    https://dev.mysql.com/doc/refman/8.0/en/
+    Conflicts with:
+        mariadb (because mysql, mariadb, and percona install the same binaries.)
+        mariadb-connector-c (because both install plugins)
+        mysql-connector-c (because both install MySQL client libraries)
+        percona-server (because mysql, mariadb, and percona install the same binaries.)
+    Not installed
+    From: https://github.com/Homebrew/homebrew-core/blob/master/Formula/mysql.rb
+    ==> Dependencies
+    Build: cmake ✘
+    Required: openssl@1.1 ✔
+    ==> Requirements
+    Required: macOS >= 10.10 ✔
+    ==> Caveats
+    We've installed your MySQL database without a root password. To secure it run:
+        mysql_secure_installation
+    
+    MySQL is configured to only allow connections from localhost by default
+    
+    To connect run:
+        mysql -uroot
+    
+    To have launchd start mysql now and restart at login:
+        brew services start mysql
+    Or, if you don't want/need a background service you can just run:
+        mysql.server start
+    ==> Analytics
+    install: 68,920 (30 days), 204,133 (90 days), 801,521 (365 days)
+    install_on_request: 64,586 (30 days), 191,104 (90 days), 747,354 (365 days)
+    build_error: 0 (30 days)
+    MBP-de-Dereck:~ Dereck$ mysqladmin
+    -bash: mysqladmin: command not found
+    MBP-de-Dereck:~ Dereck$ brew install mysql
+    Updating Homebrew...
+    ^[[A^[[A^[[A^[[A^[[A^[[B^[[B^[[B^[[B==> Auto-updated Homebrew!
+    Updated 1 tap (homebrew/core).
+    ==> New Formulae
+    aws-cdk        kepubify       llvm@8         ripgrep-all    tmuxinator     traefik@1
+    ==> Updated Formulae
+    ffmpeg ✔               evince                 janet                  rabbitmq
+    glib ✔                 exim                   jena                   range-v3
+    openssl ✔              expat                  jenkins                rc
+    protobuf ✔             exploitdb              jenkins-lts            rclone
+    afl-fuzz               faas-cli               jfrog-cli-go           recon-ng
+    ammonite-repl          flow                   jhipster               reop
+    angular-cli            folly                  kahip                  rom-tools
+    apache-geode           fselect                knot                   ruby
+    aws-okta               fwup                   kops                   ruby-build
+    aws-sdk-cpp            gcc                    krakend                sbcl
+    azure-cli              geant4                 kubecfg                sbt
+    babel                  geographiclib          kubeseal               serverless
+    benthos                ginac                  languagetool           ship
+    bettercap              git-annex              lcm                    sk
+    bind                   git-cola               libomp                 skaffold
+    bit                    git-secret             librealsense           sofia-sip
+    cake                   gitlab-runner          lightgbm               sonarqube-lts
+    calicoctl              glooctl                llvm                   sonobuoy
+    cargo-completion       gmic                   maxwell                sourcekitten
+    ccls                   go                     memcached              spdlog
+    certstrap              go-bindata             menhir                 squashfs
+    cfn-lint               go-jira                mgba                   src
+    chamber                godep                  micronaut              starship
+    checkstyle             goreleaser             minio                  step
+    cimg                   gosu                   minio-mc               swiftformat
+    cjdns                  grakn                  moco                   telegraf
+    cocoapods              groovysdk              mono                   terraformer
+    coinutils              grpcurl                mosquitto              terragrunt
+    compcert               gst-editing-services   mutt                   tflint
+    conan                  gst-libav              nats-server            tomcat
+    contentful-cli         gst-plugins-bad        newsboat               tomcat@8
+    convox                 gst-plugins-base       nim                    topgrade
+    cromwell               gst-plugins-good       node-build             traefik
+    crystal                gst-plugins-ugly       now-cli                ucloud
+    datamash               gst-python             octant                 vala
+    dbmate                 gst-rtsp-server        opencv@3               vim
+    dependency-check       gst-validate           paket                  wabt
+    devspace               gstreamer              passenger              webpack
+    dhall-bash             hadoop                 php                    wiremock-standalone
+    dhall-json             hebcal                 php-code-sniffer       wireshark
+    diskus                 helmfile               pipx                   wskdeploy
+    django-completion      hlint                  plantuml               wtf
+    doctl                  homebank               ponyc                  xcodegen
+    dosbox-x               hub                    presto                 yarn
+    entr                   hugo                   pulumi                 you-get
+    erlang                 imagemagick            pumba                  youtube-dl
+    eslint                 imagemagick@6          pybind11               zig
+    ethereum               istioctl               qpdf                   zola
+    ==> Deleted Formulae
+    llvm@3.9                      llvm@5                        pbrt
+    
+    ==> Downloading https://homebrew.bintray.com/bottles/mysql-8.0.17_1.mojave.bottle.1.tar.gz
+    ==> Downloading from https://akamai.bintray.com/70/70aec9c2a7bbb594550f764cc5b5ee7054626e0
+    ######################################################################## 100.0%
+    ==> Pouring mysql-8.0.17_1.mojave.bottle.1.tar.gz
+    ==> /usr/local/Cellar/mysql/8.0.17_1/bin/mysqld --initialize-insecure --user=Dereck --base
+    Last 15 lines from /Users/Dereck/Library/Logs/Homebrew/mysql/post_install.01.mysqld:
+    2019-10-02 11:30:17 +0200
+    
+    /usr/local/Cellar/mysql/8.0.17_1/bin/mysqld
+    --initialize-insecure
+    --user=Dereck
+    --basedir=/usr/local/Cellar/mysql/8.0.17_1
+    --datadir=/usr/local/var/mysql
+    --tmpdir=/tmp
+    
+    mysqld: Can't read dir of '/usr/local/etc/my.cnf.d' (OS errno 2 - No such file or directory)
+    mysqld: [ERROR] Fatal error in defaults handling. Program aborted!
+    Warning: The post-install step did not complete successfully
+    You can try again using `brew postinstall mysql`
+    ==> Caveats
+    We've installed your MySQL database without a root password. To secure it run:
+        mysql_secure_installation
+    
+    MySQL is configured to only allow connections from localhost by default
+    
+    To connect run:
+        mysql -uroot
+    
+    To have launchd start mysql now and restart at login:
+        brew services start mysql
+    Or, if you don't want/need a background service you can just run:
+        mysql.server start
+    ==> Summary
+    🍺  /usr/local/Cellar/mysql/8.0.17_1: 284 files, 272.4MB
+    ==> `brew cleanup` has not been run in 30 days, running now...
+    Removing: /usr/local/Cellar/gettext/0.19.8.1... (1,935 files, 16.9MB)
+    Removing: /Users/Dereck/Library/Caches/Homebrew/openssl--1.0.2s.mojave.bottle.tar.gz... (3.7MB)
+    Removing: /Users/Dereck/Library/Caches/Homebrew/protobuf--3.9.1.mojave.bottle.tar.gz... (5.1MB)
+    Removing: /usr/local/Cellar/readline/8.0.0_1... (48 files, 1.5MB)
+    Removing: /Users/Dereck/Library/Caches/Homebrew/readline--8.0.0_1.mojave.bottle.tar.gz... (517.7KB)
+    Removing: /Users/Dereck/Library/Logs/Homebrew/mitmproxy... (64B)
+    Removing: /Users/Dereck/Library/Logs/Homebrew/protobuf... (64B)
+    Pruned 0 symbolic links and 2 directories from /usr/local
+    MBP-de-Dereck:~ Dereck$ mysqladmin -u root password assword
+    mysqladmin: Can't read dir of '/usr/local/etc/my.cnf.d' (OS errno 2 - No such file or directory)
+    mysqladmin: [ERROR] Fatal error in defaults handling. Program aborted!
+    MBP-de-Dereck:~ Dereck$ mysqladmin -u root -p assword -h 127.0.0.1
+    mysqladmin: Can't read dir of '/usr/local/etc/my.cnf.d' (OS errno 2 - No such file or directory)
+    mysqladmin: [ERROR] Fatal error in defaults handling. Program aborted!
+    MBP-de-Dereck:~ Dereck$ mysql -u root -p assword -h 127.0.0.1
+    mysql: Can't read dir of '/usr/local/etc/my.cnf.d' (OS errno 2 - No such file or directory)
+    mysql: [ERROR] Fatal error in defaults handling. Program aborted!
+    MBP-de-Dereck:~ Dereck$ mysql
+    mysql: Can't read dir of '/usr/local/etc/my.cnf.d' (OS errno 2 - No such file or directory)
+    mysql: [ERROR] Fatal error in defaults handling. Program aborted!
+    MBP-de-Dereck:~ Dereck$ mysql ?
+    mysql: Can't read dir of '/usr/local/etc/my.cnf.d' (OS errno 2 - No such file or directory)
+    mysql: [ERROR] Fatal error in defaults handling. Program aborted!
+    MBP-de-Dereck:~ Dereck$ mysql help
+    mysql: Can't read dir of '/usr/local/etc/my.cnf.d' (OS errno 2 - No such file or directory)
+    mysql: [ERROR] Fatal error in defaults handling. Program aborted!
+    MBP-de-Dereck:~ Dereck$ help mysql
+    -bash: help: no help topics match `mysql'.  Try `help help' or `man -k mysql' or `info mysql'.
+    MBP-de-Dereck:~ Dereck$ brew uninstall mysql
+    Uninstalling /usr/local/Cellar/mysql/8.0.17_1... (284 files, 272.4MB)
+    MBP-de-Dereck:~ Dereck$ /Applications/MAMP/Library/bin/mysql -u root -p assword
+    Enter password: 
+    ERROR 1049 (42000): Unknown database 'assword'
+    MBP-de-Dereck:~ Dereck$ /Applications/MAMP/Library/bin/mysql -u root -p
+    Enter password: 
+    Welcome to the MySQL monitor.  Commands end with ; or \g.
+    Your MySQL connection id is 156
+    Server version: 5.7.23 MySQL Community Server (GPL)
+    
+    Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+    
+    Oracle is a registered trademark of Oracle Corporation and/or its
+    affiliates. Other names may be trademarks of their respective
+    owners.
+    
+    Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+    
+    mysql> db 
+        -> main
+        -> ;
+    ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'db
+    main' at line 1
+    mysql> database db;
+    ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'database db' at line 1
+    mysql> use main
+    Reading table information for completion of table and column names
+    You can turn off this feature to get a quicker startup with -A
+    
+    Database changed
+    mysql> PRINT
+    --------------
+    
+    --------------
+    
+    mysql> using master
+        -> ;
+    ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'using master' at line 1
+    mysql> SELECT * FROM main.comments
+        -> ;
+    +--------------+------------------------+
+    | user         | comment                |
+    +--------------+------------------------+
+    | Test User    | A comment              |
+    | Another User | Another shitty comment |
+    +--------------+------------------------+
+    2 rows in set (0.00 sec)
+    
+    mysql> SELECT * FROM main.comments WHERE user LIKE %Test%
+        -> ;
+    ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '%Test%' at line 1
+    mysql> SELECT * FROM main.comments WHERE user LIKE Test
+        -> ;
+    ERROR 1054 (42S22): Unknown column 'Test' in 'where clause'
+    mysql> SELECT * FROM main.comments WHERE user="Test"
+        -> ;
+    Empty set (0.00 sec)
+    
+    mysql> SELECT * FROM main.comments WHERE user="Test User";
+    +-----------+-----------+
+    | user      | comment   |
+    +-----------+-----------+
+    | Test User | A comment |
+    +-----------+-----------+
+    1 row in set (0.00 sec)
+    
+    mysql> SELECT * FROM main.comments WHERE user LIKE "%User%"
+        -> ;
+    +--------------+------------------------+
+    | user         | comment                |
+    +--------------+------------------------+
+    | Test User    | A comment              |
+    | Another User | Another shitty comment |
+    +--------------+------------------------+
+    2 rows in set (0.00 sec)
+    
+    mysql> SELECT * FROM main.comments WHERE user LIKE %User%
+        -> ;
+    ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '%User%' at line 1
+    mysql> SELECT * FROM main.comments WHERE user LIKE "%Test%"
+        -> ;
+    +-----------+-----------+
+    | user      | comment   |
+    +-----------+-----------+
+    | Test User | A comment |
+    +-----------+-----------+
+    1 row in set (0.00 sec)
+    
+    mysql> SELECT * FROM main.comments WHERE user="Test User"
+        -> ;
+    +-----------+-----------+
+    | user      | comment   |
+    +-----------+-----------+
+    | Test User | A comment |
+    +-----------+-----------+
+    1 row in set (0.00 sec)
+    
+    mysql> insert into main.comments values ('A Test User', 'A Test Comment');
+    Query OK, 1 row affected (0.00 sec)
+    
+    mysql> SELECT * FROM main.comments 
+        -> ;
+    +--------------+------------------------+
+    | user         | comment                |
+    +--------------+------------------------+
+    | Test User    | A comment              |
+    | Another User | Another shitty comment |
+    | A Test User  | A Test Comment         |
+    +--------------+------------------------+
+    3 rows in set (0.00 sec)
+    
+    mysql> select * from main.comments where user like "%Test";
+    Empty set (0.00 sec)
+    
+    mysql> select * from main.comments where user like "Test%";
+    +-----------+-----------+
+    | user      | comment   |
+    +-----------+-----------+
+    | Test User | A comment |
+    +-----------+-----------+
+    1 row in set (0.00 sec)
+    
+    mysql> select * from main.comments where user like "%User";
+    +--------------+------------------------+
+    | user         | comment                |
+    +--------------+------------------------+
+    | Test User    | A comment              |
+    | Another User | Another shitty comment |
+    | A Test User  | A Test Comment         |
+    +--------------+------------------------+
+    3 rows in set (0.00 sec)
+    
+    mysql> select comment from main.comments where user like "%Test%";
+    +----------------+
+    | comment        |
+    +----------------+
+    | A comment      |
+    | A Test Comment |
+    +----------------+
+    2 rows in set (0.00 sec)
+    
+    mysql> select comment from main.comments where user like "%test%";
+    +----------------+
+    | comment        |
+    +----------------+
+    | A comment      |
+    | A Test Comment |
+    +----------------+
+    2 rows in set (0.00 sec)
+    
+    mysql> delete * FROM main.comments;
+    ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '* FROM main.comments' at line 1
+    mysql> delete FROM main.comments WHERE user like "%%"
+        -> ;
+    Query OK, 3 rows affected (0.00 sec)
+    
+    mysql> select * from main.comments;
+    +------+----------+
+    | user | comment  |
+    +------+----------+
+    | root | comment1 |
+    | root | comment1 |
+    +------+----------+
+    2 rows in set (0.00 sec)
+    
+    mysql> delete * FROM main.comments;
+    ERROR 1064 (42000): You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '* FROM main.comments' at line 1
+    mysql> delete FROM main.comments;
+    Query OK, 2 rows affected (0.00 sec)
+    
+    mysql> select * from main.comments;
+    Empty set (0.00 sec)
+    
+    mysql> select * from main.comments;
+    +-------+----------+
+    | user  | comment  |
+    +-------+----------+
+    | user1 | comment1 |
+    | user2 | comment1 |
+    +-------+----------+
+    2 rows in set (0.00 sec)
+    
+    mysql> select * from main.comments;
+    +-------+----------+
+    | user  | comment  |
+    +-------+----------+
+    | user1 | comment1 |
+    | user2 | comment1 |
+    |       | comment1 |
+    +-------+----------+
+    3 rows in set (0.00 sec)
+    
+    mysql>        
+</pre>
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+</ol>
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>

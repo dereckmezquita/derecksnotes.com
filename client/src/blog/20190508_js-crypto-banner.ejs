@@ -1,0 +1,271 @@
+<title>JavaScript: Crypto Banner</title>
+<h1>JavaScript: Crypto Banner</h1>
+<p>
+    I recently created an information banner for this website. I created a github repository to store the code I used. I wanted to take some time to write a quick post on how I did this, and show you the code.
+</p>
+<p>
+    If you want to download the code check out the repository here: <a aria-describedby="foot-label" href="#githubCrypto">cryptoPricesBanner</a>.
+</p>
+<figure>
+    <img src="/blog/entries/documents/jsCryptoBanner/jsCryptoBannerFrostedGlass.png">
+    <figcaption>Notice that frosted glass effect, also those buttons for the percentage change; I was going for that Apple notifications centre look.</figcaption>
+</figure>
+
+<p>
+    Here is the result we're going for. Notice that nice frosted glass effect, yeah well it only really works well with Safari and Edge at the moment. Which is a shame. Hope Chrome and Firefox pick that feature up because for now the only other way to get that effect and have it be compatible with the other browsers is through some javascript and or svg overlays... which is really annoying. Here we just needed two lines of code:
+</p>
+
+<figure>
+    <img src="/blog/entries/documents/jsCryptoBanner/appleNotificationsStocks.png">
+    <figcaption>Beautiful and simple design, I especially love the colours and fonts used. Hence why I tried to emulate it.</figcaption>
+</figure>
+<pre class="brush: css">
+        backdrop-filter: blur(5px);
+        -webkit-backdrop-filter: blur(5px);
+</pre>
+
+<h2>
+    HTML Elements
+</h2>
+<p>
+    I kept it simple here, and just added a div which I set to 100% and an absolute position so it will float over the content of the site. 
+</p>
+
+<pre class="brush: xml">
+        <div class="infoBar">
+            <div class="tickers">
+                <span class="btc">
+                    <span class="btcName"></span>
+                    <span class="btcPrice"></span>
+                    <span class="btcPct coinPct"></span>
+                </span>
+                <span class="dgb">
+                    <span class="dgbName"></span>
+                    <span class="dgbPrice"></span>
+                    <span class="dgbPct coinPct"></span>
+                </span>
+                <span class="xmr">
+                    <span class="xmrName"></span>
+                    <span class="xmrPrice"></span>
+                    <span class="xmrPct coinPct"></span>
+                </span>
+            </div>
+        </div>
+</pre>
+
+<p>
+    I decided to use span elements inside for simplicity's sake; so as to avoid having to inline everything with css and divs. That's just annoying.
+</p>
+
+<h2>Javascript Code</h2>
+
+<p>
+    So I know I repeated myself here. I know I am not supposed to. It works ok? Well I'll refactor the code sometime later and make it a bit more modular, but for learning purposes it's fine; especially since it's code that will only be run a few times and is not resource intensive.
+</p>
+<pre class="brush: js">
+        window.addEventListener("load", function() {
+            function callPrices() {
+                let req = new XMLHttpRequest();
+                req.addEventListener("load", pricesLoaded);
+                req.open("GET", "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=BTC,DGB,XMR&tsyms=USD");
+                req.send();
+            
+                function pricesLoaded() {
+                    let pricesJSON = JSON.parse(this.responseText);
+                    let prices = pricesJSON["DISPLAY"];
+            
+                    let btcNameElem = document.querySelector(".btcName");
+                    let btcPriceElem = document.querySelector(".btcPrice");
+                    let btcPctElem = document.querySelector(".btcPct");
+                    let btcPrice = prices["BTC"]["USD"]["PRICE"];
+                    let btcPct = prices["BTC"]["USD"]["CHANGEPCT24HOUR"];
+
+                    if(btcPct > 0) {
+                        btcPct = "+" + btcPct;
+                    }
+
+                    btcNameElem.innerHTML = "BTC: ";
+                    btcPriceElem.innerHTML = btcPrice;
+                    btcPctElem.innerHTML = btcPct + "%";
+
+                    if(btcPct > 0) {
+                        btcPctElem.style.background = "#4DD964";
+                    } else {
+                        btcPctElem.style.background = "#FF3B2F";
+                    }
+                    
+            
+                    let dgbNameElem = document.querySelector(".dgbName");
+                    let dgbPriceElem = document.querySelector(".dgbPrice");
+                    let dgbPctElem = document.querySelector(".dgbPct");
+                    let dgbPrice = prices["DGB"]["USD"]["PRICE"];
+                    let dgbPct = prices["DGB"]["USD"]["CHANGEPCT24HOUR"];
+
+                    if(dgbPct > 0) {
+                        dgbPct = "+" + dgbPct;
+                    }
+
+                    dgbNameElem.innerHTML = "DGB: ";
+                    dgbPriceElem.innerHTML = dgbPrice;
+                    dgbPctElem.innerHTML = dgbPct + "%";
+
+                    if(dgbPct > 0) {
+                        dgbPctElem.style.background = "#4DD964";
+                    } else {
+                        dgbPctElem.style.background = "#FF3B2F";
+                    }
+
+                    let xmrNameElem = document.querySelector(".xmrName");
+                    let xmrPriceElem = document.querySelector(".xmrPrice");
+                    let xmrPctElem = document.querySelector(".xmrPct");
+                    let xmrPrice = prices["XMR"]["USD"]["PRICE"];
+                    let xmrPct = prices["XMR"]["USD"]["CHANGEPCT24HOUR"];
+
+                    if(xmrPct > 0) {
+                        xmrPct = "+" + xmrPct;
+                    }
+
+                    xmrNameElem.innerHTML = "XMR: ";
+                    xmrPriceElem.innerHTML = xmrPrice;
+                    xmrPctElem.innerHTML = xmrPct + "%";
+
+                    if(xmrPct > 0) {
+                        xmrPctElem.style.background = "#4DD964";
+                    } else {
+                        xmrPctElem.style.background = "#FF3B2F";
+                    }
+                };
+            }
+
+            callPrices();
+
+            setInterval(function() {
+                callPrices();
+            }, 30000)
+        });
+</pre>
+
+<p>
+    So I started by an XMLHttpRequest(), to get the JSON data, note that I used cryptocompare.com for this. The data was parsed so it can be used as a javascript object. After that it's very simple, just access the data point you require with the appropriate key and that's it. I'll leave an example of the JSON response below so you get an idea of the format.
+</p>
+
+<pre class="brush: js">
+    {
+        "DISPLAY": {
+            "BTC": {
+                "USD": {
+                    "FROMSYMBOL": "Ƀ",
+                    "TOSYMBOL": "$",
+                    "MARKET": "CryptoCompare Index",
+                    "PRICE": "$ 5,944.34",
+                    "LASTUPDATE": "Just now",
+                    "LASTVOLUME": "Ƀ 0.07749",
+                    "LASTVOLUMETO": "$ 456.43",
+                    "LASTTRADEID": "63154893",
+                    "VOLUMEDAY": "Ƀ 23,616.1",
+                    "VOLUMEDAYTO": "$ 138,788,374.6",
+                    "VOLUME24HOUR": "Ƀ 40,921.0",
+                    "VOLUME24HOURTO": "$ 240,970,928.9",
+                    "OPENDAY": "$ 5,820.91",
+                    "HIGHDAY": "$ 5,955.70",
+                    "LOWDAY": "$ 5,753.08",
+                    "OPEN24HOUR": "$ 5,938.18",
+                    "HIGH24HOUR": "$ 5,984.01",
+                    "LOW24HOUR": "$ 5,740.62",
+                    "LASTMARKET": "Coinbase",
+                    "VOLUMEHOUR": "Ƀ 2,045.31",
+                    "VOLUMEHOURTO": "$ 12,126,538.2",
+                    "OPENHOUR": "$ 5,919.85",
+                    "HIGHHOUR": "$ 5,955.70",
+                    "LOWHOUR": "$ 5,915.95",
+                    "CHANGE24HOUR": "$ 6.16",
+                    "CHANGEPCT24HOUR": "0.10",
+                    "CHANGEDAY": "$ 123.43",
+                    "CHANGEPCTDAY": "2.12",
+                    "SUPPLY": "Ƀ 17,689,275.0",
+                    "MKTCAP": "$ 105.15 B",
+                    "TOTALVOLUME24H": "Ƀ 422.68 K",
+                    "TOTALVOLUME24HTO": "$ 2,510.28 M",
+                    "IMAGEURL": "/media/19633/btc.png"
+                }
+            }
+        }
+    }
+</pre>
+
+<h2>
+    CSS Code
+</h2>
+
+<p>
+    Now we just have to make everything look pretty. Pretty straight forward, doesn't require explanation.
+</p>
+<pre class="brush: css">
+        html {
+            background: #CCC;
+        }
+
+        /* Information bar styles goes above the header etc */
+        .infoBar {
+            font-family: Helvetica, sans-serif;
+            font-size: 13px;
+            position: fixed;
+            top: 10px;
+            z-index: 10;
+
+            width: 100%;
+            background: rgba(255, 255, 255, 0.3);
+
+            -webkit-box-shadow: 1px 1px 10px rgba(153, 153, 153, 0.5);
+            -moz-box-shadow: 1px 1px 10px rgba(153, 153, 153, 0.5);
+            box-shadow: 1px 1px 10px rgba(153, 153, 153, 0.5);
+
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+
+        .tickers {
+            position: absolute;
+            top: 25%;
+
+            height: 100%;
+            float: left;
+            margin: auto;
+            padding-left: 5px;
+        }
+
+        .btc, .dgb, .xmr {
+            padding-left: 3px;
+            color: black;
+        }
+
+        @media only screen and (max-width: 525px) {
+            .dgb, .xmr {
+                visibility: hidden;
+            }
+        }
+
+        .coinPct {
+            font-weight: bold;
+            color: white;
+            margin-left: 3px;
+            padding: 3px;
+            padding-left: 6px;
+            padding-right: 6px;
+            border-radius: 4px;
+        }
+</pre>
+
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <li id="githubCrypto">
+        <a href="https://github.com/dereckdemezquita/cryptoPricesBanner" target="_blank">cryptoPricesBanner</a>.
+    </li>
+</ol>
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>
