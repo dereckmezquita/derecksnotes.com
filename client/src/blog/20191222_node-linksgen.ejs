@@ -1,0 +1,205 @@
+<title>Node JS: HTML & links generator</title>
+<h1>Node JS: HTML & links generator</h1>
+<p>
+    Quick and dirty programme for generating some HTML to display images. Tried some built in npm packages; they are broken.
+</p>
+<p>
+    So to write posts for this website I sometimes want to include a bunch of images. I just want to dump them. A prime example is the <a href="/blog/displayEntry.php?entry=20191214_carotenoidPigment">121-5: Carotenoid pigment production</a> post; click the link to see an example of the work. I want this to be done in a few different ways:
+</p>
+<ol>
+    <li>
+        Generate a <code>&lt;figure&gt;&lt;/figure&gt;</code> tag to hold the image.
+    </li>
+    <li>
+        Generate a <code>&lt;img&gt;</code> with the attributes <code>class="lazy" data-src="/path/imageName"</code>. I want the images own name not renamed incrementally.
+    </li>
+    <li>
+		A <code>&lt;figcaption&gt;&lt;/figcaption&gt;</code> tag to display the name of the image, taken from the actual file name.
+    </li>
+    <li>
+        Have this all generated automatically!
+    </li>
+</ol>
+
+<h2>Install node</h2>
+<p>
+    Start by installing <a target="_blank" href="https://nodejs.org/en/">Node JS</a> from their site. This is a simple installation handled by an installation manager. Easy.
+</p>
+
+<h2>Initialise node package manager (NPM)</h2>
+<pre class="brush: bash">
+    Dereck@MacBook-Pro testNode % npm init -y
+    Wrote to /Users/Dereck/Desktop/testNode/package.json:
+
+    {
+        "name": "testNode",
+        "version": "1.0.0",
+        "description": "",
+        "main": "index.js",
+        "scripts": {
+            "test": "echo \"Error: no test specified\" && exit 1"
+        },
+        "keywords": [],
+        "author": "",
+        "license": "ISC"
+    }
+
+
+    Dereck@MacBook-Pro testNode % 
+</pre>
+<p>
+    Now we have to initialised the environement. Start by making a directory for your project opening it up in VSCode then opening the terminal. Type: npm init. If you wish to avoid filling in the descriptions add the option -y.
+</p>
+<p>
+    This will have created a package.json file in your root directory, or which ever you were in at the time.
+</p>
+
+<h2>Create a directory for your images</h2>
+<figure>
+    <img src="/blog/entries/documents/node-linksgen/images-directory.png">
+    <figcaption>The project and the subdirectory containing our images.</figcaption>
+</figure>
+<p>
+    Simply make a directory inside your project for your images to live in, we will scan this directory with node and use the names to generate our HTML.
+</p>
+
+<h2>Write the Node JS programme</h2>
+<p>
+    Let's just go over part by part the different pieces of this programme. Not too complicated but merits some explanation.
+</p>
+<h3>Modules and global variables</h3>
+<pre class="brush: javascript">
+    //requiring path and fs modules
+    const path = require('path');
+    const fs = require('fs');
+    //joining path of directory 
+    const directoryPath = path.join(__dirname, 'images');
+</pre>
+<p>
+    Above all of the different modules we'll use in this project, the path module provides utilities for working with file and directory paths. Here we'll be using the <code>path.join()</code> function. The <code>path.join()</code> method joins all given path segments together using the platform-specific separator as a delimiter, then normalises the resulting path.
+</p>
+<pre class="brush: javascript">
+    const fileNames = [];
+    const filePaths = [];
+    const rootPath = "/blog/entries/blogImages/carotenoid/maps/";
+</pre>
+<p>
+    Here are some global variables we'll use to hold our informations. The rootPath is relative to the website I am working on; this website. This is where all of the images are stored for the <a href="/blog/displayEntry.php?entry=20191214_carotenoidPigment">121-5: Carotenoid pigment production</a> post.
+</p>
+
+<h3>Functions</h3>
+<pre class="brush: javascript">
+    for (let file of fs.readdirSync(directoryPath, { withFileTypes: true })) {
+        if (!file.isDirectory()) {
+            fileNames.push(file.name);
+        }
+    }
+</pre>
+<p>
+    This fucntion scans the directory, note we are using the <code>fs.readdirSync</code> function here as we want a synchronous version. The <code>{ withFileTypes: true }</code> parameter allows us to determine the type, file or directory, of the children inside the directory. This will allow us to only scan the first level of this directory and not include any sub directories in the result if any were to exist inside.
+</p>
+<pre class="brush: javascript">
+    function createHtml(rootPath, fileNames) {
+		for (let i = 0; i < fileNames.length; i++) {
+			filePaths[i] = rootPath + fileNames[i];
+		};
+	
+		let writeToHtml;
+		for(let i = 0; i < filePaths.length; i++) {
+			writeToHtml += `
+				<figure>
+					<img class="lazy" data-src="${filePaths[i]}">
+					<figcaption>${fileNames[i]}<figcaption>
+				</figure>
+			`;
+		};
+		console.log(writeToHtml);
+	
+		fs.writeFile('links.html', writeToHtml, function (err) {
+			if (err) throw err;
+			console.log('Saved!');
+		});
+	};
+	createHtml(rootPath, fileNames);
+</pre>
+<p>
+	This last function does all of the heavy work, takes in the file names creates a viable path and then generates the HTML. Note the for loop has the <code>writeToHtml</code> variable with a <code>+=</code> this will change the variable's contents and allow us to access it from the <code>fs.writeFile</code> function.
+</p>
+<p>
+	The result will pop out in an HTML file in the top level directory and should look something like this:
+</p>
+<pre class="brush: xml">
+	<figure>
+		<img class="lazy" data-src="/blog/entries/blogImages/carotenoid/maps/map_dxs_BBa_K118000.png">
+		<figcaption>map_dxs_BBa_K118000<figcaption>
+	</figure>
+
+	<figure>
+		<img class="lazy" data-src="/blog/entries/blogImages/carotenoid/maps/map_idi_BBa_K1653002.png">
+		<figcaption>map_idi_BBa_K1653002<figcaption>
+	</figure>
+	
+	<figure>
+		<img class="lazy" data-src="/blog/entries/blogImages/carotenoid/maps/map_pSB1A2-plac.png">
+		<figcaption>map_pSB1A2-plac<figcaption>
+	</figure>
+</pre>
+
+<h2>The whole programme</h2>
+<pre class="brush: javascript">
+	//requiring path and fs modules
+	const path = require('path');
+	const fs = require('fs');
+	//joining path of directory 
+	const directoryPath = path.join(__dirname, 'images');
+
+	const fileNames = [];
+	const filePaths = [];
+	const rootPath = "/blog/entries/blogImages/carotenoid/maps/";
+
+	for (let file of fs.readdirSync(directoryPath, { withFileTypes: true })) {
+		if (!file.isDirectory()) {
+			fileNames.push(file.name);
+		}
+	}
+
+	function createHtml(rootPath, fileNames) {
+		for (let i = 0; i < fileNames.length; i++) {
+			filePaths[i] = rootPath + fileNames[i];
+		};
+
+		let writeToHtml;
+		for(let i = 0; i < filePaths.length; i++) {
+			writeToHtml += `
+				<figure>
+					<img class="lazy" data-src="${filePaths[i]}">
+					<figcaption>${fileNames[i]}<figcaption>
+				</figure>
+			`;
+		};
+		console.log(writeToHtml);
+
+		fs.writeFile('links.html', writeToHtml, function (err) {
+			if (err) throw err;
+			console.log('Saved!');
+		});
+	};
+	createHtml(rootPath, fileNames);
+</pre>
+
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <li id="">
+        <a target="_blank" href="https://nodejs.org/en/">Node JS</a>
+	</li>
+	<li>
+		<a target="_blank" href="https://github.com/dereckdemezquita/html-link-generator">GitHub: html-link-generator</a>
+	</li>
+</ol>
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>

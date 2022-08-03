@@ -1,0 +1,191 @@
+<title>JavaScript: DNA melting temperature</title>
+<h1>JavaScript: DNA melting temperature</h1>
+<p>
+    Here's another simple tool made using JavaScript. I'm doing these as they might be useful someday, but mostly for practicing JavaScript.
+</p>
+
+<h2>The maths</h2>
+<p>
+    This one will take the following formulas:
+</p>
+
+<p class="mathsDescription">
+    For primers with a length inferiour to 14 nt the following is used:
+</p>
+<div class="mathsFormulas" id="formulaOne">
+    $$ Tm = (n(A) + n(T)) \cdot 2 + (n(G) + n(C)) \cdot 4 $$
+</div>
+<p class="mathsDescription">
+    For primers with a length superiour to 13 nt the following is used:
+</p>
+<div class="mathsFormulas" id="formulaTwo">
+    $$ Tm = 64.9 + 41 \cdot \frac{(n(G) + n(C) - 16.4)}{(n(A) + n(T) + n(G) + n(C))} $$
+</div>
+<p class="mathsDescription">
+    Both these formulas assume the following: 50 nM primer, 50 mM Na+, and pH 7.0. n(x) designates the number of
+    whichever base.
+</p>
+<h2>The logic</h2>
+<p>
+    So this programme is rather complex, it must do a number of things from checking the string inputs to actually calculating the melting temperatures.
+</p>
+<p>
+    Here is a simple break down of what happens:
+</p>
+<ol>
+    <li>
+        Listen for a button click.
+    </li>
+    <li>
+        Get inputs.
+    </li>
+    <li>
+        If the DNA sequence is empty, and the compositon array is empty, then ask to enter a sequence.
+    </li>
+    <li>
+        If the DNA sequence is not empty and the DNA composition is also not empty, then ask to only enter one data type.
+    </li>
+    <li>
+        If the DNA sequence is not empty and the DNA array is empty and there is an un-authorised character, then reject the string and ask to remove the characters.
+    </li>
+    <li>
+        If the DNA sequence is entered and the array is not and there is no match for an un-authorised character then proceed to the execution of the formula:
+        <ul>
+            <li>
+                If the DNA sequence length is under 13 characters then use <a aria-describedby="foot-label" href="#formulaOne">formula one</a>.
+            </li>
+            <li>
+                If the DNA sequence length is over 14 characters then use <a aria-describedby="foot-label" href="#formulaTwo">formula two</a>.
+            </li>
+        </ul>
+    </li>
+    <li>
+        If the DNA sequence is not entered and an array is entered then execute the following formulas:
+        <ul>
+            <li>
+                If the DNA sequence length is under 13 characters then use <a aria-describedby="foot-label" href="#formulaOne">formula one</a>.
+            </li>
+            <li>
+                If the DNA sequence length is over 14 characters then use <a aria-describedby="foot-label" href="#formulaTwo">formula two</a>.
+            </li>
+        </ul>
+    </li>
+</ol>
+<p>
+    That is the whole logic behind the programme, the application and use of the regular expressions was the most difficult part for me to honest. Although getting through all those if statements did start to become annoying.
+</p>
+<h2>The HTML</h2>
+<p>
+    This is the HTML that was used for the application. Quite simple and a clean interface. Here is a live example:
+</p>
+<div class="data-input">Input DNA Sequence here:</div>
+<textarea type="text" class="dna-seq" title="Paste a DNA sequence to calculate melting temperature."></textarea>
+
+<div class="data-input">Input DNA composition (Format: A, T, C, G):  <input class="dna-nums"></input></div>
+
+<button class="calc-button float-right" type="button">Calculate melting temp</button>
+<br>
+<div class="data-input">
+    Melting temperature of given DNA Sequence outputs here: <span class="calc-result tm-result"></span>
+</div>
+<div class="data-input">
+    The GC composition of the sequence is: <span class="calc-result gc-result"></span>
+</div>
+<pre class="brush: xml">
+    <div class="data-input">Input DNA Sequence here:</div>
+    <textarea type="text" class="dna-seq" title="Paste a DNA sequence to calculate melting temperature."></textarea>
+
+    <div class="data-input">Input DNA composition (Format: A, T, C, G):  <input class="dna-nums"></input></div>
+
+    <button class="calc-button float-right" type="button">Calculate melting temp</button>
+    <br>
+    <div class="data-input">
+        Melting temperature of given DNA Sequence outputs here: <span class="calc-result tm-result"></span>
+    </div>
+    <div class="data-input">
+        The GC composition of the sequence is: <span class="calc-result gc-result"></span>
+    </div>
+</pre>
+<div class="note">
+    The script tag for the JavaScript and the CSS file is in the footer.
+</div>
+<h2>The JavaScript</h2>
+<p>
+    These formulas are used to calculate the melting temperature of DNA sequences. This code uses regular expressions to filter strings, it will reject any un-authorised characters; those other than A, T, C, and G.
+</p>
+<p>
+    This is the expression and the part of the code which takes care of this part:
+</p>
+<pre class="brush: javascript">
+    const execute = document.querySelector(".calc-button");
+
+    execute.addEventListener("click", function () {
+        let dnaSeq = document.querySelector(".dna-seq").value.replace(/\s/g, "").toUpperCase();
+        let dnaNums = document.querySelector(".dna-nums").value;
+        dnaNums = dnaNums.split(", ");
+        let a, t, c, g;
+
+        // Check if DNA sequence is only composed of A, T, G, C
+        let regex = /[^ATCG]/;
+        let match = regex.test(dnaSeq)
+
+        if (!dnaSeq) {
+            dnaSeq = null;
+        }
+
+        if(dnaNums.length !== 4) {
+            dnaNums = null;
+        }
+
+        if (dnaSeq === null && dnaNums === null) {
+            return alert("Please enter a sequence or DNA composition.");
+        } else if (dnaSeq !== null && dnaNums !== null) {
+            return alert("Please enter either a DNA sequence, or a DNA composition array, not both.")
+        } else if (dnaSeq !== null && dnaNums === null && match) {
+            return alert("Please enter a DNA sequence or remove unaccepted characters; all other characters but A, T, C, G, are unacceptable.")
+        } else if (dnaSeq !== null && dnaNums === null && !match) {
+            a = (dnaSeq.match(/A/g) || []).length;
+            t = (dnaSeq.match(/T/g) || []).length;
+            c = (dnaSeq.match(/C/g) || []).length;
+            g = (dnaSeq.match(/G/g) || []).length;
+
+            document.querySelector(".gc-result").innerHTML = ((g + c)/(a + t + c + g) * 100).toFixed(2) + "%";
+
+            if (dnaSeq.length <= 13) {
+                document.querySelector(".tm-result").innerHTML = ((a + t) * 2 + (g + c) * 4).toFixed(2);
+            } else if (dnaSeq.length >= 14) {
+                document.querySelector(".tm-result").innerHTML = (64.9 + 41 * (g + c - 16.4)/(a + t + g + c)).toFixed(2);
+            }
+        } else if (dnaSeq === null && dnaNums !== null) {
+            a = parseInt(dnaNums[0]);
+            t = parseInt(dnaNums[1]);
+            c = parseInt(dnaNums[2]);
+            g = parseInt(dnaNums[3]);
+
+            let dnaSum = a + t + c + g;
+
+            document.querySelector(".gc-result").innerHTML = ((g + c)/(dnaSum) * 100).toFixed(2) + "%";
+
+            if (dnaSum <= 13) {
+                document.querySelector(".tm-result").innerHTML = ((a + t) * 2 + (g + c) * 4).toFixed(2);
+            } else if (dnaSum >= 14) {
+                document.querySelector(".tm-result").innerHTML = (64.9 + 41 * (g + c - 16.4)/(a + t + g + c)).toFixed(2);
+            }
+        }
+    })
+</pre>
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <li id="dnaFormatting">
+        <a href="/tools/displayEntry.php?entry=dnaMeltTemp" target="_blank">Tools: DNA melting temperature</a>.
+    </li>
+</ol>
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>
+<script type="text/javascript" src="/tools/entries/dnaMeltTemp/js/dnaMeltTemp.js"></script>
+<link rel="stylesheet" href="/tools/entries/dnaMeltTemp/css/dnaMeltTemp.css">

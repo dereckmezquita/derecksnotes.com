@@ -1,0 +1,54 @@
+<title>Programming securely</title>
+<h1>Programming securely</h1>
+<p>
+    Here are some very basic tips on programming safetly, especially when using server side languages such as PHP or when taking client inputs.
+</p>
+<br>
+<ol>
+    <li>
+        Make different accounts for every different database action, with priviliges limited to what is needed.
+    </li>
+    <li>
+        Encrypt connections to database, eg. SSL.
+    </li>
+    <li>
+        Careful when using prepared statements, eg. PDO, MySQLi.
+    </li>
+    <li>
+        Close SQL connection when done!
+    </li>
+    <li>
+        Password hashing/salting, duh.
+    </li>
+    <li>
+        XSS prevention filters. (HTML Purifier as of 10/13/2017).
+    </li>
+    <li>
+        "expose_php = Off" and "display_errors = Off" (To prevent probing) in php.ini, "ServerTokens Prod"
+        "ServerSignature Off" and "DefaultType application/x-httpd-php" in httpd.conf.
+    </li>
+    <li>
+        NEVER use direct user input as file/folder names.
+    </li>
+    <li>
+        PHP/Apache permissions on the system.
+    </li>
+    <li>
+        Use UTF-8 charset.
+    </li>
+    <li>
+        No user input on shell_exec, exec, passthru, system.
+    </li>
+</ol>
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <li>
+        <a href="https://www.owasp.org/index.php/PHP_Security_Cheat_Sheet" target="_blank">PHP security cheat sheet [owasp.org]</a>
+    </li>
+    <li>
+        <a href="http://php.net/manual/en/security.php" target="_blank">PHP security [php.net]</a>
+    </li>
+</ol>

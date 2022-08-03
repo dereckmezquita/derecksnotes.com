@@ -1,0 +1,101 @@
+<title>JavaScript DNA Formatter</title>
+<h1>JavaScript DNA Formatter</h1>
+<p>
+    Some simple tool to make dealing with large DNA sequences easier. JavaScript allows to manipulate the string of DNA,
+    convert to upper or lowercase, add spacing etc. I will probably add more features later on, not sure what else I
+    could add that might be useful for dealing with DNA sequences.
+</p>
+<p>
+    For the full working example please refer to the <a aria-describedby="foot-label" href="#dnaFormatting">Tools: DNA
+        formatting tools</a> section of this site.
+</p>
+
+<h2>HTML</h2>
+<p>
+    Here is a live example:
+</p>
+<div class="data-input">Input DNA Sequence here:</div>
+<textarea type="text" class="spacer-input" title="Paste a DNA sequence to space."></textarea>
+<label class="spacer-uppercase-label">
+    Convert to uppercase:
+    <input type="checkbox" class="spacer-uppercase" checked="checked">
+</label>
+<label class="spacer-uppercase-label">
+    Add a space every n:
+    <input type="number" class="spacer-number" value="3">
+</label>
+<button class="spacer-button float-right" type="button">Space DNA sequences</button>
+
+<div class="data-input">Formatted DNA Sequence outputs here:</div>
+<textarea type="text" class="spacer-output" title="Formatted sequence will appear here."></textarea>
+
+<pre class="brush: xml">
+    <title>DNA formatting tools</title>
+    <h1>DNA formatting tools</h1>
+
+    <div class="data-input">Input DNA Sequence here:</div>
+    <textarea type="text" class="spacer-input" title="Paste a DNA sequence to space."></textarea>
+    <label class="spacer-uppercase-label">
+        Convert to uppercase:
+        <input type="checkbox" class="spacer-uppercase" checked="checked">
+    </label>
+    <label class="spacer-uppercase-label">
+        Add a space every n:
+        <input type="number" class="spacer-number" value="3">
+    </label>
+    <button class="spacer-button float-right" type="button">Space DNA sequences</button>
+
+    <div class="data-input">Formatted DNA Sequence outputs here:</div>
+    <textarea type="text" class="spacer-output" title="Formatted sequence will appear here."></textarea>
+</pre>
+<div class="note">
+    The script tag for the JavaScript and the CSS file is in the footer.
+</div>
+
+<h2>JavaScript</h2>
+<p>
+    Here is the logic behind the formatter, very simple to use, and can be easily modified to serve other purposes.
+</p>
+
+<pre class="brush: javascript">
+    let spacerButton = document.querySelector(".spacer-button");
+
+    spacerButton.addEventListener("click", function() {
+        let dnaInput = document.querySelector(".spacer-input").value;
+        let uppercaseInput = document.querySelector(".spacer-uppercase").checked;
+        let spacerNumber = parseInt(document.querySelector(".spacer-number").value);
+    
+        function spaceStr(str, n) {
+            let input = [], start = 0;
+            while (start < str.length) {
+                input.push(str.slice(start, start + n));
+                start += n;
+            }
+            let output = input.join(" ");
+            
+            if(uppercaseInput !== true) {
+                document.querySelector(".spacer-output").value = output;
+            } else {
+                document.querySelector(".spacer-output").value = output.toUpperCase();
+            }
+        }
+        spaceStr(dnaInput, spacerNumber); 
+    });
+</pre>
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <li id="dnaFormatting">
+        <a href="/tools/displayEntry.php?entry=dnaFormatter" target="_blank">Tools: DNA formatting tools</a>.
+    </li>
+</ol>
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>
+
+<link rel="stylesheet" href="/tools/entries/dnaFormatter/css/dnaFormatter.css">
+
+<script type="text/javascript" src="/tools/entries/dnaFormatter/js/dnaFormatter.js"></script>

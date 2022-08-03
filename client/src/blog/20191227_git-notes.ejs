@@ -1,0 +1,371 @@
+<title>Git & GitHub: some notes</title>
+<h1>Git & GitHub: some notes</h1>
+<p>
+    Notes on using Git and GitHub, mostly in the context of GitHub for version management. Useful as a quick reference.
+    Note that all commands are preceeded by git, which we use in Visual Studio Code's terminal directly. The tables of commands were sourced from <a aria-describedby="foot-label" href="#git-commands">git-commands</a>.
+</p>
+
+<h2>Installing and configuring git</h2>
+<p>
+    Use <code>git version</code> in the Mac terminal, it should already be installed. We're just going to configure it now.
+</p>
+<p>
+    Let's give it our name and e-mail address:
+</p>
+<ul>
+    <li>
+        <code>git config --global user.name "name"</code>
+    </li>
+    <li>
+        <code>git config --global user.email "email@email.com"</code>.
+    </li>
+</ul>
+<p>
+    Now let's set the default editor we're using <a aria-describedby="foot-label" href="#vscode">Visual Studio Code</a>:
+</p>
+<ul>
+    <li>
+        <code>git config --global core.editor "code -w"</code>
+    </li>
+</ul>
+<p>
+    Test it by asking it to open it's own configuration file with the set editor:
+</p>
+<ul>
+    <li>
+        <code>git config --global -e</code>
+    </li>
+</ul>
+
+<p>
+    Git may repeatedly ask for username and password, to avoid this annoyance try the following commands.
+</p>
+<p>
+    Have it store the information and it will never ask again:
+</p>
+<ul>
+    <li>
+        <code>git config --global credential.helper store</code>
+    </li>
+    <li>
+        <code>git config --global credential.https://github.com.username <your_username></your_username></code>
+    </li>
+</ul>
+<p>
+    Have it cache the information for a session:
+</p>
+<ul>
+    <li>
+        <code>git config --global credential.helper cache</code>
+    </li>
+</ul>
+<p>
+    Set a cache timeout:
+</p>
+<ul>
+    <li>
+        <code>git config --global credential.helper 'cache --timeout=1000'</code>
+    </li>
+</ul>
+
+<div class="warning">
+    These instructions are for MacOS.
+</div>
+
+<h2>Git states</h2>
+<p>
+    There are three main stages or states to git, these can be thought of as physically separate areas. We move from the
+    first to the last, where the code is introduced and added to the git repository.
+</p>
+<div>
+    <div id="illustration-flow">
+        <div class="illustration-flow-text illustration-colour-one">
+            Working directory
+        </div>
+        <div class="illustration-flow-text illustration-arrow">
+            &rarr;
+        </div>
+        <div class="illustration-flow-text illustration-colour-two">
+            Staging area
+        </div>
+        <div class="illustration-flow-text illustration-arrow">
+            &rarr;
+        </div>
+        <div class="illustration-flow-text illustration-colour-three">
+            Repository (.git directory)
+        </div>
+        <div class="illustration-flow-text illustration-arrow">
+            &rarr;
+        </div>
+        <div class="illustration-flow-text illustration-colour-four">
+            Remote server (.git directory)
+        </div>
+    </div>
+    <figcaption>Movement of files and directories in git.</figcaption>
+</div>
+<p>
+    The working directory contains all the files and folders for the project which may or may not be managed by git; git
+    is aware of the files though. Then the staging area is used to prepare for the next commit, they are moved from the
+    working directory when modified and then commited to the repository. The repository of commit history (.git
+    directory), this contains all of the commited or saved changed to the repository, this is the history of the
+    project.
+</p>
+<p>
+    The fourth state or remote state, this state has the exact same three states as the local one, however we'll show it
+    as a single state; a fourth one. This is GitHub, a remote git repository.
+</p>
+
+<h2>Basic commands</h2>
+
+<h3>Cloning and or creating a repo</h3>
+<table class="table-text-align-left">
+    <thead>
+        <tr>
+            <th>Command</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>git init</code></td>
+            <td>Initialise a local Git repository.</td>
+        </tr>
+        <tr>
+            <td><code>git clone https://github.com/[username]/[repository-name].git</code></td>
+            <td>Create a local copy of a remote repository.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Snapshotting</h3>
+<table class="table-text-align-left">
+    <thead>
+        <tr>
+            <th>Command</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>git status</code></td>
+            <td>Check status.</td>
+        </tr>
+        <tr>
+            <td><code>git add [file-name.ext]</code></td>
+            <td>Add a file to the staging area.</td>
+        </tr>
+        <tr>
+            <td><code>git add .</code></td>
+            <td>Adds all modified files to the staging area.</td>
+        </tr>
+        <tr>
+            <td><code>git add -A</code></td>
+            <td>Add all new and changed files to the staging area.</td>
+        </tr>
+        <tr>
+            <td><code>git commit -m "[commit message]"</code></td>
+            <td>Commit changes. If the message option is not used the configured default editor is used.</td>
+        </tr>
+        <tr>
+            <td><code>git rm -r [file-name.ext]</code></td>
+            <td>Remove a file (or directory).</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Branching and merging</h3>
+<table class="table-text-align-left">
+    <thead>
+        <tr>
+            <th>Command</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>git branch</code></td>
+            <td>Lists all branches in a project.</td>
+        </tr>
+        <tr>
+            <td><code>git branch -a</code></td>
+            <td>Lists all branches (local and remote).</td>
+        </tr>
+        <tr>
+            <td><code>git branch [branch name]</code></td>
+            <td>Create a new branch.</td>
+        </tr>
+        <tr>
+            <td><code>git branch -d [branch name]</code></td>
+            <td>Delete a branch.</td>
+        </tr>
+        <tr>
+            <td><code>git push origin --delete [branch name]</code></td>
+            <td>Delete a remote branch.</td>
+        </tr>
+        <tr>
+            <td><code>git checkout -b [branch name]</code></td>
+            <td>Create a new branch and switch to it.</td>
+        </tr>
+        <tr>
+            <td><code>git checkout -b [branch name] origin/[branch name]</code></td>
+            <td>Clone a remote branch and switch to it.</td>
+        </tr>
+        <tr>
+            <td><code>git branch -m [old branch name] [new branch name]</code></td>
+            <td>Rename a local branch.</td>
+        </tr>
+        <tr>
+            <td><code>git checkout [branch name]</code></td>
+            <td>Switch to a branch.</td>
+        </tr>
+        <tr>
+            <td><code>git checkout -</code></td>
+            <td>Switch to most recent branch checked out.</td>
+        </tr>
+        <tr>
+            <td><code>git checkout -- [file-name.ext]</code></td>
+            <td>Discards changes to a file.</td>
+        </tr>
+        <tr>
+            <td><code>git merge [branch name]</code></td>
+            <td>Merge a branch into the active branch. Note: if wanting to merge into master, be in master when
+                executing this command.</td>
+        </tr>
+        <tr>
+            <td><code>git merge [source branch] [target branch]</code></td>
+            <td>Merge a branch into a target branch.</td>
+        </tr>
+        <tr>
+            <td><code>git stash</code></td>
+            <td>Stash changes in a dirty working directory.</td>
+        </tr>
+        <tr>
+            <td><code>git stash clear</code></td>
+            <td>Remove all stashed entries.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Sharing or updating projects</h3>
+<table class="table-text-align-left">
+    <thead>
+        <tr>
+            <th>Command</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>git push origin [branch name]</code></td>
+            <td>Push a branch to your remote repository.</td>
+        </tr>
+        <tr>
+            <td><code>git push -u origin [branch name]</code></td>
+            <td>Push changes to remote repository (and remember the branch).</td>
+        </tr>
+        <tr>
+            <td><code>git push</code></td>
+            <td>Push changes to remote repository (remembered branch).</td>
+        </tr>
+        <tr>
+            <td><code>git push origin --delete [branch name]</code></td>
+            <td>Delete a remote branch.</td>
+        </tr>
+        <tr>
+            <td><code>git pull</code></td>
+            <td>Update local repository to the newest commit.</td>
+        </tr>
+        <tr>
+            <td><code>git pull origin [branch name]</code></td>
+            <td>Pull changes from remote repository.</td>
+        </tr>
+        <tr>
+            <td><code>git remote add origin ssh://git@github.com/[username]/[repository-name].git</code></td>
+            <td>Add a remote repository.</td>
+        </tr>
+        <tr>
+            <td><code>git remote set-url origin ssh://git@github.com/[username]/[repository-name].git</code></td>
+            <td>Set a repository's origin branch to SSH.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Inspecting and comparing</h3>
+<table class="table-text-align-left">
+    <thead>
+        <tr>
+            <th>Command</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>git log</code></td>
+            <td>View changes.</td>
+        </tr>
+        <tr>
+            <td><code>git log --summary</code></td>
+            <td>View changes (detailed).</td>
+        </tr>
+        <tr>
+            <td><code>git log --oneline</code></td>
+            <td>View changes (briefly).</td>
+        </tr>
+        <tr>
+            <td><code>git diff [source branch] [target branch]</code></td>
+            <td>Preview changes before merging. I prefer using VSCode extension GitLens for this.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h3>Advanced commands</h3>
+<table class="table-text-align-left">
+    <thead>
+        <tr>
+            <th>Command</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>git config --global alias.[command-name] "[command chain]"</code></td>
+            <td>Try this on the subsequent for viewing history command, call it hist. Verify with <code>git config --global --list</code>.</td>
+        </tr>
+        <tr>
+            <td><code>git log --oneline --graph --decorate --all</code></td>
+            <td><code>--oneline</code> provides a simplified commit entry (gives more information on a single line), <code>--graph</code> shows us an asterick based graph denoting the branching hierarchy, <code>--decorate</code> shows which commits are a part of which brances, <code>--all</code> gives us all branches in repo.</td>
+        </tr>
+        <tr>
+            <td><code>git mv [file-name.ext]</code></td>
+            <td>Stages moving a file to a new name, this renames the file. Benefit of git tracking the move. Commit to complete.</td>
+        </tr>
+        <tr>
+            <td><code>git rm [file-name.txt]</code></td>
+            <td>Stages removing a file or deletes it. Benefit of git tracking the deletion. Commit to complete.</td>
+        </tr>
+        <tr>
+            <td><code>git add -u</code></td>
+            <td>Use whenever a file is modified outside of the git CLI; u is for update. This updates the file changes and stages them. Commit to complete.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Excluding files</h2>
+<p>
+    Here let's imagine we have a log file that will not be included in the final project. We'll use the <code>.gitingore</code> file for this.
+</p>
+<p>
+    The syntax for this file is one pattern or expression per line. For excluding .log, we'll do <code>*.log</code>. Now we must track the <code>.gitignore</code> in the repository; <code>git add .gitignore</code>, <code>git commit -m "Add ignore file"</code>.
+</p>
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <li id="git-commands">
+        <a target="_blank" href="https://github.com/joshnh/Git-Commands">git-commands</a>
+    </li>
+    <li id="vscode">
+        <a target="_blank" href="https://code.visualstudio.com">Visual Studio Code</a>
+    </li>
+</ol>

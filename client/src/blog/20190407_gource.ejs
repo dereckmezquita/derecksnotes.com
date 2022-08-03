@@ -1,0 +1,136 @@
+<title>How to: Gource</title>
+<h1>How to: Gource</h1>
+<p>
+    Gource is a data visualisation tool made for displaying the development of github repositories. I made a <a aria-describedby="foot-label" href="#gourceRepository">gource</a> for visualising the development of <a href="www.digibyte.io" target="_blank">DigiByte blockchain</a> a while back. I've recently redone the video and posted it to my personal youTube channel. This version goes from 2014 to 2019, so it includes all recent developments.
+</p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/zelRuSP_RY8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+<p>
+    In the video you get to see how DigiByte was been developed, the github repository was used to produce this video through "gource". Each avatar represents a developer or programmer. The "lasers" are updates made to the files which are represented by bubbles.
+</p>
+<p>
+    As for how to create such content, just follow the instructions detailed below:
+</p>
+
+<h2>How to make gource</h2>
+<p>
+    For a video guide just watch the video below where I've created gource for Vertcoin. If you need a text walkthrough check out the code below.
+</p>
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/bdsODjVhJP8" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+<p>
+    In this case we'll be using a mac. Open the terminal, then start by changing to a desired directory, cloning the github repository and then installing the needed modules. Note the mac terminal uses Bash for it's language.
+</p>
+<figure>
+    <img src="/blog/entries/documents/gource/githubClone.png">
+    <figcaption>Here is where you'll find the github link you need to copy.</figcaption>
+</figure>
+<p>
+    Here are the commands separately shown below:
+</p>
+<pre class="brush: bash">
+    echo a `#The pwd command shows what directory you're in` \
+    echo b `#The cd changes directory` \
+        pwd
+        cd /Users/Dereck/Coding/crypto
+    git clone https://github.com/digibyte/digibyte.git
+
+    gource --title "DigiByte Global Blockchain || 2014 - 2019" --font-size 35 --start-date "2014-01-01" --logo DigiByteLogo.png --follow-user "Jared Tate" --follow-user "digibyte" --follow-user "ChillingSilence" --user-image-dir /Users/Dereck/coding/crypto/digibyteGourceTwo --hide dirnames,filenames --seconds-per-day 0.005 --auto-skip-seconds 1 -1920x1080 -o - | ffmpeg -y -r 60 -f image2pipe -vcodec ppm -i - -vcodec libx264 -preset ultrafast -pix_fmt yuv420p -crf 1 -threads 0 -bf 0 gource.mp4
+
+    echo c `#Heres a preset I later used for the production of bitcoin gource` \
+        gource --title "Bitcoin" --font-size 35 --start-date "2005-01-01" --logo bitcoinLogo.png --follow-user "Satoshi Nakamoto" --follow-user "s_nakamoto" --follow-user "--author=Satoshi Nakamoto" --user-image-dir /Users/Dereck/coding/crypto/bitcoin/bitcoin --hide dirnames,filenames --seconds-per-day 0.075 --auto-skip-seconds 1 -1920x1080 -o - | ffmpeg -y -r 60 -f image2pipe -vcodec ppm -i - -vcodec libx264 -preset ultrafast -pix_fmt yuv420p -crf 1 -threads 0 -bf 0 gource.mp4
+
+    echo d `#Heres a preset I later used for the production of monero gource` \
+        gource --title "Monero" --font-size 40 --start-date "2005-01-01" --logo moneroLogo.png --follow-user "fluffypony" --user-image-dir /Users/Dereck/coding/crypto/monero/monero --hide dirnames,filenames --seconds-per-day 0.1 --auto-skip-seconds 1 -1920x1080 -o - | ffmpeg -y -r 60 -f image2pipe -vcodec ppm -i - -vcodec libx264 -preset ultrafast -pix_fmt yuv420p -crf 1 -threads 0 -bf 0 gource.mp4
+
+    echo e `#Heres a preset I used for vertcoin` \
+        gource --title "Vertcoin || 2014 - 2019" --font-size 40 --start-date "2014-01-01" --logo vertcoinLogo.png --follow-user "James Lovejoy" --user-image-dir /Users/Dereck/coding/crypto/vertcoin/vertcoin-core --hide dirnames,filenames --seconds-per-day 0.15 --auto-skip-seconds 1 -1920x1080 -o - | ffmpeg -y -r 60 -f image2pipe -vcodec ppm -i - -vcodec libx264 -preset ultrafast -pix_fmt yuv420p -crf 1 -threads 0 -bf 0 gource.mp4
+</pre>
+
+<figure>
+    <img src="/blog/entries/documents/gource/James Lovejoy.png">
+    <figcaption>Note that the name of the image is exactly the same as the user we target.</figcaption>
+</figure>
+<p>
+    If you read my paramaters note that I've added images per users. They must have the same name as that displayed in the initial gource. I just ran <code>gource</code> in the terminal to check names if I had a doubt. Make sure to add those to the top level directory of the repository that was cloned. That is it, it really is pretty simple. The most important command being that gource command with those parameters. Modify as needed.
+</p>
+<h3>Full terminal interaction</h3>
+<p>
+    Here is my full interaction with the terminal (note that I had already installed brew, gource, and ffmpeg):
+</p>
+<pre class="brush: bash">
+    MacBook-Pro-de-Dereck:~ Dereck$ pwd
+    /Users/Dereck
+    MacBook-Pro-de-Dereck:~ Dereck$ cd /Users/Dereck/Coding/crypto
+    MacBook-Pro-de-Dereck:crypto Dereck$ git clone https://github.com/digibyte/digibyte.git
+    Cloning into 'digibyte'...
+    remote: Enumerating objects: 33, done.
+    remote: Counting objects: 100% (33/33), done.
+    remote: Compressing objects: 100% (26/26), done.
+    remote: Total 124526 (delta 14), reused 17 (delta 7), pack-reused 124493
+    Receiving objects: 100% (124526/124526), 122.84 MiB | 10.91 MiB/s, done.
+    Resolving deltas: 100% (96574/96574), done.
+    MacBook-Pro-de-Dereck:crypto Dereck$ cd digibyte
+    MacBook-Pro-de-Dereck:digibyte Dereck$ pwd
+    /Users/Dereck/Coding/crypto/digibyte
+    MacBook-Pro-de-Dereck:digibyte Dereck$ gource --title "DigiByte Global Blockchain || 2014 - 2019" --font-size 35 --start-date "2014-01-01" --logo DigiByteLogo.png --follow-user "Jared Tate" --follow-user "digibyte" --follow-user "ChillingSilence" --user-image-dir /Users/Dereck/coding/crypto/digibyteGourceTwo --hide dirnames,filenames --seconds-per-day 0.005 --auto-skip-seconds 1 -1080x720 -o - | ffmpeg -y -r 60 -f image2pipe -vcodec ppm -i - -vcodec libx264 -preset ultrafast -pix_fmt yuv420p -crf 1 -threads 0 -bf 0 gource.mp4
+    ffmpeg version 4.1.3 Copyright (c) 2000-2019 the FFmpeg developers
+    built with Apple LLVM version 10.0.1 (clang-1001.0.46.3)
+    configuration: --prefix=/usr/local/Cellar/ffmpeg/4.1.3 --enable-shared --enable-pthreads --enable-version3 --enable-hardcoded-tables --enable-avresample --cc=clang --host-cflags='-I/Library/Java/JavaVirtualMachines/openjdk-12.jdk/Contents/Home/include -I/Library/Java/JavaVirtualMachines/openjdk-12.jdk/Contents/Home/include/darwin' --host-ldflags= --enable-ffplay --enable-gnutls --enable-gpl --enable-libaom --enable-libbluray --enable-libmp3lame --enable-libopus --enable-librubberband --enable-libsnappy --enable-libtesseract --enable-libtheora --enable-libvorbis --enable-libvpx --enable-libx264 --enable-libx265 --enable-libxvid --enable-lzma --enable-libfontconfig --enable-libfreetype --enable-frei0r --enable-libass --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-librtmp --enable-libspeex --enable-videotoolbox --disable-libjack --disable-indev=jack --enable-libaom --enable-libsoxr
+    libavutil      56. 22.100 / 56. 22.100
+    libavcodec     58. 35.100 / 58. 35.100
+    libavformat    58. 20.100 / 58. 20.100
+    libavdevice    58.  5.100 / 58.  5.100
+    libavfilter     7. 40.101 /  7. 40.101
+    libavresample   4.  0.  0 /  4.  0.  0
+    libswscale      5.  3.100 /  5.  3.100
+    libswresample   3.  3.100 /  3.  3.100
+    libpostproc    55.  3.100 / 55.  3.100
+    Input #0, image2pipe, from 'pipe:':
+    Duration: N/A, bitrate: N/A
+        Stream #0:0: Video: ppm, rgb24, 1080x720, 60 fps, 60 tbr, 60 tbn, 60 tbc
+    Stream mapping:
+    Stream #0:0 -> #0:0 (ppm (native) -> h264 (libx264))
+    [libx264 @ 0x7ff5af009400] using cpu capabilities: MMX2 SSE2Fast SSSE3 SSE4.2 AVX FMA3 BMI2 AVX2
+    [libx264 @ 0x7ff5af009400] profile Constrained Baseline, level 3.2
+    [libx264 @ 0x7ff5af009400] 264 - core 155 r2917 0a84d98 - H.264/MPEG-4 AVC codec - Copyleft 2003-2018 - http://www.videolan.org/x264.html - options: cabac=0 ref=1 deblock=0:0:0 analyse=0:0 me=dia subme=0 psy=1 psy_rd=1.00:0.00 mixed_ref=0 me_range=16 chroma_me=1 trellis=1 8x8dct=0 cqm=0 deadzone=21,11 fast_pskip=1 chroma_qp_offset=0 threads=12 lookahead_threads=2 sliced_threads=0 nr=0 decimate=1 interlaced=0 bluray_compat=0 constrained_intra=0 bframes=0 weightp=0 keyint=250 keyint_min=25 scenecut=0 intra_refresh=0 rc=crf mbtree=0 crf=1.0 qcomp=0.60 qpmin=0 qpmax=69 qpstep=4 ip_ratio=1.40 aq=0
+    Output #0, mp4, to 'gource.mp4':
+    Metadata:
+        encoder         : Lavf58.20.100
+        Stream #0:0: Video: h264 (libx264) (avc1 / 0x31637661), yuv420p, 1080x720, q=-1--1, 60 fps, 15360 tbn, 60 tbc
+        Metadata:
+        encoder         : Lavc58.35.100 libx264
+        Side data:
+        cpb: bitrate max/min/avg: 0/0/0 buffer size: 0 vbv_delay: -1
+    frame= 1597 fps= 54 q=-1.0 Lsize=  279920kB time=00:00:26.60 bitrate=86206.8kbits/s speed=0.901x    
+    video:279911kB audio:0kB subtitle:0kB other streams:0kB global headers:0kB muxing overhead: 0.003104%
+    [libx264 @ 0x7ff5af009400] frame I:7     Avg QP: 2.29  size:244678
+    [libx264 @ 0x7ff5af009400] frame P:1590  Avg QP: 4.34  size:179192
+    [libx264 @ 0x7ff5af009400] mb I  I16..4: 100.0%  0.0%  0.0%
+    [libx264 @ 0x7ff5af009400] mb P  I16..4:  7.7%  0.0%  0.0%  P16..4: 44.2%  0.0%  0.0%  0.0%  0.0%    skip:48.1%
+    [libx264 @ 0x7ff5af009400] coded y,uvDC,uvAC intra: 74.9% 49.0% 47.3% inter: 43.6% 36.4% 34.9%
+    [libx264 @ 0x7ff5af009400] i16 v,h,dc,p: 36% 13% 16% 35%
+    [libx264 @ 0x7ff5af009400] i8c dc,h,v,p: 66% 14%  9% 10%
+    [libx264 @ 0x7ff5af009400] kb/s:86150.16
+    MacBook-Pro-de-Dereck:digibyteGourceTwo Dereck$
+</pre>
+
+
+    <ol class="foot-notes">
+        <div class="foot-notes-head">
+            Footnotes:
+        </div>
+        <li id="gourceRepository">
+            <a href="https://gist.github.com/modulexcite/84e75c9019f78843fc952e46f09c86ec" target="_blank">Gource Repository</a>
+        </li>
+        <li id="digibyte">
+            <a href="https://github.com/digibyte/digibyte" target="_blank">DigiByte Github</a>
+        </li>
+    </ol>
+
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>

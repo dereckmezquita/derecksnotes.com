@@ -1,0 +1,242 @@
+<title>Raspberry Pi set up</title>
+<h1>Raspberry Pi set up</h1>
+
+<div class="warning">
+    Fair warning: if you are not comfortable with a command line, do not use this method for setting up your SD card for your raspberry pi (RPI). If you do so you, it is at your own risk. Know that this method if done incorrectly can harm your machine and data.
+</div>
+<p>
+    Simple way to set up a RPI card. Just format the card with disk utility first then you're good to go. Follow the basic commands shown below. Baisically we will unmount the disk, then move to the directory where our OS is located and run: <code>dd if=2019-09-26-raspbian-buster-lite.img of=/dev/disk3 bs=2m</code>; add sudo if it doesn't work.
+</p>
+<figure>
+    <img src="/blog/entries/documents/rpiSetup/diskutility.png">
+    <figcaption>Formating a disk with disk utility, do not use ExFat.</figcaption>
+</figure>
+
+<h2>Flashing the card</h2>
+<p>
+    Start by downloading and extracting the OS you want to install, I got mine here: <a aria-describedby="foot-label" href="#rpi">raspberrypi.org</a>. Then run the following commands. Careful with the <code>dd</code> command it can be dangerous. Use <code>tar</code> for extraction. First find the disk name corresponding to your disk: <code>diskutil list</code>, you should see your disk in the available dirves. Mine is disk3 here as shown below. Unmount the disk, then move to the location of the OS file. Use the <code>dd</code> command shown below, be sure of your spellings and selected disk. Type your password and then wait, it will hang there for a while, anywhere between 15 - 20 mins is possible.
+</p>
+
+<pre class="brush: bash">
+    Last login: Tue Oct 29 11:56:21 on ttys000
+    Dereck@MBP-de-Dereck ~ % diskutil list
+    /dev/disk0 (internal, physical):
+    #:                       TYPE NAME                    SIZE       IDENTIFIER
+    0:      GUID_partition_scheme                        *1.0 TB     disk0
+    1:                        EFI EFI                     209.7 MB   disk0s1
+    2:                 Apple_APFS Container disk1         1.0 TB     disk0s2
+
+    /dev/disk1 (synthesized):
+    #:                       TYPE NAME                    SIZE       IDENTIFIER
+    0:      APFS Container Scheme -                      +1.0 TB     disk1
+                                    Physical Store disk0s2
+    1:                APFS Volume Macintosh HD - Data     924.9 GB   disk1s1
+    2:                APFS Volume Preboot                 84.5 MB    disk1s2
+    3:                APFS Volume Recovery                528.9 MB   disk1s3
+    4:                APFS Volume VM                      6.4 GB     disk1s4
+    5:                APFS Volume Macintosh HD            10.9 GB    disk1s5
+
+    /dev/disk3 (external, physical):
+    #:                       TYPE NAME                    SIZE       IDENTIFIER
+    0:     FDisk_partition_scheme                        *62.9 GB    disk3
+    1:                 DOS_FAT_32 20191030                62.9 GB    disk3s1
+
+    Dereck@MBP-de-Dereck ~ % diskutil unmountdisk /dev/disk3 
+    Unmount of all volumes on disk3 was successful
+    Dereck@MBP-de-Dereck ~ % pwd
+    /Users/Dereck
+    Dereck@MBP-de-Dereck ~ % cd Coding/programmes/rpi-os/2019-09-26-raspbian-buster-lite.img 
+    cd: not a directory: Coding/programmes/rpi-os/2019-09-26-raspbian-buster-lite.img
+    Dereck@MBP-de-Dereck ~ % cd Coding/programmes/rpi-os/                          
+    Dereck@MBP-de-Dereck rpi-os % pwd
+    /Users/Dereck/Coding/programmes/rpi-os
+    Dereck@MBP-de-Dereck rpi-os % ls
+    Dereck@MBP-de-Dereck rpi-os % dd if=2019-09-26-raspbian-buster-lite.img of=/dev/disk3 bs=2m
+    dd: /dev/disk3: Permission denied
+    Dereck@MBP-de-Dereck rpi-os % sudo dd if=2019-09-26-raspbian-buster-lite.img of=/dev/disk3 bs=2m
+    Password:
+    1072+0 records in
+    1072+0 records out
+    2248146944 bytes transferred in 610.067508 secs (3685079 bytes/sec)
+    Dereck@MBP-de-Dereck rpi-os % 
+</pre>
+
+<p>
+    Once that is done, move on to the next steps. Here we got no errors, and our next step is setting up WiFi/SSH.
+</p>
+
+
+<h2>Setting up WiFi/SSH</h2>
+
+<p>
+    Create an empty file with the name "ssh" no extension. Then create the config file "wpa_supplicant.conf", with the ssid and password for the network. This way the RPI can connect to the wifi network directly. Paste the files into the root directory.
+</p>
+<pre class="brush: bash">
+    Dereck@MBP-de-Dereck / % cd Users/Dereck/Desktop
+    Dereck@MBP-de-Dereck Desktop % touch ssh
+    Dereck@MBP-de-Dereck Desktop % touch wpa_supplicant.conf
+    Dereck@MBP-de-Dereck Desktop % 
+</pre>
+<p>
+    Paste this into your wpa file:
+</p>
+<pre class="brush: js">
+    country=fr
+    update_config=1
+    ctrl_interface=/var/run/wpa_supplicant
+
+    network={
+        scan_ssid=1
+        ssid="NetworkName"
+        psk="password"
+    }
+</pre>
+<figure>
+    <img src="/blog/entries/documents/rpiSetup/rpiwifi.png">
+    <figcaption>RPI sd card root directory.</figcaption>
+</figure>
+
+<h3>Get the IP of the RPI</h3>
+<p>
+    Note that the default username and password for your system are respectivly: pi, raspberry. Be sure to change these. Lets SSH into our system with a shell script.
+</p>
+<p>
+    In theory our RPI system should be connected to our network. Since we are using a headless system our first job is to get the IP address for our system. By running the default command which should work, or using a tool called nmap to find the IP. Let's do both:
+</p>
+
+<pre class="brush: bash">
+    Dereck@MBP-de-Dereck Desktop % ping raspberrypi.local
+    PING raspberrypi.local (192.168.1.24): 56 data bytes
+    64 bytes from 192.168.1.24: icmp_seq=0 ttl=64 time=273.908 ms
+    64 bytes from 192.168.1.24: icmp_seq=1 ttl=64 time=3.405 ms
+    64 bytes from 192.168.1.24: icmp_seq=2 ttl=64 time=9.097 ms
+    64 bytes from 192.168.1.24: icmp_seq=3 ttl=64 time=8.833 ms
+    64 bytes from 192.168.1.24: icmp_seq=4 ttl=64 time=5.614 ms
+    64 bytes from 192.168.1.24: icmp_seq=5 ttl=64 time=4.506 ms
+    64 bytes from 192.168.1.24: icmp_seq=6 ttl=64 time=4.058 ms
+    64 bytes from 192.168.1.24: icmp_seq=7 ttl=64 time=11.849 ms
+    64 bytes from 192.168.1.24: icmp_seq=8 ttl=64 time=3.845 ms
+    64 bytes from 192.168.1.24: icmp_seq=9 ttl=64 time=6.551 ms
+    64 bytes from 192.168.1.24: icmp_seq=10 ttl=64 time=3.791 ms
+    64 bytes from 192.168.1.24: icmp_seq=11 ttl=64 time=77.208 ms
+    64 bytes from 192.168.1.24: icmp_seq=12 ttl=64 time=4.446 ms
+</pre>  
+<p>
+    So as we can see above the default works, and the associated IP address is: <code>192.168.1.24</code>. Let's try to see if we find the same thing with nmap.
+</p>
+<p>
+    Start by installing nmap with brew, as shown. Then get the IP of your computer. Next we will scan the whole subnet for other devices. If our IP address is 192.168.1.2, other devices will be at addresses like 192.168.1.3, 192.168.1.4, 192.168.1.5, etc. Notation for the subnet range is 192.168.1.0/24 (covers 192.168.1.0 - 192.168.1.255).
+</p>
+<pre class="brush: bash">
+    Dereck@MBP-de-Dereck Desktop % brew install nmap
+    ==> Installing dependencies for nmap: openssl@1.1
+    ==> Installing nmap dependency: openssl@1.1
+    ==> Downloading https://homebrew.bintray.com/bottles/openssl@1.1-1.1.1d.catalina.bottle.tar.gz
+    ==> Downloading from https://akamai.bintray.com/d7/d7f992ebfd78f80828051f6dc6a1a99aed405f86b0f39ea651fd0afeadd1b0f4?__gda__=exp=1572473809~hmac=b115b3daeb746fb5d77a3d49ba25eeb8
+    ######################################################################## 100.0%
+    ==> Pouring openssl@1.1-1.1.1d.catalina.bottle.tar.gz
+    ==> Caveats
+    A CA file has been bootstrapped using certificates from the system
+    keychain. To add additional certificates, place .pem files in
+    /usr/local/etc/openssl@1.1/certs
+    
+    and run
+    /usr/local/opt/openssl@1.1/bin/c_rehash
+    
+    openssl@1.1 is keg-only, which means it was not symlinked into /usr/local,
+    because openssl/libressl is provided by macOS so don't link an incompatible version.
+    
+    If you need to have openssl@1.1 first in your PATH run:
+    echo 'export PATH="/usr/local/opt/openssl@1.1/bin:$PATH"' >> ~/.zshrc
+    
+    For compilers to find openssl@1.1 you may need to set:
+    export LDFLAGS="-L/usr/local/opt/openssl@1.1/lib"
+    export CPPFLAGS="-I/usr/local/opt/openssl@1.1/include"
+    
+    ==> Summary
+    🍺  /usr/local/Cellar/openssl@1.1/1.1.1d: 7,983 files, 17.9MB
+    ==> Installing nmap
+    ==> Downloading https://homebrew.bintray.com/bottles/nmap-7.80_1.catalina.bottle.tar.gz
+    ==> Downloading from https://akamai.bintray.com/ad/ada1fae22e64234618a2df68d1ef43f4f0a186b80fb80ccce927c1679df9d66f?__gda__=exp=1572473828~hmac=28cadd029bca4dadf526efd8cb7ea3bb
+    ######################################################################## 100.0%
+    ==> Pouring nmap-7.80_1.catalina.bottle.tar.gz
+    🍺  /usr/local/Cellar/nmap/7.80_1: 821 files, 27.0MB
+    ==> Caveats
+    ==> openssl@1.1
+    A CA file has been bootstrapped using certificates from the system
+    keychain. To add additional certificates, place .pem files in
+    /usr/local/etc/openssl@1.1/certs
+    
+    and run
+    /usr/local/opt/openssl@1.1/bin/c_rehash
+    
+    openssl@1.1 is keg-only, which means it was not symlinked into /usr/local,
+    because openssl/libressl is provided by macOS so don't link an incompatible version.
+    
+    If you need to have openssl@1.1 first in your PATH run:
+    echo 'export PATH="/usr/local/opt/openssl@1.1/bin:$PATH"' >> ~/.zshrc
+    
+    For compilers to find openssl@1.1 you may need to set:
+    export LDFLAGS="-L/usr/local/opt/openssl@1.1/lib"
+    export CPPFLAGS="-I/usr/local/opt/openssl@1.1/include"
+
+    Dereck@MBP-de-Dereck Desktop % nmap -sn 192.168.1.0/24
+    Starting Nmap 7.80 ( https://nmap.org ) at 2019-10-30 23:12 CET
+    Nmap scan report for box (192.168.1.1)
+    Host is up (0.0083s latency).
+    Nmap scan report for MBP-de-Dereck (192.168.1.2)
+    Host is up (0.00027s latency).
+    Nmap scan report for raspberrypi (192.168.1.24)
+    Host is up (0.013s latency).
+    Nmap scan report for WN3000RPv3 (192.168.1.34)
+    Host is up (0.026s latency).
+    Nmap done: 256 IP addresses (4 hosts up) scanned in 3.15 seconds
+    Dereck@MBP-de-Dereck Desktop % 
+</pre>
+<p>
+    Note the result, this nmap command tells us about any other machines on the network. There we can clearly see our RPI <code>192.168.1.24</code>, which confirms our previous find.
+</p>
+
+<h3>SSH into RPI</h3>
+<p>
+    Let's SSH into the RPI for the first time.
+</p>
+<pre class="brush: bash">
+    Dereck@MBP-de-Dereck Desktop % ssh pi@192.168.1.24      
+    pi@192.168.1.24's password: 
+    Permission denied, please try again.
+    pi@192.168.1.24's password: 
+    Permission denied, please try again.
+    pi@192.168.1.24's password: 
+    Linux raspberrypi 4.19.75-v7l+ #1270 SMP Tue Sep 24 18:51:41 BST 2019 armv7l
+    
+    The programs included with the Debian GNU/Linux system are free software;
+    the exact distribution terms for each program are described in the
+    individual files in /usr/share/doc/*/copyright.
+    
+    Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+    permitted by applicable law.
+    
+    SSH is enabled and the default password for the 'pi' user has not been changed.
+    This is a security risk - please login as the 'pi' user and type 'passwd' to set a new password.
+    
+    pi@raspberrypi:~ $ ^C
+    pi@raspberrypi:~ $ 
+</pre>
+
+<p>
+    Stupid mistake I was making, the password being asked for is not for the local machine, but for the RPI. So type either "pi", or "raspberry", the second worked for me. That's it, your in now you can have fun and do as you like!
+</p>
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <li id="rpi">
+        <a target="_blank" href="https://www.raspberrypi.org/downloads/raspbian/">raspberrypi.org</a>
+    </li>
+</ol>
+
+<script type="text/javascript">
+    SyntaxHighlighter.all()
+</script>

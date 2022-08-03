@@ -1,0 +1,208 @@
+<title>DigiShield, DGB & XVG!</title>
+<h1>DigiShield, DGB & XVG!</h1>
+
+<p>
+    Someone asked a question recently on what exactly happened to XVG - Verge and if this could be a problem for DGB - DigiByte - Here: <a href="https://www.reddit.com/r/Digibyte/comments/8ailfe/digibyte_vs_verge/">DigiByte vs Verge</a>. It was a great question and there have been people stating that this cannot be a problem for us because of DigiShield etc…with not much explanation after that.
+</p>
+<p>
+    I was curious and did a bit more investigating to figure out what happened and why exactly it is that we are safe. So take a read.
+</p>
+<figure>
+    <img src="/blog/entries/documents/digiShield/digibyteWater.png">
+</figure>
+
+<h2>Some Information on Verge</h2>
+<p>
+    Verge was founded in 2014 with code based on DogeCoin, it was initially named DogeCoinDark, it later was renamed Verge XVG in 2016. Verge has 5 mining algorithms as does DigiByte. Those being:
+</p>
+<ul>
+    <li>Scrypt</li>
+    <li>Lyra2Rev2</li>
+    <li>Myr-Groestl</li>
+    <li>Blake2</li>
+    <li>X17</li>
+</ul>
+<blockquote>
+    Prior to the latest fork there was not a single line of code that forced any algo rotation. They all run in parallel but of course in the end only one block can be accepted at given height which is obvious. After the fork algo rotation is forced so only 6 blocks with the same algo out of any 10 blocks can be accepted. - srgn_
+</blockquote>
+
+<h2>Mining Verge and The Exploit</h2>
+<p>
+    What happened then was not a 51% attack per say, but the attacker did end up mining 99% of all new blocks so in fact he did have power of over 51% of the chain. The way that Verge is mined allowed for a timestamp exploit. Algorithms are not picked but in fact as stated previously compete with one another. As for difficulty:
+</p>
+<blockquote>
+    Difficulty is calculated by a version of DGW which is based on timestamps of last 12 blocks mined by the same algo. - srgn_
+</blockquote>
+<p>
+    This kind of bug is very serious and at the foundation of Verge’s codebase. In fact, in order to fix it a fork is needed, either hard fork or soft fork!
+</p>
+<p>
+    What happened was that the hacker managed to change the time stamps on his blocks. He introduced a pair of false blocks. One which showed that the scrypt mining algorithm had been previously used, about 26 mins before, and then a second block which was mined with scrypt.
+</p>
+<blockquote>
+    Pairs of blocks are used to lower the difficulty but they need to be mined in certain order so they can pass the check of median timestamp of last 11 blocks which is performed in CBlock::AcceptBlock(). There is no tricking anything into thinking that the next algo should be x because there is no algo picking. They all just run and mine blocks constantly. There is only lowering the difficulty, passing the checks so the chain is valid and accepting this chain over chains mined by other algos. - segn_
+</blockquote>
+
+<h3>Here is a snippet of code for what the time stamps on the blocks would look like:</h3>
+<pre class="brush: js">
+    SetBestChain: new best=00000000049c2d3329a3  height=2009406  trust=2009407 date=04/04/18 13:50:09
+    ProcessBlock: ACCEPTED (scrypt)
+    SetBestChain: new best=000000000a307b54dfcf  height=2009407  trust=2009408  date=04/04/18 12:16:51
+    ProcessBlock: ACCEPTED (scrypt)
+    SetBestChain: new best=00000000196f03f5727e  height=2009408  trust=2009409  date=04/04/18 13:50:10
+    ProcessBlock: ACCEPTED (scrypt)
+    SetBestChain: new best=0000000010b42973b6ec  height=2009409  trust=2009410  date=04/04/18 12:16:52
+    ProcessBlock: ACCEPTED (scrypt)
+    SetBestChain: new best=000000000e0655294c73  height=2009410  trust=2009411  date=04/04/18 12:16:53
+    ProcessBlock: ACCEPTED (scrypt)
+</pre>
+
+<p>
+    Here’s the first falsified block that was introduced into the XVG chain - <a href="https://verge-blockchain.info/block/0000000000003ee2332ac70d69d9f6ba2e49ebca25c92435b3f53e53311becbb">Verge-Blockchain.info</a>
+</p>
+<p>
+    As you can see there is the first fake block with a time stamp of 13:50:09 for example and the next is set to 12:15:51, the following two blocks are also a fraudulent pair and note that the next block is set to 12:16:52. So essentially, he was able to mine whole blocks - 1 second per block!
+</p>
+<h2>The “Fix”</h2>
+<p>
+    This exploit was brought to public attention by ocminer on the bitcointalk forums. It seems the person was a mining pool administrator and noticed the problem after miners on the pool started to complain about a potential bug.
+</p>
+<p>
+    What happened next was that Verge developers pushed out a “fix” but in fact did not really fix the issue. What they did was simply diminish the time frame in which the blocks can be mined. The attack still was exploitable and the attacker even went on to try it again!
+</p>
+<blockquote>
+    “The background is that the "fix" promoted by the devs simply won't fix the problem. It will just make the timeframe smaller in which the blocks can be mined / spoofed and the attack will still work, just be a bit slower.” - <a href="https://bitcointalk.org/index.php?topic=3256693.0">ocminer</a>.
+</blockquote>
+
+<p>
+    Ocminer then cited DigiShield as a real fix to the issue! Stating that the fix should also stipulate that a single algo can only be used X amount of times and not be dependent on when the algo was last used. He even said that DigiByte and Myriad had the same problems and we fixed them! He cited this github repo for DigiByte: <a href="https://github.com/digibyte/digibyte/pull/15">DigiShield</a>
+</p>
+<h2>DigiShield</h2>
+<p>
+    It seems that the reason that this exploit was so lucrative was because the difficulty adjustment parameters were not enough to reduce the rewards the attacker recieved. Had the rewards per block adjusted at reasonable rate like we do in DGB then at least the rewards would have dropped significantly per block.
+</p>
+<p>
+    The attacker was able to make off with around <a href="https://www.anythingcrypto.com/guides/verge-network-hack-partnership-april-2018">60 million Verge</a> which equals about 3.6 million dollars per today’s prices.
+</p>
+<p>
+    The exploit used by the attacker depended on the fact that time stamps could be falsified firstly and secondly that the difficulty retargeting parameters were inadequate.
+</p>
+<p>
+    Let’s cover how DigiShield works more in detail. One of the DigiByte devs gave us this post about 4 years ago now, and the topic deserves revisiting and updates! I had a hard time finding good new resources and information on the details of DigiShield so I hope you’ll appreciate this review! This is everything I found for now that I could understand hopefully I get more information later and I’ll update this post.
+</p>
+<p>
+    Let’s go over some stuff on difficulty first then I’ll try giving you a way to visualise the way these systems work.
+</p>
+<p>
+    First you have to understand that mining difficulty changes over time; it has to! Look at Bitcoin’s difficulty for example - <a href="https://www.coinwarz.com/difficulty-charts/bitcoin-difficulty-chart">Bitcoin difficulty over the past five months</a> shown figure 1:
+</p>
+<figure>
+    <img src="/blog/entries/documents/digiShield/btcDifficulty.png">
+    <figcaption>Bitcoin difficulty adjustments 5 month period - coinwarz.</figcaption>
+</figure>
+<p>
+    As I covered in another post <a href="/blog/displayEntry.php?entry=20180306_introDigiByte">An Introduction to DigiByte</a>. Difficulty in Bitcoin is readjusted every 2016 blocks which each last about 10 mins each. This can play out over a span of 2 weeks, and that’s why you see Bitcoin’s difficulty graph as a step graph. In general, the hash power in the network increases over time as more people want to mine Bitcoin and thus the difficulty must also increase so that rewards are proportional.
+</p>
+<p>
+    The problem with non-dynamic difficulty adjustment is that it allows for pools of miners and or single entities to come into smaller coins and mine them continuously, they essentially get “free” or easily mined coins as the difficulty has not had time to adjust. This is not really a problem for Bitcoin or other large coins as they always have a lot of miners running on their chains but for smaller coins and a few years ago in crypto basically any coin other than Bitcoin was vulnerable. Once the miners had gotten their “free coins” they could then dump the chain and go mine something else - because the difficulty had adjusted. Often chains were left frozen or with very high fees and slow processing times as there was not enough hash power to mine the transactions.
+</p>
+<p>
+    This was a big problem in the beginning with DigiByte and almost even killed DogeCoin. This is where our brilliant developers came in and created DigiShield (first known as MultiShield).
+</p>
+<p>
+    These three articles are where most of my information came from for DigiShield I had to reread a the first one a few times to understand so please correct me if I make any mistakes! They are in order from most recent to oldest and also in order of relevance.
+</p>
+<ul>
+    <li>
+        <a href="https://github.com/zawy12/difficulty-algorithms/issues/7">Digishield v3 problems #7 - Published December 2017</a>
+    </li>
+    <li>
+        <a href="https://www.reddit.com/r/Digibyte/comments/213t7b/what_is_digishield_how_it_works_to_retarget/">What is DigiShield & How it Works to Retarget Difficulty - Published 2014</a>
+    </li>
+    <li>
+        <a href="https://bitcoin.stackexchange.com/questions/21730/how-does-the-kimoto-gravity-well-regulate-difficulty">How does the Kimoto Gravity Well regulate difficulty? - Published September 2011</a>
+    </li>
+</ul>
+<p>
+    DigiShield is a system whereby the difficulty for mining DigiByte is adjusted dynamically. Every single block each at 15 seconds has difficulty adjusted for the available hashing power. This means that difficulty in DigiByte is as close as we can get to real time! There are other methods for adjusting difficulty, the first being the Bitcoin/Litecoin method (a moving average calculated every X number of blocks) then the Kimoto Gravity Well is another. The reason that DigiShield is so great is because the parameters are just right for the difficulty to be able to rise and fall in proportion to the amount of hash power available.
+</p>
+<p>
+    Note that Verge used a difficulty adjustment protocol more similar to that of DigiByte than Bitcoin. Difficulty was adjusted every block at 30 seconds. So why was Verge vulnerable to this attack? As I stated before Verge had a bug that allowed for firstly the manipulation of time stamps, and secondly did not adjust difficulty ideally.
+</p>
+<p>
+    You have to try to imagine that difficulty adjustment chases hashing power. This is because the hashing power on a chain can be seen as the “input” and the difficulty adjustment as the corresponding output. The adjustment or output created is thus dependent on the amount of hashing power input.
+</p>
+<p>
+    DigiShield was designed so that increases in mining difficulty are slightly harder to result than decreases in mining difficulty. This asymmetrical approach allows for mining to be more stable on DigiByte than other coins who use a symmetrical approach. It is a very delicate balancing act which requires the right approach or else the system breaks! Either the chain may freeze if hash power increases and then dumps or mining rewards are too high because the difficulty is not set high enough!
+</p>
+<p>
+    If you’ve ever taken any physics courses maybe one way you can understand DigiShield is if I were to define it as a dynamic asymmetrical oscillation dampener. What does this mean? Let’s cover it in simple terms, it’s difficult to understand and for me it was easier to visualise. Imagine something like this, click on it it’s a video: <a href="https://youtu.be/5rH-g7LDHeI">Caravan Weight Distribution - made easy</a>. This is not a perfect analogy to what DigiShield does but I’ll explain my idea.
+</p>
+<p>
+    The input (hashing power) and the output (difficulty adjustment) both result in oscillations of the mining reward. These two variables are what controls mining rewards! So that caravan shaking violently back and forth imagine those are mining rewards, the weights are the parameters used for difficulty adjustment and the man’s hand pushing on the system is the hashing power. Mining rewards move back and forth (up and down) depending on the weight distribution (difficulty adjustment parameters) and the strength of the push (the amount of hashing power input to the system).
+</p>
+<p>
+    Here is a quote from the dev’s article.
+</p>
+<blockquote>
+    “The secret to DigiShield is an asymmetrical approach to difficulty re-targeting. With DigiShield, the difficulty is allowed to decrease in larger movements than it is allowed to increase from block to block. This keeps a blockchain from getting "stuck" i.e., not finding the next block for several hours following a major drop in the net hash of coin. It is all a balancing act. You need to allow the difficulty to increase enough between blocks to catch up to a sudden spike in net hash, but not enough to accidentally send the difficulty sky high when two miners get lucky and find blocks back to back.”
+</blockquote>
+<p>
+    AND to top it all off the solution to Verge’s time stamp manipulation bug is RIGHT HERE in DigiShield again! This was patched and in <a href="https://github.com/zawy12/difficulty-algorithms/issues/7">Digishield v3 problems #7</a>.
+</p>
+<p>
+    Here’s a direct quote:
+</p>
+<blockquote>
+    “Most DigiShield v3 implementations do not get data from the most recent blocks, but begin the averaging at the MTP, which is typically 6 blocks in the past. This is ostensibly done to prevent timestamp manipulation of the difficulty.”
+</blockquote>
+<p>
+    Moreover, DigiShield does not allow for one algorithm to mine more than 5 blocks in a row. If the next block comes in on the same algorithm then it would be blocked and would be handed off to the next algorithm.
+</p>
+<p>
+    DigiShield is a beautiful delicate yet robust system designed to prevent abuse and allow stability in mining! Many coins have adopted out technology!
+</p>
+<h2>Verge Needs DigiShield NOW!</h2>
+<p>
+    The attacker has been identified as IDCToken on the bitcointalk forums. He posted recently that there are two more exploits still available in Verge which would allow for similar attacks! He said this:
+</p>
+<blockquote>
+    “Can confirm it is still exploitable, will not abuse it futher myself but fix this problem immediately I'll give Verge some hours to solve this otherwise I'll make this public and another unpatchable problem.” - <a href="https://bitcointalk.org/index.php?topic=3256693.100">IDCToken</a>
+</blockquote>
+<p>
+    DigiShield could have stopped the time stamp manipulation exploit, and stopped the attacker from getting unjust rewards! Maybe a look at Verge’s difficulty chart might give a good idea of what 1 single person was able to do to a coin worth about 1 billion dollars.
+</p>
+<figure>
+    <img src="/blog/entries/documents/digiShield/xvgDifficulty.png">
+    <figcaption>Verge difficulty adjustments 5 month period - coinwarz.</figcaption>
+</figure>
+<p>
+    Here’s DigiByte’s difficulty steady, even and fair:
+</p>
+<figure>
+        <img src="/blog/entries/documents/digiShield/dgbDifficulty.png">
+        <figcaption>DigiByte difficulty adjustments 5 month period - coinwarz.</figcaption>
+    </figure>
+<p>
+    Maybe our developers could help Verge somehow - but for a fee? Or it might be a good way to get our name out there, and show people why DigiByte and DigiShield are so important!
+</p>
+
+<ol class="foot-notes">
+        <div class="foot-notes-head">
+            Footnotes:
+        </div>
+        <li><a href="https://github.com/zawy12/difficulty-algorithms/issues/7">github.com/zawy12/difficulty-algorithms/issues/7</a></li>
+        <li><a href="https://www.anythingcrypto.com/guides/verge-network-hack-partnership-april-2018">www.anythingcrypto.com/guides/verge-network-hack-partnership-april-2018</a></li>
+        <li><a href="https://mashable.com/2018/04/05/verge-crypto-hack/#B9GHRBC90iqg">mashable.com/2018/04/05/verge-crypto-hack/#B9GHRBC90iqg</a></li>
+        <li><a href="https://bitcointalk.org/index.php?topic=3256693.0">bitcointalk.org/index.php?topic=3256693.0</a></li>
+        <li><a href="https://github.com/digibyte/digibyte/pull/15">github.com/digibyte/digibyte/pull/15</a></li>
+        <li><a href="https://www.reddit.com/r/Digibyte/comments/213t7b/what_is_digishield_how_it_works_to_retarget/">reddit.com/r/Digibyte/comments/213t7b/what_is_digishield_how_it_works_to_retarget/</a></li>
+        <li><a href="https://verge-blockchain.info/block/0000000000003ee2332ac70d69d9f6ba2e49ebca25c92435b3f53e53311becbb">verge-blockchain.info/block/</a></li>
+        <p>
+            Oirignally posted on <a href="https://www.reddit.com/r/Digibyte/comments/8at3rw/why_verge_needs_digishield_now_and_why_digibyte/">reddit/r/digibyte</a>
+        </p>
+    </ol>
+
+<script type="text/javascript">
+        SyntaxHighlighter.all()
+</script>
