@@ -14,3 +14,36 @@
         width: 95%;
     }
 }
+
+// used for styling smaller headers that should go inside q&a courses
+.quizQuestions {
+    counter-reset: quizQuestions;
+}
+
+.questions {
+    font-family: $roboto;
+    font-weight: bold;
+    color: $blue;
+
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-justify: none;
+    text-align: left;
+
+    &:before {
+        content: counter(quizQuestions)'.';
+        counter-increment: quizQuestions;
+    }
+}
+
+.miniHeader {
+    font-family: $roboto;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: $theme4;
+    padding: 0px;
+    padding-top: 10px;
+    margin: 0px;
+    border-bottom: 2px $theme4 solid;
+    width: fit-content;
+}

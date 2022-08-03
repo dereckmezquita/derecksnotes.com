@@ -2,6 +2,7 @@
 @import "./modules/font"; // imported here and available for all following imports
 
 @import "./modules/background";
+@import "./modules/vars";
 
 @import "./colours/colours";
 @import "./colours/theme-green";
@@ -11,6 +12,11 @@
 
 @import "./modules/info-bar";
 @import "./modules/nav";
+
+@import "./modules/side-bar";
+@import "./modules/entries";
+
+@import "./modules/pictures";
 
 html {
     font-size: 1.1em;
@@ -28,6 +34,17 @@ html {
 
 body {
     margin: 0px;
-    word-break: break-all;
+
+    // break lines but don't break words
+    word-break: break-word;
+    -webkit-hyphens: none;
+    -moz-hyphens: none;
+    -ms-hyphens: none;
+    hyphens: none;
 }
 
+h1, h2, h3, h4, h5, h6, h7 {
+    font-family: Arial, Helvetica, sans-serif;
+    text-align: left;
+    text-justify: none;
+}
