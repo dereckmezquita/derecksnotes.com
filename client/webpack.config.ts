@@ -44,6 +44,7 @@ module.exports = {
     entry: {
         bundle: path.resolve(__dirname, 'src/ts/index.ts'),
         card_entries: path.resolve(__dirname, 'src/ts/card_entries.ts'),
+        set_entry_title: path.resolve(__dirname, 'src/ts/modules/set_entry_title.ts'),
         mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js'),
         styles: path.resolve(__dirname, 'src/scss/main.scss')
     },
