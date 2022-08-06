@@ -104,7 +104,11 @@ module.exports = {
     },
     watch: true,
     resolve: {
-        extensions: ['.ts', '.js']
+        extensions: ['.ts', '.js'],
+        fallback: {
+            crypto: require.resolve('crypto-browserify'),
+            stream: require.resolve("stream-browserify")
+        }
     },
     output: {
         filename: 'js/[contenthash].js',
@@ -119,7 +123,7 @@ module.exports = {
             patterns: [
                 { // https://stackoverflow.com/questions/45036810/webpack-copying-files-from-source-to-public-using-copywebpackplugin
                     context: './src/',
-                    from: "./**/*\.(png|svg|jpg|jpeg|gif|mov)",
+                    from: "./**/*\.(pdf|png|svg|jpg|jpeg|gif|mov)",
                     to: "./",
                     noErrorOnMissing: true
                 }
