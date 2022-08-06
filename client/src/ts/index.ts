@@ -8,6 +8,9 @@ import "./modules/flex_nav";
 // ------------------------
 import "./modules/clock";
 
+// ------------------------
+import "./modules/foot_notes";
+
 // add number to each figcaption text to count the number of images
 const figcaptions: HTMLElement[] = Array.from(document.querySelectorAll("figcaption"));
 
@@ -24,7 +27,7 @@ for (let i = 0; i < figcaptions.length; i++) {
 }
 
 // 
-let lazyloadImages: NodeListOf<Element> = document.querySelectorAll("img.lazy");
+const lazyloadImages: NodeListOf<Element> = document.querySelectorAll("img.lazy");
 let lazyloadThrottleTimeout: undefined | ReturnType<typeof setTimeout>;
 
 function lazyload() {
@@ -34,7 +37,6 @@ function lazyload() {
 
     lazyloadThrottleTimeout = setTimeout(() => {
         let scrollTop: number = window.pageYOffset;
-        
 
         lazyloadImages.forEach((img: any) => {
             if (img.offsetTop < (window.innerHeight + scrollTop)) {
