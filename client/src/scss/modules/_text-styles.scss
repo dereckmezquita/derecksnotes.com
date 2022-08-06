@@ -1,0 +1,51 @@
+// styles on text and other article content
+// used for styling smaller headers that should go inside q&a courses
+.quiz-questions {
+    counter-reset: quiz-questions;
+}
+
+.questions {
+    font-family: "Roboto";
+    font-weight: bold;
+    color: $blue;
+
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-justify: none;
+    text-align: left;
+
+    &:before {
+        content: counter(quiz-questions)'.';
+        counter-increment: quiz-questions;
+    }
+}
+
+.mini-header {
+    font-family: $roboto;
+    font-size: 1.1em;
+    font-weight: bold;
+    color: $theme4;
+    padding: 0px;
+    padding-top: 10px;
+    margin: 0px;
+    border-bottom: 2px $theme4 solid;
+    width: fit-content;
+}
+
+// quotes
+blockquote {
+    font-family: "Roboto", sans-serif;
+    font-size: 0.9em;
+    color: #555;
+    line-height: 125%;
+    padding: 0 0 0 20px;
+    margin-left: 13px;
+    border-left: 3px solid $themeActive;
+}
+
+.quote-author {
+    margin-left: 30px;
+    &::before {
+        content: "-";
+    }
+}
