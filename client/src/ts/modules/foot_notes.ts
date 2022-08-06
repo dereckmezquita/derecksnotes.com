@@ -42,10 +42,10 @@ if (footnotes.length > 0) {
         a.target = "_blank";
 
         const refUp: HTMLAnchorElement = document.createElement("a");
-        refUp.innerHTML = "↑";
+        refUp.innerHTML = " ↑";
         refUp.style.textDecoration = "none";
-        refUp.style.verticalAlign = "super";
-        refUp.style.fontSize = "1em";
+        // refUp.style.verticalAlign = "super";
+        refUp.style.fontSize = "1.5em";
         refUp.setAttribute("href", `#${hash}-up`);
 
         li.appendChild(a);
