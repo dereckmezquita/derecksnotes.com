@@ -10,15 +10,24 @@ test = test.replace(/\s{2,}/g, " ");
 // count number of words
 const words: number = test.split(" ").length;
 
-const side_bar_stats: Element = document.querySelector("#side-bar-stats");
+// format words with commas for thousands places
+const wordsLength: string = words.toLocaleString();
+
+const upper_side_bar: Element = document.querySelector("#upper-side-bar");
 
 // create new p tag
-const word_count: Element = document.createElement("p");
-word_count.innerHTML = `Word count: ${words}`;
+const word_count: HTMLElement = document.createElement("p");
+word_count.innerHTML = `Word count: ${wordsLength}`;
+word_count.classList.add("side-bar-stats");
 
-const time_to_read: Element = document.createElement("p");
+word_count.style.paddingTop = "7px";
+
+const time_to_read: HTMLElement = document.createElement("p");
 time_to_read.innerHTML = `Time to read: ${Math.round(words / 200)} minutes`;
+time_to_read.classList.add("side-bar-stats");
+
+time_to_read.style.paddingBottom = "10px";
 
 // append to side_bar_stats
-side_bar_stats.appendChild(word_count);
-side_bar_stats.appendChild(time_to_read);
+upper_side_bar.appendChild(word_count);
+upper_side_bar.appendChild(time_to_read);
