@@ -1,18 +1,10 @@
 
-cryptoPrices();
+export type NameTicker = {
+    name: string,
+    ticker: string
+}
 
-async function cryptoPrices(): Promise<void> {
-    type NameTicker = {
-        name: string,
-        ticker: string
-    }
-
-    const coins: NameTicker[] = [
-        { name: "bitcoin", ticker: "BTC" },
-        // { name: "digibyte", ticker: "DGB" },
-        { name: "monero", ticker: "XMR" }
-    ]
-
+export async function cryptoPrices(coins: NameTicker[]): Promise<void> {
     for (const coin of coins) {
         let res: any;
 
