@@ -123,14 +123,14 @@ module.exports = {
         }
     },
     output: {
-        filename: 'js/[name].js', // temp during dev
+        filename: 'js/[contenthash].js', // temp during dev
         path: path.resolve(__dirname, 'public'),
         clean: true
     },
     plugins: [
         ...plugins,
         new FixStyleOnlyEntriesPlugin(),
-        new MiniCssExtractPlugin({ filename: "css/[name].css" }), // temp during dev
+        new MiniCssExtractPlugin({ filename: "css/[contenthash].css" }), // temp during dev
         new CopyPlugin({
             patterns: [
                 { // https://stackoverflow.com/questions/45036810/webpack-copying-files-from-source-to-public-using-copywebpackplugin
