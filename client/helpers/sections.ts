@@ -2,7 +2,7 @@
 import fs from 'fs';
 import path from 'path';
 
-export const createEntriesPlugins = (section: string, chunks: string[] = ["bundle", "set_entry_title", "styles", "word_count"]): Object[] => {
+export const createEntriesPlugins = (section: string, chunks: string[] = ["index", "set_entry_title", "styles", "word_count"]): Object[] => {
     const entries = fs.readdirSync(path.join("src", section))
         .filter(e => e.endsWith(".ejs"))
 
