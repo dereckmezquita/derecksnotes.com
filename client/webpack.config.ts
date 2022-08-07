@@ -13,7 +13,7 @@ const plugins: Object[] = makePlugins([
     {
         filename: "index.html",
         template: "index.ejs",
-        chunks: ["bundle", "card_entries", "styles"],
+        chunks: ["index", "styles"],
         inject: true
     },
     {
@@ -34,22 +34,34 @@ const plugins: Object[] = makePlugins([
     },
     ...createEntriesPlugins("blog") as any,
     // ...createEntriesPlugins("courses") as any,
-    ...createEntriesPlugins("exercises") as any
+    ...createEntriesPlugins("exercises") as any,
     // ...createEntriesPlugins("portfolio") as any,
     // ...createEntriesPlugins("tools") as any
+    // sections of website
+    ...createEntriesPlugins("dictionaries", [
+        "index",
+        "set_entry_title",
+        "styles",
+        "word_count",
+        "dictionary"
+    ]) as any
 ]);
 
 module.exports = {
     mode: "development",
     entry: {
-        bundle: path.resolve(__dirname, 'src/ts/index.ts'),
-        card_entries: path.resolve(__dirname, 'src/ts/card_entries.ts'),
-        set_entry_title: path.resolve(__dirname, 'src/ts/modules/set_entry_title.ts'),
+        // ----------------------------
+        // scripts
+        index: path.resolve(__dirname, 'src/ts/index.ts'),
         // functionality scripts
+        set_entry_title: path.resolve(__dirname, 'src/ts/set_entry_title.ts'),
         word_count: path.resolve(__dirname, 'src/ts/word_count.ts'),
-        // styles chunks
-        styles: path.resolve(__dirname, 'src/scss/main.scss'),
-        // libraries chunks
+        dictionary: path.resolve(__dirname, 'src/ts/dictionary.ts'),
+        // ----------------------------
+        // styles
+        styles: path.resolve(__dirname, 'src/scss/index.scss'),
+        // ----------------------------
+        // libraries
         mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js')
     },
     module: {
@@ -111,14 +123,14 @@ module.exports = {
         }
     },
     output: {
-        filename: 'js/[contenthash].js',
+        filename: 'js/[name].js', // temp during dev
         path: path.resolve(__dirname, 'public'),
         clean: true
     },
     plugins: [
         ...plugins,
         new FixStyleOnlyEntriesPlugin(),
-        new MiniCssExtractPlugin({ filename: "css/[contenthash].css" }),
+        new MiniCssExtractPlugin({ filename: "css/[name].css" }), // temp during dev
         new CopyPlugin({
             patterns: [
                 { // https://stackoverflow.com/questions/45036810/webpack-copying-files-from-source-to-public-using-copywebpackplugin
