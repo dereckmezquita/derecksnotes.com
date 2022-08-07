@@ -1,4 +1,17 @@
 
+// --------------------------------
+// figures and videos background/border
+// new mixin called imagesBackground
+@mixin picturesBackgound {
+    background: $figure_background;
+    border: 1px solid $figure_border;
+    -webkit-box-shadow: 1px 1px 7px $figure_shadow;
+    -moz-box-shadow: 1px 1px 5px $figure_shadow;
+    box-shadow: 1px 1px 7px $figure_shadow;
+}
+// --------------------------------
+
+// --------------------------------
 // Images and other media styles
 figure > img {
     max-width: 100%;
@@ -24,6 +37,7 @@ figure > a img {
     box-shadow: 1px 1px 7px $figure_shadow;
 }
 
+// --------------------------------
 article img {
     max-width: 100%;
     display: block;
@@ -37,7 +51,8 @@ article img {
     box-shadow: 1px 1px 7px $figure_shadow;
 }
 
-/* works with figcaption in order to count the fig tags on the page, can be used with headings in the future */
+// --------------------------------
+// works with figcaption in order to count the fig tags on the page, can be used with headings in the future
 figcaption {
     padding-bottom: 10px;
     text-align: right;
@@ -46,7 +61,8 @@ figcaption {
     font-size: 0.8em;
 }
 
-// youtube videos
+// --------------------------------
+// youtube embedded videos
 iframe {
     display: block;
     margin: 25px auto;
@@ -66,4 +82,16 @@ iframe {
         width: 95%;
         height: 15%;
     }
+}
+
+// --------------------------------
+video {
+    max-width: 70%;
+
+    display: block;
+    margin: auto;
+    
+    padding: 7px;
+    
+    @include picturesBackgound;
 }
