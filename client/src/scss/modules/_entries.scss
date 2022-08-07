@@ -1,6 +1,6 @@
 
-// for displaying entries
-/* Written content backgrounds and styles */
+// --------------------------------
+// holds article and side-bar all together
 .content-wrapper {
     width: 70%;
     min-height: fit-content;
@@ -26,8 +26,9 @@
     }
 }
 
+// --------------------------------
 // Width here will increase the size of the article or the holder to be changed in conjuction with the sidebard class width in the sidebar scss
-/* Article stylings */
+// Article stylings
 article {
     position: relative;
     width: 60%;
@@ -44,7 +45,7 @@ article {
     text-align: justify;
     text-justify: auto;
 
-    // Deprecated now using JavaScript with the drop-text css class to style.
+    // Can TypeScript for drop-text; using css currently
     > p:first-of-type::first-letter {
         initial-letter: 2;
         -webkit-initial-letter: 2;
@@ -53,7 +54,7 @@ article {
     }
 }
 
-/* Resize article fit screen smaller devices, not 100% avoid the edges of wrappers, close 100% it occupies as much the screen */
+// Resize article fit screen smaller devices, not 100% avoid the edges of wrappers, close 100% it occupies as much the screen
 @media only screen and (max-width: $collapse_side_bar) {
     article {
         width: 90%;
@@ -62,8 +63,4 @@ article {
         margin: auto;
         border-left: none;
     }
-}
-
-.written-wrapper {
-    padding: 0 30px 0 30px;
 }
