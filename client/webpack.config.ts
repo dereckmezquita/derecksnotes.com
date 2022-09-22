@@ -42,8 +42,7 @@ const plugins: Object[] = makePlugins([
         "index",
         "set_entry_title",
         "styles",
-        "word_count",
-        "dictionary"
+        "word_count"
     ]) as any
 ]);
 
@@ -56,7 +55,7 @@ module.exports = {
         // functionality scripts
         set_entry_title: path.resolve(__dirname, 'src/ts/set_entry_title.ts'),
         word_count: path.resolve(__dirname, 'src/ts/word_count.ts'),
-        dictionary: path.resolve(__dirname, 'src/ts/dictionary.ts'),
+        pre_processing_dictionary: path.resolve(__dirname, 'src/ts/pre_processing_dictionary.ts'),
         // ----------------------------
         // styles
         styles: path.resolve(__dirname, 'src/scss/index.scss'),
