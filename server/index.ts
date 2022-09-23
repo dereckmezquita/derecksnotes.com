@@ -6,7 +6,7 @@ import path from 'path';
 const port: number = 3000;
 const app = express();
 app.use(express.json());
-app.use(router);
+// app.use(router);
 
 // server static files from public directory
 app.use(express.static(path.join(__dirname, '../..', 'client/public')));
