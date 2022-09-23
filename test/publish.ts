@@ -1,6 +1,6 @@
-import {renderEJS} from './renderEJS';
-import {resolve} from 'path';
-import {readFileSync, writeFileSync} from 'fs';
+import { renderEJS } from './renderEJS';
+import { resolve } from 'path';
+import { readFileSync, writeFileSync } from 'fs';
 const dateFormat = require('date-format');
 
 const defaultMetadata = {
