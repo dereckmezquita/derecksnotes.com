@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en-uk">
+
+<head>
+    <title>
+        Dereck's Notes
+    </title>
+    <meta name="description"
+        content="The online brain of Dereck de Mezquita; making sciencing easier.">
+    <meta name="keywords"
+        content="Science, Programming, Bioinformatics, Biology, Technology, Education, Art, Dictionary, Blog">
+</head>
+
+<body>
+    <%- include ../templates/includes/info-bar.ejs %>
+    <%- include ../templates/includes/header.ejs %>
+
+    <%- include ../templates/includes/nav.ejs %>
+
+    <div class="content-wrapper">
+        <%- include ../templates/includes/side-bar.ejs %>
+
+        <article>
+
+<title>Biochemsitry: Glycoenzymology I</title>
+<h1>Biochemsitry: Glycoenzymology I</h1>
+<div class="quizQuestions">
+    <h2>Context</h2>
+    <p>
+        N-glycolysation is a modication done to proteins consisting of the addition of sugars to polypetide chains
+        during their translation. This modification is important for the structure and the function of the concerned
+        proteins.
+    </p>
+    <p>
+        Oligosaccharide is transfered as a block from a donor lipid to an amino acide asparagine (Asn), to a consensus
+        sequon called acceptor Asn-X-Ser/Thr.
+    </p>
+    <p>
+        In eukaryotes the reaction is done in the endoplasmic reticulum. This is done by the oligosaccharytransferase
+        (OST) complex. In certain gram - prokaryotes and archaea an analagous reaction can be done in the periplasm and
+        catalysed by a single enzyme.
+    </p>
+    <h2>Study</h2>
+    <p>
+        Researchers placed the bacterial enzyme AglB (from Archeae) in the presence of the donor substrate (saturating
+        concentration) and varied the concentration of different accepting peptides. The reaction was stopped after 60
+        mins. During this time measures were taken on the and the speed of the reaction was stable. The glycoproteins
+        were measured.
+    </p>
+    <p class="questions">
+        Extrapolate from the graphs, product = f(substrate), in the figure. Determine approximately for each graph the
+        V<sub>max</sub>, the K<sub>m</sub> and the efficiency of the reaction (Eff); efficiency =
+        V<sub>max</sub>/K<sub>m</sub>. Classifiy the accepting peptides by their efficiency.
+    </p>
+    <figure>
+        <img src="/exercises/documents/glycoEnzymology/question1.png">
+        <figcaption>Bacterial enzyme in the presence of the donor substrate (saturating concentration) varied
+            concentrations of different accepting peptides. The reaction was stopped after 60 mins.</figcaption>
+    </figure>
+    <p>
+        What we want to do is determine the following:
+    </p>
+    <ul>
+        <li>
+            V<sub>max</sub>
+        </li>
+        <li>
+            K<sub>m</sub>
+        </li>
+        <li>
+            Efficiency = V<sub>max</sub>/K<sub>m</sub>
+        </li>
+    </ul>
+    <p>
+        First we must take note that we could only do this in the case that we have curves that adhere to
+        Michaelis-Menten types. That is the data is shown in speed of reaction by concentration of substrate. This is
+        the case here.
+    </p>
+    <figure>
+        <img src="/exercises/documents/glycoEnzymology/answer1.png">
+        <figcaption>The V<sub>max</sub> is determined by the approximate plateau or top of the reaction. The
+            K<sub>m</sub> is determined by dividing the V<sub>max</sub> by 2 and drawing the line down to the X axis.
+        </figcaption>
+    </figure>
+    <p>
+        Classification of the acceptor sequons. Reminder here the variable is the sequons that were being used, the
+        sequon is the sequence of amino acids that accepts the modification.
+    </p>
+    <ol>
+        <li>
+            A
+        </li>
+        <li>
+            C
+        </li>
+        <li>
+            E
+        </li>
+        <li>
+            B
+        </li>
+        <li>
+            D
+        </li>
+        <li>
+            F
+        </li>
+    </ol>
+    <p class="questions">
+        From the results shown, which is the principal type of interaction between the linking site, and the accepting
+        peptide? Table of amino acids found here <a href="/references/tables/displayEntry.php?entry=aminoAcids">amino
+            acids chart</a>. State the ideal acceptor sequon.
+    </p>
+    <figure>
+        <img src="/exercises/documents/glycoEnzymology/question2.png">
+        <figcaption>Study was continued by comparing the efficiency of different amino acids placed around X<sub>n</sub>
+            the accepting sequon, they used all of the 20 possible amino acids.</figcaption>
+    </figure>
+    <p>
+        The main type of interaction is hydrophobic. This we deduce from the amino acids that are invovled. We can
+        better justify this after finding the ideal sequon.
+    </p>
+    <p>
+        The figure above shows us the orignal amino acid chain: RGN S(S/T)A R. Which has been modified. Note that the
+        residues are denominated in an abstract sense as the following: X<sub>-2</sub>X<sub>-1</sub>N
+        X<sub>0</sub>(S/T)X<sub>+1</sub> X<sub>+2</sub>. The figure shows us this original strad with one residue
+        changed out for another. The taller the bar the higher the affinity.
+    </p>
+    <p>
+        Going through each in a clockwise motion from the top, note that two different chains are tested a SAR variant
+        and a TAR variant:
+    </p>
+    <ul>
+        <li>
+            SAR variant: X<sub>0</sub> - V
+        </li>
+        <li>
+            SAR variant: X<sub>+1</sub> - K
+        </li>
+        <li>
+            SAR variant: X<sub>-2</sub> - P
+        </li>
+        <li>
+            SAR variant: X<sub>-1</sub> - Y
+        </li>
+        <li>
+            TAR variant: X<sub>0</sub> - V
+        </li>
+    </ul>
+    <p>
+        We find that the consensus sequon for an ideal bind is: PYN V(T/S)K R.
+    </p>
+    <p>
+        Note that the following types of amino acids are involved: special case, hydrophobic, polar uncharged,
+        hydrophobic, polar uncharged/polaruncharged, polar +, polar +. Most of the residues are either uncharged or
+        hydrophobic, this enforces the case for hydrophobic interactions.
+    </p>
+    <p class="questions">
+        Now the peptide chain is synthesised artificially, either just this part of the chain 7 residues, or inside of a
+        larger 15 amino acid chain. Studies showed that both these variants had similar V<sub>max</sub>, K<sub>m</sub>,
+        and efficiency. What do you conclude on the size of the sequence recognised by the OST in question (AglB).
+    </p>
+    <p>
+        The size of the sequon that is recognised is at minimum 7 residues long. The fact that the cinetics of the
+        reaction do not vary when other amino acids are included before or after justifies this fact.
+    </p>
+    <p class="questions">
+        Now the team co-cristalised the enzyme AglB along with the acceptor peptide: RYN VTA C. They used the terminal
+        cystein to form an artificial di-sulfure bond to another enzymatic cystein. Propose two ways of obtaining and
+        crystalising membranary enzymes.
+    </p>
+    <figure>
+        <img src="/exercises/documents/glycoEnzymology/question4.png">
+        <figcaption>Biochemical analysis of the enzyme AglB with RYN VTA C. A. Shows global crystal structure. B. Shows
+            3D structure of the catalytic domain. Peptide colours: blue membranary domain, pink periplasmic domain,
+            yellow the substrate. Atom colours: blue nitrogen, red, oxygen, red sphere ion. C. SDS-PAGE migration of
+            reaction solutions obtained after 1 h of enzyme + substrate. D. Cinetics of the reactions shown in the gel.
+        </figcaption>
+    </figure>
+    <p>
+        To obtain and cristalise membranary enzymes there are two main steps. First the purification, and then the
+        crystalisation. A a membranary enzyme posses large hydrophobic domains, these should be stabalised. In order to
+        remove the enzyme from the membrane, detergents are used. Then to remove the detergents we could dilute the
+        solution with more water while adding our desired lipids (if desired) to stablise the enzymes. Once this done
+        crystalisation can occur. Often in order to obtain a usable structure the enzymes, especially membranary
+        enzymes, must be co-cristalised with a substrate or ligand.
+    </p>
+    <p class="questions">
+        Figure 4B, describe the mode of interaction between the amine of the accepting Asn residue and the active site
+        of the enzyme.
+    </p>
+    <p>
+        The accepting Asn has a nitrogen which interacts with the oxygen of the enzyme (D47). This interaction can be
+        described as a hydrogen bond type interaction.
+    </p>
+    <p class="questions">
+        Interpret the results of mutations done to D47 and E360, when changed to alanine. Note that the enzyme and
+        substrate are bound by disulfure bonds; figure 4C, 4D.
+    </p>
+    <p>
+        First off figure 4B shows us that E360 and D47 both bind by hydrogen type bonds to the metalic ion. The gel
+        shows us that either one of the residues is mutated in alanine, there is a slight increase int he amount of
+        susbtrate; this indicates that the reaction is not as efficient or does not use up all of the substrate. However
+        when they are both mutated, we see that there is no glycoproduce instead we have the substrate unchanged.
+    </p>
+    <p>
+        This indicates that when of these residues are changed the other can act, but when they are both changed the
+        metalic ion can no longer be bound, thus there is no interaction with the acceptor peptide; or not the correct
+        conformation to produce the product. We see that the metallic ion bound seems to bring up and close both these
+        residues E360 and D47 in a sort of pincer like motion, the secondary oxygen elements can now interact with the
+        acceptor peptide.
+    </p>
+    <p>
+        From the image I theorise that the H163 and D161 fix the metallic ion, then E360 and D47 can interact with the
+        ion to close the pincer, and finally interact with the acceptor peptide.
+    </p>
+    <p>
+        From figure 4D we see that the WT presents a basal activity, this activity is slightly diminished when E360 is
+        mutated, and even more so when D47 is. Thus both should work together to have optimal catalysis.
+    </p>
+    <p class="questions">
+        We know that the mutations were analysed in the presence of enzyme-substrate pairs, not linked by artificial
+        means. Each mutant, D47A and E360A, were shown to be totally inactive. What can we conclude as to the role of
+        each resiude D47 and E360 as to their link to the substrate? And for catalysis?
+    </p>
+    <p>
+        From the indications on the gel, and the efficiency curves we know that D47A has the largest impact on
+        catalysis. We know that in that case the peptide was bound artifically. Thus we learn that when not bound there
+        is no catalysis at all. This instigates me to revise my previous claim and state the following: E360 is
+        essential for fixing the accepting peptide, but it is D47 that is involved in the actual catalysis.
+    </p>
+</div>
+
+<ol class="foot-notes">
+    <div class="foot-notes-head">
+        Footnotes:
+    </div>
+    <!-- <li id="originalExam">
+        Original file: <a href="/exercises/files/2017_examenGylco.pdf" target="_blank">2017, glycoenzymology exam</a>.
+    </li> -->
+    <li>
+        <a href="/references/tables/displayEntry.php?entry=aminoAcids">Amino acids chart</a>.
+    </li>
+</ol>
+        </article>
+    </div>
+
+    <%- include ../templates/includes/footer.ejs %>
+</body>
+
+</html>
