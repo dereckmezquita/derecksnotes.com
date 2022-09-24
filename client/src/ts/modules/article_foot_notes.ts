@@ -15,7 +15,7 @@ const extraFootnotes: HTMLElement[] = Array.from(document.querySelectorAll(".ext
 
 if (footnotes.length > 0) {
     // create the ordered list that gets appended to bottome of article
-    const container: HTMLElement = document.createElement("ol");
+    const container: HTMLElement = document.createElement("ul");
     container.classList.add("foot-notes");
 
     const header: HTMLElement = document.createElement("div");
@@ -30,62 +30,60 @@ if (footnotes.length > 0) {
 
     document.querySelector("article").appendChild(container);
 
-    // loop through all footnotes
     for (let i = 0; i < footnotes.length; i++) {
         let footnote: HTMLElement = footnotes[i];
         // the user must use a tags with the following attributes
         // class="foot-note" and href="some-link"
         // these are processed and a footnote is created
 
-        // catching authors error; add target="_blank"
-        footnote.setAttribute("target", "_blank");
-
-        // get the text of the footnote
+        // get the original information from the footnote
+        const href: string = footnote.getAttribute("href");
         const text: string = footnote.innerText;
-        
+
         // create a hash from the text
         const hash: string = createHash("sha1").update(text).digest("hex");
 
-        // create a numbered reference that goes inline with the text
-        const inlineRef: HTMLElement = document.createElement("a");
-        inlineRef.innerHTML = `[${i + 1}]`;
-        inlineRef.style.textDecoration = "none";
-        inlineRef.style.verticalAlign = "super";
-        inlineRef.style.fontSize = "0.7em";
+        // ------------------------
+        const in_line: HTMLElement = document.createElement("a");
+        in_line.innerHTML = `<sup>[${i + 1}]</sup>`;
+        in_line.style.textDecoration = "none";
+        in_line.style.fontSize = "0.9em";
 
-        // this element links to the footnote below and has an id that is used to link back up
-        inlineRef.setAttribute("href", `#${hash}-down`);
-        inlineRef.id = `${hash}-up`;
-        footnote.appendChild(inlineRef);
+        // add link to down in_line
+        in_line.setAttribute("href", `#${hash}-down`);
+        in_line.id = `${hash}-up`;
 
-        // create the footnote; these are appended to the end the container element we created above
-        // first create list element then a tag which does the linking; goes inside li
-        const endRef: HTMLElement = document.createElement("li");
-        const endRefLink: HTMLAnchorElement = document.createElement("a");
-        endRefLink.innerHTML = text;
+        // replace the footnote element with the in-line element entirely
+        footnote.parentNode.replaceChild(in_line, footnote);
 
-        // create element that links back up to the inline reference
-        const backUp: HTMLAnchorElement = document.createElement("a");
-        backUp.innerHTML = " ↑";
-        backUp.style.textDecoration = "none";
-        // backUp.style.fontSize = "1em";
-        backUp.style.verticalAlign = "super";
-        backUp.setAttribute("href", `#${hash}-up`);
+        // ------------------------
+        // create an li element into which the footnote will be placed
+        const li: HTMLElement = document.createElement("li");
+        const out_of_line: HTMLElement = document.createElement("a");
 
-        // set the href of the a tag to the href attribute of the original footnote
-        endRefLink.setAttribute("href", footnote.getAttribute("href"));
-        // target blank
-        endRefLink.setAttribute("target", "_blank");
+        // format the footnote link
+        out_of_line.innerText = text;
+        out_of_line.setAttribute("href", href);
+        out_of_line.setAttribute("target", "_blank");
 
-        // set the id of the li element to the hash we created
-        endRefLink.setAttribute("id", `${hash}-down`);
+        // add link from in_line
+        out_of_line.setAttribute("id", `${hash}-down`);
 
-        // append the link to the list element
-        endRef.appendChild(endRefLink);
-        // append the back up tag
-        endRef.appendChild(backUp);
-        // append the list element to the container
-        container.appendChild(endRef);
+        // create new number element for the footnote to link back up
+        const out_of_line_tag: HTMLElement = document.createElement("a");
+        out_of_line_tag.innerHTML = `<sup>[${i + 1}]</sup>`;
+        out_of_line_tag.style.textDecoration = "none";
+        out_of_line_tag.style.fontSize = "0.9em";
+
+        // add the link back up to the footnote
+        out_of_line_tag.setAttribute("href", `#${hash}-up`);
+
+        // add the footnote to the li element
+        li.appendChild(out_of_line);
+        li.appendChild(out_of_line_tag);
+
+        // add the li element to the container
+        container.appendChild(li);
     }
 
     // append extra footnotes
