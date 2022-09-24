@@ -1,5 +1,8 @@
 
 // ------------------------
+// this is the main script and gets injected to all pages on website
+
+// ------------------------
 // coingecko get prices for info-bar
 import { cryptoPrices, NameTicker } from "./modules/price_tickers";
 
@@ -18,10 +21,3 @@ import "./modules/flex_nav";
 // ------------------------
 import "./modules/clock";
 
-// ------------------------
-// footnotes using data-href and class="foot-note"
-import "./modules/foot_notes";
-
-// ------------------------
-// figure caption numbers and lazy load
-import "./modules/figures";

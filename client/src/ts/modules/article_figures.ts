@@ -1,4 +1,7 @@
 
+// this script is included on pages that have figures with the tags: figure, figcaption, img
+// it adds a number to the figcaption and lazy loads the images
+
 // ------------------------
 // add number to each figcaption text to count the number of images
 const figcaptions: HTMLElement[] = Array.from(document.querySelectorAll("figcaption"));
