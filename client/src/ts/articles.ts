@@ -10,9 +10,10 @@ import "./modules/article_title";
 import "./modules/article_word_count";
 
 // ------------------------
+// formats and adds counters to pages with figures using figure/figcaption tags
+import "./modules/article_figures";
+
+// ------------------------
 // footnotes: <a class="foot-note" href="some-link" target="_blank">
 import "./modules/article_foot_notes";
 
-// ------------------------
-// formats and adds counters to pages with figures using figure/figcaption tags
-import "./modules/article_figures";
