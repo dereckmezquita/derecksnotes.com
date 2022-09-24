@@ -22,9 +22,6 @@ if (footnotes.length > 0) {
     header.classList.add("foot-notes-head");
     header.innerText = "FOOTNOTES:";
     header.id = "foot-notes";
-    header.style.fontSize = "14px";
-    header.style.marginBottom = "7px";
-    header.style.marginLeft = "-35px";
 
     container.appendChild(header);
 
@@ -59,11 +56,18 @@ if (footnotes.length > 0) {
         // ------------------------
         // create an li element into which the footnote will be placed
         const li: HTMLElement = document.createElement("li");
-        const out_of_line: HTMLElement = document.createElement("a");
+        // this allows the user to write foot notes with no links
+        let out_of_line: HTMLElement;
+        if (href) {
+            out_of_line = document.createElement("a");
+        } else {
+            out_of_line = document.createElement("span");
+        }
 
         // format the footnote link
         out_of_line.innerText = text;
-        out_of_line.setAttribute("href", href);
+        // if the href is null then the user did not provide a link
+        if (href) out_of_line.setAttribute("href", href);
         out_of_line.setAttribute("target", "_blank");
 
         // add link from in_line
