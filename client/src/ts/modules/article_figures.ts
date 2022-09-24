@@ -1,51 +1,77 @@
 
 // this script is included on pages that have figures with the tags: figure, figcaption, img
 // it adds a number to the figcaption and lazy loads the images
+// this script should be run before the foot_notes script
+
 
 // ------------------------
 // add number to each figcaption text to count the number of images
 const figcaptions: HTMLElement[] = Array.from(document.querySelectorAll("figcaption"));
 
-// loop over every figcaption
-for (let i = 0; i < figcaptions.length; i++) {
-    // get the text of the figcaption
-    const text: string = figcaptions[i].innerText;
+if (figcaptions.length > 0) {
+    // loop over every figcaption
+    for (let i = 0; i < figcaptions.length; i++) {
+        // get the text of the figcaption
+        const text: string = figcaptions[i].innerHTML;
 
-    // if the text is not empty
-    if (text !== "") {
-        // add the number to the text
-        figcaptions[i].innerText = `Figure ${i + 1}: ${text}`;
+        // if the text is not empty
+        if (text !== "") {
+            // add the number to the text
+            figcaptions[i].innerHTML = `Figure ${i + 1}: ${text}`;
+        }
     }
 }
+
+
 
 // ------------------------
 // lazy load images
-const lazyloadImages: NodeListOf<Element> = document.querySelectorAll("img.lazy");
-let lazyloadThrottleTimeout: undefined | ReturnType<typeof setTimeout>;
+const lazyloadImages: HTMLElement[] = Array.from(document.querySelectorAll("img.lazy"));
 
-function lazyload() {
-    if (lazyloadThrottleTimeout) {
-        clearTimeout(lazyloadThrottleTimeout);
+if (lazyloadImages.length > 0) {
+    let lazyloadThrottleTimeout: undefined | ReturnType<typeof setTimeout>;
+
+    // load the first n images automatically
+    const preLoad: number = 5;
+
+    for (let i = 0; i < preLoad; i++) {
+        if (lazyloadImages[i]) {
+            // set the data-src to src
+            lazyloadImages[i].setAttribute("src", lazyloadImages[i].getAttribute("data-src") as string);
+            // remove data-src
+            lazyloadImages[i].removeAttribute("data-src");
+            // remove lazy class
+            lazyloadImages[i].classList.remove("lazy");
+        }
     }
 
-    lazyloadThrottleTimeout = setTimeout(() => {
-        let scrollTop: number = window.pageYOffset;
+    // remove the first n elements from the lazyloadImages array
+    lazyloadImages.splice(0, preLoad);
 
-        lazyloadImages.forEach((img: any) => {
-            if (img.offsetTop < (window.innerHeight + scrollTop)) {
-                img.src = img.dataset.src;
-                img.classList.remove('lazy');
-            }
-        });
-
-        if (lazyloadImages.length == 0) {
-            document.removeEventListener("scroll", lazyload);
-            window.removeEventListener("resize", lazyload);
-            window.removeEventListener("orientationChange", lazyload);
+    function lazyload() {
+        if (lazyloadThrottleTimeout) {
+            clearTimeout(lazyloadThrottleTimeout);
         }
-    }, 20);
-}
 
-document.addEventListener("scroll", lazyload);
-window.addEventListener("resize", lazyload);
-window.addEventListener("orientationChange", lazyload);
+        lazyloadThrottleTimeout = setTimeout(() => {
+            let scrollTop: number = window.pageYOffset;
+
+            lazyloadImages.forEach((img: any) => {
+                if (img.offsetTop < (window.innerHeight + scrollTop)) {
+                    img.src = img.dataset.src;
+                    img.classList.remove('lazy');
+                }
+            });
+
+            if (lazyloadImages.length == 0) {
+                document.removeEventListener("scroll", lazyload);
+                window.removeEventListener("resize", lazyload);
+                window.removeEventListener("orientationChange", lazyload);
+            }
+        }, 20);
+    }
+
+    document.addEventListener("scroll", lazyload);
+    window.addEventListener("resize", lazyload);
+    window.addEventListener("orientationChange", lazyload);
+}
