@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en-uk">
+
+<head>
+    <title>
+        Dereck's Notes
+    </title>
+    <meta name="description"
+        content="The online brain of Dereck de Mezquita; making sciencing easier.">
+    <meta name="keywords"
+        content="Science, Programming, Bioinformatics, Biology, Technology, Education, Art, Dictionary, Blog">
+</head>
+
+<body>
+    <%- include ../templates/includes/info-bar.ejs %>
+    <%- include ../templates/includes/header.ejs %>
+
+    <%- include ../templates/includes/nav.ejs %>
+
+    <div class="content-wrapper">
+        <%- include ../templates/includes/side-bar.ejs %>
+
+        <article>
+
+            <h1>CSS: centering</h1>
+            <p>
+                Fucking bullshit CSS, always forgetting how to centre shit. It is in no way logical, and even harder to actually remember.
+            </p>
+            <p>
+                So you want to centre some shit with CSS? Okay well it involves <code>margin: auto;</code> somewhere that's sure. But how again? Okay dickhead well just do this:
+            </p>
+
+<pre class="brush: css">
+html, body {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: #333;
+}
+
+.centre {
+    top: 100px;
+    display: block;
+    position: relative;
+    margin: 0 auto;
+    width: fit-content;
+}
+</pre>
+
+            <div class="warning">
+                You must define the width of the element, and have it be smaller than the container.
+            </div>
+
+            <ol class="foot-notes">
+                <div class="foot-notes-head">
+                    Footnotes:
+                </div>
+            </ol>
+
+            <script type="text/javascript">
+                SyntaxHighlighter.all()
+            </script>
+        </article>
+    </div>
+
+    <%- include ../templates/includes/footer.ejs %>
+</body>
+
+</html>
