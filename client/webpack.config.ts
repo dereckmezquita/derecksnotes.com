@@ -32,7 +32,7 @@ const plugins: Object[] = makePlugins([
         filename: "tools.html",
         template: "tools.ejs"
     },
-    ...createEntriesPlugins("blog") as any,
+    ...createEntriesPlugins("blog", ["index", "styles", "articles"]) as any,
     // ...createEntriesPlugins("courses") as any,
     ...createEntriesPlugins("exercises") as any,
     // ...createEntriesPlugins("portfolio") as any,
@@ -40,9 +40,8 @@ const plugins: Object[] = makePlugins([
     // sections of website
     ...createEntriesPlugins("dictionaries", [
         "index",
-        "set_entry_title",
-        "styles",
-        "word_count"
+        "articles",
+        "styles"
     ]) as any
 ]);
 
@@ -50,15 +49,24 @@ module.exports = {
     mode: "development",
     entry: {
         // ----------------------------
+        // ----------------------------
         // scripts
         index: path.resolve(__dirname, 'src/ts/index.ts'),
         // functionality scripts
-        set_entry_title: path.resolve(__dirname, 'src/ts/set_entry_title.ts'),
-        word_count: path.resolve(__dirname, 'src/ts/word_count.ts'),
+        articles: path.resolve(__dirname, 'src/ts/articles.ts'), // includes all article prefixed scripts
+        // separate article modules
+        article_figures: path.resolve(__dirname, 'src/ts/modules/article_figures.ts'),
+        article_foot_notes: path.resolve(__dirname, 'src/ts/modules/article_foot_notes.ts'),
+        article_title: path.resolve(__dirname, 'src/ts/modules/article_title.ts'),
+        article_word_count: path.resolve(__dirname, 'src/ts/modules/article_word_count.ts'),
+        // ----------------------------
+        // ----------------------------
         pre_processing_dictionary: path.resolve(__dirname, 'src/ts/pre_processing_dictionary.ts'),
+        // ----------------------------
         // ----------------------------
         // styles
         styles: path.resolve(__dirname, 'src/scss/index.scss'),
+        // ----------------------------
         // ----------------------------
         // libraries
         mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js')
