@@ -1,5 +1,5 @@
 
-import { download } from './modules/download-function';
+import { download } from './dev/download-function';
 
 // this file is included via webpack to dictionary pages; we're going from derecksnotes.com v1 to v2
 // we need to clean up and pre-process the dictionaries
