@@ -95,3 +95,30 @@ blockquote {
         content: "-";
     }
 }
+
+// --------------------------------
+// inline display of a note; green square with text
+.note, .warning {
+    font-family: $roboto;
+    font-size: 0.85em;
+    border-radius: 5px;
+    margin: 1.5rem auto;
+    padding: 1rem;
+    font-style: italic;
+
+    width: fit-content;
+
+    &::before {
+        content: "*";
+    }
+}
+
+.note {
+    border: 2px solid $light_green;
+    background: $green_background;
+}
+
+.warning {
+    background: $yellow_background;
+    border: 2px solid $yellow;
+}
