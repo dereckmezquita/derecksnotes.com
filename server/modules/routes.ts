@@ -1,5 +1,6 @@
 
 import { Router, Response } from 'express';
+import { sendRes } from './helpers';
 
 const _ = undefined;
 
@@ -18,10 +19,34 @@ router.get('/getPost', (req, res) => {
     sendRes(res, true, { postId });
 });
 
-function sendRes(res: Response, success: boolean, data?: any, errorMsg?: string) {
-    res.json({
-        success: success,
-        data: data,
-        error: errorMsg
-    });
-}
+// ------------------------------
+import { MongoClient } from 'mongodb';
+import { page } from './db';
+
+const client = new MongoClient('mongodb://localhost:27017');
+
+// post request for getting entries for index page
+// allows to request entries for page blog, courses, etc and number of posts
+// will listen for request for more entries
+router.post('/getEntries', (req, res) => {
+    const { section, numEntries } = req.body;
+
+    if (typeof section !== 'string' || typeof numEntries !== 'number') {
+        return sendRes(res, false, undefined, "Bad request!");
+    }
+
+    // query mongo database for entries and send back to client
+    (async () => {
+        await client.connect();
+
+        const db = client.db('entries');
+        const collection = db.collection("metadata");
+
+        // get entries full data from db who's section matches the request
+        const { docs, nextID } = await page(collection, { }, { projection: { siteSection: section } }, numEntries);
+
+        await client.close();
+
+        sendRes(res, true, { entries: docs });
+    })();
+});
