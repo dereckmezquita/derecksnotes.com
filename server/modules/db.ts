@@ -1,7 +1,13 @@
 
 import type { Collection, ObjectId, Filter, FindOptions, Document } from 'mongodb';
 
-export const page = async (collection: Collection, filter: Filter<Document> = {}, options: FindOptions = {}, size: number, nextID?: ObjectId): Promise<{ docs: Document[], nextID: ObjectId }> => {
+export const page = async (
+    collection: Collection,
+    filter: Filter<Document> = {},
+    options: FindOptions = {},
+    size: number,
+    nextID?: ObjectId
+): Promise<{ docs: Document[], nextID: ObjectId }> => {
     if (nextID) filter['_id'] = {$lt: nextID};
 
     const docs = await collection.find(filter, options).sort({_id: 1}).limit(size).toArray();
