@@ -13,8 +13,7 @@ const plugins: Object[] = makePlugins([
     {
         filename: "index.html",
         template: "index.ejs",
-        chunks: ["index", "styles"],
-        inject: true
+        chunks: ["index", "styles", "request_entries"]
     },
     {
         filename: "portfolio.html",
@@ -32,17 +31,17 @@ const plugins: Object[] = makePlugins([
         filename: "tools.html",
         template: "tools.ejs"
     },
-    ...createEntriesPlugins("blog", ["index", "styles", "articles"]) as any,
+    ...createEntriesPlugins("blog", ["index", "styles", "articles"]) as any
     // ...createEntriesPlugins("courses") as any,
-    ...createEntriesPlugins("exercises") as any,
+    // ...createEntriesPlugins("exercises") as any,
     // ...createEntriesPlugins("portfolio") as any,
     // ...createEntriesPlugins("tools") as any
     // sections of website
-    ...createEntriesPlugins("dictionaries", [
-        "index",
-        "articles",
-        "styles"
-    ]) as any
+    // ...createEntriesPlugins("dictionaries", [
+    //     "index",
+    //     "articles",
+    //     "styles"
+    // ]) as any
 ]);
 
 module.exports = {
@@ -52,6 +51,8 @@ module.exports = {
         // ----------------------------
         // scripts
         index: path.resolve(__dirname, 'src/ts/index.ts'),
+        // inject get entries script
+        request_entries: path.resolve(__dirname, 'src/ts/request_entries.ts'),
         // functionality scripts
         articles: path.resolve(__dirname, 'src/ts/articles.ts'), // includes all article prefixed scripts
         // separate article modules
@@ -121,7 +122,6 @@ module.exports = {
             }
         ]
     },
-    watch: true,
     resolve: {
         extensions: ['.ts', '.js'],
         fallback: {
