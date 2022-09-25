@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "DerecksNotes.com v2.0.",
   "scripts": {
-    "publish": "ts-node test/publish.ts --project test/tsconfig.json"
+    "insertDocs": "cd dev/publish; ts-node publish.ts",
+    "build": "cd client; webpack",
+    "webpack": "cd client; webpack --watch",
+    "publish": "run-s build insertDocs"
   },
   "repository": {
     "type": "git",
@@ -18,12 +21,14 @@
   "dependencies": {
     "@types/ejs": "^3.1.1",
     "@types/html-webpack-plugin": "^3.2.6",
+    "cheerio": "^1.0.0-rc.12",
+    "colors": "^1.4.0",
     "copy-webpack-plugin": "^11.0.0",
     "crypto-browserify": "^3.12.0",
     "date-format": "^4.0.13",
     "ejs": "^3.1.8",
     "ejs-easy-loader": "^0.1.4",
-    "ejs-loader": "^0.5.0",
+    "ejs-loader": "^0.5.0", 
     "ejs-webpack-loader": "^2.2.2",
     "express": "^4.18.1",
     "file-loader": "^6.2.0",
