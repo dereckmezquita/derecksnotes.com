@@ -8,7 +8,7 @@ const url = 'mongodb://localhost:27017';
 const client = new MongoClient(url);
 
 // reads metadata to an array
-const metadata = JSON.parse(readFileSync('./blog-metadata.json').toString());
+const metadata = JSON.parse(readFileSync('./edited-blog-metadata.json').toString());
 
 for(const doc of metadata) {
     const retroDate = doc.retroDate;
@@ -26,7 +26,7 @@ async function insert(): Promise<void> {
     console.log('Connected successfully to server');
 
     const db = client.db('entries');
-    const collection = db.collection('blog');
+    const collection = db.collection('metadata');
 
     const insertResult = await collection.insertMany(metadata);
     await client.close();
