@@ -1,6 +1,7 @@
 import express from 'express';
-import { router } from './modules/routes';
+import { router, initDB } from './modules/routes';
 import path from 'path';
+import { MongoClient, ObjectId } from 'mongodb';
 
 const port: number = 3000;
 const app = express();
@@ -11,7 +12,11 @@ app.use(router);
 // serve static files from public directory; temp will remove for serving with nginx
 app.use(express.static(path.join(__dirname, '..', 'client/public')));
 
-app.listen(port, '0.0.0.0', () => {
-    console.log(`Server is up on port: ${port}`);
-    console.log(`Visit: http://localhost:${port}/index.html`);
+new MongoClient('mongodb://localhost:27017').connect().then(client => {
+    initDB(client);
+
+    app.listen(port, '0.0.0.0', () => {
+        console.log(`Server is up on port: ${port}`);
+        console.log(`Visit: http://localhost:${port}/index.html`);
+    });
 });
