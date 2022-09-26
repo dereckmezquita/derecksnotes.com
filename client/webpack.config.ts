@@ -31,17 +31,17 @@ const plugins: Object[] = makePlugins([
         filename: "tools.html",
         template: "tools.ejs"
     },
-    ...createEntriesPlugins("blog", ["index", "styles", "articles"]) as any
+    ...createEntriesPlugins("blog", ["index", "styles", "articles"]) as any,
     // ...createEntriesPlugins("courses") as any,
     // ...createEntriesPlugins("exercises") as any,
     // ...createEntriesPlugins("portfolio") as any,
     // ...createEntriesPlugins("tools") as any
     // sections of website
-    // ...createEntriesPlugins("dictionaries", [
-    //     "index",
-    //     "articles",
-    //     "styles"
-    // ]) as any
+    ...createEntriesPlugins("dictionaries", [
+        "index",
+        "articles",
+        "styles"
+    ]) as any
 ]);
 
 module.exports = {
