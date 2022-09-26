@@ -1,21 +1,7 @@
 
+import { getEntries } from "./modules/request";
+
 const siteSection: string = (document.getElementById("siteSection") as HTMLInputElement).value;
-
-// submit a post request to getEntries express server
-const getEntries = async (section: string, pageSize: number): Promise<any> => {
-    const response = await fetch('/getEntries', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            section: section === 'index' ? 'blog' : section,
-            pageSize: pageSize
-        })
-    });
-
-    return await response.json();
-}
 
 const entriesDOM: HTMLElement = document.querySelector(".card-entries");
 
@@ -25,14 +11,12 @@ const entriesDOM: HTMLElement = document.querySelector(".card-entries");
 
     if (!res.success) throw new Error(res);
 
-    console.log(res.data.entries[0]);
-
     // loop through entries and create a card for each
     for (const entry of res.data.entries) {
         // create the a tag which links that goes around the card
         const card: HTMLElement = document.createElement("a");
         card.setAttribute("class", "card");
-        card.setAttribute("href", "/blog/" + entry.fileName);
+        card.setAttribute("href", `/${siteSection}/` + entry.fileName);
 
         // write the slogan for each card
         const slogan: HTMLElement = document.createElement("div");

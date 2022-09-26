@@ -21,3 +21,6 @@ import "./modules/article_figures";
 // footnotes: <a class="foot-note" href="some-link" target="_blank">
 import "./modules/article_foot_notes";
 
+// ------------------------
+// requests side bar content from server
+import "./modules/article_request_side_entries";
