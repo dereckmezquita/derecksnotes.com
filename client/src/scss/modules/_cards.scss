@@ -1,0 +1,95 @@
+/* Display blog entries as cards, works in conjunction with JS to create DOM elements */
+.card-entries {
+    margin: auto;
+
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+
+    grid-gap: 20px;
+}
+
+.card {
+    text-decoration: none;
+    color: $black;
+    cursor: pointer;
+    padding: 15px;
+    background-color: $card_background;
+
+    border: 1px solid $border;
+    border-radius: 5px;
+
+    -webkit-box-shadow: 1px 1px 10px $shadow, $card_vignetting;
+    -moz-box-shadow: 1px 1px 10px $shadow, $card_vignetting;
+    box-shadow: 1px 1px 10px $shadow, $card_vignetting;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+
+    &:hover {
+        color: $black;
+        background-color: $card_background_hover;
+        -webkit-box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.8), $card_vignetting;
+        -moz-box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.8), $card_vignetting;
+        box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.8), $card_vignetting;
+        border-radius: 5px;
+        -webkit-border-radius: 5px;
+        -moz-border-radius: 5px;
+    }
+
+    &:active {
+        color: $black  !important;
+    }
+}
+
+/* Styles for the texts and image inside the cards */
+.entry-data {
+    text-align: center;
+}
+
+.entry-slogan, .entry-author {
+    font-size: 14px;
+    color: $light_gray;
+    font-style: italic;
+    padding-bottom: 5px;
+
+    &:hover {
+        color: $theme6;
+    }
+}
+
+.entry-name {
+    font-size: 15px;
+    text-transform: uppercase;
+    font-variant: small-caps;
+    padding-bottom: 5px;
+}
+
+.entry-img {
+    display: block;
+    margin: auto;
+    max-height: 140px;
+    max-width: 90%;
+
+    -webkit-filter: $sepia_filter;
+    /* Safari 6.0 - 9.0 */
+    filter: $sepia_filter;
+}
+
+.entry-summary {
+    font-size: 13px;
+    text-align: left;
+    text-justify: none;
+
+    // Deprecated now using JavaScript with the drop-text css class to style.
+    // &::first-letter {
+    //     initial-letter: 3;
+    //     -webkit-initial-letter: 3;
+    //     color: $theme6;
+    //     padding: 2px;
+    // }
+}
+
+.entry-date {
+    display: inline;
+    padding-left: 5px;
+    color: $theme6;
+}
