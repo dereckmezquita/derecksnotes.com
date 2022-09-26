@@ -75,3 +75,26 @@ if (lazyloadImages.length > 0) {
     window.addEventListener("resize", lazyload);
     window.addEventListener("orientationChange", lazyload);
 }
+
+// ------------------------
+// display image large hovering over dom when clicked
+const images: HTMLElement[] = Array.from(document.querySelectorAll("article img"));
+
+if (images.length > 0) {
+    for (let i = 0; i < images.length; i++) {
+        const image: HTMLImageElement = images[i] as HTMLImageElement;
+
+        image.addEventListener("click", () => {
+            const img: HTMLElement = document.createElement("img");
+            img.setAttribute("src", image.src);
+            img.setAttribute("class", "lightbox-image");
+
+            document.body.appendChild(img);
+
+            // if the user clicks on the lightbox image remove it
+            img.addEventListener("click", () => {
+                img.remove();
+            });
+        });
+    }
+}
