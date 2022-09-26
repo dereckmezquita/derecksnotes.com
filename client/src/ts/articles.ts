@@ -6,6 +6,10 @@
 import "./modules/article_title";
 
 // ------------------------
+// first letter of the first paragraph is a drop cap
+import "./modules/article_drop_cap";
+
+// ------------------------
 // calculate and print word count/read time to side bar
 import "./modules/article_word_count";
 
