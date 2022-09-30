@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router } from 'express';
 import { sendRes } from '../helpers';
 import { MongoClient, ObjectId } from 'mongodb';
 import { page } from '../db';
