@@ -39,8 +39,9 @@ const plugins: Object[] = makePlugins([
     // sections of website
     ...createEntriesPlugins("dictionaries", [
         "index",
-        "articles",
-        "styles"
+        "styles",
+        "request_definitions",
+        "articles"
     ]) as any
 ]);
 
@@ -53,13 +54,16 @@ module.exports = {
         index: path.resolve(__dirname, 'src/ts/index.ts'),
         // inject get entries script
         request_entries: path.resolve(__dirname, 'src/ts/request_entries.ts'),
+        request_definitions: path.resolve(__dirname, 'src/ts/request_definitions.ts'),
         // functionality scripts
         articles: path.resolve(__dirname, 'src/ts/articles.ts'), // includes all article prefixed scripts
         // separate article modules
+        article_title: path.resolve(__dirname, 'src/ts/modules/article_title.ts'),
+        article_drop_cap: path.resolve(__dirname, 'src/ts/modules/article_drop_cap.ts'),
+        article_word_count: path.resolve(__dirname, 'src/ts/modules/article_word_count.ts'),
         article_figures: path.resolve(__dirname, 'src/ts/modules/article_figures.ts'),
         article_foot_notes: path.resolve(__dirname, 'src/ts/modules/article_foot_notes.ts'),
-        article_title: path.resolve(__dirname, 'src/ts/modules/article_title.ts'),
-        article_word_count: path.resolve(__dirname, 'src/ts/modules/article_word_count.ts'),
+        article_request_side_entries: path.resolve(__dirname, 'src/ts/modules/article_request_side_entries.ts'),
         // ----------------------------
         // ----------------------------
         pre_processing_dictionary: path.resolve(__dirname, 'src/ts/pre_processing_dictionary.ts'),
