@@ -4,7 +4,7 @@
 
 // ------------------------
 // coingecko get prices for info-bar
-import { cryptoPrices, NameTicker } from "./modules/price_tickers";
+import { cryptoPrices, NameTicker } from "./modules/general_price_tickers";
 
 const coins: NameTicker[] = [
     { name: "bitcoin", ticker: "BTC" },
@@ -16,8 +16,8 @@ cryptoPrices(coins);
 
 // ------------------------
 // drowdown menu on responsive design
-import "./modules/flex_nav";
+import "./modules/general_flex_nav";
 
 // ------------------------
-import "./modules/clock";
+import "./modules/general_clock";
 
