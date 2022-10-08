@@ -36,9 +36,11 @@ export const initGetEntries = (client: MongoClient) => {
             // get entries from db; if section is dictionaries dont filter by section and return 10 most recent entries
             // const { docs, nextID } = await page(collection, section === 'dictionaries' ? {} : { section: section }, pageSize, new ObjectId(nextToken));
 
-            const { docs, nextID } = await page(collection, {
-                siteSection: section === "dictionaries" ? { $exists: true } : section
-            }, pageSize, new ObjectId(nextToken));
+            // const { docs, nextID } = await page(collection, {
+            //     siteSection: section === "any" ? { $exists: true } : section
+            // }, pageSize, new ObjectId(nextToken));
+
+            const { docs, nextID } = await page(collection, { siteSection: section }, pageSize, new ObjectId(nextToken));
             
 
             sendRes(res, true, { entries: docs, nextToken: nextID});
