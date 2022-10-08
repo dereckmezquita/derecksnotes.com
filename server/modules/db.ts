@@ -1,5 +1,5 @@
 
-import { Collection, ObjectId, Filter, FindOptions, Document } from 'mongodb';
+import { Collection, ObjectId, Filter, Document } from 'mongodb';
 
 type PageData = { docs: Document[], nextID: ObjectId | undefined };
 
