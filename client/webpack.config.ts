@@ -16,11 +16,6 @@ const plugins: Object[] = makePlugins([
         chunks: ["general_bundle", "styles", "request_cards"]
     },
     {
-        filename: "portfolio.html",
-        template: "portfolio.ejs",
-        chunks: ["general_bundle", "styles", "request_cards"]
-    },
-    {
         filename: "courses.html",
         template: "courses.ejs",
         chunks: ["general_bundle", "styles", "request_cards"]
