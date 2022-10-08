@@ -43,7 +43,7 @@ const entriesDOM: HTMLElement = document.querySelector(".card-entries");
 
         // set card cover image
         const image: HTMLElement = document.createElement("img");
-        image.setAttribute("src", "/site-images/card-covers/" + entry.image);
+        image.setAttribute("src", "/site-images/card-covers/" + entry.image + ".png");
         image.setAttribute("class", "entry-img");
         card.appendChild(image);
 
