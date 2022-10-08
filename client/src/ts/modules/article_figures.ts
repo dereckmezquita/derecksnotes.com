@@ -3,7 +3,6 @@
 // it adds a number to the figcaption and lazy loads the images
 // this script should be run before the foot_notes script
 
-
 // ------------------------
 // add number to each figcaption text to count the number of images
 const figcaptions: HTMLElement[] = Array.from(document.querySelectorAll("figcaption"));
@@ -21,7 +20,6 @@ if (figcaptions.length > 0) {
         }
     }
 }
-
 
 
 // ------------------------
@@ -42,6 +40,8 @@ if (lazyloadImages.length > 0) {
             lazyloadImages[i].removeAttribute("data-src");
             // remove lazy class
             lazyloadImages[i].classList.remove("lazy");
+            // remove class attrbitue
+            lazyloadImages[i].removeAttribute("class");
         }
     }
 
