@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import cheerio from 'cheerio';
 
-const dictioary_path: string = '../../client/src/dictionaries/dictionary-biology.ejs';
+const dictioary_path: string = '../../client/src/dictionaries/dictionary-biology-backup.ejs';
 
 // read the file with cheerio
 const dictionary: string = fs.readFileSync(path.resolve(__dirname, dictioary_path), 'utf8');
@@ -18,6 +18,7 @@ type Definition = {
     dictionary: string;
     category: string,
     dataSource: string,
+    letter: string,
     identifier: string,
     linksTo: string[],
     linkedFrom: string[]
@@ -62,16 +63,17 @@ for (let i = 0; i < definitions.length; i++) {
     // get all elements in the definition as a string of html
     let html = $(definition).html() as string;
 
-    html = html.replace(/data-category=\".*\"[\s]+?/, "")
-        .replace(/data-src=\".*\"[\s]+?/, "")
-        .replace(/data-dictionary=\".*\"[\s]+?/, "")
-        .trim();
+    html = html.trim().replace(/data-[a-z|-]+=\"[a-z|-]+\"[\s]+?/, "");
+
+    // get the first letter/character of the word
+    const first: string = $(definition).find('a').first().text()[0].toLowerCase();
 
     // push into definitions array
     db_def.push({
         dictionary: dictionaryCategory,
         category: category,
         dataSource: dataSource,
+        letter: first,
         identifier: identifier,
         linksTo: linksTo as string[],
         linkedFrom: [],
