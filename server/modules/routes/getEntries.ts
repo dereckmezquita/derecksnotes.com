@@ -17,7 +17,7 @@ export const initGetEntries = (client: MongoClient) => {
         const sections = ['blog', 'courses', 'exercises'];
 
         if (typeof section !== 'string') return sendRes(res, false, _, "Invalid type for section");
-        if (!sections.includes(section)) return sendRes(res, false, _, "Invalid value for section");
+        // if (!sections.includes(section)) return sendRes(res, false, _, "Invalid value for section");
         if (typeof pageSize !== 'number') return sendRes(res, false, _, "Invalid type for pageSize");
         if (pageSize > 30 || pageSize < 1) return sendRes(res, false, _, "Invalid size for pageSize");
         if (typeof nextToken !== 'string' && typeof nextToken !== 'undefined') return sendRes(res, false, _, "Invalid type for nextToken");
@@ -33,8 +33,13 @@ export const initGetEntries = (client: MongoClient) => {
             const db = client.db('entries');
             const collection = db.collection("metadata");
 
-            // get entries full data from db who's section matches the request
-            const { docs, nextID } = await page(collection, { siteSection: section }, pageSize, new ObjectId(nextToken)); // hard coded num of entries returned
+            // get entries from db; if section is dictionaries dont filter by section and return 10 most recent entries
+            const { docs, nextID } = await page(collection, section === 'dictionaries' ? {} : { section: section }, pageSize, new ObjectId(nextToken));
+
+            // const { docs, nextID } = await page(collection, {
+            //     siteSection: section === "dictionaries" ? { $exists: true } : section
+            // }, pageSize, new ObjectId(nextToken));
+            
 
             sendRes(res, true, { entries: docs, nextToken: nextID});
         })();
