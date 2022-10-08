@@ -13,35 +13,38 @@ const plugins: Object[] = makePlugins([
     {
         filename: "index.html",
         template: "index.ejs",
-        chunks: ["index", "styles", "request_entries"]
+        chunks: ["general_bundle", "styles", "request_cards"]
     },
     {
         filename: "portfolio.html",
-        template: "portfolio.ejs"
+        template: "portfolio.ejs",
+        chunks: ["general_bundle", "styles", "request_cards"]
     },
     {
         filename: "courses.html",
-        template: "courses.ejs"
+        template: "courses.ejs",
+        chunks: ["general_bundle", "styles", "request_cards"]
     },
     {
         filename: "exercises.html",
-        template: "exercises.ejs"
+        template: "exercises.ejs",
+        chunks: ["general_bundle", "styles", "request_cards"]
     },
     {
         filename: "tools.html",
-        template: "tools.ejs"
+        template: "tools.ejs",
+        chunks: ["general_bundle", "styles", "request_cards"]
     },
-    ...createEntriesPlugins("blog", ["index", "styles", "articles"]) as any,
-    // ...createEntriesPlugins("courses") as any,
-    // ...createEntriesPlugins("exercises") as any,
-    // ...createEntriesPlugins("portfolio") as any,
-    // ...createEntriesPlugins("tools") as any
     // sections of website
-    ...createEntriesPlugins("dictionaries", [
-        "index",
+    ...createEntriesPlugins("blog", [
+        "general_bundle",
         "styles",
-        "request_definitions",
-        "articles"
+        "article_bundle"
+    ]) as any,
+    ...createEntriesPlugins("dictionaries", [
+        "general_bundle",
+        "styles",
+        "dictionary_bundle"
     ]) as any
 ]);
 
@@ -51,19 +54,12 @@ module.exports = {
         // ----------------------------
         // ----------------------------
         // scripts
-        index: path.resolve(__dirname, 'src/ts/index.ts'),
-        // inject get entries script
-        request_entries: path.resolve(__dirname, 'src/ts/request_entries.ts'),
-        request_definitions: path.resolve(__dirname, 'src/ts/request_definitions.ts'),
-        // functionality scripts
-        articles: path.resolve(__dirname, 'src/ts/articles.ts'), // includes all article prefixed scripts
-        // separate article modules
-        article_title: path.resolve(__dirname, 'src/ts/modules/article_title.ts'),
-        article_drop_cap: path.resolve(__dirname, 'src/ts/modules/article_drop_cap.ts'),
-        article_word_count: path.resolve(__dirname, 'src/ts/modules/article_word_count.ts'),
-        article_figures: path.resolve(__dirname, 'src/ts/modules/article_figures.ts'),
-        article_foot_notes: path.resolve(__dirname, 'src/ts/modules/article_foot_notes.ts'),
-        article_request_side_entries: path.resolve(__dirname, 'src/ts/modules/article_request_side_entries.ts'),
+        general_bundle: path.resolve(__dirname, 'src/ts/general_bundle.ts'),
+        article_bundle: path.resolve(__dirname, 'src/ts/article_bundle.ts'),
+        dictionary_bundle: path.resolve(__dirname, 'src/ts/dictionary_bundle.ts'),
+        // ----------------------------
+        request_cards: path.resolve(__dirname, 'src/ts/modules/request_cards.ts'),
+        request_definitions: path.resolve(__dirname, 'src/ts/modules/request_definitions.ts'),
         // ----------------------------
         // ----------------------------
         pre_processing_dictionary: path.resolve(__dirname, 'src/ts/pre_processing_dictionary.ts'),
@@ -74,7 +70,11 @@ module.exports = {
         // ----------------------------
         // ----------------------------
         // libraries
-        mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js')
+        mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js'),
+        // ----------------------------
+        // ----------------------------
+        // development scripts
+        test: path.resolve(__dirname, 'src/ts/test.ts')
     },
     module: {
         rules: [
