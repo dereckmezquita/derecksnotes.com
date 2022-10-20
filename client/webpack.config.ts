@@ -45,6 +45,11 @@ const plugins: Object[] = makePlugins([
         template: "tools.ejs",
         chunks: ["general_bundle", "styles", "request_cards"]
     },
+    ...createEntriesPlugins("tools", [
+        "general_bundle",
+        "styles",
+        "article_bundle"
+    ]) as any,
     ...createEntriesPlugins("dictionaries", [
         "general_bundle",
         "styles",

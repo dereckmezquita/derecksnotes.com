@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en-uk">
+
+<head>
+    <title>
+        Dereck's Notes
+    </title>
+    <meta name="description"
+    content="The online brain of Dereck de Mezquita; making sciencing easier.">
+    <meta name="keywords"
+        content="Science, Programming, Bioinformatics, Biology, Technology, Education, Art, Dictionary, Blog">
+
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+
+<body>
+    <%- include ../templates/includes/info-bar.ejs %>
+    <%- include ../templates/includes/header.ejs %>
+
+    <%- include ../templates/includes/nav.ejs %>
+
+    <div class="content-wrapper">
+        <%- include ../templates/includes/side-bar.ejs %>
+
+        <article>
+
+            <h1>DNA melting temperature</h1>
+
+            <style>
+                .dna-seq {
+                    display: block;
+                    width: 100%;
+                    height: 150px;
+                    margin: 0 auto;
+                }
+
+                .spacer-number {
+                    width: 50px;
+                }
+            </style>
+
+            <p>
+                Either paste a sequence to calculate the melting temperature for or insert the number of each nucleotide to be used in the calculation.
+            </p>
+            <p>
+                Here is an example sequence: <code>ATGCATGTCTAAGTA</code>.
+            </p>
+            <p>
+                Calculations are done as per this formula:
+            </p>
+            <p class="mathsDescription">
+                For primers with a length inferiour to 14 nt the following is used:
+            </p>
+            <div class="mathsFormulas" id="meltingTempDNA">
+                $$ Tm = (n(A) + n(T)) \cdot 2 + (n(G) + n(C)) \cdot 4 $$
+            </div>
+            <p class="mathsDescription">
+                For primers with a length superiour to 13 nt the following is used:
+            </p>
+            <div class="mathsFormulas" id="meltingTempDNA">
+                $$ Tm = 64.9 + 41 \cdot \frac{(n(G) + n(C) - 16.4)}{(n(A) + n(T) + n(G) + n(C))} $$
+            </div>
+            <p class="mathsDescription">
+                Both these formulas assume the following: 50 nM primer, 50 mM Na+, and pH 7.0. n(x) designates the number of whichever base.
+            </p>
+
+            <div class="data-input">Input DNA Sequence here:</div>
+            <textarea type="text" class="dna-seq" title="Paste a DNA sequence to calculate melting temperature."></textarea>
+
+            <div class="data-input">Input DNA composition (Format: A, T, C, G): <input class="dna-nums"></input></div>
+
+            <button class="calc-button float-right" type="button">Calculate melting temp</button>
+            <br>
+            <div class="data-input">
+                Melting temperature of given DNA Sequence outputs here: <span class="calc-result tm-result"></span>
+            </div>
+            <div class="data-input">
+                The GC composition of the sequence is: <span class="calc-result gc-result"></span>
+            </div>
+            <div class="data-input">
+                Total sequence length: <span class="calc-result dna-seq-length"></span>
+            </div>
+            <div class="data-input">
+                Composition of DNA strand input
+                <ul>
+                    <li>
+                        A: <span class="calc-result a-num-result"></span>
+                    </li>
+                    <li>
+                        T: <span class="calc-result t-num-result"></span>
+                    </li>
+                    <li>
+                        C: <span class="calc-result c-num-result"></span>
+                    </li>
+                    <li>
+                        G: <span class="calc-result g-num-result"></span>
+                    </li>
+                </ul>
+            </div>
+
+
+            <ol class="foot-notes">
+                <div class="foot-notes-head">
+                    Footnotes:
+                </div>
+                <li id="">
+                    For an explanation on how this programme works please see this blog post: <a
+                        href="/blog/displayEntry.php?entry=20190827_dnaMeltTemp">JavaScript: DNA melting temperature</a>.
+                </li>
+            </ol>
+
+
+            <script>
+                const execute = document.querySelector(".calc-button");
+
+                execute.addEventListener("click", function () {
+                    let dnaSeq = document.querySelector(".dna-seq").value.replace(/\s/g, "").toUpperCase();
+                    let dnaNums = document.querySelector(".dna-nums").value;
+                    dnaNums = dnaNums.split(", ");
+                    let a, t, c, g;
+
+                    // Check if DNA sequence is only composed of A, T, G, C
+                    let regex = /[^ATCG]/;
+                    let match = regex.test(dnaSeq);
+
+                    if (!dnaSeq) {
+                        dnaSeq = null;
+                    }
+
+                    if (dnaNums.length !== 4) {
+                        dnaNums = null;
+                    }
+
+                    if (dnaSeq === null && dnaNums === null) {
+                        return alert("Please enter a sequence or DNA composition.");
+                    } else if (dnaSeq !== null && dnaNums !== null) {
+                        return alert("Please enter either a DNA sequence, or a DNA composition array, not both.")
+                    } else if (dnaSeq !== null && dnaNums === null && match) {
+                        return alert("Please enter a DNA sequence or remove unaccepted characters; all other characters but A, T, C, G, are unacceptable.")
+                    } else if (dnaSeq !== null && dnaNums === null && !match) {
+                        a = (dnaSeq.match(/A/g) || []).length;
+                        t = (dnaSeq.match(/T/g) || []).length;
+                        c = (dnaSeq.match(/C/g) || []).length;
+                        g = (dnaSeq.match(/G/g) || []).length;
+
+                        // Print seq length
+                        document.querySelector(".dna-seq-length").innerHTML = a + t + c + g;
+
+                        // Print the number of each base in the sequence
+                        document.querySelector(".a-num-result").innerHTML = a;
+                        document.querySelector(".t-num-result").innerHTML = t;
+                        document.querySelector(".c-num-result").innerHTML = c;
+                        document.querySelector(".g-num-result").innerHTML = g;
+
+                        document.querySelector(".gc-result").innerHTML = ((g + c) / (a + t + c + g) * 100).toFixed(2) + "%";
+
+                        if (dnaSeq.length <= 13) {
+                            document.querySelector(".tm-result").innerHTML = ((a + t) * 2 + (g + c) * 4).toFixed(2) + "&deg;C";
+                        } else if (dnaSeq.length >= 14) {
+                            document.querySelector(".tm-result").innerHTML = (64.9 + 41 * (g + c - 16.4) / (a + t + g + c)).toFixed(2) + "&deg;C";
+                        }
+                    } else if (dnaSeq === null && dnaNums !== null) {
+                        a = parseInt(dnaNums[0]);
+                        t = parseInt(dnaNums[1]);
+                        c = parseInt(dnaNums[2]);
+                        g = parseInt(dnaNums[3]);
+
+                        let dnaSum = a + t + c + g;
+
+                        document.querySelector(".gc-result").innerHTML = ((g + c) / (dnaSum) * 100).toFixed(2) + "%";
+
+                        if (dnaSum <= 13) {
+                            document.querySelector(".tm-result").innerHTML = ((a + t) * 2 + (g + c) * 4).toFixed(2) + "&deg;C";
+                        } else if (dnaSum >= 14) {
+                            document.querySelector(".tm-result").innerHTML = (64.9 + 41 * (g + c - 16.4) / (a + t + g + c)).toFixed(2) + "&deg;C";
+                        }
+                    }
+                })
+            </script>
+
+            <!-- ATGCATGTCTAAGTA -->
+        </article>
+    </div>
+
+    <%- include ../templates/includes/footer.ejs %>
+</body>
+
+</html>

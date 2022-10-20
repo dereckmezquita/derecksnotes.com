@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en-uk">
+
+<head>
+    <title>
+        Dereck's Notes
+    </title>
+    <meta name="description"
+    content="The online brain of Dereck de Mezquita; making sciencing easier.">
+    <meta name="keywords"
+        content="Science, Programming, Bioinformatics, Biology, Technology, Education, Art, Dictionary, Blog">
+</head>
+
+<body>
+    <%- include ../templates/includes/info-bar.ejs %>
+    <%- include ../templates/includes/header.ejs %>
+
+    <%- include ../templates/includes/nav.ejs %>
+
+    <div class="content-wrapper">
+        <%- include ../templates/includes/side-bar.ejs %>
+
+        <article>
+            <h1>DNA formatter</h1>
+
+            <p>
+                This simple tool will space your DNA/RNA sequences; and other text. It will remove any extra white spacing yet conserve new lines. The sequence will be returned with a single space between the designated amount of characters.
+            </p>
+            <p>
+                This tool does not check what characters you use, and can be used to space any chunk of text.
+            </p>
+            <p>
+                The text area is prefilled with an example sequence:
+            </p>
+
+            <style>
+                .spacer-input, .spacer-output {
+                    display: block;
+                    width: 100%;
+                    height: 350px;
+                    margin: 0 auto;
+                }
+
+                .spacer-number {
+                    width: 50px;
+                }
+            </style>
+
+            <div class="data-input">Input DNA Sequence here:</div>
+            <textarea type="text" class="spacer-input" title="Paste a DNA sequence to space.">
+            ATGC   ATGTCTAAGAT    TGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGTATGCATGTCTCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGTATGCATGTCTAAGTAATGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCAGCTAAGTA AT  
+
+            AT    GC   ATGT CTAAGTAATGCATGCTAAGTGCATGTCTAATGTCTAAGTAATGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGTATGCATGTCTTGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGTATGCATGTCTAAGTAATGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGT    
+
+
+            ATGCATG TCT ATGTC    TGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGTATGCATGTCTCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGTATGCATGTCTAAGTAATGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCA
+
+            ATG    TGC      ATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATG    TGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGTATGCATGTCTCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGTATGCATGTCTAAGTAATGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGCTAAGTA ATGCATGT    TGCATGCTAAGTA ATGCATGTCTAAGTA   TCTAAGTAATGCATGTATGCATGTCTCTAAGTA ATGCATGTCTAAGT
+            </textarea>
+            <label class="spacer-uppercase-label">
+                Uppercase:
+                <input type="checkbox" class="spacer-uppercase" checked="checked">
+            </label>
+            <!-- <label class="spacer-uppercase-label">
+                Dirty:
+                <input type="checkbox" class="dirty-text" checked="">
+            </label> -->
+            <label class="spacer-uppercase-label">
+                Add a space every n:
+                <input type="number" class="spacer-number" value="3">
+            </label>
+            <button class="spacer-button float-right" type="button">Format DNA sequences</button>
+
+            <br>
+            <br>
+
+            <div class="data-input">Formatted DNA Sequence outputs here:</div>
+            <textarea type="text" class="spacer-output" title="Formatted sequence will appear here."></textarea>
+
+            <h2>Source code</h2>
+
+            <p>
+                You can view the JavaScript code below or find it at the github repo for this paga: <a href="https://github.com/dereckdemezquita/derecksnotes/blob/master/tools/entries/dnaFormatter.html">github.com/dereckdemezquita/derecksnotes/blob/master/tools/entries/dnaFormatter.html</a>.
+            </p>
+
+            <script>
+                const execute = document.querySelector(".spacer-button");
+
+                execute.addEventListener("click", () => {
+                    const dnaInput = document.querySelector(".spacer-input").value; // Get input data
+                    const uppercaseInput = document.querySelector(".spacer-uppercase").checked; // Check uppercase selection
+                    const spacerNumber = parseInt(document.querySelector(".spacer-number").value); // Check n spacing selection
+                    const output = document.querySelector(".spacer-output");
+
+                    console.log("Formatting text!")
+                    function spaceStr(str, n) {
+                        output.value = ""; // Clear output on each run
+                        let lines = str.split("\n"); // Split into an array at the new lines; new lines become empty strings
+
+                        lines = lines.filter(l => l !== ""); // Remove new lines empty strings
+                        lines = lines.map(l => l.split(" ").join("")); // Split into an array of strings; join with no spacing
+                        
+                        // map creates a new modified array from the results of a given function
+                        lines = lines.map(l => 
+                            l.split("").reduce((a, e, i) => a + e + (i % n === (n - 1) ? " " : ""), "")
+                            // reduce executes a function over each element of an array
+                            // it has three main parts, accumulator, element, index
+                        ).join("\n\n"); // join concatenates all elements together with a given separator
+
+                        if (uppercaseInput !== true) { // leave text as is
+                            output.value += lines;
+                        } else { // uppercase text
+                            output.value += lines.toUpperCase();
+                        }
+                    }
+
+                    spaceStr(dnaInput, spacerNumber);
+                });
+            </script>
+
+            <!-- ATGCATGTCTAAGTA -->
+
+        </article>
+    </div>
+
+    <%- include ../templates/includes/footer.ejs %>
+</body>
+
+</html>
