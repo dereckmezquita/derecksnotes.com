@@ -53,31 +53,34 @@ const entriesDOM: HTMLElement = document.querySelector(".card-entries");
         author.setAttribute("class", "entry-data entry-author");
         card.appendChild(author);
 
-        // set article summary
-        const summary: HTMLElement = document.createElement("div");
-        summary.innerHTML = entry.summary.slice(0, 150).replace(/\.$|\,$/, "").trim() + "...";
-        summary.setAttribute("class", "entry-data entry-summary");
-        
-        // create drop cap
-        const drop: HTMLElement = document.createElement("span");
-        drop.innerText = entry.summary[0];
-        drop.setAttribute("class", "drop-cap");
-        // remove the first letter from the summary
-        summary.innerHTML = summary.innerHTML.slice(1);
-        // add the drop cap to the summary
-        summary.prepend(drop);
+        // console.log(entry.summary === "");
+        if (entry.summary !== "") {
+            // set article summary
+            const summary: HTMLElement = document.createElement("div");
+            summary.innerHTML = entry.summary.slice(0, 150).replace(/\.$|\,$/, "").trim() + "...";
+            summary.setAttribute("class", "entry-data entry-summary");
+            
+            // create drop cap
+            const drop: HTMLElement = document.createElement("span");
+            drop.innerText = entry.summary[0];
+            drop.setAttribute("class", "drop-cap");
+            // remove the first letter from the summary
+            summary.innerHTML = summary.innerHTML.slice(1);
+            // add the drop cap to the summary
+            summary.prepend(drop);
 
-        // set the date
-        const date: HTMLElement = document.createElement("span");
-        // extract year month day from iso date; "2021-07-30T05:00:00.000Z"
-        const year: string = entry.date.substring(0, 4);
-        const month: string = entry.date.substring(5, 7);
-        const day: string = entry.date.substring(8, 10);
-        date.innerText = `${month}/${day}/${year}`;
-        date.setAttribute("class", "entry-data entry-date");
-        
-        summary.appendChild(date);
-        card.appendChild(summary);
+            // set the date
+            const date: HTMLElement = document.createElement("span");
+            // extract year month day from iso date; "2021-07-30T05:00:00.000Z"
+            const year: string = entry.date.substring(0, 4);
+            const month: string = entry.date.substring(5, 7);
+            const day: string = entry.date.substring(8, 10);
+            date.innerText = `${month}/${day}/${year}`;
+            date.setAttribute("class", "entry-data entry-date");
+            
+            summary.appendChild(date);
+            card.appendChild(summary);
+        }
 
         // finally append the card to the entriesDOM
         entriesDOM.appendChild(card);
