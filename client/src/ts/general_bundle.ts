@@ -20,3 +20,14 @@ import "./modules/general_flex_nav";
 
 // ------------------------
 import "./modules/general_clock";
+
+// ------------------------
+// ------------------------
+window.MathJax = { // property declared in index.d.ts
+    tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+    },
+    svg: {
+        fontCache: 'global'
+    }
+};
