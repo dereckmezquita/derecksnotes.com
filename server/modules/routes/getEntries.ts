@@ -40,7 +40,13 @@ export const initGetEntries = (client: MongoClient) => {
             //     siteSection: section === "any" ? { $exists: true } : section
             // }, pageSize, new ObjectId(nextToken));
 
-            const { docs, nextID } = await page(collection, { siteSection: section }, pageSize, new ObjectId(nextToken));
+            // const { docs, nextID } = await page(collection, { siteSection: section }, pageSize, new ObjectId(nextToken));
+
+            // return all entries which match siteSection and published is true
+            const { docs, nextID } = await page(collection, {
+                siteSection: section,
+                published: true
+            }, pageSize, new ObjectId(nextToken));
             
 
             sendRes(res, true, { entries: docs, nextToken: nextID});

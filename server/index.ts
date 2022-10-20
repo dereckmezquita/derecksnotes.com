@@ -3,7 +3,7 @@ import { router, initDB } from './modules/routes';
 import path from 'path';
 import { MongoClient, ObjectId } from 'mongodb';
 
-const port: number = 3000;
+const port: number = 3001;
 const app = express();
 
 app.use(express.json());
