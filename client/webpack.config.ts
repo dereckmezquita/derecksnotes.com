@@ -15,27 +15,36 @@ const plugins: Object[] = makePlugins([
         template: "index.ejs",
         chunks: ["general_bundle", "styles", "request_cards"]
     },
-    {
-        filename: "courses.html",
-        template: "courses.ejs",
-        chunks: ["general_bundle", "styles", "request_cards"]
-    },
-    {
-        filename: "exercises.html",
-        template: "exercises.ejs",
-        chunks: ["general_bundle", "styles", "request_cards"]
-    },
-    {
-        filename: "tools.html",
-        template: "tools.ejs",
-        chunks: ["general_bundle", "styles", "request_cards"]
-    },
-    // sections of website
     ...createEntriesPlugins("blog", [
         "general_bundle",
         "styles",
         "article_bundle"
     ]) as any,
+    {
+        filename: "courses.html",
+        template: "courses.ejs",
+        chunks: ["general_bundle", "styles", "request_cards"]
+    },
+    ...createEntriesPlugins("courses", [
+        "general_bundle",
+        "styles",
+        "article_bundle"
+    ]) as any,
+    {
+        filename: "exercises.html",
+        template: "exercises.ejs",
+        chunks: ["general_bundle", "styles", "request_cards"]
+    },
+    ...createEntriesPlugins("exercises", [
+        "general_bundle",
+        "styles",
+        "article_bundle"
+    ]) as any,
+    {
+        filename: "tools.html",
+        template: "tools.ejs",
+        chunks: ["general_bundle", "styles", "request_cards"]
+    },
     ...createEntriesPlugins("dictionaries", [
         "general_bundle",
         "styles",
@@ -65,7 +74,7 @@ module.exports = {
         // ----------------------------
         // ----------------------------
         // libraries
-        mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js'),
+        // mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js'),
         // ----------------------------
         // ----------------------------
         // development scripts
@@ -141,11 +150,22 @@ module.exports = {
             patterns: [
                 { // https://stackoverflow.com/questions/45036810/webpack-copying-files-from-source-to-public-using-copywebpackplugin
                     context: './src/',
-                    from: "./**/*\.(pdf|png|svg|jpg|jpeg|gif|mov)",
+                    from: "./**/*\.(ico|pdf|png|svg|jpg|jpeg|gif|mov)",
                     to: "./",
                     noErrorOnMissing: true
                 }
             ]
         })
+        // ,
+        // new CopyPlugin({
+        //     patterns: [
+        //         {
+        //             context: './src/',
+        //             from: "./libraries/mathjax.js",
+        //             to: "./libraries/mathjax.js",
+        //             noErrorOnMissing: true
+        //         }
+        //     ]
+        // })
     ]
 }
