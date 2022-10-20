@@ -2,18 +2,23 @@
 import { getEntries } from "./request";
 
 // get current url; this dicates what articles to request from database
-const siteSection: string = window.location.href.split("/")[3];
+// const siteSection: string = window.location.href.split("/")[3];
+
+const siteSections: string[] = ["blog", "courses", "exercises", "tools"];
+
+// randomly select a site section
+let siteSection: string = siteSections[Math.floor(Math.random() * siteSections.length)];
 
 const entriesDOM: HTMLElement = document.querySelector(".side-entries");
 
 // get entries as a promise await
 (async () => {
-    const res = await getEntries(siteSection, 10);
+    const entries: any[] = [];
 
-    if (!res.success) throw new Error(res);
+    console.log(entries);
 
     // loop through entries and create a card for each
-    for (const entry of res.data.entries) {
+    for (const entry of entries) {
         const list: HTMLElement = document.createElement("li");
         entriesDOM.appendChild(list);
 
