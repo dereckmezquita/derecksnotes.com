@@ -2,14 +2,24 @@
 // import via node to be able to create an iso date which is a special type and not storable in json
 
 import { MongoClient } from 'mongodb';
-import { readFileSync } from 'fs';
+import { readdirSync, readFileSync } from 'fs';
 
 const url = 'mongodb://localhost:27017';
 const client = new MongoClient(url);
 
-// reads metadata to an array
-const metadata = JSON.parse(readFileSync('./edited-exercises-metadata.json').toString());
+//  json files in folder entries-metadata
+const files: string[] = readdirSync('entries-metadata');
 
+// read all metadata files into a single array
+const metadata: any[] = [];
+
+files.forEach((file) => {
+    const data = readFileSync(`entries-metadata/${file}`, 'utf8');
+    metadata.push(...JSON.parse(data));
+});
+
+
+// add all metadata entries to the database
 for(const doc of metadata) {
     const retroDate = doc.retroDate;
 
