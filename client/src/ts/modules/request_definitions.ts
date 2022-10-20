@@ -17,7 +17,7 @@ const definitionsDOM: HTMLElement = document.querySelector("#dictionary-list");
 
         // send query
         let res = await getDefinitions(dictionaryName, letter, 30);
-        
+
         if (!res.success) throw new Error(res);
 
         const definitions: any[] = res.data.definitions;
@@ -71,4 +71,14 @@ const definitionsDOM: HTMLElement = document.querySelector("#dictionary-list");
 
         definitionsDOM.appendChild(li);
     }
+
+    // ------------------------
+    // mathjax
+    // https://docs.mathjax.org/en/latest/web/configuration.html#local-configuration-file
+    // configuration injected in the general_bundle.ts file
+    const script: HTMLScriptElement = document.createElement('script');
+    // script.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js";
+    script.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
+    script.async = true;
+    document.head.appendChild(script);
 })();
