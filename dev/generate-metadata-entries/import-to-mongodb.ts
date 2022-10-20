@@ -8,7 +8,7 @@ const url = 'mongodb://localhost:27017';
 const client = new MongoClient(url);
 
 // reads metadata to an array
-const metadata = JSON.parse(readFileSync('./edited-blog-metadata.json').toString());
+const metadata = JSON.parse(readFileSync('./edited-exercises-metadata.json').toString());
 
 for(const doc of metadata) {
     const retroDate = doc.retroDate;

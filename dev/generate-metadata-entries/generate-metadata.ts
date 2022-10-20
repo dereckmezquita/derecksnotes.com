@@ -4,8 +4,8 @@ import path from 'path';
 
 import cheerio from 'cheerio';
 
-// list files in blog
-const files: string[] = fs.readdirSync(path.resolve(__dirname, './blog'));
+// list only files not directories
+const files: string[] = fs.readdirSync(path.resolve(__dirname, './entries'));
 
 const metadata: Object[] = [];
 
@@ -22,7 +22,7 @@ for (let file of files) {
     const day = date.slice(6, 8);
 
     // read the file as text
-    const fileText = fs.readFileSync(path.resolve(__dirname, './blog', file), 'utf8');
+    const fileText = fs.readFileSync(path.resolve(__dirname, './entries', file), 'utf8');
 
     // load the file text into cheerio
     const $ = cheerio.load(fileText);
@@ -37,11 +37,11 @@ for (let file of files) {
 
     // start shoving stuff into the metadata
     metadata.push({
-        siteSection: "blog",
+        siteSection: "exercises",
         fileName: fileName,
         author: "Dereck de Mezquita",
         articleTitle: title,
-        image: "",
+        image: 0,
         slogan: "",
         summary: firstParagraph,
         retroDate: {
@@ -49,11 +49,12 @@ for (let file of files) {
             month: +month,
             day: +day
         },
-        categories: []
+        categories: [],
+        published: true
     });
 }
 
 // save metadata
-fs.writeFileSync(path.resolve(__dirname, './blog-metadata.json'), JSON.stringify(metadata, null, 4));
+fs.writeFileSync(path.resolve(__dirname, './exercises-metadata.json'), JSON.stringify(metadata, null, 4));
 
 console.log(metadata);
