@@ -24,7 +24,7 @@ To                         Action      From
 ufw allow 80
 ```
 
-nginx config file stored at: 
+nginx config file stored at: /etc/nginx/nginx.conf
 
 ```
 worker_processes auto;
@@ -77,7 +77,7 @@ http {
         ssl_session_tickets on;
 
 		location / {
-			root   html;
+			root   /html;
 			index  index.html index.htm;
 		}
     }4
