@@ -10,7 +10,7 @@ app.use(express.json());
 app.use(router);
 
 // serve static files from public directory; temp will remove for serving with nginx
-app.use(express.static(path.join(__dirname, '..', 'client/public')));
+// app.use(express.static(path.join(__dirname, '..', 'client/public')));
 
 new MongoClient('mongodb://localhost:27017').connect().then(client => {
     initDB(client);
