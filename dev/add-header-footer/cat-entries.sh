@@ -7,7 +7,7 @@ top=$'<!DOCTYPE html>
         Dereck\'s Notes
     </title>
     <meta name="description"
-    content="The online brain of Dereck de Mezquita; making sciencing easier.">
+        content="The online brain of Dereck de Mezquita; making sciencing easier.">
     <meta name="keywords"
         content="Science, Programming, Bioinformatics, Biology, Technology, Education, Art, Dictionary, Blog">
 </head>
