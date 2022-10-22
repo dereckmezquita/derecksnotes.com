@@ -1,7 +1,7 @@
 
 // submit a post request to getEntries express server
 export const getEntries = async (section: string, pageSize: number, nextToken?: string): Promise<any> => {
-    const response = await fetch('/getEntries', {
+    const response = await fetch('/api/getEntries', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -17,7 +17,7 @@ export const getEntries = async (section: string, pageSize: number, nextToken?: 
 }
 
 export const getDefinitions = async (dictionary: string, letter: string, pageSize: number, nextToken?: string): Promise<any> => {
-    const response = await fetch('/getDefinitions', {
+    const response = await fetch('/api/getDefinitions', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
