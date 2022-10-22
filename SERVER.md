@@ -1,4 +1,6 @@
 
+Custom flags for custom config build of `nginx`:
+
 ```bash
 ./configure --sbin-path=/usr/bin/nginx --conf-path=/etc/nginx/nginx.conf --error-log-path=/var/log/nginx/error.log --http-log-path=/var/log/nginx/access.log --with-pcre --pid-path=/var/run/nginx.pid --with-http_ssl_module
 
@@ -11,9 +13,15 @@ ufw status
 ufw allow 22
 
 ufw enable
-# Command may disrupt existing ssh connections. Proceed with operation (y|n)? y
-# Firewall is active and enabled on system startup
+```
+```
+Command may disrupt existing ssh connections. Proceed with operation (y|n)? y
+Firewall is active and enabled on system startup
+```
+```bash
 ufw status
+```
+```bash
 Status: active
 
 To                         Action      From
@@ -26,12 +34,13 @@ ufw allow 80
 
 nginx config file stored at: /etc/nginx/nginx.conf
 
-```
+```bash
 worker_processes auto;
 
 events {
     worker_connections  1024;
 }
+
 
 http {
     include       mime.types;
@@ -60,8 +69,8 @@ http {
         add_header X-Frame-Options "SAMEORIGIN";
         add_header X-XSS-Protection "1; mode=block";
 
-        ssl_certificate      /etc/letsencrypt/live/www.derecksnotes.com/fullchain.pem;
-        ssl_certificate_key  /etc/letsencrypt/live/www.derecksnotes.com/privkey.pem;
+        ssl_certificate      /etc/letsencrypt/live/derecksnotes.com/fullchain.pem;
+        ssl_certificate_key  /etc/letsencrypt/live/derecksnotes.com/privkey.pem;
 
         ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
 
@@ -76,16 +85,23 @@ http {
         ssl_session_timeout 4h;
         ssl_session_tickets on;
 
-		location / {
-			root   /html;
-			index  index.html index.htm;
-		}
-    }4
+                location / {
+                        root   /html/derecksnotes.com/client/public/;
+                        index  index.html index.htm;
+                }
+
+        location /api/ {
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_pass http://127.0.0.1:3001/;
+        }
+    }
 }
 ```
 
-Then do certbot. This gets us an SSL certificate so we can use https.
+## certbot
 
+Then do certbot. This gets us an SSL certificate so we can use https.
 
 certbot installed using snap
 
