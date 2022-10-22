@@ -1,4 +1,6 @@
 
+## `nginx`
+
 Custom flags for custom config build of `nginx`:
 
 ```bash
@@ -99,7 +101,7 @@ http {
 }
 ```
 
-## certbot
+## `certbot` for `ssl` certification
 
 Then do certbot. This gets us an SSL certificate so we can use https.
 
@@ -122,4 +124,15 @@ systemctl status nginx
 systemctl start nginx
 systemctl enable nginx # enable on startup
 systemctl reload nginx
+```
+
+## Troubleshooting
+
+If you create a new user on `ubuntu` and you don't see the usual `username@path` on the `cli` and instead just a dollar sign `$` that is because you need to set the correct shell you be used^[[why-is-there-no-name-showing-at-the-command-line](https://askubuntu.com/questions/388440/why-is-there-no-name-showing-at-the-command-line)].
+
+You can do so with this; and also copy over the `.bashrc` and `.profile` files to the new user after having created a new home folder for said user:
+
+```bash
+# if logged in as new user
+chsh -s /bin/bash
 ```
