@@ -7,22 +7,21 @@ Custom flags for custom config build of `nginx`:
 ./configure --sbin-path=/usr/bin/nginx --conf-path=/etc/nginx/nginx.conf --error-log-path=/var/log/nginx/error.log --http-log-path=/var/log/nginx/access.log --with-pcre --pid-path=/var/run/nginx.pid --with-http_ssl_module
 
 make
-
 make install
-
 ufw status
-
 ufw allow 22
-
 ufw enable
 ```
+
 ```
 Command may disrupt existing ssh connections. Proceed with operation (y|n)? y
 Firewall is active and enabled on system startup
 ```
+
 ```bash
 ufw status
 ```
+
 ```bash
 Status: active
 
