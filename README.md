@@ -1,31 +1,40 @@
-# derecksnotes.com
+# [derecksnotes](www.derecksnotes.com)  <img src="./siteImages/icons/512derecksNotesLogo.png" width="75" align="right">
 
-DerecksNotes v2.0.
+Version `2.0` of my website: [`www.derecksnotes.com`](www.derecksnotes.com).
 
-# Infrastructure
+<p align="center">
+    <img src="./.graphics/screen-captures/site-capture-full.png" width="750">
+</p>
 
-A `no-sql` type database might be better suited for my needs; no strict schemas to define and allows for flexbility with scaling/data structures.
+This website features progressive web-app technologies and thus can prompt a user and then be installed locally on a mobile phone for offline use.
 
-## Database
+<p align="center">
+    <img src="./.graphics/screen-captures/site-capture-mobile-install-prompt.jpeg" width="350">
+    <img src="./.graphics/screen-captures/site-capture-installed.jpeg" width="350">
+</p>
 
-- Database
-    - table1: articles
-        - entry_id
-        - website_page
-        - author
-        - cover_image
-        - date
-        - display_name
-        - display_slogan
-        - display_summary
-        - catrgories/tags
-        - publish_status
-        - likes
-        - comments - this should be a separate table
-    - table2: user_accounts
-        - username
-        - password
-        - email
-        - date_created
-        - date_last_login
-    - table3: comments
+# Tech stack
+
+This website is a full stack project both back end and front end; is built on the following technologies:
+
+- `webpack` for module bundling; used to manage and build:
+    - `TypeScript` to `JavaScript`.
+    - `ejs` to `html`.
+    - `scss` to `css`.
+- `TypeScript` used for server side and front end code.
+- `scss` used for front end styles.
+- `mongodb` used as a database for:
+    - blog/post entries.
+    - User accounts.
+    - User comments.
+    - Dictionary definitions.
+- `express` for handling client side requests.
+- `nginx` for serving static files, reverse proxying database requests, chaching, load balancing and more.
+
+
+# Copyright
+
+I reserve all rights for this website, and any code or content found in this repository. You may not copy this code or content. This is to serve only as an educational resource, and any use or reference of/to the content herein must be credited to the author: Dereck de Mézquita. 
+
+Contact: contact@demezquita.com
+
