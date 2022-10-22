@@ -1,4 +1,4 @@
-# [derecksnotes](www.derecksnotes.com)  <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
+# [derecksnotes.com](www.derecksnotes.com)  <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
 
 Version `2.0` of my website: [`www.derecksnotes.com`](www.derecksnotes.com).
 
