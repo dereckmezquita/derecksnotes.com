@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en-uk">
+
+<head>
+    <title>
+        Dereck's Notes
+    </title>
+    <meta name="description"
+        content="The online brain of Dereck de Mezquita; making sciencing easier.">
+    <meta name="keywords"
+        content="Science, Programming, Bioinformatics, Biology, Technology, Education, Art, Dictionary, Blog">
+</head>
+
+<body>
+    <%- include ../templates/includes/info-bar.ejs %>
+    <%- include ../templates/includes/header.ejs %>
+
+    <%- include ../templates/includes/nav.ejs %>
+
+    <div class="content-wrapper">
+        <%- include ../templates/includes/side-bar.ejs %>
+
+        <article>
+
+            <h1>Polymerase chain reaction (PCR)</h1>
+            <p>
+                This protocol will allow you to amplify desired sequences, by use of specific primers, and a thermocycler. This allows us to have these sequences in greater quantities and allow us future experiments.
+            </p>
+            <p>
+                First note your primers, write down the sequences and align them to your DNA so to get an idea of the expected PCR product size. In this example lets use the following primers on the R388 plasmid:
+            </p>
+            <div class="primers">
+                <ul> 
+                    <li>
+                        CG387b - 5' tatacactccgctagc | cgcattgggttatcgtgcag 3'
+                        <ul>
+                            <li>
+                                CG387b Match = 5' cgcattgggttatcgtgcag 3'
+                            </li>
+                            <li>
+                                CG387b Float = 5' tatacactccgctagc 3'
+                            </li>
+                        </ul>
+                    </li>
+                    <li>
+                        CG392 - 5' agacctcagcgctagc | tcaagcgccgaagaagtaacc 3'
+                        <ul>
+                            <li>
+                                CG392 Match = 5' tcaagcgccgaagaagtaacc 3'
+                            </li>
+                            <li>
+                                CG392 Float = 5' agacctcagcgctagc 3'
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+            <p>
+                These primers line up and amplify the stbABC operon on the R388 plasmid (from LMGM internship), including the stbDR sequences upstream from stbABC. This is the sequence we should get from this amplification:
+            </p>
+            <div class="DNASequences">
+                <strong>5'</strong>CGC ATT GGG TTA TCG TGC AGC AAT GAT GCA ACT ATA ATG CTA TGA TGG TGC TAC AAT GAT GCA GAA AAT GAG CTA AAA CGG ACG GAA ACC GGG CTT GCA AGA GGG AAA TAA TGC ATG TAT GAT GCA AAT GTG ATG CAG TCA TAG GAC AGC TAT GAT GCA GGC AAA CGA CCT TTA ACT AAC AGG AGG GCT ACA AGT GAA TGA AAC GGA CGC CCT GAA AGA TCG GAT TGA AAA CAT CCG ACC TAG AAT GAC CCT CGC CGC GAA GCT CCG GGA ATT GAT GCC GGA GAT TGA TCG GCA GGT ACG CGC AGG CGT CCA GCA CGA CGA TAT TGT CGA AAC GCT GAA CGC CAA CGG GTT CGA TGT GAA CCT GAA TAC TTT TCG GAG TTA CCT CTA CCG TTA TCG CAA GAA AGC GCG AGC GAG TGA GGG GCA ACC GGA ACC GGC ACA AGC GAC ACC CAA GGC GGA CGG CAA TTC GCC TGT CGT GAG TGA AGG CCC CGG CGA CGT GTC GCC TGA CTT TGA CGC GGA TTC TTT GGC TGA CGC ATT GGA CGC CAG AAA GCG CGA TGA ATT GGG CGA TAA ATA CCT TGG CCT TAA ACG GCC TAT TTT TTC CAA GCG GAG TGA CAA CAA ATG AAA GTA GCT GTG ATC AAT TTT TCG GGC AAC GTG GGT AAG TCC ACC GTG GCG CAA CAT CTG CTT GCT CCC CGG ATG CCA AAC GCT GAA TTT GTA GCG GTC GAA TCC ATC AAC GCC GAT GAG GGC ACG GGC GAG GTT GTT CGT GGC AAA CAA TTC GGC CAA TTG CAG GAA CAA TTG CTG ATG GTC GAT GAG GCC GTT ATC GAC ATT GGT GCG TCC AAC GTC GAG GAT TTC GTA AAG CTC ATG CAG CAG TAT CGT GGT TCG CAT GAG GAC TTC GAT TAT TTC GTT GTT CCT GCC GTC AAG GAA AGC AAG CAA ATC AAG GAC ACA ATT GCG ACG ATC AAC GCG CTT TCC AAG ATG GGT GTT CCC GCG AAA AAG ATT CGC GTC GTG TTC AAC AAG TTG GAA TCT GAC GAA ACG GTC GAA GAA GCC TTC TAT CCG CTG TTC GCC TAT CAC GAT GAC AGC AAG GCG TTC ACG ATC AAG CCG AAA GCC GCA ATC CAG TTT AGC GAG CTG TAT CAC AAG CTA CGC ACT TAT CGG GTG ACT ATC GAG CAA CTT CTG ACC GAT GAA ACG GAC TAC AAA GCA AAG CTG CGC GAA GCC AAA AAC CCG GAA GAA AAG GCG CAA GCT GCC GCA ATG ATT TCG ATG CGC CGC CTC GCC TTT TCC GCC AAA GAA AAT CTC GAT GCG GTC TAT GCC GCT ATC TCC AAG TAA CGG GGG ATA GCT TAT GGC TGG CCC GCA AAC GAC ACG GGA AGC CCT GAT TGC CGA ATT GCT CGG CGA TGT GGG CGT GCT TAT TGA TAA AAC CGA CGA GCT GCG GGC CTC CTT CCC TGC CGC CGC TGA TGA GGC GGC GGC AAA GGT GAA GGC GGC GGG CCA ACG GGC CAC CGA GGA CGT CGC CAC GGC GGC CAC GCA ACT GAC CCG CGA CCT CGC CAC TCA AAC CGA AAA GCT CCT TCA AGG CGT CCA GCA GGC CGC CAG AGA GGC ACA AGC GGC GGC AAG GGT GGT TGA CAG GTC TGC ACG GCG TTT CGC GCT CCT AGC GAC CGC TAT GGG CCT TGC AGC GGG CAT TGT CGG CGG GGT GTT GGC CGG TCT TGC CTT GTC GGG TTA CTT CTT CGG CGC TTG A<strong>3'</strong>
+            </div>
+            <p>
+                Note that that the sequence displayed is identical the R388 stbABC operon. The primers will produce a product with non R388 sequences on the ends as these were the floating tails. Tails can be left on primers which will allow us to fuse our PCR products with other DNA parts later on.
+            </p>
+            <p>
+                Here is a simple schematic of the amplified region:
+            </p>
+            <figure class="invertImageColours">
+                <img src="/references/documents/biology-wetlab_polymerase-chain-reaction-pcr/20181023_schematic_PCR_1_amplifiedRegion_CG387b-CG392.png">
+                <figcaption>
+                    Schematic R388 PCR primers: CG387b-CG392.
+                </figcaption>
+            </figure>
+            <p>
+                Clearly seen is the fact that the region amplified includes the full stbABC operon along with the stbDR sequences.
+            </p>
+            <p>
+                For this assay you will need the following:
+            </p>
+            <ul>
+                <li>
+                    DNA extract to serve as a matrix
+                </li>
+                <li>
+                    Polymerase Enzyme, in this case we will use PrimeStar Mix by Thermo Fisher Scientific
+                </li>
+                <li>
+                    Primer 1 - CG387b
+                </li>
+                <li>
+                    Primer 2 - CG392
+                </li>
+                <li>
+                    MQ H<sub>2</sub>O water
+                </li>
+            </ul>
+            <p>
+                Prepare the appropriate amount of mini PCR eppendorfs. These are very small and have very thin plastic walls to allow for the heat from the thermocycler to pass correctly.
+            </p>
+            <p>
+                The amounts of products to add to the mix vary but the proportions are often the same. For a PrimeStar PCR here are some rough guide-lines:
+            </p>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="tableHeader" colspan="5">Prime Star/Takara Emerald PCR v<sub>f</sub> = 50 &mu;L</th>
+                    </tr>
+                    <tr>
+                        <th>Product</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th>Prime Star/Takara Emerald (x2)</th>
+                        <td>25 &mu;L</td>
+                    </tr>
+                    <tr>
+                        <th>MQ H<sub>2</sub>O water</th>
+                        <td>20 &mu;L</td>
+                    </tr>
+                    <tr>
+                        <th>DNA extract</th>
+                        <td>3 &mu;L</td>
+                    </tr>
+                    <tr>
+                        <th>Primer 1 (CG387b)</th>
+                        <td>1 &mu;L</td>
+                    </tr>
+                    <tr>
+                        <th>Primer 2 (CG392)</th>
+                        <td>1 &mu;L</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>
+                Mini centrifuge the tube to make sure the mixture has accumulated at the bottom of the tube. Place the tube(s) into the thermocycler and start the program.
+            </p>
+            <p>
+                A typical program for a PrimeStar/Emerald PCR is the following:
+            </p>
+            <ul>
+                <li>
+                    Heat Lid: 110&#176;C
+                </li>
+                <li>
+                    Temp: 98&#176;C  5 mins
+                </li>
+                <li>
+                    <strong>Start Cycle:</strong>
+                </li>
+                <ul>
+                    <li>
+                        98&#176;C 10 s
+                    </li>
+                    <li>
+                        60&#176;C 15 s
+                    </li>
+                    <li>
+                        72&#176;C 30 s
+                    </li>
+                </ul>
+                <li>
+                    <strong>Close Cycle:</strong>
+                </li>
+                <ul>
+                    <li>
+                        72&#176;C 3 mins
+                    </li>
+                </ul>
+                <li>
+                    Store: 16&#176;C
+                </li>
+            </ul>
+            <p>
+                This stated programme takes about 33 mins total to run.
+            </p>
+
+            <p>
+                This is of course a general guidline, as the programme should depend as per the melting temperatures of the primers in use. The way to calculate the melting temperature of primers is the with the following formulas:
+            </p>
+            <div class="mathsDescription">
+                For primers with a length inferiour to 14 nt the following is used:
+            </div>
+            <div id="meltingTempDNA" class="mathsFormulas">
+                $$
+                    Tm = (n(A) + n(T)) \cdot 2 + (n(G) + n(C)) \cdot 4
+                $$
+            </div>
+            <div class="mathsDescription">
+                For primers with a length superiour to 13 nt the following is used:
+            </div>
+            <div id="meltingTempDNA" class="mathsFormulas">
+                $$
+                    Tm = 64.9 + 41 \cdot \frac{(n(G) + n(C) - 16.4)}{(n(A) + n(T) + n(G) + n(C))}
+                $$
+            </div>
+            <div class="mathsDescription">
+                Both these formulas assum the following: 50 nM primer, 50 mM Na+, and pH 7.0. n(x) designates the number of whichever base.
+            </div>
+            <p>
+                See the <a href="/tools/displayEntry.php?entry=dnaMeltTemp">DNA melting temperature</a> calculator on this site for help calculating the appropriate tempertures to use from a copied DNA sequence.
+            </p>
+            <p>
+                Note that the Takara Emerald mix, already has the loading buffer in it, so one does not need to add any if migrating on electrophoretic gel.
+            </p>
+            <p>
+                Run the thermocycler, it should take around 30-40 mins and then recover your tubes and store them at -20&deg;C.
+            </p>
+
+        </article>
+    </div>
+
+    <%- include ../templates/includes/footer.ejs %>
+</body>
+
+</html>
