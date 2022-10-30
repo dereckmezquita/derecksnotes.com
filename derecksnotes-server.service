@@ -1,0 +1,14 @@
+# /etc/systemd/system/multi-user.target.wants/derecksnotes-server.service
+# https://nodesource.com/blog/running-your-node-js-app-with-systemd-part-1/ 
+[Unit]
+Description=derecksnotes-server.js - runs server responses for database for derecksnotes.com
+After=network.target
+
+[Service]
+Type=simple
+User=dereck
+ExecStart=/usr/bin/node /home/dereck/node/server/dist/index.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
