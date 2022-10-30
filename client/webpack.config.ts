@@ -41,6 +41,16 @@ const plugins: Object[] = makePlugins([
         "article_bundle"
     ]) as any,
     {
+        filename: "references.html",
+        template: "references.ejs",
+        chunks: ["general_bundle", "styles", "request_cards"]
+    },
+    ...createEntriesPlugins("references", [
+        "general_bundle",
+        "styles",
+        "article_bundle"
+    ]) as any,
+    {
         filename: "tools.html",
         template: "tools.ejs",
         chunks: ["general_bundle", "styles", "request_cards"]
