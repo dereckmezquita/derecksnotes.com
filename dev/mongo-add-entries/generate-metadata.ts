@@ -7,7 +7,8 @@ import cheerio from 'cheerio';
 // list only files not directories
 const files: string[] = fs.readdirSync(path.resolve(__dirname, './entries-to-parse'));
 
-const siteSection: string = "art";
+const siteSection: string = "references";
+const subSection: string = "cheat-sheets";
 
 const metadata: Object[] = [];
 
@@ -40,6 +41,7 @@ for (let file of files) {
     // start shoving stuff into the metadata
     metadata.push({
         siteSection: siteSection,
+        subSection: subSection,
         fileName: fileName,
         author: "Dereck de Mezquita",
         articleTitle: title,
