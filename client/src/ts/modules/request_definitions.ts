@@ -1,12 +1,13 @@
 
 import { getDefinitions } from "./request";
 
-const dictionaryName: string = (document.getElementById("dictionary") as HTMLInputElement).value;
+export async function requestDefinitions(): Promise<void> {
+    const dictionaryName: string = (document.getElementById("dictionary") as HTMLInputElement).value;
 
-const definitionsDOM: HTMLElement = document.querySelector("#dictionary-list");
+    const definitionsDOM: HTMLElement = document.querySelector("#dictionary-list");
 
-// get the definitions
-(async () => {
+    // get the definitions
+
     // loop through alphabet
     for (let i = 0; i < 26; i++) {
         const letter: string = String.fromCharCode(97 + i);
@@ -81,4 +82,4 @@ const definitionsDOM: HTMLElement = document.querySelector("#dictionary-list");
     script.src = "https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js";
     script.async = true;
     document.head.appendChild(script);
-})();
+}
