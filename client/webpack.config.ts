@@ -153,7 +153,8 @@ module.exports = {
         }
     },
     output: {
-        filename: 'js/[contenthash].js', // temp during dev
+        // filename: 'js/[contenthash].js', // temp during dev
+        filename: 'js/[name].js',
         path: path.resolve(__dirname, 'public'),
         clean: true
     },
