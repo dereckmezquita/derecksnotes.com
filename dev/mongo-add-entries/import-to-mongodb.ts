@@ -18,6 +18,13 @@ files.forEach((file) => {
     metadata.push(...JSON.parse(data));
 });
 
+// sort entries by date
+metadata.sort((a, b) => {
+    const dateA = new Date(a.date);
+    const dateB = new Date(b.date);
+
+    return dateB.getTime() - dateA.getTime();
+});
 
 // add all metadata entries to the database
 for(const doc of metadata) {

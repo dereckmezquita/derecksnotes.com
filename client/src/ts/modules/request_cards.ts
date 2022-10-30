@@ -22,6 +22,14 @@ const entriesDOM: HTMLElement = document.querySelector(".card-entries");
         // console.log(`Next request: ${res.data.nextToken}`);
     }
 
+    // reorder entries by the date
+    entries.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+
+        return dateB.getTime() - dateA.getTime();
+    });
+
     // loop through entries and create a card for each
     for (const entry of entries) {
         // create the a tag which links that goes around the card
