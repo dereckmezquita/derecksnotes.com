@@ -145,3 +145,10 @@ Import data to database from a JSON file:
 ```bash
 mongoimport --jsonArray --db testdb --collection docs --file fakeusers.json
 ```
+
+Dump all data from mongo:
+
+```bash
+mongodump -d <database_name> -o <directory_backup>
+mongorestore -d <database_name> <directory_backup>
+```
