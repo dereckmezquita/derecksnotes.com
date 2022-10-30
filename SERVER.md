@@ -86,10 +86,10 @@ http {
         ssl_session_timeout 4h;
         ssl_session_tickets on;
 
-                location / {
-                        root   /html/derecksnotes.com/client/public/;
-                        index  index.html index.htm;
-                }
+        location / {
+            root   /html/derecksnotes.com/client/public/;
+            index  index.html index.htm;
+        }
 
         location /api/ {
             proxy_set_header Host $host;
@@ -99,6 +99,8 @@ http {
     }
 }
 ```
+
+We also have to edit the mime types so that images are served. This file is included in the mime.types.
 
 ## `certbot` for `ssl` certification
 
