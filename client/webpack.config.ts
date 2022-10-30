@@ -161,7 +161,7 @@ module.exports = {
     plugins: [
         ...plugins,
         new FixStyleOnlyEntriesPlugin(),
-        new MiniCssExtractPlugin({ filename: "css/[contenthash].css" }), // temp during dev
+        new MiniCssExtractPlugin({ filename: "css/[name].css" }), // temp during dev
         new CopyPlugin({
             patterns: [
                 { // https://stackoverflow.com/questions/45036810/webpack-copying-files-from-source-to-public-using-copywebpackplugin
