@@ -10,6 +10,8 @@ top=$'<!DOCTYPE html>
         content="The online brain of Dereck de Mezquita; making sciencing easier.">
     <meta name="keywords"
         content="Science, Programming, Bioinformatics, Biology, Technology, Education, Art, Dictionary, Blog">
+
+    <%- include ../templates/includes/head.ejs %>
 </head>
 
 <body>
