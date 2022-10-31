@@ -1,6 +1,6 @@
-# [derecksnotes.com](www.derecksnotes.com)  <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
+# [derecksnotes.com](https://www.derecksnotes.com)  <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
 
-Version `2.0` of my website: [`www.derecksnotes.com`](www.derecksnotes.com).
+Version `2.0` of my website: [`www.derecksnotes.com`](https://www.derecksnotes.com).
 
 <p align="center">
     <img src="./.graphics/screen-captures/site-capture-full.png" width="750">
