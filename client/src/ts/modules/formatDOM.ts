@@ -264,7 +264,7 @@ export async function dropCap(): Promise<void> {
     drop.innerText = firstParagraph.innerText[0];
     drop.setAttribute("class", "drop-cap");
     // remove the first letter from the summary
-    firstParagraph.innerHTML = firstParagraph.innerHTML.slice(1);
+    firstParagraph.innerHTML = firstParagraph.innerHTML.trim().slice(1);
     // add the drop cap to the summary
     firstParagraph.prepend(drop);
 }
