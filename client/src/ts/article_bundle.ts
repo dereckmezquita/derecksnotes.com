@@ -11,13 +11,13 @@ import {
 } from './modules/formatDOM';
 
 // async function call all these in order blocking code
-(async () => {
-    await setTitle();
-    await getSideEntries();
+dropCap();
+setTitle();
 
-    await dropCap();
-    await wordCount();
+(async () => {
+    await getSideEntries();
     await formatFigures();
     await footNotes();
+    await wordCount();
 })();
 

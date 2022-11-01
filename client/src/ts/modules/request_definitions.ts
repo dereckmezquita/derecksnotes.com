@@ -13,6 +13,8 @@ export async function requestDefinitions(): Promise<void> {
         const letter: string = String.fromCharCode(97 + i);
         const header: HTMLElement = document.createElement("h2");
         header.innerText = letter.toUpperCase();
+        // add ID the same as the letter for anchor links
+        header.id = `the_letter_${letter}`;
 
         definitionsDOM.appendChild(header);
 
