@@ -28,7 +28,7 @@ export async function wordCount(): Promise<void> {
     word_count.style.paddingTop = "7px";
 
     const time_to_read: HTMLElement = document.createElement("p");
-    time_to_read.innerHTML = `Time to read: ${Math.round(words / 200)} minutes`;
+    time_to_read.innerHTML = `Time to read: ${Math.round(words / 100)} minutes`;
     time_to_read.classList.add("side-bar-stats");
 
     time_to_read.style.paddingBottom = "10px";
