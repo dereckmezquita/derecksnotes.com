@@ -273,21 +273,38 @@ export async function dropCap(): Promise<void> {
 // ------------------------
 import { getEntries } from "./request";
 
-export async function getSideEntries(): Promise<void> {
-    // get current url; this dicates what articles to request from database
-    // const siteSection: string = window.location.href.split("/")[3];
-
-    const siteSections: string[] = ["blog", "courses", "exercises", "tools"];
-
-    // randomly select a site section
-    let siteSection: string = siteSections[Math.floor(Math.random() * siteSections.length)];
-
+export async function getSideEntries(section?: string): Promise<void> {
     const entriesDOM: HTMLElement = document.querySelector(".side-entries");
 
-    // get entries as a promise await
-    const entries: any[] = [];
+    const siteSections: string[] = ["blog", "courses", "exercises", "references", "tools", "art"];
 
-    console.log(entries);
+    let siteSection: string;
+    if (!siteSections.includes(section)) {
+        siteSection = siteSections[Math.floor(Math.random() * siteSections.length)];
+    } else {
+        siteSection = section;
+    }
+
+    let res = await getEntries(siteSection, 1);
+    if (!res.success) throw new Error(res);
+
+    const entries: any[] = res.data.entries;
+    while (res.data.nextToken) {
+        res = await getEntries(siteSection, 10, res.data.nextToken);
+        entries.push(...res.data.entries);
+
+        if (!res.success) throw new Error(res);
+
+        // console.log(`Next request: ${res.data.nextToken}`);
+    }
+
+    // reorder entries by the date
+    entries.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+
+        return dateB.getTime() - dateA.getTime();
+    });
 
     // loop through entries and create a card for each
     for (const entry of entries) {
