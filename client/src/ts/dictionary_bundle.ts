@@ -18,12 +18,14 @@ import { requestDefinitions } from "./modules/request_definitions";
 
 // async function call all these in order blocking code
 setTitle();
-getSideEntries();
 dropCap();
+
+getSideEntries();
 
 (async () => {
     await requestDefinitions();
-    await wordCount();
+
     await formatFigures();
     await footNotes();
+    await wordCount();
 })();

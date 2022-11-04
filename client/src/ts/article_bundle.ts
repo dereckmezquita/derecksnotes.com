@@ -11,11 +11,14 @@ import {
 } from './modules/formatDOM';
 
 // async function call all these in order blocking code
-dropCap();
 setTitle();
+dropCap();
+
+const section: string = window.location.href.split("/")[3];
+
+getSideEntries(section);
 
 (async () => {
-    await getSideEntries();
     await formatFigures();
     await footNotes();
     await wordCount();
