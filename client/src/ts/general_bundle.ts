@@ -22,6 +22,9 @@ import "./modules/general_flex_nav";
 import "./modules/general_clock";
 
 // ------------------------
+import "./modules/pwa_prompt";
+
+// ------------------------
 // ------------------------
 window.MathJax = { // property declared in index.d.ts
     tex: {
