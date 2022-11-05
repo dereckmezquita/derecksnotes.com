@@ -7,3 +7,9 @@ declare global {
         MathJax: Object;
     }
 }
+
+declare global {
+    interface Navigator {
+        standalone: boolean;
+    }
+}
