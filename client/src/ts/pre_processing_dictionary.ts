@@ -1,6 +1,8 @@
 
 import { download } from './dev/download-function';
 
+console.log('Running dictionaries pre-processing script...')
+
 // this file is included via webpack to dictionary pages; we're going from derecksnotes.com v1 to v2
 // we need to clean up and pre-process the dictionaries
 // we want to produce separate files per dictionary entry
@@ -46,40 +48,40 @@ import { download } from './dev/download-function';
 // ------------------------
 // Step 3: run this code which will download each entry as a separate HTML file then we will add location and information to a database
 // ------------------------
-const defintions: HTMLElement[] = Array.from(document.querySelectorAll("li.definition"));
+// const defintions: HTMLElement[] = Array.from(document.querySelectorAll("li.definition"));
 
-type Definition = {
-    word: string,
-    category: string,
-    html: string
-}
+// type Definition = {
+//     word: string,
+//     category: string,
+//     html: string
+// }
 
-const delay = (ms: number): Promise<void> => {
-    return new Promise((resolve) => {
-        setTimeout(resolve, ms);
-    });
-}
+// const delay = (ms: number): Promise<void> => {
+//     return new Promise((resolve) => {
+//         setTimeout(resolve, ms);
+//     });
+// }
 
-const definitionsJSON: Definition[] = [];
+// const definitionsJSON: Definition[] = [];
 
-(async () => {
-    for (let i = 0; i < defintions.length; i++) {
-        const name: string = defintions[i].querySelector("a.definition-word").id;
-        const data_category: string = defintions[i].getAttribute("data-dictionary");
-        const htmlString: string = defintions[i].innerHTML.toString().trim();
+// (async () => {
+//     for (let i = 0; i < defintions.length; i++) {
+//         const name: string = defintions[i].querySelector("a.definition-word").id;
+//         const data_category: string = defintions[i].getAttribute("data-dictionary");
+//         const htmlString: string = defintions[i].innerHTML.toString().trim();
     
-        definitionsJSON[i] = {
-            word: name,
-            category: data_category,
-            html: htmlString
-        }
+//         definitionsJSON[i] = {
+//             word: name,
+//             category: data_category,
+//             html: htmlString
+//         }
     
-        console.log(htmlString);
+//         console.log(htmlString);
     
-        // run download(`${name}.html`, htmlString); every 5 seconds
-        await delay(10);
-        // download(`${name}.html`, htmlString);
-    }
-})();
+//         // run download(`${name}.html`, htmlString); every 5 seconds
+//         await delay(10);
+//         // download(`${name}.html`, htmlString);
+//     }
+// })();
 
 // console.log(definitionsJSON);
