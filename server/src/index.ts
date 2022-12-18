@@ -10,9 +10,9 @@ app.use(express.json());
 app.use(router);
 
 // serve static files from public directory; temp will remove for serving with nginx
-// app.use(express.static(path.join(__dirname, '..', 'client/public')));
+// app.use(express.static(path.join(__dirname, '..', '..', 'client/public')));
 
-new MongoClient('mongodb://127.0.0.1:27017', {serverSelectionTimeoutMS: 1000}).connect().then(client => {
+new MongoClient('mongodb://127.0.0.1:27017', { serverSelectionTimeoutMS: 1000 }).connect().then(client => {
     initDB(client);
 
     app.listen(port, '0.0.0.0', () => {
