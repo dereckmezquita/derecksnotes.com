@@ -6,7 +6,7 @@ const url = 'mongodb://localhost:27017';
 const client = new MongoClient(url);
 
 // reads definitions to an array
-const definitions = JSON.parse(readFileSync('./parsed-definitions.json').toString());
+const definitions = JSON.parse(readFileSync('./parsed-chemistry-definitions.json').toString());
 
 // console.log(definitions);
 
