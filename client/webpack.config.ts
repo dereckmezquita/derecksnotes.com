@@ -74,10 +74,12 @@ const plugins: Object[] = makePlugins([
         "general_bundle",
         "styles",
         "dictionary_bundle"
+        // "pre_processing_dictionary"
     ]) as any
 ]);
 
 module.exports = {
+    // watch: true,
     mode: "development",
     entry: {
         // ----------------------------
