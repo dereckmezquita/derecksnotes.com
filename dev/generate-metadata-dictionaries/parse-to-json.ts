@@ -3,7 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import cheerio from 'cheerio';
 
-const dictioary_path: string = '../../client/src/dictionaries/dictionary-biology-backup.ejs';
+const dictioary_path: string = '../../client/src/dictionaries/dictionary-chemistry.ejs';
 
 // read the file with cheerio
 const dictionary: string = fs.readFileSync(path.resolve(__dirname, dictioary_path), 'utf8');
@@ -106,4 +106,4 @@ for (let i = 0; i < db_def.length; i++) {
 }
 
 // write to json file
-fs.writeFileSync(path.resolve(__dirname, 'parsed-definitions.json'), JSON.stringify(db_def, null, 4));
+fs.writeFileSync(path.resolve(__dirname, 'parsed-chemistry-definitions.json'), JSON.stringify(db_def, null, 4));
