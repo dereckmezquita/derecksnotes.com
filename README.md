@@ -34,7 +34,7 @@ This website is a full stack project both back end and front end; is built on th
 
 # Copyright
 
-I reserve all rights for this website, and any code or content found in this repository. You may not copy this code or content. This is to serve only as an educational resource, and any use or reference of/to the content herein must be credited to the author: Dereck de Mézquita. 
+I reserve all rights for this website, and any code or content found in this repository. You may not copy this code or content. This is to serve only as an educational resource, and any use or reference of/to the content herein must be credited to the author: Dereck de Mezquita. 
 
 Contact: contact@demezquita.com
 
