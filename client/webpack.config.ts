@@ -184,16 +184,5 @@ module.exports = {
                 }
             ]
         })
-        // ,
-        // new CopyPlugin({
-        //     patterns: [
-        //         {
-        //             context: './src/',
-        //             from: "./libraries/mathjax.js",
-        //             to: "./libraries/mathjax.js",
-        //             noErrorOnMissing: true
-        //         }
-        //     ]
-        // })
     ]
 }
