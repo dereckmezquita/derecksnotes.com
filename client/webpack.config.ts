@@ -165,15 +165,16 @@ module.exports = {
         }
     },
     output: {
-        // filename: 'js/[contenthash].js', // temp during dev
-        filename: 'js/[name].js',
+        filename: 'js/[contenthash].js', // temp during dev
+        // filename: 'js/[name].js',
         path: path.resolve(__dirname, 'public'),
         clean: true
     },
     plugins: [
         ...plugins,
         new FixStyleOnlyEntriesPlugin(),
-        new MiniCssExtractPlugin({ filename: "css/[name].css" }), // temp during dev
+        // new MiniCssExtractPlugin({ filename: "css/[name].css" }), // temp during dev
+        new MiniCssExtractPlugin({ filename: "css/[contenthash].css" }), // temp during dev
         new CopyPlugin({
             patterns: [
                 { // https://stackoverflow.com/questions/45036810/webpack-copying-files-from-source-to-public-using-copywebpackplugin
@@ -182,6 +183,11 @@ module.exports = {
                     to: "./",
                     noErrorOnMissing: true
                 }
+            ]
+        }),
+        new CopyPlugin({
+            patterns: [
+                { from: "./src/manifest.json", to: "./" }
             ]
         })
     ]
