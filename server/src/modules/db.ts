@@ -1,4 +1,3 @@
-
 import { Collection, ObjectId, Filter, Document } from 'mongodb';
 
 type PageData = { docs: Document[], nextID: ObjectId | undefined };
@@ -11,7 +10,11 @@ export const page = async (
 ): Promise<PageData> => {
     if (nextID) filter['_id'] = { $lt: nextID };
 
-    const docs: any[] = await collection.find(filter).sort({ _id: -1 }).limit(pageSize + 1).toArray();
+    const docs: any[] = await collection
+        .find(filter)
+        .sort({ _id: -1 })
+        .limit(pageSize + 1)
+        .toArray();
 
     nextID = undefined;
 
