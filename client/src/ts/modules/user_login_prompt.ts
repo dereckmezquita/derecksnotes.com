@@ -16,7 +16,7 @@ loginButton.addEventListener("click", (event) => {
       <label for="username">Username/E-mail</label>
       <input type="text" id="username" placeholder="Enter username or e-mail" required>
       <label for="password">Password</label>
-      <input type="password" id="password" placeholder="Enter your password" required>
+      <input type="password" id="password" placeholder="Enter password" required>
       <button type="submit">Login</button>
       <a href="#" class="register-link">Register</a>
       <a href="#" class="forgot-password-link">Forgot Password?</a>
