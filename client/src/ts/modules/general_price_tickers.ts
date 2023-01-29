@@ -25,7 +25,7 @@ export async function cryptoPrices(coins: NameTicker[]): Promise<void> {
         coinSpan.classList.add("info-bar-crypto");
 
         if (coin.name != "bitcoin") { // css will hide all these when screen width is small
-            coinSpan.classList.add("info-bar-cypto-hidden");
+            coinSpan.classList.add("info-bar-crypto-hidden");
         }
 
         // --------------------------------
