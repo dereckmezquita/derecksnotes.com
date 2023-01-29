@@ -39,9 +39,6 @@ loginButton.addEventListener("click", (event) => {
         });
     }
 
-    // disable clicks on the rest of the page
-    document.body.style.pointerEvents = "none";
-
     // add login prompt to the body
     document.body.appendChild(loginPrompt);
 });
@@ -50,9 +47,6 @@ loginButton.addEventListener("click", (event) => {
 document.addEventListener("click", (event) => {
     // check if clicked outside of login prompt and prompt is open
     if (!loginPrompt.contains(event.target as HTMLElement) && isLoginPromptOpen) {
-        // re-enable clicks on the rest of the page
-        document.body.style.pointerEvents = "";
-
         // remove the login prompt
         loginPrompt.remove();
         isLoginPromptOpen = false;
