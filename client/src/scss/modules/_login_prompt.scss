@@ -5,13 +5,14 @@
     left: 50%;
     transform: translate(-50%, -50%);
 
-    height: calc(40vw * 1.414);
-    width: 40vw;
+    width: 300px;
 
-    background-color: $card_background;
-    // padding: 30px;
+    padding: 30px;
+    
+    border: 1px solid $border;
     border-radius: 5px;
 
+    background-color: $background;
     box-shadow: 1px 1px 10px $shadow, $card_vignetting;
 
     form {
@@ -19,40 +20,13 @@
         flex-direction: column;
 
         label {
-            font-size: 16px;
             color: #444444;
             margin-bottom: 10px;
         }
 
-        input {
-            margin-bottom: 20px;
-            // padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #dddddd;
-            font-size: 14px;
-        }
-
-        button[type="submit"] {
-            background-color: #0066c0;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            border: none;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .register-link {
+        a {
             font-size: 14px;
             margin-top: 20px;
-            color: #0066c0;
-            text-decoration: underline;
-            cursor: pointer;
-        }
-
-        .forgot-password-link {
-            font-size: 14px;
-            margin-top: 10px;
             color: #0066c0;
             text-decoration: underline;
             cursor: pointer;
@@ -60,8 +34,10 @@
     }
 
     @media screen and (max-width: 600px) {
-        width: 80%; // make the width smaller for smaller screens
-        padding: 20px; // reduce the padding for smaller screens
+        // height: calc(40vw * 1.414);
+        // width: 40vw;
+        width: 90%; // make the width smaller for smaller screens
+        padding: 15px; // reduce the padding for smaller screens
 
         // input {
         //     width: 100%; // make the input fields take up the full width of the container for smaller screens
