@@ -25,6 +25,9 @@ import "./modules/general_clock";
 import "./modules/pwa_prompt";
 
 // ------------------------
+import "./modules/user_login_prompt.ts"
+
+// ------------------------
 // ------------------------
 window.MathJax = { // property declared in index.d.ts
     tex: {
