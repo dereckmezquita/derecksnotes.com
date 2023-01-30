@@ -32,3 +32,36 @@ export const getDefinitions = async (dictionary: string, letter: string, pageSiz
 
     return await response.json();
 }
+
+export const register = async (username: string, email: string, password: string, firstName: string, lastName: string): Promise<any> => {
+    const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            username,
+            email,
+            password,
+            firstName,
+            lastName
+        })
+    });
+
+    return await response.json();
+}
+
+export const login = async (username: string, hash: string): Promise<any> => {
+    const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            username: username,
+            password: hash
+        })
+    });
+
+    return await response.json();
+}
