@@ -1,6 +1,5 @@
 import express from 'express';
 import { router, initDB } from './modules/routes';
-import path from 'path';
 import { MongoClient, ObjectId } from 'mongodb';
 
 const port: number = 3001;
