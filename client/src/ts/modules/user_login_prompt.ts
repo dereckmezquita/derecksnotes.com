@@ -1,3 +1,6 @@
+// import { subtle } from 'crypto';
+import { login, register } from './request';
+
 // flag to check if login prompt is open or not
 let isLoginPromptOpen = false;
 
@@ -37,6 +40,35 @@ loginButton.addEventListener("click", (event) => {
         loginPrompt.addEventListener("click", (event) => {
             event.stopPropagation();
         });
+
+        // select the form
+        const form = loginPrompt.querySelector("form");
+
+        // add submit event listener to the form
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+
+            // get username and password
+            const username = (form.querySelector("#username") as HTMLInputElement).value;
+            const password = (form.querySelector("#password") as HTMLInputElement).value;
+
+            // hash the password - using web crypto library - sha512
+            const encoder = new TextEncoder();
+            const salt = "derecks-notes";
+            const passBuff = encoder.encode(`${password}${salt}`);
+
+            // hash the password using sha512 from crypto.subtle
+            const hash = await crypto.subtle.digest("SHA-512", passBuff);
+
+            // send login request
+            const res = await login(username, ""+hash);
+
+            if (!res.success) throw new Error(res);
+
+            // remove the login prompt
+            loginPrompt.remove();
+            isLoginPromptOpen = false;    
+        });
     }
 
     // add login prompt to the body
@@ -52,3 +84,18 @@ document.addEventListener("click", (event) => {
         isLoginPromptOpen = false;
     }
 });
+
+
+
+// ------------------------------------------------------------
+// const encoder = new TextEncoder();
+// const decoder = new TextDecoder();
+
+// const salt = "some-hard-coded-salt"; // Hard-coded, never changes
+// const pass = "myshitpassword";
+// const passBuff = encoder.encode(`${pass}`); // Remember to add salt back
+
+// console.time();
+// crypto.subtle.digest('SHA-512', passBuff).then(hash => {
+    
+// });
