@@ -160,7 +160,7 @@ module.exports = {
     resolve: {
         extensions: ['.ts', '.js'],
         fallback: {
-            crypto: require.resolve('crypto-browserify'),
+            crypto: require.resolve('crypto-browserify'), // TODO: use subtle crypto
             stream: require.resolve("stream-browserify")
         }
     },
