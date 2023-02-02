@@ -8,7 +8,7 @@ const entriesDOM: HTMLElement = document.querySelector(".card-entries");
 // get entries as promise await
 (async () => {
     let res = await getEntries(siteSection, 10);
-    if (!res.success) throw new Error(res);
+    if (!res.success) throw new Error(res.error);
 
     // console.log(`Initial request: ${res.data.nextToken}`);
 
@@ -17,7 +17,7 @@ const entriesDOM: HTMLElement = document.querySelector(".card-entries");
         res = await getEntries(siteSection, 10, res.data.nextToken);
         entries.push(...res.data.entries);
 
-        if (!res.success) throw new Error(res);
+        if (!res.success) throw new Error(res.error);
 
         // console.log(`Next request: ${res.data.nextToken}`);
     }
