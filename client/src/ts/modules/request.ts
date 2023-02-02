@@ -1,6 +1,6 @@
 
 // submit a post request to getEntries express server
-export const getEntries = async (section: string, pageSize: number, nextToken?: string): Promise<any> => {
+export const getEntries = async (section: string, pageSize: number, nextToken?: string): Promise<ServerRes> => {
     const response = await fetch('/api/getEntries', {
         method: 'POST',
         headers: {
@@ -13,10 +13,10 @@ export const getEntries = async (section: string, pageSize: number, nextToken?: 
         })
     });
 
-    return await response.json();
+    return await response.json() as ServerRes;
 }
 
-export const getDefinitions = async (dictionary: string, letter: string, pageSize: number, nextToken?: string): Promise<any> => {
+export const getDefinitions = async (dictionary: string, letter: string, pageSize: number, nextToken?: string): Promise<ServerRes> => {
     const response = await fetch('/api/getDefinitions', {
         method: 'POST',
         headers: {
@@ -30,10 +30,10 @@ export const getDefinitions = async (dictionary: string, letter: string, pageSiz
         })
     });
 
-    return await response.json();
+    return await response.json() as ServerRes;
 }
 
-export const register = async (username: string, email: string, password: string, firstName: string, lastName: string): Promise<any> => {
+export const register = async (username: string, email: string, password: string, firstName: string, lastName: string): Promise<ServerRes> => {
     const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
@@ -48,10 +48,11 @@ export const register = async (username: string, email: string, password: string
         })
     });
 
-    return await response.json();
+    return await response.json() as ServerRes;
 }
 
-export const login = async (username: string, hash: string): Promise<any> => {
+// requires password hashed buffer to be converted to a textual representation
+export const login = async (username: string, password: string): Promise<ServerRes> => {
     const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
@@ -59,9 +60,24 @@ export const login = async (username: string, hash: string): Promise<any> => {
         },
         body: JSON.stringify({
             username: username,
-            password: hash
+            password: password
         })
     });
 
-    return await response.json();
+    return await response.json() as ServerRes;
 }
+
+// export const testy = async (data: string): Promise<ServerRes> => {
+//     const response = await fetch('/api/testy', {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json'
+//         },
+//         body: JSON.stringify({
+//             username: "testUser",
+//             data: data
+//         })
+//     });
+
+//     return await response.json() as ServerRes;
+// }
