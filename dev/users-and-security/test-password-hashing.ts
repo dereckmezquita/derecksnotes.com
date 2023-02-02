@@ -38,3 +38,13 @@ const savedHash = '$argon2id$v=19$m=65536,t=3,p=1$/vbxHxa8p8gzPIDPSo2/Kw$3QDam5L
 
 
 // once the user is logged in make sure to set origin of the cookies so they can never be used on another site
+
+
+// when they register or changing the password they're always hashing it on the client with the fixed salt - using sha512
+// they always hash it no matter on the client side
+// we never get their password
+// on the client we use a text decoder to get a textual representation of the hash's binary data
+// when we use the subtle api it gives back an array buffer - we can't send this via json so we convert it to a textual representation
+// we use the text decoder to do that - we use the text decoder with ascii so it's byte by byte and converts it into text
+// it's baisically the same thing as doing a for loop over the array buffer and doing fromCharCode on each byte
+// 
