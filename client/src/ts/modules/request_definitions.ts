@@ -21,7 +21,7 @@ export async function requestDefinitions(): Promise<void> {
         // send query
         let res = await getDefinitions(dictionaryName, letter, 30);
 
-        if (!res.success) throw new Error(res);
+        if (!res.success) throw new Error(res.error);
 
         const definitions: any[] = res.data.definitions;
 
@@ -31,7 +31,7 @@ export async function requestDefinitions(): Promise<void> {
             res = await getDefinitions(dictionaryName, letter, 30, res.data.nextToken);
             definitions.push(...res.data.definitions);
 
-            if (!res.success) throw new Error(res);
+            if (!res.success) throw new Error(res.error);
         }
 
         // loop through definitions
@@ -52,14 +52,14 @@ export async function requestDefinitions(): Promise<void> {
     definitionsDOM.appendChild(header);
 
     let res = await getDefinitions(dictionaryName, "#", 30);
-    if (!res.success) throw new Error(res);
+    if (!res.success) throw new Error(res.error);
 
     const definitions: any[] = res.data.definitions;
     while (res.data.nextToken) {
         res = await getDefinitions(dictionaryName, "#", 30, res.data.nextToken);
         definitions.push(...res.data.definitions);
 
-        if (!res.success) throw new Error(res);
+        if (!res.success) throw new Error(res.error);
     }
 
     // sort res.data.definitions which is an array, based on letter property
