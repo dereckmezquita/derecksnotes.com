@@ -10,6 +10,20 @@ let loginPrompt: HTMLElement;
 // select login button
 const loginButton = document.querySelector(".user-login-icon");
 
+// (async () => {
+//     const encoder = new TextEncoder(); // used to convert the string to an array buffer - digest method requires an array buffer
+//     const decoder = new TextDecoder('ascii');
+//     const salt = "derecks-notes";
+//     const passBuff = encoder.encode("myshatpassword" + salt);
+
+//     // hash the password using sha512 from crypto.subtle
+//     const hashBuf = await crypto.subtle.digest("SHA-512", passBuff); // returns an array buffer
+
+//     const hashStr = decoder.decode(hashBuf); // We want to represent the binary hash data as a string, so that we can put it into a JSON string
+
+//     testy(hashStr);
+// })();
+
 // add click event listener to the login button
 loginButton.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -54,20 +68,28 @@ loginButton.addEventListener("click", (event) => {
 
             // hash the password - using web crypto library - sha512
             const encoder = new TextEncoder();
+            const decoder = new TextDecoder('ascii');
+
             const salt = "derecks-notes";
-            const passBuff = encoder.encode(`${password}${salt}`);
+
+            // encode the password and salt as an array buffer
+            const passBuff = encoder.encode(password + salt);
 
             // hash the password using sha512 from crypto.subtle
-            const hash = await crypto.subtle.digest("SHA-512", passBuff);
+            // returns an array buffer
+            const hashBuff = await crypto.subtle.digest("SHA-512", passBuff);
+
+            // We want to represent the binary hash data as a string, so that we can put it into a JSON string
+            const hashStr: string = decoder.decode(hashBuff);
 
             // send login request
-            const res = await login(username, ""+hash);
+            const res = await login(username, hashStr);
 
-            if (!res.success) throw new Error(res);
+            if (!res.success) throw new Error(res.error);
 
             // remove the login prompt
-            loginPrompt.remove();
-            isLoginPromptOpen = false;    
+            // loginPrompt.remove();
+            // isLoginPromptOpen = false;    
         });
     }
 
