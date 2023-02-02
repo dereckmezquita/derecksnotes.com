@@ -286,14 +286,14 @@ export async function getSideEntries(section?: string): Promise<void> {
     }
 
     let res = await getEntries(siteSection, 1);
-    if (!res.success) throw new Error(res);
+    if (!res.success) throw new Error(res.error);
 
     const entries: any[] = res.data.entries;
     while (res.data.nextToken) {
         res = await getEntries(siteSection, 10, res.data.nextToken);
         entries.push(...res.data.entries);
 
-        if (!res.success) throw new Error(res);
+        if (!res.success) throw new Error(res.error);
 
         // console.log(`Next request: ${res.data.nextToken}`);
     }
