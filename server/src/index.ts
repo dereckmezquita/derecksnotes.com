@@ -16,6 +16,6 @@ new MongoClient('mongodb://127.0.0.1:27017', { serverSelectionTimeoutMS: 1000 })
 
     app.listen(port, '0.0.0.0', () => {
         console.log(`Server is up on port: ${port}`);
-        console.log(`Visit: http://localhost:${port}/index.html`);
+        // console.log(`Visit: http://localhost:${port}/index.html`);
     });
 });
