@@ -11,3 +11,16 @@
 
     testy(hashStr);
 })();
+
+// ------------------------------------------------------------
+// const encoder = new TextEncoder();
+// const decoder = new TextDecoder();
+
+// const salt = "some-hard-coded-salt"; // Hard-coded, never changes
+// const pass = "myshitpassword";
+// const passBuff = encoder.encode(`${pass}`); // Remember to add salt back
+
+// console.time();
+// crypto.subtle.digest('SHA-512', passBuff).then(hash => {
+    
+// });
