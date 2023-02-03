@@ -69,9 +69,11 @@ loginButton.addEventListener("click", (event) => {
             const hashStr: string = decoder.decode(hashBuff);
 
             // send login request
-            const res = await login(username, hashStr);
+            const res: ServerRes = await login(username, hashStr);
 
             if (!res.success) throw new Error(res.error);
+
+            console.log(res.data);
 
             // remove the login prompt
             // loginPrompt.remove();
