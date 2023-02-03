@@ -21,9 +21,6 @@ export const initLogin = (client: MongoClient) => {
         // no match to that e-mail found
         if (!user) return sendRes(res, false, null, 'E-mail or password is incorrect');
 
-        console.log(`Saved password: ${user.password}`);
-        console.log(`Received password: ${password}`);
-
         // compare the password received to the registered password
         const passwordMatch = await argon2.verify(user.password, password, { type: argon2.argon2id, parallelism: 1 });
 
