@@ -13,7 +13,11 @@ exports.page = void 0;
 const page = (collection, filter = {}, pageSize, nextID) => __awaiter(void 0, void 0, void 0, function* () {
     if (nextID)
         filter['_id'] = { $lt: nextID };
-    const docs = yield collection.find(filter).sort({ _id: -1 }).limit(pageSize + 1).toArray();
+    const docs = yield collection
+        .find(filter)
+        .sort({ _id: -1 })
+        .limit(pageSize + 1)
+        .toArray();
     nextID = undefined;
     if (docs[(pageSize + 1) - 1]) {
         nextID = docs[(pageSize + 1) - 2]['_id'];
