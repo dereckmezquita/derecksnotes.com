@@ -75,7 +75,7 @@ loginButton.addEventListener("click", (event) => {
 
             // remove the login prompt
             // loginPrompt.remove();
-            // isLoginPromptOpen = false;    
+            // isLoginPromptOpen = false;
         });
     }
 
