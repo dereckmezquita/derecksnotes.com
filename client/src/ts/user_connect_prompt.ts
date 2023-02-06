@@ -25,17 +25,17 @@ class UserConnectPrompt {
     private static readonly registerForm: string = `
     <form>
         <label for="first-name">First Name</label>
-        <input type="text" id="first-name" value="John" required>
+        <input type="text" id="first-name" required>
         <label for="last-name">Last Name</label>
-        <input type="text" id="last-name" value="Doe" required>
+        <input type="text" id="last-name" required>
         <label for="username">Username</label>
-        <input type="text" id="username" value="johndoe23" required>
+        <input type="text" id="username" required>
         <label for="email">E-mail</label>
-        <input type="email" id="email" value="johndoe23@example.com" required>
+        <input type="email" id="email" required>
         <label for="password">Password</label>
-        <input type="password" id="password" value="password123" required>
+        <input type="password" id="password" required>
         <label for="confirm-password">Confirm Password</label>
-        <input type="password" id="confirm-password" value="password123" required>
+        <input type="password" id="confirm-password" required>
         <button type="submit">Register</button>
         <a class="login-link">Login</a>
         <a class="forgot-password-link">Forgot Password?</a>
@@ -52,12 +52,13 @@ class UserConnectPrompt {
 
     constructor() {
         this.prompt.innerHTML = UserConnectPrompt.loginForm;
-        this.addListeners(this.prompt);
+        this.addListeners();
     }
 
     // listeners for opening and closing the prompt
-    private addListeners(prompt: HTMLElement) {
+    private addListeners() {
         UserConnectPrompt.userLoginIcon.addEventListener("click", (event) => {
+            event.preventDefault();
             event.stopPropagation();
 
             // if this.activePrompt is not undefined; then a prompt is already open do nothing
@@ -65,7 +66,7 @@ class UserConnectPrompt {
 
             this.createPrompt();
             this.activePrompt = "login";
-            this.addLoginFormListeners(prompt);
+            this.addLoginFormListeners.bind(this.prompt);
         });
 
         // if the user clicks outside of the prompt close it
@@ -74,7 +75,7 @@ class UserConnectPrompt {
             event.stopPropagation();
 
             // if the click is outside of the prompt destroy it
-            if (!prompt.contains(event.target as HTMLElement)) {
+            if (!this.prompt.contains(event.target as HTMLElement)) {
                 console.log("Detected click outside prompt; destroying prompt")
                 this.destroyPrompt();
             }
@@ -88,6 +89,7 @@ class UserConnectPrompt {
 
         submit.addEventListener("click", async (event) => {
             event.preventDefault();
+            event.stopPropagation();
 
             // user data
             const username: string = (prompt.querySelector("#username") as HTMLInputElement).value;
@@ -100,7 +102,7 @@ class UserConnectPrompt {
 
             if (!res.success) throw new Error(res.error);
 
-            console.log(res.data);
+            console.log(`Login response:`, res.data)
 
             this.destroyPrompt();
         });
@@ -108,12 +110,14 @@ class UserConnectPrompt {
         registerLink.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
+
             this.switchForm("register")
         });
 
         forgotPasswordLink.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
+
             this.switchForm("forgotPassword")
         });
     }
@@ -125,6 +129,7 @@ class UserConnectPrompt {
 
         submit.addEventListener("click", async (event) => {
             event.preventDefault();
+            event.stopPropagation();
 
             // user data
             const firstName: string = (prompt.querySelector("#first-name") as HTMLInputElement).value;
@@ -135,12 +140,14 @@ class UserConnectPrompt {
 
             const hashStr: string = await pass2HashText(password, this.salt);
 
+            console.log(`firstName: ${firstName}, lastName: ${lastName}, username: ${username}, email: ${email}, password: ${password}`)
+
             // send the register request
             const res: ServerRes = await register(firstName, lastName, username, email, hashStr);
 
             if (!res.success) throw new Error(res.error);
 
-            console.log(res.data);
+            console.log(`Register response: `, res.data)
 
             this.destroyPrompt();
         });
@@ -148,12 +155,14 @@ class UserConnectPrompt {
         loginLink.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
+
             this.switchForm("login");
         });
 
         forgotPasswordLink.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
+
             this.switchForm("forgotPassword");
         });
     }
@@ -165,6 +174,7 @@ class UserConnectPrompt {
 
         submit.addEventListener("click", async (event) => {
             event.preventDefault();
+            event.stopPropagation();
 
             // user data
             const email: string = (prompt.querySelector("#email") as HTMLInputElement).value;
@@ -173,7 +183,7 @@ class UserConnectPrompt {
 
             if (!res.success) throw new Error(res.error);
 
-            console.log(res.data);
+            console.log(`Reset password response: `, res.data)
 
             this.destroyPrompt();
         });
@@ -181,12 +191,14 @@ class UserConnectPrompt {
         loginLink.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
+
             this.switchForm("login");
         });
 
         registerLink.addEventListener("click", event => {
             event.preventDefault();
             event.stopPropagation();
+
             this.switchForm("register");
         });
     }
