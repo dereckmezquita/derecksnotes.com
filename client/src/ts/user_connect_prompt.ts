@@ -1,28 +1,27 @@
 import { login, register, resetPassword } from './modules/request';
 import { pass2HashText } from './modules/cryptography_helpers';
-import { getEventListeners } from 'events';
 
 type PromptType = undefined | "login" | "register" | "forgotPassword";
 
 class UserConnectPrompt {
     static userLoginIcon = document.querySelector(".user-login-icon") as HTMLElement;
-    private readonly salt: string = "derecks-notes";
-    // this is the current prompt html
-    private prompt: HTMLElement = document.createElement("div");
-    // this stores if a prompt is open and which one
+
+    private readonly salt: string = "derecks-notes"; // unique salt is used on the server; this is to avoid sending data over clear text
+    private prompt: HTMLElement = document.createElement("div"); // this stores if a prompt is open and which one
     private activePrompt: PromptType = undefined; // when undefined no prompt is open
-    // login prompt
+
+    // ------------------------------------------------
     private static readonly loginForm: string = `
     <form>
-        <label for="username">Username/E-mail</label>
-        <input type="text" id="username" placeholder="Enter username/e-mail" required>
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Enter username" required>
         <label for="password">Password</label>
         <input type="password" id="password" placeholder="Enter password" required>
-        <button type="submit" class="submit-login">Login</button>
+        <button type="submit">Login</button>
         <a class="register-link">Register</a>
         <a class="forgot-password-link">Forgot Password?</a>
     </form>`;
-    // registration prompt
+    // ------------------------------------------------
     private static readonly registerForm: string = `
     <form>
         <label for="first-name">First Name</label>
@@ -37,11 +36,11 @@ class UserConnectPrompt {
         <input type="password" id="password" value="password123" required>
         <label for="confirm-password">Confirm Password</label>
         <input type="password" id="confirm-password" value="password123" required>
-        <button type="submit" class="submit-register">Register</button>
+        <button type="submit">Register</button>
         <a class="login-link">Login</a>
         <a class="forgot-password-link">Forgot Password?</a>
     </form>`;
-    // forgot password prompt
+    // ------------------------------------------------
     private static readonly forgotPasswordForm: string = `
     <form>
         <label for="username">Username/E-mail</label>
@@ -71,11 +70,13 @@ class UserConnectPrompt {
 
         // if the user clicks outside of the prompt close it
         document.addEventListener("click", (event) => {
-            const temp1 = !prompt.contains(event.target as HTMLElement);
-            console.log(`!prompt.contains(event.target as HTMLElement): ${temp1}`)
+            event.preventDefault();
+            event.stopPropagation();
+
             // if the click is outside of the prompt destroy it
             if (!prompt.contains(event.target as HTMLElement)) {
-                // this.destroyPrompt();
+                console.log("Detected click outside prompt; destroying prompt")
+                this.destroyPrompt();
             }
         });
     }
@@ -99,18 +100,20 @@ class UserConnectPrompt {
 
             if (!res.success) throw new Error(res.error);
 
-            // console.log(res.data);
+            console.log(res.data);
 
             this.destroyPrompt();
         });
 
         registerLink.addEventListener("click", (event) => {
             event.preventDefault();
+            event.stopPropagation();
             this.switchForm("register")
         });
 
         forgotPasswordLink.addEventListener("click", (event) => {
             event.preventDefault();
+            event.stopPropagation();
             this.switchForm("forgotPassword")
         });
     }
@@ -130,18 +133,27 @@ class UserConnectPrompt {
             const email: string = (prompt.querySelector("#email") as HTMLInputElement).value;
             const password: string = (prompt.querySelector("#password") as HTMLInputElement).value;
 
-            console.log(`Registering user: ${username} with password: ${password} and email: ${email} and first name: ${firstName} and last name: ${lastName}`)
+            const hashStr: string = await pass2HashText(password, this.salt);
+
+            // send the register request
+            const res: ServerRes = await register(firstName, lastName, username, email, hashStr);
+
+            if (!res.success) throw new Error(res.error);
+
+            console.log(res.data);
 
             this.destroyPrompt();
         });
 
         loginLink.addEventListener("click", (event) => {
             event.preventDefault();
+            event.stopPropagation();
             this.switchForm("login");
         });
 
         forgotPasswordLink.addEventListener("click", (event) => {
             event.preventDefault();
+            event.stopPropagation();
             this.switchForm("forgotPassword");
         });
     }
@@ -157,31 +169,30 @@ class UserConnectPrompt {
             // user data
             const email: string = (prompt.querySelector("#email") as HTMLInputElement).value;
 
-            console.log(`Forgot password e-mail: ${email}`)
+            const res: ServerRes = await resetPassword(email);
 
-            // const res: ServerRes = await forgotPassword(email);
+            if (!res.success) throw new Error(res.error);
 
-            // if (!res.success) throw new Error(res.error);
-
-            // console.log(res.data);
+            console.log(res.data);
 
             this.destroyPrompt();
         });
 
         loginLink.addEventListener("click", event => {
             event.preventDefault();
+            event.stopPropagation();
             this.switchForm("login");
         });
 
         registerLink.addEventListener("click", event => {
             event.preventDefault();
+            event.stopPropagation();
             this.switchForm("register");
         });
     }
 
     private switchForm(form: PromptType) {
         this.activePrompt = form;
-        console.log(`Switching to ${form} form`);
 
         // not sure if need bind on adding these listeners
         switch (form) {
