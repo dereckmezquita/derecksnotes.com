@@ -1,4 +1,3 @@
-
 // submit a post request to getEntries express server
 export const getEntries = async (section: string, pageSize: number, nextToken?: string): Promise<ServerRes> => {
     const response = await fetch('/api/getEntries', {
@@ -33,7 +32,7 @@ export const getDefinitions = async (dictionary: string, letter: string, pageSiz
     return await response.json() as ServerRes;
 }
 
-export const register = async (username: string, email: string, password: string, firstName: string, lastName: string): Promise<ServerRes> => {
+export const register = async (firstName: string, lastName: string, username: string, email: string, password: string): Promise<ServerRes> => {
     const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
@@ -67,17 +66,16 @@ export const login = async (username: string, password: string): Promise<ServerR
     return await response.json() as ServerRes;
 }
 
-// export const testy = async (data: string): Promise<ServerRes> => {
-//     const response = await fetch('/api/testy', {
-//         method: 'POST',
-//         headers: {
-//             'Content-Type': 'application/json'
-//         },
-//         body: JSON.stringify({
-//             username: "testUser",
-//             data: data
-//         })
-//     });
+export const resetPassword = async (email: string): Promise<ServerRes> => {
+    const response = await fetch('/api/resetPassword', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            email: email
+        })
+    });
 
-//     return await response.json() as ServerRes;
-// }
+    return await response.json() as ServerRes;
+}
