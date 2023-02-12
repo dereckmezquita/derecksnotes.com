@@ -93,7 +93,7 @@ async function buildEntryDoc(entryName: string, section: string): Promise<EntryD
 
     // subsection is allows to be null or a string
     // if subsection does not equal null or is not included in the subSection array
-    if (entryDoc.subSection !== null || !subSection.includes(entryDoc.subSection)) {
+    if (entryDoc.subSection !== null && !subSection.includes(entryDoc.subSection)) {
         console.error(`${entryDoc.subSection} is not a valid subsection!`);
         return Promise.reject(new Error(`Invalid subsection: ${entryDoc.subSection}`));
     }
