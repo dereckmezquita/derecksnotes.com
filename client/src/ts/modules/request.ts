@@ -51,14 +51,14 @@ export const register = async (firstName: string, lastName: string, username: st
 }
 
 // requires password hashed buffer to be converted to a textual representation
-export const login = async (username: string, password: string): Promise<ServerRes> => {
+export const login = async (email: string, password: string): Promise<ServerRes> => {
     const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            username: username,
+            email: email,
             password: password
         })
     });
