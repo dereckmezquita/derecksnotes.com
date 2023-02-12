@@ -42,7 +42,7 @@ async function insert(): Promise<void> {
     console.log('Connected successfully to server');
 
     const db = client.db('users');
-    const collection = db.collection('account_info');
+    const collection = db.collection('accounts');
 
     // hash the hash with argon2 before insertion
     user_info.password = await argon2.hash(user_info.password, { type: argon2.argon2id, parallelism: 1 });
