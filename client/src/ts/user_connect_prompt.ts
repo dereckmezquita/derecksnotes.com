@@ -16,8 +16,8 @@ class UserConnectPrompt {
     // ------------------------------------------------
     private static readonly loginForm: string = `
     <form>
-        <label for="username">Username</label>
-        <input type="text" id="username" placeholder="Enter username" required>
+        <label for="email">E-mail</label>
+        <input type="text" id="email" placeholder="Enter e-mail" required>
         <label for="password">Password</label>
         <input type="password" id="password" placeholder="Enter password" required>
         <button type="submit">Login</button>
@@ -46,8 +46,8 @@ class UserConnectPrompt {
     // ------------------------------------------------
     private static readonly forgotPasswordForm: string = `
     <form>
-        <label for="username">Username/E-mail</label>
-        <input type="text" id="username" placeholder="Enter username/e-mail" required>
+        <label for="identifier">Username/E-mail</label>
+        <input type="text" id="identifier" placeholder="Enter username/e-mail" required>
         <button type="submit">Send</button>
         <a class="login-link">Login</a>
         <a class="register-link">Register</a>
@@ -95,13 +95,13 @@ class UserConnectPrompt {
             event.stopPropagation();
 
             // user data
-            const username: string = (prompt.querySelector("#username") as HTMLInputElement).value;
+            const email: string = (prompt.querySelector("#email") as HTMLInputElement).value;
             const password: string = (prompt.querySelector("#password") as HTMLInputElement).value;
 
             const hashStr: string = await pass2HashText(password, this.salt);
 
             // send the login request
-            const res: ServerRes = await login(username, hashStr);
+            const res: ServerRes = await login(email, hashStr);
 
             if (!res.success) throw new Error(res.error);
 
@@ -156,6 +156,7 @@ class UserConnectPrompt {
 
             if (!res.success) throw new Error(res.error);
 
+            console.log(res.data);
             alert(res.data);
 
             this.destroyPrompt();
