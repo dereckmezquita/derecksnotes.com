@@ -1,6 +1,23 @@
 import validator from 'validator';
 import { ErrorMessages, InputParams } from './constants';
 
+export const ErrorMessages = {
+    NAME_ERROR: `Server: names must be between {min} and {max} characters long and contain only letters.`,
+    USERNAME_ERROR: `Server: username must be between {min} and {max} characters long and contain only letters and numbers.`,
+    EMAIL_ERROR: 'Server: invalid e-mail.',
+};
+
+export const InputParams = {
+    NAME: {
+        MIN: 1,
+        MAX: 64,
+    },
+    USERNAME: {
+        MIN: 1,
+        MAX: 24,
+    },
+};
+
 // Input validation for users
 export function checkRegisterInfo(firstName: string, lastName: string, username: string, email: string): { success: boolean, error?: string } {
     // check first and last name
