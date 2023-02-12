@@ -5,8 +5,6 @@ import { page } from '../db';
 
 export const getEntries = Router();
 
-const _ = undefined;
-
 export const initGetEntries = (client: MongoClient) => {
     // post request for getting entries for index page
     // allows to request entries for page blog, courses, etc and number of posts
@@ -16,15 +14,15 @@ export const initGetEntries = (client: MongoClient) => {
 
         const sections = ['blog', 'courses', 'exercises'];
 
-        if (typeof section !== 'string') return sendRes(res, false, _, "Invalid type for section");
-        // if (!sections.includes(section)) return sendRes(res, false, _, "Invalid value for section");
-        if (typeof pageSize !== 'number') return sendRes(res, false, _, "Invalid type for pageSize");
-        if (pageSize > 30 || pageSize < 1) return sendRes(res, false, _, "Invalid size for pageSize");
-        if (typeof nextToken !== 'string' && typeof nextToken !== 'undefined') return sendRes(res, false, _, "Invalid type for nextToken");
+        if (typeof section !== 'string') return sendRes(res, false, undefined, "Invalid type for section");
+        // if (!sections.includes(section)) return sendRes(res, false, undefined, "Invalid value for section");
+        if (typeof pageSize !== 'number') return sendRes(res, false, undefined, "Invalid type for pageSize");
+        if (pageSize > 30 || pageSize < 1) return sendRes(res, false, undefined, "Invalid size for pageSize");
+        if (typeof nextToken !== 'string' && typeof nextToken !== 'undefined') return sendRes(res, false, undefined, "Invalid type for nextToken");
 
         if (nextToken) {
             if (!ObjectId.isValid(nextToken)) {
-                return sendRes(res, false, _, "Invalid value for nextToken");
+                return sendRes(res, false, undefined, "Invalid value for nextToken");
             }
         }
 
