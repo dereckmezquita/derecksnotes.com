@@ -5,8 +5,6 @@ import { page } from '../db';
 
 export const getDefinitions = Router();
 
-const _ = undefined;
-
 export const initGetDefinitions = (client: MongoClient) => {
     // a post request for getting data for dictionaries page
     // responds to requests for different dictionaries; results are filtered
@@ -16,16 +14,16 @@ export const initGetDefinitions = (client: MongoClient) => {
 
         const dictionaries = ['biology', 'chemistry']
 
-        if (typeof dictionary !== 'string') return sendRes(res, false, _, "Invalid type for dictionary");
-        if (!dictionaries.includes(dictionary)) return sendRes(res, false, _, "Invalid value for dictionary");
-        if (typeof letter !== 'string') return sendRes(res, false, _, "Invalid type for letter");
-        if (typeof pageSize !== 'number') return sendRes(res, false, _, "Invalid type for pageSize");
-        if (pageSize > 30 || pageSize < 1) return sendRes(res, false, _, "Invalid size for pageSize");
-        if (typeof nextToken !== 'string' && typeof nextToken !== 'undefined') return sendRes(res, false, _, "Invalid type for nextToken");
+        if (typeof dictionary !== 'string') return sendRes(res, false, undefined, "Invalid type for dictionary");
+        if (!dictionaries.includes(dictionary)) return sendRes(res, false, undefined, "Invalid value for dictionary");
+        if (typeof letter !== 'string') return sendRes(res, false, undefined, "Invalid type for letter");
+        if (typeof pageSize !== 'number') return sendRes(res, false, undefined, "Invalid type for pageSize");
+        if (pageSize > 30 || pageSize < 1) return sendRes(res, false, undefined, "Invalid size for pageSize");
+        if (typeof nextToken !== 'string' && typeof nextToken !== 'undefined') return sendRes(res, false, undefined, "Invalid type for nextToken");
 
         if (nextToken) {
             if (!ObjectId.isValid(nextToken)) {
-                return sendRes(res, false, _, "Invalid value for nextToken");
+                return sendRes(res, false, undefined, "Invalid value for nextToken");
             }
         }
 
