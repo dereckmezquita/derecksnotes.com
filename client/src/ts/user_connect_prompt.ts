@@ -1,5 +1,8 @@
 import { login, register, resetPassword } from './modules/request';
 import { pass2HashText } from './modules/cryptography_helpers';
+import { confirmPasswordMatch } from './modules/helpers_user_connect_prompt';
+
+import * as valid from './modules/validators';
 
 type PromptType = undefined | "login" | "register" | "forgotPassword";
 
@@ -32,11 +35,11 @@ class UserConnectPrompt {
         <input type="text" id="username" required>
         <label for="email">E-mail</label>
         <input type="email" id="email" required>
-        <label for="password">Password</label>
+        <label id="password-label" for="password">Password</label>
         <input type="password" id="password" required>
-        <label for="confirm-password">Confirm Password</label>
+        <label  id="confirm-password-label" for="confirm-password">Confirm Password</label>
         <input type="password" id="confirm-password" required>
-        <button type="submit">Register</button>
+        <button class="submit-register" type="submit">Register</button>
         <a class="login-link">Login</a>
         <a class="forgot-password-link">Forgot Password?</a>
     </form>`;
@@ -138,16 +141,22 @@ class UserConnectPrompt {
             const email: string = (prompt.querySelector("#email") as HTMLInputElement).value;
             const password: string = (prompt.querySelector("#password") as HTMLInputElement).value;
 
-            const hashStr: string = await pass2HashText(password, this.salt);
+            // check user inputs
+            const userCheck = valid.userInfoCheck(firstName, lastName, username, email, password);
 
-            console.log(`firstName: ${firstName}, lastName: ${lastName}, username: ${username}, email: ${email}, password: ${password}`)
+            if (!userCheck.success) {
+                alert(userCheck.error);
+                throw new Error(userCheck.error);
+            }
+
+            const hashStr: string = await pass2HashText(password, this.salt);
 
             // send the register request
             const res: ServerRes = await register(firstName, lastName, username, email, hashStr);
 
             if (!res.success) throw new Error(res.error);
 
-            console.log(`Register response: `, res.data)
+            alert(res.data);
 
             this.destroyPrompt();
         });
@@ -183,7 +192,7 @@ class UserConnectPrompt {
 
             if (!res.success) throw new Error(res.error);
 
-            console.log(`Reset password response: `, res.data)
+            console.log(`Reset password response: `, res.data);
 
             this.destroyPrompt();
         });
@@ -215,6 +224,24 @@ class UserConnectPrompt {
             case "register":
                 this.prompt.innerHTML = UserConnectPrompt.registerForm;
                 this.addRegisterFormListeners(this.prompt);
+                // add confirmPass to onkeyup event of the inputs
+                const passwordInput = document.querySelector("#password") as HTMLInputElement;
+                const confirmPassInput = document.querySelector("#confirm-password") as HTMLInputElement;
+                // get the submit button for the register form
+                const submitBtn = document.querySelector(".submit-register") as HTMLButtonElement;
+
+                passwordInput.addEventListener("keyup", () => {
+                    confirmPasswordMatch(passwordInput, confirmPassInput, submitBtn, {
+                        labelColours: "black",
+                        submitButtonColor: submitBtn.style.color
+                    })
+                });
+                confirmPassInput.addEventListener("keyup", () => {
+                    confirmPasswordMatch(passwordInput, confirmPassInput, submitBtn, {
+                        labelColours: "black",
+                        submitButtonColor: submitBtn.style.color
+                    })
+                });
                 break;
             case "forgotPassword":
                 this.prompt.innerHTML = UserConnectPrompt.forgotPasswordForm;
