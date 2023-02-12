@@ -1,5 +1,4 @@
 import validator from 'validator';
-import { ErrorMessages, InputParams } from './constants';
 
 export const ErrorMessages = {
     NAME_ERROR: `Server: names must be between {min} and {max} characters long and contain only letters.`,
