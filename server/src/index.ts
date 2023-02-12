@@ -2,8 +2,11 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { router, initDB } from './modules/routes';
 import { MongoClient, ObjectId } from 'mongodb';
+import { logger } from './logger';
 
-const port: number = 3001;
+const port = Number(process.env.PORT) || 3001;
+const mongodbUrl = process.env.MONGODB_URL || 'mongodb://127.0.0.1:27017';
+
 const app = express();
 
 // create a rate limiter for API endpoints
@@ -19,23 +22,25 @@ app.use('/api/', apiLimiter);
 app.use(express.json());
 app.use(router);
 
-// serve static files from public directory; temp will remove for serving with nginx
-// app.use(express.static(path.join(__dirname, '..', '..', 'client/public')));
+async function start() {
+    const client = await MongoClient.connect(mongodbUrl, {
+        serverSelectionTimeoutMS: 1000,
+    });
 
-new MongoClient('mongodb://127.0.0.1:27017', { serverSelectionTimeoutMS: 1000 }).connect().then(client => {
     initDB(client);
 
     app.listen(port, '0.0.0.0', () => {
-        console.log(`Server is up on port: ${port}`);
-        // console.log(`Visit: http://localhost:${port}/index.html`);
+        logger.info(`Server is up on port: ${port}`);
     });
-});
+}
 
 // middleware to log rate limiter status
-app.use(function(req, res, next) {
+app.use(function (req, res, next) {
     if (req.route.path === '/api/' && res.statusCode === 429) {
-        console.log(`Rate limit exceeded for IP ${req.ip}`);
+        logger.warn(`Rate limit exceeded for IP ${req.ip}`);
     }
 
     next();
 });
+
+start();
