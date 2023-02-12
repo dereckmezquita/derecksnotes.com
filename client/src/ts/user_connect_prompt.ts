@@ -74,7 +74,7 @@ class UserConnectPrompt {
 
         // if the user clicks outside of the prompt close it
         document.addEventListener("click", (event) => {
-            event.preventDefault();
+            // event.preventDefault();
             event.stopPropagation();
 
             // if the click is outside of the prompt destroy it
