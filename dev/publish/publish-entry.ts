@@ -8,21 +8,23 @@ import df from 'date-format';
 
 type EntryDoc = {
     siteSection: string;
+    subSection: null | string;
     fileName: string;
     author: string;
     articleTitle: string;
     image: string;
     slogan: string;
     summary: string;
-    date: Date;
     categories: string[];
+    published: boolean;
+    date: Date;
 }
 
-const sections = ['blog', 'courses', 'exercises'];
-const categories = ['programming', 'biology', 'science', 'computer science'];
+const sections = ['blog', 'courses', 'exercises', 'references'];
+const categories = ['programming', 'biology', 'science', 'computer science', 'history'];
 const defaultAuthor = "Dereck de Mezquita";
 
-const url = 'mongodb://localhost:27017';
+const url = 'mongodb://127.0.0.1:27017';;
 const client = new MongoClient(url);
 
 const rl = readline.createInterface({
@@ -50,21 +52,24 @@ async function interrogate(question: string, defaultAns: string = ""): Promise<s
 
 async function buildEntryDoc(entryName: string): Promise<EntryDoc> {
     const entryFile = `${entryName}.ejs`
-    const entryString = readFileSync(`../../client/src/blog/${entryFile}`).toString();
+    // const entryString = readFileSync(`../../client/src/blog/${entryFile}`).toString();
+    const entryString = readFileSync(`./entry/${entryFile}`).toString();
     const $ = cheerio.load(entryString);
     const title = $('article h1').first().text().trim();
     const summary = $('article p').first().text().trim();
 
     let entryDoc: EntryDoc = {
         siteSection: "",
+        subSection: null,
         fileName: "",
         author: "",
         articleTitle: "",
         image: "",
         slogan: "",
         summary: "",
-        date: new Date(),
-        categories: []
+        categories: [],
+        published: true,
+        date: new Date()
     };
 
     console.log(`Title: ${title.green}`);
@@ -80,6 +85,8 @@ async function buildEntryDoc(entryName: string): Promise<EntryDoc> {
         console.error(`${entryDoc.siteSection} is not a valid section!`);
         process.exit(1);
     }
+
+    entryDoc.subSection = await interrogate("Sub Section (leave blank if none)");
 
     entryDoc.author = await interrogate("Author", defaultAuthor);
     entryDoc.image = await interrogate("Image");
@@ -117,11 +124,12 @@ async function buildEntryDoc(entryName: string): Promise<EntryDoc> {
     await client.connect();
 
     const db = client.db('entries');
-    const collection = db.collection('blog');
+    const collection = db.collection('metadata');
 
     const titles: string[] = await collection.distinct('fileName');
 
-    let entries: string[] = readdirSync('../../client/src/blog');
+    // let entries: string[] = readdirSync('../../client/src/blog');
+    let entries: string[] = readdirSync('./entry');
 
     for(const entry of entries) {
         if(entry.indexOf('.') == -1) continue;
@@ -133,6 +141,8 @@ async function buildEntryDoc(entryName: string): Promise<EntryDoc> {
             const entryDoc = await buildEntryDoc(entryName);
 
             const insertResults = await collection.insertOne(entryDoc);
+
+            console.log(insertResults);
 
             console.log(`Successfully inserted ${entryDoc.fileName} into db!`);
         }
