@@ -11,15 +11,21 @@ declare global {
         firstName: string,
         lastName: string,
         email: {
-            address: string,
+            address: string
             verified: boolean,
             verificationToken?: string
         },
         username: string,
-        password: string,
+        password: string
         userStatistics: {
-            ip_addresses: string[],
-            last_login: Date
+            ip_addresses: [
+                {
+                    ip_address: string,
+                    first_use: Date,
+                    last_use: Date
+                }
+            ],
+            last_connected: Date
         }
     }
 }
