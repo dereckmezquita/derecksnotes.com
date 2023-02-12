@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { MongoClient, ObjectId } from 'mongodb';
+import { MongoClient } from 'mongodb';
 
 // ------------------------
 import { getDefinitions, initGetDefinitions } from './routes/getDefinitions';
