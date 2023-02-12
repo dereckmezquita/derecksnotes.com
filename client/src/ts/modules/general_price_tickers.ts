@@ -1,22 +1,37 @@
-
 export type NameTicker = {
     name: string,
     ticker: string
 }
 
+const CACHE_KEY = 'CRYPTO_PRICES';
+const CACHE_EXPIRATION = 5 * 60 * 1000; // 5 minutes in milliseconds
+
 export async function cryptoPrices(coins: NameTicker[]): Promise<void> {
+    let prices = JSON.parse(localStorage.getItem(CACHE_KEY) || '{}');
+
+    // check if cache has expired
+    if (!prices || (Date.now() - prices.timestamp) > CACHE_EXPIRATION) {
+        prices = { timestamp: Date.now(), data: {} };
+
+        for (const coin of coins) {
+            let res: any;
+
+            try {
+                res = await getPrice(coin.name);
+            } catch (error) {
+                console.error(error);
+            }
+
+            if (res) {
+                prices.data[coin.name] = res[coin.name];
+            }
+        }
+
+        localStorage.setItem(CACHE_KEY, JSON.stringify(prices));
+    }
+
     for (const coin of coins) {
-        let res: any;
-
-        try {
-            res = await getPrice(coin.name);
-        } catch (error) {
-            console.error(error);
-        }
-
-        if (res) {
-            // console.log(res[coin.name]);
-        }
+        const res = prices.data[coin.name];
 
         // get ticker holder from DOM
         const tickers: Element = document.querySelector("#tickers");
@@ -24,7 +39,7 @@ export async function cryptoPrices(coins: NameTicker[]): Promise<void> {
         const coinSpan: Element = document.createElement('span');
         coinSpan.classList.add("info-bar-crypto");
 
-        if (coin.name != "bitcoin") { // css will hide all these when screen width is small
+        if (coin.name !== "bitcoin") { // css will hide all these when screen width is small
             coinSpan.classList.add("info-bar-crypto-hidden");
         }
 
@@ -89,7 +104,6 @@ async function getPrice(coin: string) {
         xhr.responseType = 'json';
 
         xhr.onload = () => {
-            // console.log(xhr.status);
             if (xhr.status >= 200 && xhr.status < 400) return resolve(xhr.response);
 
             reject("Bad status code");
