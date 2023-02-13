@@ -6,16 +6,6 @@ import { checkEmail } from '../validators';
 
 import * as argon2 from 'argon2';
 import { logger } from '../../logger';
-import { SessionData } from 'express-session';
-
-interface SessionDataRes extends SessionData {
-    authenticated?: boolean;
-    user?: {
-        email: string;
-        username: string;
-    };
-}
-
 
 export const postLogin = Router();
 
@@ -56,7 +46,7 @@ export const initLogin = (client: MongoClient) => {
 
         // password matches so we will modify the session object
         (req.session as SessionDataRes).authenticated = true;
-        (req.session as SessionDataRes).user = { email: user.email.address, username: user.username };
+        (req.session as SessionDataRes).user = { email: user.email.address, username: user.username } as UserCookie; // this is what gets saved client's cookies
 
         logger.info(`User ${user.email.address} has logged in.`);
         sendRes(res, true, "Successfully logged in!");
