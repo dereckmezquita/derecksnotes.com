@@ -37,6 +37,7 @@ export const initRegister = (client: MongoClient) => {
         const user_info: UserInfo = {
             firstName: firstName,
             lastName: lastName,
+            profilePhoto: undefined,
             username: username,
             password: hash,
             email: {
