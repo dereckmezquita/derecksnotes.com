@@ -25,7 +25,7 @@ import "./modules/general_clock";
 import "./modules/pwa_prompt";
 
 // ------------------------
-import "./user_connect_prompt.ts"
+import "./user_connect_prompt";
 
 // ------------------------
 // ------------------------
