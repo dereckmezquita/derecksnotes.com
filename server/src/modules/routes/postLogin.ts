@@ -6,6 +6,16 @@ import { checkEmail } from '../validators';
 
 import * as argon2 from 'argon2';
 import { logger } from '../../logger';
+import { SessionData } from 'express-session';
+
+interface SessionDataRes extends SessionData {
+    authenticated?: boolean;
+    user?: {
+        email: string;
+        username: string;
+    };
+}
+
 
 export const postLogin = Router();
 
@@ -21,7 +31,14 @@ export const initLogin = (client: MongoClient) => {
 
         if (!emailCheck.success) return sendRes(res, false, null, emailCheck.error);
 
-        // TODO: consider doing security checks here
+        // if they are already logged in and have an active session
+        // sessions are saved to live memory
+        if ((req.session as SessionDataRes).authenticated) {
+            logger.info(`User ${email} is already logged in.`);
+            sendRes(res, true, `User ${email} is already logged in.`);
+            return;
+        }
+
         const db = client.db('users');
         const accounts = db.collection('accounts');
         const user = await accounts.findOne({ "email.address": email }) as UserInfo | null;
@@ -37,6 +54,15 @@ export const initLogin = (client: MongoClient) => {
         // password does not match
         if (!passwordMatch) return sendRes(res, false, null, 'E-mail or password is incorrect');
 
+        // password matches so we will modify the session object
+        (req.session as SessionDataRes).authenticated = true;
+        (req.session as SessionDataRes).user = { email: user.email.address, username: user.username };
+
+        logger.info(`User ${user.email.address} has logged in.`);
+        sendRes(res, true, "Successfully logged in!");
+
+        // ----------------------------------------
+        // update statistics in the database for the user
         // get the users IP address
         const ip_address = req.headers['x-forwarded-for'] as string;
 
@@ -62,8 +88,5 @@ export const initLogin = (client: MongoClient) => {
                 last_use: new Date()
             });
         }
-
-        logger.info(`User ${user.email.address} has logged in from IP address ${ip_address}.`);
-        sendRes(res, true, "Successfully logged in!");
     });
 }
