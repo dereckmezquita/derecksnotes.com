@@ -1,4 +1,4 @@
-export {};
+export { };
 
 declare global {
     type ServerRes = {
@@ -10,6 +10,7 @@ declare global {
     type UserInfo = {
         firstName: string,
         lastName: string,
+        profilePhoto?: string,
         email: {
             address: string
             verified: boolean,
@@ -27,5 +28,17 @@ declare global {
             ],
             last_connected: Date
         }
+    }
+
+    // data we can get back from: (req.session as SessionDataRes).user
+    type UserCookie = {
+        email: string,
+        username: string
+    }
+
+    // req.session
+    interface SessionDataRes extends SessionData {
+        authenticated?: boolean;
+        user?: UserCookie
     }
 }
