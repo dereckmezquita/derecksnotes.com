@@ -1,6 +1,7 @@
 
-// this code is injected to displayed articles for formatting and other
+import './comments';
 
+// this code is injected to displayed articles for formatting and other
 import {
     setTitle, // get the h1 and use it to set the title of the page; appears in tab name
     dropCap, // first letter of the first paragraph is a drop cap
