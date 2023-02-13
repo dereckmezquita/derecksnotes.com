@@ -32,6 +32,7 @@ type EntryDoc = {
     categories: string[];
     published: boolean;
     date: Date;
+    commentsOn: boolean;
 };
 
 async function askQuestion(question: string, defaultAnswer: string = ''): Promise<string> {
@@ -73,6 +74,7 @@ async function buildEntryDoc(entryName: string, section: string): Promise<EntryD
         categories: [],
         published: true,
         date: new Date(),
+        commentsOn: true
     };
 
     console.log(`Title: ${title.green}`);
