@@ -7,10 +7,11 @@ import { getEntries, initGetEntries } from './routes/getEntries';
 import { getLikes, initGetLikes } from './routes/getLikes';
 import { postLogin, initLogin } from './routes/postLogin';
 import { postRegister, initRegister } from './routes/postRegister';
+import { getUserInfo, initUserInfo } from './routes/getUserInfo';
 
 export const router = Router();
 
-router.use(getEntries, getLikes, getDefinitions, postRegister, postLogin);
+router.use(getEntries, getLikes, getDefinitions, postRegister, postLogin, getUserInfo);
 
 export const initDB = (client: MongoClient) => {
     initGetEntries(client);
@@ -18,4 +19,5 @@ export const initDB = (client: MongoClient) => {
     initGetLikes(client);
     initRegister(client);
     initLogin(client);
+    initUserInfo(client);
 }
