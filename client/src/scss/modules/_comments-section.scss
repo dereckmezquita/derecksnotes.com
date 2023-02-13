@@ -1,0 +1,132 @@
+.comments {
+    padding: 20px;
+
+    .add-comment {
+        display: flex;
+        align-items: flex-start;
+        margin-bottom: 20px;
+
+        img {
+            width: 50px;
+            height: 50px;
+            border-radius: 5px;
+            margin-right: 15px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 60px;
+            padding: 10px;
+            // font-size: 14px;
+            resize: none;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 7px 15px;
+            background-color: #ddd;
+            border: none;
+            border-radius: 5px;
+            // font-size: 14px;
+            cursor: pointer;
+            align-self: flex-start;
+
+            &:hover {
+                background-color: #ccc;
+            }
+        }
+    }
+
+    .sort-by {
+        margin-bottom: 20px;
+
+        select {
+            padding: 10px;
+            // font-size: 14px;
+        }
+    }
+
+    .comment {
+        display: flex;
+        margin-bottom: 20px;
+
+        img {
+            width: 50px;
+            height: 50px;
+            border-radius: 5px;
+            margin-right: 20px;
+        }
+
+        .comment-details {
+            .username-date {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 10px;
+
+                .username {
+                    font-weight: bold;
+                }
+
+                .date {
+                    // font-size: 12px;
+                    color: #aaa;
+                }
+            }
+
+            .comment-text {
+                margin-bottom: 10px;
+                // font-size: 14px;
+            }
+
+            .actions {
+                display: flex;
+                align-items: center;
+
+                .likes {
+                    margin-right: 10px;
+                }
+
+                .like-button,
+                .dislike-button,
+                .reply-button {
+                    margin-right: 10px;
+                    padding: 5px 10px;
+                    background-color: #ddd;
+                    border: none;
+                    border-radius: 5px;
+                    // font-size: 14px;
+                    cursor: pointer;
+
+                    &:hover {
+                        background-color: #ccc;
+                    }
+                }
+            }
+        }
+    }
+
+    @media (max-width: 767px) {
+        .comments {
+            padding: 10px;
+        }
+
+        .add-comment {
+            textarea {
+                height: 40px;
+            }
+
+            img {
+                width: 40px;
+                height: 40px;
+            }
+        }
+
+        .comment {
+            img {
+                width: 40px;
+                height: 40px;
+                margin-right: 10px;
+            }
+        }
+    }
+}
