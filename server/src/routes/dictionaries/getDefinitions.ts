@@ -6,9 +6,6 @@ import { page } from '../../modules/db';
 export const getDefinitions = Router();
 
 export const initGetDefinitions = (client: MongoClient) => {
-    // a post request for getting data for dictionaries page
-    // responds to requests for different dictionaries; results are filtered
-    // will listen to request for more definitions
     getDefinitions.post('/getDefinitions', (req, res) => {
         const { dictionary, letter, pageSize, nextToken } = req.body;
 
