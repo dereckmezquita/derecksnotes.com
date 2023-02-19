@@ -6,10 +6,10 @@ import { checkRegisterInfo } from '../../modules/validators';
 
 import * as argon2 from 'argon2';
 
-export const postRegister = Router();
+export const register = Router();
 
 export const initRegister = (client: MongoClient) => {
-    postRegister.post('/register', async (req: Request, res: Response) => {
+    register.post('/users/register', async (req: Request, res: Response) => {
         // get account info from user
         const { firstName, lastName, username, email, password } = req.body;
 

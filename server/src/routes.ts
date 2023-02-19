@@ -6,7 +6,7 @@ import { getDefinitions, initGetDefinitions } from './routes/dictionaries/getDef
 import { getArticles, initGetArticles } from './routes/articles/getArticles';
 import { getLikes, initGetLikes } from './routes/articles/getLikes';
 import { login, initLogin } from './routes/users/login';
-import { postRegister, initRegister } from './routes/users/postRegister';
+import { register, initRegister } from './routes/users/register';
 import { getUserInfo, initUserInfo } from './routes/users/getUserInfo';
 import { postComment, initComment } from './routes/comments/newComment';
 
@@ -16,7 +16,7 @@ router.use(
     getArticles,
     getLikes,
     getDefinitions,
-    postRegister,
+    register,
     login,
     getUserInfo,
     postComment
