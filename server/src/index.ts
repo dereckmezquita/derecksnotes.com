@@ -4,7 +4,7 @@ import rateLimit from 'express-rate-limit';
 
 import { router, initDB } from './routes';
 import { MongoClient } from 'mongodb';
-import { logger } from './logger';
+import { logger } from './modules/logger';
 
 const store = new session.MemoryStore();
 
