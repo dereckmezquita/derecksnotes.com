@@ -46,7 +46,6 @@ class CommentSectionHandler {
     </div>`;
 
     constructor() {
-        console.log("CommentSectionHandler");
         // append the comment section to content-wrapper
         this.contentWrapper.insertAdjacentHTML("beforeend", CommentSectionHandler.commentSection);
 
