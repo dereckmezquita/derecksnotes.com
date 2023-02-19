@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { sendRes } from '../helpers';
+import { sendRes } from '../../helpers';
 import { MongoClient } from 'mongodb';
 
-import { checkEmail, checkUsername } from '../validators';
+import { checkEmail, checkUsername } from '../../validators';
 
 export const postRegister = Router();
 

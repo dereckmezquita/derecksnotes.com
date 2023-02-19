@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { sendRes } from '../helpers';
+import { sendRes } from '../../helpers';
 import { MongoClient, ObjectId } from 'mongodb';
-import { page } from '../db';
+import { page } from '../../db';
 
 export const getDefinitions = Router();
 
