@@ -1,59 +1,81 @@
-<!-- Comment section -->
-<section class="comments">
-    <!-- Add comment section -->
-    <div class="add-comment">
-        <div class="image-textarea">
-            <img src="user_profile_photo.png" alt="User Profile Photo">
-            <textarea placeholder="Add comment..."></textarea>
+<div class="comment-section">
+    <h2>Comments</h2>
+    <div id="new-comment-form">
+        <div class="comment-user-info">
+            <span class="username">Username</span>
+            <span class="datetime">Datetime</span>
+            <button class="comment-action">Post</button>
         </div>
-        <button>Post</button>
+        <div class="new-comment-textarea">
+            <img src="profile-photo.png" class="comment-profile-photo">
+            <textarea></textarea>
+        </div>
     </div>
-    
-    <!-- Sort by menu -->
-    <div class="sort-by">
+    <!--  -->
+    <div class="comment-sort">
         <select>
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-            <option value="most-likes">Most likes</option>
-            <option value="least-likes">Least likes</option>
+            <option value="comment-sort-newest">Newest</option>
+            <option value="comment-sort-oldest">Oldest</option>
+            <option value="comment-sort-most-liked">Most Liked</option>
+            <option value="comment-sort-most-disliked">Most Disliked</option>
         </select>
     </div>
-
-    <!-- Comment -->
-
-    <!-- <div class="comment">
-        <img src="user_profile_photo.png" alt="User Profile Photo">
-        <div class="comment-details">
-            <div class="username-date">
+    <!--  -->
+    <div class="posted-comments">
+        <div class="posted-comment">
+            <div class="comment-user-info">
                 <span class="username">Username</span>
-                <span class="date">Date and Time</span>
+                <span class="datetime">Datetime</span>
+                <button class="comment-action">Reply</button>
             </div>
-            <p class="comment-text">This is a comment.</p>
-            <div class="actions">
-                <span class="likes">12</span>
+            <div class="posted-comment-holder">
+                <img src="profile-photo.png" class="comment-profile-photo">
+                <div class="posted-comment-text">Comment text goes here</div>
+            </div>
+            <div class="posted-comment-actions">
                 <button class="like-button">Like</button>
-                <span class="dislikes">2</span>
+                <span class="like-count">0</span>
                 <button class="dislike-button">Dislike</button>
-                <button class="reply-button">Reply</button>
+                <span class="dislike-count">0</span>
+            </div>
+        </div>
+        <!-- example of posted comment with replies -->
+        <div class="posted-comment">
+            <div class="comment-user-info">
+                <span class="username">Username</span>
+                <span class="datetime">Datetime</span>
+                <button class="comment-action">Reply</button>
+            </div>
+            <div class="posted-comment-holder">
+                <img src="profile-photo.png" class="comment-profile-photo">
+                <div class="posted-comment-text">Comment text goes here</div>
+            </div>
+            <div class="posted-comment-actions">
+                <button class="like-button">Like</button>
+                <span class="like-count">0</span>
+                <button class="dislike-button">Dislike</button>
+                <span class="dislike-count">0</span>
+                <button class="show-replies">Show replies</button>
+            </div>
+            <div class="posted-comment-replies">
+                <div class="posted-comment comment-reply">
+                    <div class="comment-user-info">
+                        <span class="username">Username</span>
+                        <span class="datetime">Datetime</span>
+                        <button class="comment-action">Reply</button>
+                    </div>
+                    <div class="posted-comment-holder">
+                        <img src="profile-photo.png" class="comment-profile-photo">
+                        <div class="posted-comment-text">Comment text goes here</div>
+                    </div>
+                    <div class="posted-comment-actions">
+                        <button class="like-button">Like</button>
+                        <span class="like-count">0</span>
+                        <button class="dislike-button">Dislike</button>
+                        <span class="dislike-count">0</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-
-    <div class="comment">
-        <img src="user_profile_photo.png" alt="User Profile Photo">
-        <div class="comment-details">
-            <div class="username-date">
-                <span class="username">Username</span>
-                <span class="date">Date and Time</span>
-            </div>
-            <p class="comment-text">This is another comment.</p>
-            <div class="actions">
-                <span class="likes">7</span>
-                <button class="like-button">Like</button>
-                <span class="dislikes">0</span>
-                <button class="dislike-button">Dislike</button>
-                <button class="reply-button">Reply</button>
-            </div>
-        </div>
-    </div> -->
-</section>
+</div>
