@@ -95,4 +95,3 @@ export const initComment = (client: MongoClient) => {
         return sendRes(res, true, 'Comment successfully added.');
     });
 }
-
