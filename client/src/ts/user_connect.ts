@@ -6,7 +6,7 @@ import * as valid from './modules/validators';
 
 type PromptType = undefined | "login" | "register" | "forgotPassword";
 
-class UserConnectPrompt {
+class UserConnect {
     static userLoginIcon = document.querySelector(".user-login-icon") as HTMLElement;
 
     private readonly salt: string = "derecks-notes"; // unique salt is used on the server; this is to avoid sending data over clear text
@@ -54,13 +54,13 @@ class UserConnectPrompt {
     </form>`;
 
     constructor() {
-        this.prompt.innerHTML = UserConnectPrompt.loginForm;
+        this.prompt.innerHTML = UserConnect.loginForm;
         this.addListeners();
     }
 
     // listeners for opening and closing the prompt
     private addListeners() {
-        UserConnectPrompt.userLoginIcon.addEventListener("click", (event) => {
+        UserConnect.userLoginIcon.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
 
@@ -219,11 +219,11 @@ class UserConnectPrompt {
         // not sure if need bind on adding these listeners
         switch (form) {
             case "login":
-                this.prompt.innerHTML = UserConnectPrompt.loginForm;
+                this.prompt.innerHTML = UserConnect.loginForm;
                 this.addLoginFormListeners(this.prompt);
                 break;
             case "register":
-                this.prompt.innerHTML = UserConnectPrompt.registerForm;
+                this.prompt.innerHTML = UserConnect.registerForm;
                 this.addRegisterFormListeners(this.prompt);
                 // add confirmPass to onkeyup event of the inputs
                 const passwordInput = document.querySelector("#password") as HTMLInputElement;
@@ -245,7 +245,7 @@ class UserConnectPrompt {
                 });
                 break;
             case "forgotPassword":
-                this.prompt.innerHTML = UserConnectPrompt.forgotPasswordForm;
+                this.prompt.innerHTML = UserConnect.forgotPasswordForm;
                 this.addForgotPasswordFormListeners(this.prompt);
                 break;
         }
@@ -255,7 +255,7 @@ class UserConnectPrompt {
         // Create a new prompt HTML element
         this.prompt.classList.add("login-prompt");
         // Set the prompt's initial form as the login form
-        this.prompt.innerHTML = UserConnectPrompt.loginForm;
+        this.prompt.innerHTML = UserConnect.loginForm;
 
         this.activePrompt = "login";
 
@@ -274,4 +274,4 @@ class UserConnectPrompt {
     }
 }
 
-new UserConnectPrompt();
+new UserConnect();
