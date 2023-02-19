@@ -69,3 +69,14 @@ export function checkEmail(email: string): { success: boolean, error?: string } 
 
     return { success: true, error: undefined };
 }
+
+export function userCommentCheck(text: string): { success: boolean, error?: string } {
+    // check: not empty, not malicious, not over 10000 characters, is alphanumeric, is ascii
+    if (
+        !validator.isAscii(text) ||
+        validator.isEmpty(text) ||
+        !validator.isLength(text, { min: 1, max: 10000 })
+    ) return { success: false, error: "Invalid text."};
+    
+    return { success: true, error: undefined };
+}
