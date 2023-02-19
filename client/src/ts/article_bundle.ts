@@ -1,5 +1,5 @@
 
-import './comments';
+import './user_comments';
 
 // this code is injected to displayed articles for formatting and other
 import {

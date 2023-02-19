@@ -89,6 +89,7 @@ export const getComments = async (article: string, pageSize: number, nextToken?:
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+            action: "get_comments",
             article: article,
             pageSize: pageSize,
             nextToken: nextToken
@@ -98,14 +99,37 @@ export const getComments = async (article: string, pageSize: number, nextToken?:
     return await response.json() as ServerRes;
 }
 
-// the user should already be logged in and is using their session token to identify
+// the user should already be logged in for these functions; using their session token to identify
 export const getUserInfo = async (): Promise<ServerRes> => {
-    const response = await fetch('/api/userInfo', {
+    const response = await fetch('/api/userinfo', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({})
+    });
+
+    return await response.json() as ServerRes;
+}
+
+export const sendComment = async (
+    comment: string,
+    datetime: string,
+    replyToId?: string
+): Promise<ServerRes> => {
+    const article = window.location.pathname.split('/')[2];
+
+    const response = await fetch('/api/comments/new_comment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            comment: comment,
+            datetime: datetime,
+            article: article,
+            replyToId: replyToId
+        })
     });
 
     return await response.json() as ServerRes;
