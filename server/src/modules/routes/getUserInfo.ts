@@ -38,10 +38,13 @@ export const initUserInfo = (client: MongoClient) => {
 
         // send back the required information
         sendRes(res, true, {
+            firstName: accountInfo.firstName,
+            lastName: accountInfo.lastName,
             username: accountInfo.username,
             email: accountInfo.email.address,
             profilePhoto: accountInfo.profilePhoto,
-            numberOfComments: numComments
+            numberOfComments: numComments,
+            lastConnected: accountInfo.userStatistics.last_connected
         });
     });
 }
