@@ -79,7 +79,7 @@ class UserConnectPrompt {
 
             // if the click is outside of the prompt destroy it
             if (!this.prompt.contains(event.target as HTMLElement)) {
-                console.log("Detected click outside prompt; destroying prompt")
+                // console.log("Detected click outside prompt; destroying prompt")
                 this.destroyPrompt();
             }
         });
