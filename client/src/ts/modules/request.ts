@@ -16,7 +16,7 @@ export const reqArticles = async (section: string, pageSize: number, nextToken?:
 }
 
 export const getDefinitions = async (dictionary: string, letter: string, pageSize: number, nextToken?: string): Promise<ServerRes> => {
-    const response = await fetch('/api/getDefinitions', {
+    const response = await fetch('/api/dictionaries/get_definitions', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
