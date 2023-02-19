@@ -1,37 +1,35 @@
-
-import { getEntries } from "./request";
+import { reqArticles } from "./request";
 
 const siteSection: string = (document.getElementById("siteSection") as HTMLInputElement).value;
 
-const entriesDOM: HTMLElement = document.querySelector(".card-entries");
+const articlesDOM: HTMLElement = document.querySelector(".card-articles");
 
-// get entries as promise await
+// get articles as promise await
 (async () => {
-    let res = await getEntries(siteSection, 10);
+    let res = await reqArticles(siteSection, 10);
     if (!res.success) throw new Error(res.error);
 
     // console.log(`Initial request: ${res.data.nextToken}`);
-
-    const entries: any[] = res.data.entries;
+    const articles: any[] = res.data.articles;
     while (res.data.nextToken) {
-        res = await getEntries(siteSection, 10, res.data.nextToken);
-        entries.push(...res.data.entries);
+        res = await reqArticles(siteSection, 10, res.data.nextToken);
+        articles.push(...res.data.articles);
 
         if (!res.success) throw new Error(res.error);
 
         // console.log(`Next request: ${res.data.nextToken}`);
     }
 
-    // reorder entries by the date
-    entries.sort((a, b) => {
+    // reorder articles by the date
+    articles.sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
 
         return dateB.getTime() - dateA.getTime();
     });
 
-    // loop through entries and create a card for each
-    for (const entry of entries) {
+    // loop through articles and create a card for each
+    for (const entry of articles) {
         // create the a tag which links that goes around the card
         const card: HTMLElement = document.createElement("a");
         card.setAttribute("class", "card");
@@ -90,7 +88,7 @@ const entriesDOM: HTMLElement = document.querySelector(".card-entries");
             card.appendChild(summary);
         }
 
-        // finally append the card to the entriesDOM
-        entriesDOM.appendChild(card);
+        // finally append the card
+        articlesDOM.appendChild(card);
     }
 })();
