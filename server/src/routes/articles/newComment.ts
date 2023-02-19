@@ -39,7 +39,7 @@ export const initComment = (client: MongoClient) => {
         const receivedDatetime: Date = new Date(datetime);
 
         const diff = Math.abs(now.getTime() - receivedDatetime.getTime());
-        const diffSeconds = Math.ceil(diff / 1000);
+        const diffSeconds = Math.floor(diff / 1000);
 
         if (diffSeconds > 30) return sendRes(res, false, null, 'The datetime provided is not valid.');
 
@@ -52,9 +52,9 @@ export const initComment = (client: MongoClient) => {
         if (replyToId) {
             const reply: CommentReply = {
                 comment_id: replyToId,
-                article,
-                comment,
-                username,
+                article: article,
+                comment: comment,
+                username: username,
                 datetime: receivedDatetime,
                 likes: 0,
                 dislikes: 0
@@ -74,9 +74,9 @@ export const initComment = (client: MongoClient) => {
             // if comment is not a reply
             const newComment: UserComment = {
                 comment_id: new_comment_id,
-                article,
-                comment,
-                username,
+                article: article,
+                comment: comment,
+                username: username,
                 datetime: receivedDatetime,
                 likes: 0,
                 dislikes: 0,
@@ -87,10 +87,7 @@ export const initComment = (client: MongoClient) => {
             console.log(newComment)
 
             // insert the comment into the database
-            insertResult = await collection.updateOne(
-                { article },
-                { $push: { comments: newComment } }
-            );
+            insertResult = await collection.insertOne(newComment);
         }
 
         console.log(`insertResult: ${JSON.stringify(insertResult)}`);
