@@ -1,5 +1,5 @@
 import { Router, Response } from 'express';
-import { sendRes } from '../../helpers';
+import { sendRes } from '../../modules/helpers';
 import { MongoClient, ObjectId } from 'mongodb';
 
 export const getLikes = Router();

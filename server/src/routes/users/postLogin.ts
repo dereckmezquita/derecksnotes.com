@@ -1,8 +1,8 @@
 import { Router, Request, Response } from 'express';
-import { sendRes } from '../helpers';
+import { sendRes } from '../../modules/helpers';
 import { MongoClient } from 'mongodb';
 
-import { checkEmail } from '../validators';
+import { checkEmail } from '../../modules/validators';
 
 import * as argon2 from 'argon2';
 import { logger } from '../../logger';
