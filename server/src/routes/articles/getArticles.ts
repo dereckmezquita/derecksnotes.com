@@ -31,7 +31,6 @@ export const initGetArticles = (client: MongoClient) => {
                 published: true
             }, pageSize, new ObjectId(nextToken));
 
-
             sendRes(res, true, { articles: docs, nextToken: nextID });
         })();
     });
