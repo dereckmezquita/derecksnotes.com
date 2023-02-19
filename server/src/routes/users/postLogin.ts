@@ -10,7 +10,7 @@ import { logger } from '../../modules/logger';
 export const postLogin = Router();
 
 export const initLogin = (client: MongoClient) => {
-    postLogin.post('/login', async (req: Request, res: Response) => {
+    postLogin.post('/users/login', async (req: Request, res: Response) => {
         // the password from client is sent hashed and salted
         // it is sent as a textual representation of the hash+salt
         // sha512(password+salt); salt="derecks-notes"
