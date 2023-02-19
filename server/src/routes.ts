@@ -8,7 +8,7 @@ import { getLikes, initGetLikes } from './routes/articles/getLikes';
 import { login, initLogin } from './routes/users/login';
 import { register, initRegister } from './routes/users/register';
 import { getUserInfo, initUserInfo } from './routes/users/getUserInfo';
-import { postComment, initComment } from './routes/comments/newComment';
+import { postComment, initComment } from './routes/articles/newComment';
 
 export const router = Router();
 

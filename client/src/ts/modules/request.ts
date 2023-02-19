@@ -119,7 +119,7 @@ export const sendComment = async (
 ): Promise<ServerRes> => {
     const article = window.location.pathname.split('/')[2];
 
-    const response = await fetch('/api/comments/new_comment', {
+    const response = await fetch('/api/articles/new_comment', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

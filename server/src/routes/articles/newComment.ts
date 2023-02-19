@@ -6,7 +6,7 @@ import { userCommentCheck } from '../../modules/validators';
 export const postComment = Router();
 
 export const initComment = (client: MongoClient) => {
-    postComment.post('/comments/new_comment', async (req: Request, res: Response) => {
+    postComment.post('/articles/new_comment', async (req: Request, res: Response) => {
         // check if the user is logged in and has an active session
         if (!((req.session as SessionDataRes).authenticated)) {
             return sendRes(res, false, null, 'You must be logged in to access this end point.');
@@ -44,7 +44,7 @@ export const initComment = (client: MongoClient) => {
         if (diffSeconds > 30) return sendRes(res, false, null, 'The datetime provided is not valid.');
 
         // ------------------------------------
-        const db = client.db('users');
+        const db = client.db('articles');
         const collection = db.collection('comments');
 
         // insert the comment into the database
