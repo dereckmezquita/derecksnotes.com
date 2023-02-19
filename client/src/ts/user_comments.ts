@@ -52,8 +52,27 @@ class CommentSectionHandler {
         // get user info
         this.getUserInfo();
         this.addNewcommentListeners();
+
+        this.getComments();
     }
 
+    private async getComments() {
+        let res: ServerRes = await getComments(10);
+        if (!res.success) throw new Error(res.error);
+
+        console.log(res.data.comments)
+
+        // should get more comments if user clicks load more comments
+        // const comments: any[] = res.data.comments;
+        while (res.data.nextToken) {
+            res = await getComments(10, res.data.nextToken);
+            // comments.push(...res.data.comments);
+            console.log(res.data.comments)
+
+            if (!res.success) throw new Error(res.error);
+        }
+    }
+    
     private addNewcommentListeners() {
         // add event listener to the post button
         document.querySelector("#new-comment-form .comment-action").addEventListener("click", async () => {
