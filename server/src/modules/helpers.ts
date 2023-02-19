@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { logger } from '../logger';
+import { logger } from './logger';
 
 // export function sendRes(res: Response, success: boolean, data?: any, errorMsg?: string): void {
 //     // res is an express response object; use here send response
