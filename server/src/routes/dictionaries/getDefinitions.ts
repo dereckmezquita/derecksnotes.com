@@ -6,7 +6,7 @@ import { page } from '../../modules/db';
 export const getDefinitions = Router();
 
 export const initGetDefinitions = (client: MongoClient) => {
-    getDefinitions.post('/getDefinitions', (req, res) => {
+    getDefinitions.post('/dictionaries/get_definitions', (req, res) => {
         const { dictionary, letter, pageSize, nextToken } = req.body;
 
         const dictionaries = ['biology', 'chemistry']
