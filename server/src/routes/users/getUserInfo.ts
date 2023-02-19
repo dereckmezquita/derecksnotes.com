@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { sendRes } from '../../helpers';
+import { sendRes } from '../../modules/helpers';
 import { MongoClient } from 'mongodb';
 
 export const getUserInfo = Router();

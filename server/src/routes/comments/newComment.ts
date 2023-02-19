@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { sendRes } from '../../helpers';
+import { sendRes } from '../../modules/helpers';
 import { MongoClient } from 'mongodb';
-import { userCommentCheck } from '../../validators';
+import { userCommentCheck } from '../../modules/validators';
 
 export const postComment = Router();
 
