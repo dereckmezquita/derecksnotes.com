@@ -1,6 +1,6 @@
-// submit a post request to getEntries express server
-export const getEntries = async (section: string, pageSize: number, nextToken?: string): Promise<ServerRes> => {
-    const response = await fetch('/api/getEntries', {
+// TODO: update the way I get the webpage; use window.location instead
+export const reqArticles = async (section: string, pageSize: number, nextToken?: string): Promise<ServerRes> => {
+    const response = await fetch('/api/articles/get_metadata', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

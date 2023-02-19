@@ -271,10 +271,10 @@ export async function dropCap(): Promise<void> {
 
 // ------------------------
 // ------------------------
-import { getEntries } from "./request";
+import { reqArticles } from "./request";
 
 export async function getSideEntries(section?: string): Promise<void> {
-    const entriesDOM: HTMLElement = document.querySelector(".side-entries");
+    const articlesDOM: HTMLElement = document.querySelector(".side-articles");
 
     const siteSections: string[] = ["blog", "courses", "exercises", "references", "tools", "art"];
 
@@ -285,21 +285,21 @@ export async function getSideEntries(section?: string): Promise<void> {
         siteSection = section;
     }
 
-    let res = await getEntries(siteSection, 1);
+    let res = await reqArticles(siteSection, 1);
     if (!res.success) throw new Error(res.error);
 
-    const entries: any[] = res.data.entries;
+    const articles: any[] = res.data.articles;
     while (res.data.nextToken) {
-        res = await getEntries(siteSection, 10, res.data.nextToken);
-        entries.push(...res.data.entries);
+        res = await reqArticles(siteSection, 10, res.data.nextToken);
+        articles.push(...res.data.articles);
 
         if (!res.success) throw new Error(res.error);
 
         // console.log(`Next request: ${res.data.nextToken}`);
     }
 
-    // reorder entries by the date
-    entries.sort((a, b) => {
+    // reorder articles by the date
+    articles.sort((a, b) => {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
 
@@ -307,9 +307,9 @@ export async function getSideEntries(section?: string): Promise<void> {
     });
 
     // loop through entries and create a card for each
-    for (const entry of entries) {
+    for (const entry of articles) {
         const list: HTMLElement = document.createElement("li");
-        entriesDOM.appendChild(list);
+        articlesDOM.appendChild(list);
 
         // create the a tag which links to the article
         const link: HTMLElement = document.createElement("a");

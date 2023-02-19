@@ -3,7 +3,7 @@ import { MongoClient } from 'mongodb';
 
 // ------------------------
 import { getDefinitions, initGetDefinitions } from './routes/dictionaries/getDefinitions';
-import { getEntries, initGetEntries } from './routes/articles/getEntries';
+import { getArticles, initGetArticles } from './routes/articles/getArticles';
 import { getLikes, initGetLikes } from './routes/articles/getLikes';
 import { postLogin, initLogin } from './routes/users/postLogin';
 import { postRegister, initRegister } from './routes/users/postRegister';
@@ -12,10 +12,10 @@ import { postComment, initComment } from './routes/comments/newComment';
 
 export const router = Router();
 
-router.use(getEntries, getLikes, getDefinitions, postRegister, postLogin, getUserInfo, postComment);
+router.use(getArticles, getLikes, getDefinitions, postRegister, postLogin, getUserInfo, postComment);
 
 export const initDB = (client: MongoClient) => {
-    initGetEntries(client);
+    initGetArticles(client);
     initGetDefinitions(client);
     initGetLikes(client);
     initRegister(client);
