@@ -2,13 +2,13 @@ import { Router } from 'express';
 import { MongoClient } from 'mongodb';
 
 // ------------------------
-import { getDefinitions, initGetDefinitions } from './routes/getDefinitions';
-import { getEntries, initGetEntries } from './routes/getEntries';
-import { getLikes, initGetLikes } from './routes/getLikes';
-import { postLogin, initLogin } from './routes/postLogin';
-import { postRegister, initRegister } from './routes/postRegister';
-import { getUserInfo, initUserInfo } from './routes/getUserInfo';
-import { postComment, initComment } from './routes/newComment';
+import { getDefinitions, initGetDefinitions } from './routes/dictionaries/getDefinitions';
+import { getEntries, initGetEntries } from './routes/articles/getEntries';
+import { getLikes, initGetLikes } from './routes/articles/getLikes';
+import { postLogin, initLogin } from './routes/users/postLogin';
+import { postRegister, initRegister } from './routes/users/postRegister';
+import { getUserInfo, initUserInfo } from './routes/users/getUserInfo';
+import { postComment, initComment } from './routes/comments/newComment';
 
 export const router = Router();
 
