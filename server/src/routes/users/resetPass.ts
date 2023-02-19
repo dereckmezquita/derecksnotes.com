@@ -4,10 +4,10 @@ import { MongoClient } from 'mongodb';
 
 import { checkEmail, checkUsername } from '../../modules/validators';
 
-export const postRegister = Router();
+export const resetPass = Router();
 
-export const initRegister = (client: MongoClient) => {
-    postRegister.post('/reset', async (req: Request, res: Response) => {
+export const initresetPass = (client: MongoClient) => {
+    resetPass.post('/users/reset_password', async (req: Request, res: Response) => {
         // get account info from user
         const { identifier } = req.body;
 
