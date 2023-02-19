@@ -101,7 +101,7 @@ export const getComments = async (article: string, pageSize: number, nextToken?:
 
 // the user should already be logged in for these functions; using their session token to identify
 export const getUserInfo = async (): Promise<ServerRes> => {
-    const response = await fetch('/api/userinfo', {
+    const response = await fetch('/api/users/userinfo', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'

@@ -5,7 +5,7 @@ import { MongoClient } from 'mongodb';
 export const getUserInfo = Router();
 
 export const initUserInfo = (client: MongoClient) => {
-    getUserInfo.post('/userinfo', async (req: Request, res: Response) => {
+    getUserInfo.post('/users/userinfo', async (req: Request, res: Response) => {
         // check if the user is logged in and has an active session
         if (!((req.session as SessionDataRes).authenticated)) {
             sendRes(res, false, null, 'You must be logged in to access this end point.');
