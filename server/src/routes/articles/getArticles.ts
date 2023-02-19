@@ -30,9 +30,9 @@ export const initGetArticles = (client: MongoClient) => {
                 siteSection: section,
                 published: true
             }, pageSize, new ObjectId(nextToken));
-            
 
-            sendRes(res, true, { articles: docs, nextToken: nextID});
+
+            sendRes(res, true, { articles: docs, nextToken: nextID });
         })();
     });
 }
