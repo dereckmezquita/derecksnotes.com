@@ -10,7 +10,8 @@ declare global {
     // data we can get back from: (req.session as SessionDataRes).user
     type UserCookie = {
         email: string,
-        username: string
+        username: string,
+        profilePhoto: string
     }
 
     // req.session
@@ -42,16 +43,22 @@ declare global {
         }
     }
 
-    type CommentReply = {
+    type UserComment = {
         comment_id: string,
+        replies_to_this?: string[], // comments replying to this comment
+        replies_to_that?: string, // original comment this comment is replying to
         article: string,
         comment: string,
-        username: string,
-        datetime: Date,
-        likes: number,
-        dislikes: number
-    }
-    type UserComment = CommentReply & {
-        replies: CommentReply[]
+        commentInfo: {
+            datetime: Date,
+            likes: number,
+            dislikes: number
+        }
+        userInfo: {
+            email: string,
+            username: string,
+            profilePhoto: string,
+            ip_address: string
+        }
     }
 }
