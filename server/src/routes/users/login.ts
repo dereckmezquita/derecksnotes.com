@@ -46,7 +46,7 @@ export const initLogin = (client: MongoClient) => {
 
         // password matches so we will modify the session object
         (req.session as SessionDataRes).authenticated = true;
-        (req.session as SessionDataRes).user = { email: user.email.address, username: user.username } as UserCookie; // this is what gets saved client's cookies
+        (req.session as SessionDataRes).user = { email: user.email.address, username: user.username, profilePhoto: user.profilePhoto } as UserCookie; // this is what gets saved client's cookies
 
         logger.info(`User ${user.email.address} has logged in.`);
         sendRes(res, true, "Successfully logged in!");
