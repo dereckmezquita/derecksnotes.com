@@ -25,14 +25,15 @@ class CommentSectionHandler {
         <h2>Comments</h2>
         <div id="new-comment-form">
             <div class="comment-user-info">
+                <span class="username">Login to comment!</span>
+                <span class="datetime"></span>
                 <button class="comment-action">Post</button>
             </div>
             <div class="new-comment-textarea">
-                <img class="comment-profile-photo">
+                <img src="" class="comment-profile-photo">
                 <textarea></textarea>
             </div>
         </div>
-
         <div class="comment-sort">
             <select>
                 <option value="comment-sort-newest">Newest</option>
@@ -78,7 +79,7 @@ class CommentSectionHandler {
         document.querySelector("#new-comment-form .comment-action").addEventListener("click", async () => {
             // get the value of the textarea
             const textarea: HTMLTextAreaElement = document.querySelector("#new-comment-form textarea");
-            const comment: string = textarea.value;
+            const comment: string = textarea.value.trim();
 
             // clear the textarea
             textarea.value = "";
@@ -95,9 +96,18 @@ class CommentSectionHandler {
     }
 
     private async getUserInfo() {
+        const profilePhoto: HTMLImageElement = document.querySelector("#new-comment-form .comment-profile-photo");
+
         const res: ServerRes = await getUserInfo();
 
-        if (!res.success) throw new Error(res.error);
+        if (!res.success) {
+            // a number between 1 and 4
+            const photo_num: number = Math.floor(Math.random() * 4) + 1;
+
+            // set the profile photo
+            profilePhoto.src = `/site-images/user-defaults/profile-photos/default-profile-photo-${photo_num}-small.png`;
+            return;
+        }
 
         console.log(`Login response:`, res.data);
 
@@ -112,7 +122,6 @@ class CommentSectionHandler {
         document.querySelector("#new-comment-form .comment-user-info").prepend(username);
 
         // set the profile photo
-        const profilePhoto: HTMLImageElement = document.querySelector("#new-comment-form .comment-profile-photo");
         profilePhoto.src = `/site-images/user-content/profile-photos/${userInfo.profilePhoto}`;
     }
 }
