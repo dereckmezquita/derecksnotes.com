@@ -1,155 +1,151 @@
-.comment-section {
-    width: 80%;
-    margin: 0 auto;
+// Variables
+$width: 90%;
+$background-color: lightgray;
+$greenish: #1ba876;
+$reddish: #dc5748;
+$profile-photo-dims: 50px;
+
+// Mixins
+@mixin form-element() {
+    padding: 3px 8px;
+    background-color: $background-color;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+@mixin comment-section() {
+    margin-bottom: 20px;
     text-align: center;
+}
+
+@mixin button-colour($colour, $percentage, $dark-font) {
+    background-color: darken($colour, $percentage);
+    color: if($dark-font, #000000, #ffffff);
+}
+
+// Comment Section
+.comment-section {
+    width: $width;
+    margin: 0 auto;
+    padding-bottom: 20px;
 
     h2 {
         margin-bottom: 20px;
     }
 
+    button {
+        @include form-element;
+        background-color: $greenish;
+
+        &:hover {
+            @include button-colour($greenish, 10%, true);
+        }
+
+        &:active {
+            @include button-colour($greenish, 30%, false);
+        }
+    }
+
+    .comment-action-report {
+        background-color: $reddish;
+
+        &:hover {
+            @include button-colour($reddish, 10%, true);
+        }
+
+        &:active {
+            @include button-colour($reddish, 30%, false);
+        }
+    }
+
+    .comment-profile-photo {
+        width: $profile-photo-dims;
+        height: $profile-photo-dims;
+        border-radius: 25px;
+        margin-right: 10px;
+    }
+
+    // styles these for any comment
+    .comment-user-info {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+
+        .datetime {
+            color: $gray;
+            font-size: 12px;
+        }
+
+        .username {
+            font-weight: bold;
+        }
+    }
+
+    // New Comment Form
     #new-comment-form {
         display: flex;
         flex-direction: column;
         align-items: center;
-        margin-bottom: 20px;
+        @include comment-section;
 
-        .comment-user-info {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            margin-bottom: 10px;
-
-            .username {
-                font-weight: bold;
-            }
-
-            .datetime {
-                color: gray;
-                font-size: 12px;
-            }
-
-            .comment-action {
-                padding: 5px 10px;
-                background-color: #1ba876;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-            }
-        }
-
+        // New Comment Textarea
         .new-comment-textarea {
             display: flex;
             align-items: center;
             width: 100%;
 
-            .comment-profile-photo {
-                width: 50px;
-                height: 50px;
-                border-radius: 25px;
-                margin-right: 10px;
-            }
-
             textarea {
                 width: 100%;
                 height: 100px;
                 padding: 10px;
-                border: 2px solid lightgray;
+                border: 2px solid $background-color;
                 border-radius: 5px;
                 resize: none;
             }
         }
     }
 
+    // Comment Sort
     .comment-sort {
         display: flex;
         justify-content: center;
-        margin-bottom: 20px;
+        @include comment-section;
 
         select {
-            padding: 5px 10px;
-            background-color: lightgray;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
+            @include form-element;
         }
     }
 
+    // Posted Comment
     .posted-comment {
-        border: 1px solid lightgray;
+        border: 1px solid $background-color;
         border-radius: 5px;
-        margin-bottom: 20px;
         padding: 20px;
+        @include comment-section;
 
-        .comment-user-info {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-
-            .username {
-                font-weight: bold;
-            }
-
-            .datetime {
-                color: gray;
-                font-size: 12px;
-            }
-
-            .comment-action {
-                padding: 5px 10px;
-                background-color: lightgray;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-            }
-        }
-
+        // Posted Comment Holder
         .posted-comment-holder {
             display: flex;
             align-items: center;
             margin-bottom: 10px;
-
-            .comment-profile-photo {
-                width: 50px;
-                height: 50px;
-                border-radius: 25px;
-                margin-right: 10px;
-            }
 
             .posted-comment-text {
                 width: 100%;
             }
         }
 
+        // Posted Comment Actions
         .posted-comment-actions {
             display: flex;
 
-            .like-button {
-                padding: 5px 10px;
-                background-color: lightgray;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                margin-right: 10px;
-            }
-
-            .like-count {
-                margin-right: 10px;
-            }
-
-            .dislike-button {
-                padding: 5px 10px;
-                background-color: lightgray;
-                border: none;
-                border-radius: 5px;
-                cursor: pointer;
-                margin-right: 10px;
-            }
-
-            .dislike-count {
+            button, span {
                 margin-right: 10px;
             }
         }
 
+        // Posted Comment Replies
         .posted-comment-replies {
             padding-top: 20px;
         }
