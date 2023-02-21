@@ -11,13 +11,13 @@ declare global {
     type UserCookie = {
         email: string,
         username: string,
-        profilePhoto: string
+        profilePhoto?: string
     }
 
     // req.session
     interface SessionDataRes extends SessionData {
         authenticated?: boolean;
-        user?: UserCookie
+        user?: UserCookie | null;
     }
 
     type UserInfo = {
@@ -57,7 +57,7 @@ declare global {
         userInfo: {
             email: string,
             username: string,
-            profilePhoto: string,
+            profilePhoto?: string,
             ip_address: string
         }
     }
