@@ -1,4 +1,4 @@
-import { login, register, resetPassword } from './modules/request';
+import { login, logout, register, resetPassword } from './modules/request';
 import { pass2HashText } from './modules/cryptography_helpers';
 import { confirmPasswordMatch } from './modules/helpers_user_connect_prompt';
 
@@ -15,7 +15,7 @@ class UserConnect {
 
     // ------------------------------------------------
     private static readonly loginForm: string = `
-    <form>
+    <form class="login-prompt">
         <label for="email">E-mail</label>
         <input type="text" id="email" placeholder="Enter e-mail" required>
         <label for="password">Password</label>
@@ -23,6 +23,7 @@ class UserConnect {
         <button type="submit">Login</button>
         <a class="register-link">Register</a>
         <a class="forgot-password-link">Forgot Password?</a>
+        <a class="logout-link">Logout</a>
     </form>`;
     // ------------------------------------------------
     private static readonly registerForm: string = `
@@ -86,9 +87,10 @@ class UserConnect {
     }
 
     private addLoginFormListeners(prompt: HTMLElement) {
-        const submit = prompt.querySelector("button[type='submit']") as HTMLElement;
-        const registerLink = prompt.querySelector(".register-link") as HTMLElement;
-        const forgotPasswordLink = prompt.querySelector(".forgot-password-link") as HTMLElement;
+        const submit = prompt.querySelector(".login-prompt button[type='submit']") as HTMLElement;
+        const registerLink = prompt.querySelector(".login-prompt .register-link") as HTMLElement;
+        const forgotPasswordLink = prompt.querySelector(".login-prompt .forgot-password-link") as HTMLElement;
+        const logoutLink = prompt.querySelector(".login-prompt .logout-link") as HTMLElement;
 
         submit.addEventListener("click", async (event) => {
             event.preventDefault();
@@ -108,6 +110,7 @@ class UserConnect {
             console.log(`Login response:`, res.data)
 
             this.destroyPrompt();
+            window.location.reload();
         });
 
         registerLink.addEventListener("click", (event) => {
@@ -122,6 +125,14 @@ class UserConnect {
             event.stopPropagation();
 
             this.switchForm("forgotPassword")
+        });
+
+        logoutLink.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            logout();
+            this.destroyPrompt();
         });
     }
 

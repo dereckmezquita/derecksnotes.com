@@ -66,6 +66,18 @@ export const login = async (email: string, password: string): Promise<ServerRes>
     return await response.json() as ServerRes;
 }
 
+export const logout = async (): Promise<ServerRes> => {
+    const response = await fetch('/api/users/logout', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    });
+
+    return await response.json() as ServerRes;
+}
+
 export const resetPassword = async (email: string): Promise<ServerRes> => {
     const response = await fetch('/api/resetPassword', {
         method: 'POST',
