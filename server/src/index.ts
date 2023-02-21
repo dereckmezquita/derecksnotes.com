@@ -33,7 +33,8 @@ app.use(
         secret: 'temporary-secret',
         // resave: false,
         saveUninitialized: false,
-        cookie: { maxAge: 30 * 60 * 1000 }, // maxAge to 30 mins
+        // days * hours * minutes * seconds * milliseconds
+        cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }, // let's make the session last for 30 days
         store: store // memory store for sessions; things get automatically stored here
     })
 );
