@@ -37,4 +37,23 @@ declare global {
             last_connected: Date
         }
     }
+
+    type CommentRes = {
+        comment_id: string,
+        replies_to_this?: string[], // comments replying to this comment
+        replies_to_that?: string, // original comment this comment is replying to
+        article: string,
+        comment: string,
+        commentInfo: {
+            datetime: Date,
+            likes: number,
+            dislikes: number
+        },
+        userInfo: {
+            email: string,
+            username: string,
+            profilePhoto?: string,
+            ip_address: string
+        }
+    }
 }
