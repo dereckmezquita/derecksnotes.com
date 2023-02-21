@@ -10,6 +10,7 @@ import { register, initRegister } from './routes/users/register';
 import { getUserInfo, initUserInfo } from './routes/users/getUserInfo';
 import { postComment, initComment } from './routes/articles/newComment';
 import { getComments, initGetComments } from './routes/articles/getComments';
+import { logout } from './routes/users/logout';
 
 export const router = Router();
 
@@ -21,7 +22,8 @@ router.use(
     login,
     getUserInfo,
     postComment,
-    getComments
+    getComments,
+    logout
 );
 
 export const initDB = (client: MongoClient) => {
