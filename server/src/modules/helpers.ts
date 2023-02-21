@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import crypto from 'crypto';
 import { logger } from './logger';
 
 export function sendRes(res: Response, success: boolean, data?: any, errorMsg?: string): void {
@@ -21,4 +22,15 @@ export function sendRes(res: Response, success: boolean, data?: any, errorMsg?: 
 
     // Log the response
     // logger.info(`Sent response: ${JSON.stringify(serverRes)}`);
+}
+
+export function generateHashID(string: string): string {
+    const hash: string = crypto.createHash('sha256')
+        .update(string)
+        .digest('hex');
+
+    // prepend random character to hash to prevent it from starting with a number
+    const prefix: string = String
+        .fromCharCode(Math.floor(Math.random() * 26) + 97);
+    return prefix + hash;
 }
