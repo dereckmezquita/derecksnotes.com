@@ -60,17 +60,48 @@ class CommentSectionHandler {
     private async getComments() {
         let res: ServerRes = await getComments(10);
         if (!res.success) throw new Error(res.error);
-
-        console.log(res.data.comments)
+        if (res.data.comments.length === 0) return console.log("No comments");
 
         // should get more comments if user clicks load more comments
-        // const comments: any[] = res.data.comments;
+        const commentsRes: CommentRes[] = res.data.comments;
         while (res.data.nextToken) {
             res = await getComments(10, res.data.nextToken);
-            // comments.push(...res.data.comments);
-            console.log(res.data.comments)
+            commentsRes.push(...res.data.comments);
 
             if (!res.success) throw new Error(res.error);
+        }
+
+        const postedCommentsDiv = document.querySelector(".comment-section .posted-comments") as HTMLDivElement;
+
+        for (const comment of commentsRes) {
+            let profilePhotoPath: string;
+            if (comment.userInfo.profilePhoto) {
+                profilePhotoPath = `/site-images/user-content/profile-photos/${comment.userInfo.profilePhoto}`;
+            } else {
+                profilePhotoPath = "/site-images/user-defaults/profile-photos/default-profile-photo-black.png";
+            }
+
+            const commentElement = `
+            <div class="posted-comment">
+                <div class="comment-user-info">
+                    <span class="username">${comment.userInfo.username}</span>
+                    <span class="datetime">${comment.commentInfo.datetime}</span>
+                    <button class="comment-action comment-action-reply">Reply</button>
+                    <button class="comment-action comment-action-report">Report</button>
+                </div>
+                <div class="posted-comment-holder">
+                    <img src="${profilePhotoPath}" class="comment-profile-photo">
+                    <div class="posted-comment-text">${comment.comment}</div>
+                </div>
+                <div class="posted-comment-actions">
+                    <button class="like-button">Like</button>
+                    <span class="like-count">${comment.commentInfo.likes}</span>
+                    <button class="dislike-button">Dislike</button>
+                    <span class="dislike-count">${comment.commentInfo.dislikes}</span>
+                </div>
+            </div>`;
+
+            postedCommentsDiv.insertAdjacentHTML("beforeend", commentElement);
         }
     }
     
@@ -90,8 +121,7 @@ class CommentSectionHandler {
             const res: ServerRes = await sendComment(comment, datetime);
 
             if (!res.success) throw new Error(res.error);
-
-            console.log(`Comment response:`, res.data);
+            window.location.reload();
         });
     }
 
@@ -109,17 +139,13 @@ class CommentSectionHandler {
             return;
         }
 
-        console.log(`Login response:`, res.data);
-
+        // from here only executes if user is logged in
         const userInfo: AccountInfoRes = res.data;
 
         // set the username
-        const username: HTMLSpanElement = document.createElement("span");
-        username.classList.add("username");
+        // const username: HTMLSpanElement = document.createElement("span");
+        const username: HTMLSpanElement = document.querySelector("#new-comment-form .username");
         username.textContent = userInfo.username;
-
-        // append as the first element the username to the comment-user-info
-        document.querySelector("#new-comment-form .comment-user-info").prepend(username);
 
         // set the profile photo
         profilePhoto.src = `/site-images/user-content/profile-photos/${userInfo.profilePhoto}`;
