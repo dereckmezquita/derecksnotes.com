@@ -81,17 +81,27 @@ class CommentSectionHandler {
                 profilePhotoPath = "/site-images/user-defaults/profile-photos/default-profile-photo-black.png";
             }
 
+            // if comment is greater than 500 characters show only first 500 characters then add a read more button
+            let currentComment: string = comment.comment;
+            // convert datetime to this format 2022-01-01 12:00
+            let currentDatetime: string = new Date(comment.commentInfo.datetime).toISOString().slice(0, 16).replace("T", " ");
+            const maxCommentLength: number = 300;
+
+            if (comment.comment.length > maxCommentLength) {
+                currentComment = comment.comment.slice(0, maxCommentLength) + `<span style="display: none;" class="comment-hidden-text">${comment.comment.slice(maxCommentLength)}</span>` + ` <a class="read-more-comment">read more...</a>`;
+            }
+
             const commentElement = `
-            <div class="posted-comment">
+            <div id="${comment.comment_id}" class="posted-comment">
                 <div class="comment-user-info">
                     <span class="username">${comment.userInfo.username}</span>
-                    <span class="datetime">${comment.commentInfo.datetime}</span>
+                    <span class="datetime">${currentDatetime}</span>
                     <button class="comment-action comment-action-reply">Reply</button>
                     <button class="comment-action comment-action-report">Report</button>
                 </div>
                 <div class="posted-comment-holder">
                     <img src="${profilePhotoPath}" class="comment-profile-photo">
-                    <div class="posted-comment-text">${comment.comment}</div>
+                    <div class="posted-comment-text">${currentComment}</div>
                 </div>
                 <div class="posted-comment-actions">
                     <button class="like-button">Like</button>
@@ -102,9 +112,37 @@ class CommentSectionHandler {
             </div>`;
 
             postedCommentsDiv.insertAdjacentHTML("beforeend", commentElement);
+
+            // add listener for show more button for that specific comment
+            if (comment.comment.length > maxCommentLength) {
+                const commentElement = document.querySelector(`#${comment.comment_id}`) as HTMLDivElement;
+                const readMoreButton = commentElement.querySelector(".read-more-comment") as HTMLButtonElement;
+                console.log(readMoreButton);
+                const hiddenText = document.querySelector(`#${comment.comment_id} .comment-hidden-text`) as HTMLDivElement;
+
+                readMoreButton.addEventListener("click", () => {
+                    readMoreButton.style.display = "none";
+                    hiddenText.style.display = "inline";
+
+                    // add a read less button
+                    const readLessButton = document.createElement("a");
+                    readLessButton.classList.add("read-less-comment");
+                    readLessButton.textContent = "...read less.";
+                    
+                    // append the read less button to the comment
+                    commentElement.querySelector(".posted-comment-text").appendChild(readLessButton);
+            
+                    // add event listener to read less button
+                    readLessButton.addEventListener("click", () => {
+                        hiddenText.style.display = "none";
+                        readMoreButton.style.display = "inline";
+                        readLessButton.remove();
+                    });
+                });
+            }
         }
     }
-    
+
     private addNewcommentListeners() {
         // add event listener to the post button
         document.querySelector("#new-comment-form .comment-action").addEventListener("click", async () => {
