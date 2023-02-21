@@ -45,7 +45,7 @@ declare global {
         article: string,
         comment: string,
         commentInfo: {
-            datetime: Date,
+            datetime: string | Date,
             likes: number,
             dislikes: number
         },
