@@ -102,10 +102,8 @@ export const getUserInfo = async (): Promise<ServerRes<UserInfoRes>> => {
         },
         body: JSON.stringify({})
     });
-
-    const res = await response.json() as ServerRes;
   
-    return res as ServerRes<UserInfoRes>;
+    return await response.json() as ServerRes<UserInfoRes>;
 }
 
 export const sendComment = async (
