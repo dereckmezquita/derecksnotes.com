@@ -4,21 +4,40 @@ import { MongoClient } from 'mongodb';
 
 export const getUserInfo = Router();
 
+type UserInfoRes = {
+    firstName: string;
+    lastName: string;
+    username: string;
+    email: string;
+    profilePhoto?: string; // if user didn't upload a profile photo
+    numberOfComments: number;
+    lastConnected?: Date;
+    current_ip: string;
+};
+
 export const initUserInfo = (client: MongoClient) => {
     getUserInfo.post('/users/userinfo', async (req: Request, res: Response) => {
+        const ip_address = req.headers['x-forwarded-for'] as string;
+
         // check if the user is logged in and has an active session
         if (!((req.session as SessionDataRes).authenticated)) {
-            sendRes(res, false, null, 'You must be logged in to access this end point.');
-            return;
+            const defaultUser: UserInfoRes = {
+                firstName: "",
+                lastName: "",
+                username: "Guest",
+                email: "",
+                profilePhoto: `/site-images/user-defaults/profile-photos/default-profile-photo-${Math.floor(Math.random() * 4) + 1}-small.png`,
+                numberOfComments: 0,
+                lastConnected: undefined,
+                current_ip: ip_address
+            }
+
+            sendRes(res, true, defaultUser);
         }
 
         const cookie = (req.session as SessionDataRes).user as UserCookie;
 
-        // check if the user object exists in the session
-        if (!cookie) {
-            sendRes(res, false, null, 'User not found in session.');
-            throw new Error('User not found in session.');
-        }
+        // if (!cookie) { }
 
         const db = client.db('users');
 
@@ -36,15 +55,17 @@ export const initUserInfo = (client: MongoClient) => {
 
         if (!accountInfo) return sendRes(res, false, null, 'User not found in database.');
 
-        // send back the required information
-        sendRes(res, true, {
+        const userInfo: UserInfoRes = {
             firstName: accountInfo.firstName,
             lastName: accountInfo.lastName,
             username: accountInfo.username,
             email: accountInfo.email.address,
             profilePhoto: accountInfo.profilePhoto,
             numberOfComments: numComments,
-            lastConnected: accountInfo.userStatistics.last_connected
-        });
+            lastConnected: accountInfo.userStatistics.last_connected,
+            current_ip: ip_address
+        }
+
+        sendRes(res, true, );
     });
 }
