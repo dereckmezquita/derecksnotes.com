@@ -12,12 +12,10 @@ const articlesDOM: HTMLElement = document.querySelector(".card-articles");
     // console.log(`Initial request: ${res.data.nextToken}`);
     const articles: any[] = res.data.articles;
     while (res.data.nextToken) {
-        res = await reqArticles(siteSection, 10, res.data.nextToken);
+        res = await reqArticles(siteSection, 30, res.data.nextToken);
         articles.push(...res.data.articles);
 
         if (!res.success) throw new Error(res.error);
-
-        // console.log(`Next request: ${res.data.nextToken}`);
     }
 
     // reorder articles by the date
