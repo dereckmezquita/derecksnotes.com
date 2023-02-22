@@ -1,39 +1,45 @@
 import { getComments, sendComment, getUserInfo } from "./modules/request";
+import { dateToString } from "./modules/helpers";
 
-// comments section goes adjacent to article
-// </article>
-// <!-- comments section goes here -->
+// TODO: consider breaking up code: https://stackoverflow.com/questions/12706290/typescript-define-class-and-its-methods-in-separate-files
 
 type AccountInfoRes = {
     // firstName: string;
     // lastName: string;
     username: string;
     email: string;
-    profilePhoto: string;
-    numberOfComments: number;
+    profilePhoto?: string; // server could not have this info if user didn't set it
+    // numberOfComments: number;
     // lastConnected: Date;
 };
 
 class CommentSectionHandler {
-    page: string = window.location.pathname.split("/").pop(); // every article should have unique name
+    constructor() { }
+    // https://stackoverflow.com/questions/36363278/can-async-await-be-used-in-constructors
+    static async create() {
+        const o = new CommentSectionHandler();
+        return await o.initialise();
+    }
 
-    private contentWrapper = document.querySelector(".content-wrapper") as HTMLDivElement;
+    private contentWrapper = document.querySelector(".content-wrapper") as HTMLDivElement; // wraps article
+    private userInfo: AccountInfoRes; // response from server set on class instantiation
 
-    // user profile photo needs to be loaded
+    private static readonly commentForm: string = `
+    <div id="new-comment-form">
+        <div class="comment-user-info">
+            <span class="username">${this.userInfo}</span>
+            <span class="datetime"></span>
+            <button class="comment-action">Post</button>
+        </div>
+        <div class="new-comment-textarea">
+            <img src="" class="comment-profile-photo">
+            <textarea></textarea>
+        </div>
+    </div>`;
     private static readonly commentSection: string = `
     <div class="comment-section">
         <h2>Comments</h2>
-        <div id="new-comment-form">
-            <div class="comment-user-info">
-                <span class="username">Login to comment!</span>
-                <span class="datetime"></span>
-                <button class="comment-action">Post</button>
-            </div>
-            <div class="new-comment-textarea">
-                <img src="" class="comment-profile-photo">
-                <textarea></textarea>
-            </div>
-        </div>
+        ${CommentSectionHandler.commentForm}
         <div class="comment-sort">
             <select>
                 <option value="comment-sort-newest">Newest</option>
@@ -42,19 +48,43 @@ class CommentSectionHandler {
                 <option value="comment-sort-most-disliked">Most Disliked</option>
             </select>
         </div>
-
         <div class="posted-comments"></div>
     </div>`;
 
-    constructor() {
-        // append the comment section to content-wrapper
+    async initialise() {
         this.contentWrapper.insertAdjacentHTML("beforeend", CommentSectionHandler.commentSection);
 
-        // get user info
-        this.getUserInfo();
+        await this.getUserInfo();
+        this.setUserInfo();
         this.addNewcommentListeners();
-
         this.getComments();
+    }
+
+    private async getUserInfo(): Promise<void> {
+        const res: ServerRes = await getUserInfo();
+
+        if (!res.success) {
+            this.userInfo.email = "guest";
+            this.userInfo.username = "Log in to comment";
+            this.userInfo.profilePhoto = `/site-images/user-defaults/profile-photos/default-profile-photo-${Math.floor(Math.random() * 4) + 1}-small.png`;
+        }
+
+        // from here only executes if user is logged in
+        this.userInfo = res.data as AccountInfoRes;
+    }
+
+    private setUserInfo(): void {
+        // do querySelectorAll new comment forms; get node list
+        const profilePhoto: NodeListOf<HTMLImageElement> = document.querySelectorAll("#new-comment-form .comment-profile-photo");
+        const username: NodeListOf<HTMLSpanElement> = document.querySelectorAll("#new-comment-form .username");
+
+        for (let i = 0; i < profilePhoto.length; i++) {
+            // set the username
+            username[i].textContent = this.userInfo.username;
+
+            // set the profile photo
+            profilePhoto[i].src = `/site-images/user-content/profile-photos/${this.userInfo.profilePhoto}`;
+        }
     }
 
     private async getComments() {
@@ -84,7 +114,7 @@ class CommentSectionHandler {
             // if comment is greater than 500 characters show only first 500 characters then add a read more button
             let currentComment: string = comment.comment;
             // convert datetime to this format 2022-01-01 12:00
-            let currentDatetime: string = new Date(comment.commentInfo.datetime).toISOString().slice(0, 16).replace("T", " ");
+            let currentDatetime: string = dateToString(comment.commentInfo.datetime);
             const maxCommentLength: number = 300;
 
             if (comment.comment.length > maxCommentLength) {
@@ -128,10 +158,10 @@ class CommentSectionHandler {
                     const readLessButton = document.createElement("a");
                     readLessButton.classList.add("read-less-comment");
                     readLessButton.textContent = "...read less.";
-                    
+
                     // append the read less button to the comment
                     commentElement.querySelector(".posted-comment-text").appendChild(readLessButton);
-            
+
                     // add event listener to read less button
                     readLessButton.addEventListener("click", () => {
                         hiddenText.style.display = "none";
@@ -162,32 +192,8 @@ class CommentSectionHandler {
             window.location.reload();
         });
     }
-
-    private async getUserInfo() {
-        const profilePhoto: HTMLImageElement = document.querySelector("#new-comment-form .comment-profile-photo");
-
-        const res: ServerRes = await getUserInfo();
-
-        if (!res.success) {
-            // a number between 1 and 4
-            const photo_num: number = Math.floor(Math.random() * 4) + 1;
-
-            // set the profile photo
-            profilePhoto.src = `/site-images/user-defaults/profile-photos/default-profile-photo-${photo_num}-small.png`;
-            return;
-        }
-
-        // from here only executes if user is logged in
-        const userInfo: AccountInfoRes = res.data;
-
-        // set the username
-        // const username: HTMLSpanElement = document.createElement("span");
-        const username: HTMLSpanElement = document.querySelector("#new-comment-form .username");
-        username.textContent = userInfo.username;
-
-        // set the profile photo
-        profilePhoto.src = `/site-images/user-content/profile-photos/${userInfo.profilePhoto}`;
-    }
 }
 
-new CommentSectionHandler();
+(async () => {
+    const obj = await CommentSectionHandler.create();
+})();
