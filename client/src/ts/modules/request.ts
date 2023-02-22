@@ -94,7 +94,7 @@ export const resetPassword = async (email: string): Promise<ServerRes> => {
 
 // ----------------------------------------
 // the user should already be logged in for these functions; using their session token to identify
-export const getUserInfo = async (): Promise<ServerRes> => {
+export const getUserInfo = async (): Promise<ServerRes<UserInfoRes>> => {
     const response = await fetch('/api/users/userinfo', {
         method: 'POST',
         headers: {
@@ -103,7 +103,9 @@ export const getUserInfo = async (): Promise<ServerRes> => {
         body: JSON.stringify({})
     });
 
-    return await response.json() as ServerRes;
+    const res = await response.json() as ServerRes;
+  
+    return res as ServerRes<UserInfoRes>;
 }
 
 export const sendComment = async (
@@ -129,7 +131,7 @@ export const sendComment = async (
     return await response.json() as ServerRes;
 }
 
-export const getComments = async (pageSize: number, nextToken?: string): Promise<ServerRes> => {
+export const getComments = async (pageSize: number, nextToken?: string): Promise<ServerRes<UserCommentRes[]>> => {
     const article = window.location.pathname.split('/')[2];
 
     const response = await fetch('/api/articles/get_comments', {
