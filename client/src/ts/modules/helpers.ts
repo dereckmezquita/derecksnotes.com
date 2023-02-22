@@ -12,3 +12,7 @@ export async function pass2HashText(password: string, salt: string, algorithm: s
     // we want a textual representation of the binary hash so we can send it in JSON
     return decoder.decode(hashBuff);
 }
+
+export function dateToString(datetime: Date): string {
+    return datetime.toISOString().slice(0, 16).replace("T", " ");
+}
