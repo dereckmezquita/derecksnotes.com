@@ -16,3 +16,8 @@ export async function pass2HashText(password: string, salt: string, algorithm: s
 export function dateToString(datetime: Date): string {
     return datetime.toISOString().slice(0, 16).replace("T", " ");
 }
+
+// simple sleep function
+export function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
