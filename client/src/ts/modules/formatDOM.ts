@@ -272,11 +272,8 @@ export async function dropCap(): Promise<void> {
 // ------------------------
 // ------------------------
 import { reqArticles } from "./request";
-import { sleep } from "./helpers";
 
 export async function getSideEntries(section?: string): Promise<void> {
-    const reqDelay: number = 250;
-
     const articlesDOM: HTMLElement = document.querySelector(".side-articles");
 
     const siteSections: string[] = ["blog", "courses", "exercises", "references", "tools", "art"];
@@ -291,13 +288,9 @@ export async function getSideEntries(section?: string): Promise<void> {
     let res = await reqArticles(siteSection, 1);
     if (!res.success) throw new Error(res.error);
 
-    // sleep for 1 second to make sure the request is done
-    await sleep(reqDelay);
-
     const articles: any[] = res.data.articles;
     while (res.data.nextToken) {
-        res = await reqArticles(siteSection, 20, res.data.nextToken);
-        await sleep(reqDelay);
+        res = await reqArticles(siteSection, 30, res.data.nextToken);
         articles.push(...res.data.articles);
 
         if (!res.success) throw new Error(res.error);
