@@ -1,5 +1,5 @@
 import { login, logout, register, resetPassword } from './modules/request';
-import { pass2HashText } from './modules/cryptography_helpers';
+import { pass2HashText } from './modules/helpers';
 import { confirmPasswordMatch } from './modules/helpers_user_connect_prompt';
 
 import * as valid from './modules/validators';
