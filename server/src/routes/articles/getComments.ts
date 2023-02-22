@@ -24,7 +24,7 @@ export const initGetComments = (client: MongoClient) => {
 
         const { docs, nextID } = await page(collection, {
             article: article
-        }, pageSize, new ObjectId(nextToken));
+        }, pageSize, new ObjectId(nextToken)) as { docs: UserComment[], nextID?: ObjectId };
 
         sendRes(res, true, { comments: docs, nextToken: nextID });
     });
