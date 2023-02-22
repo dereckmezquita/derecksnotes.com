@@ -32,7 +32,8 @@ export const initUserInfo = (client: MongoClient) => {
                 current_ip: ip_address
             }
 
-            sendRes(res, true, defaultUser);
+            console.log("User not loggedin; sending default user info.")
+            return sendRes(res, true, defaultUser);
         }
 
         const cookie = (req.session as SessionDataRes).user as UserCookie;
