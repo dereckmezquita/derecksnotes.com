@@ -61,12 +61,12 @@ export const initUserInfo = (client: MongoClient) => {
             lastName: accountInfo.lastName,
             username: accountInfo.username,
             email: accountInfo.email.address,
-            profilePhoto: accountInfo.profilePhoto,
+            profilePhoto: `/site-images/user-content/profile-photos/${username}.jpg`, // TODO: photos must be preprocessed and jpg
             numberOfComments: numComments,
             lastConnected: accountInfo.userStatistics.last_connected,
             current_ip: ip_address
         }
 
-        sendRes(res, true, );
+        sendRes(res, true, userInfo);
     });
 }
