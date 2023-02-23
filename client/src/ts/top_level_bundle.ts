@@ -1,11 +1,12 @@
 import { reqArticles } from "./modules/request";
 
-const siteSection: string = (document.getElementById("siteSection") as HTMLInputElement).value;
+// TODO: refactor to a class
+async function setCards() {
+    const siteSection: string = (document.getElementById("siteSection") as HTMLInputElement).value;
+    const articlesDOM: HTMLDivElement = document.querySelector(".card-articles")!;
 
-const articlesDOM: HTMLElement = document.querySelector(".card-articles");
+    if (!articlesDOM) return;
 
-// get articles as promise await
-(async () => {
     let res = await reqArticles(siteSection, 10);
     if (!res.success) throw new Error(res.error);
 
@@ -63,7 +64,7 @@ const articlesDOM: HTMLElement = document.querySelector(".card-articles");
             const summary: HTMLElement = document.createElement("div");
             summary.innerHTML = entry.summary.slice(0, 150).replace(/\.$|\,$/, "").trim() + "...";
             summary.setAttribute("class", "entry-data entry-summary");
-            
+
             // create drop cap
             const drop: HTMLElement = document.createElement("span");
             drop.innerText = entry.summary[0];
@@ -81,7 +82,7 @@ const articlesDOM: HTMLElement = document.querySelector(".card-articles");
             const day: string = entry.date.substring(8, 10);
             date.innerText = `${month}/${day}/${year}`;
             date.setAttribute("class", "entry-data entry-date");
-            
+
             summary.appendChild(date);
             card.appendChild(summary);
         }
@@ -89,4 +90,6 @@ const articlesDOM: HTMLElement = document.querySelector(".card-articles");
         // finally append the card
         articlesDOM.appendChild(card);
     }
-})();
+}
+
+setCards();
