@@ -61,4 +61,12 @@ declare global {
             ip_address: string
         }
     }
+
+    type GeoLocateRes = {
+        country: string;
+        regionName: string;
+        city: string;
+        isp: string;
+        org: string;
+    }
 }
