@@ -1,4 +1,4 @@
-
+// TODO: refactor to be class based
 // Set the cache to save user's choice
 const getPromptCache = localStorage.getItem("promptToggle");
 

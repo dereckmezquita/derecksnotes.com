@@ -1,4 +1,3 @@
-
 interface Number {
     leadingZero(): string;
 }

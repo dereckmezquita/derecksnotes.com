@@ -51,6 +51,7 @@ export async function setTitle(): Promise<void> {
 // ------------------------
 import { createHash } from 'crypto';
 
+// footnotes: <a class="foot-note" href="some-link" target="_blank">
 export async function footNotes(): Promise<void> {
     // this script is included on articles/pages that potentially have footnotes
     // footnotes are written in the ejs/html file using the class="foot-note"
@@ -271,9 +272,12 @@ export async function dropCap(): Promise<void> {
 
 // ------------------------
 // ------------------------
-import { reqArticles } from "./request";
+import { reqArticles } from "../request";
 
-export async function getSideEntries(section?: string): Promise<void> {
+export async function getSideEntries(): Promise<void> {
+    // const section: string = window.location.href.split("/")[3];
+    const section: string = window.location.pathname.split('/')[1];
+
     const articlesDOM: HTMLElement = document.querySelector(".side-articles");
 
     const siteSections: string[] = ["blog", "courses", "exercises", "references", "tools", "art"];

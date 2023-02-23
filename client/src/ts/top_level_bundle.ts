@@ -1,4 +1,4 @@
-import { reqArticles } from "./request";
+import { reqArticles } from "./modules/request";
 
 const siteSection: string = (document.getElementById("siteSection") as HTMLInputElement).value;
 

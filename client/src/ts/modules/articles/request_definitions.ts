@@ -1,12 +1,12 @@
 
-import { getDefinitions } from "./request";
+import { getDefinitions } from "../request";
 
 export async function requestDefinitions(): Promise<void> {
+    if (window.location.pathname.split("/")[1] !== "dictionaries") return;
+
     const dictionaryName: string = (document.getElementById("dictionary") as HTMLInputElement).value;
 
     const definitionsDOM: HTMLElement = document.querySelector("#dictionary-list");
-
-    // get the definitions
 
     // loop through alphabet
     for (let i = 0; i < 26; i++) {
