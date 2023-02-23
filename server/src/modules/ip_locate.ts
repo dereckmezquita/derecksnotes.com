@@ -1,12 +1,5 @@
 import http from 'http';
 
-type GeoLocateRes = {
-    country: string;
-    regionName: string;
-    city: string;
-    isp: string;
-    org: string;
-}
 export const locateIP = (ip: string): Promise<GeoLocateRes> => {
     return new Promise((resolve, reject) => { // promise just need to await it
         const req = http.request(`http://ip-api.com/json/${ip}?fields=status,message,country,regionName,city,isp,org`, {
