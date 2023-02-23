@@ -20,7 +20,7 @@ function formattedLocalTime(): string {
     return now;
 }
 
-const clock: Element = document.querySelector(".clock");
+const clock: HTMLElement = document.querySelector(".clock")!;
 
 clock.innerHTML = formattedLocalTime();
 
@@ -30,7 +30,7 @@ setInterval(() => {
 
     let sideClock: Element | boolean = false;
 
-    sideClock = document.querySelector(".side-clock");
+    sideClock = document.querySelector(".side-clock")!;
     if (sideClock) {
         sideClock.innerHTML = now;
     }
