@@ -20,7 +20,9 @@ export const initUserInfo = (client: MongoClient) => {
         const ip_address = req.headers['x-forwarded-for'] as string;
 
         // check if the user is logged in and has an active session
-        if (!((req.session as SessionDataRes).authenticated)) {
+        const session = req.session as SessionDataRes;
+
+        if (!session.authenticated) {
             const defaultUser: UserInfoRes = {
                 firstName: "",
                 lastName: "",
