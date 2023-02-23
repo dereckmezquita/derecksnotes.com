@@ -6,6 +6,8 @@ import * as valid from './modules/validators';
 
 type PromptType = undefined | "login" | "register" | "forgotPassword";
 
+// TODO: check if logged in and change what's displayed on login prompt initially - user account; logout etc
+// TODO: don't count highlight click drag outside of prompt to destroy the prompt
 class UserConnect {
     static userLoginIcon = document.querySelector(".user-login-icon") as HTMLElement;
 
@@ -21,6 +23,7 @@ class UserConnect {
         <label for="password">Password</label>
         <input type="password" id="password" placeholder="Enter password" required>
         <button type="submit">Login</button>
+        <a class="my-account-link" href="/account.html">My Account</a>
         <a class="register-link">Register</a>
         <a class="forgot-password-link">Forgot Password?</a>
         <a class="logout-link">Logout</a>
