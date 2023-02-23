@@ -9,67 +9,51 @@ const FixStyleOnlyEntriesPlugin = require('webpack-fix-style-only-entries');
 import { makePlugins } from './helpers/plugins';
 import { createEntriesPlugins } from './helpers/sections';
 
+const article_plugs: string[] = ["general_bundle", "styles", "article_bundle"];
+const top_plugs: string[] = ["general_bundle", "styles", "request_cards"];
+
 const plugins: Object[] = makePlugins([
     {
         filename: "index.html",
         template: "index.ejs",
-        chunks: ["general_bundle", "styles", "request_cards"]
+        chunks: top_plugs
     },
-    ...createEntriesPlugins("blog", [
-        "general_bundle",
-        "styles",
-        "article_bundle"
-    ]) as any,
+    ...createEntriesPlugins("blog", article_plugs) as any,
+    {
+        filename: "account.html",
+        template: "account.ejs",
+        chunks: ["general_bundle", "styles", "account_bundle"]
+    },
     {
         filename: "courses.html",
         template: "courses.ejs",
-        chunks: ["general_bundle", "styles", "request_cards"]
+        chunks: top_plugs
     },
-    ...createEntriesPlugins("courses", [
-        "general_bundle",
-        "styles",
-        "article_bundle"
-    ]) as any,
+    ...createEntriesPlugins("courses", article_plugs) as any,
     {
         filename: "exercises.html",
         template: "exercises.ejs",
-        chunks: ["general_bundle", "styles", "request_cards"]
+        chunks: top_plugs
     },
-    ...createEntriesPlugins("exercises", [
-        "general_bundle",
-        "styles",
-        "article_bundle"
-    ]) as any,
+    ...createEntriesPlugins("exercises", article_plugs) as any,
     {
         filename: "references.html",
         template: "references.ejs",
-        chunks: ["general_bundle", "styles", "request_cards"]
+        chunks: top_plugs
     },
-    ...createEntriesPlugins("references", [
-        "general_bundle",
-        "styles",
-        "article_bundle"
-    ]) as any,
+    ...createEntriesPlugins("references", article_plugs) as any,
     {
         filename: "tools.html",
         template: "tools.ejs",
-        chunks: ["general_bundle", "styles", "request_cards"]
+        chunks: top_plugs
     },
-    ...createEntriesPlugins("tools", [
-        "general_bundle",
-        "styles",
-        "article_bundle"
-    ]) as any,
+    ...createEntriesPlugins("tools", article_plugs) as any,
     {
         filename: "art.html",
         template: "art.ejs",
-        chunks: ["general_bundle", "styles", "request_cards"]
+        chunks: top_plugs
     },
-    ...createEntriesPlugins("art", [
-        "general_bundle",
-        "styles",
-        "article_bundle"
-    ]) as any,
+    ...createEntriesPlugins("art", article_plugs) as any,
     ...createEntriesPlugins("dictionaries", [
         "general_bundle",
         "styles",
