@@ -146,3 +146,15 @@ export const getComments = async (pageSize: number, nextToken?: string): Promise
 
     return await response.json() as ServerRes;
 }
+
+export const getAccontInfo = async (): Promise<ServerRes<UserInfo>> => {
+    const response = await fetch('/api/users/account_info', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({})
+    });
+
+    return await response.json() as ServerRes;
+}
