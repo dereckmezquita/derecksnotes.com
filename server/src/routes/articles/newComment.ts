@@ -10,14 +10,14 @@ export const postComment = Router();
 export const initComment = (client: MongoClient) => {
     postComment.post('/articles/new_comment', async (req: Request, res: Response) => {
         // ------------------------------------
-        const sessionData = req.session as SessionDataRes;
+        const session = req.session as SessionDataRes;
 
         // check if the user is logged in and has an active session
-        if (!(sessionData.authenticated)) {
+        if (!session.authenticated) {
             return sendRes(res, false, null, 'You must be logged in to comment.');
         }
 
-        const cookie = sessionData.user as UserCookie;
+        const cookie = session.user as UserCookie;
 
         // check if the user object exists in the session
         if (!cookie) return sendRes(res, false, null, 'User not found in session; please login.');
@@ -29,6 +29,8 @@ export const initComment = (client: MongoClient) => {
 
         // ------------------------------------
         const { comment, datetime, article, replyToId } = (req.body as { comment: string, datetime: string, article: string, replyToId?: string });
+
+        if (typeof comment !== "string") return sendRes(res, false, null, "Comment must be valid string.");
         
         // ------------------------------------
         // datetime provided not older than 30 seconds
