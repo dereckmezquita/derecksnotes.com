@@ -21,3 +21,9 @@ export function dateToString(datetime: Date): string {
 export function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
+
+export function textToHTML(html: string): HTMLElement {
+    const tempElement = document.createElement('div');
+    tempElement.innerHTML = html.trim();
+    return tempElement.firstChild as HTMLElement;
+}
