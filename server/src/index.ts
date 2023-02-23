@@ -1,48 +1,58 @@
 import express from 'express';
 import session from 'express-session';
-import rateLimit from 'express-rate-limit';
 
 import { router, initDB } from './routes';
 import { MongoClient } from 'mongodb';
 import { logger } from './modules/logger';
 
-const store = new session.MemoryStore();
+import { createClient } from 'redis';
+import makeRedisStore from 'connect-redis';
+
+// redis client for managing sessions
+const redisClient = createClient({legacyMode: true});
+
+const redisStore = makeRedisStore(session);
 
 const port = Number(process.env.PORT) || 3001;
 const mongodbUrl = process.env.MONGODB_URL || 'mongodb://127.0.0.1:27017';
 
 const app = express();
 
+// TODO: add rate limiter with express for longer term protection (100 requests per day or something)
+// use ratelimiter on express side to limit request per day
+// nginx is being used for burst and spam protection
+
 // --------------------------------
 // middleware
 // --------------------------------
-// create a rate limiter for API endpoints
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // time frame 15 minutes
-    max: 50, // limit each IP to 50 requests per windowMs
-    message: 'Too many requests, please try again later.',
-});
-
-// apply the rate limiter to all API requests
-app.use('/api/', apiLimiter);
-
-
-// Add the express-session middleware
-app.use(
-    session({
-        secret: 'temporary-secret',
-        // resave: false,
-        saveUninitialized: false,
-        // days * hours * minutes * seconds * milliseconds
-        cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }, // let's make the session last for 30 days
-        store: store // memory store for sessions; things get automatically stored here
-    })
-);
-
 app.use(express.json());
-app.use(router);
+
 // --------------------------------
 async function start() {
+    await redisClient.connect();
+    // Add the express-session middleware
+    app.use(
+        session({
+            store: new redisStore({ client: redisClient }),
+            secret: 'temporary-secret', // TODO: load this from ignored module to be secret
+            resave: false,
+            saveUninitialized: false,
+            // days * hours * minutes * seconds * milliseconds
+            cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 } // let's make the session last for 30 days
+        })
+    );
+
+    app.use(router);
+
+    // middleware to log rate limiter status
+    app.use(function (req, res, next) {
+        if (req.route.path === '/api/' && res.statusCode === 429) {
+            logger.warn(`Rate limit exceeded for IP ${req.ip}`);
+        }
+
+        next();
+    });
+
     const client = await MongoClient.connect(mongodbUrl, {
         serverSelectionTimeoutMS: 1000,
     });
@@ -54,13 +64,4 @@ async function start() {
     });
 }
 
-// middleware to log rate limiter status
-app.use(function (req, res, next) {
-    if (req.route.path === '/api/' && res.statusCode === 429) {
-        logger.warn(`Rate limit exceeded for IP ${req.ip}`);
-    }
-
-    next();
-});
-
-start();
+start().catch(console.error);
