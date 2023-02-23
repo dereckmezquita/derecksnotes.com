@@ -13,7 +13,9 @@ type PriceDataRes = {
 // minutes = 1000 * 60 * x minutes
 const refreshInterval = 1000 * 60 * 3; // 3 minutes
 
-async function getPrice(coinName: string): Promise<PriceDataRes> {
+export {};
+
+const getPrice = async (coinName: string): Promise<PriceDataRes> => {
     // if returned value is falsy (i.e. null or undefined) nullish coalescing operator ?? returns fallback; right-hand side
     const data: PriceDataRes = JSON.parse(localStorage.getItem(coinName) ?? 'null');
 

@@ -4,9 +4,9 @@
 // ------------------------
 // ------------------------
 export async function wordCount(): Promise<void> {
-    const article: Element = document.querySelector("article");
+    const article: HTMLElement = document.querySelector("article")!;
 
-    let test: string = article.textContent;
+    let test = article.textContent as string;
     // remove all new lines
     test = test.replace(/\n/g, " ");
     // remove all spaces that are more than one
@@ -18,7 +18,7 @@ export async function wordCount(): Promise<void> {
     // format words with commas for thousands places
     const wordsLength: string = words.toLocaleString();
 
-    const upper_side_bar: Element = document.querySelector("#upper-side-bar");
+    const upper_side_bar: Element = document.querySelector("#upper-side-bar")!;
 
     // create new p tag
     const word_count: HTMLElement = document.createElement("p");
@@ -41,7 +41,7 @@ export async function wordCount(): Promise<void> {
 // ------------------------
 // ------------------------
 export async function setTitle(): Promise<void> {
-    const title: Element = document.querySelector("title");
+    const title: Element = document.querySelector("title")!;
     const h1: string = document.querySelector("h1").innerHTML;
 
     title.innerHTML = `Dn | ${h1}`;
