@@ -10,7 +10,7 @@ import { makePlugins } from './helpers/plugins';
 import { createEntriesPlugins } from './helpers/sections';
 
 const article_plugs: string[] = ["general_bundle", "styles", "article_bundle"];
-const top_plugs: string[] = ["general_bundle", "styles", "request_cards"];
+const top_plugs: string[] = ["general_bundle", "styles", "top_level_bundle"];
 
 const plugins: Object[] = makePlugins([
     {
@@ -54,12 +54,7 @@ const plugins: Object[] = makePlugins([
         chunks: top_plugs
     },
     ...createEntriesPlugins("art", article_plugs) as any,
-    ...createEntriesPlugins("dictionaries", [
-        "general_bundle",
-        "styles",
-        "dictionary_bundle"
-        // "pre_processing_dictionary"
-    ]) as any
+    ...createEntriesPlugins("dictionaries", article_plugs) as any
 ]);
 
 module.exports = {
@@ -67,26 +62,17 @@ module.exports = {
     mode: "development",
     entry: {
         // ----------------------------
-        // ----------------------------
         // scripts
+        top_level_bundle: path.resolve(__dirname, 'src/ts/top_level_bundle.ts'), // get's cards
         general_bundle: path.resolve(__dirname, 'src/ts/general_bundle.ts'),
         article_bundle: path.resolve(__dirname, 'src/ts/article_bundle.ts'),
-        dictionary_bundle: path.resolve(__dirname, 'src/ts/dictionary_bundle.ts'),
-        // ----------------------------
-        request_cards: path.resolve(__dirname, 'src/ts/modules/request_cards.ts'),
-        request_definitions: path.resolve(__dirname, 'src/ts/modules/request_definitions.ts'),
-        // ----------------------------
-        // ----------------------------
-        pre_processing_dictionary: path.resolve(__dirname, 'src/ts/pre_processing_dictionary.ts'),
-        // ----------------------------
+        account_bundle: path.resolve(__dirname, 'src/ts/account_bundle.ts'),
         // ----------------------------
         // styles
         styles: path.resolve(__dirname, 'src/scss/index.scss'),
         // ----------------------------
-        // ----------------------------
         // libraries
         // mathjax: path.resolve(__dirname, 'src/libraries/mathjax.js'),
-        // ----------------------------
         // ----------------------------
         // development scripts
         test: path.resolve(__dirname, 'src/ts/test.ts')

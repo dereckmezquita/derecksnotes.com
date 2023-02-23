@@ -1,25 +1,65 @@
-
-export type NameTicker = {
+type NameTicker = {
     name: string,
     ticker: string
 }
 
-export async function cryptoPrices(coins: NameTicker[]): Promise<void> {
-    for (const coin of coins) {
-        let res: any;
+type PriceDataRes = {
+    coin_name: string;
+    usd: number;
+    usd_24h_change: number;
+    time_stamp: Date;
+}
 
+// minutes = 1000 * 60 * x minutes
+const refreshInterval = 1000 * 60 * 3; // 3 minutes
+
+async function getPrice(coinName: string): Promise<PriceDataRes> {
+    // if returned value is falsy (i.e. null or undefined) nullish coalescing operator ?? returns fallback; right-hand side
+    const data: PriceDataRes = JSON.parse(localStorage.getItem(coinName) ?? 'null');
+
+    if (data) {
+        // check if data is older than 5 minutes
+        const now = new Date();
+        const time_stamp = new Date(data.time_stamp);
+        const diff = now.getTime() - time_stamp.getTime();
+
+        if (diff < (refreshInterval)) {
+            return data;
+        }
+    }
+
+    const res = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${coinName}&vs_currencies=usd&include_24hr_change=true`);
+
+    if (res.ok) {
+        let data = await res.json();
+        data[coinName].coin_name = coinName;
+        data = data[coinName] as PriceDataRes;
+
+        // save data to web storage
         try {
-            res = await getPrice(coin.name);
+            data.time_stamp = new Date();
+            localStorage.setItem(coinName, JSON.stringify(data));
         } catch (error) {
-            console.error(error);
+            console.error(`Error saving data to local storage: ${error}`);
         }
 
-        if (res) {
-            // console.log(res[coin.name]);
-        }
+        return data;
+    } else {
+        throw new Error("Bad status code");
+    }
+}
 
-        // get ticker holder from DOM
-        const tickers: Element = document.querySelector("#tickers");
+async function setCryptoPrices(coins: NameTicker[]): Promise<void> {
+    // get ticker holder from DOM
+    const tickers: Element = document.querySelector("#tickers");
+
+    for (const coin of coins) {
+        const res: PriceDataRes = await getPrice(coin.name);
+
+        if (!res) {
+            console.error(`Error fetching data for ${coin.name}`);
+            continue;
+        }
 
         const coinSpan: Element = document.createElement('span');
         coinSpan.classList.add("info-bar-crypto");
@@ -37,7 +77,9 @@ export async function cryptoPrices(coins: NameTicker[]): Promise<void> {
         // --------------------------------
         // coin price
         const coinPrice: Element = document.createElement('span');
-        let price: string = res[coin.name]["usd"].toFixed(5).toString();
+        let price: string = res.usd
+            .toFixed(5)
+            .toString();
 
         // remove trailing zeros with a regular expression; toFixed adds zeros
         price = price.replace(/0+$/, "").replace(/\.$/, "");
@@ -56,8 +98,8 @@ export async function cryptoPrices(coins: NameTicker[]): Promise<void> {
         // --------------------------------
         // percent change
         const coinPercentChange: HTMLElement | null = document.createElement('span');
-        
-        let percentChangeValue: number = res[coin.name]["usd_24h_change"];
+
+        let percentChangeValue: number = res.usd_24h_change;
 
         if (percentChangeValue > 0) {
             coinPercentChange.innerHTML = "+" + (percentChangeValue as number).toFixed(2) + "%";
@@ -82,23 +124,14 @@ export async function cryptoPrices(coins: NameTicker[]): Promise<void> {
     }
 };
 
-async function getPrice(coin: string) {
-    return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', `https://api.coingecko.com/api/v3/simple/price?ids=${coin}&vs_currencies=usd&include_24hr_change=true`);
-        xhr.responseType = 'json';
+const coins: NameTicker[] = [
+    { name: "bitcoin", ticker: "BTC" },
+    // { name: "digibyte", ticker: "DGB" },
+    { name: "monero", ticker: "XMR" }
+]
 
-        xhr.onload = () => {
-            // console.log(xhr.status);
-            if (xhr.status >= 200 && xhr.status < 400) return resolve(xhr.response);
+setCryptoPrices(coins);
 
-            reject("Bad status code");
-        }
-
-        xhr.onerror = () => {
-            reject();
-        }
-
-        xhr.send();
-    });
-}
+setInterval(() => {
+    setCryptoPrices(coins);
+}, refreshInterval);

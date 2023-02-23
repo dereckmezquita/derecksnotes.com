@@ -4,28 +4,20 @@
 
 // ------------------------
 // coingecko get prices for info-bar
-import { cryptoPrices, NameTicker } from "./modules/general_price_tickers";
-
-const coins: NameTicker[] = [
-    { name: "bitcoin", ticker: "BTC" },
-    // { name: "digibyte", ticker: "DGB" },
-    { name: "monero", ticker: "XMR" }
-]
-
-cryptoPrices(coins);
+import "./modules/general/price_tickers";
 
 // ------------------------
 // drowdown menu on responsive design
-import "./modules/general_flex_nav";
+import "./modules/general/flex_nav";
 
 // ------------------------
-import "./modules/general_clock";
+import "./modules/general/clock";
 
 // ------------------------
-import "./modules/pwa_prompt";
+import "./modules/general/pwa_prompt";
 
 // ------------------------
-import "./user_connect";
+import "./modules/general/user_connect";
 
 // ------------------------
 // ------------------------

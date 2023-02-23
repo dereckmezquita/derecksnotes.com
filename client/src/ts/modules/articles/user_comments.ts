@@ -1,5 +1,5 @@
-import { getComments, sendComment, getUserInfo } from "./modules/request";
-import { dateToString, textToHTML } from "./modules/helpers";
+import { getComments, sendComment, getUserInfo } from "../request";
+import { dateToString, textToHTML } from "../helpers";
 
 // TODO: consider breaking up code: https://stackoverflow.com/questions/12706290/typescript-define-class-and-its-methods-in-separate-files
 
