@@ -29,6 +29,7 @@ This website is a full stack project both back end and front end; is built on th
     - User comments.
     - Dictionary definitions.
 - `express` for handling client side requests.
+    - `redis` for persistent session storage.
 - `nginx` for serving static files, reverse proxying database requests, caching, load balancing and more.
 
 
