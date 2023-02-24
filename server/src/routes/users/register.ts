@@ -18,10 +18,9 @@ export const initRegister = (client: MongoClient) => {
 
         if (!infoCheck.success) return sendRes(res, false, null, infoCheck.error);
 
-        // console.log(req.body);
         const db = client.db('users');
-        const accounts = db.collection('accounts');
-        const user = await accounts.findOne({ "email.address": email }) as UserInfo | null;
+        const collection = db.collection('accounts');
+        const user = await collection.findOne({ "email.address": email }) as UserInfo | null;
 
         // if a user with that e-mail already exists
         if (user) return sendRes(res, false, null, 'Username or e-mail already in use.');
@@ -56,7 +55,7 @@ export const initRegister = (client: MongoClient) => {
             }
         };
 
-        await accounts.insertOne(user_info);
+        await collection.insertOne(user_info);
 
         sendRes(res, true, "You're now registered!");
     });
