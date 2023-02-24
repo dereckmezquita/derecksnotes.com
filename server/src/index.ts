@@ -45,7 +45,7 @@ async function start() {
     app.use(router);
 
     // middleware to log rate limiter status
-    app.use(function (req, res, next) {
+    app.use((req, res, next) => {
         if (req.route.path === '/api/' && res.statusCode === 429) {
             logger.warn(`Rate limit exceeded for IP ${req.ip}`);
         }
