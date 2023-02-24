@@ -20,15 +20,15 @@ export const locateIP = (ip: string): Promise<GeoLocateRes> => {
 
                 try {
                     parsed_body = JSON.parse(body);
-                } catch(err) {
+                } catch (err) {
                     reject("Response from API was not valid JSON.");
                     return;
                 }
 
-                if(parsed_body.status !== "success") {
+                if (parsed_body.status !== "success") {
                     const message = parsed_body.message;
 
-                    if(typeof message == 'string') {
+                    if (typeof message == 'string') {
                         reject(message);
                         return;
                     }
