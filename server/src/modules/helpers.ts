@@ -1,6 +1,5 @@
 import { Response } from 'express';
 import crypto from 'crypto';
-import { logger } from './logger';
 
 export function sendRes(res: Response, success: boolean, data?: any, errorMsg?: string): void {
     // Create a ServerRes object with the success flag, data, and error message
@@ -19,9 +18,6 @@ export function sendRes(res: Response, success: boolean, data?: any, errorMsg?: 
 
     // Send the response as JSON
     res.json(serverRes);
-
-    // Log the response
-    // logger.info(`Sent response: ${JSON.stringify(serverRes)}`);
 }
 
 export function generateHashID(string: string): string {
