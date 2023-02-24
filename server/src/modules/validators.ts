@@ -17,8 +17,10 @@ export const InputParams = {
     },
 };
 
+type StringCheck = { success: boolean, error?: string };
+
 // Input validation for users
-export function checkRegisterInfo(firstName: string, lastName: string, username: string, email: string): { success: boolean, error?: string } {
+export function checkRegisterInfo(firstName: string, lastName: string, username: string, email: string): StringCheck {
     // check first and last name
     const firstNameCheck = checkName(firstName);
     const lastNameCheck = checkName(lastName);
@@ -39,7 +41,7 @@ export function checkRegisterInfo(firstName: string, lastName: string, username:
     return { success: true, error: undefined };
 }
 
-export function checkName(name: string): { success: boolean, error?: string } {
+export function checkName(name: string): StringCheck {
     // check that first name and last name are not empty and valid non malicious strings
     if (
         !validator.isAscii(name) || // if not ascii then not valid
@@ -51,7 +53,7 @@ export function checkName(name: string): { success: boolean, error?: string } {
     return { success: true, error: undefined };
 }
 
-export function checkUsername(username: string): { success: boolean, error?: string } {
+export function checkUsername(username: string): StringCheck {
     // username is not empty and valid non malicious string
     if (
         !validator.isAscii(username) ||
@@ -63,14 +65,14 @@ export function checkUsername(username: string): { success: boolean, error?: str
     return { success: true, error: undefined };
 }
 
-export function checkEmail(email: string): { success: boolean, error?: string } {
+export function checkEmail(email: string): StringCheck {
     // check e-mail
     if (!validator.isAscii(email) || !validator.isEmail(email)) return { success: false, error: ErrorMessages.EMAIL_ERROR };
 
     return { success: true, error: undefined };
 }
 
-export function userCommentCheck(text: string): { success: boolean, error?: string } {
+export function userCommentCheck(text: string): StringCheck {
     // check: not empty, not malicious, not over 10000 characters, is alphanumeric, is ascii
     if (
         !validator.isAscii(text) ||
