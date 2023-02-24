@@ -1,7 +1,5 @@
 import { Collection, ObjectId, Filter, Document } from 'mongodb';
 
-type PageData = { docs: Document[], nextID: ObjectId | undefined };
-
 export const page = async (
     collection: Collection,
     filter: Filter<Document> = {},
