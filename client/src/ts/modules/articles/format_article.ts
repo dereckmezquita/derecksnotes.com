@@ -42,7 +42,7 @@ export async function wordCount(): Promise<void> {
 // ------------------------
 export async function setTitle(): Promise<void> {
     const title: Element = document.querySelector("title")!;
-    const h1: string = document.querySelector("h1").innerHTML;
+    const h1: string = document.querySelector("h1")!.innerHTML;
 
     title.innerHTML = `Dn | ${h1}`;
 }
@@ -77,7 +77,7 @@ export async function footNotes(): Promise<void> {
 
         container.appendChild(header);
 
-        document.querySelector("article").appendChild(container);
+        document.querySelector("article")!.appendChild(container);
 
         for (let i = 0; i < footnotes.length; i++) {
             let footnote: HTMLElement = footnotes[i];
@@ -86,7 +86,7 @@ export async function footNotes(): Promise<void> {
             // these are processed and a footnote is created
 
             // get the original information from the footnote
-            const href: string = footnote.getAttribute("href");
+            const href: string = footnote.getAttribute("href")!;
             const text: string = footnote.innerText;
 
             // create a hash from the text
@@ -103,7 +103,7 @@ export async function footNotes(): Promise<void> {
             in_line.id = `${hash}-up`;
 
             // replace the footnote element with the in-line element entirely
-            footnote.parentNode.replaceChild(in_line, footnote);
+            footnote.parentNode!.replaceChild(in_line, footnote);
 
             // ------------------------
             // create an li element into which the footnote will be placed
@@ -259,7 +259,7 @@ export async function formatFigures(): Promise<void> {
 // ------------------------
 // ------------------------
 export async function dropCap(): Promise<void> {
-    const firstParagraph: HTMLElement = document.querySelector("article > p");
+    const firstParagraph: HTMLElement = document.querySelector("article > p")!;
 
     const drop: HTMLElement = document.createElement("span");
     drop.innerText = firstParagraph.innerText[0];
@@ -278,7 +278,7 @@ export async function getSideEntries(): Promise<void> {
     // const section: string = window.location.href.split("/")[3];
     const section: string = window.location.pathname.split('/')[1];
 
-    const articlesDOM: HTMLElement = document.querySelector(".side-articles");
+    const articlesDOM: HTMLElement = document.querySelector(".side-articles")!;
 
     const siteSections: string[] = ["blog", "courses", "exercises", "references", "tools", "art"];
 
