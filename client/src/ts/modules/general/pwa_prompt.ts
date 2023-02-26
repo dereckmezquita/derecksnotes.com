@@ -18,7 +18,7 @@ window.addEventListener("load", function() {
 
 
 function createPrompt() {
-    const body: HTMLBodyElement = document.querySelector("body");
+    const body: HTMLBodyElement = document.querySelector("body")!;
 
     const pwaPrompt: HTMLDivElement = document.createElement("div");
     pwaPrompt.setAttribute("class", "pwa-prompt-container");
@@ -62,8 +62,8 @@ function createPrompt() {
 }
 
 function removePwaPrompt() {
-    const pwaPrompt: HTMLDivElement = document.querySelector(".pwa-bubble");
-    pwaPrompt.parentNode.removeChild(pwaPrompt);
+    const pwaPrompt: HTMLDivElement = document.querySelector(".pwa-bubble")!;
+    pwaPrompt.parentNode!.removeChild(pwaPrompt);
 }
 
 // User action removal of prompt

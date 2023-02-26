@@ -6,7 +6,7 @@ export async function requestDefinitions(): Promise<void> {
 
     const dictionaryName: string = (document.getElementById("dictionary") as HTMLInputElement).value;
 
-    const definitionsDOM: HTMLElement = document.querySelector("#dictionary-list");
+    const definitionsDOM: HTMLElement = document.querySelector("#dictionary-list")!;
 
     // loop through alphabet
     for (let i = 0; i < 26; i++) {
