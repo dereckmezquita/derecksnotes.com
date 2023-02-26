@@ -129,7 +129,7 @@ export const sendComment = async (
     return await response.json() as ServerRes;
 }
 
-export const getComments = async (pageSize: number, nextToken?: string): Promise<ServerRes<UserCommentRes[]>> => {
+export const getComments = async (pageSize: number, nextToken?: string): Promise<ServerRes<UserComment[]>> => {
     const article = window.location.pathname.split('/')[2];
 
     const response = await fetch('/api/articles/get_comments', {
