@@ -22,12 +22,12 @@ const getPrice = async (coinName: string): Promise<PriceDataRes> => {
     const data: PriceDataRes = JSON.parse(localStorage.getItem(coinName) ?? 'null');
 
     if (data) {
-        // check if data is older than 5 minutes
+        // check if data is older than x minutes
         const now = new Date();
         const time_stamp = new Date(data.time_stamp);
         const diff = now.getTime() - time_stamp.getTime();
 
-        if (diff < (refreshInterval)) {
+        if (diff < refreshInterval) {
             return data;
         }
     }
@@ -59,8 +59,6 @@ async function setCryptoPrices(coins: NameTicker[]): Promise<void> {
 
     for (const coin of coins) {
         const res: PriceDataRes = await getPrice(coin.coin_name);
-
-        console.log(res);
 
         if (!res) {
             console.error(`Error fetching data for ${coin.coin_name}`);
