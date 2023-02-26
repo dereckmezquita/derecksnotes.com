@@ -3,8 +3,6 @@ import path from 'path';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import CopyPlugin from 'copy-webpack-plugin';
 
-const TsConfiPathsPlugin = require('tsconfig-paths-webpack-plugin');
-
 const FixStyleOnlyEntriesPlugin = require('webpack-fix-style-only-entries');
 
 // ----------------------------
@@ -131,7 +129,6 @@ module.exports = {
     },
     resolve: {
         extensions: ['.ts', '.js'],
-        plugins: [ new TsConfiPathsPlugin({ configFile: '../tsconfig.json' }) ],
         fallback: {
             crypto: require.resolve('crypto-browserify'), // TODO: use subtle crypto
             stream: require.resolve("stream-browserify")
