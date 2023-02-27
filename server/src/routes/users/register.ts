@@ -1,17 +1,15 @@
 import { Router, Request, Response } from 'express';
-import { sendRes } from '../../modules/helpers';
 import { MongoClient } from 'mongodb';
-
-import { checkRegisterInfo } from '../../modules/validators';
-
 import * as argon2 from 'argon2';
+
+import { sendRes } from '../../modules/helpers';
+import { checkRegisterInfo } from '../../modules/validators';
 
 export const register = Router();
 
 export const initRegister = (client: MongoClient) => {
     register.post('/users/register', async (req: Request, res: Response) => {
-        // get account info from user
-        const { firstName, lastName, username, email, password } = req.body;
+        const { firstName, lastName, username, email, password } = req.body as RegisterMessage;
 
         // check the inputs provided from the client; they might try to hack the client to send requests
         const infoCheck = checkRegisterInfo(firstName, lastName, username, email);

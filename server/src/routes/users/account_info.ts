@@ -6,16 +6,16 @@ export const accountInfo = Router();
 
 export const initAccountInfo = (client: MongoClient) => {
     accountInfo.post('/users/account_info', async (req: Request, res: Response) => {
-        const ip_address = req.headers['x-forwarded-for'] as string;
+        // const ip_address = req.headers['x-forwarded-for'] as string;
 
         // check if the user is logged in and has an active session
-        const session = req.session as SessionDataRes;
+        const session = req.session as SessionData;
 
         if (!session.authenticated) {
             return sendRes(res, false, undefined, "Please login.");
         }
 
-        const cookie = (req.session as SessionDataRes).user as UserCookie;
+        const cookie = (req.session as SessionData).user as SessionCookie;
 
         const email = cookie.email;
         const username = cookie.username;
