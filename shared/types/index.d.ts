@@ -1,38 +1,56 @@
-export { };
+export {};
 
-import { SessionData } from "express-session";
+// shared types
+
+import { ObjectId } from 'mongodb';
 
 declare global {
-    type ServerRes = {
+    type ServerRes<T = any> = {
         success: boolean;
-        data?: any;
+        data?: T;
         error?: string;
     }
 
-    // data we can get back from: (req.session as SessionDataRes).user
-    type UserCookie = {
-        email: string,
-        username: string,
-        profilePhoto?: string
+    type PageData = { docs: Document[], nextID?: ObjectId };
+
+    // --------------------------------
+    // communication types
+    type RegisterMessage = {
+        firstName: string;
+        lastName: string;
+        username: string;
+        email: string;
+        password: string;
     }
 
-    // req.session
-    interface SessionDataRes extends SessionData {
-        authenticated?: boolean;
-        user?: UserCookie | null;
+    type LoginMessage = {
+        email: string;
+        password: string;
     }
+
+    // --------------------------------
+    type UserInfoRes = {
+        firstName: string;
+        lastName: string;
+        username: string;
+        email: string;
+        profilePhoto?: string; // if user didn't upload a profile photo
+        numberOfComments: number;
+        lastConnected?: Date;
+        current_ip: string;
+    };
 
     type UserInfo = {
         firstName: string,
         lastName: string,
-        profilePhoto?: string,
+        profilePhoto?: string, // might be unset
         email: {
-            address: string
+            address: string,
             verified: boolean,
             verificationToken?: string
         },
         username: string,
-        password: string
+        password?: string, // we don't want send password
         userStatistics: {
             ip_addresses: [
                 {
@@ -52,7 +70,7 @@ declare global {
         article: string,
         comment: string,
         commentInfo: {
-            datetime: Date,
+            datetime: string | Date, // mongo returns object that we have to new Date()
             likes: number,
             dislikes: number
         }
@@ -62,13 +80,5 @@ declare global {
             profilePhoto?: string,
             ip_address: string
         }
-    }
-
-    type GeoLocateRes = {
-        country: string;
-        regionName: string;
-        city: string;
-        isp: string;
-        org: string;
     }
 }
