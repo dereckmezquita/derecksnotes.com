@@ -32,7 +32,7 @@ export const getDefinitions = async (dictionary: string, letter: string, pageSiz
     return await response.json() as ServerRes;
 }
 
-export const register = async (firstName: string, lastName: string, username: string, email: string, password: string): Promise<ServerRes> => {
+export const register = async (firstName: string, lastName: string, username: string, email: string, password: string): Promise<ServerRes<RegisterMessage>> => {
     const response = await fetch('/api/users/register', {
         method: 'POST',
         headers: {
@@ -44,7 +44,7 @@ export const register = async (firstName: string, lastName: string, username: st
             password,
             firstName,
             lastName
-        })
+        } as RegisterMessage)
     });
 
     return await response.json() as ServerRes;
