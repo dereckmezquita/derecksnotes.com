@@ -2,7 +2,7 @@ export {};
 
 // shared types
 
-import { ObjectId } from 'mongodb';
+import { ObjectId, Document } from 'mongodb';
 
 declare global {
     type ServerRes<T = any> = {
@@ -11,7 +11,10 @@ declare global {
         error?: string;
     }
 
-    type PageData = { docs: Document[], nextID?: ObjectId };
+    type PageData<T = any> = {
+        docs: T[], // Document
+        nextID?: ObjectId
+    };
 
     // --------------------------------
     // communication types

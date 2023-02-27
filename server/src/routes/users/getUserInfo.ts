@@ -20,7 +20,7 @@ export const initUserInfo = (client: MongoClient) => {
         const ip_address = req.headers['x-forwarded-for'] as string;
 
         // check if the user is logged in and has an active session
-        const session = req.session as SessionDataRes;
+        const session = req.session as SessionData;
 
         if (!session.authenticated) {
             const defaultUser: UserInfoRes = {
@@ -38,7 +38,7 @@ export const initUserInfo = (client: MongoClient) => {
             return sendRes(res, true, defaultUser);
         }
 
-        const cookie = (req.session as SessionDataRes).user as UserCookie;
+        const cookie = (req.session as SessionData).user as SessionCookie;
 
         // if (!cookie) { }
 
