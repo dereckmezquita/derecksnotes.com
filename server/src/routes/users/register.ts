@@ -4,55 +4,75 @@ import * as argon2 from 'argon2';
 
 import { sendRes } from '../../modules/helpers';
 import { checkRegisterInfo } from '../../modules/validators';
+import { geoLocate } from '../../modules/geoLocate';
 
 export const register = Router();
 
-export const initRegister = (client: MongoClient) => {
+
+// user register through this end point
+// ------------------------
+// steps
+// 1. extract the data sent by the user
+// 2. check that the data is valid
+// 3. check that e-mail and username sent over are unique
+// 5. hash the password
+// 6. create geo location object
+// 7. create the user object
+// 8. insert the user object into the database
+export const init_register = (client: MongoClient) => {
     register.post('/users/register', async (req: Request, res: Response) => {
+        // 1. extract the data sent by the user
         const { firstName, lastName, username, email, password } = req.body as RegisterMessage;
 
-        // check the inputs provided from the client; they might try to hack the client to send requests
+        // 2. check that the data is valid
         const infoCheck = checkRegisterInfo(firstName, lastName, username, email);
-
         if (!infoCheck.success) return sendRes(res, false, null, infoCheck.error);
 
         const db = client.db('users');
         const collection = db.collection('accounts');
+
+        // 3. check that e-mail and username sent over are unique
         const user = await collection.findOne({ "email.address": email }) as UserInfo | null;
+        const usernameCheck = await collection.countDocuments({ username: username });
 
-        // if a user with that e-mail already exists
-        if (user) return sendRes(res, false, null, 'Username or e-mail already in use.');
+        if (user || usernameCheck !== 0) return sendRes(res, false, null, "Email or username already in use");
 
-        // the user sends the password already salted and hashed with sha512
-        // we will hash the hash with argon2 before insertion
+        // 5. hash the password
+            // the user sends the password already salted and hashed with sha512
+            // we will hash the hash with argon2 before insertion
         const hash = await argon2.hash(password, { type: argon2.argon2id, parallelism: 1 });
 
-        // get the users IP address
+        // 6. create geo location object
         const ip_address = req.headers['x-forwarded-for'] as string;
 
-        // insert the user into the database
+        const datetime: Date = new Date();
+        const geo_location: GeoLocation = {
+            first_used: datetime,
+            last_used: datetime,
+            ...await geoLocate(ip_address)
+        };
+
+        // 7. create user object
         const user_info: UserInfo = {
-            firstName: firstName,
-            lastName: lastName,
-            profilePhoto: undefined,
-            username: username,
-            password: hash,
+            name: {
+                first: firstName,
+                last: lastName
+            },
+            profilePhoto: `/site-images/user-defaults/profile-photos/default-profile-photo-${Math.floor(Math.random() * 4) + 1}-small.png`,
             email: {
                 address: email,
                 verified: false
             },
-            userStatistics: {
-                ip_addresses: [
-                    {
-                        ip_address: ip_address,
-                        first_use: new Date(),
-                        last_use: new Date()
-                    }
-                ],
-                last_connected: new Date()
+            username: username,
+            password: hash,
+            statistics: {
+                geo_location: [geo_location],
+                last_connected: datetime,
+                numberOfComments: 0
             }
         };
 
+        // 8. insert the user object into the database
         await collection.insertOne(user_info);
 
         sendRes(res, true, "You're now registered!");
