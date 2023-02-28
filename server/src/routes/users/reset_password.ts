@@ -6,26 +6,33 @@ import { checkEmail, checkUsername } from '../../modules/validators';
 
 export const reset_password = Router();
 
+// user reset password through this end point
+// ------------------------
+// steps
+// 1. extract the data sent by the user
+    // 1.1 we allow the user to send either the e-mail or the username
+// 2. check that the data is valid
+// 3. search for the user in the database; either e-mail or username
+// 4. if the user doesn't exist, send error
+// 5. if the user exists, send e-mail reset password link
 export const init_reset_password = (client: MongoClient) => {
     reset_password.post('/users/reset_password', async (req: Request, res: Response) => {
-        // get account info from user
+        // 1. extract the data sent by the user
         const { identifier } = req.body;
 
-        // check input
+        // 2. check that the data is valid
         const check = checkEmail(identifier) || checkUsername(identifier);
-
         if (!check.success) return sendRes(res, false, null, check.error);
 
-        // console.log(req.body);
         const db = client.db('users');
         const accounts = db.collection('accounts');
 
-        // search for e-mail or username
+        // 3. search for the user in the database; either e-mail or username
         const user = await accounts.findOne({ $or: [{ "email.address": identifier }, { username: identifier }] }) as UserInfo | null;
 
-        // if the user doesn't exist
+        // 4. if the user doesn't exist, send error
         if (!user) return sendRes(res, false, null, 'User not found.');
 
-        // if user exists; send e-mail reset password link
+        // 5. if the user exists, send e-mail reset password link
     });
 }
