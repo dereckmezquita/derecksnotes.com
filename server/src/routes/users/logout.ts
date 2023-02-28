@@ -3,9 +3,12 @@ import { sendRes } from '../../modules/helpers';
 
 export const logout = Router();
 
-// make sure to regenerate the session id when logging out
+// logout end point
+// ------------------------
+// steps
+// 1. destroy the session
 logout.post('/users/logout', (req: Request, res: Response) => {
-    // if logout successful, send back a success message
+    // 1. destroy the session
     req.session.destroy((err) => {
         if (err) {
             sendRes(res, false, null, err.message);
