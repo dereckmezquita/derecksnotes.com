@@ -74,16 +74,6 @@ declare global {
     }
 
     // --------------------------------
-    // helper types
-    type GeoLocateRes = {
-        ip_address: string,
-        country: string,
-        regionName: string,
-        city: string,
-        isp: string,
-        org: string
-    }
-
     // extend geoLocateRes with ip address, first use and last use
     type GeoLocation = GeoLocateRes & {
         first_used: Date,
