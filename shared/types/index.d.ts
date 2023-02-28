@@ -6,9 +6,9 @@ import { ObjectId, Document } from 'mongodb';
 
 declare global {
     type ServerRes<T = any> = {
-        success: boolean;
-        data?: T;
-        error?: string;
+        success: boolean,
+        data?: T,
+        error?: string
     }
 
     type PageData<T = any> = {
@@ -17,52 +17,39 @@ declare global {
     };
 
     // --------------------------------
-    // communication types
+    // messages from client
     type RegisterMessage = {
-        firstName: string;
-        lastName: string;
-        username: string;
-        email: string;
-        password: string;
+        firstName: string,
+        lastName: string,
+        username: string,
+        email: string,
+        password: string
     }
 
     type LoginMessage = {
-        email: string;
-        password: string;
+        email: string,
+        password: string
     }
 
     // --------------------------------
-    type UserInfoRes = {
-        firstName: string;
-        lastName: string;
-        username: string;
-        email: string;
-        profilePhoto?: string; // if user didn't upload a profile photo
-        numberOfComments: number;
-        lastConnected?: Date;
-        current_ip: string;
-    };
-
+    // allow undefined for guest users
     type UserInfo = {
-        firstName: string,
-        lastName: string,
-        profilePhoto?: string, // might be unset
-        email: {
+        name?: {
+            first: string,
+            last: string
+        },
+        profilePhoto: string,
+        email?: {
             address: string,
             verified: boolean,
             verificationToken?: string
         },
         username: string,
-        password?: string, // we don't want send password
-        userStatistics: {
-            ip_addresses: [
-                {
-                    ip_address: string,
-                    first_use: Date,
-                    last_use: Date
-                }
-            ],
-            last_connected: Date
+        password?: string, // don't send password everytime
+        statistics: {
+            geo_location: GeoLocation[],
+            last_connected: Date,
+            numberOfComments?: number
         }
     }
 
@@ -72,16 +59,34 @@ declare global {
         replies_to_that?: string, // original comment this comment is replying to
         article: string,
         comment: string,
-        commentInfo: {
-            datetime: string | Date, // mongo returns object that we have to new Date()
-            likes: number,
-            dislikes: number
-        }
         userInfo: {
             email: string,
             username: string,
-            profilePhoto?: string,
+            profilePhoto: string,
             ip_address: string
+        },
+        statistics: {
+            datetime: string | Date, // mongo returns object that we have to cast Date()
+            likes: number,
+            dislikes: number,
+            geo_location: GeoLocation
         }
+    }
+
+    // --------------------------------
+    // helper types
+    type GeoLocateRes = {
+        ip_address: string,
+        country: string,
+        regionName: string,
+        city: string,
+        isp: string,
+        org: string
+    }
+
+    // extend geoLocateRes with ip address, first use and last use
+    type GeoLocation = GeoLocateRes & {
+        first_used: Date,
+        last_used: Date
     }
 }
