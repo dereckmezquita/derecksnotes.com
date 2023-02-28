@@ -16,11 +16,13 @@ declare global {
         user?: SessionCookie;
     }
 
+    // used by shared type GeoLocation
     type GeoLocateRes = {
-        country: string;
-        regionName: string;
-        city: string;
-        isp: string;
-        org: string;
+        ip_address: string,
+        country: string,
+        regionName: string,
+        city: string,
+        isp: string,
+        org: string
     }
 }
