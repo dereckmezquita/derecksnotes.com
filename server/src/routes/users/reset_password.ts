@@ -20,12 +20,12 @@ export const initresetPass = (client: MongoClient) => {
         const db = client.db('users');
         const accounts = db.collection('accounts');
 
-        // we do two checks for username/e-mail; we don't know if they sent us a username or an e-mail to reset their password
-        // check if the user exists by searching for e-mail and username
+        // search for e-mail or username
         const user = await accounts.findOne({ $or: [{ "email.address": identifier }, { username: identifier }] }) as UserInfo | null;
 
         // if the user doesn't exist
         if (!user) return sendRes(res, false, null, 'User not found.');
 
+        // if user exists; send e-mail reset password link
     });
 }
