@@ -2,37 +2,37 @@ import { Router } from 'express';
 import { MongoClient } from 'mongodb';
 
 // ------------------------
-import { getDefinitions, initGetDefinitions } from './routes/dictionaries/getDefinitions';
-import { getArticles, initGetArticles } from './routes/articles/getArticles';
-import { getLikes, initGetLikes } from './routes/articles/getLikes';
-import { login, initLogin } from './routes/users/login';
-import { register, initRegister } from './routes/users/register';
-import { getUserInfo, initUserInfo } from './routes/users/getUserInfo';
-import { postComment, initComment } from './routes/articles/newComment';
-import { getComments, initGetComments } from './routes/articles/getComments';
+import { get_definitions, init_get_definitions } from './routes/dictionaries/get_definitions';
+import { get_articles, init_get_articles } from './routes/articles/init_get_articles';
+import { login, init_login } from './routes/users/login';
+import { register, init_register } from './routes/users/register';
+import { get_user_info, init_get_user_info } from './routes/users/get_user_info';
+import { new_comment, init_new_comment } from './routes/articles/new_comment';
+import { get_comments, init_get_comments } from './routes/articles/get_comments';
 import { logout } from './routes/users/logout';
+import { init_update_account_info, update_account_info } from './routes/users/update_account_info';
 
 export const router = Router();
 
 router.use(
-    getArticles,
-    getLikes,
-    getDefinitions,
+    get_articles,
+    get_definitions,
     register,
     login,
-    getUserInfo,
-    postComment,
-    getComments,
-    logout
+    get_user_info,
+    new_comment,
+    get_comments,
+    logout,
+    update_account_info
 );
 
 export const initDB = (client: MongoClient) => {
-    initGetArticles(client);
-    initGetDefinitions(client);
-    initGetLikes(client);
-    initRegister(client);
-    initLogin(client);
-    initUserInfo(client);
-    initComment(client);
-    initGetComments(client);
+    init_get_articles(client);
+    init_get_definitions(client);
+    init_register(client);
+    init_login(client);
+    init_get_user_info(client);
+    init_new_comment(client);
+    init_get_comments(client);
+    init_update_account_info(client);
 }
