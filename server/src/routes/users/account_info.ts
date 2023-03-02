@@ -2,10 +2,10 @@ import { Router, Request, Response } from 'express';
 import { sendRes } from '../../modules/helpers';
 import { MongoClient } from 'mongodb';
 
-export const accountInfo = Router();
+export const account_info = Router();
 
-export const initAccountInfo = (client: MongoClient) => {
-    accountInfo.post('/users/account_info', async (req: Request, res: Response) => {
+export const init_account_info = (client: MongoClient) => {
+    account_info.post('/users/account_info', async (req: Request, res: Response) => {
         // const ip_address = req.headers['x-forwarded-for'] as string;
 
         // check if the user is logged in and has an active session
