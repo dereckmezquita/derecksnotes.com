@@ -1,8 +1,8 @@
 export {};
 
 // shared types
-
 import { ObjectId, Document } from 'mongodb';
+import * as es from "express-session";
 
 declare global {
     type ServerRes<T = any> = {
@@ -29,6 +29,21 @@ declare global {
     type LoginMessage = {
         email: string,
         password: string
+    }
+
+    // session data
+    // data stored in (req.session as SessionDataRes).user
+    // session cookie extends UserInfo but removes some fields remove email.verified and email.verificationToken, password
+    type SessionCookie = Omit<UserInfo, 'email' | 'password'> & {
+        email: {
+            address: string
+        }
+    }
+
+    // req.session
+    interface SessionData extends es.SessionData {
+        authenticated?: boolean;
+        user?: SessionCookie;
     }
 
     // --------------------------------
