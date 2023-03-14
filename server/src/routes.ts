@@ -3,7 +3,7 @@ import { MongoClient } from 'mongodb';
 
 // ------------------------
 import { get_definitions, init_get_definitions } from './routes/dictionaries/get_definitions';
-import { get_articles, init_get_articles } from './routes/articles/init_get_articles';
+import { get_articles, init_get_articles } from './routes/articles/get_articles';
 import { login, init_login } from './routes/users/login';
 import { register, init_register } from './routes/users/register';
 import { get_user_info, init_get_user_info } from './routes/users/get_user_info';
