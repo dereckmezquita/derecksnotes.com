@@ -61,7 +61,7 @@ declare global {
         },
         username: string,
         password?: string, // don't send password everytime
-        statistics: {
+        metadata: {
             geo_location: GeoLocation[],
             last_connected: Date,
             numberOfComments?: number
@@ -74,13 +74,12 @@ declare global {
         replies_to_that?: string, // original comment this comment is replying to
         article: string,
         comment: string,
-        userInfo: {
-            email: string,
-            username: string,
-            profilePhoto: string,
-            ip_address: string
-        },
-        statistics: {
+        metadata: {
+            user: {
+                email: string,
+                username: string,
+                profilePhoto: string
+            },
             datetime: string | Date, // mongo returns object that we have to cast Date()
             likes: number,
             dislikes: number,
@@ -90,6 +89,15 @@ declare global {
 
     // --------------------------------
     // extend geoLocateRes with ip address, first use and last use
+    type GeoLocateRes = {
+        ip_address: string,
+        country: string,
+        regionName: string,
+        city: string,
+        isp: string,
+        org: string
+    }
+
     type GeoLocation = GeoLocateRes & {
         first_used: Date,
         last_used: Date
