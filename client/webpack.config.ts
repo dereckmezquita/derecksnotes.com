@@ -3,6 +3,8 @@ import path from 'path';
 import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 import CopyPlugin from 'copy-webpack-plugin';
 
+const dist_folder = 'public';
+
 const FixStyleOnlyEntriesPlugin = require('webpack-fix-style-only-entries');
 
 // ----------------------------
@@ -104,7 +106,7 @@ module.exports = {
                 test: /\.ejs$/,
                 loader: 'ejs-webpack-loader',
                 options: {
-                    root: path.resolve(__dirname, 'public'),
+                    root: path.resolve(__dirname, dist_folder),
                     data: {
                         title: "Bruh"
                     }
@@ -137,7 +139,7 @@ module.exports = {
     output: {
         filename: 'js/[contenthash].js', // temp during dev
         // filename: 'js/[name].js',
-        path: path.resolve(__dirname, 'public'),
+        path: path.resolve(__dirname, dist_folder),
         clean: true
     },
     plugins: [
