@@ -6,11 +6,10 @@ import { dateToString, textToHTML } from "../helpers";
 
 class CommentSectionHandler {
     private contentWrapper = document.querySelector(".content-wrapper") as HTMLDivElement; // wraps article
-    private userInfo: UserInfoRes; // response from server set on class instantiation
+    private userInfo: UserInfo; // response from server set on class instantiation
 
     private commentForm: string;
     private commentSection: string;
-    private currentComment: UserCommentRes;
 
     private generateCommentForm(reply: boolean = true): string {
         return `
@@ -27,7 +26,7 @@ class CommentSectionHandler {
         </div>`;
     }
 
-    constructor(userInfo: UserInfoRes) {
+    constructor(userInfo: UserInfo) {
         this.userInfo = userInfo;
 
         this.commentForm = this.generateCommentForm(false);
@@ -58,9 +57,9 @@ class CommentSectionHandler {
 
     private addNewcommentListeners() {
         // add event listener to the post button
-        document.querySelector(".new-comment-form .comment-action").addEventListener("click", async () => {
+        document.querySelector(".new-comment-form .comment-action")!.addEventListener("click", async () => {
             // get the value of the textarea
-            const textarea: HTMLTextAreaElement = document.querySelector(".new-comment-form textarea");
+            const textarea: HTMLTextAreaElement = document.querySelector(".new-comment-form textarea")!;
             const comment: string = textarea.value.trim();
 
             // clear the textarea
@@ -82,7 +81,7 @@ class CommentSectionHandler {
         if (res.data.comments.length === 0) return console.log("No comments");
 
         // should get more comments if user clicks load more comments
-        const commentsRes: UserCommentRes[] = res.data.comments;
+        const commentsRes: UserComment[] = res.data.comments;
         while (res.data.nextToken) {
             res = await getComments(10, res.data.nextToken);
             commentsRes.push(...res.data.comments);
@@ -159,9 +158,10 @@ class CommentSectionHandler {
 
 
 (async () => {
-    const res: ServerRes<UserInfoRes> = await getUserInfo();
+    const res: ServerRes<UserInfo> = await getUserInfo();
 
     console.log(res.data);
+    if (!res.success || !res.data) throw new Error(res.error);
 
     new CommentSectionHandler(res.data);
 })();
