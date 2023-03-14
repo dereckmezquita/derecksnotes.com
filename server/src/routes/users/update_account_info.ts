@@ -58,21 +58,21 @@ export const init_update_account_info = (client: MongoClient) => {
         // 5. update the users geo location info
         const ip_address: string = req.headers['x-forwarded-for'] as string;
         const datetime: Date = new Date();
-        const idx: number = old_user.statistics.geo_location.findIndex(gl => gl.ip_address === ip_address);
+        const idx: number = old_user.metadata.geo_location.findIndex(gl => gl.ip_address === ip_address);
 
         // 5.1 check if current ip address is in the list; update if yes add if no
         if (idx === -1) {
-            old_user.statistics.geo_location.push({
+            old_user.metadata.geo_location.push({
                 first_used: datetime,
                 last_used: datetime,
                 ...await geoLocate(ip_address)
             } as GeoLocation);
         } else {
-            old_user.statistics.geo_location[idx].last_used = datetime;
+            old_user.metadata.geo_location[idx].last_used = datetime;
         }
 
         // 5.2 update the last connected date
-        old_user.statistics.last_connected = datetime;
+        old_user.metadata.last_connected = datetime;
 
         // 6. check the user's new info sent over; baisically the same as register
         // we need to receive all of these fields; client should send the old ones back even if not updated
@@ -91,7 +91,7 @@ export const init_update_account_info = (client: MongoClient) => {
         }
 
         // 7. complete the updated_user object with info from the old user
-        updated_user.statistics = old_user.statistics;
+        updated_user.metadata = old_user.metadata;
 
         // 8. update the user's info in the database
         await accounts.updateOne({ "email.address": email, username: username }, { $set: updated_user });

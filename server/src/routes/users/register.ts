@@ -33,7 +33,7 @@ export const init_register = (client: MongoClient) => {
 
         // 3. check that e-mail and username sent over are unique
         const user = await collection.findOne({ "email.address": email }) as UserInfo | null;
-        const usernameCheck = await collection.countDocuments({ username: username });
+        const usernameCheck: Number = await collection.countDocuments({ username: username });
 
         if (user || usernameCheck !== 0) return sendRes(res, false, null, "Email or username already in use");
 
@@ -46,11 +46,6 @@ export const init_register = (client: MongoClient) => {
         const ip_address = req.headers['x-forwarded-for'] as string;
 
         const datetime: Date = new Date();
-        const geo_location: GeoLocation = {
-            first_used: datetime,
-            last_used: datetime,
-            ...await geoLocate(ip_address)
-        };
 
         // 7. create user object
         const user_info: UserInfo = {
@@ -65,8 +60,14 @@ export const init_register = (client: MongoClient) => {
             },
             username: username,
             password: hash,
-            statistics: {
-                geo_location: [geo_location],
+            metadata: {
+                geo_location: [
+                    {
+                        first_used: datetime,
+                        last_used: datetime,
+                        ...await geoLocate(ip_address)
+                    } as GeoLocation
+                ],
                 last_connected: datetime,
                 numberOfComments: 0
             }

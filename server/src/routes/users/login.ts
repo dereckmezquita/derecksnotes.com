@@ -4,71 +4,97 @@ import * as argon2 from 'argon2';
 
 import { sendRes } from '../../modules/helpers';
 import { checkEmail } from '../../modules/validators';
+import { geoLocate } from '../../modules/geoLocate';
 
 
 export const login = Router();
+// the password from client is sent hashed and salted
+// it is sent as a textual representation of the hash+salt
+// sha512(password+salt); salt="derecks-notes"
 
-export const initLogin = (client: MongoClient) => {
+// login endpoint
+// ------------------------
+// steps
+// 1. extract the data sent by the user
+// 2. check that the e-mail is valid
+// 3. check if the user has an active session (sessions saved in redis)
+// 4. find the user in the database
+    // 4.1 if the user doesn't exist, send error
+    // 4.2 check if we have a password for the user
+// 5. compare password received to registered password
+    // 5.1 if the password does not match, send ambiguous error
+// 6. if the password matches, create a session for the user
+export const init_login = (client: MongoClient) => {
     login.post('/users/login', async (req: Request, res: Response) => {
-        // the password from client is sent hashed and salted
-        // it is sent as a textual representation of the hash+salt
-        // sha512(password+salt); salt="derecks-notes"
+        // 1. extract the data sent by the user
         const { email, password } = (req.body as { email: string, password: string });
 
-        // check username sent by client
+        // 2. check that the e-mail is valid
         const emailCheck = checkEmail(email);
-
         if (!emailCheck.success) return sendRes(res, false, null, emailCheck.error);
 
-        // if they are already logged in and have an active session
-        // sessions are saved to live memory
-        if ((req.session as SessionData).authenticated) {
-            sendRes(res, true, `User ${email} is already logged in.`);
-            return;
-        }
+        // 3. check if the user has an active session (sessions saved in redis)
+        if ((req.session as SessionData).authenticated) return sendRes(res, true, `User ${email} is already logged in.`);
 
         // TODO: store previous user passwords
         const db = client.db('users');
         const collection = db.collection('accounts');
+
+        // 4. find the user in the database
         const user = await collection.findOne<UserInfo>({ "email.address": email });
 
-        // no match to that e-mail found
+        // 4.1 if the user doesn't exist, send error
         if (!user) return sendRes(res, false, null, 'E-mail or password is incorrect');
+        // 4.2 check if we have a password for the user
         if (!user.password) return sendRes(res, false, null, 'Do not have a valid password for user; please reset password.');
 
-        // compare password received to registered password
-        const passwordCheck = await argon2.verify(
-            user.password, password, { type: argon2.argon2id, parallelism: 1 }
-        );
+        // 5. compare password received to registered password
+        const passwordCheck = await argon2.verify(user.password, password, { type: argon2.argon2id, parallelism: 1 });
 
-        // password does not match
+        // 5.1 if the password does not match, send error
         if (!passwordCheck) return sendRes(res, false, null, 'E-mail or password is incorrect');
 
-        // password matches so we will modify the session object
+        // 6. construct new object SessionCookie which omits the password, email.verified, and email.verificationToken from UserInfo
+        const session_cookie = user as SessionCookie;
+
+        // 7. if the password matches, create a session for the user
         (req.session as SessionData).authenticated = true;
-        (req.session as SessionData).user = { email: user.email.address, username: user.username, profilePhoto: user.profilePhoto } as SessionCookie; // this is what gets saved client's cookies
+
+        (req.session as SessionData).user = session_cookie; // this is what gets saved client's cookies
 
         sendRes(res, true, "Successfully logged in!");
 
         // ----------------------------------------
         // update statistics in the database for the user
         const ip_address = req.headers['x-forwarded-for'] as string;
-        const ip_address_index = user.userStatistics.ip_addresses.findIndex((ip_address_obj) => ip_address_obj.ip_address === ip_address);
+        const idx = user.metadata.geo_location.findIndex((gl) => gl.ip_address === ip_address);
 
-        if (ip_address_index !== -1) {
+        if (idx !== -1) {
             // udpate the user's last connected date only for that IP address
             await collection.updateOne(
                 { "email.address": email },
                 {
-                    $set: { [`userStatistics.ip_addresses.${ip_address_index}.last_use`]: new Date() }
+                    $set: {
+                        [`metadata.geo_location.${idx}.last_used`]: new Date()
+                    }
+                }
+            );
+        } else {
+            // add a new entry to the user's statistics
+            await collection.updateOne(
+                { "email.address": email },
+                {
+                    $push: {
+                        "metadata.geo_location": {
+                            geo_location: {
+                                ...await geoLocate(ip_address),
+                                first_used: new Date(),
+                                last_used: new Date()
+                            }
+                        }
+                    }
                 }
             );
         }
-
-        user.userStatistics.ip_addresses.push({
-            ip_address: ip_address,
-            first_use: new Date(),
-            last_use: new Date()
-        });
     });
 }
