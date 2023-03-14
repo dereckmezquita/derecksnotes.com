@@ -26,6 +26,8 @@ export const init_account_info = (client: MongoClient) => {
         // get account info but only get the 10 most recent ip addresses; and don't get the user's password set it to undefined instead
         const info = accounts.findOne({ "email.address": email, username: username }, { projection: { password: 0, ip_addresses: { $slice: -10 } }});
 
+        if (!info) return sendRes(res, false, undefined, "User not found.");
+
         // we will get most recent user comments at a separate end point
         sendRes(res, true, info);
     });
