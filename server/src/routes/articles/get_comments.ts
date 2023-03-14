@@ -3,10 +3,10 @@ import { sendRes } from '../../modules/helpers';
 import { MongoClient, ObjectId } from 'mongodb';
 import { page } from '../../modules/db';
 
-export const getComments = Router();
+export const get_comments = Router();
 
-export const initGetComments = (client: MongoClient) => {
-    getComments.post('/articles/get_comments', async (req: Request, res: Response) => {
+export const init_get_comments = (client: MongoClient) => {
+    get_comments.post('/articles/get_comments', async (req: Request, res: Response) => {
         // ------------------------------------
         const { article, pageSize, nextToken } = req.body;
 
