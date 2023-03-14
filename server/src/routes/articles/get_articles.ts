@@ -3,10 +3,10 @@ import { sendRes } from '../../modules/helpers';
 import { MongoClient, ObjectId } from 'mongodb';
 import { page } from '../../modules/db';
 
-export const getArticles = Router();
+export const get_articles = Router();
 
-export const initGetArticles = (client: MongoClient) => {
-    getArticles.post('/articles/get_metadata', async (req, res) => {
+export const init_get_articles = (client: MongoClient) => {
+    get_articles.post('/articles/get_articles', async (req, res) => {
         const { section, pageSize, nextToken } = req.body;
 
         if (typeof section !== 'string') return sendRes(res, false, undefined, "Invalid type for section");

@@ -2,13 +2,14 @@ import { Router, Request, Response } from 'express';
 import { generateHashID, sendRes } from '../../modules/helpers';
 import { MongoClient } from 'mongodb';
 import { userCommentCheck } from '../../modules/validators';
+import { geoLocate } from '../../modules/geoLocate';
 
 import sanitizeHtml from 'sanitize-html';
 
-export const postComment = Router();
+export const new_comment = Router();
 
-export const initComment = (client: MongoClient) => {
-    postComment.post('/articles/new_comment', async (req: Request, res: Response) => {
+export const init_new_comment = (client: MongoClient) => {
+    new_comment.post('/articles/new_comment', async (req: Request, res: Response) => {
         // ------------------------------------
         const session = req.session as SessionData;
 
@@ -23,7 +24,7 @@ export const initComment = (client: MongoClient) => {
         if (!cookie) return sendRes(res, false, null, 'User not found in session; please login.');
 
         // user info stored in cookie
-        const email: string = cookie.email;
+        const email: string = cookie.email.address;
         const username: string = cookie.username;
         const profilePhoto: string | undefined = cookie.profilePhoto;
 
@@ -85,16 +86,20 @@ export const initComment = (client: MongoClient) => {
             replies_to_that: undefined,
             article: article,
             comment: processedComment,
-            commentInfo: {
+            metadata: {
+                user: {
+                    email: email,
+                    username: username,
+                    profilePhoto: profilePhoto
+                },
                 datetime: receivedDatetime,
                 likes: 0,
-                dislikes: 0
-            },
-            userInfo: {
-                email: email,
-                username: username,
-                profilePhoto: profilePhoto,
-                ip_address: ip_address
+                dislikes: 0,
+                geo_location: {
+                    ...await geoLocate(ip_address),
+                    first_used: receivedDatetime,
+                    last_used: receivedDatetime
+                }
             }
         };
 
