@@ -3,10 +3,10 @@ import { sendRes } from '../../modules/helpers';
 import { MongoClient, ObjectId } from 'mongodb';
 import { page } from '../../modules/db';
 
-export const getDefinitions = Router();
+export const get_definitions = Router();
 
-export const initGetDefinitions = (client: MongoClient) => {
-    getDefinitions.post('/dictionaries/get_definitions', (req, res) => {
+export const init_get_definitions = (client: MongoClient) => {
+    get_definitions.post('/dictionaries/get_definitions', async (req, res) => {
         const { dictionary, letter, pageSize, nextToken } = req.body;
 
         const dictionaries = ['biology', 'chemistry']
@@ -25,18 +25,16 @@ export const initGetDefinitions = (client: MongoClient) => {
         }
 
         // query the mongo database for definitions and send them back to the client
-        (async () => {
-            const db = client.db('dictionaries');
-            const collection = db.collection('definitions');
+        const db = client.db('dictionaries');
+        const collection = db.collection('definitions');
 
-            // get the data which matches the request dictionary and letter
-            // if letter is # then return all other symbols/numbers
-            const { docs, nextID } = await page(collection, {
-                dictionary: dictionary,
-                letter: letter === '#' ? { $not: { $regex: /^[a-z]$/ } } : letter
-            }, pageSize, new ObjectId(nextToken));
+        // get the data which matches the request dictionary and letter
+        // if letter is # then return all other symbols/numbers
+        const { docs, nextID } = await page(collection, {
+            dictionary: dictionary,
+            letter: letter === '#' ? { $not: { $regex: /^[a-z]$/ } } : letter
+        }, pageSize, new ObjectId(nextToken));
 
-            sendRes(res, true, { definitions: docs, nextToken: nextID});
-        })();
+        sendRes(res, true, { definitions: docs, nextToken: nextID});
     });
 }
