@@ -1,6 +1,6 @@
 // TODO: update the way I get the webpage; use window.location instead
 export const reqArticles = async (section: string, pageSize: number, nextToken?: string): Promise<ServerRes> => {
-    const response = await fetch('/api/articles/get_metadata', {
+    const response = await fetch('/api/articles/get_articles', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -94,8 +94,8 @@ export const resetPassword = async (email: string): Promise<ServerRes> => {
 
 // ----------------------------------------
 // the user should already be logged in for these functions; using their session token to identify
-export const getUserInfo = async (): Promise<ServerRes<UserInfoRes>> => {
-    const response = await fetch('/api/users/userinfo', {
+export const getUserInfo = async (): Promise<ServerRes<UserInfo>> => {
+    const response = await fetch('/api/users/get_user_info', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -103,7 +103,7 @@ export const getUserInfo = async (): Promise<ServerRes<UserInfoRes>> => {
         body: JSON.stringify({})
     });
   
-    return await response.json() as ServerRes<UserInfoRes>;
+    return await response.json() as ServerRes<UserInfo>;
 }
 
 export const sendComment = async (
