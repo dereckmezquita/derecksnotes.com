@@ -13,7 +13,7 @@ const redisClient = createClient({legacyMode: true});
 
 const redisStore = makeRedisStore(session);
 
-const port = Number(process.env.PORT) || 3001;
+const port = Number(process.env.PORT) || 3002;
 const mongodbUrl = process.env.MONGODB_URL || 'mongodb://127.0.0.1:27017';
 
 const app = express();
@@ -57,7 +57,9 @@ async function start() {
         serverSelectionTimeoutMS: 1000,
     });
 
-    initDB(client);
+    const db = client.db('derecksnotes_test');
+
+    initDB(db);
 
     app.listen(port, '0.0.0.0', () => {
         logger.info(`Server is up on port: ${port}`);
