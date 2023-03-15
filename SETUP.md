@@ -151,4 +151,17 @@ Dump all data from mongo:
 ```bash
 mongodump -d <database_name> -o <directory_backup>
 mongorestore -d <database_name> <directory_backup>
+
+# dump all data from db
+mongodump --out mongo-backup/
 ```
+
+## certbot
+
+Use certbot to generate a certificate for your domain: https://letsdebug.net/derecksnotes.com/1408012
+
+```bash
+sudo certbot --nginx certonly
+```
+
+Use http authentication to protect the test site
