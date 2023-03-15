@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { MongoClient } from 'mongodb';
+import { Db } from 'mongodb';
 
 // ------------------------
 import { get_definitions, init_get_definitions } from './routes/dictionaries/get_definitions';
@@ -26,7 +26,7 @@ router.use(
     update_account_info
 );
 
-export const initDB = (client: MongoClient) => {
+export const initDB = (client: Db) => {
     init_get_articles(client);
     init_get_definitions(client);
     init_register(client);
