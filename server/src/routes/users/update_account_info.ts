@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { MongoClient } from 'mongodb';
+import { Db } from 'mongodb';
 import * as argon2 from 'argon2';
 
 import { sendRes } from '../../modules/helpers';
@@ -24,7 +24,7 @@ export const update_account_info = Router();
 // 7. complete the updated_user object with info from the old user
 // 8. update the user's info in the database
 
-export const init_update_account_info = (client: MongoClient) => {
+export const init_update_account_info = (db: Db) => {
     update_account_info.post('/users/update_account_info', async (req: Request, res: Response) => {
         // check if the user is logged in and has an active session
         const session = req.session as SessionData;
@@ -36,8 +36,7 @@ export const init_update_account_info = (client: MongoClient) => {
         const email = cookie.email;
         const username = cookie.username;
 
-        const db = client.db('users');
-        const accounts = db.collection('accounts');
+        const accounts = db.collection('user_accounts');
         const old_user = await accounts.findOne({ "email.address": email, username: username }) as UserInfo | null;
 
         if (!old_user) return sendRes(res, false, null, 'User not found in database.');

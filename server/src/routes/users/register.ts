@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { MongoClient } from 'mongodb';
+import { Db } from 'mongodb';
 import * as argon2 from 'argon2';
 
 import { sendRes } from '../../modules/helpers';
@@ -19,7 +19,7 @@ export const register = Router();
 // 6. create geo location object
 // 7. create the user object
 // 8. insert the user object into the database
-export const init_register = (client: MongoClient) => {
+export const init_register = (db: Db) => {
     register.post('/users/register', async (req: Request, res: Response) => {
         // 1. extract the data sent by the user
         const { firstName, lastName, username, email, password } = req.body as RegisterMessage;
@@ -28,8 +28,7 @@ export const init_register = (client: MongoClient) => {
         const infoCheck = checkRegisterInfo(firstName, lastName, username, email);
         if (!infoCheck.success) return sendRes(res, false, null, infoCheck.error);
 
-        const db = client.db('users');
-        const collection = db.collection('accounts');
+        const collection = db.collection('user_accounts');
 
         // 3. check that e-mail and username sent over are unique
         const user = await collection.findOne({ "email.address": email }) as UserInfo | null;

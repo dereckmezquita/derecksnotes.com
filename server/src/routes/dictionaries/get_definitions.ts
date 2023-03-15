@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { sendRes } from '../../modules/helpers';
-import { MongoClient, ObjectId } from 'mongodb';
+import { Db, ObjectId } from 'mongodb';
 import { page } from '../../modules/db';
 
 export const get_definitions = Router();
 
-export const init_get_definitions = (client: MongoClient) => {
+export const init_get_definitions = (db: Db) => {
     get_definitions.post('/dictionaries/get_definitions', async (req, res) => {
         const { dictionary, letter, pageSize, nextToken } = req.body;
 
@@ -25,8 +25,7 @@ export const init_get_definitions = (client: MongoClient) => {
         }
 
         // query the mongo database for definitions and send them back to the client
-        const db = client.db('dictionaries');
-        const collection = db.collection('definitions');
+        const collection = db.collection('dictionary_definitions');
 
         // get the data which matches the request dictionary and letter
         // if letter is # then return all other symbols/numbers

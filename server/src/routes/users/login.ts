@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { MongoClient } from 'mongodb';
+import { Db } from 'mongodb';
 import * as argon2 from 'argon2';
 
 import { sendRes } from '../../modules/helpers';
@@ -24,7 +24,7 @@ export const login = Router();
 // 5. compare password received to registered password
     // 5.1 if the password does not match, send ambiguous error
 // 6. if the password matches, create a session for the user
-export const init_login = (client: MongoClient) => {
+export const init_login = (db: Db) => {
     login.post('/users/login', async (req: Request, res: Response) => {
         // 1. extract the data sent by the user
         const { email, password } = (req.body as { email: string, password: string });
@@ -37,8 +37,7 @@ export const init_login = (client: MongoClient) => {
         if ((req.session as SessionData).authenticated) return sendRes(res, true, `User ${email} is already logged in.`);
 
         // TODO: store previous user passwords
-        const db = client.db('users');
-        const collection = db.collection('accounts');
+        const collection = db.collection('user_accounts');
 
         // 4. find the user in the database
         const user = await collection.findOne<UserInfo>({ "email.address": email });
