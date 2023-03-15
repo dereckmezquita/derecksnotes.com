@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { sendRes } from '../../modules/helpers';
-import { MongoClient, ObjectId } from 'mongodb';
+import { Db, ObjectId } from 'mongodb';
 import { page } from '../../modules/db';
 
 export const get_articles = Router();
 
-export const init_get_articles = (client: MongoClient) => {
+export const init_get_articles = (db: Db) => {
     get_articles.post('/articles/get_articles', async (req, res) => {
         const { section, pageSize, nextToken } = req.body;
 
@@ -21,8 +21,7 @@ export const init_get_articles = (client: MongoClient) => {
         }
 
         // query mongo database for articles and send back to client
-        const db = client.db('articles');
-        const collection = db.collection("metadata");
+        const collection = db.collection("articles_metadata");
 
         // return all articles which match siteSection and published is true
         const { docs, nextID } = await page(collection, {

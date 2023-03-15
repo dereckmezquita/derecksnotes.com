@@ -1,11 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { sendRes } from '../../modules/helpers';
-import { MongoClient, ObjectId } from 'mongodb';
+import { Db, ObjectId } from 'mongodb';
 import { page } from '../../modules/db';
 
 export const get_comments = Router();
 
-export const init_get_comments = (client: MongoClient) => {
+export const init_get_comments = (db: Db) => {
     get_comments.post('/articles/get_comments', async (req: Request, res: Response) => {
         // ------------------------------------
         const { article, pageSize, nextToken } = req.body;
@@ -19,8 +19,7 @@ export const init_get_comments = (client: MongoClient) => {
         }
 
         // ------------------------------------
-        const db = client.db('articles');
-        const collection = db.collection('comments');
+        const collection = db.collection('article_comments');
 
         const { docs, nextID } = await page(collection, {
             article: article

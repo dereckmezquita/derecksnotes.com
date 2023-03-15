@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { generateHashID, sendRes } from '../../modules/helpers';
-import { MongoClient } from 'mongodb';
+import { Db } from 'mongodb';
 import { userCommentCheck } from '../../modules/validators';
 import { geoLocate } from '../../modules/geoLocate';
 
@@ -8,7 +8,7 @@ import sanitizeHtml from 'sanitize-html';
 
 export const new_comment = Router();
 
-export const init_new_comment = (client: MongoClient) => {
+export const init_new_comment = (db: Db) => {
     new_comment.post('/articles/new_comment', async (req: Request, res: Response) => {
         // ------------------------------------
         const session = req.session as SessionData;
@@ -69,8 +69,7 @@ export const init_new_comment = (client: MongoClient) => {
         // processedComment = processedComment.trim().replace(/[\r\n]+/g, '\n'); //.replace(/[\r\n]{3,}/g, '\n\n');
 
         // ------------------------------------
-        const db = client.db('articles');
-        const commentsDB = db.collection('comments');
+        const commentsDB = db.collection('article_comments');
 
         // get the user's current IP address
         const ip_address = req.headers['x-forwarded-for'] as string;
