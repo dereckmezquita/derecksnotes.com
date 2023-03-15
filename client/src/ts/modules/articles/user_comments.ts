@@ -9,10 +9,11 @@ class CommentSectionHandler {
 
     private commentForm: string;
     private commentSection: string;
+    private currentRenderedComment: HTMLDivElement | undefined;
 
     private generateCommentForm(reply: boolean = true): string {
         return `
-        <div class="new-comment-form ${reply ? "top-level-comment-form" : "reply-level-comment-form"}">
+        <div class="new-comment-form ${reply ? "reply-level-comment-form" : "top-level-comment-form"}">
             <div class="comment-user-info">
                 <span class="username">${this.userInfo.username} ${this.userInfo.metadata.geo_locations[0].flag}</span>
                 <span></span>
@@ -52,6 +53,7 @@ class CommentSectionHandler {
         // this.setUserInfo();
         this.addNewCommentListeners();
         this.getComments();
+        this.addReplyFunctionality();
     }
 
     private addNewCommentListeners() {
@@ -94,14 +96,14 @@ class CommentSectionHandler {
         const maxCommentLength: number = 300;
 
         for (const comment of commentsRes) {
-            const commentElement = this.renderComment(comment, maxCommentLength);
+            this.renderComment(comment, maxCommentLength);
 
             // postedCommentsDiv.insertAdjacentHTML("beforeend", commentElement);
-            postedCommentsDiv.appendChild(commentElement);
+            postedCommentsDiv.appendChild(this.currentRenderedComment!);
         }
     }
 
-    private renderComment(userComment: UserComment, maxCommentLength: number): HTMLDivElement {
+    private renderComment(userComment: UserComment, maxCommentLength: number): void {
         // convert datetime to this format 2022-01-01 12:00
         const datetime: string = dateToString(new Date(userComment.metadata.datetime));
 
@@ -152,7 +154,53 @@ class CommentSectionHandler {
             });
         }
 
-        return commentElement;
+        this.currentRenderedComment = commentElement;
+    }
+
+    private addReplyFunctionality() {
+        // we will use event delegation
+        // we want to appendChild to the target comment; has class of posted-comment
+        document.querySelector(".comment-section")!.addEventListener("click", (e: Event) => {
+            const target = e.target as HTMLButtonElement;
+
+            if (target.classList.contains("comment-action-reply")) {
+                const commentId = target.parentElement!.parentElement!.id;
+                const commentHolder = target.parentElement!.parentElement! as HTMLDivElement; // gets "posted-comment" element
+
+                // Check if a reply form already exists
+                const existingReplyForm = commentHolder.querySelector(".new-comment-form.reply-level-comment-form");
+
+                if (existingReplyForm) {
+                    // If a reply form exists, remove it
+                    commentHolder.removeChild(existingReplyForm);
+                } else {
+                    // If no reply form exists, add one
+
+                    // Add the comment at the end
+                    commentHolder.insertAdjacentHTML("beforeend", this.commentForm);
+
+                    // Add event listener to the post button of the reply element
+                    commentHolder.querySelector(".new-comment-form .comment-action")!.addEventListener("click", async () => {
+                        // Get the value of the textarea
+                        const textarea: HTMLTextAreaElement = commentHolder.querySelector(".new-comment-form textarea")!;
+                        const comment: string = textarea.value.trim();
+
+                        if (comment.length === 0) alert("Comment cannot be empty");
+
+                        // Clear the textarea
+                        textarea.value = "";
+
+                        const datetime: string = new Date().toISOString();
+
+                        // Send the comment to the server
+                        const res: ServerRes = await sendComment(comment, datetime, commentId);
+
+                        if (!res.success) throw new Error(res.error);
+                        window.location.reload();
+                    });
+                }
+            }
+        });
     }
 }
 
