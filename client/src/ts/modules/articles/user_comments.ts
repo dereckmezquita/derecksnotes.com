@@ -7,12 +7,12 @@ class CommentSectionHandler {
     private contentWrapper = document.querySelector(".content-wrapper") as HTMLDivElement; // wraps article
     private userInfo: UserInfo; // response from server set on class instantiation
 
-    private commentForm: string;
-    private commentSection: string;
+    private commentForm: HTMLElement;
+    private commentSection: HTMLElement;
     private maxCommentLength: number = 300;
 
-    private generateCommentForm(reply: boolean = true): string {
-        return `
+    private generateCommentForm(reply: boolean = true): HTMLElement {
+        return textToHTML(`
         <div class="new-comment-form ${reply ? "reply-level-comment-form" : "top-level-comment-form"}">
             <div class="comment-user-info">
                 <span class="username">${this.userInfo.username} ${this.userInfo.metadata.geo_locations[0].flag}</span>
@@ -23,7 +23,7 @@ class CommentSectionHandler {
                 <img src="${this.userInfo.profilePhoto}" class="comment-profile-photo">
                 <textarea></textarea>
             </div>
-        </div>`;
+        </div>`);
     }
 
     constructor(userInfo: UserInfo) {
@@ -31,10 +31,10 @@ class CommentSectionHandler {
 
         this.commentForm = this.generateCommentForm(false);
 
-        this.commentSection = `
+        this.commentSection = textToHTML(`
         <div class="comment-section">
             <h2>Comments</h2>
-            ${this.commentForm}
+            ${this.commentForm.outerHTML}
             <div class="comment-sort">
                 <select>
                     <option value="comment-sort-newest">Newest</option>
@@ -44,11 +44,14 @@ class CommentSectionHandler {
                 </select>
             </div>
             <div class="posted-comments"></div>
-        </div>`;
+        </div>`);
+
+        console.log(this.commentSection)
 
         this.commentForm = this.generateCommentForm(true); // everything from now on is a reply
 
-        this.contentWrapper.insertAdjacentHTML("beforeend", this.commentSection);
+        // this.contentWrapper.insertAdjacentHTML("beforeend", this.commentSection);
+        this.contentWrapper.appendChild(this.commentSection);
 
         // this.setUserInfo();
         this.addNewCommentListeners();
@@ -201,7 +204,8 @@ class CommentSectionHandler {
                     // If no reply form exists, add one
 
                     // Add the comment at the end
-                    commentHolder.insertAdjacentHTML("beforeend", this.commentForm);
+                    // commentHolder.insertAdjacentHTML("beforeend", this.commentForm);
+                    commentHolder.appendChild(this.commentForm);
 
                     // Add event listener to the post button of the reply element
                     commentHolder.querySelector(".new-comment-form .comment-action")!.addEventListener("click", async () => {
