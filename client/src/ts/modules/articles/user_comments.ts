@@ -7,7 +7,7 @@ class CommentSectionHandler {
     private contentWrapper = document.querySelector(".content-wrapper") as HTMLDivElement; // wraps article
     private userInfo: UserInfo; // response from server set on class instantiation
 
-    private commentForm: HTMLElement;
+    private commentForm: HTMLDivElement;
     private commentSection: HTMLElement;
     private maxCommentLength: number = 300;
 
@@ -29,7 +29,7 @@ class CommentSectionHandler {
     constructor(userInfo: UserInfo) {
         this.userInfo = userInfo;
 
-        this.commentForm = this.generateCommentForm(false);
+        this.commentForm = this.generateCommentForm(false) as HTMLDivElement;
 
         this.commentSection = textToHTML(`
         <div class="comment-section">
@@ -46,27 +46,22 @@ class CommentSectionHandler {
             <div class="posted-comments"></div>
         </div>`);
 
-        console.log(this.commentSection)
+        this.commentForm = this.generateCommentForm(true) as HTMLDivElement; // everything from now on is a reply
 
-        this.commentForm = this.generateCommentForm(true); // everything from now on is a reply
-
-        // this.contentWrapper.insertAdjacentHTML("beforeend", this.commentSection);
         this.contentWrapper.appendChild(this.commentSection);
-
-        // this.setUserInfo();
-        this.addNewCommentListeners();
+        
+        this.addNewCommentListeners(document.querySelector("div.new-comment-form.top-level-comment-form")!);
         this.getComments();
         this.addReplyFunctionality();
     }
 
-    private addNewCommentListeners() {
-        // add event listener to the post button
-        document.querySelector(".new-comment-form .comment-action")!.addEventListener("click", async () => {
+    private addNewCommentListeners(newCommentForm: HTMLDivElement) {
+        newCommentForm.querySelector(".comment-action")!.addEventListener("click", async () => {
             // get the value of the textarea
-            const textarea: HTMLTextAreaElement = document.querySelector(".new-comment-form textarea")!;
+            const textarea: HTMLTextAreaElement = newCommentForm.querySelector("div.new-comment-textarea > textarea")!;
             const comment: string = textarea.value.trim();
 
-            if (comment.length === 0) alert("Comment cannot be empty");
+            if (comment.length === 0) alert("Comment cannot be empty.");
 
             // clear the textarea
             textarea.value = "";
@@ -74,7 +69,9 @@ class CommentSectionHandler {
             const datetime: string = new Date().toISOString();
 
             // send the comment to the server
-            const res: ServerRes = await sendComment(comment, datetime);
+            const commentId: string | undefined = newCommentForm.parentElement!.id === "" ? undefined : newCommentForm.parentElement!.id;
+            console.log(newCommentForm.parentElement!.id)
+            const res: ServerRes = await sendComment(comment, datetime, commentId);
 
             if (!res.success) throw new Error(res.error);
             window.location.reload();
@@ -204,28 +201,8 @@ class CommentSectionHandler {
                     // If no reply form exists, add one
 
                     // Add the comment at the end
-                    // commentHolder.insertAdjacentHTML("beforeend", this.commentForm);
+                    this.addNewCommentListeners(this.commentForm);
                     commentHolder.appendChild(this.commentForm);
-
-                    // Add event listener to the post button of the reply element
-                    commentHolder.querySelector(".new-comment-form .comment-action")!.addEventListener("click", async () => {
-                        // Get the value of the textarea
-                        const textarea: HTMLTextAreaElement = commentHolder.querySelector(".new-comment-form textarea")!;
-                        const comment: string = textarea.value.trim();
-
-                        if (comment.length === 0) alert("Comment cannot be empty");
-
-                        // Clear the textarea
-                        textarea.value = "";
-
-                        const datetime: string = new Date().toISOString();
-
-                        // Send the comment to the server
-                        const res: ServerRes = await sendComment(comment, datetime, commentId);
-
-                        if (!res.success) throw new Error(res.error);
-                        window.location.reload();
-                    });
                 }
             }
         });
