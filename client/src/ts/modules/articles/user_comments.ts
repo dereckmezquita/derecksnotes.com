@@ -1,4 +1,4 @@
-import { getComments, sendComment, getUserInfo } from "../request";
+import { getComments, getCommentReplies, sendComment, getUserInfo } from "../request";
 import { dateToString, textToHTML } from "../helpers";
 
 // TODO: consider breaking up code: https://stackoverflow.com/questions/12706290/typescript-define-class-and-its-methods-in-separate-files
@@ -9,7 +9,7 @@ class CommentSectionHandler {
 
     private commentForm: string;
     private commentSection: string;
-    private currentRenderedComment: HTMLDivElement | undefined;
+    private maxCommentLength: number = 300;
 
     private generateCommentForm(reply: boolean = true): string {
         return `
@@ -83,7 +83,7 @@ class CommentSectionHandler {
         if (!res.success) throw new Error(res.error);
         if (res.data.comments.length === 0) return console.log("No comments");
 
-        // should get more comments if user clicks load more comments
+        // TODO: should get more comments if user clicks load more comments
         const commentsRes: UserComment[] = res.data.comments;
         while (res.data.nextToken) {
             res = await getComments(10, res.data.nextToken);
@@ -93,24 +93,47 @@ class CommentSectionHandler {
         }
 
         const postedCommentsDiv = document.querySelector(".comment-section .posted-comments") as HTMLDivElement;
-        const maxCommentLength: number = 300;
 
         for (const comment of commentsRes) {
-            this.renderComment(comment, maxCommentLength);
+            const renderedComment = this.renderComment(comment);
+
+            // getting replies to this comment
+            // if the comment has replies_to_this array then it has been replied to
+            // we can then send the commend_id for this comment and get back the replies
+            if (comment.replies_to_this!.length > 0) {
+                let res: ServerRes = await getCommentReplies(comment.comment_id, 10);
+                if (!res.success) throw new Error(res.error);
+
+                const repliesRes: UserComment[] = res.data.comments;
+                while (res.data.nextToken) {
+                    res = await getCommentReplies(comment.comment_id, 10, res.data.nextToken);
+                    repliesRes.push(...res.data.comments);
+
+                    if (!res.success) throw new Error(res.error);
+                }
+
+                for (const reply of repliesRes) {
+                    const renderedReply = this.renderComment(reply);
+                    renderedComment.appendChild(renderedReply);
+                }
+            }
 
             // postedCommentsDiv.insertAdjacentHTML("beforeend", commentElement);
-            postedCommentsDiv.appendChild(this.currentRenderedComment!);
+            postedCommentsDiv.appendChild(renderedComment);
         }
     }
 
-    private renderComment(userComment: UserComment, maxCommentLength: number): void {
+    private renderComment(userComment: UserComment): HTMLDivElement {
         // convert datetime to this format 2022-01-01 12:00
         const datetime: string = dateToString(new Date(userComment.metadata.datetime));
 
         let comment: string = userComment.comment;
-        if (userComment.comment.length > maxCommentLength) {
-            comment = userComment.comment.slice(0, maxCommentLength) + `<span style="display: none;" class="comment-hidden-text">${userComment.comment.slice(maxCommentLength)}</span>` + ` <a class="read-more-comment" style="cursor: pointer;">read more...</a><a style="display: none;" class="read-less-comment">...read less.</a>`;
+        if (userComment.comment.length > this.maxCommentLength) {
+            comment = userComment.comment.slice(0, this.maxCommentLength) + `<span style="display: none;" class="comment-hidden-text">${userComment.comment.slice(this.maxCommentLength)}</span>` + ` <a class="read-more-comment" style="cursor: pointer;">read more...</a><a style="display: none;" class="read-less-comment">...read less.</a>`;
         }
+
+        // TODO: update type we always have replies_to_this set to an empty array
+        const repliesLink: string = userComment.replies_to_this!.length > 0 ? `<a id="${userComment.comment_id}" class="view-replies-link" style="cursor: pointer;">${userComment.replies_to_this!.length} replies</a>` : "";
 
         const commentElement = textToHTML(`
         <div id="${userComment.comment_id}" class="posted-comment">
@@ -129,11 +152,12 @@ class CommentSectionHandler {
                 <span class="like-count">${userComment.metadata.likes}</span>
                 <button class="dislike-button">Dislike</button>
                 <span class="dislike-count">${userComment.metadata.dislikes}</span>
+                ${repliesLink}
             </div>
         </div>`) as HTMLDivElement;
 
         // add listener for show more button for that specific comment
-        if (userComment.comment.length > maxCommentLength) {
+        if (userComment.comment.length > this.maxCommentLength) {
             const readMore = commentElement.querySelector(".read-more-comment") as HTMLAnchorElement;
             const readLess = commentElement.querySelector(".read-less-comment") as HTMLAnchorElement;
             const hiddenText = commentElement.querySelector(".comment-hidden-text") as HTMLSpanElement;
@@ -154,10 +178,10 @@ class CommentSectionHandler {
             });
         }
 
-        this.currentRenderedComment = commentElement;
+        return commentElement;
     }
 
-    private addReplyFunctionality() {
+    private addReplyFunctionality(): void {
         // we will use event delegation
         // we want to appendChild to the target comment; has class of posted-comment
         document.querySelector(".comment-section")!.addEventListener("click", (e: Event) => {
@@ -199,6 +223,27 @@ class CommentSectionHandler {
                         window.location.reload();
                     });
                 }
+            }
+        });
+    }
+
+    private getReplies(): void {
+        document.querySelector(".comment-section")!.addEventListener("click", async (e: Event) => {
+            const target = e.target as HTMLAnchorElement;
+
+            if (target.classList.contains("view-replies-link")) {
+                const commentHolder = target.parentElement!.parentElement! as HTMLDivElement; // gets "posted-comment" element
+                const commentId = target.id;
+
+                console.log(commentId)
+
+                let res: ServerRes<UserComment[]> = await getCommentReplies(commentId, 10);
+
+                if (!res.success) throw new Error(res.error);
+
+                const replies: UserComment[] = res.data!;
+
+                console.log(replies);
             }
         });
     }
