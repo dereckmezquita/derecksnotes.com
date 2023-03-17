@@ -165,3 +165,7 @@ sudo certbot --nginx certonly
 ```
 
 Use http authentication to protect the test site
+
+
+mongodump --db users --collection accounts --out users
+mongorestore --db derecksnotes_test --collection dictionary_definitions dictionary_definitions/dictionaries/definitions.bson
