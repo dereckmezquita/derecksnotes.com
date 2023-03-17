@@ -55,6 +55,7 @@ export function checkName(name: string): StringCheck {
 
 export function checkUsername(username: string): StringCheck {
     // username is not empty and valid non malicious string
+    // TODO: maybe have usernames only start with letters?
     if (
         !validator.isAscii(username) ||
         validator.isEmpty(username) ||
