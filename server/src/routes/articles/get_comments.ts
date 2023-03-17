@@ -10,8 +10,6 @@ export const init_get_comments = (db: Db) => {
         // ------------------------------------
         const { article, pageSize, nextToken } = req.body;
 
-        console.log(`article: ${article}; pageSize: ${pageSize}; nextToken: ${nextToken}`);
-
         if (nextToken) {
             if (!ObjectId.isValid(nextToken)) {
                 return sendRes(res, false, undefined, "Invalid value for nextToken");
@@ -21,8 +19,10 @@ export const init_get_comments = (db: Db) => {
         // ------------------------------------
         const collection = db.collection('article_comments');
 
+        // get comments who replies_to_that is an array of length 0
         const { docs, nextID } = await page(collection, {
-            article: article
+            article: article,
+            replies_to_that: null
         }, pageSize, new ObjectId(nextToken)) as { docs: UserComment[], nextID?: ObjectId };
 
         sendRes(res, true, { comments: docs, nextToken: nextID });
