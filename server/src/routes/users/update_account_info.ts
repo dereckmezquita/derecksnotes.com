@@ -57,17 +57,17 @@ export const init_update_account_info = (db: Db) => {
         // 5. update the users geo location info
         const ip_address: string = req.headers['x-forwarded-for'] as string;
         const datetime: Date = new Date();
-        const idx: number = old_user.metadata.geo_location.findIndex(gl => gl.ip_address === ip_address);
+        const idx: number = old_user.metadata.geo_locations.findIndex(gl => gl.ip_address === ip_address);
 
         // 5.1 check if current ip address is in the list; update if yes add if no
         if (idx === -1) {
-            old_user.metadata.geo_location.push({
+            old_user.metadata.geo_locations.push({
                 first_used: datetime,
                 last_used: datetime,
                 ...await geoLocate(ip_address)
             } as GeoLocation);
         } else {
-            old_user.metadata.geo_location[idx].last_used = datetime;
+            old_user.metadata.geo_locations[idx].last_used = datetime;
         }
 
         // 5.2 update the last connected date
