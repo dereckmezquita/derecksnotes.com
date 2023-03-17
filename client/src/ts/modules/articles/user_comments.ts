@@ -10,12 +10,18 @@ class CommentSectionHandler {
     private commentForm: HTMLDivElement;
     private commentSection: HTMLElement;
     private maxCommentLength: number = 300;
+    private repliesPreviewLimit: number = 5;
+
+    // used to store event listeners for reply forms so they can be removed
+    private eventListenersMap = new WeakMap<Element, () => Promise<void>>();
 
     private generateCommentForm(reply: boolean = true): HTMLElement {
         return textToHTML(`
         <div class="new-comment-form ${reply ? "reply-level-comment-form" : "top-level-comment-form"}">
             <div class="comment-user-info">
-                <span class="username">${this.userInfo.username} ${this.userInfo.metadata.geo_locations[0].flag}</span>
+                <span class="username-holder">
+                    <a class="username" href="/user/${this.userInfo.username}">${this.userInfo.username}</a> <span class="username-flag">${this.userInfo.metadata.geo_locations[0].flag}</span>
+                </span>
                 <span></span>
                 <button class="comment-action">Post</button>
             </div>
@@ -49,17 +55,18 @@ class CommentSectionHandler {
         this.commentForm = this.generateCommentForm(true) as HTMLDivElement; // everything from now on is a reply
 
         this.contentWrapper.appendChild(this.commentSection);
-        
+
         this.addNewCommentListeners(document.querySelector("div.new-comment-form.top-level-comment-form")!);
         this.getComments();
         this.addReplyFunctionality();
     }
 
     private addNewCommentListeners(newCommentForm: HTMLDivElement) {
-        newCommentForm.querySelector(".comment-action")!.addEventListener("click", async () => {
+        const postComment = async () => {
             // get the value of the textarea
             const textarea: HTMLTextAreaElement = newCommentForm.querySelector("div.new-comment-textarea > textarea")!;
             const comment: string = textarea.value.trim();
+            console.log(comment);
 
             if (comment.length === 0) alert("Comment cannot be empty.");
 
@@ -69,24 +76,39 @@ class CommentSectionHandler {
             const datetime: string = new Date().toISOString();
 
             // send the comment to the server
-            const commentId: string | undefined = newCommentForm.parentElement!.id === "" ? undefined : newCommentForm.parentElement!.id;
-            console.log(newCommentForm.parentElement!.id)
-            const res: ServerRes = await sendComment(comment, datetime, commentId);
+            let commentId: string | undefined = newCommentForm.parentElement!.parentElement!.id
+            commentId = commentId === "" ? undefined : commentId;
+
+            // parse the comment for mentions of other users
+            // a mention is @ + username
+            const mentions: string[] = comment.match(/@([a-zA-Z0-9_]+)/g) || [];
+            // const mentions: string[] = comment.match(/@[a-zA-Z][a-zA-Z0-9_]*/g) || [];
+
+            // remove the leading @ from the username
+            for (let i = 0; i < mentions.length; i++) {
+                mentions[i] = mentions[i].slice(1);
+            }
+
+            const res: ServerRes = await sendComment(comment, datetime, mentions, commentId);
 
             if (!res.success) throw new Error(res.error);
             window.location.reload();
-        });
+        };
+
+        newCommentForm.querySelector(".comment-action")!.addEventListener("click", postComment);
+        this.eventListenersMap.set(newCommentForm, postComment); // Store the named function in the WeakMap
     }
 
     private async getComments() {
-        let res: ServerRes = await getComments(10);
+        // load all top level comments by default
+        let res: ServerRes = await getComments(30);
         if (!res.success) throw new Error(res.error);
         if (res.data.comments.length === 0) return console.log("No comments");
 
         // TODO: should get more comments if user clicks load more comments
         const commentsRes: UserComment[] = res.data.comments;
         while (res.data.nextToken) {
-            res = await getComments(10, res.data.nextToken);
+            res = await getComments(30, res.data.nextToken);
             commentsRes.push(...res.data.comments);
 
             if (!res.success) throw new Error(res.error);
@@ -100,21 +122,18 @@ class CommentSectionHandler {
             // getting replies to this comment
             // if the comment has replies_to_this array then it has been replied to
             // we can then send the commend_id for this comment and get back the replies
+            // get only top 5 replies save the nextToken in the comment html as data attribute
             if (comment.replies_to_this!.length > 0) {
-                let res: ServerRes = await getCommentReplies(comment.comment_id, 10);
+                let res: ServerRes = await getCommentReplies(comment.comment_id, 5);
                 if (!res.success) throw new Error(res.error);
 
                 const repliesRes: UserComment[] = res.data.comments;
-                while (res.data.nextToken) {
-                    res = await getCommentReplies(comment.comment_id, 10, res.data.nextToken);
-                    repliesRes.push(...res.data.comments);
 
-                    if (!res.success) throw new Error(res.error);
-                }
+                if (res.data.nextToken) renderedComment.dataset.nextToken = res.data.nextToken;
 
                 for (const reply of repliesRes) {
                     const renderedReply = this.renderComment(reply);
-                    renderedComment.appendChild(renderedReply);
+                    renderedComment.querySelector(".comment-replies-holder")!.appendChild(renderedReply);
                 }
             }
 
@@ -133,12 +152,14 @@ class CommentSectionHandler {
         }
 
         // TODO: update type we always have replies_to_this set to an empty array
-        const repliesLink: string = userComment.replies_to_this!.length > 0 ? `<a id="${userComment.comment_id}" class="view-replies-link" style="cursor: pointer;">${userComment.replies_to_this!.length} replies</a>` : "";
+        const repliesLink: string = userComment.replies_to_this!.length > this.repliesPreviewLimit ? `<a id="${userComment.comment_id}" class="view-replies-link" style="cursor: pointer;">${userComment.replies_to_this!.length - this.repliesPreviewLimit} replies</a>` : "";
 
         const commentElement = textToHTML(`
         <div id="${userComment.comment_id}" class="posted-comment">
             <div class="comment-user-info">
-                <span class="username">${userComment.metadata.user.username} ${userComment.metadata.geo_location.flag}</span>
+                <span class="username-holder">
+                    <a class="username" href="/user/${userComment.metadata.user.username}">${userComment.metadata.user.username}</a> <span class="username-flag">${userComment.metadata.geo_location.flag}</span>
+                </span>
                 <span class="datetime">${datetime}</span>
                 <button class="comment-action comment-action-reply">Reply</button>
                 <button class="comment-action comment-action-report">Report</button>
@@ -154,6 +175,8 @@ class CommentSectionHandler {
                 <span class="dislike-count">${userComment.metadata.dislikes}</span>
                 ${repliesLink}
             </div>
+            <div class="comment-reply-form-holder"></div>
+            <div class="comment-replies-holder"></div>
         </div>`) as HTMLDivElement;
 
         // add listener for show more button for that specific comment
@@ -188,21 +211,31 @@ class CommentSectionHandler {
             const target = e.target as HTMLButtonElement;
 
             if (target.classList.contains("comment-action-reply")) {
-                const commentId = target.parentElement!.parentElement!.id;
                 const commentHolder = target.parentElement!.parentElement! as HTMLDivElement; // gets "posted-comment" element
 
                 // Check if a reply form already exists
                 const existingReplyForm = commentHolder.querySelector(".new-comment-form.reply-level-comment-form");
 
                 if (existingReplyForm) {
-                    // If a reply form exists, remove it
-                    commentHolder.removeChild(existingReplyForm);
+                    // If a reply form exists, remove it and make sure event listeners are removed
+                    const postComment = this.eventListenersMap.get(existingReplyForm);
+                    if (postComment) {
+                        existingReplyForm.querySelector(".comment-action")!.removeEventListener("click", postComment);
+                    }
+                    this.eventListenersMap.delete(existingReplyForm);
+                    existingReplyForm.remove();
                 } else {
                     // If no reply form exists, add one
-
-                    // Add the comment at the end
                     this.addNewCommentListeners(this.commentForm);
-                    commentHolder.appendChild(this.commentForm);
+
+                    // set textarea with @username of the comment we are replying to
+                    // get the text of the username element and nothing else inside it
+                    const username = commentHolder.querySelector("span.username-holder > a.username")!.textContent!.trim();
+                    this.commentForm.querySelector("textarea")!.value = `@${username} `;
+
+                    console.log(this.commentForm);
+
+                    commentHolder.querySelector(".comment-reply-form-holder")!.appendChild(this.commentForm);
                 }
             }
         });
