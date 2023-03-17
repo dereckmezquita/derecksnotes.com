@@ -66,7 +66,7 @@ export const init_login = (db: Db) => {
         // ----------------------------------------
         // update statistics in the database for the user
         const ip_address = req.headers['x-forwarded-for'] as string;
-        const idx = user.metadata.geo_location.findIndex((gl) => gl.ip_address === ip_address);
+        const idx = user.metadata.geo_locations.findIndex((gl) => gl.ip_address === ip_address);
 
         if (idx !== -1) {
             // udpate the user's last connected date only for that IP address
@@ -74,7 +74,7 @@ export const init_login = (db: Db) => {
                 { "email.address": email },
                 {
                     $set: {
-                        [`metadata.geo_location.${idx}.last_used`]: new Date()
+                        [`metadata.geo_locations.${idx}.last_used`]: new Date()
                     }
                 }
             );
@@ -84,8 +84,8 @@ export const init_login = (db: Db) => {
                 { "email.address": email },
                 {
                     $push: {
-                        "metadata.geo_location": {
-                            geo_location: {
+                        "metadata.geo_locations": {
+                            geo_locations: {
                                 ...await geoLocate(ip_address),
                                 first_used: new Date(),
                                 last_used: new Date()
