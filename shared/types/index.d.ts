@@ -62,7 +62,7 @@ declare global {
         username: string,
         password?: string, // don't send password everytime
         metadata: {
-            geo_location: GeoLocation[],
+            geo_locations: GeoLocation[],
             last_connected: Date,
             numberOfComments?: number
         }
@@ -70,8 +70,9 @@ declare global {
 
     type UserComment = {
         comment_id: string,
-        replies_to_this?: string[], // comments replying to this comment
+        replies_to_this: string[], // comments replying to this comment
         replies_to_that?: string, // original comment this comment is replying to
+        mentions: string[], // usernames mentioned in this comment
         article: string,
         comment: string,
         metadata: {
@@ -92,6 +93,8 @@ declare global {
     type GeoLocateRes = {
         ip_address: string,
         country: string,
+        countryCode: string,
+        flag: string,
         regionName: string,
         city: string,
         isp: string,
