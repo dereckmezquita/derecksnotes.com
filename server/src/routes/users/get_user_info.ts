@@ -9,8 +9,8 @@ export const get_user_info = Router();
 // get a user's account information typically for comments section
 // steps
 // 1. get the user's ip address and create a new date object
-// 2. if not logged in
-//     2.1 if not logged in create new default user info; includes:
+// 2. create new default user info; includes:
+//     2.1 if not logged in return default user info
 //         2.1.1 profile photo
 //         2.1.2 username
 //         2.1.3 statistics
@@ -25,25 +25,25 @@ export const init_get_user_info = (db: Db) => {
         const ip_address = req.headers['x-forwarded-for'] as string;
         const now: Date = new Date();
 
-        // 2. if not logged in
+        // 2. create new default user info; includes:
+        const defaultUser: UserInfo = {
+            profilePhoto: `/site-images/user-defaults/profile-photos/default-profile-photo-${Math.floor(Math.random() * 4) + 1}-small.png`,
+            username: "Guest",
+            metadata: {
+                geo_locations: [
+                    {
+                        first_used: now,
+                        last_used: now,
+                        ...await geoLocate(ip_address)
+                    }
+                ],
+                last_connected: now
+            }
+        }
+
+        // 2.1 if not logged in return default user info
         const session = req.session as SessionData;
         if (!session.authenticated) {
-            // 2.1 if not logged in create new default user info; includes:
-            const defaultUser: UserInfo = {
-                profilePhoto: `/site-images/user-defaults/profile-photos/default-profile-photo-${Math.floor(Math.random() * 4) + 1}-small.png`,
-                username: "Guest",
-                metadata: {
-                    geo_location: [
-                        {
-                            first_used: now,
-                            last_used: now,
-                            ...await geoLocate(ip_address)
-                        }
-                    ],
-                    last_connected: now
-                }
-            }
-
             console.log("User not logged in; sending default user info.")
             return sendRes(res, true, defaultUser);
         }
@@ -52,7 +52,7 @@ export const init_get_user_info = (db: Db) => {
         const email = cookie.email.address;
         const username = cookie.username;
 
-        console.log(`User logged in; sending user info for ${username} (${email})`)
+        // console.log(`User logged in; sending user info for ${username} (${email})`)
 
         const accounts = db.collection('user_accounts');
 
@@ -65,7 +65,7 @@ export const init_get_user_info = (db: Db) => {
             }}
         );
 
-        if (!userInfo) return sendRes(res, false, null, 'User not found in database.');
+        if (!userInfo) return sendRes(res, true, defaultUser, 'User not found in database; sent default user.');
 
         sendRes(res, true, userInfo);
 
