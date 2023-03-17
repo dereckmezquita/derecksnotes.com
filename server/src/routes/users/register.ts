@@ -60,7 +60,7 @@ export const init_register = (db: Db) => {
             username: username,
             password: hash,
             metadata: {
-                geo_location: [
+                geo_locations: [
                     {
                         first_used: datetime,
                         last_used: datetime,
