@@ -1,6 +1,8 @@
+const api_target: string = 'api2';
+
 // TODO: update the way I get the webpage; use window.location instead
 export const reqArticles = async (section: string, pageSize: number, nextToken?: string): Promise<ServerRes> => {
-    const response = await fetch('/api/articles/get_articles', {
+    const response = await fetch(`/${api_target}/articles/get_articles`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -16,7 +18,7 @@ export const reqArticles = async (section: string, pageSize: number, nextToken?:
 }
 
 export const getDefinitions = async (dictionary: string, letter: string, pageSize: number, nextToken?: string): Promise<ServerRes> => {
-    const response = await fetch('/api/dictionaries/get_definitions', {
+    const response = await fetch(`/${api_target}/dictionaries/get_definitions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -33,7 +35,7 @@ export const getDefinitions = async (dictionary: string, letter: string, pageSiz
 }
 
 export const register = async (firstName: string, lastName: string, username: string, email: string, password: string): Promise<ServerRes<RegisterMessage>> => {
-    const response = await fetch('/api/users/register', {
+    const response = await fetch(`/${api_target}/users/register`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -52,7 +54,7 @@ export const register = async (firstName: string, lastName: string, username: st
 
 // requires password hashed buffer to be converted to a textual representation
 export const login = async (email: string, password: string): Promise<ServerRes> => {
-    const response = await fetch('/api/users/login', {
+    const response = await fetch(`/${api_target}/users/login`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -67,7 +69,7 @@ export const login = async (email: string, password: string): Promise<ServerRes>
 }
 
 export const logout = async (): Promise<ServerRes> => {
-    const response = await fetch('/api/users/logout', {
+    const response = await fetch(`/${api_target}/users/logout`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -79,7 +81,7 @@ export const logout = async (): Promise<ServerRes> => {
 }
 
 export const resetPassword = async (email: string): Promise<ServerRes> => {
-    const response = await fetch('/api/resetPassword', {
+    const response = await fetch(`/${api_target}/resetPassword`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -95,7 +97,7 @@ export const resetPassword = async (email: string): Promise<ServerRes> => {
 // ----------------------------------------
 // the user should already be logged in for these functions; using their session token to identify
 export const getUserInfo = async (): Promise<ServerRes<UserInfo>> => {
-    const response = await fetch('/api/users/get_user_info', {
+    const response = await fetch(`/${api_target}/users/get_user_info`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -109,11 +111,12 @@ export const getUserInfo = async (): Promise<ServerRes<UserInfo>> => {
 export const sendComment = async (
     comment: string,
     datetime: string,
+    mentions: string[],
     replyToId?: string
 ): Promise<ServerRes> => {
     const article = window.location.pathname.split('/')[2];
 
-    const response = await fetch('/api/articles/new_comment', {
+    const response = await fetch(`/${api_target}/articles/new_comment`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -122,6 +125,7 @@ export const sendComment = async (
             comment: comment,
             datetime: datetime,
             article: article,
+            mentions: mentions,
             replyToId: replyToId
         })
     });
@@ -132,7 +136,7 @@ export const sendComment = async (
 export const getComments = async (pageSize: number, nextToken?: string): Promise<ServerRes<UserComment[]>> => {
     const article = window.location.pathname.split('/')[2];
 
-    const response = await fetch('/api/articles/get_comments', {
+    const response = await fetch(`/${api_target}/articles/get_comments`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -147,8 +151,24 @@ export const getComments = async (pageSize: number, nextToken?: string): Promise
     return await response.json() as ServerRes;
 }
 
+export const getCommentReplies = async (commentId: string, pageSize: number, nextToken?: string): Promise<ServerRes<UserComment[]>> => {
+    const response = await fetch(`/${api_target}/articles/get_comment_replies`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            commentId: commentId,
+            pageSize: pageSize,
+            nextToken: nextToken
+        })
+    });
+
+    return await response.json() as ServerRes;
+}
+
 export const getAccontInfo = async (): Promise<ServerRes<UserInfo>> => {
-    const response = await fetch('/api/users/account_info', {
+    const response = await fetch(`/${api_target}/users/account_info`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
