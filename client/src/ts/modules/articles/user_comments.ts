@@ -62,6 +62,7 @@ class CommentSectionHandler {
         this.getComments();
         this.addReplyFunctionality();
         this.loadMoreCommentsFunctionality();
+        this.loadMoreRepliesFunctionality();
     }
 
     private addNewCommentListeners(newCommentForm: HTMLDivElement) {
@@ -173,10 +174,10 @@ class CommentSectionHandler {
 
     private loadMoreCommentsFunctionality(): void {
         const commentSection = document.querySelector(".comment-section") as HTMLElement;
-    
+
         commentSection.addEventListener("click", async (e: Event) => {
             const target = e.target as HTMLAnchorElement;
-    
+
             if (target.id === "load-more-comments") {
                 const nextToken = target.dataset.nextToken;
                 if (nextToken) {
@@ -197,7 +198,7 @@ class CommentSectionHandler {
 
         let loadRepliesLink: string = ""
         if (userComment.replies_to_this!.length > this.repliesPreviewLimit) {
-            loadRepliesLink = `<a id="${userComment.comment_id}" class="view-replies-link" style="cursor: pointer;">See ${userComment.replies_to_this!.length - this.repliesPreviewLimit} more replies</a>`
+            loadRepliesLink = `<a data-comment-id="${userComment.comment_id}" class="load-more-replies" style="cursor: pointer;">See ${userComment.replies_to_this!.length - this.repliesPreviewLimit} more replies</a>`
         }
 
         const commentElement = textToHTML(`
@@ -287,23 +288,36 @@ class CommentSectionHandler {
         });
     }
 
-    private getReplies(): void {
+    private async loadMoreReplies(commentId: string, nextToken: string): Promise<void> {
+        const res: ServerRes = await getCommentReplies(commentId, this.repliesPreviewLimit, nextToken);
+        if (!res.success) throw new Error(res.error);
+
+        const repliesRes: UserComment[] = res.data.comments;
+        const commentElement = document.getElementById(commentId)!;
+
+        const repliesHolder = commentElement.querySelector(".comment-replies-holder")!;
+        for (const reply of repliesRes) {
+            const renderedReply = this.renderComment(reply);
+            repliesHolder.appendChild(renderedReply);
+        }
+
+        const loadMoreRepliesLink = commentElement.querySelector(".load-more-replies") as HTMLAnchorElement;
+        if (res.data.nextToken) {
+            loadMoreRepliesLink.dataset.nextToken = res.data.nextToken;
+        } else {
+            loadMoreRepliesLink.remove();
+        }
+    }
+
+    private loadMoreRepliesFunctionality(): void {
         document.querySelector(".comment-section")!.addEventListener("click", async (e: Event) => {
             const target = e.target as HTMLAnchorElement;
-
-            if (target.classList.contains("view-replies-link")) {
-                const commentHolder = target.parentElement!.parentElement! as HTMLDivElement; // gets "posted-comment" element
-                const commentId = target.id;
-
-                console.log(commentId)
-
-                let res: ServerRes<UserComment[]> = await getCommentReplies(commentId, 10);
-
-                if (!res.success) throw new Error(res.error);
-
-                const replies: UserComment[] = res.data!;
-
-                console.log(replies);
+    
+            if (target.classList.contains("load-more-replies")) {
+                const commentId = target.dataset.commentId!;
+                const nextToken = target.dataset.nextToken!;
+    
+                await this.loadMoreReplies(commentId, nextToken);
             }
         });
     }
