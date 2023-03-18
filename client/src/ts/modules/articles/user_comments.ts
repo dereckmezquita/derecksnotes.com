@@ -21,7 +21,7 @@ class CommentSectionHandler {
         <div class="new-comment-form ${reply ? "reply-level-comment-form" : "top-level-comment-form"}">
             <div class="comment-user-info">
                 <span class="username-holder">
-                    <a class="username" href="/user/${this.userInfo.username}">${this.userInfo.username}</a> <span class="username-flag">${this.userInfo.metadata.geo_locations[0].flag}</span>
+                    <a class="username" href="/user/${this.userInfo.username}">@${this.userInfo.username}</a> <span class="username-flag">${this.userInfo.metadata.geo_locations[0].flag}</span>
                 </span>
                 <span></span>
                 <button class="comment-action">Post</button>
@@ -123,7 +123,7 @@ class CommentSectionHandler {
             // we can then send the commend_id for this comment and get back the replies
             // get only top 5 replies save the nextToken in the comment html as data attribute
             if (comment.replies_to_this!.length > 0) {
-                let res: ServerRes = await getCommentReplies(comment.comment_id, 5);
+                let res: ServerRes = await getCommentReplies(comment.comment_id, this.topLevelPreviewLimit);
                 if (!res.success) throw new Error(res.error);
 
                 const repliesRes: UserComment[] = res.data.comments;
@@ -226,6 +226,7 @@ class CommentSectionHandler {
             <div class="comment-replies-holder"></div>
         </div>`) as HTMLDivElement;
 
+        // TODO: this could be refactored out into a separate method using event delegation
         // add listener for show more button for that specific comment
         if (userComment.comment.length > this.maxCommentLength) {
             const readMore = commentElement.querySelector(".read-more-comment") as HTMLAnchorElement;
