@@ -10,6 +10,7 @@ class CommentSectionHandler {
     private commentForm: HTMLDivElement;
     private commentSection: HTMLElement;
     private maxCommentLength: number = 300;
+    private topLevelPreviewLimit: number = 5;
     private repliesPreviewLimit: number = 5;
 
     // used to store event listeners for reply forms so they can be removed
@@ -50,6 +51,7 @@ class CommentSectionHandler {
                 </select>
             </div>
             <div class="posted-comments"></div>
+            <div id="load-more-comments-holder"></div>
         </div>`);
 
         this.commentForm = this.generateCommentForm(true) as HTMLDivElement; // everything from now on is a reply
@@ -59,6 +61,7 @@ class CommentSectionHandler {
         this.addNewCommentListeners(document.querySelector("div.new-comment-form.top-level-comment-form")!);
         this.getComments();
         this.addReplyFunctionality();
+        this.loadMoreCommentsFunctionality();
     }
 
     private addNewCommentListeners(newCommentForm: HTMLDivElement) {
@@ -101,21 +104,16 @@ class CommentSectionHandler {
 
     private async getComments() {
         // load all top level comments by default
-        let res: ServerRes = await getComments(30);
+        let res: ServerRes = await getComments(this.topLevelPreviewLimit);
         if (!res.success) throw new Error(res.error);
         if (res.data.comments.length === 0) return console.log("No comments");
 
-        // TODO: should get more comments if user clicks load more comments
-        const commentsRes: UserComment[] = res.data.comments;
-        while (res.data.nextToken) {
-            res = await getComments(30, res.data.nextToken);
-            commentsRes.push(...res.data.comments);
-
-            if (!res.success) throw new Error(res.error);
-        }
-
         const postedCommentsDiv = document.querySelector(".comment-section .posted-comments") as HTMLDivElement;
 
+        // TODO: should get more comments if user clicks load more comments
+        const commentsRes: UserComment[] = res.data.comments;
+
+        let loadCommentsLink: HTMLAnchorElement | undefined;
         for (const comment of commentsRes) {
             const renderedComment = this.renderComment(comment);
 
@@ -137,9 +135,55 @@ class CommentSectionHandler {
                 }
             }
 
+            if (res.data.commentsCount > this.topLevelPreviewLimit) {
+                loadCommentsLink = textToHTML(`<a id="load-more-comments" style="cursor: pointer;">See ${res.data.commentsCount - this.topLevelPreviewLimit} more comment(s)</a>`) as HTMLAnchorElement;
+                // store nextToken in the loadCommentsLink as data attribute
+                loadCommentsLink.dataset.nextToken = res.data.nextToken;
+            }
+
             // postedCommentsDiv.insertAdjacentHTML("beforeend", commentElement);
             postedCommentsDiv.appendChild(renderedComment);
         }
+
+        if (loadCommentsLink) document.querySelector("#load-more-comments-holder")!.appendChild(loadCommentsLink);
+    }
+
+    private async loadMoreComments(nextToken: string): Promise<void> {
+        const res: ServerRes = await getComments(this.topLevelPreviewLimit, nextToken);
+
+        if (!res.success) throw new Error(res.error);
+        if (res.data.comments.length === 0) return console.log("No more comments");
+
+        const postedCommentsDiv = document.querySelector(".comment-section .posted-comments") as HTMLDivElement;
+        const commentsRes: UserComment[] = res.data.comments;
+
+        for (const comment of commentsRes) {
+            const renderedComment = this.renderComment(comment);
+            postedCommentsDiv.appendChild(renderedComment);
+        }
+
+        const loadCommentsLink = document.querySelector("#load-more-comments") as HTMLAnchorElement;
+
+        if (res.data.nextToken) {
+            loadCommentsLink.dataset.nextToken = res.data.nextToken;
+        } else {
+            loadCommentsLink.remove();
+        }
+    }
+
+    private loadMoreCommentsFunctionality(): void {
+        const commentSection = document.querySelector(".comment-section") as HTMLElement;
+    
+        commentSection.addEventListener("click", async (e: Event) => {
+            const target = e.target as HTMLAnchorElement;
+    
+            if (target.id === "load-more-comments") {
+                const nextToken = target.dataset.nextToken;
+                if (nextToken) {
+                    await this.loadMoreComments(nextToken);
+                }
+            }
+        });
     }
 
     private renderComment(userComment: UserComment): HTMLDivElement {
@@ -151,8 +195,10 @@ class CommentSectionHandler {
             comment = userComment.comment.slice(0, this.maxCommentLength) + `<span style="display: none;" class="comment-hidden-text">${userComment.comment.slice(this.maxCommentLength)}</span>` + ` <a class="read-more-comment" style="cursor: pointer;">read more...</a><a style="display: none;" class="read-less-comment">...read less.</a>`;
         }
 
-        // TODO: update type we always have replies_to_this set to an empty array
-        const repliesLink: string = userComment.replies_to_this!.length > this.repliesPreviewLimit ? `<a id="${userComment.comment_id}" class="view-replies-link" style="cursor: pointer;">${userComment.replies_to_this!.length - this.repliesPreviewLimit} replies</a>` : "";
+        let loadRepliesLink: string = ""
+        if (userComment.replies_to_this!.length > this.repliesPreviewLimit) {
+            loadRepliesLink = `<a id="${userComment.comment_id}" class="view-replies-link" style="cursor: pointer;">See ${userComment.replies_to_this!.length - this.repliesPreviewLimit} more replies</a>`
+        }
 
         const commentElement = textToHTML(`
         <div id="${userComment.comment_id}" class="posted-comment">
@@ -173,7 +219,7 @@ class CommentSectionHandler {
                 <span class="like-count">${userComment.metadata.likes}</span>
                 <button class="dislike-button">Dislike</button>
                 <span class="dislike-count">${userComment.metadata.dislikes}</span>
-                ${repliesLink}
+                ${loadRepliesLink}
             </div>
             <div class="comment-reply-form-holder"></div>
             <div class="comment-replies-holder"></div>
