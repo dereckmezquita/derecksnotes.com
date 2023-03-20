@@ -1,4 +1,11 @@
-import { getComments, getCommentReplies, sendComment, getUserInfo } from "../request";
+import {
+    getComments,
+    getCommentReplies,
+    sendComment,
+    getUserInfo,
+    judgeComment,
+    reportComment
+} from "../request";
 import { dateToString, textToHTML } from "../helpers";
 
 // TODO: consider breaking up code: https://stackoverflow.com/questions/12706290/typescript-define-class-and-its-methods-in-separate-files
@@ -105,6 +112,8 @@ class CommentSectionHandler {
         this.addReplyFunctionality();
         this.loadMoreCommentsFunctionality();
         this.loadMoreRepliesFunctionality();
+        this.judgeCommentFunctionality();
+        this.reportCommentFunctionality();
     }
 
     private async getComments(nextToken: string | undefined = undefined): Promise<void> {
@@ -185,8 +194,6 @@ class CommentSectionHandler {
                     const username = commentHolder.querySelector("span.username-holder > a.username")!.textContent!.trim();
                     this.commentForm.querySelector("textarea")!.value = `@${username} `;
 
-                    console.log(this.commentForm);
-
                     commentHolder.querySelector(".comment-reply-form-holder")!.appendChild(this.commentForm);
                 }
             }
@@ -211,8 +218,6 @@ class CommentSectionHandler {
     private loadMoreRepliesFunctionality(): void {
         document.querySelector(".comment-section")!.addEventListener("click", async (e: Event) => {
             const target = e.target as HTMLAnchorElement;
-
-            console.log(target)
 
             if (target.classList.contains("load-more-replies")) {
                 const commentId = target.dataset.commentId!;
@@ -253,10 +258,14 @@ class CommentSectionHandler {
                 <div class="posted-comment-text">${comment}</div>
             </div>
             <div class="posted-comment-actions">
-                <button class="like-button">Like</button>
-                <span class="like-count">${userComment.metadata.likes}</span>
-                <button class="dislike-button">Dislike</button>
-                <span class="dislike-count">${userComment.metadata.dislikes}</span>
+                <div class="like-holder">
+                    <button class="like-button judgement-button">Like</button>
+                    <span class="like-count">${userComment.metadata.likes}</span>
+                </div>
+                <div class="dislike-holder">
+                    <button class="dislike-button judgement-button">Dislike</button>
+                    <span class="dislike-count">${userComment.metadata.dislikes}</span>
+                </div>
                 ${loadRepliesLink}
             </div>
             <div class="comment-reply-form-holder"></div>
@@ -308,6 +317,55 @@ class CommentSectionHandler {
         } else {
             loadMoreRepliesLink.remove();
         }
+    }
+
+    private judgeCommentFunctionality(): void {
+        document.querySelector(".comment-section")!.addEventListener("click", async (e: Event) => {
+            const target = e.target as HTMLButtonElement;
+
+            const commentId = target.parentElement!.parentElement!.parentElement!.id;
+
+            if (target.classList.contains("judgement-button")) {
+                const judgement = target.classList.contains("like-button") ? "like" : "dislike";
+                const res: ServerRes = await judgeComment(commentId, judgement);
+                if (!res.success) throw new Error(res.error);
+
+                console.log(res)
+                console.log(res.data)
+
+                const likeCount = target.parentElement!.parentElement!.querySelector(".like-count") as HTMLSpanElement;
+                const dislikeCount = target.parentElement!.parentElement!.querySelector(".dislike-count") as HTMLSpanElement;
+
+                likeCount.textContent = res.data.likes;
+                dislikeCount.textContent = res.data.dislikes;
+            }
+        });
+    }
+
+    private reportCommentFunctionality(): void {
+        document.querySelector(".comment-section")!.addEventListener("click", async (e: Event) => {
+            const target = e.target as HTMLButtonElement;
+
+            if (target.classList.contains("comment-action-report")) {
+                // If the button is already yellow, send the report
+                if (target.classList.contains("report-button-yellow")) {
+                    const commentId = target.parentElement!.parentElement!.id;
+
+                    const res: ServerRes = await reportComment(commentId, new Date().toISOString());
+                    if (!res.success) throw new Error(res.error);
+
+                    console.log("Comment reported successfully");
+
+                    // Reset the button's appearance and remove the yellow class
+                    target.style.backgroundColor = "";
+                    target.classList.remove("report-button-yellow");
+                } else {
+                    // If the button is not yellow, make it yellow
+                    target.style.backgroundColor = "yellow";
+                    target.classList.add("report-button-yellow");
+                }
+            }
+        });
     }
 }
 
