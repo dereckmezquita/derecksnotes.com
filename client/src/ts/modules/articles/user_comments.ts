@@ -4,19 +4,19 @@ import { dateToString, textToHTML } from "../helpers";
 // TODO: consider breaking up code: https://stackoverflow.com/questions/12706290/typescript-define-class-and-its-methods-in-separate-files
 
 class CommentSectionHandler {
-    private contentWrapper = document.querySelector(".content-wrapper") as HTMLDivElement; // wraps article
     private userInfo: UserInfo; // response from server set on class instantiation
 
     private commentForm: HTMLDivElement;
-    private commentSection: HTMLElement;
     private maxCommentLength: number = 300;
     private topLevelPreviewLimit: number = 5;
     private repliesPreviewLimit: number = 5;
-
     // used to store event listeners for reply forms so they can be removed
     private eventListenersMap = new WeakMap<Element, () => Promise<void>>();
 
     private generateCommentForm(reply: boolean = true): HTMLElement {
+        // ----------------------------------------
+        // used twice to generate the comment form
+        // ----------------------------------------
         return textToHTML(`
         <div class="new-comment-form ${reply ? "reply-level-comment-form" : "top-level-comment-form"}">
             <div class="comment-user-info">
@@ -33,48 +33,16 @@ class CommentSectionHandler {
         </div>`);
     }
 
-    constructor(userInfo: UserInfo) {
-        this.userInfo = userInfo;
-
-        this.commentForm = this.generateCommentForm(false) as HTMLDivElement;
-
-        this.commentSection = textToHTML(`
-        <div class="comment-section">
-            <h2>Comments</h2>
-            ${this.commentForm.outerHTML}
-            <div class="comment-sort">
-                <select>
-                    <option value="comment-sort-newest">Newest</option>
-                    <option value="comment-sort-oldest">Oldest</option>
-                    <option value="comment-sort-most-liked">Most Liked</option>
-                    <option value="comment-sort-most-disliked">Most Disliked</option>
-                </select>
-            </div>
-            <div class="posted-comments"></div>
-            <div id="load-more-comments-holder"></div>
-        </div>`);
-
-        this.commentForm = this.generateCommentForm(true) as HTMLDivElement; // everything from now on is a reply
-
-        this.contentWrapper.appendChild(this.commentSection);
-
-        this.addNewCommentListeners(document.querySelector("div.new-comment-form.top-level-comment-form")!);
-        this.getComments();
-        this.addReplyFunctionality();
-        this.loadMoreCommentsFunctionality();
-        this.loadMoreRepliesFunctionality();
-    }
-
     private addNewCommentListeners(newCommentForm: HTMLDivElement) {
+        // ----------------------------------------
+        // adds listeners to new comment forms; stores the event listener in a WeakMap
+        // ----------------------------------------
         const postComment = async () => {
-            // get the value of the textarea
             const textarea: HTMLTextAreaElement = newCommentForm.querySelector("div.new-comment-textarea > textarea")!;
             const comment: string = textarea.value.trim();
-            console.log(comment);
 
             if (comment.length === 0) alert("Comment cannot be empty.");
 
-            // clear the textarea
             textarea.value = "";
 
             const datetime: string = new Date().toISOString();
@@ -103,18 +71,52 @@ class CommentSectionHandler {
         this.eventListenersMap.set(newCommentForm, postComment); // Store the named function in the WeakMap
     }
 
-    private async getComments() {
+    constructor(userInfo: UserInfo) {
+        // ----------------------------------------
+        // saves userInfo, generate comment-section and attaches, generates comment form for subsequent replies, add new comment listener, get's comments, adds reply functionality, adds load more comments functionality
+        // ----------------------------------------
+
+        this.userInfo = userInfo;
+
+        this.commentForm = this.generateCommentForm(false) as HTMLDivElement;
+
+        const commentSection = textToHTML(`
+        <div class="comment-section">
+            <h2>Comments</h2>
+            ${this.commentForm.outerHTML}
+            <div class="comment-sort">
+                <select>
+                    <option value="comment-sort-newest">Newest</option>
+                    <option value="comment-sort-oldest">Oldest</option>
+                    <option value="comment-sort-most-liked">Most Liked</option>
+                    <option value="comment-sort-most-disliked">Most Disliked</option>
+                </select>
+            </div>
+            <div class="posted-comments"></div>
+            <div id="load-more-comments-holder"></div>
+        </div>`);
+
+        this.commentForm = this.generateCommentForm(true) as HTMLDivElement; // everything from now on replies
+
+        document.querySelector(".content-wrapper")!.appendChild(commentSection);
+
+        this.addNewCommentListeners(document.querySelector("div.new-comment-form.top-level-comment-form")!);
+        this.getComments();
+        this.addReplyFunctionality();
+        this.loadMoreCommentsFunctionality();
+        this.loadMoreRepliesFunctionality();
+    }
+
+    private async getComments(nextToken: string | undefined = undefined): Promise<void> {
         // load all top level comments by default
-        let res: ServerRes = await getComments(this.topLevelPreviewLimit);
-        if (!res.success) throw new Error(res.error);
-        if (res.data.comments.length === 0) return console.log("No comments");
+        const res_comments: ServerRes = await getComments(this.topLevelPreviewLimit, nextToken);
+
+        if (!res_comments.success) throw new Error(res_comments.error);
+        if (res_comments.data.comments.length === 0) return console.log("No comments");
 
         const postedCommentsDiv = document.querySelector(".comment-section .posted-comments") as HTMLDivElement;
+        const commentsRes: UserComment[] = res_comments.data.comments;
 
-        // TODO: should get more comments if user clicks load more comments
-        const commentsRes: UserComment[] = res.data.comments;
-
-        let loadCommentsLink: HTMLAnchorElement | undefined;
         for (const comment of commentsRes) {
             const renderedComment = this.renderComment(comment);
 
@@ -123,12 +125,12 @@ class CommentSectionHandler {
             // we can then send the commend_id for this comment and get back the replies
             // get only top 5 replies save the nextToken in the comment html as data attribute
             if (comment.replies_to_this!.length > 0) {
-                let res: ServerRes = await getCommentReplies(comment.comment_id, this.topLevelPreviewLimit);
-                if (!res.success) throw new Error(res.error);
+                const res_replies: ServerRes = await getCommentReplies(comment.comment_id, this.topLevelPreviewLimit);
+                if (!res_replies.success) throw new Error(res_replies.error);
 
-                const repliesRes: UserComment[] = res.data.comments;
+                const repliesRes: UserComment[] = res_replies.data.comments;
 
-                if (res.data.nextToken) renderedComment.dataset.nextToken = res.data.nextToken;
+                if (res_replies.data.nextToken) renderedComment.dataset.nextToken = res_replies.data.nextToken;
 
                 for (const reply of repliesRes) {
                     const renderedReply = this.renderComment(reply);
@@ -136,40 +138,59 @@ class CommentSectionHandler {
                 }
             }
 
-            if (res.data.commentsCount > this.topLevelPreviewLimit) {
-                loadCommentsLink = textToHTML(`<a id="load-more-comments" style="cursor: pointer;">See ${res.data.commentsCount - this.topLevelPreviewLimit} more comment(s)</a>`) as HTMLAnchorElement;
-                // store nextToken in the loadCommentsLink as data attribute
-                loadCommentsLink.dataset.nextToken = res.data.nextToken;
-            }
-
             // postedCommentsDiv.insertAdjacentHTML("beforeend", commentElement);
             postedCommentsDiv.appendChild(renderedComment);
         }
 
-        if (loadCommentsLink) document.querySelector("#load-more-comments-holder")!.appendChild(loadCommentsLink);
+        const loadMoreCommentsHolder: HTMLDivElement = document.querySelector("#load-more-comments-holder")!;
+        let loadCommentsLink: HTMLAnchorElement | undefined;
+
+        if (res_comments.data.nextToken) {
+            loadCommentsLink = textToHTML(`<a id="load-more-comments" style="cursor: pointer;">See ${res_comments.data.commentsCount - this.topLevelPreviewLimit} more comment(s)</a>`) as HTMLAnchorElement;
+            // store nextToken in the loadCommentsLink as data attribute
+            loadCommentsLink.dataset.nextToken = res_comments.data.nextToken;
+
+            loadMoreCommentsHolder.appendChild(loadCommentsLink);
+        } else {
+            loadMoreCommentsHolder.innerHTML = "";
+        }
     }
 
-    private async loadMoreComments(nextToken: string): Promise<void> {
-        const res: ServerRes = await getComments(this.topLevelPreviewLimit, nextToken);
+    private addReplyFunctionality(): void {
+        // we will use event delegation
+        // we want to appendChild to the target comment; has class of posted-comment
+        document.querySelector(".comment-section")!.addEventListener("click", (e: Event) => {
+            const target = e.target as HTMLButtonElement;
 
-        if (!res.success) throw new Error(res.error);
-        if (res.data.comments.length === 0) return console.log("No more comments");
+            if (target.classList.contains("comment-action-reply")) {
+                const commentHolder = target.parentElement!.parentElement! as HTMLDivElement; // gets "posted-comment" element
 
-        const postedCommentsDiv = document.querySelector(".comment-section .posted-comments") as HTMLDivElement;
-        const commentsRes: UserComment[] = res.data.comments;
+                // Check if a reply form already exists
+                const existingReplyForm = commentHolder.querySelector(".new-comment-form.reply-level-comment-form");
 
-        for (const comment of commentsRes) {
-            const renderedComment = this.renderComment(comment);
-            postedCommentsDiv.appendChild(renderedComment);
-        }
+                if (existingReplyForm) {
+                    // If a reply form exists, remove it and make sure event listeners are removed
+                    const postComment = this.eventListenersMap.get(existingReplyForm);
+                    if (postComment) {
+                        existingReplyForm.querySelector(".comment-action")!.removeEventListener("click", postComment);
+                    }
+                    this.eventListenersMap.delete(existingReplyForm);
+                    existingReplyForm.remove();
+                } else {
+                    // If no reply form exists, add one
+                    this.addNewCommentListeners(this.commentForm);
 
-        const loadCommentsLink = document.querySelector("#load-more-comments") as HTMLAnchorElement;
+                    // set textarea with @username of the comment we are replying to
+                    // get the text of the username element and nothing else inside it
+                    const username = commentHolder.querySelector("span.username-holder > a.username")!.textContent!.trim();
+                    this.commentForm.querySelector("textarea")!.value = `@${username} `;
 
-        if (res.data.nextToken) {
-            loadCommentsLink.dataset.nextToken = res.data.nextToken;
-        } else {
-            loadCommentsLink.remove();
-        }
+                    console.log(this.commentForm);
+
+                    commentHolder.querySelector(".comment-reply-form-holder")!.appendChild(this.commentForm);
+                }
+            }
+        });
     }
 
     private loadMoreCommentsFunctionality(): void {
@@ -181,12 +202,26 @@ class CommentSectionHandler {
             if (target.id === "load-more-comments") {
                 const nextToken = target.dataset.nextToken;
                 if (nextToken) {
-                    await this.loadMoreComments(nextToken);
+                    await this.getComments(nextToken);
                 }
             }
         });
     }
 
+    private loadMoreRepliesFunctionality(): void {
+        document.querySelector(".comment-section")!.addEventListener("click", async (e: Event) => {
+            const target = e.target as HTMLAnchorElement;
+
+            if (target.classList.contains("load-more-replies")) {
+                const commentId = target.dataset.commentId!;
+                const nextToken = target.dataset.nextToken!;
+
+                await this.loadMoreReplies(commentId, nextToken);
+            }
+        });
+    }
+
+    // ------------------------------------------------------
     private renderComment(userComment: UserComment): HTMLDivElement {
         // convert datetime to this format 2022-01-01 12:00
         const datetime: string = dateToString(new Date(userComment.metadata.datetime));
@@ -252,43 +287,6 @@ class CommentSectionHandler {
         return commentElement;
     }
 
-    private addReplyFunctionality(): void {
-        // we will use event delegation
-        // we want to appendChild to the target comment; has class of posted-comment
-        document.querySelector(".comment-section")!.addEventListener("click", (e: Event) => {
-            const target = e.target as HTMLButtonElement;
-
-            if (target.classList.contains("comment-action-reply")) {
-                const commentHolder = target.parentElement!.parentElement! as HTMLDivElement; // gets "posted-comment" element
-
-                // Check if a reply form already exists
-                const existingReplyForm = commentHolder.querySelector(".new-comment-form.reply-level-comment-form");
-
-                if (existingReplyForm) {
-                    // If a reply form exists, remove it and make sure event listeners are removed
-                    const postComment = this.eventListenersMap.get(existingReplyForm);
-                    if (postComment) {
-                        existingReplyForm.querySelector(".comment-action")!.removeEventListener("click", postComment);
-                    }
-                    this.eventListenersMap.delete(existingReplyForm);
-                    existingReplyForm.remove();
-                } else {
-                    // If no reply form exists, add one
-                    this.addNewCommentListeners(this.commentForm);
-
-                    // set textarea with @username of the comment we are replying to
-                    // get the text of the username element and nothing else inside it
-                    const username = commentHolder.querySelector("span.username-holder > a.username")!.textContent!.trim();
-                    this.commentForm.querySelector("textarea")!.value = `@${username} `;
-
-                    console.log(this.commentForm);
-
-                    commentHolder.querySelector(".comment-reply-form-holder")!.appendChild(this.commentForm);
-                }
-            }
-        });
-    }
-
     private async loadMoreReplies(commentId: string, nextToken: string): Promise<void> {
         const res: ServerRes = await getCommentReplies(commentId, this.repliesPreviewLimit, nextToken);
         if (!res.success) throw new Error(res.error);
@@ -308,19 +306,6 @@ class CommentSectionHandler {
         } else {
             loadMoreRepliesLink.remove();
         }
-    }
-
-    private loadMoreRepliesFunctionality(): void {
-        document.querySelector(".comment-section")!.addEventListener("click", async (e: Event) => {
-            const target = e.target as HTMLAnchorElement;
-    
-            if (target.classList.contains("load-more-replies")) {
-                const commentId = target.dataset.commentId!;
-                const nextToken = target.dataset.nextToken!;
-    
-                await this.loadMoreReplies(commentId, nextToken);
-            }
-        });
     }
 }
 
