@@ -25,6 +25,9 @@ export const init_get_comments = (db: Db) => {
             replies_to_that: null
         }, pageSize, new ObjectId(nextToken)) as { docs: UserComment[], nextID?: ObjectId };
 
-        sendRes(res, true, { comments: docs, nextToken: nextID });
+        // count number of top level comments on page
+        const commentsCount: number = await collection.countDocuments({ article: article, replies_to_that: null });
+
+        sendRes(res, true, { comments: docs, commentsCount: commentsCount, nextToken: nextID });
     });
 }
