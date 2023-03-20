@@ -173,6 +173,7 @@ class UserConnect {
             alert(res.data);
 
             this.destroyPrompt();
+            window.location.reload();
         });
 
         loginLink.addEventListener("click", (event) => {
