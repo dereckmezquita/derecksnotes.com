@@ -64,7 +64,13 @@ declare global {
         metadata: {
             geo_locations: GeoLocation[],
             last_connected: Date,
-            numberOfComments?: number
+            numberOfComments?: number,
+            commentsJudged?: [
+                {
+                    comment_id: string,
+                    judgement: 'like' | 'dislike'
+                }
+            ]
         }
     }
 
