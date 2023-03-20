@@ -30,30 +30,27 @@ export const init_judge_comment = (db: Db) => {
         const user = await usersDB.findOne<UserInfo>({ username: username });
         if (!user) return sendRes(res, false, "User not found.");
 
-        let hasVoted = false;
-        const existingJudgement = user.metadata.commentsJudged?.find((judgedComment) => {
-            return judgedComment.comment_id === commentId;
-        });
-
-        if (existingJudgement) {
-            hasVoted = true;
-            if (existingJudgement.judgement === vote) {
-                // If the user is trying to vote again with the same judgement, we can simply return an error message.
-                return sendRes(res, false, "You have already voted with the same judgement.");
-            }
+        let previousVote: "like" | "dislike" | undefined;
+        if (user.metadata.commentsJudged) {
+            previousVote = user.metadata.commentsJudged.find(judgement => judgement.comment_id === commentId)?.judgement;
         }
 
+
+        let result;
         // update comment
-        if (!hasVoted) {
+        if (!previousVote) {
             // if the user has not voted on this comment, increment by 1
-            await commentsDB.updateOne({ comment_id: commentId }, {
+            // comment.metadata.likes; comment.metadata.dislikes
+            result = await commentsDB.updateOne({ comment_id: commentId }, {
                 $inc: {
-                    [vote]: 1
+                    [`metadata.${vote}s`]: 1
                 }
             });
 
-            // Add the new judgement to the user's metadata
-            await usersDB.updateOne({ username: username }, {
+            if (!result.matchedCount) return sendRes(res, false, undefined, "Comment not found.");
+
+            // add the new judgement to the user's metadata
+            result = await usersDB.updateOne({ username: username }, {
                 $push: {
                     "metadata.commentsJudged": {
                         comment_id: commentId,
@@ -61,25 +58,61 @@ export const init_judge_comment = (db: Db) => {
                     }
                 }
             });
-        } else {
-            // if the user has voted on this comment, we are toggling the vote
-            await commentsDB.updateOne({ comment_id: commentId }, {
-                $inc: {
-                    // increase by 1
-                    [vote]: 1,
-                    // decrease the other vote by 1
-                    [vote === "like" ? "dislike" : "like"]: -1
-                }
-            });
 
-            // Update the existing judgement in the user's metadata
-            await usersDB.updateOne({ username: username, "metadata.commentsJudged.comment_id": commentId }, {
-                $set: {
-                    "metadata.commentsJudged.$.judgement": vote
-                }
-            });
+            if (!result.matchedCount) return sendRes(res, false, undefined, "User not found.");
+        } else {
+            if (previousVote === vote) {
+                // if the previous vote was the same as the current vote, remove the vote
+                result = await commentsDB.updateOne({ comment_id: commentId }, {
+                    $inc: {
+                        [`metadata.${vote}s`]: -1
+                    }
+                });
+
+                if (!result.matchedCount) return sendRes(res, false, undefined, "Comment not found.");
+
+                // remove the judgement from the user's metadata
+                result = await usersDB.updateOne({ username: username }, {
+                    $pull: {
+                        "metadata.commentsJudged": {
+                            comment_id: commentId
+                        }
+                    }
+                });
+            } else {
+                // if the previous vote was different from the current vote, update the vote
+                result = await commentsDB.updateOne({ comment_id: commentId }, {
+                    $inc: {
+                        [`metadata.${vote}s`]: 1,
+                        [`metadata.${previousVote}s`]: -1
+                    }
+                })
+
+                if (!result.matchedCount) return sendRes(res, false, undefined, "Comment not found.");
+
+                // TODO: review and brainstorm - this must not scale well
+                const idx = user.metadata.commentsJudged!.findIndex(judgement => judgement.comment_id === commentId);
+
+                // for the user.metadata.commentsJudged array, find the comment and update the judgement
+                result = await usersDB.updateOne({ username: username }, {
+                    $set: {
+                        [`metadata.commentsJudged.${idx}.judgement`]: vote
+                    }
+                })
+
+                if (!result.matchedCount) return sendRes(res, false, undefined, "User not found.");
+            }
         }
 
-        sendRes(res, true, `Comment ${vote}d.`);
+        // ------------------------------------
+        // get and send back the updated likes and dislikes
+        const comment = await commentsDB.findOne<UserComment>({ comment_id: commentId });
+
+        if (!comment) return sendRes(res, false, undefined, "Comment not found.");
+
+        sendRes(res, true, {
+            likes: comment.metadata.likes,
+            dislikes: comment.metadata.dislikes
+        });
     });
 }
