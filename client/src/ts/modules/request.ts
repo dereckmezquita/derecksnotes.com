@@ -167,6 +167,42 @@ export const getCommentReplies = async (commentId: string, pageSize: number, nex
     return await response.json() as ServerRes;
 }
 
+export const judgeComment = async (commentId: string, vote: "like" | "dislike"): Promise<ServerRes> => {
+    const response = await fetch(`/${api_target}/articles/judge_comment`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            commentId: commentId,
+            vote: vote
+        })
+    });
+
+    return await response.json() as ServerRes;
+}
+
+export const reportComment = async (
+    commentId: string,
+    datetime: string
+): Promise<ServerRes> => {
+    const article = window.location.pathname.split('/')[2];
+
+    const response = await fetch(`/${api_target}/articles/report_comment`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            commentId: commentId,
+            datetime: datetime,
+            article: article
+        })
+    });
+
+    return await response.json() as ServerRes;
+}
+
 export const getAccontInfo = async (): Promise<ServerRes<UserInfo>> => {
     const response = await fetch(`/${api_target}/users/account_info`, {
         method: 'POST',
