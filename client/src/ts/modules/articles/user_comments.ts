@@ -130,7 +130,7 @@ class CommentSectionHandler {
 
                 const repliesRes: UserComment[] = res_replies.data.comments;
 
-                if (res_replies.data.nextToken) renderedComment.dataset.nextToken = res_replies.data.nextToken;
+                if (res_replies.data.nextToken) (renderedComment.querySelector(".load-more-replies")! as HTMLDivElement).dataset.nextToken = res_replies.data.nextToken;
 
                 for (const reply of repliesRes) {
                     const renderedReply = this.renderComment(reply);
@@ -211,6 +211,8 @@ class CommentSectionHandler {
     private loadMoreRepliesFunctionality(): void {
         document.querySelector(".comment-section")!.addEventListener("click", async (e: Event) => {
             const target = e.target as HTMLAnchorElement;
+
+            console.log(target)
 
             if (target.classList.contains("load-more-replies")) {
                 const commentId = target.dataset.commentId!;
