@@ -9,6 +9,7 @@ import { register, init_register } from './routes/users/register';
 import { get_user_info, init_get_user_info } from './routes/users/get_user_info';
 import { new_comment, init_new_comment } from './routes/articles/new_comment';
 import { get_comments, init_get_comments } from './routes/articles/get_comments';
+import { judge_comment, init_judge_comment } from './routes/articles/judge_comment';
 import { get_comment_replies, init_get_comment_replies } from './routes/articles/get_comment_replies';
 import { logout } from './routes/users/logout';
 import { init_update_account_info, update_account_info } from './routes/users/update_account_info';
@@ -23,6 +24,7 @@ router.use(
     get_user_info,
     new_comment,
     get_comments,
+    judge_comment,
     get_comment_replies,
     logout,
     update_account_info
@@ -36,6 +38,7 @@ export const initDB = (client: Db) => {
     init_get_user_info(client);
     init_new_comment(client);
     init_get_comments(client);
+    init_judge_comment(client);
     init_get_comment_replies(client);
     init_update_account_info(client);
 }
