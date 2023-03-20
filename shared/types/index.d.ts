@@ -74,6 +74,19 @@ declare global {
         }
     }
 
+    type UserCommentReport = {
+        comment_id: string,
+        article: string,
+        metadata: {
+            user: {
+                email: string,
+                username: string
+            },
+            datetime: string | Date, // mongo returns object that we have to cast Date()
+            geo_location: GeoLocation
+        }
+    }
+
     type UserComment = {
         comment_id: string,
         replies_to_this: string[], // comments replying to this comment
