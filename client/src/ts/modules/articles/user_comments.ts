@@ -24,11 +24,13 @@ class CommentSectionHandler {
         // ----------------------------------------
         // used twice to generate the comment form
         // ----------------------------------------
+        const usernameLink: string = this.userInfo.username !== "Guest" ? `<a class="username" href="/user/${this.userInfo.username}">${this.userInfo.username}</a> <span class="username-flag">${this.userInfo.metadata.geo_locations[0].flag}</span>` : `<span class="username">Login</span>`;
+
         return textToHTML(`
         <div class="new-comment-form ${reply ? "reply-level-comment-form" : "top-level-comment-form"}">
             <div class="comment-user-info">
                 <span class="username-holder">
-                    <a class="username" href="/user/${this.userInfo.username}">@${this.userInfo.username}</a> <span class="username-flag">${this.userInfo.metadata.geo_locations[0].flag}</span>
+                    ${usernameLink}
                 </span>
                 <span></span>
                 <button class="comment-action">Post</button>
@@ -343,7 +345,9 @@ class CommentSectionHandler {
     }
 
     private reportCommentFunctionality(): void {
-        document.querySelector(".comment-section")!.addEventListener("click", async (e: Event) => {
+        let activeReportButton: HTMLButtonElement | null = null;
+
+        document.querySelector("body")!.addEventListener("click", async (e: Event) => {
             const target = e.target as HTMLButtonElement;
 
             if (target.classList.contains("comment-action-report")) {
@@ -359,14 +363,32 @@ class CommentSectionHandler {
                     // Reset the button's appearance and remove the yellow class
                     target.style.backgroundColor = "";
                     target.classList.remove("report-button-yellow");
+                    activeReportButton = null;
                 } else {
                     // If the button is not yellow, make it yellow
                     target.style.backgroundColor = "yellow";
                     target.classList.add("report-button-yellow");
+
+                    // Reset the previous active report button if any
+                    if (activeReportButton) {
+                        activeReportButton.style.backgroundColor = "";
+                        activeReportButton.classList.remove("report-button-yellow");
+                    }
+
+                    // Set the current button as the active report button
+                    activeReportButton = target;
+                }
+            } else {
+                // If click is not on the report button and there's an active report button, reset the button's appearance and remove the yellow class
+                if (activeReportButton) {
+                    activeReportButton.style.backgroundColor = "";
+                    activeReportButton.classList.remove("report-button-yellow");
+                    activeReportButton = null;
                 }
             }
         });
     }
+
 }
 
 (async () => {
