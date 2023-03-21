@@ -332,9 +332,6 @@ class CommentSectionHandler {
                 const res: ServerRes = await judgeComment(commentId, judgement);
                 if (!res.success) throw new Error(res.error);
 
-                console.log(res)
-                console.log(res.data)
-
                 const likeCount = target.parentElement!.parentElement!.querySelector(".like-count") as HTMLSpanElement;
                 const dislikeCount = target.parentElement!.parentElement!.querySelector(".dislike-count") as HTMLSpanElement;
 
@@ -357,8 +354,6 @@ class CommentSectionHandler {
 
                     const res: ServerRes = await reportComment(commentId, new Date().toISOString());
                     if (!res.success) alert(res.error);
-
-                    console.log("Comment reported successfully");
 
                     // Reset the button's appearance and remove the yellow class
                     target.style.backgroundColor = "";
