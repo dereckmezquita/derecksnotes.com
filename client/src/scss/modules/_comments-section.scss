@@ -59,6 +59,18 @@ $profile-photo-dims: 50px;
         }
     }
 
+    .dislike-button {
+        background-color: $reddish;
+
+        &:hover {
+            @include button-colour($reddish, 10%, true);
+        }
+
+        &:active {
+            @include button-colour($reddish, 30%, false);
+        }
+    }
+
     .comment-profile-photo {
         width: $profile-photo-dims;
         height: $profile-photo-dims;
