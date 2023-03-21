@@ -118,6 +118,29 @@ class CommentSectionHandler {
         this.reportCommentFunctionality();
     }
 
+    private async getRepliesRecursive(commentId: string, parentElement: HTMLElement, nextToken: string | undefined = undefined): Promise<void> {
+        const res_replies: ServerRes = await getCommentReplies(commentId, this.repliesPreviewLimit, nextToken);
+        if (!res_replies.success) throw new Error(res_replies.error);
+
+        const repliesRes: UserComment[] = res_replies.data.comments;
+        for (const reply of repliesRes) {
+            const renderedReply = this.renderComment(reply);
+            parentElement.appendChild(renderedReply);
+
+            // Fetch replies for the current reply recursively
+            if (reply.replies_to_this!.length > 0) {
+                await this.getRepliesRecursive(reply.comment_id, renderedReply.querySelector(".comment-replies-holder")!);
+            }
+        }
+
+        if (res_replies.data.nextToken) {
+            const loadMoreRepliesLink = parentElement.querySelector(".load-more-replies") as HTMLAnchorElement;
+            if (loadMoreRepliesLink) {
+                loadMoreRepliesLink.dataset.nextToken = res_replies.data.nextToken;
+            }
+        }
+    }
+
     private async getComments(nextToken: string | undefined = undefined): Promise<void> {
         // load all top level comments by default
         const res_comments: ServerRes = await getComments(this.topLevelPreviewLimit, nextToken);
@@ -136,17 +159,7 @@ class CommentSectionHandler {
             // we can then send the commend_id for this comment and get back the replies
             // get only top 5 replies save the nextToken in the comment html as data attribute
             if (comment.replies_to_this!.length > 0) {
-                const res_replies: ServerRes = await getCommentReplies(comment.comment_id, this.topLevelPreviewLimit);
-                if (!res_replies.success) new Error(res_replies.error);
-
-                const repliesRes: UserComment[] = res_replies.data.comments;
-
-                if (res_replies.data.nextToken) (renderedComment.querySelector(".load-more-replies")! as HTMLDivElement).dataset.nextToken = res_replies.data.nextToken;
-
-                for (const reply of repliesRes) {
-                    const renderedReply = this.renderComment(reply);
-                    renderedComment.querySelector(".comment-replies-holder")!.appendChild(renderedReply);
-                }
+                await this.getRepliesRecursive(comment.comment_id, renderedComment.querySelector(".comment-replies-holder")!);
             }
 
             // postedCommentsDiv.insertAdjacentHTML("beforeend", commentElement);
