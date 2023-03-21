@@ -72,7 +72,7 @@ class CommentSectionHandler {
 
             const res: ServerRes = await sendComment(comment, datetime, mentions, commentId);
 
-            if (!res.success) throw new Error(res.error);
+            if (!res.success) alert(res.error);
             window.location.reload();
         };
 
@@ -122,7 +122,7 @@ class CommentSectionHandler {
         // load all top level comments by default
         const res_comments: ServerRes = await getComments(this.topLevelPreviewLimit, nextToken);
 
-        if (!res_comments.success) throw new Error(res_comments.error);
+        if (!res_comments.success) new Error(res_comments.error);
         if (res_comments.data.comments.length === 0) return console.log("No comments");
 
         const postedCommentsDiv = document.querySelector(".comment-section .posted-comments") as HTMLDivElement;
@@ -137,7 +137,7 @@ class CommentSectionHandler {
             // get only top 5 replies save the nextToken in the comment html as data attribute
             if (comment.replies_to_this!.length > 0) {
                 const res_replies: ServerRes = await getCommentReplies(comment.comment_id, this.topLevelPreviewLimit);
-                if (!res_replies.success) throw new Error(res_replies.error);
+                if (!res_replies.success) new Error(res_replies.error);
 
                 const repliesRes: UserComment[] = res_replies.data.comments;
 
@@ -302,7 +302,7 @@ class CommentSectionHandler {
 
     private async loadMoreReplies(commentId: string, nextToken: string): Promise<void> {
         const res: ServerRes = await getCommentReplies(commentId, this.repliesPreviewLimit, nextToken);
-        if (!res.success) throw new Error(res.error);
+        if (!res.success) new Error(res.error);
 
         const repliesRes: UserComment[] = res.data.comments;
         const commentElement = document.getElementById(commentId)!;
@@ -356,7 +356,7 @@ class CommentSectionHandler {
                     const commentId = target.parentElement!.parentElement!.id;
 
                     const res: ServerRes = await reportComment(commentId, new Date().toISOString());
-                    if (!res.success) throw new Error(res.error);
+                    if (!res.success) alert(res.error);
 
                     console.log("Comment reported successfully");
 
