@@ -17,6 +17,7 @@ class CommentSectionHandler {
     private maxCommentLength: number = 300;
     private topLevelPreviewLimit: number = 5;
     private repliesPreviewLimit: number = 5;
+    private repliesRecursiveDepth: number = 3;
     // used to store event listeners for reply forms so they can be removed
     private eventListenersMap = new WeakMap<Element, () => Promise<void>>();
 
@@ -118,7 +119,9 @@ class CommentSectionHandler {
         this.reportCommentFunctionality();
     }
 
-    private async getRepliesRecursive(commentId: string, parentElement: HTMLElement, nextToken: string | undefined = undefined): Promise<void> {
+    private async getRepliesRecursive(commentId: string, parentElement: HTMLElement, maxDepth: number, currentDepth: number = 0, nextToken: string | undefined = undefined): Promise<void> {
+        if (currentDepth >= maxDepth) return;
+
         const res_replies: ServerRes = await getCommentReplies(commentId, this.repliesPreviewLimit, nextToken);
         if (!res_replies.success) throw new Error(res_replies.error);
 
@@ -129,7 +132,7 @@ class CommentSectionHandler {
 
             // Fetch replies for the current reply recursively
             if (reply.replies_to_this!.length > 0) {
-                await this.getRepliesRecursive(reply.comment_id, renderedReply.querySelector(".comment-replies-holder")!);
+                await this.getRepliesRecursive(reply.comment_id, renderedReply.querySelector(".comment-replies-holder")!, maxDepth, currentDepth + 1);
             }
         }
 
@@ -159,10 +162,9 @@ class CommentSectionHandler {
             // we can then send the commend_id for this comment and get back the replies
             // get only top 5 replies save the nextToken in the comment html as data attribute
             if (comment.replies_to_this!.length > 0) {
-                await this.getRepliesRecursive(comment.comment_id, renderedComment.querySelector(".comment-replies-holder")!);
+                await this.getRepliesRecursive(comment.comment_id, renderedComment.querySelector(".comment-replies-holder")!, this.repliesRecursiveDepth);
             }
 
-            // postedCommentsDiv.insertAdjacentHTML("beforeend", commentElement);
             postedCommentsDiv.appendChild(renderedComment);
         }
 
