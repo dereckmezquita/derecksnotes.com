@@ -41,6 +41,14 @@ export const init_report_comment = (db: Db) => {
         // ------------------------------------
         const reportsDB = db.collection('comment_reports');
 
+        // check if the user has previously reported this comment
+        await reportsDB.countDocuments({
+            comment_id: commentId,
+            'metadata.user.email': email
+        }).then(async (count) => {
+            if (count > 0) return sendRes(res, false, null, 'You have already reported this comment.');
+        });
+
         // get the user's current IP address
         const ip_address = req.headers['x-forwarded-for'] as string;
 
