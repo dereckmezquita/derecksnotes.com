@@ -24,7 +24,7 @@ class CommentSectionHandler {
         // ----------------------------------------
         // used twice to generate the comment form
         // ----------------------------------------
-        const usernameLink: string = this.userInfo.username !== "Guest" ? `<a class="username" href="/user/${this.userInfo.username}">${this.userInfo.username}</a> <span class="username-flag">${this.userInfo.metadata.geo_locations[0].flag}</span>` : `<span class="username">Login</span>`;
+        const usernameLink: string = this.userInfo.username !== "Guest" ? `<a class="username" href="/user/${this.userInfo.username}">@${this.userInfo.username}</a> <span class="username-flag">${this.userInfo.metadata.geo_locations[0].flag}</span>` : `<span class="username">Login</span>`;
 
         return textToHTML(`
         <div class="new-comment-form ${reply ? "reply-level-comment-form" : "top-level-comment-form"}">
@@ -193,7 +193,7 @@ class CommentSectionHandler {
 
                     // set textarea with @username of the comment we are replying to
                     // get the text of the username element and nothing else inside it
-                    const username = commentHolder.querySelector("span.username-holder > a.username")!.textContent!.trim();
+                    const username = commentHolder.querySelector("span.username-holder > a > span.username")!.textContent!.trim();
                     this.commentForm.querySelector("textarea")!.value = `@${username} `;
 
                     commentHolder.querySelector(".comment-reply-form-holder")!.appendChild(this.commentForm);
@@ -249,7 +249,9 @@ class CommentSectionHandler {
         <div id="${userComment.comment_id}" class="posted-comment">
             <div class="comment-user-info">
                 <span class="username-holder">
-                    <a class="username" href="/user/${userComment.metadata.user.username}">${userComment.metadata.user.username}</a> <span class="username-flag">${userComment.metadata.geo_location.flag}</span>
+                <a href="/user/${userComment.metadata.user.username}">
+                    <span class="username-at-symbol">@</span><span class="username">${userComment.metadata.user.username}</span>
+                </a> <span class="username-flag">${userComment.metadata.geo_location.flag}</span>
                 </span>
                 <span class="datetime">${datetime}</span>
                 <button class="comment-action comment-action-reply">Reply</button>
