@@ -18,9 +18,9 @@ const InfoBar: React.FC = () => {
         <InfoBarContainer>
             <Tickers>{/* Crypto tickers content will be rendered here */}</Tickers>
             <InfoBarTools>
-                <a className="info-bar-icon user-login-icon">
-                    <img src="/site-images/icons/user-login.png" className="theme-icon" />
-                </a>
+                <button className="info-bar-icon user-login-icon">
+                    <img src="/site-images/icons/user-login.png" className="theme-icon" alt="User Login" />
+                </button>
             </InfoBarTools>
         </InfoBarContainer>
     );
