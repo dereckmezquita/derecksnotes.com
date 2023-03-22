@@ -73,13 +73,13 @@ const Nav: React.FC = () => {
             </NavLink>
 
             <NavRight href="https://www.youtube.com/channel/UCzX8gJ22qtLqZuK56eT8L9g?view_as=subscriber" target="_blank" title="YouTube">
-                <img src="/site-images/icons/youtube.png" className="theme-icon" />
+                <img src="/site-images/icons/youtube.png" alt="YouTube" className="theme-icon" />
             </NavRight>
             <NavRight href="https://www.linkedin.com/in/dereck/" target="_blank" title="LinkedIn">
-                <img src="/site-images/icons/linkedin.png" className="theme-icon" />
+                <img src="/site-images/icons/linkedin.png" alt="LinkedIn" className="theme-icon" />
             </NavRight>
 
-            <NavClock className="clock nav-clock nav-right"></NavClock>
+            <NavClock className="clock nav-clock nav-right" href="#"></NavClock>
             <NavIcon className="icon" onClick={flexNav}>
                 <span>&#9776;</span>
             </NavIcon>
