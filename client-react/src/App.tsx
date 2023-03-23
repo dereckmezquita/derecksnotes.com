@@ -32,7 +32,8 @@ const App: React.FC = () => {
             <Header />
             <Nav />
             <Wrapper>
-                <CardList />
+                {/* pass "blog" to CardList */}
+                <CardList siteSection="blog" />
             </Wrapper>
             <Footer />
         </PageContainer>

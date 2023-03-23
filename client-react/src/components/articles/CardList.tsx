@@ -2,8 +2,12 @@ import React, { useEffect, useState } from 'react';
 import Card from './Card';
 import { reqArticles } from '../../modules/request';
 
-const CardList: React.FC = (siteSection: string) => {
-    const [cards, setCards] = useState([]);
+interface CardListProps {
+    siteSection: string;
+}
+
+const CardList: React.FC<CardListProps> = ({ siteSection }: CardListProps) => {
+    const [cards, setCards] = useState<ArticleMetadata[]>([]);
 
     useEffect(() => {
         async function fetchCards() {
@@ -13,12 +17,12 @@ const CardList: React.FC = (siteSection: string) => {
         }
 
         fetchCards();
-    }, []);
+    }, [siteSection]);
 
     return (
         <div className="card-articles">
             {cards.map((card) => (
-                <Card key={card.id} data={card} />
+                <Card key={card.fileName} {...card} />
             ))}
         </div>
     );
