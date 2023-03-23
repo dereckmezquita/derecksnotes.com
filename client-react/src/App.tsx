@@ -1,10 +1,12 @@
 import React from 'react';
 import styled from 'styled-components';
-import Head from './components/Head';
-import InfoBar from './components/InfoBar';
-import Header from './components/Header';
-import Nav from './components/Nav';
-import Footer from './components/Footer';
+import Head from './components/base/Head';
+import InfoBar from './components/base/InfoBar';
+import Header from './components/base/Header';
+import Nav from './components/base/Nav';
+import Footer from './components/base/Footer';
+
+import CardList from './components/articles/CardList';
 
 const PageContainer = styled.div`
   /* Add any global styles */
@@ -30,9 +32,8 @@ const App: React.FC = () => {
             <Header />
             <Nav />
             <Wrapper>
-                <CardArticles>{/* Cards will load here */}</CardArticles>
+                <CardList />
             </Wrapper>
-            <SiteSection hidden type="text" id="siteSection" value="blog" />
             <Footer />
         </PageContainer>
     );
