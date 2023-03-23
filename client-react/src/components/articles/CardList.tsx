@@ -22,7 +22,7 @@ const CardList: React.FC<CardListProps> = ({ siteSection }: CardListProps) => {
     return (
         <div className="card-articles">
             {cards.map((card) => (
-                <Card key={card.fileName} {...card} />
+                <Card key={card.fileName} data={card} />
             ))}
         </div>
     );

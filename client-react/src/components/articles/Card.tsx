@@ -1,6 +1,10 @@
 import React from 'react';
 
-const Card: React.FC<ArticleMetadata> = (data) => {
+interface CardProps {
+    data: ArticleMetadata;
+}
+
+const Card: React.FC<CardProps> = ({ data }) => {
     // format as: YYYY-MM-DD
     const date: string = new Date(data.date).toISOString().substring(0, 10);
 
