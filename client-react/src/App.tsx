@@ -16,14 +16,6 @@ const Wrapper = styled.div`
   /* Add styles for .wrapper */
 `;
 
-const CardArticles = styled.div`
-  /* Add styles for .card-articles */
-`;
-
-const SiteSection = styled.input`
-  /* Add styles for #siteSection */
-`;
-
 const App: React.FC = () => {
     return (
         <PageContainer>
@@ -32,7 +24,6 @@ const App: React.FC = () => {
             <Header />
             <Nav />
             <Wrapper>
-                {/* pass "blog" to CardList */}
                 <CardList siteSection="blog" />
             </Wrapper>
             <Footer />
