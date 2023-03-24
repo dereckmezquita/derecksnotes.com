@@ -1,7 +1,13 @@
 import { createGlobalStyle } from 'styled-components';
 import { linedGridBackground } from './theme';
+import { Roboto, FjallaOne, Tangerine } from './fonts';
 
 export const GlobalStyle = createGlobalStyle`
+    // use fonts font-family: 'Roboto; in styled-component
+    ${Roboto}
+    ${FjallaOne}
+    ${Tangerine}
+
     html {
         font-size: 1.1em;
         background: ${(props) => props.theme.backgrounds.background};
