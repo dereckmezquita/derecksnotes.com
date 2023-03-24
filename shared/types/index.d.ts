@@ -124,4 +124,21 @@ declare global {
         first_used: Date,
         last_used: Date
     }
+
+    // --------------------------------
+    // messages from server
+    type ArticleMetadata = {
+        siteSection: string,
+        subSection: null | string,
+        fileName: string,
+        author: string,
+        articleTitle: string,
+        image: number,
+        slogan: string,
+        summary: string,
+        categories: string[],
+        published: boolean,
+        date: Date | string,
+        commentsOn: boolean
+    }
 }
