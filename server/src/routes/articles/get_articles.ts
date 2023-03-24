@@ -27,7 +27,7 @@ export const init_get_articles = (db: Db) => {
         const { docs, nextID } = await page(collection, {
             siteSection: section,
             published: true
-        }, pageSize, new ObjectId(nextToken));
+        }, pageSize, new ObjectId(nextToken)) as { docs: ArticleMetadata[], nextID?: ObjectId };
 
         sendRes(res, true, { articles: docs, nextToken: nextID });
     });
