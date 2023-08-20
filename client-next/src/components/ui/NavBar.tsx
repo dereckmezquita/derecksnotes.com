@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import {
     NavContainer,
     NavItem,
-    AuxItem,
+    MainNav,
+    AuxiliaryContainer,
     DropdownContainer,
     DropdownMenu,
     DropdownItem,
@@ -40,33 +41,36 @@ function NavBar() {
         };
     }, []);
 
-    // Ensure client side components are not server rendered
     if (!hasMounted) {
         return null;
     }
 
     return (
         <NavContainer>
-            <Link href="/blog" passHref>
-                <NavItem>Blog</NavItem>
-            </Link>
-            <DropdownContainer>
-                <NavItem>Dictionaries</NavItem>
-                <DropdownMenu>
-                    <Link href="/dictionaries/biology" passHref>
-                        <DropdownItem>Biology Dictionary</DropdownItem>
-                    </Link>
-                    <Link href="/dictionaries/chemistry" passHref>
-                        <DropdownItem>Chemistry Dictionary</DropdownItem>
-                    </Link>
-                </DropdownMenu>
-            </DropdownContainer>
-            <Link href="https://www.linkedin.com" passHref>
-                <AuxItem>
-                    <img src="/path-to-your-image/linkedin-icon.png" alt="LinkedIn" />
-                </AuxItem>
-            </Link>
-            <DateTimeDisplay>{dateTime || "00 Jan 00:00:00"}</DateTimeDisplay>
+            <MainNav>
+                <Link href="/blog" passHref>
+                    <NavItem leftmost>Blog</NavItem>
+                </Link>
+                <DropdownContainer>
+                    <NavItem>Dictionaries</NavItem>
+                    <DropdownMenu>
+                        <Link href="/dictionaries/biology" passHref>
+                            <DropdownItem>Biology Dictionary</DropdownItem>
+                        </Link>
+                        <Link href="/dictionaries/chemistry" passHref>
+                            <DropdownItem>Chemistry Dictionary</DropdownItem>
+                        </Link>
+                    </DropdownMenu>
+                </DropdownContainer>
+            </MainNav>
+            <AuxiliaryContainer>
+                <DateTimeDisplay>{dateTime || "00 Jan 00:00:00"}</DateTimeDisplay>
+                <Link href="https://www.linkedin.com" passHref>
+                    <NavItem>
+                        <img src="/path-to-your-image/linkedin-icon.png" alt="LinkedIn" />
+                    </NavItem>
+                </Link>
+            </AuxiliaryContainer>
         </NavContainer>
     );
 }
