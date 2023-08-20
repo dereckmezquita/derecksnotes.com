@@ -1,29 +1,45 @@
 // styles.ts
 import styled from 'styled-components';
 
+const nav_bar_height = 50;
+const mobile = '768px';
+
 export const NavContainer = styled.nav`
+    display: flex;  
+    justify-content: space-between;
     background-color: white;
-    overflow: hidden;
     margin: 20px auto;
     width: 90%;
     border: 1px solid #e1e1e1;
     border-radius: 5px;
     box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.1);
 
+    height: ${nav_bar_height}px;
+
+    a {
+        text-decoration: none;
+        color: inherit; // This ensures that the links inherit the color of their parent container
+    }
+
     &:hover {
         box-shadow: 1px 1px 20px rgba(0, 0, 0, 0.15);
     }
 `;
 
-export const NavItem = styled.a`
+export const NavItem = styled.a<{ leftmost?: boolean }>`
     cursor: pointer;
-    float: left;
-    display: block;
     color: black;
-    text-align: center;
-    padding: 14px 13px;
-    text-decoration: none;
     font-size: 17px;
+
+    border-top-left-radius: ${({ leftmost }) => (leftmost ? "5px" : "0")};
+    border-bottom-left-radius: ${({ leftmost }) => (leftmost ? "5px" : "0")};
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+
+    height: ${nav_bar_height}px;
+    display: flex;
+    align-items: center;
+    padding: 0 13px; // Removed vertical padding
 
     &:hover {
         background-color: #333;
@@ -31,19 +47,32 @@ export const NavItem = styled.a`
     }
 
     img {
-        height: 20px; // or whatever size you need
+        padding: 0;
+        margin: 0;
+        height: 36px; // Use fixed height, adjust this based on your image
+        width: 36px;  // Use fixed width, adjust this based on your image
     }
 `;
 
-// AuxItem is same as NavItem but right aligned instead
-export const AuxItem = styled(NavItem)`
-    float: right;
+export const MainNav = styled.div`
+    display: flex;
+    align-items: center;
+    height: 100%;
+`;
+
+export const AuxiliaryContainer = styled.div`
+    display: flex;
+    align-items: center;
+    height: 100%;
+
+    & > *:not(:last-child) {
+        margin-right: 20px;
+    }
 `;
 
 export const DropdownContainer = styled.div`
-    float: left;
-    overflow: hidden;
-
+    display: flex;
+    position: relative;
     &:hover > div {
         display: block;
     }
@@ -52,21 +81,25 @@ export const DropdownContainer = styled.div`
 export const DropdownMenu = styled.div`
     display: none;
     position: absolute;
+    top: 100%;
+    left: 0;
     background-color: white;
-    min-width: 160px;
     z-index: 1;
     border: 1px solid #e1e1e1;
-    border-radius: 5px;
+    border-top-left-radius: 0; // This line
+    border-top-right-radius: 0; // This line
+    border-bottom-left-radius: 5px; // This line
+    border-bottom-right-radius: 5px; // This line
     box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.1);
 `;
 
 export const DropdownItem = styled.a`
-    float: none;
     padding: 12px 16px;
     text-decoration: none;
     display: block;
     text-align: left;
     color: black;
+    white-space: nowrap;
 
     &:hover {
         background-color: #333;
@@ -75,10 +108,10 @@ export const DropdownItem = styled.a`
 `;
 
 export const DateTimeDisplay = styled.div`
-    float: right;
-    padding: 14px 13px;
+    padding: 0 13px;  // Adjusted the padding
     font-size: 17px;
     color: black;
+    height: 100%;  // Added to make sure it takes the full height
+    display: flex;
+    align-items: center;  // Vertically center the content
 `;
-
-// Add responsive styles if needed.
