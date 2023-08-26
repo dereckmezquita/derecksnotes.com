@@ -8,5 +8,6 @@ declare global {
         subtitle: string;
         date: string;
         coverImage?: string;
+        section: string;
     };
 }
