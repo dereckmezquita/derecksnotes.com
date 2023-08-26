@@ -1,3 +1,5 @@
+import { green_theme as colour_scheme } from './theme_colours';
+
 // h: hue - controls the colour; a number between 0 and 360
 // s: saturation - controls the intensity of the colour; a number between 0 and 100
 // l: lightness - controls the brightness of the colour; a number between 0 and 100
@@ -8,23 +10,8 @@ export function hsla_colour(h: number, s: number, l: number, a: number = 1) {
     }
 }
 
-const theme_colours = [
-    hsla_colour(0, 0, 0),
-    hsla_colour(120, 100, 5),
-    hsla_colour(120, 100, 10),
-    hsla_colour(120, 100, 15),
-    hsla_colour(120, 100, 20),
-
-    hsla_colour(120, 100, 25), // main colour to use
-    hsla_colour(120, 100, 30),
-    hsla_colour(120, 100, 35),
-    hsla_colour(120, 100, 40),
-    hsla_colour(120, 100, 45),
-    hsla_colour(120, 100, 50),
-]
-
 export const theme = {
-    theme_colours: theme_colours,
+    theme_colours: colour_scheme,
     container: {
         background: {
             colour: {
@@ -60,16 +47,17 @@ export const theme = {
     },
     text: {
         font: {
-            primary: 'Roboto, sans-serif',
-            secondary: 'Arial, sans-serif',
+            roboto: 'Roboto, sans-serif',
+            arial: 'Arial, sans-serif',
+            times: 'Times, serif',
             // header: 'Montserrat, sans-serif'
             header: 'Arial, Helvetica, sans-serif',
         },
         colour: {
-            primary: hsla_colour(0, 0, 15, 1),
-            header: hsla_colour(120, 100, 25, 1),
-            anchor: hsla_colour(210, 100, 50, 1),
-            white: hsla_colour(0, 0, 100, 1)
+            primary: hsla_colour(0, 0, 15, 1), // black for reading
+            header: colour_scheme[6], // headers and logo
+            anchor: hsla_colour(210, 100, 50, 1), // links
+            white: hsla_colour(0, 0, 100, 1) // white for inverted reading
         },
         size: {
             small: '0.8rem',
