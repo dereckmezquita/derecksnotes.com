@@ -12,7 +12,7 @@ function PostPage({ content, post }: { content: string; post: PostMetadata }) {
 }
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
-    const postContent = get_post_content("blog", params!.slug as string);
+    const postContent = get_post_content("courses", params!.slug as string);
     const content = await process_markdown(postContent.content);
 
     return {
@@ -27,7 +27,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
 };
 
 export const getStaticPaths: GetStaticPaths = async () => {
-    const posts = get_post_metadata("blog");
+    const posts = get_post_metadata("courses");
     const paths = posts.map(post => ({
         params: { slug: post.slug }
     }));
