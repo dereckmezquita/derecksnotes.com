@@ -3,13 +3,12 @@ import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { hsla_colour, theme } from '@styles/theme';
 
-const nav_link_colour: string = hsla_colour(120, 100, 25, 1)();
-
 const NavContainer = styled.div`
     background-color: ${theme.container.background.colour.primary()};
     overflow: hidden;
     margin: 20px auto;
     width: 90%;
+    color: ${theme.theme_colours[6]()};
 
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -32,7 +31,7 @@ const NavItem = styled(Link) <{ rightmost?: boolean }>`
     float: ${(props) => (props.rightmost ? 'right' : 'left')};
 
     display: block;
-    color: ${theme.theme_colours[6]()};
+    color: inherit;
     text-align: center;
     padding: 14px 13px;
     text-decoration: none;
@@ -60,7 +59,7 @@ const DropDownLabel = styled.div <{ rightmost?: boolean }>`
     float: ${(props) => (props.rightmost ? 'right' : 'left')};
 
     display: block;
-    color: ${nav_link_colour};
+    color: inherit;
     text-align: center;
     padding: 14px 13px;
     text-decoration: none;
@@ -90,7 +89,7 @@ const DateTimeDisplay = styled.div`
     float: right;
 
     display: block;
-    color: ${nav_link_colour};
+    color: inherit;
     text-align: center;
     padding: 14px 13px;
     text-decoration: none;
