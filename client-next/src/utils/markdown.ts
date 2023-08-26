@@ -4,19 +4,20 @@ import matter from 'gray-matter';
 import { ROOT } from '@constants/misc';
 
 export const get_post_metadata = (folder: string): PostMetadata[] => {
-    const files = fs.readdirSync(path.join(ROOT, folder));
+    const files = fs.readdirSync(path.join(ROOT, 'content', folder));
     const md = files.filter((fn) => fn.endsWith('.md'));
     // get gray-matter metadata
     return md.map((file_name) => {
         // const file_contents = fs.readFileSync(`${folder}${file_name}`, 'utf8');
-        const file_contents: string = fs.readFileSync(path.join(ROOT, folder, file_name), 'utf8');
+        const file_contents: string = fs.readFileSync(path.join(ROOT, 'content', folder, file_name), 'utf8');
         const { data } = matter(file_contents);
         return {
             title: data.title,
             subtitle: data.subtitle,
             // to date format YYYT-MM-DD HH:MM:SS
             date: typeof data.date === 'string' ? data.date : data.date.toISOString().split('T')[0],
-            slug: file_name.replace('.md', '')
+            slug: file_name.replace('.md', ''),
+            section: folder
         };
     });
 }
@@ -25,8 +26,7 @@ export const get_post_metadata = (folder: string): PostMetadata[] => {
 // --------------------------------
 
 export const get_post_content = (folder: string, slug: string): matter.GrayMatterFile<string> => {
-    folder = path.join(ROOT, folder);
-    const file: string = path.join(folder, `${slug}.md`);
+    const file: string = path.join(path.join(ROOT, 'content', folder), `${slug}.md`);
     const content: string = fs.readFileSync(file, 'utf8');
     return matter(content);
 }
