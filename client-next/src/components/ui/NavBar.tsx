@@ -1,17 +1,104 @@
-// src/components/NavBar/NavBar.tsx
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import {
-    NavContainer,
-    NavItem,
-    MainNav,
-    AuxiliaryContainer,
-    DropdownContainer,
-    DropdownMenu,
-    DropdownItem,
-    DateTimeDisplay
-} from './styles';
+import styled from 'styled-components';
+import { hsla_colour, theme } from '@styles/theme';
 
+const nav_link_colour: string = hsla_colour(120, 100, 25, 1)();
+
+const NavContainer = styled.div`
+    background-color: ${theme.container.background.colour.primary()};
+    overflow: hidden;
+    margin: 20px auto;
+    width: 90%;
+
+    border: 1px solid #ccc;
+    border-radius: 5px;
+
+    box-shadow: 1px 1px 10pxrgba(153, 153, 153, 0.5);
+
+    &:hover {
+        box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.5);
+    }
+
+    @media screen and (max-width: 1024px) {
+        width: 95%;
+    }
+`;
+
+// allows for argument to determine if align left or right
+// inherit from Link component allows for linking to other pages
+const NavItem = styled(Link) <{ rightmost?: boolean }>`
+    cursor: pointer;
+    float: ${(props) => (props.rightmost ? 'right' : 'left')};
+
+    display: block;
+    color: ${theme.theme_colours[6]()};
+    text-align: center;
+    padding: 14px 13px;
+    text-decoration: none;
+    font-size: 17px;
+
+    &:hover {
+        color: ${theme.text.colour.white()};
+        background: ${theme.theme_colours[6]()};
+    }
+`;
+
+const NavImage = styled.img`
+    height: 16px;
+    cursor: pointer;
+`;
+
+const DropDownContainer = styled.div`
+    float: left;
+    overflow: hidden;
+`;
+
+// the same as NavItem but no link
+const DropDownLabel = styled.div <{ rightmost?: boolean }>`
+    cursor: pointer;
+    float: ${(props) => (props.rightmost ? 'right' : 'left')};
+
+    display: block;
+    color: ${nav_link_colour};
+    text-align: center;
+    padding: 14px 13px;
+    text-decoration: none;
+    font-size: 17px;
+
+    &:hover {
+        color: ${theme.text.colour.white()};
+        background: ${theme.theme_colours[6]()};
+    }
+`;
+
+const DropDownContent = styled.div`
+    display: none;
+    position: absolute;
+    min-width: 160px;
+
+    z-index: 1;
+
+    border: 1px solid #ccc;
+    border-radius: 5px;
+
+    box-shadow: 1px 1px 10px #ccc;
+`;
+
+const DateTimeDisplay = styled.div`
+    cursor: pointer;
+    float: right;
+
+    display: block;
+    color: ${nav_link_colour};
+    text-align: center;
+    padding: 14px 13px;
+    text-decoration: none;
+    font-size: 17px;
+`;
+
+// since using conditionals in components we must ensure that the component is mounted before rendering
+// either this or use dynamic from next/dynamic
 function NavBar() {
     const [hasMounted, setHasMounted] = useState(false);
     const [dateTime, setDateTime] = useState<string | null>(null);
@@ -44,35 +131,24 @@ function NavBar() {
     if (!hasMounted) {
         return null;
     }
-
     return (
         <NavContainer>
-            <MainNav>
-                <Link href="/blog" passHref>
-                    <NavItem leftmost>Blog</NavItem>
-                </Link>
-                <DropdownContainer>
-                    <NavItem>Dictionaries</NavItem>
-                    <DropdownMenu>
-                        <Link href="/dictionaries/biology" passHref>
-                            <DropdownItem>Biology Dictionary</DropdownItem>
-                        </Link>
-                        <Link href="/dictionaries/chemistry" passHref>
-                            <DropdownItem>Chemistry Dictionary</DropdownItem>
-                        </Link>
-                    </DropdownMenu>
-                </DropdownContainer>
-            </MainNav>
-            <AuxiliaryContainer>
-                <DateTimeDisplay>{dateTime || "00 Jan 00:00:00"}</DateTimeDisplay>
-                <Link href="https://www.linkedin.com" passHref>
-                    <NavItem>
-                        <img src="/path-to-your-image/linkedin-icon.png" alt="LinkedIn" />
-                    </NavItem>
-                </Link>
-            </AuxiliaryContainer>
+            <NavItem href='/'>Blog</NavItem>
+            <NavItem href='/courses'>Courses</NavItem>
+            <DropDownContainer>
+                <DropDownLabel>Dictionaries</DropDownLabel>
+                <DropDownContent>
+                    <NavItem href='/dictionaries/biology'>Biology Dictionary</NavItem>
+                    <NavItem href='/dictionaries/chemistry'>Chemistry Dictionary</NavItem>
+                </DropDownContent>
+            </DropDownContainer>
+
+            <NavItem rightmost href='https://www.linkedin.com/in/dereck/' target='_blank' title='LinkedIn'>
+                <NavImage src='/site-images/icons/linkedin.png' />
+            </NavItem>
+            <DateTimeDisplay>{dateTime || "00 Jan 00:00:00"}</DateTimeDisplay>
         </NavContainer>
-    );
+    )
 }
 
 export default NavBar;

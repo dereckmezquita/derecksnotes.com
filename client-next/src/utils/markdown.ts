@@ -1,15 +1,15 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
+import { ROOT } from '@constants/misc';
 
 export const get_post_metadata = (folder: string): PostMetadata[] => {
-    // const folder = 'blog/';
-    const files = fs.readdirSync(folder);
+    const files = fs.readdirSync(path.join(ROOT, folder));
     const md = files.filter((fn) => fn.endsWith('.md'));
     // get gray-matter metadata
     return md.map((file_name) => {
         // const file_contents = fs.readFileSync(`${folder}${file_name}`, 'utf8');
-        const file_contents: string = fs.readFileSync(path.join(folder, file_name), 'utf8');
+        const file_contents: string = fs.readFileSync(path.join(ROOT, folder, file_name), 'utf8');
         const { data } = matter(file_contents);
         return {
             title: data.title,
@@ -25,8 +25,7 @@ export const get_post_metadata = (folder: string): PostMetadata[] => {
 // --------------------------------
 
 export const get_post_content = (folder: string, slug: string): matter.GrayMatterFile<string> => {
-    // const folder = 'blog/';
-    // const file = `${folder}${slug}.md`;
+    folder = path.join(ROOT, folder);
     const file: string = path.join(folder, `${slug}.md`);
     const content: string = fs.readFileSync(file, 'utf8');
     return matter(content);
@@ -37,24 +36,23 @@ export const get_post_content = (folder: string, slug: string): matter.GrayMatte
 
 import { unified } from 'unified';
 import markdown from 'remark-parse';
-import remark2rehype from 'remark-rehype';
-import rehypePrettyCode from 'rehype-pretty-code';
-import stringify from 'rehype-stringify';
-import remarkGfm from 'remark-gfm';
-import rehypeRaw from "rehype-raw";
-import rehypeSlug from 'rehype-slug';
-import remarkUnwrapImages from 'remark-unwrap-images';
-import remarkExternalLinks from 'remark-external-links';
+import remark2rehype from 'remark-rehype'; // processor
+import rehypePrettyCode from 'rehype-pretty-code'; // prettify code blocks
+import stringify from 'rehype-stringify'; // html to string; processor
+import remarkGfm from 'remark-gfm'; // github flavored markdown
+import rehypeRaw from "rehype-raw"; // allows html in markdown
+import rehypeSlug from 'rehype-slug'; // adds id to headings
+import remarkUnwrapImages from 'remark-unwrap-images'; // remove image wrapper
+// import remarkExternalLinks from 'remark-external-links';
+import rehypeExternalLinks from 'rehype-external-links';
 import remarkToc from 'remark-toc';
 
-// in nextjs 13 we can use await async functions inside a component
-// no need to use getStaticProps or getServerSideProps anymore
 export const process_markdown = async (content: string): Promise<string> => {
     const result = await unified()
         .use(markdown)
         .use(remarkGfm)
         .use(remarkUnwrapImages)
-        .use(remarkExternalLinks)
+        .use(rehypeExternalLinks)
         .use(remarkToc)
         .use(remark2rehype)
         .use(rehypeRaw)
