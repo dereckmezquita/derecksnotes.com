@@ -5,8 +5,6 @@ date: 2020-07-10
 tags: [test, test2]
 ---
 
-# Hierarchy in art
-
 ## Table of contents
 
 Yesterday I learned something interesting regarding art history. I found this video by Coffee Break, a new Youtube channel I've started watching recently.
