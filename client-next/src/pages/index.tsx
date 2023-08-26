@@ -1,5 +1,6 @@
 import { GetStaticProps } from 'next';
-import PostPreview from '../components/PostPreview';
+
+import PostPreview from '@components/PostPreview';
 import { get_post_metadata } from '@utils/markdown';
 
 function Home({ posts }: { posts: PostMetadata[] }) {
