@@ -41,7 +41,7 @@ const SiteSlogan = styled.span`
     }
 `;
 
-const SiteName = styled.span`
+export const SiteName = styled.span`
     font-family: "Fjalla One", sans-serif;
     display: inline-block;
     text-transform: uppercase;
