@@ -3,11 +3,20 @@ export { };
 
 declare global {
     interface PostMetadata {
-        slug: string;
+        slug: string; // filename
+        section: string; // folder where content is; passed by function
+
         title: string;
-        subtitle: string;
+        blurb: string; // random phrase
+        coverImage: string; // stored in md as a single number
+        author: string;
         date: string;
-        coverImage?: string;
-        section: string;
+
+        summary: string; // derived from content
+
+        tags: string[];
+
+        published: boolean;
+        subtitle?: string;
     };
 }

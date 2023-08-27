@@ -8,7 +8,7 @@ const NavContainer = styled.div`
     overflow: hidden;
     margin: 20px auto;
     width: 90%;
-    color: ${theme.theme_colours[6]()};
+    color: ${theme.theme_colours[5]()};
 
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -39,7 +39,7 @@ const NavItem = styled(Link) <{ rightmost?: boolean }>`
 
     &:hover {
         color: ${theme.text.colour.white()};
-        background: ${theme.theme_colours[6]()};
+        background: ${theme.theme_colours[5]()};
     }
 `;
 
@@ -67,7 +67,7 @@ const DropDownLabel = styled.div <{ rightmost?: boolean }>`
 
     &:hover {
         color: ${theme.text.colour.white()};
-        background: ${theme.theme_colours[6]()};
+        background: ${theme.theme_colours[5]()};
     }
 `;
 

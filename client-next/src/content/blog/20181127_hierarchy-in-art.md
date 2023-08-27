@@ -1,8 +1,12 @@
 ---
 title: "Hierarchy in art"
-subtitle: "sub test"
+blurb: "Classical art still kicks arse!"
+coverImage: 100
+author: "Dereck Mezquita"
 date: 2020-07-10
+
 tags: [test, test2]
+published: true
 ---
 
 ## Table of contents
