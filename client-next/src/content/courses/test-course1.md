@@ -1,8 +1,12 @@
 ---
 title: "Some course on biology"
-subtitle: "some sub title"
+blurb: "Science and Champagne!"
+coverImage: 99
+author: "Dereck Mezquita"
 date: 2020-08-26
-tags: [test, test2]
+
+tags: [test, biology]
+published: true
 ---
 
 ## Table of contents

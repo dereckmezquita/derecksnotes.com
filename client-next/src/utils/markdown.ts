@@ -3,21 +3,55 @@ import path from 'path';
 import matter from 'gray-matter';
 import { ROOT } from '@constants/misc';
 
+
+import { remark } from 'remark';
+import strip from 'strip-markdown';
+
+import { Parent } from 'unist';
+
+function onlyParagraphs() {
+    return (tree: Parent) => {
+        return {
+            type: 'root',
+            children: tree.children.filter(node => node.type === 'paragraph')
+        };
+    };
+}
+
 export const get_post_metadata = (folder: string): PostMetadata[] => {
     const files = fs.readdirSync(path.join(ROOT, 'content', folder));
     const md = files.filter((fn) => fn.endsWith('.md'));
     // get gray-matter metadata
     return md.map((file_name) => {
-        // const file_contents = fs.readFileSync(`${folder}${file_name}`, 'utf8');
-        const file_contents: string = fs.readFileSync(path.join(ROOT, 'content', folder, file_name), 'utf8');
-        const { data } = matter(file_contents);
+        const file: string = path.join(ROOT, 'content', folder, file_name);
+        const file_contents: string = fs.readFileSync(file, 'utf8');
+        const { data, content } = matter(file_contents) as matter.GrayMatterFile<string>;
+
+        // get the first n characters from the content; used for the summary from the post data
+        const summary: string = remark()
+            .use(onlyParagraphs)
+            .use(strip) // strip all markdown formatting
+            .processSync(content)
+            .toString()
+            .substring(0, 250);
+
         return {
+            slug: file_name.replace('.md', ''),
+            section: folder,
+
             title: data.title,
-            subtitle: data.subtitle,
+            blurb: data.blurb,
+            coverImage: `/site-images/card-covers/${data.coverImage}.png`,
+            author: data.author,
             // to date format YYYT-MM-DD HH:MM:SS
             date: typeof data.date === 'string' ? data.date : data.date.toISOString().split('T')[0],
-            slug: file_name.replace('.md', ''),
-            section: folder
+
+            summary: summary,
+
+            tags: data.tags,
+
+            published: data.published,
+            subtitle: data.subtitle ? data.subtitle : '',
         };
     });
 }

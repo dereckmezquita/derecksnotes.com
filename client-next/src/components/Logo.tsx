@@ -13,10 +13,6 @@ const HeaderContainer = styled(Link)`
     margin: auto;
     color: black;
     text-shadow: -5px 5px 5px rgba(153, 153, 153, 0.5);
-
-
-
-
 `;
 
 const SiteEstablished = styled.span`
@@ -49,7 +45,7 @@ const SiteName = styled.span`
     font-family: "Fjalla One", sans-serif;
     display: inline-block;
     text-transform: uppercase;
-    color: ${theme.text.colour.header()};
+    color: ${theme.theme_colours[5]()};
     font-size: 42.5px;
     transform: scale(1.35, 1.3);
     line-height: 57px;
