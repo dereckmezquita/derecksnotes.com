@@ -42,7 +42,7 @@ const SideBarEntriesContainer = styled.div`
 `;
 
 const SideEntryLink = styled(Link)`
-    font-size: 14px;
+    font-size: 13px;
     text-decoration: none;
     color: ${theme.text.colour.light_grey()};
 
