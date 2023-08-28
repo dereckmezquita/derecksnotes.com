@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { hsla_colour, theme } from '@styles/theme';
 
-const NavContainer = styled.div`
+const NavContainer = styled.nav`
     background-color: ${theme.container.background.colour.primary()};
     overflow: hidden;
     margin: 20px auto;
@@ -23,12 +23,9 @@ const NavContainer = styled.div`
     }
 `;
 
-// allows for argument to determine if align left or right
-// inherit from Link component allows for linking to other pages
-const NavItem = styled(Link) <{ rightmost?: boolean }>`
+const CommonNavItem = styled.div<{ rightmost?: boolean }>`
     cursor: pointer;
     float: ${(props) => (props.rightmost ? 'right' : 'left')};
-
     display: block;
     color: inherit;
     text-align: center;
@@ -41,6 +38,10 @@ const NavItem = styled(Link) <{ rightmost?: boolean }>`
         background: ${theme.theme_colours[5]()};
     }
 `;
+
+// allows for argument to determine if align left or right
+// inherit from Link component allows for linking to other pages
+const NavItem = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boolean }>``;
 
 const NavImage = styled.img`
     height: 16px;
@@ -50,43 +51,28 @@ const NavImage = styled.img`
 const DropDownContainer = styled.div`
     float: left;
     overflow: hidden;
+
+    &:hover div {
+        display: block;
+    }
 `;
 
 // the same as NavItem but no link
-const DropDownLabel = styled.div <{ rightmost?: boolean }>`
-    cursor: pointer;
-    float: ${(props) => (props.rightmost ? 'right' : 'left')};
-
-    display: block;
-    color: inherit;
-    text-align: center;
-    padding: 14px 13px;
-    text-decoration: none;
-    font-size: 17px;
-
-    &:hover {
-        color: ${theme.text.colour.white()};
-        background: ${theme.theme_colours[5]()};
-    }
-`;
+const DropDownLabel = styled(CommonNavItem)<{ rightmost?: boolean }>``;
 
 const DropDownContent = styled.div`
     display: none;
     position: absolute;
     min-width: 160px;
-
     z-index: 1;
-
     border: 1px solid #ccc;
     border-radius: 5px;
-
     box-shadow: 1px 1px 10px #ccc;
 `;
 
 const DateTimeDisplay = styled.div`
     cursor: pointer;
     float: right;
-
     display: block;
     color: inherit;
     text-align: center;
