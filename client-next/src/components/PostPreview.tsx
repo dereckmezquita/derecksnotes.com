@@ -5,6 +5,7 @@ import { theme } from '@styles/theme';
 
 import path from 'path';
 import Card from './ui/Card';
+import DropCap from './ui/DropCap';
 
 const PostMeta = styled.div`
     font-size: 15px;
@@ -28,15 +29,6 @@ const PostImage = styled.img`
     max-width: 90%;
 
     filter: sepia(20%); // adds yellow tint
-`;
-
-const DropCap = styled.span`
-    float: left;
-    font-size: 4.75em;
-    font-family: Georgia, serif;
-    line-height: 40px;
-    margin-right: 0.1em;
-    color: ${theme.theme_colours[5]()};
 `;
 
 const Summary = styled.p`
