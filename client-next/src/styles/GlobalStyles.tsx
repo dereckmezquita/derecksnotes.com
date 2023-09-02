@@ -2,6 +2,8 @@ import { createGlobalStyle } from 'styled-components';
 import { theme } from './theme';
 import reset from 'styled-reset';
 
+const h1_size: number = 2;
+
 const GlobalStyles = createGlobalStyle`
     * {
         box-sizing: border-box;
@@ -41,6 +43,24 @@ const GlobalStyles = createGlobalStyle`
         color: ${theme.text.colour.header()};
         text-align: left;
     }
+
+    h1 {
+        font-size: ${h1_size}em;
+        border-bottom: 1px solid ${theme.container.border.colour.primary()};
+    }
+
+    h2 {
+        font-size: ${h1_size * 0.85}em;
+    }
+
+    h3 {
+        font-size: ${h1_size * 0.65}em;
+    }
+
+    h4, h5, h6 {
+        font-size: ${h1_size * 0.45}em;
+    }
+
 
     a {
         color: ${theme.text.colour.anchor()};
