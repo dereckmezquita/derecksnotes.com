@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import { hsla_colour, theme } from '@styles/theme';
 
 const NavContainer = styled.nav`
-    background-color: ${theme.container.background.colour.primary()};
+    background-color: ${theme.container.background.colour.content()};
     overflow: hidden;
     margin: 20px auto;
     width: 90%;
@@ -52,22 +52,33 @@ const DropDownContainer = styled.div`
     float: left;
     overflow: hidden;
 
-    &:hover div {
-        display: block;
-    }
+    position: relative;
 `;
 
 // the same as NavItem but no link
 const DropDownLabel = styled(CommonNavItem)<{ rightmost?: boolean }>``;
 
 const DropDownContent = styled.div`
-    display: none;
+    display: block;
     position: absolute;
+    background-color: red;
     min-width: 160px;
     z-index: 1;
     border: 1px solid #ccc;
     border-radius: 5px;
     box-shadow: 1px 1px 10px #ccc;
+
+    top: 38px;
+
+    ${DropDownContainer}:hover & {
+        display: block;
+    }
+
+    ${NavItem} {
+        float: none;
+        padding: 12px 16px;
+        text-align: left;
+    }
 `;
 
 const DateTimeDisplay = styled.div`
