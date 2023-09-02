@@ -10,7 +10,7 @@ const PostContainer = styled.div`
     margin: 0 auto 50px;
 
     width: 80%;
-    background-color: ${theme.container.background.colour.primary()};
+    background-color: ${theme.container.background.colour.content()};
 
     border: 1px solid #ccc;
     border-radius: 5px;
