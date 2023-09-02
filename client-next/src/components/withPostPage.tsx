@@ -59,6 +59,10 @@ const Article = styled.article`
     padding-left: 40px;
     padding-right: 40px;
     border-left: 1px dashed ${theme.container.border.colour.primary()};
+    
+    text-align: justify;
+    text-justify: auto;
+    
     @media (max-width: 1096px) {
         width: 100%;
     }
