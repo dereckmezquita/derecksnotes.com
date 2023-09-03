@@ -56,7 +56,10 @@ export const theme = {
         colour: {
             primary: hsla_colour(0, 0, 15, 1), // black for reading
             header: colour_scheme[5], // headers and logo
-            anchor: hsla_colour(210, 100, 50, 1), // links
+            anchor: colour_scheme[6], // links
+            anchor_hover: colour_scheme[7], // links light grey
+            // contrasting blue colour for visited links
+            anchor_visited: hsla_colour(120, 100, 5),
             white: hsla_colour(0, 0, 100, 1), // white for inverted reading
             light_grey: hsla_colour(0, 0, 60, 1)
         },
