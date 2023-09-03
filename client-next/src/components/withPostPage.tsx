@@ -53,6 +53,26 @@ const SideEntryLink = styled(Link)`
     }
 `;
 
+const SideBarAboutContainer = styled.div`
+    display: block;
+    margin-top: 30px;
+    padding-top: 30px;
+    text-align: justify;
+    text-justify: auto;
+
+    p {
+        font-size: 0.9rem;
+        padding-right: 10px;
+        margin-right: 10px;
+    }
+`;
+
+const SideBarAboutH2 = styled.h2`
+    padding-top: 10px;
+    font-size: 20px;
+    color: ${theme.text.colour.light_grey(undefined, undefined, 50)};
+`;
+
 const Article = styled.article`
     width: 70%;
     margin-top: 30px;
@@ -97,6 +117,15 @@ export const withPostPage = (section: string) => {
                             </SideEntryLink>
                         ))}
                     </SideBarEntriesContainer>
+                    <SideBarAboutContainer>
+                        <SideBarAboutH2>About</SideBarAboutH2>
+                        <p>
+                            This website is custom made by Dereck using React, Next.js, and TypeScript. It incorporates progressive web app technologies an relies on a NodeJS backend along with a MongoDB database.
+                        </p>
+                        <p>
+                            If you'd like to know more you can find the full source code on <a href='https://github.com/dereckmezquita/derecksnotes.com'>github.com/dereckmezquita/derecksnotes.com</a>
+                        </p>
+                    </SideBarAboutContainer>
                 </SideBarContainer>
                 <Article>
                     <h1>{post.title}</h1>
