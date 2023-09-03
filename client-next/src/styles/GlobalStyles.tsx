@@ -64,10 +64,10 @@ const GlobalStyles = createGlobalStyle`
 
     a {
         color: ${theme.text.colour.anchor()};
-    }
 
-    a:hover {
-        color: ${theme.text.colour.anchor(undefined, 100, 0)};
+        &:hover {
+            color: ${theme.text.colour.anchor_hover()};
+        }
     }
 `;
 
