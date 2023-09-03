@@ -19,8 +19,14 @@ Life is a characteristic that distinguishes physical entities that have biologic
 
 [^1]: [Wikipedia](https://en.wikipedia.org/wiki/Life)
 
-### What is a cell?
+## What is a cell?
 
 A cell is the smallest unit of life. Cells are often called the "building blocks of life". The study of cells is called cell biology, cellular biology, or cytology. Cells consist of cytoplasm enclosed within a membrane, which contains many biomolecules such as proteins and nucleic acids. Organisms can be classified as unicellular (consisting of a single cell such as bacteria) or multicellular (including plants and animals). While the number of cells in plants and animals varies from species to species, humans contain more than 10 trillion (10<sup>13</sup>) cells. Most plant and animal cells are visible only under a microscope, with dimensions between 1 and 100 micrometres[^2].
 
 [^2]: [Wikipedia](https://en.wikipedia.org/wiki/Cell_(biology))
+
+### Cell theory
+
+Cell theory states that the cell is the fundamental unit of life, and that all living things are composed of one or more cells, that all cells come from preexisting cells, that vital functions of an organism occur within cells, and that all cells contain the hereditary information necessary for regulating cell functions and for transmitting information to the next generation of cells[^3].
+
+[^3]: [Wikipedia](https://en.wikipedia.org/wiki/Cell_theory)

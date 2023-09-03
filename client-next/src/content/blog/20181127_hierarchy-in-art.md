@@ -15,13 +15,27 @@ Yesterday I learned something interesting regarding art history. I found this vi
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/T_ke-MOT1mI" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-<a href="www.derecksnotes.com">test</a>
+[test](www.derecksnotes.com)
 
 He has some very interesting content regarding many topics I enjoy, such as art, politics, economics and even technology.
 
 Anyway, this video he made about the history of art was quite interesting. He went over the birth of what most people now associate to modern art; abstract art.
 
 ## test
+
+Lift($L$) can be determined by Lift Coefficient ($C_L$) like the following
+equation.
+
+$$
+L = \frac{1}{2} \rho v^2 S C_L
+$$
+
+### another level
+
+> [!NOTE]
+> Highlights information that users should take into account, even when skimming.
+
+#### one more
 
 For many years I've ripped on modern art. To me it's just difficult to grasp the idea that this abstract art, has any value to it. I need there to be some technical skills behind art in order to appreciate it.
 
