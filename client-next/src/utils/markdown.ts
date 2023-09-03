@@ -6,7 +6,7 @@ import { ROOT } from '@constants/misc';
 import { remark } from 'remark';
 import strip from 'strip-markdown';
 
-import { Parent, Node } from 'unist';
+import { Parent } from 'unist';
 
 import { theme } from '@styles/theme';
 
@@ -82,85 +82,22 @@ import remarkUnwrapImages from 'remark-unwrap-images'; // remove image wrapper
 import rehypeExternalLinks from 'rehype-external-links';
 import remarkToc from 'remark-toc';
 
-// dropcap should have these styles
-import { visit } from 'unist-util-visit';
+import remarkMath from 'remark-math';
+import rehypeMathjax from 'rehype-mathjax'
 
-
-interface DropCapConfig {
-    float?: string;
-    fontSize?: string;
-    fontFamily?: string;
-    lineHeight?: string;
-    marginRight?: string;
-    color?: string;
-}
-
-function dropCap(config: DropCapConfig) {
-    return (tree: Node) => {
-        // Step 1: Initialize firstParagraphNode
-        let firstParagraphNode: Node | null = null;
-
-        // Step 2: Define findFirstParagraphNode function
-        const findFirstParagraphNode = (node: Node) => {
-            if (firstParagraphNode) return;
-
-            // Check if the current node is a paragraph element and contains text
-            if (node.type === 'element' && (node as any).tagName === 'p' && (node as any).children.some((child: any) => child.type === 'text' && child.value.trim() !== '')) {
-                firstParagraphNode = node;
-                return;
-            }
-            if ('children' in node) {
-                (node.children as Node[]).forEach(findFirstParagraphNode);
-            }
-        };
-
-        // Step 3: Call findFirstParagraphNode function
-        findFirstParagraphNode(tree);
-
-        // Step 4: Check if firstParagraphNode is found
-        if (firstParagraphNode) {
-            const firstChild = (firstParagraphNode as any).children[0];
-            if (firstChild && firstChild.type === 'text') {
-                const value = firstChild.value.trim();
-
-                // Step 5: Create dropCapSpan
-                const dropCapSpan = {
-                    type: 'element',
-                    tagName: 'span',
-                    properties: {
-                        style: `
-                            float: ${config.float ? config.float : 'left'};
-                            font-size: ${config.fontSize ? config.fontSize : '4.75em'};
-                            font-family: ${config.fontFamily ? config.fontFamily : 'Georgia, serif'};
-                            line-height: ${config.lineHeight ? config.lineHeight : '40px'};
-                            margin-right: ${config.marginRight ? config.marginRight : '0.1em'};
-                            color: ${config.color ? config.color : 'inherit'};
-                        `,
-                        className: ['dropcap'],
-                    },
-                    children: [{
-                        type: 'text',
-                        value: value[0]
-                    }]
-                };
-
-                // Step 6: Modify firstParagraphNode
-                firstChild.value = value.slice(1);
-                (firstParagraphNode as any).children.unshift(dropCapSpan);
-            }
-        }
-    };
-}
+import { rehypeDropCap, rehypeStyleToc, rehypeAddHeadingLinks } from './rehype';
 
 export const process_markdown = async (content: string): Promise<string> => {
     const result = await unified()
         .use(markdown) // parse markdown
+        .use(remarkMath)
         .use(remarkGfm) // github flavored markdown
         .use(remarkUnwrapImages) // remove image wrapper
         .use(rehypeExternalLinks) // add target="_blank" to external links
         .use(remarkToc) // add table of contents
         .use(remark2rehype) // markdown to html
-        .use(dropCap, {
+        .use(rehypeMathjax)
+        .use(rehypeDropCap, {
             float: 'left',
             fontSize: '4.75em',
             fontFamily: 'Georgia, serif',
@@ -168,11 +105,13 @@ export const process_markdown = async (content: string): Promise<string> => {
             marginRight: '0.1em',
             color: theme.theme_colours[5](),
         })
+        .use(rehypeStyleToc)
         .use(rehypeRaw) // allows html in markdown
         .use(rehypeSlug)
         .use(rehypePrettyCode)
-        .use(stringify)
-        .process(content);
+        .use(rehypeAddHeadingLinks)
+        .use(stringify) // html to string
+        .process(content); // process the markdown
 
     return result.toString();
 }
