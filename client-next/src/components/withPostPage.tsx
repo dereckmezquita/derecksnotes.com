@@ -84,7 +84,7 @@ export const withPostPage = (section: string) => {
         return (
             <PostContainer>
                 <SideBarContainer>
-                    <SideBarSiteName fontSize='20px'>Dereck's Notes</SideBarSiteName>
+                    <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
                     <SideBarEntriesContainer>
                         {postsMetadata.map((postMetadata) => (
                             <SideEntryLink
