@@ -64,7 +64,7 @@ const Logo = () => (
     <HeaderContainer href='/' passHref>
         <SiteEstablished>Established France 2017</SiteEstablished>
         <SiteSlogan>The online brain of Dereck Mezquita</SiteSlogan>
-        <SiteName>Dereck's Notes</SiteName>
+        <SiteName>{`Dereck's Notes`}</SiteName>
     </HeaderContainer>
 );
 
