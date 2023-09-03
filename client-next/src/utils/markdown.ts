@@ -85,7 +85,10 @@ import remarkToc from 'remark-toc';
 import remarkMath from 'remark-math';
 import rehypeMathjax from 'rehype-mathjax'
 
-import { rehypeDropCap, rehypeStyleToc, rehypeAddHeadingLinks } from './rehype';
+import rehypeDropCap from './rehype/rehypeDropCap';
+import rehypeStyleToc from './rehype/rehypeStyledToc';
+import rehypeAddHeadingLinks from './rehype/rehypeAddHeadingLinks';
+import rehypeStyledAlerts from './rehype/rehypeStyledAlerts';
 
 export const process_markdown = async (content: string): Promise<string> => {
     const result = await unified()
@@ -95,7 +98,9 @@ export const process_markdown = async (content: string): Promise<string> => {
         .use(remarkUnwrapImages) // remove image wrapper
         .use(rehypeExternalLinks) // add target="_blank" to external links
         .use(remarkToc) // add table of contents
-        .use(remark2rehype) // markdown to html
+        .use(remark2rehype, { // markdown to html
+            allowDangerousHtml: true, // allows html in markdown such as br etc.
+        })
         .use(rehypeMathjax)
         .use(rehypeDropCap, {
             float: 'left',
@@ -105,6 +110,7 @@ export const process_markdown = async (content: string): Promise<string> => {
             marginRight: '0.1em',
             color: theme.theme_colours[5](),
         })
+        .use(rehypeStyledAlerts)
         .use(rehypeStyleToc)
         .use(rehypeRaw) // allows html in markdown
         .use(rehypeSlug)
