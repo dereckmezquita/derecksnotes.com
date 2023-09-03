@@ -4,6 +4,7 @@ import { AppProps } from 'next/app';
 // components
 import NavBar from '@components/ui/NavBar';
 import Logo from '@components/Logo';
+import Footer from '@components/ui/Footer';
 
 // styles
 import GlobalStyles from '@styles/GlobalStyles';
@@ -24,6 +25,7 @@ export default function App({ Component, pageProps }: AppProps) {
             <Logo></Logo>
             <NavBar />
             <Component {...pageProps} />
+            <Footer />
         </ThemeProvider>
     )
 }
