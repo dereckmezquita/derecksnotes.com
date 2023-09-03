@@ -15,7 +15,7 @@ import { Node } from 'unist';
 // </blockquote>
 
 export default function rehypeStyledAlerts() {
-    return (tree: any) => {
+    return (tree: Node) => {
         // Step 1: Define transformation function
         const transformAlerts = (node: { type: string; tagName: string; children: any[]; properties: { style: string; className: string[]; }; }) => {
             if (node.type === 'element' && node.tagName === 'blockquote') {
@@ -34,20 +34,20 @@ export default function rehypeStyledAlerts() {
                 if (node.children.length !== 3) return;
 
                 const text = node.children[1].children[0].value;
-                let alertType, color, iconPath;
+                let alertType, color, iconData;
 
                 if (text.startsWith('[!NOTE]')) {
                     alertType = 'Note';
                     color = 'rgb(47, 129, 247)';
-                    iconPath = 'path/to/note-icon.svg';
+                    iconData = 'M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z';
                 } else if (text.startsWith('[!IMPORTANT]')) {
                     alertType = 'Important';
                     color = 'rgb(163, 113, 247)';
-                    iconPath = 'path/to/important-icon.svg';
+                    iconData = 'M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v9.5A1.75 1.75 0 0 1 14.25 13H8.06l-2.573 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25Zm7 2.25v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z';
                 } else if (text.startsWith('[!WARNING]')) {
                     alertType = 'Warning';
                     color = 'rgb(210, 153, 34)';
-                    iconPath = 'path/to/warning-icon.svg';
+                    iconData = 'M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z';
                 } else {
                     return;
                 }
@@ -58,14 +58,14 @@ export default function rehypeStyledAlerts() {
                     tagName: 'div',
                     properties: {
                         style: `
-                            padding: 1em;
-                            margin-bottom: 16px;
+                            padding: 2px;
+                            padding-left: 15px;
+                            margin-top: 10px;
+                            margin-bottom: 10px;
                             color: inherit;
                             border-left: .25em solid ${color};
                             font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji";
-                            font-size: 16px;
-                            line-height: 1.5;
-                            word-wrap: break-word;
+                            font-size: inherit;
                         `,
                         className: ['markdown-alert'],
                     },
@@ -84,14 +84,28 @@ export default function rehypeStyledAlerts() {
                             children: [
                                 {
                                     type: 'element',
-                                    tagName: 'img',
+                                    tagName: 'svg',
                                     properties: {
-                                        src: iconPath,
-                                        alt: `${alertType} icon`,
+                                        class: 'octicon octicon-info',
+                                        viewBox: '0 0 16 16',
+                                        version: '1.1',
+                                        width: '16',
+                                        height: '16',
+                                        'aria-hidden': 'true',
                                         style: `
                                             margin-right: 8px;
                                         `,
                                     },
+                                    children: [
+                                        {
+                                            type: 'element',
+                                            tagName: 'path',
+                                            properties: {
+                                                d: iconData,
+                                                fill: color,
+                                            },
+                                        },
+                                    ],
                                 },
                                 {
                                     type: 'text',
@@ -125,6 +139,6 @@ export default function rehypeStyledAlerts() {
         };
 
         // Step 2: Call transformAlerts function
-        transformAlerts(tree);
+        transformAlerts(tree as any);
     };
 }
