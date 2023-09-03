@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import { hsla_colour, theme } from '@styles/theme';
 
 const NavContainer = styled.nav`
-    background-color: ${theme.container.background.colour.content()};
+    background-color: ${theme.container.background.colour.primary()};
     overflow: hidden;
     margin: 20px auto;
     width: 90%;
@@ -51,15 +51,13 @@ const NavImage = styled.img`
 const DropDownContainer = styled.div`
     float: left;
     overflow: hidden;
-
-    position: relative;
 `;
 
 // the same as NavItem but no link
 const DropDownLabel = styled(CommonNavItem)<{ rightmost?: boolean }>``;
 
 const DropDownContent = styled.div`
-    display: block;
+    display: none;
     position: absolute;
     background-color: red;
     min-width: 160px;
@@ -67,8 +65,6 @@ const DropDownContent = styled.div`
     border: 1px solid #ccc;
     border-radius: 5px;
     box-shadow: 1px 1px 10px #ccc;
-
-    top: 38px;
 
     ${DropDownContainer}:hover & {
         display: block;
