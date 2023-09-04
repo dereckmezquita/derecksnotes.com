@@ -1,3 +1,4 @@
+// https://github.com/ShuntaH/remark-toc-collapse/blob/main/index.js
 import { toc, Options as TocOptions } from 'mdast-util-toc';
 import { Root } from 'mdast';
 import { Node } from 'mdast-util-toc/lib'
