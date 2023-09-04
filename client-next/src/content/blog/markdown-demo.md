@@ -13,7 +13,7 @@ published: true
 
 You can directly have a paragraph here and it won't be scraped by `remark-toc`.
 
-<!-- you can break -->
+<!-- custom support for html including breaks -->
 <br>
 
 ## Autolink literals
@@ -46,3 +46,53 @@ A note[^1]
 
 * [ ] to do
 * [x] done
+
+## Custom syntax
+
+### Support for alerts
+
+> [!NOTE]
+> Highlights information that users should take into account, even when skimming.
+
+> [!IMPORTANT]
+> Crucial information necessary for users to succeed.
+
+> [!WARNING]
+> Critical content demanding immediate user attention due to potential risks.
+
+### Code syntax highlighting
+
+```js
+const someNewFunction = () => {
+    return 2345234523;
+}
+```
+
+
+```javascript
+const test = 'test';
+
+function test() {
+    return 'test';
+}
+```
+
+```r
+someRfunction <- function() {
+    return(2345234523)
+}
+
+library("R6")
+
+TestClass <- R6Class(
+    "TestClass",
+    public = list(
+        initialize = function(x) {
+            self$x <- x
+        },
+        print_x = function() {
+            print(self$x)
+        }
+    )
+)
+```
