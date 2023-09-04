@@ -10,12 +10,12 @@ published: true
 comments: true
 ---
 
+Simple way to set up a RPI card. Just format the card with disk utility first then you're good to go. Follow the basic commands shown below. Baisically we will unmount the disk, then move to the directory where our OS is located and run: `dd if=2019-09-26-raspbian-buster-lite.img of=/dev/disk3 bs=2m`; add sudo if it doesn't work.
+
 > [!WARNING]
 > Fair warning: if you are not comfortable with a command line, do not use this method for setting up your SD card for your raspberry pi (RPI). If you do so you, it is at your own risk. Know that this method if done incorrectly can harm your machine and data.
 
-Simple way to set up a RPI card. Just format the card with disk utility first then you're good to go. Follow the basic commands shown below. Baisically we will unmount the disk, then move to the directory where our OS is located and run: `dd if=2019-09-26-raspbian-buster-lite.img of=/dev/disk3 bs=2m`; add sudo if it doesn't work.
-
-![Formating a disk with disk utility, do not use ExFat.](/blog/documents/20191030_raspberry-pi-set-up/diskutility.png)
+![Formating a disk with disk utility, do not use ExFat.](/blog/20191030_raspberry-pi-set-up/diskutility.png)
 Figure: Formating a disk with disk utility, do not use ExFat.
 
 ## Flashing the card
@@ -95,7 +95,7 @@ network={
 }
 ```
 
-![RPI sd card root directory.](/blog/documents/20191030_raspberry-pi-set-up/rpiwifi.png)
+![RPI sd card root directory.](/blog/20191030_raspberry-pi-set-up/rpiwifi.png)
 Figure: RPI sd card root directory.
 
 ### Get the IP of the RPI
