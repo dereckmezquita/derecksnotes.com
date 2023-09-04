@@ -69,6 +69,14 @@ const GlobalStyles = createGlobalStyle`
             color: ${theme.text.colour.anchor_hover()};
         }
     }
+
+    pre {
+        margin: 15px;
+        padding: 15px;
+        border-radius: 7px;
+        border: 2px solid ${theme.container.border.colour.primary()};
+        font-size: 0.95em;
+    }
 `;
 
 export default GlobalStyles;
