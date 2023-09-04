@@ -30,8 +30,12 @@ export default function rehypeAddHeadingLinks() {
                         style: `
                             text-decoration: none;
                             font-size: 0.9em;
+                            opacity: 0;
+                            transition: opacity 0.3s;
                         `,
                         className: ['icon', 'icon-link'],
+                        onMouseOver: 'this.style.opacity = 1',  // make it visible on hover
+                        onMouseOut: 'this.style.opacity = 0',
                     },
                     children: [{
                         type: 'element',
