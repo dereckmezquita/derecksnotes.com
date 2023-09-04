@@ -36,6 +36,10 @@ function Home({ posts }: { posts: PostMetadata[] }) {
 export const getStaticProps: GetStaticProps = async () => {
     let posts: PostMetadata[] = get_post_metadata("courses");
     posts = posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // filter out any posts with published false
+    posts = posts.filter(post => post.published);
+
     return {
         props: {
             posts
