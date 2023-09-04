@@ -15,6 +15,13 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
     let postsMetadata = get_post_metadata(section);
     postsMetadata = postsMetadata.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+    // if post is not published, return 404
+    if (!postContent.data.published) {
+        return {
+            notFound: true
+        };
+    }
+
     return {
         props: {
             content,
