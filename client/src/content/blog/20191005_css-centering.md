@@ -5,7 +5,7 @@ coverImage: 361
 author: "Dereck Mezquita"
 date: 2019-10-05
 
-tags: []
+tags: [css, programming, code, web-development]
 published: true
 comments: true
 ---
