@@ -92,6 +92,14 @@ const Article = styled.article`
 const PostContent = styled.div`
     margin: 0 auto;
     padding: 0px;
+
+    /* style img but exclude any that have class .link-icon-image */
+    img:not(.link-icon-image) {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+        height: auto;
+    }
 `;
 
 
