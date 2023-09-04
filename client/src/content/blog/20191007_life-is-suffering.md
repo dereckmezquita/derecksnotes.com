@@ -10,7 +10,6 @@ published: true
 comments: true
 ---
 
-<p>
 I had an interesting conversation with Emmanuel the other day. We were talking about how one should live their life, and how one should view their life.
 
 Needless to say our perspectives on the subject diverge; his are optimistic, and mine pessimistic.
