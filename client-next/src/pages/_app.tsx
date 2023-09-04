@@ -3,7 +3,7 @@ import { AppProps } from 'next/app';
 
 // components
 import NavBar from '@components/ui/NavBar';
-import Logo from '@components/Logo';
+import Logo from '@components/ui/Logo';
 import Footer from '@components/ui/Footer';
 
 // styles
@@ -24,7 +24,7 @@ export default function App({ Component, pageProps, router }: AppProps) {
     return (
         <ThemeProvider theme={ theme }>
             <GlobalStyles />
-            <Logo></Logo>
+            <Logo />
             <NavBar />
             <Component {...pageProps} />
             <Footer />

@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
-import { SiteName } from '@components/Logo';
+import { SiteName } from '@components/ui/Logo';
 
 const PostContainer = styled.div`
     display: flex;
