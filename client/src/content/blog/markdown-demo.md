@@ -109,3 +109,15 @@ TestClass <- R6Class(
     )
 )
 ```
+
+### Source
+
+Support from remark-captions used as such:
+
+> Some block quote here...
+Source: the source.
+
+Some image here...
+
+![Something something something](/site-images/icons/linkedin.png)
+Figure: the source of the linkedin image.
