@@ -78,15 +78,13 @@ import remarkGfm from 'remark-gfm'; // github flavored markdown
 import rehypeRaw from "rehype-raw"; // allows html in markdown
 import rehypeSlug from 'rehype-slug'; // adds id to headings
 import remarkUnwrapImages from 'remark-unwrap-images'; // remove image wrapper
-// import remarkExternalLinks from 'remark-external-links';
-import rehypeExternalLinks from 'rehype-external-links';
-import remarkToc from 'remark-toc';
+import remarkExternalLinks from 'remark-external-links';
 
 import remarkMath from 'remark-math';
 import rehypeMathjax from 'rehype-mathjax'
 
+import remarkTocCollapse from './remark/remarkTocCollapse';
 import rehypeDropCap from './rehype/rehypeDropCap';
-import rehypeStyleToc from './rehype/rehypeStyledToc';
 import rehypeAddHeadingLinks from './rehype/rehypeAddHeadingLinks';
 import rehypeStyledAlerts from './rehype/rehypeStyledAlerts';
 
@@ -96,10 +94,10 @@ export const process_markdown = async (content: string): Promise<string> => {
         .use(remarkMath)
         .use(remarkGfm) // github flavored markdown
         .use(remarkUnwrapImages) // remove image wrapper
-        .use(rehypeExternalLinks) // add target="_blank" to external links
-        .use(remarkToc) // add table of contents
+        .use(remarkExternalLinks) // add target="_blank" to external links
+        .use(remarkTocCollapse)
         .use(remark2rehype, { // markdown to html
-            allowDangerousHtml: true, // allows html in markdown such as br etc.
+            allowDangerousHtml: true // allows html in markdown such as br etc.
         })
         .use(rehypeMathjax)
         .use(rehypeDropCap, {
@@ -111,7 +109,6 @@ export const process_markdown = async (content: string): Promise<string> => {
             color: theme.theme_colours[5](),
         })
         .use(rehypeStyledAlerts)
-        .use(rehypeStyleToc)
         .use(rehypeRaw) // allows html in markdown
         .use(rehypeSlug)
         .use(rehypePrettyCode)
