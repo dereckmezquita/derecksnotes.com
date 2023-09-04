@@ -51,7 +51,7 @@ const PostPreview = (props: PostMetadata) => {
     }
 
     const firstLetter = props.summary.charAt(0);
-    const restOfSummary = props.summary.slice(1);
+    const restOfSummary = props.summary.slice(1, 200);
 
     return (
         <Card onClick={handleClick}>
