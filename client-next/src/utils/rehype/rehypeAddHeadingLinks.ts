@@ -16,6 +16,9 @@ export default function rehypeAddHeadingLinks() {
             if (node.type === 'element' && ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes((node as any).tagName)) {
                 const id = (node as any).properties.id;
 
+                // if the id is table-of-contents then skip this one
+                if (id === 'table-of-contents') return;
+
                 // Create link element
                 const link = {
                     type: 'element',
