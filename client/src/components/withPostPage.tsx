@@ -100,6 +100,12 @@ const PostContent = styled.div`
         max-width: 100%;
         height: auto;
     }
+
+    iframe {
+        display: block;
+        margin: 0 auto;
+        max-width: 100%;
+    }
 `;
 
 
