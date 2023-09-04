@@ -47,6 +47,7 @@ export default function rehypeAddHeadingLinks() {
                                 height: 0.8em;
                                 padding-left: 0.2em;
                             `,
+                            className: ['link-icon-image'],
                         },
                     }],
                 };
