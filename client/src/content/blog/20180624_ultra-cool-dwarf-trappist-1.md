@@ -10,6 +10,8 @@ published: true
 comments: true
 ---
 
+## Table of contents
+
 Nasa has recently announced the discovery of seven Earth sized rocky planets orbiting a nearby star (40 light-years away from Earth)[^1]. The discovery was made using the Spitzer space telescope and the system was named Trappist after the Belgian operated terrestrial telescope located in Chile who made the initial discovery of the first two planets. Not only have the seven planets been confirmed but it has been found that three reside in the "Goldilocks," habitable zone.
 
 [^1]: [Nasa Press Release - Trappist-1](https://www.nasa.gov/press-release/nasa-telescope-reveals-largest-batch-of-earth-size-habitable-zone-planets-around)
