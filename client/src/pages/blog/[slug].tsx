@@ -14,6 +14,8 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
     // get info for side bar
     let postsMetadata = get_post_metadata(section);
     postsMetadata = postsMetadata.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    // remove those not published
+    postsMetadata = postsMetadata.filter(post => post.published);
 
     // if post is not published, return 404
     if (!postContent.data.published) {
