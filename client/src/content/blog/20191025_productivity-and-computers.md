@@ -1,0 +1,391 @@
+---
+title: "Productivity and computers"
+blurb: "Curly bones with fears"
+coverImage: 20
+author: "Dereck Mezquita"
+date: 2019-10-25
+
+tags: [productivity, computers, organisation, creation]
+published: true
+comments: true
+---
+
+## Table of contents
+
+![My desktop, notice, empty and clean as it should be.](/blog/20191025_productivity-and-computers/desktop.png)
+Figure: My desktop, notice, empty and clean as it should be.
+
+Daniel Rodriguez from Colombia currently in mSSB in Paris and living in Evry, France asked me about what my productivity set up is. Here are some applications[^10] that I use that keep me productive and organised. I feel like there are two main kinds of applications that one should be using in everyday life. Those for organising one's affairs and thoughts and those for creating documents and pushing output. Thus this will be broken into two sections: oragnisation and creation.
+
+## Organisation
+
+### Finder (file) organisation
+
+![Finder (file explorer) is your friend.](/blog/20191025_productivity-and-computers/finder.png)
+Figure: Finder (file explorer) is your friend.
+
+Yes I know this is not really an application, but it's something that anyone can do. One of the most important things in my experience is keeping track of all your documents and keeping them organised in a logical way so that you can find what you're looking for.
+
+Ten minutes a day could potentially save you hours searching for that PDF file you just "know" your professor sent you. So here are some basic tips for keeping documents organised and your affairs in order.
+
+**Folders and subfolders**: break things up into logical parts, find the big areas of your life and use those as root folders. Most computers come with this kind of set up already in the system. You'll have a documents folder, one for downloads, another for photos, music, etc.
+
+As you can see in figure 1, I've added a couple others to mine: academia, coding, design, literature, owncloud, and finally a to do folder. These all sit at the root of my system and can be easilly accessed; I've also added some of them to the sidebar of my finder.
+
+So when I first receive a file I do a few things:
+
+1. Rename the file; add a relevant short name preceeded by the date in the following format: YEARMONTHDATE_name-of-file, so for today 20191025_name-of-file.
+1. Sort the file into a relevant folder, or deposit it into a semi-relevant folder in the To do directory.
+
+Taking these two steps will save you a lot of time and hassle later on. Especially the time stamp and name. You could honestly just toss all of your files into one directory and as long as you've named them and dated them you'll probably be able to find what you're looking for.
+
+> [!NOTE]
+> A well organised machine with time stamped documents, and a well kept calendar is a golden set up. This will allow you to baisically have super human memory and to find, and remember everything. No longer will you ever have to search your mind for something you vaguely remember, your machine will do it for you.
+
+Search functions on today's PCs have gotten better over the years. For example the finder in Mac will even search the text inside the documents on your machine. Just please please please, name and date your documents. The created time stamp will be lost over time, who knows you might move machines, or copy and paste a file... the case is this information will be lost and knowing when you've received a document for the first time can be vital to understanding why it is relevant and to even finding it in the first place.
+
+So in order to sort documents you first must know what's important in your life. Here are just a few examples of how my directories are set up:
+
+![Here goes everything that I don't have time to deal with or just don't know yet where it will go. Every month or so I come back and empty this directory; organising it into a more permanent space or just deleting any contents I don't think I need to keep.](/blog/20191025_productivity-and-computers/todo.png)
+Figure: Here goes everything that I don't have time to deal with or just don't know yet where it will go. Every month or so I come back and empty this directory; organising it into a more permanent space or just deleting any contents I don't think I need to keep.
+
+![Here is a deeper example of how my things are organised. As can be seen everything has a place and a logical order, every file a relevant name and date.](/blog/20191025_productivity-and-computers/academia-tree.png)
+Figure: Here is a deeper example of how my things are organised. As can be seen everything has a place and a logical order, every file a relevant name and date.
+
+![Simply typing a date in Finder allows me to find anything that has the relevant name.](/blog/20191025_productivity-and-computers/date-demo.png)
+Figure: Simply typing a date in Finder allows me to find anything that has the relevant name.
+
+> [!IMPORTANT]
+> If I sound a bit hard on these two practices it's because they are necessary to a well lived and organised life; trust me they work.
+
+### Mail
+
+![A good desktop mail application is essential and allows for much more functionality than a web version.](/blog/20191025_productivity-and-computers/mail.png)
+Figure: A good desktop mail application is essential and allows for much more functionality than a web version.
+
+I am perfectly happy with the mail application that is included with MacOS. It allows for just enough functionality that I can keep my things organised - *automatically*. But not too much to be confusing or superflous.
+
+The first step to having a good mail set up is to chose those accounts which you want to have access to your eye balls. Have you got an old address that receives mostly spam? Well either clean it up and unsubscribe from those mailing lists, or don't include it in your desktop setup.
+
+You have a finite amount of time, and thus attention in one day. Prioritising who gets access to your eyes is important. The way my application is set up is the following way.
+
+![Simple if this then that sorting will greatly reduce the amount of time you search or take to consume your e-mails.](/blog/20191025_productivity-and-computers/mail-scripts.png)
+Figure: Simple if this then that sorting will greatly reduce the amount of time you search or take to consume your e-mails.
+
+> [!NOTE]
+> Filter and flag: all of my mails get filtered first. I have one very important filter set up, flagging all of my academic e-mails. MacOS' Mail application allows for basic if this then that statements. So that you can automatically filter, sort, or flag your e-mails. As seen above if any of my e-mails contain the a domain that is relevant to my university. Then they are marked with a yellow flag.
+
+![Here I can view all of my yellow flagged messages.](/blog/20191025_productivity-and-computers/mail-yellow.png)
+Figure: Here I can view all of my yellow flagged messages.
+
+This flag allows me to automically sort all of my academic e-mail and easily view it separately from the others. Once I have read an e-mail, taken any attachments and consumed the information, I will remove the yellow flag and change it to green. This indicates to me that the message has been consumed; not just opened.
+
+There is a big difference between "reading", an e-mail as most applications indicate with their "read" function, than consuming the contents. "Reading" an e-mail is effectively just opening it. But consuming the contents, is understanding and organising the information in one's mind and in one's machine if any attachments were to be included. 
+
+### Telegram[^1]
+
+[^1]: [Telegram](https://telegram.org)
+
+![](/blog/20191025_productivity-and-computers/telegram.png)
+
+Telegram is a great application for keeping in touch with reletives, work collegues or others. In this case as shown above "YouTube Anti Rape", a friend and I even used telegram to create a bot who can monitor our shared YouTube music playlist, and warn us when any videos have been removed.
+
+Telegram can do voice calls, messages, video, photos, files, and even export all of your chat data into a JSON format if you like. We've used this for a small machine learning project, I might continue work on it at a later date; the idea was to have it differentiate who is who in from a given sentence.
+
+### Notes
+
+![MacOS' lightweight Notes application.](/blog/20191025_productivity-and-computers/notes.png)
+Figure: MacOS' lightweight Notes application.
+
+A lightweight note taking application is essential for staying organised. I use it to keep anything and everything that I might have to remember. Anytime I get a document in class, I scan it into Notes with my phone. Anytime I get account information, **which is not a strong cyber security issue**, I place it in notes; if necessary I lock the note with a password.
+
+> [!WARNING]
+> I am in no way advocating for using Notes as a keep all for usernames and passwords. Just any passwords/usernames that I am not too worried about; notably those relevant throwaway accounts I keep in notes.
+
+![Class notes and documents that I don't want to lose get scanned into notes, later I organise them into my machine. Note dates are included to facilitate organisation later on. Moreover, note that the new version of Notes application (Catalina) can even read documents and give them a basic name, this will vastly facilitate finding things later on.](/blog/20191025_productivity-and-computers/notes-scan.png)
+Figure: Class notes and documents that I don't want to lose get scanned into notes, later I organise them into my machine. Note dates are included to facilitate organisation later on. Moreover, note that the new version of Notes application (Catalina) can even read documents and give them a basic name, this will vastly facilitate finding things later on.
+
+### Reminders
+
+![Again another of MacOS' lightweight yet very useful applications: Reminders.](/blog/20191025_productivity-and-computers/reminders.png)
+Figure: Again another of MacOS' lightweight yet very useful applications: Reminders.
+
+Reminders is just a wonderful application. If you do not have a Mac or iPhone, find some other application to fill this role. **You will forget things, all of the time; do not trust yourself**.
+
+Not only will using a reminders application allow you to remember to do things, but it will also give you a tiny dopamine hit every time you accomplish a small task. Ticking those tasks off is just so pleasurable you sometimes even want more work to come along.
+
+> [!WARNING]
+> Use the application correctly: oragnise your life into sections. As you can see in mine, I have a lot of things to do. This is not because I am lazy, but because I use the application as a sort of catch all. I put my ideas and aspirations there, from small projects to big projects. It's a second sort of notes application for me, but it's much quicker and shorter.
+
+Am I using it right? Who knows, but it works for me. What I mean by using it correctly is adding due dates, and other relevant details to actually get you to do things. 
+
+> [!NOTE]
+> Pro-tip: set the reminder to go off when you get home, this will remind you of everything to do, and do it in a place where you feel comfortable and free enough to execute.
+
+### Calendar
+
+![A great calendars application.](/blog/20191025_productivity-and-computers/calendar.png)
+Figure: A great calendars application.
+
+A great calendars application again by Apple. I've also used Google's calendar set up and find it adequate but not to my liking. I like having things on my machine and not in a web browser. 
+
+Again spliting your life up into sections is important, this will allow you to easily set up new events and visualise a week by colours. Something I find very useful.
+
+![Keeping this up to date can take some time, but it's very useful when coordinating with others.](/blog/20191025_productivity-and-computers/calendar-availabilities.png)
+Figure: Keeping this up to date can take some time, but it's very useful when coordinating with others.
+
+> [!NOTE]
+> Availabilities: as you can see I can have a rather busy week. One key to knowing when you can fit that extra meeting/date, is to know when you're available. Keeping everything in the calendar will allow you to see when there are holes and free time. Fill those puppies up with a new event; call it unscheduled.
+
+This new calendar, unscheduled, will allow you to easily share the availabilities with others through a webcal link. This way others can see when you're free. It greatly reduces friction, and avoids this "When are you free?", "I don't know when are you...?" banter.
+
+Moreover this data can all be exported as a plain text file and shared with others. Such as:
+
+```txt
+Unscheduled: Dereck availability
+Scheduled: 2 Oct 2019 at 08:00 to 13:30
+
+Unscheduled: Dereck availability
+Scheduled: 2 Oct 2019 at 16:00 to 20:30
+
+Unscheduled: Dereck availability
+Scheduled: 3 Oct 2019 at 08:00 to 10:15
+
+Unscheduled: Dereck availability
+Scheduled: 3 Oct 2019 at 16:30 to 20:30
+
+Unscheduled: Dereck availability
+Scheduled: 7 Oct 2019 at 17:30 to 20:30
+
+Unscheduled: Dereck availability
+Scheduled: 9 Oct 2019 at 18:30 to 20:30
+
+Unscheduled: Dereck availability
+Scheduled: 10 Oct 2019 at 18:30 to 20:30
+
+Unscheduled: Dereck availability
+Scheduled: 11 Oct 2019 at 08:00 to 12:30
+
+Unscheduled: Dereck availability
+Scheduled: 14 Oct 2019 at 18:00 to 20:30
+
+Unscheduled: Dereck availability
+Scheduled: 16 Oct 2019 at 18:30 to 20:30
+```
+
+Locations: yes a calendar is for remembering dates and times, but it's also important to know where you were! Be sure to always set the location. In iPhone this even sends me a notification before an event asking if I would like transportation indications to the given location. Very useful.
+
+Know your environment: oh yeah and those cool events you see there for sunrise, midsun, and sunset. Yeah those were all done automatically, they're from a calendar subscription, which can be found here: http://www.webcal.fi/en/calendars.php. Wonderful service and recommend using it.
+
+### Photos
+
+![Easily organised and nothing to do; make sure to **BACK UP**!](/blog/20191025_productivity-and-computers/photos.png)
+Figure: Easily organised and nothing to do; make sure to **BACK UP**!
+
+Photos keeps my photos organised, takes metadata of all places: location, date, time, and even recognises faces. Don't really know if an equivalent exists for other operating systems but I enjoy the one by Apple, very easy to use.
+
+### Filezilla[^2]
+
+[^2]: [Filezilla](https://filezilla-project.org)
+
+![Easy and free.](/blog/20191025_productivity-and-computers/filezilla.png)
+Figure: Easy and free.
+
+Not much to say here, Filezilla is free, and easy to use. Never had any issues with this application. Use it almost every day to handle data transport between my local machine and my servers.
+
+## Creation
+
+Finally getting into the creation part of the post. Here I'll cover some applications I use to create data, documents or whatever I need thoughout my day/career.
+
+### Visual Studio Code[^3]
+
+[^3]: [Visual Studio Code](http://visualstudio.microsoft.com)
+
+![Start page for VSCode.](/blog/20191025_productivity-and-computers/visual-studio-code-start.png)
+Figure: Start page for VSCode.
+
+**Visual Studio Code a great application, free, and easy to use, with many many many extensions**. As you can see above this is the actual page that you're reading in VSCode. I use it for mostly everything that has to do with text, and of course programming/web development.
+
+![Side by side view, with MAMP server.](/blog/20191025_productivity-and-computers/visual-studio-code-sideBySide.png)
+Figure: Side by side view, with MAMP server.
+
+Yes I even use this application for typing my class notes; ~~yes *I do type them in HTML*~~ now I type my notes in markdown 🙃
+
+![Free and, sometimes buggy but useful; by Microscoft.](/blog/20191025_productivity-and-computers/visual-studio-code.png)
+Figure: Free and, sometimes buggy but useful; by Microscoft.
+
+When you first get VSCode it should look something like the above image. Just an empty window. Go ahead and set up a directory where you can store all of your text files that you will work with. I have this in my coding folder and another in my academia folder.
+
+![Creating a new document in VSCode.](/blog/20191025_productivity-and-computers/visual-studio-code-newDoc.png)
+Figure: Creating a new document in VSCode.
+
+Make some subdirectories for specific projects. Then just drop the directory into the window and voila.
+
+I cannot overstate how much I love this programme, it's lightweight and easy to use. Almost never bugs out and has a ton of extensions available. I'll cover just a few in the next sub-section.
+
+![For changing the VSCode syntax interpreter.](/blog/20191025_productivity-and-computers/visual-studio-code-language.png)
+Figure: For changing the VSCode syntax interpreter.
+
+One more tip, when working on certain you might want to change the way that VSCode sees a file. For example when working on a PHP website you might, you will definitely have to write some HTML inside of that PHP file. I do it all the time for this website.
+
+So to change the langauge from PHP to HTMl so that tag completion and syntax highlighting works etc, click the button on the bottom right, it should be set to the current langauge. In the shown example above it was set to plain text. Click that then choose the desired langauge.
+
+#### Visual studio code: live server
+
+![Live server extension by Microsoft.](/blog/20191025_productivity-and-computers/visual-studio-code-liveServer.png)
+Figure: Live server extension by Microsoft.
+
+Click on the extensions button on the furthest left of the window, the one that looks like little squares and you should find the extensions marketplace. They are all free.
+
+![Getting the live sharing link.](/blog/20191025_productivity-and-computers/visual-studio-code-liveShareLink.png)
+Figure: Getting the live sharing link.
+
+Now here our first extension to cover is the live server extension, install it and then you should get a small button on the bottom left of your window. If you click it then you'll get a link which you can share with someone so they can come and work on the same document, live.
+
+Once the person clicks on the link, you should be able to view their editing live and their cursor denoted by their username.
+
+#### Visual studio code: autorename
+
+![Autorename extension.](/blog/20191025_productivity-and-computers/visual-studio-code-autorename0.png)
+Figure: Autorename extension.
+
+![Autorename mechanism.](/blog/20191025_productivity-and-computers/visual-studio-code-autorename1.gif)
+Figure: Autorename mechanism.
+
+The autorename tag extension allows you to automatically rename both sides of a tag in HTML code. Very helpful, never bugs and works wonderfully.
+
+#### Visual studio code: bracket coloriser
+
+![Bracket coloriser.](/blog/20191025_productivity-and-computers/visual-studio-code-bracketColour.png)
+Figure: Bracket coloriser.
+
+Another simple extension allowing you to easily distinguish levels in code. Especially useful when writing code in languages with delimiters such as JavaScript.
+
+
+#### Visual studio code: Dracula at night
+
+![Dracula at night theme.](/blog/20191025_productivity-and-computers/visual-studio-code-draculaNight.png)
+Figure: Dracula at night theme.
+
+I use the Dracula at night theme, it's easy on the eyes at night and has a nice contrast during the day.
+
+#### Visual studio code: indent rainbow
+
+![Indent rainbow, colours the indentations.](/blog/20191025_productivity-and-computers/visual-studio-code-indentRainbow.png)
+Figure: Indent rainbow, colours the indentations.
+
+When writing code, you will have **tabs**, yes tabs not spaces, and those are easier to visualise when using indent rainbow. As shown it colourises the different levels of indentation. No more need to try to follow a line with your cursor between 100-200 lines, just use the colours.
+
+
+#### Visual studio code: ES6 code snippets
+
+![ES6 code snippets.](/blog/20191025_productivity-and-computers/visual-studio-code-es6.png)
+Figure: ES6 code snippets.
+
+Simple extension that adds code snippets for ES6.
+
+#### Visual studio code: SASS
+
+![SASS autocompiler.](/blog/20191025_productivity-and-computers/visual-studio-code-sass.png)
+Figure: SASS autocompiler.
+
+I love SASS. CSS, meh but SASS, much better. Take some of the headache of using SASS out of the equation by using the autocompiler. Just set it to watch a directory, and give it an output directory. Then click watch SASS, and every time you save it will conver everything, with modules and all into one beautiful and functional CSS file! Just perfect.
+
+![SASS syntax extension.](/blog/20191025_productivity-and-computers/visual-studio-code-sassSyntax.png)
+Figure: SASS syntax extension.
+
+Be sure to also install the SASS extension by Robin Bently, this will allow you to write indented SASS and get VSCode of your back for that weird syntax that isn't quiet CSS.
+
+### MAMP local server[^4]
+
+[^4]: [MAMP local server](https://www.mamp.info)
+
+<figure>
+<img class="lazy" data-src="/blog/20191025_productivity-and-computers/mamp.png">
+<figcaption></figcaption>
+</figure>
+
+I use MAMP as a development server on my local machine. Then the aforementioned Filezilla for transfering my files to my server.
+
+### Affinity Photo[^5]
+
+[^5]: [Affinity Photo](https://affinity.serif.com/en-us/photo/)
+
+![Affinity photo while editing a simple image.](/blog/20191025_productivity-and-computers/affinity-photo.png)
+Figure: Affinity photo while editing a simple image.
+
+Not much to say on Affinity Photo. It's one that's necessary to have on hand when working with images. It works but I don't use it much to be honest. I use another Affinity product; Designer.
+
+### Affinity Designer[^6]
+
+[^6]: [Affinity Designer](https://affinity.serif.com/en-us/designer/)
+
+![Affinity designer vector illustration software.](/blog/20191025_productivity-and-computers/affinity-designer.png)
+Figure: Affinity designer vector illustration software.
+
+Affinity Designer a great programme for vector illustration. This I use quiet often along with my iPad pro for making illustrations. Both for this website and for presentations, and scientific articles for which I may need to make professional level illustrations.
+
+Very flexible and actually on par with Adobe Illustrator. Of course there are still some features missing, but the essentials are there.
+
+### Mindnode[^7]
+
+[^7]: [Mindnode](http://mindnode.com)
+
+![Mind mapping software.](/blog/20191025_productivity-and-computers/mindnode.png)
+Figure: Mind mapping software.
+
+Get, get, get, get, get some kind of mind mapping software, if you have a Mac get, get, get, get: Mindnode. I absolutely adore Mindnode. The presentation, the colours, the themes, and the ease of use is just great.
+
+
+The basic idea behind mind mapping software is to organise your ideas. I use it for everything. Both thinking, and for producing finished images and maps for presentation.
+
+
+There are some open source options available, however, I found them rather lackluster. The 40ish dollars I paid for Mindnode was well worth it.
+
+![DerecksNotes mind map, and organisation.](/blog/20191025_productivity-and-computers/mindnode-derecksnotes.png)
+Figure: DerecksNotes mind map, and organisation.
+
+Here is a more simple example of how one could use mind mapping software. This is an early version of a mind map for this website. The basic idea is to have a root, a first idea, then to flesh it out slowly and little by little. 
+
+### Snapgene[^8]
+
+[^8]: [Snapgene](http://snapgene.com)
+
+![Snapgene for managing DNA sequences and plasmids.](/blog/20191025_productivity-and-computers/snapgene.png)
+Figure: Snapgene for managing DNA sequences and plasmids.
+
+I know not everyone will need this kind of software, but it's something I use often. If you need a DNA sequence manager, then try at all costs to get Snapgene. I know it costs over 500 dollars. But it's worth it. Snapgene automically annotates and adds known genes/sequences to whatever you're working on.
+
+Wonderful and easy to work with, the only negative things that I might have to say about are: cost, and of course it still does not support dark mode to fit with MacOS Mojave's update.
+
+![Snapgene also has a sequence view where it is easy to see your primers and how they fit in the genetic context: VF2 top left.](/blog/20191025_productivity-and-computers/snapgene-sequenceView.png)
+Figure: Snapgene also has a sequence view where it is easy to see your primers and how they fit in the genetic context: VF2 top left.
+
+![Adding a primer in Snapgene.](/blog/20191025_productivity-and-computers/snapgene-primer.png)
+Figure: Adding a primer in Snapgene.
+
+Snapgene has a host of functionalities, one thing that I love about it, is just how easy it is to manage primers. Just paste the sequence and it will show up in the viewer. Add some information relative, along with a name and then validate to have it added to the sequence.
+
+![Snapgene actions available.](/blog/20191025_productivity-and-computers/snapgene-actions.png)
+Figure: Snapgene actions available.
+
+![Snapgene tools, can even do agarose gel simulations.](/blog/20191025_productivity-and-computers/snapgene-tools.png)
+Figure: Snapgene tools, can even do agarose gel simulations.
+
+Notice Snapgene can even simulate agarose gels from given sequences in your DNA files, you can directly BLAST sequences, and clone with a variety of methods directly in Snapgene; Gateway, Gibson, InFusion, TOPO cloning etc.
+
+### Texpad[^9]
+
+[^9]: [Texpad](http://texpad.com)
+
+![Texpad LaTeX editor.](/blog/20191025_productivity-and-computers/texpad.png)
+Figure: Texpad LaTeX editor.
+
+Finally Texpad my LaTeX editor. If you don't know what LaTeX is yet, go and read about, all your friends and collegues will be jealous of the beautiful documents you'll output; when working with formulas it is a necessity. It works well, although if I am honest it is a bit of a resource hog. Sometimes I've had to close a few other programmes just to be sure that Texpad will run smoothly. Frequent saves are a remedy; if ever it crashes just re-open the file. It has only happened to me once.
+
+![Texpad has a built-in typesetter but supports external ones as well.](/blog/20191025_productivity-and-computers/texpad-typesetter.png)
+Figure: Texpad has a built-in typesetter but supports external ones as well.
+
+Texpad supports: working from multiple files in a directory (similar concept to VSCode), snippets, and has its own LaTeX typesetter but supports external ones as well. You just have to point it to the directory in which they're installed. A nice feature is that the internal typesetter will update the document live; however, if you cannot use the internal one because of compatibility issues with packages or templates (it does happen) then the live feature is mostly kept intact; the programm will update the PDF every time you stop typing.
+
+[^10]: Note: none of these recommendations were sponsored nor any kind of affiliate links are used. I just really like these programmes and I think they are worth sharing.
