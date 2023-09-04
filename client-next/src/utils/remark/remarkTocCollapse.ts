@@ -1,31 +1,23 @@
-/**
- * @typedef {import('mdast').Root} Root
- * @typedef {import('mdast-util-toc').Options} Options
- */
-
-import { toc } from 'mdast-util-toc'
+import { toc, Options as TocOptions } from 'mdast-util-toc';
+import { Root } from 'mdast';
 import { Node } from 'mdast-util-toc/lib'
+import { Plugin } from 'unified';
 
-import { Options } from 'mdast-util-toc'
-
-interface RemarkTocCollapseOptions extends Options {
-    heading?: string
+interface RemarkTocCollapseOptions extends TocOptions {
+    heading?: string;
 }
 
 /**
  * Plugin to generate a Table of Contents (TOC).
- *
- * @type {import('unified').Plugin<[Options?]|void[], Root>}
  */
-export default function remarkTocCollapse(options?: RemarkTocCollapseOptions) {
+const remarkTocCollapse: Plugin<[(RemarkTocCollapseOptions | undefined)?], Root> = (options = {}) => {
     return (node: Node) => {
         const result = toc(
-            node,
+            node as Root,
             Object.assign({}, options, {
-                // options.heading || 'toc|table[ -]of[ -]contents?'
-                heading: options?.heading || 'toc|table[ -]of[ -]contents?'
+                heading: options.heading || 'toc|table[ -]of[ -]contents?'
             })
-        )
+        );
 
         if (
             result.endIndex === null ||
@@ -33,24 +25,17 @@ export default function remarkTocCollapse(options?: RemarkTocCollapseOptions) {
             result.index === -1 ||
             !result.map
         ) {
-            return
+            return;
         }
 
-        if ("children" in node) {
-            // Get the table of content's headings.
-            // const summary = node.children[result.index - 1]
-
-            /*
-            * Remove the retrieved heading mdast elements from
-            * their current location and place them inside the summary element.
-            */
-            node.children.splice(result.index - 1, 1)
+        if ('children' in node) {
+            node.children.splice(result.index - 1, 1);
 
             node.children = [
                 ...node.children.slice(0, result.index - 1),
                 {
                     type: 'html',
-                    value: '<details>'
+                    value: `<details style="padding-bottom: 15px;">`
                 },
                 {
                     type: 'html',
@@ -73,10 +58,10 @@ export default function remarkTocCollapse(options?: RemarkTocCollapseOptions) {
                     type: 'html',
                     value: '</details>'
                 },
-                // ...node.children.slice(result.endIndex)
-                // keep all rest of content after toc; don't remove paragraphs without headers
                 ...node.children.slice(result.index - 1)
-            ]
+            ];
         }
-    }
-}
+    };
+};
+
+export default remarkTocCollapse;
