@@ -3,6 +3,7 @@ import { theme } from '@styles/theme';
 
 const FooterContainer = styled.footer`
     margin: 0px auto;
+    margin-top: 30px;
     padding: 0px;
     text-align: center;
 
