@@ -19,6 +19,26 @@ import { Node } from 'unist';
 //     </ul>
 //     </li>
 // </ul>
+// after creating remarkTocCollapse we now have this structure:
+// <details open="">
+//     <summary>
+
+//     <h3 id="table-of-contents" style="display: inline-block; margin: 0px; padding: 0px; padding-bottom: 15px;">
+//         Table of Contents
+//     </h3>
+                    
+//     </summary>
+//     <ul>
+//         <li>
+//             <p><a href="#what-is-a-cell">What is a cell?</a></p>
+//             <ul>
+//                 <li>
+//                     <a href="#cell-theory">Cell theory</a>
+//                 </li>
+//             </ul>
+//         </li>
+//     </ul>
+// </details>
 export default function rehypeStyleToc() {
     return (tree: Node) => {
         // Step 1: Initialize tableOfContentsNode
@@ -31,10 +51,29 @@ export default function rehypeStyleToc() {
             if (tableOfContentsNode) return;
 
             // Check if the current node is an h2 element with id="table-of-contents"
-            if (node.type === 'element' && (node as any).tagName === 'h2') {
+            // and check that the value of the h3 is "Table of contents"
+            // {
+            //     type: 'root',
+            //     children: [
+            //       { type: 'raw', value: '<details>' },
+            //       { type: 'text', value: '\n' },
+            //       { type: 'raw', value: '<summary>' },
+            //       { type: 'text', value: '\n' },
+            //       {
+            //         type: 'raw',
+            //         value: '\n' +
+            //           '                        <h3 id="table-of-contents" style="display: inline-block; margin: 0px; padding: 0px; padding-bottom: 15px;">\n' +
+            //           '                            Table of Contents\n' +
+            //           '                        </h3>\n' +
+            //           '                    '
+            //       },
+            //       { type: 'text', value: '\n' },
+            console.log(node);
+            if (!tableOfContentsHeaderFound && node.type === 'element' && (node as any).properties.id === 'table-of-contents') {
                 tableOfContentsHeaderFound = true;
             } else if (tableOfContentsHeaderFound && node.type === 'element' && (node as any).tagName === 'ul') {
                 tableOfContentsNode = node;
+                console.log(`Found table of contents node: ${JSON.stringify(tableOfContentsNode)}`);
                 return;
             }
 
@@ -46,7 +85,6 @@ export default function rehypeStyleToc() {
         // Step 3: Call findTableOfContentsNode function
         findTableOfContentsNode(tree);
 
-
         // Step 4: Style tableOfContentsNode
         if (tableOfContentsNode) {
             // recursively go through children and add styles
@@ -57,6 +95,7 @@ export default function rehypeStyleToc() {
                             line-height: 5px;
                             margin-left: 0.75rem;
                             padding-left: 0.75rem;
+                            background-color: red;
                         `
                     };
                 }
