@@ -33,7 +33,6 @@ export const get_post_metadata = (folder: string): PostMetadata[] => {
                 })
                 // .filter((child: any) => child.type === 'paragraph')
                 .map((child: any) => {
-                    console.log(child)
                     // if child.value
                     if (child.value) {
                         return child.value
@@ -125,9 +124,9 @@ export const process_markdown = async (content: string): Promise<string> => {
         .use(rehypeMathjax)
         .use(rehypeDropCap, {
             float: 'left',
-            fontSize: '4.75em',
+            fontSize: '4rem',
             fontFamily: 'Georgia, serif',
-            lineHeight: '45px',
+            lineHeight: '40px',
             marginRight: '0.1em',
             color: theme.theme_colours[5](),
         })
