@@ -5,7 +5,7 @@ coverImage: 401
 author: "Dereck Mezquita"
 date: 2018-11-27
 
-tags: []
+tags: [art, history, order, hierarchy]
 published: true
 comments: true
 ---
