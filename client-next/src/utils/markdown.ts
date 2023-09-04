@@ -5,19 +5,7 @@ import { ROOT } from '@constants/misc';
 
 import { remark } from 'remark';
 import strip from 'strip-markdown';
-
-import { Parent } from 'unist';
-
-import { theme } from '@styles/theme';
-
-function onlyParagraphs() {
-    return (tree: Parent) => {
-        return {
-            type: 'root',
-            children: tree.children.filter(node => node.type === 'paragraph')
-        };
-    };
-}
+import { visit } from 'unist-util-visit';
 
 export const get_post_metadata = (folder: string): PostMetadata[] => {
     const files = fs.readdirSync(path.join(ROOT, 'content', folder));
@@ -28,13 +16,46 @@ export const get_post_metadata = (folder: string): PostMetadata[] => {
         const file_contents: string = fs.readFileSync(file, 'utf8');
         const { data, content } = matter(file_contents) as matter.GrayMatterFile<string>;
 
-        // get the first n characters from the content; used for the summary from the post data
-        const summary: string = remark() // markdown is parsed to html
-            .use(onlyParagraphs)
-            .use(strip) // strip all markdown formatting
-            .processSync(content)
+        const parsedContent = remark().use(strip).parse(content);
+
+        // Extract text from paragraph nodes
+        const paragraphs: string[] = [];
+        visit(parsedContent, 'paragraph', (node: any) => {
+            const textContent = node.children
+                .filter((child: any) => {
+                    // if value starts with a pipe, it's a table
+                    if (/\|/.test(child.value)) return false;
+
+                    // search for [!NOTE], [!IMPORTANT], [!WARNING]
+                    if (/\[!\w+\]/.test(child.value)) return false;
+
+                    return true;
+                })
+                // .filter((child: any) => child.type === 'paragraph')
+                .map((child: any) => {
+                    console.log(child)
+                    // if child.value
+                    if (child.value) {
+                        return child.value
+                            .replace(/\[\^\d+\]:?/g, '') // footnotes [^1]
+                            .replace(/^\[( |x)\]/g, '') // task lists * [ ]
+                            .replace(/~{1,2}/g, '') // strikethrough ~ 1 or 2 ~~
+                            .trim();
+                    }
+                })
+                // .map((child: any) => child.value)
+                .join('');
+
+            if (textContent.trim() !== '') {
+                paragraphs.push(textContent);
+            }
+        });
+
+        // process to html and then to string like the process_markdown function so we can then display it
+        const summary = remark()
+            .processSync(paragraphs.join(' '))
             .toString()
-            .substring(0, 250);
+            .trim();
 
         return {
             slug: file_name.replace('.md', ''),
@@ -87,6 +108,8 @@ import remarkTocCollapse from './remark/remarkTocCollapse';
 import rehypeDropCap from './rehype/rehypeDropCap';
 import rehypeAddHeadingLinks from './rehype/rehypeAddHeadingLinks';
 import rehypeStyledAlerts from './rehype/rehypeStyledAlerts';
+
+import { theme } from '@styles/theme';
 
 export const process_markdown = async (content: string): Promise<string> => {
     const result = await unified()
