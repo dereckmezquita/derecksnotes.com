@@ -106,6 +106,36 @@ const PostContent = styled.div`
         margin: 0 auto;
         max-width: 100%;
     }
+
+    table {
+        background-color: ${theme.container.background.colour.primary()};
+
+        font-family: sans-serif;
+        font-size: 0.9em;
+        text-align: center;
+
+        margin: 0px auto;
+
+        border-collapse: collapse;
+
+        border: 1px solid ${theme.container.border.colour.primary()};
+        box-shadow: ${theme.container.shadow.primary};
+
+        @media only screen and (max-width: 600px) {
+            font-size: 0.5em;
+        }
+
+        td {
+            padding: 5px;
+            text-align: center;
+            border: 1px solid ${theme.container.border.colour.primary()};
+        }
+
+        th {
+            padding: 5px;
+            border: 1px solid ${theme.container.border.colour.primary()};
+        }
+    }
 `;
 
 
