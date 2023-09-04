@@ -1,0 +1,38 @@
+---
+title: "Copper and infectious diseases"
+blurb: "Running sterile Mercury"
+coverImage: 276
+author: "Dereck Mezquita"
+date: 2021-07-30
+
+tags: [science, biology, medicine, history, chemistry, antimicrobial, copper]
+published: true
+comments: true
+---
+
+## A history of the antimicrobial use of Copper
+
+Since Antiquity, Copper has been used for fighting infectious diseases. The Persians used bronze (an alloy of Copper and tin) for healing wounds. The Romans, Egyptians and Aztecs used medicinal preparations based on Copper to cure sore throat and for daily hygiene.
+
+In 1852, Victor Burq discovered that people who are working in contact with Copper died from cholera at a lower frequency. During the cholera epidemic of 1854 - 1855, Burq found that not one jeweler, goldsmith or boilermaker had died from cholera. In 1867, he presents his results to the French Academy of medicine. He also demonstrates that putting Copper on the skin prevents subjects from getting cholera.
+
+In 1893, the Swiss botanist Karl Wilhelm von Nageli introduced the concept of oligodynamic effect. The oligodynamic effect is the biocidal effect of a metal's ions. This effect manifests itself with silver, iron, zinc, but also with Copper.
+
+## Mechanisms behind Copper's biocidal effect
+
+- Copper causes a failure of the microorganism's membrane integrity by inducing a leakage of potassium and glutamate. This leads to desiccation and subsequent cell death.
+- In the case of elevated Copper levels, Copper ions binds to proteins that do not require it for their function. This leads to loss-of-function of the protein, and breakdown of the protein into nonfunctional portions.
+- Elevated Copper levels also induce oxidative stress and the generation of hydrogen peroxide. This will participate to the Fenton-type reaction, a chemical reaction causing irreversible damages to cells.
+- There are others mechanisms of action who are put in play like damages to the respiratory chain, peroxidation of lipids, alteration of the 3-dimensional structure of proteins.
+
+## Interest of Copper surfaces in the fight against antibiotic resistance
+
+Some companies, such as [Mercure decoration](https://mercure-decoration.com/fr/), have designed Copper touch surface products. It appears interesting to use Copper as antibacterial because it is effective against a lot of antibiotic resistant bacteria. This effectiveness is due to all mechanisms combined. Indeed, it is easy for a microorganism to skirt one mechanism of action, but almost impossible to skirt multiple mechanisms of actions combined.
+
+Copper will also act before microorganisms replication, this rapide action will limite the risk of appearance of resistants microorganisms.  
+
+## Scientific data and evidence
+
+In 2008, United States Environmental Protection Agency granted Copper as antibacterial surface. This evaluation proved that Copper reduces the bacteria concentration of 99.9% of these species: Staphylococcus aureus, Enterobacter aerogenes, Escherichia coli, Pseudomnas aeroginosa and a lot of antibiotics-resistant bacterias.
+
+In 2011, a scientific study commissioned by the Department of Defense demonstrates that we can reduce by 40 percent the rate of nosocomial diseases in medical services that use Copper touch surfaces in the patient's space.
