@@ -78,6 +78,20 @@ const GlobalStyles = createGlobalStyle`
         font-size: 0.95em;
         overflow-x: auto;
     }
+
+    embed {
+        height: calc(40vw * 1.3);
+        width: 40vw;
+
+        display: block;
+        margin: 20px auto;
+
+        padding: 7px;
+
+        /* background: $figure_background;
+        border: 1px solid $figure_border;
+        box-shadow: 1px 1px 7px $figure_shadow; */
+    }
 `;
 
 export default GlobalStyles;
