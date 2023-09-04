@@ -20,7 +20,7 @@ function Footer(): JSX.Element {
     return (
         <FooterContainer>
             <FooterText>
-                All content on this website is copyright protected and belongs to Dereck Mezquita. You are not allowed to copy nor modify any content found on this website without written permission from the owner; &copy; Copyright © 2017 - 2023.
+                All content on this website is copyright protected and belongs to Dereck Mezquita. You are not allowed to copy nor modify any content found on this website without written permission from the owner; Copyright © 2017 - 2023.
             </FooterText>
             <FooterText>
                 <a href="mailto:contact@derecksnotes.com">contact@derecksnotes.com</a>
