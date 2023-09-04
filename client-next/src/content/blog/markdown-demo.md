@@ -42,10 +42,23 @@ A note[^1]
 | 5 | 6  |  7 |  8  |
 | 9 | 10 | 11 | 12  |
 
-## Tasklist
+## Lists
+
+### Task list
 
 * [ ] to do
 * [x] done
+
+### Normal lists
+
+* one
+* two
+
+1. one
+2. two
+
+- one
+- two
 
 ## Custom syntax
 
