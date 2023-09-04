@@ -107,6 +107,8 @@ import remarkTocCollapse from './remark/remarkTocCollapse';
 import rehypeDropCap from './rehype/rehypeDropCap';
 import rehypeAddHeadingLinks from './rehype/rehypeAddHeadingLinks';
 import rehypeStyledAlerts from './rehype/rehypeStyledAlerts';
+import remarkFigureCaption from './remark/remarkFigureCaptions';
+import remarkCaptions from 'remark-captions';
 
 import { theme } from '@styles/theme';
 
@@ -118,6 +120,12 @@ export const process_markdown = async (content: string): Promise<string> => {
         .use(remarkUnwrapImages) // remove image wrapper
         .use(remarkExternalLinks) // add target="_blank" to external links
         .use(remarkTocCollapse)
+        .use(remarkCaptions, {
+            internal: {
+                blockquote: 'Source:',
+                image: 'Figure:',
+            }
+        })
         .use(remark2rehype, { // markdown to html
             allowDangerousHtml: true // allows html in markdown such as br etc.
         })
