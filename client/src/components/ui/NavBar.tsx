@@ -126,6 +126,7 @@ function NavBar() {
         <NavContainer>
             <NavItem href='/'>Blog</NavItem>
             <NavItem href='/courses'>Courses</NavItem>
+            <NavItem href='/references'>References</NavItem>
             <DropDownContainer>
                 <DropDownLabel>Dictionaries</DropDownLabel>
                 <DropDownContent>
