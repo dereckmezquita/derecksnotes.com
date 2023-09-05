@@ -12,7 +12,6 @@ comments: true
 
 For micro-organisms to be able to grow, a grow culture must satisfy all of the following requirements: provide an energy source, fulfil nutritional needs: mineral ions, growth factors, and provide a steady pH and ionic force close to optimum values.
 
-
 A growth medium can be either liquid or solid. Many different media have been used but the most versatile and reliable has been agar.
 
 > Agar has a distinctive smell and is commonly used to culture bacteria. It is a polymer made of subunits of galactose sugar (D- and L-galactose). Agar is an important part of the cell walls of red algae and can be extracted from certain red-purple marine algae - Rhodophyceae - including *Gelidium*, *Pterocladia*and *Gracilaria*. These algae can be commonly found in Asia and California.
