@@ -1,0 +1,28 @@
+---
+title: "Biochemistry: Membranes"
+blurb: "Playing the date"
+coverImage: 353
+author: "Dereck Mezquita"
+date: 2020-12-24
+
+tags: [biochemistry, chemistry, biology, membranes]
+published: true
+comments: true
+---
+
+## Table of contents
+
+Membranes can be seen as solutions with two dimensions, they are made by a lipid bilayer and contain membranary proteins. Thus a lipid bilayer can be seen as the solvant for membranary proteins.
+
+## Movements of lipids
+
+It is possible for molecules in the lipid bilayer to move in two dimensions generally, this is known as lateral diffusion. But movement in other dimensions is also possible, listed below:
+
+![Illustration demonstrating the possible movements of lipids inside a lipid bilayer.](/courses/biochemistry-membranes/lipidMovement.svg)
+Figure: Illustration demonstrating the possible movements of lipids inside a lipid bilayer.
+
+1. Flexion movement
+2. Oscillation flex in acyl groups
+3. Rotational movement
+4. Lateral diffusion
+5. Transversal diffusion "flip-flop"
