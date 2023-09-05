@@ -5,7 +5,7 @@ coverImage: 43
 author: "Dereck Mezquita"
 date: 2023-02-12
 
-tags: [science, history, mathematics, physics, historical-icon]
+tags: [biography, science, history, mathematics, physics, historical-icon]
 published: true
 comments: true
 ---
