@@ -862,7 +862,7 @@ There is a costimulation signal necessary in order to avoid the activation of au
 
 ## Reminders: antigens, thymo-dependent/independent
 
-To eliminate a thymo-dependent antigen there must be the help of the T lymphocytes. If it is a thymo- independent antigen then T lymphocytes are not involved.
+To eliminate a thymo-dependent antigen there must be the help of the T lymphocytes. If it is a thymo-independent antigen then T lymphocytes are not involved.
 
 > [!NOTE]
 > The difference is due essentially to the structure.
