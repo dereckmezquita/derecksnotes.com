@@ -5,7 +5,7 @@ coverImage: 150
 author: "Dereck Mezquita"
 date: 2019-04-01
 
-tags: [biology, microbiology, wet-lab, bacteria, culture, media, agar, gelatine, silicon, coagulated-egg, synthetic-media]
+tags: [lab-protocol, biology, microbiology, wet-lab, bacteria, culture, media, agar, gelatine, silicon, coagulated-egg, synthetic-media]
 published: true
 comments: true
 ---

@@ -5,7 +5,7 @@ coverImage: 154
 author: "Dereck Mezquita"
 date: 2023-02-12
 
-tags: [history, philosophy, literature]
+tags: [biography, history, philosophy, literature]
 published: true
 comments: true
 ---
