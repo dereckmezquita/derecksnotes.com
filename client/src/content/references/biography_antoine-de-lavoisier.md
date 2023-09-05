@@ -1,0 +1,78 @@
+---
+title: "Antoine-Laurent de Lavoisier"
+blurb: "Revolution evolution"
+coverImage: 114
+author: "Dereck Mezquita"
+date: 2019-03-25
+
+tags: [biography, chemistry, history, science]
+published: true
+comments: true
+---
+
+![Portrait of Lavoisier with wife.](/references/biography_antoine-de-lavoisier/portraitLavoisier.jpg)
+Figure: Portrait of Lavoisier with wife.
+
+## Life
+
+Antoine-Laurent de Lavoisier was born in Paris 26 August 1743. His family was part of French nobility and was relatively well off. He would lose his parents and become orphan at the age of five. His inheritance would however, assure him a good education. Lavoisier would attend le Collège des Quatre-Nations in Paris where he would be introduced to chemistry, botany, astronomy and mathematics.
+
+![Collège des Quatre-Nations; today known as: Palais de l'Institut de France.](/references/biography_antoine-de-lavoisier/instituteOfFrance.jpg)
+Figure: Collège des Quatre-Nations; today known as: Palais de l'Institut de France.
+
+Lavoisier would go on to law school at la Faculté de droit civil et canonique, he would receive his baccalauréat in law two years later. Although an attorney Lavoisier would never practice law he would instead peruse his interest in science. His interest in science had grown during his time in law school, he would frequently attend scientific conferences. He became an avid reader of the Dictionnaire de la Chymie published by Pierre Macquer and wrote his first scientific paper on the hydration of gypsum in 1764 which he presented to the Académie des Sciences.
+
+On 16 December 1771 Lavoisier would marry Marie-Anne Pierrette Paulze, aged 13, the daughter of a fellow member of la Ferme Générale. She would become a precious aid and collaborator to Lavoisier for whom she would translate many scientific writings from English to French, make sketches and engravings for laboratory instruments. The couple would host soirées where many important men of science would meet to discuss and debate all things science and chemistry.
+
+Despite all of his success, Lavoisier would be victim to the Reign of Terror. He would lose his government job during the French revolution, and be ostracised by the new government and society. The French revolution would seek to erase anything related to the previous regime of which Lavoisier was a part of and an affluent member of the nobility at that.
+
+![Marat and Lavoisier.](/references/biography_antoine-de-lavoisier/lavoisierAccused.jpg)
+Figure: Marat and Lavoisier.
+
+Public sentiment on Lavoisier was greatly influenced by Jean-Paul Marat an enemy of Lavoisier. Jean-Paul Marat was born poor and worked his way up into the scientific world. He would become a physician and at one point apply to be in the Académie des Sciences claiming he had the capacity of "magnétisme animal". Animal magnetism is the idea that there is a form of supernatural energy that permeates and controls all living things and matter. Marat believed that he could see this "igneous energy" leaking form heated rocks. He was ridiculed by the academy and most vocally by Lavoisier, who concluded that animal magnetism was "a product of pure imagination."
+
+Marat would gain power in the revolution and focused all of his energies on Lavoisier. Marat would author pamphlets decrying his science, his background and his person. Marat would be killed by Charlotte Corday and Marat would become a martyr to be avenged by his friends and allies. Lavoisier would be found a traitor because of his involvement with the previous regime and his support of foreign scientists, a judge would have the following to say of Lavoisier:
+
+
+> La République n'a pas besoin de savants ni de chimistes; le cours de la justice ne peut être suspendu. - The Republic has no need of scientists or chemists; the course of justice cannot be delayed.
+Source: Judge at Lavoisier's tribunal
+
+![La Mort de Marat - Jacques Louis David.](/references/biography_antoine-de-lavoisier/mortDeMarat_jacquesLouisDavid.jpg)
+Figure: La Mort de Marat - Jacques Louis David.
+
+## Works
+
+![Reconstruction of Lavoisier's laboratory.](/references/biography_antoine-de-lavoisier/lavoisiersLab.jpg)
+Figure: Reconstruction of Lavoisier's laboratory.
+
+![Reconstruction of Lavoisier's laboratory.](/references/biography_antoine-de-lavoisier/lavoisiersLab2.jpg)
+Figure: Reconstruction of Lavoisier's laboratory.
+
+Officially his reason for execution was his background as an aristocrat and his involvement in the old regime. Lavoisier would die at the age of 50 on 8 May, 1794 by guillotine at Place de la Concorde, Paris. One year later Lavoisier would be posthumously pardoned, and the French government would admit fault to having erroneously executed the great scientist. A small note and the remainder of Lavoisier's affairs were given to Marie-Anne.
+
+He would also participate in the creation and development of the metric system! Lavoisier's experiments measuring weight would be pivotal to his scientific advances. Lavoisier would note that the overall weight of a system before and after a reaction does not vary. He would corroborate his observations in 1772 where he and collegues purchased a diamond which they placed inside a closed glass jar. They then focused an enourmous magnifying glass on the diamond which would cause it to burn, in the end the diamond had disappeared and left only smoke in the jar. The weight of the jar had not changed. This is what we know today as the law of conservation of mass!
+
+Here is a famous line paraphrased from Lavoisier's Fermentation vineuses, you probably know the line: Nothing is lost, everything transforms mass is neither created nor destroyed.
+
+![Lavoisier Quote](/references/biography_antoine-de-lavoisier/lavoisierRienCreerRienDetruit2.jpg)
+Figure: "On voit que pour arriver à la solution de ces deux questions, il falloit d 'abord bien connoître l'analyse & la nature du corps susceptible de fermenter, & les produits de la fermentation ; car rien ne se crée, ni dans les opérations de l'art, ni dans celles de la nature, & l'on peut poser en principes que dans toute opération, il y a une égale quantité de matière avant & après l'opération ; que la qualité & la quantité des principes est la même, qu'il n'y a que des changemens, des modifications. — Traité élémentaire de chimie[^1] Tome premier - Lavoisier (Fermentation vineuses - Page 140-141)
+
+He noticed in subsequent experiments that no matter what he burned, charcoal or diamonds, the same gas was produced[^2]. This led him to the conclusion that in fact charcoal and diamonds were of the same element simply under different forms.
+
+Also in 1772 Lavoisier began research on combustion, he would reproduce many of Joseph Black's famous experiments. It was during this investigation that Lavoisier would discover the role of oxygen in the process of combustion! He would discover and name oxygen in 1778 and subsequently hydrogen in 1783. Lavoisier would also then characterise the composition of the air we breathe, and also make the link between respiration and combustion!
+
+By far Lavoisier's most important contribution to science was in his Traité Élémentaire de la Chimie published in 1789. Here he would devise a standard naming system for chemistry; nomenclature. This is seen as the first modern book on chemistry. Here he would present a complete panorama on the subject and include the first concise and precise definition on the conservation of mass, lastly this book marks the beginning of the discipline known as stoichiometry.
+
+The man did so many things that it's difficult to keep track here is a short list of other feats and accomplishments by the Lavoisier.
+
+- Predicted the existence of silicone in 1787 almost 100 years before Mendeleev would publish the first modern table of elements.
+- Established that sulfur was an element and not a compound in 1777.
+- Collaborated on France's earliest geological map.
+- Established that any substance can alter its state into liquid, gas, or solid without changing mass or chemical composition.
+- Improved the quality of gunpowder for the French army which was then used in 1775.
+- Received a gold medal from the king of France for his work on lighting public buildings.
+
+
+[^1]: [Traité Élémentaire de la Chimie](/references/biography_antoine-de-lavoisier/traite-elementaire-de-la-chimie.pdf)
+
+[^2]: [Mémoire sur la combustion en générale](/references/biography_antoine-de-lavoisier/lavoisierMemoire.pdf)
