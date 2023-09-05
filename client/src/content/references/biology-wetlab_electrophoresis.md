@@ -1,0 +1,108 @@
+---
+title: "Electropheresis"
+blurb: "Flim flam the law"
+coverImage: 113
+author: "Dereck Mezquita"
+date: 2019-03-25
+
+tags: [lab-protocol, biology, microbiology, wet-lab, bacteria]
+published: true
+comments: true
+---
+
+Here you will find a detailed protocol on electropheretic gel migration. Electropheresis is the process of migrating a sample in a gel. To do this protocol one needs the following at their disposal:
+
+- An electropheretic unit (which will hold the gel and buffer while passing a current)
+- An appropriate buffer (TAE or TBE)
+- Agar
+- Gel pouring plates with combs
+- A ladder
+- A loading buffer
+- Micropipette
+- Samples to deposit
+
+Electropheretic gel migration can be used for a variety of purposes. The basic concept remains the same however. A gel migration consists of seperating either DNA, proteins, or even RNA depending on their size, and or chemical properties. This allows us to determine the size of DNA/RNA or proteins. This is done relative to the ladder for which we know the sizes of the individual bands. Ladders are bought and are predetermined.
+
+An electropheretic gel is made of two different kinds of buffers, TAE or TBE, depending on our migratory goals and agar for gelification. The agar can be added in a spectrum of concentrations for separate gels, denoted as percentages. The greater the amount of agar in the gel, the more rigid and tighter the polymers will form.
+
+The tightness of these polymers dictates a primary characteristic of the gel, its porosity. The more agar present the tighter the polymer pores and thus the more difficult it will be for the samples to migrate. So the percentage of agar used in a gel is calculated depending on what it is we are migrating.
+
+For DNA migrations about 0.8% works well, and for protein migrations; well it depends on the proteins being seperated.
+
+Porosity is the seperatory mechanism behind electropheresis, but the motor is the electrical current being passed through the buffer and the gel. Be sure to not block the upper part and lower parts of the gel; the head and the foot. This is where the current will pass through and why the gel holders do not cover these parts and only cover the sides.
+
+For a short migration about 40 mins at 100 v works well. However, one can change these parameters to obtain a higher resolution in seperation. There are even some units which will allow one to migrate overnight at an extremely low voltage. These seperations can allow us to see differences in size up to around 10 nucleotides.
+
+## The protocol
+
+To begin prepare your gel by: chosing a buffer, calculating the amount of agar in the gel, and heating the mixture until it is completely dissolved and transparent. Autoclaving the mixture for 40 mins at 120&deg;C works well.
+
+As an example we will use 400 mL of TAE x1, and 0.8% agar.
+
+$$
+    \% = \frac{m}{V} \cdot 100 \implies m = \frac{\%}{100} \cdot V
+$$  
+
+Where:
+
+- m is mass of agar in g
+- v is volume of buffer in mL
+
+As per our formula:
+
+$$
+    m = \frac{0.8 \%}{100} \cdot 400 = 3.2 g
+$$
+
+Once the amount of agar to add has been calculated, carefully pour the powder into the bottle. A simple way of dissolving the solution is to heat it in an autoclave.
+
+To do this remove the supports from the autoclave, run some water in, and replace the supports. Finally place the bottle with the cap slightly loosend so as not to cause an explosion. Make sure the plastic cap on your bottle will tolerate the heat of the machine. Heat for about 1 h at 120&deg;C.
+
+Once the solution has been heated, it can be stored long term in a heater at about 58&deg;C. However, do not pour the solution right away, allow for it to cool to an appropriate temperature; hot, yet cool enough to hold. Now select the container to pour into and an appropriate comb.
+
+Place the transparent tray into the container, and the comb on top. The comb will create small holes in the gel into which we can deposit our samples. It is essential that the comb does not touch the bottom of the tray or the holes will not our samples upon deposit.
+
+Now pour the gel in one go so as not to create ripples. Once the gel is poured, make sure to remove any bubbles from the surface with a sterile object, a micropipette tip does the job nicely.
+
+Wait for the gel to cool and harden, this will take about 30-40 mins. One can speed this process up by pouring the gel in a cold chamber.
+
+Once the gel has solidified we are ready to use it. Remove the tray from the container, and place the tray along with the gel into the electropheretic unit. Make sure to have changed the buffer before. The buffer must be the same as the one used in the preparation of the gel or else results are unexploitable.
+
+Here is an example of a gel migrated with the wrong buffer. The gel was TAE x1 and the buffer in the unit was TBE x1. This gel was migrated for 40 mins at 100 v, 0.8% agar; the sample was DNA from a PCR.
+
+![Verification gel](/references/documents/biology-wetlab_electrophoresis/20181026_Verif_Gel0_8_TEA_x1_2log_pAPT-stb.png)
+Verification gel: pAPT110 + stbABC (TEA 2 log ladder).
+
+In the example above, two bands are visible but the ladder is gone, and the two bands seems to have stuck together with all other strands of DNA in the samples. There was no seperation what so ever. Note that not only does the buffer have to be the same, but it should also be the same concentration.
+
+Once the tray along with the gel is placed into the unit with the appropriate buffer, go ahead and deposit the samples into the wells. Use a micropipette for this. For this example we will be using a loading buffer by Sigma Aldrich x6, and a ladder by also by Sigma Aldrich depsiting 1.5 &mu;L. 
+
+The purpose of the ladder is to serve as a comparative size chart. These are solutions of a mixture of DNA of various known sizes, which are sold. The ladder will migrate and seperate in a known way, this will thus allow us to find the sizes of our sample fragments.
+
+The purpose of the loading buffer is simple to facilitate the deposit of our samples, as they are often times transparent. Not only this but also to allow us to visualise the migration front of our samples. This would allow us to stop the process if they ever get to the end of our gel before the time is up.
+
+For the samples we can actually deposit rather small amounts. But this really depends on the concetration of the samples. For a normla DNA extraction of from 5-10 mL of LB cell culture at stationary stage we could use about 7 &mu; and still somewhat see low copy plasmids.
+
+- Ladder deposit 1.5 &mu;L
+- Loading buffer use 4 &mu;L
+- DNA extract use 5 &mu;L
+
+As previously mentioned this is an example, and should be adjusted as necessary for any given situation.
+
+Once the samples have been carefully deposited, start the unit for 40 mins at 100 v. This are standard settings for a gel at 0.8% and can vary depending on the resolution desired and the size of fragments. Here are two examples one is a purification gel and the other is a PCR verification gel:
+
+![Purification gel](/references/documents/biology-wetlab_electrophoresis/20181022_Purif_Gel0_8_TEA_x1_ladder_pAPT_pAPTNhe1_PCRstbDRABCparS.png)
+Purification gel: pAPT110, pAPT110 Nhe1 digested, PCR stbABC (TEA 2 log ladder).
+
+![Verification gel](/references/documents/biology-wetlab_electrophoresis/20181108_Gel_verif_of_purif_papt110_(stbABC)_L13_L1_L2_R1_R2.png)
+Verification gel: pAPT110-stbABC; L13, L1, L2, R1, R2 (TEA 2 log ladder).
+
+Electropheresis can be used not only to determine the size of fragments and see what is happening at the molecular level, but also to purify a substance of interest, be it DNA or even proteins.
+
+For more information see DNA purification from an agar gel.
+
+Note that variants on this method exist which accomplish different things with a similar concept. 
+
+Blots are one variant where a cellulose membrane is placed over a gel and then revealed to show different particles of interest specifically. The key word being specificity. 
+
+Another variant is a 2D electropheretic gel, whereby proteins are migrated once along a long thin gel and placed adjacent to another gel and migrated once again. The first migration seperates the proteins by their pHi and the second by their size or molecular mass.
