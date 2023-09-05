@@ -1,0 +1,62 @@
+---
+title: "Marcus Aurelius"
+blurb: "Reject emotional slavery"
+coverImage: 154
+author: "Dereck Mezquita"
+date: 2023-02-12
+
+tags: [history, philosophy, literature]
+published: true
+comments: true
+---
+
+![A bust of Marcus Aurelius, Roman Emperor and Stoic Philosopher.](/references/biography_marcus-aurelius/marcus-aurelius-statue.jpg)
+Figure: A bust of Marcus Aurelius, Roman Emperor and Stoic Philosopher.
+
+## Life
+
+Marcus Aurelius was a Roman Emperor who reigned from 161 to 180 AD. He was born in Rome 26 April 121 AD and was the last of what were called the "Five Good Emperors". He was a Stoic philosopher and is best known for his Meditations. Marcus Aurelius wrote the Meditations as a personal reflection of his thoughts on Stoic philosophy (written in Koine Greek). There he recorded private notes and thoughts to himself. The 12 books were written during his time as Roman Emperor, serving as a source of guidance and self-improvement, but they were not intended for publication. This offers us a candid look into the mind of one of the most influential and powerful historical figures of all time.
+
+Marcus Aurelius is considered to be one of the most important philosophers in the branch of stoicism. He was a student of statesman Quintus Junius Rusticus and was influenced by Epictetus. He was a man of great character and was known for his wisdom, fairness, and justice. He was a well liked emperor and popular during his own time.
+
+## Philosophy
+
+![Marcus Aurelius sitting on throne, generated with stable diffusion.](/references/biography_marcus-aurelius/upscaled-marcus-aurelius-sitting-robes.png)
+Figure: Marcus Aurelius sitting on throne, generated with stable diffusion.
+
+Marcus Aurelius believed in the Stoic philosophy of life. He believed that the universe is rational and that everything that happens is a result of natural cause. He believed that the purpose of life is to live in accordance with nature and to cultivate wisdom, justice, and self-control.
+
+In his Meditations, Marcus Aurelius wrote about the importance of living in the present moment and focusing on what is in our control. He believed that people should not be concerned with the things that are beyond their control, but should instead focus on their own thoughts and actions. He wrote about the importance of accepting death and the impermanence of life. He believed that death was a natural part of life and that people should not be afraid of it.
+
+![The earliest preserved direct reference of the work we now call the Meditations is by Arethas of Caesarea (860-939), comment on Lucian of Samosata, from cca 900 (from Harley MS 5694).](/references/biography_marcus-aurelius/caesarea-earliest-reference-to-meditations.jpeg)
+Figure: The earliest preserved direct reference of the work we now call the Meditations is by Arethas of Caesarea (860-939), comment on Lucian of Samosata, from cca 900 (from Harley MS 5694)[^1].
+
+[^1]: [twitter@Purpura57912934](https://twitter.com/Purpura57912934/status/1526211096427626498)
+
+Marcus Aurelius' philosophy is still relevant today and his Meditations are widely read and admired for their wisdom and insight. He believed in living a virtuous life, practicing self-reflection, and developing a strong moral character. He believed in treating others with kindness and compassion and being grateful for the things that we have.
+
+> You have power over your mind, not outside events. Realise this, and you will find strength.
+Source: Marcus Aurelius, Meditations
+
+## Time as Emperor
+
+During his time as emperor, Marcus Aurelius faced significant challenges both domestically and abroad. On the northern frontier, Germanic tribes launched raids into the Roman Empire, leading to the Marcomannic Wars. Marcus was able to push back the invaders and settled numerous Germanic tribes in frontier regions. However, he also decided against bringing more barbarians into Italy and even banished those who had previously been brought there.
+
+Despite these challenges, Marcus was known for his dedication to legal and administrative work. He spent much of his time addressing matters of law and hearing disputes, and was considered "an emperor most skilled in the law" and "a most prudent and conscientiously just emperor". He showed particular interest in the manumission (liberation) of slaves, guardianship of orphans and minors, and the choice of city councillors.
+
+In addition to these challenges and responsibilities, Marcus was also faced with a devastating outbreak of the Antonine Plague, which may have been smallpox. Despite hardships Marcus Aurelius is remembered as a just and wise emperor who dedicated himself to serving the people of the Roman Empire.
+
+## Death and succession
+
+![The Roman Empire in 180 AD, the year of Marcus Aurelius' death.](/references/biography_marcus-aurelius/roman-empire-map-death-of-marcus-aurelius.png)
+Figure: The Roman Empire in 180 AD, the year of Marcus Aurelius' death.
+
+Marcus Aurelius died at the age of 58 on 17 March 180 AD of unknown causes. He was immediately deified and his ashes were returned to Rome, where they rested in Hadrian's mausoleum (modern day Castel Sant'Angelo) until the Visigoth sack of the city in 410. Some scholars consider his death to be the end of the Pax Romana.
+
+Marcus was succeeded by his son Commodus ironically widely regarded as one of the worst emperors (depicted in the film Gladiator year 2000 by Joaquin Phoenix). Marcus Aurelius named Commodus as Caesar in 166. Commodus had already ruled jointly with his father since 177. This was only the second time in Roman history that a "non-adoptive" son had succeeded his father. Historians have criticized the succession to Commodus, citing his erratic behavior and lack of political and military acumen.
+
+Cassius Dio wrote an encomium to Marcus and described the transition to Commodus with sorrow. He wrote that Marcus was a strong leader who faced many difficulties throughout his reign, but remained the same person and did not change. Commodus, on the other hand, was criticized for his erratic behavior and lack of leadership skills.
+
+## Other content on Marcus Aurelius
+
+You might be interested in episode [Joe Rogan Experience #1836 - Ryan Holiday](https://open.spotify.com/episode/3VbGyix7GOozgg8sry2Tmr). In this episode Ryan Holiday, a writer on philosophy and stoicism, talks about his unique perspective on life, success, and personal growth. They talk about the life of Marcus Aurelius and stoicism in general.
