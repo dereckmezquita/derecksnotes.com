@@ -1,0 +1,1201 @@
+---
+title: "Restriction enzymes"
+blurb: "Do not release them"
+coverImage: 23
+author: "Dereck Mezquita"
+date: 2019-03-22
+
+tags: [cheat-sheet, science, biology, biochemistry, wet-lab]
+published: true
+comments: true
+---
+
+A restriction enzyme is a type of enzyme that cuts DNA at a specific sequence of nucleotides. The sequence of nucleotides at which a restriction enzyme cuts is called its recognition site, and is usually six to eight base pairs long. Restriction enzymes are widely used in molecular biology to cut DNA at specific sites and are also important in genetic engineering.
+
+Here I cover the most common restriction enzymes, their recognition sites and their cutting sites.
+
+| **Enzyme**         | **Recognition Sequence**                |
+|--------------------|-----------------------------------------|
+| AatII              | GACGT/C                                 |
+| AbaSI              | CNNNNNNNNNNN/NNNNNNNNNG                 |
+| Acc65I             | G/GTACC                                 |
+| AccI               | GT/MKAC                                 |
+| AciI               | CCGC(-3/-1)                             |
+| AclI               | AA/CGTT                                 |
+| AcuI               | CTGAAG(16/14)                           |
+| AfeI               | AGC/GCT                                 |
+| AflII              | C/TTAAG                                 |
+| AflIII             | A/CRYGT                                 |
+| AgeI-HF AgeI       | A/CCGGT                                 |
+| AhdI               | GACNNN/NNGTC                            |
+| AluI               | AG/CT                                   |
+| AlwI               | GGATC(4/5)                              |
+| AlwNI              | CAGNNN/CTG                              |
+| ApaI               | GGGCC/C                                 |
+| ApaLI              | G/TGCAC                                 |
+| ApoI-HF ApoI       | R/AATTY                                 |
+| AscI               | GG/CGCGCC                               |
+| AseI               | AT/TAAT                                 |
+| AsiSI              | GCGAT/CGC                               |
+| AvaI BsoBI         | C/YCGRG                                 |
+| AvaII              | G/GWCC                                  |
+| AvrII              | C/CTAGG                                 |
+| BaeGI              | GKGCM/C                                 |
+| BaeI               | (10/15)ACNNNNGTAYC(12/7)                |
+| BamHI-HF BamHI     | G/GATCC                                 |
+| BanI               | G/GYRCC                                 |
+| BanII              | GRGCY/C                                 |
+| BbsI BbsI-HF       | GAAGAC(2/6)                             |
+| BbvCI              | CCTCAGC(-5/-2)                          |
+| BbvI               | GCAGC(8/12)                             |
+| BccI               | CCATC(4/5)                              |
+| BceAI              | ACGGC(12/14)                            |
+| BcgI               | (10/12)CGANNNNNNTGC(12/10)              |
+| BciVI              | GTATCC(6/5)                             |
+| BclI-HF BclI       | T/GATCA                                 |
+| BcoDI BsmAI        | GTCTC(1/5)                              |
+| BfaI               | C/TAG                                   |
+| BglI               | GCCNNNN/NGGC                            |
+| BglII              | A/GATCT                                 |
+| BlpI               | GC/TNAGC                                |
+| BmgBI              | CACGTC(-3/-3)                           |
+| BmrI               | ACTGGG(5/4)                             |
+| BmtI-HF BmtI       | GCTAG/C                                 |
+| BpmI               | CTGGAG(16/14)                           |
+| Bpu10I             | CCTNAGC(-5/-2)                          |
+| BpuEI              | CTTGAG(16/14)                           |
+| BsaAI              | YAC/GTR                                 |
+| BsaBI              | GATNN/NNATC                             |
+| BsaHI              | GR/CGYC                                 |
+| BsaI-HFv2 BsaI     | GGTCTC(1/5)                             |
+| BsaJI              | C/CNNGG                                 |
+| BsaWI              | W/CCGGW                                 |
+| BsaXI              | (9/12)ACNNNNNCTCC(10/7)                 |
+| BseRI              | GAGGAG(10/8)                            |
+| BseYI              | CCCAGC(-5/-1)                           |
+| BsgI               | GTGCAG(16/14)                           |
+| BsiEI              | CGRY/CG                                 |
+| BsiHKAI            | GWGCW/C                                 |
+| BsiWI BsiWI-HF     | C/GTACG                                 |
+| BslI               | CCNNNNN/NNGG                            |
+| BsmBI Esp3I        | CGTCTC(1/5)                             |
+| BsmFI              | GGGAC(10/14)                            |
+| BsmI               | GAATGC(1/-1)                            |
+| Bsp1286I           | GDGCH/C                                 |
+| BspCNI             | CTCAG(9/7)                              |
+| BspDI ClaI         | AT/CGAT                                 |
+| BspEI              | T/CCGGA                                 |
+| BspHI              | T/CATGA                                 |
+| BspMI BfuAI        | ACCTGC(4/8)                             |
+| BspQI SapI         | GCTCTTC(1/4)                            |
+| BsrBI              | CCGCTC(-3/-3)                           |
+| BsrDI              | GCAATG(2/0)                             |
+| BsrFαI             | R/CCGGY                                 |
+| BsrGI-HF BsrGI     | T/GTACA                                 |
+| BsrI               | ACTGG(1/-1)                             |
+| BssHII             | G/CGCGC                                 |
+| BssSαI             | CACGAG(-5/-1)                           |
+| BstAPI             | GCANNNN/NTGC                            |
+| BstBI              | TT/CGAA                                 |
+| BstEII-HF BstEII   | G/GTNACC                                |
+| BstNI              | CC/WGG                                  |
+| BstUI              | CG/CG                                   |
+| BstXI              | CCANNNNN/NTGG                           |
+| BstYI              | R/GATCY                                 |
+| BstZ17I-HF         | GTATAC                                  |
+| Bsu36I             | CC/TNAGG                                |
+| BtgI               | C/CRYGG                                 |
+| BtgZI              | GCGATG(10/14)                           |
+| BtsCI              | GGATG(2/0)                              |
+| BtsIMutI           | CAGTG(2/0)                              |
+| BtsαI              | GCAGTG(2/0)                             |
+| Cac8I              | GCN/NGC                                 |
+| CspCI              | (11/13)CAANNNNNGTGG(12/10)              |
+| CviAII             | C/ATG                                   |
+| CviKI-1            | RG/CY                                   |
+| CviQI              | G/TAC                                   |
+| DdeI               | C/TNAG                                  |
+| DpnI               | GA/TC                                   |
+| DraI               | TTT/AAA                                 |
+| DraIII-HF          | CACNNN/GTG                              |
+| DrdI               | GACNNNN/NNGTC                           |
+| EaeI               | Y/GGCCR                                 |
+| EagI-HF EagI       | C/GGCCG                                 |
+| EarI               | CTCTTC(1/4)                             |
+| EciI               | GGCGGA(11/9)                            |
+| Eco53kI            | GAG/CTC                                 |
+| EcoNI              | CCTNN/NNNAGG                            |
+| EcoO109I           | RG/GNCCY                                |
+| EcoP15I            | CAGCAG(25/27)                           |
+| EcoRI EcoRI-HF     | G/AATTC                                 |
+| EcoRV-HF EcoRV     | GAT/ATC                                 |
+| FauI               | CCCGC(4/6)                              |
+| Fnu4HI             | GC/NGC                                  |
+| FokI               | GGATG(9/13)                             |
+| FseI               | GGCCGG/CC                               |
+| FspEI              | CC(12/16)                               |
+| FspI               | TGC/GCA                                 |
+| HaeII              | RGCGC/Y                                 |
+| HaeIII             | GG/CC                                   |
+| HgaI               | GACGC(5/10)                             |
+| HhaI               | GCG/C                                   |
+| HincII             | GTY/RAC                                 |
+| HindIII HindIII-HF | A/AGCTT                                 |
+| HinfI              | G/ANTC                                  |
+| HinP1I             | G/CGC                                   |
+| HpaI               | GTT/AAC                                 |
+| HpaII MspI         | C/CGG                                   |
+| HphI               | GGTGA(8/7)                              |
+| Hpy166II           | GTN/NAC                                 |
+| Hpy188I            | TCN/GA                                  |
+| Hpy188III          | TC/NNGA                                 |
+| Hpy99I             | CGWCG/                                  |
+| HpyAV              | CCTTC(6/5)                              |
+| HpyCH4III          | ACN/GT                                  |
+| HpyCH4IV           | A/CGT                                   |
+| HpyCH4V            | TG/CA                                   |
+| I-CeuI             | TAACTATAACGGTCCTAAGGTAGCGAA(-9/-13)     |
+| I-SceI             | TAGGGATAACAGGGTAAT(-9/-13)              |
+| KasI               | G/GCGCC                                 |
+| KpnI-HF KpnI       | GGTAC/C                                 |
+| LpnPI              | CCDG(10/14)                             |
+| MboII              | GAAGA(8/7)                              |
+| MfeI MfeI-HF       | C/AATTG                                 |
+| MluCI              | /AATT                                   |
+| MluI-HF MluI       | A/CGCGT                                 |
+| MlyI               | GAGTC(5/5)                              |
+| MmeI               | TCCRAC(20/18)                           |
+| MnlI               | CCTC(7/6)                               |
+| MscI               | TGG/CCA                                 |
+| MseI               | T/TAA                                   |
+| MslI               | CAYNN/NNRTG                             |
+| MspA1I             | CMG/CKG                                 |
+| MspJI              | CNNR(9/13)                              |
+| MwoI               | GCNNNNN/NNGC                            |
+| NaeI               | GCC/GGC                                 |
+| NarI               | GG/CGCC                                 |
+| NciI               | CC/SGG                                  |
+| NcoI NcoI-HF       | C/CATGG                                 |
+| NdeI               | CA/TATG                                 |
+| NgoMIV             | G/CCGGC                                 |
+| NheI-HF NheI       | G/CTAGC                                 |
+| NlaIII             | CATG/                                   |
+| NlaIV              | GGN/NCC                                 |
+| NmeAIII            | GCCGAG(21/19)                           |
+| NotI NotI-HF       | GC/GGCCGC                               |
+| NruI-HF NruI       | TCG/CGA                                 |
+| NsiI-HF NsiI       | ATGCA/T                                 |
+| NspI               | RCATG/Y                                 |
+| Nt.AlwI            | GGATC(4/-5)                             |
+| Nt.BbvCI           | CCTCAGC(-5/-7)                          |
+| Nt.BsmAI           | GTCTC(1/-5)                             |
+| Nt.BspQI           | GCTCTTC(1/-7)                           |
+| Nt.BstNBI          | GAGTC(4/-5)                             |
+| Nt.CviPII          | (0/-1)CCD                               |
+| PacI               | TTAAT/TAA                               |
+| PciI               | A/CATGT                                 |
+| PflMI              | CCANNNN/NTGG                            |
+| PI-PspI            | TGGCAAACAGCTATTATGGGTATTATGGGT(-13/-17) |
+| PI-SceI            | ATCTATGTCGGGTGCGGAGAAAGAGGTAAT(-15/-19) |
+| PleI               | GAGTC(4/5)                              |
+| PluTI              | GGCGC/C                                 |
+| PmeI               | GTTT/AAAC                               |
+| PmlI               | CAC/GTG                                 |
+| PpuMI              | RG/GWCCY                                |
+| PshAI              | GACNN/NNGTC                             |
+| PsiI               | TTA/TAA                                 |
+| PspGI              | /CCWGG                                  |
+| PspOMI             | G/GGCCC                                 |
+| PspXI              | VC/TCGAGB                               |
+| PstI-HF PstI       | CTGCA/G                                 |
+| PvuI-HF PvuI       | CGAT/CG                                 |
+| PvuII PvuII-HF     | CAG/CTG                                 |
+| R0685 AleI-v2      | CACNN/NNGTG                             |
+| RsaI               | GT/AC                                   |
+| RsrII              | CG/GWCCG                                |
+| SacI-HF SacI       | GAGCT/C                                 |
+| SacII              | CCGC/GG                                 |
+| SalI-HF SalI       | G/TCGAC                                 |
+| Sau3AI DpnII MboI  | /GATC                                   |
+| Sau96I             | G/GNCC                                  |
+| SbfI-HF SbfI       | CCTGCA/GG                               |
+| ScaI-HF            | AGT/ACT                                 |
+| ScrFI              | CC/NGG                                  |
+| SexAI              | A/CCWGGT                                |
+| SfaNI              | GCATC(5/9)                              |
+| SfcI               | C/TRYAG                                 |
+| SfiI               | GGCCNNNN/NGGCC                          |
+| SfoI               | GGC/GCC                                 |
+| SgrAI              | CR/CCGGYG                               |
+| SmaI               | CCC/GGG                                 |
+| SmlI               | C/TYRAG                                 |
+| SnaBI              | TAC/GTA                                 |
+| SpeI-HF SpeI       | A/CTAGT                                 |
+| SphI SphI-HF       | GCATG/C                                 |
+| SrfI               | GCCC/GGGC                               |
+| SspI-HF SspI       | AAT/ATT                                 |
+| StuI               | AGG/CCT                                 |
+| StyD4I             | /CCNGG                                  |
+| StyI-HF StyI       | C/CWWGG                                 |
+| SwaI               | ATTT/AAAT                               |
+| TaqαI              | T/CGA                                   |
+| TfiI               | G/AWTC                                  |
+| TseI ApeKI         | G/CWGC                                  |
+| Tsp45I             | /GTSAC                                  |
+| TspRI              | NNCASTGNN/                              |
+| Tth111I PflFI      | GACN/NNGTC                              |
+| XbaI               | T/CTAGA                                 |
+| XcmI               | CCANNNNN/NNNNTGG                        |
+| XhoI PaeR7I        | C/TCGAG                                 |
+| XmaI TspMI         | C/CCGGG                                 |
+| XmnI               | GAANN/NNTTC                             |
+| ZraI               | GAC/GTC                                 |
+
+
+<!-- 
+<table>
+    <thead>
+        <tr>
+            <th>Enzyme</th>
+            <th>Recognition Sequence</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>AatII</td>
+            <td>GACGT/C</td>
+        </tr>
+        <tr>
+            <td>AbaSI</td>
+            <td>CNNNNNNNNNNN/NNNNNNNNNG</td>
+        </tr>
+        <tr>
+            <td>Acc65I</td>
+            <td>G/GTACC</td>
+        </tr>
+        <tr>
+            <td>AccI</td>
+            <td>GT/MKAC</td>
+        </tr>
+        <tr>
+            <td>AciI</td>
+            <td>CCGC(-3/-1)</td>
+        </tr>
+        <tr>
+            <td>AclI</td>
+            <td>AA/CGTT</td>
+        </tr>
+        <tr>
+            <td>AcuI</td>
+            <td>CTGAAG(16/14)</td>
+        </tr>
+        <tr>
+            <td>AfeI</td>
+            <td>AGC/GCT</td>
+        </tr>
+        <tr>
+            <td>AflII</td>
+            <td>C/TTAAG</td>
+        </tr>
+        <tr>
+            <td>AflIII</td>
+            <td>A/CRYGT</td>
+        </tr>
+        <tr>
+            <td>AgeI-HF AgeI</td>
+            <td>A/CCGGT</td>
+        </tr>
+        <tr>
+            <td>AhdI</td>
+            <td>GACNNN/NNGTC</td>
+        </tr>
+        <tr>
+            <td>AluI</td>
+            <td>AG/CT</td>
+        </tr>
+        <tr>
+            <td>AlwI</td>
+            <td>GGATC(4/5)</td>
+        </tr>
+        <tr>
+            <td>AlwNI</td>
+            <td>CAGNNN/CTG</td>
+        </tr>
+        <tr>
+            <td>ApaI</td>
+            <td>GGGCC/C</td>
+        </tr>
+        <tr>
+            <td>ApaLI</td>
+            <td>G/TGCAC</td>
+        </tr>
+        <tr>
+            <td>ApoI-HF ApoI</td>
+            <td>R/AATTY</td>
+        </tr>
+        <tr>
+            <td>AscI</td>
+            <td>GG/CGCGCC</td>
+        </tr>
+        <tr>
+            <td>AseI</td>
+            <td>AT/TAAT</td>
+        </tr>
+        <tr>
+            <td>AsiSI</td>
+            <td>GCGAT/CGC</td>
+        </tr>
+        <tr>
+            <td>AvaI BsoBI</td>
+            <td>C/YCGRG</td>
+        </tr>
+        <tr>
+            <td>AvaII</td>
+            <td>G/GWCC</td>
+        </tr>
+        <tr>
+            <td>AvrII</td>
+            <td>C/CTAGG</td>
+        </tr>
+        <tr>
+            <td>BaeGI</td>
+            <td>GKGCM/C</td>
+        </tr>
+        <tr>
+            <td>BaeI</td>
+            <td>(10/15)ACNNNNGTAYC(12/7)</td>
+        </tr>
+        <tr>
+            <td>BamHI-HF BamHI</td>
+            <td>G/GATCC</td>
+        </tr>
+        <tr>
+            <td>BanI</td>
+            <td>G/GYRCC</td>
+        </tr>
+        <tr>
+            <td>BanII</td>
+            <td>GRGCY/C</td>
+        </tr>
+        <tr>
+            <td>BbsI BbsI-HF</td>
+            <td>GAAGAC(2/6)</td>
+        </tr>
+        <tr>
+            <td>BbvCI</td>
+            <td>CCTCAGC(-5/-2)</td>
+        </tr>
+        <tr>
+            <td>BbvI</td>
+            <td>GCAGC(8/12)</td>
+        </tr>
+        <tr>
+            <td>BccI</td>
+            <td>CCATC(4/5)</td>
+        </tr>
+        <tr>
+            <td>BceAI</td>
+            <td>ACGGC(12/14)</td>
+        </tr>
+        <tr>
+            <td>BcgI</td>
+            <td>(10/12)CGANNNNNNTGC(12/10)</td>
+        </tr>
+        <tr>
+            <td>BciVI</td>
+            <td>GTATCC(6/5)</td>
+        </tr>
+        <tr>
+            <td>BclI-HF BclI</td>
+            <td>T/GATCA</td>
+        </tr>
+        <tr>
+            <td>BcoDI BsmAI</td>
+            <td>GTCTC(1/5)</td>
+        </tr>
+        <tr>
+            <td>BfaI</td>
+            <td>C/TAG</td>
+        </tr>
+        <tr>
+            <td>BglI</td>
+            <td>GCCNNNN/NGGC</td>
+        </tr>
+        <tr>
+            <td>BglII</td>
+            <td>A/GATCT</td>
+        </tr>
+        <tr>
+            <td>BlpI</td>
+            <td>GC/TNAGC</td>
+        </tr>
+        <tr>
+            <td>BmgBI</td>
+            <td>CACGTC(-3/-3)</td>
+        </tr>
+        <tr>
+            <td>BmrI</td>
+            <td>ACTGGG(5/4)</td>
+        </tr>
+        <tr>
+            <td>BmtI-HF BmtI</td>
+            <td>GCTAG/C</td>
+        </tr>
+        <tr>
+            <td>BpmI</td>
+            <td>CTGGAG(16/14)</td>
+        </tr>
+        <tr>
+            <td>Bpu10I</td>
+            <td>CCTNAGC(-5/-2)</td>
+        </tr>
+        <tr>
+            <td>BpuEI</td>
+            <td>CTTGAG(16/14)</td>
+        </tr>
+        <tr>
+            <td>BsaAI</td>
+            <td>YAC/GTR</td>
+        </tr>
+        <tr>
+            <td>BsaBI</td>
+            <td>GATNN/NNATC</td>
+        </tr>
+        <tr>
+            <td>BsaHI</td>
+            <td>GR/CGYC</td>
+        </tr>
+        <tr>
+            <td>BsaI-HFv2 BsaI</td>
+            <td>GGTCTC(1/5)</td>
+        </tr>
+        <tr>
+            <td>BsaJI</td>
+            <td>C/CNNGG</td>
+        </tr>
+        <tr>
+            <td>BsaWI</td>
+            <td>W/CCGGW</td>
+        </tr>
+        <tr>
+            <td>BsaXI</td>
+            <td>(9/12)ACNNNNNCTCC(10/7)</td>
+        </tr>
+        <tr>
+            <td>BseRI</td>
+            <td>GAGGAG(10/8)</td>
+        </tr>
+        <tr>
+            <td>BseYI</td>
+            <td>CCCAGC(-5/-1)</td>
+        </tr>
+        <tr>
+            <td>BsgI</td>
+            <td>GTGCAG(16/14)</td>
+        </tr>
+        <tr>
+            <td>BsiEI</td>
+            <td>CGRY/CG</td>
+        </tr>
+        <tr>
+            <td>BsiHKAI</td>
+            <td>GWGCW/C</td>
+        </tr>
+        <tr>
+            <td>BsiWI BsiWI-HF</td>
+            <td>C/GTACG</td>
+        </tr>
+        <tr>
+            <td>BslI</td>
+            <td>CCNNNNN/NNGG</td>
+        </tr>
+        <tr>
+            <td>BsmBI Esp3I</td>
+            <td>CGTCTC(1/5)</td>
+        </tr>
+        <tr>
+            <td>BsmFI</td>
+            <td>GGGAC(10/14)</td>
+        </tr>
+        <tr>
+            <td>BsmI</td>
+            <td>GAATGC(1/-1)</td>
+        </tr>
+        <tr>
+            <td>Bsp1286I</td>
+            <td>GDGCH/C</td>
+        </tr>
+        <tr>
+            <td>BspCNI</td>
+            <td>CTCAG(9/7)</td>
+        </tr>
+        <tr>
+            <td>BspDI ClaI</td>
+            <td>AT/CGAT</td>
+        </tr>
+        <tr>
+            <td>BspEI</td>
+            <td>T/CCGGA</td>
+        </tr>
+        <tr>
+            <td>BspHI</td>
+            <td>T/CATGA</td>
+        </tr>
+        <tr>
+            <td>BspMI BfuAI</td>
+            <td>ACCTGC(4/8)</td>
+        </tr>
+        <tr>
+            <td>BspQI SapI</td>
+            <td>GCTCTTC(1/4)</td>
+        </tr>
+        <tr>
+            <td>BsrBI</td>
+            <td>CCGCTC(-3/-3)</td>
+        </tr>
+        <tr>
+            <td>BsrDI</td>
+            <td>GCAATG(2/0)</td>
+        </tr>
+        <tr>
+            <td>BsrFαI</td>
+            <td>R/CCGGY</td>
+        </tr>
+        <tr>
+            <td>BsrGI-HF BsrGI</td>
+            <td>T/GTACA</td>
+        </tr>
+        <tr>
+            <td>BsrI</td>
+            <td>ACTGG(1/-1)</td>
+        </tr>
+        <tr>
+            <td>BssHII</td>
+            <td>G/CGCGC</td>
+        </tr>
+        <tr>
+            <td>BssSαI</td>
+            <td>CACGAG(-5/-1)</td>
+        </tr>
+        <tr>
+            <td>BstAPI</td>
+            <td>GCANNNN/NTGC</td>
+        </tr>
+        <tr>
+            <td>BstBI</td>
+            <td>TT/CGAA</td>
+        </tr>
+        <tr>
+            <td>BstEII-HF BstEII</td>
+            <td>G/GTNACC</td>
+        </tr>
+        <tr>
+            <td>BstNI</td>
+            <td>CC/WGG</td>
+        </tr>
+        <tr>
+            <td>BstUI</td>
+            <td>CG/CG</td>
+        </tr>
+        <tr>
+            <td>BstXI</td>
+            <td>CCANNNNN/NTGG</td>
+        </tr>
+        <tr>
+            <td>BstYI</td>
+            <td>R/GATCY</td>
+        </tr>
+        <tr>
+            <td>BstZ17I-HF</td>
+            <td>GTATAC</td>
+        </tr>
+        <tr>
+            <td>Bsu36I</td>
+            <td>CC/TNAGG</td>
+        </tr>
+        <tr>
+            <td>BtgI</td>
+            <td>C/CRYGG</td>
+        </tr>
+        <tr>
+            <td>BtgZI</td>
+            <td>GCGATG(10/14)</td>
+        </tr>
+        <tr>
+            <td>BtsCI</td>
+            <td>GGATG(2/0)</td>
+        </tr>
+        <tr>
+            <td>BtsIMutI</td>
+            <td>CAGTG(2/0)</td>
+        </tr>
+        <tr>
+            <td>BtsαI</td>
+            <td>GCAGTG(2/0)</td>
+        </tr>
+        <tr>
+            <td>Cac8I</td>
+            <td>GCN/NGC</td>
+        </tr>
+        <tr>
+            <td>CspCI</td>
+            <td>(11/13)CAANNNNNGTGG(12/10)</td>
+        </tr>
+        <tr>
+            <td>CviAII</td>
+            <td>C/ATG</td>
+        </tr>
+        <tr>
+            <td>CviKI-1</td>
+            <td>RG/CY</td>
+        </tr>
+        <tr>
+            <td>CviQI</td>
+            <td>G/TAC</td>
+        </tr>
+        <tr>
+            <td>DdeI</td>
+            <td>C/TNAG</td>
+        </tr>
+        <tr>
+            <td>DpnI</td>
+            <td>GA/TC</td>
+        </tr>
+        <tr>
+            <td>DraI</td>
+            <td>TTT/AAA</td>
+        </tr>
+        <tr>
+            <td>DraIII-HF</td>
+            <td>CACNNN/GTG</td>
+        </tr>
+        <tr>
+            <td>DrdI</td>
+            <td>GACNNNN/NNGTC</td>
+        </tr>
+        <tr>
+            <td>EaeI</td>
+            <td>Y/GGCCR</td>
+        </tr>
+        <tr>
+            <td>EagI-HF EagI</td>
+            <td>C/GGCCG</td>
+        </tr>
+        <tr>
+            <td>EarI</td>
+            <td>CTCTTC(1/4)</td>
+        </tr>
+        <tr>
+            <td>EciI</td>
+            <td>GGCGGA(11/9)</td>
+        </tr>
+        <tr>
+            <td>Eco53kI</td>
+            <td>GAG/CTC</td>
+        </tr>
+        <tr>
+            <td>EcoNI</td>
+            <td>CCTNN/NNNAGG</td>
+        </tr>
+        <tr>
+            <td>EcoO109I</td>
+            <td>RG/GNCCY</td>
+        </tr>
+        <tr>
+            <td>EcoP15I</td>
+            <td>CAGCAG(25/27)</td>
+        </tr>
+        <tr>
+            <td>EcoRI EcoRI-HF</td>
+            <td>G/AATTC</td>
+        </tr>
+        <tr>
+            <td>EcoRV-HF EcoRV</td>
+            <td>GAT/ATC</td>
+        </tr>
+        <tr>
+            <td>FauI</td>
+            <td>CCCGC(4/6)</td>
+        </tr>
+        <tr>
+            <td>Fnu4HI</td>
+            <td>GC/NGC</td>
+        </tr>
+        <tr>
+            <td>FokI</td>
+            <td>GGATG(9/13)</td>
+        </tr>
+        <tr>
+            <td>FseI</td>
+            <td>GGCCGG/CC</td>
+        </tr>
+        <tr>
+            <td>FspEI</td>
+            <td>CC(12/16)</td>
+        </tr>
+        <tr>
+            <td>FspI</td>
+            <td>TGC/GCA</td>
+        </tr>
+        <tr>
+            <td>HaeII</td>
+            <td>RGCGC/Y</td>
+        </tr>
+        <tr>
+            <td>HaeIII</td>
+            <td>GG/CC</td>
+        </tr>
+        <tr>
+            <td>HgaI</td>
+            <td>GACGC(5/10)</td>
+        </tr>
+        <tr>
+            <td>HhaI</td>
+            <td>GCG/C</td>
+        </tr>
+        <tr>
+            <td>HincII</td>
+            <td>GTY/RAC</td>
+        </tr>
+        <tr>
+            <td>HindIII HindIII-HF</td>
+            <td>A/AGCTT</td>
+        </tr>
+        <tr>
+            <td>HinfI</td>
+            <td>G/ANTC</td>
+        </tr>
+        <tr>
+            <td>HinP1I</td>
+            <td>G/CGC</td>
+        </tr>
+        <tr>
+            <td>HpaI</td>
+            <td>GTT/AAC</td>
+        </tr>
+        <tr>
+            <td>HpaII MspI</td>
+            <td>C/CGG</td>
+        </tr>
+        <tr>
+            <td>HphI</td>
+            <td>GGTGA(8/7)</td>
+        </tr>
+        <tr>
+            <td>Hpy166II</td>
+            <td>GTN/NAC</td>
+        </tr>
+        <tr>
+            <td>Hpy188I</td>
+            <td>TCN/GA</td>
+        </tr>
+        <tr>
+            <td>Hpy188III</td>
+            <td>TC/NNGA</td>
+        </tr>
+        <tr>
+            <td>Hpy99I</td>
+            <td>CGWCG/</td>
+        </tr>
+        <tr>
+            <td>HpyAV</td>
+            <td>CCTTC(6/5)</td>
+        </tr>
+        <tr>
+            <td>HpyCH4III</td>
+            <td>ACN/GT</td>
+        </tr>
+        <tr>
+            <td>HpyCH4IV</td>
+            <td>A/CGT</td>
+        </tr>
+        <tr>
+            <td>HpyCH4V</td>
+            <td>TG/CA</td>
+        </tr>
+        <tr>
+            <td>I-CeuI</td>
+            <td>TAACTATAACGGTCCTAAGGTAGCGAA(-9/-13)</td>
+        </tr>
+        <tr>
+            <td>I-SceI</td>
+            <td>TAGGGATAACAGGGTAAT(-9/-13)</td>
+        </tr>
+        <tr>
+            <td>KasI</td>
+            <td>G/GCGCC</td>
+        </tr>
+        <tr>
+            <td>KpnI-HF KpnI</td>
+            <td>GGTAC/C</td>
+        </tr>
+        <tr>
+            <td>LpnPI</td>
+            <td>CCDG(10/14)</td>
+        </tr>
+        <tr>
+            <td>MboII</td>
+            <td>GAAGA(8/7)</td>
+        </tr>
+        <tr>
+            <td>MfeI MfeI-HF</td>
+            <td>C/AATTG</td>
+        </tr>
+        <tr>
+            <td>MluCI</td>
+            <td>/AATT</td>
+        </tr>
+        <tr>
+            <td>MluI-HF MluI</td>
+            <td>A/CGCGT</td>
+        </tr>
+        <tr>
+            <td>MlyI</td>
+            <td>GAGTC(5/5)</td>
+        </tr>
+        <tr>
+            <td>MmeI</td>
+            <td>TCCRAC(20/18)</td>
+        </tr>
+        <tr>
+            <td>MnlI</td>
+            <td>CCTC(7/6)</td>
+        </tr>
+        <tr>
+            <td>MscI</td>
+            <td>TGG/CCA</td>
+        </tr>
+        <tr>
+            <td>MseI</td>
+            <td>T/TAA</td>
+        </tr>
+        <tr>
+            <td>MslI</td>
+            <td>CAYNN/NNRTG</td>
+        </tr>
+        <tr>
+            <td>MspA1I</td>
+            <td>CMG/CKG</td>
+        </tr>
+        <tr>
+            <td>MspJI</td>
+            <td>CNNR(9/13)</td>
+        </tr>
+        <tr>
+            <td>MwoI</td>
+            <td>GCNNNNN/NNGC</td>
+        </tr>
+        <tr>
+            <td>NaeI</td>
+            <td>GCC/GGC</td>
+        </tr>
+        <tr>
+            <td>NarI</td>
+            <td>GG/CGCC</td>
+        </tr>
+        <tr>
+            <td>NciI</td>
+            <td>CC/SGG</td>
+        </tr>
+        <tr>
+            <td>NcoI NcoI-HF</td>
+            <td>C/CATGG</td>
+        </tr>
+        <tr>
+            <td>NdeI</td>
+            <td>CA/TATG</td>
+        </tr>
+        <tr>
+            <td>NgoMIV</td>
+            <td>G/CCGGC</td>
+        </tr>
+        <tr>
+            <td>NheI-HF NheI</td>
+            <td>G/CTAGC</td>
+        </tr>
+        <tr>
+            <td>NlaIII</td>
+            <td>CATG/</td>
+        </tr>
+        <tr>
+            <td>NlaIV</td>
+            <td>GGN/NCC</td>
+        </tr>
+        <tr>
+            <td>NmeAIII</td>
+            <td>GCCGAG(21/19)</td>
+        </tr>
+        <tr>
+            <td>NotI NotI-HF</td>
+            <td>GC/GGCCGC</td>
+        </tr>
+        <tr>
+            <td>NruI-HF NruI</td>
+            <td>TCG/CGA</td>
+        </tr>
+        <tr>
+            <td>NsiI-HF NsiI</td>
+            <td>ATGCA/T</td>
+        </tr>
+        <tr>
+            <td>NspI</td>
+            <td>RCATG/Y</td>
+        </tr>
+        <tr>
+            <td>Nt.AlwI</td>
+            <td>GGATC(4/-5)</td>
+        </tr>
+        <tr>
+            <td>Nt.BbvCI</td>
+            <td>CCTCAGC(-5/-7)</td>
+        </tr>
+        <tr>
+            <td>Nt.BsmAI</td>
+            <td>GTCTC(1/-5)</td>
+        </tr>
+        <tr>
+            <td>Nt.BspQI</td>
+            <td>GCTCTTC(1/-7)</td>
+        </tr>
+        <tr>
+            <td>Nt.BstNBI</td>
+            <td>GAGTC(4/-5)</td>
+        </tr>
+        <tr>
+            <td>Nt.CviPII</td>
+            <td>(0/-1)CCD</td>
+        </tr>
+        <tr>
+            <td>PacI</td>
+            <td>TTAAT/TAA</td>
+        </tr>
+        <tr>
+            <td>PciI</td>
+            <td>A/CATGT</td>
+        </tr>
+        <tr>
+            <td>PflMI</td>
+            <td>CCANNNN/NTGG</td>
+        </tr>
+        <tr>
+            <td>PI-PspI</td>
+            <td>TGGCAAACAGCTATTATGGGTATTATGGGT(-13/-17)</td>
+        </tr>
+        <tr>
+            <td>PI-SceI</td>
+            <td>ATCTATGTCGGGTGCGGAGAAAGAGGTAAT(-15/-19)</td>
+        </tr>
+        <tr>
+            <td>PleI</td>
+            <td>GAGTC(4/5)</td>
+        </tr>
+        <tr>
+            <td>PluTI</td>
+            <td>GGCGC/C</td>
+        </tr>
+        <tr>
+            <td>PmeI</td>
+            <td>GTTT/AAAC</td>
+        </tr>
+        <tr>
+            <td>PmlI</td>
+            <td>CAC/GTG</td>
+        </tr>
+        <tr>
+            <td>PpuMI</td>
+            <td>RG/GWCCY</td>
+        </tr>
+        <tr>
+            <td>PshAI</td>
+            <td>GACNN/NNGTC</td>
+        </tr>
+        <tr>
+            <td>PsiI</td>
+            <td>TTA/TAA</td>
+        </tr>
+        <tr>
+            <td>PspGI</td>
+            <td>/CCWGG</td>
+        </tr>
+        <tr>
+            <td>PspOMI</td>
+            <td>G/GGCCC</td>
+        </tr>
+        <tr>
+            <td>PspXI</td>
+            <td>VC/TCGAGB</td>
+        </tr>
+        <tr>
+            <td>PstI-HF PstI</td>
+            <td>CTGCA/G</td>
+        </tr>
+        <tr>
+            <td>PvuI-HF PvuI</td>
+            <td>CGAT/CG</td>
+        </tr>
+        <tr>
+            <td>PvuII PvuII-HF</td>
+            <td>CAG/CTG</td>
+        </tr>
+        <tr>
+            <td>R0685 AleI-v2</td>
+            <td>CACNN/NNGTG</td>
+        </tr>
+        <tr>
+            <td>RsaI</td>
+            <td>GT/AC</td>
+        </tr>
+        <tr>
+            <td>RsrII</td>
+            <td>CG/GWCCG</td>
+        </tr>
+        <tr>
+            <td>SacI-HF SacI</td>
+            <td>GAGCT/C</td>
+        </tr>
+        <tr>
+            <td>SacII</td>
+            <td>CCGC/GG</td>
+        </tr>
+        <tr>
+            <td>SalI-HF SalI</td>
+            <td>G/TCGAC</td>
+        </tr>
+        <tr>
+            <td>Sau3AI DpnII MboI</td>
+            <td>/GATC</td>
+        </tr>
+        <tr>
+            <td>Sau96I</td>
+            <td>G/GNCC</td>
+        </tr>
+        <tr>
+            <td>SbfI-HF SbfI</td>
+            <td>CCTGCA/GG</td>
+        </tr>
+        <tr>
+            <td>ScaI-HF</td>
+            <td>AGT/ACT</td>
+        </tr>
+        <tr>
+            <td>ScrFI</td>
+            <td>CC/NGG</td>
+        </tr>
+        <tr>
+            <td>SexAI</td>
+            <td>A/CCWGGT</td>
+        </tr>
+        <tr>
+            <td>SfaNI</td>
+            <td>GCATC(5/9)</td>
+        </tr>
+        <tr>
+            <td>SfcI</td>
+            <td>C/TRYAG</td>
+        </tr>
+        <tr>
+            <td>SfiI</td>
+            <td>GGCCNNNN/NGGCC</td>
+        </tr>
+        <tr>
+            <td>SfoI</td>
+            <td>GGC/GCC</td>
+        </tr>
+        <tr>
+            <td>SgrAI</td>
+            <td>CR/CCGGYG</td>
+        </tr>
+        <tr>
+            <td>SmaI</td>
+            <td>CCC/GGG</td>
+        </tr>
+        <tr>
+            <td>SmlI</td>
+            <td>C/TYRAG</td>
+        </tr>
+        <tr>
+            <td>SnaBI</td>
+            <td>TAC/GTA</td>
+        </tr>
+        <tr>
+            <td>SpeI-HF SpeI</td>
+            <td>A/CTAGT</td>
+        </tr>
+        <tr>
+            <td>SphI SphI-HF</td>
+            <td>GCATG/C</td>
+        </tr>
+        <tr>
+            <td>SrfI</td>
+            <td>GCCC/GGGC</td>
+        </tr>
+        <tr>
+            <td>SspI-HF SspI</td>
+            <td>AAT/ATT</td>
+        </tr>
+        <tr>
+            <td>StuI</td>
+            <td>AGG/CCT</td>
+        </tr>
+        <tr>
+            <td>StyD4I</td>
+            <td>/CCNGG</td>
+        </tr>
+        <tr>
+            <td>StyI-HF StyI</td>
+            <td>C/CWWGG</td>
+        </tr>
+        <tr>
+            <td>SwaI</td>
+            <td>ATTT/AAAT</td>
+        </tr>
+        <tr>
+            <td>TaqαI</td>
+            <td>T/CGA</td>
+        </tr>
+        <tr>
+            <td>TfiI</td>
+            <td>G/AWTC</td>
+        </tr>
+        <tr>
+            <td>TseI ApeKI</td>
+            <td>G/CWGC</td>
+        </tr>
+        <tr>
+            <td>Tsp45I</td>
+            <td>/GTSAC</td>
+        </tr>
+        <tr>
+            <td>TspRI</td>
+            <td>NNCASTGNN/</td>
+        </tr>
+        <tr>
+            <td>Tth111I PflFI</td>
+            <td>GACN/NNGTC</td>
+        </tr>
+        <tr>
+            <td>XbaI</td>
+            <td>T/CTAGA</td>
+        </tr>
+        <tr>
+            <td>XcmI</td>
+            <td>CCANNNNN/NNNNTGG</td>
+        </tr>
+        <tr>
+            <td>XhoI PaeR7I</td>
+            <td>C/TCGAG</td>
+        </tr>
+        <tr>
+            <td>XmaI TspMI</td>
+            <td>C/CCGGG</td>
+        </tr>
+        <tr>
+            <td>XmnI</td>
+            <td>GAANN/NNTTC</td>
+        </tr>
+        <tr>
+            <td>ZraI</td>
+            <td>GAC/GTC</td>
+        </tr>
+    </tbody>
+</table> -->
