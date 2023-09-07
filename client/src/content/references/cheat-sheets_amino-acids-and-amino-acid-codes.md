@@ -15,525 +15,90 @@ Amino acids are the building blocks of proteins. There are 20 basic common amino
 ![Table of amino acids, their structure and chemical properties.](/references/cheat-sheets_amino-acids-and-amino-acid-codes/aminoAcids.png)
 Figure: Table of amino acids, their structure, and chemical properties.
 
-<table>
-    <thead>
-        <tr>
-            <th>Name</th>
-            <th>Single Letter Code</th>
-            <th>Multiple Letter Code</th>
-            <th>D-Amino Acid Code</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>Alanine</td>
-            <td>A</td>
-            <td>[ALA]</td>
-            <td>[d-ALA]</td>
-        </tr>
-        <tr>
-            <td>Arginine</td>
-            <td>R</td>
-            <td>[ARG]</td>
-            <td>[d-ARG]</td>
-        </tr>
-        <tr>
-            <td>Asparagine</td>
-            <td>N</td>
-            <td>[ASN]</td>
-            <td>[d-ASN]</td>
-        </tr>
-        <tr>
-            <td>Aspartic Acid</td>
-            <td>D</td>
-            <td>[ASP]</td>
-            <td>[d-ASP]</td>
-        </tr>
-        <tr>
-            <td>Cysteine</td>
-            <td>C</td>
-            <td>[CYS]</td>
-            <td>[d-CYS]</td>
-        </tr>
-        <tr>
-            <td>Glutamic Acid</td>
-            <td>E</td>
-            <td>[GLU]</td>
-            <td>[d-GLU]</td>
-        </tr>
-        <tr>
-            <td>Glutamine</td>
-            <td>Q</td>
-            <td>[GLN]</td>
-            <td>[d-GLN]</td>
-        </tr>
-        <tr>
-            <td>Glycine</td>
-            <td>G</td>
-            <td>[GLY]</td>
-            <td>[d-GLY]</td>
-        </tr>
-        <tr>
-            <td>Homocysteine</td>
-            <td></td>
-            <td>[HCY]</td>
-            <td>[d-HCY]</td>
-        </tr>
-        <tr>
-            <td>Histidine</td>
-            <td>H</td>
-            <td>[HIS]</td>
-            <td>[d-HIS]</td>
-        </tr>
-        <tr>
-            <td>Homoserine</td>
-            <td></td>
-            <td>[HSE]</td>
-            <td>[d-HSE]</td>
-        </tr>
-        <tr>
-            <td>Isoleucine</td>
-            <td>I</td>
-            <td>[ILE]</td>
-            <td>[d-ILE]</td>
-        </tr>
-        <tr>
-            <td>Leucine</td>
-            <td>L</td>
-            <td>[LEU]</td>
-            <td>[d-LEU]</td>
-        </tr>
-        <tr>
-            <td>Lysine</td>
-            <td>K</td>
-            <td>[LYS]</td>
-            <td>[d-LYS]</td>
-        </tr>
-        <tr>
-            <td>Methionine</td>
-            <td>M</td>
-            <td>[MET]</td>
-            <td>[d-MET]</td>
-        </tr>
-        <tr>
-            <td>Norleucine</td>
-            <td></td>
-            <td>[NLE]</td>
-            <td>[d-NLE]</td>
-        </tr>
-        <tr>
-            <td>Norvaline</td>
-            <td></td>
-            <td>[NVA]</td>
-            <td>[d-NVA]</td>
-        </tr>
-        <tr>
-            <td>Ornithine</td>
-            <td></td>
-            <td>[ORN]</td>
-            <td>[d-ORN]</td>
-        </tr>
-        <tr>
-            <td>Penicillamine</td>
-            <td></td>
-            <td>[PEN]</td>
-            <td>[d-PEN]</td>
-        </tr>
-        <tr>
-            <td>Phenylalanine</td>
-            <td>F</td>
-            <td>[PHE]</td>
-            <td>[d-PHE]</td>
-        </tr>
-        <tr>
-            <td>Proline</td>
-            <td>P</td>
-            <td>[PRO]</td>
-            <td>[d-PRO]</td>
-        </tr>
-        <tr>
-            <td>Serine</td>
-            <td>S</td>
-            <td>[SER]</td>
-            <td>[d-SER]</td>
-        </tr>
-        <tr>
-            <td>Threonine</td>
-            <td>T</td>
-            <td>[THR]</td>
-            <td>[d-THR]</td>
-        </tr>
-        <tr>
-            <td>Tryptophan</td>
-            <td>W</td>
-            <td>[TRP]</td>
-            <td>[d-TRP]</td>
-        </tr>
-        <tr>
-            <td>Tyrosine</td>
-            <td>Y</td>
-            <td>[TYR]</td>
-            <td>[d-TYR]</td>
-        </tr>
-        <tr>
-            <td>Valine</td>
-            <td>V</td>
-            <td>[VAL]</td>
-            <td>[d-VAL]</td>
-        </tr>
-        <tr>
-            <td>Pyroglutamate</td>
-            <td></td>
-            <td>[pGLU]</td>
-            <td>[d-pGLU]</td>
-        </tr>
-        <tr>
-            <td>Dinitrobenzylation (LYS)</td>
-            <td></td>
-            <td>[Lys(Dnp)]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Phosphorylation (THR)</td>
-            <td></td>
-            <td>[pTHR]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Phosphorylation (SER)</td>
-            <td></td>
-            <td>[pSER]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Phosphorylation (TYR)</td>
-            <td></td>
-            <td>[pTYR]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Gamma-GLU</td>
-            <td></td>
-            <td>[gamma-GLU]</td>
-            <td>[d-gamma-GLU]</td>
-        </tr>
-        <tr>
-            <td>Citrulline</td>
-            <td></td>
-            <td>[CIT]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>N-methylated ALA</td>
-            <td></td>
-            <td>[nme-ALA]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>N-methylated Isoleucine</td>
-            <td></td>
-            <td>[nme-ILE]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>N-methylated Leucine</td>
-            <td></td>
-            <td>[nme-LEU]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>N-methylated Phenylalanine</td>
-            <td></td>
-            <td>[nme-PHE]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>N-methylated Valine</td>
-            <td></td>
-            <td>[nme-VAL]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>N-methylated Serine</td>
-            <td></td>
-            <td>[nme-SER]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>N-methylated Threonine</td>
-            <td></td>
-            <td>[nme-THR]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>N-methylated Tyrosine</td>
-            <td></td>
-            <td>[nme-TYR]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Alpha Amino-Butyric Acid</td>
-            <td></td>
-            <td>[alpha-ABA]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Iso Aspartic Acid</td>
-            <td></td>
-            <td>[iso-ASP]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Acetylation at alpha amine group</td>
-            <td></td>
-            <td>[Ac-LYS]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>2-Methyl Alanine</td>
-            <td></td>
-            <td>[2-Me-ALA]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Oxamic Acid</td>
-            <td></td>
-            <td>[OXA]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Acetylation at the side chain</td>
-            <td></td>
-            <td>[Lys-Ac]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Methionine sulfoxid</td>
-            <td></td>
-            <td>[Met(O)]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Methionine sulfone</td>
-            <td></td>
-            <td>[Met(O)2]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Cyclopentylglycine</td>
-            <td></td>
-            <td>[Cpg]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Propargylglycine</td>
-            <td></td>
-            <td>[Pra]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>1,2,3,4-Tetrahydroisoquinoline-3-carboxylic acid</td>
-            <td></td>
-            <td>[Tic]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Selenocysteine</td>
-            <td></td>
-            <td>[Sec]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Selenomethionine</td>
-            <td></td>
-            <td>[Se-Met]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Azido-Lysine</td>
-            <td></td>
-            <td>[Lys(N3)]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Beta-HomoLeucine</td>
-            <td></td>
-            <td>[Beta-HomoLeu]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Carboxyamidomethylated Cysteine</td>
-            <td></td>
-            <td>[Cys(Cam)]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Methylation at the side chain of Arginine</td>
-            <td></td>
-            <td>[Arg(Me)]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Arg(Me)2 asymmetrical</td>
-            <td></td>
-            <td>[ADMA]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Arg(Me)2 symmetrical</td>
-            <td></td>
-            <td>[SDMA]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Beta-Alanine</td>
-            <td></td>
-            <td>[Beta-Ala]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>4-Aminobutyric acid</td>
-            <td></td>
-            <td>[GABA]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>6-amino-hexanoic acid</td>
-            <td></td>
-            <td>[Ahx]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>NH2-(PEG)2-CH2COOH</td>
-            <td></td>
-            <td>[PEG2]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>NH2-(PEG)6-CH2CH2COOH</td>
-            <td></td>
-            <td>[PEG6]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>NH2-(PEG)11-CH2COOH</td>
-            <td></td>
-            <td>[PEG11]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>NH2-(PEG)12-CH2CH2COOH</td>
-            <td></td>
-            <td>[PEG12]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>2,4-Diaminobutyric Acid</td>
-            <td></td>
-            <td>[Dab]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>2,3-Diaminopropionic Acid</td>
-            <td></td>
-            <td>[Dap]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>alpha-aminoisobutyric acid (alpha-methyl-alanine)</td>
-            <td></td>
-            <td>[AIB]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>L-alpha-aminobutyric acid</td>
-            <td></td>
-            <td>[ABU]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Hydroxy Proline</td>
-            <td></td>
-            <td>[HYP]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>beta-cyclohexyl-L-alanine</td>
-            <td></td>
-            <td>[Cha]</td>
-            <td>[D-Cha]</td>
-        </tr>
-        <tr>
-            <td>Phenylglycine</td>
-            <td></td>
-            <td>[Phg]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>Biotin Lysine</td>
-            <td></td>
-            <td>[Lys(biotin)]</td>
-            <td></td>
-        </tr>
-        <tr>
-            <td>(L) 1-NAL</td>
-            <td></td>
-            <td>[L-1-NAL]</td>
-            <td>[d-1-NAL]</td>
-        </tr>
-        <tr>
-            <td>(L) 2-PAL</td>
-            <td></td>
-            <td>[L-2-PAL]</td>
-            <td>[d-2-PAL]</td>
-        </tr>
-        <tr>
-            <td>(L) 4-CL-PHE</td>
-            <td></td>
-            <td>[L-4-CL-PHE]</td>
-            <td>[d-4-CL-PHE]</td>
-        </tr>
-        <tr>
-            <td>[Chg]</td>
-            <td></td>
-            <td>[Chg]</td>
-            <td>[D-Chg]</td>
-        </tr>
-        <tr>
-            <td>[L-2-Nal]</td>
-            <td></td>
-            <td>[L-2-Nal]</td>
-            <td>[D-2-Nal]</td>
-        </tr>
-        <tr>
-            <td>[L-3-Pal]</td>
-            <td></td>
-            <td>[L-3-Pal]</td>
-            <td>[D-3-Pal]</td>
-        </tr>
-        <tr>
-            <td>[L-4-F-Phe]</td>
-            <td></td>
-            <td>[L-4-F-Phe]</td>
-            <td>[D-4-F-Phe]</td>
-        </tr>
-        <tr>
-            <td>[L-4-I-Phe]</td>
-            <td></td>
-            <td>[L-4-I-Phe]</td>
-            <td>[D-4-I-Phe]</td>
-        </tr>
-        <tr>
-            <td>[L-4-NO2-Phe]</td>
-            <td></td>
-            <td>[L-4-NO2-Phe]</td>
-            <td>[D-4-NO2-Phe]</td>
-        </tr>
-        <tr>
-            <td>[L-4-Pal]</td>
-            <td></td>
-            <td>[L-4-Pal]</td>
-            <td>[D-4-F-Phe]</td>
-        </tr>
-    </tbody>
-</table>
+| **Name**                                                   | **Single Letter Code** | **Multiple Letter Code** | **D\-Amino Acid Code** |
+|:----------------------------------------------------------:|:----------------------:|:------------------------:|:----------------------:|
+| **Alanine**                                                | A                      | \[ALA\]                  | \[d\-ALA\]             |
+| **Arginine**                                               | R                      | \[ARG\]                  | \[d\-ARG\]             |
+| **Asparagine**                                             | N                      | \[ASN\]                  | \[d\-ASN\]             |
+| **Aspartic Acid**                                          | D                      | \[ASP\]                  | \[d\-ASP\]             |
+| **Cysteine**                                               | C                      | \[CYS\]                  | \[d\-CYS\]             |
+| **Glutamic Acid**                                          | E                      | \[GLU\]                  | \[d\-GLU\]             |
+| **Glutamine**                                              | Q                      | \[GLN\]                  | \[d\-GLN\]             |
+| **Glycine**                                                | G                      | \[GLY\]                  | \[d\-GLY\]             |
+| **Homocysteine**                                           | \[HCY\]                | \[d\-HCY\]               |
+| **Histidine**                                              | H                      | \[HIS\]                  | \[d\-HIS\]             |
+| **Homoserine**                                             | \[HSE\]                | \[d\-HSE\]               |
+| **Isoleucine**                                             | I                      | \[ILE\]                  | \[d\-ILE\]             |
+| **Leucine**                                                | L                      | \[LEU\]                  | \[d\-LEU\]             |
+| **Lysine**                                                 | K                      | \[LYS\]                  | \[d\-LYS\]             |
+| **Methionine**                                             | M                      | \[MET\]                  | \[d\-MET\]             |
+| **Norleucine**                                             | \[NLE\]                | \[d\-NLE\]               |
+| **Norvaline**                                              | \[NVA\]                | \[d\-NVA\]               |
+| **Ornithine**                                              | \[ORN\]                | \[d\-ORN\]               |
+| **Penicillamine**                                          | \[PEN\]                | \[d\-PEN\]               |
+| **Phenylalanine**                                          | F                      | \[PHE\]                  | \[d\-PHE\]             |
+| **Proline**                                                | P                      | \[PRO\]                  | \[d\-PRO\]             |
+| **Serine**                                                 | S                      | \[SER\]                  | \[d\-SER\]             |
+| **Threonine**                                              | T                      | \[THR\]                  | \[d\-THR\]             |
+| **Tryptophan**                                             | W                      | \[TRP\]                  | \[d\-TRP\]             |
+| **Tyrosine**                                               | Y                      | \[TYR\]                  | \[d\-TYR\]             |
+| **Valine**                                                 | V                      | \[VAL\]                  | \[d\-VAL\]             |
+| **Pyroglutamate**                                          | \[pGLU\]               | \[d\-pGLU\]              |
+| **Dinitrobenzylation \(LYS\)**                             | \[Lys\(Dnp\)\]         |
+| **Phosphorylation \(THR\)**                                | \[pTHR\]               |
+| **Phosphorylation \(SER\)**                                | \[pSER\]               |
+| **Phosphorylation \(TYR\)**                                | \[pTYR\]               |
+| **Gamma\-GLU**                                             | \[gamma\-GLU\]         | \[d\-gamma\-GLU\]        |
+| **Citrulline**                                             | \[CIT\]                |
+| **N\-methylated ALA**                                      | \[nme\-ALA\]           |
+| **N\-methylated Isoleucine**                               | \[nme\-ILE\]           |
+| **N\-methylated Leucine**                                  | \[nme\-LEU\]           |
+| **N\-methylated Phenylalanine**                            | \[nme\-PHE\]           |
+| **N\-methylated Valine**                                   | \[nme\-VAL\]           |
+| **N\-methylated Serine**                                   | \[nme\-SER\]           |
+| **N\-methylated Threonine**                                | \[nme\-THR\]           |
+| **N\-methylated Tyrosine**                                 | \[nme\-TYR\]           |
+| **Alpha Amino\-Butyric Acid**                              | \[alpha\-ABA\]         |
+| **Iso Aspartic Acid**                                      | \[iso\-ASP\]           |
+| **Acetylation at alpha amine group**                       | \[Ac\-LYS\]            |
+| **2\-Methyl Alanine**                                      | \[2\-Me\-ALA\]         |
+| **Oxamic Acid**                                            | \[OXA\]                |
+| **Acetylation at the side chain**                          | \[Lys\-Ac\]            |
+| **Methionine sulfoxid**                                    | \[Met\(O\)\]           |
+| **Methionine sulfone**                                     | \[Met\(O\)2\]          |
+| **Cyclopentylglycine**                                     | \[Cpg\]                |
+| **Propargylglycine**                                       | \[Pra\]                |
+| **1,2,3,4\-Tetrahydroisoquinoline\-3\-carboxylic acid**    | \[Tic\]                |
+| **Selenocysteine**                                         | \[Sec\]                |
+| **Selenomethionine**                                       | \[Se\-Met\]            |
+| **Azido\-Lysine**                                          | \[Lys\(N3\)\]          |
+| **Beta\-HomoLeucine**                                      | \[Beta\-HomoLeu\]      |
+| **Carboxyamidomethylated Cysteine**                        | \[Cys\(Cam\)\]         |
+| **Methylation at the side chain of Arginine**              | \[Arg\(Me\)\]          |
+| **Arg\(Me\)2 asymmetrical**                                | \[ADMA\]               |
+| **Arg\(Me\)2 symmetrical**                                 | \[SDMA\]               |
+| **Beta\-Alanine**                                          | \[Beta\-Ala\]          |
+| **4\-Aminobutyric acid**                                   | \[GABA\]               |
+| **6\-amino\-hexanoic acid**                                | \[Ahx\]                |
+| **NH2\-\(PEG\)2\-CH2COOH**                                 | \[PEG2\]               |
+| **NH2\-\(PEG\)6\-CH2CH2COOH**                              | \[PEG6\]               |
+| **NH2\-\(PEG\)11\-CH2COOH**                                | \[PEG11\]              |
+| **NH2\-\(PEG\)12\-CH2CH2COOH**                             | \[PEG12\]              |
+| **2,4\-Diaminobutyric Acid**                               | \[Dab\]                |
+| **2,3\-Diaminopropionic Acid**                             | \[Dap\]                |
+| **alpha\-aminoisobutyric acid \(alpha\-methyl\-alanine\)** | \[AIB\]                |
+| **L\-alpha\-aminobutyric acid**                            | \[ABU\]                |
+| **Hydroxy Proline**                                        | \[HYP\]                |
+| **beta\-cyclohexyl\-L\-alanine**                           | \[Cha\]                | \[D\-Cha\]               |
+| **Phenylglycine**                                          | \[Phg\]                |
+| **Biotin Lysine**                                          | \[Lys\(biotin\)\]      |
+| **\(L\) 1\-NAL**                                           | \[L\-1\-NAL\]          | \[d\-1\-NAL\]            |
+| **\(L\) 2\-PAL**                                           | \[L\-2\-PAL\]          | \[d\-2\-PAL\]            |
+| **\(L\) 4\-CL\-PHE**                                       | \[L\-4\-CL\-PHE\]      | \[d\-4\-CL\-PHE\]        |
+| **\[Chg\]**                                                | \[Chg\]                | \[D\-Chg\]               |
+| **\[L\-2\-Nal\]**                                          | \[L\-2\-Nal\]          | \[D\-2\-Nal\]            |
+| **\[L\-3\-Pal\]**                                          | \[L\-3\-Pal\]          | \[D\-3\-Pal\]            |
+| **\[L\-4\-F\-Phe\]**                                       | \[L\-4\-F\-Phe\]       | \[D\-4\-F\-Phe\]         |
+| **\[L\-4\-I\-Phe\]**                                       | \[L\-4\-I\-Phe\]       | \[D\-4\-I\-Phe\]         |
+| **\[L\-4\-NO2\-Phe\]**                                     | \[L\-4\-NO2\-Phe\]     | \[D\-4\-NO2\-Phe\]       |
+| **\[L\-4\-Pal\]**                                          | \[L\-4\-Pal\]          | \[D\-4\-F\-Phe\]         |
