@@ -88,6 +88,7 @@ $$
 
 Both these formulas assum the following: 50 nM primer, 50 mM Na+, and pH 7.0. n(x) designates the number of whichever base.
 
+<!-- TODO: add link to calculator -->
 See the DNA melting temperature calculator on this site for help calculating the appropriate tempertures to use from a copied DNA sequence.
 
 Note that the Takara Emerald mix, already has the loading buffer in it, so one does not need to add any if migrating on electrophoretic gel.
