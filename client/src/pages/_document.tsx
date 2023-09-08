@@ -6,6 +6,7 @@ export default function Document() {
         <Html lang="en">
             <Head>
                 <GoogleAdsComponent />
+                <link rel="icon" href="/favicon.ico" />
             </Head>
             <body>
                 <Main />
