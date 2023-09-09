@@ -5,7 +5,7 @@ coverImage: 114
 author: "Dereck Mezquita"
 date: 2018-03-06
 
-tags: [crypto, technology]
+tags: [crypto, technology, finance]
 published: true
 comments: true
 ---
