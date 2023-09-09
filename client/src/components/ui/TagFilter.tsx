@@ -3,7 +3,6 @@ import { theme } from '@styles/theme';
 import { useRef, useState } from 'react';
 
 const FilterContainer = styled.div<{ visible: boolean }>`
-    position: absolute;
     top: 0;
     left: 0;
     padding: 10px;
@@ -14,7 +13,7 @@ const FilterContainer = styled.div<{ visible: boolean }>`
     opacity: ${props => props.visible ? 1 : 0};
     transition: opacity 0.3s;
     z-index: 1;
-    display: flex;
+    display: ${props => props.visible ? 'flex' : 'none'};
     flex-wrap: wrap; // Allow tags to wrap to the next line if needed
     gap: 10px; // Provides consistent spacing between the tags
 `;
