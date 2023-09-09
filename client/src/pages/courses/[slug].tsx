@@ -12,10 +12,10 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
     const content = await process_markdown(postContent.content);
 
     // get info for side bar
-    let postsMetadata: PostMetadata[] = get_post_metadata(section);
-    postsMetadata = postsMetadata.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    let posts: PostMetadata[] = get_post_metadata(section);
+    posts = posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     // remove those not published
-    postsMetadata = postsMetadata.filter(post => post.published);
+    posts = posts.filter(post => post.published);
 
     // if post is not published, return 404
     if (!postContent.data.published) {
@@ -31,7 +31,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
                 ...postContent.data,
                 date: postContent.data.date.toString()
             },
-            postsMetadata
+            posts
         }
     };    
 };
