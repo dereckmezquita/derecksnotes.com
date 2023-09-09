@@ -3,6 +3,10 @@ import { theme } from '@styles/theme';
 import { useRef, useState } from 'react';
 
 const FilterContainer = styled.div<{ visible: boolean }>`
+    // width and margin to centre if not in a flex container
+    width: 70%;
+    margin: 0 auto;
+
     top: 0;
     left: 0;
     padding: 10px;
