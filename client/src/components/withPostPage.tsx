@@ -151,7 +151,7 @@ interface PostPageProps {
 
 // reminder this returns a function
 // this function is used in [slug].tsx and uses post, posts which are global variables
-// these global variables are set in getStaticProps
+// these variables are passed by getStaticProps
 export const withPostPage = (section: string) => {
     const PostPage: React.FC<PostPageProps> = ({ content, post, posts }) => {
         const allTags = Array.from(new Set(posts.flatMap(post => post.tags))).sort();
