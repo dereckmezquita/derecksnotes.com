@@ -6,6 +6,7 @@ const FilterContainer = styled.div<{ visible: boolean }>`
     top: 0;
     left: 0;
     padding: 10px;
+    margin-bottom: 20px;
     background-color: ${theme.container.background.colour.primary()};
     border: 1px solid ${theme.container.border.colour.primary()};
     border-radius: 5px;
