@@ -7,6 +7,8 @@ import PostPreview from '@components/PostPreview';
 import TagFilter from '@components/ui/TagFilter';
 import { get_post_metadata } from '@utils/markdown';
 
+import { useSelector } from 'react-redux';
+import { RootState } from '@store/store';
 
 const Container = styled.div`
     width: 70%;
@@ -42,22 +44,24 @@ function Home({ posts }: { posts: PostMetadata[] }) {
         setSelectedTags(prev => prev.filter(t => t !== tag));
     };
 
+    // redux control for tag filter visibility
+    const tagsFilterVisible = useSelector((state: RootState) => state.visibility.tagsFilterVisible);
+
     return (
-        <>
-            <Container>
-                <TagFilter
-                    tags={allTags}
-                    selectedTags={selectedTags}
-                    onTagSelect={handleTagSelect}
-                    onTagDeselect={handleTagDeselect}
-                />
-                <Grid>
-                    {filteredPosts.map(post => (
-                        <PostPreview key={post.slug} {...post} />
-                    ))}
-                </Grid>
-            </Container>
-        </>
+        <Container>
+            <TagFilter
+                tags={allTags}
+                selectedTags={selectedTags}
+                onTagSelect={handleTagSelect}
+                onTagDeselect={handleTagDeselect}
+                visible={tagsFilterVisible}
+            />
+            <Grid>
+                {filteredPosts.map(post => (
+                    <PostPreview key={post.slug} {...post} />
+                ))}
+            </Grid>
+        </Container>
     );
 }
 
