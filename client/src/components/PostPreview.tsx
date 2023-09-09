@@ -20,6 +20,8 @@ const PostTitle = styled.div`
     text-transform: uppercase;
     font-variant: small-caps;
     padding-bottom: 7px;
+    padding-left: 7px;
+    padding-right: 7px;
 `;
 
 const PostImage = styled.img`
@@ -35,6 +37,8 @@ const Summary = styled.p`
     text-align: left;
     text-justify: none;
     font-size: 13px;
+    padding-left: 10px;
+    padding-right: 10px;
 `;
 
 const Date = styled.span`
@@ -51,7 +55,7 @@ const PostPreview = (props: PostMetadata) => {
     }
 
     const firstLetter = props.summary.charAt(0);
-    const restOfSummary = props.summary.slice(1, 200);
+    const restOfSummary = props.summary.slice(1, 150);
 
     return (
         <Card onClick={handleClick}>
