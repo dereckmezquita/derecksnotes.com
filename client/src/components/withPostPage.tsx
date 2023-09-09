@@ -21,7 +21,7 @@ const PostContainer = styled.div`
     border-radius: 5px;
     box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.5), 0 0 20px rgba(100, 100, 40, 0.2) inset;
 
-    @media (max-width: 1096px) {
+    @media (max-width: ${theme.container.widths.min_width_snap_up}) {
         flex-direction: column;
         width: 95%;
     }
@@ -32,7 +32,7 @@ const SideBarContainer = styled.div`
     text-align: center;
     padding-top: 20px;
 
-    @media (max-width: 1096px) {
+    @media (max-width: ${theme.container.widths.min_width_snap_up}) {
         display: none;
     }
 `;
@@ -89,8 +89,9 @@ const Article = styled.article`
     text-align: justify;
     text-justify: auto;
     
-    @media (max-width: 1096px) {
+    @media (max-width: ${theme.container.widths.min_width_snap_up}) {
         width: 100%;
+        border-left: none;
     }
 `;
 
