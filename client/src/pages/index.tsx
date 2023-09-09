@@ -44,13 +44,13 @@ function Home({ posts }: { posts: PostMetadata[] }) {
 
     return (
         <>
-            <TagFilter
-                tags={allTags}
-                selectedTags={selectedTags}
-                onTagSelect={handleTagSelect}
-                onTagDeselect={handleTagDeselect}
-            />
             <Container>
+                <TagFilter
+                    tags={allTags}
+                    selectedTags={selectedTags}
+                    onTagSelect={handleTagSelect}
+                    onTagDeselect={handleTagDeselect}
+                />
                 <Grid>
                     {filteredPosts.map(post => (
                         <PostPreview key={post.slug} {...post} />

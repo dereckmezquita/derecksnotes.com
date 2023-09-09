@@ -1,5 +1,6 @@
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
+import { useRef, useState } from 'react';
 
 const FilterContainer = styled.div`
     position: absolute;
@@ -10,8 +11,8 @@ const FilterContainer = styled.div`
     border: 1px solid ${theme.container.border.colour.primary()};
     border-radius: 5px;
     box-shadow: ${theme.container.shadow.primary};
-    /* opacity: 0;
-    transition: opacity 0.3s; */
+    opacity: 0;
+    transition: opacity 0.3s;
     z-index: 1;
     display: flex;
     flex-wrap: wrap; // Allow tags to wrap to the next line if needed
@@ -23,6 +24,7 @@ const FilterContainer = styled.div`
 `;
 
 const BaseButton = styled.span`
+    user-select: none; // Prevent text selection
     font-family: ${theme.text.font.times};
     padding: 0px 7px 1px;
     cursor: pointer;
@@ -77,26 +79,47 @@ interface TagFilterProps {
     onTagDeselect: (tag: string) => void;
 }
 
-const TagFilter: React.FC<TagFilterProps> = ({
-    tags, selectedTags, onTagSelect, onTagDeselect
-}) => {
+const TagFilter: React.FC<TagFilterProps> = ({ tags, selectedTags, onTagSelect, onTagDeselect }) => {
+    const [isDragging, setIsDragging] = useState<boolean>(false);
+    const containerRef = useRef<HTMLDivElement>(null);  // To reference the filter container
+
     const clearAllTags = () => {
         selectedTags.forEach(tag => onTagDeselect(tag));
     };
 
+    const handleMouseDown = (event: React.MouseEvent, tag: string) => {
+        event.preventDefault(); // prevent text selection
+        if (!selectedTags.includes(tag)) {
+            onTagSelect(tag);
+        } else {
+            onTagDeselect(tag);
+        }
+        setIsDragging(true);
+    };
+
+    const handleMouseEnter = (event: React.MouseEvent, tag: string) => {
+        event.preventDefault();
+        if (isDragging) {
+            if (!selectedTags.includes(tag)) {
+                onTagSelect(tag);
+            } else {
+                onTagDeselect(tag);
+            }
+        }
+    };
+
+    const endDrag = () => {
+        setIsDragging(false);
+    };
+
     return (
-        <FilterContainer>
+        <FilterContainer ref={containerRef} onMouseUp={endDrag} onMouseLeave={endDrag}>
             {tags.map(tag => (
                 <FilterTag
                     key={tag}
                     selected={selectedTags.includes(tag)}
-                    onClick={() => {
-                        if (selectedTags.includes(tag)) {
-                            onTagDeselect(tag);
-                        } else {
-                            onTagSelect(tag);
-                        }
-                    }}
+                    onMouseDown={(ev) => handleMouseDown(ev, tag)}
+                    onMouseEnter={(ev) => handleMouseEnter(ev, tag)}
                 >
                     {tag}
                 </FilterTag>
