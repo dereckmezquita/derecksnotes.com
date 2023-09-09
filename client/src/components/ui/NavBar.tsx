@@ -1,7 +1,10 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { hsla_colour, theme } from '@styles/theme';
+import { theme } from '@styles/theme';
+
+import { useDispatch } from 'react-redux';
+import { toggleTagsFilter } from '@store/tagsFilterVisibilitySlice'; // control visibility of tag filter
 
 const NavContainer = styled.nav`
     background-color: ${theme.container.background.colour.primary()};
@@ -23,29 +26,47 @@ const NavContainer = styled.nav`
     }
 `;
 
-const CommonNavItem = styled.div<{ rightmost?: boolean }>`
+const CommonNavItem = styled.div`
     cursor: pointer;
-    float: ${(props) => (props.rightmost ? 'right' : 'left')};
     display: block;
     color: inherit;
     text-align: center;
     padding: 14px 13px;
     text-decoration: none;
     font-size: 17px;
+`;
 
+// allows for argument to determine if align left or right
+// inherit from Link component allows for linking to other pages
+const NavLeftItem = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boolean }>`
+    float: left;
     &:hover {
         color: ${theme.text.colour.white()};
         background: ${theme.theme_colours[5]()};
     }
 `;
 
-// allows for argument to determine if align left or right
-// inherit from Link component allows for linking to other pages
-const NavItem = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boolean }>``;
+const NavRightItemLink = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boolean }>`
+    float: right;
+`;
 
-const NavImage = styled.img`
+const NavRightItem = styled(CommonNavItem) <{ rightmost?: boolean }>`
+    float: right;
+`;
+
+const CommonNavImage = styled.img`
     height: 16px;
     cursor: pointer;
+`;
+
+const NavImage = styled(CommonNavImage)``;
+
+const NavUIImage = styled(CommonNavImage)`
+    opacity: 0.2;
+    transition: opacity 0.5s ease-in-out;
+    &:hover {
+        opacity: 1;
+    }
 `;
 
 const DropDownContainer = styled.div`
@@ -54,7 +75,7 @@ const DropDownContainer = styled.div`
 `;
 
 // the same as NavItem but no link
-const DropDownLabel = styled(CommonNavItem)<{ rightmost?: boolean }>``;
+const DropDownLabel = styled(CommonNavItem) <{ rightmost?: boolean }>``;
 
 const DropDownContent = styled.div`
     display: none;
@@ -70,7 +91,7 @@ const DropDownContent = styled.div`
         display: block;
     }
 
-    ${NavItem} {
+    ${NavLeftItem} {
         float: none;
         padding: 12px 16px;
         text-align: left;
@@ -122,23 +143,34 @@ function NavBar() {
     if (!hasMounted) {
         return null;
     }
+
+    // redux control of tag filter
+    const dispatch = useDispatch();
+
+    const handleToggleFilterClick = () => {
+        dispatch(toggleTagsFilter());
+    };
+
     return (
         <NavContainer>
-            <NavItem href='/'>Blog</NavItem>
-            <NavItem href='/courses'>Courses</NavItem>
-            <NavItem href='/references'>References</NavItem>
+            <NavLeftItem href='/'>Blog</NavLeftItem>
+            <NavLeftItem href='/courses'>Courses</NavLeftItem>
+            <NavLeftItem href='/references'>References</NavLeftItem>
             <DropDownContainer>
                 <DropDownLabel>Dictionaries</DropDownLabel>
                 <DropDownContent>
-                    <NavItem href='/dictionaries/biology'>Biology Dictionary</NavItem>
-                    <NavItem href='/dictionaries/chemistry'>Chemistry Dictionary</NavItem>
+                    <NavLeftItem href='/dictionaries/biology'>Biology Dictionary</NavLeftItem>
+                    <NavLeftItem href='/dictionaries/chemistry'>Chemistry Dictionary</NavLeftItem>
                 </DropDownContent>
             </DropDownContainer>
 
-            <NavItem rightmost href='https://www.linkedin.com/in/dereck/' target='_blank' title='LinkedIn'>
+            <NavRightItemLink href='https://www.linkedin.com/in/dereck/' target='_blank' title='LinkedIn'>
                 <NavImage src='/site-images/icons/linkedin.png' />
-            </NavItem>
+            </NavRightItemLink>
             <DateTimeDisplay>{dateTime || "00 Jan 00:00:00"}</DateTimeDisplay>
+            <NavRightItem onClick={handleToggleFilterClick}>
+                <NavUIImage src='/site-images/ui/filter-solid.svg' />
+            </NavRightItem>
         </NavContainer>
     )
 }
