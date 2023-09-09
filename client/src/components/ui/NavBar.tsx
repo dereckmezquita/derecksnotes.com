@@ -42,7 +42,7 @@ const NavLeftItem = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boo
     float: left;
     &:hover {
         color: ${theme.text.colour.white()};
-        background: ${theme.theme_colours[5]()};
+        background-color: ${theme.theme_colours[5]()};
     }
 `;
 
@@ -75,7 +75,12 @@ const DropDownContainer = styled.div`
 `;
 
 // the same as NavItem but no link
-const DropDownLabel = styled(CommonNavItem) <{ rightmost?: boolean }>``;
+const DropDownLabel = styled(CommonNavItem) <{ rightmost?: boolean }>`
+    &:hover {
+        color: ${theme.text.colour.white()};
+        background-color: ${theme.theme_colours[5]()};
+    }
+`;
 
 const DropDownContent = styled.div`
     display: none;
