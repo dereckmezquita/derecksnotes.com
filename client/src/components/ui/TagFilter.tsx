@@ -2,7 +2,7 @@ import styled from 'styled-components';
 import { theme } from '@styles/theme';
 import { useRef, useState } from 'react';
 
-const FilterContainer = styled.div`
+const FilterContainer = styled.div<{ visible: boolean }>`
     position: absolute;
     top: 0;
     left: 0;
@@ -11,16 +11,12 @@ const FilterContainer = styled.div`
     border: 1px solid ${theme.container.border.colour.primary()};
     border-radius: 5px;
     box-shadow: ${theme.container.shadow.primary};
-    opacity: 0;
+    opacity: ${props => props.visible ? 1 : 0};
     transition: opacity 0.3s;
     z-index: 1;
     display: flex;
     flex-wrap: wrap; // Allow tags to wrap to the next line if needed
     gap: 10px; // Provides consistent spacing between the tags
-
-    &:hover {
-        opacity: 1;
-    }
 `;
 
 const BaseButton = styled.span`
@@ -77,9 +73,12 @@ interface TagFilterProps {
     selectedTags: string[];
     onTagSelect: (tag: string) => void;
     onTagDeselect: (tag: string) => void;
+    visible: boolean; // redux
 }
 
-const TagFilter: React.FC<TagFilterProps> = ({ tags, selectedTags, onTagSelect, onTagDeselect }) => {
+const TagFilter: React.FC<TagFilterProps> = ({
+    tags, selectedTags, onTagSelect, onTagDeselect, visible
+}) => {
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const containerRef = useRef<HTMLDivElement>(null);  // To reference the filter container
 
@@ -113,7 +112,7 @@ const TagFilter: React.FC<TagFilterProps> = ({ tags, selectedTags, onTagSelect, 
     };
 
     return (
-        <FilterContainer ref={containerRef} onMouseUp={endDrag} onMouseLeave={endDrag}>
+        <FilterContainer ref={containerRef} onMouseUp={endDrag} onMouseLeave={endDrag} visible={visible}>
             {tags.map(tag => (
                 <FilterTag
                     key={tag}
