@@ -1,9 +1,14 @@
 // src/pages/index.tsx
+import { useState } from 'react';
 import { GetStaticProps } from 'next';
 import styled from 'styled-components';
 
 import PostPreview from '@components/PostPreview';
+import TagFilter from '@components/ui/TagFilter';
 import { get_post_metadata } from '@utils/markdown';
+
+import { useSelector } from 'react-redux';
+import { RootState } from '@store/store';
 
 const Container = styled.div`
     width: 70%;
@@ -22,10 +27,37 @@ const Grid = styled.div`
 `;
 
 function Home({ posts }: { posts: PostMetadata[] }) {
+    const allTags = Array.from(new Set(posts.flatMap(post => post.tags))).sort();
+
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+    // if no tags selected, show all posts
+    const filteredPosts: PostMetadata[] = selectedTags.length > 0 ? posts.filter(
+        post => selectedTags.some(tag => post.tags.includes(tag))
+    ) : posts;
+
+    const handleTagSelect = (tag: string) => {
+        setSelectedTags(prev => [...prev, tag]);
+    };
+
+    const handleTagDeselect = (tag: string) => {
+        setSelectedTags(prev => prev.filter(t => t !== tag));
+    };
+
+    // redux control for tag filter visibility
+    const tagsFilterVisible = useSelector((state: RootState) => state.visibility.tagsFilterVisible);
+
     return (
         <Container>
+            <TagFilter
+                tags={allTags}
+                selectedTags={selectedTags}
+                onTagSelect={handleTagSelect}
+                onTagDeselect={handleTagDeselect}
+                visible={tagsFilterVisible}
+            />
             <Grid>
-                {posts.map(post => (
+                {filteredPosts.map(post => (
                     <PostPreview key={post.slug} {...post} />
                 ))}
             </Grid>
