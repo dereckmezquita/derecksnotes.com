@@ -1,5 +1,7 @@
 import React from 'react';
 import { AppProps } from 'next/app';
+import { Provider } from 'react-redux';
+import { store } from '@store/store';
 
 // components
 import NavBar from '@components/ui/NavBar';
@@ -20,14 +22,16 @@ import useNextClickHandler from '@utils/useNextClickHandler'; // TODO: temp solu
 
 
 export default function App({ Component, pageProps, router }: AppProps) {
-    useNextClickHandler(router)
+    useNextClickHandler(router);
     return (
-        <ThemeProvider theme={ theme }>
-            <GlobalStyles />
-            <Logo />
-            <NavBar />
-            <Component {...pageProps} />
-            <Footer />
+        <ThemeProvider theme={theme}>
+            <Provider store={store}>
+                <GlobalStyles />
+                <Logo />
+                <NavBar />
+                <Component {...pageProps} />
+                <Footer />
+            </Provider>
         </ThemeProvider>
     )
 }
