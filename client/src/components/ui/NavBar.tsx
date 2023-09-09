@@ -80,12 +80,11 @@ const DropDownLabel = styled(CommonNavItem) <{ rightmost?: boolean }>``;
 const DropDownContent = styled.div`
     display: none;
     position: absolute;
-    background-color: red;
     min-width: 160px;
     z-index: 1;
     border: 1px solid #ccc;
-    border-radius: 5px;
     box-shadow: 1px 1px 10px #ccc;
+    background-color: ${theme.container.background.colour.primary()};
 
     ${DropDownContainer}:hover & {
         display: block;
@@ -95,6 +94,17 @@ const DropDownContent = styled.div`
         float: none;
         padding: 12px 16px;
         text-align: left;
+    }
+
+    /* TODO: still not working as intended */
+    ${NavLeftItem}:first-child {
+        border-top-left-radius: 0;
+        border-top-right-radius: 0;
+    }
+
+    ${NavLeftItem}:last-child {
+        border-bottom-left-radius: 5px;
+        border-bottom-right-radius: 5px;
     }
 `;
 
