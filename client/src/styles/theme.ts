@@ -43,6 +43,9 @@ export const theme = {
             medium: '768px',
             large: '1024px',
             xlarge: '1200px',
+        },
+        widths: {
+            min_width_snap_up: '1096px' // min size of post before it snaps up to full width
         }
     },
     text: {
