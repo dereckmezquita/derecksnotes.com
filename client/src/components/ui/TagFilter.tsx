@@ -1,11 +1,19 @@
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+import { useDispatch } from 'react-redux';
+import { toggleTagsFilter } from '@store/tagsFilterVisibilitySlice';
 
 const FilterContainer = styled.div<{ visible: boolean }>`
     // width and margin to centre if not in a flex container
-    width: 70%;
+    width: 1000px;
     margin: 0 auto;
+
+    /* if window is smaller than 900px make it 100% */
+    @media (max-width: ${theme.container.widths.min_width_snap_up}) {
+        width: 95%;
+    }
 
     top: 0;
     left: 0;
@@ -114,6 +122,28 @@ const TagFilter: React.FC<TagFilterProps> = ({
     const endDrag = () => {
         setIsDragging(false);
     };
+
+    // hide when window smaller than x px
+    const dispatch = useDispatch();
+
+    // theme.container.widths.min_width_snap_up is a string with px on the end
+    const min_width: number = parseInt(theme.container.widths.min_width_snap_up.slice(0, -2));
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth <= min_width && visible) {
+                dispatch(toggleTagsFilter());
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        // Ensure the redux state is in sync with window width when component mounts.
+        handleResize();
+
+        // Cleanup the event listener when component unmounts.
+        return () => window.removeEventListener('resize', handleResize);
+    }, [visible, dispatch]);
 
     return (
         <FilterContainer ref={containerRef} onMouseUp={endDrag} onMouseLeave={endDrag} visible={visible}>
