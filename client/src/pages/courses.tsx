@@ -5,7 +5,7 @@ import styled from 'styled-components';
 
 import PostPreview from '@components/PostPreview';
 import TagFilter from '@components/ui/TagFilter';
-import { get_post_metadata } from '@utils/markdown';
+import get_post_metadata from '@utils/markdown/get_post_metadata';
 
 import { useSelector } from 'react-redux';
 import { RootState } from '@store/store';
