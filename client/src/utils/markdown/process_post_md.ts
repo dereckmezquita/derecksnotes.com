@@ -20,7 +20,7 @@ import remarkCaptions from 'remark-captions';
 
 import { theme } from '@styles/theme';
 
-export default async function process_post_mdx(content: string): Promise<string> {
+export default async function (content: string): Promise<string> {
     const result = await unified()
         .use(markdown) // parse markdown
         .use(remarkMath)
