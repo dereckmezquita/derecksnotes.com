@@ -50,7 +50,7 @@ export default function get_post_metadata(folder: string): PostMetadata[] {
             }
         });
 
-        // process to html and then to string like the process_post_mdx function so we can then display it
+        // process to html and then to string like the process_post_md function so we can then display it
         const summary = remark()
             .processSync(paragraphs.join(' '))
             .toString()
