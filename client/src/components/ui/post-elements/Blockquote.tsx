@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
+import { convertMarkdownLinksToHTML } from '@utils/helpers';
 
 const StyledBlockquote = styled.blockquote`
     font-style: italic;
@@ -27,7 +28,7 @@ const StyledBlockquote = styled.blockquote`
         bottom: 10px;
         right: 10px;
         color: #a1a1a1;
-  }
+    }
 `;
 
 const Author = styled.footer`
@@ -44,20 +45,12 @@ interface BlockquoteProps {
 }
 
 const Blockquote: React.FC<BlockquoteProps> = ({ src, children }) => {
-    const parseMarkdownLink = (markdown: string) => {
-        const markdownLinkPattern = /\[([^\]]+)\]\(([^)]+)\)/;  // Matches [text](url)
-        const match = markdown.match(markdownLinkPattern);
-
-        if (match && match[1] && match[2]) {
-            return <a href={match[2]} target="_blank" rel="noopener noreferrer">{match[1]}</a>;
-        }
-        return markdown;
-    };
+    const authorHtml = src ? convertMarkdownLinksToHTML(src) : null;
 
     return (
         <StyledBlockquote>
             {children}
-            {src && <Author>{parseMarkdownLink(src)}</Author>}
+            {authorHtml && <Author dangerouslySetInnerHTML={{ __html: authorHtml }} />}
         </StyledBlockquote>
     );
 };
