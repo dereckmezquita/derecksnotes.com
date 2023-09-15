@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { GetStaticPaths, GetStaticProps } from 'next';
+import { MDXRemote } from 'next-mdx-remote';
 
 // redux for tag filter visibility
 import { useSelector } from 'react-redux';
@@ -7,7 +8,7 @@ import { RootState } from '@store/store';
 
 import TagFilter from '@components/ui/TagFilter';
 import {
-    PostContainer, SideBarContainer, SideBarSiteName, SideBarEntriesContainer, SideEntryLink, SideBarAboutContainer, SideBarAboutH2, Article, MDXPostContent
+    PostContainer, SideBarContainer, SideBarSiteName, SideBarEntriesContainer, SideEntryLink, SideBarAboutContainer, SideBarAboutH2, Article, PostContentWrapper
 } from '@components/ui/DisplayContent';
 
 
@@ -105,7 +106,11 @@ const PostPage: React.FC<PostPageProps> = ({ title, source, side_bar_data }) => 
                 </SideBarContainer>
                 <Article>
                     <h1>{title}</h1>
-                    {isClient && <MDXPostContent {...source} components={components} />}
+                    {isClient
+                            &&
+                    <PostContentWrapper>
+                        <MDXRemote {...source} components={components} />
+                    </PostContentWrapper>}
                 </Article>
             </PostContainer>
         </>
@@ -171,33 +176,13 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
                 [remarkToc, {
                     tight: true
                 }],
-                // remarkHtmlToJsx,
             ],
             rehypePlugins: [
                 rehypePrettyCode,
                 rehypeSlug,
                 rehypeMathjax,
-                // [rehypeToc, {
-                //     nav: false,
-                //     cssClasses: { toc: 'toc-container' },
-                //     // Allows you to customize the table of contents before it is added to the page.
-                //     // The function receives the TOC node tree and can modify it in any way you want. Or you can return a new node tree to use instead. Or return false to prevent the the TOC from being added to the page.
-                //     // we want to change this from ol to ul
-                //     customizeTOC: ((toc: any) => {
-                //         // we want to change all ol to ul including nested ones
-                //         const changeOlToUl = (node: any) => {
-                //             if (node.tagName === 'ol') {
-                //                 node.tagName = 'ul';
-                //             }
-                //             if (node.children) {
-                //                 node.children.forEach((child: any) => changeOlToUl(child));
-                //             }
-                //         }
-                //         changeOlToUl(toc);
-                //     })
-                // }],
                 rehypeTocCollapse,
-                // rehypeAddHeadingLinks,
+                rehypeAddHeadingLinks,
             ]
         }
     });
