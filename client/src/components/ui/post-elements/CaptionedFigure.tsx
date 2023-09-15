@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import Image, { ImageProps } from 'next/image';
 import { theme } from '@styles/theme';
+import { convertMarkdownLinksToHTML } from '@utils/helpers';
 
 const Figure = styled.figure`
     background-color: ${theme.container.background.colour.content()};
@@ -54,12 +55,14 @@ const CaptionedFigure: React.FC<CaptionedFigureProps> = ({ alt, ...props }) => {
         style: { width: '100%', height: 'auto' }
     };
 
+    const altHtml = convertMarkdownLinksToHTML(alt);
+
     // https://stackoverflow.com/questions/69230343/nextjs-image-component-with-fixed-witdth-and-auto-height
     return (
         <div style={{ width: '100%', position: 'relative' }}>
             <Figure onClick={openLightbox}>
                 <Image {...defaultImageProps} {...props} alt={alt} />
-                <figcaption>{alt}</figcaption>
+                <figcaption dangerouslySetInnerHTML={{ __html: altHtml }} />
             </Figure>
             {lightboxOpen && (
                 <LightboxOverlay onClick={closeLightbox}>
