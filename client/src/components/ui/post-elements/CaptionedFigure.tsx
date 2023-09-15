@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import styled from 'styled-components';
-import Image from 'next/image';
+import Image, { ImageProps } from 'next/image';
 import { theme } from '@styles/theme';
 
 const Figure = styled.figure`
     background-color: ${theme.container.background.colour.content()};
     border: 1px solid ${theme.container.border.colour.primary()};
     box-shadow: ${theme.container.shadow.box};
-
     width: fit-content;
     display: block;
     margin: auto;
@@ -28,14 +27,11 @@ const LightboxOverlay = styled.div`
     border: 7px solid ${theme.container.border.colour.primary()};
 `;
 
-interface CaptionedFigureProps {
-    src: string;
+interface CaptionedFigureProps extends ImageProps {
     alt: string;
-    width: number;
-    height: number;
 }
 
-const CaptionedFigure = ({ src, alt, width, height }: CaptionedFigureProps) => {
+const CaptionedFigure: React.FC<CaptionedFigureProps> = ({ alt, ...props }) => {
     const [lightboxOpen, setLightboxOpen] = useState(false);
 
     const openLightbox = () => setLightboxOpen(true);
@@ -51,18 +47,25 @@ const CaptionedFigure = ({ src, alt, width, height }: CaptionedFigureProps) => {
         return () => document.removeEventListener('keydown', handleKeydown);
     }, []);
 
+    const defaultImageProps = {
+        width: 0,
+        height: 0,
+        sizes: "100vw",
+        style: { width: '100%', height: 'auto' }
+    };
+
     return (
-        <>
+        <div style={{ width: '100%', position: 'relative' }}>
             <Figure onClick={openLightbox}>
-                <Image src={src} alt={alt} width={width} height={height} />
+                <Image {...defaultImageProps} {...props} alt={alt} />
                 <figcaption>{alt}</figcaption>
             </Figure>
             {lightboxOpen && (
                 <LightboxOverlay onClick={closeLightbox}>
-                    <Image src={src} alt={alt} layout="fill" objectFit="contain" />
+                    <Image src={props.src} alt={alt} layout="fill" objectFit="contain" />
                 </LightboxOverlay>
             )}
-        </>
+        </div>
     );
 };
 
