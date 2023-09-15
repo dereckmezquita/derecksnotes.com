@@ -7,7 +7,7 @@ const Figure = styled.figure`
     border: 1px solid ${theme.container.border.colour.primary()};
     box-shadow: ${theme.container.shadow.box};
 
-    max-width: 100%;
+    width: fit-content;
     display: block;
     margin: auto;
     padding: 10px;
