@@ -91,7 +91,7 @@ export const Article = styled.article`
     }
 `;
 
-export const PostContent = styled.div`
+export const PostContentWrapper = styled.div`
     margin: 0 auto;
     padding: 0px;
 
@@ -107,6 +107,15 @@ export const PostContent = styled.div`
         display: block;
         margin: 0 auto;
         max-width: 100%;
+    }
+
+    .anchor-copy-link {
+        opacity: 0;  // by default it's hidden
+        transition: opacity 0.3s;
+
+        &:hover {
+            opacity: 1;
+        }
     }
 
     table {
