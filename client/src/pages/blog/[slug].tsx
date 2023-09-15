@@ -16,11 +16,13 @@ import {
 import CaptionedFigure from '@components/ui/post-elements/CaptionedFigure';
 import DropCap from '@components/ui/DropCap';
 import Alert from '@components/ui/post-elements/Alert';
+import Blockquote from '@components/ui/post-elements/Blockquote';
 
 const components = {
     CaptionedFigure: CaptionedFigure,
     DropCap: DropCap,
     Alert: Alert,
+    Blockquote: Blockquote,
 };
 
 const section: string = 'blog';
