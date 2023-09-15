@@ -8,7 +8,7 @@ const Figure = styled.figure`
     background-color: ${theme.container.background.colour.content()};
     border: 1px solid ${theme.container.border.colour.primary()};
     box-shadow: ${theme.container.shadow.box};
-    width: fit-content;
+    width: 100%;  // Modified this line
     display: block;
     margin: auto;
     padding: 10px;
@@ -38,7 +38,6 @@ const CaptionedFigure: React.FC<CaptionedFigureProps> = ({ alt, ...props }) => {
     const openLightbox = () => setLightboxOpen(true);
     const closeLightbox = () => setLightboxOpen(false);
 
-    // Listen for escape key to close lightbox
     useEffect(() => {
         const handleKeydown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') closeLightbox();
@@ -57,7 +56,6 @@ const CaptionedFigure: React.FC<CaptionedFigureProps> = ({ alt, ...props }) => {
 
     const altHtml = convertMarkdownLinksToHTML(alt);
 
-    // https://stackoverflow.com/questions/69230343/nextjs-image-component-with-fixed-witdth-and-auto-height
     return (
         <div style={{ width: '100%', position: 'relative' }}>
             <Figure onClick={openLightbox}>
