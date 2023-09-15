@@ -1,56 +1,39 @@
-import { visit } from 'unist-util-visit';
 import { Plugin } from 'unified';
-import { Element, Parent, Text } from 'hast';
-
-const isTableOfContentsHeading = (node: Element): boolean => {
-    return (
-        /^h[1-6]$/i.test(node.tagName) &&
-        node.children.some(
-            (child) => child.type === 'text' && /Table of Contents/i.test((child as Text).value)
-        )
-    );
-};
+import { Element } from 'hast';
+import { visit } from 'unist-util-visit';
 
 const rehypeTocCollapse: Plugin = () => {
     return (tree) => {
+        // we want to visit nav element that has class toc
         visit(tree, 'element', (node: Element, index, parent: any) => {
-            if (isTableOfContentsHeading(node)) {
-                const detailsNode: Element = {
+            if (node.tagName === 'nav' && node.properties && node.properties.className && (node.properties.className as string[]).includes('toc')) {
+                if (!parent || !Array.isArray(parent.children)) return;
+
+                // Replace the TOC with a collapsible element
+                parent.children.splice(index, 1, {
                     type: 'element',
                     tagName: 'details',
-                    properties: {
-                        style: 'padding-bottom: 15px;'
-                    },
-                    children: []
-                };
-
-                const summaryNode: Element = {
-                    type: 'element',
-                    tagName: 'summary',
+                    properties: {},
                     children: [
                         {
                             type: 'element',
-                            tagName: 'h3',
-                            properties: {
-                                style: 'display: inline-block; margin: 0px; padding: 0px; padding-bottom: 15px;'
-                            },
+                            tagName: 'summary',
+                            properties: {},
                             children: [
                                 {
-                                    type: 'text',
-                                    value: 'Table of Contents'
+                                    type: 'element',
+                                    tagName: 'h2',
+                                    properties: {
+                                        id: 'table-of-contents',
+                                        style: 'display: inline-block; margin: 0px; padding: 0px; padding-bottom: 15px;'
+                                    },
+                                    children: [{ type: 'text', value: 'Table of Contents' }]
                                 }
                             ]
-                        }
+                        },
+                        node,
                     ]
-                };
-
-                detailsNode.children.push(summaryNode);
-
-                const tocIndex = parent.children.indexOf(node);
-                if (tocIndex !== -1) {
-                    parent.children.splice(tocIndex, 1, detailsNode);
-                    detailsNode.children.push(...parent.children.splice(tocIndex + 1));
-                }
+                });
             }
         });
     };
