@@ -54,6 +54,7 @@ const CaptionedFigure: React.FC<CaptionedFigureProps> = ({ alt, ...props }) => {
         style: { width: '100%', height: 'auto' }
     };
 
+    // https://stackoverflow.com/questions/69230343/nextjs-image-component-with-fixed-witdth-and-auto-height
     return (
         <div style={{ width: '100%', position: 'relative' }}>
             <Figure onClick={openLightbox}>
