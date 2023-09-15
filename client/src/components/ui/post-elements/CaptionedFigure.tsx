@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import Image from 'next/image';
 import { theme } from '@styles/theme';
@@ -13,7 +14,20 @@ const Figure = styled.figure`
     padding: 10px;
 `;
 
-// inherits from Image; requires width and height
+const LightboxOverlay = styled.div`
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 9999;
+    border: 7px solid ${theme.container.border.colour.primary()};
+`;
+
 interface CaptionedFigureProps {
     src: string;
     alt: string;
@@ -22,12 +36,34 @@ interface CaptionedFigureProps {
 }
 
 const CaptionedFigure = ({ src, alt, width, height }: CaptionedFigureProps) => {
-    return(
-        <Figure>
-            <Image src={src} alt={alt} width={width} height={height} />
-            <figcaption>{alt}</figcaption>
-        </Figure>
-    )
-}
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+
+    const openLightbox = () => setLightboxOpen(true);
+    const closeLightbox = () => setLightboxOpen(false);
+
+    // Listen for escape key to close lightbox
+    useEffect(() => {
+        const handleKeydown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') closeLightbox();
+        };
+
+        document.addEventListener('keydown', handleKeydown);
+        return () => document.removeEventListener('keydown', handleKeydown);
+    }, []);
+
+    return (
+        <>
+            <Figure onClick={openLightbox}>
+                <Image src={src} alt={alt} width={width} height={height} />
+                <figcaption>{alt}</figcaption>
+            </Figure>
+            {lightboxOpen && (
+                <LightboxOverlay onClick={closeLightbox}>
+                    <Image src={src} alt={alt} layout="fill" objectFit="contain" />
+                </LightboxOverlay>
+            )}
+        </>
+    );
+};
 
 export default CaptionedFigure;
