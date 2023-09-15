@@ -1,4 +1,3 @@
-// Blockquote.tsx
 import React from 'react';
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
@@ -40,15 +39,27 @@ const Author = styled.footer`
 `;
 
 interface BlockquoteProps {
-    src: string;
+    src?: string;
     children: React.ReactNode;
 }
 
-const Blockquote: React.FC<BlockquoteProps> = ({ src, children }) => (
-    <StyledBlockquote>
-        {children}
-        <Author>- {src}</Author>
-    </StyledBlockquote>
-);
+const Blockquote: React.FC<BlockquoteProps> = ({ src, children }) => {
+    const parseMarkdownLink = (markdown: string) => {
+        const markdownLinkPattern = /\[([^\]]+)\]\(([^)]+)\)/;  // Matches [text](url)
+        const match = markdown.match(markdownLinkPattern);
+
+        if (match && match[1] && match[2]) {
+            return <a href={match[2]} target="_blank" rel="noopener noreferrer">{match[1]}</a>;
+        }
+        return markdown;
+    };
+
+    return (
+        <StyledBlockquote>
+            {children}
+            {src && <Author>{parseMarkdownLink(src)}</Author>}
+        </StyledBlockquote>
+    );
+};
 
 export default Blockquote;
