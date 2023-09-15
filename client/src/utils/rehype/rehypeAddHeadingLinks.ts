@@ -19,9 +19,6 @@ export default function rehypeAddHeadingLinks() {
                 // if the id is table-of-contents then skip this one
                 if (id === 'table-of-contents') return;
 
-                // Step 0: Generate a unique class name for the links
-                const uniqueClassName = 'anchor-copy-link-' + Date.now();
-
                 // Create link element
                 const link = {
                     type: 'element',
@@ -36,8 +33,6 @@ export default function rehypeAddHeadingLinks() {
                             font-size: 0.8em;
                         `,
                         className: ['icon', 'icon-link', 'anchor-copy-link'],
-                        // onMouseOver: 'this.style.opacity = 1',  // make it visible on hover
-                        // onMouseOut: 'this.style.opacity = 0',
                     },
                     children: [{
                         type: 'element',
