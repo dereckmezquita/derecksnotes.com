@@ -33,7 +33,7 @@ const rehypeTocCollapse: Plugin = () => {
                                             id: 'table-of-contents',
                                             style: 'display: inline-block; margin: 0px; padding: 0px; padding-bottom: 10px;'
                                         },
-                                        children: [{ type: 'text', value: 'Table of Contents' }]
+                                        children: [{ type: 'text', value: 'Table of contents' }]
                                     }
                                 ]
                             },
