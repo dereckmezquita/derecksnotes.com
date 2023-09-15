@@ -126,7 +126,6 @@ import remarkGfm from 'remark-gfm'; // github flavoured markdown
 import remarkUnwrapImages from 'remark-unwrap-images'; // removes p tag around images
 import remarkExternalLinks from 'remark-external-links'; // adds target="_blank" to external links
 import remarkMath from 'remark-math'; // allows math in mdx
-import remarkToc from 'remark-toc'; // my rehypeTocCollapse plugin requires remark-toc
 
 // TOOD: uninstall: import rehypeRaw from 'rehype-raw'; // allows html in mdx
 import rehypePrettyCode from 'rehype-pretty-code'; // syntax highlighting
@@ -134,6 +133,7 @@ import rehypeSlug from 'rehype-slug'; // adds id to headers
 import rehypeMathjax from 'rehype-mathjax';
 
 // custom plugins
+import remarkToc from '@utils/remark/remarkToc'; // generates TOC without removing leading paragraph
 import rehypeTocCollapse from '@utils/rehype/rehypeTocCollapse';
 
 // More information: https://mdxjs.com/docs/troubleshooting-mdx
@@ -173,9 +173,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
                 remarkUnwrapImages,
                 remarkExternalLinks,
                 remarkMath,
-                [remarkToc, {
-                    tight: true
-                }],
+                remarkToc,
             ],
             rehypePlugins: [
                 rehypePrettyCode,
