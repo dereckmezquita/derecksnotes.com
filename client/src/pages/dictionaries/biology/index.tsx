@@ -1,3 +1,4 @@
+import React from 'react';
 import { useEffect, useState } from 'react';
 import { GetStaticProps } from 'next';
 import { MDXRemote } from 'next-mdx-remote';
@@ -54,7 +55,9 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     }, [])
 
     // remove any definitions that are not published
-    sources = sources.filter(def => def.frontmatter.published);
+    sources = sources.filter(def => def.frontmatter.published)
+        .sort((a, b) => a.frontmatter.letter.localeCompare(b.frontmatter.letter));
+
 
     const alphabet: string[] = 'abcdefghijklmnopqrstuvwxyz#'.split('');
 
@@ -87,6 +90,29 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
         setSelectedTags(prev => prev.filter(t => t !== tag));
     }
 
+    // for separating definitions by letter with a header
+    const renderDefinitions = () => {
+        let currentLetter = "";
+
+        return filteredDefs.map((source, i) => {
+            const startNewLetter = source.frontmatter.letter !== currentLetter;
+            if (startNewLetter) {
+                currentLetter = source.frontmatter.letter;
+            }
+
+            return (
+                <React.Fragment key={source.frontmatter.word}>
+                    {startNewLetter && <h2>{currentLetter.toUpperCase()}</h2>}
+                    <li>
+                        <PostContentWrapper>
+                            <MDXRemote {...source as any} components={{ components }} />
+                        </PostContentWrapper>
+                    </li>
+                </React.Fragment>
+            );
+        });
+    };
+
     return (
         <>
             <PostContainer>
@@ -110,18 +136,7 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
                     <h1>Biology Dictionary</h1>
                     <ol>
                         {
-                            isClient
-                            &&
-                            filteredDefs.map((source, i) => {
-                                return (
-                                    <li key={source.frontmatter.word}>
-                                        <PostContentWrapper>
-                                            <MDXRemote {...source as any} components={{ components }} />
-                                        </PostContentWrapper>
-                                    </li>
-                                )
-                            })
-
+                            isClient && renderDefinitions()
                         }
                     </ol>
                 </Article>
