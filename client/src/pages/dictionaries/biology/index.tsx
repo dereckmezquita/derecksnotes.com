@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { GetStaticProps } from 'next';
 import { MDXRemote } from 'next-mdx-remote';
 
+import TagFilter from '@components/ui/TagFilter';
 import {
-    PostContainer, SideBarContainer, SideBarSiteName, SideBarEntriesContainer, SideEntryLink, SideBarAboutContainer, SideBarAboutH2, Article, PostContentWrapper
+    PostContainer, SideBarContainer, SideBarSiteName, SideBarAbout, Article, PostContentWrapper
 } from '@components/ui/DisplayContent';
 
 import Figure from '@components/ui/post-elements/Figure';
@@ -26,14 +27,21 @@ interface DefFrontMatter {
     category: string;
     dataSource: string;
 
+    published: boolean;
+
     date?: string;
 
     linksTo: string[];
     linkedFrom: string[];
 }
 
+interface Source {
+    mdxSource: any;
+    frontmatter: DefFrontMatter;
+}
+
 interface DictionaryPageProps {
-    sources: any[]; // an array of processed mdx
+    sources: Source[]; // an array of processed mdx
 }
 
 const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
@@ -45,23 +53,75 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
         setIsClient(true)
     }, [])
 
+    // remove any definitions that are not published
+    sources = sources.filter(def => def.frontmatter.published);
+
+    const alphabet: string[] = 'abcdefghijklmnopqrstuvwxyz#'.split('');
+
+    // get all linksTo and linkedFrom in a single array
+    let all_tags: string[] = Array.from(new Set(sources.flatMap(def => {
+        return [...def.frontmatter.linksTo, ...def.frontmatter.linkedFrom];
+    }))).sort();
+
+    all_tags = [...alphabet, ...all_tags]
+
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+    // if none selected then show all definitions
+    const filteredDefs = selectedTags.length > 0 ? sources.filter(
+        def => def.frontmatter.word.toLowerCase().startsWith(selectedTags[0]) ||
+            def.frontmatter.linksTo.some((tag: any) => selectedTags.includes(tag)) ||
+            def.frontmatter.linkedFrom.some((tag: any) => selectedTags.includes(tag)) ||
+            selectedTags.includes(def.frontmatter.letter)
+    ) : sources;
+
+    const handleTagSelect = (tag: string) => {
+        if (selectedTags.includes(tag)) {
+            setSelectedTags(selectedTags.filter(t => t !== tag));
+        } else {
+            setSelectedTags([...selectedTags, tag]);
+        }
+    }
+
+    const handleTagDeselect = (tag: string) => {
+        setSelectedTags(prev => prev.filter(t => t !== tag));
+    }
 
     return (
         <>
             <PostContainer>
-                <Article sideBar={false} style={{width: "90%"}}>
+                <SideBarContainer>
+                    <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
+                    <TagFilter
+                        tags={all_tags}
+                        selectedTags={selectedTags}
+                        onTagSelect={handleTagSelect}
+                        onTagDeselect={handleTagDeselect}
+                        visible={true}
+                        styleContainer={{
+                            backgroundColor: 'inherit',
+                            boxShadow: 'none',
+                            border: 'none'
+                        }}
+                    />
+                    <SideBarAbout />
+                </SideBarContainer>
+                <Article> {/* sideBar={true} style={{ width: "90%" }} */}
                     <h1>Biology Dictionary</h1>
                     <ol>
                         {
                             isClient
-                                &&
-                            sources.map((source, i) => {
+                            &&
+                            filteredDefs.map((source, i) => {
                                 return (
                                     <li key={source.frontmatter.word}>
-                                        <MDXRemote {...source} components={components} />
+                                        <PostContentWrapper>
+                                            <MDXRemote {...source as any} components={{ components }} />
+                                        </PostContentWrapper>
                                     </li>
                                 )
                             })
+
                         }
                     </ol>
                 </Article>
@@ -76,6 +136,7 @@ import fs from 'fs';
 import { ROOT } from '@constants/misc';
 
 import { serialize } from 'next-mdx-remote/serialize';
+import matter from "gray-matter";
 
 // rehype remark plugins
 import remarkGfm from 'remark-gfm'; // github flavoured markdown
@@ -88,6 +149,42 @@ import rehypePrettyCode from 'rehype-pretty-code'; // syntax highlighting
 import rehypeSlug from 'rehype-slug'; // adds id to headers
 import rehypeMathjax from 'rehype-mathjax';
 
+function rehypeInsertAnchorTag(options: any) {
+    return (tree: any) => {
+        const { frontmatter, slug } = options;
+
+        // Find the first paragraph
+        const firstParagraph = tree.children.find(
+            (node: any) => node.type === "element" && node.tagName === "p"
+        );
+
+        // If the first paragraph is found, prepend an anchor tag with the word
+        if (firstParagraph) {
+            const anchor = {
+                type: "element",
+                tagName: "a",
+                properties: {
+                    id: frontmatter.word,
+                    href: `dictionaries/${dictionary}/${slug}`,
+                },
+                children: [{ type: "text", value: frontmatter.word }],
+            };
+
+            const spacer = {
+                type: "element",
+                tagName: "span",
+                children: [{ type: "text", value: ": " }],
+            }
+
+            // Insert the anchor tag at the beginning of the first paragraph
+            firstParagraph.children.unshift(spacer);
+            firstParagraph.children.unshift(anchor);
+        }
+
+        return tree;
+    };
+}
+
 export const getStaticProps: GetStaticProps = async () => {
     // get post content and process
     const defs_folder_path: string = path.join(ROOT, 'content', 'dictionaries', dictionary);
@@ -97,6 +194,9 @@ export const getStaticProps: GetStaticProps = async () => {
     const mdxSources = defs_paths.map(async (file_name) => {
         const file_path: string = path.join(defs_folder_path, file_name);
         const file_content: string = fs.readFileSync(file_path, 'utf8');
+        // Extract frontmatter using gray-matter
+        const { data: frontmatter, content } = matter(file_content);
+
         const mdxSource = await serialize<string, DefFrontMatter>(file_content, {
             parseFrontmatter: true,
             mdxOptions: {
@@ -110,6 +210,10 @@ export const getStaticProps: GetStaticProps = async () => {
                     rehypePrettyCode,
                     rehypeSlug,
                     rehypeMathjax,
+                    [rehypeInsertAnchorTag, {
+                        frontmatter: frontmatter,
+                        slug: file_name.replace(/\.mdx$/, '')
+                    }],
                 ]
             }
         });
@@ -124,8 +228,6 @@ export const getStaticProps: GetStaticProps = async () => {
 
     // wait for all promises to resolve
     const sources = await Promise.all(mdxSources);
-
-    console.log(sources);
 
     return {
         props: {
