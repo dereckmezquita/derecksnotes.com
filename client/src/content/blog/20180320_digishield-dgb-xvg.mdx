@@ -29,7 +29,7 @@ Verge was founded in 2014 with code based on DogeCoin, it was initially named Do
 - X17
 
 <Blockquote src='srgn_'>
-Prior to the latest fork there was not a single line of code that forced any algo rotation. They all run in parallel but of course in the end only one block can be accepted at given height which is obvious. After the fork algo rotation is forced so only 6 blocks with the same algo out of any 10 blocks can be accepted.
+    Prior to the latest fork there was not a single line of code that forced any algo rotation. They all run in parallel but of course in the end only one block can be accepted at given height which is obvious. After the fork algo rotation is forced so only 6 blocks with the same algo out of any 10 blocks can be accepted.
 </Blockquote>
 
 ## Mining Verge and The Exploit
@@ -37,7 +37,7 @@ Prior to the latest fork there was not a single line of code that forced any alg
 What happened then was not a 51% attack per se, but the attacker did end up mining 99% of all new blocks so in fact he did have power of over 51% of the chain. The way that Verge is mined allowed for a timestamp exploit. Algorithms are not picked but in fact as stated previously compete with one another. As for difficulty:
 
 <Blockquote src='srgn_'>
-Difficulty is calculated by a version of DGW which is based on timestamps of last 12 blocks mined by the same algo.
+    Difficulty is calculated by a version of DGW which is based on timestamps of last 12 blocks mined by the same algo.
 </Blockquote>
 
 This kind of bug is very serious and at the foundation of Verge's codebase. In fact, in order to fix it a fork is needed, either hard fork or soft fork!
@@ -45,7 +45,7 @@ This kind of bug is very serious and at the foundation of Verge's codebase. In f
 What happened was that the hacker managed to change the time stamps on his blocks. He introduced a pair of false blocks. One which showed that the scrypt mining algorithm had been previously used, about 26 mins before, and then a second block which was mined with scrypt.
 
 <Blockquote src='srgn_'>
-Pairs of blocks are used to lower the difficulty but they need to be mined in certain order so they can pass the check of median timestamp of last 11 blocks which is performed in CBlock::AcceptBlock(). There is no tricking anything into thinking that the next algo should be x because there is no algo picking. They all just run and mine blocks constantly. There is only lowering the difficulty, passing the checks so the chain is valid and accepting this chain over chains mined by other algos.
+    Pairs of blocks are used to lower the difficulty but they need to be mined in certain order so they can pass the check of median timestamp of last 11 blocks which is performed in CBlock::AcceptBlock(). There is no tricking anything into thinking that the next algo should be x because there is no algo picking. They all just run and mine blocks constantly. There is only lowering the difficulty, passing the checks so the chain is valid and accepting this chain over chains mined by other algos.
 </Blockquote>
 
 ### Blocks time stamps
@@ -74,7 +74,7 @@ This exploit was brought to public attention by ocminer on the bitcointalk forum
 What happened next was that Verge developers pushed out a "fix" but in fact did not really fix the issue. What they did was simply diminish the time frame in which the blocks can be mined. The attack still was exploitable and the attacker even went on to try it again!
 
 <Blockquote src='[ocminer](https://bitcointalk.org/index.php?topic=3256693.0)'>
-The background is that the "fix" promoted by the devs simply won't fix the problem. It will just make the timeframe smaller in which the blocks can be mined / spoofed and the attack will still work, just be a bit slower.
+    The background is that the "fix" promoted by the devs simply won't fix the problem. It will just make the timeframe smaller in which the blocks can be mined / spoofed and the attack will still work, just be a bit slower.
 </Blockquote>
 
 Ocminer then cited DigiShield as a real fix to the issue! Stating that the fix should also stipulate that a single algo can only be used X amount of times and not be dependent on when the algo was last used. He even said that DigiByte and Myriad had the same problems and we fixed them! He cited this github repo for DigiByte: [DigiByte PR DigiShield](https://github.com/digibyte/digibyte/pull/15)
@@ -122,7 +122,7 @@ The input (hashing power) and the output (difficulty adjustment) both result in 
 Here is a quote from the dev's article.
 
 <Blockquote>
-The secret to DigiShield is an asymmetrical approach to difficulty re-targeting. With DigiShield, the difficulty is allowed to decrease in larger movements than it is allowed to increase from block to block. This keeps a blockchain from getting "stuck" i.e., not finding the next block for several hours following a major drop in the net hash of coin. It is all a balancing act. You need to allow the difficulty to increase enough between blocks to catch up to a sudden spike in net hash, but not enough to accidentally send the difficulty sky high when two miners get lucky and find blocks back to back.
+    The secret to DigiShield is an asymmetrical approach to difficulty re-targeting. With DigiShield, the difficulty is allowed to decrease in larger movements than it is allowed to increase from block to block. This keeps a blockchain from getting "stuck" i.e., not finding the next block for several hours following a major drop in the net hash of coin. It is all a balancing act. You need to allow the difficulty to increase enough between blocks to catch up to a sudden spike in net hash, but not enough to accidentally send the difficulty sky high when two miners get lucky and find blocks back to back.
 </Blockquote>
 
 AND to top it all off the solution to Verge's time stamp manipulation bug is RIGHT HERE in DigiShield again! This was patched and in [Digishield v3 problems #7](https://github.com/zawy12/difficulty-algorithms/issues/7).
@@ -130,7 +130,7 @@ AND to top it all off the solution to Verge's time stamp manipulation bug is RIG
 Here's a direct quote:
 
 <Blockquote>
-Most DigiShield v3 implementations do not get data from the most recent blocks, but begin the averaging at the MTP, which is typically 6 blocks in the past. This is ostensibly done to prevent timestamp manipulation of the difficulty.
+    Most DigiShield v3 implementations do not get data from the most recent blocks, but begin the averaging at the MTP, which is typically 6 blocks in the past. This is ostensibly done to prevent timestamp manipulation of the difficulty.
 </Blockquote>
 
 Moreover, DigiShield does not allow for one algorithm to mine more than 5 blocks in a row. If the next block comes in on the same algorithm then it would be blocked and would be handed off to the next algorithm.
@@ -148,16 +148,14 @@ Can confirm it is still exploitable, will not abuse it futher myself but fix thi
 DigiShield could have stopped the time stamp manipulation exploit, and stopped the attacker from getting unjust rewards! Maybe a look at Verge's difficulty chart might give a good idea of what 1 single person was able to do to a coin worth about 1 billion dollars.
 
 
-<CaptionedFigure
-    src="/blog/20180320_digishield-dgb-xvg/xvg-difficulty.png"
-    alt="Verge difficulty adjustments 5 month period - coinwarz."
-/>
+<Figure src="/blog/20180320_digishield-dgb-xvg/xvg-difficulty.png">
+    Verge difficulty adjustments 5 month period - coinwarz.
+</Figure>
 
 Here's DigiByte's difficulty steady, even and fair:
 
-<CaptionedFigure
-    src='/blog/20180320_digishield-dgb-xvg/dgb-difficulty.png'
-    alt='DigiByte difficulty adjustments 5 month period - coinwarz.'
-/>
+<Figure src='/blog/20180320_digishield-dgb-xvg/dgb-difficulty.png'>
+    DigiByte difficulty adjustments 5 month period - coinwarz.
+</Figure>
 
 Maybe our developers could help Verge somehow - but for a fee? Or it might be a good way to get our name out there, and show people why DigiByte and DigiShield are so important!
