@@ -1,8 +1,8 @@
+import React from 'react';
 import { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import Image, { ImageProps } from 'next/image';
 import { theme } from '@styles/theme';
-import { convertMarkdownLinksToHTML } from '@utils/helpers';
 
 const Figure = styled.figure`
     background-color: ${theme.container.background.colour.content()};
@@ -28,11 +28,9 @@ const LightboxOverlay = styled.div`
     border: 7px solid ${theme.container.border.colour.primary()};
 `;
 
-interface CaptionedFigureProps extends ImageProps {
-    alt: string;
-}
+interface CaptionedFigureProps extends ImageProps { }
 
-const CaptionedFigure: React.FC<CaptionedFigureProps> = ({ alt, ...props }) => {
+const CaptionedFigure: React.FC<CaptionedFigureProps> = ({ children, ...props }) => {
     const [lightboxOpen, setLightboxOpen] = useState(false);
 
     const openLightbox = () => setLightboxOpen(true);
@@ -54,13 +52,20 @@ const CaptionedFigure: React.FC<CaptionedFigureProps> = ({ alt, ...props }) => {
         style: { width: '100%', height: 'auto' }
     };
 
-    const altHtml = convertMarkdownLinksToHTML(alt);
+    const alt = extractTextFromChildren(children);
 
     return (
         <div style={{ width: '100%', position: 'relative' }}>
-            <Figure onClick={openLightbox}>
-                <Image {...defaultImageProps} {...props} alt={alt} />
-                <figcaption dangerouslySetInnerHTML={{ __html: altHtml }} />
+            <Figure>
+                <Image 
+                    {...defaultImageProps} 
+                    {...props} 
+                    alt={alt} 
+                    onClick={openLightbox}
+                />
+                <figcaption>
+                    {children}
+                </figcaption>
             </Figure>
             {lightboxOpen && (
                 <LightboxOverlay onClick={closeLightbox}>
@@ -72,3 +77,21 @@ const CaptionedFigure: React.FC<CaptionedFigureProps> = ({ alt, ...props }) => {
 };
 
 export default CaptionedFigure;
+
+
+// Helper function to recursively extract text from React children
+function extractTextFromChildren(children: React.ReactNode): string {
+    if (typeof children === 'string') {
+        return children;
+    }
+
+    if (Array.isArray(children)) {
+        return children.map(extractTextFromChildren).join(' ');
+    }
+
+    if (React.isValidElement(children) && children.props.children) {
+        return extractTextFromChildren(children.props.children);
+    }
+
+    return '';
+}
