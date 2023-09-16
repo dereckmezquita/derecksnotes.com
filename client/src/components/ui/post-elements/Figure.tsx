@@ -41,6 +41,9 @@ const LightboxOverlay = styled.div`
 `;
 
 const Figure: React.FC<ImageProps> = ({ children, ...props }) => {
+    // test if src is a pdf
+    const isPdf: boolean = props.src ? props.src.toString().endsWith('.pdf') : false;
+
     const [lightboxOpen, setLightboxOpen] = useState(false);
 
     const openLightbox = () => setLightboxOpen(true);
@@ -67,12 +70,21 @@ const Figure: React.FC<ImageProps> = ({ children, ...props }) => {
     return (
         <div style={{ width: '100%', position: 'relative' }}>
             <CaptionedFigure>
-                <Image
-                    {...defaultImageProps}
-                    {...props}
-                    alt={alt}
-                    onClick={openLightbox}
-                />
+                {isPdf ? (
+                    <img
+                        src={props.src as string}
+                        alt={alt}
+                        onClick={openLightbox}
+                        style={{ width: '100%', height: 'auto' }}
+                    />
+                ) : (
+                    <Image
+                        {...defaultImageProps}
+                        {...props}
+                        alt={alt}
+                        onClick={openLightbox}
+                    />
+                )}
                 <figcaption>
                     {children}
                 </figcaption>
@@ -80,7 +92,7 @@ const Figure: React.FC<ImageProps> = ({ children, ...props }) => {
             {lightboxOpen && (
                 <LightboxOverlay onClick={closeLightbox}>
                     <LightboxImageContainer>
-                        <img src={props.src as string} alt={alt} style={{ width: '100%', maxHeight: '100%', display: 'block' }} />
+                        <img src={props.src as string} alt={alt} style={{ maxWidth: '100%', height: '100%', display: 'block' }} />
                     </LightboxImageContainer>
                 </LightboxOverlay>
             )}
