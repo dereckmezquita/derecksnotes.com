@@ -8,7 +8,7 @@ import { RootState } from '@store/store';
 
 import TagFilter from '@components/ui/TagFilter';
 import {
-    PostContainer, SideBarContainer, SideBarSiteName, SideBarEntriesContainer, SideEntryLink, SideBarAboutContainer, SideBarAboutH2, Article, PostContentWrapper
+    PostContainer, SideBarContainer, SideBarSiteName, SideBarEntriesContainer, SideEntryLink, SideBarAbout, Article, PostContentWrapper
 } from '@components/ui/DisplayContent';
 
 
@@ -84,6 +84,7 @@ const PostPage: React.FC<PostPageProps> = ({ title, source, side_bar_data }) => 
                 onTagSelect={handleTagSelect}
                 onTagDeselect={handleTagDeselect}
                 visible={tagsFilterVisible}
+                styleContainer={{ width: '80%' }}
             />
             <PostContainer>
                 <SideBarContainer>
@@ -99,15 +100,7 @@ const PostPage: React.FC<PostPageProps> = ({ title, source, side_bar_data }) => 
                             </SideEntryLink>
                         ))}
                     </SideBarEntriesContainer>
-                    <SideBarAboutContainer>
-                        <SideBarAboutH2>About</SideBarAboutH2>
-                        <p>
-                            This website is custom made by Dereck using React, Next.js, and TypeScript. It incorporates progressive web app technologies an relies on a NodeJS backend along with a MongoDB database.
-                        </p>
-                        <p>
-                            If you'd like to know more you can find the full source code on <a href='https://github.com/dereckmezquita/derecksnotes.com'>github.com/dereckmezquita/derecksnotes.com</a>
-                        </p>
-                    </SideBarAboutContainer>
+                    <SideBarAbout />
                 </SideBarContainer>
                 <Article>
                     <h1>{title}</h1>
