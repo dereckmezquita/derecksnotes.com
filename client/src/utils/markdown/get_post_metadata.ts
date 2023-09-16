@@ -9,7 +9,7 @@ import { visit } from 'unist-util-visit';
 
 export default function get_post_metadata(folder: string): PostMetadata[] {
     const files = fs.readdirSync(path.join(ROOT, 'content', folder));
-    const md = files.filter((fn) => fn.endsWith('.md'));
+    const md = files.filter((fn) => fn.endsWith('.mdx'));
     // get gray-matter metadata
     return md.map((file_name) => {
         const file: string = path.join(ROOT, 'content', folder, file_name);
@@ -57,7 +57,7 @@ export default function get_post_metadata(folder: string): PostMetadata[] {
             .trim();
 
         return {
-            slug: file_name.replace('.md', ''),
+            slug: file_name.replace('.mdx', ''),
             section: folder,
 
             title: data.title,
