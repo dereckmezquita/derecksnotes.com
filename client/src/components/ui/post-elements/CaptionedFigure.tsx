@@ -28,9 +28,7 @@ const LightboxOverlay = styled.div`
     border: 7px solid ${theme.container.border.colour.primary()};
 `;
 
-interface CaptionedFigureProps extends ImageProps { }
-
-const CaptionedFigure: React.FC<CaptionedFigureProps> = ({ children, ...props }) => {
+const CaptionedFigure: React.FC<ImageProps> = ({ children, ...props }) => {
     const [lightboxOpen, setLightboxOpen] = useState(false);
 
     const openLightbox = () => setLightboxOpen(true);
