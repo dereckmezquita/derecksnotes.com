@@ -1,7 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
-import { convertMarkdownLinksToHTML } from '@utils/helpers';
 
 const StyledBlockquote = styled.blockquote`
     font-style: italic;
@@ -56,3 +55,8 @@ const Blockquote: React.FC<BlockquoteProps> = ({ src, children }) => {
 };
 
 export default Blockquote;
+
+export const convertMarkdownLinksToHTML = (text: string): string => {
+    const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    return text.replace(markdownLinkRegex, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+};
