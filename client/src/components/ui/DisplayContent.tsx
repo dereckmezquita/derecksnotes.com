@@ -35,10 +35,10 @@ export const SideBarContainer = styled.div`
 export const SideBarSiteName = styled(SiteName) <{ fontSize: string }>`
     font-size: 20px;
     border-bottom: 1px dashed ${theme.container.border.colour.primary()};
+    margin-bottom: 30px;
 `;
 
 export const SideBarEntriesContainer = styled.div`
-    margin-top: 30px;
     text-align: left;
 `;
 
@@ -74,13 +74,27 @@ export const SideBarAboutH2 = styled.h2`
     color: ${theme.text.colour.light_grey(undefined, undefined, 50)};
 `;
 
-export const Article = styled.article`
+export function SideBarAbout(): JSX.Element {
+    return (
+        <SideBarAboutContainer>
+            <SideBarAboutH2>About</SideBarAboutH2>
+            <p>
+                This website is custom made by Dereck using React, Next.js, and TypeScript. It incorporates progressive web app technologies an relies on a NodeJS backend along with a MongoDB database.
+            </p>
+            <p>
+                If you'd like to know more you can find the full source code on <a href='https://github.com/dereckmezquita/derecksnotes.com'>github.com/dereckmezquita/derecksnotes.com</a>
+            </p>
+        </SideBarAboutContainer>
+    )
+}
+
+export const Article = styled.article<{ sideBar?: boolean }>`
     width: 70%;
     margin-top: 30px;
     margin-bottom: 30px;
     padding-left: 40px;
     padding-right: 40px;
-    border-left: 1px dashed ${theme.container.border.colour.primary()};
+    border-left: ${props => props.sideBar === false ? 'none' : `1px dashed ${theme.container.border.colour.primary()}`};
     
     text-align: justify;
     text-justify: auto;
