@@ -27,6 +27,8 @@ const Grid = styled.div`
 `;
 
 function Home({ posts }: { posts: PostMetadata[] }) {
+    console.log(`Welcome; there are ${posts.length} posts.`);
+
     const allTags = Array.from(new Set(posts.flatMap(post => post.tags))).sort();
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
