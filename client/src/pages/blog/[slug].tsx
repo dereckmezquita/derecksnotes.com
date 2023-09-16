@@ -13,13 +13,13 @@ import {
 
 
 // component imports to be used in MDX
-import CaptionedFigure from '@components/ui/post-elements/CaptionedFigure';
+import Figure from '@components/ui/post-elements/Figure';
 import DropCap from '@components/ui/DropCap';
 import Alert from '@components/ui/post-elements/Alert';
 import Blockquote from '@components/ui/post-elements/Blockquote';
 
 const components = {
-    CaptionedFigure: CaptionedFigure,
+    Figure: Figure,
     DropCap: DropCap,
     Alert: Alert,
     Blockquote: Blockquote,
@@ -52,6 +52,9 @@ const PostPage: React.FC<PostPageProps> = ({ title, source, side_bar_data }) => 
     useEffect(() => {
         setIsClient(true)
     }, [])
+
+    // remove the side_bar_data with published: false
+    side_bar_data = side_bar_data.filter(post => post.published);
 
     // tag filter
     const all_tags: string[] = Array.from(new Set(side_bar_data.flatMap(post => post.tags))).sort();
@@ -137,11 +140,10 @@ import rehypeMathjax from 'rehype-mathjax';
 // custom plugins
 import remarkToc from '@utils/remark/remarkToc'; // generates TOC without removing leading paragraph
 import rehypeTocCollapse from '@utils/rehype/rehypeTocCollapse';
-
-// More information: https://mdxjs.com/docs/troubleshooting-mdx
 import rehypeAddHeadingLinks from '@utils/rehype/rehypeAddHeadingLinks';
-// Error: Expected `onMouseOver` listener to be a function, instead got a value of `string` type.
+import rehypeDropCap from '@utils/rehype/deprecated/rehypeDropCap';
 
+import { theme } from '@styles/theme'
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
     // get side bar metadata
@@ -183,6 +185,14 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
                 rehypeMathjax,
                 rehypeTocCollapse,
                 rehypeAddHeadingLinks,
+                [rehypeDropCap, {
+                    float: 'left',
+                    fontSize: '4rem',
+                    fontFamily: 'Georgia, serif',
+                    lineHeight: '40px',
+                    marginRight: '0.1em',
+                    color: theme.theme_colours[5](),
+                }],
             ]
         }
     });
