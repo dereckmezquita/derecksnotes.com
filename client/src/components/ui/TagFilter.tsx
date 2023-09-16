@@ -7,7 +7,7 @@ import { toggleTagsFilter } from '@store/tagsFilterVisibilitySlice';
 
 const FilterContainer = styled.div<{ visible: boolean }>`
     // width and margin to centre if not in a flex container
-    width: 1000px;
+    width: 100%;
     margin: 0 auto;
 
     /* if window is smaller than 900px make it 100% */
@@ -15,16 +15,12 @@ const FilterContainer = styled.div<{ visible: boolean }>`
         width: 95%;
     }
 
-    top: 0;
-    left: 0;
     padding: 10px;
     margin-bottom: 20px;
     background-color: ${theme.container.background.colour.primary()};
     border: 1px solid ${theme.container.border.colour.primary()};
     border-radius: 5px;
     box-shadow: ${theme.container.shadow.primary};
-    opacity: ${props => props.visible ? 1 : 0};
-    transition: opacity 0.3s;
     z-index: 1;
     display: ${props => props.visible ? 'flex' : 'none'};
     flex-wrap: wrap; // Allow tags to wrap to the next line if needed
@@ -86,10 +82,11 @@ interface TagFilterProps {
     onTagSelect: (tag: string) => void;
     onTagDeselect: (tag: string) => void;
     visible: boolean; // redux
+    styleContainer?: React.CSSProperties; // Add this line for style
 }
 
 const TagFilter: React.FC<TagFilterProps> = ({
-    tags, selectedTags, onTagSelect, onTagDeselect, visible
+    tags, selectedTags, onTagSelect, onTagDeselect, visible, styleContainer
 }) => {
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const containerRef = useRef<HTMLDivElement>(null);  // To reference the filter container
@@ -146,7 +143,13 @@ const TagFilter: React.FC<TagFilterProps> = ({
     }, [visible, dispatch]);
 
     return (
-        <FilterContainer ref={containerRef} onMouseUp={endDrag} onMouseLeave={endDrag} visible={visible}>
+        <FilterContainer
+            ref={containerRef}
+            onMouseUp={endDrag}
+            onMouseLeave={endDrag}
+            visible={visible}
+            style={styleContainer}
+        >
             {tags.map(tag => (
                 <FilterTag
                     key={tag}
