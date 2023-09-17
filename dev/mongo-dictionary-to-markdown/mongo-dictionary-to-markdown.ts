@@ -80,8 +80,6 @@ for (const def of dict) {
 
     const defintion: string = def.html.split(/<\/a> -(\s?)/)[2];
 
-    console.log(defintion);
-
     // console.log('\x1b[31m', def.html, '\x1b[0m');
     // console.log('\x1b[32m', html, '\x1b[0m');
 
@@ -117,3 +115,10 @@ linkedFrom: ['${def.linkedFrom.join("','")}']
 }
 
 fs.writeFileSync(path.join(__dirname, 'all.mdx'), result.join(''));
+
+// now need to manually edit the all.mdx file to update maths formulas etc
+// \\( inline maths to double $$
+// then replace all escaped _ inside of $$; use this pattern: \$\$(?:(?!\$\$)[^])*?\\_
+// then replace all \\frac{: \\\\[a-z]+\{ use: (\\\\[a-z]+\{)(?=(?:[^$]*\$\$))
+// now replace \\leftrightarrows: \$\$.*\\\\[a-z]+ (notice space at the end)
+
