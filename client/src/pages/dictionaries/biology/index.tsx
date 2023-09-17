@@ -1,4 +1,6 @@
 import React from 'react';
+import Link from 'next/link';
+
 import { useEffect, useState } from 'react';
 import { GetStaticProps } from 'next';
 import { MDXRemote } from 'next-mdx-remote';
@@ -16,6 +18,7 @@ const components = {
     Figure: Figure,
     Alert: Alert,
     Blockquote: Blockquote,
+    a: Link
 };
 
 const dictionary: string = 'biology';
@@ -114,34 +117,32 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     };
 
     return (
-        <>
-            <PostContainer>
-                <SideBarContainer>
-                    <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
-                    <TagFilter
-                        tags={all_tags}
-                        selectedTags={selectedTags}
-                        onTagSelect={handleTagSelect}
-                        onTagDeselect={handleTagDeselect}
-                        visible={true}
-                        styleContainer={{
-                            backgroundColor: 'inherit',
-                            boxShadow: 'none',
-                            border: 'none'
-                        }}
-                    />
-                    <SideBarAbout />
-                </SideBarContainer>
-                <Article> {/* sideBar={true} style={{ width: "90%" }} */}
-                    <h1>Biology Dictionary</h1>
-                    <ol>
-                        {
-                            isClient && renderDefinitions()
-                        }
-                    </ol>
-                </Article>
-            </PostContainer>
-        </>
+        <PostContainer>
+            <SideBarContainer>
+                <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
+                <TagFilter
+                    tags={all_tags}
+                    selectedTags={selectedTags}
+                    onTagSelect={handleTagSelect}
+                    onTagDeselect={handleTagDeselect}
+                    visible={true}
+                    styleContainer={{
+                        backgroundColor: 'inherit',
+                        boxShadow: 'none',
+                        border: 'none'
+                    }}
+                />
+                <SideBarAbout />
+            </SideBarContainer>
+            <Article> {/* sideBar={true} style={{ width: "90%" }} */}
+                <h1>Biology Dictionary</h1>
+                <ol>
+                    {
+                        isClient && renderDefinitions()
+                    }
+                </ol>
+            </Article>
+        </PostContainer>
     )
 }
 
@@ -200,6 +201,56 @@ function rehypeInsertAnchorTag(options: any) {
     };
 }
 
+// this function takes the first a tag link and adds the href to the page for that def
+function rehypeLinkToDefinition(options: { slug: string }) {
+    return (tree: any) => {
+        const { slug } = options;
+
+        // Find the first paragraph
+        const firstParagraph = tree.children.find(
+            (node: any) => node.type === "element" && node.tagName === "p"
+        );
+
+        if (!firstParagraph) return tree;
+
+        // Find the index of the first a tag within the paragraph's children
+        const firstATagIndex = firstParagraph.children.findIndex(
+            (node: any) => node.type === "mdxJsxTextElement" && node.name === "a"
+        );
+
+        if (firstATagIndex === -1) return tree;
+
+        // Extract the first a tag
+        const firstATag = firstParagraph.children[firstATagIndex];
+
+        // Check if the 'attributes' array exists within the anchor tag
+        if (!Array.isArray(firstATag.attributes)) {
+            firstATag.attributes = [];
+        }
+
+        // Find the index of the href attribute, if it exists
+        const hrefAttributeIndex = firstATag.attributes.findIndex(
+            (attr: any) => attr.name === "href"
+        );
+
+        const newHrefAttribute = {
+            type: "mdxJsxAttribute",
+            name: "href",
+            value: `/dictionaries/${dictionary}/${slug}`,
+        };
+
+        if (hrefAttributeIndex === -1) {
+            // If href doesn't exist, push the new attribute to the array
+            firstATag.attributes.push(newHrefAttribute);
+        } else {
+            // If href already exists, replace it with the new value
+            firstATag.attributes[hrefAttributeIndex] = newHrefAttribute;
+        }
+
+        return tree;
+    }
+}
+
 export const getStaticProps: GetStaticProps = async () => {
     // get post content and process
     const defs_folder_path: string = path.join(ROOT, 'content', 'dictionaries', dictionary);
@@ -225,10 +276,13 @@ export const getStaticProps: GetStaticProps = async () => {
                     rehypePrettyCode,
                     rehypeSlug,
                     rehypeMathjax,
-                    [rehypeInsertAnchorTag, {
-                        frontmatter: frontmatter,
+                    // [rehypeInsertAnchorTag, {
+                    //     frontmatter: frontmatter,
+                    //     slug: file_name.replace(/\.mdx$/, '')
+                    // }],
+                    [rehypeLinkToDefinition, {
                         slug: file_name.replace(/\.mdx$/, '')
-                    }],
+                    }]
                 ]
             }
         });
