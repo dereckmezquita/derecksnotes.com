@@ -33,7 +33,6 @@ const BaseButton = styled.span`
     padding: 0px 7px 1px;
     cursor: pointer;
     border-radius: 5px;
-    white-space: nowrap; // Prevents the tag from breaking into two lines
     transition: opacity 0.3s;
 
     &:hover {
@@ -44,6 +43,8 @@ const BaseButton = styled.span`
 const FilterTag = styled(BaseButton) <{ selected: boolean }>`
     background-color: ${props => props.selected ? 'hsl(205, 70%, 50%)' : 'hsl(190, 15%, 90%)'};
     color: ${props => props.selected ? 'white' : 'black'};
+    word-wrap: break-word; // Allow the tag text to break into multiple lines
+    max-width: 100%; // Ensure the tag doesn't overflow its parent container
 `;
 
 // css X
@@ -150,6 +151,7 @@ const TagFilter: React.FC<TagFilterProps> = ({
             visible={visible}
             style={styleContainer}
         >
+            <ClearAllButton onClick={clearAllTags} />
             {tags.map(tag => (
                 <FilterTag
                     key={tag}
@@ -160,7 +162,6 @@ const TagFilter: React.FC<TagFilterProps> = ({
                     {tag}
                 </FilterTag>
             ))}
-            <ClearAllButton onClick={clearAllTags} />
         </FilterContainer>
     );
 };
