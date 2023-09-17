@@ -83,11 +83,24 @@ for (const def of dict) {
     // console.log('\x1b[31m', def.html, '\x1b[0m');
     // console.log('\x1b[32m', html, '\x1b[0m');
 
-    const mdx = NodeHtmlMarkdown.translate(defintion, {
+    let mdx = NodeHtmlMarkdown.translate(defintion, {
         bulletMarker: '-',
         emDelimiter: '*',
         blockElements: ['div']
-    }).replace(/%5F/g, '_'); // the parser is converting underscores to %5F so we need to convert them back
+    })
+
+    mdx = mdx.replace(/\$\$([^$]+)\$\$/g, function(match, p1) {
+        return "$$" + p1
+            // .replace(/\\\\frac/g, "\\frac")
+            .replace(/\\_/g, "_")
+            .replace(/\\\\/g, "\\")
+            // .replace(/\\\[|\]/g, (m: any) => m.replace("\\", ""))
+            // .replace(/\\left\\\[|\\right\\\]/g, (m: any) => m.replace("\\\\", "\\"))
+            // .replace(/\\rightleftharpoons/g, "\\rightleftharpoons")
+            + "$$";
+    });
+
+    mdx = mdx.replace(/%5F/g, '_') // the parser is converting underscores to %5F so we need to convert them back
 
     // console.log('\x1b[34m', mdx, '\x1b[0m');
 
@@ -98,6 +111,7 @@ for (const def of dict) {
     // def.linkedFrom = def.linkedFrom.map((link) => link.replace(/\s|_/g, '-'));
 
     const frontmatter: string = `---
+fileName: '${file_name}'
 letter: '${letter}'
 word: '${def.identifier.replace(/\s|_/g, '-')}'
 dictionary: '${def.dictionary}'
@@ -106,7 +120,7 @@ dataSource: '${def.dataSource}'
 
 published: true
 
-linksTo: ['${def.linksTo.join("','")}']
+linksTo: ['${def.linksTo.join("' ,'")}']
 linkedFrom: ['${def.linkedFrom.join("','")}']
 ---
 `;
@@ -115,10 +129,4 @@ linkedFrom: ['${def.linkedFrom.join("','")}']
 }
 
 fs.writeFileSync(path.join(__dirname, 'all.mdx'), result.join(''));
-
-// now need to manually edit the all.mdx file to update maths formulas etc
-// \\( inline maths to double $$
-// then replace all escaped _ inside of $$; use this pattern: \$\$(?:(?!\$\$)[^])*?\\_
-// then replace all \\frac{: \\\\[a-z]+\{ use: (\\\\[a-z]+\{)(?=(?:[^$]*\$\$))
-// now replace \\leftrightarrows: \$\$.*\\\\[a-z]+ (notice space at the end)
 
