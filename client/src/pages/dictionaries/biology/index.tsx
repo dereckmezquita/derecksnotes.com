@@ -6,6 +6,7 @@ import { GetStaticProps } from 'next';
 import { MDXRemote } from 'next-mdx-remote';
 
 import TagFilter from '@components/ui/TagFilter';
+import SearchBar from '@components/ui/SearchBar';
 import {
     PostContainer, SideBarContainer, SideBarSiteName, SideBarAbout, Article, PostContentWrapper
 } from '@components/ui/DisplayContent';
@@ -86,7 +87,14 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     // remove any tags that are just an empty string
     all_tags = all_tags.filter(tag => tag !== '');
 
+    const [searchTerm, setSearchTerm] = useState("");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+
+    // allow for search
+    const displayedTags = searchTerm
+        ? all_tags.filter(tag => tag.toLowerCase().includes(searchTerm))
+        : all_tags;
+
 
     // if none selected then show all definitions
     const filteredDefs = selectedTags.length > 0 ? sources.filter(
@@ -135,8 +143,15 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
         <PostContainer>
             <SideBarContainer>
                 <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
+                <SearchBar
+                    value={searchTerm}
+                    onChange={(value: string) => setSearchTerm(value.toLowerCase())}
+                    placeholder="Search tags..."
+                    styleContainer={{
+                    }}
+                />
                 <TagFilter
-                    tags={all_tags}
+                    tags={displayedTags}
                     selectedTags={selectedTags}
                     onTagSelect={handleTagSelect}
                     onTagDeselect={handleTagDeselect}
