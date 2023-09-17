@@ -69,6 +69,9 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
         return [...def.frontmatter.linksTo, ...def.frontmatter.linkedFrom];
     }))).sort();
 
+    // replace all underscores with spaces
+    // all_tags = all_tags.map(tag => tag.replace(/_/g, ' '));
+
     all_tags = [...alphabet, ...all_tags]
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
@@ -152,7 +155,6 @@ import fs from 'fs';
 import { ROOT } from '@constants/misc';
 
 import { serialize } from 'next-mdx-remote/serialize';
-import matter from "gray-matter";
 
 // rehype remark plugins
 import remarkGfm from 'remark-gfm'; // github flavoured markdown
@@ -178,7 +180,7 @@ export const getStaticProps: GetStaticProps = async () => {
         const file_path: string = path.join(defs_folder_path, file_name);
         const file_content: string = fs.readFileSync(file_path, 'utf8');
         // Extract frontmatter using gray-matter
-        const { data: frontmatter, content } = matter(file_content);
+        // const { data: frontmatter, content } = matter(file_content);
 
         const mdxSource = await serialize<string, DefFrontMatter>(file_content, {
             parseFrontmatter: true,
@@ -198,7 +200,8 @@ export const getStaticProps: GetStaticProps = async () => {
                     //     slug: file_name.replace(/\.mdx$/, '')
                     // }],
                     [rehypeLinkToDefinition, {
-                        slug: file_name.replace(/\.mdx$/, '')
+                        slug: file_name.replace(/\.mdx$/, ''),
+                        dictionary: dictionary
                     }]
                 ]
             }
