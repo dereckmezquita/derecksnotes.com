@@ -57,10 +57,19 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
         setIsClient(true)
     }, [])
 
-    // remove any definitions that are not published
-    sources = sources.filter(def => def.frontmatter.published)
-        .sort((a, b) => a.frontmatter.letter.localeCompare(b.frontmatter.letter));
+    const isLetter = (char: string) => char >= 'a' && char <= 'z';
 
+    sources = sources.filter(def => def.frontmatter.published)
+        .sort((a, b) => {
+            const aLetter = a.frontmatter.letter;
+            const bLetter = b.frontmatter.letter;
+
+            if (aLetter === bLetter) return a.frontmatter.word.localeCompare(b.frontmatter.word);
+            if (!isLetter(aLetter)) return 1;
+            if (!isLetter(bLetter)) return -1;
+
+            return aLetter.localeCompare(bLetter);
+        });
 
     const alphabet: string[] = 'abcdefghijklmnopqrstuvwxyz#'.split('');
 
@@ -73,6 +82,9 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     // all_tags = all_tags.map(tag => tag.replace(/_/g, ' '));
 
     all_tags = [...alphabet, ...all_tags]
+
+    // remove any tags that are just an empty string
+    all_tags = all_tags.filter(tag => tag !== '');
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
