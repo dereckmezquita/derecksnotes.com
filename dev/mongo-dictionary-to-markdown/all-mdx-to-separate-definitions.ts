@@ -16,8 +16,6 @@ for (let mdx of mdx_array) {
 
     mdx = mdx.trim();
 
-    console.log(mdx);
-
     // write each file
-    fs.writeFileSync(path.join(__dirname, 'definitions', file_name), mdx);
+    fs.writeFileSync(path.join(__dirname, '../../client/src/content/dictionaries/biology', file_name), mdx);
 }
