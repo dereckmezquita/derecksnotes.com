@@ -89,6 +89,9 @@ for (const def of dict) {
         blockElements: ['div']
     })
 
+    mdx = mdx.replace(/%5F/g, '_') // the parser is converting underscores to %5F so we need to convert them back
+        .replace(/\\\\\(|\\\\\)/g, '$$$'); // \\( inline maths to double $$
+
     mdx = mdx.replace(/\$\$([^$]+)\$\$/g, function(match, p1) {
         return "$$" + p1
             // .replace(/\\\\frac/g, "\\frac")
@@ -99,8 +102,6 @@ for (const def of dict) {
             // .replace(/\\rightleftharpoons/g, "\\rightleftharpoons")
             + "$$";
     });
-
-    mdx = mdx.replace(/%5F/g, '_') // the parser is converting underscores to %5F so we need to convert them back
 
     // console.log('\x1b[34m', mdx, '\x1b[0m');
 
