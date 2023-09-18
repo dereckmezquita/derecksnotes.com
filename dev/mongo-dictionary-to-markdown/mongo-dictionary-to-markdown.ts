@@ -96,6 +96,8 @@ for (const def of dict) {
         return "$$" + p1
             // .replace(/\\\\frac/g, "\\frac")
             .replace(/\\_/g, "_")
+            .replace(/\\\[/g, "[")
+            .replace(/\\\]/g, "]")
             .replace(/\\\\/g, "\\")
             // .replace(/\\\[|\]/g, (m: any) => m.replace("\\", ""))
             // .replace(/\\left\\\[|\\right\\\]/g, (m: any) => m.replace("\\\\", "\\"))
@@ -120,6 +122,7 @@ category: '${def.category}'
 dataSource: '${def.dataSource}'
 
 published: true
+comments: true
 
 linksTo: ['${def.linksTo.join("' ,'")}']
 linkedFrom: ['${def.linkedFrom.join("','")}']
