@@ -7,6 +7,7 @@ import { MDXRemote } from 'next-mdx-remote';
 
 import TagFilter from '@components/ui/TagFilter';
 import SearchBar from '@components/ui/SearchBar';
+import SelectDropDown from '@components/ui/SelectDropDown';
 import {
     PostContainer, SideBarContainer, SideBarSiteName, SideBarAbout, Article, PostContentWrapper
 } from '@components/ui/DisplayContent';
@@ -87,22 +88,28 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     // remove any tags that are just an empty string
     all_tags = all_tags.filter(tag => tag !== '');
 
+    const [searchMode, setSearchMode] = useState<"words" | "tags">("words");
     const [searchTerm, setSearchTerm] = useState("");
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
     // allow for search
-    const displayedTags = searchTerm
+    const displayedTags = searchMode === "tags" && searchTerm
         ? all_tags.filter(tag => tag.toLowerCase().includes(searchTerm))
         : all_tags;
 
+    const filteredDefsByWord = searchTerm && searchMode === "words"
+        ? sources.filter(def => def.frontmatter.word.toLowerCase().includes(searchTerm))
+        : sources;
 
     // if none selected then show all definitions
-    const filteredDefs = selectedTags.length > 0 ? sources.filter(
-        def => def.frontmatter.word.toLowerCase().startsWith(selectedTags[0]) ||
-            def.frontmatter.linksTo.some((tag: any) => selectedTags.includes(tag)) ||
-            def.frontmatter.linkedFrom.some((tag: any) => selectedTags.includes(tag)) ||
-            selectedTags.includes(def.frontmatter.letter)
-    ) : sources;
+    const displayedDefs = selectedTags.length > 0
+        ? sources.filter(
+            def => def.frontmatter.word.toLowerCase().startsWith(selectedTags[0]) ||
+                def.frontmatter.linksTo.some((tag: any) => selectedTags.includes(tag)) ||
+                def.frontmatter.linkedFrom.some((tag: any) => selectedTags.includes(tag)) ||
+                selectedTags.includes(def.frontmatter.letter)
+        )
+        : filteredDefsByWord;
 
     const handleTagSelect = (tag: string) => {
         if (selectedTags.includes(tag)) {
@@ -120,7 +127,7 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     const renderDefinitions = () => {
         let currentLetter = "";
 
-        return filteredDefs.map((source, i) => {
+        return displayedDefs.map((source, i) => {
             const startNewLetter = source.frontmatter.letter !== currentLetter;
             if (startNewLetter) {
                 currentLetter = source.frontmatter.letter;
@@ -143,12 +150,15 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
         <PostContainer>
             <SideBarContainer>
                 <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
+                <SelectDropDown
+                    options={["Search words", "Search tags"]}
+                    value={searchMode}
+                    onChange={(value) => setSearchMode(value as "words" | "tags")}
+                />
                 <SearchBar
                     value={searchTerm}
                     onChange={(value: string) => setSearchTerm(value.toLowerCase())}
                     placeholder="Search tags..."
-                    styleContainer={{
-                    }}
                 />
                 <TagFilter
                     tags={displayedTags}
