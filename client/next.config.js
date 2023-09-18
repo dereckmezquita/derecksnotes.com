@@ -1,13 +1,20 @@
+const dotenv = require('dotenv');
+
+dotenv.config({ path: '../.env' });
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     reactStrictMode: true,
     async rewrites() {
-        return [
-            {
-                source: '/api/:path*',
-                destination: 'https://derecksnotes.com/api/:path*'
-            },
-        ]
+        if (process.env.NODE_ENV === 'development') {
+            console.log('Detected we are in development mode, proxying API calls to localhost:3001');
+            return [
+                {
+                    source: '/api/:path*',
+                    destination: 'http://localhost:3001/api/:path*'
+                }
+            ]
+        }
     },
     compiler: {
         // https://stackoverflow.com/questions/67352231/why-all-styles-of-materialui-will-disappear-after-refresh-in-nextjs
