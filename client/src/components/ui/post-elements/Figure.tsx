@@ -12,6 +12,17 @@ const CaptionedFigure = styled.figure`
     display: block;
     margin: auto;
     padding: 10px;
+
+    img, Image {
+        border: 1px solid ${theme.container.border.colour.primary()};
+    }
+`;
+
+const Caption = styled.figcaption`
+    padding-bottom: 10px;
+    text-align: right;
+    margin-top: 10px;
+    font-size: 0.8em;
 `;
 
 const LightboxImageContainer = styled.div`
@@ -85,9 +96,9 @@ const Figure: React.FC<ImageProps> = ({ children, ...props }) => {
                         onClick={openLightbox}
                     />
                 )}
-                <figcaption>
+                <Caption>
                     {children}
-                </figcaption>
+                </Caption>
             </CaptionedFigure>
             {lightboxOpen && (
                 <LightboxOverlay onClick={closeLightbox}>
