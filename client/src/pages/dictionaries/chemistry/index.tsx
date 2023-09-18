@@ -23,7 +23,7 @@ const components = {
     a: Link
 };
 
-const dictionary: string = 'biology';
+const dictionary: string = 'chemistry';
 
 interface DefFrontMatter {
     slug?: string;
@@ -83,7 +83,7 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     // replace all underscores with spaces
     // all_tags = all_tags.map(tag => tag.replace(/_/g, ' '));
 
-    all_tags = [...alphabet, ...all_tags]
+    all_tags = [...alphabet, ...all_tags];
 
     // remove any tags that are just an empty string
     all_tags = all_tags.filter(tag => tag !== '');
