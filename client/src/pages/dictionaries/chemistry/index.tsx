@@ -6,15 +6,21 @@ import { GetStaticProps } from 'next';
 import { MDXRemote } from 'next-mdx-remote';
 
 import TagFilter from '@components/ui/TagFilter';
-import SearchBar from '@components/ui/SearchBar';
-import SelectDropDown from '@components/ui/SelectDropDown';
+import SearchBar from '@components/atomic/SearchBar';
+import SelectDropDown from '@components/atomic/SelectDropDown';
 import {
-    PostContainer, SideBarContainer, SideBarSiteName, SideBarAbout, Article, PostContentWrapper
-} from '@components/ui/DisplayContent';
+    PostContainer, SideBarContainer, SideBarSiteName,
+    SideBarAbout, Article, PostContentWrapper
+} from '@components/post-elements/post';
 
-import Figure from '@components/ui/post-elements/Figure';
-import Alert from '@components/ui/post-elements/Alert';
-import Blockquote from '@components/ui/post-elements/Blockquote';
+import Figure from '@components/post-elements/Figure';
+import Alert from '@components/post-elements/Alert';
+import Blockquote from '@components/post-elements/Blockquote';
+
+const dictionary: string = 'chemistry';
+
+// ------------------------------------
+// ------------------------------------
 
 const components = {
     Figure: Figure,
@@ -22,8 +28,6 @@ const components = {
     Blockquote: Blockquote,
     a: Link
 };
-
-const dictionary: string = 'chemistry';
 
 interface DefFrontMatter {
     slug?: string;
@@ -79,9 +83,6 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     let all_tags: string[] = Array.from(new Set(sources.flatMap(def => {
         return [...def.frontmatter.linksTo, ...def.frontmatter.linkedFrom];
     }))).sort();
-
-    // replace all underscores with spaces
-    // all_tags = all_tags.map(tag => tag.replace(/_/g, ' '));
 
     all_tags = [...alphabet, ...all_tags];
 
@@ -174,7 +175,7 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
                 />
                 <SideBarAbout />
             </SideBarContainer>
-            <Article> {/* sideBar={true} style={{ width: "90%" }} */}
+            <Article>
                 <h1>Biology Dictionary</h1>
                 <ol>
                     {
@@ -186,7 +187,7 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     )
 }
 
-// ----------------------------------------
+// ------------------------------------
 import path from 'path';
 import fs from 'fs';
 import { ROOT } from '@constants/misc';
@@ -205,7 +206,7 @@ import rehypeSlug from 'rehype-slug'; // adds id to headers
 import rehypeMathjax from 'rehype-mathjax';
 
 // custom rehype plugins
-import rehypeLinkToDefinition from '@utils/rehype/rehypeLinkToDefinition';
+import rehypeLinkToDefinition from '@utils/rehype/rehypeLinkToDefinition'; // adds href to word anchor
 
 export const getStaticProps: GetStaticProps = async () => {
     // get post content and process
