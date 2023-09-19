@@ -8,19 +8,27 @@ import { RootState } from '@store/store';
 
 import TagFilter from '@components/ui/TagFilter';
 import {
-    PostContainer, SideBarContainer, SideBarSiteName, SideBarEntriesContainer, SideEntryLink, SideBarAbout, Article, PostContentWrapper
-} from '@components/ui/DisplayContent';
+    PostContainer, SideBarContainer, SideBarSiteName,
+    SideBarEntriesContainer, SideEntryLink, SideBarAbout,
+    Article, PostContentWrapper
+} from '@components/post-elements/post';
 
 
-import CommentForm from '@components/ui/comments-section/CommentForm';
-import CommentList from '@components/ui/comments-section/CommentList';
-import CommentItem from '@components/ui/comments-section/CommentItem';
+import CommentForm from '@components/comments-section/CommentForm';
+import CommentList from '@components/comments-section/CommentList';
+import Comment from '@components/comments-section/Comment';
 
+// ------------------------------------
 // component imports to be used in MDX
-import Figure from '@components/ui/post-elements/Figure';
+import Figure from '@components/post-elements/Figure';
 import DropCap from '@components/ui/DropCap';
-import Alert from '@components/ui/post-elements/Alert';
-import Blockquote from '@components/ui/post-elements/Blockquote';
+import Alert from '@components/post-elements/Alert';
+import Blockquote from '@components/post-elements/Blockquote';
+
+const dictionary: string = 'chemistry';
+
+// ------------------------------------
+// ------------------------------------
 
 const components = {
     Figure: Figure,
@@ -28,8 +36,6 @@ const components = {
     Alert: Alert,
     Blockquote: Blockquote,
 };
-
-const dictionary: string = 'chemistry';
 
 interface DefFrontMatter {
     slug?: string;
@@ -52,6 +58,20 @@ interface PostPageProps {
     word: string;
     source: any;
     side_bar_data: DefFrontMatter[];
+}
+
+// TODO: this is test code
+const HelloFromServer = () => {
+    const [message, setMessage] = useState('');
+
+    useEffect(() => {
+        // Fetch data from the Express server
+        fetch('http://localhost:3001/api/hello')
+            .then(response => response.json())
+            .then(data => setMessage(data.message));
+    }, []);
+
+    return <div>{message}</div>;
 }
 
 const PostPage: React.FC<PostPageProps> = ({ word, source, side_bar_data }) => {
@@ -124,6 +144,7 @@ const PostPage: React.FC<PostPageProps> = ({ word, source, side_bar_data }) => {
             />
             <PostContainer>
                 <SideBarContainer>
+                    <HelloFromServer /> {/* TODO: remove */}
                     <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
                     <SideBarEntriesContainer>
                         {filteredPosts.map((meta) => (
@@ -146,7 +167,7 @@ const PostPage: React.FC<PostPageProps> = ({ word, source, side_bar_data }) => {
                             <MDXRemote {...source} components={components} />
                         </PostContentWrapper>}
                     <CommentForm onSubmit={() => { }} />
-                    <CommentItem
+                    <Comment
                         comment={{ id: 'yeet1', text: 'comoment', author: { id: 'yeet1', name: 'reg', profileImage: 'sdfse' }, replies: [] }}
                         currentUserId='yeet1'
                     />
@@ -216,8 +237,6 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
             notFound: true
         };
     }
-
-    console.log(mdxSource);
 
     return {
         props: {
