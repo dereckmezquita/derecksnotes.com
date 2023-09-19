@@ -1,6 +1,5 @@
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
-import { useEffect, useRef, useState } from 'react';
 import { FaSearch } from 'react-icons/fa';
 
 const SearchContainer = styled.div`
@@ -30,7 +29,7 @@ const SearchInput = styled.input`
 
 const SearchIcon = styled(FaSearch)`
     margin-right: 5px;
-    color: hsl(205, 70%, 50%);
+    color: ${theme.icon.colour()};
 `;
 
 interface SearchBarProps {

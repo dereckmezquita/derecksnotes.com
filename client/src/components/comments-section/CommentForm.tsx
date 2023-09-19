@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
 
+import Button from '@components/atomic/Button';
+
 const Form = styled.form`
     background-color: ${theme.container.background.colour.primary()};
     border-top: 1px dashed ${theme.container.border.colour.primary()};
@@ -21,15 +23,6 @@ const Input = styled.textarea`
     margin-bottom: 10px;
     resize: vertical;
     min-height: 100px;
-`;
-
-const SubmitButton = styled.button`
-    padding: 5px 15px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    background-color: hsl(205, 70%, 50%);
-    color: white;
 `;
 
 interface CommentFormProps {
@@ -56,7 +49,7 @@ const CommentForm: React.FC<CommentFormProps> = ({ onSubmit }) => {
                 placeholder="Add a comment..."
                 rows={1}
             />
-            <SubmitButton type="submit">Post</SubmitButton>
+            <Button type="submit">Post</Button>
         </Form>
     );
 };

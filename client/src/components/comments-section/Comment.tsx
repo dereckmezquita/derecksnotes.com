@@ -89,7 +89,7 @@ interface Comment {
     replies: Comment[];
 }
 
-interface CommentItemProps {
+interface CommentProps {
     comment: Comment;
     currentUserId: string; // ID of the user who's currently logged in
     onReply?: (id: string) => void;
@@ -97,7 +97,7 @@ interface CommentItemProps {
     onDelete?: (id: string) => void;
 }
 
-const CommentItem: React.FC<CommentItemProps> = ({ comment, currentUserId, onReply, onEdit, onDelete }) => {
+const Comment: React.FC<CommentProps> = ({ comment, currentUserId, onReply, onEdit, onDelete }) => {
     const isCurrentUser = currentUserId === comment.author.id;
 
     return (
@@ -120,11 +120,11 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, currentUserId, onRep
             <CommentText>{comment.text}</CommentText>
             <RepliesContainer>
                 {comment.replies.map(reply => (
-                    <CommentItem key={reply.id} comment={reply} currentUserId={currentUserId} onReply={onReply} onEdit={onEdit} onDelete={onDelete} />
+                    <Comment key={reply.id} comment={reply} currentUserId={currentUserId} onReply={onReply} onEdit={onEdit} onDelete={onDelete} />
                 ))}
             </RepliesContainer>
         </CommentContainer>
     );
 };
 
-export default CommentItem;
+export default Comment;
