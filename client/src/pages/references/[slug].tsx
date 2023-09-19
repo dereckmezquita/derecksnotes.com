@@ -8,15 +8,22 @@ import { RootState } from '@store/store';
 
 import TagFilter from '@components/ui/TagFilter';
 import {
-    PostContainer, SideBarContainer, SideBarSiteName, SideBarEntriesContainer, SideEntryLink, SideBarAbout, Article, PostContentWrapper
-} from '@components/ui/DisplayContent';
+    PostContainer, SideBarContainer, SideBarSiteName,
+    SideBarEntriesContainer, SideEntryLink, SideBarAbout,
+    Article, PostContentWrapper
+} from '@components/post-elements/post';
 
+const section: string = 'references';
 
+// ------------------------------------
 // component imports to be used in MDX
-import Figure from '@components/ui/post-elements/Figure';
+import Figure from '@components/post-elements/Figure';
 import DropCap from '@components/ui/DropCap';
-import Alert from '@components/ui/post-elements/Alert';
-import Blockquote from '@components/ui/post-elements/Blockquote';
+import Alert from '@components/post-elements/Alert';
+import Blockquote from '@components/post-elements/Blockquote';
+
+// ------------------------------------
+// ------------------------------------
 
 const components = {
     Figure: Figure,
@@ -24,8 +31,6 @@ const components = {
     Alert: Alert,
     Blockquote: Blockquote,
 };
-
-const section: string = 'references';
 
 interface FrontMatter {
     slug?: string;
