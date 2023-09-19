@@ -1,25 +1,25 @@
 import React from 'react';
 import styled from 'styled-components';
-import CommentItem from './CommentItem';
+import Comment from './Comment';
 
 const ListContainer = styled.div`
     /* Add any desired styling for the container of the comments here */
 `;
 
-interface Comment {
+interface UserComment {
     id: string;
     text: string;
 }
 
 interface CommentListProps {
-    comments: Comment[];
+    comments: UserComment[];
 }
 
 const CommentList: React.FC<CommentListProps> = ({ comments }) => {
     return (
         <ListContainer>
             {comments.map(comment => (
-                <CommentItem key={comment.id} comment={comment} />
+                <Comment key={comment.id} comment={comment} />
             ))}
         </ListContainer>
     );

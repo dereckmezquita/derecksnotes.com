@@ -32,6 +32,7 @@ export const SideBarContainer = styled.div`
         display: none;
     }
 `;
+
 export const SideBarSiteName = styled(SiteName) <{ fontSize: string }>`
     font-size: 20px;
     border-bottom: 1px dashed ${theme.container.border.colour.primary()};

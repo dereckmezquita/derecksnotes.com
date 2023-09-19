@@ -1,10 +1,13 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
+import { FaLinkedin, FaFilter, FaUser } from 'react-icons/fa';
 import { theme } from '@styles/theme';
 
 import { useDispatch } from 'react-redux';
 import { toggleTagsFilter } from '@store/tagsFilterVisibilitySlice'; // control visibility of tag filter
+
+import LoginModal from '../modals/AuthModal';
 
 const NavContainer = styled.nav`
     background-color: ${theme.container.background.colour.primary()};
@@ -54,14 +57,7 @@ const NavRightItem = styled(CommonNavItem) <{ rightmost?: boolean }>`
     float: right;
 `;
 
-const CommonNavImage = styled.img`
-    height: 16px;
-    cursor: pointer;
-`;
-
-const NavImage = styled(CommonNavImage)``;
-
-const NavUIImage = styled(CommonNavImage)`
+const IconFilter = styled(FaFilter)`
     opacity: 0.2;
     transition: opacity 0.5s ease-in-out;
     &:hover {
@@ -129,6 +125,7 @@ const DateTimeDisplay = styled.div`
 function NavBar() {
     const [hasMounted, setHasMounted] = useState(false);
     const [dateTime, setDateTime] = useState<string | null>(null);
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
     useEffect(() => {
         setHasMounted(true);
@@ -180,12 +177,16 @@ function NavBar() {
             </DropDownContainer>
 
             <NavRightItemLink href='https://www.linkedin.com/in/dereck/' target='_blank' title='LinkedIn'>
-                <NavImage src='/site-images/icons/linkedin.png' />
+                <FaLinkedin />
             </NavRightItemLink>
             <DateTimeDisplay>{dateTime || "00 Jan 00:00:00"}</DateTimeDisplay>
             <NavRightItem onClick={handleToggleFilterClick}>
-                <NavUIImage src='/site-images/ui/filter-solid.svg' />
+                <IconFilter />
             </NavRightItem>
+            <NavRightItem onClick={() => setIsLoginModalOpen(true)}>
+                <FaUser />
+            </NavRightItem>
+            {isLoginModalOpen && <LoginModal onClose={() => setIsLoginModalOpen(false)} />}
         </NavContainer>
     )
 }
