@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
-import { ROOT } from '@constants/misc';
+import { ROOT } from '@constants/config';
 
 import { remark } from 'remark';
 import strip from 'strip-markdown';

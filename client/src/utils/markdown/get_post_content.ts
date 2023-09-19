@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from "path";
-import { ROOT } from "@constants/misc";
+import { ROOT } from "@constants/config";
 import matter from "gray-matter";
 
 export default function get_post_content(folder: string, slug: string): matter.GrayMatterFile<string> {
