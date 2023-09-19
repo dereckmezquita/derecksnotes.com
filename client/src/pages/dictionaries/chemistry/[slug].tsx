@@ -253,7 +253,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
 // so that nextjs can pre-render all the possible
 import path from 'path';
 import fs from 'fs';
-import { ROOT } from '@constants/misc';
+import { ROOT } from '@constants/config';
 
 export const getStaticPaths: GetStaticPaths = async () => {
     const posts: string[] = fs.readdirSync(path.join(ROOT, 'content', 'dictionaries', dictionary));
