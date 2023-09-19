@@ -12,6 +12,9 @@ export function hsla_colour(h: number, s: number, l: number, a: number = 1) {
 
 export const theme = {
     theme_colours: colour_scheme,
+    icon: {
+        colour: hsla_colour(205, 70, 50, 1)
+    },
     container: {
         background: {
             colour: {
