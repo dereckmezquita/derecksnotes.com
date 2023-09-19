@@ -190,7 +190,7 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
 // ------------------------------------
 import path from 'path';
 import fs from 'fs';
-import { ROOT } from '@constants/misc';
+import { ROOT } from '@constants/config';
 
 import { serialize } from 'next-mdx-remote/serialize';
 
