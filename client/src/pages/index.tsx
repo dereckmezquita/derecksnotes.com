@@ -1,14 +1,18 @@
-// src/pages/index.tsx
 import { useState } from 'react';
 import { GetStaticProps } from 'next';
 import styled from 'styled-components';
 
-import PostPreview from '@components/PostPreview';
+import CardPreview from '@components/ui/CardPreview';
 import TagFilter from '@components/ui/TagFilter';
 import get_post_metadata from '@utils/markdown/get_post_metadata';
 
 import { useSelector } from 'react-redux';
 import { RootState } from '@store/store';
+
+const section: string = 'blog';
+
+// ------------------------------------
+// ------------------------------------
 
 const Container = styled.div`
     width: 70%;
@@ -60,7 +64,7 @@ function Home({ posts }: { posts: PostMetadata[] }) {
             />
             <Grid>
                 {filteredPosts.map(post => (
-                    <PostPreview key={post.slug} {...post} />
+                    <CardPreview key={post.slug} {...post} />
                 ))}
             </Grid>
         </Container>
@@ -68,7 +72,7 @@ function Home({ posts }: { posts: PostMetadata[] }) {
 }
 
 export const getStaticProps: GetStaticProps = async () => {
-    let posts: PostMetadata[] = get_post_metadata("blog");
+    let posts: PostMetadata[] = get_post_metadata(section);
     posts = posts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     // filter out any posts with published false
