@@ -152,14 +152,20 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
             <SideBarContainer>
                 <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
                 <SelectDropDown
-                    options={["Search words", "Search tags"]}
+                    options={[
+                        { label: "Search words", value: "words" },
+                        { label: "Search tags", value: "tags" },
+                    ]}
                     value={searchMode}
-                    onChange={(value) => setSearchMode(value as "words" | "tags")}
+                    onChange={(value) => {
+                        setSearchMode(value as "words" | "tags");
+                        setSearchTerm(""); // Clear the search term when switching modes
+                    }}
                 />
                 <SearchBar
                     value={searchTerm}
                     onChange={(value: string) => setSearchTerm(value.toLowerCase())}
-                    placeholder="Search tags..."
+                    placeholder={searchMode === "words" ? "Search words..." : "Search tags..."}
                 />
                 <TagFilter
                     tags={displayedTags}
@@ -176,7 +182,7 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
                 <SideBarAbout />
             </SideBarContainer>
             <Article>
-                <h1>Biology Dictionary</h1>
+                <h1>Chemistry Dictionary</h1>
                 <ol>
                     {
                         isClient && renderDefinitions()
