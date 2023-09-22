@@ -38,8 +38,13 @@ const DropdownIcon = styled.div`
     }
 `;
 
+interface Option {
+    label: string;
+    value: string;
+}
+
 interface CustomSelectProps {
-    options: string[];
+    options: Option[];
     value: string;
     onChange: (value: string) => void;
     styleContainer?: React.CSSProperties;
@@ -50,8 +55,8 @@ const SelectDropDown: React.FC<CustomSelectProps> = ({ options, value, onChange,
         <SelectContainer style={styleContainer}>
             <CustomSelect value={value} onChange={(e) => onChange(e.target.value)}>
                 {options.map(option => (
-                    <option key={option} value={option}>
-                        {option}
+                    <option key={option.value} value={option.value}>
+                        {option.label}
                     </option>
                 ))}
             </CustomSelect>
