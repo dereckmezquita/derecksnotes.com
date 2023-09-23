@@ -1,12 +1,11 @@
-const api_register = async (email: string, username: string, password: string) => {
+const api_me = async () => {
     try {
-        const response = await fetch('/api/auth/register', {
-            method: 'POST',
+        const response = await fetch('/api/auth/me', {
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email, username, password }),
-            credentials: 'include',
+            credentials: 'include', // Ensure session cookie is sent with the request
         });
 
         const data = await response.json();
@@ -20,4 +19,4 @@ const api_register = async (email: string, username: string, password: string) =
     }
 };
 
-export default api_register;
+export default api_me;

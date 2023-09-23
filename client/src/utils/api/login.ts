@@ -1,17 +1,17 @@
-const api_register = async (email: string, username: string, password: string) => {
+const api_login = async (username: string, password: string) => {
     try {
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch('/api/auth/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ email, username, password }),
+            body: JSON.stringify({ username, password }),
             credentials: 'include',
         });
 
         const data = await response.json();
         if (!response.ok) {
-            throw new Error(data.message || 'Something went wrong!');
+            throw new Error(data.message || 'Something went wrong during login!');
         }
 
         return data;
@@ -20,4 +20,4 @@ const api_register = async (email: string, username: string, password: string) =
     }
 };
 
-export default api_register;
+export default api_login;
