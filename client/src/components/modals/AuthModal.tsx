@@ -3,8 +3,11 @@ import styled from 'styled-components';
 import { FaUser, FaLock, FaAt } from 'react-icons/fa';
 import { theme } from '@styles/theme';
 
-import api_register from '@utils/api/register';
 import Button from '@components/atomic/Button';
+
+import api_register from '@utils/api/register';
+import api_login from '@utils/api/login';
+import api_me from '@utils/api/me';
 
 const ModalOverlay = styled.div`
     position: fixed;
@@ -91,31 +94,66 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     const [password, setPassword] = useState('');
     const [modalContent, setModalContent] = useState<'LOGIN' | 'REGISTER' | 'FORGOT_PASSWORD'>('LOGIN');
 
-    const handleLogin = (e: React.FormEvent) => {
+    const [isLoading, setIsLoading] = useState(false);
+
+    // ------------------ LOGIN ------------------
+    const [loginError, setLoginError] = useState<string | null>(null);
+    const [userData, setUserData] = useState<UserInfo | null>(null);
+
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Logic to handle login
+
+        if (!username || !password) {
+            alert("Username and password should not be empty!"); // Simple alert for user feedback
+            return;
+        }
+
+        setIsLoading(true); // start the spinner or any loading indication
+
+        try {
+            const response = await api_login(username, password);
+
+            const userDataResponse = await api_me();
+            setUserData(userDataResponse);
+
+            alert("Logged in successfully!"); // Simple alert for user feedback
+            onClose(); // Close the modal
+
+        } catch (error: any) {
+            // If the server returns a message, use that, else default to a generic error message
+            setLoginError(error.response?.data || "Error logging in. Please try again.");
+        } finally {
+            setIsLoading(false); // stop the spinner or loading indication
+        }
     };
+
+    // ------------------ REGISTER ------------------
+    const [registerError, setRegisterError] = useState<string | null>(null);
+    const [registerSuccess, setRegisterSuccess] = useState<string | null>(null);
 
     const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-    
+
+        setRegisterError(null); // reset any previous errors
+        setRegisterSuccess(null); // reset any previous success messages
+
         const form = e.currentTarget;
         const email = (form.elements.namedItem('newEmail') as HTMLInputElement)?.value;
         const username = (form.elements.namedItem('newUsername') as HTMLInputElement)?.value;
         const password = (form.elements.namedItem('newPassword') as HTMLInputElement)?.value;
-    
+
         if (!email || !username || !password) {
             // Handle error (fields should not be empty)
             return;
         }
-    
+
         try {
             const data = await api_register(email, username, password);
-            console.log(data); // Handle the success scenario, like showing a success message or navigating the user to the dashboard.
-        } catch (error) {
-            console.error(error); // Handle the error scenario, like showing an error message to the user.
+            setRegisterSuccess(data.message);
+        } catch (error: any) {
+            setRegisterError(error.message);
         }
-    };    
+    };
 
     const handlePasswordReset = (e: React.FormEvent) => {
         e.preventDefault();
@@ -123,11 +161,30 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
     };
 
     const renderModalContent = () => {
+        if (userData) {
+            return (
+                <>
+                    <h2>Welcome, {userData.username}</h2>
+                    <p>
+                        Email: {userData.email?.address}
+                        {/* Add any other user details you want to display */}
+                    </p>
+                    <Button onClick={onClose}>Close</Button>
+                </>
+            );
+        }
+
         switch (modalContent) {
             case 'LOGIN':
                 return (
                     <>
                         <h2>Login</h2>
+                        {
+                            isLoading && <p>Loading...</p> // or replace with a spinner component if you have one
+                        }
+                        {
+                            loginError && <p style={{ color: 'red' }}>{loginError}</p> // Displaying error messages
+                        }
                         <StyledForm onSubmit={handleLogin}>
                             <InputField>
                                 <FaUser style={{ marginRight: '10px' }} />
@@ -163,6 +220,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                 return (
                     <>
                         <h2>Register</h2>
+                        {registerError && <p style={{ color: 'red' }}>{registerError}</p>}
+                        {registerSuccess && <p style={{ color: 'green' }}>{registerSuccess}</p>}
                         <StyledForm onSubmit={handleRegister}>
                             <InputField>
                                 <FaAt style={{ marginRight: '10px' }} />
