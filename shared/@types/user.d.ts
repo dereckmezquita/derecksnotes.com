@@ -17,12 +17,10 @@ declare global {
             geoLocations: GeoLocation[];
             lastConnected: Date;
             numberOfComments?: number;
-            commentsJudged?: [
-                {
-                    commentId: string;
-                    judgement: 'like' | 'dislike';
-                }
-            ]
+            commentsJudged?: {
+                commentId: string;
+                judgement: 'like' | 'dislike';
+            }[];
         }
     }
 }
