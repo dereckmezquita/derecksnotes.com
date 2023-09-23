@@ -70,7 +70,7 @@ async function main(): Promise<void> {
         res.send('Hello World!');
     });
 
-    app.listen(PORT, '0.0.0.0', () => {
+    app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}`);
     });
 }
