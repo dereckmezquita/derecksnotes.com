@@ -1,7 +1,7 @@
 import http from 'http';
 import getUnicodeFlagIcon from 'country-flag-icons/unicode';
 
-export const geoLocate = (ip: string): Promise<ResGeolocation> => {
+export default function geoLocate(ip: string): Promise<ResGeoLocation> {
     return new Promise((resolve, reject) => { // promise just need to await it
         const req = http.request(`http://ip-api.com/json/${ip}?fields=status,message,country,countryCode,regionName,city,isp,org`, {
             method: 'GET'
@@ -41,7 +41,7 @@ export const geoLocate = (ip: string): Promise<ResGeolocation> => {
 
                 delete parsed_body.status;
 
-                const locateRes: ResGeolocation = {
+                const locateRes: ResGeoLocation = {
                     ip_address: ip,
                     ...parsed_body,
                     flag: getUnicodeFlagIcon(parsed_body.countryCode)
