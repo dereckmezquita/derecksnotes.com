@@ -127,6 +127,14 @@ function NavBar() {
     const [dateTime, setDateTime] = useState<string | null>(null);
     const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
+    // redux control of tag filter
+    // Error: `useDispatch` was conditionally called inside an `if` statement. Fixed: Moved `useDispatch` to the top-level, ensuring consistent hook order across renders.
+    const dispatch = useDispatch();
+
+    const handleToggleFilterClick = () => {
+        dispatch(toggleTagsFilter());
+    };
+
     useEffect(() => {
         setHasMounted(true);
 
@@ -155,13 +163,6 @@ function NavBar() {
     if (!hasMounted) {
         return null;
     }
-
-    // redux control of tag filter
-    const dispatch = useDispatch();
-
-    const handleToggleFilterClick = () => {
-        dispatch(toggleTagsFilter());
-    };
 
     return (
         <NavContainer>
