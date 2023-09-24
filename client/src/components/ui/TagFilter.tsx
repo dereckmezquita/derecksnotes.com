@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { toggleTagsFilter } from '@store/tagsFilterVisibilitySlice';
 
-const FilterContainer = styled.div<{ visible: boolean }>`
+// need to use $ to indicate that this prop is not to be passed to the DOM
+// causes warning otherwise
+const FilterContainer = styled.div<{ $isVisible?: boolean }>`
     // width and margin to centre if not in a flex container
     width: 100%;
     margin: 0 auto;
@@ -22,7 +24,7 @@ const FilterContainer = styled.div<{ visible: boolean }>`
     border-radius: 5px;
     box-shadow: ${theme.container.shadow.primary};
     z-index: 1;
-    display: ${props => props.visible ? 'flex' : 'none'};
+    display: ${props => props.$isVisible ? 'flex' : 'none'};
     flex-wrap: wrap; // Allow tags to wrap to the next line if needed
     gap: 10px; // Provides consistent spacing between the tags
 `;
@@ -148,7 +150,7 @@ const TagFilter: React.FC<TagFilterProps> = ({
             ref={containerRef}
             onMouseUp={endDrag}
             onMouseLeave={endDrag}
-            visible={visible}
+            $isVisible={visible}
             style={styleContainer}
         >
             <ClearAllButton onClick={clearAllTags} />
