@@ -50,7 +50,9 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onSwitchToForgotPassw
 
     return (
         <>
-            <h2>Login</h2>
+            <h2>
+                Login
+            </h2>
             {isLoading && <p>Loading...</p>}
             {loginError && <p style={{ color: 'red' }}>{loginError}</p>}
             <StyledForm onSubmit={handleLogin}>
@@ -76,10 +78,10 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onSwitchToForgotPassw
                 </InputField>
                 <StyledButton type="submit">Login</StyledButton>
             </StyledForm>
-            <LinkButton onClick={onSwitchToRegister}>
+            <LinkButton onClick={onSwitchToRegister} style={{float: 'left'}}>
                 Register
             </LinkButton>
-            <LinkButton onClick={onSwitchToForgotPassword}>
+            <LinkButton onClick={onSwitchToForgotPassword} style={{float: 'right'}}>
                 Reset password
             </LinkButton>
         </>
