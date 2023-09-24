@@ -1,3 +1,5 @@
+import 'module-alias/register'; // allow for @ imports
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
