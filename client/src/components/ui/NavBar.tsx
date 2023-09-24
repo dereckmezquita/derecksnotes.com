@@ -7,7 +7,7 @@ import { theme } from '@styles/theme';
 import { useDispatch } from 'react-redux';
 import { toggleTagsFilter } from '@store/tagsFilterVisibilitySlice'; // control visibility of tag filter
 
-import Auth from '../modals/Auth';
+import Auth from '../modals/auth/Auth';
 
 const NavContainer = styled.nav`
     background-color: ${theme.container.background.colour.primary()};
