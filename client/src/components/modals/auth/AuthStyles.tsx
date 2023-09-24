@@ -63,14 +63,6 @@ export const LinkButton = styled.a`
     }
 `;
 
-export const RegisterLink = styled(LinkButton)`
-    float: left;
-`;
-
-export const ResetLink = styled(LinkButton)`
-    float: right;
-`;
-
 export const StyledForm = styled.form`
     margin-bottom: 20px;
 `;
