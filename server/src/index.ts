@@ -6,7 +6,7 @@ import { RedisClientOptions, RedisFunctions, RedisModules, RedisScripts, createC
 import makeRedisStore from 'connect-redis';
 
 import { connectToDB } from './utils/mongoConnect';
-import authRoutes from './routes/authRoutes';
+import { authRoutes } from './routes/index';
 
 dotenv.config({ path: '../.env' });
 const PORT: number = 3001;
