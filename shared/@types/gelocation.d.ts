@@ -2,7 +2,7 @@ export {};
 
 declare global {
     // info we get back from api
-    interface ResGeolocation {
+    interface ResGeoLocation {
         ip: string;
         country: string;
         countryCode: string;
@@ -13,7 +13,7 @@ declare global {
         org: string;
     }
 
-    interface Geolocation extends ResGeolocation {
+    interface GeoLocation extends ResGeolocation {
         firstUsed: Date;
         lastUsed: Date;
     }
