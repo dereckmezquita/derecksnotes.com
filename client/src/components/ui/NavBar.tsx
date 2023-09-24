@@ -7,7 +7,7 @@ import { theme } from '@styles/theme';
 import { useDispatch } from 'react-redux';
 import { toggleTagsFilter } from '@store/tagsFilterVisibilitySlice'; // control visibility of tag filter
 
-import LoginModal from '../modals/AuthModal';
+import Auth from '../modals/Auth';
 
 const NavContainer = styled.nav`
     background-color: ${theme.container.background.colour.primary()};
@@ -125,7 +125,7 @@ const DateTimeDisplay = styled.div`
 function NavBar() {
     const [hasMounted, setHasMounted] = useState(false);
     const [dateTime, setDateTime] = useState<string | null>(null);
-    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
     // redux control of tag filter
     // Error: `useDispatch` was conditionally called inside an `if` statement. Fixed: Moved `useDispatch` to the top-level, ensuring consistent hook order across renders.
@@ -184,10 +184,10 @@ function NavBar() {
             <NavRightItem onClick={handleToggleFilterClick}>
                 <IconFilter />
             </NavRightItem>
-            <NavRightItem onClick={() => setIsLoginModalOpen(true)}>
+            <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
                 <FaUser />
             </NavRightItem>
-            {isLoginModalOpen && <LoginModal onClose={() => setIsLoginModalOpen(false)} />}
+            {isAuthModalOpen && <Auth onClose={() => setIsAuthModalOpen(false)} />}
         </NavContainer>
     )
 }
