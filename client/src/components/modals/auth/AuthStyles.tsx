@@ -24,6 +24,7 @@ export const ModalContainer = styled.div`
     border: 1px solid ${theme.container.border.colour.primary()};
     border-radius: 5px;
     box-shadow: ${theme.container.shadow.box};
+    color: ${theme.text.colour.primary()};
     @media (max-width: ${theme.container.widths.min_width_snap_up}) {
         width: 95%;
     }
