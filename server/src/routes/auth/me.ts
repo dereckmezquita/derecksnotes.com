@@ -33,6 +33,8 @@ me.get('/me', async (req, res) => {
 
         user.metadata.lastConnected = new Date();
 
+        // be careful not to save before deleting data
+        await user.save();
         // Remove password from the response
         user.password = undefined;
 
@@ -40,7 +42,6 @@ me.get('/me', async (req, res) => {
         user.metadata.geoLocations = user.metadata.geoLocations.slice(-10);
         user.metadata.commentsJudged = user.metadata.commentsJudged ? user.metadata.commentsJudged.slice(-10) : [];
 
-        await user.save();
         res.status(200).json(user);
     } catch (error) {
         console.error("/me Endpoint Error:", error);
