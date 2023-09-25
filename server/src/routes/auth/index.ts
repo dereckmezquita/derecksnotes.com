@@ -7,9 +7,9 @@ import me from './me';
 
 const authRoutes = Router();
 
-authRoutes.use('/login', login);
-authRoutes.use('/register', register);
-authRoutes.use('/logout', logout);
-authRoutes.use('/me', me);
+authRoutes.use('/', login);
+authRoutes.use('/', register);
+authRoutes.use('/', logout);
+authRoutes.use('/', me);
 
 export default authRoutes;
