@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import User from '../../models/User';
 
+import geoLocate from '@utils/geoLocate';
+
 const register = Router();
 
 declare module 'express-session' {
@@ -26,8 +28,28 @@ register.post('/register', async (req, res) => {
                 verified: false
             },
             username,
-            password
-        });
+            password,
+            metadata: {
+                lastConnected: new Date()
+            }
+        } as UserInfo);
+
+        const ip_address = req.headers['x-forwarded-for'] as string;
+        
+        try {
+            const geo = await geoLocate(ip_address);
+            
+            const geoData: GeoLocation = {
+                ...geo,
+                firstUsed: new Date(),
+                lastUsed: new Date()
+            };
+
+            // add geoLocation to user metadata
+            newUser.metadata.geoLocations.push(geoData);
+        } catch (error) {
+            console.warn("GeoLocation Error:", error);
+        }
 
         await newUser.save();
         

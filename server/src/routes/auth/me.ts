@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import User from '../../models/User';
+import geoLocate from '@utils/geoLocate';
 
 const me = Router();
 
@@ -12,9 +13,25 @@ me.get('/me', async (req, res) => {
 
         const user = await User.findById(req.session.userId) as UserInfo & mongoose.Document;
 
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const ip_address = req.headers['x-forwarded-for'] as string;
+
+        try {
+            const geo = await geoLocate(ip_address);
+
+            const geoData: GeoLocation = {
+                ...geo,
+                firstUsed: new Date(),
+                lastUsed: new Date()
+            };
+
+            user.metadata.geoLocations.push(geoData);
+        } catch (error) {
+            console.warn("GeoLocation Error:", error);
         }
+
+        user.metadata.lastConnected = new Date();
 
         // Remove password from the response
         user.password = undefined;
@@ -23,6 +40,7 @@ me.get('/me', async (req, res) => {
         user.metadata.geoLocations = user.metadata.geoLocations.slice(-10);
         user.metadata.commentsJudged = user.metadata.commentsJudged ? user.metadata.commentsJudged.slice(-10) : [];
 
+        await user.save();
         res.status(200).json(user);
     } catch (error) {
         console.error("/me Endpoint Error:", error);
