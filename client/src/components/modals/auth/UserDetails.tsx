@@ -102,7 +102,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
                 {metadata.commentsJudged.length}
             </InfoBlock>
             <StyledButton style={{ float: 'left' }} onClick={handleLogout}>Logout</StyledButton>
-            <LinkToProfile style={{ float: 'right' }} href={`/myaccount`}>
+            <LinkToProfile
+                style={{ float: 'right' }}
+                href={`/myaccount`}
+                onClick={onClose}
+            >
                 My profile
             </LinkToProfile>
         </CardContainer>
