@@ -143,7 +143,7 @@ const TagFilter: React.FC<TagFilterProps> = ({
 
         // Cleanup the event listener when component unmounts.
         return () => window.removeEventListener('resize', handleResize);
-    }, [visible, dispatch]);
+    }, [visible, dispatch, min_width]);
 
     return (
         <FilterContainer
