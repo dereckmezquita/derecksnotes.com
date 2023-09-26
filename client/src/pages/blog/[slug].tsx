@@ -139,7 +139,7 @@ import rehypeMathjax from 'rehype-mathjax';
 import remarkToc from '@utils/remark/remarkToc'; // generates TOC without removing leading paragraph
 import rehypeTocCollapse from '@utils/rehype/rehypeTocCollapse';
 import rehypeAddHeadingLinks from '@utils/rehype/rehypeAddHeadingLinks';
-import rehypeDropCap from '@utils/rehype/deprecated/rehypeDropCap';
+import rehypeDropCap from '@utils/rehype/rehypeDropCap';
 
 import { theme } from '@styles/theme'
 
