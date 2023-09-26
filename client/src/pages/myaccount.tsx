@@ -172,7 +172,7 @@ const Account: React.FC = () => {
                         <Icon as={FaComment} />Your Comments
                     </h3>
                     <p>
-                        You've made a total of {metadata.numberOfComments} comments.
+                        Total comments: {metadata.numberOfComments}
                     </p>
                     <CommentList comments={userComments} currentUserId={userInfo.username} />
                 </section>
