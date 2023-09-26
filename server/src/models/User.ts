@@ -3,38 +3,43 @@ import bcrypt from 'bcrypt';
 
 const userSchema = new mongoose.Schema({
     name: {
-        first: String,
-        last: String
+        first: { type: String, default: null },
+        last: { type: String, default: null }
     },
     profilePhotos: {
         type: [String],
         default: []
     },
     email: {
-        address: { type: String, unique: true },
+        address: { type: String, unique: true, required: true },
         verified: Boolean
     },
-    username: { type: String, unique: true },
+    username: { type: String, unique: true, required: true },
     password: { type: String, required: true },
     metadata: {
-        geoLocations: [{
-            ip: String,
-            country: String,
-            countryCode: String,
-            flag: String,
-            regionName: String,
-            city: String,
-            isp: String,
-            org: String,
-            firstUsed: Date,
-            lastUsed: Date
-        }],
-        lastConnected: Date,
-        numberOfComments: Number,
-        commentsJudged: [{
-            commentId: String,
-            judgement: { type: String, enum: ['like', 'dislike'] }
-        }]
+        geoLocations: [
+            {
+                ip: String,
+                country: String,
+                countryCode: String,
+                flag: String,
+                regionName: String,
+                city: String,
+                isp: String,
+                org: String,
+                firstUsed: Date,
+                lastUsed: Date
+            }
+        ],
+        lastConnected: { type: Date, default: Date.now },
+        numberOfComments: { type: Number, default: 0 },
+        commentsJudged: {
+            type: [{
+                commentId: String,
+                judgement: { type: String, enum: ['like', 'dislike'] }
+            }],
+            default: []
+        }
     }
 });
 
