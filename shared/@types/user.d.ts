@@ -2,9 +2,9 @@ export { };
 
 declare global {
     interface UserInfo {
-        name?: {
-            first: string;
-            last: string;
+        name: {
+            first: string | null;
+            last: string | null;
         };
         profilePhotos: string[];
         email: {
