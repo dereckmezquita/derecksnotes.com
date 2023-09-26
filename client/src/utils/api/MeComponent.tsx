@@ -23,6 +23,7 @@ export const ApiMe: React.FC = () => {
         const fetchUserData = async () => {
             try {
                 const data = await api_me();
+                console.log(data);
                 setUser(data);
             } catch (err: any) {
                 setError(err.message);
@@ -72,6 +73,8 @@ export const ReduxMe: React.FC = () => {
     if (!userState.isAuthenticated || !userState.data) {
         return <div>No user data available.</div>;
     }
+
+    console.log(userState);
 
     return (
         <div>
