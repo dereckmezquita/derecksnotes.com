@@ -8,8 +8,8 @@ import { RootState } from '@store/store';
 
 import { StyledButton } from './AuthStyles';
 
-import api_logout from '@utils/api/logout';
-import api_request_email_verification from '@utils/api/request_email_verification';
+import api_logout from '@utils/api/auth/logout';
+import api_request_email_verification from '@utils/api/auth/request_email_verification';
 
 import { FaEnvelope, FaCalendarAlt, FaMapPin, FaComment } from 'react-icons/fa';
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api_me from './me';
+import api_me from './auth/me';
 
 interface User {
     email: {
