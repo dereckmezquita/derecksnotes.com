@@ -13,7 +13,7 @@ declare global {
         org: string;
     }
 
-    interface GeoLocation extends ResGeolocation {
+    interface GeoLocation extends ResGeoLocation {
         firstUsed: Date;
         lastUsed: Date;
     }
