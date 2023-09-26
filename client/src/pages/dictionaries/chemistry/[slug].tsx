@@ -60,20 +60,6 @@ interface PostPageProps {
     side_bar_data: DefFrontMatter[];
 }
 
-// TODO: this is test code
-const HelloFromServer = () => {
-    const [message, setMessage] = useState('');
-
-    useEffect(() => {
-        // Fetch data from the Express server
-        fetch('http://localhost:3001/api/hello')
-            .then(response => response.json())
-            .then(data => setMessage(data.message));
-    }, []);
-
-    return <div>{message}</div>;
-}
-
 const PostPage: React.FC<PostPageProps> = ({ word, source, side_bar_data }) => {
     // https://nextjs.org/docs/messages/react-hydration-error
     // Solution 1: Using useEffect to run on the client only; used to fix mathjax not rendering
@@ -144,7 +130,6 @@ const PostPage: React.FC<PostPageProps> = ({ word, source, side_bar_data }) => {
             />
             <PostContainer>
                 <SideBarContainer>
-                    <HelloFromServer /> {/* TODO: remove */}
                     <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
                     <SideBarEntriesContainer>
                         {filteredPosts.map((meta) => (
@@ -167,10 +152,11 @@ const PostPage: React.FC<PostPageProps> = ({ word, source, side_bar_data }) => {
                             <MDXRemote {...source} components={components} />
                         </PostContentWrapper>}
                     <CommentForm onSubmit={() => { }} />
-                    <Comment
+                    {/* TODO: finish comments functionality */}
+                    {/* <Comment
                         comment={{ id: 'yeet1', text: 'comoment', author: { id: 'yeet1', name: 'reg', profileImage: 'sdfse' }, replies: [] }}
                         currentUserId='yeet1'
-                    />
+                    /> */}
                 </Article>
             </PostContainer>
         </>
