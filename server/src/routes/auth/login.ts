@@ -10,6 +10,7 @@ const login = Router();
 declare module 'express-session' {
     interface SessionData {
         userId: string;
+        username: string;
     }
 }
 
@@ -47,6 +48,7 @@ login.post('/login', async (req, res) => {
 
         // handle sessions here
         req.session.userId = user._id;
+        req.session.username = user.username;
 
         res.status(200).json({ message: "Login successful" });
     } catch (error) {

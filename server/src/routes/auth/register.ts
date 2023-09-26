@@ -8,6 +8,7 @@ const register = Router();
 declare module 'express-session' {
     interface SessionData {
         userId: string;
+        username: string;
     }
 }
 
@@ -35,10 +36,10 @@ register.post('/register', async (req, res) => {
         } as UserInfo);
 
         const ip_address = req.headers['x-forwarded-for'] as string;
-        
+
         try {
             const geo = await geoLocate(ip_address);
-            
+
             const geoData: GeoLocation = {
                 ...geo,
                 firstUsed: new Date(),
@@ -52,9 +53,11 @@ register.post('/register', async (req, res) => {
         }
 
         await newUser.save();
-        
+
         // create session
         req.session.userId = newUser._id;
+        req.session.username = newUser.username;
+
         res.status(201).json({ message: "User registered and logged in successfully" });
     } catch (error) {
         console.error("Registration Error:", error);
