@@ -1,4 +1,4 @@
-export {};
+export { };
 
 declare global {
     interface CommentInfo {
@@ -11,11 +11,9 @@ declare global {
         comment: string[]; // idx 0 orignal comment; any after are edits
         username: string;
         datetime: Date;
-        judgement: [
-            {
-                username: string;
-                judgement: 'like' | 'dislike';
-            }?
-        ]
+        judgements: {
+            username: string;
+            judgement: 'like' | 'dislike';
+        }[];
     }
 }
