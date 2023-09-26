@@ -5,7 +5,7 @@ import fs from 'fs';
 import sharp from 'sharp';
 import User from '../../models/User';  // Make sure this path is correct.
 
-import { DATETIME_YYYY_MM_DD_HHMMSS } from '@utils/constants';
+import { DATETIME_YYYY_MM_DD_HHMMSS, ROOT_DIR_CLIENT_UPLOADS } from '@utils/constants';
 
 const UPLOAD_DIR = 'uploads/';
 
@@ -29,7 +29,7 @@ profile_photo.post('/profile_photo', async (req, res) => {
         }
 
         const outputPath: string = 'optimised_' + username + '_' + DATETIME_YYYY_MM_DD_HHMMSS() + path.extname(req.file.originalname);
-        const finalPath = path.join(UPLOAD_DIR, outputPath);
+        const finalPath = path.join(ROOT_DIR_CLIENT_UPLOADS, outputPath);
 
         try {
             await sharp(req.file.buffer)
