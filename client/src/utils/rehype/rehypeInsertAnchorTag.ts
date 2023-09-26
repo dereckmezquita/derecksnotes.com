@@ -1,4 +1,4 @@
-export default function rehypeInsertAnchorTag(options: any) {
+export default function rehypeInsertAnchorTag(options: any, dictionary: string) {
     return (tree: any) => {
         const { frontmatter, slug } = options;
 
