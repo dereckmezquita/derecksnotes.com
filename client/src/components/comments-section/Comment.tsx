@@ -78,7 +78,7 @@ const ActionButton = styled.button`
 
 interface User {
     id: string;
-    name: string;
+    username: string;
     profileImage: string;
 }
 
@@ -91,21 +91,21 @@ interface Comment {
 
 interface CommentProps {
     comment: Comment;
-    currentUserId: string; // ID of the user who's currently logged in
+    userId: string; // ID of the user who's currently logged in; stored when calling me and storing in redux; this is stored in the session cookie
     onReply?: (id: string) => void;
     onEdit?: (id: string) => void;
     onDelete?: (id: string) => void;
 }
 
-const Comment: React.FC<CommentProps> = ({ comment, currentUserId, onReply, onEdit, onDelete }) => {
-    const isCurrentUser = currentUserId === comment.author.id;
+const Comment: React.FC<CommentProps> = ({ comment, userId, onReply, onEdit, onDelete }) => {
+    const isCurrentUser = userId === comment.author.id;
 
     return (
         <CommentContainer>
             <CommentHeader>
                 <UserProfile>
-                    <ProfileImage src={comment.author.profileImage} alt={`${comment.author.name}'s profile`} />
-                    <Username>{comment.author.name}</Username>
+                    <ProfileImage src={comment.author.profileImage} alt={`${comment.author.username}'s profile`} />
+                    <Username>{comment.author.username}</Username>
                 </UserProfile>
                 <ActionsContainer>
                     <ActionButton onClick={() => onReply && onReply(comment.id)}>reply</ActionButton>
@@ -120,7 +120,7 @@ const Comment: React.FC<CommentProps> = ({ comment, currentUserId, onReply, onEd
             <CommentText>{comment.text}</CommentText>
             <RepliesContainer>
                 {comment.replies.map(reply => (
-                    <Comment key={reply.id} comment={reply} currentUserId={currentUserId} onReply={onReply} onEdit={onEdit} onDelete={onDelete} />
+                    <Comment key={reply.id} comment={reply} userId={userId} onReply={onReply} onEdit={onEdit} onDelete={onDelete} />
                 ))}
             </RepliesContainer>
         </CommentContainer>
