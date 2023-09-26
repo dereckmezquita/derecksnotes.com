@@ -6,8 +6,8 @@ declare global {
             first: string;
             last: string;
         };
-        profilePhoto: string;
-        email?: {
+        profilePhotos: string[];
+        email: {
             address: string; // must be unique
             verified: boolean;
         },
