@@ -7,8 +7,6 @@ import User from '../../models/User';  // Make sure this path is correct.
 
 import { DATETIME_YYYY_MM_DD_HHMMSS, ROOT_DIR_CLIENT_UPLOADS } from '@utils/constants';
 
-const UPLOAD_DIR = 'uploads/';
-
 const profile_photo = Router();
 
 profile_photo.post('/profile_photo', async (req, res) => {
@@ -28,8 +26,8 @@ profile_photo.post('/profile_photo', async (req, res) => {
             return res.status(400).json({ message: "No file uploaded!" });
         }
 
-        const outputPath: string = 'optimised_' + username + '_' + DATETIME_YYYY_MM_DD_HHMMSS() + path.extname(req.file.originalname);
-        const finalPath = path.join(ROOT_DIR_CLIENT_UPLOADS, outputPath);
+        const imageName: string = 'optimised_' + username + '_' + DATETIME_YYYY_MM_DD_HHMMSS() + path.extname(req.file.originalname);
+        const finalPath = path.join(ROOT_DIR_CLIENT_UPLOADS, imageName);
 
         try {
             await sharp(req.file.buffer)
@@ -42,7 +40,7 @@ profile_photo.post('/profile_photo', async (req, res) => {
                 return res.status(404).json({ message: "User not found" });
             }
     
-            user.profilePhotos.push(outputPath);  // Add the new photo to the array
+            user.profilePhotos.push(imageName);  // Add the new photo to the array
             
             // Check if number of photos exceeds 5
             while (user.profilePhotos.length > 5) {
@@ -50,7 +48,7 @@ profile_photo.post('/profile_photo', async (req, res) => {
     
                 if (removedPhoto) {
                     // Remove the oldest photo from the filesystem
-                    fs.unlink(path.join(UPLOAD_DIR, removedPhoto), (err) => {
+                    fs.unlink(path.join(ROOT_DIR_CLIENT_UPLOADS, removedPhoto), (err) => {
                         if (err) console.error(`Failed to delete photo: ${removedPhoto}`, err);
                     });
                 }
@@ -58,7 +56,7 @@ profile_photo.post('/profile_photo', async (req, res) => {
             
             await user.save();
     
-            res.status(200).json({ message: "Image uploaded, processed, and saved", imagePath: outputPath });
+            res.status(200).json({ message: "Image uploaded, processed, and saved", imageName: imageName });
     
         } catch (error) {
             console.error("Error while processing image or updating user:", error);
@@ -68,3 +66,7 @@ profile_photo.post('/profile_photo', async (req, res) => {
 });
 
 export default profile_photo;
+
+
+// db.users.deleteOne({ "username": "test" })
+// db.users.updateOne({ "username": "test" }, { $unset: { profilePhotos: "" } })
