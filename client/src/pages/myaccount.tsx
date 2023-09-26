@@ -20,11 +20,19 @@ import {
     SideBarSiteName, Article
 } from '@components/post-elements/post';
 
+import { theme } from '@styles/theme';
+
 import CommentList from '@components/comments-section/CommentList';
 
 import api_upload_profile_photo from '@utils/api/upload/profile_photo';
 
-const EditImageButton = styled.button`
+const ProfileSection = styled.section`
+    display: flex;
+    align-items: center;
+    width: 100%;
+`;
+
+const ProfilePhotoButton = styled.button`
     position: absolute;
     bottom: 5px;
     right: 5px;
@@ -38,59 +46,21 @@ const EditImageButton = styled.button`
     cursor: pointer;
 `;
 
-const HiddenFileInput = styled.input`
-    display: none;
-`;
-
-const ProfileSection = styled.section`
-    display: flex;
-    align-items: center;
-    margin-bottom: 30px;
-    width: 100%;
-
-    ${EditImageButton}:hover {
-        display: block;
-    }
-`;
-
 const ProfileImageContainer = styled.div`
     position: relative;
     margin-right: 20px;
 
-    &:hover ${EditImageButton} {
+    &:hover ${ProfilePhotoButton} {
         display: block;
     }
 `;
+
 const ProfileImage = styled.img`
-    width: 100px;
-    height: 100px;
+    width: 125px;
+    height: 125px;
     border-radius: 50%;
     object-fit: cover;
     margin-right: 20px;
-`;
-
-const InfoBlock = styled.div`
-    margin-bottom: 20px;
-`;
-
-const GeoLocation = styled.div`
-    background: #f4f4f4;
-    padding: 10px;
-    border-radius: 6px;
-    margin-bottom: 10px;
-`;
-
-const CommentSection = styled.div`
-    background: #f9f9f9;
-    padding: 10px;
-    border-radius: 6px;
-    margin-bottom: 10px;
-`;
-
-const CommentHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 `;
 
 const Icon = styled.span`
@@ -98,15 +68,6 @@ const Icon = styled.span`
     vertical-align: middle;
     margin-right: 8px;
     color: #0077b6;
-`;
-
-const ThumbUpIcon = styled(FaThumbsUp)`
-    margin-bottom: 2px;
-`;
-
-const ThumbDownIcon = styled(FaThumbsDown)`
-    margin-top: 2px;
-    margin-left: 10px;
 `;
 
 const EditButton = styled(Button)`
@@ -159,12 +120,20 @@ const Account: React.FC = () => {
 
     // here we would get their comments from the api
     const userComments = [
-        { id: 'sdf', text: 'some comment', author: { id: userInfo.id, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [] },
-        { id: 'sdf', text: 'some other comment', author: { id: userInfo.id, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [
-            { id: 'sdf', text: 'some other comment', author: { id: userInfo.id, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [] },
-        ] },
+        { id: 'sdf', text: 'some comment', author: { id: userInfo.username, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [] },
+        {
+            id: 'sdf', text: 'some other comment', author: { id: userInfo.username, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [
+                { id: 'sdf', text: 'some other comment', author: { id: userInfo.username, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [] },
+            ]
+        },
     ];
-    
+
+    // test data api not ready yet
+    const geolocations: GeoLocation[] = [
+        { ip: '0.0.0.0', city: 'Paris', country: 'France', flag: '🇫🇷', isp: 'ISP', firstUsed: new Date(), lastUsed: new Date(), countryCode: 'US', regionName: 'TX', org: 'asdf' },
+        { ip: '1.1.1.1', city: 'Modesto', country: 'United States of America', flag: '🇺🇸', isp: 'ISP', firstUsed: new Date(), lastUsed: new Date(), countryCode: 'US', regionName: 'TX', org: 'asdf' },
+    ];
+
     return (
         <PostContainer>
             <SideBarContainer>
@@ -179,9 +148,9 @@ const Account: React.FC = () => {
                             src={selectedImage ? URL.createObjectURL(selectedImage) : profilePhoto}
                             alt={`${name?.first || 'Unknown'} ${name?.last || 'User'}`}
                         />
-                        <EditImageButton onClick={handleEditImageClick}>Edit</EditImageButton>
+                        <ProfilePhotoButton onClick={handleEditImageClick}>Edit</ProfilePhotoButton>
                         {selectedImage && <Button onClick={handleImageUpload}>Upload</Button>}
-                        <HiddenFileInput id="profileImageUpload" type="file" onChange={handleImageChange} accept="image/*" />
+                        <input id="profileImageUpload" type="file" onChange={handleImageChange} accept="image/*" style={{ display: 'none' }} />
                     </ProfileImageContainer>
 
                     <div>
@@ -198,36 +167,94 @@ const Account: React.FC = () => {
                     </div>
                 </ProfileSection>
 
-                <InfoBlock>
+                <section>
                     <h3>
                         <Icon as={FaComment} />Your Comments
                     </h3>
-                    <p>You've made a total of {metadata.numberOfComments} comments.</p>
+                    <p>
+                        You've made a total of {metadata.numberOfComments} comments.
+                    </p>
                     <CommentList comments={userComments} currentUserId={userInfo.username} />
+                </section>
+
+                <section>
                     <h3>
                         <Icon as={FaThumbsUp} /> Comments liked/disliked
                     </h3>
-                </InfoBlock>
+                    <p>
+                        Total comments liked: {metadata.commentsJudged?.filter((comment) => comment.judgement === 'like').length || 0}
+                    </p>
+                    <p>
+                        Total comments disliked: {metadata.commentsJudged?.filter((comment) => comment.judgement === 'dislike').length || 0}
+                    </p>
+                    <CommentList comments={userComments.slice(1)} currentUserId={userInfo.username} />
+                </section>
 
-                <InfoBlock>
-                    <h3>
-                        <Icon as={FaMapPin} /> Geo Locations
-                    </h3>
-                    {metadata.geoLocations.map((location: GeoLocation, idx: number) => (
-                        <GeoLocation key={idx}>
-                            <strong>IP:</strong> {location.ip}<br />
-                            <strong>City:</strong> {location.city}<br />
-                            <strong>Country:</strong> {location.country} <img src={location.flag} alt={location.country} width="20" />
-                            <br />
-                            <strong>ISP:</strong> {location.isp}<br />
-                            <strong>First Used:</strong> {new Date(location.firstUsed).toLocaleString()}<br />
-                            <strong>Last Used:</strong> {new Date(location.lastUsed).toLocaleString()}
-                        </GeoLocation>
-                    ))}
-                </InfoBlock>
+                <GeoLocationsBlock geoLocations={geolocations} />
             </Article>
         </PostContainer>
     );
 };
 
 export default React.memo(Account);
+
+
+// ... (previous code)
+
+const GeoLocationCard = styled.div`
+    background-color: ${theme.container.background.colour.primary()};
+    padding: 12px 15px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    box-shadow: ${theme.container.shadow.box};
+    border: 1px solid ${theme.container.border.colour.primary()};
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+
+    /* &:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 8px rgba(0, 0, 0, 0.12);
+    } */
+`;
+
+const GeoInfo = styled.div`
+    margin-bottom: 8px;
+
+    & strong {
+        margin-right: 5px;
+    }
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+`;
+
+interface GeoLocationsBlockProps {
+    geoLocations: GeoLocation[];
+}
+
+function GeoLocationsBlock({ geoLocations }: GeoLocationsBlockProps) {
+    return (
+        <section>
+            <h3>
+                <Icon as={FaMapPin} /> Geo Locations
+            </h3>
+            {geoLocations.map((location: GeoLocation, idx: number) => (
+                <GeoLocationCard key={idx}>
+                    <GeoInfo><strong>IP:</strong> {location.ip}</GeoInfo>
+                    <GeoInfo><strong>City:</strong> {location.city}</GeoInfo>
+                    <GeoInfo>
+                        <strong>Country:</strong> {location.country} {location.flag}
+                    </GeoInfo>
+                    <GeoInfo><strong>ISP:</strong> {location.isp}</GeoInfo>
+                    <GeoInfo><strong>First Used:</strong> {new Date(location.firstUsed).toLocaleString()}</GeoInfo>
+                    <GeoInfo><strong>Last Used:</strong> {new Date(location.lastUsed).toLocaleString()}</GeoInfo>
+                </GeoLocationCard>
+            ))}
+        </section>
+    );
+}
+
+// ... (remaining code)
