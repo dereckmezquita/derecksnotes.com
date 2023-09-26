@@ -8,7 +8,7 @@ import { RedisClientOptions, RedisFunctions, RedisModules, RedisScripts, createC
 import makeRedisStore from 'connect-redis';
 
 import { connectToDB } from './utils/mongoConnect';
-import { authRoutes } from './routes/index';
+import { authRoutes, uploadRoutes } from './routes/index';
 
 dotenv.config({ path: '../.env' });
 const PORT: number = 3001;
@@ -67,6 +67,8 @@ async function main(): Promise<void> {
     // ----------------------------------------
     // Routes
     app.use('/api/auth', authRoutes);
+
+    app.use('/api/upload', uploadRoutes);
 
     app.get('/api/hello', (req, res) => {
         res.send('Hello World!');
