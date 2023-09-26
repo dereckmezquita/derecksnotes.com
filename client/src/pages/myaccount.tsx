@@ -20,6 +20,8 @@ import {
     SideBarSiteName, Article
 } from '@components/post-elements/post';
 
+import CommentList from '@components/comments-section/CommentList';
+
 import api_upload_profile_photo from '@utils/api/upload/profile_photo';
 
 const EditImageButton = styled.button`
@@ -156,12 +158,13 @@ const Account: React.FC = () => {
     };
 
     // here we would get their comments from the api
-    const userComments: CommentInfo[] = [
-        {
-            commentId: 'sdf', repliesToThis: [], slug: 'some-article', comment: ['some comment'], username: 'the-user', datetime: new Date(), judgements: [{ judgement: 'like', username: 'the-user' }]
-        }
-    ]
-
+    const userComments = [
+        { id: 'sdf', text: 'some comment', author: { id: userInfo.id, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [] },
+        { id: 'sdf', text: 'some other comment', author: { id: userInfo.id, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [
+            { id: 'sdf', text: 'some other comment', author: { id: userInfo.id, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [] },
+        ] },
+    ];
+    
     return (
         <PostContainer>
             <SideBarContainer>
@@ -200,18 +203,7 @@ const Account: React.FC = () => {
                         <Icon as={FaComment} />Your Comments
                     </h3>
                     <p>You've made a total of {metadata.numberOfComments} comments.</p>
-                    {userComments.map((comment: CommentInfo) => (
-                        <CommentSection key={comment.commentId}>
-                            <CommentHeader>
-                                <span>Posted on: {new Date(comment.datetime).toLocaleDateString()}</span>
-                                <span>
-                                    <ThumbUpIcon /> {comment.judgements ? comment.judgements.filter(j => j.judgement === 'like').length : 0}
-                                    <ThumbDownIcon /> {comment.judgements ? comment.judgements.filter(j => j.judgement === 'dislike').length : 0}
-                                </span>
-                            </CommentHeader>
-                            <p>{comment.comment[0]}</p>
-                        </CommentSection>
-                    ))}
+                    <CommentList comments={userComments} currentUserId={userInfo.username} />
                     <h3>
                         <Icon as={FaThumbsUp} /> Comments liked/disliked
                     </h3>
