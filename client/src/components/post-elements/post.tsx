@@ -83,7 +83,7 @@ export function SideBarAbout(): JSX.Element {
                 This website is custom made by Dereck using React, Next.js, and TypeScript. It incorporates progressive web app technologies an relies on a NodeJS backend along with a MongoDB database.
             </p>
             <p>
-                If you'd like to know more you can find the full source code on <a href='https://github.com/dereckmezquita/derecksnotes.com'>github.com/dereckmezquita/derecksnotes.com</a>
+                If you would like to know more you can find the full source code on <Link href='https://github.com/dereckmezquita/derecksnotes.com'>github.com/dereckmezquita/derecksnotes.com</Link>
             </p>
         </SideBarAboutContainer>
     )
