@@ -1,5 +1,5 @@
 import { fetchUserDataStart, fetchUserDataSuccess, fetchUserDataFailure } from './userSlice';
-import api_me from '@utils/api/me';
+import api_me from '@utils/api/auth/me';
 import { AppDispatch } from './store';
 
 export const fetchUserData = () => async (dispatch: AppDispatch) => {

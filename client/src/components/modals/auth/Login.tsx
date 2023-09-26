@@ -6,8 +6,8 @@ import {
     InputField, Input, StyledForm,
     StyledButton, LinkButton
 } from './AuthStyles';
-import api_login from '@utils/api/login';
-import api_me from '@utils/api/me';
+import api_login from '@utils/api/auth/login';
+import api_me from '@utils/api/auth/me';
 
 interface LoginProps {
     onSwitchToRegister: () => void;

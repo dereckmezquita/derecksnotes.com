@@ -5,8 +5,8 @@ import {
     StyledButton, LinkButton
 } from './AuthStyles';
 
-import api_register from '@utils/api/register';
-import api_me from '@utils/api/me';
+import api_register from '@utils/api/auth/register';
+import api_me from '@utils/api/auth/me';
 
 import { useDispatch } from 'react-redux';
 import { fetchUserDataSuccess } from '@store/userSlice';
