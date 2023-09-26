@@ -6,7 +6,10 @@ const userSchema = new mongoose.Schema({
         first: String,
         last: String
     },
-    profilePhoto: String,
+    profilePhotos: {
+        type: [String],
+        default: []
+    },
     email: {
         address: { type: String, unique: true },
         verified: Boolean
