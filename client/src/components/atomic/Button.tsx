@@ -7,6 +7,10 @@ const Button = styled.button`
     cursor: pointer;
     background-color: hsl(205, 70%, 50%);
     color: white;
+
+    &:hover {
+        background-color: hsl(205, 100%, 30%);
+    }
 `;
 
 export default Button;
