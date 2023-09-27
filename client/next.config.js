@@ -6,19 +6,7 @@ dotenv.config({ path: '../.env' });
 const nextConfig = {
     output: "export",
     reactStrictMode: true,
-    async rewrites() {
-        if (process.env.NODE_ENV === 'development') {
-            console.log('Detected we are in development mode, proxying API calls to localhost:3001');
-            return [
-                {
-                    source: '/api/:path*',
-                    destination: 'http://localhost:3001/api/:path*'
-                }
-            ]
-        }
 
-        return [];
-    },
     compiler: {
         // https://stackoverflow.com/questions/67352231/why-all-styles-of-materialui-will-disappear-after-refresh-in-nextjs
         // https://nextjs.org/docs/advanced-features/compiler
