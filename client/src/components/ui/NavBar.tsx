@@ -55,13 +55,9 @@ const NavRightItemLink = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?
 
 const NavRightItem = styled(CommonNavItem) <{ rightmost?: boolean }>`
     float: right;
-`;
-
-const IconFilter = styled(FaFilter)`
-    opacity: 0.2;
-    transition: opacity 0.5s ease-in-out;
     &:hover {
-        opacity: 1;
+        color: ${theme.text.colour.white()};
+        background-color: ${theme.theme_colours[5]()};
     }
 `;
 
@@ -176,13 +172,13 @@ function NavBar() {
                     <NavLeftItem href='/dictionaries/chemistry'>Chemistry Dictionary</NavLeftItem>
                 </DropDownContent>
             </DropDownContainer>
-
+{/* 
             <NavRightItemLink href='https://www.linkedin.com/in/dereck/' target='_blank' title='LinkedIn'>
                 <FaLinkedin />
-            </NavRightItemLink>
+            </NavRightItemLink> */}
             <DateTimeDisplay>{dateTime || "00 Jan 00:00:00"}</DateTimeDisplay>
             <NavRightItem onClick={handleToggleFilterClick}>
-                <IconFilter />
+                <FaFilter />
             </NavRightItem>
             <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
                 <FaUser />
