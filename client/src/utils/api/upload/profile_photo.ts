@@ -1,3 +1,5 @@
+import { API_PREFIX } from '@constants/config';
+
 const api_upload_profile_photo = async (file: File, onProgress?: (progress: number) => void) => {
     try {
         const formData = new FormData();
@@ -16,7 +18,7 @@ const api_upload_profile_photo = async (file: File, onProgress?: (progress: numb
             };
         }
 
-        const response = await fetch('/api/upload/profile_photo', options);
+        const response = await fetch(API_PREFIX + '/upload/profile_photo', options);
 
         const data = await response.json();
 

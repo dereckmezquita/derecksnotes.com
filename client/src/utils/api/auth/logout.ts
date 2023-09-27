@@ -1,6 +1,8 @@
+import { API_PREFIX } from '@constants/config';
+
 const api_logout = async (): Promise<void> => {
     try {
-        const response = await fetch('/api/auth/logout', {
+        const response = await fetch(API_PREFIX + '/auth/logout', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
