@@ -2,26 +2,23 @@ const dotenv = require('dotenv');
 
 dotenv.config({ path: '../.env' });
 
+const rewrite = async () => {
+    console.log('Detected we are in development mode, proxying API calls to localhost:3001');
+    return [
+        {
+            source: '/api/v3/:path*',
+            destination: 'http://localhost:3001/api/v3/:path*'
+        }
+    ]
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: "export",
+    // output: "export",
     images: {
         unoptimized: true,
     },
     staticPageGenerationTimeout: 300,
-    // async rewrites() {
-    //     if (process.env.NODE_ENV === 'development') {
-    //         console.log('Detected we are in development mode, proxying API calls to localhost:3001');
-    //         return [
-    //             {
-    //                 source: '/api/:path*',
-    //                 destination: 'http://localhost:3001/api/:path*'
-    //             }
-    //         ]
-    //     }
-
-    //     return [];
-    // },
     compiler: {
         // https://stackoverflow.com/questions/67352231/why-all-styles-of-materialui-will-disappear-after-refresh-in-nextjs
         // https://nextjs.org/docs/advanced-features/compiler
@@ -29,6 +26,10 @@ const nextConfig = {
         styledComponents: true,
     },
     reactStrictMode: true,
+}
+
+if (process.env.NODE_ENV === 'development') {
+    nextConfig.rewrites = rewrite;
 }
 
 module.exports = nextConfig
