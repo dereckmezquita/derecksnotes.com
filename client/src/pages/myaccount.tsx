@@ -174,7 +174,7 @@ const Account: React.FC = () => {
                     <p>
                         Total comments: {metadata.numberOfComments}
                     </p>
-                    <CommentList comments={userComments} currentUserId={userInfo.username} />
+                    {/* <CommentList comments={userComments} currentUserId={userInfo.username} /> */}
                 </section>
 
                 <section>
@@ -187,7 +187,7 @@ const Account: React.FC = () => {
                     <p>
                         Total comments disliked: {metadata.commentsJudged?.filter((comment) => comment.judgement === 'dislike').length || 0}
                     </p>
-                    <CommentList comments={userComments.slice(1)} currentUserId={userInfo.username} />
+                    {/* <CommentList comments={userComments.slice(1)} currentUserId={userInfo.username} /> */}
                 </section>
 
                 <GeoLocationsBlock geoLocations={geolocations} />
