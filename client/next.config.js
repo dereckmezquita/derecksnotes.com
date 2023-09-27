@@ -4,6 +4,7 @@ dotenv.config({ path: '../.env' });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+    output: "export",
     reactStrictMode: true,
     async rewrites() {
         if (process.env.NODE_ENV === 'development') {
