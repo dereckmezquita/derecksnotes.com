@@ -5,14 +5,30 @@ dotenv.config({ path: '../.env' });
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     output: "export",
+    images: {
+        unoptimized: true,
+    },
     staticPageGenerationTimeout: 300,
-    reactStrictMode: true,
+    // async rewrites() {
+    //     if (process.env.NODE_ENV === 'development') {
+    //         console.log('Detected we are in development mode, proxying API calls to localhost:3001');
+    //         return [
+    //             {
+    //                 source: '/api/:path*',
+    //                 destination: 'http://localhost:3001/api/:path*'
+    //             }
+    //         ]
+    //     }
+
+    //     return [];
+    // },
     compiler: {
         // https://stackoverflow.com/questions/67352231/why-all-styles-of-materialui-will-disappear-after-refresh-in-nextjs
         // https://nextjs.org/docs/advanced-features/compiler
         // see https://styled-components.com/docs/tooling#babel-plugin for more info on the options.
         styledComponents: true,
     },
+    reactStrictMode: true,
 }
 
 module.exports = nextConfig
