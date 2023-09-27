@@ -1,6 +1,8 @@
+import { API_PREFIX } from '@constants/config';
+
 const api_register = async (email: string, username: string, password: string) => {
     try {
-        const response = await fetch('/api/auth/register', {
+        const response = await fetch(API_PREFIX + '/auth/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

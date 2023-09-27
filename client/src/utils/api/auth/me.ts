@@ -1,6 +1,8 @@
+import { API_PREFIX } from '@constants/config';
+
 const api_me = async () => {
     try {
-        const response = await fetch('/api/auth/me', {
+        const response = await fetch(API_PREFIX + '/auth/me', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',

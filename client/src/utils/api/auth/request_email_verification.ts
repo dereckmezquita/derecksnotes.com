@@ -1,6 +1,8 @@
+import { API_PREFIX } from '@constants/config';
+
 const api_request_email_verification = async () => {
     try {
-        const response = await fetch('/api/auth/request_email_verification', {
+        const response = await fetch(API_PREFIX + '/auth/request_email_verification', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
