@@ -5,6 +5,7 @@ dotenv.config({ path: '../.env' });
 /** @type {import('next').NextConfig} */
 const nextConfig = {
     output: "export",
+    staticPageGenerationTimeout: 300,
     reactStrictMode: true,
     compiler: {
         // https://stackoverflow.com/questions/67352231/why-all-styles-of-materialui-will-disappear-after-refresh-in-nextjs
