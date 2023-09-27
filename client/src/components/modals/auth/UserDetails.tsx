@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import styled from 'styled-components';
 import Link from 'next/link';
 
@@ -63,11 +63,20 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
 
     const handleLogout = async () => {
         const res = await api_logout();
-        console.log(res);
 
         dispatch(logout());
         onClose();
     };
+
+    // The useEffect hook is for side effects that occur after rendering.
+    // Direct rendering logic, like conditionally returning JSX or null, should be outside of useEffect.
+    useEffect(() => {
+        if (!userData) {
+            onClose();
+        }
+    }, [userData, onClose]);
+
+    if (!userData) return null;
 
     const { email, metadata, username } = userData;
 
