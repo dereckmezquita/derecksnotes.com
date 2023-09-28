@@ -1,4 +1,4 @@
-import User from 'src/models/User';
+import User from '@models/User';
 
 const isAuthenticated = async (req: any, res: any, next: any) => {
     const { userId } = req.session;

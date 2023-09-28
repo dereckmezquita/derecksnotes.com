@@ -1,5 +1,5 @@
 import express from 'express';
-import CommentInfo from '../../models/CommentInfo';  // Adjust the import path accordingly.
+import CommentInfo from '@models/CommentInfo';  // Adjust the import path accordingly.
 
 const router = express.Router();
 

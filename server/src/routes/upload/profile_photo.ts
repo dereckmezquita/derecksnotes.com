@@ -3,7 +3,7 @@ import upload from '@utils/upload';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
-import User from '../../models/User';  // Make sure this path is correct.
+import User from '@models/User';  // Make sure this path is correct.
 
 import { DATETIME_YYYY_MM_DD_HHMMSS, ROOT_DIR_CLIENT_UPLOADS } from '@utils/constants';
 
