@@ -2,11 +2,11 @@ import { Router } from 'express';
 import CommentInfo from '../../models/CommentInfo';
 import isAuthenticated from '@utils/middleware/isAuthenticated';
 
-const new_comment = Router();
+const router = Router();
 
-new_comment.use(isAuthenticated);
+router.use(isAuthenticated);
 
-new_comment.post('/new_comment', async (req, res) => {
+router.post('/new_comment', async (req, res) => {
     try {
         const { content, slug, parentComment } = req.body;
 
@@ -30,4 +30,4 @@ new_comment.post('/new_comment', async (req, res) => {
     }
 });
 
-export default new_comment;
+export default router;
