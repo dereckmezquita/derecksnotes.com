@@ -94,7 +94,7 @@ userSchema.pre('save', function (next) {
 console.log(comment.latestProfilePhoto);
 */
 userSchema.virtual('latestProfilePhoto').get(function () {
-    return this.profilePhotos[this.profilePhotos.length - 1];
+    return this.profilePhotos.length > 0 ? this.profilePhotos[this.profilePhotos.length - 1] : null;
 });
 
 // ---------------------------------------
@@ -107,7 +107,6 @@ console.log(user.isPasswordCorrect('somePassword'));
 userSchema.methods.isPasswordCorrect = async function (password: string) {
     return await bcrypt.compare(password, this.password);
 };
-
 
 const User = mongoose.model<UserInfo & mongoose.Document>('User', userSchema);
 
