@@ -1,9 +1,9 @@
 import express from 'express';
 import CommentInfo from '@models/CommentInfo';  // Adjust the import path accordingly.
 
-const router = express.Router();
+const get_article_comments = express.Router();
 
-router.get('/get_article_comments/:slug', async (req, res) => {
+get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
     const { slug } = req.params;
     const limit = Number(req.query.limit) || 10;  // default to 10 if limit isn't provided
     const page = Number(req.query.page) || 1;
@@ -30,4 +30,4 @@ router.get('/get_article_comments/:slug', async (req, res) => {
     }
 });
 
-export default router;
+export default get_article_comments;
