@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import CommentInfo from '../../models/CommentInfo';
+import CommentInfo from '@models/CommentInfo';
 import isAuthenticated from '@utils/middleware/isAuthenticated';
 
 const router = Router();

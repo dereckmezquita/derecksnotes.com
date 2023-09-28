@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
-import User from '../../models/User';
-import CommentInfo from '../../models/CommentInfo';
+import User from '@models/User';
+import CommentInfo from '@models/CommentInfo';
 import geoLocate from '@utils/geoLocate';
 
 const me = Router();
