@@ -24,7 +24,7 @@ import { theme } from '@styles/theme';
 
 import CommentList from '@components/comments-section/CommentList';
 
-import api_upload_profile_photo from '@utils/api/upload/profile_photo';
+import api_profile_photo from '@utils/api/upload/profile_photo';
 
 const ProfileSection = styled.section`
     display: flex;
@@ -75,22 +75,22 @@ const EditButton = styled(Button)`
 `;
 
 const Account: React.FC = () => {
-    const userInfo = useSelector((state: RootState) => state.user.data);
+    const userData = useSelector((state: RootState) => state.user.data);
     const [selectedImage, setSelectedImage] = React.useState<File | null>(null);
 
     // redux loads userInfo as null two times before loading the actual data
-    if (!userInfo) return (<Spinner />);
+    if (!userData) return (<Spinner />);
 
-    const { name, profilePhotos, email, username, metadata } = userInfo as UserInfo;
+    const { userInfo, comments, commentsJudged, commentsCount } = userData;
 
-    const profilePhoto: string = profilePhotos.length > 0 ?
-        path.join(ROOT_PUBLIC, 'site-images/uploads/profile-photos', profilePhotos[profilePhotos.length - 1]) :
+    const profilePhoto: string = userInfo.latestProfilePhoto ?
+        path.join(ROOT_PUBLIC, 'site-images/uploads/profile-photos', userInfo.latestProfilePhoto) :
         DEFAULT_PROFILE_IMAGE;
 
     const handleImageUpload = async () => {
         if (selectedImage) {
             try {
-                const response = await api_upload_profile_photo(
+                const response = await api_profile_photo(
                     selectedImage,
                     (progress) => {
                         console.log(`Upload progress: ${progress}%`);
@@ -120,10 +120,10 @@ const Account: React.FC = () => {
 
     // here we would get their comments from the api
     const userComments = [
-        { id: 'sdf', text: 'some comment', author: { id: userInfo.username, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [] },
+        { id: 'sdf', text: 'some comment', author: { id: userInfo.username, name: `${userInfo.name?.first || 'Unknown'} ${userInfo.name?.last || 'User'}`, profileImage: profilePhoto }, replies: [] },
         {
-            id: 'sdf', text: 'some other comment', author: { id: userInfo.username, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [
-                { id: 'sdf', text: 'some other comment', author: { id: userInfo.username, name: `${name?.first || 'Unknown'} ${name?.last || 'User'}`, profileImage: profilePhoto }, replies: [] },
+            id: 'sdf', text: 'some other comment', author: { id: userInfo.username, name: `${userInfo.name?.first || 'Unknown'} ${userInfo.name?.last || 'User'}`, profileImage: profilePhoto }, replies: [
+                { id: 'sdf', text: 'some other comment', author: { id: userInfo.username, name: `${userInfo.name?.first || 'Unknown'} ${userInfo.name?.last || 'User'}`, profileImage: profilePhoto }, replies: [] },
             ]
         },
     ];
@@ -141,12 +141,12 @@ const Account: React.FC = () => {
                 <SideBarAbout />
             </SideBarContainer>
             <Article>
-                <h2>{username}</h2>
+                <h2>{userInfo.username}</h2>
                 <ProfileSection>
                     <ProfileImageContainer>
                         <ProfileImage
                             src={selectedImage ? URL.createObjectURL(selectedImage) : profilePhoto}
-                            alt={`${name?.first || 'Unknown'} ${name?.last || 'User'}`}
+                            alt={`${userInfo.name?.first || 'Unknown'} ${userInfo.name?.last || 'User'}`}
                         />
                         <ProfilePhotoButton onClick={handleEditImageClick}>Edit</ProfilePhotoButton>
                         {selectedImage && <Button onClick={handleImageUpload}>Upload</Button>}
@@ -156,12 +156,12 @@ const Account: React.FC = () => {
                     <div>
                         <p>
                             <Icon as={FaUser} />
-                            {name?.first && name?.last ? `${name.first} ${name.last}` : 'Unknown User'}
+                            {userInfo.name?.first && userInfo.name?.last ? `${userInfo.name.first} ${userInfo.name.last}` : 'Unknown User'}
                             <EditButton>Edit</EditButton>
                         </p>
                         <p>
                             <Icon as={FaEnvelope} />
-                            {email?.address} {email?.verified && '(Verified)'}
+                            {userInfo.email?.address} {userInfo.email?.verified && '(Verified)'}
                             <EditButton>Edit</EditButton>
                         </p>
                     </div>
@@ -172,7 +172,7 @@ const Account: React.FC = () => {
                         <Icon as={FaComment} />Your Comments
                     </h3>
                     <p>
-                        Total comments: {metadata.numberOfComments}
+                        Total comments: {commentsCount}
                     </p>
                     {/* <CommentList comments={userComments} currentUserId={userInfo.username} /> */}
                 </section>
@@ -182,10 +182,10 @@ const Account: React.FC = () => {
                         <Icon as={FaThumbsUp} /> Comments liked/disliked
                     </h3>
                     <p>
-                        Total comments liked: {metadata.commentsJudged?.filter((comment) => comment.judgement === 'like').length || 0}
+                        Total comments liked: {commentsJudged?.filter((comment: any) => comment.judgement === 'like').length || 0}
                     </p>
                     <p>
-                        Total comments disliked: {metadata.commentsJudged?.filter((comment) => comment.judgement === 'dislike').length || 0}
+                        Total comments disliked: {commentsJudged?.filter((comment: any) => comment.judgement === 'dislike').length || 0}
                     </p>
                     {/* <CommentList comments={userComments.slice(1)} currentUserId={userInfo.username} /> */}
                 </section>
