@@ -1,19 +1,22 @@
 export { };
 
 declare global {
-    interface CommentInfo {
-        commentId: string;
-        repliesToThis: string[]; // array of commentIds
-        repliesToThat?: string; // comment itself is a reply
-        reportsToThat?: string; // comment itself is a report
-        mentions?: string[]; // array of usernames
-        slug: string;
-        comment: string[]; // idx 0 orignal comment; any after are edits
-        username: string;
-        datetime: Date;
-        judgements: {
-            username: string;
-            judgement: 'like' | 'dislike';
+    interface CommentInfo2 {
+        childComments: string[]; // _id of the child comments
+        parentComment: string; // _id of the parent comment
+        reportTarget?: string; // _id of a comment this one is reporting
+        mentions?: string[]; // _id of the users mentioned in this comment
+        slug: string; // slugs must be unique
+        content: {
+            comment: string;
+            createdAt: Date; // added by mongoose
+            updatedAt: Date;
         }[];
+        userId: string; // _id of the user
+        // judgement is now a map
+        judgement: {
+            [userId: string]: 'like' | 'dislike';
+        };
+        deleted: boolean;
     }
 }
