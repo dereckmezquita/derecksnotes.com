@@ -2,14 +2,26 @@ import { configureStore } from '@reduxjs/toolkit';
 import thunk from 'redux-thunk';
 import tagsFilterVisibilitySlice from './tagsFilterVisibilitySlice';
 import userSlice from './userSlice';
+import { logger } from 'redux-logger';
 
+import dotenv from 'dotenv';
+dotenv.config({ path: '../.env' });
+
+
+const middleware = (getDefaultMiddleware: any) => {
+    if (process.env.NODE_ENV !== 'production') {
+        return getDefaultMiddleware().concat(thunk, logger);
+    } else {
+        return getDefaultMiddleware().concat(thunk);
+    }
+}
 
 export const store = configureStore({
     reducer: {
         visibility: tagsFilterVisibilitySlice, // toggle post tags filter visibility
         user: userSlice // user data
     },
-    middleware: (getDefaultMiddleware) => getDefaultMiddleware().concat(thunk)
+    middleware: middleware
 });
 
 export type RootState = ReturnType<typeof store.getState>;
