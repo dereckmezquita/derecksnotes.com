@@ -1,6 +1,6 @@
 import { API_PREFIX } from '@constants/config';
 
-const api_upload_profile_photo = async (file: File, onProgress?: (progress: number) => void) => {
+const api_profile_photo = async (file: File, onProgress?: (progress: number) => void) => {
     try {
         const formData = new FormData();
         formData.append('profileImage', file);
@@ -32,4 +32,4 @@ const api_upload_profile_photo = async (file: File, onProgress?: (progress: numb
     }
 };
 
-export default api_upload_profile_photo;
+export default api_profile_photo;
