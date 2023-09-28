@@ -199,8 +199,6 @@ const Account: React.FC = () => {
 export default React.memo(Account);
 
 
-// ... (previous code)
-
 const GeoLocationCard = styled.div`
     background-color: ${theme.container.background.colour.primary()};
     padding: 12px 15px;
@@ -256,5 +254,3 @@ function GeoLocationsBlock({ geoLocations }: GeoLocationsBlockProps) {
         </section>
     );
 }
-
-// ... (remaining code)
