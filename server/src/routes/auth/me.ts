@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import User from '../../models/User';
+import CommentInfo from '../../models/CommentInfo';
 import geoLocate from '@utils/geoLocate';
 
 const me = Router();
@@ -40,14 +41,27 @@ me.get('/me', async (req, res) => {
 
         // Slice the geoLocations and commentsJudged arrays to keep only the last 10 elements
         user.metadata.geoLocations = user.metadata.geoLocations.slice(-10);
-        user.metadata.commentsJudged = user.metadata.commentsJudged ? user.metadata.commentsJudged.slice(-10) : [];
 
-        res.status(200).json(user);
+        // get their comment info and other
+        const comments = await CommentInfo.findByUser(user._id);
+        const commentsJudged = await CommentInfo.commentsJudgedByUser(user._id);
+        const commentsCount = await CommentInfo.countByUser(user._id);
+
+        const message = {
+            userInfo: {
+                ...user.toObject({ virtuals: true }),
+            },
+            // only send back last 10 comments
+            comments: comments.slice(-10),
+            commentsJudged,
+            commentsCount
+        }
+
+        res.status(200).json(message);
     } catch (error) {
         console.error("/me Endpoint Error:", error);
         res.status(500).json({ message: "Server Error" });
     }
 });
-
 
 export default me;
