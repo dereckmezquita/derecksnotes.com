@@ -21,6 +21,7 @@ declare global {
                 commentId: string;
                 judgement: 'like' | 'dislike';
             }[];
-        }
+        },
+        latestProfilePhoto?: string; // virtual
     }
 }
