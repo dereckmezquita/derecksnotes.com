@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import User from '../../models/User';
+import mongoose from 'mongoose';
 
+import User from '../../models/User';
 import geoLocate from '@utils/geoLocate';
 
 const register = Router();
@@ -19,9 +20,7 @@ register.post('/register', async (req, res) => {
         const { email, username, password } = req.body;
 
         const userExists = await User.findOne({ $or: [{ 'email.address': email }, { username }] });
-        if (userExists) {
-            return res.status(400).json({ message: "User already exists" });
-        }
+        if (userExists) return res.status(400).json({ message: "User already exists." });
 
         const newUser = new User({
             email: {
@@ -48,7 +47,7 @@ register.post('/register', async (req, res) => {
 
             // add geoLocation to user metadata
             newUser.metadata.geoLocations.push(geoData);
-        } catch (error) {
+        } catch (error: any) {
             console.warn("GeoLocation Error:", error);
         }
 
@@ -59,8 +58,17 @@ register.post('/register', async (req, res) => {
         req.session.username = newUser.username;
 
         res.status(201).json({ message: "User registered and logged in successfully" });
-    } catch (error) {
+    } catch (error: any) {
         console.error("Registration Error:", error);
+
+        // return mongoose error if there is one
+        if (error instanceof mongoose.Error.ValidationError) {
+            return res.status(400).json({
+                error: "Validation Error",
+                message: Object.values(error.errors).map(e => e.message).join(', ')
+            });
+        }
+
         res.status(500).json({ message: "Server Error" });
     }
 });
