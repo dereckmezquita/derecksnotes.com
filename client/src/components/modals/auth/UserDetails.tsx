@@ -78,16 +78,17 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
 
     if (!userData) return null;
 
-    const { email, metadata, username } = userData;
+    const { userInfo, comments, commentsJudged, commentsCount } = userData; // 
+    console.log(userData)
 
     return (
         <CardContainer>
-            <h2>Welcome, {username}</h2>
+            <h2>Welcome, {userInfo.username}</h2>
             <InfoBlock>
                 <div>
-                    <Icon><FaEnvelope /></Icon>Email: {email?.address}
+                    <Icon><FaEnvelope /></Icon>Email: {userInfo.email.address}
                 </div>
-                {email?.verified
+                {userInfo.email.verified
                     ? <EmailStatus verified={true}>verified</EmailStatus>
                     : <VerifyEmail onClick={api_request_email_verification}>verify</VerifyEmail>
                 }
@@ -96,19 +97,19 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
                 <div>
                     <Icon><FaCalendarAlt /></Icon>Last Connected
                 </div>
-                {new Date(metadata.lastConnected).toLocaleString()}
+                {new Date(userInfo.metadata.lastConnected).toLocaleString()}
             </InfoBlock>
             <InfoBlock>
                 <div>
                     <Icon><FaMapPin /></Icon>Geo Locations
                 </div>
-                {metadata.geoLocations.length}
+                {userInfo.metadata.geoLocations.length}
             </InfoBlock>
             <InfoBlock>
                 <div>
                     <Icon><FaComment /></Icon>Comments Judged
                 </div>
-                {metadata.commentsJudged.length}
+                {commentsJudged.length}
             </InfoBlock>
             <StyledButton style={{ float: 'left' }} onClick={handleLogout}>Logout</StyledButton>
             <LinkToProfile
@@ -122,4 +123,4 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
     );
 };
 
-export default UserDetails;
+export default React.memo(UserDetails);
