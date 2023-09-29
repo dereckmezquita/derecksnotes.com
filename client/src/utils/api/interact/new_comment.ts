@@ -2,7 +2,7 @@ import { API_PREFIX } from '@constants/config';
 
 const api_new_comment = async (content: string, slug: string, parentComment?: string) => {
     try {
-        const response = await fetch(API_PREFIX + '/new_comment', {
+        const response = await fetch(API_PREFIX + '/interact/new_comment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
