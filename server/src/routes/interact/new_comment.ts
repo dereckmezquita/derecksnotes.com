@@ -8,14 +8,14 @@ new_comment.use(isAuthenticated);
 
 new_comment.post('/new_comment', async (req, res) => {
     try {
-        const { content, slug, parentComment } = req.body;
+        const { comment, slug, parentComment } = req.body;
 
-        if (!content || !slug) {
+        if (!comment || !slug) {
             return res.status(400).json({ message: "Content and slug are required." });
         }
 
         const newComment = new CommentInfo({
-            content: [{ content }],
+            content: [{ comment }],
             slug,
             userId: req.session.userId,
             ...(parentComment && { parentComment })
