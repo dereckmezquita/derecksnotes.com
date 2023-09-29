@@ -1,7 +1,7 @@
 import { API_PREFIX } from '@constants/config';
 
-const api_get_article_comments = async (
-    slug: string,
+const api_get_comments_by_array_of_ids = async (
+    commentIds: string[],
     n?: number,
     page?: number,
     startDate?: string,
@@ -14,15 +14,19 @@ const api_get_article_comments = async (
         const endDateParam = endDate ? `endDate=${endDate}` : '';
         const queryString = [limitParam, pageParam, startDateParam, endDateParam].filter(p => p).join('&');
 
-        const response = await fetch(`${API_PREFIX}/interact/get_article_comments/${slug}?${queryString}`, {
-            method: 'GET',
+        const response = await fetch(`${API_PREFIX}/interact/get_comments_by_array_of_ids?${queryString}`, {
+            method: 'POST',
             credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ commentIds })
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.message || 'Something went wrong fetching the comments!');
+            throw new Error(data.message || 'Something went wrong fetching the replies comments!');
         }
 
         return data;
@@ -31,4 +35,4 @@ const api_get_article_comments = async (
     }
 };
 
-export default api_get_article_comments;
+export default api_get_comments_by_array_of_ids;
