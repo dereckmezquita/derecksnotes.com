@@ -9,7 +9,7 @@ dotenv.config({ path: '../.env' });
 
 
 const middleware = (getDefaultMiddleware: any) => {
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.REDUX_LOGGER) {
         return getDefaultMiddleware().concat(thunk, logger);
     } else {
         return getDefaultMiddleware().concat(thunk);
