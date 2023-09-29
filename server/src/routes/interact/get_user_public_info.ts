@@ -24,7 +24,6 @@ get_user_public_info.get('/get_user_public_info/:username', async (req, res) => 
     // Construct the userRes object
     const userRes: UserInfoPublicResponse = {
         profilePhotos,
-        email,
         username: userUsername,
         latestProfilePhoto
     };
