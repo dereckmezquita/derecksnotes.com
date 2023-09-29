@@ -31,6 +31,9 @@ declare global {
         },
         createdAt: Date;
         updatedAt: Date;
+        // added during api response
+        username?: string;
+        latestProfilePhoto?: string;
     }
 
     interface CommentInfoResponse {
