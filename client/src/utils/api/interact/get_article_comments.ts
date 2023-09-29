@@ -2,7 +2,7 @@ import { API_PREFIX } from '@constants/config';
 
 const api_get_article_comments = async (slug: string, n: number, page: number = 1) => {
     try {
-        const response = await fetch(`${API_PREFIX}/article_comments/${slug}?limit=${n}&page=${page}`, {
+        const response = await fetch(`${API_PREFIX}/interact/article_comments/${slug}?limit=${n}&page=${page}`, {
             method: 'GET',
             credentials: 'include',
         });
