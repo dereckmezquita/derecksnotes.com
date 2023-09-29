@@ -9,7 +9,7 @@ import DropCap from './DropCap';
 const Card = styled.div`
     background-color: ${(props) => props.theme.container.background.colour.content()};
 
-    padding: 15px;
+    padding: 5px;
     text-decoration: none;
     cursor: pointer;
 
@@ -53,13 +53,13 @@ const Summary = styled.p`
     text-align: left;
     text-justify: none;
     font-size: 13px;
-    padding-left: 10px;
-    padding-right: 10px;
+    padding-left: 15px;
+    padding-right: 15px;
 `;
 
 const Date = styled.span`
     display: inline;
-    padding-left: 5px;
+    padding-left: 2px;
     color: ${theme.theme_colours[5]()};
 `;
 
@@ -71,7 +71,7 @@ const CardPreview = (props: PostMetadata) => {
     }
 
     const firstLetter = props.summary.charAt(0);
-    const restOfSummary = props.summary.slice(1, 150);
+    const restOfSummary = props.summary.slice(1, 100);
 
     return (
         <Card onClick={handleClick}>
