@@ -4,14 +4,15 @@ import mongoose from "mongoose";
 import sanitizeHtml from 'sanitize-html';
 
 const commentSubSchema = new mongoose.Schema({
-    content: {
+    comment: {
         type: String,
         required: true,
         minlength: 1,
         maxlength: 10000,
     }
 }, {
-    timestamps: true // adds createdAt and updatedAt
+    timestamps: true, // adds createdAt and updatedAt
+    id: false
 });
 
 
@@ -55,7 +56,9 @@ const commentInfoSchema = new mongoose.Schema({
         },
         default: {}
     },
-    deleted: { type: Boolean, default: false }
+    deleted: { type: Boolean, default: false },
+}, {
+    timestamps: true, // adds createdAt and updatedAt
 });
 
 // ---------------------------------------
@@ -68,7 +71,7 @@ commentInfoSchema.pre('save', function (next) {
 
     if (comment.content[lastCommentIndex]) {
         // Trim the content
-        let trimmedContent = comment.content[lastCommentIndex].content.trim();
+        let trimmedContent = comment.content[lastCommentIndex].comment.trim();
 
         // Sanitize the content
         let sanitizedContent = sanitizeHtml(trimmedContent, {
@@ -83,7 +86,7 @@ commentInfoSchema.pre('save', function (next) {
             }
         });
 
-        comment.content[lastCommentIndex].content = sanitizedContent;
+        comment.content[lastCommentIndex].comment = sanitizedContent;
     }
 
     next();
