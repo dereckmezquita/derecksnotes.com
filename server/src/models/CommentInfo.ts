@@ -52,7 +52,6 @@ const commentInfoSchema = new mongoose.Schema({
         of: {
             type: String,
             enum: ['like', 'dislike'],
-            required: true
         },
         default: {}
     },
