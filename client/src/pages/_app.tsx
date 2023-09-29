@@ -21,26 +21,17 @@ import '@public/fonts/fjalla_one.css'; // block letters; main logo
 import '@styles/footnotes.css'; // markdown processed by @utils/markdown.ts
 import useNextClickHandler from '@utils/useNextClickHandler'; // TODO: temp solution for handling internal links from markdown content
 
-import { REFRESH_STORE_DATA_INTERVAL } from '@constants/config';
-
 /**
  * AppBody component contains the primary layout and Redux-dependent logic.
  * It should be used inside the Redux Provider to ensure access to the Redux store.
 */
 function AppBody({ Component, pageProps }: { Component: React.ComponentType<any>, pageProps: any }) {
     // Using the useDispatch hook here since this component is rendered inside the Redux Provider.
-    const dispatch = useDispatch<AppDispatch>();
+    const dispatch = useDispatch<typeof store.dispatch>();
 
-    // Dispatching an action to fetch user data when the component mounts.
     useEffect(() => {
-        dispatch(fetchUserData()); // Fetch user data immediately when the component mounts
-    
-        const intervalId = setInterval(() => {
-            dispatch(fetchUserData());
-        }, REFRESH_STORE_DATA_INTERVAL);
-    
-        return () => clearInterval(intervalId); // Cleanup interval on component unmount
-    }, [dispatch]);    
+        dispatch(fetchUserData());
+    }, [dispatch]);
 
     return (
         <>

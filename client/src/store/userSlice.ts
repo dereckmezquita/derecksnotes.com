@@ -5,13 +5,15 @@ interface UserState {
     data: any | null; // Update this 'any' to the actual type of your user data if available
     loading: boolean;
     error: string | null;
+    lastFetched: number | null;
 }
 
 const initialState: UserState = {
     isAuthenticated: false,
     data: null,
     loading: false,
-    error: null
+    error: null,
+    lastFetched: null
 };
 
 export const userSlice = createSlice({
@@ -25,6 +27,7 @@ export const userSlice = createSlice({
             state.loading = false;
             state.isAuthenticated = true;
             state.data = action.payload;
+            state.lastFetched = Date.now();
         },
         fetchUserDataFailure: (state, action: PayloadAction<string>) => {
             state.loading = false;
