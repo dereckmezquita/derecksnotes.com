@@ -32,3 +32,13 @@ get_user_public_info.get('/get_user_public_info/:username', async (req, res) => 
 });
 
 export default get_user_public_info;
+
+/*
+{
+    "profilePhotos": [
+        "optimised_dereck_2023-09-28-162359.jpg"
+    ],
+    "username": "dereck",
+    "latestProfilePhoto": "optimised_dereck_2023-09-28-162359.jpg"
+}
+*/
