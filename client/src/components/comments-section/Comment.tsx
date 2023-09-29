@@ -1,6 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import path from 'path';
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
+
+import api_get_comments_by_array_of_ids from '@utils/api/interact/get_comments_by_array_of_ids';
+import { DEFAULT_PROFILE_IMAGE, ROOT_PUBLIC } from '@constants/config';
 
 const CommentContainer = styled.div`
     position: relative;
@@ -76,51 +80,60 @@ const ActionButton = styled.button`
     }
 `;
 
-interface User {
-    id: string;
-    username: string;
-    profileImage: string;
-}
-
-interface Comment {
-    id: string;
-    text: string;
-    author: User;
-    replies: Comment[];
-}
-
 interface CommentProps {
-    comment: Comment;
-    userId: string; // ID of the user who's currently logged in; stored when calling me and storing in redux; this is stored in the session cookie
+    comment: CommentInfo;
+    currentUserId: string;
     onReply?: (id: string) => void;
     onEdit?: (id: string) => void;
     onDelete?: (id: string) => void;
 }
 
-const Comment: React.FC<CommentProps> = ({ comment, userId, onReply, onEdit, onDelete }) => {
-    const isCurrentUser = userId === comment.author.id;
+const Comment: React.FC<CommentProps> = ({ comment, currentUserId, onReply, onEdit, onDelete }) => {
+    // this component receives a comment to render and the current user that is viewing the page's id
+    // if they match then the user can edit or delete the comment
+    // otherwise they can only reply to the comment
+    const isCurrentUser = currentUserId === comment.userId;
+    const [replies, setReplies] = useState<CommentInfoResponse | null>(null);
+
+    useEffect(() => {
+        const fetchReplies = async () => {
+            try {
+                setReplies(await api_get_comments_by_array_of_ids(comment.childComments));
+            } catch (error) {
+                console.error('Failed to fetch replies:', error);
+            }
+        }
+
+        fetchReplies();
+    }, [comment.userId]); // Run the effect when comment.userId changes
+
+    if (!replies) return null;
+
+    const profilePhoto: string = comment.latestProfilePhoto ?
+        path.join(ROOT_PUBLIC, 'site-images/uploads/profile-photos', comment.latestProfilePhoto) :
+        DEFAULT_PROFILE_IMAGE;
 
     return (
-        <CommentContainer>
+        <CommentContainer key={comment._id}>
             <CommentHeader>
                 <UserProfile>
-                    <ProfileImage src={comment.author.profileImage} alt={`${comment.author.username}'s profile`} />
-                    <Username>{comment.author.username}</Username>
+                    <ProfileImage src={profilePhoto} alt={`${comment.username}'s profile`} />
+                    <Username>{comment.username}</Username>
                 </UserProfile>
                 <ActionsContainer>
-                    <ActionButton onClick={() => onReply && onReply(comment.id)}>reply</ActionButton>
+                    <ActionButton onClick={() => onReply && onReply(comment._id)}>reply</ActionButton>
                     {isCurrentUser && (
                         <>
-                            <ActionButton onClick={() => onEdit && onEdit(comment.id)}>edit</ActionButton>
-                            <ActionButton onClick={() => onDelete && onDelete(comment.id)}>delete</ActionButton>
+                            <ActionButton onClick={() => onEdit && onEdit(comment._id)}>edit</ActionButton>
+                            <ActionButton onClick={() => onDelete && onDelete(comment._id)}>delete</ActionButton>
                         </>
                     )}
                 </ActionsContainer>
             </CommentHeader>
-            <CommentText>{comment.text}</CommentText>
+            <CommentText>{comment.latestContent.comment}</CommentText>
             <RepliesContainer>
-                {comment.replies.map(reply => (
-                    <Comment key={reply.id} comment={reply} userId={userId} onReply={onReply} onEdit={onEdit} onDelete={onDelete} />
+                {replies.comments.map((reply: CommentInfo) => (
+                    <Comment key={reply._id} comment={reply} currentUserId={currentUserId} onReply={onReply} onEdit={onEdit} onDelete={onDelete} />
                 ))}
             </RepliesContainer>
         </CommentContainer>
