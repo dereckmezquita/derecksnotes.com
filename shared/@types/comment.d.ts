@@ -2,7 +2,7 @@ export { };
 
 declare global {
     interface CommentInfo {
-        _id?: string; // mongodb _id
+        _id: string; // mongodb _id
         childComments: string[];
         parentComment: string | null;
         reportTarget?: string | null;
