@@ -95,32 +95,26 @@ interface CommentProps {
 }
 
 const Comment: React.FC<CommentProps> = ({ comment, slug, onReply, onEdit, onDelete, depth }) => {
-    // this component receives a comment to render and the current user that is viewing the page's id
-    // if they match then the user can edit or delete the comment, otherwise they can only reply to the comment
+    // ---------------------------------------------------
+    // if user id of comment matches current viewer (session) then allow edit and delete buttons
     const currentUserId = useSelector((state: RootState) => state.user.data.userInfo._id);
     const isCurrentUser = currentUserId === comment.userId;
 
-    const [replies, setReplies] = useState<CommentInfoResponse | null>(null);
+    const profilePhoto: string = comment.latestProfilePhoto ?
+        path.join(ROOT_PUBLIC, 'site-images/uploads/profile-photos', comment.latestProfilePhoto) :
+        DEFAULT_PROFILE_IMAGE;
+
+    // ---------------------------------------------------
+    // toggle show reply button on off
     const [showReplyForm, setShowReplyForm] = useState(false);
-    const [loadedReplies, setLoadedReplies] = useState(5);
-    const [showLoadMoreButton, setShowLoadMoreButton] = useState(comment.childComments.length > 5);
 
     const toggleReplyForm = () => {
         setShowReplyForm(!showReplyForm);
     };
 
-    const loadMoreReplies = async () => {
-        try {
-            const newReplies = await api_get_comments_by_array_of_ids(comment.childComments, loadedReplies + 5); // Load 5 more replies
-            setReplies(newReplies);
-            setLoadedReplies(prev => prev + 5);
-
-            // Hide "Load More" button if all replies are loaded
-            setShowLoadMoreButton(newReplies.comments.length < loadedReplies + 5);
-        } catch (error) {
-            console.error('Failed to fetch more replies:', error);
-        }
-    }
+    // ---------------------------------------------------
+    // get replies of the comment
+    const [replies, setReplies] = useState<CommentInfoResponse | null>(null);
 
     useEffect(() => {
         const fetchReplies = async () => {
@@ -134,8 +128,28 @@ const Comment: React.FC<CommentProps> = ({ comment, slug, onReply, onEdit, onDel
         fetchReplies();
     }, [comment.userId]); // Run the effect when comment.userId changes
 
+    // ---------------------------------------------------
+    // onClick load more replies
+    const [loadedReplies, setLoadedReplies] = useState(5); // incrementor
+    const [showLoadMoreButton, setShowLoadMoreButton] = useState(comment.childComments.length > 5);
+
+    const loadMoreReplies = async () => {
+        try {
+            const newReplies = await api_get_comments_by_array_of_ids(comment.childComments, loadedReplies + 5);
+            setReplies(newReplies);
+            setLoadedReplies(prev => prev + 5);
+
+            // Hide "Load More" button if all replies are loaded
+            setShowLoadMoreButton(newReplies.comments.length < loadedReplies + 5);
+        } catch (error) {
+            console.error('Failed to fetch more replies:', error);
+        }
+    }
+
     if (!replies) return null;
 
+    // ---------------------------------------------------
+    // onClick delete comment
     const handleDelete = async (commentId: string) => {
         const isConfirmed = window.confirm("Are you sure you want to delete this comment?");
         if (!isConfirmed) return;
@@ -148,10 +162,6 @@ const Comment: React.FC<CommentProps> = ({ comment, slug, onReply, onEdit, onDel
             console.error("Failed to delete comment:", error);
         }
     };
-
-    const profilePhoto: string = comment.latestProfilePhoto ?
-        path.join(ROOT_PUBLIC, 'site-images/uploads/profile-photos', comment.latestProfilePhoto) :
-        DEFAULT_PROFILE_IMAGE;
 
     return (
         <CommentContainer key={comment._id}>
