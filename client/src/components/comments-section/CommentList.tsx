@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Comment from './Comment';
 
 interface CommentListProps {
@@ -9,17 +9,29 @@ interface CommentListProps {
     onDelete?: (id: string) => void;
 }
 
-const CommentList: React.FC<CommentListProps> = ({ comments, slug, onReply, onEdit, onDelete }) => {
+const CommentList: React.FC<CommentListProps> = ({ comments: initialComments, slug, onReply, onEdit, onDelete }) => {
+    const [comments, setComments] = useState<CommentInfo[]>(initialComments);
+    console.log(comments);
+
+    useEffect(() => {
+        setComments(initialComments);
+    }, [initialComments]);
+
+    const handleDelete = (id: string) => {
+        // Remove the deleted comment from the local state/UI
+        setComments(prevComments => prevComments.filter(comment => comment._id !== id));
+    };
+
     return (
         <>
             {comments.map(comment => (
-                <Comment 
-                    key={comment._id} 
-                    comment={comment} 
+                <Comment
+                    key={comment._id}
+                    comment={comment}
                     slug={slug}
-                    onReply={onReply} 
-                    onEdit={onEdit} 
-                    onDelete={onDelete}
+                    onReply={onReply}
+                    onEdit={onEdit}
+                    onDelete={handleDelete}
                     depth={0}
                 />
             ))}
