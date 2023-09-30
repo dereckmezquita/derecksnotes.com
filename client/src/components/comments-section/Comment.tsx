@@ -9,6 +9,7 @@ import { RootState } from '@store/store';
 import api_get_comments_by_array_of_ids from '@utils/api/interact/get_comments_by_array_of_ids';
 import { DEFAULT_PROFILE_IMAGE, ROOT_PUBLIC, MAX_COMMENT_DEPTH } from '@constants/config';
 import CommentForm from './CommentForm';
+import api_delete_comments from '@utils/api/interact/delete_comments';
 
 const CommentContainer = styled.div`
     position: relative;
@@ -135,6 +136,19 @@ const Comment: React.FC<CommentProps> = ({ comment, slug, onReply, onEdit, onDel
 
     if (!replies) return null;
 
+    const handleDelete = async (commentId: string) => {
+        const isConfirmed = window.confirm("Are you sure you want to delete this comment?");
+        if (!isConfirmed) return;
+
+        try {
+            await api_delete_comments([commentId]);
+            // If the parent component provided onDelete callback, call it after successful deletion
+            onDelete && onDelete(commentId);
+        } catch (error) {
+            console.error("Failed to delete comment:", error);
+        }
+    };
+
     const profilePhoto: string = comment.latestProfilePhoto ?
         path.join(ROOT_PUBLIC, 'site-images/uploads/profile-photos', comment.latestProfilePhoto) :
         DEFAULT_PROFILE_IMAGE;
@@ -149,7 +163,8 @@ const Comment: React.FC<CommentProps> = ({ comment, slug, onReply, onEdit, onDel
                 <ActionsContainer>
                     {isCurrentUser && (<>
                         <ActionButton onClick={() => onEdit && onEdit(comment._id)}>edit</ActionButton>
-                        <ActionButton onClick={() => onDelete && onDelete(comment._id)}>delete</ActionButton>
+                        {/* <ActionButton onClick={() => onDelete && onDelete(comment._id)}>delete</ActionButton> */}
+                        <ActionButton onClick={() => handleDelete(comment._id)}>delete</ActionButton>
                     </>)}
                     {depth < MAX_COMMENT_DEPTH && <ActionButton onClick={toggleReplyForm}>reply</ActionButton>}
                 </ActionsContainer>
