@@ -1,5 +1,6 @@
 import { API_PREFIX } from '@constants/config';
 
+// end point get's current user ID from session
 const api_new_comment = async (comment: string, slug: string, parentComment?: string) => {
     try {
         const response = await fetch(API_PREFIX + '/interact/new_comment', {
