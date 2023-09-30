@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 
 import sanitizeHtml from 'sanitize-html';
 
-const commentSubSchema = new mongoose.Schema({
+export const commentSubSchema = new mongoose.Schema({
     comment: {
         type: String,
         required: true,
@@ -142,7 +142,46 @@ commentInfoSchema.methods.setJudgement = function (userId: string, judgement: 'l
     this.judgement.set(userId, judgement);
 }
 
+/*
+const userId = req.session.userId;
+const comments = await CommentInfo.find({ _id: { $in: arrayOfCommentIds } });
+comments.delete(userId);
+// this method does 2 things; this method allows deletion of an array of comments
+// 1. checks the current user owns the comment
+// 2. adds a new comment to the content array with the comment set to [deleted]
+// 3. if the latest content is already [deleted] it will not add another one; throws error instead informing user
+*/
+commentInfoSchema.methods.markAsDeleted = function(this: CommentInfoDocument, userId: string) {
+    if (this.userId.toString() !== userId) {
+        throw new Error("You do not own this comment.");
+    }
+
+    const lastCommentIndex = this.content.length - 1;
+
+    if (this.content[lastCommentIndex].comment === "[deleted]") {
+        throw new Error("This comment has already been deleted.");
+    }
+
+    this.content.push({ comment: "[deleted]" });
+}
+
 // ---- static methods ----
+commentInfoSchema.statics.deleteManyOwnedByUser = async function(this: any, commentIds: string[], userId: string) {
+    const comments = await this.find({ _id: { $in: commentIds }, userId });
+
+    if (comments.length !== commentIds.length) {
+        throw new Error("Some comments do not belong to this user or do not exist.");
+    }
+
+    const promises = comments.map(async (comment: any) => {
+        comment.markAsDeleted(userId);
+        return comment.save();
+    });
+
+    await Promise.all(promises);
+};
+
+
 /* const userComments = await CommentInfo.findByUser(someUserId); */
 commentInfoSchema.statics.findByUser = function (userId) {
     return this.find({ userId });
@@ -165,6 +204,7 @@ commentInfoSchema.statics.commentsJudgedByUser = async function (userId) {
 // ---------------------------------------
 // interface for adding virtuals and methods
 interface CommentInfoModel extends mongoose.Model<CommentInfoDocument> {
+    deleteManyOwnedByUser: (commentIds: string[], userId: string) => Promise<void>;
     findByUser: (userId: string) => Promise<CommentInfoDocument[]>;
     countByUser: (userId: string) => Promise<number>;
     commentsJudgedByUser: (userId: string) => Promise<CommentInfoDocument[]>;
@@ -172,12 +212,15 @@ interface CommentInfoModel extends mongoose.Model<CommentInfoDocument> {
 }
 
 interface CommentInfoDocument extends mongoose.Document {
+    userId: ObjectId;
+    content: { comment: string }[];
     judgement: Map<string, 'like' | 'dislike'>;
     likesCount: number;
     dislikesCount: number;
     totalJudgement: number;
     latestContent: () => { content: string, createdAt: Date, updatedAt: Date };
     setJudgement: (userId: string, judgement: 'like' | 'dislike') => void;
+    markAsDeleted: (userId: string) => void;
     // ... any other methods or virtuals you add
 }
 
