@@ -1,3 +1,4 @@
+import React from 'react';
 import { useEffect, useState } from 'react';
 import { GetStaticPaths, GetStaticProps } from 'next';
 import { MDXRemote } from 'next-mdx-remote';
@@ -13,10 +14,7 @@ import {
     Article, PostContentWrapper
 } from '@components/post-elements/post';
 
-
-import CommentForm from '@components/comments-section/CommentForm';
-import CommentList from '@components/comments-section/CommentList';
-import Comment from '@components/comments-section/Comment';
+import CommentSection from '@components/comments-section/CommentSection';
 
 // ------------------------------------
 // component imports to be used in MDX
@@ -55,12 +53,13 @@ interface DefFrontMatter {
 }
 
 interface PostPageProps {
+    slug: string;
     word: string;
     source: any;
     side_bar_data: DefFrontMatter[];
 }
 
-const PostPage: React.FC<PostPageProps> = ({ word, source, side_bar_data }) => {
+const PostPage: React.FC<PostPageProps> = ({ slug, word, source, side_bar_data }) => {
     // https://nextjs.org/docs/messages/react-hydration-error
     // Solution 1: Using useEffect to run on the client only; used to fix mathjax not rendering
     const [isClient, setIsClient] = useState(false)
@@ -146,17 +145,12 @@ const PostPage: React.FC<PostPageProps> = ({ word, source, side_bar_data }) => {
                 </SideBarContainer>
                 <Article>
                     <h1>{word}</h1>
-                    {isClient
-                        &&
+                    {isClient &&
                         <PostContentWrapper>
                             <MDXRemote {...source} components={components} />
-                        </PostContentWrapper>}
-                    <CommentForm onSubmit={() => { }} />
-                    {/* TODO: finish comments functionality */}
-                    {/* <Comment
-                        comment={{ id: 'yeet1', text: 'comoment', author: { id: 'yeet1', name: 'reg', profileImage: 'sdfse' }, replies: [] }}
-                        currentUserId='yeet1'
-                    /> */}
+                        </PostContentWrapper>
+                    }
+                    <CommentSection slug={slug} allowComments />
                 </Article>
             </PostContainer>
         </>
@@ -226,6 +220,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
 
     return {
         props: {
+            slug: params!.slug,
             word: mdxSource.frontmatter.word,
             source: JSON.parse(JSON.stringify(mdxSource)),
             side_bar_data: side_bar_data
@@ -253,4 +248,4 @@ export const getStaticPaths: GetStaticPaths = async () => {
     };
 }
 
-export default PostPage;
+export default React.memo(PostPage);
