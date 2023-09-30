@@ -3,8 +3,12 @@ import path from 'path';
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
 
+import { useSelector } from 'react-redux';
+import { RootState } from '@store/store';
+
 import api_get_comments_by_array_of_ids from '@utils/api/interact/get_comments_by_array_of_ids';
-import { DEFAULT_PROFILE_IMAGE, ROOT_PUBLIC } from '@constants/config';
+import { DEFAULT_PROFILE_IMAGE, ROOT_PUBLIC, MAX_COMMENT_DEPTH } from '@constants/config';
+import CommentForm from './CommentForm';
 
 const CommentContainer = styled.div`
     position: relative;
@@ -82,18 +86,40 @@ const ActionButton = styled.button`
 
 interface CommentProps {
     comment: CommentInfo;
-    currentUserId: string;
+    slug: string; // used for the CommentForm replies
+    depth: number;
     onReply?: (id: string) => void;
     onEdit?: (id: string) => void;
     onDelete?: (id: string) => void;
 }
 
-const Comment: React.FC<CommentProps> = ({ comment, currentUserId, onReply, onEdit, onDelete }) => {
+const Comment: React.FC<CommentProps> = ({ comment, slug, onReply, onEdit, onDelete, depth }) => {
     // this component receives a comment to render and the current user that is viewing the page's id
-    // if they match then the user can edit or delete the comment
-    // otherwise they can only reply to the comment
+    // if they match then the user can edit or delete the comment, otherwise they can only reply to the comment
+    const currentUserId = useSelector((state: RootState) => state.user.data.userInfo._id);
     const isCurrentUser = currentUserId === comment.userId;
+
     const [replies, setReplies] = useState<CommentInfoResponse | null>(null);
+    const [showReplyForm, setShowReplyForm] = useState(false);
+    const [loadedReplies, setLoadedReplies] = useState(5);
+    const [showLoadMoreButton, setShowLoadMoreButton] = useState(comment.childComments.length > 5);
+
+    const toggleReplyForm = () => {
+        setShowReplyForm(!showReplyForm);
+    };
+
+    const loadMoreReplies = async () => {
+        try {
+            const newReplies = await api_get_comments_by_array_of_ids(comment.childComments, loadedReplies + 5); // Load 5 more replies
+            setReplies(newReplies);
+            setLoadedReplies(prev => prev + 5);
+
+            // Hide "Load More" button if all replies are loaded
+            setShowLoadMoreButton(newReplies.comments.length < loadedReplies + 5);
+        } catch (error) {
+            console.error('Failed to fetch more replies:', error);
+        }
+    }
 
     useEffect(() => {
         const fetchReplies = async () => {
@@ -121,20 +147,32 @@ const Comment: React.FC<CommentProps> = ({ comment, currentUserId, onReply, onEd
                     <Username>{comment.username}</Username>
                 </UserProfile>
                 <ActionsContainer>
-                    <ActionButton onClick={() => onReply && onReply(comment._id)}>reply</ActionButton>
-                    {isCurrentUser && (
-                        <>
-                            <ActionButton onClick={() => onEdit && onEdit(comment._id)}>edit</ActionButton>
-                            <ActionButton onClick={() => onDelete && onDelete(comment._id)}>delete</ActionButton>
-                        </>
-                    )}
+                    {isCurrentUser && (<>
+                        <ActionButton onClick={() => onEdit && onEdit(comment._id)}>edit</ActionButton>
+                        <ActionButton onClick={() => onDelete && onDelete(comment._id)}>delete</ActionButton>
+                    </>)}
+                    {depth < MAX_COMMENT_DEPTH && <ActionButton onClick={toggleReplyForm}>reply</ActionButton>}
                 </ActionsContainer>
             </CommentHeader>
             <CommentText>{comment.latestContent.comment}</CommentText>
+            {showReplyForm &&
+                <CommentForm slug={slug} parentComment={comment._id} onSubmit={() => { }} />
+            }
             <RepliesContainer>
                 {replies.comments.map((reply: CommentInfo) => (
-                    <Comment key={reply._id} comment={reply} currentUserId={currentUserId} onReply={onReply} onEdit={onEdit} onDelete={onDelete} />
+                    <Comment
+                        key={reply._id}
+                        comment={reply}
+                        slug={slug}
+                        onReply={onReply}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        depth={depth + 1}
+                    />
                 ))}
+                {showLoadMoreButton && (
+                    <ActionButton onClick={loadMoreReplies}>Load More Replies</ActionButton>
+                )}
             </RepliesContainer>
         </CommentContainer>
     );
