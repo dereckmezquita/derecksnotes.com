@@ -10,3 +10,5 @@ export const ROOT_DIR_CLIENT: string = path.join(__dirname, '..', '..', '..', 'c
 export const ROOT_DIR_CLIENT_UPLOADS: string = path.join(ROOT_DIR_CLIENT, 'public', 'site-images', 'uploads', 'profile-photos');
 
 export const API_PREFIX: string = '/api/v3';
+
+export const MAX_COMMENT_DEPTH: number = 5;
