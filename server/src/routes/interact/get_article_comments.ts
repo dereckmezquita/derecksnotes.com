@@ -21,7 +21,7 @@ get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
         const skip = (page - 1) * limit;
 
         // Fetch comments based on the slug and paginate using skip and limit
-        const comments = await CommentInfo.find<CommentInfo & mongoose.Document>({ slug, ...dateFilter })
+        const comments = await CommentInfo.find<CommentInfo & mongoose.Document>({ slug, parentComment: null, ...dateFilter })
             .sort({ "createdAt": -1 })
             .skip(skip)
             .limit(limit);
@@ -52,7 +52,7 @@ get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
         });
 
         // Additionally, return the total number of comments for this article for frontend pagination purposes
-        const total = await CommentInfo.countDocuments({ slug });
+        const total = await CommentInfo.countDocuments({ slug, parentComment: null });
 
         const message: CommentInfoResponse = {
             comments: enrichedComments,
