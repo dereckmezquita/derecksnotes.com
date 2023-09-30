@@ -31,19 +31,22 @@ const Input = styled.textarea`
 interface CommentFormProps {
     slug: string;
     parentComment?: string;
-    onSubmit: (comment: string) => void; // allows parent to update state with new comment; [newComment, ...comments]
+    onSubmit: (comment: CommentInfo) => void;
 }
 
 const CommentForm: React.FC<CommentFormProps> = ({ slug, parentComment, onSubmit }) => {
     const [comment, setComment] = useState('');
 
+    // Inside CommentForm component
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (comment.trim()) {
             try {
-                // end point uses user ID from session
                 const response = await api_new_comment(comment, slug, parentComment);
-                onSubmit(comment);
+                if (response) {
+                    onSubmit(response);
+                }
                 setComment('');
             } catch (error: any) {
                 console.error("Error submitting the comment:", error.message);
