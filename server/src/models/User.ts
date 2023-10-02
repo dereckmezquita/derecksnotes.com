@@ -1,15 +1,15 @@
-import mongoose from 'mongoose';
+import mongoose, { Document, Model } from 'mongoose';
 import bcrypt from 'bcrypt';
 
-const userSchema = new mongoose.Schema({
+const UserSchema = new mongoose.Schema({
     name: {
         first: { type: String, default: null },
         last: { type: String, default: null }
     },
-    profilePhotos: {
-        type: [String],
+    profilePhotos: [{
+        type: String,
         default: []
-    },
+    }],
     email: {
         address: {
             type: String,
@@ -65,7 +65,7 @@ const userSchema = new mongoose.Schema({
 // pre save hooks
 // ---------------------------------------
 // Hash password before saving
-userSchema.pre('save', async function (next) {
+UserSchema.pre('save', async function (next) {
     if (!this.isModified('password')) {
         return next();
     }
@@ -79,7 +79,7 @@ userSchema.pre('save', async function (next) {
 });
 
 // lowercase the username before saving
-userSchema.pre('save', function (next) {
+UserSchema.pre('save', function (next) {
     if (this.isModified('username')) {
         this.username = this.username.toLowerCase();
     }
@@ -93,7 +93,7 @@ userSchema.pre('save', function (next) {
 /*
 console.log(comment.latestProfilePhoto);
 */
-userSchema.virtual('latestProfilePhoto').get(function () {
+UserSchema.virtual('latestProfilePhoto').get(function () {
     return this.profilePhotos.length > 0 ? this.profilePhotos[this.profilePhotos.length - 1] : null;
 });
 
@@ -104,10 +104,53 @@ userSchema.virtual('latestProfilePhoto').get(function () {
 const user = await User.findById(someId);
 console.log(user.isPasswordCorrect('somePassword'));
 */
-userSchema.methods.isPasswordCorrect = async function (password: string) {
+UserSchema.methods.isPasswordCorrect = async function (password: string) {
     return await bcrypt.compare(password, this.password);
 };
 
-const User = mongoose.model<UserInfo & mongoose.Document>('User', userSchema);
+// ---------------------------------------
+// document interface
+export interface UserDocument extends Document {
+    name: {
+        first: string | null;
+        last: string | null;
+    };
+    profilePhotos: string[];
+    email: {
+        address: string;
+        verified: boolean;
+    };
+    username: string;
+    password: string;
+    metadata: {
+        geoLocations: {
+            ip: string;
+            country: string;
+            countryCode: string;
+            flag: string;
+            regionName: string;
+            city: string;
+            isp: string;
+            org: string;
+            firstUsed: Date;
+            lastUsed: Date;
+        }[];
+        lastConnected: Date;
+    };
+
+    // Virtuals
+    latestProfilePhoto: string | null;
+
+    // Methods
+    isPasswordCorrect(password: string): Promise<boolean>;
+}
+
+// User Model Interface
+export interface UserModel extends Model<UserDocument> {
+    // You can add static methods here if needed in the future.
+}
+
+// Now, we create the User model.
+const User = mongoose.model<UserDocument, UserModel>('User', UserSchema);
 
 export default User;
