@@ -1,9 +1,8 @@
-import { ObjectId } from "mongodb";
-import mongoose from "mongoose";
+import mongoose, { Model, Types, Document } from "mongoose";
 
 import sanitizeHtml from 'sanitize-html';
 
-export const commentSubSchema = new mongoose.Schema({
+export const ContentSchema = new mongoose.Schema({
     comment: {
         type: String,
         required: true,
@@ -12,39 +11,41 @@ export const commentSubSchema = new mongoose.Schema({
     }
 }, {
     timestamps: true, // adds createdAt and updatedAt
-    id: false
+    id: false,
+    toObject: { virtuals: true },
+    toJSON: { virtuals: true }
 });
 
+export const Content = mongoose.model('Content', ContentSchema);
 
-const commentInfoSchema = new mongoose.Schema({
-    childComments: {
-        type: [ObjectId],
-        ref: 'CommentInfo',
+const CommentSchema = new mongoose.Schema({
+    childComments: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Comment',
         default: [],
-    },
+    }],
     parentComment: {
-        type: ObjectId,
-        ref: 'CommentInfo',
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Comment',
         default: null,
     },
     reportTarget: { // only added if the comment itself is a report of another comment
-        type: ObjectId,
-        ref: 'CommentInfo',
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Comment',
         default: null,
     },
-    mentions: {
-        type: [ObjectId], // the _id of the user
+    mentions: [{
+        type: mongoose.Schema.Types.ObjectId, // the _id of the user
         ref: 'User',
-        default: [],
-    },
+    }],
     slug: { type: String, required: true }, // slugs must be unique
-    content: {
-        type: [commentSubSchema],
+    content: [{
+        type: ContentSchema,
         required: true,
         default: [],
-    },
+    }],
     userId: {
-        type: ObjectId, // _id of the user
+        type: mongoose.Schema.Types.ObjectId, // _id of commenter
         required: true,
         ref: 'User',
     },
@@ -65,7 +66,7 @@ const commentInfoSchema = new mongoose.Schema({
 // pre save hooks
 // ---------------------------------------
 // trim the comment before saving and sanitize it
-commentInfoSchema.pre('save', function (next) {
+CommentSchema.pre('save', function (this: CommentDocument, next) {
     const comment = this; // Now 'this' refers to the entire commentInfoSchema
     const lastCommentIndex = comment.content.length - 1;
 
@@ -100,7 +101,7 @@ commentInfoSchema.pre('save', function (next) {
 const comment = await CommentInfo.findById(someId);
 console.log(comment.likesCount);
 */
-commentInfoSchema.virtual('likesCount').get(function (this: CommentInfoDocument) {
+CommentSchema.virtual('likesCount').get(function (this: CommentDocument) {
     let count = 0;
     for (let [, judgement] of this.judgement) {
         if (judgement === 'like') count++;
@@ -108,7 +109,7 @@ commentInfoSchema.virtual('likesCount').get(function (this: CommentInfoDocument)
     return count;
 });
 
-commentInfoSchema.virtual('dislikesCount').get(function (this: CommentInfoDocument) {
+CommentSchema.virtual('dislikesCount').get(function (this: CommentDocument) {
     let count = 0;
     for (let [, judgement] of this.judgement) {
         if (judgement === 'dislike') count++;
@@ -117,7 +118,7 @@ commentInfoSchema.virtual('dislikesCount').get(function (this: CommentInfoDocume
 });
 
 // need to add virtuals to the interface
-commentInfoSchema.virtual('totalJudgement').get(function (this: CommentInfoDocument) {
+CommentSchema.virtual('totalJudgement').get(function (this: CommentDocument) {
     return this.likesCount - this.dislikesCount;
 });
 
@@ -125,9 +126,27 @@ commentInfoSchema.virtual('totalJudgement').get(function (this: CommentInfoDocum
 const comment = await CommentInfo.findById(someId);
 console.log(comment.latestConten);
 */
-commentInfoSchema.virtual('latestContent').get(function () {
+CommentSchema.virtual('latestContent').get(function () {
     return this.content[this.content.length - 1];
 });
+
+/*
+get user info on comment
+*/
+CommentSchema.virtual('user', {
+    ref: 'User',
+    localField: 'userId',
+    foreignField: '_id',
+    justOne: true,
+})
+
+CommentSchema.virtual('latestProfilePhoto').get(function (this: any) {
+    if (this.user && this.user.latestProfilePhoto) {
+        return this.user.latestProfilePhoto;
+    }
+    return null;
+});
+
 
 // ---------------------------------------
 // methods
@@ -138,7 +157,7 @@ const comment = await CommentInfo.findById(commentId);
 comment.setJudgement(someUserId, 'like'); // or 'dislike'
 await comment.save();
 */
-commentInfoSchema.methods.setJudgement = function (userId: string, judgement: 'like' | 'dislike') {
+CommentSchema.methods.setJudgement = function (userId: string, judgement: 'like' | 'dislike') {
     this.judgement.set(userId, judgement);
 }
 
@@ -151,22 +170,24 @@ comments.delete(userId);
 // 2. adds a new comment to the content array with the comment set to [deleted]
 // 3. if the latest content is already [deleted] it will not add another one; throws error instead informing user
 */
-commentInfoSchema.methods.markAsDeleted = function(this: CommentInfoDocument, userId: string) {
+CommentSchema.methods.markAsDeleted = function (this: CommentDocument, userId: string) {
     if (this.userId.toString() !== userId) {
         throw new Error("You do not own this comment.");
     }
 
-    const lastCommentIndex = this.content.length - 1;
-
-    if (this.content[lastCommentIndex].comment === "[deleted]") {
+    if (this.content[this.content.length - 1].comment === "[deleted]") {
         throw new Error("This comment has already been deleted.");
     }
 
     this.content.push({ comment: "[deleted]" });
+    // the array should be max length of 30; pop off old comments
+    if (this.content.length > 30) {
+        this.content.shift();
+    }
 }
 
 // ---- static methods ----
-commentInfoSchema.statics.deleteManyOwnedByUser = async function(this: any, commentIds: string[], userId: string) {
+CommentSchema.statics.deleteManyOwnedByUser = async function (this: any, commentIds: string[], userId: string) {
     const comments = await this.find({ _id: { $in: commentIds }, userId });
 
     if (comments.length !== commentIds.length) {
@@ -178,17 +199,17 @@ commentInfoSchema.statics.deleteManyOwnedByUser = async function(this: any, comm
         return comment.save();
     });
 
-    await Promise.all(promises);
+    return await Promise.all(promises);
 };
 
 
 /* const userComments = await CommentInfo.findByUser(someUserId); */
-commentInfoSchema.statics.findByUser = function (userId) {
+CommentSchema.statics.findByUser = function (userId) {
     return this.find({ userId });
 };
 
 /* const numCommentsByUser = await CommentInfo.countByUser(someUserId); */
-commentInfoSchema.statics.countByUser = function (userId) {
+CommentSchema.statics.countByUser = function (userId) {
     return this.countDocuments({ userId });
 };
 
@@ -196,34 +217,53 @@ commentInfoSchema.statics.countByUser = function (userId) {
 get comments judged by a user
 const commentsJudged = await CommentInfo.findByUser(someUserId);
 */
-commentInfoSchema.statics.commentsJudgedByUser = async function (userId) {
+CommentSchema.statics.commentsJudgedByUser = async function (userId) {
     const comments = await this.find({ [`judgement.${userId}`]: { $exists: true } });
     return comments || [];
 };
 
 // ---------------------------------------
-// interface for adding virtuals and methods
-interface CommentInfoModel extends mongoose.Model<CommentInfoDocument> {
-    deleteManyOwnedByUser: (commentIds: string[], userId: string) => Promise<void>;
-    findByUser: (userId: string) => Promise<CommentInfoDocument[]>;
-    countByUser: (userId: string) => Promise<number>;
-    commentsJudgedByUser: (userId: string) => Promise<CommentInfoDocument[]>;
-    // ... any other static methods you add
+//document interface
+interface Content {
+    comment: string;
+    createdAt?: Date;
+    updatedAt?: Date;
 }
 
-interface CommentInfoDocument extends mongoose.Document {
-    userId: ObjectId;
-    content: { comment: string }[];
+// FYI: be sure to import Document from mongoose
+// or else errors on doc.toObject()
+export interface CommentDocument extends Document {
+    childComments: Types.ObjectId[] | CommentDocument[];
+    parentComment: Types.ObjectId | null;
+    reportTarget: Types.ObjectId | null;
+    mentions: Types.ObjectId[];
+    slug: string;
+    content: Content[];
+    userId: Types.ObjectId;
     judgement: Map<string, 'like' | 'dislike'>;
+    deleted: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+
+    // Virtuals
     likesCount: number;
     dislikesCount: number;
     totalJudgement: number;
-    latestContent: () => { content: string, createdAt: Date, updatedAt: Date };
-    setJudgement: (userId: string, judgement: 'like' | 'dislike') => void;
-    markAsDeleted: (userId: string) => void;
-    // ... any other methods or virtuals you add
+    latestContent: Content;
+
+    // Methods
+    setJudgement(userId: string, judgement: 'like' | 'dislike'): void;
+    markAsDeleted(userId: string): void;
 }
 
-const CommentInfo = mongoose.model<CommentInfoDocument, CommentInfoModel>('Comment', commentInfoSchema);
+// model interface
+export interface CommentModel extends Model<CommentDocument> {
+    deleteManyOwnedByUser(commentIds: string[], userId: string): Promise<CommentDocument[]>;
+    findByUser(userId: string): Promise<CommentDocument[]>;
+    countByUser(userId: string): Promise<number>;
+    commentsJudgedByUser(userId: string): Promise<CommentDocument[]>;
+}
 
-export default CommentInfo;
+const Comment = mongoose.model<CommentDocument, CommentModel>('Comment', CommentSchema);
+
+export default Comment;
