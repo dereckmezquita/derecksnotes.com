@@ -1,9 +1,11 @@
+import { Document } from 'mongoose';
+
 export { };
 
 declare global {
-    interface CommentInfo {
+    interface CommentInfo extends Document {
         _id: string; // mongodb _id
-        childComments: string[];
+        childComments: string[] | CommentInfo[];
         parentComment: string | null;
         reportTarget?: string | null;
         mentions?: string[]; // _id of the users mentioned in this comment
@@ -38,7 +40,6 @@ declare global {
 
     interface CommentInfoResponse {
         comments: CommentInfo[];
-        total: number;
         hasMore: boolean;
     }
 }
