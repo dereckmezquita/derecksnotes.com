@@ -23,17 +23,36 @@ get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
 
     try {
         const skip = (page - 1) * limit;
-        const comments = await getCommentsWithChildren(slug, limit, skip, dateFilter, depth);
 
-        console.log(
-`\x1b[31m------------------ Final result object ------------------
-${JSON.stringify(comments)}\x1b[0m`,
-        )
+        let comments = await Comment.find({
+            slug,
+            parentComment: null,
+            ...dateFilter 
+        })
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .populate([
+                {
+                    path: 'user',
+                    model: 'User',
+                    select: 'profilePhotos username'
+                },
+                buildPopulateObject(depth)
+            ]).
+            exec();
+
+        const total: number = comments.length;
+
+        comments = comments.map((comment: CommentDocument) => {
+            return comment.toObject({ virtuals: true });
+        });
+
+        console.log(JSON.stringify(comments));
 
         const message: CommentInfoResponse = {
             comments: comments as any,
-            total: comments.length,  // Not total including child comments, but top-level comments
-            hasMore: false,
+            hasMore: total > page * limit, // only applies to top-level comments
         }
 
         res.status(200).json(message);
@@ -57,7 +76,8 @@ function buildPopulateObject(depth: number): any {
         populate: [
             {
                 path: 'user',
-                model: 'User'
+                model: 'User',
+                select: 'profilePhotos username'
             }
         ]
     };
@@ -68,40 +88,3 @@ function buildPopulateObject(depth: number): any {
 
     return result;
 }
-
-async function getCommentsWithChildren(
-    slug: string,
-    limit: number,
-    skip: number,
-    dateFilter: {},
-    maxDepth: number
-): Promise<CommentDocument[]> {
-    let populateObj = buildPopulateObject(maxDepth);
-
-    let topLevelComments = await Comment.find<CommentDocument>({
-        slug: slug,
-        parentComment: null,
-        ...dateFilter
-    })
-        .skip(skip)
-        .limit(limit)
-        .populate({
-            path: 'user',
-            model: 'User'
-        })
-        .populate(populateObj)
-        .exec();
-
-    return topLevelComments;
-}
-
-// function buildPopulateObject(depth: number): any {
-//     if (depth <= 0) {
-//         return null;
-//     }
-
-//     return {
-//         path: 'childComments',
-//         populate: buildPopulateObject(depth - 1)
-//     };
-// }
