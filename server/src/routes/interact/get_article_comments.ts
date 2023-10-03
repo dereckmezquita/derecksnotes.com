@@ -1,6 +1,6 @@
 import express from 'express';
-import User from '@models/User';
 import Comment, { CommentDocument } from '@models/Comment';
+import buildPopulateObject from '@utils/buildPopulateObject';
 
 const get_article_comments = express.Router();
 
@@ -63,28 +63,3 @@ get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
 });
 
 export default get_article_comments;
-
-function buildPopulateObject(depth: number): any {
-    if (depth <= 0) {
-        return null;
-    }
-
-    let populateChildren = buildPopulateObject(depth - 1);
-
-    let result = {
-        path: 'childComments',
-        populate: [
-            {
-                path: 'user',
-                model: 'User',
-                select: 'profilePhotos username'
-            }
-        ]
-    };
-
-    if (populateChildren) {
-        result.populate.push(populateChildren);
-    }
-
-    return result;
-}
