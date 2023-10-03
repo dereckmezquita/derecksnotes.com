@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import User from '@models/User';
-import CommentInfo from '@models/CommentInfo';
+import Comment from '@models/Comment';
 import geoLocate from '@utils/geoLocate';
 
 const me = Router();
@@ -43,9 +43,9 @@ me.get('/me', async (req, res) => {
         user.metadata.geoLocations = user.metadata.geoLocations.slice(-10);
 
         // get their comment info and other
-        const comments = await CommentInfo.findByUser(user._id);
-        const commentsJudged = await CommentInfo.commentsJudgedByUser(user._id);
-        const commentsCount = await CommentInfo.countByUser(user._id);
+        const comments = await Comment.findByUser(user._id);
+        const commentsJudged = await Comment.commentsJudgedByUser(user._id);
+        const commentsCount = await Comment.countByUser(user._id);
 
         const message = {
             userInfo: {
