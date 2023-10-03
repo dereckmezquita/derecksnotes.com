@@ -95,32 +95,6 @@ CommentSchema.pre('save', function (this: CommentDocument, next) {
     next();
 });
 
-// TODO: replace in articles with a method for doing db.comments.length
-// every time save a comment we increment count of number of comments in the article
-CommentSchema.pre('save', async function (next) {
-    // Check if this comment is a new comment
-    if (this.isNew) {
-        try {
-            // Increment the counter in the Article document
-            await Article.findOneAndUpdate(
-                { slug: this.slug },
-                { $inc: { commentCount: 1 } },
-                { upsert: true, setDefaultsOnInsert: true } // If article doesn't exist, create it
-            );
-        } catch (err) {
-            console.error("Error incrementing comment count on article:", err);
-            if (err instanceof Error) {
-                next(err as CallbackError);
-            } else {
-                next(new Error("An unexpected error occurred."));
-            }
-            return;
-        }
-    }
-
-    next();
-});
-
 // ---------------------------------------
 // virtuals
 // ---------------------------------------
