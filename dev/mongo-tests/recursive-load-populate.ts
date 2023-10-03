@@ -2,7 +2,7 @@ import mongoose, { connect } from 'mongoose';
 import Comment from './models/Comment';
 import User from './models/User';
 
-console.log(User);
+console.log(User); // we have to use User for it to be registered with mongoose
 
 export const connectToDB = async (uri: string) => {
     try {
@@ -26,7 +26,8 @@ function buildPopulateObject(depth: number): any {
         populate: [
             {
                 path: 'user',
-                model: 'User'
+                model: 'User',
+                select: 'profilePhotos username'
             }
         ]
     };
@@ -43,16 +44,19 @@ const MONGO_URI = 'mongodb://localhost:27017/derecksnotes';
 async function main(): Promise<void> {
     await connectToDB(MONGO_URI);
 
-    // Define the depth of child comments you want to populate. 
-    // For instance, a value of 3 will get top-level comments, their children, 
-    // the children's children, and the respective users for each comment.
-    const depth = 3;
+    const depth = 100;
+
+    const topUserPopulate = {
+        path: 'user',
+        model: 'User',
+        select: 'profilePhotos username'
+    };
 
     const populateObj = buildPopulateObject(depth);
 
     // Fetch the top-level comments and populate the nested child comments and users.
     const comments = await Comment.find({ parentComment: null })
-        .populate(populateObj)
+        .populate([topUserPopulate, populateObj])
         .exec();
 
     const commentObjects = comments.map(comment => comment.toObject({ virtuals: true }));
