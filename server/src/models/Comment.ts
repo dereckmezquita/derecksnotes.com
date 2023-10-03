@@ -95,6 +95,7 @@ CommentSchema.pre('save', function (this: CommentDocument, next) {
     next();
 });
 
+// TODO: replace in articles with a method for doing db.comments.length
 // every time save a comment we increment count of number of comments in the article
 CommentSchema.pre('save', async function (next) {
     // Check if this comment is a new comment
