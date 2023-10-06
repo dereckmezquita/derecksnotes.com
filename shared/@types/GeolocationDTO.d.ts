@@ -1,8 +1,8 @@
-export {};
+export { };
 
 declare global {
     // info we get back from api
-    interface ResGeoLocation {
+    export interface GeolocationDTO {
         ip: string;
         country: string;
         countryCode: string;
@@ -11,10 +11,9 @@ declare global {
         city: string;
         isp: string;
         org: string;
-    }
 
-    interface GeoLocation extends ResGeoLocation {
-        firstUsed: Date;
-        lastUsed: Date;
+        // added by us
+        firstUsed?: Date;
+        lastUsed?: Date;
     }
 }
