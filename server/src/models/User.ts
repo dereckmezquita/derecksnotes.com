@@ -1,5 +1,6 @@
 import mongoose, { Document, Model } from 'mongoose';
 import bcrypt from 'bcrypt';
+import geoLocate from '@utils/geoLocate';
 
 const UserSchema = new mongoose.Schema({
     name: {
@@ -43,7 +44,7 @@ const UserSchema = new mongoose.Schema({
     },
     password: { type: String, required: true },
     metadata: {
-        geoLocations: [
+        geolocations: [
             {
                 ip: String,
                 country: String,
@@ -87,6 +88,14 @@ UserSchema.pre('save', function (next) {
     next();
 });
 
+// Sort geolocations by lastUsed date in ascending order (oldest first).
+// .slice(-10) to get the last 10 geolocations used
+UserSchema.pre('save', function (this: UserDocument, next) {
+    this.metadata.geolocations.sort((a, b) => a.lastUsed.getTime() - b.lastUsed.getTime());
+
+    next();
+});
+
 // ---------------------------------------
 // virtuals
 // ---------------------------------------
@@ -108,6 +117,29 @@ UserSchema.methods.isPasswordCorrect = async function (password: string) {
     return await bcrypt.compare(password, this.password);
 };
 
+UserSchema.methods.addOrUpdateGeoLocation = async function(this: UserDocument, ip: string) {
+    // Check if IP exists in geolocations.
+    const geoLocationIndex = this.metadata.geolocations.findIndex((geo) => geo.ip === ip);
+
+    if (geoLocationIndex !== -1) {
+        // IP exists, so we update the lastUsed timestamp.
+        this.metadata.geolocations[geoLocationIndex].lastUsed = new Date();
+    } else {
+        // IP doesn't exist, fetch the geolocation data.
+        const newGeoLocation = await geoLocate(ip);
+        
+        // Add current date as firstUsed and lastUsed.
+        newGeoLocation.firstUsed = new Date();
+        newGeoLocation.lastUsed = new Date();
+
+        // Push to geolocations array.
+        this.metadata.geolocations.push(newGeoLocation as any);
+    }
+
+    // Save the updated user document.
+    return this.save();
+};
+
 // ---------------------------------------
 // document interface
 export interface UserDocument extends Document {
@@ -123,7 +155,7 @@ export interface UserDocument extends Document {
     username: string;
     password: string;
     metadata: {
-        geoLocations: {
+        geolocations: {
             ip: string;
             country: string;
             countryCode: string;
@@ -143,6 +175,7 @@ export interface UserDocument extends Document {
 
     // Methods
     isPasswordCorrect(password: string): Promise<boolean>;
+    addOrUpdateGeoLocation(ip: string): Promise<UserDocument>;
 }
 
 // User Model Interface
