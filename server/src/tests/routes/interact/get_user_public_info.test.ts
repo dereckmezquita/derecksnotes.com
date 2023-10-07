@@ -1,8 +1,7 @@
 import request from 'supertest';
-import { SetUp, app, redisClient } from '../../../index';  // Importing app
-
+import { SetUp, app, redisClient } from '../../../index';
+import { InMemoryDBConnector } from '@utils/DatabaseConnector'
 import { API_PREFIX } from '@utils/constants';
-import { NoOpDBConnector, InMemoryDBConnector } from '@utils/DatabaseConnector';
 
 // Mock User.findOne to return a specific object
 jest.mock('@models/User', () => ({
@@ -20,22 +19,15 @@ jest.mock('@models/User', () => ({
     }),
 }));
 
-
-
 describe('Get User Public Info Route', () => {
-    let dbConnector: InMemoryDBConnector;
-
-    // Set up before running tests
     beforeAll(async () => {
-        // const dbConnector = new NoOpDBConnector();
-        dbConnector = new InMemoryDBConnector();
+        const dbConnector = new InMemoryDBConnector();
         await SetUp(dbConnector);
     });
 
     // Clean up after tests are done
     afterAll(async () => {
-        await dbConnector.disconnect();
-        await redisClient.disconnect();
+        // await redisClient.disconnect();
     });
 
     it('should return user public info', async () => {
