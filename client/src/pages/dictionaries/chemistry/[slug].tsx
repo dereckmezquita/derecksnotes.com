@@ -248,4 +248,4 @@ export const getStaticPaths: GetStaticPaths = async () => {
     };
 }
 
-export default React.memo(PostPage);
+export default PostPage;
