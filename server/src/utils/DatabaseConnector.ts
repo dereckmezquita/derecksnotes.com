@@ -41,7 +41,6 @@ export class InMemoryDBConnector implements DatabaseConnector {
             this.mongoServer = await MongoMemoryServer.create();
             const mongoUri = this.mongoServer.getUri('derecksnotes_test');
             const connection = await mongoose.connect(mongoUri);
-            console.log("In-memory DB Connected!");
         } catch (error) {
             console.error("Error connecting to in-memory DB:", error);
             process.exit(1);
