@@ -4,15 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
-  },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "node",
-    "moduleNameMapper": {
-      "^@utils/(.*)$": "<rootDir>/src/utils/$1",
-      "^@models/(.*)$": "<rootDir>/src/models/$1"
-    }
+    "test": "jest --runInBand"
   },
   "keywords": [],
   "author": "",
@@ -42,6 +34,8 @@
     "@types/node": "^20.6.2",
     "@types/supertest": "^2.0.14",
     "jest": "^29.7.0",
+    "mongodb-memory-server": "^9.0.0",
+    "redis-mock": "^0.56.3",
     "supertest": "^6.3.3",
     "ts-jest": "^29.1.1",
     "typescript": "^5.2.2"
