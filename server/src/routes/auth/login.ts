@@ -14,6 +14,11 @@ login.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
+        // Check for missing username or password
+        if (!username || !password) {
+            return res.status(400).json({ message: "Username and password are required" });
+        }
+
         const user = await User.findOne<UserDocument>({ username });
 
         if (!user) {
@@ -21,7 +26,6 @@ login.post('/login', async (req, res) => {
         }
 
         const isMatch = await user.isPasswordCorrect(password);
-        // const isMatch = await bcrypt.compare(password, user.password!);
 
         if (!isMatch) {
             return res.status(401).json({ message: "Invalid login credentials" });
