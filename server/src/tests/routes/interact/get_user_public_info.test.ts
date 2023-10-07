@@ -4,7 +4,7 @@ import { InMemoryDBConnector } from '@utils/DatabaseConnector'
 import { API_PREFIX } from '@utils/constants';
 import User, { UserDocument } from '@models/User';
 
-import { userMock } from 'src/tests/mocks/user';
+import { userMock } from '../../mocks/user';
 
 describe('Get User Public Info Route', () => {
     let dbConnector: InMemoryDBConnector;

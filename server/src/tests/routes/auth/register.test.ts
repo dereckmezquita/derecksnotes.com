@@ -19,12 +19,16 @@ jest.mock('@utils/geoLocate', () => ({
 }));
 
 describe('Get User Public Info Route', () => {
+    let dbConnector: InMemoryDBConnector;
+
     beforeAll(async () => {
-        const db = new InMemoryDBConnector();
-        await SetUp(db);
+        dbConnector = new InMemoryDBConnector();
+        await SetUp(dbConnector);
     });
 
+    // Clean up after tests are done
     afterAll(async () => {
+        await dbConnector.disconnect();
         // await redisClient.disconnect();
     });
 
@@ -46,8 +50,8 @@ describe('Get User Public Info Route', () => {
 
     it('should fail if the user already exists', async () => {
         const payload = {
-            email: 'test@example.com',
-            username: 'testuser',
+            email: 'dereck@example.com',
+            username: 'dereck',
             password: 'testpassword',
         };
 
