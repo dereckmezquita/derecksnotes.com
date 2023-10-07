@@ -34,6 +34,11 @@ export const userSlice = createSlice({
             state.error = action.payload;
         },
         logout: (state) => {
+            // thunk login does
+            // localStorage.setItem('userData', JSON.stringify(userData));
+            // localStorage.setItem('lastFetched', String(currentTime));
+            localStorage.removeItem('userData');
+            localStorage.removeItem('lastFetched');
             return initialState;
         }
     }
