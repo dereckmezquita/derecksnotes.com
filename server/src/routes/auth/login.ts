@@ -1,9 +1,5 @@
 import { Router } from 'express';
-import User from '@models/User';
-import bcrypt from 'bcrypt';
-import mongoose from 'mongoose';
-
-import geoLocate from '@utils/geoLocate';
+import User, { UserDocument } from '@models/User';
 
 const login = Router();
 
@@ -18,33 +14,22 @@ login.post('/login', async (req, res) => {
     try {
         const { username, password } = req.body;
 
-        const user = await User.findOne({ username }) as UserInfo & mongoose.Document;
+        const user = await User.findOne<UserDocument>({ username });
 
-        if (!user) return res.status(401).json({ message: "Invalid login credentials" });
-        
-        const isMatch = await bcrypt.compare(password, user.password!);
+        if (!user) {
+            return res.status(401).json({ message: "Invalid login credentials" });
+        }
 
-        if (!isMatch) return res.status(401).json({ message: "Invalid login credentials" });
+        const isMatch = await user.isPasswordCorrect(password);
+        // const isMatch = await bcrypt.compare(password, user.password!);
+
+        if (!isMatch) {
+            return res.status(401).json({ message: "Invalid login credentials" });
+        }
 
         const ip_address = req.headers['x-forwarded-for'] as string;
 
-        try {
-            const geo = await geoLocate(ip_address);
-            
-            const geoData: GeoLocation = {
-                ...geo,
-                firstUsed: new Date(),
-                lastUsed: new Date()
-            };
-
-            user.metadata.geoLocations.push(geoData);
-        } catch (error) {
-            console.warn("GeoLocation Error:", error);
-        }
-
-        user.metadata.lastConnected = new Date();
-
-        await user.save();
+        await user.addOrUpdateGeoLocation(ip_address); // saves the user
 
         // handle sessions here
         req.session.userId = user._id;
