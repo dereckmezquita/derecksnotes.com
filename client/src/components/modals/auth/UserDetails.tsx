@@ -103,7 +103,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
                 <div>
                     <Icon><FaMapPin /></Icon>Geo Locations
                 </div>
-                {userInfo.metadata.geoLocations.length}
+                {userInfo.metadata.geolocations.length}
             </InfoBlock>
             <InfoBlock>
                 <div>
