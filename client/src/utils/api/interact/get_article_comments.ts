@@ -6,7 +6,7 @@ const api_get_article_comments = async (
     page?: number,
     startDate?: string,
     endDate?: string
-): Promise<CommentInfoResponse> => {
+): Promise<any> => { // TODO: update return type
     try {
         const limitParam = n ? `limit=${n}` : '';
         const pageParam = page ? `page=${page}` : '';
@@ -24,6 +24,8 @@ const api_get_article_comments = async (
         if (!response.ok) {
             throw new Error(data.message || 'Something went wrong fetching the comments!');
         }
+
+        // console.log(JSON.stringify(data));
 
         return data;
     } catch (error) {
