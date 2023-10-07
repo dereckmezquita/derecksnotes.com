@@ -7,26 +7,26 @@ import session from 'express-session';
 import { RedisClientOptions, RedisFunctions, RedisModules, RedisScripts, createClient } from 'redis';
 import makeRedisStore from 'connect-redis';
 
-import { connectToDB } from './utils/mongoConnect';
 import { authRoutes, uploadRoutes, interactRoutes } from './routes/index';
 import { API_PREFIX } from '@utils/constants';
+import { DatabaseConnector, MongoDBConnector } from '@utils/DatabaseConnector';
 
 dotenv.config({ path: '../.env' });
 const PORT: number = 3001;
 
 // ----------------------------------------
 // Setup Redis client and session store
-const redis_options: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts> = {
+export const redis_options: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts> = {
     // redis[s]://[[username][:password]@][host][:port][/db-number]
     url: 'redis://localhost:6379',
     legacyMode: true
 };
 
-const redisClient = createClient(redis_options);
+export const redisClient = createClient(redis_options);
 
 const redisStore = makeRedisStore(session);
 // ----------------------------------------
-const app = express();
+export const app = express();
 
 if (process.env.NODE_ENV === 'development') {
     // assuming frontend on port 3000
@@ -36,8 +36,8 @@ if (process.env.NODE_ENV === 'development') {
 app.use(express.json());
 
 
-async function main(): Promise<void> {
-    await connectToDB();
+export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
+    await dbConnector.connect();
 
     // ----------------------------------------
     await redisClient.connect();
@@ -57,13 +57,11 @@ async function main(): Promise<void> {
         })
     );
 
-    console.log('Ready to accept requests...');
-
     // ----------------------------------------
     app.use((req, res, next) => {
         console.log('Incoming request:', req.method, req.url);
         next();
-    });    
+    });
 
     // ----------------------------------------
     // Routes
@@ -76,12 +74,22 @@ async function main(): Promise<void> {
     app.get(API_PREFIX + '/hello', (req, res) => {
         res.send('Hello World!');
     });
+}
+
+export async function main(): Promise<void> {
+    const dbConnector = new MongoDBConnector(process.env.MONGO_URI!);
+
+    await SetUp(dbConnector);
 
     app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+        console.log(`Server listening on port ${PORT}`);
     });
 }
 
-main().catch(err => {
-    console.error('Error starting server:', err);
-});
+if (require.main === module) {
+    main().catch(err => {
+        console.error('Error starting server:', err);
+    });
+}
+
+export default app;
