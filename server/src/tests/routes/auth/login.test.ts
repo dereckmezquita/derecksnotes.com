@@ -1,4 +1,4 @@
-import resquest from 'supertest';
+import request from 'supertest';
 import { SetUp, app } from '../../../index';
 import { InMemoryDBConnector } from '@utils/DatabaseConnector';
 import { API_PREFIX } from '@utils/constants';
@@ -29,29 +29,54 @@ describe('POST /auth/login Endpoint', () => {
         dbConnector = new InMemoryDBConnector();
         await SetUp(dbConnector);
 
-        // create a test user
+        // Create a test user
         testUser = await User.create(userMock);
     });
 
     afterAll(async () => {
-        // clean up
+        // Clean up
         await User.deleteOne({ _id: testUser._id });
-
         await dbConnector.disconnect();
     });
 
     it('should return 200 if login is successful', async () => {
-        const response = await resquest(app)
+        const response = await request(app)
             .post(API_PREFIX + '/auth/login')
             .send({ username: userMock.username, password: userMock.password });
 
-        // save session cookie we will test this too
+        // Save session cookie; we will test this too
         sessionCookie = response.headers['set-cookie'];
 
         expect(response.status).toBe(200);
         expect(response.body.message).toBe('Login successful');
 
-        // test session cookie
+        // Test session cookie
         expect(sessionCookie).toBeDefined();
+    });
+
+    it('should return 401 for invalid username', async () => {
+        const response = await request(app)
+            .post(API_PREFIX + '/auth/login')
+            .send({ username: 'invalidUsername', password: userMock.password });
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe('Invalid login credentials');
+    });
+
+    it('should return 401 for invalid password', async () => {
+        const response = await request(app)
+            .post(API_PREFIX + '/auth/login')
+            .send({ username: userMock.username, password: 'invalidPassword' });
+
+        expect(response.status).toBe(401);
+        expect(response.body.message).toBe('Invalid login credentials');
+    });
+
+    it('should return 400 for missing username or password', async () => {
+        const response = await request(app)
+            .post(API_PREFIX + '/auth/login')
+            .send({ username: userMock.username });
+
+        expect(response.status).toBe(400); // Assuming your API returns 400 for bad requests
     });
 });
