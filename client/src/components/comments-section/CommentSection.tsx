@@ -118,3 +118,5 @@ const CommentSection: React.FC<CommentsSectionProps> = ({ slug, allowComments })
 };
 
 export default React.memo(CommentSection);
+
+// CONTINUE: need to be able to modify the comments tree directly, to delete reply. Currently if reply and then delete the reply nothing happens.
