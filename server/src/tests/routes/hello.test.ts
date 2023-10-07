@@ -3,10 +3,6 @@ import { app, redisClient, SetUp } from '../../index';  // Importing app, redisC
 import { API_PREFIX } from '@utils/constants';
 import { NoOpDBConnector } from '@utils/DatabaseConnector';
 
-jest.mock('@utils/mongoConnect', () => ({
-    connectToDB: jest.fn()
-}));
-
 describe('Hello Route', () => {
     // Set up before running tests
     beforeAll(async () => {
