@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Request, Response, Router } from 'express';
 import mongoose from 'mongoose';
 
 import Comment, { CommentDocument } from '@models/Comment';
@@ -9,56 +9,84 @@ import { MAX_COMMENT_DEPTH } from '@utils/constants';
 
 const new_comment = Router();
 
-new_comment.post('/new_comment', isAuthenticated, async (req, res) => {
+new_comment.post('/new_comment', isAuthenticated, async (req: Request, res: Response) => {
     try {
         const { comment, slug, parentComment: parentId } = req.body as { comment: string, slug: string, parentComment?: string };
 
+        // Validate input
         if (!comment || !slug) {
             return res.status(400).json({ message: "Content and slug are required." });
         }
 
-        const newComment: CommentDocument = new Comment({
-            content: [{ comment }],
-            slug,
-            userId: req.session.userId,
-            ...(parentId && { parentComment: new mongoose.Types.ObjectId(parentId) })
-        });
-
-        // now let's find the parent comment and add the id of this new comment to it
-        if (parentId) {
-            if (await getCommentDepth(parentId) >= MAX_COMMENT_DEPTH) {
-                return res.status(400).json({ message: "Reply depth limit reached." });
-            }
-
-            const parentComment = await Comment.findOne<CommentDocument>({ _id: parentId });
-
-            if (!parentComment) {
-                return res.status(404).json({ message: "Parent comment not found." });
-            }
-
-            parentComment.childComments.push(newComment._id);
-
-            await parentComment.save();
+        if (parentId && !mongoose.Types.ObjectId.isValid(parentId)) {
+            return res.status(400).json({ message: "Invalid parent comment ID." });
         }
 
-        await newComment.save();
+        // Create new comment
+        const newComment = await createNewComment(comment, slug, parentId, req.session.userId!);
 
-        const popObj = (await Comment.populate(newComment, {
-            path: 'user',
-            select: 'username profilePhotos latestProfilePhoto',
-            model: User
-        })).toObject({ virtuals: true })
+        // Populate and return the new comment
+        const populatedComment = await populateComment(newComment);
+        res.status(201).json(populatedComment.toObject({ virtuals: true }));
 
-        // console.log(JSON.stringify(popObj));
-
-        res.status(201).json(popObj);
     } catch (error) {
-        console.error("Comment Post Error:", error);
-        res.status(500).json({ message: "Unable to post the comment. Please try again." });
+        handleCommentPostError(error, res);
     }
 });
 
 export default new_comment;
+
+async function createNewComment(comment: string, slug: string, parentId: string | undefined, userId: string): Promise<CommentDocument> {
+    const newComment: CommentDocument = new Comment({
+        content: [{ comment }],
+        slug,
+        userId,
+        ...(parentId && { parentComment: new mongoose.Types.ObjectId(parentId) })
+    });
+
+    if (parentId) {
+        await attachToParentComment(newComment, parentId);
+    }
+
+    await newComment.save();
+    return newComment;
+}
+
+async function attachToParentComment(newComment: CommentDocument, parentId: string) {
+    if (await getCommentDepth(parentId) >= MAX_COMMENT_DEPTH) {
+        throw new ReplyDepthLimitError("Reply depth limit reached.");
+    }
+
+    const parentComment = await Comment.findOne<CommentDocument>({ _id: parentId });
+    if (!parentComment) {
+        throw new ParentCommentNotFoundError("Parent comment not found.");
+    }
+
+    parentComment.childComments.push(newComment._id);
+    await parentComment.save();
+}
+
+async function populateComment(comment: CommentDocument): Promise<CommentDocument> {
+    return Comment.populate(comment, {
+        path: 'user',
+        select: 'username profilePhotos latestProfilePhoto',
+        model: User
+    });
+}
+
+function handleCommentPostError(error: any, res: Response) {
+    console.error("Comment Post Error:", error);
+
+    if (error instanceof ReplyDepthLimitError || error instanceof ParentCommentNotFoundError) {
+        return res.status(400).json({ message: error.message });
+    }
+
+    if (error instanceof mongoose.Error.ValidationError) {
+        return res.status(400).json({ message: error.message });
+    }
+
+    res.status(500).json({ message: "Unable to post the comment. Please try again." });
+}
 
 async function getCommentDepth(commentId: string, depth: number = 0): Promise<number> {
     const comment = await Comment.findOne<CommentDocument>({ _id: commentId });
@@ -67,6 +95,22 @@ async function getCommentDepth(commentId: string, depth: number = 0): Promise<nu
     }
     return depth;
 }
+
+// ------------------ Error Classes ------------------
+class ReplyDepthLimitError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'ReplyDepthLimitError';
+    }
+}
+
+class ParentCommentNotFoundError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'ParentCommentNotFoundError';
+    }
+}
+
 
 /*
 Server sent:
