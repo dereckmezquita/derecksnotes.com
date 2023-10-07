@@ -2,31 +2,27 @@ import request from 'supertest';
 import { SetUp, app, redisClient } from '../../../index';
 import { InMemoryDBConnector } from '@utils/DatabaseConnector'
 import { API_PREFIX } from '@utils/constants';
+import User, { UserDocument } from '@models/User';
 
-// Mock User.findOne to return a specific object
-jest.mock('@models/User', () => ({
-    findOne: jest.fn(() => {
-        return {
-            username: 'dereck',
-            latestProfilePhoto: 'optimised_dereck_2023-09-28-162359.jpg',
-            profilePhotos: ['optimised_dereck_2023-09-28-162359.jpg'],
-            toObject: jest.fn().mockReturnValue({
-                username: 'dereck',
-                latestProfilePhoto: 'optimised_dereck_2023-09-28-162359.jpg',
-                profilePhotos: ['optimised_dereck_2023-09-28-162359.jpg'],
-            }),
-        }
-    }),
-}));
+import { userMock } from 'src/tests/mocks/user';
 
 describe('Get User Public Info Route', () => {
+    let dbConnector: InMemoryDBConnector;
+    let testUser: UserDocument;
+
     beforeAll(async () => {
-        const dbConnector = new InMemoryDBConnector();
+        dbConnector = new InMemoryDBConnector();
         await SetUp(dbConnector);
+
+        testUser = await User.create(userMock);
     });
+
 
     // Clean up after tests are done
     afterAll(async () => {
+        await User.deleteOne({ _id: testUser._id });
+
+        await dbConnector.disconnect();
         // await redisClient.disconnect();
     });
 
