@@ -1,7 +1,4 @@
-import Article from '@models/Article';
-import mongoose, { Model, Types, Document, CallbackError } from "mongoose";
-
-
+import mongoose, { Model, Types, Document } from "mongoose";
 import sanitizeHtml from 'sanitize-html';
 
 export const ContentSchema = new mongoose.Schema({
@@ -176,15 +173,19 @@ CommentSchema.methods.markAsDeleted = function (this: CommentDocument, userId: s
         throw new Error("You do not own this comment.");
     }
 
-    if (this.content[this.content.length - 1].comment === "[deleted]") {
+    // check if latest content is already [deleted]
+    if (this.content.length > 0 && this.content[this.content.length - 1].comment === "[deleted]") {
         throw new Error("This comment has already been deleted.");
     }
 
     this.content.push({ comment: "[deleted]" });
+
     // the array should be max length of 30; pop off old comments
     if (this.content.length > 30) {
         this.content.shift();
     }
+
+    this.deleted = true;
 }
 
 // ---- static methods ----
@@ -205,12 +206,12 @@ CommentSchema.statics.deleteManyOwnedByUser = async function (this: any, comment
 
 
 /* const userComments = await CommentInfo.findByUser(someUserId); */
-CommentSchema.statics.findByUser = function (userId) {
+CommentSchema.statics.findByUser = function (userId: string): Promise<CommentDocument[]> {
     return this.find({ userId });
 };
 
 /* const numCommentsByUser = await CommentInfo.countByUser(someUserId); */
-CommentSchema.statics.countByUser = function (userId) {
+CommentSchema.statics.countByUser = function (userId: string): Promise<number> {
     return this.countDocuments({ userId });
 };
 
@@ -218,7 +219,7 @@ CommentSchema.statics.countByUser = function (userId) {
 get comments judged by a user
 const commentsJudged = await CommentInfo.findByUser(someUserId);
 */
-CommentSchema.statics.commentsJudgedByUser = async function (userId) {
+CommentSchema.statics.commentsJudgedByUser = async function (userId: string): Promise<CommentDocument[]> {
     const comments = await this.find({ [`judgement.${userId}`]: { $exists: true } });
     return comments || [];
 };
