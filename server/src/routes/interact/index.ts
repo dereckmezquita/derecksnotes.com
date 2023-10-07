@@ -8,10 +8,12 @@ import delete_comments from './delete_comments';
 
 const interactRoutes = Router();
 
-interactRoutes.use('/', new_comment);
 interactRoutes.use('/', get_article_comments);
 interactRoutes.use('/', get_user_public_info);
 interactRoutes.use('/', get_comments_threads_by_id);
+
+// auth protected routes
+interactRoutes.use('/', new_comment);
 interactRoutes.use('/', delete_comments);
 
 export default interactRoutes;

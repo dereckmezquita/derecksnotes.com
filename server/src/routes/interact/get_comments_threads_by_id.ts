@@ -26,6 +26,7 @@ get_comments_threads_by_id.post('/get_comments_threads_by_id', async (req, res) 
     try {
         const skip = (page - 1) * limit;
 
+        // each comment has UserId of the user that made the comment comment.UserId
         let comments = await Comment.find({
             _id: { $in: commentIds },
             ...dateFilter
@@ -49,9 +50,9 @@ get_comments_threads_by_id.post('/get_comments_threads_by_id', async (req, res) 
             return comment.toObject({ virtuals: true });
         });
 
-        console.log(JSON.stringify(comments));
+        // console.log(JSON.stringify(comments));
 
-        const message: CommentInfoResponse = {
+        const message: CommentsBySlugDTO = {
             comments: comments as any,
             hasMore: total > page * limit,
         }

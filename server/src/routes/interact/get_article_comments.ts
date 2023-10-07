@@ -24,7 +24,7 @@ get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
     try {
         const skip = (page - 1) * limit;
 
-        let comments = await Comment.find({
+        const comments = await Comment.find({
             slug,
             parentComment: null,
             ...dateFilter 
@@ -44,14 +44,14 @@ get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
 
         const total: number = comments.length;
 
-        comments = comments.map((comment: CommentDocument) => {
+        const commentsObj: CommentPopUserDTO[] = comments.map((comment: CommentDocument) => {
             return comment.toObject({ virtuals: true });
         });
 
         // console.log(JSON.stringify(comments));
 
-        const message: CommentInfoResponse = {
-            comments: comments as any,
+        const message: CommentsBySlugDTO = {
+            comments: commentsObj,
             hasMore: total > page * limit, // only applies to top-level comments
         }
 
