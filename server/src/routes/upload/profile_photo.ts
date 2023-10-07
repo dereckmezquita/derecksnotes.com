@@ -17,6 +17,12 @@ profile_photo.post('/profile_photo', async (req, res) => {
 
     const username = req.session.username; // get the username from the session
 
+    const user = await User.findById(req.session.userId);
+
+    if (!user) {
+        return res.status(404).json({ message: "User not found" });
+    }
+
     upload(req, res, async (err: any) => {
         if (err) {
             return res.status(400).json({ message: err });
@@ -34,18 +40,13 @@ profile_photo.post('/profile_photo', async (req, res) => {
                 .resize(1000)
                 .jpeg({ quality: 70 })
                 .toFile(finalPath);
-    
-            const user = await User.findById(req.session.userId);
-            if (!user) {
-                return res.status(404).json({ message: "User not found" });
-            }
-    
-            user.profilePhotos.push(imageName);  // Add the new photo to the array
-            
+
+            user.profilePhotos.push(imageName); // Add the new photo to the array
+
             // Check if number of photos exceeds 5
             while (user.profilePhotos.length > 5) {
                 const removedPhoto = user.profilePhotos.shift();  // Remove the oldest photo
-    
+
                 if (removedPhoto) {
                     // Remove the oldest photo from the filesystem
                     fs.unlink(path.join(ROOT_DIR_CLIENT_UPLOADS, removedPhoto), (err) => {
@@ -53,11 +54,11 @@ profile_photo.post('/profile_photo', async (req, res) => {
                     });
                 }
             }
-            
+
             await user.save();
-    
+
             res.status(200).json({ message: "Image uploaded, processed, and saved", imageName: imageName });
-    
+
         } catch (error) {
             console.error("Error while processing image or updating user:", error);
             res.status(500).json({ message: "Server Error" });
