@@ -1,8 +1,6 @@
 import { Router } from 'express';
-import mongoose from 'mongoose';
-import User from '@models/User';
-import Comment from '@models/Comment';
-import geoLocate from '@utils/geoLocate';
+import User, { UserDocument } from '@models/User';
+import Comment, { CommentDocument } from '@models/Comment';
 
 const me = Router();
 
@@ -12,45 +10,39 @@ me.get('/me', async (req, res) => {
             return res.status(401).json({ message: "Not logged in" });
         }
 
-        const user = await User.findById(req.session.userId) as UserInfo & mongoose.Document;
+        const user = await User.findById<UserDocument>(req.session.userId);
 
-        if (!user) return res.status(404).json({ message: "User not found" });
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
 
         const ip_address = req.headers['x-forwarded-for'] as string;
 
-        try {
-            const geo = await geoLocate(ip_address);
+        await user.addOrUpdateGeoLocation(ip_address); // saves the user
 
-            const geoData: GeoLocation = {
-                ...geo,
-                firstUsed: new Date(),
-                lastUsed: new Date()
-            };
+        // convert and prep the user object; remove password
+        const userObj: UserDTO = user.toObject({ virtuals: true });
 
-            user.metadata.geoLocations.push(geoData);
-        } catch (error) {
-            console.warn("GeoLocation Error:", error);
-        }
-
-        user.metadata.lastConnected = new Date();
-
-        // be careful not to save before deleting data
-        await user.save();
         // Remove password from the response
-        user.password = undefined;
+        delete userObj.password;
 
-        // Slice the geoLocations and commentsJudged arrays to keep only the last 10 elements
-        user.metadata.geoLocations = user.metadata.geoLocations.slice(-10);
+        // send only 10 most recent geolocations; sorted in ascending order by hook
+        userObj.metadata.geolocations = userObj.metadata.geolocations.slice(-10);
 
-        // get their comment info and other
-        const comments = await Comment.findByUser(user._id);
-        const commentsJudged = await Comment.commentsJudgedByUser(user._id);
-        const commentsCount = await Comment.countByUser(user._id);
+        // get their comment info and other; get only comments not marked as comment.deleted
+        const comments = await Comment.find({
+            userId: user._id,
+            deleted: false
+        })
+            .populate('user', 'username profilePhotos')
+            .sort({ createdAt: -1 })
+            .exec(); // TODO: change to get comment IDs then use get_comments_threads_by_id
+
+        const commentsCount: number = await Comment.countByUser(user._id);
+        const commentsJudged: CommentDocument[] = await Comment.commentsJudgedByUser(user._id); // TODO: add pagination
 
         const message = {
-            userInfo: {
-                ...user.toObject({ virtuals: true }),
-            },
+            userInfo: userObj,
             // only send back last 10 comments
             comments: comments.slice(-10),
             commentsJudged,

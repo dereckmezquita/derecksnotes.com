@@ -1,8 +1,7 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
 
-import User from '@models/User';
-import geoLocate from '@utils/geoLocate';
+import User, { UserDocument } from '@models/User';
 
 const register = Router();
 
@@ -14,15 +13,16 @@ declare module 'express-session' {
 }
 
 register.post('/register', async (req, res) => {
-    console.log("Received Registration Request:", req.body);
-
     try {
         const { email, username, password } = req.body;
 
-        const userExists = await User.findOne({ $or: [{ 'email.address': email }, { username }] });
-        if (userExists) return res.status(400).json({ message: "User already exists." });
+        const userExists = await User.findOne<UserDocument>({ $or: [{ 'email.address': email }, { username }] });
 
-        const newUser = new User({
+        if (userExists) {
+            return res.status(400).json({ message: "User already exists." });
+        }
+
+        const newUser: UserDocument = new User({
             email: {
                 address: email,
                 verified: false
@@ -32,24 +32,11 @@ register.post('/register', async (req, res) => {
             metadata: {
                 lastConnected: new Date()
             }
-        } as UserInfo);
+        });
 
         const ip_address = req.headers['x-forwarded-for'] as string;
 
-        try {
-            const geo = await geoLocate(ip_address);
-
-            const geoData: GeoLocation = {
-                ...geo,
-                firstUsed: new Date(),
-                lastUsed: new Date()
-            };
-
-            // add geoLocation to user metadata
-            newUser.metadata.geoLocations.push(geoData);
-        } catch (error: any) {
-            console.warn("GeoLocation Error:", error);
-        }
+        await newUser.addOrUpdateGeoLocation(ip_address); // saves the user
 
         await newUser.save();
 
