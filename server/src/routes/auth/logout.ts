@@ -5,9 +5,10 @@ const logout = Router();
 logout.post('/logout', (req, res) => {
     req.session.destroy(err => {
         if(err) {
-            return res.status(500).json({ message: "Server Error" });
+            console.error("Logout Error:", err);
+            return res.status(500).json({ message: `Server Error: ${err.message}` });
         }
-        res.clearCookie('sid'); // Assuming 'sid' is your session ID cookie name
+        res.clearCookie('sid');
         res.status(200).json({ message: "Logout successful" });
     });
 });
