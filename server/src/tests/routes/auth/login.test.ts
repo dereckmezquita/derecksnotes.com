@@ -31,6 +31,16 @@ describe('POST /auth/login Endpoint', () => {
 
         // Create a test user
         testUser = await User.create(userMock);
+
+        // Simulate login to get the session cookie
+        const loginResponse = await request(app)
+            .post(API_PREFIX + '/auth/login')
+            .send({ username: userMock.username, password: userMock.password });
+
+        expect(loginResponse.status).toBe(200);
+
+        // Save the session cookie
+        sessionCookie = loginResponse.headers['set-cookie'];
     });
 
     afterAll(async () => {
