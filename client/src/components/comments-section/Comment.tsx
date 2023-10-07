@@ -6,19 +6,22 @@ import { theme } from '@styles/theme';
 import { useSelector } from 'react-redux';
 import { RootState } from '@store/store';
 
-import api_get_comments_by_array_of_ids from '@utils/api/interact/get_comments_by_array_of_ids';
 import { DEFAULT_PROFILE_IMAGE, ROOT_PUBLIC, MAX_COMMENT_DEPTH } from '@constants/config';
 import CommentForm from './CommentForm';
 import api_delete_comments from '@utils/api/interact/delete_comments';
+import { FORMAT_DATE_YYYY_MM_DD_HHMMSS } from '@constants/dates';
 
 const CommentContainer = styled.div`
     position: relative;
     background-color: ${theme.container.background.colour.primary()};
-    border: 1px solid ${theme.container.border.colour.primary()};
-    padding: 15px;
-    border-radius: 8px;
+    padding: 10px 5px 10px 15px;
     margin-bottom: 15px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border: 1px solid ${theme.container.border.colour.primary()};
+    border-radius: 5px;
+    box-shadow: ${theme.container.shadow.box};
+    &:hover {
+        box-shadow: ${theme.container.shadow.primary};
+    }
 `;
 
 const CommentHeader = styled.div`
@@ -36,25 +39,28 @@ const UserProfile = styled.div`
 const ProfileImage = styled.img`
     width: 40px;
     height: 40px;
-    border-radius: 50%; // Makes the image circular
-    margin-right: 10px; // Spacing between image and username
+    border-radius: 50%;
+    margin-right: 10px;
+    border: 1px solid ${theme.container.border.colour.primary()};
 `;
 
-const Username = styled.span`
+const Username = styled.span<{ currentUser: boolean }>`
     font-weight: bold;
     font-family: ${theme.text.font.times};
-    color: hsl(205, 70%, 50%);
+    color: ${props => props.currentUser ? 'hsl(205, 70%, 50%)' : theme.text.colour.header()};
 `;
 
 const CommentText = styled.p`
     font-family: ${theme.text.font.times};
     font-size: 0.9em;
     margin-bottom: 10px;
+    overflow: hidden;
 `;
 
 const RepliesContainer = styled.div`
     position: relative;
-    margin-left: 30px;
+    margin-top: 15px;
+    margin-left: 15px;
     &:before {
         content: "";
         position: absolute;
@@ -85,26 +91,61 @@ const ActionButton = styled.button`
     }
 `;
 
+const DateContainer = styled.div`
+    position: relative;
+    cursor: pointer;
+    color: ${theme.text.colour.light_grey()};
+`;
+
+const CreatedAtDate = styled.span`
+    font-size: 0.7em;
+    font-family: ${theme.text.font.times};
+`;
+
+const UpdatedAtDate = styled.span`
+    font-size: 0.8em;
+    font-family: ${theme.text.font.times};
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    background-color: #fff; // Background color to ensure text readability
+    border: 1px solid ${theme.container.border.colour.primary()};
+    padding: 2px 5px;
+    border-radius: 4px;
+    z-index: 10;
+    
+    ${DateContainer}:hover & {
+        opacity: 1;
+    }
+`;
+
 interface CommentProps {
-    comment: CommentInfo;
+    comment: CommentPopUserDTO;
     slug: string; // used for the CommentForm replies
     depth: number;
-    onReply?: (id: string) => void;
+    onReply?: (id: any) => void;
     onEdit?: (id: string) => void;
-    onDelete?: (id: string) => void;
+    onDelete: (id: string) => void;
 }
 
 const Comment: React.FC<CommentProps> = ({ comment, slug, onReply, onEdit, onDelete, depth }) => {
+    console.log("Rendering comment with ID:", comment._id);
+
     // ---------------------------------------------------
     // if user id of comment matches current viewer (session) then allow edit and delete buttons
-    const currentUserId = useSelector((state: RootState) => state.user.data.userInfo._id);
+    const userData = useSelector((state: RootState) => state.user);
+
+    const currentUserId: string | undefined = userData?.data?.userInfo?._id;
     const isCurrentUser = currentUserId === comment.userId;
 
-    const profilePhoto: string = comment.latestProfilePhoto ?
-        path.join(ROOT_PUBLIC, 'site-images/uploads/profile-photos', comment.latestProfilePhoto) :
-        DEFAULT_PROFILE_IMAGE;
+    const profilePhoto: string = comment.user?.latestProfilePhoto
+        ? path.join(ROOT_PUBLIC, 'site-images/uploads/profile-photos', comment.user?.latestProfilePhoto)
+        : DEFAULT_PROFILE_IMAGE;
 
-    // ---------------------------------------------------
+
+    // // ---------------------------------------------------
     // toggle show reply button on off
     const [showReplyForm, setShowReplyForm] = useState(false);
 
@@ -112,95 +153,86 @@ const Comment: React.FC<CommentProps> = ({ comment, slug, onReply, onEdit, onDel
         setShowReplyForm(!showReplyForm);
     };
 
-    // ---------------------------------------------------
-    // get replies of the comment
-    const [replies, setReplies] = useState<CommentInfoResponse | null>(null);
-
-    useEffect(() => {
-        const fetchReplies = async () => {
-            try {
-                setReplies(await api_get_comments_by_array_of_ids(comment.childComments));
-            } catch (error) {
-                console.error('Failed to fetch replies:', error);
-            }
-        }
-
-        fetchReplies();
-    }, [comment.userId]); // Run the effect when comment.userId changes
-
-    // ---------------------------------------------------
-    // onClick load more replies
-    const [loadedReplies, setLoadedReplies] = useState(5); // incrementor
-    const [showLoadMoreButton, setShowLoadMoreButton] = useState(comment.childComments.length > 5);
-
-    const loadMoreReplies = async () => {
-        try {
-            const newReplies = await api_get_comments_by_array_of_ids(comment.childComments, loadedReplies + 5);
-            setReplies(newReplies);
-            setLoadedReplies(prev => prev + 5);
-
-            // Hide "Load More" button if all replies are loaded
-            setShowLoadMoreButton(newReplies.comments.length < loadedReplies + 5);
-        } catch (error) {
-            console.error('Failed to fetch more replies:', error);
-        }
-    }
-
-    if (!replies) return null;
-
-    // ---------------------------------------------------
-    // onClick delete comment
-    const handleDelete = async (commentId: string) => {
+    const handleDeleteComment = async (commentId: string) => {
         const isConfirmed = window.confirm("Are you sure you want to delete this comment?");
         if (!isConfirmed) return;
 
-        try {
-            await api_delete_comments([commentId]);
-            // If the parent component provided onDelete callback, call it after successful deletion
-            onDelete && onDelete(commentId);
-        } catch (error) {
-            console.error("Failed to delete comment:", error);
-        }
+        onDelete(commentId);
     };
 
+    const [, forceUpdate] = useState({});
+
     return (
-        <CommentContainer key={comment._id}>
+        <CommentContainer key={comment._id + comment.latestContent!._id!}>
             <CommentHeader>
                 <UserProfile>
-                    <ProfileImage src={profilePhoto} alt={`${comment.username}'s profile`} />
-                    <Username>{comment.username}</Username>
+                    <ProfileImage src={profilePhoto} alt={`${comment.user.username}'s profile`} />
+                    <Username currentUser={isCurrentUser}>{comment.user.username}</Username>
                 </UserProfile>
                 <ActionsContainer>
                     {isCurrentUser && (<>
-                        <ActionButton onClick={() => onEdit && onEdit(comment._id)}>edit</ActionButton>
-                        {/* <ActionButton onClick={() => onDelete && onDelete(comment._id)}>delete</ActionButton> */}
-                        <ActionButton onClick={() => handleDelete(comment._id)}>delete</ActionButton>
+                        <ActionButton onClick={() => onEdit && onEdit(comment._id!)}>
+                            edit
+                        </ActionButton>
+                        <ActionButton onClick={() => handleDeleteComment(comment._id!)}>
+                            delete
+                        </ActionButton>
                     </>)}
                     {depth < MAX_COMMENT_DEPTH && <ActionButton onClick={toggleReplyForm}>reply</ActionButton>}
                 </ActionsContainer>
             </CommentHeader>
-            <CommentText>{comment.latestContent.comment}</CommentText>
+            <CommentText>{comment.latestContent!.comment}</CommentText>
+            <DateContainer>
+                <CreatedAtDate>{FORMAT_DATE_YYYY_MM_DD_HHMMSS(comment.updatedAt)}</CreatedAtDate>
+                {comment.content.length > 1 &&
+                    <UpdatedAtDate>Created: {FORMAT_DATE_YYYY_MM_DD_HHMMSS(comment.content[0].createdAt!)}</UpdatedAtDate>
+                }
+            </DateContainer>
             {showReplyForm &&
-                <CommentForm slug={slug} parentComment={comment._id} onSubmit={() => { }} />
+                <CommentForm
+                    slug={slug}
+                    parentComment={comment._id}
+                    onSubmit={(newReply) => {
+                        // If this comment is the parent, update its childComments
+                        if (comment._id === newReply.parentComment) {
+                            comment.childComments = [...(comment.childComments as CommentPopUserDTO[]), newReply];
+                            // Trigger re-render
+                            forceUpdate({});
+                        }
+                        // Otherwise, propagate the new reply to parent Comment
+                        else if (onReply) {
+                            onReply(newReply);
+                        }
+                    }}
+                />
             }
-            <RepliesContainer>
-                {replies.comments.map((reply: CommentInfo) => (
-                    <Comment
-                        key={reply._id}
-                        comment={reply}
-                        slug={slug}
-                        onReply={onReply}
-                        onEdit={onEdit}
-                        onDelete={onDelete}
-                        depth={depth + 1}
-                    />
-                ))}
-                {showLoadMoreButton && (
-                    <ActionButton onClick={loadMoreReplies}>Load More Replies</ActionButton>
-                )}
-            </RepliesContainer>
+            {comment.childComments && comment.childComments.length > 0 && (
+                <RepliesContainer>
+                    {(comment.childComments as CommentPopUserDTO[]).map((child: CommentPopUserDTO) => (
+                        <Comment
+                            key={child._id! + child.latestContent?._id!}
+                            comment={child}
+                            slug={slug}
+                            depth={depth + 1}
+                            onReply={onReply}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                        />
+                    ))}
+                </RepliesContainer>
+            )}
         </CommentContainer>
     );
 };
 
-export default Comment;
+
+/**
+NOTE:
+ * Wraps the Comment component with React.memo to optimize rendering.
+ * The component only re-renders if the comment's `_id` or its `latestContent`'s `_id` changes.
+ * This ensures unnecessary renders are avoided, especially when parent state changes.
+ */
+export default React.memo(Comment, (prevProps, nextProps) => {
+    return prevProps.comment._id === nextProps.comment._id &&
+        prevProps.comment!.latestContent!._id === nextProps.comment!.latestContent!._id;
+});

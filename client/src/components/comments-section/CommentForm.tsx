@@ -31,7 +31,7 @@ const Input = styled.textarea`
 interface CommentFormProps {
     slug: string;
     parentComment?: string;
-    onSubmit: (comment: CommentInfo) => void;
+    onSubmit: (comment: CommentPopUserDTO) => void;
 }
 
 const CommentForm: React.FC<CommentFormProps> = ({ slug, parentComment, onSubmit }) => {
