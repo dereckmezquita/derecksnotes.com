@@ -106,10 +106,17 @@ describe('POST /interact/new_comment Endpoint', () => {
             parentComment: parentComment._id
         });
 
+        const grandchildComment = await Comment.create({
+            content: [{ comment: 'This is a grandchild comment' }],
+            slug: 'test_slug',
+            userId: testUser._id.toString(),
+            parentComment: childComment._id
+        });
+
         const response = await request(app)
             .post(API_PREFIX + '/interact/new_comment')
             .set('Cookie', sessionCookie)
-            .send({ comment: 'This should fail', slug: 'test_slug', parentComment: childComment._id.toString() });
+            .send({ comment: 'This should fail', slug: 'test_slug', parentComment: grandchildComment._id.toString() });
 
         expect(response.status).toBe(400);
         expect(response.body.message).toBe("Reply depth limit reached.");
