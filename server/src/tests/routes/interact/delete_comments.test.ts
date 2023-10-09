@@ -105,4 +105,6 @@ describe('DELETE /interact/delete_comments Endpoint', () => {
         expect(response.status).toBe(401);
         expect(response.body.message).toContain('You do not own these comments');
     });
+
+    // TODO: consider the case of a user trying to delete a comment that doesn't exist
 });
