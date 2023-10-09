@@ -168,42 +168,44 @@ comments.delete(userId);
 // 2. adds a new comment to the content array with the comment set to [deleted]
 // 3. if the latest content is already [deleted] it will not add another one; throws error instead informing user
 */
-CommentSchema.methods.markAsDeleted = function (this: CommentDocument, userId: string) {
+CommentSchema.methods.markAsDeleted = async function (this: CommentDocument, userId: string): Promise<CommentDocument> {
     if (this.userId.toString() !== userId) {
-        throw new Error("You do not own this comment.");
+        return Promise.reject(new Error("You do not own this comment."));
     }
 
-    // check if latest content is already [deleted]
-    if (this.content.length > 0 && this.content[this.content.length - 1].comment === "[deleted]") {
-        throw new Error("This comment has already been deleted.");
+    if (
+        this.content.length > 0 &&
+        this.content[this.content.length - 1].comment === "[deleted]" ||
+        this.deleted
+    ) {
+        return Promise.reject(new Error("This comment has already been deleted."));
     }
 
-    this.content.push({ comment: "[deleted]" });
-
-    // the array should be max length of 30; pop off old comments
-    if (this.content.length > 30) {
-        this.content.shift();
-    }
-
+    this.content.push(new Content({ comment: "[deleted]" }));
     this.deleted = true;
+
+    return this.save();
 }
 
 // ---- static methods ----
-CommentSchema.statics.deleteManyOwnedByUser = async function (this: any, commentIds: string[], userId: string) {
-    const comments = await this.find({ _id: { $in: commentIds }, userId });
-
+CommentSchema.statics.deleteManyOwnedByUser = async function (this: Model<CommentDocument>, commentIds: string[], userId: string): Promise<CommentDocument[]> {
+    const comments = await this.find({ _id: { $in: commentIds } });
     if (comments.length !== commentIds.length) {
-        throw new Error("Some comments do not belong to this user or do not exist.");
+        return Promise.reject(new Error("One or more comments do not exist."));
     }
 
-    const promises = comments.map(async (comment: any) => {
-        comment.markAsDeleted(userId);
+    const commentsNotOwned = comments.filter((comment: CommentDocument) => comment.userId.toString() !== userId);
+    if (commentsNotOwned.length) {
+        return Promise.reject(new Error(`You do not own these comments: ${commentsNotOwned.map(c => c._id).join(', ')}`));
+    }
+
+    const deletedComments = comments.map(async (comment: CommentDocument) => {
+        await comment.markAsDeleted(userId);
         return comment.save();
     });
 
-    return await Promise.all(promises);
+    return Promise.all(deletedComments);
 };
-
 
 /* const userComments = await CommentInfo.findByUser(someUserId); */
 CommentSchema.statics.findByUser = function (userId: string): Promise<CommentDocument[]> {
@@ -255,7 +257,7 @@ export interface CommentDocument extends Document {
 
     // Methods
     setJudgement(userId: string, judgement: 'like' | 'dislike'): void;
-    markAsDeleted(userId: string): void;
+    markAsDeleted(userId: string): Promise<CommentDocument>;
 }
 
 // model interface
