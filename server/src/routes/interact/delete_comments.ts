@@ -1,67 +1,53 @@
-import { Router } from 'express';
-
+import { Request, Response, Router } from 'express';
 import Comment from '@models/Comment';
 import User from '@models/User';
 import isAuthenticated from '@utils/middleware/isAuthenticated';
 
 const delete_comments = Router();
 
-delete_comments.delete('/delete_comments', isAuthenticated, async (req, res) => {
+interface DeleteCommentsRequest {
+    commentIds: string[];
+}
+
+delete_comments.delete('/delete_comments', isAuthenticated, async (req: Request, res: Response) => {
     try {
-        const { commentIds } = req.body as { commentIds: string[] };
+        const { commentIds } = req.body as DeleteCommentsRequest;
 
         if (!commentIds || !Array.isArray(commentIds)) {
             return res.status(400).json({ message: "Comment Ids are required." });
         }
+
         if (commentIds.length > 50) {
             return res.status(400).json({ message: "Cannot delete more than 50 comments at once." });
         }
 
-        // ------------------------------------
         const userId = req.session.userId;
 
-        if (!userId) return res.status(401).json({ message: "Unauthorized." });
+        if (!userId) {
+            return res.status(401).json({ message: "Unauthorized." });
+        }
 
-        // get the userId for each comment that we want to delete
         const userIds = await Comment.find({ _id: { $in: commentIds } }).distinct('userId');
-
-
-        // check that the user owns all the comments; return to them which comments they don't own (array)
-        const commentsNotOwned: string[] = userIds.filter(id => id.toString() !== userId);
+        const commentsNotOwned = userIds.filter(id => id.toString() !== userId);
 
         if (commentsNotOwned.length) {
-            // send back _ids of what comments they don't own
             return res.status(401).json({ message: `You do not own these comments: ${commentsNotOwned.join(', ')}` });
         }
 
-        let deletedComments = await Comment.deleteManyOwnedByUser(commentIds, userId);
-
-        // let's populate the comments with user profilePhotos and username
-        // let's populate the comments with user profilePhotos and username
+        const deletedComments = await Comment.deleteManyOwnedByUser(commentIds, userId);
         await Comment.populate(deletedComments, {
             path: 'user',
             select: 'username profilePhotos latestProfilePhoto',
             model: User
         });
 
-        const comments = deletedComments.map(comment => {
-            return comment.toObject({ virtuals: true });
-        });
+        const comments = deletedComments.map(comment => comment.toObject({ virtuals: true }));
+        res.status(200).json({ comments, hasMore: false });
 
-        const message: CommentsBySlugDTO = {
-            comments: comments,
-            hasMore: false
-        }
-
-        res.status(200).json(message);
     } catch (error: any) {
-        console.log(error);
+        console.error(error);
         res.status(500).json({ message: error.message });
     }
 });
 
 export default delete_comments;
-
-/*
-
-*/
