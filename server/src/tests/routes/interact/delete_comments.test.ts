@@ -4,7 +4,6 @@ import { InMemoryDBConnector } from '@utils/DatabaseConnector';
 import { API_PREFIX } from '@utils/constants';
 import User, { UserDocument } from '@models/User';
 import Comment from '@models/Comment';
-import mongoose from 'mongoose';
 
 import { userMock, userMock2 } from '../../mocks/user';
 
