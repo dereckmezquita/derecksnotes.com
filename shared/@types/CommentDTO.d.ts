@@ -21,8 +21,9 @@ declare global {
         userId: string;
         judgement: Record<string, 'like' | 'dislike'>;
         deleted: boolean;
-        createdAt: Date;
-        updatedAt: Date;
+
+        createdAt?: Date;
+        updatedAt?: Date;
 
         // Virtuals; optional because they are not always present
         likesCount?: number;
