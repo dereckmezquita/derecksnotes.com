@@ -1,6 +1,6 @@
 import styled from 'styled-components';
 
-const Spinner = styled.div`
+const IndicateLoading = styled.div`
     @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
@@ -14,4 +14,4 @@ const Spinner = styled.div`
     margin: 20px auto;
 `;
 
-export default Spinner;
+export default IndicateLoading;
