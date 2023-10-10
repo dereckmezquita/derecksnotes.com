@@ -1,6 +1,6 @@
 import { GetStaticProps } from 'next';
 import fetchPostMetadata from '@utils/fetchPostMetadata';
-import PostPage from '@components/ui/PostPage';
+import IndexPage from '@components/ui/IndexPage';
 
 export const getStaticProps: GetStaticProps = async () => {
     return {
@@ -11,7 +11,7 @@ export const getStaticProps: GetStaticProps = async () => {
 };
 
 const Blog = ({ posts }: { posts: PostMetadata[] }) => {
-    return <PostPage posts={posts} />;
+    return <IndexPage posts={posts} />;
 };
 
 export default Blog;

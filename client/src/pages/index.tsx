@@ -1,6 +1,6 @@
 import { GetStaticProps } from 'next';
 import fetchPostMetadata from '@utils/fetchPostMetadata';
-import PostPage from '@components/ui/PostPage';
+import PostPage from '@components/ui/IndexPage';
 
 export const getStaticProps: GetStaticProps = async () => {
     return {

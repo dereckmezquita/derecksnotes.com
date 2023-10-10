@@ -25,7 +25,7 @@ const Grid = styled.div`
     grid-gap: 20px;
 `;
 
-const PostPage = ({ posts }: { posts: PostMetadata[] }) => {
+const IndexPage = ({ posts }: { posts: PostMetadata[] }) => {
     const allTags = Array.from(new Set(posts.flatMap(post => post.tags))).sort();
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const filteredPosts = selectedTags.length > 0 ? posts.filter(
@@ -60,4 +60,4 @@ const PostPage = ({ posts }: { posts: PostMetadata[] }) => {
     );
 };
 
-export default PostPage;
+export default IndexPage;
