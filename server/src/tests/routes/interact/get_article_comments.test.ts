@@ -61,7 +61,7 @@ describe('GET /interact/get_article_comments/:slug Endpoint', () => {
             const response = await request(app)
                 .post(API_PREFIX + '/interact/new_comment')
                 .set('Cookie', sessionCookie)
-                .send({ comment: 'reply', slug, parentCommentId: comment.id });
+                .send({ comment: 'reply', slug, parentComment: comment._id });
 
             return response.body;
         });
@@ -94,6 +94,8 @@ describe('GET /interact/get_article_comments/:slug Endpoint', () => {
             }
         };
 
+        // console.log(JSON.stringify(response.body));
+
         expect(response.status).toBe(200);
         expect(response.body.comments.length).toBe(3);
 
@@ -104,6 +106,49 @@ describe('GET /interact/get_article_comments/:slug Endpoint', () => {
 
     // Add more test cases as needed
 });
+
+const example_comment_DTO = {
+    "_id": "6524a49ab4aca3c5faca662e",
+    "childComments": [],
+    "parentComment": "6524a499b4aca3c5faca661b",
+    "reportTarget": null,
+    "mentions": [],
+    "slug": "test",
+    "content": [
+        {
+            "comment": "reply",
+            "_id": "6524a49ab4aca3c5faca662f",
+            "createdAt": "2023-10-10T01:10:50.017Z",
+            "updatedAt": "2023-10-10T01:10:50.017Z"
+        }
+    ],
+    "userId": "6524a499b4aca3c5faca6607",
+    "judgement": {},
+    "deleted": false,
+    "createdAt": "2023-10-10T01:10:50.017Z",
+    "updatedAt": "2023-10-10T01:10:50.017Z",
+    "__v": 0,
+    "likesCount": 0,
+    "dislikesCount": 0,
+    "totalJudgement": 0,
+    "latestContent": {
+        "comment": "reply",
+        "_id": "6524a49ab4aca3c5faca662f",
+        "createdAt": "2023-10-10T01:10:50.017Z",
+        "updatedAt": "2023-10-10T01:10:50.017Z"
+    },
+    "user": {
+        "_id": "6524a499b4aca3c5faca6607",
+        "profilePhotos": [
+            "optimised_dereck_2023-09-28-162359.jpg"
+        ],
+        "username": "dereck",
+        "latestProfilePhoto": "optimised_dereck_2023-09-28-162359.jpg",
+        "id": "6524a499b4aca3c5faca6607"
+    },
+    "latestProfilePhoto": "optimised_dereck_2023-09-28-162359.jpg",
+    "id": "6524a49ab4aca3c5faca662e"
+}
 
 /*
 Example output from server:
