@@ -8,7 +8,6 @@ import { RootState } from '@store/store';
 
 import { DEFAULT_PROFILE_IMAGE, ROOT_PUBLIC, MAX_COMMENT_DEPTH } from '@constants/config';
 import CommentForm from './CommentForm';
-import api_delete_comments from '@utils/api/interact/delete_comments';
 import { FORMAT_DATE_YYYY_MM_DD_HHMMSS } from '@constants/dates';
 
 const CommentContainer = styled.div`
@@ -183,7 +182,7 @@ const Comment: React.FC<CommentProps> = ({ comment, slug, onReply, onEdit, onDel
             </CommentHeader>
             <CommentText>{comment.latestContent!.comment}</CommentText>
             <DateContainer>
-                <CreatedAtDate>{FORMAT_DATE_YYYY_MM_DD_HHMMSS(comment.updatedAt)}</CreatedAtDate>
+                <CreatedAtDate>{FORMAT_DATE_YYYY_MM_DD_HHMMSS(comment.updatedAt!)}</CreatedAtDate>
                 {comment.content.length > 1 &&
                     <UpdatedAtDate>Created: {FORMAT_DATE_YYYY_MM_DD_HHMMSS(comment.content[0].createdAt!)}</UpdatedAtDate>
                 }
@@ -193,16 +192,17 @@ const Comment: React.FC<CommentProps> = ({ comment, slug, onReply, onEdit, onDel
                     slug={slug}
                     parentComment={comment._id}
                     onSubmit={(newReply) => {
-                        // If this comment is the parent, update its childComments
+                        // Existing logic
                         if (comment._id === newReply.parentComment) {
                             comment.childComments = [...(comment.childComments as CommentPopUserDTO[]), newReply];
                             // Trigger re-render
                             forceUpdate({});
-                        }
-                        // Otherwise, propagate the new reply to parent Comment
-                        else if (onReply) {
+                        } else if (onReply) { // Otherwise, propagate the new reply to parent Comment
                             onReply(newReply);
                         }
+
+                        // Close the reply form after a successful reply
+                        setShowReplyForm(false);
                     }}
                 />
             }
@@ -231,7 +231,7 @@ NOTE:
  * Wraps the Comment component with React.memo to optimize rendering.
  * The component only re-renders if the comment's `_id` or its `latestContent`'s `_id` changes.
  * This ensures unnecessary renders are avoided, especially when parent state changes.
- */
+**/
 export default React.memo(Comment, (prevProps, nextProps) => {
     return prevProps.comment._id === nextProps.comment._id &&
         prevProps.comment!.latestContent!._id === nextProps.comment!.latestContent!._id;
