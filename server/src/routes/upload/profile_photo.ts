@@ -3,7 +3,7 @@ import upload from '@utils/upload';
 import path from 'path';
 import fs from 'fs';
 import sharp from 'sharp';
-import User from '@models/User';  // Make sure this path is correct.
+import User from '@models/User';
 
 import { DATETIME_YYYY_MM_DD_HHMMSS, ROOT_DIR_CLIENT_UPLOADS } from '@utils/constants';
 
@@ -67,7 +67,3 @@ profile_photo.post('/profile_photo', async (req, res) => {
 });
 
 export default profile_photo;
-
-
-// db.users.deleteOne({ "username": "test" })
-// db.users.updateOne({ "username": "test" }, { $unset: { profilePhotos: "" } })
