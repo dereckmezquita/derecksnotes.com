@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@store/store';
 
 import Button from '@components/atomic/Button';
-import Spinner from '@components/atomic/Spinner';
+import IndicateLoading from '@components/atomic/IndicateLoading';
 
 import { DEFAULT_PROFILE_IMAGE, ROOT_PUBLIC } from '@constants/config';
 
@@ -79,7 +79,7 @@ const Account: React.FC = () => {
     const [selectedImage, setSelectedImage] = React.useState<File | null>(null);
 
     // redux loads userInfo as null two times before loading the actual data
-    if (!userData) return (<Spinner />);
+    if (!userData) return (<IndicateLoading />);
 
     const { userInfo, comments, commentsJudged, commentsCount } = userData;
 
@@ -129,7 +129,7 @@ const Account: React.FC = () => {
     ];
 
     // test data api not ready yet
-    const geolocations: GeoLocation[] = [
+    const geolocations: GeolocationDTO[] = [
         { ip: '0.0.0.0', city: 'Paris', country: 'France', flag: '🇫🇷', isp: 'ISP', firstUsed: new Date(), lastUsed: new Date(), countryCode: 'US', regionName: 'TX', org: 'asdf' },
         { ip: '1.1.1.1', city: 'Modesto', country: 'United States of America', flag: '🇺🇸', isp: 'ISP', firstUsed: new Date(), lastUsed: new Date(), countryCode: 'US', regionName: 'TX', org: 'asdf' },
     ];
@@ -230,7 +230,7 @@ const GeoInfo = styled.div`
 `;
 
 interface GeoLocationsBlockProps {
-    geoLocations: GeoLocation[];
+    geoLocations: GeolocationDTO[];
 }
 
 function GeoLocationsBlock({ geoLocations }: GeoLocationsBlockProps) {
@@ -239,7 +239,7 @@ function GeoLocationsBlock({ geoLocations }: GeoLocationsBlockProps) {
             <h3>
                 <Icon as={FaMapPin} /> Geo Locations
             </h3>
-            {geoLocations.map((location: GeoLocation, idx: number) => (
+            {geoLocations.map((location: GeolocationDTO, idx: number) => (
                 <GeoLocationCard key={idx}>
                     <GeoInfo><strong>IP:</strong> {location.ip}</GeoInfo>
                     <GeoInfo><strong>City:</strong> {location.city}</GeoInfo>
@@ -247,8 +247,8 @@ function GeoLocationsBlock({ geoLocations }: GeoLocationsBlockProps) {
                         <strong>Country:</strong> {location.country} {location.flag}
                     </GeoInfo>
                     <GeoInfo><strong>ISP:</strong> {location.isp}</GeoInfo>
-                    <GeoInfo><strong>First Used:</strong> {new Date(location.firstUsed).toLocaleString()}</GeoInfo>
-                    <GeoInfo><strong>Last Used:</strong> {new Date(location.lastUsed).toLocaleString()}</GeoInfo>
+                    <GeoInfo><strong>First Used:</strong> {location.firstUsed ? new Date(location.firstUsed).toLocaleString() : "???"}</GeoInfo>
+                    <GeoInfo><strong>Last Used:</strong> {location.lastUsed ? new Date(location.lastUsed).toLocaleString() : "???"}</GeoInfo>
                 </GeoLocationCard>
             ))}
         </section>
