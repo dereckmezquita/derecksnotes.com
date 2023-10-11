@@ -7,31 +7,17 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@store/store';
 
 import TagFilter from '@components/ui/TagFilter';
-import {
-    PostContainer, SideBarContainer, SideBarSiteName,
-    SideBarEntriesContainer, SideEntryLink, SideBarAbout,
-    Article, PostContentWrapper
-} from '@components/post-elements/post';
+import { PostContainer, Article, PostContentWrapper } from '@components/post-elements/post';
+import SideBar from '@components/ui/post-page/SideBar';
 
 const section: string = 'references';
 
 // ------------------------------------
 // component imports to be used in MDX
-import Figure from '@components/post-elements/Figure';
-import DropCap from '@components/ui/DropCap';
-import Alert from '@components/post-elements/Alert';
-import Blockquote from '@components/post-elements/Blockquote';
+import { mdxComponents } from '@components/ui/post-page/mdxComponents';
 
 // ------------------------------------
 // ------------------------------------
-
-const components = {
-    Figure: Figure,
-    DropCap: DropCap,
-    Alert: Alert,
-    Blockquote: Blockquote,
-};
-
 interface FrontMatter {
     slug?: string;
     title: string;
@@ -92,28 +78,14 @@ const PostPage: React.FC<PostPageProps> = ({ title, source, side_bar_data }) => 
                 styleContainer={{ width: '80%' }}
             />
             <PostContainer>
-                <SideBarContainer>
-                    <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
-                    <SideBarEntriesContainer>
-                        {filteredPosts.map((meta) => (
-                            <SideEntryLink
-                                key={meta.slug}
-                                href={`/${section}/${meta.slug}`}
-                                passHref
-                            >
-                                <span style={{ fontWeight: 'bold' }}>{meta.date}</span>: {meta.title}
-                            </SideEntryLink>
-                        ))}
-                    </SideBarEntriesContainer>
-                    <SideBarAbout />
-                </SideBarContainer>
+                <SideBar section={section} posts={filteredPosts} />
                 <Article>
                     <h1>{title}</h1>
                     {isClient
-                            &&
-                    <PostContentWrapper>
-                        <MDXRemote {...source} components={components} />
-                    </PostContentWrapper>}
+                        &&
+                        <PostContentWrapper>
+                            <MDXRemote {...source} components={mdxComponents} />
+                        </PostContentWrapper>}
                 </Article>
             </PostContainer>
         </>
@@ -121,79 +93,11 @@ const PostPage: React.FC<PostPageProps> = ({ title, source, side_bar_data }) => 
 }
 
 // ----------------------------------------
-import { serialize } from 'next-mdx-remote/serialize';
-import matter from 'gray-matter';
-
-// rehype remark plugins
-import remarkGfm from 'remark-gfm'; // github flavoured markdown
-import remarkUnwrapImages from 'remark-unwrap-images'; // removes p tag around images
-import remarkExternalLinks from 'remark-external-links'; // adds target="_blank" to external links
-import remarkMath from 'remark-math'; // allows math in mdx
-
-// TOOD: uninstall: import rehypeRaw from 'rehype-raw'; // allows html in mdx
-import rehypePrettyCode from 'rehype-pretty-code'; // syntax highlighting
-import rehypeSlug from 'rehype-slug'; // adds id to headers
-import rehypeMathjax from 'rehype-mathjax';
-
-// custom plugins
-import remarkToc from '@utils/remark/remarkToc'; // generates TOC without removing leading paragraph
-import rehypeTocCollapse from '@utils/rehype/rehypeTocCollapse';
-import rehypeAddHeadingLinks from '@utils/rehype/rehypeAddHeadingLinks';
-import rehypeDropCap from '@utils/rehype/rehypeDropCap';
-
-import { theme } from '@styles/theme'
+import { getMDXSource, getSidebarData } from '@components/ui/post-page/postHelpers';
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
-    // get side bar metadata
-    const sidebar_files: string[] = fs.readdirSync(path.join(ROOT, 'content', section))
-        .filter((fn) => fn.endsWith('.mdx'));
-    const side_bar_data = sidebar_files.map((file_name) => {
-        const file_content: string = fs.readFileSync(path.join(ROOT, 'content', section, file_name), 'utf8');
-        const { data, content } = matter(file_content) as matter.GrayMatterFile<string>;
-
-        // data.date = data.date.toString();
-        // format date as 2023-12-31
-        data.date = new Date(data.date).toISOString().slice(0, 10);
-
-        return {
-            slug: file_name.replace('.mdx', ''),
-            ...data as FrontMatter
-        }
-    })
-
-    // sort by date descending
-    side_bar_data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    // get post content and process
-    const post_file_path: string = path.join(ROOT, 'content', section, `${params!.slug}.mdx`);
-    const file_content: string = fs.readFileSync(post_file_path, 'utf8');
-    const mdxSource = await serialize(file_content, {
-        parseFrontmatter: true,
-        mdxOptions: {
-            remarkPlugins: [
-                remarkGfm,
-                remarkUnwrapImages,
-                remarkExternalLinks,
-                remarkMath,
-                remarkToc,
-            ],
-            rehypePlugins: [
-                rehypePrettyCode,
-                rehypeSlug,
-                rehypeMathjax,
-                rehypeTocCollapse,
-                rehypeAddHeadingLinks,
-                [rehypeDropCap, {
-                    float: 'left',
-                    fontSize: '4rem',
-                    fontFamily: 'Georgia, serif',
-                    lineHeight: '40px',
-                    marginRight: '0.1em',
-                    color: theme.theme_colours[5](),
-                }],
-            ]
-        }
-    });
+    const side_bar_data = getSidebarData(section);
+    const mdxSource = await getMDXSource(section, params!.slug as string);
 
     // if not published, return 404
     if (!mdxSource.frontmatter.published) {
@@ -205,7 +109,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
     return {
         props: {
             title: mdxSource.frontmatter.title,
-            source: JSON.parse(JSON.stringify(mdxSource)),
+            source: mdxSource.source,
             side_bar_data: side_bar_data
         },
     };
@@ -215,15 +119,10 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
 // the goal of this function getStaticPaths is to
 // return a list of all possible values for slug
 // so that nextjs can pre-render all the possible
-import path from 'path';
-import fs from 'fs';
-import { ROOT } from '@constants/config';
+import { getAllSlugs } from '@components/ui/post-page/postHelpers';
 
 export const getStaticPaths: GetStaticPaths = async () => {
-    const posts: string[] = fs.readdirSync(path.join(ROOT, 'content', section));
-    const paths = posts.map(post => ({
-        params: { slug: post.replace('.mdx', '') }
-    }));
+    const paths = getAllSlugs(section);
 
     return {
         paths,
