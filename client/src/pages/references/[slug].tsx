@@ -8,13 +8,13 @@ import { RootState } from '@store/store';
 
 import TagFilter from '@components/ui/TagFilter';
 import { PostContainer, Article, PostContentWrapper } from '@components/post-elements/post';
-import SideBar from '@components/ui/post-page/SideBar';
+import SideBar from '@components/pages/post-page/SideBar';
 
 const section: string = 'references';
 
 // ------------------------------------
 // component imports to be used in MDX
-import { mdxComponents } from '@components/ui/post-page/mdxComponents';
+import { mdxComponents } from '@components/pages/post-page/mdxComponents';
 
 // ------------------------------------
 // ------------------------------------
@@ -93,7 +93,7 @@ const PostPage: React.FC<PostPageProps> = ({ title, source, side_bar_data }) => 
 }
 
 // ----------------------------------------
-import { getMDXSource, getSidebarData } from '@components/ui/post-page/postHelpers';
+import { getMDXSource, getSidebarData } from '@components/pages/post-page/postHelpers';
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
     const side_bar_data = getSidebarData(section);
@@ -119,7 +119,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
 // the goal of this function getStaticPaths is to
 // return a list of all possible values for slug
 // so that nextjs can pre-render all the possible
-import { getAllSlugs } from '@components/ui/post-page/postHelpers';
+import { getAllSlugs } from '@components/pages/post-page/postHelpers';
 
 export const getStaticPaths: GetStaticPaths = async () => {
     const paths = getAllSlugs(section);
