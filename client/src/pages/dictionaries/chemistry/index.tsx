@@ -11,11 +11,11 @@ import SelectDropDown from '@components/atomic/SelectDropDown';
 import {
     PostContainer, SideBarContainer, SideBarSiteName,
     SideBarAbout, Article, PostContentWrapper
-} from '@components/post-elements/post';
+} from '@components/pages/post';
 
-import Figure from '@components/post-elements/Figure';
-import Alert from '@components/post-elements/Alert';
-import Blockquote from '@components/post-elements/Blockquote';
+import Figure from '@components/pages/mdx-elements/Figure';
+import Alert from '@components/pages/mdx-elements/Alert';
+import Blockquote from '@components/pages/mdx-elements/Blockquote';
 
 const dictionary: string = 'chemistry';
 
