@@ -7,7 +7,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@store/store';
 
 import TagFilter from '@components/ui/TagFilter';
-import { PostContainer, Article, PostContentWrapper } from '@components/post-elements/post';
+import { PostContainer, Article, PostContentWrapper } from '@components/pages/post';
 import SideBar from '@components/pages/post-page/SideBar';
 
 const section: string = 'courses';

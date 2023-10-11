@@ -5,7 +5,7 @@ import {
     SideBarEntriesContainer,
     SideEntryLink,
     SideBarAbout,
-} from '@components/post-elements/post';
+} from '@components/pages/post';
 
 interface FrontMatter {
     slug?: string;

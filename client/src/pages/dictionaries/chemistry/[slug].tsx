@@ -12,16 +12,16 @@ import {
     PostContainer, SideBarContainer, SideBarSiteName,
     SideBarEntriesContainer, SideEntryLink, SideBarAbout,
     Article, PostContentWrapper
-} from '@components/post-elements/post';
+} from '@components/pages/post';
 
 import CommentSection from '@components/comments-section/CommentSection';
 
 // ------------------------------------
 // component imports to be used in MDX
-import Figure from '@components/post-elements/Figure';
+import Figure from '@components/pages/mdx-elements/Figure';
 import DropCap from '@components/ui/DropCap';
-import Alert from '@components/post-elements/Alert';
-import Blockquote from '@components/post-elements/Blockquote';
+import Alert from '@components/pages/mdx-elements/Alert';
+import Blockquote from '@components/pages/mdx-elements/Blockquote';
 
 const dictionary: string = 'chemistry';
 

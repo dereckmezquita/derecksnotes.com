@@ -18,7 +18,7 @@ import {
 import {
     PostContainer, SideBarAbout, SideBarContainer,
     SideBarSiteName, Article
-} from '@components/post-elements/post';
+} from '@components/pages/post';
 
 import { theme } from '@styles/theme';
 
