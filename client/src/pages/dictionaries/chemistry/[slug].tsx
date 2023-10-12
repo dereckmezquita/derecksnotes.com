@@ -19,7 +19,6 @@ import CommentSection from '@components/comments-section/CommentSection';
 // ------------------------------------
 // component imports to be used in MDX
 import Figure from '@components/pages/mdx-elements/Figure';
-import DropCap from '@components/ui/DropCap';
 import Alert from '@components/pages/mdx-elements/Alert';
 import Blockquote from '@components/pages/mdx-elements/Blockquote';
 
@@ -30,7 +29,6 @@ const dictionary: string = 'chemistry';
 
 const components = {
     Figure: Figure,
-    DropCap: DropCap,
     Alert: Alert,
     Blockquote: Blockquote,
 };
