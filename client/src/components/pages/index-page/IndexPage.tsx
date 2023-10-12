@@ -2,7 +2,7 @@ import { useState } from 'react';
 import styled from 'styled-components';
 import { useSelector } from 'react-redux';
 import { RootState } from '@store/store';
-import CardPreview from '@components/ui/CardPreview';
+import CardPreview from '@components/pages/index-page/CardPreview';
 import TagFilter from '@components/ui/TagFilter';
 
 import { theme } from '@styles/theme';

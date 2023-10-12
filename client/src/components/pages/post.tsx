@@ -57,8 +57,6 @@ export const SideEntryLink = styled(Link)`
 
 export const SideBarAboutContainer = styled.div`
     display: block;
-    margin-top: 30px;
-    padding-top: 30px;
     text-align: justify;
     text-justify: auto;
 

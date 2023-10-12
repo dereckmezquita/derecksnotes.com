@@ -27,8 +27,8 @@ const SideBar: React.FC<SideBarProps> = ({ section, posts }) => {
     return (
         <SideBarContainer>
             <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
-            <SideBarEntriesContainer>
-                {posts.map((meta) => (
+            {posts.length > 0 ? posts.map((meta) => (
+                <SideBarEntriesContainer>
                     <SideEntryLink
                         key={meta.slug}
                         href={`/${section}/${meta.slug}`}
@@ -36,8 +36,8 @@ const SideBar: React.FC<SideBarProps> = ({ section, posts }) => {
                     >
                         <span style={{ fontWeight: 'bold' }}>{meta.date}</span>: {meta.title}
                     </SideEntryLink>
-                ))}
-            </SideBarEntriesContainer>
+                </SideBarEntriesContainer>
+            )) : null}
             <SideBarAbout />
         </SideBarContainer>
     );

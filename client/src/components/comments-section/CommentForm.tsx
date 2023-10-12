@@ -6,9 +6,9 @@ import api_new_comment from '@utils/api/interact/new_comment';
 
 import Button from '@components/atomic/Button';
 
-import IndicateLoading from '@components/ui/IndicateLoading';
-import IndicateError from '@components/ui/IndicateError';
-import IndicateSuccess from '@components/ui/IndicateSuccess';
+import IndicateLoading from '@components/atomic/IndicateLoading';
+import IndicateError from '@components/atomic/IndicateError';
+import IndicateSuccess from '@components/atomic/IndicateSuccess';
 
 const Form = styled.form`
     background-color: ${theme.container.background.colour.primary()};
