@@ -1,7 +1,6 @@
 export { };
 
 // CommentDTO, is a data transfer object (DTO)
-
 declare global {
     interface ContentDTO {
         comment: string;
@@ -42,8 +41,4 @@ declare global {
             latestProfilePhoto?: string | null;
         }
     }
-
-    // interface CommentPopUserDTO extends CommentDTO {
-    //     user: Pick<UserDTO, 'username' | 'profilePhotos' | 'latestProfilePhoto'>;
-    // }
 }
