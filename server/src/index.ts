@@ -77,7 +77,7 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
 }
 
 export async function main(): Promise<void> {
-    const dbConnector = new MongoDBConnector(process.env.MONGO_URI!);
+    const dbConnector = new MongoDBConnector('mongodb://127.0.0.1:27017/derecksnotes_test');
 
     await SetUp(dbConnector);
 
