@@ -33,7 +33,6 @@ interface CommentProps {
 
 const Comment = ({ commentObj, slug, depth }: CommentProps) => {
     const [comment, setComment] = useState<CommentPopUserDTO>(commentObj);
-    console.log("Rendering comment with ID: ", comment._id);
 
     const userData = useSelector((state: RootState) => state.user);
     const currentUserId: string | undefined = userData?.data?.userInfo?._id;
@@ -52,13 +51,10 @@ const Comment = ({ commentObj, slug, depth }: CommentProps) => {
     };
 
     // ---------------------------------------------------
-    const [, forceUpdate] = useState({});
-    // ---------------------------------------------------
     // new reply
     const handleNewReply = (newReply: CommentPopUserDTO) => {
         if (comment._id === newReply.parentComment) {
             comment.childComments = [newReply, ...(comment.childComments as CommentPopUserDTO[])];
-            forceUpdate({});
         }
 
         // Close the reply form after a successful reply
@@ -76,6 +72,20 @@ const Comment = ({ commentObj, slug, depth }: CommentProps) => {
         }
     };
 
+    // ---------------------------------------------------
+    // edit comment
+    // show edit form
+    const [showEditForm, setShowEditForm] = useState(false);
+
+    const toggleEditForm = () => {
+        setShowEditForm(!showEditForm);
+    };
+
+    const handleEditComment = (editedComment: CommentPopUserDTO) => {
+        setComment(editedComment);
+        setShowEditForm(false);
+    }
+
     return (
         <CommentContainer>
             <CommentHeader>
@@ -87,7 +97,7 @@ const Comment = ({ commentObj, slug, depth }: CommentProps) => {
                 <ActionsContainer>
                     {isCurrentUser && (
                         <>
-                            <ActionButton onClick={() => { }}>
+                            <ActionButton onClick={toggleEditForm}>
                                 edit
                             </ActionButton>
                             <ActionButton onClick={handleDeleteComment}>
@@ -99,7 +109,15 @@ const Comment = ({ commentObj, slug, depth }: CommentProps) => {
                 </ActionsContainer>
             </CommentHeader>
 
-            <CommentText>{comment.latestContent!.comment}</CommentText>
+            {showEditForm ?
+                <CommentForm
+                    slug={slug}
+                    onSubmit={handleEditComment}
+                    editComment={comment}
+                />
+                :
+                <CommentText>{comment.latestContent!.comment}</CommentText>
+            }
 
             <DateContainer>
                 <CreatedAtDate>{FORMAT_DATE_YYYY_MM_DD_HHMMSS(comment.updatedAt!)}</CreatedAtDate>
@@ -121,7 +139,7 @@ const Comment = ({ commentObj, slug, depth }: CommentProps) => {
                     {
                         (comment.childComments as CommentPopUserDTO[])
                             .sort((a, b) => {
-                                return new Date(b.updatedAt!).getTime() - new Date(a.updatedAt!).getTime();
+                                return new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime();
                             })
                             .map((child: CommentPopUserDTO) => (
                                 <Comment
