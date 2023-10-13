@@ -5,6 +5,7 @@ import { theme } from "@styles/theme";
 
 // --------------------------------------
 import CommentForm from "./CommentForm";
+import Comment from "./Comment";
 
 // --------------------------------------
 import api_get_article_comments from "@utils/api/interact/get_article_comments";
@@ -53,12 +54,22 @@ const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
         <CommentSectionContainer>
             <h2>Comments</h2>
             {allowComments &&
-                <CommentForm slug={slug} onSubmit={handleNewComment}/>}
-            {comments.map(comment => (
-                <div key={comment._id}>
-                    <p>{comment.latestContent?.comment}</p>
-                </div>
-            ))}
+                <CommentForm slug={slug} onSubmit={handleNewComment} />}
+            <br />
+            {
+                comments
+                    .sort((a, b) => {
+                        return new Date(b.updatedAt!).getTime() - new Date(a.updatedAt!).getTime();
+                    })
+                    .map(comment => (
+                        <Comment
+                            key={comment._id! + comment.latestContent!._id!}
+                            commentObj={comment}
+                            slug={slug}
+                            depth={0}
+                        />
+                    ))
+            }
         </CommentSectionContainer>
     )
 }

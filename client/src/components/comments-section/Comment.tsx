@@ -1,3 +1,13 @@
+import { useState } from 'react';
+import path from 'path';
+import { RootState } from '@store/store';
+import { useSelector } from 'react-redux';
+
+import { DEFAULT_PROFILE_IMAGE, MAX_COMMENT_DEPTH, ROOT_PUBLIC } from '@constants/config';
+import { FORMAT_DATE_YYYY_MM_DD_HHMMSS } from '@constants/dates';
+
+import CommentForm from './CommentForm';
+
 import {
     CommentContainer,
     CommentHeader,
@@ -13,15 +23,119 @@ import {
     UpdatedAtDate
 } from './comment-styled';
 
+import api_delete_comments from '@utils/api/interact/delete_comments';
+
 interface CommentProps {
-    comment: CommentPopUserDTO;
+    commentObj: CommentPopUserDTO;
     slug: string;
+    depth: number;
 }
 
-const Comment: React.FC<CommentProps> = ({ comment, slug }) => {
+const Comment = ({ commentObj, slug, depth }: CommentProps) => {
+    const [comment, setComment] = useState<CommentPopUserDTO>(commentObj);
     console.log("Rendering comment with ID: ", comment._id);
 
+    const userData = useSelector((state: RootState) => state.user);
+    const currentUserId: string | undefined = userData?.data?.userInfo?._id;
+    const isCurrentUser = currentUserId === comment.userId;
+
+    const profilePhoto: string = comment.user?.latestProfilePhoto
+        ? path.join(ROOT_PUBLIC, 'site-images/uploads/profile-photos', comment.user?.latestProfilePhoto)
+        : DEFAULT_PROFILE_IMAGE;
+
+    // ---------------------------------------------------
+    // toggle show reply button on off
+    const [showReplyForm, setShowReplyForm] = useState(false);
+
+    const toggleReplyForm = () => {
+        setShowReplyForm(!showReplyForm);
+    };
+
+    // ---------------------------------------------------
+    const [, forceUpdate] = useState({});
+    // ---------------------------------------------------
+    // new reply
+    const handleNewReply = (newReply: CommentPopUserDTO) => {
+        if (comment._id === newReply.parentComment) {
+            comment.childComments = [newReply, ...(comment.childComments as CommentPopUserDTO[])];
+            forceUpdate({});
+        }
+
+        // Close the reply form after a successful reply
+        setShowReplyForm(false);
+    }
+    // ---------------------------------------------------
+    // delete comment
+    const handleDeleteComment = async () => {
+        const isConfirmed = window.confirm("Are you sure you want to delete this comment?");
+        if (!isConfirmed) return;
+
+        const response: CommentsBySlugDTO = await api_delete_comments([comment._id!]);
+        if (response) {
+            setComment(response.comments[0]);
+        }
+    };
+
     return (
-        <p>A comment!</p>
-    )
+        <CommentContainer>
+            <CommentHeader>
+                <UserProfile>
+                    <ProfileImage src={profilePhoto} alt={`${comment.user.username}'s profile`} />
+                    <Username currentUser={isCurrentUser}>{comment.user.username}</Username>
+                </UserProfile>
+
+                <ActionsContainer>
+                    {isCurrentUser && (
+                        <>
+                            <ActionButton onClick={() => { }}>
+                                edit
+                            </ActionButton>
+                            <ActionButton onClick={handleDeleteComment}>
+                                delete
+                            </ActionButton>
+                        </>
+                    )}
+                    {depth < MAX_COMMENT_DEPTH && <ActionButton onClick={toggleReplyForm}>reply</ActionButton>}
+                </ActionsContainer>
+            </CommentHeader>
+
+            <CommentText>{comment.latestContent!.comment}</CommentText>
+
+            <DateContainer>
+                <CreatedAtDate>{FORMAT_DATE_YYYY_MM_DD_HHMMSS(comment.updatedAt!)}</CreatedAtDate>
+                {comment.content.length > 1 &&
+                    <UpdatedAtDate>Created: {FORMAT_DATE_YYYY_MM_DD_HHMMSS(comment.content[0].createdAt!)}</UpdatedAtDate>
+                }
+            </DateContainer>
+
+            {showReplyForm &&
+                <CommentForm
+                    slug={slug}
+                    parentComment={comment._id}
+                    onSubmit={handleNewReply}
+                />
+            }
+
+            {comment.childComments && comment.childComments.length > 0 && (
+                <RepliesContainer>
+                    {
+                        (comment.childComments as CommentPopUserDTO[])
+                            .sort((a, b) => {
+                                return new Date(b.updatedAt!).getTime() - new Date(a.updatedAt!).getTime();
+                            })
+                            .map((child: CommentPopUserDTO) => (
+                                <Comment
+                                    key={child._id! + child.latestContent?._id!}
+                                    commentObj={child}
+                                    slug={slug}
+                                    depth={depth + 1}
+                                />
+                            ))
+                    }
+                </RepliesContainer>
+            )}
+        </CommentContainer>
+    );
 }
+
+export default Comment;
