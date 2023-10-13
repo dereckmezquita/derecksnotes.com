@@ -9,6 +9,10 @@ export const ROOT_DIR_CLIENT: string = path.join(__dirname, '..', '..', '..', 'c
 
 export const ROOT_DIR_CLIENT_UPLOADS: string = path.join(ROOT_DIR_CLIENT, 'public', 'site-images', 'uploads', 'profile-photos');
 
-export const API_PREFIX: string = '/api/v3';
+import dotenv from 'dotenv';
+dotenv.config({ path: path.join(__dirname, '..', '..', '..', '.env') });
+
+// if in prod nginx picks up requests to /api/v3 and forwards to server
+export const API_PREFIX: string = process.env.NODE_ENV === 'prod' ? '' : '/api/v3';
 
 export const MAX_COMMENT_DEPTH: number = 5;
