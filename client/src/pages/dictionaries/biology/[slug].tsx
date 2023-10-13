@@ -52,12 +52,12 @@ interface DefFrontMatter {
 
 interface PostPageProps {
     slug: string;
-    word: string;
+    frontmatter: DefFrontMatter;
     source: any;
     side_bar_data: DefFrontMatter[];
 }
 
-const PostPage: React.FC<PostPageProps> = ({ slug, word, source, side_bar_data }) => {
+const PostPage: React.FC<PostPageProps> = ({ slug, frontmatter, source, side_bar_data }) => {
     // https://nextjs.org/docs/messages/react-hydration-error
     // Solution 1: Using useEffect to run on the client only; used to fix mathjax not rendering
     const [isClient, setIsClient] = useState(false)
@@ -142,13 +142,13 @@ const PostPage: React.FC<PostPageProps> = ({ slug, word, source, side_bar_data }
                     <SideBarAbout />
                 </SideBarContainer>
                 <Article>
-                    <h1>{word}</h1>
+                    <h1>{frontmatter.word}</h1>
                     {isClient &&
                         <PostContentWrapper>
                             <MDXRemote {...source} components={components} />
                         </PostContentWrapper>
                     }
-                    <CommentSection slug={slug} allowComments />
+                    <CommentSection slug={slug} allowComments={frontmatter.comments} />
                 </Article>
             </PostContainer>
         </>
@@ -219,7 +219,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
     return {
         props: {
             slug: params!.slug,
-            word: mdxSource.frontmatter.word,
+            frontmatter: mdxSource.frontmatter,
             source: JSON.parse(JSON.stringify(mdxSource)),
             side_bar_data: side_bar_data
         },
