@@ -14,7 +14,7 @@ const rewrite = async () => {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // output: "export",
+    output: "export",
     images: {
         unoptimized: true,
     },
@@ -28,8 +28,8 @@ const nextConfig = {
     reactStrictMode: true,
 }
 
-if (process.env.NODE_ENV === 'development') {
-    nextConfig.rewrites = rewrite;
-}
+// if (process.env.NODE_ENV === 'development') {
+//     nextConfig.rewrites = rewrite;
+// }
 
 module.exports = nextConfig
