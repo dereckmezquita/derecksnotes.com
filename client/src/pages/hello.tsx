@@ -12,6 +12,7 @@ const Hello = ({}) => {
                 // body: JSON.stringify({}), // data can be a string or {object}!
             });
 
+            console.log("Seding req to: ", API_PREFIX + '/hello')
             console.log(hello);
 
             // .then(response => response.text())
