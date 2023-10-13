@@ -1,0 +1,14 @@
+# /etc/systemd/system/next-derecksnotes-server.service
+# https://nodesource.com/blog/running-your-node-js-app-with-systemd-part-1/ 
+[Unit]
+Description=next-derecksnotes-server.js - runs test subdomain server responses for next.derecksnotes.com
+After=network.target
+
+[Service]
+Type=simple
+User=dereck
+ExecStart=/usr/bin/node /html/next-derecksnotes.com/derecksnotes.com/server/dist/index.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
