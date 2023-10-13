@@ -12,7 +12,7 @@ import { API_PREFIX } from '@utils/constants';
 import { DatabaseConnector, MongoDBConnector } from '@utils/DatabaseConnector';
 
 dotenv.config({ path: '../.env' });
-const PORT: number = 3001;
+const PORT: number = 3003;
 
 // ----------------------------------------
 // Setup Redis client and session store
