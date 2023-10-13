@@ -12,7 +12,7 @@ declare global {
     interface CommentDTO {
         _id?: string; // added _id because usually when you fetch data from MongoDB, you get the _id field
         childComments: string[] | CommentDTO[] | CommentPopUserDTO[];
-        parentComment: string | null | CommentDTO | CommentPopUserDTO;
+        parentComment: string | null; // | CommentDTO | CommentPopUserDTO
         reportTarget: string | null | CommentDTO | CommentPopUserDTO;
         mentions: string[];
         slug: string;
