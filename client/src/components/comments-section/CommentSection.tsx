@@ -12,6 +12,8 @@ import api_get_article_comments from "@utils/api/interact/get_article_comments";
 
 // --------------------------------------
 import IndicateLoading from "@components/atomic/IndicateLoading";
+import { useSelector } from "react-redux";
+import { RootState } from "@store/store";
 
 const CommentSectionContainer = styled.div`
     background-color: ${theme.container.background.colour.primary()};
@@ -20,10 +22,12 @@ const CommentSectionContainer = styled.div`
 
 interface CommentSectionProps {
     slug: string;
-    allowComments?: boolean;
+    allowComments: boolean;
 }
 
 const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
+    const loggedIn = useSelector((state: RootState) => state.user.isAuthenticated);
+
     const [comments, setComments] = useState<CommentPopUserDTO[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -53,8 +57,13 @@ const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
     return (
         <CommentSectionContainer>
             <h2>Comments</h2>
-            {allowComments &&
-                <CommentForm slug={slug} onSubmit={handleNewComment} />}
+            {allowComments === false ? (
+                <DisabledCommentForm type="commentsDisabled" />
+            ) : loggedIn ? (
+                <CommentForm slug={slug} onSubmit={handleNewComment} />
+            ) : (
+                <DisabledCommentForm type="loginRequired" />
+            )}
             <br />
             {
                 comments
@@ -75,3 +84,61 @@ const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
 }
 
 export default CommentSection;
+
+// --------------------------------------
+// --------------------------------------
+import React from 'react';
+import { FaComments, FaSignInAlt } from 'react-icons/fa';
+import Auth from "@components/modals/auth/Auth";
+
+interface DisabledCommentFormProps {
+    type: 'commentsDisabled' | 'loginRequired';
+}
+
+const DisabledCommentFormContainer = styled.div<{ borderColor: string }>`
+    padding: 2px 15px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    border-left: 0.25em solid ${props => props.borderColor};
+    font-family: Helvetica;
+    font-weight: bold;
+    cursor: pointer;
+    &:hover {
+        opacity: 0.4;
+        transition: opacity 0.3s ease-in-out;
+    }
+`;
+
+const MessageTitle = styled.p<{ titleColor: string }>`
+    display: flex;
+    align-items: center;
+    color: ${props => props.titleColor};
+    svg {
+        margin-right: 8px;
+    }
+`;
+
+const DisabledCommentForm: React.FC<DisabledCommentFormProps> = ({ type }) => {
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+    const isCommentsDisabled = type === 'commentsDisabled';
+    const borderColor = isCommentsDisabled ? 'rgb(210, 153, 34)' : 'rgb(47, 129, 247)';
+    const titleColor = borderColor;
+    const Icon = isCommentsDisabled ? FaComments : FaSignInAlt;
+    const title = isCommentsDisabled ? 'Comments Disabled' : 'Login to Comment';
+
+    return (
+        <>
+            <DisabledCommentFormContainer
+                borderColor={borderColor}
+                onClick={() => setIsAuthModalOpen(true)}
+            >
+                <MessageTitle titleColor={titleColor}>
+                    <Icon size={16} color={titleColor} />
+                    {title}
+                </MessageTitle>
+            </DisabledCommentFormContainer>
+            {isAuthModalOpen && <Auth onClose={() => setIsAuthModalOpen(false)} />}
+        </>
+    );
+};
