@@ -16,6 +16,7 @@ interface FrontMatter {
     date: string;
     tags: string[];
     published: boolean;
+    comments: boolean;
 }
 
 interface SideBarProps {

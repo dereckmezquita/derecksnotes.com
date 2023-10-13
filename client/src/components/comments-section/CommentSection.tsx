@@ -18,6 +18,7 @@ import { RootState } from "@store/store";
 const CommentSectionContainer = styled.div`
     background-color: ${theme.container.background.colour.primary()};
     border-top: 1px dashed ${theme.container.border.colour.primary()};
+    margin-top: 20px;
 `;
 
 interface CommentSectionProps {

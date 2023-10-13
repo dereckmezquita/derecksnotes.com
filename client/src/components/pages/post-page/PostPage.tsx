@@ -8,6 +8,7 @@ import { RootState } from '@store/store';
 import TagFilter from '@components/ui/TagFilter';
 import { PostContainer, Article, PostContentWrapper } from '@components/pages/post';
 import SideBar from '@components/pages/post-page/SideBar';
+import CommentSection from '@components/comments-section/CommentSection';
 
 // ------------------------------------
 // component imports to be used in MDX
@@ -22,16 +23,17 @@ interface FrontMatter {
     date: string;
     tags: string[];
     published: boolean;
+    comments: boolean;
 }
 
 interface PostPageProps {
     section: string;
-    title: string;
+    frontmatter: FrontMatter;
     source: any;
     side_bar_data: FrontMatter[];
 }
 
-const PostPage: React.FC<PostPageProps> = ({ section, title, source, side_bar_data }) => {
+const PostPage: React.FC<PostPageProps> = ({ section, frontmatter, source, side_bar_data }) => {
     // https://nextjs.org/docs/messages/react-hydration-error
     // Solution 1: Using useEffect to run on the client only; used to fix mathjax not rendering
     const [isClient, setIsClient] = useState(false)
@@ -76,12 +78,13 @@ const PostPage: React.FC<PostPageProps> = ({ section, title, source, side_bar_da
             <PostContainer>
                 <SideBar section={section} posts={filteredPosts} />
                 <Article>
-                    <h1>{title}</h1>
+                    <h1>{frontmatter.title}</h1>
                     {isClient
                         &&
                         <PostContentWrapper>
                             <MDXRemote {...source} components={mdxComponents} />
                         </PostContentWrapper>}
+                        <CommentSection slug={frontmatter.slug!} allowComments={frontmatter.comments} />
                 </Article>
             </PostContainer>
         </>

@@ -33,6 +33,7 @@ interface FrontMatter {
     date: string;
     tags: string[];
     published: boolean;
+    comments: boolean;
 }
 
 export const getSidebarData = (section: string) => {
@@ -56,7 +57,7 @@ export const getSidebarData = (section: string) => {
     return side_bar_data;
 };
 
-export const getMDXSource = async (section: string, slug: string): Promise<{ frontmatter: FrontMatter, title: string, source: any }> => {
+export const getMDXSource = async (section: string, slug: string): Promise<{ frontmatter: FrontMatter, source: any }> => {
     const content = fs.readFileSync(path.join(ROOT, 'content', section, `${slug}.mdx`), 'utf-8');
     // const { data, content: mdxContent } = matter(content); // not sure if should pass just content
 
@@ -88,9 +89,14 @@ export const getMDXSource = async (section: string, slug: string): Promise<{ fro
         }
     });
 
+    // serialize date object in frontmatter
+    mdxSource.frontmatter.date = new Date(mdxSource.frontmatter.date as string).toISOString().slice(0, 10);
+
+    // add slug
+    mdxSource.frontmatter.slug = slug;
+
     return {
         frontmatter: mdxSource.frontmatter as unknown as FrontMatter,
-        title: mdxSource.frontmatter.title as string,
         source: JSON.parse(JSON.stringify(mdxSource)), // for dates to be parsed to strings? not sure if needed
     };
 };
