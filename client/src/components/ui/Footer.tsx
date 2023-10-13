@@ -6,9 +6,12 @@ const FooterContainer = styled.footer`
     margin-top: 30px;
     padding: 0px;
     text-align: center;
+    border-top: 1px solid ${theme.text.colour.light_grey()};
 
     width: 50%;
-    border-top: 1px solid ${theme.text.colour.light_grey()};
+    @media (max-width: ${theme.container.widths.min_width_snap_up}) {
+        width: 85%;
+    }
 `;
 
 const FooterText = styled.p`
