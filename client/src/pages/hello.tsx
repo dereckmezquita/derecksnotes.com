@@ -1,8 +1,7 @@
 import { API_PREFIX } from '@constants/config';
 import { useEffect, useState } from "react";
 
-// TODO: this is test code
-const HelloWorld = () => {
+const Hello = ({}) => {
     const [message, setMessage] = useState('');
 
     useEffect(() => {
@@ -18,4 +17,4 @@ const HelloWorld = () => {
     return <div>{message}</div>;
 }
 
-export default HelloWorld;
+export default Hello;
