@@ -1,11 +1,10 @@
+import path from 'path';
 import dotenv from 'dotenv';
 dotenv.config({ path: path.join(__dirname, '..', '..', '..', '.env') });
 
 export function DATETIME_YYYY_MM_DD_HHMMSS(): string {
     return new Date().toISOString().replace('T', '-').slice(0, 19).replace(/:/g, '');
 }
-
-import path from 'path';
 
 export const ROOT_DIR_CLIENT: string = path.join(__dirname, '..', '..', '..', 'client');
 
