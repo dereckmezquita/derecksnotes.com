@@ -43,7 +43,7 @@ const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
             }
         }
         fetchComments();
-    }, []);
+    }, [slug]);
 
     if (loading) return <IndicateLoading />;
 

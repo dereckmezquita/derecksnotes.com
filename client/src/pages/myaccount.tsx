@@ -22,7 +22,7 @@ import {
 
 import { theme } from '@styles/theme';
 
-import CommentList from '@components/comments-section/CommentList';
+import CommentSection from '@components/comments-section/CommentSection';
 
 import api_profile_photo from '@utils/api/upload/profile_photo';
 

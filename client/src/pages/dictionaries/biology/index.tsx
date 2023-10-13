@@ -182,7 +182,7 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
                 <SideBarAbout />
             </SideBarContainer>
             <Article>
-                <h1>Chemistry Dictionary</h1>
+                <h1>Biology Dictionary</h1>
                 <ol>
                     {
                         isClient && renderDefinitions()
