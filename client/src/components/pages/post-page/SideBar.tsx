@@ -29,7 +29,7 @@ const SideBar: React.FC<SideBarProps> = ({ section, posts }) => {
         <SideBarContainer>
             <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
             {posts.length > 0 ? posts.map((meta) => (
-                <SideBarEntriesContainer>
+                <SideBarEntriesContainer key={meta.slug}>
                     <SideEntryLink
                         key={meta.slug}
                         href={`/${section}/${meta.slug}`}
