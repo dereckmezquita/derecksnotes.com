@@ -5,13 +5,21 @@ const Hello = ({}) => {
     const [message, setMessage] = useState('');
 
     useEffect(() => {
-        fetch(API_PREFIX + '/hello', {
-            method: 'GET',
-            // headers: {},
-            // body: JSON.stringify({}), // data can be a string or {object}!
-        })
-            .then(response => response.text())
-            .then(data => setMessage(data));
+        const getHello = async () => {
+            const hello = await fetch(API_PREFIX + '/hello', {
+                method: 'GET',
+                // headers: {},
+                // body: JSON.stringify({}), // data can be a string or {object}!
+            });
+
+            // .then(response => response.text())
+            // .then(data => setMessage(data));
+
+            const data = await hello.text();
+            setMessage(data);
+        }
+
+        getHello();
     }, []);
 
     return <div>{message}</div>;
