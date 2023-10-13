@@ -26,7 +26,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
 
     return {
         props: {
-            title: mdxSource.frontmatter.title,
+            frontmatter: mdxSource.frontmatter,
             source: mdxSource.source,
             side_bar_data: side_bar_data
         },
