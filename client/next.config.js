@@ -28,8 +28,8 @@ const nextConfig = {
     reactStrictMode: true,
 }
 
-// if (process.env.NODE_ENV === 'development') {
-//     nextConfig.rewrites = rewrite;
-// }
+if (process.env.NODE_ENV === 'development') {
+    nextConfig.rewrites = rewrite;
+}
 
 module.exports = nextConfig
