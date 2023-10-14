@@ -28,7 +28,7 @@ const redisStore = makeRedisStore(session);
 // ----------------------------------------
 export const app = express();
 
-if (process.env.NODE_ENV === 'development') {
+if (!process.env.PROD_MODE) {
     // assuming frontend on port 3000
     app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 }
@@ -49,7 +49,7 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
             resave: false, // forces session be saved back to the session store, even if the session was never modified during the request
             saveUninitialized: false,
             cookie: {
-                secure: false, // process.env.NODE_ENV === 'production', // HTTPS in production
+                secure: Boolean(process.env.PROD_MODE), // HTTPS in production
                 httpOnly: false, // true, // cookie inaccessible from JavaScript running in the browser
                 // days * hours * minutes * seconds * milliseconds
                 maxAge: 30 * 24 * 60 * 60 * 1000 // 1 day in milliseconds
@@ -77,7 +77,7 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
 }
 
 export async function main(): Promise<void> {
-    const dbConnector = new MongoDBConnector('mongodb://127.0.0.1:27017/derecksnotes_test');
+    const dbConnector = new MongoDBConnector(process.env.MONGO_URI + (process.env.PROD_MODE ? 'derecksnotes' : 'derecksnotes_test'));
 
     await SetUp(dbConnector);
 
