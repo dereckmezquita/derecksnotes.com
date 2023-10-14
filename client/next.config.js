@@ -7,14 +7,13 @@ const rewrite = async () => {
     return [
         {
             source: '/api/v3/:path*',
-            destination: 'http://localhost:3001/api/v3/:path*'
+            destination: 'http://localhost:3003/api/v3/:path*'
         }
     ]
 }
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: "export",
     trailingSlash: true,
     images: {
         unoptimized: true,
@@ -29,8 +28,10 @@ const nextConfig = {
     reactStrictMode: true,
 }
 
-if (!process.env.PROD_MODE) {
+if (process.env.DEV_MODE) {
     nextConfig.rewrites = rewrite;
+} else {
+    nextConfig.output = "export";
 }
 
 module.exports = nextConfig
