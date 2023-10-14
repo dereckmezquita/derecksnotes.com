@@ -29,7 +29,7 @@ const nextConfig = {
     reactStrictMode: true,
 }
 
-if (process.env.NODE_ENV === 'development') {
+if (!process.env.PROD_MODE) {
     nextConfig.rewrites = rewrite;
 }
 
