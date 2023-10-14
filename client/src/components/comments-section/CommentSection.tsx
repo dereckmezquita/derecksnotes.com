@@ -57,7 +57,7 @@ const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
 
     return (
         <CommentSectionContainer>
-            <h2>Comments</h2>
+            <h3>Comments</h3>
             {allowComments === false ? (
                 <DisabledCommentForm type="commentsDisabled" />
             ) : loggedIn ? (
