@@ -15,5 +15,8 @@ declare global {
         // added by us
         firstUsed?: Date;
         lastUsed?: Date;
+
+        // added by mongo
+        _id?: string;
     }
 }

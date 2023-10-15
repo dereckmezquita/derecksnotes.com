@@ -25,6 +25,7 @@ declare global {
     }
 
     interface UserDTO extends UserPublicDTO {
+        _id?: string;
         name: UserNameDTO;
         email: UserEmailDTO;
         metadata: UserMetadataDTO;
