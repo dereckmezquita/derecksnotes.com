@@ -1,16 +1,13 @@
 import { Router } from 'express';
 import User, { UserDocument } from '@models/User';
 import Comment, { CommentDocument } from '@models/Comment';
+import isAuthenticated from '@utils/middleware/isAuthenticated';
 
 const me = Router();
 
-me.get('/me', async (req, res) => {
+me.get('/me', isAuthenticated, async (req, res) => {
     try {
-        if (!req.session.userId) {
-            return res.status(401).json({ message: "Not logged in" });
-        }
-
-        const user = await User.findById<UserDocument>(req.session.userId);
+        let user = await User.findById<UserDocument>(req.session.userId);
 
         if (!user) {
             return res.status(404).json({ message: "User not found" });
@@ -18,7 +15,7 @@ me.get('/me', async (req, res) => {
 
         const ip_address = req.headers['x-forwarded-for'] as string;
 
-        await user.addOrUpdateGeoLocation(ip_address); // saves the user
+        user = await user.setAddOrUpdateGeoLocation(ip_address); // uses atomic operations
 
         // convert and prep the user object; remove password
         const userObj: UserDTO = user.toObject({ virtuals: true });
@@ -29,24 +26,28 @@ me.get('/me', async (req, res) => {
         // send only 10 most recent geolocations; sorted in ascending order by hook
         userObj.metadata.geolocations = userObj.metadata.geolocations.slice(-10);
 
-        // get their comment info and other; get only comments not marked as comment.deleted
-        const comments = await Comment.find({
-            userId: user._id,
-            deleted: false
-        })
-            .populate('user', 'username profilePhotos')
-            .sort({ createdAt: -1 })
-            .exec(); // TODO: change to get comment IDs then use get_comments_threads_by_id
+        // only comments not marked comment.deleted
+        const commentsIds = (await Comment.find({ userId: user._id, deleted: false, parentComment: null }, '_id')
+            .exec())
+            .map((comment: { _id: string }) => comment._id.toString());
+        const commentsLikedIds = (await Comment.find({
+            [`judgement.${user._id}`]: 'like'
+        }, '_id').exec())
+            .map((comment: { _id: string }) => comment._id.toString())
 
-        const commentsCount: number = await Comment.countByUser(user._id);
-        const commentsJudged: CommentDocument[] = await Comment.commentsJudgedByUser(user._id); // TODO: add pagination
+        const commentsDislikedIds = (await Comment.find({
+            [`judgement.${user._id}`]: 'dislike'
+        }, '_id').exec())
+            .map((comment: { _id: string }) => comment._id.toString())
+
+        const commentsNotDeletedCount: number = await Comment.find({ userId: user._id, deleted: false }).countDocuments();
 
         const message = {
-            userInfo: userObj,
-            // only send back last 10 comments
-            comments: comments.slice(-10),
-            commentsJudged,
-            commentsCount
+            user: userObj,
+            commentsIds: commentsIds.slice(-30),
+            commentsLikedIds: commentsLikedIds.slice(-10),
+            commentsDislikedIds: commentsDislikedIds.slice(-10),
+            commentsCount: commentsNotDeletedCount
         }
 
         res.status(200).json(message);
