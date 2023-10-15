@@ -3,12 +3,14 @@ import { API_PREFIX } from '@constants/config';
 // end point get's current user ID from session
 const api_new_comment = async (comment: string, slug: string, parentComment?: string) => {
     try {
+        const encodedSlug = encodeURIComponent(slug);
+
         const response = await fetch(API_PREFIX + '/interact/new_comment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ comment, slug, parentComment }),
+            body: JSON.stringify({ comment, encodedSlug, parentComment }),
             credentials: 'include',
         });
 
@@ -17,7 +19,6 @@ const api_new_comment = async (comment: string, slug: string, parentComment?: st
             throw new Error(data.message || 'Something went wrong while posting the comment!');
         }
 
-        console.log(JSON.stringify(data));
         return data;
     } catch (error) {
         throw error;

@@ -6,7 +6,7 @@ const api_get_article_comments = async (
     page?: number,
     startDate?: string,
     endDate?: string
-): Promise<any> => { // TODO: update return type
+): Promise<any> => { 
     try {
         const limitParam = n ? `limit=${n}` : '';
         const pageParam = page ? `page=${page}` : '';
@@ -14,7 +14,10 @@ const api_get_article_comments = async (
         const endDateParam = endDate ? `endDate=${endDate}` : '';
         const queryString = [limitParam, pageParam, startDateParam, endDateParam].filter(p => p).join('&');
 
-        const response = await fetch(`${API_PREFIX}/interact/get_article_comments/${slug}?${queryString}`, {
+        // Encode the slug to ensure it doesn’t mess up the URL
+        const encodedSlug = encodeURIComponent(slug);
+
+        const response = await fetch(`${API_PREFIX}/interact/get_article_comments/${encodedSlug}?${queryString}`, {
             method: 'GET',
             credentials: 'include',
         });
@@ -24,8 +27,6 @@ const api_get_article_comments = async (
         if (!response.ok) {
             throw new Error(data.message || 'Something went wrong fetching the comments!');
         }
-
-        // console.log(JSON.stringify(data));
 
         return data;
     } catch (error) {
