@@ -6,6 +6,9 @@ const get_article_comments = express.Router();
 
 get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
     const { slug } = req.params;
+
+    const decodedSlug = decodeURIComponent(slug);
+
     const limit = Number(req.query.limit) || 50;
     const page = Number(req.query.page) || 1;
     const depth = Number(req.query.depth) || 10; // max depth of child comments to populate
@@ -25,7 +28,7 @@ get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
         const skip = (page - 1) * limit;
 
         const comments = await Comment.find({
-            slug,
+            slug: decodedSlug,
             parentComment: null,
             ...dateFilter 
         })

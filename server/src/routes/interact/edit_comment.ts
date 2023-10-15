@@ -39,6 +39,8 @@ edit_comment.patch('/edit_comment', isAuthenticated, async (req: Request, res: R
         // Update the comment content
         comment.content.push({ comment: content });
         comment.latestContent = { comment: content, createdAt: new Date(), updatedAt: new Date() };
+        // if comment was deleted, set deleted to false
+        comment.deleted = false;
         await comment.save();
 
         // Populate and return the edited comment
