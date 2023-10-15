@@ -7,9 +7,10 @@ declare global {
     }
 
     interface MeDTO {
-        userInfo: UserDTO;
-        comments: CommentsBySlugDTO;
-        totalComments: number;
-        commentsJudged: CommentsBySlugDTO;
+        user: UserDTO;
+        commentsIds: string[];
+        commentsLikedIds: string[];
+        commentsDislikedIds: string[];
+        commentsCount: number;
     }
 }
