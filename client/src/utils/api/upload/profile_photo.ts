@@ -1,6 +1,6 @@
 import { API_PREFIX } from '@constants/config';
 
-const api_profile_photo = async (file: File, onProgress?: (progress: number) => void) => {
+const api_profile_photo = async (file: File, onProgress?: (progress: number) => void): Promise<{ message: string, imageName: string }> => {
     try {
         const formData = new FormData();
         formData.append('profileImage', file);
