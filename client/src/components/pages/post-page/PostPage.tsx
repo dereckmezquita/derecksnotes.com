@@ -84,7 +84,7 @@ const PostPage: React.FC<PostPageProps> = ({ section, frontmatter, source, side_
                         <PostContentWrapper>
                             <MDXRemote {...source} components={mdxComponents} />
                         </PostContentWrapper>}
-                        <CommentSection slug={frontmatter.slug!} allowComments={frontmatter.comments} />
+                        <CommentSection allowComments={frontmatter.comments} />
                 </Article>
             </PostContainer>
         </>
