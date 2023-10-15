@@ -33,7 +33,7 @@ login.post('/login', async (req, res) => {
 
         const ip_address = req.headers['x-forwarded-for'] as string;
 
-        await user.addOrUpdateGeoLocation(ip_address); // saves the user
+        await user.setAddOrUpdateGeoLocation(ip_address); // uses atomic operations
 
         // handle sessions here
         req.session.userId = user._id;

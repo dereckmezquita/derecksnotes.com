@@ -117,13 +117,17 @@ UserSchema.methods.isPasswordCorrect = async function (password: string) {
     return await bcrypt.compare(password, this.password);
 };
 
-UserSchema.methods.addOrUpdateGeoLocation = async function(this: UserDocument, ip: string) {
+UserSchema.methods.setAddOrUpdateGeoLocation = async function(this: UserDocument, ip: string): Promise<UserDocument> {
     // Check if IP exists in geolocations.
     const geoLocationIndex = this.metadata.geolocations.findIndex((geo) => geo.ip === ip);
 
     if (geoLocationIndex !== -1) {
-        // IP exists, so we update the lastUsed timestamp.
-        this.metadata.geolocations[geoLocationIndex].lastUsed = new Date();
+        // IP exists, so we update the lastUsed timestamp using atomic operation.
+        // using atomic operations to avoid concurrency issues with multiple requests
+        await User.updateOne(
+            { _id: this._id, "metadata.geolocations.ip": ip },
+            { $set: { "metadata.geolocations.$.lastUsed": new Date() }}
+        );
     } else {
         // IP doesn't exist, fetch the geolocation data.
         const newGeoLocation = await geoLocate(ip);
@@ -132,12 +136,16 @@ UserSchema.methods.addOrUpdateGeoLocation = async function(this: UserDocument, i
         newGeoLocation.firstUsed = new Date();
         newGeoLocation.lastUsed = new Date();
 
-        // Push to geolocations array.
-        this.metadata.geolocations.push(newGeoLocation as any);
+        // Push new geolocation data using atomic operation.
+        await User.updateOne(
+            { _id: this._id },
+            { $push: { "metadata.geolocations": newGeoLocation }}
+        );
     }
 
-    // Save the updated user document.
-    return this.save();
+    // You might want to reload the user data if needed, since the current object is not updated.
+    const updatedUser = await User.findById(this._id).exec();
+    return updatedUser!;
 };
 
 // ---------------------------------------
@@ -175,7 +183,7 @@ export interface UserDocument extends Document {
 
     // Methods
     isPasswordCorrect(password: string): Promise<boolean>;
-    addOrUpdateGeoLocation(ip: string): Promise<UserDocument>;
+    setAddOrUpdateGeoLocation(ip: string): Promise<UserDocument>;
 }
 
 // User Model Interface

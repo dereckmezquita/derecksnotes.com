@@ -36,7 +36,7 @@ register.post('/register', async (req, res) => {
 
         const ip_address = req.headers['x-forwarded-for'] as string;
 
-        await newUser.addOrUpdateGeoLocation(ip_address); // saves the user
+        await newUser.setAddOrUpdateGeoLocation(ip_address); // saves the user
 
         await newUser.save();
 
