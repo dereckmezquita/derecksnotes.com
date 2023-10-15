@@ -78,17 +78,14 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
 
     if (!userData) return null;
 
-    const { userInfo, comments, commentsJudged, commentsCount } = userData; // 
-    console.log(userData)
-
     return (
         <CardContainer>
-            <h2>Welcome, {userInfo.username}</h2>
+            <h2>Welcome, {userData.user.username}</h2>
             <InfoBlock>
                 <div>
-                    <Icon><FaEnvelope /></Icon>Email: {userInfo.email.address}
+                    <Icon><FaEnvelope /></Icon>Email: {userData.user.email.address}
                 </div>
-                {userInfo.email.verified
+                {userData.user.email.verified
                     ? <EmailStatus verified={true}>verified</EmailStatus>
                     : <VerifyEmail onClick={api_request_email_verification}>verify</VerifyEmail>
                 }
@@ -97,19 +94,19 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
                 <div>
                     <Icon><FaCalendarAlt /></Icon>Last Connected
                 </div>
-                {new Date(userInfo.metadata.lastConnected).toLocaleString()}
+                {new Date(userData.user.metadata.lastConnected).toLocaleString()}
             </InfoBlock>
             <InfoBlock>
                 <div>
                     <Icon><FaMapPin /></Icon>Geo Locations
                 </div>
-                {userInfo.metadata.geolocations.length}
+                {userData.user.metadata.geolocations.length}
             </InfoBlock>
             <InfoBlock>
                 <div>
-                    <Icon><FaComment /></Icon>Comments Judged
+                    <Icon><FaComment /></Icon>Comments
                 </div>
-                {commentsJudged.length}
+                {userData.commentsIds.length}
             </InfoBlock>
             <StyledButton style={{ float: 'left' }} onClick={handleLogout}>Logout</StyledButton>
             <LinkToProfile
@@ -124,3 +121,5 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
 };
 
 export default React.memo(UserDetails);
+
+// { "user": { "name": { "first": "Dereck", "last": null }, "email": { "address": "dereck@mezquita.io", "verified": false }, "metadata": { "lastConnected": "2023-10-14T17:14:59.604Z", "geolocations": [{ "ip": "::1", "country": "Antarctica", "countryCode": "AQ", "flag": "🇦🇶", "regionName": "Unknown", "city": "Unknown", "isp": "Unknown", "org": "Unknown", "firstUsed": "2023-10-14T17:14:59.981Z", "lastUsed": "2023-10-15T17:42:52.506Z", "_id": "652acc93cfae14c19c7df697", "id": "652acc93cfae14c19c7df697" }] }, "_id": "652acc93cfae14c19c7df696", "profilePhotos": ["optimised_dereck_2023-10-15-153628.png", "optimised_dereck_2023-10-15-155729.png", "optimised_dereck_2023-10-15-160042.png", "optimised_dereck_2023-10-15-165214.png", "optimised_dereck_2023-10-15-170117.png"], "username": "dereck", "__v": 597, "latestProfilePhoto": "optimised_dereck_2023-10-15-170117.png", "id": "652acc93cfae14c19c7df696" }, "commentsIds": ["652acef6cfae14c19c7df6b0", "652acef9cfae14c19c7df6b6", "652acefccfae14c19c7df6c1", "652aceffcfae14c19c7df6ce", "652acf01cfae14c19c7df6db", "652acf04cfae14c19c7df6e6", "652acf07cfae14c19c7df6ec", "652ad060cfae14c19c7df769", "652ad092cfae14c19c7df7a2"], "commentsLikedIds": [], "commentsDislikedIds": [], "commentsCount": 9 }
