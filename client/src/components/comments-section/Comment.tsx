@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import path from 'path';
-import { RootState } from '@store/store';
-import { useSelector } from 'react-redux';
 
 import { DEFAULT_PROFILE_IMAGE, MAX_COMMENT_DEPTH, ROOT_PUBLIC } from '@constants/config';
 import { FORMAT_DATE_YYYY_MM_DD_HHMMSS } from '@constants/dates';
@@ -27,15 +25,12 @@ import api_delete_comments from '@utils/api/interact/delete_comments';
 
 interface CommentProps {
     commentObj: CommentPopUserDTO;
-    slug: string;
+    currentUserId?: string;
     depth: number;
 }
 
-const Comment = ({ commentObj, slug, depth }: CommentProps) => {
+const Comment = ({ commentObj, currentUserId, depth }: CommentProps) => {
     const [comment, setComment] = useState<CommentPopUserDTO>(commentObj);
-
-    const userData = useSelector((state: RootState) => state.user);
-    const currentUserId: string | undefined = userData?.data?.userInfo?._id;
     const isCurrentUser = currentUserId === comment.userId;
 
     const profilePhoto: string = comment.user?.latestProfilePhoto
@@ -111,7 +106,6 @@ const Comment = ({ commentObj, slug, depth }: CommentProps) => {
 
             {showEditForm ?
                 <CommentForm
-                    slug={slug}
                     onSubmit={handleEditComment}
                     editComment={comment}
                 />
@@ -128,7 +122,6 @@ const Comment = ({ commentObj, slug, depth }: CommentProps) => {
 
             {showReplyForm &&
                 <CommentForm
-                    slug={slug}
                     parentComment={comment._id}
                     onSubmit={handleNewReply}
                 />
@@ -145,7 +138,7 @@ const Comment = ({ commentObj, slug, depth }: CommentProps) => {
                                 <Comment
                                     key={child._id! + child.latestContent?._id!}
                                     commentObj={child}
-                                    slug={slug}
+                                    currentUserId={currentUserId}
                                     depth={depth + 1}
                                 />
                             ))

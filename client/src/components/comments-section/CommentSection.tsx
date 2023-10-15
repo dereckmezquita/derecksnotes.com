@@ -1,3 +1,4 @@
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import styled from "styled-components";
 
@@ -22,11 +23,12 @@ const CommentSectionContainer = styled.div`
 `;
 
 interface CommentSectionProps {
-    slug: string;
     allowComments: boolean;
 }
 
-const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
+const CommentSection = ({ allowComments }: CommentSectionProps) => {
+    const router = useRouter();
+    
     const loggedIn = useSelector((state: RootState) => state.user.isAuthenticated);
 
     const [comments, setComments] = useState<CommentPopUserDTO[]>([]);
@@ -35,7 +37,7 @@ const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
     useEffect(() => {
         const fetchComments = async () => {
             try {
-                const res: CommentsBySlugDTO = await api_get_article_comments(slug);
+                const res: CommentsBySlugDTO = await api_get_article_comments(router.asPath);
                 setComments(res.comments);
                 setLoading(false);
             } catch (error: any) {
@@ -43,7 +45,7 @@ const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
             }
         }
         fetchComments();
-    }, [slug]);
+    }, [router.asPath]);
 
     if (loading) return <IndicateLoading />;
 
@@ -61,7 +63,7 @@ const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
             {allowComments === false ? (
                 <DisabledCommentForm type="commentsDisabled" />
             ) : loggedIn ? (
-                <CommentForm slug={slug} onSubmit={handleNewComment} />
+                <CommentForm onSubmit={handleNewComment} />
             ) : (
                 <DisabledCommentForm type="loginRequired" />
             )}
@@ -75,7 +77,7 @@ const CommentSection = ({ slug, allowComments }: CommentSectionProps) => {
                         <Comment
                             key={comment._id! + comment.latestContent!._id!}
                             commentObj={comment}
-                            slug={slug}
+                            currentUserId={comment.user._id}
                             depth={0}
                         />
                     ))

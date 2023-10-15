@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useRouter } from 'next/router';
 // --------------------------------------
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
@@ -29,13 +30,14 @@ const Input = styled.textarea`
 `;
 
 interface CommentFormProps {
-    slug: string;
     parentComment?: string;
     onSubmit: (comment: CommentPopUserDTO) => void; // callback sends new comment to parent component
     editComment?: CommentPopUserDTO;
 }
 
-const CommentForm: React.FC<CommentFormProps> = ({ slug, parentComment, onSubmit, editComment }) => {
+const CommentForm: React.FC<CommentFormProps> = ({ parentComment, onSubmit, editComment }) => {
+    const router = useRouter();
+
     const [commentInput, setCommentInput] = useState(editComment?.latestContent?.comment || '');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -63,7 +65,7 @@ const CommentForm: React.FC<CommentFormProps> = ({ slug, parentComment, onSubmit
 
         if (commentInput.trim()) {
             try {
-                const res = await api_new_comment(commentInput, slug, parentComment);
+                const res = await api_new_comment(commentInput, router.asPath, parentComment);
                 setIsLoading(false);
                 if (res) {
                     onSubmit(res);
