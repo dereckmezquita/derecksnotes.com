@@ -174,6 +174,7 @@ export interface UserDocument extends Document {
             org: string;
             firstUsed: Date;
             lastUsed: Date;
+            _id?: string; // TODO: remove ?
         }[];
         lastConnected: Date;
     };
