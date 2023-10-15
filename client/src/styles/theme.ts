@@ -65,6 +65,7 @@ export const theme = {
             anchor: colour_scheme[6], // links
             anchor_hover: colour_scheme[7], // links light grey
             // contrasting blue colour for visited links
+            muted_blue: hsla_colour(210, 8.75, 30),
             anchor_visited: hsla_colour(120, 100, 5),
             white: hsla_colour(0, 0, 100, 1), // white for inverted reading
             light_grey: hsla_colour(0, 0, 60, 1)
