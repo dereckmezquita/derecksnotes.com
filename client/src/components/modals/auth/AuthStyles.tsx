@@ -17,7 +17,12 @@ export const ModalOverlay = styled.div`
 `;
 
 export const ModalContainer = styled.div`
-    width: 25%;
+    width: 450px;
+
+    @media (max-width: 650px) {
+        width: 95%;
+    }
+
     margin: 0 auto;
     background-color: ${theme.container.background.colour.primary()};
     padding: 20px;
@@ -25,9 +30,6 @@ export const ModalContainer = styled.div`
     border-radius: 5px;
     box-shadow: ${theme.container.shadow.box};
     color: ${theme.text.colour.primary()};
-    @media (max-width: ${theme.container.widths.min_width_snap_up}) {
-        width: 95%;
-    }
 `;
 
 export const InputField = styled.div`
