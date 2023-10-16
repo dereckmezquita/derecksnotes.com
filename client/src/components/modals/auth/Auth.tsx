@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { FaUser, FaLock, FaAt } from 'react-icons/fa';
-import Button from '@components/atomic/Button';
+
 // redux
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { RootState } from '@store/store';
-import { logout } from '@store/userSlice';
 
 // modals
 import Login from './Login';
