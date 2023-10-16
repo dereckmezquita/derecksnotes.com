@@ -4,10 +4,10 @@ import buildPopulateObject from '@utils/buildPopulateObject';
 
 const get_article_comments = express.Router();
 
-get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
-    const { slug } = req.params;
+get_article_comments.get('/get_article_comments/:encodedSlug', async (req, res) => {
+    const { encodedSlug } = req.params;
 
-    const decodedSlug = decodeURIComponent(slug);
+    const decodedSlug = decodeURIComponent(encodedSlug);
 
     const limit = Number(req.query.limit) || 50;
     const page = Number(req.query.page) || 1;
