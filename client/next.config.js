@@ -25,7 +25,7 @@ const nextConfig = {
         // see https://styled-components.com/docs/tooling#babel-plugin for more info on the options.
         styledComponents: true,
     },
-    reactStrictMode: true,
+    reactStrictMode: false,
 }
 
 if (process.env.DEV_MODE) {
