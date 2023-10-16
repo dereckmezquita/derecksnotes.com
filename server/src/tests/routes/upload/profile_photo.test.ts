@@ -27,7 +27,7 @@ describe('POST /profile_photo Endpoint', () => {
     let testUser: UserDocument;
     let sessionCookie: string[] = [];
     // __dirname is same as this file's directory
-    const filePath = path.join(__dirname, 'test-image.ignore.jpg');
+    const filePath = path.join(__dirname, 'test-image.jpg');
 
     beforeAll(async () => {
         dbConnector = new InMemoryDBConnector();
