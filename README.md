@@ -1,12 +1,10 @@
 # [derecksnotes.com](https://www.derecksnotes.com)  <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
 
-Welcome to version `3.0` of [Dereck's Notes](https://www.derecksnotes.com).
+Welcome to version `3.0` of [Dereck's Notes](https://www.derecksnotes.com). Dereck's Notes has been reconstructed with a new and modern technical stack to integrate new features and improve maintainability. The adaptation from a static site to one that includes server-side functionalities allows the implementation of new features such as user accounts and comments.
 
 <p align="center">
     <img src="./.graphics/screen-captures/site-capture-full.png" width="750">
 </p>
-
-Dereck's Notes has been reconstructed with a new and modern technical stack to integrate new features and improve maintainability. The adaptation from a static site to one that includes server-side functionalities allows the implementation of new features such as user accounts and comments.
 
 <p align="center">
     <img src="./.graphics/screen-captures/interactive-comments.png" width="750">
