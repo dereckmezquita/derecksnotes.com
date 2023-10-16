@@ -86,7 +86,9 @@ const Comment = ({ commentObj, currentUserId, depth }: CommentProps) => {
             <CommentHeader>
                 <UserProfile>
                     <ProfileImage src={profilePhoto} alt={`${comment.user.username}'s profile`} />
-                    <Username currentUser={isCurrentUser}>{comment.user.username}</Username>
+                    <Username currentUser={isCurrentUser}>
+                        {comment.user.username} {comment.geolocation.flag}
+                    </Username>
                 </UserProfile>
 
                 <ActionsContainer>

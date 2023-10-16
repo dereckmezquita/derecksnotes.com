@@ -32,6 +32,8 @@ describe('POST /interact/new_comment Endpoint', () => {
     let testUser: UserDocument;
     let sessionCookie: string[] = [];
 
+    const slug: string = encodeURIComponent('test_slug');
+
     beforeAll(async () => {
         dbConnector = new InMemoryDBConnector();
         await SetUp(dbConnector);
@@ -56,7 +58,7 @@ describe('POST /interact/new_comment Endpoint', () => {
         const response = await request(app)
             .post(API_PREFIX + '/interact/new_comment')
             .set('Cookie', sessionCookie)
-            .send({ comment: 'This is a test comment', slug: 'test_slug' });
+            .send({ comment: 'This is a test comment', encodedSlug: slug });
 
         expect(response.status).toBe(201);
         expect(response.body.content[0].comment).toBe('This is a test comment');
@@ -66,14 +68,14 @@ describe('POST /interact/new_comment Endpoint', () => {
     it('should successfully create a new comment with a parent comment', async () => {
         const parentComment = await Comment.create({
             content: [{ comment: 'This is a parent comment' }],
-            slug: 'test_slug',
+            slug: decodeURIComponent(slug),
             userId: testUser._id.toString()
         });
 
         const response = await request(app)
             .post(API_PREFIX + '/interact/new_comment')
             .set('Cookie', sessionCookie)
-            .send({ comment: 'This is a child comment', slug: 'test_slug', parentComment: parentComment._id.toString() });
+            .send({ comment: 'This is a child comment', encodedSlug: slug, parentComment: parentComment._id.toString() });
 
         expect(response.status).toBe(201);
         expect(response.body.content[0].comment).toBe('This is a child comment');
@@ -95,20 +97,20 @@ describe('POST /interact/new_comment Endpoint', () => {
 
         const parentComment = await Comment.create({
             content: [{ comment: 'This is a parent comment' }],
-            slug: 'test_slug',
+            slug: decodeURIComponent(slug),
             userId: testUser._id.toString()
         });
 
         const childComment = await Comment.create({
             content: [{ comment: 'This is a child comment' }],
-            slug: 'test_slug',
+            slug: decodeURIComponent(slug),
             userId: testUser._id.toString(),
             parentComment: parentComment._id
         });
 
         const grandchildComment = await Comment.create({
             content: [{ comment: 'This is a grandchild comment' }],
-            slug: 'test_slug',
+            slug: decodeURIComponent(slug),
             userId: testUser._id.toString(),
             parentComment: childComment._id
         });
@@ -116,7 +118,7 @@ describe('POST /interact/new_comment Endpoint', () => {
         const response = await request(app)
             .post(API_PREFIX + '/interact/new_comment')
             .set('Cookie', sessionCookie)
-            .send({ comment: 'This should fail', slug: 'test_slug', parentComment: grandchildComment._id.toString() });
+            .send({ comment: 'This should fail', encodedSlug: slug, parentComment: grandchildComment._id.toString() });
 
         expect(response.status).toBe(400);
         expect(response.body.message).toBe("Reply depth limit reached.");
@@ -127,7 +129,7 @@ describe('POST /interact/new_comment Endpoint', () => {
         const response = await request(app)
             .post(API_PREFIX + '/interact/new_comment')
             .set('Cookie', sessionCookie)
-            .send({ comment: 'This is a test comment', slug: 'test_slug', parentComment: nonExistentId });
+            .send({ comment: 'This is a test comment', encodedSlug: slug, parentComment: nonExistentId });
 
         expect(response.status).toBe(400);
         expect(response.body.message).toBe("Parent comment not found.");

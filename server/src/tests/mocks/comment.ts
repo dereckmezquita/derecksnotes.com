@@ -1,3 +1,17 @@
+const geolocationObj: GeolocationDTO = {
+    ip: '0.0.0.0',
+    country: 'United States',
+    countryCode: 'US',
+    flag: '🇺🇸',
+    regionName: 'California',
+    city: 'San Francisco',
+    isp: 'Cloudflare, Inc.',
+    org: 'Cloudflare, Inc.',
+    firstUsed: new Date(),
+    lastUsed: new Date(),
+    _id: '5f9c0b9b9b9b9b9b9b9b9b9b',
+}
+
 export function generateCommentObj(userId: string, comment: string, parentId?: string) {
     return {
         childComments: [],
@@ -10,6 +24,7 @@ export function generateCommentObj(userId: string, comment: string, parentId?: s
                 comment,
             } as ContentDTO,
         ],
+        geolocation: geolocationObj,
         userId,
         judgement: {},
         deleted: false,

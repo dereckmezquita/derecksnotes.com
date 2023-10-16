@@ -19,3 +19,4 @@ dispatchEvent
 performConcurrentWorkOnRoot
 [native code]
 ```
+- [ ] Cannot right click or cmd + click to open post cards in new tab.

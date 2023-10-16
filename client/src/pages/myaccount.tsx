@@ -70,7 +70,7 @@ const Account: React.FC = () => {
         }
 
         fetchMe();
-    }, []);
+    }, [router]);
 
     useEffect(() => {
         const fetchComments = async () => {

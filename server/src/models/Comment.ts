@@ -1,5 +1,6 @@
 import mongoose, { Model, Types, Document } from "mongoose";
 import sanitizeHtml from 'sanitize-html';
+import GeolocationSchema from "./Geolocation";
 
 export const ContentSchema = new mongoose.Schema({
     comment: {
@@ -56,6 +57,7 @@ const CommentSchema = new mongoose.Schema({
         },
         default: {}
     },
+    geolocation: GeolocationSchema,
     deleted: { type: Boolean, default: false },
 }, {
     timestamps: true, // adds createdAt and updatedAt
@@ -246,6 +248,8 @@ export interface CommentDocument extends Document {
     userId: Types.ObjectId;
     judgement: Map<string, 'like' | 'dislike'>;
     deleted: boolean;
+    geolocation: GeolocationDTO;
+
     createdAt: Date;
     updatedAt: Date;
 

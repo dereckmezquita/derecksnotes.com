@@ -20,6 +20,7 @@ declare global {
         userId: string;
         judgement: Record<string, 'like' | 'dislike'>;
         deleted: boolean;
+        geolocation: GeolocationDTO;
 
         createdAt?: Date;
         updatedAt?: Date;

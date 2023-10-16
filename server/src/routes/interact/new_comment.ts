@@ -5,6 +5,8 @@ import Comment, { CommentDocument } from '@models/Comment';
 import User from '@models/User';
 import isAuthenticated from '@utils/middleware/isAuthenticated';
 
+import geoLocate from '@utils/geoLocate';
+
 import { MAX_COMMENT_DEPTH } from '@utils/constants';
 
 const new_comment = Router();
@@ -24,10 +26,12 @@ new_comment.post('/new_comment', isAuthenticated, async (req: Request, res: Resp
 
         const decodedSlug = decodeURIComponent(encodedSlug);
 
-        // Create new comment
-        const newComment = await createNewComment(comment, decodedSlug, parentId, req.session.userId!);
+        const ip_address = req.headers['x-forwarded-for'] as string;
 
-        console.log(newComment);
+        const geolocation = await geoLocate(ip_address);
+
+        // Create new comment
+        const newComment = await createNewComment(comment, decodedSlug, geolocation, parentId, req.session.userId!);
 
         // Populate and return the new comment
         const populatedComment = await populateComment(newComment);
@@ -40,12 +44,13 @@ new_comment.post('/new_comment', isAuthenticated, async (req: Request, res: Resp
 
 export default new_comment;
 
-async function createNewComment(comment: string, decodedSlug: string, parentId: string | undefined, userId: string): Promise<CommentDocument> {
+async function createNewComment(comment: string, decodedSlug: string, geolocation: GeolocationDTO, parentId: string | undefined, userId: string): Promise<CommentDocument> {
     const newComment: CommentDocument = new Comment({
         content: [{ comment }],
         slug: decodedSlug,
         userId,
-        ...(parentId && { parentComment: new mongoose.Types.ObjectId(parentId) })
+        ...(parentId && { parentComment: new mongoose.Types.ObjectId(parentId) }),
+        geolocation
     });
 
     if (parentId) {

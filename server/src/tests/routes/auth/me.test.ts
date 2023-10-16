@@ -63,7 +63,7 @@ describe('GET /me Endpoint', () => {
             .set('Cookie', sessionCookie); // Use the session cookie
 
         expect(response.status).toBe(200);
-        expect(response.body.userInfo.username).toBe(testUser.username);
+        expect(response.body.user.username).toBe(testUser.username);
         // Add more assertions based on what you expect in the response
     });
 
@@ -73,6 +73,6 @@ describe('GET /me Endpoint', () => {
             .set('x-forwarded-for', '127.0.0.1');
 
         expect(response.status).toBe(401);
-        expect(response.body.message).toBe('Not logged in');
+        expect(response.body.message).toBe('You need to be logged in.');
     });
 });

@@ -29,8 +29,8 @@ describe('GET /interact/get_article_comments/:slug Endpoint', () => {
     let comments: CommentDocument[] = [];
     let replies: CommentDocument[] = [];
 
-    const slug = 'test';
-
+    // slugs are not full path after domain
+    const slug: string = encodeURIComponent('test/post');
 
     beforeAll(async () => {
         dbConnector = new InMemoryDBConnector();
@@ -49,7 +49,7 @@ describe('GET /interact/get_article_comments/:slug Endpoint', () => {
             const response = await request(app)
                 .post(API_PREFIX + '/interact/new_comment')
                 .set('Cookie', sessionCookie)
-                .send({ comment: letter, slug });
+                .send({ comment: letter, encodedSlug: slug });
 
             return response.body;
         });
@@ -61,7 +61,7 @@ describe('GET /interact/get_article_comments/:slug Endpoint', () => {
             const response = await request(app)
                 .post(API_PREFIX + '/interact/new_comment')
                 .set('Cookie', sessionCookie)
-                .send({ comment: 'reply', slug, parentComment: comment._id });
+                .send({ comment: 'reply', encodedSlug: slug, parentComment: comment._id });
 
             return response.body;
         });
