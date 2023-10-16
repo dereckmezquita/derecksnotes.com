@@ -1,3 +1,4 @@
+import { useRouter } from 'next/router';
 import React, { useEffect } from 'react';
 import Link from 'next/link';
 import styled from 'styled-components';
@@ -15,6 +16,7 @@ import { theme } from '@styles/theme';
 
 import ProfileImage from '@components/pages/myaccount/ProfileImage';
 import Comment from '@components/comments-section/Comment';
+import ChangePassword from '@components/pages/myaccount/ChangePassword';
 
 import api_me from '@utils/api/auth/me';
 import api_update_user_info from '@utils/api/interact/update_user_info';
@@ -54,10 +56,17 @@ const Account: React.FC = () => {
     const [commentsLikedByUser, setCommentsLikedByUser] = React.useState<CommentsBySlugDTO>();
     const [commentsDislikedByUser, setCommentsDislikedByUser] = React.useState<CommentsBySlugDTO>();
 
+    const router = useRouter();
+
     useEffect(() => {
         const fetchMe = async () => {
-            const res = await api_me();
-            setUserData(res);
+            try {
+                const res = await api_me();
+                setUserData(res);
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+                router.push('/');
+            }
         }
 
         fetchMe();
@@ -85,7 +94,6 @@ const Account: React.FC = () => {
     const handleEditSubmit = async (obj: {
         username?: string,
         email?: string,
-        password?: string,
         firstName?: string,
         lastName?: string,
         geolocationId?: string
@@ -150,7 +158,6 @@ const Account: React.FC = () => {
 
                 <ProfileSection>
                     <ProfileImage user={userData.user} setUserData={setUserData} />
-
                     <div>
                         <p>
                             <EditableText
@@ -176,6 +183,8 @@ const Account: React.FC = () => {
                         </p>
                     </div>
                 </ProfileSection>
+
+                <ChangePassword />
 
                 <section>
                     <h3>
