@@ -9,8 +9,8 @@ Welcome to version `3.0` of [Dereck's Notes](https://www.derecksnotes.com).
 Dereck's Notes has been reconstructed with a new and modern technical stack to integrate new features and improve maintainability. The adaptation from a static site to one that includes server-side functionalities allows the implementation of new features such as user accounts and comments.
 
 <p align="center">
-    <img src="./.graphics/screen-captures/interactive-comments.png" width="350">
-    <img src="./.graphics/screen-captures/interactive-myprofile.png" width="350">
+    <img src="./.graphics/screen-captures/interactive-comments.png" width="375">
+    <img src="./.graphics/screen-captures/interactive-myprofile.png" width="375">
 </p>
 
 ## Technical Overview
