@@ -9,7 +9,7 @@ const update_user_info = Router();
 interface UpdateUserInfoRequest {
     username?: string;
     email?: string;
-    password?: string;
+    password?: { oldPassword: string, newPassword: string };
     firstName?: string;
     lastName?: string;
     geolocationId?: string;
@@ -52,8 +52,13 @@ update_user_info.put('/update_user_info', isAuthenticated, async (req: Request, 
         }
 
         if (password) {
-            const salt = await bcrypt.genSalt(10);
-            user.password = await bcrypt.hash(password, salt);
+            const passCheck: boolean = await user.isPasswordCorrect(password.oldPassword);
+            if (!passCheck) {
+                return res.status(400).json({ message: "Old password is incorrect." });
+            }
+            // WARNING: passwords are hashed by pre save hook
+            // be careful not to double hash
+            user.password = password.newPassword;
         }
 
         if (firstName) {
