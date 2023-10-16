@@ -24,7 +24,7 @@ const NavContainer = styled.nav`
         box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.5);
     }
 
-    @media screen and (max-width: 1024px) {
+    @media screen and (max-width: ${theme.container.widths.min_width_snap_up}) {
         width: 95%;
     }
 `;
