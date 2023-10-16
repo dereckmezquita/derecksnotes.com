@@ -53,7 +53,9 @@ With user accounts in place, visitors can contribute to the community by leaving
 
 With the use of React, the UI has been enhanced with interactive elements, such as the blog post filter, the dictionary search functionality and more!
 
-<img src="./.graphics/screen-captures/interactive-filter-full-crop.png" width="750">
+<p align="center">
+    <img src="./.graphics/screen-captures/interactive-filter-full-crop.png" width="750">
+</p>
 
 ## Copyright Statement
 
