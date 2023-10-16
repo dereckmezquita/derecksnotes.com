@@ -9,8 +9,8 @@ Welcome to version `3.0` of [Dereck's Notes](https://www.derecksnotes.com).
 Dereck's Notes has been reconstructed with a new and modern technical stack to integrate new features and improve maintainability. The adaptation from a static site to one that includes server-side functionalities allows the implementation of new features such as user accounts and comments.
 
 <p align="center">
-    <img src="./.graphics/screen-captures/site-capture-mobile-install-prompt.jpeg" width="350">
-    <img src="./.graphics/screen-captures/site-capture-installed.jpeg" width="350">
+    <img src="./.graphics/screen-captures/interactive-comments.png" width="350">
+    <img src="./.graphics/screen-captures/interactive-myprofile.png" width="350">
 </p>
 
 ## Technical Overview
@@ -48,6 +48,12 @@ The implementation of user accounts facilitates personalized interactions with t
 ### Comments
 
 With user accounts in place, visitors can contribute to the community by leaving comments on blog posts, facilitating discussions, and sharing insights.
+
+## Interactive UI
+
+With the use of React, the UI has been enhanced with interactive elements, such as the blog post filter, the dictionary search functionality and more!
+
+<img src="./.graphics/screen-captures/interactive-filter-full-crop.png" width="750">
 
 ## Copyright Statement
 
