@@ -13,7 +13,7 @@ Dereck's Notes has been reconstructed with a new and modern technical stack to i
 </p>
 
 <p align="center">
-    <img src="./.graphics/screen-captures/interactive-myprofile.png" width="750">
+    <img src="./.graphics/screen-captures/interactive-myprofile-crop.png" width="750">
 </p>
 
 ## Technical Overview
