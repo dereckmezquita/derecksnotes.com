@@ -1,6 +1,7 @@
 import mongoose, { Document, Model } from 'mongoose';
 import bcrypt from 'bcrypt';
 import geoLocate from '@utils/geoLocate';
+import GeolocationSchema from './Geolocation';
 
 const UserSchema = new mongoose.Schema({
     name: {
@@ -44,20 +45,7 @@ const UserSchema = new mongoose.Schema({
     },
     password: { type: String, required: true },
     metadata: {
-        geolocations: [
-            {
-                ip: String,
-                country: String,
-                countryCode: String,
-                flag: String,
-                regionName: String,
-                city: String,
-                isp: String,
-                org: String,
-                firstUsed: Date,
-                lastUsed: Date
-            }
-        ],
+        geolocations: [GeolocationSchema],
         lastConnected: { type: Date, default: new Date() },
     }
 });
@@ -91,7 +79,7 @@ UserSchema.pre('save', function (next) {
 // Sort geolocations by lastUsed date in ascending order (oldest first).
 // .slice(-10) to get the last 10 geolocations used
 UserSchema.pre('save', function (this: UserDocument, next) {
-    this.metadata.geolocations.sort((a, b) => a.lastUsed.getTime() - b.lastUsed.getTime());
+    this.metadata.geolocations.sort((a, b) => a.lastUsed!.getTime() - b.lastUsed!.getTime());
 
     next();
 });
@@ -117,7 +105,7 @@ UserSchema.methods.isPasswordCorrect = async function (password: string) {
     return await bcrypt.compare(password, this.password);
 };
 
-UserSchema.methods.setAddOrUpdateGeoLocation = async function(this: UserDocument, ip: string): Promise<UserDocument> {
+UserSchema.methods.setAddOrUpdateGeoLocation = async function (this: UserDocument, ip: string): Promise<UserDocument> {
     // Check if IP exists in geolocations.
     const geoLocationIndex = this.metadata.geolocations.findIndex((geo) => geo.ip === ip);
 
@@ -126,12 +114,12 @@ UserSchema.methods.setAddOrUpdateGeoLocation = async function(this: UserDocument
         // using atomic operations to avoid concurrency issues with multiple requests
         await User.updateOne(
             { _id: this._id, "metadata.geolocations.ip": ip },
-            { $set: { "metadata.geolocations.$.lastUsed": new Date() }}
+            { $set: { "metadata.geolocations.$.lastUsed": new Date() } }
         );
     } else {
         // IP doesn't exist, fetch the geolocation data.
         const newGeoLocation = await geoLocate(ip);
-        
+
         // Add current date as firstUsed and lastUsed.
         newGeoLocation.firstUsed = new Date();
         newGeoLocation.lastUsed = new Date();
@@ -139,7 +127,7 @@ UserSchema.methods.setAddOrUpdateGeoLocation = async function(this: UserDocument
         // Push new geolocation data using atomic operation.
         await User.updateOne(
             { _id: this._id },
-            { $push: { "metadata.geolocations": newGeoLocation }}
+            { $push: { "metadata.geolocations": newGeoLocation } }
         );
     }
 
@@ -163,19 +151,7 @@ export interface UserDocument extends Document {
     username: string;
     password: string;
     metadata: {
-        geolocations: {
-            ip: string;
-            country: string;
-            countryCode: string;
-            flag: string;
-            regionName: string;
-            city: string;
-            isp: string;
-            org: string;
-            firstUsed: Date;
-            lastUsed: Date;
-            _id?: string; // TODO: remove ?
-        }[];
+        geolocations: GeolocationDTO[];
         lastConnected: Date;
     };
 
