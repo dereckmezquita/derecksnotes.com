@@ -11,7 +11,7 @@ Welcome to version `3.0` of [Dereck's Notes](https://www.derecksnotes.com). Dere
 </p>
 
 <p align="center">
-    <img src="./.graphics/screen-captures/interactive-myprofile-crop.png" width="750">
+    <img src="./.graphics/screen-captures/interactive-myprofile.png" width="750">
 </p>
 
 ## Technical Overview
