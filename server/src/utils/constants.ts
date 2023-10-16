@@ -11,6 +11,6 @@ export const ROOT_DIR_CLIENT: string = path.join(__dirname, '..', '..', '..', 'c
 export const ROOT_DIR_CLIENT_UPLOADS: string = path.join(ROOT_DIR_CLIENT, (!process.env.DEV_MODE ? 'out' : 'public'), 'site-images', 'uploads', 'profile-photos');
 
 // if in prod nginx picks up requests to /api/v3 and forwards to server
-export const API_PREFIX: string = !process.env.DEV_MODE ? '' : '/api/v3';
+export const API_PREFIX: string = process.env.DEV_MODE ? '' : '/api/v3';
 
 export const MAX_COMMENT_DEPTH: number = 5;
