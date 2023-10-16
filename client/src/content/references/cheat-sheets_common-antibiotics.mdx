@@ -1,0 +1,169 @@
+---
+title: "Common antibiotics"
+blurb: "When it's love"
+coverImage: 381
+author: "Dereck Mezquita"
+date: 2019-06-27
+
+tags: [cheat-sheet, biology, microbiology, wet-lab]
+published: false
+comments: true
+---
+
+Here is a list of common antibiotics use in microbiology labs along with common concentration and other usage information.
+
+<table>
+    <thead>
+        <tr>
+            <th class="tableHeader" colspan="10">Antibiotics Commonly Used</th>
+        </tr>
+        <tr>
+            <th>Colour Code</th>
+            <th>Code</th>
+            <th>Name</th>
+            <th>[Stock]</th>
+            <th>[Final]</th>
+            <th>Dilution</th>
+            <th>Fill to 200ml</th>
+            <th>Fill to 10ml</th>
+            <th>Stock -20&#176;C</th>
+            <th>Sterility</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr class="antibioticGreen">
+            <th>I</th>
+            <td>Ap100</td>
+            <td>Ampiciline</td>
+            <td>100 mg/mL</td>
+            <td>100&mu;g/mL</td>
+            <td>1/1000</td>
+            <td>200&mu;L</td>
+            <td>10&mu;L</td>
+            <td>H<sub>2</sub>O</td>
+            <td>Filtered 0.22&mu;m</td>
+        </tr>
+        <tr class="antibioticBlue">
+            <th>I</th>
+            <td>Km20</td>
+            <td>Kanamycine</td>
+            <td>20 mg/mL</td>
+            <td>20&mu;g/mL</td>
+            <td>1/1000</td>
+            <td>200&mu;L</td>
+            <td>10&mu;L</td>
+            <td>H<sub>2</sub>O</td>
+            <td>Filtered 0.22&mu;m</td>
+        </tr>
+        <tr class="antibioticRed">
+            <th>I</th>
+            <td>Cm10</td>
+            <td>Chloramphenicol</td>
+            <td>10 mg/mL</td>
+            <td>10&mu;g/mL</td>
+            <td>1/1000</td>
+            <td>200&mu;L</td>
+            <td>10&mu;L</td>
+            <td>EtOH 100%</td>
+            <td>N/A</td>
+        </tr>
+        <tr class="antibioticBlack">
+            <th></th>
+            <td>Sp30</td>
+            <td>Spectinomycine</td>
+            <td>30 mg/mL</td>
+            <td>30&mu;g/mL</td>
+            <td>1/1000</td>
+            <td>200&mu;L</td>
+            <td>10&mu;L</td>
+            <td>H<sub>2</sub>O</td>
+            <td>Filtered 0.22&mu;m</td>
+        </tr>
+        <tr class="antibioticBlack">
+            <th>I</th>
+            <td>Sm200/Str</td>
+            <td>Streptomycine</td>
+            <td>200 mg/mL</td>
+            <td>200&mu;g/mL</td>
+            <td>1/1000</td>
+            <td>200&mu;L</td>
+            <td>10&mu;L</td>
+            <td>H<sub>2</sub>O</td>
+            <td>Filtered 0.22&mu;m</td>
+        </tr>
+        <tr class="antibioticBlack">
+            <th></th>
+            <td>Tc10</td>
+            <td>Tetracycline</td>
+            <td>10 mg/mL</td>
+            <td>10&mu;g/mL</td>
+            <td>1/1000</td>
+            <td>200&mu;L</td>
+            <td>10&mu;L</td>
+            <td>EtOH 100%</td>
+            <td>N/A</td>
+        </tr>
+        <tr class="antibioticGreen">
+            <th><font color="red">I</font>I</th>
+            <td>Nal-Nx</td>
+            <td>Nalidixique Acid</td>
+            <td>20 mg/mL</td>
+            <td>20&mu;g/mL</td>
+            <td>1/1000</td>
+            <td>200&mu;L</td>
+            <td>10&mu;L</td>
+            <td>H<sub>2</sub>O + NaOH [3M] (Untill dilution)</td>
+            <td>Filtered 0.22&mu;m</td>
+        </tr>
+        <tr class="antibioticBlack">
+            <th></th>
+            <td>Rif</td>
+            <td>Rifampicine</td>
+            <td>25 mg/mL</td>
+            <td>50&mu;g/mL</td>
+            <td>1/500</td>
+            <td>400&mu;L</td>
+            <td>20&mu;L</td>
+            <td>MetOH</td>
+            <td>N/A</td>
+        </tr>
+        <tr class="antibioticBlack">
+            <th></th>
+            <td>Sm20</td>
+            <td>Streptomycine</td>
+            <td>20 mg/mL</td>
+            <td>200&mu;g/mL</td>
+            <td>1/1000</td>
+            <td>200&mu;L</td>
+            <td>10&mu;L</td>
+            <td>H<sub>2</sub>O</td>
+            <td>Filtered 0.22&mu;m</td>
+        </tr>
+        <tr class="antibioticPurple">
+            <th>II</th>
+            <td>Sp30Sm20</td>
+            <td>Spectinomycine</td>
+            <td>30/20 mg/mL</td>
+            <td>30/20&mu;g/mL</td>
+            <td>1/1000</td>
+            <td>200&mu;L</td>
+            <td>10&mu;L</td>
+            <td>H<sub>2</sub>O</td>
+            <td>Filtered 0.22&mu;m</td>
+        </tr>
+    </tbody>
+</table>
+
+
+1. Tetracyclin: light sensitive, degrades over time.
+1. Ampicilin: too common and used in the real world; please avoid using it.
+1. Kanamycin: 
+1. Chloramphenicol: 
+1. Hygromycin: 
+1. Neomycin: 
+1. Gentamycin: 
+1. Streptomycin: 
+1. Spectinomycin: 
+1. Hygromycin: 
+1. Nalidixique Acid
+1. Rifampicine

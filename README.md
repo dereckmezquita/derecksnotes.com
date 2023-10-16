@@ -1,40 +1,65 @@
 # [derecksnotes.com](https://www.derecksnotes.com)  <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
 
-Version `2.0` of my website: [`www.derecksnotes.com`](https://www.derecksnotes.com).
+Welcome to version `3.0` of [Dereck's Notes](https://www.derecksnotes.com). Dereck's Notes has been reconstructed with a new and modern technical stack to integrate new features and improve maintainability. The adaptation from a static site to one that includes server-side functionalities allows the implementation of new features such as user accounts and comments.
 
 <p align="center">
     <img src="./.graphics/screen-captures/site-capture-full.png" width="750">
 </p>
 
-This website features progressive web-app technologies and thus can prompt a user and then be installed locally on a mobile phone for offline use.
-
 <p align="center">
-    <img src="./.graphics/screen-captures/site-capture-mobile-install-prompt.jpeg" width="350">
-    <img src="./.graphics/screen-captures/site-capture-installed.jpeg" width="350">
+    <img src="./.graphics/screen-captures/interactive-comments.png" width="750">
 </p>
 
-# Tech stack
+<p align="center">
+    <img src="./.graphics/screen-captures/interactive-myprofile.png" width="750">
+</p>
 
-This website is a full stack project both back end and front end; is built on the following technologies:
+## Technical Overview
 
-- `webpack` for module bundling; used to manage and build:
-    - `TypeScript` to `JavaScript`.
-    - `ejs` to `html`.
-    - `scss` to `css`.
-- `TypeScript` used for server side and front end code.
-- `scss` used for front end styles.
-- `mongodb` used as a database for:
-    - blog/post entries.
-    - User accounts.
-    - User comments.
-    - Dictionary definitions.
-- `express` for handling client side requests.
-- `nginx` for serving static files, reverse proxying database requests, caching, load balancing and more.
+The technology stack has been modified in version `3.0` to cater to the new functionalities and to streamline the development process.
 
+### Frontend
 
-# Copyright
+- **Next.js**: Adopted for its capabilities in server-side rendering, facilitating better SEO and performance.
+- **TypeScript**: Employed for its static typing.
+- **React**: Utilised for UI components.
+- **MDX**: Chosen for content writing, combining markdown with React.
+- **Styled-components**: Used for styling components.
 
-I reserve all rights for this website, and any code or content found in this repository. You may not copy this code or content. This is to serve only as an educational resource, and any use or reference of/to the content herein must be credited to the author: Dereck de Mezquita. 
+### Backend
 
-Contact: contact@demezquita.com
+- **Express**: Provides a framework for web and API applications.
+- **Mongoose**: Facilitates MongoDB object modelling.
+- **Redis**: Manages session storage, utilising `connect-redis`.
+- **Multer**: Handles file uploads (`multipart/form-data`).
+- **Bcrypt**: Secures passwords by hashing them before database storage.
 
+### Infrastructure
+
+- **MongoDB**: Accommodates data storage needs.
+- **Redis**: Manages persistent session storage.
+- **Nginx**: Serves static files, manages reverse proxying, caching, and load balancing.
+
+## New Features
+
+### User Accounts
+
+The implementation of user accounts facilitates personalized interactions with the site. Visitors can now create accounts, log in, and engage in more interactive features.
+
+### Comments
+
+With user accounts in place, visitors can contribute to the community by leaving comments on blog posts, facilitating discussions, and sharing insights.
+
+## Interactive UI
+
+With the use of React, the UI has been enhanced with interactive elements, such as the blog post filter, the dictionary search functionality and more!
+
+<p align="center">
+    <img src="./.graphics/screen-captures/interactive-filter-full.png" width="750">
+</p>
+
+## Copyright Statement
+
+Dereck Mezquita maintains all rights regarding the website and any code or content contained in this repository. The contents of this repository are intended solely for educational use and may not be copied or used without crediting the author.
+
+**Contact**: contact@mezquita.io
