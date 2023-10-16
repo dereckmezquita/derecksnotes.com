@@ -3,7 +3,7 @@ import { API_PREFIX } from "@constants/config";
 const api_update_user_info = async (obj: {
     username?: string,
     email?: string,
-    password?: string,
+    password?: { oldPassword: string, newPassword: string },
     firstName?: string,
     lastName?: string,
     geolocationId?: string
