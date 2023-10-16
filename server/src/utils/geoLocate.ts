@@ -37,8 +37,8 @@ export default async function geoLocate(ip: string): Promise<GeolocationDTO> {
             country: "Antarctica",
             countryCode: "AQ",
             flag: "🇦🇶",
-            regionName: "Unknown",
-            city: "Unknown",
+            regionName: "Ross Dependency",
+            city: "McMurdo Station",
             isp: "Unknown",
             org: "Unknown"
         };
