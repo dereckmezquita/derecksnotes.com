@@ -1,12 +1,18 @@
-// src/components/PostPreview.tsx
-import { useRouter } from 'next/router';
+import Link from 'next/link';
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
 
 import path from 'path';
 import DropCap from './DropCap';
 
-const Card = styled.div`
+const Card = styled(Link)`
+    text-decoration: none;
+    color: inherit;
+    &:hover, &:active, &:visited, &:focus {
+        text-decoration: none;
+        color: inherit;
+    }
+
     background-color: ${(props) => props.theme.container.background.colour.content()};
 
     padding: 5px;
@@ -46,7 +52,7 @@ const PostImage = styled.img`
     max-height: 140px;
     max-width: 90%;
 
-    filter: sepia(20%); // adds yellow tint
+    filter: sepia(20%);
 `;
 
 const Summary = styled.p`
@@ -64,17 +70,13 @@ const Date = styled.span`
 `;
 
 const CardPreview = (props: PostMetadata) => {
-    const router = useRouter();
-
-    const handleClick = () => {
-        router.push(path.join("/", props.section, props.slug));
-    }
+    const link: string = path.join("/", props.section, props.slug);
 
     const firstLetter = props.summary.charAt(0);
     const restOfSummary = props.summary.slice(1, 100);
 
     return (
-        <Card onClick={handleClick}>
+        <Card key={props.slug} href={link}>
             <PostMeta>{props.blurb}</PostMeta>
             <PostTitle>{props.title}</PostTitle>
             <PostImage src={props.coverImage} alt={props.title} />
