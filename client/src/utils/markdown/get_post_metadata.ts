@@ -87,9 +87,8 @@ export default function get_post_metadata(folder: string): PostMetadata[] {
             };
         } catch (error: any) {
             console.error(`Error processing file: ${file_name}`);
-            // console.error(error.message);
             console.error(error);
-            return null;  // or however you want to handle errors
+            return null;
         }
     }).filter(Boolean) as PostMetadata[];
 }
