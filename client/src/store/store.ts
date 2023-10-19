@@ -9,7 +9,7 @@ dotenv.config({ path: '../.env' });
 
 
 const middleware = (getDefaultMiddleware: any) => {
-    if (process.env.REDUX_LOGGER) {
+    if (process.env.REDUX_LOGGER === 'true') {
         return getDefaultMiddleware().concat(thunk, logger);
     } else {
         return getDefaultMiddleware().concat(thunk);
