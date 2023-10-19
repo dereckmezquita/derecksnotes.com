@@ -53,7 +53,8 @@ const Card = styled(Link)`
         box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.8), 0 0 20px rgba(100, 100, 40, 0.2) inset;
     }
 
-    @media screen and (max-width: ${theme.container.widths.min_width_snap_up}) {
+    /* min window safari on desktop is 559 */
+    @media screen and (max-width: 550px) {
         ${PostMeta}, ${PostTitle} {
             font-size: 1.2rem;
         }
