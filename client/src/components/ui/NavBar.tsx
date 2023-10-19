@@ -1,13 +1,36 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FaLinkedin, FaFilter, FaUser } from 'react-icons/fa';
+import { FaBars, FaFilter, FaUser } from 'react-icons/fa';
 import { theme } from '@styles/theme';
 
 import { useDispatch } from 'react-redux';
-import { toggleTagsFilter } from '@store/tagsFilterVisibilitySlice'; // control visibility of tag filter
+import { toggleTagsFilter } from '@store/tagsFilterVisibilitySlice';
 
 import Auth from '../modals/auth/Auth';
+
+const HamburgerIcon = styled.div`
+    display: none;
+    float: right;
+    cursor: pointer;
+    padding: 14px 13px;
+
+    @media screen and (max-width: ${theme.container.widths.min_width_mobile}) {
+        display: block;
+    }
+`;
+
+const ResponsiveMenu = styled.div<{ open: boolean }>`
+    display: ${props => (props.open ? 'block' : 'none')};
+
+    @media screen and (max-width: ${theme.container.widths.min_width_mobile}) {
+        display: ${props => (props.open ? 'block' : 'none')};
+    }
+
+    @media screen and (min-width: ${theme.container.widths.min_width_mobile}) {
+        display: block;
+    }
+`;
 
 const NavContainer = styled.nav`
     background-color: ${theme.container.background.colour.primary()};
@@ -37,6 +60,12 @@ const CommonNavItem = styled.div`
     padding: 14px 13px;
     text-decoration: none;
     font-size: 17px;
+
+    @media screen and (max-width: ${theme.container.widths.min_width_mobile}) {
+        width: 100%;
+        float: none;
+        text-align: left;
+    }
 `;
 
 // allows for argument to determine if align left or right
@@ -46,6 +75,10 @@ const NavLeftItem = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boo
     &:hover {
         color: ${theme.text.colour.white()};
         background-color: ${theme.theme_colours[5]()};
+    }
+
+    @media screen and (max-width: ${theme.container.widths.min_width_mobile}) {
+        float: none;
     }
 `;
 
@@ -59,11 +92,21 @@ const NavRightItem = styled(CommonNavItem) <{ rightmost?: boolean }>`
         color: ${theme.text.colour.white()};
         background-color: ${theme.theme_colours[5]()};
     }
+
+    @media screen and (max-width: ${theme.container.widths.min_width_mobile}) {
+        float: none;
+    }
 `;
 
 const DropDownContainer = styled.div`
     float: left;
     overflow: hidden;
+
+    @media screen and (max-width: ${theme.container.widths.min_width_mobile}) {
+        width: 100%;
+        float: none;
+        text-align: left;
+    }
 `;
 
 // the same as NavItem but no link
@@ -103,6 +146,19 @@ const DropDownContent = styled.div`
         border-bottom-left-radius: 5px;
         border-bottom-right-radius: 5px;
     }
+
+    @media screen and (max-width: ${theme.container.widths.min_width_mobile}) {
+        border: none;
+        width: 100%;
+        position: relative;
+        float: none;
+        text-align: left;
+        box-shadow: none;
+
+        ${NavLeftItem} {
+            padding-left: 30px;
+        }
+    }
 `;
 
 const DateTimeDisplay = styled.div`
@@ -114,6 +170,12 @@ const DateTimeDisplay = styled.div`
     padding: 14px 13px;
     text-decoration: none;
     font-size: 17px;
+    @media screen and (max-width: ${theme.container.widths.min_width_mobile}) {
+        width: 100%;
+        position: relative;
+        float: none;
+        text-align: left;
+    }
 `;
 
 // since using conditionals in components we must ensure that the component is mounted before rendering
@@ -122,6 +184,11 @@ function NavBar() {
     const [hasMounted, setHasMounted] = useState(false);
     const [dateTime, setDateTime] = useState<string | null>(null);
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+    const closeMenu = () => {
+        setIsMenuOpen(false);
+    };    
 
     // redux control of tag filter
     // Error: `useDispatch` was conditionally called inside an `if` statement. Fixed: Moved `useDispatch` to the top-level, ensuring consistent hook order across renders.
@@ -162,28 +229,33 @@ function NavBar() {
 
     return (
         <NavContainer>
-            <NavLeftItem href='/'>Blog</NavLeftItem>
-            <NavLeftItem href='/courses'>Courses</NavLeftItem>
-            <NavLeftItem href='/references'>References</NavLeftItem>
-            <DropDownContainer>
-                <DropDownLabel>Dictionaries</DropDownLabel>
-                <DropDownContent>
-                    <NavLeftItem href='/dictionaries/biology'>Biology Dictionary</NavLeftItem>
-                    <NavLeftItem href='/dictionaries/chemistry'>Chemistry Dictionary</NavLeftItem>
-                </DropDownContent>
-            </DropDownContainer>
-{/* 
-            <NavRightItemLink href='https://www.linkedin.com/in/dereck/' target='_blank' title='LinkedIn'>
+            <HamburgerIcon onClick={() => setIsMenuOpen(!isMenuOpen)}>
+                <FaBars />
+            </HamburgerIcon>
+
+            <NavLeftItem onClick={closeMenu} href='/'>Blog</NavLeftItem>
+            <ResponsiveMenu open={isMenuOpen}>
+                <NavLeftItem onClick={closeMenu} href='/courses'>Courses</NavLeftItem>
+                <NavLeftItem onClick={closeMenu} href='/references'>References</NavLeftItem>
+                <DropDownContainer>
+                    <DropDownLabel>Dictionaries</DropDownLabel>
+                    <DropDownContent>
+                        <NavLeftItem onClick={closeMenu} href='/dictionaries/biology'>Biology Dictionary</NavLeftItem>
+                        <NavLeftItem onClick={closeMenu} href='/dictionaries/chemistry'>Chemistry Dictionary</NavLeftItem>
+                    </DropDownContent>
+                </DropDownContainer>
+                {/* <NavRightItemLink href='https://www.linkedin.com/in/dereck/' target='_blank' title='LinkedIn'>
                 <FaLinkedin />
             </NavRightItemLink> */}
-            <DateTimeDisplay>{dateTime || "00 Jan 00:00:00"}</DateTimeDisplay>
-            <NavRightItem onClick={handleToggleFilterClick}>
-                <FaFilter />
-            </NavRightItem>
-            <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
-                <FaUser />
-            </NavRightItem>
-            {isAuthModalOpen && <Auth onClose={() => setIsAuthModalOpen(false)} />}
+                <DateTimeDisplay>{dateTime || "00 Jan 00:00:00"}</DateTimeDisplay>
+                <NavRightItem onClick={handleToggleFilterClick}>
+                    <FaFilter />
+                </NavRightItem>
+                <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
+                    <FaUser />
+                </NavRightItem>
+                {isAuthModalOpen && <Auth onClose={() => setIsAuthModalOpen(false)} />}
+            </ResponsiveMenu>
         </NavContainer>
     )
 }

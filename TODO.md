@@ -1,11 +1,12 @@
 # TODO
 
-- [ ] Add geolocation to every comment.
+## features
+
+- [x] Add geolocation to every comment.
 - [ ] Create method on Comment schema for editing comments; should trigger geolocate.
-- [ ] Auth modal closes when click and drag out of modal.
 - [ ] Look into nginx module for resizing images; nginx http filter module.
 
-# Bugs
+## bugs
 
 - [ ] Comment then reply to comment, if delete parent get error:
 ```
@@ -19,4 +20,6 @@ dispatchEvent
 performConcurrentWorkOnRoot
 [native code]
 ```
-- [ ] Cannot right click or cmd + click to open post cards in new tab.
+- [x] Cannot right click or cmd + click to open post cards in new tab.
+- [x] Auth modal closes when click and drag out of modal.
+- [x] Collapse nav bar to hamburger menu if screen width is small.

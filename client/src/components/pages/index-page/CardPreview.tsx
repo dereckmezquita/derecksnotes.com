@@ -5,6 +5,31 @@ import { theme } from '@styles/theme';
 import path from 'path';
 import DropCap from './DropCap';
 
+const PostMeta = styled.div`
+    font-size: 15px;
+    color: ${theme.text.colour.light_grey()};
+    font-style: italic;
+    padding-top: 7px;
+    padding-bottom: 7px;
+`;
+
+const PostTitle = styled.div`
+    font-size: 15px;
+    text-transform: uppercase;
+    font-variant: small-caps;
+    padding-bottom: 7px;
+    padding-left: 7px;
+    padding-right: 7px;
+`;
+
+const Summary = styled.p`
+    text-align: left;
+    text-justify: none;
+    font-size: 13px;
+    padding-left: 15px;
+    padding-right: 15px;
+`;
+
 const Card = styled(Link)`
     text-decoration: none;
     color: inherit;
@@ -27,23 +52,21 @@ const Card = styled(Link)`
     &:hover {
         box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.8), 0 0 20px rgba(100, 100, 40, 0.2) inset;
     }
-`;
 
-const PostMeta = styled.div`
-    font-size: 15px;
-    color: ${theme.text.colour.light_grey()};
-    font-style: italic;
-    padding-top: 7px;
-    padding-bottom: 7px;
-`;
+    /* min window safari on desktop is 559 */
+    @media screen and (max-width: 550px) {
+        ${PostMeta}, ${PostTitle} {
+            font-size: 1.2rem;
+        }
 
-const PostTitle = styled.div`
-    font-size: 15px;
-    text-transform: uppercase;
-    font-variant: small-caps;
-    padding-bottom: 7px;
-    padding-left: 7px;
-    padding-right: 7px;
+        ${Summary} {
+            font-size: 1rem;
+        }
+
+        ${DropCap} {
+            line-height: 60px;
+        }
+    }
 `;
 
 const PostImage = styled.img`
@@ -53,14 +76,6 @@ const PostImage = styled.img`
     max-width: 90%;
 
     filter: sepia(20%);
-`;
-
-const Summary = styled.p`
-    text-align: left;
-    text-justify: none;
-    font-size: 13px;
-    padding-left: 15px;
-    padding-right: 15px;
 `;
 
 const Date = styled.span`

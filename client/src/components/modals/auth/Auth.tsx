@@ -17,8 +17,19 @@ interface AuthProps {
 
 const Auth: React.FC<AuthProps> = ({ onClose }) => {
     const { isAuthenticated } = useSelector((state: RootState) => state.user);
-
     const [modalContent, setModalContent] = useState<'LOGIN' | 'USER_DETAILS' | 'REGISTER' | 'FORGOT_PASSWORD'>(isAuthenticated ? 'USER_DETAILS' : 'LOGIN');
+
+    const [isMouseDownInside, setIsMouseDownInside] = useState(false);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsMouseDownInside(e.currentTarget === e.target);
+    }
+
+    const handleMouseUp = (e: React.MouseEvent) => {
+        if (isMouseDownInside && e.currentTarget === e.target) {
+            onClose();
+        }
+    }
 
     const renderView = (view: string): JSX.Element => {
         switch (view) {
@@ -36,7 +47,7 @@ const Auth: React.FC<AuthProps> = ({ onClose }) => {
                 );
             case 'REGISTER':
                 return (
-                    <Register 
+                    <Register
                         onSwitchToLogin={() => setModalContent('LOGIN')}
                         onClose={onClose}
                     />
@@ -53,7 +64,7 @@ const Auth: React.FC<AuthProps> = ({ onClose }) => {
     }
 
     return (
-        <ModalOverlay onClick={onClose}>
+        <ModalOverlay onMouseDown={handleMouseDown} onMouseUp={handleMouseUp}>
             <ModalContainer onClick={(e) => e.stopPropagation()}>
                 {renderView(modalContent)}
             </ModalContainer>
