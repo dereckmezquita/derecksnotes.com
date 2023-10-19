@@ -1,6 +1,5 @@
 import { createGlobalStyle } from 'styled-components';
 import { theme } from './theme';
-import reset from 'styled-reset';
 
 const h1_size: number = 2;
 
@@ -32,7 +31,7 @@ const GlobalStyles = createGlobalStyle`
         hyphens: none;
     }
 
-    @media only screen and (max-width: 1024px) {
+    @media only screen and (max-width: ${theme.container.widths.min_width_mobile}) {
         body {
             font-size: 1.2em;
         }

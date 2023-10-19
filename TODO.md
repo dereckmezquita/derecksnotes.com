@@ -22,3 +22,4 @@ performConcurrentWorkOnRoot
 ```
 - [x] Cannot right click or cmd + click to open post cards in new tab.
 - [x] Auth modal closes when click and drag out of modal.
+- [x] Collapse nav bar to hamburger menu if screen width is small.
