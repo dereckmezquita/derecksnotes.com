@@ -15,9 +15,11 @@ const api_get_article_comments = async (
         const queryString = [limitParam, pageParam, startDateParam, endDateParam].filter(p => p).join('&');
 
         // Encode the slug to ensure it doesn’t mess up the URL
-        const encodedSlug = encodeURIComponent(slug);
+        // const encodedSlug = encodeURIComponent(slug);
+        // replace forward slashes with _ to avoid 404
+        slug = slug.replace(/\//g, '_');
 
-        const response = await fetch(`${API_PREFIX}/interact/get_article_comments/${encodedSlug}?${queryString}`, {
+        const response = await fetch(`${API_PREFIX}/interact/get_article_comments/${slug}?${queryString}`, {
             method: 'GET',
             credentials: 'include',
         });

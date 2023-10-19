@@ -4,10 +4,10 @@ import buildPopulateObject from '@utils/buildPopulateObject';
 
 const get_article_comments = express.Router();
 
-get_article_comments.get('/get_article_comments/:encodedSlug', async (req, res) => {
-    const { encodedSlug } = req.params;
-
-    const decodedSlug = decodeURIComponent(encodedSlug);
+get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
+    const { slug } = req.params;
+    // forward slashes are replaced with _ in the client
+    // const decodedSlug = decodeURIComponent(encodedSlug);
 
     const limit = Number(req.query.limit) || 50;
     const page = Number(req.query.page) || 1;
@@ -28,7 +28,7 @@ get_article_comments.get('/get_article_comments/:encodedSlug', async (req, res) 
         const skip = (page - 1) * limit;
 
         const comments = await Comment.find({
-            slug: decodedSlug,
+            slug,
             parentComment: null,
             ...dateFilter 
         })

@@ -13,10 +13,10 @@ const new_comment = Router();
 
 new_comment.post('/new_comment', isAuthenticated, async (req: Request, res: Response) => {
     try {
-        const { comment, encodedSlug, parentComment: parentId } = req.body as { comment: string, encodedSlug: string, parentComment?: string };
+        const { comment, slug, parentComment: parentId } = req.body as { comment: string, slug: string, parentComment?: string };
 
         // Validate input
-        if (!comment || !encodedSlug) {
+        if (!comment || !slug) {
             return res.status(400).json({ message: "Content and slug are required." });
         }
 
@@ -24,14 +24,15 @@ new_comment.post('/new_comment', isAuthenticated, async (req: Request, res: Resp
             return res.status(400).json({ message: "Invalid parent comment ID." });
         }
 
-        const decodedSlug = decodeURIComponent(encodedSlug);
+        // forward slashes are replaced with _ to avoid 404 in the client
+        // const decodedSlug = decodeURIComponent(encodedSlug);
 
         const ip_address = req.headers['x-forwarded-for'] as string;
 
         const geolocation = await geoLocate(ip_address);
 
         // Create new comment
-        const newComment = await createNewComment(comment, decodedSlug, geolocation, parentId, req.session.userId!);
+        const newComment = await createNewComment(comment, slug, geolocation, parentId, req.session.userId!);
 
         // Populate and return the new comment
         const populatedComment = await populateComment(newComment);
@@ -44,10 +45,10 @@ new_comment.post('/new_comment', isAuthenticated, async (req: Request, res: Resp
 
 export default new_comment;
 
-async function createNewComment(comment: string, decodedSlug: string, geolocation: GeolocationDTO, parentId: string | undefined, userId: string): Promise<CommentDocument> {
+async function createNewComment(comment: string, slug: string, geolocation: GeolocationDTO, parentId: string | undefined, userId: string): Promise<CommentDocument> {
     const newComment: CommentDocument = new Comment({
         content: [{ comment }],
-        slug: decodedSlug,
+        slug,
         userId,
         ...(parentId && { parentComment: new mongoose.Types.ObjectId(parentId) }),
         geolocation

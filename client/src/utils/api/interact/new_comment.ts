@@ -3,14 +3,16 @@ import { API_PREFIX } from '@constants/config';
 // end point get's current user ID from session
 const api_new_comment = async (comment: string, slug: string, parentComment?: string) => {
     try {
-        const encodedSlug = encodeURIComponent(slug);
+        // const encodedSlug = encodeURIComponent(slug);
+        // replace forward slashes with _ to avoid 404
+        slug = slug.replace(/\//g, '_');
 
         const response = await fetch(API_PREFIX + '/interact/new_comment', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ comment, encodedSlug, parentComment }),
+            body: JSON.stringify({ comment, slug, parentComment }),
             credentials: 'include',
         });
 
