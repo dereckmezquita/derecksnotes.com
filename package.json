@@ -1,29 +1,27 @@
 {
   "name": "derecksnotes.com",
-  "version": "1.0.0",
-  "description": "DerecksNotes.com v2.0.",
+  "version": "3.0.0",
+  "description": "DerecksNotes.com v3.0.",
   "scripts": {
-    "insertDocs": "cd dev/publish; ts-node publish.ts",
-    "build-webpack": "cd client; webpack",
-    "webpack": "cd client; webpack --watch",
-    "publish": "run-s build insertDocs",
+    "build-client": "cd client && npm run build",
     "build-server": "tsc --project server/tsconfig.json",
-    "restart-server": "sudo systemctl restart derecksnotes-server && sudo systemctl restart test-derecksnotes-server",
-    "build-restart-server": "npm run build-server && npm run restart-server",
-    "server-logs": "sudo journalctl -f -u derecksnotes-server",
-    "server-logs-test": "sudo journalctl -f -u test-derecksnotes-server",
+    "restart-server-prod": "sudo systemctl restart derecksnotes-server",
+    "restart-server-dev": "sudo systemctl restart next-derecksnotes-server",
+    "build": "npm run build-server && npm run build-client",
+    "server-logs-dev": "sudo journalctl -f -u next-derecksnotes-server",
+    "server-logs-prod": "sudo journalctl -f -u derecksnotes-server",
     "list-scripts": "npm run -l"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dereckdemezquita/derecksnotes.com.git"
+    "url": "git+https://github.com/dereckmezquita/derecksnotes.com.git"
   },
   "author": "Dereck Mezquita",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/dereckdemezquita/derecksnotes.com/issues"
+    "url": "https://github.com/dereckmezquita/derecksnotes.com/issues"
   },
-  "homepage": "https://github.com/dereckdemezquita/derecksnotes.com#readme",
+  "homepage": "https://github.com/dereckmezquita/derecksnotes.com#readme",
   "dependencies": {
     "@types/axios": "^0.14.0",
     "@types/connect-redis": "^0.0.20",
