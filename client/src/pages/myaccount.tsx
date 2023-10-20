@@ -383,9 +383,6 @@ function GeoLocationsBlock({ geoLocations }: GeoLocationsBlockProps) {
                         <strong>Country:</strong> {location.country} {location.flag}
                     </GeoInfo>
                     <GeoInfo>
-                        <strong>ISP:</strong> {location.isp}
-                    </GeoInfo>
-                    <GeoInfo>
                         <strong>First Used:</strong> {location.firstUsed ? new Date(location.firstUsed).toLocaleString() : "???"}
                     </GeoInfo>
                     <GeoInfo>

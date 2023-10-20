@@ -7,8 +7,6 @@ const GeolocationSchema = new mongoose.Schema({
     flag: String,
     regionName: String,
     city: String,
-    isp: String,
-    org: String,
     firstUsed: Date,
     lastUsed: Date
 });
