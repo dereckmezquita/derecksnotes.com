@@ -306,9 +306,10 @@ export default Account;
 import { ActionButton } from '@components/comments-section/comment-styled';
 import api_delete_geolocations from '@utils/api/interact/delete_geolocations';
 
+// TODO: convert this to a grid I don't like the flexbox wrapping
 const ActionContainer = styled.div`
-    width: 100%; /* Full width */
-    text-align: right; /* Align button to right */
+    width: 100%;
+    text-align: right;
 `;
 
 const GeoLocationCard = styled.div`
@@ -331,6 +332,10 @@ const GeoLocationCard = styled.div`
 
 const GeoInfo = styled.div`
     margin-bottom: 8px;
+
+    &:not(:first-child) {
+        margin-left: 5px;
+    }
 
     & strong {
         margin-right: 5px;
