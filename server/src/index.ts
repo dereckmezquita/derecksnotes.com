@@ -14,6 +14,8 @@ import { DatabaseConnector, MongoDBConnector } from '@utils/DatabaseConnector';
 dotenv.config({ path: '../.env' });
 const PORT: number = 3003;
 
+console.log(`Detected: ${process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'Development' : 'Production'} Mode`);
+
 // ----------------------------------------
 // Setup Redis client and session store
 export const redis_options: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts> = {
