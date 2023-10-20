@@ -1,7 +1,9 @@
 import { Request, Response, Router } from 'express';
-import Comment from '@models/Comment';
+import Comment, { CommentDocument, CommentModel } from '@models/Comment';
 import User from '@models/User';
 import isAuthenticated from '@utils/middleware/isAuthenticated';
+
+import buildPopulateObject from '@utils/buildPopulateObject';
 
 const delete_comments = Router();
 
@@ -34,13 +36,25 @@ delete_comments.delete('/delete_comments', isAuthenticated, async (req: Request,
             return res.status(401).json({ message: `You do not own these comments: ${commentsNotOwned.join(', ')}` });
         }
 
-        const deletedComments = await Comment.deleteManyOwnedByUser(commentIds, userId);
-        await Comment.populate(deletedComments, {
+        let deletedComments = await Comment.deleteManyOwnedByUser(commentIds, userId);
+        deletedComments = await Comment.populate(deletedComments, {
             path: 'user',
             select: 'username profilePhotos latestProfilePhoto',
             model: User
         });
 
+        const depth = 10;  // maximum depth of child comments to populate
+        deletedComments = await Comment.populate(deletedComments, [
+            buildPopulateObject(depth)
+        ]);
+
+        // const comments = deletedComments.map(comment => {
+        //     // return comment.toObject({ virtuals: true });
+        //     // virtuals on comment bu also child comments
+        //     const commentObj = comment.toObject({ virtuals: true });
+        //     commentObj.children = commentObj.children.map((child: CommentDocument) => child.toObject({ virtuals: true }));
+        //     return commentObj;
+        // });
         const comments = deletedComments.map(comment => comment.toObject({ virtuals: true }));
         res.status(200).json({ comments, hasMore: false });
 

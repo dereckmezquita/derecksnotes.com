@@ -9,8 +9,6 @@ declare global {
         flag: string;
         regionName: string;
         city: string;
-        isp: string;
-        org: string;
 
         // added by us
         firstUsed?: Date;

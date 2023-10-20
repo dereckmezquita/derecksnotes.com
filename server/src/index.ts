@@ -14,6 +14,8 @@ import { DatabaseConnector, MongoDBConnector } from '@utils/DatabaseConnector';
 dotenv.config({ path: '../.env' });
 const PORT: number = 3003;
 
+console.log(`Detected: ${process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'Development' : 'Production'} Mode`);
+
 // ----------------------------------------
 // Setup Redis client and session store
 export const redis_options: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts> = {
@@ -50,7 +52,7 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
             resave: false, // forces session be saved back to the session store, even if the session was never modified during the request
             saveUninitialized: false,
             cookie: {
-                secure: !(process.env.NEXT_PUBLIC_DEV_MODE === 'true'), // HTTPS in production
+                secure: (process.env.NEXT_PUBLIC_DEV_MODE === 'true'), // HTTPS in production
                 httpOnly: false, // true, // cookie inaccessible from JavaScript running in the browser
                 // days * hours * minutes * seconds * milliseconds
                 maxAge: 30 * 24 * 60 * 60 * 1000 // 1 day in milliseconds
@@ -87,7 +89,7 @@ export async function main(): Promise<void> {
 
     app.listen(PORT, () => {
         console.log(`Server listening on port ${PORT}`);
-        let API_LISTENING_ON: string = process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'http://localhost:3003' : 'https://derecksnotes.com';
+        let API_LISTENING_ON: string = process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'http://localhost:3003' : 'https://next.derecksnotes.com';
         console.log(`API listening on ${API_LISTENING_ON + API_PREFIX}`);
     });
 }

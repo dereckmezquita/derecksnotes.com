@@ -5,8 +5,6 @@ const geolocationObj: GeolocationDTO = {
     flag: '🇺🇸',
     regionName: 'California',
     city: 'San Francisco',
-    isp: 'Cloudflare, Inc.',
-    org: 'Cloudflare, Inc.',
     firstUsed: new Date(),
     lastUsed: new Date(),
     _id: '5f9c0b9b9b9b9b9b9b9b9b9b',

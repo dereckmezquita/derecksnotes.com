@@ -29,7 +29,7 @@ new_comment.post('/new_comment', isAuthenticated, async (req: Request, res: Resp
 
         const ip_address = req.headers['x-forwarded-for'] as string;
 
-        const geolocation = await geoLocate(ip_address);
+        const geolocation = geoLocate(ip_address);
 
         // Create new comment
         const newComment = await createNewComment(comment, slug, geolocation, parentId, req.session.userId!);
