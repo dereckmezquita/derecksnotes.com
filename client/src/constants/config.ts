@@ -9,10 +9,24 @@ export const ROOT_PUBLIC: string = path.join(process.cwd());
 
 // app domain
 export const APPLICATION_DOMAIN: string = 'derecksnotes.com';
-export const APPLICATION_URL: string = (process.env.DEV_MODE === 'true' ? 'next.' : '') + APPLICATION_DOMAIN;
+export const APPLICATION_SUBDOMAIN: string = process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'next.' : '';
+export const APPLICATION_URL: string = APPLICATION_SUBDOMAIN + APPLICATION_DOMAIN;
 
-// author info
+// social images
+export const APPLICATION_LOGO: string = APPLICATION_URL + '/site-images/512-logo.png';
+
+// site info
+export const APPLICATION_DESCRIPTION: string = "Making sciencing easier.";
 export const APPLICATION_AUTHOR: { first_name: string, last_name: string } = { first_name: 'Dereck', last_name: 'Mezquita' };
+
+export const APPLICATION_METADATA: {
+    title: string, description: string, image: string, url: string
+} = {
+    title: 'Dereck\'s Notes',
+    description: APPLICATION_DESCRIPTION,
+    image: APPLICATION_LOGO,
+    url: APPLICATION_URL
+};
 
 // time and date
 // 1 days, 24 hours, 60 minutes, 60 seconds, 1000 milliseconds

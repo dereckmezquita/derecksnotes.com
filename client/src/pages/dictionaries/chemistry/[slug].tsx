@@ -14,6 +14,9 @@ import {
     Article, PostContentWrapper
 } from '@components/pages/post';
 
+import { useRouter } from 'next/router';
+import MetaTags from '@components/atomic/MetaTags';
+import { APPLICATION_METADATA, APPLICATION_URL } from '@constants/config';
 import CommentSection from '@components/comments-section/CommentSection';
 
 // ------------------------------------
@@ -115,8 +118,15 @@ const PostPage: React.FC<PostPageProps> = ({ slug, frontmatter, source, side_bar
     // redux control for tag filter visibility
     const tagsFilterVisible = useSelector((state: RootState) => state.visibility.tagsFilterVisible);
 
+    const router = useRouter();
+    const dictionary_display_name: string = frontmatter.dictionary[0].toUpperCase() + frontmatter.dictionary.slice(1);
+    APPLICATION_METADATA.title = `DN | ${dictionary_display_name} - ${frontmatter.word}`;
+    APPLICATION_METADATA.description = `${dictionary_display_name} description, explanation and definition of: ${frontmatter.word}`;
+    APPLICATION_METADATA.url = APPLICATION_URL + router.asPath;
+
     return (
         <>
+            <MetaTags {...APPLICATION_METADATA} />
             <TagFilter
                 tags={all_tags}
                 selectedTags={selectedTags}

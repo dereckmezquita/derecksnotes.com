@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import { GetStaticProps } from 'next';
 import { MDXRemote } from 'next-mdx-remote';
 
+import MetaTags from '@components/atomic/MetaTags';
+import { APPLICATION_METADATA, APPLICATION_URL } from '@constants/config';
 import TagFilter from '@components/ui/TagFilter';
 import SearchBar from '@components/atomic/SearchBar';
 import SelectDropDown from '@components/atomic/SelectDropDown';
@@ -147,8 +149,13 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
         });
     };
 
+    const router = useRouter()
+    APPLICATION_METADATA.title = 'DN | Chemistry Dictionary';
+    APPLICATION_METADATA.url = APPLICATION_URL + router.asPath;
+
     return (
         <PostContainer>
+            <MetaTags {...APPLICATION_METADATA} />
             <SideBarContainer>
                 <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
                 <SelectDropDown
@@ -182,7 +189,7 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
                 <SideBarAbout />
             </SideBarContainer>
             <Article>
-                <h1>Chemistry Dictionary</h1>
+                <h1>Biology Dictionary</h1>
                 <ol>
                     {
                         isClient && renderDefinitions()
@@ -213,6 +220,7 @@ import rehypeMathjax from 'rehype-mathjax';
 
 // custom rehype plugins
 import rehypeLinkToDefinition from '@utils/rehype/rehypeLinkToDefinition'; // adds href to word anchor
+import { useRouter } from 'next/router';
 
 export const getStaticProps: GetStaticProps = async () => {
     // get post content and process

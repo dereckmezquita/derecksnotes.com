@@ -10,8 +10,12 @@ export const getStaticProps: GetStaticProps = async () => {
     };
 };
 
+import { APPLICATION_METADATA } from '@constants/config';
+
 const Index = ({ posts }: { posts: PostMetadata[] }) => {
-    return <IndexPage posts={posts} />;
+    APPLICATION_METADATA.title = "DN | References";
+
+    return <IndexPage posts={posts} meta={APPLICATION_METADATA} />;
 };
 
 export default Index;

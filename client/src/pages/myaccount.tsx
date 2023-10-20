@@ -18,6 +18,9 @@ import ProfileImage from '@components/pages/myaccount/ProfileImage';
 import Comment from '@components/comments-section/Comment';
 import ChangePassword from '@components/pages/myaccount/ChangePassword';
 
+import MetaTags from '@components/atomic/MetaTags';
+import { APPLICATION_METADATA, APPLICATION_URL } from '@constants/config';
+
 import api_me from '@utils/api/auth/me';
 import api_update_user_info from '@utils/api/interact/update_user_info';
 import get_comments_threads_by_id from '@utils/api/interact/get_comments_threads_by_id';
@@ -141,8 +144,14 @@ const Account: React.FC = () => {
         // }
     };
 
+    APPLICATION_METADATA.title = `DN | My Account`;
+    APPLICATION_METADATA.description = `DN | ${userData.user.username}'s account page`;
+    APPLICATION_METADATA.url = APPLICATION_URL + router.asPath;
+
     return (
         <PostContainer>
+            <MetaTags {...APPLICATION_METADATA} />
+
             <SideBarContainer>
                 <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
                 <SideBarAbout />
