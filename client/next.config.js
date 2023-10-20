@@ -28,7 +28,7 @@ const nextConfig = {
     reactStrictMode: false,
 }
 
-if (!process.env.DEV_MODE) {
+if (process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
     nextConfig.rewrites = rewrite;
 } else {
     nextConfig.output = "export";

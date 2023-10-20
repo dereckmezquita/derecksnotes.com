@@ -28,7 +28,7 @@ const redisStore = makeRedisStore(session);
 // ----------------------------------------
 export const app = express();
 
-if (process.env.DEV_MODE) {
+if (process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
     // assuming frontend on port 3000
     app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
     console.log('CORS enabled for localhost:3000');
@@ -50,7 +50,7 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
             resave: false, // forces session be saved back to the session store, even if the session was never modified during the request
             saveUninitialized: false,
             cookie: {
-                secure: !Boolean(process.env.DEV_MODE), // HTTPS in production
+                secure: !(process.env.NEXT_PUBLIC_DEV_MODE === 'true'), // HTTPS in production
                 httpOnly: false, // true, // cookie inaccessible from JavaScript running in the browser
                 // days * hours * minutes * seconds * milliseconds
                 maxAge: 30 * 24 * 60 * 60 * 1000 // 1 day in milliseconds
@@ -78,7 +78,7 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
 }
 
 export async function main(): Promise<void> {
-    // const uri: string = process.env.MONGO_URI + (process.env.DEV_MODE ? 'derecksnotes_test' : 'derecksnotes');
+    // const uri: string = process.env.MONGO_URI + (process.env.NEXT_PUBLIC_DEV_MODE ? 'derecksnotes_test' : 'derecksnotes');
     const uri: string = process.env.MONGO_URI + 'derecksnotes_test'; // running next.derecksnotes.com test server so hard coded
     const dbConnector = new MongoDBConnector(uri);
     console.log(`Connecting to MongoDB at ${uri}`);
@@ -87,7 +87,7 @@ export async function main(): Promise<void> {
 
     app.listen(PORT, () => {
         console.log(`Server listening on port ${PORT}`);
-        let API_LISTENING_ON: string = process.env.DEV_MODE ? 'https://derecksnotes.com' : 'http://localhost:3003';
+        let API_LISTENING_ON: string = process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'http://localhost:3003' : 'https://derecksnotes.com';
         console.log(`API listening on ${API_LISTENING_ON + API_PREFIX}`);
     });
 }

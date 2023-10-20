@@ -12,10 +12,15 @@ const Post = (props: any) => {
 
 // ----------------------------------------
 import { getMDXSource, getSidebarData } from '@components/pages/post-page/postHelpers';
+import { get_single_post_metadata } from '@utils/markdown/get_post_metadata';
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
     const side_bar_data = getSidebarData(section);
     const mdxSource = await getMDXSource(section, params!.slug as string);
+    let summary: string = get_single_post_metadata(section, params!.slug as string + '.mdx').summary || '';
+
+    // only let 200 characters through
+    summary = summary.slice(0, 300) + '...';
 
     // if not published, return 404
     if (!mdxSource.frontmatter.published) {
@@ -27,6 +32,7 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
     return {
         props: {
             frontmatter: mdxSource.frontmatter,
+            summary,
             source: mdxSource.source,
             side_bar_data: side_bar_data
         },

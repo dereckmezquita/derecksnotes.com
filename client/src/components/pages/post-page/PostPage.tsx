@@ -1,3 +1,4 @@
+import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import { MDXRemote } from 'next-mdx-remote';
 
@@ -5,6 +6,7 @@ import { MDXRemote } from 'next-mdx-remote';
 import { useSelector } from 'react-redux';
 import { RootState } from '@store/store';
 
+import { APPLICATION_METADATA, APPLICATION_URL } from '@constants/config';
 import TagFilter from '@components/ui/TagFilter';
 import { PostContainer, Article, PostContentWrapper } from '@components/pages/post';
 import SideBar from '@components/pages/post-page/SideBar';
@@ -13,6 +15,8 @@ import CommentSection from '@components/comments-section/CommentSection';
 // ------------------------------------
 // component imports to be used in MDX
 import { mdxComponents } from '@components/pages/post-page/mdxComponents';
+import MetaTags from '@components/atomic/MetaTags';
+
 
 interface FrontMatter {
     slug?: string;
@@ -29,11 +33,19 @@ interface FrontMatter {
 interface PostPageProps {
     section: string;
     frontmatter: FrontMatter;
+    summary: string;
     source: any;
     side_bar_data: FrontMatter[];
 }
 
-const PostPage: React.FC<PostPageProps> = ({ section, frontmatter, source, side_bar_data }) => {
+const PostPage: React.FC<PostPageProps> = ({ section, frontmatter, summary, source, side_bar_data }) => {
+    const router = useRouter();
+
+    APPLICATION_METADATA.title = `DN | ${frontmatter.title}`;
+    APPLICATION_METADATA.description = summary;
+    APPLICATION_METADATA.image = APPLICATION_URL + '/site-images/card-covers/' + frontmatter.coverImage + '.png';
+    APPLICATION_METADATA.url = APPLICATION_URL + router.asPath;
+
     // https://nextjs.org/docs/messages/react-hydration-error
     // Solution 1: Using useEffect to run on the client only; used to fix mathjax not rendering
     const [isClient, setIsClient] = useState(false)
@@ -67,6 +79,7 @@ const PostPage: React.FC<PostPageProps> = ({ section, frontmatter, source, side_
 
     return (
         <>
+            <MetaTags {...APPLICATION_METADATA} />
             <TagFilter
                 tags={all_tags}
                 selectedTags={selectedTags}

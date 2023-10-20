@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@store/store';
 import CardPreview from '@components/pages/index-page/CardPreview';
 import TagFilter from '@components/ui/TagFilter';
+import MetaTags from '@components/atomic/MetaTags';
 
 import { theme } from '@styles/theme';
 
@@ -25,7 +26,17 @@ const Grid = styled.div`
     grid-gap: 20px;
 `;
 
-const IndexPage = ({ posts }: { posts: PostMetadata[] }) => {
+interface IndexPageProps {
+    posts: PostMetadata[];
+    meta: {
+        title: string;
+        description: string;
+        image: string;
+        url: string;
+    }
+}
+
+const IndexPage = ({ posts, meta }: IndexPageProps) => {
     const allTags = Array.from(new Set(posts.flatMap(post => post.tags))).sort();
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const filteredPosts = selectedTags.length > 0 ? posts.filter(
@@ -43,20 +54,23 @@ const IndexPage = ({ posts }: { posts: PostMetadata[] }) => {
     const tagsFilterVisible = useSelector((state: RootState) => state.visibility.tagsFilterVisible);
 
     return (
-        <Container>
-            <TagFilter
-                tags={allTags}
-                selectedTags={selectedTags}
-                onTagSelect={handleTagSelect}
-                onTagDeselect={handleTagDeselect}
-                visible={tagsFilterVisible}
-            />
-            <Grid>
-                {filteredPosts.map(post => (
-                    <CardPreview key={post.slug} {...post} />
-                ))}
-            </Grid>
-        </Container>
+        <>
+            <MetaTags {...meta} />
+            <Container>
+                <TagFilter
+                    tags={allTags}
+                    selectedTags={selectedTags}
+                    onTagSelect={handleTagSelect}
+                    onTagDeselect={handleTagDeselect}
+                    visible={tagsFilterVisible}
+                />
+                <Grid>
+                    {filteredPosts.map(post => (
+                        <CardPreview key={post.slug} {...post} />
+                    ))}
+                </Grid>
+            </Container>
+        </>
     );
 };
 
