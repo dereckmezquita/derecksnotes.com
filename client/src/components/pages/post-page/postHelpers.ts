@@ -109,6 +109,8 @@ export const getMDXSource = async (section: string, slug: string): Promise<{ fro
 };
 
 export const getAllSlugs = (section: string) => {
-    const posts: string[] = fs.readdirSync(path.join(ROOT, 'content', section));
+    const posts = fs.readdirSync(path.join(ROOT, 'content', section))
+        .filter(post => post.endsWith('.mdx')); // Only include .mdx files
+
     return posts.map(post => ({ params: { slug: post.replace('.mdx', '') } }));
 };
