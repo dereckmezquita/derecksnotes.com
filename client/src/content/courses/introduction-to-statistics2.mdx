@@ -1,0 +1,249 @@
+---
+title: "Introduction to Statistics"
+blurb: "Blue and white mean war"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output: 
+  html_document:
+    keep_md: true
+---
+
+
+
+## Table of contents
+
+# Introduction
+
+## What are Statistics?
+
+<LearningObjectives>
+    - Where is statistics used?
+    - Define statistics.
+</LearningObjectives>
+
+## A condensed history of Statistics
+
+The roots of statistics can be traced back to ancient civilizations like the Babylonians and Egyptians, who conducted rudimentary censuses and data collection for governance and construction projects. During the Classical era, Greeks made strides in understanding population metrics, using early forms of statistical sampling in their representative democracy. The Renaissance and Enlightenment periods saw contributions from polymaths such as Sir Francis Galton, who introduced the concept of "regression towards the mean," and Blaise Pascal and Pierre de Fermat, who laid the groundwork for probability theory. 
+
+The 20th century heralded a computational revolution that transformed statistical practice. Inventions like the computer made it possible to simulate complex systems through methods like the Monte Carlo simulations. During this period, the development of statistical software such as SPSS, SAS, and later R, made complex statistical computations accessible to researchers across various fields. 
+
+In the modern era, the field of statistics has expanded to incorporate Big Data and machine learning. The development of algorithms capable of analysing large datasets has led to new models and techniques, such as Random Forests in ensemble learning. Moreover, the interdisciplinary integration of statistics into fields like bioinformatics has led to breakthroughs in areas such as Genome-Wide Association Studies (GWAS). 
+
+The democratisation of statistics through open-source software like R has made advanced statistical analyses accessible globally. This rich tapestry of historical developments highlights the evolving and integral role that statistics plays across multiple domains of human endeavour.
+
+## Types of Statistics
+
+Statistics can broadly be categorised into two main types: Descriptive Statistics and Inferential Statistics. While both types are integral to the field, they serve different purposes and are used in various contexts.
+
+### Descriptive Statistics
+
+In its most basic form, **Descriptive Statistics** deals with summarising the "known" or observed data. It's about taking a set of data points and finding patterns or summaries that help us understand what we're seeing. It doesn't try to infer or guess anything outside of that dataset. For instance, if you calculate the average income of a group of people, you are employing descriptive statistics.
+
+Imagine you've conducted a survey about the usage of a particular medication among a group of patients. Descriptive statistics would help you summarise this data by providing:
+
+- **Measures of Central Tendency**: Such as the mean (average), median (middle value), and mode (most frequent value).
+- **Measures of Dispersion**: Such as the range (difference between the highest and lowest values), variance, and standard deviation (measures of data spread).
+  
+By examining these metrics, you get a snapshot of the dataset's general trends and characteristics.
+
+#### Demo: mean and median income
+
+Here I present the example of income to demonstrate descriptive statistics with two measures of central tendency: mean and median. All a measure of centra tendency means is the middle of a dataset.
+
+When analysing income distribution, a key consideration is the choice of measure of central tendency. The mean income is calculated as the sum of all incomes divided by the total number of observations.
+
+$$
+    \bar{x} = \frac{\sum_{i=1}^{n} x_i}{n}
+$$
+
+Although it includes all data points, it is susceptible to the influence of outliers or extremely high incomes, thus potentially providing a misleading representation of central tendency.
+
+The median, on the other hand, is the middle value when all incomes are sorted in ascending or descending order. As it depends only on the middle values, it is less influenced by outliers and may offer a more robust measure of central tendency in skewed distributions.
+
+1. Mean the average of all the incomes.
+1. Median the middle value of all the incomes.
+
+
+```r
+library("data.table")
+library("ggplot2")
+library("modelr") # used for the heights dataset
+
+# Create data frame
+dt <- data.table(heights)
+
+dt[, colour := fifelse(sex == "male", "blue", "pink")]
+
+# Calculate the mean and median of the income data
+mean_income <- mean(dt$income)
+median_income <- median(dt$income)
+
+dt |>
+    ggplot(aes(x = income)) +
+    geom_density(aes(x = income), fill = "green", alpha = 0.6) +
+    geom_vline(aes(xintercept = mean_income), colour = "blue", linetype = "dashed", linewidth = 1) +
+    geom_vline(aes(xintercept = median_income), colour = "red", linetype = "dashed", linewidth = 1) +
+    geom_text(
+        aes(x = mean_income, label = paste0("Mean = ", scales::comma(mean_income)), y = 0.000015),
+        colour = "blue", angle = 90, vjust = 1.5
+    ) +
+    geom_text(
+        aes(x = median_income, label = paste0("Median = ", scales::comma(median_income)), y = 0.000015),
+        colour = "red", angle = 90, vjust = 1.5) +
+    scale_y_continuous(labels = scales::comma) +
+    scale_x_continuous(labels = scales::comma) +
+    # ggbreak::scale_x_break(c(175000, 320000), space = 1, scales = "free") +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1)) +
+    labs(
+        title = "Income distribution",
+        x = "Income",
+        y = "Density"
+    )
+```
+
+<Figure src="/courses/introduction-to-statistics_files/figure-html/mean-vs-median-skewed-income-1.png" alt="Demonstrating mean and median; mean can be skewed by a few high income earners.">
+	Demonstrating mean and median; mean can be skewed by a few high income earners.
+</Figure>
+
+<Alert type="note">
+    As you can see by the plot, the mean is skewed by the few high income earners. The average is 41,204 while the median is 29,590 a difference of 11,614.
+</Alert>
+
+The median, on the other hand, is a more robust measure of central tendency in this skewed distribution. So if you're moving to a new city the average income is not necessarily a good predictor of your income as it can be skewed by a few high income earners.
+
+### Inferential Statistics
+
+Inferential statistics goes a step further. Instead of just summarising the data, it aims to make predictions and inferences about a population based on a sample. Using the same survey example, inferential statistics would help you:
+
+- **Make Predictions**: About the effectiveness of the medication on the broader population.
+- **Test Hypotheses**: For example, whether the medication has a statistically significant effect on a particular condition.
+- **Calculate Confidence Intervals**: To provide a range within which the true population parameter is likely to fall.
+
+In essence, inferential statistics allows you to make educated guesses about a population by studying a sample.
+
+#### Demo: linear regression to predict income based on age
+
+In this example, we shall use other variables from the data: education and martial status. Subsequently, we will utilise a simple linear regression model to predict income based on these factors.
+
+Here we are using known characteristics from a sample of a population, which allow us to then predict the income of a new individual.
+
+
+```r
+# if education is NA then we set it to 0 using data.table
+dt[is.na(education), education := 0]
+dt[, education := as.factor(education)]
+dt[, marital := as.factor(marital)]
+dt[, sex := as.factor(sex)]
+
+# Assume a new individual with the following characteristics:
+new_individual <- data.table(
+    education = factor(16, levels = levels(dt$education)),
+    marital = factor("married", levels = levels(dt$marital)),
+    sex = factor("male", levels = levels(dt$sex))
+)
+
+# Fit the regression model
+model <- lm(income ~ education, data = dt[
+    marital == new_individual$marital # &
+    # sex == new_individual$sex,
+])
+
+# Summary of the model
+# summary(model)
+
+# Make a prediction for the new individual
+new_individual[, income := predict(model, newdata = new_individual)]
+
+# Visualise the regression model
+dt |>
+    ggplot(aes(x = as.numeric(education), y = income)) +
+    geom_point(alpha = 0.8) +
+    scale_colour_identity(guide = "legend", labels = c("Male", "Female")) +
+    scale_y_continuous(labels = scales::comma, limits = c(-50000, NA)) +
+    facet_wrap(~ marital) +
+    geom_smooth(method = "lm", formula = y ~ x, se = FALSE, na.rm = TRUE, colour = "black", alpha = 0.8) +
+    geom_point(
+        data = new_individual,
+        aes(
+            x = as.numeric(education),
+            y = income
+        ),
+        colour = "red",
+        size = 6,
+        shape = 16
+    ) +
+    labs(
+        title = "Simple regression Model of Income by Education and Marital Status",
+        x = "Education Level",
+        y = "Income"
+    )
+```
+
+<Figure src="/courses/introduction-to-statistics_files/figure-html/adding-age-to-income-1.png">
+	
+</Figure>
+
+### Hybrid Approaches
+
+It's worth noting that in practice, descriptive and inferential statistics often go hand-in-hand. Descriptive statistics provide the initial overview that can guide the more complex inferential analyses. 
+
+
+# Descriptive statistics
+
+Descriptive statistics serve as the cornerstone for any statistical analysis, providing a summary of the main aspects of a data set. By offering insights into the measures of central tendency, variability, and the overall distribution of data, descriptive statistics enable researchers to present large amounts of data in a more digestible format. It aids in forming the foundational understanding upon which more complex statistical analyses are built.
+
+These summaries can be either quantitative or visual, and both approaches are often complementary. For example, measures such as the mean or median offer quantitative information about the central point of the data set, while graphical representations like histograms offer a visual sense of the data's distribution.
+
+## Ways to Communicate Descriptive Statistics
+
+- Measures of Central Tendency
+    - **Mean:** Arithmetic average of the data
+        - **Visualisation:** Dot plot, Histogram
+    - **Median:** Middle value in a sorted data set
+        - **Visualisation:** Box plot
+    - **Mode:** Most frequently occurring value(s)
+        - **Visualisation:** Bar chart
+- Measures of Spread
+    - **Range:** Difference between the maximum and minimum values
+        - **Visualisation:** Min-Max plot
+    - **Variance:** Average of the squared differences from the mean
+        - **Visualisation:** None commonly used
+    - **Standard Deviation:** Square root of the variance
+        - **Visualisation:** Error bars in a bar chart
+    - **Interquartile Range (IQR):** Spread of the middle 50% of the data
+        - **Visualisation:** Box plot
+- Measures of Shape
+    - **Skewness:** Measure of the asymmetry of the data distribution
+        - **Visualisation:** Histogram
+    - **Kurtosis:** Measure of the "tailedness" of the data distribution
+        - **Visualisation:** Histogram
+- Measures of Association
+    - **Correlation:** Measure of the strength and direction of the relationship between two variables
+        - **Visualisation:** Scatter plot, Correlogram
+- Other Measures
+    - **Z-Score:** Number of standard deviations from the mean
+        - **Visualisation:** Z-score plot
+    - **Percentiles:** Value below which a given percentage of observations fall
+        - **Visualisation:** Percentile plot
+
+### Measures of Central Tendency
+
+Measures of Central Tendency, namely Mean, Median, and Mode, are fundamental in summarising the central point around which data points cluster. The **Mean** represents the arithmetic average, giving a general idea of the data's magnitude but is sensitive to outliers. It can be visualised through a Dot Plot or Histogram. The **Median** is the middle value in a sorted dataset and is resistant to outliers, often visualised through a Box Plot. The **Mode**, or the most frequently occurring value(s), gives insights into the most common data point and is best represented by a Bar Chart.
+
+### Measures of Spread
+Understanding the Measures of Spread helps quantify the dispersion or variability in the data. **Range** offers a simplistic perspective by showing the difference between the maximum and minimum values, usually plotted in a Min-Max plot. **Variance** and **Standard Deviation** are more robust measures that indicate how far the data points deviate from the mean. While Variance is less commonly visualised, Standard Deviation can be represented through Error Bars in a Bar Chart. **Interquartile Range (IQR)** specifically looks at the spread of the middle 50% of the data and is depicted in a Box Plot.
+
+### Measures of Shape
+Skewness and Kurtosis delve into the shape of the data distribution. **Skewness** measures the asymmetry, allowing us to understand the direction and extent of skew (departure from horizontal symmetry). **Kurtosis** measures the "tailedness" or the extremity of the data points. Both are usually visualised via Histograms.
+
+### Measures of Association
+**Correlation** is an essential measure to understand the degree and direction of association between two variables. Scatter plots and Correlograms are commonly used for visual representation.
+
+### Other Measures
+Other noteworthy measures include **Z-Score**, which indicates how many standard deviations an element is from the mean and is often visualised in a Z-score plot. **Percentiles** provide a value below which a given percentage of observations fall, offering a way to compare individual data points against the dataset at large, often represented in a Percentile plot.
+
+By understanding and applying these measures adequately, one can grasp the central concepts of descriptive statistics, providing a solid foundation for more advanced statistical endeavours.

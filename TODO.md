@@ -6,6 +6,11 @@
 - [ ] Create method on Comment schema for editing comments; should trigger geolocate.
 - [ ] Look into nginx module for resizing images; nginx http filter module.
 
+## security
+
+- [ ] Limit size of database/log files
+- [ ] Rate limit number of comments a single user can make in 24 hours.
+
 ## bugs
 
 - [x] Comment then reply to comment, if delete parent get error; solution, I was not populating child comments on delete.

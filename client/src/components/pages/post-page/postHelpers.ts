@@ -37,7 +37,14 @@ interface FrontMatter {
 }
 
 export const getSidebarData = (section: string) => {
-    const postSlugs: string[] = fs.readdirSync(path.join(ROOT, 'content', section));
+    const items = fs.readdirSync(path.join(ROOT, 'content', section), { withFileTypes: true });
+
+    // Filter only files
+    const postSlugs = items
+        .filter(item => item.isFile())
+        .filter(file => file.name.endsWith('.mdx'))
+        .map(file => file.name);
+
     const side_bar_data = postSlugs.map(slug => {
         const file_content = fs.readFileSync(path.join(ROOT, 'content', section, slug), 'utf-8');
         const { data, content } = matter(file_content) as matter.GrayMatterFile<string>;

@@ -3,11 +3,13 @@ import Figure from '@components/pages/mdx-elements/Figure';
 import Alert from '@components/pages/mdx-elements/Alert';
 import Blockquote from '@components/pages/mdx-elements/Blockquote';
 import Carousel from '../mdx-elements/FigureCarrousel';
+import LearningObjectives from '../mdx-elements/LearningObjectives';
 
 export const mdxComponents = {
     Figure,
     // DropCap,
     Alert,
     Blockquote,
-    Carousel
+    Carousel,
+    LearningObjectives
 };
