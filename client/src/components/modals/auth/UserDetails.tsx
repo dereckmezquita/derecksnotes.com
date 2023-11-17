@@ -11,7 +11,7 @@ import { StyledButton } from './AuthStyles';
 import api_logout from '@utils/api/auth/logout';
 import api_request_email_verification from '@utils/api/auth/request_email_verification';
 
-import { FaEnvelope, FaCalendarAlt, FaMapPin, FaComment } from 'react-icons/fa';
+import { FaEnvelope, FaCalendarAlt, FaMapPin, FaComment, FaCheck, FaTimes } from 'react-icons/fa';
 
 const CardContainer = styled.div`
     text-align: center;
@@ -68,6 +68,32 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
         onClose();
     };
 
+    const handleEmailVerification = async () => {
+        if (!userData || !userData.user.email.address) {
+            alert('No email address found for verification.');
+            return;
+        }
+
+        const email = userData.user.email.address;
+
+        try {
+            const response = await fetch(`https://www.derecksnotes.com/api/interact/email_verification_req?email=${encodeURIComponent(email)}`, {
+                method: 'GET',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Verification email sent! Please check your email.');
+            } else {
+                alert(`Failed to send verification email: ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Error sending verification email:', error);
+            alert('Failed to send verification email. Please try again later.');
+        }
+    };
+
     // The useEffect hook is for side effects that occur after rendering.
     // Direct rendering logic, like conditionally returning JSX or null, should be outside of useEffect.
     useEffect(() => {
@@ -85,10 +111,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
                 <div>
                     <Icon><FaEnvelope /></Icon>Email: {userData.user.email.address}
                 </div>
-                {userData.user.email.verified
-                    ? <EmailStatus verified={true}>verified</EmailStatus>
-                    : <VerifyEmail onClick={api_request_email_verification}>verify</VerifyEmail>
-                }
+                {userData.user.email.verified ? (
+                    <Icon as={FaCheck} style={{ color: 'green' }} />
+                ) : (
+                    <Icon as={FaTimes} style={{ color: 'red', cursor: 'pointer' }} onClick={handleEmailVerification} />
+                )}
             </InfoBlock>
             <InfoBlock>
                 <div>
