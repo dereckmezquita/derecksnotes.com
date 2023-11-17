@@ -37,6 +37,7 @@ interface CommentFormProps {
 
 const CommentForm: React.FC<CommentFormProps> = ({ parentComment, onSubmit, editComment }) => {
     const router = useRouter();
+    const [error, setError] = useState<string>('');
 
     const [commentInput, setCommentInput] = useState(editComment?.latestContent?.comment || '');
     const [isLoading, setIsLoading] = useState(false);
@@ -71,8 +72,9 @@ const CommentForm: React.FC<CommentFormProps> = ({ parentComment, onSubmit, edit
                     onSubmit(res);
                     setCommentInput('');
                 }
-            } catch (error) {
+            } catch (error: any) {
                 setIsLoading(false);
+                setError(error?.message || 'An error occurred; please verify e-mail.');
             }
         } else {
             setIsLoading(false);
@@ -91,6 +93,7 @@ const CommentForm: React.FC<CommentFormProps> = ({ parentComment, onSubmit, edit
                 Post
             </Button>
             {isLoading && <IndicateLoading />}
+            {error && <div style={{ color: 'red' }}>{error}</div>}
         </Form>
     )
 }
