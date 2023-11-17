@@ -17,11 +17,19 @@ email_verification.get('/email_verification_req', isAuthenticated, async (req: R
         return res.status(404).json({ message: "User not found." });
     }
 
+    // Check if the user's email is already verified
+    if (user.email.verified) {
+        return res.status(400).json({ message: "Email is already verified." });
+    }
+
+    // Check if a verification request was made in the last 3 hours
+    if (user.email.tokenExpiry && new Date(user.email.tokenExpiry).getTime() > Date.now() - (3 * 60 * 60 * 1000)) {
+        return res.status(400).json({ message: "A verification request was recently sent. Please check your email or try again later." });
+    }
+
     // Generate a verification token
     const verificationToken = crypto.randomBytes(20).toString('hex');
     const tokenExpiryTimestamp = Date.now() + 3_600_000 * 2; // 2 hours from now in milliseconds
-
-    // Convert the numeric timestamp to a Date object
     const tokenExpiry = new Date(tokenExpiryTimestamp);
 
     // Update user with verification token and expiry
