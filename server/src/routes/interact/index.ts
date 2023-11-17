@@ -9,6 +9,8 @@ import edit_comment from './edit_comment';
 import update_user_info from './update_user_info';
 import delete_geolocations from './delete_geolocation';
 
+import email_verification from './email_verification_req';
+
 const interactRoutes = Router();
 
 interactRoutes.use('/', get_article_comments);
@@ -21,5 +23,7 @@ interactRoutes.use('/', delete_comments);
 interactRoutes.use('/', edit_comment);
 interactRoutes.use('/', update_user_info);
 interactRoutes.use('/', delete_geolocations);
+
+interactRoutes.use('/', email_verification);
 
 export default interactRoutes;
