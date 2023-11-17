@@ -9,14 +9,14 @@ echo "Detected .env NEXT_PUBLIC_DEV_MODE=$NEXT_PUBLIC_DEV_MODE"
 
 if [ "$ENV" = "--server" ]; then
     echo "Building server..."
-    tsc --project server/tsconfig.json
+    npx tsc --project server/tsconfig.json
 elif [ "$ENV" = "--client" ]; then
     echo "Building client..."
-    cd client && npm run build && cd ..
+    cd client && npm run build && chown -R dereck:dereck out && cd ..
 elif [ "$ENV" = "--both" ]; then
     echo "Building server and client..."
-    tsc --project server/tsconfig.json &&
-        cd client && npm run build && cd ..
+    npx tsc --project server/tsconfig.json &&
+        cd client && npm run build && chown -R dereck:dereck out && cd ..
 else
     echo "Please specify an environment to build."
     echo "Options: --server, --client, --both"
