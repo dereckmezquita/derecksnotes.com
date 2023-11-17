@@ -10,7 +10,7 @@ const email_verification = Router();
 
 console.log("YHEKNSF")
 
-email_verification.get('/email_verification_req', async (req: Request, res: Response) => {
+email_verification.get('/email_verification_req', isAuthenticated, async (req: Request, res: Response) => {
     const email = req.query.email;
 
     const user = await User.findOne<UserDocument>({ 'email.address': email });

@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import Comment, { CommentDocument } from '@models/Comment';
 import User from '@models/User';
 import isAuthenticated from '@utils/middleware/isAuthenticated';
+import isVerified from '@utils/middleware/isVerified';
 
 import geoLocate from '@utils/geoLocate';
 
@@ -11,7 +12,7 @@ import { MAX_COMMENT_DEPTH } from '@utils/constants';
 
 const new_comment = Router();
 
-new_comment.post('/new_comment', isAuthenticated, async (req: Request, res: Response) => {
+new_comment.post('/new_comment', isAuthenticated, isVerified, async (req: Request, res: Response) => {
     try {
         const { comment, slug, parentComment: parentId } = req.body as { comment: string, slug: string, parentComment?: string };
 

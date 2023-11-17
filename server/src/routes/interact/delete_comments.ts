@@ -2,6 +2,7 @@ import { Request, Response, Router } from 'express';
 import Comment, { CommentDocument, CommentModel } from '@models/Comment';
 import User from '@models/User';
 import isAuthenticated from '@utils/middleware/isAuthenticated';
+import isVerified from '@utils/middleware/isVerified';
 
 import buildPopulateObject from '@utils/buildPopulateObject';
 
@@ -11,7 +12,7 @@ interface DeleteCommentsRequest {
     commentIds: string[];
 }
 
-delete_comments.delete('/delete_comments', isAuthenticated, async (req: Request, res: Response) => {
+delete_comments.delete('/delete_comments', isAuthenticated, isVerified, async (req: Request, res: Response) => {
     try {
         const { commentIds } = req.body as DeleteCommentsRequest;
 

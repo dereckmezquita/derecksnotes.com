@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Comment from '@models/Comment';
 import User from '@models/User';
 import isAuthenticated from '@utils/middleware/isAuthenticated';
+import isVerified from '@utils/middleware/isVerified';
 
 const edit_comment = Router();
 
@@ -11,7 +12,7 @@ interface EditCommentRequest {
     content: string;
 }
 
-edit_comment.patch('/edit_comment', isAuthenticated, async (req: Request, res: Response) => {
+edit_comment.patch('/edit_comment', isAuthenticated, isVerified, async (req: Request, res: Response) => {
     try {
         const { commentId, content } = req.body as EditCommentRequest;
 

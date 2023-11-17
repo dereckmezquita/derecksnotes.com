@@ -9,7 +9,7 @@ import edit_comment from './edit_comment';
 import update_user_info from './update_user_info';
 import delete_geolocations from './delete_geolocation';
 
-import email_verification from './email_verification_req';
+import email_verification from './email_verification';
 
 const interactRoutes = Router();
 
