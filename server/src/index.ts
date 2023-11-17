@@ -75,6 +75,7 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
     app.use(API_PREFIX + '/interact', interactRoutes);
 
     app.get(API_PREFIX + '/hello', (req, res) => {
+        console.log(req.query);
         res.send('Hello World!');
     });
 }

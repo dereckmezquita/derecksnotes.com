@@ -27,7 +27,9 @@ const UserSchema = new mongoose.Schema({
         verified: {
             type: Boolean,
             default: false
-        }
+        },
+        verificationToken: String,
+        tokenExpiry: Date
     },
     username: {
         type: String,
@@ -147,6 +149,8 @@ export interface UserDocument extends Document {
     email: {
         address: string;
         verified: boolean;
+        verificationToken: string | undefined;
+        tokenExpiry: Date | undefined;
     };
     username: string;
     password: string;

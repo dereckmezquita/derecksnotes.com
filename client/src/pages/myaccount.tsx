@@ -133,15 +133,29 @@ const Account: React.FC = () => {
     };
 
     const handleEmailVerification = async () => {
-        // try {
-        //     // This assumes api_verify_email takes an email string and returns a promise.
-        //     await api_verify_email(userData.user.email.address);
-        //     alert('Verification email sent! Please check your email.');
-        //     // Optional: Update user data/UI if needed.
-        // } catch (error) {
-        //     console.error('Error sending verification email:', error);
-        //     alert('Failed to send verification email. Please try again later.');
-        // }
+        if (!userData || !userData.user.email.address) {
+            alert('No email address found for verification.');
+            return;
+        }
+
+        const email = userData.user.email.address;
+
+        try {
+            const response = await fetch(`https://www.derecksnotes.com/api/interact/email_verification_req?email=${encodeURIComponent(email)}`, {
+                method: 'GET',
+                credentials: 'include',
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Verification email sent! Please check your email.');
+            } else {
+                alert(`Failed to send verification email: ${data.message}`);
+            }
+        } catch (error) {
+            console.error('Error sending verification email:', error);
+            alert('Failed to send verification email. Please try again later.');
+        }
     };
 
     APPLICATION_METADATA.title = `DN | My Account`;
