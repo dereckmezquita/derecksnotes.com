@@ -8,8 +8,6 @@ import User, { UserDocument } from '@models/User';
 
 const email_verification = Router();
 
-console.log("YHEKNSF")
-
 email_verification.get('/email_verification_req', isAuthenticated, async (req: Request, res: Response) => {
     const email = req.query.email;
 
