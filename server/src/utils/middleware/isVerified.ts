@@ -14,8 +14,8 @@ const isVerified = async (req: any, res: any, next: any) => {
             return res.status(403).json({ message: "Your email address is not verified." });
         }
     } catch (error) {
-        console.error("Verification Check Error:", error);
-        return res.status(500).json({ message: "Failed to verify user status. Please try again." });
+        console.error("E-mail verification Check Error:", error);
+        return res.status(500).json({ message: "Failed to check user e-mail verification status. Please try again." });
     }
 };
 
