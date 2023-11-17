@@ -29,7 +29,7 @@ if [ "$NEXT_PUBLIC_DEV_MODE" = "true" ]; then
     mkdir -p client/public/uploads
     mkdir -p client/public/uploads/profile-photos
     echo "Restarting server..."
-    sudo systemctl restart next-derecksnotes-server
+    sudo systemctl restart text-derecksnotes-server
 else
     echo "Creating upload directories..."
     mkdir -p client/out/uploads
