@@ -1,0 +1,165 @@
+---
+title: "How to send e-mail from node"
+blurb: "Blood marriage in blue"
+coverImage: 209
+author: "Dereck Mezquita"
+date: 2023-11-17
+tags: [computer-science, programming, code, web-development]
+published: true
+comments: true
+---
+
+## Table of contents
+
+In this guide, we'll walk through the process of setting up a mail server on a Linode server, which includes configuring DNS records, installing Postfix and OpenDKIM, and ensuring your server can send emails successfully.
+
+1. Prerequisites
+1. A Linode server
+1. A domain name (e.g., derecksnotes.com)
+
+## Request SMTP Restrictions Lifted from Linode
+
+Before setting up your mail server, you need to ensure that SMTP restrictions are lifted on your Linode. Here's a template you can use to request this:
+
+```txt
+Hello,
+
+I'd like to have SMTP restrictions lifted from my Linode. I plan to use it for sending email verifications and communications for website accounts.
+
+- First and Last Name: [Your Name]
+- Organization Name: [Your Organization]
+- Use Case: Email verification and communications for website accounts
+- Domain Name: derecksnotes.com
+- Public Business Information Links: [Your Links]
+
+Thank you,
+[Your Name]
+```
+
+For more information on Linode's SMTP restrictions: https://www.linode.com/docs/products/platform/get-started/guides/send-email/
+
+## Set Up DNS/MX Records
+
+Configure DNS and MX records for your domain. This step is crucial for your mail server to function correctly.
+
+- **A Record**
+    - Set up an A record in your DNS settings pointing to your Linode's IP address.
+        - Name: @
+        - Type: A
+        - Value: [Your Linode's IP Address]
+- **TXT Record**
+    - SPF record to prevent spoofing.
+        - Name: @
+        - Type: TXT
+        - Value: v=spf1 a mx ip4:[Your Linode's IP Address] ~all
+    - DMARC record to prevent spoofing.
+        - Name: _dmarc
+        - Type: TXT
+        - Value: v=DMARC1; p=none;
+    - DKIM record to prevent spoofing; we have to generate this on the server using OpenDKIM.
+        - Name: mail._domainkey (or other selector e.g. dkim._domainkey)
+        - Type: TXT
+        - Value: *GENERATED ON THE SERVER*
+- **MX Record**
+    - Create an MX record pointing to your mail server.
+        - Name: @
+        - Type: MX
+        - Priority: 10
+        - Value: [Your Linode's IP Address]
+
+## Install Postfix and OpenDKIM
+
+SSH into your Linode server and install Postfix and OpenDKIM.
+
+```bash
+sudo apt-get update
+sudo apt-get install postfix opendkim opendkim-tools
+```
+
+## Configure Postfix
+
+Edit `/etc/postfix/main.cf` and make necessary changes:
+
+```txt
+myhostname = mail.derecksnotes.com
+myorigin = derecksnotes.com # can also point to a file myorigin = /etc/mailname
+mydestination = $myhostname, derecksnotes.com, localhost
+```
+
+Uncomment and configure the submission section in `/etc/postfix/master.cf`:
+
+```txt
+submission inet n - y - - smtpd
+  -o syslog_name=postfix/submission
+  -o smtpd_tls_security_level=encrypt
+  ... (other options)
+```
+
+## Configure OpenDKIM
+
+Generate keys and configure OpenDKIM. Add the following in `/etc/opendkim.conf`:
+
+```txt
+Domain                  derecksnotes.com
+KeyFile                 /etc/mail/dkim.key
+Selector                mail
+```
+
+Generate the keys:
+
+```bash
+opendkim-genkey -t -s mail -d derecksnotes.com
+sudo mv mail.private /etc/mail/dkim.key
+sudo chown opendkim:opendkim /etc/mail/dkim.key
+```
+
+## Update DNS with DKIM Record
+
+Add the DKIM record from mail.txt to your DNS settings as a TXT record:
+
+```bash
+cat mail.txt
+```
+
+```
+mail._domainkey IN      TXT     ( "v=DKIM1; h=sha256; k=rsa; t=y; "
+          "p=REDACTED/REDACTED+REDACTED"
+          "REDACTED+REDACTED" )  ; ----- DKIM key mail for derecksnotes.com
+```
+
+Everything between the two parentheses is the value of the TXT record.
+
+## Test Email Sending
+
+After configuring your server, test sending emails. You can use the mail command or a script like the following Node.js example:
+
+```bash
+echo "Test email body" | mail -s "Test Email" -a "From: test@derecksnotes.com" receipient@test.com
+```
+
+```ts
+import nodemailer from 'nodemailer';
+
+async function main() {
+    let transporter = nodemailer.createTransport({
+        host: 'localhost', // 'derecksnotes.com',  // Replace with your SMTP server address
+        port: 25,                 // Common ports are 25, 465 (SSL), 587 (TLS)
+        secure: false,             // True for 465, false for other ports
+        tls: {
+            rejectUnauthorized: false
+        }
+    });
+
+    let info = await transporter.sendMail({
+        from: '"Test Sender" <test@derecksnotes.com>', // Sender address
+        to: 'receipient@test.com',                             // List of receivers
+        subject: 'Test Email from Node.js',                   // Subject line
+        text: 'Hello world?',                                 // Plain text body
+        html: '<b>Hello world?</b>'                           // HTML body content
+    });
+
+    console.log('Message sent: %s', info.messageId);
+}
+
+main().catch(console.error);
+```
