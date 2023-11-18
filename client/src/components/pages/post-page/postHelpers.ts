@@ -64,6 +64,13 @@ export const getSidebarData = (section: string) => {
     return side_bar_data;
 };
 
+import { type Options } from "rehype-pretty-code"
+
+const rehypePrettyCodeOptions: Partial<Options> = {
+    theme: 'github-dark-dimmed', // 'github-dark-dimmed', // "one-dark-pro",
+    defaultLang: 'plaintext',
+}
+
 export const getMDXSource = async (section: string, slug: string): Promise<{ frontmatter: FrontMatter, source: any }> => {
     const content = fs.readFileSync(path.join(ROOT, 'content', section, `${slug}.mdx`), 'utf-8');
     // const { data, content: mdxContent } = matter(content); // not sure if should pass just content
@@ -79,7 +86,7 @@ export const getMDXSource = async (section: string, slug: string): Promise<{ fro
                 remarkToc,
             ],
             rehypePlugins: [
-                rehypePrettyCode,
+                [rehypePrettyCode, rehypePrettyCodeOptions],
                 rehypeSlug,
                 rehypeMathjax,
                 rehypeTocCollapse,
