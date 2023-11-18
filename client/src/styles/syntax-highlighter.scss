@@ -3,6 +3,10 @@ code {
     counter-reset: line;
 }
 
+pre {
+    overflow-x: auto;
+}
+
 code>[data-line]::before {
     counter-increment: line;
     content: counter(line);
@@ -30,6 +34,7 @@ code[data-line-numbers-max-digits='3']>[data-line]::before {
 div[data-rehype-pretty-code-fragment] {
     pre {
         margin: 0px;
+        margin-bottom: 10px;
         padding: 0px;
         border-radius: 10px;
     }
@@ -68,6 +73,7 @@ span[data-highlighted-line] {
 // inline code
 span[data-rehype-pretty-code-fragment] {
     padding: 4px;
+
     code {
         background-color: red;
     }
