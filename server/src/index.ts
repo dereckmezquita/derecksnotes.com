@@ -11,10 +11,12 @@ import { authRoutes, uploadRoutes, interactRoutes } from './routes/index';
 import { API_PREFIX } from '@utils/constants';
 import { DatabaseConnector, MongoDBConnector } from '@utils/DatabaseConnector';
 
-dotenv.config({ path: '../.env' });
-const PORT: number = 3003;
+const dev_mode: boolean = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
 
-console.log(`Detected: ${process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'Development' : 'Production'} Mode`);
+dotenv.config({ path: '../.env' });
+const PORT: number = dev_mode ? 3004 : 3003;
+
+console.log(`Detected: ${dev_mode ? 'Development' : 'Production'} Mode\nUsing port: ${PORT}`);
 
 // ----------------------------------------
 // Setup Redis client and session store
@@ -74,6 +76,10 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
 
     app.use(API_PREFIX + '/interact', interactRoutes);
 
+    app.get(API_PREFIX + '/', (req, res) => {
+        res.send("I'm alive!");
+    })
+
     app.get(API_PREFIX + '/hello', (req, res) => {
         console.log(req.query);
         res.send('Hello World!');
@@ -91,8 +97,7 @@ export async function main(): Promise<void> {
 
     app.listen(PORT, () => {
         console.log(`Server listening on port ${PORT}`);
-        let API_LISTENING_ON: string = process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? 'https://next.derecksnotes.com' : 'http://localhost:3003';
-        console.log(`API listening on ${API_LISTENING_ON + API_PREFIX}`);
+        console.log(API_PREFIX);
     });
 }
 
