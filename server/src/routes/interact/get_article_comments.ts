@@ -4,33 +4,35 @@ import buildPopulateObject from '@utils/buildPopulateObject';
 
 const get_article_comments = express.Router();
 
-get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
-    const { slug } = req.params;
-    // forward slashes are replaced with _ in the client
-    // const decodedSlug = decodeURIComponent(encodedSlug);
-
-    const limit = Number(req.query.limit) || 50;
-    const page = Number(req.query.page) || 1;
-    const depth = Number(req.query.depth) || 10; // max depth of child comments to populate
-    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
-    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
-
-    let dateFilter = {};
-    if (startDate && endDate) {
-        dateFilter = { "createdAt": { $gte: startDate, $lte: endDate } };
-    } else if (startDate) {
-        dateFilter = { "createdAt": { $gte: startDate } };
-    } else if (endDate) {
-        dateFilter = { "createdAt": { $lte: endDate } };
-    }
-
+get_article_comments.get('/get_article_comments', async (req, res) => {
     try {
+        const slug = req.query.slug; // sent encoded; express auto unencodes
+
+        if (!slug) {
+            throw new Error('Slug is required param for getting article comments.')
+        }
+
+        const limit = Number(req.query.limit) || 50;
+        const page = Number(req.query.page) || 1;
+        const depth = Number(req.query.depth) || 10; // max depth of child comments to populate
+        const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
+        const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+
+        let dateFilter = {};
+        if (startDate && endDate) {
+            dateFilter = { "createdAt": { $gte: startDate, $lte: endDate } };
+        } else if (startDate) {
+            dateFilter = { "createdAt": { $gte: startDate } };
+        } else if (endDate) {
+            dateFilter = { "createdAt": { $lte: endDate } };
+        }
+
         const skip = (page - 1) * limit;
 
         const comments = await Comment.find({
             slug,
             parentComment: null,
-            ...dateFilter 
+            ...dateFilter
         })
             .sort({ createdAt: -1 })
             .skip(skip)
@@ -50,8 +52,6 @@ get_article_comments.get('/get_article_comments/:slug', async (req, res) => {
         const commentsObj: CommentPopUserDTO[] = comments.map((comment: CommentDocument) => {
             return comment.toObject({ virtuals: true });
         });
-
-        // console.log(JSON.stringify(comments));
 
         const message: CommentsBySlugDTO = {
             comments: commentsObj,
