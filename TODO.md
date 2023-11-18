@@ -5,6 +5,7 @@
 - [x] Add geolocation to every comment.
 - [ ] Create method on Comment schema for editing comments; should trigger geolocate.
 - [ ] Look into nginx module for resizing images; nginx http filter module.
+- [ ] Code copy button.
 
 ## security
 
