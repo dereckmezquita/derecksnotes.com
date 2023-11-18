@@ -14,6 +14,8 @@ import GlobalStyles from '@styles/GlobalStyles';
 import { ThemeProvider } from 'styled-components';
 import { theme } from '@styles/theme';
 
+import '@styles/syntax-highlighter.scss';
+
 import '@public/fonts/roboto.css'; // sans-serif
 import '@public/fonts/tangerine.css'; // cursive
 import '@public/fonts/fjalla_one.css'; // block letters; main logo

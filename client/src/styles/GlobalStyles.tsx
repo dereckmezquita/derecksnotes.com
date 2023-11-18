@@ -69,15 +69,6 @@ const GlobalStyles = createGlobalStyle`
         }
     }
 
-    pre {
-        margin: 15px;
-        padding: 15px;
-        border-radius: 7px;
-        border: 2px solid ${theme.container.border.colour.primary()};
-        font-size: 0.95em;
-        overflow-x: auto;
-    }
-
     embed {
         height: calc(40vw * 1.3);
         width: 40vw;
