@@ -24,6 +24,7 @@ import { APPLICATION_METADATA, APPLICATION_URL } from '@constants/config';
 import api_me from '@utils/api/auth/me';
 import api_update_user_info from '@utils/api/interact/update_user_info';
 import get_comments_threads_by_id from '@utils/api/interact/get_comments_threads_by_id';
+import api_email_verification_req from '@utils/api/interact/email_verification_req';
 
 const ProfileSection = styled.section`
     display: flex;
@@ -141,16 +142,12 @@ const Account: React.FC = () => {
         const email = userData.user.email.address;
 
         try {
-            const response = await fetch(`https://www.derecksnotes.com/api/interact/email_verification_req?email=${encodeURIComponent(email)}`, {
-                method: 'GET',
-                credentials: 'include',
-            });
-            const data = await response.json();
+            const response = await api_email_verification_req(email);
 
-            if (response.ok) {
+            if (response) {
                 alert('Verification email sent! Please check your email.');
             } else {
-                alert(`Failed to send verification email: ${data.message}`);
+                alert(`Failed to send verification email: ${response.message}`);
             }
         } catch (error) {
             console.error('Error sending verification email:', error);
