@@ -6,7 +6,7 @@ const api_get_article_comments = async (
     page?: number,
     startDate?: string,
     endDate?: string
-): Promise<any> => { 
+): Promise<CommentsBySlugDTO> => { 
     try {
         const queryParams = new URLSearchParams();
         if (n) queryParams.set('limit', n.toString());
