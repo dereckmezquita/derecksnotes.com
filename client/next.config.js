@@ -7,7 +7,9 @@ const rewrite = async () => {
     return [
         {
             source: '/api/v3/:path*',
-            destination: 'http://localhost:3003/api/v3/:path*'
+            destination: process.env.NEXT_PUBLIC_SERVER_DEV === 'true' ? 
+                'http://test.derecksnotes.com/api/:path*':
+                'http://localhost:3004/api/:path*'
         }
     ]
 }
