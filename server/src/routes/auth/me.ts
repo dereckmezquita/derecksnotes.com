@@ -27,9 +27,16 @@ me.get('/me', isAuthenticated, async (req, res) => {
         userObj.metadata.geolocations = userObj.metadata.geolocations.slice(-10);
 
         // only comments not marked comment.deleted
-        const commentsIds = (await Comment.find({ userId: user._id, deleted: false, parentComment: null }, '_id')
-            .exec())
-            .map((comment: { _id: string }) => comment._id.toString());
+        const commentsIds = (await Comment.find({
+            userId: user._id,
+            deleted: false,
+            $or: [
+                { parentComment: null },
+                { parentComment: { $ne: user._id } }
+            ]
+        }, '_id').exec())
+        .map((comment: { _id: string }) => comment._id.toString());
+        
         const commentsLikedIds = (await Comment.find({
             [`judgement.${user._id}`]: 'like'
         }, '_id').exec())
