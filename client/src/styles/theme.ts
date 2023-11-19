@@ -21,6 +21,8 @@ export const theme = {
                 primary: hsla_colour(0, 0, 100, 1), // this is the deepest background that gets the lines
                 content: hsla_colour(0, 0, 100, 0.65), // used for content holders; posts etc
                 solid: hsla_colour(0, 0, 100, 1), // used for solid backgrounds
+                green: hsla_colour(120, 40, 50, 1),
+                red: hsla_colour(5, 80, 60, 1)
             }
         },
         shadow: {
