@@ -32,7 +32,7 @@ const redisStore = makeRedisStore(session);
 // ----------------------------------------
 export const app = express();
 
-if (process.env.NEXT_PUBLIC_DEV_MODE === 'true') {
+if (dev_mode) {
     // assuming frontend on port 3000
     app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
     console.log('CORS enabled for localhost:3000');
@@ -53,9 +53,9 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
             secret: process.env.SESSION_SECRET || 'secret$%^134', // store secret in env var
             resave: false, // forces session be saved back to the session store, even if the session was never modified during the request
             saveUninitialized: false,
-            cookie: {
-                secure: (process.env.NEXT_PUBLIC_DEV_MODE !== 'true'), // HTTPS in production
-                httpOnly: false, // true, // cookie inaccessible from JavaScript running in the browser
+            cookie: { // NOTE: if session data is not being saved in client check these
+                secure: dev_mode, // HTTPS in production
+                httpOnly: true, // true, // cookie inaccessible from JavaScript running in the browser
                 // days * hours * minutes * seconds * milliseconds
                 maxAge: 30 * 24 * 60 * 60 * 1000 // 1 day in milliseconds
             }
