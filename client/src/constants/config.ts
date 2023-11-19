@@ -36,5 +36,6 @@ export const REFRESH_STORE_DATA_INTERVAL: number = 1 * 2 * 60 * 60 * 1000;
 export const DEFAULT_PROFILE_IMAGE: string = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><rect width='100' height='100' fill='%23ccc' /><text x='50%' y='50%' font-size='40' text-anchor='middle' dy='.3em' fill='%23777'>?</text></svg>";
 
 // api
-export const API_PREFIX: string = process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? '/api/v3' : '/api';
+// TODO: review the API_PREFIX
+export const API_PREFIX: string = '/api';
 export const MAX_COMMENT_DEPTH: number = 5;
