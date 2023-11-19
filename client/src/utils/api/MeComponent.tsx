@@ -79,9 +79,9 @@ export const ReduxMe: React.FC = () => {
     return (
         <div>
             <h1>User Details</h1>
-            <p><strong>Email:</strong> {userState.data.email.address}</p>
+            {/* <p><strong>Email:</strong> {userState.data.email.address}</p>
             <p><strong>Username:</strong> {userState.data.username}</p>
-            <p><strong>ID:</strong> {userState.data._id}</p>
+            <p><strong>ID:</strong> {userState.data._id}</p> */}
             {/* You can expand this to display more data as needed */}
         </div>
     );
