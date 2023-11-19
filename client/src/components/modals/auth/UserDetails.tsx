@@ -9,9 +9,9 @@ import { RootState } from '@store/store';
 import { StyledButton } from './AuthStyles';
 
 import api_logout from '@utils/api/auth/logout';
-import api_request_email_verification from '@utils/api/auth/request_email_verification';
 
 import { FaEnvelope, FaCalendarAlt, FaMapPin, FaComment, FaCheck, FaTimes } from 'react-icons/fa';
+import api_email_verification_req from '@utils/api/interact/email_verification_req';
 
 const CardContainer = styled.div`
     text-align: center;
@@ -77,16 +77,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
         const email = userData.user.email.address;
 
         try {
-            const response = await fetch(`https://www.derecksnotes.com/api/interact/email_verification_req?email=${encodeURIComponent(email)}`, {
-                method: 'GET',
-                credentials: 'include',
-            });
-            const data = await response.json();
+            const response = await api_email_verification_req(email);
 
-            if (response.ok) {
+            if (response) {
                 alert('Verification email sent! Please check your email.');
             } else {
-                alert(`Failed to send verification email: ${data.message}`);
+                alert(`Failed to send verification email: ${response.message}`);
             }
         } catch (error) {
             console.error('Error sending verification email:', error);

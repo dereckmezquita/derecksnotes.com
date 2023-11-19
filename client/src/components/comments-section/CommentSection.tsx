@@ -30,6 +30,7 @@ const CommentSection = ({ allowComments }: CommentSectionProps) => {
     const router = useRouter();
     
     const loggedIn = useSelector((state: RootState) => state.user.isAuthenticated);
+    const currentUserID = useSelector((state: RootState) => state.user.data?.user._id);
 
     const [comments, setComments] = useState<CommentPopUserDTO[]>([]);
     const [loading, setLoading] = useState(false);
@@ -77,7 +78,7 @@ const CommentSection = ({ allowComments }: CommentSectionProps) => {
                         <Comment
                             key={comment._id! + comment.latestContent!._id!}
                             commentObj={comment}
-                            currentUserId={comment.user._id}
+                            currentUserId={currentUserID}
                             depth={0}
                         />
                     ))

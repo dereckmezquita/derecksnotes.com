@@ -14,9 +14,10 @@ const new_comment = Router();
 
 new_comment.post('/new_comment', isAuthenticated, isVerified, async (req: Request, res: Response) => {
     try {
-        const { comment, slug, parentComment: parentId } = req.body as { comment: string, slug: string, parentComment?: string };
+        let { comment, slug, parentComment: parentId } = req.body as { comment: string, slug: string, parentComment?: string };
 
-        // Validate input
+        slug = decodeURIComponent(slug);
+
         if (!comment || !slug) {
             return res.status(400).json({ message: "Content and slug are required." });
         }
@@ -24,9 +25,6 @@ new_comment.post('/new_comment', isAuthenticated, isVerified, async (req: Reques
         if (parentId && !mongoose.Types.ObjectId.isValid(parentId)) {
             return res.status(400).json({ message: "Invalid parent comment ID." });
         }
-
-        // forward slashes are replaced with _ to avoid 404 in the client
-        // const decodedSlug = decodeURIComponent(encodedSlug);
 
         const ip_address = req.headers['x-forwarded-for'] as string;
 

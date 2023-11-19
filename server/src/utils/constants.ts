@@ -17,6 +17,6 @@ if (!fs.existsSync(ROOT_DIR_CLIENT_UPLOADS)) {
 }
 
 // if in prod nginx picks up requests to /api/v3 and forwards to server
-export const API_PREFIX: string = process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? '/api/v3' : '';
+export const API_PREFIX: string = ''; // process.env.NEXT_PUBLIC_DEV_MODE === 'true' ? '/api/v3' : '';
 
 export const MAX_COMMENT_DEPTH: number = 5;

@@ -6,37 +6,42 @@ const api_get_article_comments = async (
     page?: number,
     startDate?: string,
     endDate?: string
-): Promise<any> => { 
+): Promise<CommentsBySlugDTO> => { 
     try {
-        const limitParam = n ? `limit=${n}` : '';
-        const pageParam = page ? `page=${page}` : '';
-        const startDateParam = startDate ? `startDate=${startDate}` : '';
-        const endDateParam = endDate ? `endDate=${endDate}` : '';
-        const queryString = [limitParam, pageParam, startDateParam, endDateParam].filter(p => p).join('&');
+        const queryParams = new URLSearchParams();
+        if (n) queryParams.set('limit', n.toString());
+        if (page) queryParams.set('page', page.toString());
+        if (startDate) queryParams.set('startDate', startDate);
+        if (endDate) queryParams.set('endDate', endDate);
 
-        // Encode the slug to ensure it doesn’t mess up the URL
-        // const encodedSlug = encodeURIComponent(slug);
-        // replace forward slashes with _ to avoid 404
-        slug = slug.replace(/\//g, '_');
+        // Encode the slug
+        const encodedSlug = encodeURIComponent(slug);
 
-        const response = await fetch(`${API_PREFIX}/interact/get_article_comments/${slug}?${queryString}`, {
+        // Construct URL with conditional query string
+        const queryString = queryParams.toString();
+        const url = `${API_PREFIX}/interact/get_article_comments?slug=${encodedSlug}` + (queryString ? `&${queryString}` : '');
+
+        const response = await fetch(url, {
             method: 'GET',
             credentials: 'include',
         });
 
         const data = await response.json();
 
+        // Check for an unsuccessful response
         if (!response.ok) {
             throw new Error(data.message || 'Something went wrong fetching the comments!');
         }
 
         return data;
     } catch (error) {
+        console.error('Error fetching article comments:', error);
         throw error;
     }
 };
 
 export default api_get_article_comments;
+
 /*
 {
     "comments": [
