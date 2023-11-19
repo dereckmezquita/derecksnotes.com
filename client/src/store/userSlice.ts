@@ -2,7 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface UserState {
     isAuthenticated: boolean;
-    data: any | null; // Update this 'any' to the actual type of your user data if available
+    data: MeDTO | null; // Update this 'any' to the actual type of your user data if available
     loading: boolean;
     error: string | null;
     lastFetched: number | null;
