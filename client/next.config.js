@@ -6,9 +6,9 @@ const rewrite = async () => {
     console.log('Detected we are in development mode, proxying API calls to localhost:3004');
     return [
         {
-            source: '/api/v3/:path*',
-            destination: process.env.NEXT_PUBLIC_SERVER_DEV === 'true' ? 
-                'http://test.derecksnotes.com/api/:path*':
+            source: '/api/:path*',
+            destination: process.env.NEXT_PUBLIC_SERVER_DEV === 'true' ?
+                'http://test.derecksnotes.com/api/:path*' :
                 'http://localhost:3004/api/:path*'
         }
     ]
