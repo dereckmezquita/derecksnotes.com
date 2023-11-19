@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 dotenv.config({ path: '../.env' });
 
 const rewrite = async () => {
-    console.log('Detected we are in development mode, proxying API calls to localhost:3001');
+    console.log('Detected we are in development mode, proxying API calls to localhost:3004');
     return [
         {
             source: '/api/v3/:path*',
