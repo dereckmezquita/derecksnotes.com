@@ -1,9 +1,13 @@
 import { green_theme as colour_scheme } from './theme_colours';
 
-// h: hue - controls the colour; a number between 0 and 360
-// s: saturation - controls the intensity of the colour; a number between 0 and 100
-// l: lightness - controls the brightness of the colour; a number between 0 and 100
-// a: alpha - controls the opacity of the colour; a number between 0 and 1
+/**
+ * 
+ * @param h hue - controls the colour; a number between 0 and 360
+ * @param s saturation - controls the intensity of the colour; a number between 0 and 100
+ * @param l lightness - controls the brightness of the colour; a number between 0 and 100
+ * @param a alpha - controls the opacity of the colour; a number between 0 and 1
+ * @returns a function that takes in optional parameters to override the defaults
+ */
 export function hsla_colour(h: number, s: number, l: number, a: number = 1) {
     return function (h1?: number, s1?: number, l1?: number, a1?: number) {
         return `hsla(${h1 || h}, ${s1 || s}%, ${l1 || l}%, ${a1 || a})`;
