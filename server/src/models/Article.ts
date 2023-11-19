@@ -28,10 +28,38 @@ const ArticleSchema = new mongoose.Schema({
 /*
 const article = await ArticleMetadata.findOne({ slug: 'some-slug' });
 article.setJudgement(someUserId, 'like');
-await article.save();
 */
-ArticleSchema.methods.setJudgement = function (userId: string, judgement: 'like' | 'dislike') {
-    this.judgements.set(userId, judgement);
+/**
+ * Set the judgement of a user on an article by atomic update; does require doc.save()
+ * 
+ * @param this ArticleDocument
+ * @param userId Mongo ObjectId of the user
+ * @param judgement 'like' or 'dislike'
+ * @returns updated ArticleDocument
+ */
+ArticleSchema.methods.setJudgement = async function(this: ArticleDocument, userId: string, judgement: 'like' | 'dislike'): Promise<ArticleDocument> {
+    const currentJudgement = this.judgement.get(userId);
+
+    // Check if the current judgement is the same as the new judgement
+    if (currentJudgement === judgement) {
+        // Remove the judgement
+        this.judgement.delete(userId);
+        await Article.updateOne(
+            { _id: this._id },
+            { $unset: { [`judgement.${userId}`]: "" } }
+        );
+    } else {
+        // Set the new judgement
+        this.judgement.set(userId, judgement);
+        await Article.updateOne(
+            { _id: this._id },
+            { $set: { [`judgement.${userId}`]: judgement } }
+        );
+    }
+
+    // Optionally, reload the article document to reflect the new state
+    const updatedArticle = await Article.findById(this._id).exec();
+    return updatedArticle!;
 };
 
 // ---------------------------------------

@@ -155,11 +155,38 @@ CommentSchema.virtual('latestProfilePhoto').get(function (this: any) {
 /*
 const comment = await CommentInfo.findById(commentId);
 comment.setJudgement(someUserId, 'like'); // or 'dislike'
-await comment.save();
 */
-CommentSchema.methods.setJudgement = function (userId: string, judgement: 'like' | 'dislike') {
-    this.judgement.set(userId, judgement);
-}
+/**
+ * Set the judgement of a user on a comment by atomic update; does require doc.save()
+ * @param this CommentDocument
+ * @param userId Mongo ObjectId of the user
+ * @param judgement 'like' or 'dislike'
+ * @returns updated CommentDocument
+ */
+CommentSchema.methods.setJudgement = async function (this: CommentDocument, userId: string, judgement: 'like' | 'dislike'): Promise<CommentDocument> {
+    const currentJudgement = this.judgement.get(userId);
+
+    // Check if the current judgement is the same as the new judgement
+    if (currentJudgement === judgement) {
+        // Remove the judgement
+        this.judgement.delete(userId);
+        await Comment.updateOne(
+            { _id: this._id },
+            { $unset: { [`judgement.${userId}`]: "" } }
+        );
+    } else {
+        // Set the new judgement
+        this.judgement.set(userId, judgement);
+        await Comment.updateOne(
+            { _id: this._id },
+            { $set: { [`judgement.${userId}`]: judgement } }
+        );
+    }
+
+    // Optionally, reload the comment document to reflect the new state
+    const updatedComment = await Comment.findById(this._id).exec();
+    return updatedComment!;
+};
 
 /*
 const userId = req.session.userId;
