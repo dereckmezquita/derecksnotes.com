@@ -118,7 +118,7 @@ export interface ArticleDocument extends Document {
     commentCount: number;
 
     // Instance methods
-    setJudgement(userId: string, judgement: 'like' | 'dislike'): void;
+    setJudgement(userId: string, judgement: 'like' | 'dislike'): Promise<ArticleDocument>;
 
     // Virtuals
     likesCount: number;
