@@ -287,7 +287,7 @@ export interface CommentDocument extends Document {
     latestContent: Content;
 
     // Methods
-    setJudgement(userId: string, judgement: 'like' | 'dislike'): void;
+    setJudgement(userId: string, judgement: 'like' | 'dislike'): Promise<CommentDocument>
     markAsDeleted(userId: string): Promise<CommentDocument>;
 }
 
