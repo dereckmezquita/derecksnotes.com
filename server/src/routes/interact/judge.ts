@@ -14,26 +14,29 @@ judge.post('/judge_comment', isAuthenticated, isVerified, async (req: Request, r
         const userId = (req.session as SessionData).userId;
 
         if (!id || !judgement) {
-            throw res.status(400).json({ message: "Comment ID and judgement are required." });
+            return res.status(400).json({ message: "Comment ID and judgement are required." });
         }
     
         if (!mongoose.Types.ObjectId.isValid(id)) {
-            throw res.status(400).json({ message: "Invalid comment ID." });
+            return res.status(400).json({ message: "Invalid comment ID." });
         }
     
         if (judgement !== 'like' && judgement !== 'dislike') {
-            throw res.status(400).json({ message: "Invalid judgement." });
+            return res.status(400).json({ message: "Invalid judgement." });
         }
 
         const comment = await Comment.findById<CommentDocument>(id);
 
         if (!comment) {
-            throw res.status(404).json({ message: "Comment not found." });
+            return res.status(404).json({ message: "Comment not found." });
         }
 
-        const judge = comment.setJudgement(userId, judgement); // atomic operation; no need to save
+        const judge = await comment.setJudgement(userId, judgement); // atomic operation; no need to save
 
-        res.status(200).json({ message: "Judgement successful.", data: judge });
+        // count the new total number
+        judge.toObject({ virtuals: true });
+
+        res.status(200).json({ message: "Judgement successful.", totalJudgement: judge.totalJudgement });
     } catch (err) {
         res.status(500).json({ message: "Error judging comment.", error: err });
     }
