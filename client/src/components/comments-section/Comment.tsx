@@ -88,6 +88,11 @@ const Comment = ({ commentObj, currentUserId, depth }: CommentProps) => {
         return userJudgement || 'neutral';
     }
 
+    const handleJudgementChange = (judgement: 'like' | 'dislike' | 'neutral', newTotal: number) => {
+        console.log("Judgement change detected", judgement);
+        setComment(prev => ({ ...prev, totalJudgement: newTotal }));
+    };
+
     return (
         <CommentContainer>
             <CommentHeader>
@@ -103,7 +108,7 @@ const Comment = ({ commentObj, currentUserId, depth }: CommentProps) => {
                         initialCount={comment.totalJudgement || 0}
                         commentId={comment._id!}
                         currentUserJudgement={getCurrentUserJudgement()}
-                        onJudgementChange={() => { }}
+                        onJudgementChange={handleJudgementChange}
                     />
 
                     {isCurrentUser && (
