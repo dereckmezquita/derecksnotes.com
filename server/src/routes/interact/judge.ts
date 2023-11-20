@@ -50,26 +50,28 @@ judge.post('/judge_article', isAuthenticated, isVerified, async (req: Request, r
         const userId = (req.session as SessionData).userId;
 
         if (!slug || !judgement) {
-            throw res.status(400).json({ message: "Article slug and judgement are required." });
+            return res.status(400).json({ message: "Article slug and judgement are required." });
         }
     
         if (judgement !== 'like' && judgement !== 'dislike') {
-            throw res.status(400).json({ message: "Invalid judgement." });
+            return res.status(400).json({ message: "Invalid judgement." });
         }
 
         const article = await Article.findOne<ArticleDocument>({ slug });
 
         if (!article) {
-            throw res.status(404).json({ message: "Article not found." });
+            return res.status(404).json({ message: "Article not found." });
         }
 
-        const judge = article.setJudgement(userId, judgement); // atomic operation; no need to save
+        const judge = await article.setJudgement(userId, judgement); // atomic operation; no need to save
 
-        res.status(200).json({ message: "Judgement successful.", data: judge });
+        // count the new total number
+        judge.toObject({ virtuals: true });
+
+        res.status(200).json({ message: "Judgement successful.", totalJudgement: judge.totalJudgement });
     } catch (err) {
         res.status(500).json({ message: "Error judging article.", error: err });
     }
 });
-
 
 export default judge;
