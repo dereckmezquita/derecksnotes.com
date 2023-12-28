@@ -16,12 +16,15 @@ get_articles_meta.post('/get_articles_meta', async (req: Request, res: Response)
             slug: { $in: slugs }
         }).exec();
 
-        const articlesData: ArticleDTO[] = articles.map(article => {
+        const articlesData = articles.reduce<ArticlesMapDTO>((acc, article) => {
             const obj = article.toObject({ virtuals: true });
             obj.likedByCurrentUser = obj.judgement?.get(currentUser) === 'like';
-            delete obj.judgement; // save data
-            return obj;
-        });
+            delete obj.judgement; // save bandwith
+
+            acc[article.slug] = obj; // Use the slug as the key
+            return acc;
+        }, {} as ArticlesMapDTO); // Initialize with the correct type
+
 
         res.status(200).json(articlesData);
     } catch (error) {

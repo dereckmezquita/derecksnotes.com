@@ -2,7 +2,7 @@ import { API_PREFIX } from '@constants/config';
 
 const api_get_articles_meta = async (
     slugs: string[]
-): Promise<ArticleDTO[]> => {
+): Promise<ArticlesMapDTO> => {
     try {
         const response = await fetch(`${API_PREFIX}/interact/get_articles_meta`, {
             method: 'POST',

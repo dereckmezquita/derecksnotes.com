@@ -13,4 +13,8 @@ declare global {
         // calculated by end point
         likedByCurrentUser?: boolean;
     }
+
+    interface ArticlesMapDTO {
+        [key: string]: ArticleDTO;
+    }
 }
