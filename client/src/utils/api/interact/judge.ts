@@ -11,7 +11,10 @@ const api_judge = async (type: 'article' | 'comment', id: string, judgement: str
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ id, judgement }),
+            body: JSON.stringify({
+                id: id, // encodeURIComponent(id)
+                judgement
+            }),
             credentials: 'include'
         });
 
