@@ -9,12 +9,14 @@ import edit_comment from './edit_comment';
 import update_user_info from './update_user_info';
 import delete_geolocations from './delete_geolocation';
 import judge from './judge';
+import get_articles_meta from './get_articles_meta';
 
 import email_verification from './email_verification';
 
 const interactRoutes = Router();
 
 interactRoutes.use('/', get_article_comments);
+interactRoutes.use('/', get_articles_meta);
 interactRoutes.use('/', get_user_public_info);
 interactRoutes.use('/', get_comments_threads_by_id);
 
