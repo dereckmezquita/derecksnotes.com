@@ -14,10 +14,6 @@ const ArticleSchema = new mongoose.Schema({
             required: true
         },
         default: {}
-    },
-    commentCount: {
-        type: Number,
-        default: 0
     }
 });
 
@@ -99,15 +95,6 @@ ArticleSchema.statics.findByUser = function (userId: string) {
     return this.find({ [`judgements.${userId}`]: { $exists: true } });
 };
 
-// get number of comments per article by slug
-ArticleSchema.statics.getCommentCountBySlug = async function(slug: string): Promise<number> {
-    const article = await this.findOne({ slug });
-    if (!article) {
-        throw new Error("Article not found.");
-    }
-    return article.commentCount;
-};
-
 // ---------------------------------------
 // interfaces
 // ---------------------------------------
@@ -115,7 +102,6 @@ ArticleSchema.statics.getCommentCountBySlug = async function(slug: string): Prom
 export interface ArticleDocument extends Document {
     slug: string;
     judgement: Map<string, 'like' | 'dislike'>;
-    commentCount: number;
 
     // Instance methods
     setJudgement(userId: string, judgement: 'like' | 'dislike'): Promise<ArticleDocument>;
