@@ -13,9 +13,4 @@ declare global {
         commentsDislikedIds: string[];
         commentsCount: number;
     }
-
-    interface JudgeDTO {
-        id: string;
-        judgement: 'like' | 'dislike';
-    }
 }
