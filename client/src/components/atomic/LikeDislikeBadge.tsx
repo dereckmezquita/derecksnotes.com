@@ -27,12 +27,12 @@ const BadgeContainer = styled.div`
 
 interface LikeDislikeBadgeProps {
     initialCount: number;
-    commentId: string;
+    id: string;
     currentUserJudgement: 'like' | 'dislike' | 'neutral';
     onJudgementChange: (judgement: 'like' | 'dislike' | 'neutral', newTotal: number) => void;
 }
 
-const LikeDislikeBadge = ({ initialCount, commentId, currentUserJudgement, onJudgementChange }: LikeDislikeBadgeProps) => {
+const LikeDislikeBadge = ({ initialCount, id, currentUserJudgement, onJudgementChange }: LikeDislikeBadgeProps) => {
     const [count, setCount] = useState(initialCount);
     const [judgement, setJudgement] = useState<'like' | 'dislike' | 'neutral'>(currentUserJudgement);
 
@@ -49,7 +49,7 @@ const LikeDislikeBadge = ({ initialCount, commentId, currentUserJudgement, onJud
 
         let response;
         try {
-            response = await api_judge('comment', commentId, newJudgement === 'neutral' ? 'dislike' : newJudgement);
+            response = await api_judge('comment', id, newJudgement === 'neutral' ? 'dislike' : newJudgement);
             setJudgement(newJudgement);
             setCount(response.totalJudgement);
             onJudgementChange(newJudgement, response.totalJudgement);
