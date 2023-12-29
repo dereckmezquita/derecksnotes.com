@@ -5,7 +5,7 @@ import { DEFAULT_PROFILE_IMAGE, MAX_COMMENT_DEPTH, ROOT_PUBLIC } from '@constant
 import { FORMAT_DATE_YYYY_MM_DD_HHMMSS } from '@constants/dates';
 
 import CommentForm from './CommentForm';
-import LikeDislikeBadge from '@components/atomic/LikeDislikeBadge';
+import LikeDislike from '@components/atomic/LikeDislike';
 
 import {
     CommentContainer,
@@ -104,13 +104,7 @@ const Comment = ({ commentObj, currentUserId, depth }: CommentProps) => {
                 </UserProfile>
 
                 <ActionsContainer>
-                    <LikeDislikeBadge
-                        initialCount={comment.totalJudgement || 0}
-                        commentId={comment._id!}
-                        currentUserJudgement={getCurrentUserJudgement()}
-                        onJudgementChange={handleJudgementChange}
-                    />
-
+                    {/* like dislike button */}
                     {isCurrentUser && (
                         <>
                             <ActionButton onClick={toggleEditForm}>
