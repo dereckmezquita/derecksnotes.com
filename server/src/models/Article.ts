@@ -25,14 +25,6 @@ const ArticleSchema = new mongoose.Schema({
 const article = await ArticleMetadata.findOne({ slug: 'some-slug' });
 article.setJudgement(someUserId, 'like');
 */
-/**
- * Set the judgement of a user on an article by atomic update; does require doc.save()
- * 
- * @param this ArticleDocument
- * @param userId Mongo ObjectId of the user
- * @param judgement 'like' or 'dislike'
- * @returns updated ArticleDocument
- */
 ArticleSchema.methods.setJudgement = async function(this: ArticleDocument, userId: string, judgement: 'like' | 'dislike'): Promise<ArticleDocument> {
     const currentJudgement = this.judgement.get(userId);
 
@@ -104,6 +96,13 @@ export interface ArticleDocument extends Document {
     judgement: Map<string, 'like' | 'dislike'>;
 
     // Instance methods
+    /**
+     * Set the judgement of a user on an article by atomic update; does require doc.save()
+     * 
+     * @param userId Mongo ObjectId of the user
+     * @param judgement 'like' or 'dislike'
+     * @returns updated ArticleDocument
+     */
     setJudgement(userId: string, judgement: 'like' | 'dislike'): Promise<ArticleDocument>;
 
     // Virtuals
