@@ -1,9 +1,13 @@
 import { green_theme as colour_scheme } from './theme_colours';
 
-// h: hue - controls the colour; a number between 0 and 360
-// s: saturation - controls the intensity of the colour; a number between 0 and 100
-// l: lightness - controls the brightness of the colour; a number between 0 and 100
-// a: alpha - controls the opacity of the colour; a number between 0 and 1
+/**
+ * 
+ * @param h hue - controls the colour; a number between 0 and 360
+ * @param s saturation - controls the intensity of the colour; a number between 0 and 100
+ * @param l lightness - controls the brightness of the colour; a number between 0 and 100
+ * @param a alpha - controls the opacity of the colour; a number between 0 and 1
+ * @returns a function that takes in optional parameters to override the defaults
+ */
 export function hsla_colour(h: number, s: number, l: number, a: number = 1) {
     return function (h1?: number, s1?: number, l1?: number, a1?: number) {
         return `hsla(${h1 || h}, ${s1 || s}%, ${l1 || l}%, ${a1 || a})`;
@@ -21,6 +25,8 @@ export const theme = {
                 primary: hsla_colour(0, 0, 100, 1), // this is the deepest background that gets the lines
                 content: hsla_colour(0, 0, 100, 0.65), // used for content holders; posts etc
                 solid: hsla_colour(0, 0, 100, 1), // used for solid backgrounds
+                green: hsla_colour(120, 40, 50, 1),
+                red: hsla_colour(5, 80, 60, 1)
             }
         },
         shadow: {

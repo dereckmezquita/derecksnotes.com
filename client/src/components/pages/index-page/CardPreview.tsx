@@ -78,26 +78,31 @@ const PostImage = styled.img`
     filter: sepia(20%);
 `;
 
-const Date = styled.span`
+const Emphasis = styled.span`
     display: inline;
     padding-left: 2px;
     color: ${theme.theme_colours[5]()};
 `;
 
-const CardPreview = (props: PostMetadata) => {
-    const link: string = path.join("/", props.section, props.slug);
+interface CardPreviewProps {
+    post: PostMetadata;
+    articleMeta: ArticleDTO | undefined;
+}
 
-    const firstLetter = props.summary.charAt(0);
-    const restOfSummary = props.summary.slice(1, 100);
+const CardPreview = ({ post, articleMeta }: CardPreviewProps) => {
+    const link: string = path.join("/", post.section, post.slug);
+
+    const firstLetter = post.summary.charAt(0);
+    const restOfSummary = post.summary.slice(1, 100);
 
     return (
-        <Card key={props.slug} href={link}>
-            <PostMeta>{props.blurb}</PostMeta>
-            <PostTitle>{props.title}</PostTitle>
-            <PostImage src={props.coverImage} alt={props.title} />
-            <PostMeta>{props.author}</PostMeta>
+        <Card key={post.slug} href={link}>
+            <PostMeta>{post.blurb}</PostMeta>
+            <PostTitle>{post.title}</PostTitle>
+            <PostImage src={post.coverImage} alt={post.title} />
+            <PostMeta>{post.author}</PostMeta>
             <Summary>
-                <DropCap>{firstLetter}</DropCap>{restOfSummary}... <Date>{props.date}</Date>
+                <DropCap>{firstLetter}</DropCap>{restOfSummary}... <Emphasis>{post.date}</Emphasis>; <Emphasis>{articleMeta?.totalJudgement ?? 0}</Emphasis>
             </Summary>
         </Card>
     )

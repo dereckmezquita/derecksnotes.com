@@ -7,6 +7,7 @@ import { theme } from "@styles/theme";
 // --------------------------------------
 import CommentForm from "./CommentForm";
 import Comment from "./Comment";
+import LikeDislike from '@components/atomic/LikeDislike';
 
 // --------------------------------------
 import api_get_article_comments from "@utils/api/interact/get_article_comments";
@@ -60,7 +61,8 @@ const CommentSection = ({ allowComments }: CommentSectionProps) => {
 
     return (
         <CommentSectionContainer>
-            <h3>Comments</h3>
+            <h3>Comment</h3>
+            <LikeDislike />
             {allowComments === false ? (
                 <DisabledCommentForm type="commentsDisabled" />
             ) : loggedIn ? (

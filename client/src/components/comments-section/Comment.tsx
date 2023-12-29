@@ -5,6 +5,7 @@ import { DEFAULT_PROFILE_IMAGE, MAX_COMMENT_DEPTH, ROOT_PUBLIC } from '@constant
 import { FORMAT_DATE_YYYY_MM_DD_HHMMSS } from '@constants/dates';
 
 import CommentForm from './CommentForm';
+import LikeDislike from '@components/atomic/LikeDislike';
 
 import {
     CommentContainer,
@@ -81,6 +82,17 @@ const Comment = ({ commentObj, currentUserId, depth }: CommentProps) => {
         setShowEditForm(false);
     }
 
+    const getCurrentUserJudgement = (): 'like' | 'dislike' | 'neutral' => {
+        if (!currentUserId) return 'neutral';
+        const userJudgement = comment.judgement[currentUserId];
+        return userJudgement || 'neutral';
+    }
+
+    const handleJudgementChange = (judgement: 'like' | 'dislike' | 'neutral', newTotal: number) => {
+        console.log("Judgement change detected", judgement);
+        setComment(prev => ({ ...prev, totalJudgement: newTotal }));
+    };
+
     return (
         <CommentContainer>
             <CommentHeader>
@@ -92,6 +104,7 @@ const Comment = ({ commentObj, currentUserId, depth }: CommentProps) => {
                 </UserProfile>
 
                 <ActionsContainer>
+                    {/* like dislike button */}
                     {isCurrentUser && (
                         <>
                             <ActionButton onClick={toggleEditForm}>

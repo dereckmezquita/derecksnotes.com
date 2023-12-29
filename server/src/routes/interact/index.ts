@@ -8,17 +8,21 @@ import delete_comments from './delete_comments';
 import edit_comment from './edit_comment';
 import update_user_info from './update_user_info';
 import delete_geolocations from './delete_geolocation';
+import judge from './judge';
+import get_articles_meta from './get_articles_meta';
 
 import email_verification from './email_verification';
 
 const interactRoutes = Router();
 
 interactRoutes.use('/', get_article_comments);
+interactRoutes.use('/', get_articles_meta);
 interactRoutes.use('/', get_user_public_info);
 interactRoutes.use('/', get_comments_threads_by_id);
 
 // auth protected routes
 interactRoutes.use('/', new_comment);
+interactRoutes.use('/', judge);
 interactRoutes.use('/', delete_comments);
 interactRoutes.use('/', edit_comment);
 interactRoutes.use('/', update_user_info);
