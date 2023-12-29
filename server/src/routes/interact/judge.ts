@@ -8,9 +8,14 @@ import { SessionData } from 'express-session';
 
 const judge = Router();
 
+interface JudgeCommentDTO {
+    id: string;
+    judgement: string;
+}
+
 judge.post('/judge_comment', isAuthenticated, isVerified, async (req: Request, res: Response) => {
     try {
-        let { id, judgement } = req.body as JudgeDTO;
+        let { id, judgement } = req.body as JudgeCommentDTO;
         const userId = (req.session as SessionData).userId;
 
         if (!id || !judgement) {
@@ -31,12 +36,19 @@ judge.post('/judge_comment', isAuthenticated, isVerified, async (req: Request, r
             return res.status(404).json({ message: "Comment not found." });
         }
 
-        const judge = await comment.setJudgement(userId, judgement); // atomic operation; no need to save
+        let judge = await comment.setJudgement(userId, judgement); // atomic operation; no need to save
 
         // count the new total number
-        judge.toObject({ virtuals: true });
+        judge = judge.toObject({ virtuals: true });
 
-        res.status(200).json({ message: "Judgement successful.", totalJudgement: judge.totalJudgement });
+        res.status(200).json({
+            message: "Judgement successful.",
+            data: {
+                likesCount: judge.likesCount,
+                dislikesCount: judge.dislikesCount,
+                totalJudgement: judge.totalJudgement
+            }
+        });
     } catch (err) {
         res.status(500).json({ message: "Error judging comment.", error: err });
     }
@@ -44,9 +56,14 @@ judge.post('/judge_comment', isAuthenticated, isVerified, async (req: Request, r
 
 import Article, { ArticleDocument } from '@models/Article';
 
+interface JudgeArticleDTO {
+    slug: string;
+    judgement: string;
+}
+
 judge.post('/judge_article', isAuthenticated, isVerified, async (req: Request, res: Response) => {
     try {
-        let { id: slug, judgement } = req.body as JudgeDTO;
+        let { slug, judgement } = req.body as JudgeArticleDTO;
         const userId = (req.session as SessionData).userId;
 
         if (!slug || !judgement) {
@@ -63,12 +80,19 @@ judge.post('/judge_article', isAuthenticated, isVerified, async (req: Request, r
             return res.status(404).json({ message: "Article not found." });
         }
 
-        const judge = await article.setJudgement(userId, judgement); // atomic operation; no need to save
+        let judge = await article.setJudgement(userId, judgement); // atomic operation; no need to save
 
         // count the new total number
-        judge.toObject({ virtuals: true });
+        judge = judge.toObject({ virtuals: true });
 
-        res.status(200).json({ message: "Judgement successful.", totalJudgement: judge.totalJudgement });
+        res.status(200).json({
+            message: "Judgement successful.",
+            data: {
+                likesCount: judge.likesCount,
+                dislikesCount: judge.dislikesCount,
+                totalJudgement: judge.totalJudgement
+            }
+        });
     } catch (err) {
         res.status(500).json({ message: "Error judging article.", error: err });
     }
