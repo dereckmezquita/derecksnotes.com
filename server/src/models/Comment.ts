@@ -156,13 +156,6 @@ CommentSchema.virtual('latestProfilePhoto').get(function (this: any) {
 const comment = await CommentInfo.findById(commentId);
 comment.setJudgement(someUserId, 'like'); // or 'dislike'
 */
-/**
- * Set the judgement of a user on a comment by atomic update; does require doc.save()
- * @param this CommentDocument
- * @param userId Mongo ObjectId of the user
- * @param judgement 'like' or 'dislike'
- * @returns updated CommentDocument
- */
 CommentSchema.methods.setJudgement = async function (this: CommentDocument, userId: string, judgement: 'like' | 'dislike'): Promise<CommentDocument> {
     const currentJudgement = this.judgement.get(userId);
 
@@ -287,6 +280,12 @@ export interface CommentDocument extends Document {
     latestContent: Content;
 
     // Methods
+    /**
+     * Set the judgement of a user on a comment by atomic update; does require doc.save()
+     * @param userId Mongo ObjectId of the user
+     * @param judgement 'like' or 'dislike'
+     * @returns promise of CommentDocument
+     */
     setJudgement(userId: string, judgement: 'like' | 'dislike'): Promise<CommentDocument>
     markAsDeleted(userId: string): Promise<CommentDocument>;
 }
