@@ -59,10 +59,19 @@ const CommentSection = ({ allowComments }: CommentSectionProps) => {
         });
     }
 
+    const likesDislikes = {
+        likesCount: 0,
+        dislikesCount: 7
+    }
+
     return (
         <CommentSectionContainer>
             <h3>Comment</h3>
-            <LikeDislike />
+            <LikeDislike
+                likesDislikes={likesDislikes}
+                id={router.asPath}
+                type="article"
+            />
             {allowComments === false ? (
                 <DisabledCommentForm type="commentsDisabled" />
             ) : loggedIn ? (
