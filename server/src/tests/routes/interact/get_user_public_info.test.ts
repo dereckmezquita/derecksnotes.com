@@ -1,6 +1,6 @@
 import request from 'supertest';
 import { SetUp, app, redisClient } from '../../../index';
-import { InMemoryDBConnector } from '@utils/DatabaseConnector'
+import { InMemoryDBConnector } from '@utils/DatabaseConnector';
 import { API_PREFIX } from '@utils/constants';
 import User, { UserDocument } from '@models/User';
 
@@ -17,7 +17,6 @@ describe('Get User Public Info Route', () => {
         testUser = await User.create(userMock);
     });
 
-
     // Clean up after tests are done
     afterAll(async () => {
         await User.deleteOne({ _id: testUser._id });
@@ -27,14 +26,15 @@ describe('Get User Public Info Route', () => {
     });
 
     it('should return user public info', async () => {
-        const response = await request(app)
-            .get(API_PREFIX + '/interact/get_user_public_info/dereck');
+        const response = await request(app).get(
+            API_PREFIX + '/interact/get_user_public_info/dereck'
+        );
 
         expect(response.status).toBe(200);
         expect(response.body).toEqual({
             username: 'dereck',
             latestProfilePhoto: 'optimised_dereck_2023-09-28-162359.jpg',
-            profilePhotos: ['optimised_dereck_2023-09-28-162359.jpg'],
+            profilePhotos: ['optimised_dereck_2023-09-28-162359.jpg']
         });
     });
 });

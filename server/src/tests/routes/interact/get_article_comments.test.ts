@@ -19,7 +19,7 @@ jest.mock('@utils/geoLocate', () => ({
         city: 'San Francisco',
         isp: 'ISP_NAME',
         org: 'ORG_NAME'
-    }),
+    })
 }));
 
 describe('GET /interact/get_article_comments/:slug Endpoint', () => {
@@ -45,7 +45,7 @@ describe('GET /interact/get_article_comments/:slug Endpoint', () => {
         sessionCookie = loginResponse.headers['set-cookie'];
 
         // Create an article for the comments
-        const commentPromises = "abc".split('').map(async (letter) => {
+        const commentPromises = 'abc'.split('').map(async (letter) => {
             const response = await request(app)
                 .post(API_PREFIX + '/interact/new_comment')
                 .set('Cookie', sessionCookie)
@@ -61,7 +61,11 @@ describe('GET /interact/get_article_comments/:slug Endpoint', () => {
             const response = await request(app)
                 .post(API_PREFIX + '/interact/new_comment')
                 .set('Cookie', sessionCookie)
-                .send({ comment: 'reply', encodedSlug: slug, parentComment: comment._id });
+                .send({
+                    comment: 'reply',
+                    encodedSlug: slug,
+                    parentComment: comment._id
+                });
 
             return response.body;
         });
@@ -87,7 +91,11 @@ describe('GET /interact/get_article_comments/:slug Endpoint', () => {
             // ... add more validations
 
             // If the comment has child comments, validate them as well
-            if (comment.childComments && Array.isArray(comment.childComments) && comment.childComments.length > 0) {
+            if (
+                comment.childComments &&
+                Array.isArray(comment.childComments) &&
+                comment.childComments.length > 0
+            ) {
                 comment.childComments.forEach((childComment: any) => {
                     validateCommentTree(childComment, depth + 1);
                 });
@@ -108,47 +116,45 @@ describe('GET /interact/get_article_comments/:slug Endpoint', () => {
 });
 
 const example_comment_DTO = {
-    "_id": "6524a49ab4aca3c5faca662e",
-    "childComments": [],
-    "parentComment": "6524a499b4aca3c5faca661b",
-    "reportTarget": null,
-    "mentions": [],
-    "slug": "test",
-    "content": [
+    _id: '6524a49ab4aca3c5faca662e',
+    childComments: [],
+    parentComment: '6524a499b4aca3c5faca661b',
+    reportTarget: null,
+    mentions: [],
+    slug: 'test',
+    content: [
         {
-            "comment": "reply",
-            "_id": "6524a49ab4aca3c5faca662f",
-            "createdAt": "2023-10-10T01:10:50.017Z",
-            "updatedAt": "2023-10-10T01:10:50.017Z"
+            comment: 'reply',
+            _id: '6524a49ab4aca3c5faca662f',
+            createdAt: '2023-10-10T01:10:50.017Z',
+            updatedAt: '2023-10-10T01:10:50.017Z'
         }
     ],
-    "userId": "6524a499b4aca3c5faca6607",
-    "judgement": {},
-    "deleted": false,
-    "createdAt": "2023-10-10T01:10:50.017Z",
-    "updatedAt": "2023-10-10T01:10:50.017Z",
-    "__v": 0,
-    "likesCount": 0,
-    "dislikesCount": 0,
-    "totalJudgement": 0,
-    "latestContent": {
-        "comment": "reply",
-        "_id": "6524a49ab4aca3c5faca662f",
-        "createdAt": "2023-10-10T01:10:50.017Z",
-        "updatedAt": "2023-10-10T01:10:50.017Z"
+    userId: '6524a499b4aca3c5faca6607',
+    judgement: {},
+    deleted: false,
+    createdAt: '2023-10-10T01:10:50.017Z',
+    updatedAt: '2023-10-10T01:10:50.017Z',
+    __v: 0,
+    likesCount: 0,
+    dislikesCount: 0,
+    totalJudgement: 0,
+    latestContent: {
+        comment: 'reply',
+        _id: '6524a49ab4aca3c5faca662f',
+        createdAt: '2023-10-10T01:10:50.017Z',
+        updatedAt: '2023-10-10T01:10:50.017Z'
     },
-    "user": {
-        "_id": "6524a499b4aca3c5faca6607",
-        "profilePhotos": [
-            "optimised_dereck_2023-09-28-162359.jpg"
-        ],
-        "username": "dereck",
-        "latestProfilePhoto": "optimised_dereck_2023-09-28-162359.jpg",
-        "id": "6524a499b4aca3c5faca6607"
+    user: {
+        _id: '6524a499b4aca3c5faca6607',
+        profilePhotos: ['optimised_dereck_2023-09-28-162359.jpg'],
+        username: 'dereck',
+        latestProfilePhoto: 'optimised_dereck_2023-09-28-162359.jpg',
+        id: '6524a499b4aca3c5faca6607'
     },
-    "latestProfilePhoto": "optimised_dereck_2023-09-28-162359.jpg",
-    "id": "6524a49ab4aca3c5faca662e"
-}
+    latestProfilePhoto: 'optimised_dereck_2023-09-28-162359.jpg',
+    id: '6524a49ab4aca3c5faca662e'
+};
 
 /*
 Example output from server:

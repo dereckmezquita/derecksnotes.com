@@ -1,5 +1,5 @@
 import request from 'supertest';
-import { app, redisClient, SetUp } from '../../index';  // Importing app, redisClient, and SetUp
+import { app, redisClient, SetUp } from '../../index'; // Importing app, redisClient, and SetUp
 import { API_PREFIX } from '@utils/constants';
 import { NoOpDBConnector } from '@utils/DatabaseConnector';
 
@@ -16,8 +16,7 @@ describe('Hello Route', () => {
     });
 
     it('should return Hello World!', async () => {
-        const response = await request(app)
-            .get(API_PREFIX + '/hello');
+        const response = await request(app).get(API_PREFIX + '/hello');
 
         expect(response.status).toBe(200);
         expect(response.text).toBe('Hello World!');

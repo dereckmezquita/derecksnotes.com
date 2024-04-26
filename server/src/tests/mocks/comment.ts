@@ -7,10 +7,14 @@ const geolocationObj: GeolocationDTO = {
     city: 'San Francisco',
     firstUsed: new Date(),
     lastUsed: new Date(),
-    _id: '5f9c0b9b9b9b9b9b9b9b9b9b',
-}
+    _id: '5f9c0b9b9b9b9b9b9b9b9b9b'
+};
 
-export function generateCommentObj(userId: string, comment: string, parentId?: string) {
+export function generateCommentObj(
+    userId: string,
+    comment: string,
+    parentId?: string
+) {
     return {
         childComments: [],
         parentComment: parentId || null,
@@ -19,12 +23,12 @@ export function generateCommentObj(userId: string, comment: string, parentId?: s
         slug: 'test',
         content: [
             {
-                comment,
-            } as ContentDTO,
+                comment
+            } as ContentDTO
         ],
         geolocation: geolocationObj,
         userId,
         judgement: {},
-        deleted: false,
+        deleted: false
     } as CommentDTO;
 }

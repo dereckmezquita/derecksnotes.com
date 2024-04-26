@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const GeolocationSchema = new mongoose.Schema({
     ip: String,

@@ -37,17 +37,24 @@ interface FrontMatter {
 }
 
 export const getSidebarData = (section: string) => {
-    const items = fs.readdirSync(path.join(ROOT, 'content', section), { withFileTypes: true });
+    const items = fs.readdirSync(path.join(ROOT, 'content', section), {
+        withFileTypes: true
+    });
 
     // Filter only files
     const postSlugs = items
-        .filter(item => item.isFile())
-        .filter(file => file.name.endsWith('.mdx'))
-        .map(file => file.name);
+        .filter((item) => item.isFile())
+        .filter((file) => file.name.endsWith('.mdx'))
+        .map((file) => file.name);
 
-    const side_bar_data = postSlugs.map(slug => {
-        const file_content = fs.readFileSync(path.join(ROOT, 'content', section, slug), 'utf-8');
-        const { data, content } = matter(file_content) as matter.GrayMatterFile<string>;
+    const side_bar_data = postSlugs.map((slug) => {
+        const file_content = fs.readFileSync(
+            path.join(ROOT, 'content', section, slug),
+            'utf-8'
+        );
+        const { data, content } = matter(
+            file_content
+        ) as matter.GrayMatterFile<string>;
 
         // data.date = data.date.toString();
         // format date as 2023-12-31
@@ -55,24 +62,32 @@ export const getSidebarData = (section: string) => {
 
         return {
             slug: slug.replace('.mdx', ''),
-            ...data as FrontMatter
+            ...(data as FrontMatter)
         };
     });
 
     // This just sorts the sidebar data by date, newest first.
-    side_bar_data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    side_bar_data.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
     return side_bar_data;
 };
 
-import { type Options } from "rehype-pretty-code"
+import { type Options } from 'rehype-pretty-code';
 
 const rehypePrettyCodeOptions: Partial<Options> = {
     theme: 'github-dark-dimmed', // 'github-dark-dimmed', // "one-dark-pro",
-    defaultLang: 'plaintext',
-}
+    defaultLang: 'plaintext'
+};
 
-export const getMDXSource = async (section: string, slug: string): Promise<{ frontmatter: FrontMatter, source: any }> => {
-    const content = fs.readFileSync(path.join(ROOT, 'content', section, `${slug}.mdx`), 'utf-8');
+export const getMDXSource = async (
+    section: string,
+    slug: string
+): Promise<{ frontmatter: FrontMatter; source: any }> => {
+    const content = fs.readFileSync(
+        path.join(ROOT, 'content', section, `${slug}.mdx`),
+        'utf-8'
+    );
     // const { data, content: mdxContent } = matter(content); // not sure if should pass just content
 
     const mdxSource = await serialize(content, {
@@ -83,7 +98,7 @@ export const getMDXSource = async (section: string, slug: string): Promise<{ fro
                 remarkUnwrapImages,
                 remarkExternalLinks,
                 remarkMath,
-                remarkToc,
+                remarkToc
             ],
             rehypePlugins: [
                 [rehypePrettyCode, rehypePrettyCodeOptions],
@@ -91,33 +106,41 @@ export const getMDXSource = async (section: string, slug: string): Promise<{ fro
                 rehypeMathjax,
                 rehypeTocCollapse,
                 rehypeAddHeadingLinks,
-                [rehypeDropCap, {
-                    float: 'left',
-                    fontSize: '4rem',
-                    fontFamily: 'Georgia, serif',
-                    lineHeight: '40px',
-                    marginRight: '0.1em',
-                    color: theme.theme_colours[5](),
-                }],
+                [
+                    rehypeDropCap,
+                    {
+                        float: 'left',
+                        fontSize: '4rem',
+                        fontFamily: 'Georgia, serif',
+                        lineHeight: '40px',
+                        marginRight: '0.1em',
+                        color: theme.theme_colours[5]()
+                    }
+                ]
             ]
         }
     });
 
     // serialize date object in frontmatter
-    mdxSource.frontmatter.date = new Date(mdxSource.frontmatter.date as string).toISOString().slice(0, 10);
+    mdxSource.frontmatter.date = new Date(mdxSource.frontmatter.date as string)
+        .toISOString()
+        .slice(0, 10);
 
     // add slug
     mdxSource.frontmatter.slug = slug;
 
     return {
         frontmatter: mdxSource.frontmatter as unknown as FrontMatter,
-        source: JSON.parse(JSON.stringify(mdxSource)), // for dates to be parsed to strings? not sure if needed
+        source: JSON.parse(JSON.stringify(mdxSource)) // for dates to be parsed to strings? not sure if needed
     };
 };
 
 export const getAllSlugs = (section: string) => {
-    const posts = fs.readdirSync(path.join(ROOT, 'content', section))
-        .filter(post => post.endsWith('.mdx')); // Only include .mdx files
+    const posts = fs
+        .readdirSync(path.join(ROOT, 'content', section))
+        .filter((post) => post.endsWith('.mdx')); // Only include .mdx files
 
-    return posts.map(post => ({ params: { slug: post.replace('.mdx', '') } }));
+    return posts.map((post) => ({
+        params: { slug: post.replace('.mdx', '') }
+    }));
 };

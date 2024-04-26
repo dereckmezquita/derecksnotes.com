@@ -8,7 +8,12 @@ const rehypeTocCollapse: Plugin = () => {
             if (typeof index !== 'number') return;
 
             if (node.properties?.id === 'table-of-contents') {
-                if (!parent || !Array.isArray(parent.children) || index === parent.children.length - 1) return;
+                if (
+                    !parent ||
+                    !Array.isArray(parent.children) ||
+                    index === parent.children.length - 1
+                )
+                    return;
                 const subsequentNode = parent.children[index + 2];
 
                 if (subsequentNode.tagName === 'ul') {
@@ -33,7 +38,12 @@ const rehypeTocCollapse: Plugin = () => {
                                             id: 'table-of-contents',
                                             style: 'display: inline-block; margin: 0px; padding: 0px; padding-bottom: 10px;'
                                         },
-                                        children: [{ type: 'text', value: 'Table of contents' }]
+                                        children: [
+                                            {
+                                                type: 'text',
+                                                value: 'Table of contents'
+                                            }
+                                        ]
                                     }
                                 ]
                             },

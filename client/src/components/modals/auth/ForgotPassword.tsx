@@ -1,7 +1,10 @@
 import { FaAt } from 'react-icons/fa';
 import {
-    InputField, Input, StyledForm,
-    StyledButton, LinkButton
+    InputField,
+    Input,
+    StyledForm,
+    StyledButton,
+    LinkButton
 } from './AuthStyles';
 
 interface ForgotPasswordProps {
@@ -24,9 +27,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onSwitchToLogin }) => {
                 </InputField>
                 <StyledButton type="submit">Send Reset Link</StyledButton>
             </StyledForm>
-            <LinkButton onClick={onSwitchToLogin}>
-                Login
-            </LinkButton>
+            <LinkButton onClick={onSwitchToLogin}>Login</LinkButton>
         </>
     );
 };

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import styled, { keyframes } from "styled-components";
+import { useEffect, useState } from 'react';
+import styled, { keyframes } from 'styled-components';
 
 const slideIn = keyframes`
     0% {
@@ -22,8 +22,8 @@ const ErrorText = styled.div`
 `;
 
 interface IndicateErrorProps {
-    message: string
-    shouldRender: boolean
+    message: string;
+    shouldRender: boolean;
 }
 
 const IndicateError = ({ message, shouldRender }: IndicateErrorProps) => {
@@ -44,7 +44,11 @@ const IndicateError = ({ message, shouldRender }: IndicateErrorProps) => {
     return shouldRenderMessage ? (
         <ErrorText
             onAnimationEnd={onAnimationEnd}
-            style={{ animation: shouldRender ? "slideIn 0.3s ease-out" : "slideOut 0.3s ease-out" }}
+            style={{
+                animation: shouldRender
+                    ? 'slideIn 0.3s ease-out'
+                    : 'slideOut 0.3s ease-out'
+            }}
         >
             {message}
         </ErrorText>

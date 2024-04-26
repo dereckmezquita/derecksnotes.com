@@ -9,22 +9,28 @@ get_article_comments.get('/get_article_comments', async (req, res) => {
         const slug = req.query.slug; // sent encoded; express auto unencodes
 
         if (!slug) {
-            throw new Error('Slug is required param for getting article comments.')
+            throw new Error(
+                'Slug is required param for getting article comments.'
+            );
         }
 
         const limit = Number(req.query.limit) || 50;
         const page = Number(req.query.page) || 1;
         const depth = Number(req.query.depth) || 10; // max depth of child comments to populate
-        const startDate = req.query.startDate ? new Date(req.query.startDate as string) : undefined;
-        const endDate = req.query.endDate ? new Date(req.query.endDate as string) : undefined;
+        const startDate = req.query.startDate
+            ? new Date(req.query.startDate as string)
+            : undefined;
+        const endDate = req.query.endDate
+            ? new Date(req.query.endDate as string)
+            : undefined;
 
         let dateFilter = {};
         if (startDate && endDate) {
-            dateFilter = { "createdAt": { $gte: startDate, $lte: endDate } };
+            dateFilter = { createdAt: { $gte: startDate, $lte: endDate } };
         } else if (startDate) {
-            dateFilter = { "createdAt": { $gte: startDate } };
+            dateFilter = { createdAt: { $gte: startDate } };
         } else if (endDate) {
-            dateFilter = { "createdAt": { $lte: endDate } };
+            dateFilter = { createdAt: { $lte: endDate } };
         }
 
         const skip = (page - 1) * limit;
@@ -44,19 +50,21 @@ get_article_comments.get('/get_article_comments', async (req, res) => {
                     select: 'profilePhotos username'
                 },
                 buildPopulateObject(depth)
-            ]).
-            exec();
+            ])
+            .exec();
 
         const total: number = comments.length;
 
-        const commentsObj: CommentPopUserDTO[] = comments.map((comment: CommentDocument) => {
-            return comment.toObject({ virtuals: true });
-        });
+        const commentsObj: CommentPopUserDTO[] = comments.map(
+            (comment: CommentDocument) => {
+                return comment.toObject({ virtuals: true });
+            }
+        );
 
         const message: CommentsBySlugDTO = {
             comments: commentsObj,
-            hasMore: total > page * limit, // only applies to top-level comments
-        }
+            hasMore: total > page * limit // only applies to top-level comments
+        };
 
         res.status(200).json(message);
     } catch (error) {

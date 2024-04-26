@@ -45,7 +45,7 @@ export const InputField = styled.div`
 
 export const Input = styled.input`
     width: 100%;
-    padding: 5px 5px 5px 10px;  // added left padding
+    padding: 5px 5px 5px 10px; // added left padding
     font-family: ${theme.text.font.times};
     font-size: 1em;
     color: ${theme.text.colour.primary()};
@@ -53,7 +53,7 @@ export const Input = styled.input`
     outline: none;
     background-color: transparent;
     &::placeholder {
-        opacity: 0.7;  // make placeholder slightly transparent
+        opacity: 0.7; // make placeholder slightly transparent
     }
 `;
 
@@ -71,5 +71,5 @@ export const StyledForm = styled.form`
 `;
 
 export const StyledButton = styled(Button)`
-    margin-top: 10px;  // spacing from the input fields
+    margin-top: 10px; // spacing from the input fields
 `;

@@ -17,19 +17,21 @@ interface AuthProps {
 
 const Auth: React.FC<AuthProps> = ({ onClose }) => {
     const { isAuthenticated } = useSelector((state: RootState) => state.user);
-    const [modalContent, setModalContent] = useState<'LOGIN' | 'USER_DETAILS' | 'REGISTER' | 'FORGOT_PASSWORD'>(isAuthenticated ? 'USER_DETAILS' : 'LOGIN');
+    const [modalContent, setModalContent] = useState<
+        'LOGIN' | 'USER_DETAILS' | 'REGISTER' | 'FORGOT_PASSWORD'
+    >(isAuthenticated ? 'USER_DETAILS' : 'LOGIN');
 
     const [isMouseDownInside, setIsMouseDownInside] = useState(false);
 
     const handleMouseDown = (e: React.MouseEvent) => {
         setIsMouseDownInside(e.currentTarget === e.target);
-    }
+    };
 
     const handleMouseUp = (e: React.MouseEvent) => {
         if (isMouseDownInside && e.currentTarget === e.target) {
             onClose();
         }
-    }
+    };
 
     const renderView = (view: string): JSX.Element => {
         switch (view) {
@@ -37,14 +39,14 @@ const Auth: React.FC<AuthProps> = ({ onClose }) => {
                 return (
                     <Login
                         onSwitchToRegister={() => setModalContent('REGISTER')}
-                        onSwitchToForgotPassword={() => setModalContent('FORGOT_PASSWORD')}
+                        onSwitchToForgotPassword={() =>
+                            setModalContent('FORGOT_PASSWORD')
+                        }
                         onClose={onClose}
                     />
                 );
             case 'USER_DETAILS':
-                return (
-                    <UserDetails onClose={onClose} />
-                );
+                return <UserDetails onClose={onClose} />;
             case 'REGISTER':
                 return (
                     <Register
@@ -54,14 +56,14 @@ const Auth: React.FC<AuthProps> = ({ onClose }) => {
                 );
             case 'FORGOT_PASSWORD':
                 return (
-                    <ForgotPassword onSwitchToLogin={() => setModalContent('LOGIN')} />
+                    <ForgotPassword
+                        onSwitchToLogin={() => setModalContent('LOGIN')}
+                    />
                 );
             default:
-                return (
-                    <h2>Uknown error occured</h2>
-                );
+                return <h2>Uknown error occured</h2>;
         }
-    }
+    };
 
     return (
         <ModalOverlay onMouseDown={handleMouseDown} onMouseUp={handleMouseUp}>

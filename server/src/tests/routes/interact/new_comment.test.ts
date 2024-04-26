@@ -19,7 +19,7 @@ jest.mock('@utils/geoLocate', () => ({
         city: 'San Francisco',
         isp: 'ISP_NAME',
         org: 'ORG_NAME'
-    }),
+    })
 }));
 
 jest.mock('@utils/constants', () => ({
@@ -75,10 +75,16 @@ describe('POST /interact/new_comment Endpoint', () => {
         const response = await request(app)
             .post(API_PREFIX + '/interact/new_comment')
             .set('Cookie', sessionCookie)
-            .send({ comment: 'This is a child comment', encodedSlug: slug, parentComment: parentComment._id.toString() });
+            .send({
+                comment: 'This is a child comment',
+                encodedSlug: slug,
+                parentComment: parentComment._id.toString()
+            });
 
         expect(response.status).toBe(201);
-        expect(response.body.content[0].comment).toBe('This is a child comment');
+        expect(response.body.content[0].comment).toBe(
+            'This is a child comment'
+        );
         expect(response.body.parentComment).toBe(parentComment._id.toString());
     });
 
@@ -118,10 +124,14 @@ describe('POST /interact/new_comment Endpoint', () => {
         const response = await request(app)
             .post(API_PREFIX + '/interact/new_comment')
             .set('Cookie', sessionCookie)
-            .send({ comment: 'This should fail', encodedSlug: slug, parentComment: grandchildComment._id.toString() });
+            .send({
+                comment: 'This should fail',
+                encodedSlug: slug,
+                parentComment: grandchildComment._id.toString()
+            });
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Reply depth limit reached.");
+        expect(response.body.message).toBe('Reply depth limit reached.');
     });
 
     it('should return 400 for non-existent parent comment', async () => {
@@ -129,9 +139,13 @@ describe('POST /interact/new_comment Endpoint', () => {
         const response = await request(app)
             .post(API_PREFIX + '/interact/new_comment')
             .set('Cookie', sessionCookie)
-            .send({ comment: 'This is a test comment', encodedSlug: slug, parentComment: nonExistentId });
+            .send({
+                comment: 'This is a test comment',
+                encodedSlug: slug,
+                parentComment: nonExistentId
+            });
 
         expect(response.status).toBe(400);
-        expect(response.body.message).toBe("Parent comment not found.");
+        expect(response.body.message).toBe('Parent comment not found.');
     });
 });

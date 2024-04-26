@@ -50,11 +50,19 @@ interface CustomSelectProps {
     styleContainer?: React.CSSProperties;
 }
 
-const SelectDropDown: React.FC<CustomSelectProps> = ({ options, value, onChange, styleContainer }) => {
+const SelectDropDown: React.FC<CustomSelectProps> = ({
+    options,
+    value,
+    onChange,
+    styleContainer
+}) => {
     return (
         <SelectContainer style={styleContainer}>
-            <CustomSelect value={value} onChange={(e) => onChange(e.target.value)}>
-                {options.map(option => (
+            <CustomSelect
+                value={value}
+                onChange={(e) => onChange(e.target.value)}
+            >
+                {options.map((option) => (
                     <option key={option.value} value={option.value}>
                         {option.label}
                     </option>

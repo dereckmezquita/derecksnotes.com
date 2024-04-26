@@ -21,10 +21,10 @@ const HamburgerIcon = styled.div`
 `;
 
 const ResponsiveMenu = styled.div<{ open: boolean }>`
-    display: ${props => (props.open ? 'block' : 'none')};
+    display: ${(props) => (props.open ? 'block' : 'none')};
 
     @media screen and (max-width: ${theme.container.widths.min_width_mobile}) {
-        display: ${props => (props.open ? 'block' : 'none')};
+        display: ${(props) => (props.open ? 'block' : 'none')};
     }
 
     @media screen and (min-width: ${theme.container.widths.min_width_mobile}) {
@@ -41,7 +41,9 @@ const NavContainer = styled.nav`
 
     border: 1px solid #ccc;
     border-radius: 5px;
-    box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.5), 0 0 20px rgba(100, 100, 40, 0.2) inset;
+    box-shadow:
+        1px 1px 20px rgba(153, 153, 153, 0.5),
+        0 0 20px rgba(100, 100, 40, 0.2) inset;
 
     &:hover {
         box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.5);
@@ -70,7 +72,9 @@ const CommonNavItem = styled.div`
 
 // allows for argument to determine if align left or right
 // inherit from Link component allows for linking to other pages
-const NavLeftItem = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boolean }>`
+const NavLeftItem = styled(CommonNavItem).attrs({ as: Link })<{
+    rightmost?: boolean;
+}>`
     float: left;
     &:hover {
         color: ${theme.text.colour.white()};
@@ -82,11 +86,13 @@ const NavLeftItem = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boo
     }
 `;
 
-const NavRightItemLink = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boolean }>`
+const NavRightItemLink = styled(CommonNavItem).attrs({ as: Link })<{
+    rightmost?: boolean;
+}>`
     float: right;
 `;
 
-const NavRightItem = styled(CommonNavItem) <{ rightmost?: boolean }>`
+const NavRightItem = styled(CommonNavItem)<{ rightmost?: boolean }>`
     float: right;
     &:hover {
         color: ${theme.text.colour.white()};
@@ -110,7 +116,7 @@ const DropDownContainer = styled.div`
 `;
 
 // the same as NavItem but no link
-const DropDownLabel = styled(CommonNavItem) <{ rightmost?: boolean }>`
+const DropDownLabel = styled(CommonNavItem)<{ rightmost?: boolean }>`
     &:hover {
         color: ${theme.text.colour.white()};
         background-color: ${theme.theme_colours[5]()};
@@ -188,7 +194,7 @@ function NavBar() {
 
     const closeMenu = () => {
         setIsMenuOpen(false);
-    };    
+    };
 
     // redux control of tag filter
     // Error: `useDispatch` was conditionally called inside an `if` statement. Fixed: Moved `useDispatch` to the top-level, ensuring consistent hook order across renders.
@@ -233,31 +239,51 @@ function NavBar() {
                 <FaBars />
             </HamburgerIcon>
 
-            <NavLeftItem onClick={closeMenu} href='/'>Blog</NavLeftItem>
+            <NavLeftItem onClick={closeMenu} href="/">
+                Blog
+            </NavLeftItem>
             <ResponsiveMenu open={isMenuOpen}>
-                <NavLeftItem onClick={closeMenu} href='/courses'>Courses</NavLeftItem>
-                <NavLeftItem onClick={closeMenu} href='/references'>References</NavLeftItem>
+                <NavLeftItem onClick={closeMenu} href="/courses">
+                    Courses
+                </NavLeftItem>
+                <NavLeftItem onClick={closeMenu} href="/references">
+                    References
+                </NavLeftItem>
                 <DropDownContainer>
                     <DropDownLabel>Dictionaries</DropDownLabel>
                     <DropDownContent>
-                        <NavLeftItem onClick={closeMenu} href='/dictionaries/biology'>Biology Dictionary</NavLeftItem>
-                        <NavLeftItem onClick={closeMenu} href='/dictionaries/chemistry'>Chemistry Dictionary</NavLeftItem>
+                        <NavLeftItem
+                            onClick={closeMenu}
+                            href="/dictionaries/biology"
+                        >
+                            Biology Dictionary
+                        </NavLeftItem>
+                        <NavLeftItem
+                            onClick={closeMenu}
+                            href="/dictionaries/chemistry"
+                        >
+                            Chemistry Dictionary
+                        </NavLeftItem>
                     </DropDownContent>
                 </DropDownContainer>
                 {/* <NavRightItemLink href='https://www.linkedin.com/in/dereck/' target='_blank' title='LinkedIn'>
                 <FaLinkedin />
             </NavRightItemLink> */}
-                <DateTimeDisplay>{dateTime || "00 Jan 00:00:00"}</DateTimeDisplay>
+                <DateTimeDisplay>
+                    {dateTime || '00 Jan 00:00:00'}
+                </DateTimeDisplay>
                 <NavRightItem onClick={handleToggleFilterClick}>
                     <FaFilter />
                 </NavRightItem>
                 <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
                     <FaUser />
                 </NavRightItem>
-                {isAuthModalOpen && <Auth onClose={() => setIsAuthModalOpen(false)} />}
+                {isAuthModalOpen && (
+                    <Auth onClose={() => setIsAuthModalOpen(false)} />
+                )}
             </ResponsiveMenu>
         </NavContainer>
-    )
+    );
 }
 
 export default NavBar;

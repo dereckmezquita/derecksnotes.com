@@ -15,7 +15,9 @@ export const PostContainer = styled.div`
 
     border: 1px solid #ccc;
     border-radius: 5px;
-    box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.5), 0 0 20px rgba(100, 100, 40, 0.2) inset;
+    box-shadow:
+        1px 1px 20px rgba(153, 153, 153, 0.5),
+        0 0 20px rgba(100, 100, 40, 0.2) inset;
 
     @media (max-width: ${theme.container.widths.min_width_snap_up}) {
         flex-direction: column;
@@ -33,7 +35,7 @@ export const SideBarContainer = styled.div`
     }
 `;
 
-export const SideBarSiteName = styled(SiteName) <{ fontSize: string }>`
+export const SideBarSiteName = styled(SiteName)<{ fontSize: string }>`
     font-size: 20px;
     border-bottom: 1px dashed ${theme.container.border.colour.primary()};
     margin-bottom: 30px;
@@ -78,13 +80,19 @@ export function SideBarAbout(): JSX.Element {
         <SideBarAboutContainer>
             <SideBarAboutH2>About</SideBarAboutH2>
             <p>
-                This website is custom made by Dereck using React, Next.js, and TypeScript. It incorporates progressive web app technologies an relies on a NodeJS backend along with a MongoDB database.
+                This website is custom made by Dereck using React, Next.js, and
+                TypeScript. It incorporates progressive web app technologies an
+                relies on a NodeJS backend along with a MongoDB database.
             </p>
             <p>
-                If you would like to know more you can find the full source code on <Link href='https://github.com/dereckmezquita/derecksnotes.com'>github.com/dereckmezquita/derecksnotes.com</Link>
+                If you would like to know more you can find the full source code
+                on{' '}
+                <Link href="https://github.com/dereckmezquita/derecksnotes.com">
+                    github.com/dereckmezquita/derecksnotes.com
+                </Link>
             </p>
         </SideBarAboutContainer>
-    )
+    );
 }
 
 export const Article = styled.article<{ sideBar?: boolean }>`
@@ -93,11 +101,14 @@ export const Article = styled.article<{ sideBar?: boolean }>`
     margin-bottom: 30px;
     padding-left: 40px;
     padding-right: 40px;
-    border-left: ${props => props.sideBar === false ? 'none' : `1px dashed ${theme.container.border.colour.primary()}`};
-    
+    border-left: ${(props) =>
+        props.sideBar === false
+            ? 'none'
+            : `1px dashed ${theme.container.border.colour.primary()}`};
+
     text-align: justify;
     text-justify: auto;
-    
+
     @media (max-width: ${theme.container.widths.min_width_snap_up}) {
         width: 100%;
         border-left: none;
@@ -123,7 +134,7 @@ export const PostContentWrapper = styled.div`
     }
 
     .anchor-copy-link {
-        opacity: 0;  // by default it's hidden
+        opacity: 0; // by default it's hidden
         transition: opacity 0.3s;
 
         &:hover {

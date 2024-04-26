@@ -3,8 +3,11 @@ import { FaUser, FaLock } from 'react-icons/fa';
 import { useDispatch } from 'react-redux';
 import { fetchUserDataSuccess } from '@store/userSlice';
 import {
-    InputField, Input, StyledForm,
-    StyledButton, LinkButton
+    InputField,
+    Input,
+    StyledForm,
+    StyledButton,
+    LinkButton
 } from './AuthStyles';
 import api_login from '@utils/api/auth/login';
 import api_me from '@utils/api/auth/me';
@@ -15,7 +18,11 @@ interface LoginProps {
     onClose: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onSwitchToForgotPassword, onClose }) => {
+const Login: React.FC<LoginProps> = ({
+    onSwitchToRegister,
+    onSwitchToForgotPassword,
+    onClose
+}) => {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -27,7 +34,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onSwitchToForgotPassw
         e.preventDefault();
 
         if (!username || !password) {
-            alert("Username and password should not be empty!"); 
+            alert('Username and password should not be empty!');
             return;
         }
 
@@ -39,10 +46,12 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onSwitchToForgotPassw
 
             dispatch(fetchUserDataSuccess(userDataResponse));
 
-            alert("Logged in successfully!");
+            alert('Logged in successfully!');
             onClose();
         } catch (error: any) {
-            setLoginError(error.response?.data || "Error logging in. Please try again.");
+            setLoginError(
+                error.response?.data || 'Error logging in. Please try again.'
+            );
         } finally {
             setIsLoading(false);
         }
@@ -50,9 +59,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onSwitchToForgotPassw
 
     return (
         <>
-            <h2>
-                Login
-            </h2>
+            <h2>Login</h2>
             {isLoading && <p>Loading...</p>}
             {loginError && <p style={{ color: 'red' }}>{loginError}</p>}
             <StyledForm onSubmit={handleLogin}>
@@ -62,7 +69,7 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onSwitchToForgotPassw
                         type="text"
                         id="username"
                         value={username}
-                        onChange={e => setUsername(e.target.value)}
+                        onChange={(e) => setUsername(e.target.value)}
                         placeholder="Username"
                     />
                 </InputField>
@@ -72,16 +79,19 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister, onSwitchToForgotPassw
                         type="password"
                         id="password"
                         value={password}
-                        onChange={e => setPassword(e.target.value)}
+                        onChange={(e) => setPassword(e.target.value)}
                         placeholder="Password"
                     />
                 </InputField>
                 <StyledButton type="submit">Login</StyledButton>
             </StyledForm>
-            <LinkButton onClick={onSwitchToRegister} style={{float: 'left'}}>
+            <LinkButton onClick={onSwitchToRegister} style={{ float: 'left' }}>
                 Register
             </LinkButton>
-            <LinkButton onClick={onSwitchToForgotPassword} style={{float: 'right'}}>
+            <LinkButton
+                onClick={onSwitchToForgotPassword}
+                style={{ float: 'right' }}
+            >
                 Reset password
             </LinkButton>
         </>

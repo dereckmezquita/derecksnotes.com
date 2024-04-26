@@ -12,7 +12,10 @@ import remarkMath from 'remark-math';
 
 import { visit } from 'unist-util-visit';
 
-export function get_single_post_metadata(folder: string, file_name: string): PostMetadata {
+export function get_single_post_metadata(
+    folder: string,
+    file_name: string
+): PostMetadata {
     try {
         // if file_name doesn't end with .mdx; throw error
         if (!file_name.endsWith('.mdx')) {
@@ -20,7 +23,9 @@ export function get_single_post_metadata(folder: string, file_name: string): Pos
         }
         const file: string = path.join(ROOT, 'content', folder, file_name);
         const file_contents: string = fs.readFileSync(file, 'utf8');
-        const { data, content } = matter(file_contents) as matter.GrayMatterFile<string>;
+        const { data, content } = matter(
+            file_contents
+        ) as matter.GrayMatterFile<string>;
 
         const parsedContent = remark()
             .use(remarkGfm)
@@ -59,14 +64,17 @@ export function get_single_post_metadata(folder: string, file_name: string): Pos
             blurb: data.blurb,
             coverImage: `/site-images/card-covers/${data.coverImage}.png`,
             author: data.author,
-            date: typeof data.date === 'string' ? data.date : data.date.toISOString().split('T')[0],
+            date:
+                typeof data.date === 'string'
+                    ? data.date
+                    : data.date.toISOString().split('T')[0],
 
             summary: summary,
 
             tags: data.tags,
 
             published: data.published,
-            subtitle: data.subtitle ? data.subtitle : '',
+            subtitle: data.subtitle ? data.subtitle : ''
         };
     } catch (error: any) {
         console.error(`Error processing file: ${file_name}`);

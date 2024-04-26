@@ -15,7 +15,7 @@ jest.mock('@utils/geoLocate', () => ({
         city: 'San Francisco',
         isp: 'ISP_NAME',
         org: 'ORG_NAME'
-    }),
+    })
 }));
 
 describe('Get User Public Info Route', () => {
@@ -36,7 +36,7 @@ describe('Get User Public Info Route', () => {
         const payload = {
             email: 'test@example.com',
             username: 'testuser',
-            password: 'testpassword',
+            password: 'testpassword'
         };
 
         const res = await request(app)
@@ -45,14 +45,16 @@ describe('Get User Public Info Route', () => {
             .send(payload);
 
         expect(res.status).toBe(201);
-        expect(res.body.message).toBe('User registered and logged in successfully');
+        expect(res.body.message).toBe(
+            'User registered and logged in successfully'
+        );
     });
 
     it('should fail if the user already exists', async () => {
         const payload = {
             email: 'dereck@example.com',
             username: 'dereck',
-            password: 'testpassword',
+            password: 'testpassword'
         };
 
         // First, register the user

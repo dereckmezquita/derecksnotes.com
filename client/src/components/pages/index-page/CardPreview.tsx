@@ -33,12 +33,16 @@ const Summary = styled.p`
 const Card = styled(Link)`
     text-decoration: none;
     color: inherit;
-    &:hover, &:active, &:visited, &:focus {
+    &:hover,
+    &:active,
+    &:visited,
+    &:focus {
         text-decoration: none;
         color: inherit;
     }
 
-    background-color: ${(props) => props.theme.container.background.colour.content()};
+    background-color: ${(props) =>
+        props.theme.container.background.colour.content()};
 
     padding: 5px;
     text-decoration: none;
@@ -46,11 +50,15 @@ const Card = styled(Link)`
 
     border: 1px solid #ccc;
     border-radius: 5px;
-    box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.5), 0 0 20px rgba(100, 100, 40, 0.2) inset;
+    box-shadow:
+        1px 1px 20px rgba(153, 153, 153, 0.5),
+        0 0 20px rgba(100, 100, 40, 0.2) inset;
     text-align: center;
 
     &:hover {
-        box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.8), 0 0 20px rgba(100, 100, 40, 0.2) inset;
+        box-shadow:
+            1px 1px 20px rgba(153, 153, 153, 0.8),
+            0 0 20px rgba(100, 100, 40, 0.2) inset;
     }
 
     /* min window safari on desktop is 559 */
@@ -85,7 +93,7 @@ const Date = styled.span`
 `;
 
 const CardPreview = (props: PostMetadata) => {
-    const link: string = path.join("/", props.section, props.slug);
+    const link: string = path.join('/', props.section, props.slug);
 
     const firstLetter = props.summary.charAt(0);
     const restOfSummary = props.summary.slice(1, 100);
@@ -97,10 +105,11 @@ const CardPreview = (props: PostMetadata) => {
             <PostImage src={props.coverImage} alt={props.title} />
             <PostMeta>{props.author}</PostMeta>
             <Summary>
-                <DropCap>{firstLetter}</DropCap>{restOfSummary}... <Date>{props.date}</Date>
+                <DropCap>{firstLetter}</DropCap>
+                {restOfSummary}... <Date>{props.date}</Date>
             </Summary>
         </Card>
-    )
-}
+    );
+};
 
 export default CardPreview;

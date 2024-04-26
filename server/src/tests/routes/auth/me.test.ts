@@ -17,7 +17,7 @@ jest.mock('@utils/geoLocate', () => ({
         city: 'San Francisco',
         isp: 'ISP_NAME',
         org: 'ORG_NAME'
-    }),
+    })
 }));
 
 describe('GET /me Endpoint', () => {

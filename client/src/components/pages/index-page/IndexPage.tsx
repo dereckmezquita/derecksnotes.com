@@ -33,25 +33,32 @@ interface IndexPageProps {
         description: string;
         image: string;
         url: string;
-    }
+    };
 }
 
 const IndexPage = ({ posts, meta }: IndexPageProps) => {
-    const allTags = Array.from(new Set(posts.flatMap(post => post.tags))).sort();
+    const allTags = Array.from(
+        new Set(posts.flatMap((post) => post.tags))
+    ).sort();
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
-    const filteredPosts = selectedTags.length > 0 ? posts.filter(
-        post => selectedTags.some(tag => post.tags.includes(tag))
-    ) : posts;
+    const filteredPosts =
+        selectedTags.length > 0
+            ? posts.filter((post) =>
+                  selectedTags.some((tag) => post.tags.includes(tag))
+              )
+            : posts;
 
     const handleTagSelect = (tag: string) => {
-        setSelectedTags(prev => [...prev, tag]);
+        setSelectedTags((prev) => [...prev, tag]);
     };
 
     const handleTagDeselect = (tag: string) => {
-        setSelectedTags(prev => prev.filter(t => t !== tag));
+        setSelectedTags((prev) => prev.filter((t) => t !== tag));
     };
 
-    const tagsFilterVisible = useSelector((state: RootState) => state.visibility.tagsFilterVisible);
+    const tagsFilterVisible = useSelector(
+        (state: RootState) => state.visibility.tagsFilterVisible
+    );
 
     return (
         <>
@@ -65,7 +72,7 @@ const IndexPage = ({ posts, meta }: IndexPageProps) => {
                     visible={tagsFilterVisible}
                 />
                 <Grid>
-                    {filteredPosts.map(post => (
+                    {filteredPosts.map((post) => (
                         <CardPreview key={post.slug} {...post} />
                     ))}
                 </Grid>

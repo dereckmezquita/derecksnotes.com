@@ -35,11 +35,17 @@ interface CommentFormProps {
     editComment?: CommentPopUserDTO;
 }
 
-const CommentForm: React.FC<CommentFormProps> = ({ parentComment, onSubmit, editComment }) => {
+const CommentForm: React.FC<CommentFormProps> = ({
+    parentComment,
+    onSubmit,
+    editComment
+}) => {
     const router = useRouter();
     const [error, setError] = useState<string>('');
 
-    const [commentInput, setCommentInput] = useState(editComment?.latestContent?.comment || '');
+    const [commentInput, setCommentInput] = useState(
+        editComment?.latestContent?.comment || ''
+    );
     const [isLoading, setIsLoading] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -50,7 +56,10 @@ const CommentForm: React.FC<CommentFormProps> = ({ parentComment, onSubmit, edit
             // If defaultValue prop is passed, this form is being used to edit a comment
             // so we need to call the edit comment API instead of new comment API
             try {
-                const res: CommentPopUserDTO = await api_edit_comment(editComment._id!, commentInput);
+                const res: CommentPopUserDTO = await api_edit_comment(
+                    editComment._id!,
+                    commentInput
+                );
                 setIsLoading(false);
                 if (res) {
                     res.childComments = editComment.childComments;
@@ -63,10 +72,13 @@ const CommentForm: React.FC<CommentFormProps> = ({ parentComment, onSubmit, edit
             return;
         }
 
-
         if (commentInput.trim()) {
             try {
-                const res = await api_new_comment(commentInput, router.asPath, parentComment);
+                const res = await api_new_comment(
+                    commentInput,
+                    router.asPath,
+                    parentComment
+                );
                 setIsLoading(false);
                 if (res) {
                     onSubmit(res);
@@ -74,28 +86,30 @@ const CommentForm: React.FC<CommentFormProps> = ({ parentComment, onSubmit, edit
                 }
             } catch (error: any) {
                 setIsLoading(false);
-                setError(error?.message || 'An error occurred; please verify e-mail.');
+                setError(
+                    error?.message || 'An error occurred; please verify e-mail.'
+                );
             }
         } else {
             setIsLoading(false);
         }
-    }
+    };
 
     return (
         <Form onSubmit={handleSubmit}>
             <Input
                 value={commentInput}
-                onChange={e => setCommentInput(e.target.value)}
-                placeholder='Write a comment...'
+                onChange={(e) => setCommentInput(e.target.value)}
+                placeholder="Write a comment..."
                 rows={1}
             />
-            <Button type='submit' disabled={isLoading}>
+            <Button type="submit" disabled={isLoading}>
                 Post
             </Button>
             {isLoading && <IndicateLoading />}
             {error && <div style={{ color: 'red' }}>{error}</div>}
         </Form>
-    )
-}
+    );
+};
 
 export default CommentForm;

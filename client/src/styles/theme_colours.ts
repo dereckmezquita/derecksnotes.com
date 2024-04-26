@@ -16,8 +16,8 @@ export const green_theme = [
     hsla_colour(120, 100, 35),
     hsla_colour(120, 100, 40),
     hsla_colour(120, 100, 45),
-    hsla_colour(120, 100, 50),
-]
+    hsla_colour(120, 100, 50)
+];
 
 export const red_theme = [
     hsla_colour(0, 0, 0),
@@ -31,8 +31,8 @@ export const red_theme = [
     hsla_colour(357, 100, 35),
     hsla_colour(357, 100, 40),
     hsla_colour(357, 100, 45),
-    hsla_colour(357, 100, 50),
-]
+    hsla_colour(357, 100, 50)
+];
 
 export const blue_theme = [
     hsla_colour(0, 0, 0),
@@ -46,5 +46,5 @@ export const blue_theme = [
     hsla_colour(180, 100, 35),
     hsla_colour(180, 100, 40),
     hsla_colour(180, 100, 45),
-    hsla_colour(180, 100, 50),
-]
+    hsla_colour(180, 100, 50)
+];

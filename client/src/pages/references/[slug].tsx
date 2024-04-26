@@ -5,19 +5,22 @@ const section = 'references';
 
 // ----------------------------------------
 const Post = (props: any) => {
-    return (
-        <PostPage {...props} section={section} />
-    );
-}
+    return <PostPage {...props} section={section} />;
+};
 
 // ----------------------------------------
-import { getMDXSource, getSidebarData } from '@components/pages/post-page/postHelpers';
+import {
+    getMDXSource,
+    getSidebarData
+} from '@components/pages/post-page/postHelpers';
 import { get_single_post_metadata } from '@utils/markdown/get_post_metadata';
 
 export const getStaticProps: GetStaticProps = async ({ params }) => {
     const side_bar_data = getSidebarData(section);
     const mdxSource = await getMDXSource(section, params!.slug as string);
-    let summary: string = get_single_post_metadata(section, params!.slug as string + '.mdx').summary || '';
+    let summary: string =
+        get_single_post_metadata(section, (params!.slug as string) + '.mdx')
+            .summary || '';
 
     // only let 200 characters through
     summary = summary.slice(0, 300) + '...';
@@ -35,9 +38,9 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
             summary,
             source: mdxSource.source,
             side_bar_data: side_bar_data
-        },
+        }
     };
-}
+};
 
 // ----------------------------------------
 // the goal of this function getStaticPaths is to
@@ -52,6 +55,6 @@ export const getStaticPaths: GetStaticPaths = async () => {
         paths,
         fallback: false
     };
-}
+};
 
 export default Post;

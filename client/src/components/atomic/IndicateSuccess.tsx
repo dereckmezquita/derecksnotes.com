@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import styled, { keyframes } from "styled-components";
+import { useState, useEffect } from 'react';
+import styled, { keyframes } from 'styled-components';
 
 const popIn = keyframes`
     0% {
@@ -22,8 +22,8 @@ const SuccessText = styled.div`
 `;
 
 interface IndicateSuccessProps {
-    message: string
-    shouldRender: boolean
+    message: string;
+    shouldRender: boolean;
 }
 
 const IndicateSuccess = ({ message, shouldRender }: IndicateSuccessProps) => {
@@ -44,7 +44,11 @@ const IndicateSuccess = ({ message, shouldRender }: IndicateSuccessProps) => {
     return shouldRenderMessage ? (
         <SuccessText
             onAnimationEnd={onAnimationEnd}
-            style={{ animation: shouldRender ? "slideIn 0.3s ease-out" : "slideOut 0.3s ease-out" }}
+            style={{
+                animation: shouldRender
+                    ? 'slideIn 0.3s ease-out'
+                    : 'slideOut 0.3s ease-out'
+            }}
         >
             {message}
         </SuccessText>

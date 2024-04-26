@@ -19,14 +19,16 @@ const upload = multer({
     fileFilter: (req, file, cb) => {
         checkFileType(file, cb);
     }
-}).single('profileImage');  // `profileImage` is the field name for our file input
+}).single('profileImage'); // `profileImage` is the field name for our file input
 
 // Check File Type
 function checkFileType(file: any, cb: any) {
     // Allowed ext
     const filetypes = /jpeg|jpg|png/;
     // Check ext
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
+    const extname = filetypes.test(
+        path.extname(file.originalname).toLowerCase()
+    );
     // Check mime type
     const mimetype = filetypes.test(file.mimetype);
 
