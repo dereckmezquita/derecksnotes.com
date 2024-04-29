@@ -16,26 +16,25 @@ jobs:
       - name: Set branch name as env var
         run: echo "BRANCH_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
 
-      - name: Use branch name
+      - name: Print branch name
         run: echo "The branch name is $BRANCH_NAME"
 
       - name: Execute remote build command
         uses: appleboy/ssh-action@v1.0.3
         env:
           BRANCH_NAME: ${{ github.ref_name }}
-          FOO: 'BAR'
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USERNAME }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
-          envs: BRANCH_NAME,FOO
+          envs: BRANCH_NAME
           script: |
-            echo "I am $FOO"
             echo "Building branch: $BRANCH_NAME"
-            source /root/.bashrc
+            source ~/.bashrc
+            which node && which npm
             cd /html/derecksnotes-playground/test-derecksnotes.com/
-            git fetch origin $BRANCH_NAME
+            git fetch
             git checkout $BRANCH_NAME
             git pull
             npm install
