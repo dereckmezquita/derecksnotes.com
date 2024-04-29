@@ -12,12 +12,12 @@
   "author": "Dereck Mezquita",
   "license": "ISC",
   "scripts": {
-    "build-client": "cd client && npm run build",
-    "build-server": "tsc --project server/tsconfig.json",
+    "build-client": "cd client && npm install && npm run build",
+    "build-server": "cd server && npm install && tsc",
     "restart-server-prod": "sudo systemctl restart derecksnotes-server",
-    "restart-server-dev": "sudo systemctl restart next-derecksnotes-server",
+    "restart-server-dev": "sudo systemctl restart test-derecksnotes-server",
     "build": "npm run build-server && npm run build-client",
-    "server-logs-dev": "sudo journalctl -f -u next-derecksnotes-server",
+    "server-logs-dev": "sudo journalctl -f -u test-derecksnotes-server",
     "server-logs-prod": "sudo journalctl -f -u derecksnotes-server",
     "prepare": "husky install",
     "format": "prettier --write ."
