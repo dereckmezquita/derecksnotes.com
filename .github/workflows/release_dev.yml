@@ -4,6 +4,7 @@ on:
   push:
     branches-ignore:
       - 'master'
+  pull_request:
 jobs:
   deploy_to_linode:
     name: Deploy to Linode
@@ -13,10 +14,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set branch name as env var
-        run: echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+        run: echo "BRANCH_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
 
       - name: Use branch name
-        run: echo "The branch name is ${{ github.head_ref }}"
+        run: echo "The branch name is $BRANCH_NAME"
 
       - name: Execute remote Docker Compose command
         uses: appleboy/ssh-action@v1.0.3
