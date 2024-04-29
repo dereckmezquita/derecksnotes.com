@@ -40,5 +40,5 @@ jobs:
             npm install
             npm run build-client
             npm run build-server
-            npm run restart-server-prod
-            npm run restart-client-prod
+            echo "${{ secrets.REMOTE_PASSWORD }}" | sudo -S npm run restart-server-prod
+            echo "${{ secrets.REMOTE_PASSWORD }}" | sudo -S npm run restart-client-prod
