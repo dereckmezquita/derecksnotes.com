@@ -22,6 +22,7 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           BRANCH_NAME: ${{ github.head_ref }}
+          FOO: 'BAR'
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USERNAME }}
@@ -29,6 +30,8 @@ jobs:
           port: ${{ secrets.REMOTE_PORT }}
           envs: BRANCH_NAME
           script: |
+            echo "I am $FOO"
+            echo "Building branch: $BRANCH_NAME"
             source /root/.bashrc
             cd /html/derecksnotes-playground/test-derecksnotes.com/
             git fetch origin ${{ github.head_ref }}
