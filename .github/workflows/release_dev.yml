@@ -29,6 +29,7 @@ jobs:
           port: ${{ secrets.REMOTE_PORT }}
           envs: BRANCH_NAME
           script: |
+            source /root/.bashrc
             cd /html/derecksnotes-playground/test-derecksnotes.com/
             git fetch origin $BRANCH_NAME
             git checkout $BRANCH_NAME
