@@ -16,7 +16,7 @@ jobs:
         run: echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
 
       - name: Use branch name
-        run: echo "The branch name is $BRANCH_NAME"
+        run: echo "The branch name is ${{ github.head_ref }}"
 
       - name: Execute remote Docker Compose command
         uses: appleboy/ssh-action@v1.0.3
