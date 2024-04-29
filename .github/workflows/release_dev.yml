@@ -1,0 +1,40 @@
+name: Deploy Dev to Linode
+
+on:
+  push:
+    branches-ignore:
+      - 'master'
+jobs:
+  deploy_to_linode:
+    name: Deploy to Linode
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set branch name as env var
+        run: echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+
+      - name: Use branch name
+        run: echo "The branch name is $BRANCH_NAME"
+
+      - name: Execute remote Docker Compose command
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          BRANCH_NAME: ${{ github.head_ref }}
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USERNAME }}
+          password: ${{ secrets.REMOTE_PASSWORD }}
+          port: ${{ secrets.REMOTE_PORT }}
+          envs: BRANCH_NAME
+          script: |
+            cd /html/derecksnotes-playground/test-derecksnotes.com/
+            git fetch origin $BRANCH_NAME
+            git checkout $BRANCH_NAME
+            git pull
+            npm install
+            npm run build-client
+            npm run build-server
+            npm run restart-server-prod
+            npm run restart-client-prod
