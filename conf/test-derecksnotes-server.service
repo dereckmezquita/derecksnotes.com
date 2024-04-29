@@ -1,0 +1,16 @@
+# /etc/systemd/system/test-derecksnotes-server.service
+# systemctl restart test-derecksnotes-server.service
+# journalctl -u test-derecksnotes-server.service -f
+# https://nodesource.com/blog/running-your-node-js-app-with-systemd-part-1/ 
+[Unit]
+Description=test-derecksnotes-server.js - runs test subdomain server responses for test.derecksnotes.com
+After=network.target
+
+[Service]
+Type=simple
+User=dereck
+ExecStart=/home/dereck/.nvm/versions/node/v20.9.0/bin/node /html/derecksnotes-playground/test-derecksnotes.com/server/dist/index.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
