@@ -31,8 +31,8 @@ jobs:
           script: |
             source /root/.bashrc
             cd /html/derecksnotes-playground/test-derecksnotes.com/
-            git fetch origin $BRANCH_NAME
-            git checkout $BRANCH_NAME
+            git fetch origin ${{ github.head_ref }}
+            git checkout ${{ github.head_ref }}
             git pull
             npm install
             npm run build-client
