@@ -31,8 +31,8 @@ jobs:
           envs: BRANCH_NAME
           script: |
             echo "Building branch: $BRANCH_NAME"
-            source ~/.bashrc
-            which node && which npm
+            source /home/dereck/.nvm/nvm.sh
+            nvm use v20.9.0
             cd /html/derecksnotes-playground/test-derecksnotes.com/
             git fetch
             git checkout $BRANCH_NAME
