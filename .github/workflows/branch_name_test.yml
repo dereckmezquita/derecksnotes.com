@@ -1,0 +1,17 @@
+name: Example Workflow
+
+on:
+  pull_request:
+
+jobs:
+  example_job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set branch name as env var
+        run: echo "BRANCH_NAME=${{ github.head_ref }}" >> $GITHUB_ENV
+
+      - name: Use branch name
+        run: echo "The branch name is $BRANCH_NAME"
