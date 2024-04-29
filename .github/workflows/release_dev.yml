@@ -40,7 +40,6 @@ jobs:
             git checkout $BRANCH_NAME
             git pull
             npm install
-            npm run build-client
-            npm run build-server
-            echo "${{ secrets.REMOTE_PASSWORD }}" | sudo -S npm run restart-server-prod
-            echo "${{ secrets.REMOTE_PASSWORD }}" | sudo -S npm run restart-client-prod
+            cd client && npm install && npm run build && cd ..
+            cd server && npm install && tsc && cd ..
+            echo "${{ secrets.REMOTE_PASSWORD }}" | sudo -S sudo -S systemctl restart test-derecksnotes-server
