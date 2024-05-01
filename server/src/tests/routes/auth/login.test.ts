@@ -23,7 +23,7 @@ jest.mock('@utils/geoLocate', () => ({
 describe('POST /auth/login Endpoint', () => {
     let dbConnector: InMemoryDBConnector;
     let testUser: UserDocument;
-    let sessionCookie: string[] = [];
+    let sessionCookie: string;
 
     beforeAll(async () => {
         dbConnector = new InMemoryDBConnector();

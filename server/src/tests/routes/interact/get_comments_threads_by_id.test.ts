@@ -11,7 +11,7 @@ import { generateCommentObj } from '../../mocks/comment';
 describe('POST /get_comments_threads_by_id Endpoint', () => {
     let dbConnector: InMemoryDBConnector;
     let testUser: UserDocument;
-    let sessionCookie: string[] = [];
+    let sessionCookie: string;
     let comments: CommentDocument[] = [];
 
     beforeAll(async () => {

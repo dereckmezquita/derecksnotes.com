@@ -25,8 +25,8 @@ describe('DELETE /interact/delete_comments Endpoint', () => {
     let dbConnector: InMemoryDBConnector;
     let testUser: UserDocument;
     let testUser2: UserDocument;
-    let sessionCookie: string[] = [];
-    let sessionCookie2: string[] = [];
+    let sessionCookie: string;
+    let sessionCookie2: string;
 
     beforeAll(async () => {
         dbConnector = new InMemoryDBConnector();

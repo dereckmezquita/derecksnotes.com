@@ -25,7 +25,7 @@ jest.mock('@utils/geoLocate', () => ({
 describe('GET /interact/get_article_comments/:slug Endpoint', () => {
     let dbConnector: InMemoryDBConnector;
     let testUser: UserDocument;
-    let sessionCookie: string[] = [];
+    let sessionCookie: string;
     let comments: CommentDocument[] = [];
     let replies: CommentDocument[] = [];
 

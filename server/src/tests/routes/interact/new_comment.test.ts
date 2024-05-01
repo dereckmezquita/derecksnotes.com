@@ -30,7 +30,7 @@ jest.mock('@utils/constants', () => ({
 describe('POST /interact/new_comment Endpoint', () => {
     let dbConnector: InMemoryDBConnector;
     let testUser: UserDocument;
-    let sessionCookie: string[] = [];
+    let sessionCookie: string;
 
     const slug: string = encodeURIComponent('test_slug');
 
