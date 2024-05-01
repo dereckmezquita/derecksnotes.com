@@ -1,45 +1,76 @@
-name: Deploy Dev to Linode
+name: Release Dev Docker image to Linode
 
 on:
   push:
     branches-ignore:
       - 'master'
-  pull_request:
 jobs:
+  push_to_registry:
+    name: Push Docker image to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
+        with:
+          images: dereckmezquita/linode_derecksnotes
+      - name: Create .env file
+        run: |
+          echo NEXT_PUBLIC_SERVER_DEV=DEV > .env
+          echo NEXT_PUBLIC_DEV_MODE=DEV >> .env
+          echo REDUX_LOGGER=false >> .env
+          echo MONGO_URI=mongodb://127.0.0.1:27017/ >> .env
+      - name: Build and push Docker image
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.tags }},dereckmezquita/linode_derecksnotes:latest_dev
+          labels: ${{ steps.meta.outputs.labels }}
   deploy_to_linode:
-    name: Deploy to Linode
+    name: Deploy docker-compose.yml to Linode
+    needs: push_to_registry
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
 
-      - name: Set branch name as env var
-        run: echo "BRANCH_NAME=${{ github.ref_name }}" >> $GITHUB_ENV
-
-      - name: Print branch name
-        run: echo "The branch name is $BRANCH_NAME"
-
-      - name: Execute remote build command
-        uses: appleboy/ssh-action@v1.0.3
-        env:
-          BRANCH_NAME: ${{ github.ref_name }}
+      - name: Copy docker-compose.yml to Linode
+        uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USERNAME }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
-          envs: BRANCH_NAME
+          source: './docker-compose.yml'
+          target: '/root/docker-compose-dev_derecksnotes/'
+
+      - name: Execute remote Docker Compose command
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          CONTAINER_NAME: 'dev_linode_derecksnotes'
+          HOST_PORT: '4000'
+          IMAGE_NAME: 'dereckmezquita/linode_derecksnotes:latest_dev'
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USERNAME }}
+          password: ${{ secrets.REMOTE_PASSWORD }}
+          port: ${{ secrets.REMOTE_PORT }}
+          envs: CONTAINER_NAME,HOST_PORT,IMAGE_NAME
           script: |
-            echo "Building branch: $BRANCH_NAME"
-            eval $(ssh-agent -s)
-            ssh-add ~/.ssh/github
-            source /home/dereck/.nvm/nvm.sh
-            nvm use v20.9.0
-            cd /html/derecksnotes-playground/test-derecksnotes.com/
-            git fetch
-            git checkout $BRANCH_NAME
-            git pull
-            npm install
-            cd client && npm install && npm run build && cd ..
-            cd server && npm install && tsc && cd ..
-            echo "${{ secrets.REMOTE_PASSWORD }}" | sudo -S systemctl restart test-derecksnotes-server
+            cd /root/docker-compose-dev_derecksnotes/
+            docker-compose -f docker-compose.yml -p dev pull
+            docker-compose -f docker-compose.yml -p dev down
+            docker container prune -f
+            docker image prune -f
+            docker rm -f dev_linode_derecksnotes
+            docker-compose -f docker-compose.yml -p dev up -d
