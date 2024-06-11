@@ -45,3 +45,12 @@ Ensure to review our [license](LICENSE.md) to understand how your contributions 
 Thank you for contributing to Dereck's Notes and ensuring it remains a quality resource for everyone involved. Your efforts are greatly appreciated!
 
 Feel free to reach out for any queries or further clarification on how to get involved.
+
+## References
+
+### server
+
+```bash
+ssh root@45.56.70.92
+ssh dereck@45.56.70.92
+```
