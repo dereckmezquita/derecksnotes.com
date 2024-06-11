@@ -19,7 +19,14 @@ export default function rehypeDropCap(config?: DropCapConfig) {
             if (firstParagraphNode) return;
 
             // Check if the current node is a paragraph element and contains text
-            if (node.type === 'element' && (node as any).tagName === 'p' && (node as any).children.some((child: any) => child.type === 'text' && child.value.trim() !== '')) {
+            if (
+                node.type === 'element' &&
+                (node as any).tagName === 'p' &&
+                (node as any).children.some(
+                    (child: any) =>
+                        child.type === 'text' && child.value.trim() !== ''
+                )
+            ) {
                 firstParagraphNode = node;
                 return;
             }
@@ -50,12 +57,14 @@ export default function rehypeDropCap(config?: DropCapConfig) {
                             margin-right: ${config?.marginRight ?? '0.1em'};
                             color: ${config?.color ?? 'inherit'};
                         `,
-                        className: ['dropcap'],
+                        className: ['dropcap']
                     },
-                    children: [{
-                        type: 'text',
-                        value: value[0]
-                    }]
+                    children: [
+                        {
+                            type: 'text',
+                            value: value[0]
+                        }
+                    ]
                 };
 
                 // Step 6: Modify firstParagraphNode

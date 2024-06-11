@@ -1,4 +1,4 @@
-import mongoose, { Document, Model } from "mongoose";
+import mongoose, { Document, Model } from 'mongoose';
 
 const ArticleSchema = new mongoose.Schema({
     slug: {
@@ -30,7 +30,10 @@ const article = await ArticleMetadata.findOne({ slug: 'some-slug' });
 article.setJudgement(someUserId, 'like');
 await article.save();
 */
-ArticleSchema.methods.setJudgement = function (userId: string, judgement: 'like' | 'dislike') {
+ArticleSchema.methods.setJudgement = function (
+    userId: string,
+    judgement: 'like' | 'dislike'
+) {
     this.judgements.set(userId, judgement);
 };
 
@@ -72,10 +75,12 @@ ArticleSchema.statics.findByUser = function (userId: string) {
 };
 
 // get number of comments per article by slug
-ArticleSchema.statics.getCommentCountBySlug = async function(slug: string): Promise<number> {
+ArticleSchema.statics.getCommentCountBySlug = async function (
+    slug: string
+): Promise<number> {
     const article = await this.findOne({ slug });
     if (!article) {
-        throw new Error("Article not found.");
+        throw new Error('Article not found.');
     }
     return article.commentCount;
 };
@@ -103,6 +108,9 @@ export interface ArticleModel extends Model<ArticleDocument> {
     findByUser(userId: string): Promise<ArticleDocument[]>;
 }
 
-export const Article = mongoose.model<ArticleDocument, ArticleModel>('Article', ArticleSchema);
+export const Article = mongoose.model<ArticleDocument, ArticleModel>(
+    'Article',
+    ArticleSchema
+);
 
 export default Article;

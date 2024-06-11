@@ -1,4 +1,4 @@
-export { };
+export {};
 
 declare global {
     // info we get back from api

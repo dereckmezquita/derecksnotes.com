@@ -4,7 +4,13 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import session from 'express-session';
-import { RedisClientOptions, RedisFunctions, RedisModules, RedisScripts, createClient } from 'redis';
+import {
+    RedisClientOptions,
+    RedisFunctions,
+    RedisModules,
+    RedisScripts,
+    createClient
+} from 'redis';
 import makeRedisStore from 'connect-redis';
 
 import { authRoutes, uploadRoutes, interactRoutes } from './routes/index';
@@ -16,11 +22,17 @@ const dev_mode: boolean = process.env.NEXT_PUBLIC_DEV_MODE === 'true';
 dotenv.config({ path: '../.env' });
 const PORT: number = dev_mode ? 3004 : 3003;
 
-console.log(`Detected: ${dev_mode ? 'Development' : 'Production'} Mode\nUsing port: ${PORT}`);
+console.log(
+    `Detected: ${dev_mode ? 'Development' : 'Production'} Mode\nUsing port: ${PORT}`
+);
 
 // ----------------------------------------
 // Setup Redis client and session store
-export const redis_options: RedisClientOptions<RedisModules, RedisFunctions, RedisScripts> = {
+export const redis_options: RedisClientOptions<
+    RedisModules,
+    RedisFunctions,
+    RedisScripts
+> = {
     // redis[s]://[[username][:password]@][host][:port][/db-number]
     url: 'redis://localhost:6379',
     legacyMode: true
@@ -40,7 +52,6 @@ if (dev_mode) {
 
 app.use(express.json());
 
-
 export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
     await dbConnector.connect();
 
@@ -53,7 +64,8 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
             secret: process.env.SESSION_SECRET || 'secret$%^134', // store secret in env var
             resave: false, // forces session be saved back to the session store, even if the session was never modified during the request
             saveUninitialized: false,
-            cookie: { // NOTE: if session data is not being saved in client check these
+            cookie: {
+                // NOTE: if session data is not being saved in client check these
                 secure: dev_mode, // HTTPS in production
                 httpOnly: true, // true, // cookie inaccessible from JavaScript running in the browser
                 // days * hours * minutes * seconds * milliseconds
@@ -78,7 +90,7 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
 
     app.get(API_PREFIX + '/', (req, res) => {
         res.send("I'm alive!");
-    })
+    });
 
     app.get(API_PREFIX + '/hello', (req, res) => {
         console.log(req.query);
@@ -87,9 +99,11 @@ export async function SetUp(dbConnector: DatabaseConnector): Promise<void> {
 }
 
 export async function main(): Promise<void> {
-    const uri: string = process.env.MONGO_URI + (
-        process.env.NEXT_PUBLIC_DEV_MODE === "true" ? 'derecksnotes_test' : 'derecksnotes'
-    );
+    const uri: string =
+        process.env.MONGO_URI +
+        (process.env.NEXT_PUBLIC_DEV_MODE === 'true'
+            ? 'derecksnotes_test'
+            : 'derecksnotes');
     const dbConnector = new MongoDBConnector(uri);
     console.log(`Connecting to MongoDB at ${uri}`);
 
@@ -102,7 +116,7 @@ export async function main(): Promise<void> {
 }
 
 if (require.main === module) {
-    main().catch(err => {
+    main().catch((err) => {
         console.error('Error starting server:', err);
     });
 }

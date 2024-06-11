@@ -1,5 +1,4 @@
-
-export { };
+export {};
 
 declare global {
     interface PostMetadata {
@@ -18,5 +17,5 @@ declare global {
 
         published: boolean;
         subtitle?: string;
-    };
+    }
 }

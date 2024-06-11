@@ -24,7 +24,7 @@ const FilterContainer = styled.div<{ $isVisible?: boolean }>`
     border-radius: 5px;
     box-shadow: ${theme.container.shadow.primary};
     z-index: 1;
-    display: ${props => props.$isVisible ? 'flex' : 'none'};
+    display: ${(props) => (props.$isVisible ? 'flex' : 'none')};
     flex-wrap: wrap; // Allow tags to wrap to the next line if needed
     gap: 10px; // Provides consistent spacing between the tags
 `;
@@ -42,9 +42,10 @@ const BaseButton = styled.span`
     }
 `;
 
-const FilterTag = styled(BaseButton) <{ selected: boolean }>`
-    background-color: ${props => props.selected ? 'hsl(205, 70%, 50%)' : 'hsl(190, 15%, 90%)'};
-    color: ${props => props.selected ? 'white' : 'black'};
+const FilterTag = styled(BaseButton)<{ selected: boolean }>`
+    background-color: ${(props) =>
+        props.selected ? 'hsl(205, 70%, 50%)' : 'hsl(190, 15%, 90%)'};
+    color: ${(props) => (props.selected ? 'white' : 'black')};
     word-wrap: break-word; // Allow the tag text to break into multiple lines
     max-width: 100%; // Ensure the tag doesn't overflow its parent container
 `;
@@ -60,7 +61,8 @@ const ClearAllButton = styled(BaseButton)`
     align-items: center;
     justify-content: center;
 
-    &::before, &::after {
+    &::before,
+    &::after {
         content: '';
         position: absolute;
         top: 50%;
@@ -89,13 +91,18 @@ interface TagFilterProps {
 }
 
 const TagFilter: React.FC<TagFilterProps> = ({
-    tags, selectedTags, onTagSelect, onTagDeselect, visible, styleContainer
+    tags,
+    selectedTags,
+    onTagSelect,
+    onTagDeselect,
+    visible,
+    styleContainer
 }) => {
     const [isDragging, setIsDragging] = useState<boolean>(false);
-    const containerRef = useRef<HTMLDivElement>(null);  // To reference the filter container
+    const containerRef = useRef<HTMLDivElement>(null); // To reference the filter container
 
     const clearAllTags = () => {
-        selectedTags.forEach(tag => onTagDeselect(tag));
+        selectedTags.forEach((tag) => onTagDeselect(tag));
     };
 
     const handleMouseDown = (event: React.MouseEvent, tag: string) => {
@@ -127,7 +134,9 @@ const TagFilter: React.FC<TagFilterProps> = ({
     const dispatch = useDispatch();
 
     // theme.container.widths.min_width_snap_up is a string with px on the end
-    const min_width: number = parseInt(theme.container.widths.min_width_snap_up.slice(0, -2));
+    const min_width: number = parseInt(
+        theme.container.widths.min_width_snap_up.slice(0, -2)
+    );
 
     useEffect(() => {
         const handleResize = () => {
@@ -154,7 +163,7 @@ const TagFilter: React.FC<TagFilterProps> = ({
             style={styleContainer}
         >
             <ClearAllButton onClick={clearAllTags} />
-            {tags.map(tag => (
+            {tags.map((tag) => (
                 <FilterTag
                     key={tag}
                     selected={selectedTags.includes(tag)}

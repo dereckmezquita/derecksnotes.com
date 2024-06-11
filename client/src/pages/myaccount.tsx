@@ -7,8 +7,11 @@ import IndicateLoading from '@components/atomic/IndicateLoading';
 
 import { FaCheck, FaTimes } from 'react-icons/fa';
 import {
-    PostContainer, SideBarAbout, SideBarContainer,
-    SideBarSiteName, Article
+    PostContainer,
+    SideBarAbout,
+    SideBarContainer,
+    SideBarSiteName,
+    Article
 } from '@components/pages/post';
 import EditableText from '@components/atomic/EditableText';
 
@@ -47,18 +50,24 @@ const StyledLink = styled(Link)`
     text-decoration: none;
     color: ${theme.text.colour.muted_blue()};
     border: 1px solid ${theme.container.border.colour.primary()};
-    transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
+    transition:
+        transform 0.3s ease-in-out,
+        box-shadow 0.3s ease-in-out;
 
-    &:hover, &:focus {
+    &:hover,
+    &:focus {
         box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1);
     }
 `;
 
 const Account: React.FC = () => {
     const [userData, setUserData] = React.useState<MeDTO>();
-    const [commentsByUser, setCommentsByUser] = React.useState<CommentsBySlugDTO>();
-    const [commentsLikedByUser, setCommentsLikedByUser] = React.useState<CommentsBySlugDTO>();
-    const [commentsDislikedByUser, setCommentsDislikedByUser] = React.useState<CommentsBySlugDTO>();
+    const [commentsByUser, setCommentsByUser] =
+        React.useState<CommentsBySlugDTO>();
+    const [commentsLikedByUser, setCommentsLikedByUser] =
+        React.useState<CommentsBySlugDTO>();
+    const [commentsDislikedByUser, setCommentsDislikedByUser] =
+        React.useState<CommentsBySlugDTO>();
 
     const router = useRouter();
 
@@ -71,7 +80,7 @@ const Account: React.FC = () => {
                 console.error('Error fetching user data:', error);
                 router.push('/');
             }
-        }
+        };
 
         fetchMe();
     }, [router]);
@@ -79,33 +88,43 @@ const Account: React.FC = () => {
     useEffect(() => {
         const fetchComments = async () => {
             if (userData && userData.commentsIds) {
-                const res = await get_comments_threads_by_id(userData.commentsIds, 5);
+                const res = await get_comments_threads_by_id(
+                    userData.commentsIds,
+                    5
+                );
                 setCommentsByUser(res);
-                const res2 = await get_comments_threads_by_id(userData.commentsLikedIds, 5);
+                const res2 = await get_comments_threads_by_id(
+                    userData.commentsLikedIds,
+                    5
+                );
                 setCommentsLikedByUser(res2);
-                const res3 = await get_comments_threads_by_id(userData.commentsDislikedIds, 5);
+                const res3 = await get_comments_threads_by_id(
+                    userData.commentsDislikedIds,
+                    5
+                );
                 setCommentsDislikedByUser(res3);
             }
-        }
+        };
 
         fetchComments();
     }, [userData]);
 
-    if (!userData) return (<IndicateLoading />);
+    if (!userData) return <IndicateLoading />;
 
     // ------------------------------
     // ------------------------------
     const handleEditSubmit = async (obj: {
-        username?: string,
-        email?: string,
-        firstName?: string,
-        lastName?: string,
-        geolocationId?: string
+        username?: string;
+        email?: string;
+        firstName?: string;
+        lastName?: string;
+        geolocationId?: string;
     }) => {
         try {
             const response = await api_update_user_info(obj);
 
-            if (response) { // Assuming a truthy response means success.
+            if (response) {
+                // Assuming a truthy response means success.
                 // Notify the user of success, if necessary.
                 setUserData((prevUserData) => {
                     if (!prevUserData) return prevUserData;
@@ -116,12 +135,21 @@ const Account: React.FC = () => {
                             ...obj,
                             name: {
                                 ...prevUserData.user.name,
-                                first: obj.firstName !== undefined ? obj.firstName : prevUserData.user.name.first,
-                                last: obj.lastName !== undefined ? obj.lastName : prevUserData.user.name.last
+                                first:
+                                    obj.firstName !== undefined
+                                        ? obj.firstName
+                                        : prevUserData.user.name.first,
+                                last:
+                                    obj.lastName !== undefined
+                                        ? obj.lastName
+                                        : prevUserData.user.name.last
                             },
                             email: {
                                 ...prevUserData.user.email,
-                                address: obj.email !== undefined ? obj.email : prevUserData.user.email.address
+                                address:
+                                    obj.email !== undefined
+                                        ? obj.email
+                                        : prevUserData.user.email.address
                             }
                         }
                     };
@@ -164,7 +192,7 @@ const Account: React.FC = () => {
             <MetaTags {...APPLICATION_METADATA} />
 
             <SideBarContainer>
-                <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
+                <SideBarSiteName fontSize="20px">{`Dereck's Notes`}</SideBarSiteName>
                 <SideBarAbout />
             </SideBarContainer>
 
@@ -172,33 +200,65 @@ const Account: React.FC = () => {
                 <h2>
                     <EditableText
                         initialText={userData.user.username}
-                        onSubmit={(newText) => handleEditSubmit({ username: newText })}
+                        onSubmit={(newText) =>
+                            handleEditSubmit({ username: newText })
+                        }
                     />
                 </h2>
 
                 <ProfileSection>
-                    <ProfileImage user={userData.user} setUserData={setUserData} />
+                    <ProfileImage
+                        user={userData.user}
+                        setUserData={setUserData}
+                    />
                     <div>
                         <p>
                             <EditableText
-                                initialText={userData.user.name.first ? userData.user.name.first : 'First'}
-                                onSubmit={(newText) => handleEditSubmit({ firstName: newText })}
-                            />
-                            {' '}
+                                initialText={
+                                    userData.user.name.first
+                                        ? userData.user.name.first
+                                        : 'First'
+                                }
+                                onSubmit={(newText) =>
+                                    handleEditSubmit({ firstName: newText })
+                                }
+                            />{' '}
                             <EditableText
-                                initialText={userData.user.name.last ? userData.user.name.last : 'Last'}
-                                onSubmit={(newText) => handleEditSubmit({ lastName: newText })}
+                                initialText={
+                                    userData.user.name.last
+                                        ? userData.user.name.last
+                                        : 'Last'
+                                }
+                                onSubmit={(newText) =>
+                                    handleEditSubmit({ lastName: newText })
+                                }
                             />
                         </p>
                         <p>
                             <EditableText
                                 initialText={userData.user.email.address}
-                                onSubmit={(newText) => handleEditSubmit({ email: newText })}
+                                onSubmit={(newText) =>
+                                    handleEditSubmit({ email: newText })
+                                }
                             />
                             {userData.user.email.verified ? (
-                                <Icon as={FaCheck} style={{ color: 'green', marginLeft: '5px' }} />
+                                <Icon
+                                    as={FaCheck}
+                                    style={{
+                                        color: 'green',
+                                        marginLeft: '5px'
+                                    }}
+                                />
                             ) : (
-                                <Icon as={FaTimes} style={{ color: 'red', cursor: 'pointer', marginLeft: '5px' }} onClick={handleEmailVerification} />
+                                <Icon
+                                    as={FaTimes}
+                                    style={{
+                                        color: 'red',
+                                        cursor: 'pointer',
+                                        marginLeft: '5px'
+                                    }}
+                                    onClick={handleEmailVerification}
+                                />
                             )}
                         </p>
                     </div>
@@ -207,102 +267,117 @@ const Account: React.FC = () => {
                 <ChangePassword />
 
                 <section>
-                    <h3>
-                        Comments
-                    </h3>
-                    <p>
-                        Total: {userData.commentsCount}
-                    </p>
+                    <h3>Comments</h3>
+                    <p>Total: {userData.commentsCount}</p>
                     {commentsByUser &&
-                        Object.entries(groupCommentsBySlug(commentsByUser.comments))
+                        Object.entries(
+                            groupCommentsBySlug(commentsByUser.comments)
+                        )
                             .sort(([slugA, commentsA], [slugB, commentsB]) => {
                                 // Sorting by the latest comment's date in each group
-                                return new Date(commentsB[0].createdAt!).getTime() - new Date(commentsA[0].createdAt!).getTime();
+                                return (
+                                    new Date(
+                                        commentsB[0].createdAt!
+                                    ).getTime() -
+                                    new Date(commentsA[0].createdAt!).getTime()
+                                );
                             })
                             .map(([slug, comments], idx) => (
                                 <div key={slug}>
-                                    <StyledLink href={slug}>
-                                        {slug}
-                                    </StyledLink>
-                                    {comments.map(comment => (
+                                    <StyledLink href={slug}>{slug}</StyledLink>
+                                    {comments.map((comment) => (
                                         <Comment
-                                            key={comment._id! + comment.latestContent?._id!}
+                                            key={
+                                                comment._id! +
+                                                comment.latestContent?._id!
+                                            }
                                             currentUserId={userData.user._id}
                                             commentObj={comment}
                                             depth={0}
                                         />
                                     ))}
                                 </div>
-                            ))
-                    }
+                            ))}
                 </section>
 
                 <section>
-                    <h3>
-                        Comments liked/disliked
-                    </h3>
-                    <p>
-                        Liked: {userData.commentsLikedIds.length}
-                    </p>
-                    <p>
-                        Disliked: {userData.commentsDislikedIds.length}
-                    </p>
+                    <h3>Comments liked/disliked</h3>
+                    <p>Liked: {userData.commentsLikedIds.length}</p>
+                    <p>Disliked: {userData.commentsDislikedIds.length}</p>
                     {commentsLikedByUser &&
-                        Object.entries(groupCommentsBySlug(commentsLikedByUser.comments))
+                        Object.entries(
+                            groupCommentsBySlug(commentsLikedByUser.comments)
+                        )
                             .sort(([slugA, commentsA], [slugB, commentsB]) => {
                                 // Sorting by the latest comment's date in each group
-                                return new Date(commentsB[0].createdAt!).getTime() - new Date(commentsA[0].createdAt!).getTime();
+                                return (
+                                    new Date(
+                                        commentsB[0].createdAt!
+                                    ).getTime() -
+                                    new Date(commentsA[0].createdAt!).getTime()
+                                );
                             })
                             .map(([slug, comments], idx) => (
                                 <div key={slug}>
-                                    <StyledLink href={slug}>
-                                        {slug}
-                                    </StyledLink>
-                                    {comments.map(comment => (
+                                    <StyledLink href={slug}>{slug}</StyledLink>
+                                    {comments.map((comment) => (
                                         <Comment
-                                            key={comment._id! + comment.latestContent?._id!}
+                                            key={
+                                                comment._id! +
+                                                comment.latestContent?._id!
+                                            }
                                             currentUserId={userData.user._id}
                                             commentObj={comment}
                                             depth={0}
                                         />
                                     ))}
                                 </div>
-                            ))
-                    }
+                            ))}
                     {commentsDislikedByUser &&
-                        Object.entries(groupCommentsBySlug(commentsDislikedByUser.comments))
+                        Object.entries(
+                            groupCommentsBySlug(commentsDislikedByUser.comments)
+                        )
                             .sort(([slugA, commentsA], [slugB, commentsB]) => {
                                 // Sorting by the latest comment's date in each group
-                                return new Date(commentsB[0].createdAt!).getTime() - new Date(commentsA[0].createdAt!).getTime();
+                                return (
+                                    new Date(
+                                        commentsB[0].createdAt!
+                                    ).getTime() -
+                                    new Date(commentsA[0].createdAt!).getTime()
+                                );
                             })
                             .map(([slug, comments], idx) => (
                                 <div key={slug}>
-                                    <StyledLink href={slug}>
-                                        {slug}
-                                    </StyledLink>
-                                    {comments.map(comment => (
+                                    <StyledLink href={slug}>{slug}</StyledLink>
+                                    {comments.map((comment) => (
                                         <Comment
-                                            key={comment._id! + comment.latestContent?._id!}
+                                            key={
+                                                comment._id! +
+                                                comment.latestContent?._id!
+                                            }
                                             currentUserId={userData.user._id}
                                             commentObj={comment}
                                             depth={0}
                                         />
                                     ))}
                                 </div>
-                            ))
-                    }
+                            ))}
                 </section>
 
-                <GeoLocationsBlock geoLocations={userData.user.metadata.geolocations} />
+                <GeoLocationsBlock
+                    geoLocations={userData.user.metadata.geolocations}
+                />
             </Article>
         </PostContainer>
     );
 };
 
-function groupCommentsBySlug(comments: CommentPopUserDTO[]): Record<string, CommentPopUserDTO[]> {
+function groupCommentsBySlug(
+    comments: CommentPopUserDTO[]
+): Record<string, CommentPopUserDTO[]> {
     const groupedComments: Record<string, CommentPopUserDTO[]> = {};
 
-    comments.forEach(comment => {
+    comments.forEach((comment) => {
         if (!groupedComments[comment.slug]) {
             groupedComments[comment.slug] = [];
         }
@@ -362,14 +437,17 @@ interface GeoLocationsBlockProps {
 }
 
 function GeoLocationsBlock({ geoLocations }: GeoLocationsBlockProps) {
-    const [geoLocationsState, setGeoLocationsState] = React.useState<GeolocationDTO[]>(geoLocations);
+    const [geoLocationsState, setGeoLocationsState] =
+        React.useState<GeolocationDTO[]>(geoLocations);
 
     useEffect(() => {
         setGeoLocationsState(geoLocations);
     }, [geoLocations]);
 
     const handleDeleteGeolocation = async (id: string) => {
-        const isConfirmed = window.confirm("Are you sure you want to delete this geolocation?");
+        const isConfirmed = window.confirm(
+            'Are you sure you want to delete this geolocation?'
+        );
         if (!isConfirmed) return;
 
         const response = await api_delete_geolocations([id]);
@@ -380,13 +458,11 @@ function GeoLocationsBlock({ geoLocations }: GeoLocationsBlockProps) {
                 });
             });
         }
-    }
+    };
 
     return (
         <section>
-            <h3>
-                Geo Locations
-            </h3>
+            <h3>Geo Locations</h3>
             {geoLocationsState.map((location: GeolocationDTO, idx: number) => (
                 <GeoLocationCard key={location._id}>
                     <GeoInfo>
@@ -396,19 +472,33 @@ function GeoLocationsBlock({ geoLocations }: GeoLocationsBlockProps) {
                         <strong>City:</strong> {location.city}
                     </GeoInfo>
                     <GeoInfo>
-                        <strong>Country:</strong> {location.country} {location.flag}
+                        <strong>Country:</strong> {location.country}{' '}
+                        {location.flag}
                     </GeoInfo>
                     <GeoInfo>
                         <strong>Region:</strong> {location.regionName}
                     </GeoInfo>
                     <GeoInfo>
-                        <strong>First Used:</strong> {location.firstUsed ? new Date(location.firstUsed).toLocaleString() : "???"}
+                        <strong>First Used:</strong>{' '}
+                        {location.firstUsed
+                            ? new Date(location.firstUsed).toLocaleString()
+                            : '???'}
                     </GeoInfo>
                     <GeoInfo>
-                        <strong>Last Used:</strong> {location.lastUsed ? new Date(location.lastUsed).toLocaleString() : "???"}
+                        <strong>Last Used:</strong>{' '}
+                        {location.lastUsed
+                            ? new Date(location.lastUsed).toLocaleString()
+                            : '???'}
                     </GeoInfo>
                     <ActionContainer>
-                        <ActionButton style={{ alignItems: 'right' }} onClick={() => handleDeleteGeolocation(location._id as string)}>delete</ActionButton>
+                        <ActionButton
+                            style={{ alignItems: 'right' }}
+                            onClick={() =>
+                                handleDeleteGeolocation(location._id as string)
+                            }
+                        >
+                            delete
+                        </ActionButton>
                     </ActionContainer>
                 </GeoLocationCard>
             ))}

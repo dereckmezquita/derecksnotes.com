@@ -6,7 +6,7 @@ const api_get_article_comments = async (
     page?: number,
     startDate?: string,
     endDate?: string
-): Promise<CommentsBySlugDTO> => { 
+): Promise<CommentsBySlugDTO> => {
     try {
         const queryParams = new URLSearchParams();
         if (n) queryParams.set('limit', n.toString());
@@ -19,18 +19,22 @@ const api_get_article_comments = async (
 
         // Construct URL with conditional query string
         const queryString = queryParams.toString();
-        const url = `${API_PREFIX}/interact/get_article_comments?slug=${encodedSlug}` + (queryString ? `&${queryString}` : '');
+        const url =
+            `${API_PREFIX}/interact/get_article_comments?slug=${encodedSlug}` +
+            (queryString ? `&${queryString}` : '');
 
         const response = await fetch(url, {
             method: 'GET',
-            credentials: 'include',
+            credentials: 'include'
         });
 
         const data = await response.json();
 
         // Check for an unsuccessful response
         if (!response.ok) {
-            throw new Error(data.message || 'Something went wrong fetching the comments!');
+            throw new Error(
+                data.message || 'Something went wrong fetching the comments!'
+            );
         }
 
         return data;

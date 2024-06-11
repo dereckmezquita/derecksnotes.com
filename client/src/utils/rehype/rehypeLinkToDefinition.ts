@@ -1,18 +1,22 @@
 // this function takes the first a tag link and adds the href to the page for that def
-export default function rehypeLinkToDefinition(options: { slug: string, dictionary: string }) {
+export default function rehypeLinkToDefinition(options: {
+    slug: string;
+    dictionary: string;
+}) {
     return (tree: any) => {
         const { slug, dictionary } = options;
 
         // Find the first paragraph
         const firstParagraph = tree.children.find(
-            (node: any) => node.type === "element" && node.tagName === "p"
+            (node: any) => node.type === 'element' && node.tagName === 'p'
         );
 
         if (!firstParagraph) return tree;
 
         // Find the index of the first a tag within the paragraph's children
         const firstATagIndex = firstParagraph.children.findIndex(
-            (node: any) => node.type === "mdxJsxTextElement" && node.name === "a"
+            (node: any) =>
+                node.type === 'mdxJsxTextElement' && node.name === 'a'
         );
 
         if (firstATagIndex === -1) return tree;
@@ -51,13 +55,13 @@ export default function rehypeLinkToDefinition(options: { slug: string, dictiona
 
         // Find the index of the href attribute, if it exists
         const hrefAttributeIndex = firstATag.attributes.findIndex(
-            (attr: any) => attr.name === "href"
+            (attr: any) => attr.name === 'href'
         );
 
         const newHrefAttribute = {
-            type: "mdxJsxAttribute",
-            name: "href",
-            value: `/dictionaries/${dictionary}/${slug}`,
+            type: 'mdxJsxAttribute',
+            name: 'href',
+            value: `/dictionaries/${dictionary}/${slug}`
         };
 
         if (hrefAttributeIndex === -1) {
@@ -69,5 +73,5 @@ export default function rehypeLinkToDefinition(options: { slug: string, dictiona
         }
 
         return tree;
-    }
+    };
 }

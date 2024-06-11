@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { FaUser, FaLock, FaAt } from 'react-icons/fa';
 import {
-    InputField, Input, StyledForm,
-    StyledButton, LinkButton
+    InputField,
+    Input,
+    StyledForm,
+    StyledButton,
+    LinkButton
 } from './AuthStyles';
 
 import api_register from '@utils/api/auth/register';
@@ -29,9 +32,14 @@ const Register: React.FC<RegisterProps> = ({ onSwitchToLogin, onClose }) => {
         setRegisterSuccess(null);
 
         const form = e.currentTarget;
-        const email = (form.elements.namedItem('newEmail') as HTMLInputElement)?.value;
-        const username = (form.elements.namedItem('newUsername') as HTMLInputElement)?.value;
-        const password = (form.elements.namedItem('newPassword') as HTMLInputElement)?.value;
+        const email = (form.elements.namedItem('newEmail') as HTMLInputElement)
+            ?.value;
+        const username = (
+            form.elements.namedItem('newUsername') as HTMLInputElement
+        )?.value;
+        const password = (
+            form.elements.namedItem('newPassword') as HTMLInputElement
+        )?.value;
 
         if (!email || !username || !password) {
             return;
@@ -55,7 +63,9 @@ const Register: React.FC<RegisterProps> = ({ onSwitchToLogin, onClose }) => {
         <>
             <h2>Register</h2>
             {registerError && <p style={{ color: 'red' }}>{registerError}</p>}
-            {registerSuccess && <p style={{ color: 'green' }}>{registerSuccess}</p>}
+            {registerSuccess && (
+                <p style={{ color: 'green' }}>{registerSuccess}</p>
+            )}
             <StyledForm onSubmit={handleRegister}>
                 <InputField>
                     <FaAt style={{ marginRight: '10px' }} />
@@ -63,17 +73,23 @@ const Register: React.FC<RegisterProps> = ({ onSwitchToLogin, onClose }) => {
                 </InputField>
                 <InputField>
                     <FaUser style={{ marginRight: '10px' }} />
-                    <Input type="text" id="newUsername" placeholder="Username" />
+                    <Input
+                        type="text"
+                        id="newUsername"
+                        placeholder="Username"
+                    />
                 </InputField>
                 <InputField>
                     <FaLock style={{ marginRight: '10px' }} />
-                    <Input type="password" id="newPassword" placeholder="Password" />
+                    <Input
+                        type="password"
+                        id="newPassword"
+                        placeholder="Password"
+                    />
                 </InputField>
                 <StyledButton type="submit">Register</StyledButton>
             </StyledForm>
-            <LinkButton onClick={onSwitchToLogin}>
-                Login
-            </LinkButton>
+            <LinkButton onClick={onSwitchToLogin}>Login</LinkButton>
         </>
     );
 };

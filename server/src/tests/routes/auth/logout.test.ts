@@ -17,12 +17,12 @@ jest.mock('@utils/geoLocate', () => ({
         city: 'San Francisco',
         isp: 'ISP_NAME',
         org: 'ORG_NAME'
-    }),
+    })
 }));
 
 describe('POST /auth/logout Endpoint', () => {
     let dbConnector: InMemoryDBConnector;
-    let sessionCookie: string[] = [];
+    let sessionCookie: string;
 
     beforeAll(async () => {
         dbConnector = new InMemoryDBConnector();
@@ -66,8 +66,7 @@ describe('POST /auth/logout Endpoint', () => {
 
     // Optional: Test for not logged-in user
     it('should handle logout for not logged-in user', async () => {
-        const response = await request(app)
-            .post(API_PREFIX + '/auth/logout');
+        const response = await request(app).post(API_PREFIX + '/auth/logout');
 
         // Define what behavior you expect when a user is not logged in
         // For example, you might still want to return a 200 status

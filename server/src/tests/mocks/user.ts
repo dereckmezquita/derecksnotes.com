@@ -6,7 +6,7 @@ export const userMock: UserDTO = {
     password: 'testpassword',
     metadata: {
         geolocations: [],
-        lastConnected: new Date(),
+        lastConnected: new Date()
     }
 };
 
@@ -18,6 +18,6 @@ export const userMock2: UserDTO = {
     password: 'testpassword',
     metadata: {
         geolocations: [],
-        lastConnected: new Date(),
+        lastConnected: new Date()
     }
-}
+};

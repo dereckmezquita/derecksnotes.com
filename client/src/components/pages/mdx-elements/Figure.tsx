@@ -8,12 +8,13 @@ const CaptionedFigure = styled.figure`
     background-color: ${theme.container.background.colour.content()};
     border: 1px solid ${theme.container.border.colour.primary()};
     box-shadow: ${theme.container.shadow.box};
-    width: 100%;  // Modified this line
+    width: 100%; // Modified this line
     display: block;
     margin: auto;
     padding: 10px;
 
-    img, Image {
+    img,
+    Image {
         border: 1px solid ${theme.container.border.colour.primary()};
     }
 `;
@@ -53,7 +54,9 @@ const LightboxOverlay = styled.div`
 
 const Figure: React.FC<ImageProps> = ({ children, ...props }) => {
     // test if src is a pdf
-    const isPdf: boolean = props.src ? props.src.toString().endsWith('.pdf') : false;
+    const isPdf: boolean = props.src
+        ? props.src.toString().endsWith('.pdf')
+        : false;
 
     const [lightboxOpen, setLightboxOpen] = useState(false);
 
@@ -72,7 +75,7 @@ const Figure: React.FC<ImageProps> = ({ children, ...props }) => {
     const defaultImageProps = {
         width: 0,
         height: 0,
-        sizes: "100vw",
+        sizes: '100vw',
         style: { width: '100%', height: 'auto' }
     };
 
@@ -96,14 +99,20 @@ const Figure: React.FC<ImageProps> = ({ children, ...props }) => {
                         onClick={openLightbox}
                     />
                 )}
-                <Caption>
-                    {children}
-                </Caption>
+                <Caption>{children}</Caption>
             </CaptionedFigure>
             {lightboxOpen && (
                 <LightboxOverlay onClick={closeLightbox}>
                     <LightboxImageContainer>
-                        <img src={props.src as string} alt={alt} style={{ maxWidth: '100%', height: '100%', display: 'block' }} />
+                        <img
+                            src={props.src as string}
+                            alt={alt}
+                            style={{
+                                maxWidth: '100%',
+                                height: '100%',
+                                display: 'block'
+                            }}
+                        />
                     </LightboxImageContainer>
                 </LightboxOverlay>
             )}
@@ -112,7 +121,6 @@ const Figure: React.FC<ImageProps> = ({ children, ...props }) => {
 };
 
 export default Figure;
-
 
 // Helper function to recursively extract text from React children
 function extractTextFromChildren(children: React.ReactNode): string {

@@ -49,7 +49,9 @@ const Blockquote: React.FC<BlockquoteProps> = ({ src, children }) => {
     return (
         <StyledBlockquote>
             {children}
-            {authorHtml && <Author dangerouslySetInnerHTML={{ __html: authorHtml }} />}
+            {authorHtml && (
+                <Author dangerouslySetInnerHTML={{ __html: authorHtml }} />
+            )}
         </StyledBlockquote>
     );
 };
@@ -58,5 +60,8 @@ export default Blockquote;
 
 export const convertMarkdownLinksToHTML = (text: string): string => {
     const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
-    return text.replace(markdownLinkRegex, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    return text.replace(
+        markdownLinkRegex,
+        '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
 };

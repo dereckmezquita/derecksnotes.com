@@ -46,13 +46,19 @@ export const ApiMe: React.FC = () => {
     return (
         <div>
             <h1>User Details</h1>
-            <p><strong>Email:</strong> {user?.email.address}</p>
-            <p><strong>Username:</strong> {user?.username}</p>
-            <p><strong>ID:</strong> {user?._id}</p>
+            <p>
+                <strong>Email:</strong> {user?.email.address}
+            </p>
+            <p>
+                <strong>Username:</strong> {user?.username}
+            </p>
+            <p>
+                <strong>ID:</strong> {user?._id}
+            </p>
             {/* You can expand this to display more data as needed */}
         </div>
     );
-}
+};
 
 // component using Redux store instead of API; this data is fetched on app load from _app.tsx using thunk
 import { useSelector } from 'react-redux';
@@ -85,4 +91,4 @@ export const ReduxMe: React.FC = () => {
             {/* You can expand this to display more data as needed */}
         </div>
     );
-}
+};

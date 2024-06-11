@@ -7,7 +7,7 @@ import { green_theme as colour_scheme } from './theme_colours';
 export function hsla_colour(h: number, s: number, l: number, a: number = 1) {
     return function (h1?: number, s1?: number, l1?: number, a1?: number) {
         return `hsla(${h1 || h}, ${s1 || s}%, ${l1 || l}%, ${a1 || a})`;
-    }
+    };
 }
 
 export const theme = {
@@ -20,7 +20,7 @@ export const theme = {
             colour: {
                 primary: hsla_colour(0, 0, 100, 1), // this is the deepest background that gets the lines
                 content: hsla_colour(0, 0, 100, 0.65), // used for content holders; posts etc
-                solid: hsla_colour(0, 0, 100, 1), // used for solid backgrounds
+                solid: hsla_colour(0, 0, 100, 1) // used for solid backgrounds
             }
         },
         shadow: {
@@ -31,7 +31,7 @@ export const theme = {
             radius: '0.25rem',
             colour: {
                 // colour is #ccc
-                primary: hsla_colour(0, 0, 80, 1),
+                primary: hsla_colour(0, 0, 80, 1)
             }
         },
         spacing: {
@@ -39,13 +39,13 @@ export const theme = {
             small: '0.5rem',
             medium: '1rem',
             large: '2rem',
-            xlarge: '4rem',
+            xlarge: '4rem'
         },
         breakpoints: {
             small: '480px',
             medium: '768px',
             large: '1024px',
-            xlarge: '1200px',
+            xlarge: '1200px'
         },
         widths: {
             min_width_snap_up: '1096px', // min size of post before it snaps up to full width
@@ -58,7 +58,7 @@ export const theme = {
             arial: 'Arial, sans-serif',
             times: 'Times, serif',
             // header: 'Montserrat, sans-serif'
-            header: 'Arial, Helvetica, sans-serif',
+            header: 'Arial, Helvetica, sans-serif'
         },
         colour: {
             primary: hsla_colour(0, 0, 15, 1), // black for reading
@@ -84,7 +84,7 @@ export const theme = {
             normal: 400,
             medium: 500,
             bold: 700,
-            light: 300,
+            light: 300
         }
     },
     colours: {

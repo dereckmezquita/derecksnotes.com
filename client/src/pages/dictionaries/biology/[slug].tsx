@@ -9,9 +9,14 @@ import { RootState } from '@store/store';
 
 import TagFilter from '@components/ui/TagFilter';
 import {
-    PostContainer, SideBarContainer, SideBarSiteName,
-    SideBarEntriesContainer, SideEntryLink, SideBarAbout,
-    Article, PostContentWrapper
+    PostContainer,
+    SideBarContainer,
+    SideBarSiteName,
+    SideBarEntriesContainer,
+    SideEntryLink,
+    SideBarAbout,
+    Article,
+    PostContentWrapper
 } from '@components/pages/post';
 
 import { useRouter } from 'next/router';
@@ -33,7 +38,7 @@ const dictionary: string = 'biology';
 const components = {
     Figure: Figure,
     Alert: Alert,
-    Blockquote: Blockquote,
+    Blockquote: Blockquote
 };
 
 interface DefFrontMatter {
@@ -60,20 +65,26 @@ interface PostPageProps {
     side_bar_data: DefFrontMatter[];
 }
 
-const PostPage: React.FC<PostPageProps> = ({ slug, frontmatter, source, side_bar_data }) => {
+const PostPage: React.FC<PostPageProps> = ({
+    slug,
+    frontmatter,
+    source,
+    side_bar_data
+}) => {
     // https://nextjs.org/docs/messages/react-hydration-error
     // Solution 1: Using useEffect to run on the client only; used to fix mathjax not rendering
-    const [isClient, setIsClient] = useState(false)
+    const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
-        setIsClient(true)
-    }, [])
+        setIsClient(true);
+    }, []);
 
     // sort by letter descending with symbols at the end
     const isLetter = (char: string) => char >= 'a' && char <= 'z';
 
     // remove the side_bar_data with published: false
-    side_bar_data = side_bar_data.filter(post => post.published)
+    side_bar_data = side_bar_data
+        .filter((post) => post.published)
         .sort((a, b) => {
             const aLetter = a.word[0].toLowerCase();
             const bLetter = b.word[0].toLowerCase();
@@ -88,38 +99,51 @@ const PostPage: React.FC<PostPageProps> = ({ slug, frontmatter, source, side_bar
     const alphabet: string[] = 'abcdefghijklmnopqrstuvwxyz#'.split('');
 
     // get all linksTo and LinkedFrom in a single array
-    let all_tags: string[] = Array.from(new Set(side_bar_data.flatMap(def => {
-        return [...def.linksTo, ...def.linkedFrom];
-    }))).sort();
+    let all_tags: string[] = Array.from(
+        new Set(
+            side_bar_data.flatMap((def) => {
+                return [...def.linksTo, ...def.linkedFrom];
+            })
+        )
+    ).sort();
 
     all_tags = [...alphabet, ...all_tags];
 
     // remove any empty
-    all_tags = all_tags.filter(tag => tag !== '');
+    all_tags = all_tags.filter((tag) => tag !== '');
 
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
     // if no tags selected, show all posts
-    const filteredPosts: DefFrontMatter[] = selectedTags.length > 0 ? side_bar_data.filter(
-        post => selectedTags.some(tag => post.linksTo.includes(tag) ||
-            post.linkedFrom.includes(tag) || // or if matches letter
-            post.letter.toLowerCase() === tag
-        )
-    ) : side_bar_data;
+    const filteredPosts: DefFrontMatter[] =
+        selectedTags.length > 0
+            ? side_bar_data.filter((post) =>
+                  selectedTags.some(
+                      (tag) =>
+                          post.linksTo.includes(tag) ||
+                          post.linkedFrom.includes(tag) || // or if matches letter
+                          post.letter.toLowerCase() === tag
+                  )
+              )
+            : side_bar_data;
 
     const handleTagSelect = (tag: string) => {
-        setSelectedTags(prev => [...prev, tag]);
+        setSelectedTags((prev) => [...prev, tag]);
     };
 
     const handleTagDeselect = (tag: string) => {
-        setSelectedTags(prev => prev.filter(t => t !== tag));
+        setSelectedTags((prev) => prev.filter((t) => t !== tag));
     };
 
     // redux control for tag filter visibility
-    const tagsFilterVisible = useSelector((state: RootState) => state.visibility.tagsFilterVisible);
+    const tagsFilterVisible = useSelector(
+        (state: RootState) => state.visibility.tagsFilterVisible
+    );
 
     const router = useRouter();
-    const dictionary_display_name: string = frontmatter.dictionary[0].toUpperCase() + frontmatter.dictionary.slice(1);
+    const dictionary_display_name: string =
+        frontmatter.dictionary[0].toUpperCase() +
+        frontmatter.dictionary.slice(1);
     APPLICATION_METADATA.title = `DN | ${dictionary_display_name} - ${frontmatter.word}`;
     APPLICATION_METADATA.description = `${dictionary_display_name} description, explanation and definition of: ${frontmatter.word}`;
     APPLICATION_METADATA.url = APPLICATION_URL + router.asPath;
@@ -137,7 +161,7 @@ const PostPage: React.FC<PostPageProps> = ({ slug, frontmatter, source, side_bar
             />
             <PostContainer>
                 <SideBarContainer>
-                    <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
+                    <SideBarSiteName fontSize="20px">{`Dereck's Notes`}</SideBarSiteName>
                     <SideBarEntriesContainer>
                         {filteredPosts.map((meta) => (
                             <SideEntryLink
@@ -153,17 +177,17 @@ const PostPage: React.FC<PostPageProps> = ({ slug, frontmatter, source, side_bar
                 </SideBarContainer>
                 <Article>
                     <h1>{frontmatter.word}</h1>
-                    {isClient &&
+                    {isClient && (
                         <PostContentWrapper>
                             <MDXRemote {...source} components={components} />
                         </PostContentWrapper>
-                    }
+                    )}
                     <CommentSection allowComments={frontmatter.comments} />
                 </Article>
             </PostContainer>
         </>
     );
-}
+};
 
 // ----------------------------------------
 import { serialize } from 'next-mdx-remote/serialize';
@@ -180,27 +204,39 @@ import rehypePrettyCode from 'rehype-pretty-code'; // syntax highlighting
 import rehypeSlug from 'rehype-slug'; // adds id to headers
 import rehypeMathjax from 'rehype-mathjax';
 
-
 export const getStaticProps: GetStaticProps = async ({ params }) => {
     // get side bar metadata
-    const sidebar_files: string[] = fs.readdirSync(path.join(ROOT, 'content', 'dictionaries', dictionary))
+    const sidebar_files: string[] = fs
+        .readdirSync(path.join(ROOT, 'content', 'dictionaries', dictionary))
         .filter((fn) => fn.endsWith('.mdx'));
     const side_bar_data = sidebar_files.map((file_name) => {
-        const file_content: string = fs.readFileSync(path.join(ROOT, 'content', 'dictionaries', dictionary, file_name), 'utf8');
-        const { data, content } = matter(file_content) as matter.GrayMatterFile<string>;
+        const file_content: string = fs.readFileSync(
+            path.join(ROOT, 'content', 'dictionaries', dictionary, file_name),
+            'utf8'
+        );
+        const { data, content } = matter(
+            file_content
+        ) as matter.GrayMatterFile<string>;
 
         // data.date = data.date.toString();
         // format date as 2023-12-31
-        if (data.date) data.date = new Date(data.date).toISOString().slice(0, 10);
+        if (data.date)
+            data.date = new Date(data.date).toISOString().slice(0, 10);
 
         return {
             slug: file_name.replace('.mdx', ''),
-            ...data as DefFrontMatter
-        }
-    })
+            ...(data as DefFrontMatter)
+        };
+    });
 
     // get post content and process
-    const post_file_path: string = path.join(ROOT, 'content', 'dictionaries', dictionary, `${params!.slug}.mdx`);
+    const post_file_path: string = path.join(
+        ROOT,
+        'content',
+        'dictionaries',
+        dictionary,
+        `${params!.slug}.mdx`
+    );
     const file_content: string = fs.readFileSync(post_file_path, 'utf8');
     const mdxSource = await serialize(file_content, {
         parseFrontmatter: true,
@@ -209,13 +245,9 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
                 remarkGfm,
                 remarkUnwrapImages,
                 remarkExternalLinks,
-                remarkMath,
+                remarkMath
             ],
-            rehypePlugins: [
-                rehypePrettyCode,
-                rehypeSlug,
-                rehypeMathjax,
-            ]
+            rehypePlugins: [rehypePrettyCode, rehypeSlug, rehypeMathjax]
         }
     });
 
@@ -232,9 +264,9 @@ export const getStaticProps: GetStaticProps = async ({ params }) => {
             frontmatter: mdxSource.frontmatter,
             source: JSON.parse(JSON.stringify(mdxSource)),
             side_bar_data: side_bar_data
-        },
+        }
     };
-}
+};
 
 // ----------------------------------------
 // the goal of this function getStaticPaths is to
@@ -245,8 +277,10 @@ import fs from 'fs';
 import { ROOT } from '@constants/config';
 
 export const getStaticPaths: GetStaticPaths = async () => {
-    const posts: string[] = fs.readdirSync(path.join(ROOT, 'content', 'dictionaries', dictionary));
-    const paths = posts.map(post => ({
+    const posts: string[] = fs.readdirSync(
+        path.join(ROOT, 'content', 'dictionaries', dictionary)
+    );
+    const paths = posts.map((post) => ({
         params: { slug: post.replace('.mdx', '') }
     }));
 
@@ -254,6 +288,6 @@ export const getStaticPaths: GetStaticPaths = async () => {
         paths,
         fallback: false
     };
-}
+};
 
 export default PostPage;

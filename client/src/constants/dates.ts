@@ -7,11 +7,28 @@ export const DATETIME_FORMAT = `${DATE_FORMAT} - ${TIME_FORMAT}`;
 export const MILLISECONDS_IN_ONE_DAY = 86400000;
 
 export enum DAYS_OF_WEEK {
-    MON = 0, TUE, WED, THU, FRI, SAT, SUN
+    MON = 0,
+    TUE,
+    WED,
+    THU,
+    FRI,
+    SAT,
+    SUN
 }
 
 export enum MONTHS_OF_YEAR {
-    JAN = 0, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV, DEC
+    JAN = 0,
+    FEB,
+    MAR,
+    APR,
+    MAY,
+    JUN,
+    JUL,
+    AUG,
+    SEP,
+    OCT,
+    NOV,
+    DEC
 }
 
 export function FORMAT_DATE_YYYY_MM_DD_HHMMSS(d: Date | string): string {
@@ -25,4 +42,4 @@ export function FORMAT_DATE_YYYY_MM_DD_HHMMSS(d: Date | string): string {
     const second = String(date.getSeconds()).padStart(2, '0');
 
     return `${year}-${month}-${day}, ${hour}:${minute}:${second}`;
-};
+}

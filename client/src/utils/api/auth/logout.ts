@@ -5,20 +5,22 @@ const api_logout = async (): Promise<void> => {
         const response = await fetch(API_PREFIX + '/auth/logout', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
-            credentials: 'include',
+            credentials: 'include'
         });
 
         const data = await response.json();
         if (!response.ok) {
-            throw new Error(data.message || 'Something went wrong during logout!');
+            throw new Error(
+                data.message || 'Something went wrong during logout!'
+            );
         }
 
         return data;
     } catch (error: any) {
         throw error;
     }
-}
+};
 
 export default api_logout;

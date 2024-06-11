@@ -8,12 +8,15 @@ import { Node } from 'unist';
 // </h1>
 export default function rehypeAddHeadingLinks() {
     return (tree: Node) => {
-
         // Step 1: Define addHeadingLinks function
         const addHeadingLinks = (node: Node) => {
-
             // Check if the current node is a heading element
-            if (node.type === 'element' && ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes((node as any).tagName)) {
+            if (
+                node.type === 'element' &&
+                ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(
+                    (node as any).tagName
+                )
+            ) {
                 const id = (node as any).properties.id;
 
                 // if the id is table-of-contents then skip this one
@@ -32,21 +35,23 @@ export default function rehypeAddHeadingLinks() {
                             text-decoration: none;
                             font-size: 0.8em;
                         `,
-                        className: ['icon', 'icon-link', 'anchor-copy-link'],
+                        className: ['icon', 'icon-link', 'anchor-copy-link']
                     },
-                    children: [{
-                        type: 'element',
-                        tagName: 'img',
-                        properties: {
-                            src: '/site-images/icons/link-icon.png', // base64 encoded green pushpin image
-                            alt: `Link to heading ${id}`,
-                            style: `
+                    children: [
+                        {
+                            type: 'element',
+                            tagName: 'img',
+                            properties: {
+                                src: '/site-images/icons/link-icon.png', // base64 encoded green pushpin image
+                                alt: `Link to heading ${id}`,
+                                style: `
                                 height: 0.8em;
                                 padding-left: 0.2em;
                             `,
-                            className: ['link-icon-image'],
-                        },
-                    }],
+                                className: ['link-icon-image']
+                            }
+                        }
+                    ]
                 };
 
                 // Append link to the heading

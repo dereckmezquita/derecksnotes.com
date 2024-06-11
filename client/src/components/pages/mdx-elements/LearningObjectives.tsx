@@ -18,7 +18,8 @@ const ObjectivesTitle = styled.div`
     align-items: center;
     font-weight: bold;
     margin-bottom: 10px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans',
+        Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 `;
 
 const Icon = styled(FaStar)`
@@ -26,7 +27,9 @@ const Icon = styled(FaStar)`
     color: rgb(47, 129, 247);
 `;
 
-const LearningObjectives: React.FC<LearningObjectivesProps> = ({ children }) => {
+const LearningObjectives: React.FC<LearningObjectivesProps> = ({
+    children
+}) => {
     return (
         <ObjectivesContainer>
             <ObjectivesTitle>

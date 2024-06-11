@@ -16,7 +16,7 @@ const HeaderContainer = styled(Link)`
 `;
 
 const SiteEstablished = styled.span`
-    font-family: "Tangerine", sans-serif;
+    font-family: 'Tangerine', sans-serif;
     display: block;
     font-style: italic;
     font-size: 30px;
@@ -42,7 +42,7 @@ const SiteSlogan = styled.span`
 `;
 
 export const SiteName = styled.span`
-    font-family: "Fjalla One", sans-serif;
+    font-family: 'Fjalla One', sans-serif;
     display: inline-block;
     text-transform: uppercase;
     color: ${theme.theme_colours[5]()};
@@ -61,7 +61,7 @@ export const SiteName = styled.span`
 `;
 
 const Logo = () => (
-    <HeaderContainer href='/' passHref>
+    <HeaderContainer href="/" passHref>
         <SiteEstablished>Established France 2017</SiteEstablished>
         <SiteSlogan>The online brain of Dereck Mezquita</SiteSlogan>
         <SiteName>{`Dereck's Notes`}</SiteName>

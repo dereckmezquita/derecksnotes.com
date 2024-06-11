@@ -12,44 +12,74 @@ import { MAX_COMMENT_DEPTH } from '@utils/constants';
 
 const new_comment = Router();
 
-new_comment.post('/new_comment', isAuthenticated, isVerified, async (req: Request, res: Response) => {
-    try {
-        let { comment, slug, parentComment: parentId } = req.body as { comment: string, slug: string, parentComment?: string };
+new_comment.post(
+    '/new_comment',
+    isAuthenticated,
+    isVerified,
+    async (req: Request, res: Response) => {
+        try {
+            let {
+                comment,
+                slug,
+                parentComment: parentId
+            } = req.body as {
+                comment: string;
+                slug: string;
+                parentComment?: string;
+            };
 
-        slug = decodeURIComponent(slug);
+            slug = decodeURIComponent(slug);
 
-        if (!comment || !slug) {
-            return res.status(400).json({ message: "Content and slug are required." });
+            if (!comment || !slug) {
+                return res
+                    .status(400)
+                    .json({ message: 'Content and slug are required.' });
+            }
+
+            if (parentId && !mongoose.Types.ObjectId.isValid(parentId)) {
+                return res
+                    .status(400)
+                    .json({ message: 'Invalid parent comment ID.' });
+            }
+
+            const ip_address = req.headers['x-forwarded-for'] as string;
+
+            const geolocation = geoLocate(ip_address);
+
+            // Create new comment
+            const newComment = await createNewComment(
+                comment,
+                slug,
+                geolocation,
+                parentId,
+                req.session.userId!
+            );
+
+            // Populate and return the new comment
+            const populatedComment = await populateComment(newComment);
+            res.status(201).json(populatedComment.toObject({ virtuals: true }));
+        } catch (error) {
+            handleCommentPostError(error, res);
         }
-
-        if (parentId && !mongoose.Types.ObjectId.isValid(parentId)) {
-            return res.status(400).json({ message: "Invalid parent comment ID." });
-        }
-
-        const ip_address = req.headers['x-forwarded-for'] as string;
-
-        const geolocation = geoLocate(ip_address);
-
-        // Create new comment
-        const newComment = await createNewComment(comment, slug, geolocation, parentId, req.session.userId!);
-
-        // Populate and return the new comment
-        const populatedComment = await populateComment(newComment);
-        res.status(201).json(populatedComment.toObject({ virtuals: true }));
-
-    } catch (error) {
-        handleCommentPostError(error, res);
     }
-});
+);
 
 export default new_comment;
 
-async function createNewComment(comment: string, slug: string, geolocation: GeolocationDTO, parentId: string | undefined, userId: string): Promise<CommentDocument> {
+async function createNewComment(
+    comment: string,
+    slug: string,
+    geolocation: GeolocationDTO,
+    parentId: string | undefined,
+    userId: string
+): Promise<CommentDocument> {
     const newComment: CommentDocument = new Comment({
         content: [{ comment }],
         slug,
         userId,
-        ...(parentId && { parentComment: new mongoose.Types.ObjectId(parentId) }),
+        ...(parentId && {
+            parentComment: new mongoose.Types.ObjectId(parentId)
+        }),
         geolocation
     });
 
@@ -61,21 +91,28 @@ async function createNewComment(comment: string, slug: string, geolocation: Geol
     return newComment;
 }
 
-async function attachToParentComment(newComment: CommentDocument, parentId: string) {
-    if (await getCommentDepth(parentId) >= MAX_COMMENT_DEPTH) {
-        throw new ReplyDepthLimitError("Reply depth limit reached.");
+async function attachToParentComment(
+    newComment: CommentDocument,
+    parentId: string
+) {
+    if ((await getCommentDepth(parentId)) >= MAX_COMMENT_DEPTH) {
+        throw new ReplyDepthLimitError('Reply depth limit reached.');
     }
 
-    const parentComment = await Comment.findOne<CommentDocument>({ _id: parentId });
+    const parentComment = await Comment.findOne<CommentDocument>({
+        _id: parentId
+    });
     if (!parentComment) {
-        throw new ParentCommentNotFoundError("Parent comment not found.");
+        throw new ParentCommentNotFoundError('Parent comment not found.');
     }
 
     parentComment.childComments.push(newComment._id);
     await parentComment.save();
 }
 
-async function populateComment(comment: CommentDocument): Promise<CommentDocument> {
+async function populateComment(
+    comment: CommentDocument
+): Promise<CommentDocument> {
     return Comment.populate(comment, {
         path: 'user',
         select: 'username profilePhotos latestProfilePhoto',
@@ -84,9 +121,12 @@ async function populateComment(comment: CommentDocument): Promise<CommentDocumen
 }
 
 function handleCommentPostError(error: any, res: Response) {
-    console.error("Comment Post Error:", error);
+    console.error('Comment Post Error:', error);
 
-    if (error instanceof ReplyDepthLimitError || error instanceof ParentCommentNotFoundError) {
+    if (
+        error instanceof ReplyDepthLimitError ||
+        error instanceof ParentCommentNotFoundError
+    ) {
         return res.status(400).json({ message: error.message });
     }
 
@@ -94,10 +134,15 @@ function handleCommentPostError(error: any, res: Response) {
         return res.status(400).json({ message: error.message });
     }
 
-    res.status(500).json({ message: "Unable to post the comment. Please try again." });
+    res.status(500).json({
+        message: 'Unable to post the comment. Please try again.'
+    });
 }
 
-async function getCommentDepth(commentId: string, depth: number = 0): Promise<number> {
+async function getCommentDepth(
+    commentId: string,
+    depth: number = 0
+): Promise<number> {
     const comment = await Comment.findOne<CommentDocument>({ _id: commentId });
     if (comment && comment.parentComment) {
         return getCommentDepth(comment.parentComment.toString(), depth + 1);
@@ -119,7 +164,6 @@ class ParentCommentNotFoundError extends Error {
         this.name = 'ParentCommentNotFoundError';
     }
 }
-
 
 /*
 Server sent:

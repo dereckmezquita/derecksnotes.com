@@ -9,7 +9,9 @@ email_hello_world.get('/email_hello_world', (req: Request, res: Response) => {
 
     // Check if the email address is provided in the query
     if (!userEmail) {
-        return res.status(400).json({ error: 'Email address is required in the query parameters.' });
+        return res.status(400).json({
+            error: 'Email address is required in the query parameters.'
+        });
     }
 
     // Create a sendmail instance
@@ -20,14 +22,16 @@ email_hello_world.get('/email_hello_world', (req: Request, res: Response) => {
         from: 'no-reply@derecksnotes.com',
         to: userEmail,
         subject: 'Hello, World!',
-        text: 'Hello, World! This is a test email.',
+        text: 'Hello, World! This is a test email.'
     };
 
     // Send the email
     send(mailOptions, (error) => {
         if (error) {
             console.error('Error sending email:', error);
-            return res.status(500).json({ error: 'An error occurred while sending the email.' });
+            return res
+                .status(500)
+                .json({ error: 'An error occurred while sending the email.' });
         }
 
         console.log('Email sent successfully');

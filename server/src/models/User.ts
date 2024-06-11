@@ -8,10 +8,12 @@ const UserSchema = new mongoose.Schema({
         first: { type: String, default: null },
         last: { type: String, default: null }
     },
-    profilePhotos: [{
-        type: String,
-        default: []
-    }],
+    profilePhotos: [
+        {
+            type: String,
+            default: []
+        }
+    ],
     email: {
         address: {
             type: String,
@@ -19,7 +21,9 @@ const UserSchema = new mongoose.Schema({
             required: true,
             validate: {
                 validator: function (v: string) {
-                    return /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(v);
+                    return /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/.test(
+                        v
+                    );
                 },
                 message: (props: any) => `${props.value} is not a valid email!`
             }
@@ -39,7 +43,7 @@ const UserSchema = new mongoose.Schema({
         maxlength: 25,
         validate: {
             validator: function (v: string) {
-                const reserved: string[] = ['dereck2']
+                const reserved: string[] = ['dereck2'];
                 return !reserved.includes(v.toLowerCase());
             },
             message: (props: any) => `${props.value} is a reserved username!`
@@ -48,7 +52,7 @@ const UserSchema = new mongoose.Schema({
     password: { type: String, required: true },
     metadata: {
         geolocations: [GeolocationSchema],
-        lastConnected: { type: Date, default: new Date() },
+        lastConnected: { type: Date, default: new Date() }
     }
 });
 
@@ -81,7 +85,9 @@ UserSchema.pre('save', function (next) {
 // Sort geolocations by lastUsed date in ascending order (oldest first).
 // .slice(-10) to get the last 10 geolocations used
 UserSchema.pre('save', function (this: UserDocument, next) {
-    this.metadata.geolocations.sort((a, b) => a.lastUsed!.getTime() - b.lastUsed!.getTime());
+    this.metadata.geolocations.sort(
+        (a, b) => a.lastUsed!.getTime() - b.lastUsed!.getTime()
+    );
 
     next();
 });
@@ -93,7 +99,9 @@ UserSchema.pre('save', function (this: UserDocument, next) {
 console.log(comment.latestProfilePhoto);
 */
 UserSchema.virtual('latestProfilePhoto').get(function () {
-    return this.profilePhotos.length > 0 ? this.profilePhotos[this.profilePhotos.length - 1] : null;
+    return this.profilePhotos.length > 0
+        ? this.profilePhotos[this.profilePhotos.length - 1]
+        : null;
 });
 
 // ---------------------------------------
@@ -107,16 +115,21 @@ UserSchema.methods.isPasswordCorrect = async function (password: string) {
     return await bcrypt.compare(password, this.password);
 };
 
-UserSchema.methods.setAddOrUpdateGeoLocation = async function (this: UserDocument, ip: string): Promise<UserDocument> {
+UserSchema.methods.setAddOrUpdateGeoLocation = async function (
+    this: UserDocument,
+    ip: string
+): Promise<UserDocument> {
     // Check if IP exists in geolocations.
-    const geoLocationIndex = this.metadata.geolocations.findIndex((geo) => geo.ip === ip);
+    const geoLocationIndex = this.metadata.geolocations.findIndex(
+        (geo) => geo.ip === ip
+    );
 
     if (geoLocationIndex !== -1) {
         // IP exists, so we update the lastUsed timestamp using atomic operation.
         // using atomic operations to avoid concurrency issues with multiple requests
         await User.updateOne(
-            { _id: this._id, "metadata.geolocations.ip": ip },
-            { $set: { "metadata.geolocations.$.lastUsed": new Date() } }
+            { _id: this._id, 'metadata.geolocations.ip': ip },
+            { $set: { 'metadata.geolocations.$.lastUsed': new Date() } }
         );
     } else {
         // IP doesn't exist, fetch the geolocation data.
@@ -129,7 +142,7 @@ UserSchema.methods.setAddOrUpdateGeoLocation = async function (this: UserDocumen
         // Push new geolocation data using atomic operation.
         await User.updateOne(
             { _id: this._id },
-            { $push: { "metadata.geolocations": newGeoLocation } }
+            { $push: { 'metadata.geolocations': newGeoLocation } }
         );
     }
 

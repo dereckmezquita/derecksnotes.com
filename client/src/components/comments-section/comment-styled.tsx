@@ -37,7 +37,8 @@ export const ProfileImage = styled.img`
 export const Username = styled.span<{ currentUser: boolean }>`
     font-weight: bold;
     font-family: ${theme.text.font.times};
-    color: ${props => props.currentUser ? 'hsl(205, 70%, 50%)' : theme.text.colour.header()};
+    color: ${(props) =>
+        props.currentUser ? 'hsl(205, 70%, 50%)' : theme.text.colour.header()};
 `;
 
 export const CommentText = styled.p`
@@ -52,7 +53,7 @@ export const RepliesContainer = styled.div`
     margin-top: 15px;
     margin-left: 15px;
     &:before {
-        content: "";
+        content: '';
         position: absolute;
         top: 0;
         left: -10px;
@@ -105,7 +106,7 @@ export const UpdatedAtDate = styled.span`
     padding: 2px 5px;
     border-radius: 4px;
     z-index: 10;
-    
+
     ${DateContainer}:hover & {
         opacity: 1;
     }

@@ -21,7 +21,7 @@ const Button = styled.button`
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    
+
     &:hover {
         background-color: #005888;
     }
@@ -51,12 +51,12 @@ const ChangePassword: React.FC = () => {
 
         // Validation
         if (formData.newPassword !== formData.confirmPassword) {
-            setError("New passwords do not match!");
+            setError('New passwords do not match!');
             return;
         }
 
         if (formData.newPassword.length < 8) {
-            setError("New password must be at least 8 characters!");
+            setError('New password must be at least 8 characters!');
             return;
         }
 
@@ -74,15 +74,35 @@ const ChangePassword: React.FC = () => {
             <form onSubmit={handleSubmit}>
                 <FormField>
                     <Label htmlFor="currentPassword">Current Password</Label>
-                    <Input type="password" id="currentPassword" name="currentPassword" value={formData.currentPassword} onChange={handleChange} />
+                    <Input
+                        type="password"
+                        id="currentPassword"
+                        name="currentPassword"
+                        value={formData.currentPassword}
+                        onChange={handleChange}
+                    />
                 </FormField>
                 <FormField>
                     <Label htmlFor="newPassword">New Password</Label>
-                    <Input type="password" id="newPassword" name="newPassword" value={formData.newPassword} onChange={handleChange} />
+                    <Input
+                        type="password"
+                        id="newPassword"
+                        name="newPassword"
+                        value={formData.newPassword}
+                        onChange={handleChange}
+                    />
                 </FormField>
                 <FormField>
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                    <Input type="password" id="confirmPassword" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} />
+                    <Label htmlFor="confirmPassword">
+                        Confirm New Password
+                    </Label>
+                    <Input
+                        type="password"
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                    />
                 </FormField>
                 {error && <ErrorMessage>{error}</ErrorMessage>}
                 <Button type="submit">Submit</Button>

@@ -36,7 +36,12 @@ const Caption = styled.figcaption`
     margin-top: 10px;
     font-size: 0.8em;
     color: white; // Made it white for better visibility against the overlay
-    background-color: rgba(0, 0, 0, 0.6); // Semi-transparent background for the caption
+    background-color: rgba(
+        0,
+        0,
+        0,
+        0.6
+    ); // Semi-transparent background for the caption
     padding: 5px;
     border-radius: 3px;
 `;
@@ -87,7 +92,9 @@ const Carousel: React.FC<CarouselProps> = ({ items, interval = 5000 }) => {
     };
 
     const goToPrev = () => {
-        setCurrentIndex((prevIndex) => (prevIndex - 1 + items.length) % items.length);
+        setCurrentIndex(
+            (prevIndex) => (prevIndex - 1 + items.length) % items.length
+        );
     };
 
     const currentItem = items[currentIndex];
@@ -95,7 +102,10 @@ const Carousel: React.FC<CarouselProps> = ({ items, interval = 5000 }) => {
     return (
         <CarouselContainer>
             <ImageContainer>
-                <CarouselImage src={currentItem.src} alt={currentItem.caption || 'Carousel Image'} />
+                <CarouselImage
+                    src={currentItem.src}
+                    alt={currentItem.caption || 'Carousel Image'}
+                />
             </ImageContainer>
             {currentItem.caption && <Caption>{currentItem.caption}</Caption>}
             <PrevButton onClick={goToPrev}>&lt;</PrevButton>

@@ -7,8 +7,8 @@ export default function geoLocate(ip: string): GeolocationDTO {
         const geo = geoip.lookup(ip);
 
         // or if local ip
-        if (!geo || ip === "::1" || ip === "") {
-            throw new Error("Invalid IP address");
+        if (!geo || ip === '::1' || ip === '') {
+            throw new Error('Invalid IP address');
         }
 
         const country_name: string = countryLookup.byIso(geo.country)!.country;
@@ -26,11 +26,11 @@ export default function geoLocate(ip: string): GeolocationDTO {
         console.error(`Failed to geolocate IP ${ip}: ${err.message}`);
         return {
             ip: ip,
-            country: "Antarctica",
-            countryCode: "AQ",
-            flag: "🇦🇶",
-            regionName: "Ross Dependency",
-            city: "McMurdo Station",
+            country: 'Antarctica',
+            countryCode: 'AQ',
+            flag: '🇦🇶',
+            regionName: 'Ross Dependency',
+            city: 'McMurdo Station'
         };
     }
 }

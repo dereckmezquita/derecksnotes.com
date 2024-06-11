@@ -15,9 +15,9 @@ export class MongoDBConnector implements DatabaseConnector {
     async connect() {
         try {
             await mongoose.connect(this.uri);
-            console.log("MongoDB Connected!");
+            console.log('MongoDB Connected!');
         } catch (error) {
-            console.error("Error connecting to MongoDB:", error);
+            console.error('Error connecting to MongoDB:', error);
             process.exit(1);
         }
     }
@@ -42,7 +42,7 @@ export class InMemoryDBConnector implements DatabaseConnector {
             const mongoUri = this.mongoServer.getUri('derecksnotes_test');
             const connection = await mongoose.connect(mongoUri);
         } catch (error) {
-            console.error("Error connecting to in-memory DB:", error);
+            console.error('Error connecting to in-memory DB:', error);
             process.exit(1);
         }
     }
@@ -55,10 +55,10 @@ export class InMemoryDBConnector implements DatabaseConnector {
 
 export class NoOpDBConnector implements DatabaseConnector {
     async connect() {
-        console.log("No-op DB connect");
+        console.log('No-op DB connect');
     }
 
     async disconnect() {
-        console.log("No-op DB disconnect");
+        console.log('No-op DB disconnect');
     }
 }

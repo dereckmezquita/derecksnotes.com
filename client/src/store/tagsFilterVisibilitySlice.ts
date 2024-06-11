@@ -12,7 +12,7 @@ export const tagsFilterVisibilitySlice = createSlice({
     name: 'tagsFilterVisibility',
     initialState,
     reducers: {
-        toggleTagsFilter: state => {
+        toggleTagsFilter: (state) => {
             state.tagsFilterVisible = !state.tagsFilterVisible;
         }
     }

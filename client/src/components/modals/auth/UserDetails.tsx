@@ -10,7 +10,14 @@ import { StyledButton } from './AuthStyles';
 
 import api_logout from '@utils/api/auth/logout';
 
-import { FaEnvelope, FaCalendarAlt, FaMapPin, FaComment, FaCheck, FaTimes } from 'react-icons/fa';
+import {
+    FaEnvelope,
+    FaCalendarAlt,
+    FaMapPin,
+    FaComment,
+    FaCheck,
+    FaTimes
+} from 'react-icons/fa';
 import api_email_verification_req from '@utils/api/interact/email_verification_req';
 
 const CardContainer = styled.div`
@@ -26,14 +33,14 @@ const InfoBlock = styled.div`
 `;
 
 const EmailStatus = styled.span<{ verified: boolean }>`
-    color: ${props => props.verified ? '#4CAF50' : '#FF5252'};
-    font-weight: ${props => props.verified ? 'normal' : 'bold'};
+    color: ${(props) => (props.verified ? '#4CAF50' : '#FF5252')};
+    font-weight: ${(props) => (props.verified ? 'normal' : 'bold')};
 `;
 
 const VerifyEmail = styled.a`
     text-decoration: none;
     cursor: pointer;
-    color: #FF5252;
+    color: #ff5252;
     &:hover {
         text-decoration: underline;
     }
@@ -105,33 +112,53 @@ const UserDetails: React.FC<UserDetailsProps> = ({ onClose }) => {
             <h2>Welcome, {userData.user.username}</h2>
             <InfoBlock>
                 <div>
-                    <Icon><FaEnvelope /></Icon>Email: {userData.user.email.address}
+                    <Icon>
+                        <FaEnvelope />
+                    </Icon>
+                    Email: {userData.user.email.address}
                 </div>
                 {userData.user.email.verified ? (
                     <Icon as={FaCheck} style={{ color: 'green' }} />
                 ) : (
-                    <Icon as={FaTimes} style={{ color: 'red', cursor: 'pointer' }} onClick={handleEmailVerification} />
+                    <Icon
+                        as={FaTimes}
+                        style={{ color: 'red', cursor: 'pointer' }}
+                        onClick={handleEmailVerification}
+                    />
                 )}
             </InfoBlock>
             <InfoBlock>
                 <div>
-                    <Icon><FaCalendarAlt /></Icon>Last Connected
+                    <Icon>
+                        <FaCalendarAlt />
+                    </Icon>
+                    Last Connected
                 </div>
-                {new Date(userData.user.metadata.lastConnected).toLocaleString()}
+                {new Date(
+                    userData.user.metadata.lastConnected
+                ).toLocaleString()}
             </InfoBlock>
             <InfoBlock>
                 <div>
-                    <Icon><FaMapPin /></Icon>Geo Locations
+                    <Icon>
+                        <FaMapPin />
+                    </Icon>
+                    Geo Locations
                 </div>
                 {userData.user.metadata.geolocations.length}
             </InfoBlock>
             <InfoBlock>
                 <div>
-                    <Icon><FaComment /></Icon>Comments
+                    <Icon>
+                        <FaComment />
+                    </Icon>
+                    Comments
                 </div>
                 {userData.commentsIds.length}
             </InfoBlock>
-            <StyledButton style={{ float: 'left' }} onClick={handleLogout}>Logout</StyledButton>
+            <StyledButton style={{ float: 'left' }} onClick={handleLogout}>
+                Logout
+            </StyledButton>
             <LinkToProfile
                 style={{ float: 'right' }}
                 href={`/myaccount`}

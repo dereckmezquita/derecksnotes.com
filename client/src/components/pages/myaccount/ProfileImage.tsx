@@ -16,7 +16,7 @@ const ProfilePhotoButton = styled.button`
     position: absolute;
     bottom: 5px;
     right: 5px;
-    background-color: rgba(0,0,0,0.5);
+    background-color: rgba(0, 0, 0, 0.5);
     color: white;
     border: none;
     border-radius: 5px;
@@ -40,13 +40,20 @@ interface ProfileImageComponentProps {
     setUserData: React.Dispatch<React.SetStateAction<any>>; // Adjust according to your user type
 }
 
-const ProfileImage: React.FC<ProfileImageComponentProps> = ({ user, setUserData }) => {
+const ProfileImage: React.FC<ProfileImageComponentProps> = ({
+    user,
+    setUserData
+}) => {
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const inputFileRef = useRef<HTMLInputElement>(null);
 
-    const profilePhoto: string = user.latestProfilePhoto ?
-        path.join(ROOT_PUBLIC, 'site-images/uploads/profile-photos', user.latestProfilePhoto) :
-        DEFAULT_PROFILE_IMAGE;
+    const profilePhoto: string = user.latestProfilePhoto
+        ? path.join(
+              ROOT_PUBLIC,
+              'site-images/uploads/profile-photos',
+              user.latestProfilePhoto
+          )
+        : DEFAULT_PROFILE_IMAGE;
 
     const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
         if (event.target.files && event.target.files[0]) {
@@ -57,20 +64,20 @@ const ProfileImage: React.FC<ProfileImageComponentProps> = ({ user, setUserData 
     const handleImageUpload = async () => {
         if (selectedImage) {
             try {
-                const response = await api_profile_photo(
+                const response = (await api_profile_photo(
                     selectedImage,
                     (progress: number) => {
                         console.log(`Upload progress: ${progress}%`);
                     }
-                ) as { message: string, imageName: string };
+                )) as { message: string; imageName: string };
 
                 if (response.imageName) {
                     setUserData((prevData: any) => ({
                         ...prevData,
                         user: {
                             ...prevData.user,
-                            latestProfilePhoto: response.imageName,
-                        },
+                            latestProfilePhoto: response.imageName
+                        }
                     }));
                     setSelectedImage(null);
                 }
@@ -87,14 +94,29 @@ const ProfileImage: React.FC<ProfileImageComponentProps> = ({ user, setUserData 
     return (
         <ProfileImageContainer>
             <ProfileImageWindow
-                src={selectedImage ? URL.createObjectURL(selectedImage) : profilePhoto}
+                src={
+                    selectedImage
+                        ? URL.createObjectURL(selectedImage)
+                        : profilePhoto
+                }
                 alt={`${user.name?.first || 'First'} ${user.name?.last || 'Last'}`}
             />
-            {selectedImage ?
-                <ProfilePhotoButton onClick={handleImageUpload}>Upload</ProfilePhotoButton> :
-                <ProfilePhotoButton onClick={handleEditImageClick}>Edit</ProfilePhotoButton>
-            }
-            <input ref={inputFileRef} type="file" onChange={handleImageChange} accept="image/*" style={{ display: 'none' }} />
+            {selectedImage ? (
+                <ProfilePhotoButton onClick={handleImageUpload}>
+                    Upload
+                </ProfilePhotoButton>
+            ) : (
+                <ProfilePhotoButton onClick={handleEditImageClick}>
+                    Edit
+                </ProfilePhotoButton>
+            )}
+            <input
+                ref={inputFileRef}
+                type="file"
+                onChange={handleImageChange}
+                accept="image/*"
+                style={{ display: 'none' }}
+            />
         </ProfileImageContainer>
     );
 };

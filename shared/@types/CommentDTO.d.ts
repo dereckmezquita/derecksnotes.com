@@ -1,4 +1,4 @@
-export { };
+export {};
 
 // CommentDTO, is a data transfer object (DTO)
 declare global {
@@ -40,6 +40,6 @@ declare global {
             username: string;
             profilePhotos: string[];
             latestProfilePhoto?: string | null;
-        }
+        };
     }
 }

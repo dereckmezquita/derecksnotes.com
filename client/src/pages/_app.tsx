@@ -26,8 +26,14 @@ import useNextClickHandler from '@utils/useNextClickHandler'; // TODO: temp solu
 /**
  * AppBody component contains the primary layout and Redux-dependent logic.
  * It should be used inside the Redux Provider to ensure access to the Redux store.
-*/
-function AppBody({ Component, pageProps }: { Component: React.ComponentType<any>, pageProps: any }) {
+ */
+function AppBody({
+    Component,
+    pageProps
+}: {
+    Component: React.ComponentType<any>;
+    pageProps: any;
+}) {
     // Using the useDispatch hook here since this component is rendered inside the Redux Provider.
     const dispatch = useDispatch<typeof store.dispatch>();
 
@@ -49,7 +55,7 @@ function AppBody({ Component, pageProps }: { Component: React.ComponentType<any>
 /**
  * The main App component is responsible for setting up the global providers.
  * It wraps the entire application with both the Theme and Redux providers.
-*/
+ */
 export default function App({ Component, pageProps, router }: AppProps) {
     // Handling internal link clicks (e.g., links within markdown content).
     useNextClickHandler(router);

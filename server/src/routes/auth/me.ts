@@ -10,7 +10,7 @@ me.get('/me', isAuthenticated, async (req, res) => {
         let user = await User.findById<UserDocument>(req.session.userId);
 
         if (!user) {
-            return res.status(404).json({ message: "User not found" });
+            return res.status(404).json({ message: 'User not found' });
         }
 
         const ip_address = req.headers['x-forwarded-for'] as string;
@@ -24,30 +24,46 @@ me.get('/me', isAuthenticated, async (req, res) => {
         delete userObj.password;
 
         // send only 10 most recent geolocations; sorted in ascending order by hook
-        userObj.metadata.geolocations = userObj.metadata.geolocations.slice(-10);
+        userObj.metadata.geolocations =
+            userObj.metadata.geolocations.slice(-10);
 
         // only comments not marked comment.deleted
-        const commentsIds = (await Comment.find({
+        const commentsIds = (
+            await Comment.find(
+                {
+                    userId: user._id,
+                    deleted: false,
+                    $or: [
+                        { parentComment: null },
+                        { parentComment: { $ne: user._id } }
+                    ]
+                },
+                '_id'
+            ).exec()
+        ).map((comment: { _id: string }) => comment._id.toString());
+
+        const commentsLikedIds = (
+            await Comment.find(
+                {
+                    [`judgement.${user._id}`]: 'like'
+                },
+                '_id'
+            ).exec()
+        ).map((comment: { _id: string }) => comment._id.toString());
+
+        const commentsDislikedIds = (
+            await Comment.find(
+                {
+                    [`judgement.${user._id}`]: 'dislike'
+                },
+                '_id'
+            ).exec()
+        ).map((comment: { _id: string }) => comment._id.toString());
+
+        const commentsNotDeletedCount: number = await Comment.find({
             userId: user._id,
-            deleted: false,
-            $or: [
-                { parentComment: null },
-                { parentComment: { $ne: user._id } }
-            ]
-        }, '_id').exec())
-        .map((comment: { _id: string }) => comment._id.toString());
-        
-        const commentsLikedIds = (await Comment.find({
-            [`judgement.${user._id}`]: 'like'
-        }, '_id').exec())
-            .map((comment: { _id: string }) => comment._id.toString())
-
-        const commentsDislikedIds = (await Comment.find({
-            [`judgement.${user._id}`]: 'dislike'
-        }, '_id').exec())
-            .map((comment: { _id: string }) => comment._id.toString())
-
-        const commentsNotDeletedCount: number = await Comment.find({ userId: user._id, deleted: false }).countDocuments();
+            deleted: false
+        }).countDocuments();
 
         const message = {
             user: userObj,
@@ -55,12 +71,12 @@ me.get('/me', isAuthenticated, async (req, res) => {
             commentsLikedIds: commentsLikedIds.slice(-10),
             commentsDislikedIds: commentsDislikedIds.slice(-10),
             commentsCount: commentsNotDeletedCount
-        }
+        };
 
         res.status(200).json(message);
     } catch (error) {
-        console.error("/me Endpoint Error:", error);
-        res.status(500).json({ message: "Server Error" });
+        console.error('/me Endpoint Error:', error);
+        res.status(500).json({ message: 'Server Error' });
     }
 });
 

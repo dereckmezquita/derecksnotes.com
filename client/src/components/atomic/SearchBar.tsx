@@ -39,7 +39,12 @@ interface SearchBarProps {
     styleContainer?: React.CSSProperties; // If you want to style the container
 }
 
-const SearchBar: React.FC<SearchBarProps> = ({ value, onChange, placeholder = 'Search...', styleContainer }) => {
+const SearchBar: React.FC<SearchBarProps> = ({
+    value,
+    onChange,
+    placeholder = 'Search...',
+    styleContainer
+}) => {
     return (
         <SearchContainer style={styleContainer}>
             <SearchIcon />

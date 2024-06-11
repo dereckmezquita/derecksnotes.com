@@ -13,7 +13,7 @@ import mongoose from 'mongoose';
 describe('PATCH /interact/edit_comment Endpoint', () => {
     let dbConnector: InMemoryDBConnector;
     let testUser: UserDocument;
-    let sessionCookie: string[] = [];
+    let sessionCookie: string;
 
     beforeAll(async () => {
         dbConnector = new InMemoryDBConnector();
@@ -45,9 +45,14 @@ describe('PATCH /interact/edit_comment Endpoint', () => {
         const response = await request(app)
             .patch(API_PREFIX + '/interact/edit_comment')
             .set('Cookie', sessionCookie)
-            .send({ commentId: originalComment._id.toString(), content: 'This is an edited comment' });
+            .send({
+                commentId: originalComment._id.toString(),
+                content: 'This is an edited comment'
+            });
 
         expect(response.status).toBe(200);
-        expect(response.body.latestContent.comment).toBe('This is an edited comment');
+        expect(response.body.latestContent.comment).toBe(
+            'This is an edited comment'
+        );
     });
 });

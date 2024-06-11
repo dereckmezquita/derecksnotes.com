@@ -7,14 +7,13 @@ import { logger } from 'redux-logger';
 import dotenv from 'dotenv';
 dotenv.config({ path: '../.env' });
 
-
 const middleware = (getDefaultMiddleware: any) => {
     if (process.env.REDUX_LOGGER === 'true') {
         return getDefaultMiddleware().concat(thunk, logger);
     } else {
         return getDefaultMiddleware().concat(thunk);
     }
-}
+};
 
 export const store = configureStore({
     reducer: {

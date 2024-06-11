@@ -5,9 +5,9 @@ const api_me = async () => {
         const response = await fetch(API_PREFIX + '/auth/me', {
             method: 'GET',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
-            credentials: 'include', // Ensure session cookie is sent with the request
+            credentials: 'include' // Ensure session cookie is sent with the request
         });
 
         const data = await response.json();

@@ -20,7 +20,10 @@ interface EditableTextProps {
     onSubmit: (newText: string) => void;
 }
 
-const EditableText: React.FC<EditableTextProps> = ({ initialText, onSubmit }) => {
+const EditableText: React.FC<EditableTextProps> = ({
+    initialText,
+    onSubmit
+}) => {
     const [isEditing, setIsEditing] = useState(false);
     const [text, setText] = useState(initialText);
 

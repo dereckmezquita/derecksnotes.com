@@ -11,8 +11,12 @@ import TagFilter from '@components/ui/TagFilter';
 import SearchBar from '@components/atomic/SearchBar';
 import SelectDropDown from '@components/atomic/SelectDropDown';
 import {
-    PostContainer, SideBarContainer, SideBarSiteName,
-    SideBarAbout, Article, PostContentWrapper
+    PostContainer,
+    SideBarContainer,
+    SideBarSiteName,
+    SideBarAbout,
+    Article,
+    PostContentWrapper
 } from '@components/pages/post';
 
 import Figure from '@components/pages/mdx-elements/Figure';
@@ -59,20 +63,22 @@ interface DictionaryPageProps {
 const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     // https://nextjs.org/docs/messages/react-hydration-error
     // Solution 1: Using useEffect to run on the client only; used to fix mathjax not rendering
-    const [isClient, setIsClient] = useState(false)
+    const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
-        setIsClient(true)
-    }, [])
+        setIsClient(true);
+    }, []);
 
     const isLetter = (char: string) => char >= 'a' && char <= 'z';
 
-    sources = sources.filter(def => def.frontmatter.published)
+    sources = sources
+        .filter((def) => def.frontmatter.published)
         .sort((a, b) => {
             const aLetter = a.frontmatter.letter;
             const bLetter = b.frontmatter.letter;
 
-            if (aLetter === bLetter) return a.frontmatter.word.localeCompare(b.frontmatter.word);
+            if (aLetter === bLetter)
+                return a.frontmatter.word.localeCompare(b.frontmatter.word);
             if (!isLetter(aLetter)) return 1;
             if (!isLetter(bLetter)) return -1;
 
@@ -82,53 +88,72 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
     const alphabet: string[] = 'abcdefghijklmnopqrstuvwxyz#'.split('');
 
     // get all linksTo and linkedFrom in a single array
-    let all_tags: string[] = Array.from(new Set(sources.flatMap(def => {
-        return [...def.frontmatter.linksTo, ...def.frontmatter.linkedFrom];
-    }))).sort();
+    let all_tags: string[] = Array.from(
+        new Set(
+            sources.flatMap((def) => {
+                return [
+                    ...def.frontmatter.linksTo,
+                    ...def.frontmatter.linkedFrom
+                ];
+            })
+        )
+    ).sort();
 
     all_tags = [...alphabet, ...all_tags];
 
     // remove any tags that are just an empty string
-    all_tags = all_tags.filter(tag => tag !== '');
+    all_tags = all_tags.filter((tag) => tag !== '');
 
-    const [searchMode, setSearchMode] = useState<"words" | "tags">("words");
-    const [searchTerm, setSearchTerm] = useState("");
+    const [searchMode, setSearchMode] = useState<'words' | 'tags'>('words');
+    const [searchTerm, setSearchTerm] = useState('');
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
     // allow for search
-    const displayedTags = searchMode === "tags" && searchTerm
-        ? all_tags.filter(tag => tag.toLowerCase().includes(searchTerm))
-        : all_tags;
+    const displayedTags =
+        searchMode === 'tags' && searchTerm
+            ? all_tags.filter((tag) => tag.toLowerCase().includes(searchTerm))
+            : all_tags;
 
-    const filteredDefsByWord = searchTerm && searchMode === "words"
-        ? sources.filter(def => def.frontmatter.word.toLowerCase().includes(searchTerm))
-        : sources;
+    const filteredDefsByWord =
+        searchTerm && searchMode === 'words'
+            ? sources.filter((def) =>
+                  def.frontmatter.word.toLowerCase().includes(searchTerm)
+              )
+            : sources;
 
     // if none selected then show all definitions
-    const displayedDefs = selectedTags.length > 0
-        ? sources.filter(
-            def => def.frontmatter.word.toLowerCase().startsWith(selectedTags[0]) ||
-                def.frontmatter.linksTo.some((tag: any) => selectedTags.includes(tag)) ||
-                def.frontmatter.linkedFrom.some((tag: any) => selectedTags.includes(tag)) ||
-                selectedTags.includes(def.frontmatter.letter)
-        )
-        : filteredDefsByWord;
+    const displayedDefs =
+        selectedTags.length > 0
+            ? sources.filter(
+                  (def) =>
+                      def.frontmatter.word
+                          .toLowerCase()
+                          .startsWith(selectedTags[0]) ||
+                      def.frontmatter.linksTo.some((tag: any) =>
+                          selectedTags.includes(tag)
+                      ) ||
+                      def.frontmatter.linkedFrom.some((tag: any) =>
+                          selectedTags.includes(tag)
+                      ) ||
+                      selectedTags.includes(def.frontmatter.letter)
+              )
+            : filteredDefsByWord;
 
     const handleTagSelect = (tag: string) => {
         if (selectedTags.includes(tag)) {
-            setSelectedTags(selectedTags.filter(t => t !== tag));
+            setSelectedTags(selectedTags.filter((t) => t !== tag));
         } else {
             setSelectedTags([...selectedTags, tag]);
         }
-    }
+    };
 
     const handleTagDeselect = (tag: string) => {
-        setSelectedTags(prev => prev.filter(t => t !== tag));
-    }
+        setSelectedTags((prev) => prev.filter((t) => t !== tag));
+    };
 
     // for separating definitions by letter with a header
     const renderDefinitions = () => {
-        let currentLetter = "";
+        let currentLetter = '';
 
         return displayedDefs.map((source, i) => {
             const startNewLetter = source.frontmatter.letter !== currentLetter;
@@ -141,7 +166,10 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
                     {startNewLetter && <h2>{currentLetter.toUpperCase()}</h2>}
                     <li>
                         <PostContentWrapper>
-                            <MDXRemote {...source as any} components={components} />
+                            <MDXRemote
+                                {...(source as any)}
+                                components={components}
+                            />
                         </PostContentWrapper>
                     </li>
                 </React.Fragment>
@@ -149,7 +177,7 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
         });
     };
 
-    const router = useRouter()
+    const router = useRouter();
     APPLICATION_METADATA.title = 'DN | Biology Dictionary';
     APPLICATION_METADATA.url = APPLICATION_URL + router.asPath;
 
@@ -157,22 +185,28 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
         <PostContainer>
             <MetaTags {...APPLICATION_METADATA} />
             <SideBarContainer>
-                <SideBarSiteName fontSize='20px'>{`Dereck's Notes`}</SideBarSiteName>
+                <SideBarSiteName fontSize="20px">{`Dereck's Notes`}</SideBarSiteName>
                 <SelectDropDown
                     options={[
-                        { label: "Search words", value: "words" },
-                        { label: "Search tags", value: "tags" },
+                        { label: 'Search words', value: 'words' },
+                        { label: 'Search tags', value: 'tags' }
                     ]}
                     value={searchMode}
                     onChange={(value) => {
-                        setSearchMode(value as "words" | "tags");
-                        setSearchTerm(""); // Clear the search term when switching modes
+                        setSearchMode(value as 'words' | 'tags');
+                        setSearchTerm(''); // Clear the search term when switching modes
                     }}
                 />
                 <SearchBar
                     value={searchTerm}
-                    onChange={(value: string) => setSearchTerm(value.toLowerCase())}
-                    placeholder={searchMode === "words" ? "Search words..." : "Search tags..."}
+                    onChange={(value: string) =>
+                        setSearchTerm(value.toLowerCase())
+                    }
+                    placeholder={
+                        searchMode === 'words'
+                            ? 'Search words...'
+                            : 'Search tags...'
+                    }
                 />
                 <TagFilter
                     tags={displayedTags}
@@ -190,15 +224,11 @@ const DictionaryPage: React.FC<DictionaryPageProps> = ({ sources }) => {
             </SideBarContainer>
             <Article>
                 <h1>Biology Dictionary</h1>
-                <ol>
-                    {
-                        isClient && renderDefinitions()
-                    }
-                </ol>
+                <ol>{isClient && renderDefinitions()}</ol>
             </Article>
         </PostContainer>
-    )
-}
+    );
+};
 
 // ------------------------------------
 import path from 'path';
@@ -224,7 +254,12 @@ import { useRouter } from 'next/router';
 
 export const getStaticProps: GetStaticProps = async () => {
     // get post content and process
-    const defs_folder_path: string = path.join(ROOT, 'content', 'dictionaries', dictionary);
+    const defs_folder_path: string = path.join(
+        ROOT,
+        'content',
+        'dictionaries',
+        dictionary
+    );
     const defs_paths: string[] = fs.readdirSync(defs_folder_path, 'utf8');
 
     // get def content and process
@@ -234,34 +269,42 @@ export const getStaticProps: GetStaticProps = async () => {
         // Extract frontmatter using gray-matter
         // const { data: frontmatter, content } = matter(file_content);
 
-        const mdxSource = await serialize<string, DefFrontMatter>(file_content, {
-            parseFrontmatter: true,
-            mdxOptions: {
-                remarkPlugins: [
-                    remarkGfm,
-                    remarkUnwrapImages,
-                    remarkExternalLinks,
-                    remarkMath,
-                ],
-                rehypePlugins: [
-                    rehypePrettyCode,
-                    rehypeSlug,
-                    rehypeMathjax,
-                    // [rehypeInsertAnchorTag, {
-                    //     frontmatter: frontmatter,
-                    //     slug: file_name.replace(/\.mdx$/, '')
-                    // }],
-                    [rehypeLinkToDefinition, {
-                        slug: file_name.replace(/\.mdx$/, ''),
-                        dictionary: dictionary
-                    }]
-                ]
+        const mdxSource = await serialize<string, DefFrontMatter>(
+            file_content,
+            {
+                parseFrontmatter: true,
+                mdxOptions: {
+                    remarkPlugins: [
+                        remarkGfm,
+                        remarkUnwrapImages,
+                        remarkExternalLinks,
+                        remarkMath
+                    ],
+                    rehypePlugins: [
+                        rehypePrettyCode,
+                        rehypeSlug,
+                        rehypeMathjax,
+                        // [rehypeInsertAnchorTag, {
+                        //     frontmatter: frontmatter,
+                        //     slug: file_name.replace(/\.mdx$/, '')
+                        // }],
+                        [
+                            rehypeLinkToDefinition,
+                            {
+                                slug: file_name.replace(/\.mdx$/, ''),
+                                dictionary: dictionary
+                            }
+                        ]
+                    ]
+                }
             }
-        });
+        );
 
         if (mdxSource.frontmatter.date) {
             // format date as 2023-12-31
-            mdxSource.frontmatter.date = new Date(mdxSource.frontmatter.date).toISOString().slice(0, 10);
+            mdxSource.frontmatter.date = new Date(mdxSource.frontmatter.date)
+                .toISOString()
+                .slice(0, 10);
         }
 
         return mdxSource;
@@ -275,6 +318,6 @@ export const getStaticProps: GetStaticProps = async () => {
             sources
         }
     };
-}
+};
 
 export default DictionaryPage;

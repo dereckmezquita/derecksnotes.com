@@ -7,7 +7,7 @@ pre {
     overflow-x: auto;
 }
 
-code>[data-line]::before {
+code > [data-line]::before {
     counter-increment: line;
     content: counter(line);
 
@@ -22,11 +22,11 @@ code>[data-line]::before {
     color: #e8d64d;
 }
 
-code[data-line-numbers-max-digits='2']>[data-line]::before {
+code[data-line-numbers-max-digits='2'] > [data-line]::before {
     width: 3rem;
 }
 
-code[data-line-numbers-max-digits='3']>[data-line]::before {
+code[data-line-numbers-max-digits='3'] > [data-line]::before {
     width: 3rem;
 }
 
@@ -57,7 +57,8 @@ div[data-rehype-pretty-code-fragment] {
         padding-right: 0.75rem;
         padding-top: 0.25rem;
         padding-bottom: 0.25rem;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+            'Liberation Mono', 'Courier New', monospace;
         font-size: 0.85rem;
         line-height: 1.3rem;
         color: #e8d64d;
