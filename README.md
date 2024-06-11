@@ -1,6 +1,6 @@
 # [derecksnotes.com](https://www.derecksnotes.com)  <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
 
-Welcome to version `3.0` of [Dereck's Notes](https://www.derecksnotes.com). Dereck's Notes has been reconstructed with a new and modern technical stack to integrate new features and improve maintainability. The adaptation from a static site to one that includes server-side functionalities allows the implementation of new features such as user accounts and comments.
+Welcome to version `4.0` of [Dereck's Notes](https://www.derecksnotes.com). Dereck's Notes has been reconstructed with a new and modern technical stack to integrate new features and improve maintainability. The adaptation from a static site to one that includes server-side functionalities allows the implementation of new features such as user accounts and comments.
 
 <p align="center">
     <img src="./.graphics/screen-captures/site-capture-full.png" width="750">
@@ -16,11 +16,11 @@ Welcome to version `3.0` of [Dereck's Notes](https://www.derecksnotes.com). Dere
 
 ## Technical Overview
 
-The technology stack has been modified in version `3.0` to cater to the new functionalities and to streamline the development process.
+The technology stack has been modified in version `4.0` to cater to the new functionalities and to streamline the development process.
 
 ### Frontend
 
-- **Next.js**: Adopted for its capabilities in server-side rendering, facilitating better SEO and performance.
+- **Next.js 14**: Using app dir and server side rendering features.
 - **TypeScript**: Employed for its static typing.
 - **React**: Utilised for UI components.
 - **MDX**: Chosen for content writing, combining markdown with React.
