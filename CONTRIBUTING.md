@@ -51,6 +51,6 @@ Feel free to reach out for any queries or further clarification on how to get in
 ### server
 
 ```bash
-ssh root@45.56.70.92
-ssh dereck@45.56.70.92
+ssh root@104.200.17.204
+ssh dereck@104.200.17.204
 ```
