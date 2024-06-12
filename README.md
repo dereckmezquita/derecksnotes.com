@@ -58,8 +58,7 @@ With the use of React, the UI has been enhanced with interactive elements, such 
     <img src="./.graphics/screen-captures/interactive-filter-full.png" width="750">
 </p>
 
-## Copyright Statement
+## License
 
-Dereck Mezquita maintains all rights regarding the website and any code or content contained in this repository. The contents of this repository are intended solely for educational use and may not be copied or used without crediting the author.
+This project is licensed under the Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) License. See the [LICENSE](LICENSE) file for details.
 
-**Contact**: contact@mezquita.io
