@@ -4,8 +4,12 @@
 branch_name=$(git branch --show-current)
 ticket_number=$(echo "$branch_name" | grep -oE '[A-Za-z]+-[0-9]+')
 
+echo "Branch name: '$branch_name'"
+echo "Ticket number: '$ticket_number'"
+
 if [ ! -z "$ticket_number" ]; then
     commit_msg=$(cat "$1" | tr -d '\n')
     new_commit_msg="$ticket_number: $commit_msg"
+    echo "New commit message: '$new_commit_msg'"
     echo "$new_commit_msg" > "$1"
 fi
