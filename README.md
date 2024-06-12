@@ -1,4 +1,4 @@
-# [derecksnotes.com](https://www.derecksnotes.com)  <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
+# [derecksnotes.com](https://www.derecksnotes.com) <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
 
 Welcome to version `4.0` of [Dereck's Notes](https://www.derecksnotes.com). Dereck's Notes has been reconstructed with a new and modern technical stack to integrate new features and improve maintainability. The adaptation from a static site to one that includes server-side functionalities allows the implementation of new features such as user accounts and comments.
 
@@ -20,25 +20,25 @@ The technology stack has been modified in version `4.0` to cater to the new func
 
 ### Frontend
 
-- **Next.js 14**: Using app dir and server side rendering features.
-- **TypeScript**: Employed for its static typing.
-- **React**: Utilised for UI components.
-- **MDX**: Chosen for content writing, combining markdown with React.
-- **Styled-components**: Used for styling components.
+-   **Next.js 14**: Using app dir and server side rendering features.
+-   **TypeScript**: Employed for its static typing.
+-   **React**: Utilised for UI components.
+-   **MDX**: Chosen for content writing, combining markdown with React.
+-   **Styled-components**: Used for styling components.
 
 ### Backend
 
-- **Express**: Provides a framework for web and API applications.
-- **Mongoose**: Facilitates MongoDB object modelling.
-- **Redis**: Manages session storage, utilising `connect-redis`.
-- **Multer**: Handles file uploads (`multipart/form-data`).
-- **Bcrypt**: Secures passwords by hashing them before database storage.
+-   **Express**: Provides a framework for web and API applications.
+-   **Mongoose**: Facilitates MongoDB object modelling.
+-   **Redis**: Manages session storage, utilising `connect-redis`.
+-   **Multer**: Handles file uploads (`multipart/form-data`).
+-   **Bcrypt**: Secures passwords by hashing them before database storage.
 
 ### Infrastructure
 
-- **MongoDB**: Accommodates data storage needs.
-- **Redis**: Manages persistent session storage.
-- **Nginx**: Serves static files, manages reverse proxying, caching, and load balancing.
+-   **MongoDB**: Accommodates data storage needs.
+-   **Redis**: Manages persistent session storage.
+-   **Nginx**: Serves static files, manages reverse proxying, caching, and load balancing.
 
 ## New Features
 
