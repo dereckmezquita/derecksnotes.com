@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  linode_derecksnotes-server:
+    image: ${IMAGE_NAME}
+    container_name: '${CONTAINER_NAME}'
+    ports:
+      - '${HOST_PORT}:3000'
+    networks:
+      - derecksnotes-network
+    restart: unless-stopped
+
+# network used across linode to run multiple apps
+networks:
+  dereck-network:
+    name: dereck-network
