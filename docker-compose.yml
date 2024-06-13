@@ -1,14 +1,14 @@
 version: '3.8'
 
 services:
-  linode_derecksnotes:
+  linode_derecksnotes_com_server:
     image: ${IMAGE_NAME}
     container_name: ${CONTAINER_NAME}
     build:
-      context: .
+      context: ./server
       dockerfile: Dockerfile
     ports:
-      - '${HOST_PORT}:3000'
+      - 3001:3001
     networks:
       - dereck-network
     restart: unless-stopped
