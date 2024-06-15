@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
-  linode_derecksnotes_com_server:
-    image: ${IMAGE_NAME}
-    container_name: ${CONTAINER_NAME}
+  linode_derecksnotes_server:
+    image: ${IMAGE_NAME_SERVER}
+    container_name: ${CONTAINER_NAME_SERVER}
     build:
       context: ./server
       dockerfile: Dockerfile
@@ -12,7 +10,20 @@ services:
     networks:
       - dereck-network
     restart: unless-stopped
+  linode_derecksnotes_client:
+    image: ${IMAGE_NAME_CLIENT}
+    container_name: ${CONTAINER_NAME_CLIENT}
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - 3000:3000
+    networks:
+      - dereck-network
+    restart: unless-stopped
+    depends_on:
+      - linode_derecksnotes_server
 
 networks:
   dereck-network:
-    name: dereck-network
+    external: true
