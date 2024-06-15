@@ -92,11 +92,7 @@ jobs:
           username: ${{ secrets.REMOTE_USERNAME }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
-          envs: |
-            IMAGE_NAME_SERVER=${{ env.IMAGE_NAME_SERVER }}
-            IMAGE_NAME_CLIENT=${{ env.IMAGE_NAME_CLIENT }}
-            CONTAINER_NAME_SERVER=${{ env.CONTAINER_NAME_SERVER }}
-            CONTAINER_NAME_CLIENT=${{ env.CONTAINER_NAME_CLIENT }}
+          envs: IMAGE_NAME_SERVER,IMAGE_NAME_CLIENT,CONTAINER_NAME_SERVER,CONTAINER_NAME_CLIENT
           script: |
             cd /root/docker-compose-derecksnotes/
             docker pull ${{ env.IMAGE_NAME_SERVER }}:latest_dev
