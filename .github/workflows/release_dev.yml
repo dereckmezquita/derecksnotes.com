@@ -5,8 +5,8 @@ on:
     branches-ignore:
       - 'master'
 env:
-  IMAGE_NAME_SERVER: derecksnotes-server
-  IMAGE_NAME_CLIENT: derecksnotes-client
+  IMAGE_NAME_SERVER: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-server
+  IMAGE_NAME_CLIENT: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-client
   CONTAINER_NAME_SERVER: dev_linode_derecksnotes-server
   CONTAINER_NAME_CLIENT: dev_linode_derecksnotes-client
 
