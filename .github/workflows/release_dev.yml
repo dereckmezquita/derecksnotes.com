@@ -83,8 +83,8 @@ jobs:
       - name: Deploy to remote server
         uses: appleboy/ssh-action@v1.0.3
         env:
-          IMAGE_NAME_SERVER: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-server
-          IMAGE_NAME_CLIENT: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-client
+          IMAGE_NAME_SERVER: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-server:latest_dev
+          IMAGE_NAME_CLIENT: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-client:latest_dev
           CONTAINER_NAME_SERVER: linode_derecksnotes-server
           CONTAINER_NAME_CLIENT: linode_derecksnotes-client
         with:
@@ -95,8 +95,8 @@ jobs:
           envs: IMAGE_NAME_SERVER,IMAGE_NAME_CLIENT,CONTAINER_NAME_SERVER,CONTAINER_NAME_CLIENT
           script: |
             cd /root/docker-compose-derecksnotes/
-            docker pull ${{ env.IMAGE_NAME_SERVER }}:latest_dev
-            docker pull ${{ env.IMAGE_NAME_CLIENT }}:latest_dev
+            docker pull ${{ env.IMAGE_NAME_SERVER }}
+            docker pull ${{ env.IMAGE_NAME_CLIENT }}
             docker container prune -f
             docker image prune -f
             docker rm -f ${{ env.CONTAINER_NAME_SERVER }}
