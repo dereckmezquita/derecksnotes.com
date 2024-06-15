@@ -51,6 +51,9 @@ jobs:
     needs: push_to_registry
     runs-on: ubuntu-latest
     steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
       - name: Copy docker-compose.yml to remote server
         uses: appleboy/scp-action@master
         with:
