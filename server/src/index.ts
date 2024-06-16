@@ -54,8 +54,6 @@ app.get('/', (req: Request, res: Response) => {
     });
 });
 
-const port: string = env.EXPRESS_PORT;
-
 if (!env.BUILD_ENV_BOOL) {
     app.use((req: Request, res: Response, next: NextFunction) => {
         console.log('Incoming request: ', req.method, req.url);
@@ -69,6 +67,6 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-app.listen(port, async () => {
+app.listen(env.EXPRESS_PORT, async () => {
     console.log(`Server running: ${env.API_URL} 🚀`);
 });
