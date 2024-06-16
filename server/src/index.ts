@@ -21,26 +21,21 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// const redisClient = new Redis(env.REDIS_URI);
+const redisClient = new Redis(env.REDIS_URI);
 
-// Express server setup
-app.get('/health', (req, res) => {
-    res.status(200).send('OK');
-});
-
-// app.use(
-//     session({
-//         store: new RedisStore({ client: redisClient }),
-//         secret: env.SESSION_SECRET,
-//         resave: false,
-//         saveUninitialized: false,
-//         cookie: {
-//             secure: env.BUILD_ENV_BOOL, // only set cookies over https in prod
-//             httpOnly: true,
-//             maxAge: constants.SESSION_MAX_AGE
-//         }
-//     })
-// );
+app.use(
+    session({
+        store: new RedisStore({ client: redisClient }),
+        secret: env.SESSION_SECRET,
+        resave: false,
+        saveUninitialized: false,
+        cookie: {
+            secure: env.BUILD_ENV_BOOL, // only set cookies over https in prod
+            httpOnly: true,
+            maxAge: constants.SESSION_MAX_AGE
+        }
+    })
+);
 
 // mount routes
 
