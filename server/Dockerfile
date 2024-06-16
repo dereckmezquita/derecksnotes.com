@@ -20,6 +20,6 @@ USER node
 
 # RUN yarn run test
 
-EXPOSE 3001
+EXPOSE 3000
 
 ENTRYPOINT ["bun", "run", "start"]
