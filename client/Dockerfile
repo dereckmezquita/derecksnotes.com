@@ -8,6 +8,9 @@ WORKDIR /app/client
 COPY ../package.json /app/package.json
 COPY package.json yarn.lock ./
 
+RUN ls -la ../
+RUN ls -la ./
+
 RUN yarn install --frozen-lockfile
 
 COPY . .
