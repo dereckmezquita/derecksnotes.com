@@ -11,7 +11,7 @@ const nextConfig = {
             }
         ];
     },
-    output: 'export' // output static files at build
+    output: 'standalone' // output static files at build
 };
 
 export default nextConfig;
