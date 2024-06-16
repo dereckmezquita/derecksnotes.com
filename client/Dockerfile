@@ -17,4 +17,4 @@ RUN yarn build
 EXPOSE 3000
 
 # used export standalone
-CMD ["node", "./.next/standalone/server.js"]
+CMD ["npx", "serve@latest", "out"]

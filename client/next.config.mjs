@@ -2,16 +2,19 @@
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
+// only used with dynamic rendering, not compatible with output: 'export' | 'standalone'
+// used locally for rewriting api calls to X server
+async function rewrites() {
+    return [
+        {
+            source: '/api/:path*',
+            destination: `${API_URL}/api/:path*`
+        }
+    ];
+}
+
 const nextConfig = {
-    async rewrites() {
-        return [
-            {
-                source: '/api/:path*',
-                destination: `${API_URL}/api/:path*`
-            }
-        ];
-    },
-    output: 'standalone' // output static files at build
+    output: 'export'
 };
 
 export default nextConfig;
