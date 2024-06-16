@@ -10,3 +10,5 @@ const env = (name: string): string => {
 
     return value;
 };
+
+export const API_URL: string = env('NEXT_PUBLIC_API_URL');
