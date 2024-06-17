@@ -8,6 +8,10 @@ import StyledComponentsRegistry from '@components/lib/registry';
 import GlobalStyles from '@components/styles/GlobalStyles';
 import Logo from '@components/components/ui/Logo';
 
+import '@public/fonts/roboto.css'; // sans-serif
+import '@public/fonts/tangerine.css'; // cursive
+import '@public/fonts/fjalla_one.css'; // block letters; main logo
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <StyledComponentsRegistry>
