@@ -121,6 +121,6 @@ function Card({ post, section }: CardProps) {
             </Summary>
         </CardContainer>
     );
-};
+}
 
 export default Card;
