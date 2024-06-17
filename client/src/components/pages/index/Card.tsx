@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import styled from 'styled-components';
-import { theme } from '@styles/theme';
+import { theme } from '@components/styles/theme';
 
 import path from 'path';
 import DropCap from './DropCap';

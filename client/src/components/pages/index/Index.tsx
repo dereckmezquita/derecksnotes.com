@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import { theme } from '@components/styles/theme';
 import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
+import MetadataTags from '@components/components/atomic/MetadataTags';
 
 const Container = styled.div`
     width: 70%;
@@ -47,11 +48,22 @@ export function Index({ posts, meta }: IndexProps) {
 
     const handleTagSelect = (tag: string) => {
         setSelectedTags((prev) => [...prev, tag]);
-    }
+    };
 
     const handleDeselectTag = (tag: string) => {
         setSelectedTags((prev) => prev.filter((t) => t !== tag));
-    }
+    };
 
-    return <h1>{allTags}</h1>;
+    return (
+        <>
+            <MetadataTags {...meta} />
+            <Container>
+                <Grid>
+                    {filteredPosts.map((post) => {
+                        return 'yeet';
+                    })}
+                </Grid>
+            </Container>
+        </>
+    );
 }
