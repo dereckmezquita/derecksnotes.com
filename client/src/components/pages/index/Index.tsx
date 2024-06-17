@@ -4,7 +4,9 @@ import { useState } from 'react';
 
 import { theme } from '@components/styles/theme';
 import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
+
 import MetadataTags from '@components/components/atomic/MetadataTags';
+import Card from './Card';
 
 const Container = styled.div`
     width: 70%;
@@ -59,9 +61,9 @@ export function Index({ posts, meta }: IndexProps) {
             <MetadataTags {...meta} />
             <Container>
                 <Grid>
-                    {filteredPosts.map((post) => {
-                        return 'yeet';
-                    })}
+                    {filteredPosts.map((post) => (
+                        <Card key={post.slug} post={post} section="blog" />
+                    ))}
                 </Grid>
             </Container>
         </>
