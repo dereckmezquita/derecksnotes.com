@@ -4,16 +4,20 @@ import './globals.css';
 import { ThemeProvider } from 'styled-components';
 import { theme } from '@components/styles/theme';
 
+import StyledComponentsRegistry from '@components/lib/registry';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
-        <ThemeProvider theme={theme}>
-            <html lang="en">
-                <body>
-                    {/* <Header /> */}
-                    {children}
-                    {/* <Footer /> */}
-                </body>
-            </html>
-        </ThemeProvider>
+        <StyledComponentsRegistry>
+            <ThemeProvider theme={theme}>
+                <html lang="en">
+                    <body>
+                        {/* <Header /> */}
+                        {children}
+                        {/* <Footer /> */}
+                    </body>
+                </html>
+            </ThemeProvider>
+        </StyledComponentsRegistry>
     );
 }

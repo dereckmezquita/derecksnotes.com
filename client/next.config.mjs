@@ -14,7 +14,10 @@ async function rewrites() {
 }
 
 const nextConfig = {
-    output: 'export'
+    output: 'export',
+    compiler: {
+        styledComponents: true,
+    }
 };
 
 export default nextConfig;
