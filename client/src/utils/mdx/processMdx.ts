@@ -34,15 +34,14 @@ export async function processMdx(markdown: string) {
                     remarkGfm,
                     remarkUnwrapImages,
                     remarkMath,
-                    remarkExternalLinks,
                     remarkToc
                 ],
                 rehypePlugins: [
-                    rehypeExternalLinks,
                     [rehypePrettyCode, rehypePrettyCodeOptions],
                     rehypeSlug,
                     rehypeMathJax,
                     rehypeTocCollapse,
+                    rehypeExternalLinks,
                     rehypeAddHeadingLinks,
                     [
                         rehypeDropCap,

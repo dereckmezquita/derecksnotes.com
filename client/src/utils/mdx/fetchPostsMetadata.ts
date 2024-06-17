@@ -3,6 +3,7 @@ import matter from 'gray-matter';
 import path from 'path';
 import { remark } from 'remark';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import mdx from 'remark-mdx';
 import strip from 'remark-mdx-to-plain-text';
 import { visit } from 'unist-util-visit';
@@ -33,6 +34,7 @@ export function extractSinglePostMetadata(filepath: string): PostMetadata {
 
         const parsedContent = remark()
             .use(remarkGfm)
+            .use(remarkMath)
             .use(mdx)
             .use(strip)
             .parse(content);
