@@ -12,6 +12,11 @@ import '@public/fonts/roboto.css'; // sans-serif
 import '@public/fonts/tangerine.css'; // cursive
 import '@public/fonts/fjalla_one.css'; // block letters; main logo
 
+// consider moving these styles to layout page of post display components
+import '@components/styles/syntax-highlighter.scss';
+import '@components/styles/footnotes.css';
+
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
         <StyledComponentsRegistry>
