@@ -6,6 +6,7 @@ import { theme } from '@components/styles/theme';
 
 import StyledComponentsRegistry from '@components/lib/registry';
 import GlobalStyles from '@components/styles/GlobalStyles';
+import Logo from '@components/components/ui/Logo';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
     return (
@@ -14,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <html lang="en">
                     <body>
                         <GlobalStyles />
-                        {/* <Header /> */}
+                        <Logo />
                         {children}
                         {/* <Footer /> */}
                     </body>
