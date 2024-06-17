@@ -69,7 +69,7 @@ export function extractSinglePostMetadata(filepath: string): PostMetadata {
             title: data.title,
             blurb: data.subtitle,
             summary: summary.substring(0, 300) + '...',
-            coverImage: data.coverImage,
+            coverImage: `/site-images/card-covers/${data.coverImage}.png`,
             author: data.author,
             date: date,
             tags: data.tags,
