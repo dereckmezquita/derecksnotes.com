@@ -1,5 +1,9 @@
+'use client';
 import styled from 'styled-components';
+import { useState } from 'react';
+
 import { theme } from '@components/styles/theme';
+import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
 
 const Container = styled.div`
     width: 70%;
@@ -20,7 +24,7 @@ const Grid = styled.div`
 `;
 
 interface IndexProps {
-    posts: any[]; // PostMetadata[]
+    posts: PostMetadata[];
     meta: {
         title: string;
         description: string;
@@ -29,4 +33,25 @@ interface IndexProps {
     };
 }
 
-function Index({ posts, meta }: IndexProps) {}
+export function Index({ posts, meta }: IndexProps) {
+    const allTags: string[] = Array.from(
+        new Set(posts.flatMap((post) => post.tags))
+    ).sort();
+    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    let filteredPosts = posts;
+    if (selectedTags.length > 0) {
+        filteredPosts = posts.filter((post) =>
+            selectedTags.every((tag) => post.tags.includes(tag))
+        );
+    }
+
+    const handleTagSelect = (tag: string) => {
+        setSelectedTags((prev) => [...prev, tag]);
+    }
+
+    const handleDeselectTag = (tag: string) => {
+        setSelectedTags((prev) => prev.filter((t) => t !== tag));
+    }
+
+    return <h1>{allTags}</h1>;
+}
