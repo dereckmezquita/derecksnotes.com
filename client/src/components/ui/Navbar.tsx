@@ -74,9 +74,8 @@ const CommonNavItem = styled.div`
 
 // allows for argument to determine if align left or right
 // inherit from Link component allows for linking to other pages
-const NavLeftItem = styled(CommonNavItem).attrs({ as: Link })<{
-    rightmost?: boolean;
-}>`
+// prettier-ignore
+const NavLeftItem = styled(CommonNavItem).attrs({ as: Link })<{ rightmost?: boolean; }>`
     float: left;
     &:hover {
         color: ${(props) => props.theme.text.colour.white()};
@@ -198,14 +197,6 @@ function Navbar() {
         setIsMenuOpen(false);
     };
 
-    // redux control of tag filter
-    // Error: `useDispatch` was conditionally called inside an `if` statement. Fixed: Moved `useDispatch` to the top-level, ensuring consistent hook order across renders.
-    const dispatch = useDispatch();
-
-    const handleToggleFilterClick = () => {
-        dispatch(toggleTagsFilter());
-    };
-
     useEffect(() => {
         setHasMounted(true);
 
@@ -274,15 +265,15 @@ function Navbar() {
                 <DateTimeDisplay>
                     {dateTime || '00 Jan 00:00:00'}
                 </DateTimeDisplay>
-                <NavRightItem onClick={handleToggleFilterClick}>
+                <NavRightItem >
                     <FaFilter />
                 </NavRightItem>
                 <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
                     <FaUser />
                 </NavRightItem>
-                {isAuthModalOpen && (
+                {/* {isAuthModalOpen && (
                     <Auth onClose={() => setIsAuthModalOpen(false)} />
-                )}
+                )} */}
             </ResponsiveMenu>
         </NavContainer>
     );

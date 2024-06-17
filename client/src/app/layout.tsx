@@ -16,6 +16,7 @@ import '@public/fonts/fjalla_one.css'; // block letters; main logo
 import '@components/styles/syntax-highlighter.scss';
 import '@components/styles/footnotes.css';
 import Footer from '@components/components/ui/Footer';
+import Navbar from '@components/components/ui/Navbar';
 
 export default function RootLayout({
     children
@@ -29,6 +30,7 @@ export default function RootLayout({
                     <body>
                         <GlobalStyles />
                         <Logo />
+                        <Navbar />
                         {children}
                         <Footer />
                     </body>
