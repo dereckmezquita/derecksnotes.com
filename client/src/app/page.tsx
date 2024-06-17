@@ -1,7 +1,6 @@
 import React from 'react';
 import path from 'path';
 
-import { API_URL, APP_VERSION } from '@components/lib/env';
 import {
     APPLICATION_DEFAULT_METADATA,
     APPLICATION_DESCRIPTION,
