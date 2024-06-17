@@ -62,7 +62,6 @@ export function extractSinglePostMetadata(filepath: string): PostMetadata {
             .toString()
             .trim();
 
-
         const date: string = DATE_YYYY_MM_DD(data.date);
 
         return {

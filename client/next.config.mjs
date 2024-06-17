@@ -16,7 +16,7 @@ async function rewrites() {
 const nextConfig = {
     output: 'export',
     compiler: {
-        styledComponents: true,
+        styledComponents: true
     }
 };
 

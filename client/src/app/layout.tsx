@@ -15,9 +15,13 @@ import '@public/fonts/fjalla_one.css'; // block letters; main logo
 // consider moving these styles to layout page of post display components
 import '@components/styles/syntax-highlighter.scss';
 import '@components/styles/footnotes.css';
+import Footer from '@components/components/ui/Footer';
 
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+    children
+}: {
+    children: React.ReactNode;
+}) {
     return (
         <StyledComponentsRegistry>
             <ThemeProvider theme={theme}>
@@ -26,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         <GlobalStyles />
                         <Logo />
                         {children}
-                        {/* <Footer /> */}
+                        <Footer />
                     </body>
                 </html>
             </ThemeProvider>
