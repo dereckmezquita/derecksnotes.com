@@ -1,9 +1,15 @@
 import React from 'react';
 
-import { APP_VERSION } from '@components/lib/env';
-import { API_URL } from '@components/lib/env';
+import { API_URL, APP_VERSION } from '@components/lib/env';
+import { APPLICATION_DESCRIPTION } from '@components/lib/constants';
+import { Metadata } from 'next';
 
-export default async function Page() {
+export const metadata: Metadata = {
+    title: 'DN | Blog',
+    description: APPLICATION_DESCRIPTION
+};
+
+async function Page() {
     return (
         <div>
             <h1>Next.js App</h1>
@@ -12,3 +18,5 @@ export default async function Page() {
         </div>
     );
 }
+
+export default Page;
