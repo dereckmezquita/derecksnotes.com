@@ -1,5 +1,8 @@
 import styled from 'styled-components';
 
+const minWidthSnapUp = (props: any) =>
+    props.theme.container.widths.min_width_snap_up;
+
 const FooterContainer = styled.footer`
     margin: 0px auto;
     margin-top: 30px;
@@ -9,11 +12,10 @@ const FooterContainer = styled.footer`
         `1px solid ${props.theme.text.colour.light_grey()}`};
 
     width: 50%;
-    ${(props) => `
-        @media (max-width: ${props.theme.container.widths.min_width_snap_up}) {
-            width: 85%;
-        }
-    `}
+
+    @media (max-width: ${minWidthSnapUp}) {
+        width: 85%;
+    }
 `;
 
 const FooterText = styled.p`
