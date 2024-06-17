@@ -29,6 +29,4 @@ interface IndexProps {
     };
 }
 
-function Index({ posts, meta }: IndexProps) {
-    
-}
+function Index({ posts, meta }: IndexProps) {}
