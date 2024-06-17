@@ -12,7 +12,7 @@ export interface IUser extends Document {
     apiKey: string;
     tempToken?: string;
     tempTokenExpires?: Date;
-    comparePassword(password: string): Promise<boolean>
+    comparePassword(password: string): Promise<boolean>;
 }
 
 export interface IUserModel extends Model<IUser> {
@@ -32,9 +32,14 @@ const UserSchema: Schema<IUser> = new Schema({
         validate: {
             validator: function (v: string) {
                 const reserved: string[] = [
-                    'dereck', 'dereck2', 'admin', 'root',
-                    'administrator', 'superuser', 'user'
-                ]
+                    'dereck',
+                    'dereck2',
+                    'admin',
+                    'root',
+                    'administrator',
+                    'superuser',
+                    'user'
+                ];
                 return !reserved.includes(v.toLowerCase());
             },
             message: (props: any) => `${props.value} is a reserved username`
