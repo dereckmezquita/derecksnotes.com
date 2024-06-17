@@ -1,3 +1,4 @@
+import { DATE_YYYY_MM_DD } from '@components/lib/dates';
 import fs from 'fs';
 import matter from 'gray-matter';
 import path from 'path';
@@ -61,6 +62,9 @@ export function extractSinglePostMetadata(filepath: string): PostMetadata {
             .toString()
             .trim();
 
+
+        const date: string = DATE_YYYY_MM_DD(data.date);
+
         return {
             slug: path.basename(filepath, '.mdx'),
             title: data.title,
@@ -68,7 +72,7 @@ export function extractSinglePostMetadata(filepath: string): PostMetadata {
             summary: summary.substring(0, 300) + '...',
             coverImage: data.coverImage,
             author: data.author,
-            date: data.date,
+            date: date,
             tags: data.tags,
             published: data.published
         };

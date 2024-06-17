@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 
 async function Page() {
     const posts: PostMetadata[] = fetchPostsMetadata(
-        path.join(ROOT_DIR_APP, 'posts')
+        path.join(ROOT_DIR_APP, 'blog/posts')
     );
     return <Index posts={posts} meta={APPLICATION_DEFAULT_METADATA} />;
 }

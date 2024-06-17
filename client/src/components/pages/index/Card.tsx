@@ -1,3 +1,4 @@
+'use client';
 import Link from 'next/link';
 import styled from 'styled-components';
 import { theme } from '@components/styles/theme';
@@ -8,12 +9,11 @@ import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
 
 const PostMeta = styled.div`
     font-size: 15px;
-    color: ${theme.text.colour.light_grey()};
+    color: ${(props) => props.theme.text.colour.light_grey()};
     font-style: italic;
     padding-top: 7px;
     padding-bottom: 7px;
 `;
-
 const PostTitle = styled.div`
     font-size: 15px;
     text-transform: uppercase;
@@ -90,7 +90,7 @@ const PostImage = styled.img`
 const Date = styled.span`
     display: inline;
     padding-left: 2px;
-    color: ${theme.theme_colours[5]()};
+    color: ${(props) => props.theme.theme_colours[5]()};
 `;
 
 interface CardProps {
