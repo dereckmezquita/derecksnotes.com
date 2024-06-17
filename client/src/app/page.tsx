@@ -1,8 +1,17 @@
 import React from 'react';
+import path from 'path';
 
 import { API_URL, APP_VERSION } from '@components/lib/env';
-import { APPLICATION_DESCRIPTION } from '@components/lib/constants';
+import {
+    APPLICATION_DESCRIPTION,
+    ROOT_DIR_APP
+} from '@components/lib/constants';
 import { Metadata } from 'next';
+
+import {
+    PostMetadata,
+    fetchPostsMetadata
+} from '@components/utils/mdx/fetchPostsMetadata';
 
 export const metadata: Metadata = {
     title: 'DN | Blog',
@@ -10,6 +19,9 @@ export const metadata: Metadata = {
 };
 
 async function Page() {
+    const posts: PostMetadata[] = fetchPostsMetadata(
+        path.join(ROOT_DIR_APP, 'posts')
+    );
     return (
         <div>
             <h1>Next.js App</h1>
