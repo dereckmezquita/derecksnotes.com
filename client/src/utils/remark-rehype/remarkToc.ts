@@ -14,9 +14,10 @@ interface RemarkTocOptions extends TocOptions {
 const remarkToc: Plugin<[(RemarkTocOptions | undefined)?], Root> = (
     options = {}
 ) => {
-    return (node: Node) => {
+    // node: Node
+    return (node: any) => {
         const result = toc(
-            node as Root,
+            node as any,
             Object.assign({}, options, {
                 heading: options.heading || 'toc|table[ -]of[ -]contents?',
                 tight: true,
@@ -37,11 +38,11 @@ const remarkToc: Plugin<[(RemarkTocOptions | undefined)?], Root> = (
         // I don't want remarkToc to remove leading paragraphs with no headers
         if ('children' in node) {
             node.children = [
-                ...node.children.slice(0, result.index),
+                ...(node as any).children.slice(0, result.index),
 
                 result.map,
 
-                ...node.children.slice(result.index)
+                ...(node as any).children.slice(result.index)
             ];
         }
     };

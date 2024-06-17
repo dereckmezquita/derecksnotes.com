@@ -10,7 +10,7 @@ import { visit } from 'unist-util-visit';
 export interface PostMetadata {
     slug: string;
     title: string;
-    subtitle: string;
+    blurb: string;
     summary?: string;
 
     coverImage: string;
@@ -62,7 +62,7 @@ export function extractSinglePostMetadata(filepath: string): PostMetadata {
         return {
             slug: path.basename(filepath, '.mdx'),
             title: data.title,
-            subtitle: data.subtitle,
+            blurb: data.subtitle,
             summary: summary.substring(0, 300) + '...',
             coverImage: data.coverImage,
             author: data.author,

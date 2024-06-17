@@ -3,8 +3,8 @@ import { Element } from 'hast';
 import { visit } from 'unist-util-visit';
 
 const rehypeTocCollapse: Plugin = () => {
-    return (tree) => {
-        visit(tree, 'element', (node: Element, index, parent: any) => {
+    return (tree: any) => {
+        visit(tree, 'element', (node: Element, index: number | undefined, parent: any) => {
             if (typeof index !== 'number') return;
 
             if (node.properties?.id === 'table-of-contents') {
