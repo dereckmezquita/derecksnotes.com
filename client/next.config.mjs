@@ -14,7 +14,10 @@ async function rewrites() {
 }
 
 const nextConfig = {
-    output: 'export',
+    // output: 'export',
+    // images: {
+    //     unoptimized: true,
+    // },
     compiler: {
         styledComponents: true
     }
