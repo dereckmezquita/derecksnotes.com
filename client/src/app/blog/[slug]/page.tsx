@@ -61,7 +61,7 @@ async function Page({ params }: PageProps) {
         notFound();
     }
 
-    const { source, frontmatter } = await processMdx(markdown);
+    const { source, frontmatter } = await processMdx<PostMetadata>(markdown);
 
     if (!frontmatter.published) {
         notFound();
