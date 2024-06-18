@@ -12,7 +12,7 @@ interface SideBarProps {
     posts: PostMetadata[];
 }
 
-const SideBar: React.FC<SideBarProps> = ({ posts }) => {
+function SideBar({ posts }: SideBarProps) {
     return (
         <SideBarContainer>
             <SideBarSiteName fontSize="20px">{`Dereck's Notes`}</SideBarSiteName>

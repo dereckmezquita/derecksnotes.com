@@ -15,12 +15,13 @@ interface DisplayPostProps {
     source: React.ReactNode;
     frontmatter: PostMetadata;
     pageMetadata: PageMetadata;
+    sideBarPosts: PostMetadata[];
 }
 
 // https://nextjs.org/docs/messages/react-hydration-error
 // NOTE: to avoid hydration errors need to useState
 // cannot do this directly from page.tsx because that exports generateStaticParams and a use client declaration is not allowed
-export function Post({ source, frontmatter, pageMetadata }: DisplayPostProps) {
+export function Post({ source, frontmatter, pageMetadata, sideBarPosts }: DisplayPostProps) {
     const [isClient, setIsClient] = useState(false);
 
     useEffect(() => {
@@ -31,6 +32,7 @@ export function Post({ source, frontmatter, pageMetadata }: DisplayPostProps) {
         <>
             <MetadataTags {...pageMetadata} />
             <PostContainer>
+                <SideBar posts={sideBarPosts} />
                 <Article>
                     <h1>{frontmatter.title}</h1>
                     {isClient && (

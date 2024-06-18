@@ -11,7 +11,8 @@ import { notFound } from 'next/navigation';
 import { Post } from './Post';
 import {
     PostMetadata,
-    extractSinglePostMetadata
+    extractSinglePostMetadata,
+    fetchPostsMetadata
 } from '@components/utils/mdx/fetchPostsMetadata';
 
 const section: string = 'blog';
@@ -28,19 +29,24 @@ async function readPostFile(filePath: string) {
 }
 
 // used at build time to generate which pages to render
-export async function generateStaticParams() {
+export async function generateStaticParams(): Promise<{ slug: string }[]> {
     const filenames: string[] = fs.readdirSync(absDir);
+
     return filenames.map((filename) => {
         const slug = path.basename(filename, '.mdx');
-        return { slug };
+        return {
+            slug
+        };
     });
 }
 
 interface PageProps {
-    params: { slug: string };
+    params: { slug: string, sideBarPosts: PostMetadata[] };
 }
 
 async function Page({ params }: PageProps) {
+    const sideBarPosts = fetchPostsMetadata(absDir);
+
     const absPath: string = path.join(
         ROOT_DIR_APP,
         section,
@@ -85,6 +91,7 @@ async function Page({ params }: PageProps) {
             source={source}
             frontmatter={frontmatter2}
             pageMetadata={APPLICATION_DEFAULT_METADATA}
+            sideBarPosts={sideBarPosts}
         />
     );
 }
