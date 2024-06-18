@@ -9,6 +9,7 @@ import strip from 'remark-mdx-to-plain-text';
 import { visit } from 'unist-util-visit';
 
 import { DATE_YYYY_MM_DD } from '@components/lib/dates';
+import { ROOT_DIR_APP } from '@components/lib/constants';
 
 export interface PostMetadata {
     slug: string;
@@ -100,4 +101,16 @@ export function fetchPostsMetadata(folder: string): PostMetadata[] {
     posts = posts.filter((post) => post.published);
 
     return posts;
+}
+
+
+export function getPostsWithSection(section: string): PostMetadata[] {
+    const posts: PostMetadata[] = fetchPostsMetadata(
+        path.join(ROOT_DIR_APP, section, 'posts')
+    );
+
+    return posts.map((post) => ({
+        ...post,
+        section
+    }));
 }

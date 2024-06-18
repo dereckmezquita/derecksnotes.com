@@ -15,7 +15,7 @@ import {
     fetchPostsMetadata
 } from '@components/utils/mdx/fetchPostsMetadata';
 
-const section: string = 'blog';
+const section: string = 'courses';
 const absDir = path.join(ROOT_DIR_APP, section, 'posts');
 
 async function readPostFile(filePath: string) {

@@ -62,7 +62,7 @@ export function Index({ posts, meta }: IndexProps) {
             <Container>
                 <Grid>
                     {filteredPosts.map((post) => (
-                        <Card key={post.slug} post={post} section="blog" />
+                        <Card key={post.slug} post={post} section={post.section!} />
                     ))}
                 </Grid>
             </Container>

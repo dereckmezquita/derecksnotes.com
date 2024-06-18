@@ -26,6 +26,6 @@ export interface PageMetadata {
 export const APPLICATION_DEFAULT_METADATA: PageMetadata = {
     title: 'DN | Blog',
     description: APPLICATION_DESCRIPTION,
-    image: '',
+    image: '/site-images/card-covers/512-logo.png',
     url: APP_URL
 };

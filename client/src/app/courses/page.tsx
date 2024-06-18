@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 };
 
 async function Page() {
-    const posts: PostMetadata[] = getPostsWithSection('blog');
+    const posts: PostMetadata[] = getPostsWithSection('courses');
 
     return <Index posts={posts} meta={APPLICATION_DEFAULT_METADATA} />;
 }
