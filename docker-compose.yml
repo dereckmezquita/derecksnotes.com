@@ -19,6 +19,8 @@ services:
     restart: unless-stopped
     depends_on:
       - linode_derecksnotes_server
+    volumes:
+      - /var/www/derecksnotes.com/public:/app/client/public
 
 networks:
   dereck-network:
