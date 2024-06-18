@@ -8,11 +8,24 @@ export const APPLICATION_AUTHOR: { first: string; last: string } = {
     first: 'Dereck',
     last: 'Mezquita'
 };
+
 export const APPLICATION_DESCRIPTION: string = 'Making sciencing easier.';
 
-export const APPLICATION_DEFAULT_METADATA = {
+import { APP_URL } from './env';
+
+// TODO: consider extending or mimicking next meta
+// import { Metadata } from 'next';
+
+export interface PageMetadata {
+    title: string;
+    description: string;
+    image: string;
+    url: string;
+}
+
+export const APPLICATION_DEFAULT_METADATA: PageMetadata = {
     title: 'DN | Blog',
     description: APPLICATION_DESCRIPTION,
     image: '',
-    url: 'https://derecksnotes.com'
+    url: APP_URL
 };
