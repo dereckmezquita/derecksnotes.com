@@ -62,7 +62,7 @@ jobs:
       - name: Create .env file
         run: |
           echo NEXT_PUBLIC_BUILD_ENV=DEV > ./client/.env
-          echo NEXT_PUBLIC_API_URL=https://dev.derecksnotes.com/api/ >> ./client/.env
+          echo NEXT_PUBLIC_APP_URL=https://dev.derecksnotes.com/ >> ./client/.env
 
       - name: Build and push client image
         uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
@@ -73,7 +73,7 @@ jobs:
           tags: ${{ env.IMAGE_NAME_CLIENT }}:latest_dev
           build-args: |
             NEXT_PUBLIC_BUILD_ENV=DEV
-            NEXT_PUBLIC_API_URL=http://localhost:3001
+            NEXT_PUBLIC_APP_URL=https://dev.derecksnotes.com/
 
   deploy_to_linode:
     name: Deploy docker-compose.yml to Linode
