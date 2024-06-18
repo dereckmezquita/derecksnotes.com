@@ -12,7 +12,8 @@ import { Post } from '../../../components/pages/Post';
 import {
     PostMetadata,
     extractSinglePostMetadata,
-    fetchPostsMetadata
+    fetchPostsMetadata,
+    getPostsWithSection
 } from '@components/utils/mdx/fetchPostsMetadata';
 
 const section: string = 'blog';
@@ -45,7 +46,7 @@ interface PageProps {
 }
 
 async function Page({ params }: PageProps) {
-    const sideBarPosts = fetchPostsMetadata(absDir);
+    const sideBarPosts = getPostsWithSection('blog')
 
     const absPath: string = path.join(
         ROOT_DIR_APP,
