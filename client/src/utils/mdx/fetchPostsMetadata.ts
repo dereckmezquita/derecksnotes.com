@@ -100,7 +100,9 @@ export function fetchPostsMetadata(folder: string): PostMetadata[] {
 
     posts = posts.filter((post) => post.published);
 
-    return posts;
+    return posts.sort((a, b) => {
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    });
 }
 
 
