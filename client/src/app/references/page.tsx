@@ -3,7 +3,7 @@ import path from 'path';
 
 import {
     APPLICATION_DEFAULT_METADATA,
-    APPLICATION_DESCRIPTION,
+    APPLICATION_DESCRIPTION
 } from '@components/lib/constants';
 import { Metadata } from 'next';
 

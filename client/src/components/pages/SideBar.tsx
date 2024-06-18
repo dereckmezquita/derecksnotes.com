@@ -18,23 +18,23 @@ function SideBar({ posts }: SideBarProps) {
             <SideBarSiteName fontSize="20px">{`Dereck's Notes`}</SideBarSiteName>
             {posts.length > 0
                 ? posts.map((meta) => (
-                    <SideBarEntriesContainer key={meta.slug}>
-                        <SideEntryLink
-                            key={meta.slug}
-                            href={`/${meta.section}/${meta.slug}`}
-                            passHref
-                        >
-                            <span style={{ fontWeight: 'bold' }}>
-                                {meta.date}
-                            </span>
-                            : {meta.title}
-                        </SideEntryLink>
-                    </SideBarEntriesContainer>
-                ))
+                      <SideBarEntriesContainer key={meta.slug}>
+                          <SideEntryLink
+                              key={meta.slug}
+                              href={`/${meta.section}/${meta.slug}`}
+                              passHref
+                          >
+                              <span style={{ fontWeight: 'bold' }}>
+                                  {meta.date}
+                              </span>
+                              : {meta.title}
+                          </SideEntryLink>
+                      </SideBarEntriesContainer>
+                  ))
                 : null}
             <SideBarAbout />
         </SideBarContainer>
     );
-};
+}
 
 export default SideBar;

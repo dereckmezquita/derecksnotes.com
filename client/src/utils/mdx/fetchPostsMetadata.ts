@@ -29,7 +29,7 @@ export interface PostMetadata {
     url?: string;
 }
 
-export function extractSinglePostMetadata(filePath: string): PostMetadata {
+export function stripMdx<T = object>(filePath: string): { summary: string; frontmatter: T } {
     try {
         if (!filePath.endsWith('.mdx')) {
             throw new Error(
@@ -38,7 +38,7 @@ export function extractSinglePostMetadata(filePath: string): PostMetadata {
         }
 
         const file: string = fs.readFileSync(filePath, 'utf-8');
-        const { data, content } = matter(file);
+        const { content, data } = matter<string, any>(file);
 
         const parsedContent = remark()
             .use(remarkGfm)
@@ -47,7 +47,7 @@ export function extractSinglePostMetadata(filePath: string): PostMetadata {
             .use(strip)
             .parse(content);
 
-        // extrat text from paragraph nodes
+        // extract text from paragraph nodes
         const paragraphs: string[] = [];
         visit(parsedContent, 'paragraph', (node: any) => {
             const textContent = node.children
@@ -69,19 +69,32 @@ export function extractSinglePostMetadata(filePath: string): PostMetadata {
             .toString()
             .trim();
 
-        const date: string = DATE_YYYY_MM_DD(data.date);
+        return {
+            summary: summary,
+            frontmatter: data as T
+        }
+    } catch (error: any) {
+        console.error(`Error reading file: ${filePath}`, error);
+        process.exit(1);
+    }
+}
+
+export function extractSinglePostMetadata(filePath: string): PostMetadata {
+    try {
+        const { summary, frontmatter } = stripMdx<PostMetadata>(filePath);
+        const date: string = DATE_YYYY_MM_DD(frontmatter.date);
 
         return {
             slug: path.basename(filePath, '.mdx'), // removes ext
-            title: data.title,
-            blurb: data.blurb,
+            title: frontmatter.title,
+            blurb: frontmatter.blurb,
             summary: summary.substring(0, 300) + '...',
-            coverImage: `/site-images/card-covers/${data.coverImage}.png`,
-            author: data.author,
+            coverImage: `/site-images/card-covers/${frontmatter.coverImage}.png`,
+            author: frontmatter.author,
             date: date,
-            tags: data.tags,
-            published: data.published,
-            comments: data.comments
+            tags: frontmatter.tags,
+            published: frontmatter.published,
+            comments: frontmatter.comments
         };
     } catch (error: any) {
         console.error(`Error reading file: ${filePath}`, error);
@@ -104,7 +117,6 @@ export function fetchPostsMetadata(folder: string): PostMetadata[] {
         return new Date(b.date).getTime() - new Date(a.date).getTime();
     });
 }
-
 
 export function getPostsWithSection(section: string): PostMetadata[] {
     const posts: PostMetadata[] = fetchPostsMetadata(

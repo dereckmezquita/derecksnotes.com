@@ -41,7 +41,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
 }
 
 interface PageProps {
-    params: { slug: string, sideBarPosts: PostMetadata[] };
+    params: { slug: string; sideBarPosts: PostMetadata[] };
 }
 
 async function Page({ params }: PageProps) {
