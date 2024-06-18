@@ -4,7 +4,8 @@ import Link from 'next/link';
 
 import { SiteName } from '@components/components/ui/Logo';
 
-const minWidthSnapUp = (props: any) => props.theme.container.widths.min_width_snap_up;
+const minWidthSnapUp = (props: any) =>
+    props.theme.container.widths.min_width_snap_up;
 
 export const PostContainer = styled.div`
     display: flex;
@@ -12,7 +13,8 @@ export const PostContainer = styled.div`
     margin: 0 auto 50px;
 
     width: 80%;
-    background-color: ${(props) => props.theme.container.background.colour.content};
+    background-color: ${(props) =>
+        props.theme.container.background.colour.content};
 
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -38,7 +40,8 @@ export const SideBarContainer = styled.div`
 
 export const SideBarSiteName = styled(SiteName)<{ fontSize: string }>`
     font-size: 20px;
-    border-bottom: 1px dashed ${(props) => props.theme.container.border.colour.primary()};
+    border-bottom: 1px dashed
+        ${(props) => props.theme.container.border.colour.primary()};
     margin-bottom: 30px;
 `;
 
@@ -73,7 +76,8 @@ export const SideBarAboutContainer = styled.div`
 export const SideBarAboutH2 = styled.h2`
     padding-top: 10px;
     font-size: 20px;
-    color: ${(props) => props.theme.text.colour.light_grey(undefined, undefined, 50)};
+    color: ${(props) =>
+        props.theme.text.colour.light_grey(undefined, undefined, 50)};
 `;
 
 export function SideBarAbout(): JSX.Element {
@@ -106,7 +110,6 @@ export const Article = styled.article<{ sideBar?: boolean }>`
         props.sideBar === false
             ? 'none'
             : `1px dashed ${props.theme.container.border.colour.primary()}`};
-            
 
     text-align: justify;
     text-justify: auto;
@@ -145,7 +148,8 @@ export const PostContentWrapper = styled.div`
     }
 
     table {
-        background-color: ${(props) => props.theme.container.background.colour.primary()};
+        background-color: ${(props) =>
+            props.theme.container.background.colour.primary()};
 
         font-family: sans-serif;
         font-size: 0.9em;
@@ -155,7 +159,8 @@ export const PostContentWrapper = styled.div`
 
         border-collapse: collapse;
 
-        border: 1px solid ${(props) => props.theme.container.border.colour.primary()};
+        border: 1px solid
+            ${(props) => props.theme.container.border.colour.primary()};
         box-shadow: ${(props) => props.theme.container.shadow.primary};
 
         @media only screen and (max-width: 600px) {
@@ -165,12 +170,14 @@ export const PostContentWrapper = styled.div`
         td {
             padding: 5px;
             text-align: center;
-            border: 1px solid ${(props) => props.theme.container.border.colour.primary()};
+            border: 1px solid
+                ${(props) => props.theme.container.border.colour.primary()};
         }
 
         th {
             padding: 5px;
-            border: 1px solid ${(props) => props.theme.container.border.colour.primary()};
+            border: 1px solid
+                ${(props) => props.theme.container.border.colour.primary()};
         }
     }
 `;
