@@ -60,7 +60,16 @@ async function Page({ params }: PageProps) {
         notFound();
     }
 
-    const frontmatter2: PostMetadata = extractSinglePostMetadata(absPath);
+    APPLICATION_DEFAULT_METADATA.url = new URL(
+        path.join(section, params.slug),
+        APPLICATION_DEFAULT_METADATA.url
+    ).toString();
+
+    const frontmatter2: PostMetadata = {
+        ...extractSinglePostMetadata(absPath),
+        section,
+        url: APPLICATION_DEFAULT_METADATA.url
+    };
 
     if (!frontmatter2.summary) {
         throw new Error(`Post ${frontmatter.slug} is missing a summary`);
@@ -70,11 +79,6 @@ async function Page({ params }: PageProps) {
     APPLICATION_DEFAULT_METADATA.description = frontmatter2.summary;
     APPLICATION_DEFAULT_METADATA.image =
         '/site-images/card-covers/' + frontmatter2.coverImage + '.png';
-
-    APPLICATION_DEFAULT_METADATA.url = new URL(
-        path.join(section, params.slug),
-        APPLICATION_DEFAULT_METADATA.url
-    ).toString();
 
     return (
         <Post

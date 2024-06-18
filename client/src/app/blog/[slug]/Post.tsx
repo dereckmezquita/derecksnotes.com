@@ -1,5 +1,12 @@
 'use client';
 import MetadataTags from '@components/components/atomic/MetadataTags';
+import SideBar from '@components/components/pages/SideBar';
+import {
+    Article,
+    PostContainer,
+    PostContentWrapper,
+    SideBarSiteName
+} from '@components/components/pages/posts-dictionaries';
 import { PageMetadata } from '@components/lib/constants';
 import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
 import { useState, useEffect } from 'react';
@@ -22,13 +29,15 @@ export function Post({ source, frontmatter, pageMetadata }: DisplayPostProps) {
 
     return (
         <>
-            {isClient && (
-                <>
-                    <MetadataTags {...pageMetadata} />
+            <MetadataTags {...pageMetadata} />
+            <PostContainer>
+                <Article>
                     <h1>{frontmatter.title}</h1>
-                    {source}
-                </>
-            )}
+                    {isClient && (
+                        <PostContentWrapper>{source}</PostContentWrapper>
+                    )}
+                </Article>
+            </PostContainer>
         </>
     );
 }
