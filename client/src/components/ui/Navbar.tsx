@@ -1,3 +1,4 @@
+'use client';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
@@ -265,7 +266,7 @@ function Navbar() {
                 <DateTimeDisplay>
                     {dateTime || '00 Jan 00:00:00'}
                 </DateTimeDisplay>
-                <NavRightItem >
+                <NavRightItem>
                     <FaFilter />
                 </NavRightItem>
                 <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
