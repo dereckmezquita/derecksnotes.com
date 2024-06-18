@@ -15,6 +15,7 @@ import rehypeAddHeadingLinks from '../remark-rehype/rehypeAddHeadingLinks';
 import rehypeDropCap from '../remark-rehype/rehypeDropCap';
 
 import { PostMetadata } from './fetchPostsMetadata';
+import { DefinitionMetadata } from '../dictionaries/fetchDefinitionMetadata';
 import { compileMDX } from 'next-mdx-remote/rsc';
 
 import mdxComponents from '@components/components/mdx/index';
@@ -24,8 +25,10 @@ const rehypePrettyCodeOptions: Partial<Options> = {
     defaultLang: 'plaintext'
 };
 
-export async function processMdx(markdown: string) {
-    const { content, frontmatter } = await compileMDX<PostMetadata>({
+export async function processMdx<T extends PostMetadata | DefinitionMetadata>(
+    markdown: string
+): Promise<{ frontmatter: T; source: React.ReactNode }> {
+    const { content, frontmatter } = await compileMDX<T>({
         source: markdown,
         components: mdxComponents,
         options: {
@@ -61,9 +64,11 @@ export async function processMdx(markdown: string) {
         }
     });
 
-    frontmatter.date = new Date(frontmatter.date as string)
-        .toISOString()
-        .slice(0, 10);
+    if ('date' in frontmatter) {
+        frontmatter.date = new Date(frontmatter.date as string)
+            .toISOString()
+            .slice(0, 10);
+    }
 
     return {
         frontmatter: frontmatter,
