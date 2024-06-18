@@ -29,7 +29,7 @@ export interface PostMetadata {
     url?: string;
 }
 
-export function stripMdx<T = object>(
+export function stripMdx<T extends object>(
     filePath: string
 ): { summary: string; frontmatter: T } {
     try {
