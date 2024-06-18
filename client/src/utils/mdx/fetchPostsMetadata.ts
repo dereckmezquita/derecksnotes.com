@@ -1,4 +1,3 @@
-import { DATE_YYYY_MM_DD } from '@components/lib/dates';
 import fs from 'fs';
 import matter from 'gray-matter';
 import path from 'path';
@@ -8,6 +7,8 @@ import remarkMath from 'remark-math';
 import mdx from 'remark-mdx';
 import strip from 'remark-mdx-to-plain-text';
 import { visit } from 'unist-util-visit';
+
+import { DATE_YYYY_MM_DD } from '@components/lib/dates';
 
 export interface PostMetadata {
     slug: string;
@@ -22,15 +23,15 @@ export interface PostMetadata {
     published: boolean;
 }
 
-export function extractSinglePostMetadata(filepath: string): PostMetadata {
+export function extractSinglePostMetadata(filePath: string): PostMetadata {
     try {
-        if (!filepath.endsWith('.mdx')) {
+        if (!filePath.endsWith('.mdx')) {
             throw new Error(
-                `File name must end with .mdx; received: ${filepath}`
+                `File name must end with .mdx; received: ${filePath}`
             );
         }
 
-        const file: string = fs.readFileSync(filepath, 'utf-8');
+        const file: string = fs.readFileSync(filePath, 'utf-8');
         const { data, content } = matter(file);
 
         const parsedContent = remark()
@@ -65,7 +66,7 @@ export function extractSinglePostMetadata(filepath: string): PostMetadata {
         const date: string = DATE_YYYY_MM_DD(data.date);
 
         return {
-            slug: path.basename(filepath, '.mdx'),
+            slug: path.basename(filePath, '.mdx'), // removes ext
             title: data.title,
             blurb: data.subtitle,
             summary: summary.substring(0, 300) + '...',
@@ -76,7 +77,7 @@ export function extractSinglePostMetadata(filepath: string): PostMetadata {
             published: data.published
         };
     } catch (error: any) {
-        console.error(`Error reading file: ${filepath}`, error);
+        console.error(`Error reading file: ${filePath}`, error);
         console.error(error);
         process.exit(1);
     }
