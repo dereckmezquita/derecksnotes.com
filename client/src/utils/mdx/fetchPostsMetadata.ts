@@ -29,7 +29,9 @@ export interface PostMetadata {
     url?: string;
 }
 
-export function stripMdx<T = object>(filePath: string): { summary: string; frontmatter: T } {
+export function stripMdx<T = object>(
+    filePath: string
+): { summary: string; frontmatter: T } {
     try {
         if (!filePath.endsWith('.mdx')) {
             throw new Error(
@@ -72,7 +74,7 @@ export function stripMdx<T = object>(filePath: string): { summary: string; front
         return {
             summary: summary,
             frontmatter: data as T
-        }
+        };
     } catch (error: any) {
         console.error(`Error reading file: ${filePath}`, error);
         process.exit(1);

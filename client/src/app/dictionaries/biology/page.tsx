@@ -1,4 +1,4 @@
-import { Dictionary } from "@components/components/pages/Dictionary";
+import { Dictionary } from '@components/components/pages/Dictionary';
 
 function Page() {
     return <Dictionary />;

@@ -1,8 +1,6 @@
 import path from 'path';
 
 import { stripMdx } from '../mdx/fetchPostsMetadata';
-import { DATE_YYYY_MM_DD } from '@components/lib/dates';
-
 
 export interface DefinitionMetadata {
     slug: string;
@@ -19,7 +17,9 @@ export interface DefinitionMetadata {
     linkedFrom: string[];
 }
 
-export function extractSingleDefinitionMetadata(filePath: string): DefinitionMetadata {
+export function extractSingleDefinitionMetadata(
+    filePath: string
+): DefinitionMetadata {
     try {
         const { summary, frontmatter } = stripMdx<DefinitionMetadata>(filePath);
         // TODO: add dates to definitions
@@ -37,7 +37,7 @@ export function extractSingleDefinitionMetadata(filePath: string): DefinitionMet
             comments: frontmatter.comments,
 
             linksTo: frontmatter.linksTo,
-            linkedFrom: frontmatter.linkedFrom,
+            linkedFrom: frontmatter.linkedFrom
         };
     } catch (error: any) {
         console.error(`Error reading file: ${filePath}`, error);
