@@ -21,6 +21,11 @@ export interface PostMetadata {
     date: string;
     tags: string[];
     published: boolean;
+    comments: boolean;
+
+    // used during build
+    section?: string;
+    url?: string;
 }
 
 export function extractSinglePostMetadata(filePath: string): PostMetadata {
