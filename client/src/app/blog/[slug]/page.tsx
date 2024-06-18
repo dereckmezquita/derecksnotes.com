@@ -1,38 +1,88 @@
 import fs from 'fs';
-import { readFile, access } from 'fs/promises';
 import path from 'path';
-import { ROOT_DIR_APP } from "@components/lib/constants";
+import { URL } from 'url';
+import { readFile, access } from 'fs/promises';
+import {
+    APPLICATION_DEFAULT_METADATA,
+    ROOT_DIR_APP
+} from '@components/lib/constants';
+import { processMdx } from '@components/utils/mdx/processMdx';
+import { notFound } from 'next/navigation';
+import { Post } from './Post';
+import {
+    PostMetadata,
+    extractSinglePostMetadata
+} from '@components/utils/mdx/fetchPostsMetadata';
 
-const postsDir = path.join(ROOT_DIR_APP, 'blog/posts');
+const section: string = 'blog';
+const absDir = path.join(ROOT_DIR_APP, section, 'posts');
 
-async function readPostFile(slug: string) {
-    const filePath = path.resolve(path.join(postsDir, `${slug}.mdx`));
-
+async function readPostFile(filePath: string) {
     try {
         await access(filePath);
     } catch (err) {
         return undefined;
     }
 
-    const fileContent = await readFile(filePath, { encoding: 'utf-8' });
-    return fileContent;
+    return await readFile(filePath, { encoding: 'utf-8' });
 }
 
 // used at build time to generate which pages to render
 export async function generateStaticParams() {
-    const filenames: string[] = fs.readdirSync(postsDir);
+    const filenames: string[] = fs.readdirSync(absDir);
     return filenames.map((filename) => {
         const slug = path.basename(filename, '.mdx');
         return { slug };
     });
 }
 
-async function Page({ params }: { params: { slug: string } }) {
-  return (
-    <div>
-        <h1>Hello world!</h1>
-    </div>
-  );
+interface PageProps {
+    params: { slug: string };
+}
+
+async function Page({ params }: PageProps) {
+    const absPath: string = path.join(
+        ROOT_DIR_APP,
+        section,
+        'posts',
+        params.slug + '.mdx'
+    );
+
+    const markdown = await readPostFile(absPath);
+
+    if (!markdown) {
+        notFound();
+    }
+
+    const { source, frontmatter } = await processMdx(markdown);
+
+    if (!frontmatter.published) {
+        notFound();
+    }
+
+    const frontmatter2: PostMetadata = extractSinglePostMetadata(absPath);
+
+    if (!frontmatter2.summary) {
+        throw new Error(`Post ${frontmatter.slug} is missing a summary`);
+    }
+
+    APPLICATION_DEFAULT_METADATA.title = frontmatter2.title;
+    APPLICATION_DEFAULT_METADATA.description = frontmatter2.summary;
+    APPLICATION_DEFAULT_METADATA.image =
+        '/site-images/card-covers/' + frontmatter2.coverImage + '.png';
+
+    APPLICATION_DEFAULT_METADATA.url = new URL(
+        path.join(section, params.slug),
+        APPLICATION_DEFAULT_METADATA.url
+    ).toString();
+
+    return (
+        <Post
+            source={source}
+            frontmatter={frontmatter2}
+            pageMetadata={APPLICATION_DEFAULT_METADATA}
+        />
+    );
 }
 
 export default Page;
