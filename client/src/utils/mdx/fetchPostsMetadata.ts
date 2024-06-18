@@ -79,7 +79,8 @@ export function extractSinglePostMetadata(filePath: string): PostMetadata {
             author: data.author,
             date: date,
             tags: data.tags,
-            published: data.published
+            published: data.published,
+            comments: data.comments
         };
     } catch (error: any) {
         console.error(`Error reading file: ${filePath}`, error);
