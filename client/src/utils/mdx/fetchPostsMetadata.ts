@@ -74,7 +74,7 @@ export function extractSinglePostMetadata(filePath: string): PostMetadata {
         return {
             slug: path.basename(filePath, '.mdx'), // removes ext
             title: data.title,
-            blurb: data.subtitle,
+            blurb: data.blurb,
             summary: summary.substring(0, 300) + '...',
             coverImage: `/site-images/card-covers/${data.coverImage}.png`,
             author: data.author,

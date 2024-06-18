@@ -28,8 +28,6 @@ export function Post({ source, frontmatter, pageMetadata, sideBarPosts }: Displa
         setIsClient(true);
     }, []);
 
-    console.log(sideBarPosts);
-
     return (
         <>
             <MetadataTags {...pageMetadata} />
