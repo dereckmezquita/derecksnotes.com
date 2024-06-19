@@ -1,4 +1,4 @@
-import { access, readFile } from "fs/promises";
+import { access, readFile } from 'fs/promises';
 
 export async function accessReadFile(filePath: string) {
     try {
