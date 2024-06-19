@@ -15,7 +15,7 @@ import rehypeAddHeadingLinks from '../remark-rehype/rehypeAddHeadingLinks';
 import rehypeDropCap from '../remark-rehype/rehypeDropCap';
 
 import { PostMetadata } from './fetchPostsMetadata';
-import { DefinitionMetadata } from '@components/app/dictionaries/biology/page';
+import { DefinitionMetadata } from '../dictionaries/fetchDefinitionMetadata';
 import { compileMDX } from 'next-mdx-remote/rsc';
 
 import mdxComponents from '@components/components/mdx/index';
