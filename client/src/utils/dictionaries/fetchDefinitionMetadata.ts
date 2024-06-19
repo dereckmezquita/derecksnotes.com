@@ -38,9 +38,13 @@ export async function fetchAllDefintions(dir: string): Promise<Definition[]> {
             if (!markdown) {
                 throw new Error(`Could not read file ${currPath}`);
             }
-            const { source, frontmatter } = await processMdx<DefinitionMetadata>(markdown);
+            const { source, frontmatter } =
+                await processMdx<DefinitionMetadata>(markdown);
 
-            frontmatter.url = new URL(path.join('dictionaries', frontmatter.dictionary), APP_URL).toString();
+            frontmatter.url = new URL(
+                path.join('dictionaries', frontmatter.dictionary),
+                APP_URL
+            ).toString();
             frontmatter.slug = path.basename(filename, '.mdx');
 
             return {
@@ -71,5 +75,5 @@ export async function fetchAllDefintions(dir: string): Promise<Definition[]> {
             }
         });
 
-        return definitions2;
+    return definitions2;
 }
