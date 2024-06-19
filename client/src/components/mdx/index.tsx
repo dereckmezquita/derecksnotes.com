@@ -5,7 +5,7 @@ import Blockquote from './Blockquote';
 import Carousel from './FigureCarrousel';
 import LearningObjectives from './LearningObjectives';
 
-export default {
+const mdxComponents = {
     Figure,
     // DropCap,
     Alert,
@@ -13,3 +13,5 @@ export default {
     Carousel,
     LearningObjectives
 };
+
+export default mdxComponents;
