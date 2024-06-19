@@ -6,7 +6,7 @@ import {
     ROOT_DIR_APP
 } from '@components/lib/constants';
 import { processMdx } from '@components/utils/mdx/processMdx';
-import { Dictionary } from '@components/components/pages/Dictionary';
+import { Dictionary } from '@components/components/pages/dictionaries/Dictionary';
 import { accessReadFile } from '@components/utils/accessReadFile';
 
 const dictionary: string = 'biology';
@@ -25,22 +25,7 @@ APPLICATION_DEFAULT_METADATA.url = new URL(
     APPLICATION_DEFAULT_METADATA.url
 ).toString();
 
-export async function generateStaticParams(): Promise<{ slug: string }[]> {
-    const filenames: string[] = fs.readdirSync(absDir);
-
-    return filenames.map((filename) => {
-        const slug = path.basename(filename, '.mdx');
-        return {
-            slug
-        };
-    });
-}
-
-interface PageProps {
-    params: { slug: string };
-}
-
-async function Page({ params }: PageProps) {
+async function Page() {
     const filePaths: string[] = fs.readdirSync(absDir);
     const definitions: Definition[] = await Promise.all(
         filePaths.map(async (filename) => {
