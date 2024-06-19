@@ -1,5 +1,5 @@
-import { Definition } from "@components/app/dictionaries/biology/page";
-import { PostContentWrapper } from "../posts-dictionaries";
+import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetadata';
+import { PostContentWrapper } from '../posts-dictionaries';
 
 /**
  * For rendering definitions in a numbered list; separated by sections per letter

@@ -2,13 +2,10 @@
 
 import { PageMetadata } from '@components/lib/constants';
 import React, { useEffect, useState } from 'react';
-import {
-    Article,
-    PostContainer
-} from '../posts-dictionaries';
-import { Definition } from '@components/app/dictionaries/biology/page';
+import { Article, PostContainer } from '../posts-dictionaries';
 import MetadataTags from '../../atomic/MetadataTags';
 import { renderDefinitions } from './renderDefinitions';
+import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetadata';
 
 interface DictionaryProps {
     definitions: Definition[];
