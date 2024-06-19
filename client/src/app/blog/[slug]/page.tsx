@@ -46,6 +46,7 @@ async function Page({ params }: PageProps) {
 
     const markdown = await accessReadFile(absPath);
 
+    // TODO: review and reconsider this logic; should this be an error
     if (!markdown) {
         notFound();
     }
