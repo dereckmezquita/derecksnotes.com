@@ -7,6 +7,7 @@ import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
 
 import MetadataTags from '@components/components/atomic/MetadataTags';
 import Card from './Card';
+import { PageMetadata } from '@components/lib/constants';
 
 const Container = styled.div`
     width: 70%;
@@ -28,14 +29,17 @@ const Grid = styled.div`
 
 interface IndexProps {
     posts: PostMetadata[];
-    meta: {
-        title: string;
-        description: string;
-        image: string;
-        url: string;
-    };
+    meta: PageMetadata;
 }
 
+/**
+ * Index page component for displaying blog posts etc.
+ *
+ * Note that metadata is passed to the component since the Index component is
+ * used in multiple places and the metadata is different for each use case.
+ * @param param0 Posts and metadata for the index page
+ * @returns React component
+ */
 export function Index({ posts, meta }: IndexProps) {
     const allTags: string[] = Array.from(
         new Set(posts.flatMap((post) => post.tags))
