@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import { URL } from 'url';
-import { readFile, access } from 'fs/promises';
 import {
     APPLICATION_DEFAULT_METADATA,
     ROOT_DIR_APP
@@ -14,19 +13,10 @@ import {
     extractSinglePostMetadata,
     fetchPostsMetadata
 } from '@components/utils/mdx/fetchPostsMetadata';
+import { accessReadFile } from '@components/utils/accessReadFile';
 
 const section: string = 'references';
 const absDir = path.join(ROOT_DIR_APP, section, 'posts');
-
-async function readPostFile(filePath: string) {
-    try {
-        await access(filePath);
-    } catch (err) {
-        return undefined;
-    }
-
-    return await readFile(filePath, { encoding: 'utf-8' });
-}
 
 // used at build time to generate which pages to render
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
@@ -41,7 +31,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
 }
 
 interface PageProps {
-    params: { slug: string; sideBarPosts: PostMetadata[] };
+    params: { slug: string };
 }
 
 async function Page({ params }: PageProps) {
@@ -54,7 +44,7 @@ async function Page({ params }: PageProps) {
         params.slug + '.mdx'
     );
 
-    const markdown = await readPostFile(absPath);
+    const markdown = await accessReadFile(absPath);
 
     if (!markdown) {
         notFound();
