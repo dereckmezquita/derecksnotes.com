@@ -3,25 +3,9 @@ import path from 'path';
 
 import { stripMdx } from '../mdx/fetchPostsMetadata';
 import { ROOT_DIR_APP } from '@components/lib/constants';
+import { DefinitionMetadata } from '@components/app/dictionaries/biology/page';
 
-export interface DefinitionMetadata {
-    slug: string;
-    letter: string;
-    word: string;
-    dictionary: string;
-    category: string;
-    dataSources: string;
-
-    published: boolean;
-    comments: boolean;
-
-    linksTo: string[];
-    linkedFrom: string[];
-}
-
-export function extractSingleDefinitionMetadata(
-    filePath: string
-): DefinitionMetadata {
+export function processSingleDefinition(filePath: string): DefinitionMetadata {
     try {
         const { summary, frontmatter } = stripMdx<DefinitionMetadata>(filePath);
         // TODO: add dates to definitions
@@ -39,7 +23,9 @@ export function extractSingleDefinitionMetadata(
             comments: frontmatter.comments,
 
             linksTo: frontmatter.linksTo,
-            linkedFrom: frontmatter.linkedFrom
+            linkedFrom: frontmatter.linkedFrom,
+
+            url: ''
         };
     } catch (error: any) {
         console.error(`Error reading file: ${filePath}`, error);
@@ -53,7 +39,7 @@ export function fetchDefinitionsMetadata(folder: string): DefinitionMetadata[] {
     const mdx: string[] = files.filter((file) => file.endsWith('.mdx'));
 
     let defs: DefinitionMetadata[] = mdx.map((file) => {
-        return extractSingleDefinitionMetadata(path.join(folder, file));
+        return processSingleDefinition(path.join(folder, file));
     });
 
     defs = defs.filter((def) => def.published);
