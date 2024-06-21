@@ -3,7 +3,7 @@ import path from 'path';
 import { accessReadFile } from '../accessReadFile';
 import { processMdx } from '../mdx/processMdx';
 
-import { APP_URL } from '@components/lib/env';
+import { NEXT_PUBLIC_APP_URL } from '@components/lib/env';
 
 export interface Definition {
     source: React.ReactNode;
@@ -43,7 +43,7 @@ export async function fetchAllDefintions(dir: string): Promise<Definition[]> {
 
             frontmatter.url = new URL(
                 path.join('dictionaries', frontmatter.dictionary),
-                APP_URL
+                NEXT_PUBLIC_APP_URL
             ).toString();
             frontmatter.slug = path.basename(filename, '.mdx');
 

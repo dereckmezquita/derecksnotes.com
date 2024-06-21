@@ -4,7 +4,7 @@ import './globals.css';
 import { ThemeProvider } from 'styled-components';
 import { theme } from '@components/styles/theme';
 
-import StyledComponentsRegistry from '@components/lib/registry';
+import StyledComponentsRegistry from '@components/lib/registry'; // eliminates FOUC forcing styled-components to render on server
 import GlobalStyles from '@components/styles/GlobalStyles';
 import Logo from '@components/components/ui/Logo';
 

@@ -1,4 +1,5 @@
 import path from 'path';
+
 export const ROOT_DIR: string = process.cwd();
 export const ROOT_DIR_SRC: string = path.join(ROOT_DIR, 'src');
 export const ROOT_DIR_APP: string = path.join(ROOT_DIR_SRC, 'app');
@@ -11,8 +12,6 @@ export const APPLICATION_AUTHOR: { first: string; last: string } = {
 
 export const APPLICATION_DESCRIPTION: string = 'Making sciencing easier.';
 
-import { APP_URL } from './env';
-
 // TODO: consider extending or mimicking next meta
 // import { Metadata } from 'next';
 
@@ -20,12 +19,14 @@ export interface PageMetadata {
     title: string;
     description: string;
     image: string;
-    url: string;
+    url: string | undefined;
 }
 
 export const APPLICATION_DEFAULT_METADATA: PageMetadata = {
     title: 'DN | Blog',
     description: APPLICATION_DESCRIPTION,
     image: '/site-images/card-covers/512-logo.png',
-    url: APP_URL
+    url: process.env.NEXT_PUBLIC_APP_URL
 };
+
+export const ALPHABET: string[] = 'abcdefghijklmnopqrstuvwxyz#'.split('');

@@ -1,14 +1,12 @@
 import React from 'react';
 import Head from 'next/head';
+import { APPLICATION_DEFAULT_METADATA, PageMetadata } from '@components/lib/constants';
 
-interface Props {
-    title: string;
-    description: string;
-    image: string;
-    url: string;
-}
+function MetadataTags({ title, description, image, url }: PageMetadata) {
+    if (!APPLICATION_DEFAULT_METADATA.url) {
+        throw new Error('NEXT_PUBLIC_APP_URL is not defined');
+    }
 
-const MetadataTags: React.FC<Props> = ({ title, description, image, url }) => {
     return (
         <Head>
             <title>{title}</title>

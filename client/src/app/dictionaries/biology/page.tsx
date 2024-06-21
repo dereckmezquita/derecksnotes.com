@@ -16,12 +16,18 @@ const absDir: string = path.join(
 );
 
 APPLICATION_DEFAULT_METADATA.title = 'DN | Biology Dictionary';
-APPLICATION_DEFAULT_METADATA.description =
-    'A comprehensive interactive biology dictionary.';
+APPLICATION_DEFAULT_METADATA.description = 'A comprehensive interactive biology dictionary.';
+
+if (!APPLICATION_DEFAULT_METADATA.url) {
+    throw new Error('NEXT_PUBLIC_APP_URL is not defined');
+}
+
 APPLICATION_DEFAULT_METADATA.url = new URL(
     path.join('dictionaries', dictionary),
     APPLICATION_DEFAULT_METADATA.url
 ).toString();
+
+console.log(APPLICATION_DEFAULT_METADATA);
 
 async function Page() {
     const definitions = await fetchAllDefintions(absDir);

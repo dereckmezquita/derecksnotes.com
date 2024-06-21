@@ -23,7 +23,7 @@ export function Dictionary({ definitions, pageMetadata }: DictionaryProps) {
     return (
         <PostContainer>
             <MetadataTags {...pageMetadata} />
-            <DictionarySidebar />
+            <DictionarySidebar definitions={definitions} />
             <Article>
                 <h1>Biology Dictionary</h1>
                 <ol>{isClient && renderDefinitions(definitions)}</ol>
