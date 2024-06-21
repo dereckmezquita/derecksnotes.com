@@ -8,6 +8,7 @@ import Card from './Card';
 import { PageMetadata } from '@components/lib/constants';
 import { useBlogFilter } from './BlogFilterContext';
 import { TagFilter } from '@components/components/ui/TagFilter';
+import { usePathname } from 'next/navigation';
 
 const Container = styled.div`
     width: 70%;
@@ -33,18 +34,25 @@ interface IndexProps {
 }
 
 function IndexContent({ posts }: { posts: PostMetadata[] }) {
+    const pathname = usePathname();
     const {
         filteredPosts,
         allTags,
         selectedTags,
         setSelectedTags,
         isFilterVisible,
-        setPosts
+        setPosts,
+        resetFilter
     } = useBlogFilter();
 
     useEffect(() => {
         setPosts(posts);
     }, [posts, setPosts]);
+
+    useEffect(() => {
+        // Reset filter when the pathname changes
+        resetFilter();
+    }, [pathname, resetFilter]);
 
     const handleTagSelect = (tag: string) => {
         setSelectedTags((prev) => [...prev, tag]);
@@ -62,12 +70,12 @@ function IndexContent({ posts }: { posts: PostMetadata[] }) {
                     selectedTags={selectedTags}
                     onTagSelect={handleTagSelect}
                     onTagDeselect={handleDeselectTag}
-                    // styleContainer={{
-                    //     backgroundColor: 'inherit',
-                    //     boxShadow: 'none',
-                    //     border: 'none',
-                    //     marginBottom: '20px'
-                    // }}
+                    styleContainer={{
+                        backgroundColor: 'inherit',
+                        boxShadow: 'none',
+                        border: 'none',
+                        marginBottom: '20px'
+                    }}
                 />
             )}
             <Grid>

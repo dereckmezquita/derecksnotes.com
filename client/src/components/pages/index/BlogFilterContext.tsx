@@ -5,7 +5,7 @@ import React, {
     useState,
     useContext,
     ReactNode,
-    useEffect
+    useCallback
 } from 'react';
 import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
 
@@ -18,6 +18,7 @@ interface BlogFilterContextType {
     isFilterVisible: boolean;
     setIsFilterVisible: React.Dispatch<React.SetStateAction<boolean>>;
     setPosts: React.Dispatch<React.SetStateAction<PostMetadata[]>>;
+    resetFilter: () => void;
 }
 
 const BlogFilterContext = createContext<BlogFilterContextType | undefined>(
@@ -40,6 +41,11 @@ export function BlogFilterProvider({ children }: { children: ReactNode }) {
               )
             : posts;
 
+    const resetFilter = useCallback(() => {
+        setSelectedTags([]);
+        setIsFilterVisible(false);
+    }, []);
+
     return (
         <BlogFilterContext.Provider
             value={{
@@ -50,7 +56,8 @@ export function BlogFilterProvider({ children }: { children: ReactNode }) {
                 setSelectedTags,
                 isFilterVisible,
                 setIsFilterVisible,
-                setPosts
+                setPosts,
+                resetFilter
             }}
         >
             {children}
