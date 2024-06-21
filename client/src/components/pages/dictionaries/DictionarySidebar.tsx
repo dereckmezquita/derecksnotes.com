@@ -13,22 +13,25 @@ import { TagFilter } from '../../ui/TagFilter';
 import { useDictionary } from './DictionaryContext';
 import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetadata';
 
+/**
+ * Extracts unique tags from all definitions.
+ * @param definitions - Array of all dictionary definitions
+ * @returns Array of unique tags sorted alphabetically
+ */
 function definitionsTagsToArr(definitions: Definition[]): string[] {
     const tags = Array.from(
         new Set(
-            definitions.flatMap((def) => {
-                return [
-                    ...def.frontmatter.linksTo,
-                    ...def.frontmatter.linkedFrom
-                ];
-            })
+            definitions.flatMap((def) => [
+                ...def.frontmatter.linksTo,
+                ...def.frontmatter.linkedFrom
+            ])
         )
     ).sort();
 
     return tags.filter((tag) => tag !== '');
 }
 
-function DictionarySidebar() {
+export function DictionarySidebar() {
     const {
         definitions,
         setFilteredDefinitions,
@@ -40,9 +43,13 @@ function DictionarySidebar() {
         setSelectedTags
     } = useDictionary();
 
-    let all_tags: string[] = definitionsTagsToArr(definitions);
-    all_tags = [...ALPHABET, ...all_tags];
+    // Combine alphabet and content tags
+    let all_tags: string[] = [
+        ...ALPHABET,
+        ...definitionsTagsToArr(definitions)
+    ];
 
+    // Filter displayed tags based on search mode and term
     const displayedTags =
         searchMode === 'tags' && searchTerm
             ? all_tags.filter((tag) => tag.toLowerCase().includes(searchTerm))
@@ -57,20 +64,33 @@ function DictionarySidebar() {
     };
 
     useEffect(() => {
+        /**
+         * Main filtering logic for definitions based on selected tags and search term.
+         * This complex filtering handles multiple scenarios:
+         * 1. Alphabetical filtering (A-Z, #)
+         * 2. Content tag filtering (linksTo, linkedFrom)
+         * 3. Word search filtering
+         */
         const filteredDefinitions = definitions.filter((def) => {
+            // If no tags selected, include all definitions
             if (selectedTags.length === 0) return true;
-            const defTags = [
-                ...def.frontmatter.linksTo,
-                ...def.frontmatter.linkedFrom
-            ];
-            return selectedTags.some((tag) => defTags.includes(tag));
+
+            // Check if the definition matches any of the selected criteria
+            return (
+                // Alphabetical filtering
+                selectedTags.includes(def.frontmatter.letter.toUpperCase()) ||
+                // Word starts with the first selected tag (for more specific letter filtering)
+                def.frontmatter.word.toLowerCase().startsWith(selectedTags[0].toLowerCase()) ||
+                // Content tag filtering
+                def.frontmatter.linksTo.some(tag => selectedTags.includes(tag)) ||
+                def.frontmatter.linkedFrom.some(tag => selectedTags.includes(tag))
+            );
         });
 
+        // Additional word search filtering if in 'words' mode
         if (searchMode === 'words' && searchTerm) {
             const filteredBySearch = filteredDefinitions.filter((def) =>
-                def.frontmatter.word
-                    .toLowerCase()
-                    .includes(searchTerm.toLowerCase())
+                def.frontmatter.word.toLowerCase().includes(searchTerm.toLowerCase())
             );
             setFilteredDefinitions(filteredBySearch);
         } else {
@@ -123,5 +143,3 @@ function DictionarySidebar() {
         </SideBarContainer>
     );
 }
-
-export default DictionarySidebar;

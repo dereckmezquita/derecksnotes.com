@@ -4,15 +4,15 @@
  * This file implements the React Context API to manage shared state for the Dictionary component tree.
  * The Context API provides a way to pass data through the component tree without having to pass props
  * down manually at every level, solving the problem of prop drilling.
- * 
+ *
  * The DictionaryProvider component creates a context that holds the shared state (definitions,
  * filteredDefinitions, searchMode, searchTerm, and selectedTags) and functions to update this state.
  * It wraps the entire Dictionary component tree, making this state available to all child components.
- * 
+ *
  * The useDictionary hook provides a convenient way for any component within the Dictionary tree to
  * access and modify the shared state. This allows components like DictionarySidebar and DictionaryContent
  * to directly interact with the shared state without passing props through intermediate components.
- * 
+ *
  * By centralizing the state management in this context, we improve the maintainability and readability
  * of the code. Changes to the filtering logic or the addition of new shared state can be made in one
  * place, and all components using the context will automatically have access to these updates.

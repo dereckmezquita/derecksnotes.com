@@ -6,7 +6,7 @@ import { Article, PostContainer } from '../posts-dictionaries';
 import MetadataTags from '../../atomic/MetadataTags';
 import { renderDefinitions } from './renderDefinitions';
 import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetadata';
-import DictionarySidebar from './DictionarySidebar';
+import { DictionarySidebar } from './DictionarySidebar';
 import { DictionaryProvider, useDictionary } from './DictionaryContext';
 
 interface DictionaryProps {
