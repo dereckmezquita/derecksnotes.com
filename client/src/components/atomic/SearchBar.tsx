@@ -2,7 +2,8 @@ import styled from 'styled-components';
 import { FaSearch } from 'react-icons/fa';
 
 // TODO: type here
-const minWidthSnapUp = (props: any) => props.theme.container.widths.min_width_snap_up;
+const minWidthSnapUp = (props: any) =>
+    props.theme.container.widths.min_width_snap_up;
 
 const SearchContainer = styled.div`
     width: 80%;

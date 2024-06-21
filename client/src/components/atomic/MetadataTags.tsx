@@ -1,6 +1,9 @@
 import React from 'react';
 import Head from 'next/head';
-import { APPLICATION_DEFAULT_METADATA, PageMetadata } from '@components/lib/constants';
+import {
+    APPLICATION_DEFAULT_METADATA,
+    PageMetadata
+} from '@components/lib/constants';
 
 function MetadataTags({ title, description, image, url }: PageMetadata) {
     if (!APPLICATION_DEFAULT_METADATA.url) {
@@ -25,6 +28,6 @@ function MetadataTags({ title, description, image, url }: PageMetadata) {
             <meta name="twitter:image" content={image} />
         </Head>
     );
-};
+}
 
 export default MetadataTags;

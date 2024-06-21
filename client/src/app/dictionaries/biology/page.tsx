@@ -16,7 +16,8 @@ const absDir: string = path.join(
 );
 
 APPLICATION_DEFAULT_METADATA.title = 'DN | Biology Dictionary';
-APPLICATION_DEFAULT_METADATA.description = 'A comprehensive interactive biology dictionary.';
+APPLICATION_DEFAULT_METADATA.description =
+    'A comprehensive interactive biology dictionary.';
 
 if (!APPLICATION_DEFAULT_METADATA.url) {
     throw new Error('NEXT_PUBLIC_APP_URL is not defined');

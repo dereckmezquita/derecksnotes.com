@@ -20,7 +20,7 @@ interface DictionarySidebarProps {
  * Get all tags from definitions as a single array
  * removing duplicates and empty strings
  * @param definitions Array of definitions
- * @returns 
+ * @returns
  */
 function definitionsTagsToArr(definitions: Definition[]): string[] {
     const tags = Array.from(
@@ -91,6 +91,6 @@ function DictionarySidebar({ definitions }: DictionarySidebarProps) {
             <SideBarAbout />
         </SideBarContainer>
     );
-};
+}
 
 export default DictionarySidebar;
