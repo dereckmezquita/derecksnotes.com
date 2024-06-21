@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useEffect } from 'react';
 
 import SearchBar from '@components/components/atomic/SearchBar';
 import SelectDropDown from '@components/components/atomic/SelectDropDown';
@@ -8,21 +8,11 @@ import {
     SideBarSiteName,
     SideBarAbout
 } from '@components/components/pages/posts-dictionaries';
-import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetadata';
-
 import { ALPHABET } from '@components/lib/constants';
 import { TagFilter } from '../../ui/TagFilter';
+import { useDictionary } from './DictionaryContext';
+import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetadata';
 
-interface DictionarySidebarProps {
-    definitions: Definition[];
-}
-
-/**
- * Get all tags from definitions as a single array
- * removing duplicates and empty strings
- * @param definitions Array of definitions
- * @returns
- */
 function definitionsTagsToArr(definitions: Definition[]): string[] {
     const tags = Array.from(
         new Set(
@@ -38,33 +28,50 @@ function definitionsTagsToArr(definitions: Definition[]): string[] {
     return tags.filter((tag) => tag !== '');
 }
 
-function DictionarySidebar({ definitions }: DictionarySidebarProps) {
-    const [searchMode, setSearchMode] = useState<'words' | 'tags'>('words');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
+function DictionarySidebar() {
+    const {
+        definitions,
+        setFilteredDefinitions,
+        searchMode,
+        setSearchMode,
+        searchTerm,
+        setSearchTerm,
+        selectedTags,
+        setSelectedTags
+    } = useDictionary();
 
-    // get all linksTo and linkedFrom in a single array
     let all_tags: string[] = definitionsTagsToArr(definitions);
-
     all_tags = [...ALPHABET, ...all_tags];
 
-    // allow for search
     const displayedTags =
         searchMode === 'tags' && searchTerm
             ? all_tags.filter((tag) => tag.toLowerCase().includes(searchTerm))
             : all_tags;
 
     const handleTagSelect = (tag: string) => {
-        if (selectedTags.includes(tag)) {
-            setSelectedTags(selectedTags.filter((t) => t !== tag));
-        } else {
-            setSelectedTags([...selectedTags, tag]);
-        }
+        setSelectedTags((prev) => [...prev, tag]);
     };
 
     const handleTagDeselect = (tag: string) => {
         setSelectedTags((prev) => prev.filter((t) => t !== tag));
     };
+
+    useEffect(() => {
+        const filteredDefinitions = definitions.filter((def) => {
+            if (selectedTags.length === 0) return true;
+            const defTags = [...def.frontmatter.linksTo, ...def.frontmatter.linkedFrom];
+            return selectedTags.some(tag => defTags.includes(tag));
+        });
+
+        if (searchMode === 'words' && searchTerm) {
+            const filteredBySearch = filteredDefinitions.filter((def) =>
+                def.frontmatter.word.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            setFilteredDefinitions(filteredBySearch);
+        } else {
+            setFilteredDefinitions(filteredDefinitions);
+        }
+    }, [selectedTags, searchTerm, searchMode, definitions, setFilteredDefinitions]);
 
     return (
         <SideBarContainer>
@@ -77,8 +84,17 @@ function DictionarySidebar({ definitions }: DictionarySidebarProps) {
                 value={searchMode}
                 onChange={(value) => {
                     setSearchMode(value as 'words' | 'tags');
-                    setSearchTerm(''); // Clear the search term when switching modes
+                    setSearchTerm('');
                 }}
+            />
+            <SearchBar
+                value={searchTerm}
+                onChange={(value: string) => setSearchTerm(value.toLowerCase())}
+                placeholder={
+                    searchMode === 'words'
+                        ? 'Search words...'
+                        : 'Search tags...'
+                }
             />
             <TagFilter
                 tags={displayedTags}
@@ -91,15 +107,6 @@ function DictionarySidebar({ definitions }: DictionarySidebarProps) {
                     boxShadow: 'none',
                     border: 'none'
                 }}
-            />
-            <SearchBar
-                value={searchTerm}
-                onChange={(value: string) => setSearchTerm(value.toLowerCase())}
-                placeholder={
-                    searchMode === 'words'
-                        ? 'Search words...'
-                        : 'Search tags...'
-                }
             />
             <SideBarAbout />
         </SideBarContainer>
