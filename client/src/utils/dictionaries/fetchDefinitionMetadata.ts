@@ -31,30 +31,38 @@ export interface DefinitionMetadata {
 export async function fetchAllDefintions(dir: string): Promise<Definition[]> {
     const filePaths: string[] = fs.readdirSync(dir);
     const definitions: Definition[] = await Promise.all(
-        filePaths.map(async (filename) => {
-            const currPath = path.join(dir, filename);
-            const markdown = await accessReadFile(currPath);
-            // TODO: related to blog/[slug]/page.tsx reconsider if this should be an error
-            if (!markdown) {
-                throw new Error(`Could not read file ${currPath}`);
-            }
-            const { source, frontmatter } =
-                await processMdx<DefinitionMetadata>(markdown);
+        filePaths
+            .filter((filename) => filename.endsWith('.mdx'))
+            .map(async (filename) => {
+                const currPath = path.join(dir, filename);
+                const markdown = await accessReadFile(currPath);
+                if (!markdown) {
+                    throw new Error(`Could not read file ${currPath}`);
+                }
+                const { source, frontmatter } =
+                    await processMdx<DefinitionMetadata>(markdown);
 
-            frontmatter.url = new URL(
-                path.join('dictionaries', frontmatter.dictionary),
-                NEXT_PUBLIC_APP_URL
-            ).toString();
-            frontmatter.slug = path.basename(filename, '.mdx');
+                if (!frontmatter.dictionary) {
+                    throw new Error(
+                        `Dictionary not specified for file: ${filename}`
+                    );
+                }
 
-            return {
-                source,
-                frontmatter
-            };
-        })
+                frontmatter.url = new URL(
+                    path.join('dictionaries', frontmatter.dictionary),
+                    NEXT_PUBLIC_APP_URL
+                ).toString();
+
+                frontmatter.slug = path.basename(filename, '.mdx');
+
+                return {
+                    source,
+                    frontmatter
+                };
+            })
     );
 
-    // filter out any definitions that are not published
+    // filter and sort logic remains the same
     const definitions2: Definition[] = definitions
         .filter((definition) => definition.frontmatter.published)
         .sort((a, b) => {

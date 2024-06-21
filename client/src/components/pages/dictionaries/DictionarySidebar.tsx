@@ -89,7 +89,8 @@ export function DictionarySidebar() {
                 ) ||
                 def.frontmatter.linkedFrom.some((tag) =>
                     selectedTags.includes(tag)
-                )
+                ) ||
+                selectedTags.includes(def.frontmatter.word.toLowerCase())
             );
         });
 
