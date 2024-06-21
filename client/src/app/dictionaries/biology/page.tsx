@@ -28,8 +28,6 @@ APPLICATION_DEFAULT_METADATA.url = new URL(
     APPLICATION_DEFAULT_METADATA.url
 ).toString();
 
-console.log(APPLICATION_DEFAULT_METADATA);
-
 async function Page() {
     const definitions = await fetchAllDefintions(absDir);
     return (
