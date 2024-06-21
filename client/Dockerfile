@@ -21,4 +21,4 @@ RUN yarn build
 EXPOSE 3000
 
 # used export standalone
-CMD ["npx", "serve@latest", "out"]
+CMD ["yarn", "run", "start"]
