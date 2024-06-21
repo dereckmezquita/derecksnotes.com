@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { FaBars, FaFilter, FaUser } from 'react-icons/fa';
+import { useBlogFilter } from '../pages/index/BlogFilterContext';
+import { TagFilter } from './TagFilter';
 
 // TODO: create a type for theme; so we can have intellisense
 const minWidthMobile = (props: any) =>
@@ -76,7 +78,7 @@ const CommonNavItem = styled.div`
 // allows for argument to determine if align left or right
 // inherit from Link component allows for linking to other pages
 // prettier-ignore
-const NavLeftItem = styled(CommonNavItem).attrs({ as: Link })<{ rightmost?: boolean; }>`
+const NavLeftItem = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boolean; }>`
     float: left;
     &:hover {
         color: ${(props) => props.theme.text.colour.white()};
@@ -89,7 +91,7 @@ const NavLeftItem = styled(CommonNavItem).attrs({ as: Link })<{ rightmost?: bool
 `;
 
 // prettier-ignore
-const NavRightItemLink = styled(CommonNavItem).attrs({ as: Link })<{ rightmost?: boolean; }>`
+const NavRightItemLink = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boolean; }>`
     float: right;
 `;
 
@@ -227,6 +229,18 @@ function Navbar() {
         return null;
     }
 
+    const {
+        isFilterVisible,
+        setIsFilterVisible,
+        allTags,
+        selectedTags,
+        setSelectedTags
+    } = useBlogFilter();
+
+    const toggleFilter = () => {
+        setIsFilterVisible(!isFilterVisible);
+    };
+
     return (
         <NavContainer>
             <HamburgerIcon onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -266,7 +280,7 @@ function Navbar() {
                 <DateTimeDisplay>
                     {dateTime || '00 Jan 00:00:00'}
                 </DateTimeDisplay>
-                <NavRightItem>
+                <NavRightItem onClick={toggleFilter}>
                     <FaFilter />
                 </NavRightItem>
                 <NavRightItem onClick={() => setIsAuthModalOpen(true)}>

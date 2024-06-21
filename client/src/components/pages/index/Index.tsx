@@ -1,13 +1,13 @@
 'use client';
+import { useEffect } from 'react';
 import styled from 'styled-components';
-import { useState } from 'react';
-
 import { theme } from '@components/styles/theme';
 import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
-
 import MetadataTags from '@components/components/atomic/MetadataTags';
 import Card from './Card';
 import { PageMetadata } from '@components/lib/constants';
+import { useBlogFilter } from './BlogFilterContext';
+import { TagFilter } from '@components/components/ui/TagFilter';
 
 const Container = styled.div`
     width: 70%;
@@ -32,25 +32,19 @@ interface IndexProps {
     meta: PageMetadata;
 }
 
-/**
- * Index page component for displaying blog posts etc.
- *
- * Note that metadata is passed to the component since the Index component is
- * used in multiple places and the metadata is different for each use case.
- * @param param0 Posts and metadata for the index page
- * @returns React component
- */
-export function Index({ posts, meta }: IndexProps) {
-    const allTags: string[] = Array.from(
-        new Set(posts.flatMap((post) => post.tags))
-    ).sort();
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
-    let filteredPosts = posts;
-    if (selectedTags.length > 0) {
-        filteredPosts = posts.filter((post) =>
-            selectedTags.every((tag) => post.tags.includes(tag))
-        );
-    }
+function IndexContent({ posts }: { posts: PostMetadata[] }) {
+    const {
+        filteredPosts,
+        allTags,
+        selectedTags,
+        setSelectedTags,
+        isFilterVisible,
+        setPosts
+    } = useBlogFilter();
+
+    useEffect(() => {
+        setPosts(posts);
+    }, [posts, setPosts]);
 
     const handleTagSelect = (tag: string) => {
         setSelectedTags((prev) => [...prev, tag]);
@@ -61,19 +55,36 @@ export function Index({ posts, meta }: IndexProps) {
     };
 
     return (
+        <Container>
+            {isFilterVisible && (
+                <TagFilter
+                    tags={allTags}
+                    selectedTags={selectedTags}
+                    onTagSelect={handleTagSelect}
+                    onTagDeselect={handleDeselectTag}
+                    initialVisibility={true}
+                    styleContainer={{
+                        backgroundColor: 'inherit',
+                        boxShadow: 'none',
+                        border: 'none',
+                        marginBottom: '20px'
+                    }}
+                />
+            )}
+            <Grid>
+                {filteredPosts.map((post) => (
+                    <Card key={post.slug} post={post} section={post.section!} />
+                ))}
+            </Grid>
+        </Container>
+    );
+}
+
+export function Index({ posts, meta }: IndexProps) {
+    return (
         <>
             <MetadataTags {...meta} />
-            <Container>
-                <Grid>
-                    {filteredPosts.map((post) => (
-                        <Card
-                            key={post.slug}
-                            post={post}
-                            section={post.section!}
-                        />
-                    ))}
-                </Grid>
-            </Container>
+            <IndexContent posts={posts} />
         </>
     );
 }

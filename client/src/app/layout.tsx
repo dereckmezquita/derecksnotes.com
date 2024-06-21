@@ -17,6 +17,7 @@ import '@components/styles/syntax-highlighter.scss';
 import '@components/styles/footnotes.css';
 import Footer from '@components/components/ui/Footer';
 import Navbar from '@components/components/ui/Navbar';
+import { BlogFilterProvider } from '@components/components/pages/index/BlogFilterContext';
 
 export default function RootLayout({
     children
@@ -26,15 +27,17 @@ export default function RootLayout({
     return (
         <StyledComponentsRegistry>
             <ThemeProvider theme={theme}>
-                <html lang="en">
-                    <body>
-                        <GlobalStyles />
-                        <Logo />
-                        <Navbar />
-                        {children}
-                        <Footer />
-                    </body>
-                </html>
+                <BlogFilterProvider>
+                    <html lang="en">
+                        <body>
+                            <GlobalStyles />
+                            <Logo />
+                            <Navbar />
+                            {children}
+                            <Footer />
+                        </body>
+                    </html>
+                </BlogFilterProvider>
             </ThemeProvider>
         </StyledComponentsRegistry>
     );
