@@ -15,7 +15,11 @@ interface DictionaryProps {
     pageMetadata: PageMetadata;
 }
 
-export function Dictionary({ dictionaryType, definitions, pageMetadata }: DictionaryProps) {
+export function Dictionary({
+    dictionaryType,
+    definitions,
+    pageMetadata
+}: DictionaryProps) {
     return (
         <DictionaryProvider
             initialDefinitions={definitions}

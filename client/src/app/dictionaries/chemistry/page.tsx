@@ -32,7 +32,7 @@ async function Page() {
     const definitions = await fetchAllDefintions(absDir);
     return (
         <Dictionary
-            dictionaryType='Chemistry'
+            dictionaryType="Chemistry"
             definitions={definitions}
             pageMetadata={APPLICATION_DEFAULT_METADATA}
         />
