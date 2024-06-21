@@ -85,9 +85,10 @@ export function SideBarAbout(): JSX.Element {
         <SideBarAboutContainer>
             <SideBarAboutH2>About</SideBarAboutH2>
             <p>
-                This website is custom made by Dereck using React, Next.js, and
-                TypeScript. It incorporates progressive web app technologies an
-                relies on a NodeJS backend along with a MongoDB database.
+                This website is custom made by Dereck using React, Next.js 14
+                app dir, and TypeScript. It incorporates progressive web app
+                technologies and relies on a Bun backend along with a MongoDB
+                database and Docker for CI/CD deployment.
             </p>
             <p>
                 If you would like to know more you can find the full source code
