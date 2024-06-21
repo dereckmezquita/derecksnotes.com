@@ -11,6 +11,7 @@ import {
 import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetadata';
 
 import { ALPHABET } from '@components/lib/constants';
+import { TagFilter } from '../../ui/TagFilter';
 
 interface DictionarySidebarProps {
     definitions: Definition[];
@@ -77,6 +78,18 @@ function DictionarySidebar({ definitions }: DictionarySidebarProps) {
                 onChange={(value) => {
                     setSearchMode(value as 'words' | 'tags');
                     setSearchTerm(''); // Clear the search term when switching modes
+                }}
+            />
+            <TagFilter
+                tags={displayedTags}
+                selectedTags={selectedTags}
+                onTagSelect={handleTagSelect}
+                onTagDeselect={handleTagDeselect}
+                initialVisibility={true}
+                styleContainer={{
+                    backgroundColor: 'inherit',
+                    boxShadow: 'none',
+                    border: 'none'
                 }}
             />
             <SearchBar
