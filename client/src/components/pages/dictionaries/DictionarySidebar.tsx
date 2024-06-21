@@ -143,7 +143,6 @@ export function DictionarySidebar() {
                 selectedTags={selectedTags}
                 onTagSelect={handleTagSelect}
                 onTagDeselect={handleTagDeselect}
-                initialVisibility={true}
                 styleContainer={{
                     backgroundColor: 'inherit',
                     boxShadow: 'none',

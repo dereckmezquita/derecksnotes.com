@@ -2,34 +2,28 @@
 
 import styled from 'styled-components';
 import { theme } from '@components/styles/theme';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
-// need to use $ to indicate that this prop is not to be passed to the DOM
-// causes warning otherwise
-const FilterContainer = styled.div<{ $isVisible?: boolean }>`
-    // width and margin to centre if not in a flex container
+const FilterContainer = styled.div`
     width: 100%;
     margin: 0 auto;
-
-    /* if window is smaller than 900px make it 100% */
-    @media (max-width: ${theme.container.widths.min_width_snap_up}) {
-        width: 95%;
-    }
-
     padding: 10px;
     margin-bottom: 20px;
     background-color: ${theme.container.background.colour.primary()};
     border: 1px solid ${theme.container.border.colour.primary()};
     border-radius: 5px;
     box-shadow: ${theme.container.shadow.primary};
-    z-index: 1;
-    display: ${(props) => (props.$isVisible ? 'flex' : 'none')};
-    flex-wrap: wrap; // Allow tags to wrap to the next line if needed
-    gap: 10px; // Provides consistent spacing between the tags
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+
+    @media (max-width: ${theme.container.widths.min_width_snap_up}) {
+        width: 95%;
+    }
 `;
 
 const BaseButton = styled.span`
-    user-select: none; // Prevent text selection
+    user-select: none;
     font-family: ${theme.text.font.times};
     padding: 0px 7px 1px;
     cursor: pointer;
@@ -45,13 +39,12 @@ const FilterTag = styled(BaseButton)<{ selected: boolean }>`
     background-color: ${(props) =>
         props.selected ? 'hsl(205, 70%, 50%)' : 'hsl(190, 15%, 90%)'};
     color: ${(props) => (props.selected ? 'white' : 'black')};
-    word-wrap: break-word; // Allow the tag text to break into multiple lines
-    max-width: 100%; // Ensure the tag doesn't overflow its parent container
+    word-wrap: break-word;
+    max-width: 100%;
 `;
 
-// css X
 const ClearAllButton = styled(BaseButton)`
-    background-color: hsl(0, 70%, 50%); // Shade of red
+    background-color: hsl(0, 70%, 50%);
     color: white;
     position: relative;
     width: 20px;
@@ -85,7 +78,6 @@ interface TagFilterProps {
     selectedTags: string[];
     onTagSelect: (tag: string) => void;
     onTagDeselect: (tag: string) => void;
-    initialVisibility?: boolean;
     styleContainer?: React.CSSProperties;
 }
 
@@ -94,11 +86,9 @@ export const TagFilter: React.FC<TagFilterProps> = ({
     selectedTags,
     onTagSelect,
     onTagDeselect,
-    initialVisibility = true,
     styleContainer
 }) => {
     const [isDragging, setIsDragging] = useState<boolean>(false);
-    const [isVisible, setIsVisible] = useState<boolean>(initialVisibility);
     const containerRef = useRef<HTMLDivElement>(null);
 
     const clearAllTags = () => {
@@ -130,32 +120,11 @@ export const TagFilter: React.FC<TagFilterProps> = ({
         setIsDragging(false);
     };
 
-    const min_width: number = parseInt(
-        theme.container.widths.min_width_snap_up.slice(0, -2)
-    );
-
-    useEffect(() => {
-        const handleResize = () => {
-            if (window.innerWidth <= min_width && isVisible) {
-                setIsVisible(false);
-            }
-        };
-
-        window.addEventListener('resize', handleResize);
-
-        // Ensure the visibility state is in sync with window width when component mounts.
-        handleResize();
-
-        // Cleanup the event listener when component unmounts.
-        return () => window.removeEventListener('resize', handleResize);
-    }, [isVisible, min_width]);
-
     return (
         <FilterContainer
             ref={containerRef}
             onMouseUp={endDrag}
             onMouseLeave={endDrag}
-            $isVisible={isVisible}
             style={styleContainer}
         >
             <ClearAllButton onClick={clearAllTags} />

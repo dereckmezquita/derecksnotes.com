@@ -62,13 +62,12 @@ function IndexContent({ posts }: { posts: PostMetadata[] }) {
                     selectedTags={selectedTags}
                     onTagSelect={handleTagSelect}
                     onTagDeselect={handleDeselectTag}
-                    initialVisibility={true}
-                    styleContainer={{
-                        backgroundColor: 'inherit',
-                        boxShadow: 'none',
-                        border: 'none',
-                        marginBottom: '20px'
-                    }}
+                    // styleContainer={{
+                    //     backgroundColor: 'inherit',
+                    //     boxShadow: 'none',
+                    //     border: 'none',
+                    //     marginBottom: '20px'
+                    // }}
                 />
             )}
             <Grid>
