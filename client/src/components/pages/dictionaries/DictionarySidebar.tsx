@@ -66,8 +66,8 @@ export function DictionarySidebar() {
     useEffect(() => {
         /**
          * Main filtering logic for definitions based on selected tags and search term.
-         * This complex filtering handles multiple scenarios:
-         * 1. Alphabetical filtering (A-Z, #)
+         * This filtering handles multiple scenarios:
+         * 1. Alphabetical filtering (A-Z, #) - now supports multiple letters
          * 2. Content tag filtering (linksTo, linkedFrom)
          * 3. Word search filtering
          */
@@ -79,28 +79,30 @@ export function DictionarySidebar() {
             return (
                 // Alphabetical filtering
                 selectedTags.includes(def.frontmatter.letter.toUpperCase()) ||
-                // Word starts with the first selected tag (for more specific letter filtering)
-                def.frontmatter.word
-                    .toLowerCase()
-                    .startsWith(selectedTags[0].toLowerCase()) ||
+                // Word starts with any of the selected tags (for letter filtering)
+                selectedTags.some((tag) => {
+                    return def.frontmatter.word
+                        .toLowerCase()
+                        .startsWith(tag.toLowerCase());
+                }) ||
                 // Content tag filtering
-                def.frontmatter.linksTo.some((tag) =>
-                    selectedTags.includes(tag)
-                ) ||
-                def.frontmatter.linkedFrom.some((tag) =>
-                    selectedTags.includes(tag)
-                ) ||
+                def.frontmatter.linksTo.some((tag) => {
+                    return selectedTags.includes(tag);
+                }) ||
+                def.frontmatter.linkedFrom.some((tag) => {
+                    return selectedTags.includes(tag);
+                }) ||
                 selectedTags.includes(def.frontmatter.word.toLowerCase())
             );
         });
 
         // Additional word search filtering if in 'words' mode
         if (searchMode === 'words' && searchTerm) {
-            const filteredBySearch = filteredDefinitions.filter((def) =>
-                def.frontmatter.word
+            const filteredBySearch = filteredDefinitions.filter((def) => {
+                return def.frontmatter.word
                     .toLowerCase()
-                    .includes(searchTerm.toLowerCase())
-            );
+                    .includes(searchTerm.toLowerCase());
+            });
             setFilteredDefinitions(filteredBySearch);
         } else {
             setFilteredDefinitions(filteredDefinitions);
