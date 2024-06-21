@@ -7,7 +7,7 @@ import {
 import { Dictionary } from '@components/components/pages/dictionaries/Dictionary';
 import { fetchAllDefintions } from '@components/utils/dictionaries/fetchDefinitionMetadata';
 
-const dictionary: string = 'biology';
+const dictionary: string = 'chemistry';
 const absDir: string = path.join(
     ROOT_DIR_APP,
     'dictionaries',
@@ -15,9 +15,9 @@ const absDir: string = path.join(
     'definitions'
 );
 
-APPLICATION_DEFAULT_METADATA.title = 'DN | Biology Dictionary';
+APPLICATION_DEFAULT_METADATA.title = 'DN | Chemistry Dictionary';
 APPLICATION_DEFAULT_METADATA.description =
-    'A comprehensive interactive biology dictionary.';
+    'A comprehensive interactive chemistry dictionary.';
 
 if (!APPLICATION_DEFAULT_METADATA.url) {
     throw new Error('NEXT_PUBLIC_APP_URL is not defined');
@@ -32,7 +32,7 @@ async function Page() {
     const definitions = await fetchAllDefintions(absDir);
     return (
         <Dictionary
-            dictionaryType='Biology'
+            dictionaryType='Chemistry'
             definitions={definitions}
             pageMetadata={APPLICATION_DEFAULT_METADATA}
         />

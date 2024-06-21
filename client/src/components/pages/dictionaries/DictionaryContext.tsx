@@ -32,15 +32,16 @@ import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetada
  * This includes all the state variables and setter functions needed for the dictionary functionality.
  */
 interface DictionaryContextType {
-    definitions: Definition[]; // All dictionary definitions
-    filteredDefinitions: Definition[]; // Definitions filtered based on search and tags
+    definitions: Definition[];
+    filteredDefinitions: Definition[];
     setFilteredDefinitions: React.Dispatch<React.SetStateAction<Definition[]>>;
-    searchMode: 'words' | 'tags'; // Current search mode
+    searchMode: 'words' | 'tags';
     setSearchMode: React.Dispatch<React.SetStateAction<'words' | 'tags'>>;
-    searchTerm: string; // Current search term
+    searchTerm: string;
     setSearchTerm: React.Dispatch<React.SetStateAction<string>>;
-    selectedTags: string[]; // Currently selected tags for filtering
+    selectedTags: string[];
     setSelectedTags: React.Dispatch<React.SetStateAction<string[]>>;
+    dictionaryType: string;
 }
 
 // Create a context with the defined type, initially undefined
@@ -63,10 +64,12 @@ const DictionaryContext = createContext<DictionaryContextType | undefined>(
 // export const DictionaryProvider: React.FC<{ children: ReactNode, initialDefinitions: Definition[] }> = ({ children, initialDefinitions }) => {
 export function DictionaryProvider({
     children,
-    initialDefinitions
+    initialDefinitions,
+    dictionaryType
 }: {
     children: ReactNode;
     initialDefinitions: Definition[];
+    dictionaryType: string;
 }) {
     // Initialize all the state variables
     const [definitions] = useState<Definition[]>(initialDefinitions);
@@ -88,7 +91,8 @@ export function DictionaryProvider({
                 searchTerm,
                 setSearchTerm,
                 selectedTags,
-                setSelectedTags
+                setSelectedTags,
+                dictionaryType // Add this line
             }}
         >
             {children}
@@ -105,7 +109,7 @@ export function DictionaryProvider({
  * Usage:
  * const { filteredDefinitions, setSearchTerm } = useDictionary();
  */
-export const useDictionary = () => {
+export const useDictionary = (): DictionaryContextType => {
     const context = useContext(DictionaryContext);
     if (context === undefined) {
         throw new Error(
