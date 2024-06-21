@@ -59,19 +59,30 @@ function DictionarySidebar() {
     useEffect(() => {
         const filteredDefinitions = definitions.filter((def) => {
             if (selectedTags.length === 0) return true;
-            const defTags = [...def.frontmatter.linksTo, ...def.frontmatter.linkedFrom];
-            return selectedTags.some(tag => defTags.includes(tag));
+            const defTags = [
+                ...def.frontmatter.linksTo,
+                ...def.frontmatter.linkedFrom
+            ];
+            return selectedTags.some((tag) => defTags.includes(tag));
         });
 
         if (searchMode === 'words' && searchTerm) {
             const filteredBySearch = filteredDefinitions.filter((def) =>
-                def.frontmatter.word.toLowerCase().includes(searchTerm.toLowerCase())
+                def.frontmatter.word
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase())
             );
             setFilteredDefinitions(filteredBySearch);
         } else {
             setFilteredDefinitions(filteredDefinitions);
         }
-    }, [selectedTags, searchTerm, searchMode, definitions, setFilteredDefinitions]);
+    }, [
+        selectedTags,
+        searchTerm,
+        searchMode,
+        definitions,
+        setFilteredDefinitions
+    ]);
 
     return (
         <SideBarContainer>
