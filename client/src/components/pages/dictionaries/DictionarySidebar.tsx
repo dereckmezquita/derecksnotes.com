@@ -80,17 +80,25 @@ export function DictionarySidebar() {
                 // Alphabetical filtering
                 selectedTags.includes(def.frontmatter.letter.toUpperCase()) ||
                 // Word starts with the first selected tag (for more specific letter filtering)
-                def.frontmatter.word.toLowerCase().startsWith(selectedTags[0].toLowerCase()) ||
+                def.frontmatter.word
+                    .toLowerCase()
+                    .startsWith(selectedTags[0].toLowerCase()) ||
                 // Content tag filtering
-                def.frontmatter.linksTo.some(tag => selectedTags.includes(tag)) ||
-                def.frontmatter.linkedFrom.some(tag => selectedTags.includes(tag))
+                def.frontmatter.linksTo.some((tag) =>
+                    selectedTags.includes(tag)
+                ) ||
+                def.frontmatter.linkedFrom.some((tag) =>
+                    selectedTags.includes(tag)
+                )
             );
         });
 
         // Additional word search filtering if in 'words' mode
         if (searchMode === 'words' && searchTerm) {
             const filteredBySearch = filteredDefinitions.filter((def) =>
-                def.frontmatter.word.toLowerCase().includes(searchTerm.toLowerCase())
+                def.frontmatter.word
+                    .toLowerCase()
+                    .includes(searchTerm.toLowerCase())
             );
             setFilteredDefinitions(filteredBySearch);
         } else {
