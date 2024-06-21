@@ -5,6 +5,8 @@ services:
     build:
       context: ./server
       dockerfile: Dockerfile
+    ports:
+      - '${PORT_MAP_SERVER}:3000'
     networks:
       - dereck-network
     restart: unless-stopped
@@ -14,6 +16,8 @@ services:
     build:
       context: ./client
       dockerfile: Dockerfile
+    ports:
+      - '${PORT_MAP_CLIENT}:3000'
     networks:
       - dereck-network
     restart: unless-stopped
