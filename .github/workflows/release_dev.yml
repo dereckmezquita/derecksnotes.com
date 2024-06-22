@@ -114,6 +114,7 @@ jobs:
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
           envs: IMAGE_NAME_SERVER,IMAGE_NAME_CLIENT,CONTAINER_NAME_SERVER,CONTAINER_NAME_CLIENT,PORT_MAP_SERVER,PORT_MAP_CLIENT
+          command_timeout: 20m
           script: |
             cd /root/docker-compose-derecksnotes/
             docker pull ${{ env.IMAGE_NAME_SERVER }}
