@@ -18,7 +18,9 @@ const nextConfig = {
     // images: {
     //     unoptimized: true,
     // },
-    assetPrefix: process.env.NEXT_PUBLIC_BUILD_ENV ? 'https://dev.derecksnotes.com' : '',
+    assetPrefix: process.env.NEXT_PUBLIC_BUILD_ENV
+        ? 'https://dev.derecksnotes.com'
+        : '',
     output: 'standalone',
     compiler: {
         styledComponents: true
