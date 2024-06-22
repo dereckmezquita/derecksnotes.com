@@ -40,12 +40,16 @@ app.use(
 // mount routes
 
 // ---
+const buildTime = new Date().toISOString();
 
 app.get('/', (req: Request, res: Response) => {
     res.json({
+        name: "Dereck's Notes API",
         ok: true,
-        msg: `Build - ${env.BUILD_ENV}: ${VERSION}`,
-        datetime: new Date().toISOString()
+        version: VERSION,
+        build: env.BUILD_ENV,
+        datetime: new Date().toISOString(),
+        buildTime: buildTime
     });
 });
 

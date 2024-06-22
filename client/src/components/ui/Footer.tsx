@@ -1,4 +1,5 @@
 import styled from 'styled-components';
+import { NEXT_PUBLIC_APP_VERSION } from '@components/lib/env';
 
 const minWidthSnapUp = (props: any) =>
     props.theme.container.widths.min_width_snap_up;
@@ -35,6 +36,9 @@ function Footer(): JSX.Element {
                 to Dereck Mezquita. You are not allowed to copy nor modify any
                 content found on this website without written permission from
                 the owner; Copyright © 2017 - {getCurrentYear()}
+            </FooterText>
+            <FooterText>
+                Application build: {NEXT_PUBLIC_APP_VERSION}
             </FooterText>
             <FooterText>
                 <a href="mailto:contact@derecksnotes.com">
