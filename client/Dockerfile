@@ -16,6 +16,8 @@ COPY client/package.json client/yarn.lock ./
 # Install dependencies
 RUN yarn install --frozen-lockfile
 
+RUN yarn add sharp
+
 # Copy the rest of the client code
 COPY client/ /app/client/
 
