@@ -36,4 +36,4 @@ EXPOSE 3000
 # used export standalone
 # CMD ["yarn", "run", "start"]
 # CMD ["npx", "serve@latest", "-s", "build", "-l", "3000"]
-CMD ["node", ".next/standalone/index.js"]
+CMD ["node", ".next/standalone/server.js"]
