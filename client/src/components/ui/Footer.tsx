@@ -1,5 +1,8 @@
 import styled from 'styled-components';
-import { NEXT_PUBLIC_APP_VERSION, NEXT_PUBLIC_BUILD_ENV } from '@components/lib/env';
+import {
+    NEXT_PUBLIC_APP_VERSION,
+    NEXT_PUBLIC_BUILD_ENV
+} from '@components/lib/env';
 
 const minWidthSnapUp = (props: any) =>
     props.theme.container.widths.min_width_snap_up;
@@ -38,7 +41,8 @@ function Footer(): JSX.Element {
                 the owner; Copyright © 2017 - {getCurrentYear()}
             </FooterText>
             <FooterText>
-                Application build: {NEXT_PUBLIC_BUILD_ENV}, Application version: {NEXT_PUBLIC_APP_VERSION}
+                Application build: {NEXT_PUBLIC_BUILD_ENV}, Application version:{' '}
+                {NEXT_PUBLIC_APP_VERSION}
             </FooterText>
             <FooterText>
                 <a href="mailto:contact@derecksnotes.com">
