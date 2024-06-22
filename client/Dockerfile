@@ -1,6 +1,10 @@
-# https://andrekoenig.de/articles/using-bun-as-the-package-manager-in-production-ready-docker-images
 ARG NODE_VERSION=20
-FROM node:${NODE_VERSION}-slim as distribution
+FROM node:20-slim as distribution
+
+# Install sharp dependencies
+RUN apt-get update && apt-get install -y \
+    libvips-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Set the working directory
 WORKDIR /app/
