@@ -89,6 +89,15 @@ jobs:
       - name: Check out the repo
         uses: actions/checkout@v4
 
+      - name: Create .env file for docker-compose deployment
+        run: |
+          echo IMAGE_NAME_SERVER=${{ env.IMAGE_NAME_SERVER }}:latest_dev > .env
+          echo IMAGE_NAME_CLIENT=${{ env.IMAGE_NAME_CLIENT }}:latest_dev >> .env
+          echo CONTAINER_NAME_SERVER=${{ env.CONTAINER_NAME_SERVER }} >> .env
+          echo CONTAINER_NAME_CLIENT=${{ env.CONTAINER_NAME_CLIENT }} >> .env
+          echo PORT_MAP_SERVER=3001 >> .env
+          echo PORT_MAP_CLIENT=3000 >> .env
+
       - name: Copy docker-compose.yml to remote server
         uses: appleboy/scp-action@master
         with:
@@ -96,30 +105,24 @@ jobs:
           username: ${{ secrets.REMOTE_USERNAME }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
-          source: './docker-compose.yml'
-          target: '/root/docker-compose-derecksnotes/'
+          source: './docker-compose.yml, .env'
+          target: '/root/dev_docker-compose-derecksnotes/'
 
       - name: Deploy to remote server
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          IMAGE_NAME_SERVER: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-server:latest_dev
-          IMAGE_NAME_CLIENT: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-client:latest_dev
-          CONTAINER_NAME_SERVER: dev_linode_derecksnotes-server
-          CONTAINER_NAME_CLIENT: dev_linode_derecksnotes-client
-          PORT_MAP_SERVER: 3001
-          PORT_MAP_CLIENT: 3000
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USERNAME }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
-          envs: IMAGE_NAME_SERVER,IMAGE_NAME_CLIENT,CONTAINER_NAME_SERVER,CONTAINER_NAME_CLIENT,PORT_MAP_SERVER,PORT_MAP_CLIENT
           command_timeout: 20m
           script: |
-            cd /root/docker-compose-derecksnotes/
-            docker pull ${{ env.IMAGE_NAME_SERVER }}
-            docker pull ${{ env.IMAGE_NAME_CLIENT }}
+            cd /root/dev_docker-compose-derecksnotes/
+            docker pull ${{ env.IMAGE_NAME_SERVER }}:latest_dev
+            docker pull ${{ env.IMAGE_NAME_CLIENT }}:latest_dev
+            docker container prune -f
+            docker system prune -af
             docker rm -f ${{ env.CONTAINER_NAME_SERVER }} || true
             docker rm -f ${{ env.CONTAINER_NAME_CLIENT }} || true
-            docker compose down
-            docker compose up -d
+            docker compose --env-file .env --project-name derecksnotes-dev down
+            docker compose --env-file .env --project-name derecksnotes-dev up -d
