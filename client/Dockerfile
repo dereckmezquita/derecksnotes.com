@@ -1,5 +1,5 @@
 ARG NODE_VERSION=20
-FROM node:20-slim as distribution
+FROM node:20-slim AS distribution
 
 # Install sharp dependencies
 RUN apt-get update && apt-get install -y \
@@ -16,7 +16,8 @@ COPY client/package.json client/yarn.lock ./
 # Install dependencies
 RUN yarn install --frozen-lockfile
 
-RUN yarn add sharp
+# Install sharp globally
+RUN yarn global add sharp
 
 # Copy the rest of the client code
 COPY client/ /app/client/
