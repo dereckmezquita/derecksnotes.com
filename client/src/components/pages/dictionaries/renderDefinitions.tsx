@@ -23,7 +23,10 @@ export function renderDefinitions(definitions: Definition[]) {
                         {currentLetter}
                     </h2>
                 )}
-                <li id={definition.frontmatter.slug} style={{ scrollMarginTop: '100px' }}>
+                <li
+                    id={definition.frontmatter.slug}
+                    style={{ scrollMarginTop: '100px' }}
+                >
                     <PostContentWrapper>{definition.source}</PostContentWrapper>
                 </li>
             </React.Fragment>
