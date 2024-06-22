@@ -1,51 +1,98 @@
 name: Release Prod Docker image to Linode
 
+# on:
+#   release:
+#     types: [published]
 on:
-  release:
-    types: [published]
+  push:
+    branches-ignore:
+      - 'master'
+env:
+  IMAGE_NAME_SERVER: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-server
+  IMAGE_NAME_CLIENT: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-client
+  CONTAINER_NAME_SERVER: linode_derecksnotes-server
+  CONTAINER_NAME_CLIENT: linode_derecksnotes-client
+
 jobs:
-  push_to_registry:
-    name: Push Docker image to Docker Hub
+  push_to_registry_server:
+    name: Push Docker server image to Docker Hub
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repo
+      - name: Checkout code
         uses: actions/checkout@v4
-      - name: Log in to Docker Hub
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@9ec57ed1fcdbf14dcef7dfbe97b2010124a938b7
-        with:
-          images: dereckmezquita/linode_capguru-webapp
 
       - name: Create .env file
         run: |
-          echo BUILD_ENV=PROD > .env
-          echo NEXT_PUBLIC_BUILD_ENV=PROD >> .env
-          echo NEXT_PUBLIC_API_URL=https://mezquita.dev/api >> .env
-      - name: Build and push Docker image
+          echo BUILD_ENV=PROD > ./server/.env
+          echo API_URL=https://derecksnotes.com/api/ >> ./server/.env
+          echo SESSION_SECRET=${{ secrets.SESSION_SECRET }} >> ./server/.env
+          echo MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} >> ./server/.env
+
+      - name: Build and push server image
         uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./server
+          file: ./server/Dockerfile
           push: true
-          tags: |
-            ${{ steps.meta.outputs.tags }},dereckmezquita/linode_capguru-webapp:latest_prod
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ env.IMAGE_NAME_SERVER }}:latest_prod
           build-args: |
             BUILD_ENV=PROD
+            API_URL=https://derecksnotes.com/api/
+            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+            MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }}
+
+  push_to_registry_client:
+    name: Push Docker client image to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Create .env file
+        run: |
+          echo NEXT_PUBLIC_BUILD_ENV=PROD > ./client/.env
+          echo NEXT_PUBLIC_APP_URL=https://derecksnotes.com/ >> ./client/.env
+          echo NEXT_PUBLIC_API_URL=https://derecksnotes.com/api/ >> ./client/.env
+
+      - name: Build and push client image
+        uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
+        with:
+          context: ./
+          file: ./client/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_NAME_CLIENT }}:latest_prod
+          build-args: |
+            NEXT_PUBLIC_BUILD_ENV=PROD
+            NEXT_PUBLIC_APP_URL=https://derecksnotes.com/
+            NEXT_PUBLIC_API_URL=https://derecksnotes.com/api/
+
   deploy_to_linode:
     name: Deploy docker-compose.yml to Linode
-    needs: push_to_registry
+    needs: [push_to_registry_server, push_to_registry_client]
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose.yml to Linode
+      - name: Copy docker-compose.yml to remote server
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.REMOTE_HOST }}
@@ -53,25 +100,30 @@ jobs:
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
           source: './docker-compose.yml'
-          target: '/root/docker-compose-capguru-webapp/'
+          target: '/root/docker-compose-derecksnotes/'
 
-      - name: Execute remote Docker Compose command
+      - name: Deploy to remote server
         uses: appleboy/ssh-action@v1.0.3
         env:
-          CONTAINER_NAME: 'prod_linode_capguru-webapp'
-          HOST_PORT: '3000'
-          IMAGE_NAME: 'dereckmezquita/linode_capguru-webapp:latest_prod'
+          IMAGE_NAME_SERVER: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-server:latest_prod
+          IMAGE_NAME_CLIENT: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-client:latest_prod
+          CONTAINER_NAME_SERVER: prod_linode_derecksnotes-server
+          CONTAINER_NAME_CLIENT: prod_linode_derecksnotes-client
+          PORT_MAP_SERVER: 3001
+          PORT_MAP_CLIENT: 3000
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USERNAME }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
-          envs: CONTAINER_NAME,HOST_PORT,IMAGE_NAME
+          envs: IMAGE_NAME_SERVER,IMAGE_NAME_CLIENT,CONTAINER_NAME_SERVER,CONTAINER_NAME_CLIENT,PORT_MAP_SERVER,PORT_MAP_CLIENT
           script: |
-            cd /root/docker-compose-capguru-webapp/
-            docker compose -f docker-compose.yml -p prod pull
-            docker compose -f docker-compose.yml -p prod down
+            cd /root/docker-compose-derecksnotes/
+            docker pull ${{ env.IMAGE_NAME_SERVER }}
+            docker pull ${{ env.IMAGE_NAME_CLIENT }}
             docker container prune -f
             docker image prune -f
-            docker rm -f prod_linode_capguru-webapp
-            docker compose -f docker-compose.yml -p prod up -d
+            docker rm -f ${{ env.CONTAINER_NAME_SERVER }}
+            docker rm -f ${{ env.CONTAINER_NAME_CLIENT }}
+            docker compose down
+            docker compose up -d
