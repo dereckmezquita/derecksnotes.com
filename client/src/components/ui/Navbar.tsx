@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FaBars, FaFilter, FaUser } from 'react-icons/fa';
+import { FaBars, FaFilter } from 'react-icons/fa';
 import { useBlogFilter } from '../pages/index/BlogFilterContext';
 
 // TODO: create a type for theme; so we can have intellisense
@@ -272,9 +272,6 @@ function Navbar() {
                 </DateTimeDisplay>
                 <NavRightItem onClick={toggleFilter}>
                     <FaFilter />
-                </NavRightItem>
-                <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
-                    <FaUser />
                 </NavRightItem>
             </ResponsiveMenu>
         </NavContainer>
