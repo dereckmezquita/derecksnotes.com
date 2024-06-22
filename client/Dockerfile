@@ -30,7 +30,8 @@ COPY --from=builder /app/client/next.config.mjs /app/client/next.config.mjs
 COPY --from=builder /app/client/.next/ /app/client/.next/
 
 # https://nextjs.org/docs/app/api-reference/next-config-js/output#automatically-copying-traced-files
-# public folder attached as a volume at /app/client/public
+# public folder attached as a volume at /app/client/public; cleanup before to allow copying of all files
+RUN rm -rf /app/client/client/.next/standalone/public
 COPY --from=builder /app/client/public /app/client/.next/standalone/public
 COPY --from=builder /app/client/.next/static /app/client/.next/standalone/.next/static
 
