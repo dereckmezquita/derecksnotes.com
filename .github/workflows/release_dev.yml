@@ -7,8 +7,8 @@ on:
 env:
   IMAGE_NAME_SERVER: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-server
   IMAGE_NAME_CLIENT: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-client
-  CONTAINER_NAME_SERVER: linode_derecksnotes-server
-  CONTAINER_NAME_CLIENT: linode_derecksnotes-client
+  CONTAINER_NAME_SERVER: dev_linode_derecksnotes-server
+  CONTAINER_NAME_CLIENT: dev_linode_derecksnotes-client
 
 jobs:
   push_to_registry_server:
@@ -119,9 +119,7 @@ jobs:
             cd /root/docker-compose-derecksnotes/
             docker pull ${{ env.IMAGE_NAME_SERVER }}
             docker pull ${{ env.IMAGE_NAME_CLIENT }}
-            docker container prune -f
-            docker image prune -f
-            docker rm -f ${{ env.CONTAINER_NAME_SERVER }}
-            docker rm -f ${{ env.CONTAINER_NAME_CLIENT }}
+            docker rm -f ${{ env.CONTAINER_NAME_SERVER }} || true
+            docker rm -f ${{ env.CONTAINER_NAME_CLIENT }} || true
             docker compose down
             docker compose up -d
