@@ -1,12 +1,12 @@
 name: Release Prod Docker image to Linode
 
-# on:
-#   release:
-#     types: [published]
 on:
-  push:
-    branches-ignore:
-      - 'master'
+  release:
+    types: [published]
+# on:
+#   push:
+#     branches-ignore:
+#       - 'master'
 env:
   IMAGE_NAME_SERVER: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-server
   IMAGE_NAME_CLIENT: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-client

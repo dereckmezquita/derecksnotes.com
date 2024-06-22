@@ -16,9 +16,9 @@ async function rewrites() {
 const nextConfig = {
     // output: 'export',
     // images: {
-        //     unoptimized: true,
-        // },
-    output: "standalone",
+    //     unoptimized: true,
+    // },
+    output: 'standalone',
     compiler: {
         styledComponents: true
     }
