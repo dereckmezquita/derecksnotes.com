@@ -76,13 +76,15 @@ async function Page({ params }: PageProps) {
 
 export default Page;
 
-export function generateMetadata({ params}: PageProps) {
+export function generateMetadata({ params }: PageProps) {
     const filePath: string = path.join(absDir, params.slug + '.mdx');
-    const definition: DefinitionMetadata = extractSingleDefinitionMetadata(filePath);
+    const definition: DefinitionMetadata =
+        extractSingleDefinitionMetadata(filePath);
 
     const title: string = `Dn | dictionary - ${definition.word}`;
-    const summary: string = definition.summary || `Dn | definition of ${definition.word}`;
-    const coverImage: string = '/site-images/card-covers/512-logo.png'
+    const summary: string =
+        definition.summary || `Dn | definition of ${definition.word}`;
+    const coverImage: string = '/site-images/card-covers/512-logo.png';
     return {
         title: title,
         description: summary,
