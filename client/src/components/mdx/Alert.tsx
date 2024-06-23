@@ -30,21 +30,21 @@ const ALERT_STYLES = {
     }
 };
 
-const AlertContainer = styled.div<{ borderColor: string }>`
+const AlertContainer = styled.div<{ $borderColor: string }>`
     padding: 2px 15px;
     margin-top: 10px;
     margin-bottom: 10px;
     color: inherit;
-    border-left: 0.25em solid ${(props) => props.borderColor};
+    border-left: 0.25em solid ${(props) => props.$borderColor};
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans',
         Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 `;
 
-const AlertTitle = styled.p<{ titleColor: string }>`
+const AlertTitle = styled.p<{ $titleColor: string }>`
     display: flex;
     align-items: center;
     font-weight: bold;
-    color: ${(props) => props.titleColor};
+    color: ${(props) => props.$titleColor};
     svg {
         margin-right: 8px;
     }
@@ -54,8 +54,8 @@ const Alert: React.FC<AlertProps> = ({ type, children }) => {
     type = type.toLowerCase() as AlertType;
     const { color, iconData, title } = ALERT_STYLES[type];
     return (
-        <AlertContainer borderColor={color}>
-            <AlertTitle titleColor={color}>
+        <AlertContainer $borderColor={color}>
+            <AlertTitle $titleColor={color}>
                 <svg
                     className="octicon octicon-info"
                     viewBox="0 0 16 16"
@@ -68,7 +68,7 @@ const Alert: React.FC<AlertProps> = ({ type, children }) => {
                 </svg>
                 {title}
             </AlertTitle>
-            <p>{children}</p>
+            {children}
         </AlertContainer>
     );
 };
