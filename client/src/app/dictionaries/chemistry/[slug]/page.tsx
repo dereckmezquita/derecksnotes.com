@@ -15,7 +15,7 @@ import { notFound } from 'next/navigation';
 import { URL } from 'url';
 import { processMdx } from '@components/utils/mdx/processMdx';
 
-const dictionary: string = 'biology';
+const dictionary: string = 'chemistry';
 const absDir: string = path.join(
     ROOT_DIR_APP,
     'dictionaries',

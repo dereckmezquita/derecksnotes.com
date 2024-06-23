@@ -93,7 +93,7 @@ async function Page({ params }: PageProps) {
 
 export default Page;
 
-export function generateMetadata({ params }: any) {
+export function generateMetadata({ params }: PageProps) {
     const filePath: string = path.join(absDir, params.slug + '.mdx');
     const post: PostMetadata = extractSinglePostMetadata(filePath);
     return {

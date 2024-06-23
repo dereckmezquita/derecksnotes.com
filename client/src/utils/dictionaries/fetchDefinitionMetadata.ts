@@ -28,6 +28,7 @@ export interface DefinitionMetadata {
 
     // used during build
     url?: string;
+    summary?: string;
 }
 
 export function extractSingleDefinitionMetadata(
@@ -46,7 +47,8 @@ export function extractSingleDefinitionMetadata(
             published: frontmatter.published,
             comments: frontmatter.comments,
             linksTo: frontmatter.linksTo,
-            linkedFrom: frontmatter.linkedFrom
+            linkedFrom: frontmatter.linkedFrom,
+            summary: summary
         };
     } catch (error: any) {
         console.log(`Error reading file: ${filepath}`, error);
