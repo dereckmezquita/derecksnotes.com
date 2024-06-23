@@ -5,13 +5,14 @@ import {
     PostContainer,
     PostContentWrapper
 } from '@components/components/pages/posts-dictionaries';
+import { DefinitionMetadata } from '@components/utils/dictionaries/fetchDefinitionMetadata';
 import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
 import { useState, useEffect } from 'react';
 
 interface DisplayPostProps {
     source: React.ReactNode;
-    frontmatter: PostMetadata;
-    sideBarPosts: PostMetadata[];
+    frontmatter: PostMetadata | DefinitionMetadata;
+    sideBarPosts: PostMetadata[] | DefinitionMetadata[];
 }
 
 // https://nextjs.org/docs/messages/react-hydration-error
@@ -28,7 +29,11 @@ export function Post({ source, frontmatter, sideBarPosts }: DisplayPostProps) {
         <PostContainer>
             <SideBar posts={sideBarPosts} />
             <Article>
-                <h1>{frontmatter.title}</h1>
+                <h1>
+                    {'title' in frontmatter
+                        ? frontmatter.title
+                        : frontmatter.word}
+                </h1>
                 {isClient && <PostContentWrapper>{source}</PostContentWrapper>}
             </Article>
         </PostContainer>
