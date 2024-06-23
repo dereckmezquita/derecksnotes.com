@@ -1,11 +1,11 @@
 import React from 'react';
 import path from 'path';
 import {
-    APPLICATION_DEFAULT_METADATA,
     ROOT_DIR_APP
 } from '@components/lib/constants';
 import { Dictionary } from '@components/components/pages/dictionaries/Dictionary';
 import { fetchAllDefintions } from '@components/utils/dictionaries/fetchDefinitionMetadata';
+import { Metadata } from 'next';
 
 const dictionary: string = 'biology';
 const absDir: string = path.join(
@@ -15,18 +15,10 @@ const absDir: string = path.join(
     'definitions'
 );
 
-APPLICATION_DEFAULT_METADATA.title = 'Dn | Biology Dictionary';
-APPLICATION_DEFAULT_METADATA.description =
-    'A comprehensive interactive biology dictionary.';
-
-if (!APPLICATION_DEFAULT_METADATA.url) {
-    throw new Error('NEXT_PUBLIC_APP_URL is not defined');
-}
-
-APPLICATION_DEFAULT_METADATA.url = new URL(
-    path.join('dictionaries', dictionary),
-    APPLICATION_DEFAULT_METADATA.url
-).toString();
+export const metadata: Metadata = {
+    title: 'Dn | Biology Dictionary',
+    description: 'A comprehensive interactive biology dictionary.'
+};
 
 async function Page() {
     const definitions = await fetchAllDefintions(absDir);
@@ -34,7 +26,6 @@ async function Page() {
         <Dictionary
             dictionaryType="Biology"
             definitions={definitions}
-            pageMetadata={APPLICATION_DEFAULT_METADATA}
         />
     );
 }

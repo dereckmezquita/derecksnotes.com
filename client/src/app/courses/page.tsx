@@ -1,8 +1,6 @@
 import React from 'react';
-import path from 'path';
 
 import {
-    APPLICATION_DEFAULT_METADATA,
     APPLICATION_DESCRIPTION
 } from '@components/lib/constants';
 import { Metadata } from 'next';
@@ -14,14 +12,14 @@ import {
 import { Index } from '@components/components/pages/index/Index';
 
 export const metadata: Metadata = {
-    title: 'Dn | Blog',
+    title: 'Dn | Courses',
     description: APPLICATION_DESCRIPTION
 };
 
 async function Page() {
     const posts: PostMetadata[] = getPostsWithSection('courses');
 
-    return <Index posts={posts} meta={APPLICATION_DEFAULT_METADATA} />;
+    return <Index posts={posts} />;
 }
 
 export default Page;

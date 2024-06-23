@@ -3,7 +3,6 @@ import { useEffect } from 'react';
 import styled from 'styled-components';
 import { theme } from '@components/styles/theme';
 import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
-import MetadataTags from '@components/components/atomic/MetadataTags';
 import Card from './Card';
 import { PageMetadata } from '@components/lib/constants';
 import { useBlogFilter } from './BlogFilterContext';
@@ -30,7 +29,6 @@ const Grid = styled.div`
 
 interface IndexProps {
     posts: PostMetadata[];
-    meta: PageMetadata;
 }
 
 function IndexContent({ posts }: { posts: PostMetadata[] }) {
@@ -87,11 +85,6 @@ function IndexContent({ posts }: { posts: PostMetadata[] }) {
     );
 }
 
-export function Index({ posts, meta }: IndexProps) {
-    return (
-        <>
-            <MetadataTags {...meta} />
-            <IndexContent posts={posts} />
-        </>
-    );
+export function Index({ posts }: IndexProps) {
+    return <IndexContent posts={posts} />
 }
