@@ -25,16 +25,14 @@ export function Post({ source, frontmatter, sideBarPosts }: DisplayPostProps) {
     }, []);
 
     return (
-        <>
-            <PostContainer>
-                <SideBar posts={sideBarPosts} />
-                <Article>
-                    <h1>{frontmatter.title}</h1>
-                    {isClient && (
-                        <PostContentWrapper>{source}</PostContentWrapper>
-                    )}
-                </Article>
-            </PostContainer>
-        </>
+        <PostContainer>
+            <SideBar posts={sideBarPosts} />
+            <Article>
+                <h1>{frontmatter.title}</h1>
+                {isClient && (
+                    <PostContentWrapper>{source}</PostContentWrapper>
+                )}
+            </Article>
+        </PostContainer>
     );
 }
