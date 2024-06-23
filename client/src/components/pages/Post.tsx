@@ -29,9 +29,7 @@ export function Post({ source, frontmatter, sideBarPosts }: DisplayPostProps) {
             <SideBar posts={sideBarPosts} />
             <Article>
                 <h1>{frontmatter.title}</h1>
-                {isClient && (
-                    <PostContentWrapper>{source}</PostContentWrapper>
-                )}
+                {isClient && <PostContentWrapper>{source}</PostContentWrapper>}
             </Article>
         </PostContainer>
     );
