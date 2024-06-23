@@ -1,11 +1,13 @@
 ARG NODE_VERSION=20
 FROM node:${NODE_VERSION}-bullseye-slim AS base
 
-# install sharp dependencies for image optimisation
-RUN yarn add -g --arch=x64 --platform=linux --libc=glibc sharp@0.33.0-rc.2
-
 # Install build dependencies
-RUN apt-get update && apt-get --no-cache python3 make g++ libc6-compat
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    libvips-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install sharp globally
 RUN npm install -g sharp
