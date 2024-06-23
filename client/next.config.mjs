@@ -18,8 +18,8 @@ const nextConfig = {
     // images: {
     //     unoptimized: true,
     // },
-    assetPrefix: process.env.NEXT_PUBLIC_APP_URL || '',
-    output: 'standalone',
+    // output: 'standalone',
+    // assetPrefix: process.env.NEXT_PUBLIC_APP_URL || '', // if standalone
     compiler: {
         styledComponents: true
     }
