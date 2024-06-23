@@ -12,9 +12,6 @@ RUN apt-get update && apt-get install -y \
 # Install sharp globally
 RUN npm install -g sharp
 
-# Set environment variable for sharp
-ENV NEXT_SHARP_PATH=/usr/local/lib/node_modules/sharp
-
 # Set the working directory
 WORKDIR /app/
 COPY package.json /app/
