@@ -1,19 +1,16 @@
 'use client';
-import MetadataTags from '@components/components/atomic/MetadataTags';
 import SideBar from '@components/components/pages/SideBar';
 import {
     Article,
     PostContainer,
     PostContentWrapper
 } from '@components/components/pages/posts-dictionaries';
-import { PageMetadata } from '@components/lib/constants';
 import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
 import { useState, useEffect } from 'react';
 
 interface DisplayPostProps {
     source: React.ReactNode;
     frontmatter: PostMetadata;
-    pageMetadata: PageMetadata;
     sideBarPosts: PostMetadata[];
 }
 
@@ -23,7 +20,6 @@ interface DisplayPostProps {
 export function Post({
     source,
     frontmatter,
-    pageMetadata,
     sideBarPosts
 }: DisplayPostProps) {
     const [isClient, setIsClient] = useState(false);
@@ -34,7 +30,6 @@ export function Post({
 
     return (
         <>
-            <MetadataTags {...pageMetadata} />
             <PostContainer>
                 <SideBar posts={sideBarPosts} />
                 <Article>

@@ -14,7 +14,7 @@ import {
 import { Index } from '@components/components/pages/index/Index';
 
 export const metadata: Metadata = {
-    title: 'DN | References',
+    title: 'Dn | References',
     description: APPLICATION_DESCRIPTION
 };
 

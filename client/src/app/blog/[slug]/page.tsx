@@ -35,7 +35,7 @@ interface PageProps {
 }
 
 async function Page({ params }: PageProps) {
-    const sideBarPosts = getPostsWithSection('blog');
+    const sideBarPosts = getPostsWithSection(section);
 
     const absPath: string = path.join(
         ROOT_DIR_APP,
@@ -81,10 +81,29 @@ async function Page({ params }: PageProps) {
         <Post
             source={source}
             frontmatter={frontmatter2}
-            pageMetadata={APPLICATION_DEFAULT_METADATA}
             sideBarPosts={sideBarPosts}
         />
     );
 }
 
 export default Page;
+
+export function generateMetadata({ params }: any) {
+    const filePath: string = path.join(absDir, params.slug + '.mdx');
+    const post: PostMetadata = extractSinglePostMetadata(filePath);
+    return {
+        title: `Dn | ${post.title}`,
+        description: post.summary,
+        openGraph: {
+          title: post.title,
+          description: post.summary,
+          images: [post.coverImage],
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: post.title,
+          description: post.summary,
+          image: post.coverImage,
+        },
+      };
+}

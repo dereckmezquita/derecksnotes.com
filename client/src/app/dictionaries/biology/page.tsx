@@ -15,7 +15,7 @@ const absDir: string = path.join(
     'definitions'
 );
 
-APPLICATION_DEFAULT_METADATA.title = 'DN | Biology Dictionary';
+APPLICATION_DEFAULT_METADATA.title = 'Dn | Biology Dictionary';
 APPLICATION_DEFAULT_METADATA.description =
     'A comprehensive interactive biology dictionary.';
 
