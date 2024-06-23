@@ -1,5 +1,12 @@
 ARG NODE_VERSION=20
-FROM node:${NODE_VERSION}-slim AS distribution
+FROM node:${NODE_VERSION}-alpine AS distribution
+
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    libc6-compat
 
 # Set the working directory
 WORKDIR /app/
@@ -9,7 +16,9 @@ WORKDIR /app/client/
 COPY client/package.json client/yarn.lock ./
 
 # Install dependencies
-RUN yarn install --frozen-lockfile
+RUN yarn install --frozen-lockfile && \
+    yarn add sharp && \
+    npm rebuild --arch=x64 --platform=linux --libc=musl sharp
 
 # Copy the rest of the client code
 COPY client/ /app/client/
