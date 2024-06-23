@@ -1,8 +1,6 @@
 import React from 'react';
 import path from 'path';
-import {
-    ROOT_DIR_APP
-} from '@components/lib/constants';
+import { ROOT_DIR_APP } from '@components/lib/constants';
 import { Dictionary } from '@components/components/pages/dictionaries/Dictionary';
 import { fetchAllDefintions } from '@components/utils/dictionaries/fetchDefinitionMetadata';
 import { Metadata } from 'next';
@@ -22,12 +20,7 @@ export const metadata: Metadata = {
 
 async function Page() {
     const definitions = await fetchAllDefintions(absDir);
-    return (
-        <Dictionary
-            dictionaryType="Biology"
-            definitions={definitions}
-        />
-    );
+    return <Dictionary dictionaryType="Biology" definitions={definitions} />;
 }
 
 export default Page;

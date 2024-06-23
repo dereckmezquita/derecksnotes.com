@@ -20,7 +20,9 @@ const absDir = path.join(ROOT_DIR_APP, section, 'posts');
 
 // used at build time to generate which pages to render
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-    const filenames: string[] = fs.readdirSync(absDir);
+    const filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
+        return filename.endsWith('.mdx');
+    });
 
     return filenames.map((filename) => {
         const slug = path.basename(filename, '.mdx');

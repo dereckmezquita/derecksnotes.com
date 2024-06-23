@@ -11,10 +11,7 @@ interface DictionaryProps {
     definitions: Definition[];
 }
 
-export function Dictionary({
-    dictionaryType,
-    definitions,
-}: DictionaryProps) {
+export function Dictionary({ dictionaryType, definitions }: DictionaryProps) {
     return (
         <DictionaryProvider
             initialDefinitions={definitions}

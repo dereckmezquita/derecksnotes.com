@@ -1,8 +1,6 @@
 import React from 'react';
 
-import {
-    APPLICATION_DESCRIPTION
-} from '@components/lib/constants';
+import { APPLICATION_DESCRIPTION } from '@components/lib/constants';
 import { Metadata } from 'next';
 
 import {

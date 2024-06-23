@@ -86,5 +86,5 @@ function IndexContent({ posts }: { posts: PostMetadata[] }) {
 }
 
 export function Index({ posts }: IndexProps) {
-    return <IndexContent posts={posts} />
+    return <IndexContent posts={posts} />;
 }
