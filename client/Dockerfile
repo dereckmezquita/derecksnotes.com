@@ -5,7 +5,7 @@ FROM node:${NODE_VERSION}-bullseye-slim AS base
 RUN yarn add -g --arch=x64 --platform=linux --libc=glibc sharp@0.33.0-rc.2
 
 # Install build dependencies
-RUN apk add --no-cache python3 make g++ libc6-compat
+RUN apt-get update && apt-get --no-cache python3 make g++ libc6-compat
 
 # Install sharp globally
 RUN npm install -g sharp
