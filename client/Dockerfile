@@ -8,7 +8,8 @@ WORKDIR /app/client/
 COPY client/package.json client/yarn.lock ./
 
 # Install dependencies
-RUN yarn install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --prefer-offline
+RUN pnpm install sharp@0.32.6
 
 # Copy the rest of the client code
 COPY client/ /app/client/
