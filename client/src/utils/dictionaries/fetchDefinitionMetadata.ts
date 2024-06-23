@@ -5,6 +5,7 @@ import { processMdx } from '../mdx/processMdx';
 
 import { NEXT_PUBLIC_APP_URL } from '@components/lib/env';
 import { stripMdx } from '../mdx/fetchPostsMetadata';
+import rehypeLinkToDefinition from '../remark-rehype/rehypeLinkToDefinition';
 
 export interface Definition {
     source: React.ReactNode;
@@ -83,6 +84,17 @@ export function fetchDefintionsMetadata(folder: string): DefinitionMetadata[] {
     });
 }
 
+function extractDictionaryFromPath(dir: string): string {
+    const parts = dir.split(path.sep);
+    const dictionariesIndex = parts.indexOf('dictionaries');
+
+    if (dictionariesIndex !== -1 && dictionariesIndex + 1 < parts.length) {
+        return parts[dictionariesIndex + 1];
+    } else {
+        throw new Error("Invalid path or 'dictionaries' not found in the path");
+    }
+}
+
 export async function fetchAllDefintions(dir: string): Promise<Definition[]> {
     const filePaths: string[] = fs.readdirSync(dir);
     const definitions: Definition[] = await Promise.all(
@@ -95,7 +107,17 @@ export async function fetchAllDefintions(dir: string): Promise<Definition[]> {
                     throw new Error(`Could not read file ${currPath}`);
                 }
                 const { source, frontmatter } =
-                    await processMdx<DefinitionMetadata>(markdown);
+                    await processMdx<DefinitionMetadata>(markdown, {
+                        rehypePlugins: [
+                            [
+                                rehypeLinkToDefinition,
+                                {
+                                    slug: path.basename(filename, '.mdx'),
+                                    dictionary: extractDictionaryFromPath(dir)
+                                }
+                            ]
+                        ]
+                    });
 
                 if (!frontmatter.dictionary) {
                     throw new Error(

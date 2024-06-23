@@ -26,7 +26,11 @@ const rehypePrettyCodeOptions: Partial<Options> = {
 };
 
 export async function processMdx<T extends PostMetadata | DefinitionMetadata>(
-    markdown: string
+    markdown: string,
+    plugins?: {
+        remarkPlugins?: any[];
+        rehypePlugins?: any[];
+    }
 ): Promise<{ frontmatter: T; source: React.ReactNode }> {
     const { content, frontmatter } = await compileMDX<T>({
         source: markdown,
@@ -39,7 +43,8 @@ export async function processMdx<T extends PostMetadata | DefinitionMetadata>(
                     remarkGfm,
                     remarkUnwrapImages,
                     remarkMath,
-                    remarkToc
+                    remarkToc,
+                    ...(plugins?.remarkPlugins || [])
                 ],
                 rehypePlugins: [
                     [rehypePrettyCode, rehypePrettyCodeOptions],
@@ -58,7 +63,8 @@ export async function processMdx<T extends PostMetadata | DefinitionMetadata>(
                             marginRight: '0.1em',
                             color: theme.theme_colours[5]()
                         }
-                    ]
+                    ],
+                    ...(plugins?.rehypePlugins || [])
                 ]
             }
         }
