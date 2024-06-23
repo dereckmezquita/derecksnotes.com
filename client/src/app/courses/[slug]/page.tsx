@@ -94,15 +94,15 @@ export function generateMetadata({ params }: any) {
         title: `Dn | ${post.title}`,
         description: post.summary,
         openGraph: {
-          title: post.title,
-          description: post.summary,
-          images: [post.coverImage],
+            title: post.title,
+            description: post.summary,
+            images: [post.coverImage]
         },
         twitter: {
-          card: 'summary_large_image',
-          title: post.title,
-          description: post.summary,
-          image: post.coverImage,
-        },
-      };
+            card: 'summary_large_image',
+            title: post.title,
+            description: post.summary,
+            image: post.coverImage
+        }
+    };
 }
