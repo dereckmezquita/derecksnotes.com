@@ -4,6 +4,7 @@ import { accessReadFile } from '../accessReadFile';
 import { processMdx } from '../mdx/processMdx';
 
 import { NEXT_PUBLIC_APP_URL } from '@components/lib/env';
+import { stripMdx } from '../mdx/fetchPostsMetadata';
 
 export interface Definition {
     source: React.ReactNode;
@@ -25,7 +26,59 @@ export interface DefinitionMetadata {
     linkedFrom: string[];
 
     // used during build
-    url: string;
+    url?: string;
+}
+
+export function extractSingleDefinitionMetadata(filepath: string): DefinitionMetadata {
+    try {
+        const { summary, frontmatter } = stripMdx<DefinitionMetadata>(filepath);
+
+        return {
+            slug: path.basename(filepath, '.mdx'),
+            letter: frontmatter.letter,
+            word: frontmatter.word,
+            dictionary: frontmatter.dictionary,
+            category: frontmatter.category,
+            dataSources: frontmatter.dataSources,
+            published: frontmatter.published,
+            comments: frontmatter.comments,
+            linksTo: frontmatter.linksTo,
+            linkedFrom: frontmatter.linkedFrom,
+        };
+    } catch (error: any) {
+        console.log(`Error reading file: ${filepath}`, error);
+        console.error(error);
+        process.exit(1);
+    }
+}
+
+export function fetchDefintionsMetadata(folder: string): DefinitionMetadata[] {
+    const files: string[] = fs.readdirSync(folder);
+    const mdx: string[] = files.filter((file) => file.endsWith('.mdx'));
+
+    let definitions: DefinitionMetadata[] = mdx.map((file) => {
+        return extractSingleDefinitionMetadata(path.join(folder, file));
+    });
+
+    definitions = definitions.filter((definition) => definition.published);
+
+    return definitions.sort((a, b) => {
+        const letterA = a.letter.toLowerCase();
+        const letterB = b.letter.toLowerCase();
+
+        const isLetterA = /^[a-z]$/.test(letterA);
+        const isLetterB = /^[a-z]$/.test(letterB);
+
+        if (isLetterA && isLetterB) {
+            return letterA.localeCompare(letterB);
+        } else if (isLetterA) {
+            return -1;
+        } else if (isLetterB) {
+            return 1;
+        } else {
+            return letterA.localeCompare(letterB);
+        }
+    });
 }
 
 export async function fetchAllDefintions(dir: string): Promise<Definition[]> {
