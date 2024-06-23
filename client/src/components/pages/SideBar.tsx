@@ -70,7 +70,7 @@ function renderSideBarContent(posts: PostMetadata[] | DefinitionMetadata[]) {
                     <SideBarEntriesContainer key={meta.slug}>
                         <SideEntryLink
                             key={meta.slug}
-                            href={`/${meta.dictionary}/${meta.slug}`}
+                            href={`/dictionaries/${meta.dictionary}/${meta.slug}`}
                             passHref
                         >
                             <span style={{ fontWeight: 'bold' }}>
