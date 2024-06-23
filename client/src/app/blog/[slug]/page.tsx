@@ -39,6 +39,7 @@ interface PageProps {
 async function Page({ params }: PageProps) {
     const sideBarPosts = getPostsWithSection(section);
 
+    // TODO: this can be simplified use absDir
     const absPath: string = path.join(
         ROOT_DIR_APP,
         section,
@@ -59,7 +60,8 @@ async function Page({ params }: PageProps) {
         notFound();
     }
 
-    APPLICATION_DEFAULT_METADATA.url = new URL(
+    // TODO: simplify this we don't need full metadata object
+    const url = new URL(
         path.join(section, params.slug),
         APPLICATION_DEFAULT_METADATA.url
     ).toString();
@@ -67,13 +69,14 @@ async function Page({ params }: PageProps) {
     const frontmatter2: PostMetadata = {
         ...extractSinglePostMetadata(absPath),
         section,
-        url: APPLICATION_DEFAULT_METADATA.url
+        url: url
     };
 
     if (!frontmatter2.summary) {
         throw new Error(`Post ${frontmatter.slug} is missing a summary`);
     }
 
+    // TODO: cleanup this can be deleted; we set metadata now with the generateMetadata function
     APPLICATION_DEFAULT_METADATA.title = frontmatter2.title;
     APPLICATION_DEFAULT_METADATA.description = frontmatter2.summary;
     APPLICATION_DEFAULT_METADATA.image =
