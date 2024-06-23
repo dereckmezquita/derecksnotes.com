@@ -29,7 +29,9 @@ export interface DefinitionMetadata {
     url?: string;
 }
 
-export function extractSingleDefinitionMetadata(filepath: string): DefinitionMetadata {
+export function extractSingleDefinitionMetadata(
+    filepath: string
+): DefinitionMetadata {
     try {
         const { summary, frontmatter } = stripMdx<DefinitionMetadata>(filepath);
 
@@ -43,7 +45,7 @@ export function extractSingleDefinitionMetadata(filepath: string): DefinitionMet
             published: frontmatter.published,
             comments: frontmatter.comments,
             linksTo: frontmatter.linksTo,
-            linkedFrom: frontmatter.linkedFrom,
+            linkedFrom: frontmatter.linkedFrom
         };
     } catch (error: any) {
         console.log(`Error reading file: ${filepath}`, error);
