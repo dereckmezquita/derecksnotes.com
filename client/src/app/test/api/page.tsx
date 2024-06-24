@@ -30,8 +30,8 @@ function Page() {
                 toast.success('Data fetched successfully!', { id: toastId });
             } catch (error: any) {
                 console.error('Error fetching data:', error);
-                setError(error.message);
-                toast.error(`Failed to fetch data: ${error.message}`, {
+                setError(error);
+                toast.error(`Failed to fetch data: ${error}`, {
                     id: toastId
                 });
             }
@@ -44,7 +44,7 @@ function Page() {
         return (
             <PostArticle>
                 <h1>Error</h1>
-                <pre>Failed to fetch data: {error}</pre>
+                <pre>{JSON.stringify(error, null, 2)}</pre>
             </PostArticle>
         );
     }

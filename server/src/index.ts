@@ -1,6 +1,3 @@
-import fs from 'fs';
-import path from 'path';
-
 import express from 'express';
 import { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
@@ -8,12 +5,9 @@ import session from 'express-session';
 import RedisStore from 'connect-redis';
 
 import { db } from './db/DataBase';
+import { getServerStatus } from './utils/getServerStatus';
 import * as env from './utils/env';
 import * as constants from './utils/constants';
-
-const VERSION: string = JSON.parse(
-    fs.readFileSync(path.join(__dirname, '../../package.json'), 'utf-8')
-).version;
 
 const app = express();
 
@@ -50,21 +44,10 @@ app.use(
     })
 );
 
-// mount routes
-
-// ---
-const buildTime = new Date().toISOString();
-
-app.get('/', (req: Request, res: Response) => {
+app.get('/', async (req: Request, res: Response) => {
     console.log('Consoling - GET /');
-    res.json({
-        name: "Dereck's Notes API",
-        ok: true,
-        version: VERSION,
-        build: env.BUILD_ENV,
-        datetime: new Date().toISOString(),
-        buildTime: buildTime
-    });
+    const status = await getServerStatus();
+    res.json(status);
 });
 
 if (!env.BUILD_ENV_BOOL) {
@@ -82,12 +65,6 @@ process.on('SIGINT', async () => {
 
 app.listen(env.EXPRESS_PORT, async () => {
     console.log(`Server running: ${env.API_URL} 🚀`);
-    console.log({
-        name: "Dereck's Notes API",
-        ok: true,
-        version: VERSION,
-        build: env.BUILD_ENV,
-        datetime: new Date().toISOString(),
-        buildTime: buildTime
-    });
+    const status = await getServerStatus();
+    console.log(status);
 });
