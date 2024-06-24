@@ -24,9 +24,7 @@ class DataBases {
     private async connectMongoDB() {
         try {
             const ip = env.MONGO_URI;
-            const database: string = env.BUILD_ENV_BOOL
-                ? 'prod_derecksnotes'
-                : 'dev_derecksnotes';
+            const database: string = env.MONGO_DATABASE;
 
             const uri: string = `mongodb://admin:${env.MONGO_PASSWORD}@${ip}:27017/${database}?authSource=admin`;
 

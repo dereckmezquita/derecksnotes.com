@@ -19,6 +19,7 @@ export const SESSION_SECRET = env('SESSION_SECRET');
 export const MONGO_URI: string =
     process.env.MONGO_URI || 'linode_dereck-mongodb';
 export const MONGO_PASSWORD: string = encodeURIComponent(env('MONGO_PASSWORD'));
+export const MONGO_DATABASE: string = env('MONGO_DATABASE');
 
 // REDIS
 export const REDIS_URI: string = process.env.REDIS_URI || 'linode_dereck-redis';
