@@ -75,5 +75,5 @@ app.listen(env.EXPRESS_PORT, async () => {
         build: env.BUILD_ENV,
         datetime: new Date().toISOString(),
         buildTime: buildTime
-    })
+    });
 });
