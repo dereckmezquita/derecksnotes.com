@@ -11,7 +11,7 @@ async function sendEmail(
     try {
         await sgMail.send({
             to,
-            from: 'dev@singularai.tech',
+            from: 'api@derecksnotes.com',
             subject,
             html
         });
