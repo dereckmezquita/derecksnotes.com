@@ -9,7 +9,7 @@ WORKDIR /app/
 COPY package.json /app/
 
 WORKDIR /app/server/
-COPY server/package.json server/yarn.json ./
+COPY server/package.json server/yarn.lock ./
 
 RUN yarn install --frozen-lockfile
 
