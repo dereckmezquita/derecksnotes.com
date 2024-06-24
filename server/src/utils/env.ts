@@ -11,7 +11,7 @@ const env = (name: string): string => {
 export const BUILD_ENV = env('BUILD_ENV');
 export const BUILD_ENV_BOOL = BUILD_ENV === 'PROD' ? true : false;
 export const API_URL = env('API_URL');
-export const EXPRESS_PORT: string = '3000';
+export const EXPRESS_PORT: string = process.env.EXPRESS_PORT || '3000';
 export const SESSION_SECRET = env('SESSION_SECRET');
 
 // MONGO DB

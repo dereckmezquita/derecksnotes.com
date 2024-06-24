@@ -19,7 +19,23 @@ const VERSION: string = JSON.parse(
 const app = express();
 
 app.use(express.json());
-app.use(cors());
+app.use(
+    cors({
+        origin: function (origin, callback) {
+            const allowedOrigins = [
+                'http://localhost:3000',
+                'https://derecksnotes.com',
+                'https://dev.derecksnotes.com'
+            ];
+            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
+        credentials: true
+    })
+);
 
 const redisClient = new Redis(env.REDIS_URI);
 
@@ -43,6 +59,7 @@ app.use(
 const buildTime = new Date().toISOString();
 
 app.get('/', (req: Request, res: Response) => {
+    console.log('Consoling - GET /');
     res.json({
         name: "Dereck's Notes API",
         ok: true,
