@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export interface IUser extends Document {
     firstName: string;
-    lastName: string;
+    lastName?: string;
     username: string;
     email: string;
     password: string;
@@ -23,7 +23,7 @@ export interface IUserModel extends Model<IUser> {
 
 const UserSchema: Schema<IUser> = new Schema({
     firstName: { type: String },
-    lastName: { type: String },
+    lastName: { type: String, required: false },
     username: {
         type: String,
         unique: true,
@@ -71,6 +71,7 @@ UserSchema.pre('save', function (next) {
     if (this.isModified('email')) {
         this.email = this.email.toLowerCase();
     }
+    next();
 });
 
 UserSchema.methods.comparePassword = async function (
