@@ -1,20 +1,22 @@
 # https://andrekoenig.de/articles/using-bun-as-the-package-manager-in-production-ready-docker-images
 ARG NODE_VERSION=20
-FROM node:${NODE_VERSION}-slim as distribution
+FROM node:${NODE_VERSION}-slim AS distribution
 ARG BUN_VERSION=1.0.34
 
-WORKDIR /app/server
 RUN npm install -g bun@${BUN_VERSION}
 
-COPY ../package.json /app/package.json
-COPY package.json yarn.lock ./
+WORKDIR /app/
+COPY package.json /app/
+
+WORKDIR /app/server/
+COPY server/package.json server/yarn.json ./
 
 RUN yarn install --frozen-lockfile
 
-COPY . .
+COPY server/ /app/server/
 
 # dynamic env vars
-COPY .env ./
+COPY server/.env /app/server/.env
 
 USER node
 

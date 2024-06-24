@@ -68,4 +68,12 @@ process.on('SIGINT', async () => {
 
 app.listen(env.EXPRESS_PORT, async () => {
     console.log(`Server running: ${env.API_URL} 🚀`);
+    console.log({
+        name: "Dereck's Notes API",
+        ok: true,
+        version: VERSION,
+        build: env.BUILD_ENV,
+        datetime: new Date().toISOString(),
+        buildTime: buildTime
+    })
 });
