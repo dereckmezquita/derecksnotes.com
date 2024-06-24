@@ -11,7 +11,7 @@ COPY package.json /app/
 WORKDIR /app/server/
 COPY server/package.json server/yarn.lock ./
 
-COPY .env /app/client/.env
+COPY server/.env /app/client/.env
 
 RUN yarn install --frozen-lockfile
 
