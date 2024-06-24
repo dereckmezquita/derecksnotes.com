@@ -1,7 +1,11 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { api } from '@components/utils/api/api';
-import { Article, PostContainer } from '@components/components/pages/posts-dictionaries';
+import {
+    Article,
+    PostContainer
+} from '@components/components/pages/posts-dictionaries';
 
 function Page() {
     const [data, setData] = useState(null);
@@ -9,14 +13,17 @@ function Page() {
 
     useEffect(() => {
         async function fetchData() {
+            const toastId = toast.loading('Fetching data...');
             try {
-                console.log('Attempting to fetch from:', '/api');
                 const response = await api.get('/');
-                console.log('Response:', response.data);
                 setData(response.data);
+                toast.success('Data fetched successfully!', { id: toastId });
             } catch (error: any) {
                 console.error('Error fetching data:', error);
                 setError(error.message);
+                toast.error(`Failed to fetch data: ${error.message}`, {
+                    id: toastId
+                });
             }
         }
 
@@ -25,10 +32,12 @@ function Page() {
 
     if (error) {
         return (
-            <>
-                <h1>Error</h1>
-                <p>Failed to fetch data: {error}</p>
-            </>
+            <PostContainer>
+                <Article>
+                    <h1>Error</h1>
+                    <pre>Failed to fetch data: {error}</pre>
+                </Article>
+            </PostContainer>
         );
     }
 

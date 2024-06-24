@@ -19,6 +19,8 @@ import Footer from '@components/components/ui/Footer';
 import Navbar from '@components/components/ui/Navbar';
 import { BlogFilterProvider } from '@components/components/pages/index/BlogFilterContext';
 
+import { Toaster } from 'sonner';
+
 export default function RootLayout({
     children
 }: {
@@ -29,6 +31,7 @@ export default function RootLayout({
             <ThemeProvider theme={theme}>
                 <BlogFilterProvider>
                     <html lang="en">
+                        <Toaster richColors closeButton theme={'light'} />
                         <body>
                             <GlobalStyles />
                             <Logo />

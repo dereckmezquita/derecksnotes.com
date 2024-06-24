@@ -43,7 +43,8 @@ function Footer(): JSX.Element {
             </FooterText>
             <FooterText>
                 Application build: {NEXT_PUBLIC_BUILD_ENV}, Application version:{' '}
-                {NEXT_PUBLIC_APP_VERSION}, test API integration: <Link href="/test/api">/test/api</Link>
+                {NEXT_PUBLIC_APP_VERSION}, test API integration:{' '}
+                <Link href="/test/api">/test/api</Link>
             </FooterText>
             <FooterText>
                 <a href="mailto:contact@derecksnotes.com">
