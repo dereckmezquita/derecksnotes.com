@@ -15,6 +15,7 @@ export interface IUser extends Document {
     tempTokenExpires?: Date;
     resetPasswordToken?: string;
     resetPasswordExpires?: Date;
+    role?: 'user' | 'admin';
     comparePassword(password: string): Promise<boolean>;
 }
 
@@ -56,7 +57,8 @@ const UserSchema: Schema<IUser> = new Schema({
     tempToken: { type: String },
     tempTokenExpires: { type: Date },
     resetPasswordToken: { type: String },
-    resetPasswordExpires: { type: Date }
+    resetPasswordExpires: { type: Date },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' }
 });
 
 UserSchema.pre<IUser>('save', async function (next) {
