@@ -17,7 +17,7 @@ interface AuthModalProps {
 type ModalView = 'login' | 'register' | 'reset' | 'magic-link';
 
 export function AuthModal({ isOpen, onClose }: AuthModalProps) {
-    const [view, setView] = useState<ModalView>('magic-link');
+    const [view, setView] = useState<ModalView>('login');
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',

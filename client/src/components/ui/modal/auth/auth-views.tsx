@@ -47,16 +47,16 @@ export function LoginView({
                 type="button"
                 onClick={() => switchView('register')}
             >
-                Don't have an account? Register
+                Register
             </SwitchViewButton>
             <SwitchViewButton type="button" onClick={() => switchView('reset')}>
-                Forgot password?
+                Reset password
             </SwitchViewButton>
             <SwitchViewButton
                 type="button"
                 onClick={() => switchView('magic-link')}
             >
-                Login with Magic Link
+                Magic Link
             </SwitchViewButton>
         </StyledForm>
     );
@@ -123,7 +123,7 @@ export function RegisterView({
             </InputField>
             <SubmitButton type="submit">Register</SubmitButton>
             <SwitchViewButton type="button" onClick={() => switchView('login')}>
-                Already have an account? Log in
+                Login
             </SwitchViewButton>
         </StyledForm>
     );
@@ -149,7 +149,7 @@ export function ResetPasswordView({
             </InputField>
             <SubmitButton type="submit">Reset Password</SubmitButton>
             <SwitchViewButton type="button" onClick={() => switchView('login')}>
-                Back to login
+                Login
             </SwitchViewButton>
         </StyledForm>
     );
@@ -175,7 +175,7 @@ export function MagicLinkView({
             </InputField>
             <SubmitButton type="submit">Send Magic Link</SubmitButton>
             <SwitchViewButton type="button" onClick={() => switchView('login')}>
-                Back to login
+                Login
             </SwitchViewButton>
         </StyledForm>
     );
