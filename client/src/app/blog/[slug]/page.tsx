@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { URL } from 'url';
 import {
     APPLICATION_DEFAULT_METADATA,
     ROOT_DIR_APP
@@ -17,7 +16,8 @@ import { accessReadFile } from '@components/utils/accessReadFile';
 import { Metadata } from 'next';
 
 const section: string = 'blog';
-const absDir = path.join(ROOT_DIR_APP, section, 'posts');
+const relDir = path.join(section, 'posts');
+const absDir = path.join(ROOT_DIR_APP, relDir);
 
 // used at build time to generate which pages to render
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
@@ -98,6 +98,7 @@ export function generateMetadata({ params }: PageProps): Metadata {
     const filePath: string = path.join(absDir, params.slug + '.mdx');
     const post: PostMetadata = extractSinglePostMetadata(filePath);
     return {
+        metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
         title: `Dn | ${post.title}`,
         description: post.summary,
         openGraph: {

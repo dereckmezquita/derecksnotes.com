@@ -12,16 +12,13 @@ import {
 } from '@components/utils/dictionaries/fetchDefinitionMetadata';
 import { accessReadFile } from '@components/utils/accessReadFile';
 import { notFound } from 'next/navigation';
-import { URL } from 'url';
 import { processMdx } from '@components/utils/mdx/processMdx';
 import { Metadata } from 'next';
 
 const dictionary: string = 'chemistry';
+const relDir: string = path.join('dictionaries', dictionary, 'definitions');
 const absDir: string = path.join(
-    ROOT_DIR_APP,
-    'dictionaries',
-    dictionary,
-    'definitions'
+    ROOT_DIR_APP, relDir
 );
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
@@ -78,7 +75,8 @@ async function Page({ params }: PageProps) {
 export default Page;
 
 export function generateMetadata({ params }: PageProps): Metadata {
-    const filePath: string = path.join(absDir, params.slug + '.mdx');
+    const filename: string = params.slug + '.mdx';
+    const filePath: string = path.join(absDir, filename);
     const definition: DefinitionMetadata =
         extractSingleDefinitionMetadata(filePath);
 
@@ -87,6 +85,7 @@ export function generateMetadata({ params }: PageProps): Metadata {
         definition.summary || `Dn | definition of ${definition.word}`;
     const coverImage: string = '/site-images/card-covers/512-logo.png';
     return {
+        metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
         title: title,
         description: summary,
         openGraph: {
