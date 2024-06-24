@@ -62,7 +62,8 @@ async function Page({ params }: PageProps) {
     }
 
     if (!APPLICATION_DEFAULT_METADATA.url) {
-        throw new Error('APPLICATION_DEFAULT_METADATA.url is not set at Page');
+        console.error('APPLICATION_DEFAULT_METADATA.url is not set at Page');
+        process.exit(1);
     }
 
     // TODO: simplify this we don't need full metadata object
@@ -78,7 +79,8 @@ async function Page({ params }: PageProps) {
     };
 
     if (!frontmatter2.summary) {
-        throw new Error(`Post ${frontmatter.slug} is missing a summary`);
+        console.error(`Post ${frontmatter.slug} is missing a summary`);
+        process.exit(1);
     }
 
     // TODO: cleanup this can be deleted; we set metadata now with the generateMetadata function
@@ -102,7 +104,10 @@ export function generateMetadata({ params }: PageProps): Metadata {
     const filePath: string = path.join(absDir, params.slug + '.mdx');
     const post: PostMetadata = extractSinglePostMetadata(filePath);
     if (!APPLICATION_DEFAULT_METADATA.url) {
-        throw new Error('APPLICATION_DEFAULT_METADATA.url is not set at generateMetadata');
+        console.error(
+            'APPLICATION_DEFAULT_METADATA.url is not set at generateMetadata'
+        );
+        process.exit(1);
     }
     return {
         metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),

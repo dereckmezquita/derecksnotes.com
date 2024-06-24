@@ -9,6 +9,8 @@ COPY package.json /app/
 WORKDIR /app/client/
 COPY client/package.json client/package-lock.json ./
 
+COPY .env /app/client/.env
+
 # https://stackoverflow.com/questions/71426665/how-run-next-js-with-node-sharp-for-docker#answer-77150832
 # Install dependencies
 RUN npm install --frozen-lockfile && \
