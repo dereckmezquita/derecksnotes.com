@@ -3,6 +3,7 @@ import {
     NEXT_PUBLIC_APP_VERSION,
     NEXT_PUBLIC_BUILD_ENV
 } from '@components/lib/env';
+import Link from 'next/link';
 
 const minWidthSnapUp = (props: any) =>
     props.theme.container.widths.min_width_snap_up;
@@ -42,7 +43,7 @@ function Footer(): JSX.Element {
             </FooterText>
             <FooterText>
                 Application build: {NEXT_PUBLIC_BUILD_ENV}, Application version:{' '}
-                {NEXT_PUBLIC_APP_VERSION}
+                {NEXT_PUBLIC_APP_VERSION}, test API integration: <Link href="/test/api">/test/api</Link>
             </FooterText>
             <FooterText>
                 <a href="mailto:contact@derecksnotes.com">
