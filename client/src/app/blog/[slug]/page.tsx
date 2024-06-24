@@ -61,6 +61,10 @@ async function Page({ params }: PageProps) {
         notFound();
     }
 
+    if (!APPLICATION_DEFAULT_METADATA.url) {
+        throw new Error('APPLICATION_DEFAULT_METADATA.url is not set at Page');
+    }
+
     // TODO: simplify this we don't need full metadata object
     const url = new URL(
         path.join(section, params.slug),
@@ -97,6 +101,9 @@ export default Page;
 export function generateMetadata({ params }: PageProps): Metadata {
     const filePath: string = path.join(absDir, params.slug + '.mdx');
     const post: PostMetadata = extractSinglePostMetadata(filePath);
+    if (!APPLICATION_DEFAULT_METADATA.url) {
+        throw new Error('APPLICATION_DEFAULT_METADATA.url is not set at generateMetadata');
+    }
     return {
         metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
         title: `Dn | ${post.title}`,
