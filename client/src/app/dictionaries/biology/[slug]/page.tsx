@@ -14,6 +14,7 @@ import { accessReadFile } from '@components/utils/accessReadFile';
 import { notFound } from 'next/navigation';
 import { URL } from 'url';
 import { processMdx } from '@components/utils/mdx/processMdx';
+import { Metadata } from 'next';
 
 const dictionary: string = 'biology';
 const absDir: string = path.join(
@@ -76,7 +77,7 @@ async function Page({ params }: PageProps) {
 
 export default Page;
 
-export function generateMetadata({ params }: PageProps) {
+export function generateMetadata({ params }: PageProps): Metadata {
     const filePath: string = path.join(absDir, params.slug + '.mdx');
     const definition: DefinitionMetadata =
         extractSingleDefinitionMetadata(filePath);
@@ -90,15 +91,22 @@ export function generateMetadata({ params }: PageProps) {
         description: summary,
         openGraph: {
             title: title,
-            descrption: summary,
+            description: summary,
             // TODO: consider setting a dynamic image per definition
-            images: [coverImage]
+            images: [
+                {
+                    url: coverImage,
+                    width: 800,
+                    height: 600,
+                    alt: "Dereck's Notes Logo"
+                }
+            ]
         },
         twitter: {
             card: 'summary_large_image',
             title: title,
             description: summary,
-            image: coverImage
+            images: [coverImage]
         }
     };
 }

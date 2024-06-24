@@ -14,6 +14,7 @@ import {
     getPostsWithSection
 } from '@components/utils/mdx/fetchPostsMetadata';
 import { accessReadFile } from '@components/utils/accessReadFile';
+import { Metadata } from 'next';
 
 const section: string = 'blog';
 const absDir = path.join(ROOT_DIR_APP, section, 'posts');
@@ -93,7 +94,7 @@ async function Page({ params }: PageProps) {
 
 export default Page;
 
-export function generateMetadata({ params }: PageProps) {
+export function generateMetadata({ params }: PageProps): Metadata {
     const filePath: string = path.join(absDir, params.slug + '.mdx');
     const post: PostMetadata = extractSinglePostMetadata(filePath);
     return {
@@ -102,13 +103,20 @@ export function generateMetadata({ params }: PageProps) {
         openGraph: {
             title: post.title,
             description: post.summary,
-            images: [post.coverImage]
+            images: [
+                {
+                    url: post.coverImage,
+                    width: 800,
+                    height: 600,
+                    alt: "Dereck's Notes Logo"
+                }
+            ]
         },
         twitter: {
             card: 'summary_large_image',
             title: post.title,
             description: post.summary,
-            image: post.coverImage
+            images: [post.coverImage]
         }
     };
 }
