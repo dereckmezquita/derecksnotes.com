@@ -17,9 +17,7 @@ import { Metadata } from 'next';
 
 const dictionary: string = 'chemistry';
 const relDir: string = path.join('dictionaries', dictionary, 'definitions');
-const absDir: string = path.join(
-    ROOT_DIR_APP, relDir
-);
+const absDir: string = path.join(ROOT_DIR_APP, relDir);
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
     const filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
