@@ -3,10 +3,6 @@ name: Release Prod Docker image to Linode
 on:
   release:
     types: [published]
-# on:
-#   push:
-#     branches-ignore:
-#       - 'master'
 env:
   IMAGE_NAME_SERVER: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-server
   IMAGE_NAME_CLIENT: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-client
@@ -40,15 +36,10 @@ jobs:
       - name: Build and push server image
         uses: docker/build-push-action@3b5e8027fcad23fda98b2e3ac259d8d67585f671
         with:
-          context: ./server
+          context: ./
           file: ./server/Dockerfile
           push: true
           tags: ${{ env.IMAGE_NAME_SERVER }}:latest_prod
-          build-args: |
-            BUILD_ENV=PROD
-            API_URL=https://derecksnotes.com/api/
-            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
-            MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }}
 
   push_to_registry_client:
     name: Push Docker client image to Docker Hub
@@ -79,10 +70,6 @@ jobs:
           file: ./client/Dockerfile
           push: true
           tags: ${{ env.IMAGE_NAME_CLIENT }}:latest_prod
-          build-args: |
-            NEXT_PUBLIC_BUILD_ENV=PROD
-            NEXT_PUBLIC_APP_URL=https://derecksnotes.com/
-            NEXT_PUBLIC_API_URL=https://derecksnotes.com/api/
 
   deploy_to_linode:
     name: Deploy docker-compose.yml to Linode
