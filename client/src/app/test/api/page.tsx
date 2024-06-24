@@ -7,6 +7,16 @@ import {
     PostContainer
 } from '@components/components/pages/posts-dictionaries';
 
+function PostArticle({ children }: { children: React.ReactNode }) {
+    return (
+        <PostContainer>
+            <Article sideBar={false} style={{ width: '90%' }}>
+                {children}
+            </Article>
+        </PostContainer>
+    );
+}
+
 function Page() {
     const [data, setData] = useState(null);
     const [error, setError] = useState(null);
@@ -32,26 +42,26 @@ function Page() {
 
     if (error) {
         return (
-            <PostContainer>
-                <Article>
-                    <h1>Error</h1>
-                    <pre>Failed to fetch data: {error}</pre>
-                </Article>
-            </PostContainer>
+            <PostArticle>
+                <h1>Error</h1>
+                <pre>Failed to fetch data: {error}</pre>
+            </PostArticle>
         );
     }
 
     if (!data) {
-        return <h1>Loading...</h1>;
+        return (
+            <PostArticle>
+                <h1>Loading...</h1>
+            </PostArticle>
+        );
     }
 
     return (
-        <PostContainer>
-            <Article sideBar={false} style={{ width: '90%' }}>
-                <h1>Hello world!</h1>
-                <pre>{JSON.stringify(data, null, 2)}</pre>
-            </Article>
-        </PostContainer>
+        <PostArticle>
+            <h1>Hello world!</h1>
+            <pre>{JSON.stringify(data, null, 2)}</pre>
+        </PostArticle>
     );
 }
 
