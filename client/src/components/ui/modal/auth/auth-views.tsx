@@ -52,7 +52,10 @@ export function LoginView({
             <SwitchViewButton type="button" onClick={() => switchView('reset')}>
                 Forgot password?
             </SwitchViewButton>
-            <SwitchViewButton type="button" onClick={() => switchView('magic-link')}>
+            <SwitchViewButton
+                type="button"
+                onClick={() => switchView('magic-link')}
+            >
                 Login with Magic Link
             </SwitchViewButton>
         </StyledForm>

@@ -1,7 +1,12 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { Modal } from '../Modal';
-import { LoginView, RegisterView, ResetPasswordView, MagicLinkView } from './auth-views';
+import {
+    LoginView,
+    RegisterView,
+    ResetPasswordView,
+    MagicLinkView
+} from './auth-views';
 import { api } from '@components/utils/api/api';
 
 interface AuthModalProps {
@@ -48,20 +53,27 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     response = await api.post('/auth/reset-password', {
                         email: formData.email
                     });
-                    toast.success('Password reset email sent!', { id: toastId });
+                    toast.success('Password reset email sent!', {
+                        id: toastId
+                    });
                     break;
                 case 'magic-link':
                     response = await api.post('/auth/magic-link', {
                         email: formData.email
                     });
-                    toast.success('Magic link sent to your email!', { id: toastId });
+                    toast.success('Magic link sent to your email!', {
+                        id: toastId
+                    });
                     break;
             }
             console.log(response.data);
             onClose();
         } catch (error: any) {
             console.error('Error:', error);
-            toast.error(`Error: ${error.response?.data?.error || 'An unknown error occurred'}`, { id: toastId });
+            toast.error(
+                `Error: ${error.response?.data?.error || 'An unknown error occurred'}`,
+                { id: toastId }
+            );
         }
     };
 
@@ -97,10 +109,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 view === 'login'
                     ? 'Login'
                     : view === 'register'
-                        ? 'Register'
-                        : view === 'reset'
-                            ? 'Reset Password'
-                            : 'Magic Link Login'
+                      ? 'Register'
+                      : view === 'reset'
+                        ? 'Reset Password'
+                        : 'Magic Link Login'
             }
         >
             {renderView()}
