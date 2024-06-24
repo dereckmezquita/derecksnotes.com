@@ -23,3 +23,6 @@ export const MONGO_DATABASE: string = env('MONGO_DATABASE');
 
 // REDIS
 export const REDIS_URI: string = process.env.REDIS_URI || 'linode_dereck-redis';
+
+// services
+export const SENDGRID_API_KEY = env('SENDGRID_API_KEY');

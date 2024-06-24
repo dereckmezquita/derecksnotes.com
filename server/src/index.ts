@@ -9,6 +9,8 @@ import { getServerStatus } from './utils/getServerStatus';
 import * as env from './utils/env';
 import * as constants from './utils/constants';
 
+import * as routes from './routes';
+
 const app = express();
 
 app.use(express.json());
@@ -44,11 +46,15 @@ app.use(
     })
 );
 
+// -----
 app.get('/', async (req: Request, res: Response) => {
     console.log('Consoling - GET /');
     const status = await getServerStatus();
     res.json(status);
 });
+
+app.use('/', routes.auth);
+// -----
 
 if (!env.BUILD_ENV_BOOL) {
     app.use((req: Request, res: Response, next: NextFunction) => {

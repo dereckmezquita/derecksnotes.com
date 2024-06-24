@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface IUser extends Document {
+    _id?: string;
     firstName: string;
     lastName?: string;
     username: string;
@@ -12,6 +13,8 @@ export interface IUser extends Document {
     apiKey: string;
     tempToken?: string;
     tempTokenExpires?: Date;
+    resetPasswordToken?: string;
+    resetPasswordExpires?: Date;
     comparePassword(password: string): Promise<boolean>;
 }
 
@@ -19,6 +22,7 @@ export interface IUserModel extends Model<IUser> {
     findByEmail(email: string): Promise<IUser | null>;
     findByUsername(username: string): Promise<IUser | null>;
     findByApiKey(apiKey: string): Promise<IUser | null>;
+    findByResetPasswordToken(token: string): Promise<IUser | null>;
 }
 
 const UserSchema: Schema<IUser> = new Schema({
@@ -50,7 +54,9 @@ const UserSchema: Schema<IUser> = new Schema({
     isVerified: { type: Boolean, default: false },
     apiKey: { type: String, unique: true, default: uuidv4 },
     tempToken: { type: String },
-    tempTokenExpires: { type: Date }
+    tempTokenExpires: { type: Date },
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date }
 });
 
 UserSchema.pre<IUser>('save', async function (next) {
@@ -96,6 +102,15 @@ UserSchema.statics.findByApiKey = async function (
     apiKey: string
 ): Promise<IUser | null> {
     return this.findOne({ apiKey });
+};
+
+UserSchema.statics.findByResetPasswordToken = async function (
+    token: string
+): Promise<IUser | null> {
+    return this.findOne({
+        resetPasswordToken: token,
+        resetPasswordExpires: { $gt: Date.now() }
+    });
 };
 
 export const User: IUserModel = mongoose.model<IUser, IUserModel>(
