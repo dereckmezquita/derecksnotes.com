@@ -15,9 +15,6 @@ RUN yarn install --frozen-lockfile
 
 COPY server/ /app/server/
 
-# dynamic env vars
-COPY .env ./
-
 USER node
 
 # RUN yarn run test
