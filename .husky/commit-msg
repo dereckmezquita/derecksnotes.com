@@ -2,9 +2,10 @@
 . "$(dirname "$0")/_/husky.sh"
 
 branch_name=$(git branch --show-current)
-ticket_number=$(echo "$branch_name" | grep -oE '[A-Za-z]+-[0-9]+')
+ticket_number=$(echo "$branch_name" | grep -oE '^[A-Za-z]+-[0-9]+')
 
 if [ ! -z "$ticket_number" ]; then
-    new_commit_msg="$ticket_number: $(cat "$1")"
+    commit_msg=$(tr -d '\n' < "$1")
+    new_commit_msg="$ticket_number: $commit_msg"
     echo "$new_commit_msg" > "$1"
 fi

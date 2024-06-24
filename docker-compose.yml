@@ -1,0 +1,31 @@
+services:
+  linode_derecksnotes_server:
+    image: ${IMAGE_NAME_SERVER}
+    container_name: ${CONTAINER_NAME_SERVER}
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - '${PORT_MAP_SERVER}:3000'
+    networks:
+      - dereck-network
+    restart: unless-stopped
+  linode_derecksnotes_client:
+    image: ${IMAGE_NAME_CLIENT}
+    container_name: ${CONTAINER_NAME_CLIENT}
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - '${PORT_MAP_CLIENT}:3000'
+    networks:
+      - dereck-network
+    restart: unless-stopped
+    depends_on:
+      - linode_derecksnotes_server
+    volumes:
+      - /var/www/derecksnotes.com/public:/app/client/public
+
+networks:
+  dereck-network:
+    external: true

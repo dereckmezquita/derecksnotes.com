@@ -2,6 +2,21 @@ import geoip from 'geoip-lite';
 import countryLookup from 'country-code-lookup';
 import getUnicodeFlagIcon from 'country-flag-icons/unicode';
 
+export interface GeolocationDTO {
+    ip: string;
+    country: string;
+    countryCode: string;
+    flag: string;
+    regionName: string;
+    city: string;
+
+    // added by us
+    firstUsed?: Date;
+    lastUsed?: Date;
+
+    _id?: string;
+}
+
 export default function geoLocate(ip: string): GeolocationDTO {
     try {
         const geo = geoip.lookup(ip);

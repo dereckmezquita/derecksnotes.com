@@ -1,13 +1,15 @@
-// line numbers
-code {
+// https://delba.dev/blog/next-blog-build-time-syntax-highlighting
+// https://kohan.dev/posts/markdown-reader-astro-rehype-pretty-code/
+// line numbers for block code only
+figure[data-rehype-pretty-code-figure] code {
     counter-reset: line;
 }
 
-pre {
+figure[data-rehype-pretty-code-figure] pre {
     overflow-x: auto;
 }
 
-code > [data-line]::before {
+figure[data-rehype-pretty-code-figure] code > [data-line]::before {
     counter-increment: line;
     content: counter(line);
 
@@ -22,16 +24,22 @@ code > [data-line]::before {
     color: #e8d64d;
 }
 
-code[data-line-numbers-max-digits='2'] > [data-line]::before {
+figure[data-rehype-pretty-code-figure]
+    code[data-line-numbers-max-digits='2']
+    > [data-line]::before {
     width: 3rem;
 }
 
-code[data-line-numbers-max-digits='3'] > [data-line]::before {
+figure[data-rehype-pretty-code-figure]
+    code[data-line-numbers-max-digits='3']
+    > [data-line]::before {
     width: 3rem;
 }
 
 // title and block
-div[data-rehype-pretty-code-fragment] {
+figure[data-rehype-pretty-code-figure] {
+    margin: 0px;
+    width: 100%;
     pre {
         margin: 0px;
         margin-bottom: 10px;
@@ -49,7 +57,7 @@ div[data-rehype-pretty-code-fragment] {
     border-radius: 0.5rem;
 
     // title
-    div[data-rehype-pretty-code-title] {
+    figcaption[data-rehype-pretty-code-title] {
         margin-bottom: -7px;
         border-radius: 10px;
         background-color: #353535;
@@ -72,10 +80,16 @@ span[data-highlighted-line] {
 }
 
 // inline code
-span[data-rehype-pretty-code-fragment] {
+span[data-rehype-pretty-code-figure] {
     padding: 4px;
 
     code {
-        background-color: red;
+        background-color: rgb(34, 39, 46);
+        color: rgb(173, 186, 199);
+        font-family: Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+        font-size: 85%;
+        padding: 2px 4px;
+        margin: 0 2px;
+        border-radius: 4px;
     }
 }

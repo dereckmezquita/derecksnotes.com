@@ -1,6 +1,5 @@
 import React from 'react';
 import styled from 'styled-components';
-import { theme } from '@styles/theme';
 import Link from 'next/link';
 
 const HeaderContainer = styled(Link)`
@@ -45,7 +44,7 @@ export const SiteName = styled.span`
     font-family: 'Fjalla One', sans-serif;
     display: inline-block;
     text-transform: uppercase;
-    color: ${theme.theme_colours[5]()};
+    color: ${(props) => props.theme.theme_colours[5]()};
     font-size: 42.5px;
     transform: scale(1.35, 1.3);
     line-height: 57px;

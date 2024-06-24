@@ -1,0 +1,148 @@
+---
+title: "Markdown demo"
+blurb: "Some subtitle"
+coverImage: 24
+author: "Dereck Mezquita"
+date: 2025-01-01
+
+tags: [first-category, second-category]
+published: false
+comments: true
+---
+
+## Table of contents
+
+You can directly have a paragraph here and it won't be scraped by `remark-toc`.
+
+{/* custom support for html including breaks; be sure to close your br tags!!! */}
+<br/>
+
+<Figure src="/site-images/card-covers/1.png">
+    Some caption!
+</Figure>
+
+## mdx limitations
+
+Unfortunately as demonstrated here: https://github.com/hashicorp/next-mdx-remote/issues/48
+
+MDX will never support importing components while being loaded from a remote source.
+
+## Here are some maths
+
+$$
+    \frac{1}{\pi}
+$$
+
+## Autolink literals
+
+www.example.com, https://example.com, and contact@example.com.
+
+Internal link demonstration to [hierarchy in art](/blog/20181127_hierarchy-in-art).
+
+External link demonstration to [google](https://www.google.com).
+
+## Footnote
+
+A note[^1]
+
+[^1]: Big note.
+
+## Strikethrough
+
+~one~ or ~~two~~ tildes.
+
+## Table
+
+| a | b  |  c |  d  |
+| - | :- | -: | :-: |
+| 1 | 2  |  3 |  4  |
+| 5 | 6  |  7 |  8  |
+| 9 | 10 | 11 | 12  |
+
+## Lists
+
+* one
+* two
+
+1. one
+2. two
+
+- one
+- two
+
+## Custom syntax
+
+### Support for alerts
+
+```tsx
+<Alert type='note'>
+Highlights information that users should take into account, even when skimming.
+</Alert>
+```
+
+<Alert type='note'>
+Highlights information that users should take into account, even when skimming.
+</Alert>
+
+<Alert type='important'>
+Crucial information necessary for users to succeed.
+</Alert>
+
+<Alert type='warning'>
+Critical content demanding immediate user attention due to potential risks.
+</Alert>
+
+### Blockquote with source
+
+<Blockquote src='The source'>
+Some block quote here...
+</Blockquote>
+
+### Code syntax highlighting
+
+```js
+const someNewFunction = () => {
+    return 2345234523;
+}
+```
+
+```javascript
+const test = 'test';
+
+function test() {
+    return 'test';
+}
+```
+
+```r
+someRfunction <- function() {
+    return(2345234523)
+}
+
+library("R6")
+
+TestClass <- R6Class(
+    "TestClass",
+    public = list(
+        initialize = function(x) {
+            self$x <- x
+        },
+        print_x = function() {
+            print(self$x)
+        }
+    )
+)
+```
+
+This is an array `[1, 2, 3]{:js}` of numbers 1 through 3.
+
+Code blocks with line numbers and titles: https://rehype-pretty-code.netlify.app
+
+```js showLineNumbers title="multiply.js" {1}
+const multiply = (a, b) => a * b
+multiply(2, 2) // 4
+```
+
+```js title="multiply.js"
+const multiply = (a, b) => a * b
+```

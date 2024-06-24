@@ -1,17 +1,22 @@
 import styled from 'styled-components';
-import { theme } from '@styles/theme';
 import { FaSearch } from 'react-icons/fa';
+
+// TODO: type here
+const minWidthSnapUp = (props: any) =>
+    props.theme.container.widths.min_width_snap_up;
 
 const SearchContainer = styled.div`
     width: 80%;
     margin: 0 auto;
-    @media (max-width: ${theme.container.widths.min_width_snap_up}) {
+    @media (max-width: ${minWidthSnapUp}) {
         width: 95%;
     }
     padding: 3px 10px;
     margin-bottom: 10px;
-    background-color: ${theme.container.background.colour.primary()};
-    border: 1px solid ${theme.container.border.colour.primary()};
+    background-color: ${(props) =>
+        props.theme.container.background.colour.primary()};
+    border: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
     border-radius: 5px;
     display: flex;
     align-items: center;
@@ -20,7 +25,7 @@ const SearchContainer = styled.div`
 const SearchInput = styled.input`
     width: 100%;
     padding: 5px;
-    font-family: ${theme.text.font.times};
+    font-family: ${(props) => props.theme.text.font.times};
     font-size: 0.8em;
     border: none;
     outline: none;
@@ -29,7 +34,7 @@ const SearchInput = styled.input`
 
 const SearchIcon = styled(FaSearch)`
     margin-right: 5px;
-    color: ${theme.icon.colour()};
+    color: ${(props) => props.theme.icon.colour()};
 `;
 
 interface SearchBarProps {

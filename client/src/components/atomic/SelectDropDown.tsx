@@ -1,13 +1,14 @@
 import styled from 'styled-components';
-import { theme } from '@styles/theme';
 
 const SelectContainer = styled.div`
     width: 80%;
     margin: 0 auto;
     padding: 3px 10px;
     margin-bottom: 5px;
-    background-color: ${theme.container.background.colour.primary()};
-    border: 1px solid ${theme.container.border.colour.primary()};
+    background-color: ${(props) =>
+        props.theme.container.background.colour.primary()};
+    border: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
     border-radius: 5px;
     display: flex;
     align-items: center;
@@ -17,12 +18,12 @@ const SelectContainer = styled.div`
 const CustomSelect = styled.select`
     width: 100%;
     padding: 5px;
-    font-family: ${theme.text.font.arial};
+    font-family: ${(props) => props.theme.text.font.arial};
     font-size: 0.8em;
     border: none;
     outline: none;
     background-color: transparent;
-    appearance: none; // This is used to remove default browser styling of the select dropdown
+    appearance: none; // remove default browser styling of the select dropdown
 `;
 
 const DropdownIcon = styled.div`
