@@ -1,16 +1,24 @@
 import mongoose from 'mongoose';
+import Redis from 'ioredis';
 import * as env from '../utils/env';
 
 class DataBases {
     private constructor() {}
     public mongoose?: typeof mongoose;
+    public redisClient?: Redis;
 
     public get mongooseClient(): typeof mongoose {
         if (!this.mongoose) {
             throw new Error('MongoDB not connected');
         }
-
         return this.mongoose;
+    }
+
+    public get redis(): Redis {
+        if (!this.redisClient) {
+            throw new Error('Redis not connected');
+        }
+        return this.redisClient;
     }
 
     private async connectMongoDB() {
@@ -31,6 +39,16 @@ class DataBases {
         }
     }
 
+    private async connectRedis() {
+        try {
+            this.redisClient = new Redis(env.REDIS_URI);
+            console.log('Connected to Redis');
+        } catch (error) {
+            console.error('Failed to connect to Redis', error);
+            throw error;
+        }
+    }
+
     public async disconnectMongoDB(): Promise<void> {
         if (this.mongoose) {
             await this.mongoose.disconnect();
@@ -39,13 +57,25 @@ class DataBases {
         }
     }
 
+    public async disconnectRedis(): Promise<void> {
+        if (this.redisClient) {
+            await this.redisClient.quit();
+            this.redisClient = undefined;
+            console.log('Disconnected from Redis');
+        }
+    }
+
     public async disconnect(): Promise<void> {
-        await this.disconnectMongoDB();
+        await Promise.all([this.disconnectMongoDB(), this.disconnectRedis()]);
+    }
+
+    public async connect(): Promise<void> {
+        await Promise.all([this.connectMongoDB(), this.connectRedis()]);
     }
 
     static async initialise(): Promise<DataBases> {
         const db = new DataBases();
-        await db.connectMongoDB();
+        await db.connect();
         return db;
     }
 }

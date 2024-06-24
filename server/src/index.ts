@@ -6,9 +6,8 @@ import { type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
 import session from 'express-session';
 import RedisStore from 'connect-redis';
-import Redis from 'ioredis';
 
-// import { db } from './db/DataBase';
+import { db } from './db/DataBase';
 import * as env from './utils/env';
 import * as constants from './utils/constants';
 
@@ -37,11 +36,9 @@ app.use(
     })
 );
 
-const redisClient = new Redis(env.REDIS_URI);
-
 app.use(
     session({
-        store: new RedisStore({ client: redisClient }),
+        store: new RedisStore({ client: db.redis }),
         secret: env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
@@ -79,7 +76,7 @@ if (!env.BUILD_ENV_BOOL) {
 
 process.on('SIGINT', async () => {
     console.log('Received SIGINT. Shutting down gracefully...');
-    // await db.disconnect();
+    await db.disconnect();
     process.exit(0);
 });
 
