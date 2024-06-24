@@ -64,8 +64,15 @@ const Figure: React.FC<ImageProps> = ({ children, ...props }) => {
 
     const [lightboxOpen, setLightboxOpen] = useState(false);
 
-    const openLightbox = () => setLightboxOpen(true);
-    const closeLightbox = () => setLightboxOpen(false);
+    const openLightbox = () => {
+        setLightboxOpen(true);
+        document.body.style.overflow = 'hidden'; // Disable scrolling
+    };
+
+    const closeLightbox = () => {
+        setLightboxOpen(false);
+        document.body.style.overflow = ''; // Enable scrolling
+    };
 
     useEffect(() => {
         const handleKeydown = (e: KeyboardEvent) => {
