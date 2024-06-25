@@ -11,6 +11,7 @@ export interface IUser extends Document {
     password: string;
     isVerified: boolean;
     profilePhoto: string; // name we build path; saved in public/uploads
+    createdAt: Date;
     apiKey?: string;
     tempToken?: string;
     tempTokenExpires?: Date;
@@ -55,6 +56,7 @@ const UserSchema: Schema<IUser> = new Schema({
     password: { type: String },
     isVerified: { type: Boolean, default: false },
     profilePhoto: { type: String, default: 'default.jpg' },
+    createdAt: { type: Date, default: Date.now },
     apiKey: { type: String, unique: true, default: uuidv4, required: false },
     tempToken: { type: String },
     tempTokenExpires: { type: Date },

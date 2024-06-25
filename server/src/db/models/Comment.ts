@@ -1,12 +1,18 @@
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document, Model, type PipelineStage } from 'mongoose';
 import sanitizeHtml from 'sanitize-html';
 
 export interface IComment extends Document {
     content: string;
-    author: mongoose.Types.ObjectId;
-    post: string; // This will store the slug of the blog post
+    author: {
+        _id: mongoose.Types.ObjectId;
+        username: string;
+        profilePhoto: string;
+        createdAt: Date; // member since
+        role: 'user' | 'admin';
+    };
+    post: string;
     parentComment?: mongoose.Types.ObjectId;
-    replies: mongoose.Types.ObjectId[];
+    replies: IComment[]; // Changed from mongoose.Types.ObjectId[] to IComment[]
     likes: mongoose.Types.ObjectId[];
     dislikes: mongoose.Types.ObjectId[];
     createdAt: Date;
@@ -16,7 +22,11 @@ export interface IComment extends Document {
 }
 
 export interface ICommentModel extends Model<IComment> {
-    findByPostSlug(slug: string): Promise<IComment[]>;
+    findByPostSlug(slug: string, options: {
+        page?: number;
+        limit?: number;
+        depth?: number;
+    }): Promise<{ comments: IComment[]; total: number }>;
 }
 
 const CommentSchema: Schema<IComment> = new Schema({
@@ -98,12 +108,67 @@ CommentSchema.pre<IComment>('save', function (next) {
 });
 
 CommentSchema.statics.findByPostSlug = async function (
-    slug: string
-): Promise<IComment[]> {
-    return this.find({ post: slug, parentComment: null })
-        .sort('-createdAt')
-        .populate('author', 'username profilePhoto')
-        .exec();
+    slug: string,
+    options: {
+        page?: number;
+        limit?: number;
+        depth?: number;
+    } = {}
+): Promise<{ comments: IComment[]; total: number }> {
+    const { page = 1, limit = 10, depth = 1 } = options;
+    const skip = (page - 1) * limit;
+
+    const pipeline: PipelineStage[] = [
+        { $match: { post: slug, parentComment: null } },
+        { $sort: { createdAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        {
+            $graphLookup: {
+                from: 'comments',
+                startWith: '$_id',
+                connectFromField: '_id',
+                connectToField: 'parentComment',
+                as: 'replies',
+                maxDepth: depth - 1,
+                depthField: 'depth'
+            }
+        },
+        {
+            $lookup: {
+                from: 'users',
+                localField: 'author',
+                foreignField: '_id',
+                as: 'author'
+            }
+        },
+        { $unwind: '$author' },
+        {
+            $project: {
+                // 'author._id': 1,
+                'author.firstName': 0,
+                'author.lastName': 0,
+                // 'author.username': 1,
+                'author.email': 0,
+                'author.password': 0,
+                'author.isVerified': 0,
+                // 'author.profilePhoto': 1,
+                // 'author.createdAt': 1,
+                'author.apiKey': 0,
+                'author.tempToken': 0,
+                'author.tempTokenExpires': 0,
+                'author.resetPasswordToken': 0,
+                'author.resetPasswordExpires': 0,
+                // 'author.role': 1
+                // ... other fields you want to exclude
+            }
+        }
+    ];
+
+    const comments = await this.aggregate(pipeline).exec();
+    const total = await this.countDocuments({ post: slug, parentComment: null });
+
+    return { comments, total };
 };
 
 export const Comment: ICommentModel = mongoose.model<IComment, ICommentModel>(

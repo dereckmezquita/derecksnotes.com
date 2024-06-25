@@ -1,250 +1,155 @@
-import { Router, type Request, type Response } from 'express';
-import { Comment, type IComment } from '../../db/models/Comment';
-import { User } from '../../db/models/User';
-import { authMiddleware, isVerifiedMiddleware } from '../../middleware/isAuth';
-import mongoose from 'mongoose';
+import express, { type Request, type Response } from 'express';
+import { Comment } from '../../db/models/Comment';
 
-const router = Router();
+const router = express.Router();
 
-const MAX_COMMENT_DEPTH = 3;
-
-// Create a new comment
-router.post(
-    '/comments',
-    authMiddleware,
-    isVerifiedMiddleware,
-    async (req: Request, res: Response) => {
-        try {
-            const { content, postSlug, parentCommentId } = req.body;
-            const userId = req.session.userId;
-
-            let depth = 0;
-            if (parentCommentId) {
-                const parentComment = await Comment.findById(parentCommentId);
-                if (!parentComment) {
-                    return res
-                        .status(404)
-                        .json({ error: 'Parent comment not found' });
-                }
-                depth = parentComment.depth + 1;
-                if (depth > MAX_COMMENT_DEPTH) {
-                    return res
-                        .status(400)
-                        .json({ error: 'Maximum comment depth reached' });
-                }
-            }
-
-            const newComment = new Comment({
-                content,
-                author: userId,
-                post: postSlug,
-                parentComment: parentCommentId,
-                depth
-            });
-
-            await newComment.save();
-
-            if (parentCommentId) {
-                await Comment.findByIdAndUpdate(parentCommentId, {
-                    $push: { replies: newComment._id }
-                });
-            }
-
-            res.status(201).json(newComment);
-        } catch (error) {
-            console.error('Error creating comment:', error);
-            res.status(500).json({
-                error: 'An error occurred while creating the comment'
-            });
-        }
-    }
-);
-
-// Get comments for a post
+/**
+ * Allows fetching top-level comments and replies
+ */
 router.get('/comments/:postSlug', async (req: Request, res: Response) => {
+    const { postSlug } = req.params;
+    const { depth = 1, limit = 10, page = 1 } = req.query;
+
     try {
-        const { postSlug } = req.params;
-        const comments = await Comment.findByPostSlug(postSlug);
-        res.json(comments);
-    } catch (error) {
-        console.error('Error fetching comments:', error);
-        res.status(500).json({
-            error: 'An error occurred while fetching comments'
+        const { comments, total } = await Comment.findByPostSlug(postSlug, {
+            depth: Number(depth),
+            limit: Number(limit),
+            page: Number(page)
         });
+
+        res.json({
+            comments,
+            total,
+            page: Number(page),
+            limit: Number(limit)
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching comments', error });
     }
 });
 
-// Get replies for a comment
-router.get(
-    '/comments/:commentId/replies',
-    async (req: Request, res: Response) => {
-        try {
-            const { commentId } = req.params;
-            const replies = await Comment.find({ parentComment: commentId })
-                .sort('-createdAt')
-                .populate('author', 'username profilePhoto')
-                .exec();
-            res.json(replies);
-        } catch (error) {
-            console.error('Error fetching replies:', error);
-            res.status(500).json({
-                error: 'An error occurred while fetching replies'
+// Create a new comment
+router.post('/comments', async (req: Request, res: Response) => {
+    const { content, author, post, parentComment } = req.body;
+
+    try {
+        let depth = 0;
+        if (parentComment) {
+            const parent = await Comment.findById(parentComment);
+            depth = parent ? parent.depth + 1 : 0;
+        }
+
+        const newComment = new Comment({
+            content,
+            author,
+            post,
+            parentComment,
+            depth
+        });
+
+        await newComment.save();
+
+        if (parentComment) {
+            await Comment.findByIdAndUpdate(parentComment, {
+                $push: { replies: newComment._id }
             });
         }
+
+        res.status(201).json(newComment);
+    } catch (error) {
+        res.status(400).json({ message: 'Error creating comment', error });
     }
-);
+});
 
 // Update a comment
-router.put(
-    '/comments/:commentId',
-    authMiddleware,
-    async (req: Request, res: Response) => {
-        try {
-            const { commentId } = req.params;
-            const { content } = req.body;
-            const userId = req.session.userId;
+router.put('/comments/:commentId', async (req: Request, res: Response) => {
+    const { commentId } = req.params;
+    const { content } = req.body;
 
-            const comment = await Comment.findById(commentId);
-            if (!comment) {
-                return res.status(404).json({ error: 'Comment not found' });
-            }
+    try {
+        const updatedComment = await Comment.findByIdAndUpdate(
+            commentId,
+            { content, updatedAt: new Date() },
+            { new: true }
+        );
 
-            if (comment.author.toString() !== userId) {
-                return res.status(403).json({
-                    error: 'You are not authorized to update this comment'
-                });
-            }
-
-            comment.content = content;
-            await comment.save();
-
-            res.json(comment);
-        } catch (error) {
-            console.error('Error updating comment:', error);
-            res.status(500).json({
-                error: 'An error occurred while updating the comment'
-            });
+        if (!updatedComment) {
+            return res.status(404).json({ message: 'Comment not found' });
         }
+
+        res.json(updatedComment);
+    } catch (error) {
+        res.status(400).json({ message: 'Error updating comment', error });
     }
-);
+});
 
-// Delete a comment
-router.delete(
-    '/comments/:commentId',
-    authMiddleware,
-    async (req: Request, res: Response) => {
-        try {
-            const { commentId } = req.params;
-            const userId = req.session.userId;
+// Soft delete a comment
+router.delete('/comments/:commentId', async (req: Request, res: Response) => {
+    const { commentId } = req.params;
 
-            const comment = await Comment.findById(commentId);
-            if (!comment) {
-                return res.status(404).json({ error: 'Comment not found' });
-            }
+    try {
+        const deletedComment = await Comment.findByIdAndUpdate(
+            commentId,
+            {
+                content: '[deleted comment]',
+                updatedAt: new Date()
+            },
+            { new: true }
+        );
 
-            const user = await User.findById(userId);
-            if (!user) {
-                return res.status(404).json({ error: 'User not found' });
-            }
-
-            if (comment.author.toString() !== userId && user.role !== 'admin') {
-                return res.status(403).json({
-                    error: 'You are not authorized to delete this comment'
-                });
-            }
-
-            await Comment.findByIdAndDelete(commentId);
-
-            if (comment.parentComment) {
-                await Comment.findByIdAndUpdate(comment.parentComment, {
-                    $pull: { replies: commentId }
-                });
-            }
-
-            res.json({ message: 'Comment deleted successfully' });
-        } catch (error) {
-            console.error('Error deleting comment:', error);
-            res.status(500).json({
-                error: 'An error occurred while deleting the comment'
-            });
+        if (!deletedComment) {
+            return res.status(404).json({ message: 'Comment not found' });
         }
+
+        res.json({ message: 'Comment soft deleted successfully' });
+    } catch (error) {
+        res.status(400).json({ message: 'Error deleting comment', error });
     }
-);
+});
 
 // Like a comment
-router.post(
-    '/comments/:commentId/like',
-    authMiddleware,
-    async (req: Request, res: Response) => {
-        try {
-            const { commentId } = req.params;
-            const userId = req.session.userId;
+router.post('/comments/:commentId/like', async (req: Request, res: Response) => {
+    const { commentId } = req.params;
+    const { userId } = req.body;
 
-            const comment = await Comment.findById(commentId);
-            if (!comment) {
-                return res.status(404).json({ error: 'Comment not found' });
-            }
-
-            const userObjectId = new mongoose.Types.ObjectId(userId);
-
-            if (comment.likes.includes(userObjectId)) {
-                await Comment.findByIdAndUpdate(commentId, {
-                    $pull: { likes: userObjectId }
-                });
-            } else {
-                await Comment.findByIdAndUpdate(commentId, {
-                    $push: { likes: userObjectId },
-                    $pull: { dislikes: userObjectId }
-                });
-            }
-
-            const updatedComment = await Comment.findById(commentId);
-            res.json(updatedComment);
-        } catch (error) {
-            console.error('Error liking comment:', error);
-            res.status(500).json({
-                error: 'An error occurred while liking the comment'
-            });
+    try {
+        const comment = await Comment.findById(commentId);
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
         }
-    }
-);
 
-// Dislike a comment
-router.post(
-    '/comments/:commentId/dislike',
-    authMiddleware,
-    async (req: Request, res: Response) => {
-        try {
-            const { commentId } = req.params;
-            const userId = req.session.userId;
-
-            const comment = await Comment.findById(commentId);
-            if (!comment) {
-                return res.status(404).json({ error: 'Comment not found' });
-            }
-
-            const userObjectId = new mongoose.Types.ObjectId(userId);
-
-            if (comment.dislikes.includes(userObjectId)) {
-                await Comment.findByIdAndUpdate(commentId, {
-                    $pull: { dislikes: userObjectId }
-                });
-            } else {
-                await Comment.findByIdAndUpdate(commentId, {
-                    $push: { dislikes: userObjectId },
-                    $pull: { likes: userObjectId }
-                });
-            }
-
-            const updatedComment = await Comment.findById(commentId);
-            res.json(updatedComment);
-        } catch (error) {
-            console.error('Error disliking comment:', error);
-            res.status(500).json({
-                error: 'An error occurred while disliking the comment'
-            });
+        if (comment.likes.includes(userId)) {
+            return res.status(400).json({ message: 'Comment already liked by this user' });
         }
+
+        comment.likes.push(userId);
+        await comment.save();
+
+        res.json({ message: 'Comment liked successfully' });
+    } catch (error) {
+        res.status(400).json({ message: 'Error liking comment', error });
     }
-);
+});
+
+// Unlike a comment
+router.post('/comments/:commentId/unlike', async (req: Request, res: Response) => {
+    const { commentId } = req.params;
+    const { userId } = req.body;
+
+    try {
+        const comment = await Comment.findById(commentId);
+        if (!comment) {
+            return res.status(404).json({ message: 'Comment not found' });
+        }
+
+        comment.likes = comment.likes.filter(id => id.toString() !== userId);
+        await comment.save();
+
+        res.json({ message: 'Comment unliked successfully' });
+    } catch (error) {
+        res.status(400).json({ message: 'Error unliking comment', error });
+    }
+});
+
 
 export default router;
