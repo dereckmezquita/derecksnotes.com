@@ -8,6 +8,7 @@ import {
 import { DefinitionMetadata } from '@components/utils/dictionaries/fetchDefinitionMetadata';
 import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
 import { useState, useEffect } from 'react';
+import { Comments } from '../ui/Comments';
 
 interface DisplayPostProps {
     source: React.ReactNode;
@@ -35,6 +36,11 @@ export function Post({ source, frontmatter, sideBarPosts }: DisplayPostProps) {
                         : frontmatter.word}
                 </h1>
                 {isClient && <PostContentWrapper>{source}</PostContentWrapper>}
+                {'comments' in frontmatter && frontmatter.comments && (
+                    <Comments
+                        postSlug={'slug' in frontmatter ? frontmatter.slug : ''}
+                    />
+                )}
             </Article>
         </PostContainer>
     );
