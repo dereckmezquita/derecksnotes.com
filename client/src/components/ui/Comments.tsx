@@ -38,7 +38,7 @@ const SubmitButton = styled.button`
 
     &:hover {
         background-color: ${(props) =>
-        props.theme.theme_colours[5](undefined, undefined, 80)};
+            props.theme.theme_colours[5](undefined, undefined, 80)};
     }
 `;
 
@@ -92,7 +92,7 @@ const ActionButton = styled.button`
 
     &:hover {
         background-color: ${(props) =>
-        props.theme.container.background.colour.primary()};
+            props.theme.container.background.colour.primary()};
     }
 `;
 
@@ -136,7 +136,10 @@ export function Comments({ postSlug }: CommentsProps) {
             const response = await api.get('/auth/validate-session');
             if (response.data.user) {
                 setCurrentUser(response.data.user);
-                localStorage.setItem('userData', JSON.stringify(response.data.user));
+                localStorage.setItem(
+                    'userData',
+                    JSON.stringify(response.data.user)
+                );
             } else {
                 setCurrentUser(null);
                 localStorage.removeItem('userData');
