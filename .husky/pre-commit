@@ -1,15 +1,23 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-npm run format # prettier
+# Get list of initially staged files
+initially_staged_files=$(git diff --cached --name-only --diff-filter=ACM | tr '\n' ' ')
 
-# Stage the changes made by Prettier
-git add -A
+# Run Prettier on the entire project
+npm run format
 
+# If there were initially staged files, re-stage only those files
+if [ -n "$initially_staged_files" ]; then
+    echo "$initially_staged_files" | xargs git add
+else
+    echo "No files were initially staged."
+fi
+
+# Run any tests if needed
 # npm test
 # cd server
 # npm run test
 # cd ..
 
-git push
 echo "pre-commit hook complete."
