@@ -10,6 +10,8 @@ services:
     networks:
       - dereck-network
     restart: unless-stopped
+    volumes:
+      - /var/www/derecksnotes.com/public:/app/client/public
   linode_derecksnotes_client:
     image: ${IMAGE_NAME_CLIENT}
     container_name: ${CONTAINER_NAME_CLIENT}

@@ -10,7 +10,8 @@ export interface IUser extends Document {
     email: string;
     password: string;
     isVerified: boolean;
-    apiKey: string;
+    profilePhoto: string; // name we build path; saved in public/uploads
+    apiKey?: string;
     tempToken?: string;
     tempTokenExpires?: Date;
     resetPasswordToken?: string;
@@ -53,7 +54,8 @@ const UserSchema: Schema<IUser> = new Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String },
     isVerified: { type: Boolean, default: false },
-    apiKey: { type: String, unique: true, default: uuidv4 },
+    profilePhoto: { type: String, default: 'default.jpg' },
+    apiKey: { type: String, unique: true, default: uuidv4, required: false },
     tempToken: { type: String },
     tempTokenExpires: { type: Date },
     resetPasswordToken: { type: String },
