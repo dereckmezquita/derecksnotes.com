@@ -108,48 +108,57 @@ router.delete('/comments/:commentId', async (req: Request, res: Response) => {
 });
 
 // Like a comment
-router.post('/comments/:commentId/like', async (req: Request, res: Response) => {
-    const { commentId } = req.params;
-    const { userId } = req.body;
+router.post(
+    '/comments/:commentId/like',
+    async (req: Request, res: Response) => {
+        const { commentId } = req.params;
+        const { userId } = req.body;
 
-    try {
-        const comment = await Comment.findById(commentId);
-        if (!comment) {
-            return res.status(404).json({ message: 'Comment not found' });
+        try {
+            const comment = await Comment.findById(commentId);
+            if (!comment) {
+                return res.status(404).json({ message: 'Comment not found' });
+            }
+
+            if (comment.likes.includes(userId)) {
+                return res
+                    .status(400)
+                    .json({ message: 'Comment already liked by this user' });
+            }
+
+            comment.likes.push(userId);
+            await comment.save();
+
+            res.json({ message: 'Comment liked successfully' });
+        } catch (error) {
+            res.status(400).json({ message: 'Error liking comment', error });
         }
-
-        if (comment.likes.includes(userId)) {
-            return res.status(400).json({ message: 'Comment already liked by this user' });
-        }
-
-        comment.likes.push(userId);
-        await comment.save();
-
-        res.json({ message: 'Comment liked successfully' });
-    } catch (error) {
-        res.status(400).json({ message: 'Error liking comment', error });
     }
-});
+);
 
 // Unlike a comment
-router.post('/comments/:commentId/unlike', async (req: Request, res: Response) => {
-    const { commentId } = req.params;
-    const { userId } = req.body;
+router.post(
+    '/comments/:commentId/unlike',
+    async (req: Request, res: Response) => {
+        const { commentId } = req.params;
+        const { userId } = req.body;
 
-    try {
-        const comment = await Comment.findById(commentId);
-        if (!comment) {
-            return res.status(404).json({ message: 'Comment not found' });
+        try {
+            const comment = await Comment.findById(commentId);
+            if (!comment) {
+                return res.status(404).json({ message: 'Comment not found' });
+            }
+
+            comment.likes = comment.likes.filter(
+                (id) => id.toString() !== userId
+            );
+            await comment.save();
+
+            res.json({ message: 'Comment unliked successfully' });
+        } catch (error) {
+            res.status(400).json({ message: 'Error unliking comment', error });
         }
-
-        comment.likes = comment.likes.filter(id => id.toString() !== userId);
-        await comment.save();
-
-        res.json({ message: 'Comment unliked successfully' });
-    } catch (error) {
-        res.status(400).json({ message: 'Error unliking comment', error });
     }
-});
-
+);
 
 export default router;

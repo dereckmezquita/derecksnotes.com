@@ -18,6 +18,7 @@ import '@components/styles/footnotes.css';
 import Footer from '@components/components/ui/Footer';
 import Navbar from '@components/components/ui/Navbar';
 import { BlogFilterProvider } from '@components/components/pages/index/BlogFilterContext';
+import { AuthProvider } from '../context/AuthContext';
 
 import { Toaster } from 'sonner';
 
@@ -30,16 +31,18 @@ export default function RootLayout({
         <StyledComponentsRegistry>
             <ThemeProvider theme={theme}>
                 <BlogFilterProvider>
-                    <html lang="en">
-                        <Toaster richColors closeButton theme={'light'} />
-                        <body>
-                            <GlobalStyles />
-                            <Logo />
-                            <Navbar />
-                            {children}
-                            <Footer />
-                        </body>
-                    </html>
+                    <AuthProvider>
+                        <html lang="en">
+                            <Toaster richColors closeButton theme={'light'} />
+                            <body>
+                                <GlobalStyles />
+                                <Logo />
+                                <Navbar />
+                                {children}
+                                <Footer />
+                            </body>
+                        </html>
+                    </AuthProvider>
                 </BlogFilterProvider>
             </ThemeProvider>
         </StyledComponentsRegistry>

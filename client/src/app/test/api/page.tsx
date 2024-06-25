@@ -14,22 +14,15 @@ import {
 } from '@components/components/ui/modal/forms';
 import styled from 'styled-components';
 
-interface User {
-    _id: string;
-    username: string;
-    email: string;
-    isVerified: boolean;
-    role: string;
-    firstName?: string;
-    lastName?: string;
-}
+import CommentDemo from './CommentDemo';
+import { useAuth } from '@components/context/AuthContext';
 
 interface ApiResponse {
     message: string;
     data: any;
 }
 
-const PostArticle: React.FC<React.PropsWithChildren> = ({ children }) => (
+const PostArticle: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
     <PostContainer>
         <Article sideBar={false} style={{ width: '90%' }}>
             {children}
@@ -104,9 +97,9 @@ const Tab = styled.button<{ active: boolean }>`
 `;
 
 const Page: React.FC = () => {
+    const { user, login, logout } = useAuth();
     const [data, setData] = useState<ApiResponse | null>(null);
     const [error, setError] = useState<Error | null>(null);
-    const [user, setUser] = useState<User | null>(null);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [firstName, setFirstName] = useState('');
@@ -116,7 +109,6 @@ const Page: React.FC = () => {
 
     useEffect(() => {
         fetchData();
-        checkSession();
     }, []);
 
     const fetchData = async () => {
@@ -136,52 +128,25 @@ const Page: React.FC = () => {
         }
     };
 
-    const checkSession = async () => {
-        try {
-            const response = await api.get<{ user: User }>(
-                '/auth/validate-session'
-            );
-            setUser(response.data.user);
-        } catch (error) {
-            console.error('Error checking session:', error);
-        }
-    };
-
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        const toastId = toast.loading('Logging in...');
         try {
-            const response = await api.post<{ user: User }>('/auth/login', {
-                email,
-                password
-            });
-            setUser(response.data.user);
-            localStorage.setItem(
-                'userData',
-                JSON.stringify(response.data.user)
-            );
-            toast.success('Logged in successfully!', { id: toastId });
+            await login(email, password);
+            toast.success('Logged in successfully!');
         } catch (error) {
-            console.error('Error logging in:', error);
             toast.error(
-                `Failed to log in: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                { id: toastId }
+                `Failed to log in: ${error instanceof Error ? error.message : 'Unknown error'}`
             );
         }
     };
 
     const handleLogout = async () => {
-        const toastId = toast.loading('Logging out...');
         try {
-            await api.post('/auth/logout');
-            setUser(null);
-            localStorage.removeItem('userData');
-            toast.success('Logged out successfully!', { id: toastId });
+            await logout();
+            toast.success('Logged out successfully!');
         } catch (error) {
-            console.error('Error logging out:', error);
             toast.error(
-                `Failed to log out: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                { id: toastId }
+                `Failed to log out: ${error instanceof Error ? error.message : 'Unknown error'}`
             );
         }
     };
@@ -422,16 +387,10 @@ const Page: React.FC = () => {
                     )}
                 </UserCard>
             </UserCardContainer>
-            <h2>User Data in Local Storage:</h2>
-            <pre>
-                {JSON.stringify(
-                    JSON.parse(localStorage.getItem('userData') || '{}'),
-                    null,
-                    2
-                )}
-            </pre>
             <h2>API Data:</h2>
             <pre>{JSON.stringify(data, null, 2)}</pre>
+
+            <CommentDemo />
         </PostArticle>
     );
 };

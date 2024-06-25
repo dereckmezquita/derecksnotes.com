@@ -1,4 +1,9 @@
-import mongoose, { Schema, Document, Model, type PipelineStage } from 'mongoose';
+import mongoose, {
+    Schema,
+    Document,
+    Model,
+    type PipelineStage
+} from 'mongoose';
 import sanitizeHtml from 'sanitize-html';
 
 export interface IComment extends Document {
@@ -22,11 +27,14 @@ export interface IComment extends Document {
 }
 
 export interface ICommentModel extends Model<IComment> {
-    findByPostSlug(slug: string, options: {
-        page?: number;
-        limit?: number;
-        depth?: number;
-    }): Promise<{ comments: IComment[]; total: number }>;
+    findByPostSlug(
+        slug: string,
+        options: {
+            page?: number;
+            limit?: number;
+            depth?: number;
+        }
+    ): Promise<{ comments: IComment[]; total: number }>;
 }
 
 const CommentSchema: Schema<IComment> = new Schema({
@@ -158,7 +166,7 @@ CommentSchema.statics.findByPostSlug = async function (
                 'author.tempToken': 0,
                 'author.tempTokenExpires': 0,
                 'author.resetPasswordToken': 0,
-                'author.resetPasswordExpires': 0,
+                'author.resetPasswordExpires': 0
                 // 'author.role': 1
                 // ... other fields you want to exclude
             }
@@ -166,7 +174,10 @@ CommentSchema.statics.findByPostSlug = async function (
     ];
 
     const comments = await this.aggregate(pipeline).exec();
-    const total = await this.countDocuments({ post: slug, parentComment: null });
+    const total = await this.countDocuments({
+        post: slug,
+        parentComment: null
+    });
 
     return { comments, total };
 };
