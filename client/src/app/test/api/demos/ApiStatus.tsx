@@ -21,7 +21,7 @@ export function ApiStatus() {
         };
 
         fetchData();
-    });
+    }, []);
 
     return (
         <BoxContainer>
