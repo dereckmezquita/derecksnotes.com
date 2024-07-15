@@ -6,12 +6,14 @@ const router = express.Router();
 /**
  * Allows fetching top-level comments and replies
  */
-router.get('/comments/:postSlug', async (req: Request, res: Response) => {
-    const { postSlug } = req.params;
+router.get('/comments/:post', async (req: Request, res: Response) => {
+    const { post } = req.params;
     const { depth = 1, limit = 10, page = 1 } = req.query;
 
+    const decodedPost = decodeURIComponent(post);
+
     try {
-        const { comments, total } = await Comment.findByPostSlug(postSlug, {
+        const { comments, total } = await Comment.findByPostSlug(decodedPost, {
             depth: Number(depth),
             limit: Number(limit),
             page: Number(page)
@@ -30,7 +32,10 @@ router.get('/comments/:postSlug', async (req: Request, res: Response) => {
 
 // Create a new comment
 router.post('/comments', async (req: Request, res: Response) => {
+    // TODO: get the author from the request session
     const { content, author, post, parentComment } = req.body;
+
+    const decodedPost = decodeURIComponent(post);
 
     try {
         let depth = 0;
@@ -42,7 +47,7 @@ router.post('/comments', async (req: Request, res: Response) => {
         const newComment = new Comment({
             content,
             author,
-            post,
+            post: decodedPost,
             parentComment,
             depth
         });

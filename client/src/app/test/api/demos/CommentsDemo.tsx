@@ -1,13 +1,18 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { usePathname } from 'next/navigation';
 import { IndicateLoading } from '@components/components/atomic/IndiacteLoading';
 import { api } from '@components/utils/api/api';
+import { useAuth } from '@components/context/AuthContext';
 
 interface Comment {
     _id: string;
     content: string;
-    author: string;
+    author: {
+        id: string;
+        username: string;
+    };
     createdAt: string;
     likes: string[];
     replies: string[];
@@ -27,19 +32,27 @@ export function CommentsDemo() {
     const [page, setPage] = useState(1);
     const [newComment, setNewComment] = useState('');
     const pathname = usePathname();
+    const { user, loading: authLoading } = useAuth();
 
     useEffect(() => {
         async function fetchComments() {
+            setLoading(true);
+            const toastId = toast.loading('Fetching comments...');
             try {
-                setLoading(true);
+                const encodedPathname = encodeURIComponent(pathname);
                 const response = await api.get<CommentsResponse>(
-                    `/comments/${pathname}?page=${page}&limit=10`
+                    `/comments/${encodedPathname}?page=${page}&limit=10`
                 );
+                console.log(response.data.comments);
                 setComments(response.data.comments);
                 setTotalComments(response.data.total);
-            } catch (error) {
+                toast.success('Comments loaded successfully', { id: toastId });
+            } catch (error: any) {
                 console.error('Error fetching comments:', error);
-                // Handle error (e.g., show error message to user)
+                toast.error(
+                    'Failed to fetch comments. Please try again later.',
+                    { id: toastId }
+                );
             } finally {
                 setLoading(false);
             }
@@ -50,20 +63,32 @@ export function CommentsDemo() {
 
     const handleSubmitComment = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) {
+            toast.error('Please log in to submit a comment.');
+            return;
+        }
+        const toastId = toast.loading('Submitting comment...');
         try {
+            const encodedPathname = encodeURIComponent(pathname);
             const response = await api.post('/comments', {
                 content: newComment,
-                post: pathname,
-                // You'll need to get the author ID from your auth system
-                author: 'current-user-id'
+                post: encodedPathname,
+                author: user.id
             });
             setComments([response.data, ...comments]);
             setNewComment('');
+            toast.success('Comment submitted successfully', { id: toastId });
         } catch (error) {
             console.error('Error submitting comment:', error);
-            // Handle error (e.g., show error message to user)
+            toast.error('Failed to submit comment. Please try again.', {
+                id: toastId
+            });
         }
     };
+
+    if (authLoading) {
+        return <IndicateLoading />;
+    }
 
     return (
         <div>
@@ -73,21 +98,25 @@ export function CommentsDemo() {
             ) : (
                 <>
                     <p>Total comments: {totalComments}</p>
-                    <form onSubmit={handleSubmitComment}>
-                        <textarea
-                            value={newComment}
-                            onChange={(e) => setNewComment(e.target.value)}
-                            placeholder="Write a comment..."
-                            required
-                        />
-                        <button type="submit">Submit Comment</button>
-                    </form>
+                    {user ? (
+                        <form onSubmit={handleSubmitComment}>
+                            <textarea
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                placeholder="Write a comment..."
+                                required
+                            />
+                            <button type="submit">Submit Comment</button>
+                        </form>
+                    ) : (
+                        <p>Please log in to leave a comment.</p>
+                    )}
                     <ul>
                         {comments.map((comment) => (
                             <li key={comment._id}>
                                 <p>{comment.content}</p>
                                 <small>
-                                    By: {comment.author} on{' '}
+                                    By: {comment.author.username} on{' '}
                                     {new Date(
                                         comment.createdAt
                                     ).toLocaleString()}
