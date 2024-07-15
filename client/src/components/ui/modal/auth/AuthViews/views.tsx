@@ -5,7 +5,7 @@ import {
     Input,
     SubmitButton,
     SwitchViewButton
-} from '../forms';
+} from '../../forms';
 
 interface AuthViewProps {
     formData: any;
