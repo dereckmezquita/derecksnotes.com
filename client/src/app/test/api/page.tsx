@@ -3,6 +3,7 @@ import {
     PostContainer
 } from '@components/components/pages/posts-dictionaries';
 import { AuthDemo, AuthProtectedDemo } from './demos/AuthDemo';
+import { CommentsDemo } from './demos/CommentsDemo';
 
 function Page() {
     return (
@@ -10,6 +11,7 @@ function Page() {
             <h1>Hello world!</h1>
             <AuthDemo />
             <AuthProtectedDemo />
+            <CommentsDemo />
         </PostArticle>
     );
 }
