@@ -123,46 +123,46 @@ export function Comments({ postSlug }: CommentsProps) {
     const [currentUser, setCurrentUser] = useState<any>(null);
 
     useEffect(() => {
-        fetchComments();
-        fetchCurrentUser();
-    }, [postSlug]);
+        const fetchComments = async () => {
+            const toastId = toast.loading('Fetching comments...');
+            setLoading(true);
+            try {
+                const response = await api.get(`/comments/${postSlug}`);
+                setComments(response.data);
+                toast.success('Comments loaded successfully', { id: toastId });
+            } catch (error) {
+                toast.error('Failed to fetch comments', { id: toastId });
+            }
+            setLoading(false);
+        };
 
-    const fetchCurrentUser = async () => {
-        const userData = localStorage.getItem('userData');
-        if (userData) {
-            setCurrentUser(JSON.parse(userData));
-        }
-        try {
-            const response = await api.get('/auth/validate-session');
-            if (response.data.user) {
-                setCurrentUser(response.data.user);
-                localStorage.setItem(
-                    'userData',
-                    JSON.stringify(response.data.user)
-                );
-            } else {
+        const fetchCurrentUser = async () => {
+            const userData = localStorage.getItem('userData');
+            if (userData) {
+                setCurrentUser(JSON.parse(userData));
+            }
+            try {
+                const response = await api.get('/auth/validate-session');
+                if (response.data.user) {
+                    setCurrentUser(response.data.user);
+                    localStorage.setItem(
+                        'userData',
+                        JSON.stringify(response.data.user)
+                    );
+                } else {
+                    setCurrentUser(null);
+                    localStorage.removeItem('userData');
+                }
+            } catch (error) {
+                console.error('Error validating session:', error);
                 setCurrentUser(null);
                 localStorage.removeItem('userData');
             }
-        } catch (error) {
-            console.error('Error validating session:', error);
-            setCurrentUser(null);
-            localStorage.removeItem('userData');
-        }
-    };
+        };
 
-    const fetchComments = async () => {
-        const toastId = toast.loading('Fetching comments...');
-        setLoading(true);
-        try {
-            const response = await api.get(`/comments/${postSlug}`);
-            setComments(response.data);
-            toast.success('Comments loaded successfully', { id: toastId });
-        } catch (error) {
-            toast.error('Failed to fetch comments', { id: toastId });
-        }
-        setLoading(false);
-    };
+        fetchComments();
+        fetchCurrentUser();
+    }, [postSlug]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
