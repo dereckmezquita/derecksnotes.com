@@ -20,9 +20,13 @@ const relDir: string = path.join('dictionaries', dictionary, 'definitions');
 const absDir: string = path.join(ROOT_DIR_APP, relDir);
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-    const filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
-        return filename.endsWith('.mdx');
-    });
+    // only pre-render first 3 definitions
+    const filenames: string[] = fs
+        .readdirSync(absDir)
+        .filter((filename) => {
+            return filename.endsWith('.mdx');
+        })
+        .slice(0, 3);
 
     return filenames.map((filename) => {
         const slug = path.basename(filename, '.mdx');
