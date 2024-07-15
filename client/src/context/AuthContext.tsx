@@ -3,7 +3,8 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { api } from '@components/utils/api/api';
 
-interface User {
+// TODO: we should have shared interfaces between client and server
+export interface User {
     id: string;
     firstName: string;
     lastName: string;
