@@ -180,3 +180,45 @@ export function MagicLinkView({
         </StyledForm>
     );
 }
+
+import Link from 'next/link';
+import { User } from '@components/context/AuthContext';
+import { IndicateStatusDot } from '@components/components/atomic/IndicateStatusDot';
+
+interface LoggedInViewProps {
+    user: User;
+    handleLogout: () => void;
+}
+
+export function LoggedInView({ user, handleLogout }: LoggedInViewProps) {
+    return (
+        <StyledForm>
+            <p>
+                <IndicateStatusDot isLoggedIn={true} /> {user.username}!
+            </p>
+            <div style={{ marginBottom: '20px' }}>
+                <p>
+                    <strong>Email:</strong> {user.email}
+                </p>
+                <p>
+                    <strong>First Name:</strong> {user.firstName}
+                </p>
+                <p>
+                    <strong>Last Name:</strong> {user.lastName}
+                </p>
+                <p>
+                    <strong>Verified:</strong> {user.isVerified ? 'Yes' : 'No'}
+                </p>
+                <p>
+                    <strong>Role:</strong> {user.role}
+                </p>
+            </div>
+            <Link href="/dashboard" passHref>
+                Go to Dashboard
+            </Link>
+            <SubmitButton type="button" onClick={handleLogout}>
+                Logout
+            </SubmitButton>
+        </StyledForm>
+    );
+}
