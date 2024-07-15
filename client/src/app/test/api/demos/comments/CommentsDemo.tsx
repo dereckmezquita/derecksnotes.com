@@ -36,32 +36,35 @@ export function CommentsDemo() {
     const { user, loading: authLoading } = useAuth();
 
     useEffect(() => {
+        const fetchComments = async () => {
+            setLoading(true);
+            const toastId = toast.loading('Fetching comments...');
+            try {
+                const encodedPathname = encodeURIComponent(pathname);
+                const response = await api.get<CommentsResponse>(
+                    `/comments?post=${encodedPathname}&page=${page}&limit=10`
+                );
+                setComments((prevComments) => [
+                    ...prevComments,
+                    ...response.data.comments
+                ]);
+                setTotalComments(response.data.total);
+                toast.success('Comments loaded successfully', { id: toastId });
+            } catch (error: any) {
+                console.error('Error fetching comments:', error);
+                toast.error(
+                    'Failed to fetch comments. Please try again later.',
+                    {
+                        id: toastId
+                    }
+                );
+            } finally {
+                setLoading(false);
+            }
+        };
+
         fetchComments();
     }, [pathname, page]);
-
-    const fetchComments = async () => {
-        setLoading(true);
-        const toastId = toast.loading('Fetching comments...');
-        try {
-            const encodedPathname = encodeURIComponent(pathname);
-            const response = await api.get<CommentsResponse>(
-                `/comments?post=${encodedPathname}&page=${page}&limit=10`
-            );
-            setComments((prevComments) => [
-                ...prevComments,
-                ...response.data.comments
-            ]);
-            setTotalComments(response.data.total);
-            toast.success('Comments loaded successfully', { id: toastId });
-        } catch (error: any) {
-            console.error('Error fetching comments:', error);
-            toast.error('Failed to fetch comments. Please try again later.', {
-                id: toastId
-            });
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const handleNewComment = (newComment: Comment) => {
         setComments((prevComments) => [newComment, ...prevComments]);
