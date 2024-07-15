@@ -1,10 +1,9 @@
 'use client';
-
 import {
     Article,
     PostContainer
 } from '@components/components/pages/posts-dictionaries';
-import { AuthDemo } from './AuthDemo';
+import { AuthDemo } from './demos/AuthDemo';
 
 function Page() {
     return (
