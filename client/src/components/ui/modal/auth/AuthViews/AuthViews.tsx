@@ -34,7 +34,7 @@ export function AuthViews({
 
     useEffect(() => {
         checkAuth();
-    }, []);
+    }, [checkAuth]);
 
     useEffect(() => {
         // Update view and title when user state changes
