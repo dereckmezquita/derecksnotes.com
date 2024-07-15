@@ -4,11 +4,14 @@ import {
     LoginView,
     RegisterView,
     ResetPasswordView,
-    MagicLinkView
+    MagicLinkView,
+    LoggedInView
 } from './views';
 import { api } from '@components/utils/api/api';
+import { useAuth, User } from '@components/context/AuthContext';
+import { IndicateLoading } from '@components/components/atomic/IndiacteLoading';
 
-type ModalView = 'login' | 'register' | 'reset' | 'magic-link';
+type ModalView = 'login' | 'register' | 'reset' | 'magic-link' | 'logged-in';
 
 interface AuthViewsProps {
     signalAuthSuccess?: () => void;
@@ -19,7 +22,8 @@ export function AuthViews({
     signalAuthSuccess,
     onTitleChange
 }: AuthViewsProps) {
-    const [view, setView] = useState<ModalView>('login');
+    const { user, logout, checkAuth, loading } = useAuth();
+    const [view, setView] = useState<ModalView>(user ? 'logged-in' : 'login');
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -29,15 +33,19 @@ export function AuthViews({
     });
 
     useEffect(() => {
-        // Update title when view changes
-        const titles = {
-            login: 'Login',
-            register: 'Register',
-            reset: 'Reset Password',
-            'magic-link': 'Magic Link Login'
-        };
-        onTitleChange(titles[view]);
-    }, [view, onTitleChange]);
+        checkAuth();
+    }, []);
+
+    useEffect(() => {
+        // Update view and title when user state changes
+        if (user) {
+            setView('logged-in');
+            onTitleChange('User Summary');
+        } else {
+            setView('login');
+            onTitleChange('Login');
+        }
+    }, [user, onTitleChange]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -49,40 +57,72 @@ export function AuthViews({
         const toastId = toast.loading('Processing...');
 
         try {
-            let response;
             switch (view) {
                 case 'login':
-                    response = await api.post('/auth/login', {
-                        email: formData.email,
-                        password: formData.password
-                    });
-                    toast.success('Logged in successfully!', { id: toastId });
+                    {
+                        const response = await api.post('/auth/login', {
+                            email: formData.email,
+                            password: formData.password
+                        });
+                        console.log(response.data);
+                        toast.success('Logged in successfully!', {
+                            id: toastId
+                        });
+                        if (signalAuthSuccess) {
+                            signalAuthSuccess();
+                        }
+                    }
                     break;
                 case 'register':
-                    response = await api.post('/auth/register', formData);
-                    toast.success('Registered successfully!', { id: toastId });
+                    {
+                        const response = await api.post(
+                            '/auth/register',
+                            formData
+                        );
+                        console.log(response.data);
+                        toast.success('Registered successfully!', {
+                            id: toastId
+                        });
+                        if (signalAuthSuccess) {
+                            signalAuthSuccess();
+                        }
+                    }
                     break;
                 case 'reset':
-                    response = await api.post('/auth/reset-password', {
-                        email: formData.email
-                    });
-                    toast.success('Password reset email sent!', {
-                        id: toastId
-                    });
+                    {
+                        const response = await api.post(
+                            '/auth/reset-password',
+                            {
+                                email: formData.email
+                            }
+                        );
+                        console.log(response.data);
+                        toast.success('Password reset email sent!', {
+                            id: toastId
+                        });
+                        if (signalAuthSuccess) {
+                            signalAuthSuccess();
+                        }
+                    }
                     break;
                 case 'magic-link':
-                    response = await api.post('/auth/magic-link', {
-                        email: formData.email
-                    });
-                    toast.success('Magic link sent to your email!', {
-                        id: toastId
-                    });
+                    {
+                        const response = await api.post('/auth/magic-link', {
+                            email: formData.email
+                        });
+                        console.log(response.data);
+                        toast.success('Magic link sent to your email!', {
+                            id: toastId
+                        });
+                        if (signalAuthSuccess) {
+                            signalAuthSuccess();
+                        }
+                    }
                     break;
+                default:
+                    throw new Error('Invalid view');
             }
-            console.log(response.data);
-            if (signalAuthSuccess) {
-                signalAuthSuccess();
-            }
+            checkAuth();
         } catch (error: any) {
             console.error('Error:', error);
             toast.error(
@@ -92,11 +132,38 @@ export function AuthViews({
         }
     };
 
-    const switchView = (newView: ModalView) => {
-        setView(newView);
+    const handleLogout = async () => {
+        const toastId = toast.loading('Logging out...');
+        try {
+            await logout();
+            toast.success('Logged out successfully!', { id: toastId });
+        } catch (error) {
+            console.error('Logout error:', error);
+            toast.error('Failed to logout. Please try again.', { id: toastId });
+        }
     };
 
+    const switchView = (newView: ModalView) => {
+        setView(newView);
+        const titles = {
+            login: 'Login',
+            register: 'Register',
+            reset: 'Reset Password',
+            'magic-link': 'Magic Link Login',
+            'logged-in': 'User Summary'
+        };
+        onTitleChange(titles[newView]);
+    };
+
+    if (loading) {
+        return <IndicateLoading />;
+    }
+
     const renderView = () => {
+        if (view === 'logged-in' && user) {
+            return <LoggedInView user={user} handleLogout={handleLogout} />;
+        }
+
         const props = {
             formData,
             handleInputChange,
@@ -113,6 +180,8 @@ export function AuthViews({
                 return <ResetPasswordView {...props} />;
             case 'magic-link':
                 return <MagicLinkView {...props} />;
+            default:
+                return <LoginView {...props} />;
         }
     };
 
