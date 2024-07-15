@@ -90,46 +90,41 @@ export function CommentsDemo() {
         return <IndicateLoading />;
     }
 
+    if (loading) {
+        return <IndicateLoading />;
+    }
+
     return (
         <div>
             <h2>Comments for: {pathname}</h2>
-            {loading ? (
-                <IndicateLoading />
+
+            <p>Total comments: {totalComments}</p>
+            {user ? (
+                <form onSubmit={handleSubmitComment}>
+                    <textarea
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        placeholder="Write a comment..."
+                        required
+                    />
+                    <button type="submit">Submit Comment</button>
+                </form>
             ) : (
-                <>
-                    <p>Total comments: {totalComments}</p>
-                    {user ? (
-                        <form onSubmit={handleSubmitComment}>
-                            <textarea
-                                value={newComment}
-                                onChange={(e) => setNewComment(e.target.value)}
-                                placeholder="Write a comment..."
-                                required
-                            />
-                            <button type="submit">Submit Comment</button>
-                        </form>
-                    ) : (
-                        <p>Please log in to leave a comment.</p>
-                    )}
-                    <ul>
-                        {comments.map((comment) => (
-                            <li key={comment._id}>
-                                <p>{comment.content}</p>
-                                <small>
-                                    By: {comment.author.username} on{' '}
-                                    {new Date(
-                                        comment.createdAt
-                                    ).toLocaleString()}
-                                </small>
-                            </li>
-                        ))}
-                    </ul>
-                    {comments.length < totalComments && (
-                        <button onClick={() => setPage(page + 1)}>
-                            Load More
-                        </button>
-                    )}
-                </>
+                <p>Please log in to leave a comment.</p>
+            )}
+            <ul>
+                {comments.map((comment) => (
+                    <li key={comment._id}>
+                        <p>{comment.content}</p>
+                        <small>
+                            By: {comment.author.username} on{' '}
+                            {new Date(comment.createdAt).toLocaleString()}
+                        </small>
+                    </li>
+                ))}
+            </ul>
+            {comments.length < totalComments && (
+                <button onClick={() => setPage(page + 1)}>Load More</button>
             )}
         </div>
     );
