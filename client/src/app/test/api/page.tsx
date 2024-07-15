@@ -3,12 +3,14 @@ import {
     PostContainer
 } from '@components/components/pages/posts-dictionaries';
 import { AuthDemo, AuthProtectedDemo } from './demos/AuthDemo';
-import { CommentsDemo } from './demos/CommentsDemo';
+import { CommentsDemo } from './demos/comments/CommentsDemo';
+import { ApiStatus } from './demos/ApiStatus';
 
 function Page() {
     return (
         <PostArticle>
             <h1>Hello world!</h1>
+            <ApiStatus />
             <AuthDemo />
             <AuthProtectedDemo />
             <CommentsDemo />
