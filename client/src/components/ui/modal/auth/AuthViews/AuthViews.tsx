@@ -11,11 +11,14 @@ import { api } from '@components/utils/api/api';
 type ModalView = 'login' | 'register' | 'reset' | 'magic-link';
 
 interface AuthViewsProps {
-    onAuthSuccess?: () => void;
+    signalAuthSuccess?: () => void;
     onTitleChange: (title: string) => void;
 }
 
-export function AuthViews({ onAuthSuccess, onTitleChange }: AuthViewsProps) {
+export function AuthViews({
+    signalAuthSuccess,
+    onTitleChange
+}: AuthViewsProps) {
     const [view, setView] = useState<ModalView>('login');
     const [formData, setFormData] = useState({
         firstName: '',
@@ -77,8 +80,8 @@ export function AuthViews({ onAuthSuccess, onTitleChange }: AuthViewsProps) {
                     break;
             }
             console.log(response.data);
-            if (onAuthSuccess) {
-                onAuthSuccess();
+            if (signalAuthSuccess) {
+                signalAuthSuccess();
             }
         } catch (error: any) {
             console.error('Error:', error);

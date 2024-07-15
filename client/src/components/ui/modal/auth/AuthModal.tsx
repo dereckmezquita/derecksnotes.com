@@ -12,7 +12,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
-            <AuthViews onAuthSuccess={onClose} onTitleChange={setTitle} />
+            <AuthViews signalAuthSuccess={onClose} onTitleChange={setTitle} />
         </Modal>
     );
 }
