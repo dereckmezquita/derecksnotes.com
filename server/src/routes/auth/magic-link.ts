@@ -20,7 +20,7 @@ router.post('/auth/magic-link', async (req: Request, res: Response) => {
             user = new User({
                 email,
                 username: email,
-                isVerified: false
+                isVerified: true
             }) as IUser;
         }
 

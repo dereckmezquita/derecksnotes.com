@@ -64,7 +64,6 @@ export function AuthViews({
                             email: formData.email,
                             password: formData.password
                         });
-                        console.log(response.data);
                         toast.success('Logged in successfully!', {
                             id: toastId
                         });
@@ -79,10 +78,13 @@ export function AuthViews({
                             '/auth/register',
                             formData
                         );
-                        console.log(response.data);
-                        toast.success('Registered successfully!', {
-                            id: toastId
-                        });
+                        toast.success(
+                            'Registered successfully! You will be sent a magic link to login and verify your e-mail address.',
+                            {
+                                id: toastId
+                            }
+                        );
+                        switchView('login');
                         if (signalAuthSuccess) {
                             signalAuthSuccess();
                         }
@@ -96,7 +98,6 @@ export function AuthViews({
                                 email: formData.email
                             }
                         );
-                        console.log(response.data);
                         toast.success('Password reset email sent!', {
                             id: toastId
                         });
@@ -110,7 +111,6 @@ export function AuthViews({
                         const response = await api.post('/auth/magic-link', {
                             email: formData.email
                         });
-                        console.log(response.data);
                         toast.success('Magic link sent to your email!', {
                             id: toastId
                         });

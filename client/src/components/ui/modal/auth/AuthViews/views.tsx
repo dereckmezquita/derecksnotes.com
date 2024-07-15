@@ -92,7 +92,7 @@ export function RegisterView({
             <InputField>
                 <Input
                     type="text"
-                    name="username"
+                    name="username (lowercase)"
                     placeholder="Username"
                     value={formData.username}
                     onChange={handleInputChange}
