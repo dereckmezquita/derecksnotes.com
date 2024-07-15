@@ -45,7 +45,7 @@ export function CommentsDemo() {
         try {
             const encodedPathname = encodeURIComponent(pathname);
             const response = await api.get<CommentsResponse>(
-                `/comments/${encodedPathname}?page=${page}&limit=10`
+                `/comments?post=${encodedPathname}&page=${page}&limit=10`
             );
             setComments((prevComments) => [
                 ...prevComments,

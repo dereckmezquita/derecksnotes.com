@@ -6,9 +6,12 @@ const router = express.Router();
 /**
  * Allows fetching top-level comments and replies
  */
-router.get('/comments/:post', async (req: Request, res: Response) => {
-    const { post } = req.params;
-    const { depth = 1, limit = 10, page = 1 } = req.query;
+router.get('/comments', async (req: Request, res: Response) => {
+    const { post, depth = 1, limit = 10, page = 1 } = req.query;
+
+    if (!post || typeof post !== 'string') {
+        return res.status(400).json({ message: 'Post parameter is required' });
+    }
 
     const decodedPost = decodeURIComponent(post);
 
