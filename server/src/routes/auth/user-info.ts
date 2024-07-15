@@ -27,7 +27,8 @@ router.get(
                     username: user.username,
                     email: user.email,
                     isVerified: user.isVerified,
-                    profilePhoto: user.profilePhoto
+                    profilePhoto: user.profilePhoto,
+                    role: user.role
                 }
             });
         } catch (error) {
