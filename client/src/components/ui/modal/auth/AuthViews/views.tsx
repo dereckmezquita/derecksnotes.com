@@ -92,8 +92,8 @@ export function RegisterView({
             <InputField>
                 <Input
                     type="text"
-                    name="username (lowercase)"
-                    placeholder="Username"
+                    name="username"
+                    placeholder="Username (lowercase)"
                     value={formData.username}
                     onChange={handleInputChange}
                     required
