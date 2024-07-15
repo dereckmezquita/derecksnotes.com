@@ -3,6 +3,7 @@ import path from 'path';
 import { Post } from '@components/components/pages/Post';
 import {
     APPLICATION_DEFAULT_METADATA,
+    REVALIDATE_STATIC_PAGES,
     ROOT_DIR_APP
 } from '@components/lib/constants';
 import {
@@ -18,6 +19,8 @@ import { Metadata } from 'next';
 const dictionary: string = 'biology';
 const relDir: string = path.join('dictionaries', dictionary, 'definitions');
 const absDir: string = path.join(ROOT_DIR_APP, relDir);
+
+export const revalidate = REVALIDATE_STATIC_PAGES;
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
     // only pre-render first 3 definitions

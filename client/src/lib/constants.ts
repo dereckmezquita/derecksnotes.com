@@ -30,3 +30,6 @@ export const APPLICATION_DEFAULT_METADATA: PageMetadata = {
 };
 
 export const ALPHABET: string[] = 'abcdefghijklmnopqrstuvwxyz#'.split('');
+
+// incremental static regeneration (ISR) in seconds or false
+export const REVALIDATE_STATIC_PAGES: boolean | number = false;
