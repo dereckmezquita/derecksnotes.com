@@ -48,7 +48,6 @@ app.use(
 
 // -----
 app.get('/', async (req: Request, res: Response) => {
-    console.log('Consoling - GET /');
     const status = await getServerStatus();
     res.json(status);
 });
