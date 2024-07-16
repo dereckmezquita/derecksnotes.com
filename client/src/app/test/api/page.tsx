@@ -3,7 +3,7 @@ import {
     PostContainer
 } from '@components/components/pages/posts-dictionaries';
 import { AuthDemo, AuthProtectedDemo } from './demos/AuthDemo';
-import { Comments } from './demos/comments/Comments';
+import { CommentsSection } from '@components/components/ui/comments/CommentsSection';
 import { ApiStatus } from './demos/ApiStatus';
 
 function Page() {
@@ -13,7 +13,7 @@ function Page() {
             <ApiStatus />
             <AuthDemo />
             <AuthProtectedDemo />
-            <Comments />
+            <CommentsSection />
         </PostArticle>
     );
 }

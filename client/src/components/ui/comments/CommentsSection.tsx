@@ -20,7 +20,7 @@ interface CommentsProps {
     displayComments?: boolean;
 }
 
-export function Comments({
+export function CommentsSection({
     allowNewComments = true,
     displayComments = true
 }: CommentsProps) {
