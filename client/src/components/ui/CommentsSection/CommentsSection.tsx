@@ -4,18 +4,17 @@ import { toast } from 'sonner';
 import { usePathname } from 'next/navigation';
 import { IndicateLoading } from '@components/atomic/IndiacteLoading';
 import { api } from '@utils/api/api';
-import { useAuth } from '@context/AuthContext';
-import { LeaveComment } from './LeaveComment';
-import { CommentList, Comment } from './CommentList';
+import { NewComment } from './NewComment';
+import { Comment, CommentData } from './Comment';
 
 interface CommentsResponse {
-    comments: Comment[];
+    comments: CommentData[];
     total: number;
     page: number;
     limit: number;
 }
 
-interface CommentsProps {
+interface CommentsSectionProps {
     allowNewComments?: boolean;
     displayComments?: boolean;
 }
@@ -23,13 +22,15 @@ interface CommentsProps {
 export function CommentsSection({
     allowNewComments = true,
     displayComments = true
-}: CommentsProps) {
+}: CommentsSectionProps) {
     const [loading, setLoading] = useState(true);
-    const [comments, setComments] = useState<Comment[]>([]);
-    const [totalComments, setTotalComments] = useState(0);
+    const [comments, setComments] = useState<CommentData[]>([]);
+
+    const pathname = encodeURIComponent(usePathname());
     const [page, setPage] = useState(1);
-    const pathname = usePathname();
-    const { user, loading: authLoading } = useAuth();
+    // NOTE: use this to display n / N comments loaded
+    const [totalLoaded, setTotalLoaded] = useState(0);
+    const [totalComments, setTotalComments] = useState(0);
 
     const fetchComments = useCallback(async () => {
         if (!displayComments) {
@@ -40,15 +41,13 @@ export function CommentsSection({
         setLoading(true);
         const toastId = toast.loading('Fetching comments...');
         try {
-            const encodedPathname = encodeURIComponent(pathname);
             const response = await api.get<CommentsResponse>(
-                `/comments?post=${encodedPathname}&page=${page}&limit=10`
+                `/comments?post=${pathname}&depth=3&limit=1&page=${page}`
             );
-            setComments((prevComments) => [
-                ...prevComments,
-                ...response.data.comments
-            ]);
+            // NOTE: append because getting new page
+            setComments((prev) => [...prev, ...response.data.comments]);
             setTotalComments(response.data.total);
+            setTotalLoaded(response.data.total);
             toast.success('Comments loaded successfully', { id: toastId });
         } catch (error: any) {
             console.error('Error fetching comments:', error);
@@ -64,69 +63,42 @@ export function CommentsSection({
         fetchComments();
     }, [fetchComments]);
 
-    const handleNewComment = (newComment: Comment) => {
-        setComments((prevComments) => [newComment, ...prevComments]);
-        setTotalComments((prevTotal) => prevTotal + 1);
-    };
-
-    const handleCommentUpdated = (updatedComment: Comment) => {
-        setComments((prevComments) =>
-            prevComments.map((comment) =>
-                comment._id === updatedComment._id ? updatedComment : comment
-            )
-        );
-    };
-
-    const handleCommentDeleted = (deletedCommentId: string) => {
-        setComments((prevComments) =>
-            prevComments.filter((comment) => comment._id !== deletedCommentId)
-        );
-        setTotalComments((prevTotal) => prevTotal - 1);
+    const handleNewComment = (newComment: CommentData) => {
+        // NOTE: prepend because new comment
+        setComments((prev) => [newComment, ...prev]);
+        setTotalLoaded((prevTotal) => prevTotal + 1);
     };
 
     const handleLoadMore = () => {
         setPage((prevPage) => prevPage + 1);
     };
 
-    if (authLoading || loading) {
+    if (loading) {
         return <IndicateLoading />;
     }
 
     if (!displayComments) {
-        return (
-            <div>
-                <p>Comments are currently disabled for this content.</p>
-            </div>
-        );
+        return <p>Comments are currently disabled for this content.</p>;
     }
 
     return (
         <div>
-            <h2>Comments for: {pathname}</h2>
-            <p>Total comments: {totalComments}</p>
+            <h2>Comments</h2>
+            <p>
+                {totalLoaded} / {totalComments}
+            </p>
 
-            {allowNewComments ? (
-                <LeaveComment
-                    user={user}
-                    pathname={pathname}
-                    onCommentSubmitted={handleNewComment}
-                />
-            ) : (
-                <div>
-                    <p>
-                        New comments are currently disabled, but you can still
-                        view existing comments.
-                    </p>
-                </div>
+            {allowNewComments && (
+                <NewComment onCommentSubmitted={handleNewComment} />
             )}
 
-            <CommentList
-                comments={comments}
-                totalComments={totalComments}
-                onLoadMore={handleLoadMore}
-                onCommentUpdated={handleCommentUpdated}
-                onCommentDeleted={handleCommentDeleted}
-            />
+            {comments.map((comment) => (
+                <Comment key={comment._id} comment={comment} />
+            ))}
+
+            {comments.length < totalComments && (
+                <button onClick={handleLoadMore}>Load More</button>
+            )}
         </div>
     );
 }
