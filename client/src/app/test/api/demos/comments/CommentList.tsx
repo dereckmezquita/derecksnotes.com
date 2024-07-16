@@ -1,6 +1,7 @@
 import React from 'react';
 
-interface Comment {
+// TODO: use shared interfaces between server and client
+export interface Comment {
     _id: string;
     content: string;
     author: {

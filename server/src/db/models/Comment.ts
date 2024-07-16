@@ -90,7 +90,7 @@ const CommentSchema: Schema<IComment> = new Schema({
     }
 });
 
-// Sanitize HTML before saving
+// Sanitise HTML before saving
 CommentSchema.pre<IComment>('save', function (next) {
     if (this.isModified('content')) {
         this.content = sanitizeHtml(this.content, {

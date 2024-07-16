@@ -6,19 +6,7 @@ import { IndicateLoading } from '@components/components/atomic/IndiacteLoading';
 import { api } from '@components/utils/api/api';
 import { useAuth } from '@components/context/AuthContext';
 import { LeaveComment } from './LeaveComment';
-import { CommentList } from './CommentList';
-
-interface Comment {
-    _id: string;
-    content: string;
-    author: {
-        id: string;
-        username: string;
-    };
-    createdAt: string;
-    likes: string[];
-    replies: string[];
-}
+import { CommentList, Comment } from './CommentList';
 
 interface CommentsResponse {
     comments: Comment[];
