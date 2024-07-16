@@ -15,7 +15,15 @@ interface CommentsResponse {
     limit: number;
 }
 
-export function Comments() {
+interface CommentsProps {
+    allowNewComments?: boolean;
+    displayComments?: boolean;
+}
+
+export function Comments({
+    allowNewComments = true,
+    displayComments = true
+}: CommentsProps) {
     const [loading, setLoading] = useState(true);
     const [comments, setComments] = useState<Comment[]>([]);
     const [totalComments, setTotalComments] = useState(0);
@@ -25,6 +33,11 @@ export function Comments() {
 
     useEffect(() => {
         const fetchComments = async () => {
+            if (!displayComments) {
+                setLoading(false);
+                return;
+            }
+
             setLoading(true);
             const toastId = toast.loading('Fetching comments...');
             try {
@@ -52,7 +65,7 @@ export function Comments() {
         };
 
         fetchComments();
-    }, [pathname, page]);
+    }, [pathname, page, displayComments]);
 
     const handleNewComment = (newComment: Comment) => {
         setComments((prevComments) => [newComment, ...prevComments]);
@@ -67,15 +80,34 @@ export function Comments() {
         return <IndicateLoading />;
     }
 
+    if (!displayComments) {
+        return (
+            <div>
+                <p>Comments are currently disabled for this content.</p>
+            </div>
+        );
+    }
+
     return (
         <div>
             <h2>Comments for: {pathname}</h2>
             <p>Total comments: {totalComments}</p>
-            <LeaveComment
-                user={user}
-                pathname={pathname}
-                onCommentSubmitted={handleNewComment}
-            />
+
+            {allowNewComments ? (
+                <LeaveComment
+                    user={user}
+                    pathname={pathname}
+                    onCommentSubmitted={handleNewComment}
+                />
+            ) : (
+                <div>
+                    <p>
+                        New comments are currently disabled, but you can still
+                        view existing comments.
+                    </p>
+                </div>
+            )}
+
             <CommentList
                 comments={comments}
                 totalComments={totalComments}
