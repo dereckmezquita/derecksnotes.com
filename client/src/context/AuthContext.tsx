@@ -31,18 +31,20 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const checkAuth = async () => {
-        try {
-            const response = await api.get<{ user: User }>('/auth/user-info');
-            setUser(response.data.user);
-        } catch (error) {
-            setUser(null);
-        } finally {
-            setLoading(false);
-        }
-    };
-
     useEffect(() => {
+        const checkAuth = async () => {
+            try {
+                const response = await api.get<{ user: User }>(
+                    '/auth/user-info'
+                );
+                setUser(response.data.user);
+            } catch (error) {
+                setUser(null);
+            } finally {
+                setLoading(false);
+            }
+        };
+
         checkAuth();
     }, []);
 
