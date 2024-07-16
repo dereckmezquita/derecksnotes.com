@@ -5,6 +5,7 @@ import {
     APPLICATION_DEFAULT_METADATA,
     ROOT_DIR_APP
 } from '@components/lib/constants';
+import { NEXT_PUBLIC_BUILD_ENV_BOOL } from '@components/lib/env';
 import {
     DefinitionMetadata,
     extractSingleDefinitionMetadata,
@@ -20,13 +21,14 @@ const relDir: string = path.join('dictionaries', dictionary, 'definitions');
 const absDir: string = path.join(ROOT_DIR_APP, relDir);
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-    // only pre-render first 3 definitions
-    const filenames: string[] = fs
-        .readdirSync(absDir)
-        .filter((filename) => {
-            return filename.endsWith('.mdx');
-        })
-        .slice(0, 3);
+    let filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
+        return filename.endsWith('.mdx');
+    });
+
+    // if NEXT_PUBLIC_BUILD_ENV_BOOL then return all
+    if (NEXT_PUBLIC_BUILD_ENV_BOOL) {
+        filenames = filenames.slice(0, 3);
+    }
 
     return filenames.map((filename) => {
         const slug = path.basename(filename, '.mdx');

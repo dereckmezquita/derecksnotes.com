@@ -10,3 +10,6 @@ export const NEXT_PUBLIC_API_URL: string | undefined =
 
 export const NEXT_PUBLIC_BUILD_ENV: string | undefined =
     process.env.NEXT_PUBLIC_BUILD_ENV;
+
+export const NEXT_PUBLIC_BUILD_ENV_BOOL: boolean =
+    NEXT_PUBLIC_BUILD_ENV === 'PROD' ? true : false;
