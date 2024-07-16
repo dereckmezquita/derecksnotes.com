@@ -15,7 +15,7 @@ interface CommentsResponse {
     limit: number;
 }
 
-export function CommentsDemo() {
+export function Comments() {
     const [loading, setLoading] = useState(true);
     const [comments, setComments] = useState<Comment[]>([]);
     const [totalComments, setTotalComments] = useState(0);
