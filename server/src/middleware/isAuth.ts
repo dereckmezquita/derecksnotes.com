@@ -37,6 +37,6 @@ export const isVerifiedMiddleware = (
 };
 
 export const isAuthAndVerifiedMiddleware = [
-    authMiddleware,
-    isVerifiedMiddleware
+    authMiddleware
+    // isVerifiedMiddleware
 ];
