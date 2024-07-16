@@ -1,20 +1,20 @@
+'use client';
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { api } from '@utils/api/api';
-import { User } from '@context/AuthContext';
+import { useAuth } from '@context/AuthContext';
+import { usePathname } from 'next/navigation';
 
 interface LeaveCommentProps {
-    user: User | null;
-    pathname: string;
     onCommentSubmitted: (newComment: any) => void;
 }
 
-export function LeaveComment({
-    user,
-    pathname,
+export function NewComment({
     onCommentSubmitted
 }: LeaveCommentProps) {
-    const [newComment, setNewComment] = useState('');
+    const pathname = encodeURIComponent(usePathname());
+    const { user } = useAuth();
+    const [newComment, setInput] = useState('');
 
     const handleSubmitComment = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,17 +24,15 @@ export function LeaveComment({
         }
         const toastId = toast.loading('Submitting comment...');
         try {
-            const encodedPathname = encodeURIComponent(pathname);
             const response = await api.post('/comments', {
                 content: newComment,
-                post: encodedPathname,
+                post: pathname,
                 author: user.id
             });
-            setNewComment('');
+            setInput('');
             toast.success('Comment submitted successfully', { id: toastId });
             onCommentSubmitted(response.data);
-        } catch (error) {
-            console.error('Error submitting comment:', error);
+        } catch (error: any) {
             toast.error('Failed to submit comment. Please try again.', {
                 id: toastId
             });
@@ -48,8 +46,9 @@ export function LeaveComment({
     return (
         <form onSubmit={handleSubmitComment}>
             <textarea
+                style={{ display: 'block', width: '100%', marginBottom: '5px' }}
                 value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
+                onChange={(e) => setInput(e.target.value)}
                 placeholder="Write a comment..."
                 required
             />
