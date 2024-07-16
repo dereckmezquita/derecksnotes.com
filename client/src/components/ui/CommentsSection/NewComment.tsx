@@ -9,9 +9,7 @@ interface LeaveCommentProps {
     onCommentSubmitted: (newComment: any) => void;
 }
 
-export function NewComment({
-    onCommentSubmitted
-}: LeaveCommentProps) {
+export function NewComment({ onCommentSubmitted }: LeaveCommentProps) {
     const pathname = encodeURIComponent(usePathname());
     const { user } = useAuth();
     const [newComment, setInput] = useState('');
