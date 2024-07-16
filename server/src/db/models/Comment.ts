@@ -105,16 +105,6 @@ CommentSchema.pre<IComment>('save', function (next) {
 });
 
 // Update the updatedAt field and store original content when content is modified
-CommentSchema.pre<IComment>('save', function (next) {
-    if (this.isModified('content')) {
-        if (!this.originalContent) {
-            this.originalContent = this.content;
-        }
-        this.updatedAt = new Date();
-    }
-    next();
-});
-
 CommentSchema.statics.findByPostSlug = async function (
     slug: string,
     options: {
@@ -123,54 +113,80 @@ CommentSchema.statics.findByPostSlug = async function (
         depth?: number;
     } = {}
 ): Promise<{ comments: IComment[]; total: number }> {
-    const { page = 1, limit = 10, depth = 1 } = options;
+    const { page = 1, limit = 10, depth = 3 } = options;
     const skip = (page - 1) * limit;
+
+    const populateAuthor = {
+        $lookup: {
+            from: 'users',
+            localField: 'author',
+            foreignField: '_id',
+            as: 'authorInfo'
+        }
+    } as PipelineStage;
+
+    const unwindAuthor = {
+        $unwind: '$authorInfo'
+    } as PipelineStage;
+
+    const projectAuthor = {
+        $project: {
+            'author._id': '$authorInfo._id',
+            'author.username': '$authorInfo.username',
+            'author.profilePhoto': '$authorInfo.profilePhoto',
+            'author.role': '$authorInfo.role',
+            'author.createdAt': '$authorInfo.createdAt',
+            content: 1,
+            post: 1,
+            parentComment: 1,
+            replies: 1,
+            likes: 1,
+            dislikes: 1,
+            createdAt: 1,
+            updatedAt: 1,
+            originalContent: 1,
+            depth: 1
+        }
+    } as PipelineStage;
+
+    const recursiveLookup = (currentDepth: number): PipelineStage[] => {
+        if (currentDepth <= 0) {
+            return [
+                {
+                    $project: {
+                        replies: 0
+                    }
+                } as PipelineStage
+            ];
+        }
+
+        return [
+            {
+                $lookup: {
+                    from: 'comments',
+                    localField: '_id',
+                    foreignField: 'parentComment',
+                    as: 'replies',
+                    pipeline: [
+                        populateAuthor,
+                        unwindAuthor,
+                        projectAuthor,
+                        ...recursiveLookup(currentDepth - 1)
+                    ]
+                }
+            } as PipelineStage
+        ];
+    };
 
     const pipeline: PipelineStage[] = [
         { $match: { post: slug, parentComment: null } },
         { $sort: { createdAt: -1 } },
         { $skip: skip },
         { $limit: limit },
-        {
-            $graphLookup: {
-                from: 'comments',
-                startWith: '$_id',
-                connectFromField: '_id',
-                connectToField: 'parentComment',
-                as: 'replies',
-                maxDepth: depth - 1,
-                depthField: 'depth'
-            }
-        },
-        {
-            $lookup: {
-                from: 'users',
-                localField: 'author',
-                foreignField: '_id',
-                as: 'author'
-            }
-        },
-        { $unwind: '$author' },
-        {
-            $project: {
-                // 'author._id': 1,
-                'author.firstName': 0,
-                'author.lastName': 0,
-                // 'author.username': 1,
-                'author.email': 0,
-                'author.password': 0,
-                'author.isVerified': 0,
-                // 'author.profilePhoto': 1,
-                // 'author.createdAt': 1,
-                'author.apiKey': 0,
-                'author.tempToken': 0,
-                'author.tempTokenExpires': 0,
-                'author.resetPasswordToken': 0,
-                'author.resetPasswordExpires': 0
-                // 'author.role': 1
-                // ... other fields you want to exclude
-            }
-        }
+        populateAuthor,
+        unwindAuthor,
+        projectAuthor,
+        ...recursiveLookup(depth)
     ];
 
     const comments = await this.aggregate(pipeline).exec();
