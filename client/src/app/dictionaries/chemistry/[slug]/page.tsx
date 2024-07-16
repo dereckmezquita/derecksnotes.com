@@ -26,7 +26,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
     });
 
     // if NEXT_PUBLIC_BUILD_ENV_BOOL then return all
-    if (NEXT_PUBLIC_BUILD_ENV_BOOL) {
+    if (!NEXT_PUBLIC_BUILD_ENV_BOOL) {
         filenames = filenames.slice(0, 3);
     }
 
