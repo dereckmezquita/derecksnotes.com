@@ -35,3 +35,8 @@ export const isVerifiedMiddleware = (
     }
     next();
 };
+
+export const isAuthAndVerifiedMiddleware = [
+    authMiddleware,
+    isVerifiedMiddleware
+];
