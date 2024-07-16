@@ -1,5 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import { Comment } from '../../db/models/Comment';
+import { isAuthAndVerifiedMiddleware } from '../../middleware/isAuth';
+import mongoose from 'mongoose';
 
 const router = express.Router();
 
@@ -34,90 +36,117 @@ router.get('/comments', async (req: Request, res: Response) => {
 });
 
 // Create a new comment
-router.post('/comments', async (req: Request, res: Response) => {
-    // TODO: get the author from the request session
-    const { content, author, post, parentComment } = req.body;
+router.post(
+    '/comments',
+    isAuthAndVerifiedMiddleware,
+    async (req: Request, res: Response) => {
+        const { content, post, parentComment } = req.body;
+        const userId: string | undefined = req.session.userId;
 
-    const decodedPost = decodeURIComponent(post);
-
-    try {
-        let depth = 0;
-        if (parentComment) {
-            const parent = await Comment.findById(parentComment);
-            depth = parent ? parent.depth + 1 : 0;
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized' });
         }
 
-        const newComment = new Comment({
-            content,
-            author,
-            post: decodedPost,
-            parentComment,
-            depth
-        });
+        const decodedPost = decodeURIComponent(post);
 
-        await newComment.save();
+        try {
+            // Convert userId string to ObjectId
+            const authorId = new mongoose.Types.ObjectId(userId);
 
-        if (parentComment) {
-            await Comment.findByIdAndUpdate(parentComment, {
-                $push: { replies: newComment._id }
+            let depth = 0;
+            if (parentComment) {
+                const parent = await Comment.findById(parentComment);
+                depth = parent ? parent.depth + 1 : 0;
+            }
+
+            const newComment = new Comment({
+                content,
+                author: authorId, // Use the ObjectId here
+                post: decodedPost,
+                parentComment,
+                depth
             });
-        }
 
-        res.status(201).json(newComment);
-    } catch (error) {
-        res.status(400).json({ message: 'Error creating comment', error });
+            await newComment.save();
+
+            if (parentComment) {
+                await Comment.findByIdAndUpdate(parentComment, {
+                    $push: { replies: newComment._id }
+                });
+            }
+
+            // Populate the author information for the response
+            await newComment.populate(
+                'author',
+                'username profilePhoto createdAt role'
+            );
+
+            res.status(201).json(newComment);
+        } catch (error) {
+            console.error('Error creating comment:', error);
+            res.status(400).json({ message: 'Error creating comment', error });
+        }
     }
-});
+);
 
 // Update a comment
-router.put('/comments/:commentId', async (req: Request, res: Response) => {
-    const { commentId } = req.params;
-    const { content } = req.body;
+router.put(
+    '/comments/:commentId',
+    isAuthAndVerifiedMiddleware,
+    async (req: Request, res: Response) => {
+        const { commentId } = req.params;
+        const { content } = req.body;
 
-    try {
-        const updatedComment = await Comment.findByIdAndUpdate(
-            commentId,
-            { content, updatedAt: new Date() },
-            { new: true }
-        );
+        try {
+            const updatedComment = await Comment.findByIdAndUpdate(
+                commentId,
+                { content, updatedAt: new Date() },
+                { new: true }
+            );
 
-        if (!updatedComment) {
-            return res.status(404).json({ message: 'Comment not found' });
+            if (!updatedComment) {
+                return res.status(404).json({ message: 'Comment not found' });
+            }
+
+            res.json(updatedComment);
+        } catch (error) {
+            res.status(400).json({ message: 'Error updating comment', error });
         }
-
-        res.json(updatedComment);
-    } catch (error) {
-        res.status(400).json({ message: 'Error updating comment', error });
     }
-});
+);
 
 // Soft delete a comment
-router.delete('/comments/:commentId', async (req: Request, res: Response) => {
-    const { commentId } = req.params;
+router.delete(
+    '/comments/:commentId',
+    isAuthAndVerifiedMiddleware,
+    async (req: Request, res: Response) => {
+        const { commentId } = req.params;
 
-    try {
-        const deletedComment = await Comment.findByIdAndUpdate(
-            commentId,
-            {
-                content: '[deleted comment]',
-                updatedAt: new Date()
-            },
-            { new: true }
-        );
+        try {
+            const deletedComment = await Comment.findByIdAndUpdate(
+                commentId,
+                {
+                    content: '[deleted comment]',
+                    updatedAt: new Date()
+                },
+                { new: true }
+            );
 
-        if (!deletedComment) {
-            return res.status(404).json({ message: 'Comment not found' });
+            if (!deletedComment) {
+                return res.status(404).json({ message: 'Comment not found' });
+            }
+
+            res.json({ message: 'Comment soft deleted successfully' });
+        } catch (error) {
+            res.status(400).json({ message: 'Error deleting comment', error });
         }
-
-        res.json({ message: 'Comment soft deleted successfully' });
-    } catch (error) {
-        res.status(400).json({ message: 'Error deleting comment', error });
     }
-});
+);
 
 // Like a comment
 router.post(
     '/comments/:commentId/like',
+    isAuthAndVerifiedMiddleware,
     async (req: Request, res: Response) => {
         const { commentId } = req.params;
         const { userId } = req.body;
@@ -147,6 +176,7 @@ router.post(
 // Unlike a comment
 router.post(
     '/comments/:commentId/unlike',
+    isAuthAndVerifiedMiddleware,
     async (req: Request, res: Response) => {
         const { commentId } = req.params;
         const { userId } = req.body;
