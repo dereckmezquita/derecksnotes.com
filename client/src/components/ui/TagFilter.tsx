@@ -1,7 +1,7 @@
 'use client';
 
 import styled from 'styled-components';
-import { theme } from '@components/styles/theme';
+import { theme } from '@styles/theme';
 import { useRef, useState } from 'react';
 
 const FilterContainer = styled.div`

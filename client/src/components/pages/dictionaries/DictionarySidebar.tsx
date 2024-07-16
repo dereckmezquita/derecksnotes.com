@@ -1,17 +1,17 @@
 'use client';
 import React, { useEffect } from 'react';
 
-import SearchBar from '@components/components/atomic/SearchBar';
-import SelectDropDown from '@components/components/atomic/SelectDropDown';
+import SearchBar from '@components/atomic/SearchBar';
+import SelectDropDown from '@components/atomic/SelectDropDown';
 import {
     SideBarContainer,
     SideBarSiteName,
     SideBarAbout
-} from '@components/components/pages/posts-dictionaries';
-import { ALPHABET } from '@components/lib/constants';
-import { TagFilter } from '../../ui/TagFilter';
+} from '@components/pages/posts-dictionaries';
+import { ALPHABET } from '@lib/constants';
+import { TagFilter } from '@components/ui/TagFilter';
 import { useDictionary } from './DictionaryContext';
-import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetadata';
+import { Definition } from '@utils/dictionaries/fetchDefinitionMetadata';
 
 /**
  * Extracts unique tags from all definitions.

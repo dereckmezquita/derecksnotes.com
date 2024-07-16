@@ -6,8 +6,8 @@ import {
     SideEntryLink,
     SideBarAbout
 } from './posts-dictionaries';
-import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
-import { DefinitionMetadata } from '@components/utils/dictionaries/fetchDefinitionMetadata';
+import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
+import { DefinitionMetadata } from '@utils/dictionaries/fetchDefinitionMetadata';
 
 interface SideBarProps {
     posts: PostMetadata[] | DefinitionMetadata[];

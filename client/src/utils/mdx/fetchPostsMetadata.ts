@@ -8,8 +8,8 @@ import mdx from 'remark-mdx';
 import strip from 'remark-mdx-to-plain-text';
 import { visit } from 'unist-util-visit';
 
-import { DATE_YYYY_MM_DD } from '@components/lib/dates';
-import { ROOT_DIR_APP } from '@components/lib/constants';
+import { DATE_YYYY_MM_DD } from '@lib/dates';
+import { ROOT_DIR_APP } from '@lib/constants';
 
 export interface PostMetadata {
     slug: string;

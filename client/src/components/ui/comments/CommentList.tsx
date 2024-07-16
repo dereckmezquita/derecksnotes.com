@@ -1,8 +1,8 @@
 'use client';
 import React, { useState } from 'react';
-import { FORMAT_DATE_YYYY_MM_DD_HHMMSS } from '@components/lib/dates';
-import { useAuth } from '@components/context/AuthContext';
-import { api } from '@components/utils/api/api';
+import { FORMAT_DATE_YYYY_MM_DD_HHMMSS } from '@lib/dates';
+import { useAuth } from '@context/AuthContext';
+import { api } from '@utils/api/api';
 import { toast } from 'sonner';
 
 // TODO: use shared interfaces between server and client

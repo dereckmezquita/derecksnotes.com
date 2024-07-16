@@ -182,8 +182,8 @@ export function MagicLinkView({
 }
 
 import Link from 'next/link';
-import { User } from '@components/context/AuthContext';
-import { IndicateStatusDot } from '@components/components/atomic/IndicateStatusDot';
+import { User } from '@context/AuthContext';
+import { IndicateStatusDot } from '@components/atomic/IndicateStatusDot';
 
 interface LoggedInViewProps {
     user: User;

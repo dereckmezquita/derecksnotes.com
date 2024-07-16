@@ -2,9 +2,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { usePathname } from 'next/navigation';
-import { IndicateLoading } from '@components/components/atomic/IndiacteLoading';
-import { api } from '@components/utils/api/api';
-import { useAuth } from '@components/context/AuthContext';
+import { IndicateLoading } from '@components/atomic/IndiacteLoading';
+import { api } from '@utils/api/api';
+import { useAuth } from '@context/AuthContext';
 import { LeaveComment } from './LeaveComment';
 import { CommentList, Comment } from './CommentList';
 

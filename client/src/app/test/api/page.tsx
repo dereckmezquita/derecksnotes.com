@@ -1,9 +1,6 @@
-import {
-    Article,
-    PostContainer
-} from '@components/components/pages/posts-dictionaries';
+import { Article, PostContainer } from '@components/pages/posts-dictionaries';
 import { AuthDemo, AuthProtectedDemo } from './demos/AuthDemo';
-import { CommentsSection } from '@components/components/ui/comments/CommentsSection';
+import { CommentsSection } from '@components/ui/comments/CommentsSection';
 import { ApiStatus } from './demos/ApiStatus';
 
 function Page() {

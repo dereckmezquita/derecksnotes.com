@@ -1,10 +1,10 @@
 'use client';
 import React, { useState } from 'react';
-import { useAuth } from '@components/context/AuthContext';
+import { useAuth } from '@context/AuthContext';
 import { BoxContainer } from '../modules/BoxContainer';
-import { AuthViews } from '@components/components/ui/modal/auth/AuthViews/AuthViews';
-import { IndicateLoading } from '@components/components/atomic/IndiacteLoading';
-import { IndicateStatusDot } from '@components/components/atomic/IndicateStatusDot';
+import { AuthViews } from '@components/ui/modal/auth/AuthViews/AuthViews';
+import { IndicateLoading } from '@components/atomic/IndiacteLoading';
+import { IndicateStatusDot } from '@components/atomic/IndicateStatusDot';
 
 export function AuthDemo() {
     const [title, setTitle] = useState('Login');

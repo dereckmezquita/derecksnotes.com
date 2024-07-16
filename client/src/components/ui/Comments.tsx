@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { api } from '@components/utils/api/api';
+import { api } from '@utils/api/api';
 import { toast } from 'sonner';
 import { IndicateLoading } from '../atomic/IndiacteLoading';
 

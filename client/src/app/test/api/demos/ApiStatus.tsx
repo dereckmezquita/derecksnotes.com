@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { api } from '@components/utils/api/api';
-import { IndicateLoading } from '@components/components/atomic/IndiacteLoading';
+import { api } from '@utils/api/api';
+import { IndicateLoading } from '@components/atomic/IndiacteLoading';
 import { BoxContainer } from '../modules/BoxContainer';
 
 export function ApiStatus() {

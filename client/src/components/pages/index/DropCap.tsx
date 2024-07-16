@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { theme } from '@components/styles/theme';
+import { theme } from '@styles/theme';
 
 const DropCap = styled.span<{ fontSize?: string }>`
     float: left;

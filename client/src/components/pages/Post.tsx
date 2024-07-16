@@ -1,12 +1,12 @@
 'use client';
-import SideBar from '@components/components/pages/SideBar';
+import SideBar from '@components/pages/SideBar';
 import {
     Article,
     PostContainer,
     PostContentWrapper
-} from '@components/components/pages/posts-dictionaries';
-import { DefinitionMetadata } from '@components/utils/dictionaries/fetchDefinitionMetadata';
-import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
+} from '@components/pages/posts-dictionaries';
+import { DefinitionMetadata } from '@utils/dictionaries/fetchDefinitionMetadata';
+import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
 import { useState, useEffect } from 'react';
 import { Comments } from '../ui/Comments';
 

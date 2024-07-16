@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { Article, PostContainer } from '../posts-dictionaries';
 import { renderDefinitions } from './renderDefinitions';
-import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetadata';
+import { Definition } from '@utils/dictionaries/fetchDefinitionMetadata';
 import { DictionarySidebar } from './DictionarySidebar';
 import { DictionaryProvider, useDictionary } from './DictionaryContext';
 

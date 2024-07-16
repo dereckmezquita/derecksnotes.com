@@ -1,8 +1,5 @@
 import styled from 'styled-components';
-import {
-    NEXT_PUBLIC_APP_VERSION,
-    NEXT_PUBLIC_BUILD_ENV
-} from '@components/lib/env';
+import { NEXT_PUBLIC_APP_VERSION, NEXT_PUBLIC_BUILD_ENV } from '@lib/env';
 import Link from 'next/link';
 
 const minWidthSnapUp = (props: any) =>

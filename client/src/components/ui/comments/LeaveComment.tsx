@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
-import { api } from '@components/utils/api/api';
-import { User } from '@components/context/AuthContext';
+import { api } from '@utils/api/api';
+import { User } from '@context/AuthContext';
 
 interface LeaveCommentProps {
     user: User | null;

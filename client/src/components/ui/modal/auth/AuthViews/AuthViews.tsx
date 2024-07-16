@@ -7,9 +7,9 @@ import {
     MagicLinkView,
     LoggedInView
 } from './views';
-import { api } from '@components/utils/api/api';
-import { useAuth, User } from '@components/context/AuthContext';
-import { IndicateLoading } from '@components/components/atomic/IndiacteLoading';
+import { api } from '@utils/api/api';
+import { useAuth } from '@context/AuthContext';
+import { IndicateLoading } from '@components/atomic/IndiacteLoading';
 
 type ModalView = 'login' | 'register' | 'reset' | 'magic-link' | 'logged-in';
 

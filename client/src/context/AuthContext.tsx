@@ -6,8 +6,8 @@ import React, {
     useContext,
     useCallback
 } from 'react';
-import { api } from '@components/utils/api/api';
-import { HOUR } from '@components/lib/datetimes';
+import { api } from '@utils/api/api';
+import { HOUR } from '@lib/datetimes';
 
 /**
  * Represents a user in the system.
