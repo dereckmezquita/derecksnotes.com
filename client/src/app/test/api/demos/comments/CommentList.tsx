@@ -1,3 +1,4 @@
+import { FORMAT_DATE_YYYY_MM_DD_HHMMSS } from '@components/lib/dates';
 import React from 'react';
 
 // TODO: use shared interfaces between server and client
@@ -32,7 +33,7 @@ export function CommentList({
                         <p>{comment.content}</p>
                         <small>
                             By: {comment.author.username} on{' '}
-                            {new Date(comment.createdAt).toLocaleString()}
+                            {FORMAT_DATE_YYYY_MM_DD_HHMMSS(comment.createdAt)}
                         </small>
                     </li>
                 ))}
