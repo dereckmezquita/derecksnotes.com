@@ -9,6 +9,7 @@ env:
   IMAGE_NAME_CLIENT: ${{ secrets.DOCKER_USERNAME }}/derecksnotes-client
   CONTAINER_NAME_SERVER: dev_linode_derecksnotes-server
   CONTAINER_NAME_CLIENT: dev_linode_derecksnotes-client
+  WORK_DIR: /root/dev_docker-compose-derecksnotes/
 
 jobs:
   push_to_registry_server:
@@ -99,7 +100,7 @@ jobs:
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
           source: './docker-compose.yml, .env'
-          target: '/root/dev_docker-compose-derecksnotes/'
+          target: ${{ env.WORK_DIR }}
 
       - name: Deploy to remote server
         uses: appleboy/ssh-action@v1.0.3
@@ -110,7 +111,7 @@ jobs:
           port: ${{ secrets.REMOTE_PORT }}
           command_timeout: 20m
           script: |
-            cd /root/dev_docker-compose-derecksnotes/
+            cd ${{ env.WORK_DIR }}
             docker pull ${{ env.IMAGE_NAME_SERVER }}:latest_dev
             docker pull ${{ env.IMAGE_NAME_CLIENT }}:latest_dev
             docker container prune -f
