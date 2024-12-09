@@ -1,7 +1,7 @@
 /**
  * Decodes the slug and removes unwanted trailing parameters that Google or other referrers might add.
  * For example:
- *   "20191025_productivity-and-computers%26sa%3DU%26ved%3D..." 
+ *   "20191025_productivity-and-computers%26sa%3DU%26ved%3D..."
  * Decodes to:
  *   "20191025_productivity-and-computers&sa=U&ved=..."
  * We then strip anything after the first '&' or '?'.
