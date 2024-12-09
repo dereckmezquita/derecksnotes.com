@@ -14,6 +14,7 @@ import {
 } from '@components/utils/mdx/fetchPostsMetadata';
 import { accessReadFile } from '@components/utils/accessReadFile';
 import { Metadata } from 'next';
+import { decodeSlug } from '@components/utils/helpers';
 
 const section: string = 'references';
 const relDir = path.join(section, 'posts');
@@ -27,9 +28,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
 
     return filenames.map((filename) => {
         const slug = path.basename(filename, '.mdx');
-        return {
-            slug
-        };
+        return { slug };
     });
 }
 
@@ -38,16 +37,10 @@ interface PageProps {
 }
 
 async function Page({ params }: PageProps) {
+    const decodedSlug = decodeSlug(params.slug);
     const sideBarPosts = getPostsWithSection(section);
 
-    // TODO: this can be simplified use absDir
-    const absPath: string = path.join(
-        ROOT_DIR_APP,
-        section,
-        'posts',
-        params.slug + '.mdx'
-    );
-
+    const absPath: string = path.join(absDir, decodedSlug + '.mdx');
     const markdown = await accessReadFile(absPath);
 
     // TODO: review and reconsider this logic; should this be an error
@@ -63,7 +56,7 @@ async function Page({ params }: PageProps) {
 
     // TODO: simplify this we don't need full metadata object
     const url = new URL(
-        path.join(section, params.slug),
+        path.join(section, decodedSlug),
         APPLICATION_DEFAULT_METADATA.url
     ).toString();
 
@@ -95,7 +88,8 @@ async function Page({ params }: PageProps) {
 export default Page;
 
 export function generateMetadata({ params }: PageProps): Metadata {
-    const filePath: string = path.join(absDir, params.slug + '.mdx');
+    const decodedSlug = decodeSlug(params.slug);
+    const filePath: string = path.join(absDir, decodedSlug + '.mdx');
     const post: PostMetadata = extractSinglePostMetadata(filePath);
     return {
         metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
