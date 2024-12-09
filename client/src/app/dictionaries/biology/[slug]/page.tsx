@@ -14,6 +14,7 @@ import { accessReadFile } from '@components/utils/accessReadFile';
 import { notFound } from 'next/navigation';
 import { processMdx } from '@components/utils/mdx/processMdx';
 import { Metadata } from 'next';
+import { decodeSlug } from '@components/utils/helpers';
 
 const dictionary: string = 'biology';
 const relDir: string = path.join('dictionaries', dictionary, 'definitions');
@@ -26,9 +27,7 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
 
     return filenames.map((filename) => {
         const slug = path.basename(filename, '.mdx');
-        return {
-            slug
-        };
+        return { slug };
     });
 }
 
@@ -37,10 +36,10 @@ interface PageProps {
 }
 
 async function Page({ params }: PageProps) {
+    const decodedSlug = decodeSlug(params.slug);
     const sideBarDefintiions = fetchDefintionsMetadata(absDir);
 
-    const absPath: string = path.join(absDir, params.slug + '.mdx');
-
+    const absPath: string = path.join(absDir, decodedSlug + '.mdx');
     const markdown = await accessReadFile(absPath);
 
     if (!markdown) {
@@ -55,7 +54,7 @@ async function Page({ params }: PageProps) {
     }
 
     const url: string = new URL(
-        path.join('dictionaries', dictionary, 'definitions', params.slug),
+        path.join('dictionaries', dictionary, 'definitions', decodedSlug),
         APPLICATION_DEFAULT_METADATA.url
     ).toString();
 
@@ -73,7 +72,8 @@ async function Page({ params }: PageProps) {
 export default Page;
 
 export function generateMetadata({ params }: PageProps): Metadata {
-    const filename: string = params.slug + '.mdx';
+    const decodedSlug = decodeSlug(params.slug);
+    const filename: string = decodedSlug + '.mdx';
     const filePath: string = path.join(absDir, filename);
     const definition: DefinitionMetadata =
         extractSingleDefinitionMetadata(filePath);
