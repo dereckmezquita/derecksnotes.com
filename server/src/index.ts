@@ -54,6 +54,7 @@ app.get('/', async (req: Request, res: Response) => {
 
 app.use('/', routes.auth);
 app.use('/', routes.comments);
+app.use('/', routes.profile);
 app.use('/', routes.test);
 // -----
 

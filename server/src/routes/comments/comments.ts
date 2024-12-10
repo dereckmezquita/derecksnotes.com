@@ -53,7 +53,7 @@ async function fetchCommentTree(
 }
 
 // Create a new comment or reply
-router.post('/', async (req: Request, res: Response) => {
+router.post('/comments/', async (req: Request, res: Response) => {
     try {
         const { text, postId, authorId, parentCommentId } = req.body;
 
@@ -94,7 +94,7 @@ router.post('/', async (req: Request, res: Response) => {
 });
 
 // Get comments for a post (with optional depth)
-router.get('/post/:postId', async (req: Request, res: Response) => {
+router.get('/comments/post/:postId', async (req: Request, res: Response) => {
     try {
         const { postId } = req.params;
         const depth = parseInt(req.query.depth as string, 10) || 1;
@@ -116,7 +116,7 @@ router.get('/post/:postId', async (req: Request, res: Response) => {
 });
 
 // Get a single comment by ID (with optional depth)
-router.get('/:id', async (req: Request, res: Response) => {
+router.get('/comments/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const depth = parseInt(req.query.depth as string, 10) || 1;
@@ -135,7 +135,7 @@ router.get('/:id', async (req: Request, res: Response) => {
 });
 
 // Update a comment (user must be the author)
-router.put('/:id', async (req: Request, res: Response) => {
+router.put('/comments/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { text, userId } = req.body;
@@ -163,7 +163,7 @@ router.put('/:id', async (req: Request, res: Response) => {
 });
 
 // Soft delete a comment (user must be the author)
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/comments/:id', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
@@ -190,7 +190,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 });
 
 // Like a comment
-router.post('/:id/like', async (req: Request, res: Response) => {
+router.post('/comments/:id/like', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
@@ -217,7 +217,7 @@ router.post('/:id/like', async (req: Request, res: Response) => {
 });
 
 // Dislike a comment
-router.post('/:id/dislike', async (req: Request, res: Response) => {
+router.post('/comments/:id/dislike', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
@@ -242,7 +242,7 @@ router.post('/:id/dislike', async (req: Request, res: Response) => {
 });
 
 // Unlike a comment
-router.post('/:id/unlike', async (req: Request, res: Response) => {
+router.post('/comments/:id/unlike', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
@@ -261,7 +261,7 @@ router.post('/:id/unlike', async (req: Request, res: Response) => {
 });
 
 // Undislike a comment
-router.post('/:id/undislike', async (req: Request, res: Response) => {
+router.post('/comments/:id/undislike', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { userId } = req.body;
