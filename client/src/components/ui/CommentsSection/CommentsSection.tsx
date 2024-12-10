@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { usePathname } from 'next/navigation';
 import { IndicateLoading } from '@components/atomic/IndiacteLoading';
 import { api } from '@utils/api/api';
-import { NewComment } from './NewComment';
+import { CommentForm } from './CommentForm';
 import { Comment, CommentData } from './Comment';
 
 interface CommentsResponse {
@@ -29,8 +29,8 @@ export function CommentsSection({
     const [totalLoaded, setTotalLoaded] = useState(0);
     const [totalComments, setTotalComments] = useState(0);
     const pathname = encodeURIComponent(usePathname());
-    const MAX_PER_PAGE = 1;
-    const MAX_DEPTH = 3;
+    const MAX_PER_PAGE = 3;
+    const MAX_DEPTH = 1;
 
     const fetchComments = useCallback(async () => {
         if (!displayComments) {
@@ -44,7 +44,6 @@ export function CommentsSection({
             const response = await api.get<CommentsResponse>(
                 `/comments?post=${pathname}&depth=${MAX_DEPTH}&limit=${MAX_PER_PAGE}&page=${page}`
             );
-            // NOTE: append since getting new page
             setComments((prevComments) => [
                 ...prevComments,
                 ...response.data.comments
@@ -94,11 +93,16 @@ export function CommentsSection({
             </p>
 
             {allowNewComments && (
-                <NewComment onCommentSubmitted={handleNewComment} />
+                <CommentForm onCommentSubmitted={handleNewComment} />
             )}
 
             {comments.map((comment) => (
-                <Comment key={comment._id} comment={comment} />
+                <Comment
+                    key={comment._id}
+                    comment={comment}
+                    depth={0}
+                    maxDisplayDepth={MAX_DEPTH}
+                />
             ))}
 
             {totalLoaded < totalComments && (

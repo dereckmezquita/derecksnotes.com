@@ -4,6 +4,7 @@ import { FORMAT_DATE_YYYY_MM_DD_HHMMSS } from '@lib/dates';
 import { useAuth } from '@context/AuthContext';
 import { api } from '@utils/api/api';
 import { toast } from 'sonner';
+import { CommentForm } from './CommentForm';
 
 export interface CommentData {
     _id: string;
@@ -14,50 +15,51 @@ export interface CommentData {
     };
     createdAt: string;
     likes: string[];
-    replies: string[];
+    replies: CommentData[];
+    parentComment?: string;
+    hasMoreReplies?: boolean;
 }
 
 interface CommentProps {
     comment: CommentData;
+    depth: number;
+    maxDisplayDepth: number;
 }
 
-export function Comment({ comment }: CommentProps) {
+export function Comment({ comment, depth, maxDisplayDepth }: CommentProps) {
     const [isEditing, setIsEditing] = useState(false);
-    const [editContent, setEditContent] = useState(comment.content);
+    const [isReplying, setIsReplying] = useState(false);
+    const [commentData, setCommentData] = useState(comment);
+    const [isLoadingMoreReplies, setIsLoadingMoreReplies] = useState(false);
     const { user } = useAuth();
 
-    const handleEditClick = () => {
-        setIsEditing(true);
-        setEditContent(comment.content);
-    };
+    const handleEditClick = () => setIsEditing(true);
+    const handleReplyClick = () => setIsReplying(true);
 
-    const handleCancelEdit = () => {
-        setIsEditing(false);
-        setEditContent(comment.content);
-    };
-
-    const handleSaveEdit = async () => {
-        try {
-            const response = await api.put<CommentData>(
-                `/comments/${comment._id}`,
-                {
-                    content: editContent
-                }
-            );
-            // onUpdate(response.data);
-            setIsEditing(false);
-            toast.success('Comment updated successfully');
-        } catch (error) {
-            console.error('Error updating comment:', error);
-            toast.error('Failed to update comment. Please try again.');
+    const handleCommentUpdate = (updatedComment: CommentData | null) => {
+        if (updatedComment) {
+            setCommentData(updatedComment);
         }
+        setIsEditing(false);
+    };
+
+    const handleNewReply = (newReply: CommentData) => {
+        setCommentData((prevComment) => ({
+            ...prevComment,
+            replies: [newReply, ...prevComment.replies],
+            hasMoreReplies: true
+        }));
+        setIsReplying(false);
     };
 
     const handleDelete = async () => {
         if (window.confirm('Are you sure you want to delete this comment?')) {
             try {
-                await api.delete(`/comments/${comment._id}`);
-                // onDelete(comment._id);
+                await api.delete(`/comments/${commentData._id}`);
+                setCommentData((prev) => ({
+                    ...prev,
+                    content: '[deleted comment]'
+                }));
                 toast.success('Comment deleted successfully');
             } catch (error) {
                 console.error('Error deleting comment:', error);
@@ -66,31 +68,89 @@ export function Comment({ comment }: CommentProps) {
         }
     };
 
+    const handleLoadMoreReplies = async () => {
+        setIsLoadingMoreReplies(true);
+        try {
+            const response = await api.get(
+                `/comments/${commentData._id}/replies`
+            );
+            setCommentData((prevComment) => ({
+                ...prevComment,
+                replies: [...prevComment.replies, ...response.data.replies],
+                hasMoreReplies: response.data.hasMoreReplies
+            }));
+        } catch (error) {
+            console.error('Error loading more replies:', error);
+            toast.error('Failed to load more replies. Please try again.');
+        } finally {
+            setIsLoadingMoreReplies(false);
+        }
+    };
+
     return (
-        <div className="comment">
+        <div
+            style={{
+                border: '1px solid #333',
+                padding: '1rem',
+                margin: '1rem 0'
+            }}
+        >
             {isEditing ? (
-                <div>
-                    <textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                    />
-                    <button onClick={handleSaveEdit}>Save</button>
-                    <button onClick={handleCancelEdit}>Cancel</button>
-                </div>
+                <CommentForm
+                    onCommentSubmitted={handleCommentUpdate}
+                    parentCommentId={commentData._id}
+                    initialContent={commentData.content}
+                    isEdit={true}
+                />
             ) : (
                 <div>
-                    <p>{comment.content}</p>
+                    <p>{commentData.content}</p>
                     <small>
-                        By: {comment.author.username} on{' '}
-                        {FORMAT_DATE_YYYY_MM_DD_HHMMSS(comment.createdAt)}
+                        By: {commentData.author.username} on{' '}
+                        {FORMAT_DATE_YYYY_MM_DD_HHMMSS(commentData.createdAt)}
                     </small>
-                    {user && user.id === comment.author._id && (
+                    {user && user.id === commentData.author._id && (
                         <div>
                             <button onClick={handleEditClick}>Edit</button>
                             <button onClick={handleDelete}>Delete</button>
                         </div>
                     )}
+                    <button onClick={handleReplyClick}>Reply</button>
                 </div>
+            )}
+            {isReplying && (
+                <CommentForm
+                    onCommentSubmitted={handleNewReply}
+                    parentCommentId={commentData._id}
+                />
+            )}
+            {depth < maxDisplayDepth &&
+                commentData.replies &&
+                commentData.replies.length > 0 && (
+                    <div
+                        style={{
+                            borderLeft: '2px solid #333',
+                            marginLeft: '1rem',
+                            paddingLeft: '1rem'
+                        }}
+                    >
+                        {commentData.replies.map((reply) => (
+                            <Comment
+                                key={reply._id}
+                                comment={reply}
+                                depth={depth + 1}
+                                maxDisplayDepth={maxDisplayDepth}
+                            />
+                        ))}
+                    </div>
+                )}
+            {depth >= maxDisplayDepth && commentData.hasMoreReplies && (
+                <button
+                    onClick={handleLoadMoreReplies}
+                    disabled={isLoadingMoreReplies}
+                >
+                    {isLoadingMoreReplies ? 'Loading...' : 'Load More Replies'}
+                </button>
             )}
         </div>
     );
