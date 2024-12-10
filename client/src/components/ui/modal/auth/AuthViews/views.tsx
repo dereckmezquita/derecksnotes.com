@@ -213,8 +213,8 @@ export function LoggedInView({ user, handleLogout }: LoggedInViewProps) {
                     <strong>Role:</strong> {user.role}
                 </p>
             </div>
-            <Link href="/dashboard" passHref>
-                Go to Dashboard
+            <Link href="/profile" passHref>
+                Go to profile page
             </Link>
             <SubmitButton type="button" onClick={handleLogout}>
                 Logout
