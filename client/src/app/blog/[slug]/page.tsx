@@ -11,7 +11,7 @@ import {
 } from '@utils/mdx/fetchPostsMetadata';
 import { accessReadFile } from '@utils/accessReadFile';
 import { Metadata } from 'next';
-import { decodeSlug } from '@components/utils/helpers';
+import { decodeSlug } from '@utils/helpers';
 
 const section: string = 'blog';
 const relDir = path.join(section, 'posts');

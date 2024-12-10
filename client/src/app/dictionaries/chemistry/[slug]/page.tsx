@@ -12,7 +12,7 @@ import { accessReadFile } from '@utils/accessReadFile';
 import { notFound } from 'next/navigation';
 import { processMdx } from '@utils/mdx/processMdx';
 import { Metadata } from 'next';
-import { decodeSlug } from '@components/utils/helpers';
+import { decodeSlug } from '@utils/helpers';
 
 const dictionary: string = 'chemistry';
 const relDir: string = path.join('dictionaries', dictionary, 'definitions');
