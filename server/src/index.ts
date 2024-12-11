@@ -16,17 +16,29 @@ const app = express();
 app.use(express.json());
 app.use(
     cors({
-        origin: function (origin, callback) {
-            const allowedOrigins = [
-                'http://localhost:3000',
-                'https://derecksnotes.com',
-                'https://dev.derecksnotes.com'
-            ];
-            if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-                callback(null, true);
-            } else {
-                callback(new Error('Not allowed by CORS'));
+        origin: (origin, callback) => {
+            // Allow requests with no origin, such as those from server-side clients (adjust if needed)
+            if (!origin) {
+                return callback(null, true);
             }
+
+            try {
+                const url = new URL(origin);
+
+                // Allow exact derecksnotes.com or any of its subdomains
+                if (
+                    url.hostname === 'derecksnotes.com' ||
+                    url.hostname.endsWith('.derecksnotes.com') ||
+                    url.hostname === 'localhost'
+                ) {
+                    return callback(null, true);
+                }
+            } catch (err) {
+                return callback(new Error('Not allowed by CORS'));
+            }
+
+            // If the hostname doesn’t match your criteria, reject the request
+            return callback(new Error('Not allowed by CORS'));
         },
         credentials: true
     })
