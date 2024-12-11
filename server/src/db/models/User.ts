@@ -39,8 +39,6 @@ const UserSchema: Schema<IUser> = new Schema({
         validate: {
             validator: function (v: string) {
                 const reserved: string[] = [
-                    'dereck',
-                    'dereck2',
                     'admin',
                     'root',
                     'administrator',
