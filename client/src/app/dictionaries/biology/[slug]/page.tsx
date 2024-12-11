@@ -1,29 +1,32 @@
 import fs from 'fs';
 import path from 'path';
-import { Post } from '@components/components/pages/Post';
-import {
-    APPLICATION_DEFAULT_METADATA,
-    ROOT_DIR_APP
-} from '@components/lib/constants';
+import { Post } from '@components/pages/Post';
+import { APPLICATION_DEFAULT_METADATA, ROOT_DIR_APP } from '@lib/constants';
+import { NEXT_PUBLIC_BUILD_ENV_BOOL } from '@lib/env';
 import {
     DefinitionMetadata,
     extractSingleDefinitionMetadata,
     fetchDefintionsMetadata
-} from '@components/utils/dictionaries/fetchDefinitionMetadata';
-import { accessReadFile } from '@components/utils/accessReadFile';
+} from '@utils/dictionaries/fetchDefinitionMetadata';
+import { accessReadFile } from '@utils/accessReadFile';
 import { notFound } from 'next/navigation';
-import { processMdx } from '@components/utils/mdx/processMdx';
+import { processMdx } from '@utils/mdx/processMdx';
 import { Metadata } from 'next';
-import { decodeSlug } from '@components/utils/helpers';
+import { decodeSlug } from '@utils/helpers';
 
 const dictionary: string = 'biology';
 const relDir: string = path.join('dictionaries', dictionary, 'definitions');
 const absDir: string = path.join(ROOT_DIR_APP, relDir);
 
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-    const filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
+    let filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
         return filename.endsWith('.mdx');
     });
+
+    // if NEXT_PUBLIC_BUILD_ENV_BOOL then return all
+    if (!NEXT_PUBLIC_BUILD_ENV_BOOL) {
+        filenames = filenames.slice(0, 3);
+    }
 
     return filenames.map((filename) => {
         const slug = path.basename(filename, '.mdx');

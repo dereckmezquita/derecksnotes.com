@@ -1,8 +1,9 @@
 // components that are common between displaying a post and dictionaries
+'use client';
 import styled from 'styled-components';
 import Link from 'next/link';
 
-import { SiteName } from '@components/components/ui/Logo';
+import { SiteName } from '@components/ui/Logo';
 
 const minWidthSnapUp = (props: any) =>
     props.theme.container.widths.min_width_snap_up;

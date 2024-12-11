@@ -3,15 +3,21 @@ import bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface IUser extends Document {
+    _id?: string;
     firstName: string;
-    lastName: string;
+    lastName?: string;
     username: string;
     email: string;
     password: string;
     isVerified: boolean;
-    apiKey: string;
+    profilePhoto: string; // name we build path; saved in public/uploads
+    createdAt: Date;
+    apiKey?: string;
     tempToken?: string;
     tempTokenExpires?: Date;
+    resetPasswordToken?: string;
+    resetPasswordExpires?: Date;
+    role?: 'user' | 'admin';
     comparePassword(password: string): Promise<boolean>;
 }
 
@@ -19,11 +25,12 @@ export interface IUserModel extends Model<IUser> {
     findByEmail(email: string): Promise<IUser | null>;
     findByUsername(username: string): Promise<IUser | null>;
     findByApiKey(apiKey: string): Promise<IUser | null>;
+    findByResetPasswordToken(token: string): Promise<IUser | null>;
 }
 
 const UserSchema: Schema<IUser> = new Schema({
     firstName: { type: String },
-    lastName: { type: String },
+    lastName: { type: String, required: false },
     username: {
         type: String,
         unique: true,
@@ -32,8 +39,6 @@ const UserSchema: Schema<IUser> = new Schema({
         validate: {
             validator: function (v: string) {
                 const reserved: string[] = [
-                    'dereck',
-                    'dereck2',
                     'admin',
                     'root',
                     'administrator',
@@ -48,9 +53,14 @@ const UserSchema: Schema<IUser> = new Schema({
     email: { type: String, required: true, unique: true },
     password: { type: String },
     isVerified: { type: Boolean, default: false },
-    apiKey: { type: String, unique: true, default: uuidv4 },
+    profilePhoto: { type: String, default: 'default.jpg' },
+    createdAt: { type: Date, default: Date.now },
+    apiKey: { type: String, unique: true, default: uuidv4, required: false },
     tempToken: { type: String },
-    tempTokenExpires: { type: Date }
+    tempTokenExpires: { type: Date },
+    resetPasswordToken: { type: String },
+    resetPasswordExpires: { type: Date },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' }
 });
 
 UserSchema.pre<IUser>('save', async function (next) {
@@ -71,6 +81,7 @@ UserSchema.pre('save', function (next) {
     if (this.isModified('email')) {
         this.email = this.email.toLowerCase();
     }
+    next();
 });
 
 UserSchema.methods.comparePassword = async function (
@@ -95,6 +106,15 @@ UserSchema.statics.findByApiKey = async function (
     apiKey: string
 ): Promise<IUser | null> {
     return this.findOne({ apiKey });
+};
+
+UserSchema.statics.findByResetPasswordToken = async function (
+    token: string
+): Promise<IUser | null> {
+    return this.findOne({
+        resetPasswordToken: token,
+        resetPasswordExpires: { $gt: Date.now() }
+    });
 };
 
 export const User: IUserModel = mongoose.model<IUser, IUserModel>(

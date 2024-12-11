@@ -3,7 +3,7 @@ import path from 'path';
 import { accessReadFile } from '../accessReadFile';
 import { processMdx } from '../mdx/processMdx';
 
-import { NEXT_PUBLIC_APP_URL } from '@components/lib/env';
+import { NEXT_PUBLIC_APP_URL } from '@lib/env';
 import { stripMdx } from '../mdx/fetchPostsMetadata';
 import rehypeLinkToDefinition from '../remark-rehype/rehypeLinkToDefinition';
 

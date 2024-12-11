@@ -1,8 +1,8 @@
 import React from 'react';
 import path from 'path';
-import { ROOT_DIR_APP } from '@components/lib/constants';
-import { Dictionary } from '@components/components/pages/dictionaries/Dictionary';
-import { fetchAllDefintions } from '@components/utils/dictionaries/fetchDefinitionMetadata';
+import { ROOT_DIR_APP } from '@lib/constants';
+import { Dictionary } from '@components/pages/dictionaries/Dictionary';
+import { fetchAllDefintions } from '@utils/dictionaries/fetchDefinitionMetadata';
 import { Metadata } from 'next';
 
 const dictionary: string = 'chemistry';

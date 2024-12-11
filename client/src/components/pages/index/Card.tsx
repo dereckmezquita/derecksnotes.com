@@ -1,11 +1,10 @@
 'use client';
 import Link from 'next/link';
-import styled from 'styled-components';
-import { theme } from '@components/styles/theme';
+import styled, { css } from 'styled-components';
 
 import path from 'path';
 import DropCap from './DropCap';
-import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
+import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
 
 const PostMeta = styled.div`
     font-size: 15px;
@@ -31,7 +30,7 @@ const Summary = styled.p`
     padding-right: 15px;
 `;
 
-const CardContainer = styled(Link)`
+const CardContainerBase = css`
     text-decoration: none;
     color: inherit;
     &:hover,
@@ -61,8 +60,17 @@ const CardContainer = styled(Link)`
             1px 1px 20px rgba(153, 153, 153, 0.8),
             0 0 20px rgba(100, 100, 40, 0.2) inset;
     }
+`;
 
-    /* min window safari on desktop is 559 */
+export const CardContainerDiv = styled.div`
+    ${CardContainerBase}
+    display: block;
+`;
+
+const CardContainer = styled(Link)`
+    ${CardContainerBase}
+
+    /* Add any additional styles or media queries here */
     @media screen and (max-width: 550px) {
         ${PostMeta}, ${PostTitle} {
             font-size: 1.2rem;

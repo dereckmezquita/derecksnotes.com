@@ -2,8 +2,9 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FaBars, FaFilter } from 'react-icons/fa';
+import { FaBars, FaFilter, FaUser } from 'react-icons/fa';
 import { useBlogFilter } from '../pages/index/BlogFilterContext';
+import { AuthModal } from './modal/auth/AuthModal';
 
 // TODO: create a type for theme; so we can have intellisense
 const minWidthMobile = (props: any) =>
@@ -270,6 +271,13 @@ function Navbar() {
                 <DateTimeDisplay>
                     {dateTime || '00 Jan 00:00:00'}
                 </DateTimeDisplay>
+                <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
+                    <FaUser />
+                    <AuthModal
+                        isOpen={isAuthModalOpen}
+                        onClose={() => setIsAuthModalOpen(false)}
+                    />
+                </NavRightItem>
                 <NavRightItem onClick={toggleFilter}>
                     <FaFilter />
                 </NavRightItem>

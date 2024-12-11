@@ -1,14 +1,16 @@
 'use client';
 import { useEffect } from 'react';
 import styled from 'styled-components';
-import { theme } from '@components/styles/theme';
-import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
+import { theme } from '@styles/theme';
+import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
 import Card from './Card';
-import { PageMetadata } from '@components/lib/constants';
 import { useBlogFilter } from './BlogFilterContext';
-import { TagFilter } from '@components/components/ui/TagFilter';
+import { TagFilter } from '@components/ui/TagFilter';
 import { usePathname } from 'next/navigation';
 
+/**
+ * Container for index page; no styling just holds things together.
+ */
 const Container = styled.div`
     width: 70%;
     height: auto;

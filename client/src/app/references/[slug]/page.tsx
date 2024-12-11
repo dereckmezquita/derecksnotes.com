@@ -1,20 +1,17 @@
 import fs from 'fs';
 import path from 'path';
-import {
-    APPLICATION_DEFAULT_METADATA,
-    ROOT_DIR_APP
-} from '@components/lib/constants';
-import { processMdx } from '@components/utils/mdx/processMdx';
+import { APPLICATION_DEFAULT_METADATA, ROOT_DIR_APP } from '@lib/constants';
+import { processMdx } from '@utils/mdx/processMdx';
 import { notFound } from 'next/navigation';
-import { Post } from '../../../components/pages/Post';
+import { Post } from '@components/pages/Post';
 import {
     PostMetadata,
     extractSinglePostMetadata,
     getPostsWithSection
-} from '@components/utils/mdx/fetchPostsMetadata';
-import { accessReadFile } from '@components/utils/accessReadFile';
+} from '@utils/mdx/fetchPostsMetadata';
+import { accessReadFile } from '@utils/accessReadFile';
 import { Metadata } from 'next';
-import { decodeSlug } from '@components/utils/helpers';
+import { decodeSlug } from '@utils/helpers';
 
 const section: string = 'references';
 const relDir = path.join(section, 'posts');

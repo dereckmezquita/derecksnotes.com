@@ -1,5 +1,5 @@
 import React from 'react';
-import { Definition } from '@components/utils/dictionaries/fetchDefinitionMetadata';
+import { Definition } from '@utils/dictionaries/fetchDefinitionMetadata';
 import { PostContentWrapper } from '../posts-dictionaries';
 
 /**

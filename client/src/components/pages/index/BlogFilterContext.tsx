@@ -7,7 +7,7 @@ import React, {
     ReactNode,
     useCallback
 } from 'react';
-import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
+import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
 
 interface BlogFilterContextType {
     posts: PostMetadata[];

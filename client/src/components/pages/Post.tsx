@@ -1,13 +1,16 @@
 'use client';
-import SideBar from '@components/components/pages/SideBar';
+
+import SideBar from '@components/pages/SideBar';
 import {
     Article,
     PostContainer,
     PostContentWrapper
-} from '@components/components/pages/posts-dictionaries';
-import { DefinitionMetadata } from '@components/utils/dictionaries/fetchDefinitionMetadata';
-import { PostMetadata } from '@components/utils/mdx/fetchPostsMetadata';
+} from '@components/pages/posts-dictionaries';
+import { DefinitionMetadata } from '@utils/dictionaries/fetchDefinitionMetadata';
+import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
 import { useState, useEffect } from 'react';
+import { Comments } from '@components/ui/CommentsSection/Comments';
+import { usePathname } from 'next/navigation';
 
 interface DisplayPostProps {
     source: React.ReactNode;
@@ -15,11 +18,10 @@ interface DisplayPostProps {
     sideBarPosts: PostMetadata[] | DefinitionMetadata[];
 }
 
-// https://nextjs.org/docs/messages/react-hydration-error
-// NOTE: to avoid hydration errors need to useState
-// cannot do this directly from page.tsx because that exports generateStaticParams and a use client declaration is not allowed
+// We avoid hydration errors by using useState to ensure code only runs client-side.
 export function Post({ source, frontmatter, sideBarPosts }: DisplayPostProps) {
     const [isClient, setIsClient] = useState(false);
+    const pathname = usePathname(); // Dynamically get the current page path
 
     useEffect(() => {
         setIsClient(true);
@@ -35,6 +37,10 @@ export function Post({ source, frontmatter, sideBarPosts }: DisplayPostProps) {
                         : frontmatter.word}
                 </h1>
                 {isClient && <PostContentWrapper>{source}</PostContentWrapper>}
+                {'comments' in frontmatter && frontmatter.comments && (
+                    // Pass the current pathname as postSlug
+                    <Comments postSlug={pathname} />
+                )}
             </Article>
         </PostContainer>
     );
