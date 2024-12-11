@@ -3,18 +3,22 @@ import { Schema, model, Types } from 'mongoose';
 
 export interface IPost {
     _id: Types.ObjectId;
-    title: string;
-    content: string;
-    author: Types.ObjectId;
+    slug: string;
+    views: number;
+    likes: number;
+    published: boolean;
+    comments: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
 
 const postSchema = new Schema<IPost>(
     {
-        title: { type: String, required: true },
-        content: { type: String, required: true },
-        author: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+        slug: { type: String, required: true, unique: true },
+        views: { type: Number, default: 0 },
+        likes: { type: Number, default: 0 },
+        published: { type: Boolean, default: false },
+        comments: { type: Boolean, default: false }
     },
     { timestamps: true }
 );

@@ -1,6 +1,6 @@
 import { Article, PostContainer } from '@components/pages/posts-dictionaries';
 import { AuthDemo, AuthProtectedDemo } from './demos/AuthDemo';
-import { CommentsSection } from '@components/ui/CommentsSection/CommentsSection';
+import { Comments } from '@components/ui/CommentsSection/Comments';
 import { ApiStatus } from './demos/ApiStatus';
 
 function Page() {
@@ -10,7 +10,7 @@ function Page() {
             <ApiStatus />
             <AuthDemo />
             <AuthProtectedDemo />
-            <CommentsSection />
+            <Comments postSlug="test-post" />
         </PostArticle>
     );
 }

@@ -27,7 +27,10 @@ function shouldIgnore(filePath: string): boolean {
 function deriveSlug(fullPath: string): string {
     const relative = fullPath.replace(ROOT_DIR, '');
     const withoutExt = relative.replace(/\.mdx$/, '');
-    return withoutExt;
+    // If it's a blog post under /blog/posts/, remove the "posts" segment
+    // For example: /blog/posts/20210730_something -> /blog/20210730_something
+    const finalSlug = withoutExt.replace('/posts/', '/');
+    return finalSlug;
 }
 
 async function main() {
@@ -72,7 +75,6 @@ async function main() {
                 typeof data.published === 'boolean' ? data.published : false;
             const comments =
                 typeof data.comments === 'boolean' ? data.comments : false;
-            // Other fields can be extracted similarly
 
             docsToInsert.push({
                 slug,

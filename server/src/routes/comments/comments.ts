@@ -1,3 +1,4 @@
+// server/src/routes/comments/comments.ts
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Types } from 'mongoose';
@@ -12,17 +13,16 @@ interface ICommentTree extends IComment {
     replies?: ICommentTree[];
 }
 
-// Recursive function to fetch comments with nested replies up to a given depth
+// Recursive helper
 async function fetchCommentTree(
     parentComments: IComment[],
     depth: number
 ): Promise<ICommentTree[]> {
     if (depth <= 0) {
-        // Return as is, no deeper fetching of replies
         return parentComments as ICommentTree[];
     }
 
-    const parentIds = parentComments.map((comment) => comment._id);
+    const parentIds = parentComments.map((c) => c._id);
     const replies = await Comment.find({ parentComment: { $in: parentIds } })
         .populate('author', 'username')
         .lean<IComment[]>();
@@ -31,9 +31,7 @@ async function fetchCommentTree(
     for (const reply of replies) {
         if (reply.parentComment) {
             const parentId = reply.parentComment.toString();
-            if (!repliesByParent[parentId]) {
-                repliesByParent[parentId] = [];
-            }
+            if (!repliesByParent[parentId]) repliesByParent[parentId] = [];
             repliesByParent[parentId].push(reply);
         }
     }
@@ -43,28 +41,26 @@ async function fetchCommentTree(
         const parentIdStr = parent._id.toString();
         const children = repliesByParent[parentIdStr] || [];
         const nestedReplies = await fetchCommentTree(children, depth - 1);
-        results.push({
-            ...parent,
-            replies: nestedReplies
-        });
+        results.push({ ...parent, replies: nestedReplies });
     }
 
     return results;
 }
 
-// Create a new comment or reply
-router.post('/comments/', async (req: Request, res: Response) => {
+// Create a new comment
+router.post('/comments', async (req: Request, res: Response) => {
     try {
-        const { text, postId, authorId, parentCommentId } = req.body;
+        const { text, postSlug, parentCommentId } = req.body;
 
-        const [postExists, userExists] = await Promise.all([
-            Post.findById(postId).lean(),
-            User.findById(authorId).lean()
-        ]);
-        if (!postExists)
-            return res.status(404).json({ error: 'Post not found' });
-        if (!userExists)
-            return res.status(404).json({ error: 'User not found' });
+        const userId = req.session?.userId;
+        if (!userId)
+            return res.status(401).json({ error: 'Not authenticated' });
+
+        const post = await Post.findOne({ slug: postSlug }).lean();
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+
+        const user = await User.findById(userId).lean();
+        if (!user) return res.status(404).json({ error: 'User not found' });
 
         if (parentCommentId) {
             const parentComment =
@@ -79,8 +75,8 @@ router.post('/comments/', async (req: Request, res: Response) => {
         const newComment = await Comment.create({
             text,
             originalContent: text,
-            author: new Types.ObjectId(authorId),
-            post: new Types.ObjectId(postId),
+            author: new Types.ObjectId(userId),
+            post: post._id,
             parentComment: parentCommentId
                 ? new Types.ObjectId(parentCommentId)
                 : null
@@ -93,14 +89,17 @@ router.post('/comments/', async (req: Request, res: Response) => {
     }
 });
 
-// Get comments for a post (with optional depth)
-router.get('/comments/post/:postId', async (req: Request, res: Response) => {
+// Get comments for a post by slug
+router.get('/comments/post/:postSlug', async (req: Request, res: Response) => {
     try {
-        const { postId } = req.params;
+        const { postSlug } = req.params;
         const depth = parseInt(req.query.depth as string, 10) || 1;
 
+        const post = await Post.findOne({ slug: postSlug }).lean();
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+
         const topLevelComments = await Comment.find({
-            post: postId,
+            post: post._id,
             parentComment: null
         })
             .populate('author', 'username')
