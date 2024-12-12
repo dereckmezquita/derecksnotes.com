@@ -30,6 +30,9 @@ function deriveSlug(fullPath: string): string {
     // If it's a blog post under /blog/posts/, remove the "posts" segment
     // For example: /blog/posts/20210730_something -> /blog/20210730_something
     const finalSlug = withoutExt.replace('/posts/', '/');
+    if (finalSlug.startsWith('/')) {
+        return finalSlug.slice(1);
+    }
     return finalSlug;
 }
 
