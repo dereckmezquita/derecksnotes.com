@@ -94,20 +94,47 @@ router.get('/comments/post/:postSlug', async (req: Request, res: Response) => {
     try {
         const { postSlug } = req.params;
         const depth = parseInt(req.query.depth as string, 10) || 1;
+        const limit = parseInt(req.query.limit as string, 10) || 5; // Default limit
+        const skip = parseInt(req.query.skip as string, 10) || 0; // Default skip
 
         const post = await Post.findOne({ slug: postSlug }).lean();
         if (!post) return res.status(404).json({ error: 'Post not found' });
 
+        // Apply limit & skip for top-level comments
         const topLevelComments = await Comment.find({
             post: post._id,
             parentComment: null
         })
             .populate('author', 'username')
             .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
             .lean<IComment[]>();
 
         const commentTree = await fetchCommentTree(topLevelComments, depth);
         return res.json(commentTree);
+    } catch (error: any) {
+        console.error(error);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get more replies for a single comment subtree
+router.get('/comments/:id/children', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const depth = parseInt(req.query.depth as string, 10) || 1;
+
+        const comment = await Comment.findById(id)
+            .populate('author', 'username')
+            .lean<IComment>();
+        if (!comment)
+            return res.status(404).json({ error: 'Comment not found' });
+
+        // Treat this comment as a parent and fetch its children at the given depth
+        const tree = await fetchCommentTree([comment], depth);
+        // tree[0] now has the updated replies
+        return res.json(tree[0].replies || []);
     } catch (error: any) {
         console.error(error);
         return res.status(500).json({ error: 'Internal server error' });

@@ -41,9 +41,7 @@ export function Comments({ postSlug }: CommentsProps) {
     useEffect(() => {
         async function fetchComments() {
             try {
-                const res = await api.get(
-                    `/comments/post/${encodeURIComponent(postSlug)}?depth=2`
-                );
+                const res = await api.get(`/comments/post/${postSlug}?depth=2`);
                 setComments(res.data);
             } catch (error) {
                 console.error('Error fetching comments:', error);
