@@ -1,251 +1,107 @@
 ---
-title: "Git & GitHub: Some Notes"
-blurb: "Tingly head, warm stomach"
-coverImage: 47
+title: "121-5: Carotenoid Pigment Production"
+blurb: "Headache plain and sugar"
+coverImage: 48
 author: "Dereck Mezquita"
-date: 2019-12-27
+date: 2019-12-14
 
-tags: [computer-science, programming, code, web-development]
+tags: [science, biology, genetics, genetic-engineering, molecular-biology]
 published: true
 comments: true
 ---
 
-This article provides a quick reference for using Git and GitHub, primarily in the context of version management. It includes installation, configuration, basic Git workflows, and some helpful commands for day-to-day operations. All commands shown are intended to be run in a terminal, such as Visual Studio Code's integrated terminal[^1].
+This article presents notes and reflections from a 121-5 laboratory practical focused on characterising genetic constructs in *Escherichia coli* to produce carotenoid pigments such as β-carotene and lycopene using genetic parts freely available in the Registry of Standard Biological Parts. A key secondary goal of this lab was to familiarise students with core molecular biology techniques, including polymerase chain reaction (PCR), electrophoresis, enzymatic digestion, and DNA/pigment extraction[^1][^2][^3][^4][^5][^6][^7][^8].
 
-[^1]: [Git-Commands](https://github.com/joshnh/Git-Commands)
+The experiments revolve around engineering *E. coli* to produce colourful pigments by introducing and modulating specific operons and regulatory parts. By carefully controlling promoters (like pBAD and pT5) and supplementing growth media with appropriate inducers (arabinose and IPTG), the production of carotenoid pigments can be influenced. This investigation helps elucidate how metabolic flux and promoter induction levels affect pigment yield.
 
-## Installing and Configuring Git
+Although the practical encountered some challenges such as variable data consistency and experimental errors the activities shed light on the interplay between genetic regulation, metabolic pathways, and environmental conditions. Observations from agarose gels, enzyme digestions, PCR amplifications, and pigment extraction measurements laid a foundation for understanding the conditions under which engineered *E. coli* cells can efficiently produce carotenoids.
 
-If you are on macOS, Git may already be installed. Check by running:
+## Parts Maps Used
 
-```bash
-git version
-```
+Below are maps of some of the genetic parts and plasmids utilised. These illustrate the construction of vectors carrying various carotenoid-related genes and regulatory elements:
 
-If it's not installed, you will be prompted to install it, or you can use Homebrew:
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_dxs_BBa_K118000.png">
+    map_dxs_BBa_K118000
+</Figure>
 
-```bash
-brew install git
-```
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_idi_BBa_K1653002.png">
+    map_idi_BBa_K1653002
+</Figure>
 
-Next, configure Git with your name and email (required for commit metadata):
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_pSB1A2-plac.png">
+    map_pSB1A2-plac
+</Figure>
 
-```bash
-git config --global user.name "Your Name"
-git config --global user.email "youremail@example.com"
-```
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_pSB1A3GB3_pT5-idi-dxs.png">
+    map_pSB1A3GB3_pT5-idi-dxs
+</Figure>
 
-Set your preferred editor (here using Visual Studio Code):
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_pSB2K3-pBad-crtEBI.png">
+    map_pSB2K3-pBad-crtEBI
+</Figure>
 
-```bash
-git config --global core.editor "code -w"
-```
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_pSB2K3-pBad-crtEBIY.png">
+    map_pSB2K3-pBad-crtEBIY
+</Figure>
 
-Test the configuration by editing Git's global config file:
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_pSB2K3_pBad.png">
+    map_pSB2K3_pBad
+</Figure>
 
-```bash
-git config --global -e
-```
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_part_BBa_K274120.png">
+    map_part_BBa_K274120
+</Figure>
 
-If Git repeatedly asks for your username and password, you can store credentials. To never be asked again:
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_part_BBa_K274220.png">
+    map_part_BBa_K274220
+</Figure>
 
-```bash
-git config --global credential.helper store
-git config --global credential.https://github.com.username <your_username>
-```
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_part_pT5-idi-dxs.png">
+    map_part_pT5-idi-dxs
+</Figure>
 
-Or to cache credentials temporarily (for a session):
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_plasmid_pSB1A2.png">
+    map_plasmid_pSB1A2
+</Figure>
 
-```bash
-git config --global credential.helper cache
-git config --global credential.helper 'cache --timeout=1000'
-```
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_plasmid_pSB1A3.png">
+    map_plasmid_pSB1A3
+</Figure>
 
-<Alert type='warning'>
-These instructions are for macOS. On Linux or Windows, you may need different steps.
-</Alert>
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_plasmid_pSB1A3GB3.png">
+    map_plasmid_pSB1A3GB3
+</Figure>
 
-## Understanding Git's States
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_plasmid_pSB2K3.png">
+    map_plasmid_pSB2K3
+</Figure>
 
-Git has three main states that files move through: the working directory, the staging area, and the repository. Conceptually, code starts in your working directory. When you modify files, they remain in the working directory until you “stage” them. Staging prepares changes for your next commit. Once committed, changes become part of the repository's history.
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_prom_pbad-BBa_I0500.png">
+    map_prom_pbad-BBa_I0500
+</Figure>
 
-<style>
-    {`
-    #illustration-flow {
-        display: block;
-        position: relative;
-        margin: 0 auto;
-        width: fit-content;
-        padding: 20px;
-    }
-    .illustration-flow-text {
-        display: inline;
-        padding: 0px;
-        text-align: center;
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_prom_plac-BBa_R0010.png">
+    map_prom_plac-BBa_R0010
+</Figure>
 
-        /* text-shadow: 2px 2px 30px black; */
-
-        letter-spacing: -0.05em;
-        font-family: "Fjalla One", sans-serif;
-        font-weight: bolder;
-        font-size: 20px;
-        -webkit-transform: scale(1.35, 1.3);
-        transform: scale(1.35, 1.3);
-    }
-    .illustration-colour-one {
-        color: #ef0000;
-    }
-    .illustration-colour-two {
-        color: orange;
-    }
-    .illustration-colour-three {
-        color: #ffd700;
-    }
-    .illustration-colour-four {
-        color: #00c000;
-    }
-    .illustration-colour-five {
-        color: blue;
-    }
-    .illustration-colour-six {
-        color: indigo;
-    }
-    .illustration-colour-seven {
-        color: violet;
-    }
-    .illustration-arrow {
-        color: #00ff08;
-        padding: 0px;
-    }
-    `}
-</style>
-
-<div>
-    <div id="illustration-flow">
-        <div class="illustration-flow-text illustration-colour-one">
-            Working directory
-        </div>
-        <div class="illustration-flow-text illustration-arrow">
-            &darr;
-        </div>
-        <div class="illustration-flow-text illustration-colour-two">
-            Staging area
-        </div>
-        <div class="illustration-flow-text illustration-arrow">
-            &darr;
-        </div>
-        <div class="illustration-flow-text illustration-colour-three">
-            Repository (.git directory)
-        </div>
-        <div class="illustration-flow-text illustration-arrow">
-            &darr;
-        </div>
-        <div class="illustration-flow-text illustration-colour-four">
-            Remote server (.git directory)
-        </div>
-    </div>
-    <figcaption>Movement of files and directories in git.</figcaption>
-</div>
-
-We can also consider the “remote” as a fourth state, representing the remote repository on a server like GitHub.
-
-```
-Working Directory → Staging Area → Repository (.git) → Remote (GitHub)
-```
-
-- **Working directory:** Your actual project files.
-- **Staging area:** A preview of what will go into your next commit.
-- **Repository (.git directory):** The history of all your commits.
-- **Remote:** A separate repository hosted remotely (e.g., on GitHub).
-
-## Basic Commands
-
-### Cloning or Creating a Repository
-
-| Command                                                           | Description                                      |
-|-------------------------------------------------------------------|--------------------------------------------------|
-| `git init`                                                        | Initialise a local Git repository.               |
-| `git clone https://github.com/[username]/[repository-name].git`   | Create a local copy of a remote repository.      |
-
-### Snapshotting
-
-| Command                           | Description                                                                                |
-|-----------------------------------|--------------------------------------------------------------------------------------------|
-| `git status`                      | Check the status of your working directory and staging area.                              |
-| `git add [file-name.ext]`         | Add a specific file to the staging area.                                                   |
-| `git add .`                       | Add all modified files to the staging area.                                                |
-| `git add -A`                      | Add all new, modified, and deleted files to the staging area.                              |
-| `git commit -m "[commit message]"`| Commit staged changes with a message. Without `-m` you will use the configured editor.      |
-| `git rm -r [file-name.ext]`       | Remove a file or directory and stage the removal.                                          |
-
-### Branching and Merging
-
-| Command                                                 | Description                                                                                        |
-|---------------------------------------------------------|----------------------------------------------------------------------------------------------------|
-| `git branch`                                            | List all local branches.                                                                           |
-| `git branch -a`                                         | List all branches (local and remote).                                                              |
-| `git branch [branch name]`                              | Create a new branch.                                                                               |
-| `git branch -d [branch name]`                           | Delete a local branch.                                                                             |
-| `git push origin --delete [branch name]`                | Delete a remote branch.                                                                            |
-| `git checkout -b [branch name]`                         | Create and switch to a new branch.                                                                 |
-| `git checkout -b [branch name] origin/[branch name]`    | Clone a remote branch locally and switch to it.                                                     |
-| `git branch -m [old branch name] [new branch name]`     | Rename a local branch.                                                                             |
-| `git checkout [branch name]`                            | Switch to an existing branch.                                                                      |
-| `git checkout -`                                        | Switch to the most recently checked-out branch.                                                    |
-| `git checkout -- [file-name.ext]`                       | Discard changes in the working directory for a file.                                               |
-| `git merge [branch name]`                               | Merge a branch into the currently active branch.                                                   |
-| `git merge [source branch] [target branch]`             | Merge a branch into a specified target branch.                                                     |
-| `git stash`                                             | Temporarily stash changes when you are not ready to commit.                                        |
-| `git stash clear`                                       | Remove all stashed changes.                                                                        |
-
-### Sharing or Updating Projects
-
-| Command                                                           | Description                                              |
-|-------------------------------------------------------------------|----------------------------------------------------------|
-| `git push origin [branch name]`                                   | Push a branch to your remote repository.                |
-| `git push -u origin [branch name]`                                | Push changes and set the upstream branch for tracking.  |
-| `git push`                                                        | Push changes to the remote repository (if upstream is set). |
-| `git push origin --delete [branch name]`                          | Delete a remote branch.                                 |
-| `git pull`                                                        | Update local repository to the newest commit from remote. |
-| `git pull origin [branch name]`                                   | Pull changes from a remote repository branch.           |
-| `git remote add origin ssh://git@github.com/[username]/[repository-name].git` | Add a remote repository via SSH. |
-| `git remote set-url origin ssh://git@github.com/[username]/[repository-name].git` | Change the remote URL to SSH. |
-
-### Inspecting and Comparing
-
-| Command                                      | Description                                             |
-|----------------------------------------------|---------------------------------------------------------|
-| `git log`                                    | View commit history.                                    |
-| `git log --summary`                          | View detailed commit history (files changed, etc.).      |
-| `git log --oneline`                          | View a simplified commit history.                       |
-| `git diff [source branch] [target branch]`   | Compare changes between branches before merging.         |
-
-*(For more sophisticated diff and history viewing, tools like GitLens in VSCode are highly recommended.)*
-
-### Advanced Commands
-
-| Command                                                        | Description                                                                                             |
-|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
-| `git config --global alias.[command-name] "[command chain]"`   | Create Git aliases. For example, `git config --global alias.hist "log --oneline --graph --decorate --all"` and then use `git hist`. |
-| `git mv [file-name.ext]`                                       | Rename a file and stage the move, preserving history. Commit to finalize.                               |
-| `git rm [file-name.txt]`                                       | Remove a file and stage the removal. Commit to finalize.                                                |
-| `git add -u`                                                   | Update and stage changes to files that have been modified or deleted.                                   |
-
-## Excluding Files with `.gitignore`
-
-Use a `.gitignore` file to exclude files or directories from your repository. Each line of `.gitignore` specifies a pattern. For example, to ignore all `.log` files:
-
-```
-*.log
-```
-
-Don't forget to commit the `.gitignore` file so that it is tracked by the repository:
-
-```bash
-git add .gitignore
-git commit -m "Add .gitignore file"
-```
+<Figure src="/blog/20191214_121-5-carotenoid-pigment-production/maps/map_prom_pt5-BBa_K592008.png">
+    map_prom_pt5-BBa_K592008
+</Figure>
 
 ---
 
-By following these notes and using the provided commands, you can streamline your workflow with Git and GitHub, maintain clean commit histories, and more easily manage branching and merging strategies for your projects.
+[^1]: Desjardins, Philippe, and Deborah Conklin. "NanoDrop Microvolume Quantitation of Nucleic Acids." *Journal of Visualized Experiments*, no. 45 (2010). [DOI:10.3791/2565](https://doi.org/10.3791/2565)
+
+[^2]: Freddolino, Peter L., et al. "Newly Identified Genetic Variations in Common Escherichia Coli MG1655 Stock Cultures." *Journal of Bacteriology* 194.2 (2012): 303-306. [DOI:10.1128/JB.06087-11](https://doi.org/10.1128/JB.06087-11)
+
+[^3]: Johnson, C. M., and R. F. Schleif. "In Vivo Induction Kinetics of the Arabinose Promoters in Escherichia Coli." *Journal of Bacteriology* 177.12 (1995): 3438-3442. [DOI:10.1128/jb.177.12.3438-3442.1995](https://doi.org/10.1128/jb.177.12.3438-3442.1995)
+
+[^4]: Lanzer, M., and H. Bujard. "Promoters Largely Determine the Efficiency of Repressor Action." *PNAS* 85.23 (1988): 8973-8977. [DOI:10.1073/pnas.85.23.8973](https://doi.org/10.1073/pnas.85.23.8973)
+
+[^5]: McGinnis, J. F., and K. Paigen. "Catabolite Inhibition: A General Phenomenon in the Control of Carbohydrate Utilization." *Journal of Bacteriology* 100.2 (1969): 902-913.
+
+[^6]: Nishizaki, T., et al. "Metabolic Engineering of Carotenoid Biosynthesis in Escherichia Coli by Ordered Gene Assembly in Bacillus Subtilis." *Applied and Environmental Microbiology* 73.4 (2007): 1355-1361. [DOI:10.1128/AEM.02268-06](https://doi.org/10.1128/AEM.02268-06)
+
+[^7]: Pauthenier, Cyrille. "BBF RFC 92: The GoldenBricks Assembly: A Standardized One-Shot Cloning Technique for Complete Cassette Assembly." *BBF RFC 92* (2012). [Link](https://pdfs.semanticscholar.org/fa8c/d932c1537ad367e2c12504bda6d52f5e793f.pdf)
+
+[^8]: Wang, Hu, et al. "Plants Against Cancer: A Review on Natural Phytochemicals in Preventing and Treating Cancers and Their Druggability." *Anti-Cancer Agents in Medicinal Chemistry* 12.10 (2012): 1281-1305.
