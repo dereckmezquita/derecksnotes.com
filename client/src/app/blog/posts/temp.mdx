@@ -1,0 +1,251 @@
+---
+title: "Git & GitHub: Some Notes"
+blurb: "Tingly head, warm stomach"
+coverImage: 47
+author: "Dereck Mezquita"
+date: 2019-12-27
+
+tags: [computer-science, programming, code, web-development]
+published: true
+comments: true
+---
+
+This article provides a quick reference for using Git and GitHub, primarily in the context of version management. It includes installation, configuration, basic Git workflows, and some helpful commands for day-to-day operations. All commands shown are intended to be run in a terminal, such as Visual Studio Code's integrated terminal[^1].
+
+[^1]: [Git-Commands](https://github.com/joshnh/Git-Commands)
+
+## Installing and Configuring Git
+
+If you are on macOS, Git may already be installed. Check by running:
+
+```bash
+git version
+```
+
+If it's not installed, you will be prompted to install it, or you can use Homebrew:
+
+```bash
+brew install git
+```
+
+Next, configure Git with your name and email (required for commit metadata):
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "youremail@example.com"
+```
+
+Set your preferred editor (here using Visual Studio Code):
+
+```bash
+git config --global core.editor "code -w"
+```
+
+Test the configuration by editing Git's global config file:
+
+```bash
+git config --global -e
+```
+
+If Git repeatedly asks for your username and password, you can store credentials. To never be asked again:
+
+```bash
+git config --global credential.helper store
+git config --global credential.https://github.com.username <your_username>
+```
+
+Or to cache credentials temporarily (for a session):
+
+```bash
+git config --global credential.helper cache
+git config --global credential.helper 'cache --timeout=1000'
+```
+
+<Alert type='warning'>
+These instructions are for macOS. On Linux or Windows, you may need different steps.
+</Alert>
+
+## Understanding Git's States
+
+Git has three main states that files move through: the working directory, the staging area, and the repository. Conceptually, code starts in your working directory. When you modify files, they remain in the working directory until you “stage” them. Staging prepares changes for your next commit. Once committed, changes become part of the repository's history.
+
+<style>
+    {`
+    #illustration-flow {
+        display: block;
+        position: relative;
+        margin: 0 auto;
+        width: fit-content;
+        padding: 20px;
+    }
+    .illustration-flow-text {
+        display: inline;
+        padding: 0px;
+        text-align: center;
+
+        /* text-shadow: 2px 2px 30px black; */
+
+        letter-spacing: -0.05em;
+        font-family: "Fjalla One", sans-serif;
+        font-weight: bolder;
+        font-size: 20px;
+        -webkit-transform: scale(1.35, 1.3);
+        transform: scale(1.35, 1.3);
+    }
+    .illustration-colour-one {
+        color: #ef0000;
+    }
+    .illustration-colour-two {
+        color: orange;
+    }
+    .illustration-colour-three {
+        color: #ffd700;
+    }
+    .illustration-colour-four {
+        color: #00c000;
+    }
+    .illustration-colour-five {
+        color: blue;
+    }
+    .illustration-colour-six {
+        color: indigo;
+    }
+    .illustration-colour-seven {
+        color: violet;
+    }
+    .illustration-arrow {
+        color: #00ff08;
+        padding: 0px;
+    }
+    `}
+</style>
+
+<div>
+    <div id="illustration-flow">
+        <div class="illustration-flow-text illustration-colour-one">
+            Working directory
+        </div>
+        <div class="illustration-flow-text illustration-arrow">
+            &darr;
+        </div>
+        <div class="illustration-flow-text illustration-colour-two">
+            Staging area
+        </div>
+        <div class="illustration-flow-text illustration-arrow">
+            &darr;
+        </div>
+        <div class="illustration-flow-text illustration-colour-three">
+            Repository (.git directory)
+        </div>
+        <div class="illustration-flow-text illustration-arrow">
+            &darr;
+        </div>
+        <div class="illustration-flow-text illustration-colour-four">
+            Remote server (.git directory)
+        </div>
+    </div>
+    <figcaption>Movement of files and directories in git.</figcaption>
+</div>
+
+We can also consider the “remote” as a fourth state, representing the remote repository on a server like GitHub.
+
+```
+Working Directory → Staging Area → Repository (.git) → Remote (GitHub)
+```
+
+- **Working directory:** Your actual project files.
+- **Staging area:** A preview of what will go into your next commit.
+- **Repository (.git directory):** The history of all your commits.
+- **Remote:** A separate repository hosted remotely (e.g., on GitHub).
+
+## Basic Commands
+
+### Cloning or Creating a Repository
+
+| Command                                                           | Description                                      |
+|-------------------------------------------------------------------|--------------------------------------------------|
+| `git init`                                                        | Initialise a local Git repository.               |
+| `git clone https://github.com/[username]/[repository-name].git`   | Create a local copy of a remote repository.      |
+
+### Snapshotting
+
+| Command                           | Description                                                                                |
+|-----------------------------------|--------------------------------------------------------------------------------------------|
+| `git status`                      | Check the status of your working directory and staging area.                              |
+| `git add [file-name.ext]`         | Add a specific file to the staging area.                                                   |
+| `git add .`                       | Add all modified files to the staging area.                                                |
+| `git add -A`                      | Add all new, modified, and deleted files to the staging area.                              |
+| `git commit -m "[commit message]"`| Commit staged changes with a message. Without `-m` you will use the configured editor.      |
+| `git rm -r [file-name.ext]`       | Remove a file or directory and stage the removal.                                          |
+
+### Branching and Merging
+
+| Command                                                 | Description                                                                                        |
+|---------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| `git branch`                                            | List all local branches.                                                                           |
+| `git branch -a`                                         | List all branches (local and remote).                                                              |
+| `git branch [branch name]`                              | Create a new branch.                                                                               |
+| `git branch -d [branch name]`                           | Delete a local branch.                                                                             |
+| `git push origin --delete [branch name]`                | Delete a remote branch.                                                                            |
+| `git checkout -b [branch name]`                         | Create and switch to a new branch.                                                                 |
+| `git checkout -b [branch name] origin/[branch name]`    | Clone a remote branch locally and switch to it.                                                     |
+| `git branch -m [old branch name] [new branch name]`     | Rename a local branch.                                                                             |
+| `git checkout [branch name]`                            | Switch to an existing branch.                                                                      |
+| `git checkout -`                                        | Switch to the most recently checked-out branch.                                                    |
+| `git checkout -- [file-name.ext]`                       | Discard changes in the working directory for a file.                                               |
+| `git merge [branch name]`                               | Merge a branch into the currently active branch.                                                   |
+| `git merge [source branch] [target branch]`             | Merge a branch into a specified target branch.                                                     |
+| `git stash`                                             | Temporarily stash changes when you are not ready to commit.                                        |
+| `git stash clear`                                       | Remove all stashed changes.                                                                        |
+
+### Sharing or Updating Projects
+
+| Command                                                           | Description                                              |
+|-------------------------------------------------------------------|----------------------------------------------------------|
+| `git push origin [branch name]`                                   | Push a branch to your remote repository.                |
+| `git push -u origin [branch name]`                                | Push changes and set the upstream branch for tracking.  |
+| `git push`                                                        | Push changes to the remote repository (if upstream is set). |
+| `git push origin --delete [branch name]`                          | Delete a remote branch.                                 |
+| `git pull`                                                        | Update local repository to the newest commit from remote. |
+| `git pull origin [branch name]`                                   | Pull changes from a remote repository branch.           |
+| `git remote add origin ssh://git@github.com/[username]/[repository-name].git` | Add a remote repository via SSH. |
+| `git remote set-url origin ssh://git@github.com/[username]/[repository-name].git` | Change the remote URL to SSH. |
+
+### Inspecting and Comparing
+
+| Command                                      | Description                                             |
+|----------------------------------------------|---------------------------------------------------------|
+| `git log`                                    | View commit history.                                    |
+| `git log --summary`                          | View detailed commit history (files changed, etc.).      |
+| `git log --oneline`                          | View a simplified commit history.                       |
+| `git diff [source branch] [target branch]`   | Compare changes between branches before merging.         |
+
+*(For more sophisticated diff and history viewing, tools like GitLens in VSCode are highly recommended.)*
+
+### Advanced Commands
+
+| Command                                                        | Description                                                                                             |
+|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `git config --global alias.[command-name] "[command chain]"`   | Create Git aliases. For example, `git config --global alias.hist "log --oneline --graph --decorate --all"` and then use `git hist`. |
+| `git mv [file-name.ext]`                                       | Rename a file and stage the move, preserving history. Commit to finalize.                               |
+| `git rm [file-name.txt]`                                       | Remove a file and stage the removal. Commit to finalize.                                                |
+| `git add -u`                                                   | Update and stage changes to files that have been modified or deleted.                                   |
+
+## Excluding Files with `.gitignore`
+
+Use a `.gitignore` file to exclude files or directories from your repository. Each line of `.gitignore` specifies a pattern. For example, to ignore all `.log` files:
+
+```
+*.log
+```
+
+Don't forget to commit the `.gitignore` file so that it is tracked by the repository:
+
+```bash
+git add .gitignore
+git commit -m "Add .gitignore file"
+```
+
+---
+
+By following these notes and using the provided commands, you can streamline your workflow with Git and GitHub, maintain clean commit histories, and more easily manage branching and merging strategies for your projects.
