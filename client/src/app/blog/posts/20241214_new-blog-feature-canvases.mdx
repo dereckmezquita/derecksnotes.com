@@ -58,6 +58,7 @@ comments: true
     width={500}
     height={400}
 />
+
 ## Fractal Demo: Sierpinski Triangle
 
 The Sierpinski Triangle is a classic fractal formed by repeatedly subdividing a triangle into smaller triangles and removing the central one. We'll implement a simple recursive approach to draw it.
@@ -78,14 +79,12 @@ The Sierpinski Triangle is a classic fractal formed by repeatedly subdividing a 
         ctx.fill();
     }
 
-    // Recursive Sierpinski function
     function sierpinski(ctx, x1, y1, x2, y2, x3, y3, depth) {
         if (depth === 0) {
             drawTriangle(ctx, x1, y1, x2, y2, x3, y3, '#000000');
             return;
         }
 
-        // Midpoints of each side
         const x12 = (x1 + x2) / 2;
         const y12 = (y1 + y2) / 2;
         const x23 = (x2 + x3) / 2;
@@ -93,7 +92,6 @@ The Sierpinski Triangle is a classic fractal formed by repeatedly subdividing a 
         const x31 = (x3 + x1) / 2;
         const y31 = (y3 + y1) / 2;
 
-        // Recursively draw smaller triangles
         sierpinski(ctx, x1, y1, x12, y12, x31, y31, depth - 1);
         sierpinski(ctx, x12, y12, x2, y2, x23, y23, depth - 1);
         sierpinski(ctx, x31, y31, x23, y23, x3, y3, depth - 1);
@@ -101,16 +99,140 @@ The Sierpinski Triangle is a classic fractal formed by repeatedly subdividing a 
 
     const width = canvas.width;
     const height = canvas.height;
-
-    // Coordinates of a large upright triangle that fits the canvas
     const x1 = width / 2;
     const y1 = 0;
     const x2 = 0;
     const y2 = height;
     const x3 = width;
     const y3 = height;
-
-    // Depth controls how many times we subdivide
     const depth = 6;
     sierpinski(ctx, x1, y1, x2, y2, x3, y3, depth);
-`} />
+`} width={400} height={300} />
+
+## Fractal Demo: Koch Snowflake
+
+<CanvasWithJs code={`
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+
+    function drawLine(ctx, x1, y1, x2, y2) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+    }
+
+    function koch(ctx, x1, y1, x2, y2, depth) {
+        if (depth === 0) {
+            drawLine(ctx, x1, y1, x2, y2);
+            return;
+        }
+
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const xA = x1 + dx / 3;
+        const yA = y1 + dy / 3;
+        const xB = x1 + 2 * dx / 3;
+        const yB = y1 + 2 * dy / 3;
+
+        const angle = Math.PI / 3; 
+        const mx = xA + (dx/3)*Math.cos(angle) - (dy/3)*Math.sin(angle);
+        const my = yA + (dx/3)*Math.sin(angle) + (dy/3)*Math.cos(angle);
+
+        koch(ctx, x1, y1, xA, yA, depth - 1);
+        koch(ctx, xA, yA, mx, my, depth - 1);
+        koch(ctx, mx, my, xB, yB, depth - 1);
+        koch(ctx, xB, yB, x2, y2, depth - 1);
+    }
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const size = Math.min(width, height) * 0.7;
+    const xCenter = width / 2;
+    const yCenter = height / 2;
+
+    const x1 = xCenter - size / 2;
+    const y1 = yCenter + size / (2 * Math.sqrt(3));
+    const x2 = xCenter + size / 2;
+    const y2 = y1;
+    const x3 = xCenter;
+    const y3 = yCenter - size / Math.sqrt(3);
+
+    const depth = 4;
+    koch(ctx, x1, y1, x2, y2, depth);
+    koch(ctx, x2, y2, x3, y3, depth);
+    koch(ctx, x3, y3, x1, y1, depth);
+`} width={400} height={300} />
+
+## Fractal Demo: Fractal Tree
+
+<CanvasWithJs code={`
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+
+    function drawBranch(ctx, x, y, length, angle, depth, branchWidth) {
+        if (depth === 0) return;
+
+        ctx.lineWidth = branchWidth;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+
+        const x2 = x + length * Math.cos(angle);
+        const y2 = y + length * Math.sin(angle);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Branch reduction
+        const newLength = length * 0.7;
+        const newDepth = depth - 1;
+        const newBranchWidth = branchWidth * 0.7;
+
+        // Draw right branch
+        drawBranch(ctx, x2, y2, newLength, angle + Math.PI/4, newDepth, newBranchWidth);
+        // Draw left branch
+        drawBranch(ctx, x2, y2, newLength, angle - Math.PI/4, newDepth, newBranchWidth);
+    }
+
+    const centerX = canvas.width / 2;
+    const bottomY = canvas.height;
+    drawBranch(ctx, centerX, bottomY, 60, -Math.PI/2, 8, 6);
+`} width={300} height={400} />
+
+## Lissajous Curve Demo
+
+Lissajous curves are patterns formed by the combination of two perpendicular harmonic oscillations. Changing the frequencies and phases creates different patterns.
+
+<CanvasWithJs code={`
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+
+    // Parameters of the Lissajous curve
+    const A = 100; // Amplitude in X direction
+    const B = 100; // Amplitude in Y direction
+    const a = 3;   // Frequency in X direction
+    const b = 2;   // Frequency in Y direction
+    const delta = Math.PI / 2; // Phase shift
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+
+    const steps = 1000;
+    for (let t = 0; t <= steps; t++) {
+        const theta = (t / steps) * 2 * Math.PI;
+        const x = centerX + A * Math.sin(a * theta + delta);
+        const y = centerY + B * Math.sin(b * theta);
+        if (t === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+
+    ctx.stroke();
+`} width={400} height={300} />
