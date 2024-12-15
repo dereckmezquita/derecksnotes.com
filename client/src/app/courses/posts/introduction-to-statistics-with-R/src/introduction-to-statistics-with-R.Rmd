@@ -1,0 +1,1740 @@
+---
+title: "Introduction to Statistics"
+blurb: "Blue and white mean war"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+# Introduction and Overview
+
+## Setting the Stage
+
+### Motivation for Studying Statistics
+
+Statistics, at its core, is the discipline that allows us to quantify uncertainty, extract patterns from chaos, and make informed decisions in the face of complexity. Whether we are investigating the effectiveness of a new drug, understanding economic trends, predicting climate change scenarios, or exploring genomic data, statistics provides the tools to move beyond anecdotal evidence and reveal deeper truths about the world.
+
+- **Bridging Data and Decision-Making:**
+    - Data is ubiquitous in today’s world—generated continuously by sensors, social media, laboratories, and more.
+    - Without rigorous statistical methods, data is merely an overwhelming mass of numbers or characters.
+    - Statistics helps transform raw data into actionable knowledge. It guides us in:
+        - Identifying trends, patterns, and relationships.
+        - Quantifying uncertainty and measuring confidence in conclusions.
+        - Making predictions and informed policy or business decisions.
+
+- **From Description to Inference:**
+    - **Descriptive statistics** summarise and describe observed data.
+    - **Inferential statistics** extends beyond the observed sample, enabling predictions and conclusions about larger populations and unseen phenomena.
+    - This dual role of describing and inferring underpins scientific advancement, allowing researchers to replicate, validate, and build upon prior work.
+
+- **Beyond the Basics—PHD-level Engagement:**
+    - At the doctoral level, the study of statistics transcends memorising formulas and applying standard tests.
+    - We delve into theoretical underpinnings, asymptotic properties, rigorous derivations, and the conditions under which methods are reliable.
+    - We consider the philosophical and ethical dimensions of data interpretation, seeking to understand not just how to apply a technique, but why it works, when it fails, and how to innovate new methods when standard tools are inadequate.
+
+**Analogy:** Consider a complex painting (your dataset) in a dark room. Statistics is the light source, the lens, and the interpretive framework allowing you to discern shapes, colours, and depth. Without this discipline, the painting remains a shadowy enigma—impossible to interpret with confidence.
+
+**Practical Demonstration in R:**  
+Let’s illustrate a simple motivational example. Suppose we have a dataset of measurements—like heights of individuals in a population. We might start by exploring these measurements with a few descriptive statistics and a basic plot. This gives a taste of how we can bring order to data and begin gleaning insights.
+
+\`\`\{r motivating-example, echo=TRUE, message=FALSE, warning=FALSE\}
+# Simulate a dataset of heights (in cm) for 1000 individuals
+set.seed(123)
+heights <- rnorm(1000, mean = 170, sd = 10)
+
+# Compute basic descriptive statistics
+mean_height <- mean(heights)
+median_height <- median(heights)
+sd_height <- sd(heights)
+
+# Print out some key measures
+cat("Mean height:", mean_height, "cm\n")
+cat("Median height:", median_height, "cm\n")
+cat("Standard deviation:", sd_height, "cm\n")
+
+# Visualise the distribution
+hist(heights,
+     breaks = 30,
+     col = "steelblue",
+     main = "Distribution of Simulated Heights",
+     xlab = "Height (cm)",
+     border = "white")
+\`\`\`
+
+Here, we’ve already started to see how the numbers take shape. The histogram is a simple visual anchor, guiding our intuition about data spread and central tendencies.
+
+### Interdisciplinary Nature of Statistical Methods
+
+Statistics is not confined to a single domain. Its frameworks, methods, and philosophies permeate every field that grapples with uncertainty and complexity:
+
+- **Biological & Medical Sciences:**
+    - Clinical trials to assess the efficacy of treatments.
+    - Epidemiological models to track the spread of diseases.
+    - Genomic studies to identify markers associated with particular traits or conditions.
+    - Bioinformatics pipelines for analysing high-throughput sequencing data.
+
+- **Physical & Environmental Sciences:**
+    - Analysing particle collisions in high-energy physics experiments.
+    - Climate modeling, predicting temperature rises and precipitation patterns.
+    - Remote sensing and spatial statistics to understand deforestation or ice cap melting.
+
+- **Social & Behavioural Sciences:**
+    - Psychological testing and validation of scales for mental health assessment.
+    - Econometric models to understand market dynamics or the effect of policies.
+    - Sociological surveys to gauge public opinion and cultural shifts.
+
+- **Engineering & Technology:**
+    - Quality control and reliability engineering.
+    - Signal processing and control systems analysis.
+    - Machine learning and data mining for sensor data or IoT devices.
+
+- **Business, Finance, & Industry:**
+    - Risk assessment and portfolio optimization in finance.
+    - Marketing analytics, A/B testing for product features.
+    - Operations research for supply chain and logistics efficiency.
+
+The same foundational principles—estimation, hypothesis testing, regression, model selection—adapt to the unique nuances of each domain. This interdisciplinary reach means that a deep understanding of statistics magnifies the impact of your work in nearly any scientific or professional arena.
+
+**In R:** Different fields often come with diverse data formats. The beauty of R is its flexibility and ecosystem of packages tailored for various domains. For instance:
+
+- `survival` package for medical and biological time-to-event data.
+- `sp`, `sf`, or `raster` for spatial and environmental data.
+- `quantmod` or `xts` for financial time series.
+
+As we advance through this course, we will introduce relevant packages and demonstrate how generic statistical methods can be applied to diverse data types.
+
+### Statistical Thinking and the Scientific Method
+
+The interplay between statistics and the scientific method is profound. While science offers a conceptual framework for discovering truths about the universe, statistics provides the rigorous methods to test and refine these truths.
+
+- **Observation and Hypothesis Formulation:**
+    - Scientists observe phenomena and propose hypotheses.
+    - Statistics guides the collection and structuring of data to test these hypotheses.
+    - Consider experimental design: randomisation, replication, and blocking strategies ensure that the data we gather can meaningfully address the hypotheses.
+
+- **Modeling and Theory Building:**
+    - Scientific theories are often expressed in mathematical or conceptual models.
+    - Statistical inference allows us to fit these models to data, estimate parameters, and quantify uncertainty.
+    - This results in moving from a qualitative statement (“If we give drug X, patients improve”) to a quantitative framework (“Drug X increases the survival rate by Y% with a Z% confidence interval”).
+
+- **Empirical Testing and Validation:**
+    - Reproducibility is a cornerstone of the scientific method.
+    - Statistics ensures reproducible and transparent analyses by:
+        - Providing guidelines for sample size and power calculations.
+        - Encouraging open data practices, code sharing, and pre-registration of studies.
+    - The scientific community relies heavily on peer review and replication studies, both of which rest on statistical rigor.
+
+- **From Correlation to Causation:**
+    - While science seeks causal explanations, raw data often only yields correlations.
+    - Advanced statistical frameworks (e.g., causal inference, instrumental variables, directed acyclic graphs) help disentangle correlation from causation.
+    - This careful distinction is critical for guiding policy, informing medical treatments, and advancing technological interventions.
+
+**Analogy:** If the scientific method is a voyage of discovery, statistics is the compass and the star map. It ensures we navigate from initial curiosity to tested, validated knowledge rather than drifting aimlessly.
+
+**Practical Demonstration in R:**  
+As a simple demonstration, consider an experiment where we want to know if a certain supplement improves test scores. The scientific method would have us formulate a hypothesis: “This supplement improves cognitive performance.” Statistics then guides how we design and analyse a simulated experiment.
+
+\`\`\{r scientific-method-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Simulate an experiment:
+# Suppose we have two groups: Control and Treatment (with supplement).
+set.seed(123)
+control_scores <- rnorm(50, mean = 75, sd = 10)   # Control group scores
+treatment_scores <- rnorm(50, mean = 78, sd = 10) # Treatment group scores
+
+# Hypothesis testing: We can use a t-test to see if there's a difference in means
+test_result <- t.test(treatment_scores, control_scores, var.equal = TRUE)
+
+test_result
+\`\`\`
+
+In this example, even though it’s simplistic and simulated, the logic stands. We had a question (does the supplement improve scores?), collected data (two groups of scores), and applied a statistical test (t-test) to see if the observed difference in means is significant. This straightforward workflow underpins countless scientific investigations, from clinical trials to astrophysical observations.
+
+---
+
+In the upcoming sections of this course, we will continue to deepen our understanding of both the theoretical and practical aspects of statistics. We will move from these foundational motivations and conceptual frameworks into the rigor of probability theory, descriptive and inferential methods, and more advanced analytical techniques. By the end, we aim to empower you not only to perform statistical analyses with precision and confidence but also to critically evaluate and develop new statistical methodologies suitable for the complex data challenges of the modern era.
+
+# Course Aims and Objectives
+
+## Intended Audience (Graduate, Doctoral, Postdoc)
+
+This course is explicitly designed for an advanced audience—namely those at the graduate (Masters), doctoral (PhD), or postdoctoral level. However, the scope and depth are such that even seasoned researchers seeking a more rigorous statistical foundation will find the materials valuable. In particular, we assume that:
+
+- **Background Knowledge:**
+    - Learners have a solid grounding in undergraduate-level mathematics, including calculus, linear algebra, and introductory probability.
+    - Some familiarity with basic statistical concepts (e.g., mean, variance, simple hypothesis testing) is expected, but we will revisit and deepen these notions.
+    - Exposure to programming basics, ideally in R, is helpful, though we will cover enough foundational material to bring relative newcomers up to speed.
+
+- **Analytical Mindset:**
+    - Participants are prepared to engage critically with theoretical concepts rather than treating formulas as "black boxes."
+    - They are comfortable with reading and digesting mathematical proofs, understanding derivations, and working through theoretical exercises.
+
+- **Research-Oriented Approach:**
+    - This course aims to support learners who are actively conducting research or are preparing to do so.
+    - The emphasis is on translating statistical theory into robust, reproducible analytical workflows that can be integrated into scientific research protocols.
+
+By tailoring the content to this audience, we ensure that the discussion goes well beyond surface-level techniques, guiding learners through the intricacies and subtleties of statistical reasoning at a professional research level.
+
+## Skills and Competencies to be Developed
+
+The curriculum is designed to produce researchers who are not only proficient in running standard analyses but also capable of innovating new solutions to novel problems. We aim to foster a deep, working knowledge of statistics along several dimensions:
+
+- **Theoretical and Conceptual Mastery:**
+    - **Core Understanding of Probability and Inference:**  
+      Learners will develop a robust understanding of the axioms of probability, distribution theory, limit theorems, and the rigorous foundations of statistical inference (frequentist and Bayesian paradigms).
+    - **Model Construction and Assumption Checks:**  
+      Participants will gain the ability to critically evaluate model assumptions, choose appropriate distributions, and understand the conditions under which estimators are consistent, efficient, and unbiased.
+    - **Asymptotic Reasoning and Large-Sample Theory:**  
+      Beyond finite-sample methods, learners will delve into asymptotic frameworks that guide the interpretation and limitations of common statistical procedures.
+
+- **Computational and Practical Proficiency:**
+    - **R Programming for Data Analysis:**  
+      Through numerous examples and assignments, learners will become fluent in the R language for data manipulation, visualisation, and the implementation of complex statistical methods.
+    - **Advanced Modelling and Simulation:**  
+      Participants will learn to fit and validate complex models (e.g., GLMs, hierarchical models, Bayesian models), run simulations to understand sampling distributions, and conduct large-scale analyses efficiently.
+    - **Reproducible Research Workflows:**  
+      The course will emphasise best practices in reproducible research: using version control (Git), literate programming (RMarkdown, Quarto), and standardised project structures to ensure transparency and sustainability of analyses.
+
+- **Critical Thinking and Scholarly Communication:**
+    - **Interpretation of Results and Communication of Uncertainty:**  
+      Learners will enhance their ability to interpret statistical results in a broader scientific context, effectively communicate uncertainties, and avoid common interpretational pitfalls.
+    - **Critical Appraisal of Literature:**  
+      Participants will develop the skills to critique statistical methods used in published research, identify strengths and weaknesses, and propose improvements.
+    - **Ethical and Philosophical Considerations:**  
+      The curriculum encourages reflection on ethical data usage, the philosophical underpinnings of inference, and the responsibility to communicate findings responsibly and accurately.
+
+The end goal is to produce not just competent data analysts, but well-rounded, critically minded statisticians who can contribute rigorously to their respective fields.
+
+## Assessment Structure and Final Project Expectations
+
+To ensure that learners achieve the desired competencies, the course employs a multi-faceted assessment framework. Evaluation goes beyond simple quizzes, aiming to develop and assess the learner’s breadth and depth of understanding, computational skills, and ability to apply statistics creatively to real-world problems.
+
+- **Regular Problem Sets:**
+    - **Theoretical Problem Sets:**  
+      Exercises focusing on probability derivations, proofs of theoretical results, and working through asymptotic properties of estimators. Expect to engage deeply with mathematics, including reading research-level proofs and attempting novel derivations.
+    - **Computational Exercises:**  
+      Assignments where learners implement statistical methods in R, perform simulations, and interpret the outputs. For instance:
+      ```r
+      # Example snippet for a computational exercise:
+      # Task: Implement a Monte Carlo simulation to estimate the bias of the sample mean estimator.
+      
+      set.seed(42)
+      N <- 10^4
+      sample_size <- 50
+      true_mean <- 5
+      draws <- replicate(N, mean(rnorm(sample_size, mean = true_mean, sd = 2)))
+      bias_estimate <- mean(draws) - true_mean
+      cat("Estimated Bias of Sample Mean:", bias_estimate, "\n")
+      ```
+      Learners might be asked to modify such code to explore the properties of estimators under different conditions, distributions, or sample sizes.
+
+- **Midterm and Final Exams:**
+    - **Midterm Exam:**  
+      A combination of theoretical and applied questions testing the first half of the course content. Students may be required to:
+        - Derive and prove properties of estimators.
+        - Analyse small datasets and draw appropriate statistical conclusions.
+        - Critically discuss the assumptions of a given method and how violations affect results.
+    - **Final Exam:**  
+      Covers the entire scope of the course, integrating advanced topics like Bayesian methods, high-dimensional techniques, and the interpretation of sophisticated models.
+
+- **Final Project:**
+    - **Proposal and Approval:**  
+      Each participant proposes a project reflecting their research interests. This involves selecting a dataset (either their own research data or a publicly available dataset), framing a set of research questions, and outlining the statistical methods they intend to use.
+    - **Execution of Analysis:**
+      - Data Cleaning and Exploration: Demonstrating mastery over EDA and dealing with complexities such as missing data, outliers, or high-dimensional structures.
+      - Model Building and Validation: Applying one or more advanced modelling strategies covered in the course. Examples might include:
+        - Fitting a hierarchical model to longitudinal data and evaluating model fit.
+        - Conducting Bayesian inference using MCMC for parameter estimation.
+        - Implementing variable selection methods (like Lasso) in a regression setting to handle a large number of predictors.
+      - Communicating Results: Producing a well-structured RMarkdown (or Quarto) report that integrates:
+        - Theoretical justification for chosen methods.
+        - Clear visualisations using `ggplot2` or interactive dashboards.
+        - Reproducible code chunks demonstrating analytical steps.
+    - **Peer Review and Revision:**
+      Participants will be encouraged to share their project drafts with peers for constructive critique. Incorporating feedback and demonstrating responsiveness to critiques will be part of the assessment.
+    - **Final Submission and Oral Presentation:**
+      Students submit their final report and may give a short oral presentation (recorded or live) explaining their findings, the statistical rationale behind their choices, and answering critical questions.
+
+**Outcome:** By the conclusion of the course, the assessment structure ensures that learners are not only able to apply rigorous statistical techniques to real data but can do so in a manner that is transparent, reproducible, and theoretically grounded. They will have experienced the entire analytical pipeline—from initial data exploration, through model fitting and inference, to final reporting and defending their conclusions.
+
+This holistic assessment approach ensures that learners emerge as confident, independent statisticians who can critically engage with complex data challenges and contribute meaningfully to the scientific community.
+
+# Introduction and Overview
+
+## Why Use R?
+
+### The Philosophy Behind R
+
+R is much more than a programming language—it embodies a philosophy deeply intertwined with the statistical community’s pursuit of open, transparent, and reproducible research. Unlike many proprietary tools, R was born in the academic sphere, developed by statisticians who sought a flexible, extensible environment that could keep pace with the rapidly evolving landscape of statistical methodology. The result is an ecosystem that fosters innovation, community-driven development, and a rich interplay between theory and application.
+
+- **Community-Driven Heritage:**
+    - R traces its origins back to the S language, developed at Bell Labs. Ross Ihaka and Robert Gentleman introduced R as a free implementation, open to everyone.
+    - Over time, hundreds of thousands of contributors—ranging from statisticians to data scientists, biologists, economists, and more—have enriched R’s capabilities.
+    - The open-source model means that cutting-edge statistical techniques quickly find their way into freely available R packages, keeping R at the frontier of statistical practice.
+
+- **A Language for Statistical Thinking:**
+    - R’s syntax and data structures were designed from the ground up to support statistical work. Operations on data frames, model fitting, visualisation, and summarisation flow naturally, mirroring how a statistician thinks.
+    - Complex methods—like mixed-effects models, Bayesian inference, or machine learning—can be implemented consistently, allowing users to move from simple exploratory analysis to advanced modelling seamlessly.
+
+- **Learning from Analogies:**
+    - Imagine statistical analysis as craftwork. Many popular software tools are like specialised power tools: efficient for one job but rigid. R, by contrast, is more like a fully equipped workshop—versatile, modifiable, and ready for custom builds. You’re never limited to a single predefined path. Instead, you craft unique solutions from a vast array of tools, each designed, tested, and often refined by a global community of experts.
+
+**R Demonstration:**  
+Here’s a small snippet to give a feel for R’s philosophy. Suppose we have a dataset representing daily sales of a product. We can quickly summarise and visualise it, encouraging an exploratory mindset right from the start.
+
+\`\`\{r philosophy-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+sales_data <- rpois(100, lambda = 20)  # Generate daily sales data
+mean_sales <- mean(sales_data)
+sd_sales <- sd(sales_data)
+
+cat("Average Daily Sales:", mean_sales, "\n")
+cat("Standard Deviation of Sales:", sd_sales, "\n")
+
+hist(sales_data,
+     main = "Distribution of Daily Sales",
+     xlab = "Number of Units Sold",
+     col = "lightblue",
+     border = "white")
+\`\`\`
+
+This short code block encapsulates the R philosophy: a few lines of code let us simulate data, compute statistics, and generate a quick diagnostic plot, all without leaving the statistical environment. The spirit of R is in enabling this fluid analytic process.
+
+### R as an Ecosystem for Statistical Computing
+
+The power of R lies not just in the core language, but in its extensive ecosystem. Think of R as a living universe of packages, frameworks, and tools that cater to every conceivable statistical and data-analytic need.
+
+- **CRAN and Beyond:**
+    - The Comprehensive R Archive Network (CRAN) hosts over 18,000 packages, covering a staggering array of methods.
+    - From classical methods (ANOVA, regression, time series) to the latest machine learning algorithms and specialised domain applications (bioinformatics with `Bioconductor`, spatial statistics with `sf` and `raster`), you’ll find a dedicated package.
+    - The fact that anyone can contribute packages ensures a rapid dissemination of new methodologies. Emerging statistical techniques often appear in R form well before they’re implemented in other software.
+
+- **Integration with Other Languages and Systems:**
+    - R easily interacts with C/C++, Python, and Julia, enabling performance enhancements or integration with other data science pipelines.
+    - Data access is straightforward: reading from CSV, Excel, databases, or even APIs is streamlined.
+    - R’s flexibility allows complex workflows, from preprocessing large datasets to fitting intricate models and creating publication-ready graphics, all in one environment.
+
+- **Tools for Every Step of Analysis:**
+    - **Data Wrangling:** Packages like `dplyr`, `data.table`, and `tidyr` make data manipulation intuitive and fast.
+    - **Visualisation:** `ggplot2` revolutionised data visualisation by introducing the grammar of graphics. Add-on packages like `plotly`, `ggthemes`, or `patchwork` further extend capabilities.
+    - **Modelling and Inference:** A vast library of packages (`lme4`, `rstanarm`, `mgcv`, `caret`, `glmnet`) provides methods for virtually any statistical model or learning algorithm you might need.
+    - **Reporting and Communication:** Integration with `rmarkdown`, `bookdown`, and `quarto` empowers you to convert analyses into dynamic, reproducible documents, presentations, and dashboards.
+
+**R Demonstration:**  
+To illustrate how R’s ecosystem supports even non-standard tasks, consider fitting a generalised linear model (GLM) and then seamlessly producing a visual diagnostic plot.
+
+\`\`\{r ecosystem-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Fit a Poisson regression model to the sales_data as if it were counts
+days <- 1:100
+model <- glm(sales_data ~ days, family = poisson(link = "log"))
+summary(model)
+
+# Visualise model fit
+library(ggplot2)
+pred_data <- data.frame(days = days)
+pred_data$pred <- predict(model, newdata = pred_data, type = "response")
+
+ggplot() +
+  geom_point(aes(x = days, y = sales_data), colour = "blue") +
+  geom_line(aes(x = days, y = pred), data = pred_data, colour = "red") +
+  labs(title = "Poisson Regression Fit",
+       x = "Day",
+       y = "Expected Sales") +
+  theme_minimal()
+\`\`\`
+
+This brief example shows how:
+- We used built-in functions to model count data.
+- Leveraged `ggplot2` for a professional-grade visualisation.
+- Stayed entirely within R, tapping into both statistical and graphical capabilities effortlessly.
+
+### Reproducibility, Open Science, and the R Community
+
+In the era of data-driven research, reproducibility and transparency are paramount. R’s design philosophy and community practices align perfectly with the ideals of open science.
+
+- **Reproducible Workflows:**
+    - By pairing R with literate programming tools like `rmarkdown` or `quarto`, analyses become self-documenting.  
+    - Code, data, results, and narrative coexist in a single document, ensuring that anyone can re-run the analysis and obtain identical outcomes.
+    - Version control systems (like Git), easily integrated with R projects, preserve the analytical history, promoting trust and replicability.
+
+- **Open Science in Action:**
+    - Methodological contributions often come as R packages on GitHub or CRAN, accompanied by vignettes, documentation, and test suites.
+    - Pre-registration of studies, sharing of code, and depositing data in open repositories are standard practices in many fields that rely on R.
+    - The R community’s ethos encourages questioning assumptions, testing new ideas, and making methods accessible. This openness accelerates scientific discovery.
+
+- **Global and Supportive Community:**
+    - Discussion forums like RStudio Community, R-help mailing lists, and Stack Overflow offer unparalleled support.
+    - Conferences (useR!, RStudio::conf), meetups, and hackathons foster networking, collaboration, and mentorship.
+    - Whether you’re struggling with code or want to contribute new methods, the community is a vibrant, responsive, and inclusive resource.
+
+**R Demonstration:**  
+Here’s how reproducibility can be woven into a project. We create a parameterised report that takes a dataset as input and generates a summary report automatically.
+
+*(Note: This is a conceptual snippet. In a real scenario, you’d store this code in an `.Rmd` file and run it with parameters. The code chunk below shows a simplified version.)*
+
+\`\`\{r reproducible-demo, echo=TRUE\}
+# Parameter setup (in a real .Rmd, these would be YAML parameters)
+data_input <- sales_data
+
+# Produce a summary table and save to a CSV for transparency
+summary_table <- data.frame(
+  Mean = mean(data_input),
+  Median = median(data_input),
+  SD = sd(data_input)
+)
+
+write.csv(summary_table, "summary_table.csv", row.names = FALSE)
+
+# Anyone with this script and data can reproduce results instantly
+cat("Reproducible summary of the data:\n")
+summary_table
+\`\`\`
+
+By integrating code, data, and output, we foster a pipeline that anyone can examine, verify, and build upon. This is the ethos of reproducible research—making science more robust, collaborative, and forward-looking.
+
+---
+
+In summary, R’s philosophy, its comprehensive ecosystem, and its deep alignment with reproducible, open science practices make it the ideal environment for advanced statistical learning and research. As we progress through this course, you’ll see firsthand how R empowers you to tackle complex analyses confidently, critically, and transparently.
+
+# Introduction and Overview
+
+## Preparatory Work
+
+### Installing and Configuring R and RStudio
+
+Before we begin our statistical journey, it is essential to set up a stable and productive environment. R and RStudio form the core pillars of this environment:
+
+- **R:**
+    - **What is R?**  
+      R is the statistical programming language we will be using throughout this course.  
+      Available freely from the Comprehensive R Archive Network (CRAN), it runs on Windows, macOS, and Linux.
+    - **Installation Steps:**  
+      1. Visit [CRAN](https://cran.r-project.org/) and select the download link for your operating system.  
+      2. Follow the platform-specific instructions to install. For most users, it’s as simple as running the provided installer.
+    - **Verifying Installation:**  
+      After installation, open a terminal (macOS/Linux) or Command Prompt (Windows) and type:
+      ```
+      R --version
+      ```
+      This should display the installed R version number. Alternatively, launch R directly to access the R console.
+
+- **RStudio:**
+    - **Why RStudio?**  
+      RStudio is an Integrated Development Environment (IDE) designed specifically for R, enhancing productivity with features like syntax highlighting, project management, version control integration, and a built-in viewer for graphics.
+    - **Installation Steps:**  
+      1. Download RStudio from [RStudio Downloads](https://posit.co/download/rstudio-desktop/).  
+      2. Install following your operating system’s instructions.
+    - **First Launch:**  
+      Open RStudio. You’ll see:
+        - A console pane for running R code interactively.
+        - A script editor for writing and saving code files.
+        - A workspace pane showing your environment variables.
+        - A plots and files pane to manage outputs.
+    - **Configuring RStudio Preferences:**  
+      In RStudio, go to *Tools > Global Options*:
+        - **Appearance:** Adjust themes, font sizes, and zoom levels to match personal comfort.
+        - **Packages:** Set a CRAN mirror close to your geographic location for faster downloads.
+        - **Code:** Enable soft-wrap, set tab widths, and configure saving/sourcing options.
+
+**R Demonstration:**  
+Once R and RStudio are installed, try running a simple piece of code in the RStudio console:
+
+\`\`\{r first-run, echo=TRUE\}
+x <- rnorm(10)
+mean(x)
+\`\`\`
+
+This simple snippet generates 10 random numbers from a normal distribution and computes their mean. If you can run this without errors, your environment is ready.
+
+### Overview of RMarkdown and Quarto
+
+Modern statistical analyses are not just about computations—they’re about communication. RMarkdown and Quarto are tools that enable you to integrate code, output, and narrative text in a single, reproducible report.
+
+- **RMarkdown:**
+    - **What is RMarkdown?**  
+      RMarkdown uses a simple plain-text formatting syntax (Markdown) combined with code chunks (R, Python, etc.) to produce dynamic documents.
+    - **Creating an RMarkdown File:**  
+      In RStudio, go to *File > New File > R Markdown...* and follow the prompts.  
+      This creates a `.Rmd` file containing:
+        - A YAML header specifying the title, author, and output format.
+        - Text with Markdown formatting for headings, lists, links, and images.
+        - Code chunks delimited by \`\`\{r\} and \`\`\` (escaped here as \`\`\{r\} ... \`\`\` to avoid rendering issues).
+    - **Knit and Render:**  
+      Click the “Knit” button in RStudio to render the `.Rmd` file into HTML, PDF, or Word. The rendered document includes code, output, and figures, ensuring the analysis is both transparent and reproducible.
+
+- **Quarto:**
+    - **Next-Generation Document Engine:**  
+      Quarto is a more recent tool that generalises the RMarkdown concept, supporting multiple languages and output formats with a unified syntax.
+    - **Why Use Quarto?**  
+      Quarto extends the reproducible reporting paradigm beyond RMarkdown, integrating with Jupyter, supporting notebooks, and providing advanced publishing options.
+    - **Installing Quarto:**  
+      Visit [Quarto Downloads](https://quarto.org/docs/download/) and follow installation instructions.  
+      Once installed, you can create `.qmd` files similar to `.Rmd` and render them using the `quarto` CLI tool or within RStudio.
+    - **Example Workflow:**
+      1. Create a new `.qmd` file.
+      2. Insert code chunks using the same syntax as RMarkdown.
+      3. Render the document to a variety of formats (HTML, PDF, reveal.js presentations) using:
+         ```
+         quarto render my_document.qmd
+         ```
+
+**R Demonstration:**  
+Here’s a minimal RMarkdown code chunk illustrating a simple summary:
+
+\`\`\{r rmarkdown-demo, echo=TRUE\}
+# Simulate some data
+set.seed(123)
+data_values <- rnorm(100, mean = 0, sd = 1)
+
+# Compute a summary statistic
+cat("Mean:", mean(data_values), "SD:", sd(data_values), "\n")
+\`\`\`
+
+When knitted, this code will appear inline in the final document with both code and results visible.
+
+### File Structures, Project Management, and Version Control Basics
+
+As analyses become more complex—spanning multiple scripts, data files, and outputs—it’s crucial to maintain an organised project structure. Good file organisation saves time, reduces confusion, and fosters reproducibility.
+
+- **Project Structures in RStudio:**
+    - **Creating an RStudio Project:**  
+      Go to *File > New Project...* This creates a dedicated project folder, giving you a self-contained environment with relative paths set correctly.
+    - **Recommended Directory Layout:**
+      ```
+      project_root/
+      ├─ data/          # Raw and processed data files
+      ├─ scripts/       # Analysis scripts and R functions
+      ├─ R/             # Optional directory for custom R functions
+      ├─ output/        # Generated figures, tables, and intermediate results
+      ├─ doc/           # RMarkdown or Quarto documents, final reports
+      └─ README.md       # Overview and instructions for collaborators
+      ```
+    - **Benefits of a Structured Project:**
+      - Quickly locate files and understand their purpose.
+      - Ensure that code references data and scripts using relative paths, making the project easily portable.
+      - Separate raw data from generated results, ensuring you always know which files are original and which are derived.
+
+- **Version Control:**
+    - **Why Version Control?**  
+      Data analysis often involves iterative changes—testing new models, refining cleaning routines, and adjusting parameters.
+      Without version control, tracking these changes or reverting to an earlier stable state is cumbersome.
+    - **Git and GitHub:**
+      - **Git:** A version control system that tracks changes to files over time.
+      - **GitHub:** A cloud-based repository hosting service that allows you to store your Git-managed projects, collaborate with others, and maintain code history.
+    - **Setting Up Git in RStudio:**
+      1. Install Git from [Git Downloads](https://git-scm.com/downloads).
+      2. In RStudio, go to *Tools > Global Options > Git/SVN* and specify the path to the Git executable.
+      3. Once configured, RStudio’s Git pane will allow you to:
+         - Commit changes with informative messages.
+         - Push and pull changes to and from a remote repository (e.g., GitHub).
+         - Manage branches, tags, and merges directly within the IDE.
+
+- **Basic Git Workflow:**
+    - **Stage and Commit Changes:**
+      - **Staging:** Mark files that you want to include in the next version snapshot.
+      - **Committing:** Finalise a snapshot of the project state with a descriptive message.
+    - **Branching and Merging:**
+      - **Branching:** Create separate lines of development for trying new ideas without altering the main codebase.
+      - **Merging:** Integrate changes from a branch back into the main line after testing.
+    - **History and Reverts:**
+      - Check the commit history to see how the project evolved.
+      - Revert to an older commit if new changes introduced issues.
+
+**R Demonstration:**  
+Although Git is not run directly in R scripts, you can manage version control from within RStudio. For example, after editing a script `scripts/analysis.R`:
+
+1. Click the Git tab in RStudio.
+2. You’ll see `analysis.R` listed with an M (modified) next to it.
+3. Stage the file and commit with a message like “Refine data cleaning steps.”
+4. Push the commit to GitHub for backup and collaboration.
+
+---
+
+By installing R and RStudio, mastering RMarkdown/Quarto, and adopting best practices in project organisation and version control, you lay a strong foundation for all subsequent work. This preparatory phase ensures that you can focus on the statistical methods and analyses themselves, rather than grappling with disorganised code or irreproducible results. As we move deeper into the course, these habits and tools will be indispensable for managing increasingly complex analytical projects.
+
+# Foundations of Statistical Reasoning
+
+## Historical and Philosophical Context
+
+### Early Foundations: From Gauss to Fisher
+
+The rich tapestry of statistical thought weaves together mathematical ingenuity, philosophical inquiry, and practical problem-solving. To understand where we are today, we first look back at the pioneering figures and ideas that established the modern foundations of statistics.
+
+- **Carl Friedrich Gauss (1777–1855):**
+    - Gauss introduced the concept of the normal distribution, originally arising from his work on astronomical observations and measurement errors.
+    - Known as the "Gaussian distribution," this bell-shaped curve models the idea that many natural phenomena and measurement errors cluster around a mean with symmetric variability.
+    - Gauss’s work on the method of least squares laid a crucial foundation for regression analysis. By minimising the sum of squared errors, he formalised a principle still at the heart of fitting linear models today.
+
+- **Adolphe Quetelet (1796–1874):**
+    - Quetelet applied statistical ideas to social science, coining the term "social physics."
+    - He demonstrated that human traits (like height) often follow stable, law-like distributions, suggesting an underlying regularity even in seemingly chaotic social data.
+
+- **Francis Galton (1822–1911):**
+    - Galton introduced concepts of correlation and regression to the mean.
+    - By studying heights of parents and offspring, he noticed that extreme traits tended to revert toward the population average over generations.
+    - This idea of regression provided a mathematical relationship between variables, paving the way for modern regression analysis.
+
+- **Karl Pearson (1857–1936):**
+    - Pearson expanded on correlation and introduced the chi-square test for goodness-of-fit.
+    - He was instrumental in formalising a comprehensive theory of distribution functions and advanced the field of biometrics.
+
+- **Ronald A. Fisher (1890–1962):**
+    - Fisher revolutionised statistics by rigorously defining concepts like maximum likelihood estimation, analysis of variance (ANOVA), and the design of experiments.
+    - He reconciled Mendelian genetics with Darwinian evolution using statistical methods, illustrating how theory and data interact symbiotically.
+    - Fisher’s emphasis on mathematical rigor and inference underpins much of classical statistics, providing tools to estimate parameters ($\hat{\theta}$) and test hypotheses with quantifiable uncertainty.
+
+**Analogy:**  
+Imagine the field of statistics as a grand cathedral. Gauss laid the foundations, ensuring the structure would rest on a solid bedrock (the normal distribution and least squares). Pearson and Galton added wings and altars (correlation, chi-square tests), and Fisher provided the steeple, making the cathedral prominent and visible to all scientific disciplines. Each generation of statisticians added their stones, carving intricate patterns in the edifice we now study and admire.
+
+**R Demonstration (Historical Distribution Example):**  
+To illustrate how the normal distribution, introduced by Gauss, can describe measurement variation:
+
+\`\`\{r gauss-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+# Simulate measurement errors around a true value of 100
+errors <- rnorm(1000, mean = 0, sd = 5)
+measurements <- 100 + errors
+
+mean_meas <- mean(measurements)
+sd_meas <- sd(measurements)
+
+cat("Estimated mean:", mean_meas, "\n")
+cat("Estimated standard deviation:", sd_meas, "\n")
+
+hist(measurements,
+     breaks = 30,
+     col = "lightgreen",
+     main = "Simulated Measurements and Gaussian Error",
+     xlab = "Measurement Value",
+     border = "white")
+\`\`\`
+
+Here, we’re essentially walking in Gauss’s footsteps—fitting a distribution that models natural variability.
+
+### The Frequentist Paradigm vs. Bayesian Paradigm
+
+As statistical methods matured, philosophical debates about the nature of probability and inference took center stage. Two primary paradigms emerged—Frequentist and Bayesian—each offering a different interpretation of probability and the meaning of uncertainty.
+
+- **Frequentist Paradigm:**
+    - **Core Idea:** Probability is defined in terms of long-run frequencies. Under this paradigm, $P(A)$ is the limit of the proportion of times event $A$ occurs if we repeated an experiment infinitely.
+    - **Parameter Estimation:** Parameters (like means, proportions) are treated as fixed and unknown constants. Data varies due to sampling variability.
+    - **Inference and Hypotheses:** Hypothesis tests yield p-values, which measure how "surprising" the observed data is, given a null hypothesis. Confidence intervals give a range of plausible parameter values that would often contain the true parameter in repeated samples.
+    - **Analogy:** A frequentist views uncertainty as if running parallel universes over and over—probability emerges from what happens if we repeated our experiment infinitely many times.
+
+- **Bayesian Paradigm:**
+    - **Core Idea:** Probability is a measure of belief or degree of certainty about an event. It is subjective, updating with new information.
+    - **Bayes’ Theorem:**  
+      $$
+      P(\theta | \text{data}) = \frac{P(\text{data}|\theta) P(\theta)}{P(\text{data})}
+      $$
+      Here, parameters $\theta$ are random variables. We start with a prior belief $P(\theta)$, gather data, and update our belief to a posterior $P(\theta|\text{data})$.
+    - **Inference and Uncertainty:** Credible intervals reflect the direct probability statements about parameters (e.g., there is a 95% probability that $\theta$ lies in this interval).
+    - **Analogy:** A Bayesian thinks like a detective: each piece of data updates your “belief” about the parameters. You start with a prior guess, gather clues (data), and refine your suspect’s profile (posterior distribution).
+
+**R Demonstration (Frequentist vs. Bayesian Intuition):**  
+While a full Bayesian analysis requires more setup, let’s illustrate a simple frequentist confidence interval for a mean:
+
+\`\`\{r freq-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(42)
+sample_data <- rnorm(50, mean = 10, sd = 2)
+test_result <- t.test(sample_data, conf.level = 0.95)
+
+cat("Frequentist 95% CI for the mean:", test_result$conf.int, "\n")
+\`\`\`
+
+A frequentist interpretation: If we repeated this experiment (drawing samples of size 50) many times, about 95% of the resulting confidence intervals would contain the true mean. A Bayesian approach would start with a prior on the mean and update it given the observed data, producing a posterior distribution and a credible interval that directly expresses a probability about the parameter itself.
+
+### The Rise of Computational Statistics
+
+Historically, statistical inference was constrained by the tools of mathematical analysis and limited computational power. With the advent of powerful computers, new opportunities emerged:
+
+- **Monte Carlo Methods:**
+    - **Idea:** Instead of relying solely on analytic solutions, simulate data from models and approximate probabilities or integrals.
+    - **Example:** Estimating the area under a complex curve or calculating the probability of a rare event by drawing thousands or millions of random samples.
+    - **Analogy:** Imagine trying to estimate the area of a complex shape. Instead of solving integrals, you scatter "random darts" over a bounding rectangle. The fraction of darts hitting the shape approximates the area.
+
+- **Bootstrap and Resampling Techniques:**
+    - **Approach:** Draw repeated samples (with replacement) from the observed data to approximate the sampling distribution of an estimator.
+    - **Benefits:** Allows estimation of standard errors, confidence intervals, and bias corrections without relying on strict distributional assumptions.
+
+- **Markov Chain Monte Carlo (MCMC) for Bayesian Inference:**
+    - By simulating from posterior distributions, MCMC methods overcome previously intractable integrals.
+    - This unlocks complex hierarchical, non-linear, and large-scale Bayesian models.
+
+- **High-Dimensional and Big Data Challenges:**
+    - Computational tools adapt to massive datasets and complex models, enabling machine learning, deep learning, and modern data science workflows.
+    - Parallel computing, GPU acceleration, and distributed frameworks arise to handle problems unthinkable in Fisher’s time.
+
+**R Demonstration (A Simple Monte Carlo Approximation):**  
+To estimate $\pi$ using a Monte Carlo approach:
+1. Consider a unit square with corners at (0,0), (1,0), (1,1), (0,1).
+2. The quarter-circle of radius 1 centered at (0,0) lies inside this square.
+3. The area of the quarter-circle is $\pi/4$.
+4. By generating random points in the square and checking how many fall within the quarter-circle, we approximate $\pi$.
+
+\`\`\{r monte-carlo-pi, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+N <- 10^5
+x <- runif(N, 0, 1)
+y <- runif(N, 0, 1)
+
+inside <- (x^2 + y^2) <= 1
+approx_pi <- 4 * mean(inside)
+
+cat("Monte Carlo approximation of pi:", approx_pi, "\n")
+\`\`\`
+
+While not as precise as analytic methods, this quick demonstration reveals the power of computation in tackling problems once seen as analytically daunting.
+
+---
+
+In summary, the evolution of statistical thought reflects an ongoing dialogue between theory, philosophy, and technology. From Gauss’s foundational insights to Fisher’s formal inference frameworks, from the intellectual divide between frequentists and Bayesians to the explosion of computational methods, the field is dynamic and ever-growing. Understanding this rich historical and philosophical context prepares us to appreciate not just the "how" of statistical methods, but the "why" behind their development and use.
+
+## Defining Populations, Parameters, and Estimates
+
+### Population vs. Sample Concepts
+
+In statistics, we often seek to understand large collections of individuals, objects, or units—what we call a **population**. A population might be as concrete as all patients currently enrolled in a hospital system or as abstract as all possible outcomes of a physical experiment repeated indefinitely. The key is that a population represents the entire “universe” of interest.
+
+- **Population:**
+    - Encompasses every element or outcome of interest.
+    - Can be finite (e.g., the set of all employees in a company) or theoretically infinite (e.g., all possible measurements of a particular environmental variable over time).
+    - Contains the “true” values of quantities we wish to study, such as the true mean height of a species or the exact proportion of defectives in a manufacturing process.
+
+**Analogy:**  
+Imagine that you want to understand the average height of an entire forest’s oak trees (the population). It would be physically impossible to measure the height of every tree if the forest is vast. Yet, the concept of a population height distribution exists, representing all the oak trees that are out there.
+
+- **Sample:**
+    - A subset of the population from which we actually collect data.
+    - Must be chosen carefully to represent the population well. A poorly chosen sample can yield biased or misleading conclusions.
+    - The process of sampling allows us to make practical, cost-effective, and timely inferences about the larger population.
+
+**Conceptual Formula:**  
+If we let $X_1, X_2, \ldots, X_n$ represent sampled observations, these are drawn from a population with some distribution. Our goal is to use these observed values to learn about parameters of that distribution.
+
+**R Demonstration (Sampling from a Population):**  
+\`\`\{r population-sample-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+# Suppose we have a hypothetical population of 1 million individuals’ heights in cm
+population_heights <- rnorm(10^6, mean = 170, sd = 10)
+
+# We cannot measure all 1,000,000 easily; let’s take a sample of size 200
+sample_heights <- sample(population_heights, size = 200, replace = FALSE)
+
+cat("Sample Mean Height:", mean(sample_heights), "\n")
+cat("Sample Size:", length(sample_heights), "\n")
+\`\`\`
+
+Here:
+- The population is simulated as a large vector.
+- We extracted a manageable sample and computed its mean.  
+In reality, we rarely know the entire population. Simulations like this help us understand the concept.
+
+### Parameters and Estimators
+
+The essence of statistical inference lies in the distinction between **parameters** and **estimators**:
+
+- **Parameters ($\theta$):**
+    - Numerical characteristics of a population.
+    - Examples include:
+        - The population mean ($\mu$).
+        - The population proportion ($p$).
+        - The population variance ($\sigma^2$).
+    - Parameters are fixed but unknown quantities. We generally cannot measure them directly because we cannot observe the entire population.
+    - Conceptualised as "the truth" we are trying to approximate.
+
+**Analogy:**  
+The parameter is like a hidden treasure buried somewhere in a vast field. We know it’s there and it’s fixed, but we do not know its exact location. Our data provides clues to where that treasure might be.
+
+- **Estimators:**
+    - Functions or rules that produce estimates of parameters based on sample data.
+    - For the mean, a natural estimator is the sample mean:
+      $$
+      \hat{\mu} = \frac{1}{n}\sum_{i=1}^{n} X_i
+      $$
+    - For a proportion, we might count the number of “successes” in the sample and divide by $n$:
+      $$
+      \hat{p} = \frac{\text{number of successes in sample}}{n}
+      $$
+    - Estimators themselves are random variables because they depend on the random sample.
+
+**Properties of Good Estimators:**
+- **Unbiasedness:**  
+  An estimator $\hat{\theta}$ is unbiased if $E[\hat{\theta}] = \theta$. In other words, on average, it hits the true parameter.
+- **Consistency:**  
+  As $n \rightarrow \infty$, a consistent estimator converges in probability to the true parameter. With enough data, the estimator gets arbitrarily close to the truth.
+- **Efficiency:**  
+  Among unbiased estimators, the one with the smallest variance is often preferred because it tends to produce estimates closer to the true parameter.
+- **Robustness:**  
+  Some estimators are more resilient to outliers or departures from assumptions. For example, the median is more robust than the mean.
+
+**R Demonstration (Estimating a Parameter):**  
+\`\`\{r parameter-estimator-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(999)
+# Again, use a population for demonstration
+population_data <- rnorm(10^5, mean = 50, sd = 5)
+
+# Draw a small sample
+sample_data <- sample(population_data, size = 100, replace = FALSE)
+
+# The parameter we want: the true mean is known to be 50 (in a real scenario, unknown!)
+true_mean <- 50
+
+# Estimator: the sample mean
+estimate <- mean(sample_data)
+
+cat("Estimated Mean from Sample:", estimate, "\n")
+cat("True Mean:", true_mean, "\n")
+\`\`\`
+
+In practice, we never know the true parameter. But here, knowing the “truth” (50) helps us see if our estimator is in the right ballpark.
+
+### Sampling Techniques: Simple Random, Stratified, Cluster
+
+The quality of inference heavily depends on how samples are drawn. The choice of sampling technique can mitigate bias, reduce variance, and ensure representativeness.
+
+- **Simple Random Sampling (SRS):**
+    - **Definition:** Every member of the population has an equal chance of being chosen, and each subset of size $n$ is equally likely.
+    - **Advantages:**
+        - Easy to understand and implement.
+        - Straightforward theoretical properties.
+    - **Disadvantages:**
+        - May not be efficient if the population is large and heterogeneous.
+        - Might require a complete population list, which is not always feasible.
+    - **Analogy:**  
+      Placing all population members in a big hat and drawing names at random.
+
+**R Demonstration (Simple Random Sampling):**  
+\`\`\{r srs-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Given the population_heights from above, we can draw an SRS:
+set.seed(456)
+SRS_sample <- sample(population_heights, size = 500, replace = FALSE)
+mean(SRS_sample)
+\`\`\`
+
+- **Stratified Sampling:**
+    - **Definition:** The population is divided into subgroups (strata) based on known characteristics (e.g., age groups, regions, income brackets). Then, we sample within each stratum, often proportionally to the stratum’s size.
+    - **Why Stratify?**
+        - Ensures representation of key subgroups.
+        - Reduces variance of estimators if each stratum is more homogeneous internally.
+    - **Analogy:**  
+      If the population is a rainbow of colours, stratification ensures you pick samples from each colour category rather than risking a sample of only one or two colours.
+    - **In Practice:**  
+      Suppose we know the population consists of 40% males and 60% females. We can stratify by gender and ensure our sample respects that proportion.
+
+**R Demonstration (Stratified Sampling Concept):**  
+*(Note: Here we simulate a population with a known stratification, then we draw a stratified sample.)*
+
+\`\`\{r stratified-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(101)
+# Create a population with a binary "group" variable (e.g., "Group A" and "Group B")
+pop_size <- 10000
+group <- sample(c("Group A", "Group B"), size = pop_size, replace = TRUE, prob = c(0.3, 0.7))
+values <- rnorm(pop_size, mean = ifelse(group=="Group A", 100, 105), sd = 10)
+
+population <- data.frame(group = group, value = values)
+
+# Stratified sampling: ensure proportionate representation
+A_prop <- mean(population$group == "Group A")
+B_prop <- mean(population$group == "Group B")
+
+# Suppose we want a sample of size 200, maintaining proportions
+nA <- round(A_prop * 200)
+nB <- 200 - nA
+
+A_sample <- population[sample(which(population$group=="Group A"), nA), ]
+B_sample <- population[sample(which(population$group=="Group B"), nB), ]
+
+stratified_sample <- rbind(A_sample, B_sample)
+table(stratified_sample$group)
+\`\`\`
+
+By controlling the sample counts from each subgroup, we maintain representation and potentially reduce the variance in our estimates.
+
+- **Cluster Sampling:**
+    - **Definition:** Instead of sampling individuals directly, we sample groups (clusters) of individuals. Each cluster is like a “mini-population.”
+    - **Why Use Clusters?**
+        - Can be more cost-effective if the population is geographically spread out.
+        - Instead of traveling everywhere, we pick certain locations (clusters) and sample everyone within them.
+    - **Analogy:**  
+      Instead of picking individual students from an entire city’s schools, we randomly select a few schools (clusters) and survey all their students. This reduces travel and administrative effort.
+    - **Caveat:**  
+      Clusters often introduce correlation among sampled units (e.g., students in the same school share similarities), so statistical methods must account for this to avoid underestimating variance.
+
+**R Demonstration (Cluster Sampling Concept):**  
+*(Note: We simulate a population where data is grouped into clusters, and we pick a few clusters at random.)*
+
+\`\`\{r cluster-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(202)
+# Simulate a population divided into 100 clusters, each with 100 units
+clusters <- rep(1:100, each = 100)
+values_cluster <- rnorm(10000, mean = 50 + clusters/100, sd = 5) # cluster means vary slightly
+population_clustered <- data.frame(cluster_id = clusters, value = values_cluster)
+
+# Choose 5 clusters at random and take all units from those clusters
+selected_clusters <- sample(1:100, 5)
+cluster_sample <- population_clustered[population_clustered$cluster_id %in% selected_clusters, ]
+
+cat("Number of observations in cluster sample:", nrow(cluster_sample), "\n")
+cat("Selected clusters:", selected_clusters, "\n")
+\`\`\`
+
+Here we picked entire clusters at once. While convenient, the lack of individual-level randomness within clusters can affect the precision of our estimates, so careful analysis methods (such as adjusting standard errors for clustering) are needed.
+
+---
+
+In summary:
+
+- We defined the distinction between populations and samples, emphasising that a population is the conceptual "all," while a sample is our practical "some."
+- We highlighted that parameters are fixed but unknown quantities that describe the population, and estimators are the random, data-driven tools we use to guess those parameters.
+- Finally, we explored common sampling techniques—simple random, stratified, and cluster—each with advantages and trade-offs.  
+This understanding lays the groundwork for drawing robust inferences, as everything in statistical reasoning depends on how well our sample represents the underlying population and how accurately our estimators approximate the parameters of interest.
+
+## Variability, Uncertainty, and Randomness
+
+### Sources of Variation in Data
+
+In the real world, perfect uniformity is a rare phenomenon. Almost every measurable quantity—be it the yield of a crop, the height of an individual, or the performance of a machine—exhibits variation. Understanding where this variability comes from, and how to handle it, is a central concern of statistical reasoning.
+
+**What Causes Variation?**  
+- **Natural Biological Differences:**  
+  Living organisms are not identical. Even genetically similar plants grow to different heights due to subtle differences in soil nutrients, sunlight, and disease exposure.  
+- **Measurement Error:**  
+  Any measurement device, from a ruler to a sophisticated sensor, has limitations. A slightly misaligned measuring tape, or a machine that drifts off calibration, introduces variability.  
+- **Environmental Fluctuations:**  
+  Temperature, humidity, pressure, and countless other environmental factors affect observations. Even the same laboratory conditions can vary microscopically from day to day.  
+- **Individual Differences and Complexity of Systems:**  
+  People have distinct habits, backgrounds, and genetics. Complex systems—like economies—fluctuate due to numerous interdependent factors[^1].
+
+**Analogy:**  
+Think of making a cup of coffee every morning. You measure the coffee grounds carefully and set the same brew time. Still, each cup tastes slightly different. A tiny change in the room temperature, the exact grind size, or how the water percolates leads to natural variation. This everyday example mirrors the complexity statisticians face when dealing with data.
+
+**R Demonstration (Variability Example):**  
+\`\`\{r variation-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(42)
+# Simulate 100 measurements of a process, say weights of widgets produced by a machine
+weights <- rnorm(100, mean = 50, sd = 2)
+
+# Basic summary to observe variation
+summary(weights)
+# A histogram to visualize the spread
+hist(weights, 
+     main = "Distribution of Widget Weights",
+     xlab = "Weight (g)",
+     col = "skyblue",
+     border = "white")
+\`\`\`
+
+Here, even though all widgets are produced by the same machine under similar conditions, we see variation in their weights.
+
+[^1]: For a discussion on systemic complexity and emergent variation in economic data, see Kirman (1992), "Whom or What Does the Representative Individual Represent?"
+
+### Uncertainty Quantification
+
+Variation in data naturally leads to uncertainty in our conclusions. When we draw inferences about populations, parameters, or future outcomes, we must acknowledge that our knowledge is imperfect.
+
+- **Uncertainty in Estimates:**  
+  If we sample a population and compute a sample mean $\hat{\mu}$, we know it’s unlikely to be exactly the true population mean $\mu$. The difference reflects uncertainty stemming from sampling variation.
+  
+- **Confidence Intervals and Credible Intervals:**  
+  Instead of reporting a single estimate, we often present intervals:
+    - **Confidence Intervals (Frequentist):**  
+      An interval constructed so that if we were to repeat the experiment many times, a certain percentage (e.g., 95%) of those intervals would contain the true parameter.
+    - **Credible Intervals (Bayesian):**  
+      A direct statement about our belief, giving a probability that the parameter lies within the interval based on the posterior distribution.
+      
+- **Uncertainty Propagation:**  
+  When building complex models or combining multiple estimates, uncertainties accumulate. Understanding how uncertainty at one stage influences subsequent stages is crucial.
+
+**Mathematical Note:**  
+Variance ($\sigma^2$) and standard deviation ($\sigma$) quantify how spread out data is. If $X_1, X_2, \ldots, X_n$ are sample observations, the sample variance is:
+$$
+s^2 = \frac{1}{n-1}\sum_{i=1}^{n}(X_i - \bar{X})^2
+$$
+This measure of spread helps us quantify uncertainty in parameter estimates.
+
+**Analogy:**  
+Imagine trying to guess how many jellybeans are in a large jar. Your guess (estimate) has uncertainty because you can’t count them all. You might say, “I’m not sure, but I think it’s around 1,000 plus or minus 100.” This “plus or minus 100” reflects your uncertainty about the estimate.
+
+**R Demonstration (Quantifying Uncertainty):**  
+\`\`\{r uncertainty-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+# Suppose we take multiple samples from a large population
+population_data <- rnorm(10^5, mean = 0, sd = 1)
+
+# Draw a sample and compute mean and its standard error
+sample_size <- 50
+sample_data <- sample(population_data, sample_size, replace = FALSE)
+sample_mean <- mean(sample_data)
+sample_sd <- sd(sample_data)
+
+# Standard error of the mean (SEM) = sd/sqrt(n)
+SEM <- sample_sd/sqrt(sample_size)
+
+cat("Sample Mean:", sample_mean, "\n")
+cat("Standard Error of the Mean:", SEM, "\n")
+\`\`\`
+
+The standard error quantifies uncertainty about the mean estimate. If we repeated this sampling process many times, the sample means would vary, illustrating uncertainty in our inference about the population mean.
+
+### The Role of Probability in Statistics
+
+Probability theory provides the mathematical framework to manage randomness and uncertainty. It allows us to:
+
+- **Model Variation:**  
+  By assigning probabilities to events or outcomes, we transform randomness into a structured calculus. Distributions like the normal, binomial, or Poisson specify how likely different outcomes are.
+  
+- **Bridge Between Data and Models:**  
+  Probability models enable us to relate observable data to underlying parameters. For instance:
+    - If data are assumed to come from a normal distribution $N(\mu, \sigma^2)$, we use probability theory to infer $\mu$ and $\sigma$.
+  
+- **Inferential Statistics:**  
+  Probability underpins the logic of hypothesis testing, confidence intervals, and Bayesian inference. Without probability, we have no systematic way to quantify how data support or refute our hypotheses.
+  
+- **Risk and Decision Making:**  
+  By characterising uncertainty probabilistically, we can make informed decisions. For example, evaluating the probability that a new drug’s effectiveness exceeds a certain threshold helps guide regulatory approvals.
+
+**Conceptual Formula:**  
+Probability is often defined as a function $P$ mapping events in a sample space to a number between 0 and 1, indicating the likelihood of those events. For example, if $A$ is an event, $P(A)$ quantifies how likely it is that $A$ occurs.
+
+**Analogy:**  
+Probability is like a language that translates randomness into numbers. Imagine rolling a fair six-sided die. Saying “the probability of rolling a 4 is $1/6$” makes the randomness clear and quantifiable. Without probability, you’d only say “I might get a 4,” but wouldn’t know how to compare that likelihood to other events.
+
+**R Demonstration (A Probability Simulation):**  
+\`\`\{r probability-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(999)
+# Simulate rolling a fair six-sided die 10,000 times
+rolls <- sample(1:6, 10000, replace = TRUE)
+prob_of_four <- mean(rolls == 4)
+
+cat("Empirical Probability of Rolling a 4:", prob_of_four, "\n")
+\`\`\`
+
+We know theoretically $P(\text{roll}=4) = 1/6 \approx 0.1667$. The simulated result should be close to this value, illustrating how probability bridges theory (1/6) and empirical evidence (data from simulations).
+
+---
+
+In summary, variability is the fuel of uncertainty, and probability is the engine that converts uncertainty into a manageable, calculable concept.  
+- We observe variation in nature, measurements, and complex systems.  
+- This variation leads to uncertainty in estimates and predictions.  
+- Probability provides the theoretical tools to quantify, model, and reason about this uncertainty.  
+
+As we proceed, we will delve deeper into probability theory, distributions, and inferential frameworks to systematically manage and interpret the randomness that pervades real data.
+
+## Probability Spaces
+
+### Sigma-Algebras, Measures, and Probability
+
+To rigorously handle uncertainty and randomness, mathematics provides a formal framework known as a **probability space**. At the heart of this framework are three key components:
+
+1. **Sample Space ($\Omega$):**  
+   The sample space is the set of all possible outcomes of a random experiment. For instance:
+   - When rolling a single fair die, $\Omega = \{1,2,3,4,5,6\}$.
+   - For measuring a continuously varying quantity (like temperature), $\Omega$ might be an interval of real numbers, e.g., $[0, 100]$.
+   
+   Think of the sample space as the "universe of possibilities."
+
+2. **Sigma-Algebra ($\mathcal{F}$):**  
+   A sigma-algebra is a collection of subsets of $\Omega$ that includes:
+   - The empty set $\emptyset$ and the full set $\Omega$.
+   - Closed under complementation: If $A \in \mathcal{F}$, then $A^c = \Omega \setminus A \in \mathcal{F}$.
+   - Closed under countable unions: If $A_1, A_2, \ldots \in \mathcal{F}$, then $\bigcup_{i=1}^{\infty} A_i \in \mathcal{F}$.
+
+   This structure ensures we can handle complex events—like “the temperature is between 20 and 30 degrees” or “the die shows an even number”—consistently. Not all subsets of $\Omega$ need to be “measurable” events, but those in $\mathcal{F}$ are the building blocks of probability statements.
+
+   **Analogy:**  
+   Imagine having a large bookshelf (the sample space), and the sigma-algebra represents the way you organise books into well-defined categories. You can always find the complement of a category (everything not in that category), and you can form new categories by combining old ones (unions). This ensures a consistent classification scheme.
+
+3. **Probability Measure ($P$):**  
+   A probability measure assigns a number in $[0,1]$ to each event in $\mathcal{F}$. It must satisfy:
+   - $P(\emptyset) = 0$ and $P(\Omega) = 1$.
+   - Countable additivity: If $A_1, A_2, \ldots$ are disjoint events, $P\left(\bigcup_{i=1}^{\infty} A_i\right) = \sum_{i=1}^{\infty} P(A_i)$.
+
+   Essentially, $P$ translates our intuitive notion of likelihood into a rigorous numeric scale.
+
+**Mathematical Structure of a Probability Space:**  
+A probability space is a triple $(\Omega, \mathcal{F}, P)$, where $\Omega$ is the sample space, $\mathcal{F}$ is the sigma-algebra, and $P$ is the probability measure.
+
+**Footnote on Historical Foundations:**  
+The modern rigorous foundation of probability was developed in the early 20th century by mathematicians such as Kolmogorov[^1].
+
+[^1]: Kolmogorov, A. N. (1933). *Foundations of the Theory of Probability.* (In Russian)
+
+### Discrete vs. Continuous Random Variables
+
+Random variables are functions from $\Omega$ to the real numbers. They map uncertain outcomes into numerical values. Consider:
+
+- **Discrete Random Variables:**
+    - Take values from a countable set, such as $\{0,1,2,\ldots\}$.
+    - Examples include the number of heads in ten coin tosses, or the count of cars passing a checkpoint in one hour.
+    - Probability is assigned directly to the possible values. For a discrete random variable $X$:
+      $$
+      P(X = x) \geq 0, \quad \sum_{x} P(X = x) = 1.
+      $$
+
+    **Analogy:**  
+    Discrete random variables are like a set of distinct pebbles, each pebble representing a possible outcome with its own probability weight.
+
+- **Continuous Random Variables:**
+    - Take values from an uncountably infinite set, often intervals in $\mathbb{R}$.
+    - You cannot assign a positive probability to individual points (e.g., $P(X = 3.1415)$ is typically 0). Instead, you define probabilities over intervals.
+    - For continuous random variables, probability is expressed via density functions (PDFs). For example:
+      $$
+      P(a \leq X \leq b) = \int_{a}^{b} f_X(x)\,dx
+      $$
+      where $f_X(x)$ is the probability density function.
+
+    **Analogy:**  
+    Continuous random variables are like a smooth curve of probabilities spread out over a continuum of values. Instead of pebbles, think of a continuous line of sand where each grain is too small to have its own probability, but regions of sand have measurable "weight."
+
+**R Demonstration (Discrete vs. Continuous):**  
+\`\`\{r discrete-continuous-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Discrete example: A fair die roll
+# Probability of each outcome = 1/6
+probabilities_die <- rep(1/6, 6)
+names(probabilities_die) <- 1:6
+probabilities_die
+
+# Continuous example: A normal distribution N(0,1)
+# Probability that X is between -1 and 1
+p_between <- pnorm(1, mean=0, sd=1) - pnorm(-1, mean=0, sd=1)
+p_between
+\`\`\`
+
+The discrete example shows a direct mapping: each outcome (1,2,3,4,5,6) has probability 1/6. For the continuous example (normal distribution), we cannot say $P(X = 0)$ is positive; instead, we measure intervals like $P(-1 \leq X \leq 1)$.
+
+### Cumulative Distribution Functions (CDFs), PDFs, and PMFs
+
+To fully characterise a random variable, we use distribution functions. Three key concepts stand out:
+
+1. **Cumulative Distribution Function (CDF):**
+    - For any random variable $X$ (discrete or continuous), the CDF $F_X(x)$ is defined as:
+      $$
+      F_X(x) = P(X \leq x).
+      $$
+    - $F_X(x)$ is non-decreasing, right-continuous, and satisfies $\lim_{x \to -\infty}F_X(x)=0$ and $\lim_{x \to \infty}F_X(x)=1$.
+    - The CDF gives a complete description of the distribution. You can recover probabilities of intervals by differences in $F_X(x)$ values.
+
+    **Analogy:**  
+    The CDF is like a roadmap that shows how probability accumulates from left to right along the real line. At $x$, you know how much "probability mass" lies below it.
+
+2. **Probability Mass Function (PMF) for Discrete Variables:**
+    - For discrete random variables, the PMF $p_X(x)$ gives $P(X = x)$ directly.
+    - For example, if $X$ is the roll of a fair die:
+      $$
+      p_X(x) = \frac{1}{6}, \quad x = 1,2,3,4,5,6.
+      $$
+    - The PMF fully characterises the distribution in the discrete case.
+
+    **Visualisation Tip:**  
+    A PMF can be represented by bars at discrete points, showing the probability “height” for each possible outcome.
+
+3. **Probability Density Function (PDF) for Continuous Variables:**
+    - For continuous random variables, the PDF $f_X(x)$ is related to the CDF by:
+      $$
+      F_X(x) = \int_{-\infty}^{x} f_X(t)\,dt.
+      $$
+    - Unlike a PMF, $f_X(x)$ is not a probability itself but a density. We must integrate over an interval to find probabilities.
+    - A PDF can be visualised as a smooth curve. Probability corresponds to the area under this curve between two points.
+
+    **Important Note:**  
+    $f_X(x) \geq 0$ for all $x$, and $\int_{-\infty}^{\infty} f_X(x)\,dx = 1$.
+
+**R Demonstration (CDFs, PDFs, and PMFs):**  
+\`\`\{r distribution-functions-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Discrete case: PMF of a Binomial random variable with n=10, p=0.3
+x_values <- 0:10
+pmf_binomial <- dbinom(x_values, size=10, prob=0.3) # PMF
+cdf_binomial <- pbinom(x_values, size=10, prob=0.3) # CDF
+
+pmf_binomial
+cdf_binomial
+
+# Continuous case: PDF and CDF of a Normal(0,1)
+pdf_normal <- dnorm(seq(-3,3,by=0.5), mean=0, sd=1) # PDF values
+cdf_normal <- pnorm(seq(-3,3,by=0.5), mean=0, sd=1) # CDF values
+
+pdf_normal
+cdf_normal
+\`\`\`
+
+**Analogy to Conclude:**
+- A PMF is like a set of individual balloons attached to discrete points on a number line—each balloon’s size represents the probability at that point.
+- A PDF is like a smooth, flowing hill or mountain over the number line—probability is the area under the curve, not the value of the curve itself.
+- A CDF is the cumulative height of probability as you move along the number line, telling you "how much probability" you’ve encountered up to a certain point.
+
+---
+
+Mastering these fundamental concepts of sigma-algebras, measures, and probability; understanding the distinction between discrete and continuous random variables; and working comfortably with CDFs, PDFs, and PMFs sets the stage for all deeper statistical analysis. These tools provide the language and framework to translate real-world uncertainty into rigorous mathematical objects that we can manipulate, reason about, and ultimately use for inference and decision making.
+
+## Core Probability Distributions
+
+At the heart of statistical modelling are probability distributions—mathematical frameworks that describe how a random variable behaves. By learning common distributions and their properties, we gain powerful tools to model diverse scenarios, from the number of defective items in a factory batch to the growth of organisms in a biology experiment, or the time until a machine part fails.
+
+### Bernoulli, Binomial, and Multinomial Distributions
+
+**Bernoulli Distribution:**
+- **Definition:** A Bernoulli random variable represents a single trial with two possible outcomes, often labelled as "success" ($1$) or "failure" ($0$).
+- **Parameter:** Probability of success $p$, where $0 \leq p \leq 1$.
+- **PMF:**
+  $$
+  P(X = 1) = p, \quad P(X = 0) = 1 - p.
+  $$
+- **Use Cases:**  
+  - Modelling the result of a single coin toss (Heads/Tails).
+  - Indicator variables for whether an event occurs or not.
+  
+**Binomial Distribution:**
+- **Definition:** The binomial distribution models the number of successes in $n$ independent Bernoulli trials, each with success probability $p$.
+- **Parameters:** $n$ (number of trials, integer) and $p$ (success probability, real number).
+- **PMF:**
+  $$
+  P(X = k) = \binom{n}{k}p^k(1 - p)^{n-k}, \quad k = 0, 1, \ldots, n.
+  $$
+- **Intuition:**
+  The binomial distribution generalises the Bernoulli distribution from one trial to $n$ trials. If $n=1$, the binomial reduces to a Bernoulli.
+
+**Multinomial Distribution:**
+- **Definition:** The multinomial distribution extends the binomial idea to more than two outcomes. Imagine $n$ independent trials, each resulting in one of $m$ categories with fixed probabilities $p_1, p_2, \ldots, p_m$ that sum to 1.
+- **Parameters:** $n$ and a probability vector $(p_1, \ldots, p_m)$.
+- **PMF:**
+  $$
+  P(X_1 = k_1, \ldots, X_m = k_m) = \frac{n!}{k_1! k_2! \cdots k_m!} p_1^{k_1} p_2^{k_2} \cdots p_m^{k_m},
+  $$
+  where $\sum_{j=1}^{m} k_j = n$.
+- **Use Cases:**  
+  Counting occurrences across multiple categories, such as the distribution of votes among different political parties.
+
+**R Demonstration (Binomial):**  
+\`\`\{r binomial-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Probability of getting exactly 3 heads in 10 fair coin tosses:
+dbinom(3, size=10, prob=0.5)
+
+# Probability of getting at most 3 heads:
+pbinom(3, size=10, prob=0.5)
+\`\`\`
+
+### Poisson and Negative Binomial Models
+
+**Poisson Distribution:**
+- **Definition:** Models the count of events occurring independently within a given interval of time or space, when events occur at a known average rate $\lambda$.
+- **Parameter:** $\lambda > 0$ (average rate of occurrence).
+- **PMF:**
+  $$
+  P(X = k) = \frac{\lambda^k e^{-\lambda}}{k!}, \quad k = 0, 1, 2, \ldots
+  $$
+- **Properties:**
+  - Mean and variance both equal $\lambda$.
+  - Often used for rare events (e.g., the number of meteors visible per hour).
+
+**Negative Binomial Distribution:**
+- **Definition:** Models the number of failures before a certain number of successes occurs in a sequence of independent Bernoulli trials. Another interpretation: it models overdispersed count data where variance exceeds the mean.
+- **Parameters:** $r$ (number of successes to wait for) and $p$ (success probability in each trial).
+- **PMF:**
+  $$
+  P(X = k) = \binom{k+r-1}{k}(1-p)^k p^r, \quad k = 0,1,2,\ldots
+  $$
+  Here $k$ counts the failures before the $r$-th success.
+- **Use Cases:**  
+  Modelling counts that do not fit the Poisson assumption (e.g., number of customer complaints), where we observe more variability than Poisson would suggest[^1].
+
+[^1]: For an application of the negative binomial in epidemiology, see Lloyd-Smith et al. (2005) in *Nature*.
+
+**R Demonstration (Poisson):**  
+\`\`\{r poisson-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Probability that a Poisson(2) random variable equals 3:
+dpois(3, lambda=2)
+
+# Probability that a Poisson(2) random variable is <= 3:
+ppois(3, lambda=2)
+\`\`\`
+
+### Normal, t, Chi-Square, and F-Distributions
+
+**Normal (Gaussian) Distribution:**
+- **Definition:** A continuous distribution often used as a model due to the Central Limit Theorem. Many phenomena approximate normality with large sample sizes.
+- **Parameters:** Mean $\mu$ and variance $\sigma^2$.
+- **PDF:**
+  $$
+  f_X(x) = \frac{1}{\sqrt{2\pi}\sigma} \exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right).
+  $$
+- **Properties:**
+  - Symmetric about $\mu$.
+  - Widely used in inference and regression.
+  
+**Student’s t-Distribution:**
+- **Definition:** A continuous distribution arising naturally when estimating the mean of a normally distributed population with an unknown variance.
+- **Parameter:** Degrees of freedom $\nu$.
+- **Use Case:**  
+  When sample sizes are small, the t-distribution provides a better model for the distribution of the sample mean. It has heavier tails than the normal, meaning more probability for extreme values.
+
+**Chi-Square ($\chi^2$) Distribution:**
+- **Definition:** If $Z_1, \ldots, Z_\nu$ are independent $N(0,1)$ random variables, then
+  $$
+  \chi^2_\nu = \sum_{i=1}^{\nu} Z_i^2
+  $$
+  follows a $\chi^2$ distribution with $\nu$ degrees of freedom.
+- **Use Case:**
+  Commonly appears in hypothesis testing (chi-square tests), variance estimation, and constructing confidence intervals for variances.
+
+**F-Distribution:**
+- **Definition:** Ratio of two independent chi-square distributions (scaled by their respective degrees of freedom):
+  $$
+  F = \frac{\chi^2_{\nu_1}/\nu_1}{\chi^2_{\nu_2}/\nu_2}.
+  $$
+- **Parameters:** $\nu_1, \nu_2$ (degrees of freedom).
+- **Use Case:**
+  Underlies the ANOVA test and is used to compare two variances.
+
+**R Demonstration (Normal and t):**  
+\`\`\{r normal-t-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Normal(0,1) probability of being less than 1.96:
+pnorm(1.96, mean=0, sd=1)
+
+# t-distribution with df=10, probability of being less than 1.96:
+pt(1.96, df=10)
+\`\`\`
+
+Notice how the tails differ, giving us a sense of how uncertainty behaves with limited sample sizes.
+
+### Exponential Family of Distributions
+
+The **exponential family** is a broad class of distributions that share a common functional form. Many well-known distributions (Bernoulli, Binomial, Poisson, Normal with known variance, Gamma, and Exponential) belong to this family. They can be represented in a canonical form:
+$$
+f_X(x|\theta) = h(x)\exp(\eta(\theta) T(x) - A(\theta)),
+$$
+where $\theta$ is a parameter, $T(x)$ is a sufficient statistic, and $A(\theta)$ ensures normalization.
+
+**Why are Exponential Families Important?**
+- They have convenient mathematical properties, making inference and theory more tractable.
+- Often admit conjugate priors in Bayesian analysis, simplifying posterior computation.
+- Provide a unifying framework to understand many common distributions.
+
+**Examples:**
+- **Bernoulli:** Can be viewed as an exponential family with $T(x)=x$, $\eta(\theta)=\log(\frac{\theta}{1-\theta})$, and $h(x)=1$.
+- **Poisson:** With parameter $\lambda$, it fits into the family using $T(x)=x$, and $\eta(\lambda)=\log(\lambda)$.
+
+**R Demonstration (Exploring Different Distributions):**  
+\`\`\{r distribution-exploration, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+
+# Simulate from various distributions:
+bern_sample <- rbinom(100, size=1, prob=0.3)   # Bernoulli with p=0.3
+pois_sample <- rpois(100, lambda=2)            # Poisson with lambda=2
+norm_sample <- rnorm(100, mean=0, sd=1)        # Normal(0,1)
+
+# Summarize samples:
+summary(bern_sample)
+summary(pois_sample)
+summary(norm_sample)
+\`\`\`
+
+This snippet shows how easy it is to simulate and compare different distributions. The properties we’ve discussed guide us in choosing the right distribution for a given scenario—binary outcomes suggest Bernoulli or Binomial; count data suggests Poisson or Negative Binomial; continuous, symmetric data often leans towards Normal.
+
+---
+
+**Key Takeaways:**
+- Different distributions arise from different assumptions about the underlying data-generating process.
+- Choosing the right distribution is critical in modelling. For instance:
+  - Bernoulli/Binomial for binary or bounded count processes.
+  - Poisson for counts occurring in time/space intervals.
+  - Negative Binomial for overdispersed counts.
+  - Normal, t, $\chi^2$, and $F$ for continuous measurements and inference about means and variances.
+  - Exponential family distributions unify many classical distributions under one mathematical umbrella, offering elegant theoretical properties and simplifying inference.
+
+Armed with these distributions, you are better equipped to model real-world phenomena and approach more advanced statistical methods with confidence.
+
+## Transformations and Expectations
+
+Understanding the behaviour of random variables goes beyond just their distributions; it involves quantifying their central tendencies, spread, and other characteristics. By examining expectations, variances, and higher moments, we gain deeper insight into how random variables behave. Furthermore, tools like moment generating functions and characteristic functions help summarise entire distributions in a single, compact expression. We also explore how transforming random variables affects their distributions and how to handle order statistics—sorted samples—pivotal for advanced inference methods.
+
+### Expectation, Variance, and Higher Moments
+
+**Expectation (Mean):**  
+- The expectation (or mean) of a random variable $X$ is defined as:
+  $$
+  E[X] = \begin{cases}
+    \sum_{x} x P(X=x), & \text{if $X$ is discrete}\\[6pt]
+    \int_{-\infty}^{\infty} x f_X(x)\,dx, & \text{if $X$ is continuous}
+  \end{cases}
+  $$
+- Intuitively, $E[X]$ represents the "balance point" or the long-run average outcome if we repeated the experiment infinitely many times.
+- **Example:** If $X \sim \text{Bernoulli}(p)$, then $E[X]=p$. For a Normal$(\mu,\sigma^2)$, $E[X]=\mu$.
+
+**Variance:**  
+- Variance quantifies how spread out the random variable is around its mean.
+  $$
+  \text{Var}(X) = E[(X-E[X])^2].
+  $$
+- Another useful formula:
+  $$
+  \text{Var}(X) = E[X^2] - (E[X])^2.
+  $$
+- Large variance indicates that values are more dispersed. For Normal$(\mu,\sigma^2)$, $\text{Var}(X)=\sigma^2$.
+
+**Higher Moments:**  
+- Beyond mean and variance, we consider higher-order moments to understand shape and tail behaviour.
+- The $k$-th moment is $E[X^k]$. For the second moment, $E[X^2]$; for the third, $E[X^3]$, and so forth.
+- **Skewness:** A measure of asymmetry, often based on the third central moment.
+- **Kurtosis:** A measure of "tailedness," often based on the fourth central moment.
+
+**R Demonstration (Moments):**  
+\`\`\{r moments-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+# Suppose we have a sample from a Normal(0,1)
+x <- rnorm(1000, mean=0, sd=1)
+
+mean_x <- mean(x)          # sample mean
+var_x <- var(x)            # sample variance
+third_moment <- mean((x-mean_x)^3) # 3rd central moment
+fourth_moment <- mean((x-mean_x)^4) # 4th central moment
+
+cat("Sample Mean:", mean_x, "\n")
+cat("Sample Variance:", var_x, "\n")
+cat("Third Central Moment:", third_moment, "\n")
+cat("Fourth Central Moment:", fourth_moment, "\n")
+\`\`\`
+
+Here, the sample mean and variance approximate $E[X]$ and $\text{Var}(X)$, and higher moments give insights into skewness and kurtosis.
+
+### Moment Generating Functions (MGFs), Characteristic Functions
+
+**Moment Generating Functions (MGFs):**  
+- The MGF of a random variable $X$ is defined as:
+  $$
+  M_X(t) = E[e^{tX}], \quad \text{for $t$ in some neighborhood of 0.}
+  $$
+- If the MGF exists, we can obtain all the moments by differentiating:
+  $$
+  E[X^k] = M_X^{(k)}(0),
+  $$
+  where $M_X^{(k)}(0)$ is the $k$-th derivative of $M_X(t)$ evaluated at $t=0$.
+- MGFs uniquely determine the distribution (if they exist).
+
+**Characteristic Functions:**  
+- The characteristic function is defined as:
+  $$
+  \phi_X(t) = E[e^{itX}],
+  $$
+  where $i=\sqrt{-1}$.
+- Characteristic functions always exist (even if MGFs do not) and also uniquely determine the distribution.
+- They’re particularly important in proving limit theorems.
+
+**Use Cases of MGFs and Characteristic Functions:**
+- **Finding distributions of sums of independent random variables:**  
+  MGFs and characteristic functions factor nicely under independence. If $X$ and $Y$ are independent:
+  $$
+  M_{X+Y}(t) = M_X(t) M_Y(t).
+  $$
+- **Deriving properties and simplifying proofs:**  
+  Many theoretical results rely on characteristic functions, especially in advanced probability.
+
+**R Demonstration (Estimating an MGF):**  
+\`\`\{r mgf-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(456)
+x <- rnorm(10000, mean=2, sd=3)
+# Estimate M_X(t) by the sample mean of e^{tX}
+t_val <- 0.1
+mgf_est <- mean(exp(t_val * x))
+cat("Estimated MGF at t=0.1:", mgf_est, "\n")
+\`\`\`
+
+While this is a crude estimation, it illustrates how we might numerically approximate MGFs.
+
+### Transformations of Random Variables
+
+Often we want to find the distribution of a function of a random variable—say $Y=g(X)$.
+
+**Key Concepts:**
+- If $X$ is continuous with PDF $f_X(x)$ and $Y=g(X)$ is monotonic, then:
+  $$
+  f_Y(y) = f_X(g^{-1}(y)) \left| \frac{d}{dy}(g^{-1}(y)) \right|.
+  $$
+- For non-monotonic transformations, we must carefully break it down into regions where $g$ is invertible.
+
+**Common Examples:**
+- If $X \sim N(\mu,\sigma^2)$, then $Z = (X-\mu)/\sigma$ is a standard normal, $N(0,1)$.
+- If $X \sim U(0,1)$ (uniform), then $Y=-\log(X)$ has an exponential distribution.
+
+**Analogy:**  
+Think of $g$ as a "re-mapping" of the axis. You start with a distribution on $X$, and by stretching, compressing, or flipping the axis, you get a new distribution on $Y$.
+
+**R Demonstration (Transformation):**  
+\`\`\{r transformation-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(789)
+x <- runif(10000, min=0, max=1)
+y <- -log(x) # If X~Uniform(0,1), Y=-log(X) ~ Exponential(1)
+mean_y <- mean(y)
+var_y <- var(y)
+
+cat("Sample Mean of Y:", mean_y, "\n")
+cat("Sample Var of Y:", var_y, "\n")
+
+# Plot distribution of Y
+library(ggplot2)
+df_y <- data.frame(y=y)
+ggplot(df_y, aes(x=y)) +
+  geom_histogram(aes(y=..density..), bins=50, fill="steelblue", color="white") +
+  stat_function(fun=dexp, args=list(rate=1), color="red", size=1) +
+  labs(title="Transformed Variable Y = -log(X)",
+       x="Y", y="Density")
+\`\`\`
+
+The red curve (theoretical exponential PDF) should align closely with the histogram as $n$ grows large.
+
+### Order Statistics
+
+When we take a sample $X_1, X_2, \ldots, X_n$ from a distribution, the **order statistics** are these values sorted from smallest to largest. Denote them as $X_{(1)} \leq X_{(2)} \leq \cdots \leq X_{(n)}$.
+
+**Why Are Order Statistics Important?**
+- They provide insights into the distribution’s shape from sample quantiles.
+- Used extensively in robust statistics (e.g., the median is $X_{(\frac{n+1}{2})}$ if $n$ is odd).
+- Integral in nonparametric inference and constructing confidence intervals for distribution quantiles.
+
+**Distribution of Order Statistics:**
+- For i.i.d. samples from a continuous distribution with CDF $F(x)$, the PDF of the $k$-th order statistic $X_{(k)}$ is given by:
+  $$
+  f_{X_{(k)}}(x) = \frac{n!}{(k-1)!(n-k)!}[F(x)]^{k-1}[1-F(x)]^{n-k} f(x).
+  $$
+- This follows a Beta-like structure, connecting order statistics to Beta distributions when $F$ is uniform.
+
+**Example:**
+- If $X_i \sim U(0,1)$, then the distribution of $X_{(k)}$ is a Beta$(k, n-k+1)$ distribution.  
+- This fact lets us find expectations easily:
+  $$
+  E[X_{(k)}] = \frac{k}{n+1}.
+  $$
+
+**R Demonstration (Order Statistics):**  
+\`\`\{r order-statistics-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(101)
+n <- 100
+x <- runif(n)  # sample from U(0,1)
+x_sorted <- sort(x)
+
+k <- 25  # 25th order statistic
+x_k <- x_sorted[k]
+
+cat("25th order statistic:", x_k, "\n")
+
+# Expected value under U(0,1) would be k/(n+1) = 25/101 ~ 0.2475
+cat("Theoretical expectation:", 25/101, "\n")
+
+# Plot all order statistics
+df_os <- data.frame(index=1:n, value=x_sorted)
+ggplot(df_os, aes(x=index, y=value)) +
+  geom_point(color="blue") +
+  geom_line(color="blue", alpha=0.4) +
+  geom_hline(yintercept=25/101, color="red", linetype="dashed") +
+  labs(title="Order Statistics from a Uniform(0,1) Sample",
+       x="Order Index",
+       y="Value")
+\`\`\`
+
+The dashed red line shows the theoretical expectation of the 25th order statistic, giving us a visual check.
+
+---
+
+**Key Takeaways:**
+- **Moments (mean, variance, etc.)** are essential summaries of a random variable’s location, spread, and shape.
+- **MGFs and characteristic functions** compress the distribution into a single function, making it easier to derive properties, prove theorems, and find distributions of sums.
+- **Transforming random variables** allows us to reshape distributions and derive new models from old ones. Understanding how PDFs transform under monotonic functions is fundamental.
+- **Order statistics** give us insight into the sorted structure of samples and help in estimation tasks like finding medians, quantiles, and constructing distribution-free intervals.
+
+By mastering these concepts, we build a robust toolkit for handling a wide array of statistical problems, from the theoretical underpinnings of inference to the practical tasks of estimating parameters and constructing confidence intervals. This knowledge forms a crucial bridge connecting raw distributions to the inferential techniques we’ll explore later in this course.
+
+## Limit Theorems and Asymptotics
+
+As we gather larger and larger samples, our understanding of the underlying population parameters improves—at least in theory. Limit theorems provide the formal justification for this intuition, explaining how sample averages, sums, and other estimators behave as the sample size grows without bound. These results form the bedrock of statistical inference, allowing us to approximate distributions and assess the reliability of estimates.
+
+### Law of Large Numbers
+
+**Intuition:**  
+If you repeatedly measure something many times (like flipping a fair coin or measuring a machine’s output), the average of those measurements should get closer to the true underlying mean as the number of trials grows large.
+
+**Formal Statement (Weak Law of Large Numbers):**  
+If $X_1, X_2, \ldots, X_n$ are independent and identically distributed (i.i.d.) random variables with finite expectation $E[X_i] = \mu$, then:
+$$
+\overline{X}_n = \frac{1}{n}\sum_{i=1}^{n}X_i \xrightarrow{p} \mu \quad \text{as } n \to \infty.
+$$
+
+Here, "$\xrightarrow{p}$" means convergence in probability, i.e., for any $\epsilon > 0$, $P(|\overline{X}_n - \mu| > \epsilon) \to 0$ as $n \to \infty$.
+
+**In Other Words:**
+- The sample mean stabilises around the true mean with high probability as $n$ grows.
+- Even if individual observations are noisy, averaging over many samples reduces uncertainty.
+
+**R Demonstration (LLN):**
+\`\`\{r LLN-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+n_values <- seq(1, 10000, by=100)
+means <- sapply(n_values, function(n) {
+  x <- rnorm(n, mean=5, sd=2) # Normal(5,2^2)
+  mean(x)
+})
+
+df_lln <- data.frame(sample_size=n_values, sample_mean=means)
+library(ggplot2)
+ggplot(df_lln, aes(x=sample_size, y=sample_mean)) +
+  geom_line(color="blue") +
+  geom_hline(yintercept=5, linetype="dashed", color="red") +
+  labs(title="Illustration of Law of Large Numbers",
+       x="Sample Size",
+       y="Sample Mean") +
+  theme_minimal()
+\`\`\`
+
+As the sample size grows, the sample mean hovers closer and closer to the true mean ($\mu=5$ here).
+
+### Central Limit Theorem (Classical and Lindeberg Conditions)
+
+**Central Limit Theorem (CLT):**  
+One of the most famous results in probability, the CLT states that sums (or averages) of many independent, identically distributed random variables with finite mean and variance tend toward a normal distribution as the sample size grows large.
+
+**Classical CLT:**
+- Suppose $X_1, X_2, \ldots, X_n$ are i.i.d. with mean $\mu$ and variance $\sigma^2$.
+- Consider the standardised sum:
+  $$
+  Z_n = \frac{\sum_{i=1}^n (X_i - \mu)}{\sigma\sqrt{n}}.
+  $$
+- Then:
+  $$
+  Z_n \xrightarrow{d} N(0,1) \quad \text{as } n \to \infty.
+  $$
+  
+Here, "$\xrightarrow{d}$" denotes convergence in distribution. It means the distribution of $Z_n$ approaches the standard normal distribution.
+
+**Lindeberg CLT:**  
+A more general version that allows for some weakening of the identical distribution assumption. As long as no single observation dominates the variance and a certain "Lindeberg condition" is met, the sum still converges in distribution to a normal.
+
+**Why the CLT Matters:**
+- Justifies normal approximations for many statistics.
+- Underpins hypothesis testing and confidence interval construction for large samples.
+  
+**R Demonstration (CLT):**
+\`\`\{r CLT-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(456)
+n <- 1000
+m <- 10000 # number of simulations
+# We'll simulate averages of n exponential(1) random variables and standardize them.
+x_matrix <- matrix(rexp(n*m, rate=1), nrow=m, ncol=n)
+means <- rowMeans(x_matrix)
+Z <- (means - 1)/(1/sqrt(n)) # Exponential(1) has mean=1, var=1
+
+# Plot histogram and overlay normal
+df_clt <- data.frame(Z=Z)
+ggplot(df_clt, aes(x=Z)) +
+  geom_histogram(aes(y=..density..), bins=50, fill="steelblue", color="white") +
+  stat_function(fun=dnorm, args=list(mean=0, sd=1), color="red", size=1) +
+  labs(title="Central Limit Theorem Illustration",
+       x="Standardized Mean",
+       y="Density") +
+  theme_minimal()
+\`\`\`
+
+As $n$ grows, the distribution of the standardised mean approaches $N(0,1)$, even though the underlying distribution (Exponential(1)) is not normal.
+
+### Delta Method for Approximation
+
+The Delta Method is a technique for approximating the distribution of a function of an estimator. If $\sqrt{n}(T_n - \theta) \xrightarrow{d} N(0,\sigma^2)$, the delta method states that for a differentiable function $g$ with $g'(\theta) \neq 0$:
+$$
+\sqrt{n}(g(T_n) - g(\theta)) \xrightarrow{d} N(0,\sigma^2 [g'(\theta)]^2).
+$$
+
+**Intuition:**
+- If $T_n$ is an estimator for $\theta$, and we know its asymptotic normal distribution, we can approximate the distribution of a transformed estimator $g(T_n)$ using a linear approximation of $g$ around $\theta$.
+- Useful when you want confidence intervals or hypothesis tests for functions of parameters (e.g., log-transforms, ratio of parameters).
+
+**R Demonstration (Delta Method):**
+\`\`\{r delta-method-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Suppose T_n ~ N(theta, sigma^2/n), we want to approximate distribution of g(T_n) = log(T_n)
+# If theta=2, sigma^2=1, large n=1000
+theta <- 2
+sigma <- 1
+n <- 1000
+T_n <- rnorm(10000, mean=theta, sd=sigma/sqrt(n)) # simulate 10,000 estimates
+
+g <- function(x) log(x)
+g_prime <- 1/theta
+
+# Theoretical asymptotic variance of g(T_n):
+asymptotic_var <- (sigma^2/n)*(g_prime^2)
+
+# Compare the simulated distribution of log(T_n) to the predicted normal approximation
+g_T_n <- g(T_n)
+mean_g <- mean(g_T_n)
+sd_g <- sd(g_T_n)
+
+cat("Sample mean of g(T_n):", mean_g, "\n")
+cat("Sample sd of g(T_n):", sd_g, "\n")
+cat("Theoretical sd from Delta Method:", sqrt(asymptotic_var), "\n")
+\`\`\`
+
+We see the sample statistics roughly match the delta method’s prediction as $n$ grows large.
+
+### Advanced Asymptotics (Slutsky’s Theorem, Continuous Mapping Theorem)
+
+**Slutsky’s Theorem:**
+If $X_n \xrightarrow{d} X$ and $Y_n \xrightarrow{p} c$ where $c$ is a constant, then:
+- $X_n + Y_n \xrightarrow{d} X + c$
+- $X_nY_n \xrightarrow{d} Xc$
+- More generally, continuous transformations of convergent sequences also converge in the appropriate sense.
+
+**Continuous Mapping Theorem:**
+If $X_n \xrightarrow{d} X$ and $g$ is a continuous function, then:
+$$
+g(X_n) \xrightarrow{d} g(X).
+$$
+
+**Why They Matter:**
+- These theorems give formal tools to pass from convergence of one sequence of random variables to convergence of functions of those variables.
+- They underpin the rigor in proofs of many asymptotic results, including the delta method and others.
+
+**R Demonstration (Continuous Mapping):**
+\`\`\{r continuous-mapping-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(789)
+# If X_n ~ Uniform(0,1), then X_n converges in distribution to Uniform(0,1) trivially.
+# Let g(x)=x^2. Then by the continuous mapping theorem, g(X_n) converges in distribution to g(X).
+
+x <- runif(10000, 0, 1)
+y <- x^2
+mean_y <- mean(y)
+cat("Mean of Y = X^2:", mean_y, "\n") # For a U(0,1), E[X^2]=1/3 ~0.3333
+
+# With large sample, sample mean of y approximates theoretical expectation of X^2 under U(0,1).
+\`\`\`
+
+As $n$ increases, empirical moments of transformed variables approximate their theoretical values, justifying our calculations and letting us build complex models from simpler limits.
+
+---
+
+**Key Takeaways:**
+- **Law of Large Numbers:** Guarantees that averages settle down to the true mean.  
+- **Central Limit Theorem:** Justifies the ubiquitous appearance of normal approximations in statistics. Even non-normal data lead to normally distributed averages (after proper scaling) as $n$ grows large.  
+- **Delta Method:** Provides a handy approximation for the distribution of smooth transformations of asymptotically normal estimators.  
+- **Advanced Asymptotics:** Slutsky’s Theorem and the Continuous Mapping Theorem allow us to extend convergence results to more complex situations.
+
+These asymptotic tools form the backbone of modern statistical inference, giving practitioners the power to approximate distributions of complex estimators, construct confidence intervals, and carry out hypothesis tests in a wide variety of scenarios[^1].
+
+[^1]: For deeper mathematical treatments, see Billingsley, P. (1995). *Probability and Measure.* and van der Vaart, A.W. (1998). *Asymptotic Statistics.*.

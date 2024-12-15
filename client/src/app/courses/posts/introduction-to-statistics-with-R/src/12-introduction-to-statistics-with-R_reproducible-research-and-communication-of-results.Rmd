@@ -1,0 +1,160 @@
+---
+title: "Introduction to Statistics with R: Reproducible Research and Communication of Results"
+blurb: "Blue and white mean war"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+# Reproducible Research and Communication of Results
+
+## Literate Programming and Dynamic Documents
+
+Modern data science and statistical analysis benefit greatly from literate programming[^1], where code, narrative, and results coexist in a single document. This practice enhances reproducibility, transparency, and collaboration by bundling code, outputs, and prose together. Key tools in the R ecosystem for literate programming include **RMarkdown**, **Quarto**, and **knitr**, each enabling you to create dynamic, interactive documents that can be easily shared and updated.
+
+### RMarkdown, Quarto, and knitr
+
+**Conceptual Overview:**  
+- **RMarkdown:** A file format (`.Rmd`) that merges code (R and other languages), markdown text, and output. When rendered, it produces outputs like HTML, PDF, or Word documents.  
+- **Quarto:** A next-generation tool that extends beyond RMarkdown, supporting multiple languages (R, Python, Julia) and offering more publishing and formatting options.  
+- **knitr:** The R package that underpins RMarkdown, facilitating the execution of code chunks and insertion of their results into documents.
+
+These tools allow you to present statistical analysis as a coherent narrative: you can explain your methods, show your code, and present results (tables, figures) inline. This reduces the “copy-paste” cycle, making your workflow more efficient, transparent, and less error-prone.
+
+**Key Advantages:**
+- **Reproducibility:** If someone reruns your `.Rmd` or Quarto document, they get the same results, ensuring transparency and trust.
+- **Version Control:** Storing `.Rmd` or Quarto source files in Git allows you to track changes in code, text, and data processing steps.
+- **Communication:** By weaving code and outputs together, collaborators and stakeholders can follow the logic of the analysis, making complex methods more accessible.
+
+### Parameterised Reports and Interactive Notebooks
+
+**Parameterised Reports:**
+- Parameterised reports allow you to define parameters (e.g., dataset name, date range, filtering criteria) at the start of your document.  
+- When you “knit” or “render” the report, you can supply different values for these parameters without editing the code. This is useful if you need to produce the same analysis for multiple groups, time periods, or scenarios.
+
+**Example:**
+Let’s assume we have a parameter `region` that specifies which subset of data we want to analyse. In an RMarkdown file, you can define parameters in the YAML header:
+
+\`\`\`
+---
+title: "Sales Report"
+params:
+  region: "Asia"
+output: html_document
+---
+\`\`\`
+
+Within the report, you can refer to `params$region` to filter data accordingly.
+
+**Code Example (Assuming a CSV with sales data):**
+Please note, if we need a real dataset, let me know and I can suggest one. For demonstration, let’s assume we have `sales_data.csv` with columns `Region`, `Product`, `Sales`. If we do not have such data, we can simulate it.
+
+\`\`\{r echo=TRUE\}
+# Simulate some sales data if we don't have a real dataset:
+# This is for demonstration; in practice, you'd read a real dataset.
+if(!requireNamespace("data.table", quietly=TRUE)) {
+  install.packages("data.table")
+}
+library(data.table)
+
+set.seed(123)
+dt <- data.table(
+  Region=sample(c("Asia","Europe","Americas"), 100, replace=TRUE),
+  Product=sample(c("Gadget","Widget","Thingamajig"), 100, replace=TRUE),
+  Sales=round(runif(100, 10, 1000),2)
+)
+
+# Filter by parameter:
+selected_data <- dt[Region == params$region]
+head(selected_data)
+\`\`\`
+
+Running this report with `region = "Europe"` will produce a similar analysis focusing only on Europe’s data.
+
+**To render with different parameters:**
+You can run from the R console:  
+\`\`\{r, eval=FALSE\}
+rmarkdown::render("report.Rmd", params=list(region="Europe"))
+\`\`\`
+
+This approach makes it easy to produce many customised reports programmatically.
+
+**Interactive Notebooks:**
+- RMarkdown and Quarto support notebook interfaces.  
+- When you open an `.Rmd` file in RStudio, you can run code chunks interactively and see outputs immediately, making exploratory analysis more intuitive.  
+- Quarto supports Jupyter-like notebook behaviour for multiple languages.  
+- You can also embed `shiny` apps or `htmlwidgets` for truly interactive experiences.
+
+**Example with ggplot2 Plot:**
+\`\`\{r sales-plot, echo=TRUE, message=FALSE, warning=FALSE\}
+if(!requireNamespace("ggplot2", quietly=TRUE)) {
+  install.packages("ggplot2")
+}
+library(ggplot2)
+
+ggplot(selected_data, aes(x=Product, y=Sales)) +
+  geom_boxplot(fill="steelblue", alpha=0.7) +
+  labs(title=paste("Sales Distribution in", params$region),
+       x="Product", y="Sales") +
+  theme_minimal()
+\`\`\`
+
+This code chunk will produce a boxplot of Sales by Product for the specified region. By changing the parameter `region` in your report’s YAML header or through `rmarkdown::render()`, you instantly get a new plot for a different region—no manual changes needed.
+
+### Quarto vs RMarkdown
+
+**Quarto** builds on the concept of RMarkdown, offering:
+- **More Extensive Language Support:** R, Python, Julia, and Observable JS.  
+- **Flexible Output Formats:** Quarto can produce scientific articles, books, websites, and blogs more seamlessly.  
+- **Built-In Visual Themes:** Enhanced styling and layout options.
+
+If you’re starting fresh, you might consider Quarto as a more modern choice, but RMarkdown remains widely used and integrated into RStudio.
+
+### knitr Under the Hood
+
+**knitr:** The engine that executes code chunks in `.Rmd` files, capturing outputs and inserting them into the final document. It’s highly customisable:
+- Control code chunk options (echo, eval, results, warnings).
+- Integrate with caching to speed up repeated renders.
+- Manage figure sizes, captions, and layouts easily.
+
+**Example of Chunk Options:**
+\`\`\{r summary, echo=TRUE, results="markup"\}
+summary(selected_data$Sales)
+\`\`\`
+
+This displays a summary of `Sales` directly in the output, no copy-paste needed.
+
+---
+
+**Key Takeaways:**
+- **Literate Programming:** Combine code, text, and results for reproducible, communicative research documents.
+- **RMarkdown/Quarto:** Flexible formats that let you produce static and interactive documents, enhancing collaboration and reproducibility.
+- **Parameterised Reports:** Automate repetitive analysis tasks by setting parameters at render time.
+- **Interactive Notebooks:** Run code live, see outputs instantly, and refine analysis on the fly.
+
+By using RMarkdown or Quarto (backed by knitr), you create living documents that tell the full story of your data analysis journey. These tools help ensure your work can be validated, reused, and understood by collaborators, reviewers, and future you—a crucial asset in any data science workflow.
+
+[^1]: Knuth, D. E. (1984). Literate Programming. The Computer Journal, 27(2), 97–111.
+
