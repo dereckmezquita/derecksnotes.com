@@ -31,14 +31,24 @@ const CanvasWithJs: React.FC<CanvasWithJsProps> = ({
     }, [code, width, height]);
 
     return (
-        <canvas
-            ref={canvasRef}
+        <div
             style={{
-                width: `${width}px`,
-                height: `${height}px`,
-                border: '1px solid #ccc'
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '100%',
+                height: '100%'
             }}
-        />
+        >
+            <canvas
+                ref={canvasRef}
+                style={{
+                    width: `${width}px`,
+                    height: `${height}px`,
+                    border: '1px solid #ccc'
+                }}
+            />
+        </div>
     );
 };
 
