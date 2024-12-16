@@ -12,22 +12,6 @@ output:
     keep_md: true
 ---
 
-```{r setup, include=FALSE}
-# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
-if (knitr::is_html_output()) knitr::knit_hooks$set(
-    plot = function(x, options) {
-        cap  <- options$fig.cap
-        # x <- paste0("/courses/", x)
-        as.character(htmltools::tag(
-            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
-        ))
-    }
-)
-
-knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
-knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
-```
-
 ## Setting the Stage
 
 ### Motivation for Studying Statistics
@@ -47,7 +31,8 @@ Statistics occupies a crucial niche in the modern world, acting as the bridge be
 
 [^1]: For instance, large-scale clinical trials rely extensively on statistical methods to determine the efficacy and safety of treatments before they reach the market.
 
-```{r motivation-demo, echo=TRUE, message=FALSE, warning=FALSE}
+
+``` r
 set.seed(123)
 daily_sales <- data.table::data.table(day = 1:500, sales = rpois(500, lambda = 20))
 sales_mean <- mean(daily_sales$sales)
@@ -63,6 +48,10 @@ ggplot2::ggplot(daily_sales, ggplot2::aes(x = sales)) +
         y = "Frequency"
     )
 ```
+
+<Figure src="/courses/1_introduction-to-statistics-with-R_introduction-and-overview_files/figure-html/motivation-demo-1.png">
+	
+</Figure>
 
 In this simple demonstration, summarising and visualising a dataset quickly reveals its central tendencies and variability an essential first step in statistical thinking.
 
@@ -84,15 +73,26 @@ One of the greatest strengths of statistics is its universality. It is not confi
 
 By mastering statistical principles, you gain a toolkit that applies to virtually any domain where uncertainty and complexity abound. It enables interdisciplinary collaboration because different fields can use the same statistical techniques to answer their unique questions.
 
-```{r interdisciplinary-demo, echo=TRUE, message=FALSE, warning=FALSE}
+
+``` r
 # Demonstration: basic summary of two distinct datasets
 # For medical data: patient weights (in kg)
 patient_data <- data.table::data.table(patient_id = 1:10, weight = rnorm(10, mean = 70, sd = 5))
 cat("Mean patient weight (medical domain):", mean(patient_data$weight), "\n")
+```
 
+```
+## Mean patient weight (medical domain): 70.91306
+```
+
+``` r
 # For environmental data: daily temperatures (in °C)
 temp_data <- data.table::data.table(day = 1:10, temperature = rnorm(10, mean = 15, sd = 3))
 cat("Mean daily temperature (environmental domain):", mean(temp_data$temperature), "\n")
+```
+
+```
+## Mean daily temperature (environmental domain): 12.89591
 ```
 
 Regardless of context—medical or environmental—the fundamental statistical operations (calculating means, examining distributions) remain the same.
@@ -118,7 +118,8 @@ The scientific method—observe, hypothesise, experiment, analyse, and conclude�
 
 Statistics ensures that scientific claims are not just guesses, but statements accompanied by measures of certainty. It guards against being misled by coincidences or outliers, providing a framework to discern real effects from the noise of randomness.
 
-```{r scientific-method-demo, echo=TRUE, message=FALSE, warning=FALSE}
+
+``` r
 set.seed(42)
 # Heights without fertilizer (control)
 control <- rnorm(30, mean = 50, sd = 5)
@@ -127,6 +128,10 @@ treatment <- rnorm(30, mean = 52, sd = 5)
 
 t_test_result <- t.test(treatment, control, var.equal = TRUE)
 cat("t-test p-value:", t_test_result$p.value, "\n")
+```
+
+```
+## t-test p-value: 0.4859518
 ```
 
 If the p-value is sufficiently small, it suggests that the difference in mean heights is unlikely due to mere chance. This aligns perfectly with the scientific method: we had a hypothesis that the fertilizer increases height, we collected data, performed a statistical test, and now can make an informed conclusion.
@@ -214,7 +219,8 @@ Think of your current analytical toolkit as a small backpack with basic tools. T
 
 **R Demonstration (Project-Style Example):**
 
-```{r project-demo, echo=TRUE, message=FALSE, warning=FALSE}
+
+``` r
 set.seed(100)
 
 # Example: Suppose we are interested in modelling the relationship between temperature and crop yield.
@@ -228,13 +234,40 @@ data_proj <- data.table::data.table(temp = temp, yield = yield)
 # Fit a linear model to estimate the effect of temperature on yield
 model <- lm(yield ~ temp, data = data_proj)
 summary(model)
+```
 
+```
+## 
+## Call:
+## lm(formula = yield ~ temp, data = data_proj)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -15.5080  -2.3750  -0.1473   2.9676  13.7338 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(>|t|)    
+## (Intercept) 50.75931    1.19814   42.37   <2e-16 ***
+## temp         1.96526    0.05724   34.33   <2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 4.624 on 198 degrees of freedom
+## Multiple R-squared:  0.8562,	Adjusted R-squared:  0.8555 
+## F-statistic:  1179 on 1 and 198 DF,  p-value: < 2.2e-16
+```
+
+``` r
 # Visualise the relationship
 ggplot2::ggplot(data_proj, ggplot2::aes(x = temp, y = yield)) +
     ggplot2::geom_point(color = "blue") +
     ggplot2::geom_smooth(method = "lm", color = "red") +
     ggplot2::labs(title = "Crop Yield vs Temperature", x = "Temperature (°C)", y = "Yield (kg)")
 ```
+
+<Figure src="/courses/1_introduction-to-statistics-with-R_introduction-and-overview_files/figure-html/project-demo-1.png">
+	
+</Figure>
 
 In this brief demonstration:
 
@@ -286,7 +319,8 @@ R is not merely a language; it's a vast and ever-growing ecosystem of packages, 
 **R Demonstration (Basic Data Manipulation and Plot):**
 Below is a simple demonstration illustrating how R's ecosystem supports quick data manipulation and visualisation. Note the use of `data.table` for fast data handling and `ggplot2` for polished plots.
 
-```{r why-use-r-demo, echo=TRUE, message=FALSE, warning=FALSE}
+
+``` r
 # Simulate some data: Suppose we have monthly sales figures
 set.seed(456)
 sales_data <- data.table::data.table(
@@ -299,8 +333,21 @@ avg_sales <- mean(sales_data$sales)
 sd_sales <- sd(sales_data$sales)
 
 cat("Average Monthly Sales:", avg_sales, "\n")
-cat("Standard Deviation of Monthly Sales:", sd_sales, "\n")
+```
 
+```
+## Average Monthly Sales: 19.66667
+```
+
+``` r
+cat("Standard Deviation of Monthly Sales:", sd_sales, "\n")
+```
+
+```
+## Standard Deviation of Monthly Sales: 3.576014
+```
+
+``` r
 # Visualise sales across months using ggplot2
 ggplot2::ggplot(sales_data, ggplot2::aes(x = month, y=sales)) +
     ggplot2::geom_line(color = "blue") +
@@ -311,6 +358,10 @@ ggplot2::ggplot(sales_data, ggplot2::aes(x = month, y=sales)) +
         y = "Sales"
     )
 ```
+
+<Figure src="/courses/1_introduction-to-statistics-with-R_introduction-and-overview_files/figure-html/why-use-r-demo-1.png">
+	
+</Figure>
 
 This brief snippet shows how natural it is to load data, summarise it, and create a professional-quality plot—all in a few lines.
 
@@ -335,7 +386,8 @@ R's openness and extensive community support form the bedrock of reproducible re
 **R Demonstration (Reproducible Reporting Example):**
 In a real research scenario, you might combine code, output, and commentary in a single RMarkdown file. Below is a conceptual snippet (not fully executed here) showing how you could dynamically generate a summary report:
 
-```{r reproducibility-demo, echo=TRUE}
+
+``` r
 # Example code chunk in an RMarkdown file
 summary_stats <- data.table::data.table(
     Statistic = c("Mean", "Median", "SD"),
@@ -343,6 +395,14 @@ summary_stats <- data.table::data.table(
 )
 
 summary_stats
+```
+
+```
+##    Statistic     Value
+##       <char>     <num>
+## 1:      Mean 19.666667
+## 2:    Median 20.000000
+## 3:        SD  3.576014
 ```
 
 By knitting this RMarkdown document, you produce a report with tables, plots, and text all integrated. Any update to the data or code instantly reflects in the final rendered document, bolstering trust in the reproducibility of your analysis.
@@ -382,7 +442,8 @@ Before diving into statistical analyses, it is essential to set up a stable comp
 
 **R Demonstration (Initial Setup):**
 
-```{r setup-demo, eval=FALSE}
+
+``` r
 # Installing a package (if not installed)
 install.packages("data.table")
 install.packages("ggplot2")
@@ -411,10 +472,15 @@ Reproducible research thrives on tools that integrate code, text, and results in
 
 **R Demonstration (RMarkdown Conceptual Example):**
 
-```{r rmarkdown-demo, echo=TRUE}
+
+``` r
 # This code chunk might appear in a .Rmd file:
 data_example <- data.table::data.table(x=1:10, y = rnorm(10, mean = 5, sd = 2))
 mean(data_example$y)
+```
+
+```
+## [1] 4.856161
 ```
 
 When you knit the `.Rmd` file, the computed `mean_val` and any figures you produce will be embedded in the output, ensuring a self-contained, reproducible analysis.
