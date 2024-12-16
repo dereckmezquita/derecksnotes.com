@@ -111,8 +111,11 @@ function Card({ post, section }: CardProps) {
         throw new Error('Post summary is empty');
     }
 
-    // TODO: reconsider how the path to the post is put together
-    const link: string = path.join('/', section, post.slug);
+    if (!post.path) {
+        throw new Error('Post path is empty');
+    }
+
+    const link: string = path.join('/', post.path);
 
     const firstLetter = post.summary.charAt(0);
     const restOfSummary = post.summary.slice(1, 100);

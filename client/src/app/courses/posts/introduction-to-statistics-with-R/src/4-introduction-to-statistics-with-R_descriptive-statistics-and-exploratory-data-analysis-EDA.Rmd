@@ -1,0 +1,579 @@
+---
+title: "Introduction to Statistics with R: Descriptive Statistics and Exploratory Data Analysis (EDA)"
+blurb: "Blue and white mean war"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+# Descriptive Statistics and Exploratory Data Analysis (EDA)
+
+## Summarising Data
+
+When confronted with raw data, our first step often involves summarising it to understand its central tendencies, spread, and general shape. Summarising data provides a quick and intuitive grasp of what we’re dealing with, forming a foundation for deeper statistical analysis.
+
+### Measures of Central Tendency (Mean, Median, Mode)
+
+Central tendency measures aim to capture a "typical" value of the data.
+
+- **Mean ($\bar{x}$):**
+    - The arithmetic average of the data:
+      $$\bar{x}=\frac{1}{n}\sum_{i=1}^{n}x_i.$$
+    - **Pros:** Uses all data points, widely used in statistical inference.
+    - **Cons:** Sensitive to outliers. A single extreme value can skew the mean.
+
+- **Median:**
+    - The middle value of a sorted dataset. If $n$ is odd, it’s the value at position $(n+1)/2$. If $n$ is even, it’s the average of the two middle values.
+    - **Pros:** Robust to outliers and skewed distributions.
+    - **Cons:** Less sensitive to small changes in data, might not capture the true "location" if data is symmetric and outlier-free.
+
+- **Mode:**
+    - The most frequently occurring value(s).
+    - **Pros:** Useful for categorical data or understanding the most common value.
+    - **Cons:** Not always well-defined for continuous data, and data might have multiple modes.
+
+**Analogy:**
+- Mean: The "center of mass" of the data.
+- Median: The "middle seat" if you line everyone up in ascending order.
+- Mode: The "crowded spot" where the most data points cluster.
+
+### Measures of Dispersion (Variance, IQR, MAD)
+
+Central tendency alone is insufficient. We also need to know how spread out data values are.
+
+- **Variance ($s^2$):**
+    - Measures the average squared deviation from the mean:
+      $$s^2=\frac{1}{n-1}\sum_{i=1}^{n}(x_i-\bar{x})^2.$$
+    - Standard Deviation ($s$) is the square root of the variance, returning to the original units.
+
+- **Interquartile Range (IQR):**
+    - The difference between the 75th percentile ($Q_3$) and the 25th percentile ($Q_1$):
+      $$\text{IQR}=Q_3 - Q_1.$$
+    - **Pros:** Focuses on the middle 50% of the data, robust to outliers.
+
+- **Median Absolute Deviation (MAD):**
+    - The median of the absolute deviations from the median:
+      $$\text{MAD} = \text{median}(|x_i - \text{median}(x)|).$$
+    - **Pros:** Extremely robust and a good measure of variability for skewed or heavy-tailed data.
+
+**Analogy:**
+- Variance/SD: How far data points typically fall from the mean, treating outliers seriously.
+- IQR: The range of the "middle half" of data, ignoring extremes.
+- MAD: A robust measure of spread that depends on absolute deviations from the median, making it outlier-resistant.
+
+### Quantiles, Percentiles, and Order Statistics
+
+Quantiles generalise the median (which is the 50% quantile) to other divisions of the data.
+
+- **Quantiles:**  
+  The $p$-th quantile is a value below which $p\%$ of the data lie.
+  - The 25% quantile ($Q_1$), 50% quantile (median), and 75% quantile ($Q_3$) are common.
+  
+- **Percentiles:**  
+  The 90th percentile is the value below which 90% of the data fall.
+
+- **Order Statistics:**  
+  Sorting the data $x_{(1)} \le x_{(2)} \le \cdots \le x_{(n)}$:
+  - $x_{(k)}$ is the $k$-th order statistic.
+  - The median, quartiles, and other quantiles can be approximated using appropriate order statistics.
+
+Quantiles and order statistics provide a more complete picture of the distribution than just the mean or variance.
+
+**R Demonstration (Summarising Data):**
+
+\`\`\{r summarize-data-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+library(data.table)
+library(ggplot2)
+
+x <- rnorm(1000, mean=50, sd=10)
+
+mean_x <- mean(x)
+median_x <- median(x)
+sd_x <- sd(x)
+iqr_x <- IQR(x)
+mad_x <- mad(x)
+
+cat("Mean:", mean_x, "\nMedian:", median_x, "\nSD:", sd_x, "\nIQR:", iqr_x, "\nMAD:", mad_x, "\n")
+
+# Compute quantiles
+quantiles <- quantile(x, probs=c(0.25,0.5,0.75))
+cat("25% quantile (Q1):", quantiles[1], "\n",
+    "50% quantile (Median):", quantiles[2], "\n",
+    "75% quantile (Q3):", quantiles[3], "\n")
+
+# Plot a histogram with lines for mean and median
+dt <- data.table::data.table(value=x)
+ggplot(dt, aes(x=value)) +
+  geom_histogram(aes(y=..density..), bins=30, fill="steelblue", color="white", alpha=0.7) +
+  geom_vline(xintercept=mean_x, color="red", linetype="dashed") +
+  geom_vline(xintercept=median_x, color="green", linetype="dotted") +
+  labs(title="Distribution of X with Mean and Median",
+       x="Value", y="Density")
+\`\`\`
+
+In this example:
+- The mean and median lines might be close for a symmetric distribution like Normal.
+- The summary statistics give us a snapshot of location and spread.
+
+---
+
+**Key Takeaways:**
+
+- **Central Tendency:** Mean, median, and mode provide measures of "typical" values. The mean is sensitive to outliers, the median is robust, and the mode identifies the most frequent value.
+
+- **Dispersion:** Variance/SD measures overall variability, but is sensitive to outliers. IQR focuses on the middle range, and MAD offers a robust alternative.
+
+- **Quantiles and Order Statistics:**  
+  Quantiles partition data into segments, describing distribution shape beyond just mean and variance. Order statistics help find these quantiles and understand the data’s spread and tails.
+
+Together, these tools give you a versatile toolkit for quickly understanding and communicating the nature of your data. They form the backbone of exploratory data analysis, guiding further steps like choosing models, detecting anomalies, and deciding whether transformations or robust methods are needed.
+
+
+
+## Data Visualisation Techniques
+
+One of the most effective ways to understand data is to visualise it. Graphical representations reveal patterns, anomalies, and distributions far more intuitively than raw numbers. By employing various plots and graphs, we can quickly gain insight into shape, spread, relationships, and potential issues in our data.
+
+### Histograms, Density Plots, Box Plots, Violin Plots
+
+**Histograms:**
+- Partition data into bins (intervals) and count how many observations fall into each bin.
+- Reveal the distribution’s shape—whether it’s symmetric, skewed, unimodal, or multimodal.
+- **Pros:** Simple and informative, good for large datasets.
+- **Cons:** Choice of bin width affects appearance.
+
+**Density Plots:**
+- Smooth the data into a continuous curve, approximating the PDF.
+- More visually appealing and can show subtle distributional features.
+- **Pros:** Less sensitive to bin width than histograms.
+- **Cons:** Introduce smoothing parameters; may obscure discrete structure.
+
+**Box Plots:**
+- Show median, quartiles (Q1, Q3), and possibly whiskers extending to data within 1.5×IQR. Outliers plotted individually.
+- Ideal for comparing distributions across several groups.
+- **Pros:** Compact summary of location and spread, robust to outliers.
+- **Cons:** Lose some distributional detail.
+
+**Violin Plots:**
+- Combine box plot logic with a density plot, showing distribution shape along with quartiles.
+- **Pros:** Display full distribution shape and summary statistics in one plot.
+- **Cons:** More complex than box plots; may be less familiar to some audiences.
+
+**R Demonstration (Histograms, Density, Box, Violin):**
+
+\`\`\{r visualization-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+library(data.table)
+library(ggplot2)
+
+x <- rnorm(1000, mean=0, sd=1)
+
+dt <- data.table::data.table(value=x)
+
+# Histogram
+p_hist <- ggplot(dt, aes(x=value)) +
+  geom_histogram(binwidth=0.2, fill="steelblue", color="white", alpha=0.7) +
+  labs(title="Histogram", x="Value", y="Count")
+
+# Density plot
+p_density <- ggplot(dt, aes(x=value)) +
+  geom_density(fill="purple", alpha=0.5) +
+  labs(title="Density Plot", x="Value", y="Density")
+
+# Box plot
+p_box <- ggplot(dt, aes(y=value)) +
+  geom_boxplot(fill="orange", alpha=0.7) +
+  labs(title="Box Plot", y="Value")
+
+# Violin plot
+p_violin <- ggplot(dt, aes(y=value)) +
+  geom_violin(fill="green", alpha=0.5) +
+  labs(title="Violin Plot", y="Value")
+
+p_hist
+p_density
+p_box
+p_violin
+\`\`\`
+
+### Empirical Cumulative Distribution Functions (ECDFs)
+
+The Empirical CDF (ECDF) shows, for every possible value $x$, the proportion of data less than or equal to $x$.
+
+- **Interpretation:**
+  - $F_n(x)=\frac{1}{n}\sum_{i=1}^{n}I(x_i \le x)$ where $I$ is an indicator function.
+  - Steps upward at data points, never decreases.
+  
+- **Pros:**
+  - Easy to read median, quartiles, and other percentiles.
+  - Compare two distributions by plotting their ECDFs and seeing where they differ.
+  
+- **Cons:**
+  - The step-like nature can be less smooth, but it’s fully nonparametric and conveys all rank information.
+
+**R Demonstration (ECDF):**
+
+\`\`\{r ecdf-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+p_ecdf <- ggplot(dt, aes(x=value)) +
+  stat_ecdf(geom="step", color="blue") +
+  labs(title="ECDF", x="Value", y="F(x)")
+
+p_ecdf
+\`\`\`
+
+### Scatterplots, Pairwise Plots, Correlograms
+
+For multivariate data, we need techniques that show relationships between variables:
+
+- **Scatterplots:**
+    - Plot two variables against each other on x-y axes.
+    - Reveal linear or nonlinear relationships, clusters, outliers.
+  
+- **Pairwise Plots (Scatterplot Matrix):**
+    - When dealing with multiple variables, create a matrix of scatterplots for each pair.
+    - Quickly identify relationships or lack thereof among many variables.
+
+- **Correlograms:**
+    - Display correlation coefficients among multiple variables in a heatmap form.
+    - Make it easy to spot which variables move together or oppose each other.
+
+**R Demonstration (Scatterplot, Correlogram Concept):**
+  
+\`\`\{r scatter-correlogram-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Suppose we have two correlated variables
+y <- x*0.5 + rnorm(1000, mean=0, sd=0.5) # y ~ 0.5x + noise
+
+dt2 <- data.table::data.table(x=x, y=y)
+
+# Scatterplot:
+p_scatter <- ggplot(dt2, aes(x=x, y=y)) +
+  geom_point(color="darkred", alpha=0.5) +
+  labs(title="Scatterplot of y vs x",
+       x="x", y="y")
+p_scatter
+\`\`\`
+
+(Correlogram would require multiple variables; we won’t fully illustrate here.)
+
+### Using `ggplot2` and the Grammar of Graphics
+
+`ggplot2` is a powerful, flexible R package for data visualisation, based on the Grammar of Graphics. It offers a systematic way to build complex plots layer by layer.
+
+- **Grammar of Graphics:**
+    - Data: the dataset you’re plotting.
+    - Aesthetics: how variables map to visual properties (x-position, y-position, color, size).
+    - Geoms: geometric objects like points, lines, bars.
+    - Stats: transformations like binning (for histograms) or smoothing (for regressions).
+    - Scales, Themes, Coordinates: control appearance, labels, and coordinate systems.
+
+**Advantages of ggplot2:**
+- Consistent, layered approach: start with `ggplot(data, aes(...))` and add geoms and other layers.
+- Rich ecosystem of extensions and themes.
+- Ideal for exploratory analysis and publication-quality graphics.
+
+**R Demonstration (ggplot2 basics):**
+
+\`\`\{r ggplot2-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Already shown above how to use ggplot2. Let's show a density plot with a line overlay:
+p <- ggplot(dt, aes(x=value)) +
+  geom_density(fill="purple", alpha=0.5) +
+  geom_vline(xintercept=mean_x, color="red", linetype="dashed") +
+  labs(title="Density with Mean Line", 
+       subtitle=paste("Mean =", round(mean_x,2)),
+       x="Value", y="Density")
+p
+\`\`\`
+
+---
+
+**Key Takeaways:**
+
+- **Histograms, Density, Box, Violin Plots:**  
+  Reveal distribution shapes, spread, and outliers. Choose the plot that best fits your data and message.
+  
+- **ECDFs:**  
+  Provide a direct, nonparametric view of data’s cumulative distribution, helping compare distributions and read off quantiles easily.
+  
+- **Scatterplots, Pairwise Plots, Correlograms:**  
+  Essential for multivariate data, showing relationships, correlations, and potential linear or nonlinear patterns between variables.
+  
+- **ggplot2 and Grammar of Graphics:**  
+  Offers a structured, layered approach to building plots in R. It’s a powerful toolkit to create intuitive, reproducible, and visually appealing graphics.
+
+Visualisation is a cornerstone of EDA. Thoughtful use of these techniques often guides the next steps—what models to try, what transformations to consider, and what peculiarities deserve further scrutiny in your data. By mastering these visualization tools, you enhance your ability to glean insights rapidly and communicate findings effectively.
+
+## Handling Complex Data Structures
+
+Real-world data are rarely clean and straightforward. Besides basic univariate summaries, we often face complications: missing values, outliers, and high-dimensional structures. Addressing these challenges with care and robust techniques is essential for drawing reliable conclusions.
+
+### Dealing with Missing Data (MCAR, MAR, MNAR)
+
+Missing data are ubiquitous. Identifying the mechanism behind missingness guides how we handle it[^1]:
+
+- **MCAR (Missing Completely at Random):**
+    - Probability of a value being missing does not depend on observed or unobserved data.
+    - Example: A sensor fails intermittently in a manner unrelated to the environment or the readings.
+    - MCAR is the least problematic scenario: methods like complete-case analysis can be unbiased, but may reduce sample size.
+
+- **MAR (Missing at Random):**
+    - Probability of missingness may depend on observed data but not on the missing values themselves.
+    - Example: In a survey, younger participants respond less frequently, but given age, response doesn't depend on the person’s other attributes.
+    - Under MAR, imputations or methods like multiple imputation can produce unbiased estimates if the model includes observed predictors related to missingness.
+
+- **MNAR (Missing Not at Random):**
+    - Missingness depends on unobserved information.
+    - Example: Students with poor grades are less likely to report their scores.
+    - MNAR is the most challenging scenario; often requires specialized models or sensitivity analyses.
+
+**Approaches to Handle Missing Data:**
+- **Complete-Case Analysis:** Drop rows with missing values; simple but can bias results if not MCAR.
+- **Imputation Methods:**  
+  - Mean/Median imputation: simple, but can distort variability.
+  - Regression-based or Multiple Imputation: better preserves relationships and uncertainty.
+- **Advanced Techniques:** Model missingness mechanism directly or use weighting.
+
+**R Demonstration (Identifying Missing Data):**
+
+\`\`\{r missing-data-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+dt_missing <- data.table::data.table(
+  x=rnorm(100),
+  y=rnorm(100)
+)
+# Introduce missing values in y
+dt_missing[y<0, y := NA]
+
+cat("Number of missing y values:", sum(is.na(dt_missing$y)), "\n")
+\`\`\`
+
+We can then explore imputation methods (e.g., using the `mice` package) or exclude missing values carefully.
+
+### Outliers: Detection and Robust Measures
+
+Outliers are extreme values that deviate from the bulk of the data. They may represent real but rare events, measurement errors, or belong to a different population.
+
+- **Detection Methods:**
+    - Visual methods: Box plots (points beyond whiskers), scatterplots (isolated points).
+    - Statistical rules: Values beyond 3 standard deviations from mean, or beyond $Q_1 - 1.5\times\text{IQR}$ and $Q_3 + 1.5\times\text{IQR}$.
+  
+- **Robust Measures:**
+    - Instead of the mean, use median.
+    - Instead of variance, use MAD or trimmed means.
+    - Outlier-resistant methods ensure a few extreme values do not dominate summaries or models.
+
+**Strategies for Outliers:**
+- Investigate the cause: If measurement error, consider correction or removal.
+- Use robust statistics or transformations (e.g., log) to mitigate their impact.
+- In some modeling contexts, heavy-tailed distributions or robust regressions can handle outliers gracefully.
+
+**R Demonstration (Detecting Outliers with Box Plot):**
+
+\`\`\{r outlier-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(321)
+x_outlier <- c(rnorm(98, mean=0, sd=1), 10, -9) # 2 outliers
+dt_out <- data.table::data.table(value=x_outlier)
+
+ggplot2::ggplot(dt_out, aes(y=value)) +
+  geom_boxplot(fill="orange") +
+  labs(title="Box Plot Detecting Outliers", y="Value")
+\`\`\`
+
+### High-Dimensional Visualisations (Heatmaps, t-SNE, UMAP)
+
+As the number of variables grows, traditional plots become cluttered. Specialized techniques help visualize high-dimensional data:
+
+- **Heatmaps:**
+    - Represent data matrix as a colour-coded grid.
+    - Often combined with clustering (dendrograms) to reveal groups of similar observations or variables.
+    - Common in genomics (gene expression arrays) and any large matrix data.
+
+- **t-SNE (t-Distributed Stochastic Neighbor Embedding):**
+    - A nonlinear dimensionality reduction method.
+    - Maps high-dimensional points into 2D or 3D while preserving local structure.
+    - Good for visualising clusters, but sensitive to hyperparameters and can distort global relationships.
+
+- **UMAP (Uniform Manifold Approximation and Projection):**
+    - Another advanced technique for dimensionality reduction and visualisation.
+    - Typically faster and often better at preserving global structure than t-SNE, making it popular for large datasets.
+
+**Approaches for High-Dimensional Data:**
+- Preprocessing: Standardize or normalize variables.
+- Dimension reduction: PCA, t-SNE, UMAP before plotting.
+- Interactive tools: Zoom, hover, filter large datasets interactively.
+
+**R Demonstration (Heatmap Concept):**
+
+\`\`\{r heatmap-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Example: Simulate a 20x50 matrix
+mat <- matrix(rnorm(1000), nrow=20, ncol=50)
+# Convert to data.table for demonstration
+dt_heat <- data.table::as.data.table(mat)
+
+# For a quick demonstration, we won't fully show a ggplot-based heatmap here.
+# Usually, heatmaps can be made using geom_tile or specialized functions.
+cat("Heatmap concept demonstration\n")
+\`\`\`
+
+(t-SNE and UMAP typically require additional packages like `Rtsne` or `umap` and might be computationally expensive to run in a simple demo.)
+
+---
+
+**Key Takeaways:**
+
+- **Missing Data:** Identify whether it’s MCAR, MAR, or MNAR. Use appropriate handling methods—from simple deletion to sophisticated multiple imputation.
+
+- **Outliers:** Detect using visual or statistical rules. Consider robust measures (median, MAD) and, if appropriate, transformations or robust methods to limit their influence.
+
+- **High-Dimensional Visualisations:** Heatmaps, t-SNE, and UMAP help reveal patterns in complex, large datasets, guiding feature selection, clustering, or further analysis steps.
+
+By addressing missing values properly, controlling the influence of outliers, and employing advanced visualisation tools for high-dimensional data, you enhance the reliability of your EDA. These steps ensure you won’t be misled by incomplete or distorted views of your data, paving the way for robust and insightful statistical analysis.
+
+## Exploratory Techniques in R
+
+After understanding how to summarise and visualise data, the next step is to get hands-on with tools in R that streamline exploratory analysis. R offers a suite of functions and packages that make it easy to inspect data structures, compute summaries, manipulate data, and create interactive visualisations. Mastering these techniques ensures a smooth workflow from raw data to meaningful insights.
+
+### Summaries: `summary()`, `str()`, `skimr::skim()`
+
+When you first load a dataset, it’s essential to explore its structure and get a quick overview of its variables:
+
+- **`summary()` function:**
+    - Provides a quick statistical summary for each variable: mean, median, quartiles for numeric variables, and counts for factors.
+    - Ideal for a first glance at data distribution and detecting obvious anomalies (e.g., suspicious min/max values).
+
+- **`str()` function:**
+    - Displays the internal structure of an R object, including data frames, lists, and matrices.
+    - Shows variable names, data types, factor levels, and other structural info.
+
+- **`skimr::skim()` (from the `skimr` package):**
+    - Offers a more detailed summary than `summary()`, including missing counts, complete rate, and extended statistics like IQR or count of unique values.
+    - Summaries grouped by variable type, making it easier to parse large datasets.
+
+**R Demonstration (Summaries):**
+
+\`\`\{r summaries-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+library(data.table)
+
+# Create a sample data.table with mixed types
+dt_example <- data.table::data.table(
+  id=1:100,
+  score=rnorm(100, mean=50, sd=10),
+  group=sample(letters[1:3], 100, replace=TRUE),
+  missing_col=c(rnorm(90, 0, 1), rep(NA,10))
+)
+
+# summary()
+cat("Using summary:\n")
+print(summary(dt_example))
+
+# str()
+cat("\nUsing str:\n")
+str(dt_example)
+
+# skimr::skim() requires installing skimr package
+# cat("\nUsing skimr:\n")
+# skimr::skim(dt_example) # Uncomment if skimr is installed
+\`\`\`
+
+### Data Manipulation with `dplyr` and `data.table`
+
+Data manipulation—filtering rows, selecting columns, creating new variables, grouping, and summarising—is central to EDA. While `dplyr` is popular, `data.table` is also efficient and well-integrated into R.
+
+**`data.table` Basics:**
+
+- Inherits from `data.frame` but offers concise, high-performance syntax.
+- `dt[i, j, by]` syntax:
+    - `i`: row subset conditions.
+    - `j`: operations on columns.
+    - `by`: grouping variables.
+
+**Example Operations with `data.table`:**
+- **Filtering rows:** `dt_example[score>55]` returns rows where `score>55`.
+- **Selecting columns:** `dt_example[, .(id, score)]` returns only the `id` and `score` columns.
+- **Creating new variables:** `dt_example[, score_scaled := (score-mean(score))/sd(score)]`.
+- **Grouping and summarising:** `dt_example[, .(mean_score=mean(score, na.rm=TRUE)), by=group]`.
+
+**R Demonstration (data.table):**
+
+\`\`\{r datatable-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Filter rows
+sub_dt <- dt_example[score > 55]
+cat("Rows where score>55:", nrow(sub_dt), "rows\n")
+
+# Create a new variable
+dt_example[, score_z := (score - mean(score))/sd(score)]
+
+# Group and summarise
+mean_by_group <- dt_example[, .(mean_score=mean(score, na.rm=TRUE)), by=group]
+print(mean_by_group)
+\`\`\`
+
+`dplyr` offers similar verbs (`filter`, `select`, `mutate`, `summarise`, `group_by`), but `data.table` is often faster for large datasets and preferred by many for its concise syntax and memory efficiency.
+
+### Interactive Visualisations (Plotly, Shiny)
+
+Static plots are essential, but interactive visualisations let you:
+
+- **Hover over points:** View exact values.
+- **Zoom and Pan:** Explore details in dense plots.
+- **Filter Data on the Fly:** Allow users to select subsets or parameters dynamically.
+
+**Plotly:**
+- Converts `ggplot2` plots into interactive graphics or build from scratch with `plot_ly()`.
+- Interactivity (tooltips, zooming) is automatic, useful for quick exploratory analysis or presentations.
+
+**Shiny:**
+- An R package for building interactive web applications that integrate directly with R.
+- Allows you to build dashboards, interactive reports, and tools for non-technical stakeholders to explore data and models.
+- Ideal for sharing analyses within a team or publishing online to a broader audience.
+
+**R Demonstration (Interactive Plot with Plotly):**  
+*(Assuming plotly is installed)*
+
+\`\`\{r plotly-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Convert a ggplot to plotly
+library(plotly)
+
+p <- ggplot(dt_example, aes(x=group, y=score, color=group)) +
+  geom_boxplot() +
+  labs(title="Boxplot by group")
+
+ggplotly(p) # renders an interactive plot if run in appropriate environment
+\`\`\`
+
+*(Shiny demo omitted for brevity, but a Shiny app involves defining UI and server functions and running `shiny::runApp()`.)*
+
+---
+
+**Key Takeaways:**
+
+- **Summaries (`summary()`, `str()`, `skimr::skim()`):** Quickly get structural and statistical overviews of your data, guiding the next steps in cleaning or modeling.
+
+- **Data Manipulation (`data.table`):** Mastering efficient data manipulation is crucial. `data.table` provides a fast and flexible syntax for filtering, summarising, and transforming data, essential for large and complex datasets.
+
+- **Interactive Visualisations (Plotly, Shiny):** Enhance exploratory workflows with interactivity. Hovering over points, zooming into regions of interest, and dynamically filtering data can reveal patterns that might remain hidden in static plots. Shiny apps can turn analyses into interactive tools, broadening access and understanding.
+
+By combining these capabilities—comprehensive summaries, efficient data wrangling, and interactive visualisation—you gain a versatile toolkit for EDA in R. Such a workflow accelerates insights, improves communication, and sets the stage for rigorous statistical modeling and inference.

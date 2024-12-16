@@ -1,4 +1,5 @@
 import React from 'react';
+import path from 'path';
 import {
     SideBarContainer,
     SideBarSiteName,
@@ -51,7 +52,7 @@ function renderSideBarContent(posts: PostMetadata[] | DefinitionMetadata[]) {
                     <SideBarEntriesContainer key={meta.slug}>
                         <SideEntryLink
                             key={meta.slug}
-                            href={`/${meta.section}/${meta.slug}`}
+                            href={buildHref(meta)}
                             passHref
                         >
                             <span style={{ fontWeight: 'bold' }}>
@@ -70,7 +71,7 @@ function renderSideBarContent(posts: PostMetadata[] | DefinitionMetadata[]) {
                     <SideBarEntriesContainer key={meta.slug}>
                         <SideEntryLink
                             key={meta.slug}
-                            href={`/dictionaries/${meta.dictionary}/${meta.slug}`}
+                            href={buildHref(meta)}
                             passHref
                         >
                             {meta.word}
@@ -79,5 +80,21 @@ function renderSideBarContent(posts: PostMetadata[] | DefinitionMetadata[]) {
                 ))}
             </>
         );
+    }
+}
+
+function buildHref(meta: PostMetadata | DefinitionMetadata): string {
+    if (isPostMetadata(meta)) {
+        if (!meta.path) {
+            throw new Error('Post metadata does not have a valid "path".');
+        }
+        return path.join('/', meta.path);
+    } else {
+        if (!meta.dictionary || !meta.slug) {
+            throw new Error(
+                'Definition metadata must include both "dictionary" and "slug".'
+            );
+        }
+        return `/dictionaries/${meta.dictionary}/${meta.slug}`;
     }
 }

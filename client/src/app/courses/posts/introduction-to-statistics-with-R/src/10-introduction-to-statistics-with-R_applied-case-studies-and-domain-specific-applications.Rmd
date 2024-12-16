@@ -1,0 +1,658 @@
+---
+title: "Introduction to Statistics with R: Applied Case Studies and Domain-Specific Applications"
+blurb: "Blue and white mean war"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+# Applied Case Studies and Domain-Specific Applications
+
+## Public Health and Epidemiology
+
+Analysing public health and epidemiological data involves investigating population health patterns, understanding the spread and control of infectious diseases, and evaluating the effectiveness of interventions such as vaccination programmes or community-level policies. R provides a rich ecosystem for conducting these analyses, ranging from descriptive summaries of survey data to building complex transmission models.
+
+In this section, we will explore three core aspects:
+
+1. **Analysis of Health Survey Data**: Using large-scale health surveys to estimate population-level health indicators.
+2. **Infectious Disease Modelling and SIR Models**: Understanding disease transmission dynamics and predicting outbreak trajectories.
+3. **Evaluating Public Health Interventions**: Assessing the impact of policies or interventions on population health outcomes.
+
+### Analysis of Health Survey Data
+
+Public health agencies, such as the CDC, often release large health survey datasets like the National Health and Nutrition Examination Survey (NHANES). These contain information about health conditions, diet, and lifestyle in a nationally representative sample. Analysing such data helps identify risk factors for diseases, prevalence of conditions, and the impact of demographic variables on health outcomes.
+
+**Data Availability:**  
+We can use the `NHANES` R package[^1] which provides a well-known public dataset for demonstration. If for some reason this package is unavailable, please let me know in a comment so we can identify a suitable alternative dataset.
+
+**Example:** Suppose we want to estimate the prevalence of hypertension and examine how it varies by age group and gender.
+
+\`\`\{r nhanes-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# If NHANES package is not installed, we would do:
+# install.packages("NHANES")
+
+library(NHANES)
+library(data.table)
+library(ggplot2)
+
+# Convert NHANES data to data.table for fast manipulation
+dt <- data.table::as.data.table(NHANES)
+
+# Let's define hypertension as BPXSY1 > 140 (Systolic > 140 mmHg)
+# Note: This is a simplistic example; real diagnostic criteria can be more complex.
+
+dt[, Hypertension := ifelse(BPXSY1 > 140, 1, 0)]
+summary(dt$Hypertension)
+
+# Summarise prevalence by AgeDecade and Gender
+prev <- dt[!is.na(Hypertension) & !is.na(AgeDecade) & !is.na(Gender),
+           .(Prevalence = mean(Hypertension, na.rm=TRUE)),
+           by = .(AgeDecade, Gender)]
+
+# Plot the prevalence
+ggplot(prev, aes(x=AgeDecade, y=Prevalence, fill=Gender)) +
+  geom_bar(stat="identity", position="dodge") +
+  labs(title="Prevalence of Hypertension by Age and Gender",
+       x="Age Decade", y="Prevalence") +
+  theme_minimal()
+\`\`\`
+
+This simple demonstration reveals patterns in hypertension prevalence, guiding more detailed analyses (e.g., logistic regression, stratification by socioeconomic factors).
+
+### Infectious Disease Modelling and SIR Models
+
+Infectious disease epidemiology often uses mathematical models to understand pathogen spread, estimate key parameters like the reproduction number ($R_0$), and forecast outbreak scenarios.
+
+One classic model is the **SIR** (Susceptible-Infected-Recovered) model, which partitions the population into compartments. The model equations:
+
+$$
+\frac{dS}{dt} = -\beta S I, \quad 
+\frac{dI}{dt} = \beta S I - \gamma I, \quad 
+\frac{dR}{dt} = \gamma I
+$$
+
+where  
+- $S$: number susceptible  
+- $I$: number infected  
+- $R$: number recovered  
+- $\beta$: transmission rate  
+- $\gamma$: recovery rate
+
+**Data Availability for Infectious Disease Models:**  
+We can rely on synthetic data or known outbreak datasets. There are packages like `outbreaks` from the RECON initiative providing real epidemic data. If you do not have `outbreaks` installed, let me know so we can simulate a small synthetic epidemic.
+
+**Example (Simulated Epidemic):**  
+We simulate an SIR model time series, then attempt to fit parameters or visualise dynamics.
+
+\`\`\{r sir-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Let's simulate a simple SIR model using deSolve package
+if(!requireNamespace("deSolve", quietly=TRUE)) {
+  #comment: no built-in dataset; using synthetic data
+  install.packages("deSolve") 
+}
+library(deSolve)
+
+sir_model <- function(time, state, parameters) {
+  with(as.list(c(state, parameters)), {
+    dS <- -beta * S * I
+    dI <-  beta * S * I - gamma * I
+    dR <- gamma * I
+    list(c(dS, dI, dR))
+  })
+}
+
+# Initial conditions
+initial_state <- c(S=0.99, I=0.01, R=0)
+parameters <- c(beta=0.3, gamma=0.1) # chosen arbitrarily
+times <- seq(0, 100, by=1)
+
+out <- deSolve::ode(y=initial_state, times=times, func=sir_model, parms=parameters)
+dt_sir <- as.data.table(out)
+
+ggplot(dt_sir, aes(x=time)) +
+  geom_line(aes(y=S, colour="Susceptible"), size=1) +
+  geom_line(aes(y=I, colour="Infected"), size=1) +
+  geom_line(aes(y=R, colour="Recovered"), size=1) +
+  labs(title="SIR Model Dynamics (Simulated)", x="Time", y="Proportion") +
+  scale_colour_manual(values=c("Susceptible"="blue","Infected"="red","Recovered"="green")) +
+  theme_minimal()
+\`\`\`
+
+This plot shows how infection rises then declines as the population moves from susceptible to infected to recovered.
+
+### Evaluating Public Health Interventions
+
+Policymakers need to assess how interventions (e.g., vaccination campaigns, social distancing policies) alter disease dynamics or reduce adverse health outcomes. This often involves comparing outcomes before and after an intervention, or contrasting regions with and without the policy.
+
+**Data for Evaluating Interventions:**  
+If we have a dataset comparing regions or times with different policies, we can apply difference-in-differences methods or interrupted time series analysis. Suppose we have time-series data on infection counts before and after a vaccination campaign. If no public dataset is readily available, we can simulate data for demonstration:
+
+\`\`\{r intervention-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+#comment: no built-in dataset; using synthetic data
+set.seed(42)
+days <- 200
+baseline <- 50
+trend <- 0.1
+intervention_day <- 100
+intervention_effect <- -0.5 # reduces growth by 50%
+
+time <- 1:days
+counts <- baseline + trend * time
+counts[(intervention_day+1):days] <- counts[(intervention_day+1):days] * (1 + intervention_effect)
+
+dt_interv <- data.table::data.table(time=time, counts=counts, 
+                                    intervention=(time>intervention_day))
+
+ggplot(dt_interv, aes(x=time, y=counts, colour=intervention)) +
+  geom_line(size=1) +
+  labs(title="Infection Counts Before and After Intervention",
+       x="Time (days)", y="Infection Counts") +
+  scale_colour_manual(values=c("FALSE"="red","TRUE"="green")) +
+  theme_minimal()
+\`\`\`
+
+We see that after the intervention day, infection counts increase more slowly or decline, indicating the possible effectiveness of the policy.
+
+To rigorously evaluate interventions, analysts might use:
+
+- **Interrupted Time Series Analysis:** Fit models (e.g., using `lm()` or GLMs) with a piecewise function to detect level and slope changes after intervention.
+- **Difference-in-Differences:** Compare outcomes in a treatment group vs. a control group over time.
+- **Causal Inference Techniques:** Use matching, instrumental variables, or structural models to isolate intervention effects from confounding factors.
+
+---
+
+**Key Takeaways:**
+
+- Public health and epidemiology benefit from descriptive survey analyses, allowing us to understand health patterns and risk factors in populations.
+- Infectious disease modelling, including SIR models, helps predict outbreak trajectories and estimate parameters for interventions.
+- Evaluating public health interventions requires careful design and analysis of pre-and post-intervention data, potentially using causal inference methods.
+
+By mastering these tools and approaches, we gain the ability to shape policy, guide clinical practice, and ultimately improve population health outcomes through data-driven insights.
+
+
+## Finance and Econometrics
+
+The field of finance and econometrics leverages statistical techniques to analyse and interpret financial data, model economic relationships, and guide investment decisions. In an era of abundant market data, R provides extensive tools to handle complex time series, optimise portfolios, measure market reactions to events, and investigate microstructure properties such as liquidity and volatility.
+
+In this section, we will delve into three core aspects of applied finance and econometrics:
+
+1. **Time Series Analysis of Financial Data:** Understanding returns, volatility, and trends in asset prices.
+2. **Portfolio Optimisation and Risk Modelling:** Constructing efficient portfolios and measuring risk.
+3. **Event Studies and Market Microstructure:** Evaluating the impact of specific events on asset prices and analysing intraday market dynamics.
+
+### Time Series Analysis of Financial Data
+
+Financial time series—such as daily stock prices or foreign exchange rates—are central to econometric modelling. Understanding historical returns, volatility patterns, and correlations among assets can guide forecasting and risk management strategies.
+
+**Data Availability:**  
+We can acquire historical stock price data using the `quantmod` package which retrieves data directly from sources like Yahoo Finance. If you do not have quantmod installed, we can install it. If Yahoo data is not desired, please comment and we will choose another dataset.
+
+\`\`\{r setup, echo=TRUE, message=FALSE, warning=FALSE\}
+if(!requireNamespace("quantmod", quietly=TRUE)) {
+  install.packages("quantmod")
+}
+library(quantmod)
+library(data.table)
+library(ggplot2)
+\`\`\`
+
+**Example: Analysing Apple Inc. (AAPL) Stock Prices**  
+We fetch several years of Apple stock data and convert it to a data.table for flexible manipulation. This real-world dataset provides insights into daily returns, volatility, and potential trends.
+
+\`\`\{r aapl-data, echo=TRUE, message=FALSE, warning=FALSE\}
+# Fetch AAPL stock data
+getSymbols("AAPL", src="yahoo", from="2019-01-01", to="2021-12-31", auto.assign=TRUE)
+# AAPL is now in the environment as an xts object
+
+dt_aapl <- data.table::as.data.table(AAPL)
+# The xts column names: AAPL.Open, AAPL.High, AAPL.Low, AAPL.Close, AAPL.Volume, AAPL.Adjusted
+# Add a date column
+dt_aapl[, Date := as.Date(index(AAPL))]
+
+# Compute daily returns (using adjusted close)
+dt_aapl[, Return := (AAPL.Adjusted / shift(AAPL.Adjusted, 1) - 1)*100]
+dt_aapl <- dt_aapl[!is.na(Return)]
+
+# Plot Adjusted Close over time
+ggplot(dt_aapl, aes(x=Date, y=AAPL.Adjusted)) +
+  geom_line(colour="blue") +
+  labs(title="Apple Adjusted Close Price", x="Date", y="Adjusted Close Price (USD)") +
+  theme_minimal()
+\`\`\`
+
+This plot shows how Apple’s share price evolved over the chosen period. We can also inspect returns and measure volatility:
+
+\`\`\{r aapl-returns, echo=TRUE\}
+# Plot daily returns
+ggplot(dt_aapl, aes(x=Date, y=Return)) +
+  geom_line(colour="red") +
+  labs(title="AAPL Daily Returns", x="Date", y="Daily Return (%)") +
+  theme_minimal()
+\`\`\`
+
+Analysts often model these returns using ARIMA or GARCH-type models, or examine correlations with other assets. Such methods are crucial for forecasting and risk estimation.
+
+### Portfolio Optimisation and Risk Modelling
+
+A key goal in finance is constructing optimal portfolios that balance expected returns against risk. Classical Markowitz mean-variance optimisation uses historical returns and covariances:
+
+- **Mean-Variance Optimisation**: Given a set of assets, we want to find weights that minimise portfolio variance for a target return.
+
+**Data Availability:**  
+We can fetch multiple stocks (e.g., Apple, Microsoft, Google) and compute their returns to form a small portfolio. If more extensive data is required, let me know.
+
+\`\`\{r portfolio-data, echo=TRUE, message=FALSE, warning=FALSE\}
+symbols <- c("AAPL", "MSFT", "GOOG")
+getSymbols(symbols, src="yahoo", from="2020-01-01", to="2021-12-31", auto.assign=TRUE)
+
+# Convert each to data.table and merge
+list_dt <- lapply(symbols, function(sym) {
+  dt <- data.table::as.data.table(get(sym))
+  dt[, Date := as.Date(index(get(sym)))]
+  data.table::setnames(dt, old=colnames(dt)[2:7],
+                       new=paste0(sym, c(".Open",".High",".Low",".Close",".Volume",".Adjusted")))
+  return(dt[, .(Date, Adjusted=get(paste0(sym,".Adjusted")))])
+})
+
+# Merge on Date
+dt_portfolio <- Reduce(function(...) merge(..., by="Date", all=FALSE), list_dt)
+# Rename columns
+setnames(dt_portfolio, old=colnames(dt_portfolio)[2:4], new=symbols)
+
+# Compute returns
+dt_portfolio[, (symbols) := lapply(.SD, function(x) (x/shift(x)-1)), .SDcols=symbols]
+dt_portfolio <- dt_portfolio[!is.na(AAPL)]
+
+# Estimate mean returns and covariance
+mu <- dt_portfolio[, lapply(.SD, mean, na.rm=TRUE), .SDcols=symbols]
+Sigma <- dt_portfolio[, lapply(.SD, function(x) x), .SDcols=symbols]
+Sigma <- as.matrix(dt_portfolio[, ..symbols])
+Sigma <- cov(Sigma, use="complete.obs")
+
+mu_vec <- as.numeric(mu[1, ])
+names(mu_vec) <- symbols
+
+# Suppose we want to find weights that minimise variance given no short sales:
+# We'll do a naive random search here due to complexity, or mention 'quadprog' or 'ROI'
+if(!requireNamespace("quadprog", quietly=TRUE)) {
+  # If quadprog not installed, let me know for alternative approach
+  install.packages("quadprog")
+}
+library(quadprog)
+
+# Mean-variance optimisation (no short selling):
+Dmat <- Sigma
+dvec <- rep(0, length(symbols))
+Amat <- cbind(rep(1,length(symbols)), diag(length(symbols))) # sum of weights=1, weights>=0
+bvec <- c(1, rep(0,length(symbols)))
+res <- quadprog::solve.QP(Dmat, dvec, Amat, bvec, meq=1)
+
+opt_weights <- res$solution
+names(opt_weights) <- symbols
+opt_weights
+\`\`\`
+
+This yields a set of weights that minimise variance for a portfolio with a fixed sum of weights equal to 1 (and no short selling). Real-world portfolio optimisation may add return targets or constraints. Nonetheless, this illustrates the fundamental concept.
+
+**Risk Measures:**  
+We can also compute portfolio volatility or perform a Value-at-Risk (VaR) calculation on portfolio returns. These steps guide traders and fund managers in risk management.
+
+### Event Studies and Market Microstructure
+
+**Event Studies** evaluate how asset prices respond to specific news events—such as earnings announcements, M&A news, or policy changes. By comparing pre- and post-event returns, we can determine whether the event had a significant price impact.
+
+**Market Microstructure** research explores intraday trading patterns, liquidity, bid-ask spreads, and order flow. Although more complex and often requiring tick-level data, a simple approximation can be made from daily volumes and spreads if we have access to them.
+
+**Data Availability:**  
+For an event study, we need a known event date. Suppose we consider a hypothetical product launch by Apple on a certain date. We would look at cumulative abnormal returns (CAR) around the event. Since we do not have an event dataset in a package, let me know and we can simulate such data. For demonstration, we simulate an event day and show abnormal returns around it.
+
+\`\`\{r event-study, echo=TRUE, message=FALSE, warning=FALSE\}
+#comment: no built-in event data; simulating event abnormal returns
+set.seed(123)
+event_day <- as.Date("2021-06-15")
+dt_event <- copy(dt_aapl)
+dt_event[, AbnormalReturn := Return - mean(Return, na.rm=TRUE)]
+
+# Define event window: 10 days before and after event_day
+dt_event[, days_from_event := as.integer(Date - event_day)]
+window <- -10:10
+dt_window <- dt_event[days_from_event %in% window]
+
+ggplot(dt_window, aes(x=days_from_event, y=AbnormalReturn)) +
+  geom_line(colour="purple") +
+  geom_vline(xintercept=0, linetype="dashed") +
+  labs(title="Event Study: Abnormal Returns Around Event",
+       x="Days from Event", y="Abnormal Return (%)") +
+  theme_minimal()
+\`\`\`
+
+We see how returns deviate around the event date (day 0). In a real scenario, we would compute average abnormal returns (AAR) and cumulative abnormal returns (CAR) for statistical tests[^1]. If returns spike significantly post-event, it suggests a market reaction to the news.
+
+**Market Microstructure:**  
+With daily data, we can only glimpse at volumes and daily ranges. Intraday microstructure analysis requires higher-frequency data (minutes or seconds), often from proprietary sources. If we had intraday data, we might look at bid-ask spreads over time or model the probability of informed trading.
+
+---
+
+**Key Takeaways:**
+
+- **Time Series Analysis**: Extract trends, compute volatility, and model returns with ARIMA/GARCH for forecasting and risk.
+- **Portfolio Optimisation**: Employ mean-variance principles to construct efficient portfolios, balancing risk and return.
+- **Event Studies and Microstructure**: Examine market reactions to news and understand the micro-level mechanics of trading and liquidity.
+
+By applying these techniques, financial analysts and econometricians can make data-driven decisions, manage risk more effectively, and interpret market signals with greater nuance.
+
+## Bioinformatics and Genetics
+
+The fields of bioinformatics and genetics intersect with statistics in a profound way, enabling the extraction of biological insights from complex, high-dimensional data. R’s ecosystem is particularly rich in packages designed for genomic analyses, including differential expression analysis for transcriptomics, genome-wide association studies (GWAS) for identifying trait-associated variants, quantitative trait locus (QTL) mapping for linking genetic variants to phenotypic variation, and phylogenetic methods for studying evolutionary relationships.
+
+In this section, we will examine key statistical tools and workflows:
+
+1. **Differential Expression Analysis:** Identifying genes that change their expression levels across different conditions, such as diseased vs. healthy tissues.
+2. **GWAS and QTL Mapping:** Relating genetic variants (e.g., SNPs) to phenotypic traits or diseases, and quantifying the genomic architecture underlying trait variation.
+3. **Phylogenetics and Evolutionary Models:** Inferring evolutionary relationships from molecular data, constructing phylogenetic trees, and testing evolutionary hypotheses.
+
+### Differential Expression Analysis
+
+Modern transcriptomic techniques, such as RNA-Seq, produce high-dimensional count data measuring gene expression levels across conditions. Differential expression (DE) analysis aims to identify genes whose expression changes significantly between experimental groups, for instance, between treated and untreated samples in a medical trial.
+
+**Real-World Dataset Example:**  
+A common dataset for demonstrating RNA-Seq DE analysis is the `airway` dataset (Lun et al., 2017), available from Bioconductor. If you do not have it installed, we will install and load it. The dataset consists of RNA-Seq counts for human airway smooth muscle cells under control and treatment conditions.
+
+**Note:** If you do not have this dataset, I can suggest an alternative or you can install it now.
+
+\`\`\{r setup, echo=TRUE, message=FALSE, warning=FALSE\}
+if (!requireNamespace("BiocManager", quietly=TRUE)) {
+  install.packages("BiocManager")
+}
+if(!requireNamespace("airway", quietly=TRUE)) {
+  BiocManager::install("airway")
+}
+if(!requireNamespace("DESeq2", quietly=TRUE)) {
+  BiocManager::install("DESeq2")
+}
+
+library(airway)
+library(DESeq2)
+library(data.table)
+library(ggplot2)
+\`\`\`
+
+**Data Preparation:**  
+The `airway` dataset provides a SummarizedExperiment object with count data and experimental metadata.
+
+\`\`\{r airway-data, echo=TRUE\}
+data("airway")  # loads a SummarizedExperiment
+se <- airway
+# Convert to DESeq2 dataset
+dds <- DESeqDataSet(se, design = ~ cell + dex) # 'dex' indicates treatment
+\`\`\`
+
+Here, `dex` indicates whether samples were treated with dexamethasone or not. A typical DE workflow uses the `DESeq2` package:
+
+\`\`\{r deseq-run, echo=TRUE\}
+dds <- DESeq(dds)
+res <- results(dds) # differential expression results
+res <- data.table(as.data.frame(res))
+res[, gene := rownames(as.data.frame(results(dds)))]
+\`\`\`
+
+The `res` object now contains log fold changes, p-values, and adjusted p-values for each gene. We can filter for significantly DE genes (e.g., adjusted p-value < 0.05):
+
+\`\`\{r deseq-plot, echo=TRUE\}
+sig_genes <- res[padj < 0.05 & !is.na(padj)]
+
+ggplot(sig_genes, aes(x=log2FoldChange, y=-log10(pvalue))) +
+  geom_point(alpha=0.5, colour="red") +
+  labs(title="Volcano plot of differentially expressed genes",
+       x="log2 Fold Change", y="-log10 p-value") +
+  theme_minimal()
+\`\`\`
+
+This volcano plot shows which genes are significantly up- or down-regulated. Differential expression analysis guides understanding of how cells respond to treatments, diseases, or other conditions, aiding in the discovery of biomarkers or drug targets.
+
+### GWAS and QTL Mapping
+
+Genome-Wide Association Studies (GWAS) aim to link genetic variants, often single nucleotide polymorphisms (SNPs), with a trait (like disease status or height). QTL mapping is a related concept often used in plant or animal genetics, linking genotypic variation to quantitative traits.
+
+- **GWAS** identifies SNPs significantly associated with traits by scanning the entire genome.
+- **QTL Mapping** involves constructing linkage maps, fitting genetic models, and identifying chromosomal regions associated with trait variation.
+
+**Data Example:**  
+GWAS typically requires large datasets. If you do not have a dataset on hand, I can recommend you fetch publicly available GWAS summary statistics from a repository. For demonstration, let’s assume we have a dataset with columns for SNP, chromosome, position, p-value, etc. Since we do not have a built-in dataset in a common package right now, please let me know and I will find or simulate a mock dataset.
+
+*For demonstration only (no real data here)*:
+\`\`\{r gwas-mock, echo=TRUE, eval=FALSE\}
+# comment: If you provide a dataset with columns: SNP, CHR, POS, PVAL
+# dt_gwas <- data.table::fread("gwas_results.csv")
+
+# Plot a Manhattan plot (requires chromosome, position, p-value)
+# if(!requireNamespace("qqman", quietly=TRUE)) {
+#   install.packages("qqman")
+# }
+# library(qqman)
+# manhattan(dt_gwas, chr="CHR", bp="POS", p="PVAL", snp="SNP", genomewideline=-log10(5e-8))
+\`\`\`
+
+Manhattan plots are a common way to visualise GWAS results, highlighting SNPs with significant association.
+
+**QTL Mapping** can be performed using packages like `qtl`. The workflow involves having a genetic linkage map, phenotypic data, and genotype data. The user would run functions to identify genomic regions influencing traits.
+
+### Phylogenetics and Evolutionary Models
+
+Phylogenetic methods reconstruct the evolutionary relationships between species or genes. Techniques include:
+
+- **Building Phylogenetic Trees:** Using DNA or protein sequences to infer trees representing evolutionary history.
+- **Models of Evolution:** Applying models (e.g., Jukes-Cantor, GTR) to estimate substitution rates and evolutionary distances.
+- **Molecular Clock Hypotheses:** Estimating divergence times between lineages.
+
+**Real-World Data:**  
+The `ape` package provides phylogenetic tools and some example trees. We can use a built-in dataset, for instance `bird.orders`:
+
+\`\`\{r phylo-example, echo=TRUE, message=FALSE\}
+if(!requireNamespace("ape", quietly=TRUE)) {
+  install.packages("ape")
+}
+library(ape)
+
+data("bird.orders")
+plot(bird.orders, main="Phylogenetic Tree of Bird Orders")
+\`\`\`
+
+We get a phylogenetic tree of various bird orders. We can test evolutionary hypotheses or compute distances:
+
+\`\`\{r phylo-dist, echo=TRUE\}
+dist_mat <- cophenetic(bird.orders)
+dist_mat[1:5,1:5] # partial distance matrix
+\`\`\`
+
+This shows pairwise evolutionary distances. More advanced methods involve fitting substitution models, conducting bootstrap analyses to assess tree stability, or using tools like `phangorn` for maximum likelihood phylogenetic inference.
+
+---
+
+**Key Takeaways:**
+
+- **Differential Expression Analysis:** Essential for understanding how gene expression changes under different biological conditions, guiding insights into diseases, treatments, and biological pathways.
+- **GWAS and QTL Mapping:** Provide a genomic perspective on trait variation, linking genetic variants to phenotypes, influencing breeding, medical genetics, and evolutionary biology.
+- **Phylogenetics and Evolutionary Models:** Offer a window into the evolutionary past, reconstructing trees that depict the relationships and divergence of species or genes over time.
+
+By applying these statistical and computational tools within R’s robust environment, bioinformatics and genetics researchers can gain deep insights into the biological complexity encoded in genomic data.
+
+
+## Social and Psychological Sciences
+
+Statistics plays a fundamental role in understanding human behaviour, social interactions, and psychological constructs. In the social and psychological sciences, researchers often deal with latent variables (e.g., intelligence, satisfaction, or anxiety), complex relationships among observed and unobserved variables, and social network structures that represent interactions between individuals or entities. R provides a rich ecosystem to tackle these complexities:
+
+1. **Structural Equation Modelling (SEM):**  
+   A framework that integrates factor analysis, path analysis, and regression into a single comprehensive model, allowing researchers to specify and test complex theories about latent and observed variables.
+
+2. **Item Response Theory (IRT) and Educational Testing:**  
+   Used to model the relationship between individuals’ responses to test items and their underlying latent traits (e.g., ability, attitude). IRT underpins modern test design, adaptive testing, and fairness in educational measurement.
+
+3. **Network Analysis and Social Media Data:**  
+   Techniques to represent and analyse relationships in social networks, examining structure, community detection, or influence patterns. With the rise of social media, network analysis helps understand how information and behaviours spread online.
+
+### Structural Equation Modelling (SEM)
+
+**Conceptual Overview:**  
+SEM allows you to specify models involving latent variables (unobserved constructs) measured by indicators (observed variables), along with regressions between constructs. It is often used in psychology and social sciences to test theories about how constructs relate to each other.
+
+**Example Dataset:**  
+The `lavaan` package provides the `HolzingerSwineford1939` dataset[^1], which includes mental ability test scores for students from two schools. We can fit a confirmatory factor analysis (CFA) or a more complex SEM to this data.
+
+\`\`\{r sem-setup, echo=TRUE, message=FALSE, warning=FALSE\}
+if(!requireNamespace("lavaan", quietly=TRUE)) {
+  install.packages("lavaan")
+}
+if(!requireNamespace("data.table", quietly=TRUE)) {
+  install.packages("data.table")
+}
+
+library(lavaan)
+library(data.table)
+library(ggplot2)
+
+data("HolzingerSwineford1939") # A classic dataset
+dt <- data.table(HolzingerSwineford1939)
+
+# Let's assume a 3-factor CFA model measuring three latent constructs:
+model <- '
+  visual  =~ x1 + x2 + x3
+  textual =~ x4 + x5 + x6
+  speed   =~ x7 + x8 + x9
+'
+\`\`\`
+
+**Fitting the CFA Model:**
+
+\`\`\{r sem-run, echo=TRUE\}
+fit <- lavaan::cfa(model, data=dt)
+summary(fit, fit.measures=TRUE, standardized=TRUE)
+\`\`\`
+
+The output shows factor loadings, fit indices (e.g., CFI, RMSEA), and standard errors. From these results, we interpret whether the hypothesised factor structure fits the observed data well.
+
+### Item Response Theory (IRT) and Educational Testing
+
+**Conceptual Overview:**  
+IRT models the probability of a correct response to a test item as a function of a latent trait (ability) and item parameters (difficulty, discrimination). This approach is widely used in educational testing, certification exams, and adaptive testing.
+
+**Example Dataset:**  
+The `ltm` package includes the `LSAT` dataset[^1], containing responses of 1000 individuals to 5 dichotomous items from the Law School Admission Test.
+
+\`\`\{r irt-setup, echo=TRUE, message=FALSE, warning=FALSE\}
+if(!requireNamespace("ltm", quietly=TRUE)) {
+  install.packages("ltm")
+}
+library(ltm)
+
+data("LSAT")
+dt_ls <- data.table(LSAT)
+# dt_ls has 5 items (LSAT1 to LSAT5) answered as 0/1 correct/incorrect.
+\`\`\`
+
+**Fitting a 1-Parameter Logistic Model (Rasch Model):**
+
+\`\`\{r irt-run, echo=TRUE\}
+fit_rasch <- ltm::rasch(LSAT)
+summary(fit_rasch)
+\`\`\`
+
+This provides item difficulty estimates and can help understand how well items discriminate ability levels. Visual diagnostics can be done using `plot(fit_rasch)` which shows item characteristic curves.
+
+### Network Analysis and Social Media Data
+
+**Conceptual Overview:**  
+In the age of social media, researchers examine how individuals interact and share information. Network analysis treats entities (people, organisations) as nodes and relationships (friendships, follows) as edges. By understanding network structure, communities, and central individuals, we gain insight into patterns of influence, opinion formation, and information diffusion.
+
+**Real-World Data:**  
+For demonstration, we can use the `igraphdata` package which provides sample social networks. One dataset is `fblog`, representing a directed network of political blogs[^1]. If unavailable, I can suggest another dataset.
+
+\`\`\{r network-setup, echo=TRUE, message=FALSE, warning=FALSE\}
+if(!requireNamespace("igraph", quietly=TRUE)) {
+  install.packages("igraph")
+}
+if(!requireNamespace("igraphdata", quietly=TRUE)) {
+  install.packages("igraphdata")
+}
+
+library(igraph)
+library(igraphdata)
+
+data("fblog") # This is a network of political blogs.
+fblog
+\`\`\`
+
+The `fblog` object is an `igraph` graph. We can inspect its properties:
+
+\`\`\{r network-inspect, echo=TRUE\}
+vcount(fblog) # number of vertices
+ecount(fblog) # number of edges
+\`\`\`
+
+**Visualising the Network:**
+
+\`\`\{r network-plot, echo=TRUE\}
+set.seed(123)
+plot(fblog, vertex.size=5, vertex.label=NA, edge.arrow.size=0.3,
+     main="Network of Political Blogs")
+\`\`\`
+
+We can identify communities using algorithms like the Louvain method:
+
+\`\`\{r network-comm, echo=TRUE\}
+comm <- cluster_louvain(fblog)
+membership(comm)
+# This groups blogs into communities.
+\`\`\`
+
+We could then create a data.table of node degrees or community memberships:
+
+\`\`\{r network-data, echo=TRUE\}
+dt_nodes <- data.table(node=V(fblog)$name,
+                       degree=degree(fblog))
+head(dt_nodes)
+\`\`\`
+
+This table allows further analysis or plotting. For example, we might want to see the distribution of degrees:
+
+\`\`\{r network-degreeplot, echo=TRUE\}
+ggplot(dt_nodes, aes(x=degree)) +
+  geom_histogram(binwidth=1, fill="steelblue", colour="black", alpha=0.7) +
+  labs(title="Distribution of Node Degrees in the Political Blog Network",
+       x="Degree", y="Count") +
+  theme_minimal()
+\`\`\`
+
+This gives insight into how connected the network is, identifying hubs and peripheral nodes. For social sciences research, analysing network structure, identifying influencers, and examining how topics propagate can inform strategies in political campaigns, marketing, public health messaging, or educational interventions.
+
+---
+
+**Key Takeaways:**
+
+- **Structural Equation Modelling:** Integrates multiple statistical methods to confirm hypothesised relationships among latent and observed variables. Useful for testing complex psychological and sociological theories.
+- **Item Response Theory:** Models test-taker behaviour and item properties, facilitating fair and adaptive testing in educational and psychological assessments.
+- **Network Analysis:** Offers tools to understand social structures, relationships, and influence patterns in various social systems, from friendship networks to social media interactions.
+
+By applying these methods in R, researchers in social and psychological sciences can rigorously test theories, refine instruments like questionnaires or tests, and investigate social systems at scale, leveraging real-world data to drive evidence-based practice and policy.

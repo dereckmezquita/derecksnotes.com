@@ -1,0 +1,506 @@
+---
+title: "Introduction to Statistics with R: Multivariate and Complex Data Analysis"
+blurb: "Blue and white mean war"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+# Multivariate and Complex Data Analysis
+
+## Multivariate Descriptive Measures
+
+When dealing with multiple variables measured on the same set of units, summarising relationships and structures becomes more complex. **Multivariate descriptive measures** help capture the joint behaviour of several variables, revealing patterns that remain hidden if you consider variables in isolation.
+
+### Mean Vectors, Covariance Matrices, Correlation Structures
+
+**Mean Vectors:**
+- For $p$ variables $X_1,\ldots,X_p$, the mean vector:
+  $$\bar{\mathbf{x}} = (\bar{x}_1,\bar{x}_2,\ldots,\bar{x}_p)$$
+  represents the average of each variable across observations.
+- Provides a quick snapshot of the "centre" of multivariate data.
+
+**Covariance Matrices:**
+- Generalise variance to multiple dimensions.
+- The covariance matrix:
+  $$\Sigma = \begin{pmatrix}
+  \text{Var}(X_1) & \text{Cov}(X_1,X_2) & \cdots & \text{Cov}(X_1,X_p) \\
+  \text{Cov}(X_2,X_1) & \text{Var}(X_2) & \cdots & \text{Cov}(X_2,X_p) \\
+  \vdots & \vdots & \ddots & \vdots \\
+  \text{Cov}(X_p,X_1) & \text{Cov}(X_p,X_2) & \cdots & \text{Var}(X_p)
+  \end{pmatrix}.$$
+- Diagonal entries are variances, off-diagonal entries are covariances.
+- Covariances measure the degree to which two variables move together.
+
+**Correlation Structures:**
+- Correlation matrix normalises covariances by standard deviations, yielding measures in [-1,1].
+- A correlation matrix clarifies which variables have strong linear relationships and which do not.
+
+**R Demonstration (Mean Vector, Covariance, Correlation):**
+
+\`\`\{r multivar-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+library(data.table)
+
+# Simulate a 3-variable dataset
+X1 <- rnorm(100, mean=50, sd=10)
+X2 <- rnorm(100, mean=30, sd=5)
+X3 <- 0.5*X1 + 2*X2 + rnorm(100, sd=3)
+dt_multi <- data.table::data.table(X1=X1, X2=X2, X3=X3)
+
+mean_vec <- dt_multi[, lapply(.SD, mean)]
+cov_mat <- cov(dt_multi)
+cor_mat <- cor(dt_multi)
+
+cat("Mean Vector:\n")
+print(mean_vec)
+cat("\nCovariance Matrix:\n")
+print(cov_mat)
+cat("\nCorrelation Matrix:\n")
+print(cor_mat)
+\`\`\`
+
+### Principal Component Analysis (PCA)
+
+**Principal Component Analysis** is a dimension reduction technique that transforms possibly correlated variables into a smaller set of uncorrelated components capturing most of the variability.
+
+- **Concept:**
+  - Finds linear combinations of variables (principal components) that explain the maximal variance.
+  - The first principal component explains the largest possible variance, the second is orthogonal and explains the next largest portion, and so forth.
+- **Interpretation:**
+  - Each principal component is a direction in the variable space.
+  - Often, a few components explain most of the variance, reducing dimensionality and simplifying analysis.
+- **Applications:**
+  - Visualise high-dimensional data in 2D or 3D.
+  - Remove noise by discarding components with small variance.
+  - As a preprocessing step before regression or clustering.
+
+**R Demonstration (PCA):**
+
+\`\`\{r pca-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+pca_res <- prcomp(dt_multi, scale=TRUE)
+summary(pca_res)
+plot(pca_res, type="l") # Scree plot to see variance explained
+\`\`\`
+
+Check the summary for variance explained by each principal component. A scree plot helps decide how many to keep.
+
+### Factor Analysis
+
+**Factor Analysis** aims to model observed variables as linear combinations of a smaller set of latent factors plus unique error terms.
+
+- **Goal:**
+  - Identify underlying latent constructs (factors) that influence observed variables.
+  - Similar to PCA but focuses on explaining correlations rather than total variance.
+- **Model:**
+  $$X_j = \lambda_{j1}F_1 + \lambda_{j2}F_2 + \cdots + \lambda_{jm}F_m + \epsilon_j,$$
+  where:
+  - $F_k$ are factors (unobserved).
+  - $\lambda_{jk}$ are loadings (coefficients linking factors to variables).
+  - $\epsilon_j$ are unique errors.
+
+**Interpretation:**
+- Factors represent hidden dimensions or constructs underlying the data.
+- Factor loadings show which variables are strongly associated with each factor, aiding in interpretation (e.g., a factor might represent "general intelligence" if it loads strongly on various cognitive test scores).
+
+**R Demonstration (Factor Analysis):**
+
+\`\`\{r factor-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+library(psych) # for factor analysis tools
+
+fa_res <- psych::fa(dt_multi, nfactors=2, rotate="varimax")
+print(fa_res)
+\`\`\`
+
+Examine factor loadings to see how each variable relates to each factor. Varimax rotation simplifies interpretation by making loadings more distinct.
+
+---
+
+**Key Takeaways:**
+
+- **Mean Vectors, Covariance, Correlation:**  
+  Fundamental descriptors of multivariate data. Covariance and correlation matrices capture linear relationships among variables, guiding further analysis or modelling.
+
+- **PCA:**  
+  A dimension reduction tool that extracts principal components to summarise data. PCA is invaluable for visualisation, noise reduction, and preprocessing steps.
+
+- **Factor Analysis:**  
+  Infers latent factors from observed correlations, helping uncover hidden structures and interpret underlying constructs in psychological testing, market research, or genomic data.
+
+These multivariate techniques bridge the gap between simple pairwise comparisons and the complex web of relationships in high-dimensional data. By leveraging PCA and factor analysis, you reduce complexity, reveal underlying patterns, and better understand the essence of your multivariate dataset.
+
+## Classification and Clustering
+
+As data complexity grows, methods that organise or label data into distinct groups become essential. **Classification** assigns observations to pre-defined categories, while **clustering** uncovers natural groupings that are not known in advance. These methods are pivotal in many fields—from marketing segmentation to medical diagnosis—helping to summarise patterns, discover structures, or inform decision-making.
+
+### k-Means, Hierarchical Clustering, Density-Based Clustering
+
+**k-Means Clustering:**
+- A popular partitioning method that aims to split the dataset into $k$ clusters:
+  - Initial step: Choose $k$ and start with random or heuristic initial centres.
+  - Iteratively assign points to the nearest cluster centre and recalculate cluster centroids.
+  - Stop when assignments stabilise.
+- Advantages: Simple, fast, works well on spherical clusters.
+- Drawbacks: Requires choosing $k$, sensitive to outliers, struggles with complex shapes.
+
+**Hierarchical Clustering:**
+- Builds a hierarchy of clusters without pre-specifying $k$.
+- Two main approaches:
+  - Agglomerative (bottom-up): Start with each point as its own cluster, then merge them step-by-step.
+  - Divisive (top-down): Start with one large cluster and split repeatedly.
+- Result: A dendrogram showing cluster merges at various similarity levels.
+- Flexible: You can "cut" the dendrogram at a chosen height to form a desired number of clusters.
+
+**Density-Based Clustering (e.g., DBSCAN):**
+- Groups together dense regions of points separated by low-density areas.
+- Can find arbitrarily shaped clusters and isolate outliers as noise.
+- Does not require specifying $k$.
+
+**R Demonstration (k-Means):**
+  
+\`\`\{r kmeans-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+library(data.table)
+library(ggplot2)
+
+x <- rnorm(100)
+y <- rnorm(100)
+dt_clust <- data.table::data.table(x=x, y=y)
+
+km_res <- kmeans(dt_clust, centers=3)
+dt_clust[, cluster := factor(km_res$cluster)]
+
+ggplot(dt_clust, aes(x=x, y=y, colour=cluster)) +
+  geom_point() +
+  labs(title="k-Means Clustering with k=3", x="X", y="Y")
+\`\`\`
+
+### Discriminant Analysis (LDA, QDA)
+
+**Discriminant Analysis** methods model class boundaries between known groups. They assume you have labelled data and want to classify new observations into these classes.
+
+- **Linear Discriminant Analysis (LDA):**
+  - Assumes multivariate normal distributions with equal covariance matrices for each class.
+  - Finds linear combinations of variables (discriminant functions) that best separate classes.
+  - Produces linear decision boundaries.
+
+- **Quadratic Discriminant Analysis (QDA):**
+  - Similar to LDA but allows each class its own covariance matrix.
+  - More flexible decision boundaries (quadratic), but requires estimating more parameters.
+
+**R Demonstration (LDA):**
+
+\`\`\{r lda-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+library(MASS) # for lda()
+
+# Simulate two-class data
+class_label <- factor(rep(c("A","B"), each=50))
+x1 <- c(rnorm(50, 0,1), rnorm(50, 2,1))
+x2 <- c(rnorm(50, 0,1), rnorm(50, 2,1))
+dt_lda <- data.table::data.table(x1=x1, x2=x2, class=class_label)
+
+lda_res <- MASS::lda(class ~ x1 + x2, data=dt_lda)
+lda_res
+\`\`\`
+
+Check the output for linear discriminants and use `predict(lda_res)` on new data.
+
+### Modern Classification Techniques (Random Forests, SVMs)
+
+Classical methods like LDA and QDA rely heavily on assumptions of normality and linearity. Modern methods handle more complex relationships:
+
+- **Random Forests:**
+  - Ensemble of decision trees.
+  - Each tree is grown on a bootstrap sample, and splits are chosen from a random subset of predictors.
+  - Aggregates predictions (voting) for classification, averaging for regression.
+  - Advantages: Usually robust, accurate, can handle large feature spaces and complex interactions.
+  - Disadvantage: Less interpretable than linear methods, though variable importance measures are available.
+
+- **Support Vector Machines (SVMs):**
+  - Aim to find optimal hyperplane that separates classes with maximum margin.
+  - Kernel functions allow complex nonlinear boundaries.
+  - Often deliver strong predictive performance.
+  - Parameter tuning (C, kernel parameters) is crucial.
+
+**R Demonstration (Random Forest):**
+
+\`\`\{r rf-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+library(randomForest)
+set.seed(456)
+
+dt_lda[, class := factor(class)]
+
+rf_mod <- randomForest::randomForest(class ~ x1 + x2, data=dt_lda, ntree=100)
+print(rf_mod)
+\`\`\`
+
+Check out-of-bag (OOB) error rates to evaluate accuracy.
+
+---
+
+**Key Takeaways:**
+
+- **Clustering (k-Means, Hierarchical, Density-Based):**  
+  Identifies natural groupings without labels. k-means is simple but requires choosing $k$, hierarchical builds a dendrogram, and density-based methods find arbitrary shapes and highlight outliers.
+
+- **Discriminant Analysis (LDA, QDA):**  
+  Classify observations into known categories, assuming underlying distributions. LDA uses linear boundaries, QDA more flexible but more parameters.
+
+- **Modern Classification (Random Forests, SVMs):**  
+  Tackle complex data with fewer assumptions. Random forests excel with minimal tuning and handle high dimensions well. SVMs use kernels for nonlinear boundaries and often yield strong predictive performance.
+
+These techniques—unsupervised (clustering) and supervised (classification)—are indispensable in data mining, pattern recognition, and machine learning. They enable you to summarise patterns, predict class labels, and understand structure in diverse datasets.
+
+## Time Series and Longitudinal Data
+
+Time-dependent data require specialised methods that account for autocorrelation, trends, seasonal patterns, and changes over time. **Time series analysis** focuses on data collected at regular intervals, while **longitudinal data** involves measurements repeated over time on the same subjects. Techniques from basic ARIMA models to advanced state-space and VAR methods help model dynamics, forecast future values, and infer underlying processes.
+
+### ARIMA and SARIMA Models
+
+**ARIMA (AutoRegressive Integrated Moving Average)**:  
+- Models a stationary time series (no trend) using:
+  - AR(p): Autoregressive terms depending on past values,
+  - I(d): Differencing to achieve stationarity,
+  - MA(q): Moving average terms depending on past errors.
+- The ARIMA model is denoted as ARIMA(p,d,q).
+
+**Steps to Fit ARIMA:**
+1. Check stationarity: If not stationary, difference the series.
+2. Identify p and q by examining autocorrelation and partial autocorrelation plots.
+3. Estimate parameters and validate residual diagnostics.
+
+**SARIMA (Seasonal ARIMA):**
+- Extends ARIMA to handle seasonality with seasonal AR, MA, and differencing terms.
+- Denoted as ARIMA(p,d,q)(P,D,Q)_s, where s is the seasonal period.
+
+**R Demonstration (ARIMA):**
+
+\`\`\{r arima-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+library(forecast)
+# Simulate an ARIMA(1,0,1) series
+ts_data <- arima.sim(model=list(ar=0.7, ma=-0.5), n=100)
+fit_arima <- forecast::auto.arima(ts_data)
+summary(fit_arima)
+\`\`\`
+
+`auto.arima` chooses a good model automatically. Check residual plots to ensure no autocorrelation remains.
+
+### State-Space Models, Kalman Filtering
+
+**State-Space Models:**
+- Represent time series as observations generated from underlying latent (hidden) states.
+- General form:
+  $$X_{t+1} = F X_t + w_t, \quad w_t \sim N(0,Q)$$
+  $$Y_t = H X_t + v_t, \quad v_t \sim N(0,R),$$
+  where $X_t$ are states, $Y_t$ are observations.
+
+**Kalman Filter:**
+- A recursive algorithm to estimate the hidden states given observations.
+- Useful for dynamic systems, time-varying parameters, and handling missing values.
+- Common in engineering, economics, and signal processing.
+
+**Advantages:**
+- Flexible: Handles non-stationary, time-varying processes.
+- Can be extended to non-linear frameworks (Unscented Kalman Filter, Particle Filters).
+
+### Cointegration, Vector Autoregressive (VAR) Models
+
+When multiple time series are involved, we must consider their joint dynamics:
+
+**VAR Models:**
+- Vector Autoregressive (VAR) generalises AR to multiple variables.
+- Each variable depends on past values of itself and other variables:
+  $$\mathbf{Y}_t = A_1 \mathbf{Y}_{t-1} + \cdots + A_p \mathbf{Y}_{t-p} + \varepsilon_t,$$
+  where $\mathbf{Y}_t$ is a vector of variables and $A_i$ are coefficient matrices.
+
+**Cointegration:**
+- If non-stationary series share a linear combination that is stationary, they are cointegrated.
+- Common in economics (e.g., related financial time series).
+- Error Correction Models (ECM) incorporate cointegration, ensuring that variables revert to a long-term equilibrium relationship.
+
+### Forecasting and Prediction Intervals
+
+Once a suitable time series model is fitted, forecasting future values is often the main goal:
+
+- **Point Forecasts:** Model generates predictions for future time steps.
+- **Prediction Intervals:** Reflect uncertainty about future values.
+- Methods:
+  - ARIMA or SARIMA predictions with confidence intervals.
+  - VAR forecasts: account for interactions among multiple series.
+  - State-space and Kalman filters produce predictive distributions for states and outputs.
+
+**Best Practices:**
+- Split data into training and test sets to assess forecast accuracy.
+- Evaluate forecasts using metrics like RMSE, MAE, or MAPE.
+- Refine models by adjusting parameters or model structure based on residual diagnostics.
+
+**R Demonstration (Forecasting):**
+
+\`\`\{r forecast-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+fcast <- forecast::forecast(fit_arima, h=10) # forecast 10 steps ahead
+plot(fcast)
+\`\`\`
+
+Check the plot for forecasts and intervals. If intervals are wide, consider more data or different modelling strategies.
+
+---
+
+**Key Takeaways:**
+
+- **ARIMA and SARIMA:**  
+  Classical time series models to capture autocorrelation and seasonality. Good for univariate series, widely used and understood.
+
+- **State-Space Models and Kalman Filter:**  
+  More flexible frameworks that treat latent states as driving forces behind observed data, handling time-varying dynamics gracefully.
+
+- **VAR and Cointegration:**  
+  For multiple interrelated time series, VAR captures joint dynamics and cointegration reveals long-term equilibrium relationships.
+
+- **Forecasting and Prediction Intervals:**  
+  After fitting a model, use it to predict future values and quantify uncertainty with intervals. Model evaluation on hold-out data ensures forecasts are reliable.
+
+Mastering these methods prepares you to tackle real-world temporal and longitudinal data challenges—uncovering trends, testing economic theories, forecasting demand, or monitoring environmental changes over time.
+
+## Survival Analysis
+
+Many studies involve the time until an event occurs—such as patient death, equipment failure, or product adoption. **Survival analysis** methods consider both the event occurrence and the time dimension, handling censored data (subjects who do not experience the event during the study) gracefully. These techniques are widely used in medicine, engineering reliability, demography, and social sciences.
+
+### Kaplan-Meier Curves and Log-Rank Tests
+
+**Kaplan-Meier (KM) Curves:**
+- Nonparametric estimate of the survival function $S(t)=P(T>t)$, where $T$ is the time-to-event.
+- Steps:
+  - Sort event times.
+  - At each event time, estimate survival probability accounting for the fraction of subjects at risk who experience the event.
+- KM curves provide a visual representation of survival probabilities over time, easily comparing two or more groups.
+
+**Censoring:**
+- If a subject does not experience the event by the study end or is lost to follow-up, their time is censored.
+- KM handles this by adjusting risk sets appropriately.
+
+**Log-Rank Test:**
+- Compares survival curves of two or more groups.
+- Null hypothesis: No difference in survival between groups.
+- Similar to a chi-square test on a 2D table of observed vs expected events at each time point.
+
+**R Demonstration (KM Curves):**
+
+\`\`\{r km-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+library(survival)
+library(ggplot2)
+library(data.table)
+
+# Simulate survival times for two groups
+n <- 100
+time_groupA <- rexp(n, rate=0.1) # exponential survival times
+time_groupB <- rexp(n, rate=0.15)
+statusA <- rbinom(n, 1, 0.8) # some censoring
+statusB <- rbinom(n, 1, 0.8)
+
+dt_surv <- data.table::data.table(
+  time=c(time_groupA, time_groupB),
+  status=c(statusA, statusB),
+  group=factor(rep(c("A","B"), each=n))
+)
+
+fit_km <- survfit(Surv(time, status) ~ group, data=dt_surv)
+print(fit_km)
+
+# Plot KM curves
+ggsurv <- ggsurvplot::ggsurvplot(fit_km, data=dt_surv, conf.int=TRUE)
+ggsurv$plot
+\`\`\`
+
+Check differences visually and use `survdiff(Surv(time,status)~group)` for a log-rank test.
+
+### Cox Proportional Hazards Model
+
+**Cox Model:**
+- A semiparametric model relating hazard rates to covariates without assuming a baseline hazard shape:
+  $$\lambda(t|X)=\lambda_0(t)\exp(\beta_1X_1+\cdots+\beta_pX_p).$$
+- The hazard ratio $\exp(\beta_j)$ quantifies how a unit increase in $X_j$ multiplies the hazard.
+
+**Key Assumptions:**
+- Proportional hazards (PH): The ratio of hazards between groups is constant over time.
+- If PH assumption is violated, consider time-varying coefficients or alternative models.
+
+**R Demonstration (Cox Model):**
+
+\`\`\{r cox-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+cox_fit <- coxph(Surv(time, status) ~ group, data=dt_surv)
+summary(cox_fit)
+\`\`\`
+
+Check coefficients and hazard ratios. If group has a significant hazard ratio, it affects survival.
+
+### Parametric Survival Models (Weibull, Exponential)
+
+When you can assume a specific distribution for survival times:
+
+- **Exponential Model:** Constant hazard rate.
+- **Weibull Model:** Flexible hazard function that can increase or decrease over time.
+- Parametric models may yield more efficient estimates if assumptions hold.
+- Useful for modelling risk over time and extrapolation beyond data range.
+
+**R Demonstration (Weibull):**
+
+\`\`\{r parametric-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+weibull_fit <- survreg(Surv(time,status)~group, data=dt_surv, dist="weibull")
+summary(weibull_fit)
+\`\`\`
+
+Check parameter estimates. The scale and shape parameters of Weibull give insight into how hazard changes over time.
+
+### Competing Risks and Frailty Models
+
+**Competing Risks:**
+- Sometimes multiple event types can occur, and the occurrence of one event prevents others.
+- Competing risks methods estimate cause-specific hazards and cumulative incidence functions.
+- Move beyond a single "failure" event to a more realistic scenario with several possible outcomes.
+
+**Frailty Models:**
+- Add random effects (frailties) to handle unobserved heterogeneity among subjects.
+- Similar to mixed-effects in regression, frailties introduce multiplicative random terms in the hazard.
+- Useful when subjects are clustered (e.g., patients within hospitals) or there's unmeasured variability in risk.
+
+---
+
+**Key Takeaways:**
+
+- **Kaplan-Meier and Log-Rank:**  
+  Nonparametric tools to estimate and compare survival functions between groups, essential for preliminary survival comparisons.
+  
+- **Cox Proportional Hazards Model:**
+  Semiparametric approach providing flexible covariate effects on survival times, widely used due to fewer assumptions about baseline hazard.
+
+- **Parametric Models (Weibull, Exponential):**  
+  Offer fully parametric inference, can be more efficient if assumptions hold, and allow hazard functions of various shapes.
+
+- **Competing Risks and Frailty Models:**
+  For more complex survival situations, these extensions handle multiple event types and latent heterogeneity.
+
+Survival analysis methods form a critical toolkit for studies involving time-to-event data, enabling nuanced interpretation of treatment effects, risk factors, and time-dependent processes. By understanding basic KM curves, the Cox model, and extensions like parametric or competing risks models, you gain powerful insight into life processes and their underlying dynamics.

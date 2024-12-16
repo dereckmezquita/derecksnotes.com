@@ -1,5 +1,5 @@
 ---
-title: "Git & GitHub: some notes"
+title: "Git & GitHub: Some Notes"
 blurb: "Tingly head, warm stomach"
 coverImage: 47
 author: "Dereck Mezquita"
@@ -10,50 +10,64 @@ published: true
 comments: true
 ---
 
-Notes on using Git and GitHub, mostly in the context of GitHub for version management. Useful as a quick reference. Note that all commands are preceeded by git, which we use in Visual Studio Code's terminal directly[^1].
+This article provides a quick reference for using Git and GitHub, primarily in the context of version management. It includes installation, configuration, basic Git workflows, and some helpful commands for day-to-day operations. All commands shown are intended to be run in a terminal, such as Visual Studio Code's integrated terminal[^1].
 
 [^1]: [Git-Commands](https://github.com/joshnh/Git-Commands)
 
-## Installing and configuring git
+## Installing and Configuring Git
 
-Use `git version` in the Mac terminal, it should already be installed. We're just going to configure it now.
+If you are on macOS, Git may already be installed. Check by running:
 
-Let's give it our name and e-mail address:
+```bash
+git version
+```
 
-- `git config --global user.name "name"`
-- `git config --global user.email "email@email.com"`.
+If it's not installed, you will be prompted to install it, or you can use Homebrew:
 
-Now let's set the default editor we're using Visual Studio Code:
+```bash
+brew install git
+```
 
+Next, configure Git with your name and email (required for commit metadata):
 
-- `git config --global core.editor "code -w"`
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "youremail@example.com"
+```
 
-Test it by asking it to open it's own configuration file with the set editor:
+Set your preferred editor (here using Visual Studio Code):
 
-- `git config --global -e`
+```bash
+git config --global core.editor "code -w"
+```
 
-Git may repeatedly ask for username and password, to avoid this annoyance try the following commands.
+Test the configuration by editing Git's global config file:
 
-Have it store the information and it will never ask again:
+```bash
+git config --global -e
+```
 
-- `git config --global credential.helper store`
-- `git config --global credential.https://github.com.username <your_username></your_username>`
+If Git repeatedly asks for your username and password, you can store credentials. To never be asked again:
 
-Have it cache the information for a session:
+```bash
+git config --global credential.helper store
+git config --global credential.https://github.com.username <your_username>
+```
 
-- `git config --global credential.helper cache`
+Or to cache credentials temporarily (for a session):
 
-Set a cache timeout:
-
-- `git config --global credential.helper 'cache --timeout=1000'`
+```bash
+git config --global credential.helper cache
+git config --global credential.helper 'cache --timeout=1000'
+```
 
 <Alert type='warning'>
-These instructions are for MacOS.
+These instructions are for macOS. On Linux or Windows, you may need different steps.
 </Alert>
 
-## Git states
+## Understanding Git's States
 
-There are three main stages or states to git, these can be thought of as physically separate areas. We move from the first to the last, where the code is introduced and added to the git repository.
+Git has three main states that files move through: the working directory, the staging area, and the repository. Conceptually, code starts in your working directory. When you modify files, they remain in the working directory until you “stage” them. Staging prepares changes for your next commit. Once committed, changes become part of the repository's history.
 
 <style>
     {`
@@ -133,84 +147,97 @@ There are three main stages or states to git, these can be thought of as physica
     <figcaption>Movement of files and directories in git.</figcaption>
 </div>
 
-The working directory contains all the files and folders for the project which may or may not be managed by git; git is aware of the files though. Then the staging area is used to prepare for the next commit, they are moved from the working directory when modified and then commited to the repository. The repository of commit history (.git directory), this contains all of the commited or saved changed to the repository, this is the history of the project.
+We can also consider the “remote” as a fourth state, representing the remote repository on a server like GitHub.
 
-The fourth state or remote state, this state has the exact same three states as the local one, however we'll show it as a single state; a fourth one. This is GitHub, a remote git repository.
+- **Working directory:** Your actual project files.
+- **Staging area:** A preview of what will go into your next commit.
+- **Repository (.git directory):** The history of all your commits.
+- **Remote:** A separate repository hosted remotely (e.g., on GitHub).
 
-## Basic commands
+## Basic Commands
 
-### Cloning and or creating a repo
+### Cloning or Creating a Repository
 
-| Command                                    | Description                                       |
-|--------------------------------------------|---------------------------------------------------|
-| `git init`                                 | Initialise a local Git repository.                |
-| `git clone https://github.com/[username]/[repository-name].git` | Create a local copy of a remote repository.     |
+| Command                                                           | Description                                      |
+|-------------------------------------------------------------------|--------------------------------------------------|
+| `git init`                                                        | Initialise a local Git repository.               |
+| `git clone https://github.com/[username]/[repository-name].git`   | Create a local copy of a remote repository.      |
 
 ### Snapshotting
 
-| Command                                   | Description                                                             |
-|-------------------------------------------|-------------------------------------------------------------------------|
-| `git status`                              | Check status.                                                           |
-| `git add [file-name.ext]`                 | Add a file to the staging area.                                         |
-| `git add .`                               | Adds all modified files to the staging area.                            |
-| `git add -A`                              | Add all new and changed files to the staging area.                      |
-| `git commit -m "[commit message]"`        | Commit changes. If the message option is not used the configured default editor is used. |
-| `git rm -r [file-name.ext]`               | Remove a file (or directory).                                           |
+| Command                           | Description                                                                                |
+|-----------------------------------|--------------------------------------------------------------------------------------------|
+| `git status`                      | Check the status of your working directory and staging area.                              |
+| `git add [file-name.ext]`         | Add a specific file to the staging area.                                                   |
+| `git add .`                       | Add all modified files to the staging area.                                                |
+| `git add -A`                      | Add all new, modified, and deleted files to the staging area.                              |
+| `git commit -m "[commit message]"`| Commit staged changes with a message. Without `-m` you will use the configured editor.      |
+| `git rm -r [file-name.ext]`       | Remove a file or directory and stage the removal.                                          |
 
-### Branching and merging
+### Branching and Merging
 
-| Command                                      | Description                                                            |
-|----------------------------------------------|------------------------------------------------------------------------|
-| `git branch`                                 | Lists all branches in a project.                                       |
-| `git branch -a`                              | Lists all branches (local and remote).                                 |
-| `git branch [branch name]`                   | Create a new branch.                                                  |
-| `git branch -d [branch name]`                | Delete a branch.                                                      |
-| `git push origin --delete [branch name]`     | Delete a remote branch.                                               |
-| `git checkout -b [branch name]`              | Create a new branch and switch to it.                                 |
-| `git checkout -b [branch name] origin/[branch name]` | Clone a remote branch and switch to it.                       |
-| `git branch -m [old branch name] [new branch name]` | Rename a local branch.                                      |
-| `git checkout [branch name]`                 | Switch to a branch.                                                   |
-| `git checkout -`                            | Switch to most recent branch checked out.                              |
-| `git checkout -- [file-name.ext]`           | Discards changes to a file.                                           |
-| `git merge [branch name]`                    | Merge a branch into the active branch. Note: if wanting to merge into master, be in master when executing this command. |
-| `git merge [source branch] [target branch]`  | Merge a branch into a target branch.                                   |
-| `git stash`                                  | Stash changes in a dirty working directory.                            |
-| `git stash clear`                            | Remove all stashed entries.                                            |
+| Command                                                 | Description                                                                                        |
+|---------------------------------------------------------|----------------------------------------------------------------------------------------------------|
+| `git branch`                                            | List all local branches.                                                                           |
+| `git branch -a`                                         | List all branches (local and remote).                                                              |
+| `git branch [branch name]`                              | Create a new branch.                                                                               |
+| `git branch -d [branch name]`                           | Delete a local branch.                                                                             |
+| `git push origin --delete [branch name]`                | Delete a remote branch.                                                                            |
+| `git checkout -b [branch name]`                         | Create and switch to a new branch.                                                                 |
+| `git checkout -b [branch name] origin/[branch name]`    | Clone a remote branch locally and switch to it.                                                     |
+| `git branch -m [old branch name] [new branch name]`     | Rename a local branch.                                                                             |
+| `git checkout [branch name]`                            | Switch to an existing branch.                                                                      |
+| `git checkout -`                                        | Switch to the most recently checked-out branch.                                                    |
+| `git checkout -- [file-name.ext]`                       | Discard changes in the working directory for a file.                                               |
+| `git merge [branch name]`                               | Merge a branch into the currently active branch.                                                   |
+| `git merge [source branch] [target branch]`             | Merge a branch into a specified target branch.                                                     |
+| `git stash`                                             | Temporarily stash changes when you are not ready to commit.                                        |
+| `git stash clear`                                       | Remove all stashed changes.                                                                        |
 
-### Sharing or updating projects
+### Sharing or Updating Projects
 
-| Command                                           | Description                                             |
-|---------------------------------------------------|---------------------------------------------------------|
-| `git push origin [branch name]`                   | Push a branch to your remote repository.               |
-| `git push -u origin [branch name]`                | Push changes to remote repository (and remember the branch). |
-| `git push`                                       | Push changes to remote repository (remembered branch). |
-| `git push origin --delete [branch name]`          | Delete a remote branch.                                |
-| `git pull`                                       | Update local repository to the newest commit.          |
-| `git pull origin [branch name]`                   | Pull changes from remote repository.                   |
-| `git remote add origin ssh://git@github.com/[username]/[repository-name].git` | Add a remote repository. |
-| `git remote set-url origin ssh://git@github.com/[username]/[repository-name].git` | Set a repository's origin branch to SSH. |
+| Command                                                           | Description                                              |
+|-------------------------------------------------------------------|----------------------------------------------------------|
+| `git push origin [branch name]`                                   | Push a branch to your remote repository.                |
+| `git push -u origin [branch name]`                                | Push changes and set the upstream branch for tracking.  |
+| `git push`                                                        | Push changes to the remote repository (if upstream is set). |
+| `git push origin --delete [branch name]`                          | Delete a remote branch.                                 |
+| `git pull`                                                        | Update local repository to the newest commit from remote. |
+| `git pull origin [branch name]`                                   | Pull changes from a remote repository branch.           |
+| `git remote add origin ssh://git@github.com/[username]/[repository-name].git` | Add a remote repository via SSH. |
+| `git remote set-url origin ssh://git@github.com/[username]/[repository-name].git` | Change the remote URL to SSH. |
 
-### Inspecting and comparing
+### Inspecting and Comparing
 
-| Command                                   | Description                                            |
-|-------------------------------------------|--------------------------------------------------------|
-| `git log`                                 | View changes.                                          |
-| `git log --summary`                       | View changes (detailed).                               |
-| `git log --oneline`                       | View changes (briefly).                                |
-| `git diff [source branch] [target branch]` | Preview changes before merging. I prefer using VSCode extension GitLens for this. |
+| Command                                      | Description                                             |
+|----------------------------------------------|---------------------------------------------------------|
+| `git log`                                    | View commit history.                                    |
+| `git log --summary`                          | View detailed commit history (files changed, etc.).      |
+| `git log --oneline`                          | View a simplified commit history.                       |
+| `git diff [source branch] [target branch]`   | Compare changes between branches before merging.         |
 
-### Advanced commands
+*(For more sophisticated diff and history viewing, tools like GitLens in VSCode are highly recommended.)*
 
-| Command                                                  | Description |
-|----------------------------------------------------------|-------------|
-| `git config --global alias.[command-name] "[command chain]"` | Try this on the subsequent for viewing history command, call it hist. Verify with `git config --global --list`. |
-| `git log --oneline --graph --decorate --all`             | `--oneline` provides a simplified commit entry (gives more information on a single line), `--graph` shows us an asterisk-based graph denoting the branching hierarchy, `--decorate` shows which commits are a part of which branches, `--all` gives us all branches in the repo. |
-| `git mv [file-name.ext]`                                 | Stages moving a file to a new name, this renames the file. Benefit of git tracking the move. Commit to complete. |
-| `git rm [file-name.txt]`                                 | Stages removing a file or deletes it. Benefit of git tracking the deletion. Commit to complete. |
-| `git add -u`                                            | Use whenever a file is modified outside of the git CLI; u is for update. This updates the file changes and stages them. Commit to complete. |
+### Advanced Commands
 
-## Excluding files
+| Command                                                        | Description                                                                                             |
+|----------------------------------------------------------------|---------------------------------------------------------------------------------------------------------|
+| `git config --global alias.[command-name] "[command chain]"`   | Create Git aliases. For example, `git config --global alias.hist "log --oneline --graph --decorate --all"` and then use `git hist`. |
+| `git mv [file-name.ext]`                                       | Rename a file and stage the move, preserving history. Commit to finalize.                               |
+| `git rm [file-name.txt]`                                       | Remove a file and stage the removal. Commit to finalize.                                                |
+| `git add -u`                                                   | Update and stage changes to files that have been modified or deleted.                                   |
 
-Here let's imagine we have a log file that will not be included in the final project. We'll use the `.gitingore` file for this.
+## Excluding Files with `.gitignore`
 
-The syntax for this file is one pattern or expression per line. For excluding .log, we'll do `*.log`. Now we must track the `.gitignore` in the repository; `git add .gitignore`, `git commit -m "Add ignore file"`.
+Use a `.gitignore` file to exclude files or directories from your repository. Each line of `.gitignore` specifies a pattern. For example, to ignore all `.log` files:
+
+```
+*.log
+```
+
+Don't forget to commit the `.gitignore` file so that it is tracked by the repository:
+
+```bash
+git add .gitignore
+git commit -m "Add .gitignore file"
+```
