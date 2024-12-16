@@ -13,34 +13,62 @@ import { accessReadFile } from '@utils/accessReadFile';
 import { Metadata } from 'next';
 import { decodeSlug } from '@utils/helpers';
 
-const section: string = 'blog';
+const section: string = 'references';
 const relDir = path.join(section, 'posts');
 const absDir = path.join(ROOT_DIR_APP, relDir);
 
 // used at build time to generate which pages to render
-export async function generateStaticParams(): Promise<{ slug: string }[]> {
-    const filenames: string[] = fs.readdirSync(absDir).filter((filename) => {
-        return filename.endsWith('.mdx');
+export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
+    const items: string[] = fs.readdirSync(absDir);
+    const mdx: string[] = items.filter((item) => item.endsWith('.mdx'));
+
+    const seriesDirs = items.filter((item) =>
+        fs.statSync(path.join(absDir, item)).isDirectory()
+    );
+
+    // For directories, take the first MDX file as a representative post
+    seriesDirs.forEach((seriesDir) => {
+        if (['drafts', 'deprecated', 'ignore'].includes(seriesDir)) {
+            return;
+        }
+        const seriesItems: string[] = fs.readdirSync(
+            path.join(absDir, seriesDir)
+        );
+        const mdxFiles: string[] = seriesItems.filter((item) =>
+            item.endsWith('.mdx')
+        );
+
+        if (mdxFiles.length === 0) {
+            return;
+        }
+
+        mdxFiles.sort();
+        mdx.push(path.join(seriesDir, mdxFiles[0]));
     });
 
-    return filenames.map((filename) => {
-        const slug = path.basename(filename, '.mdx');
-        return { slug };
+    return mdx.map((file) => {
+        // Remove the .mdx extension
+        const noExt = file.replace('.mdx', '');
+        // Split by path separator to handle nested directories
+        const segments = noExt.split(path.sep);
+        console.log('Slug segments:', segments);
+        return { slug: segments };
     });
 }
 
 interface PageProps {
-    params: { slug: string };
+    params: { slug: string[] };
 }
 
 async function Page({ params }: PageProps) {
-    const decodedSlug = decodeSlug(params.slug);
-    const sideBarPosts = getPostsWithSection(section);
+    // Decode each segment
+    const decodedSegments = params.slug.map(decodeSlug);
+    // Join segments to form the relative path to the file
+    const absPath: string = path.join(absDir, ...decodedSegments) + '.mdx';
 
-    const absPath: string = path.join(absDir, decodedSlug + '.mdx');
+    const sideBarPosts = getPostsWithSection(section);
     const markdown = await accessReadFile(absPath);
 
-    // TODO: review and reconsider this logic; should this be an error
     if (!markdown) {
         notFound();
     }
@@ -51,7 +79,7 @@ async function Page({ params }: PageProps) {
         notFound();
     }
 
-    // TODO: simplify this we don't need full metadata object
+    const decodedSlug = decodedSegments.join('/');
     const url = new URL(
         path.join(section, decodedSlug),
         APPLICATION_DEFAULT_METADATA.url
@@ -67,7 +95,7 @@ async function Page({ params }: PageProps) {
         throw new Error(`Post ${frontmatter.slug} is missing a summary`);
     }
 
-    // TODO: cleanup this can be deleted; we set metadata now with the generateMetadata function
+    // Set global metadata (though Next.js recommends using generateMetadata instead)
     APPLICATION_DEFAULT_METADATA.title = frontmatter2.title;
     APPLICATION_DEFAULT_METADATA.description = frontmatter2.summary;
     APPLICATION_DEFAULT_METADATA.image =
@@ -85,9 +113,10 @@ async function Page({ params }: PageProps) {
 export default Page;
 
 export function generateMetadata({ params }: PageProps): Metadata {
-    const decodedSlug = decodeSlug(params.slug);
-    const filePath: string = path.join(absDir, decodedSlug + '.mdx');
+    const decodedSegments = params.slug.map(decodeSlug);
+    const filePath: string = path.join(absDir, ...decodedSegments) + '.mdx';
     const post: PostMetadata = extractSinglePostMetadata(filePath);
+
     return {
         metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
         title: `Dn | ${post.title}`,
