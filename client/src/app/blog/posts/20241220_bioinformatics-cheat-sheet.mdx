@@ -11,337 +11,326 @@ comments: true
 
 A compilation of tools, methodologies, workflows and resources for bioinformatics analysis. This is meant to be a quick reference sheet and not comprehensive. These are mostly things I've encountered throughout the course of my career.
 
-## key tools & methods  
-- **quality control & preprocessing:**
-  - fastqc[^1]: evaluates sequencing read quality.  
-  - trim galore![^2]: automated adapter trimming and quality filtering.
-- **alignment & mapping:**  
-  - bowtie2[^3]/star[^4]: align short reads to reference genomes/transcriptomes.  
-  - bwa[^5]: popular aligner for dna-seq variant pipelines.
-- **quantification & differential expression:**  
-  - featurecounts[^6]/htseq-count[^7]: converts aligned reads to gene-level counts.  
-  - salmon[^8]/kallisto[^9]: alignment-free rna-seq quantification.  
-  - deseq2[^10]/limma[^11]/edger[^12]: statistical frameworks for differential expression and normalisation.
-- **variant calling & annotation:**  
-  - gatk (genome analysis toolkit)[^13]: variant calling and refinement.  
-  - snpeff[^14]/vep[^15]: functional annotation of genetic variants.
-- **functional & pathway analysis:**  
-  - gsea (gene set enrichment analysis)[^16]: tests for enriched pathways in gene sets.  
-  - topgo[^17]/clusterprofiler[^18]: r-based enrichment tools.
-- **metabolomics & proteomics:**  
-  - xcms[^19]/metfrag[^20]: lc-ms metabolomics data processing.  
-  - maxquant[^21]/proteome discoverer[^22]: proteomics identification and quantification.
-- **single-cell & spatial analysis:**  
-  - cell ranger[^23]/alevin[^24]: single-cell rna-seq preprocessing and quantification.  
-  - seurat[^25]/scanpy[^26]: normalisation, clustering, and visualisation of single-cell data.
-- **multi-omics integration & visualisation:**  
-  - multiqc[^27]: aggregates qc outputs.  
-  - circos[^28]: circular plots for complex genomic data.
-- **workflow management & reproducibility:**  
-  - snakemake[^29]/nextflow[^30]/wdl[^31]: pipeline orchestration and reproducibility.
-- **high-performance computing:**  
-  - slurm[^32]/pbs/sgi sge: hpc schedulers for cluster resource management.
+## Key Tools & Methods
 
-## public databases & reference resources  
-- **genomic & annotation databases:**  
-  - ensembl[^33]/ncbi refseq[^34]: reference genomes and gene models.  
-  - ucsc genome browser[^35]: interactive annotation exploration.
-- **functional & ontology resources:**  
-  - gene ontology (go)[^36]: hierarchical categories for gene function.  
-  - interpro[^37]/pfam[^38]: protein families and domains.
-- **transcriptomic & epigenomic repositories:**  
-  - geo (gene expression omnibus)[^39]: transcriptomic and functional genomics data.  
-  - arrayexpress[^40]/sra[^41]: diverse genomic and transcriptomic datasets.
-- **disease & specialised databases:**  
-  - tcga (the cancer genome atlas)[^42]: multi-omics cancer data.  
-  - clinvar[^43]: clinically significant genomic variants.
-- **proteomics & metabolomics:**  
-  - uniprot[^44]: protein sequence and function.  
-  - pride[^45]: public proteomics repository.
-- **metagenomics & microbiome:**  
-  - mg-rast[^46]/ebi-mgnify[^47]: metagenomic data analysis platforms.
+- **[FastQC](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/)**: evaluates sequencing read quality, checking per-base quality, gc content, and adapter contamination.
+- **[Trim Galore!](http://www.bioinformatics.babraham.ac.uk/projects/trim_galore/)**: performs automatic adapter trimming and quality filtering for cleaner reads.
+- **[Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)** / **[STAR](https://github.com/alexdobin/STAR)**: aligns short reads (e.g., from illumina) to reference genomes or transcriptomes.
+- **[BWA](http://bio-bwa.sourceforge.net/)**: a popular aligner for dna-seq variant discovery pipelines.
+- **[featureCounts](http://bioinf.wehi.edu.au/featureCounts/)** / **[HTSeq-count](https://htseq.readthedocs.io/)**: quantifies mapped reads to gene-level counts for rna-seq expression analyses.
+- **[Salmon](https://combine-lab.github.io/salmon/)** / **[Kallisto](https://pachterlab.github.io/kallisto/)**: alignment-free quantification tools for rna-seq, enabling fast transcript-level abundance estimation.
+- **[DESeq2](https://bioconductor.org/packages/DESeq2/)** / **[limma](https://bioconductor.org/packages/limma/)** / **[edgeR](https://bioconductor.org/packages/edgeR/)**: statistical frameworks for differential expression analysis, normalisation, and variance estimation in rna-seq data.
+- **[GATK (Genome Analysis Toolkit)](https://gatk.broadinstitute.org/)**: variant calling and refinement suite for dna-seq data.
+- **[SnpEff](http://snpeff.sourceforge.net/)** / **[VEP](https://www.ensembl.org/info/docs/tools/vep/)**: functional annotation tools to predict the impact of genetic variants.
+- **[GSEA (Gene Set Enrichment Analysis)](http://www.broadinstitute.org/gsea/)**: identifies enriched pathways or gene sets in differential expression results.
+- **[topGO](https://bioconductor.org/packages/topGO/)** / **[clusterProfiler](https://bioconductor.org/packages/clusterProfiler/)**: r-based tools for gene ontology and pathway enrichment analyses.
+- **[XCMS](https://bioconductor.org/packages/xcms/)** / **[MetFrag](https://msbi.ipb-halle.de/MetFrag/)**: processes lc-ms metabolomics data (peak detection, alignment, and compound identification).
+- **[MaxQuant](https://www.maxquant.org/)** / **[Proteome Discoverer](https://www.thermofisher.com/)**: proteomics data analysis tools for peptide/protein identification and quantification.
+- **[Cell Ranger](https://support.10xgenomics.com/)** / **[Alevin](https://salmon.readthedocs.io/en/latest/alevin.html)**: single-cell rna-seq demultiplexing and quantification tools to produce cell-by-gene matrices.
+- **[Seurat](https://satijalab.org/seurat/)** / **[Scanpy](https://scanpy.readthedocs.io/)**: frameworks for single-cell data normalisation, clustering, dimension reduction, and visualisation.
+- **[MultiQC](https://multiqc.info/)**: aggregates qc outputs from multiple tools into a single comprehensive report.
+- **[Circos](http://circos.ca/)**: visualises complex multi-omics data on circular plots.
+- **[Snakemake](https://snakemake.readthedocs.io/)** / **[Nextflow](https://www.nextflow.io/)** / **[WDL](https://github.com/openwdl/wdl)**: workflow management systems for reproducible, scalable pipelines.
+- **[SLURM](https://slurm.schedmd.com/)**: a widely used hpc scheduler for allocating and managing cluster computing resources.
 
-## common bioinformatics datasets & data types  
-- genomic (dna-seq): variant discovery, genome assembly.  
-- transcriptomic (rna-seq): expression profiling, splicing analysis.  
-- epigenomic (chip-seq, atac-seq, methyl-seq): chromatin accessibility, histone marks, methylation.  
-- metabolomic & proteomic (lc-ms, ms/ms): small molecules and proteins.  
-- single-cell data (scrna-seq, scatac-seq): cell-level heterogeneity and lineage tracing.  
-- population-scale & metagenomic data: large cohorts (e.g., 1000 genomes), microbiome community structure.  
-- spatially resolved omics: gene/protein expression with spatial context.  
-- longitudinal & time-series data: temporal changes in gene expression or variants.
+## Public Databases & Reference Resources
 
-## core algorithms & methodologies  
-- alignment algorithms: seed-and-extend, burrows–wheeler transform, suffix arrays.  
-- variant calling algorithms: haplotype-based (e.g., gatk haplotypecaller) and frequency-based callers.  
-- assembly algorithms: de novo (spades, velvet) vs. reference-based assembly.  
-- dimension reduction & clustering: pca, umap, t-sne for visualising high-dimensional data.  
-- machine learning methods: random forest, svm, neural networks for classification and feature selection.  
-- phylogenetic inference: maximum likelihood (raxml, iq-tree), bayesian inference (mrbayes).  
-- multiple sequence alignment: mafft, clustal omega, muscle for comparative genomics and phylogenetics.
+- **[Ensembl](https://www.ensembl.org/)** / **[NCBI RefSeq](https://www.ncbi.nlm.nih.gov/refseq/)**: comprehensive repositories of reference genomes, gene models, and annotations.
+- **[UCSC Genome Browser](https://genome.ucsc.edu/)**: interactive platform for exploring genome annotations, variants, and comparative genomics data.
+- **[Gene Ontology (GO)](http://geneontology.org/)**: hierarchical terms describing gene functions, useful for enrichment analyses.
+- **[InterPro](https://www.ebi.ac.uk/interpro/)** / **[Pfam](https://pfam.xfam.org/)**: databases for protein families, domains, and motifs.
+- **[GEO (Gene Expression Omnibus)](https://www.ncbi.nlm.nih.gov/geo/)** / **[ArrayExpress](https://www.ebi.ac.uk/arrayexpress/)** / **[SRA](https://www.ncbi.nlm.nih.gov/sra/)**: repositories hosting transcriptomic and functional genomics datasets.
+- **[TCGA (The Cancer Genome Atlas)](https://www.cancer.gov/tcga)**: multi-omics cancer data, integrating genomics, transcriptomics, epigenomics, and clinical annotations.
+- **[ClinVar](https://www.ncbi.nlm.nih.gov/clinvar/)**: database of clinically significant genomic variants for medical genetics.
+- **[UniProt](https://www.uniprot.org/)**: curated repository of protein sequences and functional information.
+- **[PRIDE](https://www.ebi.ac.uk/pride/)**: public proteomics repository.
+- **[MG-RAST](https://www.mg-rast.org/)** / **[EBI-MGnify](https://www.ebi.ac.uk/metagenomics/)**: platforms for metagenomic data analysis and microbiome studies.
 
-## example workflows
+## Common Bioinformatics Datasets & Data Types
 
-### 1. rna-seq expression analysis & functional interpretation  
-1. quality control & cleanup:  
-   1. run `fastqc`[^1] on raw reads:  
-      - inspect per-base quality, adapter content, and gc distribution.  
-   2. trim adapters and low-quality bases with `trim galore!`[^2]:  
-      - ensure removal of adapter sequences.  
-      - improve overall read quality scores.  
-   3. run `fastqc` again:  
+- **Genomic (DNA-seq):**
+  - Format: FASTQ for raw reads, BAM/CRAM for aligned data, VCF for variants.
+  - Produced by: short-read (illumina) or long-read (pacbio, nanopore) platforms.
+  - Purpose: variant discovery, genome assembly, structural variant detection, population genetics.
+  - Typical analysis: use [BWA](http://bio-bwa.sourceforge.net/) or [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) for alignment, [GATK](https://gatk.broadinstitute.org/) for variant calling, and [SnpEff](http://snpeff.sourceforge.net/) for annotation.
+
+- **Transcriptomic (RNA-seq):**
+  - Format: FASTQ for raw reads, BAM for alignments, count matrices for gene expression.
+  - Produced by: illumina short-read sequencing or single-cell platforms like 10x genomics.
+  - Purpose: quantify gene expression, detect alternative splicing, infer regulation.
+  - Typical analysis: align with [STAR](https://github.com/alexdobin/STAR) or [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml), quantify with [featureCounts](http://bioinf.wehi.edu.au/featureCounts/) or [Salmon](https://combine-lab.github.io/salmon/), perform differential expression with [DESeq2](https://bioconductor.org/packages/DESeq2/) or [limma](https://bioconductor.org/packages/limma/).
+
+- **Epigenomic (ChIP-seq, ATAC-seq, Methyl-seq):**
+  - Format: FASTQ for raw reads, BAM for alignments, BED/narrowPeak for peak regions.
+  - Produced by: illumina sequencing targeting chromatin modifications or accessibility.
+  - Purpose: identify protein binding sites (ChIP-seq), open chromatin (ATAC-seq), methylation patterns (bisulfite-seq).
+  - Typical analysis: call peaks with [MACS2](https://github.com/macs3-project/MACS), discover motifs with [HOMER](http://homer.ucsd.edu/homer/) or [MEME Suite](http://meme-suite.org/), annotate regulatory elements with known gene models.
+
+- **Metabolomic & Proteomic (LC-MS, MS/MS):**
+  - Format: raw mass spectra files (e.g., mzML), identified compounds/proteins in tabular formats.
+  - Produced by: mass spectrometry platforms (orbitrap, tof).
+  - Purpose: measure small molecules and proteins to understand metabolic and proteomic states.
+  - Typical analysis: identify peptides with [MaxQuant](https://www.maxquant.org/) or [Proteome Discoverer](https://www.thermofisher.com/), integrate with transcriptomics for systems-level insights.
+
+- **Single-Cell Data (scRNA-seq, scATAC-seq):**
+  - Format: FASTQ for raw reads, count matrices of genes vs. cells.
+  - Produced by: single-cell platforms (10x genomics, drop-seq).
+  - Purpose: resolve cellular heterogeneity, identify subpopulations, trace lineage differentiation.
+  - Typical analysis: demultiplex with [Cell Ranger](https://support.10xgenomics.com/) or [Alevin](https://salmon.readthedocs.io/en/latest/alevin.html), cluster cells with [Seurat](https://satijalab.org/seurat/) or [Scanpy](https://scanpy.readthedocs.io/).
+
+- **Population-Scale & Metagenomic Data:**
+  - Format: large FASTQ sets, often assembled into contigs or assigned to OTUs/ASVs.
+  - Produced by: large-scale projects (1000 genomes) or environmental microbiome studies.
+  - Purpose: study population genetic variation or microbial community composition.
+  - Typical analysis: assign taxonomy with [QIIME2](https://qiime2.org/) or [DADA2](https://benjjneb.github.io/dada2/), assess diversity, predict function with [PICRUSt2](https://github.com/picrust/picrust2) or [HUMAnN](http://huttenhower.sph.harvard.edu/humann).
+
+- **Spatially Resolved Omics:**
+  - Format: spatial transcriptomics data files (e.g., from Visium) coupling location and expression.
+  - Produced by: technologies integrating imaging and sequencing (10x Visium, seqFISH).
+  - Purpose: retain tissue context while measuring gene/protein expression.
+  - Typical analysis: map reads to spatial coordinates, cluster spatial domains, understand tissue architecture.
+
+- **Longitudinal & Time-Series Data:**
+  - Format: multiple time-point FASTQ files, with corresponding count or variant matrices.
+  - Produced by: sampling over time to observe dynamics in expression or variants.
+  - Purpose: track changes in gene expression, variant frequency, or metabolites over time.
+  - Typical analysis: differential expression over time, trajectory inference, detect temporal shifts in cellular states.
+
+- **Other Emerging Data Types (Hi-C, Spatial Proteomics, Long-Read Epigenomics):**
+  - Format: specialised formats (contact maps for Hi-C, imaging-based quantifications).
+  - Purpose: explore 3D genome structure (Hi-C), subcellular protein localisation, long-range epigenetic patterns.
+  - Typical analysis: integrate with other omics to build a comprehensive model of cellular organisation.
+
+## Core Algorithms & Methodologies
+
+- **Alignment algorithms (e.g., Burrows-Wheeler transform-based):**
+  - Biological question: how do raw reads map onto a reference genome/transcriptome?
+  - Purpose: enable large-scale read alignment for variant calling, expression analysis, and assembly.
+
+- **Variant calling algorithms (e.g., haplotype-based in GATK):**
+  - Biological question: what genetic variants differ from the reference?
+  - Purpose: identify SNPs, indels, and structural variants that may influence phenotypes or diseases.
+
+- **Assembly algorithms (de novo vs. reference-guided):**
+  - Biological question: can we reconstruct genomes/transcripts from overlapping reads?
+  - Purpose: build new assemblies from scratch (de novo) or improve existing references.
+
+- **Dimension reduction & clustering (PCA, UMAP, t-SNE):**
+  - Biological question: how to simplify high-dimensional data to reveal groups or patterns?
+  - Purpose: reduce complexity, cluster samples or cells, identify subpopulations.
+
+- **Machine learning methods (Random Forest, SVM, Neural Networks):**
+  - Biological question: can we classify samples, predict outcomes, or discover biomarkers from omics data?
+  - Purpose: apply supervised/unsupervised learning for feature selection, classification, or pattern detection.
+
+- **Phylogenetic inference (Maximum Likelihood, Bayesian):**
+  - Biological question: what are the evolutionary relationships among sequences/species?
+  - Purpose: reconstruct ancestral lineages, understand species divergence and relatedness.
+
+- **Multiple sequence alignment (MAFFT, Clustal Omega, MUSCLE):**
+  - Biological question: where are conserved motifs or functional elements across multiple sequences?
+  - Purpose: align homologous sequences to detect evolutionary signatures and conserved regions.
+
+## Example Workflows
+
+### 1. RNAseq Expression Analysis & Functional Interpretation
+
+1. Quality control & cleanup:
+   1. run [`fastqc`](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) on raw reads:
+      - inspect per-base quality, adapter content, and gc distribution.
+   2. trim adapters and low-quality bases with [`trim galore!`](http://www.bioinformatics.babraham.ac.uk/projects/trim_galore/):
+      - ensure removal of adapter sequences.
+      - improve overall read quality scores.
+   3. run `fastqc` again:
       - confirm improved read quality metrics.
-2. alignment & expression:  
-   1. align cleaned reads to the reference genome with `star`[^4]:  
-      - generate aligned bam files.  
-      - ensure a high percentage of uniquely mapped reads.  
-   2. quantify gene-level expression with `featurecounts`[^6] or `htseq-count`[^7]:  
-      - produce a raw count matrix.  
+2. Alignment & expression:
+   1. align cleaned reads to the reference genome with [`star`](https://github.com/alexdobin/STAR):
+      - generate aligned bam files.
+      - ensure a high percentage of uniquely mapped reads.
+   2. quantify gene-level expression with [`featureCounts`](http://bioinf.wehi.edu.au/featureCounts/) or [`htseq-count`](https://htseq.readthedocs.io/):
+      - produce a raw count matrix.
       - verify that most reads are assigned to annotated genes.
-3. differential expression & enrichment:  
-   1. use `deseq2`[^10] to identify differentially expressed genes:  
-      - normalise counts and estimate dispersion.  
-      - apply statistical tests to find significant gene expression changes.  
-   2. perform `gsea`[^16] on the significant gene list:  
-      - identify enriched pathways or gene sets.  
-      - interpret biological significance of these changes.  
-   3. optionally, refine results with `clusterprofiler`[^18]:  
+3. Differential expression & enrichment:
+   1. use [`deseq2`](https://bioconductor.org/packages/DESeq2/) to identify differentially expressed genes:
+      - normalise counts and estimate dispersion.
+      - apply statistical tests to find significant gene expression changes.
+   2. perform [`gsea`](http://www.broadinstitute.org/gsea/) on the significant gene list:
+      - identify enriched pathways or gene sets.
+      - interpret biological significance of these changes.
+   3. optionally, refine results with [`clusterprofiler`](https://bioconductor.org/packages/clusterProfiler/):
       - complement gsea results with go term or kegg pathway enrichment.
-4. optional metabolomics integration:  
-   1. process lc-ms data using `xcms`[^19]:  
-      - detect, align, and quantify metabolic features.  
-      - identify metabolites of interest.  
-   2. integrate metabolite data with gene expression results:  
-      - correlate changes in metabolites with transcriptomic profiles.  
+4. Optional metabolomics integration:
+   1. process lc-ms data using [`xcms`](https://bioconductor.org/packages/xcms/):
+      - detect, align, and quantify metabolic features.
+      - identify metabolites of interest.
+   2. integrate metabolite data with gene expression results:
+      - correlate changes in metabolites with transcriptomic profiles.
       - explore multi-omics insights into biological processes.
 
-### 2. variant calling & annotation workflow  
-1. preprocessing & alignment:  
-   1. evaluate read quality with `fastqc`[^1]:  
-      - ensure minimal adapter contamination and consistent quality.  
-   2. align reads with `bwa`[^5]:  
+### 2. Variant Calling & Annotation Workflow
+
+1. preprocessing & alignment:
+   1. evaluate read quality with [`fastqc`](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/):
+      - ensure minimal adapter contamination and consistent quality.
+   2. align reads with [`bwa`](http://bio-bwa.sourceforge.net/):
       - produce sorted bam files indexed against the reference genome.
-2. variant calling & filtering:  
-   1. call variants using `gatk haplotypecaller`[^13]:  
-      - generate a raw vcf with snps and indels.  
-      - model haplotypes to improve variant accuracy.  
-   2. apply variant recalibration or hard filters:  
-      - remove low-quality variants.  
+2. variant calling & filtering:
+   1. call variants using [`gatk haplotypecaller`](https://gatk.broadinstitute.org/):
+      - generate a raw vcf with snps and indels.
+      - model haplotypes to improve variant accuracy.
+   2. apply variant recalibration or hard filters:
+      - remove low-quality variants.
       - retain high-confidence snps and indels.
-3. annotation:  
-   1. annotate variants using `snpeff`[^14] or `vep`[^15]:  
-      - predict functional consequences of variants.  
-      - identify non-synonymous snps, splice site variants, or frameshifts.  
-   2. optionally integrate `clinvar`[^43] annotations:  
-      - highlight clinically relevant variants.  
+3. annotation:
+   1. annotate variants using [`snpeff`](http://snpeff.sourceforge.net/) or [`vep`](https://www.ensembl.org/info/docs/tools/vep/):
+      - predict functional consequences of variants.
+      - identify non-synonymous snps, splice site variants, or frameshifts.
+   2. optionally integrate [`clinvar`](https://www.ncbi.nlm.nih.gov/clinvar/) data:
+      - highlight clinically relevant variants.
       - prioritise variants for follow-up studies.
 
-### 3. single-cell rna-seq analysis for cell population characterisation  
-1. preprocessing & quantification:  
-   1. demultiplex and quantify single-cell data with `cell ranger`[^23] or `alevin`[^24]:  
-      - separate reads by cell barcodes.  
-      - produce a cell-by-gene count matrix.  
-   2. assess metrics like number of detected genes per cell:  
+### 3. Single-Cell RNAseq Analysis for Cell Population Characterisation
+
+1. preprocessing & quantification:
+   1. demultiplex and quantify single-cell data with [`cell ranger`](https://support.10xgenomics.com/) or [`alevin`](https://salmon.readthedocs.io/en/latest/alevin.html):
+      - separate reads by cell barcodes.
+      - produce a cell-by-gene count matrix.
+   2. assess metrics like number of detected genes per cell:
       - remove low-quality cells with few detected transcripts.
-2. quality control & clustering:  
-   1. filter out low-quality cells and genes:  
-      - remove cells with high mitochondrial content.  
-      - discard genes expressed in very few cells.  
-   2. normalise data and perform pca/umap in `seurat`[^25] or `scanpy`[^26]:  
-      - reduce dimensionality to reveal cell clusters.  
-      - optimise parameters (e.g., number of principal components) to improve clustering.  
-   3. cluster cells based on transcriptomic similarity:  
+2. quality control & clustering:
+   1. filter out low-quality cells and genes:
+      - remove cells with high mitochondrial content.
+      - discard genes expressed in very few cells.
+   2. normalise data and perform pca/umap in [`seurat`](https://satijalab.org/seurat/) or [`scanpy`](https://scanpy.readthedocs.io/):
+      - reduce dimensionality to reveal cell clusters.
+      - optimise parameters (e.g., number of principal components) to improve clustering.
+   3. cluster cells based on transcriptomic similarity:
       - identify distinct subpopulations with shared gene expression profiles.
-3. marker & pathway analysis:  
-   1. identify cluster-specific marker genes:  
-      - find genes highly expressed in one cluster compared to others.  
-      - validate marker consistency across samples.  
-   2. perform go or gsea-based enrichment to interpret cluster functions:  
-      - associate clusters with biological processes or cell states.  
-      - understand lineage relationships or functional specialisations.  
-   3. optionally integrate phenotype or spatial data:  
-      - correlate cell-type abundance with experimental conditions or clinical information.  
+3. marker & pathway analysis:
+   1. identify cluster-specific marker genes:
+      - find genes highly expressed in one cluster compared to others.
+      - validate marker consistency across samples.
+   2. perform go or gsea-based enrichment to interpret cluster functions:
+      - associate clusters with biological processes or cell states.
+      - understand lineage relationships or functional specialisations.
+   3. optionally integrate phenotype or spatial data:
+      - correlate cell-type abundance with experimental conditions or clinical information.
       - link cell clusters to their original tissue location in spatial datasets.
 
-### 4. chip-seq / atac-seq regulatory element discovery  
-1. quality control & alignment:  
-   1. run `fastqc`[^1] to assess read quality:  
-      - check for adapter contamination and sequence quality.  
-   2. trim adapters with `trim galore!`[^2]:  
-      - ensure clean input for alignment.  
-   3. align reads with `bowtie2`[^3] or `bwa`[^5]:  
+### 4. ChIPseq/ATACseq Regulatory Element Discovery
+
+1. quality control & alignment:
+   1. run [`fastqc`](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) to assess read quality:
+      - check for adapter contamination and sequence quality.
+   2. trim adapters with [`trim galore!`](http://www.bioinformatics.babraham.ac.uk/projects/trim_galore/):
+      - ensure clean input for alignment.
+   3. align reads with [`bowtie2`](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) or [`bwa`](http://bio-bwa.sourceforge.net/):
       - produce a high-quality bam file of aligned reads.
-2. peak calling & analysis:  
-   1. call peaks with `macs2`[^48]:  
-      - identify regions of significant enrichment.  
-      - set appropriate p-value/q-value thresholds for confident peaks.  
-   2. annotate peaks with nearby genes:  
-      - use genomic annotation tools to link peaks to promoters, enhancers, or gene bodies.
-3. motif & functional interpretation:  
-   1. discover transcription factor motifs using `homer`[^49] or `meme suite`[^50]:  
-      - find known or de novo motifs enriched in peaks.  
-      - infer regulatory factors controlling gene expression.  
-   2. perform go or pathway analysis on associated genes:  
-      - interpret the biological roles of identified regulatory regions.  
+2. peak calling & analysis:
+   1. call peaks with [`macs2`](https://github.com/macs3-project/MACS):
+      - identify regions of significant enrichment.
+      - set appropriate p-value/q-value thresholds for confident peaks.
+   2. annotate peaks with nearby genes:
+      - link peaks to promoters, enhancers, or gene bodies.
+3. motif & functional interpretation:
+   1. discover transcription factor motifs using [`homer`](http://homer.ucsd.edu/homer/) or the [`meme suite`](http://meme-suite.org/):
+      - find known or de novo motifs enriched in peaks.
+      - infer regulatory factors controlling gene expression.
+   2. perform go or pathway analysis on associated genes:
+      - interpret the biological roles of identified regulatory regions.
       - connect epigenomic changes to transcriptional outputs.
 
-### 5. metagenomics 16s rrna analysis  
-1. preprocessing & quality filtering:  
-   1. run `fastqc`[^1] on raw reads:  
-      - ensure sufficient quality for taxonomic assignment.  
-   2. trim reads with `trimmomatic`[^51]:  
-      - remove low-quality bases and adapters.  
-      - maintain only high-quality reads for downstream steps.
-2. otu/asv identification:  
-   1. use `qiime2`[^52] or `dada2`[^53] to infer asvs:  
-      - denoise reads to correct sequencing errors.  
-      - produce accurate amplicon sequence variants representing distinct taxa.  
-   2. assign taxonomy with reference databases (e.g., `silva`[^54]):  
-      - classify asvs into bacterial, archaeal, or other taxonomic groups.
-3. diversity & functional profiling:  
-   1. calculate alpha/beta diversity in `qiime2`:  
-      - measure species richness, evenness, and community composition differences.  
-   2. infer functional potential with `picrust2`[^55] or `humann`[^56]:  
-      - predict metabolic pathways or gene families present in the community.  
-   3. optionally correlate shifts in microbial composition with environmental or clinical factors:  
-      - link changes in community structure to disease states or treatment responses.
+### 5. Metagenomics 16S rRNA Analysis
 
-### 6. proteomics data analysis  
-1. spectrum processing & identification:  
-   1. process raw ms data with `maxquant`[^21] or `proteome discoverer`[^22]:  
-      - identify peptides and proteins from ms spectra.  
+1. preprocessing & quality filtering:
+   1. run [`fastqc`](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) on raw reads:
+      - ensure sufficient quality for taxonomic assignment.
+   2. trim reads with [`trimmomatic`](http://www.usadellab.org/cms/?page=trimmomatic):
+      - remove low-quality bases and adapters.
+      - maintain only high-quality reads for downstream steps.
+2. otu/asv identification:
+   1. use [`qiime2`](https://qiime2.org/) or [`dada2`](https://benjjneb.github.io/dada2/) to infer asvs:
+      - denoise reads, correct sequencing errors.
+      - produce accurate amplicon sequence variants.
+   2. assign taxonomy with reference databases (e.g., [`silva`](https://www.arb-silva.de/)):
+      - classify asvs into bacterial, archaeal, or other taxonomic groups.
+3. diversity & functional profiling:
+   1. calculate alpha/beta diversity in `qiime2`:
+      - measure species richness, evenness, and community composition differences.
+   2. infer functional potential with [`picrust2`](https://github.com/picrust/picrust2) or [`humann`](http://huttenhower.sph.harvard.edu/humann):
+      - predict metabolic pathways or gene families present in the community.
+   3. optionally correlate shifts in microbial composition with environmental or clinical factors:
+      - link community structure changes to disease states or treatment responses.
+
+### 6. Proteomics Data Analysis
+
+1. spectrum processing & identification:
+   1. process raw ms data with [`maxquant`](https://www.maxquant.org/) or [`proteome discoverer`](https://www.thermofisher.com/):
+      - identify peptides and proteins from ms spectra.
       - assign confidence scores to identifications.
-2. protein quantification & normalisation:  
-   1. perform label-free quantification or tmt-based quantification:  
-      - compare protein abundance across samples.  
-   2. normalise data to reduce technical variation:  
+2. protein quantification & normalisation:
+   1. perform label-free or tmt-based quantification:
+      - compare protein abundance across samples.
+   2. normalise data to reduce technical variation:
       - ensure meaningful comparison of protein levels.
-3. functional & pathway analysis:  
-   1. map proteins to functional databases (e.g., kegg, reactome):  
-      - understand protein roles in metabolic or signalling pathways.  
-   2. integrate with transcriptomic or metabolomic data:  
+3. functional & pathway analysis:
+   1. map proteins to functional databases (e.g., KEGG, Reactome):
+      - understand protein roles in metabolic or signalling pathways.
+   2. integrate with transcriptomic or metabolomic data:
       - gain a systems-level view of cellular processes.
 
-### 7. structural bioinformatics & protein modelling  
-1. structure prediction:  
-   1. predict protein structures using `alphafold`[^57]:  
-      - generate high-quality structural models from amino acid sequences.  
-   2. evaluate structure quality:  
-      - use available metrics or visual inspection to confirm plausibility.
-2. molecular docking & simulation:  
-   1. use `autodock`[^58] or `rosetta`[^59] to model ligand-protein interactions:  
-      - identify potential binding pockets or hot spots.  
-   2. perform molecular dynamics simulations:  
+### 7. Structural Bioinformatics & Protein Modelling
+
+1. structure prediction:
+   1. predict protein structures using [`alphafold`](https://alphafold.ebi.ac.uk/):
+      - generate high-quality structural models from amino acid sequences.
+   2. evaluate structure quality:
+      - use metrics or visual inspection to confirm plausibility.
+2. molecular docking & simulation:
+   1. use [`autodock`](http://autodock.scripps.edu/) or [`rosetta`](https://www.rosettacommons.org/) to model ligand-protein interactions:
+      - identify potential binding pockets or hot spots.
+   2. perform molecular dynamics simulations:
       - assess stability and conformational changes over time.
-3. comparative modelling & visualisation:  
-   1. build homology models with `modeller`[^60]:  
-      - use known structures of related proteins as templates.  
-   2. visualise in `pymol`[^61]:  
+3. comparative modelling & visualisation:
+   1. build homology models with [`modeller`](https://salilab.org/modeller/):
+      - use known structures of related proteins as templates.
+   2. visualise in [`pymol`](https://pymol.org/):
       - highlight active sites, ligand binding, or structural motifs.
-      
-### 8. phylogenetic analysis workflow  
-1. multiple sequence alignment:  
-   1. align sequences using `mafft`[^62] or `clustal omega`[^63]:  
-      - produce a high-quality alignment capturing evolutionary relationships.  
-   2. trim poorly aligned regions to improve phylogenetic inference:  
-      - increase the accuracy of downstream tree building.
-2. model selection & tree inference:  
-   1. determine the best substitution model with `iq-tree` modelfinder[^64]:  
-      - ensure tree inference uses the most appropriate evolutionary model.  
-   2. infer phylogeny using `raxml`[^65] or `iq-tree`[^64]:  
+
+### 8. Phylogenetic Analysis Workflow
+
+1. multiple sequence alignment:
+   1. align sequences using [`mafft`](https://mafft.cbrc.jp/alignment/software/) or [`clustal omega`](http://www.clustal.org/omega/):
+      - produce a high-quality alignment capturing evolutionary relationships.
+   2. trim poorly aligned regions:
+      - improve the accuracy of downstream tree building.
+2. model selection & tree inference:
+   1. determine the best substitution model with [`iq-tree`](http://www.iqtree.org/) modelfinder:
+      - ensure phylogenetic inference uses the most appropriate model.
+   2. infer phylogeny using [`raxml`](https://github.com/stamatak/standard-RAxML) or `iq-tree`:
       - construct a maximum likelihood tree for robust evolutionary insights.
-3. tree visualisation & annotation:  
-   1. visualise trees with `figtree`[^66] or `itol`[^67]:  
-      - annotate nodes and branches with metadata (species, traits).  
+3. tree visualisation & annotation:
+   1. visualise trees with [`figtree`](http://tree.bio.ed.ac.uk/software/figtree/) or [`itol`](https://itol.embl.de/):
+      - annotate nodes/branches with metadata (species, traits).
    2. interpret evolutionary relationships to understand lineage divergence.
-   
-### 9. methylation analysis (bisulfite-seq)  
-1. preprocessing & alignment:  
-   1. run `fastqc`[^1] on raw reads:  
-      - check for adapter contamination and quality issues.  
-   2. trim adapters with `trim galore!`[^2]:  
-      - ensure clean input for bisulfite alignment.  
-   3. align bisulfite-treated reads with `bismark`[^68]:  
+
+### 9. Methylation Analysis (Bisulfite-Seq)
+
+1. preprocessing & alignment:
+   1. run [`fastqc`](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) on raw reads:
+      - check for adapter contamination and quality issues.
+   2. trim adapters with [`trim galore!`](http://www.bioinformatics.babraham.ac.uk/projects/trim_galore/):
+      - ensure clean input for bisulfite alignment.
+   3. align bisulfite-treated reads with [`bismark`](https://www.bioinformatics.babraham.ac.uk/projects/bismark/):
       - produce methylation calls accounting for converted cytosines.
-2. methylation calling & analysis:  
-   1. quantify methylation levels at cpg sites:  
-      - create per-locus methylation tables.  
-      - identify global or gene-specific methylation patterns.  
-   2. find differentially methylated regions (dmrs):  
-      - compare methylation profiles between conditions.  
+2. methylation calling & analysis:
+   1. quantify methylation levels at cpg sites:
+      - create per-locus methylation tables.
+      - identify global or gene-specific methylation patterns.
+   2. find differentially methylated regions (dmrs):
+      - compare methylation profiles between conditions.
       - link epigenetic changes to phenotypic outcomes.
-3. integration & interpretation:  
-   1. integrate methylation data with expression data (rna-seq):  
-      - assess how methylation influences gene regulation.  
+3. integration & interpretation:
+   1. integrate methylation data with expression data (rna-seq):
+      - assess how methylation influences gene regulation.
    2. interpret epigenetic modifications in the context of disease, development, or stress responses.
-
----
-
-[^1]: [FastQC](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/)  
-[^2]: [Trim Galore!](http://www.bioinformatics.babraham.ac.uk/projects/trim_galore/)  
-[^3]: [Bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)  
-[^4]: [STAR](https://github.com/alexdobin/STAR)  
-[^5]: [BWA](http://bio-bwa.sourceforge.net/)  
-[^6]: [featureCounts](http://bioinf.wehi.edu.au/featureCounts/)  
-[^7]: [HTSeq-count](https://htseq.readthedocs.io/)  
-[^8]: [Salmon](https://combine-lab.github.io/salmon/)  
-[^9]: [Kallisto](https://pachterlab.github.io/kallisto/)  
-[^10]: [DESeq2](https://bioconductor.org/packages/DESeq2/)  
-[^11]: [limma](https://bioconductor.org/packages/limma/)  
-[^12]: [edgeR](https://bioconductor.org/packages/edgeR/)  
-[^13]: [GATK](https://gatk.broadinstitute.org/)  
-[^14]: [SnpEff](http://snpeff.sourceforge.net/)  
-[^15]: [VEP](https://www.ensembl.org/info/docs/tools/vep/)  
-[^16]: [GSEA](http://www.broadinstitute.org/gsea/)  
-[^17]: [topGO](https://bioconductor.org/packages/topGO/)  
-[^18]: [clusterProfiler](https://bioconductor.org/packages/clusterProfiler/)  
-[^19]: [XCMS](https://bioconductor.org/packages/xcms/)  
-[^20]: [MetFrag](https://msbi.ipb-halle.de/MetFrag/)  
-[^21]: [MaxQuant](https://www.maxquant.org/)  
-[^22]: [Proteome Discoverer](https://www.thermofisher.com/)  
-[^23]: [Cell Ranger](https://support.10xgenomics.com/)  
-[^24]: [Alevin (Salmon)](https://salmon.readthedocs.io/en/latest/alevin.html)  
-[^25]: [Seurat](https://satijalab.org/seurat/)  
-[^26]: [Scanpy](https://scanpy.readthedocs.io/)  
-[^27]: [MultiQC](https://multiqc.info/)  
-[^28]: [Circos](http://circos.ca/)  
-[^29]: [Snakemake](https://snakemake.readthedocs.io/)  
-[^30]: [Nextflow](https://www.nextflow.io/)  
-[^31]: [WDL](https://github.com/openwdl/wdl)  
-[^32]: [SLURM](https://slurm.schedmd.com/)  
-[^33]: [Ensembl](https://www.ensembl.org/)  
-[^34]: [NCBI RefSeq](https://www.ncbi.nlm.nih.gov/refseq/)  
-[^35]: [UCSC Genome Browser](https://genome.ucsc.edu/)  
-[^36]: [Gene Ontology (GO)](http://geneontology.org/)  
-[^37]: [InterPro](https://www.ebi.ac.uk/interpro/)  
-[^38]: [Pfam](https://pfam.xfam.org/)  
-[^39]: [GEO](https://www.ncbi.nlm.nih.gov/geo/)  
-[^40]: [ArrayExpress](https://www.ebi.ac.uk/arrayexpress/)  
-[^41]: [SRA](https://www.ncbi.nlm.nih.gov/sra/)  
-[^42]: [TCGA](https://www.cancer.gov/tcga)  
-[^43]: [ClinVar](https://www.ncbi.nlm.nih.gov/clinvar/)  
-[^44]: [UniProt](https://www.uniprot.org/)  
-[^45]: [PRIDE](https://www.ebi.ac.uk/pride/)  
-[^46]: [MG-RAST](https://www.mg-rast.org/)  
-[^47]: [EBI-MGnify](https://www.ebi.ac.uk/metagenomics/)  
-[^48]: [MACS2](https://github.com/macs3-project/MACS)  
-[^49]: [HOMER](http://homer.ucsd.edu/homer/)  
-[^50]: [MEME Suite](http://meme-suite.org/)  
-[^51]: [Trimmomatic](http://www.usadellab.org/cms/?page=trimmomatic)  
-[^52]: [QIIME2](https://qiime2.org/)  
-[^53]: [DADA2](https://benjjneb.github.io/dada2/)  
-[^54]: [SILVA](https://www.arb-silva.de/)  
-[^55]: [PICRUSt2](https://github.com/picrust/picrust2)  
-[^56]: [HUMAnN](http://huttenhower.sph.harvard.edu/humann)  
-[^57]: [AlphaFold](https://alphafold.ebi.ac.uk/)  
-[^58]: [AutoDock](http://autodock.scripps.edu/)  
-[^59]: [Rosetta](https://www.rosettacommons.org/)  
-[^60]: [MODELLER](https://salilab.org/modeller/)  
-[^61]: [PyMOL](https://pymol.org/)  
-[^62]: [MAFFT](https://mafft.cbrc.jp/alignment/software/)  
-[^63]: [Clustal Omega](http://www.clustal.org/omega/)  
-[^64]: [IQ-TREE](http://www.iqtree.org/)  
-[^65]: [RaxML](https://github.com/stamatak/standard-RAxML)  
-[^66]: [FigTree](http://tree.bio.ed.ac.uk/software/figtree/)  
-[^67]: [iTOL](https://itol.embl.de/)  
-[^68]: [Bismark](https://www.bioinformatics.babraham.ac.uk/projects/bismark/)
