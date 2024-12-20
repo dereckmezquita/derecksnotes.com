@@ -51,7 +51,6 @@ export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
         const noExt = file.replace('.mdx', '');
         // Split by path separator to handle nested directories
         const segments = noExt.split(path.sep);
-        console.log('Slug segments:', segments);
         return { slug: segments };
     });
 }
