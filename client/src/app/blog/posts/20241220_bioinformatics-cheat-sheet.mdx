@@ -171,19 +171,19 @@ A compilation of tools, methodologies, workflows and resources for bioinformatic
 
 ### 2. Variant Calling & Annotation Workflow
 
-1. preprocessing & alignment:
+1. Preprocessing & Alignment:
    1. evaluate read quality with [`fastqc`](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/):
       - ensure minimal adapter contamination and consistent quality.
    2. align reads with [`bwa`](http://bio-bwa.sourceforge.net/):
       - produce sorted bam files indexed against the reference genome.
-2. variant calling & filtering:
+2. Variant Calling & Filtering:
    1. call variants using [`gatk haplotypecaller`](https://gatk.broadinstitute.org/):
       - generate a raw vcf with snps and indels.
       - model haplotypes to improve variant accuracy.
    2. apply variant recalibration or hard filters:
       - remove low-quality variants.
       - retain high-confidence snps and indels.
-3. annotation:
+3. Annotation:
    1. annotate variants using [`snpeff`](http://snpeff.sourceforge.net/) or [`vep`](https://www.ensembl.org/info/docs/tools/vep/):
       - predict functional consequences of variants.
       - identify non-synonymous snps, splice site variants, or frameshifts.
@@ -193,13 +193,13 @@ A compilation of tools, methodologies, workflows and resources for bioinformatic
 
 ### 3. Single-Cell RNAseq Analysis for Cell Population Characterisation
 
-1. preprocessing & quantification:
+1. Peprocessing & Quantification:
    1. demultiplex and quantify single-cell data with [`cell ranger`](https://support.10xgenomics.com/) or [`alevin`](https://salmon.readthedocs.io/en/latest/alevin.html):
       - separate reads by cell barcodes.
       - produce a cell-by-gene count matrix.
    2. assess metrics like number of detected genes per cell:
       - remove low-quality cells with few detected transcripts.
-2. quality control & clustering:
+2. Quality Control & Clustering:
    1. filter out low-quality cells and genes:
       - remove cells with high mitochondrial content.
       - discard genes expressed in very few cells.
@@ -208,7 +208,7 @@ A compilation of tools, methodologies, workflows and resources for bioinformatic
       - optimise parameters (e.g., number of principal components) to improve clustering.
    3. cluster cells based on transcriptomic similarity:
       - identify distinct subpopulations with shared gene expression profiles.
-3. marker & pathway analysis:
+3. Marker & Pathway Analysis:
    1. identify cluster-specific marker genes:
       - find genes highly expressed in one cluster compared to others.
       - validate marker consistency across samples.
@@ -221,20 +221,20 @@ A compilation of tools, methodologies, workflows and resources for bioinformatic
 
 ### 4. ChIPseq/ATACseq Regulatory Element Discovery
 
-1. quality control & alignment:
+1. Quality Control & Alignment:
    1. run [`fastqc`](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) to assess read quality:
       - check for adapter contamination and sequence quality.
    2. trim adapters with [`trim galore!`](http://www.bioinformatics.babraham.ac.uk/projects/trim_galore/):
       - ensure clean input for alignment.
    3. align reads with [`bowtie2`](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml) or [`bwa`](http://bio-bwa.sourceforge.net/):
       - produce a high-quality bam file of aligned reads.
-2. peak calling & analysis:
+2. Peak Calling & Analysis:
    1. call peaks with [`macs2`](https://github.com/macs3-project/MACS):
       - identify regions of significant enrichment.
       - set appropriate p-value/q-value thresholds for confident peaks.
    2. annotate peaks with nearby genes:
       - link peaks to promoters, enhancers, or gene bodies.
-3. motif & functional interpretation:
+3. Motif & Functional Interpretation:
    1. discover transcription factor motifs using [`homer`](http://homer.ucsd.edu/homer/) or the [`meme suite`](http://meme-suite.org/):
       - find known or de novo motifs enriched in peaks.
       - infer regulatory factors controlling gene expression.
@@ -244,19 +244,19 @@ A compilation of tools, methodologies, workflows and resources for bioinformatic
 
 ### 5. Metagenomics 16S rRNA Analysis
 
-1. preprocessing & quality filtering:
+1. Preprocessing & Quality Filtering:
    1. run [`fastqc`](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) on raw reads:
       - ensure sufficient quality for taxonomic assignment.
    2. trim reads with [`trimmomatic`](http://www.usadellab.org/cms/?page=trimmomatic):
       - remove low-quality bases and adapters.
       - maintain only high-quality reads for downstream steps.
-2. otu/asv identification:
+2. otu/asv Identification:
    1. use [`qiime2`](https://qiime2.org/) or [`dada2`](https://benjjneb.github.io/dada2/) to infer asvs:
       - denoise reads, correct sequencing errors.
       - produce accurate amplicon sequence variants.
    2. assign taxonomy with reference databases (e.g., [`silva`](https://www.arb-silva.de/)):
       - classify asvs into bacterial, archaeal, or other taxonomic groups.
-3. diversity & functional profiling:
+3. Diversity & Functional Profiling:
    1. calculate alpha/beta diversity in `qiime2`:
       - measure species richness, evenness, and community composition differences.
    2. infer functional potential with [`picrust2`](https://github.com/picrust/picrust2) or [`humann`](http://huttenhower.sph.harvard.edu/humann):
@@ -266,16 +266,16 @@ A compilation of tools, methodologies, workflows and resources for bioinformatic
 
 ### 6. Proteomics Data Analysis
 
-1. spectrum processing & identification:
+1. Spectrum Processing & Identification:
    1. process raw ms data with [`maxquant`](https://www.maxquant.org/) or [`proteome discoverer`](https://www.thermofisher.com/):
       - identify peptides and proteins from ms spectra.
       - assign confidence scores to identifications.
-2. protein quantification & normalisation:
+2. Protein Quantification & Normalisation:
    1. perform label-free or tmt-based quantification:
       - compare protein abundance across samples.
    2. normalise data to reduce technical variation:
       - ensure meaningful comparison of protein levels.
-3. functional & pathway analysis:
+3. Functional & Pathway Analysis:
    1. map proteins to functional databases (e.g., KEGG, Reactome):
       - understand protein roles in metabolic or signalling pathways.
    2. integrate with transcriptomic or metabolomic data:
@@ -283,17 +283,17 @@ A compilation of tools, methodologies, workflows and resources for bioinformatic
 
 ### 7. Structural Bioinformatics & Protein Modelling
 
-1. structure prediction:
+1. Structure Prediction:
    1. predict protein structures using [`alphafold`](https://alphafold.ebi.ac.uk/):
       - generate high-quality structural models from amino acid sequences.
    2. evaluate structure quality:
       - use metrics or visual inspection to confirm plausibility.
-2. molecular docking & simulation:
+2. Molecular Docking & Simulation:
    1. use [`autodock`](http://autodock.scripps.edu/) or [`rosetta`](https://www.rosettacommons.org/) to model ligand-protein interactions:
       - identify potential binding pockets or hot spots.
    2. perform molecular dynamics simulations:
       - assess stability and conformational changes over time.
-3. comparative modelling & visualisation:
+3. Comparative Modelling & Visualisation:
    1. build homology models with [`modeller`](https://salilab.org/modeller/):
       - use known structures of related proteins as templates.
    2. visualise in [`pymol`](https://pymol.org/):
@@ -301,38 +301,38 @@ A compilation of tools, methodologies, workflows and resources for bioinformatic
 
 ### 8. Phylogenetic Analysis Workflow
 
-1. multiple sequence alignment:
+1. Multiple Sequence Alignment:
    1. align sequences using [`mafft`](https://mafft.cbrc.jp/alignment/software/) or [`clustal omega`](http://www.clustal.org/omega/):
       - produce a high-quality alignment capturing evolutionary relationships.
    2. trim poorly aligned regions:
       - improve the accuracy of downstream tree building.
-2. model selection & tree inference:
+2. Model Selection & Tree Inference:
    1. determine the best substitution model with [`iq-tree`](http://www.iqtree.org/) modelfinder:
       - ensure phylogenetic inference uses the most appropriate model.
    2. infer phylogeny using [`raxml`](https://github.com/stamatak/standard-RAxML) or `iq-tree`:
       - construct a maximum likelihood tree for robust evolutionary insights.
-3. tree visualisation & annotation:
+3. Tree Visualisation & Annotation:
    1. visualise trees with [`figtree`](http://tree.bio.ed.ac.uk/software/figtree/) or [`itol`](https://itol.embl.de/):
       - annotate nodes/branches with metadata (species, traits).
    2. interpret evolutionary relationships to understand lineage divergence.
 
 ### 9. Methylation Analysis (Bisulfite-Seq)
 
-1. preprocessing & alignment:
+1. Preprocessing & Alignment:
    1. run [`fastqc`](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) on raw reads:
       - check for adapter contamination and quality issues.
    2. trim adapters with [`trim galore!`](http://www.bioinformatics.babraham.ac.uk/projects/trim_galore/):
       - ensure clean input for bisulfite alignment.
    3. align bisulfite-treated reads with [`bismark`](https://www.bioinformatics.babraham.ac.uk/projects/bismark/):
       - produce methylation calls accounting for converted cytosines.
-2. methylation calling & analysis:
+2. Methylation Calling & Analysis:
    1. quantify methylation levels at cpg sites:
       - create per-locus methylation tables.
       - identify global or gene-specific methylation patterns.
    2. find differentially methylated regions (dmrs):
       - compare methylation profiles between conditions.
       - link epigenetic changes to phenotypic outcomes.
-3. integration & interpretation:
+3. Integration & Interpretation:
    1. integrate methylation data with expression data (rna-seq):
       - assess how methylation influences gene regulation.
    2. interpret epigenetic modifications in the context of disease, development, or stress responses.
