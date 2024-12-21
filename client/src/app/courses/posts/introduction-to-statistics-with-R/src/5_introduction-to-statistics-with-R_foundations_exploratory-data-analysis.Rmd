@@ -1,0 +1,943 @@
+---
+title: "Introduction to Statistics with R"
+subtitle: "Foundations: Data Structures and Core Workflows"
+blurb: "File war tea"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+### Chapter 5: Exploratory Data Analysis (EDA)
+
+#### 5.1 Principles of EDA
+
+*Exploratory Data Analysis (EDA) is like the initial meeting between you and your dataset. Rather than jumping directly into modelling, hypothesis testing, or complex statistical inferences, EDA encourages you to take a step back and immerse yourself in the raw essence of the data. Imagine you are an explorer setting foot on uncharted land—before building cities or roads, you must understand the terrain, identify the hills and valleys, recognise patterns, and note any anomalies.*
+
+*EDA is both an art and a science: it involves applying systematic techniques to summarise and visualise data, but it also invites curiosity, creativity, and an open mind. Instead of confirming preconceived ideas, EDA helps generate new questions, spot unexpected patterns, and guide you toward the right analytical path.*
+
+---
+
+#### What is EDA?
+
+- **Purpose**: EDA helps you understand the “story” behind your data before you commit to a formal model or inferential procedure. It’s about gaining intuition:  
+  - What is the distribution of the variables?  
+  - Are there outliers or anomalies?  
+  - Which variables are associated?  
+  - Are there data quality issues such as missing values or inconsistent formatting?
+
+- **Philosophy**: The philosophy behind EDA is rooted in open-mindedness. Instead of forcing the data into a predefined model, you listen to what the data tell you. This approach often leads to:  
+  - Better model selection later on  
+  - Enhanced data cleaning strategies  
+  - More informed hypotheses for statistical tests
+
+*Think of EDA as preparing a canvas before painting: you must smooth the surface, choose the right colours, and perhaps sketch an outline. Only then can you create a meaningful piece of art.*
+
+---
+
+#### The Tools of EDA
+
+EDA employs a wide range of techniques, from simple numeric summaries to sophisticated graphics:
+
+- **Numeric Summaries**: Means, medians, standard deviations, quartiles, and other descriptive statistics give you a quick sense of central tendencies and spreads.  
+- **Visualisations**: Histograms, boxplots, density plots, scatterplots, and beyond turn raw numbers into shapes and patterns that are easier to interpret.
+
+For instance, consider a dataset of house prices:  
+- A histogram reveals if prices are mostly clustered around certain values or spread widely.  
+- A boxplot can highlight outliers—maybe a mansion that skews the average price heavily.  
+- Scatterplots of price vs. size or price vs. location characteristics might show relationships worth exploring further.
+
+---
+
+#### Iterative and Non-Linear Process
+
+EDA is not a one-time activity; it’s iterative. You may:  
+1. Start with a simple histogram to understand the distribution of a key variable.  
+2. Spot unusual values that prompt you to filter or clean data.  
+3. After cleaning, you might re-check distributions, now considering subgroups or focusing on certain periods.  
+4. Discover a pattern that encourages you to calculate a new derived variable or to try a different type of plot.
+
+This back-and-forth process often refines your understanding. Each step can lead to new questions and new analytical paths.
+
+---
+
+#### The Role of Subject Matter Expertise
+
+*While EDA is a universal data approach, it gains power when combined with domain knowledge.* If you’re analysing medical data, knowing normal clinical ranges can help you identify anomalies. If you’re exploring financial time series, understanding market behaviour over economic cycles can guide you to interesting subperiods.
+
+*EDA thrives when it’s guided by curiosity and informed by context.* Without domain understanding, you risk misinterpreting patterns or missing subtle clues. With it, every visualisation and summary becomes a conversation between data and domain expertise, leading to more meaningful insights.[^1]
+
+---
+
+#### Data Cleaning and Quality Assessment
+
+EDA also naturally integrates with data cleaning:  
+- Identifying missing values and understanding their patterns might reveal data collection issues.  
+- Spotting unexpected duplicates or inconsistent categories may suggest data entry errors.  
+- Finding outliers can highlight measurement errors or genuine anomalies that deserve special attention.
+
+This early insight into data quality can save time and frustration down the line. Instead of discovering problems mid-analysis, EDA surfaces these issues up front.
+
+---
+
+#### Integrating EDA into Your Workflow
+
+*An effective workflow might look like this:*  
+1. **Ingest and Inspect**: Load the data with `data.table::fread()` and print a small sample using `head()`.  
+2. **Summaries**: Compute basic numeric summaries with `data.table::` operations. For example:  
+   \\`\\`\\`r
+   my_data <- data.table::fread("https://example.com/mydata.csv")
+   summary_stats <- my_data[ , .(
+     mean_val = mean(variable, na.rm = TRUE),
+     median_val = median(variable, na.rm = TRUE),
+     sd_val = sd(variable, na.rm = TRUE)
+   )]
+   print(summary_stats)
+   \\`\\`\\`
+
+3. **Visual Exploration**: Create histograms, boxplots, or scatterplots with `ggplot2::`:  
+   \\`\\`\\`r
+   ggplot2::ggplot(data = my_data, ggplot2::aes(x = variable)) +
+     ggplot2::geom_histogram(binwidth = 10, fill = "lightblue", colour = "black") +
+     ggplot2::labs(title = "Distribution of Variable")
+   \\`\\`\\`
+
+4. **Iterate**: After seeing a histogram, you might notice a skew. Then you look at subgroups, or consider a transformation. Perhaps you check correlations next:  
+   \\`\\`\\`r
+   correlation_val <- cor(my_data$x, my_data$y, use = "complete.obs")
+   print(paste("Correlation between x and y:", correlation_val))
+   \\`\\`\\`
+
+5. **Refine Questions**: Suppose the correlation suggests a non-linear relationship. You might plot a scatterplot with a smoothing line:  
+   \\`\\`\\`r
+   ggplot2::ggplot(data = my_data, ggplot2::aes(x = x, y = y)) +
+     ggplot2::geom_point() +
+     ggplot2::geom_smooth(method = "loess", colour = "red") +
+     ggplot2::labs(title = "Scatterplot with Smoothing Line")
+   \\`\\`\\`
+
+This iterative approach helps you evolve from superficial insights to deeper understanding.
+
+---
+
+#### Mathematical Underpinnings
+
+Though EDA is often described qualitatively, it rests on mathematical concepts. For example:  
+- Plotting histograms is related to approximating the probability density function (pdf) of a random variable.  
+- Scatterplots and correlation relate to covariance and linear relationships:
+  
+  $$
+  \text{corr}(X,Y) = \frac{\text{cov}(X,Y)}{\sqrt{\text{var}(X)\text{var}(Y)}}
+  $$
+
+These mathematical tools provide the foundation, but EDA’s main strength is translating numbers into intuitive visuals and narratives.
+
+---
+
+#### When to Move Beyond EDA?
+
+While EDA is invaluable at the start of any project, it’s not the end goal. After you gain familiarity with the data, resolve quality issues, and develop hypotheses, you move towards more formal analyses:  
+- Statistical tests to confirm or refute hypotheses  
+- Model building (regression, machine learning, etc.)  
+- Predictive modelling and inference
+
+EDA reduces the risk of applying complex models blindly. It ensures that when you do model, you do so with an informed perspective.
+
+---
+
+#### Conclusion
+
+*EDA sets the stage for every subsequent step in your data science journey. By taking the time to explore, visualise, question, and iterate, you create a strong foundation for rigorous analysis and meaningful conclusions.*
+
+As you proceed to the next sections, remember these principles: keep your mind open, use your tools flexibly, and always let the data guide you toward the insights they hold.
+
+[^1]: The term “EDA” was popularised by John Tukey, who advocated for a more free-form, graphical approach to statistics. His work reminds analysts that numbers can tell rich stories if we listen attentively.
+
+### Chapter 5: Exploratory Data Analysis (EDA)
+
+#### 5.2 Univariate Exploration: Histograms, Density Plots, Boxplots
+
+*When you begin exploring a dataset, a natural first step is to look at individual variables one at a time—this is known as univariate analysis. By focusing on a single variable’s distribution, you gain insights into its range, central tendency, variability, and shape. Visual tools like histograms, density plots, and boxplots translate raw numbers into intuitive shapes and patterns, making it easier to see how data cluster, how they spread out, and whether there are outliers or interesting deviations.*
+
+*Imagine you have a large collection of shells from a beach. Each shell has a certain length. Before you try to understand relationships between shells or attempt to predict anything, you might first pour them onto a table and just look: how many small shells vs. large shells? Are they mostly clustered around a particular size, or evenly spread? Are there a few giant shells that stand out? Univariate plots help you see these patterns clearly.*
+
+---
+
+#### Understanding Histograms
+
+- **Concept**: A histogram groups data into “bins” and shows how many observations fall into each bin. This gives a rough idea of the distribution’s shape. For example, a unimodal distribution (one peak) might suggest a common natural scale, while a bimodal distribution (two peaks) hints at subgroups or different underlying processes.
+
+- **Mathematical Idea**: If \( x_1, x_2, \ldots, x_n \) are observations, the histogram approximates the probability density function (pdf) \( f(x) \) by counting how often values fall into intervals:
+  
+  $$
+  \text{count in bin } B_j \approx \int_{B_j} f(x) dx
+  $$
+
+  By normalising counts, you can even estimate probabilities.
+
+- **Practical Tips**:  
+  - Choose an appropriate bin width. Too narrow and you see noise; too wide and you miss details.  
+  - Consider transformations (e.g., log-scale) if data are heavily skewed.
+
+---
+
+#### Demonstration with Histograms
+
+*We will use the `iris` dataset, a classic built-in dataset containing measurements of iris flowers. The dataset includes sepal lengths, sepal widths, petal lengths, and petal widths of three iris species. Let’s focus on a single variable, say `Sepal.Length`.*[^1]
+
+\\`\\`\\`r
+iris_data <- data.table::as.data.table(datasets::iris)
+print(head(iris_data))
+\\`\\`\\`
+
+*Now, let’s plot a histogram of `Sepal.Length` using `ggplot2::`:*
+
+\\`\\`\\`r
+ggplot2::ggplot(data = iris_data, ggplot2::aes(x = Sepal.Length)) +
+  ggplot2::geom_histogram(binwidth = 0.3, fill = "lightblue", colour = "black") +
+  ggplot2::labs(title = "Histogram of Iris Sepal Length",
+                x = "Sepal Length (cm)",
+                y = "Count")
+\\`\\`\\`
+
+*Experiment with the binwidth to see how it affects the shape. The histogram reveals if most sepal lengths cluster around a certain value or if there’s a wide spread.*
+
+---
+
+#### Density Plots for a Smoother View
+
+- **Concept**: A density plot is like a smoothed version of a histogram. Instead of discrete bins, it estimates a smooth curve that represents how the data are distributed. This gives a more continuous picture of the underlying distribution.
+
+- **Mathematics of Density**: A density plot estimates the pdf \( f(x) \) from the data, often using a kernel density estimator:
+  
+  $$
+  \hat{f}(x) = \frac{1}{nh}\sum_{i=1}^{n} K\left(\frac{x - x_i}{h}\right)
+  $$
+
+  where \( K \) is a kernel function and \( h \) is a bandwidth parameter that controls smoothness.  
+  - Smaller \( h \) yields a more wiggly curve (less smoothing).  
+  - Larger \( h \) yields a smoother curve, possibly hiding details.
+
+- **Practical Tips**:  
+  - Density plots can be more aesthetically pleasing and can help identify multiple peaks more gracefully than histograms.  
+  - Compare density plots of different variables or subgroups by plotting them together to see differences in their distributions.
+
+---
+
+#### Demonstration with Density Plots
+
+*To plot a density of sepal length:*
+
+\\`\\`\\`r
+ggplot2::ggplot(data = iris_data, ggplot2::aes(x = Sepal.Length)) +
+  ggplot2::geom_density(fill = "lightgreen", alpha = 0.5) +
+  ggplot2::labs(title = "Density Plot of Iris Sepal Length",
+                x = "Sepal Length (cm)",
+                y = "Density")
+\\`\\`\\`
+
+*This plot shows how values are distributed in a smoothed manner. If the dataset were bimodal, you’d see two distinct peaks.*
+
+---
+
+#### Boxplots for Summary Statistics and Outliers
+
+- **Concept**: A boxplot summarises a distribution with just a few key points:  
+  - The line inside the box: the median (50th percentile).  
+  - The box edges: the 25th (Q1) and 75th (Q3) percentiles. This highlights the interquartile range (IQR = Q3 - Q1).  
+  - Whiskers: extend to values within 1.5 * IQR of Q1 and Q3.  
+  - Points beyond the whiskers: often considered outliers.
+
+- **Mathematical Representation**:  
+  A boxplot is a visual representation of quantiles:
+  
+  $$
+  Q1 = x_{\lceil0.25n\rceil}, \; Q3 = x_{\lceil0.75n\rceil}
+  $$
+
+  The median \( x_{\lceil0.5n\rceil} \) splits the distribution into two halves. The IQR measures the central spread. Outliers are those beyond the whiskers:
+  
+  $$
+  x < Q1 - 1.5 \cdot \text{IQR} \text{ or } x > Q3 + 1.5 \cdot \text{IQR}
+  $$
+
+- **Practical Tips**:  
+  - Boxplots are great for quickly spotting outliers.  
+  - They are excellent when comparing multiple groups side by side because they occupy minimal visual space yet convey critical information.
+
+---
+
+#### Demonstration with Boxplots
+
+*To create a boxplot of `Sepal.Length`:*
+
+\\`\\`\\`r
+ggplot2::ggplot(data = iris_data, ggplot2::aes(y = Sepal.Length)) +
+  ggplot2::geom_boxplot(fill = "lightpink", colour = "black") +
+  ggplot2::labs(title = "Boxplot of Iris Sepal Length",
+                y = "Sepal Length (cm)",
+                x = "")
+\\`\\`\\`
+
+*This shows median, quartiles, and potential outliers if present.*
+
+---
+
+#### Comparing Methods
+
+*Histograms, density plots, and boxplots each highlight different aspects:*
+
+- **Histogram**: Good for seeing the discrete count of values and their approximate distribution shape.  
+- **Density Plot**: Offers a smooth, continuous estimate of the distribution, allowing you to see subtle features like multi-modality.  
+- **Boxplot**: Provides a concise summary of central tendency, spread, and potential outliers without focusing on the full distribution shape.
+
+You may start with a histogram to get a feel for the raw data distribution, check a density plot for a smoother perspective, and finally use a boxplot to summarise and compare distributions across multiple variables or categories.
+
+---
+
+#### Real-World Example
+
+*Imagine you have a dataset of customers’ ages from an online store. By plotting a histogram, you discover that most customers are between 30 and 40, with fewer younger and older customers, forming a somewhat bell-shaped pattern. The density plot might smooth out the binning artifacts, confirming a single peak. A boxplot shows a median age of around 35, with few outliers. Combined, these insights guide marketing decisions: perhaps your main audience is indeed mid-career professionals.*
+
+---
+
+#### Mathematical and Statistical Underpinnings
+
+Univariate plots are simple yet rooted in statistical theory. For example, the mean and median relate to core concepts of expected value and quantiles. The shape you see in histograms or density plots can hint at underlying distributions (e.g., normal, skewed, or heavy-tailed). Boxplots tie directly into the concept of robust statistics—using medians and quartiles provides insights less sensitive to outliers.
+
+---
+
+#### Next Steps
+
+*After gaining a univariate understanding, you can proceed to bivariate and multivariate exploration (covered in subsequent sections) to examine how variables interact. The univariate exploration is the foundation: once you know each variable’s quirks and characteristics, interpreting their relationships becomes easier.*
+
+As you build your EDA toolkit, remember that each plot and summary is a piece of the puzzle. Together, they reveal the story your data wants to tell—starting simply by looking at one variable at a time, then progressively adding complexity.
+
+[^1]: The iris dataset was introduced by Ronald Fisher and remains a canonical dataset in statistics and machine learning, widely used for demonstration and practice.
+
+
+### 5.3 Bivariate Exploration: Scatterplots, Correlation Analysis
+
+*After examining variables individually (univariate analysis), the next natural step is to explore relationships between pairs of variables—this is bivariate exploration. By focusing on two variables at a time, you can begin to uncover patterns of association, linear or nonlinear relationships, and potential insights into how one variable may help predict or explain the other.*
+
+*Imagine you have data on height and weight for a population. While understanding height or weight separately is useful, placing them together on a single plot can reveal trends: do taller people generally weigh more? Is there a strong linear relationship or do we see a cloud of points with no clear pattern? Bivariate analysis provides these answers.*
+
+---
+
+#### Scatterplots as Windows into Relationships
+
+- **Concept**: A scatterplot is the most common tool for visualising the relationship between two continuous variables. Each point on the plot represents one observation, with its \( x \)-coordinate given by one variable and its \( y \)-coordinate by the other.
+
+- **Interpretation**: By looking at a scatterplot, you can identify:
+  - Positive or negative trends: do \( y \) values increase as \( x \) increases?
+  - Nonlinear patterns: maybe \( y \) increases up to a point and then decreases.
+  - Clusters: subgroups of points that might represent different categories or conditions.
+  - Outliers: points that stray far from the main pattern.
+
+*Think of a scatterplot as a map of your data. If your data points line up diagonally from bottom-left to top-right, that suggests a positive association. If they scatter aimlessly, no strong relationship is evident.*
+
+---
+
+#### Demonstration with Real Data
+
+*Let’s use the `iris` dataset again to explore the relationship between `Sepal.Length` and `Petal.Length`.*[^1]
+
+\\`\\`\\`r
+iris_data <- data.table::as.data.table(datasets::iris)
+print(head(iris_data))
+\\`\\`\\`
+
+*Now, let’s create a scatterplot:*
+
+\\`\\`\\`r
+ggplot2::ggplot(data = iris_data, ggplot2::aes(x = Sepal.Length, y = Petal.Length)) +
+  ggplot2::geom_point(colour = "blue", alpha = 0.6) +
+  ggplot2::labs(
+    title = "Scatterplot of Sepal Length vs Petal Length",
+    x = "Sepal Length (cm)",
+    y = "Petal Length (cm)"
+  )
+\\`\\`\\`
+
+*This plot shows if longer sepals tend to accompany longer petals. You might see a clear upward trend, indicating a positive relationship.*
+
+---
+
+#### Adding Trends with Smooth Lines
+
+*To better understand the relationship, you can add a smoothing line (e.g., a local regression line) to highlight the trend:*
+
+\\`\\`\\`r
+ggplot2::ggplot(data = iris_data, ggplot2::aes(x = Sepal.Length, y = Petal.Length)) +
+  ggplot2::geom_point(colour = "darkgreen", alpha = 0.6) +
+  ggplot2::geom_smooth(method = "loess", se = FALSE, colour = "red") +
+  ggplot2::labs(
+    title = "Scatterplot with Smoothing Line",
+    x = "Sepal Length (cm)",
+    y = "Petal Length (cm)"
+  )
+\\`\\`\\`
+
+*This line reveals whether the relationship is roughly linear or more complex. If it’s fairly straight, a linear model might be appropriate. If it’s curved, consider nonlinear relationships.*
+
+---
+
+#### Correlation: Quantifying Linear Association
+
+- **Concept**: While scatterplots show patterns visually, correlation provides a numeric measure of linear association. The most common is Pearson’s correlation coefficient \( r \):
+  
+  $$
+  r = \frac{\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum_{i=1}^{n}(x_i - \bar{x})^2}\sqrt{\sum_{i=1}^{n}(y_i - \bar{y})^2}}
+  $$
+  
+  - \( r \) ranges from -1 to 1.
+  - \( r = 1 \): perfect positive linear relationship.
+  - \( r = -1 \): perfect negative linear relationship.
+  - \( r = 0 \): no linear relationship (though there may still be a nonlinear relationship).
+
+- **Interpreting Correlation**:  
+  - \( r \approx 0.7 \) or higher suggests a strong positive linear association.
+  - \( r \approx -0.7 \) or lower suggests a strong negative linear association.
+  - Values near zero indicate weak linear association, but remember correlation does not capture nonlinear patterns.
+
+*Correlation is like a numerical summary of the scatterplot’s slope. But keep in mind that correlation does not imply causation, and it can miss nonlinear relationships.*
+
+---
+
+#### Computing Correlation in R
+
+*To compute correlation between `Sepal.Length` and `Petal.Length` in the iris dataset:*
+
+\\`\\`\\`r
+cor_val <- cor(iris_data$Sepal.Length, iris_data$Petal.Length, use = "complete.obs")
+print(paste("Correlation between Sepal.Length and Petal.Length:", cor_val))
+\\`\\`\\`
+
+*If \( r \) is around 0.87 (as is typical with iris data), it indicates a strong positive linear relationship. The scatterplot and correlation together strengthen the conclusion that these two variables are related in a roughly linear way.*
+
+---
+
+#### Handling Different Variable Types
+
+*Scatterplots and correlation assume both variables are continuous. If one variable is categorical and the other is continuous, consider using side-by-side boxplots or violin plots to compare distributions by category. If both are categorical, use contingency tables or mosaic plots instead (covered elsewhere).*
+
+For continuous variables, you might also consider transformations if the relationship is not linear. A log transform can sometimes turn a nonlinear pattern into a linear one, making correlation more meaningful.
+
+---
+
+#### Mathematical Insight
+
+Correlation relies on covariance:
+  
+$$
+\text{cov}(X,Y) = \frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})(y_i - \bar{y})
+$$
+
+Correlation normalises covariance by the product of standard deviations:
+
+$$
+r = \frac{\text{cov}(X,Y)}{s_X s_Y}
+$$
+
+This creates a dimensionless measure of linear association.
+
+---
+
+#### Combining Visuals and Statistics
+
+*Neither a scatterplot nor a correlation value alone gives the full picture:*
+
+- **Scatterplot**: Shows shape, outliers, and nonlinear structures. Even if correlation is zero, a scatterplot might reveal a curvilinear relationship.  
+- **Correlation Coefficient**: Gives a concise measure of linear strength. Quick to compare multiple pairs of variables.
+
+By using both, you gain a more complete understanding. Start with a scatterplot to check patterns and outliers, then compute correlation to summarise the linear aspect of the relationship.
+
+---
+
+#### Practical Application
+
+*Imagine you’re analysing sales data: you have `advertising_spend` on one axis and `sales_revenue` on the other. A scatterplot might show that as advertising increases, revenue also tends to increase—points forming an upward trend. The correlation might be 0.8, indicating a strong linear relationship. Together, these insights tell you advertising spend is closely tied to revenue, justifying further analysis or investment.*
+
+---
+
+#### Next Steps
+
+*Bivariate exploration is a stepping stone. After identifying interesting pairs, you may move to multivariate exploration, adding more variables into the mix. Or you may decide to model the relationship formally, using regression techniques to quantify how one variable predicts another.*
+
+As you proceed, remember that bivariate analysis is about uncovering associations and guiding your next steps. It’s part of the iterative journey of EDA, helping you build hypotheses and understand your data’s structure more profoundly.
+
+[^1]: The iris dataset is widely known and often used for demonstration purposes, first introduced by the statistician Ronald Fisher.
+
+### 5.4 Multidimensional EDA: Pairwise Plots, Parallel Coordinates
+
+*As your analysis grows beyond one or two variables at a time, you enter the realm of multidimensional data. Real-world datasets often contain multiple variables—dozens, hundreds, or even thousands—capturing complex phenomena. While univariate and bivariate tools give valuable insights, you need ways to handle the richness of many variables simultaneously.*
+
+*Think of multidimensional EDA as surveying a dense forest rather than a single tree or a pair of trees. You need techniques that let you step back and see patterns across multiple dimensions: are certain variables related in complex ways, or do certain combinations group together naturally? Two powerful tools for this purpose are pairwise plots and parallel coordinates.*
+
+---
+
+#### Pairwise Plots (Scatterplot Matrices)
+
+- **Concept**: A pairwise plot (often called a scatterplot matrix) is a grid of scatterplots, each displaying the relationship between two variables. This gives a quick overview of how each pair of variables relates, all in one figure.
+
+- **How It Helps**:  
+  - Quickly identify which pairs of variables exhibit strong relationships.  
+  - Spot patterns like clusters or nonlinear trends across multiple pairs.  
+  - Get a global sense of how the dataset’s variables interconnect.
+
+*Imagine arranging all variables on both the x and y axes of a grid. At the intersection of row \( i \) and column \( j \), you place a scatterplot of variable \( i \) against variable \( j \). With one glance, you see a mosaic of relationships.*
+
+- **Mathematical Idea**:  
+  Suppose you have variables \( X_1, X_2, \ldots, X_p \). A pairwise plot shows all \( \frac{p(p-1)}{2} \) pairs. While correlation measures linear relationships pairwise, the scatterplot matrix can reveal more subtle patterns.
+
+---
+
+#### Demonstration with Pairwise Plots
+
+*We’ll use the classic `iris` dataset again, which has four numeric variables: Sepal.Length, Sepal.Width, Petal.Length, and Petal.Width. With four variables, a scatterplot matrix fits nicely on one page.*[^1]
+
+\\`\\`\\`r
+iris_data <- data.table::as.data.table(datasets::iris)
+print(head(iris_data))
+\\`\\`\\`
+
+*To create a pairwise plot, we can use `GGally::ggpairs` or do it manually. However, since we’re sticking to base R and data.table, let’s illustrate a concept. If needed, you can rely on external packages, but let’s show a simple demonstration of multiple scatterplots in a loop (though for actual work, a package like GGally is handy).*
+
+*If external packages are not allowed, we might rely on `pairs()` from base R. Even though we focus on data.table for data manipulation, using base plotting for demonstration is acceptable as no library calls are needed—`pairs()` is built-in.*
+
+\\`\\`\\`r
+numeric_cols <- c("Sepal.Length", "Sepal.Width", "Petal.Length", "Petal.Width")
+pairs(iris_data[, ..numeric_cols], main = "Pairwise Scatterplots of Iris Variables")
+\\`\\`\\`
+
+*This `pairs()` function creates a scatterplot matrix. Each cell shows a scatterplot of one variable against another. Diagonal cells often show distributions (histograms or density plots), depending on customization.*
+
+*By scanning this matrix, you might notice Petal.Length and Petal.Width have a strong positive relationship, while Sepal.Width and Sepal.Length show a less pronounced trend.*
+
+---
+
+#### Parallel Coordinates for High-Dimensional Patterns
+
+- **Concept**: Parallel coordinates plots provide a way to visualise multiple variables at once. Instead of plotting points in a 2D plane, each observation is represented as a line that passes through vertical axes arranged in parallel. Each vertical axis corresponds to one variable, and where the line crosses that axis shows the observation’s value for that variable.
+
+- **Interpretation**:  
+  - Lines that cluster together share similar profiles across multiple dimensions.  
+  - Patterns emerge as “bands” of lines.  
+  - Outliers appear as lines that deviate from the common flow.
+
+*Imagine each variable as a vertical line (axis) arranged side-by-side. Each data point becomes a polyline traveling across these axes. Observations with similar patterns form a kind of “highway,” while anomalies stray off-course.*
+
+- **Mathematical Insight**:  
+  Parallel coordinates are a way to map a \( p \)-dimensional point \((x_1, x_2, \ldots, x_p)\) into a 2D representation by using \( p \) parallel axes. While no single projection can perfectly represent high dimensions, parallel coordinates reveal structure and groupings that might remain hidden.
+
+---
+
+#### Demonstration with Parallel Coordinates
+
+*We’ll continue with the iris dataset. It’s common to normalise or standardise variables before plotting parallel coordinates, ensuring each axis is on a comparable scale.*
+
+\\`\\`\\`r
+# Normalise each numeric column to [0,1] for better plotting
+norm_func <- function(x) (x - min(x)) / (max(x) - min(x))
+iris_norm <- iris_data[, lapply(.SD, norm_func), .SDcols = numeric_cols]
+
+# Add species for colouring lines by species
+iris_norm[, Species := iris_data$Species]
+print(head(iris_norm))
+\\`\\`\\`
+
+*Now we need to create a parallel coordinates plot. Base R has `parcoord()` in the MASS package, but that’s an external package. Another approach is to manually plot lines. For demonstration, let’s rely on `ggplot2::` concepts: we can melt the data and plot each observation’s path across variables.*
+
+\\`\\`\\`r
+long_iris <- data.table::melt(iris_norm, id.vars = "Species")
+print(head(long_iris))
+\\`\\`\\`
+
+*Now each row of `long_iris` represents one observation’s value for one variable. We can create parallel coordinates by plotting `variable` on the x-axis and `value` on the y-axis, grouping by observation.*
+
+*We need an identifier for each observation. `iris_data` has 150 rows; we can add an ID column:*
+
+\\`\\`\\`r
+iris_data[, ID := .I]
+iris_norm[, ID := .I]
+long_iris <- data.table::melt(iris_norm, id.vars = c("ID", "Species"))
+
+# Plot parallel coordinates: each ID is a line
+ggplot2::ggplot(data = long_iris, ggplot2::aes(x = variable, y = value, group = ID, colour = Species)) +
+  ggplot2::geom_line(alpha = 0.5) +
+  ggplot2::labs(title = "Parallel Coordinates of Iris Variables",
+                x = "Variables",
+                y = "Normalised Value") +
+  ggplot2::scale_colour_manual(values = c("setosa" = "blue", "versicolor" = "green", "virginica" = "red"))
+\\`\\`\\`
+
+*You’ll see a set of coloured lines. Each line represents one flower. Notice how setosa lines might cluster differently than virginica lines, showing distinct patterns in how their petal and sepal measurements relate across multiple dimensions.*
+
+---
+
+#### Interpreting the Results
+
+- **Pairwise Plots**:  
+  By examining the scatterplot matrix, you identified which pairs of variables have strong or weak relationships. This can guide which variables to focus on for further analysis.
+
+- **Parallel Coordinates**:  
+  Parallel coordinates show a holistic view. For example, you might see that setosa (blue) lines tend to have lower petal measurements overall, while virginica (red) lines dominate the higher values. Versicolor (green) might occupy a middle ground.
+
+*This big-picture view helps you decide on clustering methods, classification strategies, or variables to highlight in modelling.*
+
+---
+
+#### Mathematical and Statistical Foundations
+
+- **Pairwise Plots**:  
+  A scatterplot matrix visualises all pairs of variables, essentially giving you a 2D view of projections from a \( p \)-dimensional space. It reveals linear or nonlinear associations, hinting at underlying correlation structures or the need for transformations.
+
+- **Parallel Coordinates**:  
+  Parallel coordinates map high-dimensional points to polylines in 2D. While it doesn’t preserve distances or shapes perfectly, it provides a qualitative look at patterns and groupings. It’s a way to visualise the geometry of high-dimensional spaces, albeit with potential overlaps and complexity.
+
+---
+
+#### Practical Applications
+
+*Imagine you have a dataset of environmental factors like temperature, rainfall, soil pH, and vegetation density across multiple locations. Pairwise plots might show that rainfall and vegetation density correlate strongly, while rainfall and soil pH do not. Parallel coordinates allow you to see if certain locations share similar environmental profiles. You might find clusters of locations with similar temperature-rainfall-soil conditions, guiding eco-management decisions.*
+
+---
+
+#### Next Steps
+
+*Multidimensional EDA with pairwise plots and parallel coordinates opens the door to even more advanced techniques, such as dimension reduction (PCA), clustering, and classification. These tools give you a head start by letting you see patterns that suggest what more sophisticated approaches might reveal.*
+
+As you move forward, remember that no single plot can capture all aspects of multidimensional data. Combining multiple techniques—pairwise plots, parallel coordinates, dimension reduction methods—helps you form a richer, multi-faceted understanding of your dataset’s complexity.
+
+[^1]: The iris dataset, introduced by Ronald Fisher, is a classic example in statistics and machine learning. It’s often used for demonstrations due to its small size, simplicity, and distinct species patterns.
+
+### 5.5 Identifying Outliers, Missing Data, and Anomalies
+
+*Once you begin exploring your data—univariate, bivariate, or even multidimensional—an essential part of EDA is addressing the imperfections that often lurk within real-world datasets. Outliers, missing values, and unexpected anomalies are more the norm than the exception. Understanding these issues is not just a nicety; it’s crucial for building trustworthy analyses, avoiding misleading results, and ultimately drawing credible conclusions.*
+
+*Think of your dataset as a garden: most plants are healthy and aligned, but occasionally you find weeds (outliers), empty spots where something should be growing (missing data), or an unusual plant that doesn’t fit the pattern (an anomaly). Before you cultivate elaborate statistical models, you must tend to these irregularities.*
+
+---
+
+#### Understanding Outliers
+
+- **Concept**: Outliers are data points that stand out from the general pattern. They might be extremely large or small values compared to the rest of the distribution. Not all outliers are errors—some represent genuine rare events, while others may be due to measurement mistakes or data entry errors.
+
+- **Consequences**:  
+  - Outliers can skew means, inflate variances, and distort correlations.  
+  - Modelling with outliers unchecked might lead to biased estimates or a model that overfits the anomaly rather than the main trend.
+
+*Imagine you have household income data. Most incomes cluster around a certain range, but one billionaire’s income could shift the mean upward, making the average seem unrepresentative of the general population.*
+
+- **Mathematical Indicators**:  
+  Commonly, values beyond $$Q_1 - 1.5 \cdot IQR$$ or $$Q_3 + 1.5 \cdot IQR$$ are considered outliers.[^1] However, this is a heuristic, not a hard rule. Another approach is the z-score: if a data point is more than, say, 3 standard deviations from the mean, it might be an outlier.
+
+---
+
+#### Identifying Outliers Visually
+
+*Boxplots provide a quick first look at potential outliers. Let’s load a dataset to illustrate: we’ll use a dataset of New York City flights (if accessible). If not, we can imagine a dataset of house prices or any numeric variable.*
+
+For demonstration, let’s try the built-in `mtcars` dataset and check outliers in `mpg` (miles per gallon):
+
+\\`\\`\\`r
+car_data <- data.table::as.data.table(datasets::mtcars)
+print(head(car_data))
+\\`\\`\\`
+
+*Now, plot a boxplot to see potential outliers:*
+
+\\`\\`\\`r
+ggplot2::ggplot(data = car_data, ggplot2::aes(y = mpg)) +
+  ggplot2::geom_boxplot(fill = "lightblue", colour = "black") +
+  ggplot2::labs(title = "Boxplot of MPG", y = "Miles Per Gallon", x = "")
+\\`\\`\\`
+
+*Any points beyond the whiskers are potential outliers. You might find a car with unusually low or high mpg relative to others.*
+
+---
+
+#### Missing Data
+
+- **Concept**: Missing data occurs when values are absent. This could be due to non-responses in surveys, sensor malfunctions in experiments, or inaccessible records.
+
+- **Types of Missingness**:  
+  - MCAR (Missing Completely at Random): The missingness has no relationship with any variable.  
+  - MAR (Missing at Random): Missingness depends on observed variables.  
+  - MNAR (Missing Not at Random): Missingness depends on the unobserved value itself, posing the greatest challenge.
+
+*For example, if in a medical dataset, wealthier patients are less likely to report certain information, those missing data points are not random but related to socio-economic factors.*
+
+- **Implications**: Missing values can bias results if not addressed. You might need to remove observations (if few), or impute values using statistical methods. Understanding the pattern of missingness is crucial.
+
+---
+
+#### Identifying Missing Data in R
+
+*You can quickly count missing values:*
+
+\\`\\`\\`r
+missing_counts <- car_data[ , lapply(.SD, function(x) sum(is.na(x)))]
+print(missing_counts)
+\\`\\`\\`
+
+*If a variable has many missing values, you might consider excluding it, or using imputation methods like mean imputation, regression imputation, or more sophisticated techniques like multiple imputation.*
+
+---
+
+#### Visualising Missingness
+
+*Sometimes, patterns of missingness reveal structures. For example, maybe all missing values occur after a certain date or in a particular subset.*
+
+You can create a simple plot to see missing distributions. Let’s create a synthetic dataset with missing values:
+
+\\`\\`\\`r
+set.seed(123)
+demo_data <- data.table::data.table(
+  x = rnorm(100),
+  y = rnorm(100),
+  z = rnorm(100)
+)
+# Introduce some missing values
+demo_data[x < -1, y := NA]
+print(head(demo_data))
+\\`\\`\\`
+
+*Count missingness by variable:*
+
+\\`\\`\\`r
+missing_by_var <- demo_data[ , lapply(.SD, function(col) sum(is.na(col)))]
+print(missing_by_var)
+\\`\\`\\`
+
+*We could also plot the proportion of missing values per variable using a bar chart:*
+
+\\`\\`\\`r
+missing_long <- data.table::melt(missing_by_var, measure.vars = names(missing_by_var))
+ggplot2::ggplot(data = missing_long, ggplot2::aes(x = variable, y = value)) +
+  ggplot2::geom_col(fill = "lightgreen", colour = "black") +
+  ggplot2::labs(title = "Missing Values per Variable", x = "Variable", y = "Count of Missing Values")
+\\`\\`\\`
+
+*If one variable stands out with many missing values, investigate why.*
+
+---
+
+#### Anomalies
+
+- **Concept**: Anomalies are unusual patterns that don’t fit the general norm. They might not be simple outliers in one dimension—maybe an observation has normal values in each variable separately, but the combination is rare.
+
+- **Detection**: Techniques vary from simple Mahalanobis distance (a multivariate measure of how far a point is from the centre) to advanced machine learning methods (like isolation forests or one-class SVMs).
+
+- **Implications**: Anomalies can be critical. They may represent rare events worth further study (e.g., fraudulent transactions), or they could be erroneous entries that need correction.
+
+---
+
+#### Simple Anomaly Detection Example
+
+*Consider a dataset of two variables, `x` and `y`. Suppose we suspect anomalies when points are far from the main cluster. A scatterplot might show a tight cluster of points and a few stray ones:*
+
+\\`\\`\\`r
+some_data <- data.table::data.table(
+  x = c(rnorm(98, mean = 5, sd = 1), 20, -10), # mostly near 5, two far away
+  y = c(rnorm(98, mean = 5, sd = 1), 5, 5)
+)
+ggplot2::ggplot(data = some_data, ggplot2::aes(x = x, y = y)) +
+  ggplot2::geom_point(colour = "red", size = 2) +
+  ggplot2::labs(title = "Scatterplot with Potential Anomalies",
+                x = "X",
+                y = "Y")
+\\`\\`\\`
+
+*Here, you see a cluster around (5,5) but two points are far away. Those are likely anomalies. In practice, you might compute distances from the mean and mark points beyond a certain threshold as anomalies.*
+
+---
+
+#### Mathematical Considerations
+
+- **Outliers**: Often related to extreme quantiles or high standardised values.
+- **Missing Data**: The probability of missingness can be modelled, and imputation methods rely on assumptions about the distribution of missing values.
+- **Anomalies**: May require multidimensional measures. For a vector \(\mathbf{x}\) in a \( p \)-dimensional space, the Mahalanobis distance:
+  
+  $$
+  D^2(\mathbf{x}) = (\mathbf{x} - \boldsymbol{\mu})^\top \Sigma^{-1} (\mathbf{x} - \boldsymbol{\mu})
+  $$
+  
+  can identify points far from the mean \(\boldsymbol{\mu}\) of the dataset, considering the covariance matrix \(\Sigma\).
+
+---
+
+#### Dealing with Imperfections
+
+- **Outliers**:  
+  - Validate if they are real or errors.  
+  - Consider transforming variables or using robust statistics that are less sensitive to outliers.
+  
+- **Missing Data**:  
+  - If missing values are few, dropping observations might be acceptable.
+  - For more extensive missingness, consider imputation strategies or models that handle missingness intrinsically.
+
+- **Anomalies**:  
+  - Investigate anomalies individually.
+  - If they represent errors, correct or remove them.
+  - If they are genuine rare events, model them with appropriate techniques.
+
+*Always document your decisions. Data cleaning and anomaly handling can drastically alter results, so transparency is vital.*
+
+---
+
+#### Practical Application
+
+*Suppose you’re analysing a dataset of daily sales in a store. You might find a day with a suspiciously huge sales value—maybe due to a data entry error adding an extra zero. Or you notice every Monday’s sales for a particular month are missing—perhaps the system was down. These issues must be addressed before you trust any forecasting model.*
+
+---
+
+#### Next Steps
+
+*Dealing with outliers, missing data, and anomalies is often a precursor to more advanced modelling. By handling these issues upfront, you ensure cleaner data and more reliable insights. Once resolved, you can move to exploratory model building and hypothesis generation with greater confidence.*
+
+As you refine your EDA skills, remember that data is rarely perfect. Embrace the process of identifying and handling these imperfections, and your analyses will be stronger for it.
+
+[^1]: The 1.5 * IQR rule is a common heuristic for identifying outliers in boxplots, but not a strict definition. Different fields use different thresholds or robust methods.  
+
+### 5.6 Exploratory Model Building and Hypothesis Generation
+
+*After delving into univariate and bivariate explorations, checking for outliers, missing data, and anomalies, and even examining multiple dimensions with pairwise plots and parallel coordinates, you have built a solid understanding of your dataset’s inner workings. This comprehension sets the stage for the next, more conceptual step: using Exploratory Data Analysis (EDA) to guide preliminary model building and to spark hypotheses worth testing.* 
+
+*Think of this as standing on a hilltop after carefully mapping out the terrain below. Now that you see where the rivers flow, where the forests lie, and which areas are barren, you can start envisioning where to build roads (models) and where to dig deeper for treasure (research questions). Exploratory model building and hypothesis generation form a bridge from data exploration to formal statistical inference and predictive modelling.*
+
+---
+
+#### From Description to Prediction: The Role of Exploratory Models
+
+- **Conceptual Transition**:  
+  So far, EDA focused on understanding what the data look like. Exploratory modelling takes a small step further: you try simple models—not necessarily the final, polished versions—just to see if and how certain variables might predict others. You might fit a basic linear regression or a simple classification model to gauge which predictors seem promising.
+
+- **Not the Final Model**:  
+  These initial models are not meant for publication or deployment. They are rough prototypes—tools to help you understand the relationships better. For example, if you find that a linear model of `y` on `x` explains a good portion of the variability, it suggests that a more refined linear model might work well later on.
+
+*Imagine first sketching a rough blueprint of a building before hiring architects to finalise the design. The blueprint helps you see if the idea is feasible and where you might need adjustments.*
+
+---
+
+#### Hypothesis Generation: Asking Better Questions
+
+- **What Are Hypotheses?**  
+  A hypothesis is a testable statement about a relationship or pattern in the data. For example:  
+  - “Increasing advertising spend by 10% increases sales by about 5%.”  
+  - “Species A has significantly higher petal length than Species B in the iris dataset.”  
+  - “Market returns are independent of last week’s returns.”
+
+- **EDA Sparks Hypotheses**:  
+  Because EDA reveals patterns and anomalies, it naturally suggests possible explanations. Observing that higher `Sepal.Length` often accompanies higher `Petal.Length` in `iris_data` might lead you to hypothesise a biological reason—perhaps larger sepals indicate a stage of maturity that also yields longer petals.
+
+*Think of EDA as a conversation with the data. The data whisper hints: “Hey, these two variables might be related!” or “Look, these observations stand out!” You then translate these hints into hypotheses: “If variable A increases, variable B might increase too,” or “Group C is different from Group D.”*
+
+---
+
+#### Demonstration: Exploratory Model Building
+
+*Let’s assume we have the `iris` dataset again and want to understand what predicts `Petal.Length`. Suppose we suspect that `Sepal.Length` and `Sepal.Width` might be good predictors. We can fit a simple linear model just to see what happens.*
+
+\\`\\`\\`r
+iris_data <- data.table::as.data.table(datasets::iris)
+print(head(iris_data))
+
+# Fit a simple linear model predicting Petal.Length from Sepal.Length and Sepal.Width
+model <- stats::lm(Petal.Length ~ Sepal.Length + Sepal.Width, data = iris_data)
+summary(model)
+\\`\\`\\`
+
+*By examining the summary, you can see if `Sepal.Length` is strongly associated with `Petal.Length`. If the coefficient is large and the p-value small, it suggests a strong relationship. This is not a final conclusion—just a clue that a more careful model might be warranted.*
+
+- **Next Step from This Clue**:  
+  If `Sepal.Length` seems like a strong predictor, you might hypothesise: “Flowers with longer sepals generally have longer petals due to shared developmental mechanisms.” Later, you can test this hypothesis more formally or refine your model by adding nonlinear terms or interacting variables, or even integrating domain knowledge from botany.
+
+---
+
+#### Visualising Model Residuals
+
+*After fitting an exploratory model, examine the residuals to ensure no glaring pattern is missed. If residuals show a curve, maybe a nonlinear model is better. This helps refine your hypotheses: maybe the relationship between `Sepal.Length` and `Petal.Length` is not strictly linear.*
+
+\\`\\`\\`r
+residuals_data <- data.table::data.table(
+  Sepal.Length = iris_data$Sepal.Length,
+  Residuals = model$residuals
+)
+
+ggplot2::ggplot(data = residuals_data, ggplot2::aes(x = Sepal.Length, y = Residuals)) +
+  ggplot2::geom_point(colour = "purple") +
+  ggplot2::geom_hline(yintercept = 0, linetype = "dashed") +
+  ggplot2::labs(
+    title = "Residuals vs. Sepal Length",
+    x = "Sepal Length",
+    y = "Residuals"
+  )
+\\`\\`\\`
+
+*If you see a pattern here, you might hypothesise a need for a nonlinear term in your model, leading you to propose a hypothesis: “The relationship between sepal length and petal length is nonlinear.”*
+
+---
+
+#### Incorporating Domain Knowledge
+
+*When generating hypotheses, domain expertise can dramatically improve quality. If you know something about flower biology, economic theory, or any relevant field, you can form more precise hypotheses. EDA sets the scene, domain knowledge sharpens the script.*
+
+For example, discovering that `Petal.Width` also correlates with `Petal.Length` could lead you to hypothesise that petal dimensions co-vary because of shared genetic or developmental factors in iris species.
+
+---
+
+#### Mathematical Rationale
+
+- **Model as a Data Summariser**:  
+  Fitting a model like \( y = \beta_0 + \beta_1 x + \epsilon \) is a way to see if the data roughly align along a line. If the slope \(\beta_1\) is large and significant, it suggests a potential causal or predictive relationship.
+
+- **Hypothesis as a Testable Statement**:  
+  A hypothesis can be formalised. For example, hypothesising no relationship between two variables leads to a null hypothesis \( H_0: \beta_1 = 0 \). EDA guides you to sensible \( H_0 \) and \( H_A \) (alternative hypothesis) formulations.
+
+---
+
+#### Practical Steps
+
+- **Start with Simple Models**: Try linear regression or a simple classification model. If it shows promise, consider more complex approaches later.
+
+- **Generate Hypotheses from Observed Patterns**: If data show a cluster separating one species from another, hypothesise why. If one variable strongly correlates with another, hypothesise the mechanism behind it.
+
+- **Document Your Rationale**: Note why you’re building a model and what pattern you saw that inspired your hypothesis. Transparency makes the later inference stage more robust.
+
+---
+
+#### Real-World Example
+
+*Suppose you work with healthcare data. EDA shows that patients with higher blood pressure also tend to have higher cholesterol levels. You fit a quick linear model and find a positive association. You now form a hypothesis: “Cholesterol level is positively related to blood pressure.” Later, you might design a controlled study or a more detailed regression analysis to test this hypothesis, accounting for other factors like age and diet.*
+
+---
+
+#### Next Steps
+
+*Once you have preliminary models and hypotheses, you move into more formal statistical inference. You might run hypothesis tests, construct confidence intervals, or use model selection techniques to refine your model. EDA and exploratory modelling form the launchpad, ensuring that when you commit to formal analysis, you do so with a well-informed perspective.*
+
+As you continue your journey, remember that EDA is cyclical and iterative. Exploratory models can inform new EDA steps, leading to refined hypotheses and better models—a virtuous cycle of understanding and improvement.
+
+[^1]: While exploratory models may tempt you to jump to conclusions, always remember they are guides, not proof. Further rigorous statistical inference or experimental design is often needed to confirm causality or generalise findings.

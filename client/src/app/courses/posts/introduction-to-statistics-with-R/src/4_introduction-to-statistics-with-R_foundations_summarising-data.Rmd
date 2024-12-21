@@ -1,0 +1,853 @@
+---
+title: "Introduction to Statistics with R"
+subtitle: "Foundations: Data Structures and Core Workflows"
+blurb: "File war tea"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+## Part II: Descriptive Statistics and Exploratory Data Analysis
+
+### Chapter 4: Summarising Data
+
+#### 4.1 Central Tendency: Mean, Median, Mode
+
+*When we encounter a dataset for the first time—be it exam scores, daily temperatures, or sales figures—one of our initial questions is often: “What is the typical value here?” Central tendency measures, such as the mean, median, and mode, aim to capture the “centre” of a data distribution, providing a single number that summarises the entire dataset.*
+
+*Imagine looking at a large orchard of apple trees. If we measure the height of each tree, these measures of central tendency will help us understand if the orchard is generally filled with tall giants, modest saplings, or something in between.*
+
+---
+
+**Conceptual Understanding**
+
+- **Mean**:  
+  The mean (also called the arithmetic average) is perhaps the most familiar measure of central tendency. If \( x_1, x_2, \ldots, x_n \) are the values in your dataset, the mean is given by:
+  
+  $$
+  \bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i
+  $$
+  
+  In essence, the mean is the “balance point” of the data. If you imagine each data point as a weight placed on a number line, the mean is the point at which the seesaw would be perfectly balanced.
+
+- **Median**:  
+  The median is the middle value when the data are sorted in ascending order. If \( n \) is odd, the median is simply the middle observation. If \( n \) is even, it is the average of the two middle values.
+  
+  Consider the median as a more “robust” measure: it is less affected by extreme values or outliers. If your dataset represents the incomes of residents in a neighbourhood, a single billionaire could drastically increase the mean, but the median would remain a more stable indicator of the typical resident’s income.
+
+- **Mode**:  
+  The mode is the value that occurs most frequently. While not as commonly emphasised as the mean or median, the mode can be useful for categorical data or distributions where one value clearly dominates.
+  
+  For instance, if you recorded the preferred ice cream flavour of 100 people, the mode would be the most popular flavour. The mode can be less informative for continuous data where exact repeats are rare, but it shines when dealing with discrete or categorical datasets.
+
+---
+
+**Mathematical Illustrations**
+
+1. **Mean Calculation**:
+   If we have data \( x = \{2, 5, 7, 10, 12\} \), then \( n = 5 \) and:
+   
+   $$
+   \bar{x} = \frac{2 + 5 + 7 + 10 + 12}{5} = \frac{36}{5} = 7.2
+   $$
+   
+   The mean is 7.2, suggesting that, on average, the data cluster around this value.
+
+2. **Median for Odd Count**:
+   With the same dataset sorted as \( \{2, 5, 7, 10, 12\} \), the middle value is the 3rd element (since there are 5 elements):
+   
+   $$
+   \text{median} = 7
+   $$
+
+3. **Median for Even Count**:
+   If our data were \( x = \{2, 5, 7, 10\} \), \( n = 4 \). The middle two values are the 2nd and 3rd elements (5 and 7). The median is:
+   
+   $$
+   \text{median} = \frac{5 + 7}{2} = 6
+   $$
+
+4. **Mode**:
+   Suppose we have \( x = \{3, 3, 6, 6, 6, 9\} \). The value 6 appears the most frequently. Thus:
+   
+   $$
+   \text{mode} = 6
+   $$
+
+---
+
+**Practical Computations in R**
+
+*Let’s apply these concepts to a real-world dataset. We will use the built-in `datasets::mtcars` data for demonstration. This dataset includes information about various cars, such as their miles-per-gallon (mpg), horsepower, and so forth.*[^1]
+
+\\`\\`\\`r
+# Convert the mtcars dataset into a data.table for convenience
+car_data <- data.table::as.data.table(datasets::mtcars)
+
+# Inspect the first few rows
+print(car_data[1:5])
+
+# Let's focus on the mpg (miles per gallon) column
+mpg_values <- car_data$mpg
+
+# Compute mean, median, and find mode
+mean_mpg <- mean(mpg_values)
+median_mpg <- median(mpg_values)
+
+# For mode, we find the value that appears most often
+# Note: in mtcars, mode is less intuitive since mpg is continuous, but let's try
+mpg_freq <- car_data[ , .N, by = mpg]
+mpg_mode <- mpg_freq[which.max(N), mpg]
+
+print(paste("Mean MPG:", mean_mpg))
+print(paste("Median MPG:", median_mpg))
+print(paste("Mode MPG:", mpg_mode))
+\\`\\`\\`
+
+*In many continuous datasets, no two values are exactly the same, or duplicates are rare, so the mode might not be as meaningful. Still, this demonstrates the approach.*
+
+---
+
+**Visual Illustration**
+
+*Visualising the distribution of `mpg` can make the concept of mean and median more tangible. The mean and median lines will show us where the dataset’s “centre” lies.*
+
+\\`\\`\\`r
+ggplot2::ggplot(data = car_data, ggplot2::aes(x = mpg)) +
+  ggplot2::geom_histogram(binwidth = 1, fill = "lightblue", colour = "black") +
+  ggplot2::geom_vline(xintercept = mean_mpg, colour = "red", linetype = "dashed", size = 1.2) +
+  ggplot2::geom_vline(xintercept = median_mpg, colour = "blue", linetype = "dotted", size = 1.2) +
+  ggplot2::labs(
+    title = "Distribution of Miles-Per-Gallon in the mtcars Dataset",
+    x = "MPG",
+    y = "Frequency"
+  ) +
+  ggplot2::annotate("text", x = mean_mpg, y = 5, label = paste("Mean =", round(mean_mpg,2)), colour = "red", angle = 90, vjust = -0.5) +
+  ggplot2::annotate("text", x = median_mpg, y = 5, label = paste("Median =", round(median_mpg,2)), colour = "blue", angle = 90, vjust = 1.5)
+\\`\\`\\`
+
+*In this histogram, the red dashed line shows the mean and the blue dotted line shows the median. If they are close, it suggests the distribution is fairly symmetric. If they differ significantly, you may suspect skewness or outliers pulling one measure away from the other.*
+
+---
+
+**When to Use Which Measure?**
+
+- Use the **mean** when:
+  - The distribution is approximately symmetrical.
+  - There are no extreme outliers.
+  - You are dealing with a well-behaved, continuous dataset.
+
+- Use the **median** when:
+  - The distribution is skewed.
+  - There are outliers that would distort the mean.
+  - You want a robust measure that gives you a better sense of “typical” without being thrown off by extreme values.
+
+- Use the **mode** when:
+  - You are dealing with categorical data and want the most common category.
+  - You have discrete data with clear peaks.
+  - You need to identify the most frequently occurring value in a dataset.
+
+In practice, analysts often look at both mean and median. They provide complementary insights. The difference between the two can highlight interesting properties of the data’s shape and spread.
+
+---
+
+**Mathematical Nuances**
+
+- The mean is often linked to the concept of **expected value** in probability. If you imagine taking many samples from the same population, the sample mean will approach the population mean as your sample grows large (due to the Law of Large Numbers).  
+- The median has connections to the concept of minimising absolute deviations. If you wanted a value that minimises the sum of absolute differences \(|x_i - m|\), the median \( m \) is the solution.  
+- The mode is a bit trickier to define for continuous data. In continuous distributions, the mode is the point of highest density. For discrete or categorical data, it is simply the most frequent value.
+
+---
+
+**Conclusion**
+
+*Measures of central tendency provide a starting point in data analysis—like the first sip of a new beverage that gives you a rough idea of its flavour profile. While they do not tell the whole story, understanding where your data “centres” itself is essential before exploring variation, shape, and other characteristics.*
+
+In upcoming sections, we’ll discuss other aspects of distributions, such as their spread (variance, standard deviation) and shape (skewness, kurtosis). Together, these measures help you build a comprehensive picture of your data, enabling more informed decisions, better models, and clearer insights.
+
+[^1]: The `mtcars` dataset is a classic R dataset derived from the 1974 Motor Trend US magazine. It provides an easy, convenient example for illustrating statistical concepts.
+
+### 4.2 Variability: Variance, Standard Deviation, IQR
+
+*Once we understand the central tendency of our data—where its “centre” lies—the next natural step is to explore how spread out the data points are around that centre. Are they clustered tightly together like a pack of geese in flight, or are they dispersed widely like stars in a galaxy? Measures of variability help us understand the data’s spread and provide crucial insights into the underlying uncertainty and diversity of values.*
+
+*In this section, we focus on three common measures of variability: variance, standard deviation, and the interquartile range (IQR). Each offers a slightly different perspective on how data values are distributed around the centre.*
+
+---
+
+#### Variance
+
+- **Concept**:  
+  Variance measures the average squared deviation of each observation from the mean. Suppose we have data \( x_1, x_2, \ldots, x_n \) and a mean \( \bar{x} \). The variance \( s^2 \) (for a sample) is given by:
+  
+  $$
+  s^2 = \frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})^2
+  $$
+  
+  Why squared deviations? Squaring magnifies larger deviations and prevents positive and negative differences from cancelling each other out. Variance essentially tells us how “wide” the distribution is.
+
+- **Intuition**:  
+  If all data points are identical (no variability), the variance is zero. As the values spread out more, the variance grows larger. However, since variance involves squaring, its units are not the same as the data’s original units (e.g., if data is in cm, variance is in cm²).
+
+---
+
+#### Standard Deviation
+
+- **Concept**:  
+  The standard deviation (SD) is the square root of the variance. It brings the measure back to the original units of the data:
+  
+  $$
+  s = \sqrt{s^2} = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})^2}
+  $$
+  
+  If the data is in cm, the SD is also in cm, making it more interpretable.
+
+- **Intuition**:  
+  The standard deviation tells us, on average, how far data points tend to be from the mean. A small SD means values are closely bunched together, while a large SD indicates a wide spread of values.
+
+*Think of the standard deviation as a measure of the “typical distance” from the mean. If the mean is like the heart of a city, the standard deviation tells you how far, on average, citizens live from that city centre.*
+
+---
+
+#### Interquartile Range (IQR)
+
+- **Concept**:  
+  The IQR is defined as:
+  
+  $$
+  \text{IQR} = Q_3 - Q_1
+  $$
+  
+  where \( Q_1 \) is the first quartile (the 25th percentile) and \( Q_3 \) is the third quartile (the 75th percentile). The IQR focuses on the middle 50% of the data.
+
+- **Intuition**:  
+  The IQR is robust to outliers and non-normal distributions. It ignores the extremes and gives a sense of the spread of the central bulk of the data. If the IQR is small, the middle values are tightly packed. If it’s large, the central half of the data is widely spread out.
+
+*Visualise the IQR as the size of the “box” in a boxplot—it represents where most of your typical values lie, without being influenced too much by extreme tails.*
+
+---
+
+#### Mathematical Interplay
+
+- Variance connects directly to the concept of **expected squared deviation** in probability.
+- Standard deviation is just the positive square root of variance, making it easier to interpret.
+- IQR is not based on the mean or squares, but on quantiles—cut points that slice the distribution into quarters.
+
+These measures complement each other. While variance and standard deviation are sensitive to outliers (extreme values can inflate them), the IQR provides a more robust measure that focuses on the distribution’s core.
+
+---
+
+#### Practical Computation in R
+
+*Let’s return to the `mtcars` dataset to see these measures in action, focusing on the mpg (miles per gallon) variable once again.*[^1]
+
+\\`\\`\\`r
+# Convert mtcars to a data.table if not already done
+car_data <- data.table::as.data.table(datasets::mtcars)
+
+# Extract the mpg column
+mpg_values <- car_data$mpg
+
+# Compute variance
+var_mpg <- var(mpg_values)
+# Compute standard deviation
+sd_mpg <- sd(mpg_values)
+# Compute IQR
+iqr_mpg <- IQR(mpg_values)
+
+print(paste("Variance of MPG:", var_mpg))
+print(paste("Standard Deviation of MPG:", sd_mpg))
+print(paste("IQR of MPG:", iqr_mpg))
+\\`\\`\\`
+
+*Here we see three different numbers, each telling us something slightly different about the data’s spread.*
+
+---
+
+#### Visual Illustration
+
+*Visualising the distribution can help us understand why these measures matter. Let’s plot a boxplot and a histogram with annotations indicating the IQR, mean ± SD, etc.*
+
+\\`\\`\\`r
+# Visualise with a boxplot
+ggplot2::ggplot(data = car_data, ggplot2::aes(y = mpg)) +
+  ggplot2::geom_boxplot(fill = "lightgreen", colour = "black") +
+  ggplot2::labs(
+    title = "Boxplot of MPG in mtcars",
+    y = "Miles per Gallon (MPG)",
+    x = ""
+  ) +
+  ggplot2::annotate("text", x = 1.1, y = quantile(mpg_values, 0.75), 
+                    label = paste("Q3 =", round(quantile(mpg_values, 0.75), 2)), 
+                    vjust = -0.5, colour = "blue") +
+  ggplot2::annotate("text", x = 1.1, y = quantile(mpg_values, 0.25), 
+                    label = paste("Q1 =", round(quantile(mpg_values, 0.25), 2)), 
+                    vjust = 1.5, colour = "blue")
+
+# Add a histogram to visualise distribution and standard deviation
+mean_val <- mean(mpg_values)
+\\`\\`\\`r
+ggplot2::ggplot(data = car_data, ggplot2::aes(x = mpg)) +
+  ggplot2::geom_histogram(binwidth = 1, fill = "lightblue", colour = "black") +
+  ggplot2::geom_vline(xintercept = mean_val, colour = "red", linetype = "solid", size = 1.2) +
+  ggplot2::geom_vline(xintercept = mean_val + sd_mpg, colour = "darkgreen", linetype = "dashed", size = 1) +
+  ggplot2::geom_vline(xintercept = mean_val - sd_mpg, colour = "darkgreen", linetype = "dashed", size = 1) +
+  ggplot2::labs(
+    title = "Histogram of MPG with Mean and ±1 SD",
+    x = "MPG",
+    y = "Frequency"
+  ) +
+  ggplot2::annotate("text", x = mean_val, y = 5, label = paste("Mean =", round(mean_val,2)), angle = 90, vjust = -0.5, colour = "red") +
+  ggplot2::annotate("text", x = mean_val + sd_mpg, y = 5, label = "+1 SD", angle = 90, vjust = -0.5, colour = "darkgreen") +
+  ggplot2::annotate("text", x = mean_val - sd_mpg, y = 5, label = "-1 SD", angle = 90, vjust = -0.5, colour = "darkgreen")
+\\`\\`\\`
+
+*In the boxplot, the box’s height corresponds roughly to the IQR (the middle 50% of the data). In the histogram, the green dashed lines show one standard deviation above and below the mean, capturing approximately where many “typical” values lie (if the data were roughly normal).*
+
+---
+
+#### When to Use Which Measure?
+
+- Use **variance** or **standard deviation** when:
+  - You assume data might follow a roughly normal distribution.
+  - You want to incorporate all data points into the measure.
+  - You’re comfortable with measures sensitive to outliers.
+
+- Use the **IQR** when:
+  - The data may be skewed or have outliers.
+  - You want a robust measure of variability that focuses on the bulk of the distribution.
+  - You’re especially interested in the spread of the central 50% of values.
+
+In statistical modelling and inference, the standard deviation often plays a key role (especially under normality assumptions). However, when you first explore a dataset, looking at both SD and IQR can give you a more nuanced understanding of how spread out the data are.
+
+---
+
+#### Mathematical Insights
+
+- **Variance as an Expectation**: In probability theory, variance is the expected value of $begin:math:text$(X - \\mu)^2$end:math:text$, where $begin:math:text$X$end:math:text$ is a random variable and $begin:math:text$\\mu$end:math:text$ its true mean. For large samples, the sample variance approximates this theoretical quantity.
+  
+- **Standard Deviation and Normal Distribution**: If data are normally distributed, about 68% of values lie within ±1 SD of the mean, and about 95% lie within ±2 SDs. This “empirical rule” helps in interpreting the SD in a more probabilistic sense.
+
+- **IQR and Robustness**: Because the IQR is based on quartiles, it’s less affected by extreme values. Even if you have a few very large or very small values, the IQR remains stable because it only depends on the 25th and 75th percentiles.
+
+---
+
+#### Conclusion
+
+*Variance, standard deviation, and IQR each highlight different aspects of data variability. Variance and SD provide a view rooted in the mean and squared differences, useful in many statistical techniques. The IQR offers a median-based perspective that’s harder to distort with outliers.*
+
+In practice, analysts often look at both sets of measures. Combine these with the central tendency measures from the previous section, and you start to form a more complete picture of the data’s distribution—both where it’s centred and how spread out it is.
+
+As we move forward, we’ll also examine the distribution’s shape (skewness and kurtosis) and, later, more complex exploratory techniques. Together, these descriptive tools allow you to “read” your dataset’s story, discerning patterns, anomalies, and trends that set the stage for deeper statistical modelling.
+
+[^1]: The `mtcars` dataset, again, serves as a convenient, built-in resource for demonstration. Its `mpg` variable is continuous and somewhat symmetric, making it a good candidate to illustrate these variability measures.
+
+### 4.3 Distribution Shape: Skewness, Kurtosis
+
+*So far, we have learned about the centre of a distribution (mean, median, mode) and its spread (variance, standard deviation, IQR). However, just knowing the centre and spread is like knowing the length and width of a painting without understanding its composition. Two additional characteristics—skewness and kurtosis—help us understand the shape of the distribution, providing insight into how data are arranged around the centre.*
+
+*Imagine standing before a gallery of different data distributions. Some distributions might lean to one side, others might be more peaked or flat compared to a “standard” shape. Skewness and kurtosis are tools that allow us to describe these subtle differences, deepening our appreciation for the data’s underlying structure.*
+
+---
+
+#### Skewness: Leaning to One Side
+
+- **Concept**:  
+  Skewness measures the degree of asymmetry in a distribution. If a distribution is perfectly symmetrical, like the idealised normal distribution, its skewness is zero.  
+  - A **positive skew** (skewness > 0) means the right tail is longer or fatter than the left tail. In practical terms, the data have a “right lean” and there are some large values pulling the mean to the right.  
+  - A **negative skew** (skewness < 0) means the left tail is longer or fatter, and the distribution leans to the left.
+
+*Think of skewness as a tilt in a painting: if the frame leans to the right, it’s positively skewed; if it leans to the left, it’s negatively skewed.*
+
+Mathematically, one common measure of skewness for a sample \( x_1, x_2, \ldots, x_n \) with mean \(\bar{x}\) and standard deviation \( s \) is:
+  
+$$
+\text{Skewness} = \frac{1}{n}\sum_{i=1}^{n}\left(\frac{x_i - \bar{x}}{s}\right)^3
+$$
+
+This measure gives a sense of how lopsided the data are around the mean.
+
+---
+
+#### Kurtosis: Peakedness or Flatness
+
+- **Concept**:  
+  Kurtosis describes whether the distribution is more peaked or flatter compared to a normal distribution. A common interpretation is related to the “tailedness” of the distribution.  
+  - **High kurtosis** (> 3 when using the standard measure) indicates heavy tails and a sharper peak than a normal distribution. Such distributions are sometimes called leptokurtic—imagine a sharp spire in the middle of your data.  
+  - **Low kurtosis** (< 3) means the distribution is flatter with thinner tails, referred to as platykurtic.  
+  - A kurtosis of exactly 3 matches that of a normal distribution (this is often adjusted by subtracting 3 to centre the normal at zero, resulting in “excess kurtosis”).
+
+If skewness is the tilt of the painting, kurtosis is the sharpness of its central ridge. A highly kurtotic distribution has a more pronounced “peak” and fatter tails, while a lower kurtosis suggests a smoother, flatter curve.
+
+A common formula for (excess) kurtosis is:
+  
+$$
+\text{Kurtosis} = \frac{1}{n}\sum_{i=1}^{n}\left(\frac{x_i - \bar{x}}{s}\right)^4 - 3
+$$
+
+This formula sets the normal distribution’s kurtosis to 0, making it easier to interpret whether your data are more peaked or flat than normal.
+
+---
+
+#### Practical Computation in R
+
+*Let’s apply these concepts to our trusty `mtcars` dataset once again, focusing on the `mpg` (miles per gallon) column. We have centre and spread; now we will examine skewness and kurtosis to understand the shape of the mpg distribution.*[^1]
+
+First, let’s define functions to compute skewness and kurtosis ourselves, using the formulas above. We will rely on Base R operations and `data.table::` for data handling. If you prefer, you could use external packages like `e1071` for these measures, but here we’ll do it manually to keep full control and transparency.
+
+\\`\\`\\`r
+# Convert mtcars to a data.table
+car_data <- data.table::as.data.table(datasets::mtcars)
+
+# Extract mpg values
+mpg_values <- car_data$mpg
+
+# Define a function for skewness
+skewness_func <- function(x) {
+  n <- length(x)
+  mean_x <- mean(x)
+  sd_x <- sd(x)
+  sum(((x - mean_x)/sd_x)^3)/n
+}
+
+# Define a function for kurtosis (excess kurtosis)
+kurtosis_func <- function(x) {
+  n <- length(x)
+  mean_x <- mean(x)
+  sd_x <- sd(x)
+  ((sum(((x - mean_x)/sd_x)^4)/n) - 3)
+}
+
+mpg_skewness <- skewness_func(mpg_values)
+mpg_kurtosis <- kurtosis_func(mpg_values)
+
+print(paste("Skewness of MPG:", mpg_skewness))
+print(paste("Excess Kurtosis of MPG:", mpg_kurtosis))
+\\`\\`\\`
+
+*These values tell us about the shape: a skewness near zero suggests a fairly symmetrical distribution, while the kurtosis value tells us if it’s more peaked or flat compared to normal.*
+
+---
+
+#### Visual Illustrations
+
+*Visualising the data helps us feel these concepts intuitively. Let’s plot a histogram and overlay a normal curve for comparison. We’ll annotate the plot with skewness and kurtosis values.* 
+
+\\`\\`\\`r
+ggplot2::ggplot(data = car_data, ggplot2::aes(x = mpg)) +
+  ggplot2::geom_histogram(binwidth = 1, fill = "lightblue", colour = "black") +
+  ggplot2::labs(
+    title = "MPG Distribution in mtcars: Understanding Shape",
+    x = "Miles per Gallon (MPG)",
+    y = "Frequency"
+  ) +
+  ggplot2::annotate("text", x = max(mpg_values)-5, y = 5, 
+                    label = paste("Skewness =", round(mpg_skewness, 2)),
+                    colour = "red", hjust = 0) +
+  ggplot2::annotate("text", x = max(mpg_values)-5, y = 4, 
+                    label = paste("Excess Kurtosis =", round(mpg_kurtosis, 2)),
+                    colour = "red", hjust = 0)
+\\`\\`\\`
+
+While this histogram might not dramatically show a large skew or kurtosis difference, these metrics become invaluable when dealing with more complex or less symmetrical datasets. Consider data from income distributions (often right-skewed) or certain biological measurements that might exhibit strong kurtosis.
+
+---
+
+#### Interpretation and Use Cases
+
+- **Skewness**:  
+  If you encounter a positive skew in your data, the mean may not represent the “typical” value as well as the median might. Highly skewed data may suggest the need for transformations (e.g., a log transform for right-skewed data) or non-parametric methods that don’t assume symmetry.
+
+- **Kurtosis**:  
+  A high kurtosis (excess kurtosis > 0) can indicate that events far from the mean are more common than expected under a normal model. This can be critical in fields like finance, where “fat tails” indicate a higher probability of extreme losses than a normal assumption would predict. A low kurtosis might mean your data are more evenly spread out, with fewer extreme events.
+
+*Imagine skewness and kurtosis as extra dimensions of data characterisation. Where centre and spread describe the main rectangle of a painting, skewness tilts it, and kurtosis changes how bold or muted the central focal point is.*
+
+---
+
+#### Mathematical Insight
+
+- **Skewness and Moments**:  
+  Skewness is related to the third central moment of the distribution. The central moments of a distribution measure how data deviate from the mean at increasing powers. The third moment captures asymmetry.
+
+- **Kurtosis and Fourth Moments**:  
+  Kurtosis comes from the fourth central moment, focusing on the extremities of the distribution. It essentially compares how heavy the tails are relative to a normal distribution.
+
+Understanding these metrics is especially important when choosing statistical tests or models. Many statistical tests assume normality. If your data’s skewness or kurtosis significantly deviates from normal, you may need to consider transformations, non-parametric methods, or robust modelling approaches.
+
+---
+
+#### Conclusion
+
+*Skewness and kurtosis round out our understanding of a distribution’s shape, letting us see beyond central tendency and variability into how data arrange themselves around the mean.*
+
+As we’ve covered:
+- Skewness tells us about asymmetry: whether the distribution leans left, right, or not at all.
+- Kurtosis tells us about how peaked or flat the distribution is, indicating the prevalence of extreme values.
+
+Armed with these insights, you can better navigate your dataset’s landscape, making informed decisions about which statistical methods to apply and how to interpret the underlying patterns.
+
+[^1]: The `mtcars` dataset, once again, is a convenient way to demonstrate these principles. In real-world applications, you might encounter strong skewness in income data or strong kurtosis in financial returns—contexts where these measures become critically important.
+
+### 4.4 Summaries by Group and Cross-Tabulations (data.table by-group operations)
+
+*Once you understand how to summarise data globally—calculating means, medians, or frequencies across your entire dataset—the next logical step is to explore how those summaries vary across different subgroups. Real-world data often come from diverse categories: customers from different regions, products in various categories, or measurements taken on different species.*
+
+*By summarising data by group, you can uncover hidden patterns that remain invisible when looking at the dataset as a whole. Additionally, cross-tabulations (often called contingency tables) let you examine how categorical variables intersect—imagine creating a grid that shows counts or averages for combinations of categories. This technique transforms raw data into insightful tables that guide decision-making and further analysis.*
+
+---
+
+#### The Power of Grouped Summaries
+
+- **Why Summarise by Group?**  
+  Suppose you have sales data from multiple stores. The overall sales total is interesting, but the mean sales per store or total sales per region might reveal much more:  
+  - Which region outperforms others?  
+  - Are there seasonal patterns that differ by product category?  
+  - Do certain groups drive the majority of the variability?
+
+  Grouped summaries answer these questions by segmenting data according to one or more categorical variables and then computing statistics on each segment.
+
+- **Using data.table for By-Group Operations**  
+  The `data.table::` package excels at this task. With its `[ , .( ... ), by = group_var]` syntax, you can elegantly specify which groups to form and which summaries to calculate. This approach is both concise and efficient, especially on large datasets.
+
+*Imagine slicing your dataset into separate “drawers,” each representing a group. data.table then lets you open each drawer, summarise its contents, and neatly stack the results into a table that’s easy to read and compare.*
+
+---
+
+#### Demonstration with a Real-World Dataset
+
+*To make this concrete, let’s use a real-world dataset. We’ll use the “tips” dataset, a classic dataset that records information about restaurant bills: the total bill, the tip given, the day of the week, whether the customer was a smoker or not, and more. This dataset is commonly used in data science examples.*[^1]
+
+We can access a version of the tips dataset directly from a GitHub URL. Let’s do that using `data.table::fread()`:
+
+\\`\\`\\`r
+tips_data <- data.table::fread("https://raw.githubusercontent.com/mwaskom/seaborn-data/master/tips.csv")
+print(head(tips_data))
+\\`\\`\\`
+
+*This dataset should have columns like `total_bill`, `tip`, `sex`, `smoker`, `day`, `time`, and `size`. Now, let’s say we want to understand how tips vary by day of the week.*
+
+---
+
+#### Summarising by a Single Group Variable
+
+*To summarise the average tip by day:*
+
+\\`\\`\\`r
+avg_tip_by_day <- tips_data[ , .(mean_tip = mean(tip)), by = day]
+print(avg_tip_by_day)
+\\`\\`\\`
+
+*This will produce a small table showing each day and the corresponding average tip. Notice how simple the syntax is: we specify the summary `.()` inside the brackets and then `by = day` to group by the `day` column.*
+
+---
+
+#### Multiple Group Variables
+
+*What if we want to see how tips vary not just by day, but also by whether the customer was a smoker or not? We can add multiple grouping variables:*
+
+\\`\\`\\`r
+avg_tip_by_day_smoker <- tips_data[ , .(mean_tip = mean(tip)), by = .(day, smoker)]
+print(avg_tip_by_day_smoker)
+\\`\\`\\`
+
+*Now we get a table that breaks down average tips by both `day` and `smoker`. Each row corresponds to a unique combination of the two categories.*
+
+---
+
+#### Using Other Summaries
+
+*You’re not limited to just means. You can compute medians, counts, sums, or even define custom functions. Suppose we want the total number of observations, average total bill, and median tip for each combination of day and smoker status:*
+
+\\`\\`\\`r
+complex_summary <- tips_data[ , .(
+  count = .N,
+  mean_bill = mean(total_bill),
+  median_tip = median(tip)
+), by = .(day, smoker)]
+print(complex_summary)
+\\`\\`\\`
+
+*The `.N` symbol in `data.table` is a shortcut for the number of rows in that group—very handy for quick counts.*
+
+---
+
+#### Cross-Tabulations (Contingency Tables)
+
+*Cross-tabulations are a special case of grouped summaries, focusing primarily on counts. For example, how many customers visited on each combination of day and time (Lunch or Dinner)? We can create a contingency table from the data easily:*
+
+\\`\\`\\`r
+# Count how many rows fall into each combination of day and time
+crosstab <- tips_data[ , .N, by = .(day, time)]
+print(crosstab)
+\\`\\`\\`
+
+*This gives a long format table. If you want to reshape it into a more traditional “pivoted” table, you can use `data.table::dcast()`:*
+
+\\`\\`\\`r
+crosstab_wide <- data.table::dcast(crosstab, day ~ time, value.var = "N")
+print(crosstab_wide)
+\\`\\`\\`
+
+*Now we have a classic contingency table with days as rows and times as columns, showing counts of observations in each category combination.*
+
+---
+
+#### Visualising Grouped Summaries
+
+*Visual representation can help. Suppose we want to visualise the average total bill by day and smoker status. We can create a bar plot using `ggplot2::` to make the differences more apparent.*
+
+\\`\\`\\`r
+avg_bill_by_day_smoker <- tips_data[ , .(mean_bill = mean(total_bill)), by = .(day, smoker)]
+
+ggplot2::ggplot(data = avg_bill_by_day_smoker, ggplot2::aes(x = day, y = mean_bill, fill = smoker)) +
+  ggplot2::geom_col(position = "dodge", colour = "black") +
+  ggplot2::labs(
+    title = "Average Total Bill by Day and Smoker Status",
+    x = "Day of Week",
+    y = "Average Total Bill"
+  ) +
+  ggplot2::scale_fill_manual(values = c("No" = "lightblue", "Yes" = "pink"))
+\\`\\`\\`
+
+*This bar plot will show two bars per day: one for smokers, one for non-smokers. By visually comparing them, we can see which groups differ more clearly than just looking at a table.*
+
+---
+
+#### Mathematical Thinking
+
+- **Sums, Means, Counts, etc.**:  
+  Grouped summaries boil down to applying functions over subsets of data. If \( X \) is your dataset and \( g(X) \) is a grouping function that divides \( X \) into subsets \( X_1, X_2, \ldots, X_k \), then a summary statistic \( f \) like mean or sum is computed as:
+  
+  $$
+  f(X_j) \text{ for } j = 1, 2, \ldots, k
+  $$
+  
+  Essentially, you partition the data based on certain conditions and then summarise each partition.
+
+- **Cross-Tabulations**:  
+  Cross-tabulations create a grid. If you have two categorical variables \( A \) and \( B \), and you form groups for each combination \( (a_i, b_j) \), the count \(\#(a_i, b_j)\) is:
+  
+  $$
+  \#(a_i, b_j) = \text{number of observations where } A = a_i \text{ and } B = b_j
+  $$
+
+*This is a discrete analogue to the idea of joint probabilities in probability theory, except we’re dealing with counts or summaries, not probabilities.*
+
+---
+
+#### When and Why Use These Techniques?
+
+- **Descriptive Exploration**:  
+  Grouped summaries are essential in exploratory data analysis. Before modelling, you might want to see how average values differ by category, or how often certain combinations occur.
+
+- **Segmented Analysis**:  
+  In business, you might want to see how sales differ by region and quarter. In biology, how mean petal length differs by species. In social sciences, how average test scores differ by gender and class.
+
+- **Preparing Data for Further Analysis**:  
+  Often, modelling or statistical tests require aggregated input. Grouping and summarising lets you collapse raw data into a manageable form that highlights the patterns you intend to model.
+
+---
+
+#### Conclusion
+
+*By-group operations and cross-tabulations add depth to your data analysis toolkit. Instead of viewing your dataset as a single, undifferentiated mass, you can segment it into meaningful clusters and understand how these segments differ. This approach often reveals nuanced insights hidden within the raw numbers.*
+
+As you move forward in your analysis, remember that these techniques are not just about producing tables—they are about storytelling. Each grouped summary or contingency table provides a chapter in the narrative your data wants to tell. Understanding the differences between groups can spark hypotheses, lead to targeted strategies, or just make your data exploration more fruitful and enjoyable.
+
+[^1]: The tips dataset is a well-known sample dataset included in the seaborn Python library and also widely available online. It records the total bill, tip amount, day, time, and other attributes from a restaurant, allowing users to explore relationships between these factors.
+
+### 4.5 Advanced Data Summaries and Custom Functions in data.table
+
+*By now, you’ve seen how to compute basic summaries like means, medians, or counts for each group in your dataset using `data.table::`. However, real-world data analysis often demands more complex calculations. Maybe you need to compute a weighted mean, bootstrap confidence intervals, or apply custom statistical models to each group. The flexibility of `data.table::` empowers you to define and apply your own functions directly within the `[ , .(...) , by= ]` syntax.*
+
+*Think of these advanced summaries as custom lenses you can attach to your “data microscope.” Instead of only looking at raw numeric summaries, you can devise and apply your own logic, extracting specialised insights that off-the-shelf functions cannot provide.*
+
+---
+
+#### Why Create Custom Functions?
+
+- **Complex Transformations**:  
+  Sometimes you need more than a simple mean or median. Perhaps you need to compute a ratio of sums, a custom normalisation, or a correlation between two variables per group.
+  
+- **Extensibility**:  
+  The ability to write your own function means you’re not limited by what’s pre-packaged in R. If you can imagine a calculation, you can implement it, then apply it across groups with minimal code.
+
+- **Reusability**:  
+  Defining a function once and using it multiple times streamlines your workflow. This is especially true if you find yourself repeating a complicated calculation across multiple projects or datasets.
+
+---
+
+#### Demonstration: Weighted Means and Ratios
+
+*Suppose we have a dataset of products sold by different vendors, and we want to compute a weighted mean price per vendor, where the weight is the quantity sold. Additionally, we might want to compute a ratio of average price to average cost. Let’s imagine we have such a dataset.*[^1]
+
+For demonstration, let’s create a small synthetic dataset right here:
+
+\\`\\`\\`r
+product_data <- data.table::data.table(
+  vendor = rep(c("A", "B", "C"), each = 5),
+  product = paste0("Prod", 1:15),
+  price = runif(15, 5, 20),  # random prices between 5 and 20
+  cost = runif(15, 3, 10),   # random costs between 3 and 10
+  quantity = sample(1:100, 15, replace = TRUE) # random quantities
+)
+print(product_data)
+\\`\\`\\`
+
+Now, let’s define a custom function to compute a weighted mean. The weighted mean \( \bar{x}_w \) for values \( x_i \) with weights \( w_i \) is given by:
+
+$$
+\bar{x}_w = \frac{\sum_{i} x_i w_i}{\sum_{i} w_i}
+$$
+
+We can implement this as:
+
+\\`\\`\\`r
+weighted_mean_func <- function(values, weights) {
+  sum(values * weights) / sum(weights)
+}
+\\`\\`\\`
+
+Next, let’s apply it to compute the weighted mean price per vendor. Also, let’s compute a ratio of the average price to the average cost for each vendor, using the same weighted logic:
+
+\\`\\`\\`r
+summary_custom <- product_data[ , .(
+  weighted_mean_price = weighted_mean_func(price, quantity),
+  weighted_mean_cost = weighted_mean_func(cost, quantity),
+  ratio_price_to_cost = weighted_mean_func(price, quantity) / weighted_mean_func(cost, quantity)
+), by = vendor]
+
+print(summary_custom)
+\\`\\`\\`
+
+*With just a few lines of code, we defined our custom summary and applied it by vendor. Notice how we could embed multiple calls to our custom function directly inside the summary.*
+
+
+---
+
+#### Applying More Complex Statistical Functions
+
+*Beyond weighted means, you could apply any R function. For example, if you wanted to fit a linear model to each group and extract its coefficients, you could do so inside `data.table::`. Imagine fitting a simple linear regression of price on cost per vendor:*
+
+\\`\\`\\`r
+# Define a function that fits a linear model (price ~ cost) and returns the slope
+fit_slope_func <- function(price, cost) {
+  # Fit a linear model
+  model <- stats::lm(price ~ cost)
+  # Extract the slope (coefficient of cost)
+  coef(model)[2]
+}
+
+model_summaries <- product_data[ , .(
+  slope_price_on_cost = fit_slope_func(price, cost)
+), by = vendor]
+print(model_summaries)
+\\`\\`\\`
+
+*Here we applied a more advanced statistical function—fitting a model—to each subgroup. The by-group operation allowed us to isolate each vendor’s data and run a custom analysis. This approach scales to more complex scenarios, such as non-linear models, bootstrapping, or generating prediction intervals per group.*
+
+---
+
+#### Using External Data or Parameters
+
+*Sometimes your custom function might need external parameters or reference data. For example, you might have a reference vector that’s needed for normalisation. Since `data.table::` does not prevent you from calling outside variables or functions, you can easily incorporate them.*
+
+For instance, suppose we want to normalise prices by a global reference mean price (computed from all data) before summarising. We can compute that first, then use it in our custom function inside the group operation:
+
+\\`\\`\\`r
+global_mean_price <- mean(product_data$price)
+
+normalise_func <- function(x, ref) {
+  x / ref
+}
+
+normalised_summary <- product_data[ , .(
+  mean_normalised_price = mean(normalise_func(price, global_mean_price))
+), by = vendor]
+
+print(normalised_summary)
+\\`\\`\\`
+
+*This flexibility means you can integrate external calculations and contextual information into your custom summaries.*
+
+---
+
+#### Visualising the Results
+
+*Let’s say we want to visualise the ratio of price to cost we computed earlier. A bar plot could help us compare vendors directly:*
+
+\\`\\`\\`r
+ggplot2::ggplot(data = summary_custom, ggplot2::aes(x = vendor, y = ratio_price_to_cost)) +
+  ggplot2::geom_col(fill = "lightblue", colour = "black") +
+  ggplot2::labs(
+    title = "Ratio of Weighted Mean Price to Weighted Mean Cost by Vendor",
+    x = "Vendor",
+    y = "Price-to-Cost Ratio"
+  )
+\\`\\`\\`
+
+*This visual representation helps interpret the custom calculation—if one vendor’s ratio is much higher, it might mean they have higher markups or less efficient sourcing strategies.*
+
+---
+
+#### Mathematical Considerations
+
+- **Generalised Summaries**:  
+  When you define a custom function, you can implement any mathematical formula. This might be a custom metric like:
+  
+  $$
+  M = \frac{\sum (x_i - \bar{x})^2}{n} \; \text{or something more complex}
+  $$
+  
+  The key is that you can integrate this formula into R code and then apply it per group.
+
+- **Model Fitting and Complex Operations**:  
+  Any R function that returns a single value (or a small set of values) can serve as a summary. Model fitting that returns multiple coefficients can be used to generate multiple summary columns, if you return a list or vector of results.
+
+*Essentially, your creative mathematical and statistical understanding can be directly translated into code, enabling deeply customised analyses.*
+
+---
+
+#### When to Use Custom Functions
+
+- **Non-Standard Calculations**:  
+  If the summary you need isn’t available via a built-in function (like mean or sum), write your own.
+  
+- **Complex Statistical Procedures**:  
+  If you need to run simulations, bootstrap intervals, or fit models per group, custom functions are essential.
+  
+- **Reusability and Clarity**:  
+  Placing complex logic in a named function can make your code cleaner, more readable, and easier to maintain. Instead of inline complicated formulas, you encapsulate them in functions with descriptive names.
+
+---
+
+#### Conclusion
+
+*Advanced data summaries and custom functions in `data.table::` open the door to infinitely flexible data analysis. No longer confined by predefined summaries, you can integrate your domain knowledge and creativity directly into your code.*
+
+As you progress in your analysis, these techniques let you tailor your computations to the specific questions at hand, transforming `data.table::` from a tool of convenience into a powerful extension of your analytical imagination.
+
+[^1]: In practice, you might load data from a file with `data.table::fread("mydata.csv")`. For demonstration, we created synthetic data right in the code. Replace this synthetic data with your real dataset as needed.
