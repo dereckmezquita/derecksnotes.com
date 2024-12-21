@@ -1,0 +1,512 @@
+---
+title: "Introduction to Statistics with R: Statistical Inference"
+blurb: "Blue and white mean war"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+# Statistical Inference
+
+## Foundations of Inference
+
+Inference lies at the core of statistics: we use sample data to make educated guesses about population parameters, quantify uncertainty, and test hypotheses. This section introduces key building blocks: point estimators, interval estimators, and hypothesis testing frameworks.
+
+### Point Estimation: MLE, Method of Moments, Bayesian Estimates
+
+A **point estimator** provides a single best guess for a parameter. Common techniques include:
+
+- **Maximum Likelihood Estimation (MLE):**
+    - Choose the parameter values that maximise the likelihood function:
+      $$\hat{\theta}_{MLE} = \arg\max_\theta L(\theta; x_1,\ldots,x_n),$$
+      where $L(\theta)$ is the likelihood of observing the data given $\theta$.
+    - MLEs often have good asymptotic properties: consistency, efficiency, and normality under regular conditions.
+    - Example: Estimating the mean of a Normal distribution by the sample mean is an MLE.
+
+- **Method of Moments (MoM):**
+    - Match sample moments to theoretical moments to solve for parameters.
+    - Generally simpler but may be less efficient than MLEs.
+    - Example: For a population with mean $\mu$, using $\bar{X}$ as the estimator for $\mu$ is a method of moments estimator.
+
+- **Bayesian Estimates:**
+    - Start with a prior distribution for parameters, update with data (likelihood) to obtain the posterior distribution:
+      $$p(\theta|x) \propto p(x|\theta)p(\theta).$$
+    - A Bayesian point estimator might be the posterior mean or posterior mode, depending on your decision criteria.
+    - Incorporates prior knowledge and naturally expresses uncertainty in the form of a posterior distribution rather than a single point.
+
+**R Demonstration (MLE Example with a Normal Mean):**
+
+\`\`\{r mle-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+x <- rnorm(100, mean=5, sd=2)
+mle_mean <- mean(x) # MLE for Normal mean
+cat("MLE for Normal mean:", mle_mean, "\n")
+\`\`\`
+
+### Interval Estimation: Confidence Intervals, Credible Intervals
+
+Point estimates alone do not express uncertainty. Interval estimates provide a range of plausible values:
+
+- **Confidence Intervals (Frequentist):**
+    - A 95% confidence interval for a parameter $\theta$ is an interval that, under repeated sampling, would contain $\theta$ about 95% of the time.
+    - **Example:** For a Normal mean with known variance, a 95% CI might be:
+      $$\bar{x} \pm 1.96 \frac{\sigma}{\sqrt{n}}.$$
+
+- **Credible Intervals (Bayesian):**
+    - A 95% credible interval states that there is a 95% probability the parameter lies within the interval given the observed data.
+    - Depends on the posterior distribution rather than repeated-sampling notions.
+
+**R Demonstration (Confidence Interval for a Mean):**
+
+\`\`\{r ci-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+mean_x <- mean(x)
+sd_x <- sd(x)
+n <- length(x)
+# For large n, CI ~ Normal approximation
+ci_lower <- mean_x - 1.96*sd_x/sqrt(n)
+ci_upper <- mean_x + 1.96*sd_x/sqrt(n)
+cat("95% CI for mean:", ci_lower, "to", ci_upper, "\n")
+\`\`\`
+
+### Hypothesis Testing: Neyman-Pearson Framework, Likelihood Ratio Tests
+
+Hypothesis testing decides whether the observed data provide sufficient evidence against a null hypothesis ($H_0$) in favor of an alternative ($H_1$).
+
+- **Neyman-Pearson Framework:**
+    - Hypotheses:  
+      $$H_0: \theta \in \Theta_0 \quad \text{vs.} \quad H_1: \theta \in \Theta_1.$$
+    - Define a test statistic and rejection region.
+    - Control Type I error (probability of rejecting $H_0$ when it’s true) at a chosen significance level $$\alpha$$.
+    - If test statistic falls into the rejection region, we reject $H_0$. Otherwise, we fail to reject $H_0$.
+
+- **P-Values:**
+    - Probability of observing a test statistic as extreme or more extreme than what we observed, if $H_0$ is true.
+    - A small p-value suggests the data are unusual under $H_0$, potentially supporting $H_1$.
+
+- **Likelihood Ratio Test (LRT):**
+    - Compare the maximum likelihood under $H_0$ and $H_1$:
+      $$\Lambda = \frac{\max_{\theta \in \Theta_0} L(\theta)}{\max_{\theta \in \Theta_1} L(\theta)}.$$
+    - If $H_0$ strongly restricts the parameter, a small ratio suggests $H_0$ fits the data poorly compared to $H_1$.
+    - Asymptotic theory often states that $-2 \log \Lambda$ follows a chi-square distribution under $H_0$.
+
+**R Demonstration (Simple t-test as a Hypothesis Test):**
+
+\`\`\{r ttest-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+# Suppose we test H0: mean=5 vs H1: mean!=5
+t_result <- t.test(x, mu=5)
+cat("T-test p-value:", t_result$p.value, "\n")
+\`\`\`
+
+If the p-value is small (e.g., <0.05), we reject $H_0$ at the 5% significance level, suggesting evidence that the mean differs from 5.
+
+---
+
+**Key Takeaways:**
+
+- **Point Estimation (MLE, MoM, Bayesian):**  
+  Point estimators provide single-value estimates. MLEs are common due to good asymptotic properties. Method of moments offers simpler but sometimes less efficient solutions. Bayesian methods yield posterior distributions, from which point estimates can be derived.
+
+- **Interval Estimation (Confidence, Credible Intervals):**  
+  Confidence intervals provide a frequentist range of plausible parameter values under repeated sampling. Credible intervals give a Bayesian probability statement. Both help express uncertainty beyond a single point estimate.
+
+- **Hypothesis Testing (Neyman-Pearson, LRTs):**  
+  Hypothesis tests evaluate the strength of evidence against a null hypothesis. The Neyman-Pearson framework controls error rates, while likelihood ratio tests leverage model-based comparisons. P-values summarize how unusual the data are if $H_0$ holds.
+
+These foundational inference concepts—estimating parameters, quantifying uncertainty via intervals, and testing hypotheses—form the bedrock of most statistical methodologies. They guide how we draw conclusions, measure evidence, and refine models as we move deeper into regression, modeling, and applied data science challenges.
+
+
+## Classical Inference Methods
+
+Classical statistical inference provides a rich toolkit of tests and procedures for comparing means, assessing differences in variances, and examining multiple groups simultaneously. While modern methods and computational power have expanded the range of available techniques, classical methods remain foundational due to their strong theoretical underpinnings and ease of interpretation.
+
+### z-tests, t-tests, and Their Nonparametric Counterparts
+
+When comparing means, the choice between $z$-tests and $t$-tests often depends on sample size and whether the population standard deviation is known.
+
+- **z-test:**
+    - Assume population variance ($\sigma^2$) is known or sample size is large enough that the sample standard deviation reliably estimates $\sigma$.
+    - Under $H_0:\mu=\mu_0$:
+      $$Z=\frac{\bar{X}-\mu_0}{\sigma/\sqrt{n}}\sim N(0,1).$$
+    - Often used in large-sample settings or special cases with known variance.
+
+- **t-test:**
+    - More common when $\sigma$ is unknown and must be estimated from the sample.
+    - For a one-sample t-test:
+      $$T=\frac{\bar{X}-\mu_0}{s/\sqrt{n}},$$
+      where $s$ is the sample standard deviation.
+    - $T$ follows a $t$-distribution with $(n-1)$ degrees of freedom under $H_0$.
+    - Variants include:
+      - **One-sample t-test:** Compare sample mean to a hypothesized mean.
+      - **Two-sample t-test (independent samples):** Compare means of two groups.
+      - **Paired t-test:** Compare means of two related samples (e.g., before/after measurements).
+
+- **Nonparametric Counterparts:**
+    - When normality assumptions fail or data are ordinal, nonparametric tests offer robust alternatives.
+    - **Wilcoxon Signed-Rank Test:** Nonparametric counterpart to one-sample or paired t-test.
+    - **Mann-Whitney U Test (Wilcoxon Rank-Sum):** Nonparametric counterpart to two-sample t-test.
+
+**R Demonstration (t-test):**
+
+\`\`\{r ttest-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+x <- rnorm(30, mean=10, sd=2)
+t_res <- t.test(x, mu=10)
+cat("p-value from one-sample t-test:", t_res$p.value, "\n")
+\`\`\`
+
+If the p-value is small, we reject $H_0$ (the data suggest $\mu \neq 10$).
+
+### Comparing Variances: F-tests, Levene’s Test
+
+Testing whether two groups have the same variance is sometimes crucial, particularly before applying certain tests that assume equal variances.
+
+- **F-test for Variances:**
+    - Compare variances from two samples:
+      $$F=\frac{s_1^2}{s_2^2},$$
+      under $H_0:\sigma_1^2=\sigma_2^2$.
+    - If $H_0$ is true, $F$ follows an $F$-distribution with $(n_1-1,n_2-1)$ degrees of freedom.
+    - **Caution:** Sensitive to normality assumptions; heavily influenced by non-normal data or outliers.
+
+- **Levene’s Test:**
+    - More robust to departures from normality.
+    - Based on absolute deviations from group means (or medians), tests if variance is equal across groups.
+    - Ideal when normality is questionable or outliers are present.
+
+**R Demonstration (F-test for Variances):**
+
+\`\`\{r ftest-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(456)
+x1 <- rnorm(50, mean=0, sd=1)
+x2 <- rnorm(50, mean=0, sd=2)
+var_test <- var.test(x1, x2) # F-test for equality of two variances
+cat("F-test p-value:", var_test$p.value, "\n")
+\`\`\`
+
+If p-value is small, we conclude the variances differ significantly.
+
+### ANOVA, MANOVA, and Mixed-Model ANOVA
+
+When comparing more than two groups or dealing with multiple response variables, we turn to analysis of variance and its extensions.
+
+- **ANOVA (Analysis of Variance):**
+    - Compares means of multiple groups:
+      $$H_0:\mu_1=\mu_2=\cdots=\mu_k.$$
+    - Uses the $F$-statistic derived from the ratio of between-group variance to within-group variance.
+    - If $H_0$ is rejected, at least one group mean differs. Post-hoc tests (e.g., Tukey’s HSD) determine which ones differ.
+    - Assumes normality and equal variances (somewhat robust for moderate deviations).
+
+- **MANOVA (Multivariate Analysis of Variance):**
+    - Extends ANOVA to multiple dependent variables simultaneously.
+    - Tests whether mean vectors differ across groups.
+    - More complex assumptions: multivariate normality and equality of covariance matrices.
+
+- **Mixed-Model ANOVA (Repeated-Measures ANOVA):**
+    - Used when data have repeated measurements on the same subjects or when random effects are present.
+    - Incorporates both fixed effects (treatments) and random effects (subjects) to model correlated observations and individual differences.
+
+**R Demonstration (One-Way ANOVA):**
+
+\`\`\{r anova-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(789)
+group_data <- data.table::data.table(
+  value=c(rnorm(30, mean=0), rnorm(30, mean=1), rnorm(30, mean=2)),
+  group=rep(c("A","B","C"), each=30)
+)
+
+# Fit a linear model to do ANOVA
+lm_res <- lm(value ~ group, data=group_data)
+anova_res <- anova(lm_res)
+print(anova_res)
+\`\`\`
+
+If the ANOVA $F$-test p-value is small, we conclude that not all group means are equal. Post-hoc tests would follow.
+
+---
+
+**Key Takeaways:**
+
+- **z-tests, t-tests, and Nonparametric Alternatives:**  
+  z-tests and t-tests form the backbone of comparing means between one or two groups. Nonparametric tests like Wilcoxon rank-sum or signed-rank offer robustness when assumptions (like normality) fail.
+  
+- **Comparing Variances (F-tests, Levene’s Test):**  
+  Before certain tests, checking variance equality is crucial. The F-test is classical but sensitive to normality; Levene’s test is more robust.
+
+- **ANOVA, MANOVA, and Mixed-Model ANOVA:**  
+  When dealing with multiple groups or multiple responses, ANOVA and its extensions handle complexity efficiently. They partition variance to assess group differences, and, if needed, you can extend to MANOVA or mixed models for more intricate experimental designs.
+
+These classical inference tools remain fundamental components of statistical practice. They guide many day-to-day analyses, from simple hypothesis tests to complex experimental designs, and serve as building blocks for more advanced or specialized procedures.
+
+## Advanced Inference Topics
+
+Beyond classical parametric tests and basic inference lies a range of advanced techniques. These approaches help tackle more complex hypotheses, distributions free of parametric assumptions, and improved methods for small or unusual datasets.
+
+### Generalised Likelihood Ratio Tests
+
+The **Generalised Likelihood Ratio Test (GLRT)** offers a flexible approach to hypothesis testing by comparing the maximum likelihood achievable under a restricted model (the null) to the maximum likelihood under a more general model (the alternative).
+
+- **Concept:**
+    - Suppose $H_0: \theta \in \Theta_0$ vs. $H_1: \theta \in \Theta_1$ with $\Theta_0 \subset \Theta_1$.
+    - Define the likelihood ratio:
+      $$\Lambda = \frac{\max_{\theta \in \Theta_0} L(\theta)}{\max_{\theta \in \Theta_1} L(\theta)}.$$
+    - The test statistic is often:
+      $$-2\log(\Lambda),$$
+      which, under certain regularity conditions, follows a chi-square distribution with degrees of freedom equal to the difference in dimensionality of $\Theta_1$ and $\Theta_0$.
+
+- **Application:**
+    - Useful in comparing nested models, such as testing if adding a new parameter significantly improves the fit.
+    - Example: Testing if a slope is zero in a regression model compares a restricted model (no slope) to a full model (with slope).
+
+### Nonparametric and Rank-Based Tests (Wilcoxon, Kruskal-Wallis)
+
+When assumptions like normality or equal variances break down, nonparametric tests provide robust alternatives. Instead of directly comparing means, they often compare ranks of data.
+
+- **Wilcoxon Rank-Sum Test (Mann-Whitney U):**
+    - Nonparametric counterpart to the two-sample t-test.
+    - Compares medians or, more precisely, the distributions’ relative position without assuming normality.
+    - Example: Determine if one group’s values tend to be larger than another’s without assuming a particular distribution.
+
+- **Wilcoxon Signed-Rank Test:**
+    - Counterpart to the paired t-test for matched samples.
+    - Uses differences in pairs and ranks them, testing if the median difference is zero.
+
+- **Kruskal-Wallis Test:**
+    - Nonparametric ANOVA alternative.
+    - Compares ranks across more than two groups, testing whether at least one distribution differs.
+
+**R Demonstration (Wilcoxon Rank-Sum):**
+
+\`\`\{r wilcoxon-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+x1 <- rnorm(30, mean=0, sd=1)
+x2 <- rnorm(30, mean=0.5, sd=1)
+# Wilcoxon rank-sum test
+w_result <- wilcox.test(x1, x2)
+cat("Wilcoxon rank-sum p-value:", w_result$p.value, "\n")
+\`\`\`
+
+If the p-value is small, we conclude that $x_2$ values tend to be systematically larger (or smaller) than those in $x_1$.
+
+### Bootstrapping and Resampling Methods
+
+**Bootstrap** methods leverage computational power to approximate sampling distributions by resampling the original dataset with replacement:
+
+- **Key Idea:**
+    - The sample is considered a population proxy.
+    - Draw many bootstrap samples of the same size as the original.
+    - Compute the statistic (e.g., mean, median, regression coefficient) on each bootstrap sample.
+    - The variability across bootstrap estimates approximates the true sampling variability.
+
+- **Advantages:**
+    - No strong parametric assumptions required.
+    - Useful for complex statistics where theoretical distributions are unknown.
+    - Can construct confidence intervals (percentile or BCa) or test hypotheses.
+
+**R Demonstration (Bootstrap Mean):**
+
+\`\`\{r bootstrap-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(999)
+x <- rnorm(100, mean=10, sd=5)
+B <- 1000
+boot_means <- numeric(B)
+for(i in 1:B) {
+  boot_sample <- sample(x, replace=TRUE)
+  boot_means[i] <- mean(boot_sample)
+}
+ci_boot <- quantile(boot_means, c(0.025,0.975))
+cat("Bootstrap 95% CI for mean:", ci_boot[1], "to", ci_boot[2], "\n")
+\`\`\`
+
+This gives a nonparametric CI without normality assumptions.
+
+### Permutation Tests and Exact Inference
+
+**Permutation tests** use the idea of rearranging labels in data to simulate a null distribution, removing distributional assumptions:
+
+- **Permutation Test Logic:**
+    - For two groups, assume $H_0$: no difference in distributions.
+    - Merge groups into one pool and randomly reassign observations to “Group 1” and “Group 2” multiple times.
+    - Compute the test statistic (like difference in means) for each permutation.
+    - The fraction of permutations yielding a statistic as extreme as the observed one is the p-value.
+
+- **Exact Inference:**
+    - In some small-sample scenarios or specialized designs, exact tests (like Fisher’s exact test for contingency tables) provide p-values without relying on large-sample approximations.
+    - They consider all possible outcomes under the null hypothesis, ensuring no asymptotic assumptions.
+
+**R Demonstration (Permutation Concept):**
+
+\`\`\{r permutation-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(42)
+x1 <- rnorm(10, mean=0)
+x2 <- rnorm(10, mean=1)
+
+obs_diff <- mean(x2)-mean(x1)
+combined <- c(x1, x2)
+B <- 1000
+perm_diffs <- numeric(B)
+for(i in 1:B) {
+  perm_labels <- sample(combined, size=10) # assign first 10 as group 1
+  perm_x1 <- perm_labels
+  perm_x2 <- combined[!combined %in% perm_x1]
+  perm_diffs[i] <- mean(perm_x2)-mean(perm_x1)
+}
+
+p_value <- mean(abs(perm_diffs) >= abs(obs_diff))
+cat("Permutation test p-value:", p_value, "\n")
+\`\`\`
+
+If p-value is small, we suspect a real difference in means.
+
+---
+
+**Key Takeaways:**
+
+- **Generalised Likelihood Ratio Tests:**  
+  Extend classical hypothesis testing to complex models by comparing likelihoods, providing a flexible framework for nested model comparisons.
+
+- **Nonparametric and Rank-Based Tests:**  
+  Wilcoxon, Kruskal-Wallis, and similar tests free you from strict distributional assumptions. They rely on ranks and are robust to outliers and non-normality.
+
+- **Bootstrapping and Resampling:**  
+  The bootstrap approximates sampling distributions by repeatedly resampling your data. It’s a powerful tool for inference when theoretical distributions are unknown or unwieldy.
+
+- **Permutation Tests and Exact Inference:**  
+  Permutation tests offer assumption-light inference by systematically re-labeling data. Exact tests avoid asymptotic approximations, crucial in small samples or special designs.
+
+By mastering these advanced inference methods, you broaden your analytical toolbox, ensuring you can tackle data challenges that defy classical parametric assumptions or require more nuanced inference. These techniques underscore the flexibility and ingenuity of modern statistics in addressing diverse and complex scenarios.
+
+## Bayesian Inference
+
+### Bayesian Paradigm: Priors, Posteriors, and Likelihoods
+
+The **Bayesian approach** to inference treats parameters as random variables with probability distributions, incorporating both prior beliefs and new information from data:
+
+- **Prior ($p(\theta)$):**
+    - Encodes initial knowledge or belief about a parameter $$\theta$$ before seeing any data.
+    - Can be informative (reflecting expert knowledge) or noninformative (flat, weakly informative).
+
+- **Likelihood ($p(x|\theta)$):**
+    - The probability of observing the data $x$ given the parameter $$\theta$$.
+    - Same likelihood function as in the frequentist approach.
+
+- **Posterior ($p(\theta|x)$):**
+    - Updated belief after observing data.
+    - Follows Bayes’ theorem:
+      $$p(\theta|x)=\frac{p(x|\theta)p(\theta)}{p(x)},$$
+      where $$p(x)=\int p(x|\theta)p(\theta)d\theta$$ is the marginal likelihood.
+
+**Interpretation:**
+- Bayesian methods provide direct probability statements about parameters (e.g., "There’s a 95% probability that $\theta$ is in [a,b]").  
+- By combining priors and likelihoods, Bayesian inference updates uncertainty in a coherent, probability-based manner.
+
+### Conjugate Priors and Posterior Computation
+
+**Conjugate priors** simplify Bayesian updating:
+
+- A prior is conjugate if the posterior belongs to the same distribution family as the prior.
+- Example: If data come from a Normal distribution with known variance, and you use a Normal prior on the mean, the posterior for the mean remains normal.
+  
+**Advantages of Conjugacy:**
+- Closed-form posterior distributions.
+- No need for numerical approximation, making computations straightforward.
+
+**Non-Conjugate Cases:**
+- In many real problems, conjugate priors don’t exist or aren’t flexible enough.
+- Must rely on computational methods (MCMC) or numerical integration to find the posterior.
+
+**R Demonstration (Conjugate Normal Example):**
+
+\`\`\{r conjugate-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+x <- rnorm(100, mean=5, sd=1)
+
+# Prior: Normal(mean=0, sd=10) for mu
+mu_prior_mean <- 0
+mu_prior_sd <- 10
+mu_posterior_sd <- 1 / sqrt((1/(mu_prior_sd^2) + length(x)/1^2)) # known sigma=1 for simplicity
+mu_posterior_mean <- mu_posterior_sd^2 * (mu_prior_mean/mu_prior_sd^2 + sum(x)/1^2)
+
+cat("Posterior mean:", mu_posterior_mean, "\nPosterior sd:", mu_posterior_sd, "\n")
+\`\`\`
+
+### Markov Chain Monte Carlo (MCMC) Methods
+
+When no closed-form posterior exists, MCMC simulates from the posterior by constructing a Markov chain that converges to the distribution of interest:
+
+- **Metropolis-Hastings, Gibbs Sampling:**
+    - Basic MCMC algorithms to draw samples from complex posteriors.
+    - After a "burn-in" period, the chain’s samples approximate the posterior.
+  
+- **Hamiltonian Monte Carlo (HMC):**
+    - Leverages gradient information for more efficient exploration of complex, high-dimensional spaces.
+    - Implemented in platforms like Stan.
+
+**R Use:**
+- The `rstan` package allows Bayesians to write models in Stan and run HMC.
+- `coda` or `bayesplot` packages help diagnose convergence and summarise posterior samples.
+
+**Conceptual MCMC Steps:**
+1. Start with an initial guess for $$\theta$$.
+2. Propose a move to a new $$\theta'$$.
+3. Accept or reject $$\theta'$$ based on a probability rule ensuring the chain explores the posterior faithfully.
+4. After many iterations, the chain’s distribution approximates the posterior.
+
+### Bayesian Model Comparison and Bayes Factors
+
+In Bayesian inference, comparing models often involves **Bayes factors** rather than p-values:
+
+- **Bayes Factor (BF):**
+    - Compares two models $M_0$ and $M_1$ based on their marginal likelihoods:
+      $$BF_{01} = \frac{p(x|M_0)}{p(x|M_1)}.$$
+    - $BF>1$ indicates $M_0$ better supported by data, $BF<1$ favors $M_1$.
+    - Interpreted on a continuous scale, not a binary decision rule.
+
+- **Advantages:**
+    - Doesn’t rely on asymptotic approximations.
+    - Can incorporate model complexity and naturally penalise overfitting.
+  
+- **Challenges:**
+    - Computing marginal likelihoods (integrating out parameters) can be difficult.
+    - Numerical methods or approximations often required.
+
+**Analogy:**
+Frequentist tests treat models as "true or not," while Bayesian model comparison weighs evidence for one model over another directly via probabilities, akin to updating odds with new data.
+
+---
+
+**Key Takeaways:**
+
+- **Bayesian Paradigm:**  
+  Parameters are random variables with priors updated by data. This yields posterior distributions directly interpretable as degrees of belief.
+  
+- **Conjugate Priors and Computation:**  
+  Conjugate priors simplify posterior computation, but modern MCMC methods broaden Bayesian applicability to complex, non-conjugate models.
+  
+- **MCMC Methods:**  
+  Powerful computational techniques for sampling from difficult posteriors. They make Bayesian inference feasible even in high-dimensional, complicated scenarios.
+  
+- **Model Comparison with Bayes Factors:**  
+  Bayesian methods can quantify evidence favoring one model over another, offering a nuanced perspective beyond binary hypothesis rejections.
+
+Bayesian inference complements frequentist tools by adding flexibility and clarity in expressing uncertainty. With computational advances, Bayesian methods are increasingly accessible, allowing statisticians to incorporate prior knowledge, fit complex models, and produce fully probabilistic statements about parameters and models.

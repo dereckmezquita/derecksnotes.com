@@ -1,0 +1,445 @@
+---
+title: "Introduction to Statistics with R: Advanced Topics in Statistical Modelling"
+blurb: "Blue and white mean war"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output: 
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+# Advanced Topics in Statistical Modelling
+
+## Nonparametric and Semiparametric Methods
+
+Not all data conform neatly to parametric distributions or linear models. **Nonparametric and semiparametric methods** relax many assumptions, enabling flexible modelling that adapts to data-driven shapes and patterns without specifying rigid functional forms. They can handle complex distributions, heterogeneous relationships, and robust inference when classical parametric assumptions fail.
+
+### Kernel Density Estimation
+
+**Kernel Density Estimation (KDE):**
+- A nonparametric technique to estimate a probability density function (pdf) from data.
+- Instead of assuming a parametric form (e.g., Normal), KDE places a "kernel" (a smooth, local weighting function) around each observation.
+- The density at a point $x$ is the average contribution of all kernels centred at data points.
+
+**Choice of Bandwidth:**
+- The bandwidth (smoothing parameter) controls how "smooth" the estimated density is.
+- Large bandwidth: Over-smoothing, losing detail.
+- Small bandwidth: Under-smoothing, capturing noise and spurious bumps.
+- Methods like cross-validation or plug-in rules help choose bandwidth.
+
+**R Demonstration (KDE):**
+
+\`\`\{r kde-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+library(ggplot2)
+library(data.table)
+
+x <- c(rnorm(100,0,1), rnorm(100,5,1))
+dt_kde <- data.table::data.table(x=x)
+
+# Estimate density
+d_est <- density(x)
+dt_dens <- data.table::data.table(x=d_est$x, y=d_est$y)
+
+ggplot(dt_dens, aes(x=x, y=y)) +
+  geom_line(colour="blue") +
+  labs(title="Kernel Density Estimate", x="X", y="Density")
+\`\`\`
+
+Check how the bimodal structure appears without assuming any parametric form.
+
+### Semiparametric Regression Models
+
+**Semiparametric Models:**
+- Combine parametric and nonparametric components.
+- Example: A model with some linear effects and some smooth, nonparametric terms:
+  $$Y = \beta_0 + \beta_1X_1 + f(X_2) + \varepsilon,$$
+  where $f(\cdot)$ is an unspecified smooth function estimated from data.
+
+**Advantages:**
+- If you know part of the model structure (e.g., a predictor with a well-understood linear effect) but suspect others need flexible modelling, semiparametric approaches let you blend both worlds.
+- Generalised Additive Models (GAMs) are a prime example, where you mix parametric and smooth terms easily.
+
+**Practical Use:**
+- Fit using methods like splines for the nonparametric part and standard regression for parametric parts.
+- Widely used in epidemiology (modelling pollutants’ effects on health), economics (smooth income effects), and ecology (species response curves).
+
+### Empirical Likelihood Methods
+
+**Empirical Likelihood (EL):**
+- A nonparametric analogue to likelihood-based inference.
+- Instead of assuming a parametric model for the data distribution, EL uses data-driven "weights" that satisfy certain constraints (like matching moments or constraints on parameters).
+- Constructs a "likelihood" directly from the data without a specified pdf form.
+
+**Key Idea:**
+- Assign weights to each observation to maximise a "likelihood" under certain constraints.
+- Confidence regions and tests can be derived from this framework.
+- Avoids specifying a parametric family, providing inference grounded purely in sample information.
+
+**Applications:**
+- Useful for constructing confidence intervals for means, quantiles, or regression parameters under minimal assumptions.
+- Flexible in handling situations where parametric forms are dubious or where asymptotic approximations might be delicate.
+
+**R Demonstration (Empirical Likelihood for Mean):**  
+*(Requires `emplik` package)*
+
+\`\`\{r el-demo, echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE\}
+# Not run: example of empirical likelihood for a mean
+library(emplik)
+data <- rnorm(50)
+out <- emplik::el.test(data-mean(data),0)
+out
+\`\`\`
+
+Check if the test suggests the sample mean is consistent with a hypothesised value without assuming normality.
+
+---
+
+**Key Takeaways:**
+
+- **Kernel Density Estimation:**  
+  Estimate densities from data directly, no parametric assumptions needed. Bandwidth choice is crucial for revealing true structure.
+
+- **Semiparametric Regression Models:**
+  Combine parametric and nonparametric components. Achieve flexibility where needed, while retaining interpretability for known linear parts.
+
+- **Empirical Likelihood Methods:**
+  Nonparametric inference akin to maximum likelihood, but without specifying a distribution. Used for robust inference on means, quantiles, or regression parameters.
+
+These methods broaden your analytical capabilities. When parametric assumptions are questionable or incomplete, nonparametric and semiparametric techniques extract meaningful insights directly from data. Empirical likelihood offers robust, assumption-light inference, ensuring you can make sound conclusions even when classical models fall short.
+
+
+
+## Bayesian Computation and Advanced MCMC
+
+While Bayesian inference elegantly incorporates prior knowledge and produces posterior distributions of parameters, many posterior distributions have no closed-form solution. **Markov Chain Monte Carlo (MCMC)** algorithms make Bayesian computation feasible, approximating complex posteriors by drawing samples from them. Advanced MCMC methods, coupled with modern software, streamline fitting complicated Bayesian models, from simple linear regressions to high-dimensional hierarchical structures.
+
+### Metropolis-Hastings, Gibbs Sampling
+
+**Metropolis-Hastings (MH):**
+- A general MCMC algorithm that proposes a candidate draw from a proposal distribution and accepts or rejects it based on a ratio involving the target posterior.
+- Flexibility: Any proposal distribution can be used, but careful tuning (e.g., step size) affects efficiency.
+- Works even for complex, high-dimensional posteriors if tuned well.
+
+**Gibbs Sampling:**
+- A special MCMC case where sampling each parameter (or parameter block) from its conditional posterior distribution is possible.
+- Cycles through parameters, updating each based on the others.
+- Often simpler and more automatic if these conditional distributions are known and easy to sample from.
+- Common in hierarchical Bayesian models and Gaussian-based models.
+
+**R Demonstration (Metropolis-Hastings Outline):**  
+*(Not fully executed due to complexity)*
+
+\`\`\{r mh-demo, echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE\}
+# Pseudocode for a simple Metropolis step (not run):
+# Suppose we want to sample from posterior pi(theta).
+
+theta_current <- 0
+for (i in 1:10000) {
+  # Propose new value from a normal distribution around current
+  theta_proposed <- rnorm(1, mean=theta_current, sd=0.1)
+  
+  # Compute acceptance ratio
+  ratio <- pi(theta_proposed)/pi(theta_current)
+  
+  if (runif(1) < ratio) {
+    theta_current <- theta_proposed
+  }
+  
+  # store theta_current in chain
+}
+\`\`\`
+
+Check acceptance rates and posterior summaries after a burn-in period.
+
+### Hamiltonian Monte Carlo, Stan, and NUTS
+
+**Hamiltonian Monte Carlo (HMC):**
+- A more advanced MCMC algorithm using gradients of the log-posterior to guide proposals.
+- Think of parameters as particles moving through a potential energy landscape, where gradients help navigate efficiently.
+- Typically converges faster and explores high-dimensional spaces more effectively than MH or Gibbs alone.
+
+**No-U-Turn Sampler (NUTS):**
+- An extension of HMC that adapts the path length automatically to avoid unnecessary backtracking.
+- Removes the need to tune certain parameters manually, improving efficiency and user-friendliness.
+
+**Stan:**
+- A popular probabilistic programming language implementing HMC/NUTS.
+- Users specify models in a domain-specific language, and Stan handles MCMC under the hood.
+- Widely used due to reliable inference, automatic differentiation, and strong diagnostics.
+
+**R Demonstration (Stan):**  
+*(Requires `rstan` package and a Stan model file)*
+
+\`\`\{r stan-demo, echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE\}
+library(rstan)
+# Example code (not run):
+# fit <- stan(file="model.stan", data=data_list, iter=2000, chains=4)
+# print(fit)
+# Check traceplots and diagnostics
+\`\`\`
+
+Check convergence with R-hat values, examine traceplots for mixing, and use posterior predictive checks.
+
+### Approximate Bayesian Computation (ABC)
+
+**ABC:**
+- Bayesian inference without a closed-form likelihood.  
+- Instead of evaluating $p(x|\theta)$ directly, simulate data from a model given parameters $\theta$ and compare simulations to observed data using summary statistics or distances.
+- Accept or reject parameter values based on how similar simulated data are to observed data.
+- Useful in complex models (e.g., population genetics, ecology) where likelihoods are intractable.
+
+**Key Steps:**
+1. Propose $\theta$ from a prior.
+2. Simulate data under $\theta$.
+3. Compute summary statistics of simulated and real data.
+4. Accept $\theta$ if difference is small enough.
+
+**Trade-offs:**
+- Choosing appropriate summary statistics is crucial.
+- ABC can be computationally intensive.
+- Introduces approximation error but invaluable when standard likelihood-based methods fail.
+
+**R Demonstration (ABC Concept):**  
+*(Pseudocode)*
+
+\`\`\{r abc-demo, echo=TRUE, message=FALSE, warning=FALSE, eval=FALSE\}
+# Suppose we have a model but no closed-form likelihood.
+# We'll simulate and compare.
+
+for (i in 1:N) {
+  theta_prop <- sample_from_prior()
+  sim_data <- simulate_data(theta_prop)
+  dist <- distance(summary(sim_data), summary(observed_data))
+  if (dist < epsilon) {
+    accepted_thetas <- c(accepted_thetas, theta_prop)
+  }
+}
+\`\`\`
+
+Vary $\epsilon$ (tolerance) to balance acceptance rate and closeness of fit.
+
+---
+
+**Key Takeaways:**
+
+- **Metropolis-Hastings, Gibbs:**  
+  Classic MCMC methods that can approximate complex posteriors. Gibbs is simpler if conditional distributions are known, MH is more general but may need tuning.
+
+- **HMC, NUTS, and Stan:**  
+  Advanced gradient-based MCMC accelerates convergence and handles challenging posteriors. Stan’s user-friendly interface and automatic differentiation help fit complex Bayesian models reliably.
+
+- **Approximate Bayesian Computation (ABC):**  
+  Bypasses likelihood evaluation by simulating data. Indispensable for models with intractable likelihoods, though at the cost of approximation.
+
+These advanced Bayesian computational methods empower modellers to handle previously intractable problems. Whether using Stan for HMC or ABC for likelihood-free inference, Bayesian approaches combined with MCMC unlock sophisticated, data-driven modelling with rich uncertainty quantification.
+
+
+
+## High-Dimensional and Big Data Analytics
+
+As data grow in complexity and volume, traditional methods face challenges in scalability, interpretability, and computational feasibility. **High-dimensional data** (where variables exceed observations) and **big data** (extremely large datasets) demand specialised techniques. Approaches like penalised regression, sparse modelling, and efficient computing frameworks help conquer these hurdles.
+
+### Penalised Methods for Ultra-High Dimensions
+
+When $p \gg n$, ordinary least squares often fails—models can be unstable, overfitting likely, and interpretation troublesome. **Penalised regression methods** (like lasso, ridge, elastic net) address these issues:
+
+- **Ridge, Lasso, Elastic Net** revisited:
+  - Shrink coefficients and perform variable selection to handle vast predictor sets.
+  - Stabilise estimates, improve prediction accuracy.
+- **SCAD, MCP** (other penalties) offer smoother penalties and may have better theoretical properties.
+  
+**Model selection via penalty**:
+- In ultra-high dimensions, stepwise methods or exhaustive search are impossible.
+- Penalties integrated into the estimation handle selection intrinsically.
+- Cross-validation or information criteria guide tuning parameter selection.
+
+### Sparse Modelling, Compressive Sensing
+
+**Sparsity**:
+- Many high-dimensional systems have underlying simplicity: only a few variables matter.
+- Sparse models assume most coefficients are zero or near zero.
+- Lasso and related penalties impose sparsity, aiding interpretability and reducing noise.
+
+**Compressive Sensing**:
+- Originated in signal processing.
+- Recovers signals from fewer measurements than Nyquist-Shannon sampling theory suggests.
+- Relies on sparsity: If the signal is sparse in some basis, few measurements suffice to reconstruct it accurately.
+- Translated to statistical contexts, compressive sensing ideas inspire new algorithms for dimensionality reduction and variable selection.
+
+### Distributed Computing and Parallelisation in R
+
+As datasets surpass single-machine memory or processing capacity, parallel and distributed computing strategies become essential:
+
+- **Parallel Processing in R**:
+  - Use `parallel` package for multicore processing on a single machine.
+  - `mclapply` or `parLapply` distribute tasks over available cores, speeding up computations.
+  - Suitable for embarrassingly parallel problems (e.g., simulations, bootstraps, parameter grids).
+
+- **High-Performance Computing (HPC)**:
+  - Clusters, grids, or cloud computing platforms handle massive datasets.
+  - Use packages like `foreach` with doParallel or `future` frameworks for distributed computations.
+  - Offload computationally expensive tasks to HPC clusters or cloud services.
+
+**R Demonstration (Parallel Processing):**
+
+\`\`\{r parallel-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+library(parallel)
+nCores <- parallel::detectCores()
+
+# Example: Parallel apply for a simulation
+res <- mclapply(1:100, function(i) {
+  # simulate a small dataset and fit a model
+  x <- rnorm(100)
+  y <- x + rnorm(100)
+  coef(lm(y~x))[2] # return slope estimate
+}, mc.cores = min(nCores,4))
+
+res_mean <- mean(unlist(res))
+res_mean
+\`\`\`
+
+Check how parallelisation reduces runtime on multi-core machines.
+
+**Handling Big Data:**
+- **data.table::fread()** is fast for reading large files.
+- Chunk-wise processing or streaming approaches process data in manageable parts.
+- Memory-efficient data structures and summarisation strategies prevent memory overload.
+
+**Scalable Algorithms:**
+- Online or incremental learning algorithms process data batches rather than entire datasets at once.
+- Approximate methods (sketching, sampling) yield insights when full analysis is computationally prohibitive.
+
+---
+
+**Key Takeaways:**
+
+- **Penalised Methods in High Dimensions:**
+  - Regularisation techniques handle the curse of dimensionality by shrinking coefficients, enabling stable, interpretable models from vast predictor sets.
+  
+- **Sparsity and Compressive Sensing:**
+  - Exploit inherent simplicity in data. Sparse solutions enhance interpretability and improve predictions, even when faced with enormous variable counts.
+
+- **Distributed Computing and Parallelisation:**
+  - Harness parallelism and HPC infrastructures to handle big data efficiently.
+  - Use chunked reading, parallel apply functions, and cloud resources for scaling analyses.
+
+In the era of big data and ultra-high dimensional challenges, these strategies ensure that statistics and data analysis remain practical, scalable, and insightful. Penalisation, sparse modelling, and computational techniques together forge a path through the complexities of modern data landscapes.
+
+
+## Machine Learning and Data Mining Techniques
+
+As datasets grow more complex, **machine learning (ML)** and **data mining** provide powerful tools to extract patterns, predict outcomes, and understand complex relationships. Modern ML methods expand traditional statistical approaches, emphasising predictive accuracy, model flexibility, and scalability. Whether through ensemble methods, neural networks, or reinforcement learning, these techniques drive innovation in fields ranging from finance to healthcare and beyond.
+
+### Ensemble Methods (Random Forests, Gradient Boosting)
+
+**Ensemble methods** improve predictions by combining multiple models:
+
+- **Random Forests:**
+  - Build an ensemble of decision trees, each grown on a bootstrap sample of the data and choosing splits from a random subset of predictors.
+  - Aggregate predictions by majority vote (for classification) or averaging (for regression).
+  - Advantages: Usually robust, handles large predictor spaces and missing data gracefully, provides variable importance measures.
+  - Disadvantage: Complex and less interpretable than simpler models.
+
+**Gradient Boosting:**
+- Sequentially build an ensemble of weak learners (often shallow trees), each correcting errors of the previous one.
+- Produces a strong learner that often outperforms single models.
+- Tuning parameters (learning rate, tree depth) crucial for performance.
+- Widely used in competitions and industry due to strong predictive accuracy.
+
+**R Demonstration (Random Forest):**
+
+\`\`\{r rf-demo, echo=TRUE, message=FALSE, warning=FALSE\}
+set.seed(123)
+library(data.table)
+library(ggplot2)
+library(randomForest)
+
+x1 <- rnorm(200)
+x2 <- rnorm(200)
+y <- 3*x1 - 2*x2 + rnorm(200)
+dt_rf <- data.table::data.table(x1=x1, x2=x2, y=y)
+
+rf_mod <- randomForest::randomForest(y ~ x1 + x2, data=dt_rf, ntree=100)
+print(rf_mod)
+\`\`\`
+
+Check OOB error and variable importance via `importance(rf_mod)`.
+
+### Neural Networks and Deep Learning Basics
+
+**Neural Networks:**
+- Inspired by brain structure, networks of artificial neurons learn complex relationships by iterative adjustments of connection weights.
+- For shallow networks: Often used for nonlinear regression, classification, without explicit feature engineering.
+- Training: Minimising a loss function using gradient-based optimisation (e.g., backpropagation).
+
+**Deep Learning:**
+- Deep networks with multiple hidden layers, enabling complex feature extraction automatically.
+- Convolutional Neural Networks (CNNs) for image data, Recurrent Neural Networks (RNNs) or LSTMs for sequence data, Transformers for language.
+- Require large datasets and computational resources, but excel at complex tasks (image recognition, natural language processing).
+
+**R Tools:**
+- Packages like `keras` interface with TensorFlow, enabling R users to build and train deep networks.
+- Works best with GPUs or cloud computing resources for large-scale problems.
+
+**Conceptual Steps:**
+1. Define network architecture (layers, activation functions).
+2. Initialise weights.
+3. Train via gradient descent, adjusting weights to reduce loss.
+4. Evaluate on test data to ensure generalisation.
+
+### Reinforcement Learning Concepts
+
+**Reinforcement Learning (RL):**
+- Agents learn actions by interacting with an environment, receiving rewards or penalties.
+- Goal: Maximise cumulative reward.
+- Different from supervised learning (no labelled target per instance) and unsupervised learning (structure learning). RL involves trial-and-error feedback.
+  
+**Applications:**
+- Robotics: controlling movement by trial-and-error.
+- Games: mastering Chess or Go at superhuman levels.
+- Operations research: optimising resource allocation or scheduling.
+
+**Key Ideas:**
+- Policy: Maps states to actions.
+- Value Function: Estimates future rewards.
+- Methods: Q-Learning, Policy Gradients, Actor-Critic frameworks, all aim to improve decision-making over time.
+
+**R Tools for RL:**  
+- Less mature than Python ecosystem.
+- Nevertheless, conceptual understanding allows applying RL algorithms or interfacing R with specialised RL libraries via reticulate for Python integration.
+
+---
+
+**Key Takeaways:**
+
+- **Ensemble Methods:**  
+  Combine multiple models for stronger predictions. Random forests and gradient boosting are industry favourites due to excellent performance and robustness.
+
+- **Neural Networks and Deep Learning:**  
+  Power state-of-the-art solutions in image, text, and speech domains. Deep architectures automatically learn representations but need substantial data and compute.
+
+- **Reinforcement Learning:**  
+  An interactive learning paradigm focusing on actions and rewards. Used to solve complex decision-making problems autonomously.
+
+Incorporating these ML and data mining techniques enriches your analytical toolkit. While classical statistical models focus on inference and uncertainty quantification, ML emphasizes predictive accuracy, scalability, and performance. By blending both worlds, you navigate a wide spectrum of modelling challenges efficiently and insightfully.
