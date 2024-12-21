@@ -25,6 +25,7 @@ if (knitr::is_html_output()) knitr::knit_hooks$set(
   }
 )
 
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/courses/posts/introduction-to-statistics-with-R/src/")
 knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
 knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
 ```
@@ -41,7 +42,7 @@ We embark on a journey that intertwines the conceptual foundations of statistics
 
 - **Real-World Relevance**: Our examples are not just toy illustrations. We will frequently draw upon publicly available datasets, guiding you through realistic workflows: data cleaning, exploratory analysis, model building, and interpretation of results. We will employ real-world datasets such as flight delays, climate data, and economic indicators to ensure that you gain practical, transferrable skills.
 
-- **Mathematical Foundations**: In addition to coding and application, this book will not shy away from the mathematics underlying statistical techniques. We will use formulas, derivations, and step-by-step logic to give you a deeper understanding. For example, when discussing the mean, we will note that the arithmetic mean of a set of values \( x_1, x_2, \ldots, x_n \) is given by:
+- **Mathematical Foundations**: In addition to coding and application, this book will not shy away from the mathematics underlying statistical techniques. We will use formulas, derivations, and step-by-step logic to give you a deeper understanding. For example, when discussing the mean, we will note that the arithmetic mean of a set of values $ x_1, x_2, \ldots, x_n $ is given by:
   
   $$
   \bar{x} = \frac{1}{n}\sum_{i=1}^n x_i
@@ -91,6 +92,13 @@ The dataset, in 3878388.csv, was downloaded from the NOAA Climate Data Online po
   - TMAX: Maximum daily temperature
   - TMIN: Minimum daily temperature
 
+This is what the dataset looks like:
+
+```{r print-moscow-temperature-dt}
+temp_data <- data.table::fread("./data/3878388.csv")
+print(temp_data)
+```
+
 Each row corresponds to a single day's measurements, and each column represents a specific variable or attribute. Notably, the dataset also contains attribute columns with quality flags and source indicators (e.g., TAVG_ATTRIBUTES, TMAX_ATTRIBUTES), which often appear as codes separated by commas. These flags help users understand the quality and origin of the data but can be safely ignored for basic statistical analysis.
 
 Here is a brief overview of some key columns:
@@ -111,8 +119,6 @@ With this understanding in place, let's illustrate how to read and summarise the
 	5. Compute monthly average temperatures and print the results.
 
 ```{r read-summarise-moscow-temperature}
-temp_data <- data.table::fread("./client/src/app/courses/posts/introduction-to-statistics-with-R/src/data/3878388.csv")
-
 # Convert DATE to a proper date format
 temp_data[, DATE := lubridate::as_date(DATE)]
 
@@ -215,13 +221,13 @@ Throughout the book, we may provide footnotes for additional reading, cautionary
 *How do we present code, formulas, and various important elements consistently throughout the text? By establishing clear conventions and notation, we ensure a smooth reading experience.*
 
 - **Mathematical Symbols and Equations**:  
-  We present mathematical equations in a readable manner. Inline math like \( x_i \) appears in the flow of text, while more complex equations are displayed:
+  We present mathematical equations in a readable manner. Inline math like $ x_i $ appears in the flow of text, while more complex equations are displayed:
   
   $$
   \bar{X} = \frac{1}{n}\sum_{i=1}^{n}X_i
   $$
 
-  This allows you to easily spot crucial formulas. We also make sure to explain every symbol at least once. For example, \( \bar{X} \) denotes the sample mean, \( X_i \) represents the \( i^{th} \) data point, and \( n \) is the sample size.
+  This allows you to easily spot crucial formulas. We also make sure to explain every symbol at least once. For example, $ \bar{X} $ denotes the sample mean, $ X_i $ represents the $ i^{th} $ data point, and $ n $ is the sample size.
 
 - **R Code Snippets**:  
   Throughout this book, you will find code blocks that demonstrate how to perform certain operations in R. Since we are focusing on Base R and `data.table::`, you will see code like this:
