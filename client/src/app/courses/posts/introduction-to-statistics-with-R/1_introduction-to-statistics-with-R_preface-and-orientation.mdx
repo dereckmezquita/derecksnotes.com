@@ -13,22 +13,7 @@ output:
     keep_md: true
 ---
 
-```{r setup, include=FALSE}
-# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
-if (knitr::is_html_output()) knitr::knit_hooks$set(
-  plot = function(x, options) {
-    cap  <- options$fig.cap
-    # x <- paste0("/courses/", x)
-    as.character(htmltools::tag(
-        "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
-    ))
-  }
-)
 
-knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/courses/posts/introduction-to-statistics-with-R/src/")
-knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
-knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
-```
 
 # Preface
 
@@ -96,9 +81,52 @@ The dataset, in 3878388.csv, was downloaded from the NOAA Climate Data Online po
 
 This is what the dataset looks like:
 
-```{r print-moscow-temperature-dt}
+
+``` r
 temp_data <- data.table::fread("./data/3878388.csv")
 print(temp_data)
+```
+
+```
+##            STATION       NAME LATITUDE LONGITUDE ELEVATION       DATE  PRCP
+##             <char>     <char>    <num>     <num>     <num>     <IDat> <num>
+##     1: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 1936-12-31    NA
+##     2: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 1937-01-01    NA
+##     3: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 1937-01-02    NA
+##     4: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 1937-01-03    NA
+##     5: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 1937-01-04    NA
+##    ---                                                                     
+## 26661: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 2022-01-06   1.0
+## 26662: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 2022-01-07   0.5
+## 26663: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 2022-01-08   0.3
+## 26664: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 2022-01-11   0.3
+## 26665: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 2022-01-15   1.8
+##        PRCP_ATTRIBUTES  SNWD SNWD_ATTRIBUTES  TAVG TAVG_ATTRIBUTES  TMAX
+##                 <char> <num>          <char> <num>          <char> <num>
+##     1:                    NA                  -8.9            H,,S    NA
+##     2:                    NA                   0.8            H,,S    NA
+##     3:                    NA                  -1.8            H,,S   0.0
+##     4:                    NA                  -1.7            H,,S  -1.1
+##     5:                    NA                  -1.1            H,,S   0.0
+##    ---                                                                  
+## 26661:            B,,S   290             ,,S  -0.1            H,,S   0.5
+## 26662:            B,,S   279             ,,S  -3.8            H,,S    NA
+## 26663:            B,,S   279             ,,S  -5.1            H,,S  -3.3
+## 26664:            B,,S   340             ,,S -10.3            H,,S    NA
+## 26665:            B,,S   290             ,,S  -1.8            H,,S  -1.2
+##        TMAX_ATTRIBUTES  TMIN TMIN_ATTRIBUTES
+##                 <char> <num>          <char>
+##     1:                 -15.0             ,,S
+##     2:                  -7.8             ,,S
+##     3:             ,,S    NA                
+##     4:             ,,S  -2.8             ,,S
+##     5:             ,,S  -2.2             ,,S
+##    ---                                      
+## 26661:             ,,S  -4.6             ,,S
+## 26662:                    NA                
+## 26663:             ,,S  -6.8             ,,S
+## 26664:                    NA                
+## 26665:             ,,S  -2.3             ,,S
 ```
 
 Each row corresponds to a single day's measurements, and each column represents a specific variable or attribute. Notably, the dataset also contains attribute columns with quality flags and source indicators (e.g., TAVG_ATTRIBUTES, TMAX_ATTRIBUTES), which often appear as codes separated by commas. These flags help users understand the quality and origin of the data but can be safely ignored for basic statistical analysis.
@@ -120,7 +148,8 @@ With this understanding in place, let's illustrate how to read and summarise the
 	4. Extract the year and month from each date, and factor the month to ensure correct chronological ordering.
 	5. Compute monthly average temperatures and print the results.
 
-```{r read-summarise-moscow-temperature}
+
+``` r
 # Convert DATE to a proper date format
 temp_data[, DATE := lubridate::as_date(DATE)]
 
@@ -146,7 +175,31 @@ monthly_avg <- monthly_avg[order(month), ]
 
 # print what year to what year this avg is for
 print(stringr::str_interp("Monthly Average Temperatures for Moscow, Russia (${min(temp_data$year)}-${max(temp_data$year)})"))
+```
+
+```
+## [1] "Monthly Average Temperatures for Moscow, Russia (1936-2022)"
+```
+
+``` r
 print(monthly_avg)
+```
+
+```
+##     month mean_temp
+##     <ord>     <num>
+##  1:   Jan -7.939278
+##  2:   Feb -7.226414
+##  3:   Mar -1.902182
+##  4:   Apr  6.160588
+##  5:   May 13.021845
+##  6:   Jun 17.031137
+##  7:   Jul 18.785309
+##  8:   Aug 16.912140
+##  9:   Sep 11.192763
+## 10:   Oct  5.158813
+## 11:   Nov -1.070450
+## 12:   Dec -5.281116
 ```
 
 This approach gives a neat summary of how the temperature varies by month. With just a few lines of code, you've taken a large, raw dataset and shaped it into a form that allows you to draw meaningful insights such as how Moscow's average monthly temperatures rise and fall throughout the year. This kind of data exploration is a powerful first step before you proceed to more complex statistical modelling or inference.
@@ -155,7 +208,8 @@ This approach gives a neat summary of how the temperature varies by month. With 
 
 We can quickly explore the data with `ggplot2`. Here we calculate the monthly average temperature per year and plot the results using a line plot. This visualisation will help us understand how the temperature changes across the months and years.
 
-```{r plot-moscow-temperature-per-month-per-year}
+
+``` r
 # Prepare the data
 temp_per_year <- temp_data[, .(mean_temp = mean(TAVG, na.rm = TRUE)), by = .(year, month)]
 
@@ -176,6 +230,18 @@ ggplot2::ggplot(temp_per_year, ggplot2::aes(x = month, y = mean_temp, group = ye
     legend.position = "none"
   )
 ```
+
+```
+## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+## ℹ Please use `linewidth` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+## generated.
+```
+
+<Figure src="1_introduction-to-statistics-with-R_preface-and-orientation_files/figure-html/plot-moscow-temperature-per-month-per-year-1.png">
+	
+</Figure>
 
 ### Footnotes and Citations
 
@@ -234,7 +300,8 @@ Throughout the book, we may provide footnotes for additional reading, cautionary
 - **R Code Snippets**:  
   Throughout this book, you will find code blocks that demonstrate how to perform certain operations in R. Since we are focusing on Base R and `data.table::`, you will see code like this:
   
-```{r}
+
+``` r
 # Reading data using data.table
 iris_data <- data.table::as.data.table(datasets::iris)
 # Calculate mean Sepal.Length by Species
@@ -242,12 +309,21 @@ iris_summary <- iris_data[ , .(mean_sepal = mean(Sepal.Length)), by = Species]
 print(iris_summary)
 ```
 
+```
+##       Species mean_sepal
+##        <fctr>      <num>
+## 1:     setosa      5.006
+## 2: versicolor      5.936
+## 3:  virginica      6.588
+```
+
 Note how we avoid `library()` calls. Instead, we explicitly use `data.table::` or `ggplot2::` prefixes, making it absolutely clear which package a function originates from. This approach also reduces the risk of namespace conflicts.
 
 - **Figures and Visualisations**:  
   When we show a plot, we provide the code that generated it usually using `ggplot2::` for clarity. For example:
   
-```{r}
+
+``` r
 ggplot2::ggplot(data = iris_data, ggplot2::aes(x = Species, y = Sepal.Length)) +
   ggplot2::geom_boxplot(fill = "lightgreen", colour = "darkgreen") +
   ggplot2::labs(
@@ -256,6 +332,10 @@ ggplot2::ggplot(data = iris_data, ggplot2::aes(x = Species, y = Sepal.Length)) +
     y = "Sepal Length (cm)"
   )
 ```
+
+<Figure src="1_introduction-to-statistics-with-R_preface-and-orientation_files/figure-html/unnamed-chunk-2-1.png">
+	
+</Figure>
   
 Such visual conventions help connect the written explanation with a tangible image.
 
@@ -295,17 +375,47 @@ There are multiple ways of installing R and setting up your development environm
 - **Verifying Your Installation**:  
   After installing R, open R or RStudio and type:
   
-```{r}
+
+``` r
 R.version
+```
+
+```
+##                _                           
+## platform       aarch64-apple-darwin23.4.0  
+## arch           aarch64                     
+## os             darwin23.4.0                
+## system         aarch64, darwin23.4.0       
+## status                                     
+## major          4                           
+## minor          4.1                         
+## year           2024                        
+## month          06                          
+## day            14                          
+## svn rev        86737                       
+## language       R                           
+## version.string R version 4.4.1 (2024-06-14)
+## nickname       Race for Your Life
 ```
   
 You should see details about your R version. Then, try installing and loading the `data.table::` package:
 
-```{r}
+
+``` r
 # install.packages("data.table")
 # Now load it explicitly using the double colon syntax
 DT <- data.table::data.table(x = 1:5, y = letters[1:5])
 print(DT)
+```
+
+```
+##        x      y
+##    <int> <char>
+## 1:     1      a
+## 2:     2      b
+## 3:     3      c
+## 4:     4      d
+## 5:     5      e
 ```
   
 This should print a small table of data, confirming that `data.table::` is working.
