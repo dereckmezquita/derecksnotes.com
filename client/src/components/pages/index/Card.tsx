@@ -13,6 +13,7 @@ const PostMeta = styled.div`
     padding-top: 7px;
     padding-bottom: 7px;
 `;
+
 const PostTitle = styled.div`
     font-size: 15px;
     text-transform: uppercase;
@@ -54,6 +55,7 @@ const CardContainerBase = css`
         1px 1px 20px rgba(153, 153, 153, 0.5),
         0 0 20px rgba(100, 100, 40, 0.2) inset;
     text-align: center;
+    position: relative;
 
     &:hover {
         box-shadow:
@@ -101,6 +103,33 @@ const Date = styled.span`
     color: ${(props) => props.theme.theme_colours[5]()};
 `;
 
+/**
+ * Tiny circular like badge
+ * - Absolutely positioned in the bottom-right corner
+ * - Uses theme colours if likes > 0 or likes < 0
+ * - Not displayed at all if likes is undefined or 0
+ */
+const LikeBadge = styled.span<{ likes: number }>`
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+    font-size: 0.8rem;
+    /* font-weight: bold; */
+
+    color: ${(props) =>
+        props.likes > 0
+            ? props.theme.likeBadge.positiveColour
+            : props.theme.likeBadge.negativeColour};
+`;
+
 interface CardProps {
     post: PostMetadata;
     section: string;
@@ -130,6 +159,10 @@ function Card({ post, section }: CardProps) {
                 <DropCap>{firstLetter}</DropCap>
                 {restOfSummary}... <Date>{post.date}</Date>
             </Summary>
+
+            {typeof post.likes === 'number' && post.likes !== 0 && (
+                <LikeBadge likes={post.likes}>{post.likes}</LikeBadge>
+            )}
         </CardContainer>
     );
 }
