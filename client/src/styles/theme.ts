@@ -108,5 +108,11 @@ export const theme = {
         accent5: '#B5CC18',
         anchor: '#106BA3',
         anchorHover: '#253238'
+    },
+    likeBadge: {
+        positiveBackground: '#c8ffc8',
+        negativeBackground: '#ffc8c8',
+        positiveColour: '#2e7d32',
+        negativeColour: '#c62828'
     }
 };
