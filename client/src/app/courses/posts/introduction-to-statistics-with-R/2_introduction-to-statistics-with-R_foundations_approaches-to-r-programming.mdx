@@ -1,6 +1,6 @@
 ---
 title: "Introduction to Statistics with R"
-subtitle: "Chapter 2: Approaches to R Programming"
+subtitle: "Approaches to R Programming"
 blurb: "File war tea"
 coverImage: 13
 author: "Dereck Mezquita"
@@ -14,6 +14,8 @@ output:
 ---
 
 
+
+# Approaches to R Programming
 
 ## Table of contents
 
@@ -144,7 +146,7 @@ print(basic_mean)
 ```
 
 ```
-## [1] 5.056877
+## [1] 5.047464
 ```
   
   While this seems trivial, it demonstrates how no additional packages are needed for fundamental computations. Base R also provides plotting functions (`plot()`, `hist()`) to quickly visualise data. Although we will often use `ggplot2::` for more sophisticated visuals, Base R plots are reliable fallbacks.
@@ -182,10 +184,10 @@ print(regional_sales)
 ```
 ##    region total_sales
 ##    <char>       <num>
-## 1:  North     1251468
-## 2:  South     1254761
-## 3:   East     1252753
-## 4:   West     1248764
+## 1:  North     1248299
+## 2:  South     1251326
+## 3:   East     1246291
+## 4:   West     1254925
 ```
   
   This single line inside `data.table::` shows exactly what you are doing: taking `sales_data`, grouping it by `region`, and summing `sales`.
