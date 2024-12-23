@@ -1,6 +1,6 @@
 // components that are common between displaying a post and dictionaries
 'use client';
-import styled from 'styled-components';
+import styled, { css } from 'styled-components';
 import Link from 'next/link';
 
 import { SiteName } from '@components/ui/Logo';
@@ -50,7 +50,9 @@ export const SideBarEntriesContainer = styled.div`
     text-align: left;
 `;
 
-export const SideEntryLink = styled(Link)`
+// NOTE: create base CSS and then inherit to two separate components
+// useful when you want a div with styles and a Link with the same styles
+const baseSideEntryStyles = css`
     display: block;
     font-size: 13px;
     text-decoration: none;
@@ -60,6 +62,14 @@ export const SideEntryLink = styled(Link)`
         color: ${(props) => props.theme.text.colour.anchor()};
         text-decoration: underline;
     }
+`;
+
+export const SideEntry = styled.div`
+    ${baseSideEntryStyles}
+`;
+
+export const SideEntryLink = styled(Link)`
+    ${baseSideEntryStyles}
 `;
 
 export const SideBarAboutContainer = styled.div`
