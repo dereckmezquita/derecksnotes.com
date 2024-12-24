@@ -3,10 +3,7 @@ import React from 'react';
 import { APPLICATION_DESCRIPTION } from '@lib/constants';
 import { Metadata } from 'next';
 
-import {
-    PostMetadata,
-    getPostsWithSection
-} from '@utils/mdx/fetchPostsMetadata';
+import { PostMetadata, getSectionPosts } from '@utils/mdx/fetchPostsMetadata';
 import { Index } from '@components/pages/index/Index';
 
 export const metadata: Metadata = {
@@ -15,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 async function Page() {
-    const posts: PostMetadata[] = getPostsWithSection('courses');
+    const posts: PostMetadata[] = getSectionPosts('courses');
 
     return <Index posts={posts} />;
 }
