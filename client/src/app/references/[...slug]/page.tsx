@@ -7,7 +7,7 @@ import { Post } from '@components/pages/Post';
 import {
     PostMetadata,
     extractSinglePostMetadata,
-    getPostsWithSection
+    getSideBarPosts
 } from '@utils/mdx/fetchPostsMetadata';
 import { accessReadFile } from '@utils/accessReadFile';
 import { Metadata } from 'next';
@@ -65,7 +65,7 @@ async function Page({ params }: PageProps) {
     // Join segments to form the relative path to the file
     const absPath: string = path.join(absDir, ...decodedSegments) + '.mdx';
 
-    const sideBarPosts = getPostsWithSection(section);
+    const sideBarPosts = getSideBarPosts(section);
     const markdown = await accessReadFile(absPath);
 
     if (!markdown) {
