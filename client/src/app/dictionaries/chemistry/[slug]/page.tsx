@@ -40,7 +40,6 @@ interface PageProps {
 
 async function Page({ params }: PageProps) {
     const decodedSlug = decodeSlug(params.slug);
-    const sideBarDefintiions = fetchDefintionsMetadata(absDir);
 
     const absPath: string = path.join(absDir, decodedSlug + '.mdx');
     const markdown = await accessReadFile(absPath);
@@ -51,6 +50,11 @@ async function Page({ params }: PageProps) {
 
     const { source, frontmatter } =
         await processMdx<DefinitionMetadata>(markdown);
+
+    const sideBarDefintiions = fetchDefintionsMetadata(
+        absDir,
+        frontmatter.word
+    );
 
     if (!frontmatter.published) {
         notFound();
