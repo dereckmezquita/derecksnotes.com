@@ -17,9 +17,9 @@ output:
 
 <a id="ppo">PPO (Proximal Policy Optimization)</a> - An advanced **reinforcement learning** algorithm by OpenAI, improving **policy gradient** methods by controlling how far the new policy can deviate from the old policy. The objective uses a **clipped** surrogate function:
 
-'62203'
+$$
 L^{\mathrm{CLIP}}(\theta) = \hat{\mathbb{E}}_t\Bigl[\min(r_t(\theta)\hat{A}_t, \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t)\Bigr],
-'62203'
+$$
 where:
 - \(r_t(\theta) = \frac{\pi_{\theta}(a_t\mid s_t)}{\pi_{\theta_{old}}(a_t\mid s_t)}\),
 - \(\hat{A}_t\) is an advantage estimate at time t,

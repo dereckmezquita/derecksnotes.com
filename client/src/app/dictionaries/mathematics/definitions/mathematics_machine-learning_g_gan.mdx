@@ -18,9 +18,9 @@ output:
 
 <a id="gan">GAN (Generative Adversarial Network)</a> - A **GAN** consists of two **neural networks**: a **generator** $G$ that produces synthetic data from random noise, and a **discriminator** $D$ that tries to distinguish real data from generated data. They play a minimax game:
 
-'62203'
+$$
 \min_G \max_D \mathbb{E}_{x\sim p_{data}}[\log D(x)] + \mathbb{E}_{z\sim p_z}[\log(1 - D(G(z)))].
-'62203'
+$$
 
 **Key points**:
 - The generator improves to fool the discriminator, while the discriminator improves to detect fakes.

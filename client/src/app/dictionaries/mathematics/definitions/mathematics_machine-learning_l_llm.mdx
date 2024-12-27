@@ -23,9 +23,9 @@ output:
 
 **Mathematical gist**:
 At each token step, an LLM computes a probability distribution over the vocabulary:
-'62203'
+$$
 p(x_{t+1}\mid x_{1:\dots:t}) = \mathrm{softmax}(h_t W_{\text{vocab}}),
-'62203'
+$$
 where $h_t$ is the hidden representation after attention layers.
 
 **R demonstration** (We can show a mini example of text generation with `keras`, but typically giant LLM training isn't feasible in R. We'll do conceptual snippet):

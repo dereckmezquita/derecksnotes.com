@@ -19,9 +19,9 @@ output:
 <a id="knn">K-Nearest Neighbors (KNN)</a> - A **KNN** classifier (or regressor) predicts the label (or value) of a new point \(x_{new}\) by looking at the **k** closest points (in some [distance](#distance) metric) in the training set. For classification, it uses a majority vote among neighbors; for regression, it averages the neighbor values.
 
 **Mathematical form** (for classification):
-'60830'
+$$
 \hat{y}(x_{new}) = \text{majority-label}\bigl( y_i : x_i \in \mathcal{N}_k(x_{new})\bigr),
-'60830'
+$$
 where \( \mathcal{N}_k(x_{new}) \) is the set of k nearest neighbors under a chosen distance (often Euclidean).
 
 **R demonstration** (using `class::knn` for classification):
