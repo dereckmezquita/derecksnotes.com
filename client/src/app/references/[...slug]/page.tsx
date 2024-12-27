@@ -55,11 +55,7 @@ export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
     });
 }
 
-interface PageProps {
-    params: { slug: string[] };
-}
-
-async function Page({ params }: PageProps) {
+async function Page({ params }: { params: { slug: string[] } }) {
     // Decode each segment
     const decodedSegments = params.slug.map(decodeSlug);
     // Join segments to form the relative path to the file
@@ -111,7 +107,11 @@ async function Page({ params }: PageProps) {
 
 export default Page;
 
-export function generateMetadata({ params }: PageProps): Metadata {
+export function generateMetadata({
+    params
+}: {
+    params: { slug: string[] };
+}): Metadata {
     const decodedSegments = params.slug.map(decodeSlug);
     const filePath: string = path.join(absDir, ...decodedSegments) + '.mdx';
     const post: PostMetadata = extractSinglePostMetadata(filePath);
