@@ -16,16 +16,16 @@ output:
 
 
 
-<a id="q-learning">Q-Learning</a> - A **reinforcement learning** algorithm that learns a value function \(Q(s,a)\) giving the expected **cumulative reward** for taking action \(a\) in state \(s\), then following some policy. The update rule:
+<a id="q-learning">Q-Learning</a> - A **reinforcement learning** algorithm that learns a value function $Q(s,a)$ giving the expected **cumulative reward** for taking action $a$ in state $s$, then following some policy. The update rule:
 
 $$
 Q(s,a) \leftarrow Q(s,a) + \alpha \bigl[r + \gamma \max_{a'}Q(s', a') - Q(s,a)\bigr]
 $$
 
 where:
-- \(\alpha\) is the learning rate,
-- \(\gamma\) is the discount factor,
-- \(r\) is the immediate reward after performing action \(a\) in state \(s\) to reach new state \(s'\).
+- $\alpha$ is the learning rate,
+- $\gamma$ is the discount factor,
+- $r$ is the immediate reward after performing action $a$ in state $s$ to reach new state $s'$.
 
 **Key points**:
 - Model-free: no prior knowledge of environment dynamics is needed.
@@ -69,8 +69,8 @@ Q
 ```
 ##       left    right
 ## 1 0.000000 0.000000
-## 2 0.000000 7.754629
-## 3 6.652809 8.946853
-## 4 7.690239 9.975350
+## 2 0.000000 6.151484
+## 3 5.053238 8.910591
+## 4 7.515370 9.953616
 ## 5 0.000000 0.000000
 ```

@@ -28,16 +28,16 @@ knitr::knit_hooks$set(optipng=knitr::hook_optipng)
 knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
 ```
 
-<a id="q-learning">Q-Learning</a> - A **reinforcement learning** algorithm that learns a value function \(Q(s,a)\) giving the expected **cumulative reward** for taking action \(a\) in state \(s\), then following some policy. The update rule:
+<a id="q-learning">Q-Learning</a> - A **reinforcement learning** algorithm that learns a value function $Q(s,a)$ giving the expected **cumulative reward** for taking action $a$ in state $s$, then following some policy. The update rule:
 
 $$
 Q(s,a) \leftarrow Q(s,a) + \alpha \bigl[r + \gamma \max_{a'}Q(s', a') - Q(s,a)\bigr]
 $$
 
 where:
-- \(\alpha\) is the learning rate,
-- \(\gamma\) is the discount factor,
-- \(r\) is the immediate reward after performing action \(a\) in state \(s\) to reach new state \(s'\).
+- $\alpha$ is the learning rate,
+- $\gamma$ is the discount factor,
+- $r$ is the immediate reward after performing action $a$ in state $s$ to reach new state $s'$.
 
 **Key points**:
 - Model-free: no prior knowledge of environment dynamics is needed.

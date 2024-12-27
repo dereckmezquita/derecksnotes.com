@@ -21,9 +21,9 @@ $$
 L^{\mathrm{CLIP}}(\theta) = \hat{\mathbb{E}}_t\Bigl[\min(r_t(\theta)\hat{A}_t, \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t)\Bigr],
 $$
 where:
-- \(r_t(\theta) = \frac{\pi_{\theta}(a_t\mid s_t)}{\pi_{\theta_{old}}(a_t\mid s_t)}\),
-- \(\hat{A}_t\) is an advantage estimate at time t,
-- \(\epsilon\) is a hyperparameter (like 0.1 or 0.2).
+- $r_t(\theta) = \frac{\pi_{\theta}(a_t\mid s_t)}{\pi_{\theta_{old}}(a_t\mid s_t)}$,
+- $\hat{A}_t$ is an advantage estimate at time t,
+- $\epsilon$ is a hyperparameter (like 0.1 or 0.2).
 
 **Key points**:
 - Prevents large policy updates that break old policy.

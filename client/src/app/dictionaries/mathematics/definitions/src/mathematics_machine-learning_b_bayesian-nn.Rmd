@@ -28,14 +28,14 @@ knitr::knit_hooks$set(optipng=knitr::hook_optipng)
 knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
 ```
 
-<a id="bayesian-nn">Bayesian Neural Network</a> - A **Bayesian Neural Network** places a **probabilistic prior** over neural network weights, updating to a posterior distribution given data. Rather than point estimates for weights \(W\), we approximate \(p(W \mid D)\).
+<a id="bayesian-nn">Bayesian Neural Network</a> - A **Bayesian Neural Network** places a **probabilistic prior** over neural network weights, updating to a posterior distribution given data. Rather than point estimates for weights $W$, we approximate $p(W \mid D)$.
 
 **Math**:
 We want:
 $$
 p(W \mid D) \propto p(D \mid W) p(W),
 $$
-where \(p(D\mid W)\) is the likelihood of data given weights, and \(p(W)\) is a prior. Exact posteriors are intractable, so we approximate (e.g., via **variational inference** or MCMC).
+where $p(D\mid W)$ is the likelihood of data given weights, and $p(W)$ is a prior. Exact posteriors are intractable, so we approximate (e.g., via **variational inference** or MCMC).
 
 **R demonstration** (One might use `brms` or `rstan` for a small Bayesian approach. We'll do a conceptual snippet with `brms` for regression):
 

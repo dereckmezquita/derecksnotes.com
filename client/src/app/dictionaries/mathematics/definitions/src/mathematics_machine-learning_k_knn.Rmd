@@ -30,13 +30,13 @@ knitr::knit_hooks$set(optipng=knitr::hook_optipng)
 knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
 ```
 
-<a id="knn">K-Nearest Neighbors (KNN)</a> - A **KNN** classifier (or regressor) predicts the label (or value) of a new point \(x_{new}\) by looking at the **k** closest points (in some [distance](#distance) metric) in the training set. For classification, it uses a majority vote among neighbors; for regression, it averages the neighbor values.
+<a id="knn">K-Nearest Neighbors (KNN)</a> - A **KNN** classifier (or regressor) predicts the label (or value) of a new point $x_{new}$ by looking at the **k** closest points (in some [distance](#distance) metric) in the training set. For classification, it uses a majority vote among neighbors; for regression, it averages the neighbor values.
 
 **Mathematical form** (for classification):
 $$
 \hat{y}(x_{new}) = \text{majority-label}\bigl( y_i : x_i \in \mathcal{N}_k(x_{new})\bigr),
 $$
-where \( \mathcal{N}_k(x_{new}) \) is the set of k nearest neighbors under a chosen distance (often Euclidean).
+where $ \mathcal{N}_k(x_{new}) $ is the set of k nearest neighbors under a chosen distance (often Euclidean).
 
 **R demonstration** (using `class::knn` for classification):
 
