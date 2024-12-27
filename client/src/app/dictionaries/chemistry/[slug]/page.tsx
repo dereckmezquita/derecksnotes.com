@@ -34,7 +34,11 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
     });
 }
 
-async function Page({ params }: { params: { slug: string } }) {
+interface PageProps {
+    params: { slug: string };
+}
+
+async function Page({ params }: PageProps) {
     const decodedSlug = decodeSlug(params.slug);
 
     const absPath: string = path.join(absDir, decodedSlug + '.mdx');
@@ -74,11 +78,7 @@ async function Page({ params }: { params: { slug: string } }) {
 
 export default Page;
 
-export function generateMetadata({
-    params
-}: {
-    params: { slug: string };
-}): Metadata {
+export function generateMetadata({ params }: PageProps): Metadata {
     const decodedSlug = decodeSlug(params.slug);
     const filename: string = decodedSlug + '.mdx';
     const filePath: string = path.join(absDir, filename);
