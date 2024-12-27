@@ -1,0 +1,66 @@
+---
+letter: 'p'
+word: 'ppo'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['reinforcement-learning','markov-chain','policy-gradient']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x, options){
+      cap<-options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="ppo">PPO (Proximal Policy Optimization)</a> - An advanced **reinforcement learning** algorithm by OpenAI, improving **policy gradient** methods by controlling how far the new policy can deviate from the old policy. The objective uses a **clipped** surrogate function:
+
+'62203'
+L^{\mathrm{CLIP}}(\theta) = \hat{\mathbb{E}}_t\Bigl[\min(r_t(\theta)\hat{A}_t, \mathrm{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t)\Bigr],
+'62203'
+where:
+- \(r_t(\theta) = \frac{\pi_{\theta}(a_t\mid s_t)}{\pi_{\theta_{old}}(a_t\mid s_t)}\),
+- \(\hat{A}_t\) is an advantage estimate at time t,
+- \(\epsilon\) is a hyperparameter (like 0.1 or 0.2).
+
+**Key points**:
+- Prevents large policy updates that break old policy.
+- Often combined with a value function critic for advantage estimation.
+
+**R demonstration** (No standard PPO in base R, but let's conceptually illustrate partial code with `rlang`? We'll do a simplified snippet):
+
+```{r}
+library(data.table)
+set.seed(123)
+cat("Implementing PPO in pure R is possible but quite complex. We'll pseudo-code a single update step:")
+
+ppo_update_step <- function(log_prob_old, log_prob_new, advantage, epsilon=0.2) {
+  ratio <- exp(log_prob_new - log_prob_old)
+  unclipped <- ratio * advantage
+  clipped <- pmax(pmin(ratio, 1+epsilon), 1-epsilon)* advantage
+  # Surrogate objective
+  obj <- mean(pmin(unclipped, clipped))
+  obj
+}
+
+log_prob_old <- rnorm(10, mean=-1)
+log_prob_new <- log_prob_old + rnorm(10, mean=0, sd=0.1)
+advantage    <- rnorm(10, mean=1, sd=0.5)
+ppo_update_step(log_prob_old, log_prob_new, advantage, 0.2)
+```

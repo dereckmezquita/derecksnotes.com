@@ -1,0 +1,63 @@
+---
+letter: 'p'
+word: 'poisson-distribution'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution','mean']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="poisson-distribution">Poisson Distribution</a> - In **probability**, the **Poisson distribution** is a discrete [distribution](#distribution) describing the probability of a number of events occurring in a fixed interval, given the events occur with a known average rate (the [mean](#mean)) and independently of the time since the last event.
+
+Its pmf for $k=0,1,2,\dots$ is:
+
+'57323'
+P(X=k) = \frac{\lambda^k e^{-\lambda}}{k!},
+'57323'
+
+where '57323'\lambda'57323' is both the mean and the variance of the distribution.
+
+**R demonstration**:
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+lambda_val <- 4
+dt_pois <- data.table(k = 0:15)
+dt_pois[, prob := dpois(k, lambda_val)]
+
+ggplot(dt_pois, aes(x=factor(k), y=prob)) +
+  geom_col(fill="lightblue", color="black") +
+  labs(
+    title=paste("Poisson distribution with lambda =", lambda_val),
+    x="k",
+    y="Probability"
+  ) +
+  theme_minimal()
+```

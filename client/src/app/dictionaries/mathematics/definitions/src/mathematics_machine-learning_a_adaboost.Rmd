@@ -1,0 +1,93 @@
+---
+letter: 'a'
+word: 'adaboost'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['gradient-boosting','decision-tree','ensemble-method']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x, options){
+      cap<-options$fig.cap
+      as.character(htmltools::tag("Figure",
+        list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
+      ))
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="adaboost">AdaBoost</a> - In **machine learning**, **AdaBoost** (Adaptive Boosting) is an **ensemble method** that combines multiple “weak” learners (often [decision-tree](#decision-tree) stumps) in a stagewise manner. At iteration $m$:
+
+1. Compute weighted error:
+'61628'
+\epsilon_m = \frac{\sum_{i=1}^n w_i^{(m)} I\bigl( h_m(x_i) \neq y_i \bigr)}{\sum_{i=1}^n w_i^{(m)} }.
+'61628'
+
+2. Compute learner weight:
+'61628'
+\alpha_m = \frac{1}{2}\ln\Bigl(\frac{1-\epsilon_m}{\epsilon_m}\Bigr).
+'61628'
+
+3. Update sample weights:
+'61628'
+w_i^{(m+1)} = w_i^{(m)} \exp\bigl( -\alpha_m y_i h_m(x_i) \bigr).
+'61628'
+
+where $y_i\in\{-1,+1\}$ in the simplest binary classification setting.
+
+**R demonstration** (using `adabag` package for a small classification example):
+
+```{r}
+library(data.table)
+library(adabag)
+library(ggplot2)
+
+set.seed(123)
+n <- 100
+x1 <- runif(n,0,5)
+x2 <- runif(n,0,5)
+y  <- ifelse(x1 + x2 + rnorm(n) > 5, "A","B")
+
+dt_ada <- data.table(x1,x2,y=as.factor(y))
+train_idx <- sample(1:n, size=80)
+train <- dt_ada[train_idx]
+test  <- dt_ada[-train_idx]
+
+# Adaboost with decision trees
+fit_ada <- boosting(y ~ x1 + x2, data=train, mfinal=20, control=rpart.control(maxdepth=1))
+fit_ada
+
+# Evaluate on test
+pred_ada <- predict.boosting(fit_ada, newdata=test)
+acc <- mean(pred_ada == test$y)
+acc
+
+# Visualise boundary
+grid_x1 <- seq(0,5,by=0.1)
+grid_x2 <- seq(0,5,by=0.1)
+grid_data <- data.table(expand.grid(x1=grid_x1, x2=grid_x2))
+grid_pred <- predict.boosting(fit_ada, newdata=grid_data)
+grid_data[, pred := grid_pred$class]
+
+ggplot() +
+  geom_tile(data=grid_data, aes(x=x1, y=x2, fill=pred), alpha=0.4) +
+  geom_point(data=dt_ada, aes(x=x1, y=x2, color=y), size=2) +
+  scale_fill_manual(values=c("A"="lightblue","B"="salmon")) +
+  scale_color_manual(values=c("A"="blue","B"="red")) +
+  labs(title="AdaBoost with Decision Stumps", x="x1", y="x2") +
+  theme_minimal()
+```

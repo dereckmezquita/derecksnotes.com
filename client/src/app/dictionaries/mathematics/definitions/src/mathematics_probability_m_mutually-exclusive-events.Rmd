@@ -1,0 +1,65 @@
+---
+letter: 'm'
+word: 'mutually-exclusive-events'
+dictionary: 'mathematics'
+category: 'probability'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "probability" or "union". Let's say we reference "union".
+linksTo: ['union']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="mutually-exclusive-events">Mutually Exclusive Events</a> - In **probability**, two events $A$ and $B$ are **mutually exclusive** (or disjoint) if they cannot happen simultaneously:
+
+56872
+A \cap B = \varnothing.
+56872
+
+In other words, $P(A \cap B) = 0$. The [union](#union) of mutually exclusive events has a probability that’s just the sum of their individual probabilities:
+
+56872
+P(A \cup B) = P(A) + P(B),
+56872
+
+since $A$ and $B$ never overlap.
+
+**R demonstration**: no direct R function, but we can illustrate logic:
+
+```{r}
+# Suppose events are flipping a coin:
+# A = heads, B = tails
+# A and B are mutually exclusive.
+
+# We can do a small simulation
+set.seed(123)
+flips <- sample(c("H","T"), size=100, replace=TRUE)
+mean(flips == "H")  # approximate P(A)
+mean(flips == "T")  # approximate P(B)
+# Overlap: none, because a single flip can't be both H and T
+```

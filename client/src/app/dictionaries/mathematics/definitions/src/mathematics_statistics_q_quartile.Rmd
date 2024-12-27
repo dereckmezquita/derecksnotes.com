@@ -1,0 +1,44 @@
+---
+letter: 'q'
+word: 'quartile'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['percentile','median']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="quartile">Quartile</a> - In **statistics**, a **quartile** is a special case of a [percentile](#percentile) that divides the data into four equal parts. The second quartile (Q2) is the [median](#median). The first quartile (Q1) and third quartile (Q3) frame the interquartile range (IQR).
+
+**R demonstration** (computing quartiles via `quantile`):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+dt_vals <- data.table(x = rnorm(100, mean=50, sd=10))
+Q <- quantile(dt_vals$x, probs = c(0.25, 0.5, 0.75))
+Q
+```

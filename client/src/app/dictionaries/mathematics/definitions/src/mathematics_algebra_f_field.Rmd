@@ -1,0 +1,42 @@
+---
+letter: 'f'
+word: 'field'
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['ring','algebra']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()) {
+  knitr::knit_hooks$set(plot = function(x, options){
+    cap <- options$fig.cap
+    as.character(
+      htmltools::tag("Figure",
+        list(src=x, alt=cap, paste("\n\t", cap, "\n", sep=""))
+      )
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="field">Field</a> - In **abstract algebra**, a **field** is a [ring](#ring) in which every nonzero element has a multiplicative inverse. The real numbers \(\mathbb{R}\) and rational numbers \(\mathbb{Q}\) are classic examples of fields.
+
+**Key points**:
+- Both addition and multiplication exist and distribute.
+- Every nonzero element is invertible under multiplication.
+- Foundation of much of modern mathematics (vector spaces, linear algebra).
+
+No direct R demonstration typical.  
+```{r}
+cat("Examples: ℚ, ℝ, ℂ all form fields with standard + and *.")
+```

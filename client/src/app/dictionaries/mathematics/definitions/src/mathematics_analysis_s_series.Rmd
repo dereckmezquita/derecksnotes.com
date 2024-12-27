@@ -1,0 +1,58 @@
+---
+letter: 's'
+word: 'series'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['limit']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="series">Series</a> - In **analysis**, a **series** is the sum of the terms of a sequence:
+
+'57879'
+\sum_{n=1}^{\infty} a_n.
+'57879'
+
+Convergence depends on the [limit](#limit) of partial sums:
+
+'57879'
+S_N = \sum_{n=1}^{N} a_n.
+'57879'
+
+If \(S_N\) approaches a finite value as \(N\to\infty\), the series converges; otherwise, it diverges.
+
+**R demonstration** (partial sums of a series):
+
+```{r}
+library(data.table)
+
+a_n <- function(n) 1/n^2
+N <- 10
+partial_sums <- cumsum(sapply(1:N, a_n))
+partial_sums
+```

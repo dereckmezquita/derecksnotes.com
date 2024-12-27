@@ -1,0 +1,39 @@
+---
+letter: 'c'
+word: cardinality
+dictionary: 'mathematics'
+category: 'set-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['combination','bijection']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="cardinality">Cardinality</a> - In set theory, **cardinality** is a measure of the “number of elements” in a set. For finite sets, cardinality matches the usual concept of counting elements. For infinite sets, cardinalities compare the sizes of infinite sets via **bijections**.
+
+**Examples**:
+- The set $\{1, 2, 3\}$ has cardinality 3.
+- The set of even integers has the same cardinality as the set of all integers ($\aleph_0$), since they can be put into a one-to-one correspondence.
+- The real numbers have a strictly larger cardinality than the integers (uncountable infinity).
+
+Cardinality helps classify and understand different types of infinities and is fundamental to understanding set-theoretic properties, such as countability vs. uncountability.
+

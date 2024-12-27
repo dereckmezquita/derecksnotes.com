@@ -1,0 +1,60 @@
+---
+letter: 'f'
+word: function
+dictionary: 'mathematics'
+category: 'general'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['fourier-transform','fractal']
+linkedFrom: ['factorial']
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.height= 7
+)
+```
+
+<a id="function">Function</a> - A **function** $f$ from a set $A$ to a set $B$ is a rule that assigns each element $a \in A$ exactly one element $f(a) \in B$. We write:
+
+55593
+f: A \to B, \quad a \mapsto f(a).
+55593
+
+**Key points**:
+- Each input has exactly one output (well-defined).
+- One of the most fundamental concepts in mathematics.
+
+**R demonstration** (defining a simple function in R):
+
+```{r}
+library(data.table)
+
+# A function that squares its input
+f <- function(x) x^2
+
+dt_fun <- data.table(
+  x = -3:3
+)
+dt_fun[, f_x := f(x)]
+dt_fun
+```
+

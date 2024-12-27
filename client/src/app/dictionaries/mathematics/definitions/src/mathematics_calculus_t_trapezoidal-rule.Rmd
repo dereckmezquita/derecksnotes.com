@@ -1,0 +1,58 @@
+---
+letter: 't'
+word: 'trapezoidal-rule'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['integral','limit']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="trapezoidal-rule">Trapezoidal Rule</a> - In **numerical integration**, the **trapezoidal rule** approximates the [integral](#integral) of a function by dividing the domain into subintervals and summing trapezoid areas:
+
+'57989'
+\int_a^b f(x)\,dx \approx \sum_{i=1}^{n} \frac{(f(x_i) + f(x_{i-1}))}{2} \Delta x.
+'57989'
+
+where \(\Delta x = \frac{b - a}{n}\).
+
+**R demonstration**:
+
+```{r}
+library(data.table)
+
+f <- function(x) x^2
+trapezoid_rule <- function(f, a, b, n=100) {
+  x_vals <- seq(a, b, length.out=n+1)
+  dx <- (b-a)/n
+  sum( (f(x_vals[-1]) + f(x_vals[-(n+1)]))/2 ) * dx
+}
+
+approx_int <- trapezoid_rule(f, 0, 3, 100)
+true_val <- 3^3/3  # integral of x^2 from 0 to 3 => 9
+c(approx_int, true_val)
+```

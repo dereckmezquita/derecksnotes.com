@@ -1,0 +1,62 @@
+---
+letter: 'n'
+word: 'neural-network'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['function','gradient','backpropagation']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap<- options$fig.cap
+    as.character(
+      htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
+```
+
+<a id="neural-network">Neural Network</a> - In **machine learning**, a **neural network** is a collection of connected units (neurons) arranged in layers. Each neuron computes a weighted sum of inputs, applies an activation [function](#function) \(\sigma\), and passes the result to the next layer.
+
+**Key points**:
+- A typical feed-forward network with one hidden layer might compute:
+  '60196'
+  z_1^{(1)} = \sigma( W_1 x + b_1), \quad z_2^{(2)} = \sigma( W_2 z_1^{(1)} + b_2 ), 
+  '60196'
+- **Training** uses gradient-based optimisation (see [gradient](#gradient)) (e.g., backpropagation) to adjust weights.
+
+**R demonstration** (a small neural network using `nnet` package):
+
+```{r}
+library(data.table)
+library(nnet)
+
+set.seed(123)
+n <- 50
+x <- runif(n, min=0, max=2*pi)
+y <- sin(x) + rnorm(n, sd=0.1)
+
+dt_nn <- data.table(x=x, y=y)
+
+# Fit a small single-hidden-layer neural network
+fit_nn <- nnet(y ~ x, data=dt_nn, size=5, linout=TRUE, trace=FALSE)
+
+# Predictions
+newx <- seq(0,2*pi,length.out=100)
+pred_y <- predict(fit_nn, newdata=data.table(x=newx))
+
+plot(dt_nn, dt_nn, main="Neural Network Demo", pch=19)
+lines(newx, sin(newx), col="blue", lwd=2, lty=2)  # true function
+lines(newx, pred_y, col="red", lwd=2)            # NN approximation
+```

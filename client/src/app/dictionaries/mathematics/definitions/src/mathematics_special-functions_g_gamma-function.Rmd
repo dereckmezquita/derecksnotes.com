@@ -1,0 +1,59 @@
+---
+letter: 'g'
+word: gamma-function
+dictionary: 'mathematics'
+category: 'special-functions'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['group','gradient']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi       = 300,
+  fig.width = 10,
+  fig.height= 7
+)
+```
+
+<a id="gamma-function">Gamma Function</a> - The **Gamma function** generalises the factorial to complex (and real) arguments. For $\Re(z) > 0$,
+
+55763
+\Gamma(z) = \int_{0}^{\infty} t^{z-1} e^{-t}\, dt.
+55763
+
+Key property: $\Gamma(n) = (n-1)!$ for positive integers $n$.
+
+**Key points**:
+- Extends factorial beyond integers (e.g., $\Gamma(1/2) = \sqrt{\pi}$).
+- Appears often in probability (Gamma distribution) and complex analysis.
+
+**R demonstration** (Gamma function values):
+
+```{r}
+library(data.table)
+
+# We'll evaluate Gamma at some points
+dt_gamma <- data.table(x = c(0.5, 1, 2, 3, 4))
+dt_gamma[, gamma_x := gamma(x)]
+
+dt_gamma
+```
+

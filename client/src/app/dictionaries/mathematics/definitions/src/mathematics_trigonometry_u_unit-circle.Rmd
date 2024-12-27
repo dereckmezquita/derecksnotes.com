@@ -1,0 +1,63 @@
+---
+letter: 'u'
+word: 'unit-circle'
+dictionary: 'mathematics'
+category: 'trigonometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['angle','sine','tangent']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="unit-circle">Unit Circle</a> - In **trigonometry**, the **unit circle** is the circle of radius 1 centered at the origin on the Cartesian plane. Angles (see [angle](#angle)) can be visualised by drawing a radius from the origin, with [sine](#sine), cosine, and [tangent](#tangent) values interpreted as coordinates or slopes on this circle.
+
+**Equation**:
+
+'58101'
+x^2 + y^2 = 1.
+'58101'
+
+**R demonstration** (plot a unit circle):
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+theta <- seq(0, 2*pi, length.out=200)
+dt_circle <- data.table(
+  x = cos(theta),
+  y = sin(theta)
+)
+
+ggplot(dt_circle, aes(x=x, y=y)) +
+  geom_path(color="blue") +
+  coord_fixed() +
+  labs(
+    title="Unit Circle",
+    x="x",
+    y="y"
+  ) +
+  theme_minimal()
+```

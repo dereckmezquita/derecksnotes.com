@@ -1,0 +1,57 @@
+---
+letter: 'y'
+word: 'y-axis'
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['coordinate-system','y-intercept']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="y-axis">Y-axis</a> - In a **2D coordinate system**, the **y-axis** is the vertical line used to measure the y-coordinate of points. Typically, positive values extend upward from the origin, while negative values extend downward.
+
+**Key points**:
+- Intersects the x-axis at the origin (0,0).
+- The slope of the y-axis is undefined (vertical line).
+- Used to define a [y-intercept](#y-intercept) for curves.
+
+Basic R demonstration:
+
+```{r}
+library(ggplot2)
+library(data.table)
+
+dt_plot <- data.table(x=0, y=-5:5)
+ggplot(dt_plot, aes(x=x, y=y)) +
+  geom_line() +
+  labs(
+    title="Y-axis (vertical)",
+    x="x",
+    y="y"
+  ) +
+  theme_minimal()
+```

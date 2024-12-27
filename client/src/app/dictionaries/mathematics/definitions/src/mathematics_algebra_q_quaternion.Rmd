@@ -1,0 +1,53 @@
+---
+letter: 'q'
+word: 'quaternion'
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="quaternion">Quaternion</a> - In **algebra**, a **quaternion** is a hypercomplex number of the form
+
+'57581'
+q = a + b\mathbf{i} + c\mathbf{j} + d\mathbf{k},
+'57581'
+
+where $a,b,c,d \in \mathbb{R}$ and \(\mathbf{i}, \mathbf{j}, \mathbf{k}\) follow certain multiplication rules (\(\mathbf{i}^2=\mathbf{j}^2=\mathbf{k}^2= \mathbf{i}\mathbf{j}\mathbf{k} = -1\)).
+
+**Key points**:
+- Noncommutative: \(\mathbf{i}\mathbf{j} = \mathbf{k}\) but \(\mathbf{j}\mathbf{i} = -\mathbf{k}\).
+- Used in 3D rotations (e.g., in computer graphics, robotics).
+
+No direct base R demonstration of quaternions, but certain libraries handle them. Let’s just illustrate we can store them as a list:
+
+```{r}
+library(data.table)
+
+# We'll store quaternions as lists, no direct operation
+q1 <- list(a=1, b=2, c=3, d=-1)
+q1
+```

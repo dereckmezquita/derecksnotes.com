@@ -1,0 +1,72 @@
+---
+letter: 'd'
+word: determinant
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['derivative','dimension']
+linkedFrom: ['algebra']
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag("Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi       = 300,
+  fig.width = 10,
+  fig.height= 7
+)
+```
+
+<a id="determinant">Determinant</a> - For a square matrix $A$, the **determinant** is a scalar that can be computed from the elements of $A$. It provides important information:
+
+- $\det(A) = 0$ indicates $A$ is not invertible (singular).
+- $\det(A) \neq 0$ indicates $A$ is invertible (nonsingular).
+- Geometrically, for a 2D matrix, the absolute value of the determinant gives the area scaling factor of the linear transformation represented by $A$.
+
+**For a 2×2 matrix**:
+
+55354
+A = 
+\begin{pmatrix}
+a & b \\
+c & d
+\end{pmatrix},
+\quad
+\det(A) = ad - bc.
+55354
+
+**Example in R**:
+
+```{r}
+library(data.table)
+
+# We'll create a small data.table of matrix elements
+dt <- data.table(
+  a = 2,
+  b = 1,
+  c = 1,
+  d = 3
+)
+
+# Convert dt to a matrix
+A <- matrix(c(dt$a, dt$b, dt$c, dt$d), nrow=2, byrow=TRUE)
+
+det_A <- det(A)
+det_A
+```
+

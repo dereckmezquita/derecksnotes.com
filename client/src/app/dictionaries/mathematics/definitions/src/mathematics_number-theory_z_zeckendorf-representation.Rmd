@@ -1,0 +1,64 @@
+---
+letter: 'z'
+word: 'zeckendorf-representation'
+dictionary: 'mathematics'
+category: 'number-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="zeckendorf-representation">Zeckendorf Representation</a> - In **number theory**, **Zeckendorf’s theorem** states every positive integer can be uniquely written as a sum of nonconsecutive Fibonacci numbers. This sum is called the **Zeckendorf representation**. For example, 17 = 13 + 3 + 1 uses Fibonacci numbers (1,2,3,5,8,13, ...).
+
+**Key points**:
+- No two consecutive Fibonacci numbers are used in the representation.
+- The representation is unique for each positive integer.
+
+**R demonstration** (a naive function to find Zeckendorf representation):
+
+```{r}
+library(data.table)
+
+zeckendorf <- function(n) {
+  # build fibonacci up to n
+  fib <- c(1,2)
+  while(tail(fib,1) < n) {
+    fib <- c(fib, fib[length(fib)] + fib[length(fib)-1])
+  }
+  representation <- c()
+  remaining <- n
+  for (f in rev(fib)) {
+    if (f <= remaining) {
+      representation <- c(representation, f)
+      remaining <- remaining - f
+    }
+  }
+  representation
+}
+
+zeckendorf(17)  # expect 13,3,1
+```

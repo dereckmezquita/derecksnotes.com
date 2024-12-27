@@ -1,0 +1,66 @@
+---
+letter: 'l'
+word: 'linear-regression'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['covariance','mean','variance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap <- options$fig.cap
+    as.character(
+      htmltools::tag("Figure",
+        list(src=x, alt=cap, paste("\n\t", cap, "\n", sep=""))
+      )
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
+```
+
+<a id="linear-regression">Linear Regression</a> - In **machine learning** and statistics, **linear regression** models the relationship between a scalar response $y$ and one or more explanatory variables (features) $x_1, x_2, \dots, x_n$ by fitting a linear equation:
+
+'60196'
+y \approx \beta_0 + \beta_1 x_1 + \cdots + \beta_n x_n.
+'60196'
+
+**Key points**:
+- **Least squares** estimates the coefficients \(\beta_i\) by minimising the sum of squared residuals.
+- The fitted line (or hyperplane in multiple dimensions) can be used for prediction and inference.
+
+**Mathematical formula**:
+If we have data \((x_i, y_i)\) for i=1..m in a single-feature scenario, the sum of squared errors is:
+'60196'
+S(\beta_0,\beta_1) = \sum_{i=1}^m \bigl(y_i - (\beta_0 + \beta_1 x_i)\bigr)^2.
+'60196'
+We find \(\beta_0, \beta_1\) that minimise this sum.
+
+**R demonstration** (fitting a simple linear regression using base R):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+n <- 20
+x <- runif(n, min=0, max=10)
+y <- 3 + 2*x + rnorm(n, mean=0, sd=2)  # "true" slope=2, intercept=3
+
+dt_lr <- data.table(x=x, y=y)
+fit <- lm(y ~ x, data=dt_lr)
+summary(fit)
+
+# Plot
+plot(y ~ x, data=dt_lr, pch=19, main="Linear Regression Demo")
+abline(fit, col="red", lwd=2)
+```

@@ -1,0 +1,85 @@
+---
+letter: 'k'
+word: 'knn'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distance','classification','regression']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x, options){
+      cap<-options$fig.cap
+      as.character(htmltools::tag("Figure",
+        list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
+      ))
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
+```
+
+<a id="knn">K-Nearest Neighbors (KNN)</a> - A **KNN** classifier (or regressor) predicts the label (or value) of a new point \(x_{new}\) by looking at the **k** closest points (in some [distance](#distance) metric) in the training set. For classification, it uses a majority vote among neighbors; for regression, it averages the neighbor values.
+
+**Mathematical form** (for classification):
+'60830'
+\hat{y}(x_{new}) = \text{majority-label}\bigl( y_i : x_i \in \mathcal{N}_k(x_{new})\bigr),
+'60830'
+where \( \mathcal{N}_k(x_{new}) \) is the set of k nearest neighbors under a chosen distance (often Euclidean).
+
+**R demonstration** (using `class::knn` for classification):
+
+```{r}
+library(class)
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 100
+x1 <- runif(n, 0, 5)
+x2 <- runif(n, 0, 5)
+y <- ifelse(x1 + x2 + rnorm(n) > 5, "A","B")
+
+dt_knn <- data.table(x1=x1, x2=x2, y=as.factor(y))
+
+# We'll do a train/test split
+train_idx <- sample(1:n, size=70)
+train <- dt_knn[train_idx]
+test  <- dt_knn[-train_idx]
+
+train_x <- as.matrix(train[, .(x1,x2)])
+train_y <- train$y
+test_x  <- as.matrix(test[, .(x1,x2)])
+true_y  <- test$y
+
+pred_knn <- knn(train_x, test_x, cl=train_y, k=3)
+
+accuracy <- mean(pred_knn == true_y)
+accuracy
+
+# Plot classification boundary
+grid_x1 <- seq(0,5, by=0.1)
+grid_x2 <- seq(0,5, by=0.1)
+grid_data <- data.table(expand.grid(x1=grid_x1, x2=grid_x2))
+grid_mat  <- as.matrix(grid_data[,.(x1,x2)])
+grid_data[, pred := knn(train_x, grid_mat, cl=train_y, k=3)]
+
+ggplot() +
+  geom_tile(data=grid_data, aes(x=x1, y=x2, fill=pred), alpha=0.4) +
+  geom_point(data=dt_knn, aes(x=x1, y=x2, color=y), size=2) +
+  scale_fill_manual(values=c("A"="lightblue","B"="salmon")) +
+  scale_color_manual(values=c("A"="blue","B"="red")) +
+  labs(title="K-Nearest Neighbors (k=3)", x="x1", y="x2") +
+  theme_minimal()
+```

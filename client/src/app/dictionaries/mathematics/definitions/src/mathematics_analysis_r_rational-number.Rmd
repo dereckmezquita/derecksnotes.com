@@ -1,0 +1,48 @@
+---
+letter: 'r'
+word: 'rational-number'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="rational-number">Rational Number</a> - In **analysis/number theory**, a **rational number** is a number that can be expressed as a fraction \(\frac{p}{q}\) with integers $p$ and $q \neq 0$. The set of all rational numbers is typically denoted \(\mathbb{Q}\).
+
+**Key points**:
+- Dense in the real line but countable.
+- Opposite concept: irrational numbers (like \(\sqrt{2}\) or \(\pi\)) cannot be written as a fraction of integers.
+
+Minimal R demonstration: standard numeric types are floating approximations. No direct “rational type” in base R, though external packages exist:
+
+```{r}
+library(data.table)
+# We'll just store p, q pairs
+rat <- function(p,q) p/q
+
+rat(3,2)
+rat(22,7)  # approximate 22/7
+```

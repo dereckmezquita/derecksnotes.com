@@ -1,0 +1,53 @@
+---
+letter: 's'
+word: 'standard-deviation'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['variance','distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="standard-deviation">Standard Deviation</a> - In **statistics**, the **standard deviation** (SD) is the square root of the [variance](#variance). It indicates how spread out the values in a [distribution](#distribution) are around the mean.
+
+'57879'
+\text{SD} = \sqrt{\frac{1}{n}\sum_{i=1}^{n}(x_i - \bar{x})^2}.
+'57879'
+
+**Key points**:
+- Low SD: data points are closer to the mean.
+- High SD: data points are more spread out.
+
+**R demonstration** (computing SD in base R):
+
+```{r}
+library(data.table)
+set.seed(123)
+x_vals <- rnorm(30, mean=10, sd=2)
+sd_val <- sd(x_vals)
+sd_val
+```

@@ -1,0 +1,64 @@
+---
+letter: 'x'
+word: 'xor'
+dictionary: 'mathematics'
+category: 'logic'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", 
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="xor">XOR</a> - In **logic**, **XOR** (exclusive OR) is a Boolean operation returning true if exactly one operand is true, but false if both are true or both are false. Symbolically:
+
+'58562'
+A \oplus B = (A \lor B) \land \neg (A \land B).
+'58562'
+
+**Truth table**:
+
+| A     | B     | A XOR B |
+|-------|-------|---------|
+| FALSE | FALSE | FALSE   |
+| FALSE | TRUE  | TRUE    |
+| TRUE  | FALSE | TRUE    |
+| TRUE  | TRUE  | FALSE   |
+
+**R demonstration** (custom xor function on vectors):
+
+```{r}
+library(data.table)
+
+xor_fn <- function(a, b) {
+  # a, b logical vectors
+  # Return a XOR b
+  (a | b) & !(a & b)
+}
+
+x <- c(TRUE,TRUE,FALSE,FALSE)
+y <- c(TRUE,FALSE,TRUE,FALSE)
+xor_fn(x,y)
+```

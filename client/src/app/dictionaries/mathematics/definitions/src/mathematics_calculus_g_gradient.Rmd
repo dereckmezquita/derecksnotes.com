@@ -1,0 +1,63 @@
+---
+letter: 'g'
+word: gradient
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['gamma-function','group']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = "")))
+    )
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="gradient">Gradient</a> - In multivariable calculus, the **gradient** of a scalar field $f(x_1, x_2, \dots, x_n)$ is the vector of its partial derivatives:
+
+55763
+\nabla f = 
+\left(
+  \frac{\partial f}{\partial x_1},
+  \frac{\partial f}{\partial x_2}, 
+  \dots,
+  \frac{\partial f}{\partial x_n}
+\right).
+55763
+
+**Interpretation**:
+- Points in the direction of steepest ascent of $f$.
+- Magnitude represents the rate of increase in that direction.
+
+**R demonstration** (numerically approximating a gradient for $f(x,y) = x^2 + 2xy$ at $(1,2)$):
+
+```{r}
+library(data.table)
+
+f_xy <- function(x, y) x^2 + 2*x*y
+
+numeric_grad <- function(f, x, y, h=1e-6) {
+  df_dx <- (f(x+h, y) - f(x, y)) / h
+  df_dy <- (f(x, y+h) - f(x, y)) / h
+  c(df_dx, df_dy)
+}
+
+grad_1_2 <- numeric_grad(f_xy, 1, 2)
+grad_1_2  # The exact gradient is (2x + 2y, 2x). At (1,2) => (2*1 + 2*2, 2*1) => (6,2)
+```
+

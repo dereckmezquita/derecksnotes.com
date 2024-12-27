@@ -1,0 +1,61 @@
+---
+letter: 'i'
+word: induction
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "arithmetic" in the definition, so we add it to linksTo.
+linksTo: ['arithmetic']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="induction">Induction</a> - **Mathematical induction** is a proof technique used to show that a statement holds for all natural numbers. It involves two steps:
+
+1. **Base Case**: Prove the statement for the first natural number (often $n=1$).
+2. **Inductive Step**: Assume the statement holds for some $n=k$, and then prove it holds for $n=k+1$.
+
+This relies on the well-ordering principle of the natural numbers.
+
+Consider a simple example with [arithmetic](#arithmetic) progressions:
+- We may prove $1 + 2 + \dots + n = \frac{n(n+1)}{2}$ by induction.
+
+No complicated R demonstration is typical here, but we can at least verify sums for a few values:
+
+```{r}
+library(data.table)
+
+n_vals <- 1:10
+dt_ind <- data.table(
+  n     = n_vals,
+  sum_n = sapply(n_vals, function(k) sum(1:k)),
+  formula = n_vals*(n_vals+1)/2
+)
+
+dt_ind
+```

@@ -1,0 +1,56 @@
+---
+letter: 'h'
+word: hypothesis-testing
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "distribution" in the definition, so let's include it in linksTo.
+linksTo: ['distribution']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", 
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="hypothesis-testing">Hypothesis Testing</a> - In **statistics**, **hypothesis testing** is a method to decide whether sample data support or refute a particular hypothesis about a population parameter or [distribution](#distribution).
+
+**Common steps**:
+1. State the null hypothesis ($H_0$) and an alternative hypothesis ($H_1$).
+2. Choose a significance level ($\alpha$) and test statistic.
+3. Compute the p-value from sample data.
+4. Reject or fail to reject $H_0$ based on whether the p-value is below $\alpha$.
+
+**R demonstration** (example t-test):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+dt_ht <- data.table(
+  groupA = rnorm(20, mean=5, sd=1),
+  groupB = rnorm(20, mean=5.5, sd=1)
+)
+
+# Let's do a two-sample t-test
+res <- t.test(dt_ht$groupA, dt_ht$groupB, var.equal=TRUE)
+res
+```

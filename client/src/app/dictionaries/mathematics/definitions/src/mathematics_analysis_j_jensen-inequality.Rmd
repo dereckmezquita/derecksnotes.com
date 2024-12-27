@@ -1,0 +1,68 @@
+---
+letter: 'j'
+word: 'jensen-inequality'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "expectation" in the definition,
+# so we add it in linksTo.
+linksTo: ['expectation']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi=300,
+  fig.width=10,
+  fig.height=7
+)
+```
+
+<a id="jensen-inequality">Jensen's Inequality</a> - In **analysis**, **Jensen’s inequality** states that for a convex function $\varphi$ and a random variable $X$,
+
+56318
+\varphi\bigl(E[X]\bigr) \le E\bigl[\varphi(X)\bigr].
+56318
+
+If $\varphi$ is concave, the inequality reverses. This has deep implications in [expectation](#expectation) and probability theory.
+
+**R demonstration** (empirical illustration):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+X <- runif(1000, min=0, max=2)  # random draws in [0,2]
+
+phi <- function(x) x^2  # a convex function
+
+mean_X <- mean(X)
+lhs <- phi(mean_X)
+rhs <- mean(phi(X))
+
+lhs
+rhs
+# Typically: lhs <= rhs (Jensen's inequality for convex phi)
+```

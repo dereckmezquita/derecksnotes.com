@@ -1,0 +1,67 @@
+---
+letter: 'm'
+word: 'matrix'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "determinant" in the definition, so we add it to linksTo.
+linksTo: ['determinant']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="matrix">Matrix</a> - A **matrix** is a rectangular array of numbers (or more abstract objects) arranged in rows and columns. Matrices are fundamental in [determinant](#determinant) calculations, linear transformations, and a variety of applications:
+
+$$
+\begin{pmatrix}
+a_{11} & a_{12} & \cdots & a_{1n} \\
+a_{21} & a_{22} & \cdots & a_{2n} \\
+\vdots & \vdots & \ddots & \vdots \\
+a_{m1} & a_{m2} & \cdots & a_{mn}
+\end{pmatrix}.
+$$
+
+**Key operations**:
+- Addition and scalar multiplication (element-wise).
+- Matrix multiplication.
+- Transposition and inversion (if square and invertible).
+
+**R demonstration** (basic matrix creation and operations):
+
+```{r}
+library(data.table)
+
+A <- matrix(c(1,2,3,4,5,6), nrow=2, byrow=TRUE)
+B <- matrix(c(10,20,30,40,50,60), nrow=2, byrow=TRUE)
+
+A_plus_B <- A + B
+A_times_B <- A %*% t(B)  # 2x3 %*% 3x2 => 2x2
+
+A_plus_B
+A_times_B
+```

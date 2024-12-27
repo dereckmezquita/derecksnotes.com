@@ -1,0 +1,66 @@
+---
+letter: 'e'
+word: euclidean-algorithm
+dictionary: 'mathematics'
+category: 'number-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['expectation','eigenvalue']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag("Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.height = 7
+)
+```
+
+<a id="euclidean-algorithm">Euclidean Algorithm</a> - The **Euclidean algorithm** is a process to find the greatest common divisor (GCD) of two integers. It repeatedly applies the rule:
+
+55424
+\gcd(a, b) = \gcd(b, a \bmod b),
+55424
+
+until the remainder is zero.
+
+**Key points**:
+- Efficiently computes the GCD without factorising the numbers fully.
+- Fundamental in number theory and applications like rational simplification.
+
+**R demonstration** (using built-in gcd from base R):
+
+```{r}
+library(data.table)
+
+# Let's pick two integers
+a_val <- 56
+b_val <- 98
+
+gcd_val <- gcd(a_val, b_val)
+gcd_val
+
+# Or define a custom Euclidean function:
+euclid_gcd <- function(a, b) {
+  if (b == 0) return(a)
+  euclid_gcd(b, a %% b)
+}
+euclid_gcd(a_val, b_val)
+```
+

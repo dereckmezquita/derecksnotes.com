@@ -1,0 +1,63 @@
+---
+letter: 'i'
+word: integral
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "derivative" in the definition, so we add it to linksTo.
+linksTo: ['derivative']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="integral">Integral</a> - In **calculus**, an **integral** represents the accumulation of quantities or the area under a curve. It is the inverse operation to the [derivative](#derivative) (by the Fundamental Theorem of Calculus).
+
+For a function $f(x)$, the definite integral from $a$ to $b$ is:
+
+56131
+\int_a^b f(x)\, dx.
+56131
+
+**Key points**:
+- **Indefinite integral**: $\int f(x)\,dx = F(x) + C$, where $F'(x)=f(x)$.
+- **Riemann sums** approximate integrals by partitioning the interval and summing “area slices.”
+
+**R demonstration** (numeric approximation of an integral via trapezoidal rule):
+
+```{r}
+library(data.table)
+
+f <- function(x) x^2
+a <- 0
+b <- 3
+n <- 100
+x_vals <- seq(a, b, length.out=n+1)
+dx <- (b - a)/n
+trapezoid <- sum((f(x_vals[-1]) + f(x_vals[-(n+1)]))/2) * dx
+trapezoid  # approximate integral of x^2 from 0 to 3 = 9
+```

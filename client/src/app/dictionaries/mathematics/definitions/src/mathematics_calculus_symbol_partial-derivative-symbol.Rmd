@@ -1,0 +1,49 @@
+---
+letter: '#'
+word: 'partial-derivative-symbol'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['partial-derivative']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="partial-derivative-symbol">∂ (Partial derivative symbol)</a> - The **∂** symbol indicates a partial derivative, as in \(\frac{\partial f}{\partial x}\). It generalises differentiation to functions of multiple variables (see [partial-derivative](#partial-derivative)).
+
+**Key points**:
+- ∂ is distinct from d in single-variable calculus.
+- Common in PDEs (partial differential equations).
+
+No direct R demonstration needed here, but partial derivatives can be approximated numerically.
+
+```{r}
+library(data.table)
+
+f_xy <- function(x,y) x^2 + 3*x*y
+partial_x <- function(f, x, y, h=1e-6) (f(x+h,y)-f(x,y))/h
+partial_x(f_xy, 2, 3)
+```

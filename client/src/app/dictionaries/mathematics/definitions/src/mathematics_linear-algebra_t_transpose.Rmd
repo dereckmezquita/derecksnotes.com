@@ -1,0 +1,50 @@
+---
+letter: 't'
+word: 'transpose'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['matrix','orthogonal']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="transpose">Transpose</a> - In **linear algebra**, the **transpose** of a [matrix](#matrix) $A\in\mathbb{R}^{m\times n}\) is the $n\times m$ matrix $A^T\) obtained by switching rows and columns. That is, \(A^T_{ij} = A_{ji}\). 
+
+**Key points**:
+- If \(A^T = A\), the matrix is symmetric.
+- If \(Q^T Q = I\), \(Q\) is [orthogonal](#orthogonal).
+
+**R demonstration**:
+
+```{r}
+library(data.table)
+
+A <- matrix(1:6, nrow=2, byrow=TRUE)
+A_t <- t(A)
+A
+A_t
+```

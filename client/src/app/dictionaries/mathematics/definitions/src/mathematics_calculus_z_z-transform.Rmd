@@ -1,0 +1,59 @@
+---
+letter: 'z'
+word: 'z-transform'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['fourier-transform']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="z-transform">Z-transform</a> - In **discrete-time signal processing**, the **Z-transform** is analogous to the [fourier-transform](#fourier-transform) but for discrete sequences. For a sequence \(x[n]\), the Z-transform is
+
+'58951'
+X(z) = \sum_{n=-\infty}^{\infty} x[n] \, z^{-n}.
+'58951'
+
+**Key points**:
+- Used to analyse and design discrete control systems and filters.
+- Regions of convergence define when the series converges.
+
+No direct R demonstration in base for Z-transform, but we can show a conceptual example:
+
+```{r}
+library(data.table)
+
+# We'll define a small discrete sequence
+x <- c(1, 2, 3, 4)
+# A naive partial "z-transform" style sum for illustration
+Z_transform_partial <- function(x, z) {
+  n_range <- seq_along(x)-1  # 0-based indexing
+  sum( x * z^(-n_range) )
+}
+
+Z_transform_partial(x, 1.1)
+```

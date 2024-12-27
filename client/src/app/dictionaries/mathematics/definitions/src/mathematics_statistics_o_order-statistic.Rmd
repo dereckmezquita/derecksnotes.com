@@ -1,0 +1,52 @@
+---
+letter: 'o'
+word: 'order-statistic'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference 'median' since the median is essentially the middle order statistic.
+linksTo: ['median']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width=10, fig.height=7)
+```
+
+<a id="order-statistic">Order Statistic</a> - In **statistics**, an **order statistic** is one of the values in a sorted sample. Given $n$ data points, the $k$th **order statistic** is the $k$th smallest value. The [median](#median) is a well-known order statistic (middle value for odd $n$).
+
+**Key points**:
+- Distribution of order statistics helps in confidence intervals, extreme value theory.
+- The minimum is the 1st order statistic, the maximum is the $n$th.
+
+**R demonstration**:
+
+```{r}
+library(data.table)
+
+set.seed(123)
+x_vals <- sample(1:100, 10) 
+dt_ord <- data.table(x = x_vals)
+dt_ord_sorted <- dt_ord[order(x)]
+dt_ord_sorted[, idx := .I]  # .I is row index in data.table
+dt_ord_sorted
+```

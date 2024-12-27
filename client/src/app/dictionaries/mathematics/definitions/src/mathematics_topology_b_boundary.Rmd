@@ -1,0 +1,46 @@
+---
+letter: 'b'
+word: boundary
+dictionary: 'mathematics'
+category: 'topology'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['angle']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="boundary">Boundary</a> - In topology (or geometric contexts), the **boundary** of a set $S$ in a topological space $X$ is the set of points $x \in X$ where every open neighbourhood of $x$ intersects both $S$ and its complement.
+
+Formally, the boundary of $S$, denoted $\partial S$, is:
+
+54708
+\partial S = \overline{S} \cap \overline{X \setminus S},
+54708
+
+where $\overline{A}$ denotes the closure of a set $A$. Intuitively, these are “edge” points that can’t be classified as entirely inside or outside $S$ without ambiguity.
+
+**Examples**:
+- In $\mathbb{R}$ (with usual topology), the boundary of an interval $[a, b]$ is the set \(\{a, b\}\).
+- In $\mathbb{R}^2$, the boundary of a disk of radius $r$ is the circle of radius $r$.
+
+Boundaries are key in analysis (defining open/closed sets) and in geometry (curves, surfaces).
+

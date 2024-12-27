@@ -1,0 +1,74 @@
+---
+letter: 'b'
+word: 'backtesting'
+dictionary: 'mathematics'
+category: 'finance'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['algorithmic-trading','markov-chain','monte-carlo-simulation']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap<-options$fig.cap
+    as.character(htmltools::tag("Figure",
+      list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
+    ))
+  })
+}
+knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="backtesting">Backtesting</a> - In **algorithmic trading**, **backtesting** is the process of applying a trading strategy (or model) to historical data to see how it would have performed. This helps gauge performance, risk, and feasibility before live deployment.
+
+**Key steps**:
+1. Gather clean historical data.
+2. Define entry/exit rules and signal generation.
+3. Simulate trades on historical data, accounting for transaction costs, slippage, etc.
+4. Collect performance metrics (e.g., returns, drawdowns, Sharpe ratio, max drawdown).
+
+**R demonstration** (toy strategy on synthetic daily data):
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 200
+price <- cumsum(rnorm(n, mean=0.01, sd=0.05)) + 100
+dt_bt <- data.table(day=1:n, price=price)
+
+# A naive "moving average crossover" strategy:
+fast_ma <- 5
+slow_ma <- 20
+
+dt_bt[, fast := frollmean(price, fast_ma)]
+dt_bt[, slow := frollmean(price, slow_ma)]
+
+# Signal: go long if fast>slow, else flat
+dt_bt[, signal := fifelse(fast>slow, 1, 0)]
+# lag signal by 1 to avoid lookahead
+dt_bt[, signal := shift(signal,1,0)]
+# daily return
+dt_bt[, ret_day := shift(price,1,NA)/price - 1]
+# strategy daily PnL
+dt_bt[, strategy_ret := signal*ret_day]
+dt_bt[, cumPNL := cumsum(strategy_ret)]
+
+ggplot(dt_bt, aes(x=day)) +
+  geom_line(aes(y=cumPNL, color="Strategy PnL")) +
+  geom_line(aes(y=(price-100), color="Price-100"), alpha=0.7) +
+  labs(title="Backtesting Simple MA Crossover", x="Day", y="PNL / Price(shifted)") +
+  scale_color_manual(values=c("Strategy PnL"="blue","Price-100"="red")) +
+  theme_minimal()
+```
+

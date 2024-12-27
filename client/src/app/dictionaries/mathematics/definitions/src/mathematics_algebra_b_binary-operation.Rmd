@@ -1,0 +1,46 @@
+---
+letter: 'b'
+word: binary-operation
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['algebra']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# Common setup for rendering
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", 
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="binary-operation">Binary Operation</a> - A binary operation on a set $S$ is a rule that combines two elements of $S$ (say, $a$ and $b$) to produce another element of $S$. Symbolically, we often write $* : S \times S \to S$.
+
+**Examples**:
+- Addition ($+$) on integers: $\mathbb{Z} \times \mathbb{Z} \to \mathbb{Z}$
+- Multiplication ($\times$) on real numbers: $\mathbb{R} \times \mathbb{R} \to \mathbb{R}$
+- Matrix multiplication on square matrices of the same dimension
+
+**Properties**:
+- **Associative**: $(a*b)*c = a*(b*c)$
+- **Commutative**: $a*b = b*a$
+- **Identity**: An element $e$ such that $e*b = b$ and $b*e = b$ for all $b$
+- **Inverse**: An element $b^{-1}$ such that $b*b^{-1} = e$
+
+Binary operations form the backbone of algebraic structures (groups, rings, fields) and underpin much of abstract algebra.
+

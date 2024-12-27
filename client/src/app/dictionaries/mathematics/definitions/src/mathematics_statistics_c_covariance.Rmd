@@ -1,0 +1,51 @@
+---
+letter: 'c'
+word: covariance
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['calculus']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="covariance">Covariance</a> - In statistics and probability theory, **covariance** measures the joint variability of two random variables $X$ and $Y$:
+
+54861
+\mathrm{Cov}(X, Y) = E\bigl[(X - E[X])(Y - E[Y])\bigr].
+54861
+
+**Key observations**:
+- If $X$ and $Y$ tend to increase together, covariance is positive.
+- If one tends to increase when the other decreases, covariance is negative.
+- A covariance of zero does not necessarily imply independence (unless under specific conditions, like normality).
+
+**Example in R**:
+```{r}
+set.seed(123)
+X <- rnorm(10, mean=5, sd=2)
+Y <- rnorm(10, mean=7, sd=3)
+cov(X, Y)
+```
+
+Covariance forms the basis of **correlation** (a normalised version of covariance) and is central in statistics (e.g., linear regression, portfolio variance in finance).
+

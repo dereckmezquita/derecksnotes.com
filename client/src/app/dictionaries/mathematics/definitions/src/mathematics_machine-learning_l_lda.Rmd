@@ -1,0 +1,76 @@
+---
+letter: 'l'
+word: 'lda'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['covariance','mean','eigenvalue']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x,options){
+      cap<-options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="lda">LDA (Linear Discriminant Analysis)</a> - A **linear discriminant analysis** technique for classification which finds a linear combination of features that best separates classes. It aims to maximise **between-class variance** over **within-class variance**.
+
+**Mathematical objective**:
+Given classes $C_1,\dots,C_k$, let $\mu_1,\dots,\mu_k$ be their means and $\Sigma_w$ the pooled covariance (assuming classes share the same covariance). We want to find a projection vector \(w\) solving:
+
+'61628'
+\max_w \frac{w^T S_b w}{w^T S_w w},
+'61628'
+where
+- $S_b$ is between-class scatter,
+- $S_w$ is within-class scatter.
+
+**R demonstration** (using `MASS::lda` on synthetic data):
+
+```{r}
+library(MASS)
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 50
+x1_class1 <- rnorm(n, mean=2, sd=1)
+x2_class1 <- rnorm(n, mean=2, sd=1)
+x1_class2 <- rnorm(n, mean=-2, sd=1)
+x2_class2 <- rnorm(n, mean=-2, sd=1)
+
+dt_lda_ex <- data.table(
+  x1 = c(x1_class1, x1_class2),
+  x2 = c(x2_class1, x2_class2),
+  y  = factor(c(rep("Class1", n), rep("Class2", n)))
+)
+
+fit_lda <- lda(y ~ x1 + x2, data=dt_lda_ex)
+fit_lda
+
+# Project data onto LD1
+proj <- predict(fit_lda)
+dt_proj <- cbind(dt_lda_ex, LD1=proj$x[,1])
+
+ggplot(dt_proj, aes(x=LD1, fill=y)) +
+  geom_histogram(alpha=0.6, position="identity") +
+  labs(title="LDA Projection onto LD1", x="LD1", y="Count") +
+  theme_minimal()
+```

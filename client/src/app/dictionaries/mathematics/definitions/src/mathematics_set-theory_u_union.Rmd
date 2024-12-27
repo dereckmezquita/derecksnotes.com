@@ -1,0 +1,56 @@
+---
+letter: 'u'
+word: 'union'
+dictionary: 'mathematics'
+category: 'set-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['set','intersection']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="union">Union</a> - In **set theory**, the **union** of two [set](#set)s $A$ and $B$ is:
+
+'58101'
+A \cup B = \{ x : x \in A \text{ or } x \in B \}.
+'58101'
+
+The union contains all elements that are in either $A$ or $B$ (or both).
+
+**Key points**:
+- If $A\cap B=\varnothing$, then \( |A\cup B| = |A| + |B| \).
+- Often combined with [intersection](#intersection).
+
+**R demonstration**:
+
+```{r}
+library(data.table)
+
+A <- c(1,2,3)
+B <- c(3,4,5)
+
+union(A,B)     # c(1,2,3,4,5)
+intersect(A,B) # c(3)
+```

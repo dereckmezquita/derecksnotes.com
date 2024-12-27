@@ -1,0 +1,62 @@
+---
+letter: 'n'
+word: 'normal-distribution'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['distribution','mean','variance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="normal-distribution">Normal Distribution</a> - In **statistics**, the **normal distribution** (or Gaussian) is a continuous probability [distribution](#distribution) with probability density function:
+
+'56956'
+f(x) = \frac{1}{\sqrt{2\pi}\,\sigma} \exp\!\Bigl(-\frac{(x - \mu)^2}{2\sigma^2}\Bigr)
+'56956'
+
+where '56956'\mu'56956' is the [mean](#mean) and '56956'\sigma^2'56956' is the [variance](#variance).
+
+**Key points**:
+- Symmetric, bell-shaped curve.
+- Many natural phenomena approximate normality by Central Limit Theorem arguments.
+
+**R demonstration**:
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+dt_norm <- data.table(x = rnorm(1000, mean=5, sd=2))
+
+ggplot(dt_norm, aes(x=x)) +
+  geom_histogram(bins=30, fill="lightblue", color="black", aes(y=..density..)) +
+  geom_density(color="red", size=1) +
+  labs(
+    title="Normal Distribution Example",
+    x="Value",
+    y="Density"
+  ) +
+  theme_minimal()
+```

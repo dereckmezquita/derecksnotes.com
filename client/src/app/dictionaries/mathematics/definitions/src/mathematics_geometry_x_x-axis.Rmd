@@ -1,0 +1,58 @@
+---
+letter: 'x'
+word: 'x-axis'
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['coordinate-system','x-intercept']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="x-axis">X-axis</a> - In a **2D coordinate system**, the **x-axis** is the horizontal line used to measure the x-coordinate of points. Typically, positive values extend to the right from the origin, while negative values extend to the left.
+
+**Key points**:
+- Intersects the y-axis at the origin (0,0).
+- The slope of the x-axis is 0 (a horizontal line).
+- Used to define an [x-intercept](#x-intercept) for curves.
+
+No direct R demonstration needed, but we can show a basic plot:
+
+```{r}
+library(ggplot2)
+library(data.table)
+
+dt_plot <- data.table(x=-5:5, y=0)
+ggplot(dt_plot, aes(x=x, y=y)) +
+  geom_line() +
+  labs(
+    title="X-axis (horizontal)",
+    x="x",
+    y="y"
+  ) +
+  theme_minimal()
+```

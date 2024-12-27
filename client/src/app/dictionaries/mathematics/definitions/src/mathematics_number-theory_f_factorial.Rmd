@@ -1,0 +1,62 @@
+---
+letter: 'f'
+word: factorial
+dictionary: 'mathematics'
+category: 'number-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['frequency','function']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.height= 7
+)
+```
+
+<a id="factorial">Factorial</a> - For a positive integer $n$, the **factorial** $n!$ is defined as:
+
+55593
+n! = n \times (n-1) \times (n-2) \times \cdots \times 2 \times 1.
+55593
+
+By convention, $0! = 1$.
+
+**Key points**:
+- Factorials grow very quickly (super-exponential growth).
+- Central to combinatorics: $n!$ counts the number of ways to arrange $n$ distinct objects.
+- Appears in formulas such as binomial coefficients \(\binom{n}{k} = \frac{n!}{k!(n-k)!}\).
+
+**R demonstration** (illustrating factorial growth):
+
+```{r}
+library(data.table)
+
+# Let's build a small data.table of n and n!
+dt_fact <- data.table(
+  n = 1:6
+)
+dt_fact[, factorial_n := factorial(n)]
+
+dt_fact
+```
+

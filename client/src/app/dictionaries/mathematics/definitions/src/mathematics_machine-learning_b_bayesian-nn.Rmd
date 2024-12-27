@@ -1,0 +1,63 @@
+---
+letter: 'b'
+word: 'bayesian-nn'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['neural-network','bayes-theorem','gradient']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap<-options$fig.cap
+    as.character(
+      htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
+```
+
+<a id="bayesian-nn">Bayesian Neural Network</a> - A **Bayesian Neural Network** places a **probabilistic prior** over neural network weights, updating to a posterior distribution given data. Rather than point estimates for weights \(W\), we approximate \(p(W \mid D)\).
+
+**Math**:
+We want:
+'62203'
+p(W \mid D) \propto p(D \mid W) p(W),
+'62203'
+where \(p(D\mid W)\) is the likelihood of data given weights, and \(p(W)\) is a prior. Exact posteriors are intractable, so we approximate (e.g., via **variational inference** or MCMC).
+
+**R demonstration** (One might use `brms` or `rstan` for a small Bayesian approach. We'll do a conceptual snippet with `brms` for regression):
+
+```{r}
+library(brms)
+library(data.table)
+
+set.seed(123)
+n <- 50
+x <- runif(n,0,5)
+y <- 2*x + 1 + rnorm(n, sd=0.5)
+
+dt_bnn <- data.table(x=x, y=y)
+
+# We'll do a small Bayesian regression as a stand-in for Bayesian NN
+fit_bayes <- brm(y ~ x, data=dt_bnn, family=gaussian(), 
+                 prior=set_prior("normal(0,10)", class="b"), 
+                 chains=2, iter=1000, refresh=0)
+summary(fit_bayes)
+
+# Posterior samples and predictions
+pred_data <- data.table(x=seq(0,5,0.1))
+pred_res  <- posterior_predict(fit_bayes, newdata=pred_data)
+cat("We can plot predictive intervals, akin to uncertain neural net weights.\n")
+```

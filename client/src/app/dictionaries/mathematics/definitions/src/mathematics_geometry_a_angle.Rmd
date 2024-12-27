@@ -1,0 +1,60 @@
+---
+letter: 'a'
+word: angle
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['absolute-value','asymptote']
+linkedFrom: ['arithmetic','algebra']
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# Common setup for rendering
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="angle">Angle</a> - An angle is formed by two rays (or line segments) that share a common endpoint, called the vertex. It measures the amount of rotation between these two rays.
+
+**Key characteristics**:
+- **Units**: Typically measured in degrees ($^\circ$) or radians ($\text{rad}$).
+  - $180^\circ = \pi$ radians
+  - $360^\circ = 2\pi$ radians
+- **Special angles**:
+  - Right angle: $90^\circ$ or $\tfrac{\pi}{2}$
+  - Straight angle: $180^\circ$ or $\pi$
+
+**Angle between two vectors** $\mathbf{u}$ and $\mathbf{v}$:
+$$
+\theta = 
+\arccos\!
+\Bigl(
+   \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|\,\|\mathbf{v}\|}
+\Bigr).
+$$
+
+If $\mathbf{u} = (x_1, y_1)$ and $\mathbf{v} = (x_2, y_2)$:
+- Dot product: $\mathbf{u} \cdot \mathbf{v} = x_1\,x_2 + y_1\,y_2$
+- Norm: $\|\mathbf{u}\| = \sqrt{x_1^2 + y_1^2}$
+
+**Applications**:
+- Geometry (e.g. polygons, circles)
+- Trigonometry (sine, cosine laws)
+- Physics & engineering (rotational motion, phase angles)
+

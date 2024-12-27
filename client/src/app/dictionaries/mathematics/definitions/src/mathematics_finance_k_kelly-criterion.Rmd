@@ -1,0 +1,89 @@
+---
+letter: 'k'
+word: 'kelly-criterion'
+dictionary: 'mathematics'
+category: 'finance'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['probability','log-utility','markov-chain']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x,options){
+      cap<-options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="kelly-criterion">Kelly Criterion</a> - In **bet sizing** or **portfolio sizing**, the **Kelly criterion** maximizes long-run logarithmic growth of capital. For a simple bet with win probability \(p\), lose probability \(1-p\), and net win ratio $b$ (winning $b$ times the bet), the Kelly fraction \(f^*\) is:
+
+'72077'
+f^* = \frac{p (b+1) - 1}{b}.
+'72077'
+
+**Key points**:
+- Extends to multiple assets, though trickier in practice.
+- Minimises risk of ruin in the long run but can produce large drawdowns.
+
+**R demonstration** (simulate repeated bets with/without Kelly sizing):
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+p <- 0.55  # 55% chance to win
+b <- 1     # if we win, we double the bet
+f_star <- (p*(b+1)-1)/b
+f_star
+
+n <- 200
+capital_kelly <- 1
+capital_fixed <- 1
+f_fixed <- 0.05
+
+dt_kelly <- data.table(round=1:n, cK=NA_real_, cF=NA_real_)
+for(i in 1:n){
+  # random outcome
+  win <- runif(1)<p
+  # Kelly bet fraction:
+  bet_kelly <- capital_kelly*f_star
+  if(win){
+    capital_kelly <- capital_kelly + bet_kelly*b
+  } else {
+    capital_kelly <- capital_kelly - bet_kelly
+  }
+  # fixed fraction bet
+  bet_fixed <- capital_fixed*f_fixed
+  if(win){
+    capital_fixed <- capital_fixed + bet_fixed*b
+  } else {
+    capital_fixed <- capital_fixed - bet_fixed
+  }
+  dt_kelly[i, cK:=capital_kelly]
+  dt_kelly[i, cF:=capital_fixed]
+}
+
+ggplot(dt_kelly, aes(x=round)) +
+  geom_line(aes(y=cK, color="Kelly")) +
+  geom_line(aes(y=cF, color="Fixed 5%")) +
+  labs(title="Kelly vs Fixed Fraction Bet Sizing", x="Bet Round", y="Capital") +
+  scale_color_manual(values=c("Kelly"="blue","Fixed 5%"="red")) +
+  theme_minimal()
+```
+

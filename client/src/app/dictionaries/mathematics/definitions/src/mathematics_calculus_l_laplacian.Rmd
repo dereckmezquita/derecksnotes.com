@@ -1,0 +1,69 @@
+---
+letter: 'l'
+word: 'laplacian'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We'll reference "dimension" from geometry or linear algebra context.
+linksTo: ['dimension']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="laplacian">Laplacian</a> - In **multivariable calculus**, the **Laplacian** of a scalar function $f(x_1, x_2, \dots, x_n)$ is denoted by $\nabla^2 f$ or $\Delta f$, and is defined as:
+
+56724
+\nabla^2 f = \sum_{k=1}^n \frac{\partial^2 f}{\partial x_k^2}.
+56724
+
+- In 2D: $\nabla^2 f = \frac{\partial^2 f}{\partial x^2} + \frac{\partial^2 f}{\partial y^2}$.
+- In 3D: $\nabla^2 f = \frac{\partial^2 f}{\partial x^2} + \frac{\partial^2 f}{\partial y^2} + \frac{\partial^2 f}{\partial z^2}$.
+- The concept generalises to higher [dimension](#dimension).  
+- The Laplacian is crucial in PDEs like the heat equation and wave equation.
+
+No direct R built-in for second partial derivatives numerically, but we can approximate:
+
+```{r}
+library(data.table)
+
+f_xy <- function(x, y) x^2 + y^2
+
+laplacian_approx <- function(f, x, y, h=1e-4) {
+  # second partial w.r.t x
+  f_xph <- f(x+h, y); f_xmh <- f(x-h, y); f_xyc <- f(x, y)
+  d2f_dx2 <- (f_xph - 2*f_xyc + f_xmh)/(h^2)
+  
+  # second partial w.r.t y
+  f_yph <- f(x, y+h); f_ymh <- f(x, y-h)
+  d2f_dy2 <- (f_yph - 2*f_xyc + f_ymh)/(h^2)
+  
+  d2f_dx2 + d2f_dy2
+}
+
+laplacian_approx(f_xy, 2, 3)
+# For f(x,y)= x^2 + y^2, exact Laplacian = 2 + 2 = 4
+```

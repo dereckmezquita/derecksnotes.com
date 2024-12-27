@@ -1,0 +1,44 @@
+---
+letter: '#'
+word: 'nabla'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['gradient','divergence','curl']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="nabla">∇ (Nabla)</a> - The **nabla** symbol (∇) denotes the vector differential operator. It’s used in expressions like [gradient](#gradient) (∇f), [divergence](#divergence) (∇·F), or [curl](#curl) (∇×F).
+
+**Key points**:
+- Also called “del” operator.
+- Common in vector calculus, PDEs, fluid dynamics, electromagnetism, etc.
+
+No direct R demonstration.  
+```{r}
+cat("Nabla example: ∇f = (∂f/∂x, ∂f/∂y, ∂f/∂z).")
+```

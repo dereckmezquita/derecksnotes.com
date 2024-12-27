@@ -1,0 +1,48 @@
+---
+letter: 'r'
+word: 'rank'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['matrix','dimension']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="rank">Rank</a> - In **linear algebra**, the **rank** of a [matrix](#matrix) $A$ is the dimension of its column space (or row space). Equivalently, it’s the maximum number of linearly independent columns (or rows). The rank also ties into the concept of [dimension](#dimension) of the image (column space) of a linear transformation.
+
+**Key points**:
+- If $\mathrm{rank}(A) < \min(m,n)$ for an $m \times n$ matrix, the matrix is not full rank.
+- The rank-nullity theorem: \(\mathrm{rank}(A)+ \mathrm{nullity}(A) = n\).
+
+**R demonstration** (finding rank of a matrix):
+
+```{r}
+library(MASS)
+library(data.table)
+
+A <- matrix(c(1,2,3, 2,4,6, 3,6,9), nrow=3, byrow=TRUE)
+A_rank <- qr(A)  # rank via QR decomposition
+A_rank
+```

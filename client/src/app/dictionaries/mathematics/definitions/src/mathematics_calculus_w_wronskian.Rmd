@@ -1,0 +1,65 @@
+---
+letter: 'w'
+word: 'wronskian'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['derivative','determinant']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="wronskian">Wronskian</a> - In differential equations, the **Wronskian** of two (or more) functions is the [determinant](#determinant) of a matrix whose entries are those functions and their [derivative](#derivative)s. For two functions $f$ and $g$:
+
+'58445'
+W(f,g)(x) =
+\begin{vmatrix}
+f(x) & g(x) \\
+f'(x) & g'(x)
+\end{vmatrix}.
+'58445'
+
+If the Wronskian is nonzero at some point, $f$ and $g$ are linearly independent solutions.
+
+**R demonstration** (small numeric check):
+
+```{r}
+library(data.table)
+
+f <- function(x) sin(x)
+g <- function(x) cos(x)
+df <- function(x) cos(x)
+dg <- function(x) -sin(x)
+
+wronskian <- function(x) {
+  det( rbind( c(f(x), g(x)), c(df(x), dg(x)) ) )
+}
+
+x_test <- pi/4
+W_val <- wronskian(x_test)
+W_val
+# We know sin'(x)=cos(x), cos'(x)=-sin(x); check numeric result
+```

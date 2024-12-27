@@ -1,0 +1,51 @@
+---
+letter: '#'
+word: 'infinity'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['limit','extended-real-number-line']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="infinity">∞ (Infinity)</a> - In **analysis**, **infinity** (∞) symbolises an unbounded value that grows beyond any finite number. It often appears in contexts of [limit](#limit) and the [extended-real-number-line](#extended-real-number-line).
+
+**Key points**:
+- Not a real number in standard arithmetic; it’s a conceptual extension.
+- In set theory, there are different *sizes* (cardinalities) of infinity (ℵ₀, 2^ℵ₀, etc.).
+- In calculus, writing \(x \to ∞\) indicates x grows without bound.
+
+**R demonstration** (conceptual usage of Inf in R):
+
+```{r}
+library(data.table)
+
+val_inf <- Inf
+val_inf
+# Basic check
+is.finite(val_inf)  # should be FALSE
+```
