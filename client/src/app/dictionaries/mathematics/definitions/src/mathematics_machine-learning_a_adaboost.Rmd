@@ -33,19 +33,19 @@ knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
 <a id="adaboost">AdaBoost</a> - In **machine learning**, **AdaBoost** (Adaptive Boosting) is an **ensemble method** that combines multiple “weak” learners (often [decision-tree](#decision-tree) stumps) in a stagewise manner. At iteration $m$:
 
 1. Compute weighted error:
-'61628'
+$$
 \epsilon_m = \frac{\sum_{i=1}^n w_i^{(m)} I\bigl( h_m(x_i) \neq y_i \bigr)}{\sum_{i=1}^n w_i^{(m)} }.
-'61628'
+$$
 
 2. Compute learner weight:
-'61628'
+$$
 \alpha_m = \frac{1}{2}\ln\Bigl(\frac{1-\epsilon_m}{\epsilon_m}\Bigr).
-'61628'
+$$
 
 3. Update sample weights:
-'61628'
+$$
 w_i^{(m+1)} = w_i^{(m)} \exp\bigl( -\alpha_m y_i h_m(x_i) \bigr).
-'61628'
+$$
 
 where $y_i\in\{-1,+1\}$ in the simplest binary classification setting.
 

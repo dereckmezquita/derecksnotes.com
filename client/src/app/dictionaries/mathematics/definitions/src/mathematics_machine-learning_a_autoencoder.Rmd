@@ -36,9 +36,9 @@ knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
 - **Encoder**: transforms input \(x\) to a hidden representation \(h = \sigma(W_{enc} x + b_{enc})\).
 - **Decoder**: reconstructs \(\hat{x} = \sigma(W_{dec} h + b_{dec})\).
 - Objective: minimise reconstruction error, e.g.
-'61628'
+$$
 L = \sum_{i=1}^n \| x_i - \hat{x}_i \|^2.
-'61628'
+$$
 
 **R demonstration** (no base function for autoencoders; we can use `keras` or `h2o` but let's conceptualise a small example with `keras` if installed):
 

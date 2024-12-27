@@ -35,14 +35,14 @@ knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
 - We have assets with expected returns \(\mu_i\) and a covariance matrix \(\Sigma\).  
 - Let \(w\) be the vector of weights. We want to:
 
-'68859'
+$$
 \max_{w} \Bigl( w^T \mu - \lambda \, w^T \Sigma \, w \Bigr)
-'68859'
+$$
 where \(\lambda\) is a risk-aversion parameter. Or we can do a constraint-based minimisation:
 
-'68859'
+$$
 \min_{w} \bigl(w^T \Sigma \, w\bigr) \quad \text{subject to } w^T\mu = \mu_{target}, \; \mathbf{1}^T w = 1.
-'68859'
+$$
 
 **R demonstration** (a small 3-asset example using a quadratic programming approach):
 
