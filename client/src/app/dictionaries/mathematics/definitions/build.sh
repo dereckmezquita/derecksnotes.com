@@ -7,8 +7,11 @@
 # 1) Finds Rmd files in ./src/ named "mathematics_*.Rmd".
 # 2) Knits each file, placing outputs in the current directory (definitions/).
 # 3) Removes .html outputs.
-# 4) Renames .md to .mdx (so the next layer up has .mdx).
-# 5) Moves *_files directories (plots/assets) to client/public/dictionaries/mathematics/.
+# 4) Renames .md to .mdx.
+# 5) For each *_files directory:
+#      a) Move the contents of figure-html/ up one level (into the *_files folder).
+#      b) Remove figure-html/ subfolder.
+#      c) Move the *_files folder to client/public/dictionaries/mathematics/.
 #
 # The arrangement:
 #   definitions/
@@ -22,17 +25,17 @@
 SRC_DIR="./src"
 
 # Where do you want to move images/figure output?
-PUBLIC_IMG_DIR="client/public/dictionaries/mathematics"
+PUBLIC_IMG_DIR="../../../../../public/dictionaries/mathematics"
 
 # Ensure the public directory for images exists (relative path might need adjusting)
 mkdir -p "${PUBLIC_IMG_DIR}"
 
 echo "Knitting all 'mathematics_*.Rmd' files in ${SRC_DIR}..."
 echo "Outputs will be placed in the current directory (.), with .md renamed to .mdx"
-echo "Any *_files directories will move to ${PUBLIC_IMG_DIR}"
+echo "Any *_files directories will go to ${PUBLIC_IMG_DIR}, after reorganising figure-html."
 
 ###############################################################################
-# 1) Render all Rmd files from src/ into current dir
+# 1) Render all Rmd files from src/ into current dir (definitions/)
 ###############################################################################
 for f in "${SRC_DIR}"/mathematics_*.Rmd; do
   if [ -f "$f" ]; then
@@ -45,7 +48,7 @@ done
 echo "All knitting complete."
 
 ###############################################################################
-# 2) Remove all .html files
+# 2) Remove all .html files in current directory
 ###############################################################################
 echo "Removing all .html files in current directory..."
 find . -maxdepth 1 -type f -name "*.html" -exec rm -v {} \;
@@ -61,13 +64,26 @@ find . -maxdepth 1 -type f -name "*.md" | while read -r mdfile; do
 done
 
 ###############################################################################
-# 4) Move all *_files directories to PUBLIC_IMG_DIR
+# 4) Adjust and move *_files directories
 ###############################################################################
-echo "Moving all *_files directories to ${PUBLIC_IMG_DIR}..."
+echo "Processing all *_files directories..."
 find . -maxdepth 1 -type d -name "*_files" | while read -r d; do
   base="$(basename "$d")"
-  echo "Moving directory $d -> ${PUBLIC_IMG_DIR}/${base}"
+  echo "Now working on directory: $d"
+
+  # If figure-html/ subfolder exists, move its contents up, then remove it
+  FIG_SUBFOLDER="$d/figure-html"
+  if [ -d "$FIG_SUBFOLDER" ]; then
+    echo "Moving contents of $FIG_SUBFOLDER -> $d"
+    # Move everything inside figure-html up one level
+    mv "$FIG_SUBFOLDER"/* "$d"/
+    echo "Removing now-empty $FIG_SUBFOLDER"
+    rmdir "$FIG_SUBFOLDER"
+  fi
+
+  # Finally move the entire *_files folder to the PUBLIC_IMG_DIR
+  echo "Moving $d -> ${PUBLIC_IMG_DIR}/${base}"
   mv "$d" "${PUBLIC_IMG_DIR}/${base}"
 done
 
-echo "Done! All .html removed, .md renamed to .mdx, *_files moved to ${PUBLIC_IMG_DIR}."
+echo "Done! All .html removed, .md -> .mdx, and *_files reorganised + moved to ${PUBLIC_IMG_DIR}."
