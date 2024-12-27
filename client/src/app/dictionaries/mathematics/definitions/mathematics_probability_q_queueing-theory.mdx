@@ -1,0 +1,80 @@
+---
+letter: 'q'
+word: 'queueing-theory'
+dictionary: 'mathematics'
+category: 'probability'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="queueing-theory">Queueing Theory</a> - In **probability** and operations research, **queueing theory** studies the behaviour of waiting lines or queues. Models often involve a Poisson arrival [distribution](#distribution) and exponential service times, e.g., the M/M/1 queue.
+
+**Key points**:
+- Performance measures: average waiting time, queue length, server utilisation.
+- Widely applied in telecommunications, computer networks, and service systems.
+
+**R demonstration** (simulation of a simple queue, optional approaches exist but we show a conceptual snippet):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+# We'll simulate interarrival times with rexp(rate=lambda),
+# and service times with rexp(rate=mu).
+
+simulate_queue <- function(n_customers, lambda=1, mu=1) {
+  # generate interarrival times
+  inter_arr <- rexp(n_customers, rate=lambda)
+  arrival_times <- cumsum(inter_arr)
+  service_times <- rexp(n_customers, rate=mu)
+  
+  # track when each customer starts service
+  start_service <- numeric(n_customers)
+  finish_service <- numeric(n_customers)
+  
+  for(i in seq_len(n_customers)) {
+    if(i==1) {
+      start_service[i] <- arrival_times[i]
+    } else {
+      start_service[i] <- max(arrival_times[i], finish_service[i-1])
+    }
+    finish_service[i] <- start_service[i] + service_times[i]
+  }
+  
+  data.table(
+    customer = 1:n_customers,
+    arrival = arrival_times,
+    start = start_service,
+    finish = finish_service,
+    wait = start_service - arrival_times
+  )
+}
+
+dt_queue <- simulate_queue(10, lambda=1, mu=2)
+dt_queue
+```
+
+```
+##     customer   arrival     start   finish      wait
+##        <int>     <num>     <num>    <num>     <num>
+##  1:        1 0.8434573 0.8434573 1.345872 0.0000000
+##  2:        2 1.4200675 1.4200675 1.660175 0.0000000
+##  3:        3 2.7491224 2.7491224 2.889629 0.0000000
+##  4:        4 2.7806998 2.8896292 3.078188 0.1089295
+##  5:        5 2.8369107 3.0781881 3.172330 0.2412774
+##  6:        6 3.1534120 3.1723301 3.597223 0.0189182
+##  7:        7 3.4676392 3.5972232 4.378825 0.1295840
+##  8:        8 3.6129060 4.3788250 4.618205 0.7659189
+##  9:        9 6.3391425 6.3391425 6.634610 0.0000000
+## 10:       10 6.3682960 6.6346099 8.655116 0.2663140
+```

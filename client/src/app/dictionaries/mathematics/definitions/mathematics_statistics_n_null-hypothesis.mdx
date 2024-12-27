@@ -1,0 +1,52 @@
+---
+letter: 'n'
+word: 'null-hypothesis'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['hypothesis-testing']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="null-hypothesis">Null Hypothesis</a> - In **statistics**, the **null hypothesis** (commonly denoted $H_0$) is a baseline assumption or “no change” scenario in [hypothesis-testing](#hypothesis-testing). Typically, $H_0$ states that there is no effect or no difference between groups.
+
+**Key points**:
+- We either “reject $H_0$” or “fail to reject $H_0$” based on data evidence.
+- The alternative hypothesis $H_1$ or $H_a$ posits the effect or difference.
+
+**R demonstration** (t-test example, focusing on $H_0$ that the population means are equal):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+dt_null <- data.table(
+  groupA = rnorm(20, mean=5, sd=1),
+  groupB = rnorm(20, mean=5.2, sd=1)
+)
+
+t_res <- t.test(dt_null$groupA, dt_null$groupB, var.equal=TRUE)
+t_res
+```
+
+```
+## 
+## 	Two Sample t-test
+## 
+## data:  dt_null$groupA and dt_null$groupB
+## t = -0.0249, df = 38, p-value = 0.9803
+## alternative hypothesis: true difference in means is not equal to 0
+## 95 percent confidence interval:
+##  -0.5859110  0.5716729
+## sample estimates:
+## mean of x mean of y 
+##  5.141624  5.148743
+```

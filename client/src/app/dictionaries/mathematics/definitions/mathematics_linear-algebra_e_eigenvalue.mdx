@@ -1,0 +1,66 @@
+---
+letter: 'e'
+word: eigenvalue
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['entropy','expectation']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="eigenvalue">Eigenvalue</a> - In linear algebra, an **eigenvalue** of a square matrix $A$ is a scalar $\lambda$ such that there exists a nonzero vector \(\mathbf{v}\) (the **eigenvector**) satisfying:
+
+55424
+A\mathbf{v} = \lambda\mathbf{v}.
+55424
+
+**Key points**:
+- Eigenvalues reveal important properties of linear transformations (e.g., scaling factors in certain directions).
+- If $\lambda$ is an eigenvalue, then \(\mathbf{v}\) is an eigenvector corresponding to $\lambda$.
+- The polynomial \(\det(A - \lambda I) = 0\) is the characteristic equation that yields eigenvalues.
+
+**R demonstration** (finding eigenvalues of a 2x2 matrix):
+
+
+``` r
+library(data.table)
+
+# Create a data.table for matrix entries
+dtA <- data.table(a=2, b=1, c=1, d=2)
+A <- matrix(c(dtA$a, dtA$b, dtA$c, dtA$d), nrow=2, byrow=TRUE)
+A
+```
+
+```
+##      [,1] [,2]
+## [1,]    2    1
+## [2,]    1    2
+```
+
+``` r
+# Compute eigenvalues using base R
+eigs <- eigen(A)
+eigs$values
+```
+
+```
+## [1] 3 1
+```
+
+``` r
+eigs$vectors
+```
+
+```
+##           [,1]       [,2]
+## [1,] 0.7071068 -0.7071068
+## [2,] 0.7071068  0.7071068
+```
+

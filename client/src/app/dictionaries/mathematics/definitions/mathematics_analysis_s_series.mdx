@@ -1,0 +1,48 @@
+---
+letter: 's'
+word: 'series'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['limit']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="series">Series</a> - In **analysis**, a **series** is the sum of the terms of a sequence:
+
+'57879'
+\sum_{n=1}^{\infty} a_n.
+'57879'
+
+Convergence depends on the [limit](#limit) of partial sums:
+
+'57879'
+S_N = \sum_{n=1}^{N} a_n.
+'57879'
+
+If \(S_N\) approaches a finite value as \(N\to\infty\), the series converges; otherwise, it diverges.
+
+**R demonstration** (partial sums of a series):
+
+
+``` r
+library(data.table)
+
+a_n <- function(n) 1/n^2
+N <- 10
+partial_sums <- cumsum(sapply(1:N, a_n))
+partial_sums
+```
+
+```
+##  [1] 1.000000 1.250000 1.361111 1.423611 1.463611 1.491389 1.511797 1.527422
+##  [9] 1.539768 1.549768
+```

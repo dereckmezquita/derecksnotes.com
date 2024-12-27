@@ -1,0 +1,54 @@
+---
+letter: 'j'
+word: 'jordan-normal-form'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "eigenvalue" in the definition,
+# so we add it to linksTo.
+linksTo: ['eigenvalue']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="jordan-normal-form">Jordan Normal Form</a> - In **linear algebra**, the **Jordan normal form** (or Jordan canonical form) of a matrix is a block diagonal matrix with Jordan blocks, each corresponding to an [eigenvalue](#eigenvalue).
+
+A **Jordan block** for an eigenvalue $\lambda$ looks like:
+
+56318
+\begin{pmatrix}
+\lambda & 1 & 0 & \cdots & 0 \\
+0 & \lambda & 1 & \cdots & 0 \\
+\vdots & & \ddots & \ddots & \vdots \\
+0 & 0 & \cdots & \lambda & 1 \\
+0 & 0 & \cdots & 0 & \lambda 
+\end{pmatrix}.
+56318
+
+The Jordan form classifies matrices up to similarity transformations and is critical in solving systems of linear differential equations and more.
+
+**R demonstration** (no built-in base R function to compute Jordan form, but we can show a small example):
+
+
+``` r
+library(data.table)
+# Usually, packages like 'jord' or 'expm' might help. 
+# We'll just illustrate a 2x2 Jordan block for eigenvalue 3:
+
+J <- matrix(c(3,1,0,3), 2, 2, byrow=TRUE)
+J
+```
+
+```
+##      [,1] [,2]
+## [1,]    3    1
+## [2,]    0    3
+```

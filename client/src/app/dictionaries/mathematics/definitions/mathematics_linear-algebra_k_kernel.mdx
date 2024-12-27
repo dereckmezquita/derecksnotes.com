@@ -1,0 +1,49 @@
+---
+letter: 'k'
+word: 'kernel'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['dimension']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="kernel">Kernel</a> - In **linear algebra**, the **kernel** (or **null space**) of a linear map 
+$$T: V \to W$$ is the set of all vectors $\mathbf{v} \in V$ such that $T(\mathbf{v}) = \mathbf{0}$. Symbolically,
+
+56642
+\ker(T) = \{ \mathbf{v} : T(\mathbf{v}) = \mathbf{0} \}.
+56642
+
+- If $T$ is given by a matrix $A$, then $\ker(T) = \{ \mathbf{x} : A\mathbf{x} = \mathbf{0} \}$.
+- The rank-nullity theorem links the dimension of the kernel with the [dimension](#dimension) of the image.
+
+**R demonstration** (finding the kernel of a matrix):
+
+
+``` r
+library(data.table)
+
+A <- matrix(c(1,2,3, 2,4,6, 1,1,2), nrow=3, byrow=TRUE)
+
+# We can find the null space using MASS::Null
+library(MASS)
+kerA <- Null(A)  # basis for the kernel
+kerA
+```
+
+```
+##               [,1]
+## [1,] -8.944272e-01
+## [2,]  4.472136e-01
+## [3,] -1.024712e-15
+```

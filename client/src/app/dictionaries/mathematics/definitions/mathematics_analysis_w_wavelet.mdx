@@ -1,0 +1,63 @@
+---
+letter: 'w'
+word: 'wavelet'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['fourier-transform']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="wavelet">Wavelet</a> - In **analysis** and signal processing, a **wavelet** is a function used to decompose and analyse signals at multiple scales. Unlike the [fourier-transform](#fourier-transform) which uses infinite sine and cosine waves, wavelets are localised in both time (space) and frequency.
+
+**Key points**:
+- Wavelets are useful for time-frequency or space-scale analysis.
+- Common families: Haar, Daubechies, Morlet, etc.
+
+**R demonstration** (no base function for wavelets, but let's show a conceptual signal transform snippet):
+
+
+``` r
+# This is conceptual, as wavelet packages (e.g. 'wavelets') would be used.
+# We'll do a simple mock demonstration of a signal decomposition approach.
+
+library(data.table)
+set.seed(123)
+signal <- c(rep(0,50), rnorm(50), rep(0,50))
+
+# Suppose we apply a placeholder "wavelet transform"
+# (here, just a naive split for illustration)
+signal_low  <- filter(signal, rep(1/2,2), sides=2)  # naive "approx" 
+signal_high <- signal - signal_low                  # naive "detail"
+
+dt_wav <- data.table(
+  idx = seq_along(signal),
+  signal = signal,
+  approx = signal_low,
+  detail = signal_high
+)
+head(dt_wav, 10)
+```
+
+```
+##       idx signal approx detail
+##     <int>  <num>   <ts>   <ts>
+##  1:     1      0      0      0
+##  2:     2      0      0      0
+##  3:     3      0      0      0
+##  4:     4      0      0      0
+##  5:     5      0      0      0
+##  6:     6      0      0      0
+##  7:     7      0      0      0
+##  8:     8      0      0      0
+##  9:     9      0      0      0
+## 10:    10      0      0      0
+```

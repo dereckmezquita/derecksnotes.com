@@ -1,0 +1,55 @@
+---
+letter: 'g'
+word: gradient
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['gamma-function','group']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="gradient">Gradient</a> - In multivariable calculus, the **gradient** of a scalar field $f(x_1, x_2, \dots, x_n)$ is the vector of its partial derivatives:
+
+55763
+\nabla f = 
+\left(
+  \frac{\partial f}{\partial x_1},
+  \frac{\partial f}{\partial x_2}, 
+  \dots,
+  \frac{\partial f}{\partial x_n}
+\right).
+55763
+
+**Interpretation**:
+- Points in the direction of steepest ascent of $f$.
+- Magnitude represents the rate of increase in that direction.
+
+**R demonstration** (numerically approximating a gradient for $f(x,y) = x^2 + 2xy$ at $(1,2)$):
+
+
+``` r
+library(data.table)
+
+f_xy <- function(x, y) x^2 + 2*x*y
+
+numeric_grad <- function(f, x, y, h=1e-6) {
+  df_dx <- (f(x+h, y) - f(x, y)) / h
+  df_dy <- (f(x, y+h) - f(x, y)) / h
+  c(df_dx, df_dy)
+}
+
+grad_1_2 <- numeric_grad(f_xy, 1, 2)
+grad_1_2  # The exact gradient is (2x + 2y, 2x). At (1,2) => (2*1 + 2*2, 2*1) => (6,2)
+```
+
+```
+## [1] 6.000001 2.000000
+```
+

@@ -1,0 +1,52 @@
+---
+letter: 'x'
+word: 'xnor'
+dictionary: 'mathematics'
+category: 'logic'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['xor']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="xnor">XNOR</a> - In **logic**, **XNOR** (exclusive-NOR) is the complement of [xor](#xor). It returns true if both inputs are the same (both true or both false), and false otherwise:
+
+'58562'
+A \odot B = \neg (A \oplus B).
+'58562'
+
+**Truth table**:
+
+| A     | B     | A XNOR B |
+|-------|-------|----------|
+| FALSE | FALSE | TRUE     |
+| FALSE | TRUE  | FALSE    |
+| TRUE  | FALSE | FALSE    |
+| TRUE  | TRUE  | TRUE     |
+
+**R demonstration** (custom xnor function on vectors):
+
+
+``` r
+library(data.table)
+
+xnor_fn <- function(a, b) {
+  # complement of xor
+  !( (a | b) & !(a & b) )
+}
+
+x <- c(TRUE,TRUE,FALSE,FALSE)
+y <- c(TRUE,FALSE,TRUE,FALSE)
+xnor_fn(x,y)
+```
+
+```
+## [1]  TRUE FALSE FALSE  TRUE
+```

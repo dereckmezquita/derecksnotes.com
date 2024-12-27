@@ -1,0 +1,54 @@
+---
+letter: 'h'
+word: homomorphism
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "group" in the definition, so add it to linksTo.
+linksTo: ['group']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="homomorphism">Homomorphism</a> - In **algebra**, a **homomorphism** is a structure-preserving map between two algebraic structures of the same type. For instance, a **group** homomorphism between groups $G$ and $H$ is a function
+
+55983
+\phi: G \to H
+55983
+
+such that:
+
+55983
+\phi(a \cdot b) = \phi(a) \star \phi(b),
+55983
+
+where $\cdot$ is the operation in $G$ and $\star$ is the operation in $H$ (see [group](#group) for more on group operations).
+
+This ensures that the algebraic structure (associativity, identity, inverses) is respected.
+
+No direct R demonstration is typical for homomorphisms, but we can quickly illustrate a trivial map:
+
+
+``` r
+# As a simple example:
+# A map from Z -> Z given by phi(x) = 2*x is a group homomorphism under addition.
+phi <- function(x) 2*x
+
+phi(3)  # 6
+```
+
+```
+## [1] 6
+```
+
+``` r
+# phi(a + b) = 2*(a + b) = 2a + 2b = phi(a) + phi(b)
+```

@@ -1,0 +1,55 @@
+---
+letter: 'x'
+word: 'x-intercept'
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['x-axis','polynomial']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="x-intercept">X-intercept</a> - In **geometry**, the **x-intercept** of a curve is the point(s) where it crosses the [x-axis](#x-axis). Formally, points with y=0:
+
+'58562'
+\text{Find } x \text{ such that } f(x)=0.
+'58562'
+
+**Key points**:
+- Solving $f(x)=0$ often involves [polynomial](#polynomial) roots or other equation solutions.
+- Graphically, x-intercepts appear where the plot crosses the horizontal axis.
+
+**R demonstration** (finding approximate x-intercept for a function):
+
+
+``` r
+library(data.table)
+
+f <- function(x) x^2 - 4
+uniroot_res <- uniroot(f, c(0,5))
+uniroot_res  # should be 2
+```
+
+```
+## $root
+## [1] 2.000004
+## 
+## $f.root
+## [1] 1.565974e-05
+## 
+## $iter
+## [1] 7
+## 
+## $init.it
+## [1] NA
+## 
+## $estim.prec
+## [1] 6.103516e-05
+```

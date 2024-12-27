@@ -1,0 +1,58 @@
+---
+letter: 'h'
+word: hypothesis-testing
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "distribution" in the definition, so let's include it in linksTo.
+linksTo: ['distribution']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="hypothesis-testing">Hypothesis Testing</a> - In **statistics**, **hypothesis testing** is a method to decide whether sample data support or refute a particular hypothesis about a population parameter or [distribution](#distribution).
+
+**Common steps**:
+1. State the null hypothesis ($H_0$) and an alternative hypothesis ($H_1$).
+2. Choose a significance level ($\alpha$) and test statistic.
+3. Compute the p-value from sample data.
+4. Reject or fail to reject $H_0$ based on whether the p-value is below $\alpha$.
+
+**R demonstration** (example t-test):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+dt_ht <- data.table(
+  groupA = rnorm(20, mean=5, sd=1),
+  groupB = rnorm(20, mean=5.5, sd=1)
+)
+
+# Let's do a two-sample t-test
+res <- t.test(dt_ht$groupA, dt_ht$groupB, var.equal=TRUE)
+res
+```
+
+```
+## 
+## 	Two Sample t-test
+## 
+## data:  dt_ht$groupA and dt_ht$groupB
+## t = -1.0742, df = 38, p-value = 0.2895
+## alternative hypothesis: true difference in means is not equal to 0
+## 95 percent confidence interval:
+##  -0.8859110  0.2716729
+## sample estimates:
+## mean of x mean of y 
+##  5.141624  5.448743
+```

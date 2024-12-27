@@ -1,0 +1,66 @@
+---
+letter: 'e'
+word: ellipse
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['expectation','entropy']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="ellipse">Ellipse</a> - An **ellipse** is a curve on a plane, defined as the locus of points where the sum of the distances to two fixed points (foci) is constant.
+
+**Standard form** (centred at the origin):
+
+55424
+\frac{x^2}{a^2} + \frac{y^2}{b^2} = 1,
+55424
+
+where $a$ and $b$ are the semi-major and semi-minor axes, respectively.
+
+**R demonstration** (plotting an ellipse with ggplot2):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+# Let's parametric form: x = a*cos(t), y = b*sin(t)
+a <- 3
+b <- 2
+
+theta <- seq(0, 2*pi, length.out=200)
+dt_ellipse <- data.table(
+  x = a*cos(theta),
+  y = b*sin(theta)
+)
+
+ggplot(dt_ellipse, aes(x=x, y=y)) +
+  geom_path(color="blue", size=1) +
+  coord_fixed() +
+  labs(
+    title="Ellipse with a=3, b=2",
+    x="x",
+    y="y"
+  ) +
+  theme_minimal()
+```
+
+```
+## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+## ℹ Please use `linewidth` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_geometry_e_ellipse_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>
+

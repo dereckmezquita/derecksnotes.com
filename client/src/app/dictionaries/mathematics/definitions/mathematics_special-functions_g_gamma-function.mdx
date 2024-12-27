@@ -1,0 +1,52 @@
+---
+letter: 'g'
+word: gamma-function
+dictionary: 'mathematics'
+category: 'special-functions'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['group','gradient']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="gamma-function">Gamma Function</a> - The **Gamma function** generalises the factorial to complex (and real) arguments. For $\Re(z) > 0$,
+
+55763
+\Gamma(z) = \int_{0}^{\infty} t^{z-1} e^{-t}\, dt.
+55763
+
+Key property: $\Gamma(n) = (n-1)!$ for positive integers $n$.
+
+**Key points**:
+- Extends factorial beyond integers (e.g., $\Gamma(1/2) = \sqrt{\pi}$).
+- Appears often in probability (Gamma distribution) and complex analysis.
+
+**R demonstration** (Gamma function values):
+
+
+``` r
+library(data.table)
+
+# We'll evaluate Gamma at some points
+dt_gamma <- data.table(x = c(0.5, 1, 2, 3, 4))
+dt_gamma[, gamma_x := gamma(x)]
+
+dt_gamma
+```
+
+```
+##        x  gamma_x
+##    <num>    <num>
+## 1:   0.5 1.772454
+## 2:   1.0 1.000000
+## 3:   2.0 1.000000
+## 4:   3.0 2.000000
+## 5:   4.0 6.000000
+```
+

@@ -1,0 +1,66 @@
+---
+letter: 'd'
+word: distribution
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['discrete-random-variable','covariance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="distribution">Distribution</a> - In probability and statistics, a **distribution** describes how values of a random variable are spread out. It can be specified by a **probability density function (pdf)** for continuous variables or a **probability mass function (pmf)** for discrete variables.
+
+**Common examples**:
+- **Normal distribution**: $X \sim N(\mu, \sigma^2)$
+- **Binomial distribution**: Counts successes in $n$ independent Bernoulli trials
+- **Poisson distribution**: Counts events in a fixed interval with known average rate
+
+**R demonstration** (sampling from a normal distribution and visualising via ggplot2):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+# Create a data.table with 1000 random N(0,1) values
+dt_dist <- data.table(
+  x = rnorm(1000, mean=0, sd=1)
+)
+
+# Plot a histogram
+ggplot(dt_dist, aes(x=x)) +
+  geom_histogram(bins=30, colour="black", fill="skyblue") +
+  geom_density(aes(y=..count..), colour="red", size=1) +
+  labs(
+    title="Histogram & Density for N(0,1)",
+    x="Value",
+    y="Count/Density"
+  ) +
+  theme_minimal()
+```
+
+```
+## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+## ℹ Please use `linewidth` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.
+```
+
+```
+## Warning: The dot-dot notation (`..count..`) was deprecated in ggplot2 3.4.0.
+## ℹ Please use `after_stat(count)` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_statistics_d_distribution_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>
+

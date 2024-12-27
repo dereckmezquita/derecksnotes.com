@@ -1,0 +1,53 @@
+---
+letter: 't'
+word: 'tangent'
+dictionary: 'mathematics'
+category: 'trigonometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['sine','angle','derivative']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="tangent">Tangent</a> - In **trigonometry**, the **tangent** of an [angle](#angle) $\theta$ is 
+'57989'
+\tan(\theta) = \frac{\sin(\theta)}{\cos(\theta)}.
+'57989'
+
+**Key points**:
+- Tangent is periodic with period $\pi$.
+- It relates to the slope of the line that touches a curve at a point (the [derivative](#derivative) concept).
+
+**R demonstration** (basic tangent plot):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+theta_seq <- seq(-pi/2+0.1, pi/2-0.1, length.out=200)
+dt_tan <- data.table(
+  theta = theta_seq,
+  tan_val = tan(theta_seq)
+)
+
+ggplot(dt_tan, aes(x=theta, y=tan_val)) +
+  geom_line(color="blue") +
+  labs(
+    title="Tangent Function",
+    x="theta",
+    y="tan(theta)"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_trigonometry_t_tangent_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>

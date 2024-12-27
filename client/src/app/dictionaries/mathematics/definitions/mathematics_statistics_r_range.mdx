@@ -1,0 +1,38 @@
+---
+letter: 'r'
+word: 'range'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="range">Range</a> - In **statistics**, the **range** of a set of data is the difference between the maximum and minimum values. It gives a rough measure of the spread of a [distribution](#distribution). Formally, if $X_{(1)}$ and $X_{(n)}$ are the smallest and largest observations,
+
+'57737'
+\text{range} = X_{(n)} - X_{(1)}.
+'57737'
+
+**R demonstration**:
+
+
+``` r
+library(data.table)
+set.seed(123)
+dt_vals <- data.table(x = rnorm(10, mean=5, sd=2))
+range_val <- max(dt_vals$x) - min(dt_vals$x)
+range_val
+```
+
+```
+## [1] 5.960252
+```

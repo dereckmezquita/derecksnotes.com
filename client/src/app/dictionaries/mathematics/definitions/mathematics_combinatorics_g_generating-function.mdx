@@ -1,0 +1,65 @@
+---
+letter: 'g'
+word: generating-function
+dictionary: 'mathematics'
+category: 'combinatorics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['gamma-function','graph']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="generating-function">Generating Function</a> - A **generating function** is a formal power series whose coefficients encode information about a sequence $(a_n)$. For instance:
+
+55763
+G(x) = \sum_{n=0}^{\infty} a_n x^n.
+55763
+
+**Key points**:
+- Used extensively in combinatorics to derive closed forms or recurrences.
+- Different types (ordinary, exponential) depending on the combinatorial interpretation.
+
+**Example**: The ordinary generating function for the sequence $\{1,1,1,\dots\}$ is
+
+55763
+\sum_{n=0}^{\infty} x^n = \frac{1}{1-x}, \quad |x|<1.
+55763
+
+No direct data.table example is typical here, but generating functions are used in discrete math. One might do symbolic manipulations with external packages. We can, however, illustrate partial sums numerically:
+
+
+``` r
+library(data.table)
+
+x_val <- 0.2
+num_terms <- 10
+
+dt_genfun <- data.table(
+  n = 0:(num_terms-1)
+)
+
+dt_genfun[, term := x_val^n]
+partial_sum <- dt_genfun[, sum(term)]
+partial_sum
+```
+
+```
+## [1] 1.25
+```
+
+``` r
+# Compare to closed-form 1/(1 - x_val)
+closed_form <- 1 / (1 - x_val)
+closed_form
+```
+
+```
+## [1] 1.25
+```
+

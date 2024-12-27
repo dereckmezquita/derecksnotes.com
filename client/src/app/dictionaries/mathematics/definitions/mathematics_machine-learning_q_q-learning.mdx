@@ -1,0 +1,76 @@
+---
+letter: 'q'
+word: 'q-learning'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['reinforcement-learning','markov-chain']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="q-learning">Q-Learning</a> - A **reinforcement learning** algorithm that learns a value function \(Q(s,a)\) giving the expected **cumulative reward** for taking action \(a\) in state \(s\), then following some policy. The update rule:
+
+'61628'
+Q(s,a) \leftarrow Q(s,a) + \alpha \bigl[r + \gamma \max_{a'}Q(s', a') - Q(s,a)\bigr]
+'61628'
+
+where:
+- \(\alpha\) is the learning rate,
+- \(\gamma\) is the discount factor,
+- \(r\) is the immediate reward after performing action \(a\) in state \(s\) to reach new state \(s'\).
+
+**Key points**:
+- Model-free: no prior knowledge of environment dynamics is needed.
+- A type of [Markov-chain](#markov-chain) approach if states follow Markov property.
+
+**R demonstration** (mini example of a gridworld Q-learning approach, conceptual code only):
+
+
+``` r
+library(data.table)
+
+# We'll define a small 1D environment: states 1..5, with 5 as terminal
+Q <- matrix(0, nrow=5, ncol=2, dimnames=list(1:5, c("left","right")))
+alpha <- 0.1
+gamma <- 0.9
+
+simulate_episode <- function() {
+  s <- 3  # start in the middle
+  total_reward <- 0
+  while(s != 1 && s != 5) {
+    # pick an action
+    a <- sample(c("left","right"),1)
+    s_new <- if(a=="left") s-1 else s+1
+    r <- if(s_new==5) 10 else 0
+    # Q update
+    Q[s,a] <<- Q[s,a] + alpha*(r + gamma*max(Q[s_new,]) - Q[s,a])
+    s <- s_new
+    total_reward <- total_reward + r
+  }
+  total_reward
+}
+
+# run a few episodes
+for(i in 1:100){
+  simulate_episode()
+}
+
+Q
+```
+
+```
+##       left    right
+## 1 0.000000 0.000000
+## 2 0.000000 7.269587
+## 3 5.783547 8.929608
+## 4 7.458138 9.969567
+## 5 0.000000 0.000000
+```

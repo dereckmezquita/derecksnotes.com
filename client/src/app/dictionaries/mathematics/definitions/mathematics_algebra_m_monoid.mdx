@@ -1,0 +1,47 @@
+---
+letter: 'm'
+word: 'monoid'
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['semigroup','group']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="monoid">Monoid</a> - In **abstract algebra**, a **monoid** is a [semigroup](#semigroup) with an identity element. Specifically, a set \(M\) with an associative binary operation \(*\) and an identity element \(e\) so:
+
+1. Associativity: $(a*b)*c = a*(b*c)$ for all $a,b,c\in M$.
+2. Identity: $(a*e = e*a = a)$ for all $a\in M$.
+
+**Key points**:
+- A [group](#group) is a monoid where every element also has an inverse.
+- Examples: Natural numbers under addition with identity 0, strings under concatenation with identity "" (empty string).
+
+No direct R demonstration typical, but we can show a small "string monoid":
+
+
+``` r
+library(data.table)
+
+str_monoid_op <- function(a,b) paste0(a,b)  # concatenation
+e <- ""  # identity
+
+# Check associativity on a small example
+a<-"cat"; b<-"fish"; c<-"food"
+assoc_left  <- str_monoid_op(str_monoid_op(a,b), c)
+assoc_right <- str_monoid_op(a, str_monoid_op(b,c))
+data.table(assoc_left, assoc_right)
+```
+
+```
+##     assoc_left assoc_right
+##         <char>      <char>
+## 1: catfishfood catfishfood
+```

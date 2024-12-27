@@ -1,0 +1,39 @@
+---
+letter: 's'
+word: 'sample'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="sample">Sample</a> - In **statistics**, a **sample** is a subset taken from a larger population, used to infer characteristics (such as a [distribution](#distribution)) of that population. Random sampling is crucial to reduce bias.
+
+**Key points**:
+- **Sample size** is the number of observations in the subset.
+- Methods of sampling include simple random sampling, stratified sampling, etc.
+
+**R demonstration** (random sample from a vector):
+
+
+``` r
+library(data.table)
+
+vals <- 1:100
+set.seed(123)
+sample_vals <- sample(vals, 10)
+sample_vals
+```
+
+```
+##  [1] 31 79 51 14 67 42 50 43 97 25
+```

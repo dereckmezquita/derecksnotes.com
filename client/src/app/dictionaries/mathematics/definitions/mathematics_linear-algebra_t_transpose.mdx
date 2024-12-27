@@ -1,0 +1,51 @@
+---
+letter: 't'
+word: 'transpose'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['matrix','orthogonal']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="transpose">Transpose</a> - In **linear algebra**, the **transpose** of a [matrix](#matrix) $A\in\mathbb{R}^{m\times n}\) is the $n\times m$ matrix $A^T\) obtained by switching rows and columns. That is, \(A^T_{ij} = A_{ji}\). 
+
+**Key points**:
+- If \(A^T = A\), the matrix is symmetric.
+- If \(Q^T Q = I\), \(Q\) is [orthogonal](#orthogonal).
+
+**R demonstration**:
+
+
+``` r
+library(data.table)
+
+A <- matrix(1:6, nrow=2, byrow=TRUE)
+A_t <- t(A)
+A
+```
+
+```
+##      [,1] [,2] [,3]
+## [1,]    1    2    3
+## [2,]    4    5    6
+```
+
+``` r
+A_t
+```
+
+```
+##      [,1] [,2]
+## [1,]    1    4
+## [2,]    2    5
+## [3,]    3    6
+```

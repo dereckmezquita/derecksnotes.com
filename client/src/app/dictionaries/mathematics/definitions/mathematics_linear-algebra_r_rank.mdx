@@ -1,0 +1,55 @@
+---
+letter: 'r'
+word: 'rank'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['matrix','dimension']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="rank">Rank</a> - In **linear algebra**, the **rank** of a [matrix](#matrix) $A$ is the dimension of its column space (or row space). Equivalently, it’s the maximum number of linearly independent columns (or rows). The rank also ties into the concept of [dimension](#dimension) of the image (column space) of a linear transformation.
+
+**Key points**:
+- If $\mathrm{rank}(A) < \min(m,n)$ for an $m \times n$ matrix, the matrix is not full rank.
+- The rank-nullity theorem: \(\mathrm{rank}(A)+ \mathrm{nullity}(A) = n\).
+
+**R demonstration** (finding rank of a matrix):
+
+
+``` r
+library(MASS)
+library(data.table)
+
+A <- matrix(c(1,2,3, 2,4,6, 3,6,9), nrow=3, byrow=TRUE)
+A_rank <- qr(A)  # rank via QR decomposition
+A_rank
+```
+
+```
+## $qr
+##            [,1]          [,2]          [,3]
+## [1,] -3.7416574 -7.483315e+00 -1.122497e+01
+## [2,]  0.5345225  1.067608e-15  7.455420e-16
+## [3,]  0.8017837  8.320503e-01 -8.597879e-32
+## 
+## $rank
+## [1] 1
+## 
+## $qraux
+## [1] 1.267261e+00 1.554700e+00 8.597879e-32
+## 
+## $pivot
+## [1] 1 2 3
+## 
+## attr(,"class")
+## [1] "qr"
+```

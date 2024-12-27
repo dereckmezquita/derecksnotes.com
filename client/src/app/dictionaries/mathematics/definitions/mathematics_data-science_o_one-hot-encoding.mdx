@@ -1,0 +1,50 @@
+---
+letter: 'o'
+word: 'one-hot-encoding'
+dictionary: 'mathematics'
+category: 'data-science'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="one-hot-encoding">One-Hot Encoding</a> - In **data science** and **machine learning**, **one-hot encoding** is a method to transform categorical variables into numeric arrays with only one “active” position. For example, a feature “colour” with possible values (red, green, blue) might become:
+
+- red: (1, 0, 0)
+- green: (0, 1, 0)
+- blue: (0, 0, 1)
+
+**R demonstration** (converting a factor to dummy variables):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+dt_oh <- data.table(colour = c("red", "blue", "green", "green", "red"))
+dt_oh[, colour := factor(colour)]
+
+# We'll create dummy variables manually
+for(lvl in levels(dt_oh$colour)) {
+  dt_oh[[paste0("is_", lvl)]] <- ifelse(dt_oh$colour == lvl, 1, 0)
+}
+
+dt_oh
+```
+
+```
+##    colour is_blue is_green is_red
+##    <fctr>   <num>    <num>  <num>
+## 1:    red       0        0      1
+## 2:   blue       1        0      0
+## 3:  green       0        1      0
+## 4:  green       0        1      0
+## 5:    red       0        0      1
+```

@@ -1,0 +1,42 @@
+---
+letter: 'm'
+word: 'mode'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "distribution" again.
+linksTo: ['distribution']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="mode">Mode</a> - In **statistics**, the **mode** is the most frequently occurring value in a [distribution](#distribution). Some distributions (e.g., uniform) may have multiple modes (or no strong mode) if all values are equally likely.
+
+**R demonstration** (custom function):
+
+
+``` r
+library(data.table)
+
+mode_fn <- function(x) {
+  # returns the value(s) with highest frequency
+  tab <- table(x)
+  freq_max <- max(tab)
+  as.numeric(names(tab)[tab == freq_max])
+}
+
+dt_data <- data.table(vals = c(1,2,2,3,2,5,5,5))
+mode_fn(dt_data$vals)
+```
+
+```
+## [1] 2 5
+```

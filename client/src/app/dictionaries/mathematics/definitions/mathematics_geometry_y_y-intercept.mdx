@@ -1,0 +1,42 @@
+---
+letter: 'y'
+word: 'y-intercept'
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['y-axis','polynomial']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="y-intercept">Y-intercept</a> - In **geometry**, the **y-intercept** of a curve is the point(s) where it crosses the [y-axis](#y-axis). Formally, points with x=0:
+
+'58814'
+\text{Find } y \text{ such that } f(0)=y.
+'58814'
+
+**Key points**:
+- Solving for $f(0)$ often involves [polynomial](#polynomial) expressions or other functional forms.
+- Graphically, y-intercepts appear where the plot crosses the vertical axis.
+
+**R demonstration** (finding approximate y-intercept for a function):
+
+
+``` r
+library(data.table)
+
+f <- function(x) x^2 - 4*x + 1
+y_intercept <- f(0)
+y_intercept
+```
+
+```
+## [1] 1
+```

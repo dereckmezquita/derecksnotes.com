@@ -1,0 +1,62 @@
+---
+letter: 'd'
+word: discrete-random-variable
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['distribution','derivative']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="discrete-random-variable">Discrete Random Variable</a> - A **discrete random variable** is one that takes on a countable set of values (often integers). Typical examples include:
+
+- **Number of heads** in $n$ coin tosses
+- **Number of customers** arriving at a store in an hour (Poisson process)
+
+**Probability Mass Function (pmf)** for a discrete random variable $X$:
+
+55354
+P(X = x) = p(x),
+55354
+
+where $\sum_x p(x) = 1$ over all possible $x$.
+
+**R demonstration** (creating a binomial discrete variable):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+# Suppose X ~ Binomial(n=10, p=0.3)
+n <- 10
+p <- 0.3
+num_sims <- 1000
+
+# Generate 1000 realisations of X
+dt_binom <- data.table(
+  X = rbinom(num_sims, size=n, prob=p)
+)
+
+# Plot distribution
+ggplot(dt_binom, aes(x=factor(X))) +
+  geom_bar(fill="lightgreen", colour="black") +
+  labs(
+    title="Simulation of Binomial(10, 0.3)",
+    x="Number of successes",
+    y="Frequency"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_statistics_d_discrete-random-variable_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>
+

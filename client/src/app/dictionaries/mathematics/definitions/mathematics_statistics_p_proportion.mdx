@@ -1,0 +1,43 @@
+---
+letter: 'p'
+word: 'proportion'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="proportion">Proportion</a> - In **statistics**, a **proportion** represents a fraction of the whole—essentially, how many observations fall into a particular category, divided by the total.  
+
+'57323'
+\text{proportion} = \frac{\text{count of interest}}{\text{total count}}.
+'57323'
+
+**Key points**:
+- Used in categorical data analysis.
+- Confidence intervals for a proportion use techniques like the Wald method, Wilson method, etc.
+
+**R demonstration** (simple proportion of “heads” in coin flips):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+flips <- sample(c("H","T"), 50, replace=TRUE)
+prop_heads <- mean(flips=="H")
+prop_heads
+```
+
+```
+## [1] 0.6
+```

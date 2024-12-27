@@ -1,0 +1,60 @@
+---
+letter: 'd'
+word: derivative
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['dimension','determinant']
+linkedFrom: ['calculus','chain-rule']
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="derivative">Derivative</a> - In calculus, the **derivative** of a function $f(x)$ at a point $x = a$ measures the rate at which $f$ changes with respect to $x$.
+
+Formally, the derivative $f'(a)$ is defined by:
+
+55354
+f'(a) = \lim_{h \to 0} \frac{f(a + h) - f(a)}{h}.
+55354
+
+**Key points**:
+- Geometric interpretation: The slope of the tangent line to $y = f(x)$ at $x = a$.
+- Practical interpretation: Instantaneous rate of change (e.g. velocity from position).
+
+**Simple R demonstration** (numerical approximation):
+
+
+``` r
+# We'll approximate the derivative of f(x) = x^2 at x=2 using a small h
+f <- function(x) x^2
+
+numeric_derivative <- function(f, a, h = 1e-5) {
+  (f(a + h) - f(a)) / h
+}
+
+approx_deriv_2 <- numeric_derivative(f, 2)
+actual_deriv_2 <- 2 * 2  # derivative of x^2 is 2x, so at x=2 it's 4
+
+approx_deriv_2
+```
+
+```
+## [1] 4.00001
+```
+
+``` r
+actual_deriv_2
+```
+
+```
+## [1] 4
+```
+
+We see that $f'(2) = 4$ exactly, while our numeric approximation should be close to 4 for a suitably small $h$.
+

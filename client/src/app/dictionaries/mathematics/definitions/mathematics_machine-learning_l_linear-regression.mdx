@@ -1,0 +1,80 @@
+---
+letter: 'l'
+word: 'linear-regression'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['covariance','mean','variance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="linear-regression">Linear Regression</a> - In **machine learning** and statistics, **linear regression** models the relationship between a scalar response $y$ and one or more explanatory variables (features) $x_1, x_2, \dots, x_n$ by fitting a linear equation:
+
+'60196'
+y \approx \beta_0 + \beta_1 x_1 + \cdots + \beta_n x_n.
+'60196'
+
+**Key points**:
+- **Least squares** estimates the coefficients \(\beta_i\) by minimising the sum of squared residuals.
+- The fitted line (or hyperplane in multiple dimensions) can be used for prediction and inference.
+
+**Mathematical formula**:
+If we have data \((x_i, y_i)\) for i=1..m in a single-feature scenario, the sum of squared errors is:
+'60196'
+S(\beta_0,\beta_1) = \sum_{i=1}^m \bigl(y_i - (\beta_0 + \beta_1 x_i)\bigr)^2.
+'60196'
+We find \(\beta_0, \beta_1\) that minimise this sum.
+
+**R demonstration** (fitting a simple linear regression using base R):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+n <- 20
+x <- runif(n, min=0, max=10)
+y <- 3 + 2*x + rnorm(n, mean=0, sd=2)  # "true" slope=2, intercept=3
+
+dt_lr <- data.table(x=x, y=y)
+fit <- lm(y ~ x, data=dt_lr)
+summary(fit)
+```
+
+```
+## 
+## Call:
+## lm(formula = y ~ x, data = dt_lr)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -2.8189 -1.2640 -0.1737  1.3732  3.7852 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)   4.2326     0.8766   4.828 0.000135 ***
+## x             1.7370     0.1392  12.481 2.67e-10 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 1.902 on 18 degrees of freedom
+## Multiple R-squared:  0.8964,	Adjusted R-squared:  0.8907 
+## F-statistic: 155.8 on 1 and 18 DF,  p-value: 2.673e-10
+```
+
+``` r
+# Plot
+plot(y ~ x, data=dt_lr, pch=19, main="Linear Regression Demo")
+abline(fit, col="red", lwd=2)
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_machine-learning_l_linear-regression_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>

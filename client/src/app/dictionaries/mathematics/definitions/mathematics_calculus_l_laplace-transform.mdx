@@ -1,0 +1,58 @@
+---
+letter: 'l'
+word: 'laplace-transform'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "integral" in the definition, so let's add it.
+linksTo: ['integral']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="laplace-transform">Laplace Transform</a> - In **calculus**, the **Laplace transform** of a function $f(t)$ (for $t \ge 0$) is defined by the [integral](#integral):
+
+56724
+\mathcal{L}\{f(t)\}(s) = \int_0^\infty e^{-st} f(t)\, dt,
+56724
+
+assuming the integral converges.
+
+**Key points**:
+- Simplifies solving ordinary differential equations by converting them into algebraic equations in the $s$-domain.
+- Inverse Laplace transform recovers $f(t)$ from \(\mathcal{L}\{f\}(s)\).
+
+**R demonstration** (no base R function for Laplace transforms, but we can do numeric approximations or use external packages. We show a naive numeric approach for a simple function $e^{-t}$):
+
+
+``` r
+library(data.table)
+
+f <- function(t) exp(-t)
+laplace_numeric <- function(f, s, upper=10, n=1000) {
+  # naive numerical approach
+  t_vals <- seq(0, upper, length.out=n)
+  dt <- (upper - 0)/n
+  sum( exp(-s * t_vals) * f(t_vals) ) * dt
+}
+
+s_test <- 2
+approx_LT <- laplace_numeric(f, s_test, upper=10)
+approx_LT
+```
+
+```
+## [1] 0.338025
+```
+
+``` r
+# The exact Laplace transform of e^{-t} is 1/(s+1). For s=2 => 1/3 ~ 0.3333
+```

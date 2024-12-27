@@ -1,0 +1,38 @@
+---
+letter: 'i'
+word: interval
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "real-number-line" (not yet created?), so we add it:
+linksTo: ['real-number-line']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="interval">Interval</a> - In **analysis**, an **interval** is a connected subset of the [real-number-line](#real-number-line). Common types of intervals include:
+
+- **Open interval**: $(a,b) = \{ x : a < x < b \}$
+- **Closed interval**: $[a,b] = \{ x : a \le x \le b \}$
+- **Half-open / half-closed**: $(a,b] = \{ x : a < x \le b \}$, etc.
+
+Intervals are the building blocks of basic topology on the real line and are central in defining integrals, continuity, and other concepts of real analysis.
+
+
+``` r
+# Minimal R demonstration: we can define intervals simply with numeric vectors
+my_interval <- 0:5  # representing discrete steps from 0 to 5
+my_interval
+```
+
+```
+## [1] 0 1 2 3 4 5
+```

@@ -1,0 +1,39 @@
+---
+letter: 'm'
+word: 'median'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "distribution" again.
+linksTo: ['distribution']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="median">Median</a> - In **statistics**, the **median** is the value separating the higher half from the lower half of a [distribution](#distribution). For an ordered dataset of size $n$:
+
+- If $n$ is odd, the median is the middle value.
+- If $n$ is even, the median is the average of the two middle values.
+
+**R demonstration**:
+
+
+``` r
+library(data.table)
+
+dt_vals <- data.table(val = c(2,3,7,9,11))
+med_val <- median(dt_vals$val)
+med_val
+```
+
+```
+## [1] 7
+```

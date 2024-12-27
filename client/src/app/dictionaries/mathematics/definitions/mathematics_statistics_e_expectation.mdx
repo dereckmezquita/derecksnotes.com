@@ -1,0 +1,66 @@
+---
+letter: 'e'
+word: expectation
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['entropy','euclidean-algorithm']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="expectation">Expectation</a> - In probability theory, the **expectation** (or expected value) of a random variable $X$ represents the long-run average outcome of $X$ after many repetitions of an experiment.
+
+For a discrete random variable:
+
+55424
+E[X] = \sum_{x} x\, p(x).
+55424
+
+For a continuous random variable:
+
+55424
+E[X] = \int_{-\infty}^{\infty} x\, f_X(x) \, dx,
+55424
+
+where $f_X(x)$ is the probability density function.
+
+**R demonstration** (empirical estimation of expectation):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+# Suppose X ~ Uniform(0, 10)
+X_samples <- runif(10000, min=0, max=10)
+
+dtX <- data.table(X = X_samples)
+
+# Empirical mean
+emp_mean <- mean(dtX$X)
+
+# Theoretical expectation for Uniform(0, 10) is 5
+theoretical <- 5
+
+emp_mean
+```
+
+```
+## [1] 4.975494
+```
+
+``` r
+theoretical
+```
+
+```
+## [1] 5
+```
+

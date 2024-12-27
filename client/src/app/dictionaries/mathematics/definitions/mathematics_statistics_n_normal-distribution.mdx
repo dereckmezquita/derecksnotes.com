@@ -1,0 +1,67 @@
+---
+letter: 'n'
+word: 'normal-distribution'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['distribution','mean','variance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="normal-distribution">Normal Distribution</a> - In **statistics**, the **normal distribution** (or Gaussian) is a continuous probability [distribution](#distribution) with probability density function:
+
+'56956'
+f(x) = \frac{1}{\sqrt{2\pi}\,\sigma} \exp\!\Bigl(-\frac{(x - \mu)^2}{2\sigma^2}\Bigr)
+'56956'
+
+where '56956'\mu'56956' is the [mean](#mean) and '56956'\sigma^2'56956' is the [variance](#variance).
+
+**Key points**:
+- Symmetric, bell-shaped curve.
+- Many natural phenomena approximate normality by Central Limit Theorem arguments.
+
+**R demonstration**:
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+dt_norm <- data.table(x = rnorm(1000, mean=5, sd=2))
+
+ggplot(dt_norm, aes(x=x)) +
+  geom_histogram(bins=30, fill="lightblue", color="black", aes(y=..density..)) +
+  geom_density(color="red", size=1) +
+  labs(
+    title="Normal Distribution Example",
+    x="Value",
+    y="Density"
+  ) +
+  theme_minimal()
+```
+
+```
+## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+## ℹ Please use `linewidth` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.
+```
+
+```
+## Warning: The dot-dot notation (`..density..`) was deprecated in ggplot2 3.4.0.
+## ℹ Please use `after_stat(density)` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_statistics_n_normal-distribution_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>

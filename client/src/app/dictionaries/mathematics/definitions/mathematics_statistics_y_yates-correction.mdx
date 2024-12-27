@@ -1,0 +1,45 @@
+---
+letter: 'y'
+word: 'yates-correction'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['chi-squared-test','null-hypothesis']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="yates-correction">Yates' Correction</a> - In **statistics**, **Yates' correction** (also called **Yates' continuity correction**) is applied to a [chi-squared-test](#chi-squared-test) for 2×2 contingency tables to reduce bias when sample sizes are small. It adjusts the observed frequencies before computing the chi-squared statistic:
+
+'58814'
+\chi^2 = \sum\frac{(|O - E| - 0.5)^2}{E}.
+'58814'
+
+**Key points**:
+- Often recommended if expected frequencies are < 5, though its usage is debated.
+- Under the [null-hypothesis](#null-hypothesis), the chi-squared distribution still approximates the test statistic.
+
+No built-in function for Yates-correction in base R, but some `chisq.test` wrappers handle it, or you can manually apply the formula.
+
+
+``` r
+library(data.table)
+
+# Example of manually applying Yates' correction (conceptual)
+observed <- matrix(c(10,4,3,12), nrow=2)
+expected <- rowSums(observed) %o% colSums(observed) / sum(observed)
+
+chisq_yates <- sum((abs(observed - expected) - 0.5)^2 / expected)
+chisq_yates
+```
+
+```
+## [1] 5.804149
+```

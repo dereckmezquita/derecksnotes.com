@@ -1,0 +1,69 @@
+---
+letter: 'j'
+word: 'jacobian'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "gradient" in the definition,
+# so we add it to linksTo.
+linksTo: ['gradient']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="jacobian">Jacobian</a> - In multivariable calculus, the **Jacobian** of a vector function 
+$$ \mathbf{f}(x_1, \dots, x_n) = (f_1, f_2, \dots, f_m) $$  
+is the $m \times n$ matrix of all first-order partial derivatives:
+
+56318
+J_{\mathbf{f}} = \begin{pmatrix}
+\frac{\partial f_1}{\partial x_1} & \cdots & \frac{\partial f_1}{\partial x_n} \\
+\vdots & \ddots & \vdots \\
+\frac{\partial f_m}{\partial x_1} & \cdots & \frac{\partial f_m}{\partial x_n}
+\end{pmatrix}.
+56318
+
+- The determinant of this matrix (if $m = n$) is often used in change-of-variable formulas.
+- It generalises the concept of the [gradient](#gradient) (when $m=1$).
+
+**R demonstration** (numerical approximation of a Jacobian):
+
+
+``` r
+library(data.table)
+
+f_xy <- function(x, y) c(x^2 + 3*y, 2*x + y^2)
+
+approx_jacobian <- function(f, x, y, h=1e-6) {
+  # f should return a vector c(f1, f2, ...)
+  # We'll approximate partial derivatives w.r.t x and y.
+  
+  f_at_xy <- f(x, y)
+  
+  # partial w.r.t x
+  f_at_xplus <- f(x + h, y)
+  df_dx <- (f_at_xplus - f_at_xy) / h
+  
+  # partial w.r.t y
+  f_at_yplus <- f(x, y + h)
+  df_dy <- (f_at_yplus - f_at_xy) / h
+  
+  rbind(df_dx, df_dy)
+}
+
+approx_jacobian(f_xy, 1, 2)
+```
+
+```
+##           [,1]     [,2]
+## df_dx 2.000001 2.000000
+## df_dy 3.000000 4.000001
+```

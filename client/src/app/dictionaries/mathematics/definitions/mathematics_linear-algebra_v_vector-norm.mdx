@@ -1,0 +1,40 @@
+---
+letter: 'v'
+word: 'vector-norm'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['vector','absolute-value']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="vector-norm">Vector Norm</a> - A **vector norm** extends the idea of an [absolute-value](#absolute-value) from real numbers to [vector](#vector) spaces. The most common is the Euclidean norm (\(L^2\) norm):
+
+'58335'
+\|\mathbf{v}\|_2 = \sqrt{ v_1^2 + v_2^2 + \dots + v_n^2 }.
+'58335'
+
+Other norms include \(L^1\) norm (sum of absolute values) and \(L^\infty\) norm (max absolute value).
+
+**R demonstration** (Euclidean norm of a vector):
+
+
+``` r
+library(data.table)
+
+v <- c(3,4)
+euclid_norm <- sqrt(sum(v^2))
+euclid_norm  # should be 5 for (3,4).
+```
+
+```
+## [1] 5
+```

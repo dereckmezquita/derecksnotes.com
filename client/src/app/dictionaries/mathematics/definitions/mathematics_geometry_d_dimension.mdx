@@ -1,0 +1,57 @@
+---
+letter: 'd'
+word: dimension
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['determinant','derivative']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="dimension">Dimension</a> - **Dimension** generally refers to the number of coordinates needed to specify a point in a space:
+
+- In **geometry**, 2D refers to a plane, 3D to space, etc.
+- In **linear algebra**, dimension is the cardinality of a basis for a vector space.
+- In **data science**, dimension often describes the number of features or columns in a dataset.
+
+**Linear algebra perspective**:
+If $V$ is a vector space over a field $\mathbb{F}$ and $\{\mathbf{v}_1, \dots, \mathbf{v}_n\}$ is a basis for $V$, then $\dim(V) = n$.
+
+**R demonstration** (showing dimension of a data.table):
+
+
+``` r
+library(data.table)
+
+dt_dim <- data.table(
+  colA = rnorm(5),
+  colB = rnorm(5),
+  colC = rnorm(5)
+)
+
+# Number of rows
+nrow(dt_dim)
+```
+
+```
+## [1] 5
+```
+
+``` r
+# Number of columns (dimension in the sense of data features)
+ncol(dt_dim)
+```
+
+```
+## [1] 3
+```
+
+We have a 5 × 3 data.table, so we can say it has 3 “features” or columns in that sense, but in linear algebra, dimension has a more formal meaning related to basis and span.
+

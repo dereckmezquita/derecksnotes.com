@@ -1,0 +1,75 @@
+---
+letter: 'v'
+word: 'vertex'
+dictionary: 'mathematics'
+category: 'graph-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['graph']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="vertex">Vertex</a> - In **graph theory**, a **vertex** (also called a node) is a fundamental unit of a [graph](#graph). A graph $G=(V,E)$ consists of a set of vertices $V$ and edges $E$ between them.
+
+**Key points**:
+- The number of vertices is often denoted $|V|$.
+- Adjacency lists or matrices represent connections among vertices.
+
+**R demonstration** (simple use of `igraph` with vertices):
+
+
+``` r
+library(igraph)
+```
+
+```
+## 
+## Attaching package: 'igraph'
+```
+
+```
+## The following objects are masked from 'package:stats':
+## 
+##     decompose, spectrum
+```
+
+```
+## The following object is masked from 'package:base':
+## 
+##     union
+```
+
+``` r
+g <- graph(edges=c("A","B","B","C","C","D"), directed=FALSE)
+```
+
+```
+## Warning: `graph()` was deprecated in igraph 2.1.0.
+## ℹ Please use `make_graph()` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.
+```
+
+``` r
+V(g)  # show vertices
+```
+
+```
+## + 4/4 vertices, named, from b94d661:
+## [1] A B C D
+```
+
+``` r
+plot(g, vertex.color="lightgreen", vertex.size=30, edge.arrow.size=0.5)
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_graph-theory_v_vertex_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>

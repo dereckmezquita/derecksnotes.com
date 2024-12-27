@@ -1,0 +1,51 @@
+---
+letter: 'w'
+word: 'wedge-product'
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['vector','matrix']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="wedge-product">Wedge Product</a> - In **exterior algebra**, the **wedge product** (\(\wedge\)) of two [vector](#vector)s \(\mathbf{u}, \mathbf{v}\) forms an oriented area element (in 2D) or higher-dimensional analog. For 2D vectors, the wedge product is related to the determinant of a [matrix](#matrix):
+
+'58445'
+\mathbf{u}\wedge\mathbf{v} = 
+\begin{vmatrix}
+u_1 & v_1 \\
+u_2 & v_2
+\end{vmatrix}.
+'58445'
+
+**Key points**:
+- Anticommutative: \(\mathbf{u}\wedge\mathbf{v} = -\mathbf{v}\wedge\mathbf{u}\).
+- In higher dimensions, wedge products generalise to forms \(\alpha\wedge\beta\).
+
+**R demonstration** (simple 2D wedge product as area determinant):
+
+
+``` r
+library(data.table)
+
+wedge_2d <- function(u, v) {
+  # u, v are c(u1,u2), c(v1,v2)
+  u[1]*v[2] - u[2]*v[1]
+}
+
+u <- c(2,1)
+v <- c(3,4)
+wedge_2d(u,v)
+```
+
+```
+## [1] 5
+```

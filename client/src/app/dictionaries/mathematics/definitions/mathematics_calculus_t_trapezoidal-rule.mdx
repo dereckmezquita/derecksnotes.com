@@ -1,0 +1,47 @@
+---
+letter: 't'
+word: 'trapezoidal-rule'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['integral','limit']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="trapezoidal-rule">Trapezoidal Rule</a> - In **numerical integration**, the **trapezoidal rule** approximates the [integral](#integral) of a function by dividing the domain into subintervals and summing trapezoid areas:
+
+'57989'
+\int_a^b f(x)\,dx \approx \sum_{i=1}^{n} \frac{(f(x_i) + f(x_{i-1}))}{2} \Delta x.
+'57989'
+
+where \(\Delta x = \frac{b - a}{n}\).
+
+**R demonstration**:
+
+
+``` r
+library(data.table)
+
+f <- function(x) x^2
+trapezoid_rule <- function(f, a, b, n=100) {
+  x_vals <- seq(a, b, length.out=n+1)
+  dx <- (b-a)/n
+  sum( (f(x_vals[-1]) + f(x_vals[-(n+1)]))/2 ) * dx
+}
+
+approx_int <- trapezoid_rule(f, 0, 3, 100)
+true_val <- 3^3/3  # integral of x^2 from 0 to 3 => 9
+c(approx_int, true_val)
+```
+
+```
+## [1] 9.00045 9.00000
+```

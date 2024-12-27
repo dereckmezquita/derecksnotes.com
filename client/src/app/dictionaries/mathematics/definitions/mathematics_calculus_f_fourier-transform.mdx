@@ -1,0 +1,72 @@
+---
+letter: 'f'
+word: fourier-transform
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['function','fractal']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="fourier-transform">Fourier Transform</a> - The **Fourier transform** is a powerful integral transform that expresses a function of time (or space) as a function of frequency. For a function $f(t)$,
+
+55593
+\mathcal{F}\{f(t)\}(\omega) = \int_{-\infty}^{\infty} f(t) e^{-i\omega t} dt.
+55593
+
+**Key points**:
+- Decomposes signals into sums (integrals) of sines and cosines (complex exponentials).
+- Essential in signal processing, differential equations, image analysis, etc.
+
+**Discrete analogue** (DFT) in R demonstration:
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+# Create a time series with two sine waves
+set.seed(123)
+n <- 256
+t <- seq(0, 2*pi, length.out=n)
+f1 <- 1  # frequency 1
+f2 <- 5  # frequency 5
+signal <- sin(f1*t) + 0.5*sin(f2*t)
+
+dt_sig <- data.table(
+  t      = t,
+  signal = signal
+)
+
+# Compute discrete Fourier transform
+# We'll use stats::fft
+FT <- fft(dt_sig$signal)
+modulus <- Mod(FT[1:(n/2)])  # we only look at half (Nyquist)
+
+dt_dft <- data.table(
+  freq_index = 1:(n/2),
+  amplitude  = modulus
+)
+
+# Plot amplitude
+ggplot(dt_dft, aes(x=freq_index, y=amplitude)) +
+  geom_line(color="blue") +
+  labs(
+    title="DFT amplitude spectrum",
+    x="Frequency Index",
+    y="Amplitude"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_calculus_f_fourier-transform_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>
+

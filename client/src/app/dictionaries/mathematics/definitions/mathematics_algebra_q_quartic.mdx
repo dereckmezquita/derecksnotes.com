@@ -1,0 +1,53 @@
+---
+letter: 'q'
+word: 'quartic'
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="quartic">Quartic</a> - A **quartic** function (or bi-quadratic) is a polynomial of degree 4:
+
+'57581'
+f(x) = ax^4 + bx^3 + cx^2 + dx + e,
+'57581'
+
+where $a \neq 0$. Solving general quartic equations analytically is more complex than quadratics but is still possible via Ferrari’s method or by decomposition.
+
+**R demonstration** (plotting a quartic):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+f_quartic <- function(x) x^4 - 2*x^3 + 3*x + 1
+x_vals <- seq(-3,3, by=0.1)
+dt_qr <- data.table(
+  x = x_vals,
+  y = f_quartic(x_vals)
+)
+
+ggplot(dt_qr, aes(x=x, y=y)) +
+  geom_line(color="blue") +
+  labs(
+    title="Example Quartic: x^4 - 2x^3 + 3x + 1",
+    x="x", 
+    y="f(x)"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_algebra_q_quartic_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>

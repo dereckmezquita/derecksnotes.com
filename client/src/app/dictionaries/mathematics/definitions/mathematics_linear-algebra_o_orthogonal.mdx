@@ -1,0 +1,44 @@
+---
+letter: 'o'
+word: 'orthogonal'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['matrix']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="orthogonal">Orthogonal</a> - In **linear algebra**, vectors (or subspaces) are **orthogonal** if their dot product is zero. A set of vectors is orthogonal if every pair of distinct vectors in the set is orthogonal. A [matrix](#matrix) is an orthogonal matrix if $Q^T Q = I$.
+
+**Key points**:
+- Orthogonality generalises the concept of perpendicularity in higher dimensions.
+- Orthogonal transformations preserve lengths and angles.
+
+**R demonstration** (check if a matrix is orthogonal):
+
+
+``` r
+library(data.table)
+
+Q <- matrix(c(0,1, -1,0), nrow=2, byrow=TRUE)
+# Q^T Q
+test_orth <- t(Q) %*% Q
+test_orth
+```
+
+```
+##      [,1] [,2]
+## [1,]    1    0
+## [2,]    0    1
+```
+
+``` r
+# If Q is orthogonal, test_orth should be the 2x2 identity.
+```

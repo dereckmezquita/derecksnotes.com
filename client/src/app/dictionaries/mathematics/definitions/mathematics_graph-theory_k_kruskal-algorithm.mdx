@@ -1,0 +1,88 @@
+---
+letter: 'k'
+word: 'kruskal-algorithm'
+dictionary: 'mathematics'
+category: 'graph-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['graph']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="kruskal-algorithm">Kruskal's Algorithm</a> - In **graph theory**, **Kruskal's algorithm** finds a minimum spanning tree (MST) of a weighted [graph](#graph) by:
+
+1. Sorting edges in order of increasing weight.
+2. Adding edges one by one to the MST, provided they do not form a cycle.
+3. Repeating until all vertices are connected or edges are exhausted.
+
+This greedy approach ensures an MST if the graph is connected. 
+
+**R demonstration** (a small example with igraph):
+
+
+``` r
+library(igraph)
+```
+
+```
+## 
+## Attaching package: 'igraph'
+```
+
+```
+## The following objects are masked from 'package:stats':
+## 
+##     decompose, spectrum
+```
+
+```
+## The following object is masked from 'package:base':
+## 
+##     union
+```
+
+``` r
+# Create a weighted graph
+g <- graph(edges=c("A","B","B","C","A","C","C","D","B","D"),
+           directed=FALSE)
+```
+
+```
+## Warning: `graph()` was deprecated in igraph 2.1.0.
+## ℹ Please use `make_graph()` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.
+```
+
+``` r
+E(g)$weight <- c(2, 4, 5, 1, 3)  # just some weights
+
+# Use built-in MST function that uses Kruskal internally
+mst_g <- mst(g)
+mst_g
+```
+
+```
+## IGRAPH fd57a16 UNW- 4 3 -- 
+## + attr: name (v/c), weight (e/n)
+## + edges from fd57a16 (vertex names):
+## [1] A--B C--D B--D
+```
+
+``` r
+# Let's plot
+plot(mst_g, vertex.color="lightblue", vertex.size=30,
+     edge.label=E(mst_g)$weight)
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_graph-theory_k_kruskal-algorithm_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>

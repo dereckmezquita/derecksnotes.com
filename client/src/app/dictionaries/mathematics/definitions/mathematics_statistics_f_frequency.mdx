@@ -1,0 +1,56 @@
+---
+letter: 'f'
+word: frequency
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['factorial','fractal']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="frequency">Frequency</a> - **Frequency** in mathematics and statistics can refer to:
+
+1. **Statistical frequency**: How often a value appears in a dataset.
+2. **Periodic phenomenon**: The number of cycles per unit time (e.g., in sine waves, signals).
+
+**Statistical frequency**:
+- Relative frequency = count of event / total observations.
+- Frequency table is a basic summary in data analysis.
+
+**Periodic frequency** (in signals):
+- If $f(t) = \sin(2\pi \, \nu \, t)$, then $\nu$ is the frequency in cycles per unit time.
+
+**R demonstration** (calculating frequencies in a categorical dataset):
+
+
+``` r
+library(data.table)
+
+# Suppose a small categorical variable
+dt_freq <- data.table(
+  category = c("A", "B", "A", "C", "B", "A", "B", "B", "C")
+)
+
+# Frequency count
+freq_table <- dt_freq[, .N, by=category]
+setnames(freq_table, "N", "count")
+
+freq_table[, rel_freq := count / sum(count)]
+freq_table
+```
+
+```
+##    category count  rel_freq
+##      <char> <int>     <num>
+## 1:        A     3 0.3333333
+## 2:        B     4 0.4444444
+## 3:        C     2 0.2222222
+```
+

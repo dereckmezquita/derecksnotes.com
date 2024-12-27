@@ -1,0 +1,81 @@
+---
+letter: 't'
+word: 'transformer'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['attention-mechanism','neural-network','llm']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="transformer">Transformer</a> - A **Transformer** is an advanced **neural network** architecture introduced by Vaswani et al. (2017) for sequence-to-sequence tasks, eliminating recurrence by relying solely on **self-attention** mechanisms.
+
+**Architecture**:
+- An **encoder** stack and **decoder** stack, each with multiple layers. 
+- Each layer includes **multi-head self-attention** and **feed-forward** sub-layers.
+- Attention uses “queries”, “keys”, and “values” to compute weighted sums.
+
+**Key equations**:
+Multi-head attention for each head:
+'62203'
+\mathrm{Attn}(Q,K,V) = \mathrm{softmax}\Bigl(\frac{QK^T}{\sqrt{d_k}}\Bigr) V,
+'62203'
+where \(Q,K,V\) are linear transformations of input embeddings, and \(d_k\) is dimension.
+
+**R demonstration** (pure R code for Transformers is less common; we can demonstrate conceptually with `tensorflow` or `torch` if installed. We'll do a conceptual snippet):
+
+
+``` r
+# We'll just outline the shape manipulations, not do a full training
+library(data.table)
+# Suppose we have an embedding dimension d_model=64, a batch with seq_len=10
+batch_size <- 2
+seq_len    <- 10
+d_model    <- 64
+Q <- array(rnorm(batch_size*seq_len*d_model), dim=c(batch_size,seq_len,d_model))
+K <- array(rnorm(batch_size*seq_len*d_model), dim=c(batch_size,seq_len,d_model))
+V <- array(rnorm(batch_size*seq_len*d_model), dim=c(batch_size,seq_len,d_model))
+
+cat("Shapes: Q,K,V => [batch_size, seq_len, d_model]. We'll do a naive attention calculation in R.\n")
+```
+
+```
+## Shapes: Q,K,V => [batch_size, seq_len, d_model]. We'll do a naive attention calculation in R.
+```
+
+``` r
+attention_naive <- function(Q,K,V) {
+  # We'll flatten batch dimension in naive approach
+  out <- array(0, dim=dim(Q))
+  for(b in seq_len(dim(Q)[1])) {
+    # gather per-batch
+    Qb <- Q[b,,]  # shape [seq_len, d_model]
+    Kb <- K[b,,]
+    Vb <- V[b,,]
+    # compute Qb Kb^T => [seq_len, seq_len]
+    attn_score <- Qb %*% t(Kb) / sqrt(d_model)
+    attn_prob  <- apply(attn_score, 1, function(row) exp(row - max(row))) # stable softmax row wise
+    attn_prob  <- t(attn_prob)
+    attn_prob  <- attn_prob / rowSums(attn_prob)
+    # multiply by V
+    outb <- attn_prob %*% Vb # shape [seq_len, d_model]
+    out[b,,] <- outb
+  }
+  out
+}
+
+res <- attention_naive(Q,K,V)
+dim(res)
+```
+
+```
+## [1]  2 10 64
+```
+

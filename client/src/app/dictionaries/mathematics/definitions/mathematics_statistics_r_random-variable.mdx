@@ -1,0 +1,52 @@
+---
+letter: 'r'
+word: 'random-variable'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution','expectation']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="random-variable">Random Variable</a> - In **probability theory**, a **random variable** is a function that assigns a real number to each outcome in a sample space. It links randomness (abstract events) to numerical values for analysis (via a [distribution](#distribution)). 
+
+'57737'
+X: \Omega \to \mathbb{R}.
+'57737'
+
+**Key points**:
+- Can be discrete or continuous.
+- The [expectation](#expectation) of a random variable provides a measure of its average outcome.
+
+**R demonstration** (sampling a random variable $X\sim N(0,1)$):
+
+
+``` r
+library(data.table)
+set.seed(123)
+dt_rv <- data.table(x = rnorm(10))
+dt_rv
+```
+
+```
+##               x
+##           <num>
+##  1: -0.56047565
+##  2: -0.23017749
+##  3:  1.55870831
+##  4:  0.07050839
+##  5:  0.12928774
+##  6:  1.71506499
+##  7:  0.46091621
+##  8: -1.26506123
+##  9: -0.68685285
+## 10: -0.44566197
+```

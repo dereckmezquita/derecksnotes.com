@@ -1,0 +1,84 @@
+---
+letter: 's'
+word: 'svm'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['kernel','margin']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="svm">Support Vector Machine (SVM)</a> - A **support vector machine** is a powerful method for classification (and sometimes regression) that finds a maximal [margin](#margin) hyperplane separating classes in feature space. If classes are not linearly separable, it uses a [kernel](#kernel) trick to map into higher-dimensional spaces.
+
+**Key points**:
+- Minimises hinge loss for classification.
+- Creates a decision boundary that maximises margin from support vectors.
+
+**Mathematical form**:
+For binary classification, we try to solve:
+'60196'
+\min_{w,b} \frac{1}{2}\|w\|^2 \quad \text{subject to} \quad y_i(w \cdot x_i + b) \ge 1 \quad \forall i.
+'60196'
+
+**R demonstration** (using `e1071` for a small SVM example):
+
+
+``` r
+library(e1071)
+library(data.table)
+
+set.seed(123)
+n <- 30
+x1 <- runif(n, min=-3, max=3)
+x2 <- runif(n, min=-3, max=3)
+y_class <- ifelse(x2 > x1 + rnorm(n,0,1), "A","B")
+
+dt_svm <- data.table(x1=x1, x2=x2, y=as.factor(y_class))
+fit_svm <- svm(y ~ x1 + x2, data=dt_svm, kernel="linear", scale=TRUE)
+summary(fit_svm)
+```
+
+```
+## 
+## Call:
+## svm(formula = y ~ x1 + x2, data = dt_svm, kernel = "linear", scale = TRUE)
+## 
+## 
+## Parameters:
+##    SVM-Type:  C-classification 
+##  SVM-Kernel:  linear 
+##        cost:  1 
+## 
+## Number of Support Vectors:  12
+## 
+##  ( 6 6 )
+## 
+## 
+## Number of Classes:  2 
+## 
+## Levels: 
+##  A B
+```
+
+``` r
+# Grid for plotting
+grid_x1 <- seq(-3,3,length.out=50)
+grid_x2 <- seq(-3,3,length.out=50)
+grid_data <- data.table(expand.grid(x1=grid_x1, x2=grid_x2))
+pred_grid <- predict(fit_svm, newdata=grid_data)
+
+plot(x2 ~ x1, data=dt_svm, col=y, pch=19,
+     main="SVM Demo (linear kernel)")
+contour(grid_x1, grid_x2, matrix(as.numeric(pred_grid),50), add=TRUE, levels=c(1.5))
+```
+
+<Figure src="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions/mathematics_machine-learning_s_svm_files/figure-html/unnamed-chunk-1-1.png">
+	
+</Figure>
