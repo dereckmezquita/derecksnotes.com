@@ -1,0 +1,52 @@
+---
+letter: 'd'
+word: 'decision-tree'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['binary-operation','entropy','information-gain']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap <- options$fig.cap
+    as.character(
+      htmltools::tag("Figure",list(src=x,alt=cap,paste("\n\t",cap,"\n",sep="")))
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
+```
+
+<a id="decision-tree">Decision Tree</a> - A **decision tree** is a model that splits data by features to produce a tree of decisions for classification or regression. Nodes perform tests (e.g., $x_j < c$), and leaves provide outcomes or values.
+
+**Key points**:
+- For classification, we measure impurity using [entropy](#entropy) or Gini index, splitting to maximise [information-gain](#information-gain).
+- For regression, splits often minimise sum of squared errors in leaves.
+
+**R demonstration** (using `rpart` for a simple tree):
+
+```{r}
+library(rpart)
+library(rpart.plot)
+library(data.table)
+
+set.seed(123)
+n <- 50
+x1 <- runif(n, min=0, max=5)
+x2 <- runif(n, min=0, max=5)
+y_class <- ifelse(x1 + x2 + rnorm(n, sd=1) > 5, "A","B")
+
+dt_tree <- data.table(x1=x1, x2=x2, y=y_class)
+fit_tree <- rpart(y ~ x1 + x2, data=dt_tree, method="class")
+rpart.plot(fit_tree)
+```
