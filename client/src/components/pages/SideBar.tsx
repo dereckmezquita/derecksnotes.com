@@ -44,8 +44,6 @@ function renderSideBarContent(posts: any) {
         groupedPosts[post.title].push(post);
     }
 
-    console.log(groupedPosts);
-
     // ---- 2. Render each group. ----
     const renderedContent: JSX.Element[] = [];
     const titleKeys = Object.keys(groupedPosts);
