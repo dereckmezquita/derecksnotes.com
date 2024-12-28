@@ -1,5 +1,5 @@
-// components that are common between displaying a post and dictionaries
 'use client';
+import { ReactElement } from 'react';
 import styled, { css } from 'styled-components';
 import Link from 'next/link';
 
@@ -91,7 +91,7 @@ export const SideBarAboutH2 = styled.h2`
         props.theme.text.colour.light_grey(undefined, undefined, 50)};
 `;
 
-export function SideBarAbout(): JSX.Element {
+export function SideBarAbout(): ReactElement {
     return (
         <SideBarAboutContainer>
             <SideBarAboutH2>About</SideBarAboutH2>

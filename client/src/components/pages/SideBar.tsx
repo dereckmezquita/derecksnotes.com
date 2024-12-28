@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ReactElement } from 'react';
 import path from 'path';
 import {
     SideBarContainer,
@@ -45,7 +45,7 @@ function renderSideBarContent(posts: any) {
     }
 
     // ---- 2. Render each group. ----
-    const renderedContent: JSX.Element[] = [];
+    const renderedContent: ReactElement[] = [];
     const titleKeys = Object.keys(groupedPosts);
 
     for (let i = 0; i < titleKeys.length; i++) {
@@ -83,7 +83,7 @@ function renderSideBarContent(posts: any) {
 
 // Helper function for definitions:
 function renderAllDefinitions(defs: DefinitionMetadata[]) {
-    const items: JSX.Element[] = [];
+    const items: ReactElement[] = [];
     for (let i = 0; i < defs.length; i++) {
         items.push(renderDefinition(defs[i]));
     }
@@ -120,7 +120,7 @@ function renderPost(post: PostMetadata) {
 //  * Subsequent items: “Chapter i: title”
 function renderSeriesList(series: PostMetadata[]) {
     const firstPost = series[0];
-    const listItems: JSX.Element[] = [];
+    const listItems: ReactElement[] = [];
 
     // Top item
     listItems.push(
