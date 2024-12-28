@@ -1,0 +1,62 @@
+---
+letter: 's'
+word: 'sharpe-ratio'
+dictionary: 'mathematics'
+category: 'finance'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['standard-deviation','mean','value-at-risk']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x, options){
+    cap<-options$fig.cap
+    as.character(
+      htmltools::tag("Figure",
+        list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
+      )
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="sharpe-ratio">Sharpe Ratio</a> - In **finance**, the **Sharpe ratio** measures the performance of an investment (or strategy) compared to a risk-free asset, accounting for volatility. 
+
+**Formula**:
+$$
+\text{Sharpe Ratio} = \frac{\mathbb{E}[R - R_f]}{\sigma_{(R-R_f)}},
+$$
+where
+- $R$ is the asset/portfolio return,
+- $R_f$ is the risk-free rate,
+- $\sigma$ is the standard deviation of $R - R_f$.
+
+**Key points**:
+- Higher is better, but it can be gamed by different return distributions.
+- Assumes returns are normally distributed for best interpretability.
+
+**R demonstration** (compute Sharpe for a random returns series):
+
+```{r}
+library(data.table)
+set.seed(123)
+Rf <- 0.0005  # risk-free daily, e.g. ~0.12% annual
+n <- 200
+ret <- rnorm(n, mean=0.001, sd=0.01)
+
+dt_sharpe <- data.table(ret=ret)
+excess <- dt_sharpe$ret - Rf
+sr <- mean(excess)/sd(excess)
+sr
+```
+

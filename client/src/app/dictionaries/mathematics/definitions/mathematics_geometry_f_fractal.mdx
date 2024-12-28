@@ -1,0 +1,51 @@
+---
+letter: 'f'
+word: fractal
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['fourier-transform','frequency']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="fractal">Fractal</a> - A **fractal** is a geometric object that often exhibits self-similarity at various scales. Examples include the Mandelbrot set, Julia sets, and natural phenomena (coastlines, etc.).
+
+**Key traits**:
+- *Self-similarity*: Zoomed-in portions look similar to the original.
+- *Fractional dimension*: Dimension can be non-integer.
+- *Often defined recursively or via iterative processes*.
+
+**R demonstration** (a simple iteration for the Koch snowflake boundary length, numerical only):
+
+
+``` r
+library(data.table)
+
+koch_iterations <- 5
+dt_koch <- data.table(step = 0:koch_iterations)
+
+# Start with length 1 for the side of an equilateral triangle
+# Each iteration multiplies the total line length by 4/3
+dt_koch[, length := (4/3)^step]
+
+dt_koch
+```
+
+```
+##     step   length
+##    <int>    <num>
+## 1:     0 1.000000
+## 2:     1 1.333333
+## 3:     2 1.777778
+## 4:     3 2.370370
+## 5:     4 3.160494
+## 6:     5 4.213992
+```
+

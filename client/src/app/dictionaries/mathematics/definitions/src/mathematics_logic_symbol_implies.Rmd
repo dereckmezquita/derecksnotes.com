@@ -1,0 +1,49 @@
+---
+letter: '#'
+word: 'implies'
+dictionary: 'mathematics'
+category: 'logic'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['forall','exists']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src=x, alt=cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="implies">⇒ (Implies)</a> - In **logic**, **⇒** is used to denote implication. “A ⇒ B” means if A holds (is true), then B must also be true. In formal terms:
+
+$$
+A \implies B \quad\equiv\quad \neg A \lor B.
+$$
+
+**Key points**:
+- Logic statements often chain multiple implications.
+- Pairs with equivalences, [forall](#forall), [exists](#exists), etc.
+
+No direct R demonstration, as it’s a symbolic part of logic:
+
+```{r}
+cat("A => B is read as 'A implies B'. If A is true, B must be true.")
+```

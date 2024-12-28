@@ -1,0 +1,50 @@
+---
+letter: 'v'
+word: 'volume'
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="volume">Volume</a> - In **geometry**, **volume** measures the 3-dimensional “size” of a region. For example, the volume of a rectangular prism with side lengths $l, w, h$ is:
+
+$$
+V = l \times w \times h.
+$$
+
+**Key examples**:
+- Sphere: $V=\frac{4}{3}\pi r^3$.
+- Cylinder: $V=\pi r^2 h$.
+
+No direct R demonstration typically, but we might just compute a formula:
+
+```{r}
+rect_volume <- function(l, w, h) l*w*h
+rect_volume(2,3,4)
+```

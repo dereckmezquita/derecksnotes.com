@@ -1,0 +1,68 @@
+---
+letter: 'b'
+word: 'black-scholes'
+dictionary: 'mathematics'
+category: 'finance'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['monte-carlo-simulation','distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap<-options$fig.cap
+    as.character(
+      htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="black-scholes">Black-Scholes Formula</a> - In **finance**, the **Black-Scholes** (or **Black-Scholes-Merton**) formula provides a closed-form solution for pricing a European call/put option under certain assumptions (continuous compounding, constant volatility, no dividends, etc.).
+
+**Call option price**:
+$$
+C_0 = S_0\Phi(d_1) - K e^{-rT}\Phi(d_2),
+$$
+where
+$$
+d_1 = \frac{\ln\bigl(\frac{S_0}{K}\bigr) + \bigl(r + \tfrac{1}{2}\sigma^2\bigr)T}{\sigma\sqrt{T}}, \quad
+d_2 = d_1 - \sigma\sqrt{T}.
+$$
+
+$\Phi$ is the cumulative distribution function of the standard normal distribution.
+
+**R demonstration** (computing call price):
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+# We'll define a function to compute d1, d2, then call price
+phi <- function(x) pnorm(x)  # standard normal cdf
+
+black_scholes_call <- function(S0, K, r, sigma, T) {
+  d1 <- (log(S0/K) + (r + 0.5*sigma^2)*T)/(sigma*sqrt(T))
+  d2 <- d1 - sigma*sqrt(T)
+  C0 <- S0*phi(d1) - K*exp(-r*T)*phi(d2)
+  C0
+}
+
+S0 <- 100
+K  <- 105
+r  <- 0.02
+sigma <- 0.2
+T <- 1
+C0 <- black_scholes_call(S0, K, r, sigma, T)
+C0
+```
+

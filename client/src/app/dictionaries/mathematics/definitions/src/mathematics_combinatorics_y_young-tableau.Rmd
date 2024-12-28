@@ -1,0 +1,49 @@
+---
+letter: 'y'
+word: 'young-tableau'
+dictionary: 'mathematics'
+category: 'combinatorics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['partition']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="young-tableau">Young Tableau</a> - In **combinatorics** and representation theory, a **Young tableau** is a grid diagram (partition shape) where cells are filled with numbers (or symbols) that obey certain row/column ordering. A **standard Young tableau** uses distinct numbers $1,2,...,n$ that strictly increase left-to-right in rows and top-to-bottom in columns.
+
+**Key points**:
+- Related to [partition](#partition) of integers (diagrams shaped by partition lengths).
+- Vital in symmetric function theory and representation theory of symmetric groups.
+
+**R demonstration** (no base R function for Young tableaux, but we can show a small layout):
+
+```{r}
+library(data.table)
+
+# We'll just define a small 'shape' as row lengths, e.g. partition (3,2)
+# Then store a possible filling as a standard Young tableau
+
+young_shape <- list(c(1,2,3), c(4,5))  # conceptual: row1=(1,2,3), row2=(4,5)
+young_shape
+```

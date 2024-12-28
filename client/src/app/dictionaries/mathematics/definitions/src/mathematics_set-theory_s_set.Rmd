@@ -1,0 +1,50 @@
+---
+letter: 's'
+word: 'set'
+dictionary: 'mathematics'
+category: 'set-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['intersection','union']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="set">Set</a> - In **mathematics**, a **set** is a well-defined collection of distinct objects. Notation often uses curly braces: $\{a, b, c\}$. Operations like [intersection](#intersection), [union](#union), and subset relationships form the basis of **set theory**.
+
+**Key points**:
+- No repeated elements: sets ignore duplicates.
+- Can contain any type of object, even other sets.
+
+**R demonstration**:
+
+```{r}
+library(data.table)
+
+A <- c(1,2,3)
+B <- c(3,4,5)
+intersect(A,B)
+union(A,B)
+```

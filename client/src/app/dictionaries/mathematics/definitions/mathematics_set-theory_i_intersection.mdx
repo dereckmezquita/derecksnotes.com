@@ -1,0 +1,43 @@
+---
+letter: 'i'
+word: intersection
+dictionary: 'mathematics'
+category: 'set-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "union" (which might be found in another set-based definition),
+# so we add it to linksTo, even if it's not created yet.
+linksTo: ['union']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="intersection">Intersection</a> - In **set theory**, the **intersection** of two sets $A$ and $B$ is the set of elements that belong to both $A$ and $B$. Symbolically:
+
+$$
+A \cap B = \{ x : x \in A \text{ and } x \in B \}.
+$$
+
+- Compare this with the [union](#union) $A \cup B$, which combines all elements in either $A$ or $B$.
+- The empty set $\varnothing$ results if $A$ and $B$ share no elements.
+
+No special R demonstration is typically needed, but we can illustrate a basic example using sets as vectors:
+
+
+``` r
+A <- c(1, 2, 3, 4)
+B <- c(3, 4, 5, 6)
+
+intersect(A, B)  # yields 3,4
+```
+
+```
+## [1] 3 4
+```

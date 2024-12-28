@@ -1,0 +1,42 @@
+---
+letter: 's'
+word: 'standard-deviation'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['variance','distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="standard-deviation">Standard Deviation</a> - In **statistics**, the **standard deviation** (SD) is the square root of the [variance](#variance). It indicates how spread out the values in a [distribution](#distribution) are around the mean.
+
+$$
+\text{SD} = \sqrt{\frac{1}{n}\sum_{i=1}^{n}(x_i - \bar{x})^2}.
+$$
+
+**Key points**:
+- Low SD: data points are closer to the mean.
+- High SD: data points are more spread out.
+
+**R demonstration** (computing SD in base R):
+
+
+``` r
+library(data.table)
+set.seed(123)
+x_vals <- rnorm(30, mean=10, sd=2)
+sd_val <- sd(x_vals)
+sd_val
+```
+
+```
+## [1] 1.962061
+```

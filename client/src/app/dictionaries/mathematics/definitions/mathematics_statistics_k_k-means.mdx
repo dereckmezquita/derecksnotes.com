@@ -1,0 +1,67 @@
+---
+letter: 'k'
+word: 'k-means'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="k-means">K-means</a> - In **cluster analysis**, **k-means** is an algorithm that partitions $n$ observations into $k$ clusters. Each observation belongs to the cluster with the nearest mean (cluster centre). 
+
+**Algorithm Outline**:
+1. Choose $k$ initial centroids.
+2. Assign each data point to its nearest centroid.
+3. Recompute centroids as the mean of points in each cluster.
+4. Repeat steps 2-3 until assignments stabilize or a maximum iteration count is reached.
+
+K-means often assumes data in a continuous space and can leverage knowledge of the [distribution](#distribution) of points to identify cluster structure.
+
+**R demonstration** (basic example):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+dt_data <- data.table(
+  x = rnorm(50, 5, 1),
+  y = rnorm(50, 2, 1)
+)
+# Add another cluster
+dt_data2 <- data.table(
+  x = rnorm(50, 10, 1),
+  y = rnorm(50, 7, 1)
+)
+
+dt_full <- rbind(dt_data, dt_data2)
+
+# k-means with 2 clusters
+res_km <- kmeans(dt_full[, .(x, y)], centers=2)
+
+dt_full[, cluster := factor(res_km$cluster)]
+
+ggplot(dt_full, aes(x=x, y=y, color=cluster)) +
+  geom_point() +
+  labs(
+    title="k-means Clustering (k=2)",
+    x="X",
+    y="Y"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_statistics_k_k-means_files/unnamed-chunk-1-1.png">
+	
+</Figure>

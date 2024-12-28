@@ -1,0 +1,79 @@
+---
+letter: 'j'
+word: 'julia-set'
+dictionary: 'mathematics'
+category: 'complex-analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "fractal" in the definition,
+# so we add it to linksTo.
+linksTo: ['fractal']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="julia-set">Julia Set</a> - In **complex dynamics**, a **Julia set** is the boundary of points in the complex plane describing the behaviour of a complex function, often associated with the iteration of polynomials like $z \mapsto z^2 + c$. Julia sets are typical examples of a [fractal](#fractal).
+
+**Key points**:
+- For each complex parameter $c$, there is a distinct Julia set.
+- The set often exhibits self-similarity and intricate boundaries.
+
+**R demonstration** (simple iteration to classify points):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+# We'll do a basic "escape-time" iteration for z^2 + c, with c = -0.8 + 0.156i
+c_val <- complex(real=-0.8, imaginary=0.156)
+
+n <- 400
+x_seq <- seq(-1.5, 1.5, length.out=n)
+y_seq <- seq(-1.5, 1.5, length.out=n)
+
+max_iter <- 50
+threshold <- 2
+
+res <- data.table()
+for (ix in seq_along(x_seq)) {
+  for (iy in seq_along(y_seq)) {
+    z <- complex(real=x_seq[ix], imaginary=y_seq[iy])
+    iter <- 0
+    while(Mod(z) < threshold && iter < max_iter) {
+      z <- z*z + c_val
+      iter <- iter + 1
+    }
+    res <- rbind(
+      res,
+      data.table(
+        x = x_seq[ix],
+        y = y_seq[iy],
+        iteration = iter
+      )
+    )
+  }
+}
+
+ggplot(res, aes(x=x, y=y, color=iteration)) +
+  geom_point(shape=15, size=1) +
+  scale_color_viridis_c() +
+  coord_fixed() +
+  labs(
+    title="Simple Julia Set (z^2 + c)",
+    x="Re(z)",
+    y="Im(z)"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_complex-analysis_j_julia-set_files/unnamed-chunk-1-1.png">
+	
+</Figure>

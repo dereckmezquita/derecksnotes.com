@@ -1,0 +1,54 @@
+---
+letter: 'c'
+word: 'calculus'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['chain-rule','covariance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="calculus">Calculus</a> - Calculus is the branch of mathematics that deals with continuous change. It is traditionally divided into two main parts:
+
+- **Differential Calculus**: Concerned with rates of change and slopes of curves.
+- **Integral Calculus**: Focuses on accumulation of quantities, areas under curves, etc.
+
+**Core concepts**:
+- **Limit**: 
+  $$ 
+  \lim_{x \to a} f(x) = L 
+  $$
+  if for all small enough ranges around $L$, the function $f(x)$ remains close to $L$.
+- **Derivative**: 
+  $$ 
+  f'(x) = \lim_{h \to 0} \frac{f(x+h) - f(x)}{h},
+  $$
+  which measures the instantaneous rate of change of $f$ at $x$.
+- **Integral**:
+  $$
+  \int_a^b f(x)\,dx 
+  $$
+  represents the area under $f(x)$ from $x=a$ to $x=b$ (in one dimension).
+
+Calculus is foundational in physics, engineering, economics, statistics, and many other fields.
+

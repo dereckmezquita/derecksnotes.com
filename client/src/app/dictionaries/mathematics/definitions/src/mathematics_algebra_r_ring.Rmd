@@ -1,0 +1,47 @@
+---
+letter: 'r'
+word: 'ring'
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['group','field','algebra']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()) {
+  knitr::knit_hooks$set(plot = function(x, options){
+    cap <- options$fig.cap
+    as.character(
+      htmltools::tag("Figure",
+        list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+      )
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="ring">Ring</a> - In **abstract algebra**, a **ring** is a set equipped with two binary operations (usually called addition and multiplication), satisfying:
+
+1. (R, +) is an abelian [group](#group).
+2. Multiplication is associative.
+3. Distributive laws link the two operations:  
+   $ a \times (b + c) = a\times b + a\times c$ and $(b + c)\times a = b\times a + c\times a$.
+
+**Key points**:
+- Rings may or may not have a multiplicative identity (1). If present, we say it’s a “ring with unity.”
+- A [field](#field) is a ring where every nonzero element has a multiplicative inverse.
+
+No direct R demonstration typical for ring structure, but we can mention integer arithmetic as a ring:
+
+```{r}
+cat("Integers under + and * form a classic ring.")
+```

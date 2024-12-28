@@ -1,0 +1,63 @@
+---
+letter: 'l'
+word: 'likelihood'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We'll reference "distribution" in the definition.
+linksTo: ['distribution']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="likelihood">Likelihood</a> - In **statistics**, the **likelihood** function measures how well a given model parameter explains observed data. It’s similar to a [distribution](#distribution) but viewed from the parameter’s perspective:
+
+- For data $x$ and parameter $\theta$, the likelihood $L(\theta | x)$ is often expressed as $p(x | \theta)$, the probability of observing $x$ given $\theta$.
+
+**Key points**:
+- Maximum likelihood estimation chooses $\hat\theta$ that maximises $L(\theta | x)$.
+- Log-likelihood is commonly used for convenience: $\ell(\theta) = \log L(\theta|x)$.
+
+**R demonstration** (fitting a simple normal likelihood):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+x_data <- rnorm(50, mean=5, sd=2)
+
+lik_fun <- function(mu, sigma, x) {
+  # Normal pdf for each x, product as likelihood
+  # i.e. prod(dnorm(x, mean=mu, sd=sigma))
+  # We'll return negative log-likelihood for convenience
+  -sum(dnorm(x, mean=mu, sd=sigma, log=TRUE))
+}
+
+# We'll do a quick grid search
+mu_seq <- seq(4, 6, by=0.1)
+sigma_seq <- seq(1, 3, by=0.1)
+res <- data.table()
+for(m in mu_seq) {
+  for(s in sigma_seq) {
+    nll <- lik_fun(m, s, x_data)
+    res <- rbind(res, data.table(mu=m, sigma=s, nll=nll))
+  }
+}
+res_min <- res[which.min(nll)]
+res_min
+```
+
+```
+##       mu sigma      nll
+##    <num> <num>    <num>
+## 1:   5.1   1.8 101.2725
+```

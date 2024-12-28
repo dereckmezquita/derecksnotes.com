@@ -1,0 +1,76 @@
+---
+letter: 'c'
+word: 'curl'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['nabla','divergence']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="curl">Curl</a> - In **vector calculus**, the **curl** of a 3D vector field $\mathbf{F} = (F_x, F_y, F_z)$ measures the field’s tendency to rotate about a point. Using the [nabla](#nabla) operator ∇:
+
+$$
+\nabla \times \mathbf{F} 
+= 
+\begin{vmatrix}
+\mathbf{i} & \mathbf{j} & \mathbf{k} \\
+\frac{\partial}{\partial x} & \frac{\partial}{\partial y} & \frac{\partial}{\partial z} \\
+F_x & F_y & F_z
+\end{vmatrix}.
+$$
+
+**Key points**:
+- If curl = 0, the field is irrotational (conservative, under certain conditions).
+- Vital in fluid flow, electromagnetics (e.g., Maxwell’s equations).
+
+**R demonstration** (approx numeric partials for a simple field):
+
+
+``` r
+library(data.table)
+
+F <- function(x,y,z) c(x*y, y+z, x-z)  # example
+h <- 1e-6
+
+curl_approx <- function(f, x,y,z, h=1e-6) {
+  # f => c(Fx, Fy, Fz)
+  # partial wrt x
+  Fx0 <- f(x,y,z)
+  Fx_xph <- f(x+h,y,z); Fx_ymh <- f(x,y-h,z); Fx_zmh <- f(x,y,z-h)
+  
+  # We'll do partial derivatives in the standard determinant sense:
+  # (∂Fz/∂y - ∂Fy/∂z, ∂Fx/∂z - ∂Fz/∂x, ∂Fy/∂x - ∂Fx/∂y)
+  # approximate them
+
+  Fz_yph <- f(x, y+h, z)[3]
+  Fy_zph <- f(x, y, z+h)[2]
+  
+  Fy_xph <- f(x+h,y,z)[2]
+  Fx_zph <- f(x,y,z+h)[1]
+  
+  Fz_xph <- f(x+h,y,z)[3]
+  Fx_yph <- f(x,y+h,z)[1]
+  
+  c(
+    (Fz_yph - Fx0[3]) / h - (Fy_zph - Fx0[2]) / h,
+    (Fx_zph - Fx0[1]) / h - (Fz_xph - Fx0[3]) / h,
+    (Fy_xph - Fx0[2]) / h - (Fx_yph - Fx0[1]) / h
+  )
+}
+
+curl_approx(F,1,2,3)
+```
+
+```
+## [1] -1 -1 -1
+```
+

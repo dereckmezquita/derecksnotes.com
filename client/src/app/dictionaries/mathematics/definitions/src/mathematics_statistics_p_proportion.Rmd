@@ -1,0 +1,54 @@
+---
+letter: 'p'
+word: 'proportion'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="proportion">Proportion</a> - In **statistics**, a **proportion** represents a fraction of the whole—essentially, how many observations fall into a particular category, divided by the total.  
+
+$$
+\text{proportion} = \frac{\text{count of interest}}{\text{total count}}.
+$$
+
+**Key points**:
+- Used in categorical data analysis.
+- Confidence intervals for a proportion use techniques like the Wald method, Wilson method, etc.
+
+**R demonstration** (simple proportion of “heads” in coin flips):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+flips <- sample(c("H","T"), 50, replace=TRUE)
+prop_heads <- mean(flips=="H")
+prop_heads
+```

@@ -1,6 +1,7 @@
 import styled from 'styled-components';
 import { NEXT_PUBLIC_APP_VERSION, NEXT_PUBLIC_BUILD_ENV } from '@lib/env';
 import Link from 'next/link';
+import { ReactElement } from 'react';
 
 const minWidthSnapUp = (props: any) =>
     props.theme.container.widths.min_width_snap_up;
@@ -29,7 +30,7 @@ function getCurrentYear(): number {
     return new Date().getFullYear();
 }
 
-function Footer(): JSX.Element {
+function Footer(): ReactElement {
     return (
         <FooterContainer>
             <FooterText>

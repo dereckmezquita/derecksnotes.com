@@ -1,0 +1,59 @@
+---
+letter: 'a'
+word: asymptote
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['algebra','angle']
+linkedFrom: ['absolute-value','arithmetic']
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="asymptote">Asymptote</a> - An asymptote of a function is a line (or curve) that the function approaches as the input or output grows large in magnitude.
+
+**Types**:
+- **Horizontal**: $y = L$ if $\lim_{x \to \pm\infty} f(x) = L$.
+- **Vertical**: $x = c$ if $\lim_{x \to c} \bigl| f(x) \bigr| = \infty$.
+- **Oblique (Slant)**: $y = mx + b$ if the function approaches that line as $x \to \pm\infty$.
+
+**Example**: $f(x) = \frac{1}{x}$:
+- Horizontal asymptote at $y=0$, since 
+  $$\lim_{x\to\pm\infty} \frac{1}{x} = 0.$$
+- Vertical asymptote at $x=0$, since 
+  $$\lim_{x\to 0} \left|\frac{1}{x}\right| = \infty.$$
+
+To analyse numerically in R:
+
+
+``` r
+f <- function(x) 1/x
+
+# Large values
+large_x <- seq(100, 1000, by=200)
+vals_large <- f(large_x)
+vals_large
+```
+
+```
+## [1] 0.010000000 0.003333333 0.002000000 0.001428571 0.001111111
+```
+
+``` r
+# Near x=0
+small_x <- seq(-0.1, 0.1, by=0.05)
+vals_small <- f(small_x)
+vals_small
+```
+
+```
+## [1] -10 -20 Inf  20  10
+```
+
+Observe how $f(x)$ tends to $0$ for large $|x|$ (horizontal asymptote) and diverges as $x$ approaches $0$ (vertical asymptote).
+

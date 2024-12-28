@@ -1,0 +1,46 @@
+---
+letter: 'c'
+word: chain-rule
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['calculus']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="chain-rule">Chain Rule</a> - In differential calculus, the **chain rule** provides a way to compute the derivative of a composite function. If $f$ and $g$ are differentiable, and $h(x) = f(g(x))$, then:
+
+$$
+h'(x) = f'(g(x)) \cdot g'(x).
+$$
+
+**Key points**:
+- It generalises the idea that the rate of change of a composition depends on the rate of change of the outer function evaluated at the inner function, multiplied by the rate of change of the inner function itself.
+- It appears frequently in problems involving functions of functions, e.g. if $f(u)$ and $u(x)$.
+
+**Example**:
+- If $y = (x^2 + 1)^5$, then letting $u = x^2 + 1$, we have $y = u^5$.
+  - $\frac{dy}{du} = 5u^4$
+  - $\frac{du}{dx} = 2x$
+  - Thus, $\frac{dy}{dx} = 5u^4 \cdot 2x = 10x(x^2 + 1)^4$.
+

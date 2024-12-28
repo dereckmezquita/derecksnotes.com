@@ -1,0 +1,63 @@
+---
+letter: 'l'
+word: 'limit'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We'll reference "derivative" or "integral"? Usually derivative is defined by a limit.
+# Let's say we link to "derivative".
+linksTo: ['derivative']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="limit">Limit</a> - In **calculus**, a **limit** describes the value that a function (or sequence) “approaches” as the input (or index) moves toward some point. For a function $f(x)$:
+
+$$
+\lim_{x \to a} f(x) = L
+$$
+
+means that $f(x)$ can be made arbitrarily close to $L$ by taking $x$ sufficiently close to $a$.
+
+**Key role in**:
+- Defining the [derivative](#derivative): $f'(x) = \lim_{h \to 0} \dots$.
+- Defining continuity and integrals.
+
+**R demonstration** (numeric approximation of a limit at a point):
+
+```{r}
+library(data.table)
+
+f <- function(x) (x^2 - 1)/(x - 1)  # Indeterminate at x=1, but simplifies to x+1
+x_vals <- seq(0.9, 1.1, by=0.01)
+dt_lim <- data.table(
+  x = x_vals,
+  f_x = f(x_vals)
+)
+dt_lim
+# As x -> 1, f(x)-> 2. 
+```

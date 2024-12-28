@@ -1,0 +1,52 @@
+---
+letter: 'w'
+word: 'weighted-average'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['mean','arithmetic']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="weighted-average">Weighted Average</a> - A **weighted average** generalises the [mean](#mean) by assigning weights $w_i$ to values $x_i$. For a set of values $x_1, x_2, \dots, x_n$ with weights $w_1, w_2, \dots, w_n$:
+
+$$
+\bar{x}_w = \frac{ \sum_{i=1}^{n} w_i x_i }{ \sum_{i=1}^{n} w_i }.
+$$
+
+If all weights $w_i$ are equal, this reduces to the arithmetic mean (see [arithmetic](#arithmetic)).
+
+**R demonstration**:
+
+```{r}
+library(data.table)
+
+vals <- c(3,5,10)
+wts  <- c(1,2,5)  # weighting
+weighted_mean <- sum(vals * wts)/sum(wts)
+weighted_mean
+```

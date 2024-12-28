@@ -1,0 +1,55 @@
+---
+letter: 'f'
+word: function
+dictionary: 'mathematics'
+category: 'general'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['fourier-transform','fractal']
+linkedFrom: ['factorial']
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="function">Function</a> - A **function** $f$ from a set $A$ to a set $B$ is a rule that assigns each element $a \in A$ exactly one element $f(a) \in B$. We write:
+
+$$
+f: A \to B, \quad a \mapsto f(a).
+$$
+
+**Key points**:
+- Each input has exactly one output (well-defined).
+- One of the most fundamental concepts in mathematics.
+
+**R demonstration** (defining a simple function in R):
+
+
+``` r
+library(data.table)
+
+# A function that squares its input
+f <- function(x) x^2
+
+dt_fun <- data.table(
+  x = -3:3
+)
+dt_fun[, f_x := f(x)]
+dt_fun
+```
+
+```
+##        x   f_x
+##    <int> <num>
+## 1:    -3     9
+## 2:    -2     4
+## 3:    -1     1
+## 4:     0     0
+## 5:     1     1
+## 6:     2     4
+## 7:     3     9
+```
+

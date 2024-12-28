@@ -1,0 +1,68 @@
+---
+letter: 'j'
+word: 'jordan-normal-form'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "eigenvalue" in the definition,
+# so we add it to linksTo.
+linksTo: ['eigenvalue']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi=300,
+  fig.width=10,
+  fig.height=7
+)
+```
+
+<a id="jordan-normal-form">Jordan Normal Form</a> - In **linear algebra**, the **Jordan normal form** (or Jordan canonical form) of a matrix is a block diagonal matrix with Jordan blocks, each corresponding to an [eigenvalue](#eigenvalue).
+
+A **Jordan block** for an eigenvalue $\lambda$ looks like:
+
+$$
+\begin{pmatrix}
+\lambda & 1 & 0 & \cdots & 0 \\
+0 & \lambda & 1 & \cdots & 0 \\
+\vdots & & \ddots & \ddots & \vdots \\
+0 & 0 & \cdots & \lambda & 1 \\
+0 & 0 & \cdots & 0 & \lambda 
+\end{pmatrix}.
+$$
+
+The Jordan form classifies matrices up to similarity transformations and is critical in solving systems of linear differential equations and more.
+
+**R demonstration** (no built-in base R function to compute Jordan form, but we can show a small example):
+
+```{r}
+library(data.table)
+# Usually, packages like 'jord' or 'expm' might help. 
+# We'll just illustrate a 2x2 Jordan block for eigenvalue 3:
+
+J <- matrix(c(3,1,0,3), 2, 2, byrow=TRUE)
+J
+```

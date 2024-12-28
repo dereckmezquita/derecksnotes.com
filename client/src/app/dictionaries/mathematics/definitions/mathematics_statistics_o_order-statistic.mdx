@@ -1,0 +1,54 @@
+---
+letter: 'o'
+word: 'order-statistic'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference 'median' since the median is essentially the middle order statistic.
+linksTo: ['median']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="order-statistic">Order Statistic</a> - In **statistics**, an **order statistic** is one of the values in a sorted sample. Given $n$ data points, the $k$th **order statistic** is the $k$th smallest value. The [median](#median) is a well-known order statistic (middle value for odd $n$).
+
+**Key points**:
+- Distribution of order statistics helps in confidence intervals, extreme value theory.
+- The minimum is the 1st order statistic, the maximum is the $n$th.
+
+**R demonstration**:
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+x_vals <- sample(1:100, 10) 
+dt_ord <- data.table(x = x_vals)
+dt_ord_sorted <- dt_ord[order(x)]
+dt_ord_sorted[, idx := .I]  # .I is row index in data.table
+dt_ord_sorted
+```
+
+```
+##         x   idx
+##     <int> <int>
+##  1:    14     1
+##  2:    25     2
+##  3:    31     3
+##  4:    42     4
+##  5:    43     5
+##  6:    50     6
+##  7:    51     7
+##  8:    67     8
+##  9:    79     9
+## 10:    97    10
+```

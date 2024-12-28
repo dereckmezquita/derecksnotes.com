@@ -1,0 +1,63 @@
+---
+letter: 'p'
+word: 'pca'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['matrix','eigenvalue','variance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap<-options$fig.cap
+    as.character(htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="pca">PCA (Principal Component Analysis)</a> - In **machine learning** and statistics, **PCA** is a dimensionality reduction technique. It finds orthogonal directions of maximum [variance](#variance) in the data. Mathematically, if $X$ is an $m\times n$ data [matrix](#matrix) (assuming columns are features), we compute the covariance matrix:
+
+$$
+\Sigma = \frac{1}{m-1} X^T X,
+$$
+and find its [eigenvalue](#eigenvalue)-eigenvector decomposition. The principal components are eigenvectors of $\Sigma$, ordered by descending eigenvalues.
+
+**Key points**:
+- The first principal component captures the direction of greatest variance.
+- Often used to reduce noise, visualise data in 2 or 3 principal components.
+
+**R demonstration** (using `prcomp` on synthetic data):
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 100
+# We'll produce correlated data
+x1 <- rnorm(n)
+x2 <- 2*x1 + rnorm(n, sd=0.5)
+dt_pca <- data.table(x1, x2)
+
+pca_res <- prcomp(dt_pca[, .(x1, x2)], scale=TRUE)
+summary(pca_res)
+
+# Plot the principal components
+dt_scores <- data.table(pca_res)
+ggplot(dt_scores, aes(PC1, PC2)) + 
+  geom_point() +
+  labs(title="PCA of Synthetic 2D Data", x="PC1", y="PC2") +
+  theme_minimal()
+```

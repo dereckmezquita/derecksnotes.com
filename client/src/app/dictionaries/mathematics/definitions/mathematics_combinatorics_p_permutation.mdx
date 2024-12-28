@@ -1,0 +1,45 @@
+---
+letter: 'p'
+word: 'permutation'
+dictionary: 'mathematics'
+category: 'combinatorics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['combination']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="permutation">Permutation</a> - In **combinatorics**, a **permutation** is an arrangement of all or part of a set of objects in a specific order. For $n$ distinct elements, the number of ways to arrange all of them is $n!$. When selecting $k$ from $n$ in an ordered manner:
+
+$$
+P(n, k) = \frac{n!}{(n-k)!}.
+$$
+
+Compare with a [combination](#combination), where order does not matter.
+
+**R demonstration** (simple function for permutation count):
+
+
+``` r
+library(data.table)
+
+perm_func <- function(n,k) factorial(n)/factorial(n-k)
+
+perm_5_3 <- perm_func(5,3)
+perm_5_3
+```
+
+```
+## [1] 60
+```
+
+``` r
+# which is 5!/2! = 60
+```

@@ -1,0 +1,45 @@
+---
+letter: 'b'
+word: bijection
+dictionary: 'mathematics'
+category: 'functions'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['algebra']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", 
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="bijection">Bijection</a> - A **bijection** (or **bijective function**) between two sets $A$ and $B$ is a one-to-one and onto mapping:
+
+- **One-to-one (Injective)**: Different elements in $A$ map to different elements in $B$.
+- **Onto (Surjective)**: Every element of $B$ is mapped from some element of $A$.
+
+Formally, a function $f: A \to B$ is bijective if:
+1. If $f(a_1) = f(a_2)$ then $a_1 = a_2$ (injectivity).
+2. For every $b \in B$, there exists an $a \in A$ such that $f(a) = b$ (surjectivity).
+
+**Examples**:
+- $f: \mathbb{R} \to \mathbb{R}$, $f(x) = x+1$, is bijective.
+- Exponential $e^x$ from $\mathbb{R}\to (0,\infty)$ is bijective onto its image $(0, \infty)$.
+
+Bijective functions are crucial in algebra, combinatorics, and many areas of mathematics because they establish a perfect “pairing” between sets, enabling one-to-one correspondences (e.g., counting arguments in combinatorics).
+

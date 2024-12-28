@@ -1,0 +1,50 @@
+---
+letter: 'y'
+word: 'y-coordinate'
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['coordinate-system','y-axis']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="y-coordinate">Y-coordinate</a> - The **y-coordinate** of a point in a [coordinate-system](#coordinate-system) is its vertical position, indicating how far up or down it is relative to the [x-axis](#x-axis). Typically, an ordered pair is written as $(x, y)$, where $y$ is the y-coordinate.
+
+**Key points**:
+- Positive y-coordinates lie above the x-axis.
+- Negative y-coordinates lie below the x-axis.
+- See also [y-axis](#y-axis) for orientation.
+
+Simple R demonstration (extracting y-coordinates from a data set):
+
+```{r}
+library(data.table)
+
+dt_points <- data.table(x=seq(-2,2,1), y=rnorm(5))
+dt_points
+dt_points[, y]
+```

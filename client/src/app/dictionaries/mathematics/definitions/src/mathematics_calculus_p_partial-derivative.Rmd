@@ -1,0 +1,66 @@
+---
+letter: 'p'
+word: 'partial-derivative'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference 'derivative' or 'gradient' from previous definitions if desired:
+linksTo: ['derivative','gradient']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="partial-derivative">Partial Derivative</a> - In **multivariable calculus**, a **partial derivative** of a function
+$$
+f(x_1, x_2, \dots, x_n)
+$$
+with respect to $x_k$ is the derivative treating $x_k$ as the only variable, holding others constant:
+
+$$
+\frac{\partial f}{\partial x_k}(x_1,\dots,x_n) = 
+\lim_{h \to 0} \frac{f(\dots, x_k + h, \dots) - f(\dots, x_k, \dots)}{h}.
+$$
+
+**Key points**:
+- Used in computing the [gradient](#gradient).
+- The concept generalises [derivative](#derivative) to higher dimensions.
+
+**R demonstration** (numerical approximation for $f(x,y)= x^2 + 2xy$ wrt $x$):
+
+```{r}
+library(data.table)
+
+f_xy <- function(x,y) x^2 + 2*x*y
+
+partial_x <- function(f, x, y, h=1e-6) {
+  (f(x+h, y) - f(x, y)) / h
+}
+
+val <- partial_x(f_xy, 2, 3)
+val
+# Compare to analytic partial derivative wrt x: 2x + 2y. 
+# At (2,3) => 2*2 + 2*3=4+6=10
+```

@@ -1,0 +1,51 @@
+---
+letter: 't'
+word: 'taylor-series'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['derivative','limit','series']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="taylor-series">Taylor Series</a> - In **analysis**, the **Taylor series** of a function $f$ at a point $a$ is the infinite [series](#series):
+
+$$
+f(a + x) = \sum_{n=0}^{\infty} \frac{f^{(n)}(a)}{n!} x^n,
+$$
+
+where $f^{(n)}(a)$ is the $n$th [derivative](#derivative) of $f$ at $a$. Convergence depends on the function and distance from $a$.
+
+**Key points**:
+- Special case: Maclaurin series when $a=0$.
+- Approximates functions near $a$.
+
+**R demonstration** (partial sums for $e^x$):
+
+
+``` r
+library(data.table)
+
+taylor_exp <- function(x, N=10) {
+  # sum_{n=0 to N} x^n / n!
+  sum( sapply(0:N, function(n) x^n / factorial(n)) )
+}
+
+x_val <- 1
+approx_exp <- taylor_exp(x_val, 10)
+actual_exp <- exp(x_val)
+
+c(approx_exp, actual_exp)
+```
+
+```
+## [1] 2.718282 2.718282
+```

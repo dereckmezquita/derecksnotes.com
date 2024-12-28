@@ -4,6 +4,7 @@ import Alert from './Alert';
 import Blockquote from './Blockquote';
 import Carousel from './FigureCarrousel';
 import LearningObjectives from './LearningObjectives';
+import CanvasWithJs from './CanvasWithJs';
 
 const mdxComponents = {
     Figure,
@@ -11,7 +12,8 @@ const mdxComponents = {
     Alert,
     Blockquote,
     Carousel,
-    LearningObjectives
+    LearningObjectives,
+    CanvasWithJs
 };
 
 export default mdxComponents;

@@ -1,0 +1,51 @@
+---
+letter: 't'
+word: 't-statistic'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['null-hypothesis','mean','variance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="t-statistic">T-Statistic</a> - In **statistics**, the **t-statistic** is used in a t-test to compare a sample [mean](#mean) to a hypothesised population mean (under the [null-hypothesis](#null-hypothesis)), typically when population [variance](#variance) is unknown. For sample size $n$:
+
+$$
+t = \frac{\bar{x} - \mu_0}{s / \sqrt{n}},
+$$
+
+where $\bar{x}$ is the sample mean, $s$ is the sample standard deviation, and $\mu_0$ is the hypothesised mean.
+
+**R demonstration** (simple t-test):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+x_vals <- rnorm(20, mean=10, sd=2)
+res_ttest <- t.test(x_vals, mu=9)
+res_ttest
+```
+
+```
+## 
+## 	One Sample t-test
+## 
+## data:  x_vals
+## t = 2.9501, df = 19, p-value = 0.008221
+## alternative hypothesis: true mean is not equal to 9
+## 95 percent confidence interval:
+##   9.372805 11.193690
+## sample estimates:
+## mean of x 
+##  10.28325
+```

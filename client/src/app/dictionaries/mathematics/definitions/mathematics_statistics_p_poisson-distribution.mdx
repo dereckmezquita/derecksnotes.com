@@ -1,0 +1,52 @@
+---
+letter: 'p'
+word: 'poisson-distribution'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution','mean']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="poisson-distribution">Poisson Distribution</a> - In **probability**, the **Poisson distribution** is a discrete [distribution](#distribution) describing the probability of a number of events occurring in a fixed interval, given the events occur with a known average rate (the [mean](#mean)) and independently of the time since the last event.
+
+Its pmf for $k=0,1,2,\dots$ is:
+
+$$
+P(X=k) = \frac{\lambda^k e^{-\lambda}}{k!},
+$$
+
+where '57323'\lambda'57323' is both the mean and the variance of the distribution.
+
+**R demonstration**:
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+lambda_val <- 4
+dt_pois <- data.table(k = 0:15)
+dt_pois[, prob := dpois(k, lambda_val)]
+
+ggplot(dt_pois, aes(x=factor(k), y=prob)) +
+  geom_col(fill="lightblue", color="black") +
+  labs(
+    title=paste("Poisson distribution with lambda =", lambda_val),
+    x="k",
+    y="Probability"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_statistics_p_poisson-distribution_files/unnamed-chunk-1-1.png">
+	
+</Figure>

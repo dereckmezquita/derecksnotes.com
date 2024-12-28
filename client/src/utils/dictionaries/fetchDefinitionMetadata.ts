@@ -57,16 +57,35 @@ export function extractSingleDefinitionMetadata(
     }
 }
 
-export function fetchDefintionsMetadata(folder: string): DefinitionMetadata[] {
+/**
+ * Fetch only the DefinitionMetadata entries in `folder` that are *related* to `currentWord`.
+ * A definition is considered "related" if the currentWord is in its linksTo or linkedFrom array.
+ */
+export function fetchDefintionsMetadata(
+    folder: string,
+    currentWord: string
+): DefinitionMetadata[] {
+    // 1. Read all .mdx files in the given folder
     const files: string[] = fs.readdirSync(folder);
-    const mdx: string[] = files.filter((file) => file.endsWith('.mdx'));
+    const mdxFiles: string[] = files.filter((file) => file.endsWith('.mdx'));
 
-    let definitions: DefinitionMetadata[] = mdx.map((file) => {
-        return extractSingleDefinitionMetadata(path.join(folder, file));
+    // 2. Extract metadata from each .mdx
+    let definitions: DefinitionMetadata[] = mdxFiles.map((file) =>
+        extractSingleDefinitionMetadata(path.join(folder, file))
+    );
+
+    // 3. Filter published definitions that are *related* to the current word
+    definitions = definitions.filter((def) => {
+        if (!def.published) {
+            return false;
+        }
+        // "Related" means currentWord is in def.linksTo OR def.linkedFrom
+        const inLinksTo = def.linksTo?.includes(currentWord) ?? false;
+        const inLinkedFrom = def.linkedFrom?.includes(currentWord) ?? false;
+        return inLinksTo || inLinkedFrom;
     });
 
-    definitions = definitions.filter((definition) => definition.published);
-
+    // 4. Sort results by letter
     return definitions.sort((a, b) => {
         const letterA = a.letter.toLowerCase();
         const letterB = b.letter.toLowerCase();

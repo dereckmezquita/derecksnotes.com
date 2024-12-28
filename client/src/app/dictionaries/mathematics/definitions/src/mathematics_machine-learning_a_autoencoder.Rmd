@@ -1,0 +1,84 @@
+---
+letter: 'a'
+word: 'autoencoder'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['neural-network','pca','gradient']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x,options){
+      cap<-options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="autoencoder">Autoencoder</a> - An **autoencoder** is a specific type of [neural-network](#neural-network) for unsupervised learning. It tries to learn a **compressed representation** of data (the “bottleneck”) by encoding the input to a lower dimension and then decoding it to reconstruct the original input.
+
+**Architecture**:
+- **Encoder**: transforms input $x$ to a hidden representation $h = \sigma(W_{enc} x + b_{enc})$.
+- **Decoder**: reconstructs $\hat{x} = \sigma(W_{dec} h + b_{dec})$.
+- Objective: minimise reconstruction error, e.g.
+$$
+L = \sum_{i=1}^n \| x_i - \hat{x}_i \|^2.
+$$
+
+**R demonstration** (no base function for autoencoders; we can use `keras` or `h2o` but let's conceptualise a small example with `keras` if installed):
+
+```{r}
+library(keras)
+library(data.table)
+
+# We'll do a synthetic example for conceptual demonstration only
+set.seed(123)
+n <- 1000
+x_vals <- runif(n,0,1)  # 1D input
+noise <- rnorm(n,0,0.01)
+y_vals <- x_vals + noise
+dt_ae <- data.table(x=x_vals, y=y_vals)
+
+# We'll treat (x,y) as input dimension=2 just for demonstration
+inputs <- layer_input(shape=2)
+encoded <- inputs %>%
+  layer_dense(units=1, activation="linear", name="bottleneck")
+decoded <- encoded %>%
+  layer_dense(units=2, activation="linear", name="output")
+
+autoencoder_model <- keras_model(inputs=inputs, outputs=decoded)
+autoencoder_model %>% compile(
+  loss="mse",
+  optimizer="adam"
+)
+
+# Convert data to matrix
+train_mat <- as.matrix(dt_ae)
+autoencoder_model %>% fit(
+  x=train_mat, y=train_mat,
+  epochs=10, batch_size=32, verbose=0
+)
+
+# Encoding
+encoder <- keras_model(inputs=inputs, outputs=encoded)
+encoded_points <- encoder %>% predict(train_mat)
+dt_encoded <- data.table(encoded=encoded_points[,1])
+
+hist(dt_encoded$encoded, breaks=30,
+     main="Encoded Bottleneck Representation", xlab="encoded value")
+```

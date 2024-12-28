@@ -1,0 +1,49 @@
+---
+letter: 'b'
+word: basis
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['algebra']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", 
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="basis">Basis</a> - In linear algebra, a **basis** of a vector space $V$ over a field $\mathbb{F}$ is a set of vectors that:
+
+1. **Span** $V$: Every vector in $V$ can be written as a linear combination of those basis vectors.
+2. Are **linearly independent**: No vector in the set can be written as a linear combination of the others.
+
+If $\mathcal{B} = \{\mathbf{v}_1, \mathbf{v}_2, \dots, \mathbf{v}_n\}\$ is a basis for $V$, then any $\mathbf{x} \in V$ can be uniquely expressed as:
+
+$$
+\mathbf{x} = c_1 \mathbf{v}_1 + c_2 \mathbf{v}_2 + \cdots + c_n \mathbf{v}_n,
+$$
+
+where $c_i \in \mathbb{F}$.
+
+**Examples**:
+- The set $\{(1,0), (0,1)\}$ is a basis for $\mathbb{R}^2$.
+- The set of monomials $\{1, x, x^2, \dots, x^n\}$ forms a basis for the space of polynomials of degree $\le n$.
+
+Finding a basis is central to problems in linear algebra such as simplifying linear transformations, solving systems of equations, and diagonalising matrices.
+

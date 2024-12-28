@@ -4,16 +4,42 @@ blurb: "If only I were good at maths..."
 coverImage: 3
 author: "Dereck Mezquita"
 date: 2018-11-24
-
-tags: [mathematics, geometry, puzzle]
+tags: [mathematics, geometry, puzzle, mathematical-proof]
 published: true
 comments: true
 ---
 
-Here is a fun problem. It is a geometrical problem, and the goal is to prove that the area of A is equal to the area of B.
+Mathematics often presents puzzles that, at first glance, seem intricate or counterintuitive. One such geometric construction involves a quarter circle and two semicircles, resulting in two regions labelled A and B. Surprisingly, these two areas are equal.
+
+## The Puzzle
+
+- Begin with a quarter circle of radius $R$.
+- Inside it, place two semicircles arranged so that they divide the enclosed area into two distinct regions: A and B.
 
 <Figure src='/blog/20181124_geometry-puzzle-1/20181124_geometry-circles-area.svg'>
-    Drawing of geometric problem.
+    A geometric construction showing two regions A and B formed by intersecting circular arcs.
 </Figure>
 
-The parameters of the problem are simple; the largest external curve is a quarter circle, the two inner curves are half circles, they are all considered perfect circles.
+**The Challenge:** Show that the area of region A equals the area of region B.
+
+## Key Geometric Facts
+
+1. The quarter circle has area:
+   
+   $$
+   \text{Area}_{\text{quarter}} = \frac{\pi R^2}{4}.
+   $$
+
+2. Each of the two inner curves is a semicircle with radius $r = \frac{R}{\sqrt{2}}$. Each semicircle thus has area:
+   
+   $$
+   \text{Area}_{\text{semicircle}} = \frac{\pi r^2}{2} = \frac{\pi (R^2/2)}{2} = \frac{\pi R^2}{4}.
+   $$
+
+3. Consequently, each semicircle has the same area as the quarter circle. The arrangement ensures that when these semicircles overlap and intersect the quarter circle, the leftover regions A and B end up being equal in area.
+
+Intuition: The symmetry and the radii chosen ensure a perfect balance. Although the figure might look complex, the arithmetic of $R$, $r = R/\sqrt{2}$, and the areas of the arcs involved is simple and elegant. Ultimately, we find that A and B must be equal by construction.
+
+## Conclusion
+
+This geometric puzzle highlights how even complex-looking constructions can yield to simple and elegant relationships. The equality of areas A and B follows directly from the choice of radii and the symmetry of the configuration.

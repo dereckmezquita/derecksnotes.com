@@ -1,0 +1,66 @@
+---
+letter: 'i'
+word: identity-matrix
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "determinant" in the definition with a jump link,
+# so we include it in the linksTo array:
+linksTo: ['determinant']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="identity-matrix">Identity Matrix</a> - In linear algebra, the **identity matrix** $I_n$ is an $n \times n$ square matrix with ones on the main diagonal and zeros elsewhere:
+
+$$
+I_n = 
+\begin{pmatrix}
+1 & 0 & \cdots & 0 \\
+0 & 1 & \cdots & 0 \\
+\vdots & \vdots & \ddots & \vdots \\
+0 & 0 & \cdots & 1
+\end{pmatrix}.
+$$
+
+**Key points**:
+- $I_n$ serves as the multiplicative identity for matrices: $I_n A = A I_n = A$.
+- Its [determinant](#determinant) is 1 for all $n$.
+- Invertible matrices always have an identity matrix (the “unit” of their multiplicative structure).
+
+**R demonstration** (creating identity matrices):
+
+
+``` r
+library(data.table)
+
+I2 <- diag(2)
+I3 <- diag(3)
+
+I2
+```
+
+```
+##      [,1] [,2]
+## [1,]    1    0
+## [2,]    0    1
+```
+
+``` r
+I3
+```
+
+```
+##      [,1] [,2] [,3]
+## [1,]    1    0    0
+## [2,]    0    1    0
+## [3,]    0    0    1
+```

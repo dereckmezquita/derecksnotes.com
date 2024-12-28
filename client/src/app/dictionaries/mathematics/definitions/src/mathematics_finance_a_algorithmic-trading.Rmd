@@ -1,0 +1,70 @@
+---
+letter: 'a'
+word: 'algorithmic-trading'
+dictionary: 'mathematics'
+category: 'finance'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['markov-chain','machine-learning','high-frequency-trading']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap<-options$fig.cap
+    as.character(
+      htmltools::tag("Figure",
+        list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
+      )
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="algorithmic-trading">Algorithmic Trading</a> - **Algorithmic trading** uses computer-driven strategies to execute orders based on predefined rules (e.g. technical indicators, [machine-learning](#machine-learning) models, or risk constraints). Key components include:
+
+- Strategy design (signal generation, risk mgmt).
+- Implementation (order routing, execution algorithms).
+- Monitoring & backtesting.
+
+**Mathematical aspects**:
+- Strategies often rely on time-series analysis, probability models (e.g. [Markov-chain](#markov-chain)), or advanced ML.
+- Execution can aim to minimize market impact and transaction costs.
+
+**R demonstration** (A minimal example of a “toy” daily returns strategy):
+
+```{r}
+library(data.table)
+set.seed(123)
+
+# Suppose we have daily returns from a random walk
+n <- 200
+returns <- rnorm(n, mean=0.0005, sd=0.01)
+
+dt_algo <- data.table(day=1:n, ret=returns)
+# A naive “signal”: if ret>0 => “go long next day”, else “stay out”
+signal <- sign(dt_algo$ret)  # +1 or -1 or 0
+# We'll track PnL by day (with a 1-day lag in signal if we want)
+pnls <- shift(signal, fill=0, type="lag")* dt_algo$ret
+cumulative_pnl <- cumsum(pnls)
+
+dt_algo[, signal := shift(signal,1,0)]
+dt_algo[, pnl := pnls]
+dt_algo[, cumPNL := cumulative_pnl]
+tail(dt_algo)
+
+# Quick plot
+plot(dt_algo$day, dt_algo$cumPNL, type="l",
+     main="Toy Algo Trading Strategy (Sign of Return)",
+     xlab="Day", ylab="Cumulative PnL")
+```
+

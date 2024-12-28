@@ -1,0 +1,50 @@
+---
+letter: 'n'
+word: 'nested-radical'
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="nested-radical">Nested Radical</a> - A **nested radical** is an expression containing radicals (square roots, etc.) inside other radicals, for example:
+
+$$
+\sqrt{a + \sqrt{b + \sqrt{c + \dots}}}
+$$
+
+Such expressions sometimes simplify to closed-forms. A famous example is:
+
+$$
+\sqrt{1 + 2\sqrt{1 + 3\sqrt{1 + 4\sqrt{1+ \dots}}}}
+$$
+
+Though symbolic manipulation is more typical than numeric for these. Minimal R demonstration here:
+
+
+``` r
+# We could approximate a short nested radical numerically:
+nested_radical_approx <- function(n) {
+  # approximate: sqrt(1 + 2*sqrt(1 + 3*sqrt(1+...  up to n steps
+  # This is more a demonstration than a standard function
+  val <- 0
+  for(k in seq(n, 2, by=-1)) {
+    val <- sqrt(1 + k*val)
+  }
+  sqrt(1 + 2*val) # final
+}
+
+nested_radical_approx(5)
+```
+
+```
+## [1] 2.473795
+```

@@ -1,0 +1,58 @@
+---
+letter: 'k'
+word: 'kernel'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['dimension']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="kernel">Kernel</a> - In **linear algebra**, the **kernel** (or **null space**) of a linear map 
+$$T: V \to W$$ is the set of all vectors $\mathbf{v} \in V$ such that $T(\mathbf{v}) = \mathbf{0}$. Symbolically,
+
+$$
+\ker(T) = \{ \mathbf{v} : T(\mathbf{v}) = \mathbf{0} \}.
+$$
+
+- If $T$ is given by a matrix $A$, then $\ker(T) = \{ \mathbf{x} : A\mathbf{x} = \mathbf{0} \}$.
+- The rank-nullity theorem links the dimension of the kernel with the [dimension](#dimension) of the image.
+
+**R demonstration** (finding the kernel of a matrix):
+
+```{r}
+library(data.table)
+
+A <- matrix(c(1,2,3, 2,4,6, 1,1,2), nrow=3, byrow=TRUE)
+
+# We can find the null space using MASS::Null
+library(MASS)
+kerA <- Null(A)  # basis for the kernel
+kerA
+```

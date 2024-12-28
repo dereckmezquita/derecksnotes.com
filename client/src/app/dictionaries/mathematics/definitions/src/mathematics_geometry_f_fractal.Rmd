@@ -1,0 +1,57 @@
+---
+letter: 'f'
+word: fractal
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['fourier-transform','frequency']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.height= 7
+)
+```
+
+<a id="fractal">Fractal</a> - A **fractal** is a geometric object that often exhibits self-similarity at various scales. Examples include the Mandelbrot set, Julia sets, and natural phenomena (coastlines, etc.).
+
+**Key traits**:
+- *Self-similarity*: Zoomed-in portions look similar to the original.
+- *Fractional dimension*: Dimension can be non-integer.
+- *Often defined recursively or via iterative processes*.
+
+**R demonstration** (a simple iteration for the Koch snowflake boundary length, numerical only):
+
+```{r}
+library(data.table)
+
+koch_iterations <- 5
+dt_koch <- data.table(step = 0:koch_iterations)
+
+# Start with length 1 for the side of an equilateral triangle
+# Each iteration multiplies the total line length by 4/3
+dt_koch[, length := (4/3)^step]
+
+dt_koch
+```
+

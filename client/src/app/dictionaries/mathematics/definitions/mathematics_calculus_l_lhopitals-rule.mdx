@@ -1,0 +1,69 @@
+---
+letter: 'l'
+word: 'lhopitals-rule'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "derivative" and "limit" in the definition, so let's add them.
+linksTo: ['derivative','limit']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="lhopitals-rule">L'Hôpital's Rule</a> - In **calculus**, **L'Hôpital's rule** is a result for evaluating certain indeterminate forms of [limit](#limit) expressions. If
+
+$$
+\lim_{x \to a} \frac{f(x)}{g(x)}
+$$
+
+produces indeterminate forms like $0/0$ or $\infty/\infty$, then (under certain conditions involving differentiability and continuity):
+
+$$
+\lim_{x \to a} \frac{f(x)}{g(x)} = \lim_{x \to a} \frac{f'(x)}{g'(x)},
+$$
+
+provided the latter limit exists. It relies on the concept of the [derivative](#derivative).
+
+**Simple R demonstration** (symbolic approach would be used in a CAS, but we can do numeric checks):
+
+
+``` r
+library(data.table)
+
+f <- function(x) x^2 - 1
+g <- function(x) x - 1
+
+# Evaluate near x=1 to see 0/0
+x_vals <- seq(0.9, 1.1, by=0.01)
+dt_lhop <- data.table(
+  x = x_vals,
+  f_x = f(x_vals),
+  g_x = g(x_vals),
+  ratio = f(x_vals)/g(x_vals)
+)
+head(dt_lhop)
+```
+
+```
+##        x     f_x   g_x ratio
+##    <num>   <num> <num> <num>
+## 1:  0.90 -0.1900 -0.10  1.90
+## 2:  0.91 -0.1719 -0.09  1.91
+## 3:  0.92 -0.1536 -0.08  1.92
+## 4:  0.93 -0.1351 -0.07  1.93
+## 5:  0.94 -0.1164 -0.06  1.94
+## 6:  0.95 -0.0975 -0.05  1.95
+```
+
+We can see the ratio near x=1 is close to the ratio of derivatives at that point:
+- f'(x) = 2x
+- g'(x) = 1
+So at x=1, ratio ~ 2(1)/1 = 2.

@@ -1,0 +1,45 @@
+---
+letter: 'm'
+word: 'manifold'
+dictionary: 'mathematics'
+category: 'topology'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['topological-space','dimension']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="manifold">Manifold</a> - In **topology** and differential geometry, a **manifold** is a [topological-space](#topological-space) that locally resembles Euclidean space. Formally, an $n$-dimensional manifold is a space where every point has a neighbourhood homeomorphic to $\mathbb{R}^n$.
+
+**Key points**:
+- The concept of [dimension](#dimension) is central: a 2D manifold locally looks like a plane, a 3D manifold like space, etc.
+- Smooth manifolds allow calculus-like operations on them.
+
+No direct R demonstration, but we can illustrate how to store a “chart” or local coordinate system conceptually:
+
+```{r}
+library(data.table)
+cat("Manifolds are an advanced concept. In R, we'd handle geometry libraries for numeric solutions.")
+```

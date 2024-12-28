@@ -1,0 +1,68 @@
+---
+letter: 'v'
+word: 'value-at-risk'
+dictionary: 'mathematics'
+category: 'finance'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['distribution','monte-carlo-simulation']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap<-options$fig.cap
+    as.character(
+      htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="value-at-risk">Value at Risk (VaR)</a> - In **risk management**, **Value at Risk** at confidence level $\alpha$ (e.g., 95% or 99%) is the loss threshold that is not exceeded with probability $\alpha$. More concretely, for a random loss $L$:
+
+$$
+\mathrm{VaR}_{\alpha}(L) = \inf\{\ell : P(L \le \ell) \ge \alpha\}.
+$$
+
+**Key points**:
+- Often computed via historical simulation or [monte-carlo-simulation](#monte-carlo-simulation).
+- Criticised because it doesn’t capture tail risk beyond the threshold.
+
+**R demonstration** (historical VaR from synthetic returns data):
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 5000
+# We'll simulate daily returns from a normal distribution
+daily_returns <- rnorm(n, mean=0.0005, sd=0.01)
+# Convert to daily PnL or "loss" if negative
+# We treat negative returns as positive "loss" for simplicity
+losses <- -daily_returns
+
+alpha <- 0.95
+var_level <- quantile(losses, alpha)
+var_level
+
+# Distribution plot
+dt_var <- data.table(loss=losses)
+ggplot(dt_var, aes(x=loss)) +
+  geom_histogram(bins=40, fill="lightblue", color="black") +
+  geom_vline(xintercept=var_level, color="red", lwd=1.2) +
+  labs(title=paste0("Histogram of Losses with VaR at ", alpha*100, "%"),
+       x="Loss",
+       y="Count") +
+  theme_minimal()
+```
+

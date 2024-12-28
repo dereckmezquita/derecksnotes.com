@@ -1,0 +1,57 @@
+---
+letter: 'w'
+word: 'wronskian'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['derivative','determinant']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="wronskian">Wronskian</a> - In differential equations, the **Wronskian** of two (or more) functions is the [determinant](#determinant) of a matrix whose entries are those functions and their [derivative](#derivative)s. For two functions $f$ and $g$:
+
+$$
+W(f,g)(x) =
+\begin{vmatrix}
+f(x) & g(x) \\
+f'(x) & g'(x)
+\end{vmatrix}.
+$$
+
+If the Wronskian is nonzero at some point, $f$ and $g$ are linearly independent solutions.
+
+**R demonstration** (small numeric check):
+
+
+``` r
+library(data.table)
+
+f <- function(x) sin(x)
+g <- function(x) cos(x)
+df <- function(x) cos(x)
+dg <- function(x) -sin(x)
+
+wronskian <- function(x) {
+  det( rbind( c(f(x), g(x)), c(df(x), dg(x)) ) )
+}
+
+x_test <- pi/4
+W_val <- wronskian(x_test)
+W_val
+```
+
+```
+## [1] -1
+```
+
+``` r
+# We know sin'(x)=cos(x), cos'(x)=-sin(x); check numeric result
+```

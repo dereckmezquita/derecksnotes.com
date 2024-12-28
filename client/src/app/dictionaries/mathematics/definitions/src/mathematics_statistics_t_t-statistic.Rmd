@@ -1,0 +1,52 @@
+---
+letter: 't'
+word: 't-statistic'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['null-hypothesis','mean','variance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="t-statistic">T-Statistic</a> - In **statistics**, the **t-statistic** is used in a t-test to compare a sample [mean](#mean) to a hypothesised population mean (under the [null-hypothesis](#null-hypothesis)), typically when population [variance](#variance) is unknown. For sample size $n$:
+
+$$
+t = \frac{\bar{x} - \mu_0}{s / \sqrt{n}},
+$$
+
+where $\bar{x}$ is the sample mean, $s$ is the sample standard deviation, and $\mu_0$ is the hypothesised mean.
+
+**R demonstration** (simple t-test):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+x_vals <- rnorm(20, mean=10, sd=2)
+res_ttest <- t.test(x_vals, mu=9)
+res_ttest
+```

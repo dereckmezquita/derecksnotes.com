@@ -1,0 +1,64 @@
+---
+letter: 'u'
+word: 'uniform-distribution'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution','mean','variance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="uniform-distribution">Uniform Distribution</a> - In **probability**, the **uniform distribution** is a [distribution](#distribution) where all outcomes in an interval are equally likely. For the continuous case on $(a, b)$:
+
+$$
+f(x) = \begin{cases}
+\frac{1}{b-a} & a \le x \le b, \\
+0 & \text{otherwise}.
+\end{cases}
+$$
+
+**Key points**:
+- [Mean](#mean) = $\frac{a+b}{2}$.
+- [Variance](#variance) = $\frac{(b-a)^2}{12}$.
+
+**R demonstration** (sampling from a uniform distribution):
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+dt_unif <- data.table(x = runif(1000, min=2, max=5))
+
+ggplot(dt_unif, aes(x=x)) +
+  geom_histogram(bins=30, fill="lightblue", color="black", aes(y=..density..)) +
+  geom_density(color="red", size=1) +
+  labs(
+    title="Uniform(2,5) Distribution",
+    x="Value",
+    y="Density"
+  ) +
+  theme_minimal()
+```

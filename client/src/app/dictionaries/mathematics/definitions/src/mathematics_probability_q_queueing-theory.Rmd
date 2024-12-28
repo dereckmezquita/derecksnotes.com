@@ -1,0 +1,78 @@
+---
+letter: 'q'
+word: 'queueing-theory'
+dictionary: 'mathematics'
+category: 'probability'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="queueing-theory">Queueing Theory</a> - In **probability** and operations research, **queueing theory** studies the behaviour of waiting lines or queues. Models often involve a Poisson arrival [distribution](#distribution) and exponential service times, e.g., the M/M/1 queue.
+
+**Key points**:
+- Performance measures: average waiting time, queue length, server utilisation.
+- Widely applied in telecommunications, computer networks, and service systems.
+
+**R demonstration** (simulation of a simple queue, optional approaches exist but we show a conceptual snippet):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+# We'll simulate interarrival times with rexp(rate=lambda),
+# and service times with rexp(rate=mu).
+
+simulate_queue <- function(n_customers, lambda=1, mu=1) {
+  # generate interarrival times
+  inter_arr <- rexp(n_customers, rate=lambda)
+  arrival_times <- cumsum(inter_arr)
+  service_times <- rexp(n_customers, rate=mu)
+  
+  # track when each customer starts service
+  start_service <- numeric(n_customers)
+  finish_service <- numeric(n_customers)
+  
+  for(i in seq_len(n_customers)) {
+    if(i==1) {
+      start_service[i] <- arrival_times[i]
+    } else {
+      start_service[i] <- max(arrival_times[i], finish_service[i-1])
+    }
+    finish_service[i] <- start_service[i] + service_times[i]
+  }
+  
+  data.table(
+    customer = 1:n_customers,
+    arrival = arrival_times,
+    start = start_service,
+    finish = finish_service,
+    wait = start_service - arrival_times
+  )
+}
+
+dt_queue <- simulate_queue(10, lambda=1, mu=2)
+dt_queue
+```

@@ -1,0 +1,81 @@
+---
+letter: 'r'
+word: 'random-forest'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['decision-tree','ensemble-method']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x, options){
+      cap<-options$fig.cap
+      as.character(htmltools::tag("Figure",
+        list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
+      ))
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="random-forest">Random Forest</a> - A **random forest** is an **ensemble** of [decision-tree](#decision-tree) classifiers (or regressors) where each tree is built on a bootstrapped sample of the data and uses random subsets of features for splitting. It leverages **bagging** (bootstrap aggregating) plus feature randomness to reduce variance.
+
+**Mathematical idea**:
+- Suppose you have $N$ training examples $ (x_i, y_i) $.
+- Each tree is trained on a bootstrap sample (i.e., sampling $N$ times with replacement).
+- At each split, you choose among a random subset of features rather than all features.
+
+Prediction for classification:
+$$
+\hat{y}_{\text{forest}}(x) = \text{majority-vote}\bigl( \hat{y}_1(x),\dots,\hat{y}_T(x) \bigr).
+$$
+where $T$ is the number of trees.
+
+**R demonstration** (using `randomForest` package):
+
+```{r}
+library(data.table)
+library(randomForest)
+library(ggplot2)
+
+set.seed(123)
+# Synthetic classification data
+n <- 200
+x1 <- runif(n, min=0, max=5)
+x2 <- runif(n, min=0, max=5)
+y_class <- ifelse(x1 + x2 + rnorm(n, sd=1) > 5, "A","B")
+
+dt_rf <- data.table(x1=x1, x2=x2, y=as.factor(y_class))
+
+# Fit random forest
+fit_rf <- randomForest(y ~ x1 + x2, data=dt_rf, ntree=100, mtry=1)
+fit_rf
+
+# Create a grid for predictions
+grid_x1 <- seq(0,5, by=0.1)
+grid_x2 <- seq(0,5, by=0.1)
+grid_data <- data.table(expand.grid(x1=grid_x1, x2=grid_x2))
+
+grid_data[, pred := predict(fit_rf, newdata=.SD)]
+
+# Plot results
+ggplot() +
+  geom_tile(data=grid_data, aes(x=x1, y=x2, fill=pred), alpha=0.4) +
+  geom_point(data=dt_rf, aes(x=x1, y=x2, color=y), size=2) +
+  scale_fill_manual(values=c("A"="lightblue","B"="salmon")) +
+  scale_color_manual(values=c("A"="blue","B"="red")) +
+  labs(title="Random Forest Classification", x="x1", y="x2") +
+  theme_minimal()
+```

@@ -1,0 +1,78 @@
+---
+letter: 'm'
+word: 'markowitz-portfolio'
+dictionary: 'mathematics'
+category: 'finance'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['variance','mean','covariance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x,options){
+      cap<-options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="markowitz-portfolio">Markowitz Portfolio Theory</a> - **Modern Portfolio Theory (MPT)** by Harry Markowitz aims to construct an **efficient frontier** of portfolios that maximize [mean](#mean) return for a given level of [variance](#variance), or equivalently minimize variance for a given expected return.
+
+**Mathematical formulation**:
+- We have assets with expected returns $\mu_i$ and a covariance matrix $\Sigma$.  
+- Let $w$ be the vector of weights. We want to:
+
+$$
+\max_{w} \Bigl( w^T \mu - \lambda \, w^T \Sigma \, w \Bigr)
+$$
+where $\lambda$ is a risk-aversion parameter. Or we can do a constraint-based minimisation:
+
+$$
+\min_{w} \bigl(w^T \Sigma \, w\bigr) \quad \text{subject to } w^T\mu = \mu_{target}, \; \mathbf{1}^T w = 1.
+$$
+
+**R demonstration** (a small 3-asset example using a quadratic programming approach):
+
+```{r}
+library(data.table)
+library(quadprog)
+set.seed(123)
+
+# Suppose we have 3 assets
+mu <- c(0.08, 0.12, 0.15)  # expected returns
+Sigma <- matrix(c(0.01, 0.002, 0.0015,
+                  0.002,0.02 , 0.003,
+                  0.0015, 0.003, 0.03), nrow=3, byrow=TRUE)
+names(mu) <- c("Asset1","Asset2","Asset3")
+
+# We want to minimize w^T Sigma w subject to sum(w)=1
+# We can do this with solve.QP:
+Dmat <- 2*Sigma
+dvec <- rep(0,3)
+Amat <- cbind(rep(1,3))  # sum(w)=1
+bvec <- 1
+res <- solve.QP(Dmat, dvec, Amat, bvec, meq=1)
+w <- res$solution
+w
+# w is the minimum variance portfolio weights
+
+# Let's see the variance and return
+var_port <- t(w) %*% Sigma %*% w
+ret_port <- sum(w*mu)
+var_port
+ret_port
+```
+

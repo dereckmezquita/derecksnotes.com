@@ -1,0 +1,46 @@
+---
+letter: 'y'
+word: 'y-axis'
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['coordinate-system','y-intercept']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="y-axis">Y-axis</a> - In a **2D coordinate system**, the **y-axis** is the vertical line used to measure the y-coordinate of points. Typically, positive values extend upward from the origin, while negative values extend downward.
+
+**Key points**:
+- Intersects the x-axis at the origin (0,0).
+- The slope of the y-axis is undefined (vertical line).
+- Used to define a [y-intercept](#y-intercept) for curves.
+
+Basic R demonstration:
+
+
+``` r
+library(ggplot2)
+library(data.table)
+
+dt_plot <- data.table(x=0, y=-5:5)
+ggplot(dt_plot, aes(x=x, y=y)) +
+  geom_line() +
+  labs(
+    title="Y-axis (vertical)",
+    x="x",
+    y="y"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_geometry_y_y-axis_files/unnamed-chunk-1-1.png">
+	
+</Figure>

@@ -1,0 +1,74 @@
+---
+letter: 'g'
+word: graph
+dictionary: 'mathematics'
+category: 'graph-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['generating-function','gradient']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="graph">Graph</a> - In **graph theory**, a **graph** is a set of vertices (nodes) connected by edges (links). Formally, a graph $G$ is a pair $(V, E)$ where $V$ is the set of vertices and $E$ is the set of edges (which are pairs of vertices).
+
+**Types**:
+- Simple vs. multigraph (multiple edges)
+- Directed vs. undirected
+- Weighted vs. unweighted
+
+**Applications**:
+- Social networks (people as nodes, relationships as edges)
+- Transportation (cities as nodes, roads as edges)
+- Computer science (data structures, BFS/DFS, shortest paths)
+
+**R demonstration** (constructing a small graph with igraph):
+
+
+``` r
+library(igraph)
+```
+
+```
+## 
+## Attaching package: 'igraph'
+```
+
+```
+## The following objects are masked from 'package:stats':
+## 
+##     decompose, spectrum
+```
+
+```
+## The following object is masked from 'package:base':
+## 
+##     union
+```
+
+``` r
+# Create an undirected graph with edges
+g <- graph(edges=c("A","B", "B","C", "A","C", "C","D"), directed=FALSE)
+```
+
+```
+## Warning: `graph()` was deprecated in igraph 2.1.0.
+## ℹ Please use `make_graph()` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning
+## was generated.
+```
+
+``` r
+plot(g, vertex.color="lightblue", vertex.size=30)
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_graph-theory_g_graph_files/unnamed-chunk-1-1.png">
+	
+</Figure>
+

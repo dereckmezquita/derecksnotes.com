@@ -1,0 +1,70 @@
+---
+letter: 'g'
+word: group
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['gamma-function','graph']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = "")))
+    )
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="group">Group</a> - In **abstract algebra**, a **group** is a set $G$ together with a binary operation $\cdot$ satisfying:
+
+1. **Closure**: For all $a,b \in G$, $a \cdot b \in G$.
+2. **Associativity**: $ (a \cdot b) \cdot c = a \cdot (b \cdot c)$.
+3. **Identity**: There exists $e \in G$ such that $e \cdot a = a \cdot e = a$ for all $a \in G$.
+4. **Inverse**: For each $a \in G$, there exists $a^{-1} \in G$ with $a \cdot a^{-1} = a^{-1} \cdot a = e$.
+
+**Examples**:
+- Integers under addition
+- Nonzero real numbers under multiplication
+- Symmetry groups in geometry
+
+While direct R demonstration is less obvious, one could illustrate a finite group:
+
+```{r}
+library(data.table)
+
+# Let's define a small group table: Z2 x Z2 (Klein group), with elements { (0,0), (0,1), (1,0), (1,1) } under addition mod 2
+# We'll store all results in a data.table
+dt_group <- data.table(
+  elem1 = c("(0,0)","(0,0)","(1,0)","(1,0)","(0,1)","(0,1)","(1,1)","(1,1)"),
+  elem2 = c("(0,0)","(1,0)","(0,0)","(1,0)","(0,1)","(1,1)","(0,1)","(1,1)")
+)
+
+# We'll define a small function that "adds" these pairs mod 2
+add_mod2_pairs <- function(a, b) {
+  # parse, e.g. "(1,0)"
+  a_vals <- as.integer(unlist(strsplit(gsub("[()]", "", a), ",")))
+  b_vals <- as.integer(unlist(strsplit(gsub("[()]", "", b), ",")))
+  
+  sum_vals <- (a_vals + b_vals) %% 2
+  paste0("(", sum_vals[1], ",", sum_vals[2], ")")
+}
+
+dt_group[, result := mapply(add_mod2_pairs, elem1, elem2)]
+dt_group
+```
+
+This small table demonstrates closure in the group. Associativity, identity, and inverses also hold, though not explicitly shown here.
+

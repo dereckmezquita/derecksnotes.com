@@ -1,0 +1,51 @@
+---
+letter: 'i'
+word: integral
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "derivative" in the definition, so we add it to linksTo.
+linksTo: ['derivative']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="integral">Integral</a> - In **calculus**, an **integral** represents the accumulation of quantities or the area under a curve. It is the inverse operation to the [derivative](#derivative) (by the Fundamental Theorem of Calculus).
+
+For a function $f(x)$, the definite integral from $a$ to $b$ is:
+
+$$
+\int_a^b f(x)\, dx.
+$$
+
+**Key points**:
+- **Indefinite integral**: $\int f(x)\,dx = F(x) + C$, where $F'(x)=f(x)$.
+- **Riemann sums** approximate integrals by partitioning the interval and summing “area slices.”
+
+**R demonstration** (numeric approximation of an integral via trapezoidal rule):
+
+
+``` r
+library(data.table)
+
+f <- function(x) x^2
+a <- 0
+b <- 3
+n <- 100
+x_vals <- seq(a, b, length.out=n+1)
+dx <- (b - a)/n
+trapezoid <- sum((f(x_vals[-1]) + f(x_vals[-(n+1)]))/2) * dx
+trapezoid  # approximate integral of x^2 from 0 to 3 = 9
+```
+
+```
+## [1] 9.00045
+```

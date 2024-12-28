@@ -1,0 +1,43 @@
+---
+letter: 'n'
+word: 'non-euclidean-geometry'
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="non-euclidean-geometry">Non-Euclidean Geometry</a> - In **geometry**, **non-Euclidean geometry** refers to either hyperbolic or elliptic geometry (or others) that reject or modify Euclid’s fifth postulate (the parallel postulate). 
+
+**Key points**:
+- **Hyperbolic geometry**: infinite lines diverge more rapidly, sums of angles in triangles are < 180°.
+- **Elliptic geometry**: lines “curve,” angles in triangles sum to > 180°.
+
+No standard R demonstration, but we might explore transformations or plots for illustrative geometry.  
+
+```{r}
+# No direct numeric example, but let's just place a note:
+cat("No direct numeric example for non-Euclidean geometry in base R. Consider specialized geometry packages or external tools.")
+```

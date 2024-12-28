@@ -1,0 +1,48 @@
+---
+letter: 'z'
+word: 'z-transform'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['fourier-transform']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="z-transform">Z-transform</a> - In **discrete-time signal processing**, the **Z-transform** is analogous to the [fourier-transform](#fourier-transform) but for discrete sequences. For a sequence $x[n]$, the Z-transform is
+
+$$
+X(z) = \sum_{n=-\infty}^{\infty} x[n] \, z^{-n}.
+$$
+
+**Key points**:
+- Used to analyse and design discrete control systems and filters.
+- Regions of convergence define when the series converges.
+
+No direct R demonstration in base for Z-transform, but we can show a conceptual example:
+
+
+``` r
+library(data.table)
+
+# We'll define a small discrete sequence
+x <- c(1, 2, 3, 4)
+# A naive partial "z-transform" style sum for illustration
+Z_transform_partial <- function(x, z) {
+  n_range <- seq_along(x)-1  # 0-based indexing
+  sum( x * z^(-n_range) )
+}
+
+Z_transform_partial(x, 1.1)
+```
+
+```
+## [1] 8.30278
+```

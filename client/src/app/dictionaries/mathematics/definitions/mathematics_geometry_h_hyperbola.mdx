@@ -1,0 +1,77 @@
+---
+letter: 'h'
+word: hyperbola
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "asymptote" in the definition, so include it in linksTo.
+linksTo: ['asymptote']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="hyperbola">Hyperbola</a> - A **hyperbola** is a conic section formed by the intersection of a plane and a double cone, but at a steeper angle than that of a parabola. In standard form, a hyperbola centered at the origin can be written as:
+
+$$
+\frac{x^2}{a^2} - \frac{y^2}{b^2} = 1
+$$
+
+(for the east-west opening case). Hyperbolas have two branches and characteristic [asymptote](#asymptote) lines that the hyperbola approaches as $|x|\to \infty$ or $|y|\to \infty$.
+
+**R demonstration** (plotting a hyperbola segment in ggplot2):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+a <- 2
+b <- 1
+x_vals <- seq(-5, 5, by=0.01)
+
+dt_hyp <- data.table(
+  x = x_vals
+)
+
+# For x^2/a^2 - y^2/b^2 = 1 => y^2 = (x^2/a^2 - 1)*b^2
+# We only plot real solutions (where x^2/a^2 > 1)
+
+dt_hyp[, y_pos := ifelse(abs(x/a) > 1, b*sqrt((x^2/a^2) - 1), NA)]
+```
+
+```
+## Warning in sqrt((x^2/a^2) - 1): NaNs produced
+```
+
+``` r
+dt_hyp[, y_neg := ifelse(abs(x/a) > 1, -b*sqrt((x^2/a^2) - 1), NA)]
+```
+
+```
+## Warning in sqrt((x^2/a^2) - 1): NaNs produced
+```
+
+``` r
+ggplot() +
+  geom_line(aes(x=x, y=y_pos), data=dt_hyp, color="blue") +
+  geom_line(aes(x=x, y=y_neg), data=dt_hyp, color="blue") +
+  coord_fixed() +
+  labs(
+    title="Hyperbola for x^2/4 - y^2/1 = 1",
+    x="x", 
+    y="y"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_geometry_h_hyperbola_files/unnamed-chunk-1-1.png">
+	
+</Figure>

@@ -1,0 +1,71 @@
+---
+letter: 'u'
+word: 'uniform-distribution'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution','mean','variance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="uniform-distribution">Uniform Distribution</a> - In **probability**, the **uniform distribution** is a [distribution](#distribution) where all outcomes in an interval are equally likely. For the continuous case on $(a, b)$:
+
+$$
+f(x) = \begin{cases}
+\frac{1}{b-a} & a \le x \le b, \\
+0 & \text{otherwise}.
+\end{cases}
+$$
+
+**Key points**:
+- [Mean](#mean) = $\frac{a+b}{2}$.
+- [Variance](#variance) = $\frac{(b-a)^2}{12}$.
+
+**R demonstration** (sampling from a uniform distribution):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+dt_unif <- data.table(x = runif(1000, min=2, max=5))
+
+ggplot(dt_unif, aes(x=x)) +
+  geom_histogram(bins=30, fill="lightblue", color="black", aes(y=..density..)) +
+  geom_density(color="red", size=1) +
+  labs(
+    title="Uniform(2,5) Distribution",
+    x="Value",
+    y="Density"
+  ) +
+  theme_minimal()
+```
+
+```
+## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+## ℹ Please use `linewidth` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning
+## was generated.
+```
+
+```
+## Warning: The dot-dot notation (`..density..`) was deprecated in ggplot2 3.4.0.
+## ℹ Please use `after_stat(density)` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning
+## was generated.
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_statistics_u_uniform-distribution_files/unnamed-chunk-1-1.png">
+	
+</Figure>

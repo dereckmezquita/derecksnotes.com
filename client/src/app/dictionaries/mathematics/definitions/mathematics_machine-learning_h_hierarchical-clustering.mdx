@@ -1,0 +1,74 @@
+---
+letter: 'h'
+word: 'hierarchical-clustering'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distance','clustering','dendrogram']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="hierarchical-clustering">Hierarchical Clustering</a> - A **clustering** method that builds a hierarchy of clusters either bottom-up (agglomerative) or top-down (divisive). Distances between clusters can be defined by single, complete, average linkage, etc. A **dendrogram** shows the merge/split hierarchy.
+
+**Algorithm** (agglomerative):
+1. Start with each point as its own cluster.
+2. Merge clusters pairwise based on smallest distance until one cluster remains.
+
+Distance metrics:
+- Single linkage: 
+$$
+d(C_1, C_2) = \min_{x\in C_1, y\in C_2} d(x,y).
+$$
+- Complete linkage: 
+$$
+d(C_1, C_2) = \max_{x\in C_1, y\in C_2} d(x,y).
+$$
+
+**R demonstration** (using `hclust` on 2D data):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 50
+x <- runif(n,0,5)
+y <- runif(n,0,5)
+dt_hc <- data.table(x,y)
+
+dist_mat <- dist(dt_hc[, .(x,y)])
+hc <- hclust(dist_mat, method="complete")
+
+# We can cut the tree at some height to form k clusters
+clust <- cutree(hc, k=3)
+dt_hc[, cluster := factor(clust)]
+
+# Plot clusters
+ggplot(dt_hc, aes(x=x, y=y, color=cluster)) + 
+  geom_point(size=2) +
+  labs(title="Hierarchical Clustering (complete linkage)", x="x", y="y") +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_h_hierarchical-clustering_files/unnamed-chunk-1-1.png">
+	
+</Figure>
+
+``` r
+# Dendrogram
+plot(hc, main="Dendrogram (Complete Linkage)")
+rect.hclust(hc, k=3, border="red")
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_machine-learning_h_hierarchical-clustering_files/unnamed-chunk-1-2.png">
+	
+</Figure>

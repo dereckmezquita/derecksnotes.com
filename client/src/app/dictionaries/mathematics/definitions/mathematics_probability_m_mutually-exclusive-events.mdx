@@ -1,0 +1,63 @@
+---
+letter: 'm'
+word: 'mutually-exclusive-events'
+dictionary: 'mathematics'
+category: 'probability'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "probability" or "union". Let's say we reference "union".
+linksTo: ['union']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="mutually-exclusive-events">Mutually Exclusive Events</a> - In **probability**, two events $A$ and $B$ are **mutually exclusive** (or disjoint) if they cannot happen simultaneously:
+
+$$
+A \cap B = \varnothing.
+$$
+
+In other words, $P(A \cap B) = 0$. The [union](#union) of mutually exclusive events has a probability that’s just the sum of their individual probabilities:
+
+$$
+P(A \cup B) = P(A) + P(B),
+$$
+
+since $A$ and $B$ never overlap.
+
+**R demonstration**: no direct R function, but we can illustrate logic:
+
+
+``` r
+# Suppose events are flipping a coin:
+# A = heads, B = tails
+# A and B are mutually exclusive.
+
+# We can do a small simulation
+set.seed(123)
+flips <- sample(c("H","T"), size=100, replace=TRUE)
+mean(flips == "H")  # approximate P(A)
+```
+
+```
+## [1] 0.57
+```
+
+``` r
+mean(flips == "T")  # approximate P(B)
+```
+
+```
+## [1] 0.43
+```
+
+``` r
+# Overlap: none, because a single flip can't be both H and T
+```

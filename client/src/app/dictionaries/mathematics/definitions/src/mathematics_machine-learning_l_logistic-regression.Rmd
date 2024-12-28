@@ -1,0 +1,70 @@
+---
+letter: 'l'
+word: 'logistic-regression'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['binary-operation','distribution','function']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap <- options$fig.cap
+    as.character(
+      htmltools::tag("Figure", 
+        list(src=x,alt=cap,paste("\n\t",cap,"\n",sep=""))
+      )
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
+```
+
+<a id="logistic-regression">Logistic Regression</a> - In **machine learning**, **logistic regression** models the probability of a binary outcome (0 or 1) given input features $ x_1, x_2,\dots,x_n $. The model is:
+
+$$
+\mathrm{logit}(p) = \log\Bigl(\frac{p}{1-p}\Bigr) = \beta_0 + \beta_1 x_1 + \cdots + \beta_n x_n
+$$
+
+or equivalently,
+
+$$
+p = \frac{1}{1 + e^{- (\beta_0 + \beta_1 x_1 + \cdots + \beta_n x_n)} }.
+$$
+
+**Key points**:
+- Useful for **binary classification**.
+- Predictions yield probabilities in $(0,1)$ and can be thresholded at 0.5 for a class label.
+
+**R demonstration** (fitting logistic regression with `glm`):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+n <- 50
+x <- runif(n, min=-2, max=2)
+p <- 1/(1+exp(-(-1 + 2*x)))  # true logistic with intercept=-1, slope=2
+y <- rbinom(n, size=1, prob=p)
+
+dt_logit <- data.table(x=x, y=y)
+fit_logit <- glm(y ~ x, data=dt_logit, family="binomial")
+summary(fit_logit)
+
+# Predict
+newx <- seq(-2,2,by=0.1)
+pred_prob <- predict(fit_logit, newdata=data.table(x=newx), type="response")
+
+plot(dt_logit, dt_logit, pch=19, 
+     main="Logistic Regression Demo", xlab="x", ylab="Observed Class (0/1)")
+lines(newx, pred_prob, col="red", lwd=2)
+```

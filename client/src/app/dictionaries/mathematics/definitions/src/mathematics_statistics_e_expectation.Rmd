@@ -1,0 +1,71 @@
+---
+letter: 'e'
+word: expectation
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['entropy','euclidean-algorithm']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag("Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.height = 7
+)
+```
+
+<a id="expectation">Expectation</a> - In probability theory, the **expectation** (or expected value) of a random variable $X$ represents the long-run average outcome of $X$ after many repetitions of an experiment.
+
+For a discrete random variable:
+
+$$
+E[X] = \sum_{x} x\, p(x).
+$$
+
+For a continuous random variable:
+
+$$
+E[X] = \int_{-\infty}^{\infty} x\, f_X(x) \, dx,
+$$
+
+where $f_X(x)$ is the probability density function.
+
+**R demonstration** (empirical estimation of expectation):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+# Suppose X ~ Uniform(0, 10)
+X_samples <- runif(10000, min=0, max=10)
+
+dtX <- data.table(X = X_samples)
+
+# Empirical mean
+emp_mean <- mean(dtX$X)
+
+# Theoretical expectation for Uniform(0, 10) is 5
+theoretical <- 5
+
+emp_mean
+theoretical
+```
+

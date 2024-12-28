@@ -1,0 +1,79 @@
+---
+letter: 'c'
+word: 'cointegration'
+dictionary: 'mathematics'
+category: 'finance'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['time-series','stationarity','markov-chain']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap<-options$fig.cap
+    as.character(htmltools::tag("Figure",
+      list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="cointegration">Cointegration</a> - In **time-series** analysis, two (or more) series $X_t, Y_t$ are **cointegrated** if a linear combination $\alpha X_t + \beta Y_t$ is **stationary**, even if $X_t$ and $Y_t$ themselves are individually non-stationary (e.g., I(1) processes).
+
+**Key formula**:
+A common approach is to test:
+$$
+Z_t = X_t - \beta Y_t
+$$
+for stationarity (via the Engle–Granger two-step method or the Johansen test).
+
+**Finance usage**:
+- Pairs trading strategies rely on cointegration between asset prices.
+- If they deviate from their equilibrium spread, trade accordingly.
+
+**R demonstration** (synthetic pairs data with partial cointegration):
+
+```{r}
+library(data.table)
+library(egcm) # Engle-Granger cointegration method if installed
+set.seed(123)
+
+n <- 300
+x <- cumsum(rnorm(n, mean=0.01, sd=0.05)) + 100  # random walk
+y <- 0.5*x + cumsum(rnorm(n, mean=0, sd=0.02))  # partially following x + noise
+
+dt_coin <- data.table(time=1:n, X=x, Y=y)
+
+# We'll use 'egcm' if installed, or just do a quick "lm then test residual" approach
+if(requireNamespace("egcm", quietly=TRUE)){
+  res_egcm <- egcm::egcm(x, y)
+  print(res_egcm)
+} else {
+  cat("Package 'egcm' not installed, skipping direct cointegration test.\n")
+}
+
+# We'll do a quick correlation approach
+fit_lm <- lm(Y ~ X, data=dt_coin)
+summary(fit_lm)
+resid <- fit_lm
+# One might do an ADF test on resid for stationarity, skipping code if package not installed
+
+# Plot
+library(ggplot2)
+dt_coin[, residual := resid]
+ggplot(dt_coin, aes(x=time)) +
+  geom_line(aes(y=residual)) +
+  labs(title="Residual from linear combination X_t - beta*Y_t", x="time", y="residual") +
+  theme_minimal()
+```
+

@@ -1,0 +1,46 @@
+---
+letter: 't'
+word: 'topological-space'
+dictionary: 'mathematics'
+category: 'topology'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['set','boundary']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot=function(x, options){
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src=x, alt=cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="topological-space">Topological Space</a> - In **topology**, a **topological space** is a [set](#set) $X$ equipped with a collection of open sets that satisfy the axioms:
+1. $\varnothing$ and $X$ are open.
+2. Finite intersections of open sets are open.
+3. Arbitrary unions of open sets are open.
+
+**Key points**:
+- Generalises notions of continuity, [boundary](#boundary), and “closeness” beyond Euclidean space.
+- Foundation for manifold definitions, continuity arguments, convergence, etc.
+
+No direct R demonstration (purely theoretical structure).  
+```{r}
+cat("A topological space is the core object in topology, with open sets defining 'closeness'.")
+```

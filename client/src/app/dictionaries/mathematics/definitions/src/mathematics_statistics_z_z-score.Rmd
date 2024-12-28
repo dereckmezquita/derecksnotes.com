@@ -1,0 +1,52 @@
+---
+letter: 'z'
+word: 'z-score'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['mean','variance','standard-deviation','distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="z-score">Z-score</a> - In **statistics**, a **z-score** (or standard score) is the number of [standard-deviation](#standard-deviation)s by which the value of an observation differs from the [mean](#mean). For an observation $x$ in a sample:
+
+$$
+z = \frac{x - \bar{x}}{s},
+$$
+
+where $\bar{x}$ is the sample mean and $s$ is the sample SD (see [variance](#variance) / SD). In a normal [distribution](#distribution), z-scores help locate observations relative to the population mean.
+
+**R demonstration**:
+
+```{r}
+library(data.table)
+
+set.seed(123)
+vals <- rnorm(10, mean=10, sd=2)
+z_scores <- (vals - mean(vals)) / sd(vals)
+z_scores
+```

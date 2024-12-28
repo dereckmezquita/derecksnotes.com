@@ -1,0 +1,48 @@
+---
+letter: 'o'
+word: 'outlier'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="outlier">Outlier</a> - In **statistics**, an **outlier** is a data point significantly distant from the rest of the [distribution](#distribution). Outliers can arise from measurement errors, heavy-tailed distributions, or genuine extreme events.
+
+**Key points**:
+- Outliers can skew means, inflate variances, or distort analyses.
+- Detection methods include IQR-based rules, z-scores, or robust statistics.
+
+**R demonstration** (basic detection via boxplot stats):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+dt_out <- data.table(x = c(rnorm(30, mean=10, sd=1), 25)) # one extreme outlier
+ggplot(dt_out, aes(y=x)) + geom_boxplot(fill="lightblue") +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_statistics_o_outlier_files/unnamed-chunk-1-1.png">
+	
+</Figure>
+
+``` r
+stats <- boxplot.stats(dt_out$x)
+stats$out
+```
+
+```
+## [1] 25
+```

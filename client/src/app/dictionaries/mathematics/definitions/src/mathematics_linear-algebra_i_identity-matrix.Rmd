@@ -1,0 +1,66 @@
+---
+letter: 'i'
+word: identity-matrix
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "determinant" in the definition with a jump link,
+# so we include it in the linksTo array:
+linksTo: ['determinant']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="identity-matrix">Identity Matrix</a> - In linear algebra, the **identity matrix** $I_n$ is an $n \times n$ square matrix with ones on the main diagonal and zeros elsewhere:
+
+$$
+I_n = 
+\begin{pmatrix}
+1 & 0 & \cdots & 0 \\
+0 & 1 & \cdots & 0 \\
+\vdots & \vdots & \ddots & \vdots \\
+0 & 0 & \cdots & 1
+\end{pmatrix}.
+$$
+
+**Key points**:
+- $I_n$ serves as the multiplicative identity for matrices: $I_n A = A I_n = A$.
+- Its [determinant](#determinant) is 1 for all $n$.
+- Invertible matrices always have an identity matrix (the “unit” of their multiplicative structure).
+
+**R demonstration** (creating identity matrices):
+
+```{r}
+library(data.table)
+
+I2 <- diag(2)
+I3 <- diag(3)
+
+I2
+I3
+```

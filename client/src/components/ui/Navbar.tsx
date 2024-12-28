@@ -266,6 +266,12 @@ function Navbar() {
                         >
                             Chemistry Dictionary
                         </NavLeftItem>
+                        <NavLeftItem
+                            onClick={closeMenu}
+                            href="/dictionaries/mathematics"
+                        >
+                            Mathematics Dictionary
+                        </NavLeftItem>
                     </DropDownContent>
                 </DropDownContainer>
                 <DateTimeDisplay>

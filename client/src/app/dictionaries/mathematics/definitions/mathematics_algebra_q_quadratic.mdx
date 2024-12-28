@@ -1,0 +1,51 @@
+---
+letter: 'q'
+word: 'quadratic'
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['derivative','arithmetic']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="quadratic">Quadratic</a> - A **quadratic** function is a polynomial of degree 2, often written as:
+
+$$
+f(x) = ax^2 + bx + c,
+$$
+
+with $a \neq 0$. The graph is a parabola. The [derivative](#derivative) reveals a linear slope; [arithmetic](#arithmetic) underlies basic manipulations. 
+
+**R demonstration**:
+
+
+``` r
+library(data.table)
+x_vals <- seq(-5,5, by=0.5)
+f_quad <- function(x) 2*x^2 + 3*x - 1
+
+dt_quad <- data.table(
+  x = x_vals,
+  y = f_quad(x_vals)
+)
+head(dt_quad)
+```
+
+```
+##        x     y
+##    <num> <num>
+## 1:  -5.0    34
+## 2:  -4.5    26
+## 3:  -4.0    19
+## 4:  -3.5    13
+## 5:  -3.0     8
+## 6:  -2.5     4
+```

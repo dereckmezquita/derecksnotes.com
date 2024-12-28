@@ -1,0 +1,60 @@
+---
+letter: 'i'
+word: induction
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "arithmetic" in the definition, so we add it to linksTo.
+linksTo: ['arithmetic']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="induction">Induction</a> - **Mathematical induction** is a proof technique used to show that a statement holds for all natural numbers. It involves two steps:
+
+1. **Base Case**: Prove the statement for the first natural number (often $n=1$).
+2. **Inductive Step**: Assume the statement holds for some $n=k$, and then prove it holds for $n=k+1$.
+
+This relies on the well-ordering principle of the natural numbers.
+
+Consider a simple example with [arithmetic](#arithmetic) progressions:
+- We may prove $1 + 2 + \dots + n = \frac{n(n+1)}{2}$ by induction.
+
+No complicated R demonstration is typical here, but we can at least verify sums for a few values:
+
+
+``` r
+library(data.table)
+
+n_vals <- 1:10
+dt_ind <- data.table(
+  n     = n_vals,
+  sum_n = sapply(n_vals, function(k) sum(1:k)),
+  formula = n_vals*(n_vals+1)/2
+)
+
+dt_ind
+```
+
+```
+##         n sum_n formula
+##     <int> <int>   <num>
+##  1:     1     1       1
+##  2:     2     3       3
+##  3:     3     6       6
+##  4:     4    10      10
+##  5:     5    15      15
+##  6:     6    21      21
+##  7:     7    28      28
+##  8:     8    36      36
+##  9:     9    45      45
+## 10:    10    55      55
+```

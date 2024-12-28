@@ -33,8 +33,12 @@ export default function RootLayout({
                 <BlogFilterProvider>
                     <AuthProvider>
                         <html lang="en">
-                            <Toaster richColors closeButton theme={'light'} />
                             <body>
+                                <Toaster
+                                    richColors
+                                    closeButton
+                                    theme={'light'}
+                                />
                                 <GlobalStyles />
                                 <Logo />
                                 <Navbar />

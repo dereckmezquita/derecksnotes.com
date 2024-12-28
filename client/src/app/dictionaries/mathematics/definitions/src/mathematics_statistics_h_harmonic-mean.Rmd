@@ -1,0 +1,59 @@
+---
+letter: 'h'
+word: harmonic-mean
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "arithmetic" in the definition via a jump link: [arithmetic](#arithmetic),
+# so we add it to linksTo. If the "arithmetic" definition is updated, it should
+# include "harmonic-mean" in its linkedFrom array to maintain bidirectionality.
+linksTo: ['arithmetic']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", 
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="harmonic-mean">Harmonic Mean</a> - The **harmonic mean** of a set of positive numbers 
+$x_1, x_2, \dots, x_n$ is defined by:
+
+$$
+\text{HM} = \frac{n}{\displaystyle \sum_{i=1}^n \frac{1}{x_i}}.
+$$
+
+- This measure is particularly useful when averaging rates or ratios.
+- Compare with the [arithmetic](#arithmetic) mean (the usual average), and other means (geometric, quadratic, etc.).
+
+**R demonstration** (computing harmonic mean):
+
+```{r}
+library(data.table)
+
+harmonic_mean <- function(x) {
+  n <- length(x)
+  n / sum(1/x)
+}
+
+dt_hm <- data.table(values = c(2, 3, 6, 6, 12))
+my_hm <- harmonic_mean(dt_hm$values)
+my_hm
+```

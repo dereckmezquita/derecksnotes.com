@@ -1,0 +1,52 @@
+---
+letter: 'e'
+word: entropy
+dictionary: 'mathematics'
+category: 'information-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['eigenvalue','expectation']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="entropy">Entropy</a> - In information theory, **entropy** quantifies the average amount of information contained in a random variable’s possible outcomes. For a discrete random variable $X$ with pmf $p(x)$, the Shannon entropy (in bits) is:
+
+$$
+H(X) = -\sum_{x} p(x) \log_2\bigl(p(x)\bigr).
+$$
+
+**Key points**:
+- Entropy is maximised when all outcomes are equally likely.
+- Low entropy implies outcomes are more predictable.
+- It underpins coding theory, compressions, and measures of uncertainty.
+
+**R demonstration** (computing entropy of a discrete distribution):
+
+
+``` r
+library(data.table)
+
+entropy_shannon <- function(prob_vec) {
+  # Make sure prob_vec sums to 1
+  -sum(prob_vec * log2(prob_vec), na.rm=TRUE)
+}
+
+dt_prob <- data.table(
+  outcome = letters[1:4],
+  prob    = c(0.1, 0.4, 0.3, 0.2)  # must sum to 1
+)
+
+H <- entropy_shannon(dt_prob$prob)
+H
+```
+
+```
+## [1] 1.846439
+```
+

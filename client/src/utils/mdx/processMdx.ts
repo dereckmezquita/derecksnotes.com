@@ -32,52 +32,58 @@ export async function processMdx<T extends PostMetadata | DefinitionMetadata>(
         rehypePlugins?: any[];
     }
 ): Promise<{ frontmatter: T; source: React.ReactNode }> {
-    const { content, frontmatter } = await compileMDX<T>({
-        source: markdown,
-        components: mdxComponents,
-        options: {
-            parseFrontmatter: true,
-            // REF: https://github.com/hashicorp/next-mdx-remote/issues/356#issuecomment-1556074660
-            mdxOptions: {
-                remarkPlugins: [
-                    remarkGfm,
-                    remarkUnwrapImages,
-                    remarkMath,
-                    remarkToc,
-                    ...(plugins?.remarkPlugins || [])
-                ],
-                rehypePlugins: [
-                    [rehypePrettyCode, rehypePrettyCodeOptions],
-                    rehypeSlug,
-                    rehypeMathJax,
-                    rehypeTocCollapse,
-                    rehypeExternalLinks,
-                    rehypeAddHeadingLinks,
-                    [
-                        rehypeDropCap,
-                        {
-                            float: 'left',
-                            fontSize: '4rem',
-                            fontFamily: 'Georgia, serif',
-                            lineHeight: '40px',
-                            marginRight: '0.1em',
-                            color: theme.theme_colours[5]()
-                        }
+    try {
+        const { content, frontmatter } = await compileMDX<T>({
+            source: markdown,
+            components: mdxComponents,
+            options: {
+                parseFrontmatter: true,
+                // REF: https://github.com/hashicorp/next-mdx-remote/issues/356#issuecomment-1556074660
+                mdxOptions: {
+                    remarkPlugins: [
+                        remarkGfm,
+                        remarkUnwrapImages,
+                        remarkMath,
+                        remarkToc,
+                        ...(plugins?.remarkPlugins || [])
                     ],
-                    ...(plugins?.rehypePlugins || [])
-                ]
+                    rehypePlugins: [
+                        [rehypePrettyCode, rehypePrettyCodeOptions],
+                        rehypeSlug,
+                        rehypeMathJax,
+                        rehypeTocCollapse,
+                        rehypeExternalLinks,
+                        rehypeAddHeadingLinks,
+                        [
+                            rehypeDropCap,
+                            {
+                                float: 'left',
+                                fontSize: '4rem',
+                                fontFamily: 'Georgia, serif',
+                                lineHeight: '40px',
+                                marginRight: '0.1em',
+                                color: theme.theme_colours[5]()
+                            }
+                        ],
+                        ...(plugins?.rehypePlugins || [])
+                    ]
+                }
             }
+        });
+
+        if ('date' in frontmatter) {
+            frontmatter.date = new Date(frontmatter.date as string)
+                .toISOString()
+                .slice(0, 10);
         }
-    });
 
-    if ('date' in frontmatter) {
-        frontmatter.date = new Date(frontmatter.date as string)
-            .toISOString()
-            .slice(0, 10);
+        return {
+            frontmatter: frontmatter,
+            source: content
+        };
+    } catch (err) {
+        throw new Error(
+            `MDX compilation error: ${err instanceof Error ? err.message : String(err)}\nError occurred when processing: ${markdown}`
+        );
     }
-
-    return {
-        frontmatter: frontmatter,
-        source: content
-    };
 }

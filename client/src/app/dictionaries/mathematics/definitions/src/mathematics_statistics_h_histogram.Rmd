@@ -1,0 +1,53 @@
+---
+letter: 'h'
+word: histogram
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "distribution" in the definition, so add it to linksTo.
+linksTo: ['distribution']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", 
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="histogram">Histogram</a> - A **histogram** is a graphical representation of the distribution of numerical data. It groups data into bins (intervals) and displays the count or frequency within each bin, providing a quick visual of how values are spread.
+
+It’s directly related to a [distribution](#distribution) in statistics, visually summarising the frequency or relative frequency of data within specified intervals.
+
+**R demonstration** (constructing a histogram):
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+dt_hist <- data.table(x = rnorm(500, mean=10, sd=2))
+
+ggplot(dt_hist, aes(x=x)) +
+  geom_histogram(bins=30, fill="lightblue", colour="black") +
+  labs(title="Histogram of Random Normal Data",
+       x="Value",
+       y="Count") +
+  theme_minimal()
+```

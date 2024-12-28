@@ -1,0 +1,60 @@
+---
+letter: 'g'
+word: 'gan'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['neural-network','autoencoder','distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="gan">GAN (Generative Adversarial Network)</a> - A **GAN** consists of two **neural networks**: a **generator** $G$ that produces synthetic data from random noise, and a **discriminator** $D$ that tries to distinguish real data from generated data. They play a minimax game:
+
+$$
+\min_G \max_D \mathbb{E}_{x\sim p_{data}}[\log D(x)] + \mathbb{E}_{z\sim p_z}[\log(1 - D(G(z)))].
+$$
+
+**Key points**:
+- The generator improves to fool the discriminator, while the discriminator improves to detect fakes.
+- Commonly used for image synthesis, text generation, etc.
+
+**R demonstration** (Again, implementing a full GAN in R is nontrivial, but we show a minimal conceptual snippet):
+
+
+``` r
+library(data.table)
+cat("Minimal conceptual code. Usually done with torch or tensorflow in Python. We'll pseudo-code one step.\n")
+```
+
+```
+## Minimal conceptual code. Usually done with torch or tensorflow in Python. We'll pseudo-code one step.
+```
+
+``` r
+gen_step <- function(z, G_params) {
+  # fwd pass to produce G(z)
+  # ...
+  # return synthetic data
+}
+
+disc_step <- function(x, D_params) {
+  # fwd pass to produce D(x)
+  # ...
+  # return a probability
+}
+
+# Then update G_params, D_params via gradient
+cat("GAN training step = minimize log(1 - D(G(z))) wrt G, maximize log D(x) + log(1 - D(G(z))) wrt D.\n")
+```
+
+```
+## GAN training step = minimize log(1 - D(G(z))) wrt G, maximize log D(x) + log(1 - D(G(z))) wrt D.
+```

@@ -1,0 +1,54 @@
+---
+letter: 'q'
+word: 'quaternion'
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="quaternion">Quaternion</a> - In **algebra**, a **quaternion** is a hypercomplex number of the form
+
+$$
+q = a + b\mathbf{i} + c\mathbf{j} + d\mathbf{k},
+$$
+
+where $a,b,c,d \in \mathbb{R}$ and $\mathbf{i}, \mathbf{j}, \mathbf{k}$ follow certain multiplication rules ($\mathbf{i}^2=\mathbf{j}^2=\mathbf{k}^2= \mathbf{i}\mathbf{j}\mathbf{k} = -1$).
+
+**Key points**:
+- Noncommutative: $\mathbf{i}\mathbf{j} = \mathbf{k}$ but $\mathbf{j}\mathbf{i} = -\mathbf{k}$.
+- Used in 3D rotations (e.g., in computer graphics, robotics).
+
+No direct base R demonstration of quaternions, but certain libraries handle them. Let’s just illustrate we can store them as a list:
+
+
+``` r
+library(data.table)
+
+# We'll store quaternions as lists, no direct operation
+q1 <- list(a=1, b=2, c=3, d=-1)
+q1
+```
+
+```
+## $a
+## [1] 1
+## 
+## $b
+## [1] 2
+## 
+## $c
+## [1] 3
+## 
+## $d
+## [1] -1
+```

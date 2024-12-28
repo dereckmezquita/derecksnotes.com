@@ -1,0 +1,53 @@
+---
+letter: 'i'
+word: 'injection'
+dictionary: 'mathematics'
+category: 'functions'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['bijection','surjection']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="injection">Injection</a> - In **functions** (set theory), an **injection** (or one-to-one function) is a function $f: A \to B$ such that different elements of $A$ always map to different elements of $B$. Formally:
+
+$$
+f(a_1) = f(a_2) \implies a_1 = a_2.
+$$
+
+**Key points**:
+- No two distinct elements in $A$ share the same image in $B$.
+- Contrasts with [surjection](#surjection) (onto) and [bijection](#bijection) (one-to-one and onto).
+
+**R demonstration** (not typical, but we can check uniqueness in a numeric map):
+
+
+``` r
+library(data.table)
+
+f_injective <- function(x) x^2  # for integers, watch out for collisions at +/-x
+x_vals <- c(-2,-1,0,1,2)
+f_vals <- f_injective(x_vals)
+data.table(x=x_vals, f=f_vals)
+```
+
+```
+##        x     f
+##    <num> <num>
+## 1:    -2     4
+## 2:    -1     1
+## 3:     0     0
+## 4:     1     1
+## 5:     2     4
+```
+
+``` r
+# Notice that x^2 is not injective over all integers (f(-2)=f(2)). 
+# But restricted to nonnegative x, it can be injective.
+```

@@ -1,0 +1,52 @@
+---
+letter: 'h'
+word: 'heaviside-step-function'
+dictionary: 'mathematics'
+category: 'functions'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot=function(x,options){
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src=x,alt=cap,paste("\n\t",cap,"\n",sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
+```
+
+<a id="heaviside-step-function">Heaviside Step Function</a> - The **Heaviside step function**, often denoted $H(x)$, is defined by:
+
+$$
+H(x) = \begin{cases}
+0, & x < 0, \\
+1, & x \ge 0.
+\end{cases}
+$$
+
+**Key points**:
+- Used in signal processing and differential equations to represent a “switch on” at $x=0$.
+- Sometimes defined with $H(0)=\tfrac12$ or other conventions.
+
+**R demonstration**:
+
+```{r}
+library(data.table)
+H <- function(x) ifelse(x<0,0,1)
+test_x <- seq(-2,2,by=0.5)
+data.table(x=test_x, H=H(test_x))
+```

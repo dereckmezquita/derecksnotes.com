@@ -1,0 +1,43 @@
+---
+letter: '#'
+word: 'empty-set'
+dictionary: 'mathematics'
+category: 'set-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['set','union','intersection']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="empty-set">∅ (Empty set)</a> - In **set theory**, the **empty set** ∅ is the unique set containing no elements. Symbolically:
+
+$$
+\varnothing = \{\},
+$$
+
+meaning it has cardinality 0. Any operation on ∅ typically yields minimal or neutral results. For instance, union with ∅ returns the other set unchanged.
+
+**Key points**:
+- ∅ is a subset of every [set](#set).
+- It is distinct from $\{\varnothing\}$, which is a set containing the empty set as an element.
+
+No direct R demonstration needed, but we can show conceptually:
+
+
+``` r
+library(data.table)
+
+empty_set <- vector(mode="list", length=0)  # a list with length 0
+length(empty_set)
+```
+
+```
+## [1] 0
+```

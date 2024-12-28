@@ -1,0 +1,53 @@
+---
+letter: 'u'
+word: 'upper-triangular'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['matrix']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="upper-triangular">Upper Triangular</a> - In **linear algebra**, an **upper triangular** [matrix](#matrix) is one where all entries below the main diagonal are zero. Formally, a square matrix $U=(u_{ij})$ is upper triangular if:
+
+$$
+u_{ij} = 0 \quad \text{for all } i > j.
+$$
+
+**Key points**:
+- Common in LU decomposition (where U is the upper triangular factor).
+- Determinant is the product of diagonal entries.
+
+**R demonstration** (example of an upper triangular matrix):
+
+
+``` r
+library(data.table)
+
+U <- matrix(c(1,2,3,0,4,5,0,0,6), nrow=3, byrow=TRUE)
+U
+```
+
+```
+##      [,1] [,2] [,3]
+## [1,]    1    2    3
+## [2,]    0    4    5
+## [3,]    0    0    6
+```
+
+``` r
+# Checking that entries below diagonal are zero:
+all(U[lower.tri(U)]==0)
+```
+
+```
+## [1] TRUE
+```

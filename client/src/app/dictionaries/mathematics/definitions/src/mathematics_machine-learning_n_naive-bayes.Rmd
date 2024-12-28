@@ -1,0 +1,75 @@
+---
+letter: 'n'
+word: 'naive-bayes'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['bayes-theorem','distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(plot=function(x,options){
+    cap<-options$fig.cap
+    as.character(
+      htmltools::tag("Figure", list(src=x, alt=cap, paste("\n\t",cap,"\n",sep="")))
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
+```
+
+<a id="naive-bayes">Naive Bayes</a> - In **machine learning**, **Naive Bayes** is a probabilistic classifier applying [Bayes' theorem](#bayes-theorem) with a “naive” (independence) assumption among features given the class. For a class $C_k$ and features $x_1,\dots,x_n$:
+
+$$
+P(C_k | x_1,\dots,x_n) \propto P(C_k) \prod_{i=1}^n P(x_i | C_k).
+$$
+
+**Key points**:
+- Independence assumption simplifies computation of $P(x_1,\dots,x_n|C_k)$.
+- Effective in text classification (bag-of-words assumption).
+
+**R demonstration** (using `e1071::naiveBayes` on synthetic data):
+
+```{r}
+library(e1071)
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 100
+x1 <- rnorm(n, mean=2, sd=1)
+x2 <- rnorm(n, mean=-1, sd=1)
+cl1 <- data.table(x1, x2, y="Class1")
+
+x1 <- rnorm(n, mean=-2, sd=1)
+x2 <- rnorm(n, mean=2,  sd=1)
+cl2 <- data.table(x1, x2, y="Class2")
+
+dt_nb <- rbind(cl1, cl2)
+
+fit_nb <- naiveBayes(y ~ x1 + x2, data=dt_nb)
+fit_nb
+
+# Predict
+grid_x1 <- seq(-5,5, by=0.2)
+grid_x2 <- seq(-5,5, by=0.2)
+grid_data <- data.table(expand.grid(x1=grid_x1, x2=grid_x2))
+grid_data[, pred := predict(fit_nb, newdata=.SD)]
+
+ggplot() +
+  geom_tile(data=grid_data, aes(x=x1, y=x2, fill=pred), alpha=0.4) +
+  geom_point(data=dt_nb, aes(x=x1, y=x2, color=y), size=2) +
+  scale_fill_manual(values=c("Class1"="lightblue","Class2"="salmon")) +
+  scale_color_manual(values=c("Class1"="blue","Class2"="red")) +
+  labs(title="Naive Bayes Classification", x="x1", y="x2") +
+  theme_minimal()
+```

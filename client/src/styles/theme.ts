@@ -1,4 +1,4 @@
-import { gold_theme as colour_scheme } from './theme_colours';
+import { industrial_orange_theme as colour_scheme } from './theme_colours';
 
 // h: hue - controls the colour; a number between 0 and 360
 // s: saturation - controls the intensity of the colour; a number between 0 and 100
@@ -108,5 +108,11 @@ export const theme = {
         accent5: '#B5CC18',
         anchor: '#106BA3',
         anchorHover: '#253238'
+    },
+    likeBadge: {
+        positiveBackground: '#c8ffc8',
+        negativeBackground: '#ffc8c8',
+        positiveColour: '#2e7d32',
+        negativeColour: '#c62828'
     }
 };

@@ -1,0 +1,45 @@
+---
+letter: 'z'
+word: 'z-axis'
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['x-axis','y-axis','coordinate-system']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="z-axis">Z-axis</a> - In a **3D coordinate system**, the **z-axis** is the line orthogonal to both the [x-axis](#x-axis) and [y-axis](#y-axis). Positive values extend “up” or “out” from the origin depending on orientation, while negative values extend in the opposite direction.
+
+**Key points**:
+- Commonly used in 3D geometry or 3D coordinate-systems.
+- Forms a right-handed system with x and y axes if oriented properly.
+
+Basic R demonstration (no direct 3D in base R, but let's show a conceptual data set):
+
+
+``` r
+library(data.table)
+
+dt_3d <- data.table(x=0, y=0, z=-3:3)
+dt_3d
+```
+
+```
+##        x     y     z
+##    <num> <num> <int>
+## 1:     0     0    -3
+## 2:     0     0    -2
+## 3:     0     0    -1
+## 4:     0     0     0
+## 5:     0     0     1
+## 6:     0     0     2
+## 7:     0     0     3
+```

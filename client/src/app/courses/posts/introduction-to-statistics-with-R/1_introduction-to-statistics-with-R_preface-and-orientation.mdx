@@ -1,0 +1,443 @@
+---
+title: "Introduction to Statistics with R"
+subtitle: "Preface"
+blurb: "File war tea"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Preface
+
+## Table of contents
+
+## Purpose and Scope of the Book
+
+We embark on a journey that intertwines the conceptual foundations of statistics with the practicalities of implementing analyses in R. This book will serve as a comprehensive guide, moving from fundamental statistical principles to advanced modelling techniques, all while demonstrating how to conduct and optimise these approaches using best practices including **Base R** and the **data.table** package. By the time you have worked through these pages, you will have both a conceptual understanding of core statistical methods and the technical proficiency to execute them on real-world datasets.
+
+- **Broad Coverage of Statistical Concepts**: We will begin with basic ideas such as distributions, descriptive statistics, and visualisation, then progress to more complex topics including regression, time series analysis, Bayesian methods, and causal inference.
+  
+- **Emphasis on data.table**: Although the broader R ecosystem includes multiple frameworks, we focus heavily on `data.table::` methods for data manipulation due to its efficiency and scalability, especially relevant when dealing with large datasets or computationally intensive tasks. While the tidyverse might be popular, we advocate for a workflow that sticks closely to Base R and data.table, allowing you to understand what is happening "under the hood."[^1]
+
+- **Real-World Relevance**: Our examples are not just toy illustrations. We will frequently draw upon publicly available datasets, guiding you through realistic workflows: data cleaning, exploratory analysis, model building, and interpretation of results. We will employ real-world datasets such as flight delays, climate data, and economic indicators to ensure that you gain practical, transferrable skills.
+
+- **Mathematical Foundations**: In addition to coding and application, this book will not shy away from the mathematics underlying statistical techniques. We will use formulas, derivations, and step-by-step logic to give you a deeper understanding. For example, when discussing the mean, we will note that the arithmetic mean of a set of values $ x_1, x_2, \ldots, x_n $ is given by:
+  
+  $$
+  \bar{x} = \frac{1}{n}\sum_{i=1}^n x_i
+  $$
+  
+  This mathematical perspective ensures that you do not treat methods as "black boxes" but rather understand their inner workings.
+
+*Imagine statistics as the lens through which we look at patterns, uncertainty, and relationships in data. R is the tool we use to polish that lens, making it sharper and more versatile. This book aims to give you the best of both worlds: the conceptual clarity to know why a method works and the technical skill to implement it efficiently.*
+
+
+## Intended Audience and Prerequisites
+
+*Who should read this book, and what should you know before starting?* While we strive to make the text accessible, certain foundational elements will help you extract maximum value from this resource.
+
+- **Statistical Background**: A basic understanding of fundamental statistical concepts such as probability distributions, hypothesis testing, and linear models is recommended. We will revisit and elaborate on these concepts, but having some familiarity will make the journey smoother.
+
+- **Mathematical Comfort**: You need not be a mathematician, but a willingness to engage with formulas and manipulate simple equations is important. Concepts like integrals, derivatives, or matrix algebra may appear, albeit often in an intuitive manner. For example, understanding that the variance \(\sigma^2\) is the expected value of squared deviations from the mean:
+  
+  $$
+  \sigma^2 = \mathbb{E}[(X - \mu)^2]
+  $$
+  
+  Familiarity with such notation will help, though we will break down each concept thoroughly.
+
+- **R Programming Experience**: You should have some hands-on exposure to R. Although we provide a brief review of R's basic data structures and syntax, this book is not a beginner's introduction to programming. Instead, it focuses on how to perform statistical analyses efficiently. We assume:
+  - You know how to create vectors, data frames, and perform simple arithmetic in R.
+  - You are comfortable reading documentation and troubleshooting minor coding issues.
+  - You might have heard of or used packages like `data.table::`, `stats::`, or `graphics::`.
+
+- **No Need for tidyverse Mastery**: While the tidyverse ecosystem is prevalent and we mention it for completeness, our approach will lean on Base R and `data.table::`. We believe this perspective not only provides performance benefits but also a more transparent look into how data operations and computations occur. Consider `data.table::` as a high-performance toolkit that operates closely to R's core paradigms, giving you granular control over indexing, filtering, and aggregations.
+
+*Think of the reader of this book as someone who has had an introductory statistics course, maybe even conducted some basic analyses in R, and is now ready to advance their skills to a more professional and academically rigorous level.* Our explanations will be verbose, full of analogies and examples. For instance, if you think of statistics as cooking, then you should at least know how to hold a knife and turn on the stove. Here, we will teach you how to combine spices (statistical techniques) and cooking methods (R coding) to create a gourmet dish (insightful data analysis).
+
+### Example: Reading and Summarising a Dataset
+
+Before diving into the more theoretical aspects of statistical inference, let's start with a practical, hands-on example to show what's possible. Imagine we have a dataset containing nearly a century of daily meteorological observations from a weather station in Moscow, Russia. These data, sourced from the NOAA NCDC GHCN-Daily Data, include daily temperatures, precipitation, and snow depth measurements. By loading this dataset, we can quickly compute monthly averages, identify seasonal patterns, and even generate visualisations to explore how the climate changes throughout the year.
+
+The dataset, in 3878388.csv, was downloaded from the NOAA Climate Data Online portal and includes the following characteristics:
+  - Data Source: NOAA NCDC GHCN-Daily Data
+  - Location: Moscow, Russia (Station ID: RSM00027612)
+  - Time Range: 1936-12-31 to 2022-01-15
+  - Units: Metric (°C for temperature, mm for precipitation)
+  - Data Types:
+  - PRCP: Daily total precipitation
+  - SNWD: Daily snow depth
+  - TAVG: Average daily temperature
+  - TMAX: Maximum daily temperature
+  - TMIN: Minimum daily temperature
+
+This is what the dataset looks like:
+
+
+``` r
+temp_data <- data.table::fread("./data/3878388.csv")
+print(temp_data)
+```
+
+```
+##            STATION       NAME LATITUDE LONGITUDE ELEVATION       DATE  PRCP
+##             <char>     <char>    <num>     <num>     <num>     <IDat> <num>
+##     1: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 1936-12-31    NA
+##     2: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 1937-01-01    NA
+##     3: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 1937-01-02    NA
+##     4: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 1937-01-03    NA
+##     5: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 1937-01-04    NA
+##    ---                                                                     
+## 26661: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 2022-01-06   1.0
+## 26662: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 2022-01-07   0.5
+## 26663: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 2022-01-08   0.3
+## 26664: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 2022-01-11   0.3
+## 26665: RSM00027612 MOSCOW, RS  55.8331   37.6167       156 2022-01-15   1.8
+##        PRCP_ATTRIBUTES  SNWD SNWD_ATTRIBUTES  TAVG TAVG_ATTRIBUTES  TMAX
+##                 <char> <num>          <char> <num>          <char> <num>
+##     1:                    NA                  -8.9            H,,S    NA
+##     2:                    NA                   0.8            H,,S    NA
+##     3:                    NA                  -1.8            H,,S   0.0
+##     4:                    NA                  -1.7            H,,S  -1.1
+##     5:                    NA                  -1.1            H,,S   0.0
+##    ---                                                                  
+## 26661:            B,,S   290             ,,S  -0.1            H,,S   0.5
+## 26662:            B,,S   279             ,,S  -3.8            H,,S    NA
+## 26663:            B,,S   279             ,,S  -5.1            H,,S  -3.3
+## 26664:            B,,S   340             ,,S -10.3            H,,S    NA
+## 26665:            B,,S   290             ,,S  -1.8            H,,S  -1.2
+##        TMAX_ATTRIBUTES  TMIN TMIN_ATTRIBUTES
+##                 <char> <num>          <char>
+##     1:                 -15.0             ,,S
+##     2:                  -7.8             ,,S
+##     3:             ,,S    NA                
+##     4:             ,,S  -2.8             ,,S
+##     5:             ,,S  -2.2             ,,S
+##    ---                                      
+## 26661:             ,,S  -4.6             ,,S
+## 26662:                    NA                
+## 26663:             ,,S  -6.8             ,,S
+## 26664:                    NA                
+## 26665:             ,,S  -2.3             ,,S
+```
+
+Each row corresponds to a single day's measurements, and each column represents a specific variable or attribute. Notably, the dataset also contains attribute columns with quality flags and source indicators (e.g., TAVG_ATTRIBUTES, TMAX_ATTRIBUTES), which often appear as codes separated by commas. These flags help users understand the quality and origin of the data but can be safely ignored for basic statistical analysis.
+
+Here is a brief overview of some key columns:
+  - `STATION` & `NAME`: Identify the weather station (e.g., RSM00027612, MOSCOW, RS).
+  - `LATITUDE` & `LONGITUDE`: Geographic coordinates of the station.
+  - `ELEVATION`: Station elevation in metres above mean sea level.
+  - `DATE`: The date (YYYY-MM-DD) of the recorded measurement.
+  - `PRCP` (mm): Total daily precipitation.
+  - `SNWD` (mm): Daily snow depth.
+  - `TAVG` (°C), `TMAX` (°C), `TMIN` (°C): Average, maximum, and minimum daily temperatures.
+  - `ATTRIBUTE` Columns (e.g., `TAVG_ATTRIBUTES`): Quality and source flags, often appearing as comma-separated codes such as H,,S. Each code corresponds to specific data-quality checks or sources. For their exact meaning, you can refer to NOAA's GHCN-D documentation.
+
+With this understanding in place, let's illustrate how to read and summarise the dataset directly in R using the `data.table` and `lubridate` packages. In the code snippet below, we:
+	1. Read the CSV file using fread().
+	2. Convert the DATE column into a proper date format.
+	3. Ensure the temperature column (TAVG) is numeric.
+	4. Extract the year and month from each date, and factor the month to ensure correct chronological ordering.
+	5. Compute monthly average temperatures and print the results.
+
+
+``` r
+# Convert DATE to a proper date format
+temp_data[, DATE := lubridate::as_date(DATE)]
+
+# Ensure TAVG is numeric
+temp_data[, TAVG := as.numeric(TAVG)]
+
+# Extract year and month (with month labels)
+temp_data[, `:=`(
+  year = lubridate::year(DATE),
+  month = lubridate::month(DATE, label = TRUE)
+)]
+
+# Make sure months are in the correct chronological order
+temp_data[, month := factor(
+  month,
+  levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"),
+  ordered = TRUE
+)]
+
+# Compute monthly averages (removing missing values)
+monthly_avg <- temp_data[, .(mean_temp = mean(TAVG, na.rm = TRUE)), by = .(month)]
+monthly_avg <- monthly_avg[order(month), ]
+
+# print what year to what year this avg is for
+print(stringr::str_interp("Monthly Average Temperatures for Moscow, Russia (${min(temp_data$year)}-${max(temp_data$year)})"))
+```
+
+```
+## [1] "Monthly Average Temperatures for Moscow, Russia (1936-2022)"
+```
+
+``` r
+print(monthly_avg)
+```
+
+```
+##     month mean_temp
+##     <ord>     <num>
+##  1:   Jan -7.939278
+##  2:   Feb -7.226414
+##  3:   Mar -1.902182
+##  4:   Apr  6.160588
+##  5:   May 13.021845
+##  6:   Jun 17.031137
+##  7:   Jul 18.785309
+##  8:   Aug 16.912140
+##  9:   Sep 11.192763
+## 10:   Oct  5.158813
+## 11:   Nov -1.070450
+## 12:   Dec -5.281116
+```
+
+This approach gives a neat summary of how the temperature varies by month. With just a few lines of code, you've taken a large, raw dataset and shaped it into a form that allows you to draw meaningful insights such as how Moscow's average monthly temperatures rise and fall throughout the year. This kind of data exploration is a powerful first step before you proceed to more complex statistical modelling or inference.
+
+### Visualising Data with ggplot2
+
+We can quickly explore the data with `ggplot2`. Here we calculate the monthly average temperature per year and plot the results using a line plot. This visualisation will help us understand how the temperature changes across the months and years.
+
+
+``` r
+# Prepare the data
+temp_per_year <- temp_data[, .(mean_temp = mean(TAVG, na.rm = TRUE)), by = .(year, month)]
+
+ggplot2::ggplot(temp_per_year, ggplot2::aes(x = month, y = mean_temp, group = year, colour = mean_temp)) +
+  ggplot2::geom_line(size = 1) +
+  ggplot2::geom_hline(size = 1, yintercept = 0, linetype = "dashed", colour = "gray") +
+  ggplot2::scale_colour_gradient(low = "darkblue", high = "pink", name = "Mean Temp (°C)") +
+  ggplot2::labs(
+    title = "Monthly Average Temperature in Moscow, Russia",
+    subtitle = "1936-2022",
+    x = "Month",
+    y = "Mean Temperature (°C)",
+    caption = "Source: NOAA NCDC GHCN-Daily Data"
+  ) +
+  ggplot2::theme_minimal(base_size = 14) +
+  ggplot2::theme(
+    axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
+    legend.position = "none"
+  )
+```
+
+```
+## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+## ℹ Please use `linewidth` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
+## generated.
+```
+
+<Figure src="/courses/1_introduction-to-statistics-with-R_preface-and-orientation_files/figure-html/plot-moscow-temperature-per-month-per-year-1.png">
+	
+</Figure>
+
+### Footnotes and Citations
+
+Throughout the book, we may provide footnotes for additional reading, cautionary tales, or historical anecdotes.
+
+[^1]: While the tidyverse offers a coherent "grammar of data," many large-scale applications benefit from the lower-level manipulations and speed-ups afforded by data.table.
+
+---
+
+## Structure and Organisation of the Text
+
+- **Layered Learning**: We have organised the book so that readers progress from fundamental concepts to advanced topics. Initially, you will explore basic statistics such as measures of central tendency, distributions, and simple tests and gradually move towards more complex modelling frameworks and specialised methods. This layered approach mirrors the idea of building a house: first, you lay the foundation (basics of R and data manipulation with `data.table::`), then erect the walls (statistical inference and regression), and finally add intricate interiors and decorations (Bayesian inference, spatial analysis, or machine learning). By the time you have finished, you will have a sturdy, multi-storey edifice of statistical knowledge.
+
+- **Sequential Chapters and Thematic Parts**: The book is divided into major parts, each containing several chapters. Each part addresses a coherent set of topics. For example:
+  - *Part I: Foundations* introduces essential concepts in R, data handling with `data.table::`, and the core workflow for statistical analysis.
+  - *Part II: Descriptive Statistics and EDA* guides you through summarising data, identifying patterns, and creating compelling visualisations.
+  - Subsequent parts deepen your understanding by tackling probability theory, distributions, inference, regression models, and beyond.
+  
+  This structure ensures that you can either follow the text linearly like reading a novel or jump directly to a chapter of interest if you already have some background knowledge.[^2]
+
+[^2]: While a linear reading path ensures no concept is missed, the book's modular nature supports topic based exploration.
+
+- **Within-Chapter Organisation**: Each chapter begins with a conceptual overview, painting the big picture of why a particular topic matters. Then it drills down into mathematical concepts, often presented with formulas and explanations thereof. After establishing theory, we transition to practical code demonstrations. Finally, we include exercises, footnotes, and references at the end of chapters for further reading.
+
+- **Heavy Use of data.table and Base R**: At various points, you will see examples that highlight how to manipulate large datasets efficiently using `data.table::`. This choice influences our organisation: after introducing a concept mathematically, we will show how to implement it step by step in R. For instance, when illustrating how to summarise data, we will first explain the mathematical definition of variance:
+  
+  $$
+  \sigma^2 = \frac{1}{n-1}\sum_{i=1}^{n}(x_i - \bar{x})^2
+  $$
+  
+  and then show how to compute it efficiently using `data.table::` operations.
+
+- **Interspersed Examples and Figures**: As we discuss a statistical concept, we frequently provide code snippets and visualisations. This dual-mode approach text and images helps reinforce understanding. Imagine examining a dataset of daily rainfall measurements. We could summarise it numerically, but seeing a histogram or time series plot helps intuitively grasp patterns. Visual representations, especially created with `ggplot2::`, support the narrative and help anchor abstract ideas in concrete images.
+
+- **Incremental Complexity**: Many chapters start simple and then ramp up. For example, we might begin by explaining linear regression with a single predictor variable and later introduce multiple predictors, interaction terms, and diagnostic procedures. This layered structure allows you to build confidence and ensures you fully understand one concept before adding another.
+
+**Footnote on Structure**: If at any point the complexity feels overwhelming, remember that you need not read every chapter in order. The structure supports a non-linear exploration, much like browsing a library with thematic shelves rather than a single bookshelf arranged only by alphabetical order.[^3]
+
+[^3]: This flexible approach recognises that readers have diverse backgrounds, interests, and immediate needs.
+
+---
+
+## Conventions and Notation
+
+*How do we present code, formulas, and various important elements consistently throughout the text? By establishing clear conventions and notation, we ensure a smooth reading experience.*
+
+- **Mathematical Symbols and Equations**:  
+  We present mathematical equations in a readable manner. Inline math like $ x_i $ appears in the flow of text, while more complex equations are displayed:
+  
+  $$
+  \bar{X} = \frac{1}{n}\sum_{i=1}^{n}X_i
+  $$
+
+  This allows you to easily spot crucial formulas. We also make sure to explain every symbol at least once. For example, $ \bar{X} $ denotes the sample mean, $ X_i $ represents the $ i^{th} $ data point, and $ n $ is the sample size.
+
+- **R Code Snippets**:  
+  Throughout this book, you will find code blocks that demonstrate how to perform certain operations in R. Since we are focusing on Base R and `data.table::`, you will see code like this:
+  
+
+``` r
+# Reading data using data.table
+iris_data <- data.table::as.data.table(datasets::iris)
+# Calculate mean Sepal.Length by Species
+iris_summary <- iris_data[ , .(mean_sepal = mean(Sepal.Length)), by = Species]
+print(iris_summary)
+```
+
+```
+##       Species mean_sepal
+##        <fctr>      <num>
+## 1:     setosa      5.006
+## 2: versicolor      5.936
+## 3:  virginica      6.588
+```
+
+Note how we avoid `library()` calls. Instead, we explicitly use `data.table::` or `ggplot2::` prefixes, making it absolutely clear which package a function originates from. This approach also reduces the risk of namespace conflicts.
+
+- **Figures and Visualisations**:  
+  When we show a plot, we provide the code that generated it usually using `ggplot2::` for clarity. For example:
+  
+
+``` r
+ggplot2::ggplot(data = iris_data, ggplot2::aes(x = Species, y = Sepal.Length)) +
+  ggplot2::geom_boxplot(fill = "lightgreen", colour = "darkgreen") +
+  ggplot2::labs(
+    title = "Distribution of Sepal Length by Species",
+    x = "Iris Species",
+    y = "Sepal Length (cm)"
+  )
+```
+
+<Figure src="/courses/1_introduction-to-statistics-with-R_preface-and-orientation_files/figure-html/unnamed-chunk-2-1.png">
+	
+</Figure>
+  
+Such visual conventions help connect the written explanation with a tangible image.
+
+- **Textual Conventions**:  
+  - *Italics* often denote emphasis or introduce a new concept.
+  - **Bold text** may highlight an especially important term or step in a procedure.
+  - `Monospaced font` is used for code related terms, function names, arguments, and file paths.
+
+- **Footnotes and Citations**:  
+  When we introduce references or add clarifications, we use footnotes such as this one[^4]. This keeps the main narrative uncluttered while providing a wealth of additional information at your fingertips. For example, when we refer to the official `data.table::` documentation[^5] or community discussions on performance best practices, we include a footnote so you can find detailed references at your leisure.
+
+[^4]: example footnote.
+[^5]: For more information on `data.table::` syntax and operations, refer to the official documentation at [https://rdatatable.gitlab.io/data.table/](https://rdatatable.gitlab.io/data.table/).
+
+---
+
+## Obtaining and Installing R (and RStudio or Other IDEs)
+
+There are multiple ways of installing R and setting up your development environment. Things differ between operating systems and habits as well. Here I'll highlight a general approach that should work for most users.
+
+- **Obtaining R**:  
+  - Visit the official R Project website at [https://cran.r-project.org/](https://cran.r-project.org/) to download the latest stable version of R for your operating system (Windows, macOS, Linux).  
+  - The installation process is straightforward: run the installer and follow the on-screen instructions. Once installed, you can open R via your system's command line or a graphical front-end (like RStudio).  
+  - We rely heavily on Base R and `data.table::`, both of which function well on any OS. A key advantage of sticking to these frameworks is fewer complications related to dependencies and version mismatches.
+
+*If like me you are running MacOS and `brew` you can also install R from `brew` with `brew install R`. This is my preferred method as it is easy to isolate, cleanup, and upgrade.*
+
+- **Installing RStudio or Other IDEs**:  
+  Although not strictly required, an Integrated Development Environment (IDE) such as RStudio can significantly improve your workflow.  
+  - **RStudio**:  
+    - Download RStudio from [https://posit.co/download/rstudio-desktop/](https://posit.co/download/rstudio-desktop/) and follow the installer instructions.  
+    - RStudio provides a user-friendly interface: a script editor, an interactive console, a file browser, and integrated tools for visualisation and package management.  
+    - While we never rely on `library()` calls in our code examples, RStudio's package pane can still show you what is installed and can simplify tasks like installing `data.table::`.  
+  - **Alternative Editors**:  
+    - I recommend the use of VS Code with the R extension. There is a new editor called Positron forked from VS code by Posit (formerly RStudio) that is in development and looks promising.
+
+- **Verifying Your Installation**:  
+  After installing R, open R or RStudio and type:
+  
+
+``` r
+R.version
+```
+
+```
+##                _                           
+## platform       aarch64-apple-darwin23.4.0  
+## arch           aarch64                     
+## os             darwin23.4.0                
+## system         aarch64, darwin23.4.0       
+## status                                     
+## major          4                           
+## minor          4.1                         
+## year           2024                        
+## month          06                          
+## day            14                          
+## svn rev        86737                       
+## language       R                           
+## version.string R version 4.4.1 (2024-06-14)
+## nickname       Race for Your Life
+```
+  
+You should see details about your R version. Then, try installing and loading the `data.table::` package:
+
+
+``` r
+# install.packages("data.table")
+# Now load it explicitly using the double colon syntax
+DT <- data.table::data.table(x = 1:5, y = letters[1:5])
+print(DT)
+```
+
+```
+##        x      y
+##    <int> <char>
+## 1:     1      a
+## 2:     2      b
+## 3:     3      c
+## 4:     4      d
+## 5:     5      e
+```
+  
+This should print a small table of data, confirming that `data.table::` is working.
+
+## Additional Resources and Suggested Readings
+
+*No single book can cover every statistical method, every computational trick, or every field specific application. Thus, we provide pointers to resources that will help you explore further, refine your skills, and stay updated as the world of statistics and R continues to evolve.*
+
+- **Online Documentation and Manuals**:  
+  - The official R documentation (`?mean`, `?lm`, etc.) is a great starting point for understanding functions.
+  - You can use `??` to search for functions across all installed packages.
+  - When working with a package search for their documentation vignette, start by consulting the package's github and CRAN page.
+
+- **Online Communities and Q&A Platforms**:  
+  - **Stack Overflow**: A treasure trove of R related questions. Search for `[r]` or `[data.table]` tags to find solutions to common issues.  
+  - **R-bloggers**: Aggregates R related blog posts, showcasing tutorials, new packages, and insightful analyses.  
+  - **GitHub**: Many R packages, including [`data.table`](https://github.com/Rdatatable/data.table) and [`ggplot2`](https://github.com/tidyverse/ggplot2), have active GitHub repositories where you can report bugs, suggest features, or view code examples.
+
+- **Staying Current**:  
+  Statistics and data science evolve rapidly. New packages appear, performance improvements are introduced, and novel methods emerge. Keeping an eye on:
+  - **CRAN updates**: Regularly check what's new or updated.  
+  - **Journal Articles and Preprints**: Fields like Machine Learning, Bayesian Methods, or Causal Inference publish cutting-edge research that may soon find its way into R packages.  
+  - **Conferences and Workshops**: The R community organises events like useR! conferences. Attending or following these events online can keep you ahead of the curve.[^6]
+
+[^6]: Conferences like useR! and R in Finance are prime opportunities to network, learn from experts, and discover new packages before they become mainstream.

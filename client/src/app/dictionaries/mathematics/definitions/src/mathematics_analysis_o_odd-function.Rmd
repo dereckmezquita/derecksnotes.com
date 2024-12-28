@@ -1,0 +1,52 @@
+---
+letter: 'o'
+word: 'odd-function'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['function']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="odd-function">Odd Function</a> - A **function** $f$ is called **odd** if:
+
+$$
+f(-x) = -f(x)
+$$
+
+for all x in the domain. Graphically, odd functions exhibit symmetry about the origin. Classic examples include $f(x)= x^3$ or $f(x)= \sin(x)$. Compare with [function](#function) in general.
+
+**R demonstration** (simple numeric check for an odd function $f(x)=x^3$):
+
+```{r}
+library(data.table)
+x_vals <- seq(-3, 3, by=1)
+dt_odd <- data.table(
+  x = x_vals,
+  f_x = x_vals^3,
+  f_negx = (-x_vals)^3
+)
+# We expect f_negx to be -f_x if the function is truly odd.
+dt_odd
+```

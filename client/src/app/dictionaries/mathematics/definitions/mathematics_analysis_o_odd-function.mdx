@@ -1,0 +1,51 @@
+---
+letter: 'o'
+word: 'odd-function'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['function']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="odd-function">Odd Function</a> - A **function** $f$ is called **odd** if:
+
+$$
+f(-x) = -f(x)
+$$
+
+for all x in the domain. Graphically, odd functions exhibit symmetry about the origin. Classic examples include $f(x)= x^3$ or $f(x)= \sin(x)$. Compare with [function](#function) in general.
+
+**R demonstration** (simple numeric check for an odd function $f(x)=x^3$):
+
+
+``` r
+library(data.table)
+x_vals <- seq(-3, 3, by=1)
+dt_odd <- data.table(
+  x = x_vals,
+  f_x = x_vals^3,
+  f_negx = (-x_vals)^3
+)
+# We expect f_negx to be -f_x if the function is truly odd.
+dt_odd
+```
+
+```
+##        x   f_x f_negx
+##    <num> <num>  <num>
+## 1:    -3   -27     27
+## 2:    -2    -8      8
+## 3:    -1    -1      1
+## 4:     0     0      0
+## 5:     1     1     -1
+## 6:     2     8     -8
+## 7:     3    27    -27
+```

@@ -1,0 +1,65 @@
+---
+letter: 'f'
+word: frequency
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['factorial','fractal']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.height= 7
+)
+```
+
+<a id="frequency">Frequency</a> - **Frequency** in mathematics and statistics can refer to:
+
+1. **Statistical frequency**: How often a value appears in a dataset.
+2. **Periodic phenomenon**: The number of cycles per unit time (e.g., in sine waves, signals).
+
+**Statistical frequency**:
+- Relative frequency = count of event / total observations.
+- Frequency table is a basic summary in data analysis.
+
+**Periodic frequency** (in signals):
+- If $f(t) = \sin(2\pi \, \nu \, t)$, then $\nu$ is the frequency in cycles per unit time.
+
+**R demonstration** (calculating frequencies in a categorical dataset):
+
+```{r}
+library(data.table)
+
+# Suppose a small categorical variable
+dt_freq <- data.table(
+  category = c("A", "B", "A", "C", "B", "A", "B", "B", "C")
+)
+
+# Frequency count
+freq_table <- dt_freq[, .N, by=category]
+setnames(freq_table, "N", "count")
+
+freq_table[, rel_freq := count / sum(count)]
+freq_table
+```
+

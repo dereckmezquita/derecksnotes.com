@@ -1,0 +1,44 @@
+---
+letter: 'n'
+word: 'number-line'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['interval']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="number-line">Number Line</a> - The **number line** (real line) is a straight line on which every real number corresponds to a unique point. Basic structures like an [interval](#interval) are subsets of the number line:
+
+- Negative numbers extend to the left, positive numbers to the right.
+- Zero is typically placed at the origin.
+
+No direct R demonstration is typical, but we can illustrate numeric representations:
+
+```{r}
+library(data.table)
+
+vals <- seq(-3, 3, by=1)
+vals
+```

@@ -1,0 +1,73 @@
+---
+letter: 'l'
+word: 'lhopitals-rule'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "derivative" and "limit" in the definition, so let's add them.
+linksTo: ['derivative','limit']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag(
+          "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="lhopitals-rule">L'Hôpital's Rule</a> - In **calculus**, **L'Hôpital's rule** is a result for evaluating certain indeterminate forms of [limit](#limit) expressions. If
+
+$$
+\lim_{x \to a} \frac{f(x)}{g(x)}
+$$
+
+produces indeterminate forms like $0/0$ or $\infty/\infty$, then (under certain conditions involving differentiability and continuity):
+
+$$
+\lim_{x \to a} \frac{f(x)}{g(x)} = \lim_{x \to a} \frac{f'(x)}{g'(x)},
+$$
+
+provided the latter limit exists. It relies on the concept of the [derivative](#derivative).
+
+**Simple R demonstration** (symbolic approach would be used in a CAS, but we can do numeric checks):
+
+```{r}
+library(data.table)
+
+f <- function(x) x^2 - 1
+g <- function(x) x - 1
+
+# Evaluate near x=1 to see 0/0
+x_vals <- seq(0.9, 1.1, by=0.01)
+dt_lhop <- data.table(
+  x = x_vals,
+  f_x = f(x_vals),
+  g_x = g(x_vals),
+  ratio = f(x_vals)/g(x_vals)
+)
+head(dt_lhop)
+```
+
+We can see the ratio near x=1 is close to the ratio of derivatives at that point:
+- f'(x) = 2x
+- g'(x) = 1
+So at x=1, ratio ~ 2(1)/1 = 2.

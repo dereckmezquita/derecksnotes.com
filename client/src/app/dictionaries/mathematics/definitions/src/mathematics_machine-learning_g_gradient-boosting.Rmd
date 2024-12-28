@@ -1,0 +1,77 @@
+---
+letter: 'g'
+word: 'gradient-boosting'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['ensemble-method','loss-function','gradient']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x,options){
+      cap<-options$fig.cap
+      as.character(htmltools::tag("Figure",
+        list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
+      ))
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
+```
+
+<a id="gradient-boosting">Gradient Boosting</a> - In **machine learning**, **gradient boosting** constructs an **ensemble** of weak learners (often small decision trees) in a **stagewise** fashion, fitting each new learner to the current residuals (the negative gradient of the [loss-function](#loss-function)).
+
+**Algorithm**:
+- Initial model $F_0(x)$ is often a constant prediction.
+- For stage $m=1..M$:
+  1. Compute pseudo-residuals:  
+     '60830'
+     r_{im} = - \biggl[ \frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \biggr]_{F=F_{m-1}}
+     '60830'
+  2. Fit a weak learner (e.g. small tree) to $r_{im}$.
+  3. Update:  
+     '60830'
+     F_m(x) = F_{m-1}(x) + \nu \times h_m(x),
+     '60830'
+     where $\nu$ is a learning rate, and $h_m$ is the new weak learner.
+
+**R demonstration** (using `xgboost` for a simple regression example):
+
+```{r}
+library(xgboost)
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+n <- 100
+x <- runif(n, 0, 5)
+y <- sin(x) + rnorm(n, sd=0.2)
+
+dt_gb <- data.table(x=x, y=y)
+train_mat <- as.matrix(dt_gb[, .(x)])
+dtrain <- xgb.DMatrix(data=train_mat, label=y)
+
+# Fit xgboost with a few rounds
+params <- list(objective="reg:squarederror", eta=0.1, max_depth=2)
+fit_gb <- xgb.train(params=params, data=dtrain, nrounds=50, verbose=0)
+
+# Predict
+x_new <- seq(0,5, by=0.1)
+pred_gb <- predict(fit_gb, as.matrix(x_new))
+
+# Plot
+plot(dt_gb, dt_gb, pch=19, main="Gradient Boosting Demo")
+lines(x_new, sin(x_new), col="blue", lwd=2, lty=2)  # true function
+lines(x_new, pred_gb, col="red", lwd=2)             # GB predictions
+```

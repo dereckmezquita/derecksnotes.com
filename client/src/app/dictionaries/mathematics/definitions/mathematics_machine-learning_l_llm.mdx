@@ -1,0 +1,44 @@
+---
+letter: 'l'
+word: 'llm'
+dictionary: 'mathematics'
+category: 'machine-learning'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['transformer','neural-network','attention-mechanism']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="llm">LLM (Large Language Model)</a> - A **large language model** is typically a **Transformer**-based or similarly advanced architecture with billions (or more) of parameters, trained on massive text corpora to generate coherent text or perform NLP tasks.
+
+**Key points**:
+- Uses self-attention to handle long contexts.
+- Learns complex linguistic structures, can generate next tokens based on context.
+
+**Mathematical gist**:
+At each token step, an LLM computes a probability distribution over the vocabulary:
+$$
+p(x_{t+1}\mid x_{1:\dots:t}) = \mathrm{softmax}(h_t W_{\text{vocab}}),
+$$
+where $h_t$ is the hidden representation after attention layers.
+
+**R demonstration** (We can show a mini example of text generation with `keras`, but typically giant LLM training isn't feasible in R. We'll do conceptual snippet):
+
+
+``` r
+# Conceptual only:
+library(data.table)
+cat("Training an LLM is typically done in Python with large GPU clusters.\nWe'll do a small toy example with a simple RNN or minimal next-token model.")
+```
+
+```
+## Training an LLM is typically done in Python with large GPU clusters.
+## We'll do a small toy example with a simple RNN or minimal next-token model.
+```
+

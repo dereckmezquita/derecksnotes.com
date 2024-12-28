@@ -1,0 +1,62 @@
+---
+letter: 'j'
+word: 'jensen-inequality'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "expectation" in the definition,
+# so we add it in linksTo.
+linksTo: ['expectation']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="jensen-inequality">Jensen's Inequality</a> - In **analysis**, **Jensen’s inequality** states that for a convex function $\varphi$ and a random variable $X$,
+
+$$
+\varphi\bigl(E[X]\bigr) \le E\bigl[\varphi(X)\bigr].
+$$
+
+If $\varphi$ is concave, the inequality reverses. This has deep implications in [expectation](#expectation) and probability theory.
+
+**R demonstration** (empirical illustration):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+X <- runif(1000, min=0, max=2)  # random draws in [0,2]
+
+phi <- function(x) x^2  # a convex function
+
+mean_X <- mean(X)
+lhs <- phi(mean_X)
+rhs <- mean(phi(X))
+
+lhs
+```
+
+```
+## [1] 0.9891408
+```
+
+``` r
+rhs
+```
+
+```
+## [1] 1.319398
+```
+
+``` r
+# Typically: lhs <= rhs (Jensen's inequality for convex phi)
+```

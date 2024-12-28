@@ -1,0 +1,57 @@
+---
+letter: 'k'
+word: 'kurtosis'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="kurtosis">Kurtosis</a> - In **statistics**, **kurtosis** measures the “tailedness” of a [distribution](#distribution). The standard formula for sample kurtosis (excess kurtosis) is often:
+
+$$
+\mathrm{excess\ kurtosis} = \frac{\sum (x_i - \bar{x})^4 / n}{(\sum (x_i - \bar{x})^2 / n)^2} - 3.
+$$
+
+- **High kurtosis**: heavy tails, outliers are more frequent.
+- **Low kurtosis**: light tails, fewer extreme outliers (relative to a normal distribution).
+
+**R demonstration**:
+
+
+``` r
+library(data.table)
+library(e1071)  # for kurtosis function
+set.seed(123)
+dt_kurt <- data.table(
+  normal = rnorm(500, mean=0, sd=1),
+  heavy_tail = rt(500, df=3)  # t-dist with df=3, heavier tails
+)
+
+k_norm <- e1071::kurtosis(dt_kurt$normal)
+k_heavy <- e1071::kurtosis(dt_kurt$heavy_tail)
+
+k_norm
+```
+
+```
+## [1] -0.05820728
+```
+
+``` r
+k_heavy
+```
+
+```
+## [1] 7.802004
+```

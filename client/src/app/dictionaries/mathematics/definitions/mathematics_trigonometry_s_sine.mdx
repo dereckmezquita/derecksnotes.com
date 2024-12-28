@@ -1,0 +1,54 @@
+---
+letter: 's'
+word: 'sine'
+dictionary: 'mathematics'
+category: 'trigonometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['function']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="sine">Sine</a> - The **sine** of an angle $\theta$ in a right triangle is the ratio of the length of the opposite side to the hypotenuse. More generally, in **trigonometry**, the sine function is a periodic [function](#function) on real numbers with period $2\pi$:
+
+$$
+\sin(\theta).
+$$
+
+**Key properties**:
+- Range is [-1, 1].
+- It's an odd function: $\sin(-\theta) = -\sin(\theta)$.
+
+**R demonstration** (plotting sine curve):
+
+
+``` r
+library(data.table)
+library(ggplot2)
+
+theta <- seq(-2*pi, 2*pi, length.out=200)
+dt_sin <- data.table(
+  theta = theta,
+  sin_theta = sin(theta)
+)
+
+ggplot(dt_sin, aes(x=theta, y=sin_theta)) +
+  geom_line(color="blue") +
+  labs(
+    title="Sine Function",
+    x="theta",
+    y="sin(theta)"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_trigonometry_s_sine_files/unnamed-chunk-1-1.png">
+	
+</Figure>

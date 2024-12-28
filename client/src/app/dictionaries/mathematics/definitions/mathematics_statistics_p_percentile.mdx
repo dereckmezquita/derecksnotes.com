@@ -1,0 +1,39 @@
+---
+letter: 'p'
+word: 'percentile'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution','median']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="percentile">Percentile</a> - In **statistics**, a **percentile** is a measure used to indicate the value below which a given percentage of observations in a group of observations falls. For example, the 50th percentile is the [median](#median). 
+
+**Key points**:
+- Commonly used in test scores, growth charts, and any context where relative standing is measured.
+- The [distribution](#distribution) of data helps interpret percentile rank.
+
+**R demonstration** (finding percentiles via `quantile`):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+dt_p <- data.table(vals = rnorm(100, mean=0, sd=1))
+quantile(dt_p$vals, probs=c(0.25, 0.5, 0.75))
+```
+
+```
+##         25%         50%         75% 
+## -0.49385424  0.06175631  0.69181917
+```

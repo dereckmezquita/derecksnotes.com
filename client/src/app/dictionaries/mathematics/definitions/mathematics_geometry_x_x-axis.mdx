@@ -1,0 +1,46 @@
+---
+letter: 'x'
+word: 'x-axis'
+dictionary: 'mathematics'
+category: 'geometry'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['coordinate-system','x-intercept']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="x-axis">X-axis</a> - In a **2D coordinate system**, the **x-axis** is the horizontal line used to measure the x-coordinate of points. Typically, positive values extend to the right from the origin, while negative values extend to the left.
+
+**Key points**:
+- Intersects the y-axis at the origin (0,0).
+- The slope of the x-axis is 0 (a horizontal line).
+- Used to define an [x-intercept](#x-intercept) for curves.
+
+No direct R demonstration needed, but we can show a basic plot:
+
+
+``` r
+library(ggplot2)
+library(data.table)
+
+dt_plot <- data.table(x=-5:5, y=0)
+ggplot(dt_plot, aes(x=x, y=y)) +
+  geom_line() +
+  labs(
+    title="X-axis (horizontal)",
+    x="x",
+    y="y"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_geometry_x_x-axis_files/unnamed-chunk-1-1.png">
+	
+</Figure>

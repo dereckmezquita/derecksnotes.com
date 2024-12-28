@@ -93,3 +93,19 @@ export const orange_theme = [
     hsla_colour(30, 100, 65),
     hsla_colour(30, 100, 80)
 ];
+
+// Industrial Orange Theme - bright but readable orange
+export const industrial_orange_theme = [
+    hsla_colour(0, 0, 0),
+    hsla_colour(22, 90, 10), // Very dark orange
+    hsla_colour(22, 85, 20), // Dark orange
+    hsla_colour(22, 85, 30), // Deep orange
+    hsla_colour(22, 80, 40), // Rich orange
+
+    hsla_colour(22, 80, 50), // Main orange - more pastel for readability
+    hsla_colour(22, 75, 60), // Bright orange
+    hsla_colour(22, 70, 70), // Light orange
+    hsla_colour(22, 65, 80), // Pale orange
+    hsla_colour(22, 60, 90), // Very light orange
+    hsla_colour(22, 55, 95) // Almost white with orange tinge
+];

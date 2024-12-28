@@ -1,0 +1,55 @@
+---
+letter: 'v'
+word: 'vector'
+dictionary: 'mathematics'
+category: 'linear-algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['dimension','matrix','norm']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="vector">Vector</a> - In **linear algebra**, a **vector** is an element of a vector space. Commonly, in $\mathbb{R}^n$, a vector is an ordered list of real numbers, like:
+
+$$
+\mathbf{v} = \begin{pmatrix} v_1 \\ v_2 \\ \vdots \\ v_n \end{pmatrix}.
+$$
+
+**Key points**:
+- Vectors have [dimension](#dimension) $n$ in $\mathbb{R}^n$.
+- Matrix operations can treat vectors as columns or rows.
+- Magnitude (or [norm](#norm)) describes its length in Euclidean space.
+
+**R demonstration** (simple vector in R):
+
+```{r}
+library(data.table)
+
+v <- c(1,2,3)
+v_length <- sqrt(sum(v^2))
+v
+v_length
+```

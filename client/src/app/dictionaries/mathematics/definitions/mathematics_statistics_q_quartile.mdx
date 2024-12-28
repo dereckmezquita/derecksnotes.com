@@ -1,0 +1,36 @@
+---
+letter: 'q'
+word: 'quartile'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['percentile','median']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="quartile">Quartile</a> - In **statistics**, a **quartile** is a special case of a [percentile](#percentile) that divides the data into four equal parts. The second quartile (Q2) is the [median](#median). The first quartile (Q1) and third quartile (Q3) frame the interquartile range (IQR).
+
+**R demonstration** (computing quartiles via `quantile`):
+
+
+``` r
+library(data.table)
+
+set.seed(123)
+dt_vals <- data.table(x = rnorm(100, mean=50, sd=10))
+Q <- quantile(dt_vals$x, probs = c(0.25, 0.5, 0.75))
+Q
+```
+
+```
+##      25%      50%      75% 
+## 45.06146 50.61756 56.91819
+```

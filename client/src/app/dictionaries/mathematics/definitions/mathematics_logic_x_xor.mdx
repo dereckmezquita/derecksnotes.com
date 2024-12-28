@@ -1,0 +1,53 @@
+---
+letter: 'x'
+word: 'xor'
+dictionary: 'mathematics'
+category: 'logic'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: []
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="xor">XOR</a> - In **logic**, **XOR** (exclusive OR) is a Boolean operation returning true if exactly one operand is true, but false if both are true or both are false. Symbolically:
+
+$$
+A \oplus B = (A \lor B) \land \neg (A \land B).
+$$
+
+**Truth table**:
+
+| A     | B     | A XOR B |
+|-------|-------|---------|
+| FALSE | FALSE | FALSE   |
+| FALSE | TRUE  | TRUE    |
+| TRUE  | FALSE | TRUE    |
+| TRUE  | TRUE  | FALSE   |
+
+**R demonstration** (custom xor function on vectors):
+
+
+``` r
+library(data.table)
+
+xor_fn <- function(a, b) {
+  # a, b logical vectors
+  # Return a XOR b
+  (a | b) & !(a & b)
+}
+
+x <- c(TRUE,TRUE,FALSE,FALSE)
+y <- c(TRUE,FALSE,TRUE,FALSE)
+xor_fn(x,y)
+```
+
+```
+## [1] FALSE  TRUE  TRUE FALSE
+```

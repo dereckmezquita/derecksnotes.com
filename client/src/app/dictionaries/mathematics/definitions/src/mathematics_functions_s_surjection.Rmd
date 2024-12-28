@@ -1,0 +1,54 @@
+---
+letter: 's'
+word: 'surjection'
+dictionary: 'mathematics'
+category: 'functions'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['injection','bijection']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()) {
+  knitr::knit_hooks$set(plot = function(x, options){
+    cap <- options$fig.cap
+    as.character(htmltools::tag("Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+    ))
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="surjection">Surjection</a> - In **functions** (set theory), a **surjection** (or onto function) is a function $f: A \to B$ such that every element in $B$ has at least one preimage in $A$. Formally:
+
+$$
+\forall b \in B, \exists a \in A : f(a) = b.
+$$
+
+**Key points**:
+- Every element of $B$ is “hit” by the function.
+- Contrasts with [injection](#injection) (one-to-one). If a function is both surjective and injective, it’s a [bijection](#bijection).
+
+**R demonstration** (not typical, but we can illustrate a partial concept with sets):
+
+```{r}
+library(data.table)
+
+A <- 1:5
+B <- letters[1:5]
+
+# We'll define f: A->B, f(n) = the nth letter
+f_surjective <- function(n) letters[n]
+
+dt_map <- data.table(a = A, f_of_a = sapply(A, f_surjective))
+dt_map
+# This is surjective over B=letters[1:5], as all letters a through e appear.
+```

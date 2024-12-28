@@ -1,0 +1,57 @@
+---
+letter: 'm'
+word: 'markov-chain'
+dictionary: 'mathematics'
+category: 'probability'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['stochastic-process']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="markov-chain">Markov Chain</a> - In **probability**, a **Markov chain** is a [stochastic-process](#stochastic-process) with the **Markov property**: the next state depends only on the current state, not the history. Formally:
+
+$$
+P(X_{n+1}=s_{n+1}\mid X_n=s_n,\dots,X_0=s_0) = P(X_{n+1}=s_{n+1}\mid X_n=s_n).
+$$
+
+**Key points**:
+- Transition probabilities can be arranged in a matrix for finite state spaces.
+- Widely used in queueing, random walks, genetics, finance.
+
+**R demonstration** (a simple Markov chain simulation):
+
+
+``` r
+library(data.table)
+
+# Transition matrix for states A,B
+P <- matrix(c(0.7, 0.3,
+              0.4, 0.6), nrow=2, byrow=TRUE)
+rownames(P) <- colnames(P) <- c("A","B")
+
+simulate_markov <- function(P, n=10, start="A") {
+  states <- rownames(P)
+  chain <- character(n)
+  chain[1] <- start
+  for(i in 2:n) {
+    current <- chain[i-1]
+    idx <- which(states==current)
+    chain[i] <- sample(states, 1, prob=P[idx,])
+  }
+  chain
+}
+
+chain_res <- simulate_markov(P, n=15, start="A")
+chain_res
+```
+
+```
+##  [1] "A" "A" "A" "B" "B" "B" "A" "B" "A" "A" "B" "A" "A" "A" "A"
+```

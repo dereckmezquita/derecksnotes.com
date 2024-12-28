@@ -1,0 +1,81 @@
+---
+letter: 'm'
+word: 'monte-carlo-simulation'
+dictionary: 'mathematics'
+category: 'finance'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['distribution','probability','markov-chain']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x, options){
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src=x, alt=cap, paste("\n\t",cap,"\n",sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="monte-carlo-simulation">Monte Carlo Simulation</a> - A **Monte Carlo simulation** uses repeated random sampling to estimate numerical results. In **finance**, it’s often used for pricing derivatives, calculating risk metrics, or projecting potential outcomes of uncertain processes.
+
+**Mathematical principle**:
+If we want to estimate
+$$
+\mathbb{E}[f(X)] = \int f(x) p(x) \,dx,
+$$
+we can approximate by sampling $X_1,\dots,X_N$ from $p$ and computing:
+$$
+\frac{1}{N}\sum_{i=1}^N f(X_i).
+$$
+
+**R demonstration** (estimating the price of a European call option via a simple GBM model):
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+
+# Suppose we have a stock with current price S0, volatility sigma, risk-free rate r,
+# time to maturity T, strike K.
+S0 <- 100
+K  <- 105
+r  <- 0.02
+sigma <- 0.20
+T <- 1
+num_sims <- 10000
+
+# Generate terminal stock prices under Geometric Brownian Motion:
+# S_T = S0 * exp((r - 0.5*sigma^2)*T + sigma*sqrt(T)*Z)
+Z <- rnorm(num_sims)
+ST <- S0 * exp((r - 0.5*sigma^2)*T + sigma*sqrt(T)*Z)
+
+# Payoff for European call:
+payoffs <- pmax(ST - K, 0)
+# Discount payoffs back:
+call_value <- exp(-r*T)*mean(payoffs)
+call_value
+
+# Visual quick distribution:
+dt_call <- data.table(ST=ST, payoffs=payoffs)
+ggplot(dt_call, aes(x=ST)) +
+  geom_histogram(bins=40, fill="lightblue", color="black") +
+  labs(title="Monte Carlo Sim for Terminal Stock Price", x="S(T)", y="Frequency") +
+  theme_minimal()
+```
+

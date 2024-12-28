@@ -1,0 +1,51 @@
+---
+letter: 'o'
+word: 'outlier'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['distribution']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="outlier">Outlier</a> - In **statistics**, an **outlier** is a data point significantly distant from the rest of the [distribution](#distribution). Outliers can arise from measurement errors, heavy-tailed distributions, or genuine extreme events.
+
+**Key points**:
+- Outliers can skew means, inflate variances, or distort analyses.
+- Detection methods include IQR-based rules, z-scores, or robust statistics.
+
+**R demonstration** (basic detection via boxplot stats):
+
+```{r}
+library(data.table)
+library(ggplot2)
+
+set.seed(123)
+dt_out <- data.table(x = c(rnorm(30, mean=10, sd=1), 25)) # one extreme outlier
+ggplot(dt_out, aes(y=x)) + geom_boxplot(fill="lightblue") +
+  theme_minimal()
+
+stats <- boxplot.stats(dt_out$x)
+stats$out
+```

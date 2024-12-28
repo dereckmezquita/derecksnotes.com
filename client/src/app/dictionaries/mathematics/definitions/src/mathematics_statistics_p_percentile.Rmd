@@ -1,0 +1,49 @@
+---
+letter: 'p'
+word: 'percentile'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['distribution','median']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="percentile">Percentile</a> - In **statistics**, a **percentile** is a measure used to indicate the value below which a given percentage of observations in a group of observations falls. For example, the 50th percentile is the [median](#median). 
+
+**Key points**:
+- Commonly used in test scores, growth charts, and any context where relative standing is measured.
+- The [distribution](#distribution) of data helps interpret percentile rank.
+
+**R demonstration** (finding percentiles via `quantile`):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+dt_p <- data.table(vals = rnorm(100, mean=0, sd=1))
+quantile(dt_p$vals, probs=c(0.25, 0.5, 0.75))
+```

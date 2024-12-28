@@ -1,0 +1,59 @@
+---
+letter: 'h'
+word: homomorphism
+dictionary: 'mathematics'
+category: 'algebra'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# We reference "group" in the definition, so add it to linksTo.
+linksTo: ['group']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag(
+      "Figure", 
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="homomorphism">Homomorphism</a> - In **algebra**, a **homomorphism** is a structure-preserving map between two algebraic structures of the same type. For instance, a **group** homomorphism between groups $G$ and $H$ is a function
+
+$$
+\phi: G \to H
+$$
+
+such that:
+
+$$
+\phi(a \cdot b) = \phi(a) \star \phi(b),
+$$
+
+where $\cdot$ is the operation in $G$ and $\star$ is the operation in $H$ (see [group](#group) for more on group operations).
+
+This ensures that the algebraic structure (associativity, identity, inverses) is respected.
+
+No direct R demonstration is typical for homomorphisms, but we can quickly illustrate a trivial map:
+
+```{r}
+# As a simple example:
+# A map from Z -> Z given by phi(x) = 2*x is a group homomorphism under addition.
+phi <- function(x) 2*x
+
+phi(3)  # 6
+# phi(a + b) = 2*(a + b) = 2a + 2b = phi(a) + phi(b)
+```

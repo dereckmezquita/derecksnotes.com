@@ -1,0 +1,58 @@
+---
+letter: 'j'
+word: 'joint-distribution'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+# Suppose we reference "distribution" or "covariance",
+# so let's say we add "distribution" in linksTo.
+linksTo: ['distribution']
+linkedFrom: []
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="joint-distribution">Joint Distribution</a> - In **statistics**, a **joint distribution** describes the probability distribution of two or more random variables simultaneously. If $X$ and $Y$ are two random variables:
+
+- **Joint pmf** (discrete case): $p_{X,Y}(x,y)$
+- **Joint pdf** (continuous case): $f_{X,Y}(x,y)$
+
+It extends the idea of a single-variable [distribution](#distribution) to multiple dimensions.
+
+**R demonstration** (bivariate normal sampling):
+
+
+``` r
+library(MASS)  # for mvrnorm
+library(data.table)
+library(ggplot2)
+
+Sigma <- matrix(c(1, 0.5, 0.5, 1), 2, 2)  # Cov matrix
+mu <- c(0, 0)
+set.seed(123)
+dt_joint <- data.table(
+  mvrnorm(n=1000, mu=mu, Sigma=Sigma)
+)
+setnames(dt_joint, c("V1","V2"), c("X","Y"))
+
+# Plot joint distribution via scatter plot
+ggplot(dt_joint, aes(x=X, y=Y)) +
+  geom_point(alpha=0.5) +
+  labs(
+    title="Bivariate Normal Scatter",
+    x="X",
+    y="Y"
+  ) +
+  theme_minimal()
+```
+
+<Figure src="/dictionaries/mathematics/mathematics_statistics_j_joint-distribution_files/unnamed-chunk-1-1.png">
+	
+</Figure>

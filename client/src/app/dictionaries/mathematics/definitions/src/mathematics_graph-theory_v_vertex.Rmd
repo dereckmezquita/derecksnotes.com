@@ -1,0 +1,49 @@
+---
+letter: 'v'
+word: 'vertex'
+dictionary: 'mathematics'
+category: 'graph-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['graph']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width=10, fig.height = 7)
+```
+
+<a id="vertex">Vertex</a> - In **graph theory**, a **vertex** (also called a node) is a fundamental unit of a [graph](#graph). A graph $G=(V,E)$ consists of a set of vertices $V$ and edges $E$ between them.
+
+**Key points**:
+- The number of vertices is often denoted $|V|$.
+- Adjacency lists or matrices represent connections among vertices.
+
+**R demonstration** (simple use of `igraph` with vertices):
+
+```{r}
+library(igraph)
+
+g <- graph(edges=c("A","B","B","C","C","D"), directed=FALSE)
+V(g)  # show vertices
+plot(g, vertex.color="lightgreen", vertex.size=30, edge.arrow.size=0.5)
+```

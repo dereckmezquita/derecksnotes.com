@@ -1,0 +1,56 @@
+---
+letter: 'f'
+word: factorial
+dictionary: 'mathematics'
+category: 'number-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['frequency','function']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+<a id="factorial">Factorial</a> - For a positive integer $n$, the **factorial** $n!$ is defined as:
+
+$$
+n! = n \times (n-1) \times (n-2) \times \cdots \times 2 \times 1.
+$$
+
+By convention, $0! = 1$.
+
+**Key points**:
+- Factorials grow very quickly (super-exponential growth).
+- Central to combinatorics: $n!$ counts the number of ways to arrange $n$ distinct objects.
+- Appears in formulas such as binomial coefficients $\binom{n}{k} = \frac{n!}{k!(n-k)!}$.
+
+**R demonstration** (illustrating factorial growth):
+
+
+``` r
+library(data.table)
+
+# Let's build a small data.table of n and n!
+dt_fact <- data.table(
+  n = 1:6
+)
+dt_fact[, factorial_n := factorial(n)]
+
+dt_fact
+```
+
+```
+##        n factorial_n
+##    <int>       <num>
+## 1:     1           1
+## 2:     2           2
+## 3:     3           6
+## 4:     4          24
+## 5:     5         120
+## 6:     6         720
+```
+

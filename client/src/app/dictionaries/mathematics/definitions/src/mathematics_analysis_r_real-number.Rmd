@@ -1,0 +1,45 @@
+---
+letter: 'r'
+word: 'real-number'
+dictionary: 'mathematics'
+category: 'analysis'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['interval','number-line']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="real-number">Real Number</a> - A **real number** is a value on the continuous [number-line](#number-line), including both rational and irrational numbers. The set of real numbers is typically denoted $\mathbb{R}$. Intervals (see [interval](#interval)) are subsets of real numbers.
+
+**Key points**:
+- Complete ordered field: every Cauchy sequence converges in $\mathbb{R}$.
+- Used in nearly all continuous mathematics contexts (calculus, analysis, measurement).
+
+No special R demonstration: standard R numeric types approximate real numbers (double precision floats).
+
+```{r}
+library(data.table)
+vals <- c(pi, sqrt(2), exp(1))
+vals
+```

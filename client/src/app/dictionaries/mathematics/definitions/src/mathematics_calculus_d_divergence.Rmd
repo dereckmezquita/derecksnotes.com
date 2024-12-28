@@ -1,0 +1,69 @@
+---
+letter: 'd'
+word: 'divergence'
+dictionary: 'mathematics'
+category: 'calculus'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['nabla','curl','gradient']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()) {
+  knitr::knit_hooks$set(plot = function(x, options){
+    cap <- options$fig.cap
+    as.character(
+      htmltools::tag("Figure",
+        list(src=x, alt=cap, paste("\n\t", cap, "\n", sep=""))
+      )
+    )
+  })
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="divergence">Divergence</a> - In **vector calculus**, the **divergence** of a vector field $\mathbf{F} = (F_x, F_y, F_z)$ is a scalar measure of how much the field “spreads out” (source/sink). Using the [nabla](#nabla) operator ∇:
+
+$$
+\nabla \cdot \mathbf{F} = \frac{\partial F_x}{\partial x} + \frac{\partial F_y}{\partial y} + \frac{\partial F_z}{\partial z}.
+$$
+
+**Key points**:
+- If divergence is zero everywhere, the field is solenoidal (incompressible).
+- Common in fluid dynamics, electromagnetics, etc.
+
+**R demonstration** (approx numeric partials of a simple 3D field):
+
+```{r}
+library(data.table)
+
+F <- function(x,y,z) c(x*y, x+z, y*z)  # example vector field
+h <- 1e-6
+
+divergence_approx <- function(f, x,y,z, h=1e-6) {
+  # f => returns c(Fx, Fy, Fz)
+  # partial wrt x
+  fx_plus <- f(x+h,y,z); fx <- f(x,y,z)
+  dFx_dx <- (fx_plus[1] - fx[1]) / h
+  
+  # partial wrt y
+  fy_plus <- f(x,y+h,z)
+  dFy_dy <- (fy_plus[2] - fx[2]) / h
+  
+  # partial wrt z
+  fz_plus <- f(x,y,z+h)
+  dFz_dz <- (fz_plus[3] - fx[3]) / h
+  
+  dFx_dx + dFy_dy + dFz_dz
+}
+
+divergence_approx(F, 1,2,3)
+```

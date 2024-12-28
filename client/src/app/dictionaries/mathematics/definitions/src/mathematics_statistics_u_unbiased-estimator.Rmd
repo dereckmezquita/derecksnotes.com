@@ -1,0 +1,51 @@
+---
+letter: 'u'
+word: 'unbiased-estimator'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['expectation','variance']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap  <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300, fig.width=10, fig.height=7)
+```
+
+<a id="unbiased-estimator">Unbiased Estimator</a> - In **statistics**, an **unbiased estimator** is one whose [expectation](#expectation) equals the true parameter being estimated. For example, the sample variance with denominator $(n-1)$ is an unbiased estimator of the population [variance](#variance).
+
+**Key points**:
+- Unbiasedness is about the *expected value* of the estimator matching the parameter.
+- It does *not* guarantee minimum variance or other optimal properties.
+
+**R demonstration** (comparing biased vs. unbiased sample variance):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+x_vals <- rnorm(1000, mean=5, sd=2)
+
+biased_var   <- (1/length(x_vals))*sum((x_vals - mean(x_vals))^2)
+unbiased_var <- var(x_vals)  # R's 'var' uses denominator (n-1)
+
+c(biased_var, unbiased_var)
+```

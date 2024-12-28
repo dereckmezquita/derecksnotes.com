@@ -1,0 +1,64 @@
+---
+letter: 'e'
+word: entropy
+dictionary: 'mathematics'
+category: 'information-theory'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['eigenvalue','expectation']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+  plot = function(x, options) {
+    cap <- options$fig.cap
+    as.character(htmltools::tag("Figure",
+      list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
+)
+
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+  dpi = 300,
+  fig.width = 10,
+  fig.height = 7
+)
+```
+
+<a id="entropy">Entropy</a> - In information theory, **entropy** quantifies the average amount of information contained in a random variable’s possible outcomes. For a discrete random variable $X$ with pmf $p(x)$, the Shannon entropy (in bits) is:
+
+$$
+H(X) = -\sum_{x} p(x) \log_2\bigl(p(x)\bigr).
+$$
+
+**Key points**:
+- Entropy is maximised when all outcomes are equally likely.
+- Low entropy implies outcomes are more predictable.
+- It underpins coding theory, compressions, and measures of uncertainty.
+
+**R demonstration** (computing entropy of a discrete distribution):
+
+```{r}
+library(data.table)
+
+entropy_shannon <- function(prob_vec) {
+  # Make sure prob_vec sums to 1
+  -sum(prob_vec * log2(prob_vec), na.rm=TRUE)
+}
+
+dt_prob <- data.table(
+  outcome = letters[1:4],
+  prob    = c(0.1, 0.4, 0.3, 0.2)  # must sum to 1
+)
+
+H <- entropy_shannon(dt_prob$prob)
+H
+```
+

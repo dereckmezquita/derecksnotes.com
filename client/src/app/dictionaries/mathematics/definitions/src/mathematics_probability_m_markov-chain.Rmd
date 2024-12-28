@@ -1,0 +1,66 @@
+---
+letter: 'm'
+word: 'markov-chain'
+dictionary: 'mathematics'
+category: 'probability'
+dataSource: 'assistant'
+published: true
+comments: true
+linksTo: ['stochastic-process']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if(knitr::is_html_output()){
+  knitr::knit_hooks$set(
+    plot=function(x,options){
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure", list(src=x,alt=cap,paste("\n\t",cap,"\n",sep="")))
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir="/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng=knitr::hook_optipng)
+knitr::opts_chunk$set(dpi=300,fig.width=10,fig.height=7)
+```
+
+<a id="markov-chain">Markov Chain</a> - In **probability**, a **Markov chain** is a [stochastic-process](#stochastic-process) with the **Markov property**: the next state depends only on the current state, not the history. Formally:
+
+$$
+P(X_{n+1}=s_{n+1}\mid X_n=s_n,\dots,X_0=s_0) = P(X_{n+1}=s_{n+1}\mid X_n=s_n).
+$$
+
+**Key points**:
+- Transition probabilities can be arranged in a matrix for finite state spaces.
+- Widely used in queueing, random walks, genetics, finance.
+
+**R demonstration** (a simple Markov chain simulation):
+
+```{r}
+library(data.table)
+
+# Transition matrix for states A,B
+P <- matrix(c(0.7, 0.3,
+              0.4, 0.6), nrow=2, byrow=TRUE)
+rownames(P) <- colnames(P) <- c("A","B")
+
+simulate_markov <- function(P, n=10, start="A") {
+  states <- rownames(P)
+  chain <- character(n)
+  chain[1] <- start
+  for(i in 2:n) {
+    current <- chain[i-1]
+    idx <- which(states==current)
+    chain[i] <- sample(states, 1, prob=P[idx,])
+  }
+  chain
+}
+
+chain_res <- simulate_markov(P, n=15, start="A")
+chain_res
+```

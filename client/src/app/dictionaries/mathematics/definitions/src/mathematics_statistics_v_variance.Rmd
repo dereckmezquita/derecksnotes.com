@@ -1,0 +1,53 @@
+---
+letter: 'v'
+word: 'variance'
+dictionary: 'mathematics'
+category: 'statistics'
+dataSource: 'assistant'
+published: true
+comments: true
+
+linksTo: ['standard-deviation','distribution','mean']
+linkedFrom: []
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) {
+  knitr::knit_hooks$set(
+    plot = function(x, options) {
+      cap <- options$fig.cap
+      as.character(
+        htmltools::tag("Figure",
+          list(src = x, alt = cap, paste("\n\t", cap, "\n", sep=""))
+        )
+      )
+    }
+  )
+}
+knitr::opts_knit$set(root.dir = "/Users/work/Coding/derecksprojects/derecksnotes.com-playground/derecksnotes.com/client/src/app/dictionaries/mathematics/definitions")
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+<a id="variance">Variance</a> - In **statistics**, **variance** measures how far a set of numbers (random variable outcomes) spreads out around its [mean](#mean). For a population with values $x_1, x_2, ..., x_n$ and mean $\mu$:
+
+$$
+\mathrm{Var}(X) = \frac{1}{n} \sum_{i=1}^n (x_i - \mu)^2.
+$$
+
+For a sample-based estimate, the usual unbiased form has denominator $(n-1)$. The square root of variance is the [standard-deviation](#standard-deviation). Variance also helps describe a [distribution](#distribution)’s spread.
+
+**R demonstration** (computing variance):
+
+```{r}
+library(data.table)
+
+set.seed(123)
+vals <- rnorm(30, mean=5, sd=2)
+pop_var   <- mean( (vals - mean(vals))^2 )   # population style
+sample_var <- var(vals)  # sample style, uses denominator (n-1)
+c(pop_var, sample_var)
+```
