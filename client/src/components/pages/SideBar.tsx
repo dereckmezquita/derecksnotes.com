@@ -136,7 +136,7 @@ function renderSeriesList(series: PostMetadata[]) {
     for (let i = 0; i < series.length; i++) {
         const post = series[i];
         listItems.push(
-            <li key={post.slug}>
+            <li key={`${i}-${post.title}-${post.subtitle}`}>
                 <SideEntryLink href={post.slug} passHref>
                     <span style={{ fontWeight: 'bold' }}>Chp {i + 1}:</span>{' '}
                     {post.subtitle}
