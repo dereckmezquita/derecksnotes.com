@@ -96,12 +96,12 @@ export function extractSinglePostMetadata(filePath: string): PostMetadata {
         const { summary, frontmatter } = stripMdx<PostMetadata>(filePath);
         const date: string = DATE_YYYY_MM_DD(frontmatter.date);
 
-        // strip the abs path so it's the root of the website
-        // i.e. client/src/app/
-        const fileRoot: string = filePath
-            .split('app/')[1]
-            .replace('/posts/', '/')
-            .replace('.mdx', '');
+        // Instead of manually splitting by "app/"
+        const relativePath = path.relative(ROOT_DIR_APP, filePath);
+        // e.g. relativePath = "blog/posts/20241220_bioinformatics-cheat-sheet.mdx"
+
+        // Then normalise further
+        let fileRoot = relativePath.replace('/posts/', '/').replace('.mdx', '');
 
         return {
             slug: path.basename(filePath, '.mdx'), // removes ext
