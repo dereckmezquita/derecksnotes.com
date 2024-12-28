@@ -143,8 +143,11 @@ function extractTextFromChildren(children: React.ReactNode): string {
         return children.map(extractTextFromChildren).join(' ');
     }
 
-    if (React.isValidElement(children) && children.props.children) {
-        return extractTextFromChildren(children.props.children);
+    if (React.isValidElement<{ children?: React.ReactNode }>(children)) {
+        if (children.props.children) {
+            return extractTextFromChildren(children.props.children);
+        }
+        return '';
     }
 
     return '';
