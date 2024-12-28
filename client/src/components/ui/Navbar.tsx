@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import styled from 'styled-components';
 import { FaBars, FaFilter, FaUser } from 'react-icons/fa';
 import { useBlogFilter } from '../pages/index/BlogFilterContext';
@@ -191,8 +191,6 @@ const DateTimeDisplay = styled.div`
 // since using conditionals in components we must ensure that the component is mounted before rendering
 // either this or use dynamic from next/dynamic
 function Navbar() {
-    const [hasMounted, setHasMounted] = useState(false);
-    const [dateTime, setDateTime] = useState<string | null>(null);
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -201,35 +199,6 @@ function Navbar() {
     const closeMenu = () => {
         setIsMenuOpen(false);
     };
-
-    useEffect(() => {
-        setHasMounted(true);
-
-        const updateDateTime = () => {
-            const currentDate = new Date();
-            const displayDate = currentDate.toLocaleDateString('en-US', {
-                day: '2-digit',
-                month: 'short'
-            });
-            const displayTime = currentDate.toLocaleTimeString('en-US', {
-                hour12: false,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-            setDateTime(`${displayDate} ${displayTime}`);
-        };
-
-        updateDateTime();
-        const interval = setInterval(updateDateTime, 1000);
-        return () => {
-            clearInterval(interval);
-        };
-    }, []);
-
-    if (!hasMounted) {
-        return null;
-    }
 
     const toggleFilter = () => {
         setIsFilterVisible(!isFilterVisible);
@@ -274,9 +243,6 @@ function Navbar() {
                         </NavLeftItem>
                     </DropDownContent>
                 </DropDownContainer>
-                <DateTimeDisplay>
-                    {dateTime || '00 Jan 00:00:00'}
-                </DateTimeDisplay>
                 <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
                     <FaUser />
                     <AuthModal
