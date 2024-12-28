@@ -1,4 +1,4 @@
-import { gold_theme as colour_scheme } from './theme_colours';
+import { industrial_orange_theme as colour_scheme } from './theme_colours';
 
 // h: hue - controls the colour; a number between 0 and 360
 // s: saturation - controls the intensity of the colour; a number between 0 and 100
