@@ -1,0 +1,359 @@
+---
+title: "Async programming in R for JS devs"
+blurb: "Believe in Magic"
+coverImage: 325
+author: "Dereck Mezquita"
+date: 2025-02-08
+
+tags: [computer-science, programming, async, JS, R, code]
+published: true
+comments: true
+
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+## Table of contents
+
+Asynchronous programming is woven into the fabric of JavaScript and Node.js you encounter it from day one, whether you're making API calls, reading files, or handling user interactions. The language's `async`/`await` syntax has evolved into an elegant solution that makes asynchronous code read almost like synchronous code. When you write an async function, it returns a `promise`, and the `await` keyword lets you pause execution until that `promise` resolves, all while keeping the event loop running smoothly.
+
+This is quite different from languages like Python and R, where you typically start with synchronous programming and only dive into async patterns when specific performance needs arise. As someone who's worked extensively with JavaScript, I've come to appreciate its approach to async programming—the syntax is clean, the mental model is clear, and it handles concurrent operations gracefully.
+
+In R, while asynchronous programming isn't built into the language core, we can achieve similar elegance by combining the **promises**, **later**, and **coro** packages.
+
+## 1. Promises in R vs. JavaScript
+
+In JavaScript you might write a function that returns a Promise like this:
+
+```js
+#!/usr/bin/env node
+function getData() {
+    return new Promise((resolve, reject) => {
+        console.log("Simulating API call, waiting 2 seconds...");
+        setTimeout(() => {
+            // After 2 seconds, resolve with some data
+            resolve("Data received");
+        }, 2000);
+    });
+}
+
+console.log("Before API call");
+
+getData().then(data => {
+    console.log("Inside then: " + data);
+}).catch(error => {
+    console.error("Error fetching data: ", error);
+});
+
+console.log("After API call");
+```
+
+In R, we use `promise()` from the `promises` package along with `later$later()` to schedule a callback. The following R code is equivalent:
+
+
+``` r
+#!/usr/bin/env Rscript
+box::use(
+    promises,
+    later,
+    rlang[ abort ],
+    coro
+)
+
+# Define an asynchronous function that returns a promise.
+# This simulates an API call that resolves after 2 seconds.
+getDataAsync <- function() {
+    return(promises$promise(function(resolve, reject) {
+        cat("Simulating API call, waiting 2 seconds...\n")
+        later$later(function() {
+            resolve("Data received")
+        }, delay = 2)
+    }))
+}
+
+cat("Before API call\n")
+
+# Call getDataAsync() and chain with $then() and $catch(), similar to JavaScript.
+getDataAsync()$then(function(data) {
+    cat("Inside then: ", data, "\n")
+})$catch(function(err) {
+    abort("Error fetching data", parent = err)
+})
+
+cat("After API call\n")
+
+# In a non-interactive script, run the event loop until all tasks are complete.
+while (!later$loop_empty()) {
+    later$run_now(timeout = 0.1)
+}
+```
+
+```
+## Before API call
+## Simulating API call, waiting 2 seconds...
+## After API call
+## Inside then:  Data received
+```
+
+As you see, the R version mirrors the JavaScript version in structure by using `$then()` and `$catch()`.
+
+## 2. Asynchronous Functions and Awaiting Promises
+
+In JavaScript you can define an async function that awaits promises:
+
+```js
+async function main() {
+    try {
+        const data = await getData();
+        console.log("Inside async function: " + data);
+    } catch (error) {
+        console.error("Error fetching data: ", error);
+    }
+}
+
+main().then(() => {
+    console.log("Main function completed");
+});
+```
+
+This allows you to write your code in a more sequential manner, even though the underlying operations are asynchronous.
+
+In R, we can mimic this by using the **coro** package to define an async function and call `await()` inside it. (Note: In coro the `await()` function must be called directly; do not prefix it with a namespace.)
+
+
+``` r
+# Define an async main function using coro$async.
+main <- coro$async(function() {
+    tryCatch({
+        data <- await(getDataAsync())
+        cat("Inside async function: ", data, "\n")
+    }, error = function(err) {
+        cat("Error fetching data: ", err$message, "\n")
+    })
+})
+
+# Call the main function and attach a then() handler.
+main()$then(function() {
+    cat("Main function completed\n")
+})
+```
+
+```
+## Simulating API call, waiting 2 seconds...
+```
+
+This R function is very similar to the JavaScript async function. The use of `await(getDataAsync())` makes the code appear sequential, even though the promise is resolved asynchronously.
+
+## 3. Running Multiple Asynchronous Tasks (Promise.all Equivalent)
+
+JavaScript allows you to run multiple asynchronous operations concurrently using `Promise.all`:
+
+```js
+Promise.all([
+    getData(),
+    getData()
+]).then(results => {
+    console.log("Results:", results);
+})
+.catch(error => {
+    console.error("Error in one of the promises:", error);
+});
+```
+
+In R, the **promises** package offers a similar function called `promise_all()`. Here is an equivalent example:
+
+
+``` r
+promises$promise_all(
+    data1 = getDataAsync(),
+    data2 = getDataAsync()
+)$then(function(results) {
+    cat("Promise.all results:\n")
+    cat("Data1: ", results$data1, "\n")
+    cat("Data2: ", results$data2, "\n")
+})$catch(function(err) {
+    abort("Error in one of the asynchronous calls", parent = err)
+})
+```
+
+```
+## Simulating API call, waiting 2 seconds...
+## Simulating API call, waiting 2 seconds...
+```
+
+This code launches two asynchronous API calls concurrently. When both resolve, the combined results (a list with elements named `data1` and `data2`) are passed to the callback.
+
+## 4. Creating a setInterval/setTimeout Function in R
+
+Unlike JavaScript, R does not have a built-in `setInterval()` function. Instead, you can simulate an interval by recursively scheduling a function with `later$later()`. For example:
+
+
+``` r
+box::use(later)
+# Define a function that replicates setTimeout
+set_timeout <- function(callback, ms, ...) {
+    later$later(
+        # note the tilde here is used to create a formula
+        # this way the callback is not evaluated immediately
+        # and can be passed to later$later
+        ~callback(...), ms / 1000, loop = later$global_loop()
+    )
+}
+
+# Define a function that replicates setInterval
+set_interval <- function(callback, ms, ...) {
+    interval <- ms / 1000
+    should_continue__ <- TRUE
+
+    run_interval <- function() {
+        if (should_continue__) {
+            callback(...)
+            later$later(run_interval, interval, loop = later$global_loop())
+        }
+    }
+
+    # Start the interval
+    later$later(run_interval, interval, loop = later$global_loop())
+
+    # Return a list of functions to control the interval
+    invisible(list(
+        clear = function() {
+            should_continue__ <<- FALSE
+        },
+        is_active = function() {
+            should_continue__
+        }
+    ))
+}
+
+timer <- set_interval(function() {
+    cat("Interval tick\n")
+}, ms = 1000)
+
+set_timeout(function() {
+    timer$clear()
+    cat("Timer cleared\n")
+}, ms = 5000)
+
+while (!later$loop_empty()) {
+    later$run_now()
+}
+```
+
+```
+## Interval tick
+## Inside async function:  Data received 
+## Main function completed
+## Promise.all results:
+## Data1:  Data received 
+## Data2:  Data received 
+## Interval tick
+## Interval tick
+## Interval tick
+## Timer cleared
+```
+
+## 5. Culminating Example: All Features Combined
+
+Here we put everything together in a single R script that demonstrates all the features we've covered so far. This script simulates an API call, chains promises, defines an async function, runs multiple tasks concurrently, and creates a recurring timer using `later`.
+
+
+``` r
+#!/usr/bin/env Rscript
+box::use(
+    promises,
+    later,
+    rlang[abort],
+    coro
+)
+
+# 1) Simulated asynchronous API call.
+getDataAsync <- function() {
+    return(promises$promise(function(resolve, reject) {
+        cat("Simulating API call, waiting 2 seconds...\n")
+        later$later(function() {
+            resolve("Data received")
+        }, delay = 2)
+    }))
+}
+
+# 2) Basic promise chaining (like .then() and .catch() in JavaScript).
+cat("Before API call\n")
+getDataAsync()$then(function(data) {
+    cat("Inside then: ", data, "\n")
+})$catch(function(err) {
+    abort("Error fetching data", parent = err)
+})
+cat("After API call\n")
+
+# 3) Async main function using coro$async and await().
+main <- coro$async(function() {
+    tryCatch({
+        data <- await(getDataAsync())
+        cat("Inside async function: ", data, "\n")
+    }, error = function(err) {
+        cat("Error fetching data: ", err$message, "\n")
+    })
+})
+
+main()$then(function() {
+    cat("Main function completed\n")
+})
+
+# 4) Running multiple asynchronous tasks concurrently (Promise.all equivalent).
+promises$promise_all(
+    first  = getDataAsync(),
+    second = getDataAsync()
+)$then(function(results) {
+    cat("Promise.all results:\n")
+    cat("First: ", results$first, "\n")
+    cat("Second: ", results$second, "\n")
+})$catch(function(err) {
+    abort("Error in promise_all", parent = err)
+})
+
+# 5) Simulate setInterval: create a recurring timer using later.
+timer <- set_interval(function() {
+    cat("Interval tick\n")
+}, ms = 1000)
+
+# 6) Cancel the timer after 5 seconds.
+set_timeout(function() {
+    timer$clear()
+    cat("Timer cleared\n")
+}, ms = 5000)
+
+# (6) Keep the event loop running until all asynchronous tasks have completed.
+while (!later$loop_empty()) {
+    later$run_now(timeout = 0.1)
+}
+```
+
+```
+## Before API call
+## Simulating API call, waiting 2 seconds...
+## After API call
+## Simulating API call, waiting 2 seconds...
+## Simulating API call, waiting 2 seconds...
+## Simulating API call, waiting 2 seconds...
+## Interval tick
+## Inside then:  Data received 
+## Inside async function:  Data received 
+## Interval tick
+## Promise.all results:
+## First:  Data received 
+## Second:  Data received 
+## Main function completed
+## Interval tick
+## Interval tick
+## Timer cleared
+```
+
+## Conclusion
+
+In this crash course we demonstrated how to write asynchronous R code that closely resembles JavaScript's style.
+
+By combining these tools and patterns, you can write asynchronous R code that looks and behaves similarly to JavaScript's async/await model, making the transition easier for JavaScript developers.
