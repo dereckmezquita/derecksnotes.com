@@ -168,23 +168,23 @@ router.get(
         const userId = req.user?._id;
 
         try {
-            // Find user's comments
-            const comments = await Comment.find({ userId })
+            // Find user's comments (using author field from Comment model)
+            const comments = await Comment.find({ author: userId })
                 .sort({ createdAt: -1 })
                 .limit(20)
-                .populate('postId', 'title slug');
+                .populate('post', 'title slug');
 
             res.json({
                 activity: {
                     comments: comments.map((comment) => ({
                         id: comment._id,
-                        content: comment.content,
+                        content: comment.text, // Using text field from Comment model
                         createdAt: comment.createdAt,
-                        post: comment.postId
+                        post: comment.post
                             ? {
-                                  id: comment.postId._id,
-                                  title: (comment.postId as any).title,
-                                  slug: (comment.postId as any).slug
+                                  id: comment.post._id,
+                                  title: (comment.post as any).title,
+                                  slug: (comment.post as any).slug
                               }
                             : null
                     }))
