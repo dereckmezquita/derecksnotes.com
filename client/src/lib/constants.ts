@@ -1,10 +1,15 @@
 import path from 'path';
 
+// File system paths
 export const ROOT_DIR: string = process.cwd();
 export const ROOT_DIR_SRC: string = path.join(ROOT_DIR, 'src');
 export const ROOT_DIR_APP: string = path.join(ROOT_DIR_SRC, 'app');
-export const MAX_COMMENT_DEPTH: number = 5;
 
+// Comment settings
+export const MAX_COMMENT_DEPTH: number = 5; // Maximum nesting level for comments
+export const MAX_COMMENT_LENGTH: number = 5000; // Maximum characters per comment
+
+// Application information
 export const APPLICATION_AUTHOR: { first: string; last: string } = {
     first: 'Dereck',
     last: 'Mezquita'
@@ -29,6 +34,7 @@ export const APPLICATION_DEFAULT_METADATA: PageMetadata = {
     url: process.env.NEXT_PUBLIC_APP_URL
 };
 
+// UI constants
 export const ALPHABET: string[] = 'abcdefghijklmnopqrstuvwxyz#'.split('');
 
 export const DEFAULT_PROFILE_IMAGE: string =
