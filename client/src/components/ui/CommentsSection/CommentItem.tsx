@@ -377,10 +377,12 @@ export function CommentItem({
         comment.lastEditedAt && comment.lastEditedAt !== comment.createdAt;
 
     // Check user reactions to this comment
-    const hasUserLiked =
-        currentUser && comment.likes.some((id) => id === currentUser.id);
-    const hasUserDisliked =
-        currentUser && comment.dislikes.some((id) => id === currentUser.id);
+    const hasUserLiked: boolean | undefined = currentUser
+        ? comment.likes.some((id) => id === currentUser.id)
+        : undefined;
+    const hasUserDisliked: boolean | undefined = currentUser
+        ? comment.dislikes.some((id) => id === currentUser.id)
+        : undefined;
 
     // Handle like/dislike
     const handleReaction = async (action: 'like' | 'dislike' | 'clear') => {
