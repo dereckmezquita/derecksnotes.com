@@ -64,15 +64,43 @@ app.get('/', async (req: Request, res: Response) => {
     res.json(status);
 });
 
-app.use('/', routes.auth);
-app.use('/', routes.comments);
-app.use('/', routes.profile);
-app.use('/', routes.test);
+// Mount routes based on environment
+if (env.BUILD_ENV === 'PROD') {
+    // In production, mount routes under /api to match client requests
+    app.use('/api', routes.auth);
+    app.use('/api', routes.comments);
+    app.use('/api', routes.profile);
+    app.use('/api', routes.test);
+
+    // Also add status endpoint at /api
+    app.get('/api', async (req: Request, res: Response) => {
+        const status = await getServerStatus();
+        res.json(status);
+    });
+} else {
+    // In development, mount at root for compatibility with Next.js rewrites
+    app.use('/', routes.auth);
+    app.use('/', routes.comments);
+    app.use('/', routes.profile);
+    app.use('/', routes.test);
+}
 // -----
 
+// Add debugging middleware
 if (!env.BUILD_ENV_BOOL) {
+    // Log all incoming requests with basic info
     app.use((req: Request, res: Response, next: NextFunction) => {
         console.log('Incoming request: ', req.method, req.url);
+        next();
+    });
+
+    // Add detailed API request logging
+    app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+        console.log(`API Request: ${req.method} ${req.url}`);
+        console.log(`Query params: ${JSON.stringify(req.query)}`);
+        if (req.body && Object.keys(req.body).length > 0) {
+            console.log(`Body: ${JSON.stringify(req.body, null, 2)}`);
+        }
         next();
     });
 }
