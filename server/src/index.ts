@@ -64,26 +64,26 @@ app.get('/', async (req: Request, res: Response) => {
     res.json(status);
 });
 
-// Mount routes based on environment
-if (env.BUILD_ENV === 'PROD') {
-    // In production, mount routes under /api to match client requests
-    app.use('/api', routes.auth);
-    app.use('/api', routes.comments);
-    app.use('/api', routes.profile);
-    app.use('/api', routes.test);
+// Mount routes at both root and /api path to handle different proxy configurations
+// This ensures the app works with or without the /api prefix being stripped by reverse proxies
 
-    // Also add status endpoint at /api
-    app.get('/api', async (req: Request, res: Response) => {
-        const status = await getServerStatus();
-        res.json(status);
-    });
-} else {
-    // In development, mount at root for compatibility with Next.js rewrites
-    app.use('/', routes.auth);
-    app.use('/', routes.comments);
-    app.use('/', routes.profile);
-    app.use('/', routes.test);
-}
+// Mount routes at root (needed if /api is being stripped by proxy)
+app.use('/', routes.auth);
+app.use('/', routes.comments);
+app.use('/', routes.profile);
+app.use('/', routes.test);
+
+// Also mount under /api for direct access
+app.use('/api', routes.auth);
+app.use('/api', routes.comments);
+app.use('/api', routes.profile);
+app.use('/api', routes.test);
+
+// Add status endpoint at /api
+app.get('/api', async (req: Request, res: Response) => {
+    const status = await getServerStatus();
+    res.json(status);
+});
 // -----
 
 // Add debugging middleware
@@ -115,4 +115,16 @@ app.listen(env.EXPRESS_PORT, async () => {
     console.log(`Server running: ${env.API_URL} 🚀`);
     const status = await getServerStatus();
     console.log(status);
+
+    // Log some diagnostic info in development mode
+    if (!env.BUILD_ENV_BOOL) {
+        console.log('\n=== Server Configuration ===');
+        console.log(`Environment: ${env.BUILD_ENV}`);
+        console.log(`API URL: ${env.API_URL}`);
+        console.log(`Port: ${env.EXPRESS_PORT}`);
+        console.log(
+            'Routes are mounted at both / and /api paths to handle all proxy configurations'
+        );
+        console.log('');
+    }
 });
