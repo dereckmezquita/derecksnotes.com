@@ -64,26 +64,10 @@ app.get('/', async (req: Request, res: Response) => {
     res.json(status);
 });
 
-// Mount routes at both root and /api path to handle different proxy configurations
-// This ensures the app works with or without the /api prefix being stripped by reverse proxies
-
-// Mount routes at root (needed if /api is being stripped by proxy)
 app.use('/', routes.auth);
 app.use('/', routes.comments);
 app.use('/', routes.profile);
 app.use('/', routes.test);
-
-// Also mount under /api for direct access
-app.use('/api', routes.auth);
-app.use('/api', routes.comments);
-app.use('/api', routes.profile);
-app.use('/api', routes.test);
-
-// Add status endpoint at /api
-app.get('/api', async (req: Request, res: Response) => {
-    const status = await getServerStatus();
-    res.json(status);
-});
 // -----
 
 // Add debugging middleware
@@ -94,12 +78,25 @@ if (!env.BUILD_ENV_BOOL) {
         next();
     });
 
-    // Add detailed API request logging
-    app.use('/api', (req: Request, res: Response, next: NextFunction) => {
+    // Add detailed API request logging on the dynamic API_PREFIX
+    app.use((req: Request, res: Response, next: NextFunction) => {
         console.log(`API Request: ${req.method} ${req.url}`);
         console.log(`Query params: ${JSON.stringify(req.query)}`);
-        if (req.body && Object.keys(req.body).length > 0) {
-            console.log(`Body: ${JSON.stringify(req.body, null, 2)}`);
+
+        // Log request body for non-GET requests if it exists, but redact sensitive data
+        if (
+            req.method !== 'GET' &&
+            req.body &&
+            Object.keys(req.body).length > 0
+        ) {
+            const sensitiveKeys = ['password', 'token', 'secret'];
+            const sanitizedBody = { ...req.body };
+
+            sensitiveKeys.forEach((key) => {
+                if (key in sanitizedBody) sanitizedBody[key] = '[REDACTED]';
+            });
+
+            console.log(`Body: ${JSON.stringify(sanitizedBody, null, 2)}`);
         }
         next();
     });
@@ -113,18 +110,15 @@ process.on('SIGINT', async () => {
 
 app.listen(env.EXPRESS_PORT, async () => {
     console.log(`Server running: ${env.API_URL} 🚀`);
-    const status = await getServerStatus();
+    const status = await reportStatus();
     console.log(status);
-
-    // Log some diagnostic info in development mode
-    if (!env.BUILD_ENV_BOOL) {
-        console.log('\n=== Server Configuration ===');
-        console.log(`Environment: ${env.BUILD_ENV}`);
-        console.log(`API URL: ${env.API_URL}`);
-        console.log(`Port: ${env.EXPRESS_PORT}`);
-        console.log(
-            'Routes are mounted at both / and /api paths to handle all proxy configurations'
-        );
-        console.log('');
-    }
 });
+
+async function reportStatus() {
+    return {
+        api_url: env.API_URL,
+        status: await getServerStatus(),
+        build_env: env.BUILD_ENV,
+        express_port: env.EXPRESS_PORT
+    };
+}
