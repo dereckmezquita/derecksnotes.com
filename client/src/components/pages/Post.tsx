@@ -38,8 +38,14 @@ export function Post({ source, frontmatter, sideBarPosts }: DisplayPostProps) {
                 </h1>
                 {isClient && <PostContentWrapper>{source}</PostContentWrapper>}
                 {'comments' in frontmatter && frontmatter.comments && (
-                    // Pass the current pathname as postSlug
-                    <Comments postSlug={pathname} />
+                    // Pass the current pathname as postSlug, removing leading slash
+                    <Comments
+                        postSlug={
+                            pathname.startsWith('/')
+                                ? pathname.substring(1)
+                                : pathname
+                        }
+                    />
                 )}
             </Article>
         </PostContainer>

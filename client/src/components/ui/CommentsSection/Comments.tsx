@@ -142,8 +142,12 @@ export function Comments({ postSlug }: CommentsProps) {
         setLoading(true);
         try {
             const skip = (page - 1) * limit;
+            // Ensure the postSlug doesn't start with a slash to prevent double slashes in URL
+            const formattedSlug = postSlug.startsWith('/')
+                ? postSlug.substring(1)
+                : postSlug;
             const res = await api.get<CommentResponse>(
-                `/comments/post/${postSlug}?depth=3&limit=${limit}&skip=${skip}`
+                `/comments/post/${formattedSlug}?depth=3&limit=${limit}&skip=${skip}`
             );
             setComments(res.data.comments);
             setPagination(res.data.pagination);

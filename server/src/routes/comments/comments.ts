@@ -87,8 +87,11 @@ router.post(
     authMiddleware,
     async (req: Request, res: Response) => {
         try {
-            const { text, postSlug, parentCommentId } = req.body;
+            let { text, postSlug, parentCommentId } = req.body;
             const userId = req.user?._id;
+
+            // Normalize the slug
+            postSlug = postSlug.replace(/^\/+|\/+$/g, '');
 
             if (!text || text.trim().length === 0) {
                 return res.status(400).json({
@@ -181,7 +184,10 @@ router.post(
 // Get comments for a post by slug
 router.get('/comments/post/:postSlug', async (req: Request, res: Response) => {
     try {
-        const { postSlug } = req.params;
+        let { postSlug } = req.params;
+        // Ensure consistent slug format (no leading or trailing slashes)
+        postSlug = postSlug.replace(/^\/+|\/+$/g, '');
+
         // Default depth of 2, max is MAX_COMMENT_DEPTH
         const depth = Math.min(
             parseInt(req.query.depth as string, 10) || 2,
