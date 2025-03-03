@@ -10,13 +10,29 @@ import { authMiddleware } from '../../middleware/isAuth';
 import { MAX_COMMENT_DEPTH, MAX_COMMENT_LENGTH } from '../../utils/constants';
 import sanitizeHtml from 'sanitize-html';
 
+/**
+ * Comments Router
+ * Handles all operations related to comment resources:
+ * - Fetching comment trees for posts
+ * - Creating, updating, and deleting comments
+ * - Managing comment reactions (likes/dislikes)
+ * - Retrieving comment revision history
+ */
 const router = Router();
 
+/**
+ * Extended comment interface with nested replies
+ * Used for building hierarchical comment trees
+ */
 interface ICommentTree extends IComment {
     replies?: ICommentTree[];
 }
 
-// Sanitize user-generated text
+/**
+ * Sanitizes user-generated text to prevent XSS attacks
+ * @param text - Raw text input from users
+ * @returns Sanitized text with only allowed HTML tags and attributes
+ */
 function sanitizeText(text: string): string {
     return sanitizeHtml(text, {
         allowedTags: [
@@ -41,22 +57,33 @@ function sanitizeText(text: string): string {
     });
 }
 
-// Recursive helper
+/**
+ * Recursively fetches and builds a hierarchical comment tree
+ * @param parentComments - Array of parent comments
+ * @param depth - Current depth of recursion
+ * @param maxDepth - Maximum allowed depth for recursion
+ * @returns Promise resolving to a tree structure of comments with nested replies
+ */
 async function fetchCommentTree(
     parentComments: IComment[],
     depth: number,
     maxDepth: number = MAX_COMMENT_DEPTH
 ): Promise<ICommentTree[]> {
+    // Base case: return if we've reached maximum depth or invalid depth
     if (depth <= 0 || depth > maxDepth) {
         return parentComments as ICommentTree[];
     }
 
+    // Extract parent IDs for querying child comments
     const parentIds = parentComments.map((c) => c._id);
+
+    // Find all replies to these parent comments
     const replies = await Comment.find({ parentComment: { $in: parentIds } })
         .populate('author', 'username firstName lastName profilePhoto')
         .sort({ createdAt: 1 })
         .lean<IComment[]>();
 
+    // Group replies by their parent comment
     const repliesByParent: Record<string, IComment[]> = {};
     for (const reply of replies) {
         if (reply.parentComment) {
@@ -66,6 +93,7 @@ async function fetchCommentTree(
         }
     }
 
+    // Build the hierarchical tree by recursively fetching nested replies
     const results: ICommentTree[] = [];
     for (const parent of parentComments) {
         const parentIdStr = parent._id.toString();
@@ -81,7 +109,11 @@ async function fetchCommentTree(
     return results;
 }
 
-// Create a new comment
+/**
+ * POST /comments
+ * Creates a new comment on a post
+ * Requires authentication
+ */
 router.post(
     '/comments',
     authMiddleware,
@@ -93,6 +125,7 @@ router.post(
             // Normalize the slug
             postSlug = postSlug.replace(/^\/+|\/+$/g, '');
 
+            // Validate comment text
             if (!text || text.trim().length === 0) {
                 return res.status(400).json({
                     error: 'Comment text cannot be empty',
@@ -107,6 +140,7 @@ router.post(
                 });
             }
 
+            // Find the associated post
             const post = await Post.findOne({ slug: postSlug }).lean();
             if (!post) {
                 return res.status(404).json({
@@ -115,7 +149,7 @@ router.post(
                 });
             }
 
-            // Verify parent comment if provided
+            // Verify parent comment if provided and check nesting depth
             if (parentCommentId) {
                 const parentComment =
                     await Comment.findById(parentCommentId).lean<IComment>();
@@ -126,7 +160,7 @@ router.post(
                     });
                 }
 
-                // Get the comment depth
+                // Calculate the comment depth to enforce maximum nesting limit
                 let depth = 1;
                 let currentParentId = parentComment.parentComment;
 
@@ -148,9 +182,10 @@ router.post(
                 }
             }
 
-            // Sanitize text
+            // Sanitize text to prevent XSS
             const sanitizedText = sanitizeText(text);
 
+            // Create the new comment
             const newComment = await Comment.create({
                 text: sanitizedText,
                 originalContent: sanitizedText,
@@ -162,7 +197,7 @@ router.post(
                 revisions: []
             });
 
-            // Populate author details
+            // Populate author details for the response
             const populatedComment = await Comment.findById(newComment._id)
                 .populate('author', 'username firstName lastName profilePhoto')
                 .lean<IComment>();
@@ -181,30 +216,43 @@ router.post(
     }
 );
 
-// Get comments for a post by slug
-router.get('/comments/post/:postSlug', async (req: Request, res: Response) => {
+/**
+ * GET /comments/post/*
+ * Retrieves comments for a post, supporting hierarchical paths in the slug
+ * Public endpoint (no authentication required)
+ */
+router.get('/comments/post/*', async (req: Request, res: Response) => {
     try {
-        let { postSlug } = req.params;
+        // Extract the complete path from the wildcard match
+        let postSlug = req.params[0];
+
         // Ensure consistent slug format (no leading or trailing slashes)
         postSlug = postSlug.replace(/^\/+|\/+$/g, '');
 
-        // Default depth of 2, max is MAX_COMMENT_DEPTH
+        // Log operation for debugging
+        console.log(`Looking for post with slug: "${postSlug}"`);
+
+        // Parse query parameters with defaults
         const depth = Math.min(
             parseInt(req.query.depth as string, 10) || 2,
             MAX_COMMENT_DEPTH
         );
-        const limit = parseInt(req.query.limit as string, 10) || 20; // Default limit
-        const skip = parseInt(req.query.skip as string, 10) || 0; // Default skip
+        const limit = parseInt(req.query.limit as string, 10) || 20;
+        const skip = parseInt(req.query.skip as string, 10) || 0;
 
+        // Find the post by its slug
         const post = await Post.findOne({ slug: postSlug }).lean();
         if (!post) {
+            console.log(`Post not found with slug: "${postSlug}"`);
             return res.status(404).json({
                 error: 'Post not found',
                 code: 'POST_NOT_FOUND'
             });
         }
 
-        // Apply limit & skip for top-level comments
+        console.log(`Found post: ${post._id} for slug: "${postSlug}"`);
+
+        // Fetch top-level comments for the post with pagination
         const topLevelComments = await Comment.find({
             post: post._id,
             parentComment: null
@@ -215,6 +263,7 @@ router.get('/comments/post/:postSlug', async (req: Request, res: Response) => {
             .limit(limit)
             .lean<IComment[]>();
 
+        // Build the comment tree recursively
         const commentTree = await fetchCommentTree(topLevelComments, depth);
 
         // Get total count for pagination
@@ -241,7 +290,11 @@ router.get('/comments/post/:postSlug', async (req: Request, res: Response) => {
     }
 });
 
-// Get more replies for a single comment
+/**
+ * GET /comments/:id/replies
+ * Retrieves replies for a specific comment
+ * Public endpoint (no authentication required)
+ */
 router.get('/comments/:id/replies', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
@@ -250,6 +303,7 @@ router.get('/comments/:id/replies', async (req: Request, res: Response) => {
             MAX_COMMENT_DEPTH
         );
 
+        // Find the parent comment
         const comment = await Comment.findById(id)
             .populate('author', 'username firstName lastName profilePhoto')
             .lean<IComment>();
@@ -261,13 +315,13 @@ router.get('/comments/:id/replies', async (req: Request, res: Response) => {
             });
         }
 
-        // Find direct replies
+        // Find direct replies to this comment
         const replies = await Comment.find({ parentComment: comment._id })
             .populate('author', 'username firstName lastName profilePhoto')
             .sort({ createdAt: 1 })
             .lean<IComment[]>();
 
-        // Get nested replies if depth > 1
+        // Build nested reply tree if depth > 1
         const repliesTree = await fetchCommentTree(replies, depth - 1);
 
         return res.json(repliesTree);
@@ -280,11 +334,16 @@ router.get('/comments/:id/replies', async (req: Request, res: Response) => {
     }
 });
 
-// Get revision history for a comment
+/**
+ * GET /comments/:id/history
+ * Retrieves revision history for a specific comment
+ * Public endpoint (no authentication required)
+ */
 router.get('/comments/:id/history', async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
 
+        // Find the comment with author details
         const comment = await Comment.findById(id)
             .populate('author', 'username firstName lastName profilePhoto')
             .lean<IComment>();
@@ -324,7 +383,10 @@ router.get('/comments/:id/history', async (req: Request, res: Response) => {
     }
 });
 
-// Update a comment (user must be the author)
+/**
+ * PUT /comments/:id
+ * Updates a specific comment (requires authentication as comment author)
+ */
 router.put(
     '/comments/:id',
     authMiddleware,
@@ -334,6 +396,7 @@ router.put(
             const { text } = req.body;
             const userId = req.user?._id;
 
+            // Validate updated text
             if (!text || text.trim().length === 0) {
                 return res.status(400).json({
                     error: 'Comment text cannot be empty',
@@ -348,6 +411,7 @@ router.put(
                 });
             }
 
+            // Find the comment to update
             const comment = await Comment.findById(id);
             if (!comment) {
                 return res.status(404).json({
@@ -356,6 +420,7 @@ router.put(
                 });
             }
 
+            // Verify ownership
             if (comment.author.toString() !== userId?.toString()) {
                 return res.status(403).json({
                     error: 'Not authorized to update this comment',
@@ -363,6 +428,7 @@ router.put(
                 });
             }
 
+            // Prevent editing deleted comments
             if (comment.deleted) {
                 return res.status(400).json({
                     error: 'Cannot edit a deleted comment',
@@ -404,7 +470,10 @@ router.put(
     }
 );
 
-// Soft delete a comment (user must be the author)
+/**
+ * DELETE /comments/:id
+ * Soft deletes a comment (requires authentication as comment author)
+ */
 router.delete(
     '/comments/:id',
     authMiddleware,
@@ -413,6 +482,7 @@ router.delete(
             const { id } = req.params;
             const userId = req.user?._id;
 
+            // Find the comment to delete
             const comment = await Comment.findById(id);
             if (!comment) {
                 return res.status(404).json({
@@ -421,6 +491,7 @@ router.delete(
                 });
             }
 
+            // Verify ownership
             if (comment.author.toString() !== userId?.toString()) {
                 return res.status(403).json({
                     error: 'Not authorized to delete this comment',
@@ -428,6 +499,7 @@ router.delete(
                 });
             }
 
+            // Prevent deleting already deleted comments
             if (comment.deleted) {
                 return res.status(400).json({
                     error: 'Comment already deleted',
@@ -454,7 +526,10 @@ router.delete(
     }
 );
 
-// Like a comment
+/**
+ * POST /comments/:id/like
+ * Adds a like to a comment (requires authentication)
+ */
 router.post(
     '/comments/:id/like',
     authMiddleware,
@@ -463,6 +538,7 @@ router.post(
             const { id } = req.params;
             const userId = req.user?._id;
 
+            // Find the comment
             const comment = await Comment.findById(id);
             if (!comment) {
                 return res.status(404).json({
@@ -502,7 +578,10 @@ router.post(
     }
 );
 
-// Dislike a comment
+/**
+ * POST /comments/:id/dislike
+ * Adds a dislike to a comment (requires authentication)
+ */
 router.post(
     '/comments/:id/dislike',
     authMiddleware,
@@ -511,6 +590,7 @@ router.post(
             const { id } = req.params;
             const userId = req.user?._id;
 
+            // Find the comment
             const comment = await Comment.findById(id);
             if (!comment) {
                 return res.status(404).json({
@@ -552,7 +632,10 @@ router.post(
     }
 );
 
-// Remove reaction from a comment
+/**
+ * POST /comments/:id/clear-reaction
+ * Removes any reaction (like/dislike) from a comment (requires authentication)
+ */
 router.post(
     '/comments/:id/clear-reaction',
     authMiddleware,
@@ -561,6 +644,7 @@ router.post(
             const { id } = req.params;
             const userId = req.user?._id;
 
+            // Find the comment
             const comment = await Comment.findById(id);
             if (!comment) {
                 return res.status(404).json({
