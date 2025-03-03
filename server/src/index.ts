@@ -64,10 +64,10 @@ app.get('/', async (req: Request, res: Response) => {
     res.json(status);
 });
 
-app.use('/', routes.auth);
-app.use('/', routes.comments);
-app.use('/', routes.profile);
-app.use('/', routes.test);
+app.use('/api/', routes.auth);
+app.use('/api/', routes.comments);
+app.use('/api/', routes.profile);
+app.use('/api/', routes.test);
 // -----
 
 // Add debugging middleware
