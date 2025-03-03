@@ -142,12 +142,13 @@ export function Comments({ postSlug }: CommentsProps) {
         setLoading(true);
         try {
             const skip = (page - 1) * limit;
-            // Ensure the postSlug doesn't start with a slash to prevent double slashes in URL
-            const formattedSlug = postSlug.startsWith('/')
-                ? postSlug.substring(1)
-                : postSlug;
+
+            // FIX: Normalize the slug to ensure consistent format between client and server
+            // This matches the exact normalization logic used on the server
+            const normalizedSlug = postSlug.replace(/^\/+|\/+$/g, '');
+
             const res = await api.get<CommentResponse>(
-                `/comments/post/${formattedSlug}?depth=3&limit=${limit}&skip=${skip}`
+                `/comments/post/${normalizedSlug}?depth=3&limit=${limit}&skip=${skip}`
             );
             setComments(res.data.comments);
             setPagination(res.data.pagination);
@@ -171,9 +172,12 @@ export function Comments({ postSlug }: CommentsProps) {
 
     const handleAddComment = async (text: string) => {
         try {
+            // FIX: Normalize the slug here too to maintain consistency
+            const normalizedSlug = postSlug.replace(/^\/+|\/+$/g, '');
+
             const res = await api.post<CommentType>('/comments', {
                 text,
-                postSlug
+                postSlug: normalizedSlug
             });
             setComments((prev) => [res.data, ...prev]);
             toast.success('Comment added successfully');
