@@ -238,7 +238,6 @@ const HistoryModal = styled.div`
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -247,7 +246,7 @@ const HistoryModal = styled.div`
 
 const HistoryContent = styled.div`
     background-color: ${(props) =>
-        props.theme.container.background.colour.content()};
+        props.theme.container.background.colour.primary()};
     border-radius: 5px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     padding: 20px;
