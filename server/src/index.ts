@@ -64,15 +64,40 @@ app.get('/', async (req: Request, res: Response) => {
     res.json(status);
 });
 
-app.use('/', routes.auth);
-app.use('/', routes.comments);
-app.use('/', routes.profile);
-app.use('/', routes.test);
+app.use('/api/', routes.auth);
+app.use('/api/', routes.comments);
+app.use('/api/', routes.profile);
+app.use('/api/', routes.test);
 // -----
 
+// Add debugging middleware
 if (!env.BUILD_ENV_BOOL) {
+    // Log all incoming requests with basic info
     app.use((req: Request, res: Response, next: NextFunction) => {
         console.log('Incoming request: ', req.method, req.url);
+        next();
+    });
+
+    // Add detailed API request logging on the dynamic API_PREFIX
+    app.use((req: Request, res: Response, next: NextFunction) => {
+        console.log(`API Request: ${req.method} ${req.url}`);
+        console.log(`Query params: ${JSON.stringify(req.query)}`);
+
+        // Log request body for non-GET requests if it exists, but redact sensitive data
+        if (
+            req.method !== 'GET' &&
+            req.body &&
+            Object.keys(req.body).length > 0
+        ) {
+            const sensitiveKeys = ['password', 'token', 'secret'];
+            const sanitizedBody = { ...req.body };
+
+            sensitiveKeys.forEach((key) => {
+                if (key in sanitizedBody) sanitizedBody[key] = '[REDACTED]';
+            });
+
+            console.log(`Body: ${JSON.stringify(sanitizedBody, null, 2)}`);
+        }
         next();
     });
 }
@@ -85,6 +110,15 @@ process.on('SIGINT', async () => {
 
 app.listen(env.EXPRESS_PORT, async () => {
     console.log(`Server running: ${env.API_URL} 🚀`);
-    const status = await getServerStatus();
+    const status = await reportStatus();
     console.log(status);
 });
+
+async function reportStatus() {
+    return {
+        api_url: env.API_URL,
+        status: await getServerStatus(),
+        build_env: env.BUILD_ENV,
+        express_port: env.EXPRESS_PORT
+    };
+}
