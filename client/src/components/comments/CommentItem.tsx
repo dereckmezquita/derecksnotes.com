@@ -140,7 +140,7 @@ export function CommentItem({
     // Handle reply submission
     const handleReplySubmit = async (text: string) => {
         if (!postSlug) return;
-        
+
         setIsSubmitting(true);
         try {
             const res = await api.post('/comments', {
@@ -467,13 +467,18 @@ export function CommentItem({
 
                 {!isEditing && !comment.deleted && (
                     <CommentActions>
-                        {currentUser && level < MAX_COMMENT_DEPTH - 1 && postSlug && onAddReply && (
-                            <ActionButton
-                                onClick={() => setShowReplyForm(!showReplyForm)}
-                            >
-                                {showReplyForm ? 'Cancel Reply' : 'Reply'}
-                            </ActionButton>
-                        )}
+                        {currentUser &&
+                            level < MAX_COMMENT_DEPTH - 1 &&
+                            postSlug &&
+                            onAddReply && (
+                                <ActionButton
+                                    onClick={() =>
+                                        setShowReplyForm(!showReplyForm)
+                                    }
+                                >
+                                    {showReplyForm ? 'Cancel Reply' : 'Reply'}
+                                </ActionButton>
+                            )}
 
                         {isAuthor && (
                             <>

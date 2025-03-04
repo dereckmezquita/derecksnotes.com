@@ -12,7 +12,7 @@ import {
     CommentsContainer,
     CommentsTitle,
     PaginationContainer,
-    PaginationInfo,
+    PaginationInfoText,
     PaginationButtons,
     PageButton,
     LoadingSpinner
@@ -176,7 +176,7 @@ export function Comments({ postSlug }: CommentsProps) {
 
                     {pagination.pages > 1 && (
                         <PaginationContainer>
-                            <PaginationInfo>
+                            <PaginationInfoText>
                                 Showing{' '}
                                 {(pagination.page - 1) * pagination.pageSize +
                                     1}
@@ -186,7 +186,7 @@ export function Comments({ postSlug }: CommentsProps) {
                                     pagination.total
                                 )}{' '}
                                 of {pagination.total} comments
-                            </PaginationInfo>
+                            </PaginationInfoText>
 
                             <PaginationButtons>
                                 <PageButton

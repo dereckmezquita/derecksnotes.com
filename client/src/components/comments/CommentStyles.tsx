@@ -464,7 +464,7 @@ export const PaginationContainer = styled.div`
         ${(props) => props.theme.container.border.colour.primary()};
 `;
 
-export const PaginationInfo = styled.span`
+export const PaginationInfoText = styled.span`
     font-size: 0.9em;
     color: ${(props) => props.theme.text.colour.light_grey()};
 `;
