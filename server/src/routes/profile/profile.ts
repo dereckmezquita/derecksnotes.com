@@ -77,7 +77,7 @@ router.get(
     async (req: Request, res: Response) => {
         const user = (req as any).user;
         const comments = await Comment.find({ author: user._id })
-            .populate('post', 'title')
+            .populate('post', 'title slug')
             .sort({ createdAt: -1 })
             .lean();
         res.json(comments);
@@ -94,7 +94,7 @@ router.get(
         const comments = await Comment.find({
             likes: new Types.ObjectId(userIdStr)
         })
-            .populate('post', 'title')
+            .populate('post', 'title slug')
             .sort({ createdAt: -1 })
             .lean();
         res.json(comments);
@@ -111,7 +111,7 @@ router.get(
         const comments = await Comment.find({
             dislikes: new Types.ObjectId(userIdStr)
         })
-            .populate('post', 'title')
+            .populate('post', 'title slug')
             .sort({ createdAt: -1 })
             .lean();
         res.json(comments);

@@ -145,8 +145,17 @@ export default function ProfilePage() {
     };
 
     const getCommentLink = (comment: any) => {
-        // Adjust logic based on your actual link structure
-        return `/post/${comment.post}`;
+        // Use the slug from the populated post object
+        if (
+            comment.post &&
+            typeof comment.post === 'object' &&
+            comment.post.slug
+        ) {
+            return comment.post.slug;
+        }
+        // If for some reason the slug isn't available, log the issue
+        console.error('Missing slug for post', comment.post);
+        return '/';
     };
 
     return (
