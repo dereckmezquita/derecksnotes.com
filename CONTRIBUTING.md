@@ -54,3 +54,11 @@ Feel free to reach out for any queries or further clarification on how to get in
 ssh root@104.200.17.204
 ssh dereck@104.200.17.204
 ```
+
+Combine files:
+
+```bash
+cd client/src/ && merge_files -e 'tsx,ts' && code merged_files.txt && cd ../../
+
+cd server/src/ && merge_files -e 'ts' && code merged_files.txt && cd ../../
+```

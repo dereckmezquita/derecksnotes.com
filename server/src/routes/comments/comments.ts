@@ -200,12 +200,18 @@ router.post(
             // Populate author details for the response
             const populatedComment = await Comment.findById(newComment._id)
                 .populate('author', 'username firstName lastName profilePhoto')
-                .lean<IComment>();
+                .lean();
 
-            return res.status(201).json({
-                ...populatedComment,
-                replies: []
-            });
+            // Fix: Force serialization of MongoDB-specific types (ObjectId, Date)
+            // by converting to JSON string and back to a plain JavaScript object
+            const serializedComment = JSON.parse(
+                JSON.stringify(populatedComment)
+            );
+
+            // Ensure replies field is present and is an empty array
+            serializedComment.replies = [];
+
+            return res.status(201).json(serializedComment);
         } catch (error: any) {
             console.error('Error creating comment:', error);
             return res.status(500).json({
