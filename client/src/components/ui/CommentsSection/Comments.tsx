@@ -31,14 +31,23 @@ export interface CommentType {
     replies?: CommentType[];
 }
 
-interface CommentResponse {
+export interface PaginationInfo {
+    total: number;
+    page: number;
+    pageSize: number;
+    pages: number;
+    hasMore?: boolean;
+    nextSkip?: number | null;
+}
+
+export interface CommentResponse {
     comments: CommentType[];
-    pagination: {
-        total: number;
-        page: number;
-        pageSize: number;
-        pages: number;
-    };
+    pagination: PaginationInfo;
+}
+
+export interface ReplyResponse {
+    replies: CommentType[];
+    pagination: PaginationInfo;
 }
 
 const CommentsContainer = styled.div`
@@ -137,6 +146,7 @@ export function Comments({ postSlug }: CommentsProps) {
         pages: 0
     });
     const [error, setError] = useState<string | null>(null);
+    const [isLoadingPage, setIsLoadingPage] = useState(false);
 
     const fetchComments = async (page = 1, limit = 20) => {
         setLoading(true);
@@ -191,8 +201,11 @@ export function Comments({ postSlug }: CommentsProps) {
     };
 
     const handlePageChange = (newPage: number) => {
-        if (newPage !== pagination.page) {
-            fetchComments(newPage, pagination.pageSize);
+        if (newPage !== pagination.page && !isLoadingPage) {
+            setIsLoadingPage(true);
+            fetchComments(newPage, pagination.pageSize).finally(() =>
+                setIsLoadingPage(false)
+            );
         }
     };
 
@@ -294,9 +307,15 @@ export function Comments({ postSlug }: CommentsProps) {
                                     onClick={() =>
                                         handlePageChange(pagination.page - 1)
                                     }
-                                    disabled={pagination.page === 1}
+                                    disabled={
+                                        pagination.page === 1 || isLoadingPage
+                                    }
                                 >
-                                    Previous
+                                    {isLoadingPage && pagination.page > 1 ? (
+                                        <LoadingSpinner />
+                                    ) : (
+                                        'Previous'
+                                    )}
                                 </PageButton>
 
                                 {Array.from(
@@ -330,8 +349,14 @@ export function Comments({ postSlug }: CommentsProps) {
                                                     onClick={() =>
                                                         handlePageChange(page)
                                                     }
+                                                    disabled={isLoadingPage}
                                                 >
-                                                    {page}
+                                                    {isLoadingPage &&
+                                                    page === pagination.page ? (
+                                                        <LoadingSpinner />
+                                                    ) : (
+                                                        page
+                                                    )}
                                                 </PageButton>
                                             </React.Fragment>
                                         );
@@ -342,10 +367,16 @@ export function Comments({ postSlug }: CommentsProps) {
                                         handlePageChange(pagination.page + 1)
                                     }
                                     disabled={
-                                        pagination.page === pagination.pages
+                                        pagination.page === pagination.pages ||
+                                        isLoadingPage
                                     }
                                 >
-                                    Next
+                                    {isLoadingPage &&
+                                    pagination.page < pagination.pages ? (
+                                        <LoadingSpinner />
+                                    ) : (
+                                        'Next'
+                                    )}
                                 </PageButton>
                             </PaginationButtons>
                         </PaginationContainer>

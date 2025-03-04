@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { api } from '@utils/api/api';
 import { User } from '@context/AuthContext';
-import { CommentType } from './Comments';
+import { CommentType, ReplyResponse } from './Comments';
 import { CommentForm } from './CommentForm';
 import { CommentList } from './CommentList';
 import { toast } from 'sonner';
@@ -357,6 +357,12 @@ export function CommentItem({
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [hasMoreReplies, setHasMoreReplies] = useState(false);
     const [loadingMoreReplies, setLoadingMoreReplies] = useState(false);
+    const [replyPagination, setReplyPagination] = useState({
+        currentSkip: 0,
+        pageSize: 10,
+        total: 0,
+        hasMore: false
+    });
 
     // Determine if the current user is the author
     const isAuthor = currentUser && currentUser.id === comment.author?._id;
@@ -530,21 +536,60 @@ export function CommentItem({
         return result;
     };
 
+    // Check for reply count and set initial state
+    useEffect(() => {
+        if (comment.replies) {
+            // If we already have replies loaded, check if we need to show the "load more" button
+            const currentReplyCount = comment.replies.length;
+            if (replyPagination.total > 0) {
+                setHasMoreReplies(currentReplyCount < replyPagination.total);
+                setReplyPagination((prev) => ({
+                    ...prev,
+                    currentSkip: currentReplyCount,
+                    hasMore: currentReplyCount < replyPagination.total
+                }));
+            } else if (currentReplyCount === 10) {
+                // If we have exactly the default page size, we might have more
+                // We can either check the total here or wait until loadMoreReplies is called
+                setHasMoreReplies(true);
+            }
+        }
+    }, [comment.replies, replyPagination.total]);
+
     // Load more replies for a comment
     const loadMoreReplies = async () => {
         if (loadingMoreReplies) return;
 
         setLoadingMoreReplies(true);
         try {
-            const res = await api.get(`/comments/${comment._id}/replies`);
+            const res = await api.get<ReplyResponse>(
+                `/comments/${comment._id}/replies?skip=${replyPagination.currentSkip}&limit=${replyPagination.pageSize}`
+            );
+
+            // Extract the replies and pagination data
+            const { replies, pagination } = res.data;
 
             // Update the comment with additional replies
             onUpdateComment(comment._id, (c) => ({
                 ...c,
-                replies: [...(c.replies || []), ...res.data]
+                replies: [...(c.replies || []), ...replies]
             }));
 
-            setHasMoreReplies(res.data.length >= 10); // Assuming 10 is the page size
+            // Update pagination state
+            setReplyPagination({
+                currentSkip:
+                    pagination.nextSkip !== null &&
+                    pagination.nextSkip !== undefined
+                        ? pagination.nextSkip
+                        : replyPagination.currentSkip +
+                          replyPagination.pageSize,
+                pageSize: pagination.pageSize,
+                total: pagination.total,
+                hasMore: pagination.hasMore === true
+            });
+
+            // Update UI state
+            setHasMoreReplies(pagination.hasMore === true);
         } catch (error) {
             console.error('Error loading more replies:', error);
             toast.error('Failed to load more replies');
@@ -701,7 +746,7 @@ export function CommentItem({
                             >
                                 {loadingMoreReplies
                                     ? 'Loading...'
-                                    : 'Load more replies'}
+                                    : `Load more replies (${replyPagination.total - (comment.replies?.length || 0)} remaining)`}
                             </LoadMoreRepliesButton>
                         )}
                     </ReplyContainer>
