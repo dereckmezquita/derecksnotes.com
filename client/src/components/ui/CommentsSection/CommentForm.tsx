@@ -160,8 +160,9 @@ export function CommentForm({
                 </ButtonsContainer>
 
                 <FormattingTips>
-                    Supports basic formatting: <b>**bold**</b>, <i>*italic*</i>,
-                    [link](url), `code`
+                    Supports Markdown: <b>**bold**</b>, <i>*italic*</i>,
+                    [link](url), `code`, ```codeblock```, `&gt;` quote, * list,
+                    ## headings
                 </FormattingTips>
             </form>
         </FormContainer>

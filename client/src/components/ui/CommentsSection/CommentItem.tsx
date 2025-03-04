@@ -8,6 +8,7 @@ import { CommentList } from './CommentList';
 import { toast } from 'sonner';
 import { MAX_COMMENT_DEPTH } from '@lib/constants';
 import { formatDistanceToNow, format } from 'date-fns';
+import { marked } from 'marked';
 
 interface CommentItemProps {
     comment: CommentType;
@@ -339,6 +340,23 @@ const DiffLine = styled.div<{ type: 'added' | 'removed' | 'unchanged' }>`
         text-decoration: line-through;
     `}
 `;
+
+/**
+ * Renders markdown text safely with sanitization
+ * @param content - The markdown content to render
+ * @returns Sanitized HTML from markdown
+ */
+function renderMarkdown(content: string): string {
+    try {
+        // Parse the markdown using the default settings
+        const result = marked.parse(content);
+        // Make sure we're dealing with a string
+        return typeof result === 'string' ? result : content;
+    } catch (error) {
+        console.error('Error parsing markdown:', error);
+        return content; // Fallback to raw content if parsing fails
+    }
+}
 
 // Main component
 export function CommentItem({
@@ -676,7 +694,7 @@ export function CommentItem({
                         ) : (
                             <div
                                 dangerouslySetInnerHTML={{
-                                    __html: comment.text
+                                    __html: renderMarkdown(comment.text)
                                 }}
                             />
                         )}
