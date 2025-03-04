@@ -298,7 +298,7 @@ router.get('/comments/post/*', async (req: Request, res: Response) => {
 
 /**
  * GET /comments/:id/replies
- * Retrieves replies for a specific comment
+ * Retrieves paginated replies for a specific comment
  * Public endpoint (no authentication required)
  */
 router.get('/comments/:id/replies', async (req: Request, res: Response) => {
@@ -308,6 +308,8 @@ router.get('/comments/:id/replies', async (req: Request, res: Response) => {
             parseInt(req.query.depth as string, 10) || 2,
             MAX_COMMENT_DEPTH
         );
+        const limit = parseInt(req.query.limit as string, 10) || 10;
+        const skip = parseInt(req.query.skip as string, 10) || 0;
 
         // Find the parent comment
         const comment = await Comment.findById(id)
@@ -321,16 +323,36 @@ router.get('/comments/:id/replies', async (req: Request, res: Response) => {
             });
         }
 
-        // Find direct replies to this comment
+        // Find direct replies to this comment with pagination
         const replies = await Comment.find({ parentComment: comment._id })
             .populate('author', 'username firstName lastName profilePhoto')
             .sort({ createdAt: 1 })
+            .skip(skip)
+            .limit(limit)
             .lean<IComment[]>();
 
         // Build nested reply tree if depth > 1
         const repliesTree = await fetchCommentTree(replies, depth - 1);
 
-        return res.json(repliesTree);
+        // Get total count for pagination
+        const totalReplies = await Comment.countDocuments({
+            parentComment: comment._id
+        });
+
+        // Check if there are more replies to load
+        const hasMoreReplies = skip + limit < totalReplies;
+
+        return res.json({
+            replies: repliesTree,
+            pagination: {
+                total: totalReplies,
+                page: Math.floor(skip / limit) + 1,
+                pageSize: limit,
+                pages: Math.ceil(totalReplies / limit),
+                hasMore: hasMoreReplies,
+                nextSkip: hasMoreReplies ? skip + limit : null
+            }
+        });
     } catch (error: any) {
         console.error('Error fetching replies:', error);
         return res.status(500).json({
