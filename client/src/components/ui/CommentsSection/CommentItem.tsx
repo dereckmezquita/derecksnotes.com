@@ -578,15 +578,18 @@ export function CommentItem({
             // Update pagination state
             setReplyPagination({
                 currentSkip:
-                    pagination.nextSkip ||
-                    replyPagination.currentSkip + replyPagination.pageSize,
+                    pagination.nextSkip !== null &&
+                    pagination.nextSkip !== undefined
+                        ? pagination.nextSkip
+                        : replyPagination.currentSkip +
+                          replyPagination.pageSize,
                 pageSize: pagination.pageSize,
                 total: pagination.total,
-                hasMore: pagination.hasMore
+                hasMore: pagination.hasMore === true
             });
 
             // Update UI state
-            setHasMoreReplies(pagination.hasMore);
+            setHasMoreReplies(pagination.hasMore === true);
         } catch (error) {
             console.error('Error loading more replies:', error);
             toast.error('Failed to load more replies');
