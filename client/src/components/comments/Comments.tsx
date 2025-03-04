@@ -1,139 +1,26 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
-import { CommentList } from './CommentList';
-import { CommentForm } from './CommentForm';
 import { useAuth } from '@context/AuthContext';
 import { api } from '@utils/api/api';
 import { toast } from 'sonner';
+import {
+    CommentList,
+    CommentForm,
+    CommentType,
+    CommentResponse,
+    CommentsContainer,
+    CommentsTitle,
+    PaginationContainer,
+    PaginationInfo,
+    PaginationButtons,
+    PageButton,
+    LoadingSpinner
+} from '@components/comments';
 
 interface CommentsProps {
     postSlug: string;
 }
-
-export interface CommentType {
-    _id: string;
-    text: string;
-    author: {
-        _id: string;
-        username: string;
-        firstName: string;
-        lastName?: string;
-        profilePhoto?: string;
-    };
-    createdAt: string;
-    lastEditedAt?: string;
-    likes: any[];
-    dislikes: any[];
-    deleted: boolean;
-    revisions?: { text: string; timestamp: string }[];
-    replies?: CommentType[];
-}
-
-export interface PaginationInfo {
-    total: number;
-    page: number;
-    pageSize: number;
-    pages: number;
-    hasMore?: boolean;
-    nextSkip?: number | null;
-}
-
-export interface CommentResponse {
-    comments: CommentType[];
-    pagination: PaginationInfo;
-}
-
-export interface ReplyResponse {
-    replies: CommentType[];
-    pagination: PaginationInfo;
-}
-
-const CommentsContainer = styled.div`
-    margin-top: 40px;
-    padding: 20px;
-    background-color: ${(props) =>
-        props.theme.container.background.colour.content()};
-    border: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-    border-radius: 5px;
-    box-shadow: ${(props) => props.theme.container.shadow.box};
-    color: ${(props) => props.theme.text.colour.primary()};
-`;
-
-const CommentsTitle = styled.h2`
-    margin-bottom: 20px;
-    font-size: 1.4em;
-    font-variant: small-caps;
-    color: ${(props) => props.theme.text.colour.primary()};
-    border-bottom: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-    padding-bottom: 10px;
-`;
-
-const PaginationContainer = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-`;
-
-const PaginationInfo = styled.span`
-    font-size: 0.9em;
-    color: ${(props) => props.theme.text.colour.light_grey()};
-`;
-
-const PaginationButtons = styled.div`
-    display: flex;
-    gap: 10px;
-`;
-
-const PageButton = styled.button<{ active?: boolean }>`
-    padding: 5px 10px;
-    background-color: ${(props) =>
-        props.active
-            ? props.theme.theme_colours[5]()
-            : props.theme.container.background.colour.content()};
-    color: ${(props) =>
-        props.active ? 'white' : props.theme.text.colour.primary()};
-    border: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-    border-radius: 3px;
-    cursor: pointer;
-    font-size: 0.9em;
-
-    &:hover:not(:disabled) {
-        background-color: ${(props) =>
-            props.active
-                ? props.theme.theme_colours[5](undefined, undefined, 80)
-                : props.theme.container.background.colour.light_contrast()};
-    }
-
-    &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-`;
-
-const LoadingSpinner = styled.div`
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    border: 2px solid rgba(0, 0, 0, 0.1);
-    border-left-color: ${(props) => props.theme.theme_colours[5]()};
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-
-    @keyframes spin {
-        to {
-            transform: rotate(360deg);
-        }
-    }
-`;
 
 export function Comments({ postSlug }: CommentsProps) {
     const { user, isAuthenticated } = useAuth();
@@ -153,8 +40,7 @@ export function Comments({ postSlug }: CommentsProps) {
         try {
             const skip = (page - 1) * limit;
 
-            // FIX: Normalize the slug to ensure consistent format between client and server
-            // This matches the exact normalization logic used on the server
+            // Normalize the slug to ensure consistent format between client and server
             const normalizedSlug = postSlug.replace(/^\/+|\/+$/g, '');
 
             const res = await api.get<CommentResponse>(
@@ -182,7 +68,7 @@ export function Comments({ postSlug }: CommentsProps) {
 
     const handleAddComment = async (text: string) => {
         try {
-            // FIX: Normalize the slug here too to maintain consistency
+            // Normalize the slug here too to maintain consistency
             const normalizedSlug = postSlug.replace(/^\/+|\/+$/g, '');
 
             const res = await api.post<CommentType>('/comments', {

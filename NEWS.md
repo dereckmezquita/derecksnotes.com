@@ -1,8 +1,8 @@
 # derecksnotes.com Change Log
 
-## PR #35 - Environment Variable System Overhaul (Milestone 1)
+## PR #35 - Environment Variable System Overhaul & Comments Refactoring (Milestone 1)
 
-This release implements a comprehensive environment variable management system with improved type safety, automatic URL construction, and better development workflows.
+This release implements a comprehensive environment variable management system with improved type safety, automatic URL construction, and better development workflows. It also includes a complete refactoring of the comments system.
 
 ### Server Updates
 
@@ -32,10 +32,25 @@ This release implements a comprehensive environment variable management system w
 
 ### Client Updates
 
-*No client-side changes were made in this release*
+#### Comments System Refactoring
+
+- **Comments System Modularization**: Refactored the comments system to avoid code duplication between the comments section and profile page.
+  - Created a shared component library at `client/src/components/comments/` with:
+    - `types.ts` - Common type definitions
+    - `CommentStyles.tsx` - Shared styled components
+    - `CommentForm.tsx`, `CommentItem.tsx`, `CommentList.tsx` - Reusable components
+    - `index.ts` - Exports all components and types
+
+- **Profile-Specific Comment Components**: Created profile-specific comment components that maintain the original profile page styling while leveraging shared types and functionality.
+  - Added `client/src/components/profile/ProfileCommentItem.tsx` - Custom component with profile-specific styling
+  - Added `client/src/components/profile/ProfileCommentList.tsx` - List wrapper for profile comments
+  - Components maintain the original look and feel of profile comments while eliminating code duplication
+
+#### Benefits:
+- Eliminated redundant code between comments section and profile page
+- Improved maintainability with consistent component structure
+- Preserved the unique styling requirements for each context
+- Better separation of concerns
+- More extensible architecture for future features
 
 ## Coming Soon
-
-- Integration with deployment pipelines
-- Extension of type-safe environment variables to client-side code
-- Additional configuration options for different deployment scenarios

@@ -5,8 +5,6 @@ import { useAuth } from '@context/AuthContext';
 import { useRouter } from 'next/navigation';
 import styled, { css } from 'styled-components';
 import { api } from '@utils/api/api';
-import { CommentType } from '@components/comments';
-import { ProfileCommentList } from '@/components/profile/ProfileCommentList';
 
 // ======== STYLED COMPONENTS ========
 
@@ -222,7 +220,11 @@ const Badge = styled.span`
     font-weight: ${(props) => props.theme.text.weight.medium};
 `;
 
-// Using shared comment components
+const CommentList = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+`;
 
 const Pagination = styled.div`
     display: flex;
@@ -398,7 +400,17 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
 
 // ======== INTERFACES ========
 
-// Using the shared CommentType interface
+interface Comment {
+    _id: string;
+    text: string;
+    post: {
+        _id: string;
+        title: string;
+        slug: string;
+    };
+    createdAt: string;
+    deleted: boolean;
+}
 
 // ======== COMPONENT ========
 
@@ -424,13 +436,13 @@ export default function ProfilePage() {
 
     // Comments data
     const [activeTab, setActiveTab] = useState('created');
-    const [comments, setComments] = useState<CommentType[]>([]);
+    const [comments, setComments] = useState<Comment[]>([]);
     const [selectedComments, setSelectedComments] = useState<string[]>([]);
 
     // Pagination
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
-    const [allComments, setAllComments] = useState<CommentType[]>([]);
+    const [allComments, setAllComments] = useState<Comment[]>([]);
     const COMMENTS_PER_PAGE = 5;
 
     useEffect(() => {
@@ -1050,20 +1062,143 @@ export default function ProfilePage() {
                                         {allComments.length > 0 ? (
                                             <>
                                                 {comments.length > 0 ? (
-                                                    <ProfileCommentList
-                                                        comments={comments}
-                                                        currentUser={user}
-                                                        selectedComments={
-                                                            selectedComments
-                                                        }
-                                                        toggleSelectComment={
-                                                            toggleSelectComment
-                                                        }
-                                                        onDelete={
-                                                            handleDeleteComment
-                                                        }
-                                                        Checkbox={Checkbox}
-                                                    />
+                                                    <CommentList>
+                                                        {comments.map(
+                                                            (comment) => (
+                                                                <CommentItem
+                                                                    key={
+                                                                        comment._id
+                                                                    }
+                                                                    selected={selectedComments.includes(
+                                                                        comment._id
+                                                                    )}
+                                                                    deleted={
+                                                                        comment.deleted
+                                                                    }
+                                                                >
+                                                                    <CommentHeader>
+                                                                        <CommentMetadata>
+                                                                            {activeTab ===
+                                                                                'created' &&
+                                                                                !comment.deleted && (
+                                                                                    <Checkbox
+                                                                                        checked={selectedComments.includes(
+                                                                                            comment._id
+                                                                                        )}
+                                                                                        onChange={() =>
+                                                                                            toggleSelectComment(
+                                                                                                comment._id
+                                                                                            )
+                                                                                        }
+                                                                                    />
+                                                                                )}
+                                                                            <CommentDate>
+                                                                                {new Date(
+                                                                                    comment.createdAt
+                                                                                ).toLocaleDateString()}
+                                                                            </CommentDate>
+                                                                        </CommentMetadata>
+
+                                                                        <CommentActions>
+                                                                            {activeTab ===
+                                                                                'created' &&
+                                                                                !comment.deleted && (
+                                                                                    <Button
+                                                                                        variant="danger"
+                                                                                        size="small"
+                                                                                        onClick={() =>
+                                                                                            handleDeleteComment(
+                                                                                                comment._id
+                                                                                            )
+                                                                                        }
+                                                                                    >
+                                                                                        Delete
+                                                                                    </Button>
+                                                                                )}
+
+                                                                            {activeTab ===
+                                                                                'liked' && (
+                                                                                <Button
+                                                                                    variant="secondary"
+                                                                                    size="small"
+                                                                                    onClick={() => {
+                                                                                        setSelectedComments(
+                                                                                            [
+                                                                                                comment._id
+                                                                                            ]
+                                                                                        );
+                                                                                        handleBulkUnlike();
+                                                                                    }}
+                                                                                >
+                                                                                    Unlike
+                                                                                </Button>
+                                                                            )}
+
+                                                                            {activeTab ===
+                                                                                'disliked' && (
+                                                                                <Button
+                                                                                    variant="secondary"
+                                                                                    size="small"
+                                                                                    onClick={() => {
+                                                                                        setSelectedComments(
+                                                                                            [
+                                                                                                comment._id
+                                                                                            ]
+                                                                                        );
+                                                                                        handleBulkUndislike();
+                                                                                    }}
+                                                                                >
+                                                                                    Remove
+                                                                                    Dislike
+                                                                                </Button>
+                                                                            )}
+                                                                        </CommentActions>
+                                                                    </CommentHeader>
+
+                                                                    <CommentText
+                                                                        deleted={
+                                                                            comment.deleted
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            comment.text
+                                                                        }
+                                                                    </CommentText>
+
+                                                                    <PostLink
+                                                                        href={getCommentLink(
+                                                                            comment
+                                                                        )}
+                                                                    >
+                                                                        <svg
+                                                                            xmlns="http://www.w3.org/2000/svg"
+                                                                            width="14"
+                                                                            height="14"
+                                                                            viewBox="0 0 24 24"
+                                                                            fill="none"
+                                                                            stroke="currentColor"
+                                                                            strokeWidth="2"
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                        >
+                                                                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                                                                            <polyline points="15 3 21 3 21 9"></polyline>
+                                                                            <line
+                                                                                x1="10"
+                                                                                y1="14"
+                                                                                x2="21"
+                                                                                y2="3"
+                                                                            ></line>
+                                                                        </svg>
+                                                                        {comment
+                                                                            .post
+                                                                            ?.title ||
+                                                                            'View Post'}
+                                                                    </PostLink>
+                                                                </CommentItem>
+                                                            )
+                                                        )}
+                                                    </CommentList>
                                                 ) : (
                                                     <EmptyState>
                                                         No comments on this
