@@ -1,3 +1,4 @@
+// ./styles/theme.ts
 import { industrial_orange_theme as colour_scheme } from './theme_colours';
 
 // h: hue - controls the colour; a number between 0 and 360
@@ -20,7 +21,8 @@ export const theme = {
             colour: {
                 primary: hsla_colour(0, 0, 100, 1), // this is the deepest background that gets the lines
                 content: hsla_colour(0, 0, 100, 0.65), // used for content holders; posts etc
-                solid: hsla_colour(0, 0, 100, 1) // used for solid backgrounds
+                solid: hsla_colour(0, 0, 100, 1), // used for solid backgrounds
+                light_contrast: hsla_colour(0, 0, 95, 1) // light background for contrast (used in comment components)
             }
         },
         shadow: {
