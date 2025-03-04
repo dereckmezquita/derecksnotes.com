@@ -145,6 +145,129 @@ router.delete(
     }
 );
 
+// Bulk delete comments
+router.post(
+    '/profile/comments/bulk-delete',
+    isAuthAndVerifiedMiddleware,
+    async (req: Request, res: Response) => {
+        const user = (req as any).user;
+        const { commentIds } = req.body;
+
+        if (
+            !commentIds ||
+            !Array.isArray(commentIds) ||
+            commentIds.length === 0
+        ) {
+            return res
+                .status(400)
+                .json({ error: 'Comment IDs must be provided as an array' });
+        }
+
+        try {
+            // Find all the comments first to verify ownership
+            const comments = await Comment.find({
+                _id: { $in: commentIds },
+                author: user._id
+            });
+
+            if (comments.length === 0) {
+                return res
+                    .status(404)
+                    .json({ error: 'No valid comments found to delete' });
+            }
+
+            // Only delete comments that exist and the user owns
+            const validCommentIds = comments.map((c) => c._id);
+
+            // Soft delete the comments (mark as deleted)
+            await Comment.updateMany(
+                { _id: { $in: validCommentIds } },
+                { deleted: true, text: '[deleted]' }
+            );
+
+            res.json({
+                message: `${validCommentIds.length} comments deleted successfully`,
+                deletedCount: validCommentIds.length
+            });
+        } catch (error) {
+            console.error('Error bulk deleting comments:', error);
+            res.status(500).json({ error: 'Failed to delete comments' });
+        }
+    }
+);
+
+// Unlike multiple comments
+router.post(
+    '/profile/comments/bulk-unlike',
+    isAuthAndVerifiedMiddleware,
+    async (req: Request, res: Response) => {
+        const user = (req as any).user;
+        const { commentIds } = req.body;
+
+        if (
+            !commentIds ||
+            !Array.isArray(commentIds) ||
+            commentIds.length === 0
+        ) {
+            return res
+                .status(400)
+                .json({ error: 'Comment IDs must be provided as an array' });
+        }
+
+        try {
+            // Remove the user from the likes array for each comment
+            const updateResult = await Comment.updateMany(
+                { _id: { $in: commentIds } },
+                { $pull: { likes: user._id } }
+            );
+
+            res.json({
+                message: `Successfully unliked ${updateResult.modifiedCount} comments`,
+                modifiedCount: updateResult.modifiedCount
+            });
+        } catch (error) {
+            console.error('Error unliking comments:', error);
+            res.status(500).json({ error: 'Failed to unlike comments' });
+        }
+    }
+);
+
+// Remove dislikes from multiple comments
+router.post(
+    '/profile/comments/bulk-undislike',
+    isAuthAndVerifiedMiddleware,
+    async (req: Request, res: Response) => {
+        const user = (req as any).user;
+        const { commentIds } = req.body;
+
+        if (
+            !commentIds ||
+            !Array.isArray(commentIds) ||
+            commentIds.length === 0
+        ) {
+            return res
+                .status(400)
+                .json({ error: 'Comment IDs must be provided as an array' });
+        }
+
+        try {
+            // Remove the user from the dislikes array for each comment
+            const updateResult = await Comment.updateMany(
+                { _id: { $in: commentIds } },
+                { $pull: { dislikes: user._id } }
+            );
+
+            res.json({
+                message: `Successfully removed dislike from ${updateResult.modifiedCount} comments`,
+                modifiedCount: updateResult.modifiedCount
+            });
+        } catch (error) {
+            console.error('Error removing dislikes:', error);
+            res.status(500).json({ error: 'Failed to remove dislikes' });
+        }
+    }
+);
+
 // Request verification email (only need to be authenticated, not necessarily verified)
 router.post(
     '/profile/verify-email',
