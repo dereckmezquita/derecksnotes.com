@@ -3,7 +3,7 @@ import crypto from 'crypto';
 
 import { User, type IUser } from '../../db/models/User';
 import { sendEmail } from '../../utils/sendEmail';
-import { API_URL } from '../../utils/env';
+import { BASE_URL_SERVER, BASE_URL_CLIENT } from '../../utils/env';
 import { TOKEN_SIZE, MAGIC_LINK_VALIDITY_HOURS } from '../../utils/constants';
 
 const router = Router();
@@ -70,7 +70,7 @@ router.post('/auth/magic-link', async (req: Request, res: Response) => {
         await user.save();
 
         // Send the magic link email
-        const magicLink: string = `${API_URL}/api/auth/magic-verify?token=${tempToken}`;
+        const magicLink: string = `${BASE_URL_SERVER}/auth/magic-verify?token=${tempToken}`;
 
         const emailSubject = isNewUser
             ? "Dereck's Notes | Welcome & Sign In"
@@ -152,7 +152,7 @@ router.get('/auth/magic-verify', async (req: Request, res: Response) => {
 
         // Redirect to profile page
         // Use 302 redirect so browsers follow it
-        res.redirect(302, `${API_URL}/profile?magic=success`);
+        res.redirect(302, `${BASE_URL_CLIENT}/profile?magic=success`);
     } catch (error) {
         console.error('Error verifying magic link:', error);
         res.status(500).json({

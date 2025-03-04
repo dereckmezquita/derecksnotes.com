@@ -3,7 +3,7 @@ import crypto from 'crypto';
 
 import { User, type IUser } from '../../db/models/User';
 import { sendEmail } from '../../utils/sendEmail';
-import { API_URL } from '../../utils/env';
+import { BASE_URL_SERVER, BASE_URL_CLIENT } from '../../utils/env';
 import {
     SINGLE_HOUR,
     TOKEN_SIZE,
@@ -76,7 +76,7 @@ router.post('/auth/register', async (req: Request, res: Response) => {
         await user.save();
 
         // Send verification email
-        const verificationLink = `${API_URL}/api/auth/verify-email?token=${verificationToken}`;
+        const verificationLink = `${BASE_URL_SERVER}/auth/verify-email?token=${verificationToken}`;
         await sendEmail(
             email,
             "Dereck's Notes | Verify Your Email",
@@ -136,7 +136,7 @@ router.get('/auth/verify-email', async (req: Request, res: Response) => {
         req.session.userId = user._id;
 
         // Redirect to profile page
-        res.redirect(`${API_URL}/profile?verified=true`);
+        res.redirect(`${BASE_URL_CLIENT}/profile?verified=true`);
     } catch (error) {
         console.error('Error verifying email:', error);
         res.status(500).json({
@@ -193,7 +193,7 @@ router.post(
             await user.save();
 
             // Send verification email
-            const verificationLink = `${API_URL}/api/auth/verify-email?token=${verificationToken}`;
+            const verificationLink = `${BASE_URL_SERVER}/auth/verify-email?token=${verificationToken}`;
             await sendEmail(
                 email,
                 "Dereck's Notes | Verify Your Email",
@@ -379,7 +379,7 @@ router.post(
             await user.save();
 
             // Send password reset email
-            const resetUrl = `${API_URL}/reset-password/${resetToken}`;
+            const resetUrl = `${BASE_URL_CLIENT}/reset-password/${resetToken}`;
             await sendEmail(
                 email,
                 "Dereck's Notes | Password Reset",

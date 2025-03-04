@@ -10,7 +10,7 @@ import {
 import { Types } from 'mongoose';
 import crypto from 'crypto';
 import { TOKEN_SIZE, TOKEN_VALIDITY_HOURS } from '../../utils/constants';
-import { API_URL } from '../../utils/env';
+import { BASE_URL_SERVER } from '../../utils/env';
 import { sendEmail } from '../../utils/sendEmail';
 
 const router = Router();
@@ -291,7 +291,7 @@ router.post(
         await user.save();
 
         const timeStamp: string = new Date().toISOString();
-        const magicLink: string = `${API_URL}/api/auth/magic-verify?token=${tempToken}`;
+        const magicLink: string = `${BASE_URL_SERVER}/auth/magic-verify?token=${tempToken}`;
         await sendEmail(
             user.email,
             "Dereck's Notes | Verify Your Email",
