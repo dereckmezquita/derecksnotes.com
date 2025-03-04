@@ -82,6 +82,7 @@ const CommentText = styled.div`
     line-height: 1.6;
     word-break: break-word;
     overflow-wrap: break-word;
+    white-space: pre-wrap;
 
     p {
         margin: 0.5em 0;
