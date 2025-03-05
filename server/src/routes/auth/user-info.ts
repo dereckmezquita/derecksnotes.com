@@ -17,21 +17,34 @@ router.get(
             // req.user is already set by authMiddleware
             const user = req.user as IUser;
 
-            // Return user information (exclude sensitive fields)
-            res.json({
-                user: {
-                    id: user._id,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    username: user.username,
-                    email: user.email,
-                    isVerified: user.isVerified,
-                    profilePhoto: user.profilePhoto,
-                    role: user.role,
-                    createdAt: user.createdAt,
-                    lastLogin: user.lastLogin,
-                    preferences: user.preferences
+            // Touch the session to keep it alive and save any changes
+            req.session.touch();
+
+            // Return user information after ensuring session is saved
+            return req.session.save((err) => {
+                if (err) {
+                    console.error('Error saving session in user-info:', err);
+                    return res.status(500).json({
+                        error: 'An error occurred',
+                        code: 'SERVER_ERROR'
+                    });
                 }
+
+                res.json({
+                    user: {
+                        id: user._id,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        username: user.username,
+                        email: user.email,
+                        isVerified: user.isVerified,
+                        profilePhoto: user.profilePhoto,
+                        role: user.role,
+                        createdAt: user.createdAt,
+                        lastLogin: user.lastLogin,
+                        preferences: user.preferences
+                    }
+                });
             });
         } catch (error) {
             console.error('Error getting user info:', error);

@@ -37,6 +37,7 @@ jobs:
           echo SESSION_SECRET=${{ secrets.SESSION_SECRET }} >> ./server/.env
           echo MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} >> ./server/.env
           echo MONGO_DATABASE=dev_derecksnotes >> ./server/.env
+          echo REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }} >> ./server/.env
           echo SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY_DEV }} >> ./server/.env
 
       - name: Build and push server image
