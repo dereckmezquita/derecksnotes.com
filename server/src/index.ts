@@ -48,24 +48,23 @@ app.use(
     session({
         store: new RedisStore({
             client: db.redis,
-            ttl: constants.SESSION_MAX_AGE / 1000
+            ttl: constants.SESSION_MAX_AGE / 1000, // convert ms to seconds
+            prefix: 'sess:',
+            disableTTL: false,
+            disableTouch: false
         }),
         secret: env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
         name: 'derecksnotes.sid',
         cookie: {
-            secure: env.BUILD_ENV !== 'LOCAL',
+            secure: env.BUILD_ENV !== 'LOCAL', // secure cookies for DEV and PROD
             httpOnly: true,
             maxAge: constants.SESSION_MAX_AGE,
             path: '/',
-            sameSite: 'lax',
-            domain:
-                env.DOMAIN === 'localhost'
-                    ? undefined
-                    : env.DOMAIN.includes('.derecksnotes.com')
-                      ? '.derecksnotes.com'
-                      : env.DOMAIN
+            // With sameSite=none, secure must be true for browsers to accept the cookie
+            sameSite: env.BUILD_ENV === 'LOCAL' ? 'lax' : 'none',
+            domain: undefined // Let the browser handle the domain automatically
         }
     })
 );
