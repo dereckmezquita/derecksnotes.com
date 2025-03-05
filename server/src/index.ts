@@ -48,14 +48,14 @@ app.use(
     session({
         store: new RedisStore({
             client: db.redis,
-            ttl: constants.SESSION_MAX_AGE / 1000 // convert ms to seconds
+            ttl: constants.SESSION_MAX_AGE / 1000
         }),
         secret: env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
-        name: 'derecksnotes.sid', // Use a custom cookie name
+        name: 'derecksnotes.sid',
         cookie: {
-            secure: env.BUILD_ENV !== 'LOCAL', // secure cookies for DEV and PROD
+            secure: env.BUILD_ENV !== 'LOCAL',
             httpOnly: true,
             maxAge: constants.SESSION_MAX_AGE,
             path: '/',

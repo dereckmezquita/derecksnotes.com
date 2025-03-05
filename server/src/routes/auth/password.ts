@@ -300,6 +300,9 @@ router.post('/auth/login', async (req: Request, res: Response) => {
                 });
             }
 
+            console.log('Session saved with ID:', req.sessionID);
+            console.log('Session data:', req.session);
+
             // Return user information (exclude sensitive fields)
             res.json({
                 message: 'Logged in successfully',
