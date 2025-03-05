@@ -53,7 +53,9 @@ app.use(
         cookie: {
             secure: env.BUILD_ENV !== 'LOCAL', // secure cookies for DEV and PROD
             httpOnly: true,
-            maxAge: constants.SESSION_MAX_AGE
+            maxAge: constants.SESSION_MAX_AGE,
+            path: '/',
+            sameSite: 'lax'
         }
     })
 );
