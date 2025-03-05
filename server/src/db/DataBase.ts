@@ -36,19 +36,25 @@ class DataBases {
             throw error;
         }
     }
+
     private async connectRedis() {
         try {
-            if (env.BUILD_ENV === 'LOCAL') {
-                this.redisClient = new Redis(env.REDIS_URI);
-                console.log('Connected to Redis');
-                return;
-            }
             const redisConfig: RedisOptions = {
                 host: env.REDIS_URI,
-                enableReadyCheck: true
+                port: 6379, // Make sure to use port 6379 which is your TLS port
+                password: env.REDIS_PASSWORD,
+                enableReadyCheck: true,
+                tls: {
+                    rejectUnauthorized: true // Set to false during testing if you have certificate issues
+                }
             };
 
             this.redisClient = new Redis(redisConfig);
+
+            // Test connection
+            this.redisClient.on('connect', () => {
+                console.log('Redis client connected');
+            });
 
             this.redisClient.on('error', (error) => {
                 console.error('Redis client error:', error);
@@ -61,9 +67,11 @@ class DataBases {
                 }
             });
 
+            // Perform a ping test to verify connection
+            await this.redisClient.ping();
             console.log('Connected to Redis');
         } catch (error) {
-            console.error('Failed to connect to Redis', error);
+            console.error('Failed to connect to Redis:', error);
             throw error;
         }
     }
