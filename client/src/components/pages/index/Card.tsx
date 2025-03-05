@@ -51,17 +51,9 @@ const CardContainerBase = css`
 
     border: 1px solid #ccc;
     border-radius: 5px;
-    box-shadow:
-        1px 1px 20px rgba(153, 153, 153, 0.5),
-        0 0 20px rgba(100, 100, 40, 0.2) inset;
+
     text-align: center;
     position: relative;
-
-    &:hover {
-        box-shadow:
-            1px 1px 20px rgba(153, 153, 153, 0.8),
-            0 0 20px rgba(100, 100, 40, 0.2) inset;
-    }
 `;
 
 export const CardContainerDiv = styled.div`
