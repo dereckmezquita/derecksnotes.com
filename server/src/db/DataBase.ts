@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import Redis from 'ioredis';
+import Redis, { type RedisOptions } from 'ioredis';
 import * as env from '../utils/env';
 
 class DataBases {
@@ -36,17 +36,29 @@ class DataBases {
             throw error;
         }
     }
-
     private async connectRedis() {
         try {
-            this.redisClient = new Redis({
+            if (env.BUILD_ENV === 'LOCAL') {
+                this.redisClient = new Redis(env.REDIS_URI);
+                console.log('Connected to Redis');
+                return;
+            }
+            const redisConfig: RedisOptions = {
                 host: env.REDIS_URI,
-                password: env.REDIS_PASSWORD,
                 enableReadyCheck: true
-            });
+            };
+
+            this.redisClient = new Redis(redisConfig);
 
             this.redisClient.on('error', (error) => {
                 console.error('Redis client error:', error);
+
+                // For local development, provide more helpful error message
+                if (env.BUILD_ENV === 'LOCAL') {
+                    console.log(
+                        'If running locally without Redis, consider setting up a local Redis instance or mocking it.'
+                    );
+                }
             });
 
             console.log('Connected to Redis');
