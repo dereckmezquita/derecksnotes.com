@@ -79,6 +79,7 @@ app.use(env.API_PREFIX, routes.test);
 // -----
 app.get(env.API_PREFIX, async (req: Request, res: Response) => {
     const status = await getServerStatus();
+    console.log('Server status:', JSON.stringify(status, null, 2));
     res.json(status);
 });
 
