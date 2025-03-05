@@ -39,35 +39,47 @@ class DataBases {
 
     private async connectRedis() {
         try {
-            const redisConfig: RedisOptions = {
-                host: env.REDIS_URI,
-                port: 6379, // Make sure to use port 6379 which is your TLS port
-                password: env.REDIS_PASSWORD,
-                enableReadyCheck: true,
-                tls: {
-                    rejectUnauthorized: true // Set to false during testing if you have certificate issues
-                }
-            };
+            let redisConfig: RedisOptions;
+
+            if (env.BUILD_ENV === 'LOCAL') {
+                // Local development - connect to remote Redis with TLS
+                redisConfig = {
+                    host: env.REDIS_URI,
+                    port: 6379,
+                    password: env.REDIS_PASSWORD,
+                    enableReadyCheck: true,
+                    tls: {
+                        rejectUnauthorized: true
+                    }
+                };
+            } else {
+                // DEV or PROD environment - running in Docker, use internal Docker network
+                redisConfig = {
+                    host: env.REDIS_URI, // This will be 'linode_dereck-redis'
+                    password: env.REDIS_PASSWORD,
+                    enableReadyCheck: true
+                };
+            }
 
             this.redisClient = new Redis(redisConfig);
 
-            // Test connection
+            // Add event listeners for better debugging
             this.redisClient.on('connect', () => {
-                console.log('Redis client connected');
+                console.log(`Redis client connected to ${env.REDIS_URI}`);
             });
 
             this.redisClient.on('error', (error) => {
                 console.error('Redis client error:', error);
 
                 // For local development, provide more helpful error message
-                if (env.BUILD_ENV !== 'PROD') {
+                if (env.BUILD_ENV === 'LOCAL') {
                     console.log(
                         'If running locally without Redis, consider setting up a local Redis instance or mocking it.'
                     );
                 }
             });
 
-            // Perform a ping test to verify connection
+            // Verify connection with ping
             await this.redisClient.ping();
             console.log('Connected to Redis');
         } catch (error) {
