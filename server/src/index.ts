@@ -50,6 +50,7 @@ app.use(
         secret: env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
+        name: 'derecksnotes.sid', // Use a custom cookie name
         cookie: {
             secure: env.BUILD_ENV !== 'LOCAL', // secure cookies for DEV and PROD
             httpOnly: true,
