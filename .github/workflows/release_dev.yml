@@ -31,7 +31,9 @@ jobs:
       - name: Create .env file
         run: |
           echo BUILD_ENV=DEV > ./server/.env
-          echo API_URL=https://dev.derecksnotes.com/api >> ./server/.env
+          echo DOMAIN=dev.derecksnotes.com >> ./server/.env
+          echo PORT_SERVER=3000 >> ./server/.env
+          echo PORT_CLIENT=3000 >> ./server/.env
           echo SESSION_SECRET=${{ secrets.SESSION_SECRET }} >> ./server/.env
           echo MONGO_PASSWORD=${{ secrets.MONGO_PASSWORD }} >> ./server/.env
           echo MONGO_DATABASE=dev_derecksnotes >> ./server/.env

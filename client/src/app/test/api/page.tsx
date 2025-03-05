@@ -1,6 +1,6 @@
 import { Article, PostContainer } from '@components/pages/posts-dictionaries';
 import { AuthDemo, AuthProtectedDemo } from './demos/AuthDemo';
-import { Comments } from '@components/ui/CommentsSection/Comments';
+import { Comments } from '@components/comments/Comments';
 import { ApiStatus } from './demos/ApiStatus';
 
 function Page() {

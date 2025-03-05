@@ -9,7 +9,7 @@ import {
 import { DefinitionMetadata } from '@utils/dictionaries/fetchDefinitionMetadata';
 import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
 import { useState, useEffect } from 'react';
-import { Comments } from '@components/ui/CommentsSection/Comments';
+import { Comments } from '@components/comments/Comments';
 import { usePathname } from 'next/navigation';
 
 interface DisplayPostProps {

@@ -27,9 +27,18 @@ function shouldIgnore(filePath: string): boolean {
 function deriveSlug(fullPath: string): string {
     const relative = fullPath.replace(ROOT_DIR, '');
     const withoutExt = relative.replace(/\.mdx$/, '');
+
+    // Apply transformations to clean up the slug
+    let finalSlug = withoutExt;
+
     // If it's a blog post under /blog/posts/, remove the "posts" segment
     // For example: /blog/posts/20210730_something -> /blog/20210730_something
-    const finalSlug = withoutExt.replace('/posts/', '/');
+    finalSlug = finalSlug.replace('/posts/', '/');
+
+    // If it's a dictionary entry, remove the "/definitions/" segment
+    // For example: /dictionaries/biology/definitions/entry -> /dictionaries/biology/entry
+    finalSlug = finalSlug.replace('/definitions/', '/');
+
     if (finalSlug.startsWith('/')) {
         return finalSlug.slice(1);
     }
@@ -72,15 +81,19 @@ async function main() {
         for (const { file, slug } of newSlugsAndFiles) {
             const content = fs.readFileSync(file, 'utf-8');
             const { data } = matter(content);
+            console.log(JSON.stringify(data, null, 2));
 
             // Extract relevant fields from frontmatter
             const published =
                 typeof data.published === 'boolean' ? data.published : false;
             const comments =
                 typeof data.comments === 'boolean' ? data.comments : false;
+            const title =
+                data.title || `Dictionary: ${data.dictionary} - ${data.word}`;
 
             docsToInsert.push({
                 slug,
+                title,
                 views: 0,
                 likes: 0,
                 published,

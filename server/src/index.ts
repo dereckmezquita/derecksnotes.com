@@ -51,36 +51,39 @@ app.use(
         resave: false,
         saveUninitialized: false,
         cookie: {
-            secure: env.BUILD_ENV_BOOL, // only set cookies over https in prod
+            secure: env.BUILD_ENV !== 'LOCAL', // secure cookies for DEV and PROD
             httpOnly: true,
             maxAge: constants.SESSION_MAX_AGE
         }
     })
 );
 
+// Use API_PREFIX from env configuration (already includes trailing slash)
+app.use(env.API_PREFIX, routes.auth);
+app.use(env.API_PREFIX, routes.comments);
+app.use(env.API_PREFIX, routes.profile);
+app.use(env.API_PREFIX, routes.test);
 // -----
-app.get('/', async (req: Request, res: Response) => {
+
+// -----
+app.get(env.API_PREFIX, async (req: Request, res: Response) => {
     const status = await getServerStatus();
     res.json(status);
 });
 
-app.use('/api/', routes.auth);
-app.use('/api/', routes.comments);
-app.use('/api/', routes.profile);
-app.use('/api/', routes.test);
-// -----
-
-// Add debugging middleware
-if (!env.BUILD_ENV_BOOL) {
+// Add debugging middleware for non-production environments
+if (env.BUILD_ENV !== 'PROD') {
     // Log all incoming requests with basic info
     app.use((req: Request, res: Response, next: NextFunction) => {
         console.log('Incoming request: ', req.method, req.url);
         next();
     });
 
-    // Add detailed API request logging on the dynamic API_PREFIX
+    // Add detailed API request logging
     app.use((req: Request, res: Response, next: NextFunction) => {
-        console.log(`API Request: ${req.method} ${req.url}`);
+        console.log(
+            `API Request ${Date.now().toString()}: ${req.method} ${req.url}`
+        );
         console.log(`Query params: ${JSON.stringify(req.query)}`);
 
         // Log request body for non-GET requests if it exists, but redact sensitive data
@@ -108,17 +111,8 @@ process.on('SIGINT', async () => {
     process.exit(0);
 });
 
-app.listen(env.EXPRESS_PORT, async () => {
-    console.log(`Server running: ${env.API_URL} 🚀`);
-    const status = await reportStatus();
-    console.log(status);
+app.listen(env.PORT_SERVER, async () => {
+    console.log(`Server running: ${env.BASE_URL_SERVER} 🚀`);
+    const status = await getServerStatus();
+    console.log(JSON.stringify(status, null, 2));
 });
-
-async function reportStatus() {
-    return {
-        api_url: env.API_URL,
-        status: await getServerStatus(),
-        build_env: env.BUILD_ENV,
-        express_port: env.EXPRESS_PORT
-    };
-}

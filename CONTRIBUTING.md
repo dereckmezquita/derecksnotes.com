@@ -62,3 +62,9 @@ cd client/src/ && merge_files -e 'tsx,ts' && code merged_files.txt && cd ../../
 
 cd server/src/ && merge_files -e 'ts' && code merged_files.txt && cd ../../
 ```
+
+Kill process:
+
+```bash
+lsof -ti tcp:3001 | xargs kill -9
+```

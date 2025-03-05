@@ -4,14 +4,13 @@ import {
     LoginView,
     RegisterView,
     ResetPasswordView,
-    MagicLinkView,
-    LoggedInView
+    MagicLinkView
 } from './views';
 import { api } from '@utils/api/api';
 import { useAuth } from '@context/AuthContext';
 import { IndicateLoading } from '@components/atomic/IndiacteLoading';
 
-type ModalView = 'login' | 'register' | 'reset' | 'magic-link' | 'logged-in';
+type ModalView = 'login' | 'register' | 'reset' | 'magic-link';
 
 interface AuthViewsProps {
     signalAuthSuccess?: () => void;
@@ -22,8 +21,8 @@ export function AuthViews({
     signalAuthSuccess,
     onTitleChange
 }: AuthViewsProps) {
-    const { user, logout, checkAuth, loading } = useAuth();
-    const [view, setView] = useState<ModalView>(user ? 'logged-in' : 'login');
+    const { checkAuth, loading } = useAuth();
+    const [view, setView] = useState<ModalView>('login');
     const [formData, setFormData] = useState({
         firstName: '',
         lastName: '',
@@ -37,15 +36,15 @@ export function AuthViews({
     }, [checkAuth]);
 
     useEffect(() => {
-        // Update view and title when user state changes
-        if (user) {
-            setView('logged-in');
-            onTitleChange('User Summary');
-        } else {
-            setView('login');
-            onTitleChange('Login');
-        }
-    }, [user, onTitleChange]);
+        // Set title based on current view
+        const titles = {
+            login: 'Login',
+            register: 'Register',
+            reset: 'Reset Password',
+            'magic-link': 'Magic Link Login'
+        };
+        onTitleChange(titles[view]);
+    }, [view, onTitleChange]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -132,27 +131,10 @@ export function AuthViews({
         }
     };
 
-    const handleLogout = async () => {
-        const toastId = toast.loading('Logging out...');
-        try {
-            await logout();
-            toast.success('Logged out successfully!', { id: toastId });
-        } catch (error) {
-            console.error('Logout error:', error);
-            toast.error('Failed to logout. Please try again.', { id: toastId });
-        }
-    };
+    // Removed handleLogout function as it's no longer needed
 
     const switchView = (newView: ModalView) => {
         setView(newView);
-        const titles = {
-            login: 'Login',
-            register: 'Register',
-            reset: 'Reset Password',
-            'magic-link': 'Magic Link Login',
-            'logged-in': 'User Summary'
-        };
-        onTitleChange(titles[newView]);
     };
 
     if (loading) {
@@ -160,10 +142,6 @@ export function AuthViews({
     }
 
     const renderView = () => {
-        if (view === 'logged-in' && user) {
-            return <LoggedInView user={user} handleLogout={handleLogout} />;
-        }
-
         const props = {
             formData,
             handleInputChange,

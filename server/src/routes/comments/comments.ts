@@ -29,12 +29,16 @@ interface ICommentTree extends IComment {
 }
 
 /**
- * Sanitizes user-generated text to prevent XSS attacks
+ * Sanitizes user-generated text to prevent XSS attacks and limits consecutive newlines
  * @param text - Raw text input from users
- * @returns Sanitized text with only allowed HTML tags and attributes
+ * @returns Sanitized text with only allowed HTML tags and attributes and limited consecutive newlines
  */
 function sanitizeText(text: string): string {
-    return sanitizeHtml(text, {
+    // First limit consecutive newlines to maximum of 3
+    const limitedNewlines = text.replace(/\n{4,}/g, '\n\n\n');
+
+    // Then apply HTML sanitization
+    return sanitizeHtml(limitedNewlines, {
         allowedTags: [
             'b',
             'i',

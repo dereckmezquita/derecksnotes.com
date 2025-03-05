@@ -1,353 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import { format, formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 import { api } from '@utils/api/api';
-import { User } from '@context/AuthContext';
-import { CommentType, ReplyResponse } from './Comments';
+import { marked } from 'marked';
+import { MAX_COMMENT_DEPTH } from '@lib/constants';
 import { CommentForm } from './CommentForm';
 import { CommentList } from './CommentList';
-import { toast } from 'sonner';
-import { MAX_COMMENT_DEPTH } from '@lib/constants';
-import { formatDistanceToNow, format } from 'date-fns';
+import { CommentItemProps, CommentType, ReplyResponse } from './types';
+import {
+    SingleComment,
+    CommentHeader,
+    CommentAuthor,
+    CommentMetadata,
+    CommentDate,
+    EditedMark,
+    CommentControls,
+    ReactionButton,
+    ReactionCount,
+    CommentText,
+    DeletedText,
+    CommentActions,
+    ActionButton,
+    ReplyContainer,
+    LoadMoreRepliesButton,
+    ProfileCommentItem,
+    PostLink,
+    HistoryModal,
+    HistoryContent,
+    HistoryTitle,
+    CloseButton,
+    HistoryItem,
+    HistoryItemHeader,
+    HistoryDate,
+    HistoryText,
+    DiffView,
+    DiffLine
+} from './CommentStyles';
 
-interface CommentItemProps {
-    comment: CommentType;
-    postSlug: string;
-    currentUser: User | null;
-    level: number;
-    onUpdateComment: (
-        commentId: string,
-        updateFn: (comment: CommentType) => CommentType
-    ) => void;
-    onAddReply: (parentId: string, newReply: CommentType) => void;
+/**
+ * Renders markdown text safely with sanitization
+ * @param content - The markdown content to render
+ * @returns Sanitized HTML from markdown
+ */
+function renderMarkdown(content: string): string {
+    try {
+        // Parse the markdown using the default settings
+        const result = marked.parse(content);
+        // Make sure we're dealing with a string
+        return typeof result === 'string' ? result : content;
+    } catch (error) {
+        console.error('Error parsing markdown:', error);
+        return content; // Fallback to raw content if parsing fails
+    }
 }
 
-// Styled components
-const SingleComment = styled.div<{ isDeleted?: boolean; isEditing?: boolean }>`
-    position: relative;
-    padding: 15px 0;
-    border-bottom: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-    opacity: ${(props) => (props.isDeleted ? 0.7 : 1)};
-
-    &:last-child {
-        border-bottom: none;
-    }
-
-    ${(props) =>
-        props.isEditing &&
-        `
-        background-color: ${props.theme.container.background.colour.light_contrast()};
-        border-radius: 5px;
-        padding: 15px;
-        margin: 5px 0;
-    `}
-`;
-
-const CommentHeader = styled.div`
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 8px;
-`;
-
-const CommentAuthor = styled.span`
-    font-weight: bold;
-    color: ${(props) => props.theme.text.colour.primary()};
-    font-size: 0.95em;
-`;
-
-const CommentMetadata = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-`;
-
-const CommentDate = styled.span`
-    color: ${(props) => props.theme.text.colour.light_grey()};
-    font-size: 0.85em;
-`;
-
-const EditedMark = styled.span`
-    color: ${(props) => props.theme.text.colour.light_grey()};
-    font-size: 0.8em;
-    font-style: italic;
-`;
-
-const CommentText = styled.div`
-    margin: 10px 0;
-    color: ${(props) => props.theme.text.colour.primary()};
-    font-size: 0.95em;
-    line-height: 1.6;
-    word-break: break-word;
-    overflow-wrap: break-word;
-
-    p {
-        margin: 0.5em 0;
-
-        &:first-child {
-            margin-top: 0;
-        }
-
-        &:last-child {
-            margin-bottom: 0;
-        }
-    }
-
-    ul,
-    ol {
-        margin: 0.5em 0;
-        padding-left: 1.5em;
-    }
-
-    code {
-        background-color: ${(props) =>
-            props.theme.container.background.colour.light_contrast()};
-        padding: 2px 4px;
-        border-radius: 3px;
-        font-family: monospace;
-        font-size: 0.9em;
-    }
-
-    pre {
-        background-color: ${(props) =>
-            props.theme.container.background.colour.light_contrast()};
-        padding: 8px;
-        border-radius: 4px;
-        overflow-x: auto;
-        margin: 0.5em 0;
-    }
-
-    a {
-        color: ${(props) => props.theme.text.colour.anchor()};
-        text-decoration: none;
-
-        &:hover {
-            text-decoration: underline;
-        }
-    }
-`;
-
-const DeletedText = styled.p`
-    font-style: italic;
-    color: ${(props) => props.theme.text.colour.light_grey()};
-`;
-
-const CommentActions = styled.div`
-    margin-top: 10px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    align-items: center;
-`;
-
-const ActionButton = styled.button`
-    background: none;
-    border: none;
-    color: ${(props) => props.theme.text.colour.anchor()};
-    cursor: pointer;
-    font-size: 0.85em;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    padding: 0;
-    transition: color 0.2s;
-
-    &:hover {
-        color: ${(props) =>
-            props.theme.text.colour.anchor(undefined, undefined, 80)};
-        text-decoration: underline;
-    }
-
-    &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-`;
-
-const ReplyContainer = styled.div<{ level: number }>`
-    margin-left: ${(props) =>
-        props.level < MAX_COMMENT_DEPTH - 1 ? '20px' : '0'};
-    padding-left: ${(props) =>
-        props.level < MAX_COMMENT_DEPTH - 1 ? '15px' : '0'};
-    border-left: ${(props) =>
-        props.level < MAX_COMMENT_DEPTH - 1
-            ? `1px solid ${props.theme.container.border.colour.primary()}`
-            : 'none'};
-    margin-top: ${(props) =>
-        props.level < MAX_COMMENT_DEPTH - 1 ? '10px' : '20px'};
-`;
-
-const CommentControls = styled.div`
-    margin-left: auto;
-    display: flex;
-    gap: 5px;
-`;
-
-const ReactionButton = styled.button<{ isActive?: boolean }>`
-    background: none;
-    border: none;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    color: ${(props) =>
-        props.isActive
-            ? props.theme.theme_colours[5]()
-            : props.theme.text.colour.light_grey()};
-    font-size: 0.85em;
-    cursor: pointer;
-    transition: color 0.2s;
-
-    &:hover {
-        color: ${(props) =>
-            props.isActive
-                ? props.theme.theme_colours[5]()
-                : props.theme.text.colour.anchor()};
-    }
-`;
-
-const ReactionCount = styled.span`
-    font-size: 0.85em;
-`;
-
-const LoadMoreRepliesButton = styled.button`
-    background: none;
-    border: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-    border-radius: 3px;
-    color: ${(props) => props.theme.text.colour.primary()};
-    padding: 5px 10px;
-    font-size: 0.85em;
-    cursor: pointer;
-    margin-top: 10px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-
-    &:hover {
-        background-color: ${(props) =>
-            props.theme.container.background.colour.light_contrast()};
-    }
-`;
-
-// History modal components
-const HistoryModal = styled.div`
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-`;
-
-const HistoryContent = styled.div`
-    background-color: ${(props) =>
-        props.theme.container.background.colour.content()};
-    border-radius: 5px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-    padding: 20px;
-    width: 90%;
-    max-width: 800px;
-    max-height: 80vh;
-    overflow-y: auto;
-`;
-
-const HistoryTitle = styled.h3`
-    margin-top: 0;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-`;
-
-const HistoryItem = styled.div`
-    margin-bottom: 20px;
-    border-bottom: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-    padding-bottom: 15px;
-
-    &:last-child {
-        border-bottom: none;
-        margin-bottom: 0;
-    }
-`;
-
-const HistoryItemHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 10px;
-`;
-
-const HistoryDate = styled.span`
-    font-size: 0.9em;
-    color: ${(props) => props.theme.text.colour.light_grey()};
-`;
-
-const HistoryText = styled.div`
-    font-size: 0.95em;
-    line-height: 1.5;
-    color: ${(props) => props.theme.text.colour.primary()};
-    white-space: pre-wrap;
-`;
-
-const CloseButton = styled.button`
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background: none;
-    border: none;
-    font-size: 1.5em;
-    cursor: pointer;
-    color: ${(props) => props.theme.text.colour.primary()};
-
-    &:hover {
-        color: ${(props) => props.theme.text.colour.anchor()};
-    }
-`;
-
-const DiffView = styled.div`
-    margin-top: 15px;
-    padding: 10px;
-    background-color: ${(props) =>
-        props.theme.container.background.colour.light_contrast()};
-    border-radius: 4px;
-`;
-
-const DiffLine = styled.div<{ type: 'added' | 'removed' | 'unchanged' }>`
-    padding: 2px 0;
-    font-family: monospace;
-    white-space: pre-wrap;
-    font-size: 0.9em;
-
-    ${(props) =>
-        props.type === 'added' &&
-        `
-        background-color: rgba(0, 255, 0, 0.1);
-        color: green;
-    `}
-
-    ${(props) =>
-        props.type === 'removed' &&
-        `
-        background-color: rgba(255, 0, 0, 0.1);
-        color: red;
-        text-decoration: line-through;
-    `}
-`;
-
-// Main component
 export function CommentItem({
     comment,
     postSlug,
     currentUser,
     level,
     onUpdateComment,
-    onAddReply
+    onAddReply,
+    isProfileView = false,
+    onDelete
 }: CommentItemProps) {
     const [showReplyForm, setShowReplyForm] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -372,15 +87,21 @@ export function CommentItem({
         ? '[deleted]'
         : comment.author?.username || 'Unknown User';
 
-    // Format dates
-    const formattedDate = formatDistanceToNow(new Date(comment.createdAt), {
-        addSuffix: true
-    });
-    const fullDate = format(new Date(comment.createdAt), 'PPpp');
-
     // Check if comment has been edited
     const isEdited =
         comment.lastEditedAt && comment.lastEditedAt !== comment.createdAt;
+
+    // Format dates
+    // Display fixed timestamp with seconds and 24-hour format
+    const displayDate =
+        isEdited && comment.lastEditedAt
+            ? format(new Date(comment.lastEditedAt), 'yyyy-MM-dd HH:mm:ss')
+            : format(new Date(comment.createdAt), 'yyyy-MM-dd HH:mm:ss');
+
+    // Only provide hover tooltip for edited comments
+    const tooltipDate = isEdited
+        ? `Created: ${format(new Date(comment.createdAt), 'yyyy-MM-dd HH:mm:ss')}`
+        : '';
 
     // Check user reactions to this comment
     const hasUserLiked: boolean | undefined = currentUser
@@ -424,6 +145,8 @@ export function CommentItem({
 
     // Handle reply submission
     const handleReplySubmit = async (text: string) => {
+        if (!postSlug) return;
+
         setIsSubmitting(true);
         try {
             const res = await api.post('/comments', {
@@ -432,7 +155,9 @@ export function CommentItem({
                 parentCommentId: comment._id
             });
 
-            onAddReply(comment._id, res.data);
+            if (onAddReply) {
+                onAddReply(comment._id, res.data);
+            }
             setShowReplyForm(false);
             toast.success('Reply added');
         } catch (error) {
@@ -472,14 +197,18 @@ export function CommentItem({
         }
 
         try {
-            await api.delete(`/comments/${comment._id}`);
-
-            // Update the comment in the UI to show as deleted
-            onUpdateComment(comment._id, (c) => ({
-                ...c,
-                deleted: true,
-                text: '[deleted]'
-            }));
+            // Use the profile-specific delete function if provided
+            if (isProfileView && onDelete) {
+                await onDelete(comment._id);
+            } else {
+                await api.delete(`/comments/${comment._id}`);
+                // Update the comment in the UI to show as deleted
+                onUpdateComment(comment._id, (c) => ({
+                    ...c,
+                    deleted: true,
+                    text: '[deleted]'
+                }));
+            }
 
             toast.success('Comment deleted');
         } catch (error) {
@@ -558,7 +287,7 @@ export function CommentItem({
 
     // Load more replies for a comment
     const loadMoreReplies = async () => {
-        if (loadingMoreReplies) return;
+        if (loadingMoreReplies || !postSlug) return;
 
         setLoadingMoreReplies(true);
         try {
@@ -598,6 +327,65 @@ export function CommentItem({
         }
     };
 
+    // Profile view uses a different style
+    if (isProfileView) {
+        return (
+            <ProfileCommentItem deleted={comment.deleted}>
+                <CommentHeader>
+                    <CommentMetadata>
+                        <CommentDate data-title={tooltipDate}>
+                            {displayDate}
+                        </CommentDate>
+                    </CommentMetadata>
+
+                    {!comment.deleted && isAuthor && (
+                        <CommentControls>
+                            <ActionButton onClick={handleDelete}>
+                                Delete
+                            </ActionButton>
+                        </CommentControls>
+                    )}
+                </CommentHeader>
+
+                <CommentText deleted={comment.deleted}>
+                    {comment.deleted ? (
+                        <DeletedText>
+                            [This comment has been deleted]
+                        </DeletedText>
+                    ) : (
+                        <div
+                            dangerouslySetInnerHTML={{
+                                __html: renderMarkdown(comment.text)
+                            }}
+                        />
+                    )}
+                </CommentText>
+
+                {comment.post && (
+                    <PostLink href={comment.post.slug}>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                        {comment.post.title || 'View Post'}
+                    </PostLink>
+                )}
+            </ProfileCommentItem>
+        );
+    }
+
+    // Regular comment view
     return (
         <>
             <SingleComment isDeleted={comment.deleted} isEditing={isEditing}>
@@ -605,17 +393,11 @@ export function CommentItem({
                     <CommentAuthor>{authorName}</CommentAuthor>
 
                     <CommentMetadata>
-                        <CommentDate title={fullDate}>
-                            {formattedDate}
+                        <CommentDate data-title={tooltipDate}>
+                            {displayDate}
                         </CommentDate>
 
-                        {isEdited && (
-                            <EditedMark
-                                title={`Edited ${formatDistanceToNow(new Date(comment.lastEditedAt!), { addSuffix: true })}`}
-                            >
-                                (edited)
-                            </EditedMark>
-                        )}
+                        {isEdited && <EditedMark>(edited)</EditedMark>}
                     </CommentMetadata>
 
                     {!comment.deleted && (
@@ -630,7 +412,20 @@ export function CommentItem({
                                 title={hasUserLiked ? 'Remove like' : 'Like'}
                                 disabled={!currentUser}
                             >
-                                👍{' '}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <path d="M7 10v12" />
+                                    <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" />
+                                </svg>{' '}
                                 <ReactionCount>
                                     {comment.likes.length || ''}
                                 </ReactionCount>
@@ -650,7 +445,20 @@ export function CommentItem({
                                 }
                                 disabled={!currentUser}
                             >
-                                👎{' '}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <path d="M17 14V2" />
+                                    <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z" />
+                                </svg>{' '}
                                 <ReactionCount>
                                     {comment.dislikes.length || ''}
                                 </ReactionCount>
@@ -668,7 +476,7 @@ export function CommentItem({
                         isEdit={true}
                     />
                 ) : (
-                    <CommentText>
+                    <CommentText deleted={comment.deleted}>
                         {comment.deleted ? (
                             <DeletedText>
                                 [This comment has been deleted]
@@ -676,7 +484,7 @@ export function CommentItem({
                         ) : (
                             <div
                                 dangerouslySetInnerHTML={{
-                                    __html: comment.text
+                                    __html: renderMarkdown(comment.text)
                                 }}
                             />
                         )}
@@ -685,13 +493,18 @@ export function CommentItem({
 
                 {!isEditing && !comment.deleted && (
                     <CommentActions>
-                        {currentUser && level < MAX_COMMENT_DEPTH - 1 && (
-                            <ActionButton
-                                onClick={() => setShowReplyForm(!showReplyForm)}
-                            >
-                                {showReplyForm ? 'Cancel Reply' : 'Reply'}
-                            </ActionButton>
-                        )}
+                        {currentUser &&
+                            level < MAX_COMMENT_DEPTH - 1 &&
+                            postSlug &&
+                            onAddReply && (
+                                <ActionButton
+                                    onClick={() =>
+                                        setShowReplyForm(!showReplyForm)
+                                    }
+                                >
+                                    {showReplyForm ? 'Cancel Reply' : 'Reply'}
+                                </ActionButton>
+                            )}
 
                         {isAuthor && (
                             <>
@@ -717,7 +530,7 @@ export function CommentItem({
                     </CommentActions>
                 )}
 
-                {showReplyForm && (
+                {showReplyForm && postSlug && onAddReply && (
                     <ReplyContainer level={level}>
                         <CommentForm
                             onSubmit={handleReplySubmit}
@@ -728,7 +541,7 @@ export function CommentItem({
                     </ReplyContainer>
                 )}
 
-                {comment.replies && comment.replies.length > 0 && (
+                {comment.replies && comment.replies.length > 0 && postSlug && (
                     <ReplyContainer level={level}>
                         <CommentList
                             comments={comment.replies}

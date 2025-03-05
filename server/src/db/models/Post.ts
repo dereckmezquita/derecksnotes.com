@@ -4,6 +4,7 @@ import { Schema, model, Types } from 'mongoose';
 export interface IPost {
     _id: Types.ObjectId;
     slug: string;
+    title: string;
     views: number;
     likes: number;
     published: boolean;
@@ -15,6 +16,7 @@ export interface IPost {
 const postSchema = new Schema<IPost>(
     {
         slug: { type: String, required: true, unique: true },
+        title: { type: String, required: true },
         views: { type: Number, default: 0 },
         likes: { type: Number, default: 0 },
         published: { type: Boolean, default: false },

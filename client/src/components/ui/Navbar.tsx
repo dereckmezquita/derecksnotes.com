@@ -1,10 +1,11 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { FaBars, FaFilter, FaUser } from 'react-icons/fa';
 import { useBlogFilter } from '../pages/index/BlogFilterContext';
 import { AuthModal } from './modal/auth/AuthModal';
+import { useAuth } from '@context/AuthContext';
 
 // TODO: create a type for theme; so we can have intellisense
 const minWidthMobile = (props: any) =>
@@ -46,13 +47,6 @@ const NavContainer = styled.nav`
 
     border: 1px solid #ccc;
     border-radius: 5px;
-    box-shadow:
-        1px 1px 20px rgba(153, 153, 153, 0.5),
-        0 0 20px rgba(100, 100, 40, 0.2) inset;
-
-    &:hover {
-        box-shadow: 1px 1px 20px rgba(153, 153, 153, 0.5);
-    }
 
     @media screen and (max-width: ${minWidthSnapUp}) {
         width: 95%;
@@ -193,8 +187,16 @@ const DateTimeDisplay = styled.div`
 function Navbar() {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const { isAuthenticated, user } = useAuth();
 
     const { isFilterVisible, setIsFilterVisible } = useBlogFilter();
+
+    // Close the auth modal when user becomes authenticated
+    useEffect(() => {
+        if (user) {
+            setIsAuthModalOpen(false);
+        }
+    }, [user]);
 
     const closeMenu = () => {
         setIsMenuOpen(false);
@@ -243,13 +245,19 @@ function Navbar() {
                         </NavLeftItem>
                     </DropDownContent>
                 </DropDownContainer>
-                <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
-                    <FaUser />
-                    <AuthModal
-                        isOpen={isAuthModalOpen}
-                        onClose={() => setIsAuthModalOpen(false)}
-                    />
-                </NavRightItem>
+                {isAuthenticated() ? (
+                    <NavRightItemLink href="/profile">
+                        <FaUser />
+                    </NavRightItemLink>
+                ) : (
+                    <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
+                        <FaUser />
+                        <AuthModal
+                            isOpen={isAuthModalOpen}
+                            onClose={() => setIsAuthModalOpen(false)}
+                        />
+                    </NavRightItem>
+                )}
                 <NavRightItem onClick={toggleFilter}>
                     <FaFilter />
                 </NavRightItem>
