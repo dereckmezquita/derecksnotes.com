@@ -113,5 +113,6 @@ process.on('SIGINT', async () => {
 
 app.listen(env.PORT_SERVER, async () => {
     console.log(`Server running: ${env.BASE_URL_SERVER} 🚀`);
-    console.log(await getServerStatus());
+    const status = await getServerStatus();
+    console.log(JSON.stringify(status, null, 2));
 });
