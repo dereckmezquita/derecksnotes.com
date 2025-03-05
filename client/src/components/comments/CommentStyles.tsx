@@ -215,23 +215,36 @@ export const CommentControls = styled.div`
 
 export const ReactionButton = styled.button<{ isActive?: boolean }>`
     background: none;
-    border: none;
+    border: 1px solid transparent;
+    border-radius: ${(props) => props.theme.container.border.radius};
+    padding: 3px 6px;
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
     color: ${(props) =>
         props.isActive
             ? props.theme.theme_colours[5]()
             : props.theme.text.colour.light_grey()};
     font-size: 0.85em;
     cursor: pointer;
-    transition: color 0.2s;
+    transition: all 0.2s ease;
 
     &:hover {
         color: ${(props) =>
             props.isActive
                 ? props.theme.theme_colours[5]()
                 : props.theme.text.colour.anchor()};
+        background-color: ${(props) =>
+            props.theme.container.background.colour.light_contrast()};
+        border-color: ${(props) =>
+            props.theme.container.border.colour.primary()};
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        border-color: transparent;
+        background-color: transparent;
     }
 `;
 
