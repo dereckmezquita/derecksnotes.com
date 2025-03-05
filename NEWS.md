@@ -60,4 +60,10 @@ This release implements a comprehensive environment variable management system w
 - Improved user experience with custom styled tooltips
 - Consistent implementation across both regular comments and profile page comments
 
+#### User Experience Improvements
+- Modified user icon in navbar to directly link to profile page when logged in
+- Removed user status modal - now clicking the user icon takes logged-in users straight to their profile
+- Simplified login flow: after successful login, users can access profile directly from navbar
+- Auth modal automatically closes when login is successful
+
 ## Coming Soon

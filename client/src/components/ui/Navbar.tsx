@@ -1,10 +1,11 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { FaBars, FaFilter, FaUser } from 'react-icons/fa';
 import { useBlogFilter } from '../pages/index/BlogFilterContext';
 import { AuthModal } from './modal/auth/AuthModal';
+import { useAuth } from '@context/AuthContext';
 
 // TODO: create a type for theme; so we can have intellisense
 const minWidthMobile = (props: any) =>
@@ -186,8 +187,16 @@ const DateTimeDisplay = styled.div`
 function Navbar() {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const { isAuthenticated, user } = useAuth();
 
     const { isFilterVisible, setIsFilterVisible } = useBlogFilter();
+
+    // Close the auth modal when user becomes authenticated
+    useEffect(() => {
+        if (user) {
+            setIsAuthModalOpen(false);
+        }
+    }, [user]);
 
     const closeMenu = () => {
         setIsMenuOpen(false);
@@ -236,13 +245,19 @@ function Navbar() {
                         </NavLeftItem>
                     </DropDownContent>
                 </DropDownContainer>
-                <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
-                    <FaUser />
-                    <AuthModal
-                        isOpen={isAuthModalOpen}
-                        onClose={() => setIsAuthModalOpen(false)}
-                    />
-                </NavRightItem>
+                {isAuthenticated() ? (
+                    <NavRightItemLink href="/profile">
+                        <FaUser />
+                    </NavRightItemLink>
+                ) : (
+                    <NavRightItem onClick={() => setIsAuthModalOpen(true)}>
+                        <FaUser />
+                        <AuthModal
+                            isOpen={isAuthModalOpen}
+                            onClose={() => setIsAuthModalOpen(false)}
+                        />
+                    </NavRightItem>
+                )}
                 <NavRightItem onClick={toggleFilter}>
                     <FaFilter />
                 </NavRightItem>
