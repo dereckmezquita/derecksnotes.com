@@ -403,7 +403,7 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
 // ======== COMPONENT ========
 
 export default function ProfilePage() {
-    const { user, loading } = useAuth();
+    const { user, loading, logout } = useAuth();
     const router = useRouter();
     const [userInfo, setUserInfo] = useState<any>(null);
     const [loadingData, setLoadingData] = useState(true);
@@ -567,6 +567,16 @@ export default function ProfilePage() {
         } catch (error) {
             console.error('Error sending verification email:', error);
             showAlert('Failed to send verification email', 'error');
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await logout();
+            router.push('/');
+        } catch (error) {
+            console.error('Error logging out:', error);
+            showAlert('Failed to logout. Please try again.', 'error');
         }
     };
 
@@ -821,6 +831,15 @@ export default function ProfilePage() {
                                     </Button>
                                 </div>
                             )}
+
+                            <Button
+                                onClick={handleLogout}
+                                variant="danger"
+                                fullWidth
+                                style={{ marginTop: '15px' }}
+                            >
+                                Logout
+                            </Button>
                         </ProfileForm>
                     )}
                 </SidebarContainer>

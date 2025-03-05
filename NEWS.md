@@ -73,4 +73,11 @@ This release implements a comprehensive environment variable management system w
 - Comments in profile section now display post titles with links
 - Fixed association between comments and posts for better navigation
 
+#### User Profile Improvements
+- Added a dedicated logout button to the profile page
+- Placed in the sidebar below profile information for easy access
+- Styled with 'danger' variant to visually distinguish it from other actions
+- Implements error handling with user feedback
+- Automatically redirects to home page after successful logout
+
 ## Coming Soon
