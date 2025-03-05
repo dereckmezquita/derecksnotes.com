@@ -55,7 +55,7 @@ app.use(
             httpOnly: true,
             maxAge: constants.SESSION_MAX_AGE,
             path: '/',
-            sameSite: 'lax',
+            sameSite: 'none',
             domain: env.DOMAIN
         }
     })
