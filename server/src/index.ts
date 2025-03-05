@@ -66,7 +66,7 @@ app.use(env.API_PREFIX, routes.test);
 // -----
 
 // -----
-app.get('/', async (req: Request, res: Response) => {
+app.get(env.API_PREFIX, async (req: Request, res: Response) => {
     const status = await getServerStatus();
     res.json(status);
 });
