@@ -65,5 +65,6 @@ This release implements a comprehensive environment variable management system w
 - Removed user status modal - now clicking the user icon takes logged-in users straight to their profile
 - Simplified login flow: after successful login, users can access profile directly from navbar
 - Auth modal automatically closes when login is successful
+- Fixed TypeScript type errors for custom data attributes used in tooltips
 
 ## Coming Soon
