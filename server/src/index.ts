@@ -81,7 +81,9 @@ if (env.BUILD_ENV !== 'PROD') {
 
     // Add detailed API request logging
     app.use((req: Request, res: Response, next: NextFunction) => {
-        console.log(`API Request: ${req.method} ${req.url}`);
+        console.log(
+            `API Request ${Date.now().toString()}: ${req.method} ${req.url}`
+        );
         console.log(`Query params: ${JSON.stringify(req.query)}`);
 
         // Log request body for non-GET requests if it exists, but redact sensitive data
