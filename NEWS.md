@@ -67,4 +67,10 @@ This release implements a comprehensive environment variable management system w
 - Auth modal automatically closes when login is successful
 - Fixed TypeScript type errors for custom data attributes used in tooltips
 
+#### Database Schema Improvements
+- Added title field to Post model schema
+- Updated syncPostsToDB script to store post titles in the database
+- Comments in profile section now display post titles with links
+- Fixed association between comments and posts for better navigation
+
 ## Coming Soon

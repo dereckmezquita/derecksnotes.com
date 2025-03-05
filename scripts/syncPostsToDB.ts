@@ -72,15 +72,19 @@ async function main() {
         for (const { file, slug } of newSlugsAndFiles) {
             const content = fs.readFileSync(file, 'utf-8');
             const { data } = matter(content);
+            console.log(JSON.stringify(data, null, 2));
 
             // Extract relevant fields from frontmatter
             const published =
                 typeof data.published === 'boolean' ? data.published : false;
             const comments =
                 typeof data.comments === 'boolean' ? data.comments : false;
+            const title =
+                data.title || `Dictionary: ${data.dictionary} - ${data.word}`;
 
             docsToInsert.push({
                 slug,
+                title,
                 views: 0,
                 likes: 0,
                 published,
