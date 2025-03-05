@@ -80,4 +80,11 @@ This release implements a comprehensive environment variable management system w
 - Implements error handling with user feedback
 - Automatically redirects to home page after successful logout
 
+#### UI Enhancements
+- Replaced emoji-based like/dislike buttons with SVG icons for a more professional look
+- Enhanced button styling with subtle hover effects and better visual feedback
+- Improved consistency with the site's overall design language
+- Added proper disabled state styling for better user feedback
+- Fixed comments functionality for dictionary entries with proper slug handling
+
 ## Coming Soon
