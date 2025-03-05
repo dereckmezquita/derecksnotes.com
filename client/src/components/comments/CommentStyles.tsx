@@ -76,7 +76,7 @@ export const CommentDate = styled.span`
     cursor: ${(props) => (props['data-title'] ? 'help' : 'default')};
 
     /* Custom tooltip styling using data-title instead of title to avoid native tooltips */
-    &[data-title]:hover::after {
+    &[data-title]:not([data-title='']):hover::after {
         content: attr(data-title);
         position: absolute;
         left: 0;
