@@ -2,7 +2,6 @@
 export type TYPE_BUILD_ENV = 'PROD' | 'DEV' | 'LOCAL';
 export type TYPE_PORT_SERVER = '3001' | '3003'; // deployment ports dev/prod
 export type TYPE_PORT_CLIENT = '3000' | '3002'; // deployment ports dev/prod
-export type TYPE_API_PREFIX = 'api/' | '/';
 export type TYPE_DOMAIN =
     | 'derecksnotes.com'
     | 'dev.derecksnotes.com'
@@ -13,13 +12,12 @@ export type TYPE_BASE_URL_CLIENT<
 > = `https://${DOMAIN}` | `http://${DOMAIN}:${PORT}`;
 export type TYPE_BASE_URL_SERVER<
     DOMAIN extends TYPE_DOMAIN,
-    PREFIX extends TYPE_API_PREFIX,
     PORT extends TYPE_PORT_SERVER
 > = `https://${DOMAIN}/${PREFIX}` | `http://localhost:${PORT}`;
 
 // BUILD ENVs
 export const BUILD_ENV = env<TYPE_BUILD_ENV>('BUILD_ENV');
-export const API_PREFIX = BUILD_ENV === 'LOCAL' ? '/' : 'api/';
+export const API_PREFIX = '/';
 export const PORT_SERVER = env<TYPE_PORT_SERVER>('PORT_SERVER');
 export const PORT_CLIENT = env<TYPE_PORT_CLIENT>('PORT_CLIENT');
 export const DOMAIN = env<TYPE_DOMAIN>('DOMAIN');
@@ -35,7 +33,6 @@ export const BASE_URL_CLIENT: TYPE_BASE_URL_CLIENT<
 
 export const BASE_URL_SERVER: TYPE_BASE_URL_SERVER<
     TYPE_DOMAIN,
-    TYPE_API_PREFIX,
     TYPE_PORT_SERVER
 > =
     BUILD_ENV === 'LOCAL'
