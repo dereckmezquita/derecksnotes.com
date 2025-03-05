@@ -39,7 +39,16 @@ class DataBases {
 
     private async connectRedis() {
         try {
-            this.redisClient = new Redis(env.REDIS_URI);
+            this.redisClient = new Redis({
+                host: env.REDIS_URI,
+                password: env.REDIS_PASSWORD,
+                enableReadyCheck: true
+            });
+
+            this.redisClient.on('error', (error) => {
+                console.error('Redis client error:', error);
+            });
+
             console.log('Connected to Redis');
         } catch (error) {
             console.error('Failed to connect to Redis', error);
