@@ -60,7 +60,7 @@ class DataBases {
                 console.error('Redis client error:', error);
 
                 // For local development, provide more helpful error message
-                if (env.BUILD_ENV === 'LOCAL') {
+                if (env.BUILD_ENV !== 'PROD') {
                     console.log(
                         'If running locally without Redis, consider setting up a local Redis instance or mocking it.'
                     );
