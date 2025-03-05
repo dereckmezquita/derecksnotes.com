@@ -12,6 +12,7 @@ export type TYPE_BASE_URL_CLIENT<
 > = `https://${DOMAIN}` | `http://${DOMAIN}:${PORT}`;
 export type TYPE_BASE_URL_SERVER<
     DOMAIN extends TYPE_DOMAIN,
+    PREFIX extends string,
     PORT extends TYPE_PORT_SERVER
 > = `https://${DOMAIN}/${PREFIX}` | `http://localhost:${PORT}`;
 
@@ -33,6 +34,7 @@ export const BASE_URL_CLIENT: TYPE_BASE_URL_CLIENT<
 
 export const BASE_URL_SERVER: TYPE_BASE_URL_SERVER<
     TYPE_DOMAIN,
+    '/',
     TYPE_PORT_SERVER
 > =
     BUILD_ENV === 'LOCAL'
