@@ -72,6 +72,26 @@ export const CommentMetadata = styled.div`
 export const CommentDate = styled.span`
     color: ${(props) => props.theme.text.colour.light_grey()};
     font-size: 0.85em;
+    position: relative;
+    cursor: ${(props) => (props['data-title'] ? 'help' : 'default')};
+
+    /* Custom tooltip styling using data-title instead of title to avoid native tooltips */
+    &[data-title]:hover::after {
+        content: attr(data-title);
+        position: absolute;
+        left: 0;
+        top: 100%;
+        z-index: 100;
+        background-color: #333;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        margin-top: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        pointer-events: none;
+    }
 `;
 
 export const EditedMark = styled.span`

@@ -87,15 +87,21 @@ export function CommentItem({
         ? '[deleted]'
         : comment.author?.username || 'Unknown User';
 
-    // Format dates
-    const formattedDate = formatDistanceToNow(new Date(comment.createdAt), {
-        addSuffix: true
-    });
-    const fullDate = format(new Date(comment.createdAt), 'PPpp');
-
     // Check if comment has been edited
     const isEdited =
         comment.lastEditedAt && comment.lastEditedAt !== comment.createdAt;
+
+    // Format dates
+    // Display fixed timestamp with seconds and 24-hour format
+    const displayDate =
+        isEdited && comment.lastEditedAt
+            ? format(new Date(comment.lastEditedAt), 'yyyy-MM-dd HH:mm:ss')
+            : format(new Date(comment.createdAt), 'yyyy-MM-dd HH:mm:ss');
+
+    // Only provide hover tooltip for edited comments
+    const tooltipDate = isEdited
+        ? `Created: ${format(new Date(comment.createdAt), 'yyyy-MM-dd HH:mm:ss')}`
+        : '';
 
     // Check user reactions to this comment
     const hasUserLiked: boolean | undefined = currentUser
@@ -327,8 +333,8 @@ export function CommentItem({
             <ProfileCommentItem deleted={comment.deleted}>
                 <CommentHeader>
                     <CommentMetadata>
-                        <CommentDate title={fullDate}>
-                            {formattedDate}
+                        <CommentDate data-title={tooltipDate}>
+                            {displayDate}
                         </CommentDate>
                     </CommentMetadata>
 
@@ -387,17 +393,11 @@ export function CommentItem({
                     <CommentAuthor>{authorName}</CommentAuthor>
 
                     <CommentMetadata>
-                        <CommentDate title={fullDate}>
-                            {formattedDate}
+                        <CommentDate data-title={tooltipDate}>
+                            {displayDate}
                         </CommentDate>
 
-                        {isEdited && (
-                            <EditedMark
-                                title={`Edited ${formatDistanceToNow(new Date(comment.lastEditedAt!), { addSuffix: true })}`}
-                            >
-                                (edited)
-                            </EditedMark>
-                        )}
+                        {isEdited && <EditedMark>(edited)</EditedMark>}
                     </CommentMetadata>
 
                     {!comment.deleted && (

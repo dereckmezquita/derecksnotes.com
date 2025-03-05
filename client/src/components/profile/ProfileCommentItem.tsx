@@ -47,6 +47,26 @@ const CommentMetadata = styled.div`
 const CommentDate = styled.span`
     color: ${(props) => props.theme.text.colour.light_grey()};
     font-size: ${(props) => props.theme.text.size.small};
+    position: relative;
+    cursor: ${(props) => (props['data-title'] ? 'help' : 'default')};
+
+    /* Custom tooltip styling using data-title instead of title to avoid native tooltips */
+    &[data-title]:hover::after {
+        content: attr(data-title);
+        position: absolute;
+        left: 0;
+        top: 100%;
+        z-index: 100;
+        background-color: #333;
+        color: white;
+        padding: 5px 10px;
+        border-radius: 4px;
+        font-size: 12px;
+        white-space: nowrap;
+        margin-top: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        pointer-events: none;
+    }
 `;
 
 const CommentActions = styled.div`
@@ -140,10 +160,21 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
     Checkbox
 }) => {
     const isAuthor = currentUser && currentUser.id === comment.author?._id;
-    const formattedDate = formatDistanceToNow(new Date(comment.createdAt), {
-        addSuffix: true
-    });
-    const fullDate = format(new Date(comment.createdAt), 'PPpp');
+
+    // Check if comment has been edited
+    const isEdited =
+        comment.lastEditedAt && comment.lastEditedAt !== comment.createdAt;
+
+    // Display fixed timestamp with seconds and 24-hour format
+    const displayDate =
+        isEdited && comment.lastEditedAt
+            ? format(new Date(comment.lastEditedAt), 'yyyy-MM-dd HH:mm:ss')
+            : format(new Date(comment.createdAt), 'yyyy-MM-dd HH:mm:ss');
+
+    // Only provide hover tooltip for edited comments
+    const tooltipDate = isEdited
+        ? `Created: ${format(new Date(comment.createdAt), 'yyyy-MM-dd HH:mm:ss')}`
+        : '';
 
     return (
         <CommentItemContainer selected={selected} deleted={comment.deleted}>
@@ -155,7 +186,9 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
                             onChange={() => toggleSelect(comment._id)}
                         />
                     )}
-                    <CommentDate title={fullDate}>{formattedDate}</CommentDate>
+                    <CommentDate data-title={tooltipDate}>
+                        {displayDate}
+                    </CommentDate>
                 </CommentMetadata>
 
                 {!comment.deleted && isAuthor && (

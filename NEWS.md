@@ -53,4 +53,11 @@ This release implements a comprehensive environment variable management system w
 - Better separation of concerns
 - More extensible architecture for future features
 
+#### Comment Timestamp Improvements
+- Changed comment timestamps from relative time format ("5 minutes ago") to absolute timestamps with format YYYY-MM-DD HH:MM:SS
+- For edited comments, display the last edit timestamp by default
+- Added hover tooltip functionality for edited comments that shows the original creation time
+- Improved user experience with custom styled tooltips
+- Consistent implementation across both regular comments and profile page comments
+
 ## Coming Soon
