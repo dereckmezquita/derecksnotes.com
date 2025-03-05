@@ -46,7 +46,10 @@ app.use(
 
 app.use(
     session({
-        store: new RedisStore({ client: db.redis }),
+        store: new RedisStore({
+            client: db.redis,
+            ttl: constants.SESSION_MAX_AGE / 1000 // convert ms to seconds
+        }),
         secret: env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
@@ -56,7 +59,13 @@ app.use(
             httpOnly: true,
             maxAge: constants.SESSION_MAX_AGE,
             path: '/',
-            sameSite: 'lax'
+            sameSite: 'lax',
+            domain:
+                env.DOMAIN === 'localhost'
+                    ? undefined
+                    : env.DOMAIN.includes('.derecksnotes.com')
+                      ? '.derecksnotes.com'
+                      : env.DOMAIN
         }
     })
 );
@@ -79,6 +88,14 @@ if (env.BUILD_ENV !== 'PROD') {
     // Log all incoming requests with basic info
     app.use((req: Request, res: Response, next: NextFunction) => {
         console.log('Incoming request: ', req.method, req.url);
+        next();
+    });
+
+    // Add session tracking middleware for debugging
+    app.use((req: Request, res: Response, next: NextFunction) => {
+        console.log('Session ID:', req.sessionID);
+        console.log('Session Data:', JSON.stringify(req.session));
+        console.log('Cookie Header:', req.headers.cookie);
         next();
     });
 

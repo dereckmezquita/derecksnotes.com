@@ -345,8 +345,8 @@ router.post('/auth/logout', (req: Request, res: Response) => {
             });
         }
 
-        // Clear cookies
-        res.clearCookie('connect.sid');
+        // Clear cookies - use the correct cookie name
+        res.clearCookie('derecksnotes.sid');
         res.json({ message: 'Logged out successfully' });
     });
 });

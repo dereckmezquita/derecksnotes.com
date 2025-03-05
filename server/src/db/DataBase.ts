@@ -68,6 +68,18 @@ class DataBases {
                 console.log(`Redis client connected to ${env.REDIS_URI}`);
             });
 
+            this.redisClient.on('ready', () => {
+                console.log('Redis client ready for commands');
+            });
+
+            this.redisClient.on('reconnecting', () => {
+                console.log('Redis client reconnecting');
+            });
+
+            this.redisClient.on('end', () => {
+                console.log('Redis client connection closed');
+            });
+
             this.redisClient.on('error', (error) => {
                 console.error('Redis client error:', error);
 
