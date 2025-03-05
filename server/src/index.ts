@@ -58,18 +58,18 @@ app.use(
     })
 );
 
-// -----
-app.get('/', async (req: Request, res: Response) => {
-    const status = await getServerStatus();
-    res.json(status);
-});
-
 // Use API_PREFIX from env configuration (already includes trailing slash)
 app.use(env.API_PREFIX, routes.auth);
 app.use(env.API_PREFIX, routes.comments);
 app.use(env.API_PREFIX, routes.profile);
 app.use(env.API_PREFIX, routes.test);
 // -----
+
+// -----
+app.get('/', async (req: Request, res: Response) => {
+    const status = await getServerStatus();
+    res.json(status);
+});
 
 // Add debugging middleware for non-production environments
 if (env.BUILD_ENV !== 'PROD') {

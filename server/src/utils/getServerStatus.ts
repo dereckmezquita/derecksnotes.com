@@ -26,6 +26,7 @@ export async function getServerStatus() {
         build: env.BUILD_ENV,
         domain: env.DOMAIN,
         port: env.PORT_SERVER,
+        api_prefix: env.API_PREFIX,
         base_url: env.BASE_URL_SERVER,
         datetime: new Date().toISOString(),
         buildTime: buildTime,
