@@ -30,81 +30,53 @@ knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
 
 # Preface
 
-Welcome to "Statistics with R: A Comprehensive Guide for the R Practitioner"—a definitive reference designed for those who already possess proficiency in R programming and seek to master statistical methodology through a computational lens. This book stands apart from typical statistics textbooks that focus primarily on theory or introductory R tutorials that merely scratch the surface of statistical applications.
+This book serves as the definitive compendium for statistical methods implemented in R. Unlike traditional statistics textbooks that merely present theory or elementary R tutorials that scratch the surface of statistical applications, "Statistics with R" assumes proficiency in R programming and focuses exclusively on robust statistical methodology through a computational lens.
 
-Our mission is clear: to bridge the chasm between theoretical statistics and practical implementation, providing a resource that working statisticians, data scientists, bioinformaticians, financial analysts, and researchers can reference daily. Every statistical concept presented herein is demonstrated through efficient R code, leveraging the power of modern packages like data.table for high-performance data manipulation and ggplot2 for publication-quality visualisations.
+Our aim is to bridge the gap between theoretical statistics and practical implementation, providing a resource that working statisticians, data scientists, researchers, and quantitative analysts can reference daily. Every concept is demonstrated through R code using modern packages like data.table for efficient data manipulation and ggplot2 for publication-quality visualisations. The examples draw from contemporary domains—bioinformatics, finance, environmental science, and social network analysis—reflecting the multidisciplinary nature of modern statistical practice.
 
-## Why This Book Is Different
-
-* **Assumes R Proficiency**: Unlike many statistics texts that teach basic R alongside statistics, we presume you're already comfortable with R programming. This allows us to focus exclusively on statistical methodology and its implementation.
-
-* **Practical, Code-First Approach**: Each statistical concept is explained through working code examples using real-world datasets.
-
-* **Focus on Modern Applications**: The examples draw from contemporary domains such as:
-  * Bioinformatics and genomics
-  * Financial markets and risk assessment
-  * Environmental modelling
-  * Social network analysis
-  * Machine learning applications
-
-* **Performance-Oriented**: We emphasize computational efficiency with data.table and vectorised operations, essential for working with large datasets common in modern statistical practice.
-
-* **Comprehensive Coverage**: From foundational probability theory to cutting-edge topics like Bayesian computation, causal inference, and deep learning applications in statistics.
-
-## How to Use This Book
-
-This is not merely a book to be read sequentially; it is designed as a comprehensive reference that can be consulted at any stage of statistical analysis:
-
-* Need to refresh your understanding of mixture models? Chapter 9 covers Bayesian methods in detail.
-* Implementing a time series approach for financial data? Chapter 8 provides practical examples with ARIMA and GARCH models.
-* Selecting the appropriate test for complex experimental designs? Chapter 5 guides you through the decision process with concrete implementations.
-
-In every case, you will find rigorous explanations accompanied by efficient, production-ready R code.
-
-## The Statistical Landscape
+This is not merely a book to be read sequentially; it is designed as a comprehensive reference that can be consulted at any stage of statistical analysis. Whether you need to refresh your understanding of mixture models, implement a novel time series approach, or select the appropriate test for complex experimental designs, you will find rigorous explanations accompanied by efficient, production-ready R code.
 
 The statistical landscape continues to evolve rapidly, and this book embraces both classical foundations and cutting-edge methodologies. Our focus remains steadfastly on statistical thinking—understanding when and why particular methods are appropriate—while providing the computational tools to implement these methods with confidence and precision.
 
-We believe that modern statistical practice is inherently computational. By combining strong theoretical understanding with practical implementation skills, statisticians can extract deeper insights from data and communicate findings more effectively.
+## How to Use This Book
 
-Let's begin the journey of mastering statistics through the powerful lens of R.
+This book is structured to serve multiple purposes:
 
-```{r preface_example, echo=TRUE}
-box::use(
-    data.table[data.table, .N, .SD],
-    ggplot2
-)
+* **As a reference manual**: The detailed table of contents and index allow you to quickly locate specific statistical techniques and their implementations.
+* **As a learning resource**: Each chapter builds upon fundamental concepts and progresses to advanced applications.
+* **As a source of code examples**: Every statistical method is accompanied by working R code that you can adapt to your own datasets.
+* **As a guide to statistical decision-making**: We emphasise not just how to implement methods, but when and why they are appropriate.
 
-# Creating a demonstration dataset
-set.seed(123)
-n <- 1000
-dt <- data.table(
-    x = rnorm(n),
-    group = sample(LETTERS[1:5], n, replace = TRUE)
-)
+The chapters are organised thematically, beginning with foundational concepts and progressing through increasingly sophisticated statistical methodologies. Throughout, we maintain a consistent focus on:
 
-# Calculate summary statistics by group
-summary_stats <- dt[, .(
-    count = .N,
-    mean = mean(x),
-    median = median(x),
-    sd = sd(x),
-    q25 = quantile(x, 0.25),
-    q75 = quantile(x, 0.75)
-), by = group]
+* Statistical reasoning and proper interpretation of results
+* Efficient computational implementation using data.table and other high-performance tools
+* Practical applications with real-world datasets
+* Modern best practices for reproducible research
 
-# Print the summary statistics
-summary_stats
+## Target Audience
 
-# Visualise the distribution by group
-ggplot2$ggplot(dt, ggplot2$aes(x = x, fill = group)) +
-    ggplot2$geom_density(alpha = 0.5) +
-    ggplot2$labs(
-        title = "Density Plot by Group",
-        x = "Value",
-        y = "Density"
-    ) +
-    ggplot2$theme_minimal()
-```
+This book is written for:
 
-This example illustrates our approach: clean, efficient code that combines statistical analysis with clear visualisation, all using modern R practices. Throughout this book, you'll find similar examples that build on these foundations to tackle increasingly complex statistical challenges.
+* Statisticians seeking efficient implementations of both standard and advanced methods
+* Data scientists with strong R skills looking to deepen their statistical knowledge
+* Researchers who need to apply appropriate statistical methodology to their domain-specific problems
+* Analysts in quantitative fields who require comprehensive statistical tools for data-driven decision making
+* Graduate students in statistics, data science, and quantitative disciplines
+
+While we assume proficiency with R programming, we do not assume prior expertise in statistics. Each concept is explained from first principles, but with a focus on practical implementation rather than mathematical derivation.
+
+## A Note on Approach
+
+In an era where data analysis often emphasises black-box machine learning tools, we deliberately focus on statistical understanding. The methods in this book are not merely techniques to be applied; they are frameworks for thinking about data and uncertainty. Throughout, we emphasise:
+
+* The conceptual foundations underlying each method
+* Diagnostics to assess model assumptions and performance
+* Interpretation of results in context
+* Limitations and potential pitfalls
+
+Our code examples prioritise clarity and efficiency, making heavy use of data.table for data manipulation and ggplot2 for visualisation. We avoid unnecessary abstraction and focus on code that is both instructive and practical for production environments.
+
+We hope that "Statistics with R" becomes your trusted companion in navigating the complex landscape of statistical analysis, providing both the theoretical insights and practical tools needed for rigorous data-driven work.
+
+—Dereck Mezquita

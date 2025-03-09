@@ -1,0 +1,1297 @@
+---
+title: "Statistics with R"
+chapter: "Foundations of Statistical Thinking"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+# Foundations of Statistical Thinking
+
+Statistical thinking represents a systematic framework for extracting meaningful insights from data. The foundations of statistical thinking encompass not only the technical methodologies but also the conceptual underpinnings that guide the scientific inquiry process. This chapter establishes the groundwork for understanding how statistical principles operate within modern data analysis workflows and introduces the essential computational tools for implementing these principles in R.
+
+## 1.1 The Role of Statistics in the Modern Scientific Process
+
+Statistics serves as the cornerstone of empirical research, providing a rigorous framework for transforming raw observations into substantiated conclusions. In contemporary scientific practice, the statistical approach has evolved from simple data summarisation into a sophisticated arsenal of techniques for inference, prediction, and causal reasoning.
+
+### 1.1.1 From Data Collection to Inference
+
+The journey from raw data to scientific insight follows a structured pathway that requires careful consideration at each stage.
+
+```{r data_collection_process, echo=FALSE}
+box::use(
+    data.table[as.data.table],
+    ggplot2
+)
+
+# Create a simple diagram data
+process_stages <- c("Research Question", "Study Design", "Data Collection", 
+                   "Data Preprocessing", "Exploratory Analysis", 
+                   "Statistical Modelling", "Inference & Conclusions")
+                   
+stage_lengths <- c(5, 7, 10, 12, 8, 15, 10)
+
+process_data <- data.table(
+    Stage = factor(process_stages, levels = process_stages),
+    Value = stage_lengths,
+    Category = c("Planning", "Planning", "Execution", "Analysis", 
+                "Analysis", "Analysis", "Interpretation")
+)
+
+# Plot diagram
+ggplot2$ggplot(process_data, ggplot2$aes(x = Stage, y = Value, fill = Category)) +
+    ggplot2$geom_col() +
+    ggplot2$coord_flip() +
+    ggplot2$theme_minimal() +
+    ggplot2$labs(title = "The Data Analysis Process",
+                 y = "Relative Effort",
+                 fill = "Process Phase") +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+This process encompasses:
+
+* **Research Question Formulation**: Defining precise, testable hypotheses that guide subsequent statistical inquiry.
+* **Study Design**: Establishing sampling strategies, measurement protocols, and experimental controls to minimise bias and variability.
+* **Data Collection**: Gathering observations through methods appropriate to the research domain with attention to quality assurance.
+* **Data Preprocessing**: Cleaning, transforming, and structuring data to prepare it for analysis.
+* **Exploratory Analysis**: Investigating patterns, relationships, and anomalies in the data through graphical and numerical summaries.
+* **Statistical Modelling**: Formalising relationships between variables to quantify uncertainty and test hypotheses.
+* **Inference & Conclusions**: Drawing generalised conclusions from sample data while acknowledging limitations and uncertainties.
+
+Statistical inference represents the process of drawing conclusions about populations based on sample data. This requires:
+
+1. Careful consideration of the sampling mechanism
+2. Quantification of uncertainty in estimates
+3. Evaluation of the strength of evidence against null hypotheses
+4. Transparent reporting of analysis decisions
+
+```{r inference_example, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Generate sample data from two populations
+set.seed(42)
+n_per_group <- 100
+population_a <- rnorm(n_per_group, mean = 10, sd = 2)
+population_b <- rnorm(n_per_group, mean = 11, sd = 2)
+
+# Create a data.table with the sample data
+inference_data <- as.data.table(
+    data.frame(
+        value = c(population_a, population_b),
+        group = rep(c("A", "B"), each = n_per_group)
+    )
+)
+
+# Calculate summary statistics
+group_stats <- inference_data[, .(
+    mean = mean(value),
+    sd = sd(value),
+    se = sd(value) / sqrt(.N),
+    lower_ci = mean(value) - 1.96 * sd(value) / sqrt(.N),
+    upper_ci = mean(value) + 1.96 * sd(value) / sqrt(.N)
+), by = group]
+
+print(group_stats)
+
+# Visualise the inference
+ggplot2$ggplot(inference_data, ggplot2$aes(x = group, y = value, fill = group)) +
+    ggplot2$geom_violin(alpha = 0.5) +
+    ggplot2$geom_boxplot(width = 0.2, alpha = 0.7) +
+    ggplot2$geom_errorbar(data = group_stats, 
+                         ggplot2$aes(y = mean, ymin = lower_ci, ymax = upper_ci),
+                         width = 0.3, size = 1) +
+    ggplot2$geom_point(data = group_stats, 
+                      ggplot2$aes(y = mean),
+                      size = 3, shape = 18) +
+    ggplot2$labs(title = "Inference Example: Comparing Two Groups",
+                subtitle = "Points show means with 95% confidence intervals",
+                y = "Measured Value") +
+    ggplot2$theme_minimal()
+
+# Perform t-test
+t_result <- t.test(value ~ group, data = inference_data)
+print(t_result)
+```
+
+The example above demonstrates the process of statistical inference, comparing two groups with:
+
+* Visualisation of the sample distributions
+* Calculation of point estimates (means) and interval estimates (confidence intervals)
+* Formal hypothesis testing (t-test) to quantify the evidence for a difference
+
+### 1.1.2 Confirmatory vs. Exploratory Analysis
+
+Statistical analyses can be broadly categorised into two complementary approaches, each with distinct objectives and methodological considerations.
+
+**Confirmatory Analysis** involves testing pre-specified hypotheses using formal statistical methods. It requires:
+
+* Precise hypothesis formulation prior to data collection
+* Pre-registration of analysis plans to prevent data-driven decisions
+* Control of Type I error rates through appropriate significance thresholds
+* Adherence to assumptions of statistical tests
+* Careful interpretation of p-values and confidence intervals
+
+**Exploratory Analysis** focuses on pattern discovery and hypothesis generation. It encompasses:
+
+* Visualisation techniques to identify trends and relationships
+* Data mining to detect unexpected associations
+* Iterative model building to understand complex relationships
+* Generation of hypotheses for future confirmatory studies
+* Descriptive statistics to characterise data structure
+
+The key distinctions between these approaches include:
+
+| Aspect | Confirmatory Analysis | Exploratory Analysis |
+|--------|----------------------|---------------------|
+| Timing | Hypotheses specified before data collection | Patterns identified after examining data |
+| Error Control | Strict control of Type I error | Less emphasis on formal error rates |
+| Result Interpretation | Findings considered evidence for/against hypotheses | Findings viewed as tentative and requiring validation |
+| Reporting | Pre-registered analysis plan followed precisely | Multiple analyses may be conducted and reported selectively |
+| Statistical Significance | Formal testing with predetermined thresholds | Focus on effect sizes and patterns rather than significance |
+
+```{r exploratory_example, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Load the iris dataset for exploratory analysis
+iris_dt <- as.data.table(iris)
+
+# Calculate correlation matrix
+cor_matrix <- cor(iris_dt[, .SD, .SDcols = is.numeric])
+print(cor_matrix)
+
+# Create a correlation heatmap
+cor_data <- as.data.table(reshape2::melt(cor_matrix))
+setnames(cor_data, c("Var1", "Var2", "value"), c("Variable1", "Variable2", "Correlation"))
+
+# Visualise correlations
+ggplot2$ggplot(cor_data, ggplot2$aes(x = Variable1, y = Variable2, fill = Correlation)) +
+    ggplot2$geom_tile() +
+    ggplot2$scale_fill_gradient2(low = "blue", high = "red", mid = "white", 
+                             midpoint = 0, limit = c(-1,1)) +
+    ggplot2$geom_text(ggplot2$aes(label = round(Correlation, 2)), color = "black", size = 3) +
+    ggplot2$theme_minimal() +
+    ggplot2$labs(title = "Exploratory Analysis: Correlation Heatmap",
+                subtitle = "Looking for patterns among iris measurements")
+```
+
+In the exploratory analysis example above, we:
+
+1. Calculate correlations between numeric variables in the iris dataset
+2. Visualise these correlations using a heatmap
+3. Identify potential patterns (e.g., strong positive correlation between petal length and width)
+
+These observations would inform subsequent confirmatory analyses, such as testing specific hypotheses about the relationships between these variables.
+
+### 1.1.3 Statistical Paradigms: Frequentist, Bayesian, and Likelihoodist Approaches
+
+Three major statistical paradigms provide different philosophical frameworks for inference, each with distinct approaches to quantifying evidence and uncertainty.
+
+**The Frequentist Paradigm** defines probability in terms of long-run frequency of events in repeated experiments. Key characteristics include:
+
+* Inference based on the sampling distribution of statistics
+* P-values interpreted as the probability of observing data as extreme or more extreme than observed, assuming the null hypothesis is true
+* Confidence intervals representing ranges that would contain the true parameter in a specified proportion of repeated samples
+* Focus on hypothesis testing and controlling error rates
+* No incorporation of prior knowledge in a formal manner
+
+**The Bayesian Paradigm** interprets probability as a degree of belief that can be updated with new evidence. It features:
+
+* Explicit incorporation of prior knowledge through probability distributions
+* Posterior distributions that combine prior beliefs with observed data via Bayes' theorem
+* Direct probability statements about parameters (e.g., "95% probability the parameter lies in this interval")
+* Natural framework for sequential updating as new data arrive
+* Focus on the entire distribution of parameters rather than point estimates
+
+**The Likelihoodist Paradigm** bases inference solely on the likelihood function, which measures the relative support that different parameter values receive from the observed data. It is characterised by:
+
+* The Likelihood Principle, which states that all evidential information in the data is contained in the likelihood function
+* Law of Likelihood, which compares the support for competing hypotheses through likelihood ratios
+* Avoidance of prior distributions (unlike Bayesian methods) and sampling distributions (unlike frequentist methods)
+* Evidence measured by relative, not absolute, support for parameter values
+* No formal procedure for hypothesis testing or interval estimation
+
+```{r paradigm_comparison, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Generate data for a simple coin flip example
+set.seed(123)
+n_flips <- 20
+n_heads <- 14
+n_tails <- n_flips - n_heads
+
+# Function to calculate binomial likelihood
+calc_likelihood <- function(theta, heads, tails) {
+    dbinom(heads, heads + tails, prob = theta)
+}
+
+# Function to calculate posterior with Beta(1,1) prior
+calc_posterior <- function(theta, heads, tails) {
+    dbeta(theta, heads + 1, tails + 1)
+}
+
+# Create a sequence of possible probability values
+theta_seq <- seq(0, 1, length.out = 100)
+
+# Calculate likelihood and posterior for each theta
+inference_dt <- as.data.table(data.frame(
+    theta = theta_seq,
+    likelihood = sapply(theta_seq, calc_likelihood, heads = n_heads, tails = n_tails),
+    posterior = sapply(theta_seq, calc_posterior, heads = n_heads, tails = n_tails)
+))
+
+# Scale likelihood to compare with posterior
+inference_dt[, likelihood_scaled := likelihood / max(likelihood) * max(posterior)]
+
+# Calculate frequentist confidence interval
+conf_level <- 0.95
+p_hat <- n_heads / n_flips
+margin <- qnorm((1 + conf_level) / 2) * sqrt(p_hat * (1 - p_hat) / n_flips)
+ci_lower <- max(0, p_hat - margin)
+ci_upper <- min(1, p_hat + margin)
+
+# Calculate Bayesian credible interval
+cred_lower <- qbeta((1 - conf_level) / 2, n_heads + 1, n_tails + 1)
+cred_upper <- qbeta((1 + conf_level) / 2, n_heads + 1, n_tails + 1)
+
+# Create data for interval visualization
+freq_ci <- data.table(
+    paradigm = "Frequentist",
+    estimate = p_hat,
+    lower = ci_lower,
+    upper = ci_upper
+)
+
+bayes_ci <- data.table(
+    paradigm = "Bayesian",
+    estimate = (n_heads + 1) / (n_flips + 2),  # posterior mean with Beta(1,1) prior
+    lower = cred_lower,
+    upper = cred_upper
+)
+
+intervals <- rbind(freq_ci, bayes_ci)
+
+# Plot the likelihood, posterior, and intervals
+ggplot2$ggplot() +
+    # Likelihood curve
+    ggplot2$geom_line(data = inference_dt, 
+                     ggplot2$aes(x = theta, y = likelihood_scaled, color = "Likelihood"),
+                     size = 1) +
+    # Posterior curve
+    ggplot2$geom_line(data = inference_dt, 
+                     ggplot2$aes(x = theta, y = posterior, color = "Posterior"),
+                     size = 1) +
+    # Frequentist CI
+    ggplot2$geom_segment(data = freq_ci, 
+                        ggplot2$aes(x = lower, xend = upper, 
+                                   y = max(inference_dt$posterior) * 0.1, 
+                                   yend = max(inference_dt$posterior) * 0.1,
+                                   color = "Frequentist CI"),
+                        size = 2) +
+    # Bayesian credible interval
+    ggplot2$geom_segment(data = bayes_ci, 
+                        ggplot2$aes(x = lower, xend = upper, 
+                                   y = max(inference_dt$posterior) * 0.2, 
+                                   yend = max(inference_dt$posterior) * 0.2,
+                                   color = "Bayesian CI"),
+                        size = 2) +
+    # Point estimates
+    ggplot2$geom_point(data = intervals, 
+                      ggplot2$aes(x = estimate, y = c(max(inference_dt$posterior) * 0.1, 
+                                                    max(inference_dt$posterior) * 0.2),
+                                 color = paradigm),
+                      size = 4) +
+    # Labels
+    ggplot2$labs(title = "Comparison of Statistical Paradigms",
+                subtitle = paste("Coin flip example:", n_heads, "heads in", n_flips, "flips"),
+                x = "Probability of Heads (θ)",
+                y = "Density",
+                color = "Method") +
+    ggplot2$theme_minimal() +
+    ggplot2$scale_color_manual(values = c("Likelihood" = "blue", 
+                                        "Posterior" = "red",
+                                        "Frequentist CI" = "darkgreen",
+                                        "Bayesian CI" = "purple",
+                                        "Frequentist" = "darkgreen",
+                                        "Bayesian" = "purple"))
+```
+
+The example above illustrates how the different paradigms approach inference for a simple coin-flipping experiment:
+
+* The **likelihood function** (blue curve) shows the relative support for different probability values based solely on the observed data.
+* The **posterior distribution** (red curve) incorporates prior information (here, a uniform Beta(1,1) prior) with the likelihood.
+* The **frequentist confidence interval** (green line) is based on sampling distributions and has the interpretation that 95% of such intervals would contain the true parameter in repeated sampling.
+* The **Bayesian credible interval** (purple line) has the direct interpretation that the probability is 95% that the true parameter lies within the interval, given the data and prior.
+
+Each paradigm has strengths and limitations, and the choice among them often depends on:
+
+* The research question and objectives
+* Available prior information
+* Computational considerations
+* Philosophical perspective on probability
+* Interpretational preferences
+
+In modern statistical practice, analysts often pragmatically draw from multiple paradigms, selecting the most appropriate approach for specific contexts.
+
+## 1.2 Working with Data in R
+
+Efficient data manipulation forms the foundation of statistical analysis. R provides a rich ecosystem for working with data, with several frameworks offering different approaches to data transformation and analysis.
+
+### 1.2.1 Efficient Data Structures for Statistical Computing
+
+R offers several data structures for statistical analysis, each with distinct characteristics that make them suitable for different analytical scenarios.
+
+**Key Data Structures in R:**
+
+* **Vectors**: Atomic sequences of elements of the same type (numeric, character, logical)
+* **Matrices**: Two-dimensional arrays with elements of the same type
+* **Arrays**: Multi-dimensional extensions of matrices
+* **Lists**: Ordered collections that can contain elements of different types
+* **Data Frames**: Two-dimensional tabular structures that can contain columns of different types
+* **data.table**: Enhanced version of data.frame with optimised performance
+* **tibble**: Modern reimagining of data.frame from the tidyverse ecosystem
+
+When dealing with statistical analyses, the choice of data structure significantly impacts:
+
+1. **Computational efficiency**: Memory usage and processing speed
+2. **Code readability**: Intuitive expression of analytical intentions
+3. **Analytical flexibility**: Ease of implementing complex transformations
+
+The following example illustrates performance comparisons between different data structures for common operations:
+
+```{r data_structure_comparison, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=, data.table],
+    ggplot2,
+    microbenchmark
+)
+
+# Create test datasets of different sizes
+sizes <- c(1e3, 1e4, 1e5)
+benchmark_results <- data.table()
+
+for (size in sizes) {
+    # Create sample data
+    set.seed(42)
+    df_data <- data.frame(
+        id = 1:size,
+        value1 = rnorm(size),
+        value2 = rnorm(size),
+        group = sample(LETTERS[1:5], size, replace = TRUE)
+    )
+    
+    dt_data <- as.data.table(df_data)
+    
+    # Benchmark operations
+    bm <- microbenchmark::microbenchmark(
+        df_subset = df_data[df_data$group == "A", ],
+        dt_subset = dt_data[group == "A", ],
+        
+        df_aggregate = aggregate(value1 ~ group, data = df_data, FUN = mean),
+        dt_aggregate = dt_data[, .(mean_val = mean(value1)), by = group],
+        
+        df_transform = transform(df_data, value3 = value1 + value2),
+        dt_transform = dt_data[, value3 := value1 + value2],
+        
+        times = 10
+    )
+    
+    # Process results
+    bm_dt <- as.data.table(bm)
+    bm_dt[, size := size]
+    
+    # Add to results
+    benchmark_results <- rbind(benchmark_results, bm_dt)
+}
+
+# Process for plotting
+benchmark_plot <- benchmark_results[, .(
+    median_time = median(time) / 1e6,  # Convert to milliseconds
+    operation = expr
+), by = size]
+
+# Extract operation type and structure
+benchmark_plot[, c("structure", "operation_type") := 
+                  tstrsplit(as.character(operation), "_", fixed = TRUE)]
+
+# Plot results
+ggplot2$ggplot(benchmark_plot, 
+              ggplot2$aes(x = as.factor(size), y = median_time, 
+                         fill = structure, group = structure)) +
+    ggplot2$geom_bar(stat = "identity", position = "dodge") +
+    ggplot2$facet_wrap(~operation_type, scales = "free_y") +
+    ggplot2$scale_y_log10() +
+    ggplot2$labs(title = "Performance Comparison: data.frame vs data.table",
+                subtitle = "Median execution time in milliseconds (log scale)",
+                x = "Dataset Size",
+                y = "Time (ms)",
+                fill = "Structure") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+The benchmark results demonstrate that:
+
+* `data.table` consistently outperforms `data.frame` for common operations, with the performance gap widening as dataset size increases
+* The efficiency advantage is particularly pronounced for aggregation operations
+* The syntax differences between structures reflect different design philosophies
+
+For most statistical applications in this book, we will use `data.table` as our primary data structure due to its:
+
+1. Superior performance for large datasets
+2. Concise syntax for complex data manipulations
+3. Memory efficiency
+4. Built-in optimisations for grouped operations
+5. Reference semantics that allow in-place modifications
+
+### 1.2.2 Data.table for High-Performance Data Manipulation
+
+The `data.table` package offers a high-performance extension of R's `data.frame`, optimised for working with large datasets. Its syntax follows a conceptual formula of `DT[i, j, by]`, where:
+
+* `i` specifies which rows to select
+* `j` specifies what to do with the selected rows
+* `by` specifies groups within which to perform operations
+
+This concise syntax allows for expressing complex data manipulations in a readable and efficient manner.
+
+```{r data_table_basics, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=, data.table, setkey, .I, fread],
+    ggplot2
+)
+
+# Create a data.table
+dt <- data.table(
+    id = 1:1000,
+    value = rnorm(1000),
+    group = sample(LETTERS[1:5], 1000, replace = TRUE),
+    subgroup = sample(letters[1:3], 1000, replace = TRUE)
+)
+
+# Basic row filtering (i)
+head(dt[value > 0])
+
+# Column selection (j)
+head(dt[, .(id, group)])
+
+# Computed columns (j)
+head(dt[, .(id, normalised = (value - mean(value)) / sd(value))])
+
+# Grouping operations (by)
+dt[, .(mean_value = mean(value), count = .N), by = group]
+
+# Chaining operations
+result <- dt[
+    value > 0,                             # Filter rows
+    .(mean_val = mean(value),              # Compute aggregates
+      count = .N),
+    by = .(group, subgroup)                # Group by multiple columns
+][
+    order(-mean_val)                       # Order results
+]
+
+head(result)
+
+# Update by reference (efficient in-place modification)
+dt[, normalised := (value - mean(value)) / sd(value)]
+head(dt)
+
+# Special symbols in data.table
+# .N - number of rows
+# .SD - Subset of Data (all columns except grouping columns)
+# .I - Row numbers
+# := - Assignment by reference
+
+# Advanced example: operations by group with .SD
+dt[, lapply(.SD, mean), by = group, .SDcols = c("value", "normalised")]
+
+# Set keys for faster joins and subsetting
+setkey(dt, group, subgroup)
+dt["A", ]  # Quickly select rows where group = "A"
+
+# Join operations
+dt1 <- data.table(group = LETTERS[1:5], factor = rnorm(5))
+result <- dt[dt1, on = "group"]  # Join dt with dt1
+head(result)
+
+# Reading data efficiently
+# fread is extremely fast for reading CSV files
+# Example (commented out since file doesn't exist)
+# large_dt <- fread("large_file.csv")
+```
+
+Key advantages of `data.table` include:
+
+* **Concise syntax**: Complex operations expressed in a single statement
+* **Performance**: Highly optimised for speed and memory efficiency
+* **Reference semantics**: In-place modifications with `:=`
+* **Automatic indexing**: Faster subsetting and joins with keys
+* **Optimised file I/O**: Fast reading of data with `fread`
+
+For statistical analysis, these features translate to:
+
+1. **Efficient data preprocessing**: Cleaning and transforming large datasets quickly
+2. **Fast aggregation**: Computing summary statistics across groups
+3. **Memory-efficient operations**: Working with larger-than-memory datasets
+4. **Expressive syntax**: Representing complex statistical transformations clearly
+
+### 1.2.3 Tidy Data Principles and Their Implementation
+
+Tidy data principles provide a standardised approach to structuring datasets that facilitates analysis and visualisation. The concept, formalised by Hadley Wickham, specifies that in tidy data:
+
+1. Each variable forms a column
+2. Each observation forms a row
+3. Each type of observational unit forms a table
+
+While `data.table` does not explicitly emphasise the tidy data philosophy, it provides efficient tools for transforming data into tidy format and working with tidy data structures.
+
+```{r tidy_data, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=, data.table, melt, dcast],
+    ggplot2
+)
+
+# Create a messy dataset
+messy_data <- data.table(
+    subject = paste0("subject_", 1:5),
+    treatment_a = rnorm(5, mean = 10, sd = 2),
+    treatment_b = rnorm(5, mean = 12, sd = 2),
+    treatment_c = rnorm(5, mean = 9, sd = 2)
+)
+
+print(messy_data)
+
+# Convert to tidy format using melt (long format)
+tidy_data <- melt(
+    messy_data,
+    id.vars = "subject",
+    measure.vars = c("treatment_a", "treatment_b", "treatment_c"),
+    variable.name = "treatment",
+    value.name = "response"
+)
+
+print(tidy_data)
+
+# The tidy data is easier to visualise
+ggplot2$ggplot(tidy_data, ggplot2$aes(x = treatment, y = response, group = subject, color = subject)) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$geom_line() +
+    ggplot2$theme_minimal() +
+    ggplot2$labs(title = "Treatment Responses by Subject",
+                x = "Treatment",
+                y = "Response Value")
+
+# We can easily perform analyses on tidy data
+tidy_data[, .(
+    mean_response = mean(response),
+    sd_response = sd(response),
+    min_response = min(response),
+    max_response = max(response)
+), by = treatment]
+
+# Convert back to wide format using dcast
+wide_data <- dcast(tidy_data, subject ~ treatment, value.var = "response")
+print(wide_data)
+
+# Handling multiple value columns
+complex_data <- data.table(
+    subject = rep(paste0("subject_", 1:5), each = 3),
+    treatment = rep(c("A", "B", "C"), 5),
+    response = rnorm(15, mean = 10, sd = 2),
+    side_effect = sample(0:5, 15, replace = TRUE)
+)
+
+# Multiple value variables in dcast
+multi_wide <- dcast(
+    complex_data,
+    subject ~ treatment,
+    value.var = c("response", "side_effect")
+)
+
+print(multi_wide)
+```
+
+Benefits of working with tidy data include:
+
+* **Consistency**: Uniform structure for different analyses
+* **Simplicity**: Focus on one operation per analysis step
+* **Compatibility**: Works seamlessly with visualisation tools
+* **Modularity**: Easier to combine and extend analyses
+
+In practice, real-world data often requires transformation between wide and long formats depending on the specific analysis. `data.table` provides efficient functions for these transformations:
+
+* `melt`: Converts from wide to long format
+* `dcast`: Converts from long to wide format
+
+These functions offer significant performance advantages over their base R equivalents, particularly for large datasets.
+
+## 1.3 Principles of Statistical Graphics
+
+Effective visualisation is fundamental to both exploratory data analysis and communication of statistical results. Well-designed statistical graphics reveal patterns, highlight relationships, and communicate complex findings with clarity.
+
+### 1.3.1 The Grammar of Graphics Framework
+
+The Grammar of Graphics, developed by Leland Wilkinson and implemented in R through the `ggplot2` package, provides a coherent system for describing and constructing statistical graphics. This framework decomposes visualisations into semantic components including:
+
+* **Data**: The dataset being visualised
+* **Aesthetics**: Mappings from data variables to visual properties (position, color, size, etc.)
+* **Geometries**: Visual elements representing data points (points, lines, bars, etc.)
+* **Facets**: Subdivision of the data into multiple plots
+* **Statistics**: Statistical transformations applied to the data (binning, summarisation, etc.)
+* **Coordinates**: The space in which the data is projected
+* **Themes**: Visual styling of non-data elements
+
+This layered approach to visualisation allows for creating complex graphics through the composition of simple elements.
+
+```{r grammar_of_graphics, echo=TRUE}
+box::use(
+    data.table[as.data.table],
+    ggplot2
+)
+
+# Load and prepare data
+diamonds_dt <- as.data.table(ggplot2$diamonds)
+
+# Basic plot with aesthetics mapping
+p <- ggplot2$ggplot(diamonds_dt, ggplot2$aes(x = carat, y = price))
+
+# Add geometric elements
+p1 <- p + ggplot2$geom_point(alpha = 0.3, ggplot2$aes(color = cut))
+
+# Add statistical transformation
+p2 <- p + 
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$geom_smooth(method = "lm")
+
+# Add faceting
+p3 <- p + 
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$facet_wrap(~cut)
+
+# Add coordinate transformation
+p4 <- p + 
+    ggplot2$geom_point(alpha = 0.3, ggplot2$aes(color = cut)) +
+    ggplot2$scale_x_log10() +
+    ggplot2$scale_y_log10()
+
+# Add theme customisation
+p5 <- p4 +
+    ggplot2$labs(
+        title = "Diamond Price vs. Carat Weight",
+        subtitle = "Log-log scale with color indicating cut quality",
+        x = "Carat (log scale)",
+        y = "Price (log scale)",
+        color = "Cut Quality"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(
+        legend.position = "bottom",
+        plot.title = ggplot2$element_text(face = "bold"),
+        axis.title = ggplot2$element_text(face = "italic")
+    )
+
+# Display the final plot
+print(p5)
+
+# Showcase layering of geometries and statistical transformations
+layered_plot <- ggplot2$ggplot(diamonds_dt, ggplot2$aes(x = carat, y = price)) +
+    # Hexagonal binning for density
+    ggplot2$geom_hex(bins = 50) +
+    # Add contour lines
+    ggplot2$geom_density_2d(color = "white", alpha = 0.5) +
+    # Add regression line
+    ggplot2$geom_smooth(method = "lm", color = "red", se = FALSE) +
+    # Define scales
+    ggplot2$scale_fill_viridis_c(option = "plasma", trans = "log10") +
+    # Labels and theme
+    ggplot2$labs(
+        title = "Diamond Price vs. Carat Weight",
+        subtitle = "Multiple layers showcase different aspects of the relationship",
+        x = "Carat",
+        y = "Price (USD)",
+        fill = "Count (log scale)"
+    ) +
+    ggplot2$theme_dark() +
+    ggplot2$theme(legend.position = "right")
+
+print(layered_plot)
+```
+
+The examples above demonstrate how the Grammar of Graphics enables:
+
+1. **Progressive construction** of visualisations through layering
+2. **Declarative specification** focusing on what to show rather than how to draw it
+3. **Compositional design** combining independent components to create complex graphics
+4. **Consistent structure** across different types of visualisations
+
+This approach leads to more systematic, reproducible, and adaptable visualisations for statistical analysis.
+
+### 1.3.2 Creating Informative Visualisations with ggplot2
+
+Effective statistical visualisations communicate insights clearly while maintaining analytical integrity. The `ggplot2` package, combined with `data.table` for data preparation, provides a powerful platform for creating visualisations that adhere to best practices.
+
+```{r informative_viz, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Create realistic dataset for demonstration
+set.seed(123)
+n <- 500
+viz_data <- data.table(
+    age = runif(n, min = 18, max = 75),
+    income = exp(rnorm(n, mean = log(45000), sd = 0.6)),
+    education = sample(c("High School", "Bachelor's", "Master's", "PhD"), n, 
+                      prob = c(0.4, 0.3, 0.2, 0.1), replace = TRUE),
+    gender = sample(c("Male", "Female", "Non-binary"), n, 
+                   prob = c(0.48, 0.48, 0.04), replace = TRUE),
+    region = sample(c("North", "South", "East", "West"), n, replace = TRUE)
+)
+
+# Add some systematic effects
+viz_data[education == "PhD", income := income * 1.4]
+viz_data[education == "Master's", income := income * 1.2]
+viz_data[gender == "Female", income := income * 0.85]  # Simulating gender wage gap
+viz_data[age > 50, income := income * 1.15]
+
+# Create multiple visualisations showcasing different aspects of the data
+
+# 1. Relationship between continuous variables with additional dimensions
+income_by_age <- ggplot2$ggplot(viz_data, 
+                              ggplot2$aes(x = age, y = income, color = education, shape = gender)) +
+    ggplot2$geom_point(alpha = 0.7) +
+    ggplot2$scale_y_continuous(labels = scales::dollar_format()) +
+    ggplot2$labs(
+        title = "Income Distribution by Age, Education, and Gender",
+        subtitle = "Points show individual observations",
+        x = "Age (years)",
+        y = "Annual Income",
+        color = "Education Level",
+        shape = "Gender"
+    ) +
+    ggplot2$theme_minimal()
+
+# 2. Categorical comparisons using box plots
+income_by_education <- ggplot2$ggplot(viz_data, 
+                                    ggplot2$aes(x = education, y = income, fill = gender)) +
+    ggplot2$geom_boxplot(alpha = 0.7) +
+    ggplot2$scale_y_continuous(labels = scales::dollar_format()) +
+    ggplot2$scale_x_discrete(limits = c("High School", "Bachelor's", "Master's", "PhD")) +
+    ggplot2$labs(
+        title = "Income Distribution by Education Level and Gender",
+        subtitle = "Box plots show median, IQR, and range",
+        x = "Education Level",
+        y = "Annual Income",
+        fill = "Gender"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+
+# 3. Faceted visualisation to compare subgroups
+income_by_region <- ggplot2$ggplot(viz_data, 
+                                 ggplot2$aes(x = age, y = income, color = gender)) +
+    ggplot2$geom_point(alpha = 0.5) +
+    ggplot2$geom_smooth(method = "loess", se = TRUE) +
+    ggplot2$facet_wrap(~region) +
+    ggplot2$scale_y_continuous(labels = scales::dollar_format()) +
+    ggplot2$labs(
+        title = "Income vs. Age by Region",
+        subtitle = "With gender differentiation and trend lines",
+        x = "Age (years)",
+        y = "Annual Income",
+        color = "Gender"
+    ) +
+    ggplot2$theme_minimal()
+
+# 4. Statistical summary with uncertainty
+income_summary <- viz_data[, .(
+    mean_income = mean(income),
+    median_income = median(income),
+    sd_income = sd(income),
+    n = .N,
+    se_income = sd(income) / sqrt(.N),
+    lower_ci = mean(income) - 1.96 * sd(income) / sqrt(.N),
+    upper_ci = mean(income) + 1.96 * sd(income) / sqrt(.N)
+), by = .(education, gender)]
+
+uncertainty_plot <- ggplot2$ggplot(income_summary, 
+                                 ggplot2$aes(x = education, y = mean_income, fill = gender)) +
+    ggplot2$geom_bar(stat = "identity", position = ggplot2$position_dodge(width = 0.9)) +
+    ggplot2$geom_errorbar(
+        ggplot2$aes(ymin = lower_ci, ymax = upper_ci),
+        position = ggplot2$position_dodge(width = 0.9),
+        width = 0.25
+    ) +
+    ggplot2$scale_y_continuous(labels = scales::dollar_format()) +
+    ggplot2$scale_x_discrete(limits = c("High School", "Bachelor's", "Master's", "PhD")) +
+    ggplot2$labs(
+        title = "Mean Income by Education Level and Gender",
+        subtitle = "Error bars show 95% confidence intervals",
+        x = "Education Level",
+        y = "Mean Annual Income",
+        fill = "Gender"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+
+# Display one of the plots
+print(uncertainty_plot)
+```
+
+The examples above demonstrate several principles for creating informative statistical visualisations:
+
+* **Clarity of purpose**: Each visualisation addresses a specific question
+* **Multiple dimensions**: Effective encoding of several variables using position, color, shape, and faceting
+* **Appropriate geoms**: Selection of visual representations that match the data type and analytical goal
+* **Statistical context**: Inclusion of trend lines, confidence intervals, and other statistical elements
+* **Clear labelling**: Informative titles, subtitles, axis labels, and legends
+* **Perceptual considerations**: Use of appropriate scales and visual encodings
+
+When creating statistical visualisations, consider these additional guidelines:
+
+1. **Show comparisons**: Focus on differences, relationships, and patterns
+2. **Show causality**: Where appropriate, highlight the direction of influence
+3. **Show multivariate data**: Reveal interactions between multiple variables
+4. **Integrate evidence**: Combine statistical summaries with raw data points
+5. **Maintain graphical integrity**: Avoid distortion through inappropriate scales or visual tricks
+6. **Acknowledge uncertainty**: Represent the precision of estimates through error bars or confidence bands
+
+### 1.3.3 Common Pitfalls in Statistical Visualisation
+
+Statistical visualisations can mislead when poorly designed or inappropriately used. Understanding common pitfalls helps in creating more accurate and effective graphics.
+
+```{r viz_pitfalls, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Create data for demonstration
+set.seed(456)
+pitfall_data <- data.table(
+    quarter = rep(c("Q1", "Q2", "Q3", "Q4"), 3),
+    year = rep(c("2020", "2021", "2022"), each = 4),
+    revenue = c(
+        100, 105, 103, 110,  # 2020
+        112, 120, 118, 125,  # 2021
+        127, 131, 130, 138   # 2022
+    )
+)
+
+# Pitfall 1: Truncated Y-axis
+truncated_axis <- ggplot2$ggplot(pitfall_data, ggplot2$aes(x = quarter, y = revenue, group = year, color = year)) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$ylim(c(95, 140)) +  # Truncated axis
+    ggplot2$labs(
+        title = "Revenue by Quarter (Truncated Y-axis)",
+        subtitle = "Truncating the y-axis exaggerates differences",
+        x = "Quarter",
+        y = "Revenue ($ thousands)",
+        color = "Year"
+    ) +
+    ggplot2$theme_minimal()
+
+# Corrected version
+proper_axis <- ggplot2$ggplot(pitfall_data, ggplot2$aes(x = quarter, y = revenue, group = year, color = year)) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$ylim(c(0, 140)) +  # Starting from zero
+    ggplot2$labs(
+        title = "Revenue by Quarter (Proper Y-axis)",
+        subtitle = "Starting from zero provides appropriate context",
+        x = "Quarter",
+        y = "Revenue ($ thousands)",
+        color = "Year"
+    ) +
+    ggplot2$theme_minimal()
+
+# Pitfall 2: Poor color choices
+poor_colors <- ggplot2$ggplot(pitfall_data, ggplot2$aes(x = quarter, y = revenue, fill = year)) +
+    ggplot2$geom_col(position = "dodge") +
+    ggplot2$scale_fill_manual(values = c("red", "green", "blue")) +  # Problematic for colorblind viewers
+    ggplot2$labs(
+        title = "Revenue by Quarter (Poor Color Choices)",
+        subtitle = "Red-green combinations are problematic for colorblind viewers",
+        x = "Quarter",
+        y = "Revenue ($ thousands)",
+        fill = "Year"
+    ) +
+    ggplot2$theme_minimal()
+
+# Corrected version
+proper_colors <- ggplot2$ggplot(pitfall_data, ggplot2$aes(x = quarter, y = revenue, fill = year)) +
+    ggplot2$geom_col(position = "dodge") +
+    ggplot2$scale_fill_viridis_d() +  # Colorblind-friendly palette
+    ggplot2$labs(
+        title = "Revenue by Quarter (Colorblind-Friendly)",
+        subtitle = "Viridis palette is distinguishable by most viewers",
+        x = "Quarter",
+        y = "Revenue ($ thousands)",
+        fill = "Year"
+    ) +
+    ggplot2$theme_minimal()
+
+# Pitfall 3: Overplotting
+set.seed(789)
+large_data <- data.table(
+    x = rnorm(5000),
+    y = rnorm(5000),
+    group = sample(LETTERS[1:3], 5000, replace = TRUE)
+)
+
+overplotting <- ggplot2$ggplot(large_data, ggplot2$aes(x = x, y = y, color = group)) +
+    ggplot2$geom_point() +  # All points opaque
+    ggplot2$labs(
+        title = "Scatter Plot with Overplotting",
+        subtitle = "Density is obscured by overlapping points",
+        x = "X Value",
+        y = "Y Value",
+        color = "Group"
+    ) +
+    ggplot2$theme_minimal()
+
+# Corrected version
+no_overplotting <- ggplot2$ggplot(large_data, ggplot2$aes(x = x, y = y, color = group)) +
+    ggplot2$geom_point(alpha = 0.3, size = 0.8) +  # Transparency added
+    ggplot2$labs(
+        title = "Scatter Plot with Transparency",
+        subtitle = "Alpha transparency reveals density patterns",
+        x = "X Value",
+        y = "Y Value",
+        color = "Group"
+    ) +
+    ggplot2$theme_minimal()
+
+# Alternative solution
+density_plot <- ggplot2$ggplot(large_data, ggplot2$aes(x = x, y = y, color = group)) +
+    ggplot2$geom_density_2d() +  # Contour lines instead of points
+    ggplot2$labs(
+        title = "Density Contours Instead of Points",
+        subtitle = "Contour lines show density without overplotting",
+        x = "X Value",
+        y = "Y Value",
+        color = "Group"
+    ) +
+    ggplot2$theme_minimal()
+
+# Display one pair of examples
+print(truncated_axis)
+print(proper_axis)
+```
+
+Common visualisation pitfalls to avoid include:
+
+1. **Truncated axes**: Starting numerical axes at non-zero values can exaggerate differences. While sometimes appropriate for small variations around large values, truncated axes should be clearly indicated.
+
+2. **Misleading scales**: Using non-linear scales without clear indication or inappropriately sized visual elements can distort perceptions.
+
+3. **Poor color choices**:
+   * Non-colorblind-friendly palettes that exclude viewers with color vision deficiencies
+   * Colors with cultural connotations that may bias interpretation
+   * Too many colors that overwhelm perception
+
+4. **Overplotting**: In large datasets, points can overlap and obscure patterns. Solutions include:
+   * Adding transparency with alpha values
+   * Using smaller point sizes
+   * Employing alternative representations like density plots
+   * Using sampling or aggregation techniques
+
+5. **Chart junk**: Unnecessary decorative elements that distract from the data, including:
+   * 3D effects that distort proportion perception
+   * Excessive grid lines
+   * Unnecessary ornamentation
+
+6. **Inappropriate chart types**:
+   * Pie charts for more than a few categories
+   * Stacked bar charts for precise comparisons
+   * Line charts for unordered categories
+
+7. **Missing context**: Omitting reference points, baselines, or comparative measures needed for proper interpretation.
+
+8. **Ambiguous encodings**: Using visual properties inconsistently or in ways that create perceptual conflicts.
+
+To enhance statistical visualisations:
+
+* Choose the appropriate chart type for the data and analytical question
+* Employ perceptually effective visual encodings
+* Provide clear labels, legends, and annotations
+* Include relevant context for proper interpretation
+* Test visualisations with diverse viewers
+
+## 1.4 Reproducible Statistical Analysis
+
+Statistical analyses should be fully reproducible, allowing others (or your future self) to verify and build upon your work. R provides an ecosystem of tools supporting reproducible research, from literate programming to version control.
+
+### 1.4.1 Literate Programming with R Markdown
+
+Literate programming combines narrative text with computational code, enabling the creation of documents that explain and execute analyses simultaneously. R Markdown serves as the primary implementation of this approach in the R ecosystem.
+
+A simple R Markdown document structure:
+
+````markdown
+---
+title: "Statistical Analysis of Widget Sales"
+author: "Analyst Name"
+date: "2023-10-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(data.table)
+library(ggplot2)
+knitr::opts_chunk$set(echo = TRUE, fig.width = 8, fig.height = 6)
+```
+
+## Introduction
+
+This report analyzes the sales performance of widgets across regions and time periods.
+
+## Data Preparation
+
+```{r data_prep}
+# Load and prepare data
+sales_data <- fread("widget_sales.csv")
+sales_data[, date := as.Date(date)]
+summary(sales_data)
+```
+
+## Exploratory Analysis
+
+```{r exploration}
+ggplot(sales_data, aes(x = date, y = revenue, color = region)) +
+  geom_line() +
+  labs(title = "Widget Revenue Over Time by Region")
+```
+````
+
+R Markdown enables:
+
+* **Narrative context** alongside code, explaining the purpose and methods
+* **Code chunk options** controlling execution, display, and output format
+* **Dynamic document generation** that updates when data or analysis changes
+* **Multiple output formats** including HTML, PDF, Word, presentations, and dashboards
+* **Parameter-driven reports** that adapt to different inputs
+
+This approach benefits statistical analysis by:
+
+1. **Enhancing transparency**: All data transformations and analysis decisions are explicitly documented
+2. **Improving communication**: Results are presented with appropriate context and explanation
+3. **Facilitating review**: Others can identify potential issues or suggest improvements
+4. **Supporting reproducibility**: Entire analyses can be re-executed to verify results
+
+### 1.4.2 Version Control for Statistical Projects
+
+Version control systems, particularly Git, provide essential infrastructure for tracking changes, collaborating with others, and maintaining a history of analysis development.
+
+Key benefits of version control for statistical analysis include:
+
+* **Change tracking**: Every modification to code and documentation is recorded with timestamp and author
+* **Branching**: Experimental analyses can be developed without disrupting the main workflow
+* **Collaboration**: Multiple analysts can work on the same project without conflicts
+* **Provenance**: The evolution of analyses is preserved, supporting methodological transparency
+* **Backup**: Distributed repositories protect against data loss
+
+Best practices for using Git with statistical projects:
+
+1. **Frequent, atomic commits**: Make small, focused changes with descriptive commit messages
+2. **Meaningful repository structure**: Organise files logically, separating data, code, and outputs
+3. **Branch for features**: Develop new analyses in separate branches before merging
+4. **Use .gitignore**: Exclude temporary files, large datasets, and sensitive information
+5. **Integrate with project workflows**: Incorporate Git operations into your regular analysis process
+
+Example Git workflow for a statistical project:
+
+```bash
+# Initialize repository
+git init
+
+# Configure user information
+git config user.name "Your Name"
+git config user.email "your.email@example.com"
+
+# Create standard directories
+mkdir -p data/raw data/processed code figures reports
+
+# Add initial files
+touch README.md
+touch .gitignore
+
+# Initial commit
+git add README.md .gitignore
+git commit -m "Initialize project structure"
+
+# Create branch for data preparation
+git checkout -b data-prep
+
+# After completing data preparation
+git add code/01-data-preparation.R data/processed/cleaned_data.rds
+git commit -m "Complete data preparation process"
+
+# Merge changes to main branch
+git checkout main
+git merge data-prep
+
+# Create branch for analysis
+git checkout -b analysis
+
+# After completing analysis
+git add code/02-analysis.R figures/result-plot.png
+git commit -m "Complete primary analysis"
+
+# Merge to main
+git checkout main
+git merge analysis
+```
+
+### 1.4.3 Dependency Management and Reproducible Environments
+
+Reproducible analysis requires consistent computational environments. R offers several tools for managing dependencies and ensuring that code runs consistently across systems and time.
+
+**Package Version Management**
+
+The `renv` package provides project-specific package management, similar to Python's virtual environments:
+
+```r
+# Initialize renv for a project
+renv::init()
+
+# Install required packages
+install.packages(c("data.table", "ggplot2", "lme4"))
+
+# Snapshot the current environment
+renv::snapshot()
+
+# Later, restore the environment
+renv::restore()
+```
+
+Benefits of `renv` include:
+
+* Isolation of project dependencies from system-wide packages
+* Automatic tracking of package versions in a lockfile
+* Reproducible package installation across systems
+* Simplified collaboration with consistent environments
+
+**Containerisation with Docker**
+
+For complete environment reproducibility, Docker containers encapsulate the entire computational environment:
+
+```dockerfile
+# Base image with R
+FROM rocker/r-ver:4.1.0
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libcurl4-openssl-dev \
+    libssl-dev \
+    libxml2-dev
+
+# Install R packages
+RUN R -e "install.packages(c('data.table', 'ggplot2', 'rmarkdown'), repos = 'https://cran.rstudio.com/')"
+
+# Copy analysis files
+COPY . /project
+WORKDIR /project
+
+# Set default command
+CMD ["R", "-e", "rmarkdown::render('analysis.Rmd')"]
+```
+
+Docker provides:
+
+* Complete isolation from the host system
+* Explicit documentation of all dependencies
+* Portable execution environment across platforms
+* Long-term reproducibility despite software evolution
+
+**Reproducibility Checklist**
+
+To ensure statistical analyses remain reproducible, consider this checklist:
+
+1. **Document software versions**:
+   * R version
+   * Package versions via `renv` or `sessionInfo()`
+   * System dependencies
+
+2. **Manage data properly**:
+   * Include data when feasible, or clear acquisition instructions
+   * Document data cleaning and preprocessing steps
+   * Preserve original data immutably
+
+3. **Automate workflows**:
+   * Create scripts for all analysis steps
+   * Use Makefiles or targets packages for process orchestration
+   * Avoid manual interventions
+
+4. **Use literate programming**:
+   * Create R Markdown documents for analyses
+   * Include narrative explanations of methods and decisions
+   * Generate reports programmatically
+
+5. **Version control everything**:
+   * Track code, documentation, and small datasets
+   * Document environment configurations
+   * Tag significant analysis versions
+
+6. **Set random seeds**:
+   * Control randomness in simulations
+   * Ensure stochastic processes yield consistent results
+   * Document seed values
+
+7. **Provide computational environment**:
+   * Use renv for package management
+   * Consider Docker for complete environment specification
+   * Document hardware requirements for intensive computations
+
+By implementing these reproducibility practices, statistical analyses become more transparent, verifiable, and extendable.
+
+# Summary
+
+This chapter has established the foundational elements of statistical thinking and its implementation in R. We have explored:
+
+1. **The role of statistics in scientific inquiry**, including the progression from data collection to inference and the distinctions between confirmatory and exploratory approaches.
+
+2. **Different statistical paradigms** (frequentist, Bayesian, and likelihoodist) that provide complementary frameworks for drawing conclusions from data.
+
+3. **Efficient data structures and manipulation techniques** with a focus on the high-performance `data.table` package for statistical computing.
+
+4. **Principles of effective statistical visualisation** using the Grammar of Graphics framework implemented in `ggplot2`.
+
+5. **Reproducible analysis practices** including literate programming, version control, and dependency management.
+
+These foundations provide the infrastructure for all subsequent statistical analyses in this book. By combining robust statistical methodology with efficient computational tools and reproducible workflows, analysts can develop more reliable, transparent, and insightful statistical analyses.
+
+In the next chapter, we will build upon these foundations to explore probability theory and random variables, which form the mathematical basis for statistical inference and modelling.
