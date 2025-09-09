@@ -46,7 +46,7 @@ class DataBases {
                 redisConfig = {
                     host: env.REDIS_URI,
                     port: 6379,
-                    password: env.REDIS_PASSWORD,
+                    // No password required - Redis authentication disabled
                     enableReadyCheck: true,
                     tls: {
                         rejectUnauthorized: true
@@ -56,7 +56,7 @@ class DataBases {
                 // DEV or PROD environment - running in Docker, use internal Docker network
                 redisConfig = {
                     host: env.REDIS_URI, // This will be 'linode_dereck-redis'
-                    password: env.REDIS_PASSWORD,
+                    // No password required - Redis authentication disabled
                     enableReadyCheck: true
                 };
             }
