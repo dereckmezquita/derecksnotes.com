@@ -1,0 +1,1920 @@
+---
+title: "Statistics with R"
+chapter: "Probability Theory and Random Variables"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2023-10-20
+tags: [statistics, mathematics, probability, data]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        # x <- paste0("/courses/", x)
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng) # optipng = '-o7'
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+```
+
+# Probability Theory and Random Variables
+
+Probability theory provides the mathematical foundation for statistical inference and modelling. It enables us to quantify uncertainty, formalize the concept of randomness, and develop frameworks for making decisions in the presence of incomplete information. This chapter establishes the probabilistic concepts that underpin all forms of statistical analysis, with particular emphasis on their implementation in R.
+
+## 2.1 Fundamentals of Probability
+
+Probability theory formalizes the study of random phenomena, providing a rigorous mathematical framework for quantifying uncertainty. Modern probability theory is built upon measure theory, which establishes a consistent framework for assigning probabilities to events. Understanding these foundations is essential for properly implementing and interpreting statistical methods.
+
+### 2.1.1 Sample Spaces, Events, and Probability Measures
+
+The foundation of probability theory rests on three fundamental concepts: sample spaces, events, and probability measures.
+
+**Sample Space (Ω)**: The set of all possible outcomes of a random experiment.
+
+* A sample space must be:
+  * Exhaustive: It contains all possible outcomes
+  * Mutually exclusive: No two outcomes can occur simultaneously
+
+**Events**: Subsets of the sample space, representing collections of outcomes.
+
+* Events can be:
+  * Simple: Containing a single outcome
+  * Compound: Containing multiple outcomes
+  * Empty (∅): The impossible event containing no outcomes
+  * Universal (Ω): The certain event containing all outcomes
+
+**Probability Measure (P)**: A function that assigns a real number to each event in a way that satisfies the Kolmogorov axioms:
+
+1. Non-negativity: For any event A, P(A) ≥ 0
+2. Normalization: P(Ω) = 1
+3. Countable additivity: For mutually exclusive events A₁, A₂, ..., P(A₁ ∪ A₂ ∪ ...) = P(A₁) + P(A₂) + ...
+
+From these axioms, several important properties can be derived:
+
+* P(∅) = 0
+* For any event A, P(A) ≤ 1
+* P(Aᶜ) = 1 - P(A), where Aᶜ is the complement of A
+* For any events A and B, P(A ∪ B) = P(A) + P(B) - P(A ∩ B)
+
+Let's implement these concepts in R with a simple example of rolling a fair six-sided die:
+
+```{r sample_space_events, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Define the sample space
+sample_space <- 1:6
+print("Sample Space:")
+print(sample_space)
+
+# Define some events
+event_A <- c(1, 3, 5)  # Odd numbers
+event_B <- c(2, 4, 6)  # Even numbers
+event_C <- c(4, 5, 6)  # Numbers greater than 3
+
+# Calculate probabilities
+prob_A <- length(event_A) / length(sample_space)
+prob_B <- length(event_B) / length(sample_space)
+prob_C <- length(event_C) / length(sample_space)
+
+# Verify Kolmogorov axioms
+print("Probability of event A (odd numbers):")
+print(prob_A)
+
+print("Probability of event B (even numbers):")
+print(prob_B)
+
+print("Probability of event C (numbers > 3):")
+print(prob_C)
+
+print("Verify P(Ω) = 1:")
+print(prob_A + prob_B)
+
+print("Verify P(A ∪ C):")
+union_AC <- unique(c(event_A, event_C))
+prob_union_AC <- length(union_AC) / length(sample_space)
+print(paste("P(A ∪ C) =", prob_union_AC))
+print(paste("P(A) + P(C) - P(A ∩ C) =", 
+            prob_A + prob_C - length(intersect(event_A, event_C)) / length(sample_space)))
+
+# Visualize the events
+events_dt <- data.table(
+    outcome = rep(sample_space, 3),
+    event = c(rep("A", length(sample_space)), rep("B", length(sample_space)), rep("C", length(sample_space))),
+    is_in_event = c(
+        sapply(sample_space, function(x) x %in% event_A),
+        sapply(sample_space, function(x) x %in% event_B),
+        sapply(sample_space, function(x) x %in% event_C)
+    )
+)
+
+# Plot the events
+ggplot2$ggplot(events_dt, ggplot2$aes(x = outcome, y = event, fill = is_in_event)) +
+    ggplot2$geom_tile(color = "white", size = 1) +
+    ggplot2$scale_fill_manual(values = c("white", "steelblue")) +
+    ggplot2$geom_text(ggplot2$aes(label = outcome), color = "black") +
+    ggplot2$labs(
+        title = "Events in a Die Roll Experiment",
+        subtitle = "A: Odd numbers, B: Even numbers, C: Numbers greater than 3",
+        x = "Outcome",
+        y = "Event"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+This example illustrates how we can define a sample space, identify events within it, and calculate probabilities that adhere to the fundamental axioms of probability theory. The visualization helps clarify the relationships between different events within the sample space.
+
+### 2.1.2 Conditional Probability and Independence
+
+Conditional probability quantifies how the probability of an event changes when we have information about another event. It forms the basis for updating beliefs in light of new evidence, making it a cornerstone of statistical inference.
+
+**Conditional Probability**: The probability of event A occurring, given that event B has occurred, is defined as:
+
+$$P(A|B) = \frac{P(A \cap B)}{P(B)}$$
+
+where P(B) > 0.
+
+This definition has several important implications:
+
+* P(A|B) represents a revised probability assessment for A in light of information about B
+* P(A|B) may be greater than, less than, or equal to P(A), depending on how B relates to A
+* P(A ∩ B) = P(B) × P(A|B) = P(A) × P(B|A)
+
+**Independence**: Events A and B are independent if and only if:
+
+$$P(A \cap B) = P(A) \times P(B)$$
+
+Equivalently, A and B are independent if:
+
+$$P(A|B) = P(A)$$
+
+or
+
+$$P(B|A) = P(B)$$
+
+That is, knowledge about one event does not change the probability of the other.
+
+Let's examine these concepts with a practical example from genetics:
+
+```{r conditional_probability, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Define probabilities for genetic trait inheritance
+# Suppose we have two genes A and B, each with dominant and recessive alleles
+
+# Create a joint probability table
+genotype_probs <- data.table(
+    A_allele = rep(c("AA", "Aa", "aa"), each = 3),
+    B_allele = rep(c("BB", "Bb", "bb"), 3),
+    probability = c(
+        0.09, 0.18, 0.03,  # AA with BB, Bb, bb
+        0.18, 0.36, 0.06,  # Aa with BB, Bb, bb
+        0.03, 0.06, 0.01   # aa with BB, Bb, bb
+    )
+)
+
+# Calculate marginal probabilities
+A_marginal <- genotype_probs[, .(P_A = sum(probability)), by = A_allele]
+B_marginal <- genotype_probs[, .(P_B = sum(probability)), by = B_allele]
+
+print("Marginal probabilities for A alleles:")
+print(A_marginal)
+
+print("Marginal probabilities for B alleles:")
+print(B_marginal)
+
+# Calculate conditional probabilities P(A|B)
+genotype_probs[, B_marginal_prob := sum(probability), by = B_allele]
+genotype_probs[, P_A_given_B := probability / B_marginal_prob]
+
+print("Conditional probabilities P(A|B=BB):")
+print(genotype_probs[B_allele == "BB", .(A_allele, P_A_given_B)])
+
+# Check for independence
+genotype_probs[, expected_if_independent := A_marginal[match(A_allele, A_allele)]$P_A * 
+                                           B_marginal[match(B_allele, B_allele)]$P_B]
+genotype_probs[, is_independent := abs(probability - expected_if_independent) < 1e-10]
+
+print("Are alleles A and B independent?")
+print(all(genotype_probs$is_independent))
+
+# Visualize the joint and conditional distributions
+ggplot2$ggplot(genotype_probs, ggplot2$aes(x = B_allele, y = A_allele, fill = probability)) +
+    ggplot2$geom_tile(color = "white") +
+    ggplot2$geom_text(ggplot2$aes(label = round(probability, 3)), color = "white", fontface = "bold") +
+    ggplot2$scale_fill_gradient(low = "steelblue", high = "darkred") +
+    ggplot2$labs(
+        title = "Joint Probability Distribution of Genotypes",
+        subtitle = "Values show P(A ∩ B)",
+        x = "B Allele",
+        y = "A Allele",
+        fill = "Joint Probability"
+    ) +
+    ggplot2$theme_minimal()
+
+# Conditional probability visualization
+ggplot2$ggplot(genotype_probs, ggplot2$aes(x = B_allele, y = A_allele, fill = P_A_given_B)) +
+    ggplot2$geom_tile(color = "white") +
+    ggplot2$geom_text(ggplot2$aes(label = round(P_A_given_B, 3)), color = "white", fontface = "bold") +
+    ggplot2$scale_fill_gradient(low = "steelblue", high = "darkred") +
+    ggplot2$labs(
+        title = "Conditional Probability P(A|B)",
+        subtitle = "Values show probability of A given B",
+        x = "B Allele (Given)",
+        y = "A Allele",
+        fill = "Conditional Probability"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+The example above illustrates several key points about conditional probability:
+
+* The joint probability distribution shows the probability of each combination of A and B alleles
+* The marginal probabilities represent the overall distribution of each allele, regardless of the other
+* The conditional probabilities reveal how knowledge of one allele affects the probability distribution of the other
+* In this case, the alleles are not independent, as the joint probabilities differ from the product of the marginals
+
+**Law of Total Probability**: For a partition of the sample space Ω into events B₁, B₂, ..., Bₙ, and any event A:
+
+$$P(A) = \sum_{i=1}^{n} P(A|B_i) \times P(B_i)$$
+
+This law allows us to calculate the overall probability of an event by considering it under different conditions, weighted by the probability of those conditions.
+
+**Multiplication Rule**: For a sequence of events A₁, A₂, ..., Aₙ:
+
+$$P(A_1 \cap A_2 \cap ... \cap A_n) = P(A_1) \times P(A_2|A_1) \times P(A_3|A_1 \cap A_2) \times ... \times P(A_n|A_1 \cap A_2 \cap ... \cap A_{n-1})$$
+
+This rule enables the calculation of joint probabilities through sequential conditioning.
+
+### 2.1.3 Bayes' Theorem and Applications
+
+Bayes' theorem provides a formal mechanism for updating probability assessments based on new evidence. It serves as the foundation for Bayesian inference and has wide-ranging applications in statistics, machine learning, and decision theory.
+
+**Bayes' Theorem**: For events A and B where P(B) > 0:
+
+$$P(A|B) = \frac{P(B|A) \times P(A)}{P(B)}$$
+
+Alternative formulation using the law of total probability:
+
+$$P(A|B) = \frac{P(B|A) \times P(A)}{P(B|A) \times P(A) + P(B|A^c) \times P(A^c)}$$
+
+The components of Bayes' theorem are often described using specific terminology:
+
+* P(A): Prior probability - initial assessment of A before considering evidence B
+* P(A|B): Posterior probability - updated assessment of A after considering evidence B
+* P(B|A): Likelihood - probability of observing evidence B if A is true
+* P(B): Marginal likelihood or evidence - overall probability of observing B
+
+Bayes' theorem is particularly useful when:
+
+* The conditional probability P(A|B) is difficult to assess directly
+* P(B|A) is easier to determine (e.g., from physical models or empirical data)
+* We have prior information about P(A) and want to update it based on new evidence
+
+Let's implement Bayes' theorem in a medical diagnostic context:
+
+```{r bayes_theorem, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Diagnostic test example
+# Define parameters
+disease_prevalence <- 0.01  # P(D) - prior probability of disease
+test_sensitivity <- 0.95    # P(+|D) - probability of positive test given disease
+test_specificity <- 0.90    # P(-|D^c) - probability of negative test given no disease
+
+# Calculate P(+) - probability of positive test
+p_positive <- test_sensitivity * disease_prevalence + 
+              (1 - test_specificity) * (1 - disease_prevalence)
+
+# Apply Bayes' theorem to calculate P(D|+) - probability of disease given positive test
+p_disease_given_positive <- (test_sensitivity * disease_prevalence) / p_positive
+
+# Apply Bayes' theorem to calculate P(D|-) - probability of disease given negative test
+p_negative <- 1 - p_positive
+p_disease_given_negative <- ((1 - test_sensitivity) * disease_prevalence) / p_negative
+
+# Print results
+cat("Prior probability of disease P(D):", disease_prevalence, "\n")
+cat("Probability of positive test P(+):", p_positive, "\n")
+cat("Posterior probability of disease given positive test P(D|+):", p_disease_given_positive, "\n")
+cat("Posterior probability of disease given negative test P(D|-):", p_disease_given_negative, "\n")
+
+# Create data for visualization
+prior_posterior <- data.table(
+    State = c("Prior", "Posterior (+)", "Posterior (-)"),
+    Probability = c(disease_prevalence, p_disease_given_positive, p_disease_given_negative)
+)
+
+# Plot prior vs posterior probabilities
+ggplot2$ggplot(prior_posterior, ggplot2$aes(x = State, y = Probability, fill = State)) +
+    ggplot2$geom_bar(stat = "identity", width = 0.6) +
+    ggplot2$geom_text(ggplot2$aes(label = round(Probability, 4)), vjust = -0.5) +
+    ggplot2$ylim(0, max(prior_posterior$Probability) * 1.1) +
+    ggplot2$labs(
+        title = "Bayesian Updating in Medical Diagnosis",
+        subtitle = paste0("Disease prevalence: ", disease_prevalence, 
+                         ", Test sensitivity: ", test_sensitivity,
+                         ", Test specificity: ", test_specificity),
+        x = NULL,
+        y = "Probability of Disease"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+
+# Simulate the effect of different prevalence rates
+prevalence_seq <- seq(0.001, 0.1, by = 0.001)
+bayes_results <- data.table(
+    prevalence = prevalence_seq,
+    ppv = sapply(prevalence_seq, function(p) {
+        (test_sensitivity * p) / (test_sensitivity * p + (1 - test_specificity) * (1 - p))
+    }),
+    npv = sapply(prevalence_seq, function(p) {
+        (test_specificity * (1 - p)) / ((1 - test_sensitivity) * p + test_specificity * (1 - p))
+    })
+)
+
+# Plot how posterior probabilities change with prevalence
+ggplot2$ggplot(bayes_results) +
+    ggplot2$geom_line(ggplot2$aes(x = prevalence, y = ppv, color = "PPV"), size = 1.2) +
+    ggplot2$geom_line(ggplot2$aes(x = prevalence, y = npv, color = "NPV"), size = 1.2) +
+    ggplot2$geom_vline(xintercept = disease_prevalence, linetype = "dashed", color = "darkgray") +
+    ggplot2$scale_color_manual(values = c("PPV" = "darkred", "NPV" = "steelblue"),
+                             labels = c("PPV" = "Positive Predictive Value P(D|+)",
+                                       "NPV" = "Negative Predictive Value P(D^c|-)")) +
+    ggplot2$labs(
+        title = "Effect of Disease Prevalence on Predictive Values",
+        subtitle = paste0("With fixed sensitivity (", test_sensitivity, 
+                         ") and specificity (", test_specificity, ")"),
+        x = "Disease Prevalence P(D)",
+        y = "Predictive Value",
+        color = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+This example demonstrates several important insights about Bayes' theorem:
+
+* The posterior probability of disease given a positive test (positive predictive value) can be dramatically different from the test's sensitivity
+* The disease prevalence (prior probability) significantly affects the interpretation of test results
+* Even highly accurate tests can have low positive predictive values when the condition being tested for is rare
+* Bayesian updating provides a formal framework for incorporating multiple pieces of evidence
+
+**Applications of Bayes' Theorem**:
+
+* **Medical diagnosis**: Interpreting test results in the context of symptom prevalence
+* **Spam filtering**: Classifying emails based on the presence of certain words
+* **Quality control**: Updating beliefs about process quality based on inspection results
+* **Adaptive clinical trials**: Modifying treatment assignments based on accumulating evidence
+* **Machine learning**: Naïve Bayes classifiers and other probabilistic models
+* **Forensic science**: Interpreting DNA evidence in the context of case particulars
+
+Bayes' theorem fundamentally changes how we think about evidence, allowing us to:
+
+1. Incorporate prior knowledge formally
+2. Update beliefs incrementally as new evidence arrives
+3. Account for the diagnostic value of evidence
+4. Reason about causes based on observed effects
+
+## 2.2 Discrete Random Variables
+
+Random variables provide a mathematical framework for describing the outcomes of random processes. Discrete random variables can take on only a countable number of distinct values, making them appropriate for modelling phenomena such as counts, categorical outcomes, and finite measurements.
+
+### 2.2.1 Probability Mass Functions
+
+A discrete random variable X is characterized by its probability mass function (PMF), denoted as p(x) or P(X = x), which gives the probability that X takes on the exact value x.
+
+**Probability Mass Function (PMF)**: A function p(x) that satisfies:
+
+1. Non-negativity: p(x) ≥ 0 for all x in the range of X
+2. Sum to one: Σ p(x) = 1, where the sum is over all possible values of X
+3. P(X = x) = p(x) for any value x
+
+The PMF fully describes the probability distribution of a discrete random variable and enables the calculation of various probabilities and expectations.
+
+**Cumulative Distribution Function (CDF)**: For a discrete random variable X, the CDF F(x) is defined as:
+
+$$F(x) = P(X \leq x) = \sum_{t \leq x} p(t)$$
+
+Properties of the CDF include:
+
+* F(x) is non-decreasing: If a < b, then F(a) ≤ F(b)
+* F(x) ranges from 0 to 1: lim(x→-∞) F(x) = 0 and lim(x→∞) F(x) = 1
+* P(a < X ≤ b) = F(b) - F(a)
+* P(X = x) = F(x) - F(x-)
+
+Let's examine these concepts using R:
+
+```{r discrete_random_variables, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Define a discrete random variable representing the sum of two fair dice
+# Possible values: 2, 3, 4, ..., 12
+
+# Calculate PMF
+x_values <- 2:12
+pmf <- c(1, 2, 3, 4, 5, 6, 5, 4, 3, 2, 1) / 36  # Probabilities for values 2 through 12
+
+# Create a data.table
+dice_sum <- data.table(
+    x = x_values,
+    pmf = pmf
+)
+
+# Verify PMF properties
+cat("Sum of probabilities:", sum(dice_sum$pmf), "\n")
+cat("All probabilities non-negative:", all(dice_sum$pmf >= 0), "\n")
+
+# Calculate CDF
+dice_sum[, cdf := cumsum(pmf)]
+
+# Visualize PMF
+pmf_plot <- ggplot2$ggplot(dice_sum, ggplot2$aes(x = x, y = pmf)) +
+    ggplot2$geom_bar(stat = "identity", fill = "steelblue", width = 0.7) +
+    ggplot2$geom_text(ggplot2$aes(label = round(pmf, 3)), vjust = -0.5, size = 3) +
+    ggplot2$scale_x_continuous(breaks = x_values) +
+    ggplot2$labs(
+        title = "Probability Mass Function (PMF)",
+        subtitle = "Sum of two fair dice",
+        x = "x",
+        y = "P(X = x)"
+    ) +
+    ggplot2$theme_minimal()
+
+# Visualize CDF
+cdf_plot <- ggplot2$ggplot(dice_sum, ggplot2$aes(x = x, y = cdf)) +
+    ggplot2$geom_step(size = 1, color = "darkred") +
+    ggplot2$geom_point(size = 3, color = "darkred") +
+    ggplot2$scale_x_continuous(breaks = x_values) +
+    ggplot2$labs(
+        title = "Cumulative Distribution Function (CDF)",
+        subtitle = "Sum of two fair dice",
+        x = "x",
+        y = "P(X ≤ x)"
+    ) +
+    ggplot2$theme_minimal()
+
+# Display the plots
+print(pmf_plot)
+print(cdf_plot)
+
+# Calculate probabilities using PMF and CDF
+# P(X = 7) - probability of rolling a 7
+p_7 <- dice_sum[x == 7, pmf]
+cat("P(X = 7) =", p_7, "\n")
+
+# P(X <= 5) - probability of rolling 5 or less
+p_leq_5 <- dice_sum[x == 5, cdf]
+cat("P(X <= 5) =", p_leq_5, "\n")
+
+# P(X > 8) - probability of rolling greater than 8
+p_gt_8 <- 1 - dice_sum[x == 8, cdf]
+cat("P(X > 8) =", p_gt_8, "\n")
+
+# P(4 <= X <= 10) - probability of rolling between 4 and 10 inclusive
+p_4_to_10 <- dice_sum[x == 10, cdf] - dice_sum[x == 3, cdf]
+cat("P(4 <= X <= 10) =", p_4_to_10, "\n")
+```
+
+**Expected Value (Mean)**: For a discrete random variable X with PMF p(x), the expected value is:
+
+$$E[X] = \sum_{x} x \times p(x)$$
+
+The expected value represents the long-run average value of the random variable over many repetitions.
+
+**Variance**: The variance of a discrete random variable X is:
+
+$$Var(X) = E[(X - E[X])^2] = \sum_{x} (x - E[X])^2 \times p(x) = E[X^2] - (E[X])^2$$
+
+The variance measures the spread or dispersion of the random variable around its mean.
+
+Let's calculate these moments for our dice sum example:
+
+```{r discrete_moments, echo=TRUE}
+# Calculate expected value (mean)
+expected_value <- sum(dice_sum$x * dice_sum$pmf)
+cat("Expected value E[X] =", expected_value, "\n")
+
+# Calculate variance
+variance <- sum((dice_sum$x - expected_value)^2 * dice_sum$pmf)
+cat("Variance Var(X) =", variance, "\n")
+
+# Alternative calculation of variance
+expected_square <- sum(dice_sum$x^2 * dice_sum$pmf)
+variance_alt <- expected_square - expected_value^2
+cat("Variance (alternative) =", variance_alt, "\n")
+
+# Calculate standard deviation
+std_dev <- sqrt(variance)
+cat("Standard deviation =", std_dev, "\n")
+```
+
+These calculations demonstrate that the expected value of the sum of two dice is 7, which aligns with our intuition about the "average" outcome. The variance of 5.83 quantifies the spread of the possible outcomes around this mean.
+
+### 2.2.2 Common Discrete Distributions and Their R Implementations
+
+R provides comprehensive support for working with discrete probability distributions through a consistent set of functions for each distribution:
+
+* `d[dist]` - Probability mass function (PMF)
+* `p[dist]` - Cumulative distribution function (CDF)
+* `q[dist]` - Quantile function (inverse CDF)
+* `r[dist]` - Random number generation
+
+Where `[dist]` is replaced by the shortened name of the distribution (e.g., `binom` for Binomial, `pois` for Poisson).
+
+#### 2.2.2.1 Bernoulli and Binomial Distributions
+
+The **Bernoulli distribution** models a single trial with two possible outcomes, "success" (1) and "failure" (0), with probability of success p.
+
+* PMF: P(X = x) = p^x × (1-p)^(1-x) for x ∈ {0, 1}
+* Mean: E[X] = p
+* Variance: Var(X) = p(1-p)
+
+The **Binomial distribution** extends the Bernoulli to model the number of successes in n independent trials, each with probability of success p.
+
+* PMF: P(X = k) = (n choose k) × p^k × (1-p)^(n-k) for k ∈ {0, 1, 2, ..., n}
+* Mean: E[X] = np
+* Variance: Var(X) = np(1-p)
+
+```{r bernoulli_binomial, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Bernoulli distribution
+p <- 0.3  # Probability of success
+
+# Calculate PMF for Bernoulli
+bernoulli_pmf <- data.table(
+    x = c(0, 1),
+    pmf = c(1-p, p)
+)
+
+# Binomial distribution parameters
+n_values <- c(5, 10, 20)  # Number of trials
+binom_data <- data.table()
+
+for (n in n_values) {
+    # Calculate PMF for Binomial
+    x <- 0:n
+    pmf <- dbinom(x, size = n, prob = p)
+    
+    # Add to data.table
+    binom_data <- rbind(binom_data, data.table(
+        n = n,
+        x = x,
+        pmf = pmf
+    ))
+}
+
+# Visualize Bernoulli PMF
+bernoulli_plot <- ggplot2$ggplot(bernoulli_pmf, ggplot2$aes(x = x, y = pmf)) +
+    ggplot2$geom_bar(stat = "identity", fill = "steelblue", width = 0.5) +
+    ggplot2$geom_text(ggplot2$aes(label = round(pmf, 2)), vjust = -0.5) +
+    ggplot2$scale_x_continuous(breaks = c(0, 1)) +
+    ggplot2$labs(
+        title = "Bernoulli Distribution PMF",
+        subtitle = paste("p =", p),
+        x = "x",
+        y = "P(X = x)"
+    ) +
+    ggplot2$theme_minimal()
+
+# Visualize Binomial PMF for different n values
+binomial_plot <- ggplot2$ggplot(binom_data, ggplot2$aes(x = x, y = pmf)) +
+    ggplot2$geom_bar(stat = "identity", ggplot2$aes(fill = as.factor(n)), position = "dodge") +
+    ggplot2$scale_fill_brewer(palette = "Blues") +
+    ggplot2$labs(
+        title = "Binomial Distribution PMF",
+        subtitle = paste("p =", p, "with varying number of trials n"),
+        x = "Number of Successes",
+        y = "P(X = x)",
+        fill = "n"
+    ) +
+    ggplot2$theme_minimal()
+
+# Display plots
+print(bernoulli_plot)
+print(binomial_plot)
+
+# Calculate mean and variance
+binom_stats <- data.table(
+    n = n_values,
+    theoretical_mean = n_values * p,
+    theoretical_var = n_values * p * (1-p)
+)
+
+# Verify with empirical calculations
+for (i in 1:length(n_values)) {
+    n <- n_values[i]
+    x <- 0:n
+    pmf <- dbinom(x, size = n, prob = p)
+    
+    binom_stats[i, empirical_mean := sum(x * pmf)]
+    binom_stats[i, empirical_var := sum((x - binom_stats[i, empirical_mean])^2 * pmf)]
+}
+
+print(binom_stats)
+
+# Example of calculating probabilities using binomial functions
+n <- 10
+k <- 3
+# P(X = k)
+cat("P(X =", k, ") =", dbinom(k, size = n, prob = p), "\n")
+
+# P(X <= k)
+cat("P(X <=", k, ") =", pbinom(k, size = n, prob = p), "\n")
+
+# P(X >= k)
+cat("P(X >=", k, ") =", 1 - pbinom(k-1, size = n, prob = p), "\n")
+
+# Finding k such that P(X <= k) = 0.7
+q_val <- qbinom(0.7, size = n, prob = p)
+cat("Smallest k such that P(X <=", k, ") >= 0.7:", q_val, "\n")
+
+# Generate random samples
+set.seed(123)
+random_samples <- rbinom(1000, size = n, prob = p)
+cat("Mean of 1000 random samples:", mean(random_samples), "\n")
+cat("Variance of 1000 random samples:", var(random_samples), "\n")
+```
+
+The Bernoulli and Binomial distributions are fundamental to many statistical applications, including:
+
+* Modelling binary outcomes (success/failure, yes/no, present/absent)
+* Quality control (defective/non-defective items)
+* A/B testing and conversion rate analysis
+* Binary classification evaluation (e.g., true/false positives)
+* Hypothesis testing for proportions
+
+#### 2.2.2.2 Poisson Distribution
+
+The **Poisson distribution** models the number of events occurring in a fixed interval of time or space, assuming events occur independently at a constant average rate.
+
+* PMF: P(X = k) = (λ^k × e^(-λ)) / k! for k ∈ {0, 1, 2, ...}
+* Mean: E[X] = λ
+* Variance: Var(X) = λ
+
+Where λ (lambda) is the average number of events per interval.
+
+```{r poisson, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Poisson distribution parameters
+lambda_values <- c(1, 3, 5, 10)  # Average rate
+max_k <- 20
+
+# Calculate PMF for different lambda values
+poisson_data <- data.table()
+
+for (lambda in lambda_values) {
+    k <- 0:max_k
+    pmf <- dpois(k, lambda)
+    
+    # Add to data.table
+    poisson_data <- rbind(poisson_data, data.table(
+        lambda = lambda,
+        k = k,
+        pmf = pmf
+    ))
+}
+
+# Visualize Poisson PMF
+poisson_plot <- ggplot2$ggplot(poisson_data, ggplot2$aes(x = k, y = pmf, color = as.factor(lambda))) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$scale_color_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Poisson Distribution PMF",
+        subtitle = "Varying rate parameter λ",
+        x = "Number of Events (k)",
+        y = "P(X = k)",
+        color = "λ"
+    ) +
+    ggplot2$theme_minimal()
+
+# Display plot
+print(poisson_plot)
+
+# Example calculations
+lambda <- 5
+
+# Calculate probabilities
+# P(X = 3) - Probability of exactly 3 events
+p_3 <- dpois(3, lambda)
+cat("P(X = 3) =", p_3, "\n")
+
+# P(X <= 3) - Probability of 3 or fewer events
+p_leq_3 <- ppois(3, lambda)
+cat("P(X <= 3) =", p_leq_3, "\n")
+
+# P(X > 7) - Probability of more than 7 events
+p_gt_7 <- 1 - ppois(7, lambda)
+cat("P(X > 7) =", p_gt_7, "\n")
+
+# Find k such that P(X <= k) = 0.9
+q_val <- qpois(0.9, lambda)
+cat("Smallest k such that P(X <= k) >= 0.9:", q_val, "\n")
+
+# Generate random samples
+set.seed(456)
+random_samples <- rpois(1000, lambda)
+cat("Mean of 1000 random samples:", mean(random_samples), "\n")
+cat("Variance of 1000 random samples:", var(random_samples), "\n")
+
+# Illustrate Poisson approximation to Binomial
+# When n is large, p is small, and n*p is moderate, Binomial(n,p) ≈ Poisson(n*p)
+n <- 100
+p <- 0.05
+lambda_approx <- n * p
+
+k_range <- 0:15
+binomial_pmf <- dbinom(k_range, size = n, prob = p)
+poisson_pmf <- dpois(k_range, lambda = lambda_approx)
+
+approx_data <- data.table(
+    k = rep(k_range, 2),
+    pmf = c(binomial_pmf, poisson_pmf),
+    distribution = rep(c("Binomial(100, 0.05)", "Poisson(5)"), each = length(k_range))
+)
+
+approx_plot <- ggplot2$ggplot(approx_data, ggplot2$aes(x = k, y = pmf, color = distribution, linetype = distribution)) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$labs(
+        title = "Poisson Approximation to Binomial",
+        subtitle = "Binomial(100, 0.05) vs Poisson(5)",
+        x = "Number of Events (k)",
+        y = "Probability",
+        color = "Distribution",
+        linetype = "Distribution"
+    ) +
+    ggplot2$theme_minimal()
+
+print(approx_plot)
+```
+
+The Poisson distribution has numerous applications:
+
+* Modelling the number of calls to a call centre per hour
+* Customer arrivals at a service point
+* Number of defects in a manufacturing process
+* Rare disease occurrences in a population
+* Network traffic analysis
+* Insurance claims modelling
+* Particle detection in physics
+
+The Poisson distribution also has an important relationship with the exponential distribution: if the time between events follows an exponential distribution with rate λ, then the number of events in a fixed time period follows a Poisson distribution with mean λ.
+
+#### 2.2.2.3 Negative Binomial Distribution
+
+The **Negative Binomial distribution** models the number of failures before a specified number of successes occur in a sequence of independent Bernoulli trials.
+
+* PMF: P(X = k) = (k+r-1 choose r-1) × p^r × (1-p)^k for k ∈ {0, 1, 2, ...}
+* Mean: E[X] = r(1-p)/p
+* Variance: Var(X) = r(1-p)/p²
+
+Where:
+- r is the number of successes required
+- p is the probability of success on each trial
+- k is the number of failures before the r-th success
+
+R parameterizes the negative binomial slightly differently, with `size` representing the number of successes r, and `prob` representing the success probability p.
+
+```{r negative_binomial, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Negative Binomial parameters
+r_values <- c(1, 2, 5, 10)  # Number of successes required
+p <- 0.3  # Probability of success
+max_k <- 30
+
+# Calculate PMF for different r values
+nb_data <- data.table()
+
+for (r in r_values) {
+    k <- 0:max_k
+    pmf <- dnbinom(k, size = r, prob = p)
+    
+    # Add to data.table
+    nb_data <- rbind(nb_data, data.table(
+        r = r,
+        k = k,
+        pmf = pmf
+    ))
+}
+
+# Visualize Negative Binomial PMF
+nb_plot <- ggplot2$ggplot(nb_data, ggplot2$aes(x = k, y = pmf, color = as.factor(r))) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$scale_color_brewer(palette = "Set2") +
+    ggplot2$labs(
+        title = "Negative Binomial Distribution PMF",
+        subtitle = paste("p =", p, "with varying number of successes r"),
+        x = "Number of Failures Before r Successes (k)",
+        y = "P(X = k)",
+        color = "r"
+    ) +
+    ggplot2$theme_minimal()
+
+# Display plot
+print(nb_plot)
+
+# Example calculations
+r <- 5
+p <- 0.3
+
+# Calculate probabilities
+# P(X = 10) - Probability of exactly 10 failures before 5 successes
+p_10 <- dnbinom(10, size = r, prob = p)
+cat("P(X = 10) =", p_10, "\n")
+
+# P(X <= 10) - Probability of 10 or fewer failures before 5 successes
+p_leq_10 <- pnbinom(10, size = r, prob = p)
+cat("P(X <= 10) =", p_leq_10, "\n")
+
+# P(X > 15) - Probability of more than 15 failures before 5 successes
+p_gt_15 <- 1 - pnbinom(15, size = r, prob = p)
+cat("P(X > 15) =", p_gt_15, "\n")
+
+# Find k such that P(X <= k) = 0.8
+q_val <- qnbinom(0.8, size = r, prob = p)
+cat("Smallest k such that P(X <= k) >= 0.8:", q_val, "\n")
+
+# Generate random samples
+set.seed(789)
+random_samples <- rnbinom(1000, size = r, prob = p)
+cat("Mean of 1000 random samples:", mean(random_samples), "\n")
+cat("Theoretical mean:", r * (1-p) / p, "\n")
+cat("Variance of 1000 random samples:", var(random_samples), "\n")
+cat("Theoretical variance:", r * (1-p) / p^2, "\n")
+
+# Alternative parameterization - mean and dispersion
+# Using mu and size parameters (where mu is the mean)
+mu <- 10
+size <- 2
+
+# Calculate PMF
+alt_nb <- data.table(
+    k = 0:30,
+    pmf = dnbinom(0:30, size = size, mu = mu)
+)
+
+alt_nb_plot <- ggplot2$ggplot(alt_nb, ggplot2$aes(x = k, y = pmf)) +
+    ggplot2$geom_bar(stat = "identity", fill = "steelblue") +
+    ggplot2$labs(
+        title = "Negative Binomial with Alternative Parameterization",
+        subtitle = paste("μ =", mu, ", size =", size),
+        x = "Number of Events (k)",
+        y = "P(X = k)"
+    ) +
+    ggplot2$theme_minimal()
+
+print(alt_nb_plot)
+```
+
+The Negative Binomial distribution has many applications:
+
+* Modelling overdispersed count data (variance > mean)
+* Number of attempts until achieving a target number of successes
+* Waiting times in discrete units
+* RNA sequencing read counts in bioinformatics
+* Accident frequency models in insurance
+* Ecological count data for species abundance
+
+An important special case is when r = 1, which gives the Geometric distribution (the number of failures before the first success).
+
+#### 2.2.2.4 Geometric Distribution
+
+The **Geometric distribution** is a special case of the Negative Binomial with r = 1, modelling the number of failures before the first success in a sequence of independent Bernoulli trials.
+
+* PMF: P(X = k) = (1-p)^k × p for k ∈ {0, 1, 2, ...}
+* Mean: E[X] = (1-p)/p
+* Variance: Var(X) = (1-p)/p²
+
+R parameterizes the geometric distribution with `prob` representing the success probability p.
+
+```{r geometric, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Geometric distribution parameters
+p_values <- c(0.1, 0.3, 0.5, 0.7)  # Probability of success
+max_k <- 20
+
+# Calculate PMF for different p values
+geom_data <- data.table()
+
+for (p in p_values) {
+    k <- 0:max_k
+    pmf <- dgeom(k, prob = p)
+    
+    # Add to data.table
+    geom_data <- rbind(geom_data, data.table(
+        p = p,
+        k = k,
+        pmf = pmf
+    ))
+}
+
+# Visualize Geometric PMF
+geom_plot <- ggplot2$ggplot(geom_data, ggplot2$aes(x = k, y = pmf, color = as.factor(p))) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$scale_color_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Geometric Distribution PMF",
+        subtitle = "Varying success probability p",
+        x = "Number of Failures Before First Success (k)",
+        y = "P(X = k)",
+        color = "p"
+    ) +
+    ggplot2$theme_minimal()
+
+# Display plot
+print(geom_plot)
+
+# Example calculations
+p <- 0.3
+
+# Calculate probabilities
+# P(X = 3) - Probability of exactly 3 failures before first success
+p_3 <- dgeom(3, prob = p)
+cat("P(X = 3) =", p_3, "\n")
+
+# P(X <= 3) - Probability of 3 or fewer failures before first success
+p_leq_3 <- pgeom(3, prob = p)
+cat("P(X <= 3) =", p_leq_3, "\n")
+
+# P(X > 5) - Probability of more than 5 failures before first success
+p_gt_5 <- 1 - pgeom(5, prob = p)
+cat("P(X > 5) =", p_gt_5, "\n")
+
+# Find k such that P(X <= k) = 0.9
+q_val <- qgeom(0.9, prob = p)
+cat("Smallest k such that P(X <= k) >= 0.9:", q_val, "\n")
+
+# Generate random samples
+set.seed(101)
+random_samples <- rgeom(1000, prob = p)
+cat("Mean of 1000 random samples:", mean(random_samples), "\n")
+cat("Theoretical mean:", (1-p)/p, "\n")
+cat("Variance of 1000 random samples:", var(random_samples), "\n")
+cat("Theoretical variance:", (1-p)/p^2, "\n")
+
+# Demonstrate memoryless property
+# P(X > m+n | X > m) = P(X > n)
+m <- 4
+n <- 3
+p_mem_left <- 1 - pgeom(m+n, prob = p) / (1 - pgeom(m-1, prob = p))
+p_mem_right <- 1 - pgeom(n, prob = p)
+cat("P(X > m+n | X > m) =", p_mem_left, "\n")
+cat("P(X > n) =", p_mem_right, "\n")
+```
+
+The Geometric distribution has the unique "memoryless" property: the probability of requiring k more trials to succeed, given that you've already tried m times without success, is the same as the probability of requiring k trials from the beginning.
+
+Applications of the Geometric distribution include:
+
+* Modelling the number of attempts until first success
+* System reliability (number of failures before a system succeeds)
+* Length of losing streaks in gambling
+* Number of trials until first defect
+* Error correction in communications
+* Customer acquisition models (trials until conversion)
+
+#### 2.2.2.5 Hypergeometric Distribution
+
+The **Hypergeometric distribution** models the number of successes in n draws without replacement from a finite population containing a known number of successes.
+
+* PMF: P(X = k) = [(K choose k) × (N-K choose n-k)] / (N choose n) for max(0, n+K-N) ≤ k ≤ min(n, K)
+* Mean: E[X] = n × (K/N)
+* Variance: Var(X) = n × (K/N) × (N-K)/N × (N-n)/(N-1)
+
+Where:
+- N is the population size
+- K is the number of success states in the population
+- n is the number of draws
+- k is the number of observed successes
+
+R parameterizes the hypergeometric with `m` (number of success states), `n` (number of failure states), and `k` (number of draws).
+
+```{r hypergeometric, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Hypergeometric distribution parameters
+N_values <- c(20, 50, 100)  # Population size
+K_prop <- 0.4  # Proportion of success states in population
+n <- 10  # Number of draws
+
+# Calculate PMF for different population sizes
+hyper_data <- data.table()
+
+for (N in N_values) {
+    K <- round(N * K_prop)  # Number of success states
+    k <- 0:n  # Possible number of successes in sample
+    
+    # Calculate PMF
+    # dhyper in R uses (m, n, k) where:
+    # m = number of success states
+    # n = number of failure states
+    # k = number of draws
+    pmf <- dhyper(k, m = K, n = N - K, k = n)
+    
+    # Add to data.table
+    hyper_data <- rbind(hyper_data, data.table(
+        N = N,
+        K = K,
+        n = n,
+        k = k,
+        pmf = pmf
+    ))
+}
+
+# Visualize Hypergeometric PMF
+hyper_plot <- ggplot2$ggplot(hyper_data, ggplot2$aes(x = k, y = pmf, color = as.factor(N))) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$scale_color_brewer(palette = "Dark2") +
+    ggplot2$labs(
+        title = "Hypergeometric Distribution PMF",
+        subtitle = paste("Drawing", n, "items from populations with 40% success states"),
+        x = "Number of Successes (k)",
+        y = "P(X = k)",
+        color = "Population Size (N)"
+    ) +
+    ggplot2$theme_minimal()
+
+# Display plot
+print(hyper_plot)
+
+# Example: Drawing cards from a deck
+# 52 cards, 13 are diamonds, drawing 5 cards
+# What's the probability of getting exactly 2 diamonds?
+N <- 52  # Deck size
+K <- 13  # Number of diamonds
+n <- 5   # Hand size
+k <- 2   # Number of diamonds in hand
+
+p_2_diamonds <- dhyper(k, m = K, n = N - K, k = n)
+cat("P(X = 2) =", p_2_diamonds, "\n")
+
+# Probability of getting at most 2 diamonds
+p_leq_2 <- phyper(2, m = K, n = N - K, k = n)
+cat("P(X <= 2) =", p_leq_2, "\n")
+
+# Probability of getting more than 3 diamonds
+p_gt_3 <- 1 - phyper(3, m = K, n = N - K, k = n)
+cat("P(X > 3) =", p_gt_3, "\n")
+
+# Compare Hypergeometric and Binomial
+# With large population and small sample, Hypergeometric ≈ Binomial
+N <- 1000
+K <- 400  # 40% success states
+n <- 10
+p <- K/N  # Success probability for Binomial
+
+k_range <- 0:n
+hyper_pmf <- dhyper(k_range, m = K, n = N - K, k = n)
+binom_pmf <- dbinom(k_range, size = n, prob = p)
+
+compare_data <- data.table(
+    k = rep(k_range, 2),
+    pmf = c(hyper_pmf, binom_pmf),
+    distribution = rep(c("Hypergeometric", "Binomial"), each = length(k_range))
+)
+
+compare_plot <- ggplot2$ggplot(compare_data, ggplot2$aes(x = k, y = pmf, color = distribution, linetype = distribution)) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$labs(
+        title = "Hypergeometric vs Binomial Distribution",
+        subtitle = paste("N =", N, ", K =", K, ", n =", n, " (p = 0.4)"),
+        x = "Number of Successes (k)",
+        y = "Probability",
+        color = "Distribution",
+        linetype = "Distribution"
+    ) +
+    ggplot2$theme_minimal()
+
+print(compare_plot)
+```
+
+The Hypergeometric distribution is particularly useful for:
+
+* Sampling without replacement from finite populations
+* Quality control sampling and acceptance plans
+* Card game probability calculations
+* Genetic sampling from populations
+* Auditing and fraud detection
+* Election auditing
+* Ecological capture-recapture studies
+
+As the population size N becomes large relative to the sample size n, the Hypergeometric distribution approaches the Binomial distribution. This reflects the fact that when sampling with replacement from a large population, the probability of success remains approximately constant across draws.
+
+### 2.2.3 Simulation Studies with Discrete Distributions
+
+Simulation studies provide a powerful tool for investigating probabilistic phenomena, testing statistical methods, and gaining insights into complex systems. R's random number generation capabilities make it straightforward to conduct simulations with discrete distributions.
+
+```{r simulation_study, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=, data.table],
+    ggplot2
+)
+
+# Example: Simulating a queuing system
+# Customers arrive according to a Poisson process
+# Service times follow a Geometric distribution
+
+# Parameters
+set.seed(42)
+lambda <- 5          # Average number of arrivals per hour
+p_service <- 0.2     # Probability of completing service in each time unit
+simulation_hours <- 8  # Total simulation time
+time_units <- 60     # Number of time units per hour
+
+# Simulate customer arrivals
+arrivals <- rpois(simulation_hours, lambda)
+total_arrivals <- sum(arrivals)
+cat("Total customer arrivals:", total_arrivals, "\n")
+
+# Simulate service times
+service_times <- rgeom(total_arrivals, prob = p_service) + 1  # +1 because geom starts at 0
+cat("Average service time:", mean(service_times), "time units\n")
+cat("Theoretical mean service time:", 1/p_service, "time units\n")
+
+# Track customer flow
+customer_data <- data.table(
+    customer_id = 1:total_arrivals,
+    arrival_hour = rep(1:simulation_hours, arrivals),
+    service_time = service_times
+)
+
+# Assign arrival times within each hour (uniform distribution)
+customer_data[, arrival_time := (arrival_hour - 1) + runif(.N), by = arrival_hour]
+customer_data <- customer_data[order(arrival_time)]
+
+# Process queue
+customer_data[, `:=`(
+    start_service = 0,
+    end_service = 0,
+    wait_time = 0,
+    system_time = 0
+)]
+
+current_time <- 0
+for (i in 1:nrow(customer_data)) {
+    arrival <- customer_data[i, arrival_time] * time_units
+    service_duration <- customer_data[i, service_time]
+    
+    # Determine when service starts (max of arrival time or when system becomes free)
+    start <- max(arrival, current_time)
+    end <- start + service_duration
+    
+    customer_data[i, `:=`(
+        start_service = start / time_units,
+        end_service = end / time_units,
+        wait_time = (start - arrival) / time_units,
+        system_time = (end - arrival) / time_units
+    )]
+    
+    current_time <- end
+}
+
+# Calculate summary statistics
+avg_wait <- mean(customer_data$wait_time)
+avg_system <- mean(customer_data$system_time)
+max_wait <- max(customer_data$wait_time)
+
+cat("Average wait time:", round(avg_wait * 60, 1), "minutes\n")
+cat("Average time in system:", round(avg_system * 60, 1), "minutes\n")
+cat("Maximum wait time:", round(max_wait * 60, 1), "minutes\n")
+
+# Visualize queue over time
+timeline_data <- rbindlist(list(
+    customer_data[, .(time = arrival_time, event = "Arrival", customer = customer_id)],
+    customer_data[, .(time = start_service, event = "Service Start", customer = customer_id)],
+    customer_data[, .(time = end_service, event = "Service End", customer = customer_id)]
+))
+
+timeline_data <- timeline_data[order(time)]
+
+# Calculate queue length at each event
+timeline_data[, queue_length := cumsum(
+    ifelse(event == "Arrival", 1, 
+           ifelse(event == "Service Start", -1, 0))
+)]
+
+# Visualize queue length over time
+queue_plot <- ggplot2$ggplot(timeline_data[event %in% c("Arrival", "Service Start")], 
+                           ggplot2$aes(x = time, y = queue_length, color = event)) +
+    ggplot2$geom_step(size = 1) +
+    ggplot2$labs(
+        title = "Queue Length Over Time",
+        subtitle = paste("λ =", lambda, "arrivals/hour, p =", p_service, "service probability"),
+        x = "Time (hours)",
+        y = "Number of Customers in Queue",
+        color = "Event"
+    ) +
+    ggplot2$scale_x_continuous(breaks = 0:simulation_hours) +
+    ggplot2$theme_minimal()
+
+print(queue_plot)
+
+# Examine wait time distribution
+wait_hist <- ggplot2$ggplot(customer_data, ggplot2$aes(x = wait_time * 60)) +
+    ggplot2$geom_histogram(bins = 20, fill = "steelblue", color = "black", alpha = 0.7) +
+    ggplot2$labs(
+        title = "Distribution of Customer Wait Times",
+        subtitle = paste("Mean =", round(avg_wait * 60, 1), "minutes"),
+        x = "Wait Time (minutes)",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal()
+
+print(wait_hist)
+
+# Multiple simulation runs to assess variability
+num_runs <- 30
+run_results <- data.table()
+
+for (run in 1:num_runs) {
+    set.seed(100 + run)
+    
+    # Simplified simulation
+    arrivals <- rpois(simulation_hours, lambda)
+    total_customers <- sum(arrivals)
+    service_times <- rgeom(total_customers, prob = p_service) + 1
+    
+    # Record summary statistics
+    run_results <- rbind(run_results, data.table(
+        run = run,
+        total_customers = total_customers,
+        avg_service_time = mean(service_times),
+        utilization = sum(service_times) / (simulation_hours * time_units)
+    ))
+}
+
+# Visualize simulation variability
+run_plot <- ggplot2$ggplot(run_results, ggplot2$aes(x = run)) +
+    ggplot2$geom_line(ggplot2$aes(y = total_customers, color = "Customers"), size = 1) +
+    ggplot2$geom_line(ggplot2$aes(y = utilization * 100, color = "Utilization (%)"), size = 1) +
+    ggplot2$scale_y_continuous(
+        name = "Number of Customers",
+        sec.axis = ggplot2$sec_axis(~./100, name = "Utilization Rate")
+    ) +
+    ggplot2$scale_color_manual(values = c("Customers" = "steelblue", "Utilization (%)" = "darkred")) +
+    ggplot2$labs(
+        title = "Simulation Variability Across Runs",
+        x = "Simulation Run",
+        color = "Metric"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+
+print(run_plot)
+```
+
+This queuing simulation demonstrates several important features of simulation studies:
+
+1. **Model specification**: Defining the random processes that generate events (arrivals, service times)
+2. **Simulation execution**: Generating random samples to simulate system behavior
+3. **Results analysis**: Calculating summary statistics and visualizing outcomes
+4. **Validation**: Comparing empirical results with theoretical expectations
+5. **Variability assessment**: Running multiple simulations to understand the range of possible outcomes
+
+Simulation studies have numerous applications in statistics:
+
+* **Method evaluation**: Assessing the performance of statistical methods under different conditions
+* **Power analysis**: Determining sample sizes needed for hypothesis tests
+* **Confidence interval coverage**: Checking if confidence intervals achieve their nominal coverage rates
+* **Robustness testing**: Examining how methods perform when assumptions are violated
+* **Bayesian posterior approximation**: When analytical solutions are intractable
+* **System modelling**: Understanding complex systems with multiple interacting random components
+
+Best practices for simulation studies include:
+
+* **Seed setting**: Use `set.seed()` to ensure reproducibility
+* **Sufficient replications**: Run enough simulations to obtain stable estimates
+* **Parameter variation**: Test methods across a range of parameter values
+* **Code verification**: Test against known analytical results when possible
+* **Efficient implementation**: Vectorize operations and use appropriate data structures
+* **Comprehensive reporting**: Document all aspects of the simulation design and results
+
+## 2.3 Continuous Random Variables
+
+Continuous random variables can take any value within a range, making them appropriate for modelling quantities like measurements, times, and distances. Unlike discrete random variables, the probability of a continuous random variable taking exactly any specific value is zero; instead, we work with the probability of the variable falling within intervals.
+
+### 2.3.1 Probability Density Functions
+
+A continuous random variable X is characterized by its probability density function (PDF), denoted as f(x), which defines the relative likelihood of the random variable taking a value near x.
+
+**Probability Density Function (PDF)**: A function f(x) that satisfies:
+
+1. Non-negativity: f(x) ≥ 0 for all x in the range of X
+2. Unit area: ∫ f(x) dx = 1, where the integral is over the entire range of X
+3. P(a ≤ X ≤ b) = ∫ₐᵇ f(x) dx for any interval [a, b]
+
+Unlike the PMF for discrete random variables, the PDF does not directly give probabilities. Instead, probabilities are obtained by integrating the PDF over intervals.
+
+```{r continuous_random_variables, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Example of a PDF - Standard Normal Distribution
+x <- seq(-4, 4, by = 0.01)
+pdf_values <- dnorm(x)
+
+# Create a data.table
+pdf_data <- data.table(
+    x = x,
+    pdf = pdf_values
+)
+
+# Plot the PDF
+pdf_plot <- ggplot2$ggplot(pdf_data, ggplot2$aes(x = x, y = pdf)) +
+    ggplot2$geom_line(size = 1, color = "steelblue") +
+    ggplot2$labs(
+        title = "Standard Normal Probability Density Function",
+        x = "x",
+        y = "f(x)"
+    ) +
+    ggplot2$theme_minimal()
+
+# Calculate and visualize probability for a specific interval
+a <- -1
+b <- 1
+# Highlight area under the curve for [a, b]
+area_plot <- pdf_plot +
+    ggplot2$geom_area(data = pdf_data[x >= a & x <= b], fill = "darkred", alpha = 0.5) +
+    ggplot2$geom_vline(xintercept = a, linetype = "dashed") +
+    ggplot2$geom_vline(xintercept = b, linetype = "dashed") +
+    ggplot2$annotate("text", x = (a + b) / 2, y = 0.1, 
+                   label = paste0("P(", a, " ≤ X ≤ ", b, ") = ", round(pnorm(b) - pnorm(a), 4)),
+                   size = 5, color = "darkred")
+
+print(area_plot)
+
+# Calculate probabilities using the PDF
+# P(X ≤ 0) - probability X is less than or equal to 0
+p_leq_0 <- pnorm(0)
+cat("P(X ≤ 0) =", p_leq_0, "\n")
+
+# P(X > 2) - probability X is greater than 2
+p_gt_2 <- 1 - pnorm(2)
+cat("P(X > 2) =", p_gt_2, "\n")
+
+# P(-1 ≤ X ≤ 1) - probability X is between -1 and 1
+p_between <- pnorm(1) - pnorm(-1)
+cat("P(-1 ≤ X ≤ 1) =", p_between, "\n")
+```
+
+Important properties of PDFs and continuous random variables:
+
+* The probability of any single point is zero: P(X = a) = 0 for any value a
+* Probabilities are defined only for intervals
+* The PDF can exceed 1 (unlike a PMF), as long as the total area under the curve equals 1
+* The PDF describes the relative likelihood of different values, not probabilities directly
+
+### 2.3.2 Cumulative Distribution Functions
+
+The Cumulative Distribution Function (CDF) for a continuous random variable provides the probability that the random variable X takes a value less than or equal to x.
+
+**Cumulative Distribution Function (CDF)**: For a continuous random variable X with PDF f(t), the CDF F(x) is defined as:
+
+$$F(x) = P(X \leq x) = \int_{-\infty}^{x} f(t) dt$$
+
+Properties of the CDF include:
+
+* F(x) is non-decreasing: If a < b, then F(a) ≤ F(b)
+* F(x) ranges from 0 to 1: lim(x→-∞) F(x) = 0 and lim(x→∞) F(x) = 1
+* P(a < X ≤ b) = F(b) - F(a)
+* The PDF can be derived from the CDF: f(x) = dF(x)/dx
+
+```{r cdf_continuous, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Example of a CDF - Standard Normal Distribution
+x <- seq(-4, 4, by = 0.01)
+cdf_values <- pnorm(x)
+
+# Create a data.table
+cdf_data <- data.table(
+    x = x,
+    cdf = cdf_values
+)
+
+# Plot the CDF
+cdf_plot <- ggplot2$ggplot(cdf_data, ggplot2$aes(x = x, y = cdf)) +
+    ggplot2$geom_line(size = 1, color = "darkred") +
+    ggplot2$labs(
+        title = "Standard Normal Cumulative Distribution Function",
+        x = "x",
+        y = "F(x)"
+    ) +
+    ggplot2$theme_minimal()
+
+print(cdf_plot)
+
+# Illustrate relationship between PDF and CDF
+combined_plot <- ggplot2$ggplot() +
+    # PDF
+    ggplot2$geom_line(data = pdf_data, ggplot2$aes(x = x, y = pdf, color = "PDF"), size = 1) +
+    # CDF
+    ggplot2$geom_line(data = cdf_data, ggplot2$aes(x = x, y = cdf, color = "CDF"), size = 1) +
+    ggplot2$scale_color_manual(values = c("PDF" = "steelblue", "CDF" = "darkred")) +
+    ggplot2$labs(
+        title = "Relationship Between PDF and CDF",
+        subtitle = "Standard Normal Distribution",
+        x = "x",
+        y = "Probability / Cumulative Probability",
+        color = NULL
+    ) +
+    ggplot2$theme_minimal()
+
+print(combined_plot)
+
+# Use the CDF to find probabilities
+x_value <- 1.96
+
+# P(X ≤ 1.96)
+p_leq_196 <- pnorm(1.96)
+cat("P(X ≤ 1.96) =", p_leq_196, "\n")
+
+# P(-1.96 ≤ X ≤ 1.96)
+p_between <- pnorm(1.96) - pnorm(-1.96)
+cat("P(-1.96 ≤ X ≤ 1.96) =", p_between, "\n")
+
+# Use the quantile function (inverse CDF) to find critical values
+# Find x such that P(X ≤ x) = 0.975
+q_975 <- qnorm(0.975)
+cat("x such that P(X ≤ x) = 0.975:", q_975, "\n")
+
+# Find x such that P(X ≤ x) = 0.025
+q_025 <- qnorm(0.025)
+cat("x such that P(X ≤ x) = 0.025:", q_025, "\n")
+
+# Visualize a 95% confidence interval
+ci_plot <- cdf_plot +
+    ggplot2$geom_vline(xintercept = q_025, linetype = "dashed", color = "blue") +
+    ggplot2$geom_vline(xintercept = q_975, linetype = "dashed", color = "blue") +
+    ggplot2$geom_hline(yintercept = c(0.025, 0.975), linetype = "dotted", color = "blue") +
+    ggplot2$annotate("rect", xmin = q_025, xmax = q_975, ymin = 0, ymax = 1, 
+                   fill = "blue", alpha = 0.1) +
+    ggplot2$annotate("text", x = 0, y = 0.5, 
+                   label = "95% Confidence Interval",
+                   size = 5, color = "blue")
+
+print(ci_plot)
+```
+
+The CDF is particularly useful for:
+
+* Calculating probabilities for intervals
+* Determining percentiles (values below which a certain proportion of observations fall)
+* Generating random samples through inverse transform sampling
+* Statistical testing (e.g., Kolmogorov-Smirnov test)
+* Modelling risk and reliability (e.g., survival functions in reliability engineering)
+
+### 2.3.3 Common Continuous Distributions and Their R Implementations
+
+R provides functions for working with many continuous distributions, following the same pattern as for discrete distributions:
+
+* `d[dist]` - Probability density function (PDF)
+* `p[dist]` - Cumulative distribution function (CDF)
+* `q[dist]` - Quantile function (inverse CDF)
+* `r[dist]` - Random number generation
+
+Where `[dist]` is replaced by the shortened name of the distribution (e.g., `norm` for Normal, `exp` for Exponential).
+
+#### 2.3.3.1 Normal Distribution
+
+The **Normal (Gaussian) distribution** is perhaps the most important continuous probability distribution in statistics, arising naturally in many contexts due to the Central Limit Theorem.
+
+* PDF: f(x) = (1 / (σ√(2π))) × e^(-(x-μ)²/(2σ²))
+* Mean: E[X] = μ
+* Variance: Var(X) = σ²
+
+Where μ is the mean and σ is the standard deviation.
+
+```{r normal_distribution, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Normal distribution parameters
+mu_values <- c(-2, 0, 2)  # Means
+sigma_values <- c(0.5, 1, 2)  # Standard deviations
+x <- seq(-6, 6, by = 0.01)
+
+# Calculate PDFs for different parameter combinations
+normal_data <- data.table()
+
+for (mu in mu_values) {
+    for (sigma in sigma_values) {
+        pdf <- dnorm(x, mean = mu, sd = sigma)
+        
+        # Add to data.table
+        normal_data <- rbind(normal_data, data.table(
+            x = x,
+            pdf = pdf,
+            mu = mu,
+            sigma = sigma,
+            label = paste0("μ = ", mu, ", σ = ", sigma)
+        ))
+    }
+}
+
+# Visualize Normal PDFs
+normal_plot <- ggplot2$ggplot(normal_data, 
+                            ggplot2$aes(x = x, y = pdf, color = as.factor(sigma), linetype = as.factor(mu))) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$scale_color_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Normal Distribution PDF",
+        subtitle = "Varying mean (μ) and standard deviation (σ) parameters",
+        x = "x",
+        y = "f(x)",
+        color = "σ",
+        linetype = "μ"
+    ) +
+    ggplot2$theme_minimal()
+
+print(normal_plot)
+
+# Standard Normal distribution (μ = 0, σ = 1)
+# Calculate common probabilities
+p_within_1sd <- pnorm(1) - pnorm(-1)
+p_within_2sd <- pnorm(2) - pnorm(-2)
+p_within_3sd <- pnorm(3) - pnorm(-3)
+
+cat("P(-1 < Z < 1) =", p_within_1sd, "≈ 68.3%\n")
+cat("P(-2 < Z < 2) =", p_within_2sd, "≈ 95.4%\n")
+cat("P(-3 < Z < 3) =", p_within_3sd, "≈ 99.7%\n")
+
+# Visualize the empirical rule (68-95-99.7 rule)
+empirical_plot <- ggplot2$ggplot(data.table(x = seq(-4, 4, by = 0.01)), ggplot2$aes(x = x)) +
+    ggplot2$stat_function(fun = dnorm, n = 101, size = 1.5, color = "black") +
+    ggplot2$geom_area(stat = "function", fun = dnorm, fill = "darkred", alpha = 0.4,
+                    xlim = c(-1, 1)) +
+    ggplot2$geom_area(stat = "function", fun = dnorm, fill = "darkgreen", alpha = 0.3,
+                    xlim = c(-2, -1)) +
+    ggplot2$geom_area(stat = "function", fun = dnorm, fill = "darkgreen", alpha = 0.3,
+                    xlim = c(1, 2)) +
+    ggplot2$geom_area(stat = "function", fun = dnorm, fill = "darkblue", alpha = 0.2,
+                    xlim = c(-3, -2)) +
+    ggplot2$geom_area(stat = "function", fun = dnorm, fill = "darkblue", alpha = 0.2,
+                    xlim = c(2, 3)) +
+    ggplot2$annotate("text", x = 0, y = 0.2, label = "68.3%", size = 6, color = "darkred") +
+    ggplot2$annotate("text", x = -1.5, y = 0.05, label = "13.6%", size = 4, color = "darkgreen") +
+    ggplot2$annotate("text", x = 1.5, y = 0.05, label = "13.6%", size = 4, color = "darkgreen") +
+    ggplot2$annotate("text", x = -2.5, y = 0.02, label = "2.1%", size = 3, color = "darkblue") +
+    ggplot2$annotate("text", x = 2.5, y = 0.02, label = "2.1%", size = 3, color = "darkblue") +
+    ggplot2$labs(
+        title = "The Empirical Rule for Normal Distributions",
+        subtitle = "68.3% within 1σ, 95.4% within 2σ, 99.7% within 3σ",
+        x = "Standard Deviations from Mean",
+        y = "Probability Density"
+    ) +
+    ggplot2$theme_minimal()
+
+print(empirical_plot)
+
+# Generate random normal samples and check distribution
+set.seed(42)
+n_samples <- 10000
+samples <- rnorm(n_samples, mean = 0, sd = 1)
+
+# Compare empirical and theoretical distributions
+ggplot2$ggplot() +
+    ggplot2$geom_histogram(ggplot2$aes(x = samples, y = ..density..), 
+                         bins = 50, fill = "steelblue", alpha = 0.7) +
+    ggplot2$stat_function(fun = dnorm, args = list(mean = 0, sd = 1), 
+                        color = "darkred", size = 1.5) +
+    ggplot2$labs(
+        title = "Comparison of Empirical and Theoretical Distributions",
+        subtitle = paste(n_samples, "random samples from N(0, 1)"),
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+The Normal distribution has numerous applications:
+
+* **Measurement errors**: Physical and biological measurements often follow normal distributions
+* **Central Limit Theorem**: Sums and averages of random variables tend toward normal distributions
+* **Statistical inference**: Many statistical tests and confidence intervals are based on normal theory
+* **Risk modelling**: Asset returns in finance are often approximated as normally distributed
+* **Quality control**: Process variations and tolerances
+* **Machine learning**: Gaussian processes, neural network weight initializations
+
+The standard normal distribution (μ = 0, σ = 1) is particularly important, as any normal random variable can be standardized to this form using the transformation Z = (X - μ) / σ.
+
+#### 2.3.3.2 Student's t-Distribution
+
+The **Student's t-distribution** describes the distribution of the sample mean from a normally distributed population when the sample size is small and the population standard deviation is unknown.
+
+* PDF: Complex form involving the gamma function
+* Mean: E[X] = 0 for ν > 1, undefined otherwise
+* Variance: Var(X) = ν/(ν-2) for ν > 2, undefined for ν ≤ 2
+
+Where ν (nu) is the degrees of freedom parameter.
+
+```{r t_distribution, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# t-distribution parameters
+df_values <- c(1, 3, 5, 30)  # Degrees of freedom
+x <- seq(-5, 5, by = 0.01)
+
+# Calculate PDFs for different df values
+t_data <- data.table()
+
+for (df in df_values) {
+    pdf <- dt(x, df = df)
+    
+    # Add to data.table
+    t_data <- rbind(t_data, data.table(
+        x = x,
+        pdf = pdf,
+        df = df
+    ))
+}
+
+# Add normal distribution for comparison
+normal_pdf <- dnorm(x)
+t_data <- rbind(t_data, data.table(
+    x = x,
+    pdf = normal_pdf,
+    df = Inf  # Represent normal as t with infinite df
+))
+
+# Visualize t-distributions
+t_plot <- ggplot2$ggplot(t_data, ggplot2$aes(x = x, y = pdf, color = as.factor(df))) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$scale_color_brewer(palette = "Set1", 
+                             labels = c("1", "3", "5", "30", "Normal")) +
+    ggplot2$labs(
+        title = "Student's t-Distribution PDF",
+        subtitle = "Varying degrees of freedom (df), compared with Normal distribution",
+        x = "x",
+        y = "f(x)",
+        color = "df"
+    ) +
+    ggplot2$theme_minimal()
+
+print(t_plot)
+
+# Calculate probabilities for t-distributions
+df <- 5
+t_value <- 2.571  # Critical value for 95% confidence with df = 5
+p_t <- pt(t_value, df = df)
+cat("P(t ≤ 2.571) with df = 5:", p_t, "\n")
+
+p_interval <- pt(t_value, df = df) - pt(-t_value, df = df)
+cat("P(-2.571 ≤ t ≤ 2.571) with df = 5:", p_interval, "\n")
+
+# Compare critical values between t and normal distributions
+alpha <- 0.05
+confidence_level <- 1 - alpha
+critical_values <- data.table(
+    Distribution = c("Normal", paste0("t (df = ", df_values, ")")),
+    df = c(Inf, df_values),
+    `Critical Value` = c(qnorm(1 - alpha/2), qt(1 - alpha/2, df = df_values)),
+    `P(|X| ≤ CV)` = confidence_level
+)
+
+print(critical_values)
+
+# Visualize the difference in tail behavior
+tail_plot <- ggplot2$ggplot() +
+    ggplot2$geom_line(data = t_data[df %in% c(3, Inf)], 
+                    ggplot2$aes(x = x, y = pdf, color = as.factor(df)), size = 1) +
+    ggplot2$geom_area(data = t_data[df == 3 & abs(x) >= qt(0.975, df = 3)], 
+                    ggplot2$aes(x = x, y = pdf), fill = "darkred", alpha = 0.5) +
+    ggplot2$geom_area(data = t_data[df == Inf & abs(x) >= qnorm(0.975)], 
+                    ggplot2$aes(x = x, y = pdf), fill = "steelblue", alpha = 0.5) +
+    ggplot2$scale_color_manual(values = c("darkred", "steelblue"), 
+                             labels = c("t (df = 3)", "Normal")) +
+    ggplot2$labs(
+        title = "Comparison of Tail Behavior",
+        subtitle = "t-distribution has heavier tails than Normal distribution",
+        x = "x",
+        y = "f(x)",
+        color = "Distribution"
+    ) +
+    ggplot2$xlim(-5, 5) +
+    ggplot2$theme_minimal()
+
+print(tail_plot)
+```
+
+Key features of the t-distribution:
+
+* Similar to the normal distribution but with heavier tails
+* As degrees of freedom increase, the t-distribution approaches the standard normal distribution
+* For small df, the tails are much heavier than the normal distribution
+* The t-distribution is symmetric around zero
+
+Applications of the t-distribution include:
+
+* **Small sample inference**: Confidence intervals and hypothesis tests for means
+* **Regression analysis**: Testing significance of coefficients
+* **ANOVA**: Testing differences between group means
+* **Portfolio optimization**: Modelling asset returns with heavier tails than normal
+
+#### 2.3.3.3 Chi-Square Distribution
+
+The **Chi-Square (χ²) distribution** arises from the sum of squares of independent standard normal random variables.
+
+* PDF: Complex form involving the gamma function
+* Mean: E[X] = k
+* Variance: Var(X) = 2k
+
+Where k is the degrees of freedom parameter.
+
+```{r chi_square, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# Chi-square distribution parameters
+df_values <- c(1, 2, 3, 5, 10)  # Degrees of freedom
+x <- seq(0, 20, by = 0.01)
+
+# Calculate PDFs for different df values
+chi2_data <- data.table()
+
+for (df in df_values) {
+    pdf <- dchisq(x, df = df)
+    
+    # Add to data.table
+    chi2_data <- rbind(chi2_data, data.table(
+        x = x,
+        pdf = pdf,
+        df = df
+    ))
+}
+
+# Visualize chi-square distributions
+chi2_plot <- ggplot2$ggplot(chi2_data, ggplot2$aes(x = x, y = pdf, color = as.factor(df))) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$scale_color_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Chi-Square Distribution PDF",
+        subtitle = "Varying degrees of freedom (df)",
+        x = "x",
+        y = "f(x)",
+        color = "df"
+    ) +
+    ggplot2$theme_minimal()
+
+print(chi2_plot)
+
+# Calculate probabilities for chi-square distributions
+df <- 5
+chi2_value <- 11.07  # Critical value for 95% confidence with df = 5
+p_chi2 <- pchisq(chi2_value, df = df)
+cat("P(χ² ≤ 11.07) with df = 5:", p_chi2, "\n")
+
+# Find critical values for common significance levels
+alpha_values <- c(0.01, 0.05, 0.10)
+critical_values <- sapply(alpha_values, function(a) qchisq(1 - a, df = df))
+names(critical_values) <- paste0("α = ", alpha_values)
+print(critical_values)
+
+# Demonstrate relationship between normal and chi-square
+# Chi-square with df = 1 is the distribution of Z²
+set.seed(789)
+n_samples <- 100000
+z_samples <- rnorm(n_samples)
+z2_samples <- z_samples^2
+
+# Compare empirical Z² with theoretical chi-square(1)
+ggplot2$ggplot() +
+    ggplot2$geom_histogram(ggplot2$aes(x = z2_samples, y = ..density..), 
+                         bins = 100, fill = "steelblue", alpha = 0.7) +
+    ggplot2$stat_function(fun = dchisq, args = list(df = 1), 
+                        color = "darkred", size = 1.5) +
+    ggplot2$xlim(0, 10) +
+    ggplot2$labs(
+        title = "Squared Standard Normal vs. Chi-Square(1)",
+        subtitle = "Z² ~ χ²(1)",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+
+# Demonstrate relationship for higher degrees of freedom
+# Sum of k independent squared standard normals ~ chi-square(k)
+k <- 5
+z_matrix <- matrix(rnorm(n_samples * k), ncol = k)
+chi2_k_samples <- rowSums(z_matrix^2)
+
+ggplot2$ggplot() +
+    ggplot2$geom_histogram(ggplot2$aes(x = chi2_k_samples, y = ..density..), 
+                         bins = 100, fill = "steelblue", alpha = 0.7) +
+    ggplot2$stat_function(fun = dchisq, args = list(df = k), 
+                        color = "darkred", size = 1.5) +
+    ggplot2$xlim(0, 20) +
+    ggplot2$labs(
+        title = paste0("Sum of ", k, " Squared Standard Normals vs. Chi-Square(", k, ")"),
+        subtitle = paste0("Σ Z²_i ~ χ²(", k, ")"),
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+Applications of the Chi-Square distribution include:
+
+* **Goodness-of-fit tests**: Testing if observed data follows an expected distribution
+* **Tests of independence**: In contingency tables
+* **Variance testing**: Comparing sample variance to a theoretical value
+* **Confidence intervals**: For population variance
+* **Component analysis**: Assessing contributions in multivariate analysis
+
+The Chi-Square distribution is related to several other distributions:
+
+* **Normal**: If Z ~ N(0, 1), then Z² ~ χ²(1)
+* **Gamma**: The Chi-Square is a special case of the Gamma distribution
+* **F-distribution**: Ratios of Chi-Square variables yield F-distributions
+* **t-distribution**: If Z ~ N(0, 1) and V ~ χ²(ν) independently, then Z/√(V/ν) ~ t(ν)
+
+#### 2.3.3.4 F-Distribution
+
+The **F-distribution** arises from the ratio of two independent chi-square random variables, each divided by its degrees of freedom.
+
+* PDF: Complex form involving the beta function
+* Mean: E[X] = ν₂/(ν₂-2) for ν₂ > 2, undefined otherwise
+* Variance: Complex form, defined for ν₂ > 4
+
+Where ν₁ and ν₂ are the degrees of freedom parameters for the numerator and denominator, respectively.
+
+```{r f_distribution, echo=TRUE}
+box::use(
+    data.table[as.data.table, .SD, .N, :=],
+    ggplot2
+)
+
+# F-distribution parameters
+df1_values <- c(1, 2, 5, 10)  # Numerator degrees of freedom
+df2_values <- c(5, 10, 30)    # Denominator degrees of freedom
+x <- seq(0, 5, by = 0.01)
+
+# Calculate PDFs for different df combinations
+f_data <- data.table()
+
+for (df1 in df1_values) {
+    for (df2 in df2_values) {
+        pdf <- df(x, df1 = df1, df2 = df2)
+        
+        # Add to data.table
+        f_data

@@ -291,19 +291,32 @@ router.post('/auth/login', async (req: Request, res: Response) => {
             req.session.cookie.maxAge = 90 * 24 * 60 * 60 * 1000; // 90 days
         }
 
-        // Return user information (exclude sensitive fields)
-        res.json({
-            message: 'Logged in successfully',
-            user: {
-                id: user._id,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                username: user.username,
-                email: user.email,
-                isVerified: user.isVerified,
-                profilePhoto: user.profilePhoto,
-                role: user.role
+        return req.session.save((err) => {
+            if (err) {
+                console.error('Error saving session:', err);
+                return res.status(500).json({
+                    error: 'An error occurred during login',
+                    code: 'SERVER_ERROR'
+                });
             }
+
+            console.log('Session saved with ID:', req.sessionID);
+            console.log('Session data:', req.session);
+
+            // Return user information (exclude sensitive fields)
+            res.json({
+                message: 'Logged in successfully',
+                user: {
+                    id: user._id,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    username: user.username,
+                    email: user.email,
+                    isVerified: user.isVerified,
+                    profilePhoto: user.profilePhoto,
+                    role: user.role
+                }
+            });
         });
     } catch (error) {
         console.error('Error during login:', error);
@@ -335,8 +348,8 @@ router.post('/auth/logout', (req: Request, res: Response) => {
             });
         }
 
-        // Clear cookies
-        res.clearCookie('connect.sid');
+        // Clear cookies - use the correct cookie name
+        res.clearCookie('derecksnotes.sid');
         res.json({ message: 'Logged out successfully' });
     });
 });

@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import Redis from 'ioredis';
+import Redis, { type RedisOptions } from 'ioredis';
 import * as env from '../utils/env';
 
 class DataBases {
@@ -39,10 +39,63 @@ class DataBases {
 
     private async connectRedis() {
         try {
-            this.redisClient = new Redis(env.REDIS_URI);
+            let redisConfig: RedisOptions;
+
+            if (env.BUILD_ENV === 'LOCAL') {
+                // Local development - connect to remote Redis with TLS
+                redisConfig = {
+                    host: env.REDIS_URI,
+                    port: 6379,
+                    // No password required - Redis authentication disabled
+                    enableReadyCheck: true,
+                    tls: {
+                        rejectUnauthorized: true
+                    }
+                };
+            } else {
+                // DEV or PROD environment - running in Docker, use internal Docker network
+                redisConfig = {
+                    host: env.REDIS_URI, // This will be 'linode_dereck-redis'
+                    // No password required - Redis authentication disabled
+                    enableReadyCheck: true
+                };
+            }
+
+            this.redisClient = new Redis(redisConfig);
+
+            // Add event listeners for better debugging
+            this.redisClient.on('connect', () => {
+                console.log(`Redis client connected to ${env.REDIS_URI}`);
+            });
+
+            this.redisClient.on('ready', () => {
+                console.log('Redis client ready for commands');
+            });
+
+            this.redisClient.on('reconnecting', () => {
+                console.log('Redis client reconnecting');
+            });
+
+            this.redisClient.on('end', () => {
+                console.log('Redis client connection closed');
+            });
+
+            this.redisClient.on('error', (error) => {
+                console.error('Redis client error:', error);
+
+                // For local development, provide more helpful error message
+                if (env.BUILD_ENV === 'LOCAL') {
+                    console.log(
+                        'If running locally without Redis, consider setting up a local Redis instance or mocking it.'
+                    );
+                }
+            });
+
+            // Verify connection with ping
+            await this.redisClient.ping();
             console.log('Connected to Redis');
         } catch (error) {
-            console.error('Failed to connect to Redis', error);
+            console.error('Failed to connect to Redis:', error);
             throw error;
         }
     }

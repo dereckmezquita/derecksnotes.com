@@ -9,9 +9,15 @@ export const authMiddleware = async (
     res: Response,
     next: NextFunction
 ) => {
+    console.log('Auth middleware called');
+    console.log('Session:', JSON.stringify(req.session));
+    console.log('Cookies:', req.headers.cookie);
+
     const userId = req.session.userId;
+    console.log('User ID from session:', userId);
 
     if (!userId) {
+        console.log('No user ID found in session, returning 401');
         return res
             .status(401)
             .json({ error: 'Unauthorized', code: 'AUTH_REQUIRED' });
@@ -19,6 +25,8 @@ export const authMiddleware = async (
 
     try {
         const user = await User.findById(userId);
+        console.log('User found:', user ? 'yes' : 'no');
+
         if (!user) {
             // Clear invalid session
             req.session.destroy((err) => {

@@ -74,7 +74,7 @@ MongoDB connection details.
 REDIS_URI='redis://localhost:6379'
 ```
 
-Redis connection string.
+Redis connection string. Note: Redis authentication is disabled - no password required.
 
 ### Security
 

@@ -51,9 +51,12 @@ app.use(
         resave: false,
         saveUninitialized: false,
         cookie: {
-            secure: env.BUILD_ENV !== 'LOCAL', // secure cookies for DEV and PROD
+            secure: env.BUILD_ENV !== 'LOCAL',
             httpOnly: true,
-            maxAge: constants.SESSION_MAX_AGE
+            maxAge: constants.SESSION_MAX_AGE,
+            path: '/',
+            sameSite: 'none',
+            domain: env.DOMAIN
         }
     })
 );
@@ -68,6 +71,7 @@ app.use(env.API_PREFIX, routes.test);
 // -----
 app.get(env.API_PREFIX, async (req: Request, res: Response) => {
     const status = await getServerStatus();
+    console.log('Server status:', JSON.stringify(status, null, 2));
     res.json(status);
 });
 
@@ -76,6 +80,14 @@ if (env.BUILD_ENV !== 'PROD') {
     // Log all incoming requests with basic info
     app.use((req: Request, res: Response, next: NextFunction) => {
         console.log('Incoming request: ', req.method, req.url);
+        next();
+    });
+
+    // Add session tracking middleware for debugging
+    app.use((req: Request, res: Response, next: NextFunction) => {
+        console.log('Session ID:', req.sessionID);
+        console.log('Session Data:', JSON.stringify(req.session));
+        console.log('Cookie Header:', req.headers.cookie);
         next();
     });
 
