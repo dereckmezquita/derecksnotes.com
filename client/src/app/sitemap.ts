@@ -82,12 +82,18 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // Add dictionary definitions
     const dictionaries = ['mathematics', 'chemistry', 'biology'];
     dictionaries.forEach((dictionary) => {
-        const dictDir = path.join(ROOT_DIR_APP, 'dictionaries', dictionary, 'definitions');
+        const dictDir = path.join(
+            ROOT_DIR_APP,
+            'dictionaries',
+            dictionary,
+            'definitions'
+        );
         if (fs.existsSync(dictDir)) {
-            const definitions = fs.readdirSync(dictDir)
-                .filter(file => file.endsWith('.mdx'))
-                .map(file => path.basename(file, '.mdx'));
-            
+            const definitions = fs
+                .readdirSync(dictDir)
+                .filter((file) => file.endsWith('.mdx'))
+                .map((file) => path.basename(file, '.mdx'));
+
             definitions.forEach((definition) => {
                 sitemap.push({
                     url: `${baseUrl}/dictionaries/${dictionary}/${definition}`,
@@ -104,33 +110,34 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
 function getAllMdxFiles(dir: string): string[] {
     const files: string[] = [];
-    
+
     if (!fs.existsSync(dir)) {
         return files;
     }
 
     const items = fs.readdirSync(dir);
-    
+
     items.forEach((item) => {
         const fullPath = path.join(dir, item);
         const stat = fs.statSync(fullPath);
-        
+
         if (stat.isDirectory()) {
             // Skip certain directories
             if (['drafts', 'deprecated', 'ignore'].includes(item)) {
                 return;
             }
-            
+
             // Get MDX files from subdirectories
-            const subFiles = fs.readdirSync(fullPath)
-                .filter(file => file.endsWith('.mdx'))
-                .map(file => `${item}/${path.basename(file, '.mdx')}`);
-            
+            const subFiles = fs
+                .readdirSync(fullPath)
+                .filter((file) => file.endsWith('.mdx'))
+                .map((file) => `${item}/${path.basename(file, '.mdx')}`);
+
             files.push(...subFiles);
         } else if (item.endsWith('.mdx')) {
             files.push(path.basename(item, '.mdx'));
         }
     });
-    
+
     return files;
 }

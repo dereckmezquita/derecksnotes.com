@@ -88,7 +88,12 @@ export default function robots(): MetadataRoute.Robots {
             // Default rule for all other bots
             {
                 userAgent: '*',
-                disallow: ['/api/', '/_next/', '/site-images/card-covers/', '/dictionaries/'],
+                disallow: [
+                    '/api/',
+                    '/_next/',
+                    '/site-images/card-covers/',
+                    '/dictionaries/'
+                ],
                 crawlDelay: 2
             }
         ],
