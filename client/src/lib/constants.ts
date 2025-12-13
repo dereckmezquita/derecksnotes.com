@@ -31,7 +31,7 @@ export const APPLICATION_DEFAULT_METADATA: PageMetadata = {
     title: "Dn | Dereck's Notes",
     description: APPLICATION_DESCRIPTION,
     image: '/site-images/card-covers/512-logo.png',
-    url: process.env.NEXT_PUBLIC_APP_URL
+    url: process.env.NEXT_PUBLIC_APP_URL || 'https://derecksnotes.com'
 };
 
 // UI constants

@@ -148,7 +148,7 @@ export async function fetchAllDefintions(dir: string): Promise<Definition[]> {
 
                 frontmatter.url = new URL(
                     path.join('dictionaries', frontmatter.dictionary),
-                    NEXT_PUBLIC_APP_URL
+                    NEXT_PUBLIC_APP_URL || 'https://derecksnotes.com'
                 ).toString();
 
                 frontmatter.slug = path.basename(filename, '.mdx');
