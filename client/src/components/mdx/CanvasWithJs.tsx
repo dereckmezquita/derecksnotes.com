@@ -10,7 +10,7 @@ type CanvasWithJsProps = {
 
 /**
  * CanvasWithJs - Secure canvas execution component
- * 
+ *
  * Since Next.js 15.1.11 blocks `new Function()` for security (React2Shell fix),
  * we use an iframe sandbox to execute the drawing code safely.
  */
@@ -24,7 +24,7 @@ const CanvasWithJs: React.FC<CanvasWithJsProps> = ({
 
     useEffect(() => {
         if (!containerRef.current) return;
-        
+
         // Clear previous content
         containerRef.current.innerHTML = '';
         setError(null);
@@ -35,17 +35,18 @@ const CanvasWithJs: React.FC<CanvasWithJsProps> = ({
         iframe.style.height = `${height}px`;
         iframe.style.border = '1px solid #ccc';
         iframe.style.display = 'block';
-        
+
         // Sandbox attributes - allow scripts but nothing else dangerous
         iframe.setAttribute('sandbox', 'allow-scripts');
         iframe.setAttribute('referrerpolicy', 'no-referrer');
-        
+
         containerRef.current.appendChild(iframe);
 
         // Wait for iframe to load, then inject the canvas code
         iframe.onload = () => {
             try {
-                const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+                const iframeDoc =
+                    iframe.contentDocument || iframe.contentWindow?.document;
                 if (!iframeDoc) {
                     setError('Could not access iframe');
                     return;
@@ -94,10 +95,25 @@ const CanvasWithJs: React.FC<CanvasWithJsProps> = ({
     }, [code, width, height]);
 
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', width: '100%', flexDirection: 'column', gap: '8px' }}>
+        <div
+            style={{
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                width: '100%',
+                flexDirection: 'column',
+                gap: '8px'
+            }}
+        >
             <div ref={containerRef} />
             {error && (
-                <div style={{ color: '#c00', fontSize: '12px', maxWidth: `${width}px` }}>
+                <div
+                    style={{
+                        color: '#c00',
+                        fontSize: '12px',
+                        maxWidth: `${width}px`
+                    }}
+                >
                     Error: {error}
                 </div>
             )}
