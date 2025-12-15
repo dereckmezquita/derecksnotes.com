@@ -1,38 +1,55 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import React, { useEffect, useRef } from 'react';
 
-/**
- * SECURITY: This wrapper ensures CanvasWithJs NEVER executes on the server.
- * Even with 'use client', Next.js can pre-render components during SSR.
- * Using dynamic() with ssr: false completely prevents server-side execution.
- */
-const CanvasWithJs = dynamic(() => import('./CanvasWithJsClient'), {
-    ssr: false,
-    loading: () => (
+type CanvasWithJsProps = {
+    code: string;
+    width?: number; // Optional width prop
+    height?: number; // Optional height prop
+};
+
+const CanvasWithJs: React.FC<CanvasWithJsProps> = ({
+    code,
+    width = 400, // Default width if none provided
+    height = 300 // Default height if none provided
+}) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        // Set explicit width and height attributes for the drawing buffer
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const fn = new Function('ctx', 'canvas', code);
+        fn(ctx, canvas);
+    }, [code, width, height]);
+
+    return (
         <div
             style={{
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                width: '100%'
+                width: '100%',
+                height: '100%'
             }}
         >
-            <div
+            <canvas
+                ref={canvasRef}
                 style={{
-                    width: '400px',
-                    height: '300px',
-                    border: '1px solid #ddd',
-                    background: '#f5f5f5',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
+                    width: `${width}px`,
+                    height: `${height}px`,
+                    border: '1px solid #ccc'
                 }}
-            >
-                <span style={{ color: '#999' }}>Loading canvas...</span>
-            </div>
+            />
         </div>
-    )
-});
+    );
+};
 
 export default CanvasWithJs;
