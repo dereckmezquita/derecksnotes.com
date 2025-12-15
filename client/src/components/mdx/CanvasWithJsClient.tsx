@@ -10,16 +10,16 @@ type CanvasWithJsProps = {
 
 /**
  * SECURITY-HARDENED Canvas Component
- * 
+ *
  * This component uses a safe DSL (Domain Specific Language) interpreter instead of
  * JavaScript eval/Function() to prevent Remote Code Execution (RCE) attacks.
- * 
+ *
  * ALLOWED OPERATIONS:
  * - All CanvasRenderingContext2D drawing methods
  * - Setting canvas properties (fillStyle, strokeStyle, lineWidth, etc.)
  * - Math operations for coordinates
  * - Loops (for statements) for repetitive drawing
- * 
+ *
  * BLOCKED:
  * - require(), import, eval, Function
  * - process, child_process, fs, etc.
@@ -223,16 +223,16 @@ function safeEvaluateExpression(
     if (mathFuncMatch) {
         const funcName = mathFuncMatch[1];
         const argsStr = mathFuncMatch[2];
-        
+
         if (!(funcName in SAFE_MATH)) {
             throw new Error(`Unknown Math function: ${funcName}`);
         }
-        
+
         // Parse arguments (split by comma, but handle nested parentheses)
         const args: number[] = [];
         let depth = 0;
         let currentArg = '';
-        
+
         for (const char of argsStr) {
             if (char === '(') depth++;
             else if (char === ')') depth--;
@@ -258,7 +258,7 @@ function safeEvaluateExpression(
 
 function parseAddSubtract(expr: string, vars: Record<string, number>): number {
     expr = expr.trim();
-    
+
     // Find the last + or - at depth 0 (respecting parentheses)
     let depth = 0;
     for (let i = expr.length - 1; i >= 0; i--) {
@@ -275,19 +275,25 @@ function parseAddSubtract(expr: string, vars: Record<string, number>): number {
             }
         }
     }
-    
+
     return parseMultiplyDivide(expr, vars);
 }
 
-function parseMultiplyDivide(expr: string, vars: Record<string, number>): number {
+function parseMultiplyDivide(
+    expr: string,
+    vars: Record<string, number>
+): number {
     expr = expr.trim();
-    
+
     let depth = 0;
     for (let i = expr.length - 1; i >= 0; i--) {
         const char = expr[i];
         if (char === ')') depth++;
         else if (char === '(') depth--;
-        else if (depth === 0 && (char === '*' || char === '/' || char === '%')) {
+        else if (
+            depth === 0 &&
+            (char === '*' || char === '/' || char === '%')
+        ) {
             const left = parseMultiplyDivide(expr.slice(0, i), vars);
             const right = parsePrimary(expr.slice(i + 1), vars);
             if (char === '*') return left * right;
@@ -295,33 +301,33 @@ function parseMultiplyDivide(expr: string, vars: Record<string, number>): number
             if (char === '%') return left % right;
         }
     }
-    
+
     return parsePrimary(expr, vars);
 }
 
 function parsePrimary(expr: string, vars: Record<string, number>): number {
     expr = expr.trim();
-    
+
     // Handle parentheses
     if (expr.startsWith('(') && expr.endsWith(')')) {
         return safeEvaluateExpression(expr.slice(1, -1), vars);
     }
-    
+
     // Handle unary minus
     if (expr.startsWith('-')) {
         return -parsePrimary(expr.slice(1), vars);
     }
-    
+
     // Handle unary plus
     if (expr.startsWith('+')) {
         return parsePrimary(expr.slice(1), vars);
     }
-    
+
     // Simple number
     if (/^-?\d+(\.\d+)?$/.test(expr)) {
         return parseFloat(expr);
     }
-    
+
     // Variable
     if (/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(expr)) {
         if (expr in vars) {
@@ -329,17 +335,17 @@ function parsePrimary(expr: string, vars: Record<string, number>): number {
         }
         throw new Error(`Unknown variable: ${expr}`);
     }
-    
+
     // Math constant or function
     if (expr === 'Math.PI') return Math.PI;
     if (expr === 'Math.E') return Math.E;
-    
+
     // Math function call
     const mathFuncMatch = expr.match(/^(Math\.\w+)\((.+)\)$/);
     if (mathFuncMatch) {
         return safeEvaluateExpression(expr, vars);
     }
-    
+
     throw new Error(`Cannot parse expression: ${expr}`);
 }
 
@@ -362,12 +368,12 @@ function executeCanvasCode(
     // Split code into statements (semicolon or newline separated)
     const statements = code
         .split(/[;\n]/)
-        .map(s => s.trim())
-        .filter(s => s && !s.startsWith('//'));
+        .map((s) => s.trim())
+        .filter((s) => s && !s.startsWith('//'));
 
     for (let i = 0; i < statements.length; i++) {
         const stmt = statements[i];
-        
+
         try {
             executeStatement(stmt, ctx, canvas, variables, statements, i);
         } catch (error) {
@@ -389,7 +395,9 @@ function executeStatement(
     if (!stmt || stmt.startsWith('//')) return;
 
     // Handle variable declaration: let x = 5 or const x = 10
-    const varDeclMatch = stmt.match(/^(?:let|const|var)\s+([a-zA-Z_]\w*)\s*=\s*(.+)$/);
+    const varDeclMatch = stmt.match(
+        /^(?:let|const|var)\s+([a-zA-Z_]\w*)\s*=\s*(.+)$/
+    );
     if (varDeclMatch) {
         const [, varName, valueExpr] = varDeclMatch;
         variables[varName] = safeEvaluateExpression(valueExpr, variables);
@@ -415,36 +423,48 @@ function executeStatement(
     }
 
     // Handle compound assignment: i += 1
-    const compoundMatch = stmt.match(/^([a-zA-Z_]\w*)\s*(\+=|-=|\*=|\/=)\s*(.+)$/);
+    const compoundMatch = stmt.match(
+        /^([a-zA-Z_]\w*)\s*(\+=|-=|\*=|\/=)\s*(.+)$/
+    );
     if (compoundMatch) {
         const [, varName, op, valueExpr] = compoundMatch;
         if (varName in variables) {
             const value = safeEvaluateExpression(valueExpr, variables);
             switch (op) {
-                case '+=': variables[varName] += value; break;
-                case '-=': variables[varName] -= value; break;
-                case '*=': variables[varName] *= value; break;
-                case '/=': variables[varName] /= value; break;
+                case '+=':
+                    variables[varName] += value;
+                    break;
+                case '-=':
+                    variables[varName] -= value;
+                    break;
+                case '*=':
+                    variables[varName] *= value;
+                    break;
+                case '/=':
+                    variables[varName] /= value;
+                    break;
             }
         }
         return;
     }
 
     // Handle for loop: for (let i = 0; i < 10; i++)
-    const forMatch = stmt.match(/^for\s*\(\s*(?:let|const|var)?\s*([a-zA-Z_]\w*)\s*=\s*([^;]+);\s*([^;]+);\s*([^)]+)\s*\)\s*\{?\s*$/);
+    const forMatch = stmt.match(
+        /^for\s*\(\s*(?:let|const|var)?\s*([a-zA-Z_]\w*)\s*=\s*([^;]+);\s*([^;]+);\s*([^)]+)\s*\)\s*\{?\s*$/
+    );
     if (forMatch) {
         const [, loopVar, initExpr, condExpr, updateExpr] = forMatch;
-        
+
         // Find the matching closing brace and collect loop body
         let braceCount = 1;
         let loopBody: string[] = [];
         let j = currentIndex + 1;
-        
+
         while (j < allStatements.length && braceCount > 0) {
             const s = allStatements[j].trim();
             if (s.includes('{')) braceCount += (s.match(/\{/g) || []).length;
             if (s.includes('}')) braceCount -= (s.match(/\}/g) || []).length;
-            
+
             if (braceCount > 0) {
                 loopBody.push(s.replace(/^\{|\}$/g, '').trim());
             }
@@ -453,22 +473,22 @@ function executeStatement(
 
         // Initialize loop variable
         variables[loopVar] = safeEvaluateExpression(initExpr, variables);
-        
+
         // Execute loop (with safety limit)
         const maxIterations = 10000;
         let iterations = 0;
-        
+
         while (iterations < maxIterations) {
             // Check condition
             if (!evaluateCondition(condExpr, variables)) break;
-            
+
             // Execute body
             for (const bodyStmt of loopBody) {
                 if (bodyStmt && bodyStmt !== '{' && bodyStmt !== '}') {
                     executeStatement(bodyStmt, ctx, canvas, variables, [], 0);
                 }
             }
-            
+
             // Execute update
             if (updateExpr.includes('++')) {
                 variables[loopVar]++;
@@ -477,10 +497,13 @@ function executeStatement(
             } else if (updateExpr.includes('+=')) {
                 const match = updateExpr.match(/([a-zA-Z_]\w*)\s*\+=\s*(.+)/);
                 if (match) {
-                    variables[match[1]] += safeEvaluateExpression(match[2], variables);
+                    variables[match[1]] += safeEvaluateExpression(
+                        match[2],
+                        variables
+                    );
                 }
             }
-            
+
             iterations++;
         }
         return;
@@ -493,7 +516,7 @@ function executeStatement(
     const propAssignMatch = stmt.match(/^ctx\.([a-zA-Z]+)\s*=\s*(.+)$/);
     if (propAssignMatch) {
         const [, propName, valueExpr] = propAssignMatch;
-        
+
         if (!ALLOWED_PROPERTIES.has(propName)) {
             throw new Error(`Property not allowed: ${propName}`);
         }
@@ -503,7 +526,10 @@ function executeStatement(
             (ctx as any)[propName] = valueExpr.slice(1, -1);
         } else {
             // Numeric value
-            (ctx as any)[propName] = safeEvaluateExpression(valueExpr, variables);
+            (ctx as any)[propName] = safeEvaluateExpression(
+                valueExpr,
+                variables
+            );
         }
         return;
     }
@@ -512,7 +538,7 @@ function executeStatement(
     const methodCallMatch = stmt.match(/^ctx\.([a-zA-Z]+)\(([^)]*)\)$/);
     if (methodCallMatch) {
         const [, methodName, argsStr] = methodCallMatch;
-        
+
         if (!ALLOWED_METHODS.has(methodName)) {
             throw new Error(`Method not allowed: ${methodName}`);
         }
@@ -520,9 +546,9 @@ function executeStatement(
         // Parse arguments
         const args = argsStr
             .split(',')
-            .map(arg => arg.trim())
-            .filter(arg => arg)
-            .map(arg => {
+            .map((arg) => arg.trim())
+            .filter((arg) => arg)
+            .map((arg) => {
                 // String argument
                 if (arg.startsWith("'") || arg.startsWith('"')) {
                     return arg.slice(1, -1);
@@ -543,28 +569,37 @@ function executeStatement(
     console.warn(`Skipping unknown statement: ${stmt}`);
 }
 
-function evaluateCondition(cond: string, vars: Record<string, number>): boolean {
+function evaluateCondition(
+    cond: string,
+    vars: Record<string, number>
+): boolean {
     cond = cond.trim();
-    
+
     // Handle comparisons: i < 10, x >= 5, etc.
     const compMatch = cond.match(/^(.+?)\s*(<=|>=|<|>|===|==|!==|!=)\s*(.+)$/);
     if (compMatch) {
         const [, leftExpr, op, rightExpr] = compMatch;
         const left = safeEvaluateExpression(leftExpr, vars);
         const right = safeEvaluateExpression(rightExpr, vars);
-        
+
         switch (op) {
-            case '<': return left < right;
-            case '>': return left > right;
-            case '<=': return left <= right;
-            case '>=': return left >= right;
+            case '<':
+                return left < right;
+            case '>':
+                return left > right;
+            case '<=':
+                return left <= right;
+            case '>=':
+                return left >= right;
             case '==':
-            case '===': return left === right;
+            case '===':
+                return left === right;
             case '!=':
-            case '!==': return left !== right;
+            case '!==':
+                return left !== right;
         }
     }
-    
+
     return false;
 }
 
@@ -602,7 +637,7 @@ const CanvasWithJs: React.FC<CanvasWithJsProps> = ({
         try {
             // Clear canvas first
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
+
             // Execute the code safely
             executeCanvasCode(code, ctx, canvas);
         } catch (err) {
