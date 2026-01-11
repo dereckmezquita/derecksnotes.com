@@ -19,8 +19,9 @@ const ObjectivesTitle = styled.div`
     align-items: center;
     font-weight: bold;
     margin-bottom: 10px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans',
-        Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    font-family:
+        -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica,
+        Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 `;
 
 const Icon = styled(FaStar)`

@@ -36,8 +36,9 @@ const AlertContainer = styled.div<{ $borderColor: string }>`
     margin-bottom: 10px;
     color: inherit;
     border-left: 0.25em solid ${(props) => props.$borderColor};
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans',
-        Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    font-family:
+        -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica,
+        Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
 `;
 
 const AlertTitle = styled.p<{ $titleColor: string }>`
