@@ -1,12 +1,22 @@
 {
   "name": "server",
-  "module": "index.ts",
-  "type": "module",
-  "private": true,
+  "module": "src/index.ts",
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6"
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "private": true,
+  "scripts": {
+    "dev": "bun src/index.ts",
+    "start": "bun src/index.ts"
+  },
+  "type": "module",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "5"
   }
 }
