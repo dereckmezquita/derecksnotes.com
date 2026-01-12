@@ -4,6 +4,8 @@ WORKDIR /app/client
 COPY client/package.json client/bun.lock* ./
 RUN bun install --frozen-lockfile
 COPY client/ ./
+
+COPY package.json /app/package.json
 ARG BUILD_ENV=prod
 ENV BUILD_ENV=${BUILD_ENV}
 RUN bun run build
