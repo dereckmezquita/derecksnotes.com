@@ -35,8 +35,3 @@ export const config = {
     baseUrl: process.env.NEXT_PUBLIC_APP_URL || derived.baseUrl,
     apiUrl: process.env.NEXT_PUBLIC_API_URL || derived.apiUrl
 };
-
-// Legacy exports for backwards compatibility
-export const NEXT_PUBLIC_BUILD_ENV = BUILD_ENV;
-export const NEXT_PUBLIC_APP_VERSION = pkg.version;
-export const NEXT_PUBLIC_BUILD_ENV_BOOL = BUILD_ENV !== 'prod';

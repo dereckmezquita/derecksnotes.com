@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Post } from '@components/pages/Post';
 import { APPLICATION_DEFAULT_METADATA, ROOT_DIR_APP } from '@lib/constants';
-import { NEXT_PUBLIC_BUILD_ENV_BOOL } from '@lib/env';
+import { config } from '@lib/env';
 import {
     DefinitionMetadata,
     extractSingleDefinitionMetadata,
@@ -23,8 +23,8 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
         return filename.endsWith('.mdx');
     });
 
-    // if NEXT_PUBLIC_BUILD_ENV_BOOL then return all
-    if (!NEXT_PUBLIC_BUILD_ENV_BOOL) {
+    // In production, limit to 3 files; in dev/local, return all
+    if (config.isProduction) {
         filenames = filenames.slice(0, 3);
     }
 

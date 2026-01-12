@@ -3,7 +3,7 @@ import path from 'path';
 import { accessReadFile } from '../accessReadFile';
 import { processMdx } from '../mdx/processMdx';
 
-import { NEXT_PUBLIC_APP_URL } from '@lib/env';
+import { config } from '@lib/env';
 import { stripMdx } from '../mdx/fetchPostsMetadata';
 import rehypeLinkToDefinition from '../remark-rehype/rehypeLinkToDefinition';
 
@@ -148,7 +148,7 @@ export async function fetchAllDefintions(dir: string): Promise<Definition[]> {
 
                 frontmatter.url = new URL(
                     path.join('dictionaries', frontmatter.dictionary),
-                    NEXT_PUBLIC_APP_URL || 'https://derecksnotes.com'
+                    config.baseUrl
                 ).toString();
 
                 frontmatter.slug = path.basename(filename, '.mdx');
