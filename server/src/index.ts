@@ -17,6 +17,16 @@ if (config.buildEnv === 'local') {
     );
 }
 
+// Root endpoint - API info
+app.get('/api', (_req: Request, res: Response) => {
+    res.json({
+        name: 'derecksnotes-api',
+        status: 'ok',
+        env: config.buildEnv,
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Health check
 app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
