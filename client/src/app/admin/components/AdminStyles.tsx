@@ -845,3 +845,195 @@ export const Checkbox = styled.input.attrs({ type: 'checkbox' })`
     height: 18px;
     accent-color: ${(props) => props.theme.theme_colours[5]()};
 `;
+
+// ============================================================================
+// ATTENTION SECTION (Notebook-style task list)
+// ============================================================================
+
+export const AttentionSection = styled.div`
+    background: ${(props) => props.theme.container.background.colour.solid()};
+    border: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+    border-left: 3px solid ${(props) => props.theme.theme_colours[5]()};
+    border-radius: ${(props) => props.theme.container.border.radius};
+    margin-bottom: ${(props) => props.theme.container.spacing.large};
+    overflow: hidden;
+`;
+
+export const AttentionHeader = styled.div`
+    padding: ${(props) => props.theme.container.spacing.small}
+        ${(props) => props.theme.container.spacing.medium};
+    background: ${(props) =>
+        props.theme.container.background.colour.light_contrast()};
+    border-bottom: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+    font-size: ${(props) => props.theme.text.size.small};
+    font-weight: ${(props) => props.theme.text.weight.bold};
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: ${(props) => props.theme.text.colour.light_grey()};
+`;
+
+export const AttentionItem = styled.div<{ $variant?: 'warning' | 'danger' }>`
+    display: flex;
+    align-items: center;
+    padding: ${(props) => props.theme.container.spacing.medium};
+    border-bottom: 1px dashed
+        ${(props) => props.theme.container.border.colour.primary()};
+    transition: background 0.15s ease;
+
+    &:last-child {
+        border-bottom: none;
+    }
+
+    &:hover {
+        background: ${(props) => props.theme.theme_colours[9]()}30;
+    }
+`;
+
+export const AttentionIcon = styled.div<{ $variant?: 'warning' | 'danger' }>`
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: ${(props) => props.theme.container.spacing.medium};
+    flex-shrink: 0;
+
+    ${(props) => {
+        switch (props.$variant) {
+            case 'danger':
+                return css`
+                    background: ${props.theme.colours.error}15;
+                    color: ${props.theme.colours.error};
+                `;
+            case 'warning':
+            default:
+                return css`
+                    background: ${props.theme.colours.warning}15;
+                    color: ${props.theme.colours.warning};
+                `;
+        }
+    }}
+
+    svg {
+        width: 16px;
+        height: 16px;
+    }
+`;
+
+export const AttentionText = styled.div`
+    flex: 1;
+    font-size: ${(props) => props.theme.text.size.normal};
+    color: ${(props) => props.theme.text.colour.primary()};
+`;
+
+export const AttentionCount = styled.span`
+    font-weight: ${(props) => props.theme.text.weight.bold};
+    color: ${(props) => props.theme.text.colour.header()};
+`;
+
+export const AttentionLink = styled.a`
+    display: inline-flex;
+    align-items: center;
+    gap: ${(props) => props.theme.container.spacing.xsmall};
+    padding: ${(props) => props.theme.container.spacing.xsmall}
+        ${(props) => props.theme.container.spacing.small};
+    margin-left: ${(props) => props.theme.container.spacing.medium};
+    font-size: ${(props) => props.theme.text.size.small};
+    font-weight: ${(props) => props.theme.text.weight.medium};
+    color: ${(props) => props.theme.theme_colours[5]()};
+    text-decoration: none;
+    border-radius: ${(props) => props.theme.container.border.radius};
+    transition: all 0.15s ease;
+
+    &:hover {
+        background: ${(props) => props.theme.theme_colours[9]()};
+    }
+
+    svg {
+        width: 14px;
+        height: 14px;
+    }
+`;
+
+export const AttentionEmpty = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${(props) => props.theme.container.spacing.small};
+    padding: ${(props) => props.theme.container.spacing.medium};
+    color: ${(props) => props.theme.colours.success};
+    font-size: ${(props) => props.theme.text.size.normal};
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+`;
+
+// ============================================================================
+// SITE OVERVIEW (Inline stats with divider)
+// ============================================================================
+
+export const SiteOverviewSection = styled.div`
+    margin-bottom: ${(props) => props.theme.container.spacing.large};
+`;
+
+export const SiteOverviewDivider = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${(props) => props.theme.container.spacing.medium};
+    margin-bottom: ${(props) => props.theme.container.spacing.small};
+
+    &::before,
+    &::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: ${(props) => props.theme.container.border.colour.primary()};
+    }
+
+    span {
+        font-size: ${(props) => props.theme.text.size.small};
+        font-weight: ${(props) => props.theme.text.weight.medium};
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: ${(props) => props.theme.text.colour.light_grey()};
+        white-space: nowrap;
+    }
+`;
+
+export const InlineStats = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: ${(props) => props.theme.container.spacing.medium};
+    font-size: ${(props) => props.theme.text.size.normal};
+    color: ${(props) => props.theme.text.colour.primary()};
+`;
+
+export const InlineStat = styled.a`
+    display: inline-flex;
+    align-items: center;
+    gap: ${(props) => props.theme.container.spacing.xsmall};
+    color: ${(props) => props.theme.text.colour.primary()};
+    text-decoration: none;
+    transition: color 0.15s ease;
+
+    strong {
+        color: ${(props) => props.theme.text.colour.header()};
+    }
+
+    &:hover {
+        color: ${(props) => props.theme.theme_colours[5]()};
+
+        strong {
+            color: ${(props) => props.theme.theme_colours[5]()};
+        }
+    }
+`;
+
+export const StatSeparator = styled.span`
+    color: ${(props) => props.theme.container.border.colour.primary()};
+`;

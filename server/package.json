@@ -19,6 +19,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bun src/db/migrate.ts",
     "db:seed": "bun src/db/seed.ts",
+    "db:reset": "rm -f data/database.sqlite data/database.sqlite-wal data/database.sqlite-shm && bun run db:migrate && bun run db:seed",
     "db:studio": "drizzle-kit studio"
   },
   "type": "module",

@@ -4,7 +4,11 @@ import cookieParser from 'cookie-parser';
 import { config } from './lib/env';
 import { generalLimiter } from './middleware/rateLimit';
 import { ensureAdminUser } from './services/auth';
+import { initializeDatabase } from './db/init';
 import v1Router from './routes/v1';
+
+// Initialize database (runs migrations + seeds if needed)
+await initializeDatabase();
 
 const app = express();
 

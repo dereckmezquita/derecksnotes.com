@@ -12,6 +12,8 @@ export const comments = sqliteTable('comments', {
     content: text('content').notNull(),
     depth: integer('depth').notNull().default(0),
     approved: integer('approved', { mode: 'boolean' }).notNull().default(false),
+    pinnedAt: integer('pinned_at', { mode: 'timestamp' }),
+    pinnedBy: text('pinned_by').references(() => users.id),
     createdAt: integer('created_at', { mode: 'timestamp' })
         .notNull()
         .$defaultFn(() => new Date()),

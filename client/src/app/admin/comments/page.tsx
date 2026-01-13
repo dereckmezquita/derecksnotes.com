@@ -1,9 +1,22 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import {
+    useReactTable,
+    getCoreRowModel,
+    getSortedRowModel,
+    getFilteredRowModel,
+    getPaginationRowModel,
+    flexRender,
+    createColumnHelper,
+    SortingState,
+    ColumnFiltersState,
+    RowSelectionState
+} from '@tanstack/react-table';
 import { useAuth } from '@context/AuthContext';
 import { api } from '@utils/api/api';
 import { toast } from 'sonner';
+import styled from 'styled-components';
 import {
     AdminHeader,
     AdminTitle,
@@ -30,8 +43,14 @@ import {
     Alert,
     Pagination,
     PageButton,
-    AccessDenied
+    AccessDenied,
+    SearchInput,
+    Select
 } from '../components/AdminStyles';
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface PendingComment {
     id: string;
@@ -51,30 +70,139 @@ interface PendingCommentsResponse {
     limit: number;
 }
 
+// ============================================================================
+// ADDITIONAL STYLED COMPONENTS FOR TABLE
+// ============================================================================
+
+const TableToolbar = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: ${(props) => props.theme.container.spacing.medium};
+    flex-wrap: wrap;
+    gap: ${(props) => props.theme.container.spacing.small};
+`;
+
+const FilterGroup = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${(props) => props.theme.container.spacing.small};
+`;
+
+const SortableHeader = styled.div<{ $canSort?: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: ${(props) => (props.$canSort ? 'pointer' : 'default')};
+    user-select: none;
+
+    &:hover {
+        color: ${(props) =>
+            props.$canSort ? props.theme.theme_colours[5]() : 'inherit'};
+    }
+`;
+
+const SortIcon = styled.span<{ $direction?: 'asc' | 'desc' | false }>`
+    display: inline-flex;
+    opacity: ${(props) => (props.$direction ? 1 : 0.3)};
+    transition: opacity 0.15s ease;
+`;
+
+const ContentPreview = styled.div`
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+`;
+
+const PostLink = styled.a`
+    color: ${(props) => props.theme.theme_colours[5]()};
+    text-decoration: none;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: block;
+
+    &:hover {
+        text-decoration: underline;
+    }
+`;
+
+const TableInfo = styled.div`
+    font-size: ${(props) => props.theme.text.size.small};
+    color: ${(props) => props.theme.text.colour.light_grey()};
+`;
+
+const PageSizeSelect = styled(Select)`
+    padding: 4px 8px;
+    font-size: ${(props) => props.theme.text.size.small};
+`;
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+const formatRelativeTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+
+    return date.toLocaleDateString();
+};
+
+// ============================================================================
+// COLUMN HELPER
+// ============================================================================
+
+const columnHelper = createColumnHelper<PendingComment>();
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
 export default function AdminCommentsPage() {
     const { isAdmin, hasPermission } = useAuth();
     const [comments, setComments] = useState<PendingComment[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [processing, setProcessing] = useState(false);
+
+    // TanStack Table state
+    const [sorting, setSorting] = useState<SortingState>([
+        { id: 'createdAt', desc: true }
+    ]);
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+    const [globalFilter, setGlobalFilter] = useState('');
+    const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+    const [pagination, setPagination] = useState({
+        pageIndex: 0,
+        pageSize: 20
+    });
 
     const canModerate = isAdmin() || hasPermission('comment.approve');
 
-    const fetchComments = useCallback(async (pageNum: number = 1) => {
+    // ========================================================================
+    // DATA FETCHING
+    // ========================================================================
+
+    const fetchComments = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
+            // Fetch more comments to allow client-side filtering
             const res = await api.get<PendingCommentsResponse>(
-                `/admin/comments/pending?page=${pageNum}&limit=20`
+                `/admin/comments/pending?page=1&limit=100`
             );
             setComments(res.data.comments);
-            setPage(res.data.page);
-            // Server doesn't return total, so calculate hasMore based on returned count
-            const hasMore = res.data.comments.length === res.data.limit;
-            setTotalPages(hasMore ? res.data.page + 1 : res.data.page);
         } catch (err: any) {
             console.error('Error fetching pending comments:', err);
             setError(
@@ -91,15 +219,19 @@ export default function AdminCommentsPage() {
         }
     }, [fetchComments, canModerate]);
 
+    // ========================================================================
+    // ACTIONS
+    // ========================================================================
+
     const handleApprove = async (id: string) => {
         setProcessing(true);
         try {
             await api.post(`/admin/comments/${id}/approve`);
             toast.success('Comment approved');
             setComments((prev) => prev.filter((c) => c.id !== id));
-            setSelectedIds((prev) => {
-                const next = new Set(prev);
-                next.delete(id);
+            setRowSelection((prev) => {
+                const next = { ...prev };
+                delete next[id];
                 return next;
             });
         } catch (err: any) {
@@ -115,9 +247,9 @@ export default function AdminCommentsPage() {
             await api.post(`/admin/comments/${id}/reject`);
             toast.success('Comment rejected');
             setComments((prev) => prev.filter((c) => c.id !== id));
-            setSelectedIds((prev) => {
-                const next = new Set(prev);
-                next.delete(id);
+            setRowSelection((prev) => {
+                const next = { ...prev };
+                delete next[id];
                 return next;
             });
         } catch (err: any) {
@@ -128,15 +260,19 @@ export default function AdminCommentsPage() {
     };
 
     const handleBulkApprove = async () => {
-        if (selectedIds.size === 0) return;
+        const selectedIds = Object.keys(rowSelection);
+        if (selectedIds.length === 0) return;
+
         setProcessing(true);
         try {
             await api.post('/admin/comments/bulk-approve', {
-                ids: Array.from(selectedIds)
+                ids: selectedIds
             });
-            toast.success(`${selectedIds.size} comments approved`);
-            setComments((prev) => prev.filter((c) => !selectedIds.has(c.id)));
-            setSelectedIds(new Set());
+            toast.success(`${selectedIds.length} comments approved`);
+            setComments((prev) =>
+                prev.filter((c) => !selectedIds.includes(c.id))
+            );
+            setRowSelection({});
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Failed to bulk approve');
         } finally {
@@ -145,15 +281,17 @@ export default function AdminCommentsPage() {
     };
 
     const handleBulkReject = async () => {
-        if (selectedIds.size === 0) return;
+        const selectedIds = Object.keys(rowSelection);
+        if (selectedIds.length === 0) return;
+
         setProcessing(true);
         try {
-            await api.post('/admin/comments/bulk-reject', {
-                ids: Array.from(selectedIds)
-            });
-            toast.success(`${selectedIds.size} comments rejected`);
-            setComments((prev) => prev.filter((c) => !selectedIds.has(c.id)));
-            setSelectedIds(new Set());
+            await api.post('/admin/comments/bulk-reject', { ids: selectedIds });
+            toast.success(`${selectedIds.length} comments rejected`);
+            setComments((prev) =>
+                prev.filter((c) => !selectedIds.includes(c.id))
+            );
+            setRowSelection({});
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Failed to bulk reject');
         } finally {
@@ -161,34 +299,160 @@ export default function AdminCommentsPage() {
         }
     };
 
-    const toggleSelect = (id: string) => {
-        setSelectedIds((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) {
-                next.delete(id);
-            } else {
-                next.add(id);
-            }
-            return next;
-        });
-    };
+    // ========================================================================
+    // TABLE COLUMNS
+    // ========================================================================
 
-    const toggleSelectAll = () => {
-        if (selectedIds.size === comments.length) {
-            setSelectedIds(new Set());
-        } else {
-            setSelectedIds(new Set(comments.map((c) => c.id)));
-        }
-    };
+    const columns = useMemo(
+        () => [
+            columnHelper.display({
+                id: 'select',
+                header: ({ table }) => (
+                    <Checkbox
+                        checked={table.getIsAllPageRowsSelected()}
+                        onChange={table.getToggleAllPageRowsSelectedHandler()}
+                    />
+                ),
+                cell: ({ row }) => (
+                    <Checkbox
+                        checked={row.getIsSelected()}
+                        onChange={row.getToggleSelectedHandler()}
+                    />
+                ),
+                size: 40
+            }),
+            columnHelper.accessor(
+                (row) =>
+                    row.user?.displayName || row.user?.username || 'Deleted',
+                {
+                    id: 'author',
+                    header: 'Author',
+                    cell: ({ row }) => {
+                        const user = row.original.user;
+                        if (!user) {
+                            return <Badge $variant="secondary">Deleted</Badge>;
+                        }
+                        return (
+                            <strong>{user.displayName || user.username}</strong>
+                        );
+                    },
+                    size: 120
+                }
+            ),
+            columnHelper.accessor('content', {
+                header: 'Content',
+                cell: ({ getValue }) => (
+                    <ContentPreview title={getValue()}>
+                        {getValue()}
+                    </ContentPreview>
+                ),
+                size: 300
+            }),
+            columnHelper.accessor('postSlug', {
+                header: 'Post',
+                cell: ({ getValue }) => (
+                    <PostLink
+                        href={`/${getValue()}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={getValue()}
+                    >
+                        {getValue()}
+                    </PostLink>
+                ),
+                size: 150
+            }),
+            columnHelper.accessor('createdAt', {
+                header: 'Date',
+                cell: ({ getValue }) => formatRelativeTime(getValue()),
+                sortingFn: 'datetime',
+                size: 100
+            }),
+            columnHelper.display({
+                id: 'actions',
+                header: 'Actions',
+                cell: ({ row }) => (
+                    <ButtonGroup>
+                        <IconButton
+                            $variant="success"
+                            title="Approve"
+                            onClick={() => handleApprove(row.original.id)}
+                            disabled={processing}
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth={2}
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M4.5 12.75l6 6 9-13.5"
+                                />
+                            </svg>
+                        </IconButton>
+                        <IconButton
+                            $variant="danger"
+                            title="Reject"
+                            onClick={() => handleReject(row.original.id)}
+                            disabled={processing}
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth={2}
+                                stroke="currentColor"
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M6 18L18 6M6 6l12 12"
+                                />
+                            </svg>
+                        </IconButton>
+                    </ButtonGroup>
+                ),
+                size: 100
+            })
+        ],
+        [processing]
+    );
 
-    const formatDate = (dateString: string) => {
-        return new Date(dateString).toLocaleString();
-    };
+    // ========================================================================
+    // TABLE INSTANCE
+    // ========================================================================
 
-    const truncateContent = (content: string, maxLength: number = 100) => {
-        if (content.length <= maxLength) return content;
-        return content.substring(0, maxLength) + '...';
-    };
+    const table = useReactTable({
+        data: comments,
+        columns,
+        state: {
+            sorting,
+            columnFilters,
+            globalFilter,
+            rowSelection,
+            pagination
+        },
+        enableRowSelection: true,
+        getRowId: (row) => row.id,
+        onSortingChange: setSorting,
+        onColumnFiltersChange: setColumnFilters,
+        onGlobalFilterChange: setGlobalFilter,
+        onRowSelectionChange: setRowSelection,
+        onPaginationChange: setPagination,
+        getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        getPaginationRowModel: getPaginationRowModel()
+    });
+
+    const selectedCount = Object.keys(rowSelection).length;
+
+    // ========================================================================
+    // RENDER
+    // ========================================================================
 
     if (!canModerate) {
         return (
@@ -281,12 +545,47 @@ export default function AdminCommentsPage() {
                 </EmptyState>
             ) : (
                 <>
-                    {selectedIds.size > 0 && (
+                    {/* Toolbar with search and filters */}
+                    <TableToolbar>
+                        <FilterGroup>
+                            <SearchInput
+                                placeholder="Search comments..."
+                                value={globalFilter ?? ''}
+                                onChange={(e) =>
+                                    setGlobalFilter(e.target.value)
+                                }
+                            />
+                        </FilterGroup>
+                        <FilterGroup>
+                            <TableInfo>
+                                {table.getFilteredRowModel().rows.length} of{' '}
+                                {comments.length} comments
+                            </TableInfo>
+                            <PageSizeSelect
+                                value={pagination.pageSize}
+                                onChange={(e) =>
+                                    setPagination((prev) => ({
+                                        ...prev,
+                                        pageSize: Number(e.target.value),
+                                        pageIndex: 0
+                                    }))
+                                }
+                            >
+                                <option value={10}>10 per page</option>
+                                <option value={20}>20 per page</option>
+                                <option value={50}>50 per page</option>
+                                <option value={100}>100 per page</option>
+                            </PageSizeSelect>
+                        </FilterGroup>
+                    </TableToolbar>
+
+                    {/* Bulk action bar */}
+                    {selectedCount > 0 && (
                         <ActionBar>
                             <ActionBarLeft>
                                 <span style={{ fontWeight: 500 }}>
-                                    {selectedIds.size} item
-                                    {selectedIds.size !== 1 ? 's' : ''} selected
+                                    {selectedCount} item
+                                    {selectedCount !== 1 ? 's' : ''} selected
                                 </span>
                             </ActionBarLeft>
                             <ActionBarRight>
@@ -312,161 +611,143 @@ export default function AdminCommentsPage() {
                         </ActionBar>
                     )}
 
+                    {/* Table */}
                     <TableContainer>
                         <Table>
                             <TableHead>
-                                <TableRow>
-                                    <TableHeader $width="40px" $align="center">
-                                        <Checkbox
-                                            checked={
-                                                selectedIds.size ===
-                                                    comments.length &&
-                                                comments.length > 0
-                                            }
-                                            onChange={toggleSelectAll}
-                                        />
-                                    </TableHeader>
-                                    <TableHeader $width="120px">
-                                        Author
-                                    </TableHeader>
-                                    <TableHeader>Content</TableHeader>
-                                    <TableHeader $width="180px">
-                                        Post
-                                    </TableHeader>
-                                    <TableHeader $width="160px">
-                                        Date
-                                    </TableHeader>
-                                    <TableHeader $width="100px" $align="center">
-                                        Actions
-                                    </TableHeader>
-                                </TableRow>
+                                {table.getHeaderGroups().map((headerGroup) => (
+                                    <TableRow key={headerGroup.id}>
+                                        {headerGroup.headers.map((header) => (
+                                            <TableHeader
+                                                key={header.id}
+                                                $width={
+                                                    header.getSize() !== 150
+                                                        ? `${header.getSize()}px`
+                                                        : undefined
+                                                }
+                                                $align={
+                                                    header.id === 'select' ||
+                                                    header.id === 'actions'
+                                                        ? 'center'
+                                                        : 'left'
+                                                }
+                                            >
+                                                {header.isPlaceholder ? null : header.column.getCanSort() ? (
+                                                    <SortableHeader
+                                                        $canSort={true}
+                                                        onClick={header.column.getToggleSortingHandler()}
+                                                    >
+                                                        {flexRender(
+                                                            header.column
+                                                                .columnDef
+                                                                .header,
+                                                            header.getContext()
+                                                        )}
+                                                        <SortIcon
+                                                            $direction={header.column.getIsSorted()}
+                                                        >
+                                                            {header.column.getIsSorted() ===
+                                                            'asc' ? (
+                                                                <svg
+                                                                    width="12"
+                                                                    height="12"
+                                                                    viewBox="0 0 24 24"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2"
+                                                                >
+                                                                    <path d="M18 15l-6-6-6 6" />
+                                                                </svg>
+                                                            ) : header.column.getIsSorted() ===
+                                                              'desc' ? (
+                                                                <svg
+                                                                    width="12"
+                                                                    height="12"
+                                                                    viewBox="0 0 24 24"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2"
+                                                                >
+                                                                    <path d="M6 9l6 6 6-6" />
+                                                                </svg>
+                                                            ) : (
+                                                                <svg
+                                                                    width="12"
+                                                                    height="12"
+                                                                    viewBox="0 0 24 24"
+                                                                    fill="none"
+                                                                    stroke="currentColor"
+                                                                    strokeWidth="2"
+                                                                >
+                                                                    <path d="M7 15l5 5 5-5M7 9l5-5 5 5" />
+                                                                </svg>
+                                                            )}
+                                                        </SortIcon>
+                                                    </SortableHeader>
+                                                ) : (
+                                                    flexRender(
+                                                        header.column.columnDef
+                                                            .header,
+                                                        header.getContext()
+                                                    )
+                                                )}
+                                            </TableHeader>
+                                        ))}
+                                    </TableRow>
+                                ))}
                             </TableHead>
                             <TableBody>
-                                {comments.map((comment) => (
-                                    <TableRow key={comment.id}>
-                                        <TableCell $align="center">
-                                            <Checkbox
-                                                checked={selectedIds.has(
-                                                    comment.id
-                                                )}
-                                                onChange={() =>
-                                                    toggleSelect(comment.id)
+                                {table.getRowModel().rows.map((row) => (
+                                    <TableRow key={row.id}>
+                                        {row.getVisibleCells().map((cell) => (
+                                            <TableCell
+                                                key={cell.id}
+                                                $align={
+                                                    cell.column.id ===
+                                                        'select' ||
+                                                    cell.column.id === 'actions'
+                                                        ? 'center'
+                                                        : 'left'
                                                 }
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            {comment.user ? (
-                                                <strong>
-                                                    {comment.user.displayName ||
-                                                        comment.user.username}
-                                                </strong>
-                                            ) : (
-                                                <Badge $variant="secondary">
-                                                    Deleted
-                                                </Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell
-                                            $truncate
-                                            title={comment.content}
-                                        >
-                                            {truncateContent(
-                                                comment.content,
-                                                80
-                                            )}
-                                        </TableCell>
-                                        <TableCell $truncate>
-                                            <a
-                                                href={`/${comment.postSlug}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                style={{ color: 'inherit' }}
                                             >
-                                                {comment.postSlug}
-                                            </a>
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatDate(comment.createdAt)}
-                                        </TableCell>
-                                        <TableCell $align="center">
-                                            <ButtonGroup>
-                                                <IconButton
-                                                    $variant="success"
-                                                    title="Approve"
-                                                    onClick={() =>
-                                                        handleApprove(
-                                                            comment.id
-                                                        )
-                                                    }
-                                                    disabled={processing}
-                                                >
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        strokeWidth={2}
-                                                        stroke="currentColor"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            d="M4.5 12.75l6 6 9-13.5"
-                                                        />
-                                                    </svg>
-                                                </IconButton>
-                                                <IconButton
-                                                    $variant="danger"
-                                                    title="Reject"
-                                                    onClick={() =>
-                                                        handleReject(comment.id)
-                                                    }
-                                                    disabled={processing}
-                                                >
-                                                    <svg
-                                                        xmlns="http://www.w3.org/2000/svg"
-                                                        fill="none"
-                                                        viewBox="0 0 24 24"
-                                                        strokeWidth={2}
-                                                        stroke="currentColor"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            d="M6 18L18 6M6 6l12 12"
-                                                        />
-                                                    </svg>
-                                                </IconButton>
-                                            </ButtonGroup>
-                                        </TableCell>
+                                                {flexRender(
+                                                    cell.column.columnDef.cell,
+                                                    cell.getContext()
+                                                )}
+                                            </TableCell>
+                                        ))}
                                     </TableRow>
                                 ))}
                             </TableBody>
                         </Table>
                     </TableContainer>
 
-                    {totalPages > 1 && (
+                    {/* Pagination */}
+                    {table.getPageCount() > 1 && (
                         <Pagination>
                             <PageButton
-                                disabled={page === 1}
-                                onClick={() => fetchComments(page - 1)}
+                                disabled={!table.getCanPreviousPage()}
+                                onClick={() => table.previousPage()}
                             >
                                 Previous
                             </PageButton>
                             {Array.from(
-                                { length: totalPages },
-                                (_, i) => i + 1
-                            ).map((p) => (
+                                { length: table.getPageCount() },
+                                (_, i) => i
+                            ).map((pageIndex) => (
                                 <PageButton
-                                    key={p}
-                                    $active={p === page}
-                                    onClick={() => fetchComments(p)}
+                                    key={pageIndex}
+                                    $active={pageIndex === pagination.pageIndex}
+                                    onClick={() =>
+                                        table.setPageIndex(pageIndex)
+                                    }
                                 >
-                                    {p}
+                                    {pageIndex + 1}
                                 </PageButton>
                             ))}
                             <PageButton
-                                disabled={page === totalPages}
-                                onClick={() => fetchComments(page + 1)}
+                                disabled={!table.getCanNextPage()}
+                                onClick={() => table.nextPage()}
                             >
                                 Next
                             </PageButton>

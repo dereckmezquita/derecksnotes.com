@@ -38,21 +38,14 @@ const updateCommentSchema = z.object({
         .max(10000, 'Content must be at most 10000 characters')
 });
 
-// Helper to check if user's comments should be auto-approved
-async function shouldAutoApprove(userId: string): Promise<boolean> {
-    const userGroups = await db.query.userGroups.findMany({
-        where: eq(schema.userGroups.userId, userId),
-        with: { group: true }
-    });
-
-    const groupNames = userGroups.map((ug) => ug.group.name);
-    // Trusted users, moderators, and admins get auto-approved
-    return (
-        groupNames.includes('trusted') ||
-        groupNames.includes('moderator') ||
-        groupNames.includes('admin')
-    );
+// All comments require admin approval - no auto-approve
+async function shouldAutoApprove(_userId: string): Promise<boolean> {
+    // All comments go to pending, regardless of user group
+    return false;
 }
+
+// Valid sort options
+type SortOption = 'newest' | 'oldest' | 'most_liked' | 'most_discussed';
 
 // Helper to format comment with reactions count
 function formatComment(
@@ -81,6 +74,8 @@ function formatComment(
         content: comment.deletedAt ? '[deleted]' : comment.content,
         depth: comment.depth,
         approved: comment.approved,
+        isPinned: !!comment.pinnedAt,
+        pinnedAt: comment.pinnedAt,
         createdAt: comment.createdAt,
         editedAt: comment.editedAt,
         isDeleted: !!comment.deletedAt,
@@ -103,7 +98,7 @@ function formatComment(
     };
 }
 
-// GET /api/v1/comments?postSlug=xxx&page=1&limit=20&maxDepth=3&repliesPerLevel=5
+// GET /api/v1/comments?postSlug=xxx&page=1&limit=20&maxDepth=3&repliesPerLevel=5&sort=newest
 router.get(
     '/',
     optionalAuth,
@@ -136,6 +131,18 @@ router.get(
                         DEFAULT_REPLIES_PER_LEVEL
                 )
             );
+            const sortParam = req.query.sort as string;
+            const validSorts: SortOption[] = [
+                'newest',
+                'oldest',
+                'most_liked',
+                'most_discussed'
+            ];
+            const sort: SortOption = validSorts.includes(
+                sortParam as SortOption
+            )
+                ? (sortParam as SortOption)
+                : 'newest';
 
             if (!postSlug || typeof postSlug !== 'string') {
                 res.status(400).json({
@@ -175,7 +182,15 @@ router.get(
             const totalTopLevel = totalCountResult[0]?.count ?? 0;
 
             // Get paginated top-level comments
-            const topLevelComments = await db.query.comments.findMany({
+            // For complex sorting (most_liked, most_discussed), we need to fetch more and sort in memory
+            const needsComplexSort =
+                sort === 'most_liked' || sort === 'most_discussed';
+            const fetchLimit = needsComplexSort
+                ? Math.min(limit * 3, 100)
+                : limit;
+            const fetchOffset = needsComplexSort ? 0 : (page - 1) * limit;
+
+            let topLevelComments = await db.query.comments.findMany({
                 where: and(
                     eq(schema.comments.postSlug, postSlug),
                     isNull(schema.comments.parentId),
@@ -192,10 +207,73 @@ router.get(
                     },
                     reactions: true
                 },
-                orderBy: (comments, { desc }) => [desc(comments.createdAt)],
-                limit: limit,
-                offset: (page - 1) * limit
+                orderBy: (comments, { desc, asc }) => {
+                    // Pinned comments always come first
+                    const pinnedOrder = desc(comments.pinnedAt);
+                    if (sort === 'oldest') {
+                        return [pinnedOrder, asc(comments.createdAt)];
+                    }
+                    // Default: newest first
+                    return [pinnedOrder, desc(comments.createdAt)];
+                },
+                limit: needsComplexSort ? undefined : fetchLimit,
+                offset: needsComplexSort ? undefined : fetchOffset
             });
+
+            // For most_discussed, we need reply counts before sorting
+            // Pre-fetch all replies to count them per comment
+            let preReplyCountMap = new Map<string, number>();
+            if (sort === 'most_discussed') {
+                const allPostReplies = await db.query.comments.findMany({
+                    where: and(
+                        eq(schema.comments.postSlug, postSlug),
+                        sql`${schema.comments.parentId} IS NOT NULL`,
+                        visibilityClause
+                    ),
+                    columns: { parentId: true }
+                });
+                for (const reply of allPostReplies) {
+                    if (reply.parentId) {
+                        preReplyCountMap.set(
+                            reply.parentId,
+                            (preReplyCountMap.get(reply.parentId) || 0) + 1
+                        );
+                    }
+                }
+            }
+
+            // Apply complex sorting if needed
+            if (needsComplexSort) {
+                if (sort === 'most_liked') {
+                    topLevelComments = topLevelComments.sort((a, b) => {
+                        // Pinned comments always first
+                        if (a.pinnedAt && !b.pinnedAt) return -1;
+                        if (!a.pinnedAt && b.pinnedAt) return 1;
+                        const aLikes =
+                            a.reactions?.filter((r) => r.type === 'like')
+                                .length || 0;
+                        const bLikes =
+                            b.reactions?.filter((r) => r.type === 'like')
+                                .length || 0;
+                        return bLikes - aLikes;
+                    });
+                } else if (sort === 'most_discussed') {
+                    topLevelComments = topLevelComments.sort((a, b) => {
+                        // Pinned comments always first
+                        if (a.pinnedAt && !b.pinnedAt) return -1;
+                        if (!a.pinnedAt && b.pinnedAt) return 1;
+                        const aReplies = preReplyCountMap.get(a.id) || 0;
+                        const bReplies = preReplyCountMap.get(b.id) || 0;
+                        return bReplies - aReplies;
+                    });
+                }
+                // Apply pagination after sorting
+                const startIndex = (page - 1) * limit;
+                topLevelComments = topLevelComments.slice(
+                    startIndex,
+                    startIndex + limit
+                );
+            }
 
             // Get all replies up to maxDepth for these top-level comments
             const topLevelIds = topLevelComments.map((c) => c.id);
@@ -333,7 +411,8 @@ router.get(
                     limit,
                     totalTopLevel,
                     hasMore: page * limit < totalTopLevel
-                }
+                },
+                sort
             });
         } catch (error) {
             console.error('Get comments error:', error);
@@ -839,6 +918,211 @@ router.post(
             res.json({ message: 'Reaction added', reaction: type });
         } catch (error) {
             console.error('React to comment error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
+// POST /api/v1/comments/:id/pin - Pin a comment (admin only)
+router.post(
+    '/:id/pin',
+    authenticate,
+    requirePermission('comment.approve'),
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const id = req.params.id as string;
+
+            const comment = await db.query.comments.findFirst({
+                where: and(
+                    eq(schema.comments.id, id),
+                    isNull(schema.comments.deletedAt)
+                )
+            });
+
+            if (!comment) {
+                res.status(404).json({ error: 'Comment not found' });
+                return;
+            }
+
+            // Only top-level comments can be pinned
+            if (comment.parentId) {
+                res.status(400).json({
+                    error: 'Only top-level comments can be pinned'
+                });
+                return;
+            }
+
+            if (comment.pinnedAt) {
+                res.status(409).json({ error: 'Comment is already pinned' });
+                return;
+            }
+
+            await db
+                .update(schema.comments)
+                .set({
+                    pinnedAt: new Date(),
+                    pinnedBy: req.user!.id
+                })
+                .where(eq(schema.comments.id, id));
+
+            res.json({ message: 'Comment pinned' });
+        } catch (error) {
+            console.error('Pin comment error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
+// POST /api/v1/comments/:id/unpin - Unpin a comment (admin only)
+router.post(
+    '/:id/unpin',
+    authenticate,
+    requirePermission('comment.approve'),
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const id = req.params.id as string;
+
+            const comment = await db.query.comments.findFirst({
+                where: and(
+                    eq(schema.comments.id, id),
+                    isNull(schema.comments.deletedAt)
+                )
+            });
+
+            if (!comment) {
+                res.status(404).json({ error: 'Comment not found' });
+                return;
+            }
+
+            if (!comment.pinnedAt) {
+                res.status(409).json({ error: 'Comment is not pinned' });
+                return;
+            }
+
+            await db
+                .update(schema.comments)
+                .set({
+                    pinnedAt: null,
+                    pinnedBy: null
+                })
+                .where(eq(schema.comments.id, id));
+
+            res.json({ message: 'Comment unpinned' });
+        } catch (error) {
+            console.error('Unpin comment error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
+// GET /api/v1/comments/search - Search comments across all posts
+router.get(
+    '/search',
+    optionalAuth,
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const query = req.query.q as string;
+            const postSlug = req.query.postSlug as string;
+            const page = Math.max(1, parseInt(req.query.page as string) || 1);
+            const limit = Math.min(
+                50,
+                Math.max(1, parseInt(req.query.limit as string) || 20)
+            );
+
+            if (!query || query.length < 2) {
+                res.status(400).json({
+                    error: 'Search query must be at least 2 characters'
+                });
+                return;
+            }
+
+            // Check if user can view unapproved comments
+            let canViewUnapproved = false;
+            if (req.user) {
+                const permissions = await getUserPermissions(req.user.id);
+                canViewUnapproved = permissions.has('comment.view.unapproved');
+            }
+
+            const visibilityClause = canViewUnapproved
+                ? sql`1=1`
+                : or(
+                      eq(schema.comments.approved, true),
+                      req.user
+                          ? eq(schema.comments.userId, req.user.id)
+                          : sql`0`
+                  );
+
+            // Build where clause
+            let whereClause = and(
+                sql`${schema.comments.content} LIKE ${`%${query}%`}`,
+                isNull(schema.comments.deletedAt),
+                visibilityClause
+            );
+
+            if (postSlug) {
+                whereClause = and(
+                    whereClause,
+                    eq(schema.comments.postSlug, postSlug)
+                );
+            }
+
+            // Count total results
+            const totalResult = await db
+                .select({ count: count() })
+                .from(schema.comments)
+                .where(whereClause);
+            const total = totalResult[0]?.count ?? 0;
+
+            // Get results
+            const comments = await db.query.comments.findMany({
+                where: whereClause,
+                with: {
+                    user: {
+                        columns: {
+                            id: true,
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true
+                        }
+                    },
+                    reactions: true
+                },
+                orderBy: (c, { desc }) => [desc(c.createdAt)],
+                limit,
+                offset: (page - 1) * limit
+            });
+
+            // Get user reactions
+            let userReactions: Map<string, { type: string }> = new Map();
+            if (req.user) {
+                const reactions = await db.query.commentReactions.findMany({
+                    where: eq(schema.commentReactions.userId, req.user.id)
+                });
+                for (const r of reactions) {
+                    userReactions.set(r.commentId, { type: r.type });
+                }
+            }
+
+            const formattedComments = comments.map((comment) =>
+                formatComment(
+                    comment,
+                    req.user?.id,
+                    userReactions.get(comment.id)
+                )
+            );
+
+            res.json({
+                comments: formattedComments,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    hasMore: page * limit < total
+                },
+                query
+            });
+        } catch (error) {
+            console.error('Search comments error:', error);
             res.status(500).json({ error: 'Internal server error' });
         }
     }

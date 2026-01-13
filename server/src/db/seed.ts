@@ -1,8 +1,5 @@
 import { db, schema } from './index';
 import { eq } from 'drizzle-orm';
-import bcrypt from 'bcrypt';
-
-const SALT_ROUNDS = 12;
 
 function generateId(): string {
     return crypto.randomUUID();
@@ -270,43 +267,19 @@ async function seed() {
 
     await db.insert(schema.groupPermissions).values(groupPermissionInserts);
 
-    // Create admin user
-    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPassword = process.env.ADMIN_PASSWORD;
-
-    if (!adminPassword) {
-        console.log('\n⚠️  No ADMIN_PASSWORD set in environment.');
+    // Note: Admin user is created automatically when a user registers with
+    // the username matching ADMIN_USERNAME env var. No need to create here.
+    const adminUsername = process.env.ADMIN_USERNAME;
+    if (adminUsername) {
+        console.log(`\nAdmin username configured: ${adminUsername}`);
         console.log(
-            '   Set ADMIN_PASSWORD env var and run seed again to create admin user.'
-        );
-        console.log(
-            '   Example: ADMIN_PASSWORD=your_secure_password bun run db:seed\n'
+            'When this user registers, they will automatically be assigned the admin group.'
         );
     } else {
-        console.log(`Creating admin user: ${adminUsername}...`);
-
-        const passwordHash = await bcrypt.hash(adminPassword, SALT_ROUNDS);
-        const adminId = generateId();
-
-        await db.insert(schema.users).values({
-            id: adminId,
-            username: adminUsername,
-            passwordHash,
-            displayName: 'Administrator',
-            emailVerified: true
-        });
-
-        // Assign admin group
-        const adminGroupId = groupMap.get('admin');
-        if (adminGroupId) {
-            await db.insert(schema.userGroups).values({
-                id: generateId(),
-                userId: adminId,
-                groupId: adminGroupId
-            });
-        }
-
-        console.log(`✅ Admin user created: ${adminUsername}`);
+        console.log('\n⚠️  No ADMIN_USERNAME set in environment.');
+        console.log(
+            '   Set ADMIN_USERNAME env var to designate which user gets admin privileges on registration.'
+        );
     }
 
     console.log('\n✅ Database seeded successfully!');

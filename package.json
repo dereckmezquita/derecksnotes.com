@@ -8,7 +8,12 @@
     "build": "bun run --cwd client build",
     "start": "concurrently -n client,server \"bun run --cwd client start\" \"bun run --cwd server start\"",
     "format": "bun prettier --write .",
-    "test": "bun test"
+    "test": "bun test",
+    "db:generate": "bun run --cwd server db:generate",
+    "db:migrate": "bun run --cwd server db:migrate",
+    "db:seed": "bun run --cwd server db:seed",
+    "db:reset": "bun run --cwd server db:reset",
+    "db:studio": "bun run --cwd server db:studio"
   },
   "prettier": {
     "semi": true,
