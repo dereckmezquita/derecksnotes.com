@@ -13,6 +13,10 @@ interface ProfileCommentListProps {
     selectedComments: string[];
     toggleSelectComment: (id: string) => void;
     onDelete: (id: string) => Promise<void>;
+    onReactionUpdate?: (
+        commentId: string,
+        newReaction: 'like' | 'dislike' | null
+    ) => void;
     Checkbox: React.ComponentType<{
         checked: boolean;
         onChange: () => void;
@@ -25,6 +29,7 @@ export const ProfileCommentList: React.FC<ProfileCommentListProps> = ({
     selectedComments,
     toggleSelectComment,
     onDelete,
+    onReactionUpdate,
     Checkbox
 }) => {
     if (comments.length === 0) {
@@ -46,6 +51,7 @@ export const ProfileCommentList: React.FC<ProfileCommentListProps> = ({
                     selected={selectedComments.includes(comment.id)}
                     toggleSelect={toggleSelectComment}
                     onDelete={onDelete}
+                    onReactionUpdate={onReactionUpdate}
                     Checkbox={Checkbox}
                 />
             ))}

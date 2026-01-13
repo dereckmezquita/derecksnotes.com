@@ -1,6 +1,6 @@
 import { Router, type Response } from 'express';
 import { db, schema } from '@db/index';
-import { eq, sql } from 'drizzle-orm';
+import { eq, sql, and, isNull } from 'drizzle-orm';
 import { authenticate, requirePermission } from '@middleware/auth';
 import type { AuthenticatedRequest } from '@/types';
 import { dbLogger } from '@services/logger';
@@ -31,11 +31,16 @@ router.get(
     requirePermission('admin.dashboard'),
     async (_req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            // Pending comments count
+            // Pending comments count (exclude deleted)
             const pendingComments = await db
                 .select({ count: sql<number>`count(*)` })
                 .from(schema.comments)
-                .where(eq(schema.comments.approved, false));
+                .where(
+                    and(
+                        eq(schema.comments.approved, false),
+                        isNull(schema.comments.deletedAt)
+                    )
+                );
 
             // Pending reports count
             const pendingReports = await db

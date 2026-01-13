@@ -19,6 +19,13 @@ export interface CommentHistoryEntry {
     isCurrent: boolean;
 }
 
+export interface ParentComment {
+    id: string;
+    content: string;
+    isDeleted: boolean;
+    user: CommentAuthor | null;
+}
+
 export interface CommentType {
     id: string;
     postSlug: string;
@@ -35,6 +42,7 @@ export interface CommentType {
     replies?: CommentType[];
     totalReplies?: number;
     hasMoreReplies?: boolean;
+    parentComment?: ParentComment | null;
 }
 
 export interface CommentPagination {

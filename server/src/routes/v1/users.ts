@@ -15,6 +15,22 @@ import { dbLogger } from '@services/logger';
 function formatProfileComment(
     comment: typeof schema.comments.$inferSelect & {
         reactions?: Array<{ type: string; userId: string }>;
+        user?: {
+            id: string;
+            username: string;
+            displayName: string | null;
+            avatarUrl: string | null;
+        } | null;
+        parent?:
+            | (typeof schema.comments.$inferSelect & {
+                  user?: {
+                      id: string;
+                      username: string;
+                      displayName: string | null;
+                      avatarUrl: string | null;
+                  } | null;
+              })
+            | null;
     },
     currentUserId: string
 ) {
@@ -23,19 +39,50 @@ function formatProfileComment(
     const dislikes = reactions.filter((r) => r.type === 'dislike').length;
     const userReaction = reactions.find((r) => r.userId === currentUserId);
 
+    // Format parent comment if it exists
+    const parentComment = comment.parent
+        ? {
+              id: comment.parent.id,
+              content: comment.parent.deletedAt
+                  ? '[deleted]'
+                  : comment.parent.content,
+              isDeleted: !!comment.parent.deletedAt,
+              user: comment.parent.user
+                  ? {
+                        id: comment.parent.user.id,
+                        username: comment.parent.user.username,
+                        displayName: comment.parent.user.displayName,
+                        avatarUrl: comment.parent.user.avatarUrl
+                    }
+                  : null
+          }
+        : null;
+
     return {
         id: comment.id,
         postSlug: comment.postSlug,
+        parentId: comment.parentId,
         content: comment.deletedAt ? '[deleted]' : comment.content,
+        depth: comment.depth,
+        approved: comment.approved,
         createdAt: comment.createdAt,
         editedAt: comment.editedAt,
         isDeleted: !!comment.deletedAt,
-        isOwner: true,
+        isOwner: comment.userId === currentUserId,
+        user: comment.user
+            ? {
+                  id: comment.user.id,
+                  username: comment.user.username,
+                  displayName: comment.user.displayName,
+                  avatarUrl: comment.user.avatarUrl
+              }
+            : null,
         reactions: {
             likes,
             dislikes,
             userReaction: userReaction?.type || null
-        }
+        },
+        parentComment
     };
 }
 
@@ -250,7 +297,27 @@ router.get(
             const comments = await db.query.comments.findMany({
                 where: eq(schema.comments.userId, req.user!.id),
                 with: {
-                    reactions: true
+                    reactions: true,
+                    user: {
+                        columns: {
+                            id: true,
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true
+                        }
+                    },
+                    parent: {
+                        with: {
+                            user: {
+                                columns: {
+                                    id: true,
+                                    username: true,
+                                    displayName: true,
+                                    avatarUrl: true
+                                }
+                            }
+                        }
+                    }
                 },
                 orderBy: (c, { desc }) => [desc(c.createdAt)]
             });
@@ -292,7 +359,27 @@ router.get(
             const comments = await db.query.comments.findMany({
                 where: inArray(schema.comments.id, commentIds),
                 with: {
-                    reactions: true
+                    reactions: true,
+                    user: {
+                        columns: {
+                            id: true,
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true
+                        }
+                    },
+                    parent: {
+                        with: {
+                            user: {
+                                columns: {
+                                    id: true,
+                                    username: true,
+                                    displayName: true,
+                                    avatarUrl: true
+                                }
+                            }
+                        }
+                    }
                 },
                 orderBy: (c, { desc }) => [desc(c.createdAt)]
             });
@@ -334,7 +421,27 @@ router.get(
             const comments = await db.query.comments.findMany({
                 where: inArray(schema.comments.id, commentIds),
                 with: {
-                    reactions: true
+                    reactions: true,
+                    user: {
+                        columns: {
+                            id: true,
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true
+                        }
+                    },
+                    parent: {
+                        with: {
+                            user: {
+                                columns: {
+                                    id: true,
+                                    username: true,
+                                    displayName: true,
+                                    avatarUrl: true
+                                }
+                            }
+                        }
+                    }
                 },
                 orderBy: (c, { desc }) => [desc(c.createdAt)]
             });

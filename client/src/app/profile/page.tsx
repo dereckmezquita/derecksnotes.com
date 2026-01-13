@@ -1033,6 +1033,40 @@ export default function ProfilePage() {
         );
     };
 
+    const handleReactionUpdate = (
+        commentId: string,
+        newReaction: 'like' | 'dislike' | null
+    ) => {
+        const updateComment = (comment: CommentType): CommentType => {
+            if (comment.id !== commentId) return comment;
+
+            const oldReaction = comment.reactions.userReaction;
+            let newLikes = comment.reactions.likes;
+            let newDislikes = comment.reactions.dislikes;
+
+            // Remove old reaction count
+            if (oldReaction === 'like') newLikes--;
+            if (oldReaction === 'dislike') newDislikes--;
+
+            // Add new reaction count
+            if (newReaction === 'like') newLikes++;
+            if (newReaction === 'dislike') newDislikes++;
+
+            return {
+                ...comment,
+                reactions: {
+                    ...comment.reactions,
+                    likes: newLikes,
+                    dislikes: newDislikes,
+                    userReaction: newReaction
+                }
+            };
+        };
+
+        setComments((prev) => prev.map(updateComment));
+        setAllComments((prev) => prev.map(updateComment));
+    };
+
     const toggleSelectAll = () => {
         const visibleNonDeletedComments = comments.filter((c) => !c.isDeleted);
 
@@ -1415,6 +1449,9 @@ export default function ProfilePage() {
                                                     }
                                                     onDelete={
                                                         handleDeleteComment
+                                                    }
+                                                    onReactionUpdate={
+                                                        handleReactionUpdate
                                                     }
                                                     Checkbox={Checkbox}
                                                 />
