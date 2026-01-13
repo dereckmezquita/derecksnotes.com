@@ -6,7 +6,8 @@ import {
     resolveError,
     unresolveError,
     getLogStats,
-    cleanupOldLogs
+    cleanupOldLogs,
+    dbLogger
 } from '@services/logger';
 import type { LogLevel } from '@db/schema/logs';
 

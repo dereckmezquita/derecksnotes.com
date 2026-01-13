@@ -90,9 +90,10 @@ export async function persistLog(options: {
                     lastSeenAt: new Date(),
                     count: sql`${errorSummary.count} + 1`
                 })
-                .where(eq(errorSummary.fingerprint, fingerprint));
+                .where(eq(errorSummary.fingerprint, fingerprint))
+                .returning({ id: errorSummary.id });
 
-            if (result.rowsAffected === 0) {
+            if (result.length === 0) {
                 await db.insert(errorSummary).values({
                     id: crypto.randomUUID(),
                     fingerprint,
@@ -343,7 +344,8 @@ export async function cleanupOldLogs(daysToKeep: number = 30) {
 
     const result = await db
         .delete(serverLogs)
-        .where(lte(serverLogs.createdAt, cutoffDate));
+        .where(lte(serverLogs.createdAt, cutoffDate))
+        .returning({ id: serverLogs.id });
 
-    return result.rowsAffected;
+    return result.length;
 }

@@ -4,7 +4,7 @@ import { logger, persistLog } from '@services/logger';
 
 // Generate unique request ID
 function generateRequestId(): string {
-    return crypto.randomUUID().split('-')[0];
+    return crypto.randomUUID().split('-')[0] ?? crypto.randomUUID();
 }
 
 // Middleware to log all requests

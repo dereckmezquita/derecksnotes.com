@@ -7,7 +7,6 @@ import { toast } from 'sonner';
 import {
     AdminHeader,
     AdminTitle,
-    AdminSubtitle,
     TableContainer,
     Table,
     TableHead,
@@ -235,9 +234,6 @@ export default function AdminReportsPage() {
         <>
             <AdminHeader>
                 <AdminTitle>Reports</AdminTitle>
-                <AdminSubtitle>
-                    Review user-submitted reports and take action
-                </AdminSubtitle>
             </AdminHeader>
 
             <ActionBar>

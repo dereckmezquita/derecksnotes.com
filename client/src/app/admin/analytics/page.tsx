@@ -8,7 +8,6 @@ import Link from 'next/link';
 import {
     AdminHeader,
     AdminTitle,
-    AdminSubtitle,
     Card,
     CardHeader,
     CardTitle,
@@ -556,9 +555,6 @@ export default function AnalyticsPage() {
         <>
             <AdminHeader>
                 <AdminTitle>Analytics</AdminTitle>
-                <AdminSubtitle>
-                    Engagement metrics and content performance
-                </AdminSubtitle>
             </AdminHeader>
 
             {/* Engagement Overview with Sparklines */}

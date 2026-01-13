@@ -20,7 +20,6 @@ import styled from 'styled-components';
 import {
     AdminHeader,
     AdminTitle,
-    AdminSubtitle,
     TableContainer,
     Table,
     TableHead,
@@ -523,9 +522,6 @@ export default function AdminCommentsPage() {
         <>
             <AdminHeader>
                 <AdminTitle>Pending Comments</AdminTitle>
-                <AdminSubtitle>
-                    Review and moderate user-submitted comments
-                </AdminSubtitle>
             </AdminHeader>
 
             {comments.length === 0 ? (

@@ -8,7 +8,6 @@ import Link from 'next/link';
 import {
     AdminHeader,
     AdminTitle,
-    AdminSubtitle,
     TableContainer,
     Table,
     TableHead,
@@ -224,9 +223,6 @@ export default function AdminUsersPage() {
         <>
             <AdminHeader>
                 <AdminTitle>User Management</AdminTitle>
-                <AdminSubtitle>
-                    View and manage user accounts and permissions
-                </AdminSubtitle>
             </AdminHeader>
 
             <ActionBar>

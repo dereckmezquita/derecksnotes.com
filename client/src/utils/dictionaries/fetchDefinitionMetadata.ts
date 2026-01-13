@@ -75,10 +75,10 @@ export function fetchDefintionsMetadata(
     const files: string[] = fs.readdirSync(folder);
     const mdxFiles: string[] = files.filter((file) => file.endsWith('.mdx'));
 
-    // 2. Extract metadata from each .mdx
-    let definitions: DefinitionMetadata[] = mdxFiles.map((file) =>
-        extractSingleDefinitionMetadata(path.join(folder, file))
-    );
+    // 2. Extract metadata from each .mdx (filter out nulls from missing files)
+    let definitions: DefinitionMetadata[] = mdxFiles
+        .map((file) => extractSingleDefinitionMetadata(path.join(folder, file)))
+        .filter((def): def is DefinitionMetadata => def !== null);
 
     // 3. Filter published definitions that are *related* to the current word
     definitions = definitions.filter((def) => {

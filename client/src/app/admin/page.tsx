@@ -8,7 +8,6 @@ import Link from 'next/link';
 import {
     AdminHeader,
     AdminTitle,
-    AdminSubtitle,
     Card,
     CardHeader,
     CardTitle,
@@ -167,9 +166,6 @@ export default function AdminDashboard() {
         <>
             <AdminHeader>
                 <AdminTitle>Dashboard</AdminTitle>
-                <AdminSubtitle>
-                    Welcome back, {user?.displayName || user?.username}
-                </AdminSubtitle>
             </AdminHeader>
 
             {/* Needs Attention Section */}

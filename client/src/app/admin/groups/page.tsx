@@ -8,7 +8,6 @@ import styled from 'styled-components';
 import {
     AdminHeader,
     AdminTitle,
-    AdminSubtitle,
     TableContainer,
     Table,
     TableHead,
@@ -529,9 +528,6 @@ export default function AdminGroupsPage() {
         <>
             <AdminHeader>
                 <AdminTitle>Groups & Permissions</AdminTitle>
-                <AdminSubtitle>
-                    Manage user groups and their permissions (GitHub-style)
-                </AdminSubtitle>
             </AdminHeader>
 
             <ActionBar>

@@ -50,12 +50,6 @@ export const AdminTitle = styled.h1`
     font-weight: ${(props) => props.theme.text.weight.bold};
 `;
 
-export const AdminSubtitle = styled.p`
-    margin: 0;
-    color: ${(props) => props.theme.text.colour.light_grey()};
-    font-size: ${(props) => props.theme.text.size.normal};
-`;
-
 // ============================================================================
 // SIDEBAR NAVIGATION
 // ============================================================================

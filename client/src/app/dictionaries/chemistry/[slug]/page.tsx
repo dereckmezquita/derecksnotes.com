@@ -83,8 +83,15 @@ export async function generateMetadata({
     const decodedSlug = decodeSlug((await params).slug);
     const filename: string = decodedSlug + '.mdx';
     const filePath: string = path.join(absDir, filename);
-    const definition: DefinitionMetadata =
-        extractSingleDefinitionMetadata(filePath);
+    const definition = extractSingleDefinitionMetadata(filePath);
+
+    // Handle missing files gracefully (e.g., static asset requests in dev)
+    if (!definition) {
+        return {
+            title: 'Not Found',
+            description: 'The requested page could not be found.'
+        };
+    }
 
     const title: string = `Dn | dictionary - ${definition.word}`;
     const summary: string =

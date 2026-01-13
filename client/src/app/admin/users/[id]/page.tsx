@@ -9,7 +9,6 @@ import Link from 'next/link';
 import {
     AdminHeader,
     AdminTitle,
-    AdminSubtitle,
     Card,
     CardHeader,
     CardTitle,
@@ -353,7 +352,6 @@ export default function AdminUserDetailPage() {
                     </Link>
                     <div>
                         <AdminTitle>{user.username}</AdminTitle>
-                        <AdminSubtitle>User Details</AdminSubtitle>
                     </div>
                 </div>
             </AdminHeader>

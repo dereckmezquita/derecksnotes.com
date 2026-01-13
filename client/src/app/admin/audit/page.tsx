@@ -6,7 +6,6 @@ import { api } from '@utils/api/api';
 import {
     AdminHeader,
     AdminTitle,
-    AdminSubtitle,
     TableContainer,
     Table,
     TableHead,
@@ -226,9 +225,6 @@ export default function AdminAuditPage() {
         <>
             <AdminHeader>
                 <AdminTitle>Audit Log</AdminTitle>
-                <AdminSubtitle>
-                    Track administrative actions and changes
-                </AdminSubtitle>
             </AdminHeader>
 
             <ActionBar>
