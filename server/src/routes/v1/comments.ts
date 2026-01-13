@@ -1,16 +1,16 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { db, schema } from '../../db';
+import { db, schema } from '@db/index';
 import { eq, and, isNull, or, sql, desc, asc, count } from 'drizzle-orm';
 import {
     authenticate,
     optionalAuth,
     requirePermission
-} from '../../middleware/auth';
-import { commentLimiter } from '../../middleware/rateLimit';
-import { getUserPermissions } from '../../services/auth';
-import type { AuthenticatedRequest } from '../../types';
-import { dbLogger } from '../../services/logger';
+} from '@middleware/auth';
+import { commentLimiter } from '@middleware/rateLimit';
+import { getUserPermissions } from '@services/auth';
+import type { AuthenticatedRequest } from '@/types';
+import { dbLogger } from '@services/logger';
 
 const router = Router();
 

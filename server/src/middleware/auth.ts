@@ -5,8 +5,8 @@ import {
     getUserPermissions,
     isUserBanned,
     revokeSession
-} from '../services/auth';
-import type { AuthenticatedRequest } from '../types';
+} from '@services/auth';
+import type { AuthenticatedRequest } from '@/types';
 
 export async function authenticate(
     req: AuthenticatedRequest,

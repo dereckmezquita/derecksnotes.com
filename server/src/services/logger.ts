@@ -1,9 +1,9 @@
 import pino from 'pino';
 import crypto from 'crypto';
-import { db } from '../db';
-import { serverLogs, errorSummary, type LogLevel } from '../db/schema/logs';
+import { db } from '@db/index';
+import { serverLogs, errorSummary, type LogLevel } from '@db/schema/logs';
 import { eq, desc, and, gte, lte, sql, or, like } from 'drizzle-orm';
-import { config } from '../lib/env';
+import { config } from '@lib/env';
 
 // Create pino logger with pretty printing in development
 export const logger = pino({

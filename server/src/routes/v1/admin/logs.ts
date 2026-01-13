@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { authenticate, requirePermission } from '../../../middleware/auth';
+import { authenticate, requirePermission } from '@middleware/auth';
 import {
     getLogs,
     getErrorSummaries,
@@ -7,8 +7,8 @@ import {
     unresolveError,
     getLogStats,
     cleanupOldLogs
-} from '../../../services/logger';
-import type { LogLevel } from '../../../db/schema/logs';
+} from '@services/logger';
+import type { LogLevel } from '@db/schema/logs';
 
 const router = Router();
 

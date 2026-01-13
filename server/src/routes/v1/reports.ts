@@ -1,11 +1,11 @@
 import { Router, type Response } from 'express';
 import { z } from 'zod';
-import { db, schema } from '../../db';
+import { db, schema } from '@db/index';
 import { eq, and, isNull } from 'drizzle-orm';
-import { authenticate, requirePermission } from '../../middleware/auth';
-import { reportLimiter } from '../../middleware/rateLimit';
-import type { AuthenticatedRequest } from '../../types';
-import { dbLogger } from '../../services/logger';
+import { authenticate, requirePermission } from '@middleware/auth';
+import { reportLimiter } from '@middleware/rateLimit';
+import type { AuthenticatedRequest } from '@/types';
+import { dbLogger } from '@services/logger';
 
 const router = Router();
 

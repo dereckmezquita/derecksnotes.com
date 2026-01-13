@@ -1,9 +1,9 @@
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
-import { db, schema } from '../db';
+import { db, schema } from '@db/index';
 import { eq, and, isNull, gt } from 'drizzle-orm';
-import { config } from '../lib/env';
-import { logger } from './logger';
+import { config } from '@lib/env';
+import { logger } from '@services/logger';
 
 const SALT_ROUNDS = 12;
 const SESSION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days

@@ -1,9 +1,9 @@
 import { Router, type Response } from 'express';
-import { db, schema } from '../../../db';
+import { db, schema } from '@db/index';
 import { eq, and, gte, lte, sql, isNull, count, desc } from 'drizzle-orm';
-import { authenticate, requirePermission } from '../../../middleware/auth';
-import type { AuthenticatedRequest } from '../../../types';
-import { dbLogger } from '../../../services/logger';
+import { authenticate, requirePermission } from '@middleware/auth';
+import type { AuthenticatedRequest } from '@/types';
+import { dbLogger } from '@services/logger';
 
 const router = Router();
 

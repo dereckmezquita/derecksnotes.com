@@ -1,6 +1,6 @@
 import { Database } from 'bun:sqlite';
 import { drizzle } from 'drizzle-orm/bun-sqlite';
-import { config } from '../lib/env';
+import { config } from '@lib/env';
 import * as schema from './schema';
 import * as fs from 'fs';
 import * as path from 'path';

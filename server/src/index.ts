@@ -1,12 +1,12 @@
 import express, { type Request, type Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { config } from './lib/env';
-import { generalLimiter } from './middleware/rateLimit';
-import { requestLogger, errorLogger } from './middleware/requestLogger';
-import { ensureAdminUser } from './services/auth';
-import { initializeDatabase } from './db/init';
-import v1Router from './routes/v1';
+import { config } from '@lib/env';
+import { generalLimiter } from '@middleware/rateLimit';
+import { requestLogger, errorLogger } from '@middleware/requestLogger';
+import { ensureAdminUser } from '@services/auth';
+import { initializeDatabase } from '@db/init';
+import v1Router from '@routes/v1';
 
 // Initialize database (runs migrations + seeds if needed)
 await initializeDatabase();

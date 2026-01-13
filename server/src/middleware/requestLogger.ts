@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { logger, persistLog } from '../services/logger';
+import { logger, persistLog } from '@services/logger';
 
 // Generate unique request ID
 function generateRequestId(): string {

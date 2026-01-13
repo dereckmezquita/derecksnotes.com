@@ -1,4 +1,4 @@
-import { db, schema } from '../db';
+import { db, schema } from '@db/index';
 
 type TargetType = 'user' | 'comment' | 'report' | 'group' | 'permission';
 

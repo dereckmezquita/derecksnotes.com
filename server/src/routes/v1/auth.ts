@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import crypto from 'crypto';
 import { z } from 'zod';
-import { db, schema } from '../../db';
+import { db, schema } from '@db/index';
 import { eq, and, isNull } from 'drizzle-orm';
 import {
     hashPassword,
@@ -12,11 +12,11 @@ import {
     getUserSessions,
     getCookieOptions,
     elevateToAdminIfConfigured
-} from '../../services/auth';
-import { authenticate } from '../../middleware/auth';
-import { authLimiter } from '../../middleware/rateLimit';
-import { logger, dbLogger } from '../../services/logger';
-import type { AuthenticatedRequest } from '../../types';
+} from '@services/auth';
+import { authenticate } from '@middleware/auth';
+import { authLimiter } from '@middleware/rateLimit';
+import { logger, dbLogger } from '@services/logger';
+import type { AuthenticatedRequest } from '@/types';
 
 const router = Router();
 

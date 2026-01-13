@@ -1,15 +1,15 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
-import { db, schema } from '../../db';
+import { db, schema } from '@db/index';
 import { eq, and, isNull, inArray } from 'drizzle-orm';
-import { authenticate, requirePermission } from '../../middleware/auth';
+import { authenticate, requirePermission } from '@middleware/auth';
 import {
     hashPassword,
     verifyPassword,
     revokeAllSessions
-} from '../../services/auth';
-import type { AuthenticatedRequest } from '../../types';
-import { dbLogger } from '../../services/logger';
+} from '@services/auth';
+import type { AuthenticatedRequest } from '@/types';
+import { dbLogger } from '@services/logger';
 
 // Helper to format comment for profile view
 function formatProfileComment(
