@@ -33,7 +33,13 @@ export interface DefinitionMetadata {
 
 export function extractSingleDefinitionMetadata(
     filepath: string
-): DefinitionMetadata {
+): DefinitionMetadata | null {
+    // In local dev, gracefully handle missing files (e.g., static asset requests hitting dynamic route)
+    if (!config.isProduction && !fs.existsSync(filepath)) {
+        console.warn(`Definition file not found: ${filepath}`);
+        return null;
+    }
+
     try {
         const { summary, frontmatter } = stripMdx<DefinitionMetadata>(filepath);
 
