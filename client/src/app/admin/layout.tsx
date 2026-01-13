@@ -5,8 +5,10 @@ import { useAuth } from '@context/AuthContext';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
-    AdminContainer,
-    AdminSidebarWrapper,
+    PostContainer,
+    SideBarContainer
+} from '@components/pages/posts-dictionaries';
+import {
     AdminMain,
     SidebarTitle,
     SidebarNav,
@@ -188,8 +190,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     };
 
     return (
-        <AdminContainer>
-            <AdminSidebarWrapper>
+        <PostContainer>
+            <SideBarContainer>
                 <SidebarTitle>Admin Panel</SidebarTitle>
                 <SidebarNav>
                     {visibleNavItems.map((item) => (
@@ -247,9 +249,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         </SidebarLink>
                     </Link>
                 </SidebarNav>
-            </AdminSidebarWrapper>
+            </SideBarContainer>
 
             <AdminMain>{children}</AdminMain>
-        </AdminContainer>
+        </PostContainer>
     );
 }

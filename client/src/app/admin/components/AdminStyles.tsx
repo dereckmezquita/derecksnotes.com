@@ -1,6 +1,7 @@
 'use client';
 
 import styled, { css, keyframes } from 'styled-components';
+import { Article } from '@components/pages/posts-dictionaries';
 
 // ============================================================================
 // ANIMATIONS
@@ -27,39 +28,14 @@ const spin = keyframes`
 // LAYOUT
 // ============================================================================
 
-export const AdminContainer = styled.div`
-    display: flex;
-    min-height: calc(100vh - 60px);
-    background-color: ${(props) =>
-        props.theme.container.background.colour.content()};
-`;
+// AdminMain extends Article to maintain consistent styling with the rest of the site
+export const AdminMain = styled(Article)`
+    width: 75%;
+    text-align: left;
 
-export const AdminSidebarWrapper = styled.aside`
-    width: 260px;
-    background: ${(props) => props.theme.container.background.colour.solid()};
-    border-right: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-    padding: ${(props) => props.theme.container.spacing.medium};
-    flex-shrink: 0;
-    position: sticky;
-    top: 60px;
-    height: calc(100vh - 60px);
-    overflow-y: auto;
-
-    @media (max-width: ${(props) => props.theme.container.breakpoints.medium}) {
-        display: none;
-    }
-`;
-
-export const AdminMain = styled.main`
-    flex: 1;
-    padding: ${(props) => props.theme.container.spacing.large};
-    max-width: 1400px;
-    margin: 0 auto;
-    width: 100%;
-
-    @media (max-width: ${(props) => props.theme.container.breakpoints.medium}) {
-        padding: ${(props) => props.theme.container.spacing.medium};
+    @media (max-width: 900px) {
+        width: 100%;
+        border-left: none;
     }
 `;
 
