@@ -66,14 +66,15 @@ export const SidebarTitle = styled.h2`
     color: ${(props) => props.theme.text.colour.light_grey()};
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin: 0 0 ${(props) => props.theme.container.spacing.small} 0;
-    padding: 0 ${(props) => props.theme.container.spacing.small};
+    margin: 0 0 ${(props) => props.theme.container.spacing.medium} 0;
+    padding: 0 ${(props) => props.theme.container.spacing.medium};
 `;
 
 export const SidebarNav = styled.nav`
     display: flex;
     flex-direction: column;
     gap: ${(props) => props.theme.container.spacing.xsmall};
+    padding: 0 ${(props) => props.theme.container.spacing.small};
 `;
 
 export const SidebarLink = styled.a<{ $active?: boolean }>`
@@ -114,9 +115,10 @@ export const SidebarLink = styled.a<{ $active?: boolean }>`
 
 export const SidebarDivider = styled.hr`
     border: none;
-    border-top: 1px solid
+    border-top: 1px dashed
         ${(props) => props.theme.container.border.colour.primary()};
-    margin: ${(props) => props.theme.container.spacing.medium} 0;
+    margin: ${(props) => props.theme.container.spacing.medium}
+        ${(props) => props.theme.container.spacing.small};
 `;
 
 // ============================================================================

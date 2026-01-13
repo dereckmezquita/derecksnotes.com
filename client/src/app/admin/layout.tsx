@@ -231,7 +231,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
     return (
         <PostContainer>
-            <SideBarContainer>
+            <SideBarContainer style={{ textAlign: 'left' }}>
                 <SidebarTitle>Admin Panel</SidebarTitle>
                 <SidebarNav>
                     {visibleNavItems.map((item) => (

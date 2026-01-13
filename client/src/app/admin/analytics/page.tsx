@@ -40,7 +40,7 @@ const ChartContainer = styled.div`
 const ChartTitle = styled.h4`
     margin: 0 0 1rem 0;
     font-size: 0.875rem;
-    color: ${(p) => p.theme.container.textColour};
+    color: ${(p) => p.theme.text.colour.primary()};
 `;
 
 const BarChartWrapper = styled.div`
@@ -57,7 +57,7 @@ const Bar = styled.div<{ $height: number; $color?: string }>`
     min-width: 8px;
     max-width: 20px;
     height: ${(p) => p.$height}%;
-    background: ${(p) => p.$color || p.theme.theme.colour};
+    background: ${(p) => p.$color || p.theme.theme_colours[5]()};
     border-radius: 2px 2px 0 0;
     transition: height 0.3s ease;
     cursor: pointer;
@@ -73,8 +73,8 @@ const Bar = styled.div<{ $height: number; $color?: string }>`
         bottom: 100%;
         left: 50%;
         transform: translateX(-50%);
-        background: ${(p) => p.theme.container.background};
-        border: 1px solid ${(p) => p.theme.container.border};
+        background: ${(p) => p.theme.container.background.colour.solid()};
+        border: 1px solid ${(p) => p.theme.container.border.colour.primary()};
         padding: 0.25rem 0.5rem;
         border-radius: 4px;
         font-size: 0.75rem;
@@ -87,8 +87,7 @@ const ChartLabels = styled.div`
     display: flex;
     justify-content: space-between;
     font-size: 0.625rem;
-    color: ${(p) => p.theme.container.textColour};
-    opacity: 0.7;
+    color: ${(p) => p.theme.text.colour.light_grey()};
     margin-top: 0.5rem;
 `;
 
@@ -101,16 +100,18 @@ const MetricToggle = styled.div`
 const MetricButton = styled.button<{ $active?: boolean }>`
     padding: 0.375rem 0.75rem;
     font-size: 0.75rem;
-    border: 1px solid ${(p) => p.theme.container.border};
+    border: 1px solid ${(p) => p.theme.container.border.colour.primary()};
     border-radius: 4px;
     background: ${(p) =>
-        p.$active ? p.theme.theme.colour : p.theme.container.background};
-    color: ${(p) => (p.$active ? '#fff' : p.theme.container.textColour)};
+        p.$active
+            ? p.theme.theme_colours[5]()
+            : p.theme.container.background.colour.solid()};
+    color: ${(p) => (p.$active ? '#fff' : p.theme.text.colour.primary())};
     cursor: pointer;
     transition: all 0.2s;
 
     &:hover {
-        border-color: ${(p) => p.theme.theme.colour};
+        border-color: ${(p) => p.theme.theme_colours[5]()};
     }
 `;
 
@@ -124,21 +125,20 @@ const StatsRow = styled.div`
 const MiniStat = styled.div`
     text-align: center;
     padding: 0.75rem;
-    background: ${(p) => p.theme.container.background};
+    background: ${(p) => p.theme.container.background.colour.light_contrast()};
     border-radius: 8px;
-    border: 1px solid ${(p) => p.theme.container.border};
+    border: 1px solid ${(p) => p.theme.container.border.colour.primary()};
 `;
 
 const MiniStatValue = styled.div`
     font-size: 1.25rem;
     font-weight: 600;
-    color: ${(p) => p.theme.theme.colour};
+    color: ${(p) => p.theme.theme_colours[5]()};
 `;
 
 const MiniStatLabel = styled.div`
     font-size: 0.75rem;
-    color: ${(p) => p.theme.container.textColour};
-    opacity: 0.7;
+    color: ${(p) => p.theme.text.colour.light_grey()};
 `;
 
 const TopList = styled.div`
@@ -152,14 +152,13 @@ const TopListItem = styled.div`
     justify-content: space-between;
     align-items: center;
     padding: 0.5rem;
-    background: ${(p) => p.theme.container.background};
+    background: ${(p) => p.theme.container.background.colour.light_contrast()};
     border-radius: 4px;
     font-size: 0.875rem;
 `;
 
 const TopListRank = styled.span`
-    color: ${(p) => p.theme.container.textColour};
-    opacity: 0.5;
+    color: ${(p) => p.theme.text.colour.light_grey()};
     margin-right: 0.5rem;
     font-size: 0.75rem;
 `;
@@ -173,7 +172,7 @@ const TopListName = styled.span`
 
 const TopListValue = styled.span`
     font-weight: 600;
-    color: ${(p) => p.theme.theme.colour};
+    color: ${(p) => p.theme.theme_colours[5]()};
     margin-left: 0.5rem;
 `;
 
