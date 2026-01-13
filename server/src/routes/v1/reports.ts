@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { db, schema } from '../../db';
 import { eq, and, isNull } from 'drizzle-orm';

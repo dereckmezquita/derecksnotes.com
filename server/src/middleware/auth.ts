@@ -1,11 +1,11 @@
-import { Response, NextFunction } from 'express';
+import type { Response, NextFunction } from 'express';
 import {
-    verifyToken,
+    getSessionByToken,
+    extendSession,
     getUserPermissions,
-    isUserBanned
+    isUserBanned,
+    revokeSession
 } from '../services/auth';
-import { db, schema } from '../db';
-import { eq, isNull, and } from 'drizzle-orm';
 import type { AuthenticatedRequest } from '../types';
 
 export async function authenticate(
@@ -13,28 +13,27 @@ export async function authenticate(
     res: Response,
     next: NextFunction
 ): Promise<void> {
-    const accessToken = req.cookies?.accessToken;
+    const sessionToken = req.cookies?.sessionId;
 
-    if (!accessToken) {
+    if (!sessionToken) {
         res.status(401).json({ error: 'Authentication required' });
         return;
     }
 
-    const payload = verifyToken(accessToken);
-    if (!payload || payload.type !== 'access') {
-        res.status(401).json({ error: 'Invalid or expired token' });
+    // Look up session in database
+    const session = await getSessionByToken(sessionToken);
+
+    if (!session) {
+        res.clearCookie('sessionId');
+        res.status(401).json({ error: 'Invalid or expired session' });
         return;
     }
 
-    // Check if user exists and is not deleted
-    const user = await db.query.users.findFirst({
-        where: and(
-            eq(schema.users.id, payload.userId),
-            isNull(schema.users.deletedAt)
-        )
-    });
+    const user = session.user;
 
-    if (!user) {
+    // Check if user is deleted
+    if (user.deletedAt) {
+        res.clearCookie('sessionId');
         res.status(401).json({ error: 'User not found' });
         return;
     }
@@ -42,9 +41,15 @@ export async function authenticate(
     // Check if user is banned
     const banned = await isUserBanned(user.id);
     if (banned) {
+        // Revoke session immediately when banned
+        await revokeSession(session.id);
+        res.clearCookie('sessionId');
         res.status(403).json({ error: 'Account is banned' });
         return;
     }
+
+    // Sliding expiration - extend session if needed
+    await extendSession(session.id);
 
     // Load permissions
     const permissions = await getUserPermissions(user.id);
@@ -53,30 +58,33 @@ export async function authenticate(
         id: user.id,
         username: user.username
     };
+    req.sessionId = session.id;
     req.permissions = permissions;
 
     next();
 }
 
-export function optionalAuth(
+export async function optionalAuth(
     req: AuthenticatedRequest,
     _res: Response,
     next: NextFunction
-): void {
-    const accessToken = req.cookies?.accessToken;
+): Promise<void> {
+    const sessionToken = req.cookies?.sessionId;
 
-    if (!accessToken) {
+    if (!sessionToken) {
         next();
         return;
     }
 
-    const payload = verifyToken(accessToken);
-    if (payload && payload.type === 'access') {
+    const session = await getSessionByToken(sessionToken);
+
+    if (session && !session.user.deletedAt) {
         req.user = {
-            id: payload.userId,
-            username: payload.username
+            id: session.user.id,
+            username: session.user.username
         };
-        // We don't load permissions for optional auth to save DB queries
+        req.sessionId = session.id;
+        // Don't load permissions for optional auth to save DB queries
     }
 
     next();

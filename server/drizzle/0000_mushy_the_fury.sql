@@ -26,7 +26,7 @@ CREATE UNIQUE INDEX `permissions_name_unique` ON `permissions` (`name`);--> stat
 CREATE TABLE `sessions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,
-	`refresh_token` text NOT NULL,
+	`session_token` text NOT NULL,
 	`user_agent` text,
 	`ip_address` text,
 	`created_at` integer NOT NULL,
@@ -35,7 +35,7 @@ CREATE TABLE `sessions` (
 	FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint
-CREATE UNIQUE INDEX `sessions_refresh_token_unique` ON `sessions` (`refresh_token`);--> statement-breakpoint
+CREATE UNIQUE INDEX `sessions_session_token_unique` ON `sessions` (`session_token`);--> statement-breakpoint
 CREATE TABLE `user_groups` (
 	`id` text PRIMARY KEY NOT NULL,
 	`user_id` text NOT NULL,

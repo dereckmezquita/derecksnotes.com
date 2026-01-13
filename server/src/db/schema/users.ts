@@ -107,7 +107,7 @@ export const sessions = sqliteTable('sessions', {
     userId: text('user_id')
         .notNull()
         .references(() => users.id, { onDelete: 'cascade' }),
-    refreshToken: text('refresh_token').notNull().unique(),
+    sessionToken: text('session_token').notNull().unique(),
     userAgent: text('user_agent'),
     ipAddress: text('ip_address'),
     createdAt: integer('created_at', { mode: 'timestamp' })

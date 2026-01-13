@@ -1,16 +1,11 @@
-import { Request } from 'express';
-
-export interface TokenPayload {
-    userId: string;
-    username: string;
-    type: 'access' | 'refresh';
-}
+import type { Request } from 'express';
 
 export interface AuthenticatedRequest extends Request {
     user?: {
         id: string;
         username: string;
     };
+    sessionId?: string;
     permissions?: Set<string>;
 }
 

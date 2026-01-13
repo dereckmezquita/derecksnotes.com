@@ -8,31 +8,11 @@ const api = axios.create({
     }
 });
 
-// Response interceptor to handle token refresh
+// Simple error passthrough - no refresh logic needed with session-based auth
+// 401 errors are handled by AuthContext which redirects to login
 api.interceptors.response.use(
     (response) => response,
-    async (error) => {
-        const originalRequest = error.config;
-
-        // If 401 and not already retried, try to refresh token
-        if (error.response?.status === 401 && !originalRequest._retry) {
-            originalRequest._retry = true;
-
-            try {
-                await axios.post(
-                    '/api/v1/auth/refresh',
-                    {},
-                    { withCredentials: true }
-                );
-                return api(originalRequest);
-            } catch {
-                // Refresh failed, user needs to login again
-                return Promise.reject(error);
-            }
-        }
-
-        return Promise.reject(error);
-    }
+    (error) => Promise.reject(error)
 );
 
 export { api };

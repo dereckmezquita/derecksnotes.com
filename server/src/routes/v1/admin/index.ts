@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, type Response } from 'express';
 import { db, schema } from '../../../db';
 import { eq, sql } from 'drizzle-orm';
 import { authenticate, requirePermission } from '../../../middleware/auth';

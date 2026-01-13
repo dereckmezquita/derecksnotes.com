@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { db, schema } from '../../db';
 import { eq, and, isNull, inArray } from 'drizzle-orm';
@@ -224,8 +224,7 @@ router.delete(
             // Revoke all sessions
             await revokeAllSessions(req.user!.id);
 
-            res.clearCookie('accessToken');
-            res.clearCookie('refreshToken', { path: '/api/v1/auth/refresh' });
+            res.clearCookie('sessionId');
 
             res.json({ message: 'Account deleted successfully' });
         } catch (error) {

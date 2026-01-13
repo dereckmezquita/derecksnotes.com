@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { db, schema } from '../../db';
 import { eq, and, isNull } from 'drizzle-orm';
@@ -6,7 +6,6 @@ import {
     hashPassword,
     verifyPassword,
     createSession,
-    refreshSession,
     revokeSession,
     revokeAllSessions,
     getUserSessions,
@@ -100,15 +99,13 @@ router.post(
             // Create session
             const userAgent = req.headers['user-agent'];
             const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
-            const { accessToken, refreshToken } = await createSession(
+            const sessionToken = await createSession(
                 userId,
-                data.username,
                 userAgent,
                 ipAddress
             );
 
-            res.cookie('accessToken', accessToken, getCookieOptions());
-            res.cookie('refreshToken', refreshToken, getCookieOptions(true));
+            res.cookie('sessionId', sessionToken, getCookieOptions());
 
             res.status(201).json({
                 message: 'Registration successful',
@@ -165,15 +162,13 @@ router.post(
             // Create session
             const userAgent = req.headers['user-agent'];
             const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
-            const { accessToken, refreshToken } = await createSession(
+            const sessionToken = await createSession(
                 user.id,
-                user.username,
                 userAgent,
                 ipAddress
             );
 
-            res.cookie('accessToken', accessToken, getCookieOptions());
-            res.cookie('refreshToken', refreshToken, getCookieOptions(true));
+            res.cookie('sessionId', sessionToken, getCookieOptions());
 
             res.json({
                 message: 'Login successful',
@@ -202,19 +197,12 @@ router.post(
     authenticate,
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            // Get refresh token to revoke the specific session
-            const refreshTokenCookie = req.cookies?.refreshToken;
-            if (refreshTokenCookie) {
-                const session = await db.query.sessions.findFirst({
-                    where: eq(schema.sessions.refreshToken, refreshTokenCookie)
-                });
-                if (session) {
-                    await revokeSession(session.id);
-                }
+            // Revoke the current session
+            if (req.sessionId) {
+                await revokeSession(req.sessionId);
             }
 
-            res.clearCookie('accessToken');
-            res.clearCookie('refreshToken', { path: '/api/v1/auth/refresh' });
+            res.clearCookie('sessionId');
 
             res.json({ message: 'Logged out successfully' });
         } catch (error) {
@@ -223,34 +211,6 @@ router.post(
         }
     }
 );
-
-// POST /api/v1/auth/refresh
-router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
-    try {
-        const refreshTokenCookie = req.cookies?.refreshToken;
-
-        if (!refreshTokenCookie) {
-            res.status(401).json({ error: 'Refresh token required' });
-            return;
-        }
-
-        const tokens = await refreshSession(refreshTokenCookie);
-        if (!tokens) {
-            res.clearCookie('accessToken');
-            res.clearCookie('refreshToken', { path: '/api/v1/auth/refresh' });
-            res.status(401).json({ error: 'Invalid or expired refresh token' });
-            return;
-        }
-
-        res.cookie('accessToken', tokens.accessToken, getCookieOptions());
-        res.cookie('refreshToken', tokens.refreshToken, getCookieOptions(true));
-
-        res.json({ message: 'Token refreshed' });
-    } catch (error) {
-        console.error('Refresh error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
 
 // GET /api/v1/auth/me
 router.get(
@@ -350,8 +310,7 @@ router.delete(
         try {
             await revokeAllSessions(req.user!.id);
 
-            res.clearCookie('accessToken');
-            res.clearCookie('refreshToken', { path: '/api/v1/auth/refresh' });
+            res.clearCookie('sessionId');
 
             res.json({ message: 'All sessions revoked' });
         } catch (error) {

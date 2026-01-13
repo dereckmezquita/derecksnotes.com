@@ -1,4 +1,4 @@
-import { Router, Response } from 'express';
+import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { db, schema } from '../../../db';
 import { eq, and, isNull, inArray } from 'drizzle-orm';
@@ -56,7 +56,7 @@ router.post(
     requirePermission('comment.approve'),
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
 
             const comment = await db.query.comments.findFirst({
                 where: eq(schema.comments.id, id)
@@ -96,7 +96,7 @@ router.post(
     requirePermission('comment.approve'),
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
 
             const comment = await db.query.comments.findFirst({
                 where: eq(schema.comments.id, id)
