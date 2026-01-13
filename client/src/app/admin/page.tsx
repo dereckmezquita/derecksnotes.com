@@ -44,6 +44,15 @@ interface DashboardStats {
     totalComments: number;
 }
 
+interface AuditLogDetails {
+    contentPreview?: string;
+    username?: string;
+    reason?: string;
+    postSlug?: string;
+    count?: number;
+    [key: string]: unknown;
+}
+
 interface AuditLogEntry {
     id: string;
     adminId: string;
@@ -54,7 +63,7 @@ interface AuditLogEntry {
     action: string;
     targetType: string;
     targetId: string | null;
-    details: string | null;
+    details: AuditLogDetails | null;
     createdAt: string;
 }
 
@@ -114,6 +123,43 @@ export default function AdminDashboard() {
         if (action.includes('delete')) return 'danger';
         if (action.includes('unban')) return 'warning';
         return 'secondary';
+    };
+
+    const getDetailsPreview = (entry: AuditLogEntry): string | null => {
+        if (!entry.details) return null;
+
+        // For comment actions, show content preview
+        if (entry.details.contentPreview) {
+            const preview = entry.details.contentPreview;
+            return preview.length > 50 ? `${preview.slice(0, 50)}...` : preview;
+        }
+
+        // For bulk operations, show count
+        if (
+            entry.details.count !== undefined &&
+            typeof entry.details.count === 'number'
+        ) {
+            return `${entry.details.count} ${entry.targetType}${entry.details.count !== 1 ? 's' : ''}`;
+        }
+
+        // For user actions, show username and reason
+        if (entry.details.username) {
+            if (entry.details.reason) {
+                return `@${entry.details.username}: ${entry.details.reason.slice(0, 30)}${entry.details.reason.length > 30 ? '...' : ''}`;
+            }
+            return `@${entry.details.username}`;
+        }
+
+        // For post-related actions, show postSlug
+        if (entry.details.postSlug) {
+            const slug = entry.details.postSlug as string;
+            const shortSlug = slug.split('/').pop() || slug;
+            return shortSlug.length > 30
+                ? `${shortSlug.slice(0, 30)}...`
+                : shortSlug;
+        }
+
+        return null;
     };
 
     if (loading) {
@@ -360,35 +406,52 @@ export default function AdminDashboard() {
                                 <TableRow>
                                     <TableHeader>Admin</TableHeader>
                                     <TableHeader>Action</TableHeader>
-                                    <TableHeader>Target</TableHeader>
+                                    <TableHeader>Details</TableHeader>
                                     <TableHeader>When</TableHeader>
                                 </TableRow>
                             </TableHead>
                             <tbody>
-                                {recentActivity.slice(0, 8).map((entry) => (
-                                    <TableRow key={entry.id}>
-                                        <TableCell>
-                                            {entry.admin?.username || 'Unknown'}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                $variant={getActionBadgeVariant(
-                                                    entry.action
-                                                )}
+                                {recentActivity.slice(0, 8).map((entry) => {
+                                    const preview = getDetailsPreview(entry);
+                                    return (
+                                        <TableRow key={entry.id}>
+                                            <TableCell>
+                                                {entry.admin?.username ||
+                                                    'Unknown'}
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    $variant={getActionBadgeVariant(
+                                                        entry.action
+                                                    )}
+                                                >
+                                                    {entry.action}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell
+                                                style={{
+                                                    maxWidth: '200px',
+                                                    overflow: 'hidden',
+                                                    textOverflow: 'ellipsis',
+                                                    whiteSpace: 'nowrap',
+                                                    color: preview
+                                                        ? 'inherit'
+                                                        : '#999',
+                                                    fontStyle: preview
+                                                        ? 'normal'
+                                                        : 'italic'
+                                                }}
+                                                title={preview || undefined}
                                             >
-                                                {entry.action}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {entry.targetType}
-                                            {entry.targetId &&
-                                                `: ${entry.targetId.substring(0, 8)}...`}
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatDate(entry.createdAt)}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                                {preview ||
+                                                    `${entry.targetType}: ${entry.targetId?.substring(0, 8) || 'N/A'}...`}
+                                            </TableCell>
+                                            <TableCell>
+                                                {formatDate(entry.createdAt)}
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })}
                             </tbody>
                         </Table>
                     )}

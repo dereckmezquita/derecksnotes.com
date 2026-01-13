@@ -30,6 +30,7 @@ export const SideBarContainer = styled.div`
     width: 25%;
     text-align: center;
     padding-top: 20px;
+    min-height: 500px;
 
     @media (max-width: ${minWidthSnapUp}) {
         display: none;

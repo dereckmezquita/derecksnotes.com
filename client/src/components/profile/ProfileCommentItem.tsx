@@ -2,30 +2,13 @@
 
 import React from 'react';
 import { marked } from 'marked';
-import { format } from 'date-fns';
-import { toast } from 'sonner';
 import styled from 'styled-components';
-import { api } from '@utils/api/api';
 import { CommentType } from '@components/comments/types';
+import { CommentItem } from '@components/comments/CommentItem';
 import { User } from '@context/AuthContext';
-import {
-    SingleComment,
-    CommentHeader,
-    CommentAuthorName,
-    CommentMetadata,
-    CommentDate,
-    CommentText,
-    CommentActions,
-    ActionButton,
-    EditedMark,
-    PendingBadge,
-    CommentControls,
-    ReactionButton,
-    ReactionCount
-} from '@components/comments/CommentStyles';
 
 // ============================================================================
-// STYLED COMPONENTS
+// STYLED COMPONENTS - Only for profile-specific wrapper
 // ============================================================================
 
 const ProfileCommentWrapper = styled.div<{ selected?: boolean }>`
@@ -46,10 +29,6 @@ const ProfileCommentWrapper = styled.div<{ selected?: boolean }>`
     &:hover {
         border-color: ${(props) => props.theme.theme_colours[5]()};
     }
-`;
-
-const CommentContent = styled.div`
-    padding: ${(props) => props.theme.container.spacing.small};
 `;
 
 const PostLinkContainer = styled.div`
@@ -79,7 +58,7 @@ const PostLink = styled.a`
 `;
 
 const ParentCommentContainer = styled.div`
-    margin: ${(props) => props.theme.container.spacing.small} 0;
+    margin: ${(props) => props.theme.container.spacing.small};
     padding: ${(props) => props.theme.container.spacing.small};
     background: ${(props) =>
         props.theme.container.background.colour.light_contrast()};
@@ -116,9 +95,22 @@ const ParentCommentText = styled.div`
     }
 `;
 
-const CheckboxWrapper = styled.div`
+const CommentContent = styled.div`
+    padding: ${(props) => props.theme.container.spacing.small};
+`;
+
+const SelectionBar = styled.div`
     display: flex;
     align-items: center;
+    gap: ${(props) => props.theme.container.spacing.small};
+    padding: ${(props) => props.theme.container.spacing.xsmall}
+        ${(props) => props.theme.container.spacing.small};
+    background: ${(props) =>
+        props.theme.container.background.colour.light_contrast()};
+    border-bottom: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+    font-size: ${(props) => props.theme.text.size.small};
+    color: ${(props) => props.theme.text.colour.light_grey()};
 `;
 
 // ============================================================================
@@ -136,16 +128,9 @@ function renderMarkdown(content: string): string {
 }
 
 function extractPostName(postSlug: string): string {
-    // Extract a readable post name from the slug
-    // e.g., "/blog/posts/my-awesome-post" -> "my-awesome-post"
-    // or "20191025_productivity-and-computers" -> "productivity-and-computers"
     const parts = postSlug.split('/');
     const lastPart = parts[parts.length - 1] || postSlug;
-
-    // Remove date prefix if present (e.g., "20191025_")
     const withoutDate = lastPart.replace(/^\d{8}_/, '');
-
-    // Replace dashes and underscores with spaces and capitalize
     return withoutDate
         .replace(/[-_]/g, ' ')
         .replace(/\b\w/g, (c) => c.toUpperCase());
@@ -180,52 +165,39 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
     onReactionUpdate,
     Checkbox
 }) => {
-    const isAuthor = comment.isOwner;
-    const authorName = comment.isDeleted
-        ? '[deleted]'
-        : comment.user?.displayName || comment.user?.username || 'Unknown User';
-
-    const isEdited = !!comment.editedAt;
-    const displayDate =
-        isEdited && comment.editedAt
-            ? format(new Date(comment.editedAt), 'yyyy-MM-dd HH:mm:ss')
-            : format(new Date(comment.createdAt), 'yyyy-MM-dd HH:mm:ss');
-
-    const tooltipDate = isEdited
-        ? `Created: ${format(new Date(comment.createdAt), 'yyyy-MM-dd HH:mm:ss')}`
-        : '';
-
-    const hasUserLiked = comment.reactions.userReaction === 'like';
-    const hasUserDisliked = comment.reactions.userReaction === 'dislike';
-
-    const handleReaction = async (type: 'like' | 'dislike') => {
-        if (!currentUser) return;
-
-        try {
-            const res = await api.post<{ reaction: string | null }>(
-                `/comments/${comment.id}/react`,
-                { type }
-            );
-
-            if (onReactionUpdate) {
-                onReactionUpdate(
-                    comment.id,
-                    res.data.reaction as 'like' | 'dislike' | null
-                );
-            }
-        } catch (error) {
-            console.error(`Error reacting to comment:`, error);
-            toast.error('Failed to react to comment');
-        }
-    };
-
     const parentAuthorName = comment.parentComment?.user
         ? comment.parentComment.user.displayName ||
           comment.parentComment.user.username
         : 'Unknown User';
 
+    // Handler for CommentItem's onUpdateComment
+    const handleUpdateComment = (
+        commentId: string,
+        updateFn: (c: CommentType) => CommentType
+    ) => {
+        // Extract the reaction update from the updated comment
+        const updated = updateFn(comment);
+        if (
+            onReactionUpdate &&
+            updated.reactions.userReaction !== comment.reactions.userReaction
+        ) {
+            onReactionUpdate(commentId, updated.reactions.userReaction);
+        }
+    };
+
     return (
         <ProfileCommentWrapper selected={selected}>
+            {/* Selection checkbox */}
+            {!comment.isDeleted && (
+                <SelectionBar>
+                    <Checkbox
+                        checked={selected}
+                        onChange={() => toggleSelect(comment.id)}
+                    />
+                    <span>Select for bulk action</span>
+                </SelectionBar>
+            )}
+
             {/* Post Link Header */}
             {comment.postSlug && (
                 <PostLinkContainer>
@@ -251,168 +223,56 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
                 </PostLinkContainer>
             )}
 
-            <CommentContent>
-                {/* Parent Comment Context (for replies) */}
-                {comment.parentComment && (
-                    <ParentCommentContainer>
-                        <ParentCommentLabel>
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="2"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            >
-                                <polyline points="9 14 4 9 9 4"></polyline>
-                                <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
-                            </svg>
-                            Replying to{' '}
-                            <ParentCommentAuthor>
-                                {parentAuthorName}
-                            </ParentCommentAuthor>
-                        </ParentCommentLabel>
-                        <ParentCommentText>
-                            {comment.parentComment.isDeleted ? (
-                                <em>[This comment has been deleted]</em>
-                            ) : (
-                                <div
-                                    dangerouslySetInnerHTML={{
-                                        __html: renderMarkdown(
-                                            comment.parentComment.content
-                                        )
-                                    }}
-                                />
-                            )}
-                        </ParentCommentText>
-                    </ParentCommentContainer>
-                )}
-
-                <SingleComment isDeleted={comment.isDeleted}>
-                    <CommentHeader>
-                        {!comment.isDeleted && (
-                            <CheckboxWrapper>
-                                <Checkbox
-                                    checked={selected}
-                                    onChange={() => toggleSelect(comment.id)}
-                                />
-                            </CheckboxWrapper>
-                        )}
-
-                        <CommentAuthorName>{authorName}</CommentAuthorName>
-
-                        <CommentMetadata>
-                            <CommentDate data-title={tooltipDate}>
-                                {displayDate}
-                            </CommentDate>
-
-                            {isEdited && <EditedMark>(edited)</EditedMark>}
-
-                            {!comment.approved && comment.isOwner && (
-                                <PendingBadge>pending approval</PendingBadge>
-                            )}
-                        </CommentMetadata>
-
-                        {/* Like/Dislike Controls */}
-                        {!comment.isDeleted && (
-                            <CommentControls>
-                                <ReactionButton
-                                    isActive={hasUserLiked}
-                                    onClick={() => handleReaction('like')}
-                                    title={
-                                        hasUserLiked ? 'Remove like' : 'Like'
-                                    }
-                                    disabled={!currentUser}
-                                    aria-label={
-                                        hasUserLiked
-                                            ? 'Remove like'
-                                            : 'Like comment'
-                                    }
-                                    aria-pressed={hasUserLiked}
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="16"
-                                        height="16"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    >
-                                        <path d="M7 10v12" />
-                                        <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2h0a3.13 3.13 0 0 1 3 3.88Z" />
-                                    </svg>{' '}
-                                    <ReactionCount>
-                                        {comment.reactions.likes || ''}
-                                    </ReactionCount>
-                                </ReactionButton>
-
-                                <ReactionButton
-                                    isActive={hasUserDisliked}
-                                    onClick={() => handleReaction('dislike')}
-                                    title={
-                                        hasUserDisliked
-                                            ? 'Remove dislike'
-                                            : 'Dislike'
-                                    }
-                                    disabled={!currentUser}
-                                    aria-label={
-                                        hasUserDisliked
-                                            ? 'Remove dislike'
-                                            : 'Dislike comment'
-                                    }
-                                    aria-pressed={hasUserDisliked}
-                                >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="16"
-                                        height="16"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    >
-                                        <path d="M17 14V2" />
-                                        <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22h0a3.13 3.13 0 0 1-3-3.88Z" />
-                                    </svg>{' '}
-                                    <ReactionCount>
-                                        {comment.reactions.dislikes || ''}
-                                    </ReactionCount>
-                                </ReactionButton>
-                            </CommentControls>
-                        )}
-                    </CommentHeader>
-
-                    <CommentText deleted={comment.isDeleted}>
-                        {comment.isDeleted ? (
-                            '[This comment has been deleted]'
+            {/* Parent Comment Context (for replies) */}
+            {comment.parentComment && (
+                <ParentCommentContainer>
+                    <ParentCommentLabel>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        >
+                            <polyline points="9 14 4 9 9 4"></polyline>
+                            <path d="M20 20v-7a4 4 0 0 0-4-4H4"></path>
+                        </svg>
+                        Replying to{' '}
+                        <ParentCommentAuthor>
+                            {parentAuthorName}
+                        </ParentCommentAuthor>
+                    </ParentCommentLabel>
+                    <ParentCommentText>
+                        {comment.parentComment.isDeleted ? (
+                            <em>[This comment has been deleted]</em>
                         ) : (
                             <div
                                 dangerouslySetInnerHTML={{
-                                    __html: renderMarkdown(comment.content)
+                                    __html: renderMarkdown(
+                                        comment.parentComment.content
+                                    )
                                 }}
                             />
                         )}
-                    </CommentText>
+                    </ParentCommentText>
+                </ParentCommentContainer>
+            )}
 
-                    {!comment.isDeleted && isAuthor && (
-                        <CommentActions>
-                            <ActionButton
-                                onClick={() => onDelete(comment.id)}
-                                style={{ color: 'inherit' }}
-                            >
-                                Delete
-                            </ActionButton>
-                        </CommentActions>
-                    )}
-                </SingleComment>
+            {/* The actual comment using the real CommentItem */}
+            <CommentContent>
+                <CommentItem
+                    comment={comment}
+                    postSlug={comment.postSlug}
+                    currentUser={currentUser}
+                    level={0}
+                    onUpdateComment={handleUpdateComment}
+                    isProfileView={true}
+                    onDelete={onDelete}
+                />
             </CommentContent>
         </ProfileCommentWrapper>
     );

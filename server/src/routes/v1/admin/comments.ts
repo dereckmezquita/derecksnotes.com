@@ -80,7 +80,10 @@ router.post(
                 'comment.approve',
                 'comment',
                 id,
-                { postSlug: comment.postSlug },
+                {
+                    postSlug: comment.postSlug,
+                    contentPreview: comment.content.slice(0, 100)
+                },
                 req.ip || req.socket.remoteAddress
             );
 
@@ -123,7 +126,11 @@ router.post(
                 'comment.reject',
                 'comment',
                 id,
-                { postSlug: comment.postSlug, reason: req.body.reason },
+                {
+                    postSlug: comment.postSlug,
+                    reason: req.body.reason,
+                    contentPreview: comment.content.slice(0, 100)
+                },
                 req.ip || req.socket.remoteAddress
             );
 

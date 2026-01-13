@@ -389,6 +389,7 @@ export const Button = styled.button<ButtonProps>`
     display: inline-flex;
     align-items: center;
     gap: ${(props) => props.theme.container.spacing.xsmall};
+    width: fit-content;
 
     &:hover:not(:disabled) {
         opacity: 0.9;

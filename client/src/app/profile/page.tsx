@@ -40,7 +40,8 @@ const ProfileMain = styled(Article)`
 const Card = styled.div`
     background: ${(props) => props.theme.container.background.colour.solid()};
     border-radius: ${(props) => props.theme.container.border.radius};
-    box-shadow: ${(props) => props.theme.container.shadow.box};
+    border: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
     padding: 20px;
     overflow: hidden;
 `;
@@ -102,6 +103,7 @@ const ProfileForm = styled.form`
     display: flex;
     flex-direction: column;
     gap: 15px;
+    max-width: 400px;
 `;
 
 const FormGroup = styled.div`
@@ -113,6 +115,7 @@ const FormGroup = styled.div`
 const Label = styled.label`
     font-weight: ${(props) => props.theme.text.weight.medium};
     color: ${(props) => props.theme.text.colour.primary()};
+    text-align: left;
 `;
 
 const Input = styled.input`
@@ -177,7 +180,8 @@ const Button = styled.button<ButtonProps>`
     font-weight: ${(props) => props.theme.text.weight.medium};
     cursor: pointer;
     transition: all 0.2s ease;
-    width: ${(props) => (props.fullWidth ? '100%' : 'auto')};
+    width: ${(props) => (props.fullWidth ? '100%' : 'fit-content')};
+    align-self: flex-start;
 
     &:hover {
         opacity: 0.9;
@@ -561,7 +565,7 @@ const ModalButtonGroup = styled.div`
 `;
 
 const AdminLink = styled.a`
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 8px;
     padding: 10px 15px;
@@ -572,6 +576,7 @@ const AdminLink = styled.a`
     text-decoration: none;
     font-weight: ${(props) => props.theme.text.weight.medium};
     transition: all 0.2s ease;
+    width: fit-content;
 
     &:hover {
         background: ${(props) => props.theme.theme_colours[5]()};
@@ -582,6 +587,64 @@ const AdminLink = styled.a`
         width: 18px;
         height: 18px;
     }
+`;
+
+// ======== MINI ANALYTICS STYLES ========
+
+const MiniAnalyticsContainer = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: ${(props) => props.theme.container.spacing.small};
+    margin-bottom: ${(props) => props.theme.container.spacing.medium};
+    padding: ${(props) => props.theme.container.spacing.medium};
+    background: ${(props) =>
+        props.theme.container.background.colour.light_contrast()};
+    border-radius: ${(props) => props.theme.container.border.radius};
+    border: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+`;
+
+const AnalyticsStat = styled.div`
+    text-align: center;
+    padding: ${(props) => props.theme.container.spacing.small};
+`;
+
+const AnalyticsValue = styled.div<{ $positive?: boolean; $negative?: boolean }>`
+    font-size: 1.5rem;
+    font-weight: ${(props) => props.theme.text.weight.bold};
+    color: ${(props) =>
+        props.$positive
+            ? props.theme.colours.success
+            : props.$negative
+              ? props.theme.colours.error
+              : props.theme.text.colour.header()};
+`;
+
+const AnalyticsLabel = styled.div`
+    font-size: ${(props) => props.theme.text.size.small};
+    color: ${(props) => props.theme.text.colour.light_grey()};
+    margin-top: ${(props) => props.theme.container.spacing.xsmall};
+`;
+
+const SentimentBar = styled.div`
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: ${(props) => props.theme.container.border.colour.primary()};
+    margin-top: ${(props) => props.theme.container.spacing.xsmall};
+`;
+
+const SentimentPositive = styled.div<{ $width: number }>`
+    width: ${(props) => props.$width}%;
+    background: ${(props) => props.theme.colours.success};
+    transition: width 0.3s ease;
+`;
+
+const SentimentNegative = styled.div<{ $width: number }>`
+    width: ${(props) => props.$width}%;
+    background: ${(props) => props.theme.colours.error};
+    transition: width 0.3s ease;
 `;
 
 // ======== INTERFACES ========
@@ -1103,7 +1166,7 @@ export default function ProfilePage() {
 
             {/* Left Sidebar */}
             <ProfileSidebar>
-                <CardTitle>Profile Information</CardTitle>
+                <CardTitle style={{ marginBottom: '15px' }}>Profile</CardTitle>
 
                 {/* Role badges */}
                 {user?.groups && user.groups.length > 0 && (
@@ -1158,19 +1221,26 @@ export default function ProfilePage() {
                             />
                         </FormGroup>
 
-                        <Button type="submit" variant="primary" fullWidth>
-                            Update Profile
-                        </Button>
-
-                        <Button
-                            type="button"
-                            onClick={handleLogout}
-                            variant="danger"
-                            fullWidth
-                            style={{ marginTop: '15px' }}
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '10px',
+                                marginTop: '5px'
+                            }}
                         >
-                            Logout
-                        </Button>
+                            <Button type="submit" variant="primary">
+                                Update Profile
+                            </Button>
+
+                            <Button
+                                type="button"
+                                onClick={handleLogout}
+                                variant="danger"
+                            >
+                                Logout
+                            </Button>
+                        </div>
                     </ProfileForm>
                 )}
 
@@ -1223,47 +1293,46 @@ export default function ProfilePage() {
                 {/* Comments Section */}
                 {mainTab === 'comments' && (
                     <Card>
-                        <CardHeader>
-                            <CardTitle>My Comments</CardTitle>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px'
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                                alignItems: 'center',
+                                gap: '10px',
+                                marginBottom: '15px'
+                            }}
+                        >
+                            <Badge>{allComments.length} Comments</Badge>
+                            <Button
+                                variant="secondary"
+                                size="small"
+                                onClick={() => {
+                                    setLoadingData(true);
+                                    // Re-trigger the comment fetching effect
+                                    const fetchTab = activeTab;
+                                    setActiveTab('temp');
+                                    setTimeout(
+                                        () => setActiveTab(fetchTab),
+                                        10
+                                    );
                                 }}
                             >
-                                <Badge>{allComments.length} Comments</Badge>
-                                <Button
-                                    variant="secondary"
-                                    size="small"
-                                    onClick={() => {
-                                        setLoadingData(true);
-                                        // Re-trigger the comment fetching effect
-                                        const fetchTab = activeTab;
-                                        setActiveTab('temp');
-                                        setTimeout(
-                                            () => setActiveTab(fetchTab),
-                                            10
-                                        );
-                                    }}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
                                 >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    >
-                                        <path d="M23 4v6h-6"></path>
-                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                                    </svg>
-                                </Button>
-                            </div>
-                        </CardHeader>
+                                    <path d="M23 4v6h-6"></path>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                </svg>
+                            </Button>
+                        </div>
 
                         <>
                             <TabsContainer>
@@ -1539,10 +1608,6 @@ export default function ProfilePage() {
                 {/* Account Settings Section */}
                 {mainTab === 'settings' && (
                     <Card>
-                        <CardHeader>
-                            <CardTitle>Account Settings</CardTitle>
-                        </CardHeader>
-
                         {/* Password Change */}
                         <SettingsSection>
                             <SettingsTitle>Change Password</SettingsTitle>

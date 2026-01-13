@@ -223,7 +223,11 @@ router.post(
                 'user.ban',
                 'user',
                 id,
-                { reason: data.reason, expiresAt: data.expiresAt },
+                {
+                    username: user.username,
+                    reason: data.reason,
+                    expiresAt: data.expiresAt
+                },
                 req.ip || req.socket.remoteAddress
             );
 
@@ -253,6 +257,11 @@ router.post(
         try {
             const id = req.params.id as string;
 
+            const user = await db.query.users.findFirst({
+                where: eq(schema.users.id, id),
+                columns: { username: true }
+            });
+
             const activeBan = await db.query.userBans.findFirst({
                 where: and(
                     eq(schema.userBans.userId, id),
@@ -278,7 +287,7 @@ router.post(
                 'user.unban',
                 'user',
                 id,
-                { previousBanId: activeBan.id },
+                { username: user?.username, previousBanId: activeBan.id },
                 req.ip || req.socket.remoteAddress
             );
 

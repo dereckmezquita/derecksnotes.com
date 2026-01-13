@@ -110,7 +110,7 @@ router.post(
     requirePermission('admin.dashboard'),
     async (req: Request, res: Response) => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
             const { notes } = req.body;
             const userId = (req as any).user.id;
 
@@ -132,7 +132,7 @@ router.post(
     requirePermission('admin.dashboard'),
     async (req: Request, res: Response) => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
             await unresolveError(id);
             res.json({ success: true });
         } catch (error) {
