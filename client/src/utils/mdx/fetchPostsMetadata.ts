@@ -9,7 +9,7 @@ import strip from 'remark-mdx-to-plain-text';
 import { visit } from 'unist-util-visit';
 
 import { DATE_YYYY_MM_DD } from '@lib/dates';
-import { ROOT_DIR_APP } from '@lib/constants';
+import { ROOT_DIR_APP } from '@lib/constants.server';
 
 export interface PostSeries {
     idx: number;

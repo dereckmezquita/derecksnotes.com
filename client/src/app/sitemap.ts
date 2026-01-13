@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 import fs from 'fs';
 import path from 'path';
-import { ROOT_DIR_APP } from '@lib/constants';
+import { ROOT_DIR_APP } from '@lib/constants.server';
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://derecksnotes.com';
 

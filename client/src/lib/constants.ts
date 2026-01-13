@@ -1,14 +1,3 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Get the directory of this file (client/src/lib/)
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// File system paths - go up from src/lib to client root
-export const ROOT_DIR: string = path.resolve(__dirname, '..', '..');
-export const ROOT_DIR_SRC: string = path.join(ROOT_DIR, 'src');
-export const ROOT_DIR_APP: string = path.join(ROOT_DIR_SRC, 'app');
-
 // Comment settings
 export const MAX_COMMENT_DEPTH: number = 5; // Maximum nesting level for comments
 export const MAX_COMMENT_LENGTH: number = 5000; // Maximum characters per comment

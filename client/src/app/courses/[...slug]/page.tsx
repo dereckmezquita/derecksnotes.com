@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { APPLICATION_DEFAULT_METADATA, ROOT_DIR_APP } from '@lib/constants';
+import { APPLICATION_DEFAULT_METADATA } from '@lib/constants';
+import { ROOT_DIR_APP } from '@lib/constants.server';
 import { processMdx } from '@utils/mdx/processMdx';
 import { notFound } from 'next/navigation';
 import { Post } from '@components/pages/Post';

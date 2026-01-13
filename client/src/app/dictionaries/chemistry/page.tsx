@@ -1,6 +1,6 @@
 import React from 'react';
 import path from 'path';
-import { ROOT_DIR_APP } from '@lib/constants';
+import { ROOT_DIR_APP } from '@lib/constants.server';
 import { Dictionary } from '@components/pages/dictionaries/Dictionary';
 import { fetchAllDefintions } from '@utils/dictionaries/fetchDefinitionMetadata';
 import { Metadata } from 'next';

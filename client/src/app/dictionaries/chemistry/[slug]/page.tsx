@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { Post } from '@components/pages/Post';
-import { APPLICATION_DEFAULT_METADATA, ROOT_DIR_APP } from '@lib/constants';
+import { APPLICATION_DEFAULT_METADATA } from '@lib/constants';
+import { ROOT_DIR_APP } from '@lib/constants.server';
 import { config } from '@lib/env';
 import {
     DefinitionMetadata,
