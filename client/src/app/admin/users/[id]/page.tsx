@@ -292,7 +292,7 @@ export default function AdminUserDetailPage() {
 
     if (error || !user) {
         return (
-            <Alert variant="error">
+            <Alert $variant="error">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -364,12 +364,12 @@ export default function AdminUserDetailPage() {
                     <CardTitle>User Information</CardTitle>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
                         {user.isBanned ? (
-                            <Badge variant="danger">Banned</Badge>
+                            <Badge $variant="danger">Banned</Badge>
                         ) : (
-                            <Badge variant="success">Active</Badge>
+                            <Badge $variant="success">Active</Badge>
                         )}
                         {user.emailVerified && (
-                            <Badge variant="primary">Email Verified</Badge>
+                            <Badge $variant="primary">Email Verified</Badge>
                         )}
                     </div>
                 </CardHeader>
@@ -407,7 +407,7 @@ export default function AdminUserDetailPage() {
                             user.groups.map((group) => (
                                 <Badge
                                     key={group}
-                                    variant={getGroupBadgeVariant(group)}
+                                    $variant={getGroupBadgeVariant(group)}
                                 >
                                     {group}
                                 </Badge>
@@ -630,7 +630,7 @@ export default function AdminUserDetailPage() {
                                         style={{ marginBottom: 0 }}
                                     >
                                         <Badge
-                                            variant={getGroupBadgeVariant(
+                                            $variant={getGroupBadgeVariant(
                                                 group.name
                                             )}
                                             style={{ marginRight: '0.5rem' }}
@@ -692,7 +692,7 @@ export default function AdminUserDetailPage() {
                             </CloseButton>
                         </ModalHeader>
                         <ModalBody>
-                            <Alert variant="warning">
+                            <Alert $variant="warning">
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
                                     fill="none"

@@ -36,14 +36,15 @@ interface DashboardStats {
     pendingReports: number;
     totalUsers: number;
     totalComments: number;
-    newUsersToday: number;
-    newCommentsToday: number;
 }
 
 interface AuditLogEntry {
     id: string;
     adminId: string;
-    adminUsername: string;
+    admin: {
+        id: string;
+        username: string;
+    };
     action: string;
     targetType: string;
     targetId: string | null;
@@ -53,7 +54,7 @@ interface AuditLogEntry {
 
 interface DashboardResponse {
     stats: DashboardStats;
-    recentAudit: AuditLogEntry[];
+    recentActivity: AuditLogEntry[];
 }
 
 export default function AdminDashboard() {
@@ -109,7 +110,7 @@ export default function AdminDashboard() {
 
     if (error) {
         return (
-            <Alert variant="error">
+            <Alert $variant="error">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -139,7 +140,7 @@ export default function AdminDashboard() {
     }
 
     const stats = data?.stats;
-    const recentAudit = data?.recentAudit || [];
+    const recentActivity = data?.recentActivity || [];
 
     return (
         <>
@@ -153,73 +154,88 @@ export default function AdminDashboard() {
             {/* Stats Grid */}
             <StatsGrid>
                 {(isAdmin() || hasPermission('comment.approve')) && (
-                    <StatCard>
-                        <StatIcon variant="warning">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth={1.5}
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
-                                />
-                            </svg>
-                        </StatIcon>
-                        <StatValue>{stats?.pendingComments ?? 0}</StatValue>
-                        <StatLabel>Pending Comments</StatLabel>
-                    </StatCard>
+                    <Link
+                        href="/admin/comments"
+                        style={{ textDecoration: 'none' }}
+                    >
+                        <StatCard style={{ cursor: 'pointer' }}>
+                            <StatIcon $variant="warning">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={1.5}
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    />
+                                </svg>
+                            </StatIcon>
+                            <StatValue>{stats?.pendingComments ?? 0}</StatValue>
+                            <StatLabel>Pending Comments</StatLabel>
+                        </StatCard>
+                    </Link>
                 )}
 
                 {(isAdmin() || hasPermission('report.view')) && (
-                    <StatCard>
-                        <StatIcon variant="danger">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth={1.5}
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5"
-                                />
-                            </svg>
-                        </StatIcon>
-                        <StatValue>{stats?.pendingReports ?? 0}</StatValue>
-                        <StatLabel>Pending Reports</StatLabel>
-                    </StatCard>
+                    <Link
+                        href="/admin/reports"
+                        style={{ textDecoration: 'none' }}
+                    >
+                        <StatCard style={{ cursor: 'pointer' }}>
+                            <StatIcon $variant="danger">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={1.5}
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M3 3v1.5M3 21v-6m0 0l2.77-.693a9 9 0 016.208.682l.108.054a9 9 0 006.086.71l3.114-.732a48.524 48.524 0 01-.005-10.499l-3.11.732a9 9 0 01-6.085-.711l-.108-.054a9 9 0 00-6.208-.682L3 4.5M3 15V4.5"
+                                    />
+                                </svg>
+                            </StatIcon>
+                            <StatValue>{stats?.pendingReports ?? 0}</StatValue>
+                            <StatLabel>Pending Reports</StatLabel>
+                        </StatCard>
+                    </Link>
                 )}
 
                 {(isAdmin() || hasPermission('admin.users.manage')) && (
-                    <StatCard>
-                        <StatIcon variant="primary">
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                fill="none"
-                                viewBox="0 0 24 24"
-                                strokeWidth={1.5}
-                                stroke="currentColor"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
-                                />
-                            </svg>
-                        </StatIcon>
-                        <StatValue>{stats?.totalUsers ?? 0}</StatValue>
-                        <StatLabel>Total Users</StatLabel>
-                    </StatCard>
+                    <Link
+                        href="/admin/users"
+                        style={{ textDecoration: 'none' }}
+                    >
+                        <StatCard style={{ cursor: 'pointer' }}>
+                            <StatIcon $variant="primary">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={1.5}
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
+                                    />
+                                </svg>
+                            </StatIcon>
+                            <StatValue>{stats?.totalUsers ?? 0}</StatValue>
+                            <StatLabel>Total Users</StatLabel>
+                        </StatCard>
+                    </Link>
                 )}
 
                 <StatCard>
-                    <StatIcon variant="success">
+                    <StatIcon $variant="success">
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             fill="none"
@@ -338,7 +354,7 @@ export default function AdminDashboard() {
                         </Link>
                     </CardHeader>
 
-                    {recentAudit.length === 0 ? (
+                    {recentActivity.length === 0 ? (
                         <EmptyState>
                             <svg
                                 xmlns="http://www.w3.org/2000/svg"
@@ -367,14 +383,14 @@ export default function AdminDashboard() {
                                 </TableRow>
                             </TableHead>
                             <tbody>
-                                {recentAudit.slice(0, 10).map((entry) => (
+                                {recentActivity.slice(0, 10).map((entry) => (
                                     <TableRow key={entry.id}>
                                         <TableCell>
-                                            {entry.adminUsername}
+                                            {entry.admin?.username || 'Unknown'}
                                         </TableCell>
                                         <TableCell>
                                             <Badge
-                                                variant={getActionBadgeVariant(
+                                                $variant={getActionBadgeVariant(
                                                     entry.action
                                                 )}
                                             >

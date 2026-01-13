@@ -201,7 +201,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                             passHref
                             legacyBehavior
                         >
-                            <SidebarLink active={isActive(item.href)}>
+                            <SidebarLink $active={isActive(item.href)}>
                                 {item.icon}
                                 {item.label}
                             </SidebarLink>

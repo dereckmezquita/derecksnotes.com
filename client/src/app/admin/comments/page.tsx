@@ -8,11 +8,10 @@ import {
     AdminHeader,
     AdminTitle,
     AdminSubtitle,
-    Card,
-    CardHeader,
-    CardTitle,
+    TableContainer,
     Table,
     TableHead,
+    TableBody,
     TableRow,
     TableHeader,
     TableCell,
@@ -48,12 +47,8 @@ interface PendingComment {
 
 interface PendingCommentsResponse {
     comments: PendingComment[];
-    pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        hasMore: boolean;
-    };
+    page: number;
+    limit: number;
 }
 
 export default function AdminCommentsPage() {
@@ -76,10 +71,10 @@ export default function AdminCommentsPage() {
                 `/admin/comments/pending?page=${pageNum}&limit=20`
             );
             setComments(res.data.comments);
-            setPage(res.data.pagination.page);
-            setTotalPages(
-                Math.ceil(res.data.pagination.total / res.data.pagination.limit)
-            );
+            setPage(res.data.page);
+            // Server doesn't return total, so calculate hasMore based on returned count
+            const hasMore = res.data.comments.length === res.data.limit;
+            setTotalPages(hasMore ? res.data.page + 1 : res.data.page);
         } catch (err: any) {
             console.error('Error fetching pending comments:', err);
             setError(
@@ -228,7 +223,7 @@ export default function AdminCommentsPage() {
 
     if (error) {
         return (
-            <Alert variant="error">
+            <Alert $variant="error">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -266,81 +261,90 @@ export default function AdminCommentsPage() {
                 </AdminSubtitle>
             </AdminHeader>
 
-            <Card>
-                {comments.length === 0 ? (
-                    <EmptyState>
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                        </svg>
-                        <h3>No pending comments</h3>
-                        <p>All comments have been reviewed.</p>
-                    </EmptyState>
-                ) : (
-                    <>
+            {comments.length === 0 ? (
+                <EmptyState>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                    </svg>
+                    <h3>No pending comments</h3>
+                    <p>All comments have been reviewed.</p>
+                </EmptyState>
+            ) : (
+                <>
+                    {selectedIds.size > 0 && (
                         <ActionBar>
                             <ActionBarLeft>
-                                <Checkbox
-                                    checked={
-                                        selectedIds.size === comments.length &&
-                                        comments.length > 0
-                                    }
-                                    onChange={toggleSelectAll}
-                                />
-                                <span>
-                                    {selectedIds.size > 0
-                                        ? `${selectedIds.size} selected`
-                                        : 'Select all'}
+                                <span style={{ fontWeight: 500 }}>
+                                    {selectedIds.size} item
+                                    {selectedIds.size !== 1 ? 's' : ''} selected
                                 </span>
                             </ActionBarLeft>
                             <ActionBarRight>
-                                {selectedIds.size > 0 && (
-                                    <ButtonGroup>
-                                        <Button
-                                            variant="success"
-                                            size="small"
-                                            onClick={handleBulkApprove}
-                                            disabled={processing}
-                                        >
-                                            Approve Selected
-                                        </Button>
-                                        <Button
-                                            variant="danger"
-                                            size="small"
-                                            onClick={handleBulkReject}
-                                            disabled={processing}
-                                        >
-                                            Reject Selected
-                                        </Button>
-                                    </ButtonGroup>
-                                )}
+                                <ButtonGroup>
+                                    <Button
+                                        variant="success"
+                                        size="small"
+                                        onClick={handleBulkApprove}
+                                        disabled={processing}
+                                    >
+                                        Approve Selected
+                                    </Button>
+                                    <Button
+                                        variant="danger"
+                                        size="small"
+                                        onClick={handleBulkReject}
+                                        disabled={processing}
+                                    >
+                                        Reject Selected
+                                    </Button>
+                                </ButtonGroup>
                             </ActionBarRight>
                         </ActionBar>
+                    )}
 
+                    <TableContainer>
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableHeader style={{ width: '40px' }} />
-                                    <TableHeader>Author</TableHeader>
+                                    <TableHeader $width="40px" $align="center">
+                                        <Checkbox
+                                            checked={
+                                                selectedIds.size ===
+                                                    comments.length &&
+                                                comments.length > 0
+                                            }
+                                            onChange={toggleSelectAll}
+                                        />
+                                    </TableHeader>
+                                    <TableHeader $width="120px">
+                                        Author
+                                    </TableHeader>
                                     <TableHeader>Content</TableHeader>
-                                    <TableHeader>Post</TableHeader>
-                                    <TableHeader>Date</TableHeader>
-                                    <TableHeader>Actions</TableHeader>
+                                    <TableHeader $width="180px">
+                                        Post
+                                    </TableHeader>
+                                    <TableHeader $width="160px">
+                                        Date
+                                    </TableHeader>
+                                    <TableHeader $width="100px" $align="center">
+                                        Actions
+                                    </TableHeader>
                                 </TableRow>
                             </TableHead>
-                            <tbody>
+                            <TableBody>
                                 {comments.map((comment) => (
                                     <TableRow key={comment.id}>
-                                        <TableCell>
+                                        <TableCell $align="center">
                                             <Checkbox
                                                 checked={selectedIds.has(
                                                     comment.id
@@ -352,31 +356,31 @@ export default function AdminCommentsPage() {
                                         </TableCell>
                                         <TableCell>
                                             {comment.user ? (
-                                                <span>
+                                                <strong>
                                                     {comment.user.displayName ||
                                                         comment.user.username}
-                                                </span>
+                                                </strong>
                                             ) : (
-                                                <Badge variant="secondary">
-                                                    Deleted User
+                                                <Badge $variant="secondary">
+                                                    Deleted
                                                 </Badge>
                                             )}
                                         </TableCell>
                                         <TableCell
+                                            $truncate
                                             title={comment.content}
-                                            style={{ maxWidth: '300px' }}
                                         >
-                                            {truncateContent(comment.content)}
+                                            {truncateContent(
+                                                comment.content,
+                                                80
+                                            )}
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell $truncate>
                                             <a
                                                 href={`/${comment.postSlug}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                style={{
-                                                    color: 'inherit',
-                                                    textDecoration: 'underline'
-                                                }}
+                                                style={{ color: 'inherit' }}
                                             >
                                                 {comment.postSlug}
                                             </a>
@@ -384,10 +388,10 @@ export default function AdminCommentsPage() {
                                         <TableCell>
                                             {formatDate(comment.createdAt)}
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell $align="center">
                                             <ButtonGroup>
                                                 <IconButton
-                                                    variant="success"
+                                                    $variant="success"
                                                     title="Approve"
                                                     onClick={() =>
                                                         handleApprove(
@@ -400,7 +404,7 @@ export default function AdminCommentsPage() {
                                                         xmlns="http://www.w3.org/2000/svg"
                                                         fill="none"
                                                         viewBox="0 0 24 24"
-                                                        strokeWidth={1.5}
+                                                        strokeWidth={2}
                                                         stroke="currentColor"
                                                     >
                                                         <path
@@ -411,7 +415,7 @@ export default function AdminCommentsPage() {
                                                     </svg>
                                                 </IconButton>
                                                 <IconButton
-                                                    variant="danger"
+                                                    $variant="danger"
                                                     title="Reject"
                                                     onClick={() =>
                                                         handleReject(comment.id)
@@ -422,7 +426,7 @@ export default function AdminCommentsPage() {
                                                         xmlns="http://www.w3.org/2000/svg"
                                                         fill="none"
                                                         viewBox="0 0 24 24"
-                                                        strokeWidth={1.5}
+                                                        strokeWidth={2}
                                                         stroke="currentColor"
                                                     >
                                                         <path
@@ -436,40 +440,40 @@ export default function AdminCommentsPage() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                            </tbody>
+                            </TableBody>
                         </Table>
+                    </TableContainer>
 
-                        {totalPages > 1 && (
-                            <Pagination>
+                    {totalPages > 1 && (
+                        <Pagination>
+                            <PageButton
+                                disabled={page === 1}
+                                onClick={() => fetchComments(page - 1)}
+                            >
+                                Previous
+                            </PageButton>
+                            {Array.from(
+                                { length: totalPages },
+                                (_, i) => i + 1
+                            ).map((p) => (
                                 <PageButton
-                                    disabled={page === 1}
-                                    onClick={() => fetchComments(page - 1)}
+                                    key={p}
+                                    $active={p === page}
+                                    onClick={() => fetchComments(p)}
                                 >
-                                    Previous
+                                    {p}
                                 </PageButton>
-                                {Array.from(
-                                    { length: totalPages },
-                                    (_, i) => i + 1
-                                ).map((p) => (
-                                    <PageButton
-                                        key={p}
-                                        active={p === page}
-                                        onClick={() => fetchComments(p)}
-                                    >
-                                        {p}
-                                    </PageButton>
-                                ))}
-                                <PageButton
-                                    disabled={page === totalPages}
-                                    onClick={() => fetchComments(page + 1)}
-                                >
-                                    Next
-                                </PageButton>
-                            </Pagination>
-                        )}
-                    </>
-                )}
-            </Card>
+                            ))}
+                            <PageButton
+                                disabled={page === totalPages}
+                                onClick={() => fetchComments(page + 1)}
+                            >
+                                Next
+                            </PageButton>
+                        </Pagination>
+                    )}
+                </>
+            )}
         </>
     );
 }

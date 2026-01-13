@@ -9,16 +9,16 @@ import {
     AdminHeader,
     AdminTitle,
     AdminSubtitle,
-    Card,
+    TableContainer,
     Table,
     TableHead,
+    TableBody,
     TableRow,
     TableHeader,
     TableCell,
     Badge,
     Button,
     ButtonGroup,
-    SearchInput,
     ActionBar,
     ActionBarLeft,
     ActionBarRight,
@@ -29,9 +29,9 @@ import {
     Alert,
     Pagination,
     PageButton,
-    AccessDenied,
-    Select
+    AccessDenied
 } from '../components/AdminStyles';
+import SearchBar from '@components/atomic/SearchBar';
 
 interface AdminUser {
     id: string;
@@ -46,12 +46,8 @@ interface AdminUser {
 
 interface UsersResponse {
     users: AdminUser[];
-    pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        hasMore: boolean;
-    };
+    page: number;
+    limit: number;
 }
 
 export default function AdminUsersPage() {
@@ -83,12 +79,14 @@ export default function AdminUsersPage() {
                     `/admin/users?${params.toString()}`
                 );
                 setUsers(res.data.users);
-                setPage(res.data.pagination.page);
-                setTotalPages(
-                    Math.ceil(
-                        res.data.pagination.total / res.data.pagination.limit
-                    )
-                );
+                setPage(res.data.page);
+                // Server doesn't return total, so calculate pages based on whether we got a full page
+                const hasMore = res.data.users.length === res.data.limit;
+                if (hasMore && res.data.page >= totalPages) {
+                    setTotalPages(res.data.page + 1);
+                } else if (!hasMore) {
+                    setTotalPages(res.data.page);
+                }
             } catch (err: any) {
                 console.error('Error fetching users:', err);
                 setError(err.response?.data?.error || 'Failed to load users');
@@ -190,7 +188,7 @@ export default function AdminUsersPage() {
 
     if (error) {
         return (
-            <Alert variant="error">
+            <Alert $variant="error">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -228,96 +226,106 @@ export default function AdminUsersPage() {
                 </AdminSubtitle>
             </AdminHeader>
 
-            <Card>
-                <ActionBar>
-                    <ActionBarLeft>
-                        <form onSubmit={handleSearch}>
-                            <SearchInput
-                                placeholder="Search users..."
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                            />
-                        </form>
-                    </ActionBarLeft>
-                    <ActionBarRight>
-                        {search && (
-                            <Button
-                                variant="secondary"
-                                size="small"
-                                onClick={() => {
-                                    setSearch('');
-                                    setSearchInput('');
-                                }}
-                            >
-                                Clear Search
-                            </Button>
-                        )}
-                    </ActionBarRight>
-                </ActionBar>
-
-                {loading ? (
-                    <LoadingContainer>
-                        <LoadingSpinner />
-                        <LoadingText>Loading users...</LoadingText>
-                    </LoadingContainer>
-                ) : users.length === 0 ? (
-                    <EmptyState>
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
+            <ActionBar>
+                <ActionBarLeft>
+                    <form onSubmit={handleSearch}>
+                        <SearchBar
+                            placeholder="Search users..."
+                            value={searchInput}
+                            onChange={setSearchInput}
+                            styleContainer={{ width: '250px', margin: 0 }}
+                        />
+                    </form>
+                </ActionBarLeft>
+                <ActionBarRight>
+                    {search && (
+                        <Button
+                            variant="secondary"
+                            size="small"
+                            onClick={() => {
+                                setSearch('');
+                                setSearchInput('');
+                            }}
                         >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
-                            />
-                        </svg>
-                        <h3>No users found</h3>
-                        <p>
-                            {search
-                                ? 'Try a different search term.'
-                                : 'No users have registered yet.'}
-                        </p>
-                    </EmptyState>
-                ) : (
-                    <>
+                            Clear
+                        </Button>
+                    )}
+                </ActionBarRight>
+            </ActionBar>
+
+            {loading ? (
+                <LoadingContainer>
+                    <LoadingSpinner />
+                    <LoadingText>Loading users...</LoadingText>
+                </LoadingContainer>
+            ) : users.length === 0 ? (
+                <EmptyState>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"
+                        />
+                    </svg>
+                    <h3>No users found</h3>
+                    <p>
+                        {search
+                            ? 'Try a different search term.'
+                            : 'No users have registered yet.'}
+                    </p>
+                </EmptyState>
+            ) : (
+                <>
+                    <TableContainer>
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableHeader>Username</TableHeader>
-                                    <TableHeader>Email</TableHeader>
-                                    <TableHeader>Groups</TableHeader>
-                                    <TableHeader>Status</TableHeader>
-                                    <TableHeader>Joined</TableHeader>
-                                    <TableHeader>Actions</TableHeader>
+                                    <TableHeader $width="150px">
+                                        Username
+                                    </TableHeader>
+                                    <TableHeader $width="200px">
+                                        Email
+                                    </TableHeader>
+                                    <TableHeader $width="150px">
+                                        Groups
+                                    </TableHeader>
+                                    <TableHeader $width="100px" $align="center">
+                                        Status
+                                    </TableHeader>
+                                    <TableHeader $width="100px">
+                                        Joined
+                                    </TableHeader>
+                                    <TableHeader $width="140px" $align="center">
+                                        Actions
+                                    </TableHeader>
                                 </TableRow>
                             </TableHead>
-                            <tbody>
+                            <TableBody>
                                 {users.map((user) => (
                                     <TableRow key={user.id}>
                                         <TableCell>
-                                            <div>
-                                                <strong>{user.username}</strong>
-                                                {user.displayName && (
-                                                    <div
-                                                        style={{
-                                                            fontSize:
-                                                                '0.875rem',
-                                                            opacity: 0.7
-                                                        }}
-                                                    >
-                                                        {user.displayName}
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <strong>{user.username}</strong>
+                                            {user.displayName && (
+                                                <div
+                                                    style={{
+                                                        fontSize: '0.75rem',
+                                                        opacity: 0.6
+                                                    }}
+                                                >
+                                                    {user.displayName}
+                                                </div>
+                                            )}
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell $truncate>
                                             {user.email || (
-                                                <span style={{ opacity: 0.5 }}>
-                                                    —
+                                                <span style={{ opacity: 0.4 }}>
+                                                    -
                                                 </span>
                                             )}
                                         </TableCell>
@@ -329,27 +337,31 @@ export default function AdminUsersPage() {
                                                     flexWrap: 'wrap'
                                                 }}
                                             >
-                                                {user.groups.map((group) => (
-                                                    <Badge
-                                                        key={group}
-                                                        variant={getGroupBadgeVariant(
-                                                            group
-                                                        )}
-                                                    >
-                                                        {group}
+                                                {user.groups.length > 0 ? (
+                                                    user.groups.map((group) => (
+                                                        <Badge
+                                                            key={group}
+                                                            $variant={getGroupBadgeVariant(
+                                                                group
+                                                            )}
+                                                        >
+                                                            {group}
+                                                        </Badge>
+                                                    ))
+                                                ) : (
+                                                    <Badge $variant="secondary">
+                                                        user
                                                     </Badge>
-                                                ))}
+                                                )}
                                             </div>
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell $align="center">
                                             {user.isBanned ? (
-                                                <Badge variant="danger">
+                                                <Badge $variant="danger">
                                                     Banned
-                                                    {user.banExpiresAt &&
-                                                        ` until ${formatDate(user.banExpiresAt)}`}
                                                 </Badge>
                                             ) : (
-                                                <Badge variant="success">
+                                                <Badge $variant="success">
                                                     Active
                                                 </Badge>
                                             )}
@@ -357,7 +369,7 @@ export default function AdminUsersPage() {
                                         <TableCell>
                                             {formatDate(user.createdAt)}
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell $align="center">
                                             <ButtonGroup>
                                                 <Link
                                                     href={`/admin/users/${user.id}`}
@@ -405,52 +417,52 @@ export default function AdminUsersPage() {
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                            </tbody>
+                            </TableBody>
                         </Table>
+                    </TableContainer>
 
-                        {totalPages > 1 && (
-                            <Pagination>
-                                <PageButton
-                                    disabled={page === 1}
-                                    onClick={() => fetchUsers(page - 1, search)}
-                                >
-                                    Previous
-                                </PageButton>
-                                {Array.from(
-                                    { length: Math.min(totalPages, 5) },
-                                    (_, i) => {
-                                        let pageNum;
-                                        if (totalPages <= 5) {
-                                            pageNum = i + 1;
-                                        } else if (page <= 3) {
-                                            pageNum = i + 1;
-                                        } else if (page >= totalPages - 2) {
-                                            pageNum = totalPages - 4 + i;
-                                        } else {
-                                            pageNum = page - 2 + i;
-                                        }
-                                        return pageNum;
+                    {totalPages > 1 && (
+                        <Pagination>
+                            <PageButton
+                                disabled={page === 1}
+                                onClick={() => fetchUsers(page - 1, search)}
+                            >
+                                Previous
+                            </PageButton>
+                            {Array.from(
+                                { length: Math.min(totalPages, 5) },
+                                (_, i) => {
+                                    let pageNum;
+                                    if (totalPages <= 5) {
+                                        pageNum = i + 1;
+                                    } else if (page <= 3) {
+                                        pageNum = i + 1;
+                                    } else if (page >= totalPages - 2) {
+                                        pageNum = totalPages - 4 + i;
+                                    } else {
+                                        pageNum = page - 2 + i;
                                     }
-                                ).map((p) => (
-                                    <PageButton
-                                        key={p}
-                                        active={p === page}
-                                        onClick={() => fetchUsers(p, search)}
-                                    >
-                                        {p}
-                                    </PageButton>
-                                ))}
+                                    return pageNum;
+                                }
+                            ).map((p) => (
                                 <PageButton
-                                    disabled={page === totalPages}
-                                    onClick={() => fetchUsers(page + 1, search)}
+                                    key={p}
+                                    $active={p === page}
+                                    onClick={() => fetchUsers(p, search)}
                                 >
-                                    Next
+                                    {p}
                                 </PageButton>
-                            </Pagination>
-                        )}
-                    </>
-                )}
-            </Card>
+                            ))}
+                            <PageButton
+                                disabled={page === totalPages}
+                                onClick={() => fetchUsers(page + 1, search)}
+                            >
+                                Next
+                            </PageButton>
+                        </Pagination>
+                    )}
+                </>
+            )}
         </>
     );
 }

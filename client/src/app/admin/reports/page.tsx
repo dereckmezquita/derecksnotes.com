@@ -8,21 +8,18 @@ import {
     AdminHeader,
     AdminTitle,
     AdminSubtitle,
-    Card,
-    CardHeader,
-    CardTitle,
+    TableContainer,
     Table,
     TableHead,
+    TableBody,
     TableRow,
     TableHeader,
     TableCell,
     Badge,
     Button,
     ButtonGroup,
-    Select,
     ActionBar,
     ActionBarLeft,
-    ActionBarRight,
     LoadingContainer,
     LoadingSpinner,
     LoadingText,
@@ -31,39 +28,43 @@ import {
     Pagination,
     PageButton,
     AccessDenied,
-    ModalBackdrop,
-    ModalContent,
-    ModalHeader,
-    ModalTitle,
-    ModalBody,
-    ModalFooter,
-    CloseButton,
     FormGroup,
     Label,
     Input
 } from '../components/AdminStyles';
+import SelectDropDown from '@components/atomic/SelectDropDown';
+import { Modal } from '@components/ui/modal/Modal';
 
 interface Report {
     id: string;
-    reporterUsername: string | null;
-    targetType: 'comment' | 'user';
-    targetId: string;
+    commentId: string;
     reason: string;
     details: string | null;
-    status: 'pending' | 'resolved' | 'dismissed';
+    status: 'pending' | 'reviewed' | 'dismissed';
     reviewedBy: string | null;
     reviewedAt: string | null;
     createdAt: string;
+    reportCount: number;
+    isHighPriority: boolean;
+    reporter: {
+        id: string;
+        username: string;
+    } | null;
+    comment: {
+        id: string;
+        content: string;
+        postSlug: string;
+        user: {
+            id: string;
+            username: string;
+        } | null;
+    } | null;
 }
 
 interface ReportsResponse {
     reports: Report[];
-    pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        hasMore: boolean;
-    };
+    page: number;
+    limit: number;
 }
 
 export default function AdminReportsPage() {
@@ -79,8 +80,8 @@ export default function AdminReportsPage() {
     // Modal states
     const [selectedReport, setSelectedReport] = useState<Report | null>(null);
     const [showReviewModal, setShowReviewModal] = useState(false);
-    const [reviewAction, setReviewAction] = useState<'resolved' | 'dismissed'>(
-        'resolved'
+    const [reviewAction, setReviewAction] = useState<'reviewed' | 'dismissed'>(
+        'reviewed'
     );
     const [reviewNotes, setReviewNotes] = useState('');
 
@@ -102,12 +103,10 @@ export default function AdminReportsPage() {
                     `/admin/reports?${params.toString()}`
                 );
                 setReports(res.data.reports);
-                setPage(res.data.pagination.page);
-                setTotalPages(
-                    Math.ceil(
-                        res.data.pagination.total / res.data.pagination.limit
-                    )
-                );
+                setPage(res.data.page);
+                // Server doesn't return total, so calculate hasMore based on returned count
+                const hasMore = res.data.reports.length === res.data.limit;
+                setTotalPages(hasMore ? res.data.page + 1 : res.data.page);
             } catch (err: any) {
                 console.error('Error fetching reports:', err);
                 setError(err.response?.data?.error || 'Failed to load reports');
@@ -129,11 +128,11 @@ export default function AdminReportsPage() {
         setProcessing(selectedReport.id);
         try {
             await api.post(`/admin/reports/${selectedReport.id}/review`, {
-                status: reviewAction,
-                notes: reviewNotes || undefined
+                action: reviewAction,
+                deleteComment: false
             });
             toast.success(
-                `Report ${reviewAction === 'resolved' ? 'resolved' : 'dismissed'}`
+                `Report ${reviewAction === 'reviewed' ? 'reviewed' : 'dismissed'}`
             );
             setReports((prev) =>
                 prev.map((r) =>
@@ -162,7 +161,7 @@ export default function AdminReportsPage() {
         switch (status) {
             case 'pending':
                 return 'warning';
-            case 'resolved':
+            case 'reviewed':
                 return 'success';
             case 'dismissed':
                 return 'secondary';
@@ -200,7 +199,7 @@ export default function AdminReportsPage() {
 
     if (error) {
         return (
-            <Alert variant="error">
+            <Alert $variant="error">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -238,109 +237,139 @@ export default function AdminReportsPage() {
                 </AdminSubtitle>
             </AdminHeader>
 
-            <Card>
-                <ActionBar>
-                    <ActionBarLeft>
-                        <Select
-                            value={statusFilter}
-                            onChange={(e) => setStatusFilter(e.target.value)}
-                        >
-                            <option value="pending">Pending</option>
-                            <option value="resolved">Resolved</option>
-                            <option value="dismissed">Dismissed</option>
-                            <option value="all">All</option>
-                        </Select>
-                    </ActionBarLeft>
-                </ActionBar>
+            <ActionBar>
+                <ActionBarLeft>
+                    <SelectDropDown
+                        value={statusFilter}
+                        onChange={setStatusFilter}
+                        options={[
+                            { label: 'Pending', value: 'pending' },
+                            { label: 'Resolved', value: 'reviewed' },
+                            { label: 'Dismissed', value: 'dismissed' },
+                            { label: 'All', value: 'all' }
+                        ]}
+                        styleContainer={{ width: '150px', margin: 0 }}
+                    />
+                </ActionBarLeft>
+            </ActionBar>
 
-                {loading ? (
-                    <LoadingContainer>
-                        <LoadingSpinner />
-                        <LoadingText>Loading reports...</LoadingText>
-                    </LoadingContainer>
-                ) : reports.length === 0 ? (
-                    <EmptyState>
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                        </svg>
-                        <h3>No reports found</h3>
-                        <p>
-                            {statusFilter === 'pending'
-                                ? 'All reports have been reviewed.'
-                                : 'No reports match the selected filter.'}
-                        </p>
-                    </EmptyState>
-                ) : (
-                    <>
+            {loading ? (
+                <LoadingContainer>
+                    <LoadingSpinner />
+                    <LoadingText>Loading reports...</LoadingText>
+                </LoadingContainer>
+            ) : reports.length === 0 ? (
+                <EmptyState>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                    </svg>
+                    <h3>No reports found</h3>
+                    <p>
+                        {statusFilter === 'pending'
+                            ? 'All reports have been reviewed.'
+                            : 'No reports match the selected filter.'}
+                    </p>
+                </EmptyState>
+            ) : (
+                <>
+                    <TableContainer>
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableHeader>Reporter</TableHeader>
-                                    <TableHeader>Type</TableHeader>
-                                    <TableHeader>Reason</TableHeader>
-                                    <TableHeader>Status</TableHeader>
-                                    <TableHeader>Date</TableHeader>
-                                    <TableHeader>Actions</TableHeader>
+                                    <TableHeader $width="100px">
+                                        Reporter
+                                    </TableHeader>
+                                    <TableHeader>Comment</TableHeader>
+                                    <TableHeader $width="150px">
+                                        Reason
+                                    </TableHeader>
+                                    <TableHeader $width="90px" $align="center">
+                                        Status
+                                    </TableHeader>
+                                    <TableHeader $width="150px">
+                                        Date
+                                    </TableHeader>
+                                    <TableHeader $width="150px" $align="center">
+                                        Actions
+                                    </TableHeader>
                                 </TableRow>
                             </TableHead>
-                            <tbody>
+                            <TableBody>
                                 {reports.map((report) => (
                                     <TableRow key={report.id}>
                                         <TableCell>
-                                            {report.reporterUsername || (
-                                                <Badge variant="secondary">
-                                                    Anonymous
+                                            {report.reporter?.username || (
+                                                <Badge $variant="secondary">
+                                                    Anon
                                                 </Badge>
                                             )}
                                         </TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={
-                                                    report.targetType ===
-                                                    'comment'
-                                                        ? 'primary'
-                                                        : 'warning'
-                                                }
-                                            >
-                                                {report.targetType}
-                                            </Badge>
+                                        <TableCell
+                                            $truncate
+                                            title={report.comment?.content}
+                                        >
+                                            {report.comment ? (
+                                                <div>
+                                                    <span>
+                                                        {truncateText(
+                                                            report.comment
+                                                                .content,
+                                                            40
+                                                        )}
+                                                    </span>
+                                                    <div
+                                                        style={{
+                                                            fontSize: '0.75rem',
+                                                            opacity: 0.6
+                                                        }}
+                                                    >
+                                                        by{' '}
+                                                        {report.comment.user
+                                                            ?.username ||
+                                                            'deleted'}
+                                                        {report.isHighPriority && (
+                                                            <Badge
+                                                                $variant="danger"
+                                                                style={{
+                                                                    marginLeft:
+                                                                        '0.5rem'
+                                                                }}
+                                                            >
+                                                                {
+                                                                    report.reportCount
+                                                                }
+                                                                x
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <Badge $variant="secondary">
+                                                    Deleted
+                                                </Badge>
+                                            )}
                                         </TableCell>
                                         <TableCell
+                                            $truncate
                                             title={
                                                 report.details || report.reason
                                             }
                                         >
-                                            <div>
-                                                <strong>{report.reason}</strong>
-                                                {report.details && (
-                                                    <div
-                                                        style={{
-                                                            fontSize:
-                                                                '0.875rem',
-                                                            opacity: 0.7,
-                                                            marginTop: '0.25rem'
-                                                        }}
-                                                    >
-                                                        {truncateText(
-                                                            report.details
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <strong>{report.reason}</strong>
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell $align="center">
                                             <Badge
-                                                variant={getStatusBadgeVariant(
+                                                $variant={getStatusBadgeVariant(
                                                     report.status
                                                 )}
                                             >
@@ -350,7 +379,7 @@ export default function AdminReportsPage() {
                                         <TableCell>
                                             {formatDate(report.createdAt)}
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell $align="center">
                                             {report.status === 'pending' ? (
                                                 <ButtonGroup>
                                                     <Button
@@ -361,7 +390,7 @@ export default function AdminReportsPage() {
                                                                 report
                                                             );
                                                             setReviewAction(
-                                                                'resolved'
+                                                                'reviewed'
                                                             );
                                                             setShowReviewModal(
                                                                 true
@@ -397,143 +426,136 @@ export default function AdminReportsPage() {
                                                     </Button>
                                                 </ButtonGroup>
                                             ) : (
-                                                <span style={{ opacity: 0.5 }}>
-                                                    Reviewed
-                                                    {report.reviewedAt &&
-                                                        ` on ${new Date(report.reviewedAt).toLocaleDateString()}`}
+                                                <span
+                                                    style={{
+                                                        opacity: 0.5,
+                                                        fontSize: '0.75rem'
+                                                    }}
+                                                >
+                                                    {report.reviewedAt
+                                                        ? new Date(
+                                                              report.reviewedAt
+                                                          ).toLocaleDateString()
+                                                        : '-'}
                                                 </span>
                                             )}
                                         </TableCell>
                                     </TableRow>
                                 ))}
-                            </tbody>
+                            </TableBody>
                         </Table>
+                    </TableContainer>
 
-                        {totalPages > 1 && (
-                            <Pagination>
+                    {totalPages > 1 && (
+                        <Pagination>
+                            <PageButton
+                                disabled={page === 1}
+                                onClick={() =>
+                                    fetchReports(page - 1, statusFilter)
+                                }
+                            >
+                                Previous
+                            </PageButton>
+                            {Array.from(
+                                { length: Math.min(totalPages, 5) },
+                                (_, i) => {
+                                    let pageNum;
+                                    if (totalPages <= 5) {
+                                        pageNum = i + 1;
+                                    } else if (page <= 3) {
+                                        pageNum = i + 1;
+                                    } else if (page >= totalPages - 2) {
+                                        pageNum = totalPages - 4 + i;
+                                    } else {
+                                        pageNum = page - 2 + i;
+                                    }
+                                    return pageNum;
+                                }
+                            ).map((p) => (
                                 <PageButton
-                                    disabled={page === 1}
+                                    key={p}
+                                    $active={p === page}
                                     onClick={() =>
-                                        fetchReports(page - 1, statusFilter)
+                                        fetchReports(p, statusFilter)
                                     }
                                 >
-                                    Previous
+                                    {p}
                                 </PageButton>
-                                {Array.from(
-                                    { length: Math.min(totalPages, 5) },
-                                    (_, i) => {
-                                        let pageNum;
-                                        if (totalPages <= 5) {
-                                            pageNum = i + 1;
-                                        } else if (page <= 3) {
-                                            pageNum = i + 1;
-                                        } else if (page >= totalPages - 2) {
-                                            pageNum = totalPages - 4 + i;
-                                        } else {
-                                            pageNum = page - 2 + i;
-                                        }
-                                        return pageNum;
-                                    }
-                                ).map((p) => (
-                                    <PageButton
-                                        key={p}
-                                        active={p === page}
-                                        onClick={() =>
-                                            fetchReports(p, statusFilter)
-                                        }
-                                    >
-                                        {p}
-                                    </PageButton>
-                                ))}
-                                <PageButton
-                                    disabled={page === totalPages}
-                                    onClick={() =>
-                                        fetchReports(page + 1, statusFilter)
-                                    }
-                                >
-                                    Next
-                                </PageButton>
-                            </Pagination>
-                        )}
-                    </>
-                )}
-            </Card>
+                            ))}
+                            <PageButton
+                                disabled={page === totalPages}
+                                onClick={() =>
+                                    fetchReports(page + 1, statusFilter)
+                                }
+                            >
+                                Next
+                            </PageButton>
+                        </Pagination>
+                    )}
+                </>
+            )}
 
             {/* Review Modal */}
-            {showReviewModal && selectedReport && (
-                <ModalBackdrop onClick={() => setShowReviewModal(false)}>
-                    <ModalContent onClick={(e) => e.stopPropagation()}>
-                        <ModalHeader>
-                            <ModalTitle>
-                                {reviewAction === 'resolved'
-                                    ? 'Resolve'
-                                    : 'Dismiss'}{' '}
-                                Report
-                            </ModalTitle>
-                            <CloseButton
-                                onClick={() => setShowReviewModal(false)}
+            <Modal
+                isOpen={showReviewModal && selectedReport !== null}
+                onClose={() => setShowReviewModal(false)}
+                title={`${reviewAction === 'reviewed' ? 'Resolve' : 'Dismiss'} Report`}
+            >
+                {selectedReport && (
+                    <>
+                        <div style={{ marginBottom: '1rem' }}>
+                            <strong>Report Details:</strong>
+                            <div
+                                style={{
+                                    marginTop: '0.5rem',
+                                    padding: '1rem',
+                                    background: 'rgba(0,0,0,0.05)',
+                                    borderRadius: '4px'
+                                }}
                             >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    strokeWidth={1.5}
-                                    stroke="currentColor"
-                                    width={20}
-                                    height={20}
-                                >
-                                    <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </CloseButton>
-                        </ModalHeader>
-                        <ModalBody>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <strong>Report Details:</strong>
-                                <div
-                                    style={{
-                                        marginTop: '0.5rem',
-                                        padding: '1rem',
-                                        background: 'rgba(0,0,0,0.05)',
-                                        borderRadius: '4px'
-                                    }}
-                                >
-                                    <div>
-                                        <Badge
-                                            variant={
-                                                selectedReport.targetType ===
-                                                'comment'
-                                                    ? 'primary'
-                                                    : 'warning'
-                                            }
-                                        >
-                                            {selectedReport.targetType}
-                                        </Badge>{' '}
-                                        reported for:{' '}
-                                        <strong>{selectedReport.reason}</strong>
-                                    </div>
-                                    {selectedReport.details && (
-                                        <div style={{ marginTop: '0.5rem' }}>
-                                            {selectedReport.details}
-                                        </div>
-                                    )}
+                                <div>
+                                    <Badge $variant="primary">comment</Badge>{' '}
+                                    reported for:{' '}
+                                    <strong>{selectedReport.reason}</strong>
                                 </div>
+                                {selectedReport.comment && (
+                                    <div
+                                        style={{
+                                            marginTop: '0.5rem',
+                                            fontStyle: 'italic'
+                                        }}
+                                    >
+                                        &ldquo;
+                                        {truncateText(
+                                            selectedReport.comment.content,
+                                            100
+                                        )}
+                                        &rdquo;
+                                    </div>
+                                )}
+                                {selectedReport.details && (
+                                    <div style={{ marginTop: '0.5rem' }}>
+                                        Details: {selectedReport.details}
+                                    </div>
+                                )}
                             </div>
-                            <FormGroup>
-                                <Label>Notes (optional)</Label>
-                                <Input
-                                    value={reviewNotes}
-                                    onChange={(e) =>
-                                        setReviewNotes(e.target.value)
-                                    }
-                                    placeholder="Add any notes about this decision..."
-                                />
-                            </FormGroup>
-                        </ModalBody>
-                        <ModalFooter>
+                        </div>
+                        <FormGroup>
+                            <Label>Notes (optional)</Label>
+                            <Input
+                                value={reviewNotes}
+                                onChange={(e) => setReviewNotes(e.target.value)}
+                                placeholder="Add any notes about this decision..."
+                            />
+                        </FormGroup>
+                        <div
+                            style={{
+                                display: 'flex',
+                                gap: '0.5rem',
+                                justifyContent: 'flex-end',
+                                marginTop: '1rem'
+                            }}
+                        >
                             <Button
                                 variant="secondary"
                                 onClick={() => setShowReviewModal(false)}
@@ -542,7 +564,7 @@ export default function AdminReportsPage() {
                             </Button>
                             <Button
                                 variant={
-                                    reviewAction === 'resolved'
+                                    reviewAction === 'reviewed'
                                         ? 'success'
                                         : 'secondary'
                                 }
@@ -551,14 +573,14 @@ export default function AdminReportsPage() {
                             >
                                 {processing === selectedReport.id
                                     ? 'Processing...'
-                                    : reviewAction === 'resolved'
+                                    : reviewAction === 'reviewed'
                                       ? 'Mark as Resolved'
                                       : 'Dismiss Report'}
                             </Button>
-                        </ModalFooter>
-                    </ModalContent>
-                </ModalBackdrop>
-            )}
+                        </div>
+                    </>
+                )}
+            </Modal>
         </>
     );
 }

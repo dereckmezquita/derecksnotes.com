@@ -7,16 +7,15 @@ import {
     AdminHeader,
     AdminTitle,
     AdminSubtitle,
-    Card,
+    TableContainer,
     Table,
     TableHead,
+    TableBody,
     TableRow,
     TableHeader,
     TableCell,
     Badge,
     Button,
-    Select,
-    SearchInput,
     ActionBar,
     ActionBarLeft,
     ActionBarRight,
@@ -29,27 +28,28 @@ import {
     PageButton,
     AccessDenied
 } from '../components/AdminStyles';
+import SelectDropDown from '@components/atomic/SelectDropDown';
+import SearchBar from '@components/atomic/SearchBar';
 
 interface AuditLogEntry {
     id: string;
     adminId: string;
-    adminUsername: string;
     action: string;
     targetType: string;
     targetId: string | null;
-    details: string | null;
+    details: Record<string, any> | null;
     ipAddress: string | null;
     createdAt: string;
+    admin: {
+        id: string;
+        username: string;
+    } | null;
 }
 
 interface AuditLogResponse {
-    entries: AuditLogEntry[];
-    pagination: {
-        page: number;
-        limit: number;
-        total: number;
-        hasMore: boolean;
-    };
+    logs: AuditLogEntry[];
+    page: number;
+    limit: number;
 }
 
 const ACTION_TYPES = [
@@ -101,13 +101,11 @@ export default function AdminAuditPage() {
                 const res = await api.get<AuditLogResponse>(
                     `/admin/audit?${params.toString()}`
                 );
-                setEntries(res.data.entries);
-                setPage(res.data.pagination.page);
-                setTotalPages(
-                    Math.ceil(
-                        res.data.pagination.total / res.data.pagination.limit
-                    )
-                );
+                setEntries(res.data.logs);
+                setPage(res.data.page);
+                // Server doesn't return total, so calculate hasMore based on returned count
+                const hasMore = res.data.logs.length === res.data.limit;
+                setTotalPages(hasMore ? res.data.page + 1 : res.data.page);
             } catch (err: any) {
                 console.error('Error fetching audit log:', err);
                 setError(
@@ -161,13 +159,11 @@ export default function AdminAuditPage() {
             .join(' - ');
     };
 
-    const parseDetails = (details: string | null): Record<string, any> => {
+    const parseDetails = (
+        details: Record<string, any> | null
+    ): Record<string, any> => {
         if (!details) return {};
-        try {
-            return JSON.parse(details);
-        } catch {
-            return { raw: details };
-        }
+        return details;
     };
 
     if (!canViewAudit) {
@@ -194,7 +190,7 @@ export default function AdminAuditPage() {
 
     if (error) {
         return (
-            <Alert variant="error">
+            <Alert $variant="error">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -232,99 +228,108 @@ export default function AdminAuditPage() {
                 </AdminSubtitle>
             </AdminHeader>
 
-            <Card>
-                <ActionBar>
-                    <ActionBarLeft>
-                        <Select
-                            value={actionFilter}
-                            onChange={(e) => {
-                                setActionFilter(e.target.value);
-                                setPage(1);
+            <ActionBar>
+                <ActionBarLeft>
+                    <SelectDropDown
+                        value={actionFilter}
+                        onChange={(value) => {
+                            setActionFilter(value);
+                            setPage(1);
+                        }}
+                        options={ACTION_TYPES.map((type) => ({
+                            label: type.label,
+                            value: type.value
+                        }))}
+                        styleContainer={{ width: '180px', margin: 0 }}
+                    />
+                    <form onSubmit={handleSearch}>
+                        <SearchBar
+                            placeholder="Filter by admin..."
+                            value={searchInput}
+                            onChange={setSearchInput}
+                            styleContainer={{ width: '200px', margin: 0 }}
+                        />
+                    </form>
+                </ActionBarLeft>
+                <ActionBarRight>
+                    {(actionFilter || searchAdmin) && (
+                        <Button
+                            variant="secondary"
+                            size="small"
+                            onClick={() => {
+                                setActionFilter('');
+                                setSearchAdmin('');
+                                setSearchInput('');
                             }}
                         >
-                            {ACTION_TYPES.map((type) => (
-                                <option key={type.value} value={type.value}>
-                                    {type.label}
-                                </option>
-                            ))}
-                        </Select>
-                        <form onSubmit={handleSearch}>
-                            <SearchInput
-                                placeholder="Filter by admin..."
-                                value={searchInput}
-                                onChange={(e) => setSearchInput(e.target.value)}
-                            />
-                        </form>
-                    </ActionBarLeft>
-                    <ActionBarRight>
-                        {(actionFilter || searchAdmin) && (
-                            <Button
-                                variant="secondary"
-                                size="small"
-                                onClick={() => {
-                                    setActionFilter('');
-                                    setSearchAdmin('');
-                                    setSearchInput('');
-                                }}
-                            >
-                                Clear Filters
-                            </Button>
-                        )}
-                    </ActionBarRight>
-                </ActionBar>
+                            Clear
+                        </Button>
+                    )}
+                </ActionBarRight>
+            </ActionBar>
 
-                {loading ? (
-                    <LoadingContainer>
-                        <LoadingSpinner />
-                        <LoadingText>Loading audit log...</LoadingText>
-                    </LoadingContainer>
-                ) : entries.length === 0 ? (
-                    <EmptyState>
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth={1.5}
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-                            />
-                        </svg>
-                        <h3>No audit entries</h3>
-                        <p>
-                            {actionFilter || searchAdmin
-                                ? 'No entries match the current filters.'
-                                : 'No administrative actions have been logged yet.'}
-                        </p>
-                    </EmptyState>
-                ) : (
-                    <>
+            {loading ? (
+                <LoadingContainer>
+                    <LoadingSpinner />
+                    <LoadingText>Loading audit log...</LoadingText>
+                </LoadingContainer>
+            ) : entries.length === 0 ? (
+                <EmptyState>
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                        />
+                    </svg>
+                    <h3>No audit entries</h3>
+                    <p>
+                        {actionFilter || searchAdmin
+                            ? 'No entries match the current filters.'
+                            : 'No administrative actions have been logged yet.'}
+                    </p>
+                </EmptyState>
+            ) : (
+                <>
+                    <TableContainer>
                         <Table>
                             <TableHead>
                                 <TableRow>
-                                    <TableHeader>Admin</TableHeader>
-                                    <TableHeader>Action</TableHeader>
-                                    <TableHeader>Target</TableHeader>
+                                    <TableHeader $width="120px">
+                                        Admin
+                                    </TableHeader>
+                                    <TableHeader $width="150px">
+                                        Action
+                                    </TableHeader>
+                                    <TableHeader $width="140px">
+                                        Target
+                                    </TableHeader>
                                     <TableHeader>Details</TableHeader>
-                                    <TableHeader>Date</TableHeader>
+                                    <TableHeader $width="160px">
+                                        Date
+                                    </TableHeader>
                                 </TableRow>
                             </TableHead>
-                            <tbody>
+                            <TableBody>
                                 {entries.map((entry) => {
                                     const details = parseDetails(entry.details);
                                     return (
                                         <TableRow key={entry.id}>
                                             <TableCell>
                                                 <strong>
-                                                    {entry.adminUsername}
+                                                    {entry.admin?.username ||
+                                                        'Unknown'}
                                                 </strong>
                                                 {entry.ipAddress && (
                                                     <div
                                                         style={{
-                                                            fontSize: '0.75rem',
+                                                            fontSize: '0.7rem',
                                                             opacity: 0.5
                                                         }}
                                                     >
@@ -334,7 +339,7 @@ export default function AdminAuditPage() {
                                             </TableCell>
                                             <TableCell>
                                                 <Badge
-                                                    variant={getActionBadgeVariant(
+                                                    $variant={getActionBadgeVariant(
                                                         entry.action
                                                     )}
                                                 >
@@ -342,16 +347,16 @@ export default function AdminAuditPage() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant="secondary">
+                                                <Badge $variant="secondary">
                                                     {entry.targetType}
                                                 </Badge>
                                                 {entry.targetId && (
                                                     <span
                                                         style={{
                                                             marginLeft:
-                                                                '0.5rem',
-                                                            opacity: 0.7,
-                                                            fontSize: '0.875rem'
+                                                                '0.25rem',
+                                                            opacity: 0.6,
+                                                            fontSize: '0.75rem'
                                                         }}
                                                     >
                                                         {entry.targetId.substring(
@@ -363,14 +368,14 @@ export default function AdminAuditPage() {
                                                 )}
                                             </TableCell>
                                             <TableCell
-                                                style={{ maxWidth: '250px' }}
+                                                $truncate
+                                                title={JSON.stringify(details)}
                                             >
                                                 {Object.keys(details).length >
                                                 0 ? (
-                                                    <div
+                                                    <span
                                                         style={{
-                                                            fontSize:
-                                                                '0.875rem',
+                                                            fontSize: '0.8rem',
                                                             opacity: 0.7
                                                         }}
                                                     >
@@ -388,12 +393,12 @@ export default function AdminAuditPage() {
                                                                           `${k}: ${typeof v === 'object' ? JSON.stringify(v) : v}`
                                                                   )
                                                                   .join(', ')}
-                                                    </div>
+                                                    </span>
                                                 ) : (
                                                     <span
                                                         style={{ opacity: 0.3 }}
                                                     >
-                                                        —
+                                                        -
                                                     </span>
                                                 )}
                                             </TableCell>
@@ -403,70 +408,70 @@ export default function AdminAuditPage() {
                                         </TableRow>
                                     );
                                 })}
-                            </tbody>
+                            </TableBody>
                         </Table>
+                    </TableContainer>
 
-                        {totalPages > 1 && (
-                            <Pagination>
+                    {totalPages > 1 && (
+                        <Pagination>
+                            <PageButton
+                                disabled={page === 1}
+                                onClick={() =>
+                                    fetchAuditLog(
+                                        page - 1,
+                                        actionFilter,
+                                        searchAdmin
+                                    )
+                                }
+                            >
+                                Previous
+                            </PageButton>
+                            {Array.from(
+                                { length: Math.min(totalPages, 5) },
+                                (_, i) => {
+                                    let pageNum;
+                                    if (totalPages <= 5) {
+                                        pageNum = i + 1;
+                                    } else if (page <= 3) {
+                                        pageNum = i + 1;
+                                    } else if (page >= totalPages - 2) {
+                                        pageNum = totalPages - 4 + i;
+                                    } else {
+                                        pageNum = page - 2 + i;
+                                    }
+                                    return pageNum;
+                                }
+                            ).map((p) => (
                                 <PageButton
-                                    disabled={page === 1}
+                                    key={p}
+                                    $active={p === page}
                                     onClick={() =>
                                         fetchAuditLog(
-                                            page - 1,
+                                            p,
                                             actionFilter,
                                             searchAdmin
                                         )
                                     }
                                 >
-                                    Previous
+                                    {p}
                                 </PageButton>
-                                {Array.from(
-                                    { length: Math.min(totalPages, 5) },
-                                    (_, i) => {
-                                        let pageNum;
-                                        if (totalPages <= 5) {
-                                            pageNum = i + 1;
-                                        } else if (page <= 3) {
-                                            pageNum = i + 1;
-                                        } else if (page >= totalPages - 2) {
-                                            pageNum = totalPages - 4 + i;
-                                        } else {
-                                            pageNum = page - 2 + i;
-                                        }
-                                        return pageNum;
-                                    }
-                                ).map((p) => (
-                                    <PageButton
-                                        key={p}
-                                        active={p === page}
-                                        onClick={() =>
-                                            fetchAuditLog(
-                                                p,
-                                                actionFilter,
-                                                searchAdmin
-                                            )
-                                        }
-                                    >
-                                        {p}
-                                    </PageButton>
-                                ))}
-                                <PageButton
-                                    disabled={page === totalPages}
-                                    onClick={() =>
-                                        fetchAuditLog(
-                                            page + 1,
-                                            actionFilter,
-                                            searchAdmin
-                                        )
-                                    }
-                                >
-                                    Next
-                                </PageButton>
-                            </Pagination>
-                        )}
-                    </>
-                )}
-            </Card>
+                            ))}
+                            <PageButton
+                                disabled={page === totalPages}
+                                onClick={() =>
+                                    fetchAuditLog(
+                                        page + 1,
+                                        actionFilter,
+                                        searchAdmin
+                                    )
+                                }
+                            >
+                                Next
+                            </PageButton>
+                        </Pagination>
+                    )}
+                </>
+            )}
         </>
     );
 }

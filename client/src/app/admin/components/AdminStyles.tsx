@@ -76,7 +76,7 @@ export const SidebarNav = styled.nav`
     gap: ${(props) => props.theme.container.spacing.xsmall};
 `;
 
-export const SidebarLink = styled.a<{ active?: boolean }>`
+export const SidebarLink = styled.a<{ $active?: boolean }>`
     display: flex;
     align-items: center;
     gap: ${(props) => props.theme.container.spacing.small};
@@ -84,14 +84,14 @@ export const SidebarLink = styled.a<{ active?: boolean }>`
         ${(props) => props.theme.container.spacing.medium};
     border-radius: ${(props) => props.theme.container.border.radius};
     color: ${(props) =>
-        props.active
+        props.$active
             ? props.theme.theme_colours[5]()
             : props.theme.text.colour.primary()};
     background: ${(props) =>
-        props.active ? props.theme.theme_colours[9]() : 'transparent'};
+        props.$active ? props.theme.theme_colours[9]() : 'transparent'};
     text-decoration: none;
     font-weight: ${(props) =>
-        props.active
+        props.$active
             ? props.theme.text.weight.medium
             : props.theme.text.weight.normal};
     transition: all 0.2s ease;
@@ -99,7 +99,7 @@ export const SidebarLink = styled.a<{ active?: boolean }>`
 
     &:hover {
         background: ${(props) =>
-            props.active
+            props.$active
                 ? props.theme.theme_colours[9]()
                 : props.theme.container.background.colour.light_contrast()};
         color: ${(props) => props.theme.theme_colours[5]()};
@@ -192,7 +192,7 @@ export const StatLabel = styled.div`
 `;
 
 export const StatIcon = styled.div<{
-    variant?: 'primary' | 'warning' | 'success' | 'danger';
+    $variant?: 'primary' | 'warning' | 'success' | 'danger';
 }>`
     width: 40px;
     height: 40px;
@@ -203,7 +203,7 @@ export const StatIcon = styled.div<{
     margin-bottom: ${(props) => props.theme.container.spacing.small};
 
     ${(props) => {
-        switch (props.variant) {
+        switch (props.$variant) {
             case 'warning':
                 return css`
                     background: ${props.theme.colours.warning}20;
@@ -234,17 +234,35 @@ export const StatIcon = styled.div<{
 `;
 
 // ============================================================================
-// TABLES
+// TABLES - Spreadsheet-like design
 // ============================================================================
+
+export const TableContainer = styled.div`
+    overflow-x: auto;
+    border: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+    border-radius: ${(props) => props.theme.container.border.radius};
+`;
 
 export const Table = styled.table`
     width: 100%;
     border-collapse: collapse;
+    font-size: 0.875rem;
 `;
 
 export const TableHead = styled.thead`
     background: ${(props) =>
         props.theme.container.background.colour.light_contrast()};
+    position: sticky;
+    top: 0;
+    z-index: 1;
+`;
+
+export const TableBody = styled.tbody`
+    & > tr:nth-child(even) {
+        background: ${(props) =>
+            props.theme.container.background.colour.light_contrast()}50;
+    }
 `;
 
 export const TableRow = styled.tr`
@@ -256,26 +274,74 @@ export const TableRow = styled.tr`
     }
 
     &:hover {
-        background: ${(props) =>
-            props.theme.container.background.colour.light_contrast()};
+        background: ${(props) => props.theme.theme_colours[9]()}40;
     }
 `;
 
-export const TableHeader = styled.th`
-    padding: ${(props) => props.theme.container.spacing.medium};
-    text-align: left;
-    font-weight: ${(props) => props.theme.text.weight.medium};
-    font-size: ${(props) => props.theme.text.size.small};
-    color: ${(props) => props.theme.text.colour.light_grey()};
+export const TableHeader = styled.th<{
+    $width?: string;
+    $align?: 'left' | 'center' | 'right';
+}>`
+    padding: 10px 12px;
+    text-align: ${(props) => props.$align || 'left'};
+    font-weight: ${(props) => props.theme.text.weight.bold};
+    font-size: 0.75rem;
+    color: ${(props) => props.theme.text.colour.primary()};
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    white-space: nowrap;
+    border-right: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+    background: ${(props) =>
+        props.theme.container.background.colour.light_contrast()};
+    ${(props) => props.$width && `width: ${props.$width};`}
+
+    &:last-child {
+        border-right: none;
+    }
 `;
 
-export const TableCell = styled.td`
-    padding: ${(props) => props.theme.container.spacing.medium};
-    font-size: ${(props) => props.theme.text.size.normal};
+export const TableCell = styled.td<{
+    $align?: 'left' | 'center' | 'right';
+    $truncate?: boolean;
+}>`
+    padding: 10px 12px;
+    font-size: 0.875rem;
     color: ${(props) => props.theme.text.colour.primary()};
     vertical-align: middle;
+    text-align: ${(props) => props.$align || 'left'};
+    border-right: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()}50;
+
+    ${(props) =>
+        props.$truncate &&
+        css`
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        `}
+
+    &:last-child {
+        border-right: none;
+    }
+`;
+
+export const TableFooter = styled.tfoot`
+    background: ${(props) =>
+        props.theme.container.background.colour.light_contrast()};
+    border-top: 2px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+`;
+
+export const TableCaption = styled.caption`
+    padding: 12px;
+    font-size: 0.875rem;
+    color: ${(props) => props.theme.text.colour.light_grey()};
+    text-align: left;
+    caption-side: bottom;
+    border-top: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
 `;
 
 // ============================================================================
@@ -346,22 +412,22 @@ export const ButtonGroup = styled.div`
 `;
 
 export const IconButton = styled.button<{
-    variant?: 'primary' | 'danger' | 'success';
+    $variant?: 'primary' | 'danger' | 'success';
 }>`
     width: 32px;
     height: 32px;
     border-radius: ${(props) => props.theme.container.border.radius};
     border: none;
     background: ${(props) =>
-        props.variant === 'danger'
+        props.$variant === 'danger'
             ? `${props.theme.colours.error}20`
-            : props.variant === 'success'
+            : props.$variant === 'success'
               ? `${props.theme.colours.success}20`
               : props.theme.container.background.colour.light_contrast()};
     color: ${(props) =>
-        props.variant === 'danger'
+        props.$variant === 'danger'
             ? props.theme.colours.error
-            : props.variant === 'success'
+            : props.$variant === 'success'
               ? props.theme.colours.success
               : props.theme.text.colour.primary()};
     cursor: pointer;
@@ -391,7 +457,7 @@ export const IconButton = styled.button<{
 // ============================================================================
 
 export const Badge = styled.span<{
-    variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
+    $variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'danger';
 }>`
     display: inline-flex;
     align-items: center;
@@ -401,7 +467,7 @@ export const Badge = styled.span<{
     font-weight: ${(props) => props.theme.text.weight.medium};
 
     ${(props) => {
-        switch (props.variant) {
+        switch (props.$variant) {
             case 'success':
                 return css`
                     background: ${props.theme.colours.success}20;
@@ -633,7 +699,7 @@ export const CloseButton = styled.button`
 // ============================================================================
 
 export const Alert = styled.div<{
-    variant: 'error' | 'success' | 'warning' | 'info';
+    $variant: 'error' | 'success' | 'warning' | 'info';
 }>`
     padding: ${(props) => props.theme.container.spacing.medium};
     border-radius: ${(props) => props.theme.container.border.radius};
@@ -643,7 +709,7 @@ export const Alert = styled.div<{
     gap: ${(props) => props.theme.container.spacing.small};
 
     ${(props) => {
-        switch (props.variant) {
+        switch (props.$variant) {
             case 'error':
                 return css`
                     background: ${props.theme.colours.error}15;
@@ -715,24 +781,24 @@ export const Pagination = styled.div`
     margin-top: ${(props) => props.theme.container.spacing.large};
 `;
 
-export const PageButton = styled.button<{ active?: boolean }>`
+export const PageButton = styled.button<{ $active?: boolean }>`
     min-width: 36px;
     height: 36px;
     padding: 0 ${(props) => props.theme.container.spacing.small};
     border-radius: ${(props) => props.theme.container.border.radius};
     border: 1px solid
         ${(props) =>
-            props.active
+            props.$active
                 ? props.theme.theme_colours[5]()
                 : props.theme.container.border.colour.primary()};
     background: ${(props) =>
-        props.active
+        props.$active
             ? props.theme.theme_colours[5]()
             : props.theme.container.background.colour.solid()};
     color: ${(props) =>
-        props.active ? '#fff' : props.theme.text.colour.primary()};
+        props.$active ? '#fff' : props.theme.text.colour.primary()};
     font-weight: ${(props) =>
-        props.active
+        props.$active
             ? props.theme.text.weight.bold
             : props.theme.text.weight.normal};
     cursor: pointer;
