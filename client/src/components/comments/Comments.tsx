@@ -11,10 +11,6 @@ import {
     CommentResponse,
     CommentsContainer,
     CommentsTitle,
-    PaginationContainer,
-    PaginationInfoText,
-    PaginationButtons,
-    PageButton,
     LoadingSpinner
 } from '@components/comments';
 
@@ -26,28 +22,16 @@ export function Comments({ postSlug }: CommentsProps) {
     const { user, isAuthenticated } = useAuth();
     const [comments, setComments] = useState<CommentType[]>([]);
     const [loading, setLoading] = useState(true);
-    const [pagination, setPagination] = useState({
-        total: 0,
-        page: 1,
-        pageSize: 20,
-        pages: 0
-    });
     const [error, setError] = useState<string | null>(null);
-    const [isLoadingPage, setIsLoadingPage] = useState(false);
 
-    const fetchComments = async (page = 1, limit = 20) => {
+    const fetchComments = async () => {
         setLoading(true);
         try {
-            const skip = (page - 1) * limit;
-
-            // Normalize the slug to ensure consistent format between client and server
             const normalizedSlug = postSlug.replace(/^\/+|\/+$/g, '');
-
             const res = await api.get<CommentResponse>(
-                `/comments/post/${normalizedSlug}?depth=3&limit=${limit}&skip=${skip}`
+                `/comments?postSlug=${encodeURIComponent(normalizedSlug)}`
             );
             setComments(res.data.comments);
-            setPagination(res.data.pagination);
             setError(null);
         } catch (error: any) {
             console.error('Error fetching comments:', error);
@@ -66,17 +50,26 @@ export function Comments({ postSlug }: CommentsProps) {
         }
     }, [postSlug]);
 
-    const handleAddComment = async (text: string) => {
+    const handleAddComment = async (content: string) => {
         try {
-            // Normalize the slug here too to maintain consistency
             const normalizedSlug = postSlug.replace(/^\/+|\/+$/g, '');
-
-            const res = await api.post<CommentType>('/comments', {
-                text,
-                postSlug: normalizedSlug
+            const res = await api.post<{
+                comment: CommentType;
+                message: string;
+            }>('/comments', {
+                postSlug: normalizedSlug,
+                content
             });
-            setComments((prev) => [res.data, ...prev]);
-            toast.success('Comment added successfully');
+            setComments((prev) => [
+                { ...res.data.comment, replies: [] },
+                ...prev
+            ]);
+
+            if (res.data.comment.approved) {
+                toast.success('Comment added successfully');
+            } else {
+                toast.success('Comment submitted for approval');
+            }
         } catch (error: any) {
             console.error('Error adding comment:', error);
             toast.error(
@@ -86,23 +79,13 @@ export function Comments({ postSlug }: CommentsProps) {
         }
     };
 
-    const handlePageChange = (newPage: number) => {
-        if (newPage !== pagination.page && !isLoadingPage) {
-            setIsLoadingPage(true);
-            fetchComments(newPage, pagination.pageSize).finally(() =>
-                setIsLoadingPage(false)
-            );
-        }
-    };
-
-    // Callback for updating comments after edit/delete/reply
     const updateCommentTree = (
         commentId: string,
         updateFn: (comment: CommentType) => CommentType
     ) => {
         const updateRecursive = (comments: CommentType[]): CommentType[] => {
             return comments.map((comment) => {
-                if (comment._id === commentId) {
+                if (comment.id === commentId) {
                     return updateFn(comment);
                 }
                 if (comment.replies && comment.replies.length > 0) {
@@ -118,14 +101,16 @@ export function Comments({ postSlug }: CommentsProps) {
         setComments((prev) => updateRecursive(prev));
     };
 
-    // Function to add a reply to a specific comment
     const addReply = (parentId: string, newReply: CommentType) => {
         const addReplyRecursive = (comments: CommentType[]): CommentType[] => {
             return comments.map((comment) => {
-                if (comment._id === parentId) {
+                if (comment.id === parentId) {
                     return {
                         ...comment,
-                        replies: [newReply, ...(comment.replies || [])]
+                        replies: [
+                            { ...newReply, replies: [] },
+                            ...(comment.replies || [])
+                        ]
                     };
                 }
                 if (comment.replies && comment.replies.length > 0) {
@@ -165,109 +150,13 @@ export function Comments({ postSlug }: CommentsProps) {
             ) : comments.length === 0 ? (
                 <p>No comments yet. Be the first to comment!</p>
             ) : (
-                <>
-                    <CommentList
-                        comments={comments}
-                        postSlug={postSlug}
-                        currentUser={user}
-                        onUpdateComment={updateCommentTree}
-                        onAddReply={addReply}
-                    />
-
-                    {pagination.pages > 1 && (
-                        <PaginationContainer>
-                            <PaginationInfoText>
-                                Showing{' '}
-                                {(pagination.page - 1) * pagination.pageSize +
-                                    1}
-                                -
-                                {Math.min(
-                                    pagination.page * pagination.pageSize,
-                                    pagination.total
-                                )}{' '}
-                                of {pagination.total} comments
-                            </PaginationInfoText>
-
-                            <PaginationButtons>
-                                <PageButton
-                                    onClick={() =>
-                                        handlePageChange(pagination.page - 1)
-                                    }
-                                    disabled={
-                                        pagination.page === 1 || isLoadingPage
-                                    }
-                                >
-                                    {isLoadingPage && pagination.page > 1 ? (
-                                        <LoadingSpinner />
-                                    ) : (
-                                        'Previous'
-                                    )}
-                                </PageButton>
-
-                                {Array.from(
-                                    { length: pagination.pages },
-                                    (_, i) => i + 1
-                                )
-                                    .filter((page) => {
-                                        // Show first, last, current and pages close to current
-                                        return (
-                                            page === 1 ||
-                                            page === pagination.pages ||
-                                            Math.abs(page - pagination.page) <=
-                                                1
-                                        );
-                                    })
-                                    .map((page, index, array) => {
-                                        // Add ellipsis if there are gaps
-                                        const showEllipsisBefore =
-                                            index > 0 &&
-                                            array[index - 1] !== page - 1;
-
-                                        return (
-                                            <React.Fragment key={page}>
-                                                {showEllipsisBefore && (
-                                                    <span>...</span>
-                                                )}
-                                                <PageButton
-                                                    active={
-                                                        page === pagination.page
-                                                    }
-                                                    onClick={() =>
-                                                        handlePageChange(page)
-                                                    }
-                                                    disabled={isLoadingPage}
-                                                >
-                                                    {isLoadingPage &&
-                                                    page === pagination.page ? (
-                                                        <LoadingSpinner />
-                                                    ) : (
-                                                        page
-                                                    )}
-                                                </PageButton>
-                                            </React.Fragment>
-                                        );
-                                    })}
-
-                                <PageButton
-                                    onClick={() =>
-                                        handlePageChange(pagination.page + 1)
-                                    }
-                                    disabled={
-                                        pagination.page === pagination.pages ||
-                                        isLoadingPage
-                                    }
-                                >
-                                    {isLoadingPage &&
-                                    pagination.page < pagination.pages ? (
-                                        <LoadingSpinner />
-                                    ) : (
-                                        'Next'
-                                    )}
-                                </PageButton>
-                            </PaginationButtons>
-                        </PaginationContainer>
-                    )}
-                </>
+                <CommentList
+                    comments={comments}
+                    postSlug={postSlug}
+                    currentUser={user}
+                    onUpdateComment={updateCommentTree}
+                    onAddReply={addReply}
+                />
             )}
         </CommentsContainer>
     );

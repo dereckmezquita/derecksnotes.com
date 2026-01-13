@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@context/AuthContext';
 import { useRouter } from 'next/navigation';
-import styled, { css } from 'styled-components';
+import styled from 'styled-components';
 import { api } from '@utils/api/api';
 import { CommentType } from '@components/comments';
 import { ProfileCommentList } from '@/components/profile/ProfileCommentList';
@@ -405,7 +405,6 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
 export default function ProfilePage() {
     const { user, loading, logout } = useAuth();
     const router = useRouter();
-    const [userInfo, setUserInfo] = useState<any>(null);
     const [loadingData, setLoadingData] = useState(true);
     const [alert, setAlert] = useState<{
         show: boolean;
@@ -418,9 +417,8 @@ export default function ProfilePage() {
     });
 
     // Profile data
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [email, setEmail] = useState('');
+    const [displayName, setDisplayName] = useState('');
+    const [bio, setBio] = useState('');
 
     // Comments data
     const [activeTab, setActiveTab] = useState('created');
@@ -441,44 +439,33 @@ export default function ProfilePage() {
     }, [user, loading, router]);
 
     useEffect(() => {
-        async function fetchUserInfo() {
-            if (!user) return;
-
-            try {
-                setLoadingData(true);
-                const userInfoRes = await api.get('/profile/user-info');
-                setUserInfo(userInfoRes.data.user);
-                setFirstName(userInfoRes.data.user.firstName || '');
-                setLastName(userInfoRes.data.user.lastName || '');
-                setEmail(userInfoRes.data.user.email || '');
-            } catch (error) {
-                console.error('Error fetching user data:', error);
-                showAlert('Failed to load profile data', 'error');
-            } finally {
-                setLoadingData(false);
-            }
+        // Populate form from user context
+        if (user) {
+            setDisplayName(user.displayName || '');
+            setBio(user.bio || '');
+            setLoadingData(false);
         }
-
-        fetchUserInfo();
     }, [user]);
 
     // Effect for fetching comments from the API
     useEffect(() => {
         async function fetchComments() {
-            if (!user?.isVerified) return;
+            if (!user) return;
 
             try {
                 setLoadingData(true);
-                let endpoint = '/profile/comments';
+                let endpoint = '/users/me/comments';
 
                 if (activeTab === 'liked') {
-                    endpoint = '/profile/comments/liked';
+                    endpoint = '/users/me/comments/liked';
                 } else if (activeTab === 'disliked') {
-                    endpoint = '/profile/comments/disliked';
+                    endpoint = '/users/me/comments/disliked';
                 }
 
-                const response = await api.get(endpoint);
-                setAllComments(response.data);
+                const response = await api.get<{ comments: CommentType[] }>(
+                    endpoint
+                );
+                setAllComments(response.data.comments);
 
                 // Reset pagination when tab changes
                 setPage(1);
@@ -486,7 +473,7 @@ export default function ProfilePage() {
 
                 // Calculate total pages
                 const total = Math.ceil(
-                    response.data.length / COMMENTS_PER_PAGE
+                    response.data.comments.length / COMMENTS_PER_PAGE
                 );
                 setTotalPages(total > 0 ? total : 1);
             } catch (error) {
@@ -497,7 +484,7 @@ export default function ProfilePage() {
             }
         }
 
-        if (user?.isVerified) {
+        if (user) {
             fetchComments();
         }
     }, [user, activeTab]);
@@ -535,38 +522,15 @@ export default function ProfilePage() {
         e.preventDefault();
 
         try {
-            const res = await api.patch('/profile/update', {
-                firstName,
-                lastName,
-                email
+            await api.patch('/users/me', {
+                displayName: displayName || undefined,
+                bio: bio || undefined
             });
 
-            if (res.data.message.includes('verify')) {
-                showAlert(
-                    'Profile updated. Please verify your new email address.',
-                    'warning'
-                );
-            } else {
-                showAlert('Profile updated successfully!', 'success');
-            }
+            showAlert('Profile updated successfully!', 'success');
         } catch (error) {
             console.error('Error updating profile:', error);
             showAlert('Failed to update profile', 'error');
-        }
-    };
-
-    const handleVerifyEmail = async () => {
-        try {
-            const res = await api.post('/profile/verify-email');
-            if (res.data.message === 'Verification email sent') {
-                showAlert(
-                    'Verification email sent! Please check your inbox.',
-                    'success'
-                );
-            }
-        } catch (error) {
-            console.error('Error sending verification email:', error);
-            showAlert('Failed to send verification email', 'error');
         }
     };
 
@@ -582,11 +546,18 @@ export default function ProfilePage() {
 
     const handleDeleteComment = async (id: string) => {
         try {
-            await api.delete(`/profile/comments/${id}`);
+            await api.delete(`/comments/${id}`);
             setComments((prev) =>
                 prev.map((comment) =>
-                    comment._id === id
-                        ? { ...comment, deleted: true, text: '[deleted]' }
+                    comment.id === id
+                        ? { ...comment, isDeleted: true, content: '[deleted]' }
+                        : comment
+                )
+            );
+            setAllComments((prev) =>
+                prev.map((comment) =>
+                    comment.id === id
+                        ? { ...comment, isDeleted: true, content: '[deleted]' }
                         : comment
                 )
             );
@@ -608,16 +579,18 @@ export default function ProfilePage() {
             return;
 
         try {
-            // Use the new bulk delete endpoint
-            const response = await api.post('/profile/comments/bulk-delete', {
-                commentIds: selectedComments
-            });
+            const response = await api.post<{ deletedCount: number }>(
+                '/users/me/comments/bulk-delete',
+                {
+                    commentIds: selectedComments
+                }
+            );
 
             // Update both all comments and displayed comments
             setAllComments((prev) =>
                 prev.map((comment) =>
-                    selectedComments.includes(comment._id)
-                        ? { ...comment, deleted: true, text: '[deleted]' }
+                    selectedComments.includes(comment.id)
+                        ? { ...comment, isDeleted: true, content: '[deleted]' }
                         : comment
                 )
             );
@@ -645,16 +618,23 @@ export default function ProfilePage() {
             return;
 
         try {
-            const response = await api.post('/profile/comments/bulk-unlike', {
-                commentIds: selectedComments
-            });
+            const response = await api.post<{ modifiedCount: number }>(
+                '/users/me/comments/bulk-unlike',
+                {
+                    commentIds: selectedComments
+                }
+            );
 
             // Refresh the comments list after unliking
-            const likedRes = await api.get('/profile/comments/liked');
-            setAllComments(likedRes.data);
+            const likedRes = await api.get<{ comments: CommentType[] }>(
+                '/users/me/comments/liked'
+            );
+            setAllComments(likedRes.data.comments);
 
             // Recalculate total pages
-            const total = Math.ceil(likedRes.data.length / COMMENTS_PER_PAGE);
+            const total = Math.ceil(
+                likedRes.data.comments.length / COMMENTS_PER_PAGE
+            );
             setTotalPages(total > 0 ? total : 1);
 
             // If we're on a page that no longer exists, go to last page
@@ -685,20 +665,22 @@ export default function ProfilePage() {
             return;
 
         try {
-            const response = await api.post(
-                '/profile/comments/bulk-undislike',
+            const response = await api.post<{ modifiedCount: number }>(
+                '/users/me/comments/bulk-undislike',
                 {
                     commentIds: selectedComments
                 }
             );
 
             // Refresh the comments list after removing dislikes
-            const dislikedRes = await api.get('/profile/comments/disliked');
-            setAllComments(dislikedRes.data);
+            const dislikedRes = await api.get<{ comments: CommentType[] }>(
+                '/users/me/comments/disliked'
+            );
+            setAllComments(dislikedRes.data.comments);
 
             // Recalculate total pages
             const total = Math.ceil(
-                dislikedRes.data.length / COMMENTS_PER_PAGE
+                dislikedRes.data.comments.length / COMMENTS_PER_PAGE
             );
             setTotalPages(total > 0 ? total : 1);
 
@@ -718,18 +700,6 @@ export default function ProfilePage() {
         }
     };
 
-    const getCommentLink = (comment: any) => {
-        if (
-            comment.post &&
-            typeof comment.post === 'object' &&
-            comment.post.slug
-        ) {
-            return comment.post.slug;
-        }
-        console.error('Missing slug for post', comment.post);
-        return '/';
-    };
-
     const toggleSelectComment = (id: string) => {
         setSelectedComments((prev) =>
             prev.includes(id)
@@ -739,7 +709,7 @@ export default function ProfilePage() {
     };
 
     const toggleSelectAll = () => {
-        const visibleNonDeletedComments = comments.filter((c) => !c.deleted);
+        const visibleNonDeletedComments = comments.filter((c) => !c.isDeleted);
 
         if (selectedComments.length === visibleNonDeletedComments.length) {
             // If all are selected, deselect all
@@ -747,7 +717,7 @@ export default function ProfilePage() {
         } else {
             // Otherwise, select all visible non-deleted comments
             setSelectedComments(
-                visibleNonDeletedComments.map((comment) => comment._id)
+                visibleNonDeletedComments.map((comment) => comment.id)
             );
         }
     };
@@ -780,34 +750,41 @@ export default function ProfilePage() {
                     ) : (
                         <ProfileForm onSubmit={handleUpdateProfile}>
                             <FormGroup>
-                                <Label htmlFor="firstName">First Name</Label>
+                                <Label htmlFor="username">Username</Label>
                                 <Input
-                                    id="firstName"
-                                    value={firstName}
-                                    onChange={(e) =>
-                                        setFirstName(e.target.value)
-                                    }
+                                    id="username"
+                                    value={user?.username || ''}
+                                    disabled
+                                    style={{ opacity: 0.6 }}
                                 />
                             </FormGroup>
 
                             <FormGroup>
-                                <Label htmlFor="lastName">Last Name</Label>
+                                <Label htmlFor="displayName">
+                                    Display Name
+                                </Label>
                                 <Input
-                                    id="lastName"
-                                    value={lastName}
+                                    id="displayName"
+                                    value={displayName}
                                     onChange={(e) =>
-                                        setLastName(e.target.value)
+                                        setDisplayName(e.target.value)
                                     }
+                                    placeholder="How you want to be called"
                                 />
                             </FormGroup>
 
                             <FormGroup>
-                                <Label htmlFor="email">Email</Label>
+                                <Label htmlFor="bio">Bio</Label>
                                 <Input
-                                    id="email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    as="textarea"
+                                    id="bio"
+                                    value={bio}
+                                    onChange={(e) => setBio(e.target.value)}
+                                    placeholder="Tell us about yourself"
+                                    style={{
+                                        minHeight: '80px',
+                                        resize: 'vertical'
+                                    }}
                                 />
                             </FormGroup>
 
@@ -815,24 +792,8 @@ export default function ProfilePage() {
                                 Update Profile
                             </Button>
 
-                            {!user.isVerified && (
-                                <div style={{ marginTop: '10px' }}>
-                                    <Alert variant="warning">
-                                        Your email is not verified. Verify to
-                                        access all features.
-                                    </Alert>
-                                    <Button
-                                        onClick={handleVerifyEmail}
-                                        variant="secondary"
-                                        fullWidth
-                                        style={{ marginTop: '10px' }}
-                                    >
-                                        Verify Email
-                                    </Button>
-                                </div>
-                            )}
-
                             <Button
+                                type="button"
                                 onClick={handleLogout}
                                 variant="danger"
                                 fullWidth
@@ -890,283 +851,271 @@ export default function ProfilePage() {
                             </div>
                         </CardHeader>
 
-                        {!user.isVerified ? (
-                            <Alert variant="warning">
-                                You must verify your email to access comment
-                                history.
-                            </Alert>
-                        ) : (
-                            <>
-                                <TabsContainer>
-                                    <Tab
-                                        active={activeTab === 'created'}
-                                        onClick={() => setActiveTab('created')}
-                                    >
-                                        Created
-                                    </Tab>
-                                    <Tab
-                                        active={activeTab === 'liked'}
-                                        onClick={() => setActiveTab('liked')}
-                                    >
-                                        Liked
-                                    </Tab>
-                                    <Tab
-                                        active={activeTab === 'disliked'}
-                                        onClick={() => setActiveTab('disliked')}
-                                    >
-                                        Disliked
-                                    </Tab>
-                                </TabsContainer>
+                        <>
+                            <TabsContainer>
+                                <Tab
+                                    active={activeTab === 'created'}
+                                    onClick={() => setActiveTab('created')}
+                                >
+                                    Created
+                                </Tab>
+                                <Tab
+                                    active={activeTab === 'liked'}
+                                    onClick={() => setActiveTab('liked')}
+                                >
+                                    Liked
+                                </Tab>
+                                <Tab
+                                    active={activeTab === 'disliked'}
+                                    onClick={() => setActiveTab('disliked')}
+                                >
+                                    Disliked
+                                </Tab>
+                            </TabsContainer>
 
-                                {loadingData ? (
-                                    <Loading>Loading comments...</Loading>
-                                ) : (
-                                    <>
-                                        {/* Action Bar */}
-                                        {allComments.length > 0 &&
-                                            activeTab === 'created' && (
-                                                <ActionBar>
-                                                    <SelectAll>
-                                                        <Checkbox
-                                                            checked={
-                                                                selectedComments.length >
-                                                                    0 &&
-                                                                selectedComments.length ===
-                                                                    comments.filter(
-                                                                        (c) =>
-                                                                            !c.deleted
-                                                                    ).length
-                                                            }
-                                                            onChange={
-                                                                toggleSelectAll
-                                                            }
-                                                        />
-                                                        <span>Select All</span>
-                                                        {selectedComments.length >
-                                                            0 && (
-                                                            <Badge>
-                                                                {
-                                                                    selectedComments.length
-                                                                }{' '}
-                                                                selected
-                                                            </Badge>
-                                                        )}
-                                                    </SelectAll>
-
-                                                    {selectedComments.length >
-                                                        0 && (
-                                                        <ButtonGroup>
-                                                            <Button
-                                                                variant="danger"
-                                                                size="small"
-                                                                onClick={
-                                                                    handleBulkDelete
-                                                                }
-                                                            >
-                                                                Delete Selected
-                                                            </Button>
-                                                        </ButtonGroup>
-                                                    )}
-                                                </ActionBar>
-                                            )}
-
-                                        {/* Bulk actions for liked/disliked tabs */}
-                                        {allComments.length > 0 &&
-                                            activeTab === 'liked' && (
-                                                <ActionBar>
-                                                    <SelectAll>
-                                                        <Checkbox
-                                                            checked={
-                                                                selectedComments.length >
-                                                                    0 &&
-                                                                selectedComments.length ===
-                                                                    comments.filter(
-                                                                        (c) =>
-                                                                            !c.deleted
-                                                                    ).length
-                                                            }
-                                                            onChange={
-                                                                toggleSelectAll
-                                                            }
-                                                        />
-                                                        <span>Select All</span>
-                                                        {selectedComments.length >
-                                                            0 && (
-                                                            <Badge>
-                                                                {
-                                                                    selectedComments.length
-                                                                }{' '}
-                                                                selected
-                                                            </Badge>
-                                                        )}
-                                                    </SelectAll>
-
-                                                    {selectedComments.length >
-                                                        0 && (
-                                                        <ButtonGroup>
-                                                            <Button
-                                                                variant="warning"
-                                                                size="small"
-                                                                onClick={
-                                                                    handleBulkUnlike
-                                                                }
-                                                            >
-                                                                Unlike Selected
-                                                            </Button>
-                                                        </ButtonGroup>
-                                                    )}
-                                                </ActionBar>
-                                            )}
-
-                                        {allComments.length > 0 &&
-                                            activeTab === 'disliked' && (
-                                                <ActionBar>
-                                                    <SelectAll>
-                                                        <Checkbox
-                                                            checked={
-                                                                selectedComments.length >
-                                                                    0 &&
-                                                                selectedComments.length ===
-                                                                    comments.filter(
-                                                                        (c) =>
-                                                                            !c.deleted
-                                                                    ).length
-                                                            }
-                                                            onChange={
-                                                                toggleSelectAll
-                                                            }
-                                                        />
-                                                        <span>Select All</span>
-                                                        {selectedComments.length >
-                                                            0 && (
-                                                            <Badge>
-                                                                {
-                                                                    selectedComments.length
-                                                                }{' '}
-                                                                selected
-                                                            </Badge>
-                                                        )}
-                                                    </SelectAll>
-
-                                                    {selectedComments.length >
-                                                        0 && (
-                                                        <ButtonGroup>
-                                                            <Button
-                                                                variant="warning"
-                                                                size="small"
-                                                                onClick={
-                                                                    handleBulkUndislike
-                                                                }
-                                                            >
-                                                                Remove Dislike
-                                                            </Button>
-                                                        </ButtonGroup>
-                                                    )}
-                                                </ActionBar>
-                                            )}
-
-                                        {/* Comments List */}
-                                        {allComments.length > 0 ? (
-                                            <>
-                                                {comments.length > 0 ? (
-                                                    <ProfileCommentList
-                                                        comments={comments}
-                                                        currentUser={user}
-                                                        selectedComments={
-                                                            selectedComments
+                            {loadingData ? (
+                                <Loading>Loading comments...</Loading>
+                            ) : (
+                                <>
+                                    {/* Action Bar */}
+                                    {allComments.length > 0 &&
+                                        activeTab === 'created' && (
+                                            <ActionBar>
+                                                <SelectAll>
+                                                    <Checkbox
+                                                        checked={
+                                                            selectedComments.length >
+                                                                0 &&
+                                                            selectedComments.length ===
+                                                                comments.filter(
+                                                                    (c) =>
+                                                                        !c.isDeleted
+                                                                ).length
                                                         }
-                                                        toggleSelectComment={
-                                                            toggleSelectComment
+                                                        onChange={
+                                                            toggleSelectAll
                                                         }
-                                                        onDelete={
-                                                            handleDeleteComment
-                                                        }
-                                                        Checkbox={Checkbox}
                                                     />
-                                                ) : (
-                                                    <EmptyState>
-                                                        No comments on this
-                                                        page. Try a different
-                                                        page.
-                                                    </EmptyState>
-                                                )}
-
-                                                {/* Pagination Controls */}
-                                                {totalPages > 1 && (
-                                                    <Pagination>
-                                                        <PageNumber
-                                                            onClick={() =>
-                                                                setPage((p) =>
-                                                                    Math.max(
-                                                                        1,
-                                                                        p - 1
-                                                                    )
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                page === 1
-                                                            }
-                                                        >
-                                                            &lt;
-                                                        </PageNumber>
-
-                                                        {/* Generate page numbers */}
-                                                        {Array.from(
+                                                    <span>Select All</span>
+                                                    {selectedComments.length >
+                                                        0 && (
+                                                        <Badge>
                                                             {
-                                                                length: totalPages
-                                                            },
-                                                            (_, i) => (
-                                                                <PageNumber
-                                                                    key={i + 1}
-                                                                    active={
-                                                                        page ===
-                                                                        i + 1
-                                                                    }
-                                                                    onClick={() =>
-                                                                        setPage(
-                                                                            i +
-                                                                                1
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    {i + 1}
-                                                                </PageNumber>
-                                                            )
-                                                        )}
+                                                                selectedComments.length
+                                                            }{' '}
+                                                            selected
+                                                        </Badge>
+                                                    )}
+                                                </SelectAll>
 
-                                                        <PageNumber
-                                                            onClick={() =>
-                                                                setPage((p) =>
-                                                                    Math.min(
-                                                                        totalPages,
-                                                                        p + 1
-                                                                    )
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                page ===
-                                                                totalPages
+                                                {selectedComments.length >
+                                                    0 && (
+                                                    <ButtonGroup>
+                                                        <Button
+                                                            variant="danger"
+                                                            size="small"
+                                                            onClick={
+                                                                handleBulkDelete
                                                             }
                                                         >
-                                                            &gt;
-                                                        </PageNumber>
-                                                    </Pagination>
+                                                            Delete Selected
+                                                        </Button>
+                                                    </ButtonGroup>
                                                 )}
-                                            </>
-                                        ) : (
-                                            <EmptyState>
-                                                {activeTab === 'created' &&
-                                                    'You have not created any comments yet.'}
-                                                {activeTab === 'liked' &&
-                                                    'You have not liked any comments yet.'}
-                                                {activeTab === 'disliked' &&
-                                                    'You have not disliked any comments yet.'}
-                                            </EmptyState>
+                                            </ActionBar>
                                         )}
-                                    </>
-                                )}
-                            </>
-                        )}
+
+                                    {/* Bulk actions for liked/disliked tabs */}
+                                    {allComments.length > 0 &&
+                                        activeTab === 'liked' && (
+                                            <ActionBar>
+                                                <SelectAll>
+                                                    <Checkbox
+                                                        checked={
+                                                            selectedComments.length >
+                                                                0 &&
+                                                            selectedComments.length ===
+                                                                comments.filter(
+                                                                    (c) =>
+                                                                        !c.isDeleted
+                                                                ).length
+                                                        }
+                                                        onChange={
+                                                            toggleSelectAll
+                                                        }
+                                                    />
+                                                    <span>Select All</span>
+                                                    {selectedComments.length >
+                                                        0 && (
+                                                        <Badge>
+                                                            {
+                                                                selectedComments.length
+                                                            }{' '}
+                                                            selected
+                                                        </Badge>
+                                                    )}
+                                                </SelectAll>
+
+                                                {selectedComments.length >
+                                                    0 && (
+                                                    <ButtonGroup>
+                                                        <Button
+                                                            variant="warning"
+                                                            size="small"
+                                                            onClick={
+                                                                handleBulkUnlike
+                                                            }
+                                                        >
+                                                            Unlike Selected
+                                                        </Button>
+                                                    </ButtonGroup>
+                                                )}
+                                            </ActionBar>
+                                        )}
+
+                                    {allComments.length > 0 &&
+                                        activeTab === 'disliked' && (
+                                            <ActionBar>
+                                                <SelectAll>
+                                                    <Checkbox
+                                                        checked={
+                                                            selectedComments.length >
+                                                                0 &&
+                                                            selectedComments.length ===
+                                                                comments.filter(
+                                                                    (c) =>
+                                                                        !c.isDeleted
+                                                                ).length
+                                                        }
+                                                        onChange={
+                                                            toggleSelectAll
+                                                        }
+                                                    />
+                                                    <span>Select All</span>
+                                                    {selectedComments.length >
+                                                        0 && (
+                                                        <Badge>
+                                                            {
+                                                                selectedComments.length
+                                                            }{' '}
+                                                            selected
+                                                        </Badge>
+                                                    )}
+                                                </SelectAll>
+
+                                                {selectedComments.length >
+                                                    0 && (
+                                                    <ButtonGroup>
+                                                        <Button
+                                                            variant="warning"
+                                                            size="small"
+                                                            onClick={
+                                                                handleBulkUndislike
+                                                            }
+                                                        >
+                                                            Remove Dislike
+                                                        </Button>
+                                                    </ButtonGroup>
+                                                )}
+                                            </ActionBar>
+                                        )}
+
+                                    {/* Comments List */}
+                                    {allComments.length > 0 ? (
+                                        <>
+                                            {comments.length > 0 ? (
+                                                <ProfileCommentList
+                                                    comments={comments}
+                                                    currentUser={user}
+                                                    selectedComments={
+                                                        selectedComments
+                                                    }
+                                                    toggleSelectComment={
+                                                        toggleSelectComment
+                                                    }
+                                                    onDelete={
+                                                        handleDeleteComment
+                                                    }
+                                                    Checkbox={Checkbox}
+                                                />
+                                            ) : (
+                                                <EmptyState>
+                                                    No comments on this page.
+                                                    Try a different page.
+                                                </EmptyState>
+                                            )}
+
+                                            {/* Pagination Controls */}
+                                            {totalPages > 1 && (
+                                                <Pagination>
+                                                    <PageNumber
+                                                        onClick={() =>
+                                                            setPage((p) =>
+                                                                Math.max(
+                                                                    1,
+                                                                    p - 1
+                                                                )
+                                                            )
+                                                        }
+                                                        disabled={page === 1}
+                                                    >
+                                                        &lt;
+                                                    </PageNumber>
+
+                                                    {/* Generate page numbers */}
+                                                    {Array.from(
+                                                        {
+                                                            length: totalPages
+                                                        },
+                                                        (_, i) => (
+                                                            <PageNumber
+                                                                key={i + 1}
+                                                                active={
+                                                                    page ===
+                                                                    i + 1
+                                                                }
+                                                                onClick={() =>
+                                                                    setPage(
+                                                                        i + 1
+                                                                    )
+                                                                }
+                                                            >
+                                                                {i + 1}
+                                                            </PageNumber>
+                                                        )
+                                                    )}
+
+                                                    <PageNumber
+                                                        onClick={() =>
+                                                            setPage((p) =>
+                                                                Math.min(
+                                                                    totalPages,
+                                                                    p + 1
+                                                                )
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            page === totalPages
+                                                        }
+                                                    >
+                                                        &gt;
+                                                    </PageNumber>
+                                                </Pagination>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <EmptyState>
+                                            {activeTab === 'created' &&
+                                                'You have not created any comments yet.'}
+                                            {activeTab === 'liked' &&
+                                                'You have not liked any comments yet.'}
+                                            {activeTab === 'disliked' &&
+                                                'You have not disliked any comments yet.'}
+                                        </EmptyState>
+                                    )}
+                                </>
+                            )}
+                        </>
                     </Card>
                 </MainContainer>
             </DashboardGrid>

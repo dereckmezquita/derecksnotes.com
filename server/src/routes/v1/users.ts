@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { db, schema } from '../../db';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, inArray } from 'drizzle-orm';
 import { authenticate, requirePermission } from '../../middleware/auth';
 import {
     hashPassword,
@@ -9,6 +9,34 @@ import {
     revokeAllSessions
 } from '../../services/auth';
 import type { AuthenticatedRequest } from '../../types';
+
+// Helper to format comment for profile view
+function formatProfileComment(
+    comment: typeof schema.comments.$inferSelect & {
+        reactions?: Array<{ type: string; userId: string }>;
+    },
+    currentUserId: string
+) {
+    const reactions = comment.reactions || [];
+    const likes = reactions.filter((r) => r.type === 'like').length;
+    const dislikes = reactions.filter((r) => r.type === 'dislike').length;
+    const userReaction = reactions.find((r) => r.userId === currentUserId);
+
+    return {
+        id: comment.id,
+        postSlug: comment.postSlug,
+        content: comment.deletedAt ? '[deleted]' : comment.content,
+        createdAt: comment.createdAt,
+        editedAt: comment.editedAt,
+        isDeleted: !!comment.deletedAt,
+        isOwner: true,
+        reactions: {
+            likes,
+            dislikes,
+            userReaction: userReaction?.type || null
+        }
+    };
+}
 
 const router = Router();
 
@@ -202,6 +230,223 @@ router.delete(
             res.json({ message: 'Account deleted successfully' });
         } catch (error) {
             console.error('Delete account error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
+// GET /api/v1/users/me/comments - User's own comments
+router.get(
+    '/me/comments',
+    authenticate,
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const comments = await db.query.comments.findMany({
+                where: eq(schema.comments.userId, req.user!.id),
+                with: {
+                    reactions: true
+                },
+                orderBy: (c, { desc }) => [desc(c.createdAt)]
+            });
+
+            res.json({
+                comments: comments.map((c) =>
+                    formatProfileComment(c, req.user!.id)
+                )
+            });
+        } catch (error) {
+            console.error('Get user comments error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
+// GET /api/v1/users/me/comments/liked - Comments user has liked
+router.get(
+    '/me/comments/liked',
+    authenticate,
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const likedReactions = await db.query.commentReactions.findMany({
+                where: and(
+                    eq(schema.commentReactions.userId, req.user!.id),
+                    eq(schema.commentReactions.type, 'like')
+                )
+            });
+
+            const commentIds = likedReactions.map((r) => r.commentId);
+
+            if (commentIds.length === 0) {
+                res.json({ comments: [] });
+                return;
+            }
+
+            const comments = await db.query.comments.findMany({
+                where: inArray(schema.comments.id, commentIds),
+                with: {
+                    reactions: true
+                },
+                orderBy: (c, { desc }) => [desc(c.createdAt)]
+            });
+
+            res.json({
+                comments: comments.map((c) =>
+                    formatProfileComment(c, req.user!.id)
+                )
+            });
+        } catch (error) {
+            console.error('Get liked comments error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
+// GET /api/v1/users/me/comments/disliked - Comments user has disliked
+router.get(
+    '/me/comments/disliked',
+    authenticate,
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const dislikedReactions = await db.query.commentReactions.findMany({
+                where: and(
+                    eq(schema.commentReactions.userId, req.user!.id),
+                    eq(schema.commentReactions.type, 'dislike')
+                )
+            });
+
+            const commentIds = dislikedReactions.map((r) => r.commentId);
+
+            if (commentIds.length === 0) {
+                res.json({ comments: [] });
+                return;
+            }
+
+            const comments = await db.query.comments.findMany({
+                where: inArray(schema.comments.id, commentIds),
+                with: {
+                    reactions: true
+                },
+                orderBy: (c, { desc }) => [desc(c.createdAt)]
+            });
+
+            res.json({
+                comments: comments.map((c) =>
+                    formatProfileComment(c, req.user!.id)
+                )
+            });
+        } catch (error) {
+            console.error('Get disliked comments error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
+// POST /api/v1/users/me/comments/bulk-delete
+router.post(
+    '/me/comments/bulk-delete',
+    authenticate,
+    requirePermission('comment.delete.own'),
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const { commentIds } = req.body;
+
+            if (!Array.isArray(commentIds) || commentIds.length === 0) {
+                res.status(400).json({
+                    error: 'commentIds must be a non-empty array'
+                });
+                return;
+            }
+
+            // Only delete comments that belong to the user
+            const result = await db
+                .update(schema.comments)
+                .set({ deletedAt: new Date() })
+                .where(
+                    and(
+                        inArray(schema.comments.id, commentIds),
+                        eq(schema.comments.userId, req.user!.id),
+                        isNull(schema.comments.deletedAt)
+                    )
+                );
+
+            res.json({
+                message: 'Comments deleted',
+                deletedCount: commentIds.length
+            });
+        } catch (error) {
+            console.error('Bulk delete comments error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
+// POST /api/v1/users/me/comments/bulk-unlike
+router.post(
+    '/me/comments/bulk-unlike',
+    authenticate,
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const { commentIds } = req.body;
+
+            if (!Array.isArray(commentIds) || commentIds.length === 0) {
+                res.status(400).json({
+                    error: 'commentIds must be a non-empty array'
+                });
+                return;
+            }
+
+            await db
+                .delete(schema.commentReactions)
+                .where(
+                    and(
+                        inArray(schema.commentReactions.commentId, commentIds),
+                        eq(schema.commentReactions.userId, req.user!.id),
+                        eq(schema.commentReactions.type, 'like')
+                    )
+                );
+
+            res.json({
+                message: 'Likes removed',
+                modifiedCount: commentIds.length
+            });
+        } catch (error) {
+            console.error('Bulk unlike error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
+// POST /api/v1/users/me/comments/bulk-undislike
+router.post(
+    '/me/comments/bulk-undislike',
+    authenticate,
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const { commentIds } = req.body;
+
+            if (!Array.isArray(commentIds) || commentIds.length === 0) {
+                res.status(400).json({
+                    error: 'commentIds must be a non-empty array'
+                });
+                return;
+            }
+
+            await db
+                .delete(schema.commentReactions)
+                .where(
+                    and(
+                        inArray(schema.commentReactions.commentId, commentIds),
+                        eq(schema.commentReactions.userId, req.user!.id),
+                        eq(schema.commentReactions.type, 'dislike')
+                    )
+                );
+
+            res.json({
+                message: 'Dislikes removed',
+                modifiedCount: commentIds.length
+            });
+        } catch (error) {
+            console.error('Bulk undislike error:', error);
             res.status(500).json({ error: 'Internal server error' });
         }
     }

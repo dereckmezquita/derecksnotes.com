@@ -56,7 +56,7 @@ export const CommentHeader = styled.div`
     margin-bottom: 8px;
 `;
 
-export const CommentAuthor = styled.span`
+export const CommentAuthorName = styled.span`
     font-weight: bold;
     color: ${(props) => props.theme.text.colour.primary()};
     font-size: 0.95em;

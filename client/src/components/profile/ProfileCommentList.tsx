@@ -38,10 +38,10 @@ export const ProfileCommentList: React.FC<ProfileCommentListProps> = ({
         <div>
             {comments.map((comment) => (
                 <ProfileCommentItem
-                    key={comment._id}
+                    key={comment.id}
                     comment={comment}
                     currentUser={currentUser}
-                    selected={selectedComments.includes(comment._id)}
+                    selected={selectedComments.includes(comment.id)}
                     toggleSelect={toggleSelectComment}
                     onDelete={onDelete}
                     Checkbox={Checkbox}

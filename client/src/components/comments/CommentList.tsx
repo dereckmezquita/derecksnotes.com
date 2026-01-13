@@ -25,7 +25,7 @@ export function CommentList({
         <CommentListContainer level={level}>
             {comments.map((comment) => (
                 <CommentItem
-                    key={comment._id}
+                    key={comment.id}
                     comment={comment}
                     postSlug={postSlug}
                     currentUser={currentUser}

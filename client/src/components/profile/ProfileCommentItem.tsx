@@ -159,16 +159,16 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
     onDelete,
     Checkbox
 }) => {
-    const isAuthor = currentUser && currentUser.id === comment.author?._id;
+    // isOwner flag comes from the server
+    const isAuthor = comment.isOwner;
 
     // Check if comment has been edited
-    const isEdited =
-        comment.lastEditedAt && comment.lastEditedAt !== comment.createdAt;
+    const isEdited = !!comment.editedAt;
 
     // Display fixed timestamp with seconds and 24-hour format
     const displayDate =
-        isEdited && comment.lastEditedAt
-            ? format(new Date(comment.lastEditedAt), 'yyyy-MM-dd HH:mm:ss')
+        isEdited && comment.editedAt
+            ? format(new Date(comment.editedAt), 'yyyy-MM-dd HH:mm:ss')
             : format(new Date(comment.createdAt), 'yyyy-MM-dd HH:mm:ss');
 
     // Only provide hover tooltip for edited comments
@@ -177,13 +177,13 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
         : '';
 
     return (
-        <CommentItemContainer selected={selected} deleted={comment.deleted}>
+        <CommentItemContainer selected={selected} deleted={comment.isDeleted}>
             <CommentHeader>
                 <CommentMetadata>
-                    {!comment.deleted && (
+                    {!comment.isDeleted && (
                         <Checkbox
                             checked={selected}
-                            onChange={() => toggleSelect(comment._id)}
+                            onChange={() => toggleSelect(comment.id)}
                         />
                     )}
                     <CommentDate data-title={tooltipDate}>
@@ -191,29 +191,29 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
                     </CommentDate>
                 </CommentMetadata>
 
-                {!comment.deleted && isAuthor && (
+                {!comment.isDeleted && isAuthor && (
                     <CommentActions>
-                        <ActionButton onClick={() => onDelete(comment._id)}>
+                        <ActionButton onClick={() => onDelete(comment.id)}>
                             Delete
                         </ActionButton>
                     </CommentActions>
                 )}
             </CommentHeader>
 
-            <CommentText deleted={comment.deleted}>
-                {comment.deleted ? (
+            <CommentText deleted={comment.isDeleted}>
+                {comment.isDeleted ? (
                     '[This comment has been deleted]'
                 ) : (
                     <div
                         dangerouslySetInnerHTML={{
-                            __html: renderMarkdown(comment.text)
+                            __html: renderMarkdown(comment.content)
                         }}
                     />
                 )}
             </CommentText>
 
-            {comment.post && (
-                <PostLink href={comment.post.slug}>
+            {comment.postSlug && (
+                <PostLink href={comment.postSlug}>
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
                         width="14"
@@ -229,7 +229,7 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
                         <polyline points="15 3 21 3 21 9"></polyline>
                         <line x1="10" y1="14" x2="21" y2="3"></line>
                     </svg>
-                    {comment.post.title || 'View Post'}
+                    View Post
                 </PostLink>
             )}
         </CommentItemContainer>
