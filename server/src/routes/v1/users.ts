@@ -64,7 +64,7 @@ const changePasswordSchema = z.object({
 // GET /api/v1/users/:username
 router.get('/:username', async (req: Request, res: Response): Promise<void> => {
     try {
-        const { username } = req.params;
+        const username = req.params.username as string;
 
         const user = await db.query.users.findFirst({
             where: and(
@@ -137,7 +137,7 @@ router.patch(
             if (error instanceof z.ZodError) {
                 res.status(400).json({
                     error: 'Validation failed',
-                    details: error.errors
+                    details: error.issues
                 });
                 return;
             }
@@ -195,7 +195,7 @@ router.post(
             if (error instanceof z.ZodError) {
                 res.status(400).json({
                     error: 'Validation failed',
-                    details: error.errors
+                    details: error.issues
                 });
                 return;
             }

@@ -348,7 +348,7 @@ router.get(
     optionalAuth,
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
             const offset = Math.max(
                 0,
                 parseInt(req.query.offset as string) || 0
@@ -579,7 +579,7 @@ router.post(
             if (error instanceof z.ZodError) {
                 res.status(400).json({
                     error: 'Validation failed',
-                    details: error.errors
+                    details: error.issues
                 });
                 return;
             }
@@ -595,7 +595,7 @@ router.patch(
     authenticate,
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
             const data = updateCommentSchema.parse(req.body);
 
             const comment = await db.query.comments.findFirst({
@@ -661,7 +661,7 @@ router.patch(
             if (error instanceof z.ZodError) {
                 res.status(400).json({
                     error: 'Validation failed',
-                    details: error.errors
+                    details: error.issues
                 });
                 return;
             }
@@ -677,7 +677,7 @@ router.delete(
     authenticate,
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
 
             const comment = await db.query.comments.findFirst({
                 where: and(
@@ -731,7 +731,7 @@ router.get(
     optionalAuth,
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
 
             const comment = await db.query.comments.findFirst({
                 where: eq(schema.comments.id, id)
@@ -775,7 +775,7 @@ router.post(
     authenticate,
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
             const { type } = req.body;
 
             if (!type || !['like', 'dislike'].includes(type)) {

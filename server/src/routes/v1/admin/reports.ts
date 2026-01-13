@@ -116,20 +116,28 @@ router.get(
                 .from(schema.reports)
                 .where(eq(schema.reports.status, 'dismissed'));
 
-            // High priority (comments with >= threshold reports)
-            const highPriorityResult = await db.execute(sql`
-                SELECT COUNT(DISTINCT comment_id) as count
-                FROM reports
-                WHERE status = 'pending'
-                GROUP BY comment_id
-                HAVING COUNT(*) >= ${HIGH_REPORT_THRESHOLD}
-            `);
+            // High priority - count comments with >= threshold pending reports
+            // Using a subquery approach since db.execute is not available
+            const allPendingReports = await db.query.reports.findMany({
+                where: eq(schema.reports.status, 'pending'),
+                columns: { commentId: true }
+            });
+
+            // Count comments with >= threshold reports
+            const commentReportCounts = new Map<string, number>();
+            for (const report of allPendingReports) {
+                const count = commentReportCounts.get(report.commentId) || 0;
+                commentReportCounts.set(report.commentId, count + 1);
+            }
+            const highPriorityCount = Array.from(
+                commentReportCounts.values()
+            ).filter((count) => count >= HIGH_REPORT_THRESHOLD).length;
 
             res.json({
                 pending: pendingCount[0]?.count || 0,
                 reviewed: reviewedCount[0]?.count || 0,
                 dismissed: dismissedCount[0]?.count || 0,
-                highPriority: highPriorityResult.rows?.length || 0
+                highPriority: highPriorityCount
             });
         } catch (error) {
             console.error('Get report stats error:', error);
@@ -145,7 +153,7 @@ router.post(
     requirePermission('report.resolve'),
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
             const { action, deleteComment } = req.body;
 
             if (!action || !['reviewed', 'dismissed'].includes(action)) {

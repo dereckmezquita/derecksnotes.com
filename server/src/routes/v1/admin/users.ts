@@ -102,7 +102,7 @@ router.get(
     requirePermission('admin.users.manage'),
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
 
             const user = await db.query.users.findFirst({
                 where: eq(schema.users.id, id),
@@ -159,7 +159,7 @@ router.post(
     requirePermission('user.ban'),
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
             const data = banUserSchema.parse(req.body);
 
             // Can't ban yourself
@@ -217,7 +217,7 @@ router.post(
             if (error instanceof z.ZodError) {
                 res.status(400).json({
                     error: 'Validation failed',
-                    details: error.errors
+                    details: error.issues
                 });
                 return;
             }
@@ -234,7 +234,7 @@ router.post(
     requirePermission('user.ban'),
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
 
             const activeBan = await db.query.userBans.findFirst({
                 where: and(
@@ -280,7 +280,7 @@ router.post(
     requirePermission('admin.users.manage'),
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
             const { groupId, action } = req.body;
 
             if (!groupId || !['add', 'remove'].includes(action)) {
@@ -374,7 +374,7 @@ router.delete(
     requirePermission('user.delete.any'),
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { id } = req.params;
+            const id = req.params.id as string;
 
             // Can't delete yourself
             if (id === req.user!.id) {

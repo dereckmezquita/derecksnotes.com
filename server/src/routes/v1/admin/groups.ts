@@ -30,12 +30,14 @@ router.get(
                 description: group.description,
                 isDefault: group.isDefault,
                 createdAt: group.createdAt,
-                permissions: group.groupPermissions.map((gp) => ({
-                    id: gp.permission.id,
-                    name: gp.permission.name,
-                    description: gp.permission.description,
-                    category: gp.permission.category
-                }))
+                permissions: group.groupPermissions
+                    .filter((gp) => gp.permission)
+                    .map((gp) => ({
+                        id: gp.permission!.id,
+                        name: gp.permission!.name,
+                        description: gp.permission!.description,
+                        category: gp.permission!.category
+                    }))
             }));
 
             res.json({ groups: formattedGroups });
@@ -58,16 +60,13 @@ router.get(
             });
 
             // Group by category
-            const byCategory = permissions.reduce(
-                (acc, perm) => {
-                    if (!acc[perm.category]) {
-                        acc[perm.category] = [];
-                    }
-                    acc[perm.category].push(perm);
-                    return acc;
-                },
-                {} as Record<string, typeof permissions>
-            );
+            const byCategory: Record<string, typeof permissions> = {};
+            for (const perm of permissions) {
+                if (!byCategory[perm.category]) {
+                    byCategory[perm.category] = [];
+                }
+                byCategory[perm.category]!.push(perm);
+            }
 
             res.json({ permissions, byCategory });
         } catch (error) {

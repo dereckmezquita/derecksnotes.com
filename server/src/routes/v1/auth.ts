@@ -118,7 +118,7 @@ router.post(
             if (error instanceof z.ZodError) {
                 res.status(400).json({
                     error: 'Validation failed',
-                    details: error.errors
+                    details: error.issues
                 });
                 return;
             }
@@ -181,7 +181,7 @@ router.post(
             if (error instanceof z.ZodError) {
                 res.status(400).json({
                     error: 'Validation failed',
-                    details: error.errors
+                    details: error.issues
                 });
                 return;
             }
@@ -281,7 +281,7 @@ router.delete(
     authenticate,
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const sessionId = req.params.id;
+            const sessionId = req.params.id as string;
 
             // Verify session belongs to user
             const session = await db.query.sessions.findFirst({

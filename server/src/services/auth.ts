@@ -105,23 +105,35 @@ export async function createSession(
 }
 
 export async function revokeSession(sessionId: string): Promise<boolean> {
-    const result = await db
+    const session = await db.query.sessions.findFirst({
+        where: eq(schema.sessions.id, sessionId)
+    });
+
+    if (!session) return false;
+
+    await db
         .update(schema.sessions)
         .set({ revokedAt: new Date() })
         .where(eq(schema.sessions.id, sessionId));
 
-    return result.changes > 0;
+    return true;
 }
 
 export async function revokeSessionByToken(
     sessionToken: string
 ): Promise<boolean> {
-    const result = await db
+    const session = await db.query.sessions.findFirst({
+        where: eq(schema.sessions.sessionToken, sessionToken)
+    });
+
+    if (!session) return false;
+
+    await db
         .update(schema.sessions)
         .set({ revokedAt: new Date() })
         .where(eq(schema.sessions.sessionToken, sessionToken));
 
-    return result.changes > 0;
+    return true;
 }
 
 export async function revokeAllSessions(userId: string): Promise<void> {
