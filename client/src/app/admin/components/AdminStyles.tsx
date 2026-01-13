@@ -601,25 +601,44 @@ export const LoadingText = styled.p`
 `;
 
 export const EmptyState = styled.div`
-    text-align: center;
-    padding: ${(props) => props.theme.container.spacing.xlarge};
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: ${(props) => props.theme.container.spacing.xlarge} 0;
     color: ${(props) => props.theme.text.colour.light_grey()};
+`;
+
+export const EmptyStateIcon = styled.div`
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: ${(props) =>
+        props.theme.container.background.colour.light_contrast()};
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: ${(props) => props.theme.container.spacing.medium};
 
     svg {
-        width: 48px;
-        height: 48px;
-        margin-bottom: ${(props) => props.theme.container.spacing.medium};
-        opacity: 0.5;
+        width: 28px;
+        height: 28px;
+        color: ${(props) => props.theme.text.colour.light_grey()};
+        opacity: 0.7;
     }
+`;
 
-    h3 {
-        margin: 0 0 ${(props) => props.theme.container.spacing.small} 0;
-        color: ${(props) => props.theme.text.colour.header()};
-    }
+export const EmptyStateTitle = styled.h3`
+    margin: 0 0 ${(props) => props.theme.container.spacing.xsmall} 0;
+    color: ${(props) => props.theme.text.colour.header()};
+    font-size: ${(props) => props.theme.text.size.large};
+    font-weight: ${(props) => props.theme.text.weight.medium};
+`;
 
-    p {
-        margin: 0;
-    }
+export const EmptyStateText = styled.p`
+    margin: 0;
+    font-size: ${(props) => props.theme.text.size.normal};
+    color: ${(props) => props.theme.text.colour.light_grey()};
 `;
 
 // ============================================================================

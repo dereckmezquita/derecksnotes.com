@@ -1,9 +1,10 @@
 import rateLimit from 'express-rate-limit';
 
-// General API rate limit
+// General API rate limit - generous for normal browsing
+// Admin routes don't use this (they use adminLimiter after auth)
 export const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per window
+    max: 1000, // 1000 requests per window (very permissive for regular users)
     message: { error: 'Too many requests, please try again later' },
     standardHeaders: true,
     legacyHeaders: false

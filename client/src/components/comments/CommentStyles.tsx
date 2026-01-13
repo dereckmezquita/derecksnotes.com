@@ -504,11 +504,11 @@ export const LoadMoreRepliesButton = styled.button`
 // ============================================================================
 
 export const FormContainer = styled.div<{
-    isReply?: boolean;
-    isEdit?: boolean;
+    $isReply?: boolean;
+    $isEdit?: boolean;
 }>`
     margin-bottom: ${(props) =>
-        props.isReply || props.isEdit
+        props.$isReply || props.$isEdit
             ? props.theme.container.spacing.medium
             : props.theme.container.spacing.large};
     animation: ${fadeIn} 0.2s ease;
@@ -626,16 +626,16 @@ export const CancelButton = styled(Button)`
 `;
 
 export const CharacterCount = styled.div<{
-    nearLimit: boolean;
-    overLimit: boolean;
+    $nearLimit: boolean;
+    $overLimit: boolean;
 }>`
     text-align: right;
     font-size: ${(props) => props.theme.text.size.small};
     margin-bottom: ${(props) => props.theme.container.spacing.small};
     color: ${(props) =>
-        props.overLimit
+        props.$overLimit
             ? props.theme.colours.error
-            : props.nearLimit
+            : props.$nearLimit
               ? props.theme.colours.warning
               : props.theme.text.colour.light_grey()};
     transition: color 0.2s ease;

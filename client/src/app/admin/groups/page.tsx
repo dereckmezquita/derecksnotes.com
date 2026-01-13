@@ -26,6 +26,9 @@ import {
     LoadingSpinner,
     LoadingText,
     EmptyState,
+    EmptyStateIcon,
+    EmptyStateTitle,
+    EmptyStateText,
     Alert,
     AccessDenied
 } from '../components/AdminStyles';
@@ -71,8 +74,8 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalContent = styled.div`
-    background: ${({ theme }) => theme.container.background};
-    border: 1px solid ${({ theme }) => theme.container.border};
+    background: ${({ theme }) => theme.container.background.colour.solid()};
+    border: 1px solid ${({ theme }) => theme.container.border.colour.primary()};
     border-radius: 8px;
     width: 90%;
     max-width: 600px;
@@ -83,18 +86,20 @@ const ModalContent = styled.div`
 
 const ModalHeader = styled.div`
     padding: 1rem 1.5rem;
-    border-bottom: 1px solid ${({ theme }) => theme.container.border};
+    border-bottom: 1px solid
+        ${({ theme }) => theme.container.border.colour.primary()};
     display: flex;
     justify-content: space-between;
     align-items: center;
     position: sticky;
     top: 0;
-    background: ${({ theme }) => theme.container.background};
+    background: ${({ theme }) => theme.container.background.colour.solid()};
     z-index: 1;
 
     h2 {
         margin: 0;
         font-size: 1.25rem;
+        color: ${({ theme }) => theme.text.colour.header()};
     }
 `;
 
@@ -104,13 +109,14 @@ const ModalBody = styled.div`
 
 const ModalFooter = styled.div`
     padding: 1rem 1.5rem;
-    border-top: 1px solid ${({ theme }) => theme.container.border};
+    border-top: 1px solid
+        ${({ theme }) => theme.container.border.colour.primary()};
     display: flex;
     justify-content: flex-end;
     gap: 0.5rem;
     position: sticky;
     bottom: 0;
-    background: ${({ theme }) => theme.container.background};
+    background: ${({ theme }) => theme.container.background.colour.solid()};
 `;
 
 const FormGroup = styled.div`
@@ -121,21 +127,23 @@ const FormGroup = styled.div`
         margin-bottom: 0.5rem;
         font-weight: 500;
         font-size: 0.875rem;
+        color: ${({ theme }) => theme.text.colour.primary()};
     }
 
     input,
     textarea {
         width: 100%;
         padding: 0.5rem 0.75rem;
-        border: 1px solid ${({ theme }) => theme.container.border};
+        border: 1px solid
+            ${({ theme }) => theme.container.border.colour.primary()};
         border-radius: 4px;
-        background: ${({ theme }) => theme.container.background};
-        color: ${({ theme }) => theme.text.primary};
+        background: ${({ theme }) => theme.container.background.colour.solid()};
+        color: ${({ theme }) => theme.text.colour.primary()};
         font-size: 0.875rem;
 
         &:focus {
             outline: none;
-            border-color: ${({ theme }) => theme.theme};
+            border-color: ${({ theme }) => theme.theme_colours[5]()};
         }
     }
 
@@ -149,6 +157,7 @@ const FormGroup = styled.div`
         margin-top: 0.25rem;
         opacity: 0.6;
         font-size: 0.75rem;
+        color: ${({ theme }) => theme.text.colour.light_grey()};
     }
 `;
 
@@ -171,9 +180,10 @@ const PermissionCategory = styled.div`
         margin: 0 0 0.5rem 0;
         font-size: 0.875rem;
         text-transform: capitalize;
-        color: ${({ theme }) => theme.text.primary};
+        color: ${({ theme }) => theme.text.colour.primary()};
         padding-bottom: 0.25rem;
-        border-bottom: 1px solid ${({ theme }) => theme.container.border};
+        border-bottom: 1px solid
+            ${({ theme }) => theme.container.border.colour.primary()};
     }
 `;
 
@@ -191,9 +201,11 @@ const PermissionItem = styled.label`
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.875rem;
+    color: ${({ theme }) => theme.text.colour.primary()};
 
     &:hover {
-        background: ${({ theme }) => theme.container.background}22;
+        background: ${({ theme }) =>
+            theme.container.background.colour.light_contrast()};
     }
 
     input[type='checkbox'] {
@@ -209,12 +221,13 @@ const PermissionItem = styled.label`
         opacity: 0.6;
         font-size: 0.75rem;
         margin-top: 0.125rem;
+        color: ${({ theme }) => theme.text.colour.light_grey()};
     }
 `;
 
 const GroupCard = styled.div`
-    background: ${({ theme }) => theme.container.background};
-    border: 1px solid ${({ theme }) => theme.container.border};
+    background: ${({ theme }) => theme.container.background.colour.solid()};
+    border: 1px solid ${({ theme }) => theme.container.border.colour.primary()};
     border-radius: 8px;
     padding: 1rem;
     margin-bottom: 1rem;
@@ -250,7 +263,9 @@ const PermissionTags = styled.div`
 const PermissionTag = styled.span`
     font-size: 0.7rem;
     padding: 0.125rem 0.375rem;
-    background: ${({ theme }) => theme.container.border};
+    background: ${({ theme }) =>
+        theme.container.background.colour.light_contrast()};
+    color: ${({ theme }) => theme.text.colour.light_grey()};
     border-radius: 3px;
     opacity: 0.8;
 `;
@@ -260,7 +275,7 @@ const CloseButton = styled.button`
     border: none;
     cursor: pointer;
     padding: 0.25rem;
-    color: ${({ theme }) => theme.text.primary};
+    color: ${({ theme }) => theme.text.colour.primary()};
     opacity: 0.6;
 
     &:hover {
@@ -559,24 +574,25 @@ export default function AdminGroupsPage() {
                 </LoadingContainer>
             ) : groups.length === 0 ? (
                 <EmptyState>
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={1.5}
-                        stroke="currentColor"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
-                        />
-                    </svg>
-                    <h3>No groups found</h3>
-                    <p>
-                        Create your first group to organize users and
-                        permissions.
-                    </p>
+                    <EmptyStateIcon>
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth={1.5}
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
+                            />
+                        </svg>
+                    </EmptyStateIcon>
+                    <EmptyStateTitle>No groups yet</EmptyStateTitle>
+                    <EmptyStateText>
+                        Create your first group to organize permissions
+                    </EmptyStateText>
                 </EmptyState>
             ) : (
                 <div>

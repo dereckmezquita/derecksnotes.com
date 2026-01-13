@@ -75,7 +75,7 @@ export function CommentForm({
     );
 
     return (
-        <FormContainer isReply={isReply} isEdit={isEdit}>
+        <FormContainer $isReply={isReply} $isEdit={isEdit}>
             <form onSubmit={handleSubmit}>
                 <TextArea
                     ref={textareaRef}
@@ -93,8 +93,8 @@ export function CommentForm({
 
                 <CharacterCount
                     id="char-count"
-                    nearLimit={isNearLimit}
-                    overLimit={isOverLimit}
+                    $nearLimit={isNearLimit}
+                    $overLimit={isOverLimit}
                     role="status"
                     aria-live="polite"
                 >

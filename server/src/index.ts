@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { config } from './lib/env';
 import { generalLimiter } from './middleware/rateLimit';
+import { requestLogger, errorLogger } from './middleware/requestLogger';
 import { ensureAdminUser } from './services/auth';
 import { initializeDatabase } from './db/init';
 import v1Router from './routes/v1';
@@ -39,6 +40,9 @@ app.use(cors(corsOptions));
 // Rate limiting
 app.use('/api', generalLimiter);
 
+// Request logging
+app.use(requestLogger);
+
 // Root endpoint - API info
 app.get('/api', (_req: Request, res: Response) => {
     res.json({
@@ -66,6 +70,9 @@ app.use('/api/v1', v1Router);
 app.use('/api', (_req: Request, res: Response) => {
     res.status(404).json({ error: 'Not found' });
 });
+
+// Error logging (after routes, before error handler)
+app.use(errorLogger);
 
 // Start server
 const port = config.port;

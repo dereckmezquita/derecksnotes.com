@@ -15,6 +15,7 @@ import {
 } from '../../services/auth';
 import { authenticate } from '../../middleware/auth';
 import { authLimiter } from '../../middleware/rateLimit';
+import { logger, dbLogger } from '../../services/logger';
 import type { AuthenticatedRequest } from '../../types';
 
 const router = Router();
@@ -49,11 +50,11 @@ router.post(
     authLimiter,
     async (req: Request, res: Response): Promise<void> => {
         try {
-            console.log('[Register] Starting registration...');
+            logger.debug('Starting registration...');
             const data = registerSchema.parse(req.body);
-            console.log(
-                '[Register] Validated input for username:',
-                data.username
+            logger.debug(
+                { username: data.username },
+                'Validated registration input'
             );
 
             // Check if username exists
@@ -79,10 +80,10 @@ router.post(
             }
 
             // Create user
-            console.log('[Register] Creating user...');
+            logger.debug('Creating user...');
             const userId = crypto.randomUUID();
             const passwordHash = await hashPassword(data.password);
-            console.log('[Register] Password hashed');
+            logger.debug('Password hashed');
 
             await db.insert(schema.users).values({
                 id: userId,
@@ -91,14 +92,17 @@ router.post(
                 passwordHash,
                 displayName: data.username
             });
-            console.log('[Register] User inserted into database');
+            logger.debug('User inserted into database');
 
             // Assign default group
-            console.log('[Register] Finding default group...');
+            logger.debug('Finding default group...');
             const defaultGroup = await db.query.groups.findFirst({
                 where: eq(schema.groups.isDefault, true)
             });
-            console.log('[Register] Default group:', defaultGroup?.name);
+            logger.debug(
+                { groupName: defaultGroup?.name },
+                'Default group found'
+            );
 
             if (defaultGroup) {
                 await db.insert(schema.userGroups).values({
@@ -106,15 +110,15 @@ router.post(
                     userId,
                     groupId: defaultGroup.id
                 });
-                console.log('[Register] User assigned to default group');
+                logger.debug('User assigned to default group');
             }
 
             // Check if this user should be admin (matches ADMIN_USERNAME env var)
-            console.log('[Register] Checking admin elevation...');
+            logger.debug('Checking admin elevation...');
             await elevateToAdminIfConfigured(userId, data.username);
 
             // Create session
-            console.log('[Register] Creating session...');
+            logger.debug('Creating session...');
             const userAgent = req.headers['user-agent'];
             const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
             const sessionToken = await createSession(
@@ -122,14 +126,11 @@ router.post(
                 userAgent,
                 ipAddress
             );
-            console.log('[Register] Session created');
+            logger.debug('Session created');
 
             res.cookie('sessionId', sessionToken, getCookieOptions());
 
-            console.log(
-                '[Register] Registration successful for:',
-                data.username
-            );
+            logger.info({ username: data.username }, 'Registration successful');
             res.status(201).json({
                 message: 'Registration successful',
                 user: {
@@ -145,7 +146,9 @@ router.post(
                 });
                 return;
             }
-            console.error('[Register] ERROR:', error);
+            dbLogger.error('Registration failed', error as Error, {
+                source: 'auth'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -208,7 +211,7 @@ router.post(
                 });
                 return;
             }
-            console.error('Login error:', error);
+            dbLogger.error('Login failed', error as Error, { source: 'auth' });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -229,7 +232,7 @@ router.post(
 
             res.json({ message: 'Logged out successfully' });
         } catch (error) {
-            console.error('Logout error:', error);
+            dbLogger.error('Logout failed', error as Error, { source: 'auth' });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -277,7 +280,9 @@ router.get(
                 permissions
             });
         } catch (error) {
-            console.error('Get me error:', error);
+            dbLogger.error('Get user profile failed', error as Error, {
+                source: 'auth'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -292,7 +297,9 @@ router.get(
             const sessions = await getUserSessions(req.user!.id);
             res.json({ sessions });
         } catch (error) {
-            console.error('Get sessions error:', error);
+            dbLogger.error('Get sessions failed', error as Error, {
+                source: 'auth'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -319,7 +326,9 @@ router.delete(
             await revokeSession(sessionId);
             res.json({ message: 'Session revoked' });
         } catch (error) {
-            console.error('Revoke session error:', error);
+            dbLogger.error('Revoke session failed', error as Error, {
+                source: 'auth'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

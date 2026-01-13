@@ -10,6 +10,7 @@ import reportsRouter from './reports';
 import auditRouter from './audit';
 import groupsRouter from './groups';
 import analyticsRouter from './analytics';
+import logsRouter from './logs';
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.use('/reports', reportsRouter);
 router.use('/audit', auditRouter);
 router.use('/groups', groupsRouter);
 router.use('/analytics', analyticsRouter);
+router.use('/logs', logsRouter);
 
 // GET /api/v1/admin/dashboard
 router.get(
