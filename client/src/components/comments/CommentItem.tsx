@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { api } from '@utils/api/api';
@@ -6,7 +6,12 @@ import { marked } from 'marked';
 import { MAX_COMMENT_DEPTH } from '@lib/constants';
 import { CommentForm } from './CommentForm';
 import { CommentList } from './CommentList';
-import { CommentItemProps, CommentType, CommentHistoryEntry } from './types';
+import {
+    CommentItemProps,
+    CommentType,
+    CommentHistoryEntry,
+    RepliesResponse
+} from './types';
 import {
     SingleComment,
     CommentHeader,
@@ -14,6 +19,7 @@ import {
     CommentMetadata,
     CommentDate,
     EditedMark,
+    PendingBadge,
     CommentControls,
     ReactionButton,
     ReactionCount,
@@ -22,6 +28,8 @@ import {
     CommentActions,
     ActionButton,
     ReplyContainer,
+    CollapseButton,
+    ReplyCount,
     HistoryModal,
     HistoryContent,
     HistoryTitle,
@@ -29,9 +37,16 @@ import {
     HistoryItem,
     HistoryItemHeader,
     HistoryDate,
+    HistoryVersionBadge,
     HistoryText,
     DiffView,
-    DiffLine
+    DiffHeader,
+    DiffLine,
+    LoadingSpinner,
+    LoadingText,
+    LoadingContainer,
+    ContinueThreadButton,
+    LoadMoreRepliesButton
 } from './CommentStyles';
 
 function renderMarkdown(content: string): string {
@@ -42,6 +57,14 @@ function renderMarkdown(content: string): string {
         console.error('Error parsing markdown:', error);
         return content;
     }
+}
+
+// Count total replies recursively
+function countReplies(replies: CommentType[] | undefined): number {
+    if (!replies || replies.length === 0) return 0;
+    return replies.reduce((count, reply) => {
+        return count + 1 + countReplies(reply.replies);
+    }, 0);
 }
 
 export function CommentItem({
@@ -62,6 +85,17 @@ export function CommentItem({
         []
     );
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [isCollapsed, setIsCollapsed] = useState(false);
+    const [loadingMoreReplies, setLoadingMoreReplies] = useState(false);
+    const [localHasMoreReplies, setLocalHasMoreReplies] = useState(
+        comment.hasMoreReplies ?? false
+    );
+    const [replyOffset, setReplyOffset] = useState(
+        comment.replies?.length ?? 0
+    );
+
+    const modalRef = useRef<HTMLDivElement>(null);
+    const replyFormRef = useRef<HTMLDivElement>(null);
 
     const isAuthor = comment.isOwner;
     const authorName = comment.isDeleted
@@ -80,6 +114,42 @@ export function CommentItem({
 
     const hasUserLiked = comment.reactions.userReaction === 'like';
     const hasUserDisliked = comment.reactions.userReaction === 'dislike';
+
+    const hasReplies = comment.replies && comment.replies.length > 0;
+    const replyCount = countReplies(comment.replies);
+
+    // Handle escape key to close modals
+    const handleKeyDown = useCallback(
+        (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                if (showHistory) {
+                    setShowHistory(false);
+                } else if (showReplyForm) {
+                    setShowReplyForm(false);
+                } else if (isEditing) {
+                    setIsEditing(false);
+                }
+            }
+        },
+        [showHistory, showReplyForm, isEditing]
+    );
+
+    useEffect(() => {
+        if (showHistory || showReplyForm || isEditing) {
+            document.addEventListener('keydown', handleKeyDown);
+            return () => document.removeEventListener('keydown', handleKeyDown);
+        }
+    }, [showHistory, showReplyForm, isEditing, handleKeyDown]);
+
+    // Focus management for reply form
+    useEffect(() => {
+        if (showReplyForm && replyFormRef.current) {
+            const textarea = replyFormRef.current.querySelector('textarea');
+            if (textarea) {
+                textarea.focus();
+            }
+        }
+    }, [showReplyForm]);
 
     const handleReaction = async (type: 'like' | 'dislike') => {
         if (!currentUser) return;
@@ -134,6 +204,7 @@ export function CommentItem({
                 onAddReply(comment.id, res.data.comment);
             }
             setShowReplyForm(false);
+            setIsCollapsed(false); // Expand to show new reply
 
             if (res.data.comment.approved) {
                 toast.success('Reply added');
@@ -244,10 +315,76 @@ export function CommentItem({
         return result;
     };
 
+    const toggleCollapse = () => {
+        setIsCollapsed(!isCollapsed);
+    };
+
+    const handleLoadMoreReplies = async () => {
+        if (loadingMoreReplies) return;
+
+        setLoadingMoreReplies(true);
+        try {
+            const res = await api.get<RepliesResponse>(
+                `/comments/${comment.id}/replies?offset=${replyOffset}&limit=5`
+            );
+
+            // Add new replies to the comment
+            onUpdateComment(comment.id, (c) => ({
+                ...c,
+                replies: [...(c.replies || []), ...res.data.replies]
+            }));
+
+            setReplyOffset(replyOffset + res.data.replies.length);
+            setLocalHasMoreReplies(res.data.pagination.hasMore);
+        } catch (error) {
+            console.error('Error loading more replies:', error);
+            toast.error('Failed to load more replies');
+        } finally {
+            setLoadingMoreReplies(false);
+        }
+    };
+
+    // Max visible depth - beyond this, show "Continue thread" link
+    const MAX_VISIBLE_DEPTH = 3;
+    const shouldShowContinueThread =
+        level >= MAX_VISIBLE_DEPTH && hasReplies && !isProfileView;
+
     return (
         <>
             <SingleComment isDeleted={comment.isDeleted} isEditing={isEditing}>
                 <CommentHeader>
+                    {hasReplies && (
+                        <CollapseButton
+                            onClick={toggleCollapse}
+                            aria-expanded={!isCollapsed}
+                            aria-label={
+                                isCollapsed
+                                    ? 'Expand replies'
+                                    : 'Collapse replies'
+                            }
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                style={{
+                                    transform: isCollapsed
+                                        ? 'rotate(-90deg)'
+                                        : 'rotate(0deg)',
+                                    transition: 'transform 0.2s ease'
+                                }}
+                            >
+                                <polyline points="6 9 12 15 18 9" />
+                            </svg>
+                        </CollapseButton>
+                    )}
+
                     <CommentAuthorName>{authorName}</CommentAuthorName>
 
                     <CommentMetadata>
@@ -257,10 +394,15 @@ export function CommentItem({
 
                         {isEdited && <EditedMark>(edited)</EditedMark>}
 
-                        {!comment.approved && (
-                            <EditedMark style={{ color: 'orange' }}>
-                                (pending approval)
-                            </EditedMark>
+                        {!comment.approved && comment.isOwner && (
+                            <PendingBadge>pending approval</PendingBadge>
+                        )}
+
+                        {hasReplies && (
+                            <ReplyCount>
+                                {replyCount}{' '}
+                                {replyCount === 1 ? 'reply' : 'replies'}
+                            </ReplyCount>
                         )}
                     </CommentMetadata>
 
@@ -271,6 +413,12 @@ export function CommentItem({
                                 onClick={() => handleReaction('like')}
                                 title={hasUserLiked ? 'Remove like' : 'Like'}
                                 disabled={!currentUser}
+                                aria-label={
+                                    hasUserLiked
+                                        ? 'Remove like'
+                                        : 'Like comment'
+                                }
+                                aria-pressed={hasUserLiked}
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -300,6 +448,12 @@ export function CommentItem({
                                         : 'Dislike'
                                 }
                                 disabled={!currentUser}
+                                aria-label={
+                                    hasUserDisliked
+                                        ? 'Remove dislike'
+                                        : 'Dislike comment'
+                                }
+                                aria-pressed={hasUserDisliked}
                             >
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
@@ -357,6 +511,7 @@ export function CommentItem({
                                     onClick={() =>
                                         setShowReplyForm(!showReplyForm)
                                     }
+                                    aria-expanded={showReplyForm}
                                 >
                                     {showReplyForm ? 'Cancel Reply' : 'Reply'}
                                 </ActionButton>
@@ -385,7 +540,7 @@ export function CommentItem({
                 )}
 
                 {showReplyForm && postSlug && onAddReply && (
-                    <ReplyContainer level={level}>
+                    <ReplyContainer level={level} ref={replyFormRef}>
                         <CommentForm
                             onSubmit={handleReplySubmit}
                             isReply={true}
@@ -395,41 +550,118 @@ export function CommentItem({
                     </ReplyContainer>
                 )}
 
-                {comment.replies && comment.replies.length > 0 && postSlug && (
+                {hasReplies && postSlug && !isCollapsed && (
                     <ReplyContainer level={level}>
-                        <CommentList
-                            comments={comment.replies}
-                            postSlug={postSlug}
-                            currentUser={currentUser}
-                            level={level + 1}
-                            onUpdateComment={onUpdateComment}
-                            onAddReply={onAddReply}
-                        />
+                        {shouldShowContinueThread ? (
+                            <ContinueThreadButton
+                                onClick={() => {
+                                    // Navigate to focused comment view
+                                    // For now, just expand inline
+                                    setIsCollapsed(false);
+                                }}
+                            >
+                                Continue this thread ({replyCount}{' '}
+                                {replyCount === 1 ? 'reply' : 'replies'})
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                >
+                                    <polyline points="9 18 15 12 9 6" />
+                                </svg>
+                            </ContinueThreadButton>
+                        ) : (
+                            <>
+                                <CommentList
+                                    comments={comment.replies!}
+                                    postSlug={postSlug}
+                                    currentUser={currentUser}
+                                    level={level + 1}
+                                    onUpdateComment={onUpdateComment}
+                                    onAddReply={onAddReply}
+                                />
+
+                                {localHasMoreReplies && (
+                                    <LoadMoreRepliesButton
+                                        onClick={handleLoadMoreReplies}
+                                        disabled={loadingMoreReplies}
+                                    >
+                                        {loadingMoreReplies ? (
+                                            <>
+                                                <LoadingSpinner
+                                                    style={{
+                                                        width: '14px',
+                                                        height: '14px'
+                                                    }}
+                                                />
+                                                Loading...
+                                            </>
+                                        ) : (
+                                            `Load more replies (${comment.totalReplies ? comment.totalReplies - (comment.replies?.length ?? 0) : '?'} remaining)`
+                                        )}
+                                    </LoadMoreRepliesButton>
+                                )}
+                            </>
+                        )}
                     </ReplyContainer>
+                )}
+
+                {hasReplies && isCollapsed && (
+                    <CollapseButton
+                        onClick={toggleCollapse}
+                        style={{ marginTop: '8px' }}
+                    >
+                        Show {replyCount}{' '}
+                        {replyCount === 1 ? 'reply' : 'replies'}
+                    </CollapseButton>
                 )}
             </SingleComment>
 
             {showHistory && (
-                <HistoryModal onClick={() => setShowHistory(false)}>
-                    <HistoryContent onClick={(e) => e.stopPropagation()}>
-                        <HistoryTitle>Comment History</HistoryTitle>
-                        <CloseButton onClick={() => setShowHistory(false)}>
+                <HistoryModal
+                    onClick={() => setShowHistory(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="history-title"
+                >
+                    <HistoryContent
+                        onClick={(e) => e.stopPropagation()}
+                        ref={modalRef}
+                    >
+                        <HistoryTitle id="history-title">
+                            Comment History
+                        </HistoryTitle>
+                        <CloseButton
+                            onClick={() => setShowHistory(false)}
+                            aria-label="Close history modal"
+                        >
                             ×
                         </CloseButton>
 
                         {loadingHistory ? (
-                            <p>Loading history...</p>
+                            <LoadingContainer>
+                                <LoadingSpinner />
+                                <LoadingText>Loading history...</LoadingText>
+                            </LoadingContainer>
                         ) : commentHistory.length === 0 ? (
                             <p>No history available</p>
                         ) : (
                             commentHistory.map((version, index) => (
                                 <HistoryItem key={index}>
                                     <HistoryItemHeader>
-                                        <HistoryDate>
+                                        <HistoryVersionBadge
+                                            isCurrent={version.isCurrent}
+                                        >
                                             {version.isCurrent
-                                                ? 'Current version'
-                                                : `Previous version ${commentHistory.length - index}`}
-                                        </HistoryDate>
+                                                ? 'Current'
+                                                : `Version ${commentHistory.length - index}`}
+                                        </HistoryVersionBadge>
                                         <HistoryDate>
                                             {format(
                                                 new Date(version.editedAt),
@@ -442,15 +674,9 @@ export function CommentItem({
 
                                     {index < commentHistory.length - 1 && (
                                         <DiffView>
-                                            <div
-                                                style={{
-                                                    marginBottom: '5px',
-                                                    fontSize: '0.85em',
-                                                    fontWeight: 'bold'
-                                                }}
-                                            >
+                                            <DiffHeader>
                                                 Changes from previous version:
-                                            </div>
+                                            </DiffHeader>
                                             {computeTextDiff(
                                                 commentHistory[index + 1]
                                                     .content,
@@ -460,12 +686,6 @@ export function CommentItem({
                                                     key={i}
                                                     type={line.type}
                                                 >
-                                                    {line.type === 'added'
-                                                        ? '+ '
-                                                        : line.type ===
-                                                            'removed'
-                                                          ? '- '
-                                                          : '  '}
                                                     {line.text}
                                                 </DiffLine>
                                             ))}

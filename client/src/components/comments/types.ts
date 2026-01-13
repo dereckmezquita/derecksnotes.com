@@ -33,10 +33,32 @@ export interface CommentType {
     user: CommentAuthor | null;
     reactions: CommentReactions;
     replies?: CommentType[];
+    totalReplies?: number;
+    hasMoreReplies?: boolean;
+}
+
+export interface CommentPagination {
+    page: number;
+    limit: number;
+    totalTopLevel: number;
+    hasMore: boolean;
+}
+
+export interface ReplyPagination {
+    offset: number;
+    limit: number;
+    totalReplies: number;
+    hasMore: boolean;
 }
 
 export interface CommentResponse {
     comments: CommentType[];
+    pagination: CommentPagination;
+}
+
+export interface RepliesResponse {
+    replies: CommentType[];
+    pagination: ReplyPagination;
 }
 
 export interface CommentItemProps {

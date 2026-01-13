@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { db, schema } from '../../db';
-import { eq, and, isNull, or, sql } from 'drizzle-orm';
+import { eq, and, isNull, or, sql, desc, asc, count } from 'drizzle-orm';
 import {
     authenticate,
     optionalAuth,
@@ -14,6 +14,12 @@ import type { AuthenticatedRequest } from '../../types';
 const router = Router();
 
 const MAX_DEPTH = 5;
+
+// Pagination defaults
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+const DEFAULT_MAX_DEPTH = 3;
+const DEFAULT_REPLIES_PER_LEVEL = 5;
 
 // Validation schemas
 const createCommentSchema = z.object({
@@ -60,7 +66,9 @@ function formatComment(
         reactions?: Array<{ type: string }>;
     },
     currentUserId?: string,
-    userReaction?: { type: string } | null
+    userReaction?: { type: string } | null,
+    totalReplies?: number,
+    hasMoreReplies?: boolean
 ) {
     const reactions = comment.reactions || [];
     const likes = reactions.filter((r) => r.type === 'like').length;
@@ -89,17 +97,45 @@ function formatComment(
             likes,
             dislikes,
             userReaction: userReaction?.type || null
-        }
+        },
+        totalReplies: totalReplies ?? 0,
+        hasMoreReplies: hasMoreReplies ?? false
     };
 }
 
-// GET /api/v1/comments?postSlug=xxx
+// GET /api/v1/comments?postSlug=xxx&page=1&limit=20&maxDepth=3&repliesPerLevel=5
 router.get(
     '/',
     optionalAuth,
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
             const { postSlug } = req.query;
+            const page = Math.max(
+                1,
+                parseInt(req.query.page as string) || DEFAULT_PAGE
+            );
+            const limit = Math.min(
+                50,
+                Math.max(
+                    1,
+                    parseInt(req.query.limit as string) || DEFAULT_LIMIT
+                )
+            );
+            const maxDepth = Math.min(
+                MAX_DEPTH,
+                Math.max(
+                    0,
+                    parseInt(req.query.maxDepth as string) || DEFAULT_MAX_DEPTH
+                )
+            );
+            const repliesPerLevel = Math.min(
+                20,
+                Math.max(
+                    1,
+                    parseInt(req.query.repliesPerLevel as string) ||
+                        DEFAULT_REPLIES_PER_LEVEL
+                )
+            );
 
             if (!postSlug || typeof postSlug !== 'string') {
                 res.status(400).json({
@@ -115,21 +151,36 @@ router.get(
                 canViewUnapproved = permissions.has('comment.view.unapproved');
             }
 
-            // Build where clause
-            const whereClause = canViewUnapproved
-                ? eq(schema.comments.postSlug, postSlug)
-                : and(
-                      eq(schema.comments.postSlug, postSlug),
-                      or(
-                          eq(schema.comments.approved, true),
-                          req.user
-                              ? eq(schema.comments.userId, req.user.id)
-                              : sql`0`
-                      )
+            // Build base where clause for visibility
+            const visibilityClause = canViewUnapproved
+                ? sql`1=1`
+                : or(
+                      eq(schema.comments.approved, true),
+                      req.user
+                          ? eq(schema.comments.userId, req.user.id)
+                          : sql`0`
                   );
 
-            const comments = await db.query.comments.findMany({
-                where: whereClause,
+            // Count total top-level comments
+            const totalCountResult = await db
+                .select({ count: count() })
+                .from(schema.comments)
+                .where(
+                    and(
+                        eq(schema.comments.postSlug, postSlug),
+                        isNull(schema.comments.parentId),
+                        visibilityClause
+                    )
+                );
+            const totalTopLevel = totalCountResult[0]?.count ?? 0;
+
+            // Get paginated top-level comments
+            const topLevelComments = await db.query.comments.findMany({
+                where: and(
+                    eq(schema.comments.postSlug, postSlug),
+                    isNull(schema.comments.parentId),
+                    visibilityClause
+                ),
                 with: {
                     user: {
                         columns: {
@@ -141,8 +192,39 @@ router.get(
                     },
                     reactions: true
                 },
-                orderBy: (comments, { asc }) => [asc(comments.createdAt)]
+                orderBy: (comments, { desc }) => [desc(comments.createdAt)],
+                limit: limit,
+                offset: (page - 1) * limit
             });
+
+            // Get all replies up to maxDepth for these top-level comments
+            const topLevelIds = topLevelComments.map((c) => c.id);
+
+            // Fetch all descendant comments (we'll filter by depth later)
+            const allReplies =
+                topLevelIds.length > 0
+                    ? await db.query.comments.findMany({
+                          where: and(
+                              eq(schema.comments.postSlug, postSlug),
+                              sql`${schema.comments.parentId} IS NOT NULL`,
+                              visibilityClause
+                          ),
+                          with: {
+                              user: {
+                                  columns: {
+                                      id: true,
+                                      username: true,
+                                      displayName: true,
+                                      avatarUrl: true
+                                  }
+                              },
+                              reactions: true
+                          },
+                          orderBy: (comments, { asc }) => [
+                              asc(comments.createdAt)
+                          ]
+                      })
+                    : [];
 
             // Get user's reactions if authenticated
             let userReactions: Map<string, { type: string }> = new Map();
@@ -155,38 +237,257 @@ router.get(
                 }
             }
 
-            // Format and nest comments
-            const formattedComments = comments.map((c) =>
-                formatComment(c, req.user?.id, userReactions.get(c.id))
-            );
-
-            // Build tree structure
-            const commentMap = new Map<
-                string,
-                ReturnType<typeof formatComment> & { replies: unknown[] }
-            >();
-            const rootComments: Array<
-                ReturnType<typeof formatComment> & { replies: unknown[] }
-            > = [];
-
-            for (const comment of formattedComments) {
-                commentMap.set(comment.id, { ...comment, replies: [] });
-            }
-
-            for (const comment of formattedComments) {
-                const commentWithReplies = commentMap.get(comment.id)!;
-                if (comment.parentId && commentMap.has(comment.parentId)) {
-                    commentMap
-                        .get(comment.parentId)!
-                        .replies.push(commentWithReplies);
-                } else {
-                    rootComments.push(commentWithReplies);
+            // Count replies for each comment
+            const replyCountMap = new Map<string, number>();
+            for (const reply of allReplies) {
+                if (reply.parentId) {
+                    replyCountMap.set(
+                        reply.parentId,
+                        (replyCountMap.get(reply.parentId) || 0) + 1
+                    );
                 }
             }
 
-            res.json({ comments: rootComments });
+            // Build tree structure with depth and reply limits
+            type CommentNode = ReturnType<typeof formatComment> & {
+                replies: CommentNode[];
+            };
+
+            const commentMap = new Map<string, CommentNode>();
+
+            // First, format all top-level comments
+            for (const comment of topLevelComments) {
+                const totalReplies = replyCountMap.get(comment.id) || 0;
+                const formatted = formatComment(
+                    comment,
+                    req.user?.id,
+                    userReactions.get(comment.id),
+                    totalReplies,
+                    false // Will be updated when we add replies
+                );
+                commentMap.set(comment.id, { ...formatted, replies: [] });
+            }
+
+            // Then, format all replies
+            for (const reply of allReplies) {
+                const totalReplies = replyCountMap.get(reply.id) || 0;
+                const formatted = formatComment(
+                    reply,
+                    req.user?.id,
+                    userReactions.get(reply.id),
+                    totalReplies,
+                    false
+                );
+                commentMap.set(reply.id, { ...formatted, replies: [] });
+            }
+
+            // Build tree structure with depth and reply limits
+            const rootComments: CommentNode[] = [];
+
+            // Add top-level comments first
+            for (const comment of topLevelComments) {
+                const node = commentMap.get(comment.id)!;
+                rootComments.push(node);
+            }
+
+            // Add replies to their parents, respecting limits
+            const repliesAdded = new Map<string, number>();
+
+            for (const reply of allReplies) {
+                if (!reply.parentId) continue;
+
+                const parentNode = commentMap.get(reply.parentId);
+                if (!parentNode) continue;
+
+                // Check depth limit
+                if (reply.depth > maxDepth) continue;
+
+                // Check replies per level limit
+                const addedCount = repliesAdded.get(reply.parentId) || 0;
+                if (addedCount >= repliesPerLevel) {
+                    // Mark parent as having more replies
+                    parentNode.hasMoreReplies = true;
+                    continue;
+                }
+
+                const replyNode = commentMap.get(reply.id)!;
+                parentNode.replies.push(replyNode);
+                repliesAdded.set(reply.parentId, addedCount + 1);
+            }
+
+            // Update hasMoreReplies based on actual counts
+            for (const [parentId, totalCount] of replyCountMap) {
+                const parentNode = commentMap.get(parentId);
+                if (parentNode) {
+                    const addedCount = repliesAdded.get(parentId) || 0;
+                    if (totalCount > addedCount) {
+                        parentNode.hasMoreReplies = true;
+                    }
+                }
+            }
+
+            res.json({
+                comments: rootComments,
+                pagination: {
+                    page,
+                    limit,
+                    totalTopLevel,
+                    hasMore: page * limit < totalTopLevel
+                }
+            });
         } catch (error) {
             console.error('Get comments error:', error);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
+// GET /api/v1/comments/:id/replies - Load more replies for a specific comment
+router.get(
+    '/:id/replies',
+    optionalAuth,
+    async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+        try {
+            const { id } = req.params;
+            const offset = Math.max(
+                0,
+                parseInt(req.query.offset as string) || 0
+            );
+            const limit = Math.min(
+                20,
+                Math.max(
+                    1,
+                    parseInt(req.query.limit as string) ||
+                        DEFAULT_REPLIES_PER_LEVEL
+                )
+            );
+            const maxDepth = Math.min(
+                MAX_DEPTH,
+                Math.max(
+                    0,
+                    parseInt(req.query.maxDepth as string) || DEFAULT_MAX_DEPTH
+                )
+            );
+
+            // Check if parent comment exists
+            const parentComment = await db.query.comments.findFirst({
+                where: eq(schema.comments.id, id)
+            });
+
+            if (!parentComment) {
+                res.status(404).json({ error: 'Comment not found' });
+                return;
+            }
+
+            // Check if user can view unapproved comments
+            let canViewUnapproved = false;
+            if (req.user) {
+                const permissions = await getUserPermissions(req.user.id);
+                canViewUnapproved = permissions.has('comment.view.unapproved');
+            }
+
+            const visibilityClause = canViewUnapproved
+                ? sql`1=1`
+                : or(
+                      eq(schema.comments.approved, true),
+                      req.user
+                          ? eq(schema.comments.userId, req.user.id)
+                          : sql`0`
+                  );
+
+            // Count total direct replies
+            const totalCountResult = await db
+                .select({ count: count() })
+                .from(schema.comments)
+                .where(and(eq(schema.comments.parentId, id), visibilityClause));
+            const totalReplies = totalCountResult[0]?.count ?? 0;
+
+            // Get direct replies with pagination
+            const replies = await db.query.comments.findMany({
+                where: and(eq(schema.comments.parentId, id), visibilityClause),
+                with: {
+                    user: {
+                        columns: {
+                            id: true,
+                            username: true,
+                            displayName: true,
+                            avatarUrl: true
+                        }
+                    },
+                    reactions: true
+                },
+                orderBy: (comments, { asc }) => [asc(comments.createdAt)],
+                limit: limit,
+                offset: offset
+            });
+
+            // Get user's reactions if authenticated
+            let userReactions: Map<string, { type: string }> = new Map();
+            if (req.user) {
+                const replyIds = replies.map((r) => r.id);
+                if (replyIds.length > 0) {
+                    const reactions = await db.query.commentReactions.findMany({
+                        where: eq(schema.commentReactions.userId, req.user.id)
+                    });
+                    for (const r of reactions) {
+                        userReactions.set(r.commentId, { type: r.type });
+                    }
+                }
+            }
+
+            // Get nested reply counts for each reply
+            const replyIds = replies.map((r) => r.id);
+            const nestedReplyCounts =
+                replyIds.length > 0
+                    ? await db
+                          .select({
+                              parentId: schema.comments.parentId,
+                              count: count()
+                          })
+                          .from(schema.comments)
+                          .where(
+                              and(
+                                  sql`${schema.comments.parentId} IN (${sql.join(
+                                      replyIds.map((id) => sql`${id}`),
+                                      sql`, `
+                                  )})`,
+                                  visibilityClause
+                              )
+                          )
+                          .groupBy(schema.comments.parentId)
+                    : [];
+
+            const nestedCountMap = new Map<string, number>();
+            for (const { parentId, count: c } of nestedReplyCounts) {
+                if (parentId) nestedCountMap.set(parentId, c);
+            }
+
+            // Format replies
+            const formattedReplies = replies.map((reply) => {
+                const nestedCount = nestedCountMap.get(reply.id) || 0;
+                return {
+                    ...formatComment(
+                        reply,
+                        req.user?.id,
+                        userReactions.get(reply.id),
+                        nestedCount,
+                        nestedCount > 0 && reply.depth >= maxDepth
+                    ),
+                    replies: [] // Will need separate call to load nested
+                };
+            });
+
+            res.json({
+                replies: formattedReplies,
+                pagination: {
+                    offset,
+                    limit,
+                    totalReplies,
+                    hasMore: offset + limit < totalReplies
+                }
+            });
+        } catch (error) {
+            console.error('Get replies error:', error);
             res.status(500).json({ error: 'Internal server error' });
         }
     }

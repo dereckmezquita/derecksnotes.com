@@ -2,7 +2,10 @@ import React from 'react';
 import { User } from '@context/AuthContext';
 import { CommentType } from '@components/comments/types';
 import { ProfileCommentItem } from './ProfileCommentItem';
-import styled from 'styled-components';
+import {
+    NoCommentsMessage,
+    CommentListContainer
+} from '@components/comments/CommentStyles';
 
 interface ProfileCommentListProps {
     comments: CommentType[];
@@ -16,12 +19,6 @@ interface ProfileCommentListProps {
     }>;
 }
 
-const EmptyMessage = styled.div`
-    text-align: center;
-    padding: 40px 20px;
-    color: ${(props) => props.theme.text.colour.light_grey()};
-`;
-
 export const ProfileCommentList: React.FC<ProfileCommentListProps> = ({
     comments,
     currentUser,
@@ -31,11 +28,16 @@ export const ProfileCommentList: React.FC<ProfileCommentListProps> = ({
     Checkbox
 }) => {
     if (comments.length === 0) {
-        return <EmptyMessage>No comments found.</EmptyMessage>;
+        return (
+            <NoCommentsMessage>
+                <p>No comments found</p>
+                <span>Your comments will appear here</span>
+            </NoCommentsMessage>
+        );
     }
 
     return (
-        <div>
+        <CommentListContainer level={0}>
             {comments.map((comment) => (
                 <ProfileCommentItem
                     key={comment.id}
@@ -47,6 +49,6 @@ export const ProfileCommentList: React.FC<ProfileCommentListProps> = ({
                     Checkbox={Checkbox}
                 />
             ))}
-        </div>
+        </CommentListContainer>
     );
 };

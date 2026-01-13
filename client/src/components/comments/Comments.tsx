@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@context/AuthContext';
 import { api } from '@utils/api/api';
 import { toast } from 'sonner';
@@ -9,9 +9,16 @@ import {
     CommentForm,
     CommentType,
     CommentResponse,
+    CommentPagination,
     CommentsContainer,
     CommentsTitle,
-    LoadingSpinner
+    LoadingSpinner,
+    LoadingContainer,
+    LoadingText,
+    ErrorContainer,
+    RetryButton,
+    LoginPrompt,
+    LoadMoreButton
 } from '@components/comments';
 
 interface CommentsProps {
@@ -22,33 +29,56 @@ export function Comments({ postSlug }: CommentsProps) {
     const { user, isAuthenticated } = useAuth();
     const [comments, setComments] = useState<CommentType[]>([]);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [pagination, setPagination] = useState<CommentPagination | null>(
+        null
+    );
 
-    const fetchComments = async () => {
-        setLoading(true);
-        try {
-            const normalizedSlug = postSlug.replace(/^\/+|\/+$/g, '');
-            const res = await api.get<CommentResponse>(
-                `/comments?postSlug=${encodeURIComponent(normalizedSlug)}`
-            );
-            setComments(res.data.comments);
+    const fetchComments = useCallback(
+        async (page: number = 1, append: boolean = false) => {
+            if (page === 1) {
+                setLoading(true);
+            } else {
+                setLoadingMore(true);
+            }
             setError(null);
-        } catch (error: any) {
-            console.error('Error fetching comments:', error);
-            setError(
-                error.response?.data?.error ||
-                    'Failed to load comments. Please try again.'
-            );
-        } finally {
-            setLoading(false);
-        }
-    };
+            try {
+                const normalizedSlug = postSlug.replace(/^\/+|\/+$/g, '');
+                const res = await api.get<CommentResponse>(
+                    `/comments?postSlug=${encodeURIComponent(normalizedSlug)}&page=${page}`
+                );
+                if (append) {
+                    setComments((prev) => [...prev, ...res.data.comments]);
+                } else {
+                    setComments(res.data.comments);
+                }
+                setPagination(res.data.pagination);
+            } catch (error: any) {
+                console.error('Error fetching comments:', error);
+                setError(
+                    error.response?.data?.error ||
+                        'Failed to load comments. Please try again.'
+                );
+            } finally {
+                setLoading(false);
+                setLoadingMore(false);
+            }
+        },
+        [postSlug]
+    );
 
     useEffect(() => {
         if (postSlug) {
             fetchComments();
         }
-    }, [postSlug]);
+    }, [postSlug, fetchComments]);
+
+    const handleLoadMore = useCallback(() => {
+        if (pagination && pagination.hasMore && !loadingMore) {
+            fetchComments(pagination.page + 1, true);
+        }
+    }, [pagination, loadingMore, fetchComments]);
 
     const handleAddComment = async (content: string) => {
         try {
@@ -64,6 +94,13 @@ export function Comments({ postSlug }: CommentsProps) {
                 { ...res.data.comment, replies: [] },
                 ...prev
             ]);
+            // Update pagination total count
+            if (pagination) {
+                setPagination({
+                    ...pagination,
+                    totalTopLevel: pagination.totalTopLevel + 1
+                });
+            }
 
             if (res.data.comment.approved) {
                 toast.success('Comment added successfully');
@@ -126,37 +163,60 @@ export function Comments({ postSlug }: CommentsProps) {
         setComments((prev) => addReplyRecursive(prev));
     };
 
+    const commentCount = pagination?.totalTopLevel ?? comments.length;
+
     return (
         <CommentsContainer>
-            <CommentsTitle>Comments</CommentsTitle>
+            <CommentsTitle>
+                Comments{commentCount > 0 && ` (${commentCount})`}
+            </CommentsTitle>
 
             {isAuthenticated() ? (
                 <CommentForm onSubmit={handleAddComment} />
             ) : (
-                <p style={{ marginBottom: '20px' }}>
-                    <em>Please log in to leave a comment.</em>
-                </p>
+                <LoginPrompt>
+                    <p>
+                        Please <a href="/login">log in</a> to leave a comment.
+                    </p>
+                </LoginPrompt>
             )}
 
             {error && (
-                <div style={{ color: 'red', margin: '10px 0' }}>{error}</div>
+                <ErrorContainer role="alert">
+                    <p>{error}</p>
+                    <RetryButton onClick={() => fetchComments()}>
+                        Try Again
+                    </RetryButton>
+                </ErrorContainer>
             )}
 
             {loading ? (
-                <div style={{ textAlign: 'center', padding: '20px' }}>
+                <LoadingContainer aria-busy="true" aria-live="polite">
                     <LoadingSpinner />
-                    <p>Loading comments...</p>
-                </div>
-            ) : comments.length === 0 ? (
-                <p>No comments yet. Be the first to comment!</p>
+                    <LoadingText>Loading comments...</LoadingText>
+                </LoadingContainer>
             ) : (
-                <CommentList
-                    comments={comments}
-                    postSlug={postSlug}
-                    currentUser={user}
-                    onUpdateComment={updateCommentTree}
-                    onAddReply={addReply}
-                />
+                <>
+                    <CommentList
+                        comments={comments}
+                        postSlug={postSlug}
+                        currentUser={user}
+                        onUpdateComment={updateCommentTree}
+                        onAddReply={addReply}
+                    />
+
+                    {pagination?.hasMore && (
+                        <LoadMoreButton
+                            onClick={handleLoadMore}
+                            disabled={loadingMore}
+                            aria-busy={loadingMore}
+                        >
+                            {loadingMore
+                                ? 'Loading...'
+                                : `Load more comments (${comments.length} of ${pagination.totalTopLevel})`}
+                        </LoadMoreButton>
+                    )}
+                </>
             )}
         </CommentsContainer>
     );
