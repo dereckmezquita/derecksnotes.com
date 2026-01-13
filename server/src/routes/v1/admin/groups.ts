@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { authenticate, requirePermission } from '../../../middleware/auth';
 import { logAuditAction } from '../../../services/audit';
 import type { AuthenticatedRequest } from '../../../types';
+import { dbLogger } from '../../../services/logger';
 
 const router = Router();
 
@@ -67,7 +68,9 @@ router.get(
 
             res.json({ groups: formattedGroups });
         } catch (error) {
-            console.error('Get groups error:', error);
+            dbLogger.error('Get groups failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -95,7 +98,9 @@ router.get(
 
             res.json({ permissions, byCategory });
         } catch (error) {
-            console.error('Get permissions error:', error);
+            dbLogger.error('Get permissions failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -161,7 +166,9 @@ router.get(
                 }
             });
         } catch (error) {
-            console.error('Get group error:', error);
+            dbLogger.error('Get group failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -224,7 +231,9 @@ router.post(
                 });
                 return;
             }
-            console.error('Create group error:', error);
+            dbLogger.error('Create group failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -307,7 +316,9 @@ router.patch(
                 });
                 return;
             }
-            console.error('Update group error:', error);
+            dbLogger.error('Update group failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -368,7 +379,9 @@ router.delete(
 
             res.json({ message: 'Group deleted' });
         } catch (error) {
-            console.error('Delete group error:', error);
+            dbLogger.error('Delete group failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -480,7 +493,9 @@ router.put(
                 });
                 return;
             }
-            console.error('Update group permissions error:', error);
+            dbLogger.error('Update group permissions failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

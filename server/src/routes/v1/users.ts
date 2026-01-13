@@ -9,6 +9,7 @@ import {
     revokeAllSessions
 } from '../../services/auth';
 import type { AuthenticatedRequest } from '../../types';
+import { dbLogger } from '../../services/logger';
 
 // Helper to format comment for profile view
 function formatProfileComment(
@@ -88,7 +89,7 @@ router.get('/:username', async (req: Request, res: Response): Promise<void> => {
 
         res.json(user);
     } catch (error) {
-        console.error('Get user error:', error);
+        dbLogger.error('Get user failed', error as Error, { source: 'users' });
         res.status(500).json({ error: 'Internal server error' });
     }
 });
@@ -141,7 +142,9 @@ router.patch(
                 });
                 return;
             }
-            console.error('Update profile error:', error);
+            dbLogger.error('Update profile failed', error as Error, {
+                source: 'users'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -199,7 +202,9 @@ router.post(
                 });
                 return;
             }
-            console.error('Change password error:', error);
+            dbLogger.error('Change password failed', error as Error, {
+                source: 'users'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -228,7 +233,9 @@ router.delete(
 
             res.json({ message: 'Account deleted successfully' });
         } catch (error) {
-            console.error('Delete account error:', error);
+            dbLogger.error('Delete account failed', error as Error, {
+                source: 'users'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -254,7 +261,9 @@ router.get(
                 )
             });
         } catch (error) {
-            console.error('Get user comments error:', error);
+            dbLogger.error('Get user comments failed', error as Error, {
+                source: 'users'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -294,7 +303,9 @@ router.get(
                 )
             });
         } catch (error) {
-            console.error('Get liked comments error:', error);
+            dbLogger.error('Get liked comments failed', error as Error, {
+                source: 'users'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -334,7 +345,9 @@ router.get(
                 )
             });
         } catch (error) {
-            console.error('Get disliked comments error:', error);
+            dbLogger.error('Get disliked comments failed', error as Error, {
+                source: 'users'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -373,7 +386,9 @@ router.post(
                 deletedCount: commentIds.length
             });
         } catch (error) {
-            console.error('Bulk delete comments error:', error);
+            dbLogger.error('Bulk delete comments failed', error as Error, {
+                source: 'users'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -409,7 +424,9 @@ router.post(
                 modifiedCount: commentIds.length
             });
         } catch (error) {
-            console.error('Bulk unlike error:', error);
+            dbLogger.error('Bulk unlike failed', error as Error, {
+                source: 'users'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -445,7 +462,9 @@ router.post(
                 modifiedCount: commentIds.length
             });
         } catch (error) {
-            console.error('Bulk undislike error:', error);
+            dbLogger.error('Bulk undislike failed', error as Error, {
+                source: 'users'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

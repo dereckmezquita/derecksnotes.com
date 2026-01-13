@@ -10,6 +10,7 @@ import {
 import { commentLimiter } from '../../middleware/rateLimit';
 import { getUserPermissions } from '../../services/auth';
 import type { AuthenticatedRequest } from '../../types';
+import { dbLogger } from '../../services/logger';
 
 const router = Router();
 
@@ -415,7 +416,9 @@ router.get(
                 sort
             });
         } catch (error) {
-            console.error('Get comments error:', error);
+            dbLogger.error('Get comments failed', error as Error, {
+                source: 'comments'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -566,7 +569,9 @@ router.get(
                 }
             });
         } catch (error) {
-            console.error('Get replies error:', error);
+            dbLogger.error('Get replies failed', error as Error, {
+                source: 'comments'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -662,7 +667,9 @@ router.post(
                 });
                 return;
             }
-            console.error('Create comment error:', error);
+            dbLogger.error('Create comment failed', error as Error, {
+                source: 'comments'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -744,7 +751,9 @@ router.patch(
                 });
                 return;
             }
-            console.error('Update comment error:', error);
+            dbLogger.error('Update comment failed', error as Error, {
+                source: 'comments'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -798,7 +807,9 @@ router.delete(
 
             res.json({ message: 'Comment deleted' });
         } catch (error) {
-            console.error('Delete comment error:', error);
+            dbLogger.error('Delete comment failed', error as Error, {
+                source: 'comments'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -842,7 +853,9 @@ router.get(
 
             res.json({ history: versions });
         } catch (error) {
-            console.error('Get comment history error:', error);
+            dbLogger.error('Get comment history failed', error as Error, {
+                source: 'comments'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -917,7 +930,9 @@ router.post(
 
             res.json({ message: 'Reaction added', reaction: type });
         } catch (error) {
-            console.error('React to comment error:', error);
+            dbLogger.error('React to comment failed', error as Error, {
+                source: 'comments'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -967,7 +982,9 @@ router.post(
 
             res.json({ message: 'Comment pinned' });
         } catch (error) {
-            console.error('Pin comment error:', error);
+            dbLogger.error('Pin comment failed', error as Error, {
+                source: 'comments'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -1009,7 +1026,9 @@ router.post(
 
             res.json({ message: 'Comment unpinned' });
         } catch (error) {
-            console.error('Unpin comment error:', error);
+            dbLogger.error('Unpin comment failed', error as Error, {
+                source: 'comments'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -1122,7 +1141,9 @@ router.get(
                 query
             });
         } catch (error) {
-            console.error('Search comments error:', error);
+            dbLogger.error('Search comments failed', error as Error, {
+                source: 'comments'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

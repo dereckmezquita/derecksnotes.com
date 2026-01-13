@@ -3,6 +3,7 @@ import { db, schema } from '../../../db';
 import { eq, and, gte, lte, sql, isNull, count, desc } from 'drizzle-orm';
 import { authenticate, requirePermission } from '../../../middleware/auth';
 import type { AuthenticatedRequest } from '../../../types';
+import { dbLogger } from '../../../services/logger';
 
 const router = Router();
 
@@ -159,7 +160,9 @@ router.get(
                 }
             });
         } catch (error) {
-            console.error('Get analytics overview error:', error);
+            dbLogger.error('Get analytics overview failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -250,7 +253,9 @@ router.get(
                 data
             });
         } catch (error) {
-            console.error('Get analytics timeseries error:', error);
+            dbLogger.error('Get analytics timeseries failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -355,7 +360,9 @@ router.get(
                 posts: postsWithEngagement
             });
         } catch (error) {
-            console.error('Get top posts error:', error);
+            dbLogger.error('Get top posts failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -492,7 +499,9 @@ router.get(
                 users: usersWithDetails
             });
         } catch (error) {
-            console.error('Get active users error:', error);
+            dbLogger.error('Get active users failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -598,7 +607,9 @@ router.get(
                 controversial
             });
         } catch (error) {
-            console.error('Get top comments error:', error);
+            dbLogger.error('Get top comments failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -771,7 +782,9 @@ router.get(
                 }
             });
         } catch (error) {
-            console.error('Get engagement trends error:', error);
+            dbLogger.error('Get engagement trends failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -871,7 +884,9 @@ router.get(
                 }))
             });
         } catch (error) {
-            console.error('Get moderation analytics error:', error);
+            dbLogger.error('Get moderation analytics failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -948,7 +963,9 @@ router.get(
                 reactions
             });
         } catch (error) {
-            console.error('Get sparklines error:', error);
+            dbLogger.error('Get sparklines failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

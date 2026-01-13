@@ -5,6 +5,7 @@ import { eq, and, isNull } from 'drizzle-orm';
 import { authenticate, requirePermission } from '../../middleware/auth';
 import { reportLimiter } from '../../middleware/rateLimit';
 import type { AuthenticatedRequest } from '../../types';
+import { dbLogger } from '../../services/logger';
 
 const router = Router();
 
@@ -93,7 +94,9 @@ router.post(
                 });
                 return;
             }
-            console.error('Create report error:', error);
+            dbLogger.error('Create report failed', error as Error, {
+                source: 'reports'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

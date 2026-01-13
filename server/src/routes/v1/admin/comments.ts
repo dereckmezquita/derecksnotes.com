@@ -5,6 +5,7 @@ import { eq, and, isNull, inArray } from 'drizzle-orm';
 import { authenticate, requirePermission } from '../../../middleware/auth';
 import { logAuditAction } from '../../../services/audit';
 import type { AuthenticatedRequest } from '../../../types';
+import { dbLogger } from '../../../services/logger';
 
 const router = Router();
 
@@ -43,7 +44,9 @@ router.get(
 
             res.json({ comments, page, limit });
         } catch (error) {
-            console.error('Get pending comments error:', error);
+            dbLogger.error('Get pending comments failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -83,7 +86,9 @@ router.post(
 
             res.json({ message: 'Comment approved' });
         } catch (error) {
-            console.error('Approve comment error:', error);
+            dbLogger.error('Approve comment failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -124,7 +129,9 @@ router.post(
 
             res.json({ message: 'Comment rejected' });
         } catch (error) {
-            console.error('Reject comment error:', error);
+            dbLogger.error('Reject comment failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -167,7 +174,9 @@ router.post(
 
             res.json({ message: `${ids.length} comments approved` });
         } catch (error) {
-            console.error('Bulk approve comments error:', error);
+            dbLogger.error('Bulk approve comments failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -210,7 +219,9 @@ router.post(
 
             res.json({ message: `${ids.length} comments deleted` });
         } catch (error) {
-            console.error('Bulk delete comments error:', error);
+            dbLogger.error('Bulk delete comments failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

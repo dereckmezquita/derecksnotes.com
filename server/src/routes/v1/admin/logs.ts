@@ -50,7 +50,9 @@ router.get(
 
             res.json(result);
         } catch (error) {
-            console.error('Error fetching logs:', error);
+            dbLogger.error('fetching logs failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Failed to fetch logs' });
         }
     }
@@ -66,7 +68,9 @@ router.get(
             const stats = await getLogStats();
             res.json(stats);
         } catch (error) {
-            console.error('Error fetching log stats:', error);
+            dbLogger.error('fetching log stats failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Failed to fetch log statistics' });
         }
     }
@@ -90,7 +94,9 @@ router.get(
 
             res.json(result);
         } catch (error) {
-            console.error('Error fetching error summaries:', error);
+            dbLogger.error('fetching error summaries failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Failed to fetch error summaries' });
         }
     }
@@ -110,7 +116,9 @@ router.post(
             await resolveError(id, userId, notes);
             res.json({ success: true });
         } catch (error) {
-            console.error('Error resolving error:', error);
+            dbLogger.error('Error resolving failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Failed to resolve error' });
         }
     }
@@ -127,7 +135,9 @@ router.post(
             await unresolveError(id);
             res.json({ success: true });
         } catch (error) {
-            console.error('Error unresolving error:', error);
+            dbLogger.error('Error unresolving failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Failed to unresolve error' });
         }
     }
@@ -144,7 +154,9 @@ router.post(
             const deleted = await cleanupOldLogs(daysToKeep);
             res.json({ success: true, deleted });
         } catch (error) {
-            console.error('Error cleaning up logs:', error);
+            dbLogger.error('cleaning up logs failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Failed to clean up logs' });
         }
     }

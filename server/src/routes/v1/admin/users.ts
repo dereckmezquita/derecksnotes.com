@@ -6,6 +6,7 @@ import { authenticate, requirePermission } from '../../../middleware/auth';
 import { logAuditAction } from '../../../services/audit';
 import { revokeAllSessions } from '../../../services/auth';
 import type { AuthenticatedRequest } from '../../../types';
+import { dbLogger } from '../../../services/logger';
 
 const router = Router();
 
@@ -89,7 +90,9 @@ router.get(
 
             res.json({ users: usersWithGroups, page, limit });
         } catch (error) {
-            console.error('Get users error:', error);
+            dbLogger.error('Get users failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -156,7 +159,9 @@ router.get(
                 bans
             });
         } catch (error) {
-            console.error('Get user error:', error);
+            dbLogger.error('Get user failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -231,7 +236,9 @@ router.post(
                 });
                 return;
             }
-            console.error('Ban user error:', error);
+            dbLogger.error('Ban user failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -277,7 +284,9 @@ router.post(
 
             res.json({ message: 'User unbanned successfully' });
         } catch (error) {
-            console.error('Unban user error:', error);
+            dbLogger.error('Unban user failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -385,7 +394,9 @@ router.post(
                 groups: groups
             });
         } catch (error) {
-            console.error('Update user groups error:', error);
+            dbLogger.error('Update user groups failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -438,7 +449,9 @@ router.delete(
 
             res.json({ message: 'User deleted successfully' });
         } catch (error) {
-            console.error('Delete user error:', error);
+            dbLogger.error('Delete user failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

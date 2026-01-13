@@ -4,6 +4,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { authenticate, requirePermission } from '../../../middleware/auth';
 import { logAuditAction } from '../../../services/audit';
 import type { AuthenticatedRequest } from '../../../types';
+import { dbLogger } from '../../../services/logger';
 
 const router = Router();
 
@@ -88,7 +89,9 @@ router.get(
 
             res.json({ reports: reportsWithPriority, page, limit });
         } catch (error) {
-            console.error('Get reports error:', error);
+            dbLogger.error('Get reports failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -140,7 +143,9 @@ router.get(
                 highPriority: highPriorityCount
             });
         } catch (error) {
-            console.error('Get report stats error:', error);
+            dbLogger.error('Get report stats failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -210,7 +215,9 @@ router.post(
 
             res.json({ message: `Report ${action}` });
         } catch (error) {
-            console.error('Review report error:', error);
+            dbLogger.error('Review report failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
@@ -266,7 +273,9 @@ router.post(
 
             res.json({ message: `${ids.length} reports ${action}` });
         } catch (error) {
-            console.error('Bulk review reports error:', error);
+            dbLogger.error('Bulk review reports failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

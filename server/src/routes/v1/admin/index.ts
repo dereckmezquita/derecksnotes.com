@@ -3,6 +3,7 @@ import { db, schema } from '../../../db';
 import { eq, sql } from 'drizzle-orm';
 import { authenticate, requirePermission } from '../../../middleware/auth';
 import type { AuthenticatedRequest } from '../../../types';
+import { dbLogger } from '../../../services/logger';
 
 import commentsRouter from './comments';
 import usersRouter from './users';
@@ -76,7 +77,9 @@ router.get(
                 recentActivity
             });
         } catch (error) {
-            console.error('Get dashboard error:', error);
+            dbLogger.error('Get dashboard failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

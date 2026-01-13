@@ -3,6 +3,7 @@ import { db, schema } from '../../../db';
 import { eq, and, gte, lte, like, or } from 'drizzle-orm';
 import { authenticate, requirePermission } from '../../../middleware/auth';
 import type { AuthenticatedRequest } from '../../../types';
+import { dbLogger } from '../../../services/logger';
 
 const router = Router();
 
@@ -86,7 +87,9 @@ router.get(
 
             res.json({ logs, page, limit });
         } catch (error) {
-            console.error('Get audit logs error:', error);
+            dbLogger.error('Get audit logs failed', error as Error, {
+                source: 'admin'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }

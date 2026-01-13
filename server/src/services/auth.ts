@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import { db, schema } from '../db';
 import { eq, and, isNull, gt } from 'drizzle-orm';
 import { config } from '../lib/env';
+import { logger } from './logger';
 
 const SALT_ROUNDS = 12;
 const SESSION_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -243,7 +244,7 @@ export async function elevateToAdminIfConfigured(
         groupId: adminGroup.id
     });
 
-    console.log(`Elevated user "${username}" to admin group`);
+    logger.info({ username }, 'Elevated user to admin group');
 }
 
 /**
@@ -258,8 +259,9 @@ export async function ensureAdminUser(): Promise<void> {
     });
 
     if (!user) {
-        console.log(
-            `ADMIN_USERNAME="${config.adminUsername}" - user will be elevated on registration`
+        logger.info(
+            { adminUsername: config.adminUsername },
+            'Admin user not found - will be elevated on registration'
         );
         return;
     }

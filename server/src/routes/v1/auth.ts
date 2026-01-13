@@ -346,7 +346,9 @@ router.delete(
 
             res.json({ message: 'All sessions revoked' });
         } catch (error) {
-            console.error('Revoke all sessions error:', error);
+            dbLogger.error('Revoke all sessions failed', error as Error, {
+                source: 'auth'
+            });
             res.status(500).json({ error: 'Internal server error' });
         }
     }
