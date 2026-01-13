@@ -11,7 +11,7 @@ const router = Router();
 
 // Validation schemas
 const banUserSchema = z.object({
-    reason: z.string().min(1, 'Reason is required').max(500),
+    reason: z.string().max(500).optional(),
     expiresAt: z.string().datetime().optional()
 });
 
@@ -112,6 +112,7 @@ router.get(
                     email: true,
                     displayName: true,
                     bio: true,
+                    avatarUrl: true,
                     emailVerified: true,
                     createdAt: true,
                     updatedAt: true,
@@ -130,6 +131,14 @@ router.get(
                 with: { group: true }
             });
 
+            // Get active ban
+            const activeBan = await db.query.userBans.findFirst({
+                where: and(
+                    eq(schema.userBans.userId, id),
+                    isNull(schema.userBans.liftedAt)
+                )
+            });
+
             // Get ban history
             const bans = await db.query.userBans.findMany({
                 where: eq(schema.userBans.userId, id),
@@ -137,12 +146,13 @@ router.get(
             });
 
             res.json({
-                ...user,
-                groups: userGroups.map((ug) => ({
-                    id: ug.group.id,
-                    name: ug.group.name,
-                    assignedAt: ug.assignedAt
-                })),
+                user: {
+                    ...user,
+                    groups: userGroups.map((ug) => ug.group.name),
+                    isBanned: !!activeBan,
+                    banReason: activeBan?.reason || null,
+                    banExpiresAt: activeBan?.expiresAt?.toISOString() || null
+                },
                 bans
             });
         } catch (error) {
@@ -196,7 +206,7 @@ router.post(
                 id: banId,
                 userId: id,
                 bannedBy: req.user!.id,
-                reason: data.reason,
+                reason: data.reason || 'No reason provided',
                 expiresAt: data.expiresAt ? new Date(data.expiresAt) : null
             });
 
@@ -273,7 +283,7 @@ router.post(
     }
 );
 
-// POST /api/v1/admin/users/:id/groups
+// POST /api/v1/admin/users/:id/groups - Sync user groups (accepts array of group names)
 router.post(
     '/:id/groups',
     authenticate,
@@ -281,11 +291,12 @@ router.post(
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
             const id = req.params.id as string;
-            const { groupId, action } = req.body;
+            const { groups } = req.body;
 
-            if (!groupId || !['add', 'remove'].includes(action)) {
+            // Validate input
+            if (!Array.isArray(groups)) {
                 res.status(400).json({
-                    error: 'groupId and action (add/remove) are required'
+                    error: 'groups array is required'
                 });
                 return;
             }
@@ -299,45 +310,50 @@ router.post(
                 return;
             }
 
-            const group = await db.query.groups.findFirst({
-                where: eq(schema.groups.id, groupId)
-            });
+            // Get all available groups
+            const allGroups = await db.query.groups.findMany();
+            const groupNameToId = new Map(allGroups.map((g) => [g.name, g.id]));
 
-            if (!group) {
-                res.status(404).json({ error: 'Group not found' });
-                return;
-            }
-
-            if (action === 'add') {
-                const existing = await db.query.userGroups.findFirst({
-                    where: and(
-                        eq(schema.userGroups.userId, id),
-                        eq(schema.userGroups.groupId, groupId)
-                    )
-                });
-
-                if (existing) {
-                    res.status(409).json({
-                        error: 'User already in this group'
+            // Validate all requested group names exist
+            for (const groupName of groups) {
+                if (!groupNameToId.has(groupName)) {
+                    res.status(400).json({
+                        error: `Invalid group name: ${groupName}`
                     });
                     return;
                 }
+            }
 
+            // Get current user groups
+            const currentUserGroups = await db.query.userGroups.findMany({
+                where: eq(schema.userGroups.userId, id),
+                with: { group: true }
+            });
+            const currentGroupNames = new Set(
+                currentUserGroups.map((ug) => ug.group.name)
+            );
+
+            // Calculate additions and removals
+            const toAdd = groups.filter(
+                (g: string) => !currentGroupNames.has(g)
+            );
+            const toRemove = [...currentGroupNames].filter(
+                (g) => !groups.includes(g)
+            );
+
+            // Add new groups
+            for (const groupName of toAdd) {
+                const groupId = groupNameToId.get(groupName)!;
                 await db.insert(schema.userGroups).values({
                     id: crypto.randomUUID(),
                     userId: id,
                     groupId
                 });
+            }
 
-                await logAuditAction(
-                    req.user!.id,
-                    'user.group_add',
-                    'user',
-                    id,
-                    { groupId, groupName: group.name },
-                    req.ip || req.socket.remoteAddress
-                );
-            } else {
+            // Remove old groups
+            for (const groupName of toRemove) {
+                const groupId = groupNameToId.get(groupName)!;
                 await db
                     .delete(schema.userGroups)
                     .where(
@@ -346,19 +362,27 @@ router.post(
                             eq(schema.userGroups.groupId, groupId)
                         )
                     );
+            }
 
+            // Log the change if anything changed
+            if (toAdd.length > 0 || toRemove.length > 0) {
                 await logAuditAction(
                     req.user!.id,
-                    'user.group_remove',
+                    'user.groups_updated',
                     'user',
                     id,
-                    { groupId, groupName: group.name },
+                    {
+                        added: toAdd,
+                        removed: toRemove,
+                        newGroups: groups
+                    },
                     req.ip || req.socket.remoteAddress
                 );
             }
 
             res.json({
-                message: `User ${action === 'add' ? 'added to' : 'removed from'} group`
+                message: 'User groups updated',
+                groups: groups
             });
         } catch (error) {
             console.error('Update user groups error:', error);
