@@ -211,6 +211,62 @@ export async function isUserBanned(userId: string): Promise<boolean> {
     return true;
 }
 
+/**
+ * Checks if a username matches ADMIN_USERNAME and adds them to admin group.
+ * Called at registration and server startup.
+ */
+export async function elevateToAdminIfConfigured(
+    userId: string,
+    username: string
+): Promise<void> {
+    if (!config.adminUsername || username !== config.adminUsername) return;
+
+    const adminGroup = await db.query.groups.findFirst({
+        where: eq(schema.groups.name, 'admin')
+    });
+
+    if (!adminGroup) return;
+
+    // Check if already in admin group
+    const existingMembership = await db.query.userGroups.findFirst({
+        where: and(
+            eq(schema.userGroups.userId, userId),
+            eq(schema.userGroups.groupId, adminGroup.id)
+        )
+    });
+
+    if (existingMembership) return;
+
+    await db.insert(schema.userGroups).values({
+        id: crypto.randomUUID(),
+        userId,
+        groupId: adminGroup.id
+    });
+
+    console.log(`Elevated user "${username}" to admin group`);
+}
+
+/**
+ * Ensures the configured ADMIN_USERNAME user is in the admin group.
+ * Called once at server startup.
+ */
+export async function ensureAdminUser(): Promise<void> {
+    if (!config.adminUsername) return;
+
+    const user = await db.query.users.findFirst({
+        where: eq(schema.users.username, config.adminUsername)
+    });
+
+    if (!user) {
+        console.log(
+            `ADMIN_USERNAME="${config.adminUsername}" - user will be elevated on registration`
+        );
+        return;
+    }
+
+    await elevateToAdminIfConfigured(user.id, user.username);
+}
+
 export function getCookieOptions() {
     return {
         httpOnly: true,

@@ -35,7 +35,9 @@ export const config = {
     baseUrl: process.env.BASE_URL || derived.baseUrl,
     apiUrl: process.env.API_URL || derived.apiUrl,
     databasePath: process.env.DATABASE_PATH || derived.databasePath,
-    secureCookies: derived.secureCookies
+    secureCookies: derived.secureCookies,
+    // Admin username - this user will automatically be added to admin group on login
+    adminUsername: process.env.ADMIN_USERNAME || null
 };
 
 export const secrets = {

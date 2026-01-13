@@ -9,7 +9,8 @@ import {
     revokeSession,
     revokeAllSessions,
     getUserSessions,
-    getCookieOptions
+    getCookieOptions,
+    elevateToAdminIfConfigured
 } from '../../services/auth';
 import { authenticate } from '../../middleware/auth';
 import { authLimiter } from '../../middleware/rateLimit';
@@ -95,6 +96,9 @@ router.post(
                     groupId: defaultGroup.id
                 });
             }
+
+            // Check if this user should be admin (matches ADMIN_USERNAME env var)
+            await elevateToAdminIfConfigured(userId, data.username);
 
             // Create session
             const userAgent = req.headers['user-agent'];

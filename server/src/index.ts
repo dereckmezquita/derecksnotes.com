@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { config } from './lib/env';
 import { generalLimiter } from './middleware/rateLimit';
+import { ensureAdminUser } from './services/auth';
 import v1Router from './routes/v1';
 
 const app = express();
@@ -52,7 +53,10 @@ app.use('/api', (_req: Request, res: Response) => {
 
 // Start server
 const port = config.port;
-app.listen(port, () => {
+app.listen(port, async () => {
     console.log(`API server running at http://localhost:${port}`);
     console.log(`Environment: ${config.buildEnv}`);
+
+    // Ensure admin user is in admin group (if configured and exists)
+    await ensureAdminUser();
 });
