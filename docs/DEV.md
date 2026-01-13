@@ -5,7 +5,7 @@
 ```bash
 # Install dependencies (from project root)
 bun install
-cd client && npm install && cd ..
+cd client && bun install && cd ..
 cd server && bun install && cd ..
 
 # Start development
@@ -104,16 +104,15 @@ BASE_URL=http://localhost:3000        # Frontend URL (for CORS)
 
 ## Known Issues
 
-### Next.js SWC Lockfile Warning
+### Deprecation Warning (util._extend)
 
-You may see this warning when starting the client:
+You may see this warning when running the client:
 
 ```
-⨯ Failed to patch lockfile, please try uninstalling and reinstalling next
-[TypeError: Cannot read properties of undefined (reading 'os')]
+[DEP0060] DeprecationWarning: The `util._extend` API is deprecated
 ```
 
-**This is cosmetic and does not affect functionality.** It's a known issue with Next.js when using bun as the package manager. The app compiles and runs correctly despite the warning.
+**This is cosmetic and does not affect functionality.** It comes from the `zod` validation library using a deprecated Node.js API internally. The app works correctly despite this warning.
 
 ### Port Conflicts
 

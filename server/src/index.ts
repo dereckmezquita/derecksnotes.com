@@ -19,7 +19,19 @@ app.use(cookieParser());
 // CORS configuration
 const corsOptions = {
     origin:
-        config.buildEnv === 'local' ? 'http://localhost:3000' : config.baseUrl,
+        config.buildEnv === 'local'
+            ? (
+                  origin: string | undefined,
+                  callback: (err: Error | null, allow?: boolean) => void
+              ) => {
+                  // Allow any localhost origin in local development
+                  if (!origin || origin.startsWith('http://localhost:')) {
+                      callback(null, true);
+                  } else {
+                      callback(new Error('Not allowed by CORS'));
+                  }
+              }
+            : config.baseUrl,
     credentials: true
 };
 app.use(cors(corsOptions));

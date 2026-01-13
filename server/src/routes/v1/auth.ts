@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import crypto from 'crypto';
 import { z } from 'zod';
 import { db, schema } from '../../db';
 import { eq, and, isNull } from 'drizzle-orm';
@@ -48,7 +49,12 @@ router.post(
     authLimiter,
     async (req: Request, res: Response): Promise<void> => {
         try {
+            console.log('[Register] Starting registration...');
             const data = registerSchema.parse(req.body);
+            console.log(
+                '[Register] Validated input for username:',
+                data.username
+            );
 
             // Check if username exists
             const existingUser = await db.query.users.findFirst({
@@ -73,8 +79,10 @@ router.post(
             }
 
             // Create user
+            console.log('[Register] Creating user...');
             const userId = crypto.randomUUID();
             const passwordHash = await hashPassword(data.password);
+            console.log('[Register] Password hashed');
 
             await db.insert(schema.users).values({
                 id: userId,
@@ -83,11 +91,14 @@ router.post(
                 passwordHash,
                 displayName: data.username
             });
+            console.log('[Register] User inserted into database');
 
             // Assign default group
+            console.log('[Register] Finding default group...');
             const defaultGroup = await db.query.groups.findFirst({
                 where: eq(schema.groups.isDefault, true)
             });
+            console.log('[Register] Default group:', defaultGroup?.name);
 
             if (defaultGroup) {
                 await db.insert(schema.userGroups).values({
@@ -95,12 +106,15 @@ router.post(
                     userId,
                     groupId: defaultGroup.id
                 });
+                console.log('[Register] User assigned to default group');
             }
 
             // Check if this user should be admin (matches ADMIN_USERNAME env var)
+            console.log('[Register] Checking admin elevation...');
             await elevateToAdminIfConfigured(userId, data.username);
 
             // Create session
+            console.log('[Register] Creating session...');
             const userAgent = req.headers['user-agent'];
             const ipAddress = req.ip || req.socket.remoteAddress || 'unknown';
             const sessionToken = await createSession(
@@ -108,9 +122,14 @@ router.post(
                 userAgent,
                 ipAddress
             );
+            console.log('[Register] Session created');
 
             res.cookie('sessionId', sessionToken, getCookieOptions());
 
+            console.log(
+                '[Register] Registration successful for:',
+                data.username
+            );
             res.status(201).json({
                 message: 'Registration successful',
                 user: {
@@ -126,7 +145,7 @@ router.post(
                 });
                 return;
             }
-            console.error('Registration error:', error);
+            console.error('[Register] ERROR:', error);
             res.status(500).json({ error: 'Internal server error' });
         }
     }
