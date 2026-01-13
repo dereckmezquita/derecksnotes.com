@@ -6,8 +6,15 @@ RUN bun install --frozen-lockfile
 COPY client/ ./
 
 COPY package.json /app/package.json
+
+# Build arguments
 ARG BUILD_ENV=prod
+ARG COMMIT_SHA=local
+
+# Make available to Next.js build (NEXT_PUBLIC_ prefix exposes to browser)
 ENV BUILD_ENV=${BUILD_ENV}
+ENV NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA}
+
 RUN bun run build
 
 # Build stage for server

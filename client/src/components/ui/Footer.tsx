@@ -40,9 +40,8 @@ function Footer(): ReactElement {
                 the owner; Copyright © 2017 - {getCurrentYear()}
             </FooterText>
             <FooterText>
-                Application build: {config.buildEnv}, Application version:{' '}
-                {config.version}, test API integration:{' '}
-                <Link href="/test/api">/test/api</Link>
+                v{config.version} ({config.commitSha.slice(0, 7)}) &bull;{' '}
+                {config.buildEnv} &bull; <Link href="/test/api">test api</Link>
             </FooterText>
             <FooterText>
                 <a href="mailto:contact@derecksnotes.com">
