@@ -202,3 +202,154 @@ export interface DashboardResponse {
     stats: DashboardStats;
     recentActivity: AuditLogEntry[];
 }
+
+// ============================================================================
+// ADMIN ANALYTICS DETAILED TYPES
+// ============================================================================
+
+export interface AnalyticsOverviewData {
+    totals: { users: number; comments: number; reactions: number };
+    users: { today: number; thisWeek: number; thisMonth: number };
+    comments: { today: number; thisWeek: number; thisMonth: number };
+    engagement: { reactionsThisWeek: number; approvalRate: number };
+}
+
+export interface AnalyticsTimeseriesData {
+    metric: string;
+    days: number;
+    data: Array<{ date: string; count: number }>;
+}
+
+export interface AnalyticsActiveUser {
+    user: { id: string; username: string; displayName: string | null };
+    commentCount: number;
+    reactionsGiven: number;
+    reactionsReceived: number;
+    likesReceived: number;
+    activityScore: number;
+}
+
+export interface AnalyticsTopCommentDetailed {
+    id: string;
+    content: string;
+    slug: string;
+    postTitle: string;
+    user: { id: string; username: string; displayName: string | null } | null;
+    createdAt: string;
+    likes: number;
+    dislikes: number;
+    totalReactions: number;
+    score: number;
+}
+
+export interface AnalyticsTopCommentsData {
+    topLiked: AnalyticsTopCommentDetailed[];
+    controversial: AnalyticsTopCommentDetailed[];
+}
+
+export interface AnalyticsEngagementTrends {
+    days: number;
+    current: { comments: number; users: number; reactions: number };
+    previous: { comments: number; users: number; reactions: number };
+    trends: { comments: number; users: number; reactions: number };
+    averages: { commentsPerDay: number; activeDays: number };
+    sentiment: { likes: number; dislikes: number; likeRatio: number };
+}
+
+export interface AnalyticsSparklineData {
+    days: number;
+    comments: number[];
+    users: number[];
+    reactions: number[];
+}
+
+// ============================================================================
+// ADMIN USER TYPES
+// ============================================================================
+
+export interface AdminUser {
+    id: string;
+    username: string;
+    email: string | null;
+    displayName: string | null;
+    groups: string[];
+    isBanned: boolean;
+    banExpiresAt: string | null;
+    createdAt: string;
+}
+
+export interface AdminUsersResponse {
+    users: AdminUser[];
+    page: number;
+    limit: number;
+}
+
+// ============================================================================
+// SERVER LOGS TYPES
+// ============================================================================
+
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'fatal';
+
+export interface LogEntry {
+    id: string;
+    level: LogLevel;
+    message: string;
+    source: string | null;
+    context: Record<string, unknown> | null;
+    stack: string | null;
+    userId: string | null;
+    requestId: string | null;
+    ipAddress: string | null;
+    userAgent: string | null;
+    path: string | null;
+    method: string | null;
+    statusCode: number | null;
+    duration: number | null;
+    createdAt: string;
+    clearedAt: string | null;
+    clearedBy: string | null;
+}
+
+export interface ErrorSummary {
+    id: string;
+    fingerprint: string;
+    message: string;
+    source: string | null;
+    stack: string | null;
+    firstSeenAt: string;
+    lastSeenAt: string;
+    count: number;
+    resolved: boolean;
+    resolvedAt: string | null;
+    resolvedBy: string | null;
+    notes: string | null;
+}
+
+export interface LogStats {
+    errorsToday: number;
+    errorsThisWeek: number;
+    unresolvedErrors: number;
+    logsByLevel: Record<string, number>;
+}
+
+export interface LogsResponse {
+    logs: LogEntry[];
+    total: number;
+}
+
+export interface ErrorSummariesResponse {
+    errors: ErrorSummary[];
+    total: number;
+}
+
+// ============================================================================
+// PAGINATION TYPES
+// ============================================================================
+
+export interface PaginatedResponse<T> {
+    data: T[];
+    page: number;
+    limit: number;
+    total?: number;
+    hasMore?: boolean;
+}

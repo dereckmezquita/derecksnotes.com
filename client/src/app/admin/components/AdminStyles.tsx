@@ -838,22 +838,26 @@ export const PageButton = styled.button<{ $active?: boolean }>`
 export const ActionBar = styled.div`
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: ${(props) => props.theme.container.spacing.medium};
     flex-wrap: wrap;
     gap: ${(props) => props.theme.container.spacing.small};
+    max-width: 100%;
+    overflow: hidden;
 `;
 
 export const ActionBarLeft = styled.div`
     display: flex;
     align-items: center;
-    gap: ${(props) => props.theme.container.spacing.medium};
+    gap: ${(props) => props.theme.container.spacing.small};
+    flex-wrap: wrap;
 `;
 
 export const ActionBarRight = styled.div`
     display: flex;
     align-items: center;
     gap: ${(props) => props.theme.container.spacing.small};
+    flex-wrap: wrap;
 `;
 
 export const Checkbox = styled.input.attrs({ type: 'checkbox' })`

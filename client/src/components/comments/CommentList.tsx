@@ -31,7 +31,7 @@ export function CommentList({
 
     return (
         <CommentListContainer
-            level={level}
+            $level={level}
             role={level === 0 ? 'list' : undefined}
             aria-label={
                 level === 0 ? 'Comments' : `Nested replies level ${level}`

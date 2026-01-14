@@ -22,6 +22,16 @@ import {
     EmptyStateTitle,
     EmptyStateText
 } from '../components/AdminStyles';
+import type {
+    AnalyticsOverviewData,
+    AnalyticsTimeseriesData,
+    AnalyticsTopPost,
+    AnalyticsActiveUser,
+    AnalyticsTopCommentDetailed,
+    AnalyticsTopCommentsData,
+    AnalyticsEngagementTrends,
+    AnalyticsSparklineData
+} from '@/types/api';
 
 // ============================================================================
 // STYLED COMPONENTS
@@ -361,94 +371,28 @@ const ChartAxis = styled.div`
     color: ${(p) => p.theme.text.colour.light_grey()};
 `;
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
-interface OverviewData {
-    totals: { users: number; comments: number; reactions: number };
-    users: { today: number; thisWeek: number; thisMonth: number };
-    comments: { today: number; thisWeek: number; thisMonth: number };
-    engagement: { reactionsThisWeek: number; approvalRate: number };
-}
-
-interface TimeseriesData {
-    metric: string;
-    days: number;
-    data: Array<{ date: string; count: number }>;
-}
-
-interface TopPost {
-    slug: string;
-    title: string;
-    views: number;
-    uniqueVisitors: number;
-    commentCount: number;
-    postLikes: number;
-    postDislikes: number;
-    commentReactionCount: number;
-    commentLikeCount: number;
-    commentDislikeCount: number;
-    engagementScore: number;
-}
-
-interface ActiveUser {
-    user: { id: string; username: string; displayName: string | null };
-    commentCount: number;
-    reactionsGiven: number;
-    reactionsReceived: number;
-    likesReceived: number;
-    activityScore: number;
-}
-
-interface TopComment {
-    id: string;
-    content: string;
-    slug: string;
-    postTitle: string;
-    user: { id: string; username: string; displayName: string | null } | null;
-    createdAt: string;
-    likes: number;
-    dislikes: number;
-    totalReactions: number;
-    score: number;
-}
-
-interface TopCommentsData {
-    topLiked: TopComment[];
-    controversial: TopComment[];
-}
-
-interface EngagementTrends {
-    days: number;
-    current: { comments: number; users: number; reactions: number };
-    previous: { comments: number; users: number; reactions: number };
-    trends: { comments: number; users: number; reactions: number };
-    averages: { commentsPerDay: number; activeDays: number };
-    sentiment: { likes: number; dislikes: number; likeRatio: number };
-}
-
-interface SparklineData {
-    days: number;
-    comments: number[];
-    users: number[];
-    reactions: number[];
-}
+// Types imported from @/types/api
 
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
 export default function AnalyticsPage() {
-    const [overview, setOverview] = useState<OverviewData | null>(null);
-    const [timeseries, setTimeseries] = useState<TimeseriesData | null>(null);
-    const [topPosts, setTopPosts] = useState<TopPost[]>([]);
-    const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
-    const [topComments, setTopComments] = useState<TopCommentsData | null>(
+    const [overview, setOverview] = useState<AnalyticsOverviewData | null>(
         null
     );
-    const [trends, setTrends] = useState<EngagementTrends | null>(null);
-    const [sparklines, setSparklines] = useState<SparklineData | null>(null);
+    const [timeseries, setTimeseries] =
+        useState<AnalyticsTimeseriesData | null>(null);
+    const [topPosts, setTopPosts] = useState<AnalyticsTopPost[]>([]);
+    const [activeUsers, setActiveUsers] = useState<AnalyticsActiveUser[]>([]);
+    const [topComments, setTopComments] =
+        useState<AnalyticsTopCommentsData | null>(null);
+    const [trends, setTrends] = useState<AnalyticsEngagementTrends | null>(
+        null
+    );
+    const [sparklines, setSparklines] = useState<AnalyticsSparklineData | null>(
+        null
+    );
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [metric, setMetric] = useState<'comments' | 'users' | 'reactions'>(
@@ -469,23 +413,25 @@ export default function AnalyticsPage() {
                 trendsRes,
                 sparklinesRes
             ] = await Promise.all([
-                api.get<OverviewData>('/admin/analytics/overview'),
-                api.get<TimeseriesData>(
+                api.get<AnalyticsOverviewData>('/admin/analytics/overview'),
+                api.get<AnalyticsTimeseriesData>(
                     `/admin/analytics/timeseries?metric=${metric}&days=${days}`
                 ),
-                api.get<{ posts: TopPost[] }>(
+                api.get<{ posts: AnalyticsTopPost[] }>(
                     '/admin/analytics/top-posts?days=30&limit=5'
                 ),
-                api.get<{ users: ActiveUser[] }>(
+                api.get<{ users: AnalyticsActiveUser[] }>(
                     '/admin/analytics/active-users?days=30&limit=5'
                 ),
-                api.get<TopCommentsData>(
+                api.get<AnalyticsTopCommentsData>(
                     '/admin/analytics/top-comments?days=30&limit=5'
                 ),
-                api.get<EngagementTrends>(
+                api.get<AnalyticsEngagementTrends>(
                     '/admin/analytics/engagement-trends?days=30'
                 ),
-                api.get<SparklineData>('/admin/analytics/sparklines?days=7')
+                api.get<AnalyticsSparklineData>(
+                    '/admin/analytics/sparklines?days=7'
+                )
             ]);
 
             setOverview(overviewRes.data);

@@ -34,23 +34,7 @@ import {
     AccessDenied
 } from '../components/AdminStyles';
 import SearchBar from '@components/atomic/SearchBar';
-
-interface AdminUser {
-    id: string;
-    username: string;
-    email: string | null;
-    displayName: string | null;
-    groups: string[];
-    isBanned: boolean;
-    banExpiresAt: string | null;
-    createdAt: string;
-}
-
-interface UsersResponse {
-    users: AdminUser[];
-    page: number;
-    limit: number;
-}
+import type { AdminUser, AdminUsersResponse } from '@/types/api';
 
 export default function AdminUsersPage() {
     const { isAdmin, hasPermission } = useAuth();
@@ -77,7 +61,7 @@ export default function AdminUsersPage() {
                 if (searchQuery) {
                     params.append('search', searchQuery);
                 }
-                const res = await api.get<UsersResponse>(
+                const res = await api.get<AdminUsersResponse>(
                     `/admin/users?${params.toString()}`
                 );
                 setUsers(res.data.users);

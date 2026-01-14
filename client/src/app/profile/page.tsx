@@ -335,13 +335,13 @@ const CommentActions = styled.div`
     gap: 5px;
 `;
 
-const CommentText = styled.p<{ deleted?: boolean }>`
+const CommentText = styled.p<{ $deleted?: boolean }>`
     margin: 0 0 10px 0;
     color: ${(props) =>
-        props.deleted
+        props.$deleted
             ? props.theme.text.colour.light_grey()
             : props.theme.text.colour.primary()};
-    font-style: ${(props) => (props.deleted ? 'italic' : 'normal')};
+    font-style: ${(props) => (props.$deleted ? 'italic' : 'normal')};
 `;
 
 const PostLink = styled.a`

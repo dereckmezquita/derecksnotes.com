@@ -11,16 +11,16 @@ import { User } from '@context/AuthContext';
 // STYLED COMPONENTS - Only for profile-specific wrapper
 // ============================================================================
 
-const ProfileCommentWrapper = styled.div<{ selected?: boolean }>`
+const ProfileCommentWrapper = styled.div<{ $selected?: boolean }>`
     border: 1px solid
         ${(props) =>
-            props.selected
+            props.$selected
                 ? props.theme.theme_colours[5]()
                 : props.theme.container.border.colour.primary()};
     border-radius: ${(props) => props.theme.container.border.radius};
     margin-bottom: ${(props) => props.theme.container.spacing.small};
     background: ${(props) =>
-        props.selected
+        props.$selected
             ? props.theme.theme_colours[9]()
             : props.theme.container.background.colour.content()};
     overflow: hidden;
@@ -191,7 +191,7 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
     };
 
     return (
-        <ProfileCommentWrapper selected={selected}>
+        <ProfileCommentWrapper $selected={selected}>
             {/* Selection checkbox */}
             {!comment.isDeleted && (
                 <SelectionBar>

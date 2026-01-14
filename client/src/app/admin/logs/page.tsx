@@ -45,49 +45,7 @@ import {
 } from '../components/AdminStyles';
 import SelectDropDown from '@components/atomic/SelectDropDown';
 import SearchBar from '@components/atomic/SearchBar';
-
-// Types
-interface LogEntry {
-    id: string;
-    level: 'debug' | 'info' | 'warn' | 'error' | 'fatal';
-    message: string;
-    source: string | null;
-    context: Record<string, any> | null;
-    stack: string | null;
-    userId: string | null;
-    requestId: string | null;
-    ipAddress: string | null;
-    userAgent: string | null;
-    path: string | null;
-    method: string | null;
-    statusCode: number | null;
-    duration: number | null;
-    createdAt: string;
-    clearedAt: string | null;
-    clearedBy: string | null;
-}
-
-interface ErrorSummary {
-    id: string;
-    fingerprint: string;
-    message: string;
-    source: string | null;
-    stack: string | null;
-    firstSeenAt: string;
-    lastSeenAt: string;
-    count: number;
-    resolved: boolean;
-    resolvedAt: string | null;
-    resolvedBy: string | null;
-    notes: string | null;
-}
-
-interface LogStats {
-    errorsToday: number;
-    errorsThisWeek: number;
-    unresolvedErrors: number;
-    logsByLevel: Record<string, number>;
-}
+import type { LogEntry, ErrorSummary, LogStats, LogLevel } from '@/types/api';
 
 // Page-specific styled components using correct theme paths
 const TabContainer = styled.div`
@@ -198,15 +156,16 @@ const WideModalContent = styled(ModalContent)`
     max-width: 800px;
 `;
 
-const DateInput = styled.input`
+const DateTimeInput = styled.input`
     padding: ${(props) => props.theme.container.spacing.small};
     border: 1px solid
         ${(props) => props.theme.container.border.colour.primary()};
     border-radius: ${(props) => props.theme.container.border.radius};
     background: ${(props) => props.theme.container.background.colour.solid()};
     color: ${(props) => props.theme.text.colour.primary()};
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     cursor: pointer;
+    min-width: 180px;
 
     &:focus {
         outline: none;
@@ -218,11 +177,13 @@ const FilterGroup = styled.div`
     display: flex;
     align-items: center;
     gap: ${(props) => props.theme.container.spacing.xsmall};
+    flex-shrink: 0;
 `;
 
 const FilterLabel = styled.span`
     font-size: 0.8rem;
     color: ${(props) => props.theme.text.colour.light_grey()};
+    white-space: nowrap;
 `;
 
 const ClearedRow = styled(TableRow)<{ $isCleared: boolean }>`
@@ -321,10 +282,7 @@ export default function AdminLogsPage() {
                     );
                 }
                 if (endDate) {
-                    // Add one day to include the entire end date
-                    const endDateTime = new Date(endDate);
-                    endDateTime.setDate(endDateTime.getDate() + 1);
-                    params.append('endDate', endDateTime.toISOString());
+                    params.append('endDate', new Date(endDate).toISOString());
                 }
                 if (clearedFilter !== '') {
                     params.append('cleared', clearedFilter);
@@ -454,6 +412,15 @@ export default function AdminLogsPage() {
             if (searchQuery) {
                 params.append('search', searchQuery);
             }
+            if (startDate) {
+                params.append('startDate', new Date(startDate).toISOString());
+            }
+            if (endDate) {
+                params.append('endDate', new Date(endDate).toISOString());
+            }
+            if (clearedFilter !== '') {
+                params.append('cleared', clearedFilter);
+            }
 
             const res = await api.get<{
                 logs: LogEntry[];
@@ -465,6 +432,9 @@ export default function AdminLogsPage() {
                 filters: {
                     level: levelFilter || 'all',
                     search: searchQuery || null,
+                    startDate: startDate || null,
+                    endDate: endDate || null,
+                    cleared: clearedFilter || 'all',
                     downloadAll
                 },
                 total: res.data.total,
@@ -591,11 +561,7 @@ export default function AdminLogsPage() {
             if (searchQuery) payload.search = searchQuery;
             if (startDate)
                 payload.startDate = new Date(startDate).toISOString();
-            if (endDate) {
-                const endDateTime = new Date(endDate);
-                endDateTime.setDate(endDateTime.getDate() + 1);
-                payload.endDate = endDateTime.toISOString();
-            }
+            if (endDate) payload.endDate = new Date(endDate).toISOString();
             await api.post('/admin/logs/clear-all', payload);
             setSelectedIds(new Set());
             fetchLogs(page);
@@ -764,8 +730,8 @@ export default function AdminLogsPage() {
                             />
                             <FilterGroup>
                                 <FilterLabel>From:</FilterLabel>
-                                <DateInput
-                                    type="date"
+                                <DateTimeInput
+                                    type="datetime-local"
                                     value={startDate}
                                     onChange={(e) => {
                                         setStartDate(e.target.value);
@@ -775,8 +741,8 @@ export default function AdminLogsPage() {
                             </FilterGroup>
                             <FilterGroup>
                                 <FilterLabel>To:</FilterLabel>
-                                <DateInput
-                                    type="date"
+                                <DateTimeInput
+                                    type="datetime-local"
                                     value={endDate}
                                     onChange={(e) => {
                                         setEndDate(e.target.value);
