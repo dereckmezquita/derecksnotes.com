@@ -62,81 +62,51 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This foundational chapter establishes the vocabulary and conceptual framework for statistical thinking. We explore what statistics is, why it matters, and how to think critically about data.*
 
-### 1.1 What Is Statistics?
-
-- **1.1.1 Statistics as the Science of Learning from Data** — We define statistics as the discipline of collecting, organising, analysing, and interpreting data to make informed decisions under uncertainty.
-
-- **1.1.2 A Brief History: From Census to Modern Data Science** — We trace the evolution of statistics from ancient census-taking through the development of probability theory, the frequentist revolution, and into modern computational statistics.
-
-- **1.1.3 Descriptive vs Inferential Statistics** — We distinguish between summarising data we have (descriptive) and drawing conclusions about larger populations (inferential), establishing the two main branches of statistics.
-
-- **1.1.4 The Role of Statistics in Biomedical Research** — We examine how statistics enables evidence-based medicine, from clinical trials to epidemiology to genomics, showing why statistical literacy is essential for biomedical scientists.
-
-### 1.2 Populations and Samples
-
-- **1.2.1 Defining the Population of Interest** — We explain how to precisely define the group about which you want to draw conclusions, a critical first step often overlooked.
-
-- **1.2.2 Why We Sample: Practical and Theoretical Reasons** — We explore why studying entire populations is usually impossible or impractical, motivating the need for sampling.
-
-- **1.2.3 Parameters vs Statistics: The Fundamental Distinction** — We introduce the crucial difference between fixed (but unknown) population parameters and variable sample statistics, using notation conventions (μ vs x̄, σ vs s).
-
-- **1.2.4 The Goal of Inference: Learning About Populations from Samples** — We frame the central problem of statistics: using sample data to make statements about population parameters.
-
-- **1.2.5 Notation Conventions** — We establish the notation used throughout the course, distinguishing Greek letters for parameters from Roman letters for statistics.
-
-### 1.3 Types of Variables
-
-- **1.3.1 Quantitative Variables** — We define variables that represent numerical measurements or counts, distinguishing between continuous (any value in a range) and discrete (countable values).
-
-- **1.3.2 Qualitative (Categorical) Variables** — We define variables that represent categories or groups, distinguishing between nominal (no natural order) and ordinal (meaningful order).
-
-- **1.3.3 Scales of Measurement: Nominal, Ordinal, Interval, Ratio** — We present Stevens' four levels of measurement, explaining what mathematical operations are meaningful for each.
-
-- **1.3.4 Identifying Variable Types in Practice** — We work through examples of classifying real variables, building the skill of recognising variable types in datasets.
-
-### 1.4 Data Collection Methods
-
-- **1.4.1 Observational Studies** — We explain studies where researchers observe without intervention, covering cross-sectional, case-control, and cohort designs with their strengths and limitations.
-
-- **1.4.2 Experimental Studies** — We explain studies where researchers actively intervene, focusing on randomised controlled trials as the gold standard for causal inference.
-
-- **1.4.3 The Crucial Difference: Association vs Causation** — We emphasise why observational studies can only show association while experiments can establish causation, a distinction fundamental to scientific reasoning.
-
-### 1.5 Sampling Methods
-
-- **1.5.1 Probability Sampling Methods** — We cover simple random sampling, stratified sampling, cluster sampling, and systematic sampling, explaining when each is appropriate.
-
-- **1.5.2 Non-Probability Sampling Methods** — We discuss convenience, quota, and snowball sampling, explaining their limitations and when they might be acceptable.
-
-- **1.5.3 Sampling Bias and How to Minimise It** — We identify common sources of sampling bias and strategies to reduce them.
-
-- **1.5.4 Implementing Random Sampling in R** — We write functions to perform various sampling methods, demonstrating practical implementation.
-
-### 1.6 Sources of Bias and Variability
-
-- **1.6.1 Selection Bias** — We explain how non-representative samples lead to biased conclusions, with examples from medical research.
-
-- **1.6.2 Measurement Bias (Systematic Error)** — We discuss how flawed measurement procedures introduce systematic errors that cannot be reduced by larger samples.
-
-- **1.6.3 Response Bias** — We cover how question wording, social desirability, and recall errors affect self-reported data.
-
-- **1.6.4 Survivorship Bias** — We explain this subtle but common bias where we only observe "survivors," with classic examples.
-
-- **1.6.5 Random Variability vs Systematic Bias** — We distinguish between random error (reduced by larger samples) and systematic bias (not reduced by larger samples), using target diagrams.
-
-### 1.7 Introduction to Statistical Software and Reproducibility
-
-- **1.7.1 Why Reproducibility Matters** — We explain the reproducibility crisis and why computational reproducibility is essential for credible science.
-
-- **1.7.2 Setting Seeds for Reproducible Random Processes** — We demonstrate set.seed() and explain why it's critical for reproducible analyses.
-
-- **1.7.3 Organising Statistical Projects** — We present best practices for project structure, file naming, and documentation.
-
-- **1.7.4 Introduction to R Markdown and Quarto for Reproducible Reports** — We introduce literate programming tools that combine code, results, and narrative.
-
-**Communicating to Stakeholders:** Explaining study design and its limitations to collaborators who may not understand why design matters.
-
-**Quick Reference:** Chapter 1 Key Terms and Concepts
+- **`01.1_statistics-1-foundations_introduction_statistics-and-sampling.Rmd`**
+    - **1.1 What Is Statistics?**
+        - **1.1.1 Statistics as the Science of Learning from Data** — We define statistics as the discipline of collecting, organising, analysing, and interpreting data to make informed decisions under uncertainty.
+        - **1.1.2 A Brief History: From Census to Modern Data Science** — We trace the evolution of statistics from ancient census-taking through the development of probability theory, the frequentist revolution, and into modern computational statistics.
+        - **1.1.3 Descriptive vs Inferential Statistics** — We distinguish between summarising data we have (descriptive) and drawing conclusions about larger populations (inferential), establishing the two main branches of statistics.
+        - **1.1.4 The Role of Statistics in Biomedical Research** — We examine how statistics enables evidence-based medicine, from clinical trials to epidemiology to genomics, showing why statistical literacy is essential for biomedical scientists.
+    - **1.2 Populations and Samples**
+        - **1.2.1 Defining the Population of Interest** — We explain how to precisely define the group about which you want to draw conclusions, a critical first step often overlooked.
+        - **1.2.2 Why We Sample: Practical and Theoretical Reasons** — We explore why studying entire populations is usually impossible or impractical, motivating the need for sampling.
+        - **1.2.3 Parameters vs Statistics: The Fundamental Distinction** — We introduce the crucial difference between fixed (but unknown) population parameters and variable sample statistics, using notation conventions (μ vs x̄, σ vs s).
+        - **1.2.4 The Goal of Inference: Learning About Populations from Samples** — We frame the central problem of statistics: using sample data to make statements about population parameters.
+        - **1.2.5 Notation Conventions** — We establish the notation used throughout the course, distinguishing Greek letters for parameters from Roman letters for statistics.
+    - **Communicating to Stakeholders:** Explaining what statistics is and why sampling matters to collaborators.
+    - **Quick Reference:** Key terms and notation conventions.
+- **`01.2_statistics-1-foundations_introduction_variables-and-collection.Rmd`**
+    - **1.3 Types of Variables**
+        - **1.3.1 Quantitative Variables** — We define variables that represent numerical measurements or counts, distinguishing between continuous (any value in a range) and discrete (countable values).
+        - **1.3.2 Qualitative (Categorical) Variables** — We define variables that represent categories or groups, distinguishing between nominal (no natural order) and ordinal (meaningful order).
+        - **1.3.3 Scales of Measurement: Nominal, Ordinal, Interval, Ratio** — We present Stevens' four levels of measurement, explaining what mathematical operations are meaningful for each.
+        - **1.3.4 Identifying Variable Types in Practice** — We work through examples of classifying real variables, building the skill of recognising variable types in datasets.
+    - **1.4 Data Collection Methods**
+        - **1.4.1 Observational Studies** — We explain studies where researchers observe without intervention, covering cross-sectional, case-control, and cohort designs with their strengths and limitations.
+        - **1.4.2 Experimental Studies** — We explain studies where researchers actively intervene, focusing on randomised controlled trials as the gold standard for causal inference.
+        - **1.4.3 The Crucial Difference: Association vs Causation** — We emphasise why observational studies can only show association while experiments can establish causation, a distinction fundamental to scientific reasoning.
+    - **Communicating to Stakeholders:** Explaining variable types and study designs to collaborators.
+    - **Quick Reference:** Variable classification and study design comparison table.
+- **`01.3_statistics-1-foundations_introduction_sampling-bias-reproducibility.Rmd`**
+    - **1.5 Sampling Methods**
+        - **1.5.1 Probability Sampling Methods** — We cover simple random sampling, stratified sampling, cluster sampling, and systematic sampling, explaining when each is appropriate.
+        - **1.5.2 Non-Probability Sampling Methods** — We discuss convenience, quota, and snowball sampling, explaining their limitations and when they might be acceptable.
+        - **1.5.3 Sampling Bias and How to Minimise It** — We identify common sources of sampling bias and strategies to reduce them.
+        - **1.5.4 Implementing Random Sampling in R** — We write functions to perform various sampling methods, demonstrating practical implementation.
+    - **1.6 Sources of Bias and Variability**
+        - **1.6.1 Selection Bias** — We explain how non-representative samples lead to biased conclusions, with examples from medical research.
+        - **1.6.2 Measurement Bias (Systematic Error)** — We discuss how flawed measurement procedures introduce systematic errors that cannot be reduced by larger samples.
+        - **1.6.3 Response Bias** — We cover how question wording, social desirability, and recall errors affect self-reported data.
+        - **1.6.4 Survivorship Bias** — We explain this subtle but common bias where we only observe "survivors," with classic examples.
+        - **1.6.5 Random Variability vs Systematic Bias** — We distinguish between random error (reduced by larger samples) and systematic bias (not reduced by larger samples), using target diagrams.
+    - **1.7 Introduction to Statistical Software and Reproducibility**
+        - **1.7.1 Why Reproducibility Matters** — We explain the reproducibility crisis and why computational reproducibility is essential for credible science.
+        - **1.7.2 Setting Seeds for Reproducible Random Processes** — We demonstrate set.seed() and explain why it's critical for reproducible analyses.
+        - **1.7.3 Organising Statistical Projects** — We present best practices for project structure, file naming, and documentation.
+        - **1.7.4 Introduction to R Markdown and Quarto for Reproducible Reports** — We introduce literate programming tools that combine code, results, and narrative.
+    - **Communicating to Stakeholders:** Explaining study design limitations and why reproducibility matters.
+    - **Quick Reference:** Sampling methods comparison and bias types summary.
 
 ---
 
