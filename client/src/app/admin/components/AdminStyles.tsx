@@ -32,6 +32,7 @@ const spin = keyframes`
 export const AdminMain = styled(Article)`
     width: 75%;
     text-align: left;
+    min-height: 600px;
 
     @media (max-width: 900px) {
         width: 100%;

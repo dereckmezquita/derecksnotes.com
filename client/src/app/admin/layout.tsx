@@ -251,7 +251,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
     return (
         <PostContainer>
-            <SideBarContainer style={{ textAlign: 'left' }}>
+            <SideBarContainer style={{ textAlign: 'left', minHeight: '600px' }}>
                 <SidebarTitle>Admin Panel</SidebarTitle>
                 <SidebarNav>
                     {visibleNavItems.map((item) => (
