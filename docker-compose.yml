@@ -1,12 +1,7 @@
 services:
   derecksnotes:
-    image: ${IMAGE_NAME:-derecksnotes}
+    image: ${IMAGE_NAME}
     container_name: ${CONTAINER_NAME:-derecksnotes}
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - BUILD_ENV=${BUILD_ENV:-prod}
     ports:
       - '${PORT_CLIENT:-3000}:3000'
       - '${PORT_SERVER:-3001}:3001'
@@ -18,7 +13,7 @@ services:
     restart: unless-stopped
     volumes:
       - ${DATA_PATH:-./data}:/app/data
-      - /var/www/derecksnotes.com/public:/app/client/public
+      - ${PUBLIC_PATH:-./public}:/app/client/public
 
 networks:
   dereck-network:
