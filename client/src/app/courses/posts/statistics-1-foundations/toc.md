@@ -62,7 +62,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This foundational chapter establishes the vocabulary and conceptual framework for statistical thinking. We explore what statistics is, why it matters, and how to think critically about data.*
 
-- **`01.1_statistics-1-foundations_introduction_statistics-and-sampling.Rmd`**
+- **`01-1_statistics-1-foundations_introduction_statistics-and-sampling.Rmd`**
     - **1.1 What Is Statistics?**
         - **1.1.1 Statistics as the Science of Learning from Data** — We define statistics as the discipline of collecting, organising, analysing, and interpreting data to make informed decisions under uncertainty.
         - **1.1.2 A Brief History: From Census to Modern Data Science** — We trace the evolution of statistics from ancient census-taking through the development of probability theory, the frequentist revolution, and into modern computational statistics.
@@ -76,7 +76,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **1.2.5 Notation Conventions** — We establish the notation used throughout the course, distinguishing Greek letters for parameters from Roman letters for statistics.
     - **Communicating to Stakeholders:** Explaining what statistics is and why sampling matters to collaborators.
     - **Quick Reference:** Key terms and notation conventions.
-- **`01.2_statistics-1-foundations_introduction_variables-and-collection.Rmd`**
+- **`01-2_statistics-1-foundations_introduction_variables-and-collection.Rmd`**
     - **1.3 Types of Variables**
         - **1.3.1 Quantitative Variables** — We define variables that represent numerical measurements or counts, distinguishing between continuous (any value in a range) and discrete (countable values).
         - **1.3.2 Qualitative (Categorical) Variables** — We define variables that represent categories or groups, distinguishing between nominal (no natural order) and ordinal (meaningful order).
@@ -88,7 +88,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **1.4.3 The Crucial Difference: Association vs Causation** — We emphasise why observational studies can only show association while experiments can establish causation, a distinction fundamental to scientific reasoning.
     - **Communicating to Stakeholders:** Explaining variable types and study designs to collaborators.
     - **Quick Reference:** Variable classification and study design comparison table.
-- **`01.3_statistics-1-foundations_introduction_sampling-bias-reproducibility.Rmd`**
+- **`01-3_statistics-1-foundations_introduction_sampling-bias-reproducibility.Rmd`**
     - **1.5 Sampling Methods**
         - **1.5.1 Probability Sampling Methods** — We cover simple random sampling, stratified sampling, cluster sampling, and systematic sampling, explaining when each is appropriate.
         - **1.5.2 Non-Probability Sampling Methods** — We discuss convenience, quota, and snowball sampling, explaining their limitations and when they might be acceptable.
@@ -114,7 +114,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter covers the fundamental numerical summaries used to describe datasets. We learn to quantify centre, spread, and shape, implementing each measure from scratch to understand what they truly measure.*
 
-- **`02.1_statistics-1-foundations_descriptive-numerical_central-tendency.Rmd`**
+- **`02-1_statistics-1-foundations_descriptive-numerical_central-tendency.Rmd`**
     - **2.1 Measures of Central Tendency**
         - **2.1.1 The Arithmetic Mean** — We derive the mean as the "balance point" of a distribution, prove its key properties, and implement it from scratch before using mean().
         - **2.1.2 The Median** — We derive the median as the value minimising absolute deviations, explain its robustness to outliers, and implement it from scratch.
@@ -123,7 +123,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **2.1.5 Other Means: Weighted, Trimmed, Geometric, Harmonic** — We derive and implement specialised means for specific applications like growth rates, ratios, and weighted surveys.
     - **Communicating to Stakeholders:** Explaining which average to report and why different measures give different answers.
     - **Quick Reference:** Central tendency formulae and when to use each measure.
-- **`02.2_statistics-1-foundations_descriptive-numerical_dispersion-position.Rmd`**
+- **`02-2_statistics-1-foundations_descriptive-numerical_dispersion-position.Rmd`**
     - **2.2 Measures of Dispersion (Spread)**
         - **2.2.1 Range and Interquartile Range** — We define these simple measures of spread, discuss their properties, and explain when each is appropriate.
         - **2.2.2 Variance** — We derive variance as the average squared deviation from the mean, explain why we square, and prove why we divide by n-1 for samples.
@@ -138,7 +138,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **2.3.4 Percentile Ranks** — We explain how to express a value as a percentile, with applications to clinical reference ranges.
     - **Communicating to Stakeholders:** Explaining spread and percentiles in clinical reports.
     - **Quick Reference:** Dispersion and position formulae with R implementations.
-- **`02.3_statistics-1-foundations_descriptive-numerical_shape-grouped-outliers.Rmd`**
+- **`02-3_statistics-1-foundations_descriptive-numerical_shape-grouped-outliers.Rmd`**
     - **2.4 Measures of Shape**
         - **2.4.1 Skewness** — We derive the skewness formula, explain what positive and negative skewness mean visually, and implement calculation from scratch.
         - **2.4.2 Kurtosis** — We derive the kurtosis formula, explain what it measures about tails and peaks, and clarify common misconceptions.
@@ -162,7 +162,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter covers graphical methods for exploring and presenting data. We focus on creating effective visualisations that reveal patterns and communicate findings clearly.*
 
-- **`03.1_statistics-1-foundations_visualisation_principles-categorical-univariate.Rmd`**
+- **`03-1_statistics-1-foundations_visualisation_principles-categorical-univariate.Rmd`**
     - **3.1 Principles of Statistical Graphics**
         - **3.1.1 The Grammar of Graphics Philosophy** — We introduce the layered grammar underlying ggplot2, explaining how it enables systematic construction of visualisations.
         - **3.1.2 Choosing the Right Plot for Your Data Type** — We present a decision framework for selecting appropriate visualisations based on variable types and analysis goals.
@@ -182,7 +182,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **3.3.7 Empirical Cumulative Distribution Function (ECDF) Plots** — We derive and construct ECDFs, explaining how to read percentiles from them.
     - **Communicating to Stakeholders:** Choosing appropriate plots for different audiences.
     - **Quick Reference:** Plot selection guide for categorical and univariate data.
-- **`03.2_statistics-1-foundations_visualisation_bivariate-grouped.Rmd`**
+- **`03-2_statistics-1-foundations_visualisation_bivariate-grouped.Rmd`**
     - **3.4 Visualising Relationships Between Two Quantitative Variables**
         - **3.4.1 Scatter Plots** — We construct scatter plots, identify patterns, and handle overplotting through transparency, jittering, and binning.
         - **3.4.2 Adding Trend Lines** — We add linear regression lines and LOESS smoothers to reveal relationships.
@@ -195,7 +195,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **3.6.1 Correlation Matrices and Heatmaps** — We compute correlation matrices and display them as heatmaps with appropriate colour scales.
     - **Communicating to Stakeholders:** Presenting relationships and group comparisons visually.
     - **Quick Reference:** Bivariate and grouped visualisation ggplot2 syntax.
-- **`03.3_statistics-1-foundations_visualisation_qq-timeseries-advanced.Rmd`**
+- **`03-3_statistics-1-foundations_visualisation_qq-timeseries-advanced.Rmd`**
     - **3.7 Visualising Distributions: QQ Plots**
         - **3.7.1 The Idea: Comparing Data to a Theoretical Distribution** — We explain the logic of QQ plots: if data follow a distribution, points fall on a line.
         - **3.7.2 Constructing QQ Plots Step by Step** — We manually construct QQ plots to understand exactly what they show.
@@ -218,7 +218,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter introduces the mathematical framework of probability theory. We build intuition through simulation before formalising concepts mathematically.*
 
-- **`04.1_statistics-1-foundations_probability_basics-rules.Rmd`**
+- **`04-1_statistics-1-foundations_probability_basics-rules.Rmd`**
     - **4.1 What Is Probability?**
         - **4.1.1 Probability as Long-Run Frequency (Frequentist Interpretation)** — We define probability as the limit of relative frequency in repeated trials, grounding the concept in observable phenomena.
         - **4.1.2 Probability as Degree of Belief (Bayesian Interpretation)** — We introduce the alternative view of probability as quantified uncertainty, setting up later Bayesian chapters.
@@ -236,7 +236,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **4.3.4 Implementing Probability Calculations in R** — We write functions to compute probabilities and simulate random events.
     - **Communicating to Stakeholders:** Explaining basic probability concepts and sample spaces.
     - **Quick Reference:** Probability axioms and basic rules formulae.
-- **`04.2_statistics-1-foundations_probability_conditional-independence-bayes.Rmd`**
+- **`04-2_statistics-1-foundations_probability_conditional-independence-bayes.Rmd`**
     - **4.4 Conditional Probability**
         - **4.4.1 Definition and Intuition** — We derive P(A|B) = P(A ∩ B) / P(B) and explain it as restricting the sample space.
         - **4.4.2 The Multiplication Rule** — We derive P(A ∩ B) = P(A|B) × P(B) and apply it to sequential events.
@@ -256,7 +256,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **4.6.6 The Law of Total Probability** — We derive this tool for computing marginal probabilities via conditioning.
     - **Communicating to Stakeholders:** Explaining diagnostic test results to patients and clinicians.
     - **Quick Reference:** Conditional probability, Bayes' theorem, and diagnostic measures formulae.
-- **`04.3_statistics-1-foundations_probability_counting-simulation.Rmd`**
+- **`04-3_statistics-1-foundations_probability_counting-simulation.Rmd`**
     - **4.7 Counting Methods (Combinatorics)**
         - **4.7.1 The Multiplication Principle** — We derive the fundamental counting principle for sequential choices.
         - **4.7.2 Permutations** — We derive n! and nPr formulae for ordered arrangements.
@@ -277,7 +277,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter formalises random variables and introduces the major probability distributions. We implement distribution functions from scratch to deeply understand what they compute.*
 
-- **`05.1_statistics-1-foundations_distributions_discrete-bernoulli-binomial.Rmd`**
+- **`05-1_statistics-1-foundations_distributions_discrete-bernoulli-binomial.Rmd`**
     - **5.1 Random Variables**
         - **5.1.1 Definition: Mapping Outcomes to Numbers** — We define random variables as functions from sample spaces to real numbers, bridging probability and calculus.
         - **5.1.2 Discrete Random Variables** — We define discrete random variables as those taking countable values.
@@ -301,7 +301,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **5.4.6 Applications** — We apply binomial to treatment response rates, genetic inheritance, and quality control.
     - **Communicating to Stakeholders:** Explaining discrete distributions and success/failure models.
     - **Quick Reference:** Bernoulli and binomial formulae with R functions.
-- **`05.2_statistics-1-foundations_distributions_poisson-other-discrete.Rmd`**
+- **`05-2_statistics-1-foundations_distributions_poisson-other-discrete.Rmd`**
     - **5.5 The Poisson Distribution**
         - **5.5.1 Definition: Counting Rare Events** — We introduce the Poisson as the distribution of counts in fixed intervals when events occur independently at constant rate.
         - **5.5.2 PMF Derivation** — We derive P(X = k) = (λ^k × e^(-λ)) / k! as a limit of the binomial.
@@ -314,7 +314,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **5.6.3 Hypergeometric Distribution** — We derive the distribution for sampling without replacement and its use in Fisher's exact test.
     - **Communicating to Stakeholders:** Explaining count data and rare event modelling.
     - **Quick Reference:** Poisson, geometric, negative binomial, and hypergeometric formulae.
-- **`05.3_statistics-1-foundations_distributions_continuous-uniform-normal.Rmd`**
+- **`05-3_statistics-1-foundations_distributions_continuous-uniform-normal.Rmd`**
     - **5.7 Continuous Probability Distributions**
         - **5.7.1 Probability Density Function (PDF)** — We define the PDF, explain why P(X = x) = 0, and show that probability is area under the curve.
         - **5.7.2 Cumulative Distribution Function (CDF)** — We define F(x) as the integral of the PDF and show how to compute probabilities.
@@ -332,7 +332,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **5.9.6 Why the Normal Is Everywhere** — We preview the Central Limit Theorem as explanation for the normal's ubiquity.
     - **Communicating to Stakeholders:** Explaining continuous distributions and the normal curve.
     - **Quick Reference:** Continuous distribution concepts, uniform and normal formulae.
-- **`05.4_statistics-1-foundations_distributions_exponential-gamma-beta-related.Rmd`**
+- **`05-4_statistics-1-foundations_distributions_exponential-gamma-beta-related.Rmd`**
     - **5.10 The Exponential Distribution**
         - **5.10.1 Definition and Properties** — We derive the exponential as the distribution of waiting times in a Poisson process.
         - **5.10.2 The Memoryless Property** — We prove and interpret the unique memoryless property.
@@ -360,7 +360,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter introduces sampling distributions, the conceptual foundation of statistical inference. We use extensive simulation to build intuition before proving results mathematically.*
 
-- **`06.1_statistics-1-foundations_sampling-distributions_mean-clt.Rmd`**
+- **`06-1_statistics-1-foundations_sampling-distributions_mean-clt.Rmd`**
     - **6.1 The Concept of a Sampling Distribution**
         - **6.1.1 What Happens When We Sample Repeatedly?** — We introduce the thought experiment of repeated sampling to motivate sampling distributions.
         - **6.1.2 Statistics as Random Variables** — We explain that sample statistics vary from sample to sample and thus have their own distributions.
@@ -378,7 +378,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **6.3.5 Mathematical Intuition** — We provide intuitive reasoning for why the CLT works.
     - **Communicating to Stakeholders:** Explaining sampling variability and the CLT intuitively.
     - **Quick Reference:** Sampling distribution of the mean formulae.
-- **`06.2_statistics-1-foundations_sampling-distributions_proportion-variance-t.Rmd`**
+- **`06-2_statistics-1-foundations_sampling-distributions_proportion-variance-t.Rmd`**
     - **6.4 Sampling Distribution of the Sample Proportion**
         - **6.4.1 Proportion as a Special Mean** — We show that the sample proportion is the mean of Bernoulli random variables.
         - **6.4.2 Standard Error of a Proportion** — We derive SE(p̂) = √[p(1-p)/n].
@@ -402,7 +402,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter covers the theory and methods for estimating population parameters. We implement estimators from scratch and rigorously evaluate their properties.*
 
-- **`07.1_statistics-1-foundations_estimation_properties-moments.Rmd`**
+- **`07-1_statistics-1-foundations_estimation_properties-moments.Rmd`**
     - **7.1 Introduction to Estimation**
         - **7.1.1 The Estimation Problem** — We frame the goal: using sample data to learn about unknown population parameters.
         - **7.1.2 Estimators vs Estimates** — We distinguish between the formula (estimator) and its value for specific data (estimate).
@@ -421,7 +421,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **7.3.4 Properties and Limitations** — We discuss when MoM works well and when it doesn't.
     - **Communicating to Stakeholders:** Explaining estimator properties and method of moments.
     - **Quick Reference:** Estimator properties definitions and MoM formulae.
-- **`07.2_statistics-1-foundations_estimation_mle-comparison-robust.Rmd`**
+- **`07-2_statistics-1-foundations_estimation_mle-comparison-robust.Rmd`**
     - **7.4 Maximum Likelihood Estimation**
         - **7.4.1 The Likelihood Function** — We define L(θ|data) as the probability of observed data as a function of the parameter.
         - **7.4.2 Log-Likelihood** — We explain why we work with log-likelihood for computational convenience.
@@ -447,7 +447,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter covers the construction and interpretation of confidence intervals, providing ranges of plausible values for population parameters.*
 
-- **`08.1_statistics-1-foundations_confidence-intervals_interpretation-means.Rmd`**
+- **`08-1_statistics-1-foundations_confidence-intervals_interpretation-means.Rmd`**
     - **8.1 The Need for Interval Estimation**
         - **8.1.1 Limitations of Point Estimates** — We explain why a single number is insufficient to characterise what we know.
         - **8.1.2 What Is a Confidence Interval?** — We define CIs as intervals constructed to contain the parameter with specified probability.
@@ -466,7 +466,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **8.4.3 The t-Interval** — We derive the formula and implement it from scratch and with t.test().
     - **Communicating to Stakeholders:** Explaining what confidence intervals mean in plain language.
     - **Quick Reference:** CI interpretation guidelines and mean CI formulae.
-- **`08.2_statistics-1-foundations_confidence-intervals_proportions-differences-variance.Rmd`**
+- **`08-2_statistics-1-foundations_confidence-intervals_proportions-differences-variance.Rmd`**
     - **8.5 Confidence Intervals for Proportions**
         - **8.5.1 The Wald Interval** — We derive the standard interval and explain its problems with extreme proportions.
         - **8.5.2 The Wilson Score Interval** — We derive this improved interval with better coverage properties.
@@ -482,7 +482,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **8.7.2 Asymmetry** — We explain why these intervals are asymmetric.
     - **Communicating to Stakeholders:** Reporting proportion and difference CIs in clinical contexts.
     - **Quick Reference:** Proportion CI methods comparison and difference formulae.
-- **`08.3_statistics-1-foundations_confidence-intervals_sample-size-bootstrap.Rmd`**
+- **`08-3_statistics-1-foundations_confidence-intervals_sample-size-bootstrap.Rmd`**
     - **8.8 Sample Size Determination**
         - **8.8.1 For Estimating a Mean** — We derive the sample size formula given desired margin of error.
         - **8.8.2 For Estimating a Proportion** — We derive sample size with conservative and informed approaches.
@@ -504,7 +504,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter introduces the logic, mechanics, and interpretation of hypothesis testing. We emphasise proper understanding and address common pitfalls.*
 
-- **`09.1_statistics-1-foundations_hypothesis-testing_logic-pvalues-errors.Rmd`**
+- **`09-1_statistics-1-foundations_hypothesis-testing_logic-pvalues-errors.Rmd`**
     - **9.1 The Logic of Hypothesis Testing**
         - **9.1.1 Scientific vs Statistical Hypotheses** — We distinguish research questions from testable statistical statements.
         - **9.1.2 The "Proof by Contradiction" Framework** — We explain hypothesis testing as assuming H₀ and seeking contradicting evidence.
@@ -527,7 +527,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **9.4.4 Consequences in Biomedical Contexts** — We discuss real-world implications of each error type.
     - **Communicating to Stakeholders:** Explaining p-values and statistical significance correctly.
     - **Quick Reference:** Hypothesis testing terminology and decision framework.
-- **`09.2_statistics-1-foundations_hypothesis-testing_power-effect-sizes-controversy.Rmd`**
+- **`09-2_statistics-1-foundations_hypothesis-testing_power-effect-sizes-controversy.Rmd`**
     - **9.5 Statistical Power**
         - **9.5.1 Definition** — We define power as P(reject H₀ | H₁ true) = 1 - β.
         - **9.5.2 Factors Affecting Power** — We explain how sample size, effect size, α, and variability affect power.
@@ -554,7 +554,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter covers the most commonly used hypothesis tests. We implement each test from scratch before using built-in functions.*
 
-- **`10.1_statistics-1-foundations_hypothesis-tests_z-t-tests-means.Rmd`**
+- **`10-1_statistics-1-foundations_hypothesis-tests_z-t-tests-means.Rmd`**
     - **10.1 One-Sample Z-Test for the Mean**
         - **10.1.1 When to Use** — We explain this test is for means when σ is known (rare in practice).
         - **10.1.2 Test Statistic and Distribution** — We derive Z = (X̄ - μ₀) / (σ/√n).
@@ -577,7 +577,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **10.4.4 Implementation** — We implement from scratch and with t.test(paired = TRUE).
     - **Communicating to Stakeholders:** Explaining t-test results and assumptions to collaborators.
     - **Quick Reference:** t-test formulae and assumption checklist.
-- **`10.2_statistics-1-foundations_hypothesis-tests_proportions-variance.Rmd`**
+- **`10-2_statistics-1-foundations_hypothesis-tests_proportions-variance.Rmd`**
     - **10.5 One-Sample Test for a Proportion**
         - **10.5.1 Z-Test for Proportion** — We derive the test using normal approximation.
         - **10.5.2 Exact Binomial Test** — We derive the exact test for small samples.
@@ -602,7 +602,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter covers tests for categorical data and distribution-free methods when parametric assumptions are violated.*
 
-- **`11.1_statistics-1-foundations_chisq-nonparametric_categorical-normality.Rmd`**
+- **`11-1_statistics-1-foundations_chisq-nonparametric_categorical-normality.Rmd`**
     - **11.1 Chi-Square Goodness-of-Fit Test**
         - **11.1.1 The Research Question** — We test whether observed frequencies match expected frequencies.
         - **11.1.2 Test Statistic Derivation** — We derive χ² = Σ(O - E)² / E and explain why it works.
@@ -628,7 +628,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **11.5.4 What If Data Aren't Normal?** — We discuss transformations and alternatives.
     - **Communicating to Stakeholders:** Explaining chi-square tests and normality assessment.
     - **Quick Reference:** Chi-square test formulae and normality testing guidelines.
-- **`11.2_statistics-1-foundations_chisq-nonparametric_rank-permutation.Rmd`**
+- **`11-2_statistics-1-foundations_chisq-nonparametric_rank-permutation.Rmd`**
     - **11.6 Introduction to Non-Parametric Methods**
         - **11.6.1 What Are Non-Parametric Tests?** — We define tests that don't assume specific distributions.
         - **11.6.2 When to Use Them** — We list situations favouring non-parametric approaches.
@@ -660,7 +660,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter introduces simple linear regression for understanding relationships between quantitative variables.*
 
-- **`12.1_statistics-1-foundations_regression_model-estimation-fit.Rmd`**
+- **`12-1_statistics-1-foundations_regression_model-estimation-fit.Rmd`**
     - **12.1 The Regression Problem**
         - **12.1.1 Predicting One Variable from Another** — We introduce regression as modelling the relationship between variables.
         - **12.1.2 Response and Explanatory Variables** — We define dependent and independent variables.
@@ -681,7 +681,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **12.4.4 Residual Standard Error** — We define and interpret the RSE.
     - **Communicating to Stakeholders:** Explaining regression models and R² to non-statisticians.
     - **Quick Reference:** Regression model formulae and least squares derivation.
-- **`12.2_statistics-1-foundations_regression_inference-prediction.Rmd`**
+- **`12-2_statistics-1-foundations_regression_inference-prediction.Rmd`**
     - **12.5 Inference for Regression Coefficients**
         - **12.5.1 Sampling Distribution of β̂₁** — We derive the distribution of the slope estimator.
         - **12.5.2 Standard Error of the Slope** — We derive SE(β̂₁).
@@ -694,7 +694,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **12.6.3 The Dangers of Extrapolation** — We explain why prediction outside the data range is risky.
     - **Communicating to Stakeholders:** Reporting regression results with appropriate uncertainty.
     - **Quick Reference:** Inference formulae and prediction interval calculations.
-- **`12.3_statistics-1-foundations_regression_diagnostics-transformations.Rmd`**
+- **`12-3_statistics-1-foundations_regression_diagnostics-transformations.Rmd`**
     - **12.7 Regression Diagnostics**
         - **12.7.1 Residual Plots** — We use residuals vs fitted to check assumptions.
         - **12.7.2 Checking Linearity** — We identify non-linear patterns.
@@ -718,7 +718,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter introduces ANOVA for comparing means across multiple groups.*
 
-- **`13.1_statistics-1-foundations_anova_oneway-ftest.Rmd`**
+- **`13-1_statistics-1-foundations_anova_oneway-ftest.Rmd`**
     - **13.1 The Multiple Comparison Problem**
         - **13.1.1 Why Not Multiple t-Tests?** — We explain how multiple testing inflates Type I error.
         - **13.1.2 Family-Wise Error Rate** — We derive how error accumulates with multiple tests.
@@ -742,7 +742,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **13.6.2 ω²** — We introduce this less biased alternative.
     - **Communicating to Stakeholders:** Explaining ANOVA results and what group differences mean.
     - **Quick Reference:** ANOVA formulae and F-test interpretation.
-- **`13.2_statistics-1-foundations_anova_posthoc-contrasts-linear.Rmd`**
+- **`13-2_statistics-1-foundations_anova_posthoc-contrasts-linear.Rmd`**
     - **13.7 Post-Hoc Comparisons**
         - **13.7.1 The Need for Post-Hoc Tests** — We explain that significant ANOVA doesn't tell us which groups differ.
         - **13.7.2 Tukey's HSD** — We derive and implement Tukey's honest significant difference.
@@ -764,7 +764,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter covers principles of designing experiments to enable valid causal inference.*
 
-- **`14.1_statistics-1-foundations_design_principles-common-designs.Rmd`**
+- **`14-1_statistics-1-foundations_design_principles-common-designs.Rmd`**
     - **14.1 Why Design Matters**
         - **14.1.1 The Goal: Causal Inference** — We explain that good design enables causal conclusions.
         - **14.1.2 Confounding Variables** — We define confounding and show how it prevents causal inference.
@@ -783,7 +783,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **14.4.2 When Blinding Is Impossible** — We discuss alternatives when blinding can't be done.
     - **Communicating to Stakeholders:** Explaining design principles and why randomisation matters.
     - **Quick Reference:** Experimental design types and their applications.
-- **`14.2_statistics-1-foundations_design_power-validity-ethics.Rmd`**
+- **`14-2_statistics-1-foundations_design_power-validity-ethics.Rmd`**
     - **14.5 Sample Size and Power**
         - **14.5.1 A Priori Power Analysis** — We demonstrate planning sample size before a study.
         - **14.5.2 Using pwr Package** — We show practical power calculations.
@@ -804,7 +804,7 @@ This course is designed to be followed sequentially, with each chapter building 
 
 *This chapter addresses multiple testing and the reproducibility crisis in modern science.*
 
-- **`15.1_statistics-1-foundations_reproducibility_multiple-testing-fdr.Rmd`**
+- **`15-1_statistics-1-foundations_reproducibility_multiple-testing-fdr.Rmd`**
     - **15.1 The Multiple Testing Problem**
         - **15.1.1 Why Many Tests Are Dangerous** — We demonstrate how false positives accumulate.
         - **15.1.2 Family-Wise Error Rate** — We define FWER formally.
@@ -821,7 +821,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **15.3.4 When to Use FDR vs FWER** — We provide guidance on method selection.
     - **Communicating to Stakeholders:** Explaining multiple testing corrections and their necessity.
     - **Quick Reference:** Multiple testing correction methods and p.adjust() usage.
-- **`15.2_statistics-1-foundations_reproducibility_crisis-qrps.Rmd`**
+- **`15-2_statistics-1-foundations_reproducibility_crisis-qrps.Rmd`**
     - **15.4 The Reproducibility Crisis**
         - **15.4.1 What Went Wrong** — We review evidence of widespread non-reproducibility.
         - **15.4.2 Causes** — We discuss low power, p-hacking, publication bias, and HARKing.
@@ -832,7 +832,7 @@ This course is designed to be followed sequentially, with each chapter building 
         - **15.5.3 The Garden of Forking Paths** — We visualise how many researcher choices affect results.
     - **Communicating to Stakeholders:** Explaining the reproducibility crisis and why it matters.
     - **Quick Reference:** Common QRPs and how to recognise them.
-- **`15.3_statistics-1-foundations_reproducibility_solutions-best-practices.Rmd`**
+- **`15-3_statistics-1-foundations_reproducibility_solutions-best-practices.Rmd`**
     - **15.6 Solutions and Best Practices**
         - **15.6.1 Pre-Registration** — We explain committing to analyses before seeing data.
         - **15.6.2 Registered Reports** — We introduce peer review before data collection.
