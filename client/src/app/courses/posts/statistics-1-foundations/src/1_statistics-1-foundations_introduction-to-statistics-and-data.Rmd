@@ -3,7 +3,7 @@ title: "Statistics with R I: Foundations"
 chapter: "Chapter 1: Introduction to Statistics and Data"
 coverImage: 13
 author: "Dereck Mezquita"
-date: 2025-01-14
+date: "`r Sys.Date()`"
 tags: [statistics, mathematics, probability, data, R, biomedical]
 published: true
 comments: true
@@ -24,7 +24,7 @@ if (knitr::is_html_output()) knitr::knit_hooks$set(
 )
 
 knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
 ```
 
 # Chapter 1: Introduction to Statistics and Data
@@ -46,7 +46,7 @@ Statistics is the science of learning from data under uncertainty. At its core, 
 
 Consider a physician who wishes to know whether a new drug reduces blood pressure more effectively than the current standard treatment. She cannot administer the drug to every person in the world who might benefit from it. Instead, she studies a carefully selected group of patients, measures their responses, and uses statistical methods to draw conclusions about how the drug would perform in the broader population.
 
-This scenario captures the essence of statistics: we have limited data but wish to make general statements. Statistics provides the mathematical machinery to do this responsibly—quantifying how confident we should be in our conclusions and identifying what remains uncertain.
+This scenario captures the essence of statistics: we have limited data but wish to make general statements. Statistics provides the mathematical machinery to do this responsibly, quantifying how confident we should be in our conclusions and identifying what remains uncertain.
 
 ```{r statistics_essence, fig.cap="Statistics bridges the gap between sample observations and population truth"}
 set.seed(42)
@@ -94,17 +94,17 @@ ggplot2$ggplot(plot_data, ggplot2$aes(x = value, fill = type)) +
     ggplot2$theme(legend.position = "bottom")
 ```
 
-The figure above illustrates the fundamental statistical problem. We observe only the sample (blue), but we wish to learn about the population (orange). The sample mean differs slightly from the population mean—this difference is not an error but a natural consequence of sampling variability. Statistics tells us how to quantify this variability and how confident we can be that our sample reflects the population.
+The figure above illustrates the fundamental statistical problem. We observe only the sample (blue), but we wish to learn about the population (orange). The sample mean differs slightly from the population mean. This difference is not an error but a natural consequence of sampling variability. Statistics tells us how to quantify this variability and how confident we can be that our sample reflects the population.
 
 ### 1.1.2 A Brief History: From Census to Modern Data Science
 
-Statistical thinking has ancient roots. The word "statistics" derives from the Latin *status*, meaning "state"—reflecting its origins in governmental record-keeping. Ancient civilisations conducted censuses to count populations and levy taxes. The Babylonians collected agricultural data around 3800 BCE, and the Egyptians surveyed their population for pyramid construction.
+Statistical thinking has ancient roots. The word "statistics" derives from the Latin *status*, meaning "state", reflecting its origins in governmental record-keeping. Ancient civilisations conducted censuses to count populations and levy taxes. The Babylonians collected agricultural data around 3800 BCE, and the Egyptians surveyed their population for pyramid construction.
 
 The mathematical foundations of statistics emerged in the 17th and 18th centuries. Blaise Pascal and Pierre de Fermat developed probability theory whilst corresponding about gambling problems. Jacob Bernoulli proved the law of large numbers, showing that sample proportions converge to true probabilities as sample sizes increase. Thomas Bayes formulated his famous theorem on conditional probability, though it was published posthumously.
 
 The 19th century brought statistics into scientific practice. Adolphe Quetelet applied statistical methods to human characteristics, discovering that many biological measurements follow the normal distribution. Francis Galton developed correlation and regression whilst studying heredity. Karl Pearson formalised these methods and founded the world's first university statistics department at University College London in 1911.
 
-The 20th century saw an explosion of statistical methodology. Ronald Fisher revolutionised experimental design and developed methods still central to research today: analysis of variance, maximum likelihood estimation, and the concepts underlying randomised controlled trials. Jerzy Neyman and Egon Pearson formalised hypothesis testing and confidence intervals. The second half of the century brought computational statistics—methods that would have been impossible without computers.
+The 20th century saw an explosion of statistical methodology. Ronald Fisher revolutionised experimental design and developed methods still central to research today: analysis of variance, maximum likelihood estimation, and the concepts underlying randomised controlled trials. Jerzy Neyman and Egon Pearson formalised hypothesis testing and confidence intervals. The second half of the century brought computational statistics, including methods that would have been impossible without computers.
 
 Today, statistics underpins nearly all empirical research. From genomics to clinical trials, from economics to machine learning, statistical thinking provides the framework for evidence-based conclusions.
 
@@ -112,7 +112,7 @@ Today, statistics underpins nearly all empirical research. From genomics to clin
 
 Statistics divides into two complementary branches:
 
-**Descriptive statistics** summarises and organises data we have observed. When we calculate an average, create a histogram, or report that 60% of patients responded to treatment, we are describing our data. Descriptive statistics makes no claims beyond the data at hand—it simply characterises what we have observed.
+**Descriptive statistics** summarises and organises data we have observed. When we calculate an average, create a histogram, or report that 60% of patients responded to treatment, we are describing our data. Descriptive statistics makes no claims beyond the data at hand; it simply characterises what we have observed.
 
 **Inferential statistics** uses sample data to draw conclusions about larger populations. When we calculate a confidence interval, test a hypothesis, or make a prediction, we are using our limited sample to make statements about the broader world. Inference requires probability theory to quantify uncertainty.
 
@@ -159,48 +159,48 @@ descriptive_summary[, c("ci_lower", "ci_upper") := {
 print(descriptive_summary)
 
 # Visualise
-ggplot(descriptive_summary, aes(x = group, y = proportion, fill = group)) +
-    geom_bar(stat = "identity", width = 0.6, alpha = 0.8) +
-    geom_errorbar(aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, size = 1) +
-    geom_text(aes(label = paste0(round(proportion * 100, 1), "%")),
+ggplot2$ggplot(descriptive_summary, ggplot2$aes(x = group, y = proportion, fill = group)) +
+    ggplot2$geom_bar(stat = "identity", width = 0.6, alpha = 0.8) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, size = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(round(proportion * 100, 1), "%")),
               vjust = -0.5, size = 5) +
-    labs(
+    ggplot2$labs(
         title = "Clinical Trial Results: Treatment vs Control",
         subtitle = "Error bars show 95% confidence intervals (inferential statistics)",
         x = "Group",
         y = "Response Proportion",
         caption = "Bar heights are descriptive; error bars are inferential"
     ) +
-    scale_fill_manual(values = c("Control" = "#999999", "Treatment" = "#0072B2")) +
-    theme_minimal() +
-    theme(legend.position = "none")
+    ggplot2$scale_fill_manual(values = c("Control" = "#999999", "Treatment" = "#0072B2")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
 ```
 
-In the figure above, the bar heights represent descriptive statistics—they simply report what we observed in our sample. The error bars represent inferential statistics—they tell us the range of plausible values for the true population proportion, accounting for sampling variability.
+In the figure above, the bar heights represent descriptive statistics; they simply report what we observed in our sample. The error bars represent inferential statistics; they tell us the range of plausible values for the true population proportion, accounting for sampling variability.
 
 ### 1.1.4 The Role of Statistics in Biomedical Research
 
 Statistics is the backbone of modern biomedical research. Every clinical trial, every epidemiological study, every genomic analysis relies on statistical methods to separate signal from noise and draw valid conclusions.
 
-In **clinical trials**, statistics enables us to determine whether treatments work, how well they work, and in whom they work best. The randomised controlled trial—widely considered the gold standard for establishing causation—is a statistical invention. Statistical methods determine sample sizes, randomisation schemes, and the criteria for concluding that a treatment is effective.
+In **clinical trials**, statistics enables us to determine whether treatments work, how well they work, and in whom they work best. The randomised controlled trial, widely considered the gold standard for establishing causation, is a statistical invention. Statistical methods determine sample sizes, randomisation schemes, and the criteria for concluding that a treatment is effective.
 
 In **epidemiology**, statistics helps us identify risk factors for disease and quantify how strongly they associate with outcomes. Concepts like relative risk, odds ratios, and attributable risk are statistical measures that guide public health decisions.
 
-In **genomics and bioinformatics**, statistics addresses the "curse of dimensionality"—the challenge of analysing thousands or millions of variables (genes) when we have relatively few samples (patients). Multiple testing corrections, false discovery rates, and machine learning methods are statistical tools essential for high-dimensional biology.
+In **genomics and bioinformatics**, statistics addresses the "curse of dimensionality", the challenge of analysing thousands or millions of variables (genes) when we have relatively few samples (patients). Multiple testing corrections, false discovery rates, and machine learning methods are statistical tools essential for high-dimensional biology.
 
 In **diagnostic medicine**, statistics underpins our understanding of test accuracy. Sensitivity, specificity, positive predictive value, and negative predictive value are all statistical concepts that help clinicians interpret test results and communicate risk to patients.
 
 ## 1.2 Populations and Samples
 
-The distinction between populations and samples is the foundation upon which all of statistical inference rests. Understanding this distinction—and the notation that accompanies it—is essential before proceeding further.
+The distinction between populations and samples is the foundation upon which all of statistical inference rests. Understanding this distinction, and the notation that accompanies it, is essential before proceeding further.
 
 ### 1.2.1 Defining the Population of Interest
 
 A **population** is the complete collection of individuals or objects about which we wish to draw conclusions. Defining the population precisely is a critical first step that researchers often overlook.
 
-Consider a researcher studying hypertension. She might define her population as "all adults in the United Kingdom with systolic blood pressure exceeding 140 mmHg." This definition specifies who is included (adults), where they are located (UK), and what characteristic qualifies them (hypertension). The population is finite but very large—millions of people.
+Consider a researcher studying hypertension. She might define her population as "all adults in the United Kingdom with systolic blood pressure exceeding 140 mmHg." This definition specifies who is included (adults), where they are located (UK), and what characteristic qualifies them (hypertension). The population is finite but very large, numbering millions of people.
 
-Alternatively, the population might be conceptual. A researcher studying a new drug might define the population as "all future patients who might receive this treatment." This population is infinite and hypothetical—it includes people who have not yet been born.
+Alternatively, the population might be conceptual. A researcher studying a new drug might define the population as "all future patients who might receive this treatment." This population is infinite and hypothetical; it includes people who have not yet been born.
 
 The population definition determines to whom our conclusions apply. If we study only patients at a single hospital in London, our conclusions may not generalise to rural populations or to other countries. This limitation is not a failure of statistics but a reminder that careful population definition is essential.
 
@@ -208,7 +208,7 @@ The population definition determines to whom our conclusions apply. If we study 
 
 In nearly all situations, studying the entire population is impractical or impossible:
 
-**Cost and time**: A census of all UK hypertensive adults would require examining millions of people—prohibitively expensive and time-consuming for most research purposes.
+**Cost and time**: A census of all UK hypertensive adults would require examining millions of people, which is prohibitively expensive and time-consuming for most research purposes.
 
 **Destructive testing**: In quality control, testing whether a light bulb works requires turning it on until it burns out. Testing every bulb would leave none to sell.
 
@@ -216,11 +216,11 @@ In nearly all situations, studying the entire population is impractical or impos
 
 **Ethical constraints**: In clinical trials, we cannot expose everyone to an experimental treatment. We study samples to determine whether broader use is warranted.
 
-The remarkable fact—proven mathematically through probability theory—is that carefully selected samples can tell us a great deal about populations. A well-designed survey of 1,000 people can accurately estimate the opinions of millions.
+The remarkable fact, proven mathematically through probability theory, is that carefully selected samples can tell us a great deal about populations. A well-designed survey of 1,000 people can accurately estimate the opinions of millions.
 
 ### 1.2.3 Parameters vs Statistics: The Fundamental Distinction
 
-A **parameter** is a numerical characteristic of a population. Parameters are typically fixed but unknown—they are the quantities we wish to learn about.
+A **parameter** is a numerical characteristic of a population. Parameters are typically fixed but unknown; they are the quantities we wish to learn about.
 
 A **statistic** is a numerical characteristic of a sample. Statistics are calculated from our data and are therefore known, but they vary from sample to sample.
 
@@ -254,14 +254,14 @@ sample_means <- replicate(n_samples, {
 })
 
 # Create histogram of sample means
-sampling_dist <- data.table(sample_mean = sample_means)
+sampling_dist <- data.table$data.table(sample_mean = sample_means)
 
-ggplot(sampling_dist, aes(x = sample_mean)) +
-    geom_histogram(aes(y = after_stat(density)), bins = 40,
+ggplot2$ggplot(sampling_dist, ggplot2$aes(x = sample_mean)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
                    fill = "#56B4E9", colour = "white", alpha = 0.8) +
-    geom_density(colour = "#0072B2", size = 1.2) +
-    geom_vline(xintercept = mu, colour = "red", linetype = "dashed", size = 1.2) +
-    labs(
+    ggplot2$geom_density(colour = "#0072B2", size = 1.2) +
+    ggplot2$geom_vline(xintercept = mu, colour = "red", linetype = "dashed", size = 1.2) +
+    ggplot2$labs(
         title = "Statistics Vary; Parameters Are Fixed",
         subtitle = paste0(
             "Each sample of n = ", sample_size, " yields a different x̄. ",
@@ -271,7 +271,7 @@ ggplot(sampling_dist, aes(x = sample_mean)) +
         y = "Density",
         caption = paste0("Distribution of ", n_samples, " sample means")
     ) +
-    theme_minimal()
+    ggplot2$theme_minimal()
 ```
 
 ### 1.2.4 The Goal of Inference: Learning About Populations from Samples
@@ -309,9 +309,9 @@ Variables are characteristics that vary among individuals in a study. Understand
 
 Quantitative variables subdivide into two types:
 
-**Continuous variables** can take any value within a range. Height, weight, blood pressure, and temperature are continuous—between any two values, infinitely many other values are possible. A patient's weight might be 72.3 kg, 72.31 kg, or 72.314159 kg, limited only by measurement precision.
+**Continuous variables** can take any value within a range. Height, weight, blood pressure, and temperature are continuous; between any two values, infinitely many other values are possible. A patient's weight might be 72.3 kg, 72.31 kg, or 72.314159 kg, limited only by measurement precision.
 
-**Discrete variables** can take only specific values, typically integers. Number of children, number of hospitalisations, and number of mutations are discrete—you cannot have 2.7 children. Some discrete variables can take many values (age in years ranges from 0 to ~120), whilst others have few (number of arms is typically 0, 1, or 2).
+**Discrete variables** can take only specific values, typically integers. Number of children, number of hospitalisations, and number of mutations are discrete; you cannot have 2.7 children. Some discrete variables can take many values (age in years ranges from 0 to ~120), whilst others have few (number of arms is typically 0, 1, or 2).
 
 ```{r continuous_vs_discrete, fig.cap="Continuous variables take any value; discrete variables take only specific values"}
 set.seed(789)
@@ -326,53 +326,53 @@ temperature <- rnorm(n, mean = 36.8, sd = 0.4)
 gp_visits <- rpois(n, lambda = 3)
 
 # Create plot data
-continuous_data <- data.table(value = temperature, type = "Continuous (Body Temperature)")
-discrete_data <- data.table(value = gp_visits, type = "Discrete (GP Visits/Year)")
+continuous_data <- data.table$data.table(value = temperature, type = "Continuous (Body Temperature)")
+discrete_data <- data.table$data.table(value = gp_visits, type = "Discrete (GP Visits/Year)")
 
 # Plot continuous
-p1 <- ggplot(continuous_data, aes(x = value)) +
-    geom_histogram(aes(y = after_stat(density)), bins = 30,
+p1 <- ggplot2$ggplot(continuous_data, ggplot2$aes(x = value)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 30,
                    fill = "#E69F00", colour = "white", alpha = 0.8) +
-    geom_density(colour = "#D55E00", size = 1) +
-    labs(
+    ggplot2$geom_density(colour = "#D55E00", size = 1) +
+    ggplot2$labs(
         title = "Continuous Variable",
         subtitle = "Body temperature (°C)",
         x = "Temperature",
         y = "Density"
     ) +
-    theme_minimal()
+    ggplot2$theme_minimal()
 
 # Plot discrete
-p2 <- ggplot(discrete_data, aes(x = value)) +
-    geom_bar(fill = "#56B4E9", colour = "white", alpha = 0.8) +
-    labs(
+p2 <- ggplot2$ggplot(discrete_data, ggplot2$aes(x = value)) +
+    ggplot2$geom_bar(fill = "#56B4E9", colour = "white", alpha = 0.8) +
+    ggplot2$labs(
         title = "Discrete Variable",
         subtitle = "GP visits in past year",
         x = "Number of Visits",
         y = "Count"
     ) +
-    theme_minimal()
+    ggplot2$theme_minimal()
 
 # Use patchwork or gridExtra would be ideal, but keeping simple for now
 # We'll create a combined view
 combined_data <- rbind(
-    data.table(value = scale(temperature)[, 1], type = "Continuous: Temperature"),
-    data.table(value = scale(gp_visits)[, 1], type = "Discrete: GP Visits")
+    data.table$data.table(value = scale(temperature)[, 1], type = "Continuous: Temperature"),
+    data.table$data.table(value = scale(gp_visits)[, 1], type = "Discrete: GP Visits")
 )
 
-ggplot(combined_data, aes(x = value, fill = type)) +
-    geom_histogram(aes(y = after_stat(density)), bins = 25,
+ggplot2$ggplot(combined_data, ggplot2$aes(x = value, fill = type)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 25,
                    position = "identity", alpha = 0.6, colour = "white") +
-    facet_wrap(~type, scales = "free") +
-    labs(
+    ggplot2$facet_wrap(~type, scales = "free") +
+    ggplot2$labs(
         title = "Continuous vs Discrete Variables",
         subtitle = "Continuous variables have smooth distributions; discrete variables have gaps",
         x = "Standardised Value",
         y = "Density"
     ) +
-    scale_fill_manual(values = c("#E69F00", "#56B4E9")) +
-    theme_minimal() +
-    theme(legend.position = "none")
+    ggplot2$scale_fill_manual(values = c("#E69F00", "#56B4E9")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
 ```
 
 ### 1.3.2 Qualitative (Categorical) Variables
@@ -381,13 +381,13 @@ ggplot(combined_data, aes(x = value, fill = type)) +
 
 Categorical variables subdivide into two types:
 
-**Nominal variables** have categories with no natural ordering. Blood type (A, B, AB, O), sex (male, female), and eye colour (brown, blue, green) are nominal. We cannot say that blood type A is "more than" or "less than" blood type B—they are simply different.
+**Nominal variables** have categories with no natural ordering. Blood type (A, B, AB, O), sex (male, female), and eye colour (brown, blue, green) are nominal. We cannot say that blood type A is "more than" or "less than" blood type B; they are simply different.
 
 **Ordinal variables** have categories with a meaningful order, but the distances between categories are not necessarily equal. Disease severity (mild, moderate, severe), education level (primary, secondary, tertiary), and pain rating scales (1 to 10) are ordinal. We know that "severe" is worse than "moderate," but we cannot say it is exactly twice as bad.
 
 ```{r categorical_variables, fig.cap="Nominal variables have no order; ordinal variables have meaningful order"}
 # Create example categorical data
-categorical_examples <- data.table(
+categorical_examples <- data.table$data.table(
     variable = c(
         rep("Blood Type (Nominal)", 4),
         rep("Disease Severity (Ordinal)", 3)
@@ -406,18 +406,18 @@ categorical_examples <- data.table(
 categorical_examples[variable == "Disease Severity (Ordinal)",
                      category := factor(category, levels = c("Mild", "Moderate", "Severe"))]
 
-ggplot(categorical_examples, aes(x = category, y = count, fill = variable)) +
-    geom_bar(stat = "identity", alpha = 0.8) +
-    facet_wrap(~variable, scales = "free_x") +
-    labs(
+ggplot2$ggplot(categorical_examples, ggplot2$aes(x = category, y = count, fill = variable)) +
+    ggplot2$geom_bar(stat = "identity", alpha = 0.8) +
+    ggplot2$facet_wrap(~variable, scales = "free_x") +
+    ggplot2$labs(
         title = "Nominal vs Ordinal Categorical Variables",
         subtitle = "Blood type categories have no order; severity has a meaningful order",
         x = "Category",
         y = "Count"
     ) +
-    scale_fill_manual(values = c("#CC79A7", "#009E73")) +
-    theme_minimal() +
-    theme(legend.position = "none")
+    ggplot2$scale_fill_manual(values = c("#CC79A7", "#009E73")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
 ```
 
 ### 1.3.3 Scales of Measurement: Nominal, Ordinal, Interval, Ratio
@@ -428,12 +428,12 @@ In the 1940s, psychologist Stanley Smith Stevens proposed four scales of measure
 
 **Ordinal scale**: Categories have a meaningful order, but differences between categories are not necessarily equal. Rankings and order statistics are meaningful. (Is severe worse than moderate? Yes. Is the difference between mild and moderate equal to the difference between moderate and severe? We cannot say.)
 
-**Interval scale**: Differences between values are meaningful and equal, but there is no true zero point. Temperature in Celsius or Fahrenheit is interval—the difference between 20°C and 30°C equals the difference between 30°C and 40°C, but 0°C does not mean "no temperature." Ratios are not meaningful (40°C is not "twice as hot" as 20°C).
+**Interval scale**: Differences between values are meaningful and equal, but there is no true zero point. Temperature in Celsius or Fahrenheit is interval; the difference between 20°C and 30°C equals the difference between 30°C and 40°C, but 0°C does not mean "no temperature." Ratios are not meaningful (40°C is not "twice as hot" as 20°C).
 
-**Ratio scale**: Has all properties of interval scale plus a meaningful zero point. Height, weight, blood pressure, and temperature in Kelvin are ratio—zero means absence of the quantity, and ratios are meaningful (40 kg is twice as heavy as 20 kg).
+**Ratio scale**: Has all properties of interval scale plus a meaningful zero point. Height, weight, blood pressure, and temperature in Kelvin are ratio; zero means absence of the quantity, and ratios are meaningful (40 kg is twice as heavy as 20 kg).
 
 ```{r scales_of_measurement, fig.cap="Four scales of measurement with progressively more mathematical operations"}
-scales_data <- data.table(
+scales_data <- data.table$data.table(
     scale = factor(
         c("Nominal", "Ordinal", "Interval", "Ratio"),
         levels = c("Nominal", "Ordinal", "Interval", "Ratio")
@@ -448,7 +448,7 @@ scales_data <- data.table(
 print(scales_data)
 
 # Visual representation
-scales_visual <- data.table(
+scales_visual <- data.table$data.table(
     scale = rep(c("Nominal", "Ordinal", "Interval", "Ratio"), each = 4),
     operation = rep(c("Equality (=)", "Order (<, >)", "Difference (+, -)", "Ratio (×, ÷)"), 4),
     meaningful = c(
@@ -463,18 +463,18 @@ scales_visual[, scale := factor(scale, levels = c("Ratio", "Interval", "Ordinal"
 scales_visual[, operation := factor(operation, levels = c("Equality (=)", "Order (<, >)",
                                                           "Difference (+, -)", "Ratio (×, ÷)"))]
 
-ggplot(scales_visual, aes(x = operation, y = scale, fill = meaningful)) +
-    geom_tile(colour = "white", size = 1) +
-    geom_text(aes(label = ifelse(meaningful, "✓", "✗")), size = 6) +
-    labs(
+ggplot2$ggplot(scales_visual, ggplot2$aes(x = operation, y = scale, fill = meaningful)) +
+    ggplot2$geom_tile(colour = "white", size = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = ifelse(meaningful, "✓", "✗")), size = 6) +
+    ggplot2$labs(
         title = "Stevens' Scales of Measurement",
         subtitle = "Each higher scale permits additional mathematical operations",
         x = "Mathematical Operation",
         y = "Scale Type"
     ) +
-    scale_fill_manual(values = c("TRUE" = "#009E73", "FALSE" = "#D55E00"), guide = "none") +
-    theme_minimal() +
-    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+    ggplot2$scale_fill_manual(values = c("TRUE" = "#009E73", "FALSE" = "#D55E00"), guide = "none") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
 ```
 
 ### 1.3.4 Identifying Variable Types in Practice
@@ -484,7 +484,7 @@ Let us examine real variables from the NHANES dataset:
 ```{r variable_classification}
 # Load NHANES data (assuming it's available from our downloaded CSVs)
 # For this example, we'll work with the structure
-nhanes_vars <- data.table(
+nhanes_vars <- data.table$data.table(
     variable = c("Age", "Gender", "Race1", "Education", "BMI",
                  "SmokeNow", "Diabetes", "BPSysAve", "DiabetesAge",
                  "nPregnancies"),
@@ -527,14 +527,14 @@ How data are collected determines what conclusions we can draw. The distinction 
 
 In an **observational study**, researchers observe individuals without intervening or manipulating anything. They record characteristics and outcomes as they naturally occur.
 
-**Cross-sectional studies** collect data at a single point in time. A survey of blood pressure levels across the UK population is cross-sectional. These studies are efficient and provide snapshots of prevalence, but they cannot establish temporal relationships—we cannot tell whether exposure preceded outcome.
+**Cross-sectional studies** collect data at a single point in time. A survey of blood pressure levels across the UK population is cross-sectional. These studies are efficient and provide snapshots of prevalence, but they cannot establish temporal relationships; we cannot tell whether exposure preceded outcome.
 
-**Case-control studies** start with outcomes (cases with disease, controls without) and look backward to identify exposures. If we recruit lung cancer patients (cases) and healthy controls, then compare their smoking histories, we have a case-control study. These studies are efficient for rare diseases but are susceptible to recall bias—people with disease may remember exposures differently.
+**Case-control studies** start with outcomes (cases with disease, controls without) and look backward to identify exposures. If we recruit lung cancer patients (cases) and healthy controls, then compare their smoking histories, we have a case-control study. These studies are efficient for rare diseases but are susceptible to recall bias; people with disease may remember exposures differently.
 
 **Cohort studies** follow a group of individuals over time, measuring exposures at baseline and observing who develops outcomes. The Framingham Heart Study followed thousands of residents, recording cardiovascular risk factors and tracking heart disease incidence for decades. Cohort studies establish temporal sequence but are expensive, time-consuming, and susceptible to loss to follow-up.
 
 ```{r study_designs, fig.cap="Three types of observational study designs"}
-design_data <- data.table(
+design_data <- data.table$data.table(
     design = c("Cross-sectional", "Case-control", "Cohort"),
     time_direction = c("Snapshot", "Backward", "Forward"),
     starts_with = c("Population sample", "Outcome (cases)", "Exposure (cohort)"),
@@ -547,7 +547,7 @@ print(design_data)
 
 ### 1.4.2 Experimental Studies
 
-In an **experimental study**, researchers actively intervene—they assign subjects to different conditions and observe outcomes. The defining feature is that the researcher controls who receives which treatment.
+In an **experimental study**, researchers actively intervene; they assign subjects to different conditions and observe outcomes. The defining feature is that the researcher controls who receives which treatment.
 
 The **randomised controlled trial (RCT)** is the gold standard experimental design. Participants are randomly assigned to treatment or control groups, interventions are administered, and outcomes are compared. Random assignment ensures that, on average, groups are comparable in all respects except the treatment received.
 
@@ -558,7 +558,7 @@ set.seed(101)
 n_total <- 200
 
 # Create baseline characteristics
-rct_data <- data.table(
+rct_data <- data.table$data.table(
     id = 1:n_total,
     age = round(rnorm(n_total, mean = 55, sd = 10)),
     baseline_bp = round(rnorm(n_total, mean = 145, sd = 12)),
@@ -589,25 +589,25 @@ print("Balance check after randomisation:")
 print(balance_check)
 
 # Visualise outcomes
-ggplot(rct_data, aes(x = treatment, y = outcome_bp, fill = treatment)) +
-    geom_boxplot(alpha = 0.7) +
-    geom_point(position = position_jitter(width = 0.2), alpha = 0.3) +
-    labs(
+ggplot2$ggplot(rct_data, ggplot2$aes(x = treatment, y = outcome_bp, fill = treatment)) +
+    ggplot2$geom_boxplot(alpha = 0.7) +
+    ggplot2$geom_point(position = ggplot2$position_jitter(width = 0.2), alpha = 0.3) +
+    ggplot2$labs(
         title = "RCT Results: Blood Pressure After Treatment",
         subtitle = "Randomisation ensures groups are comparable at baseline",
         x = "Group",
         y = "Systolic Blood Pressure (mmHg)"
     ) +
-    scale_fill_manual(values = c("Control" = "#999999", "Treatment" = "#0072B2")) +
-    theme_minimal() +
-    theme(legend.position = "none")
+    ggplot2$scale_fill_manual(values = c("Control" = "#999999", "Treatment" = "#0072B2")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
 ```
 
 ### 1.4.3 The Crucial Difference: Association vs Causation
 
 **Observational studies can show association; only experiments can establish causation.**
 
-This distinction is fundamental. When we observe that coffee drinkers have lower rates of depression, we have found an association. But this does not mean coffee prevents depression. Perhaps people prone to depression drink less coffee. Perhaps a third factor—like socioeconomic status—affects both coffee consumption and depression risk.
+This distinction is fundamental. When we observe that coffee drinkers have lower rates of depression, we have found an association. But this does not mean coffee prevents depression. Perhaps people prone to depression drink less coffee. Perhaps a third factor (like socioeconomic status) affects both coffee consumption and depression risk.
 
 The problem is **confounding**: variables that affect both the exposure and the outcome can create spurious associations or mask real ones.
 
@@ -628,7 +628,7 @@ coffee <- pmax(0, pmin(coffee, 5))  # Cups per day, bounded
 depression_prob <- 0.5 - 0.005 * ses
 depression <- rbinom(n_obs, 1, plogis(depression_prob))
 
-confound_data <- data.table(ses, coffee, depression)
+confound_data <- data.table$data.table(ses, coffee, depression)
 
 # Naive analysis: coffee vs depression (ignoring SES)
 naive_result <- confound_data[, .(
@@ -642,23 +642,23 @@ print(naive_result)
 # The naive analysis suggests coffee is protective, but this is confounding!
 # High SES -> more coffee AND less depression
 
-ggplot(confound_data, aes(x = coffee, y = depression, colour = ses)) +
-    geom_point(alpha = 0.5) +
-    geom_smooth(method = "glm", method.args = list(family = "binomial"),
+ggplot2$ggplot(confound_data, ggplot2$aes(x = coffee, y = depression, colour = ses)) +
+    ggplot2$geom_point(alpha = 0.5) +
+    ggplot2$geom_smooth(method = "glm", method.args = list(family = "binomial"),
                 colour = "red", se = TRUE) +
-    labs(
+    ggplot2$labs(
         title = "The Confounding Problem",
         subtitle = "Coffee appears protective, but SES (colour) drives both variables",
         x = "Coffee Consumption (cups/day)",
         y = "Depression (1 = Yes, 0 = No)",
         colour = "SES"
     ) +
-    theme_minimal()
+    ggplot2$theme_minimal()
 ```
 
 **Why randomisation solves confounding:**
 
-In an RCT, random assignment ensures that, on average, the treatment and control groups are balanced on all characteristics—observed and unobserved. Any confounder is equally distributed across groups. Therefore, any difference in outcomes must be due to the treatment itself.
+In an RCT, random assignment ensures that, on average, the treatment and control groups are balanced on all characteristics, both observed and unobserved. Any confounder is equally distributed across groups. Therefore, any difference in outcomes must be due to the treatment itself.
 
 This is why RCTs are the gold standard for causal inference. When an RCT is not possible (for ethical or practical reasons), we must use observational data cautiously and employ statistical methods to adjust for known confounders.
 
@@ -715,12 +715,12 @@ stratified_sample <- function(data, strata_var, n_per_stratum) {
         samples[[i]] <- stratum_data[indices]
     }
 
-    return(rbindlist(samples))
+    return(data.table$rbindlist(samples))
 }
 
 # Create example population
 set.seed(404)
-pop_data <- data.table(
+pop_data <- data.table$data.table(
     id = 1:1000,
     region = sample(c("North", "South", "East", "West"), 1000,
                     replace = TRUE, prob = c(0.4, 0.3, 0.2, 0.1)),
@@ -786,7 +786,7 @@ set.seed(606)
 # Simulate a population with a variable that affects both response and outcome
 n_pop <- 10000
 
-pop <- data.table(
+pop <- data.table$data.table(
     id = 1:n_pop,
     health_consciousness = rnorm(n_pop, mean = 50, sd = 15)  # 0-100 scale
 )
@@ -810,11 +810,11 @@ cat("Bias:", round(biased_mean - true_mean, 2), "hours/week\n")
 cat("Response rate:", round(100 * mean(pop$responds), 1), "%\n")
 
 # Visualise
-ggplot(pop, aes(x = exercise_hours, fill = factor(responds))) +
-    geom_histogram(position = "identity", alpha = 0.6, bins = 40) +
-    geom_vline(xintercept = true_mean, colour = "red", linetype = "dashed", size = 1) +
-    geom_vline(xintercept = biased_mean, colour = "blue", linetype = "dotted", size = 1) +
-    labs(
+ggplot2$ggplot(pop, ggplot2$aes(x = exercise_hours, fill = factor(responds))) +
+    ggplot2$geom_histogram(position = "identity", alpha = 0.6, bins = 40) +
+    ggplot2$geom_vline(xintercept = true_mean, colour = "red", linetype = "dashed", size = 1) +
+    ggplot2$geom_vline(xintercept = biased_mean, colour = "blue", linetype = "dotted", size = 1) +
+    ggplot2$labs(
         title = "Non-Response Bias",
         subtitle = "Health-conscious individuals are more likely to respond",
         x = "Exercise (hours/week)",
@@ -822,9 +822,9 @@ ggplot(pop, aes(x = exercise_hours, fill = factor(responds))) +
         fill = "Responded",
         caption = "Red dashed: true mean; Blue dotted: respondent mean"
     ) +
-    scale_fill_manual(values = c("0" = "#999999", "1" = "#0072B2"),
+    ggplot2$scale_fill_manual(values = c("0" = "#999999", "1" = "#0072B2"),
                       labels = c("Non-respondent", "Respondent")) +
-    theme_minimal()
+    ggplot2$theme_minimal()
 ```
 
 ### 1.5.4 Implementing Random Sampling in R
@@ -837,7 +837,7 @@ sample_data <- function(data, method = "srs", n = NULL,
                         strata_var = NULL, cluster_var = NULL,
                         n_clusters = NULL, frac = NULL) {
 
-    data <- as.data.table(data)
+    data <- data.table$as.data.table(data)
     N <- nrow(data)
 
     if (method == "srs") {
@@ -888,7 +888,7 @@ sample_data <- function(data, method = "srs", n = NULL,
 # Demonstrate all methods
 set.seed(707)
 
-demo_pop <- data.table(
+demo_pop <- data.table$data.table(
     id = 1:500,
     region = sample(c("A", "B", "C", "D"), 500, replace = TRUE),
     cluster = sample(1:20, 500, replace = TRUE),
@@ -908,11 +908,11 @@ cat("Systematic sample size:", nrow(sys), "\n")
 
 ## 1.6 Sources of Bias and Variability
 
-All studies are subject to error. Understanding the types of error—and their consequences—is essential for interpreting results and designing better studies.
+All studies are subject to error. Understanding the types of error, and their consequences, is essential for interpreting results and designing better studies.
 
 ### 1.6.1 Selection Bias
 
-**Selection bias** occurs when the subjects included in the study are not representative of the target population. The classic example is the 1936 *Literary Digest* poll, which predicted Alf Landon would defeat Franklin Roosevelt in a landslide. The magazine surveyed its subscribers and telephone owners—but in 1936, these were predominantly wealthy Republicans. Roosevelt won by a historic margin.
+**Selection bias** occurs when the subjects included in the study are not representative of the target population. The classic example is the 1936 *Literary Digest* poll, which predicted Alf Landon would defeat Franklin Roosevelt in a landslide. The magazine surveyed its subscribers and telephone owners, but in 1936, these were predominantly wealthy Republicans. Roosevelt won by a historic margin.
 
 Selection bias is not reduced by larger samples. A biased sample of 10 million is still biased.
 
@@ -931,7 +931,7 @@ Selection bias is not reduced by larger samples. A biased sample of 10 million i
 
 ### 1.6.4 Survivorship Bias
 
-**Survivorship bias** occurs when we observe only "survivors" and ignore those who did not survive to be observed. The famous example involves World War II bombers: engineers examined planes returning from missions to determine where to add armour. Abraham Wald realised they were looking at survivors—the holes showed where planes could be hit and still return. Armour should go where returning planes were *not* hit, because those planes never returned.
+**Survivorship bias** occurs when we observe only "survivors" and ignore those who did not survive to be observed. The famous example involves World War II bombers: engineers examined planes returning from missions to determine where to add armour. Abraham Wald realised they were looking at survivors, the holes showed where planes could be hit and still return. Armour should go where returning planes were *not* hit, because those planes never returned.
 
 In medical research, survivorship bias can make treatments appear more effective than they are if we only analyse patients who survived long enough to be evaluated.
 
@@ -939,9 +939,9 @@ In medical research, survivorship bias can make treatments appear more effective
 
 A crucial distinction exists between **random error** (variability) and **systematic error** (bias):
 
-**Random error** causes estimates to scatter around the true value. It arises from natural variation and measurement imprecision. Larger samples reduce random error—this is why we calculate standard errors that decrease as n increases.
+**Random error** causes estimates to scatter around the true value. It arises from natural variation and measurement imprecision. Larger samples reduce random error; this is why we calculate standard errors that decrease as n increases.
 
-**Systematic error** causes estimates to be consistently wrong in one direction. Larger samples do not help—indeed, they may make us more confident in an incorrect answer.
+**Systematic error** causes estimates to be consistently wrong in one direction. Larger samples do not help; indeed, they may make us more confident in an incorrect answer.
 
 ```{r bias_vs_variability, fig.cap="Random error scatters around truth; systematic error shifts away from truth"}
 set.seed(808)
@@ -962,7 +962,7 @@ scenario3 <- rnorm(20, mean = true_value + 15, sd = 2)
 scenario4 <- rnorm(20, mean = true_value + 15, sd = 10)
 
 # Create target plot data
-target_data <- data.table(
+target_data <- data.table$data.table(
     x = c(scenario1, scenario2, scenario3, scenario4) - true_value,
     y = c(
         rnorm(20, 0, 2), rnorm(20, 0, 10),
@@ -978,7 +978,7 @@ target_data <- data.table(
 
 # Simplify to 2D scatter
 set.seed(909)
-target_data_2d <- data.table(
+target_data_2d <- data.table$data.table(
     scenario = rep(c(
         "Low Bias, Low Variability",
         "Low Bias, High Variability",
@@ -999,23 +999,23 @@ target_data_2d <- data.table(
     )
 )
 
-ggplot(target_data_2d, aes(x = x, y = y)) +
-    geom_point(alpha = 0.6, colour = "#0072B2") +
-    geom_point(aes(x = 0, y = 0), colour = "red", size = 4, shape = 3, stroke = 2) +
-    facet_wrap(~scenario, ncol = 2) +
-    labs(
+ggplot2$ggplot(target_data_2d, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_point(alpha = 0.6, colour = "#0072B2") +
+    ggplot2$geom_point(ggplot2$aes(x = 0, y = 0), colour = "red", size = 4, shape = 3, stroke = 2) +
+    ggplot2$facet_wrap(~scenario, ncol = 2) +
+    ggplot2$labs(
         title = "Bias vs Variability: The Target Analogy",
         subtitle = "Red cross marks the true value; points show sample estimates",
         x = "Deviation from Truth (x-axis)",
         y = "Deviation from Truth (y-axis)"
     ) +
-    coord_fixed() +
-    theme_minimal()
+    ggplot2$coord_fixed() +
+    ggplot2$theme_minimal()
 ```
 
 ## 1.7 Introduction to Statistical Software and Reproducibility
 
-Modern statistics is computational. The ability to write reproducible code is not optional—it is essential for credible science.
+Modern statistics is computational. The ability to write reproducible code is not optional; it is essential for credible science.
 
 ### 1.7.1 Why Reproducibility Matters
 
@@ -1027,7 +1027,7 @@ The **reproducibility crisis** has shaken many scientific fields. High-profile s
 - Lack of pre-registration
 - Insufficient documentation of methods
 
-Computational reproducibility—the ability to re-run analysis code and obtain identical results—is a minimum standard. If we cannot reproduce our own work, we cannot expect others to trust it.
+Computational reproducibility, the ability to re-run analysis code and obtain identical results, is a minimum standard. If we cannot reproduce our own work, we cannot expect others to trust it.
 
 ### 1.7.2 Setting Seeds for Reproducible Random Processes
 
@@ -1098,7 +1098,7 @@ When explaining study design concepts to collaborators or non-technical audience
 > "When we observe without intervening, we can see that two things are related, but we cannot prove one causes the other. Randomised trials let us make causal conclusions because random assignment ensures the groups are comparable."
 
 **On bias:**
-> "Bias means our sample doesn't accurately represent the population. This cannot be fixed by collecting more data—we need to collect data better."
+> "Bias means our sample doesn't accurately represent the population. This cannot be fixed by collecting more data; we need to collect data better."
 
 **On reproducibility:**
 > "Every number in this report comes from documented code that can be re-run. If you want to verify any result, we can show you exactly how it was calculated."

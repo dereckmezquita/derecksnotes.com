@@ -4,6 +4,18 @@
 
 - **Formatter**: Air formatter style for R code
 - **Imports**: Always use `box::use()` for all imports — never use `library()`
+  - Import the namespace only, then access functions with `pkg$fn()` syntax
+  - Example:
+    ```r
+    box::use(
+        data.table,
+        ggplot2
+    )
+
+    dt <- data.table$data.table(x = 1:10, y = rnorm(10))
+    ggplot2$ggplot(dt, ggplot2$aes(x = x, y = y)) + ggplot2$geom_point()
+    ```
+  - Only  import individual functions with `[...]` or `[fn1, fn2, ...]` when 1-3 are needed from the package
 - **Script execution**: Always use `Rscript` to run R scripts — never use `source()`
 - **File format**: Rmd (R Markdown) compiled to MDX
 - **Paradigm**: Old-school C-style coding preferred
