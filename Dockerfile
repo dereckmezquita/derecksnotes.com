@@ -28,10 +28,8 @@ COPY server/ ./
 FROM oven/bun:1-slim AS production
 WORKDIR /app
 
-# Copy Next.js standalone
-COPY --from=client-builder /app/client/.next/standalone ./client
-COPY --from=client-builder /app/client/.next/static ./client/.next/static
-COPY --from=client-builder /app/client/public ./client/public
+# Copy the full client (includes .next build output, src, and node_modules)
+COPY --from=client-builder /app/client ./client
 
 # Copy Express server
 COPY --from=server-builder /app/server ./server
@@ -48,4 +46,4 @@ RUN mkdir -p /app/data
 EXPOSE 3000 3001
 
 # Run both processes
-CMD ["sh", "-c", "cd /app/client && node server.js & cd /app/server && bun src/index.ts"]
+CMD ["sh", "-c", "cd /app/client && bun run start & cd /app/server && bun src/index.ts"]

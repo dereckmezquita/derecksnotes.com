@@ -4,7 +4,6 @@ const nextConfig: NextConfig = {
     compiler: {
         styledComponents: true
     },
-    output: 'standalone',
     async rewrites() {
         // Only proxy API calls in local development
         // In dev/prod, nginx handles routing
