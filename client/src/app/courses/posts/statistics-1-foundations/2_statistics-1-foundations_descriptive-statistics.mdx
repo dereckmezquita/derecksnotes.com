@@ -1,0 +1,1945 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 2: Descriptive Statistics — Summarising Data Numerically"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-14"
+tags:
+  - statistics
+  - mathematics
+  - descriptive
+  - data
+  - R
+  - biomedical
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 2: Descriptive Statistics — Summarising Data Numerically
+
+This chapter covers the fundamental numerical summaries used to describe datasets. We learn to quantify centre, spread, position, and shape, implementing each measure from scratch to understand what they truly measure. By the end of this chapter, you will be able to compute and interpret all major descriptive statistics and choose appropriate measures for different data types.
+
+
+``` r
+box::use(
+    data.table,
+    ggplot2
+)
+```
+
+
+``` r
+# Load NHANES data for examples
+nhanes <- data.table$fread("data/primary/nhanes.csv")
+
+# Quick overview
+cat("NHANES dataset:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
+#> NHANES dataset: 10000 observations, 76 variables
+```
+
+## 2.1 Measures of Central Tendency
+
+Central tendency describes where the "middle" of a distribution lies. Three measures dominate: the mean, median, and mode. Each captures a different aspect of centrality, and understanding when to use each is essential for proper data description.
+
+### 2.1.1 The Arithmetic Mean
+
+The **arithmetic mean** is the most familiar measure of central tendency. Informally, it is the "average": add up all values and divide by the count.
+
+**Prose and Intuition**
+
+Imagine placing data points on a number line as physical weights. The mean is the balance point: if you placed a fulcrum at the mean, the number line would balance perfectly. Points far from the mean exert greater leverage; they "pull" the mean toward themselves.
+
+This physical intuition explains why the mean is sensitive to extreme values. A single outlier, far from the others, exerts disproportionate influence on the balance point.
+
+**Mathematical Derivation**
+
+For a sample of n observations $x_1, x_2, \ldots, x_n$, the sample mean is defined as:
+
+$$\bar{x} = \frac{1}{n} \sum_{i=1}^{n} x_i = \frac{x_1 + x_2 + \cdots + x_n}{n}$$
+
+Why this formula? The mean has a deeper mathematical justification: it is the value that minimises the sum of squared deviations. That is, if we seek a value $c$ that minimises:
+
+$$\sum_{i=1}^{n} (x_i - c)^2$$
+
+then the unique solution is $c = \bar{x}$.
+
+**Proof:** Take the derivative with respect to $c$ and set it to zero:
+
+$$\frac{d}{dc} \sum_{i=1}^{n} (x_i - c)^2 = -2 \sum_{i=1}^{n} (x_i - c) = 0$$
+
+$$\sum_{i=1}^{n} x_i - nc = 0$$
+
+$$c = \frac{1}{n} \sum_{i=1}^{n} x_i = \bar{x}$$
+
+The mean is thus the "least squares" measure of location.
+
+
+``` r
+set.seed(42)
+
+# Implement mean from scratch
+my_mean <- function(x) {
+    # Remove NA values
+    x <- x[!is.na(x)]
+
+    # Sum all values
+    total <- 0
+    for (i in seq_along(x)) {
+        total <- total + x[i]
+    }
+
+    # Divide by count
+    return(total / length(x))
+}
+
+# Test on NHANES BMI data
+bmi_sample <- nhanes[!is.na(BMI), BMI][1:100]
+
+cat("Our implementation:", my_mean(bmi_sample), "\n")
+#> Our implementation: 26.3844
+cat("Built-in mean():", mean(bmi_sample), "\n")
+#> Built-in mean(): 26.3844
+
+# Visualise the mean as balance point
+bmi_dt <- data.table$data.table(bmi = bmi_sample)
+mean_bmi <- mean(bmi_sample)
+
+ggplot2$ggplot(bmi_dt, ggplot2$aes(x = bmi)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 20,
+                   fill = "#56B4E9", colour = "white", alpha = 0.8) +
+    ggplot2$geom_density(colour = "#0072B2", size = 1) +
+    ggplot2$geom_vline(xintercept = mean_bmi, colour = "red",
+               linetype = "dashed", size = 1.2) +
+    ggplot2$annotate("text", x = mean_bmi + 2, y = 0.08,
+             label = paste("Mean =", round(mean_bmi, 1)),
+             colour = "red", size = 5) +
+    ggplot2$labs(
+        title = "The Mean as Balance Point",
+        subtitle = "BMI data from NHANES; mean marked with red dashed line",
+        x = "Body Mass Index (kg/m²)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/mean_from_scratch-1.png" alt="The mean is the balance point of the distribution">
+	The mean is the balance point of the distribution
+</Figure>
+
+**Key properties of the mean:**
+
+1. **Uniqueness**: Every dataset has exactly one mean
+2. **Sensitivity to outliers**: Extreme values strongly affect the mean
+3. **Uses all data**: Every observation contributes to the mean
+4. **Algebraic tractability**: Mathematical operations on means are straightforward
+
+### 2.1.2 The Median
+
+The **median** is the middle value when data are arranged in order. Half the observations fall below the median, and half fall above.
+
+**Prose and Intuition**
+
+If the mean is the balance point, the median is the "halfway point" in terms of count. Imagine lining up people by height: the median height is the height of the person standing in the middle, regardless of whether the tallest person is 180 cm or 250 cm. This explains the median's robustness: extreme values do not shift the middle position.
+
+**Mathematical Derivation**
+
+For ordered data $x_{(1)} \leq x_{(2)} \leq \cdots \leq x_{(n)}$:
+
+$$\text{Median} = \begin{cases}
+x_{((n+1)/2)} & \text{if } n \text{ is odd} \\
+\frac{x_{(n/2)} + x_{(n/2+1)}}{2} & \text{if } n \text{ is even}
+\end{cases}$$
+
+The median minimises the sum of **absolute** deviations (not squared):
+
+$$\sum_{i=1}^{n} |x_i - c|$$
+
+is minimised when $c$ equals the median. This is why the median is more robust: absolute deviations do not give extra weight to extreme values as squared deviations do.
+
+
+``` r
+# Implement median from scratch
+my_median <- function(x) {
+    # Remove NA values
+    x <- x[!is.na(x)]
+
+    # Sort the data
+    x_sorted <- sort(x)
+    n <- length(x_sorted)
+
+    if (n %% 2 == 1) {
+        # Odd number of observations: middle value
+        middle_index <- (n + 1) / 2
+        return(x_sorted[middle_index])
+    } else {
+        # Even number: average of two middle values
+        lower_index <- n / 2
+        upper_index <- n / 2 + 1
+        return((x_sorted[lower_index] + x_sorted[upper_index]) / 2)
+    }
+}
+
+# Test
+cat("Our implementation:", my_median(bmi_sample), "\n")
+#> Our implementation: 26.46
+cat("Built-in median():", median(bmi_sample), "\n")
+#> Built-in median(): 26.46
+
+# Demonstrate robustness to outliers
+normal_data <- c(10, 12, 14, 15, 16, 18, 20)
+outlier_data <- c(10, 12, 14, 15, 16, 18, 200)  # 200 is an outlier
+
+cat("\nNormal data:\n")
+#> 
+#> Normal data:
+cat("  Mean:", mean(normal_data), "  Median:", median(normal_data), "\n")
+#>   Mean: 15   Median: 15
+
+cat("\nWith outlier (200):\n")
+#> 
+#> With outlier (200):
+cat("  Mean:", mean(outlier_data), "  Median:", median(outlier_data), "\n")
+#>   Mean: 40.71429   Median: 15
+cat("\nThe mean shifted dramatically; the median barely changed.\n")
+#> 
+#> The mean shifted dramatically; the median barely changed.
+```
+
+### 2.1.3 The Mode
+
+The **mode** is the most frequently occurring value. Unlike mean and median, the mode can be used with nominal data.
+
+**Prose and Intuition**
+
+The mode identifies the "typical" value in the sense of "most common." In a histogram, the mode corresponds to the peak. Some distributions are **unimodal** (one peak), **bimodal** (two peaks), or **multimodal** (multiple peaks). The presence of multiple modes often signals distinct subgroups in the data.
+
+**Implementation**
+
+
+``` r
+# Implement mode from scratch
+my_mode <- function(x) {
+    # Remove NA values
+    x <- x[!is.na(x)]
+
+    # Create frequency table
+    freq_table <- table(x)
+
+    # Find maximum frequency
+    max_freq <- max(freq_table)
+
+    # Return all values with maximum frequency
+    modes <- names(freq_table)[freq_table == max_freq]
+
+    # Convert back to numeric if possible
+    if (is.numeric(x)) {
+        modes <- as.numeric(modes)
+    }
+
+    return(modes)
+}
+
+# Mode works well for discrete/categorical data
+education_data <- nhanes[!is.na(Education), Education]
+cat("Mode of Education levels:", my_mode(education_data), "\n")
+#> Mode of Education levels:
+print(table(education_data))
+#> education_data
+#>                     8th Grade 9 - 11th Grade   College Grad    High School 
+#>           2779            451            888           2098           1517 
+#>   Some College 
+#>           2267
+
+# For continuous data, mode is less useful without binning
+# Create bimodal data to illustrate
+set.seed(123)
+bimodal_data <- c(
+    rnorm(200, mean = 25, sd = 3),  # Young adults
+    rnorm(150, mean = 55, sd = 5)   # Older adults
+)
+
+bimodal_dt <- data.table$data.table(age = bimodal_data)
+
+ggplot2$ggplot(bimodal_dt, ggplot2$aes(x = age)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 30,
+                   fill = "#E69F00", colour = "white", alpha = 0.8) +
+    ggplot2$geom_density(colour = "#D55E00", size = 1.2) +
+    ggplot2$geom_vline(xintercept = c(25, 55), colour = "blue",
+               linetype = "dashed", size = 1) +
+    ggplot2$labs(
+        title = "Bimodal Distribution: Two Peaks Indicate Subgroups",
+        subtitle = "Example: Age distribution with young and older adult populations",
+        x = "Age (years)",
+        y = "Density"
+    ) +
+    ggplot2$annotate("text", x = 25, y = 0.055, label = "Mode 1", colour = "blue") +
+    ggplot2$annotate("text", x = 55, y = 0.055, label = "Mode 2", colour = "blue") +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/mode_from_scratch-1.png" alt="Bimodal distributions have two modes indicating distinct subgroups">
+	Bimodal distributions have two modes indicating distinct subgroups
+</Figure>
+
+### 2.1.4 Comparing Mean, Median, and Mode
+
+The relationship between mean, median, and mode reveals the shape of a distribution.
+
+
+``` r
+set.seed(456)
+
+# Create three distributions: symmetric, right-skewed, left-skewed
+n <- 1000
+
+symmetric <- rnorm(n, mean = 50, sd = 10)
+right_skewed <- rgamma(n, shape = 2, rate = 0.1)
+left_skewed <- 100 - rgamma(n, shape = 2, rate = 0.1)
+
+# Calculate measures for each
+calc_measures <- function(x) {
+    # For mode, use density estimation peak
+    dens <- density(x)
+    mode_val <- dens$x[which.max(dens$y)]
+
+    data.table$data.table(
+        mean = mean(x),
+        median = median(x),
+        mode = mode_val
+    )
+}
+
+symmetric_measures <- calc_measures(symmetric)
+right_measures <- calc_measures(right_skewed)
+left_measures <- calc_measures(left_skewed)
+
+# Combine for plotting
+plot_data <- data.table$rbindlist(list(
+    data.table$data.table(value = symmetric, distribution = "Symmetric"),
+    data.table$data.table(value = right_skewed, distribution = "Right-Skewed"),
+    data.table$data.table(value = left_skewed, distribution = "Left-Skewed")
+))
+
+measures_data <- data.table$rbindlist(list(
+    cbind(symmetric_measures, distribution = "Symmetric"),
+    cbind(right_measures, distribution = "Right-Skewed"),
+    cbind(left_measures, distribution = "Left-Skewed")
+))
+
+measures_long <- data.table$melt(
+    measures_data,
+    id.vars = "distribution",
+    variable.name = "measure",
+    value.name = "value"
+)
+
+ggplot2$ggplot(plot_data, ggplot2$aes(x = value)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 30,
+                   fill = "#56B4E9", colour = "white", alpha = 0.7) +
+    ggplot2$geom_density(colour = "#0072B2", size = 1) +
+    ggplot2$geom_vline(data = measures_long,
+               ggplot2$aes(xintercept = value, colour = measure, linetype = measure),
+               size = 1) +
+    ggplot2$facet_wrap(~distribution, scales = "free", ncol = 1) +
+    ggplot2$scale_colour_manual(
+        values = c("mean" = "red", "median" = "green", "mode" = "purple")
+    ) +
+    ggplot2$scale_linetype_manual(
+        values = c("mean" = "dashed", "median" = "dotted", "mode" = "solid")
+    ) +
+    ggplot2$labs(
+        title = "Mean, Median, and Mode in Different Distributions",
+        subtitle = "Symmetric: all equal; Right-skewed: mode < median < mean; Left-skewed: mean < median < mode",
+        x = "Value",
+        y = "Density",
+        colour = "Measure",
+        linetype = "Measure"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-1-foundations/compare_measures-1.png" alt="Skewness determines the relationship between mean, median, and mode">
+	Skewness determines the relationship between mean, median, and mode
+</Figure>
+
+**Guidelines for choosing:**
+
+| Situation | Best Measure | Reason |
+|-----------|--------------|--------|
+| Symmetric distribution | Mean | Uses all data efficiently |
+| Skewed distribution | Median | Not affected by extreme values |
+| Outliers present | Median | Robust to extremes |
+| Categorical data | Mode | Only applicable measure |
+| Comparing to population mean | Mean | Algebraically compatible |
+
+### 2.1.5 Other Means: Weighted, Trimmed, Geometric, Harmonic
+
+Beyond the arithmetic mean, specialised means serve specific purposes.
+
+**Weighted Mean**
+
+When observations have different importances, we use a weighted mean:
+
+$$\bar{x}_w = \frac{\sum_{i=1}^{n} w_i x_i}{\sum_{i=1}^{n} w_i}$$
+
+where $w_i$ is the weight for observation $i$.
+
+
+``` r
+# Implement weighted mean from scratch
+my_weighted_mean <- function(x, w) {
+    # Remove NA values (from both x and corresponding weights)
+    valid <- !is.na(x) & !is.na(w)
+    x <- x[valid]
+    w <- w[valid]
+
+    return(sum(w * x) / sum(w))
+}
+
+# Example: calculating course grade
+# Different assessments have different weights
+assignments <- c(85, 90, 78, 92)  # Assignment scores
+weights <- c(0.1, 0.1, 0.3, 0.5)  # 10%, 10%, 30%, 50%
+
+cat("Unweighted mean:", mean(assignments), "\n")
+#> Unweighted mean: 86.25
+cat("Weighted mean:", my_weighted_mean(assignments, weights), "\n")
+#> Weighted mean: 86.9
+cat("Built-in weighted.mean():", weighted.mean(assignments, weights), "\n")
+#> Built-in weighted.mean(): 86.9
+```
+
+**Trimmed Mean**
+
+The trimmed mean removes a percentage of extreme values before calculating:
+
+
+``` r
+# Implement trimmed mean from scratch
+my_trimmed_mean <- function(x, trim = 0.1) {
+    x <- x[!is.na(x)]
+    x_sorted <- sort(x)
+    n <- length(x_sorted)
+
+    # Number of observations to trim from each end
+    k <- floor(n * trim)
+
+    # Calculate mean of remaining values
+    if (k > 0) {
+        trimmed_values <- x_sorted[(k + 1):(n - k)]
+    } else {
+        trimmed_values <- x_sorted
+    }
+
+    return(mean(trimmed_values))
+}
+
+# Data with outliers
+outlier_data <- c(2, 3, 4, 4, 5, 5, 5, 6, 6, 7, 100)
+
+cat("Regular mean:", mean(outlier_data), "\n")
+#> Regular mean: 13.36364
+cat("10% trimmed mean:", my_trimmed_mean(outlier_data, 0.1), "\n")
+#> 10% trimmed mean: 5
+cat("Built-in mean(trim=0.1):", mean(outlier_data, trim = 0.1), "\n")
+#> Built-in mean(trim=0.1): 5
+cat("Median:", median(outlier_data), "\n")
+#> Median: 5
+```
+
+**Geometric Mean**
+
+The geometric mean is appropriate for multiplicative relationships, such as growth rates:
+
+$$\bar{x}_g = \left(\prod_{i=1}^{n} x_i\right)^{1/n} = \exp\left(\frac{1}{n}\sum_{i=1}^{n} \ln(x_i)\right)$$
+
+
+``` r
+# Implement geometric mean from scratch
+my_geometric_mean <- function(x) {
+    x <- x[!is.na(x)]
+
+    # All values must be positive
+    if (any(x <= 0)) {
+        stop("Geometric mean requires all positive values")
+    }
+
+    # Use log transformation for numerical stability
+    return(exp(mean(log(x))))
+}
+
+# Example: average annual growth rate
+# Year 1: 10% growth, Year 2: 20% growth, Year 3: -5% loss
+growth_factors <- c(1.10, 1.20, 0.95)
+
+# Arithmetic mean suggests 8.33% average growth
+cat("Arithmetic mean of growth factors:", mean(growth_factors), "\n")
+#> Arithmetic mean of growth factors: 1.083333
+cat("Suggests average growth of:", (mean(growth_factors) - 1) * 100, "%\n\n")
+#> Suggests average growth of: 8.333333 %
+
+# Geometric mean gives the true average growth
+cat("Geometric mean of growth factors:", my_geometric_mean(growth_factors), "\n")
+#> Geometric mean of growth factors: 1.078365
+cat("True average growth:", (my_geometric_mean(growth_factors) - 1) * 100, "%\n\n")
+#> True average growth: 7.836515 %
+
+# Verify: $100 after 3 years
+initial <- 100
+final <- initial * prod(growth_factors)
+cat("$100 after 3 years: $", round(final, 2), "\n")
+#> $100 after 3 years: $ 125.4
+cat("Using geometric mean:", round(initial * my_geometric_mean(growth_factors)^3, 2), "\n")
+#> Using geometric mean: 125.4
+```
+
+**Harmonic Mean**
+
+The harmonic mean is appropriate for rates and ratios:
+
+$$\bar{x}_h = \frac{n}{\sum_{i=1}^{n} \frac{1}{x_i}}$$
+
+
+``` r
+# Implement harmonic mean from scratch
+my_harmonic_mean <- function(x) {
+    x <- x[!is.na(x)]
+
+    # All values must be positive
+    if (any(x <= 0)) {
+        stop("Harmonic mean requires all positive values")
+    }
+
+    return(length(x) / sum(1 / x))
+}
+
+# Example: average speed
+# Drive to work at 30 km/h, return at 60 km/h
+# What is the average speed?
+speeds <- c(30, 60)
+
+cat("Arithmetic mean:", mean(speeds), "km/h (WRONG!)\n")
+#> Arithmetic mean: 45 km/h (WRONG!)
+cat("Harmonic mean:", my_harmonic_mean(speeds), "km/h (CORRECT)\n\n")
+#> Harmonic mean: 40 km/h (CORRECT)
+
+# Verify: for distance d each way
+# Time to work: d/30 hours
+# Time home: d/60 hours
+# Total time: d/30 + d/60 = d/20 hours
+# Total distance: 2d km
+# Average speed: 2d / (d/20) = 40 km/h
+cat("Verification: average speed = total distance / total time = 40 km/h\n")
+#> Verification: average speed = total distance / total time = 40 km/h
+```
+
+**Relationship between means:**
+
+For any dataset with positive values: Harmonic ≤ Geometric ≤ Arithmetic
+
+Equality holds only when all values are identical.
+
+## 2.2 Measures of Dispersion (Spread)
+
+Central tendency tells us where the data are located; dispersion tells us how spread out they are. Two datasets can have identical means yet vastly different spreads.
+
+### 2.2.1 Range and Interquartile Range
+
+**Range**
+
+The simplest measure of spread is the range: the difference between maximum and minimum values.
+
+$$\text{Range} = x_{\text{max}} - x_{\text{min}}$$
+
+
+``` r
+# Implement range from scratch
+my_range <- function(x) {
+    x <- x[!is.na(x)]
+    return(max(x) - min(x))
+}
+
+# Example with NHANES blood pressure
+bp_data <- nhanes[!is.na(BPSysAve), BPSysAve]
+
+cat("Range of systolic BP:", my_range(bp_data), "mmHg\n")
+#> Range of systolic BP: 150 mmHg
+cat("Min:", min(bp_data), " Max:", max(bp_data), "\n")
+#> Min: 76  Max: 226
+```
+
+**Limitations:** The range uses only two values and is extremely sensitive to outliers. A single extreme observation can dramatically inflate the range.
+
+**Interquartile Range (IQR)**
+
+The IQR is the range of the middle 50% of the data:
+
+$$\text{IQR} = Q_3 - Q_1$$
+
+where $Q_1$ is the first quartile (25th percentile) and $Q_3$ is the third quartile (75th percentile).
+
+
+``` r
+# Implement quartiles and IQR from scratch
+my_quantile <- function(x, p) {
+    # Simple linear interpolation method
+    x <- sort(x[!is.na(x)])
+    n <- length(x)
+
+    # Position of the quantile
+    h <- (n - 1) * p + 1
+
+    # Lower and upper indices
+    lo <- floor(h)
+    hi <- ceiling(h)
+
+    # Linear interpolation
+    return(x[lo] + (h - lo) * (x[hi] - x[lo]))
+}
+
+my_iqr <- function(x) {
+    q1 <- my_quantile(x, 0.25)
+    q3 <- my_quantile(x, 0.75)
+    return(q3 - q1)
+}
+
+# Test
+cat("Q1:", my_quantile(bp_data, 0.25), "\n")
+#> Q1: 106
+cat("Q3:", my_quantile(bp_data, 0.75), "\n")
+#> Q3: 127
+cat("Our IQR:", my_iqr(bp_data), "\n")
+#> Our IQR: 21
+cat("Built-in IQR():", IQR(bp_data), "\n")
+#> Built-in IQR(): 21
+
+# Visualise
+bp_dt <- data.table$data.table(bp = bp_data)
+q1_val <- quantile(bp_data, 0.25)
+q3_val <- quantile(bp_data, 0.75)
+
+ggplot2$ggplot(bp_dt, ggplot2$aes(x = bp)) +
+    ggplot2$geom_histogram(bins = 40, fill = "#56B4E9", colour = "white", alpha = 0.8) +
+    ggplot2$geom_vline(xintercept = c(q1_val, q3_val),
+               colour = "red", linetype = "dashed", size = 1) +
+    ggplot2$annotate("rect", xmin = q1_val, xmax = q3_val,
+             ymin = 0, ymax = Inf, alpha = 0.2, fill = "red") +
+    ggplot2$annotate("text", x = (q1_val + q3_val) / 2, y = 800,
+             label = paste("IQR =", round(q3_val - q1_val, 1)),
+             colour = "red", size = 5) +
+    ggplot2$labs(
+        title = "Interquartile Range: Middle 50% of Data",
+        subtitle = "Systolic blood pressure from NHANES",
+        x = "Systolic Blood Pressure (mmHg)",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/iqr_from_scratch-1.png" alt="The IQR captures the spread of the middle 50% of data">
+	The IQR captures the spread of the middle 50% of data
+</Figure>
+
+### 2.2.2 Variance
+
+Variance measures the average squared deviation from the mean. Why squared? Squaring ensures all deviations are positive and gives more weight to larger deviations.
+
+**Population Variance**
+
+$$\sigma^2 = \frac{1}{N} \sum_{i=1}^{N} (x_i - \mu)^2$$
+
+**Sample Variance**
+
+$$s^2 = \frac{1}{n-1} \sum_{i=1}^{n} (x_i - \bar{x})^2$$
+
+**Why divide by n-1?**
+
+This is one of the most common questions in statistics. The intuition: when we estimate the population variance from a sample, we use $\bar{x}$ instead of $\mu$. Since $\bar{x}$ is calculated from the same data, the deviations from $\bar{x}$ are systematically smaller than deviations from $\mu$. Dividing by $n-1$ instead of $n$ corrects this underestimation.
+
+The formal proof involves showing that $E[s^2] = \sigma^2$ when we divide by $n-1$ (making $s^2$ an unbiased estimator), whilst dividing by $n$ gives $E[\hat{\sigma}^2] = \frac{n-1}{n}\sigma^2$.
+
+
+``` r
+# Implement variance from scratch
+# Population variance (divide by N)
+my_pop_variance <- function(x) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+    mean_x <- mean(x)
+
+    # Sum of squared deviations
+    ss <- sum((x - mean_x)^2)
+
+    return(ss / n)
+}
+
+# Sample variance (divide by n-1)
+my_sample_variance <- function(x) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+    mean_x <- mean(x)
+
+    # Sum of squared deviations
+    ss <- sum((x - mean_x)^2)
+
+    return(ss / (n - 1))
+}
+
+# Test
+bmi_clean <- nhanes[!is.na(BMI), BMI]
+
+cat("Population variance:", my_pop_variance(bmi_clean), "\n")
+#> Population variance: 54.40827
+cat("Sample variance:", my_sample_variance(bmi_clean), "\n")
+#> Sample variance: 54.41392
+cat("Built-in var():", var(bmi_clean), "\n")
+#> Built-in var(): 54.41392
+```
+
+**Demonstrating n-1 correction through simulation:**
+
+
+``` r
+set.seed(789)
+
+# True population
+pop_size <- 100000
+pop_mean <- 50
+pop_sd <- 10
+population <- rnorm(pop_size, mean = pop_mean, sd = pop_sd)
+true_variance <- var(population) * (pop_size - 1) / pop_size  # Population variance
+
+# Repeatedly sample and estimate variance both ways
+n_simulations <- 5000
+sample_size <- 10
+
+results <- data.table$data.table(
+    sim = 1:n_simulations,
+    var_n = numeric(n_simulations),
+    var_n_minus_1 = numeric(n_simulations)
+)
+
+for (i in 1:n_simulations) {
+    samp <- sample(population, sample_size)
+    mean_samp <- mean(samp)
+    ss <- sum((samp - mean_samp)^2)
+
+    results[i, var_n := ss / sample_size]
+    results[i, var_n_minus_1 := ss / (sample_size - 1)]
+}
+
+cat("True population variance:", round(true_variance, 2), "\n")
+#> True population variance: 99.68
+cat("Mean of s² (divide by n):", round(mean(results$var_n), 2),
+    "- biased LOW\n")
+#> Mean of s² (divide by n): 90.63 - biased LOW
+cat("Mean of s² (divide by n-1):", round(mean(results$var_n_minus_1), 2),
+    "- unbiased\n")
+#> Mean of s² (divide by n-1): 100.7 - unbiased
+
+# Visualise
+results_long <- data.table$melt(
+    results,
+    id.vars = "sim",
+    variable.name = "method",
+    value.name = "variance"
+)
+results_long[, method := factor(method,
+    levels = c("var_n", "var_n_minus_1"),
+    labels = c("Divide by n (biased)", "Divide by n-1 (unbiased)")
+)]
+
+ggplot2$ggplot(results_long, ggplot2$aes(x = variance, fill = method)) +
+    ggplot2$geom_histogram(bins = 50, alpha = 0.7, position = "identity") +
+    ggplot2$geom_vline(xintercept = true_variance, colour = "black",
+               linetype = "dashed", size = 1.2) +
+    ggplot2$facet_wrap(~method, ncol = 1) +
+    ggplot2$labs(
+        title = "Why We Divide by n-1: Bessel's Correction",
+        subtitle = paste("5000 samples of size 10; true variance =",
+                        round(true_variance, 1)),
+        x = "Estimated Variance",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/bessel_correction-1.png" alt="Dividing by n-1 corrects the bias in variance estimation">
+	Dividing by n-1 corrects the bias in variance estimation
+</Figure>
+
+### 2.2.3 Standard Deviation
+
+The standard deviation is the square root of variance:
+
+$$s = \sqrt{s^2} = \sqrt{\frac{1}{n-1} \sum_{i=1}^{n} (x_i - \bar{x})^2}$$
+
+The standard deviation returns us to the original units of measurement. If we measure weight in kilograms, variance is in "kilograms squared" (which is difficult to interpret), but standard deviation is in kilograms.
+
+
+``` r
+# Implement standard deviation from scratch
+my_sd <- function(x) {
+    return(sqrt(my_sample_variance(x)))
+}
+
+# Test
+cat("Our implementation:", my_sd(bmi_clean), "\n")
+#> Our implementation: 7.376579
+cat("Built-in sd():", sd(bmi_clean), "\n")
+#> Built-in sd(): 7.376579
+
+# Interpretation: for approximately normal data
+# About 68% of data fall within 1 SD of the mean
+# About 95% fall within 2 SD
+# About 99.7% fall within 3 SD
+mean_bmi <- mean(bmi_clean)
+sd_bmi <- sd(bmi_clean)
+
+within_1sd <- mean(bmi_clean >= mean_bmi - sd_bmi &
+                   bmi_clean <= mean_bmi + sd_bmi)
+within_2sd <- mean(bmi_clean >= mean_bmi - 2*sd_bmi &
+                   bmi_clean <= mean_bmi + 2*sd_bmi)
+within_3sd <- mean(bmi_clean >= mean_bmi - 3*sd_bmi &
+                   bmi_clean <= mean_bmi + 3*sd_bmi)
+
+cat("\nEmpirical rule check for BMI data:\n")
+#> 
+#> Empirical rule check for BMI data:
+cat("Within 1 SD:", round(within_1sd * 100, 1), "% (expected ~68%)\n")
+#> Within 1 SD: 69.9 % (expected ~68%)
+cat("Within 2 SD:", round(within_2sd * 100, 1), "% (expected ~95%)\n")
+#> Within 2 SD: 96.6 % (expected ~95%)
+cat("Within 3 SD:", round(within_3sd * 100, 1), "% (expected ~99.7%)\n")
+#> Within 3 SD: 99.2 % (expected ~99.7%)
+```
+
+### 2.2.4 Coefficient of Variation
+
+The coefficient of variation (CV) expresses standard deviation as a percentage of the mean:
+
+$$\text{CV} = \frac{s}{\bar{x}} \times 100\%$$
+
+The CV enables comparison of variability across different scales.
+
+
+``` r
+# Implement coefficient of variation from scratch
+my_cv <- function(x) {
+    x <- x[!is.na(x)]
+    return(sd(x) / mean(x) * 100)
+}
+
+# Compare variability of height and weight
+height_data <- nhanes[!is.na(Height), Height]
+weight_data <- nhanes[!is.na(Weight), Weight]
+
+cat("Height: mean =", round(mean(height_data), 1), "cm,",
+    "SD =", round(sd(height_data), 1), "cm,",
+    "CV =", round(my_cv(height_data), 1), "%\n")
+#> Height: mean = 161.9 cm, SD = 20.2 cm, CV = 12.5 %
+
+cat("Weight: mean =", round(mean(weight_data), 1), "kg,",
+    "SD =", round(sd(weight_data), 1), "kg,",
+    "CV =", round(my_cv(weight_data), 1), "%\n")
+#> Weight: mean = 71 kg, SD = 29.1 kg, CV = 41 %
+
+cat("\nWeight is relatively more variable than height\n")
+#> 
+#> Weight is relatively more variable than height
+cat("(even though height has a larger SD in absolute terms)\n")
+#> (even though height has a larger SD in absolute terms)
+```
+
+### 2.2.5 Mean Absolute Deviation
+
+The mean absolute deviation (MAD) is easier to interpret than variance: it is the average distance from the mean.
+
+$$\text{MAD} = \frac{1}{n} \sum_{i=1}^{n} |x_i - \bar{x}|$$
+
+
+``` r
+# Implement mean absolute deviation from scratch
+my_mad_mean <- function(x) {
+    x <- x[!is.na(x)]
+    return(mean(abs(x - mean(x))))
+}
+
+# Test
+cat("Mean absolute deviation (from mean):", my_mad_mean(bmi_clean), "\n")
+#> Mean absolute deviation (from mean): 5.700316
+cat("Standard deviation:", sd(bmi_clean), "\n")
+#> Standard deviation: 7.376579
+cat("\nMAD is always smaller than SD because squaring amplifies large deviations\n")
+#> 
+#> MAD is always smaller than SD because squaring amplifies large deviations
+```
+
+### 2.2.6 Robust Measures of Spread
+
+When outliers are present, robust measures outperform classical ones.
+
+**Median Absolute Deviation (MAD)**
+
+The MAD uses the median instead of the mean:
+
+$$\text{MAD} = \text{median}(|x_i - \text{median}(x)|)$$
+
+For comparison with SD, we often multiply by a scale factor (1.4826 for normal data):
+
+
+``` r
+# Implement median absolute deviation from scratch
+my_mad_median <- function(x, constant = 1.4826) {
+    x <- x[!is.na(x)]
+    med <- median(x)
+    return(constant * median(abs(x - med)))
+}
+
+# Compare sensitivity to outliers
+clean_data <- c(10, 11, 12, 12, 13, 13, 14, 15, 16)
+contaminated <- c(10, 11, 12, 12, 13, 13, 14, 15, 100)  # One outlier
+
+cat("Clean data:\n")
+#> Clean data:
+cat("  SD:", round(sd(clean_data), 2), "\n")
+#>   SD: 1.9
+cat("  MAD:", round(my_mad_median(clean_data), 2), "\n\n")
+#>   MAD: 1.48
+
+cat("With outlier (100):\n")
+#> With outlier (100):
+cat("  SD:", round(sd(contaminated), 2), "(increased dramatically)\n")
+#>   SD: 29.21 (increased dramatically)
+cat("  MAD:", round(my_mad_median(contaminated), 2), "(barely changed)\n")
+#>   MAD: 1.48 (barely changed)
+
+# Visualise comparison
+set.seed(111)
+normal_sample <- rnorm(100, mean = 50, sd = 10)
+contaminated_sample <- c(rnorm(95, mean = 50, sd = 10),
+                         rnorm(5, mean = 100, sd = 5))  # 5% outliers
+
+comparison_data <- data.table$data.table(
+    value = c(normal_sample, contaminated_sample),
+    dataset = rep(c("Clean Data", "5% Contaminated"), each = 100)
+)
+
+stats_summary <- comparison_data[, .(
+    SD = sd(value),
+    MAD = mad(value)
+), by = dataset]
+
+print(stats_summary)
+#>            dataset       SD      MAD
+#>             <char>    <num>    <num>
+#> 1:      Clean Data 10.70855 10.38011
+#> 2: 5% Contaminated 14.56410 10.02536
+
+ggplot2$ggplot(comparison_data, ggplot2$aes(x = value, fill = dataset)) +
+    ggplot2$geom_histogram(bins = 25, alpha = 0.7, colour = "white") +
+    ggplot2$facet_wrap(~dataset, ncol = 1) +
+    ggplot2$labs(
+        title = "Robust vs Classical Measures of Spread",
+        subtitle = "SD inflates with outliers; MAD remains stable",
+        x = "Value",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/robust_mad-1.png" alt="MAD is robust to outliers whilst SD is sensitive">
+	MAD is robust to outliers whilst SD is sensitive
+</Figure>
+
+## 2.3 Measures of Position
+
+Position measures tell us where individual observations stand relative to the distribution.
+
+### 2.3.1 Percentiles and Quantiles
+
+The **p-th percentile** is the value below which p% of the data fall.
+
+**Formal definition:** For data sorted in ascending order, the p-th percentile $P_p$ satisfies:
+- At least p% of observations are ≤ $P_p$
+- At least (100-p)% of observations are ≥ $P_p$
+
+**Quantiles** are the same concept on a 0-1 scale: the 0.25 quantile equals the 25th percentile.
+
+
+``` r
+# Implement percentile function from scratch
+# Using linear interpolation (Type 7 in R's quantile function)
+my_percentile <- function(x, p) {
+    x <- sort(x[!is.na(x)])
+    n <- length(x)
+
+    # Convert percentage to proportion if necessary
+    if (p > 1) p <- p / 100
+
+    # Calculate the index
+    index <- 1 + (n - 1) * p
+
+    # Get lower and upper indices
+    lo <- floor(index)
+    hi <- ceiling(index)
+
+    # Interpolate
+    if (lo == hi) {
+        return(x[lo])
+    } else {
+        return(x[lo] + (index - lo) * (x[hi] - x[lo]))
+    }
+}
+
+# Test with NHANES BMI
+cat("Selected BMI percentiles:\n")
+#> Selected BMI percentiles:
+for (p in c(5, 10, 25, 50, 75, 90, 95)) {
+    cat(p, "th percentile:", round(my_percentile(bmi_clean, p), 1), "\n")
+}
+#> 5 th percentile: 15.8 
+#> 10 th percentile: 17.5 
+#> 25 th percentile: 21.6 
+#> 50 th percentile: 26 
+#> 75 th percentile: 30.9 
+#> 90 th percentile: 36 
+#> 95 th percentile: 40
+
+cat("\nBuilt-in quantile() for comparison:\n")
+#> 
+#> Built-in quantile() for comparison:
+print(quantile(bmi_clean, probs = c(0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95)))
+#>      5%     10%     25%     50%     75%     90%     95% 
+#> 15.8265 17.5000 21.5800 25.9800 30.8900 36.0000 40.0000
+```
+
+### 2.3.2 Quartiles and the Five-Number Summary
+
+Quartiles divide the data into four equal parts:
+
+- Q1 (25th percentile): 25% of data below
+- Q2 (50th percentile): median, 50% below
+- Q3 (75th percentile): 75% below
+
+The **five-number summary** provides a concise distribution overview:
+
+$$\{\text{Min}, Q_1, \text{Median}, Q_3, \text{Max}\}$$
+
+
+``` r
+# Implement five-number summary from scratch
+my_fivenum <- function(x) {
+    x <- x[!is.na(x)]
+    x_sorted <- sort(x)
+
+    c(
+        Min = min(x),
+        Q1 = my_percentile(x, 25),
+        Median = median(x),
+        Q3 = my_percentile(x, 75),
+        Max = max(x)
+    )
+}
+
+# Example with blood pressure
+bp_fivenum <- my_fivenum(bp_data)
+print(round(bp_fivenum, 1))
+#>    Min     Q1 Median     Q3    Max 
+#>     76    106    116    127    226
+
+# Compare to built-in
+cat("\nBuilt-in fivenum():\n")
+#> 
+#> Built-in fivenum():
+print(round(fivenum(bp_data), 1))
+#> [1]  76 106 116 127 226
+
+# Visualise with boxplot
+bp_dt <- data.table$data.table(bp = bp_data)
+
+ggplot2$ggplot(bp_dt, ggplot2$aes(y = bp)) +
+    ggplot2$geom_boxplot(fill = "#56B4E9", alpha = 0.7, width = 0.3) +
+    ggplot2$annotate("text", x = 0.25, y = bp_fivenum["Min"],
+             label = paste("Min =", round(bp_fivenum["Min"], 0)), hjust = 0) +
+    ggplot2$annotate("text", x = 0.25, y = bp_fivenum["Q1"],
+             label = paste("Q1 =", round(bp_fivenum["Q1"], 0)), hjust = 0) +
+    ggplot2$annotate("text", x = 0.25, y = bp_fivenum["Median"],
+             label = paste("Median =", round(bp_fivenum["Median"], 0)), hjust = 0) +
+    ggplot2$annotate("text", x = 0.25, y = bp_fivenum["Q3"],
+             label = paste("Q3 =", round(bp_fivenum["Q3"], 0)), hjust = 0) +
+    ggplot2$annotate("text", x = 0.25, y = bp_fivenum["Max"],
+             label = paste("Max =", round(bp_fivenum["Max"], 0)), hjust = 0) +
+    ggplot2$labs(
+        title = "Five-Number Summary Visualised",
+        subtitle = "Systolic blood pressure from NHANES",
+        y = "Systolic Blood Pressure (mmHg)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_blank(),
+          axis.title.x = ggplot2$element_blank())
+```
+
+<Figure src="/courses/statistics-1-foundations/five_number_summary-1.png" alt="The five-number summary provides a concise distribution snapshot">
+	The five-number summary provides a concise distribution snapshot
+</Figure>
+
+### 2.3.3 Z-Scores (Standard Scores)
+
+A **z-score** expresses how many standard deviations an observation is from the mean:
+
+$$z = \frac{x - \bar{x}}{s}$$
+
+Z-scores enable comparison across different variables and populations.
+
+
+``` r
+# Implement z-score from scratch
+my_zscore <- function(x) {
+    x_mean <- mean(x, na.rm = TRUE)
+    x_sd <- sd(x, na.rm = TRUE)
+    return((x - x_mean) / x_sd)
+}
+
+# Calculate z-scores for BMI
+bmi_z <- my_zscore(bmi_clean)
+
+cat("Original BMI: mean =", round(mean(bmi_clean), 1),
+    ", SD =", round(sd(bmi_clean), 1), "\n")
+#> Original BMI: mean = 26.7 , SD = 7.4
+cat("Z-scores: mean =", round(mean(bmi_z), 6),
+    ", SD =", round(sd(bmi_z), 6), "\n")
+#> Z-scores: mean = 0 , SD = 1
+
+# Interpretation examples
+example_bmis <- c(18.5, 25, 30, 40)
+example_z <- (example_bmis - mean(bmi_clean)) / sd(bmi_clean)
+
+cat("\nZ-score interpretation:\n")
+#> 
+#> Z-score interpretation:
+for (i in seq_along(example_bmis)) {
+    cat("BMI =", example_bmis[i], "-> z =", round(example_z[i], 2))
+    if (abs(example_z[i]) < 1) {
+        cat(" (within 1 SD, typical)\n")
+    } else if (abs(example_z[i]) < 2) {
+        cat(" (1-2 SD from mean)\n")
+    } else {
+        cat(" (>2 SD from mean, unusual)\n")
+    }
+}
+#> BMI = 18.5 -> z = -1.11 (1-2 SD from mean)
+#> BMI = 25 -> z = -0.23 (within 1 SD, typical)
+#> BMI = 30 -> z = 0.45 (within 1 SD, typical)
+#> BMI = 40 -> z = 1.81 (1-2 SD from mean)
+
+# Visualise
+z_dt <- data.table$data.table(original = bmi_clean, zscore = bmi_z)
+
+ggplot2$ggplot(z_dt, ggplot2$aes(x = zscore)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
+                   fill = "#E69F00", colour = "white", alpha = 0.8) +
+    ggplot2$geom_density(colour = "#D55E00", size = 1) +
+    ggplot2$geom_vline(xintercept = c(-2, -1, 0, 1, 2),
+               linetype = c("dotted", "dashed", "solid", "dashed", "dotted"),
+               colour = "blue") +
+    ggplot2$labs(
+        title = "Z-Score Distribution",
+        subtitle = "BMI standardised; vertical lines at z = -2, -1, 0, 1, 2",
+        x = "Z-Score",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/zscore_from_scratch-1.png" alt="Z-scores standardise data to a common scale">
+	Z-scores standardise data to a common scale
+</Figure>
+
+### 2.3.4 Percentile Ranks
+
+The **percentile rank** of a value tells us what percentage of the data fall at or below that value.
+
+
+``` r
+# Implement percentile rank from scratch
+my_percentile_rank <- function(x, value) {
+    x <- x[!is.na(x)]
+    # Proportion of values less than or equal to the given value
+    return(mean(x <= value) * 100)
+}
+
+# Example: what percentile is a BMI of 25?
+cat("BMI = 25 is at the", round(my_percentile_rank(bmi_clean, 25), 1),
+    "percentile\n")
+#> BMI = 25 is at the 44.1 percentile
+cat("BMI = 30 is at the", round(my_percentile_rank(bmi_clean, 30), 1),
+    "percentile\n")
+#> BMI = 30 is at the 71.4 percentile
+cat("BMI = 40 is at the", round(my_percentile_rank(bmi_clean, 40), 1),
+    "percentile\n")
+#> BMI = 40 is at the 95.1 percentile
+
+# Application: clinical reference ranges
+# Often defined as 5th to 95th percentile
+cat("\nReference range (5th-95th percentile) for BMI:\n")
+#> 
+#> Reference range (5th-95th percentile) for BMI:
+cat(round(quantile(bmi_clean, 0.05), 1), "to",
+    round(quantile(bmi_clean, 0.95), 1), "kg/m²\n")
+#> 15.8 to 40 kg/m²
+```
+
+## 2.4 Measures of Shape
+
+Shape describes how values are distributed around the centre.
+
+### 2.4.1 Skewness
+
+**Skewness** measures asymmetry. A distribution is:
+- **Positively skewed** (right-skewed): long tail to the right, mean > median
+- **Negatively skewed** (left-skewed): long tail to the left, mean < median
+- **Symmetric**: mean ≈ median
+
+The sample skewness formula:
+
+$$\text{Skewness} = \frac{n}{(n-1)(n-2)} \sum_{i=1}^{n} \left(\frac{x_i - \bar{x}}{s}\right)^3$$
+
+
+``` r
+# Implement skewness from scratch
+my_skewness <- function(x) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+    mean_x <- mean(x)
+    sd_x <- sd(x)
+
+    # Standardised values cubed
+    z_cubed <- ((x - mean_x) / sd_x)^3
+
+    # Adjustment for sample skewness
+    adjustment <- n / ((n - 1) * (n - 2))
+
+    return(adjustment * sum(z_cubed))
+}
+
+# Create datasets with different skewness
+set.seed(222)
+
+symmetric_data <- rnorm(1000, mean = 50, sd = 10)
+right_skewed_data <- rgamma(1000, shape = 2, rate = 0.1)
+left_skewed_data <- 100 - rgamma(1000, shape = 2, rate = 0.1)
+
+cat("Symmetric data: skewness =", round(my_skewness(symmetric_data), 3), "\n")
+#> Symmetric data: skewness = 0.097
+cat("Right-skewed data: skewness =", round(my_skewness(right_skewed_data), 3), "\n")
+#> Right-skewed data: skewness = 1.393
+cat("Left-skewed data: skewness =", round(my_skewness(left_skewed_data), 3), "\n")
+#> Left-skewed data: skewness = -1.291
+
+# Real example: income is typically right-skewed
+# Simulate income data
+income_data <- rgamma(1000, shape = 2, rate = 0.00005)
+cat("\nSimulated income: skewness =", round(my_skewness(income_data), 3), "\n")
+#> 
+#> Simulated income: skewness = 1.191
+
+# Visualise
+skew_dt <- data.table$rbindlist(list(
+    data.table$data.table(value = symmetric_data, type = "Symmetric (skew ≈ 0)"),
+    data.table$data.table(value = right_skewed_data, type = "Right-Skewed (skew > 0)"),
+    data.table$data.table(value = left_skewed_data, type = "Left-Skewed (skew < 0)")
+))
+
+skew_dt[, type := factor(type, levels = c("Left-Skewed (skew < 0)",
+                                          "Symmetric (skew ≈ 0)",
+                                          "Right-Skewed (skew > 0)"))]
+
+ggplot2$ggplot(skew_dt, ggplot2$aes(x = value, fill = type)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
+                   colour = "white", alpha = 0.7) +
+    ggplot2$geom_density(colour = "black", size = 1) +
+    ggplot2$facet_wrap(~type, scales = "free", ncol = 1) +
+    ggplot2$labs(
+        title = "Skewness: Measuring Asymmetry",
+        subtitle = "Positive skew: tail right; Negative skew: tail left; Zero: symmetric",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/skewness_from_scratch-1.png" alt="Skewness measures distributional asymmetry">
+	Skewness measures distributional asymmetry
+</Figure>
+
+### 2.4.2 Kurtosis
+
+**Kurtosis** measures the "tailedness" of a distribution: how much probability is in the tails versus the centre.
+
+- **Leptokurtic** (kurtosis > 3): heavier tails, more extreme values
+- **Mesokurtic** (kurtosis ≈ 3): normal-like tails
+- **Platykurtic** (kurtosis < 3): lighter tails, fewer extreme values
+
+The sample kurtosis formula:
+
+$$\text{Kurtosis} = \frac{n(n+1)}{(n-1)(n-2)(n-3)} \sum_{i=1}^{n} \left(\frac{x_i - \bar{x}}{s}\right)^4 - \frac{3(n-1)^2}{(n-2)(n-3)}$$
+
+Note: This gives **excess kurtosis** (normal = 0). Some formulas give raw kurtosis (normal = 3).
+
+
+``` r
+# Implement excess kurtosis from scratch
+my_kurtosis <- function(x) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+    mean_x <- mean(x)
+    sd_x <- sd(x)
+
+    # Standardised values to the fourth power
+    z_fourth <- ((x - mean_x) / sd_x)^4
+
+    # Sample kurtosis with adjustment
+    term1 <- (n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))
+    term2 <- 3 * (n - 1)^2 / ((n - 2) * (n - 3))
+
+    return(term1 * sum(z_fourth) - term2)
+}
+
+# Create datasets with different kurtosis
+set.seed(333)
+
+normal_data <- rnorm(1000)  # Kurtosis ≈ 0
+heavy_tails <- rt(1000, df = 3)  # t-distribution: heavier tails
+light_tails <- runif(1000, -2, 2)  # Uniform: lighter tails
+
+cat("Normal data: excess kurtosis =", round(my_kurtosis(normal_data), 3), "\n")
+#> Normal data: excess kurtosis = 0.146
+cat("Heavy-tailed (t, df=3): excess kurtosis =", round(my_kurtosis(heavy_tails), 3), "\n")
+#> Heavy-tailed (t, df=3): excess kurtosis = 8.07
+cat("Light-tailed (uniform): excess kurtosis =", round(my_kurtosis(light_tails), 3), "\n")
+#> Light-tailed (uniform): excess kurtosis = -1.166
+
+# Visualise
+kurt_dt <- data.table$rbindlist(list(
+    data.table$data.table(value = normal_data, type = "Normal (mesokurtic)"),
+    data.table$data.table(value = heavy_tails, type = "Heavy tails (leptokurtic)"),
+    data.table$data.table(value = light_tails, type = "Light tails (platykurtic)")
+))
+
+# Truncate heavy tails for visualisation
+kurt_dt[type == "Heavy tails (leptokurtic)" & abs(value) > 6, value := NA]
+
+ggplot2$ggplot(kurt_dt[!is.na(value)], ggplot2$aes(x = value, fill = type)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                   colour = "white", alpha = 0.7) +
+    ggplot2$geom_density(colour = "black", size = 1) +
+    ggplot2$facet_wrap(~type, ncol = 1) +
+    ggplot2$labs(
+        title = "Kurtosis: Measuring Tail Heaviness",
+        subtitle = "Leptokurtic: more outliers; Platykurtic: fewer outliers",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/kurtosis_from_scratch-1.png" alt="Kurtosis measures tail heaviness relative to normal">
+	Kurtosis measures tail heaviness relative to normal
+</Figure>
+
+### 2.4.3 Why Shape Matters
+
+Distribution shape affects:
+
+1. **Choice of summary statistics**: Use median/IQR for skewed data; mean/SD for symmetric
+2. **Statistical tests**: Many tests assume normality; highly non-normal data may require non-parametric methods
+3. **Interpretation**: A positively skewed income distribution with mean £50,000 does not mean most people earn £50,000
+
+
+``` r
+# Compare summaries for symmetric vs skewed data
+set.seed(444)
+
+symmetric <- rnorm(500, mean = 100, sd = 15)
+skewed <- rgamma(500, shape = 4, rate = 0.04)  # Mean ≈ 100
+
+compare_stats <- data.table$data.table(
+    Statistic = c("Mean", "Median", "SD", "IQR", "Skewness"),
+    Symmetric = c(mean(symmetric), median(symmetric), sd(symmetric),
+                  IQR(symmetric), my_skewness(symmetric)),
+    Skewed = c(mean(skewed), median(skewed), sd(skewed),
+               IQR(skewed), my_skewness(skewed))
+)
+
+print(compare_stats[, lapply(.SD, round, 2), .SDcols = c("Symmetric", "Skewed"),
+                    by = Statistic])
+#>    Statistic Symmetric Skewed
+#>       <char>     <num>  <num>
+#> 1:      Mean    100.32 100.19
+#> 2:    Median     99.69  93.06
+#> 3:        SD     14.60  47.58
+#> 4:       IQR     20.09  63.00
+#> 5:  Skewness      0.09   0.85
+
+cat("\nFor the skewed distribution:\n")
+#> 
+#> For the skewed distribution:
+cat("- Mean (", round(mean(skewed), 1), ") > Median (",
+    round(median(skewed), 1), ")\n")
+#> - Mean ( 100.2 ) > Median ( 93.1 )
+cat("- Mean is pulled by the long right tail\n")
+#> - Mean is pulled by the long right tail
+cat("- Median is a better 'typical' value\n")
+#> - Median is a better 'typical' value
+```
+
+## 2.5 Summarising Grouped Data
+
+Often we need to compute statistics for subgroups or summarise data that arrives pre-grouped.
+
+### 2.5.1 Frequency Distributions
+
+A **frequency distribution** shows how observations are distributed across categories or bins.
+
+
+``` r
+# Create frequency distribution for BMI categories
+bmi_categories <- cut(
+    bmi_clean,
+    breaks = c(0, 18.5, 25, 30, 35, 40, Inf),
+    labels = c("Underweight", "Normal", "Overweight",
+               "Obese I", "Obese II", "Obese III"),
+    right = FALSE
+)
+
+# Frequency table
+freq_table <- data.table$data.table(category = bmi_categories)[, .(
+    frequency = .N
+), by = category]
+
+freq_table[, `:=`(
+    relative_freq = frequency / sum(frequency),
+    cumulative_freq = cumsum(frequency),
+    cumulative_rel_freq = cumsum(frequency) / sum(frequency)
+)]
+
+# Order properly
+freq_table <- freq_table[order(match(category,
+    c("Underweight", "Normal", "Overweight", "Obese I", "Obese II", "Obese III")))]
+
+print(freq_table)
+#>       category frequency relative_freq cumulative_freq cumulative_rel_freq
+#>         <fctr>     <int>         <num>           <int>               <num>
+#> 1: Underweight      1271    0.13192859            2884           0.2993564
+#> 2:      Normal      2941    0.30527299            5825           0.6046294
+#> 3:  Overweight      2656    0.27569026            8481           0.8803197
+#> 4:     Obese I      1613    0.16742786            1613           0.1674279
+#> 5:    Obese II       668    0.06933776            9149           0.9496575
+#> 6:   Obese III       485    0.05034254            9634           1.0000000
+
+# Visualise
+freq_table[, category := factor(category, levels = c(
+    "Underweight", "Normal", "Overweight", "Obese I", "Obese II", "Obese III"
+))]
+
+ggplot2$ggplot(freq_table, ggplot2$aes(x = category, y = frequency, fill = category)) +
+    ggplot2$geom_bar(stat = "identity", alpha = 0.8) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(round(relative_freq * 100, 1), "%")),
+              vjust = -0.5) +
+    ggplot2$labs(
+        title = "BMI Category Distribution",
+        subtitle = "Frequency distribution from NHANES data",
+        x = "BMI Category",
+        y = "Frequency"
+    ) +
+    ggplot2$scale_fill_brewer(palette = "RdYlGn", direction = -1) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/frequency_distribution-1.png" alt="Frequency distributions show how data are distributed across categories">
+	Frequency distributions show how data are distributed across categories
+</Figure>
+
+### 2.5.2 Computing Statistics from Grouped Data
+
+When we only have grouped data (class intervals and frequencies), we can estimate statistics using class midpoints.
+
+For grouped data with k classes, midpoints $m_i$, and frequencies $f_i$:
+
+**Estimated Mean:**
+$$\bar{x} \approx \frac{\sum_{i=1}^{k} f_i m_i}{\sum_{i=1}^{k} f_i}$$
+
+**Estimated Variance:**
+$$s^2 \approx \frac{\sum_{i=1}^{k} f_i (m_i - \bar{x})^2}{\sum_{i=1}^{k} f_i - 1}$$
+
+
+``` r
+# Create grouped data example
+# Suppose we only have this summary table:
+grouped_data <- data.table$data.table(
+    lower = c(0, 18.5, 25, 30, 35, 40),
+    upper = c(18.5, 25, 30, 35, 40, 60),
+    frequency = c(156, 2812, 2989, 1923, 1074, 755)
+)
+
+grouped_data[, midpoint := (lower + upper) / 2]
+
+# Estimate mean from grouped data
+estimated_mean <- sum(grouped_data$frequency * grouped_data$midpoint) /
+                  sum(grouped_data$frequency)
+
+# Estimate variance from grouped data
+n_total <- sum(grouped_data$frequency)
+estimated_var <- sum(grouped_data$frequency *
+                    (grouped_data$midpoint - estimated_mean)^2) / (n_total - 1)
+estimated_sd <- sqrt(estimated_var)
+
+cat("From grouped data:\n")
+#> From grouped data:
+cat("  Estimated mean:", round(estimated_mean, 2), "\n")
+#>   Estimated mean: 29.39
+cat("  Estimated SD:", round(estimated_sd, 2), "\n\n")
+#>   Estimated SD: 8.17
+
+cat("From raw data (for comparison):\n")
+#> From raw data (for comparison):
+cat("  Actual mean:", round(mean(bmi_clean), 2), "\n")
+#>   Actual mean: 26.66
+cat("  Actual SD:", round(sd(bmi_clean), 2), "\n")
+#>   Actual SD: 7.38
+```
+
+### 2.5.3 Efficient Grouped Summaries with data.table
+
+The data.table package excels at computing grouped statistics efficiently.
+
+
+``` r
+# Comprehensive grouped summary
+grouped_summary <- nhanes[!is.na(BMI) & !is.na(Gender) & !is.na(AgeDecade), .(
+    n = .N,
+    mean_bmi = mean(BMI),
+    sd_bmi = sd(BMI),
+    median_bmi = median(BMI),
+    iqr_bmi = IQR(BMI),
+    min_bmi = min(BMI),
+    max_bmi = max(BMI)
+), by = .(Gender, AgeDecade)]
+
+# Order by age decade
+grouped_summary <- grouped_summary[order(AgeDecade, Gender)]
+
+print(grouped_summary[, lapply(.SD, function(x) if(is.numeric(x)) round(x, 1) else x)])
+#>     Gender AgeDecade     n mean_bmi sd_bmi median_bmi iqr_bmi min_bmi max_bmi
+#>     <char>    <char> <num>    <num>  <num>      <num>   <num>   <num>   <num>
+#>  1: female             191     26.7    5.1       26.8     7.8    15.9    43.4
+#>  2:   male             132     27.0    4.0       27.0     5.7    15.7    36.1
+#>  3: female       0-9   512     17.3    3.3       16.2     3.1    12.9    33.6
+#>  4:   male       0-9   589     17.0    2.7       16.3     2.4    12.9    31.1
+#>  5: female     10-19   674     23.3    6.5       21.6     7.7    13.5    55.1
+#>  6:   male     10-19   687     23.2    5.6       22.3     6.9    13.3    53.5
+#>  7: female     20-29   678     27.5    7.7       25.5     9.6    15.8    80.6
+#>  8:   male     20-29   668     27.5    6.1       26.7     8.7    16.5    56.8
+#>  9: female     30-39   673     29.3    7.7       28.1     9.9    17.4    69.0
+#> 10:   male     30-39   661     29.0    6.1       27.7     7.2    18.4    63.9
+#> 11: female     40-49   674     28.5    7.4       27.3     9.7    15.0    65.6
+#> 12:   male     40-49   712     29.3    5.4       28.6     6.9    18.2    49.4
+#> 13: female     50-59   621     29.1    7.6       27.4     8.8    17.6    81.2
+#> 14:   male     50-59   677     29.3    5.5       28.4     6.6    17.0    52.6
+#> 15: female     60-69   474     29.6    6.8       28.7     8.3    15.2    67.0
+#> 16:   male     60-69   434     29.5    6.1       28.2     7.0    18.4    58.2
+#> 17: female       70+   344     29.4    7.3       28.3     8.3    16.6    65.2
+#> 18:   male       70+   233     29.0    4.8       28.6     5.6    17.6    43.7
+
+# Visualise means by group
+ggplot2$ggplot(grouped_summary, ggplot2$aes(x = AgeDecade, y = mean_bmi,
+                                    fill = Gender, group = Gender)) +
+    ggplot2$geom_bar(stat = "identity", position = "dodge", alpha = 0.8) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = mean_bmi - sd_bmi/sqrt(n),
+                      ymax = mean_bmi + sd_bmi/sqrt(n)),
+                  position = ggplot2$position_dodge(width = 0.9), width = 0.25) +
+    ggplot2$labs(
+        title = "Mean BMI by Age Decade and Gender",
+        subtitle = "Error bars show ± 1 standard error",
+        x = "Age Decade",
+        y = "Mean BMI (kg/m²)"
+    ) +
+    ggplot2$scale_fill_manual(values = c("female" = "#CC79A7", "male" = "#0072B2")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+```
+
+<Figure src="/courses/statistics-1-foundations/grouped_summaries_datatable-1.png" alt="Grouped statistics reveal patterns across subgroups">
+	Grouped statistics reveal patterns across subgroups
+</Figure>
+
+## 2.6 Detecting Outliers
+
+Outliers are observations that lie far from the bulk of the data. They demand attention: they may indicate data errors, or they may be the most interesting observations.
+
+### 2.6.1 What Is an Outlier?
+
+An **outlier** is a data point that differs significantly from other observations. There is no single definition; context determines what counts as "significantly different."
+
+Outliers matter because they can:
+- Strongly influence mean and SD
+- Distort correlation and regression
+- Indicate data entry errors
+- Reveal important edge cases or subpopulations
+
+### 2.6.2 The IQR Rule (Tukey's Fences)
+
+The most common outlier detection method uses the IQR:
+
+- **Lower fence:** $Q_1 - 1.5 \times \text{IQR}$
+- **Upper fence:** $Q_3 + 1.5 \times \text{IQR}$
+
+Values outside these fences are potential outliers. Values beyond $Q_1 - 3 \times \text{IQR}$ or $Q_3 + 3 \times \text{IQR}$ are sometimes called "extreme outliers."
+
+
+``` r
+# Implement IQR outlier detection from scratch
+detect_outliers_iqr <- function(x, k = 1.5) {
+    x <- x[!is.na(x)]
+    q1 <- quantile(x, 0.25)
+    q3 <- quantile(x, 0.75)
+    iqr <- q3 - q1
+
+    lower_fence <- q1 - k * iqr
+    upper_fence <- q3 + k * iqr
+
+    is_outlier <- x < lower_fence | x > upper_fence
+
+    list(
+        lower_fence = lower_fence,
+        upper_fence = upper_fence,
+        outliers = x[is_outlier],
+        n_outliers = sum(is_outlier),
+        proportion = mean(is_outlier)
+    )
+}
+
+# Apply to blood pressure data
+bp_outliers <- detect_outliers_iqr(bp_data)
+
+cat("IQR outlier detection for systolic BP:\n")
+#> IQR outlier detection for systolic BP:
+cat("Lower fence:", round(bp_outliers$lower_fence, 1), "\n")
+#> Lower fence: 74.5
+cat("Upper fence:", round(bp_outliers$upper_fence, 1), "\n")
+#> Upper fence: 158.5
+cat("Number of outliers:", bp_outliers$n_outliers, "\n")
+#> Number of outliers: 215
+cat("Proportion:", round(bp_outliers$proportion * 100, 2), "%\n")
+#> Proportion: 2.51 %
+
+# Visualise with boxplot
+bp_dt <- data.table$data.table(bp = bp_data)
+bp_dt[, is_outlier := bp < bp_outliers$lower_fence | bp > bp_outliers$upper_fence]
+
+ggplot2$ggplot(bp_dt, ggplot2$aes(y = bp)) +
+    ggplot2$geom_boxplot(fill = "#56B4E9", alpha = 0.7, width = 0.4,
+                 outlier.colour = "red", outlier.shape = 1, outlier.size = 2) +
+    ggplot2$geom_hline(yintercept = c(bp_outliers$lower_fence, bp_outliers$upper_fence),
+               colour = "red", linetype = "dashed") +
+    ggplot2$annotate("text", x = 0.3, y = bp_outliers$upper_fence + 5,
+             label = paste("Upper fence:", round(bp_outliers$upper_fence, 0)),
+             colour = "red") +
+    ggplot2$annotate("text", x = 0.3, y = bp_outliers$lower_fence - 5,
+             label = paste("Lower fence:", round(bp_outliers$lower_fence, 0)),
+             colour = "red") +
+    ggplot2$labs(
+        title = "IQR Rule for Outlier Detection",
+        subtitle = "Red dashed lines show Tukey's fences; red circles are outliers",
+        y = "Systolic Blood Pressure (mmHg)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_blank(),
+          axis.title.x = ggplot2$element_blank())
+```
+
+<Figure src="/courses/statistics-1-foundations/iqr_outliers-1.png" alt="Tukey&#39;s fences identify potential outliers using the IQR rule">
+	Tukey's fences identify potential outliers using the IQR rule
+</Figure>
+
+### 2.6.3 Z-Score Method
+
+The z-score method flags observations more than k standard deviations from the mean:
+
+$$|z| = \left|\frac{x - \bar{x}}{s}\right| > k$$
+
+Common choices: k = 2 or k = 3.
+
+
+``` r
+# Implement z-score outlier detection
+detect_outliers_zscore <- function(x, k = 3) {
+    x <- x[!is.na(x)]
+    z <- (x - mean(x)) / sd(x)
+
+    is_outlier <- abs(z) > k
+
+    list(
+        threshold = k,
+        outliers = x[is_outlier],
+        z_scores = z[is_outlier],
+        n_outliers = sum(is_outlier),
+        proportion = mean(is_outlier)
+    )
+}
+
+# Apply to blood pressure
+bp_z_outliers <- detect_outliers_zscore(bp_data, k = 3)
+
+cat("\nZ-score outlier detection (k = 3):\n")
+#> 
+#> Z-score outlier detection (k = 3):
+cat("Number of outliers:", bp_z_outliers$n_outliers, "\n")
+#> Number of outliers: 109
+cat("Proportion:", round(bp_z_outliers$proportion * 100, 2), "%\n")
+#> Proportion: 1.27 %
+
+# Compare methods
+cat("\nComparison of methods:\n")
+#> 
+#> Comparison of methods:
+cat("IQR rule:", bp_outliers$n_outliers, "outliers\n")
+#> IQR rule: 215 outliers
+cat("Z-score (k=3):", bp_z_outliers$n_outliers, "outliers\n")
+#> Z-score (k=3): 109 outliers
+cat("Z-score (k=2):", detect_outliers_zscore(bp_data, k = 2)$n_outliers, "outliers\n")
+#> Z-score (k=2): 357 outliers
+```
+
+**Limitation:** Both mean and SD are sensitive to outliers, so outliers can "mask" themselves.
+
+### 2.6.4 Modified Z-Score Using MAD
+
+A more robust approach uses median and MAD instead of mean and SD:
+
+$$M = \frac{0.6745(x - \text{median})}{\text{MAD}}$$
+
+Values with $|M| > 3.5$ are potential outliers.
+
+
+``` r
+# Implement modified z-score
+detect_outliers_mad <- function(x, k = 3.5) {
+    x <- x[!is.na(x)]
+    med <- median(x)
+    mad_val <- mad(x)
+
+    # Modified z-score
+    m <- 0.6745 * (x - med) / mad_val
+
+    is_outlier <- abs(m) > k
+
+    list(
+        threshold = k,
+        outliers = x[is_outlier],
+        modified_z = m[is_outlier],
+        n_outliers = sum(is_outlier),
+        proportion = mean(is_outlier)
+    )
+}
+
+# Apply to blood pressure
+bp_mad_outliers <- detect_outliers_mad(bp_data)
+
+cat("Modified z-score outlier detection:\n")
+#> Modified z-score outlier detection:
+cat("Number of outliers:", bp_mad_outliers$n_outliers, "\n")
+#> Number of outliers: 24
+cat("Proportion:", round(bp_mad_outliers$proportion * 100, 2), "%\n")
+#> Proportion: 0.28 %
+
+# Demonstrate robustness
+set.seed(555)
+clean <- rnorm(100, mean = 50, sd = 5)
+contaminated <- c(clean, 150, 160, 170)  # Add three extreme outliers
+
+cat("\nDemonstrating masking effect:\n")
+#> 
+#> Demonstrating masking effect:
+cat("Clean data: z-score detects",
+    detect_outliers_zscore(clean, k = 3)$n_outliers, "outliers\n")
+#> Clean data: z-score detects 1 outliers
+cat("With 3 extreme outliers added:\n")
+#> With 3 extreme outliers added:
+cat("  Z-score method detects",
+    detect_outliers_zscore(contaminated, k = 3)$n_outliers, "outliers\n")
+#>   Z-score method detects 3 outliers
+cat("  Modified z-score detects",
+    detect_outliers_mad(contaminated)$n_outliers, "outliers\n")
+#>   Modified z-score detects 3 outliers
+cat("\n(Z-score method missed some because outliers inflated the SD)\n")
+#> 
+#> (Z-score method missed some because outliers inflated the SD)
+```
+
+### 2.6.5 Outliers in Biomedical Data
+
+In biomedical contexts, outliers require careful consideration:
+
+**Potential causes:**
+- Data entry errors (fix or exclude)
+- Equipment malfunction (exclude)
+- Non-compliance (document, may need to keep)
+- True biological extremes (keep, they are real data)
+- Different population (investigate)
+
+
+``` r
+# Create summary of outlier handling approaches
+outlier_decisions <- data.table$data.table(
+    Cause = c("Data entry error", "Equipment failure",
+              "Non-compliance", "Biological extreme", "Different population"),
+    Action = c("Correct if possible, else exclude",
+               "Exclude with documentation",
+               "Keep but document; sensitivity analysis",
+               "Keep (it's real data)",
+               "Investigate; may need separate analysis"),
+    Example = c("Age = 999 years", "BP = 0 mmHg",
+                "Patient skipped doses", "BMI = 55 kg/m²",
+                "Pediatric patient in adult study")
+)
+
+print(outlier_decisions)
+#>                   Cause                                  Action
+#>                  <char>                                  <char>
+#> 1:     Data entry error       Correct if possible, else exclude
+#> 2:    Equipment failure              Exclude with documentation
+#> 3:       Non-compliance Keep but document; sensitivity analysis
+#> 4:   Biological extreme                   Keep (it's real data)
+#> 5: Different population Investigate; may need separate analysis
+#>                             Example
+#>                              <char>
+#> 1:                  Age = 999 years
+#> 2:                      BP = 0 mmHg
+#> 3:            Patient skipped doses
+#> 4:                   BMI = 55 kg/m²
+#> 5: Pediatric patient in adult study
+
+# Example: Investigating an outlier
+# Find the highest BMI values
+extreme_bmi <- nhanes[!is.na(BMI), .(BMI, Age, Gender, Diabetes, BPSysAve)]
+extreme_bmi <- extreme_bmi[order(-BMI)][1:10]
+
+cat("\nTop 10 highest BMI values in NHANES:\n")
+#> 
+#> Top 10 highest BMI values in NHANES:
+print(extreme_bmi)
+#>       BMI   Age Gender Diabetes BPSysAve
+#>     <num> <int> <char>   <char>    <int>
+#>  1: 81.25    52 female      Yes      111
+#>  2: 81.25    52 female      Yes      111
+#>  3: 80.60    25 female       No      132
+#>  4: 69.00    30 female       No      108
+#>  5: 68.63    33 female      Yes      119
+#>  6: 67.83    39 female      Yes      124
+#>  7: 66.96    60 female       No      134
+#>  8: 65.62    45 female       No       NA
+#>  9: 65.19    72 female      Yes      160
+#> 10: 63.91    37   male      Yes       92
+
+cat("\nThese are real people with extreme obesity, not errors.\n")
+#> 
+#> These are real people with extreme obesity, not errors.
+cat("We should NOT automatically exclude them.\n")
+#> We should NOT automatically exclude them.
+```
+
+---
+
+## Communicating to Stakeholders
+
+When explaining descriptive statistics to collaborators or non-technical audiences:
+
+**On central tendency:**
+> "The average (mean) gives us the typical value, but it can be misleading if the data are skewed. The median tells us the middle value—half are above, half below. For income data, we often report the median because a few very high earners can inflate the average."
+
+**On spread:**
+> "The standard deviation tells us how much values typically differ from the average. For blood pressure, an SD of 15 means most readings fall within about 15 mmHg above or below the average."
+
+**On outliers:**
+> "We identified some unusually high values. Before deciding what to do with them, we need to investigate: are these data errors, or are they genuine extreme cases? If they're real, they may be the most important observations in our study."
+
+**On appropriate measures:**
+> "Because this distribution is skewed with a long tail to the right, the median is a more representative 'typical' value than the mean. The mean is pulled toward the tail."
+
+---
+
+## Quick Reference
+
+### Summary Statistics Formulae
+
+| Measure | Formula | R Function |
+|---------|---------|------------|
+| Mean | $\bar{x} = \frac{1}{n}\sum x_i$ | `mean(x)` |
+| Median | Middle value | `median(x)` |
+| Variance | $s^2 = \frac{1}{n-1}\sum(x_i - \bar{x})^2$ | `var(x)` |
+| SD | $s = \sqrt{s^2}$ | `sd(x)` |
+| IQR | $Q_3 - Q_1$ | `IQR(x)` |
+| CV | $\frac{s}{\bar{x}} \times 100\%$ | `sd(x)/mean(x)*100` |
+| Skewness | Third standardised moment | `e1071::skewness(x)` |
+| Kurtosis | Fourth standardised moment | `e1071::kurtosis(x)` |
+
+### When to Use Each Measure
+
+| Data Characteristic | Central Tendency | Spread |
+|--------------------|------------------|--------|
+| Symmetric, no outliers | Mean | SD |
+| Skewed | Median | IQR |
+| Outliers present | Median | IQR or MAD |
+| Comparing across scales | Mean (or median) | CV |
+| Categorical data | Mode | — |
+
+### Outlier Detection Summary
+
+| Method | Outlier If | Best When |
+|--------|-----------|-----------|
+| IQR rule | $x < Q_1 - 1.5 \times \text{IQR}$ or $x > Q_3 + 1.5 \times \text{IQR}$ | General use |
+| Z-score | $\|z\| > 3$ | Data approximately normal |
+| Modified z-score | $\|M\| > 3.5$ | Outliers may mask each other |
+
+### Five-Number Summary
+
+$$\{\text{Min}, Q_1, \text{Median}, Q_3, \text{Max}\}$$
+
+R: `fivenum(x)` or `summary(x)`
+
+### Grouped Statistics with data.table
+
+```r
+# Basic grouped summary
+data[, .(
+    n = .N,
+    mean = mean(variable),
+    sd = sd(variable),
+    median = median(variable),
+    iqr = IQR(variable)
+), by = group_variable]
+```
+
+### Greek Letter Reference (Descriptive Statistics)
+
+| Symbol | Name | Represents |
+|--------|------|------------|
+| $\mu$ | mu | Population mean |
+| $\sigma$ | sigma | Population standard deviation |
+| $\sigma^2$ | sigma squared | Population variance |
+| $\bar{x}$ | x-bar | Sample mean |
+| $s$ | s | Sample standard deviation |
+| $s^2$ | s squared | Sample variance |
