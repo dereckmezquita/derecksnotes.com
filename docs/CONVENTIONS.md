@@ -123,6 +123,7 @@ gh run watch <run-id>
 - `DOCKER_USERNAME` / `DOCKER_PASSWORD` - Docker Hub credentials
 - `REMOTE_HOST` / `REMOTE_USERNAME` / `REMOTE_PASSWORD` / `REMOTE_PORT` - VPS SSH access
 - `SESSION_SECRET` - Express session secret
+- `ADMIN_USERNAME` - Username that gets auto-elevated to admin group on registration
 
 ## Code Style
 

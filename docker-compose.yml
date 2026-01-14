@@ -8,6 +8,7 @@ services:
     environment:
       - BUILD_ENV=${BUILD_ENV:-prod}
       - SESSION_SECRET=${SESSION_SECRET}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
     networks:
       - dereck-network
     restart: unless-stopped
