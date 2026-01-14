@@ -165,7 +165,7 @@ const DateTimeInput = styled.input`
     color: ${(props) => props.theme.text.colour.primary()};
     font-size: 0.8rem;
     cursor: pointer;
-    min-width: 180px;
+    width: 175px;
 
     &:focus {
         outline: none;
