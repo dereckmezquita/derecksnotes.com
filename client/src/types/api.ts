@@ -179,11 +179,12 @@ export interface AuditLogEntry {
     admin: {
         id: string;
         username: string;
-    };
+    } | null;
     action: string;
     targetType: string;
     targetId: string | null;
     details: AuditLogDetails | null;
+    ipAddress: string | null;
     createdAt: string;
 }
 

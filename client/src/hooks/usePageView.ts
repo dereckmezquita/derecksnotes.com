@@ -12,7 +12,6 @@ interface PageViewOptions {
 
 interface ViewResponse {
     viewId: string;
-    isBot: boolean;
 }
 
 /**

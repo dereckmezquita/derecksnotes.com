@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@context/AuthContext';
 import { api } from '@utils/api/api';
+import type { AuditLogEntry } from '@/types/api';
 import {
     AdminHeader,
     AdminTitle,
@@ -32,21 +33,6 @@ import {
 } from '../components/AdminStyles';
 import SelectDropDown from '@components/atomic/SelectDropDown';
 import SearchBar from '@components/atomic/SearchBar';
-
-interface AuditLogEntry {
-    id: string;
-    adminId: string;
-    action: string;
-    targetType: string;
-    targetId: string | null;
-    details: Record<string, any> | null;
-    ipAddress: string | null;
-    createdAt: string;
-    admin: {
-        id: string;
-        username: string;
-    } | null;
-}
 
 interface AuditLogResponse {
     logs: AuditLogEntry[];
