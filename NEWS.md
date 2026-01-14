@@ -1,5 +1,71 @@
 # derecksnotes.com Change Log
 
+## v5.0.0 - Major Architecture Overhaul (2025-01)
+
+This is a major release that completely overhauls the backend architecture, introduces a full admin dashboard, and adds significant UI improvements.
+
+### Database Migration: MongoDB to SQLite
+
+- **SQLite + Drizzle ORM**: Replaced MongoDB/Mongoose with SQLite and Drizzle ORM
+- **Type-safe schema**: Full TypeScript integration with auto-generated types
+- **Migrations**: Version-controlled schema changes with `drizzle-kit`
+- **Simpler deployment**: No external database service required
+- **Session storage**: SQLite-backed sessions (replaced Redis)
+
+### Admin Dashboard
+
+A complete admin panel for site management:
+
+- **Dashboard Overview**: Stats cards showing pending comments, reports, total users
+- **User Management**: Search users, view details, ban/unban, assign groups
+- **Comment Moderation**: Approve/reject pending comments, bulk actions
+- **Reports System**: View and resolve user reports
+- **Audit Log**: Track all admin actions with timestamps
+- **Role-based Access**: Permissions control what each admin/moderator can access
+
+### Enhanced User Profiles
+
+- **Mini Analytics**: Total likes, dislikes, positive sentiment %, average engagement
+- **Session Management**: View active sessions (future: logout from other devices)
+- **Improved Comments Tab**: Shows post titles with links, parent comment context
+- **Better Layout**: Left-aligned labels, consistent button styling
+
+### Comments System Improvements
+
+- **Reddit-style Pagination**: Load 20 top-level comments initially, "Load more" button
+- **Nested Reply Loading**: Load replies up to 3 levels deep, "Continue thread" for deeper
+- **"X more replies"**: Load additional sibling replies on demand
+- **Pending Badge**: Only visible to comment author (not other users)
+- **Reduced Spacing**: More compact comment layout
+
+### UI/UX Improvements
+
+- **Fixed Nav Hover Bug**: Eliminated 1px white sliver at bottom of nav items (flexbox conversion)
+- **Unified Theme Variables**: Single `card` background variable for consistent theming
+- **Dropdown Improvements**: Proper positioning with `min-width: max-content`
+- **Related Definitions Title**: Added "Related Definitions" header in dictionary sidebar
+- **About Section Update**: Updated to reflect SQLite and Next.js 15
+
+### Technical Improvements
+
+- **Next.js 15**: Upgraded from Next.js 14
+- **React 19**: Latest React version
+- **Express 5**: Modern Express with better async support
+- **Bun Runtime**: Fast server-side JavaScript runtime
+- **Permission System**: Granular permissions with group inheritance
+
+### Files Changed
+
+Key files modified in this release:
+- `server/src/db/` - Complete database rewrite with Drizzle
+- `client/src/app/admin/` - New admin dashboard pages
+- `client/src/app/profile/page.tsx` - Enhanced profile with analytics
+- `client/src/components/ui/Navbar.tsx` - Flexbox conversion
+- `client/src/styles/theme.ts` - Unified card background variable
+- `client/src/components/comments/` - Pagination support
+
+---
+
 ## PR #35 - Environment Variable System Overhaul & Comments Refactoring (Milestone 1)
 
 This release implements a comprehensive environment variable management system with improved type safety, automatic URL construction, and better development workflows. It also includes a complete refactoring of the comments system.

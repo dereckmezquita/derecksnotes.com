@@ -123,6 +123,24 @@ If ports 3000-3002 are in use, the client will automatically try higher ports. C
 1. Set `ADMIN_USERNAME` in `server/.env`
 2. Register a user with that username through the app
 3. The user is automatically added to the admin group
+4. Access the admin dashboard at `/admin`
+
+### Admin Features
+
+- **Dashboard**: Overview stats and quick actions
+- **Comments**: Approve/reject pending comments
+- **Users**: Search, ban/unban, manage group assignments
+- **Reports**: Review and resolve user reports
+- **Audit Log**: View all admin actions
+
+### Permission System
+
+Users are assigned to groups, and groups have permissions:
+
+- **admin**: Full access to all features
+- **moderator**: Comment moderation, limited user management
+- **trusted**: Comments auto-approved
+- **user**: Standard user permissions
 
 ## Tech Stack
 

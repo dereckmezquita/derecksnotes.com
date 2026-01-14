@@ -1,14 +1,19 @@
 # [derecksnotes.com](https://www.derecksnotes.com) <img src="./.graphics/512-derecks-notes-logo.png" width="75" align="right">
 
-Welcome to version `4.0` of [Dereck's Notes](https://www.derecksnotes.com). Dereck's Notes has been reconstructed with a new and modern technical stack to integrate new features and improve maintainability.
-
-It's come a long way from a bunch of static pages using `PHP` to using `webpack` for building and bundling. The adaptation from a static site to one that includes server-side functionalities allows the implementation of new features such as user accounts and comments.
-
-Now built using `NextJS` 14 `app` dir + an `expressJS` backend.
+Welcome to version `v5.0.0` of [Dereck's Notes](https://www.derecksnotes.com). This major release brings a complete backend overhaul with SQLite, a new admin dashboard, enhanced user profiles, and significant UI improvements.
 
 <p align="center">
     <img src="./.graphics/screen-captures/site-capture-full.png" width="750">
 </p>
+
+## What's New in v5.0
+
+- **SQLite Database**: SQLite with Drizzle ORM for simpler deployment and better performance
+- **Admin Dashboard**: Full-featured admin panel for user management, comment moderation, and audit logging
+- **Enhanced User Profiles**: Mini analytics, session management, and improved comment history
+- **Reddit-style Comments**: Pagination, nested replies, and "load more" functionality
+- **Role-based Permissions**: Granular admin, moderator, and user permission system
+- **UI Refinements**: Fixed navbar hover states, unified theme variables, improved mobile responsiveness
 
 <p align="center">
     <img src="./.graphics/screen-captures/interactive-comments.png" width="750">
@@ -20,64 +25,87 @@ Now built using `NextJS` 14 `app` dir + an `expressJS` backend.
 
 ## Technical Overview
 
-The technology stack has been modified in version `4.0` to cater to the new functionalities and to streamline the development process.
-
 ### Frontend
 
--   **Next.js 14**: Using `app` dir and server side rendering features.
--   **TypeScript**: Employed for its static typing.
--   **React**: Utilised for UI components.
--   **MDX**: Chosen for content writing, combining markdown with React.
--   **Styled-components**: Used for styling components; I like to write my own `CSS` I don't like abstractions.
+- **Next.js 15**: App Router with React Server Components
+- **React 19**: Latest React with improved performance
+- **TypeScript**: Strict mode for type safety
+- **MDX**: Blog posts and content written in MDX
+- **styled-components**: CSS-in-JS styling with theming support
 
 ### Backend
 
--   **Express**: Provides a framework for web and API applications.
--   **Mongoose**: Facilitates MongoDB object modelling.
--   **Redis**: Manages session storage, utilising `connect-redis`.
--   **Multer**: Handles file uploads (`multipart/form-data`).
--   **Bcrypt**: Secures passwords by hashing them before database storage.
+- **Express 5**: Modern Express with async/await support
+- **Bun Runtime**: Fast JavaScript runtime for the server
+- **SQLite + Drizzle ORM**: Type-safe database with migrations
+- **Session Auth**: Secure cookie-based authentication
 
 ### Infrastructure
 
--   **MongoDB**: Accommodates data storage needs.
--   **Redis**: Manages persistent session storage.
--   **Nginx**: Serves static files, manages reverse proxying, caching, and load balancing.
+- **Docker**: Containerised deployment
+- **GitHub Actions**: CI/CD pipelines for testing and deployment
+- **Nginx**: Reverse proxy with SSL termination
 
-### Continuous Integration/Continuous Deployment (CI/CD)
+## Quick Start
 
-The whole is served using CI/CD pipelines on `GitHub Actions`. The pipelines are triggered in two different cases:
+```bash
+# Install dependencies
+bun install
+cd client && bun install && cd ..
+cd server && bun install && cd ..
 
-1. **Push to a PR**: The pipeline runs tests and linters.
-    - Deploys a test version of the website to `dev.derecksnotes.com` to avoid breaking the production site.
-1. **On release**: The pipeline builds the app, runs tests, and deploys the app to the server.
-    - Deploys the app to `derecksnotes.com`.
+# Start development (runs both client and server)
+bun run dev
+```
 
-This is all done in three steps:
+The server automatically initialises the database on startup.
 
-1. **Build and push Docker image**: The app is built and pushed to docker hub.
-1. **SSH copy the `docker-compose.yml` file to the server**: The `docker-compose.yml` file is copied to the server.
-1. **SSH run the `docker-compose.yml` file**: The `docker-compose.yml` file is run on the server.
+See [docs/DEV.md](docs/DEV.md) for detailed development instructions.
 
-In order to serve the app, it is run in a `Docker` container on the network `dereck-network`. We expose port `3000` and then in a separate container we run `Nginx` which reverse proxies the app to the app via the container name `dev_derecksnotes-client` and `prod_derecksnotes-client`.
+## Project Structure
 
-## New Features
+```
+derecksnotes.com/
+├── client/          # Next.js 15 frontend
+│   ├── src/
+│   │   ├── app/         # App Router pages
+│   │   ├── components/  # React components
+│   │   ├── context/     # React context providers
+│   │   └── styles/      # Theme and global styles
+│   └── package.json
+├── server/          # Express 5 backend
+│   ├── src/
+│   │   ├── db/          # SQLite + Drizzle ORM
+│   │   ├── routes/      # API routes
+│   │   └── middleware/  # Auth & permissions
+│   └── package.json
+├── docs/            # Documentation
+└── package.json     # Root scripts
+```
+
+## Features
 
 ### User Accounts
+Create accounts, log in, and manage your profile with session management and password changes.
 
-The implementation of user accounts facilitates personalized interactions with the site. Visitors can now create accounts, log in, and engage in more interactive features.
+### Comments System
+Leave comments on blog posts with nested replies, likes/dislikes, and pagination.
 
-### Comments
+### Admin Dashboard
+Manage users, moderate comments, view reports, and audit admin actions.
 
-With user accounts in place, visitors can contribute to the community by leaving comments on blog posts, facilitating discussions, and sharing insights.
-
-## Interactive UI
-
-With the use of React, the UI has been enhanced with interactive elements, such as the blog post filter, the dictionary search functionality and more!
+### Interactive Blog Filter
+Filter posts by category, date, and search terms.
 
 <p align="center">
     <img src="./.graphics/screen-captures/interactive-filter-full.png" width="750">
 </p>
+
+## Documentation
+
+- [Development Guide](docs/DEV.md) - Setup, commands, and troubleshooting
+- [Contributing](CONTRIBUTING.md) - How to contribute
+- [Changelog](NEWS.md) - Version history
 
 ## License
 

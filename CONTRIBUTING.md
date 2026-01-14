@@ -1,70 +1,93 @@
 # Contributing to Dereck's Notes
 
-Thank you for considering contributing to Dereck's Notes! Your assistance and insights are valued in making the website a fantastic resource for all users. This guide is here to help you get involved in our project.
+Thank you for considering contributing to Dereck's Notes! Your assistance and insights are valued in making the website a fantastic resource for all users.
 
 ## Getting Started
 
+### Prerequisites
+
+- [Bun](https://bun.sh/) (JavaScript runtime)
+- Git
+
 ### Setup the Project Locally
 
-1. **Fork the Repository:** Click on the 'Fork' button at the top-right corner of this page and clone the forked repository to your local machine.
-2. **Navigate into the Project Directory:** `cd your-project-dir`
-3. **Install Dependencies:** Navigate to both `client` and `server` directories and run `npm install`.
-4. **Start the Development Server:** In the `client` directory, run `npm run dev` and for the `server`, `tsc && node dist/index.js`.
-5. **Make Changes:** Implement your changes, fix a bug, or work on a feature.
-6. **Unit Test:** Required for changes to the backend API. Navigate to the `server` directory and run `npm test`.
-7. **Test Your Changes:** Ensure they're working as expected and didn't introduce new issues.
+1. **Fork the Repository:** Click on the 'Fork' button and clone to your local machine
+2. **Navigate to Project Directory:** `cd derecksnotes.com`
+3. **Install Dependencies:**
+   ```bash
+   bun install
+   cd client && bun install && cd ..
+   cd server && bun install && cd ..
+   ```
+4. **Start Development:**
+   ```bash
+   bun run dev
+   ```
+   This starts both the client (port 3000) and server (port 3001) concurrently.
 
-### Pull Requests
+5. **Make Changes:** Implement your changes, fix a bug, or work on a feature
+6. **Format Code:** Run `bun run format` before committing
+7. **Test Your Changes:** Ensure they work as expected
 
-- **Create a New Branch:** Create a new branch for each feature, bug fix, or enhancement to keep things organized (`git checkout -b new-feature`).
-- **Commit Your Changes:** Make sure your code changes are committed to your new branch.
-- **Push to Your Fork:** Push the changes to the forked repository on GitHub (`git push origin new-feature`).
-- **Open a Pull Request:** Go to your fork on GitHub and click on the 'New Pull Request' button. Make sure the base fork points to the correct repository and branch.
-  
-Ensure to describe your changes, what they're intended to do, and any testing that was performed. Linking to relevant issue(s) or discussions is also a good practice.
+### Available Commands
 
-### Issue Creation
+| Command | Description |
+|---------|-------------|
+| `bun run dev` | Start client and server in development mode |
+| `bun run build` | Build the client for production |
+| `bun run format` | Format all code with Prettier |
+| `bun run test` | Run tests |
+| `bun run db:reset` | Reset the database (development) |
+| `bun run db:studio` | Open database browser |
 
-When creating an issue, ensure that it's descriptive and provides as much relevant information as possible:
+## Code Style
 
-- **Use a Descriptive Title:** Clearly state the problem or feature request.
-- **Provide Detailed Information:** Ensure to describe your issue in detail.
-- **Include Screenshots:** If applicable, provide screenshots that best illustrate the issue or desired feature.
-- **Label the Issue:** If possible, assign relevant labels to help maintainers categorize and prioritize the issue.
+- **TypeScript**: Strict mode, ESNext modules
+- **Formatting**: 4-space indent, 80 char width, single quotes, no trailing comma
+- **React**: Functional components with explicit types
+- **Imports**: Use `@/*` path aliases in client code
+
+Run `bun run format` before committing changes.
+
+## Pull Requests
+
+1. **Create a Branch:** `git checkout -b feature/my-feature`
+2. **Commit Changes:** Write clear commit messages
+3. **Push:** `git push origin feature/my-feature`
+4. **Open PR:** Describe your changes and link related issues
+
+## Issue Creation
+
+- Use a descriptive title
+- Provide detailed information and steps to reproduce
+- Include screenshots if applicable
+- Add relevant labels
+
+## Project Structure
+
+```
+derecksnotes.com/
+├── client/          # Next.js 15 frontend
+│   └── src/
+│       ├── app/         # App Router pages
+│       ├── components/  # React components
+│       └── styles/      # Theme and styles
+├── server/          # Express 5 backend
+│   └── src/
+│       ├── db/          # SQLite + Drizzle
+│       ├── routes/      # API routes
+│       └── middleware/  # Auth & permissions
+└── docs/            # Documentation
+```
 
 ## Code of Conduct
 
-Please note that this project is released with a [Contributor Code of Conduct](https://www.contributor-covenant.org/version/2/0/code_of_conduct/). By participating in this project you agree to abide by its terms.
+This project follows the [Contributor Covenant Code of Conduct](https://www.contributor-covenant.org/version/2/0/code_of_conduct/).
 
-## Licensing
+## License
 
-Ensure to review our [LICENSE](LICENSE) to understand how your contributions will be licensed.
+Contributions are licensed under [CC BY-NC-ND 4.0](LICENSE).
 
 ## Thank You
 
-Thank you for contributing to Dereck's Notes and ensuring it remains a quality resource for everyone involved. Your efforts are greatly appreciated!
-
-Feel free to reach out for any queries or further clarification on how to get involved.
-
-## References
-
-### server
-
-```bash
-ssh root@104.200.17.204
-ssh dereck@104.200.17.204
-```
-
-Combine files:
-
-```bash
-cd client/src/ && merge_files -e 'tsx,ts' && code merged_files.txt && cd ../../
-
-cd server/src/ && merge_files -e 'ts' && code merged_files.txt && cd ../../
-```
-
-Kill process:
-
-```bash
-lsof -ti tcp:3001 | xargs kill -9
-```
+Thank you for contributing to Dereck's Notes!
