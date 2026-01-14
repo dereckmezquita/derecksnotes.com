@@ -28,7 +28,7 @@
 # OUTPUT:
 #   - MDX files in course directory (e.g., statistics-1-foundations/*.mdx)
 #   - Figures in client/public/courses/<course-name>/ for Next.js static serving
-#   - Build log in course/build-log.txt
+#   - Build log in course/rmd-build.log
 #
 # DIRECTORY STRUCTURE:
 #   project-root/
@@ -41,7 +41,7 @@
 #   │           ├── src/
 #   │           │   └── *.Rmd         <- Source files
 #   │           ├── *.mdx             <- Output files (generated)
-#   │           └── build-log.txt     <- Build log (generated)
+#   │           └── rmd-build.log     <- Build log (generated)
 #   └── build-courses.R
 #
 # -----------------------------------------------------------------------------
@@ -533,7 +533,7 @@ main <- function() {
     cat(strrep("=", 60), "\n\n")
 
     # Initialize logging in the course directory
-    log_init(file.path(course_dir, "build-log.txt"))
+    log_init(file.path(course_dir, "rmd-build.log"))
 
     log_msg("Course directory:", course_dir)
     log_msg("Source directory:", src_dir)
