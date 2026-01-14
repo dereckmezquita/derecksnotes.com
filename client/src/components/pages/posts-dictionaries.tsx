@@ -110,14 +110,14 @@ export function SideBarAbout(): ReactElement {
     );
 }
 
-export const Article = styled.article<{ sideBar?: boolean }>`
+export const Article = styled.article<{ $sideBar?: boolean }>`
     width: 70%;
     margin-top: 30px;
     margin-bottom: 30px;
     padding-left: 40px;
     padding-right: 40px;
     border-left: ${(props) =>
-        props.sideBar === false
+        props.$sideBar === false
             ? 'none'
             : `1px dashed ${props.theme.container.border.colour.primary()}`};
 

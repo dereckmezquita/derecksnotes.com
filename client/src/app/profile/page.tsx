@@ -17,10 +17,28 @@ import {
 
 // ======== STYLED COMPONENTS ========
 
+// Responsive container for profile page - stacks on mobile
+const ProfileContainer = styled(PostContainer)`
+    @media (max-width: 900px) {
+        flex-direction: column;
+    }
+`;
+
 // Extend the site's SideBarContainer for profile-specific styling
+// Override the default hide behavior to make sidebar visible and responsive
 const ProfileSidebar = styled(SideBarContainer)`
     padding: 20px;
     height: fit-content;
+
+    /* Override the base display:none with !important */
+    @media (max-width: 1096px) {
+        display: block !important;
+        width: 100%;
+        min-height: auto;
+        border-bottom: 1px dashed
+            ${(props) => props.theme.container.border.colour.primary()};
+        padding-bottom: 20px;
+    }
 `;
 
 // Extend the site's Article for profile main content
@@ -1121,11 +1139,11 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <PostContainer>
-                <Article sideBar={false} style={{ width: '100%' }}>
+            <ProfileContainer>
+                <Article $sideBar={false} style={{ width: '100%' }}>
                     <Loading>Loading profile data...</Loading>
                 </Article>
-            </PostContainer>
+            </ProfileContainer>
         );
     }
 
@@ -1134,7 +1152,7 @@ export default function ProfilePage() {
     }
 
     return (
-        <PostContainer>
+        <ProfileContainer>
             {alert.show && (
                 <Alert variant={alert.variant}>{alert.message}</Alert>
             )}
@@ -1833,6 +1851,6 @@ export default function ProfilePage() {
                     </ModalContent>
                 </ModalBackdrop>
             )}
-        </PostContainer>
+        </ProfileContainer>
     );
 }
