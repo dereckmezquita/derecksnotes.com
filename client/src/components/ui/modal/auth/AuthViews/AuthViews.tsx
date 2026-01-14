@@ -20,7 +20,8 @@ export function AuthViews({
     const [formData, setFormData] = useState({
         username: '',
         email: '',
-        password: ''
+        password: '',
+        confirmPassword: ''
     });
 
     useEffect(() => {
@@ -54,6 +55,10 @@ export function AuthViews({
                     }
                     break;
                 case 'register':
+                    if (formData.password !== formData.confirmPassword) {
+                        toast.error('Passwords do not match', { id: toastId });
+                        return;
+                    }
                     await register({
                         username: formData.username,
                         password: formData.password,
@@ -83,7 +88,8 @@ export function AuthViews({
         setFormData({
             username: '',
             email: '',
-            password: ''
+            password: '',
+            confirmPassword: ''
         });
     };
 

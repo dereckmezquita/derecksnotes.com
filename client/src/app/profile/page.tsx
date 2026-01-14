@@ -363,45 +363,6 @@ const EmptyState = styled.div`
     color: ${(props) => props.theme.text.colour.light_grey()};
 `;
 
-const Alert = styled.div<{ variant: 'error' | 'success' | 'warning' | 'info' }>`
-    background: ${(props) => {
-        switch (props.variant) {
-            case 'error':
-                return '#FDECEA';
-            case 'success':
-                return '#EDF7ED';
-            case 'warning':
-                return '#FFF4E5';
-            case 'info':
-                return '#E8F4FD';
-            default:
-                return '#E8F4FD';
-        }
-    }};
-
-    color: ${(props) => {
-        switch (props.variant) {
-            case 'error':
-                return '#D32F2F';
-            case 'success':
-                return '#2E7D32';
-            case 'warning':
-                return '#ED6C02';
-            case 'info':
-                return '#0288D1';
-            default:
-                return '#0288D1';
-        }
-    }};
-
-    padding: 15px;
-    border-radius: ${(props) => props.theme.container.border.radius};
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-`;
-
 const Loading = styled.div`
     text-align: center;
     padding: 40px 20px;
@@ -660,15 +621,6 @@ export default function ProfilePage() {
         useAuth();
     const router = useRouter();
     const [loadingData, setLoadingData] = useState(true);
-    const [alert, setAlert] = useState<{
-        show: boolean;
-        message: string;
-        variant: 'error' | 'success' | 'warning' | 'info';
-    }>({
-        show: false,
-        message: '',
-        variant: 'info'
-    });
 
     // Main navigation tabs
     const [mainTab, setMainTab] = useState<'comments' | 'settings'>('comments');
@@ -751,7 +703,7 @@ export default function ProfilePage() {
                 setTotalPages(total > 0 ? total : 1);
             } catch (error) {
                 console.error(`Error fetching ${activeTab} comments:`, error);
-                showAlert(`Failed to load ${activeTab} comments`, 'error');
+                toast.error(`Failed to load ${activeTab} comments`);
             } finally {
                 setLoadingData(false);
             }
@@ -775,22 +727,6 @@ export default function ProfilePage() {
         setSelectedComments([]);
     }, [page, allComments]);
 
-    const showAlert = (
-        message: string,
-        variant: 'error' | 'success' | 'warning' | 'info'
-    ) => {
-        setAlert({
-            show: true,
-            message,
-            variant
-        });
-
-        // Auto-hide after 5 seconds
-        setTimeout(() => {
-            setAlert((prev) => ({ ...prev, show: false }));
-        }, 5000);
-    };
-
     const handleUpdateProfile = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -800,10 +736,10 @@ export default function ProfilePage() {
                 bio: bio || undefined
             });
 
-            showAlert('Profile updated successfully!', 'success');
+            toast.success('Profile updated successfully!');
         } catch (error) {
             console.error('Error updating profile:', error);
-            showAlert('Failed to update profile', 'error');
+            toast.error('Failed to update profile');
         }
     };
 
@@ -813,7 +749,7 @@ export default function ProfilePage() {
             router.push('/');
         } catch (error) {
             console.error('Error logging out:', error);
-            showAlert('Failed to logout. Please try again.', 'error');
+            toast.error('Failed to logout. Please try again.');
         }
     };
 
@@ -942,10 +878,10 @@ export default function ProfilePage() {
                         : comment
                 )
             );
-            showAlert('Comment deleted successfully', 'success');
+            toast.success('Comment deleted successfully');
         } catch (error) {
             console.error('Error deleting comment:', error);
-            showAlert('Failed to delete comment', 'error');
+            toast.error('Failed to delete comment');
         }
     };
 
@@ -977,13 +913,12 @@ export default function ProfilePage() {
             );
 
             setSelectedComments([]);
-            showAlert(
-                `${response.data.deletedCount} comments deleted successfully`,
-                'success'
+            toast.success(
+                `${response.data.deletedCount} comments deleted successfully`
             );
         } catch (error) {
             console.error('Error bulk deleting comments:', error);
-            showAlert('Failed to delete comments', 'error');
+            toast.error('Failed to delete comments');
         }
     };
 
@@ -1024,13 +959,12 @@ export default function ProfilePage() {
             }
 
             setSelectedComments([]);
-            showAlert(
-                `${response.data.modifiedCount} comments unliked successfully`,
-                'success'
+            toast.success(
+                `${response.data.modifiedCount} comments unliked successfully`
             );
         } catch (error) {
             console.error('Error unliking comments:', error);
-            showAlert('Failed to unlike comments', 'error');
+            toast.error('Failed to unlike comments');
         }
     };
 
@@ -1071,13 +1005,12 @@ export default function ProfilePage() {
             }
 
             setSelectedComments([]);
-            showAlert(
-                `Removed dislike from ${response.data.modifiedCount} comments successfully`,
-                'success'
+            toast.success(
+                `Removed dislike from ${response.data.modifiedCount} comments successfully`
             );
         } catch (error) {
             console.error('Error removing dislikes:', error);
-            showAlert('Failed to remove dislikes', 'error');
+            toast.error('Failed to remove dislikes');
         }
     };
 
@@ -1153,10 +1086,6 @@ export default function ProfilePage() {
 
     return (
         <ProfileContainer>
-            {alert.show && (
-                <Alert variant={alert.variant}>{alert.message}</Alert>
-            )}
-
             {/* Left Sidebar */}
             <ProfileSidebar>
                 <CardTitle style={{ marginBottom: '15px' }}>Profile</CardTitle>

@@ -87,7 +87,7 @@ export function stripMdx<T extends object>(
         };
     } catch (error: any) {
         console.error(`Error reading file: ${filePath}`, error);
-        process.exit(1);
+        throw error;
     }
 }
 
@@ -119,8 +119,7 @@ export function extractSinglePostMetadata(filePath: string): PostMetadata {
         };
     } catch (error: any) {
         console.error(`Error reading file: ${filePath}`, error);
-        console.error(error);
-        process.exit(1);
+        throw error;
     }
 }
 

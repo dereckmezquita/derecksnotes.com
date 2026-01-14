@@ -57,9 +57,8 @@ export function extractSingleDefinitionMetadata(
             summary: summary
         };
     } catch (error: any) {
-        console.log(`Error reading file: ${filepath}`, error);
-        console.error(error);
-        process.exit(1);
+        console.error(`Error reading file: ${filepath}`, error);
+        throw error;
     }
 }
 
