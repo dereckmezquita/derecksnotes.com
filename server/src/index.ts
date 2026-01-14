@@ -13,6 +13,9 @@ await initializeDatabase();
 
 const app = express();
 
+// Trust proxy - required when behind nginx/reverse proxy for rate limiting and IP detection
+app.set('trust proxy', true);
+
 // Middleware
 app.use(express.json());
 app.use(cookieParser());
