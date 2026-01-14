@@ -1,0 +1,509 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 1: Introduction to Statistics and Data"
+part: "Part 3: Sampling, Bias, and Reproducibility"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, data, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table,
+    ggplot2
+)
+```
+
+## 1.5 Sampling Methods
+
+How we select individuals from a population determines whether our sample represents that population. A biased sample, no matter how large, will yield biased conclusions. Understanding sampling methods is essential for both designing studies and evaluating others' work.
+
+### 1.5.1 Probability Sampling Methods
+
+In **probability sampling**, every member of the population has a known, non-zero probability of being selected. This allows us to quantify sampling error and make valid inferences.
+
+**Simple random sampling (SRS)** gives every individual an equal probability of selection. It is the conceptual benchmark against which other methods are compared. In practice, we might number every member of the population and use a random number generator to select participants.
+
+```{r simple_random_sampling}
+set.seed(303)
+
+# Imagine a population of 10,000 patients
+population_size <- 10000
+sample_size <- 100
+
+population <- data.table$data.table(
+    id = 1:population_size,
+    age = round(rnorm(population_size, mean = 50, sd = 15)),
+    blood_pressure = round(rnorm(population_size, mean = 130, sd = 18)),
+    region = sample(c("North", "South", "East", "West"), population_size, replace = TRUE,
+                    prob = c(0.3, 0.25, 0.25, 0.2))
+)
+
+# Simple random sample
+srs_sample <- population[sample(1:population_size, sample_size)]
+
+# Compare sample to population
+comparison <- rbind(
+    population[, .(source = "Population", mean_age = mean(age), mean_bp = mean(blood_pressure))],
+    srs_sample[, .(source = "SRS Sample", mean_age = mean(age), mean_bp = mean(blood_pressure))]
+)
+
+print(comparison)
+```
+
+**Stratified sampling** divides the population into homogeneous subgroups (strata) and then takes a random sample from each stratum. This ensures representation of all important subgroups and can increase precision when strata differ in the outcome of interest.
+
+```{r stratified_sampling}
+# Stratified sample: ensure proportional representation by region
+strata_sizes <- population[, .N, by = region]
+strata_sizes[, sample_n := round(N / population_size * sample_size)]
+
+stratified_sample <- population[, {
+    n_stratum <- strata_sizes[region == .BY$region, sample_n]
+    .SD[sample(1:.N, n_stratum)]
+}, by = region]
+
+# Check representation
+region_comparison <- rbind(
+    population[, .(source = "Population", prop = .N / population_size), by = region],
+    srs_sample[, .(source = "SRS", prop = .N / sample_size), by = region],
+    stratified_sample[, .(source = "Stratified", prop = .N / nrow(stratified_sample)), by = region]
+)
+
+print(data.table$dcast(region_comparison, region ~ source, value.var = "prop"))
+```
+
+**Cluster sampling** divides the population into clusters (e.g., hospitals, schools, geographic areas), randomly selects some clusters, and then samples all or some individuals within selected clusters. This is practical when a complete list of individuals is unavailable but clusters can be identified and listed.
+
+**Systematic sampling** selects every k-th individual from an ordered list after a random start. If the population has 10,000 members and we want 100, we calculate k = 10,000/100 = 100, randomly select a starting point between 1 and 100, then select every 100th person. This is simple to implement but can produce biased samples if the list has periodic patterns.
+
+### 1.5.2 Non-Probability Sampling Methods
+
+In **non-probability sampling**, the probability of selection is unknown. These methods are cheaper and faster but do not allow rigorous statistical inference.
+
+**Convenience sampling** selects whoever is readily available. Surveying patients who happen to visit a clinic on a particular day is convenience sampling. The sample may not represent the broader population of interest.
+
+**Quota sampling** sets targets for subgroups but lets interviewers choose participants within each group. An interviewer might be told to recruit 50 men and 50 women but can choose which men and women. This ensures demographic representation but not random selection.
+
+**Snowball sampling** asks participants to refer others. This is useful for hard-to-reach populations (e.g., people who inject drugs) but produces samples heavily influenced by initial participants' social networks.
+
+### 1.5.3 Sampling Bias and How to Minimise It
+
+**Sampling bias** occurs when some members of the population are systematically more likely to be selected than others. Common sources include:
+
+- **Undercoverage**: Some population members cannot be sampled (e.g., homeless individuals in household surveys)
+- **Self-selection**: Participants choose whether to respond (those who respond may differ from those who do not)
+- **Non-response**: Selected individuals refuse to participate or cannot be contacted
+
+```{r nonresponse_bias, fig.cap="Non-response bias: respondents differ systematically from non-respondents"}
+set.seed(404)
+
+n_invited <- 500
+
+# Create population where willingness to respond correlates with outcome
+invited <- data.table$data.table(
+    id = 1:n_invited,
+    health_status = rnorm(n_invited, mean = 50, sd = 15)  # Higher = healthier
+)
+
+# Healthier people more likely to respond
+invited[, response_prob := plogis((health_status - 50) / 10)]
+invited[, responded := rbinom(n_invited, 1, prob = response_prob)]
+
+# Compare respondents to non-respondents
+response_comparison <- invited[, .(
+    mean_health = mean(health_status),
+    n = .N
+), by = .(group = ifelse(responded == 1, "Respondents", "Non-respondents"))]
+
+print("Non-response bias:")
+print(response_comparison)
+
+# Visualise
+ggplot2$ggplot(invited, ggplot2$aes(x = health_status,
+                            fill = factor(responded, labels = c("Non-respondent", "Respondent")))) +
+    ggplot2$geom_density(alpha = 0.6) +
+    ggplot2$geom_vline(data = response_comparison,
+               ggplot2$aes(xintercept = mean_health, colour = group),
+               linetype = "dashed", linewidth = 1) +
+    ggplot2$labs(
+        title = "Non-Response Bias",
+        subtitle = "Healthier individuals are more likely to respond, biasing estimates upward",
+        x = "Health Status Score",
+        y = "Density",
+        fill = "Response Status"
+    ) +
+    ggplot2$scale_fill_manual(values = c("#D55E00", "#009E73")) +
+    ggplot2$scale_colour_manual(values = c("#D55E00", "#009E73"), guide = "none") +
+    ggplot2$theme_minimal()
+```
+
+### 1.5.4 Implementing Random Sampling in R
+
+Let us implement various sampling methods from scratch:
+
+```{r sampling_implementations}
+#' Simple random sampling without replacement
+#'
+#' @param population_ids vector of population identifiers
+#' @param n sample size
+#' @return vector of selected identifiers
+simple_random_sample <- function(population_ids, n) {
+    if (n > length(population_ids)) {
+        stop("Sample size cannot exceed population size")
+    }
+    sample(population_ids, size = n, replace = FALSE)
+}
+
+#' Stratified random sampling
+#'
+#' @param data data.table with population data
+#' @param strata_var name of stratification variable
+#' @param n total sample size
+#' @param proportional if TRUE, sample proportionally to strata sizes
+#' @return data.table with stratified sample
+stratified_sample_fn <- function(data, strata_var, n, proportional = TRUE) {
+    strata_info <- data[, .(N = .N), by = c(strata_var)]
+
+    if (proportional) {
+        strata_info[, sample_n := round(N / sum(N) * n)]
+        # Adjust for rounding errors
+        diff <- n - sum(strata_info$sample_n)
+        if (diff != 0) {
+            strata_info[which.max(N), sample_n := sample_n + diff]
+        }
+    } else {
+        strata_info[, sample_n := floor(n / nrow(strata_info))]
+    }
+
+    result <- data[, {
+        stratum_n <- strata_info[get(strata_var) == .BY[[1]], sample_n]
+        .SD[sample(1:.N, min(stratum_n, .N))]
+    }, by = c(strata_var)]
+
+    return(result)
+}
+
+#' Systematic sampling
+#'
+#' @param population_ids ordered vector of population identifiers
+#' @param n sample size
+#' @return vector of selected identifiers
+systematic_sample <- function(population_ids, n) {
+    N <- length(population_ids)
+    k <- floor(N / n)  # Sampling interval
+    start <- sample(1:k, 1)  # Random start
+    indices <- seq(start, N, by = k)[1:n]
+    population_ids[indices]
+}
+
+# Demonstrate systematic sampling
+population_ids <- 1:1000
+sys_sample <- systematic_sample(population_ids, 50)
+cat("Systematic sample (first 10):", head(sys_sample, 10), "\n")
+cat("Sampling interval:", diff(sys_sample)[1], "\n")
+```
+
+## 1.6 Sources of Bias and Variability
+
+Understanding the difference between bias and variability is essential for interpreting statistical results and designing studies. They are distinct problems requiring different solutions.
+
+### 1.6.1 Selection Bias
+
+**Selection bias** occurs when the process of selecting participants systematically excludes certain types of individuals, producing a sample that does not represent the target population.
+
+The classic example is the 1936 Literary Digest poll that predicted Alf Landon would defeat Franklin Roosevelt by a landslide. The magazine surveyed millions of people using telephone directories and automobile registrations as their sampling frame. In 1936, telephones and cars were luxuries; the sample massively overrepresented wealthy Americans, who favoured Landon. Roosevelt won in one of the largest landslides in US history.
+
+In medical research, selection bias might arise from recruiting only patients who attend specialist clinics (who may have more severe disease) or from enrolling only patients healthy enough to participate in a trial.
+
+### 1.6.2 Measurement Bias (Systematic Error)
+
+**Measurement bias** occurs when the measurement process systematically produces values that differ from the true values. Unlike random measurement error, systematic error does not cancel out with larger samples.
+
+Examples include:
+
+- **Instrument calibration errors**: A blood pressure cuff that consistently reads 5 mmHg too high
+- **Observer bias**: Researchers who know group assignment may unconsciously rate outcomes differently
+- **Information bias**: Medical records may document some conditions more thoroughly than others
+
+```{r measurement_bias, fig.cap="Systematic measurement bias shifts all measurements; larger samples do not correct it"}
+set.seed(505)
+
+# True value
+true_value <- 120
+
+# Simulations with different bias levels
+n_measurements <- 100
+n_simulations <- 1000
+
+simulate_means <- function(n, bias, random_error_sd) {
+    replicate(n_simulations, {
+        measurements <- true_value + bias + rnorm(n, 0, random_error_sd)
+        mean(measurements)
+    })
+}
+
+bias_comparison <- rbind(
+    data.table$data.table(
+        sample_mean = simulate_means(n_measurements, bias = 0, random_error_sd = 10),
+        bias_type = "Unbiased"
+    ),
+    data.table$data.table(
+        sample_mean = simulate_means(n_measurements, bias = 5, random_error_sd = 10),
+        bias_type = "Biased (+5)"
+    )
+)
+
+ggplot2$ggplot(bias_comparison, ggplot2$aes(x = sample_mean, fill = bias_type)) +
+    ggplot2$geom_density(alpha = 0.6) +
+    ggplot2$geom_vline(xintercept = true_value, linetype = "dashed", colour = "red", linewidth = 1) +
+    ggplot2$labs(
+        title = "Systematic Bias vs Sampling Variability",
+        subtitle = paste0("True value = ", true_value, ". Bias shifts the entire distribution."),
+        x = "Sample Mean",
+        y = "Density",
+        fill = "Measurement"
+    ) +
+    ggplot2$scale_fill_manual(values = c("#56B4E9", "#E69F00")) +
+    ggplot2$theme_minimal()
+```
+
+### 1.6.3 Response Bias
+
+**Response bias** occurs when participants give inaccurate responses, often in predictable directions:
+
+- **Social desirability bias**: Respondents underreport stigmatised behaviours (drug use, unsafe sex) and overreport socially approved behaviours (exercise, healthy eating)
+- **Recall bias**: Participants with disease may remember past exposures differently than healthy controls
+- **Acquiescence bias**: Tendency to agree with statements regardless of content
+
+### 1.6.4 Survivorship Bias
+
+**Survivorship bias** occurs when we only observe individuals who have "survived" some selection process, leading us to overlook those who did not.
+
+The classic example comes from World War II. Abraham Wald analysed bullet hole patterns on returning aircraft to recommend where to add armour. Intuitively, engineers wanted to reinforce areas with the most holes. Wald realised these were precisely the areas that did not need reinforcement; planes hit there survived to return. The planes hit in other areas never made it back.
+
+In medical research, survivorship bias might occur when studying long-term cancer survivors (who may be inherently healthier than those who died early) or when examining the habits of elderly individuals (who may have survived because of, not despite, their lifestyle choices).
+
+### 1.6.5 Random Variability vs Systematic Bias
+
+**Random error** (variability) causes measurements to scatter around the true value without systematic direction. Larger samples reduce the effect of random error on our estimates.
+
+**Systematic error** (bias) causes measurements to systematically deviate from the true value. Larger samples do not help; we are precisely estimating the wrong thing.
+
+```{r bias_vs_variability, fig.cap="The target diagram: accuracy (bias) vs precision (variability)"}
+set.seed(606)
+
+n_shots <- 30
+true_centre <- c(0, 0)
+
+# Generate four scenarios
+generate_shots <- function(bias_x, bias_y, spread) {
+    data.table$data.table(
+        x = rnorm(n_shots, mean = bias_x, sd = spread),
+        y = rnorm(n_shots, mean = bias_y, sd = spread)
+    )
+}
+
+scenarios <- rbind(
+    cbind(generate_shots(0, 0, 0.5), scenario = "High Accuracy, High Precision\n(Ideal)"),
+    cbind(generate_shots(0, 0, 1.5), scenario = "High Accuracy, Low Precision\n(Random Error)"),
+    cbind(generate_shots(2, 1.5, 0.5), scenario = "Low Accuracy, High Precision\n(Systematic Bias)"),
+    cbind(generate_shots(2, 1.5, 1.5), scenario = "Low Accuracy, Low Precision\n(Both Problems)")
+)
+
+# Create target circles using annotate (no ggforce dependency)
+# Create circle data manually
+create_circle <- function(cx, cy, r, npoints = 100) {
+    theta <- seq(0, 2 * pi, length.out = npoints)
+    data.table$data.table(x = cx + r * cos(theta), y = cy + r * sin(theta), r = r)
+}
+
+circle_data <- data.table$rbindlist(lapply(c(0.5, 1, 1.5, 2), function(r) {
+    create_circle(0, 0, r)
+}))
+
+ggplot2$ggplot(scenarios, ggplot2$aes(x = x, y = y)) +
+    # Target circles
+    ggplot2$geom_path(data = circle_data, ggplot2$aes(x = x, y = y, group = r),
+              inherit.aes = FALSE, colour = "grey70") +
+    ggplot2$geom_point(data = data.table$data.table(x = 0, y = 0), colour = "red", size = 3) +
+    # Shots
+    ggplot2$geom_point(colour = "#0072B2", alpha = 0.7, size = 2) +
+    # Mean of shots
+    ggplot2$stat_summary(fun = mean, geom = "point", colour = "#D55E00", size = 4, shape = 4, stroke = 2) +
+    ggplot2$facet_wrap(~scenario, ncol = 2) +
+    ggplot2$coord_fixed(xlim = c(-4, 4), ylim = c(-4, 4)) +
+    ggplot2$labs(
+        title = "The Target Diagram: Bias vs Variability",
+        subtitle = "Red dot = true value; Orange X = sample mean; Blue dots = individual measurements",
+        x = "", y = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text = ggplot2$element_blank())
+```
+
+**Key insight**: If our measurement process is biased, collecting more data makes us more confident in the wrong answer. We must address bias through study design and careful methodology, not through larger samples.
+
+## 1.7 Introduction to Statistical Software and Reproducibility
+
+Modern statistics is computational. We must not only analyse data correctly but also document our work so that others (and our future selves) can verify and build upon it.
+
+### 1.7.1 Why Reproducibility Matters
+
+The **reproducibility crisis** refers to the alarming finding that many published scientific results cannot be replicated. A 2016 survey in Nature found that more than 70% of researchers had failed to reproduce another scientist's experiments, and more than half had failed to reproduce their own.
+
+**Computational reproducibility** is the ability to recreate exactly the same results from the same data using the same code. This is the minimum standard for credible analysis. If someone cannot run your code and get your results, they have no way to verify your work.
+
+Non-reproducible analyses arise from:
+
+- Undocumented manual steps ("I then removed some outliers by hand")
+- Missing random seeds (different results each time)
+- Version dependencies (code that worked in 2020 but not 2025)
+- Copy-paste errors between analysis and manuscript
+
+### 1.7.2 Setting Seeds for Reproducible Random Processes
+
+Many statistical procedures involve randomness: simulation, bootstrap resampling, random sampling, and some optimisation algorithms. Without controlling this randomness, you cannot reproduce exact results.
+
+The `set.seed()` function initialises R's random number generator to a known state. With the same seed, you will get the same sequence of "random" numbers.
+
+```{r reproducibility_demo}
+# Without setting seed: different each time
+cat("Without seed:\n")
+cat("Run 1:", sample(1:10, 5), "\n")
+cat("Run 2:", sample(1:10, 5), "\n")
+
+# With seed: reproducible
+cat("\nWith seed:\n")
+set.seed(123)
+cat("Run 1:", sample(1:10, 5), "\n")
+set.seed(123)
+cat("Run 2:", sample(1:10, 5), "\n")
+```
+
+**Best practice**: Set the seed once at the beginning of your analysis script or notebook. Choose a meaningful number (date of analysis, project ID) or simply use a memorable constant.
+
+### 1.7.3 Organising Statistical Projects
+
+A well-organised project structure makes your work easier to navigate, share, and reproduce.
+
+```
+project/
+├── data/
+│   ├── raw/           # Original, unmodified data
+│   └── processed/     # Cleaned data ready for analysis
+├── src/               # Analysis scripts
+├── output/
+│   ├── figures/       # Generated plots
+│   └── tables/        # Generated tables
+├── docs/              # Documentation and manuscripts
+└── README.md          # Project overview
+```
+
+**Key principles:**
+
+1. **Never modify raw data**. Keep original files pristine; document all transformations in code.
+
+2. **Use meaningful names**. `analysis_v2_final_FINAL.R` is not meaningful. `01_data_cleaning.R` is.
+
+3. **Document dependencies**. Record which packages and versions your code requires.
+
+4. **Write code for humans**. Comment your reasoning, not just what the code does.
+
+### 1.7.4 Introduction to R Markdown and Quarto for Reproducible Reports
+
+**R Markdown** combines prose, code, and results in a single document. When you compile ("knit") the document, R executes the code and weaves the output into a formatted report.
+
+This course is written entirely in R Markdown. Each chapter is a `.Rmd` file that generates HTML output. The code you see is the actual code that produced the figures and results.
+
+Benefits of literate programming:
+
+- **Single source of truth**: No disconnect between analysis code and reported results
+- **Automatic updates**: Change the code, re-knit, and the document updates
+- **Transparent methodology**: Readers can see exactly how results were produced
+- **Reduced errors**: No manual copying of numbers from R to Word
+
+```{r rmarkdown_example}
+# This code block demonstrates R Markdown
+# The code, output, and surrounding text are all in one document
+
+summary_stats <- data.table$data.table(
+    measure = c("Mean", "SD", "Median", "IQR"),
+    value = c(mean(mtcars$mpg), sd(mtcars$mpg),
+              median(mtcars$mpg), IQR(mtcars$mpg))
+)
+
+print(summary_stats)
+
+# This table was generated by actual code, not typed manually
+# If the data change, re-knitting produces updated values
+```
+
+---
+
+## Communicating to Stakeholders
+
+When explaining sampling and bias to collaborators:
+
+**On sampling methods:**
+> "How we select participants determines who our results apply to. If we only sample patients who come to our clinic, our findings may not generalise to the broader population. Random sampling ensures everyone has a fair chance of being included."
+
+**On bias vs variability:**
+> "Think of it like a scale with a calibration error. If the scale consistently reads 2 kg too high, weighing yourself a hundred times will not fix the problem. You will just become very confident that your weight is wrong. That is bias. Variability is different; it is the random wobble in the reading. More measurements help with variability but not with bias."
+
+**On reproducibility:**
+> "Reproducibility means someone else can take our data and code and get exactly the same results. This is not about distrust; it is about verification. If our analysis is not reproducible, there is no way for anyone to check our work."
+
+---
+
+## Quick Reference
+
+### Sampling Methods Comparison
+
+| Method | Selection | Pros | Cons |
+|--------|-----------|------|------|
+| Simple random | Equal probability | Unbiased, simple theory | May miss rare subgroups |
+| Stratified | Random within strata | Guarantees representation | Requires stratum information |
+| Cluster | Random clusters | Practical for large populations | Higher variance |
+| Systematic | Every k-th element | Easy to implement | Risk if list has patterns |
+| Convenience | Whoever is available | Cheap, fast | Unknown representativeness |
+
+### Bias Types Summary
+
+| Bias Type | Description | Cannot Be Fixed By |
+|-----------|-------------|-------------------|
+| Selection bias | Non-representative sample | Larger sample |
+| Measurement bias | Systematic instrument error | More measurements |
+| Response bias | Inaccurate self-reports | Better statistics |
+| Survivorship bias | Only observing "survivors" | Post-hoc analysis |
+| Confounding | Third variable explains association | Simple comparison |
+
+### Reproducibility Checklist
+
+- [ ] Set random seed at the beginning
+- [ ] Document all package versions
+- [ ] Keep raw data separate from processed data
+- [ ] Write code that runs from start to finish without manual intervention
+- [ ] Use R Markdown or similar to combine code and narrative
+- [ ] Version control your code (git)
