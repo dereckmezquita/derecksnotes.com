@@ -118,6 +118,19 @@ You may see this warning when running the client:
 
 If ports 3000-3002 are in use, the client will automatically try higher ports. Check the console output for the actual URL.
 
+### Gitignore Conflicts
+
+Be careful with `.gitignore` patterns. Broad patterns like `logs` can match directories you want tracked (e.g., `client/src/app/admin/logs/`). Use more specific patterns:
+
+```gitignore
+# Good - specific patterns
+*.log
+/logs/
+
+# Bad - too broad, may match wanted directories
+logs
+```
+
 ## Admin Setup
 
 1. Set `ADMIN_USERNAME` in `server/.env`
@@ -132,6 +145,9 @@ If ports 3000-3002 are in use, the client will automatically try higher ports. C
 - **Users**: Search, ban/unban, manage group assignments
 - **Reports**: Review and resolve user reports
 - **Audit Log**: View all admin actions
+- **Server Logs**: View, filter, and download server logs
+- **Analytics**: Site usage statistics
+- **Groups**: Manage permission groups
 
 ### Permission System
 

@@ -299,7 +299,10 @@ This allows rate limiting and IP detection to work correctly.
     ├── users/
     ├── comments/
     ├── reports/
-    └── audit/
+    ├── audit/
+    ├── logs/
+    ├── analytics/
+    └── groups/
 ```
 
 ### Response Format

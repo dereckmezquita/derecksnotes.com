@@ -5,7 +5,7 @@ Next.js 15 frontend for [derecksnotes.com](https://www.derecksnotes.com).
 ## Tech Stack
 
 - **Next.js 15**: App Router with React Server Components
-- **React 19**: Latest React features
+- **React 19**: Latest features
 - **TypeScript**: Strict mode
 - **styled-components**: CSS-in-JS theming
 - **MDX**: Blog posts and dictionary content
@@ -20,33 +20,38 @@ bun run dev
 cd client && bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Structure
 
 ```
 src/
-├── app/           # App Router pages
-│   ├── admin/     # Admin dashboard
-│   ├── blog/      # Blog posts (MDX)
-│   ├── courses/   # Course content
+├── app/               # App Router pages
+│   ├── admin/         # Admin dashboard
+│   ├── blog/          # Blog posts (MDX)
+│   ├── courses/       # Course content
 │   ├── dictionaries/  # Science dictionaries
-│   └── profile/   # User profile
-├── components/    # Reusable components
-│   ├── comments/  # Comments system
-│   ├── ui/        # UI components (Navbar, Modal, etc.)
-│   └── pages/     # Page-specific components
-├── context/       # React context providers
-├── styles/        # Theme and global styles
-└── utils/         # Utility functions
+│   └── profile/       # User profile
+├── components/        # Reusable components
+├── context/           # React context providers
+├── styles/            # Theme and global styles
+└── utils/             # Utility functions
 ```
 
-## Key Features
+## Features
 
-- **MDX Content**: Blog posts and definitions written in MDX
-- **Theming**: Unified theme system with HSLA colors
-- **Comments**: Nested, paginated comments with likes/dislikes
-- **Admin Dashboard**: User management and content moderation
-- **Responsive**: Mobile-first design
+- **MDX Content**: Blog posts and definitions
+- **Comments**: Nested replies, pagination, likes/dislikes
+- **User Profiles**: Comment history, analytics
+- **Admin Dashboard**: User management, comment moderation, logs
 
-See the [main README](../README.md) for full project documentation.
+## Path Aliases
+
+Use `@/*` for imports from `src/`:
+
+```typescript
+import { api } from '@/utils/api/api';
+import { useAuth } from '@/context/AuthContext';
+```
+
+See the [main README](../README.md) for full documentation.

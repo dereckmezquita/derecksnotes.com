@@ -43,7 +43,7 @@ Welcome to version `v5.0.0` of [Dereck's Notes](https://www.derecksnotes.com). T
 ### Infrastructure
 
 - **Docker**: Containerised deployment
-- **GitHub Actions**: CI/CD pipelines for testing and deployment
+- **GitHub Actions**: CI/CD for testing and deployment
 - **Nginx**: Reverse proxy with SSL termination
 
 ## Quick Start

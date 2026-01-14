@@ -37,6 +37,9 @@ Thank you for considering contributing to Dereck's Notes! Your assistance and in
 | `bun run build` | Build the client for production |
 | `bun run format` | Format all code with Prettier |
 | `bun run test` | Run tests |
+| `bun run db:generate` | Generate migration from schema changes |
+| `bun run db:migrate` | Apply pending migrations |
+| `bun run db:seed` | Seed database with default data |
 | `bun run db:reset` | Reset the database (development) |
 | `bun run db:studio` | Open database browser |
 

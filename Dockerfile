@@ -4,7 +4,7 @@ WORKDIR /app/client
 COPY client/package.json client/bun.lock* ./
 RUN bun install --frozen-lockfile
 COPY client/ ./
-# Clean any stale build artifacts
+# Clean any stale build artefacts
 RUN rm -rf .next
 
 COPY package.json /app/package.json

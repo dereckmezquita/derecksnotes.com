@@ -2,7 +2,15 @@
 
 ## v5.0.0 - Major Architecture Overhaul (2025-01)
 
-This is a major release that completely overhauls the backend architecture, introduces a full admin dashboard, and adds significant UI improvements.
+Major release with complete backend overhaul, admin dashboard, and UI improvements.
+
+### Recent Updates
+
+- **Server Logs Page**: View, filter, and download server logs at `/admin/logs`
+- **Analytics Page**: Site analytics dashboard at `/admin/analytics`
+- **Confirm Password**: Added to registration and password change forms
+- **Toast Notifications**: Replaced slide-in alerts with sonner toasts
+- **Bug Fixes**: Fixed gitignore conflicts, MDX error handling, stale build artefacts
 
 ### Database Migration: MongoDB to SQLite
 
