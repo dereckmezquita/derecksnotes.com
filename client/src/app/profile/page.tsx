@@ -15,7 +15,36 @@ import {
     Article
 } from '@components/pages/posts-dictionaries';
 
-// ======== STYLED COMPONENTS ========
+// Import shared admin-style components
+import {
+    Button,
+    ButtonGroup,
+    Badge,
+    FormGroup,
+    Label,
+    Input,
+    Pagination,
+    PageButton,
+    EmptyState as AdminEmptyState,
+    LoadingContainer,
+    LoadingSpinner,
+    LoadingText,
+    ModalBackdrop,
+    ModalContent,
+    ModalTitle,
+    ModalBody,
+    Checkbox,
+    ActionBar,
+    SidebarTitle,
+    SidebarNav,
+    SidebarLink,
+    SidebarDivider,
+    AdminMain,
+    AdminHeader,
+    AdminTitle
+} from '../admin/components/AdminStyles';
+
+// ======== STYLED COMPONENTS (Profile-specific) ========
 
 // Responsive container for profile page - stacks on mobile
 const ProfileContainer = styled(PostContainer)`
@@ -24,11 +53,10 @@ const ProfileContainer = styled(PostContainer)`
     }
 `;
 
-// Extend the site's SideBarContainer for profile-specific styling
 // Override the default hide behavior to make sidebar visible and responsive
 const ProfileSidebar = styled(SideBarContainer)`
-    padding: 20px;
-    height: fit-content;
+    text-align: left;
+    min-height: 600px;
 
     /* Override the base display:none with !important */
     @media (max-width: 1096px) {
@@ -37,192 +65,17 @@ const ProfileSidebar = styled(SideBarContainer)`
         min-height: auto;
         border-bottom: 1px dashed
             ${(props) => props.theme.container.border.colour.primary()};
-        padding-bottom: 20px;
+        padding: 20px;
     }
 `;
 
-// Extend the site's Article for profile main content
-const ProfileMain = styled(Article)`
-    width: 75%;
-    text-align: left;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-
-    @media (max-width: 900px) {
-        width: 100%;
-        border-left: none;
-    }
-`;
-
-const Card = styled.div`
-    background: ${(props) => props.theme.container.background.colour.solid()};
-    border-radius: ${(props) => props.theme.container.border.radius};
-    border: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-    padding: 20px;
-    overflow: hidden;
-`;
-
-const CardHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-`;
-
-const CardTitle = styled.h2`
-    margin: 0;
-    color: ${(props) => props.theme.text.colour.header()};
-    font-size: ${(props) => props.theme.text.size.large};
-    font-weight: ${(props) => props.theme.text.weight.bold};
-`;
-
-const TabsContainer = styled.div`
-    display: flex;
-    border-bottom: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-    margin-bottom: 15px;
-`;
-
-interface TabProps {
-    active: boolean;
-}
-
-const Tab = styled.button<TabProps>`
-    padding: 8px 15px;
-    background: none;
-    border: none;
-    border-bottom: 3px solid
-        ${(props) =>
-            props.active ? props.theme.theme_colours[5]() : 'transparent'};
-    color: ${(props) =>
-        props.active
-            ? props.theme.text.colour.header()
-            : props.theme.text.colour.light_grey()};
-    font-weight: ${(props) =>
-        props.active
-            ? props.theme.text.weight.bold
-            : props.theme.text.weight.normal};
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-        color: ${(props) => props.theme.text.colour.header()};
-        background: ${(props) =>
-            props.theme.container.background.colour.light_contrast()};
-    }
-`;
+// Use AdminMain for the profile content area
+const ProfileMain = styled(AdminMain)``;
 
 const ProfileForm = styled.form`
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    max-width: 400px;
-`;
-
-const FormGroup = styled.div`
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-`;
-
-const Label = styled.label`
-    font-weight: ${(props) => props.theme.text.weight.medium};
-    color: ${(props) => props.theme.text.colour.primary()};
-    text-align: left;
-`;
-
-const Input = styled.input`
-    padding: 10px;
-    border: 1px solid
-        ${(props) => props.theme.container.border.colour.primary()};
-    border-radius: ${(props) => props.theme.container.border.radius};
-    font-size: ${(props) => props.theme.text.size.normal};
-
-    &:focus {
-        outline: none;
-        border-color: ${(props) => props.theme.theme_colours[5]()};
-        box-shadow: 0 0 0 2px
-            ${(props) =>
-                props.theme.theme_colours[5](
-                    undefined,
-                    undefined,
-                    undefined,
-                    0.2
-                )};
-    }
-`;
-
-interface ButtonProps {
-    variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'warning';
-    size?: 'small' | 'medium' | 'large';
-    fullWidth?: boolean;
-}
-
-const getButtonColor = (variant: string, theme: any) => {
-    switch (variant) {
-        case 'primary':
-            return theme.theme_colours[5]();
-        case 'secondary':
-            return theme.container.border.colour.primary();
-        case 'danger':
-            return theme.colours.error;
-        case 'success':
-            return theme.colours.success;
-        case 'warning':
-            return theme.colours.warning;
-        default:
-            return theme.theme_colours[5]();
-    }
-};
-
-const Button = styled.button<ButtonProps>`
-    padding: ${(props) =>
-        props.size === 'small'
-            ? '5px 10px'
-            : props.size === 'large'
-              ? '12px 20px'
-              : '8px 15px'};
-    background: ${(props) =>
-        getButtonColor(props.variant || 'primary', props.theme)};
-    color: ${(props) =>
-        props.variant === 'secondary'
-            ? props.theme.text.colour.primary()
-            : '#fff'};
-    border: none;
-    border-radius: ${(props) => props.theme.container.border.radius};
-    font-weight: ${(props) => props.theme.text.weight.medium};
-    cursor: pointer;
-    transition: all 0.2s ease;
-    width: ${(props) => (props.fullWidth ? '100%' : 'fit-content')};
-    align-self: flex-start;
-
-    &:hover {
-        opacity: 0.9;
-    }
-
-    &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-`;
-
-const ActionBar = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
-    gap: 10px;
-`;
-
-const ButtonGroup = styled.div`
-    display: flex;
-    gap: 10px;
+    gap: ${(props) => props.theme.container.spacing.medium};
 `;
 
 const SelectAll = styled.div`
@@ -231,149 +84,15 @@ const SelectAll = styled.div`
     gap: 5px;
 `;
 
-const Badge = styled.span`
-    background: ${(props) =>
-        props.theme.container.background.colour.light_contrast()};
-    color: ${(props) => props.theme.text.colour.primary()};
-    padding: 3px 8px;
-    border-radius: 20px;
-    font-size: ${(props) => props.theme.text.size.small};
-    font-weight: ${(props) => props.theme.text.weight.medium};
-`;
-
-// Using shared comment components
-
-const Pagination = styled.div`
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    margin-top: 20px;
-`;
-
-const PageNumber = styled.button<{ active?: boolean }>`
-    width: 35px;
-    height: 35px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    border: 1px solid
-        ${(props) =>
-            props.active
-                ? props.theme.theme_colours[5]()
-                : props.theme.container.border.colour.primary()};
-    background: ${(props) =>
-        props.active ? props.theme.theme_colours[9]() : 'transparent'};
-    color: ${(props) =>
-        props.active
-            ? props.theme.theme_colours[5]()
-            : props.theme.text.colour.primary()};
-    font-weight: ${(props) =>
-        props.active
-            ? props.theme.text.weight.bold
-            : props.theme.text.weight.normal};
-    cursor: pointer;
-
-    &:hover {
-        background: ${(props) =>
-            props.theme.container.background.colour.light_contrast()};
-    }
-
-    &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-`;
-
-interface CommentItemProps {
-    selected?: boolean;
-    deleted?: boolean;
-}
-
-const CommentItem = styled.div<CommentItemProps>`
-    border: 1px solid
-        ${(props) =>
-            props.selected
-                ? props.theme.theme_colours[5]()
-                : props.theme.container.border.colour.primary()};
-    border-radius: ${(props) => props.theme.container.border.radius};
-    padding: 15px;
-    background: ${(props) =>
-        props.selected
-            ? props.theme.theme_colours[9]()
-            : props.deleted
-              ? '#f8f8f8'
-              : props.theme.container.background.colour.content()};
-    transition: all 0.2s ease;
-
-    &:hover {
-        border-color: ${(props) => props.theme.theme_colours[5]()};
-    }
-`;
-
-const CommentHeader = styled.div`
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-`;
-
-const CommentMetadata = styled.div`
-    display: flex;
-    align-items: center;
-    gap: 10px;
-`;
-
-const CommentDate = styled.span`
-    color: ${(props) => props.theme.text.colour.light_grey()};
-    font-size: ${(props) => props.theme.text.size.small};
-`;
-
-const CommentActions = styled.div`
-    display: flex;
-    gap: 5px;
-`;
-
-const CommentText = styled.p<{ $deleted?: boolean }>`
-    margin: 0 0 10px 0;
-    color: ${(props) =>
-        props.$deleted
-            ? props.theme.text.colour.light_grey()
-            : props.theme.text.colour.primary()};
-    font-style: ${(props) => (props.$deleted ? 'italic' : 'normal')};
-`;
-
-const PostLink = styled.a`
-    color: ${(props) => props.theme.text.colour.anchor()};
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    font-size: ${(props) => props.theme.text.size.small};
-
-    &:hover {
-        text-decoration: underline;
-    }
-`;
-
-const EmptyState = styled.div`
+const EmptyState = styled(AdminEmptyState)`
     text-align: center;
     padding: 40px 20px;
-    color: ${(props) => props.theme.text.colour.light_grey()};
 `;
 
 const Loading = styled.div`
     text-align: center;
     padding: 40px 20px;
     color: ${(props) => props.theme.text.colour.light_grey()};
-`;
-
-const Checkbox = styled.input.attrs({ type: 'checkbox' })`
-    cursor: pointer;
-    width: 18px;
-    height: 18px;
-    accent-color: ${(props) => props.theme.theme_colours[5]()};
 `;
 
 // Account Settings styled components
@@ -408,19 +127,19 @@ const SessionList = styled.div`
     gap: ${(props) => props.theme.container.spacing.small};
 `;
 
-const SessionItem = styled.div<{ current?: boolean }>`
+const SessionItem = styled.div<{ $current?: boolean }>`
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: ${(props) => props.theme.container.spacing.medium};
     border: 1px solid
         ${(props) =>
-            props.current
+            props.$current
                 ? props.theme.theme_colours[5]()
                 : props.theme.container.border.colour.primary()};
     border-radius: ${(props) => props.theme.container.border.radius};
     background: ${(props) =>
-        props.current
+        props.$current
             ? props.theme.theme_colours[9]()
             : props.theme.container.background.colour.content()};
 `;
@@ -453,7 +172,7 @@ const CurrentBadge = styled.span`
 `;
 
 const RoleBadge = styled.span<{
-    variant?: 'admin' | 'moderator' | 'trusted' | 'user';
+    $variant?: 'admin' | 'moderator' | 'trusted' | 'user';
 }>`
     display: inline-flex;
     align-items: center;
@@ -464,7 +183,7 @@ const RoleBadge = styled.span<{
     margin-right: 5px;
 
     ${(props) => {
-        switch (props.variant) {
+        switch (props.$variant) {
             case 'admin':
                 return `
                     background: ${props.theme.colours.error}20;
@@ -505,31 +224,6 @@ const DangerTitle = styled.h3`
 const DangerDescription = styled.p`
     color: ${(props) => props.theme.text.colour.light_grey()};
     margin: 0 0 ${(props) => props.theme.container.spacing.medium} 0;
-`;
-
-const ModalBackdrop = styled.div`
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 20px;
-`;
-
-const ModalContent = styled.div`
-    background: ${(props) => props.theme.container.background.colour.solid()};
-    border-radius: ${(props) => props.theme.container.border.radius};
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    width: 100%;
-    max-width: 450px;
-    padding: 25px;
-`;
-
-const ModalTitle = styled.h3`
-    margin: 0 0 15px 0;
-    color: ${(props) => props.theme.text.colour.header()};
 `;
 
 const ModalText = styled.p`
@@ -601,9 +295,42 @@ const SentimentNegative = styled.div<{ $width: number }>`
     transition: width 0.3s ease;
 `;
 
-// ======== INTERFACES ========
+// Comment sub-tabs container
+const SubTabContainer = styled.div`
+    display: flex;
+    gap: ${(props) => props.theme.container.spacing.small};
+    margin-bottom: ${(props) => props.theme.container.spacing.medium};
+    border-bottom: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+    padding-bottom: ${(props) => props.theme.container.spacing.small};
+`;
 
-// Using the shared CommentType interface
+const SubTab = styled.button<{ $active: boolean }>`
+    padding: ${(props) => props.theme.container.spacing.small}
+        ${(props) => props.theme.container.spacing.medium};
+    background: ${(props) =>
+        props.$active
+            ? props.theme.container.background.colour.light_contrast()
+            : 'transparent'};
+    color: ${(props) =>
+        props.$active
+            ? props.theme.text.colour.header()
+            : props.theme.text.colour.light_grey()};
+    border: none;
+    border-radius: ${(props) => props.theme.container.border.radius};
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: ${(props) => (props.$active ? '500' : '400')};
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: ${(props) =>
+            props.theme.container.background.colour.light_contrast()};
+        color: ${(props) => props.theme.text.colour.header()};
+    }
+`;
+
+// ======== INTERFACES ========
 
 interface Session {
     id: string;
@@ -623,7 +350,9 @@ export default function ProfilePage() {
     const [loadingData, setLoadingData] = useState(true);
 
     // Main navigation tabs
-    const [mainTab, setMainTab] = useState<'comments' | 'settings'>('comments');
+    const [mainTab, setMainTab] = useState<'profile' | 'comments' | 'settings'>(
+        'profile'
+    );
 
     // Profile data
     const [displayName, setDisplayName] = useState('');
@@ -709,10 +438,10 @@ export default function ProfilePage() {
             }
         }
 
-        if (user) {
+        if (user && mainTab === 'comments') {
             fetchComments();
         }
-    }, [user, activeTab]);
+    }, [user, activeTab, mainTab]);
 
     // Effect for pagination - update the visible comments based on the current page
     useEffect(() => {
@@ -1072,11 +801,10 @@ export default function ProfilePage() {
 
     if (loading) {
         return (
-            <ProfileContainer>
-                <Article $sideBar={false} style={{ width: '100%' }}>
-                    <Loading>Loading profile data...</Loading>
-                </Article>
-            </ProfileContainer>
+            <LoadingContainer>
+                <LoadingSpinner />
+                <LoadingText>Loading...</LoadingText>
+            </LoadingContainer>
         );
     }
 
@@ -1084,19 +812,87 @@ export default function ProfilePage() {
         return null; // Will redirect via useEffect
     }
 
+    // Navigation items for sidebar
+    const navItems = [
+        {
+            id: 'profile' as const,
+            label: 'Profile',
+            icon: (
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"
+                    />
+                </svg>
+            )
+        },
+        {
+            id: 'comments' as const,
+            label: 'My Comments',
+            icon: (
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"
+                    />
+                </svg>
+            )
+        },
+        {
+            id: 'settings' as const,
+            label: 'Account Settings',
+            icon: (
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"
+                    />
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                </svg>
+            )
+        }
+    ];
+
     return (
         <ProfileContainer>
-            {/* Left Sidebar */}
+            {/* Sidebar Navigation */}
             <ProfileSidebar>
-                <CardTitle style={{ marginBottom: '15px' }}>Profile</CardTitle>
+                <SidebarTitle>
+                    {user?.displayName || user?.username}
+                </SidebarTitle>
 
                 {/* Role badges */}
                 {user?.groups && user.groups.length > 0 && (
-                    <div style={{ marginBottom: '15px' }}>
+                    <div style={{ marginBottom: '15px', paddingLeft: '12px' }}>
                         {user.groups.map((group) => (
                             <RoleBadge
                                 key={group}
-                                variant={getRoleBadgeVariant(group)}
+                                $variant={getRoleBadgeVariant(group)}
                             >
                                 {group}
                             </RoleBadge>
@@ -1104,109 +900,161 @@ export default function ProfilePage() {
                     </div>
                 )}
 
-                {loadingData ? (
-                    <Loading>Loading profile data...</Loading>
-                ) : (
-                    <ProfileForm onSubmit={handleUpdateProfile}>
-                        <FormGroup>
-                            <Label htmlFor="username">Username</Label>
-                            <Input
-                                id="username"
-                                value={user?.username || ''}
-                                disabled
-                                style={{ opacity: 0.6 }}
-                            />
-                        </FormGroup>
-
-                        <FormGroup>
-                            <Label htmlFor="displayName">Display Name</Label>
-                            <Input
-                                id="displayName"
-                                value={displayName}
-                                onChange={(e) => setDisplayName(e.target.value)}
-                                placeholder="How you want to be called"
-                            />
-                        </FormGroup>
-
-                        <FormGroup>
-                            <Label htmlFor="bio">Bio</Label>
-                            <Input
-                                as="textarea"
-                                id="bio"
-                                value={bio}
-                                onChange={(e) => setBio(e.target.value)}
-                                placeholder="Tell us about yourself"
-                                style={{
-                                    minHeight: '80px',
-                                    resize: 'vertical'
-                                }}
-                            />
-                        </FormGroup>
-
-                        <div
-                            style={{
-                                display: 'flex',
-                                flexWrap: 'wrap',
-                                gap: '10px',
-                                marginTop: '5px'
-                            }}
+                <SidebarNav>
+                    {navItems.map((item) => (
+                        <SidebarLink
+                            key={item.id}
+                            $active={mainTab === item.id}
+                            onClick={() => setMainTab(item.id)}
+                            style={{ cursor: 'pointer' }}
                         >
-                            <Button type="submit" variant="primary">
-                                Update Profile
-                            </Button>
+                            {item.icon}
+                            {item.label}
+                        </SidebarLink>
+                    ))}
+                </SidebarNav>
 
-                            <Button
-                                type="button"
-                                onClick={handleLogout}
-                                variant="danger"
+                <SidebarDivider />
+
+                <SidebarNav>
+                    {isAdmin() && (
+                        <Link href="/admin" passHref legacyBehavior>
+                            <SidebarLink>
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    strokeWidth={1.5}
+                                    stroke="currentColor"
+                                >
+                                    <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
+                                    />
+                                </svg>
+                                Admin Dashboard
+                            </SidebarLink>
+                        </Link>
+                    )}
+                    <Link href="/" passHref legacyBehavior>
+                        <SidebarLink>
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                strokeWidth={1.5}
+                                stroke="currentColor"
                             >
-                                Logout
-                            </Button>
-
-                            {/* Admin link - inline with other buttons */}
-                            {isAdmin() && (
-                                <Link href="/admin">
-                                    <Button type="button" variant="secondary">
-                                        Admin Dashboard
-                                    </Button>
-                                </Link>
-                            )}
-                        </div>
-                    </ProfileForm>
-                )}
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"
+                                />
+                            </svg>
+                            Back to Site
+                        </SidebarLink>
+                    </Link>
+                    <SidebarLink
+                        onClick={handleLogout}
+                        style={{ cursor: 'pointer' }}
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth={1.5}
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"
+                            />
+                        </svg>
+                        Logout
+                    </SidebarLink>
+                </SidebarNav>
             </ProfileSidebar>
 
             {/* Main Content */}
             <ProfileMain>
-                {/* Main Navigation Tabs */}
-                <TabsContainer>
-                    <Tab
-                        active={mainTab === 'comments'}
-                        onClick={() => setMainTab('comments')}
-                    >
-                        My Comments
-                    </Tab>
-                    <Tab
-                        active={mainTab === 'settings'}
-                        onClick={() => setMainTab('settings')}
-                    >
-                        Account Settings
-                    </Tab>
-                </TabsContainer>
+                {/* Profile Section */}
+                {mainTab === 'profile' && (
+                    <>
+                        <AdminHeader>
+                            <AdminTitle>Profile Settings</AdminTitle>
+                        </AdminHeader>
+
+                        {loadingData ? (
+                            <Loading>Loading profile data...</Loading>
+                        ) : (
+                            <ProfileForm onSubmit={handleUpdateProfile}>
+                                <FormGroup>
+                                    <Label htmlFor="username">Username</Label>
+                                    <Input
+                                        id="username"
+                                        value={user?.username || ''}
+                                        disabled
+                                        style={{ opacity: 0.6 }}
+                                    />
+                                </FormGroup>
+
+                                <FormGroup>
+                                    <Label htmlFor="displayName">
+                                        Display Name
+                                    </Label>
+                                    <Input
+                                        id="displayName"
+                                        value={displayName}
+                                        onChange={(e) =>
+                                            setDisplayName(e.target.value)
+                                        }
+                                        placeholder="How you want to be called"
+                                    />
+                                </FormGroup>
+
+                                <FormGroup>
+                                    <Label htmlFor="bio">Bio</Label>
+                                    <Input
+                                        as="textarea"
+                                        id="bio"
+                                        value={bio}
+                                        onChange={(e) => setBio(e.target.value)}
+                                        placeholder="Tell us about yourself"
+                                        style={{
+                                            minHeight: '100px',
+                                            resize: 'vertical'
+                                        }}
+                                    />
+                                </FormGroup>
+
+                                <Button type="submit" variant="primary">
+                                    Update Profile
+                                </Button>
+                            </ProfileForm>
+                        )}
+                    </>
+                )}
 
                 {/* Comments Section */}
                 {mainTab === 'comments' && (
-                    <Card>
+                    <>
+                        <AdminHeader>
+                            <AdminTitle>My Comments</AdminTitle>
+                        </AdminHeader>
+
                         <div
                             style={{
                                 display: 'flex',
-                                justifyContent: 'flex-end',
+                                justifyContent: 'space-between',
                                 alignItems: 'center',
-                                gap: '10px',
                                 marginBottom: '15px'
                             }}
                         >
-                            <Badge>{allComments.length} Comments</Badge>
+                            <Badge $variant="secondary">
+                                {allComments.length} Comments
+                            </Badge>
                             <Button
                                 variant="secondary"
                                 size="small"
@@ -1315,280 +1163,266 @@ export default function ProfilePage() {
                                 );
                             })()}
 
-                        <>
-                            <TabsContainer>
-                                <Tab
-                                    active={activeTab === 'created'}
-                                    onClick={() => setActiveTab('created')}
-                                >
-                                    Created
-                                </Tab>
-                                <Tab
-                                    active={activeTab === 'liked'}
-                                    onClick={() => setActiveTab('liked')}
-                                >
-                                    Liked
-                                </Tab>
-                                <Tab
-                                    active={activeTab === 'disliked'}
-                                    onClick={() => setActiveTab('disliked')}
-                                >
-                                    Disliked
-                                </Tab>
-                            </TabsContainer>
+                        {/* Sub-tabs for comment types */}
+                        <SubTabContainer>
+                            <SubTab
+                                $active={activeTab === 'created'}
+                                onClick={() => setActiveTab('created')}
+                            >
+                                Created
+                            </SubTab>
+                            <SubTab
+                                $active={activeTab === 'liked'}
+                                onClick={() => setActiveTab('liked')}
+                            >
+                                Liked
+                            </SubTab>
+                            <SubTab
+                                $active={activeTab === 'disliked'}
+                                onClick={() => setActiveTab('disliked')}
+                            >
+                                Disliked
+                            </SubTab>
+                        </SubTabContainer>
 
-                            {loadingData ? (
-                                <Loading>Loading comments...</Loading>
-                            ) : (
-                                <>
-                                    {/* Action Bar */}
-                                    {allComments.length > 0 &&
-                                        activeTab === 'created' && (
-                                            <ActionBar>
-                                                <SelectAll>
-                                                    <Checkbox
-                                                        checked={
-                                                            selectedComments.length >
-                                                                0 &&
-                                                            selectedComments.length ===
-                                                                comments.filter(
-                                                                    (c) =>
-                                                                        !c.isDeleted
-                                                                ).length
-                                                        }
-                                                        onChange={
-                                                            toggleSelectAll
-                                                        }
-                                                    />
-                                                    <span>Select All</span>
-                                                    {selectedComments.length >
-                                                        0 && (
-                                                        <Badge>
-                                                            {
-                                                                selectedComments.length
-                                                            }{' '}
-                                                            selected
-                                                        </Badge>
-                                                    )}
-                                                </SelectAll>
-
-                                                {selectedComments.length >
-                                                    0 && (
-                                                    <ButtonGroup>
-                                                        <Button
-                                                            variant="danger"
-                                                            size="small"
-                                                            onClick={
-                                                                handleBulkDelete
-                                                            }
-                                                        >
-                                                            Delete Selected
-                                                        </Button>
-                                                    </ButtonGroup>
-                                                )}
-                                            </ActionBar>
-                                        )}
-
-                                    {/* Bulk actions for liked/disliked tabs */}
-                                    {allComments.length > 0 &&
-                                        activeTab === 'liked' && (
-                                            <ActionBar>
-                                                <SelectAll>
-                                                    <Checkbox
-                                                        checked={
-                                                            selectedComments.length >
-                                                                0 &&
-                                                            selectedComments.length ===
-                                                                comments.filter(
-                                                                    (c) =>
-                                                                        !c.isDeleted
-                                                                ).length
-                                                        }
-                                                        onChange={
-                                                            toggleSelectAll
-                                                        }
-                                                    />
-                                                    <span>Select All</span>
-                                                    {selectedComments.length >
-                                                        0 && (
-                                                        <Badge>
-                                                            {
-                                                                selectedComments.length
-                                                            }{' '}
-                                                            selected
-                                                        </Badge>
-                                                    )}
-                                                </SelectAll>
-
-                                                {selectedComments.length >
-                                                    0 && (
-                                                    <ButtonGroup>
-                                                        <Button
-                                                            variant="warning"
-                                                            size="small"
-                                                            onClick={
-                                                                handleBulkUnlike
-                                                            }
-                                                        >
-                                                            Unlike Selected
-                                                        </Button>
-                                                    </ButtonGroup>
-                                                )}
-                                            </ActionBar>
-                                        )}
-
-                                    {allComments.length > 0 &&
-                                        activeTab === 'disliked' && (
-                                            <ActionBar>
-                                                <SelectAll>
-                                                    <Checkbox
-                                                        checked={
-                                                            selectedComments.length >
-                                                                0 &&
-                                                            selectedComments.length ===
-                                                                comments.filter(
-                                                                    (c) =>
-                                                                        !c.isDeleted
-                                                                ).length
-                                                        }
-                                                        onChange={
-                                                            toggleSelectAll
-                                                        }
-                                                    />
-                                                    <span>Select All</span>
-                                                    {selectedComments.length >
-                                                        0 && (
-                                                        <Badge>
-                                                            {
-                                                                selectedComments.length
-                                                            }{' '}
-                                                            selected
-                                                        </Badge>
-                                                    )}
-                                                </SelectAll>
-
-                                                {selectedComments.length >
-                                                    0 && (
-                                                    <ButtonGroup>
-                                                        <Button
-                                                            variant="warning"
-                                                            size="small"
-                                                            onClick={
-                                                                handleBulkUndislike
-                                                            }
-                                                        >
-                                                            Remove Dislike
-                                                        </Button>
-                                                    </ButtonGroup>
-                                                )}
-                                            </ActionBar>
-                                        )}
-
-                                    {/* Comments List */}
-                                    {allComments.length > 0 ? (
-                                        <>
-                                            {comments.length > 0 ? (
-                                                <ProfileCommentList
-                                                    comments={comments}
-                                                    currentUser={user}
-                                                    selectedComments={
-                                                        selectedComments
+                        {loadingData ? (
+                            <Loading>Loading comments...</Loading>
+                        ) : (
+                            <>
+                                {/* Action Bar */}
+                                {allComments.length > 0 &&
+                                    activeTab === 'created' && (
+                                        <ActionBar>
+                                            <SelectAll>
+                                                <Checkbox
+                                                    checked={
+                                                        selectedComments.length >
+                                                            0 &&
+                                                        selectedComments.length ===
+                                                            comments.filter(
+                                                                (c) =>
+                                                                    !c.isDeleted
+                                                            ).length
                                                     }
-                                                    toggleSelectComment={
-                                                        toggleSelectComment
-                                                    }
-                                                    onDelete={
-                                                        handleDeleteComment
-                                                    }
-                                                    onReactionUpdate={
-                                                        handleReactionUpdate
-                                                    }
-                                                    Checkbox={Checkbox}
+                                                    onChange={toggleSelectAll}
                                                 />
-                                            ) : (
-                                                <EmptyState>
-                                                    No comments on this page.
-                                                    Try a different page.
-                                                </EmptyState>
-                                            )}
-
-                                            {/* Pagination Controls */}
-                                            {totalPages > 1 && (
-                                                <Pagination>
-                                                    <PageNumber
-                                                        onClick={() =>
-                                                            setPage((p) =>
-                                                                Math.max(
-                                                                    1,
-                                                                    p - 1
-                                                                )
-                                                            )
-                                                        }
-                                                        disabled={page === 1}
-                                                    >
-                                                        &lt;
-                                                    </PageNumber>
-
-                                                    {/* Generate page numbers */}
-                                                    {Array.from(
+                                                <span>Select All</span>
+                                                {selectedComments.length >
+                                                    0 && (
+                                                    <Badge $variant="secondary">
                                                         {
-                                                            length: totalPages
-                                                        },
-                                                        (_, i) => (
-                                                            <PageNumber
-                                                                key={i + 1}
-                                                                active={
-                                                                    page ===
-                                                                    i + 1
-                                                                }
-                                                                onClick={() =>
-                                                                    setPage(
-                                                                        i + 1
-                                                                    )
-                                                                }
-                                                            >
-                                                                {i + 1}
-                                                            </PageNumber>
-                                                        )
-                                                    )}
+                                                            selectedComments.length
+                                                        }{' '}
+                                                        selected
+                                                    </Badge>
+                                                )}
+                                            </SelectAll>
 
-                                                    <PageNumber
-                                                        onClick={() =>
-                                                            setPage((p) =>
-                                                                Math.min(
-                                                                    totalPages,
-                                                                    p + 1
-                                                                )
-                                                            )
-                                                        }
-                                                        disabled={
-                                                            page === totalPages
+                                            {selectedComments.length > 0 && (
+                                                <ButtonGroup>
+                                                    <Button
+                                                        variant="danger"
+                                                        size="small"
+                                                        onClick={
+                                                            handleBulkDelete
                                                         }
                                                     >
-                                                        &gt;
-                                                    </PageNumber>
-                                                </Pagination>
+                                                        Delete Selected
+                                                    </Button>
+                                                </ButtonGroup>
                                             )}
-                                        </>
-                                    ) : (
-                                        <EmptyState>
-                                            {activeTab === 'created' &&
-                                                'You have not created any comments yet.'}
-                                            {activeTab === 'liked' &&
-                                                'You have not liked any comments yet.'}
-                                            {activeTab === 'disliked' &&
-                                                'You have not disliked any comments yet.'}
-                                        </EmptyState>
+                                        </ActionBar>
                                     )}
-                                </>
-                            )}
-                        </>
-                    </Card>
+
+                                {/* Bulk actions for liked/disliked tabs */}
+                                {allComments.length > 0 &&
+                                    activeTab === 'liked' && (
+                                        <ActionBar>
+                                            <SelectAll>
+                                                <Checkbox
+                                                    checked={
+                                                        selectedComments.length >
+                                                            0 &&
+                                                        selectedComments.length ===
+                                                            comments.filter(
+                                                                (c) =>
+                                                                    !c.isDeleted
+                                                            ).length
+                                                    }
+                                                    onChange={toggleSelectAll}
+                                                />
+                                                <span>Select All</span>
+                                                {selectedComments.length >
+                                                    0 && (
+                                                    <Badge $variant="secondary">
+                                                        {
+                                                            selectedComments.length
+                                                        }{' '}
+                                                        selected
+                                                    </Badge>
+                                                )}
+                                            </SelectAll>
+
+                                            {selectedComments.length > 0 && (
+                                                <ButtonGroup>
+                                                    <Button
+                                                        variant="warning"
+                                                        size="small"
+                                                        onClick={
+                                                            handleBulkUnlike
+                                                        }
+                                                    >
+                                                        Unlike Selected
+                                                    </Button>
+                                                </ButtonGroup>
+                                            )}
+                                        </ActionBar>
+                                    )}
+
+                                {allComments.length > 0 &&
+                                    activeTab === 'disliked' && (
+                                        <ActionBar>
+                                            <SelectAll>
+                                                <Checkbox
+                                                    checked={
+                                                        selectedComments.length >
+                                                            0 &&
+                                                        selectedComments.length ===
+                                                            comments.filter(
+                                                                (c) =>
+                                                                    !c.isDeleted
+                                                            ).length
+                                                    }
+                                                    onChange={toggleSelectAll}
+                                                />
+                                                <span>Select All</span>
+                                                {selectedComments.length >
+                                                    0 && (
+                                                    <Badge $variant="secondary">
+                                                        {
+                                                            selectedComments.length
+                                                        }{' '}
+                                                        selected
+                                                    </Badge>
+                                                )}
+                                            </SelectAll>
+
+                                            {selectedComments.length > 0 && (
+                                                <ButtonGroup>
+                                                    <Button
+                                                        variant="warning"
+                                                        size="small"
+                                                        onClick={
+                                                            handleBulkUndislike
+                                                        }
+                                                    >
+                                                        Remove Dislike
+                                                    </Button>
+                                                </ButtonGroup>
+                                            )}
+                                        </ActionBar>
+                                    )}
+
+                                {/* Comments List */}
+                                {allComments.length > 0 ? (
+                                    <>
+                                        {comments.length > 0 ? (
+                                            <ProfileCommentList
+                                                comments={comments}
+                                                currentUser={user}
+                                                selectedComments={
+                                                    selectedComments
+                                                }
+                                                toggleSelectComment={
+                                                    toggleSelectComment
+                                                }
+                                                onDelete={handleDeleteComment}
+                                                onReactionUpdate={
+                                                    handleReactionUpdate
+                                                }
+                                                Checkbox={Checkbox}
+                                            />
+                                        ) : (
+                                            <EmptyState>
+                                                No comments on this page. Try a
+                                                different page.
+                                            </EmptyState>
+                                        )}
+
+                                        {/* Pagination Controls */}
+                                        {totalPages > 1 && (
+                                            <Pagination>
+                                                <PageButton
+                                                    onClick={() =>
+                                                        setPage((p) =>
+                                                            Math.max(1, p - 1)
+                                                        )
+                                                    }
+                                                    disabled={page === 1}
+                                                >
+                                                    &lt;
+                                                </PageButton>
+
+                                                {/* Generate page numbers */}
+                                                {Array.from(
+                                                    {
+                                                        length: totalPages
+                                                    },
+                                                    (_, i) => (
+                                                        <PageButton
+                                                            key={i + 1}
+                                                            $active={
+                                                                page === i + 1
+                                                            }
+                                                            onClick={() =>
+                                                                setPage(i + 1)
+                                                            }
+                                                        >
+                                                            {i + 1}
+                                                        </PageButton>
+                                                    )
+                                                )}
+
+                                                <PageButton
+                                                    onClick={() =>
+                                                        setPage((p) =>
+                                                            Math.min(
+                                                                totalPages,
+                                                                p + 1
+                                                            )
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        page === totalPages
+                                                    }
+                                                >
+                                                    &gt;
+                                                </PageButton>
+                                            </Pagination>
+                                        )}
+                                    </>
+                                ) : (
+                                    <EmptyState>
+                                        {activeTab === 'created' &&
+                                            'You have not created any comments yet.'}
+                                        {activeTab === 'liked' &&
+                                            'You have not liked any comments yet.'}
+                                        {activeTab === 'disliked' &&
+                                            'You have not disliked any comments yet.'}
+                                    </EmptyState>
+                                )}
+                            </>
+                        )}
+                    </>
                 )}
 
                 {/* Account Settings Section */}
                 {mainTab === 'settings' && (
-                    <Card>
+                    <>
+                        <AdminHeader>
+                            <AdminTitle>Account Settings</AdminTitle>
+                        </AdminHeader>
+
                         {/* Password Change */}
                         <SettingsSection>
                             <SettingsTitle>Change Password</SettingsTitle>
@@ -1673,7 +1507,7 @@ export default function ProfilePage() {
                                     {sessions.map((session) => (
                                         <SessionItem
                                             key={session.id}
-                                            current={session.isCurrent}
+                                            $current={session.isCurrent}
                                         >
                                             <SessionInfo>
                                                 <SessionDevice>
@@ -1734,7 +1568,7 @@ export default function ProfilePage() {
                                 Delete Account
                             </Button>
                         </DangerZone>
-                    </Card>
+                    </>
                 )}
             </ProfileMain>
 
@@ -1743,40 +1577,45 @@ export default function ProfilePage() {
                 <ModalBackdrop onClick={() => setShowDeleteModal(false)}>
                     <ModalContent onClick={(e) => e.stopPropagation()}>
                         <ModalTitle>Delete Account</ModalTitle>
-                        <ModalText>
-                            This action cannot be undone. All your data will be
-                            permanently deleted. Type <strong>DELETE</strong>{' '}
-                            below to confirm.
-                        </ModalText>
-                        <FormGroup>
-                            <Input
-                                value={deleteConfirmText}
-                                onChange={(e) =>
-                                    setDeleteConfirmText(e.target.value)
-                                }
-                                placeholder="Type DELETE to confirm"
-                            />
-                        </FormGroup>
-                        <ModalButtonGroup>
-                            <Button
-                                variant="secondary"
-                                onClick={() => {
-                                    setShowDeleteModal(false);
-                                    setDeleteConfirmText('');
-                                }}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="danger"
-                                onClick={handleDeleteAccount}
-                                disabled={
-                                    deleting || deleteConfirmText !== 'DELETE'
-                                }
-                            >
-                                {deleting ? 'Deleting...' : 'Delete My Account'}
-                            </Button>
-                        </ModalButtonGroup>
+                        <ModalBody>
+                            <ModalText>
+                                This action cannot be undone. All your data will
+                                be permanently deleted. Type{' '}
+                                <strong>DELETE</strong> below to confirm.
+                            </ModalText>
+                            <FormGroup>
+                                <Input
+                                    value={deleteConfirmText}
+                                    onChange={(e) =>
+                                        setDeleteConfirmText(e.target.value)
+                                    }
+                                    placeholder="Type DELETE to confirm"
+                                />
+                            </FormGroup>
+                            <ModalButtonGroup>
+                                <Button
+                                    variant="secondary"
+                                    onClick={() => {
+                                        setShowDeleteModal(false);
+                                        setDeleteConfirmText('');
+                                    }}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="danger"
+                                    onClick={handleDeleteAccount}
+                                    disabled={
+                                        deleting ||
+                                        deleteConfirmText !== 'DELETE'
+                                    }
+                                >
+                                    {deleting
+                                        ? 'Deleting...'
+                                        : 'Delete My Account'}
+                                </Button>
+                            </ModalButtonGroup>
+                        </ModalBody>
                     </ModalContent>
                 </ModalBackdrop>
             )}

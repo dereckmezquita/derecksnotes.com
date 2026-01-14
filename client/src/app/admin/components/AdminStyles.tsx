@@ -1058,3 +1058,145 @@ export const InlineStat = styled.a`
 export const StatSeparator = styled.span`
     color: ${(props) => props.theme.container.border.colour.primary()};
 `;
+
+// ============================================================================
+// TABS
+// ============================================================================
+
+export const TabContainer = styled.div`
+    display: flex;
+    gap: ${(props) => props.theme.container.spacing.small};
+    margin-bottom: ${(props) => props.theme.container.spacing.medium};
+    border-bottom: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+    padding-bottom: ${(props) => props.theme.container.spacing.small};
+`;
+
+export const Tab = styled.button<{ $active: boolean }>`
+    padding: ${(props) => props.theme.container.spacing.small}
+        ${(props) => props.theme.container.spacing.medium};
+    background: ${(props) =>
+        props.$active ? props.theme.theme_colours[5]() : 'transparent'};
+    color: ${(props) =>
+        props.$active ? '#fff' : props.theme.text.colour.primary()};
+    border: none;
+    border-radius: ${(props) => props.theme.container.border.radius};
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+
+    &:hover {
+        background: ${(props) =>
+            props.$active
+                ? props.theme.theme_colours[5]()
+                : props.theme.container.background.colour.light_contrast()};
+    }
+`;
+
+// ============================================================================
+// DETAIL VIEW (for modals and info displays)
+// ============================================================================
+
+export const DetailRow = styled.div`
+    display: flex;
+    gap: ${(props) => props.theme.container.spacing.small};
+    margin-bottom: ${(props) => props.theme.container.spacing.small};
+    flex-wrap: wrap;
+`;
+
+export const DetailLabel = styled.span`
+    font-weight: 600;
+    color: ${(props) => props.theme.text.colour.light_grey()};
+    min-width: 100px;
+`;
+
+export const DetailValue = styled.span`
+    color: ${(props) => props.theme.text.colour.primary()};
+`;
+
+// ============================================================================
+// FILTER COMPONENTS
+// ============================================================================
+
+export const FilterGroup = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${(props) => props.theme.container.spacing.xsmall};
+    flex-shrink: 0;
+`;
+
+export const FilterLabel = styled.span`
+    font-size: 0.8rem;
+    color: ${(props) => props.theme.text.colour.light_grey()};
+    white-space: nowrap;
+`;
+
+export const DateTimeInput = styled.input`
+    padding: ${(props) => props.theme.container.spacing.small};
+    border: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+    border-radius: ${(props) => props.theme.container.border.radius};
+    background: ${(props) => props.theme.container.background.colour.solid()};
+    color: ${(props) => props.theme.text.colour.primary()};
+    font-size: 0.8rem;
+    cursor: pointer;
+    width: 175px;
+
+    &:focus {
+        outline: none;
+        border-color: ${(props) => props.theme.theme_colours[5]()};
+    }
+`;
+
+// ============================================================================
+// CODE/LOG DISPLAY
+// ============================================================================
+
+export const CodeBlock = styled.pre`
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 0.7rem;
+    background: ${(props) =>
+        props.theme.container.background.colour.light_contrast()};
+    padding: ${(props) => props.theme.container.spacing.small};
+    border-radius: ${(props) => props.theme.container.border.radius};
+    overflow-x: auto;
+    max-height: 200px;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-top: ${(props) => props.theme.container.spacing.xsmall};
+`;
+
+export const MonoText = styled.div`
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 400px;
+`;
+
+// ============================================================================
+// TEXT BUTTON (for tables)
+// ============================================================================
+
+export const TextButton = styled.button`
+    background: none;
+    border: none;
+    color: ${(props) => props.theme.theme_colours[5]()};
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0;
+    text-decoration: underline;
+
+    &:hover {
+        opacity: 0.8;
+    }
+`;
+
+// ============================================================================
+// WIDE MODAL
+// ============================================================================
+
+export const WideModalContent = styled(ModalContent)`
+    max-width: 800px;
+`;
