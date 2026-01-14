@@ -15,7 +15,7 @@ export const PostContainer = styled.div`
 
     width: 80%;
     background-color: ${(props) =>
-        props.theme.container.background.colour.primary()};
+        props.theme.container.background.colour.card()};
 
     border: 1px solid #ccc;
     border-radius: 5px;
