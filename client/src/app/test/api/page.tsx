@@ -10,7 +10,7 @@ function Page() {
             <ApiStatus />
             <AuthDemo />
             <AuthProtectedDemo />
-            <Comments postSlug="test-post" />
+            <Comments slug="test/api" title="API Test Page" />
         </PostArticle>
     );
 }
@@ -19,7 +19,7 @@ export default Page;
 
 const PostArticle: React.FC<React.PropsWithChildren<{}>> = ({ children }) => (
     <PostContainer>
-        <Article sideBar={false} style={{ width: '90%' }}>
+        <Article $sideBar={false} style={{ width: '90%' }}>
             {children}
         </Article>
     </PostContainer>

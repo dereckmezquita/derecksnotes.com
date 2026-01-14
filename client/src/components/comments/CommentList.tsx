@@ -6,7 +6,8 @@ import { CommentListContainer, NoCommentsMessage } from './CommentStyles';
 
 export function CommentList({
     comments,
-    postSlug,
+    slug,
+    title,
     currentUser,
     onUpdateComment,
     onAddReply,
@@ -30,7 +31,7 @@ export function CommentList({
 
     return (
         <CommentListContainer
-            level={level}
+            $level={level}
             role={level === 0 ? 'list' : undefined}
             aria-label={
                 level === 0 ? 'Comments' : `Nested replies level ${level}`
@@ -40,7 +41,8 @@ export function CommentList({
                 <CommentItem
                     key={comment.id}
                     comment={comment}
-                    postSlug={postSlug}
+                    slug={slug}
+                    title={title}
                     currentUser={currentUser}
                     level={level}
                     onUpdateComment={onUpdateComment}

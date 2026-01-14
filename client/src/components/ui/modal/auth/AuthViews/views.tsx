@@ -95,6 +95,18 @@ export function RegisterView({
             </InputField>
             <InputField>
                 <Input
+                    type="password"
+                    name="confirmPassword"
+                    placeholder="Confirm Password"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    required
+                    minLength={8}
+                    autoComplete="new-password"
+                />
+            </InputField>
+            <InputField>
+                <Input
                     type="email"
                     name="email"
                     placeholder="Email (optional)"

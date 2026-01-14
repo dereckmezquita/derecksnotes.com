@@ -37,40 +37,12 @@ import {
     StatSeparator
 } from './components/AdminStyles';
 
-interface DashboardStats {
-    pendingComments: number;
-    pendingReports: number;
-    totalUsers: number;
-    totalComments: number;
-}
-
-interface AuditLogDetails {
-    contentPreview?: string;
-    username?: string;
-    reason?: string;
-    postSlug?: string;
-    count?: number;
-    [key: string]: unknown;
-}
-
-interface AuditLogEntry {
-    id: string;
-    adminId: string;
-    admin: {
-        id: string;
-        username: string;
-    };
-    action: string;
-    targetType: string;
-    targetId: string | null;
-    details: AuditLogDetails | null;
-    createdAt: string;
-}
-
-interface DashboardResponse {
-    stats: DashboardStats;
-    recentActivity: AuditLogEntry[];
-}
+import type {
+    DashboardStats,
+    AuditLogDetails,
+    AuditLogEntry,
+    DashboardResponse
+} from '@/types/api';
 
 export default function AdminDashboard() {
     const { user, isAdmin, hasPermission } = useAuth();

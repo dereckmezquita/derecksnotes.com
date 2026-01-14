@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import styled from 'styled-components';
 import { useAuth } from '@context/AuthContext';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
@@ -20,6 +21,29 @@ import {
     LoadingSpinner,
     LoadingText
 } from './components/AdminStyles';
+
+// Responsive container for admin - stacks on mobile
+const AdminContainer = styled(PostContainer)`
+    @media (max-width: 900px) {
+        flex-direction: column;
+    }
+`;
+
+// Override the default hide behavior to make sidebar visible and responsive
+const AdminSidebar = styled(SideBarContainer)`
+    text-align: left;
+    min-height: 600px;
+
+    /* Override the base display:none with !important */
+    @media (max-width: 1096px) {
+        display: block !important;
+        width: 100%;
+        min-height: auto;
+        border-bottom: 1px dashed
+            ${(props) => props.theme.container.border.colour.primary()};
+        padding: 20px;
+    }
+`;
 
 interface AdminLayoutProps {
     children: React.ReactNode;
@@ -250,8 +274,8 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     };
 
     return (
-        <PostContainer>
-            <SideBarContainer style={{ textAlign: 'left', minHeight: '600px' }}>
+        <AdminContainer>
+            <AdminSidebar>
                 <SidebarTitle>Admin Panel</SidebarTitle>
                 <SidebarNav>
                     {visibleNavItems.map((item) => (
@@ -309,9 +333,9 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
                         </SidebarLink>
                     </Link>
                 </SidebarNav>
-            </SideBarContainer>
+            </AdminSidebar>
 
             <AdminMain>{children}</AdminMain>
-        </PostContainer>
+        </AdminContainer>
     );
 }

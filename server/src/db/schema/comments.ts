@@ -1,13 +1,16 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 import { relations } from 'drizzle-orm';
 import { users } from './users';
+import { posts } from './posts';
 
 export const comments = sqliteTable('comments', {
     id: text('id').primaryKey(),
     userId: text('user_id')
         .notNull()
         .references(() => users.id, { onDelete: 'cascade' }),
-    postSlug: text('post_slug').notNull(),
+    postId: text('post_id')
+        .notNull()
+        .references(() => posts.id, { onDelete: 'cascade' }),
     parentId: text('parent_id'),
     content: text('content').notNull(),
     depth: integer('depth').notNull().default(0),
@@ -25,6 +28,10 @@ export const commentsRelations = relations(comments, ({ one, many }) => ({
     user: one(users, {
         fields: [comments.userId],
         references: [users.id]
+    }),
+    post: one(posts, {
+        fields: [comments.postId],
+        references: [posts.id]
     }),
     parent: one(comments, {
         fields: [comments.parentId],

@@ -1,36 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Dereck's Notes - Client
 
-## Getting Started
+Next.js 15 frontend for [derecksnotes.com](https://www.derecksnotes.com).
 
-First, run the development server:
+## Tech Stack
+
+- **Next.js 15**: App Router with React Server Components
+- **React 19**: Latest features
+- **TypeScript**: Strict mode
+- **styled-components**: CSS-in-JS theming
+- **MDX**: Blog posts and dictionary content
+
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# From project root (recommended)
+bun run dev
+
+# Or client only
+cd client && bun run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/               # App Router pages
+│   ├── admin/         # Admin dashboard
+│   ├── blog/          # Blog posts (MDX)
+│   ├── courses/       # Course content
+│   ├── dictionaries/  # Science dictionaries
+│   └── profile/       # User profile
+├── components/        # Reusable components
+├── context/           # React context providers
+├── styles/            # Theme and global styles
+└── utils/             # Utility functions
+```
 
-## Learn More
+## Features
 
-To learn more about Next.js, take a look at the following resources:
+- **MDX Content**: Blog posts and definitions
+- **Comments**: Nested replies, pagination, likes/dislikes
+- **User Profiles**: Comment history, analytics
+- **Admin Dashboard**: User management, comment moderation, logs
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Path Aliases
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Use `@/*` for imports from `src/`:
 
-## Deploy on Vercel
+```typescript
+import { api } from '@/utils/api/api';
+import { useAuth } from '@/context/AuthContext';
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See the [main README](../README.md) for full documentation.

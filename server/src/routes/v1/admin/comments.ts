@@ -35,6 +35,12 @@ router.get(
                             username: true,
                             displayName: true
                         }
+                    },
+                    post: {
+                        columns: {
+                            slug: true,
+                            title: true
+                        }
                     }
                 },
                 orderBy: (c, { asc }) => [asc(c.createdAt)],
@@ -42,7 +48,14 @@ router.get(
                 offset
             });
 
-            res.json({ comments, page, limit });
+            // Format comments to include slug for backwards compatibility
+            const formattedComments = comments.map((c) => ({
+                ...c,
+                slug: c.post?.slug,
+                postTitle: c.post?.title
+            }));
+
+            res.json({ comments: formattedComments, page, limit });
         } catch (error) {
             dbLogger.error('Get pending comments failed', error as Error, {
                 source: 'admin'
@@ -62,7 +75,14 @@ router.post(
             const id = req.params.id as string;
 
             const comment = await db.query.comments.findFirst({
-                where: eq(schema.comments.id, id)
+                where: eq(schema.comments.id, id),
+                with: {
+                    post: {
+                        columns: {
+                            slug: true
+                        }
+                    }
+                }
             });
 
             if (!comment) {
@@ -81,7 +101,7 @@ router.post(
                 'comment',
                 id,
                 {
-                    postSlug: comment.postSlug,
+                    slug: comment.post?.slug,
                     contentPreview: comment.content.slice(0, 100)
                 },
                 req.ip || req.socket.remoteAddress
@@ -107,7 +127,14 @@ router.post(
             const id = req.params.id as string;
 
             const comment = await db.query.comments.findFirst({
-                where: eq(schema.comments.id, id)
+                where: eq(schema.comments.id, id),
+                with: {
+                    post: {
+                        columns: {
+                            slug: true
+                        }
+                    }
+                }
             });
 
             if (!comment) {
@@ -127,7 +154,7 @@ router.post(
                 'comment',
                 id,
                 {
-                    postSlug: comment.postSlug,
+                    slug: comment.post?.slug,
                     reason: req.body.reason,
                     contentPreview: comment.content.slice(0, 100)
                 },

@@ -279,10 +279,10 @@ router.get(
 
             const startDate = addDays(new Date(), -days);
 
-            // Get comment counts per post slug
+            // Get comment counts per post
             const postStats = await db
                 .select({
-                    postSlug: schema.comments.postSlug,
+                    postId: schema.comments.postId,
                     commentCount: count()
                 })
                 .from(schema.comments)
@@ -292,24 +292,29 @@ router.get(
                         isNull(schema.comments.deletedAt)
                     )
                 )
-                .groupBy(schema.comments.postSlug)
+                .groupBy(schema.comments.postId)
                 .orderBy(sql`count(*) DESC`)
                 .limit(limit);
 
-            // Get reaction counts for each post
+            // Get post details and engagement for each
             const postsWithEngagement = await Promise.all(
-                postStats.map(async (post) => {
+                postStats.map(async (stat) => {
+                    // Get post details
+                    const post = await db.query.posts.findFirst({
+                        where: eq(schema.posts.id, stat.postId)
+                    });
+
                     // Get all comment IDs for this post
                     const postComments = await db.query.comments.findMany({
-                        where: eq(schema.comments.postSlug, post.postSlug),
+                        where: eq(schema.comments.postId, stat.postId),
                         columns: { id: true }
                     });
                     const commentIds = postComments.map((c) => c.id);
 
-                    // Count reactions for these comments
-                    let reactionCount = 0;
-                    let likeCount = 0;
-                    let dislikeCount = 0;
+                    // Count comment reactions
+                    let commentReactionCount = 0;
+                    let commentLikeCount = 0;
+                    let commentDislikeCount = 0;
                     if (commentIds.length > 0) {
                         const reactionsResult = await db
                             .select({ count: count() })
@@ -320,7 +325,7 @@ router.get(
                                     sql`, `
                                 )})`
                             );
-                        reactionCount = reactionsResult[0]?.count || 0;
+                        commentReactionCount = reactionsResult[0]?.count || 0;
 
                         // Get like/dislike breakdown
                         const likesResult = await db
@@ -335,17 +340,67 @@ router.get(
                                     eq(schema.commentReactions.type, 'like')
                                 )
                             );
-                        likeCount = likesResult[0]?.count || 0;
-                        dislikeCount = reactionCount - likeCount;
+                        commentLikeCount = likesResult[0]?.count || 0;
+                        commentDislikeCount =
+                            commentReactionCount - commentLikeCount;
                     }
 
+                    // Get page view stats
+                    const viewStats = await db
+                        .select({
+                            totalViews: count(),
+                            uniqueVisitors: sql<number>`COUNT(DISTINCT ${schema.pageViews.ipAddress})`
+                        })
+                        .from(schema.pageViews)
+                        .where(
+                            and(
+                                eq(schema.pageViews.postId, stat.postId),
+                                eq(schema.pageViews.isBot, false),
+                                gte(schema.pageViews.enteredAt, startDate)
+                            )
+                        );
+
+                    // Get post reactions (likes/dislikes on the post itself)
+                    const postLikesResult = await db
+                        .select({ count: count() })
+                        .from(schema.postReactions)
+                        .where(
+                            and(
+                                eq(schema.postReactions.postId, stat.postId),
+                                eq(schema.postReactions.type, 'like')
+                            )
+                        );
+                    const postDislikesResult = await db
+                        .select({ count: count() })
+                        .from(schema.postReactions)
+                        .where(
+                            and(
+                                eq(schema.postReactions.postId, stat.postId),
+                                eq(schema.postReactions.type, 'dislike')
+                            )
+                        );
+
+                    const views = viewStats[0]?.totalViews || 0;
+                    const uniqueVisitors = viewStats[0]?.uniqueVisitors || 0;
+                    const postLikes = postLikesResult[0]?.count || 0;
+                    const postDislikes = postDislikesResult[0]?.count || 0;
+
                     return {
-                        postSlug: post.postSlug,
-                        commentCount: post.commentCount,
-                        reactionCount,
-                        likeCount,
-                        dislikeCount,
-                        engagementScore: post.commentCount * 2 + reactionCount
+                        slug: post?.slug,
+                        title: post?.title,
+                        views,
+                        uniqueVisitors,
+                        commentCount: stat.commentCount,
+                        postLikes,
+                        postDislikes,
+                        commentReactionCount,
+                        commentLikeCount,
+                        commentDislikeCount,
+                        engagementScore:
+                            views +
+                            postLikes * 5 +
+                            stat.commentCount * 10 +
+                            commentReactionCount
                     };
                 })
             );
@@ -539,6 +594,12 @@ router.get(
                             username: true,
                             displayName: true
                         }
+                    },
+                    post: {
+                        columns: {
+                            slug: true,
+                            title: true
+                        }
                     }
                 },
                 orderBy: desc(schema.comments.createdAt),
@@ -569,7 +630,8 @@ router.get(
                         content:
                             comment.content.substring(0, 150) +
                             (comment.content.length > 150 ? '...' : ''),
-                        postSlug: comment.postSlug,
+                        slug: comment.post?.slug,
+                        postTitle: comment.post?.title,
                         user: comment.user,
                         createdAt: comment.createdAt,
                         likes,

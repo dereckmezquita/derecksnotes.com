@@ -69,7 +69,8 @@ function countReplies(replies: CommentType[] | undefined): number {
 
 export function CommentItem({
     comment,
-    postSlug,
+    slug,
+    title,
     currentUser,
     level,
     onUpdateComment,
@@ -190,12 +191,13 @@ export function CommentItem({
     };
 
     const handleReplySubmit = async (content: string) => {
-        if (!postSlug) return;
+        if (!slug) return;
 
         setIsSubmitting(true);
         try {
             const res = await api.post<{ comment: CommentType }>('/comments', {
-                postSlug,
+                slug,
+                title,
                 content,
                 parentId: comment.id
             });
@@ -351,7 +353,10 @@ export function CommentItem({
 
     return (
         <>
-            <SingleComment isDeleted={comment.isDeleted} isEditing={isEditing}>
+            <SingleComment
+                $isDeleted={comment.isDeleted}
+                $isEditing={isEditing}
+            >
                 <CommentHeader>
                     {hasReplies && (
                         <CollapseButton
@@ -409,7 +414,7 @@ export function CommentItem({
                     {!comment.isDeleted && (
                         <CommentControls>
                             <ReactionButton
-                                isActive={hasUserLiked}
+                                $isActive={hasUserLiked}
                                 onClick={() => handleReaction('like')}
                                 title={hasUserLiked ? 'Remove like' : 'Like'}
                                 disabled={!currentUser}
@@ -440,7 +445,7 @@ export function CommentItem({
                             </ReactionButton>
 
                             <ReactionButton
-                                isActive={hasUserDisliked}
+                                $isActive={hasUserDisliked}
                                 onClick={() => handleReaction('dislike')}
                                 title={
                                     hasUserDisliked
@@ -486,7 +491,7 @@ export function CommentItem({
                         isEdit={true}
                     />
                 ) : (
-                    <CommentText deleted={comment.isDeleted}>
+                    <CommentText $deleted={comment.isDeleted}>
                         {comment.isDeleted ? (
                             <DeletedText>
                                 [This comment has been deleted]
@@ -505,7 +510,7 @@ export function CommentItem({
                     <CommentActions>
                         {currentUser &&
                             level < MAX_COMMENT_DEPTH - 1 &&
-                            postSlug &&
+                            slug &&
                             onAddReply && (
                                 <ActionButton
                                     onClick={() =>
@@ -539,8 +544,8 @@ export function CommentItem({
                     </CommentActions>
                 )}
 
-                {showReplyForm && postSlug && onAddReply && (
-                    <ReplyContainer level={level} ref={replyFormRef}>
+                {showReplyForm && slug && onAddReply && (
+                    <ReplyContainer $level={level} ref={replyFormRef}>
                         <CommentForm
                             onSubmit={handleReplySubmit}
                             isReply={true}
@@ -550,8 +555,8 @@ export function CommentItem({
                     </ReplyContainer>
                 )}
 
-                {hasReplies && postSlug && !isCollapsed && (
-                    <ReplyContainer level={level}>
+                {hasReplies && slug && !isCollapsed && (
+                    <ReplyContainer $level={level}>
                         {shouldShowContinueThread ? (
                             <ContinueThreadButton
                                 onClick={() => {
@@ -580,7 +585,8 @@ export function CommentItem({
                             <>
                                 <CommentList
                                     comments={comment.replies!}
-                                    postSlug={postSlug}
+                                    slug={slug}
+                                    title={title}
                                     currentUser={currentUser}
                                     level={level + 1}
                                     onUpdateComment={onUpdateComment}
@@ -656,7 +662,7 @@ export function CommentItem({
                                 <HistoryItem key={index}>
                                     <HistoryItemHeader>
                                         <HistoryVersionBadge
-                                            isCurrent={version.isCurrent}
+                                            $isCurrent={version.isCurrent}
                                         >
                                             {version.isCurrent
                                                 ? 'Current'

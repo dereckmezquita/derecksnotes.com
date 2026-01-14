@@ -11,16 +11,16 @@ import { User } from '@context/AuthContext';
 // STYLED COMPONENTS - Only for profile-specific wrapper
 // ============================================================================
 
-const ProfileCommentWrapper = styled.div<{ selected?: boolean }>`
+const ProfileCommentWrapper = styled.div<{ $selected?: boolean }>`
     border: 1px solid
         ${(props) =>
-            props.selected
+            props.$selected
                 ? props.theme.theme_colours[5]()
                 : props.theme.container.border.colour.primary()};
     border-radius: ${(props) => props.theme.container.border.radius};
     margin-bottom: ${(props) => props.theme.container.spacing.small};
     background: ${(props) =>
-        props.selected
+        props.$selected
             ? props.theme.theme_colours[9]()
             : props.theme.container.background.colour.content()};
     overflow: hidden;
@@ -127,9 +127,14 @@ function renderMarkdown(content: string): string {
     }
 }
 
-function extractPostName(postSlug: string): string {
-    const parts = postSlug.split('/');
-    const lastPart = parts[parts.length - 1] || postSlug;
+function extractPostName(slug: string, postTitle?: string): string {
+    // Use the post title if available
+    if (postTitle) {
+        return postTitle;
+    }
+    // Fallback to extracting from slug
+    const parts = slug.split('/');
+    const lastPart = parts[parts.length - 1] || slug;
     const withoutDate = lastPart.replace(/^\d{8}_/, '');
     return withoutDate
         .replace(/[-_]/g, ' ')
@@ -186,7 +191,7 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
     };
 
     return (
-        <ProfileCommentWrapper selected={selected}>
+        <ProfileCommentWrapper $selected={selected}>
             {/* Selection checkbox */}
             {!comment.isDeleted && (
                 <SelectionBar>
@@ -199,7 +204,7 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
             )}
 
             {/* Post Link Header */}
-            {comment.postSlug && (
+            {comment.slug && (
                 <PostLinkContainer>
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -217,8 +222,8 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
                         <line x1="10" y1="14" x2="21" y2="3"></line>
                     </svg>
                     <PostLinkLabel>Posted on:</PostLinkLabel>
-                    <PostLink href={comment.postSlug}>
-                        {extractPostName(comment.postSlug)}
+                    <PostLink href={`/${comment.slug}`}>
+                        {extractPostName(comment.slug, comment.postTitle)}
                     </PostLink>
                 </PostLinkContainer>
             )}
@@ -266,7 +271,8 @@ export const ProfileCommentItem: React.FC<ProfileCommentItemProps> = ({
             <CommentContent>
                 <CommentItem
                     comment={comment}
-                    postSlug={comment.postSlug}
+                    slug={comment.slug || ''}
+                    title={comment.postTitle || ''}
                     currentUser={currentUser}
                     level={0}
                     onUpdateComment={handleUpdateComment}

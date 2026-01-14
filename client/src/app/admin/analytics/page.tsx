@@ -22,6 +22,16 @@ import {
     EmptyStateTitle,
     EmptyStateText
 } from '../components/AdminStyles';
+import type {
+    AnalyticsOverviewData,
+    AnalyticsTimeseriesData,
+    AnalyticsTopPost,
+    AnalyticsActiveUser,
+    AnalyticsTopCommentDetailed,
+    AnalyticsTopCommentsData,
+    AnalyticsEngagementTrends,
+    AnalyticsSparklineData
+} from '@/types/api';
 
 // ============================================================================
 // STYLED COMPONENTS
@@ -130,8 +140,14 @@ const TwoColumnGrid = styled.div`
     gap: ${(p) => p.theme.container.spacing.large};
     margin-bottom: ${(p) => p.theme.container.spacing.large};
 
-    @media (max-width: 800px) {
+    @media (max-width: 900px) {
         grid-template-columns: 1fr;
+    }
+
+    /* Ensure children don't overflow */
+    & > * {
+        min-width: 0;
+        overflow: hidden;
     }
 `;
 
@@ -141,6 +157,7 @@ const LeaderboardItem = styled.div`
     align-items: center;
     padding: ${(p) => p.theme.container.spacing.small};
     border-bottom: 1px solid ${(p) => p.theme.container.border.colour.primary()};
+    min-width: 0; /* Allow flex items to shrink below content size */
 
     &:last-child {
         border-bottom: none;
@@ -168,6 +185,7 @@ const Rank = styled.span<{ $top?: boolean }>`
 const ItemContent = styled.div`
     flex: 1;
     min-width: 0;
+    overflow: hidden;
 `;
 
 const ItemTitle = styled.div`
@@ -181,12 +199,16 @@ const ItemTitle = styled.div`
 const ItemMeta = styled.div`
     font-size: 0.75rem;
     color: ${(p) => p.theme.text.colour.light_grey()};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 `;
 
 const ItemStats = styled.div`
     display: flex;
     gap: ${(p) => p.theme.container.spacing.small};
     margin-left: ${(p) => p.theme.container.spacing.small};
+    flex-shrink: 0;
 `;
 
 const StatPill = styled.span<{ $variant?: 'success' | 'danger' | 'neutral' }>`
@@ -349,88 +371,28 @@ const ChartAxis = styled.div`
     color: ${(p) => p.theme.text.colour.light_grey()};
 `;
 
-// ============================================================================
-// TYPES
-// ============================================================================
-
-interface OverviewData {
-    totals: { users: number; comments: number; reactions: number };
-    users: { today: number; thisWeek: number; thisMonth: number };
-    comments: { today: number; thisWeek: number; thisMonth: number };
-    engagement: { reactionsThisWeek: number; approvalRate: number };
-}
-
-interface TimeseriesData {
-    metric: string;
-    days: number;
-    data: Array<{ date: string; count: number }>;
-}
-
-interface TopPost {
-    postSlug: string;
-    commentCount: number;
-    reactionCount: number;
-    likeCount: number;
-    dislikeCount: number;
-    engagementScore: number;
-}
-
-interface ActiveUser {
-    user: { id: string; username: string; displayName: string | null };
-    commentCount: number;
-    reactionsGiven: number;
-    reactionsReceived: number;
-    likesReceived: number;
-    activityScore: number;
-}
-
-interface TopComment {
-    id: string;
-    content: string;
-    postSlug: string;
-    user: { id: string; username: string; displayName: string | null } | null;
-    createdAt: string;
-    likes: number;
-    dislikes: number;
-    totalReactions: number;
-    score: number;
-}
-
-interface TopCommentsData {
-    topLiked: TopComment[];
-    controversial: TopComment[];
-}
-
-interface EngagementTrends {
-    days: number;
-    current: { comments: number; users: number; reactions: number };
-    previous: { comments: number; users: number; reactions: number };
-    trends: { comments: number; users: number; reactions: number };
-    averages: { commentsPerDay: number; activeDays: number };
-    sentiment: { likes: number; dislikes: number; likeRatio: number };
-}
-
-interface SparklineData {
-    days: number;
-    comments: number[];
-    users: number[];
-    reactions: number[];
-}
+// Types imported from @/types/api
 
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
 export default function AnalyticsPage() {
-    const [overview, setOverview] = useState<OverviewData | null>(null);
-    const [timeseries, setTimeseries] = useState<TimeseriesData | null>(null);
-    const [topPosts, setTopPosts] = useState<TopPost[]>([]);
-    const [activeUsers, setActiveUsers] = useState<ActiveUser[]>([]);
-    const [topComments, setTopComments] = useState<TopCommentsData | null>(
+    const [overview, setOverview] = useState<AnalyticsOverviewData | null>(
         null
     );
-    const [trends, setTrends] = useState<EngagementTrends | null>(null);
-    const [sparklines, setSparklines] = useState<SparklineData | null>(null);
+    const [timeseries, setTimeseries] =
+        useState<AnalyticsTimeseriesData | null>(null);
+    const [topPosts, setTopPosts] = useState<AnalyticsTopPost[]>([]);
+    const [activeUsers, setActiveUsers] = useState<AnalyticsActiveUser[]>([]);
+    const [topComments, setTopComments] =
+        useState<AnalyticsTopCommentsData | null>(null);
+    const [trends, setTrends] = useState<AnalyticsEngagementTrends | null>(
+        null
+    );
+    const [sparklines, setSparklines] = useState<AnalyticsSparklineData | null>(
+        null
+    );
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [metric, setMetric] = useState<'comments' | 'users' | 'reactions'>(
@@ -451,23 +413,25 @@ export default function AnalyticsPage() {
                 trendsRes,
                 sparklinesRes
             ] = await Promise.all([
-                api.get<OverviewData>('/admin/analytics/overview'),
-                api.get<TimeseriesData>(
+                api.get<AnalyticsOverviewData>('/admin/analytics/overview'),
+                api.get<AnalyticsTimeseriesData>(
                     `/admin/analytics/timeseries?metric=${metric}&days=${days}`
                 ),
-                api.get<{ posts: TopPost[] }>(
+                api.get<{ posts: AnalyticsTopPost[] }>(
                     '/admin/analytics/top-posts?days=30&limit=5'
                 ),
-                api.get<{ users: ActiveUser[] }>(
+                api.get<{ users: AnalyticsActiveUser[] }>(
                     '/admin/analytics/active-users?days=30&limit=5'
                 ),
-                api.get<TopCommentsData>(
+                api.get<AnalyticsTopCommentsData>(
                     '/admin/analytics/top-comments?days=30&limit=5'
                 ),
-                api.get<EngagementTrends>(
+                api.get<AnalyticsEngagementTrends>(
                     '/admin/analytics/engagement-trends?days=30'
                 ),
-                api.get<SparklineData>('/admin/analytics/sparklines?days=7')
+                api.get<AnalyticsSparklineData>(
+                    '/admin/analytics/sparklines?days=7'
+                )
             ]);
 
             setOverview(overviewRes.data);
@@ -738,22 +702,24 @@ export default function AnalyticsPage() {
                         </EmptyState>
                     ) : (
                         topPosts.map((post, i) => (
-                            <LeaderboardItem key={post.postSlug}>
+                            <LeaderboardItem key={post.slug}>
                                 <Rank $top={i < 3}>{i + 1}</Rank>
                                 <ItemContent>
-                                    <ItemTitle title={post.postSlug}>
-                                        {post.postSlug.replace(/-/g, ' ')}
+                                    <ItemTitle title={post.title || post.slug}>
+                                        {post.title ||
+                                            post.slug.replace(/-/g, ' ')}
                                     </ItemTitle>
                                     <ItemMeta>
-                                        {post.commentCount} comments
+                                        {post.commentCount} comments,{' '}
+                                        {post.views} views
                                     </ItemMeta>
                                 </ItemContent>
                                 <ItemStats>
                                     <StatPill $variant="success">
-                                        {post.likeCount}
+                                        {post.postLikes}
                                     </StatPill>
                                     <StatPill $variant="danger">
-                                        {post.dislikeCount}
+                                        {post.postDislikes}
                                     </StatPill>
                                 </ItemStats>
                             </LeaderboardItem>
@@ -857,10 +823,10 @@ export default function AnalyticsPage() {
                                             'Unknown'}{' '}
                                         on{' '}
                                         <Link
-                                            href={`/${comment.postSlug}`}
+                                            href={`/${comment.slug}`}
                                             style={{ color: 'inherit' }}
                                         >
-                                            {comment.postSlug}
+                                            {comment.postTitle || comment.slug}
                                         </Link>
                                     </span>
                                     <CommentReactions>

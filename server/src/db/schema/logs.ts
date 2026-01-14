@@ -25,7 +25,9 @@ export const serverLogs = sqliteTable(
         duration: integer('duration'), // Request duration in ms
         createdAt: integer('created_at', { mode: 'timestamp' })
             .notNull()
-            .$defaultFn(() => new Date())
+            .$defaultFn(() => new Date()),
+        clearedAt: integer('cleared_at', { mode: 'timestamp' }), // Soft clear timestamp
+        clearedBy: text('cleared_by') // User who cleared the log
     },
     (table) => ({
         levelIdx: index('idx_server_logs_level').on(table.level),

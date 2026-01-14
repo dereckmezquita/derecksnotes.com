@@ -70,14 +70,14 @@ export const CommentsTitle = styled.h2`
 // ============================================================================
 
 export const SingleComment = styled.div<{
-    isDeleted?: boolean;
-    isEditing?: boolean;
+    $isDeleted?: boolean;
+    $isEditing?: boolean;
 }>`
     position: relative;
     padding: ${(props) => props.theme.container.spacing.small} 0;
     border-bottom: 1px solid
         ${(props) => props.theme.container.border.colour.primary()};
-    opacity: ${(props) => (props.isDeleted ? 0.6 : 1)};
+    opacity: ${(props) => (props.$isDeleted ? 0.6 : 1)};
     transition: all 0.2s ease;
     animation: ${fadeIn} 0.3s ease;
 
@@ -87,13 +87,13 @@ export const SingleComment = styled.div<{
 
     &:hover {
         background-color: ${(props) =>
-            props.isEditing
+            props.$isEditing
                 ? props.theme.container.background.colour.light_contrast()
                 : 'transparent'};
     }
 
     ${(props) =>
-        props.isEditing &&
+        props.$isEditing &&
         css`
             background-color: ${props.theme.container.background.colour.light_contrast()};
             border-radius: ${props.theme.container.border.radius};
@@ -182,10 +182,10 @@ export const PendingBadge = styled.span`
 // COMMENT CONTENT STYLES
 // ============================================================================
 
-export const CommentText = styled.div<{ deleted?: boolean }>`
+export const CommentText = styled.div<{ $deleted?: boolean }>`
     margin: ${(props) => props.theme.container.spacing.xsmall} 0;
     color: ${(props) =>
-        props.deleted
+        props.$deleted
             ? props.theme.text.colour.light_grey()
             : props.theme.text.colour.primary()};
     font-size: ${(props) => props.theme.text.size.normal};
@@ -193,7 +193,7 @@ export const CommentText = styled.div<{ deleted?: boolean }>`
     word-break: break-word;
     overflow-wrap: break-word;
     white-space: pre-wrap;
-    font-style: ${(props) => (props.deleted ? 'italic' : 'normal')};
+    font-style: ${(props) => (props.$deleted ? 'italic' : 'normal')};
 
     p {
         margin: 0.5em 0;
@@ -339,12 +339,12 @@ export const CommentControls = styled.div`
     }
 `;
 
-export const ReactionButton = styled.button<{ isActive?: boolean }>`
+export const ReactionButton = styled.button<{ $isActive?: boolean }>`
     background: ${(props) =>
-        props.isActive ? props.theme.theme_colours[9]() : 'none'};
+        props.$isActive ? props.theme.theme_colours[9]() : 'none'};
     border: 1px solid
         ${(props) =>
-            props.isActive ? props.theme.theme_colours[5]() : 'transparent'};
+            props.$isActive ? props.theme.theme_colours[5]() : 'transparent'};
     border-radius: ${(props) => props.theme.container.border.radius};
     padding: ${(props) => props.theme.container.spacing.xsmall}
         ${(props) => props.theme.container.spacing.small};
@@ -352,7 +352,7 @@ export const ReactionButton = styled.button<{ isActive?: boolean }>`
     align-items: center;
     gap: ${(props) => props.theme.container.spacing.xsmall};
     color: ${(props) =>
-        props.isActive
+        props.$isActive
             ? props.theme.theme_colours[5]()
             : props.theme.text.colour.light_grey()};
     font-size: ${(props) => props.theme.text.size.small};
@@ -414,14 +414,15 @@ const getDepthColor = (depth: number, theme: any) => {
     return colors[Math.min(depth, colors.length - 1)];
 };
 
-export const ReplyContainer = styled.div<{ level: number }>`
+export const ReplyContainer = styled.div<{ $level: number }>`
     margin-left: ${(props) => {
-        if (props.level >= 4) return '8px';
-        if (props.level >= 2) return '16px';
+        if (props.$level >= 4) return '8px';
+        if (props.$level >= 2) return '16px';
         return '24px';
     }};
     padding-left: ${(props) => props.theme.container.spacing.small};
-    border-left: 2px solid ${(props) => getDepthColor(props.level, props.theme)};
+    border-left: 2px solid
+        ${(props) => getDepthColor(props.$level, props.theme)};
     margin-top: ${(props) => props.theme.container.spacing.xsmall};
     position: relative;
 
@@ -435,7 +436,7 @@ export const ReplyContainer = styled.div<{ level: number }>`
         background: linear-gradient(
             to bottom,
             transparent,
-            ${(props) => getDepthColor(props.level, props.theme)}
+            ${(props) => getDepthColor(props.$level, props.theme)}
         );
     }
 
@@ -668,9 +669,9 @@ export const FormattingTips = styled.div`
 // COMMENTS LIST STYLES
 // ============================================================================
 
-export const CommentListContainer = styled.div<{ level?: number }>`
+export const CommentListContainer = styled.div<{ $level?: number }>`
     margin-top: ${(props) =>
-        props.level === 0
+        props.$level === 0
             ? props.theme.container.spacing.medium
             : props.theme.container.spacing.xsmall};
     position: relative;
@@ -811,17 +812,17 @@ export const HistoryDate = styled.span`
     color: ${(props) => props.theme.text.colour.light_grey()};
 `;
 
-export const HistoryVersionBadge = styled.span<{ isCurrent?: boolean }>`
+export const HistoryVersionBadge = styled.span<{ $isCurrent?: boolean }>`
     font-size: 0.75rem;
     padding: 2px 8px;
     border-radius: 12px;
     font-weight: ${(props) => props.theme.text.weight.medium};
     background-color: ${(props) =>
-        props.isCurrent
+        props.$isCurrent
             ? props.theme.theme_colours[5]()
             : props.theme.container.background.colour.light_contrast()};
     color: ${(props) =>
-        props.isCurrent
+        props.$isCurrent
             ? props.theme.text.colour.white()
             : props.theme.text.colour.light_grey()};
 `;
@@ -998,36 +999,36 @@ export const PaginationButtons = styled.div`
     gap: ${(props) => props.theme.container.spacing.xsmall};
 `;
 
-export const PageButton = styled.button<{ active?: boolean }>`
+export const PageButton = styled.button<{ $active?: boolean }>`
     min-width: 36px;
     height: 36px;
     padding: ${(props) => props.theme.container.spacing.xsmall}
         ${(props) => props.theme.container.spacing.small};
     background-color: ${(props) =>
-        props.active
+        props.$active
             ? props.theme.theme_colours[5]()
             : props.theme.container.background.colour.solid()};
     color: ${(props) =>
-        props.active
+        props.$active
             ? props.theme.text.colour.white()
             : props.theme.text.colour.primary()};
     border: 1px solid
         ${(props) =>
-            props.active
+            props.$active
                 ? props.theme.theme_colours[5]()
                 : props.theme.container.border.colour.primary()};
     border-radius: ${(props) => props.theme.container.border.radius};
     cursor: pointer;
     font-size: ${(props) => props.theme.text.size.small};
     font-weight: ${(props) =>
-        props.active
+        props.$active
             ? props.theme.text.weight.bold
             : props.theme.text.weight.normal};
     transition: all 0.2s ease;
 
     &:hover:not(:disabled) {
         background-color: ${(props) =>
-            props.active
+            props.$active
                 ? props.theme.theme_colours[5](undefined, undefined, 40)
                 : props.theme.container.background.colour.light_contrast()};
         border-color: ${(props) => props.theme.theme_colours[5]()};
@@ -1055,25 +1056,25 @@ export const PageButton = styled.button<{ active?: boolean }>`
 // ============================================================================
 
 export const ProfileCommentItem = styled.div<{
-    selected?: boolean;
-    deleted?: boolean;
+    $selected?: boolean;
+    $deleted?: boolean;
 }>`
     border: 1px solid
         ${(props) =>
-            props.selected
+            props.$selected
                 ? props.theme.theme_colours[5]()
                 : props.theme.container.border.colour.primary()};
     border-radius: ${(props) => props.theme.container.border.radius};
     padding: ${(props) => props.theme.container.spacing.medium};
     margin-bottom: ${(props) => props.theme.container.spacing.small};
     background: ${(props) =>
-        props.selected
+        props.$selected
             ? props.theme.theme_colours[9]()
-            : props.deleted
+            : props.$deleted
               ? props.theme.container.background.colour.light_contrast()
               : props.theme.container.background.colour.solid()};
     transition: all 0.2s ease;
-    opacity: ${(props) => (props.deleted ? 0.7 : 1)};
+    opacity: ${(props) => (props.$deleted ? 0.7 : 1)};
 
     &:hover {
         border-color: ${(props) => props.theme.theme_colours[5]()};

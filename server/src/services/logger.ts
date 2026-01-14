@@ -147,6 +147,7 @@ export async function getLogs(options: {
     search?: string;
     startDate?: Date;
     endDate?: Date;
+    cleared?: boolean; // Filter by cleared status (undefined = all, false = not cleared, true = cleared only)
     limit?: number;
     offset?: number;
 }) {
@@ -156,6 +157,7 @@ export async function getLogs(options: {
         search,
         startDate,
         endDate,
+        cleared,
         limit = 50,
         offset = 0
     } = options;
@@ -191,6 +193,13 @@ export async function getLogs(options: {
         conditions.push(lte(serverLogs.createdAt, endDate));
     }
 
+    // Filter by cleared status
+    if (cleared === false) {
+        conditions.push(sql`${serverLogs.clearedAt} IS NULL`);
+    } else if (cleared === true) {
+        conditions.push(sql`${serverLogs.clearedAt} IS NOT NULL`);
+    }
+
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     const [logs, countResult] = await Promise.all([
@@ -213,6 +222,108 @@ export async function getLogs(options: {
         limit,
         offset
     };
+}
+
+// Clear (soft delete) logs - marks logs as cleared without deleting them
+export async function clearLogs(
+    logIds: string[],
+    clearedBy: string
+): Promise<number> {
+    if (logIds.length === 0) return 0;
+
+    const result = await db
+        .update(serverLogs)
+        .set({
+            clearedAt: new Date(),
+            clearedBy
+        })
+        .where(
+            and(
+                or(...logIds.map((id) => eq(serverLogs.id, id))),
+                sql`${serverLogs.clearedAt} IS NULL`
+            )
+        )
+        .returning({ id: serverLogs.id });
+
+    return result.length;
+}
+
+// Restore cleared logs
+export async function unclearLogs(logIds: string[]): Promise<number> {
+    if (logIds.length === 0) return 0;
+
+    const result = await db
+        .update(serverLogs)
+        .set({
+            clearedAt: null,
+            clearedBy: null
+        })
+        .where(
+            and(
+                or(...logIds.map((id) => eq(serverLogs.id, id))),
+                sql`${serverLogs.clearedAt} IS NOT NULL`
+            )
+        )
+        .returning({ id: serverLogs.id });
+
+    return result.length;
+}
+
+// Clear all logs matching the current filter
+export async function clearAllLogs(options: {
+    level?: LogLevel | LogLevel[];
+    source?: string;
+    search?: string;
+    startDate?: Date;
+    endDate?: Date;
+    clearedBy: string;
+}): Promise<number> {
+    const { level, source, search, startDate, endDate, clearedBy } = options;
+
+    const conditions = [];
+
+    // Only clear logs that aren't already cleared
+    conditions.push(sql`${serverLogs.clearedAt} IS NULL`);
+
+    if (level) {
+        if (Array.isArray(level)) {
+            conditions.push(or(...level.map((l) => eq(serverLogs.level, l))));
+        } else {
+            conditions.push(eq(serverLogs.level, level));
+        }
+    }
+
+    if (source) {
+        conditions.push(eq(serverLogs.source, source));
+    }
+
+    if (search) {
+        conditions.push(
+            or(
+                like(serverLogs.message, `%${search}%`),
+                like(serverLogs.path, `%${search}%`)
+            )
+        );
+    }
+
+    if (startDate) {
+        conditions.push(gte(serverLogs.createdAt, startDate));
+    }
+
+    if (endDate) {
+        conditions.push(lte(serverLogs.createdAt, endDate));
+    }
+
+    const result = await db
+        .update(serverLogs)
+        .set({
+            clearedAt: new Date(),
+            clearedBy
+        })
+        .where(and(...conditions))
+        .returning({ id: serverLogs.id });
+
+    return result.length;
 }
 
 export async function getErrorSummaries(options: {

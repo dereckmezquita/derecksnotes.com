@@ -118,11 +118,120 @@ You may see this warning when running the client:
 
 If ports 3000-3002 are in use, the client will automatically try higher ports. Check the console output for the actual URL.
 
+### Gitignore Conflicts
+
+Be careful with `.gitignore` patterns. Broad patterns like `logs` can match directories you want tracked (e.g., `client/src/app/admin/logs/`). Use more specific patterns:
+
+```gitignore
+# Good - specific patterns
+*.log
+/logs/
+
+# Bad - too broad, may match wanted directories
+logs
+```
+
 ## Admin Setup
 
 1. Set `ADMIN_USERNAME` in `server/.env`
 2. Register a user with that username through the app
 3. The user is automatically added to the admin group
+4. Access the admin dashboard at `/admin`
+
+### Admin Features
+
+- **Dashboard**: Overview stats and quick actions
+- **Comments**: Approve/reject pending comments
+- **Users**: Search, ban/unban, manage group assignments
+- **Reports**: Review and resolve user reports
+- **Audit Log**: View all admin actions
+- **Server Logs**: View, filter, and download server logs
+- **Analytics**: Site usage statistics
+- **Groups**: Manage permission groups
+
+### Permission System
+
+Users are assigned to groups, and groups have permissions:
+
+- **admin**: Full access to all features
+- **moderator**: Comment moderation, limited user management
+- **trusted**: Comments auto-approved
+- **user**: Standard user permissions
+
+## Deployment
+
+### Prerequisites
+
+Install the GitHub CLI:
+
+```bash
+# macOS
+brew install gh
+
+# Authenticate
+gh auth login
+```
+
+### Manual Deployment via GitHub CLI
+
+The deploy workflow can be triggered from any branch using the GitHub CLI:
+
+```bash
+# Deploy to dev environment
+gh workflow run deploy.yml --ref <branch-name> -f environment=dev
+
+# Deploy to prod environment
+gh workflow run deploy.yml --ref <branch-name> -f environment=prod
+
+# Example: Deploy current branch to prod
+gh workflow run deploy.yml --ref DN-11-content-improvements-and-cleanup -f environment=prod
+```
+
+### Monitor Workflow Progress
+
+```bash
+# List recent workflow runs
+gh run list --workflow=deploy.yml
+
+# Watch a specific run (get ID from list above)
+gh run watch <run-id>
+
+# View logs for a run
+gh run view <run-id> --log
+```
+
+### Automatic Deployment
+
+- **Production**: Automatically deploys when a GitHub Release is published
+- **Manual**: Use the GitHub Actions UI or CLI (requires workflow to be on default branch for UI)
+
+### Deployment Configuration
+
+The workflow creates a `.env` file on the VPS with these variables:
+
+| Variable | Prod | Dev |
+|----------|------|-----|
+| `DATA_PATH` | `/var/www/derecksnotes.com/data` | `/var/www/dev.derecksnotes.com/data` |
+| `PUBLIC_PATH` | `/var/www/derecksnotes.com/public` | `/var/www/dev.derecksnotes.com/public` |
+| `PORT_CLIENT` | 3000 | 3010 |
+| `PORT_SERVER` | 3001 | 3011 |
+
+### Checking Container Status on VPS
+
+```bash
+# SSH to VPS
+ssh user@your-vps
+
+# Check running containers
+docker ps
+
+# View container logs
+docker logs prod_derecksnotes
+docker logs dev_derecksnotes
+
+# Check database file exists
+ls -la /var/www/derecksnotes.com/data/
+```
 
 ## Tech Stack
 

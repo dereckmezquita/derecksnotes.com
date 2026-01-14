@@ -14,14 +14,14 @@ const ENV_CONFIG = {
         domain: 'dev.derecksnotes.com',
         baseUrl: 'https://dev.derecksnotes.com',
         apiUrl: 'https://dev.derecksnotes.com/api',
-        databasePath: '/data/database.sqlite',
+        databasePath: '/app/data/database.sqlite',
         secureCookies: true
     },
     prod: {
         domain: 'derecksnotes.com',
         baseUrl: 'https://derecksnotes.com',
         apiUrl: 'https://derecksnotes.com/api',
-        databasePath: '/data/database.sqlite',
+        databasePath: '/app/data/database.sqlite',
         secureCookies: true
     }
 } as const;

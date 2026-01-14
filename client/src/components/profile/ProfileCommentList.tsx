@@ -42,7 +42,7 @@ export const ProfileCommentList: React.FC<ProfileCommentListProps> = ({
     }
 
     return (
-        <CommentListContainer level={0}>
+        <CommentListContainer $level={0}>
             {comments.map((comment) => (
                 <ProfileCommentItem
                     key={comment.id}

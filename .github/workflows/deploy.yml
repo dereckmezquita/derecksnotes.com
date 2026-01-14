@@ -77,12 +77,32 @@ jobs:
             echo "work_dir=/root/prod_docker-compose-derecksnotes/" >> $GITHUB_OUTPUT
             echo "port_client=3000" >> $GITHUB_OUTPUT
             echo "port_server=3001" >> $GITHUB_OUTPUT
+            echo "data_path=/var/www/derecksnotes.com/data" >> $GITHUB_OUTPUT
+            echo "public_path=/var/www/derecksnotes.com/public" >> $GITHUB_OUTPUT
           else
             echo "container_name=dev_derecksnotes" >> $GITHUB_OUTPUT
             echo "work_dir=/root/dev_docker-compose-derecksnotes/" >> $GITHUB_OUTPUT
             echo "port_client=3010" >> $GITHUB_OUTPUT
             echo "port_server=3011" >> $GITHUB_OUTPUT
+            echo "data_path=/var/www/dev.derecksnotes.com/data" >> $GITHUB_OUTPUT
+            echo "public_path=/var/www/dev.derecksnotes.com/public" >> $GITHUB_OUTPUT
           fi
+
+      - name: Checkout code for docker-compose
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: docker-compose.yml
+          sparse-checkout-cone-mode: false
+
+      - name: Copy docker-compose.yml to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USERNAME }}
+          password: ${{ secrets.REMOTE_PASSWORD }}
+          port: ${{ secrets.REMOTE_PORT }}
+          source: docker-compose.yml
+          target: ${{ steps.vars.outputs.work_dir }}
 
       - name: Deploy to remote server
         uses: appleboy/ssh-action@v1.0.3
@@ -96,29 +116,21 @@ jobs:
             mkdir -p ${{ steps.vars.outputs.work_dir }}
             cd ${{ steps.vars.outputs.work_dir }}
 
-            # Create docker-compose.yml
-            cat > docker-compose.yml << EOF
-            services:
-              derecksnotes:
-                image: ${{ env.IMAGE_NAME }}:${{ env.TAG }}
-                container_name: ${{ steps.vars.outputs.container_name }}
-                ports:
-                  - "${{ steps.vars.outputs.port_client }}:3000"
-                  - "${{ steps.vars.outputs.port_server }}:3001"
-                environment:
-                  - BUILD_ENV=${{ env.ENV }}
-                  - SESSION_SECRET=${{ secrets.SESSION_SECRET }}
-                networks:
-                  - dereck-network
-                restart: unless-stopped
-                volumes:
-                  - ./data:/app/data
-                  - /var/www/derecksnotes.com/public:/app/client/public
-
-            networks:
-              dereck-network:
-                external: true
+            # Create .env file with deployment configuration
+            cat > .env << EOF
+            IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ env.TAG }}
+            CONTAINER_NAME=${{ steps.vars.outputs.container_name }}
+            PORT_CLIENT=${{ steps.vars.outputs.port_client }}
+            PORT_SERVER=${{ steps.vars.outputs.port_server }}
+            BUILD_ENV=${{ env.ENV }}
+            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+            ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }}
+            DATA_PATH=${{ steps.vars.outputs.data_path }}
+            PUBLIC_PATH=${{ steps.vars.outputs.public_path }}
             EOF
+
+            # Ensure data directory exists
+            mkdir -p ${{ steps.vars.outputs.data_path }}
 
             # Pull and deploy
             docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
