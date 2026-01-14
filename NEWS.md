@@ -1,16 +1,33 @@
 # derecksnotes.com Change Log
 
+## v5.1.0 - Page Analytics & Code Cleanup (2025-01)
+
+Page view tracking, server logs management, and codebase modularisation.
+
+### New Features
+
+- **Page View Tracking**: Views, unique visitors, duration, and scroll depth per post
+- **Post Reactions**: Like/dislike buttons on posts with `usePageView` hook
+- **Server Logs Page** (`/admin/logs`): View, filter, soft-delete, and download logs; error summaries with resolution tracking
+- **Profile Page Redesign**: Admin-style sidebar layout, simplified UI
+
+### Code Quality
+
+- **Centralized API Types**: New `client/src/types/api.ts` with shared type definitions
+- **Modular Components**: Logs page refactored into reusable components
+- **Type Fixes**: Removed duplicates, fixed frontend/backend mismatches
+- **styled-components**: Fixed transient prop warnings with `$` prefix
+
+### Database
+
+- `0003_page_views_reactions.sql` - Page views and post reactions tables
+- `0004_logs_soft_clear.sql` - Soft delete for server logs
+
+---
+
 ## v5.0.0 - Major Architecture Overhaul (2025-01)
 
 Major release with complete backend overhaul, admin dashboard, and UI improvements.
-
-### Recent Updates
-
-- **Server Logs Page**: View, filter, and download server logs at `/admin/logs`
-- **Analytics Page**: Site analytics dashboard at `/admin/analytics`
-- **Confirm Password**: Added to registration and password change forms
-- **Toast Notifications**: Replaced slide-in alerts with sonner toasts
-- **Bug Fixes**: Fixed gitignore conflicts, MDX error handling, stale build artefacts
 
 ### Database Migration: MongoDB to SQLite
 
