@@ -94,9 +94,9 @@ export function SideBarAbout(): ReactElement {
         <SideBarAboutContainer>
             <SideBarAboutH2>About</SideBarAboutH2>
             <p>
-                This website is custom made by Dereck using React, Next.js 14
+                This website is custom made by Dereck using React, Next.js 15
                 app dir, and TypeScript. It incorporates progressive web app
-                technologies and relies on a Bun backend along with a MongoDB
+                technologies and relies on a Bun backend along with a SQLite
                 database and Docker for CI/CD deployment.
             </p>
             <p>
