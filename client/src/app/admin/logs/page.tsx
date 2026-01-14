@@ -224,6 +224,7 @@ export default function AdminLogsPage() {
         null
     );
     const [resolveNotes, setResolveNotes] = useState('');
+    const [downloading, setDownloading] = useState(false);
 
     const canViewLogs = isAdmin() || hasPermission('admin.dashboard');
 
@@ -355,6 +356,111 @@ export default function AdminLogsPage() {
         } catch (err: any) {
             console.error('Error unresolving error:', err);
             setError(err.response?.data?.error || 'Failed to unresolve error');
+        }
+    };
+
+    // Download logs as JSON
+    const handleDownloadLogs = async (downloadAll: boolean = false) => {
+        setDownloading(true);
+        try {
+            const params = new URLSearchParams();
+            if (!downloadAll) {
+                // Download current page only
+                params.append('offset', ((page - 1) * 25).toString());
+                params.append('limit', '25');
+            } else {
+                // Download up to 1000 logs
+                params.append('offset', '0');
+                params.append('limit', '1000');
+            }
+            if (levelFilter) {
+                params.append('level', levelFilter);
+            }
+            if (searchQuery) {
+                params.append('search', searchQuery);
+            }
+
+            const res = await api.get<{
+                logs: LogEntry[];
+                total: number;
+            }>(`/admin/logs?${params.toString()}`);
+
+            const dataToDownload = {
+                exportedAt: new Date().toISOString(),
+                filters: {
+                    level: levelFilter || 'all',
+                    search: searchQuery || null,
+                    downloadAll
+                },
+                total: res.data.total,
+                count: res.data.logs.length,
+                logs: res.data.logs
+            };
+
+            const blob = new Blob([JSON.stringify(dataToDownload, null, 2)], {
+                type: 'application/json'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().split('T')[0];
+            a.download = `server-logs-${timestamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            console.error('Error downloading logs:', err);
+            setError(err.response?.data?.error || 'Failed to download logs');
+        } finally {
+            setDownloading(false);
+        }
+    };
+
+    // Download errors as JSON
+    const handleDownloadErrors = async () => {
+        setDownloading(true);
+        try {
+            const params = new URLSearchParams({
+                offset: '0',
+                limit: '1000'
+            });
+            if (resolvedFilter !== '') {
+                params.append('resolved', resolvedFilter);
+            }
+
+            const res = await api.get<{
+                summaries: ErrorSummary[];
+                total: number;
+            }>(`/admin/logs/errors?${params.toString()}`);
+
+            const dataToDownload = {
+                exportedAt: new Date().toISOString(),
+                filters: {
+                    resolved: resolvedFilter || 'all'
+                },
+                total: res.data.total,
+                count: res.data.summaries.length,
+                errors: res.data.summaries
+            };
+
+            const blob = new Blob([JSON.stringify(dataToDownload, null, 2)], {
+                type: 'application/json'
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().split('T')[0];
+            a.download = `error-summaries-${timestamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err: any) {
+            console.error('Error downloading errors:', err);
+            setError(err.response?.data?.error || 'Failed to download errors');
+        } finally {
+            setDownloading(false);
         }
     };
 
@@ -524,6 +630,39 @@ export default function AdminLogsPage() {
                             }}
                         >
                             Clear Filters
+                        </Button>
+                    )}
+                    {activeTab === 'logs' ? (
+                        <>
+                            <Button
+                                variant="secondary"
+                                size="small"
+                                onClick={() => handleDownloadLogs(false)}
+                                disabled={downloading || logs.length === 0}
+                            >
+                                {downloading
+                                    ? 'Downloading...'
+                                    : 'Download Page'}
+                            </Button>
+                            <Button
+                                variant="primary"
+                                size="small"
+                                onClick={() => handleDownloadLogs(true)}
+                                disabled={downloading}
+                            >
+                                {downloading
+                                    ? 'Downloading...'
+                                    : 'Download All'}
+                            </Button>
+                        </>
+                    ) : (
+                        <Button
+                            variant="primary"
+                            size="small"
+                            onClick={handleDownloadErrors}
+                            disabled={downloading || errors.length === 0}
+                        >
+                            {downloading ? 'Downloading...' : 'Download Errors'}
                         </Button>
                     )}
                 </ActionBarRight>
