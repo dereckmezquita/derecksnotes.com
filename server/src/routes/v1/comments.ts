@@ -11,6 +11,7 @@ import { commentLimiter } from '@middleware/rateLimit';
 import { getUserPermissions } from '@services/auth';
 import type { AuthenticatedRequest } from '@/types';
 import { dbLogger } from '@services/logger';
+import { getOrCreatePost } from './posts';
 
 const router = Router();
 
@@ -24,7 +25,8 @@ const DEFAULT_REPLIES_PER_LEVEL = 5;
 
 // Validation schemas
 const createCommentSchema = z.object({
-    postSlug: z.string().min(1, 'Post slug is required'),
+    slug: z.string().min(1, 'Slug is required'),
+    title: z.string().min(1, 'Title is required'),
     content: z
         .string()
         .min(1, 'Content cannot be empty')
@@ -57,6 +59,10 @@ function formatComment(
             displayName: string | null;
             avatarUrl: string | null;
         };
+        post?: {
+            slug: string;
+            title: string;
+        };
         reactions?: Array<{ type: string }>;
     },
     currentUserId?: string,
@@ -70,7 +76,9 @@ function formatComment(
 
     return {
         id: comment.id,
-        postSlug: comment.postSlug,
+        postId: comment.postId,
+        slug: comment.post?.slug,
+        postTitle: comment.post?.title,
         parentId: comment.parentId,
         content: comment.deletedAt ? '[deleted]' : comment.content,
         depth: comment.depth,
@@ -99,13 +107,13 @@ function formatComment(
     };
 }
 
-// GET /api/v1/comments?postSlug=xxx&page=1&limit=20&maxDepth=3&repliesPerLevel=5&sort=newest
+// GET /api/v1/comments?slug=xxx&page=1&limit=20&maxDepth=3&repliesPerLevel=5&sort=newest
 router.get(
     '/',
     optionalAuth,
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
-            const { postSlug } = req.query;
+            const slug = req.query.slug as string;
             const page = Math.max(
                 1,
                 parseInt(req.query.page as string) || DEFAULT_PAGE
@@ -145,9 +153,29 @@ router.get(
                 ? (sortParam as SortOption)
                 : 'newest';
 
-            if (!postSlug || typeof postSlug !== 'string') {
+            if (!slug || typeof slug !== 'string') {
                 res.status(400).json({
-                    error: 'postSlug query parameter is required'
+                    error: 'slug query parameter is required'
+                });
+                return;
+            }
+
+            // Find the post by slug
+            const post = await db.query.posts.findFirst({
+                where: eq(schema.posts.slug, slug)
+            });
+
+            // If no post exists, return empty results
+            if (!post) {
+                res.json({
+                    comments: [],
+                    pagination: {
+                        page,
+                        limit,
+                        totalTopLevel: 0,
+                        hasMore: false
+                    },
+                    sort
                 });
                 return;
             }
@@ -175,7 +203,7 @@ router.get(
                 .from(schema.comments)
                 .where(
                     and(
-                        eq(schema.comments.postSlug, postSlug),
+                        eq(schema.comments.postId, post.id),
                         isNull(schema.comments.parentId),
                         visibilityClause
                     )
@@ -193,7 +221,7 @@ router.get(
 
             let topLevelComments = await db.query.comments.findMany({
                 where: and(
-                    eq(schema.comments.postSlug, postSlug),
+                    eq(schema.comments.postId, post.id),
                     isNull(schema.comments.parentId),
                     visibilityClause
                 ),
@@ -204,6 +232,12 @@ router.get(
                             username: true,
                             displayName: true,
                             avatarUrl: true
+                        }
+                    },
+                    post: {
+                        columns: {
+                            slug: true,
+                            title: true
                         }
                     },
                     reactions: true
@@ -227,7 +261,7 @@ router.get(
             if (sort === 'most_discussed') {
                 const allPostReplies = await db.query.comments.findMany({
                     where: and(
-                        eq(schema.comments.postSlug, postSlug),
+                        eq(schema.comments.postId, post.id),
                         sql`${schema.comments.parentId} IS NOT NULL`,
                         visibilityClause
                     ),
@@ -284,7 +318,7 @@ router.get(
                 topLevelIds.length > 0
                     ? await db.query.comments.findMany({
                           where: and(
-                              eq(schema.comments.postSlug, postSlug),
+                              eq(schema.comments.postId, post.id),
                               sql`${schema.comments.parentId} IS NOT NULL`,
                               visibilityClause
                           ),
@@ -295,6 +329,12 @@ router.get(
                                       username: true,
                                       displayName: true,
                                       avatarUrl: true
+                                  }
+                              },
+                              post: {
+                                  columns: {
+                                      slug: true,
+                                      title: true
                                   }
                               },
                               reactions: true
@@ -496,6 +536,12 @@ router.get(
                             avatarUrl: true
                         }
                     },
+                    post: {
+                        columns: {
+                            slug: true,
+                            title: true
+                        }
+                    },
                     reactions: true
                 },
                 orderBy: (comments, { asc }) => [asc(comments.createdAt)],
@@ -587,6 +633,9 @@ router.post(
         try {
             const data = createCommentSchema.parse(req.body);
 
+            // Get or create the post
+            const postId = await getOrCreatePost(data.slug, data.title);
+
             let depth = 0;
             let parentId: string | null = null;
 
@@ -604,7 +653,7 @@ router.post(
                     return;
                 }
 
-                if (parentComment.postSlug !== data.postSlug) {
+                if (parentComment.postId !== postId) {
                     res.status(400).json({
                         error: 'Parent comment is from a different post'
                     });
@@ -630,7 +679,7 @@ router.post(
             await db.insert(schema.comments).values({
                 id: commentId,
                 userId: req.user!.id,
-                postSlug: data.postSlug,
+                postId,
                 parentId,
                 content: data.content,
                 depth,
@@ -647,6 +696,12 @@ router.post(
                             username: true,
                             displayName: true,
                             avatarUrl: true
+                        }
+                    },
+                    post: {
+                        columns: {
+                            slug: true,
+                            title: true
                         }
                     },
                     reactions: true
@@ -734,6 +789,12 @@ router.patch(
                             username: true,
                             displayName: true,
                             avatarUrl: true
+                        }
+                    },
+                    post: {
+                        columns: {
+                            slug: true,
+                            title: true
                         }
                     },
                     reactions: true
@@ -1041,7 +1102,7 @@ router.get(
     async (req: AuthenticatedRequest, res: Response): Promise<void> => {
         try {
             const query = req.query.q as string;
-            const postSlug = req.query.postSlug as string;
+            const slug = req.query.slug as string;
             const page = Math.max(1, parseInt(req.query.page as string) || 1);
             const limit = Math.min(
                 50,
@@ -1078,11 +1139,17 @@ router.get(
                 visibilityClause
             );
 
-            if (postSlug) {
-                whereClause = and(
-                    whereClause,
-                    eq(schema.comments.postSlug, postSlug)
-                );
+            // If slug provided, find the post and filter by postId
+            if (slug) {
+                const post = await db.query.posts.findFirst({
+                    where: eq(schema.posts.slug, slug)
+                });
+                if (post) {
+                    whereClause = and(
+                        whereClause,
+                        eq(schema.comments.postId, post.id)
+                    );
+                }
             }
 
             // Count total results
@@ -1102,6 +1169,12 @@ router.get(
                             username: true,
                             displayName: true,
                             avatarUrl: true
+                        }
+                    },
+                    post: {
+                        columns: {
+                            slug: true,
+                            title: true
                         }
                     },
                     reactions: true

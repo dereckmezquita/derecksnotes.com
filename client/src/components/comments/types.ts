@@ -28,7 +28,9 @@ export interface ParentComment {
 
 export interface CommentType {
     id: string;
-    postSlug: string;
+    postId: string;
+    slug?: string;
+    postTitle?: string;
     parentId: string | null;
     content: string;
     depth: number;
@@ -71,7 +73,8 @@ export interface RepliesResponse {
 
 export interface CommentItemProps {
     comment: CommentType;
-    postSlug: string;
+    slug: string;
+    title: string;
     currentUser: User | null;
     level: number;
     onUpdateComment: (
@@ -94,7 +97,8 @@ export interface CommentFormProps {
 
 export interface CommentListProps {
     comments: CommentType[];
-    postSlug: string;
+    slug: string;
+    title: string;
     currentUser: User | null;
     onUpdateComment: (
         commentId: string,

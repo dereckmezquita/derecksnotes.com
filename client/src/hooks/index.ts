@@ -1,0 +1,1 @@
+export { usePageView } from './usePageView';

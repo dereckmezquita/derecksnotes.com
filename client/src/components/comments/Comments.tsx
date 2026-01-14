@@ -22,10 +22,11 @@ import {
 } from '@components/comments';
 
 interface CommentsProps {
-    postSlug: string;
+    slug: string;
+    title: string;
 }
 
-export function Comments({ postSlug }: CommentsProps) {
+export function Comments({ slug, title }: CommentsProps) {
     const { user, isAuthenticated } = useAuth();
     const [comments, setComments] = useState<CommentType[]>([]);
     const [loading, setLoading] = useState(true);
@@ -44,9 +45,9 @@ export function Comments({ postSlug }: CommentsProps) {
             }
             setError(null);
             try {
-                const normalizedSlug = postSlug.replace(/^\/+|\/+$/g, '');
+                const normalizedSlug = slug.replace(/^\/+|\/+$/g, '');
                 const res = await api.get<CommentResponse>(
-                    `/comments?postSlug=${encodeURIComponent(normalizedSlug)}&page=${page}`
+                    `/comments?slug=${encodeURIComponent(normalizedSlug)}&page=${page}`
                 );
                 if (append) {
                     setComments((prev) => [...prev, ...res.data.comments]);
@@ -65,14 +66,14 @@ export function Comments({ postSlug }: CommentsProps) {
                 setLoadingMore(false);
             }
         },
-        [postSlug]
+        [slug]
     );
 
     useEffect(() => {
-        if (postSlug) {
+        if (slug) {
             fetchComments();
         }
-    }, [postSlug, fetchComments]);
+    }, [slug, fetchComments]);
 
     const handleLoadMore = useCallback(() => {
         if (pagination && pagination.hasMore && !loadingMore) {
@@ -82,12 +83,13 @@ export function Comments({ postSlug }: CommentsProps) {
 
     const handleAddComment = async (content: string) => {
         try {
-            const normalizedSlug = postSlug.replace(/^\/+|\/+$/g, '');
+            const normalizedSlug = slug.replace(/^\/+|\/+$/g, '');
             const res = await api.post<{
                 comment: CommentType;
                 message: string;
             }>('/comments', {
-                postSlug: normalizedSlug,
+                slug: normalizedSlug,
+                title,
                 content
             });
             setComments((prev) => [
@@ -199,7 +201,8 @@ export function Comments({ postSlug }: CommentsProps) {
                 <>
                     <CommentList
                         comments={comments}
-                        postSlug={postSlug}
+                        slug={slug}
+                        title={title}
                         currentUser={user}
                         onUpdateComment={updateCommentTree}
                         onAddReply={addReply}

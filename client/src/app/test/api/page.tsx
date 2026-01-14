@@ -10,7 +10,7 @@ function Page() {
             <ApiStatus />
             <AuthDemo />
             <AuthProtectedDemo />
-            <Comments postSlug="test-post" />
+            <Comments slug="test/api" title="API Test Page" />
         </PostArticle>
     );
 }

@@ -6,7 +6,8 @@ import { CommentListContainer, NoCommentsMessage } from './CommentStyles';
 
 export function CommentList({
     comments,
-    postSlug,
+    slug,
+    title,
     currentUser,
     onUpdateComment,
     onAddReply,
@@ -40,7 +41,8 @@ export function CommentList({
                 <CommentItem
                     key={comment.id}
                     comment={comment}
-                    postSlug={postSlug}
+                    slug={slug}
+                    title={title}
                     currentUser={currentUser}
                     level={level}
                     onUpdateComment={onUpdateComment}

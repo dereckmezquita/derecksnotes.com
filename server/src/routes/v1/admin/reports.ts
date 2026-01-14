@@ -49,13 +49,19 @@ router.get(
                         columns: {
                             id: true,
                             content: true,
-                            postSlug: true
+                            postId: true
                         },
                         with: {
                             user: {
                                 columns: {
                                     id: true,
                                     username: true
+                                }
+                            },
+                            post: {
+                                columns: {
+                                    slug: true,
+                                    title: true
                                 }
                             }
                         }

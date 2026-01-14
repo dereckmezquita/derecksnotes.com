@@ -21,6 +21,10 @@ function formatProfileComment(
             displayName: string | null;
             avatarUrl: string | null;
         } | null;
+        post?: {
+            slug: string;
+            title: string;
+        } | null;
         parent?:
             | (typeof schema.comments.$inferSelect & {
                   user?: {
@@ -60,7 +64,9 @@ function formatProfileComment(
 
     return {
         id: comment.id,
-        postSlug: comment.postSlug,
+        postId: comment.postId,
+        slug: comment.post?.slug,
+        postTitle: comment.post?.title,
         parentId: comment.parentId,
         content: comment.deletedAt ? '[deleted]' : comment.content,
         depth: comment.depth,
@@ -306,6 +312,12 @@ router.get(
                             avatarUrl: true
                         }
                     },
+                    post: {
+                        columns: {
+                            slug: true,
+                            title: true
+                        }
+                    },
                     parent: {
                         with: {
                             user: {
@@ -368,6 +380,12 @@ router.get(
                             avatarUrl: true
                         }
                     },
+                    post: {
+                        columns: {
+                            slug: true,
+                            title: true
+                        }
+                    },
                     parent: {
                         with: {
                             user: {
@@ -428,6 +446,12 @@ router.get(
                             username: true,
                             displayName: true,
                             avatarUrl: true
+                        }
+                    },
+                    post: {
+                        columns: {
+                            slug: true,
+                            title: true
                         }
                     },
                     parent: {
