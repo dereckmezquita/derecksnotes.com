@@ -1,4 +1,5 @@
 import React from 'react';
+import { MAX_COMMENT_DEPTH } from '@lib/constants';
 import { CommentItem } from './CommentItem';
 import { CommentListProps } from './types';
 import { CommentListContainer, NoCommentsMessage } from './CommentStyles';
@@ -16,16 +17,28 @@ export function CommentList({
     if (comments.length === 0 && level === 0) {
         return (
             <NoCommentsMessage>
-                No comments yet. Be the first to comment!
+                <p>No comments yet</p>
+                <span>Be the first to share your thoughts!</span>
             </NoCommentsMessage>
         );
     }
 
+    // Don't render if we've exceeded max depth
+    if (level >= MAX_COMMENT_DEPTH) {
+        return null;
+    }
+
     return (
-        <CommentListContainer level={level}>
+        <CommentListContainer
+            level={level}
+            role={level === 0 ? 'list' : undefined}
+            aria-label={
+                level === 0 ? 'Comments' : `Nested replies level ${level}`
+            }
+        >
             {comments.map((comment) => (
                 <CommentItem
-                    key={comment._id}
+                    key={comment.id}
                     comment={comment}
                     postSlug={postSlug}
                     currentUser={currentUser}

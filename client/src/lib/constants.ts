@@ -1,10 +1,3 @@
-import path from 'path';
-
-// File system paths
-export const ROOT_DIR: string = process.cwd();
-export const ROOT_DIR_SRC: string = path.join(ROOT_DIR, 'src');
-export const ROOT_DIR_APP: string = path.join(ROOT_DIR_SRC, 'app');
-
 // Comment settings
 export const MAX_COMMENT_DEPTH: number = 5; // Maximum nesting level for comments
 export const MAX_COMMENT_LENGTH: number = 5000; // Maximum characters per comment

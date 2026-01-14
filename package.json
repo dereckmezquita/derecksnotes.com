@@ -1,17 +1,19 @@
 {
   "name": "derecksnotes.com",
-  "version": "4.5.3",
+  "version": "5.0.0",
   "type": "module",
   "repository": "git@github.com:dereckdemezquita/derecksnotes.com.git",
   "scripts": {
-    "dev": "concurrently \"yarn dev:client\" \"yarn dev:server\"",
-    "dev:client": "cd client && yarn run dev",
-    "build:client": "cd client && yarn run build",
-    "dev:server": "cd server && bun run dev",
-    "prepend-jira-id": "bash commit-msg.sh",
-    "format": "prettier --write .",
-    "test": "jest",
-    "docker:client": "docker-compose -f ./docker-compose.client.yml up --build -d"
+    "dev": "concurrently -n client,server -c blue,green \"bun run --cwd client dev\" \"bun run --cwd server dev\"",
+    "build": "bun run --cwd client build",
+    "start": "concurrently -n client,server \"bun run --cwd client start\" \"bun run --cwd server start\"",
+    "format": "bun prettier --write .",
+    "test": "bun test",
+    "db:generate": "bun run --cwd server db:generate",
+    "db:migrate": "bun run --cwd server db:migrate",
+    "db:seed": "bun run --cwd server db:seed",
+    "db:reset": "bun run --cwd server db:reset",
+    "db:studio": "bun run --cwd server db:studio"
   },
   "prettier": {
     "semi": true,
@@ -32,7 +34,7 @@
   "devDependencies": {
     "@types/bun": "^1.1.4",
     "@types/node": "^20.14.2",
-    "concurrently": "^8.2.2",
+    "concurrently": "^9.2.1",
     "husky": "^9.0.11",
     "prettier": "^3.3.2",
     "typescript": "^5.4.5"

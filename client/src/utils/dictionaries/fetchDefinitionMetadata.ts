@@ -3,7 +3,7 @@ import path from 'path';
 import { accessReadFile } from '../accessReadFile';
 import { processMdx } from '../mdx/processMdx';
 
-import { NEXT_PUBLIC_APP_URL } from '@lib/env';
+import { config } from '@lib/env';
 import { stripMdx } from '../mdx/fetchPostsMetadata';
 import rehypeLinkToDefinition from '../remark-rehype/rehypeLinkToDefinition';
 
@@ -33,7 +33,13 @@ export interface DefinitionMetadata {
 
 export function extractSingleDefinitionMetadata(
     filepath: string
-): DefinitionMetadata {
+): DefinitionMetadata | null {
+    // In local dev, gracefully handle missing files (e.g., static asset requests hitting dynamic route)
+    if (!config.isProduction && !fs.existsSync(filepath)) {
+        console.warn(`Definition file not found: ${filepath}`);
+        return null;
+    }
+
     try {
         const { summary, frontmatter } = stripMdx<DefinitionMetadata>(filepath);
 
@@ -69,10 +75,10 @@ export function fetchDefintionsMetadata(
     const files: string[] = fs.readdirSync(folder);
     const mdxFiles: string[] = files.filter((file) => file.endsWith('.mdx'));
 
-    // 2. Extract metadata from each .mdx
-    let definitions: DefinitionMetadata[] = mdxFiles.map((file) =>
-        extractSingleDefinitionMetadata(path.join(folder, file))
-    );
+    // 2. Extract metadata from each .mdx (filter out nulls from missing files)
+    let definitions: DefinitionMetadata[] = mdxFiles
+        .map((file) => extractSingleDefinitionMetadata(path.join(folder, file)))
+        .filter((def): def is DefinitionMetadata => def !== null);
 
     // 3. Filter published definitions that are *related* to the current word
     definitions = definitions.filter((def) => {
@@ -148,7 +154,7 @@ export async function fetchAllDefintions(dir: string): Promise<Definition[]> {
 
                 frontmatter.url = new URL(
                     path.join('dictionaries', frontmatter.dictionary),
-                    NEXT_PUBLIC_APP_URL || 'https://derecksnotes.com'
+                    config.baseUrl
                 ).toString();
 
                 frontmatter.slug = path.basename(filename, '.mdx');

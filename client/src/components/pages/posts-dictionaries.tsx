@@ -15,7 +15,7 @@ export const PostContainer = styled.div`
 
     width: 80%;
     background-color: ${(props) =>
-        props.theme.container.background.colour.content()};
+        props.theme.container.background.colour.card()};
 
     border: 1px solid #ccc;
     border-radius: 5px;
@@ -30,6 +30,7 @@ export const SideBarContainer = styled.div`
     width: 25%;
     text-align: center;
     padding-top: 20px;
+    min-height: 500px;
 
     @media (max-width: ${minWidthSnapUp}) {
         display: none;
@@ -93,9 +94,9 @@ export function SideBarAbout(): ReactElement {
         <SideBarAboutContainer>
             <SideBarAboutH2>About</SideBarAboutH2>
             <p>
-                This website is custom made by Dereck using React, Next.js 14
+                This website is custom made by Dereck using React, Next.js 15
                 app dir, and TypeScript. It incorporates progressive web app
-                technologies and relies on a Bun backend along with a MongoDB
+                technologies and relies on a Bun backend along with a SQLite
                 database and Docker for CI/CD deployment.
             </p>
             <p>

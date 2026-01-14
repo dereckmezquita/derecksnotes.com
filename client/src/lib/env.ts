@@ -1,15 +1,38 @@
 import pkg from '../../../package.json';
 
-export const NEXT_PUBLIC_APP_VERSION = pkg.version;
+type BuildEnv = 'local' | 'dev' | 'prod';
 
-export const NEXT_PUBLIC_APP_URL: string | undefined =
-    process.env.NEXT_PUBLIC_APP_URL;
+const BUILD_ENV =
+    (process.env.NEXT_PUBLIC_BUILD_ENV as BuildEnv) ||
+    (process.env.BUILD_ENV as BuildEnv) ||
+    'local';
 
-export const NEXT_PUBLIC_API_URL: string | undefined =
-    process.env.NEXT_PUBLIC_API_URL;
+const ENV_CONFIG = {
+    local: {
+        domain: 'localhost',
+        baseUrl: 'http://localhost:3000',
+        apiUrl: 'http://localhost:3000/api'
+    },
+    dev: {
+        domain: 'dev.derecksnotes.com',
+        baseUrl: 'https://dev.derecksnotes.com',
+        apiUrl: 'https://dev.derecksnotes.com/api'
+    },
+    prod: {
+        domain: 'derecksnotes.com',
+        baseUrl: 'https://derecksnotes.com',
+        apiUrl: 'https://derecksnotes.com/api'
+    }
+} as const;
 
-export const NEXT_PUBLIC_BUILD_ENV: string | undefined =
-    process.env.NEXT_PUBLIC_BUILD_ENV;
+const derived = ENV_CONFIG[BUILD_ENV];
 
-export const NEXT_PUBLIC_BUILD_ENV_BOOL: boolean =
-    NEXT_PUBLIC_BUILD_ENV === 'PROD' ? true : false;
+export const config = {
+    version: pkg.version,
+    buildEnv: BUILD_ENV,
+    isProduction: BUILD_ENV === 'prod',
+    commitSha: process.env.NEXT_PUBLIC_COMMIT_SHA || 'local',
+    domain: process.env.NEXT_PUBLIC_DOMAIN || derived.domain,
+    baseUrl: process.env.NEXT_PUBLIC_APP_URL || derived.baseUrl,
+    apiUrl: process.env.NEXT_PUBLIC_API_URL || derived.apiUrl
+};

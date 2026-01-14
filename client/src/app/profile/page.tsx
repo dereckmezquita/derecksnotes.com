@@ -1,49 +1,47 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@context/AuthContext';
 import { useRouter } from 'next/navigation';
-import styled, { css } from 'styled-components';
+import styled from 'styled-components';
 import { api } from '@utils/api/api';
 import { CommentType } from '@components/comments';
 import { ProfileCommentList } from '@/components/profile/ProfileCommentList';
+import { toast } from 'sonner';
+import Link from 'next/link';
+import {
+    PostContainer,
+    SideBarContainer,
+    Article
+} from '@components/pages/posts-dictionaries';
 
 // ======== STYLED COMPONENTS ========
 
-const PageContainer = styled.div`
-    max-width: 1200px;
-    margin: 30px auto;
-    padding: 0 20px;
-`;
-
-const DashboardGrid = styled.div`
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: 20px;
-
-    @media (max-width: ${(props) => props.theme.container.breakpoints.medium}) {
-        grid-template-columns: 1fr;
-    }
-`;
-
-const SidebarContainer = styled.div`
-    background: ${(props) => props.theme.container.background.colour.solid()};
-    border-radius: ${(props) => props.theme.container.border.radius};
-    box-shadow: ${(props) => props.theme.container.shadow.box};
+// Extend the site's SideBarContainer for profile-specific styling
+const ProfileSidebar = styled(SideBarContainer)`
     padding: 20px;
     height: fit-content;
 `;
 
-const MainContainer = styled.div`
+// Extend the site's Article for profile main content
+const ProfileMain = styled(Article)`
+    width: 75%;
+    text-align: left;
     display: flex;
     flex-direction: column;
     gap: 20px;
+
+    @media (max-width: 900px) {
+        width: 100%;
+        border-left: none;
+    }
 `;
 
 const Card = styled.div`
     background: ${(props) => props.theme.container.background.colour.solid()};
     border-radius: ${(props) => props.theme.container.border.radius};
-    box-shadow: ${(props) => props.theme.container.shadow.box};
+    border: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
     padding: 20px;
     overflow: hidden;
 `;
@@ -105,6 +103,7 @@ const ProfileForm = styled.form`
     display: flex;
     flex-direction: column;
     gap: 15px;
+    max-width: 400px;
 `;
 
 const FormGroup = styled.div`
@@ -116,6 +115,7 @@ const FormGroup = styled.div`
 const Label = styled.label`
     font-weight: ${(props) => props.theme.text.weight.medium};
     color: ${(props) => props.theme.text.colour.primary()};
+    text-align: left;
 `;
 
 const Input = styled.input`
@@ -180,7 +180,8 @@ const Button = styled.button<ButtonProps>`
     font-weight: ${(props) => props.theme.text.weight.medium};
     cursor: pointer;
     transition: all 0.2s ease;
-    width: ${(props) => (props.fullWidth ? '100%' : 'auto')};
+    width: ${(props) => (props.fullWidth ? '100%' : 'fit-content')};
+    align-self: flex-start;
 
     &:hover {
         opacity: 0.9;
@@ -396,16 +397,250 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
     accent-color: ${(props) => props.theme.theme_colours[5]()};
 `;
 
+// Account Settings styled components
+const SettingsSection = styled.div`
+    margin-bottom: ${(props) => props.theme.container.spacing.large};
+    padding-bottom: ${(props) => props.theme.container.spacing.large};
+    border-bottom: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+
+    &:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+`;
+
+const SettingsTitle = styled.h3`
+    margin: 0 0 ${(props) => props.theme.container.spacing.medium} 0;
+    color: ${(props) => props.theme.text.colour.header()};
+    font-size: ${(props) => props.theme.text.size.large};
+`;
+
+const SettingsDescription = styled.p`
+    margin: 0 0 ${(props) => props.theme.container.spacing.medium} 0;
+    color: ${(props) => props.theme.text.colour.light_grey()};
+    font-size: ${(props) => props.theme.text.size.normal};
+`;
+
+const SessionList = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${(props) => props.theme.container.spacing.small};
+`;
+
+const SessionItem = styled.div<{ current?: boolean }>`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: ${(props) => props.theme.container.spacing.medium};
+    border: 1px solid
+        ${(props) =>
+            props.current
+                ? props.theme.theme_colours[5]()
+                : props.theme.container.border.colour.primary()};
+    border-radius: ${(props) => props.theme.container.border.radius};
+    background: ${(props) =>
+        props.current
+            ? props.theme.theme_colours[9]()
+            : props.theme.container.background.colour.content()};
+`;
+
+const SessionInfo = styled.div`
+    flex: 1;
+`;
+
+const SessionDevice = styled.div`
+    font-weight: ${(props) => props.theme.text.weight.medium};
+    color: ${(props) => props.theme.text.colour.primary()};
+    display: flex;
+    align-items: center;
+    gap: ${(props) => props.theme.container.spacing.small};
+`;
+
+const SessionMeta = styled.div`
+    font-size: ${(props) => props.theme.text.size.small};
+    color: ${(props) => props.theme.text.colour.light_grey()};
+    margin-top: 4px;
+`;
+
+const CurrentBadge = styled.span`
+    background: ${(props) => props.theme.theme_colours[5]()};
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: ${(props) => props.theme.text.weight.medium};
+`;
+
+const RoleBadge = styled.span<{
+    variant?: 'admin' | 'moderator' | 'trusted' | 'user';
+}>`
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: ${(props) => props.theme.text.weight.medium};
+    margin-right: 5px;
+
+    ${(props) => {
+        switch (props.variant) {
+            case 'admin':
+                return `
+                    background: ${props.theme.colours.error}20;
+                    color: ${props.theme.colours.error};
+                `;
+            case 'moderator':
+                return `
+                    background: ${props.theme.colours.warning}20;
+                    color: ${props.theme.colours.warning};
+                `;
+            case 'trusted':
+                return `
+                    background: ${props.theme.colours.success}20;
+                    color: ${props.theme.colours.success};
+                `;
+            default:
+                return `
+                    background: ${props.theme.container.background.colour.light_contrast()};
+                    color: ${props.theme.text.colour.light_grey()};
+                `;
+        }
+    }}
+`;
+
+const DangerZone = styled.div`
+    margin-top: ${(props) => props.theme.container.spacing.large};
+    padding: ${(props) => props.theme.container.spacing.large};
+    border: 1px solid ${(props) => props.theme.colours.error}40;
+    border-radius: ${(props) => props.theme.container.border.radius};
+    background: ${(props) => props.theme.colours.error}10;
+`;
+
+const DangerTitle = styled.h3`
+    color: ${(props) => props.theme.colours.error};
+    margin: 0 0 ${(props) => props.theme.container.spacing.small} 0;
+`;
+
+const DangerDescription = styled.p`
+    color: ${(props) => props.theme.text.colour.light_grey()};
+    margin: 0 0 ${(props) => props.theme.container.spacing.medium} 0;
+`;
+
+const ModalBackdrop = styled.div`
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+`;
+
+const ModalContent = styled.div`
+    background: ${(props) => props.theme.container.background.colour.solid()};
+    border-radius: ${(props) => props.theme.container.border.radius};
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    width: 100%;
+    max-width: 450px;
+    padding: 25px;
+`;
+
+const ModalTitle = styled.h3`
+    margin: 0 0 15px 0;
+    color: ${(props) => props.theme.text.colour.header()};
+`;
+
+const ModalText = styled.p`
+    margin: 0 0 20px 0;
+    color: ${(props) => props.theme.text.colour.primary()};
+`;
+
+const ModalButtonGroup = styled.div`
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+`;
+
+// ======== MINI ANALYTICS STYLES ========
+
+const MiniAnalyticsContainer = styled.div`
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: ${(props) => props.theme.container.spacing.small};
+    margin-bottom: ${(props) => props.theme.container.spacing.medium};
+    padding: ${(props) => props.theme.container.spacing.medium};
+    background: ${(props) =>
+        props.theme.container.background.colour.light_contrast()};
+    border-radius: ${(props) => props.theme.container.border.radius};
+    border: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+`;
+
+const AnalyticsStat = styled.div`
+    text-align: center;
+    padding: ${(props) => props.theme.container.spacing.small};
+`;
+
+const AnalyticsValue = styled.div<{ $positive?: boolean; $negative?: boolean }>`
+    font-size: 1.5rem;
+    font-weight: ${(props) => props.theme.text.weight.bold};
+    color: ${(props) =>
+        props.$positive
+            ? props.theme.colours.success
+            : props.$negative
+              ? props.theme.colours.error
+              : props.theme.text.colour.header()};
+`;
+
+const AnalyticsLabel = styled.div`
+    font-size: ${(props) => props.theme.text.size.small};
+    color: ${(props) => props.theme.text.colour.light_grey()};
+    margin-top: ${(props) => props.theme.container.spacing.xsmall};
+`;
+
+const SentimentBar = styled.div`
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: ${(props) => props.theme.container.border.colour.primary()};
+    margin-top: ${(props) => props.theme.container.spacing.xsmall};
+`;
+
+const SentimentPositive = styled.div<{ $width: number }>`
+    width: ${(props) => props.$width}%;
+    background: ${(props) => props.theme.colours.success};
+    transition: width 0.3s ease;
+`;
+
+const SentimentNegative = styled.div<{ $width: number }>`
+    width: ${(props) => props.$width}%;
+    background: ${(props) => props.theme.colours.error};
+    transition: width 0.3s ease;
+`;
+
 // ======== INTERFACES ========
 
 // Using the shared CommentType interface
 
+interface Session {
+    id: string;
+    userAgent: string;
+    ipAddress: string;
+    createdAt: string;
+    lastUsedAt: string;
+    isCurrent: boolean;
+}
+
 // ======== COMPONENT ========
 
 export default function ProfilePage() {
-    const { user, loading, logout } = useAuth();
+    const { user, loading, logout, isAdmin, changePassword, deleteAccount } =
+        useAuth();
     const router = useRouter();
-    const [userInfo, setUserInfo] = useState<any>(null);
     const [loadingData, setLoadingData] = useState(true);
     const [alert, setAlert] = useState<{
         show: boolean;
@@ -417,10 +652,28 @@ export default function ProfilePage() {
         variant: 'info'
     });
 
+    // Main navigation tabs
+    const [mainTab, setMainTab] = useState<'comments' | 'settings'>('comments');
+
     // Profile data
-    const [firstName, setFirstName] = useState('');
-    const [lastName, setLastName] = useState('');
-    const [email, setEmail] = useState('');
+    const [displayName, setDisplayName] = useState('');
+    const [bio, setBio] = useState('');
+
+    // Password change
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+    const [changingPassword, setChangingPassword] = useState(false);
+
+    // Sessions
+    const [sessions, setSessions] = useState<Session[]>([]);
+    const [loadingSessions, setLoadingSessions] = useState(false);
+    const [revokingSession, setRevokingSession] = useState<string | null>(null);
+
+    // Delete account modal
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deleteConfirmText, setDeleteConfirmText] = useState('');
+    const [deleting, setDeleting] = useState(false);
 
     // Comments data
     const [activeTab, setActiveTab] = useState('created');
@@ -441,44 +694,33 @@ export default function ProfilePage() {
     }, [user, loading, router]);
 
     useEffect(() => {
-        async function fetchUserInfo() {
-            if (!user) return;
-
-            try {
-                setLoadingData(true);
-                const userInfoRes = await api.get('/profile/user-info');
-                setUserInfo(userInfoRes.data.user);
-                setFirstName(userInfoRes.data.user.firstName || '');
-                setLastName(userInfoRes.data.user.lastName || '');
-                setEmail(userInfoRes.data.user.email || '');
-            } catch (error) {
-                console.error('Error fetching user data:', error);
-                showAlert('Failed to load profile data', 'error');
-            } finally {
-                setLoadingData(false);
-            }
+        // Populate form from user context
+        if (user) {
+            setDisplayName(user.displayName || '');
+            setBio(user.bio || '');
+            setLoadingData(false);
         }
-
-        fetchUserInfo();
     }, [user]);
 
     // Effect for fetching comments from the API
     useEffect(() => {
         async function fetchComments() {
-            if (!user?.isVerified) return;
+            if (!user) return;
 
             try {
                 setLoadingData(true);
-                let endpoint = '/profile/comments';
+                let endpoint = '/users/me/comments';
 
                 if (activeTab === 'liked') {
-                    endpoint = '/profile/comments/liked';
+                    endpoint = '/users/me/comments/liked';
                 } else if (activeTab === 'disliked') {
-                    endpoint = '/profile/comments/disliked';
+                    endpoint = '/users/me/comments/disliked';
                 }
 
-                const response = await api.get(endpoint);
-                setAllComments(response.data);
+                const response = await api.get<{ comments: CommentType[] }>(
+                    endpoint
+                );
+                setAllComments(response.data.comments);
 
                 // Reset pagination when tab changes
                 setPage(1);
@@ -486,7 +728,7 @@ export default function ProfilePage() {
 
                 // Calculate total pages
                 const total = Math.ceil(
-                    response.data.length / COMMENTS_PER_PAGE
+                    response.data.comments.length / COMMENTS_PER_PAGE
                 );
                 setTotalPages(total > 0 ? total : 1);
             } catch (error) {
@@ -497,7 +739,7 @@ export default function ProfilePage() {
             }
         }
 
-        if (user?.isVerified) {
+        if (user) {
             fetchComments();
         }
     }, [user, activeTab]);
@@ -535,38 +777,15 @@ export default function ProfilePage() {
         e.preventDefault();
 
         try {
-            const res = await api.patch('/profile/update', {
-                firstName,
-                lastName,
-                email
+            await api.patch('/users/me', {
+                displayName: displayName || undefined,
+                bio: bio || undefined
             });
 
-            if (res.data.message.includes('verify')) {
-                showAlert(
-                    'Profile updated. Please verify your new email address.',
-                    'warning'
-                );
-            } else {
-                showAlert('Profile updated successfully!', 'success');
-            }
+            showAlert('Profile updated successfully!', 'success');
         } catch (error) {
             console.error('Error updating profile:', error);
             showAlert('Failed to update profile', 'error');
-        }
-    };
-
-    const handleVerifyEmail = async () => {
-        try {
-            const res = await api.post('/profile/verify-email');
-            if (res.data.message === 'Verification email sent') {
-                showAlert(
-                    'Verification email sent! Please check your inbox.',
-                    'success'
-                );
-            }
-        } catch (error) {
-            console.error('Error sending verification email:', error);
-            showAlert('Failed to send verification email', 'error');
         }
     };
 
@@ -580,13 +799,128 @@ export default function ProfilePage() {
         }
     };
 
+    // Fetch sessions
+    const fetchSessions = useCallback(async () => {
+        setLoadingSessions(true);
+        try {
+            const res = await api.get<{ sessions: Session[] }>(
+                '/auth/sessions'
+            );
+            setSessions(res.data.sessions);
+        } catch (error) {
+            console.error('Error fetching sessions:', error);
+            toast.error('Failed to load sessions');
+        } finally {
+            setLoadingSessions(false);
+        }
+    }, []);
+
+    // Load sessions when settings tab is active
+    useEffect(() => {
+        if (mainTab === 'settings' && user) {
+            fetchSessions();
+        }
+    }, [mainTab, user, fetchSessions]);
+
+    // Password change handler
+    const handlePasswordChange = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (newPassword !== confirmPassword) {
+            toast.error('New passwords do not match');
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            toast.error('Password must be at least 8 characters');
+            return;
+        }
+
+        setChangingPassword(true);
+        try {
+            await changePassword(currentPassword, newPassword);
+            toast.success('Password changed successfully');
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+        } catch (error: any) {
+            toast.error(
+                error.response?.data?.error || 'Failed to change password'
+            );
+        } finally {
+            setChangingPassword(false);
+        }
+    };
+
+    // Revoke session handler
+    const handleRevokeSession = async (sessionId: string) => {
+        setRevokingSession(sessionId);
+        try {
+            await api.delete(`/auth/sessions/${sessionId}`);
+            toast.success('Session revoked');
+            setSessions((prev) => prev.filter((s) => s.id !== sessionId));
+        } catch (error: any) {
+            toast.error(
+                error.response?.data?.error || 'Failed to revoke session'
+            );
+        } finally {
+            setRevokingSession(null);
+        }
+    };
+
+    // Delete account handler
+    const handleDeleteAccount = async () => {
+        if (deleteConfirmText !== 'DELETE') {
+            toast.error('Please type DELETE to confirm');
+            return;
+        }
+
+        setDeleting(true);
+        try {
+            await deleteAccount();
+            toast.success('Account deleted');
+            router.push('/');
+        } catch (error: any) {
+            toast.error(
+                error.response?.data?.error || 'Failed to delete account'
+            );
+            setDeleting(false);
+        }
+    };
+
+    // Helper to parse user agent for display
+    const parseUserAgent = (ua: string): string => {
+        if (ua.includes('Chrome')) return 'Chrome';
+        if (ua.includes('Firefox')) return 'Firefox';
+        if (ua.includes('Safari')) return 'Safari';
+        if (ua.includes('Edge')) return 'Edge';
+        return 'Unknown Browser';
+    };
+
+    // Helper to get role badge variant
+    const getRoleBadgeVariant = (
+        group: string
+    ): 'admin' | 'moderator' | 'trusted' | 'user' => {
+        if (group === 'admin') return 'admin';
+        if (group === 'moderator') return 'moderator';
+        if (group === 'trusted') return 'trusted';
+        return 'user';
+    };
+
     const handleDeleteComment = async (id: string) => {
         try {
-            await api.delete(`/profile/comments/${id}`);
+            await api.delete(`/comments/${id}`);
             setComments((prev) =>
                 prev.map((comment) =>
-                    comment._id === id
-                        ? { ...comment, deleted: true, text: '[deleted]' }
+                    comment.id === id
+                        ? { ...comment, isDeleted: true, content: '[deleted]' }
+                        : comment
+                )
+            );
+            setAllComments((prev) =>
+                prev.map((comment) =>
+                    comment.id === id
+                        ? { ...comment, isDeleted: true, content: '[deleted]' }
                         : comment
                 )
             );
@@ -608,16 +942,18 @@ export default function ProfilePage() {
             return;
 
         try {
-            // Use the new bulk delete endpoint
-            const response = await api.post('/profile/comments/bulk-delete', {
-                commentIds: selectedComments
-            });
+            const response = await api.post<{ deletedCount: number }>(
+                '/users/me/comments/bulk-delete',
+                {
+                    commentIds: selectedComments
+                }
+            );
 
             // Update both all comments and displayed comments
             setAllComments((prev) =>
                 prev.map((comment) =>
-                    selectedComments.includes(comment._id)
-                        ? { ...comment, deleted: true, text: '[deleted]' }
+                    selectedComments.includes(comment.id)
+                        ? { ...comment, isDeleted: true, content: '[deleted]' }
                         : comment
                 )
             );
@@ -645,16 +981,23 @@ export default function ProfilePage() {
             return;
 
         try {
-            const response = await api.post('/profile/comments/bulk-unlike', {
-                commentIds: selectedComments
-            });
+            const response = await api.post<{ modifiedCount: number }>(
+                '/users/me/comments/bulk-unlike',
+                {
+                    commentIds: selectedComments
+                }
+            );
 
             // Refresh the comments list after unliking
-            const likedRes = await api.get('/profile/comments/liked');
-            setAllComments(likedRes.data);
+            const likedRes = await api.get<{ comments: CommentType[] }>(
+                '/users/me/comments/liked'
+            );
+            setAllComments(likedRes.data.comments);
 
             // Recalculate total pages
-            const total = Math.ceil(likedRes.data.length / COMMENTS_PER_PAGE);
+            const total = Math.ceil(
+                likedRes.data.comments.length / COMMENTS_PER_PAGE
+            );
             setTotalPages(total > 0 ? total : 1);
 
             // If we're on a page that no longer exists, go to last page
@@ -685,20 +1028,22 @@ export default function ProfilePage() {
             return;
 
         try {
-            const response = await api.post(
-                '/profile/comments/bulk-undislike',
+            const response = await api.post<{ modifiedCount: number }>(
+                '/users/me/comments/bulk-undislike',
                 {
                     commentIds: selectedComments
                 }
             );
 
             // Refresh the comments list after removing dislikes
-            const dislikedRes = await api.get('/profile/comments/disliked');
-            setAllComments(dislikedRes.data);
+            const dislikedRes = await api.get<{ comments: CommentType[] }>(
+                '/users/me/comments/disliked'
+            );
+            setAllComments(dislikedRes.data.comments);
 
             // Recalculate total pages
             const total = Math.ceil(
-                dislikedRes.data.length / COMMENTS_PER_PAGE
+                dislikedRes.data.comments.length / COMMENTS_PER_PAGE
             );
             setTotalPages(total > 0 ? total : 1);
 
@@ -718,18 +1063,6 @@ export default function ProfilePage() {
         }
     };
 
-    const getCommentLink = (comment: any) => {
-        if (
-            comment.post &&
-            typeof comment.post === 'object' &&
-            comment.post.slug
-        ) {
-            return comment.post.slug;
-        }
-        console.error('Missing slug for post', comment.post);
-        return '/';
-    };
-
     const toggleSelectComment = (id: string) => {
         setSelectedComments((prev) =>
             prev.includes(id)
@@ -738,8 +1071,42 @@ export default function ProfilePage() {
         );
     };
 
+    const handleReactionUpdate = (
+        commentId: string,
+        newReaction: 'like' | 'dislike' | null
+    ) => {
+        const updateComment = (comment: CommentType): CommentType => {
+            if (comment.id !== commentId) return comment;
+
+            const oldReaction = comment.reactions.userReaction;
+            let newLikes = comment.reactions.likes;
+            let newDislikes = comment.reactions.dislikes;
+
+            // Remove old reaction count
+            if (oldReaction === 'like') newLikes--;
+            if (oldReaction === 'dislike') newDislikes--;
+
+            // Add new reaction count
+            if (newReaction === 'like') newLikes++;
+            if (newReaction === 'dislike') newDislikes++;
+
+            return {
+                ...comment,
+                reactions: {
+                    ...comment.reactions,
+                    likes: newLikes,
+                    dislikes: newDislikes,
+                    userReaction: newReaction
+                }
+            };
+        };
+
+        setComments((prev) => prev.map(updateComment));
+        setAllComments((prev) => prev.map(updateComment));
+    };
+
     const toggleSelectAll = () => {
-        const visibleNonDeletedComments = comments.filter((c) => !c.deleted);
+        const visibleNonDeletedComments = comments.filter((c) => !c.isDeleted);
 
         if (selectedComments.length === visibleNonDeletedComments.length) {
             // If all are selected, deselect all
@@ -747,16 +1114,18 @@ export default function ProfilePage() {
         } else {
             // Otherwise, select all visible non-deleted comments
             setSelectedComments(
-                visibleNonDeletedComments.map((comment) => comment._id)
+                visibleNonDeletedComments.map((comment) => comment.id)
             );
         }
     };
 
     if (loading) {
         return (
-            <PageContainer>
-                <Loading>Loading profile data...</Loading>
-            </PageContainer>
+            <PostContainer>
+                <Article sideBar={false} style={{ width: '100%' }}>
+                    <Loading>Loading profile data...</Loading>
+                </Article>
+            </PostContainer>
         );
     }
 
@@ -765,411 +1134,705 @@ export default function ProfilePage() {
     }
 
     return (
-        <PageContainer>
+        <PostContainer>
             {alert.show && (
                 <Alert variant={alert.variant}>{alert.message}</Alert>
             )}
 
-            <DashboardGrid>
-                {/* Left Sidebar */}
-                <SidebarContainer>
-                    <CardTitle>Profile Information</CardTitle>
+            {/* Left Sidebar */}
+            <ProfileSidebar>
+                <CardTitle style={{ marginBottom: '15px' }}>Profile</CardTitle>
 
-                    {loadingData ? (
-                        <Loading>Loading profile data...</Loading>
-                    ) : (
-                        <ProfileForm onSubmit={handleUpdateProfile}>
-                            <FormGroup>
-                                <Label htmlFor="firstName">First Name</Label>
-                                <Input
-                                    id="firstName"
-                                    value={firstName}
-                                    onChange={(e) =>
-                                        setFirstName(e.target.value)
-                                    }
-                                />
-                            </FormGroup>
+                {/* Role badges */}
+                {user?.groups && user.groups.length > 0 && (
+                    <div style={{ marginBottom: '15px' }}>
+                        {user.groups.map((group) => (
+                            <RoleBadge
+                                key={group}
+                                variant={getRoleBadgeVariant(group)}
+                            >
+                                {group}
+                            </RoleBadge>
+                        ))}
+                    </div>
+                )}
 
-                            <FormGroup>
-                                <Label htmlFor="lastName">Last Name</Label>
-                                <Input
-                                    id="lastName"
-                                    value={lastName}
-                                    onChange={(e) =>
-                                        setLastName(e.target.value)
-                                    }
-                                />
-                            </FormGroup>
+                {loadingData ? (
+                    <Loading>Loading profile data...</Loading>
+                ) : (
+                    <ProfileForm onSubmit={handleUpdateProfile}>
+                        <FormGroup>
+                            <Label htmlFor="username">Username</Label>
+                            <Input
+                                id="username"
+                                value={user?.username || ''}
+                                disabled
+                                style={{ opacity: 0.6 }}
+                            />
+                        </FormGroup>
 
-                            <FormGroup>
-                                <Label htmlFor="email">Email</Label>
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                />
-                            </FormGroup>
+                        <FormGroup>
+                            <Label htmlFor="displayName">Display Name</Label>
+                            <Input
+                                id="displayName"
+                                value={displayName}
+                                onChange={(e) => setDisplayName(e.target.value)}
+                                placeholder="How you want to be called"
+                            />
+                        </FormGroup>
 
-                            <Button type="submit" variant="primary" fullWidth>
+                        <FormGroup>
+                            <Label htmlFor="bio">Bio</Label>
+                            <Input
+                                as="textarea"
+                                id="bio"
+                                value={bio}
+                                onChange={(e) => setBio(e.target.value)}
+                                placeholder="Tell us about yourself"
+                                style={{
+                                    minHeight: '80px',
+                                    resize: 'vertical'
+                                }}
+                            />
+                        </FormGroup>
+
+                        <div
+                            style={{
+                                display: 'flex',
+                                flexWrap: 'wrap',
+                                gap: '10px',
+                                marginTop: '5px'
+                            }}
+                        >
+                            <Button type="submit" variant="primary">
                                 Update Profile
                             </Button>
 
-                            {!user.isVerified && (
-                                <div style={{ marginTop: '10px' }}>
-                                    <Alert variant="warning">
-                                        Your email is not verified. Verify to
-                                        access all features.
-                                    </Alert>
-                                    <Button
-                                        onClick={handleVerifyEmail}
-                                        variant="secondary"
-                                        fullWidth
-                                        style={{ marginTop: '10px' }}
-                                    >
-                                        Verify Email
-                                    </Button>
-                                </div>
-                            )}
-
                             <Button
+                                type="button"
                                 onClick={handleLogout}
                                 variant="danger"
-                                fullWidth
-                                style={{ marginTop: '15px' }}
                             >
                                 Logout
                             </Button>
-                        </ProfileForm>
-                    )}
-                </SidebarContainer>
 
-                {/* Main Content */}
-                <MainContainer>
-                    {/* Comments Section */}
+                            {/* Admin link - inline with other buttons */}
+                            {isAdmin() && (
+                                <Link href="/admin">
+                                    <Button type="button" variant="secondary">
+                                        Admin Dashboard
+                                    </Button>
+                                </Link>
+                            )}
+                        </div>
+                    </ProfileForm>
+                )}
+            </ProfileSidebar>
+
+            {/* Main Content */}
+            <ProfileMain>
+                {/* Main Navigation Tabs */}
+                <TabsContainer>
+                    <Tab
+                        active={mainTab === 'comments'}
+                        onClick={() => setMainTab('comments')}
+                    >
+                        My Comments
+                    </Tab>
+                    <Tab
+                        active={mainTab === 'settings'}
+                        onClick={() => setMainTab('settings')}
+                    >
+                        Account Settings
+                    </Tab>
+                </TabsContainer>
+
+                {/* Comments Section */}
+                {mainTab === 'comments' && (
                     <Card>
-                        <CardHeader>
-                            <CardTitle>My Comments</CardTitle>
-                            <div
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px'
+                        <div
+                            style={{
+                                display: 'flex',
+                                justifyContent: 'flex-end',
+                                alignItems: 'center',
+                                gap: '10px',
+                                marginBottom: '15px'
+                            }}
+                        >
+                            <Badge>{allComments.length} Comments</Badge>
+                            <Button
+                                variant="secondary"
+                                size="small"
+                                onClick={() => {
+                                    setLoadingData(true);
+                                    // Re-trigger the comment fetching effect
+                                    const fetchTab = activeTab;
+                                    setActiveTab('temp');
+                                    setTimeout(
+                                        () => setActiveTab(fetchTab),
+                                        10
+                                    );
                                 }}
                             >
-                                <Badge>{allComments.length} Comments</Badge>
-                                <Button
-                                    variant="secondary"
-                                    size="small"
-                                    onClick={() => {
-                                        setLoadingData(true);
-                                        // Re-trigger the comment fetching effect
-                                        const fetchTab = activeTab;
-                                        setActiveTab('temp');
-                                        setTimeout(
-                                            () => setActiveTab(fetchTab),
-                                            10
-                                        );
-                                    }}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="14"
+                                    height="14"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
                                 >
-                                    <svg
-                                        xmlns="http://www.w3.org/2000/svg"
-                                        width="14"
-                                        height="14"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                    >
-                                        <path d="M23 4v6h-6"></path>
-                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-                                    </svg>
-                                </Button>
-                            </div>
-                        </CardHeader>
+                                    <path d="M23 4v6h-6"></path>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+                                </svg>
+                            </Button>
+                        </div>
 
-                        {!user.isVerified ? (
-                            <Alert variant="warning">
-                                You must verify your email to access comment
-                                history.
-                            </Alert>
-                        ) : (
-                            <>
-                                <TabsContainer>
-                                    <Tab
-                                        active={activeTab === 'created'}
-                                        onClick={() => setActiveTab('created')}
-                                    >
-                                        Created
-                                    </Tab>
-                                    <Tab
-                                        active={activeTab === 'liked'}
-                                        onClick={() => setActiveTab('liked')}
-                                    >
-                                        Liked
-                                    </Tab>
-                                    <Tab
-                                        active={activeTab === 'disliked'}
-                                        onClick={() => setActiveTab('disliked')}
-                                    >
-                                        Disliked
-                                    </Tab>
-                                </TabsContainer>
+                        {/* Mini Analytics - only show on "Created" tab when there are comments */}
+                        {activeTab === 'created' &&
+                            allComments.length > 0 &&
+                            (() => {
+                                // Calculate analytics from user's created comments
+                                const totalLikes = allComments.reduce(
+                                    (sum, c) => sum + (c.reactions?.likes || 0),
+                                    0
+                                );
+                                const totalDislikes = allComments.reduce(
+                                    (sum, c) =>
+                                        sum + (c.reactions?.dislikes || 0),
+                                    0
+                                );
+                                const totalReactions =
+                                    totalLikes + totalDislikes;
+                                const sentimentPercent =
+                                    totalReactions > 0
+                                        ? Math.round(
+                                              (totalLikes / totalReactions) *
+                                                  100
+                                          )
+                                        : 50;
 
-                                {loadingData ? (
-                                    <Loading>Loading comments...</Loading>
-                                ) : (
-                                    <>
-                                        {/* Action Bar */}
-                                        {allComments.length > 0 &&
-                                            activeTab === 'created' && (
-                                                <ActionBar>
-                                                    <SelectAll>
-                                                        <Checkbox
-                                                            checked={
-                                                                selectedComments.length >
-                                                                    0 &&
-                                                                selectedComments.length ===
-                                                                    comments.filter(
-                                                                        (c) =>
-                                                                            !c.deleted
-                                                                    ).length
-                                                            }
-                                                            onChange={
-                                                                toggleSelectAll
-                                                            }
-                                                        />
-                                                        <span>Select All</span>
-                                                        {selectedComments.length >
-                                                            0 && (
-                                                            <Badge>
-                                                                {
-                                                                    selectedComments.length
-                                                                }{' '}
-                                                                selected
-                                                            </Badge>
-                                                        )}
-                                                    </SelectAll>
+                                return (
+                                    <MiniAnalyticsContainer>
+                                        <AnalyticsStat>
+                                            <AnalyticsValue $positive>
+                                                {totalLikes}
+                                            </AnalyticsValue>
+                                            <AnalyticsLabel>
+                                                Total Likes
+                                            </AnalyticsLabel>
+                                        </AnalyticsStat>
+                                        <AnalyticsStat>
+                                            <AnalyticsValue $negative>
+                                                {totalDislikes}
+                                            </AnalyticsValue>
+                                            <AnalyticsLabel>
+                                                Total Dislikes
+                                            </AnalyticsLabel>
+                                        </AnalyticsStat>
+                                        <AnalyticsStat>
+                                            <AnalyticsValue>
+                                                {sentimentPercent}%
+                                            </AnalyticsValue>
+                                            <AnalyticsLabel>
+                                                Positive Sentiment
+                                            </AnalyticsLabel>
+                                            <SentimentBar>
+                                                <SentimentPositive
+                                                    $width={sentimentPercent}
+                                                />
+                                                <SentimentNegative
+                                                    $width={
+                                                        100 - sentimentPercent
+                                                    }
+                                                />
+                                            </SentimentBar>
+                                        </AnalyticsStat>
+                                        <AnalyticsStat>
+                                            <AnalyticsValue>
+                                                {totalReactions > 0
+                                                    ? (
+                                                          totalReactions /
+                                                          allComments.length
+                                                      ).toFixed(1)
+                                                    : '0'}
+                                            </AnalyticsValue>
+                                            <AnalyticsLabel>
+                                                Avg Engagement
+                                            </AnalyticsLabel>
+                                        </AnalyticsStat>
+                                    </MiniAnalyticsContainer>
+                                );
+                            })()}
 
-                                                    {selectedComments.length >
-                                                        0 && (
-                                                        <ButtonGroup>
-                                                            <Button
-                                                                variant="danger"
-                                                                size="small"
-                                                                onClick={
-                                                                    handleBulkDelete
-                                                                }
-                                                            >
-                                                                Delete Selected
-                                                            </Button>
-                                                        </ButtonGroup>
-                                                    )}
-                                                </ActionBar>
-                                            )}
+                        <>
+                            <TabsContainer>
+                                <Tab
+                                    active={activeTab === 'created'}
+                                    onClick={() => setActiveTab('created')}
+                                >
+                                    Created
+                                </Tab>
+                                <Tab
+                                    active={activeTab === 'liked'}
+                                    onClick={() => setActiveTab('liked')}
+                                >
+                                    Liked
+                                </Tab>
+                                <Tab
+                                    active={activeTab === 'disliked'}
+                                    onClick={() => setActiveTab('disliked')}
+                                >
+                                    Disliked
+                                </Tab>
+                            </TabsContainer>
 
-                                        {/* Bulk actions for liked/disliked tabs */}
-                                        {allComments.length > 0 &&
-                                            activeTab === 'liked' && (
-                                                <ActionBar>
-                                                    <SelectAll>
-                                                        <Checkbox
-                                                            checked={
-                                                                selectedComments.length >
-                                                                    0 &&
-                                                                selectedComments.length ===
-                                                                    comments.filter(
-                                                                        (c) =>
-                                                                            !c.deleted
-                                                                    ).length
-                                                            }
-                                                            onChange={
-                                                                toggleSelectAll
-                                                            }
-                                                        />
-                                                        <span>Select All</span>
-                                                        {selectedComments.length >
-                                                            0 && (
-                                                            <Badge>
-                                                                {
-                                                                    selectedComments.length
-                                                                }{' '}
-                                                                selected
-                                                            </Badge>
-                                                        )}
-                                                    </SelectAll>
-
-                                                    {selectedComments.length >
-                                                        0 && (
-                                                        <ButtonGroup>
-                                                            <Button
-                                                                variant="warning"
-                                                                size="small"
-                                                                onClick={
-                                                                    handleBulkUnlike
-                                                                }
-                                                            >
-                                                                Unlike Selected
-                                                            </Button>
-                                                        </ButtonGroup>
-                                                    )}
-                                                </ActionBar>
-                                            )}
-
-                                        {allComments.length > 0 &&
-                                            activeTab === 'disliked' && (
-                                                <ActionBar>
-                                                    <SelectAll>
-                                                        <Checkbox
-                                                            checked={
-                                                                selectedComments.length >
-                                                                    0 &&
-                                                                selectedComments.length ===
-                                                                    comments.filter(
-                                                                        (c) =>
-                                                                            !c.deleted
-                                                                    ).length
-                                                            }
-                                                            onChange={
-                                                                toggleSelectAll
-                                                            }
-                                                        />
-                                                        <span>Select All</span>
-                                                        {selectedComments.length >
-                                                            0 && (
-                                                            <Badge>
-                                                                {
-                                                                    selectedComments.length
-                                                                }{' '}
-                                                                selected
-                                                            </Badge>
-                                                        )}
-                                                    </SelectAll>
-
-                                                    {selectedComments.length >
-                                                        0 && (
-                                                        <ButtonGroup>
-                                                            <Button
-                                                                variant="warning"
-                                                                size="small"
-                                                                onClick={
-                                                                    handleBulkUndislike
-                                                                }
-                                                            >
-                                                                Remove Dislike
-                                                            </Button>
-                                                        </ButtonGroup>
-                                                    )}
-                                                </ActionBar>
-                                            )}
-
-                                        {/* Comments List */}
-                                        {allComments.length > 0 ? (
-                                            <>
-                                                {comments.length > 0 ? (
-                                                    <ProfileCommentList
-                                                        comments={comments}
-                                                        currentUser={user}
-                                                        selectedComments={
-                                                            selectedComments
+                            {loadingData ? (
+                                <Loading>Loading comments...</Loading>
+                            ) : (
+                                <>
+                                    {/* Action Bar */}
+                                    {allComments.length > 0 &&
+                                        activeTab === 'created' && (
+                                            <ActionBar>
+                                                <SelectAll>
+                                                    <Checkbox
+                                                        checked={
+                                                            selectedComments.length >
+                                                                0 &&
+                                                            selectedComments.length ===
+                                                                comments.filter(
+                                                                    (c) =>
+                                                                        !c.isDeleted
+                                                                ).length
                                                         }
-                                                        toggleSelectComment={
-                                                            toggleSelectComment
+                                                        onChange={
+                                                            toggleSelectAll
                                                         }
-                                                        onDelete={
-                                                            handleDeleteComment
-                                                        }
-                                                        Checkbox={Checkbox}
                                                     />
-                                                ) : (
-                                                    <EmptyState>
-                                                        No comments on this
-                                                        page. Try a different
-                                                        page.
-                                                    </EmptyState>
-                                                )}
-
-                                                {/* Pagination Controls */}
-                                                {totalPages > 1 && (
-                                                    <Pagination>
-                                                        <PageNumber
-                                                            onClick={() =>
-                                                                setPage((p) =>
-                                                                    Math.max(
-                                                                        1,
-                                                                        p - 1
-                                                                    )
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                page === 1
-                                                            }
-                                                        >
-                                                            &lt;
-                                                        </PageNumber>
-
-                                                        {/* Generate page numbers */}
-                                                        {Array.from(
+                                                    <span>Select All</span>
+                                                    {selectedComments.length >
+                                                        0 && (
+                                                        <Badge>
                                                             {
-                                                                length: totalPages
-                                                            },
-                                                            (_, i) => (
-                                                                <PageNumber
-                                                                    key={i + 1}
-                                                                    active={
-                                                                        page ===
-                                                                        i + 1
-                                                                    }
-                                                                    onClick={() =>
-                                                                        setPage(
-                                                                            i +
-                                                                                1
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    {i + 1}
-                                                                </PageNumber>
-                                                            )
-                                                        )}
+                                                                selectedComments.length
+                                                            }{' '}
+                                                            selected
+                                                        </Badge>
+                                                    )}
+                                                </SelectAll>
 
-                                                        <PageNumber
-                                                            onClick={() =>
-                                                                setPage((p) =>
-                                                                    Math.min(
-                                                                        totalPages,
-                                                                        p + 1
-                                                                    )
-                                                                )
-                                                            }
-                                                            disabled={
-                                                                page ===
-                                                                totalPages
+                                                {selectedComments.length >
+                                                    0 && (
+                                                    <ButtonGroup>
+                                                        <Button
+                                                            variant="danger"
+                                                            size="small"
+                                                            onClick={
+                                                                handleBulkDelete
                                                             }
                                                         >
-                                                            &gt;
-                                                        </PageNumber>
-                                                    </Pagination>
+                                                            Delete Selected
+                                                        </Button>
+                                                    </ButtonGroup>
                                                 )}
-                                            </>
-                                        ) : (
-                                            <EmptyState>
-                                                {activeTab === 'created' &&
-                                                    'You have not created any comments yet.'}
-                                                {activeTab === 'liked' &&
-                                                    'You have not liked any comments yet.'}
-                                                {activeTab === 'disliked' &&
-                                                    'You have not disliked any comments yet.'}
-                                            </EmptyState>
+                                            </ActionBar>
                                         )}
-                                    </>
-                                )}
-                            </>
-                        )}
+
+                                    {/* Bulk actions for liked/disliked tabs */}
+                                    {allComments.length > 0 &&
+                                        activeTab === 'liked' && (
+                                            <ActionBar>
+                                                <SelectAll>
+                                                    <Checkbox
+                                                        checked={
+                                                            selectedComments.length >
+                                                                0 &&
+                                                            selectedComments.length ===
+                                                                comments.filter(
+                                                                    (c) =>
+                                                                        !c.isDeleted
+                                                                ).length
+                                                        }
+                                                        onChange={
+                                                            toggleSelectAll
+                                                        }
+                                                    />
+                                                    <span>Select All</span>
+                                                    {selectedComments.length >
+                                                        0 && (
+                                                        <Badge>
+                                                            {
+                                                                selectedComments.length
+                                                            }{' '}
+                                                            selected
+                                                        </Badge>
+                                                    )}
+                                                </SelectAll>
+
+                                                {selectedComments.length >
+                                                    0 && (
+                                                    <ButtonGroup>
+                                                        <Button
+                                                            variant="warning"
+                                                            size="small"
+                                                            onClick={
+                                                                handleBulkUnlike
+                                                            }
+                                                        >
+                                                            Unlike Selected
+                                                        </Button>
+                                                    </ButtonGroup>
+                                                )}
+                                            </ActionBar>
+                                        )}
+
+                                    {allComments.length > 0 &&
+                                        activeTab === 'disliked' && (
+                                            <ActionBar>
+                                                <SelectAll>
+                                                    <Checkbox
+                                                        checked={
+                                                            selectedComments.length >
+                                                                0 &&
+                                                            selectedComments.length ===
+                                                                comments.filter(
+                                                                    (c) =>
+                                                                        !c.isDeleted
+                                                                ).length
+                                                        }
+                                                        onChange={
+                                                            toggleSelectAll
+                                                        }
+                                                    />
+                                                    <span>Select All</span>
+                                                    {selectedComments.length >
+                                                        0 && (
+                                                        <Badge>
+                                                            {
+                                                                selectedComments.length
+                                                            }{' '}
+                                                            selected
+                                                        </Badge>
+                                                    )}
+                                                </SelectAll>
+
+                                                {selectedComments.length >
+                                                    0 && (
+                                                    <ButtonGroup>
+                                                        <Button
+                                                            variant="warning"
+                                                            size="small"
+                                                            onClick={
+                                                                handleBulkUndislike
+                                                            }
+                                                        >
+                                                            Remove Dislike
+                                                        </Button>
+                                                    </ButtonGroup>
+                                                )}
+                                            </ActionBar>
+                                        )}
+
+                                    {/* Comments List */}
+                                    {allComments.length > 0 ? (
+                                        <>
+                                            {comments.length > 0 ? (
+                                                <ProfileCommentList
+                                                    comments={comments}
+                                                    currentUser={user}
+                                                    selectedComments={
+                                                        selectedComments
+                                                    }
+                                                    toggleSelectComment={
+                                                        toggleSelectComment
+                                                    }
+                                                    onDelete={
+                                                        handleDeleteComment
+                                                    }
+                                                    onReactionUpdate={
+                                                        handleReactionUpdate
+                                                    }
+                                                    Checkbox={Checkbox}
+                                                />
+                                            ) : (
+                                                <EmptyState>
+                                                    No comments on this page.
+                                                    Try a different page.
+                                                </EmptyState>
+                                            )}
+
+                                            {/* Pagination Controls */}
+                                            {totalPages > 1 && (
+                                                <Pagination>
+                                                    <PageNumber
+                                                        onClick={() =>
+                                                            setPage((p) =>
+                                                                Math.max(
+                                                                    1,
+                                                                    p - 1
+                                                                )
+                                                            )
+                                                        }
+                                                        disabled={page === 1}
+                                                    >
+                                                        &lt;
+                                                    </PageNumber>
+
+                                                    {/* Generate page numbers */}
+                                                    {Array.from(
+                                                        {
+                                                            length: totalPages
+                                                        },
+                                                        (_, i) => (
+                                                            <PageNumber
+                                                                key={i + 1}
+                                                                active={
+                                                                    page ===
+                                                                    i + 1
+                                                                }
+                                                                onClick={() =>
+                                                                    setPage(
+                                                                        i + 1
+                                                                    )
+                                                                }
+                                                            >
+                                                                {i + 1}
+                                                            </PageNumber>
+                                                        )
+                                                    )}
+
+                                                    <PageNumber
+                                                        onClick={() =>
+                                                            setPage((p) =>
+                                                                Math.min(
+                                                                    totalPages,
+                                                                    p + 1
+                                                                )
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            page === totalPages
+                                                        }
+                                                    >
+                                                        &gt;
+                                                    </PageNumber>
+                                                </Pagination>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <EmptyState>
+                                            {activeTab === 'created' &&
+                                                'You have not created any comments yet.'}
+                                            {activeTab === 'liked' &&
+                                                'You have not liked any comments yet.'}
+                                            {activeTab === 'disliked' &&
+                                                'You have not disliked any comments yet.'}
+                                        </EmptyState>
+                                    )}
+                                </>
+                            )}
+                        </>
                     </Card>
-                </MainContainer>
-            </DashboardGrid>
-        </PageContainer>
+                )}
+
+                {/* Account Settings Section */}
+                {mainTab === 'settings' && (
+                    <Card>
+                        {/* Password Change */}
+                        <SettingsSection>
+                            <SettingsTitle>Change Password</SettingsTitle>
+                            <SettingsDescription>
+                                Update your password to keep your account
+                                secure.
+                            </SettingsDescription>
+                            <ProfileForm onSubmit={handlePasswordChange}>
+                                <FormGroup>
+                                    <Label htmlFor="currentPassword">
+                                        Current Password
+                                    </Label>
+                                    <Input
+                                        id="currentPassword"
+                                        type="password"
+                                        value={currentPassword}
+                                        onChange={(e) =>
+                                            setCurrentPassword(e.target.value)
+                                        }
+                                        placeholder="Enter current password"
+                                        required
+                                    />
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label htmlFor="newPassword">
+                                        New Password
+                                    </Label>
+                                    <Input
+                                        id="newPassword"
+                                        type="password"
+                                        value={newPassword}
+                                        onChange={(e) =>
+                                            setNewPassword(e.target.value)
+                                        }
+                                        placeholder="Enter new password (min 8 characters)"
+                                        required
+                                        minLength={8}
+                                    />
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label htmlFor="confirmPassword">
+                                        Confirm New Password
+                                    </Label>
+                                    <Input
+                                        id="confirmPassword"
+                                        type="password"
+                                        value={confirmPassword}
+                                        onChange={(e) =>
+                                            setConfirmPassword(e.target.value)
+                                        }
+                                        placeholder="Confirm new password"
+                                        required
+                                    />
+                                </FormGroup>
+                                <Button
+                                    type="submit"
+                                    variant="primary"
+                                    disabled={changingPassword}
+                                >
+                                    {changingPassword
+                                        ? 'Changing...'
+                                        : 'Change Password'}
+                                </Button>
+                            </ProfileForm>
+                        </SettingsSection>
+
+                        {/* Active Sessions */}
+                        <SettingsSection>
+                            <SettingsTitle>Active Sessions</SettingsTitle>
+                            <SettingsDescription>
+                                These are the devices currently logged into your
+                                account. You can revoke any session you
+                                don&apos;t recognize.
+                            </SettingsDescription>
+
+                            {loadingSessions ? (
+                                <Loading>Loading sessions...</Loading>
+                            ) : sessions.length === 0 ? (
+                                <EmptyState>No active sessions</EmptyState>
+                            ) : (
+                                <SessionList>
+                                    {sessions.map((session) => (
+                                        <SessionItem
+                                            key={session.id}
+                                            current={session.isCurrent}
+                                        >
+                                            <SessionInfo>
+                                                <SessionDevice>
+                                                    {parseUserAgent(
+                                                        session.userAgent
+                                                    )}
+                                                    {session.isCurrent && (
+                                                        <CurrentBadge>
+                                                            Current
+                                                        </CurrentBadge>
+                                                    )}
+                                                </SessionDevice>
+                                                <SessionMeta>
+                                                    IP: {session.ipAddress} |
+                                                    Last used:{' '}
+                                                    {new Date(
+                                                        session.lastUsedAt
+                                                    ).toLocaleDateString()}
+                                                </SessionMeta>
+                                            </SessionInfo>
+                                            {!session.isCurrent && (
+                                                <Button
+                                                    variant="danger"
+                                                    size="small"
+                                                    onClick={() =>
+                                                        handleRevokeSession(
+                                                            session.id
+                                                        )
+                                                    }
+                                                    disabled={
+                                                        revokingSession ===
+                                                        session.id
+                                                    }
+                                                >
+                                                    {revokingSession ===
+                                                    session.id
+                                                        ? 'Revoking...'
+                                                        : 'Revoke'}
+                                                </Button>
+                                            )}
+                                        </SessionItem>
+                                    ))}
+                                </SessionList>
+                            )}
+                        </SettingsSection>
+
+                        {/* Danger Zone */}
+                        <DangerZone>
+                            <DangerTitle>Danger Zone</DangerTitle>
+                            <DangerDescription>
+                                Once you delete your account, there is no going
+                                back. Please be certain.
+                            </DangerDescription>
+                            <Button
+                                variant="danger"
+                                onClick={() => setShowDeleteModal(true)}
+                            >
+                                Delete Account
+                            </Button>
+                        </DangerZone>
+                    </Card>
+                )}
+            </ProfileMain>
+
+            {/* Delete Account Modal */}
+            {showDeleteModal && (
+                <ModalBackdrop onClick={() => setShowDeleteModal(false)}>
+                    <ModalContent onClick={(e) => e.stopPropagation()}>
+                        <ModalTitle>Delete Account</ModalTitle>
+                        <ModalText>
+                            This action cannot be undone. All your data will be
+                            permanently deleted. Type <strong>DELETE</strong>{' '}
+                            below to confirm.
+                        </ModalText>
+                        <FormGroup>
+                            <Input
+                                value={deleteConfirmText}
+                                onChange={(e) =>
+                                    setDeleteConfirmText(e.target.value)
+                                }
+                                placeholder="Type DELETE to confirm"
+                            />
+                        </FormGroup>
+                        <ModalButtonGroup>
+                            <Button
+                                variant="secondary"
+                                onClick={() => {
+                                    setShowDeleteModal(false);
+                                    setDeleteConfirmText('');
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="danger"
+                                onClick={handleDeleteAccount}
+                                disabled={
+                                    deleting || deleteConfirmText !== 'DELETE'
+                                }
+                            >
+                                {deleting ? 'Deleting...' : 'Delete My Account'}
+                            </Button>
+                        </ModalButtonGroup>
+                    </ModalContent>
+                </ModalBackdrop>
+            )}
+        </PostContainer>
     );
 }

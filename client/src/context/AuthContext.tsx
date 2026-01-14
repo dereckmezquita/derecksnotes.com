@@ -10,120 +10,64 @@ import { api } from '@utils/api/api';
 import { HOUR } from '@lib/datetimes';
 
 /**
- * User preference settings
- */
-export interface UserPreferences {
-    emailNotifications: boolean;
-    theme: 'light' | 'dark' | 'system';
-}
-
-/**
  * Represents a user in the system.
+ * Matches the server's user response format.
  */
 export interface User {
     id: string;
-    firstName: string;
-    lastName?: string;
     username: string;
-    email: string;
-    isVerified: boolean;
-    profilePhoto: string;
-    role: string;
-    createdAt?: string;
-    lastLogin?: string;
-    preferences?: UserPreferences;
+    email: string | null;
+    displayName: string | null;
+    bio: string | null;
+    avatarUrl: string | null;
+    emailVerified: boolean;
+    createdAt: string;
+    groups: string[];
+    permissions: string[];
 }
-
-/**
- * Authentication response error types
- */
-export type AuthErrorCode =
-    | 'INVALID_CREDENTIALS'
-    | 'ACCOUNT_LOCKED'
-    | 'USER_NOT_FOUND'
-    | 'SERVER_ERROR'
-    | 'VERIFICATION_REQUIRED'
-    | 'MISSING_FIELDS'
-    | 'INVALID_TOKEN'
-    | 'WEAK_PASSWORD'
-    | 'USER_EXISTS'
-    | 'INVALID_USERNAME'
-    | 'USERNAME_TAKEN';
 
 /**
  * Authentication error response
  */
 export interface AuthError {
     error: string;
-    code: AuthErrorCode;
-    attemptsLeft?: number;
-    lockUntil?: string;
-    field?: string;
+    details?: Array<{ message: string; path?: string[] }>;
 }
 
 /**
  * The shape of the authentication context.
  */
 interface AuthContextType {
-    /** The current user, or null if not authenticated */
     user: User | null;
-    /** Indicates whether an authentication operation is in progress */
     loading: boolean;
-    /** Function to register a new user */
     register: (userData: {
-        firstName: string;
-        lastName?: string;
         username: string;
-        email: string;
         password: string;
+        email?: string;
     }) => Promise<void>;
-    /** Function to log in a user with email/password */
-    login: (
-        email: string,
-        password: string,
-        rememberMe?: boolean
-    ) => Promise<void>;
-    /** Function to request a magic link login */
-    requestMagicLink: (email: string) => Promise<{ isNewUser: boolean }>;
-    /** Function to log out the current user */
+    login: (usernameOrEmail: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
-    /** Function to request a password reset email */
-    requestPasswordReset: (email: string) => Promise<void>;
-    /** Function to reset password with a token */
-    resetPassword: (token: string, newPassword: string) => Promise<void>;
-    /** Function to change password (authenticated) */
     changePassword: (
         currentPassword: string,
         newPassword: string
     ) => Promise<void>;
-    /** Function to update user profile */
     updateProfile: (profileData: {
-        firstName?: string;
-        lastName?: string;
-        username?: string;
+        displayName?: string;
+        bio?: string;
+        avatarUrl?: string | null;
     }) => Promise<void>;
-    /** Function to update user preferences */
-    updatePreferences: (preferences: Partial<UserPreferences>) => Promise<void>;
-    /** Function to check if user is authenticated */
+    deleteAccount: () => Promise<void>;
     isAuthenticated: () => boolean;
-    /** Function to check if user is verified */
-    isVerified: () => boolean;
-    /** Function to check if user is admin */
     isAdmin: () => boolean;
-    /** Function to check the current authentication status */
+    hasPermission: (permission: string) => boolean;
     checkAuth: () => Promise<void>;
-    /** Function to manually set the authentication status to unauthenticated */
     setUnauthenticated: () => void;
-    /** Last authentication error */
     authError: AuthError | null;
-    /** Clear the authentication error */
     clearAuthError: () => void;
 }
 
-// Create the AuthContext
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Set the interval for periodic authentication checks
 const AUTH_CHECK_INTERVAL = HOUR * 24;
 
 /**
@@ -142,9 +86,9 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
     const checkAuth = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await api.get<{ user: User }>('/auth/user-info');
-            setUser(response.data.user);
-        } catch (error) {
+            const response = await api.get<User>('/auth/me');
+            setUser(response.data);
+        } catch {
             setUser(null);
         } finally {
             setLoading(false);
@@ -165,13 +109,10 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
         setAuthError(null);
     }, []);
 
-    // Effect to check auth status on mount and set up periodic checks
     useEffect(() => {
         checkAuth();
 
         const intervalId = setInterval(checkAuth, AUTH_CHECK_INTERVAL);
-
-        // Clean up the interval on unmount
         return () => clearInterval(intervalId);
     }, [checkAuth]);
 
@@ -179,26 +120,24 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
      * Register a new user
      */
     const register = async (userData: {
-        firstName: string;
-        lastName?: string;
         username: string;
-        email: string;
         password: string;
+        email?: string;
     }) => {
         setLoading(true);
         clearAuthError();
 
         try {
-            await api.post('/auth/register', userData);
-            // Don't automatically set user - they need to verify email first
+            const response = await api.post<{
+                user: { id: string; username: string };
+            }>('/auth/register', userData);
+            // After registration, fetch full user data
+            await checkAuth();
         } catch (error: any) {
             if (error.response?.data) {
                 setAuthError(error.response.data as AuthError);
             } else {
-                setAuthError({
-                    error: 'An unexpected error occurred',
-                    code: 'SERVER_ERROR'
-                });
+                setAuthError({ error: 'An unexpected error occurred' });
             }
             throw error;
         } finally {
@@ -207,59 +146,24 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
     };
 
     /**
-     * Log in a user with the provided credentials.
+     * Log in a user with username or email
      */
-    const login = async (
-        email: string,
-        password: string,
-        rememberMe = false
-    ) => {
+    const login = async (usernameOrEmail: string, password: string) => {
         setLoading(true);
         clearAuthError();
 
         try {
-            const response = await api.post<{ user: User }>('/auth/login', {
-                email,
-                password,
-                rememberMe
+            await api.post('/auth/login', {
+                username: usernameOrEmail,
+                password
             });
-            setUser(response.data.user);
+            // After login, fetch full user data
+            await checkAuth();
         } catch (error: any) {
             if (error.response?.data) {
                 setAuthError(error.response.data as AuthError);
             } else {
-                setAuthError({
-                    error: 'An unexpected error occurred',
-                    code: 'SERVER_ERROR'
-                });
-            }
-            throw error;
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    /**
-     * Request a magic link for passwordless login
-     */
-    const requestMagicLink = async (email: string) => {
-        setLoading(true);
-        clearAuthError();
-
-        try {
-            const response = await api.post<{ isNewUser: boolean }>(
-                '/auth/magic-link',
-                { email }
-            );
-            return { isNewUser: response.data.isNewUser };
-        } catch (error: any) {
-            if (error.response?.data) {
-                setAuthError(error.response.data as AuthError);
-            } else {
-                setAuthError({
-                    error: 'An unexpected error occurred',
-                    code: 'SERVER_ERROR'
-                });
+                setAuthError({ error: 'An unexpected error occurred' });
             }
             throw error;
         } finally {
@@ -276,71 +180,10 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
 
         try {
             await api.post('/auth/logout');
+        } catch {
+            // Still clear user even if logout fails server-side
+        } finally {
             setUser(null);
-        } catch (error: any) {
-            if (error.response?.data) {
-                setAuthError(error.response.data as AuthError);
-            }
-            // Still set user to null even if logout fails server-side
-            setUser(null);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    /**
-     * Request a password reset email
-     */
-    const requestPasswordReset = async (email: string) => {
-        setLoading(true);
-        clearAuthError();
-
-        try {
-            await api.post('/auth/reset-password-request', { email });
-        } catch (error: any) {
-            if (error.response?.data) {
-                setAuthError(error.response.data as AuthError);
-            } else {
-                setAuthError({
-                    error: 'An unexpected error occurred',
-                    code: 'SERVER_ERROR'
-                });
-            }
-            throw error;
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    /**
-     * Reset password with token
-     */
-    const resetPassword = async (token: string, newPassword: string) => {
-        setLoading(true);
-        clearAuthError();
-
-        try {
-            const response = await api.post<{ user: User }>(
-                '/auth/reset-password',
-                {
-                    token,
-                    newPassword
-                }
-            );
-
-            // Auto-login after password reset
-            setUser(response.data.user);
-        } catch (error: any) {
-            if (error.response?.data) {
-                setAuthError(error.response.data as AuthError);
-            } else {
-                setAuthError({
-                    error: 'An unexpected error occurred',
-                    code: 'SERVER_ERROR'
-                });
-            }
-            throw error;
-        } finally {
             setLoading(false);
         }
     };
@@ -356,7 +199,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
         clearAuthError();
 
         try {
-            await api.post('/auth/change-password', {
+            await api.post('/users/me/password', {
                 currentPassword,
                 newPassword
             });
@@ -364,10 +207,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
             if (error.response?.data) {
                 setAuthError(error.response.data as AuthError);
             } else {
-                setAuthError({
-                    error: 'An unexpected error occurred',
-                    code: 'SERVER_ERROR'
-                });
+                setAuthError({ error: 'An unexpected error occurred' });
             }
             throw error;
         } finally {
@@ -379,27 +219,27 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
      * Update user profile
      */
     const updateProfile = async (profileData: {
-        firstName?: string;
-        lastName?: string;
-        username?: string;
+        displayName?: string;
+        bio?: string;
+        avatarUrl?: string | null;
     }) => {
         setLoading(true);
         clearAuthError();
 
         try {
-            const response = await api.put<{ user: User }>(
-                '/auth/profile',
-                profileData
-            );
-            setUser(response.data.user);
+            const response = await api.patch<User>('/users/me', profileData);
+            // Update local user state with new profile data
+            if (user) {
+                setUser({
+                    ...user,
+                    ...response.data
+                });
+            }
         } catch (error: any) {
             if (error.response?.data) {
                 setAuthError(error.response.data as AuthError);
             } else {
-                setAuthError({
-                    error: 'An unexpected error occurred',
-                    code: 'SERVER_ERROR'
-                });
+                setAuthError({ error: 'An unexpected error occurred' });
             }
             throw error;
         } finally {
@@ -408,33 +248,20 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
     };
 
     /**
-     * Update user preferences
+     * Delete user account (soft delete)
      */
-    const updatePreferences = async (preferences: Partial<UserPreferences>) => {
+    const deleteAccount = async () => {
         setLoading(true);
         clearAuthError();
 
         try {
-            const response = await api.put<{ preferences: UserPreferences }>(
-                '/auth/preferences',
-                preferences
-            );
-
-            // Update user preferences while keeping other user data
-            if (user) {
-                setUser({
-                    ...user,
-                    preferences: response.data.preferences
-                });
-            }
+            await api.delete('/users/me');
+            setUser(null);
         } catch (error: any) {
             if (error.response?.data) {
                 setAuthError(error.response.data as AuthError);
             } else {
-                setAuthError({
-                    error: 'An unexpected error occurred',
-                    code: 'SERVER_ERROR'
-                });
+                setAuthError({ error: 'An unexpected error occurred' });
             }
             throw error;
         } finally {
@@ -450,35 +277,34 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
     }, [user]);
 
     /**
-     * Check if user is verified
-     */
-    const isVerified = useCallback(() => {
-        return !!user && user.isVerified;
-    }, [user]);
-
-    /**
      * Check if user is admin
      */
     const isAdmin = useCallback(() => {
-        return !!user && user.role === 'admin';
+        return !!user && user.groups.includes('admin');
     }, [user]);
 
-    // Create the context value object
+    /**
+     * Check if user has a specific permission
+     */
+    const hasPermission = useCallback(
+        (permission: string) => {
+            return !!user && user.permissions.includes(permission);
+        },
+        [user]
+    );
+
     const value: AuthContextType = {
         user,
         loading,
         register,
         login,
-        requestMagicLink,
         logout,
-        requestPasswordReset,
-        resetPassword,
         changePassword,
         updateProfile,
-        updatePreferences,
+        deleteAccount,
         isAuthenticated,
-        isVerified,
         isAdmin,
+        hasPermission,
         checkAuth,
         setUnauthenticated,
         authError,

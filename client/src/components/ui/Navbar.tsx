@@ -13,24 +13,33 @@ const minWidthMobile = (props: any) =>
 
 const HamburgerIcon = styled.div`
     display: none;
-    float: right;
     cursor: pointer;
     padding: 14px 13px;
+    margin-left: auto;
 
     @media screen and (max-width: ${minWidthMobile}) {
-        display: block;
+        display: flex;
+        align-items: center;
     }
 `;
 
 const ResponsiveMenu = styled.div<{ open: boolean }>`
-    display: ${(props) => (props.open ? 'block' : 'none')};
+    display: flex;
+    align-items: stretch;
+    flex: 1;
 
     @media screen and (max-width: ${minWidthMobile}) {
-        display: ${(props) => (props.open ? 'block' : 'none')};
+        display: ${(props) => (props.open ? 'flex' : 'none')};
+        flex-direction: column;
+        width: 100%;
     }
+`;
 
-    @media screen and (min-width: ${minWidthMobile}) {
-        display: block;
+const NavSpacer = styled.div`
+    flex: 1;
+
+    @media screen and (max-width: ${minWidthMobile}) {
+        display: none;
     }
 `;
 
@@ -39,14 +48,18 @@ const minWidthSnapUp = (props: any) =>
 
 const NavContainer = styled.nav`
     background-color: ${(props) =>
-        props.theme.container.background.colour.primary()};
-    overflow: hidden;
+        props.theme.container.background.colour.card()};
     margin: 20px auto;
     width: 90%;
     color: ${(props) => props.theme.theme_colours[5]()};
 
     border: 1px solid #ccc;
     border-radius: 5px;
+
+    /* Use flexbox to eliminate gap at bottom of nav items */
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
 
     @media screen and (max-width: ${minWidthSnapUp}) {
         width: 95%;
@@ -55,7 +68,8 @@ const NavContainer = styled.nav`
 
 const CommonNavItem = styled.div`
     cursor: pointer;
-    display: block;
+    display: flex;
+    align-items: center;
     color: inherit;
     text-align: center;
     padding: 14px 13px;
@@ -64,7 +78,6 @@ const CommonNavItem = styled.div`
 
     @media screen and (max-width: ${minWidthMobile}) {
         width: 100%;
-        float: none;
         text-align: left;
     }
 `;
@@ -73,42 +86,35 @@ const CommonNavItem = styled.div`
 // inherit from Link component allows for linking to other pages
 // prettier-ignore
 const NavLeftItem = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boolean; }>`
-    float: left;
     &:hover {
         color: ${(props) => props.theme.text.colour.white()};
         background-color: ${(props) => props.theme.theme_colours[5]()};
-    }
-
-    @media screen and (max-width: ${minWidthMobile}) {
-        float: none;
     }
 `;
 
 // prettier-ignore
 const NavRightItemLink = styled(CommonNavItem).attrs({ as: Link }) <{ rightmost?: boolean; }>`
-    float: right;
-`;
-
-const NavRightItem = styled(CommonNavItem)<{ rightmost?: boolean }>`
-    float: right;
     &:hover {
         color: ${(props) => props.theme.text.colour.white()};
         background-color: ${(props) => props.theme.theme_colours[5]()};
     }
+`;
 
-    @media screen and (max-width: ${minWidthMobile}) {
-        float: none;
+const NavRightItem = styled(CommonNavItem)<{ rightmost?: boolean }>`
+    &:hover {
+        color: ${(props) => props.theme.text.colour.white()};
+        background-color: ${(props) => props.theme.theme_colours[5]()};
     }
 `;
 
 const DropDownContainer = styled.div`
-    float: left;
-    overflow: hidden;
+    display: flex;
+    align-items: stretch;
+    position: relative;
 
     @media screen and (max-width: ${minWidthMobile}) {
         width: 100%;
-        float: none;
-        text-align: left;
+        flex-direction: column;
     }
 `;
 
@@ -123,24 +129,25 @@ const DropDownLabel = styled(CommonNavItem)<{ rightmost?: boolean }>`
 const DropDownContent = styled.div`
     display: none;
     position: absolute;
-    min-width: 160px;
+    top: 100%;
+    left: 0;
+    min-width: max-content;
     z-index: 1;
     border: 1px solid #ccc;
     box-shadow: 1px 1px 10px #ccc;
     background-color: ${(props) =>
-        props.theme.container.background.colour.primary()};
+        props.theme.container.background.colour.card()};
 
     ${DropDownContainer}:hover & {
         display: block;
     }
 
     ${NavLeftItem} {
-        float: none;
         padding: 12px 16px;
         text-align: left;
+        white-space: nowrap;
     }
 
-    /* TODO: still not working as intended */
     ${NavLeftItem}:first-child {
         border-top-left-radius: 0;
         border-top-right-radius: 0;
@@ -155,12 +162,13 @@ const DropDownContent = styled.div`
         border: none;
         width: 100%;
         position: relative;
-        float: none;
+        top: auto;
         text-align: left;
         box-shadow: none;
 
         ${NavLeftItem} {
             padding-left: 30px;
+            white-space: normal;
         }
     }
 `;
@@ -245,6 +253,7 @@ function Navbar() {
                         </NavLeftItem>
                     </DropDownContent>
                 </DropDownContainer>
+                <NavSpacer />
                 {isAuthenticated() ? (
                     <NavRightItemLink href="/profile">
                         <FaUser />

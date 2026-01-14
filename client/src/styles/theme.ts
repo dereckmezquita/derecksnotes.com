@@ -19,9 +19,12 @@ export const theme = {
     container: {
         background: {
             colour: {
-                primary: hsla_colour(0, 0, 100, 1), // this is the deepest background that gets the lines
-                content: hsla_colour(0, 0, 100, 0.65), // used for content holders; posts etc
-                solid: hsla_colour(0, 0, 100, 1), // used for solid backgrounds
+                primary: hsla_colour(0, 0, 100, 1), // deepest background (page background with lines)
+                // UNIFIED CARD BACKGROUND - use this for navbar, cards, content wrappers, modals
+                // Change this single value to adjust transparency/color across all card-like components
+                card: hsla_colour(0, 0, 100, 1), // solid white - change alpha (4th param) for transparency
+                content: hsla_colour(0, 0, 100, 1), // alias for card - kept for backwards compatibility
+                solid: hsla_colour(0, 0, 100, 1), // alias for card
                 light_contrast: hsla_colour(0, 0, 95, 1) // light background for contrast (used in comment components)
             }
         },

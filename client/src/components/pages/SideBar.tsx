@@ -1,5 +1,6 @@
 import React, { ReactElement } from 'react';
 import path from 'path';
+import styled from 'styled-components';
 import {
     SideBarContainer,
     SideBarSiteName,
@@ -10,6 +11,18 @@ import {
 } from './posts-dictionaries';
 import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
 import { DefinitionMetadata } from '@utils/dictionaries/fetchDefinitionMetadata';
+
+const SideBarSectionTitle = styled.h3`
+    font-size: ${(props) => props.theme.text.size.small};
+    font-weight: ${(props) => props.theme.text.weight.bold};
+    color: ${(props) => props.theme.text.colour.light_grey()};
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 ${(props) => props.theme.container.spacing.small} 0;
+    padding-bottom: ${(props) => props.theme.container.spacing.xsmall};
+    border-bottom: 1px dashed
+        ${(props) => props.theme.container.border.colour.primary()};
+`;
 
 interface SideBarProps {
     posts: PostMetadata[] | DefinitionMetadata[];
@@ -87,7 +100,12 @@ function renderAllDefinitions(defs: DefinitionMetadata[]) {
     for (let i = 0; i < defs.length; i++) {
         items.push(renderDefinition(defs[i]));
     }
-    return items;
+    return (
+        <>
+            <SideBarSectionTitle>Related Definitions</SideBarSectionTitle>
+            {items}
+        </>
+    );
 }
 
 function renderDefinition(def: DefinitionMetadata) {

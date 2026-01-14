@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { NEXT_PUBLIC_APP_VERSION, NEXT_PUBLIC_BUILD_ENV } from '@lib/env';
+import { config } from '@lib/env';
 import Link from 'next/link';
 import { ReactElement } from 'react';
 
@@ -40,9 +40,8 @@ function Footer(): ReactElement {
                 the owner; Copyright © 2017 - {getCurrentYear()}
             </FooterText>
             <FooterText>
-                Application build: {NEXT_PUBLIC_BUILD_ENV}, Application version:{' '}
-                {NEXT_PUBLIC_APP_VERSION}, test API integration:{' '}
-                <Link href="/test/api">/test/api</Link>
+                v{config.version} ({config.commitSha.slice(0, 7)}) &bull;{' '}
+                {config.buildEnv} &bull; <Link href="/test/api">test api</Link>
             </FooterText>
             <FooterText>
                 <a href="mailto:contact@derecksnotes.com">

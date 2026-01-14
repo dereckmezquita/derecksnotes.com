@@ -59,6 +59,7 @@ jobs:
             ${{ github.event_name == 'release' && format('{0}:{1}', env.IMAGE_NAME, github.event.release.tag_name) || '' }}
           build-args: |
             BUILD_ENV=${{ steps.set-env.outputs.environment }}
+            COMMIT_SHA=${{ github.sha }}
 
   deploy:
     name: Deploy to Linode

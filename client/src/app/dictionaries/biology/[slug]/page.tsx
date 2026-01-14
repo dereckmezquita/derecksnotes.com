@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { Post } from '@components/pages/Post';
-import { APPLICATION_DEFAULT_METADATA, ROOT_DIR_APP } from '@lib/constants';
-import { NEXT_PUBLIC_BUILD_ENV_BOOL } from '@lib/env';
+import { APPLICATION_DEFAULT_METADATA } from '@lib/constants';
+import { ROOT_DIR_APP } from '@lib/constants.server';
+import { config } from '@lib/env';
 import {
     DefinitionMetadata,
     extractSingleDefinitionMetadata,
@@ -23,8 +24,8 @@ export async function generateStaticParams(): Promise<{ slug: string }[]> {
         return filename.endsWith('.mdx');
     });
 
-    // if NEXT_PUBLIC_BUILD_ENV_BOOL then return all
-    if (!NEXT_PUBLIC_BUILD_ENV_BOOL) {
+    // In production, limit to 3 files; in dev/local, return all
+    if (config.isProduction) {
         filenames = filenames.slice(0, 3);
     }
 
@@ -82,8 +83,15 @@ export async function generateMetadata({
     const decodedSlug = decodeSlug((await params).slug);
     const filename: string = decodedSlug + '.mdx';
     const filePath: string = path.join(absDir, filename);
-    const definition: DefinitionMetadata =
-        extractSingleDefinitionMetadata(filePath);
+    const definition = extractSingleDefinitionMetadata(filePath);
+
+    // Handle missing files gracefully (e.g., static asset requests in dev)
+    if (!definition) {
+        return {
+            title: 'Not Found',
+            description: 'The requested page could not be found.'
+        };
+    }
 
     const title: string = `Dn | dictionary - ${definition.word}`;
     const summary: string =

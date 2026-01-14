@@ -1,130 +1,85 @@
-import express from 'express';
-import { type Request, type Response, type NextFunction } from 'express';
+import express, { type Request, type Response } from 'express';
 import cors from 'cors';
-import session from 'express-session';
-import RedisStore from 'connect-redis';
+import cookieParser from 'cookie-parser';
+import { config } from '@lib/env';
+import { generalLimiter } from '@middleware/rateLimit';
+import { requestLogger, errorLogger } from '@middleware/requestLogger';
+import { ensureAdminUser } from '@services/auth';
+import { initializeDatabase } from '@db/init';
+import v1Router from '@routes/v1';
 
-import { db } from './db/DataBase';
-import { getServerStatus } from './utils/getServerStatus';
-import * as env from './utils/env';
-import * as constants from './utils/constants';
-
-import * as routes from './routes';
+// Initialize database (runs migrations + seeds if needed)
+await initializeDatabase();
 
 const app = express();
 
+// Middleware
 app.use(express.json());
-app.use(
-    cors({
-        origin: (origin, callback) => {
-            // Allow requests with no origin, such as those from server-side clients (adjust if needed)
-            if (!origin) {
-                return callback(null, true);
-            }
+app.use(cookieParser());
 
-            try {
-                const url = new URL(origin);
+// CORS configuration
+const corsOptions = {
+    origin:
+        config.buildEnv === 'local'
+            ? (
+                  origin: string | undefined,
+                  callback: (err: Error | null, allow?: boolean) => void
+              ) => {
+                  // Allow any localhost origin in local development
+                  if (!origin || origin.startsWith('http://localhost:')) {
+                      callback(null, true);
+                  } else {
+                      callback(new Error('Not allowed by CORS'));
+                  }
+              }
+            : config.baseUrl,
+    credentials: true
+};
+app.use(cors(corsOptions));
 
-                // Allow exact derecksnotes.com or any of its subdomains
-                if (
-                    url.hostname === 'derecksnotes.com' ||
-                    url.hostname.endsWith('.derecksnotes.com') ||
-                    url.hostname === 'localhost'
-                ) {
-                    return callback(null, true);
-                }
-            } catch (err) {
-                return callback(new Error('Not allowed by CORS'));
-            }
+// Rate limiting
+app.use('/api', generalLimiter);
 
-            // If the hostname doesn’t match your criteria, reject the request
-            return callback(new Error('Not allowed by CORS'));
-        },
-        credentials: true
-    })
-);
+// Request logging
+app.use(requestLogger);
 
-app.use(
-    session({
-        store: new RedisStore({ client: db.redis }),
-        secret: env.SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-        cookie: {
-            secure: env.BUILD_ENV !== 'LOCAL',
-            httpOnly: true,
-            maxAge: constants.SESSION_MAX_AGE,
-            path: '/',
-            sameSite: 'none',
-            domain: env.DOMAIN
-        }
-    })
-);
-
-// Use API_PREFIX from env configuration (already includes trailing slash)
-app.use(env.API_PREFIX, routes.auth);
-app.use(env.API_PREFIX, routes.comments);
-app.use(env.API_PREFIX, routes.profile);
-app.use(env.API_PREFIX, routes.test);
-// -----
-
-// -----
-app.get(env.API_PREFIX, async (req: Request, res: Response) => {
-    const status = await getServerStatus();
-    console.log('Server status:', JSON.stringify(status, null, 2));
-    res.json(status);
+// Root endpoint - API info
+app.get('/api', (_req: Request, res: Response) => {
+    res.json({
+        name: 'derecksnotes-api',
+        version: '1.0.0',
+        status: 'ok',
+        env: config.buildEnv,
+        timestamp: new Date().toISOString()
+    });
 });
 
-// Add debugging middleware for non-production environments
-if (env.BUILD_ENV !== 'PROD') {
-    // Log all incoming requests with basic info
-    app.use((req: Request, res: Response, next: NextFunction) => {
-        console.log('Incoming request: ', req.method, req.url);
-        next();
+// Health check
+app.get('/api/health', (_req: Request, res: Response) => {
+    res.json({
+        status: 'ok',
+        env: config.buildEnv,
+        timestamp: new Date().toISOString()
     });
-
-    // Add session tracking middleware for debugging
-    app.use((req: Request, res: Response, next: NextFunction) => {
-        console.log('Session ID:', req.sessionID);
-        console.log('Session Data:', JSON.stringify(req.session));
-        console.log('Cookie Header:', req.headers.cookie);
-        next();
-    });
-
-    // Add detailed API request logging
-    app.use((req: Request, res: Response, next: NextFunction) => {
-        console.log(
-            `API Request ${Date.now().toString()}: ${req.method} ${req.url}`
-        );
-        console.log(`Query params: ${JSON.stringify(req.query)}`);
-
-        // Log request body for non-GET requests if it exists, but redact sensitive data
-        if (
-            req.method !== 'GET' &&
-            req.body &&
-            Object.keys(req.body).length > 0
-        ) {
-            const sensitiveKeys = ['password', 'token', 'secret'];
-            const sanitizedBody = { ...req.body };
-
-            sensitiveKeys.forEach((key) => {
-                if (key in sanitizedBody) sanitizedBody[key] = '[REDACTED]';
-            });
-
-            console.log(`Body: ${JSON.stringify(sanitizedBody, null, 2)}`);
-        }
-        next();
-    });
-}
-
-process.on('SIGINT', async () => {
-    console.log('Received SIGINT. Shutting down gracefully...');
-    await db.disconnect();
-    process.exit(0);
 });
 
-app.listen(env.PORT_SERVER, async () => {
-    console.log(`Server running: ${env.BASE_URL_SERVER} 🚀`);
-    const status = await getServerStatus();
-    console.log(JSON.stringify(status, null, 2));
+// API v1 routes
+app.use('/api/v1', v1Router);
+
+// 404 handler for API routes
+app.use('/api', (_req: Request, res: Response) => {
+    res.status(404).json({ error: 'Not found' });
+});
+
+// Error logging (after routes, before error handler)
+app.use(errorLogger);
+
+// Start server
+const port = config.port;
+app.listen(port, async () => {
+    console.log(`API server running at http://localhost:${port}`);
+    console.log(`Environment: ${config.buildEnv}`);
+
+    // Ensure admin user is in admin group (if configured and exists)
+    await ensureAdminUser();
 });

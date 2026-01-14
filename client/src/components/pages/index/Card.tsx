@@ -43,7 +43,7 @@ const CardContainerBase = css`
     }
 
     background-color: ${(props) =>
-        props.theme.container.background.colour.content()};
+        props.theme.container.background.colour.card()};
 
     padding: 5px;
     text-decoration: none;

@@ -2,7 +2,10 @@ import React from 'react';
 import { User } from '@context/AuthContext';
 import { CommentType } from '@components/comments/types';
 import { ProfileCommentItem } from './ProfileCommentItem';
-import styled from 'styled-components';
+import {
+    NoCommentsMessage,
+    CommentListContainer
+} from '@components/comments/CommentStyles';
 
 interface ProfileCommentListProps {
     comments: CommentType[];
@@ -10,17 +13,15 @@ interface ProfileCommentListProps {
     selectedComments: string[];
     toggleSelectComment: (id: string) => void;
     onDelete: (id: string) => Promise<void>;
+    onReactionUpdate?: (
+        commentId: string,
+        newReaction: 'like' | 'dislike' | null
+    ) => void;
     Checkbox: React.ComponentType<{
         checked: boolean;
         onChange: () => void;
     }>;
 }
-
-const EmptyMessage = styled.div`
-    text-align: center;
-    padding: 40px 20px;
-    color: ${(props) => props.theme.text.colour.light_grey()};
-`;
 
 export const ProfileCommentList: React.FC<ProfileCommentListProps> = ({
     comments,
@@ -28,25 +29,32 @@ export const ProfileCommentList: React.FC<ProfileCommentListProps> = ({
     selectedComments,
     toggleSelectComment,
     onDelete,
+    onReactionUpdate,
     Checkbox
 }) => {
     if (comments.length === 0) {
-        return <EmptyMessage>No comments found.</EmptyMessage>;
+        return (
+            <NoCommentsMessage>
+                <p>No comments found</p>
+                <span>Your comments will appear here</span>
+            </NoCommentsMessage>
+        );
     }
 
     return (
-        <div>
+        <CommentListContainer level={0}>
             {comments.map((comment) => (
                 <ProfileCommentItem
-                    key={comment._id}
+                    key={comment.id}
                     comment={comment}
                     currentUser={currentUser}
-                    selected={selectedComments.includes(comment._id)}
+                    selected={selectedComments.includes(comment.id)}
                     toggleSelect={toggleSelectComment}
                     onDelete={onDelete}
+                    onReactionUpdate={onReactionUpdate}
                     Checkbox={Checkbox}
                 />
             ))}
-        </div>
+        </CommentListContainer>
     );
 };

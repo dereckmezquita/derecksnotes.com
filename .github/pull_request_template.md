@@ -1,6 +1,6 @@
 # jira ticket
 
-https://singular-ai.atlassian.net/browse/<TICKET-ID>
+https://dereckmezquita.atlassian.net/browse/<TICKET-ID>
 
 # todo list
 
