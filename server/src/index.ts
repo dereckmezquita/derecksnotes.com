@@ -39,6 +39,7 @@ const corsOptions = {
             : config.baseUrl,
     credentials: true
 };
+
 app.use(cors(corsOptions));
 
 // Rate limiting
