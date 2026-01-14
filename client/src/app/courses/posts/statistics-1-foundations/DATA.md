@@ -28,7 +28,8 @@ source("src/data/download_datasets.R")
 | Primary | 5 | ~7.9 MB |
 | Medical | 15 | ~2.2 MB |
 | Supplementary | 19 | ~0.3 MB |
-| **Total** | **39** | **~10.4 MB** |
+| Bioinformatics | 7 | ~7.9 MB |
+| **Total** | **46** | **~18.3 MB** |
 
 ---
 
@@ -620,6 +621,201 @@ library(MASS); data(birthwt)
 
 ---
 
+## Bioinformatics Datasets (`src/data/bioinformatics/`)
+
+These datasets were downloaded using the `src/data/download_bioinformatics_datasets.R` script, which retrieves real scientific data from public repositories for teaching statistical concepts with authentic bioinformatics examples.
+
+**To download all bioinformatics datasets:**
+
+```r
+# From the statistics-1-foundations directory
+Rscript src/data/download_bioinformatics_datasets.R
+```
+
+---
+
+### 1. RNA-seq Influenza Dataset
+
+**File:** `rnaseq_influenza.csv` (6.5 MB)
+**Source:** UCLouvain Bioinformatics Course
+**Reference:** https://uclouvain-cbio.github.io/WSBIM1207/
+
+| Property | Value |
+|----------|-------|
+| Observations | 32,428 |
+| Variables | 19 |
+| Organism | Mouse (Mus musculus) |
+
+**Description:**
+Gene expression data from mice infected with Influenza A. Gender-matched eight-week-old C57BL/6 mice were inoculated with saline (control) or Influenza A, and transcriptomic changes in the cerebellum and spinal cord tissues were evaluated by RNA-seq at days 0, 4, and 8 post-infection.
+
+**Course Applications:**
+- Differential expression analysis
+- Multiple testing correction (FDR)
+- Visualising high-dimensional data
+- Normalisation methods
+
+---
+
+### 2. Breast Cancer Wisconsin Dataset
+
+**File:** `breast_cancer_wisconsin.csv` (122 KB)
+**Source:** UCI Machine Learning Repository
+**Reference:** https://archive.ics.uci.edu/dataset/17/breast+cancer+wisconsin+diagnostic
+
+| Property | Value |
+|----------|-------|
+| Observations | 569 |
+| Variables | 32 |
+| Classes | Malignant (M), Benign (B) |
+
+**Description:**
+Features computed from digitised images of fine needle aspirates (FNA) of breast masses. Features describe characteristics of cell nuclei present in the image. Ten real-valued features are computed for each cell nucleus (mean, standard error, and "worst" or largest values).
+
+**Key Variables:**
+- `diagnosis`: M = malignant, B = benign
+- `mean_radius`, `mean_texture`, `mean_perimeter`, `mean_area`, `mean_smoothness`
+- `mean_compactness`, `mean_concavity`, `mean_concave_points`, `mean_symmetry`, `mean_fractal_dimension`
+- Same features for `se_` (standard error) and `worst_` (largest) values
+
+**Course Applications:**
+- Logistic regression
+- Classification methods
+- Receiver operating characteristic (ROC) curves
+- Feature selection
+
+---
+
+### 3. Golub Leukemia Gene Expression Dataset
+
+**File:** `golub_leukemia.csv` (982 KB)
+**Source:** Golub et al. (1999) Science 286:531-537
+**Reference:** Classic paper: "Molecular Classification of Cancer: Class Discovery and Class Prediction by Gene Expression Monitoring"
+
+| Property | Value |
+|----------|-------|
+| Observations | 38 samples |
+| Variables | 3,054 (3 metadata + 3,051 genes) |
+| Classes | ALL (27), AML (11) |
+
+**Description:**
+One of the most influential datasets in computational biology. Gene expression profiles from 38 patients with acute leukemia—27 with acute lymphoblastic leukemia (ALL) and 11 with acute myeloid leukemia (AML). This dataset established that gene expression monitoring could distinguish between cancer subtypes without prior biological knowledge.
+
+**Key Variables:**
+- `sample_id`: Sample identifier (1-38)
+- `class`: 0 = ALL, 1 = AML
+- `class_label`: "ALL" or "AML"
+- `gene_1` to `gene_3051`: Expression values for 3,051 genes
+
+**Course Applications:**
+- Multiple testing (comparing 3,000+ genes)
+- False discovery rate control
+- Dimension reduction (PCA)
+- Classification of high-dimensional data
+
+---
+
+### 4. Heart Disease Cleveland Dataset
+
+**File:** `heart_disease_cleveland.csv` (11 KB)
+**Source:** UCI Machine Learning Repository (Cleveland Clinic Foundation)
+**Reference:** https://archive.ics.uci.edu/dataset/45/heart+disease
+
+| Property | Value |
+|----------|-------|
+| Observations | 303 |
+| Variables | 15 |
+| Classes | Disease present/absent |
+
+**Description:**
+Clinical data from patients at the Cleveland Clinic. Contains diagnostic attributes including age, sex, chest pain type, resting blood pressure, cholesterol, fasting blood sugar, resting ECG results, maximum heart rate achieved, exercise-induced angina, ST depression, and thallium stress test results.
+
+**Key Variables:**
+- `age`: Age in years
+- `sex`: 1 = male, 0 = female
+- `cp`: Chest pain type (1-4)
+- `trestbps`: Resting blood pressure (mmHg)
+- `chol`: Serum cholesterol (mg/dl)
+- `fbs`: Fasting blood sugar > 120 mg/dl (1 = true)
+- `thalach`: Maximum heart rate achieved
+- `exang`: Exercise-induced angina (1 = yes)
+- `disease`: Binary outcome (1 = heart disease present)
+
+**Course Applications:**
+- Logistic regression
+- Multiple predictor models
+- Diagnostic test evaluation
+- Missing data handling
+
+---
+
+### 5. Pima Indians Diabetes Dataset
+
+**File:** `pima_diabetes_full.csv` (23 KB)
+**Source:** National Institute of Diabetes and Digestive and Kidney Diseases
+**Reference:** Smith et al. (1988) "Using the ADAP learning algorithm to forecast the onset of diabetes mellitus"
+
+| Property | Value |
+|----------|-------|
+| Observations | 768 |
+| Variables | 9 |
+| Population | Pima Indian women ≥21 years old |
+
+**Description:**
+Diagnostic measurements from Pima Indian women near Phoenix, Arizona. This population has the highest recorded prevalence of diabetes in the world. The dataset was collected to predict diabetes onset within 5 years based on diagnostic measurements.
+
+**Key Variables:**
+- `pregnancies`: Number of times pregnant
+- `glucose`: Plasma glucose concentration (2-hour oral glucose tolerance test)
+- `blood_pressure`: Diastolic blood pressure (mmHg)
+- `skin_thickness`: Triceps skin fold thickness (mm)
+- `insulin`: 2-hour serum insulin (μU/ml)
+- `bmi`: Body mass index
+- `diabetes_pedigree`: Diabetes pedigree function (genetic influence)
+- `age`: Age in years
+- `outcome`: 1 = diabetes diagnosed within 5 years, 0 = no
+
+**Course Applications:**
+- Logistic regression
+- Dealing with zero-inflated measurements
+- Risk factor analysis
+- Prediction modelling
+
+---
+
+### 6. Simulated RNA-seq DEG Dataset
+
+**Files:** `simulated_rnaseq_degs.csv` (253 KB), `simulated_rnaseq_metadata.csv` (1 KB)
+**Source:** Simulated (reproducible with seed 42)
+
+| Property | Value |
+|----------|-------|
+| Observations | 500 genes |
+| Samples | 30 (15 control, 15 treatment) |
+| True DEGs | 100 (50 up, 50 down) |
+
+**Description:**
+A carefully constructed simulated dataset for teaching differential expression analysis. The "ground truth" is known: exactly 50 genes are truly upregulated, 50 are truly downregulated, and 400 are unchanged. This allows students to evaluate the performance of statistical methods.
+
+**Key Variables:**
+- `gene_id`: Gene identifier (Gene_0001 to Gene_0500)
+- `Control_1` to `Control_15`: Expression values for control samples
+- `Treatment_1` to `Treatment_15`: Expression values for treatment samples
+
+**Metadata file:**
+- `sample_id`: Sample identifier
+- `group`: "Control" or "Treatment"
+- `batch`: "Batch_1" or "Batch_2" (for batch effect examples)
+
+**Course Applications:**
+- t-tests and multiple testing
+- False discovery rate control
+- Volcano plots
+- Power analysis (known truth)
+- Batch effect correction
+
+---
+
 ## References and Data Sources
 
 ### Primary Sources
@@ -668,12 +864,12 @@ library(MASS); data(birthwt)
 
 | Item | Value |
 |------|-------|
-| Document Version | 2.0 |
+| Document Version | 2.1 |
 | Last Updated | January 2026 |
 | Tested R Version | 4.3+ |
 | Course | Statistics with R (Levels 1-3) |
-| Download Script | `src/data/download_datasets.R` |
-| Total Datasets | 39 |
+| Download Scripts | `src/data/download_datasets.R`, `src/data/download_bioinformatics_datasets.R` |
+| Total Datasets | 46 |
 
 ---
 
