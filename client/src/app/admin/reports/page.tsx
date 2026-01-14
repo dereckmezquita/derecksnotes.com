@@ -37,37 +37,10 @@ import {
 import SelectDropDown from '@components/atomic/SelectDropDown';
 import { Modal } from '@components/ui/modal/Modal';
 
-interface Report {
-    id: string;
-    commentId: string;
-    reason: string;
-    details: string | null;
-    status: 'pending' | 'reviewed' | 'dismissed';
-    reviewedBy: string | null;
-    reviewedAt: string | null;
-    createdAt: string;
-    reportCount: number;
-    isHighPriority: boolean;
-    reporter: {
-        id: string;
-        username: string;
-    } | null;
-    comment: {
-        id: string;
-        content: string;
-        postSlug: string;
-        user: {
-            id: string;
-            username: string;
-        } | null;
-    } | null;
-}
+import type { AdminReport, AdminReportsResponse } from '@/types/api';
 
-interface ReportsResponse {
-    reports: Report[];
-    page: number;
-    limit: number;
-}
+type Report = AdminReport;
+type ReportsResponse = AdminReportsResponse;
 
 export default function AdminReportsPage() {
     const { isAdmin, hasPermission } = useAuth();

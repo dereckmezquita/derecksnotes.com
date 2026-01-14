@@ -178,6 +178,61 @@ router.patch(
     }
 );
 
+// POST /api/v1/posts/view/:viewId - Update a page view (beacon API fallback)
+// Note: Beacon API only supports POST, so this endpoint handles the same logic as PATCH
+router.post(
+    '/view/:viewId',
+    async (req: Request, res: Response): Promise<void> => {
+        try {
+            const viewId = req.params.viewId as string;
+            const data = updateViewSchema.parse(req.body);
+
+            // Verify view exists
+            const view = await db.query.pageViews.findFirst({
+                where: eq(schema.pageViews.id, viewId)
+            });
+
+            if (!view) {
+                res.status(404).json({ error: 'View not found' });
+                return;
+            }
+
+            // Update view with new data
+            const updateData: Record<string, unknown> = {};
+            if (data.duration !== undefined) {
+                updateData.duration = data.duration;
+            }
+            if (data.scrollDepth !== undefined) {
+                updateData.scrollDepth = data.scrollDepth;
+            }
+            if (data.exitedAt !== undefined) {
+                updateData.exitedAt = new Date(data.exitedAt);
+            }
+
+            if (Object.keys(updateData).length > 0) {
+                await db
+                    .update(schema.pageViews)
+                    .set(updateData)
+                    .where(eq(schema.pageViews.id, viewId));
+            }
+
+            res.json({ success: true });
+        } catch (error) {
+            if (error instanceof z.ZodError) {
+                res.status(400).json({
+                    error: 'Validation failed',
+                    details: error.issues
+                });
+                return;
+            }
+            dbLogger.error('Update view failed (beacon)', error as Error, {
+                source: 'posts'
+            });
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    }
+);
+
 // POST /api/v1/posts/react - Add or change reaction to a post
 router.post(
     '/react',

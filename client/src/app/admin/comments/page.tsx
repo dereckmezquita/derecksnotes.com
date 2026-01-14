@@ -54,23 +54,13 @@ import {
 // TYPES
 // ============================================================================
 
-interface PendingComment {
-    id: string;
-    content: string;
-    postSlug: string;
-    createdAt: string;
-    user: {
-        id: string;
-        username: string;
-        displayName: string | null;
-    } | null;
-}
+import type {
+    AdminPendingComment,
+    AdminPendingCommentsResponse
+} from '@/types/api';
 
-interface PendingCommentsResponse {
-    comments: PendingComment[];
-    page: number;
-    limit: number;
-}
+type PendingComment = AdminPendingComment;
+type PendingCommentsResponse = AdminPendingCommentsResponse;
 
 // ============================================================================
 // ADDITIONAL STYLED COMPONENTS FOR TABLE
@@ -350,16 +340,16 @@ export default function AdminCommentsPage() {
                 ),
                 size: 300
             }),
-            columnHelper.accessor('postSlug', {
+            columnHelper.accessor('slug', {
                 header: 'Post',
-                cell: ({ getValue }) => (
+                cell: ({ getValue, row }) => (
                     <PostLink
                         href={`/${getValue()}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        title={getValue()}
+                        title={row.original.postTitle || getValue()}
                     >
-                        {getValue()}
+                        {row.original.postTitle || getValue()}
                     </PostLink>
                 ),
                 size: 150

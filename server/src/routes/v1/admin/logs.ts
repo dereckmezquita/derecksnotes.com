@@ -7,9 +7,13 @@ import {
     unresolveError,
     getLogStats,
     cleanupOldLogs,
+    clearLogs,
+    unclearLogs,
+    clearAllLogs,
     dbLogger
 } from '@services/logger';
 import type { LogLevel } from '@db/schema/logs';
+import type { AuthenticatedRequest } from '@/types';
 
 const router = Router();
 
@@ -26,6 +30,7 @@ router.get(
                 search,
                 startDate,
                 endDate,
+                cleared,
                 limit = '50',
                 offset = '0'
             } = req.query;
@@ -37,6 +42,16 @@ router.get(
                 parsedLevel = levels.length === 1 ? levels[0] : levels;
             }
 
+            // Parse cleared filter (undefined = all, 'true' = cleared only, 'false' = not cleared)
+            const parsedCleared =
+                cleared === undefined
+                    ? undefined
+                    : cleared === 'true'
+                      ? true
+                      : cleared === 'false'
+                        ? false
+                        : undefined;
+
             const result = await getLogs({
                 level: parsedLevel,
                 source: source as string,
@@ -45,6 +60,7 @@ router.get(
                     ? new Date(startDate as string)
                     : undefined,
                 endDate: endDate ? new Date(endDate as string) : undefined,
+                cleared: parsedCleared,
                 limit: parseInt(limit as string),
                 offset: parseInt(offset as string)
             });
@@ -159,6 +175,105 @@ router.post(
                 source: 'admin'
             });
             res.status(500).json({ error: 'Failed to clean up logs' });
+        }
+    }
+);
+
+// POST /api/v1/admin/logs/clear - Soft clear specific logs
+router.post(
+    '/clear',
+    authenticate,
+    requirePermission('admin.dashboard'),
+    async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const { ids } = req.body;
+
+            if (!Array.isArray(ids) || ids.length === 0) {
+                res.status(400).json({ error: 'ids array is required' });
+                return;
+            }
+
+            if (ids.length > 100) {
+                res.status(400).json({
+                    error: 'Maximum 100 logs per batch'
+                });
+                return;
+            }
+
+            const cleared = await clearLogs(ids, req.user!.id);
+            res.json({ success: true, cleared });
+        } catch (error) {
+            dbLogger.error('clearing logs failed', error as Error, {
+                source: 'admin'
+            });
+            res.status(500).json({ error: 'Failed to clear logs' });
+        }
+    }
+);
+
+// POST /api/v1/admin/logs/clear-all - Soft clear all logs matching filter
+router.post(
+    '/clear-all',
+    authenticate,
+    requirePermission('admin.dashboard'),
+    async (req: AuthenticatedRequest, res: Response) => {
+        try {
+            const { level, source, search, startDate, endDate } = req.body;
+
+            // Parse level if provided
+            let parsedLevel: LogLevel | LogLevel[] | undefined;
+            if (level) {
+                const levels = (level as string).split(',') as LogLevel[];
+                parsedLevel = levels.length === 1 ? levels[0] : levels;
+            }
+
+            const cleared = await clearAllLogs({
+                level: parsedLevel,
+                source,
+                search,
+                startDate: startDate ? new Date(startDate) : undefined,
+                endDate: endDate ? new Date(endDate) : undefined,
+                clearedBy: req.user!.id
+            });
+
+            res.json({ success: true, cleared });
+        } catch (error) {
+            dbLogger.error('clearing all logs failed', error as Error, {
+                source: 'admin'
+            });
+            res.status(500).json({ error: 'Failed to clear logs' });
+        }
+    }
+);
+
+// POST /api/v1/admin/logs/unclear - Restore cleared logs
+router.post(
+    '/unclear',
+    authenticate,
+    requirePermission('admin.dashboard'),
+    async (req: Request, res: Response) => {
+        try {
+            const { ids } = req.body;
+
+            if (!Array.isArray(ids) || ids.length === 0) {
+                res.status(400).json({ error: 'ids array is required' });
+                return;
+            }
+
+            if (ids.length > 100) {
+                res.status(400).json({
+                    error: 'Maximum 100 logs per batch'
+                });
+                return;
+            }
+
+            const restored = await unclearLogs(ids);
+            res.json({ success: true, restored });
+        } catch (error) {
+            dbLogger.error('restoring logs failed', error as Error, {
+                source: 'admin'
+            });
+            res.status(500).json({ error: 'Failed to restore logs' });
         }
     }
 );

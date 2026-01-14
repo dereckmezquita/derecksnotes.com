@@ -63,6 +63,8 @@ interface LogEntry {
     statusCode: number | null;
     duration: number | null;
     createdAt: string;
+    clearedAt: string | null;
+    clearedBy: string | null;
 }
 
 interface ErrorSummary {
@@ -196,6 +198,52 @@ const WideModalContent = styled(ModalContent)`
     max-width: 800px;
 `;
 
+const DateInput = styled.input`
+    padding: ${(props) => props.theme.container.spacing.small};
+    border: 1px solid
+        ${(props) => props.theme.container.border.colour.primary()};
+    border-radius: ${(props) => props.theme.container.border.radius};
+    background: ${(props) => props.theme.container.background.colour.solid()};
+    color: ${(props) => props.theme.text.colour.primary()};
+    font-size: 0.85rem;
+    cursor: pointer;
+
+    &:focus {
+        outline: none;
+        border-color: ${(props) => props.theme.theme_colours[5]()};
+    }
+`;
+
+const FilterGroup = styled.div`
+    display: flex;
+    align-items: center;
+    gap: ${(props) => props.theme.container.spacing.xsmall};
+`;
+
+const FilterLabel = styled.span`
+    font-size: 0.8rem;
+    color: ${(props) => props.theme.text.colour.light_grey()};
+`;
+
+const ClearedRow = styled(TableRow)<{ $isCleared: boolean }>`
+    opacity: ${(props) => (props.$isCleared ? 0.5 : 1)};
+    background: ${(props) =>
+        props.$isCleared
+            ? props.theme.container.background.colour.light_contrast()
+            : 'inherit'};
+`;
+
+const CheckboxCell = styled(TableCell)`
+    width: 40px;
+    text-align: center;
+`;
+
+const Checkbox = styled.input.attrs({ type: 'checkbox' })`
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+`;
+
 const LEVEL_OPTIONS = [
     { value: '', label: 'All Levels' },
     { value: 'debug', label: 'Debug' },
@@ -203,6 +251,12 @@ const LEVEL_OPTIONS = [
     { value: 'warn', label: 'Warning' },
     { value: 'error', label: 'Error' },
     { value: 'fatal', label: 'Fatal' }
+];
+
+const CLEARED_OPTIONS = [
+    { value: '', label: 'All Logs' },
+    { value: 'false', label: 'Active Only' },
+    { value: 'true', label: 'Cleared Only' }
 ];
 
 export default function AdminLogsPage() {
@@ -225,6 +279,11 @@ export default function AdminLogsPage() {
     );
     const [resolveNotes, setResolveNotes] = useState('');
     const [downloading, setDownloading] = useState(false);
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
+    const [clearedFilter, setClearedFilter] = useState<string>('false'); // Default to active only
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [clearing, setClearing] = useState(false);
 
     const canViewLogs = isAdmin() || hasPermission('admin.dashboard');
 
@@ -243,6 +302,7 @@ export default function AdminLogsPage() {
         async (pageNum: number = 1) => {
             setLoading(true);
             setError(null);
+            setSelectedIds(new Set()); // Clear selection on fetch
             try {
                 const params = new URLSearchParams({
                     offset: ((pageNum - 1) * 25).toString(),
@@ -253,6 +313,21 @@ export default function AdminLogsPage() {
                 }
                 if (searchQuery) {
                     params.append('search', searchQuery);
+                }
+                if (startDate) {
+                    params.append(
+                        'startDate',
+                        new Date(startDate).toISOString()
+                    );
+                }
+                if (endDate) {
+                    // Add one day to include the entire end date
+                    const endDateTime = new Date(endDate);
+                    endDateTime.setDate(endDateTime.getDate() + 1);
+                    params.append('endDate', endDateTime.toISOString());
+                }
+                if (clearedFilter !== '') {
+                    params.append('cleared', clearedFilter);
                 }
                 const res = await api.get<{
                     logs: LogEntry[];
@@ -270,7 +345,7 @@ export default function AdminLogsPage() {
                 setLoading(false);
             }
         },
-        [levelFilter, searchQuery]
+        [levelFilter, searchQuery, startDate, endDate, clearedFilter]
     );
 
     // Fetch error summaries
@@ -464,6 +539,94 @@ export default function AdminLogsPage() {
         }
     };
 
+    // Clear selected logs
+    const handleClearSelected = async () => {
+        if (selectedIds.size === 0) return;
+        setClearing(true);
+        try {
+            await api.post('/admin/logs/clear', {
+                ids: Array.from(selectedIds)
+            });
+            setSelectedIds(new Set());
+            fetchLogs(page);
+        } catch (err: any) {
+            console.error('Error clearing logs:', err);
+            setError(err.response?.data?.error || 'Failed to clear logs');
+        } finally {
+            setClearing(false);
+        }
+    };
+
+    // Restore selected logs
+    const handleUnclearSelected = async () => {
+        if (selectedIds.size === 0) return;
+        setClearing(true);
+        try {
+            await api.post('/admin/logs/unclear', {
+                ids: Array.from(selectedIds)
+            });
+            setSelectedIds(new Set());
+            fetchLogs(page);
+        } catch (err: any) {
+            console.error('Error restoring logs:', err);
+            setError(err.response?.data?.error || 'Failed to restore logs');
+        } finally {
+            setClearing(false);
+        }
+    };
+
+    // Clear all visible logs
+    const handleClearAll = async () => {
+        if (
+            !confirm(
+                'Are you sure you want to clear all logs matching the current filters?'
+            )
+        ) {
+            return;
+        }
+        setClearing(true);
+        try {
+            const payload: Record<string, any> = {};
+            if (levelFilter) payload.level = levelFilter;
+            if (searchQuery) payload.search = searchQuery;
+            if (startDate)
+                payload.startDate = new Date(startDate).toISOString();
+            if (endDate) {
+                const endDateTime = new Date(endDate);
+                endDateTime.setDate(endDateTime.getDate() + 1);
+                payload.endDate = endDateTime.toISOString();
+            }
+            await api.post('/admin/logs/clear-all', payload);
+            setSelectedIds(new Set());
+            fetchLogs(page);
+        } catch (err: any) {
+            console.error('Error clearing all logs:', err);
+            setError(err.response?.data?.error || 'Failed to clear logs');
+        } finally {
+            setClearing(false);
+        }
+    };
+
+    // Toggle selection
+    const toggleSelection = (id: string) => {
+        const newSet = new Set(selectedIds);
+        if (newSet.has(id)) {
+            newSet.delete(id);
+        } else {
+            newSet.add(id);
+        }
+        setSelectedIds(newSet);
+    };
+
+    // Select all visible
+    const toggleSelectAll = () => {
+        if (selectedIds.size === logs.length) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(logs.map((l) => l.id)));
+        }
+    };
+
     const formatDate = (dateString: string) => {
         return new Date(dateString).toLocaleString();
     };
@@ -588,15 +751,46 @@ export default function AdminLogsPage() {
                                     setPage(1);
                                 }}
                                 options={LEVEL_OPTIONS}
-                                styleContainer={{ width: '150px', margin: 0 }}
+                                styleContainer={{ width: '130px', margin: 0 }}
                             />
+                            <SelectDropDown
+                                value={clearedFilter}
+                                onChange={(value) => {
+                                    setClearedFilter(value);
+                                    setPage(1);
+                                }}
+                                options={CLEARED_OPTIONS}
+                                styleContainer={{ width: '130px', margin: 0 }}
+                            />
+                            <FilterGroup>
+                                <FilterLabel>From:</FilterLabel>
+                                <DateInput
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => {
+                                        setStartDate(e.target.value);
+                                        setPage(1);
+                                    }}
+                                />
+                            </FilterGroup>
+                            <FilterGroup>
+                                <FilterLabel>To:</FilterLabel>
+                                <DateInput
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => {
+                                        setEndDate(e.target.value);
+                                        setPage(1);
+                                    }}
+                                />
+                            </FilterGroup>
                             <form onSubmit={handleSearch}>
                                 <SearchBar
                                     placeholder="Search logs..."
                                     value={searchInput}
                                     onChange={setSearchInput}
                                     styleContainer={{
-                                        width: '250px',
+                                        width: '200px',
                                         margin: 0
                                     }}
                                 />
@@ -619,19 +813,67 @@ export default function AdminLogsPage() {
                     )}
                 </ActionBarLeft>
                 <ActionBarRight>
-                    {(levelFilter || searchQuery) && activeTab === 'logs' && (
-                        <Button
-                            variant="secondary"
-                            size="small"
-                            onClick={() => {
-                                setLevelFilter('');
-                                setSearchQuery('');
-                                setSearchInput('');
-                            }}
-                        >
-                            Clear Filters
-                        </Button>
+                    {(levelFilter ||
+                        searchQuery ||
+                        startDate ||
+                        endDate ||
+                        clearedFilter !== 'false') &&
+                        activeTab === 'logs' && (
+                            <Button
+                                variant="secondary"
+                                size="small"
+                                onClick={() => {
+                                    setLevelFilter('');
+                                    setSearchQuery('');
+                                    setSearchInput('');
+                                    setStartDate('');
+                                    setEndDate('');
+                                    setClearedFilter('false');
+                                }}
+                            >
+                                Clear Filters
+                            </Button>
+                        )}
+                    {activeTab === 'logs' && selectedIds.size > 0 && (
+                        <>
+                            {clearedFilter !== 'true' && (
+                                <Button
+                                    variant="warning"
+                                    size="small"
+                                    onClick={handleClearSelected}
+                                    disabled={clearing}
+                                >
+                                    {clearing
+                                        ? 'Clearing...'
+                                        : `Clear ${selectedIds.size}`}
+                                </Button>
+                            )}
+                            {clearedFilter === 'true' && (
+                                <Button
+                                    variant="secondary"
+                                    size="small"
+                                    onClick={handleUnclearSelected}
+                                    disabled={clearing}
+                                >
+                                    {clearing
+                                        ? 'Restoring...'
+                                        : `Restore ${selectedIds.size}`}
+                                </Button>
+                            )}
+                        </>
                     )}
+                    {activeTab === 'logs' &&
+                        clearedFilter !== 'true' &&
+                        logs.length > 0 && (
+                            <Button
+                                variant="danger"
+                                size="small"
+                                onClick={handleClearAll}
+                                disabled={clearing}
+                            >
+                                Clear All Matching
+                            </Button>
+                        )}
                     {activeTab === 'logs' ? (
                         <>
                             <Button
@@ -738,6 +980,16 @@ export default function AdminLogsPage() {
                             <Table>
                                 <TableHead>
                                     <TableRow>
+                                        <TableHeader $width="40px">
+                                            <Checkbox
+                                                checked={
+                                                    selectedIds.size ===
+                                                        logs.length &&
+                                                    logs.length > 0
+                                                }
+                                                onChange={toggleSelectAll}
+                                            />
+                                        </TableHeader>
                                         <TableHeader $width="80px">
                                             Level
                                         </TableHeader>
@@ -758,7 +1010,20 @@ export default function AdminLogsPage() {
                                 </TableHead>
                                 <TableBody>
                                     {logs.map((log) => (
-                                        <TableRow key={log.id}>
+                                        <ClearedRow
+                                            key={log.id}
+                                            $isCleared={!!log.clearedAt}
+                                        >
+                                            <CheckboxCell>
+                                                <Checkbox
+                                                    checked={selectedIds.has(
+                                                        log.id
+                                                    )}
+                                                    onChange={() =>
+                                                        toggleSelection(log.id)
+                                                    }
+                                                />
+                                            </CheckboxCell>
                                             <TableCell>
                                                 <Badge
                                                     $variant={getLevelBadgeVariant(
@@ -828,7 +1093,7 @@ export default function AdminLogsPage() {
                                                     View
                                                 </ViewButton>
                                             </TableCell>
-                                        </TableRow>
+                                        </ClearedRow>
                                     ))}
                                 </TableBody>
                             </Table>

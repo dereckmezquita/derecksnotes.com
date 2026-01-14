@@ -130,8 +130,14 @@ const TwoColumnGrid = styled.div`
     gap: ${(p) => p.theme.container.spacing.large};
     margin-bottom: ${(p) => p.theme.container.spacing.large};
 
-    @media (max-width: 800px) {
+    @media (max-width: 900px) {
         grid-template-columns: 1fr;
+    }
+
+    /* Ensure children don't overflow */
+    & > * {
+        min-width: 0;
+        overflow: hidden;
     }
 `;
 
@@ -141,6 +147,7 @@ const LeaderboardItem = styled.div`
     align-items: center;
     padding: ${(p) => p.theme.container.spacing.small};
     border-bottom: 1px solid ${(p) => p.theme.container.border.colour.primary()};
+    min-width: 0; /* Allow flex items to shrink below content size */
 
     &:last-child {
         border-bottom: none;
@@ -168,6 +175,7 @@ const Rank = styled.span<{ $top?: boolean }>`
 const ItemContent = styled.div`
     flex: 1;
     min-width: 0;
+    overflow: hidden;
 `;
 
 const ItemTitle = styled.div`
@@ -181,12 +189,16 @@ const ItemTitle = styled.div`
 const ItemMeta = styled.div`
     font-size: 0.75rem;
     color: ${(p) => p.theme.text.colour.light_grey()};
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 `;
 
 const ItemStats = styled.div`
     display: flex;
     gap: ${(p) => p.theme.container.spacing.small};
     margin-left: ${(p) => p.theme.container.spacing.small};
+    flex-shrink: 0;
 `;
 
 const StatPill = styled.span<{ $variant?: 'success' | 'danger' | 'neutral' }>`
@@ -367,11 +379,16 @@ interface TimeseriesData {
 }
 
 interface TopPost {
-    postSlug: string;
+    slug: string;
+    title: string;
+    views: number;
+    uniqueVisitors: number;
     commentCount: number;
-    reactionCount: number;
-    likeCount: number;
-    dislikeCount: number;
+    postLikes: number;
+    postDislikes: number;
+    commentReactionCount: number;
+    commentLikeCount: number;
+    commentDislikeCount: number;
     engagementScore: number;
 }
 
@@ -387,7 +404,8 @@ interface ActiveUser {
 interface TopComment {
     id: string;
     content: string;
-    postSlug: string;
+    slug: string;
+    postTitle: string;
     user: { id: string; username: string; displayName: string | null } | null;
     createdAt: string;
     likes: number;
@@ -738,22 +756,24 @@ export default function AnalyticsPage() {
                         </EmptyState>
                     ) : (
                         topPosts.map((post, i) => (
-                            <LeaderboardItem key={post.postSlug}>
+                            <LeaderboardItem key={post.slug}>
                                 <Rank $top={i < 3}>{i + 1}</Rank>
                                 <ItemContent>
-                                    <ItemTitle title={post.postSlug}>
-                                        {post.postSlug.replace(/-/g, ' ')}
+                                    <ItemTitle title={post.title || post.slug}>
+                                        {post.title ||
+                                            post.slug.replace(/-/g, ' ')}
                                     </ItemTitle>
                                     <ItemMeta>
-                                        {post.commentCount} comments
+                                        {post.commentCount} comments,{' '}
+                                        {post.views} views
                                     </ItemMeta>
                                 </ItemContent>
                                 <ItemStats>
                                     <StatPill $variant="success">
-                                        {post.likeCount}
+                                        {post.postLikes}
                                     </StatPill>
                                     <StatPill $variant="danger">
-                                        {post.dislikeCount}
+                                        {post.postDislikes}
                                     </StatPill>
                                 </ItemStats>
                             </LeaderboardItem>
@@ -857,10 +877,10 @@ export default function AnalyticsPage() {
                                             'Unknown'}{' '}
                                         on{' '}
                                         <Link
-                                            href={`/${comment.postSlug}`}
+                                            href={`/${comment.slug}`}
                                             style={{ color: 'inherit' }}
                                         >
-                                            {comment.postSlug}
+                                            {comment.postTitle || comment.slug}
                                         </Link>
                                     </span>
                                     <CommentReactions>
