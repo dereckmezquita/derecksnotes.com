@@ -738,10 +738,10 @@ cat("True population variance:", round(true_variance, 2), "\n")
 #> True population variance: 99.68
 cat("Mean of s² (divide by n):", round(mean(results$var_n), 2),
     "- biased LOW\n")
-#> Mean of s² (divide by n): 90.63 - biased LOW
+#> Mean of s<U+00B2> (divide by n): 90.63 - biased LOW
 cat("Mean of s² (divide by n-1):", round(mean(results$var_n_minus_1), 2),
     "- unbiased\n")
-#> Mean of s² (divide by n-1): 100.7 - unbiased
+#> Mean of s<U+00B2> (divide by n-1): 100.7 - unbiased
 
 # Visualise
 results_long <- data.table$melt(
@@ -1195,7 +1195,7 @@ cat("\nReference range (5th-95th percentile) for BMI:\n")
 #> Reference range (5th-95th percentile) for BMI:
 cat(round(quantile(bmi_clean, 0.05), 1), "to",
     round(quantile(bmi_clean, 0.95), 1), "kg/m²\n")
-#> 15.8 to 40 kg/m²
+#> 15.8 to 40 kg/m<U+00B2>
 ```
 
 ## 2.4 Measures of Shape
@@ -1829,7 +1829,7 @@ print(outlier_decisions)
 #> 1:                  Age = 999 years
 #> 2:                      BP = 0 mmHg
 #> 3:            Patient skipped doses
-#> 4:                   BMI = 55 kg/m²
+#> 4:            BMI = 55 kg/m<U+00B2>
 #> 5: Pediatric patient in adult study
 
 # Example: Investigating an outlier
