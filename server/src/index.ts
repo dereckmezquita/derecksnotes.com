@@ -13,8 +13,9 @@ await initializeDatabase();
 
 const app = express();
 
-// Trust proxy - required when behind nginx/reverse proxy for rate limiting and IP detection
-app.set('trust proxy', true);
+// Trust proxy - set to 1 for single nginx reverse proxy
+// This tells Express to trust X-Forwarded-For from 1 hop (nginx)
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(express.json());

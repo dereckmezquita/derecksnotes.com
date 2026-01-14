@@ -142,6 +142,81 @@ Users are assigned to groups, and groups have permissions:
 - **trusted**: Comments auto-approved
 - **user**: Standard user permissions
 
+## Deployment
+
+### Prerequisites
+
+Install the GitHub CLI:
+
+```bash
+# macOS
+brew install gh
+
+# Authenticate
+gh auth login
+```
+
+### Manual Deployment via GitHub CLI
+
+The deploy workflow can be triggered from any branch using the GitHub CLI:
+
+```bash
+# Deploy to dev environment
+gh workflow run deploy.yml --ref <branch-name> -f environment=dev
+
+# Deploy to prod environment
+gh workflow run deploy.yml --ref <branch-name> -f environment=prod
+
+# Example: Deploy current branch to prod
+gh workflow run deploy.yml --ref DN-11-content-improvements-and-cleanup -f environment=prod
+```
+
+### Monitor Workflow Progress
+
+```bash
+# List recent workflow runs
+gh run list --workflow=deploy.yml
+
+# Watch a specific run (get ID from list above)
+gh run watch <run-id>
+
+# View logs for a run
+gh run view <run-id> --log
+```
+
+### Automatic Deployment
+
+- **Production**: Automatically deploys when a GitHub Release is published
+- **Manual**: Use the GitHub Actions UI or CLI (requires workflow to be on default branch for UI)
+
+### Deployment Configuration
+
+The workflow creates a `.env` file on the VPS with these variables:
+
+| Variable | Prod | Dev |
+|----------|------|-----|
+| `DATA_PATH` | `/var/www/derecksnotes.com/data` | `/var/www/dev.derecksnotes.com/data` |
+| `PUBLIC_PATH` | `/var/www/derecksnotes.com/public` | `/var/www/dev.derecksnotes.com/public` |
+| `PORT_CLIENT` | 3000 | 3010 |
+| `PORT_SERVER` | 3001 | 3011 |
+
+### Checking Container Status on VPS
+
+```bash
+# SSH to VPS
+ssh user@your-vps
+
+# Check running containers
+docker ps
+
+# View container logs
+docker logs prod_derecksnotes
+docker logs dev_derecksnotes
+
+# Check database file exists
+ls -la /var/www/derecksnotes.com/data/
+```
+
 ## Tech Stack
 
 - **Frontend**: Next.js 15, React 19, TypeScript, styled-components
