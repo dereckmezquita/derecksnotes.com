@@ -1,115 +1,178 @@
 # Statistics with R: Course Data Documentation
 
-This document describes all datasets used throughout the three-level Statistics with R course series. These datasets have been carefully selected to provide cohesive examples that build upon each other across all course levels.
+This document describes all datasets used throughout the three-level Statistics with R course series. These datasets have been carefully selected to provide cohesive examples that build upon each other across all course levels, with a strong focus on medical, health, and bioinformatics applications.
 
 ---
 
-## Quick Setup
+## Data Acquisition
 
-Install all required R packages with a single command:
+All datasets have been downloaded as CSV files using the `src/data/download_datasets.R` script. This script:
 
-```r
-install.packages(c(
-    # Core data packages
-    "NHANES",
-    "medicaldata",
-    "palmerpenguins",
-    "gapminder",
+1. Installs required R packages (`NHANES`, `medicaldata`, `palmerpenguins`, `gapminder`, `survival`, `MASS`, `data.table`)
+2. Extracts datasets from these packages
+3. Saves them as CSV files for offline use and version control
+4. Organises files into three subdirectories: `primary/`, `medical/`, and `supplementary/`
 
-    # Additional teaching packages
-    "survival",      # Includes veteran, ovarian, lung datasets
-    "MASS",          # Includes Boston, birthwt, etc.
-
-    # Required for course code
-    "data.table",
-    "ggplot2",
-    "box"
-))
-```
-
-Verify installation:
+**To regenerate all datasets:**
 
 ```r
-# Test that all datasets load correctly
-library(NHANES)
-library(medicaldata)
-library(palmerpenguins)
-library(gapminder)
-library(survival)
-library(MASS)
-
-# Quick check
-cat("NHANES:", nrow(NHANES), "observations,", ncol(NHANES), "variables\n")
-cat("penguins:", nrow(penguins), "observations,", ncol(penguins), "variables\n")
-cat("gapminder:", nrow(gapminder), "observations,", ncol(gapminder), "variables\n")
+# From the statistics-1-foundations directory
+setwd("path/to/statistics-1-foundations")
+source("src/data/download_datasets.R")
 ```
+
+**Dataset Summary:**
+
+| Category | Count | Total Size |
+|----------|-------|------------|
+| Primary | 5 | ~7.9 MB |
+| Medical | 15 | ~2.2 MB |
+| Supplementary | 19 | ~0.3 MB |
+| **Total** | **39** | **~10.4 MB** |
 
 ---
 
-## Primary Datasets
+## Primary Datasets (`src/data/primary/`)
 
-### 1. NHANES (National Health and Nutrition Examination Survey)
+### 1. NHANES — National Health and Nutrition Examination Survey
 
-**Source:** CRAN package `NHANES`
+**Files:** `nhanes.csv` (2.6 MB), `nhanes_raw.csv` (5.1 MB)
+**Source:** CRAN package `NHANES` (CDC data from 2009-2012)
 **Reference:** https://cran.r-project.org/package=NHANES
 
+| Property | nhanes.csv | nhanes_raw.csv |
+|----------|------------|----------------|
+| Observations | 10,000 | 20,293 |
+| Variables | 76 | 78 |
+| Population | US civilian non-institutionalised |
+
 **Description:**
-The NHANES package contains a curated subset of data from the US National Health and Nutrition Examination Survey (2009-2012). This dataset provides a rich collection of health, demographic, and lifestyle variables suitable for teaching virtually every statistical concept.
+A curated subset of data from the US National Health and Nutrition Examination Survey. This comprehensive health survey provides demographic, physical examination, laboratory, and questionnaire data suitable for teaching virtually every statistical concept.
 
-**Dataset Details:**
+**Key Variables (76 total):**
 
-| Property | Value |
-|----------|-------|
-| Observations | 10,000 |
-| Variables | 75 |
-| Source Years | 2009-2010, 2011-2012 |
-| Population | US civilian non-institutionalised population |
+| Category | Variables |
+|----------|-----------|
+| Demographics | `ID`, `SurveyYr`, `Gender`, `Age`, `AgeDecade`, `AgeMonths`, `Race1`, `Race3`, `Education`, `MaritalStatus` |
+| Socioeconomic | `HHIncome`, `HHIncomeMid`, `Poverty`, `HomeRooms`, `HomeOwn`, `Work` |
+| Body Measurements | `Weight`, `Height`, `BMI`, `BMI_WHO`, `BMICatUnder20yrs`, `Length`, `HeadCirc` |
+| Blood Pressure | `Pulse`, `BPSysAve`, `BPDiaAve`, `BPSys1`, `BPDia1`, `BPSys2`, `BPDia2`, `BPSys3`, `BPDia3` |
+| Lab Values | `Testosterone`, `DirectChol`, `TotChol`, `UrineVol1`, `UrineFlow1`, `UrineVol2`, `UrineFlow2` |
+| Health Status | `Diabetes`, `DiabetesAge`, `HealthGen`, `DaysPhysHlthBad`, `DaysMentHlthBad` |
+| Mental Health | `LittleInterest`, `Depressed` |
+| Reproductive | `nPregnancies`, `nBabies`, `Age1stBaby`, `PregnantNow` |
+| Sleep | `SleepHrsNight`, `SleepTrouble` |
+| Physical Activity | `PhysActive`, `PhysActiveDays`, `TVHrsDay`, `CompHrsDay` |
+| Substance Use | `Alcohol12PlusYr`, `AlcoholDay`, `AlcoholYear`, `SmokeNow`, `Smoke100`, `Smoke100n`, `SmokeAge`, `Marijuana`, `AgeFirstMarij`, `HardDrugs` |
+| Sexual Health | `SexEver`, `SexAge`, `SexNumPartnLife`, `SexNumPartYear`, `SameSex`, `SexOrientation` |
 
-**Key Variable Categories:**
+**Sample Data:**
 
-1. **Demographics:** Age, Gender, Race1, Race3, Education, MaritalStatus, HHIncome, Poverty
-2. **Body Measurements:** Height, Weight, BMI, BMI_WHO, BMICatUnder20yrs, HeadCirc, Length
-3. **Blood Pressure:** BPSysAve, BPDiaAve (systolic and diastolic averages)
-4. **Lab Values:** TotChol, DirectChol, Diabetes, UrineVol1, UrineFlow1
-5. **Lifestyle:** PhysActive, PhysActiveDays, TVHrsDay, CompHrsDay, Alcohol12PlusYr, SmokeNow, Smoke100
-6. **Sleep:** SleepHrsNight, SleepTrouble
-7. **Sexual Health:** SexEver, SexAge, SexNumPartYear, SexOrientation, PregnantNow
-
-**Usage in Course:**
-
-```r
-library(NHANES)
-data(NHANES)
-
-# Convert to data.table for course exercises
-library(data.table)
-nhanes <- as.data.table(NHANES)
-
-# Example: Variable types demonstration
-str(nhanes[, .(Age, Gender, Race1, BMI, Diabetes)])
+```
+ID,SurveyYr,Gender,Age,AgeDecade,Race1,BMI,BPSysAve,BPDiaAve,Diabetes,...
+51624,2009_10,male,34,30-39,White,32.22,113,85,No,...
+51625,2009_10,male,4,0-9,Other,15.3,NA,NA,No,...
+51630,2009_10,female,49,40-49,White,30.57,112,75,No,...
 ```
 
 **Course Applications:**
-- **Level 1 (Foundations):** Variable types, descriptive statistics, visualisation, sampling, basic inference
-- **Level 2 (Intermediate):** Multiple regression, logistic regression, ANOVA, model diagnostics
-- **Level 3 (Advanced):** Complex survey analysis, multilevel models, machine learning applications
-
-**Important Note:**
-This dataset has been adapted for educational purposes and should NOT be used for research publications. For research, download original data from the CDC NHANES website.
+- Level 1: Variable types, descriptive statistics, visualisation, sampling, basic inference
+- Level 2: Multiple regression, logistic regression, ANOVA, model diagnostics
+- Level 3: Complex survey analysis, multilevel models, machine learning
 
 ---
 
-### 2. medicaldata Package
+### 2. Palmer Penguins — Penguin Morphometric Data
 
-**Source:** CRAN package `medicaldata`
-**Reference:** https://higgi13425.github.io/medicaldata/
-**Maintainer:** Peter Higgins (University of Michigan)
+**Files:** `penguins.csv` (15 KB), `penguins_raw.csv` (51 KB)
+**Source:** CRAN package `palmerpenguins`
+**Reference:** https://allisonhorst.github.io/palmerpenguins/
+**Citation:** Horst AM, Hill AP, Gorman KB (2020)
+
+| Property | penguins.csv | penguins_raw.csv |
+|----------|--------------|------------------|
+| Observations | 344 | 344 |
+| Variables | 8 | 17 |
+| Species | 3 (Adelie, Chinstrap, Gentoo) |
+| Islands | 3 (Biscoe, Dream, Torgersen) |
+| Years | 2007-2009 |
 
 **Description:**
-A collection of 19 medical datasets specifically curated for teaching biostatistics and reproducible medical research. Includes both historical landmark trials and contemporary clinical data.
+Modern replacement for the iris dataset, containing morphometric measurements of three penguin species from the Palmer Archipelago, Antarctica. Preferred over iris due to better documentation, intuitive variables, realistic missing values, unequal group sizes, and no historical connection to eugenics research.
 
-#### 2.1 scurvy — James Lind's 1757 Scurvy Trial
+**Variables (penguins.csv):**
 
+| Variable | Type | Description |
+|----------|------|-------------|
+| `species` | Factor | Adelie, Chinstrap, Gentoo |
+| `island` | Factor | Biscoe, Dream, Torgersen |
+| `bill_length_mm` | Numeric | Bill length in millimetres |
+| `bill_depth_mm` | Numeric | Bill depth in millimetres |
+| `flipper_length_mm` | Integer | Flipper length in millimetres |
+| `body_mass_g` | Integer | Body mass in grams |
+| `sex` | Factor | male, female |
+| `year` | Integer | Year of observation (2007-2009) |
+
+**Sample Data:**
+
+```
+species,island,bill_length_mm,bill_depth_mm,flipper_length_mm,body_mass_g,sex,year
+Adelie,Torgersen,39.1,18.7,181,3750,male,2007
+Adelie,Torgersen,39.5,17.4,186,3800,female,2007
+Adelie,Torgersen,40.3,18,195,3250,female,2007
+```
+
+**Note:** Contains 19 missing values (realistic for teaching missing data handling).
+
+---
+
+### 3. Gapminder — Global Development Statistics
+
+**File:** `gapminder.csv` (80 KB)
+**Source:** CRAN package `gapminder`
+**Reference:** https://www.gapminder.org/
+**Original Data:** Gapminder.org (Hans Rosling)
+
+| Property | Value |
+|----------|-------|
+| Observations | 1,704 |
+| Variables | 6 |
+| Countries | 142 |
+| Continents | 5 (Africa, Americas, Asia, Europe, Oceania) |
+| Time Span | 1952-2007 (5-year intervals) |
+
+**Description:**
+Excerpt of global development data for 142 countries from 1952 to 2007. Made famous by Hans Rosling's TED talks, ideal for teaching data visualisation and longitudinal analysis.
+
+**Variables:**
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `country` | Factor | Country name (142 levels) |
+| `continent` | Factor | Africa, Americas, Asia, Europe, Oceania |
+| `year` | Integer | Year of observation (1952, 1957, ..., 2007) |
+| `lifeExp` | Numeric | Life expectancy at birth (years) |
+| `pop` | Integer | Population |
+| `gdpPercap` | Numeric | GDP per capita (2005 international dollars, PPP) |
+
+**Sample Data:**
+
+```
+country,continent,year,lifeExp,pop,gdpPercap
+Afghanistan,Asia,1952,28.801,8425333,779.4453145
+Afghanistan,Asia,1957,30.332,9240934,820.8530296
+Albania,Europe,1952,55.23,1282697,1601.056136
+```
+
+---
+
+## Medical Datasets (`src/data/medical/`)
+
+These datasets are from the `medicaldata` R package, specifically curated for teaching biostatistics and reproducible medical research. They include both historical landmark trials and contemporary clinical data.
+
+### 1. scurvy — James Lind's 1757 Scurvy Trial
+
+**File:** `scurvy.csv` (1.3 KB)
 **Historical Significance:** The first controlled clinical trial in medical history.
 
 | Property | Value |
@@ -119,25 +182,39 @@ A collection of 19 medical datasets specifically curated for teaching biostatist
 | Year | 1757 |
 | Design | Randomised controlled trial |
 
+**Description:**
+Data from James Lind's famous scurvy trial aboard HMS Salisbury. Twelve sailors with scurvy were divided into six groups of two, each receiving a different treatment. This trial established citrus fruit as a cure for scurvy.
+
 **Variables:**
-- `study_id`: Subject identifier
-- `treatment`: One of six treatments (cider, dilute_sulfuric_acid, vinegar, sea_water, citrus, purgative_mixture)
-- `dosing_regimen_for_scurvy`: Dosing instructions
-- `gum_rot_d6`: Gum rot severity at day 6 (ordinal: 0-3)
-- `skin_sores_d6`: Skin sores severity at day 6 (ordinal: 0-3)
-- `weakness_of_knees_d6`: Knee weakness at day 6 (ordinal: 0-3)
-- `lassitude_d6`: Fatigue at day 6 (ordinal: 0-3)
-- `fit_for_duty_d6`: Fit for duty status (0_no, 1_yes)
 
-**Course Applications:**
-- Small sample analysis
-- Ordinal data handling
-- Historical perspective on clinical trials
-- Non-parametric methods
+| Variable | Type | Description |
+|----------|------|-------------|
+| `study_id` | Character | Subject identifier (001-012) |
+| `treatment` | Factor | cider, dilute_sulfuric_acid, vinegar, sea_water, citrus, purgative_mixture |
+| `dosing_regimen_for_scurvy` | Character | Detailed dosing instructions |
+| `gum_rot_d6` | Ordinal | Gum rot severity at day 6 (0_none to 3_severe) |
+| `skin_sores_d6` | Ordinal | Skin sores severity at day 6 |
+| `weakness_of_the_knees_d6` | Ordinal | Knee weakness at day 6 |
+| `lassitude_d6` | Ordinal | Fatigue at day 6 |
+| `fit_for_duty_d6` | Binary | Fit for duty status (0_no, 1_yes) |
 
-#### 2.2 strep_tb — 1948 Streptomycin Tuberculosis Trial
+**Sample Data:**
 
-**Historical Significance:** First double-blind randomised controlled trial (RCT) using modern methodology.
+```
+study_id,treatment,dosing_regimen_for_scurvy,gum_rot_d6,skin_sores_d6,...
+001,cider,1 quart per day,2_moderate,2_moderate,...
+009,citrus,two lemons and an orange daily,1_mild,1_mild,...
+010,citrus,two lemons and an orange daily,0_none,0_none,...
+```
+
+**Key Finding:** Only the citrus group showed marked improvement.
+
+---
+
+### 2. strep_tb — 1948 Streptomycin Tuberculosis Trial
+
+**File:** `strep_tb.csv` (13 KB)
+**Historical Significance:** First double-blind randomised controlled trial using modern methodology.
 
 | Property | Value |
 |----------|-------|
@@ -146,29 +223,40 @@ A collection of 19 medical datasets specifically curated for teaching biostatist
 | Year | 1948 |
 | Design | Double-blind RCT |
 
+**Description:**
+Data from the Medical Research Council's landmark trial of streptomycin for pulmonary tuberculosis. This trial established the gold standard for clinical trial methodology.
+
 **Variables:**
-- `patient_id`: Subject identifier
-- `arm`: Treatment arm (Control, Streptomycin)
-- `dose_strep_g`: Streptomycin dose in grams
-- `dose_PAS_g`: Para-aminosalicylic acid dose
-- `gender`: M/F
-- `baseline_condition`: Condition at baseline
-- `baseline_temp`: Temperature at baseline
-- `baseline_esr`: Erythrocyte sedimentation rate
-- `baseline_cavitation`: Lung cavitation status
-- `strep_resistance`: Developed streptomycin resistance
-- `radiologic_6m`: Radiological outcome at 6 months
-- `rad_num`: Numeric radiological score
-- `improved`: Binary improvement indicator
 
-**Course Applications:**
-- Two-sample hypothesis testing
-- Chi-square tests
-- Binary outcomes
-- Treatment effect estimation
-- Intention-to-treat analysis
+| Variable | Type | Description |
+|----------|------|-------------|
+| `patient_id` | Character | Subject identifier |
+| `arm` | Factor | Control, Streptomycin |
+| `dose_strep_g` | Numeric | Streptomycin dose in grams |
+| `dose_PAS_g` | Numeric | Para-aminosalicylic acid dose |
+| `gender` | Factor | M, F |
+| `baseline_condition` | Ordinal | 1_Good, 2_Fair, 3_Poor |
+| `baseline_temp` | Ordinal | Temperature category |
+| `baseline_esr` | Ordinal | Erythrocyte sedimentation rate category |
+| `baseline_cavitation` | Binary | Lung cavitation status |
+| `strep_resistance` | Ordinal | Developed streptomycin resistance |
+| `radiologic_6m` | Ordinal | Radiological outcome at 6 months |
+| `rad_num` | Integer | Numeric radiological score (1-6) |
+| `improved` | Logical | Binary improvement indicator |
 
-#### 2.3 blood_storage — Prostate Cancer Cohort Study
+**Sample Data:**
+
+```
+patient_id,arm,dose_strep_g,gender,baseline_condition,radiologic_6m,improved
+0001,Control,0,M,1_Good,6_Considerable_improvement,TRUE
+0002,Control,0,F,1_Good,5_Moderate_improvement,TRUE
+```
+
+---
+
+### 3. blood_storage — Prostate Cancer RBC Storage Study
+
+**File:** `blood_storage.csv` (16 KB)
 
 | Property | Value |
 |----------|-------|
@@ -177,258 +265,246 @@ A collection of 19 medical datasets specifically curated for teaching biostatist
 | Design | Retrospective cohort |
 
 **Description:**
-Data from men who underwent radical prostatectomy with blood transfusion. Examines whether RBC storage duration affects cancer recurrence.
+Data from men who underwent radical prostatectomy and received blood transfusion. Examines whether red blood cell (RBC) storage duration affects prostate cancer recurrence.
 
-**Key Variables:**
-- `RBC.Age.Group`: RBC storage duration (Younger, Middle, Older)
-- `Recurrence`: PSA recurrence indicator
-- `TimeToRecurrence`: Time to biochemical recurrence
-- `Age`, `TVol`, `bGS`: Demographic and tumour characteristics
-- `PreopPSA`: Preoperative PSA level
+**Variables:**
 
-**Course Applications:**
-- Survival analysis basics
-- Cox proportional hazards
-- Kaplan-Meier curves
-- Multiple regression with time-to-event outcomes
+| Variable | Type | Description |
+|----------|------|-------------|
+| `RBC.Age.Group` | Integer | RBC storage duration group (1=Younger, 2=Middle, 3=Older) |
+| `Median.RBC.Age` | Integer | Median RBC age in days |
+| `Age` | Numeric | Patient age |
+| `AA` | Binary | African American (0/1) |
+| `FamHx` | Binary | Family history of prostate cancer |
+| `PVol` | Numeric | Prostate volume |
+| `TVol` | Integer | Tumour volume category |
+| `T.Stage` | Integer | Tumour stage |
+| `bGS` | Integer | Biopsy Gleason score |
+| `BN+` | Binary | Bladder neck involvement |
+| `OrganConfined` | Binary | Organ confined disease |
+| `PreopPSA` | Numeric | Preoperative PSA level |
+| `PreopTherapy` | Binary | Received preoperative therapy |
+| `Units` | Integer | Units of blood transfused |
+| `sGS` | Integer | Surgical Gleason score |
+| `AnyAdjTherapy` | Binary | Received adjuvant therapy |
+| `AdjRadTherapy` | Binary | Received adjuvant radiation |
+| `Recurrence` | Binary | PSA recurrence indicator |
+| `Censor` | Binary | Censoring indicator |
+| `TimeToRecurrence` | Numeric | Time to biochemical recurrence (months) |
 
-#### 2.4 covid_testing — SARS-CoV2 Testing Data (2020)
+---
+
+### 4. covid_testing — SARS-CoV-2 Testing Data
+
+**File:** `covid_testing.csv` (1.5 MB)
 
 | Property | Value |
 |----------|-------|
-| Observations | ~15,000 |
+| Observations | 15,524 |
 | Variables | 17 |
-| Setting | Pediatric hospital (CHOP) |
-| Period | Days 4-107 of pandemic |
+| Setting | Children's Hospital of Philadelphia |
+| Period | Pandemic days 4-107 (2020) |
+
+**Description:**
+De-identified COVID-19 testing data from a paediatric hospital system during the early pandemic period. Names have been replaced with Game of Thrones character names for anonymisation.
+
+**Variables:**
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `subject_id` | Integer | Patient identifier |
+| `fake_first_name` | Character | Anonymised first name |
+| `fake_last_name` | Character | Anonymised last name |
+| `gender` | Factor | male, female |
+| `pan_day` | Integer | Pandemic day number |
+| `test_id` | Character | Test type identifier |
+| `clinic_name` | Character | Testing location |
+| `result` | Factor | positive, negative |
+| `demo_group` | Character | Demographic group |
+| `age` | Numeric | Age in years |
+| `drive_thru_ind` | Binary | Drive-through test indicator |
+| `ct_result` | Numeric | Cycle threshold result |
+| `orderset` | Binary | Part of order set |
+| `payor_group` | Character | Insurance type |
+| `patient_class` | Character | Patient classification |
+| `col_rec_tat` | Numeric | Collection to receipt turnaround time |
+| `rec_ver_tat` | Numeric | Receipt to verification turnaround time |
+
+---
+
+### 5. indo_rct — Indomethacin for Post-ERCP Pancreatitis RCT
+
+**File:** `indo_rct.csv` (110 KB)
+
+| Property | Value |
+|----------|-------|
+| Observations | 602 |
+| Variables | 33 |
+| Design | Double-blind RCT |
+
+**Description:**
+Data from a landmark randomised controlled trial testing whether rectal indomethacin prevents post-ERCP pancreatitis. Published in NEJM 2012.
 
 **Key Variables:**
-- `subject_id`: Patient identifier
-- `pan_day`: Pandemic day
-- `test_id`: Test identifier
-- `age`, `gender`, `demo_group`: Demographics
-- `result`: Test result (positive/negative)
-- `col_rec_tat`: Collection to result turnaround time
-- `rec_ver_tat`: Receipt to verification turnaround time
-
-**Course Applications:**
-- Large sample statistics
-- Missing data handling
-- Time series patterns
-- Categorical data analysis
-- Real-world messy data experience
-
-#### 2.5 Other medicaldata Datasets
-
-| Dataset | n | Description | Primary Use |
-|---------|---|-------------|-------------|
-| `cytomegalovirus` | 64 | CMV in bone marrow transplant | Survival analysis |
-| `esoph_ca` | 88 | Esophageal cancer case-control | Logistic regression |
-| `indo_rct` | 602 | Indomethacin RCT for pancreatitis | Binary outcomes, RCT analysis |
-| `laryngoscope` | 99 | Laryngoscope comparison trial | Paired comparisons |
-| `licorice_gargle` | 236 | Licorice for sore throat RCT | Continuous outcomes |
-| `opt` | 823 | Periodontal treatment in pregnancy | Complex trial designs |
-| `polyps` | 22 | Familial adenomatous polyposis | Repeated measures |
-| `smartpill` | 428 | GI motility measurements | Multivariate analysis |
-| `supraclavicular` | 103 | Nerve block study | Equivalence testing |
-| `theoph` | 132 | Theophylline pharmacokinetics | Nonlinear models |
-| `indometh` | 66 | Indomethacin pharmacokinetics | Longitudinal data |
-
-**Access All Datasets:**
-
-```r
-library(medicaldata)
-
-# List all available datasets
-data(package = "medicaldata")
-
-# Load specific datasets
-data(scurvy)
-data(strep_tb)
-data(blood_storage)
-data(covid_testing)
-```
+- `rx`: Treatment assignment (0_placebo, 1_indomethacin)
+- `outcome`: Post-ERCP pancreatitis (0_no, 1_yes)
+- `site`: Study site
+- `age`, `gender`, `risk`: Demographics and risk factors
+- Multiple procedure-related variables (sphincterotomy, stent placement, etc.)
 
 ---
 
-### 3. palmerpenguins — Penguin Morphometric Data
+### 6. cytomegalovirus — CMV in Bone Marrow Transplant
 
-**Source:** CRAN package `palmerpenguins`
-**Reference:** https://allisonhorst.github.io/palmerpenguins/
-**Citation:** Horst AM, Hill AP, Gorman KB (2020)
+**File:** `cytomegalovirus.csv` (6.5 KB)
+
+| Property | Value |
+|----------|-------|
+| Observations | 64 |
+| Variables | 26 |
+| Design | Prospective cohort |
 
 **Description:**
-Modern replacement for the iris dataset, containing morphometric measurements of three penguin species from the Palmer Archipelago, Antarctica. Preferred over iris due to: better documentation, intuitive variables, presence of missing values (realistic!), unequal group sizes, and no historical connection to eugenics research.
+Data on cytomegalovirus (CMV) reactivation following bone marrow transplantation. Includes detailed transplant characteristics, CMV status, and outcomes.
 
-| Property | Value |
-|----------|-------|
-| Observations | 344 |
-| Variables | 8 |
-| Species | 3 (Adelie, Chinstrap, Gentoo) |
-| Islands | 3 (Biscoe, Dream, Torgersen) |
-| Years | 2007-2009 |
+**Key Variables:**
+- `ID`, `age`, `sex`, `race`: Demographics
+- `diagnosis`, `diagnosis.type`: Disease information
+- `recipient.cmv`, `donor.cmv`: CMV serostatus
+- `cmv`, `time.to.cmv`: CMV reactivation outcome
+- `agvhd`, `cgvhd`: Graft-versus-host disease status
+
+---
+
+### 7-15. Additional Medical Datasets
+
+| Dataset | File | n | Variables | Description |
+|---------|------|---|-----------|-------------|
+| `esoph_ca` | esoph_ca.csv | 88 | 5 | Oesophageal cancer case-control study |
+| `laryngoscope` | laryngoscope.csv | 99 | 22 | Laryngoscope comparison trial |
+| `licorice_gargle` | licorice_gargle.csv | 235 | 19 | Licorice for post-operative sore throat RCT |
+| `opt` | opt.csv | 823 | 171 | Periodontal treatment in pregnancy trial |
+| `polyps` | polyps.csv | 22 | 7 | Familial adenomatous polyposis treatment |
+| `smartpill` | smartpill.csv | 95 | 22 | GI motility measurements |
+| `supraclavicular` | supraclavicular.csv | 103 | 17 | Supraclavicular nerve block study |
+| `theoph` | theoph.csv | 132 | 5 | Theophylline pharmacokinetics |
+| `indometh` | indometh.csv | 66 | 3 | Indomethacin pharmacokinetics |
+
+---
+
+## Supplementary Datasets (`src/data/supplementary/`)
+
+### Survival Analysis Datasets (from `survival` package)
+
+| Dataset | File | n | Variables | Description |
+|---------|------|---|-----------|-------------|
+| `veteran` | veteran.csv | 137 | 8 | Veterans' Administration lung cancer trial |
+| `ovarian` | ovarian.csv | 26 | 6 | Ovarian cancer survival data |
+| `lung` | lung.csv | 228 | 10 | NCCTG lung cancer survival |
+| `colon` | colon.csv | 1,858 | 16 | Colon cancer chemotherapy trial |
+| `pbc` | pbc.csv | 418 | 20 | Primary biliary cirrhosis (Mayo Clinic) |
+
+#### lung — NCCTG Lung Cancer
 
 **Variables:**
-- `species`: Penguin species (Adelie, Chinstrap, Gentoo)
-- `island`: Island of collection (Biscoe, Dream, Torgersen)
-- `bill_length_mm`: Bill length in millimetres
-- `bill_depth_mm`: Bill depth in millimetres
-- `flipper_length_mm`: Flipper length in millimetres
-- `body_mass_g`: Body mass in grams
-- `sex`: Penguin sex (male, female)
-- `year`: Year of observation
 
-**Course Applications:**
-- **Level 1:** Variable types, descriptive statistics, grouped summaries, basic visualisation
-- **Level 2:** ANOVA, regression, classification
-- **Level 3:** Clustering, PCA, discriminant analysis
+| Variable | Type | Description |
+|----------|------|-------------|
+| `inst` | Integer | Institution code |
+| `time` | Integer | Survival time in days |
+| `status` | Integer | Censoring status (1=censored, 2=dead) |
+| `age` | Integer | Age in years |
+| `sex` | Integer | 1=Male, 2=Female |
+| `ph.ecog` | Integer | ECOG performance score (0-4) |
+| `ph.karno` | Integer | Karnofsky score (physician) |
+| `pat.karno` | Integer | Karnofsky score (patient) |
+| `meal.cal` | Integer | Calories consumed at meals |
+| `wt.loss` | Integer | Weight loss in last 6 months |
 
-**Usage:**
-
-```r
-library(palmerpenguins)
-
-# Two datasets available:
-# penguins - curated dataset (recommended)
-# penguins_raw - full raw dataset
-
-data(penguins)
-str(penguins)
-
-# Note: Contains missing values (realistic!)
-sum(is.na(penguins))  # 19 missing values
-```
-
----
-
-### 4. gapminder — Global Development Statistics
-
-**Source:** CRAN package `gapminder`
-**Reference:** https://www.gapminder.org/
-**Original Data:** Gapminder.org (Hans Rosling)
-
-**Description:**
-Excerpt of global development data for 142 countries from 1952 to 2007, including life expectancy, GDP per capita, and population. Famous for Hans Rosling's TED talks and ideal for teaching data visualisation and longitudinal analysis.
-
-| Property | Value |
-|----------|-------|
-| Observations | 1,704 |
-| Variables | 6 |
-| Countries | 142 |
-| Continents | 5 |
-| Time Span | 1952-2007 (5-year intervals) |
+#### pbc — Primary Biliary Cirrhosis
 
 **Variables:**
-- `country`: Country name (142 levels)
-- `continent`: Continent (Africa, Americas, Asia, Europe, Oceania)
-- `year`: Year of observation (1952, 1957, ..., 2007)
-- `lifeExp`: Life expectancy at birth (years)
-- `pop`: Population
-- `gdpPercap`: GDP per capita (international dollars, 2005 PPP)
 
-**Course Applications:**
-- Time series visualisation
-- Panel/longitudinal data
-- Grouped analyses
-- Animated visualisations
-- Simpson's paradox examples
-
-**Usage:**
-
-```r
-library(gapminder)
-data(gapminder)
-
-# Example: Life expectancy trends
-library(ggplot2)
-ggplot(gapminder, aes(x = year, y = lifeExp, group = country)) +
-    geom_line(alpha = 0.3) +
-    facet_wrap(~continent)
-```
+| Variable | Type | Description |
+|----------|------|-------------|
+| `id` | Integer | Patient ID |
+| `time` | Integer | Days between registration and event |
+| `status` | Integer | 0=censored, 1=transplant, 2=dead |
+| `trt` | Integer | Treatment (1=D-penicillamine, 2=placebo) |
+| `age` | Numeric | Age in years |
+| `sex` | Factor | m, f |
+| `ascites` | Binary | Presence of ascites |
+| `hepato` | Binary | Hepatomegaly |
+| `spiders` | Binary | Spider angiomata |
+| `edema` | Numeric | Edema (0, 0.5, 1) |
+| `bili` | Numeric | Serum bilirubin (mg/dl) |
+| `chol` | Integer | Serum cholesterol (mg/dl) |
+| `albumin` | Numeric | Albumin (gm/dl) |
+| `copper` | Integer | Urine copper (ug/day) |
+| `alk.phos` | Numeric | Alkaline phosphatase (U/litre) |
+| `ast` | Numeric | Aspartate aminotransferase (U/ml) |
+| `trig` | Integer | Triglycerides (mg/dl) |
+| `platelet` | Integer | Platelet count |
+| `protime` | Numeric | Prothrombin time (seconds) |
+| `stage` | Integer | Histologic stage (1-4) |
 
 ---
 
-## Supplementary Datasets (Built-in R Packages)
+### MASS Package Datasets
 
-### 5. survival Package Datasets
+| Dataset | File | n | Variables | Description |
+|---------|------|---|-----------|-------------|
+| `birthwt` | birthwt.csv | 189 | 10 | Risk factors for low birth weight |
+| `boston` | boston.csv | 506 | 14 | Boston housing values |
+| `cats` | cats.csv | 144 | 3 | Anatomical data from domestic cats |
+| `pima_tr` | pima_tr.csv | 200 | 8 | Pima Indians diabetes (training) |
+| `pima_te` | pima_te.csv | 332 | 8 | Pima Indians diabetes (test) |
+| `bacteria` | bacteria.csv | 220 | 6 | Bacteria presence after drug treatment |
 
-**Source:** Base R package `survival`
+#### birthwt — Risk Factors for Low Birth Weight
 
-These datasets are essential for teaching survival analysis in Level 2 and Level 3:
+**Variables:**
 
-#### 5.1 veteran — Veterans' Administration Lung Cancer
+| Variable | Type | Description |
+|----------|------|-------------|
+| `low` | Binary | Low birth weight indicator (< 2500g) |
+| `age` | Integer | Mother's age |
+| `lwt` | Integer | Mother's weight at last menstrual period (pounds) |
+| `race` | Factor | 1=White, 2=Black, 3=Other |
+| `smoke` | Binary | Smoking status during pregnancy |
+| `ptl` | Integer | Number of previous premature labours |
+| `ht` | Binary | History of hypertension |
+| `ui` | Binary | Presence of uterine irritability |
+| `ftv` | Integer | Number of physician visits in first trimester |
+| `bwt` | Integer | Birth weight in grams |
 
-| Property | Value |
-|----------|-------|
-| Observations | 137 |
-| Variables | 8 |
-| Design | Randomised trial |
+#### pima_tr / pima_te — Pima Indians Diabetes
 
-**Variables:** trt, celltype, time, status, karno, diagtime, age, prior
+**Variables:**
 
-**Course Use:** Cox regression, Kaplan-Meier, proportional hazards
-
-#### 5.2 ovarian — Ovarian Cancer Survival
-
-| Property | Value |
-|----------|-------|
-| Observations | 26 |
-| Variables | 6 |
-| Design | Clinical trial |
-
-**Course Use:** Small sample survival analysis, parametric survival models
-
-#### 5.3 lung — NCCTG Lung Cancer
-
-| Property | Value |
-|----------|-------|
-| Observations | 228 |
-| Variables | 10 |
-
-**Course Use:** Survival analysis with covariates, model building
-
-**Access:**
-
-```r
-library(survival)
-data(veteran)
-data(ovarian)
-data(lung)
-```
+| Variable | Type | Description |
+|----------|------|-------------|
+| `npreg` | Integer | Number of pregnancies |
+| `glu` | Integer | Plasma glucose concentration |
+| `bp` | Integer | Diastolic blood pressure (mm Hg) |
+| `skin` | Integer | Triceps skin fold thickness (mm) |
+| `bmi` | Numeric | Body mass index |
+| `ped` | Numeric | Diabetes pedigree function |
+| `age` | Integer | Age in years |
+| `type` | Factor | Diabetes status (Yes/No) |
 
 ---
 
-### 6. MASS Package Datasets
+### Built-in R Datasets
 
-**Source:** Base R package `MASS` (Modern Applied Statistics with S)
-
-#### 6.1 birthwt — Risk Factors for Low Birth Weight
-
-| Property | Value |
-|----------|-------|
-| Observations | 189 |
-| Variables | 10 |
-
-**Variables:** low, age, lwt, race, smoke, ptl, ht, ui, ftv, bwt
-
-**Course Use:** Logistic regression, risk factors analysis
-
-#### 6.2 Boston — Housing Values in Boston Suburbs
-
-| Property | Value |
-|----------|-------|
-| Observations | 506 |
-| Variables | 14 |
-
-**Course Use:** Multiple regression, multicollinearity, model selection
-
-#### 6.3 cats — Anatomical Data from Domestic Cats
-
-| Property | Value |
-|----------|-------|
-| Observations | 144 |
-| Variables | 3 |
-
-**Course Use:** Simple linear regression, correlation
+| Dataset | File | n | Variables | Description |
+|---------|------|---|-----------|-------------|
+| `mtcars` | mtcars.csv | 32 | 11 | Motor Trend car road tests |
+| `iris` | iris.csv | 150 | 5 | Edgar Anderson's iris data |
+| `airquality` | airquality.csv | 153 | 6 | New York air quality measurements |
+| `chickweight` | chickweight.csv | 578 | 4 | Chick weights by diet |
+| `toothgrowth` | toothgrowth.csv | 60 | 3 | Vitamin C effect on tooth growth |
+| `usarrests` | usarrests.csv | 50 | 4 | US violent crime rates by state |
 
 ---
 
@@ -442,26 +518,26 @@ data(lung)
 | 2. Descriptive Numerical | NHANES, blood_storage | gapminder |
 | 3. Visualisation | NHANES, gapminder, penguins | covid_testing |
 | 4. Probability | Simulated, scurvy | strep_tb |
-| 5. Distributions | Simulated, NHANES | - |
-| 6. Sampling/CLT | Simulated from NHANES | - |
+| 5. Distributions | Simulated, NHANES | pima_tr |
+| 6. Sampling/CLT | Simulated from NHANES | lung |
 | 7. Point Estimation | NHANES | penguins |
-| 8. Confidence Intervals | NHANES, strep_tb | - |
+| 8. Confidence Intervals | NHANES, strep_tb | birthwt |
 | 9-10. Hypothesis Testing | strep_tb, NHANES | indo_rct |
-| 11. Chi-square/Non-parametric | scurvy, strep_tb | - |
-| 12. Regression | NHANES, penguins | Boston, cats |
-| 13. ANOVA | NHANES, penguins | - |
+| 11. Chi-square/Non-parametric | scurvy, strep_tb | cytomegalovirus |
+| 12. Regression | NHANES, penguins | cats, birthwt |
+| 13. ANOVA | NHANES, penguins | toothgrowth |
 | 14. Experimental Design | scurvy, strep_tb | indo_rct |
-| 15. Multiple Testing | covid_testing | - |
+| 15. Multiple Testing | covid_testing | NHANES |
 
 ### Level 2: Intermediate
 
 | Topic | Primary Dataset(s) |
 |-------|-------------------|
-| Multiple Regression | NHANES, Boston |
-| Logistic Regression | NHANES, birthwt, strep_tb |
+| Multiple Regression | NHANES, boston |
+| Logistic Regression | NHANES, birthwt, pima_tr |
 | GLMs | NHANES, covid_testing |
 | Mixed Effects Models | polyps, smartpill |
-| Survival Analysis | blood_storage, veteran, lung |
+| Survival Analysis | blood_storage, veteran, lung, pbc |
 | Time Series | gapminder, covid_testing |
 
 ### Level 3: Advanced
@@ -469,10 +545,10 @@ data(lung)
 | Topic | Primary Dataset(s) |
 |-------|-------------------|
 | Bayesian Statistics | NHANES, strep_tb |
-| Machine Learning | NHANES, penguins |
+| Machine Learning | NHANES, penguins, pima_tr |
 | Causal Inference | strep_tb, indo_rct |
 | High-dimensional Data | Simulated, NHANES subsets |
-| Complex Surveys | NHANESraw (with weights) |
+| Complex Surveys | nhanes_raw (with weights) |
 
 ---
 
@@ -489,43 +565,82 @@ data(lung)
 | strep_tb | Minimal | Complete case acceptable |
 | covid_testing | Present | Real-world messiness |
 | blood_storage | Some | Teaching imputation |
+| pbc | Several | Multiple imputation exercises |
 
 ### Sample Size Considerations
 
 | Size Category | Datasets | Teaching Purpose |
 |---------------|----------|------------------|
-| Small (n < 50) | scurvy, ovarian, polyps | Small sample methods |
-| Medium (50-500) | strep_tb, blood_storage, penguins, veteran | Standard methods |
-| Large (500-5000) | gapminder, indo_rct | Asymptotic theory |
-| Very Large (>5000) | NHANES, covid_testing | Computational methods |
+| Small (n < 50) | scurvy, ovarian, polyps, mtcars | Small sample methods, exact tests |
+| Medium (50-500) | strep_tb, blood_storage, penguins, veteran, birthwt | Standard parametric methods |
+| Large (500-5000) | gapminder, indo_rct, colon, pbc | Asymptotic theory |
+| Very Large (>5000) | NHANES, covid_testing | Computational methods, big data |
 
 ---
 
-## Simulated Data Guidelines
+## Loading Data in R
 
-For certain teaching purposes, we generate simulated data with controlled properties:
+### From CSV Files (Recommended for Course)
 
 ```r
-# Example: Simulating data for CLT demonstration
-set.seed(42)  # Always set seed for reproducibility
+library(data.table)
 
-# Population with known parameters
-population <- rexp(100000, rate = 0.5)  # Exponential, mean = 2
+# Set data directory
+data_dir <- "src/data"
 
-# Sampling distribution of the mean
-n_samples <- 10000
-sample_size <- 30
-sample_means <- replicate(n_samples, mean(sample(population, sample_size)))
+# Load primary datasets
+nhanes <- fread(file.path(data_dir, "primary/nhanes.csv"))
+penguins <- fread(file.path(data_dir, "primary/penguins.csv"))
+gapminder <- fread(file.path(data_dir, "primary/gapminder.csv"))
 
-# sample_means should be approximately normal (CLT)
+# Load medical datasets
+scurvy <- fread(file.path(data_dir, "medical/scurvy.csv"))
+strep_tb <- fread(file.path(data_dir, "medical/strep_tb.csv"))
+blood_storage <- fread(file.path(data_dir, "medical/blood_storage.csv"))
+
+# Load supplementary datasets
+lung <- fread(file.path(data_dir, "supplementary/lung.csv"))
+birthwt <- fread(file.path(data_dir, "supplementary/birthwt.csv"))
 ```
 
-**When to Use Simulated Data:**
-1. Demonstrating theoretical concepts (CLT, sampling distributions)
-2. Creating data with specific properties (exact normality, known parameters)
-3. Generating examples with controlled effect sizes
-4. Teaching power analysis concepts
-5. Creating exam/exercise datasets
+### From R Packages (Alternative)
+
+```r
+# Install packages
+install.packages(c("NHANES", "medicaldata", "palmerpenguins", "gapminder"))
+
+# Load datasets
+library(NHANES); data(NHANES)
+library(medicaldata); data(scurvy); data(strep_tb)
+library(palmerpenguins); data(penguins)
+library(gapminder); data(gapminder)
+library(survival); data(lung); data(pbc)
+library(MASS); data(birthwt)
+```
+
+---
+
+## References and Data Sources
+
+### Primary Sources
+
+| Dataset | Source | URL |
+|---------|--------|-----|
+| NHANES | CDC National Center for Health Statistics | https://www.cdc.gov/nchs/nhanes/ |
+| palmerpenguins | Palmer LTER, Antarctica | https://allisonhorst.github.io/palmerpenguins/ |
+| gapminder | Gapminder Foundation | https://www.gapminder.org/ |
+| medicaldata | Peter Higgins (U. Michigan) | https://higgi13425.github.io/medicaldata/ |
+
+### R Package References
+
+| Package | CRAN URL |
+|---------|----------|
+| NHANES | https://cran.r-project.org/package=NHANES |
+| medicaldata | https://cran.r-project.org/package=medicaldata |
+| palmerpenguins | https://cran.r-project.org/package=palmerpenguins |
+| gapminder | https://cran.r-project.org/package=gapminder |
+| survival | https://cran.r-project.org/package=survival |
+| MASS | https://cran.r-project.org/package=MASS |
 
 ---
 
@@ -539,77 +654,26 @@ sample_means <- replicate(n_samples, mean(sample(population, sample_size)))
 | medicaldata | MIT | Yes |
 | palmerpenguins | CC-0 | Yes (recommended) |
 | gapminder | CC-BY | Yes |
-| survival (veteran, etc.) | Part of R | Citation recommended |
+| survival | GPL-2/3 | Citation recommended |
 
 ### Appropriate Use
 
 1. **Educational Use:** All datasets are appropriate for classroom teaching
 2. **Research Use:** NHANES (educational version) should NOT be used for research publications; download original data from CDC
-3. **Commercial Use:** Check individual package licenses
-4. **Student Projects:** All datasets suitable with proper attribution
-
----
-
-## Troubleshooting
-
-### Common Installation Issues
-
-```r
-# If NHANES fails to install
-install.packages("NHANES", dependencies = TRUE)
-
-# If medicaldata needs update
-install.packages("remotes")
-remotes::install_github("higgi13425/medicaldata")
-
-# Check package versions
-packageVersion("NHANES")      # Should be >= 2.1.0
-packageVersion("medicaldata") # Should be >= 0.2.0
-```
-
-### Memory Considerations
-
-```r
-# For large datasets, use data.table
-library(data.table)
-nhanes_dt <- as.data.table(NHANES::NHANES)
-
-# Check object sizes
-format(object.size(nhanes_dt), units = "MB")
-```
-
----
-
-## References and Further Reading
-
-### Dataset Documentation
-
-- **NHANES:** https://cran.r-project.org/package=NHANES
-- **medicaldata:** https://higgi13425.github.io/medicaldata/
-- **palmerpenguins:** https://allisonhorst.github.io/palmerpenguins/
-- **gapminder:** https://www.gapminder.org/
-
-### Original Data Sources
-
-- **CDC NHANES:** https://www.cdc.gov/nchs/nhanes/
-- **WHO GHO:** https://www.who.int/data/gho
-- **NHLBI BioLINCC:** https://biolincc.nhlbi.nih.gov/teaching/
-
-### Teaching Statistics Resources
-
-- CRAN Task View: Teaching Statistics — https://cran.r-project.org/view=TeachingStatistics
-- CAUSE Web TSHS Portal — https://causeweb.org/tshs/
+3. **Student Projects:** All datasets suitable with proper attribution
 
 ---
 
 ## Version Information
 
-| Item | Version/Date |
-|------|--------------|
-| Document Version | 1.0 |
+| Item | Value |
+|------|-------|
+| Document Version | 2.0 |
 | Last Updated | January 2026 |
 | Tested R Version | 4.3+ |
 | Course | Statistics with R (Levels 1-3) |
+| Download Script | `src/data/download_datasets.R` |
+| Total Datasets | 39 |
 
 ---
 
