@@ -257,7 +257,7 @@ sample_means <- replicate(n_samples, {
 sampling_dist <- data.table$data.table(sample_mean = sample_means)
 
 ggplot2$ggplot(sampling_dist, ggplot2$aes(x = sample_mean)) +
-    ggplot2$geom_histogram(ggplot2$aes(y = ggplot2$after_stat(density)), bins = 40,
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
                    fill = "#56B4E9", colour = "white", alpha = 0.8) +
     ggplot2$geom_density(colour = "#0072B2", linewidth = 1.2) +
     ggplot2$geom_vline(xintercept = mu, colour = "red", linetype = "dashed", linewidth = 1.2) +

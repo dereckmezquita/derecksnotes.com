@@ -72,7 +72,7 @@ combined_data <- rbind(
 )
 
 ggplot2$ggplot(combined_data, ggplot2$aes(x = value, fill = type)) +
-    ggplot2$geom_histogram(ggplot2$aes(y = ggplot2$after_stat(density)), bins = 25,
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 25,
                    position = "identity", alpha = 0.6, colour = "white") +
     ggplot2$facet_wrap(~type, scales = "free") +
     ggplot2$labs(

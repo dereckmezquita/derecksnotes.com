@@ -4,7 +4,7 @@ chapter: "Chapter 1: Introduction to Statistics and Data"
 part: "Part 1: Statistics and Sampling"
 coverImage: 13
 author: "Dereck Mezquita"
-date: "2026-01-14"
+date: "2026-01-15"
 tags: [statistics, mathematics, probability, data, R, biomedical]
 published: true
 comments: true
@@ -84,7 +84,7 @@ ggplot2$ggplot(plot_data, ggplot2$aes(x = value, fill = type)) +
     ggplot2$theme(legend.position = "bottom")
 ```
 
-<Figure src="statistics_essence-1.png" alt="Statistics bridges the gap between sample observations and population truth">
+<Figure src="/courses/statistics-1-foundations/statistics_essence-1.png" alt="Statistics bridges the gap between sample observations and population truth">
 	Statistics bridges the gap between sample observations and population truth
 </Figure>
 
@@ -174,7 +174,7 @@ ggplot2$ggplot(descriptive_summary, ggplot2$aes(x = group, y = proportion, fill 
     ggplot2$theme(legend.position = "none")
 ```
 
-<Figure src="descriptive_vs_inferential-1.png" alt="Descriptive statistics summarises data; inferential statistics generalises to populations">
+<Figure src="/courses/statistics-1-foundations/descriptive_vs_inferential-1.png" alt="Descriptive statistics summarises data; inferential statistics generalises to populations">
 	Descriptive statistics summarises data; inferential statistics generalises to populations
 </Figure>
 
@@ -240,4 +240,115 @@ This distinction is so fundamental that we use different notation:
 Greek letters typically denote parameters; Roman letters denote statistics. The "hat" symbol (^) indicates an estimator or estimate of a parameter.
 
 
+``` r
+set.seed(456)
 
+# True population parameter
+mu <- 100
+sigma <- 15
+
+# Draw many samples and calculate sample means
+n_samples <- 1000
+sample_size <- 30
+
+sample_means <- replicate(n_samples, {
+    sample_data <- rnorm(sample_size, mean = mu, sd = sigma)
+    mean(sample_data)
+})
+
+# Create histogram of sample means
+sampling_dist <- data.table$data.table(sample_mean = sample_means)
+
+ggplot2$ggplot(sampling_dist, ggplot2$aes(x = sample_mean)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
+                   fill = "#56B4E9", colour = "white", alpha = 0.8) +
+    ggplot2$geom_density(colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = mu, colour = "red", linetype = "dashed", linewidth = 1.2) +
+    ggplot2$labs(
+        title = "Statistics Vary; Parameters Are Fixed",
+        subtitle = paste0(
+            "Each sample of n = ", sample_size, " yields a different x\u0304. ",
+            "The true \u03bc = ", mu, " is fixed (red line)."
+        ),
+        x = "Sample Mean (x\u0304)",
+        y = "Density",
+        caption = paste0("Distribution of ", n_samples, " sample means")
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/parameter_vs_statistic-1.png" alt="Statistics vary from sample to sample; parameters are fixed">
+	Statistics vary from sample to sample; parameters are fixed
+</Figure>
+
+### 1.2.4 The Goal of Inference: Learning About Populations from Samples
+
+The central problem of statistics is this: we observe a sample and wish to make statements about the population. We calculate statistics and wish to learn about parameters.
+
+This presents two challenges:
+
+1. **Point estimation**: What single value best represents the unknown parameter? If our sample mean is x̄ = 98.5, is this our best guess for μ?
+
+2. **Uncertainty quantification**: How confident should we be in this estimate? Could μ plausibly be 95? 102? 150?
+
+Statistical inference provides formal methods for both tasks. Point estimators give us single "best guesses" for parameters, and interval estimators (confidence intervals) quantify plausible ranges. Hypothesis tests assess whether data are compatible with specific hypotheses about parameters.
+
+### 1.2.5 Notation Conventions
+
+Throughout this course, we adopt standard notation conventions:
+
+- **Random variables** (before data are observed) use capital letters: X, Y, Z
+- **Observed values** (after data collection) use lowercase letters: x, y, z
+- **Sample size** is denoted n (or n₁, n₂ for different groups)
+- **Population size** is denoted N
+- **Indices** typically use subscripts: xᵢ denotes the i-th observation
+- **Summation** uses sigma notation: $\sum_{i=1}^{n} x_i$ means add all observations
+
+When we write X ~ N(μ, σ²), we mean "X follows a normal distribution with mean μ and variance σ²." The tilde (~) indicates "is distributed as."
+
+---
+
+## Communicating to Stakeholders
+
+When explaining these concepts to collaborators or non-technical audiences:
+
+**On what statistics is:**
+> "Statistics is how we learn from incomplete information. We cannot study everyone, so we study a carefully chosen sample and use mathematics to understand what that sample tells us about the whole population."
+
+**On populations and samples:**
+> "Think of it this way: we cannot taste every grain of rice in the pot to know if it is done. We taste a few grains, a sample, and draw conclusions about the whole pot. Statistics tells us how confident we can be that those few grains represent the rest."
+
+**On parameters vs statistics:**
+> "A parameter is the truth we are trying to discover, but cannot observe directly. A statistic is what we calculate from our sample. The sample mean is our best estimate of the true mean, but it will not be exactly right. Statistics tells us how far off we might be."
+
+---
+
+## Quick Reference
+
+### Key Terminology
+
+| Term | Definition |
+|------|------------|
+| Population | Complete collection of individuals about which we wish to draw conclusions |
+| Sample | Subset of the population actually observed |
+| Parameter | Numerical characteristic of a population (Greek letters: μ, σ, π) |
+| Statistic | Numerical characteristic of a sample (Roman letters: x̄, s, p̂) |
+| Descriptive statistics | Methods for summarising observed data |
+| Inferential statistics | Methods for drawing conclusions about populations from samples |
+
+### Notation Conventions
+
+| Symbol | Name | Represents |
+|--------|------|------------|
+| μ | mu | Population mean |
+| σ | sigma | Population standard deviation |
+| σ² | sigma squared | Population variance |
+| π or p | pi | Population proportion |
+| ρ | rho | Population correlation |
+| β | beta | Population regression coefficient |
+| θ | theta | Generic parameter |
+| x̄ | x-bar | Sample mean |
+| s | s | Sample standard deviation |
+| p̂ | p-hat | Sample proportion |
+| n | n | Sample size |
+| N | N | Population size |
