@@ -2,15 +2,9 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
-import { remark } from 'remark';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import mdx from 'remark-mdx';
-import strip from 'remark-mdx-to-plain-text';
-import { visit } from 'unist-util-visit';
 
 import { DATE_YYYY_MM_DD } from '@lib/dates';
-import { ROOT_DIR_APP } from '@lib/constants.server';
+import { extractSummaryFromMdx } from './extractMdxSummary';
 
 // ============================================================================
 // Types
@@ -138,37 +132,6 @@ const IGNORED_DIRS = [
     'node_modules',
     '.git'
 ];
-
-function extractSummaryFromMdx(content: string): string {
-    try {
-        const parsedContent = remark()
-            .use(remarkGfm)
-            .use(remarkMath)
-            .use(mdx)
-            .use(strip)
-            .parse(content);
-
-        const paragraphs: string[] = [];
-        visit(parsedContent, 'paragraph', (node: any) => {
-            const textContent = node.children
-                .map((child: any) => child.value?.trim() || '')
-                .join('');
-
-            if (textContent.trim() !== '') {
-                paragraphs.push(textContent);
-            }
-        });
-
-        const summary = remark()
-            .processSync(paragraphs.join(' '))
-            .toString()
-            .trim();
-
-        return summary.substring(0, 300) + (summary.length > 300 ? '...' : '');
-    } catch {
-        return '';
-    }
-}
 
 function readYamlFile<T>(filePath: string): T | null {
     try {
@@ -526,7 +489,6 @@ export function getAllCourses(postsDir: string): CourseCardMetadata[] {
                     courses.push(card);
                 }
             }
-            // TODO: Handle legacy courses (directories without course.mdx)
         } else if (item.endsWith('.mdx')) {
             // Single-file course
             const mdxData = readMdxFrontmatter<any>(itemPath);
