@@ -28,6 +28,7 @@ import {
 
 export const SERIES_MANIFEST_FILENAME = '_series.mdx';
 export const CHAPTER_META_FILENAME = '_meta.yaml';
+export const PASSTHROUGH_MARKER = '_passthrough';
 
 const IGNORED_DIRS = [
     'drafts',
@@ -106,6 +107,16 @@ function formatCoverImage(coverImage: string | number): string {
 export function isSeriesDirectory(dirPath: string): boolean {
     const manifestPath = path.join(dirPath, SERIES_MANIFEST_FILENAME);
     return fs.existsSync(manifestPath);
+}
+
+/**
+ * Check if a directory is a passthrough/organisational folder
+ * Passthrough folders contain a _passthrough marker file and their
+ * children are promoted to appear at the parent level
+ */
+export function isPassthroughDirectory(dirPath: string): boolean {
+    const markerPath = path.join(dirPath, PASSTHROUGH_MARKER);
+    return fs.existsSync(markerPath);
 }
 
 /**
@@ -497,24 +508,32 @@ export function loadSeriesMetadata(
 // ============================================================================
 
 /**
- * Get all content for a section (for landing page cards)
+ * Recursively scan a directory for content, handling passthrough folders
  */
-export function getSectionContent(section: string): ContentCardMetadata[] {
-    const postsDir = path.join(ROOT_DIR_APP, section, 'posts');
-
-    if (!fs.existsSync(postsDir)) {
-        return [];
+function scanDirectoryForContent(
+    dirPath: string,
+    section: string,
+    content: ContentCardMetadata[]
+): void {
+    if (!fs.existsSync(dirPath)) {
+        return;
     }
 
-    const items = fs.readdirSync(postsDir);
-    const content: ContentCardMetadata[] = [];
+    const items = fs.readdirSync(dirPath);
 
     for (const item of items) {
-        const itemPath = path.join(postsDir, item);
+        const itemPath = path.join(dirPath, item);
         const stat = fs.statSync(itemPath);
 
         if (stat.isDirectory()) {
             if (IGNORED_DIRS.includes(item)) continue;
+
+            // Check if this is a passthrough/organisational folder
+            if (isPassthroughDirectory(itemPath)) {
+                // Recurse into passthrough folder, promoting children to this level
+                scanDirectoryForContent(itemPath, section, content);
+                continue;
+            }
 
             // Validate directory has manifest
             if (!isSeriesDirectory(itemPath)) {
@@ -562,6 +581,16 @@ export function getSectionContent(section: string): ContentCardMetadata[] {
             }
         }
     }
+}
+
+/**
+ * Get all content for a section (for landing page cards)
+ */
+export function getSectionContent(section: string): ContentCardMetadata[] {
+    const postsDir = path.join(ROOT_DIR_APP, section, 'posts');
+    const content: ContentCardMetadata[] = [];
+
+    scanDirectoryForContent(postsDir, section, content);
 
     // Sort by date (newest first)
     return content.sort(
@@ -578,6 +607,129 @@ export function getSidebarContent(
 ): ContentCardMetadata[] {
     const content = getSectionContent(section);
     return content.slice(0, limit);
+}
+
+// ============================================================================
+// Slug Resolution Functions
+// ============================================================================
+
+/**
+ * Internal helper: recursively search for a slug through passthrough folders
+ */
+function findContentPathRecursive(
+    basePath: string,
+    slug: string
+): string | null {
+    // First, check if it exists directly as a directory
+    const directPath = path.join(basePath, slug);
+    if (fs.existsSync(directPath)) {
+        return directPath;
+    }
+
+    // Check for .mdx file directly
+    const mdxPath = directPath + '.mdx';
+    if (fs.existsSync(mdxPath)) {
+        return mdxPath;
+    }
+
+    // Search through passthrough folders
+    if (!fs.existsSync(basePath)) return null;
+
+    const items = fs.readdirSync(basePath);
+    for (const item of items) {
+        const itemPath = path.join(basePath, item);
+        const stat = fs.statSync(itemPath);
+
+        if (stat.isDirectory() && !IGNORED_DIRS.includes(item)) {
+            if (isPassthroughDirectory(itemPath)) {
+                // Recursively search inside passthrough folder
+                const found = findContentPathRecursive(itemPath, slug);
+                if (found) return found;
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Resolve a content slug to its actual filesystem path.
+ * Handles passthrough folders transparently.
+ *
+ * @param section - The content section (e.g., 'courses', 'blog')
+ * @param slug - The content slug from the URL
+ * @returns The absolute filesystem path, or null if not found
+ */
+export function resolveSlugToPath(
+    section: string,
+    slug: string
+): string | null {
+    const postsDir = path.join(ROOT_DIR_APP, section, 'posts');
+    return findContentPathRecursive(postsDir, slug);
+}
+
+/**
+ * Internal helper: recursively collect all content paths for static generation
+ */
+function collectAllPathsRecursive(
+    dirPath: string,
+    section: string,
+    paths: string[][]
+): void {
+    if (!fs.existsSync(dirPath)) return;
+
+    const items = fs.readdirSync(dirPath);
+
+    for (const item of items) {
+        const itemPath = path.join(dirPath, item);
+        const stat = fs.statSync(itemPath);
+
+        if (stat.isDirectory()) {
+            if (IGNORED_DIRS.includes(item)) continue;
+
+            // Check for passthrough folders - recurse into them
+            if (isPassthroughDirectory(itemPath)) {
+                collectAllPathsRecursive(itemPath, section, paths);
+                continue;
+            }
+
+            // Series directory (has _series.mdx)
+            if (isSeriesDirectory(itemPath)) {
+                const series = loadSeriesMetadata(itemPath, section);
+                if (!series) continue;
+
+                // Series overview page
+                paths.push([series.slug]);
+
+                // All published parts
+                for (const part of series.allParts) {
+                    if (part.published) {
+                        const segments = part.path.split('/');
+                        paths.push([series.slug, ...segments]);
+                    }
+                }
+            }
+            // Folder without _series.mdx - will be caught by validation elsewhere
+        } else if (item.endsWith('.mdx')) {
+            // Standalone content
+            const slug = item.replace('.mdx', '');
+            paths.push([slug]);
+        }
+    }
+}
+
+/**
+ * Get all content paths for a section (for Next.js generateStaticParams).
+ * Handles passthrough folders transparently.
+ *
+ * @param section - The content section (e.g., 'courses', 'blog')
+ * @returns Array of path segment arrays for static generation
+ */
+export function getAllContentPaths(section: string): string[][] {
+    const postsDir = path.join(ROOT_DIR_APP, section, 'posts');
+    const paths: string[][] = [];
+    collectAllPathsRecursive(postsDir, section, paths);
+    return paths;
 }
 
 // ============================================================================
