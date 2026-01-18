@@ -4,69 +4,53 @@ import { APPLICATION_DEFAULT_METADATA } from '@lib/constants';
 import { ROOT_DIR_APP } from '@lib/constants.server';
 import { processMdx } from '@utils/mdx/processMdx';
 import { notFound } from 'next/navigation';
-import { Post } from '@components/pages/Post';
-import {
-    PostMetadata,
-    extractSinglePostMetadata,
-    getSideBarPosts
-} from '@utils/mdx/fetchPostsMetadata';
-import {
-    isCourseDirectory,
-    loadCourseMetadata,
-    findPartByPath,
-    getPartNavigation
-} from '@utils/mdx/fetchCourseMetadata';
-import { CourseOverview } from '@components/courses/CourseOverview';
-import { CoursePost } from '@components/courses/CoursePost';
 import { accessReadFile } from '@utils/accessReadFile';
 import { Metadata } from 'next';
 import { decodeSlug } from '@utils/helpers';
 
-const section: string = 'courses';
-const relDir = path.join(section, 'posts');
-const absDir = path.join(ROOT_DIR_APP, relDir);
+import {
+    isSeriesDirectory,
+    loadSeriesMetadata,
+    loadContentMetadata,
+    findPartByPath,
+    getPartNavigation,
+    getStandaloneNavigation,
+    getSidebarContent,
+    SERIES_MANIFEST_FILENAME
+} from '@utils/mdx/fetchContentMetadata';
+import { ContentPost } from '@components/content/ContentPost';
+import { SeriesOverview } from '@components/content/SeriesOverview';
+
+const section = 'courses';
+const postsDir = path.join(ROOT_DIR_APP, section, 'posts');
 
 // ============================================================================
 // Helper Functions
 // ============================================================================
 
+const IGNORED_DIRS = ['drafts', 'deprecated', 'ignore', 'src', 'data'];
+
 /**
- * Recursively collect all MDX file paths from a course hierarchy
+ * Collect all paths for a series (overview + all parts)
  */
-function collectCoursePaths(courseSlug: string, courseDir: string): string[][] {
-    const course = loadCourseMetadata(courseDir);
-    if (!course) return [];
+function collectSeriesPaths(seriesSlug: string, seriesDir: string): string[][] {
+    const series = loadSeriesMetadata(seriesDir, section);
+    if (!series) return [];
 
     const paths: string[][] = [];
 
-    // Add the course overview page (just the course slug)
-    paths.push([courseSlug]);
+    // Series overview page
+    paths.push([seriesSlug]);
 
-    // Add all published parts
-    for (const part of course.allParts) {
+    // All published parts
+    for (const part of series.allParts) {
         if (part.published) {
-            // Split the part path into segments
             const segments = part.path.split('/');
-            paths.push([courseSlug, ...segments]);
+            paths.push([seriesSlug, ...segments]);
         }
     }
 
     return paths;
-}
-
-/**
- * Check if a directory is a legacy multi-part course (no course.mdx)
- */
-function isLegacyMultiPartDir(dirPath: string): boolean {
-    const stat = fs.statSync(dirPath);
-    if (!stat.isDirectory()) return false;
-
-    // If it has course.mdx, it's the new format
-    if (fs.existsSync(path.join(dirPath, 'course.mdx'))) return false;
-
-    // Check if it contains MDX files (legacy format)
-    const items = fs.readdirSync(dirPath);
-    return items.some((item) => item.endsWith('.mdx'));
 }
 
 // ============================================================================
@@ -74,43 +58,28 @@ function isLegacyMultiPartDir(dirPath: string): boolean {
 // ============================================================================
 
 export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
-    const items: string[] = fs.readdirSync(absDir);
+    const items = fs.readdirSync(postsDir);
     const params: { slug: string[] }[] = [];
 
     for (const item of items) {
-        const itemPath = path.join(absDir, item);
+        const itemPath = path.join(postsDir, item);
         const stat = fs.statSync(itemPath);
 
         if (stat.isDirectory()) {
-            // Skip ignored directories
-            if (
-                ['drafts', 'deprecated', 'ignore', 'src', 'data'].includes(item)
-            ) {
-                continue;
-            }
+            if (IGNORED_DIRS.includes(item)) continue;
 
-            // Check if it's a new-format course (has course.mdx)
-            if (isCourseDirectory(itemPath)) {
-                const coursePaths = collectCoursePaths(item, itemPath);
+            // Series directory (has _series.mdx)
+            if (isSeriesDirectory(itemPath)) {
+                const seriesPaths = collectSeriesPaths(item, itemPath);
                 params.push(
-                    ...coursePaths.map((segments) => ({ slug: segments }))
+                    ...seriesPaths.map((segments) => ({ slug: segments }))
                 );
-            } else if (isLegacyMultiPartDir(itemPath)) {
-                // Legacy multi-part handling
-                const seriesItems = fs.readdirSync(itemPath);
-                const mdxFiles = seriesItems.filter((f) => f.endsWith('.mdx'));
-
-                if (mdxFiles.length > 0) {
-                    mdxFiles.sort();
-                    // For legacy, just add the first file as representative
-                    const noExt = mdxFiles[0].replace('.mdx', '');
-                    params.push({ slug: [item, noExt] });
-                }
             }
+            // Folder without _series.mdx - error will be thrown at build time
         } else if (item.endsWith('.mdx')) {
-            // Single-file course
-            const noExt = item.replace('.mdx', '');
-            params.push({ slug: [noExt] });
+            // Standalone content
+            const slug = item.replace('.mdx', '');
+            params.push({ slug: [slug] });
         }
     }
 
@@ -123,106 +92,106 @@ export async function generateStaticParams(): Promise<{ slug: string[] }[]> {
 
 async function Page({ params }: { params: Promise<{ slug: string[] }> }) {
     const decodedSegments = (await params).slug.map(decodeSlug);
-    const courseSlug = decodedSegments[0];
-    const courseDir = path.join(absDir, courseSlug);
+    const firstSegment = decodedSegments[0];
+    const itemPath = path.join(postsDir, firstSegment);
 
-    // Check if this is a new-format course
-    if (fs.existsSync(courseDir) && isCourseDirectory(courseDir)) {
-        const course = loadCourseMetadata(courseDir);
+    // Get sidebar content for this section
+    const otherContent = getSidebarContent(section);
 
-        if (!course || !course.published) {
+    // Check if this is a series
+    if (fs.existsSync(itemPath) && fs.statSync(itemPath).isDirectory()) {
+        if (!isSeriesDirectory(itemPath)) {
+            throw new Error(
+                `Directory "${itemPath}" is missing ${SERIES_MANIFEST_FILENAME}. ` +
+                    `All content directories must have a ${SERIES_MANIFEST_FILENAME} manifest file.`
+            );
+        }
+
+        const series = loadSeriesMetadata(itemPath, section);
+        if (!series || !series.published) {
             notFound();
         }
 
-        // Is this the course overview page?
+        // Series overview page
         if (decodedSegments.length === 1) {
-            // Process the preface content from course.mdx
-            const courseMdxPath = path.join(courseDir, 'course.mdx');
-            const courseMdxContent = await accessReadFile(courseMdxPath);
+            const manifestPath = path.join(itemPath, SERIES_MANIFEST_FILENAME);
+            const manifestContent = await accessReadFile(manifestPath);
 
-            if (!courseMdxContent) {
+            if (!manifestContent) {
                 notFound();
             }
 
             const { source: prefaceSource } =
-                await processMdx<any>(courseMdxContent);
+                await processMdx<any>(manifestContent);
 
             return (
-                <CourseOverview course={course} prefaceSource={prefaceSource} />
+                <SeriesOverview
+                    series={series}
+                    section={section}
+                    prefaceSource={prefaceSource}
+                    otherContent={otherContent}
+                />
             );
         }
 
-        // This is a specific part within the course
+        // Series part
         const partPath = decodedSegments.slice(1).join('/');
-        const part = findPartByPath(course, partPath);
+        const part = findPartByPath(series, partPath);
 
         if (!part || !part.published) {
             notFound();
         }
 
-        // Read and process the part content
-        const partMdxPath = part.absolutePath;
-        const partContent = await accessReadFile(partMdxPath);
-
+        const partContent = await accessReadFile(part.absolutePath);
         if (!partContent) {
             notFound();
         }
 
         const { source } = await processMdx<any>(partContent);
-        const { previous, next } = getPartNavigation(course, partPath);
+        const { previous, next } = getPartNavigation(series, partPath);
 
         return (
-            <CoursePost
-                course={course}
-                currentPart={part}
+            <ContentPost
                 source={source}
+                section={section}
+                series={series}
+                currentPart={part}
                 previousPart={previous}
                 nextPart={next}
+                otherContent={otherContent}
             />
         );
     }
 
-    // Fall back to legacy handling for old-format posts
-    const absPath: string = path.join(absDir, ...decodedSegments) + '.mdx';
-    const sideBarPosts = getSideBarPosts(section);
-    const markdown = await accessReadFile(absPath);
+    // Standalone content
+    const filePath = itemPath + '.mdx';
+    const markdown = await accessReadFile(filePath);
 
     if (!markdown) {
         notFound();
     }
 
-    const { source, frontmatter } = await processMdx<PostMetadata>(markdown);
+    const { source, frontmatter } = await processMdx<any>(markdown);
 
     if (!frontmatter.published) {
         notFound();
     }
 
-    const decodedSlug = decodedSegments.join('/');
-    const url = new URL(
-        path.join(section, decodedSlug),
-        APPLICATION_DEFAULT_METADATA.url
-    ).toString();
-
-    const frontmatter2: PostMetadata = {
-        ...extractSinglePostMetadata(absPath),
-        section,
-        url: url
-    };
-
-    if (!frontmatter2.summary) {
-        throw new Error(`Post ${frontmatter.slug} is missing a summary`);
+    const content = loadContentMetadata(filePath, section);
+    if (!content) {
+        notFound();
     }
 
-    APPLICATION_DEFAULT_METADATA.title = frontmatter2.title;
-    APPLICATION_DEFAULT_METADATA.description = frontmatter2.summary;
-    APPLICATION_DEFAULT_METADATA.image =
-        '/site-images/card-covers/' + frontmatter2.coverImage + '.png';
+    const { previous, next } = getStandaloneNavigation(section, content.slug);
 
     return (
-        <Post
+        <ContentPost
             source={source}
-            frontmatter={frontmatter2}
-            sideBarPosts={sideBarPosts}
+            section={section}
+            content={content}
+            previousContent={previous}
+            nextContent={next}
+            otherContent={otherContent}
         />
     );
 }
@@ -239,31 +208,32 @@ export async function generateMetadata({
     params: Promise<{ slug: string[] }>;
 }): Promise<Metadata> {
     const decodedSegments = (await params).slug.map(decodeSlug);
-    const courseSlug = decodedSegments[0];
-    const courseDir = path.join(absDir, courseSlug);
+    const firstSegment = decodedSegments[0];
+    const itemPath = path.join(postsDir, firstSegment);
 
-    // Handle new-format courses
-    if (fs.existsSync(courseDir) && isCourseDirectory(courseDir)) {
-        const course = loadCourseMetadata(courseDir);
-
-        if (!course) {
-            return {
-                title: 'Course Not Found'
-            };
+    // Series
+    if (fs.existsSync(itemPath) && fs.statSync(itemPath).isDirectory()) {
+        if (!isSeriesDirectory(itemPath)) {
+            return { title: 'Not Found' };
         }
 
-        // Course overview page
+        const series = loadSeriesMetadata(itemPath, section);
+        if (!series) {
+            return { title: 'Series Not Found' };
+        }
+
+        // Series overview
         if (decodedSegments.length === 1) {
             return {
                 metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
-                title: `Dn | ${course.title}`,
-                description: course.blurb,
+                title: `Dn | ${series.title}`,
+                description: series.blurb || series.summary,
                 openGraph: {
-                    title: course.title,
-                    description: course.blurb,
+                    title: series.title,
+                    description: series.blurb || series.summary,
                     images: [
                         {
-                            url: course.coverImage,
+                            url: series.coverImage,
                             width: 800,
                             height: 600,
                             alt: "Dereck's Notes Logo"
@@ -272,29 +242,29 @@ export async function generateMetadata({
                 },
                 twitter: {
                     card: 'summary_large_image',
-                    title: course.title,
-                    description: course.blurb,
-                    images: [course.coverImage]
+                    title: series.title,
+                    description: series.blurb || series.summary,
+                    images: [series.coverImage]
                 }
             };
         }
 
-        // Specific part
+        // Series part
         const partPath = decodedSegments.slice(1).join('/');
-        const part = findPartByPath(course, partPath);
+        const part = findPartByPath(series, partPath);
 
         if (part) {
-            const description = `${part.displayTitle} - ${course.title}`;
+            const description = `${part.displayTitle} - ${series.title}`;
             return {
                 metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
                 title: `Dn | ${part.title}`,
-                description: description,
+                description,
                 openGraph: {
                     title: part.title,
-                    description: description,
+                    description,
                     images: [
                         {
-                            url: course.coverImage,
+                            url: series.coverImage,
                             width: 800,
                             height: 600,
                             alt: "Dereck's Notes Logo"
@@ -304,27 +274,31 @@ export async function generateMetadata({
                 twitter: {
                     card: 'summary_large_image',
                     title: part.title,
-                    description: description,
-                    images: [course.coverImage]
+                    description,
+                    images: [series.coverImage]
                 }
             };
         }
     }
 
-    // Fall back to legacy metadata handling
-    const filePath: string = path.join(absDir, ...decodedSegments) + '.mdx';
-    const post: PostMetadata = extractSinglePostMetadata(filePath);
+    // Standalone content
+    const filePath = itemPath + '.mdx';
+    const content = loadContentMetadata(filePath, section);
+
+    if (!content) {
+        return { title: 'Not Found' };
+    }
 
     return {
         metadataBase: new URL(APPLICATION_DEFAULT_METADATA.url!),
-        title: `Dn | ${post.title}`,
-        description: post.summary,
+        title: `Dn | ${content.title}`,
+        description: content.summary || content.blurb,
         openGraph: {
-            title: post.title,
-            description: post.summary,
+            title: content.title,
+            description: content.summary || content.blurb,
             images: [
                 {
-                    url: post.coverImage,
+                    url: content.coverImage,
                     width: 800,
                     height: 600,
                     alt: "Dereck's Notes Logo"
@@ -333,9 +307,9 @@ export async function generateMetadata({
         },
         twitter: {
             card: 'summary_large_image',
-            title: post.title,
-            description: post.summary,
-            images: [post.coverImage]
+            title: content.title,
+            description: content.summary || content.blurb,
+            images: [content.coverImage]
         }
     };
 }

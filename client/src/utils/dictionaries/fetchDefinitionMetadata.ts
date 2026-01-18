@@ -4,7 +4,7 @@ import { accessReadFile } from '../accessReadFile';
 import { processMdx } from '../mdx/processMdx';
 
 import { config } from '@lib/env';
-import { stripMdx } from '../mdx/fetchPostsMetadata';
+import { stripMdx } from '../mdx/extractMdxSummary';
 import rehypeLinkToDefinition from '../remark-rehype/rehypeLinkToDefinition';
 
 export interface Definition {

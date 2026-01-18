@@ -7,17 +7,17 @@ import React, {
     ReactNode,
     useCallback
 } from 'react';
-import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
+import { ContentCardMetadata } from '@utils/mdx/contentTypes';
 
 interface BlogFilterContextType {
-    posts: PostMetadata[];
-    filteredPosts: PostMetadata[];
+    posts: ContentCardMetadata[];
+    filteredPosts: ContentCardMetadata[];
     allTags: string[];
     selectedTags: string[];
     setSelectedTags: React.Dispatch<React.SetStateAction<string[]>>;
     isFilterVisible: boolean;
     setIsFilterVisible: React.Dispatch<React.SetStateAction<boolean>>;
-    setPosts: React.Dispatch<React.SetStateAction<PostMetadata[]>>;
+    setPosts: React.Dispatch<React.SetStateAction<ContentCardMetadata[]>>;
     resetFilter: () => void;
 }
 
@@ -26,7 +26,7 @@ const BlogFilterContext = createContext<BlogFilterContextType | undefined>(
 );
 
 export function BlogFilterProvider({ children }: { children: ReactNode }) {
-    const [posts, setPosts] = useState<PostMetadata[]>([]);
+    const [posts, setPosts] = useState<ContentCardMetadata[]>([]);
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [isFilterVisible, setIsFilterVisible] = useState<boolean>(false);
 

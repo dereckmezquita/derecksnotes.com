@@ -4,7 +4,7 @@ import styled, { css } from 'styled-components';
 
 import path from 'path';
 import DropCap from './DropCap';
-import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
+import { ContentCardMetadata } from '@utils/mdx/contentTypes';
 
 const PostMeta = styled.div`
     font-size: 15px;
@@ -123,7 +123,7 @@ const LikeBadge = styled.span<{ likes: number }>`
 `;
 
 interface CardProps {
-    post: PostMetadata;
+    post: ContentCardMetadata;
     section: string;
 }
 

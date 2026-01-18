@@ -3,8 +3,12 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import styled from 'styled-components';
-import { CourseMetadata, CourseNode } from '@utils/mdx/fetchCourseMetadata';
-import { CourseSideBar } from '@components/courses/CourseSideBar';
+import {
+    SeriesMetadata,
+    ContentNode,
+    ContentCardMetadata
+} from '@utils/mdx/contentTypes';
+import { ContentSideBar } from '@components/content/ContentSideBar';
 import {
     PostContainer,
     Article,
@@ -14,7 +18,11 @@ import { Comments } from '@components/comments/Comments';
 import { PostReactionButtons } from '@components/posts/PostReactionButtons';
 import { usePageView } from '@hooks/usePageView';
 
-const CourseMeta = styled.div`
+// ============================================================================
+// Styled Components
+// ============================================================================
+
+const SeriesMeta = styled.div`
     display: flex;
     flex-wrap: wrap;
     gap: ${(props) => props.theme.container.spacing.medium};
@@ -94,18 +102,29 @@ const PostEngagement = styled.div`
         ${(props) => props.theme.container.border.colour.primary()};
 `;
 
-interface CourseOverviewProps {
-    course: CourseMetadata;
+// ============================================================================
+// Component
+// ============================================================================
+
+interface SeriesOverviewProps {
+    series: SeriesMetadata;
+    section: string;
     prefaceSource: React.ReactNode;
+    otherContent?: ContentCardMetadata[];
 }
 
-export function CourseOverview({ course, prefaceSource }: CourseOverviewProps) {
+export function SeriesOverview({
+    series,
+    section,
+    prefaceSource,
+    otherContent = []
+}: SeriesOverviewProps) {
     const [isClient, setIsClient] = useState(false);
-    const slug = `courses/${course.slug}`;
+    const slug = `${section}/${series.slug}`;
 
     usePageView({
         slug,
-        title: course.title,
+        title: series.title,
         enabled: isClient
     });
 
@@ -113,9 +132,9 @@ export function CourseOverview({ course, prefaceSource }: CourseOverviewProps) {
         setIsClient(true);
     }, []);
 
-    const courseBaseUrl = `/courses/${course.slug}`;
+    const seriesBaseUrl = `/${section}/${series.slug}`;
 
-    const renderNode = (node: CourseNode): React.ReactNode => {
+    const renderNode = (node: ContentNode): React.ReactNode => {
         if (!node.published) return null;
 
         if (node.isDirectory) {
@@ -137,7 +156,7 @@ export function CourseOverview({ course, prefaceSource }: CourseOverviewProps) {
                                         renderNode(child)
                                     ) : (
                                         <PartLink
-                                            href={`${courseBaseUrl}/${child.path}`}
+                                            href={`${seriesBaseUrl}/${child.path}`}
                                         >
                                             {child.displayTitle}
                                         </PartLink>
@@ -150,60 +169,78 @@ export function CourseOverview({ course, prefaceSource }: CourseOverviewProps) {
             );
         }
 
+        // Flat part (no chapter wrapper)
         return (
             <PartItem key={node.path}>
-                <PartLink href={`${courseBaseUrl}/${node.path}`}>
+                <PartLink href={`${seriesBaseUrl}/${node.path}`}>
                     {node.displayTitle}
                 </PartLink>
             </PartItem>
         );
     };
 
+    // Check if hierarchy is flat (no directories, just parts)
+    const isFlat = series.hierarchy.every((node) => !node.isDirectory);
+
     return (
         <PostContainer>
-            <CourseSideBar course={course} />
+            <ContentSideBar
+                section={section}
+                series={series}
+                otherContent={otherContent}
+            />
             <Article>
-                <h1>{course.title}</h1>
-                <CourseMeta>
-                    <span>By {course.author}</span>
-                    <span>Last updated: {course.date}</span>
+                <h1>{series.title}</h1>
+                <SeriesMeta>
+                    <span>By {series.author}</span>
+                    <span>Last updated: {series.date}</span>
                     <span>
-                        {course.allParts.filter((p) => p.published).length}{' '}
+                        {series.allParts.filter((p) => p.published).length}{' '}
                         parts
                     </span>
-                </CourseMeta>
+                </SeriesMeta>
 
-                {course.tags.length > 0 && (
+                {series.tags.length > 0 && (
                     <TagsList>
-                        {course.tags.map((tag) => (
+                        {series.tags.map((tag) => (
                             <Tag key={tag}>{tag}</Tag>
                         ))}
                     </TagsList>
                 )}
 
-                {course.prefaceContent && isClient && (
+                {series.prefaceContent && isClient && (
                     <PostContentWrapper>{prefaceSource}</PostContentWrapper>
                 )}
 
                 <TableOfContents>
-                    <h2>Course Contents</h2>
-                    {course.hierarchy
-                        .filter((node) => node.published)
-                        .map((node) => renderNode(node))}
+                    <h2>Contents</h2>
+                    {isFlat ? (
+                        // Flat structure - render as simple list
+                        <PartsList>
+                            {series.hierarchy
+                                .filter((node) => node.published)
+                                .map((node) => renderNode(node))}
+                        </PartsList>
+                    ) : (
+                        // Hierarchical structure - render chapters
+                        series.hierarchy
+                            .filter((node) => node.published)
+                            .map((node) => renderNode(node))
+                    )}
                 </TableOfContents>
 
                 {isClient && (
                     <PostEngagement>
-                        <PostReactionButtons slug={slug} title={course.title} />
+                        <PostReactionButtons slug={slug} title={series.title} />
                     </PostEngagement>
                 )}
 
-                {course.comments && (
-                    <Comments slug={slug} title={course.title} />
+                {series.comments && (
+                    <Comments slug={slug} title={series.title} />
                 )}
             </Article>
         </PostContainer>
     );
 }
 
-export default CourseOverview;
+export default SeriesOverview;

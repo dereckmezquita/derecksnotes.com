@@ -14,7 +14,7 @@ import rehypeTocCollapse from '../remark-rehype/rehypeTocCollapse';
 import rehypeAddHeadingLinks from '../remark-rehype/rehypeAddHeadingLinks';
 import rehypeDropCap from '../remark-rehype/rehypeDropCap';
 
-import { PostMetadata } from './fetchPostsMetadata';
+import { ContentFrontmatter } from './contentTypes';
 import { DefinitionMetadata } from '../dictionaries/fetchDefinitionMetadata';
 import { compileMDX } from 'next-mdx-remote/rsc';
 
@@ -25,7 +25,9 @@ const rehypePrettyCodeOptions: Partial<Options> = {
     defaultLang: 'plaintext'
 };
 
-export async function processMdx<T extends PostMetadata | DefinitionMetadata>(
+export async function processMdx<
+    T extends ContentFrontmatter | DefinitionMetadata
+>(
     markdown: string,
     plugins?: {
         remarkPlugins?: any[];

@@ -1,19 +1,19 @@
 'use client';
 
-import SideBar from '@components/pages/SideBar';
+import { useState, useEffect } from 'react';
+import styled from 'styled-components';
+import { usePathname } from 'next/navigation';
+
+import { DictionarySideBar } from './DictionarySideBar';
 import {
     Article,
     PostContainer,
     PostContentWrapper
 } from '@components/pages/posts-dictionaries';
 import { DefinitionMetadata } from '@utils/dictionaries/fetchDefinitionMetadata';
-import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
-import { useState, useEffect } from 'react';
 import { Comments } from '@components/comments/Comments';
 import { PostReactionButtons } from '@components/posts/PostReactionButtons';
 import { usePageView } from '@hooks/usePageView';
-import { usePathname } from 'next/navigation';
-import styled from 'styled-components';
 
 const PostEngagement = styled.div`
     display: flex;
@@ -26,28 +26,26 @@ const PostEngagement = styled.div`
         ${(props) => props.theme.container.border.colour.primary()};
 `;
 
-interface DisplayPostProps {
+interface DictionaryPostProps {
     source: React.ReactNode;
-    frontmatter: PostMetadata | DefinitionMetadata;
-    sideBarPosts: PostMetadata[] | DefinitionMetadata[];
+    frontmatter: DefinitionMetadata;
+    relatedDefinitions: DefinitionMetadata[];
 }
 
-// We avoid hydration errors by using useState to ensure code only runs client-side.
-export function Post({ source, frontmatter, sideBarPosts }: DisplayPostProps) {
+export function DictionaryPost({
+    source,
+    frontmatter,
+    relatedDefinitions
+}: DictionaryPostProps) {
     const [isClient, setIsClient] = useState(false);
-    const pathname = usePathname(); // Dynamically get the current page path
+    const pathname = usePathname();
 
-    // Get the normalized slug (without leading slash)
     const slug = pathname.startsWith('/') ? pathname.substring(1) : pathname;
+    const title = frontmatter.word;
 
-    // Get the title from frontmatter
-    const postTitle =
-        'title' in frontmatter ? frontmatter.title : frontmatter.word;
-
-    // Track page view
     usePageView({
         slug,
-        title: postTitle,
+        title,
         enabled: isClient
     });
 
@@ -57,20 +55,18 @@ export function Post({ source, frontmatter, sideBarPosts }: DisplayPostProps) {
 
     return (
         <PostContainer>
-            <SideBar posts={sideBarPosts} />
+            <DictionarySideBar definitions={relatedDefinitions} />
             <Article>
-                <h1>{postTitle}</h1>
+                <h1>{title}</h1>
                 {isClient && <PostContentWrapper>{source}</PostContentWrapper>}
 
                 {isClient && (
                     <PostEngagement>
-                        <PostReactionButtons slug={slug} title={postTitle} />
+                        <PostReactionButtons slug={slug} title={title} />
                     </PostEngagement>
                 )}
 
-                {'comments' in frontmatter && frontmatter.comments && (
-                    <Comments slug={slug} title={postTitle} />
-                )}
+                {frontmatter.comments && <Comments slug={slug} title={title} />}
             </Article>
         </PostContainer>
     );

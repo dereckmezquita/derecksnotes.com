@@ -1,3 +1,5 @@
+import fs from 'fs';
+import matter from 'gray-matter';
 import { remark } from 'remark';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -49,4 +51,25 @@ export function extractSummaryFromMdx(
     } catch {
         return '';
     }
+}
+
+/**
+ * Read an MDX file and extract frontmatter and summary.
+ * Used for simple metadata extraction without full MDX processing.
+ *
+ * @param filepath - Path to the MDX file
+ * @returns Object with summary and frontmatter
+ */
+export function stripMdx<T>(filepath: string): {
+    summary: string;
+    frontmatter: T;
+} {
+    const file = fs.readFileSync(filepath, 'utf-8');
+    const { data, content } = matter(file);
+    const summary = extractSummaryFromMdx(content);
+
+    return {
+        summary,
+        frontmatter: data as T
+    };
 }
