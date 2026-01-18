@@ -39,8 +39,15 @@
 #   │   └── src/app/courses/posts/
 #   │       └── <course-name>/
 #   │           ├── src/
-#   │           │   └── *.Rmd         <- Source files
-#   │           ├── *.mdx             <- Output files (generated)
+#   │           │   ├── 01-chapter/
+#   │           │   │   └── *.Rmd     <- Source files (hierarchical)
+#   │           │   └── 02-chapter/
+#   │           │       └── *.Rmd
+#   │           ├── 01-chapter/
+#   │           │   └── *.mdx         <- Output files (generated, mirrors src/)
+#   │           ├── 02-chapter/
+#   │           │   └── *.mdx
+#   │           ├── course.mdx        <- Course manifest
 #   │           └── rmd-build.log     <- Build log (generated)
 #   └── build-courses.R
 #
@@ -280,11 +287,12 @@ find_rmd_files <- function(course_dir) {
         return(character(0))
     }
 
+    # Find all Rmd files recursively (supports nested chapter structure)
     rmd_files <- list.files(
         src_dir,
         pattern = "\\.Rmd$",
         full.names = TRUE,
-        recursive = FALSE
+        recursive = TRUE
     )
 
     return(rmd_files)
@@ -295,13 +303,29 @@ find_rmd_files <- function(course_dir) {
 # -----------------------------------------------------------------------------
 
 get_output_path <- function(rmd_path, course_dir) {
-    # Input:  .../course/src/1_course_chapter.Rmd
-    # Output: .../course/1_course_chapter.mdx
+    # Input:  .../course/src/01-introduction/01-1_foo.Rmd
+    # Output: .../course/01-introduction/01-1_foo.mdx
+    #
+    # The src/ subdirectory structure is preserved in the output.
 
-    rmd_name <- basename(rmd_path)
-    mdx_name <- sub("\\.Rmd$", ".mdx", rmd_name)
+    src_dir <- file.path(course_dir, "src")
 
-    return(file.path(course_dir, mdx_name))
+    # Get relative path from src directory (preserves subdirectory structure)
+    rel_path <- sub(paste0("^", gsub("([.|()\\^{}+$*?]|\\[|\\])", "\\\\\\1", src_dir), "/?"), "", rmd_path)
+
+    # Change extension to .mdx
+    mdx_rel_path <- sub("\\.Rmd$", ".mdx", rel_path)
+
+    # Output path is course_dir + relative path (without src/)
+    output_path <- file.path(course_dir, mdx_rel_path)
+
+    # Ensure output directory exists
+    output_dir <- dirname(output_path)
+    if (!dir.exists(output_dir)) {
+        dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
+    }
+
+    return(output_path)
 }
 
 # -----------------------------------------------------------------------------
@@ -454,11 +478,11 @@ clean_mdx_files <- function(course_dir, dry_run = FALSE) {
     course_name <- basename(course_dir)
     removed <- 0
 
-    # Only remove MDX files that have corresponding Rmd in src/
-    rmd_files <- list.files(src_dir, pattern = "\\.Rmd$")
+    # Find all Rmd files recursively and remove corresponding MDX files
+    rmd_files <- list.files(src_dir, pattern = "\\.Rmd$", recursive = TRUE, full.names = TRUE)
     for (rmd_file in rmd_files) {
-        mdx_file <- sub("\\.Rmd$", ".mdx", rmd_file)
-        mdx_path <- file.path(course_dir, mdx_file)
+        # Get the output path that would be generated for this Rmd
+        mdx_path <- get_output_path(rmd_file, course_dir)
 
         if (file.exists(mdx_path)) {
             if (dry_run) {
