@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import styled from 'styled-components';
-import { CourseMetadata, CourseNode } from '@utils/courses/fetchCourseMetadata';
+import { CourseMetadata, CourseNode } from '@utils/mdx/fetchCourseMetadata';
 import { CourseSideBar } from '@components/courses/CourseSideBar';
 import {
     PostContainer,

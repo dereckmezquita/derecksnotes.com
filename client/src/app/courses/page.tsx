@@ -9,7 +9,7 @@ import { PostMetadata, getSectionPosts } from '@utils/mdx/fetchPostsMetadata';
 import {
     getAllCourses,
     CourseCardMetadata
-} from '@utils/courses/fetchCourseMetadata';
+} from '@utils/mdx/fetchCourseMetadata';
 import { Index } from '@components/pages/index/Index';
 
 export const metadata: Metadata = {
