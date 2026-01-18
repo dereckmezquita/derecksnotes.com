@@ -14,9 +14,8 @@ import {
     isCourseDirectory,
     loadCourseMetadata,
     findPartByPath,
-    getPartNavigation,
-    CourseMetadata
-} from '@utils/courses/fetchCourseMetadata';
+    getPartNavigation
+} from '@utils/mdx/fetchCourseMetadata';
 import { CourseOverview } from '@components/courses/CourseOverview';
 import { CoursePost } from '@components/courses/CoursePost';
 import { accessReadFile } from '@utils/accessReadFile';
