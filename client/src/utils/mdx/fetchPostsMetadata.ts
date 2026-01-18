@@ -1,15 +1,10 @@
 import fs from 'fs';
 import matter from 'gray-matter';
 import path from 'path';
-import { remark } from 'remark';
-import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
-import mdx from 'remark-mdx';
-import strip from 'remark-mdx-to-plain-text';
-import { visit } from 'unist-util-visit';
 
 import { DATE_YYYY_MM_DD } from '@lib/dates';
 import { ROOT_DIR_APP } from '@lib/constants.server';
+import { extractSummaryFromMdx } from './extractMdxSummary';
 
 export interface PostSeries {
     idx: number;
@@ -52,34 +47,8 @@ export function stripMdx<T extends object>(
         const file: string = fs.readFileSync(filePath, 'utf-8');
         const { content, data } = matter<string, any>(file);
 
-        const parsedContent = remark()
-            .use(remarkGfm)
-            .use(remarkMath)
-            .use(mdx)
-            .use(strip)
-            .parse(content);
-
-        // extract text from paragraph nodes
-        const paragraphs: string[] = [];
-        visit(parsedContent, 'paragraph', (node: any) => {
-            const textContent = node.children
-                .map((child: any) => {
-                    if (child.value) {
-                        return child.value.trim();
-                    }
-                })
-                .join('');
-
-            if (textContent.trim() !== '') {
-                paragraphs.push(textContent);
-            }
-        });
-
-        // process to html and then to string
-        const summary = remark()
-            .processSync(paragraphs.join(' '))
-            .toString()
-            .trim();
+        // Use shared utility for summary extraction (no max length for posts)
+        const summary = extractSummaryFromMdx(content, 0);
 
         return {
             summary: summary,
