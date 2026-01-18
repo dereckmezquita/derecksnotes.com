@@ -125,7 +125,10 @@ export function extractSinglePostMetadata(filePath: string): PostMetadata {
 
 export function fetchPostsMetadata(folder: string): PostMetadata[] {
     const items: string[] = fs.readdirSync(folder);
-    const mdx: string[] = items.filter((item) => item.endsWith('.mdx'));
+    // Filter MDX files, excluding course.mdx (used by new course format)
+    const mdx: string[] = items.filter(
+        (item) => item.endsWith('.mdx') && item !== 'course.mdx'
+    );
     // check if directory
     const seriesDirs = items.filter((item) =>
         fs.statSync(path.join(folder, item)).isDirectory()
@@ -144,8 +147,9 @@ export function fetchPostsMetadata(folder: string): PostMetadata[] {
         const seriesItems: string[] = fs.readdirSync(
             path.join(folder, seriesDir)
         );
-        const mdxFiles: string[] = seriesItems.filter((item) =>
-            item.endsWith('.mdx')
+        // Filter MDX files, excluding course.mdx (used by new course format)
+        const mdxFiles: string[] = seriesItems.filter(
+            (item) => item.endsWith('.mdx') && item !== 'course.mdx'
         );
 
         // if no mdx files found inside then skip
