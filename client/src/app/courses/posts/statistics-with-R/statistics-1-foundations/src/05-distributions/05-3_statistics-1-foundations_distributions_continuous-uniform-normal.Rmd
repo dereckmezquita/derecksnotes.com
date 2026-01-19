@@ -1,0 +1,1268 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 5: Random Variables and Distributions"
+part: "Part 3: Continuous Distributions — Uniform and Normal"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, distributions, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Chapter 5: Random Variables and Distributions (Part 3)
+
+We now transition from discrete to **continuous random variables** — those that can take any value in an interval. The probability of any exact value is zero; instead, we work with **probability density functions** and compute probabilities as areas under curves.
+
+This part covers the foundational continuous distributions: the **uniform** (equal probability across an interval) and the **normal** (the ubiquitous bell curve that emerges throughout statistics).
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets for examples
+nhanes <- fread("../data/primary/nhanes.csv")
+
+cat("NHANES dataset loaded:", nrow(nhanes), "observations\n")
+```
+
+---
+
+## 5.7 Continuous Probability Distributions
+
+### 5.7.1 Probability Density Function (PDF)
+
+**Prose and Intuition**
+
+For a continuous random variable, we cannot assign positive probability to individual points — there are uncountably many possible values. Instead, we use a **probability density function** (PDF), denoted $f(x)$.
+
+The PDF describes the *relative likelihood* of different values. Higher density means values in that region are more likely — but the probability of any single exact value is zero.
+
+**Key insight:** For continuous random variables, probability equals *area under the curve*:
+$$P(a \leq X \leq b) = \int_a^b f(x) \, dx$$
+
+The density $f(x)$ is not itself a probability — it can exceed 1. What matters is that the total area under the curve equals 1.
+
+**Mathematical Definition**
+
+A function $f(x)$ is a **probability density function** for a continuous random variable $X$ if:
+
+1. $f(x) \geq 0$ for all $x$ (non-negativity)
+2. $\int_{-\infty}^{\infty} f(x) \, dx = 1$ (total probability is 1)
+3. $P(a \leq X \leq b) = \int_a^b f(x) \, dx$ (probability as area)
+
+**Important properties:**
+- $P(X = x) = 0$ for any specific value $x$
+- $P(a < X < b) = P(a \leq X \leq b)$ (endpoints don't matter)
+- $f(x)$ can be greater than 1 (it's density, not probability)
+
+```{r pdf_intro, fig.cap="PDF: probability equals area under the curve"}
+# Demonstrate PDF concept with a simple example
+
+# Create a simple PDF (triangular distribution on [0, 2])
+# f(x) = x for 0 <= x <= 1
+# f(x) = 2 - x for 1 < x <= 2
+
+triangular_pdf <- function(x) {
+    result <- numeric(length(x))
+    in_left <- x >= 0 & x <= 1
+    in_right <- x > 1 & x <= 2
+    result[in_left] <- x[in_left]
+    result[in_right] <- 2 - x[in_right]
+    result
+}
+
+x_seq <- seq(-0.5, 2.5, by = 0.01)
+pdf_vals <- triangular_pdf(x_seq)
+
+pdf_dt <- data.table(x = x_seq, density = pdf_vals)
+
+# Calculate P(0.5 < X < 1.5) as area
+a <- 0.5
+b <- 1.5
+prob_ab <- integrate(triangular_pdf, a, b)$value
+
+cat("Probability Density Function (PDF)\n")
+cat("===================================\n\n")
+
+cat("For a triangular distribution on [0, 2]:\n")
+cat("  Peak density at x = 1 is f(1) = 1\n")
+cat("  This is NOT a probability — it's density!\n\n")
+
+cat(sprintf("P(0.5 < X < 1.5) = area under curve = %.4f\n", prob_ab))
+cat("This IS a probability.\n\n")
+
+cat("Note: P(X = 1) = 0 exactly, even though f(1) = 1\n")
+
+# Create shaded region data
+shade_dt <- pdf_dt[x >= a & x <= b]
+
+ggplot2$ggplot(pdf_dt, ggplot2$aes(x = x, y = density)) +
+    ggplot2$geom_area(data = shade_dt, fill = "#D55E00", alpha = 0.3) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
+    ggplot2$geom_segment(ggplot2$aes(x = a, xend = a, y = 0, yend = triangular_pdf(a)),
+                 linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(x = b, xend = b, y = 0, yend = triangular_pdf(b)),
+                 linetype = "dashed", colour = "#D55E00") +
+    ggplot2$annotate("text", x = 1, y = 0.4,
+             label = sprintf("P(0.5 < X < 1.5) = %.2f", prob_ab),
+             colour = "#D55E00", size = 5) +
+    ggplot2$labs(
+        title = "Probability Density Function (PDF)",
+        subtitle = "Probability = shaded area under the curve",
+        x = "x",
+        y = "f(x) (Density)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 5.7.2 Cumulative Distribution Function (CDF)
+
+**Prose and Intuition**
+
+The **cumulative distribution function** (CDF) gives the probability of being at or below a value:
+$$F(x) = P(X \leq x)$$
+
+Unlike the PDF, the CDF works identically for discrete and continuous variables. For continuous variables:
+$$F(x) = \int_{-\infty}^{x} f(t) \, dt$$
+
+The CDF is the "running total" of probability from $-\infty$ up to $x$.
+
+**Mathematical Properties of the CDF**
+
+For any random variable $X$:
+
+1. $0 \leq F(x) \leq 1$ for all $x$
+2. $F$ is non-decreasing: if $a < b$, then $F(a) \leq F(b)$
+3. $\lim_{x \to -\infty} F(x) = 0$ and $\lim_{x \to \infty} F(x) = 1$
+4. For continuous $X$, $F$ is continuous
+
+**Relationship to PDF:**
+$$F(x) = \int_{-\infty}^{x} f(t) \, dt$$
+$$f(x) = F'(x)$$ (where differentiable)
+
+**Computing probabilities from CDF:**
+$$P(a < X \leq b) = F(b) - F(a)$$
+
+```{r cdf_continuous, fig.cap="CDF accumulates probability from left to right"}
+# CDF of the triangular distribution
+
+triangular_cdf <- function(x) {
+    result <- numeric(length(x))
+    below <- x < 0
+    left <- x >= 0 & x <= 1
+    right <- x > 1 & x <= 2
+    above <- x > 2
+
+    result[below] <- 0
+    result[left] <- x[left]^2 / 2
+    result[right] <- 1 - (2 - x[right])^2 / 2
+    result[above] <- 1
+    result
+}
+
+x_seq <- seq(-0.5, 2.5, by = 0.01)
+cdf_vals <- triangular_cdf(x_seq)
+
+cdf_dt <- data.table(x = x_seq, F_x = cdf_vals)
+
+# Calculate P(0.5 < X < 1.5) using CDF
+F_b <- triangular_cdf(1.5)
+F_a <- triangular_cdf(0.5)
+
+cat("CDF of Triangular Distribution\n")
+cat("==============================\n\n")
+
+cat("F(x) = P(X <= x)\n\n")
+
+cat("Selected values:\n")
+for (x_val in c(0, 0.5, 1, 1.5, 2)) {
+    cat(sprintf("  F(%.1f) = %.4f\n", x_val, triangular_cdf(x_val)))
+}
+
+cat(sprintf("\nP(0.5 < X < 1.5) = F(1.5) - F(0.5) = %.4f - %.4f = %.4f\n",
+            F_b, F_a, F_b - F_a))
+
+# Plot PDF and CDF side by side
+pdf_dt <- data.table(x = x_seq, y = triangular_pdf(x_seq), type = "PDF: f(x)")
+cdf_dt$type <- "CDF: F(x)"
+names(cdf_dt)[2] <- "y"
+
+combined_dt <- rbindlist(list(pdf_dt, cdf_dt))
+
+ggplot2$ggplot(combined_dt, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
+    ggplot2$facet_wrap(~type, scales = "free_y") +
+    ggplot2$labs(
+        title = "PDF and CDF of Triangular Distribution",
+        subtitle = "CDF is the integral (cumulative area) of the PDF",
+        x = "x",
+        y = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold", size = 12))
+```
+
+### 5.7.3 Expected Value and Variance
+
+**Mathematical Derivation**
+
+For a continuous random variable $X$ with PDF $f(x)$:
+
+**Expected Value:**
+$$E(X) = \int_{-\infty}^{\infty} x \cdot f(x) \, dx$$
+
+**Expected value of a function** (LOTUS):
+$$E[g(X)] = \int_{-\infty}^{\infty} g(x) \cdot f(x) \, dx$$
+
+**Variance:**
+$$\text{Var}(X) = E[(X - \mu)^2] = \int_{-\infty}^{\infty} (x - \mu)^2 f(x) \, dx$$
+
+Or using the computational formula:
+$$\text{Var}(X) = E(X^2) - [E(X)]^2$$
+
+The properties of expectation and variance (linearity, etc.) are the same as for discrete variables.
+
+```{r continuous_mean_var}
+# Calculate mean and variance for the triangular distribution
+
+# E(X) = integral of x * f(x)
+# For triangular on [0,2] with peak at 1:
+# E(X) = integral_0^1 x * x dx + integral_1^2 x * (2-x) dx
+
+E_X <- integrate(function(x) x * triangular_pdf(x), 0, 2)$value
+E_X2 <- integrate(function(x) x^2 * triangular_pdf(x), 0, 2)$value
+Var_X <- E_X2 - E_X^2
+
+cat("Mean and Variance for Triangular Distribution\n")
+cat("==============================================\n\n")
+
+cat("E(X) = ∫ x·f(x) dx\n")
+cat(sprintf("     = %.4f\n\n", E_X))
+
+cat("E(X²) = ∫ x²·f(x) dx\n")
+cat(sprintf("      = %.4f\n\n", E_X2))
+
+cat("Var(X) = E(X²) - [E(X)]²\n")
+cat(sprintf("       = %.4f - %.4f²\n", E_X2, E_X))
+cat(sprintf("       = %.4f - %.4f\n", E_X2, E_X^2))
+cat(sprintf("       = %.4f\n", Var_X))
+cat(sprintf("\nSD(X) = %.4f\n", sqrt(Var_X)))
+
+# Verify by simulation
+set.seed(42)
+# Generate from triangular using inverse transform
+n_sim <- 100000
+u <- runif(n_sim)
+# Inverse CDF: if u < 0.5, x = sqrt(2u); else x = 2 - sqrt(2(1-u))
+x_sim <- ifelse(u < 0.5, sqrt(2 * u), 2 - sqrt(2 * (1 - u)))
+
+cat("\nVerification by simulation (n = 100,000):\n")
+cat(sprintf("  Sample mean: %.4f (theoretical: %.4f)\n", mean(x_sim), E_X))
+cat(sprintf("  Sample var: %.4f (theoretical: %.4f)\n", var(x_sim), Var_X))
+```
+
+### 5.7.4 Quantile Function
+
+**Prose and Intuition**
+
+The **quantile function** (or inverse CDF) answers: "What value $x$ has probability $p$ below it?"
+
+Given a probability $p$, the $p$-quantile $Q(p)$ is the value such that $F(Q(p)) = p$.
+
+Quantiles you know:
+- Median = $Q(0.5)$: 50% of values are below this
+- Quartiles: $Q(0.25)$, $Q(0.50)$, $Q(0.75)$
+- Percentiles: $Q(0.01), Q(0.02), \ldots, Q(0.99)$
+
+**Mathematical Definition**
+
+The **quantile function** is:
+$$Q(p) = F^{-1}(p) = \inf\{x : F(x) \geq p\}$$
+
+For continuous distributions with strictly increasing CDF:
+$$Q(p) = F^{-1}(p)$$
+
+meaning $Q(p)$ is the unique value where $F(Q(p)) = p$.
+
+```{r quantile_function, fig.cap="The quantile function is the inverse of the CDF"}
+# Quantile function for the triangular distribution
+
+triangular_quantile <- function(p) {
+    result <- numeric(length(p))
+    lower_half <- p <= 0.5
+    upper_half <- p > 0.5
+
+    # For F(x) = x²/2 when x <= 1: x = sqrt(2p)
+    # For F(x) = 1 - (2-x)²/2 when x > 1: x = 2 - sqrt(2(1-p))
+    result[lower_half] <- sqrt(2 * p[lower_half])
+    result[upper_half] <- 2 - sqrt(2 * (1 - p[upper_half]))
+    result
+}
+
+p_seq <- seq(0.01, 0.99, by = 0.01)
+q_vals <- triangular_quantile(p_seq)
+
+quantile_dt <- data.table(p = p_seq, quantile = q_vals)
+
+cat("Quantile Function: Inverse CDF\n")
+cat("==============================\n\n")
+
+cat("Common quantiles:\n")
+for (p in c(0.25, 0.5, 0.75, 0.90, 0.95)) {
+    cat(sprintf("  Q(%.2f) = %.4f\n", p, triangular_quantile(p)))
+}
+
+# Show relationship: CDF and quantile function
+p1 <- ggplot2$ggplot(cdf_dt[cdf_dt$type == "CDF: F(x)"], ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
+    ggplot2$geom_segment(ggplot2$aes(x = 0, xend = 1, y = 0.5, yend = 0.5),
+                 linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(x = 1, xend = 1, y = 0, yend = 0.5),
+                 linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_point(ggplot2$aes(x = 1, y = 0.5), colour = "#D55E00", size = 3) +
+    ggplot2$labs(title = "CDF: x → F(x) = p", x = "x", y = "F(x)") +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(quantile_dt, ggplot2$aes(x = p, y = quantile)) +
+    ggplot2$geom_line(colour = "#009E73", size = 1.2) +
+    ggplot2$geom_segment(ggplot2$aes(x = 0.5, xend = 0.5, y = 0, yend = 1),
+                 linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(x = 0, xend = 0.5, y = 1, yend = 1),
+                 linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_point(ggplot2$aes(x = 0.5, y = 1), colour = "#D55E00", size = 3) +
+    ggplot2$labs(title = "Quantile: p → Q(p) = x", x = "p", y = "Q(p)") +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p1, p2, nrow = 1)
+```
+
+---
+
+## 5.8 The Uniform Distribution
+
+The simplest continuous distribution: equal probability density over an interval.
+
+### 5.8.1 Definition and Properties
+
+**Prose and Intuition**
+
+The **uniform distribution** assigns equal probability to all values in an interval $[a, b]$. Any subinterval of the same length has the same probability. It's the continuous analogue of rolling a fair die.
+
+The uniform distribution is fundamental because:
+1. It's the starting point for generating random numbers
+2. Many simulation methods begin with uniform random variables
+3. It represents "maximum uncertainty" within a bounded range
+
+**Mathematical Definition**
+
+A random variable $X$ has a **uniform distribution** on $[a, b]$, written $X \sim \text{Uniform}(a, b)$, if its PDF is:
+
+$$f(x) = \begin{cases} \frac{1}{b-a} & \text{if } a \leq x \leq b \\ 0 & \text{otherwise} \end{cases}$$
+
+The constant density $\frac{1}{b-a}$ ensures the total area equals 1:
+$$\int_a^b \frac{1}{b-a} dx = \frac{b-a}{b-a} = 1$$
+
+**CDF:**
+$$F(x) = \begin{cases} 0 & \text{if } x < a \\ \frac{x-a}{b-a} & \text{if } a \leq x \leq b \\ 1 & \text{if } x > b \end{cases}$$
+
+**Quantile function:**
+$$Q(p) = a + p(b - a)$$
+
+**Mean and Variance:**
+$$E(X) = \frac{a + b}{2}$$
+$$\text{Var}(X) = \frac{(b-a)^2}{12}$$
+
+```{r uniform_dist, fig.cap="The uniform distribution: constant density on [a, b]"}
+# Demonstrate uniform distribution
+
+a <- 2
+b <- 8
+
+x_seq <- seq(0, 10, by = 0.01)
+
+# PDF
+pdf_vals <- dunif(x_seq, a, b)
+# CDF
+cdf_vals <- punif(x_seq, a, b)
+
+uniform_dt <- data.table(
+    x = rep(x_seq, 2),
+    y = c(pdf_vals, cdf_vals),
+    type = rep(c("PDF: f(x) = 1/(b-a)", "CDF: F(x)"), each = length(x_seq))
+)
+
+cat("Uniform Distribution on [2, 8]\n")
+cat("==============================\n\n")
+
+cat("PDF: f(x) = 1/(8-2) = 1/6 ≈ 0.167 for x ∈ [2, 8]\n\n")
+
+cat("Properties:\n")
+cat(sprintf("  Mean: E(X) = (a+b)/2 = (2+8)/2 = %.1f\n", (a+b)/2))
+cat(sprintf("  Variance: Var(X) = (b-a)²/12 = (8-2)²/12 = %.2f\n", (b-a)^2/12))
+cat(sprintf("  SD: %.4f\n\n", sqrt((b-a)^2/12)))
+
+# Calculate probabilities
+cat("Probabilities:\n")
+cat(sprintf("  P(3 < X < 5) = (5-3)/(8-2) = %.4f\n", punif(5, a, b) - punif(3, a, b)))
+cat(sprintf("  P(X > 6) = (8-6)/(8-2) = %.4f\n", 1 - punif(6, a, b)))
+
+# Quantiles
+cat("\nQuantiles:\n")
+for (p in c(0.25, 0.5, 0.75)) {
+    cat(sprintf("  Q(%.2f) = %.2f\n", p, qunif(p, a, b)))
+}
+
+ggplot2$ggplot(uniform_dt, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
+    ggplot2$facet_wrap(~type, scales = "free_y") +
+    ggplot2$geom_vline(xintercept = c(a, b), linetype = "dashed", colour = "grey50") +
+    ggplot2$labs(
+        title = sprintf("Uniform Distribution on [%.0f, %.0f]", a, b),
+        subtitle = "Constant density; linear CDF",
+        x = "x",
+        y = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold", size = 12))
+```
+
+### 5.8.2 Applications
+
+**Random Number Generation**
+
+The uniform distribution is the foundation of random number generation. Most programming languages provide a function to generate $U \sim \text{Uniform}(0, 1)$, and other distributions are derived from it.
+
+```{r uniform_rng, fig.cap="Uniform random numbers and the inverse transform method"}
+# The inverse transform method
+
+set.seed(42)
+
+# Generate uniform random numbers
+n <- 10000
+U <- runif(n)  # Uniform(0, 1)
+
+cat("Random Number Generation from Uniform\n")
+cat("=====================================\n\n")
+
+cat("R's runif() generates Uniform(0, 1) random numbers:\n")
+cat("  First 10 values:", round(U[1:10], 4), "\n\n")
+
+# Transform to other distributions using inverse CDF
+# Example: Transform to Exponential(λ = 2)
+lambda <- 2
+# F(x) = 1 - exp(-λx), so F^{-1}(u) = -ln(1-u)/λ
+X_exp <- -log(1 - U) / lambda
+
+cat("Inverse Transform Method:\n")
+cat("  To get X ~ Exponential(λ):\n")
+cat("    1. Generate U ~ Uniform(0, 1)\n")
+cat("    2. Compute X = -ln(1-U)/λ = F^{-1}(U)\n\n")
+
+cat(sprintf("  Theoretical mean of Exp(2): 1/λ = %.2f\n", 1/lambda))
+cat(sprintf("  Sample mean: %.4f\n", mean(X_exp)))
+
+# Visualise
+par_dt <- data.table(
+    x = rep(c(U, X_exp), each = 1),
+    distribution = rep(c("Uniform(0, 1)", "Exponential(2)"),
+                       c(length(U), length(X_exp)))
+)
+
+# Actually create proper histogram data
+u_dt <- data.table(x = U, distribution = "Uniform(0, 1)")
+exp_dt <- data.table(x = X_exp, distribution = "Exponential(2)")
+hist_dt <- rbindlist(list(u_dt, exp_dt))
+
+ggplot2$ggplot(hist_dt, ggplot2$aes(x = x)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                   fill = "#56B4E9", colour = "white") +
+    ggplot2$facet_wrap(~distribution, scales = "free") +
+    ggplot2$labs(
+        title = "Inverse Transform Method: Uniform → Other Distributions",
+        subtitle = "Uniform random numbers can generate any distribution",
+        x = "x",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+**Simulation and Monte Carlo Methods**
+
+```{r uniform_monte_carlo}
+# Monte Carlo integration example: estimate π
+
+set.seed(42)
+
+# Throw darts at a unit square; count proportion in unit circle
+n_darts <- 100000
+x <- runif(n_darts, -1, 1)
+y <- runif(n_darts, -1, 1)
+
+in_circle <- (x^2 + y^2) <= 1
+pi_estimate <- 4 * mean(in_circle)  # Area of circle / area of square = π/4
+
+cat("Monte Carlo Estimation of π\n")
+cat("===========================\n\n")
+
+cat("Method: Throw random darts at square [-1, 1] × [-1, 1]\n")
+cat("       Count proportion landing in unit circle\n")
+cat("       π ≈ 4 × (proportion in circle)\n\n")
+
+cat(sprintf("Number of darts: %d\n", n_darts))
+cat(sprintf("Darts in circle: %d\n", sum(in_circle)))
+cat(sprintf("Estimate of π: %.6f\n", pi_estimate))
+cat(sprintf("True value of π: %.6f\n", pi))
+cat(sprintf("Error: %.6f\n", abs(pi_estimate - pi)))
+```
+
+---
+
+## 5.9 The Normal (Gaussian) Distribution
+
+The most important distribution in statistics.
+
+### 5.9.1 Definition and Historical Context
+
+**Prose and Intuition**
+
+The **normal distribution** (also called Gaussian) is the famous bell curve. It appears everywhere in nature and statistics:
+
+- Measurement errors
+- Heights, weights, and biological variables
+- Sum of many small random effects (Central Limit Theorem)
+- Sampling distributions of means
+
+The normal is characterised by two parameters:
+- $\mu$ (mu): the mean, centre of the distribution
+- $\sigma$ (sigma): the standard deviation, controlling spread
+
+**Historical Note:** The distribution was independently discovered by Abraham de Moivre (1733), Pierre-Simon Laplace (1774), and Carl Friedrich Gauss (1809). Gauss used it to model measurement errors in astronomy, which is why it's sometimes called the Gaussian distribution.
+
+**Mathematical Definition**
+
+A random variable $X$ has a **normal distribution** with mean $\mu$ and variance $\sigma^2$, written $X \sim N(\mu, \sigma^2)$, if its PDF is:
+
+$$f(x) = \frac{1}{\sigma\sqrt{2\pi}} \exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)$$
+
+for $x \in (-\infty, \infty)$.
+
+The formula looks complex, but breaks down as:
+- $\frac{1}{\sigma\sqrt{2\pi}}$: normalisation constant ensuring total area = 1
+- $\exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)$: bell shape, centred at $\mu$, spread controlled by $\sigma$
+
+```{r normal_intro, fig.cap="The normal distribution: the ubiquitous bell curve"}
+# Show normal distributions with different parameters
+
+params <- list(
+    list(mu = 0, sigma = 1, label = "μ = 0, σ = 1 (Standard)"),
+    list(mu = 0, sigma = 2, label = "μ = 0, σ = 2"),
+    list(mu = 3, sigma = 1, label = "μ = 3, σ = 1"),
+    list(mu = -2, sigma = 0.5, label = "μ = -2, σ = 0.5")
+)
+
+x_seq <- seq(-6, 8, by = 0.01)
+
+normal_dt <- rbindlist(lapply(params, function(p) {
+    data.table(
+        x = x_seq,
+        density = dnorm(x_seq, p$mu, p$sigma),
+        params = p$label
+    )
+}))
+
+cat("Normal Distribution: X ~ N(μ, σ²)\n")
+cat("==================================\n\n")
+
+cat("The two parameters:\n")
+cat("  μ (mu): mean — shifts the distribution left/right\n")
+cat("  σ (sigma): standard deviation — controls spread\n\n")
+
+cat("Properties:\n")
+cat("  • Symmetric about μ\n")
+cat("  • Mean = Median = Mode = μ\n")
+cat("  • Inflection points at μ ± σ\n")
+cat("  • Tails extend to ±∞ but decay rapidly\n")
+
+ggplot2$ggplot(normal_dt, ggplot2$aes(x = x, y = density, colour = params)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Normal Distribution with Different Parameters",
+        subtitle = "μ shifts location; σ controls spread",
+        x = "x",
+        y = "f(x)",
+        colour = "Parameters"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 5.9.2 PDF Derivation
+
+**Why This Form?**
+
+The normal PDF can be derived from several starting points. One elegant approach uses the principle of maximum entropy: among all distributions with fixed mean and variance, the normal has maximum entropy (minimum information).
+
+Another derivation comes from the Central Limit Theorem: the sum of many independent random variables approaches a normal distribution.
+
+**Key mathematical properties that force this form:**
+
+1. Symmetry about $\mu$: $f(\mu + x) = f(\mu - x)$
+2. Maximum at $\mu$: $f'(\mu) = 0$
+3. Variance equals $\sigma^2$: $\int (x-\mu)^2 f(x) dx = \sigma^2$
+4. Total area = 1: $\int f(x) dx = 1$
+
+```{r normal_pdf_components}
+# Break down the normal PDF
+
+mu <- 0
+sigma <- 1
+
+x_seq <- seq(-4, 4, by = 0.01)
+
+# Components of the formula
+normalisation <- 1 / (sigma * sqrt(2 * pi))
+exponent_vals <- -((x_seq - mu)^2) / (2 * sigma^2)
+unnormalised <- exp(exponent_vals)
+normalised <- normalisation * unnormalised
+
+cat("Normal PDF Components: f(x) = (1/(σ√(2π))) × exp(-(x-μ)²/(2σ²))\n")
+cat("=================================================================\n\n")
+
+cat(sprintf("For the standard normal N(0, 1):\n"))
+cat(sprintf("  Normalisation constant: 1/(σ√(2π)) = 1/√(2π) ≈ %.4f\n", normalisation))
+cat(sprintf("  This ensures the total area under the curve = 1\n\n"))
+
+cat("The exp(-(x-μ)²/(2σ²)) term:\n")
+cat("  • Maximum at x = μ (exponent = 0, exp(0) = 1)\n")
+cat("  • Decays symmetrically as |x - μ| increases\n")
+cat("  • Quadratic in the exponent → bell shape\n")
+
+# Visualise components
+comp_dt <- data.table(
+    x = rep(x_seq, 2),
+    y = c(unnormalised, normalised),
+    component = rep(c("exp(-(x-μ)²/(2σ²)) (unnormalised)",
+                      "Full PDF (normalised)"), each = length(x_seq))
+)
+
+ggplot2$ggplot(comp_dt, ggplot2$aes(x = x, y = y, colour = component)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_manual(values = c("#D55E00", "#0072B2")) +
+    ggplot2$labs(
+        title = "Components of the Normal PDF",
+        subtitle = sprintf("Normalisation constant ≈ %.3f brings max from 1 to %.3f",
+                          normalisation, normalisation),
+        x = "x",
+        y = "Density",
+        colour = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 5.9.3 Properties
+
+**The 68-95-99.7 Rule (Empirical Rule)**
+
+For any normal distribution:
+- About 68% of values fall within 1 standard deviation of the mean
+- About 95% fall within 2 standard deviations
+- About 99.7% fall within 3 standard deviations
+
+This is perhaps the most important practical fact about the normal distribution.
+
+```{r empirical_rule, fig.cap="The 68-95-99.7 rule for normal distributions"}
+# Demonstrate the empirical rule
+
+mu <- 0
+sigma <- 1
+
+# Exact probabilities
+p_1sd <- pnorm(1) - pnorm(-1)
+p_2sd <- pnorm(2) - pnorm(-2)
+p_3sd <- pnorm(3) - pnorm(-3)
+
+cat("The 68-95-99.7 Rule (Empirical Rule)\n")
+cat("====================================\n\n")
+
+cat("For X ~ N(μ, σ²):\n\n")
+cat(sprintf("  P(μ - 1σ < X < μ + 1σ) = %.4f (≈ 68%%)\n", p_1sd))
+cat(sprintf("  P(μ - 2σ < X < μ + 2σ) = %.4f (≈ 95%%)\n", p_2sd))
+cat(sprintf("  P(μ - 3σ < X < μ + 3σ) = %.4f (≈ 99.7%%)\n\n", p_3sd))
+
+cat("Conversely:\n")
+cat(sprintf("  P(|X - μ| > 2σ) = %.4f (about 1 in 22)\n", 1 - p_2sd))
+cat(sprintf("  P(|X - μ| > 3σ) = %.4f (about 1 in 370)\n", 1 - p_3sd))
+
+# Visualise
+x_seq <- seq(-4, 4, by = 0.01)
+pdf_vals <- dnorm(x_seq)
+pdf_dt <- data.table(x = x_seq, density = pdf_vals)
+
+# Create shaded regions
+shade_1sd <- pdf_dt[abs(x) <= 1]
+shade_2sd <- pdf_dt[abs(x) <= 2]
+shade_3sd <- pdf_dt[abs(x) <= 3]
+
+ggplot2$ggplot(pdf_dt, ggplot2$aes(x = x, y = density)) +
+    ggplot2$geom_area(data = shade_3sd, fill = "#009E73", alpha = 0.3) +
+    ggplot2$geom_area(data = shade_2sd, fill = "#56B4E9", alpha = 0.4) +
+    ggplot2$geom_area(data = shade_1sd, fill = "#0072B2", alpha = 0.5) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$geom_vline(xintercept = c(-3, -2, -1, 1, 2, 3),
+               linetype = "dashed", colour = "grey40") +
+    ggplot2$annotate("text", x = 0, y = 0.15, label = "68%", size = 6, colour = "white") +
+    ggplot2$annotate("text", x = 0, y = 0.08, label = "95%", size = 5) +
+    ggplot2$annotate("text", x = 0, y = 0.02, label = "99.7%", size = 4) +
+    ggplot2$scale_x_continuous(breaks = -3:3,
+                       labels = c("-3σ", "-2σ", "-1σ", "μ", "+1σ", "+2σ", "+3σ")) +
+    ggplot2$labs(
+        title = "The 68-95-99.7 Rule",
+        subtitle = "Probability contained within 1, 2, and 3 standard deviations",
+        x = NULL,
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+**Other Properties**
+
+```{r normal_properties}
+# Additional normal distribution properties
+
+cat("Additional Properties of the Normal Distribution\n")
+cat("=================================================\n\n")
+
+cat("1. SYMMETRY\n")
+cat("   f(μ + x) = f(μ - x)\n")
+cat("   P(X > μ + a) = P(X < μ - a)\n\n")
+
+cat("2. LINEAR TRANSFORMATIONS\n")
+cat("   If X ~ N(μ, σ²), then:\n")
+cat("   Y = aX + b ~ N(aμ + b, a²σ²)\n\n")
+
+# Verify by simulation
+set.seed(42)
+X <- rnorm(10000, 5, 2)  # X ~ N(5, 4)
+Y <- 3 * X + 10           # Should be N(3*5 + 10, 9*4) = N(25, 36)
+
+cat("   Example: X ~ N(5, 4), Y = 3X + 10\n")
+cat(sprintf("   Theoretical Y: N(25, 36) with SD = 6\n"))
+cat(sprintf("   Simulated Y: mean = %.2f, SD = %.2f\n\n", mean(Y), sd(Y)))
+
+cat("3. SUM OF INDEPENDENT NORMALS\n")
+cat("   If X ~ N(μ₁, σ₁²) and Y ~ N(μ₂, σ₂²) are independent, then:\n")
+cat("   X + Y ~ N(μ₁ + μ₂, σ₁² + σ₂²)\n\n")
+
+# Verify
+X1 <- rnorm(10000, 3, 2)
+X2 <- rnorm(10000, 7, 3)
+X_sum <- X1 + X2  # Should be N(10, 13)
+
+cat("   Example: X₁ ~ N(3, 4), X₂ ~ N(7, 9)\n")
+cat(sprintf("   Theoretical X₁ + X₂: N(10, 13) with SD = %.3f\n", sqrt(13)))
+cat(sprintf("   Simulated: mean = %.2f, SD = %.2f\n", mean(X_sum), sd(X_sum)))
+```
+
+### 5.9.4 The Standard Normal (Z)
+
+**Prose and Intuition**
+
+The **standard normal distribution** is the special case with $\mu = 0$ and $\sigma = 1$, written $Z \sim N(0, 1)$.
+
+Any normal variable can be converted to standard normal by **standardisation** (z-score):
+$$Z = \frac{X - \mu}{\sigma}$$
+
+This transformation:
+1. Centres the distribution at 0 (subtracts mean)
+2. Scales to unit variance (divides by SD)
+
+The standard normal is the reference distribution for:
+- Z-tables (historical)
+- Computing probabilities and quantiles
+- Defining the 68-95-99.7 rule
+
+**Mathematical Properties**
+
+For $Z \sim N(0, 1)$:
+$$f(z) = \frac{1}{\sqrt{2\pi}} e^{-z^2/2}$$
+
+The CDF is denoted $\Phi(z)$:
+$$\Phi(z) = P(Z \leq z) = \int_{-\infty}^{z} \frac{1}{\sqrt{2\pi}} e^{-t^2/2} dt$$
+
+This integral has no closed form, so we use tables or numerical methods.
+
+**Converting between X and Z:**
+$$P(X \leq x) = P\left(Z \leq \frac{x - \mu}{\sigma}\right) = \Phi\left(\frac{x - \mu}{\sigma}\right)$$
+
+```{r standard_normal, fig.cap="Standardisation converts any normal to the standard normal"}
+# Demonstrate standardisation
+
+mu <- 100
+sigma <- 15
+
+# Original distribution X ~ N(100, 225)
+set.seed(42)
+X <- rnorm(10000, mu, sigma)
+
+# Standardise
+Z <- (X - mu) / sigma
+
+cat("Standardisation: Converting to Z-Scores\n")
+cat("========================================\n\n")
+
+cat(sprintf("Original: X ~ N(%.0f, %.0f²)\n", mu, sigma))
+cat(sprintf("  Mean of X: %.2f\n", mean(X)))
+cat(sprintf("  SD of X: %.2f\n\n", sd(X)))
+
+cat("Standardised: Z = (X - μ)/σ ~ N(0, 1)\n")
+cat(sprintf("  Mean of Z: %.4f (should be ≈ 0)\n", mean(Z)))
+cat(sprintf("  SD of Z: %.4f (should be ≈ 1)\n\n", sd(Z)))
+
+# Calculate a probability both ways
+x_value <- 120
+z_value <- (x_value - mu) / sigma
+
+cat(sprintf("Example: P(X < 120)\n"))
+cat(sprintf("  Using X directly: P(X < 120) = %.4f\n", pnorm(x_value, mu, sigma)))
+cat(sprintf("  Using Z: P(Z < (120-100)/15) = P(Z < %.2f) = %.4f\n",
+            z_value, pnorm(z_value)))
+
+# Visualise both distributions
+x_dt <- data.table(value = X, distribution = sprintf("X ~ N(%d, %d²)", mu, sigma))
+z_dt <- data.table(value = Z, distribution = "Z ~ N(0, 1)")
+compare_dt <- rbindlist(list(x_dt, z_dt))
+
+ggplot2$ggplot(compare_dt, ggplot2$aes(x = value)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                   fill = "#56B4E9", colour = "white") +
+    ggplot2$stat_function(fun = function(x) {
+        if (unique(compare_dt$distribution)[1] == "Z ~ N(0, 1)") {
+            dnorm(x)
+        } else {
+            dnorm(x, mu, sigma)
+        }
+    }, colour = "#D55E00", size = 1) +
+    ggplot2$facet_wrap(~distribution, scales = "free") +
+    ggplot2$labs(
+        title = "Standardisation: Z = (X - μ)/σ",
+        subtitle = "Any normal becomes standard normal after standardisation",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 5.9.5 Implementation from Scratch
+
+The normal CDF has no closed-form solution, but we can implement numerical approximations.
+
+```{r normal_from_scratch}
+# Implement normal distribution functions from scratch
+
+# dnorm_scratch: PDF
+dnorm_scratch <- function(x, mu = 0, sigma = 1) {
+    if (sigma <= 0) stop("sigma must be positive")
+
+    # f(x) = (1 / (σ√(2π))) * exp(-(x-μ)² / (2σ²))
+    (1 / (sigma * sqrt(2 * pi))) * exp(-((x - mu)^2) / (2 * sigma^2))
+}
+
+# pnorm_scratch: CDF using numerical integration
+pnorm_scratch <- function(q, mu = 0, sigma = 1, lower.tail = TRUE) {
+    if (sigma <= 0) stop("sigma must be positive")
+
+    result <- numeric(length(q))
+    for (i in seq_along(q)) {
+        # Integrate from -Inf to q[i]
+        # Use a practical lower bound
+        lower_bound <- mu - 10 * sigma
+        result[i] <- integrate(dnorm_scratch, lower_bound, q[i],
+                               mu = mu, sigma = sigma)$value
+    }
+
+    if (!lower.tail) result <- 1 - result
+    result
+}
+
+# qnorm_scratch: Quantile using bisection
+qnorm_scratch <- function(p, mu = 0, sigma = 1) {
+    if (sigma <= 0) stop("sigma must be positive")
+    if (any(p <= 0) || any(p >= 1)) stop("p must be between 0 and 1")
+
+    result <- numeric(length(p))
+    for (i in seq_along(p)) {
+        # Bisection method
+        lower <- mu - 10 * sigma
+        upper <- mu + 10 * sigma
+
+        for (iter in 1:100) {
+            mid <- (lower + upper) / 2
+            cdf_mid <- pnorm_scratch(mid, mu, sigma)
+
+            if (abs(cdf_mid - p[i]) < 1e-8) break
+
+            if (cdf_mid < p[i]) {
+                lower <- mid
+            } else {
+                upper <- mid
+            }
+        }
+        result[i] <- mid
+    }
+    result
+}
+
+# rnorm_scratch: Random generation using Box-Muller transform
+rnorm_scratch <- function(n, mu = 0, sigma = 1) {
+    if (sigma <= 0) stop("sigma must be positive")
+
+    # Box-Muller transform: generates pairs of standard normals
+    n_pairs <- ceiling(n / 2)
+    U1 <- runif(n_pairs)
+    U2 <- runif(n_pairs)
+
+    # Generate standard normals
+    Z1 <- sqrt(-2 * log(U1)) * cos(2 * pi * U2)
+    Z2 <- sqrt(-2 * log(U1)) * sin(2 * pi * U2)
+
+    Z <- c(Z1, Z2)[1:n]
+
+    # Transform to N(mu, sigma²)
+    mu + sigma * Z
+}
+
+# Test implementations
+cat("Normal Distribution Functions: From Scratch\n")
+cat("============================================\n\n")
+
+mu <- 10
+sigma <- 3
+
+# PDF comparison
+cat("PDF (dnorm):\n")
+for (x in c(7, 10, 13)) {
+    our_val <- dnorm_scratch(x, mu, sigma)
+    r_val <- dnorm(x, mu, sigma)
+    cat(sprintf("  f(%.0f): ours = %.6f, R = %.6f\n", x, our_val, r_val))
+}
+
+# CDF comparison
+cat("\nCDF (pnorm):\n")
+for (x in c(7, 10, 13, 16)) {
+    our_val <- pnorm_scratch(x, mu, sigma)
+    r_val <- pnorm(x, mu, sigma)
+    cat(sprintf("  P(X <= %.0f): ours = %.6f, R = %.6f\n", x, our_val, r_val))
+}
+
+# Quantile comparison
+cat("\nQuantiles (qnorm):\n")
+for (p in c(0.1, 0.25, 0.5, 0.75, 0.9)) {
+    our_val <- qnorm_scratch(p, mu, sigma)
+    r_val <- qnorm(p, mu, sigma)
+    cat(sprintf("  Q(%.2f): ours = %.4f, R = %.4f\n", p, our_val, r_val))
+}
+
+# Random generation
+cat("\nRandom generation (rnorm):\n")
+set.seed(42)
+our_samples <- rnorm_scratch(10000, mu, sigma)
+set.seed(42)
+r_samples <- rnorm(10000, mu, sigma)
+
+cat(sprintf("  Our mean: %.4f, R mean: %.4f (theoretical: %.1f)\n",
+            mean(our_samples), mean(r_samples), mu))
+cat(sprintf("  Our SD: %.4f, R SD: %.4f (theoretical: %.1f)\n",
+            sd(our_samples), sd(r_samples), sigma))
+```
+
+### 5.9.6 Why the Normal Is Everywhere
+
+**The Central Limit Theorem (Preview)**
+
+The normal distribution appears everywhere because of the **Central Limit Theorem** (CLT): when you add up many independent random variables, the sum tends toward a normal distribution, *regardless of the original distributions*.
+
+This explains why:
+- Measurement errors (sum of many small disturbances) are normal
+- Heights (influenced by many genes) are approximately normal
+- Sample means are approximately normal (for large samples)
+
+We cover the CLT rigorously in Chapter 6.
+
+```{r clt_preview, fig.cap="Central Limit Theorem: sums become normal regardless of original distribution"}
+# Demonstrate CLT: sum of uniform random variables becomes normal
+
+set.seed(42)
+
+# Sum of n Uniform(0, 1) variables
+n_values <- c(1, 2, 5, 12, 30)
+n_sims <- 10000
+
+clt_dt <- rbindlist(lapply(n_values, function(n) {
+    # Generate sums
+    sums <- replicate(n_sims, sum(runif(n)))
+    # Standardise
+    std_sums <- (sums - n * 0.5) / sqrt(n * 1/12)
+    data.table(
+        x = std_sums,
+        n = paste("n =", n)
+    )
+}))
+
+clt_dt$n <- factor(clt_dt$n, levels = paste("n =", n_values))
+
+cat("Central Limit Theorem Preview\n")
+cat("=============================\n\n")
+
+cat("Sum of n Uniform(0, 1) variables, standardised:\n")
+cat("As n increases, the distribution approaches N(0, 1)\n\n")
+
+for (n in n_values) {
+    sims <- clt_dt[n == paste("n =", n), x]
+    cat(sprintf("n = %2d: mean = %6.3f, SD = %.3f, skew = %6.3f\n",
+                n, mean(sims), sd(sims),
+                mean((sims - mean(sims))^3) / sd(sims)^3))
+}
+
+ggplot2$ggplot(clt_dt, ggplot2$aes(x = x)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                   fill = "#56B4E9", colour = "white", alpha = 0.7) +
+    ggplot2$stat_function(fun = dnorm, colour = "#D55E00", size = 1) +
+    ggplot2$facet_wrap(~n, nrow = 1) +
+    ggplot2$labs(
+        title = "Central Limit Theorem: Sums of Uniforms → Normal",
+        subtitle = "Red curve is N(0, 1); histogram is standardised sum of n Uniform(0, 1) variables",
+        x = "Standardised Sum",
+        y = "Density"
+    ) +
+    ggplot2$coord_cartesian(xlim = c(-4, 4)) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+**Normal Distribution in Biomedical Data**
+
+```{r normal_biomedical, fig.cap="Many biomedical variables are approximately normally distributed"}
+# Check normality of BMI and height in NHANES
+
+# BMI
+bmi_clean <- nhanes[!is.na(BMI) & BMI > 0 & BMI < 60, BMI]
+
+# Height
+height_clean <- nhanes[!is.na(Height) & Height > 100 & Height < 220, Height]
+
+# Fit normal distributions
+bmi_mean <- mean(bmi_clean)
+bmi_sd <- sd(bmi_clean)
+
+height_mean <- mean(height_clean)
+height_sd <- sd(height_clean)
+
+cat("Biomedical Variables and the Normal Distribution\n")
+cat("=================================================\n\n")
+
+cat("BMI in NHANES:\n")
+cat(sprintf("  n = %d\n", length(bmi_clean)))
+cat(sprintf("  Mean = %.2f, SD = %.2f\n", bmi_mean, bmi_sd))
+cat("  Note: BMI is slightly right-skewed (not perfectly normal)\n\n")
+
+cat("Height in NHANES:\n")
+cat(sprintf("  n = %d\n", length(height_clean)))
+cat(sprintf("  Mean = %.2f cm, SD = %.2f cm\n", height_mean, height_sd))
+cat("  Height is often well-approximated by normal\n")
+
+# Create comparison plots
+bmi_dt <- data.table(value = bmi_clean, variable = "BMI (kg/m²)",
+                     mean = bmi_mean, sd = bmi_sd)
+height_dt <- data.table(value = height_clean, variable = "Height (cm)",
+                        mean = height_mean, sd = height_sd)
+
+bio_dt <- rbindlist(list(bmi_dt, height_dt))
+
+ggplot2$ggplot(bio_dt, ggplot2$aes(x = value)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                   fill = "#56B4E9", colour = "white", alpha = 0.7) +
+    ggplot2$stat_function(data = data.table(variable = "BMI (kg/m²)"),
+                  fun = function(x) dnorm(x, bmi_mean, bmi_sd),
+                  colour = "#D55E00", size = 1) +
+    ggplot2$stat_function(data = data.table(variable = "Height (cm)"),
+                  fun = function(x) dnorm(x, height_mean, height_sd),
+                  colour = "#D55E00", size = 1) +
+    ggplot2$facet_wrap(~variable, scales = "free") +
+    ggplot2$labs(
+        title = "Biomedical Variables with Normal Fit",
+        subtitle = "Red curve is fitted normal distribution",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Continuous Distributions
+
+```{r stakeholder_continuous}
+cat("Explaining Continuous Distributions to Non-Statisticians\n")
+cat("=========================================================\n\n")
+
+cat("KEY MESSAGE: For continuous measurements, we can't ask about exact values.\n\n")
+
+cat("DON'T say:\n")
+cat("  'What's the probability that blood pressure is exactly 120?'\n\n")
+
+cat("DO say:\n")
+cat("  'What's the probability that blood pressure is between 110 and 130?'\n")
+cat("  'What percentage of patients have blood pressure above 140?'\n\n")
+
+cat("ANALOGY:\n")
+cat("  Think of probability as water in a stream. You can measure how much\n")
+cat("  water passes through a section (range), but not a single point.\n")
+```
+
+### Explaining the Normal Distribution
+
+```{r stakeholder_normal}
+cat("Explaining the Normal Distribution\n")
+cat("===================================\n\n")
+
+cat("FOR GENERAL AUDIENCES:\n")
+cat("  'Many things in nature follow a bell-shaped pattern. Most values\n")
+cat("   cluster around the average, with fewer and fewer extreme values\n")
+cat("   as you move further away.'\n\n")
+
+cat("FOR CLINICAL COLLEAGUES:\n")
+cat("  'About 68% of patients will have values within one standard deviation\n")
+cat("   of the mean. About 95% within two standard deviations. Values more\n")
+cat("   than 3 SDs away are very rare — less than 1 in 300.'\n\n")
+
+cat("FOR INTERPRETING RESULTS:\n")
+cat("  'If a patient's test result is 2 standard deviations above the mean,\n")
+cat("   only about 2.5% of healthy people would have a value that high or higher.\n")
+cat("   That might be worth investigating.'\n\n")
+
+cat("COMMON MISCONCEPTION:\n")
+cat("  'Not everything is normally distributed! Income, hospital length of stay,\n")
+cat("   and many biomarkers are often skewed. We can still use normal-based\n")
+cat("   methods for sample means (thanks to the Central Limit Theorem), but\n")
+cat("   the raw data itself may not be normal.'\n")
+```
+
+---
+
+## Quick Reference
+
+### Continuous Distribution Summary
+
+| Function | Name | Formula |
+|----------|------|---------|
+| $f(x)$ | PDF | Probability density; $P(a < X < b) = \int_a^b f(x) dx$ |
+| $F(x)$ | CDF | $P(X \leq x) = \int_{-\infty}^x f(t) dt$ |
+| $Q(p)$ | Quantile | $F^{-1}(p)$; value such that $P(X \leq Q(p)) = p$ |
+| $E(X)$ | Mean | $\int x f(x) dx$ |
+| $\text{Var}(X)$ | Variance | $\int (x-\mu)^2 f(x) dx$ |
+
+### Uniform Distribution
+
+$$X \sim \text{Uniform}(a, b)$$
+
+| Property | Value |
+|----------|-------|
+| PDF | $f(x) = \frac{1}{b-a}$ for $a \leq x \leq b$ |
+| CDF | $F(x) = \frac{x-a}{b-a}$ for $a \leq x \leq b$ |
+| Quantile | $Q(p) = a + p(b-a)$ |
+| Mean | $E(X) = \frac{a+b}{2}$ |
+| Variance | $\text{Var}(X) = \frac{(b-a)^2}{12}$ |
+
+**R functions:** `dunif()`, `punif()`, `qunif()`, `runif()`
+
+### Normal Distribution
+
+$$X \sim N(\mu, \sigma^2)$$
+
+| Property | Value |
+|----------|-------|
+| PDF | $f(x) = \frac{1}{\sigma\sqrt{2\pi}} \exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)$ |
+| Mean | $E(X) = \mu$ |
+| Variance | $\text{Var}(X) = \sigma^2$ |
+| Standardisation | $Z = \frac{X - \mu}{\sigma} \sim N(0, 1)$ |
+| 68-95-99.7 rule | 68%, 95%, 99.7% within 1, 2, 3 SDs |
+
+**R functions:** `dnorm()`, `pnorm()`, `qnorm()`, `rnorm()`
+
+### Standard Normal (Z) Critical Values
+
+| Probability | Z-value |
+|-------------|---------|
+| $P(Z < z) = 0.90$ | $z = 1.28$ |
+| $P(Z < z) = 0.95$ | $z = 1.645$ |
+| $P(Z < z) = 0.975$ | $z = 1.96$ |
+| $P(Z < z) = 0.99$ | $z = 2.33$ |
+| $P(Z < z) = 0.995$ | $z = 2.58$ |
+
+### Key R Code
+
+```r
+# Uniform distribution
+runif(n, min = a, max = b)  # Generate n uniform random numbers
+punif(x, a, b)               # CDF: P(X <= x)
+qunif(p, a, b)               # Quantile: value at probability p
+
+# Normal distribution
+rnorm(n, mean = mu, sd = sigma)  # Generate n normal random numbers
+pnorm(x, mu, sigma)               # CDF: P(X <= x)
+qnorm(p, mu, sigma)               # Quantile
+dnorm(x, mu, sigma)               # PDF: f(x)
+
+# Standardisation
+z <- (x - mu) / sigma             # Convert to Z-score
+x <- mu + z * sigma               # Convert from Z-score
+```
+
+---
+
+## Chapter Summary
+
+This chapter covered the foundations of continuous probability distributions:
+
+1. **Continuous random variables** can take any value in an interval; probability is measured as area under a curve
+
+2. The **probability density function** (PDF) describes relative likelihood; probability = $\int_a^b f(x) dx$
+
+3. The **CDF** gives cumulative probability $F(x) = P(X \leq x)$; the **quantile function** is its inverse
+
+4. The **uniform distribution** has constant density over $[a, b]$; it's the foundation of random number generation
+
+5. The **normal distribution** is characterised by mean $\mu$ and SD $\sigma$; the 68-95-99.7 rule describes probability within 1, 2, 3 SDs
+
+6. **Standardisation** ($Z = (X-\mu)/\sigma$) converts any normal to the standard normal $N(0, 1)$
+
+7. The normal appears everywhere due to the **Central Limit Theorem**: sums of many variables tend to normality
+
+In Part 4, we complete our survey of distributions with the exponential, gamma, beta, and distributions related to the normal (chi-square, t, F).

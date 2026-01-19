@@ -8,7 +8,7 @@ A comprehensive three-part course on statistics using R programming, designed fo
 
 | Part | Title | Folder | Chapters | Status |
 |------|-------|--------|----------|--------|
-| I | Foundations | `statistics-1-foundations/` | 15 | In Progress (4/15) |
+| I | Foundations | `statistics-1-foundations/` | 15 | In Progress (5/15) |
 | II | Intermediate | `statistics-2-intermediate/` | 10 | Not Started |
 | III | Advanced | `statistics-3-advanced/` | 8 | Not Started |
 
@@ -17,7 +17,7 @@ A comprehensive three-part course on statistics using R programming, designed fo
 # Part I: Foundations
 
 **Folder:** `statistics-1-foundations/`
-**Status:** In Progress (4/15 chapters complete)
+**Status:** In Progress (5/15 chapters complete)
 
 A rigorous introduction to statistical thinking covering descriptive statistics, probability, distributions, sampling theory, estimation, hypothesis testing, and introductory regression/ANOVA.
 
@@ -278,7 +278,7 @@ A rigorous introduction to statistical thinking covering descriptive statistics,
 
 ---
 
-## Chapter 5: Random Variables and Distributions
+## Chapter 5: Random Variables and Distributions ✓
 
 *Formalising random variables and major probability distributions.*
 
@@ -290,87 +290,87 @@ A rigorous introduction to statistical thinking covering descriptive statistics,
 
 ### Part 1 (`05-1`): Random Variables / Bernoulli / Binomial
 
-- [ ] **5.1 Random Variables** — Mapping outcomes to numbers.
-  - [ ] 5.1.1 Definition — Functions from sample spaces to reals.
-  - [ ] 5.1.2 Discrete Random Variables — Countable values.
-  - [ ] 5.1.3 Continuous Random Variables — Values in intervals.
-  - [ ] 5.1.4 Notation Conventions — Capital X, lowercase x.
-- [ ] **5.2 Discrete Probability Distributions** — Mathematical apparatus.
-  - [ ] 5.2.1 Probability Mass Function (PMF) — p(x) = P(X = x).
-  - [ ] 5.2.2 Cumulative Distribution Function (CDF) — F(x) = P(X ≤ x).
-  - [ ] 5.2.3 Expected Value (Mean) — E(X) = Σ x·p(x).
-  - [ ] 5.2.4 Variance and Standard Deviation — Var(X) = E[(X-μ)²].
-- [ ] **5.3 The Bernoulli Distribution** — Single yes/no trial.
-  - [ ] 5.3.1 Definition and PMF — P(X=1) = p, P(X=0) = 1-p.
-  - [ ] 5.3.2 Mean and Variance — E(X) = p, Var(X) = p(1-p).
-  - [ ] 5.3.3 Implementation — Random number generation.
-- [ ] **5.4 The Binomial Distribution** — Counting successes.
-  - [ ] 5.4.1 Definition — Sum of n Bernoulli trials.
-  - [ ] 5.4.2 PMF Derivation — P(X = k) = C(n,k) × p^k × (1-p)^(n-k).
-  - [ ] 5.4.3 Mean and Variance — E(X) = np, Var(X) = np(1-p).
-  - [ ] 5.4.4 Shape and Parameters — Effect of n and p.
-  - [ ] 5.4.5 Implementation from Scratch — d/p/q/r convention.
-  - [ ] 5.4.6 Applications — Treatment response, genetics, quality control.
-- [ ] **Communicating to Stakeholders** — Success/failure models.
-- [ ] **Quick Reference** — Bernoulli and binomial formulae.
+- [x] **5.1 Random Variables** — Mapping outcomes to numbers.
+  - [x] 5.1.1 Definition — Functions from sample spaces to reals.
+  - [x] 5.1.2 Discrete Random Variables — Countable values.
+  - [x] 5.1.3 Continuous Random Variables — Values in intervals.
+  - [x] 5.1.4 Notation Conventions — Capital X, lowercase x.
+- [x] **5.2 Discrete Probability Distributions** — Mathematical apparatus.
+  - [x] 5.2.1 Probability Mass Function (PMF) — p(x) = P(X = x).
+  - [x] 5.2.2 Cumulative Distribution Function (CDF) — F(x) = P(X ≤ x).
+  - [x] 5.2.3 Expected Value (Mean) — E(X) = Σ x·p(x).
+  - [x] 5.2.4 Variance and Standard Deviation — Var(X) = E[(X-μ)²].
+- [x] **5.3 The Bernoulli Distribution** — Single yes/no trial.
+  - [x] 5.3.1 Definition and PMF — P(X=1) = p, P(X=0) = 1-p.
+  - [x] 5.3.2 Mean and Variance — E(X) = p, Var(X) = p(1-p).
+  - [x] 5.3.3 Implementation — Random number generation.
+- [x] **5.4 The Binomial Distribution** — Counting successes.
+  - [x] 5.4.1 Definition — Sum of n Bernoulli trials.
+  - [x] 5.4.2 PMF Derivation — P(X = k) = C(n,k) × p^k × (1-p)^(n-k).
+  - [x] 5.4.3 Mean and Variance — E(X) = np, Var(X) = np(1-p).
+  - [x] 5.4.4 Shape and Parameters — Effect of n and p.
+  - [x] 5.4.5 Implementation from Scratch — d/p/q/r convention.
+  - [x] 5.4.6 Applications — Treatment response, genetics, quality control.
+- [x] **Communicating to Stakeholders** — Success/failure models.
+- [x] **Quick Reference** — Bernoulli and binomial formulae.
 
 ### Part 2 (`05-2`): Poisson / Other Discrete
 
-- [ ] **5.5 The Poisson Distribution** — Counting rare events.
-  - [ ] 5.5.1 Definition — Events at constant rate λ.
-  - [ ] 5.5.2 PMF Derivation — P(X = k) = (λ^k × e^(-λ)) / k!
-  - [ ] 5.5.3 Mean and Variance — E(X) = Var(X) = λ.
-  - [ ] 5.5.4 Implementation from Scratch — Handling large λ.
-  - [ ] 5.5.5 Applications — Mutations, admissions, adverse events.
-- [ ] **5.6 Other Discrete Distributions** — Specialised contexts.
-  - [ ] 5.6.1 Geometric Distribution — Trials until first success.
-  - [ ] 5.6.2 Negative Binomial Distribution — Trials until r successes.
-  - [ ] 5.6.3 Hypergeometric Distribution — Sampling without replacement.
-- [ ] **Communicating to Stakeholders** — Count data modelling.
-- [ ] **Quick Reference** — Poisson and other discrete formulae.
+- [x] **5.5 The Poisson Distribution** — Counting rare events.
+  - [x] 5.5.1 Definition — Events at constant rate λ.
+  - [x] 5.5.2 PMF Derivation — P(X = k) = (λ^k × e^(-λ)) / k!
+  - [x] 5.5.3 Mean and Variance — E(X) = Var(X) = λ.
+  - [x] 5.5.4 Implementation from Scratch — Handling large λ.
+  - [x] 5.5.5 Applications — Mutations, admissions, adverse events.
+- [x] **5.6 Other Discrete Distributions** — Specialised contexts.
+  - [x] 5.6.1 Geometric Distribution — Trials until first success.
+  - [x] 5.6.2 Negative Binomial Distribution — Trials until r successes.
+  - [x] 5.6.3 Hypergeometric Distribution — Sampling without replacement.
+- [x] **Communicating to Stakeholders** — Count data modelling.
+- [x] **Quick Reference** — Poisson and other discrete formulae.
 
 ### Part 3 (`05-3`): Continuous / Uniform / Normal
 
-- [ ] **5.7 Continuous Probability Distributions** — Variables in intervals.
-  - [ ] 5.7.1 Probability Density Function (PDF) — f(x), P(X=x) = 0.
-  - [ ] 5.7.2 Cumulative Distribution Function (CDF) — F(x) = ∫f(t)dt.
-  - [ ] 5.7.3 Expected Value and Variance — Via integration.
-  - [ ] 5.7.4 Quantile Function — Q(p) = F⁻¹(p).
-- [ ] **5.8 The Uniform Distribution** — Equal probability on interval.
-  - [ ] 5.8.1 Definition and Properties — f(x) = 1/(b-a).
-  - [ ] 5.8.2 Applications — Random number generation.
-- [ ] **5.9 The Normal (Gaussian) Distribution** — Most important distribution.
-  - [ ] 5.9.1 Definition and Historical Context — Why it's central.
-  - [ ] 5.9.2 PDF Derivation — (1/√(2πσ²)) × exp(-(x-μ)²/(2σ²)).
-  - [ ] 5.9.3 Properties — Symmetry, 68-95-99.7 rule.
-  - [ ] 5.9.4 The Standard Normal (Z) — N(0,1), standardisation.
-  - [ ] 5.9.5 Implementation from Scratch — Numerical integration.
-  - [ ] 5.9.6 Why the Normal Is Everywhere — CLT preview.
-- [ ] **Communicating to Stakeholders** — The normal curve.
-- [ ] **Quick Reference** — Uniform and normal formulae.
+- [x] **5.7 Continuous Probability Distributions** — Variables in intervals.
+  - [x] 5.7.1 Probability Density Function (PDF) — f(x), P(X=x) = 0.
+  - [x] 5.7.2 Cumulative Distribution Function (CDF) — F(x) = ∫f(t)dt.
+  - [x] 5.7.3 Expected Value and Variance — Via integration.
+  - [x] 5.7.4 Quantile Function — Q(p) = F⁻¹(p).
+- [x] **5.8 The Uniform Distribution** — Equal probability on interval.
+  - [x] 5.8.1 Definition and Properties — f(x) = 1/(b-a).
+  - [x] 5.8.2 Applications — Random number generation.
+- [x] **5.9 The Normal (Gaussian) Distribution** — Most important distribution.
+  - [x] 5.9.1 Definition and Historical Context — Why it's central.
+  - [x] 5.9.2 PDF Derivation — (1/√(2πσ²)) × exp(-(x-μ)²/(2σ²)).
+  - [x] 5.9.3 Properties — Symmetry, 68-95-99.7 rule.
+  - [x] 5.9.4 The Standard Normal (Z) — N(0,1), standardisation.
+  - [x] 5.9.5 Implementation from Scratch — Numerical integration.
+  - [x] 5.9.6 Why the Normal Is Everywhere — CLT preview.
+- [x] **Communicating to Stakeholders** — The normal curve.
+- [x] **Quick Reference** — Uniform and normal formulae.
 
 ### Part 4 (`05-4`): Exponential / Gamma / Beta / Related
 
-- [ ] **5.10 The Exponential Distribution** — Waiting times.
-  - [ ] 5.10.1 Definition and Properties — Rate λ, scale θ = 1/λ.
-  - [ ] 5.10.2 The Memoryless Property — P(X > s+t | X > s) = P(X > t).
-  - [ ] 5.10.3 Applications — Failure times, inter-arrival times.
-- [ ] **5.11 The Gamma Distribution** — Flexible positive family.
-  - [ ] 5.11.1 Definition and Properties — Shape α, rate β.
-  - [ ] 5.11.2 Special Cases — Exponential, chi-square.
-  - [ ] 5.11.3 Applications — Waiting for k events.
-- [ ] **5.12 The Beta Distribution** — Probabilities on [0,1].
-  - [ ] 5.12.1 Definition and Properties — Parameters α, β.
-  - [ ] 5.12.2 Applications — Success rates, Bayesian inference.
-- [ ] **5.13 Distributions Related to the Normal** — From normal transformations.
-  - [ ] 5.13.1 Chi-Square Distribution — Sum of squared normals.
-  - [ ] 5.13.2 Student's t-Distribution — Heavier tails.
-  - [ ] 5.13.3 F-Distribution — Ratio of chi-squares.
-- [ ] **5.14 Choosing the Right Distribution** — Decision guide.
-  - [ ] 5.14.1 Decision Flowchart — Discrete/continuous, bounded/unbounded.
-  - [ ] 5.14.2 Visual Assessment of Fit — QQ plots, density overlays.
-- [ ] **Communicating to Stakeholders** — Distribution choice.
-- [ ] **Quick Reference** — Distribution summary table.
+- [x] **5.10 The Exponential Distribution** — Waiting times.
+  - [x] 5.10.1 Definition and Properties — Rate λ, scale θ = 1/λ.
+  - [x] 5.10.2 The Memoryless Property — P(X > s+t | X > s) = P(X > t).
+  - [x] 5.10.3 Applications — Failure times, inter-arrival times.
+- [x] **5.11 The Gamma Distribution** — Flexible positive family.
+  - [x] 5.11.1 Definition and Properties — Shape α, rate β.
+  - [x] 5.11.2 Special Cases — Exponential, chi-square.
+  - [x] 5.11.3 Applications — Waiting for k events.
+- [x] **5.12 The Beta Distribution** — Probabilities on [0,1].
+  - [x] 5.12.1 Definition and Properties — Parameters α, β.
+  - [x] 5.12.2 Applications — Success rates, Bayesian inference.
+- [x] **5.13 Distributions Related to the Normal** — From normal transformations.
+  - [x] 5.13.1 Chi-Square Distribution — Sum of squared normals.
+  - [x] 5.13.2 Student's t-Distribution — Heavier tails.
+  - [x] 5.13.3 F-Distribution — Ratio of chi-squares.
+- [x] **5.14 Choosing the Right Distribution** — Decision guide.
+  - [x] 5.14.1 Decision Flowchart — Discrete/continuous, bounded/unbounded.
+  - [x] 5.14.2 Visual Assessment of Fit — QQ plots, density overlays.
+- [x] **Communicating to Stakeholders** — Distribution choice.
+- [x] **Quick Reference** — Distribution summary table.
 
 ---
 
