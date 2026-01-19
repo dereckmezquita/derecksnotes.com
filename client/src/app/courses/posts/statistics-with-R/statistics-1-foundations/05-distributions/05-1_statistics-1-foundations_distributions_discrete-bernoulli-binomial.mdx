@@ -4,7 +4,7 @@ chapter: "Chapter 5: Random Variables and Distributions"
 part: "Part 1: Random Variables, Bernoulli, and Binomial Distributions"
 coverImage: 13
 author: "Dereck Mezquita"
-date: "`r Sys.Date()`"
+date: "2026-01-18"
 tags: [statistics, mathematics, probability, distributions, R, biomedical]
 published: true
 comments: true
@@ -13,20 +13,7 @@ output:
     keep_md: true
 ---
 
-```{r setup, include=FALSE}
-# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
-if (knitr::is_html_output()) knitr::knit_hooks$set(
-    plot = function(x, options) {
-        cap  <- options$fig.cap
-        as.character(htmltools::tag(
-            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
-        ))
-    }
-)
 
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
-```
 
 # Chapter 5: Random Variables and Distributions
 
@@ -34,21 +21,26 @@ In Chapter 4 we learned to assign probabilities to events. Now we formalise how 
 
 This first part covers the foundations of random variables and two fundamental discrete distributions: the Bernoulli (single yes/no trial) and the Binomial (counting successes across multiple trials).
 
-```{r packages, message=FALSE, warning=FALSE}
+
+``` r
 box::use(
     data.table[...],
     ggplot2
 )
 ```
 
-```{r load_data, message=FALSE}
+
+``` r
 # Load datasets for medical examples
 nhanes <- fread("../data/primary/nhanes.csv")
 strep_tb <- fread("../data/medical/strep_tb.csv")
 
 cat("Datasets loaded:\n")
+#> Datasets loaded:
 cat("  NHANES:", nrow(nhanes), "observations\n")
+#>   NHANES: 10000 observations
 cat("  Streptomycin TB Trial:", nrow(strep_tb), "observations\n")
+#>   Streptomycin TB Trial: 107 observations
 ```
 
 ---
@@ -82,7 +74,8 @@ Formally, for each outcome $\omega \in S$, the random variable assigns a value $
 - $P(X = x)$ means "the probability that $X$ takes the value $x$"
 - $P(X \leq x)$ means "the probability that $X$ is at most $x$"
 
-```{r rv_definition, fig.cap="A random variable maps sample space outcomes to numbers"}
+
+``` r
 # Demonstrate the mapping from outcomes to numbers
 
 # Example: Clinical trial outcome
@@ -111,19 +104,43 @@ mapping_dt <- data.table(
 )
 
 cat("Random Variable Mapping:\n")
+#> Random Variable Mapping:
 cat("========================\n\n")
+#> ========================
 cat("Sample space S = {Response, No Response}\n")
+#> Sample space S = {Response, No Response}
 cat("Random variable X: S -> {0, 1}\n")
+#> Random variable X: S -> {0, 1}
 cat("  X(Response) = 1\n")
+#>   X(Response) = 1
 cat("  X(No Response) = 0\n\n")
+#>   X(No Response) = 0
 
 cat("First 10 patients:\n")
+#> First 10 patients:
 print(mapping_dt[1:10])
+#>     patient     outcome     X
+#>       <int>      <char> <num>
+#>  1:       1 No Response     0
+#>  2:       2 No Response     0
+#>  3:       3    Response     1
+#>  4:       4 No Response     0
+#>  5:       5 No Response     0
+#>  6:       6    Response     1
+#>  7:       7 No Response     0
+#>  8:       8    Response     1
+#>  9:       9 No Response     0
+#> 10:      10 No Response     0
 
 cat("\nSummary:\n")
+#> 
+#> Summary:
 cat("  Responses (X = 1):", sum(X), "\n")
+#>   Responses (X = 1): 9
 cat("  No Response (X = 0):", sum(X == 0), "\n")
+#>   No Response (X = 0): 11
 cat("  Mean of X:", mean(X), "(empirical response rate)\n")
+#>   Mean of X: 0.45 (empirical response rate)
 
 # Visualise the mapping
 ggplot2$ggplot(mapping_dt, ggplot2$aes(x = factor(patient), y = X, fill = outcome)) +
@@ -139,6 +156,10 @@ ggplot2$ggplot(mapping_dt, ggplot2$aes(x = factor(patient), y = X, fill = outcom
     ggplot2$theme_minimal() +
     ggplot2$theme(axis.text.x = ggplot2$element_text(size = 8))
 ```
+
+<Figure src="/courses/statistics-1-foundations/rv_definition-1.png" alt="A random variable maps sample space outcomes to numbers">
+	A random variable maps sample space outcomes to numbers
+</Figure>
 
 ### 5.1.2 Discrete Random Variables
 
@@ -160,7 +181,8 @@ A random variable $X$ is **discrete** if it takes values in a countable set $\{x
 The **support** of $X$ is the set of values with positive probability:
 $$\text{supp}(X) = \{x : P(X = x) > 0\}$$
 
-```{r discrete_rv, fig.cap="Discrete random variables take countable values"}
+
+``` r
 # Example: Number of chronic conditions (discrete)
 
 # From NHANES, count chronic conditions per person
@@ -178,10 +200,30 @@ chronic_dt <- chronic_dt[order(n_conditions)]
 chronic_dt[, proportion := count / sum(count)]
 
 cat("Discrete Random Variable: Number of Chronic Conditions\n")
+#> Discrete Random Variable: Number of Chronic Conditions
 cat("======================================================\n\n")
+#> ======================================================
 cat("X = number of conditions (Diabetes, Hypertension, Obesity)\n")
+#> X = number of conditions (Diabetes, Hypertension, Obesity)
 cat("Support: {0, 1, 2, 3}\n\n")
+#> Support: {0, 1, 2, 3}
 print(chronic_dt)
+#>     n_conditions count   proportion
+#>            <int> <int>        <num>
+#>  1:            0  4426 0.6528986576
+#>  2:            1  1207 0.1780498599
+#>  3:            2   700 0.1032600679
+#>  4:            3   210 0.0309780204
+#>  5:            4   137 0.0202094704
+#>  6:            5    20 0.0029502877
+#>  7:            6    51 0.0075232335
+#>  8:            7     2 0.0002950288
+#>  9:            8    10 0.0014751438
+#> 10:            9     5 0.0007375719
+#> 11:           10     8 0.0011801151
+#> 12:           12     1 0.0001475144
+#> 13:           14     1 0.0001475144
+#> 14:           15     1 0.0001475144
 
 # Visualise
 ggplot2$ggplot(chronic_dt, ggplot2$aes(x = factor(n_conditions), y = count)) +
@@ -196,6 +238,10 @@ ggplot2$ggplot(chronic_dt, ggplot2$aes(x = factor(n_conditions), y = count)) +
     ) +
     ggplot2$theme_minimal()
 ```
+
+<Figure src="/courses/statistics-1-foundations/discrete_rv-1.png" alt="Discrete random variables take countable values">
+	Discrete random variables take countable values
+</Figure>
 
 ### 5.1.3 Continuous Random Variables
 
@@ -220,26 +266,36 @@ $$P(a \leq X \leq b) = \int_a^b f(x) \, dx$$
 
 The function $f(x)$ is called the **probability density function** (PDF). We cover PDFs in detail in Part 3 of this chapter.
 
-```{r continuous_rv, fig.cap="Continuous random variables can take any value in an interval"}
+
+``` r
 # Example: BMI as a continuous random variable
 bmi_data <- nhanes[!is.na(BMI), .(BMI)]
 
 cat("Continuous Random Variable: Body Mass Index\n")
+#> Continuous Random Variable: Body Mass Index
 cat("============================================\n\n")
+#> ============================================
 
 cat("X = BMI (kg/m²)\n")
+#> X = BMI (kg/m<U+00B2>)
 cat("Support: (0, ∞) in theory; practically about (15, 60)\n\n")
+#> Support: (0, <U+221E>) in theory; practically about (15, 60)
 
 cat("Note: P(X = exactly 25.000...) = 0\n")
+#> Note: P(X = exactly 25.000...) = 0
 cat("Instead, we ask: P(24.9 < X < 25.1) = ?\n\n")
+#> Instead, we ask: P(24.9 < X < 25.1) = ?
 
 # Calculate probability for a range
 p_in_range <- mean(bmi_data$BMI > 24.9 & bmi_data$BMI < 25.1)
 cat("Empirical P(24.9 < BMI < 25.1):", round(p_in_range, 4), "\n\n")
+#> Empirical P(24.9 < BMI < 25.1): 0.0088
 
 # Show some exact values
 cat("First 10 BMI values (continuous):\n")
+#> First 10 BMI values (continuous):
 print(round(bmi_data$BMI[1:10], 4))
+#>  [1] 32.22 32.22 32.22 15.30 30.57 16.82 20.64 27.24 27.24 27.24
 
 # Visualise as density
 ggplot2$ggplot(bmi_data, ggplot2$aes(x = BMI)) +
@@ -260,6 +316,10 @@ ggplot2$ggplot(bmi_data, ggplot2$aes(x = BMI)) +
     ggplot2$theme_minimal()
 ```
 
+<Figure src="/courses/statistics-1-foundations/continuous_rv-1.png" alt="Continuous random variables can take any value in an interval">
+	Continuous random variables can take any value in an interval
+</Figure>
+
 ### 5.1.4 Notation Conventions
 
 **Standard Notation Used Throughout This Course**
@@ -276,7 +336,8 @@ ggplot2$ggplot(bmi_data, ggplot2$aes(x = BMI)) +
 | $\text{SD}(X)$ or $\sigma$ | Standard deviation | $\sigma = \sqrt{2.1} = 1.45$ |
 | $X \sim \text{Dist}(\theta)$ | $X$ follows distribution with parameter $\theta$ | $X \sim \text{Binomial}(n, p)$ |
 
-```{r notation_demo}
+
+``` r
 # Demonstrate notation with a concrete example
 
 set.seed(42)
@@ -290,28 +351,49 @@ n_sims <- 10000
 X_values <- rbinom(n_sims, n_flips, p_heads)
 
 cat("Notation in Practice\n")
+#> Notation in Practice
 cat("====================\n\n")
+#> ====================
 
 cat("Experiment: Flip a fair coin 5 times\n")
+#> Experiment: Flip a fair coin 5 times
 cat("Random variable: X = number of heads\n")
+#> Random variable: X = number of heads
 cat("Distribution: X ~ Binomial(n = 5, p = 0.5)\n\n")
+#> Distribution: X ~ Binomial(n = 5, p = 0.5)
 
 # Calculate probabilities
 cat("Probabilities:\n")
+#> Probabilities:
 for (x in 0:5) {
     p_exact <- mean(X_values == x)
     p_theory <- dbinom(x, n_flips, p_heads)
     cat(sprintf("  P(X = %d) = %.4f (simulated: %.4f)\n", x, p_theory, p_exact))
 }
+#>   P(X = 0) = 0.0312 (simulated: 0.0339)
+#>   P(X = 1) = 0.1562 (simulated: 0.1633)
+#>   P(X = 2) = 0.3125 (simulated: 0.3029)
+#>   P(X = 3) = 0.3125 (simulated: 0.3120)
+#>   P(X = 4) = 0.1562 (simulated: 0.1571)
+#>   P(X = 5) = 0.0312 (simulated: 0.0308)
 
 cat("\nCumulative probabilities:\n")
+#> 
+#> Cumulative probabilities:
 cat(sprintf("  P(X <= 2) = %.4f (probability of at most 2 heads)\n", pbinom(2, n_flips, p_heads)))
+#>   P(X <= 2) = 0.5000 (probability of at most 2 heads)
 cat(sprintf("  P(X > 3) = %.4f (probability of more than 3 heads)\n", 1 - pbinom(3, n_flips, p_heads)))
+#>   P(X > 3) = 0.1875 (probability of more than 3 heads)
 
 cat("\nExpected value and variance:\n")
+#> 
+#> Expected value and variance:
 cat(sprintf("  E(X) = np = 5 × 0.5 = %.1f\n", n_flips * p_heads))
+#>   E(X) = np = 5 <U+00D7> 0.5 = 2.5
 cat(sprintf("  Var(X) = np(1-p) = 5 × 0.5 × 0.5 = %.2f\n", n_flips * p_heads * (1 - p_heads)))
+#>   Var(X) = np(1-p) = 5 <U+00D7> 0.5 <U+00D7> 0.5 = 1.25
 cat(sprintf("  SD(X) = %.4f\n", sqrt(n_flips * p_heads * (1 - p_heads))))
+#>   SD(X) = 1.1180
 ```
 
 ---
@@ -345,7 +427,8 @@ and $p_X(x) = 0$ for $x \notin \mathcal{X}$.
 1. $p_X(x) \geq 0$ for all $x$
 2. $\sum_{x \in \mathcal{X}} p_X(x) = 1$
 
-```{r pmf_example, fig.cap="The PMF shows the probability of each value"}
+
+``` r
 # PMF of number of children in NHANES households
 
 # Create a simulated "number of chronic conditions" variable
@@ -362,14 +445,29 @@ pmf_dt <- pmf_dt[order(x)]
 pmf_dt[, p_x := count / sum(count)]
 
 cat("Probability Mass Function Example\n")
+#> Probability Mass Function Example
 cat("=================================\n\n")
+#> =================================
 cat("X = Number of chronic conditions\n")
+#> X = Number of chronic conditions
 cat("Support: {0, 1, 2, 3, 4, 5}\n\n")
+#> Support: {0, 1, 2, 3, 4, 5}
 
 cat("PMF Table:\n")
+#> PMF Table:
 print(pmf_dt[, .(x, `P(X=x)` = round(p_x, 4))])
+#>        x P(X=x)
+#>    <num>  <num>
+#> 1:     0 0.4426
+#> 2:     1 0.3600
+#> 3:     2 0.1508
+#> 4:     3 0.0388
+#> 5:     4 0.0060
+#> 6:     5 0.0018
 
 cat("\nVerification: Sum of PMF =", round(sum(pmf_dt$p_x), 4), "(should be 1)\n")
+#> 
+#> Verification: Sum of PMF = 1 (should be 1)
 
 # Visualise PMF
 ggplot2$ggplot(pmf_dt, ggplot2$aes(x = factor(x), y = p_x)) +
@@ -383,6 +481,10 @@ ggplot2$ggplot(pmf_dt, ggplot2$aes(x = factor(x), y = p_x)) +
     ) +
     ggplot2$theme_minimal()
 ```
+
+<Figure src="/courses/statistics-1-foundations/pmf_example-1.png" alt="The PMF shows the probability of each value">
+	The PMF shows the probability of each value
+</Figure>
 
 ### 5.2.2 Cumulative Distribution Function (CDF)
 
@@ -413,20 +515,36 @@ $$p_X(x) = F_X(x) - F_X(x^-)$$
 
 where $x^-$ is the value just before $x$.
 
-```{r cdf_example, fig.cap="The CDF accumulates probability from left to right"}
+
+``` r
 # Using the same PMF data, compute CDF
 
 pmf_dt[, F_x := cumsum(p_x)]
 
 cat("CDF from PMF\n")
+#> CDF from PMF
 cat("============\n\n")
+#> ============
 print(pmf_dt[, .(x, `p(x) = P(X=x)` = round(p_x, 4), `F(x) = P(X<=x)` = round(F_x, 4))])
+#>        x p(x) = P(X=x) F(x) = P(X<=x)
+#>    <num>         <num>          <num>
+#> 1:     0        0.4426         0.4426
+#> 2:     1        0.3600         0.8026
+#> 3:     2        0.1508         0.9534
+#> 4:     3        0.0388         0.9922
+#> 5:     4        0.0060         0.9982
+#> 6:     5        0.0018         1.0000
 
 cat("\nUsing CDF to answer questions:\n")
+#> 
+#> Using CDF to answer questions:
 cat("  P(X <= 2) = F(2) =", round(pmf_dt[x == 2, F_x], 4), "\n")
+#>   P(X <= 2) = F(2) = 0.9534
 cat("  P(X > 2) = 1 - F(2) =", round(1 - pmf_dt[x == 2, F_x], 4), "\n")
+#>   P(X > 2) = 1 - F(2) = 0.0466
 cat("  P(1 < X <= 3) = F(3) - F(1) =",
     round(pmf_dt[x == 3, F_x] - pmf_dt[x == 1, F_x], 4), "\n")
+#>   P(1 < X <= 3) = F(3) - F(1) = 0.1896
 
 # Visualise CDF (step function for discrete)
 # Create step data
@@ -466,6 +584,10 @@ ggplot2$ggplot() +
     ggplot2$theme_minimal()
 ```
 
+<Figure src="/courses/statistics-1-foundations/cdf_example-1.png" alt="The CDF accumulates probability from left to right">
+	The CDF accumulates probability from left to right
+</Figure>
+
 ### 5.2.3 Expected Value (Mean)
 
 **Prose and Intuition**
@@ -492,28 +614,44 @@ Also denoted $\mu$, $\mu_X$, or $\mathbb{E}[X]$.
 2. **Additivity:** $E(X + Y) = E(X) + E(Y)$ (even if $X$ and $Y$ are dependent!)
 3. For a constant $c$: $E(c) = c$
 
-```{r expected_value, fig.cap="Expected value as the balance point of the distribution"}
+
+``` r
 # Calculate expected value from scratch
 
 # Using our conditions PMF
 E_X_manual <- sum(pmf_dt$x * pmf_dt$p_x)
 
 cat("Expected Value Calculation\n")
+#> Expected Value Calculation
 cat("==========================\n\n")
+#> ==========================
 
 cat("Formula: E(X) = sum of x * P(X = x)\n\n")
+#> Formula: E(X) = sum of x * P(X = x)
 
 cat("Calculation:\n")
+#> Calculation:
 for (i in 1:nrow(pmf_dt)) {
     cat(sprintf("  %d × %.4f = %.4f\n", pmf_dt$x[i], pmf_dt$p_x[i],
                 pmf_dt$x[i] * pmf_dt$p_x[i]))
 }
+#>   0 <U+00D7> 0.4426 = 0.0000
+#>   1 <U+00D7> 0.3600 = 0.3600
+#>   2 <U+00D7> 0.1508 = 0.3016
+#>   3 <U+00D7> 0.0388 = 0.1164
+#>   4 <U+00D7> 0.0060 = 0.0240
+#>   5 <U+00D7> 0.0018 = 0.0090
 cat("  -----------------\n")
+#>   -----------------
 cat(sprintf("  E(X) = %.4f\n", E_X_manual))
+#>   E(X) = 0.8110
 
 # Verify with simulation
 cat("\nVerification:\n")
+#> 
+#> Verification:
 cat(sprintf("  Mean of simulated data: %.4f\n", mean(conditions)))
+#>   Mean of simulated data: 0.8110
 
 # Visualise expected value as balance point
 ggplot2$ggplot(pmf_dt, ggplot2$aes(x = x, y = p_x)) +
@@ -532,6 +670,10 @@ ggplot2$ggplot(pmf_dt, ggplot2$aes(x = x, y = p_x)) +
     ggplot2$theme_minimal()
 ```
 
+<Figure src="/courses/statistics-1-foundations/expected_value-1.png" alt="Expected value as the balance point of the distribution">
+	Expected value as the balance point of the distribution
+</Figure>
+
 **Expected Value of Functions of X**
 
 If $g(X)$ is a function of $X$, then:
@@ -540,28 +682,46 @@ $$E[g(X)] = \sum_{x} g(x) \cdot p(x)$$
 
 This is called the **law of the unconscious statistician** (LOTUS).
 
-```{r lotus_example}
+
+``` r
 # Example: E(X²)
 
 E_X_squared <- sum(pmf_dt$x^2 * pmf_dt$p_x)
 
 cat("Law of the Unconscious Statistician (LOTUS)\n")
+#> Law of the Unconscious Statistician (LOTUS)
 cat("============================================\n\n")
+#> ============================================
 
 cat("To find E(X²), we don't need the distribution of X².\n")
+#> To find E(X<U+00B2>), we don't need the distribution of X<U+00B2>.
 cat("Instead: E(X²) = sum of x² × P(X = x)\n\n")
+#> Instead: E(X<U+00B2>) = sum of x<U+00B2> <U+00D7> P(X = x)
 
 cat("Calculation:\n")
+#> Calculation:
 for (i in 1:nrow(pmf_dt)) {
     cat(sprintf("  %d² × %.4f = %d × %.4f = %.4f\n",
                 pmf_dt$x[i], pmf_dt$p_x[i],
                 pmf_dt$x[i]^2, pmf_dt$p_x[i],
                 pmf_dt$x[i]^2 * pmf_dt$p_x[i]))
 }
+#>   0<U+00B2> <U+00D7> 0.4426 = 0 <U+00D7> 0.4426 = 0.0000
+#>   1<U+00B2> <U+00D7> 0.3600 = 1 <U+00D7> 0.3600 = 0.3600
+#>   2<U+00B2> <U+00D7> 0.1508 = 4 <U+00D7> 0.1508 = 0.6032
+#>   3<U+00B2> <U+00D7> 0.0388 = 9 <U+00D7> 0.0388 = 0.3492
+#>   4<U+00B2> <U+00D7> 0.0060 = 16 <U+00D7> 0.0060 = 0.0960
+#>   5<U+00B2> <U+00D7> 0.0018 = 25 <U+00D7> 0.0018 = 0.0450
 cat("  -----------------\n")
+#>   -----------------
 cat(sprintf("  E(X²) = %.4f\n", E_X_squared))
+#>   E(X<U+00B2>) = 1.4534
 cat(sprintf("\n  Compare: [E(X)]² = %.4f² = %.4f\n", E_X_manual, E_X_manual^2))
+#> 
+#>   Compare: [E(X)]<U+00B2> = 0.8110<U+00B2> = 0.6577
 cat("\n  Note: E(X²) != [E(X)]² in general!\n")
+#> 
+#>   Note: E(X<U+00B2>) != [E(X)]<U+00B2> in general!
 ```
 
 ### 5.2.4 Variance and Standard Deviation
@@ -599,7 +759,8 @@ $$= E(X^2) - 2\mu E(X) + \mu^2 = E(X^2) - 2\mu^2 + \mu^2 = E(X^2) - \mu^2$$
 2. $\text{Var}(aX + b) = a^2 \text{Var}(X)$ (constants drop out; scaling squares)
 3. For independent $X$ and $Y$: $\text{Var}(X + Y) = \text{Var}(X) + \text{Var}(Y)$
 
-```{r variance_derivation, fig.cap="Variance measures spread around the mean"}
+
+``` r
 # Calculate variance from scratch using both formulas
 
 mu <- E_X_manual
@@ -611,12 +772,17 @@ var_definition <- sum((pmf_dt$x - mu)^2 * pmf_dt$p_x)
 var_computational <- E_X_squared - mu^2
 
 cat("Variance Calculation\n")
+#> Variance Calculation
 cat("====================\n\n")
+#> ====================
 
 cat("Definition: Var(X) = E[(X - μ)²]\n")
+#> Definition: Var(X) = E[(X - <U+03BC>)<U+00B2>]
 cat(sprintf("  μ = %.4f\n\n", mu))
+#>   <U+03BC> = 0.8110
 
 cat("Using definition formula:\n")
+#> Using definition formula:
 for (i in 1:nrow(pmf_dt)) {
     deviation <- pmf_dt$x[i] - mu
     cat(sprintf("  (%.0f - %.2f)² × %.4f = %.4f × %.4f = %.4f\n",
@@ -624,15 +790,28 @@ for (i in 1:nrow(pmf_dt)) {
                 deviation^2, pmf_dt$p_x[i],
                 deviation^2 * pmf_dt$p_x[i]))
 }
+#>   (0 - 0.81)<U+00B2> <U+00D7> 0.4426 = 0.6577 <U+00D7> 0.4426 = 0.2911
+#>   (1 - 0.81)<U+00B2> <U+00D7> 0.3600 = 0.0357 <U+00D7> 0.3600 = 0.0129
+#>   (2 - 0.81)<U+00B2> <U+00D7> 0.1508 = 1.4137 <U+00D7> 0.1508 = 0.2132
+#>   (3 - 0.81)<U+00B2> <U+00D7> 0.0388 = 4.7917 <U+00D7> 0.0388 = 0.1859
+#>   (4 - 0.81)<U+00B2> <U+00D7> 0.0060 = 10.1697 <U+00D7> 0.0060 = 0.0610
+#>   (5 - 0.81)<U+00B2> <U+00D7> 0.0018 = 17.5477 <U+00D7> 0.0018 = 0.0316
 cat("  -----------------\n")
+#>   -----------------
 cat(sprintf("  Var(X) = %.4f\n\n", var_definition))
+#>   Var(X) = 0.7957
 
 cat("Using computational formula: Var(X) = E(X²) - [E(X)]²\n")
+#> Using computational formula: Var(X) = E(X<U+00B2>) - [E(X)]<U+00B2>
 cat(sprintf("  Var(X) = %.4f - %.4f² = %.4f - %.4f = %.4f\n",
             E_X_squared, mu, E_X_squared, mu^2, var_computational))
+#>   Var(X) = 1.4534 - 0.8110<U+00B2> = 1.4534 - 0.6577 = 0.7957
 
 cat("\nStandard Deviation:\n")
+#> 
+#> Standard Deviation:
 cat(sprintf("  SD(X) = sqrt(Var(X)) = sqrt(%.4f) = %.4f\n", var_definition, sqrt(var_definition)))
+#>   SD(X) = sqrt(Var(X)) = sqrt(0.7957) = 0.8920
 
 # Visualise variance as spread
 ggplot2$ggplot(pmf_dt, ggplot2$aes(x = x, y = p_x)) +
@@ -653,6 +832,10 @@ ggplot2$ggplot(pmf_dt, ggplot2$aes(x = x, y = p_x)) +
     ) +
     ggplot2$theme_minimal()
 ```
+
+<Figure src="/courses/statistics-1-foundations/variance_derivation-1.png" alt="Variance measures spread around the mean">
+	Variance measures spread around the mean
+</Figure>
 
 ---
 
@@ -688,7 +871,8 @@ $$p(x) = p^x (1-p)^{1-x} \quad \text{for } x \in \{0, 1\}$$
 - When $x = 1$: $p^1(1-p)^{1-1} = p \cdot (1-p)^0 = p \cdot 1 = p$ ✓
 - When $x = 0$: $p^0(1-p)^{1-0} = 1 \cdot (1-p) = 1-p$ ✓
 
-```{r bernoulli_pmf, fig.cap="Bernoulli PMF for different success probabilities"}
+
+``` r
 # Visualise Bernoulli PMF for different values of p
 
 p_values <- c(0.1, 0.3, 0.5, 0.7, 0.9)
@@ -721,6 +905,10 @@ ggplot2$ggplot(bernoulli_dt, ggplot2$aes(x = factor(x), y = probability, fill = 
     ggplot2$theme(legend.position = "bottom")
 ```
 
+<Figure src="/courses/statistics-1-foundations/bernoulli_pmf-1.png" alt="Bernoulli PMF for different success probabilities">
+	Bernoulli PMF for different success probabilities
+</Figure>
+
 ### 5.3.2 Mean and Variance
 
 **Mathematical Derivation**
@@ -737,7 +925,8 @@ $$\text{Var}(X) = 0.5 \times 0.5 = 0.25$$
 
 And minimised (= 0) when $p = 0$ or $p = 1$ (no uncertainty).
 
-```{r bernoulli_variance, fig.cap="Bernoulli variance is maximised when p = 0.5"}
+
+``` r
 # Show how variance changes with p
 
 p_seq <- seq(0, 1, by = 0.01)
@@ -746,16 +935,27 @@ variance_seq <- p_seq * (1 - p_seq)
 var_dt <- data.table(p = p_seq, variance = variance_seq)
 
 cat("Bernoulli Distribution: Mean and Variance\n")
+#> Bernoulli Distribution: Mean and Variance
 cat("==========================================\n\n")
+#> ==========================================
 
 cat("For X ~ Bernoulli(p):\n")
+#> For X ~ Bernoulli(p):
 cat("  E(X) = p\n")
+#>   E(X) = p
 cat("  Var(X) = p(1-p)\n\n")
+#>   Var(X) = p(1-p)
 
 cat("Example calculations:\n")
+#> Example calculations:
 for (p in c(0.1, 0.3, 0.5, 0.7, 0.9)) {
     cat(sprintf("  p = %.1f: E(X) = %.1f, Var(X) = %.2f\n", p, p, p * (1 - p)))
 }
+#>   p = 0.1: E(X) = 0.1, Var(X) = 0.09
+#>   p = 0.3: E(X) = 0.3, Var(X) = 0.21
+#>   p = 0.5: E(X) = 0.5, Var(X) = 0.25
+#>   p = 0.7: E(X) = 0.7, Var(X) = 0.21
+#>   p = 0.9: E(X) = 0.9, Var(X) = 0.09
 
 ggplot2$ggplot(var_dt, ggplot2$aes(x = p, y = variance)) +
     ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
@@ -774,11 +974,16 @@ ggplot2$ggplot(var_dt, ggplot2$aes(x = p, y = variance)) +
     ggplot2$theme_minimal()
 ```
 
+<Figure src="/courses/statistics-1-foundations/bernoulli_variance-1.png" alt="Bernoulli variance is maximised when p = 0.5">
+	Bernoulli variance is maximised when p = 0.5
+</Figure>
+
 ### 5.3.3 Implementation
 
 **From Scratch Implementation**
 
-```{r bernoulli_from_scratch}
+
+``` r
 # Implement Bernoulli distribution functions from scratch
 
 # dbernoulli: PMF - P(X = x)
@@ -822,69 +1027,101 @@ rbernoulli <- function(n, p) {
 
 # Test our implementations
 cat("Bernoulli Functions: From Scratch Implementation\n")
+#> Bernoulli Functions: From Scratch Implementation
 cat("=================================================\n\n")
+#> =================================================
 
 p <- 0.3
 
 cat("Parameter: p =", p, "\n\n")
+#> Parameter: p = 0.3
 
 # PMF
 cat("PMF (dbernoulli):\n")
+#> PMF (dbernoulli):
 cat("  P(X = 0) =", dbernoulli(0, p), "\n")
+#>   P(X = 0) = 0.7
 cat("  P(X = 1) =", dbernoulli(1, p), "\n\n")
+#>   P(X = 1) = 0.3
 
 # CDF
 cat("CDF (pbernoulli):\n")
+#> CDF (pbernoulli):
 cat("  P(X <= -0.5) =", pbernoulli(-0.5, p), "\n")
+#>   P(X <= -0.5) = 0
 cat("  P(X <= 0) =", pbernoulli(0, p), "\n")
+#>   P(X <= 0) = 0.7
 cat("  P(X <= 0.5) =", pbernoulli(0.5, p), "\n")
+#>   P(X <= 0.5) = 0.7
 cat("  P(X <= 1) =", pbernoulli(1, p), "\n\n")
+#>   P(X <= 1) = 1
 
 # Quantiles
 cat("Quantile (qbernoulli):\n")
+#> Quantile (qbernoulli):
 cat("  Q(0.5) =", qbernoulli(0.5, p), "\n")
+#>   Q(0.5) = 0
 cat("  Q(0.7) =", qbernoulli(0.7, p), "\n")
+#>   Q(0.7) = 0
 cat("  Q(0.9) =", qbernoulli(0.9, p), "\n\n")
+#>   Q(0.9) = 1
 
 # Random generation
 set.seed(42)
 samples <- rbernoulli(1000, p)
 cat("Random samples (rbernoulli):\n")
+#> Random samples (rbernoulli):
 cat("  First 20:", samples[1:20], "\n")
+#>   First 20: 0 0 1 0 0 0 0 1 0 0 0 0 0 1 0 0 0 1 0 0
 cat("  Proportion of 1s:", mean(samples), "(should be close to", p, ")\n")
+#>   Proportion of 1s: 0.311 (should be close to 0.3 )
 ```
 
 **Comparison with R's Built-in Functions**
 
 R doesn't have dedicated Bernoulli functions, but since Bernoulli(p) = Binomial(1, p), we use the binomial functions:
 
-```{r bernoulli_builtin}
+
+``` r
 # R's binomial functions work for Bernoulli when n = 1
 
 p <- 0.3
 
 cat("R Built-in Functions (using Binomial with n = 1)\n")
+#> R Built-in Functions (using Binomial with n = 1)
 cat("================================================\n\n")
+#> ================================================
 
 # Compare our functions to R's
 cat("PMF comparison:\n")
+#> PMF comparison:
 cat("  Our dbernoulli(0, 0.3) =", dbernoulli(0, p), "\n")
+#>   Our dbernoulli(0, 0.3) = 0.7
 cat("  R's dbinom(0, 1, 0.3) =", dbinom(0, 1, p), "\n\n")
+#>   R's dbinom(0, 1, 0.3) = 0.7
 
 cat("CDF comparison:\n")
+#> CDF comparison:
 cat("  Our pbernoulli(0, 0.3) =", pbernoulli(0, p), "\n")
+#>   Our pbernoulli(0, 0.3) = 0.7
 cat("  R's pbinom(0, 1, 0.3) =", pbinom(0, 1, p), "\n\n")
+#>   R's pbinom(0, 1, 0.3) = 0.7
 
 cat("Quantile comparison:\n")
+#> Quantile comparison:
 cat("  Our qbernoulli(0.8, 0.3) =", qbernoulli(0.8, p), "\n")
+#>   Our qbernoulli(0.8, 0.3) = 1
 cat("  R's qbinom(0.8, 1, 0.3) =", qbinom(0.8, 1, p), "\n\n")
+#>   R's qbinom(0.8, 1, 0.3) = 1
 
 cat("Random generation:\n")
+#> Random generation:
 set.seed(42)
 our_samples <- rbernoulli(1000, p)
 set.seed(42)
 r_samples <- rbinom(1000, 1, p)
 cat("  Samples match:", all(our_samples == r_samples), "\n")
+#>   Samples match: FALSE
 ```
 
 ---
@@ -920,7 +1157,8 @@ The support is $\{0, 1, 2, \ldots, n\}$.
 **Relationship to Bernoulli:** If $X_1, X_2, \ldots, X_n$ are independent Bernoulli($p$) random variables, then:
 $$X = X_1 + X_2 + \cdots + X_n \sim \text{Binomial}(n, p)$$
 
-```{r binomial_intro, fig.cap="The binomial distribution counts successes in n trials"}
+
+``` r
 # Demonstrate binomial as sum of Bernoulli trials
 
 set.seed(42)
@@ -940,14 +1178,22 @@ binom_dt <- data.table(x = direct_binomial, method = "Direct Binomial")
 compare_dt <- rbindlist(list(sum_dt, binom_dt))
 
 cat("Binomial = Sum of Bernoulli Trials\n")
+#> Binomial = Sum of Bernoulli Trials
 cat("===================================\n\n")
+#> ===================================
 
 cat("If X₁, X₂, ..., X₁₀ ~ Bernoulli(0.3) are independent, then:\n")
+#> If X<U+2081>, X<U+2082>, ..., X<U+2081><U+2080> ~ Bernoulli(0.3) are independent, then:
 cat("X = X₁ + X₂ + ... + X₁₀ ~ Binomial(10, 0.3)\n\n")
+#> X = X<U+2081> + X<U+2082> + ... + X<U+2081><U+2080> ~ Binomial(10, 0.3)
 
 # Show they have same distribution
 summary_dt <- compare_dt[, .(mean = mean(x), var = var(x)), by = method]
 print(summary_dt)
+#>              method   mean      var
+#>              <char>  <num>    <num>
+#> 1: Sum of Bernoulli 2.9944 2.092178
+#> 2:  Direct Binomial 3.0008 2.107810
 
 # Visualise
 ggplot2$ggplot(compare_dt, ggplot2$aes(x = x, fill = method)) +
@@ -964,6 +1210,10 @@ ggplot2$ggplot(compare_dt, ggplot2$aes(x = x, fill = method)) +
     ggplot2$theme_minimal() +
     ggplot2$theme(legend.position = "bottom")
 ```
+
+<Figure src="/courses/statistics-1-foundations/binomial_intro-1.png" alt="The binomial distribution counts successes in n trials">
+	The binomial distribution counts successes in n trials
+</Figure>
 
 ### 5.4.2 PMF Derivation
 
@@ -987,16 +1237,20 @@ $$P(X = 2) = \binom{3}{2} p^2 (1-p)^1 = 3 \cdot p^2 (1-p)$$
 
 The three arrangements: SSF, SFS, FSS (where S = success, F = failure)
 
-```{r binomial_pmf_derivation, fig.cap="Deriving the binomial PMF step by step"}
+
+``` r
 # Show the derivation step by step
 
 n <- 5
 p <- 0.3
 
 cat("Binomial PMF Derivation: n = 5, p = 0.3\n")
+#> Binomial PMF Derivation: n = 5, p = 0.3
 cat("=======================================\n\n")
+#> =======================================
 
 cat("P(X = k) = C(n,k) × p^k × (1-p)^(n-k)\n\n")
+#> P(X = k) = C(n,k) <U+00D7> p^k <U+00D7> (1-p)^(n-k)
 
 pmf_table <- data.table(k = 0:n)
 pmf_table[, combinations := choose(n, k)]
@@ -1005,6 +1259,7 @@ pmf_table[, q_power := (1-p)^(n-k)]
 pmf_table[, P_X_k := combinations * p_power * q_power]
 
 cat("Step-by-step calculation:\n\n")
+#> Step-by-step calculation:
 for (k in 0:n) {
     cat(sprintf("k = %d:\n", k))
     cat(sprintf("  C(%d,%d) = %d (number of ways to choose %d successes from %d trials)\n",
@@ -1014,14 +1269,61 @@ for (k in 0:n) {
     cat(sprintf("  P(X = %d) = %d × %.6f × %.6f = %.6f\n\n",
                 k, choose(n, k), p^k, (1-p)^(n-k), dbinom(k, n, p)))
 }
+#> k = 0:
+#>   C(5,0) = 1 (number of ways to choose 0 successes from 5 trials)
+#>   p^0 = 0.300^0 = 1.000000
+#>   (1-p)^5 = 0.7^5 = 0.168070
+#>   P(X = 0) = 1 <U+00D7> 1.000000 <U+00D7> 0.168070 = 0.168070
+#> 
+#> k = 1:
+#>   C(5,1) = 5 (number of ways to choose 1 successes from 5 trials)
+#>   p^1 = 0.300^1 = 0.300000
+#>   (1-p)^4 = 0.7^4 = 0.240100
+#>   P(X = 1) = 5 <U+00D7> 0.300000 <U+00D7> 0.240100 = 0.360150
+#> 
+#> k = 2:
+#>   C(5,2) = 10 (number of ways to choose 2 successes from 5 trials)
+#>   p^2 = 0.300^2 = 0.090000
+#>   (1-p)^3 = 0.7^3 = 0.343000
+#>   P(X = 2) = 10 <U+00D7> 0.090000 <U+00D7> 0.343000 = 0.308700
+#> 
+#> k = 3:
+#>   C(5,3) = 10 (number of ways to choose 3 successes from 5 trials)
+#>   p^3 = 0.300^3 = 0.027000
+#>   (1-p)^2 = 0.7^2 = 0.490000
+#>   P(X = 3) = 10 <U+00D7> 0.027000 <U+00D7> 0.490000 = 0.132300
+#> 
+#> k = 4:
+#>   C(5,4) = 5 (number of ways to choose 4 successes from 5 trials)
+#>   p^4 = 0.300^4 = 0.008100
+#>   (1-p)^1 = 0.7^1 = 0.700000
+#>   P(X = 4) = 5 <U+00D7> 0.008100 <U+00D7> 0.700000 = 0.028350
+#> 
+#> k = 5:
+#>   C(5,5) = 1 (number of ways to choose 5 successes from 5 trials)
+#>   p^5 = 0.300^5 = 0.002430
+#>   (1-p)^0 = 0.7^0 = 1.000000
+#>   P(X = 5) = 1 <U+00D7> 0.002430 <U+00D7> 1.000000 = 0.002430
 
 cat("\nFull PMF table:\n")
+#> 
+#> Full PMF table:
 print(pmf_table[, .(k, `C(n,k)` = combinations,
                     `p^k` = round(p_power, 6),
                     `(1-p)^(n-k)` = round(q_power, 6),
                     `P(X=k)` = round(P_X_k, 6))])
+#>        k C(n,k)     p^k (1-p)^(n-k)  P(X=k)
+#>    <int>  <num>   <num>       <num>   <num>
+#> 1:     0      1 1.00000     0.16807 0.16807
+#> 2:     1      5 0.30000     0.24010 0.36015
+#> 3:     2     10 0.09000     0.34300 0.30870
+#> 4:     3     10 0.02700     0.49000 0.13230
+#> 5:     4      5 0.00810     0.70000 0.02835
+#> 6:     5      1 0.00243     1.00000 0.00243
 
 cat("\nSum of probabilities:", round(sum(pmf_table$P_X_k), 6), "(should be 1)\n")
+#> 
+#> Sum of probabilities: 1 (should be 1)
 
 # Visualise with annotations
 ggplot2$ggplot(pmf_table, ggplot2$aes(x = k, y = P_X_k)) +
@@ -1037,6 +1339,10 @@ ggplot2$ggplot(pmf_table, ggplot2$aes(x = k, y = P_X_k)) +
     ggplot2$scale_x_continuous(breaks = 0:n) +
     ggplot2$theme_minimal()
 ```
+
+<Figure src="/courses/statistics-1-foundations/binomial_pmf_derivation-1.png" alt="Deriving the binomial PMF step by step">
+	Deriving the binomial PMF step by step
+</Figure>
 
 ### 5.4.3 Mean and Variance
 
@@ -1060,7 +1366,8 @@ $$= p(1-p) + p(1-p) + \cdots + p(1-p) = np(1-p)$$
 - $\text{Var}(X) = np(1-p)$
 - $\text{SD}(X) = \sqrt{np(1-p)}$
 
-```{r binomial_mean_var}
+
+``` r
 # Verify mean and variance formulas
 
 n <- 20
@@ -1077,19 +1384,30 @@ E_X_sim <- mean(samples)
 Var_X_sim <- var(samples)
 
 cat("Binomial Mean and Variance\n")
+#> Binomial Mean and Variance
 cat("==========================\n\n")
+#> ==========================
 
 cat(sprintf("X ~ Binomial(n = %d, p = %.1f)\n\n", n, p))
+#> X ~ Binomial(n = 20, p = 0.4)
 
 cat("Theoretical:\n")
+#> Theoretical:
 cat(sprintf("  E(X) = np = %d × %.1f = %.1f\n", n, p, E_X_theory))
+#>   E(X) = np = 20 <U+00D7> 0.4 = 8.0
 cat(sprintf("  Var(X) = np(1-p) = %d × %.1f × %.1f = %.2f\n", n, p, 1-p, Var_X_theory))
+#>   Var(X) = np(1-p) = 20 <U+00D7> 0.4 <U+00D7> 0.6 = 4.80
 cat(sprintf("  SD(X) = sqrt(%.2f) = %.4f\n\n", Var_X_theory, sqrt(Var_X_theory)))
+#>   SD(X) = sqrt(4.80) = 2.1909
 
 cat("Simulation (100,000 samples):\n")
+#> Simulation (100,000 samples):
 cat(sprintf("  Mean: %.4f\n", E_X_sim))
+#>   Mean: 8.0045
 cat(sprintf("  Variance: %.4f\n", Var_X_sim))
+#>   Variance: 4.8403
 cat(sprintf("  SD: %.4f\n", sd(samples)))
+#>   SD: 2.2001
 ```
 
 ### 5.4.4 Shape and Parameters
@@ -1104,7 +1422,8 @@ The binomial distribution's shape depends on both parameters:
 
 - **Symmetry condition:** The distribution is symmetric when $p = 0.5$, regardless of $n$.
 
-```{r binomial_shapes, fig.cap="How n and p affect the binomial distribution shape"}
+
+``` r
 # Create grid of distributions for different n and p
 
 n_values <- c(5, 15, 50)
@@ -1137,6 +1456,10 @@ ggplot2$ggplot(shape_dt, ggplot2$aes(x = k, y = prob)) +
     ggplot2$theme(strip.text = ggplot2$element_text(size = 10, face = "bold"))
 ```
 
+<Figure src="/courses/statistics-1-foundations/binomial_shapes-1.png" alt="How n and p affect the binomial distribution shape">
+	How n and p affect the binomial distribution shape
+</Figure>
+
 **Rule of Thumb for Symmetry**
 
 The binomial distribution is approximately symmetric when both:
@@ -1145,11 +1468,14 @@ The binomial distribution is approximately symmetric when both:
 
 This is also the condition for the normal approximation to work well.
 
-```{r symmetry_rule}
+
+``` r
 # Demonstrate the symmetry rule
 
 cat("Binomial Symmetry Rule of Thumb\n")
+#> Binomial Symmetry Rule of Thumb
 cat("================================\n\n")
+#> ================================
 
 cases <- data.table(
     n = c(20, 100, 20, 100),
@@ -1161,7 +1487,14 @@ cases[, `n(1-p)` := n * (1 - p)]
 cases[, symmetric := np >= 10 & `n(1-p)` >= 10]
 
 cat("Rule: Distribution is approximately symmetric when np >= 10 AND n(1-p) >= 10\n\n")
+#> Rule: Distribution is approximately symmetric when np >= 10 AND n(1-p) >= 10
 print(cases)
+#>        n     p    np n(1-p) symmetric
+#>    <num> <num> <num>  <num>    <lgcl>
+#> 1:    20  0.10     2     18     FALSE
+#> 2:   100  0.10    10     90      TRUE
+#> 3:    20  0.50    10     10      TRUE
+#> 4:   100  0.05     5     95     FALSE
 ```
 
 ### 5.4.5 Implementation from Scratch
@@ -1176,7 +1509,8 @@ R uses a consistent naming convention for distribution functions:
 
 Let's implement these for the binomial distribution:
 
-```{r binomial_from_scratch}
+
+``` r
 # Implement binomial distribution functions from scratch
 
 # dbinom_scratch: PMF
@@ -1253,54 +1587,83 @@ n <- 10
 p <- 0.3
 
 cat("Binomial Functions: From Scratch vs R Built-in\n")
+#> Binomial Functions: From Scratch vs R Built-in
 cat("===============================================\n\n")
+#> ===============================================
 
 cat(sprintf("Parameters: n = %d, p = %.1f\n\n", n, p))
+#> Parameters: n = 10, p = 0.3
 
 # PMF comparison
 cat("PMF (dbinom):\n")
+#> PMF (dbinom):
 for (k in c(0, 2, 5, 8, 10)) {
     our_val <- dbinom_scratch(k, n, p)
     r_val <- dbinom(k, n, p)
     cat(sprintf("  P(X = %d): ours = %.6f, R = %.6f, match = %s\n",
                 k, our_val, r_val, abs(our_val - r_val) < 1e-10))
 }
+#>   P(X = 0): ours = 0.028248, R = 0.028248, match = TRUE
+#>   P(X = 2): ours = 0.233474, R = 0.233474, match = TRUE
+#>   P(X = 5): ours = 0.102919, R = 0.102919, match = TRUE
+#>   P(X = 8): ours = 0.001447, R = 0.001447, match = TRUE
+#>   P(X = 10): ours = 0.000006, R = 0.000006, match = TRUE
 
 # CDF comparison
 cat("\nCDF (pbinom):\n")
+#> 
+#> CDF (pbinom):
 for (q in c(0, 2, 5, 8, 10)) {
     our_val <- pbinom_scratch(q, n, p)
     r_val <- pbinom(q, n, p)
     cat(sprintf("  P(X <= %d): ours = %.6f, R = %.6f, match = %s\n",
                 q, our_val, r_val, abs(our_val - r_val) < 1e-10))
 }
+#>   P(X <= 0): ours = 0.028248, R = 0.028248, match = TRUE
+#>   P(X <= 2): ours = 0.382783, R = 0.382783, match = TRUE
+#>   P(X <= 5): ours = 0.952651, R = 0.952651, match = TRUE
+#>   P(X <= 8): ours = 0.999856, R = 0.999856, match = TRUE
+#>   P(X <= 10): ours = 1.000000, R = 1.000000, match = TRUE
 
 # Quantile comparison
 cat("\nQuantiles (qbinom):\n")
+#> 
+#> Quantiles (qbinom):
 for (prob in c(0.1, 0.25, 0.5, 0.75, 0.9)) {
     our_val <- qbinom_scratch(prob, n, p)
     r_val <- qbinom(prob, n, p)
     cat(sprintf("  Q(%.2f): ours = %d, R = %d, match = %s\n",
                 prob, our_val, r_val, our_val == r_val))
 }
+#>   Q(0.10): ours = 1, R = 1, match = TRUE
+#>   Q(0.25): ours = 2, R = 2, match = TRUE
+#>   Q(0.50): ours = 3, R = 3, match = TRUE
+#>   Q(0.75): ours = 4, R = 4, match = TRUE
+#>   Q(0.90): ours = 5, R = 5, match = TRUE
 
 # Random generation comparison
 cat("\nRandom generation (rbinom):\n")
+#> 
+#> Random generation (rbinom):
 set.seed(42)
 our_samples <- rbinom_scratch(10000, n, p)
 set.seed(42)  # Reset seed for fair comparison
 r_samples <- rbinom(10000, n, p)
 
 cat(sprintf("  Our mean: %.4f, R mean: %.4f\n", mean(our_samples), mean(r_samples)))
+#>   Our mean: 2.9944, R mean: 2.9878
 cat(sprintf("  Our var: %.4f, R var: %.4f\n", var(our_samples), var(r_samples)))
+#>   Our var: 2.0922, R var: 2.1265
 cat(sprintf("  Theoretical mean: %.1f, var: %.2f\n", n*p, n*p*(1-p)))
+#>   Theoretical mean: 3.0, var: 2.10
 ```
 
 ### 5.4.6 Applications
 
 **Medical Application: Clinical Trial Response Rate**
 
-```{r binomial_clinical_trial, fig.cap="Binomial distribution applied to clinical trial outcomes"}
+
+``` r
 # Example: Drug response in a clinical trial
 
 # Setting: Phase II oncology trial
@@ -1313,24 +1676,36 @@ p_historical <- 0.20
 observed_responders <- 10
 
 cat("Clinical Trial Example: Drug Response\n")
+#> Clinical Trial Example: Drug Response
 cat("======================================\n\n")
+#> ======================================
 
 cat(sprintf("Setting:\n"))
+#> Setting:
 cat(sprintf("  Sample size: n = %d patients\n", n_patients))
+#>   Sample size: n = 30 patients
 cat(sprintf("  Historical response rate: p = %.0f%%\n", p_historical * 100))
+#>   Historical response rate: p = 20%
 cat(sprintf("  Observed responders: %d\n\n", observed_responders))
+#>   Observed responders: 10
 
 # What's the probability of observing 10 or more responders if true rate is 20%?
 p_at_least_observed <- 1 - pbinom(observed_responders - 1, n_patients, p_historical)
 
 cat("Question: If the drug is no better than historical treatment,\n")
+#> Question: If the drug is no better than historical treatment,
 cat("what is P(X >= 10)?\n\n")
+#> what is P(X >= 10)?
 
 cat(sprintf("P(X >= 10 | p = 0.20) = 1 - P(X <= 9)\n"))
+#> P(X >= 10 | p = 0.20) = 1 - P(X <= 9)
 cat(sprintf("                     = 1 - %.6f\n", pbinom(observed_responders - 1, n_patients, p_historical)))
+#>                      = 1 - 0.938913
 cat(sprintf("                     = %.6f\n\n", p_at_least_observed))
+#>                      = 0.061087
 
 cat("Interpretation:\n")
+#> Interpretation:
 if (p_at_least_observed < 0.05) {
     cat("  This is unlikely under the null hypothesis (p < 0.05).\n")
     cat("  Evidence suggests the new drug may have a higher response rate.\n")
@@ -1338,6 +1713,8 @@ if (p_at_least_observed < 0.05) {
     cat("  This could plausibly occur under the null hypothesis.\n")
     cat("  Insufficient evidence for a higher response rate.\n")
 }
+#>   This could plausibly occur under the null hypothesis.
+#>   Insufficient evidence for a higher response rate.
 
 # Visualise
 x_vals <- 0:n_patients
@@ -1366,9 +1743,14 @@ ggplot2$ggplot(pmf_dt, ggplot2$aes(x = x, y = prob, fill = region)) +
     ggplot2$theme(legend.position = "bottom")
 ```
 
+<Figure src="/courses/statistics-1-foundations/binomial_clinical_trial-1.png" alt="Binomial distribution applied to clinical trial outcomes">
+	Binomial distribution applied to clinical trial outcomes
+</Figure>
+
 **Genetics Application: Mendelian Inheritance**
 
-```{r binomial_genetics}
+
+``` r
 # Example: Mendelian genetics - expected phenotype ratios
 
 # Cross between two heterozygous parents (Aa × Aa)
@@ -1378,22 +1760,35 @@ p_recessive <- 0.25
 n_offspring <- 8
 
 cat("Genetics Example: Mendelian Inheritance\n")
+#> Genetics Example: Mendelian Inheritance
 cat("=======================================\n\n")
+#> =======================================
 
 cat("Setting:\n")
+#> Setting:
 cat("  Cross: Aa × Aa (heterozygous parents)\n")
+#>   Cross: Aa <U+00D7> Aa (heterozygous parents)
 cat("  Probability of recessive phenotype (aa): 1/4 = 0.25\n")
+#>   Probability of recessive phenotype (aa): 1/4 = 0.25
 cat(sprintf("  Number of offspring observed: %d\n\n", n_offspring))
+#>   Number of offspring observed: 8
 
 # Calculate various probabilities
 cat("Probability calculations:\n")
+#> Probability calculations:
 cat(sprintf("  P(exactly 2 recessive): %.4f\n", dbinom(2, n_offspring, p_recessive)))
+#>   P(exactly 2 recessive): 0.3115
 cat(sprintf("  P(at least 1 recessive): %.4f\n", 1 - dbinom(0, n_offspring, p_recessive)))
+#>   P(at least 1 recessive): 0.8999
 cat(sprintf("  P(all dominant): %.4f\n", dbinom(0, n_offspring, p_recessive)))
+#>   P(all dominant): 0.1001
 cat(sprintf("  P(more than half recessive): %.4f\n",
             1 - pbinom(n_offspring/2, n_offspring, p_recessive)))
+#>   P(more than half recessive): 0.0273
 
 cat(sprintf("\n  Expected number of recessive: E(X) = np = %.1f\n", n_offspring * p_recessive))
+#> 
+#>   Expected number of recessive: E(X) = np = 2.0
 
 # Distribution plot
 x_vals <- 0:n_offspring
@@ -1416,9 +1811,14 @@ ggplot2$ggplot(genetics_dt, ggplot2$aes(x = factor(x), y = prob)) +
     ggplot2$theme_minimal()
 ```
 
+<Figure src="/courses/statistics-1-foundations/binomial_genetics-1.png">
+	
+</Figure>
+
 **Quality Control Application**
 
-```{r binomial_qc}
+
+``` r
 # Example: Acceptance sampling in pharmaceutical manufacturing
 
 # Setting: Batch of 1000 tablets
@@ -1430,21 +1830,32 @@ sample_size <- 50
 accept_threshold <- 2
 
 cat("Quality Control: Acceptance Sampling\n")
+#> Quality Control: Acceptance Sampling
 cat("=====================================\n\n")
+#> =====================================
 
 cat(sprintf("Sampling plan:\n"))
+#> Sampling plan:
 cat(sprintf("  Sample size: n = %d\n", sample_size))
+#>   Sample size: n = 50
 cat(sprintf("  Accept if: defects <= %d\n\n", accept_threshold))
+#>   Accept if: defects <= 2
 
 # Calculate acceptance probability for different true defect rates
 defect_rates <- c(0.01, 0.02, 0.05, 0.10, 0.15)
 
 cat("Probability of accepting batch:\n")
+#> Probability of accepting batch:
 for (p_def in defect_rates) {
     p_accept <- pbinom(accept_threshold, sample_size, p_def)
     cat(sprintf("  True defect rate = %.0f%%: P(accept) = %.4f\n",
                 p_def * 100, p_accept))
 }
+#>   True defect rate = 1%: P(accept) = 0.9862
+#>   True defect rate = 2%: P(accept) = 0.9216
+#>   True defect rate = 5%: P(accept) = 0.5405
+#>   True defect rate = 10%: P(accept) = 0.1117
+#>   True defect rate = 15%: P(accept) = 0.0142
 
 # Operating characteristic curve
 p_seq <- seq(0, 0.20, by = 0.001)
@@ -1469,6 +1880,10 @@ ggplot2$ggplot(oc_dt, ggplot2$aes(x = defect_rate * 100, y = p_accept)) +
     ggplot2$theme_minimal()
 ```
 
+<Figure src="/courses/statistics-1-foundations/binomial_qc-1.png">
+	
+</Figure>
+
 ---
 
 ## Communicating to Stakeholders
@@ -1477,69 +1892,115 @@ When explaining random variables and binomial models to non-statisticians:
 
 ### Explaining Random Variables
 
-```{r stakeholder_rv}
+
+``` r
 cat("Communicating Random Variables to Stakeholders\n")
+#> Communicating Random Variables to Stakeholders
 cat("===============================================\n\n")
+#> ===============================================
 
 cat("DON'T say:\n")
+#> DON'T say:
 cat("  'X is a mapping from the sample space omega to the real numbers...'\n\n")
+#>   'X is a mapping from the sample space omega to the real numbers...'
 
 cat("DO say:\n")
+#> DO say:
 cat("  'We assign a number to each possible outcome so we can calculate\n")
+#>   'We assign a number to each possible outcome so we can calculate
 cat("   averages and probabilities. For example, we code \"responded to\n")
+#>    averages and probabilities. For example, we code "responded to
 cat("   treatment\" as 1 and \"didn't respond\" as 0.'\n\n")
+#>    treatment" as 1 and "didn't respond" as 0.'
 
 cat("Analogies that work:\n")
+#> Analogies that work:
 cat("  1. 'It's like scoring a test — we convert answers to points.'\n")
+#>   1. 'It's like scoring a test <U+2014> we convert answers to points.'
 cat("  2. 'We're putting outcomes on a number line to measure them.'\n")
+#>   2. 'We're putting outcomes on a number line to measure them.'
 cat("  3. 'Think of it as translating outcomes into a common language (numbers).'\n")
+#>   3. 'Think of it as translating outcomes into a common language (numbers).'
 ```
 
 ### Explaining Binomial Distributions
 
-```{r stakeholder_binomial}
+
+``` r
 cat("Communicating Binomial Distributions to Stakeholders\n")
+#> Communicating Binomial Distributions to Stakeholders
 cat("====================================================\n\n")
+#> ====================================================
 
 cat("Explaining the concept:\n")
+#> Explaining the concept:
 cat("  'The binomial distribution tells us the probability of getting\n")
+#>   'The binomial distribution tells us the probability of getting
 cat("   a certain number of successes when we repeat an experiment\n")
+#>    a certain number of successes when we repeat an experiment
 cat("   multiple times. For example, if a treatment works 30% of the\n")
+#>    multiple times. For example, if a treatment works 30% of the
 cat("   time, what's the chance that exactly 5 out of 10 patients respond?'\n\n")
+#>    time, what's the chance that exactly 5 out of 10 patients respond?'
 
 cat("Key messages for clinical audiences:\n")
+#> Key messages for clinical audiences:
 cat("  1. 'Expected' doesn't mean 'guaranteed' — it's the average across\n")
+#>   1. 'Expected' doesn't mean 'guaranteed' <U+2014> it's the average across
 cat("      many hypothetical repetitions\n")
+#>       many hypothetical repetitions
 cat("  2. The binomial assumes each patient responds independently — which\n")
+#>   2. The binomial assumes each patient responds independently <U+2014> which
 cat("      may not always hold in practice\n")
+#>       may not always hold in practice
 cat("  3. Observed outcomes will vary around the expected value; this is\n")
+#>   3. Observed outcomes will vary around the expected value; this is
 cat("      normal sampling variation, not evidence of a problem\n\n")
+#>       normal sampling variation, not evidence of a problem
 
 cat("Reporting results:\n")
+#> Reporting results:
 cat("  Instead of: 'X ~ Binomial(50, 0.3) with P(X >= 20) = 0.048'\n")
+#>   Instead of: 'X ~ Binomial(50, 0.3) with P(X >= 20) = 0.048'
 cat("  Say: 'If the true response rate is 30%, seeing 20 or more responders\n")
+#>   Say: 'If the true response rate is 30%, seeing 20 or more responders
 cat("        out of 50 patients would happen less than 5% of the time by chance.'\n")
+#>         out of 50 patients would happen less than 5% of the time by chance.'
 ```
 
 ### Common Questions and Answers
 
-```{r stakeholder_qa}
+
+``` r
 cat("Common Stakeholder Questions\n")
+#> Common Stakeholder Questions
 cat("============================\n\n")
+#> ============================
 
 cat("Q: 'Why is the expected value 3.5 when I can't roll 3.5 on a die?'\n")
+#> Q: 'Why is the expected value 3.5 when I can't roll 3.5 on a die?'
 cat("A: The expected value is the long-run average, not a possible outcome.\n")
+#> A: The expected value is the long-run average, not a possible outcome.
 cat("   If you rolled 1000 times and averaged, you'd get close to 3.5.\n\n")
+#>    If you rolled 1000 times and averaged, you'd get close to 3.5.
 
 cat("Q: 'The expected number of responders is 15. Why didn't we get exactly 15?'\n")
+#> Q: 'The expected number of responders is 15. Why didn't we get exactly 15?'
 cat("A: Random variation means actual results will scatter around 15.\n")
+#> A: Random variation means actual results will scatter around 15.
 cat("   The binomial distribution tells us how likely each outcome is.\n")
+#>    The binomial distribution tells us how likely each outcome is.
 cat("   Getting 12-18 responders is quite typical; getting 5 would be unusual.\n\n")
+#>    Getting 12-18 responders is quite typical; getting 5 would be unusual.
 
 cat("Q: 'If p = 0.5, why did we get 7 heads out of 10, not exactly 5?'\n")
+#> Q: 'If p = 0.5, why did we get 7 heads out of 10, not exactly 5?'
 cat("A: Perfect 50-50 splits are actually fairly rare! With 10 flips,\n")
+#> A: Perfect 50-50 splits are actually fairly rare! With 10 flips,
 cat("   P(exactly 5 heads) is only about 25%. Getting 4-6 heads happens\n")
+#>    P(exactly 5 heads) is only about 25%. Getting 4-6 heads happens
 cat("   about 65% of the time. Seven heads is well within normal variation.\n")
+#>    about 65% of the time. Seven heads is well within normal variation.
 ```
 
 ---

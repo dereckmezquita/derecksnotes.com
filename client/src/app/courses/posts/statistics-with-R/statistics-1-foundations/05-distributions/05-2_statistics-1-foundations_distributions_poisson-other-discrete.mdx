@@ -4,7 +4,7 @@ chapter: "Chapter 5: Random Variables and Distributions"
 part: "Part 2: Poisson and Other Discrete Distributions"
 coverImage: 13
 author: "Dereck Mezquita"
-date: "`r Sys.Date()`"
+date: "2026-01-18"
 tags: [statistics, mathematics, probability, distributions, R, biomedical]
 published: true
 comments: true
@@ -13,20 +13,7 @@ output:
     keep_md: true
 ---
 
-```{r setup, include=FALSE}
-# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
-if (knitr::is_html_output()) knitr::knit_hooks$set(
-    plot = function(x, options) {
-        cap  <- options$fig.cap
-        as.character(htmltools::tag(
-            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
-        ))
-    }
-)
 
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
-```
 
 # Chapter 5: Random Variables and Distributions (Part 2)
 
@@ -34,21 +21,26 @@ In Part 1 we covered the Bernoulli and binomial distributions for binary outcome
 
 We also cover three related discrete distributions: the geometric (trials until first success), negative binomial (trials until $r$ successes), and hypergeometric (sampling without replacement).
 
-```{r packages, message=FALSE, warning=FALSE}
+
+``` r
 box::use(
     data.table[...],
     ggplot2
 )
 ```
 
-```{r load_data, message=FALSE}
+
+``` r
 # Load datasets for examples
 nhanes <- fread("../data/primary/nhanes.csv")
 covid_testing <- fread("../data/medical/covid_testing.csv")
 
 cat("Datasets loaded:\n")
+#> Datasets loaded:
 cat("  NHANES:", nrow(nhanes), "observations\n")
+#>   NHANES: 10000 observations
 cat("  COVID Testing:", nrow(covid_testing), "observations\n")
+#>   COVID Testing: 15524 observations
 ```
 
 ---
@@ -82,7 +74,8 @@ The parameter $\lambda$ is both the **mean** and the **variance** of the distrib
 
 The support is the non-negative integers: $\{0, 1, 2, 3, \ldots\}$.
 
-```{r poisson_intro, fig.cap="The Poisson distribution for different rate parameters"}
+
+``` r
 # Visualise Poisson distributions for different lambda values
 
 lambda_values <- c(1, 3, 5, 10, 20)
@@ -112,6 +105,10 @@ ggplot2$ggplot(poisson_dt, ggplot2$aes(x = k, y = probability)) +
     ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
 ```
 
+<Figure src="/courses/statistics-1-foundations/poisson_intro-1.png" alt="The Poisson distribution for different rate parameters">
+	The Poisson distribution for different rate parameters
+</Figure>
+
 **Relationship to Binomial**
 
 The Poisson distribution arises as a limit of the binomial when:
@@ -121,7 +118,8 @@ The Poisson distribution arises as a limit of the binomial when:
 
 This explains why Poisson is used for "rare event" counting: if you divide time into tiny intervals, each has a tiny probability of an event, but there are many intervals.
 
-```{r poisson_binomial_limit, fig.cap="Poisson as the limit of binomial for rare events"}
+
+``` r
 # Demonstrate that Binomial(n, λ/n) → Poisson(λ) as n → ∞
 
 lambda <- 5
@@ -159,18 +157,34 @@ ggplot2$ggplot(compare_long, ggplot2$aes(x = k, y = probability, fill = distribu
     ) +
     ggplot2$theme_minimal() +
     ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-1-foundations/poisson_binomial_limit-1.png" alt="Poisson as the limit of binomial for rare events">
+	Poisson as the limit of binomial for rare events
+</Figure>
+
+``` r
 
 # Show numerical convergence
 cat("Convergence of Binomial to Poisson (λ = 5)\n")
+#> Convergence of Binomial to Poisson (<U+03BB> = 5)
 cat("==========================================\n\n")
+#> ==========================================
 
 cat("P(X = 5):\n")
+#> P(X = 5):
 for (n in c(10, 50, 100, 500, 1000)) {
     p <- lambda / n
     binom_prob <- dbinom(5, n, p)
     cat(sprintf("  Binomial(%d, %.4f): %.6f\n", n, p, binom_prob))
 }
+#>   Binomial(10, 0.5000): 0.246094
+#>   Binomial(50, 0.1000): 0.184925
+#>   Binomial(100, 0.0500): 0.180018
+#>   Binomial(500, 0.0100): 0.176351
+#>   Binomial(1000, 0.0050): 0.175908
 cat(sprintf("  Poisson(5):        %.6f\n", dpois(5, lambda)))
+#>   Poisson(5):        0.175467
 ```
 
 ### 5.5.2 PMF Derivation
@@ -199,7 +213,8 @@ As $n \to \infty$:
 Therefore:
 $$P(X = k) \to \frac{\lambda^k e^{-\lambda}}{k!}$$
 
-```{r poisson_pmf_components, fig.cap="Components of the Poisson PMF"}
+
+``` r
 # Break down the Poisson PMF into its components
 
 lambda <- 4
@@ -214,18 +229,39 @@ pmf_dt <- data.table(
 )
 
 cat("Poisson PMF Components: λ = 4\n")
+#> Poisson PMF Components: <U+03BB> = 4
 cat("==============================\n\n")
+#> ==============================
 
 cat("P(X = k) = (λ^k × e^(-λ)) / k!\n\n")
+#> P(X = k) = (<U+03BB>^k <U+00D7> e^(-<U+03BB>)) / k!
 
 cat("For each k:\n")
+#> For each k:
 print(pmf_dt[, .(k,
                  `λ^k` = round(lambda_k, 4),
                  `e^(-λ)` = round(exp_neg_lambda, 6),
                  `k!` = k_factorial,
                  `P(X=k)` = round(P_X_k, 6))])
+#>         k <U+03BB>^k e^(-<U+03BB>)        k!   P(X=k)
+#>     <int>      <num>         <num>     <num>    <num>
+#>  1:     0          1      0.018316         1 0.018316
+#>  2:     1          4      0.018316         1 0.073263
+#>  3:     2         16      0.018316         2 0.146525
+#>  4:     3         64      0.018316         6 0.195367
+#>  5:     4        256      0.018316        24 0.195367
+#>  6:     5       1024      0.018316       120 0.156293
+#>  7:     6       4096      0.018316       720 0.104196
+#>  8:     7      16384      0.018316      5040 0.059540
+#>  9:     8      65536      0.018316     40320 0.029770
+#> 10:     9     262144      0.018316    362880 0.013231
+#> 11:    10    1048576      0.018316   3628800 0.005292
+#> 12:    11    4194304      0.018316  39916800 0.001925
+#> 13:    12   16777216      0.018316 479001600 0.000642
 
 cat("\nSum of probabilities:", round(sum(pmf_dt$P_X_k), 6), "\n")
+#> 
+#> Sum of probabilities: 0.999726
 
 # Visualise
 ggplot2$ggplot(pmf_dt, ggplot2$aes(x = k, y = P_X_k)) +
@@ -244,6 +280,10 @@ ggplot2$ggplot(pmf_dt, ggplot2$aes(x = k, y = P_X_k)) +
     ggplot2$scale_x_continuous(breaks = k_vals) +
     ggplot2$theme_minimal()
 ```
+
+<Figure src="/courses/statistics-1-foundations/poisson_pmf_components-1.png" alt="Components of the Poisson PMF">
+	Components of the Poisson PMF
+</Figure>
 
 ### 5.5.3 Mean and Variance
 
@@ -274,7 +314,8 @@ $$E(X) = \text{Var}(X) = \lambda$$
 
 This **mean = variance** property is a distinctive feature of the Poisson distribution and is useful for diagnostics.
 
-```{r poisson_mean_var, fig.cap="Poisson distributions always have mean = variance"}
+
+``` r
 # Verify mean = variance property
 
 lambda_values <- c(1, 2, 5, 10, 20)
@@ -296,7 +337,9 @@ for (i in seq_along(lambda_values)) {
 }
 
 cat("Poisson Mean = Variance Property\n")
+#> Poisson Mean = Variance Property
 cat("=================================\n\n")
+#> =================================
 
 print(verification_dt[, .(
     lambda = lambda,
@@ -305,6 +348,13 @@ print(verification_dt[, .(
     `Sample Mean` = round(empirical_mean, 3),
     `Sample Var` = round(empirical_var, 3)
 )])
+#>    lambda  E(X) Var(X) Sample Mean Sample Var
+#>     <num> <num>  <num>       <num>      <num>
+#> 1:      1     1      1       1.005      1.006
+#> 2:      2     2      2       1.995      2.004
+#> 3:      5     5      5       4.994      4.968
+#> 4:     10    10     10      10.004     10.026
+#> 5:     20    20     20      19.983     19.818
 
 # Visualise with simulation
 sim_summary <- rbindlist(lapply(lambda_values, function(lam) {
@@ -334,9 +384,14 @@ ggplot2$ggplot(sim_long, ggplot2$aes(x = lambda, y = value, colour = statistic))
     ggplot2$theme_minimal()
 ```
 
+<Figure src="/courses/statistics-1-foundations/poisson_mean_var-1.png" alt="Poisson distributions always have mean = variance">
+	Poisson distributions always have mean = variance
+</Figure>
+
 ### 5.5.4 Implementation from Scratch
 
-```{r poisson_from_scratch}
+
+``` r
 # Implement Poisson distribution functions from scratch
 
 # dpois_scratch: PMF
@@ -412,33 +467,57 @@ rpois_scratch <- function(n, lambda) {
 lambda <- 5
 
 cat("Poisson Functions: From Scratch vs R Built-in\n")
+#> Poisson Functions: From Scratch vs R Built-in
 cat("==============================================\n\n")
+#> ==============================================
 
 cat(sprintf("Parameter: λ = %.1f\n\n", lambda))
+#> Parameter: <U+03BB> = 5.0
 
 # PMF comparison
 cat("PMF (dpois):\n")
+#> PMF (dpois):
 for (k in c(0, 2, 5, 8, 10, 15)) {
     our_val <- dpois_scratch(k, lambda)
     r_val <- dpois(k, lambda)
     cat(sprintf("  P(X = %d): ours = %.8f, R = %.8f\n", k, our_val, r_val))
 }
+#>   P(X = 0): ours = 0.00673795, R = 0.00673795
+#>   P(X = 2): ours = 0.08422434, R = 0.08422434
+#>   P(X = 5): ours = 0.17546737, R = 0.17546737
+#>   P(X = 8): ours = 0.06527804, R = 0.06527804
+#>   P(X = 10): ours = 0.01813279, R = 0.01813279
+#>   P(X = 15): ours = 0.00015725, R = 0.00015725
 
 # CDF comparison
 cat("\nCDF (ppois):\n")
+#> 
+#> CDF (ppois):
 for (q in c(0, 2, 5, 8, 10)) {
     our_val <- ppois_scratch(q, lambda)
     r_val <- ppois(q, lambda)
     cat(sprintf("  P(X <= %d): ours = %.6f, R = %.6f\n", q, our_val, r_val))
 }
+#>   P(X <= 0): ours = 0.006738, R = 0.006738
+#>   P(X <= 2): ours = 0.124652, R = 0.124652
+#>   P(X <= 5): ours = 0.615961, R = 0.615961
+#>   P(X <= 8): ours = 0.931906, R = 0.931906
+#>   P(X <= 10): ours = 0.986305, R = 0.986305
 
 # Quantile comparison
 cat("\nQuantiles (qpois):\n")
+#> 
+#> Quantiles (qpois):
 for (p in c(0.1, 0.25, 0.5, 0.75, 0.9)) {
     our_val <- qpois_scratch(p, lambda)
     r_val <- qpois(p, lambda)
     cat(sprintf("  Q(%.2f): ours = %d, R = %d\n", p, our_val, r_val))
 }
+#>   Q(0.10): ours = 2, R = 2
+#>   Q(0.25): ours = 3, R = 3
+#>   Q(0.50): ours = 5, R = 5
+#>   Q(0.75): ours = 6, R = 6
+#>   Q(0.90): ours = 8, R = 8
 
 # Random generation comparison
 set.seed(42)
@@ -447,41 +526,58 @@ set.seed(42)
 r_samples <- rpois(10000, lambda)
 
 cat("\nRandom generation:\n")
+#> 
+#> Random generation:
 cat(sprintf("  Our mean: %.4f, Our var: %.4f\n", mean(our_samples), var(our_samples)))
+#>   Our mean: 4.9978, Our var: 5.0719
 cat(sprintf("  R mean: %.4f, R var: %.4f\n", mean(r_samples), var(r_samples)))
+#>   R mean: 4.9978, R var: 5.0719
 cat(sprintf("  Theoretical: mean = var = %.1f\n", lambda))
+#>   Theoretical: mean = var = 5.0
 ```
 
 ### 5.5.5 Applications
 
 **Hospital Admissions**
 
-```{r poisson_hospital, fig.cap="Poisson model for hospital admissions"}
+
+``` r
 # Example: Modelling A&E admissions per hour
 
 # Typical A&E might see 50 patients per day = ~2 per hour
 lambda_hourly <- 2.1
 
 cat("Hospital A&E Admissions Example\n")
+#> Hospital A&E Admissions Example
 cat("===============================\n\n")
+#> ===============================
 
 cat(sprintf("Average admissions per hour: λ = %.1f\n\n", lambda_hourly))
+#> Average admissions per hour: <U+03BB> = 2.1
 
 # Calculate various probabilities
 cat("Probability calculations:\n")
+#> Probability calculations:
 cat(sprintf("  P(no admissions in an hour) = P(X = 0) = %.4f\n",
             dpois(0, lambda_hourly)))
+#>   P(no admissions in an hour) = P(X = 0) = 0.1225
 cat(sprintf("  P(exactly 2 admissions) = P(X = 2) = %.4f\n",
             dpois(2, lambda_hourly)))
+#>   P(exactly 2 admissions) = P(X = 2) = 0.2700
 cat(sprintf("  P(more than 5 admissions) = P(X > 5) = %.4f\n",
             1 - ppois(5, lambda_hourly)))
+#>   P(more than 5 admissions) = P(X > 5) = 0.0204
 cat(sprintf("  P(between 1 and 3 admissions) = P(1 <= X <= 3) = %.4f\n",
             ppois(3, lambda_hourly) - ppois(0, lambda_hourly)))
+#>   P(between 1 and 3 admissions) = P(1 <= X <= 3) = 0.7162
 
 # For planning: what number covers 95% of hours?
 q95 <- qpois(0.95, lambda_hourly)
 cat(sprintf("\n95th percentile: %d admissions\n", q95))
+#> 
+#> 95th percentile: 5 admissions
 cat("  (Staff to handle this many 95%% of hours)\n")
+#>   (Staff to handle this many 95%% of hours)
 
 # Visualise
 k_vals <- 0:10
@@ -503,9 +599,14 @@ ggplot2$ggplot(hosp_dt, ggplot2$aes(x = factor(k), y = probability, fill = highl
     ggplot2$theme(legend.position = "bottom")
 ```
 
+<Figure src="/courses/statistics-1-foundations/poisson_hospital-1.png" alt="Poisson model for hospital admissions">
+	Poisson model for hospital admissions
+</Figure>
+
 **Mutation Counting**
 
-```{r poisson_mutations, fig.cap="Poisson model for mutation counts"}
+
+``` r
 # Example: Modelling somatic mutations in cancer
 
 # Assume background mutation rate of 1 per megabase
@@ -513,12 +614,18 @@ ggplot2$ggplot(hosp_dt, ggplot2$aes(x = factor(k), y = probability, fill = highl
 lambda_mutations <- 1 * (10000 / 1000000)  # = 0.01
 
 cat("Somatic Mutation Counting Example\n")
+#> Somatic Mutation Counting Example
 cat("=================================\n\n")
+#> =================================
 
 cat("Setting:\n")
+#> Setting:
 cat("  Background mutation rate: 1 per Mb\n")
+#>   Background mutation rate: 1 per Mb
 cat("  Gene size: 10 kb\n")
+#>   Gene size: 10 kb
 cat(sprintf("  Expected mutations per gene: λ = %.4f\n\n", lambda_mutations))
+#>   Expected mutations per gene: <U+03BB> = 0.0100
 
 # For a more interesting example, consider mutations across 100 samples
 # in the same gene
@@ -526,14 +633,20 @@ n_samples <- 100
 lambda_per_sample <- 0.3  # More realistic for illustration
 
 cat("Across 100 tumour samples (λ = 0.3 per sample per gene):\n")
+#> Across 100 tumour samples (<U+03BB> = 0.3 per sample per gene):
 cat(sprintf("  P(no mutations in a sample) = %.4f\n", dpois(0, lambda_per_sample)))
+#>   P(no mutations in a sample) = 0.7408
 cat(sprintf("  P(exactly 1 mutation) = %.4f\n", dpois(1, lambda_per_sample)))
+#>   P(exactly 1 mutation) = 0.2222
 cat(sprintf("  P(2+ mutations, possible driver) = %.4f\n",
             1 - ppois(1, lambda_per_sample)))
+#>   P(2+ mutations, possible driver) = 0.0369
 
 # Total mutations expected
 lambda_total <- lambda_per_sample * n_samples
 cat(sprintf("\n  Expected total mutations across 100 samples: %.0f\n", lambda_total))
+#> 
+#>   Expected total mutations across 100 samples: 30
 
 # Simulate mutation counts
 set.seed(42)
@@ -549,7 +662,14 @@ mutation_dt <- data.table(
 mutation_dt[, expected := n_samples * dpois(mutations, lambda_per_sample)]
 
 cat("\nObserved vs Expected mutation counts:\n")
+#> 
+#> Observed vs Expected mutation counts:
 print(mutation_dt[mutations <= 3])
+#>    mutations observed  expected
+#>        <int>    <num>     <num>
+#> 1:         0       72 74.081822
+#> 2:         1       23 22.224547
+#> 3:         2        5  3.333682
 
 ggplot2$ggplot(mutation_dt[mutations <= 4],
        ggplot2$aes(x = factor(mutations))) +
@@ -569,33 +689,50 @@ ggplot2$ggplot(mutation_dt[mutations <= 4],
     ggplot2$theme(legend.position = "bottom")
 ```
 
+<Figure src="/courses/statistics-1-foundations/poisson_mutations-1.png" alt="Poisson model for mutation counts">
+	Poisson model for mutation counts
+</Figure>
+
 **Checking Poisson Assumptions**
 
 The mean = variance property provides a diagnostic: if observed variance differs substantially from the mean, the Poisson model may not be appropriate.
 
-```{r poisson_diagnostics}
+
+``` r
 # Demonstrate overdispersion (variance > mean)
 
 cat("Checking Poisson Assumptions: Mean vs Variance\n")
+#> Checking Poisson Assumptions: Mean vs Variance
 cat("===============================================\n\n")
+#> ===============================================
 
 # Well-specified Poisson
 set.seed(42)
 poisson_data <- rpois(500, lambda = 4)
 cat("True Poisson data (λ = 4):\n")
+#> True Poisson data (<U+03BB> = 4):
 cat(sprintf("  Mean: %.3f, Variance: %.3f, Ratio: %.3f\n",
             mean(poisson_data), var(poisson_data), var(poisson_data)/mean(poisson_data)))
+#>   Mean: 3.926, Variance: 4.033, Ratio: 1.027
 
 # Overdispersed data (negative binomial, looks like Poisson but more spread)
 overdispersed <- rnbinom(500, size = 2, mu = 4)
 cat("\nOverdispersed data (mean = 4, but more variable):\n")
+#> 
+#> Overdispersed data (mean = 4, but more variable):
 cat(sprintf("  Mean: %.3f, Variance: %.3f, Ratio: %.3f\n",
             mean(overdispersed), var(overdispersed), var(overdispersed)/mean(overdispersed)))
+#>   Mean: 4.254, Variance: 12.515, Ratio: 2.942
 
 cat("\nInterpretation:\n")
+#> 
+#> Interpretation:
 cat("  Ratio ≈ 1: Poisson is appropriate\n")
+#>   Ratio <U+2248> 1: Poisson is appropriate
 cat("  Ratio > 1: Overdispersion — consider negative binomial\n")
+#>   Ratio > 1: Overdispersion <U+2014> consider negative binomial
 cat("  Ratio < 1: Underdispersion — rare, may indicate data issues\n")
+#>   Ratio < 1: Underdispersion <U+2014> rare, may indicate data issues
 ```
 
 ---
@@ -633,7 +770,8 @@ $$P(X = k) = (1-p)^{k-1} p \quad \text{for } k = 1, 2, 3, \ldots$$
 $$E(X) = \frac{1}{p}$$
 $$\text{Var}(X) = \frac{1-p}{p^2}$$
 
-```{r geometric_dist, fig.cap="Geometric distribution: trials until first success"}
+
+``` r
 # Geometric distribution examples
 
 p_values <- c(0.1, 0.3, 0.5, 0.8)
@@ -650,11 +788,17 @@ geom_dt <- rbindlist(lapply(p_values, function(p) {
 geom_dt$p <- factor(geom_dt$p, levels = paste("p =", p_values))
 
 cat("Geometric Distribution: Number of Trials Until First Success\n")
+#> Geometric Distribution: Number of Trials Until First Success
 cat("=============================================================\n\n")
+#> =============================================================
 
 for (p in p_values) {
     cat(sprintf("p = %.1f: E(X) = %.2f, Var(X) = %.2f\n", p, 1/p, (1-p)/p^2))
 }
+#> p = 0.1: E(X) = 10.00, Var(X) = 90.00
+#> p = 0.3: E(X) = 3.33, Var(X) = 7.78
+#> p = 0.5: E(X) = 2.00, Var(X) = 2.00
+#> p = 0.8: E(X) = 1.25, Var(X) = 0.31
 
 ggplot2$ggplot(geom_dt, ggplot2$aes(x = k, y = probability)) +
     ggplot2$geom_col(fill = "#56B4E9", width = 0.6) +
@@ -669,6 +813,10 @@ ggplot2$ggplot(geom_dt, ggplot2$aes(x = k, y = probability)) +
     ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
 ```
 
+<Figure src="/courses/statistics-1-foundations/geometric_dist-1.png" alt="Geometric distribution: trials until first success">
+	Geometric distribution: trials until first success
+</Figure>
+
 **The Memoryless Property**
 
 The geometric distribution is the only discrete distribution with the **memoryless property**:
@@ -676,7 +824,8 @@ $$P(X > s + t \mid X > s) = P(X > t)$$
 
 Given that you haven't succeeded in the first $s$ trials, the probability of needing more than $t$ additional trials is the same as if you were starting fresh.
 
-```{r geometric_memoryless}
+
+``` r
 # Demonstrate the memoryless property
 
 p <- 0.3
@@ -695,19 +844,29 @@ conditional <- p_x_gt_s_plus_t / p_x_gt_s
 p_x_gt_t <- 1 - pgeom(t - 1, p)
 
 cat("Geometric Distribution: Memoryless Property\n")
+#> Geometric Distribution: Memoryless Property
 cat("============================================\n\n")
+#> ============================================
 
 cat(sprintf("p = %.1f, s = %d, t = %d\n\n", p, s, t))
+#> p = 0.3, s = 5, t = 3
 
 cat("P(X > s + t | X > s) = P(X > 8 | X > 5)\n")
+#> P(X > s + t | X > s) = P(X > 8 | X > 5)
 cat(sprintf("  = P(X > 8) / P(X > 5)\n"))
+#>   = P(X > 8) / P(X > 5)
 cat(sprintf("  = %.6f / %.6f\n", p_x_gt_s_plus_t, p_x_gt_s))
+#>   = 0.057648 / 0.168070
 cat(sprintf("  = %.6f\n\n", conditional))
+#>   = 0.343000
 
 cat(sprintf("P(X > t) = P(X > 3) = %.6f\n\n", p_x_gt_t))
+#> P(X > t) = P(X > 3) = 0.343000
 
 cat("These are equal! The past doesn't affect the future.\n")
+#> These are equal! The past doesn't affect the future.
 cat("'The coin has no memory.'\n")
+#> 'The coin has no memory.'
 ```
 
 ### 5.6.2 Negative Binomial Distribution
@@ -737,7 +896,8 @@ $$\text{Var}(X) = \frac{r(1-p)}{p^2}$$
 
 **Note:** R uses a different parameterisation (number of failures before $r$ successes), so the PMF formula differs.
 
-```{r negbinom_dist, fig.cap="Negative binomial distribution: trials until r successes"}
+
+``` r
 # Negative binomial examples
 
 # R's parameterisation: number of failures before r successes
@@ -763,15 +923,22 @@ negbinom_dt <- rbindlist(lapply(r_values, function(r) {
 negbinom_dt$r <- factor(negbinom_dt$r, levels = paste("r =", r_values))
 
 cat("Negative Binomial Distribution: Trials Until r Successes\n")
+#> Negative Binomial Distribution: Trials Until r Successes
 cat("=========================================================\n\n")
+#> =========================================================
 
 cat(sprintf("Success probability p = %.1f\n\n", p))
+#> Success probability p = 0.3
 
 for (r in r_values) {
     E_X <- r / p
     Var_X <- r * (1 - p) / p^2
     cat(sprintf("r = %d: E(trials) = %.1f, Var = %.1f\n", r, E_X, Var_X))
 }
+#> r = 1: E(trials) = 3.3, Var = 7.8
+#> r = 3: E(trials) = 10.0, Var = 23.3
+#> r = 5: E(trials) = 16.7, Var = 38.9
+#> r = 10: E(trials) = 33.3, Var = 77.8
 
 ggplot2$ggplot(negbinom_dt, ggplot2$aes(x = trials, y = probability)) +
     ggplot2$geom_col(fill = "#009E73", width = 0.6) +
@@ -786,11 +953,16 @@ ggplot2$ggplot(negbinom_dt, ggplot2$aes(x = trials, y = probability)) +
     ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
 ```
 
+<Figure src="/courses/statistics-1-foundations/negbinom_dist-1.png" alt="Negative binomial distribution: trials until r successes">
+	Negative binomial distribution: trials until r successes
+</Figure>
+
 **As a Model for Overdispersed Counts**
 
 The negative binomial is often used as an alternative to Poisson when variance exceeds the mean. It has two parameters ($r$ and $p$, or equivalently $\mu$ and "size"), allowing mean and variance to vary independently.
 
-```{r negbinom_overdispersion, fig.cap="Negative binomial vs Poisson for overdispersed data"}
+
+``` r
 # Compare Poisson and Negative Binomial for same mean but different variances
 
 mu <- 5  # Same mean
@@ -815,14 +987,21 @@ compare_dt <- rbindlist(lapply(size_values, function(sz) {
 }))
 
 cat("Poisson vs Negative Binomial for Mean = 5\n")
+#> Poisson vs Negative Binomial for Mean = 5
 cat("==========================================\n\n")
+#> ==========================================
 
 cat("Distribution          Mean    Variance\n")
+#> Distribution          Mean    Variance
 cat("Poisson               5.0     5.0\n")
+#> Poisson               5.0     5.0
 for (sz in c(1, 2, 5)) {
     var_val <- mu + mu^2/sz
     cat(sprintf("NegBin (size=%d)       5.0     %.1f\n", sz, var_val))
 }
+#> NegBin (size=1)       5.0     30.0
+#> NegBin (size=2)       5.0     17.5
+#> NegBin (size=5)       5.0     10.0
 
 ggplot2$ggplot(compare_dt, ggplot2$aes(x = k, y = probability, fill = distribution)) +
     ggplot2$geom_col(position = "dodge", width = 0.7) +
@@ -837,6 +1016,10 @@ ggplot2$ggplot(compare_dt, ggplot2$aes(x = k, y = probability, fill = distributi
     ggplot2$theme_minimal() +
     ggplot2$theme(legend.position = "bottom")
 ```
+
+<Figure src="/courses/statistics-1-foundations/negbinom_overdispersion-1.png" alt="Negative binomial vs Poisson for overdispersed data">
+	Negative binomial vs Poisson for overdispersed data
+</Figure>
 
 ### 5.6.3 Hypergeometric Distribution
 
@@ -873,7 +1056,8 @@ $$\text{Var}(X) = n \cdot \frac{K}{N} \cdot \frac{N-K}{N} \cdot \frac{N-n}{N-1}$
 
 The factor $\frac{N-n}{N-1}$ is called the **finite population correction**; it reduces variance compared to binomial and approaches 1 as $N \to \infty$.
 
-```{r hypergeometric, fig.cap="Hypergeometric vs Binomial: sampling without replacement"}
+
+``` r
 # Compare hypergeometric to binomial
 
 N <- 100   # Population size
@@ -894,10 +1078,14 @@ compare_dt <- data.table(
 )
 
 cat("Hypergeometric vs Binomial\n")
+#> Hypergeometric vs Binomial
 cat("==========================\n\n")
+#> ==========================
 
 cat(sprintf("Population: N = %d, K = %d successes\n", N, K))
+#> Population: N = 100, K = 30 successes
 cat(sprintf("Sample size: n = %d\n\n", n))
+#> Sample size: n = 20
 
 # Calculate means and variances
 hyper_mean <- n * K / N
@@ -906,9 +1094,14 @@ binom_mean <- n * K / N
 binom_var <- n * (K/N) * (1 - K/N)
 
 cat("                  Mean     Variance\n")
+#>                   Mean     Variance
 cat(sprintf("Hypergeometric    %.2f     %.2f\n", hyper_mean, hyper_var))
+#> Hypergeometric    6.00     3.39
 cat(sprintf("Binomial          %.2f     %.2f\n", binom_mean, binom_var))
+#> Binomial          6.00     4.20
 cat(sprintf("\nFinite population correction: %.4f\n", (N-n)/(N-1)))
+#> 
+#> Finite population correction: 0.8081
 
 ggplot2$ggplot(compare_dt, ggplot2$aes(x = k, y = probability, fill = distribution)) +
     ggplot2$geom_col(position = "dodge", width = 0.6) +
@@ -924,11 +1117,16 @@ ggplot2$ggplot(compare_dt, ggplot2$aes(x = k, y = probability, fill = distributi
     ggplot2$theme(legend.position = "bottom")
 ```
 
+<Figure src="/courses/statistics-1-foundations/hypergeometric-1.png" alt="Hypergeometric vs Binomial: sampling without replacement">
+	Hypergeometric vs Binomial: sampling without replacement
+</Figure>
+
 **When Does It Matter?**
 
 The hypergeometric is important when the sample is a substantial fraction of the population. Rule of thumb: use hypergeometric when $n/N > 0.05$ (sample is more than 5% of population).
 
-```{r hyper_vs_binom_convergence, fig.cap="Hypergeometric approaches binomial as population grows"}
+
+``` r
 # Show convergence to binomial as N increases
 
 n <- 10   # Fixed sample size
@@ -970,63 +1168,104 @@ ggplot2$ggplot(convergence_dt, ggplot2$aes(x = k, y = probability, fill = distri
           strip.text = ggplot2$element_text(face = "bold"))
 ```
 
+<Figure src="/courses/statistics-1-foundations/hyper_vs_binom_convergence-1.png" alt="Hypergeometric approaches binomial as population grows">
+	Hypergeometric approaches binomial as population grows
+</Figure>
+
 ---
 
 ## Communicating to Stakeholders
 
 ### Explaining Count Data Distributions
 
-```{r stakeholder_counts}
+
+``` r
 cat("Explaining Count Distributions to Non-Statisticians\n")
+#> Explaining Count Distributions to Non-Statisticians
 cat("===================================================\n\n")
+#> ===================================================
 
 cat("POISSON - When to use this explanation:\n")
+#> POISSON - When to use this explanation:
 cat("  'The Poisson distribution tells us how often to expect rare events.\n")
+#>   'The Poisson distribution tells us how often to expect rare events.
 cat("   If patients arrive at A&E at an average rate of 3 per hour, the\n")
+#>    If patients arrive at A&E at an average rate of 3 per hour, the
 cat("   Poisson tells us the probability of getting 0, 1, 2, 3, ... arrivals\n")
+#>    Poisson tells us the probability of getting 0, 1, 2, 3, ... arrivals
 cat("   in any given hour.'\n\n")
+#>    in any given hour.'
 
 cat("GEOMETRIC - When to use this explanation:\n")
+#> GEOMETRIC - When to use this explanation:
 cat("  'This tells us how long we'll need to wait for the first success.\n")
+#>   'This tells us how long we'll need to wait for the first success.
 cat("   If only 20% of patients are eligible for our study, on average we\n")
+#>    If only 20% of patients are eligible for our study, on average we
 cat("   need to screen 5 patients to find one eligible participant.'\n\n")
+#>    need to screen 5 patients to find one eligible participant.'
 
 cat("NEGATIVE BINOMIAL - When to use this explanation:\n")
+#> NEGATIVE BINOMIAL - When to use this explanation:
 cat("  'Like the geometric, but for multiple successes. If we need 10\n")
+#>   'Like the geometric, but for multiple successes. If we need 10
 cat("   eligible patients and only 20% qualify, we can predict how many\n")
+#>    eligible patients and only 20% qualify, we can predict how many
 cat("   total patients we'll need to screen.'\n\n")
+#>    total patients we'll need to screen.'
 
 cat("HYPERGEOMETRIC - When to use this explanation:\n")
+#> HYPERGEOMETRIC - When to use this explanation:
 cat("  'This applies when we're sampling from a finite pool without\n")
+#>   'This applies when we're sampling from a finite pool without
 cat("   replacement. If a batch has 100 items and 10 are defective, this\n")
+#>    replacement. If a batch has 100 items and 10 are defective, this
 cat("   tells us the probability of finding exactly 2 defects in a sample of 20.'\n")
+#>    tells us the probability of finding exactly 2 defects in a sample of 20.'
 ```
 
 ### Choosing Between Distributions
 
-```{r stakeholder_choice}
+
+``` r
 cat("Choosing the Right Count Distribution\n")
+#> Choosing the Right Count Distribution
 cat("=====================================\n\n")
+#> =====================================
 
 cat("Ask these questions:\n\n")
+#> Ask these questions:
 
 cat("1. Are events happening over time/space at a constant rate?\n")
+#> 1. Are events happening over time/space at a constant rate?
 cat("   → Use POISSON\n\n")
+#>    <U+2192> Use POISSON
 
 cat("2. Are you counting trials until a fixed number of successes?\n")
+#> 2. Are you counting trials until a fixed number of successes?
 cat("   → First success: GEOMETRIC\n")
+#>    <U+2192> First success: GEOMETRIC
 cat("   → r successes: NEGATIVE BINOMIAL\n\n")
+#>    <U+2192> r successes: NEGATIVE BINOMIAL
 
 cat("3. Is variance much larger than mean (overdispersion)?\n")
+#> 3. Is variance much larger than mean (overdispersion)?
 cat("   → Use NEGATIVE BINOMIAL instead of Poisson\n\n")
+#>    <U+2192> Use NEGATIVE BINOMIAL instead of Poisson
 
 cat("4. Are you sampling without replacement from a finite population?\n")
+#> 4. Are you sampling without replacement from a finite population?
 cat("   → Use HYPERGEOMETRIC\n")
+#>    <U+2192> Use HYPERGEOMETRIC
 cat("   → (Especially if sample > 5% of population)\n\n")
+#>    <U+2192> (Especially if sample > 5% of population)
 
 cat("5. Is the population effectively infinite (or sampling with replacement)?\n")
+#> 5. Is the population effectively infinite (or sampling with replacement)?
 cat("   → Use BINOMIAL (for fixed n)\n")
+#>    <U+2192> Use BINOMIAL (for fixed n)
 cat("   → Use POISSON (for rare events, large n)\n")
+#>    <U+2192> Use POISSON (for rare events, large n)
 ```
 
 ---

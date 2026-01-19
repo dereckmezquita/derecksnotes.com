@@ -4,7 +4,7 @@ chapter: "Chapter 5: Random Variables and Distributions"
 part: "Part 3: Continuous Distributions — Uniform and Normal"
 coverImage: 13
 author: "Dereck Mezquita"
-date: "`r Sys.Date()`"
+date: "2026-01-18"
 tags: [statistics, mathematics, probability, distributions, R, biomedical]
 published: true
 comments: true
@@ -13,20 +13,7 @@ output:
     keep_md: true
 ---
 
-```{r setup, include=FALSE}
-# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
-if (knitr::is_html_output()) knitr::knit_hooks$set(
-    plot = function(x, options) {
-        cap  <- options$fig.cap
-        as.character(htmltools::tag(
-            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
-        ))
-    }
-)
 
-knitr::knit_hooks$set(optipng = knitr::hook_optipng)
-knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
-```
 
 # Chapter 5: Random Variables and Distributions (Part 3)
 
@@ -34,18 +21,21 @@ We now transition from discrete to **continuous random variables** — those tha
 
 This part covers the foundational continuous distributions: the **uniform** (equal probability across an interval) and the **normal** (the ubiquitous bell curve that emerges throughout statistics).
 
-```{r packages, message=FALSE, warning=FALSE}
+
+``` r
 box::use(
     data.table[...],
     ggplot2
 )
 ```
 
-```{r load_data, message=FALSE}
+
+``` r
 # Load datasets for examples
 nhanes <- fread("../data/primary/nhanes.csv")
 
 cat("NHANES dataset loaded:", nrow(nhanes), "observations\n")
+#> NHANES dataset loaded: 10000 observations
 ```
 
 ---
@@ -78,7 +68,8 @@ A function $f(x)$ is a **probability density function** for a continuous random 
 - $P(a < X < b) = P(a \leq X \leq b)$ (endpoints don't matter)
 - $f(x)$ can be greater than 1 (it's density, not probability)
 
-```{r pdf_intro, fig.cap="PDF: probability equals area under the curve"}
+
+``` r
 # Demonstrate PDF concept with a simple example
 
 # Create a simple PDF (triangular distribution on [0, 2])
@@ -105,16 +96,24 @@ b <- 1.5
 prob_ab <- integrate(triangular_pdf, a, b)$value
 
 cat("Probability Density Function (PDF)\n")
+#> Probability Density Function (PDF)
 cat("===================================\n\n")
+#> ===================================
 
 cat("For a triangular distribution on [0, 2]:\n")
+#> For a triangular distribution on [0, 2]:
 cat("  Peak density at x = 1 is f(1) = 1\n")
+#>   Peak density at x = 1 is f(1) = 1
 cat("  This is NOT a probability — it's density!\n\n")
+#>   This is NOT a probability <U+2014> it's density!
 
 cat(sprintf("P(0.5 < X < 1.5) = area under curve = %.4f\n", prob_ab))
+#> P(0.5 < X < 1.5) = area under curve = 0.7500
 cat("This IS a probability.\n\n")
+#> This IS a probability.
 
 cat("Note: P(X = 1) = 0 exactly, even though f(1) = 1\n")
+#> Note: P(X = 1) = 0 exactly, even though f(1) = 1
 
 # Create shaded region data
 shade_dt <- pdf_dt[x >= a & x <= b]
@@ -137,6 +136,10 @@ ggplot2$ggplot(pdf_dt, ggplot2$aes(x = x, y = density)) +
     ) +
     ggplot2$theme_minimal()
 ```
+
+<Figure src="/courses/statistics-1-foundations/pdf_intro-1.png" alt="PDF: probability equals area under the curve">
+	PDF: probability equals area under the curve
+</Figure>
 
 ### 5.7.2 Cumulative Distribution Function (CDF)
 
@@ -166,7 +169,8 @@ $$f(x) = F'(x)$$ (where differentiable)
 **Computing probabilities from CDF:**
 $$P(a < X \leq b) = F(b) - F(a)$$
 
-```{r cdf_continuous, fig.cap="CDF accumulates probability from left to right"}
+
+``` r
 # CDF of the triangular distribution
 
 triangular_cdf <- function(x) {
@@ -193,17 +197,28 @@ F_b <- triangular_cdf(1.5)
 F_a <- triangular_cdf(0.5)
 
 cat("CDF of Triangular Distribution\n")
+#> CDF of Triangular Distribution
 cat("==============================\n\n")
+#> ==============================
 
 cat("F(x) = P(X <= x)\n\n")
+#> F(x) = P(X <= x)
 
 cat("Selected values:\n")
+#> Selected values:
 for (x_val in c(0, 0.5, 1, 1.5, 2)) {
     cat(sprintf("  F(%.1f) = %.4f\n", x_val, triangular_cdf(x_val)))
 }
+#>   F(0.0) = 0.0000
+#>   F(0.5) = 0.1250
+#>   F(1.0) = 0.5000
+#>   F(1.5) = 0.8750
+#>   F(2.0) = 1.0000
 
 cat(sprintf("\nP(0.5 < X < 1.5) = F(1.5) - F(0.5) = %.4f - %.4f = %.4f\n",
             F_b, F_a, F_b - F_a))
+#> 
+#> P(0.5 < X < 1.5) = F(1.5) - F(0.5) = 0.8750 - 0.1250 = 0.7500
 
 # Plot PDF and CDF side by side
 pdf_dt <- data.table(x = x_seq, y = triangular_pdf(x_seq), type = "PDF: f(x)")
@@ -225,6 +240,10 @@ ggplot2$ggplot(combined_dt, ggplot2$aes(x = x, y = y)) +
     ggplot2$theme(strip.text = ggplot2$element_text(face = "bold", size = 12))
 ```
 
+<Figure src="/courses/statistics-1-foundations/cdf_continuous-1.png" alt="CDF accumulates probability from left to right">
+	CDF accumulates probability from left to right
+</Figure>
+
 ### 5.7.3 Expected Value and Variance
 
 **Mathematical Derivation**
@@ -245,7 +264,8 @@ $$\text{Var}(X) = E(X^2) - [E(X)]^2$$
 
 The properties of expectation and variance (linearity, etc.) are the same as for discrete variables.
 
-```{r continuous_mean_var}
+
+``` r
 # Calculate mean and variance for the triangular distribution
 
 # E(X) = integral of x * f(x)
@@ -257,19 +277,31 @@ E_X2 <- integrate(function(x) x^2 * triangular_pdf(x), 0, 2)$value
 Var_X <- E_X2 - E_X^2
 
 cat("Mean and Variance for Triangular Distribution\n")
+#> Mean and Variance for Triangular Distribution
 cat("==============================================\n\n")
+#> ==============================================
 
 cat("E(X) = ∫ x·f(x) dx\n")
+#> E(X) = <U+222B> x<U+00B7>f(x) dx
 cat(sprintf("     = %.4f\n\n", E_X))
+#>      = 1.0000
 
 cat("E(X²) = ∫ x²·f(x) dx\n")
+#> E(X<U+00B2>) = <U+222B> x<U+00B2><U+00B7>f(x) dx
 cat(sprintf("      = %.4f\n\n", E_X2))
+#>       = 1.1667
 
 cat("Var(X) = E(X²) - [E(X)]²\n")
+#> Var(X) = E(X<U+00B2>) - [E(X)]<U+00B2>
 cat(sprintf("       = %.4f - %.4f²\n", E_X2, E_X))
+#>        = 1.1667 - 1.0000<U+00B2>
 cat(sprintf("       = %.4f - %.4f\n", E_X2, E_X^2))
+#>        = 1.1667 - 1.0000
 cat(sprintf("       = %.4f\n", Var_X))
+#>        = 0.1667
 cat(sprintf("\nSD(X) = %.4f\n", sqrt(Var_X)))
+#> 
+#> SD(X) = 0.4082
 
 # Verify by simulation
 set.seed(42)
@@ -280,8 +312,12 @@ u <- runif(n_sim)
 x_sim <- ifelse(u < 0.5, sqrt(2 * u), 2 - sqrt(2 * (1 - u)))
 
 cat("\nVerification by simulation (n = 100,000):\n")
+#> 
+#> Verification by simulation (n = 100,000):
 cat(sprintf("  Sample mean: %.4f (theoretical: %.4f)\n", mean(x_sim), E_X))
+#>   Sample mean: 1.0009 (theoretical: 1.0000)
 cat(sprintf("  Sample var: %.4f (theoretical: %.4f)\n", var(x_sim), Var_X))
+#>   Sample var: 0.1680 (theoretical: 0.1667)
 ```
 
 ### 5.7.4 Quantile Function
@@ -307,7 +343,8 @@ $$Q(p) = F^{-1}(p)$$
 
 meaning $Q(p)$ is the unique value where $F(Q(p)) = p$.
 
-```{r quantile_function, fig.cap="The quantile function is the inverse of the CDF"}
+
+``` r
 # Quantile function for the triangular distribution
 
 triangular_quantile <- function(p) {
@@ -328,12 +365,20 @@ q_vals <- triangular_quantile(p_seq)
 quantile_dt <- data.table(p = p_seq, quantile = q_vals)
 
 cat("Quantile Function: Inverse CDF\n")
+#> Quantile Function: Inverse CDF
 cat("==============================\n\n")
+#> ==============================
 
 cat("Common quantiles:\n")
+#> Common quantiles:
 for (p in c(0.25, 0.5, 0.75, 0.90, 0.95)) {
     cat(sprintf("  Q(%.2f) = %.4f\n", p, triangular_quantile(p)))
 }
+#>   Q(0.25) = 0.7071
+#>   Q(0.50) = 1.0000
+#>   Q(0.75) = 1.2929
+#>   Q(0.90) = 1.5528
+#>   Q(0.95) = 1.6838
 
 # Show relationship: CDF and quantile function
 p1 <- ggplot2$ggplot(cdf_dt[cdf_dt$type == "CDF: F(x)"], ggplot2$aes(x = x, y = y)) +
@@ -358,6 +403,10 @@ p2 <- ggplot2$ggplot(quantile_dt, ggplot2$aes(x = p, y = quantile)) +
 
 gridExtra::grid.arrange(p1, p2, nrow = 1)
 ```
+
+<Figure src="/courses/statistics-1-foundations/quantile_function-1.png" alt="The quantile function is the inverse of the CDF">
+	The quantile function is the inverse of the CDF
+</Figure>
 
 ---
 
@@ -395,7 +444,8 @@ $$Q(p) = a + p(b - a)$$
 $$E(X) = \frac{a + b}{2}$$
 $$\text{Var}(X) = \frac{(b-a)^2}{12}$$
 
-```{r uniform_dist, fig.cap="The uniform distribution: constant density on [a, b]"}
+
+``` r
 # Demonstrate uniform distribution
 
 a <- 2
@@ -415,25 +465,40 @@ uniform_dt <- data.table(
 )
 
 cat("Uniform Distribution on [2, 8]\n")
+#> Uniform Distribution on [2, 8]
 cat("==============================\n\n")
+#> ==============================
 
 cat("PDF: f(x) = 1/(8-2) = 1/6 ≈ 0.167 for x ∈ [2, 8]\n\n")
+#> PDF: f(x) = 1/(8-2) = 1/6 <U+2248> 0.167 for x <U+2208> [2, 8]
 
 cat("Properties:\n")
+#> Properties:
 cat(sprintf("  Mean: E(X) = (a+b)/2 = (2+8)/2 = %.1f\n", (a+b)/2))
+#>   Mean: E(X) = (a+b)/2 = (2+8)/2 = 5.0
 cat(sprintf("  Variance: Var(X) = (b-a)²/12 = (8-2)²/12 = %.2f\n", (b-a)^2/12))
+#>   Variance: Var(X) = (b-a)<U+00B2>/12 = (8-2)<U+00B2>/12 = 3.00
 cat(sprintf("  SD: %.4f\n\n", sqrt((b-a)^2/12)))
+#>   SD: 1.7321
 
 # Calculate probabilities
 cat("Probabilities:\n")
+#> Probabilities:
 cat(sprintf("  P(3 < X < 5) = (5-3)/(8-2) = %.4f\n", punif(5, a, b) - punif(3, a, b)))
+#>   P(3 < X < 5) = (5-3)/(8-2) = 0.3333
 cat(sprintf("  P(X > 6) = (8-6)/(8-2) = %.4f\n", 1 - punif(6, a, b)))
+#>   P(X > 6) = (8-6)/(8-2) = 0.3333
 
 # Quantiles
 cat("\nQuantiles:\n")
+#> 
+#> Quantiles:
 for (p in c(0.25, 0.5, 0.75)) {
     cat(sprintf("  Q(%.2f) = %.2f\n", p, qunif(p, a, b)))
 }
+#>   Q(0.25) = 3.50
+#>   Q(0.50) = 5.00
+#>   Q(0.75) = 6.50
 
 ggplot2$ggplot(uniform_dt, ggplot2$aes(x = x, y = y)) +
     ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
@@ -449,13 +514,18 @@ ggplot2$ggplot(uniform_dt, ggplot2$aes(x = x, y = y)) +
     ggplot2$theme(strip.text = ggplot2$element_text(face = "bold", size = 12))
 ```
 
+<Figure src="/courses/statistics-1-foundations/uniform_dist-1.png" alt="The uniform distribution: constant density on [a, b]">
+	The uniform distribution: constant density on [a, b]
+</Figure>
+
 ### 5.8.2 Applications
 
 **Random Number Generation**
 
 The uniform distribution is the foundation of random number generation. Most programming languages provide a function to generate $U \sim \text{Uniform}(0, 1)$, and other distributions are derived from it.
 
-```{r uniform_rng, fig.cap="Uniform random numbers and the inverse transform method"}
+
+``` r
 # The inverse transform method
 
 set.seed(42)
@@ -465,10 +535,14 @@ n <- 10000
 U <- runif(n)  # Uniform(0, 1)
 
 cat("Random Number Generation from Uniform\n")
+#> Random Number Generation from Uniform
 cat("=====================================\n\n")
+#> =====================================
 
 cat("R's runif() generates Uniform(0, 1) random numbers:\n")
+#> R's runif() generates Uniform(0, 1) random numbers:
 cat("  First 10 values:", round(U[1:10], 4), "\n\n")
+#>   First 10 values: 0.9148 0.9371 0.2861 0.8304 0.6417 0.5191 0.7366 0.1347 0.657 0.7051
 
 # Transform to other distributions using inverse CDF
 # Example: Transform to Exponential(λ = 2)
@@ -477,12 +551,18 @@ lambda <- 2
 X_exp <- -log(1 - U) / lambda
 
 cat("Inverse Transform Method:\n")
+#> Inverse Transform Method:
 cat("  To get X ~ Exponential(λ):\n")
+#>   To get X ~ Exponential(<U+03BB>):
 cat("    1. Generate U ~ Uniform(0, 1)\n")
+#>     1. Generate U ~ Uniform(0, 1)
 cat("    2. Compute X = -ln(1-U)/λ = F^{-1}(U)\n\n")
+#>     2. Compute X = -ln(1-U)/<U+03BB> = F^{-1}(U)
 
 cat(sprintf("  Theoretical mean of Exp(2): 1/λ = %.2f\n", 1/lambda))
+#>   Theoretical mean of Exp(2): 1/<U+03BB> = 0.50
 cat(sprintf("  Sample mean: %.4f\n", mean(X_exp)))
+#>   Sample mean: 0.5000
 
 # Visualise
 par_dt <- data.table(
@@ -509,9 +589,14 @@ ggplot2$ggplot(hist_dt, ggplot2$aes(x = x)) +
     ggplot2$theme_minimal()
 ```
 
+<Figure src="/courses/statistics-1-foundations/uniform_rng-1.png" alt="Uniform random numbers and the inverse transform method">
+	Uniform random numbers and the inverse transform method
+</Figure>
+
 **Simulation and Monte Carlo Methods**
 
-```{r uniform_monte_carlo}
+
+``` r
 # Monte Carlo integration example: estimate π
 
 set.seed(42)
@@ -525,17 +610,27 @@ in_circle <- (x^2 + y^2) <= 1
 pi_estimate <- 4 * mean(in_circle)  # Area of circle / area of square = π/4
 
 cat("Monte Carlo Estimation of π\n")
+#> Monte Carlo Estimation of <U+03C0>
 cat("===========================\n\n")
+#> ===========================
 
 cat("Method: Throw random darts at square [-1, 1] × [-1, 1]\n")
+#> Method: Throw random darts at square [-1, 1] <U+00D7> [-1, 1]
 cat("       Count proportion landing in unit circle\n")
+#>        Count proportion landing in unit circle
 cat("       π ≈ 4 × (proportion in circle)\n\n")
+#>        <U+03C0> <U+2248> 4 <U+00D7> (proportion in circle)
 
 cat(sprintf("Number of darts: %d\n", n_darts))
+#> Number of darts: 100000
 cat(sprintf("Darts in circle: %d\n", sum(in_circle)))
+#> Darts in circle: 78445
 cat(sprintf("Estimate of π: %.6f\n", pi_estimate))
+#> Estimate of <U+03C0>: 3.137800
 cat(sprintf("True value of π: %.6f\n", pi))
+#> True value of <U+03C0>: 3.141593
 cat(sprintf("Error: %.6f\n", abs(pi_estimate - pi)))
+#> Error: 0.003793
 ```
 
 ---
@@ -573,7 +668,8 @@ The formula looks complex, but breaks down as:
 - $\frac{1}{\sigma\sqrt{2\pi}}$: normalisation constant ensuring total area = 1
 - $\exp\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)$: bell shape, centred at $\mu$, spread controlled by $\sigma$
 
-```{r normal_intro, fig.cap="The normal distribution: the ubiquitous bell curve"}
+
+``` r
 # Show normal distributions with different parameters
 
 params <- list(
@@ -594,17 +690,27 @@ normal_dt <- rbindlist(lapply(params, function(p) {
 }))
 
 cat("Normal Distribution: X ~ N(μ, σ²)\n")
+#> Normal Distribution: X ~ N(<U+03BC>, <U+03C3><U+00B2>)
 cat("==================================\n\n")
+#> ==================================
 
 cat("The two parameters:\n")
+#> The two parameters:
 cat("  μ (mu): mean — shifts the distribution left/right\n")
+#>   <U+03BC> (mu): mean <U+2014> shifts the distribution left/right
 cat("  σ (sigma): standard deviation — controls spread\n\n")
+#>   <U+03C3> (sigma): standard deviation <U+2014> controls spread
 
 cat("Properties:\n")
+#> Properties:
 cat("  • Symmetric about μ\n")
+#>   <U+2022> Symmetric about <U+03BC>
 cat("  • Mean = Median = Mode = μ\n")
+#>   <U+2022> Mean = Median = Mode = <U+03BC>
 cat("  • Inflection points at μ ± σ\n")
+#>   <U+2022> Inflection points at <U+03BC> <U+00B1> <U+03C3>
 cat("  • Tails extend to ±∞ but decay rapidly\n")
+#>   <U+2022> Tails extend to <U+00B1><U+221E> but decay rapidly
 
 ggplot2$ggplot(normal_dt, ggplot2$aes(x = x, y = density, colour = params)) +
     ggplot2$geom_line(size = 1.2) +
@@ -619,6 +725,10 @@ ggplot2$ggplot(normal_dt, ggplot2$aes(x = x, y = density, colour = params)) +
     ggplot2$theme_minimal() +
     ggplot2$theme(legend.position = "bottom")
 ```
+
+<Figure src="/courses/statistics-1-foundations/normal_intro-1.png" alt="The normal distribution: the ubiquitous bell curve">
+	The normal distribution: the ubiquitous bell curve
+</Figure>
 
 ### 5.9.2 PDF Derivation
 
@@ -635,7 +745,8 @@ Another derivation comes from the Central Limit Theorem: the sum of many indepen
 3. Variance equals $\sigma^2$: $\int (x-\mu)^2 f(x) dx = \sigma^2$
 4. Total area = 1: $\int f(x) dx = 1$
 
-```{r normal_pdf_components}
+
+``` r
 # Break down the normal PDF
 
 mu <- 0
@@ -650,16 +761,25 @@ unnormalised <- exp(exponent_vals)
 normalised <- normalisation * unnormalised
 
 cat("Normal PDF Components: f(x) = (1/(σ√(2π))) × exp(-(x-μ)²/(2σ²))\n")
+#> Normal PDF Components: f(x) = (1/(<U+03C3><U+221A>(2<U+03C0>))) <U+00D7> exp(-(x-<U+03BC>)<U+00B2>/(2<U+03C3><U+00B2>))
 cat("=================================================================\n\n")
+#> =================================================================
 
 cat(sprintf("For the standard normal N(0, 1):\n"))
+#> For the standard normal N(0, 1):
 cat(sprintf("  Normalisation constant: 1/(σ√(2π)) = 1/√(2π) ≈ %.4f\n", normalisation))
+#>   Normalisation constant: 1/(<U+03C3><U+221A>(2<U+03C0>)) = 1/<U+221A>(2<U+03C0>) <U+2248> 0.3989
 cat(sprintf("  This ensures the total area under the curve = 1\n\n"))
+#>   This ensures the total area under the curve = 1
 
 cat("The exp(-(x-μ)²/(2σ²)) term:\n")
+#> The exp(-(x-<U+03BC>)<U+00B2>/(2<U+03C3><U+00B2>)) term:
 cat("  • Maximum at x = μ (exponent = 0, exp(0) = 1)\n")
+#>   <U+2022> Maximum at x = <U+03BC> (exponent = 0, exp(0) = 1)
 cat("  • Decays symmetrically as |x - μ| increases\n")
+#>   <U+2022> Decays symmetrically as |x - <U+03BC>| increases
 cat("  • Quadratic in the exponent → bell shape\n")
+#>   <U+2022> Quadratic in the exponent <U+2192> bell shape
 
 # Visualise components
 comp_dt <- data.table(
@@ -684,6 +804,10 @@ ggplot2$ggplot(comp_dt, ggplot2$aes(x = x, y = y, colour = component)) +
     ggplot2$theme(legend.position = "bottom")
 ```
 
+<Figure src="/courses/statistics-1-foundations/normal_pdf_components-1.png">
+	
+</Figure>
+
 ### 5.9.3 Properties
 
 **The 68-95-99.7 Rule (Empirical Rule)**
@@ -695,7 +819,8 @@ For any normal distribution:
 
 This is perhaps the most important practical fact about the normal distribution.
 
-```{r empirical_rule, fig.cap="The 68-95-99.7 rule for normal distributions"}
+
+``` r
 # Demonstrate the empirical rule
 
 mu <- 0
@@ -707,16 +832,25 @@ p_2sd <- pnorm(2) - pnorm(-2)
 p_3sd <- pnorm(3) - pnorm(-3)
 
 cat("The 68-95-99.7 Rule (Empirical Rule)\n")
+#> The 68-95-99.7 Rule (Empirical Rule)
 cat("====================================\n\n")
+#> ====================================
 
 cat("For X ~ N(μ, σ²):\n\n")
+#> For X ~ N(<U+03BC>, <U+03C3><U+00B2>):
 cat(sprintf("  P(μ - 1σ < X < μ + 1σ) = %.4f (≈ 68%%)\n", p_1sd))
+#>   P(<U+03BC> - 1<U+03C3> < X < <U+03BC> + 1<U+03C3>) = 0.6827 (<U+2248> 68%)
 cat(sprintf("  P(μ - 2σ < X < μ + 2σ) = %.4f (≈ 95%%)\n", p_2sd))
+#>   P(<U+03BC> - 2<U+03C3> < X < <U+03BC> + 2<U+03C3>) = 0.9545 (<U+2248> 95%)
 cat(sprintf("  P(μ - 3σ < X < μ + 3σ) = %.4f (≈ 99.7%%)\n\n", p_3sd))
+#>   P(<U+03BC> - 3<U+03C3> < X < <U+03BC> + 3<U+03C3>) = 0.9973 (<U+2248> 99.7%)
 
 cat("Conversely:\n")
+#> Conversely:
 cat(sprintf("  P(|X - μ| > 2σ) = %.4f (about 1 in 22)\n", 1 - p_2sd))
+#>   P(|X - <U+03BC>| > 2<U+03C3>) = 0.0455 (about 1 in 22)
 cat(sprintf("  P(|X - μ| > 3σ) = %.4f (about 1 in 370)\n", 1 - p_3sd))
+#>   P(|X - <U+03BC>| > 3<U+03C3>) = 0.0027 (about 1 in 370)
 
 # Visualise
 x_seq <- seq(-4, 4, by = 0.01)
@@ -749,21 +883,34 @@ ggplot2$ggplot(pdf_dt, ggplot2$aes(x = x, y = density)) +
     ggplot2$theme_minimal()
 ```
 
+<Figure src="/courses/statistics-1-foundations/empirical_rule-1.png" alt="The 68-95-99.7 rule for normal distributions">
+	The 68-95-99.7 rule for normal distributions
+</Figure>
+
 **Other Properties**
 
-```{r normal_properties}
+
+``` r
 # Additional normal distribution properties
 
 cat("Additional Properties of the Normal Distribution\n")
+#> Additional Properties of the Normal Distribution
 cat("=================================================\n\n")
+#> =================================================
 
 cat("1. SYMMETRY\n")
+#> 1. SYMMETRY
 cat("   f(μ + x) = f(μ - x)\n")
+#>    f(<U+03BC> + x) = f(<U+03BC> - x)
 cat("   P(X > μ + a) = P(X < μ - a)\n\n")
+#>    P(X > <U+03BC> + a) = P(X < <U+03BC> - a)
 
 cat("2. LINEAR TRANSFORMATIONS\n")
+#> 2. LINEAR TRANSFORMATIONS
 cat("   If X ~ N(μ, σ²), then:\n")
+#>    If X ~ N(<U+03BC>, <U+03C3><U+00B2>), then:
 cat("   Y = aX + b ~ N(aμ + b, a²σ²)\n\n")
+#>    Y = aX + b ~ N(a<U+03BC> + b, a<U+00B2><U+03C3><U+00B2>)
 
 # Verify by simulation
 set.seed(42)
@@ -771,12 +918,18 @@ X <- rnorm(10000, 5, 2)  # X ~ N(5, 4)
 Y <- 3 * X + 10           # Should be N(3*5 + 10, 9*4) = N(25, 36)
 
 cat("   Example: X ~ N(5, 4), Y = 3X + 10\n")
+#>    Example: X ~ N(5, 4), Y = 3X + 10
 cat(sprintf("   Theoretical Y: N(25, 36) with SD = 6\n"))
+#>    Theoretical Y: N(25, 36) with SD = 6
 cat(sprintf("   Simulated Y: mean = %.2f, SD = %.2f\n\n", mean(Y), sd(Y)))
+#>    Simulated Y: mean = 24.93, SD = 6.04
 
 cat("3. SUM OF INDEPENDENT NORMALS\n")
+#> 3. SUM OF INDEPENDENT NORMALS
 cat("   If X ~ N(μ₁, σ₁²) and Y ~ N(μ₂, σ₂²) are independent, then:\n")
+#>    If X ~ N(<U+03BC><U+2081>, <U+03C3><U+2081><U+00B2>) and Y ~ N(<U+03BC><U+2082>, <U+03C3><U+2082><U+00B2>) are independent, then:
 cat("   X + Y ~ N(μ₁ + μ₂, σ₁² + σ₂²)\n\n")
+#>    X + Y ~ N(<U+03BC><U+2081> + <U+03BC><U+2082>, <U+03C3><U+2081><U+00B2> + <U+03C3><U+2082><U+00B2>)
 
 # Verify
 X1 <- rnorm(10000, 3, 2)
@@ -784,8 +937,11 @@ X2 <- rnorm(10000, 7, 3)
 X_sum <- X1 + X2  # Should be N(10, 13)
 
 cat("   Example: X₁ ~ N(3, 4), X₂ ~ N(7, 9)\n")
+#>    Example: X<U+2081> ~ N(3, 4), X<U+2082> ~ N(7, 9)
 cat(sprintf("   Theoretical X₁ + X₂: N(10, 13) with SD = %.3f\n", sqrt(13)))
+#>    Theoretical X<U+2081> + X<U+2082>: N(10, 13) with SD = 3.606
 cat(sprintf("   Simulated: mean = %.2f, SD = %.2f\n", mean(X_sum), sd(X_sum)))
+#>    Simulated: mean = 10.03, SD = 3.67
 ```
 
 ### 5.9.4 The Standard Normal (Z)
@@ -819,7 +975,8 @@ This integral has no closed form, so we use tables or numerical methods.
 **Converting between X and Z:**
 $$P(X \leq x) = P\left(Z \leq \frac{x - \mu}{\sigma}\right) = \Phi\left(\frac{x - \mu}{\sigma}\right)$$
 
-```{r standard_normal, fig.cap="Standardisation converts any normal to the standard normal"}
+
+``` r
 # Demonstrate standardisation
 
 mu <- 100
@@ -833,24 +990,35 @@ X <- rnorm(10000, mu, sigma)
 Z <- (X - mu) / sigma
 
 cat("Standardisation: Converting to Z-Scores\n")
+#> Standardisation: Converting to Z-Scores
 cat("========================================\n\n")
+#> ========================================
 
 cat(sprintf("Original: X ~ N(%.0f, %.0f²)\n", mu, sigma))
+#> Original: X ~ N(100, 15<U+00B2>)
 cat(sprintf("  Mean of X: %.2f\n", mean(X)))
+#>   Mean of X: 99.83
 cat(sprintf("  SD of X: %.2f\n\n", sd(X)))
+#>   SD of X: 15.09
 
 cat("Standardised: Z = (X - μ)/σ ~ N(0, 1)\n")
+#> Standardised: Z = (X - <U+03BC>)/<U+03C3> ~ N(0, 1)
 cat(sprintf("  Mean of Z: %.4f (should be ≈ 0)\n", mean(Z)))
+#>   Mean of Z: -0.0113 (should be <U+2248> 0)
 cat(sprintf("  SD of Z: %.4f (should be ≈ 1)\n\n", sd(Z)))
+#>   SD of Z: 1.0061 (should be <U+2248> 1)
 
 # Calculate a probability both ways
 x_value <- 120
 z_value <- (x_value - mu) / sigma
 
 cat(sprintf("Example: P(X < 120)\n"))
+#> Example: P(X < 120)
 cat(sprintf("  Using X directly: P(X < 120) = %.4f\n", pnorm(x_value, mu, sigma)))
+#>   Using X directly: P(X < 120) = 0.9088
 cat(sprintf("  Using Z: P(Z < (120-100)/15) = P(Z < %.2f) = %.4f\n",
             z_value, pnorm(z_value)))
+#>   Using Z: P(Z < (120-100)/15) = P(Z < 1.33) = 0.9088
 
 # Visualise both distributions
 x_dt <- data.table(value = X, distribution = sprintf("X ~ N(%d, %d²)", mu, sigma))
@@ -877,11 +1045,16 @@ ggplot2$ggplot(compare_dt, ggplot2$aes(x = value)) +
     ggplot2$theme_minimal()
 ```
 
+<Figure src="/courses/statistics-1-foundations/standard_normal-1.png" alt="Standardisation converts any normal to the standard normal">
+	Standardisation converts any normal to the standard normal
+</Figure>
+
 ### 5.9.5 Implementation from Scratch
 
 The normal CDF has no closed-form solution, but we can implement numerical approximations.
 
-```{r normal_from_scratch}
+
+``` r
 # Implement normal distribution functions from scratch
 
 # dnorm_scratch: PDF
@@ -958,37 +1131,58 @@ rnorm_scratch <- function(n, mu = 0, sigma = 1) {
 
 # Test implementations
 cat("Normal Distribution Functions: From Scratch\n")
+#> Normal Distribution Functions: From Scratch
 cat("============================================\n\n")
+#> ============================================
 
 mu <- 10
 sigma <- 3
 
 # PDF comparison
 cat("PDF (dnorm):\n")
+#> PDF (dnorm):
 for (x in c(7, 10, 13)) {
     our_val <- dnorm_scratch(x, mu, sigma)
     r_val <- dnorm(x, mu, sigma)
     cat(sprintf("  f(%.0f): ours = %.6f, R = %.6f\n", x, our_val, r_val))
 }
+#>   f(7): ours = 0.080657, R = 0.080657
+#>   f(10): ours = 0.132981, R = 0.132981
+#>   f(13): ours = 0.080657, R = 0.080657
 
 # CDF comparison
 cat("\nCDF (pnorm):\n")
+#> 
+#> CDF (pnorm):
 for (x in c(7, 10, 13, 16)) {
     our_val <- pnorm_scratch(x, mu, sigma)
     r_val <- pnorm(x, mu, sigma)
     cat(sprintf("  P(X <= %.0f): ours = %.6f, R = %.6f\n", x, our_val, r_val))
 }
+#>   P(X <= 7): ours = 0.158655, R = 0.158655
+#>   P(X <= 10): ours = 0.500000, R = 0.500000
+#>   P(X <= 13): ours = 0.841345, R = 0.841345
+#>   P(X <= 16): ours = 0.977250, R = 0.977250
 
 # Quantile comparison
 cat("\nQuantiles (qnorm):\n")
+#> 
+#> Quantiles (qnorm):
 for (p in c(0.1, 0.25, 0.5, 0.75, 0.9)) {
     our_val <- qnorm_scratch(p, mu, sigma)
     r_val <- qnorm(p, mu, sigma)
     cat(sprintf("  Q(%.2f): ours = %.4f, R = %.4f\n", p, our_val, r_val))
 }
+#>   Q(0.10): ours = 6.1553, R = 6.1553
+#>   Q(0.25): ours = 7.9765, R = 7.9765
+#>   Q(0.50): ours = 10.0000, R = 10.0000
+#>   Q(0.75): ours = 12.0235, R = 12.0235
+#>   Q(0.90): ours = 13.8447, R = 13.8447
 
 # Random generation
 cat("\nRandom generation (rnorm):\n")
+#> 
+#> Random generation (rnorm):
 set.seed(42)
 our_samples <- rnorm_scratch(10000, mu, sigma)
 set.seed(42)
@@ -996,8 +1190,10 @@ r_samples <- rnorm(10000, mu, sigma)
 
 cat(sprintf("  Our mean: %.4f, R mean: %.4f (theoretical: %.1f)\n",
             mean(our_samples), mean(r_samples), mu))
+#>   Our mean: 10.0207, R mean: 9.9661 (theoretical: 10.0)
 cat(sprintf("  Our SD: %.4f, R SD: %.4f (theoretical: %.1f)\n",
             sd(our_samples), sd(r_samples), sigma))
+#>   Our SD: 2.9973, R SD: 3.0184 (theoretical: 3.0)
 ```
 
 ### 5.9.6 Why the Normal Is Everywhere
@@ -1013,7 +1209,8 @@ This explains why:
 
 We cover the CLT rigorously in Chapter 6.
 
-```{r clt_preview, fig.cap="Central Limit Theorem: sums become normal regardless of original distribution"}
+
+``` r
 # Demonstrate CLT: sum of uniform random variables becomes normal
 
 set.seed(42)
@@ -1036,10 +1233,14 @@ clt_dt <- rbindlist(lapply(n_values, function(n) {
 clt_dt$n <- factor(clt_dt$n, levels = paste("n =", n_values))
 
 cat("Central Limit Theorem Preview\n")
+#> Central Limit Theorem Preview
 cat("=============================\n\n")
+#> =============================
 
 cat("Sum of n Uniform(0, 1) variables, standardised:\n")
+#> Sum of n Uniform(0, 1) variables, standardised:
 cat("As n increases, the distribution approaches N(0, 1)\n\n")
+#> As n increases, the distribution approaches N(0, 1)
 
 for (n in n_values) {
     sims <- clt_dt[n == paste("n =", n), x]
@@ -1047,6 +1248,11 @@ for (n in n_values) {
                 n, mean(sims), sd(sims),
                 mean((sims - mean(sims))^3) / sd(sims)^3))
 }
+#> n =  1: mean =    NaN, SD = NA, skew =    NaN
+#> n =  2: mean =    NaN, SD = NA, skew =    NaN
+#> n =  5: mean =    NaN, SD = NA, skew =    NaN
+#> n = 12: mean =    NaN, SD = NA, skew =    NaN
+#> n = 30: mean =    NaN, SD = NA, skew =    NaN
 
 ggplot2$ggplot(clt_dt, ggplot2$aes(x = x)) +
     ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
@@ -1064,9 +1270,14 @@ ggplot2$ggplot(clt_dt, ggplot2$aes(x = x)) +
     ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
 ```
 
+<Figure src="/courses/statistics-1-foundations/clt_preview-1.png" alt="Central Limit Theorem: sums become normal regardless of original distribution">
+	Central Limit Theorem: sums become normal regardless of original distribution
+</Figure>
+
 **Normal Distribution in Biomedical Data**
 
-```{r normal_biomedical, fig.cap="Many biomedical variables are approximately normally distributed"}
+
+``` r
 # Check normality of BMI and height in NHANES
 
 # BMI
@@ -1083,17 +1294,27 @@ height_mean <- mean(height_clean)
 height_sd <- sd(height_clean)
 
 cat("Biomedical Variables and the Normal Distribution\n")
+#> Biomedical Variables and the Normal Distribution
 cat("=================================================\n\n")
+#> =================================================
 
 cat("BMI in NHANES:\n")
+#> BMI in NHANES:
 cat(sprintf("  n = %d\n", length(bmi_clean)))
+#>   n = 9619
 cat(sprintf("  Mean = %.2f, SD = %.2f\n", bmi_mean, bmi_sd))
+#>   Mean = 26.60, SD = 7.19
 cat("  Note: BMI is slightly right-skewed (not perfectly normal)\n\n")
+#>   Note: BMI is slightly right-skewed (not perfectly normal)
 
 cat("Height in NHANES:\n")
+#> Height in NHANES:
 cat(sprintf("  n = %d\n", length(height_clean)))
+#>   n = 9432
 cat(sprintf("  Mean = %.2f cm, SD = %.2f cm\n", height_mean, height_sd))
+#>   Mean = 163.45 cm, SD = 17.47 cm
 cat("  Height is often well-approximated by normal\n")
+#>   Height is often well-approximated by normal
 
 # Create comparison plots
 bmi_dt <- data.table(value = bmi_clean, variable = "BMI (kg/m²)",
@@ -1126,56 +1347,92 @@ gridExtra::grid.arrange(p_bmi, p_height, ncol = 2,
     top = "Biomedical Variables with Normal Fit (red curve)")
 ```
 
+<Figure src="/courses/statistics-1-foundations/normal_biomedical-1.png" alt="Many biomedical variables are approximately normally distributed">
+	Many biomedical variables are approximately normally distributed
+</Figure>
+
 ---
 
 ## Communicating to Stakeholders
 
 ### Explaining Continuous Distributions
 
-```{r stakeholder_continuous}
+
+``` r
 cat("Explaining Continuous Distributions to Non-Statisticians\n")
+#> Explaining Continuous Distributions to Non-Statisticians
 cat("=========================================================\n\n")
+#> =========================================================
 
 cat("KEY MESSAGE: For continuous measurements, we can't ask about exact values.\n\n")
+#> KEY MESSAGE: For continuous measurements, we can't ask about exact values.
 
 cat("DON'T say:\n")
+#> DON'T say:
 cat("  'What's the probability that blood pressure is exactly 120?'\n\n")
+#>   'What's the probability that blood pressure is exactly 120?'
 
 cat("DO say:\n")
+#> DO say:
 cat("  'What's the probability that blood pressure is between 110 and 130?'\n")
+#>   'What's the probability that blood pressure is between 110 and 130?'
 cat("  'What percentage of patients have blood pressure above 140?'\n\n")
+#>   'What percentage of patients have blood pressure above 140?'
 
 cat("ANALOGY:\n")
+#> ANALOGY:
 cat("  Think of probability as water in a stream. You can measure how much\n")
+#>   Think of probability as water in a stream. You can measure how much
 cat("  water passes through a section (range), but not a single point.\n")
+#>   water passes through a section (range), but not a single point.
 ```
 
 ### Explaining the Normal Distribution
 
-```{r stakeholder_normal}
+
+``` r
 cat("Explaining the Normal Distribution\n")
+#> Explaining the Normal Distribution
 cat("===================================\n\n")
+#> ===================================
 
 cat("FOR GENERAL AUDIENCES:\n")
+#> FOR GENERAL AUDIENCES:
 cat("  'Many things in nature follow a bell-shaped pattern. Most values\n")
+#>   'Many things in nature follow a bell-shaped pattern. Most values
 cat("   cluster around the average, with fewer and fewer extreme values\n")
+#>    cluster around the average, with fewer and fewer extreme values
 cat("   as you move further away.'\n\n")
+#>    as you move further away.'
 
 cat("FOR CLINICAL COLLEAGUES:\n")
+#> FOR CLINICAL COLLEAGUES:
 cat("  'About 68% of patients will have values within one standard deviation\n")
+#>   'About 68% of patients will have values within one standard deviation
 cat("   of the mean. About 95% within two standard deviations. Values more\n")
+#>    of the mean. About 95% within two standard deviations. Values more
 cat("   than 3 SDs away are very rare — less than 1 in 300.'\n\n")
+#>    than 3 SDs away are very rare <U+2014> less than 1 in 300.'
 
 cat("FOR INTERPRETING RESULTS:\n")
+#> FOR INTERPRETING RESULTS:
 cat("  'If a patient's test result is 2 standard deviations above the mean,\n")
+#>   'If a patient's test result is 2 standard deviations above the mean,
 cat("   only about 2.5% of healthy people would have a value that high or higher.\n")
+#>    only about 2.5% of healthy people would have a value that high or higher.
 cat("   That might be worth investigating.'\n\n")
+#>    That might be worth investigating.'
 
 cat("COMMON MISCONCEPTION:\n")
+#> COMMON MISCONCEPTION:
 cat("  'Not everything is normally distributed! Income, hospital length of stay,\n")
+#>   'Not everything is normally distributed! Income, hospital length of stay,
 cat("   and many biomarkers are often skewed. We can still use normal-based\n")
+#>    and many biomarkers are often skewed. We can still use normal-based
 cat("   methods for sample means (thanks to the Central Limit Theorem), but\n")
+#>    methods for sample means (thanks to the Central Limit Theorem), but
 cat("   the raw data itself may not be normal.'\n")
+#>    the raw data itself may not be normal.'
 ```
 
 ---

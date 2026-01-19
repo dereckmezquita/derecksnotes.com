@@ -8,7 +8,7 @@ A comprehensive three-part course on statistics using R programming, designed fo
 
 | Part | Title | Folder | Chapters | Status |
 |------|-------|--------|----------|--------|
-| I | Foundations | `statistics-1-foundations/` | 15 | In Progress (5/15) |
+| I | Foundations | `statistics-1-foundations/` | 15 | In Progress (6/15) |
 | II | Intermediate | `statistics-2-intermediate/` | 10 | Not Started |
 | III | Advanced | `statistics-3-advanced/` | 8 | Not Started |
 
@@ -17,7 +17,7 @@ A comprehensive three-part course on statistics using R programming, designed fo
 # Part I: Foundations
 
 **Folder:** `statistics-1-foundations/`
-**Status:** In Progress (5/15 chapters complete)
+**Status:** In Progress (6/15 chapters complete)
 
 A rigorous introduction to statistical thinking covering descriptive statistics, probability, distributions, sampling theory, estimation, hypothesis testing, and introductory regression/ANOVA.
 
@@ -374,7 +374,7 @@ A rigorous introduction to statistical thinking covering descriptive statistics,
 
 ---
 
-## Chapter 6: Sampling Distributions and the CLT
+## Chapter 6: Sampling Distributions and the CLT ✓
 
 *The conceptual foundation of statistical inference.*
 
@@ -384,42 +384,42 @@ A rigorous introduction to statistical thinking covering descriptive statistics,
 
 ### Part 1 (`06-1`): Sampling Distribution of the Mean / CLT
 
-- [ ] **6.1 The Concept of a Sampling Distribution** — Statistics as random variables.
-  - [ ] 6.1.1 What Happens When We Sample Repeatedly? — Motivation.
-  - [ ] 6.1.2 Statistics as Random Variables — Their own distributions.
-  - [ ] 6.1.3 Simulating Sampling Distributions in R — Empirical distributions.
-- [ ] **6.2 Sampling Distribution of the Sample Mean** — Most important distribution.
-  - [ ] 6.2.1 Expected Value — E(X̄) = μ, unbiased.
-  - [ ] 6.2.2 Variance — Var(X̄) = σ²/n.
-  - [ ] 6.2.3 Standard Error — SE(X̄) = σ/√n, vs SD.
-  - [ ] 6.2.4 Visualising Sample Size Effect — Narrowing distributions.
-- [ ] **6.3 The Central Limit Theorem** — Most remarkable result.
-  - [ ] 6.3.1 Statement of the CLT — X̄ → N(μ, σ²/n) regardless of population.
-  - [ ] 6.3.2 Why the CLT Is Remarkable — Works for any distribution.
-  - [ ] 6.3.3 Visualising the CLT — Simulations from various populations.
-  - [ ] 6.3.4 How Large Is "Large Enough"? — n ≥ 30 guideline.
-  - [ ] 6.3.5 Mathematical Intuition — Why sums become normal.
-- [ ] **Communicating to Stakeholders** — Sampling variability and CLT.
-- [ ] **Quick Reference** — Sampling distribution formulae.
+- [x] **6.1 The Concept of a Sampling Distribution** — Statistics as random variables.
+  - [x] 6.1.1 What Happens When We Sample Repeatedly? — Motivation.
+  - [x] 6.1.2 Statistics as Random Variables — Their own distributions.
+  - [x] 6.1.3 Simulating Sampling Distributions in R — Empirical distributions.
+- [x] **6.2 Sampling Distribution of the Sample Mean** — Most important distribution.
+  - [x] 6.2.1 Expected Value — E(X̄) = μ, unbiased.
+  - [x] 6.2.2 Variance — Var(X̄) = σ²/n.
+  - [x] 6.2.3 Standard Error — SE(X̄) = σ/√n, vs SD.
+  - [x] 6.2.4 Visualising Sample Size Effect — Narrowing distributions.
+- [x] **6.3 The Central Limit Theorem** — Most remarkable result.
+  - [x] 6.3.1 Statement of the CLT — X̄ → N(μ, σ²/n) regardless of population.
+  - [x] 6.3.2 Why the CLT Is Remarkable — Works for any distribution.
+  - [x] 6.3.3 Visualising the CLT — Simulations from various populations.
+  - [x] 6.3.4 How Large Is "Large Enough"? — n ≥ 30 guideline.
+  - [x] 6.3.5 Mathematical Intuition — Why sums become normal.
+- [x] **Communicating to Stakeholders** — Sampling variability and CLT.
+- [x] **Quick Reference** — Sampling distribution formulae.
 
 ### Part 2 (`06-2`): Proportions / Variance / t-Distribution
 
-- [ ] **6.4 Sample Proportion** — Categorical data.
-  - [ ] 6.4.1 Proportion as a Special Mean — Mean of 0s and 1s.
-  - [ ] 6.4.2 Standard Error of a Proportion — SE(p̂) = √[p(1-p)/n].
-  - [ ] 6.4.3 Normal Approximation to Binomial — np ≥ 10 rule.
-- [ ] **6.5 Sample Variance** — Chi-square distribution.
-  - [ ] 6.5.1 Distribution of S² — (n-1)S²/σ² ~ χ²(n-1).
-  - [ ] 6.5.2 Why We Divide by n-1 — Rigorous proof.
-- [ ] **6.6 Sampling Distribution of Differences** — Comparing groups.
-  - [ ] 6.6.1 Difference of Two Means — Distribution derivation.
-  - [ ] 6.6.2 Difference of Two Proportions — For proportion tests.
-- [ ] **6.7 The t-Distribution in Sampling** — Unknown σ.
-  - [ ] 6.7.1 When σ Is Unknown — Additional uncertainty.
-  - [ ] 6.7.2 The t-Statistic — t = (X̄ - μ) / (s/√n).
-  - [ ] 6.7.3 Degrees of Freedom and Shape — Approaches normal.
-- [ ] **Communicating to Stakeholders** — Why larger studies are more reliable.
-- [ ] **Quick Reference** — Proportion and t formulae.
+- [x] **6.4 Sample Proportion** — Categorical data.
+  - [x] 6.4.1 Proportion as a Special Mean — Mean of 0s and 1s.
+  - [x] 6.4.2 Standard Error of a Proportion — SE(p̂) = √[p(1-p)/n].
+  - [x] 6.4.3 Normal Approximation to Binomial — np ≥ 10 rule.
+- [x] **6.5 Sample Variance** — Chi-square distribution.
+  - [x] 6.5.1 Distribution of S² — (n-1)S²/σ² ~ χ²(n-1).
+  - [x] 6.5.2 Why We Divide by n-1 — Rigorous proof.
+- [x] **6.6 Sampling Distribution of Differences** — Comparing groups.
+  - [x] 6.6.1 Difference of Two Means — Distribution derivation.
+  - [x] 6.6.2 Difference of Two Proportions — For proportion tests.
+- [x] **6.7 The t-Distribution in Sampling** — Unknown σ.
+  - [x] 6.7.1 When σ Is Unknown — Additional uncertainty.
+  - [x] 6.7.2 The t-Statistic — t = (X̄ - μ) / (s/√n).
+  - [x] 6.7.3 Degrees of Freedom and Shape — Approaches normal.
+- [x] **Communicating to Stakeholders** — Why larger studies are more reliable.
+- [x] **Quick Reference** — Proportion and t formulae.
 
 ---
 
