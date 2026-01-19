@@ -8,7 +8,7 @@ A comprehensive three-part course on statistics using R programming, designed fo
 
 | Part | Title | Folder | Chapters | Status |
 |------|-------|--------|----------|--------|
-| I | Foundations | `statistics-1-foundations/` | 15 | In Progress (6/15) |
+| I | Foundations | `statistics-1-foundations/` | 15 | In Progress (7/15) |
 | II | Intermediate | `statistics-2-intermediate/` | 10 | Not Started |
 | III | Advanced | `statistics-3-advanced/` | 8 | Not Started |
 
@@ -17,7 +17,7 @@ A comprehensive three-part course on statistics using R programming, designed fo
 # Part I: Foundations
 
 **Folder:** `statistics-1-foundations/`
-**Status:** In Progress (6/15 chapters complete)
+**Status:** In Progress (7/15 chapters complete)
 
 A rigorous introduction to statistical thinking covering descriptive statistics, probability, distributions, sampling theory, estimation, hypothesis testing, and introductory regression/ANOVA.
 
@@ -423,11 +423,65 @@ A rigorous introduction to statistical thinking covering descriptive statistics,
 
 ---
 
-## Chapters 7–15: Summary
+## Chapter 7: Point Estimation ✓
+
+*Estimating population parameters from sample data.*
+
+**Files:**
+- `07-1_statistics-1-foundations_point-estimation_properties-mom.Rmd`
+- `07-2_statistics-1-foundations_point-estimation_mle.Rmd`
+
+### Part 1 (`07-1`): Properties of Estimators / Method of Moments
+
+- [x] **7.1 What Is Point Estimation?** — Using sample data to estimate parameters.
+  - [x] 7.1.1 The Estimation Problem — Formal definition.
+  - [x] 7.1.2 Estimators vs Estimates — Random variables vs realised values.
+  - [x] 7.1.3 The Hat Notation Convention — θ̂ denotes estimator of θ.
+- [x] **7.2 Properties of Estimators** — Evaluating estimation quality.
+  - [x] 7.2.1 Bias — E(θ̂) - θ, systematic error.
+  - [x] 7.2.2 Variance — Var(θ̂), precision of estimator.
+  - [x] 7.2.3 Mean Squared Error — MSE = Bias² + Variance, bias-variance tradeoff.
+  - [x] 7.2.4 Consistency — θ̂ → θ as n → ∞.
+  - [x] 7.2.5 Efficiency — Cramér-Rao bound, relative efficiency.
+- [x] **7.3 Method of Moments** — Matching sample to population moments.
+  - [x] 7.3.1 The Idea — Express parameters as functions of moments.
+  - [x] 7.3.2 MOM for Normal Distribution — μ̂ = X̄, σ̂² from sample variance.
+  - [x] 7.3.3 MOM for Exponential Distribution — λ̂ = 1/X̄.
+  - [x] 7.3.4 MOM for Gamma Distribution — Two-parameter example.
+  - [x] 7.3.5 Limitations of MOM — Not always optimal.
+- [x] **Communicating to Stakeholders** — Explaining estimation to collaborators.
+- [x] **Quick Reference** — Properties and MOM formulae.
+
+### Part 2 (`07-2`): Maximum Likelihood Estimation
+
+- [x] **7.4 The Likelihood Function** — Probability of observing data given parameters.
+  - [x] 7.4.1 From Probability to Likelihood — Switching perspective.
+  - [x] 7.4.2 Likelihood vs Probability — L(θ|x) not a probability.
+  - [x] 7.4.3 The Maximum Likelihood Principle — Choose θ maximising L.
+- [x] **7.5 Finding MLEs** — Analytical derivations.
+  - [x] 7.5.1 The Log-Likelihood — Simplifies products to sums.
+  - [x] 7.5.2 MLE for Bernoulli/Binomial — p̂ = X̄.
+  - [x] 7.5.3 MLE for Normal Distribution — μ̂ = X̄, σ̂² = (1/n)Σ(Xᵢ - X̄)².
+  - [x] 7.5.4 MLE for Exponential Distribution — λ̂ = 1/X̄.
+  - [x] 7.5.5 MLE for Poisson Distribution — λ̂ = X̄.
+- [x] **7.6 Properties of MLEs** — Asymptotic optimality.
+  - [x] 7.6.1 Asymptotic Normality — √n(θ̂ - θ) → N(0, 1/I(θ)).
+  - [x] 7.6.2 Invariance Property — MLE of g(θ) is g(θ̂).
+  - [x] 7.6.3 Fisher Information — I(θ) = -E[∂²ℓ/∂θ²].
+  - [x] 7.6.4 Standard Errors from Fisher Information — SE = 1/√I(θ̂).
+- [x] **7.7 Numerical MLE** — When analytical solutions don't exist.
+  - [x] 7.7.1 Using optim() in R — Numerical optimisation.
+  - [x] 7.7.2 MLE for Beta Distribution — Numerical example.
+  - [x] 7.7.3 MLE for Gamma Distribution — Comparison with MOM.
+- [x] **Communicating to Stakeholders** — Likelihood-based inference.
+- [x] **Quick Reference** — MLE derivations and optim() patterns.
+
+---
+
+## Chapters 8–15: Summary
 
 | Ch | Topic | Parts | Status |
 |----|-------|-------|--------|
-| 7 | Point Estimation — Properties, MOM, MLE | 2 | Not Started |
 | 8 | Confidence Intervals — Construction and interpretation | 3 | Not Started |
 | 9 | Hypothesis Testing — Logic, p-values, errors | 2 | Not Started |
 | 10 | Tests for Means and Proportions — t-tests, z-tests | 2 | Not Started |

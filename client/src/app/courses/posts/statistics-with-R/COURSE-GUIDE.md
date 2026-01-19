@@ -12,7 +12,7 @@ This document consolidates all development guidelines, pedagogical approach, cod
 
 | Part | Title | Folder | Status |
 |------|-------|--------|--------|
-| I | Foundations | `statistics-1-foundations/` | In Progress (6/15 chapters) |
+| I | Foundations | `statistics-1-foundations/` | In Progress (7/15 chapters) |
 | II | Intermediate | `statistics-2-intermediate/` | Not Started |
 | III | Advanced | `statistics-3-advanced/` | Not Started |
 
