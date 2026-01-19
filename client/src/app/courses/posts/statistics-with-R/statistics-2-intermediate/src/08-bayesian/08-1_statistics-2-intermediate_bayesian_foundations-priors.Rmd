@@ -1,0 +1,930 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 8: Bayesian Statistics"
+part: "Part 1: Foundations and Prior Distributions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, bayesian, priors, posterior, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 1: Foundations and Prior Distributions
+
+Throughout this course, we have employed **frequentist** methods: confidence intervals, p-values, and maximum likelihood estimation all interpret probability as long-run frequency. **Bayesian statistics** offers a fundamentally different perspective: probability represents degrees of belief, and inference proceeds by updating prior beliefs with observed data. This chapter introduces Bayesian foundations, the role of prior distributions, and the mechanics of posterior inference.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load clinical trial data for examples
+clinical <- fread("../../../data/medical/blood_storage.csv")
+
+# Simulate diagnostic test data
+set.seed(42)
+n_tested <- 1000
+true_prevalence <- 0.05
+sensitivity <- 0.95
+specificity <- 0.90
+
+disease_status <- rbinom(n_tested, 1, true_prevalence)
+test_result <- ifelse(disease_status == 1,
+                       rbinom(n_tested, 1, sensitivity),
+                       rbinom(n_tested, 1, 1 - specificity))
+
+diagnostic_data <- data.table(
+    patient_id = 1:n_tested,
+    true_disease = disease_status,
+    test_positive = test_result
+)
+
+cat("Data Loaded:\n")
+cat("  Blood storage study:", nrow(clinical), "patients\n")
+cat("  Simulated diagnostic tests:", n_tested, "patients\n")
+cat("    Positive tests:", sum(test_result), "\n")
+cat("    True disease cases:", sum(disease_status), "\n")
+```
+
+---
+
+## 8.1 The Frequentist vs Bayesian Divide
+
+### 8.1.1 Two Philosophies of Probability
+
+**Prose and Intuition**
+
+The philosophical divide between frequentist and Bayesian statistics centres on the interpretation of probability:
+
+**Frequentist view**: Probability is the limiting relative frequency of an event over infinitely many repetitions. A 95% confidence interval means: if we repeated this study infinitely many times, 95% of the intervals would contain the true parameter.
+
+**Bayesian view**: Probability represents rational degree of belief. A 95% credible interval means: given our prior beliefs and the observed data, there is a 95% probability that the parameter lies in this interval.
+
+**Clinical analogy**: A patient asks, "What's the probability I have cancer given this positive test result?"
+
+- A strict frequentist cannot directly answer this—the parameter (whether you have cancer) is fixed, not random.
+- A Bayesian can: given the test result and our prior knowledge of cancer prevalence, the probability is...
+
+This distinction matters practically:
+- **Frequentist confidence interval**: "We are 95% confident the true effect is between 0.3 and 0.7" (the interval either contains the true value or it doesn't)
+- **Bayesian credible interval**: "There is a 95% probability the effect is between 0.3 and 0.7" (direct probability statement about the parameter)
+
+**Visualisation**
+
+```{r philosophy_comparison, fig.cap="Frequentist vs Bayesian interpretation of the same data"}
+# Simulate many confidence intervals (frequentist view)
+set.seed(123)
+n_sims <- 100
+true_mean <- 50
+n_obs <- 30
+sd_obs <- 10
+
+# Calculate confidence intervals from many samples
+ci_data <- rbindlist(lapply(1:n_sims, function(i) {
+    sample_data <- rnorm(n_obs, true_mean, sd_obs)
+    sample_mean <- mean(sample_data)
+    sample_se <- sd(sample_data) / sqrt(n_obs)
+    ci_lower <- sample_mean - 1.96 * sample_se
+    ci_upper <- sample_mean + 1.96 * sample_se
+    contains_true <- true_mean >= ci_lower & true_mean <= ci_upper
+    data.table(
+        sim = i,
+        mean = sample_mean,
+        lower = ci_lower,
+        upper = ci_upper,
+        contains_true = contains_true
+    )
+}))
+
+# Calculate coverage
+coverage <- mean(ci_data$contains_true)
+
+# Plot first 50 CIs
+ggplot2$ggplot(ci_data[1:50], ggplot2$aes(y = sim)) +
+    ggplot2$geom_segment(ggplot2$aes(x = lower, xend = upper, yend = sim,
+                                      colour = contains_true)) +
+    ggplot2$geom_point(ggplot2$aes(x = mean), size = 1) +
+    ggplot2$geom_vline(xintercept = true_mean, colour = "#D55E00", linewidth = 1) +
+    ggplot2$scale_colour_manual(values = c("TRUE" = "#009E73", "FALSE" = "#CC79A7"),
+                                 labels = c("TRUE" = "Contains true value",
+                                            "FALSE" = "Misses true value")) +
+    ggplot2$labs(
+        title = "Frequentist Perspective: 95% Confidence Intervals from 50 Samples",
+        subtitle = sprintf("Coverage = %.0f%% (Long-run, %.0f%% will contain the true value)",
+                           coverage * 100, 95),
+        x = "Parameter Value",
+        y = "Sample Number",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+```{r bayesian_perspective, fig.cap="Bayesian perspective: posterior distribution represents uncertainty about the parameter"}
+# Bayesian perspective: show posterior distribution for single sample
+sample_data <- rnorm(n_obs, true_mean, sd_obs)
+sample_mean <- mean(sample_data)
+sample_se <- sd(sample_data) / sqrt(n_obs)
+
+# Prior: vague normal (mean = 45, sd = 20)
+prior_mean <- 45
+prior_sd <- 20
+
+# Posterior (conjugate normal-normal)
+prior_precision <- 1 / prior_sd^2
+data_precision <- n_obs / sd_obs^2
+posterior_precision <- prior_precision + data_precision
+posterior_mean <- (prior_precision * prior_mean + data_precision * sample_mean) / posterior_precision
+posterior_sd <- sqrt(1 / posterior_precision)
+
+# Create distribution curves
+x_vals <- seq(30, 70, length.out = 200)
+dist_dt <- data.table(
+    x = rep(x_vals, 3),
+    density = c(dnorm(x_vals, prior_mean, prior_sd),
+                dnorm(x_vals, sample_mean, sample_se),
+                dnorm(x_vals, posterior_mean, posterior_sd)),
+    distribution = factor(rep(c("Prior", "Likelihood", "Posterior"), each = 200),
+                          levels = c("Prior", "Likelihood", "Posterior"))
+)
+
+ggplot2$ggplot(dist_dt, ggplot2$aes(x = x, y = density, colour = distribution)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = true_mean, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = true_mean, y = max(dist_dt$density),
+                     label = "True value", hjust = -0.1, colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("Prior" = "#0072B2",
+                                            "Likelihood" = "#D55E00",
+                                            "Posterior" = "#009E73")) +
+    ggplot2$labs(
+        title = "Bayesian Perspective: Updating Beliefs with Data",
+        subtitle = "Posterior = Prior × Likelihood (normalised)",
+        x = "Parameter Value (μ)",
+        y = "Density",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 8.2 Bayes' Theorem: The Foundation
+
+### 8.2.1 From Conditional Probability to Inference
+
+**Prose and Intuition**
+
+Bayes' theorem is simply a consequence of the definition of conditional probability:
+
+$$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+Applied to statistical inference, where $\theta$ is a parameter and $D$ is data:
+
+$$P(\theta|D) = \frac{P(D|\theta) \cdot P(\theta)}{P(D)}$$
+
+In words: **Posterior = (Likelihood × Prior) / Evidence**
+
+Each term has a specific meaning:
+- $P(\theta)$: **Prior** — What we believed about $\theta$ before seeing data
+- $P(D|\theta)$: **Likelihood** — Probability of the data given the parameter
+- $P(D)$: **Evidence** (marginal likelihood) — Normalising constant
+- $P(\theta|D)$: **Posterior** — What we believe about $\theta$ after seeing data
+
+**Clinical Example: Diagnostic Testing**
+
+A medical test has 95% sensitivity and 90% specificity. In a population with 5% disease prevalence, what is the probability a person has the disease given a positive test?
+
+Let:
+- $D$ = has disease
+- $+$ = positive test
+
+We want $P(D|+)$:
+
+$$P(D|+) = \frac{P(+|D) \cdot P(D)}{P(+)}$$
+
+where $P(+) = P(+|D)P(D) + P(+|\neg D)P(\neg D)$
+
+**Mathematical Derivation**
+
+```{r bayes_diagnostic}
+# Diagnostic test calculation
+sensitivity <- 0.95  # P(+|D)
+specificity <- 0.90  # P(-|not D), so P(+|not D) = 0.10
+prevalence <- 0.05   # P(D)
+
+# Marginal probability of positive test
+p_positive <- sensitivity * prevalence + (1 - specificity) * (1 - prevalence)
+
+# Posterior probability of disease given positive test
+ppv <- (sensitivity * prevalence) / p_positive
+
+# Also calculate negative predictive value
+p_negative <- (1 - sensitivity) * prevalence + specificity * (1 - prevalence)
+npv <- (specificity * (1 - prevalence)) / p_negative
+
+cat("Diagnostic Test Analysis (Bayes' Theorem):\n")
+cat("==========================================\n\n")
+cat("Test characteristics:\n")
+cat("  Sensitivity (P(+|D)):", sensitivity, "\n")
+cat("  Specificity (P(-|~D)):", specificity, "\n")
+cat("  Prevalence (P(D)):", prevalence, "\n\n")
+
+cat("Results:\n")
+cat("  P(positive test):", round(p_positive, 3), "\n")
+cat("  P(Disease | Positive test) - PPV:", round(ppv, 3), "\n")
+cat("  P(No Disease | Negative test) - NPV:", round(npv, 3), "\n\n")
+
+cat("Interpretation:\n")
+cat(sprintf("  Only %.1f%% of positive tests indicate true disease!\n", ppv * 100))
+cat("  This is because the disease is rare (low prevalence).\n")
+```
+
+**Visualisation**
+
+```{r bayes_tree, fig.cap="Visualising Bayes' theorem with a probability tree"}
+# Create natural frequencies (more intuitive than probabilities)
+n_population <- 10000
+n_disease <- round(n_population * prevalence)
+n_healthy <- n_population - n_disease
+
+# Among diseased
+true_positive <- round(n_disease * sensitivity)
+false_negative <- n_disease - true_positive
+
+# Among healthy
+false_positive <- round(n_healthy * (1 - specificity))
+true_negative <- n_healthy - false_positive
+
+# Total positive tests
+total_positive <- true_positive + false_positive
+
+tree_dt <- data.table(
+    category = c("Disease\n(TP)", "Disease\n(FN)", "Healthy\n(FP)", "Healthy\n(TN)"),
+    count = c(true_positive, false_negative, false_positive, true_negative),
+    x = c(1, 1, 2, 2),
+    y = c(2, 1, 2, 1),
+    fill = c("Positive Test", "Negative Test", "Positive Test", "Negative Test")
+)
+
+# Visualise as treemap-like display
+ggplot2$ggplot(tree_dt, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_tile(ggplot2$aes(fill = fill), width = 0.9, height = 0.9, alpha = 0.8) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(category, "\n", count)),
+                      size = 5, colour = "white") +
+    ggplot2$scale_fill_manual(values = c("Positive Test" = "#D55E00",
+                                          "Negative Test" = "#009E73")) +
+    ggplot2$annotate("text", x = 1, y = 2.7, label = sprintf("Diseased\n%d", n_disease),
+                     fontface = "bold") +
+    ggplot2$annotate("text", x = 2, y = 2.7, label = sprintf("Healthy\n%d", n_healthy),
+                     fontface = "bold") +
+    ggplot2$annotate("text", x = 0.3, y = 2, label = "Test +", fontface = "bold") +
+    ggplot2$annotate("text", x = 0.3, y = 1, label = "Test -", fontface = "bold") +
+    ggplot2$labs(
+        title = sprintf("Natural Frequencies: What Happens to %s People?", format(n_population, big.mark = ",")),
+        subtitle = sprintf("PPV = %d / %d = %.1f%% (Only %.0f%% of positives have disease!)",
+                           true_positive, total_positive, ppv * 100, ppv * 100),
+        fill = ""
+    ) +
+    ggplot2$theme_void() +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(size = 14, face = "bold", hjust = 0.5),
+        plot.subtitle = ggplot2$element_text(size = 11, hjust = 0.5),
+        legend.position = "bottom"
+    )
+```
+
+### 8.2.2 Prior and Posterior as Distributions
+
+**Prose and Intuition**
+
+In Bayesian statistics, parameters are treated as random variables with probability distributions:
+
+- **Prior distribution** $\pi(\theta)$: Encodes our beliefs before seeing data
+- **Posterior distribution** $\pi(\theta|D)$: Updated beliefs after seeing data
+
+The key insight: Bayesian inference is not about finding "the" parameter value, but about characterising our uncertainty about the parameter through its distribution.
+
+For continuous parameters, Bayes' theorem becomes:
+$$\pi(\theta|D) = \frac{f(D|\theta) \cdot \pi(\theta)}{\int f(D|\theta) \cdot \pi(\theta) \, d\theta}$$
+
+The denominator (evidence) is often intractable, leading to modern computational approaches (MCMC).
+
+---
+
+## 8.3 Prior Distributions: Encoding Beliefs
+
+### 8.3.1 Types of Priors
+
+**Prose and Intuition**
+
+The choice of prior is one of the most debated aspects of Bayesian inference. Different priors serve different purposes:
+
+**1. Informative Priors**
+Based on genuine prior knowledge: previous studies, expert opinion, biological constraints.
+
+**2. Weakly Informative Priors**
+Provide soft constraints (e.g., "the effect is probably not larger than 10") without dominating the data.
+
+**3. Non-informative (Vague) Priors**
+Attempt to "let the data speak" by being as uninformative as possible.
+
+**4. Conjugate Priors**
+Chosen for mathematical convenience—the posterior has the same distributional form as the prior.
+
+**Visualisation**
+
+```{r prior_types, fig.cap="Different types of prior distributions for a probability parameter"}
+theta <- seq(0.001, 0.999, length.out = 200)
+
+# Different priors for a probability parameter
+priors_dt <- data.table(
+    theta = rep(theta, 4),
+    density = c(
+        dbeta(theta, 1, 1),      # Uniform (non-informative)
+        dbeta(theta, 2, 8),      # Informative (expect low probability)
+        dbeta(theta, 0.5, 0.5),  # Jeffreys (non-informative)
+        dbeta(theta, 5, 5)       # Weakly informative (expect ~0.5)
+    ),
+    prior_type = factor(rep(c("Uniform Beta(1,1)\n(Non-informative)",
+                               "Beta(2,8)\n(Informative: expect low)",
+                               "Jeffreys Beta(0.5,0.5)\n(Non-informative)",
+                               "Beta(5,5)\n(Weakly informative)"), each = 200),
+                        levels = c("Uniform Beta(1,1)\n(Non-informative)",
+                                   "Beta(2,8)\n(Informative: expect low)",
+                                   "Jeffreys Beta(0.5,0.5)\n(Non-informative)",
+                                   "Beta(5,5)\n(Weakly informative)"))
+)
+
+ggplot2$ggplot(priors_dt, ggplot2$aes(x = theta, y = density, colour = prior_type)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$facet_wrap(~prior_type, scales = "free_y") +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73", "#CC79A7")) +
+    ggplot2$labs(
+        title = "Different Prior Distributions for a Probability Parameter θ",
+        subtitle = "Choice of prior reflects our beliefs before seeing data",
+        x = expression(theta),
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none",
+                  strip.text = ggplot2$element_text(size = 9))
+```
+
+### 8.3.2 Conjugate Priors: Mathematical Convenience
+
+**Prose and Intuition**
+
+A **conjugate prior** is one where the posterior distribution belongs to the same family as the prior. This provides a closed-form solution without numerical integration.
+
+| Likelihood | Conjugate Prior | Posterior |
+|------------|-----------------|-----------|
+| Binomial | Beta | Beta |
+| Poisson | Gamma | Gamma |
+| Normal (known σ) | Normal | Normal |
+| Normal (unknown σ) | Normal-Inverse-Gamma | Normal-Inverse-Gamma |
+| Exponential | Gamma | Gamma |
+
+**Mathematical Derivation**
+
+For binomial data with Beta prior:
+
+**Prior**: $\theta \sim \text{Beta}(\alpha, \beta)$
+$$\pi(\theta) \propto \theta^{\alpha-1}(1-\theta)^{\beta-1}$$
+
+**Likelihood**: $X|\theta \sim \text{Binomial}(n, \theta)$ with $k$ successes
+$$f(k|\theta) \propto \theta^k (1-\theta)^{n-k}$$
+
+**Posterior**:
+$$\pi(\theta|k) \propto \theta^{k + \alpha - 1}(1-\theta)^{n-k + \beta - 1}$$
+
+which is $\text{Beta}(\alpha + k, \beta + n - k)$.
+
+**Interpretation**: The prior contributes $\alpha - 1$ "pseudo-successes" and $\beta - 1$ "pseudo-failures." The prior acts like additional data.
+
+**Visualisation**
+
+```{r conjugate_example, fig.cap="Beta-Binomial conjugacy: prior to posterior updating"}
+# Clinical trial: testing a new drug
+# Prior: based on similar drugs, expect 50-70% response rate
+prior_alpha <- 15
+prior_beta <- 10
+
+# Data: 23 successes out of 30 patients
+n_patients <- 30
+n_success <- 23
+
+# Posterior
+post_alpha <- prior_alpha + n_success
+post_beta <- prior_beta + n_patients - n_success
+
+# Create distributions
+theta <- seq(0, 1, length.out = 200)
+conjugate_dt <- data.table(
+    theta = rep(theta, 3),
+    density = c(
+        dbeta(theta, prior_alpha, prior_beta),
+        dbinom(n_success, n_patients, theta) / max(dbinom(n_success, n_patients, theta)),  # Scaled
+        dbeta(theta, post_alpha, post_beta)
+    ),
+    distribution = factor(rep(c("Prior Beta(15, 10)", "Likelihood (scaled)",
+                                 "Posterior Beta(38, 17)"), each = 200),
+                          levels = c("Prior Beta(15, 10)", "Likelihood (scaled)",
+                                     "Posterior Beta(38, 17)"))
+)
+
+# Calculate summaries
+prior_mean <- prior_alpha / (prior_alpha + prior_beta)
+post_mean <- post_alpha / (post_alpha + post_beta)
+post_ci <- qbeta(c(0.025, 0.975), post_alpha, post_beta)
+
+cat("Clinical Trial Bayesian Analysis:\n")
+cat("==================================\n\n")
+cat("Prior: Beta(15, 10)\n")
+cat("  Prior mean:", round(prior_mean, 3), "\n")
+cat("  Prior 95% CI:", round(qbeta(c(0.025, 0.975), prior_alpha, prior_beta), 3), "\n\n")
+
+cat("Data: 23 successes out of 30 patients\n")
+cat("  MLE:", round(n_success/n_patients, 3), "\n\n")
+
+cat("Posterior: Beta(38, 17)\n")
+cat("  Posterior mean:", round(post_mean, 3), "\n")
+cat("  95% Credible interval:", round(post_ci, 3), "\n")
+
+ggplot2$ggplot(conjugate_dt, ggplot2$aes(x = theta, y = density, colour = distribution)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = n_success/n_patients, linetype = "dotted") +
+    ggplot2$annotate("text", x = n_success/n_patients + 0.02, y = max(conjugate_dt$density) * 0.9,
+                     label = "MLE", hjust = 0) +
+    ggplot2$scale_colour_manual(values = c("Prior Beta(15, 10)" = "#0072B2",
+                                            "Likelihood (scaled)" = "#D55E00",
+                                            "Posterior Beta(38, 17)" = "#009E73")) +
+    ggplot2$labs(
+        title = "Bayesian Analysis of Drug Response Rate",
+        subtitle = sprintf("Posterior mean = %.2f, 95%% CI = [%.2f, %.2f]",
+                           post_mean, post_ci[1], post_ci[2]),
+        x = expression(theta~"(Response Rate)"),
+        y = "Density",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 8.3.3 Effect of Sample Size on Prior Influence
+
+**Prose and Intuition**
+
+A crucial property of Bayesian inference: **as sample size increases, the data dominates the prior**. With sufficient data, the posterior concentrates around the true parameter regardless of the prior.
+
+This provides reassurance: reasonable priors matter little with large samples.
+
+**Visualisation**
+
+```{r sample_size_effect, fig.cap="With more data, the posterior is increasingly dominated by the likelihood"}
+# True response rate
+true_theta <- 0.65
+
+# Different sample sizes with same proportion of successes
+sample_sizes <- c(10, 30, 100, 500)
+
+# Strong prior away from truth
+prior_alpha <- 2
+prior_beta <- 8  # Prior mean = 0.2, far from truth
+
+# Generate data and posteriors
+ss_results <- rbindlist(lapply(sample_sizes, function(n) {
+    k <- round(n * true_theta)  # Observed successes
+    post_a <- prior_alpha + k
+    post_b <- prior_beta + n - k
+
+    theta <- seq(0, 1, length.out = 200)
+    data.table(
+        theta = theta,
+        density = dbeta(theta, post_a, post_b),
+        sample_size = paste0("n = ", n),
+        post_mean = post_a / (post_a + post_b)
+    )
+}))
+
+ss_results[, sample_size := factor(sample_size, levels = c("n = 10", "n = 30", "n = 100", "n = 500"))]
+
+# Add prior for comparison
+prior_dt <- data.table(
+    theta = seq(0, 1, length.out = 200),
+    density = dbeta(seq(0, 1, length.out = 200), prior_alpha, prior_beta),
+    sample_size = "Prior",
+    post_mean = prior_alpha / (prior_alpha + prior_beta)
+)
+
+all_dist <- rbind(prior_dt, ss_results)
+all_dist[, sample_size := factor(sample_size, levels = c("Prior", "n = 10", "n = 30", "n = 100", "n = 500"))]
+
+ggplot2$ggplot(all_dist, ggplot2$aes(x = theta, y = density, colour = sample_size)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = true_theta, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = true_theta + 0.02, y = max(all_dist$density),
+                     label = "True θ = 0.65", hjust = 0, colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("Prior" = "#CC79A7",
+                                            "n = 10" = "#E69F00",
+                                            "n = 30" = "#56B4E9",
+                                            "n = 100" = "#009E73",
+                                            "n = 500" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Effect of Sample Size: Data Eventually Overwhelms the Prior",
+        subtitle = "Prior mean = 0.20, true θ = 0.65 — posterior converges to truth with more data",
+        x = expression(theta),
+        y = "Density",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 8.4 Posterior Inference
+
+### 8.4.1 Point Estimates from the Posterior
+
+**Prose and Intuition**
+
+While the full posterior distribution is the Bayesian answer, we often need point estimates:
+
+**Posterior Mean**: Minimises squared error loss
+$$\hat{\theta}_{PM} = \mathbb{E}[\theta|D] = \int \theta \cdot \pi(\theta|D) \, d\theta$$
+
+**Posterior Mode (MAP)**: Maximum a posteriori estimate
+$$\hat{\theta}_{MAP} = \arg\max_\theta \pi(\theta|D)$$
+
+**Posterior Median**: Minimises absolute error loss
+
+For symmetric posteriors, these coincide. For skewed posteriors, they differ.
+
+```{r point_estimates, fig.cap="Different point estimates from a skewed posterior"}
+# Create a skewed posterior (Gamma)
+shape <- 3
+rate <- 1
+
+theta <- seq(0, 10, length.out = 200)
+posterior_gamma <- dgamma(theta, shape, rate)
+
+# Point estimates
+post_mean <- shape / rate
+post_mode <- (shape - 1) / rate
+post_median <- qgamma(0.5, shape, rate)
+
+estimates_dt <- data.table(
+    theta = theta,
+    density = posterior_gamma
+)
+
+estimates <- data.table(
+    estimate = c("Mode (MAP)", "Median", "Mean"),
+    value = c(post_mode, post_median, post_mean),
+    y = dgamma(c(post_mode, post_median, post_mean), shape, rate)
+)
+
+ggplot2$ggplot(estimates_dt, ggplot2$aes(x = theta, y = density)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$geom_area(alpha = 0.2, fill = "#0072B2") +
+    ggplot2$geom_vline(data = estimates, ggplot2$aes(xintercept = value, colour = estimate),
+                       linewidth = 1, linetype = "dashed") +
+    ggplot2$geom_point(data = estimates, ggplot2$aes(x = value, y = y, colour = estimate),
+                       size = 3) +
+    ggplot2$scale_colour_manual(values = c("Mode (MAP)" = "#D55E00",
+                                            "Median" = "#009E73",
+                                            "Mean" = "#CC79A7")) +
+    ggplot2$labs(
+        title = "Point Estimates from a Skewed Posterior",
+        subtitle = sprintf("Mode = %.2f, Median = %.2f, Mean = %.2f — they differ when skewed",
+                           post_mode, post_median, post_mean),
+        x = expression(theta),
+        y = "Posterior Density",
+        colour = "Estimate"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 8.4.2 Credible Intervals
+
+**Prose and Intuition**
+
+A **credible interval** is the Bayesian analogue of a confidence interval, but with a more intuitive interpretation: "There is a 95% probability that the parameter lies in this interval."
+
+**Equal-Tailed Interval (ETI)**: 2.5% probability in each tail
+$$P(\theta < L|D) = 0.025, \quad P(\theta > U|D) = 0.025$$
+
+**Highest Density Interval (HDI)**: Shortest interval containing 95% probability
+- All points inside have higher density than points outside
+- For symmetric distributions, ETI = HDI
+- For skewed distributions, HDI is preferred
+
+**Visualisation**
+
+```{r credible_intervals, fig.cap="Equal-tailed interval vs highest density interval for a skewed posterior"}
+# Use the same gamma posterior
+ci_et <- qgamma(c(0.025, 0.975), shape, rate)
+
+# HDI (approximate for gamma)
+# For gamma, we need to find the interval numerically
+find_hdi <- function(shape, rate, prob = 0.95) {
+    # Grid search for HDI
+    theta_grid <- seq(0.001, qgamma(0.9999, shape, rate), length.out = 1000)
+    density_grid <- dgamma(theta_grid, shape, rate)
+
+    # Sort by density
+    sorted_idx <- order(density_grid, decreasing = TRUE)
+    cumprob <- cumsum(dgamma(theta_grid[sorted_idx], shape, rate)) / sum(density_grid)
+
+    # Find cutoff
+    in_hdi <- sorted_idx[cumprob <= prob]
+    c(min(theta_grid[in_hdi]), max(theta_grid[in_hdi]))
+}
+
+ci_hdi <- find_hdi(shape, rate)
+
+cat("Credible Intervals for Gamma(3, 1) Posterior:\n")
+cat("=============================================\n\n")
+cat("Equal-tailed 95% CI:", round(ci_et, 3), "\n")
+cat("  Width:", round(diff(ci_et), 3), "\n\n")
+cat("Highest Density 95% CI:", round(ci_hdi, 3), "\n")
+cat("  Width:", round(diff(ci_hdi), 3), "\n")
+cat("\nHDI is shorter for skewed distributions.\n")
+
+# Visualise both intervals
+ci_plot_dt <- data.table(
+    theta = theta,
+    density = posterior_gamma,
+    in_eti = theta >= ci_et[1] & theta <= ci_et[2],
+    in_hdi = theta >= ci_hdi[1] & theta <= ci_hdi[2]
+)
+
+# ETI plot
+p_eti <- ggplot2$ggplot(ci_plot_dt, ggplot2$aes(x = theta)) +
+    ggplot2$geom_line(ggplot2$aes(y = density), colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_area(data = ci_plot_dt[in_eti == TRUE],
+                      ggplot2$aes(y = density), fill = "#0072B2", alpha = 0.3) +
+    ggplot2$geom_vline(xintercept = ci_et, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$labs(title = sprintf("Equal-Tailed Interval [%.2f, %.2f]", ci_et[1], ci_et[2]),
+                 x = expression(theta), y = "Density") +
+    ggplot2$theme_minimal()
+
+# HDI plot
+p_hdi <- ggplot2$ggplot(ci_plot_dt, ggplot2$aes(x = theta)) +
+    ggplot2$geom_line(ggplot2$aes(y = density), colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_area(data = ci_plot_dt[in_hdi == TRUE],
+                      ggplot2$aes(y = density), fill = "#009E73", alpha = 0.3) +
+    ggplot2$geom_vline(xintercept = ci_hdi, linetype = "dashed", colour = "#009E73") +
+    ggplot2$labs(title = sprintf("Highest Density Interval [%.2f, %.2f]", ci_hdi[1], ci_hdi[2]),
+                 x = expression(theta), y = "Density") +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p_eti, p_hdi, ncol = 2)
+```
+
+---
+
+## 8.5 Prior Elicitation in Biomedical Research
+
+### 8.5.1 Sources of Prior Information
+
+**Prose and Intuition**
+
+In biomedical research, priors can be informed by:
+
+1. **Historical studies**: Meta-analyses of previous trials
+2. **Expert opinion**: Clinician beliefs about plausible effects
+3. **Biological constraints**: Effects cannot be negative, must be within physiological limits
+4. **Regulatory standards**: FDA guidance on clinically meaningful differences
+
+**Example: Vaccine Efficacy**
+
+For a new vaccine, we might have:
+- Prior trials of similar vaccines: 60-80% efficacy typical
+- Biological mechanism: unlikely to be >95% or <20%
+- Informative prior: Beta(6, 3) centres around 67% with moderate uncertainty
+
+```{r prior_elicitation, fig.cap="Prior elicitation for vaccine efficacy based on historical data"}
+# Historical vaccine efficacies (hypothetical)
+historical_efficacy <- c(0.65, 0.72, 0.58, 0.81, 0.69, 0.75, 0.62)
+
+# Fit beta distribution to historical data
+# Method of moments
+emp_mean <- mean(historical_efficacy)
+emp_var <- var(historical_efficacy)
+
+# Beta parameters from moments
+# mean = a/(a+b), var = ab/((a+b)^2(a+b+1))
+# Solving: a = mean * ((mean*(1-mean)/var) - 1)
+#          b = (1-mean) * ((mean*(1-mean)/var) - 1)
+
+common_term <- (emp_mean * (1 - emp_mean) / emp_var) - 1
+elicited_alpha <- emp_mean * common_term
+elicited_beta <- (1 - emp_mean) * common_term
+
+cat("Prior Elicitation from Historical Data:\n")
+cat("========================================\n\n")
+cat("Historical vaccine efficacies:", round(historical_efficacy, 2), "\n")
+cat("  Mean:", round(emp_mean, 3), "\n")
+cat("  Variance:", round(emp_var, 4), "\n\n")
+cat("Elicited prior: Beta(", round(elicited_alpha, 1), ",", round(elicited_beta, 1), ")\n")
+cat("  Prior mean:", round(elicited_alpha/(elicited_alpha + elicited_beta), 3), "\n")
+cat("  Prior 95% CI:", round(qbeta(c(0.025, 0.975), elicited_alpha, elicited_beta), 3), "\n")
+
+# Visualise
+theta <- seq(0, 1, length.out = 200)
+elicit_dt <- data.table(
+    theta = theta,
+    density = dbeta(theta, elicited_alpha, elicited_beta)
+)
+
+ggplot2$ggplot(elicit_dt, ggplot2$aes(x = theta, y = density)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$geom_area(alpha = 0.2, fill = "#0072B2") +
+    ggplot2$geom_rug(data = data.table(theta = historical_efficacy),
+                     ggplot2$aes(x = theta), colour = "#D55E00", linewidth = 1,
+                     inherit.aes = FALSE) +
+    ggplot2$geom_vline(xintercept = 0.5, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = 0.5, y = max(elicit_dt$density) * 0.9,
+                     label = "50% efficacy\n(minimum useful)", hjust = 1.1, size = 3) +
+    ggplot2$labs(
+        title = "Elicited Prior for Vaccine Efficacy",
+        subtitle = sprintf("Beta(%.1f, %.1f) based on 7 historical vaccine trials (shown as rug marks)",
+                           elicited_alpha, elicited_beta),
+        x = "Vaccine Efficacy",
+        y = "Prior Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 8.5.2 Sensitivity Analysis
+
+**Prose and Intuition**
+
+A key practice in Bayesian analysis is **sensitivity analysis**: checking whether conclusions change substantially with different reasonable priors.
+
+If conclusions are robust to prior choice, we have greater confidence in the findings.
+If conclusions are sensitive to the prior, this signals either insufficient data or a need to justify the prior more carefully.
+
+```{r sensitivity_analysis, fig.cap="Sensitivity analysis: how different priors affect the posterior"}
+# Data: 15 successes out of 20 trials
+n_data <- 20
+k_data <- 15
+
+# Different priors
+priors <- list(
+    "Uniform" = c(1, 1),
+    "Skeptical" = c(2, 8),
+    "Optimistic" = c(8, 2),
+    "Informative" = c(10, 5)
+)
+
+# Calculate posteriors
+sensitivity_dt <- rbindlist(lapply(names(priors), function(prior_name) {
+    a <- priors[[prior_name]][1]
+    b <- priors[[prior_name]][2]
+    post_a <- a + k_data
+    post_b <- b + n_data - k_data
+
+    theta <- seq(0, 1, length.out = 200)
+    data.table(
+        theta = theta,
+        density = dbeta(theta, post_a, post_b),
+        prior_name = prior_name,
+        post_mean = post_a / (post_a + post_b),
+        ci_lower = qbeta(0.025, post_a, post_b),
+        ci_upper = qbeta(0.975, post_a, post_b)
+    )
+}))
+
+# Summary table
+summary_dt <- unique(sensitivity_dt[, .(prior_name, post_mean, ci_lower, ci_upper)])
+cat("\nSensitivity Analysis: Effect of Prior Choice\n")
+cat("=============================================\n")
+cat("Data: 15 successes in 20 trials (MLE = 0.75)\n\n")
+print(summary_dt[, .(Prior = prior_name,
+                     `Post. Mean` = round(post_mean, 3),
+                     `95% CI Lower` = round(ci_lower, 3),
+                     `95% CI Upper` = round(ci_upper, 3))])
+
+ggplot2$ggplot(sensitivity_dt, ggplot2$aes(x = theta, y = density, colour = prior_name)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = k_data/n_data, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = k_data/n_data, y = max(sensitivity_dt$density),
+                     label = "MLE = 0.75", hjust = -0.1, vjust = 1) +
+    ggplot2$scale_colour_manual(values = c("Uniform" = "#0072B2",
+                                            "Skeptical" = "#D55E00",
+                                            "Optimistic" = "#009E73",
+                                            "Informative" = "#CC79A7")) +
+    ggplot2$labs(
+        title = "Sensitivity Analysis: Posterior Under Different Priors",
+        subtitle = "With 20 observations, posteriors are fairly similar despite different priors",
+        x = expression(theta),
+        y = "Posterior Density",
+        colour = "Prior"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 8.6 Communicating Bayesian Results to Stakeholders
+
+**For Clinicians and Health Administrators**
+
+Bayesian analysis offers intuitive interpretations, but requires careful communication:
+
+**DO say:**
+- "There is a 95% probability that the treatment effect is between 0.2 and 0.8"
+- "Based on previous studies and this trial, we now believe the response rate is most likely around 65%"
+- "Given what we knew beforehand and what we observed, there's an 89% probability the new drug is better"
+
+**DON'T say:**
+- Complex statistical jargon about priors and posteriors
+- "The p-value is..." (mixing frequentist and Bayesian language)
+
+**Address concerns about priors directly:**
+- "We based our initial beliefs on data from 5 previous similar studies"
+- "Even with very different starting assumptions, we reach similar conclusions"
+- "Our results are dominated by the data from this trial, not our assumptions"
+
+---
+
+## 8.7 Summary and Key Takeaways
+
+**Conceptual Framework**
+
+| Concept | Frequentist | Bayesian |
+|---------|-------------|----------|
+| Probability | Long-run frequency | Degree of belief |
+| Parameters | Fixed but unknown | Random variables |
+| Prior information | Not formally incorporated | Explicitly encoded as prior |
+| Interval estimates | Confidence interval | Credible interval |
+| Interpretation | "95% of intervals contain θ" | "95% probability θ is in interval" |
+
+**Prior Selection Guidelines**
+
+| Situation | Recommended Prior |
+|-----------|-------------------|
+| Strong historical data | Informative prior from meta-analysis |
+| Expert knowledge available | Elicited informative prior |
+| Little prior knowledge | Weakly informative (regularising) prior |
+| Want frequentist properties | Reference/Jeffreys prior |
+| Computational convenience | Conjugate prior |
+
+**R Functions for Basic Bayesian Analysis**
+
+| Function | Package | Purpose |
+|----------|---------|---------|
+| `dbeta()`, `pbeta()`, `qbeta()` | stats | Beta distribution (conjugate for binomial) |
+| `dgamma()`, `pgamma()`, `qgamma()` | stats | Gamma distribution (conjugate for Poisson) |
+| `dnorm()`, `pnorm()`, `qnorm()` | stats | Normal distribution |
+| `BayesFactor::proportionBF()` | BayesFactor | Bayes factor for proportions |
+
+---
+
+## 8.8 Exercises
+
+1. **Diagnostic test**: A new rapid test for COVID-19 has 92% sensitivity and 97% specificity. In a population with 2% prevalence, calculate the positive predictive value. How does this change if prevalence increases to 20%?
+
+2. **Prior elicitation**: You are planning a clinical trial for a new cancer treatment. Previous similar treatments have had response rates between 15% and 40%. Specify an appropriate informative Beta prior. What are its mean and 95% prior credible interval?
+
+3. **Conjugate updating**: With a Beta(5, 5) prior and observing 12 successes in 15 trials, calculate: (a) the posterior distribution, (b) posterior mean, (c) 95% credible interval, (d) posterior probability that θ > 0.6.
+
+4. **Sensitivity analysis**: For the clinical trial in Exercise 2, conduct a sensitivity analysis with three different priors: optimistic, skeptical, and uniform. How much do your conclusions change?
+
+5. **Stakeholder report**: Write a one-paragraph summary of a Bayesian analysis for a hospital administrator who has never heard of Bayesian statistics. Focus on interpretation and avoid jargon.
+
+---
+
+## 8.9 References
+
+- Gelman, A., Carlin, J. B., Stern, H. S., Dunson, D. B., Vehtari, A., & Rubin, D. B. (2013). *Bayesian Data Analysis* (3rd ed.). CRC Press.
+- McElreath, R. (2020). *Statistical Rethinking* (2nd ed.). CRC Press.
+- Kruschke, J. K. (2015). *Doing Bayesian Data Analysis* (2nd ed.). Academic Press.
+- Spiegelhalter, D. J., Abrams, K. R., & Myles, J. P. (2004). *Bayesian Approaches to Clinical Trials and Health-Care Evaluation*. Wiley.
+- Gigerenzer, G. (2002). *Calculated Risks: How to Know When Numbers Deceive You*. Simon & Schuster.

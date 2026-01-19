@@ -1,0 +1,749 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 9: Survival Analysis"
+part: "Part 2: Cox Proportional Hazards Model"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, survival-analysis, cox-model, hazard-ratio, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 2: Cox Proportional Hazards Model
+
+The Kaplan-Meier method provides non-parametric survival estimates, but cannot easily accommodate continuous covariates or adjust for confounders simultaneously. The **Cox proportional hazards model** bridges this gap, becoming the dominant tool for survival regression in biomedical research. This chapter covers model specification, estimation, interpretation of hazard ratios, and the crucial proportional hazards assumption.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(survival)
+```
+
+```{r load_data, message=FALSE}
+# Load lung cancer data
+data(lung)
+lung_dt <- as.data.table(lung)
+lung_dt[, event := status - 1]  # 0 = censored, 1 = dead
+lung_dt[, sex := factor(sex, levels = c(1, 2), labels = c("Male", "Female"))]
+
+# Clean up variables
+lung_dt[, age_c := age - mean(age, na.rm = TRUE)]  # Centre age
+lung_dt[, ph.ecog := as.factor(ph.ecog)]
+
+cat("Lung Cancer Dataset:\n")
+cat("  Patients:", nrow(lung_dt), "\n")
+cat("  Deaths:", sum(lung_dt$event), "\n")
+cat("  Predictors: age, sex, ECOG status, Karnofsky score\n")
+```
+
+---
+
+## 9.10 The Cox Model: Semi-Parametric Regression
+
+### 9.10.1 Model Specification
+
+**Prose and Intuition**
+
+The **Cox proportional hazards model** (Cox, 1972) models how covariates affect the hazard function:
+
+$$h(t|X) = h_0(t) \cdot \exp(\beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p)$$
+
+where:
+- $h(t|X)$ = hazard at time $t$ for an individual with covariates $X$
+- $h_0(t)$ = **baseline hazard** (hazard when all $X = 0$)
+- $\exp(\beta_j)$ = **hazard ratio** for a one-unit increase in $X_j$
+
+**Key insight**: The model is **semi-parametric**:
+- The baseline hazard $h_0(t)$ is left **unspecified** (non-parametric)
+- The effect of covariates is **parametric** (linear in log-hazard)
+
+This flexibility made the Cox model revolutionary—we can estimate covariate effects without assuming a specific distribution for survival times.
+
+**Mathematical Derivation**
+
+Taking logarithms:
+$$\log h(t|X) = \log h_0(t) + \beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p$$
+
+The model is a log-linear model for the hazard. For any two individuals $i$ and $j$:
+$$\frac{h(t|X_i)}{h(t|X_j)} = \frac{h_0(t) \exp(\beta' X_i)}{h_0(t) \exp(\beta' X_j)} = \exp(\beta'(X_i - X_j))$$
+
+The baseline hazard cancels! The **hazard ratio** depends only on covariate differences, not on time or $h_0(t)$.
+
+### 9.10.2 The Proportional Hazards Assumption
+
+**Prose and Intuition**
+
+The Cox model assumes **proportional hazards**: the hazard ratio between any two individuals is constant over time.
+
+$$\text{HR}(t) = \frac{h(t|X=1)}{h(t|X=0)} = \exp(\beta) \quad \text{(constant for all } t)$$
+
+**Graphically**: If hazards are proportional, survival curves should not cross. On a log-log scale, curves should be parallel.
+
+**Violations**: The proportional hazards assumption fails when:
+- Treatment effect diminishes or strengthens over time
+- Early surgery risk followed by long-term benefit
+- Survival curves cross
+
+**Visualisation**
+
+```{r proportional_hazards_illustration, fig.cap="Proportional hazards means survival curves don't cross and hazard ratio is constant"}
+# Simulate proportional and non-proportional hazards
+set.seed(42)
+t_vals <- seq(0.1, 5, length.out = 100)
+
+# Proportional hazards
+h0_ph <- 0.5  # Baseline hazard (constant for simplicity)
+hr_ph <- 2    # Hazard ratio
+h1_ph <- h0_ph * hr_ph
+
+S0_ph <- exp(-h0_ph * t_vals)
+S1_ph <- exp(-h1_ph * t_vals)
+
+# Non-proportional hazards (crossing hazards)
+h0_nph <- 0.3
+h1_nph <- function(t) ifelse(t < 2, 0.8, 0.2)  # High early, low late
+S0_nph <- exp(-h0_nph * t_vals)
+S1_nph <- exp(-cumsum(h1_nph(t_vals)) * diff(c(0, t_vals)))
+
+ph_dt <- data.table(
+    time = rep(t_vals, 4),
+    survival = c(S0_ph, S1_ph, S0_nph, S1_nph),
+    group = rep(c("Control", "Treatment", "Control", "Treatment"), each = 100),
+    scenario = factor(rep(c("Proportional Hazards", "Proportional Hazards",
+                            "Non-Proportional Hazards", "Non-Proportional Hazards"), each = 100),
+                      levels = c("Proportional Hazards", "Non-Proportional Hazards"))
+)
+
+ggplot2$ggplot(ph_dt, ggplot2$aes(x = time, y = survival, colour = group)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$facet_wrap(~scenario) +
+    ggplot2$scale_colour_manual(values = c("Control" = "#0072B2", "Treatment" = "#D55E00")) +
+    ggplot2$scale_y_continuous(labels = scales::percent) +
+    ggplot2$labs(
+        title = "Proportional vs Non-Proportional Hazards",
+        subtitle = "PH: curves don't cross, constant HR; Non-PH: curves cross, HR varies with time",
+        x = "Time",
+        y = "Survival Probability",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom",
+                  strip.text = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+## 9.11 Fitting the Cox Model
+
+### 9.11.1 Partial Likelihood Estimation
+
+**Prose and Intuition**
+
+How do we estimate $\beta$ without specifying $h_0(t)$? Cox's insight was the **partial likelihood**—we can estimate $\beta$ from the relative ordering of events, without knowing the baseline hazard.
+
+At each event time $t_i$, ask: "Given that someone died at time $t_i$, what is the probability it was the person who actually died?"
+
+The partial likelihood is the product of these conditional probabilities across all events.
+
+**Mathematical Derivation**
+
+At event time $t_i$, let $\mathcal{R}_i$ be the **risk set**—all individuals still under observation at $t_i$.
+
+The conditional probability that individual $j$ (who actually died) dies, given one death occurred:
+$$\frac{h(t_i|X_j)}{\sum_{k \in \mathcal{R}_i} h(t_i|X_k)} = \frac{h_0(t_i)\exp(\beta' X_j)}{\sum_{k \in \mathcal{R}_i} h_0(t_i)\exp(\beta' X_k)} = \frac{\exp(\beta' X_j)}{\sum_{k \in \mathcal{R}_i} \exp(\beta' X_k)}$$
+
+The baseline hazard cancels! The **partial likelihood**:
+$$L(\beta) = \prod_{i: \text{events}} \frac{\exp(\beta' X_i)}{\sum_{k \in \mathcal{R}_i} \exp(\beta' X_k)}$$
+
+Maximizing $L(\beta)$ gives $\hat{\beta}$.
+
+### 9.11.2 Application to Lung Cancer Data
+
+```{r cox_fit}
+# Fit Cox model
+cox_model <- coxph(Surv(time, event) ~ age + sex + factor(ph.ecog),
+                    data = lung_dt[!is.na(ph.ecog)])
+
+cat("Cox Proportional Hazards Model:\n")
+cat("===============================\n\n")
+print(summary(cox_model))
+```
+
+```{r cox_interpretation}
+# Extract and interpret hazard ratios
+cox_summary <- summary(cox_model)
+hr_table <- data.table(
+    Variable = rownames(cox_summary$conf.int),
+    HR = cox_summary$conf.int[, "exp(coef)"],
+    CI_lower = cox_summary$conf.int[, "lower .95"],
+    CI_upper = cox_summary$conf.int[, "upper .95"],
+    p_value = cox_summary$coefficients[, "Pr(>|z|)"]
+)
+
+cat("\nHazard Ratios with 95% Confidence Intervals:\n")
+cat("=============================================\n\n")
+print(hr_table[, .(Variable, HR = round(HR, 3),
+                   `95% CI` = paste0("[", round(CI_lower, 3), ", ", round(CI_upper, 3), "]"),
+                   p = format.pval(p_value, digits = 3))])
+```
+
+### 9.11.3 Interpreting Hazard Ratios
+
+**Prose and Intuition**
+
+The **hazard ratio (HR)** is the key measure of effect:
+- $\text{HR} = 1$: No effect on hazard
+- $\text{HR} > 1$: Increased hazard (higher risk, shorter survival)
+- $\text{HR} < 1$: Decreased hazard (lower risk, longer survival)
+
+**Interpreting our results**:
+
+```{r hr_interpretation}
+cat("Interpretation of Hazard Ratios:\n")
+cat("================================\n\n")
+
+# Age
+hr_age <- exp(coef(cox_model)["age"])
+cat("AGE:\n")
+cat(sprintf("  HR = %.3f per year of age\n", hr_age))
+cat(sprintf("  For each additional year of age, the hazard of death increases by %.1f%%\n",
+            (hr_age - 1) * 100))
+cat(sprintf("  For 10 years: HR = %.3f (%.1f%% increase in hazard)\n\n",
+            hr_age^10, (hr_age^10 - 1) * 100))
+
+# Sex
+hr_sex <- exp(coef(cox_model)["sexFemale"])
+cat("SEX:\n")
+cat(sprintf("  HR (Female vs Male) = %.3f\n", hr_sex))
+cat(sprintf("  Females have %.1f%% lower hazard of death compared to males\n\n",
+            (1 - hr_sex) * 100))
+
+# ECOG
+hr_ecog2 <- exp(coef(cox_model)["factor(ph.ecog)2"])
+cat("ECOG PERFORMANCE STATUS:\n")
+cat(sprintf("  HR (ECOG 2 vs ECOG 0) = %.3f\n", hr_ecog2))
+cat(sprintf("  ECOG 2 patients have %.1f%% higher hazard than ECOG 0 patients\n",
+            (hr_ecog2 - 1) * 100))
+```
+
+**Visualisation**
+
+```{r forest_plot, fig.cap="Forest plot of hazard ratios from the Cox model"}
+# Create forest plot data
+forest_dt <- hr_table[, .(
+    Variable = c("Age (per year)", "Female vs Male", "ECOG 1 vs 0", "ECOG 2 vs 0", "ECOG 3 vs 0"),
+    HR = HR,
+    CI_lower = CI_lower,
+    CI_upper = CI_upper,
+    p_value = p_value
+)]
+forest_dt[, y := .N:1]
+
+ggplot2$ggplot(forest_dt, ggplot2$aes(y = factor(y))) +
+    ggplot2$geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_segment(ggplot2$aes(x = CI_lower, xend = CI_upper, yend = factor(y)),
+                         linewidth = 1, colour = "#0072B2") +
+    ggplot2$geom_point(ggplot2$aes(x = HR), size = 3, colour = "#0072B2") +
+    ggplot2$scale_y_discrete(labels = rev(forest_dt$Variable)) +
+    ggplot2$scale_x_log10() +
+    ggplot2$geom_text(ggplot2$aes(x = CI_upper * 1.3,
+                                   label = sprintf("HR: %.2f [%.2f, %.2f]",
+                                                   HR, CI_lower, CI_upper)),
+                      hjust = 0, size = 3) +
+    ggplot2$labs(
+        title = "Forest Plot: Hazard Ratios from Cox Model",
+        subtitle = "HR > 1 indicates increased mortality risk",
+        x = "Hazard Ratio (log scale)",
+        y = ""
+    ) +
+    ggplot2$coord_cartesian(xlim = c(0.3, 10)) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 9.12 Assessing the Proportional Hazards Assumption
+
+### 9.12.1 Methods for Checking PH
+
+**Prose and Intuition**
+
+Several approaches test and visualise the PH assumption:
+
+1. **Schoenfeld residuals**: Should show no trend with time
+2. **Log-log plots**: $\log(-\log(S(t)))$ vs $\log(t)$ should be parallel
+3. **Statistical tests**: `cox.zph()` tests for time-varying coefficients
+
+### 9.12.2 Schoenfeld Residuals
+
+**Mathematical Derivation**
+
+**Schoenfeld residuals** are defined for each event. For individual $i$ who had an event at time $t_i$:
+$$r_i = X_i - \bar{X}(\hat{\beta}, t_i)$$
+
+where $\bar{X}(\hat{\beta}, t_i) = \frac{\sum_{k \in \mathcal{R}_i} X_k \exp(\hat{\beta}' X_k)}{\sum_{k \in \mathcal{R}_i} \exp(\hat{\beta}' X_k)}$
+
+Under PH, scaled Schoenfeld residuals should have no systematic relationship with time.
+
+```{r ph_test}
+# Test PH assumption
+ph_test <- cox.zph(cox_model)
+
+cat("Test of Proportional Hazards Assumption:\n")
+cat("========================================\n\n")
+print(ph_test)
+
+cat("\nInterpretation:\n")
+cat("  p < 0.05 suggests violation of PH assumption\n")
+cat("  Global test examines overall model\n")
+```
+
+```{r schoenfeld_plot, fig.cap="Scaled Schoenfeld residuals should show no trend with time under PH"}
+# Extract Schoenfeld residuals - use proper structure
+# ph_test$y contains scaled Schoenfeld residuals as a matrix
+schoenfeld_mat <- ph_test$y
+schoenfeld_time <- ph_test$time
+
+# Get column names from the matrix
+covariate_names <- colnames(schoenfeld_mat)
+
+# Build data.table safely
+schoenfeld_data <- data.table(time = schoenfeld_time)
+
+# Add each covariate column
+for (i in seq_along(covariate_names)) {
+    schoenfeld_data[, (covariate_names[i]) := schoenfeld_mat[, i]]
+}
+
+# Select first two covariates for visualisation (age and sex)
+# Use actual column names from the data
+cols_to_plot <- covariate_names[1:min(2, length(covariate_names))]
+
+# Melt for faceted plot
+schoenfeld_long <- melt(schoenfeld_data, id.vars = "time",
+                        measure.vars = cols_to_plot,
+                        variable.name = "covariate", value.name = "residual")
+
+ggplot2$ggplot(schoenfeld_long, ggplot2$aes(x = time, y = residual)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_smooth(method = "loess", se = TRUE, colour = "#D55E00") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$facet_wrap(~covariate, scales = "free_y") +
+    ggplot2$labs(
+        title = "Scaled Schoenfeld Residuals vs Time",
+        subtitle = "Flat trend supports PH assumption; systematic pattern suggests violation",
+        x = "Time (days)",
+        y = "Scaled Schoenfeld Residual"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+### 9.12.3 Log-Log Survival Plots
+
+```{r loglog_plot, fig.cap="Parallel log-log survival curves support the PH assumption"}
+# Fit KM by sex
+km_sex <- survfit(Surv(time, event) ~ sex, data = lung_dt)
+
+# Extract data for log-log plot
+km_sex_data <- data.table(
+    time = c(km_sex$time),
+    survival = c(km_sex$surv),
+    strata = rep(names(km_sex$strata), km_sex$strata)
+)
+
+km_sex_data[, log_time := log(time)]
+km_sex_data[, log_neg_log_surv := log(-log(survival))]
+
+# Remove NA/Inf
+km_sex_data <- km_sex_data[is.finite(log_neg_log_surv)]
+
+ggplot2$ggplot(km_sex_data, ggplot2$aes(x = log_time, y = log_neg_log_surv, colour = strata)) +
+    ggplot2$geom_step(linewidth = 1) +
+    ggplot2$scale_colour_manual(values = c("sex=Male" = "#0072B2", "sex=Female" = "#D55E00"),
+                                 labels = c("Male", "Female")) +
+    ggplot2$labs(
+        title = "Log-Log Survival Plot",
+        subtitle = "Parallel curves support proportional hazards assumption",
+        x = "log(Time)",
+        y = "log(-log(Survival))",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 9.13 Handling Non-Proportional Hazards
+
+### 9.13.1 Stratification
+
+**Prose and Intuition**
+
+If a categorical variable violates PH, we can **stratify** by it. The Cox model becomes:
+$$h_k(t|X) = h_{0k}(t) \exp(\beta' X)$$
+
+Each stratum $k$ has its own baseline hazard $h_{0k}(t)$, but covariate effects $\beta$ are assumed common across strata.
+
+**When to stratify**: When a variable is a confounder we need to adjust for, but we don't need its hazard ratio.
+
+```{r stratified_cox}
+# Stratified Cox model (stratify by ECOG if it violates PH)
+cox_strat <- coxph(Surv(time, event) ~ age + sex + strata(ph.ecog),
+                    data = lung_dt[!is.na(ph.ecog)])
+
+cat("Stratified Cox Model (stratified by ECOG):\n")
+cat("==========================================\n\n")
+print(summary(cox_strat))
+```
+
+### 9.13.2 Time-Varying Coefficients
+
+**Prose and Intuition**
+
+If the effect of a covariate changes over time, we can model **time-varying coefficients**:
+$$h(t|X) = h_0(t) \exp(\beta(t) \cdot X)$$
+
+Implementation: Include interaction terms with time or use time-split data.
+
+```{r time_varying}
+# Simple approach: split time and allow different effects
+# Create time-split dataset
+lung_split <- survSplit(Surv(time, event) ~ ., data = lung_dt[!is.na(ph.ecog)],
+                         cut = c(180, 365), episode = "tgroup")
+
+lung_split_dt <- as.data.table(lung_split)
+
+# Fit model with time-varying effect for sex
+cox_tv <- coxph(Surv(tstart, time, event) ~ age + sex:factor(tgroup) + factor(ph.ecog),
+                 data = lung_split_dt)
+
+cat("Cox Model with Time-Varying Effect for Sex:\n")
+cat("============================================\n\n")
+print(summary(cox_tv))
+
+cat("\nInterpretation:\n")
+cat("  Different hazard ratios for sex at different time periods\n")
+cat("  If coefficients differ substantially, PH was violated for sex\n")
+```
+
+---
+
+## 9.14 Model Diagnostics
+
+### 9.14.1 Deviance and Martingale Residuals
+
+**Prose and Intuition**
+
+Beyond the PH assumption, we need to check:
+- **Functional form**: Are continuous covariates modelled correctly?
+- **Influential observations**: Do any patients unduly influence results?
+- **Overall fit**: Does the model fit well?
+
+**Martingale residuals**: Difference between observed and expected events
+- For a censored observation: $M_i \in (-\infty, 1)$
+- For an event: $M_i \approx 1 - \hat{H}(t_i|X_i)$
+
+Plot against continuous covariates—should show no pattern.
+
+**Deviance residuals**: Transformed martingale residuals, more symmetric
+$$d_i = \text{sign}(M_i) \sqrt{-2[M_i + \delta_i \log(\delta_i - M_i)]}$$
+
+```{r residual_diagnostics, fig.cap="Residual diagnostics for the Cox model"}
+# Calculate residuals
+lung_complete <- lung_dt[!is.na(ph.ecog)]
+martingale_resid <- residuals(cox_model, type = "martingale")
+deviance_resid <- residuals(cox_model, type = "deviance")
+
+resid_dt <- data.table(
+    age = lung_complete$age,
+    martingale = martingale_resid,
+    deviance = deviance_resid,
+    linear_pred = predict(cox_model, type = "lp")
+)
+
+# Plot martingale vs age (functional form check)
+p1 <- ggplot2$ggplot(resid_dt, ggplot2$aes(x = age, y = martingale)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$labs(title = "Martingale Residuals vs Age",
+                 subtitle = "Non-linear pattern suggests need for transformation",
+                 x = "Age", y = "Martingale Residual") +
+    ggplot2$theme_minimal()
+
+# Plot deviance vs linear predictor (overall fit)
+p2 <- ggplot2$ggplot(resid_dt, ggplot2$aes(x = linear_pred, y = deviance)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = c(-2, 2), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$labs(title = "Deviance Residuals vs Linear Predictor",
+                 subtitle = "Points outside ±2 may be poorly fit",
+                 x = "Linear Predictor", y = "Deviance Residual") +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+### 9.14.2 Influential Observations
+
+```{r influential, fig.cap="Identifying influential observations in the Cox model"}
+# dfbetas: influence on coefficient estimates
+dfbeta_mat <- residuals(cox_model, type = "dfbetas")
+
+# Sum of absolute influences across coefficients
+total_influence <- rowSums(abs(dfbeta_mat))
+
+influence_dt <- data.table(
+    patient = 1:length(total_influence),
+    influence = total_influence,
+    time = lung_complete$time,
+    event = lung_complete$event
+)
+
+# Identify highly influential
+cutoff <- 2 / sqrt(nrow(lung_complete))
+influence_dt[, influential := influence > cutoff]
+
+cat("Influential Observation Analysis:\n")
+cat("=================================\n\n")
+cat("Cutoff for influence:", round(cutoff, 4), "\n")
+cat("Potentially influential patients:", sum(influence_dt$influential), "\n")
+
+ggplot2$ggplot(influence_dt, ggplot2$aes(x = patient, y = influence)) +
+    ggplot2$geom_point(ggplot2$aes(colour = influential), alpha = 0.7) +
+    ggplot2$geom_hline(yintercept = cutoff, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#0072B2", "TRUE" = "#D55E00")) +
+    ggplot2$labs(
+        title = "Influence of Each Observation on Cox Model",
+        subtitle = "Points above dashed line may warrant investigation",
+        x = "Patient ID",
+        y = "Total Absolute dfbeta",
+        colour = "Influential"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 9.15 Model Building and Selection
+
+### 9.15.1 Variable Selection Strategies
+
+**Prose and Intuition**
+
+Building a Cox model involves similar considerations to other regression:
+
+1. **Clinical/biological rationale**: Include variables based on domain knowledge
+2. **Confounding**: Include potential confounders even if not significant
+3. **Collinearity**: Avoid highly correlated predictors
+4. **Parsimony**: Prefer simpler models
+
+**Selection methods**:
+- **Forward selection**: Start empty, add significant variables
+- **Backward elimination**: Start full, remove non-significant
+- **AIC/BIC minimisation**: Balance fit and complexity
+
+```{r model_selection}
+# Compare nested models using likelihood ratio test
+cox_simple <- coxph(Surv(time, event) ~ sex, data = lung_complete)
+cox_full <- coxph(Surv(time, event) ~ age + sex + factor(ph.ecog), data = lung_complete)
+
+# Likelihood ratio test
+lr_test <- anova(cox_simple, cox_full)
+
+cat("Model Comparison:\n")
+cat("=================\n\n")
+cat("Simple model (sex only):\n")
+cat("  AIC:", AIC(cox_simple), "\n")
+cat("  Concordance:", concordance(cox_simple)$concordance, "\n\n")
+
+cat("Full model (age + sex + ECOG):\n")
+cat("  AIC:", AIC(cox_full), "\n")
+cat("  Concordance:", concordance(cox_full)$concordance, "\n\n")
+
+cat("Likelihood ratio test:\n")
+print(lr_test)
+```
+
+### 9.15.2 Concordance (C-statistic)
+
+**Prose and Intuition**
+
+**Concordance** (Harrell's C) measures discriminatory power: Given two patients, how often does the model correctly rank their survival times?
+
+- $C = 0.5$: No better than chance
+- $C = 0.7-0.8$: Good discrimination
+- $C > 0.8$: Excellent discrimination
+
+```{r concordance}
+c_stat <- concordance(cox_full)
+
+cat("Model Discrimination (Concordance):\n")
+cat("===================================\n\n")
+cat("C-statistic:", round(c_stat$concordance, 3), "\n")
+cat("Standard error:", round(sqrt(c_stat$var), 3), "\n")
+cat("95% CI: [", round(c_stat$concordance - 1.96*sqrt(c_stat$var), 3), ",",
+    round(c_stat$concordance + 1.96*sqrt(c_stat$var), 3), "]\n\n")
+
+cat("Interpretation: The model correctly orders survival for",
+    round(c_stat$concordance * 100, 1), "% of comparable patient pairs.\n")
+```
+
+---
+
+## 9.16 Predicted Survival Curves
+
+### 9.16.1 Individual Predictions
+
+**Prose and Intuition**
+
+The Cox model can generate predicted survival curves for individuals with specific covariate values. This personalises the prognosis beyond population averages.
+
+```{r predicted_survival, fig.cap="Predicted survival curves for specific patient profiles"}
+# Create hypothetical patients
+new_patients <- data.table(
+    age = c(50, 70),
+    sex = factor(c("Male", "Female"), levels = c("Male", "Female")),
+    ph.ecog = factor(c(1, 2), levels = c(0, 1, 2, 3))
+)
+
+# Predict survival
+pred_surv <- survfit(cox_model, newdata = new_patients)
+
+# Extract for plotting
+pred_data <- rbindlist(lapply(1:2, function(i) {
+    data.table(
+        time = c(0, pred_surv$time),
+        survival = c(1, pred_surv$surv[, i]),
+        lower = c(1, pred_surv$lower[, i]),
+        upper = c(1, pred_surv$upper[, i]),
+        patient = paste0("Patient ", i, ": ", new_patients$age[i], "yo ",
+                         new_patients$sex[i], ", ECOG ", new_patients$ph.ecog[i])
+    )
+}))
+
+ggplot2$ggplot(pred_data, ggplot2$aes(x = time, colour = patient, fill = patient)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = lower, ymax = upper), alpha = 0.2, colour = NA) +
+    ggplot2$geom_step(ggplot2$aes(y = survival), linewidth = 1.2) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    ggplot2$labs(
+        title = "Predicted Survival Curves for Individual Patients",
+        subtitle = "Based on Cox model with age, sex, and ECOG status",
+        x = "Time (days)",
+        y = "Survival Probability",
+        colour = "", fill = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 9.17 Communicating Cox Model Results to Stakeholders
+
+**For Clinicians**
+
+When presenting Cox model results:
+
+**1. Lead with hazard ratios and confidence intervals**
+
+Instead of: "The coefficient for female sex was -0.51 with SE 0.17"
+
+Say: "Women had a 40% lower risk of death compared to men (HR 0.60, 95% CI 0.43-0.83, p = 0.002)"
+
+**2. Explain hazard ratios intuitively**
+
+- "For every 10 years of additional age, the risk of death increases by about 40%"
+- "Patients with poor performance status have more than double the death rate of those with good status"
+
+**3. Provide predicted survival curves**
+
+Show what the model predicts for representative patients rather than abstract hazard ratios.
+
+**4. Acknowledge limitations**
+
+- "These results assume the effects are constant over time"
+- "The model explains some but not all variation in survival (C-statistic = 0.64)"
+
+---
+
+## 9.18 Summary and Key Takeaways
+
+**Cox Model Essentials**
+
+| Concept | Formula/Interpretation |
+|---------|------------------------|
+| Model | $h(t\|X) = h_0(t) \exp(\beta' X)$ |
+| Hazard Ratio | $\text{HR} = \exp(\beta)$ |
+| HR = 1 | No effect |
+| HR > 1 | Increased hazard (worse survival) |
+| HR < 1 | Decreased hazard (better survival) |
+| PH Assumption | HR constant over time |
+
+**Model Checking Checklist**
+
+1. ☑ Test PH assumption with `cox.zph()` and Schoenfeld residuals
+2. ☑ Check functional form with martingale residuals
+3. ☑ Identify influential observations with dfbetas
+4. ☑ Assess discrimination with concordance (C-statistic)
+5. ☑ Compare models with AIC/likelihood ratio tests
+
+**R Functions Reference**
+
+| Function | Package | Purpose |
+|----------|---------|---------|
+| `coxph()` | survival | Fit Cox model |
+| `cox.zph()` | survival | Test PH assumption |
+| `residuals()` | survival | Extract residuals |
+| `survfit()` | survival | Predicted survival |
+| `concordance()` | survival | C-statistic |
+| `anova()` | survival | Model comparison |
+
+---
+
+## 9.19 Exercises
+
+1. **Hazard ratio interpretation**: If the HR for a treatment is 0.75, what does this mean in terms of relative risk reduction?
+
+2. **PH assumption**: Using the lung cancer data, test whether the proportional hazards assumption holds for Karnofsky score. If it doesn't, what would you do?
+
+3. **Model building**: Build a Cox model for lung cancer survival using age, sex, and Karnofsky score. Report hazard ratios with 95% CIs.
+
+4. **Prediction**: Using your model, predict 1-year survival probability for a 65-year-old male with Karnofsky score 80.
+
+5. **Stakeholder report**: Write a paragraph summarising the key predictors of survival for a clinical audience.
+
+---
+
+## 9.20 References
+
+- Cox, D. R. (1972). Regression models and life-tables. *Journal of the Royal Statistical Society: Series B*, 34(2), 187-220.
+- Grambsch, P. M., & Therneau, T. M. (1994). Proportional hazards tests and diagnostics based on weighted residuals. *Biometrika*, 81(3), 515-526.
+- Harrell, F. E. (2015). *Regression Modeling Strategies* (2nd ed.). Springer.
+- Therneau, T. M., & Grambsch, P. M. (2000). *Modeling Survival Data: Extending the Cox Model*. Springer.
+- Clark, T. G., et al. (2003). Survival analysis part II: multivariate data analysis. *British Journal of Cancer*, 89(3), 431-436.

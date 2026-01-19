@@ -1,0 +1,980 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 7: Time Series Analysis"
+part: "Part 3: Forecasting and Advanced Methods"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, time-series, forecasting, exponential-smoothing, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 3: Forecasting and Advanced Methods
+
+Having developed the theoretical foundations of time series modelling in Parts 1 and 2, we now turn to the ultimate goal: **forecasting**. This chapter covers exponential smoothing methods, forecast evaluation, and practical strategies for generating reliable predictions in biomedical contexts. We also introduce state space models as a unifying framework that connects various approaches.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load time series datasets
+deaths <- fread("../../../data/time-series/us_accidental_deaths.csv")
+influenza <- fread("../../../data/time-series/influenza_germany_weekly.csv")
+hospital <- fread("../../../data/time-series/hospital_admissions_monthly.csv")
+
+# Create time series objects
+deaths[, date := as.Date(paste(year, month, "01", sep = "-"))]
+deaths_ts <- ts(deaths$deaths, start = c(1973, 1), frequency = 12)
+
+influenza[, date := as.Date(date)]
+flu_ts <- ts(influenza$cases, start = c(2001, 1), frequency = 52)
+
+hospital[, date := as.Date(date)]
+hosp_ts <- ts(hospital$admissions, start = c(2010, 1), frequency = 12)
+
+cat("Time Series Objects Created:\n")
+cat("  Deaths:", length(deaths_ts), "months (1973-1978)\n")
+cat("  Influenza:", length(flu_ts), "weeks (2001-2008)\n")
+cat("  Hospital:", length(hosp_ts), "months (2010-2019)\n")
+```
+
+---
+
+## 7.15 Exponential Smoothing: A Different Approach
+
+### 7.15.1 Simple Exponential Smoothing
+
+**Prose and Intuition**
+
+While ARIMA models capture autocorrelation structure through explicit AR and MA parameters, **exponential smoothing** takes a simpler approach: weight recent observations more heavily than distant ones, with weights decaying exponentially.
+
+The intuition is straightforward: yesterday's observation tells us more about tomorrow than last year's observation. Exponential smoothing formalises this by giving recent data more influence in a principled way.
+
+**Simple Exponential Smoothing (SES)** is appropriate for data without trend or seasonality:
+
+$$\hat{Y}_{t+1|t} = \alpha Y_t + (1-\alpha) \hat{Y}_{t|t-1}$$
+
+where $\alpha \in (0,1)$ is the smoothing parameter. Equivalently:
+
+$$\hat{Y}_{t+1|t} = \alpha Y_t + \alpha(1-\alpha) Y_{t-1} + \alpha(1-\alpha)^2 Y_{t-2} + \cdots$$
+
+The weights sum to 1 and decay geometrically—hence "exponential" smoothing.
+
+**Mathematical Derivation**
+
+The level component (local mean) evolves as:
+$$\ell_t = \alpha Y_t + (1-\alpha) \ell_{t-1}$$
+
+The forecast is simply:
+$$\hat{Y}_{t+h|t} = \ell_t \quad \text{for all } h \geq 1$$
+
+The smoothing parameter $\alpha$ controls the trade-off:
+- $\alpha \approx 1$: Forecasts react quickly to recent changes (high variance)
+- $\alpha \approx 0$: Forecasts change slowly (high bias, smooth)
+
+**Visualisation**
+
+```{r ses_demo, fig.cap="Simple exponential smoothing with different smoothing parameters"}
+# Simulate data without trend or seasonality
+set.seed(42)
+n <- 100
+y_ses <- numeric(n)
+y_ses[1] <- 50
+for (i in 2:n) {
+    y_ses[i] <- 50 + rnorm(1, sd = 5)
+}
+
+# Apply SES with different alpha values
+ses_smooth <- function(y, alpha) {
+    n <- length(y)
+    level <- numeric(n)
+    level[1] <- y[1]
+    for (t in 2:n) {
+        level[t] <- alpha * y[t] + (1 - alpha) * level[t-1]
+    }
+    return(level)
+}
+
+ses_01 <- ses_smooth(y_ses, 0.1)
+ses_05 <- ses_smooth(y_ses, 0.5)
+ses_09 <- ses_smooth(y_ses, 0.9)
+
+ses_dt <- data.table(
+    time = rep(1:n, 4),
+    value = c(y_ses, ses_01, ses_05, ses_09),
+    type = factor(rep(c("Original Data", "α = 0.1 (smooth)",
+                        "α = 0.5 (moderate)", "α = 0.9 (reactive)"), each = n),
+                  levels = c("Original Data", "α = 0.1 (smooth)",
+                             "α = 0.5 (moderate)", "α = 0.9 (reactive)"))
+)
+
+ggplot2$ggplot(ses_dt, ggplot2$aes(x = time, y = value)) +
+    ggplot2$geom_line(ggplot2$aes(colour = type), linewidth = 0.8) +
+    ggplot2$scale_colour_manual(values = c("Original Data" = "grey50",
+                                            "α = 0.1 (smooth)" = "#0072B2",
+                                            "α = 0.5 (moderate)" = "#009E73",
+                                            "α = 0.9 (reactive)" = "#D55E00")) +
+    ggplot2$labs(
+        title = "Simple Exponential Smoothing with Different α Values",
+        subtitle = "Lower α = smoother forecasts; higher α = more responsive to recent changes",
+        x = "Time",
+        y = "Value",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 7.15.2 Holt's Linear Trend Method
+
+**Prose and Intuition**
+
+When data have a trend, SES is inadequate—it will systematically underpredict (upward trend) or overpredict (downward trend). **Holt's method** extends SES by adding a trend component:
+
+$$\ell_t = \alpha Y_t + (1-\alpha)(\ell_{t-1} + b_{t-1})$$
+$$b_t = \beta^*(\ell_t - \ell_{t-1}) + (1-\beta^*) b_{t-1}$$
+$$\hat{Y}_{t+h|t} = \ell_t + h \cdot b_t$$
+
+where:
+- $\ell_t$ = level (smoothed value)
+- $b_t$ = trend (slope)
+- $\alpha$ = smoothing parameter for level
+- $\beta^*$ = smoothing parameter for trend
+
+```{r holt_demo, fig.cap="Holt's method captures the trend in hospital admissions"}
+if (requireNamespace("forecast", quietly = TRUE)) {
+    # Fit Holt's method
+    holt_fit <- forecast::holt(hosp_ts, h = 24)
+
+    # Extract fitted values
+    fitted_holt <- fitted(holt_fit)
+
+    # Create data for plotting
+    holt_dt <- data.table(
+        time = c(time(hosp_ts), time(holt_fit$mean)),
+        observed = c(as.numeric(hosp_ts), rep(NA, 24)),
+        fitted = c(as.numeric(fitted_holt), as.numeric(holt_fit$mean)),
+        type = c(rep("Historical", length(hosp_ts)), rep("Forecast", 24))
+    )
+
+    ggplot2$ggplot(holt_dt, ggplot2$aes(x = time)) +
+        ggplot2$geom_ribbon(data = holt_dt[type == "Forecast"],
+                            ggplot2$aes(ymin = as.numeric(holt_fit$lower[,2]),
+                                        ymax = as.numeric(holt_fit$upper[,2])),
+                            fill = "#0072B2", alpha = 0.2) +
+        ggplot2$geom_line(ggplot2$aes(y = observed), colour = "grey50") +
+        ggplot2$geom_line(ggplot2$aes(y = fitted, colour = type), linewidth = 1) +
+        ggplot2$scale_colour_manual(values = c("Historical" = "#009E73", "Forecast" = "#D55E00")) +
+        ggplot2$labs(
+            title = "Holt's Linear Trend Method for Hospital Admissions",
+            subtitle = "Captures upward trend and extrapolates into the future",
+            x = "Year",
+            y = "Monthly Admissions",
+            colour = ""
+        ) +
+        ggplot2$theme_minimal() +
+        ggplot2$theme(legend.position = "bottom")
+
+    cat("Holt's Method Parameters:\n")
+    cat("  Level smoothing (α):", round(holt_fit$model$par["alpha"], 3), "\n")
+    cat("  Trend smoothing (β):", round(holt_fit$model$par["beta"], 3), "\n")
+}
+```
+
+### 7.15.3 Holt-Winters Seasonal Method
+
+**Prose and Intuition**
+
+For data with both trend and seasonality, the **Holt-Winters method** adds a third component. There are two variants:
+
+1. **Additive seasonality**: Seasonal fluctuations are roughly constant in size
+   - Summer deaths are always ~2000 above average
+2. **Multiplicative seasonality**: Seasonal fluctuations proportional to the level
+   - Summer deaths are 20% higher than average
+
+**Additive Holt-Winters**:
+$$\ell_t = \alpha(Y_t - s_{t-m}) + (1-\alpha)(\ell_{t-1} + b_{t-1})$$
+$$b_t = \beta^*(\ell_t - \ell_{t-1}) + (1-\beta^*) b_{t-1}$$
+$$s_t = \gamma(Y_t - \ell_{t-1} - b_{t-1}) + (1-\gamma) s_{t-m}$$
+$$\hat{Y}_{t+h|t} = \ell_t + h \cdot b_t + s_{t+h-m(k+1)}$$
+
+where $m$ is the seasonal period and $\gamma$ is the seasonal smoothing parameter.
+
+**Visualisation**
+
+```{r hw_demo, fig.cap="Holt-Winters method captures trend and seasonal patterns in mortality data"}
+if (requireNamespace("forecast", quietly = TRUE)) {
+    # Fit Holt-Winters (additive)
+    hw_add <- forecast::hw(deaths_ts, seasonal = "additive", h = 24)
+    # Fit Holt-Winters (multiplicative)
+    hw_mult <- forecast::hw(deaths_ts, seasonal = "multiplicative", h = 24)
+
+    cat("Holt-Winters Model Comparison:\n")
+    cat("==============================\n\n")
+    cat("Additive:       AIC =", round(hw_add$model$aic, 1), "\n")
+    cat("Multiplicative: AIC =", round(hw_mult$model$aic, 1), "\n")
+    cat("\nBetter model:",
+        ifelse(hw_add$model$aic < hw_mult$model$aic, "Additive", "Multiplicative"), "\n")
+
+    # Use the better model for plotting
+    best_hw <- if(hw_add$model$aic < hw_mult$model$aic) hw_add else hw_mult
+
+    hw_dt <- data.table(
+        time = c(time(deaths_ts), time(best_hw$mean)),
+        observed = c(as.numeric(deaths_ts), rep(NA, 24)),
+        fitted = c(as.numeric(fitted(best_hw)), as.numeric(best_hw$mean)),
+        lower = c(rep(NA, length(deaths_ts)), as.numeric(best_hw$lower[,2])),
+        upper = c(rep(NA, length(deaths_ts)), as.numeric(best_hw$upper[,2])),
+        type = c(rep("Historical", length(deaths_ts)), rep("Forecast", 24))
+    )
+
+    ggplot2$ggplot(hw_dt, ggplot2$aes(x = time)) +
+        ggplot2$geom_ribbon(ggplot2$aes(ymin = lower, ymax = upper),
+                            fill = "#0072B2", alpha = 0.2, na.rm = TRUE) +
+        ggplot2$geom_line(ggplot2$aes(y = observed), colour = "grey50", na.rm = TRUE) +
+        ggplot2$geom_line(ggplot2$aes(y = fitted, colour = type), linewidth = 1) +
+        ggplot2$scale_colour_manual(values = c("Historical" = "#009E73", "Forecast" = "#D55E00")) +
+        ggplot2$labs(
+            title = "Holt-Winters Seasonal Method for US Accidental Deaths",
+            subtitle = "Captures both upward trend and summer-peak seasonality",
+            x = "Year",
+            y = "Monthly Deaths",
+            colour = ""
+        ) +
+        ggplot2$theme_minimal() +
+        ggplot2$theme(legend.position = "bottom")
+}
+```
+
+---
+
+## 7.16 ETS: A Unifying Framework
+
+### 7.16.1 The ETS Taxonomy
+
+**Prose and Intuition**
+
+**ETS (Error, Trend, Seasonal)** provides a systematic framework for exponential smoothing methods. Each model is specified by three components:
+
+| Component | Options | Meaning |
+|-----------|---------|---------|
+| Error (E) | A, M | Additive, Multiplicative |
+| Trend (T) | N, A, Ad, M, Md | None, Additive, Additive damped, Multiplicative, Multiplicative damped |
+| Seasonal (S) | N, A, M | None, Additive, Multiplicative |
+
+For example:
+- **ETS(A,N,N)** = Simple exponential smoothing
+- **ETS(A,A,N)** = Holt's linear method
+- **ETS(A,A,A)** = Additive Holt-Winters
+- **ETS(M,A,M)** = Multiplicative errors, additive trend, multiplicative seasonality
+
+This taxonomy generates 30 possible models (some with multiplicative errors are unstable and rarely used).
+
+**Visualisation**
+
+```{r ets_taxonomy, fig.cap="The ETS model taxonomy covers all exponential smoothing variants"}
+ets_models <- data.table(
+    Error = c("A", "A", "A", "A", "A", "A", "A", "A", "A",
+              "M", "M", "M", "M", "M", "M", "M", "M", "M"),
+    Trend = c("N", "N", "N", "A", "A", "A", "Ad", "Ad", "Ad",
+              "N", "N", "N", "A", "A", "A", "Ad", "Ad", "Ad"),
+    Seasonal = c("N", "A", "M", "N", "A", "M", "N", "A", "M",
+                 "N", "A", "M", "N", "A", "M", "N", "A", "M"),
+    Model_Name = c("SES", "SES+Season(A)", "SES+Season(M)",
+                   "Holt", "HW(A)", "HW(M)",
+                   "Damped", "Damped+S(A)", "Damped+S(M)",
+                   "SES(M)", "SES(M)+S(A)", "SES(M)+S(M)",
+                   "Holt(M)", "HW(M,A)", "HW(M,M)",
+                   "Damped(M)", "Damped(M)+S(A)", "Damped(M)+S(M)")
+)
+
+# Visualise common models
+ets_common <- ets_models[Model_Name %in% c("SES", "Holt", "HW(A)", "Damped", "HW(M)")]
+
+ggplot2$ggplot(ets_models, ggplot2$aes(x = Trend, y = Seasonal, fill = Error)) +
+    ggplot2$geom_tile(colour = "white", linewidth = 1.5) +
+    ggplot2$geom_text(ggplot2$aes(label = Model_Name), size = 3) +
+    ggplot2$scale_fill_manual(values = c("A" = "#0072B2", "M" = "#D55E00")) +
+    ggplot2$labs(
+        title = "ETS Model Taxonomy",
+        subtitle = "18 commonly used combinations (some others are unstable)",
+        x = "Trend Component",
+        y = "Seasonal Component",
+        fill = "Error Type"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text = ggplot2$element_text(size = 10))
+```
+
+### 7.16.2 Automatic Model Selection
+
+```{r ets_auto, fig.cap="ETS automatically selects the best model based on AIC"}
+if (requireNamespace("forecast", quietly = TRUE)) {
+    # Automatic ETS selection for deaths data
+    ets_deaths <- forecast::ets(deaths_ts)
+
+    cat("Automatically Selected ETS Model:\n")
+    cat("==================================\n")
+    print(ets_deaths)
+
+    # Forecast
+    ets_fc <- forecast::forecast(ets_deaths, h = 24)
+
+    # Plot
+    fc_dt <- data.table(
+        time = c(time(deaths_ts), time(ets_fc$mean)),
+        observed = c(as.numeric(deaths_ts), rep(NA, 24)),
+        forecast = c(as.numeric(fitted(ets_deaths)), as.numeric(ets_fc$mean)),
+        lower = c(rep(NA, length(deaths_ts)), as.numeric(ets_fc$lower[,2])),
+        upper = c(rep(NA, length(deaths_ts)), as.numeric(ets_fc$upper[,2]))
+    )
+
+    ggplot2$ggplot(fc_dt, ggplot2$aes(x = time)) +
+        ggplot2$geom_ribbon(ggplot2$aes(ymin = lower, ymax = upper),
+                            fill = "#009E73", alpha = 0.2, na.rm = TRUE) +
+        ggplot2$geom_line(ggplot2$aes(y = observed), colour = "grey50", na.rm = TRUE) +
+        ggplot2$geom_line(ggplot2$aes(y = forecast), colour = "#009E73", linewidth = 1) +
+        ggplot2$geom_vline(xintercept = max(time(deaths_ts)), linetype = "dashed") +
+        ggplot2$labs(
+            title = paste("ETS", ets_deaths$method, "Forecast"),
+            subtitle = "Automatic model selection chose this specification",
+            x = "Year",
+            y = "Monthly Deaths"
+        ) +
+        ggplot2$theme_minimal()
+}
+```
+
+---
+
+## 7.17 Forecast Evaluation and Validation
+
+### 7.17.1 Time Series Cross-Validation
+
+**Prose and Intuition**
+
+Unlike standard cross-validation where we randomly split data, time series requires **temporal ordering**. We cannot use future data to predict the past. Time series cross-validation uses an expanding (or rolling) window:
+
+1. Train on data up to time $t$
+2. Forecast for time $t+1$ (or $t+1, \ldots, t+h$)
+3. Record the error
+4. Expand the training window by one observation
+5. Repeat
+
+This simulates real forecasting conditions and gives honest estimates of predictive accuracy.
+
+**Visualisation**
+
+```{r tscv_illustration, fig.cap="Time series cross-validation respects temporal ordering"}
+# Illustrate the cross-validation scheme
+cv_scheme <- data.table(
+    fold = rep(1:5, each = 10),
+    time = rep(1:10, 5),
+    type = c(rep("Train", 5), rep("Gap", 1), rep("Test", 1), rep("Future", 3),
+             rep("Train", 6), rep("Gap", 1), rep("Test", 1), rep("Future", 2),
+             rep("Train", 7), rep("Gap", 1), rep("Test", 1), rep("Future", 1),
+             rep("Train", 8), rep("Gap", 1), rep("Test", 1), rep("Future", 0),
+             rep("Train", 9), rep("Gap", 0), rep("Test", 1), rep("Future", 0))
+)
+# Fix the last fold
+cv_scheme <- data.table(
+    fold = rep(1:5, each = 10),
+    time = rep(1:10, 5),
+    type = c("Train", "Train", "Train", "Train", "Train", "Test", "Future", "Future", "Future", "Future",
+             "Train", "Train", "Train", "Train", "Train", "Train", "Test", "Future", "Future", "Future",
+             "Train", "Train", "Train", "Train", "Train", "Train", "Train", "Test", "Future", "Future",
+             "Train", "Train", "Train", "Train", "Train", "Train", "Train", "Train", "Test", "Future",
+             "Train", "Train", "Train", "Train", "Train", "Train", "Train", "Train", "Train", "Test")
+)
+
+ggplot2$ggplot(cv_scheme, ggplot2$aes(x = time, y = factor(fold, levels = 5:1))) +
+    ggplot2$geom_tile(ggplot2$aes(fill = type), colour = "white", linewidth = 0.5) +
+    ggplot2$scale_fill_manual(values = c("Train" = "#0072B2", "Test" = "#D55E00",
+                                          "Future" = "grey90")) +
+    ggplot2$scale_x_continuous(breaks = 1:10) +
+    ggplot2$labs(
+        title = "Time Series Cross-Validation (Rolling Origin)",
+        subtitle = "Training window expands; test point moves forward",
+        x = "Time Period",
+        y = "CV Fold",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(panel.grid = ggplot2$element_blank())
+```
+
+### 7.17.2 Accuracy Metrics
+
+**Mathematical Derivation**
+
+Let $Y_t$ be the actual value and $\hat{Y}_t$ be the forecast. Common metrics:
+
+**Mean Absolute Error (MAE)**:
+$$\text{MAE} = \frac{1}{n} \sum_{t=1}^{n} |Y_t - \hat{Y}_t|$$
+Interpretable in original units; robust to outliers.
+
+**Root Mean Squared Error (RMSE)**:
+$$\text{RMSE} = \sqrt{\frac{1}{n} \sum_{t=1}^{n} (Y_t - \hat{Y}_t)^2}$$
+Penalises large errors more heavily.
+
+**Mean Absolute Percentage Error (MAPE)**:
+$$\text{MAPE} = \frac{100}{n} \sum_{t=1}^{n} \left| \frac{Y_t - \hat{Y}_t}{Y_t} \right|$$
+Scale-free but undefined when $Y_t = 0$; asymmetric.
+
+**Mean Absolute Scaled Error (MASE)**:
+$$\text{MASE} = \frac{1}{n} \sum_{t=1}^{n} \frac{|Y_t - \hat{Y}_t|}{\frac{1}{T-m} \sum_{i=m+1}^{T} |Y_i - Y_{i-m}|}$$
+Scale-free; compares to naïve seasonal forecast; handles zeros.
+
+```{r accuracy_metrics}
+if (requireNamespace("forecast", quietly = TRUE)) {
+    # Split data for evaluation
+    train_end <- c(1977, 6)
+    test_start <- c(1977, 7)
+
+    train_ts <- window(deaths_ts, end = train_end)
+    test_ts <- window(deaths_ts, start = test_start)
+    h <- length(test_ts)
+
+    # Fit multiple models on training data
+    arima_fit <- forecast::auto.arima(train_ts, seasonal = TRUE)
+    ets_fit <- forecast::ets(train_ts)
+    hw_fit <- forecast::hw(train_ts, seasonal = "additive", h = h)
+
+    # Generate forecasts
+    arima_fc <- forecast::forecast(arima_fit, h = h)
+    ets_fc <- forecast::forecast(ets_fit, h = h)
+
+    # Calculate accuracy
+    arima_acc <- forecast::accuracy(arima_fc, test_ts)
+    ets_acc <- forecast::accuracy(ets_fc, test_ts)
+    hw_acc <- forecast::accuracy(hw_fit, test_ts)
+
+    cat("Forecast Accuracy Comparison (Test Set):\n")
+    cat("=========================================\n\n")
+
+    acc_dt <- data.table(
+        Model = c("ARIMA", "ETS", "Holt-Winters"),
+        RMSE = c(arima_acc["Test set", "RMSE"],
+                 ets_acc["Test set", "RMSE"],
+                 hw_acc["Test set", "RMSE"]),
+        MAE = c(arima_acc["Test set", "MAE"],
+                ets_acc["Test set", "MAE"],
+                hw_acc["Test set", "MAE"]),
+        MAPE = c(arima_acc["Test set", "MAPE"],
+                 ets_acc["Test set", "MAPE"],
+                 hw_acc["Test set", "MAPE"]),
+        MASE = c(arima_acc["Test set", "MASE"],
+                 ets_acc["Test set", "MASE"],
+                 hw_acc["Test set", "MASE"])
+    )
+
+    print(acc_dt[order(RMSE)])
+}
+```
+
+```{r forecast_comparison, fig.cap="Comparing forecasts from different methods against actual values"}
+if (requireNamespace("forecast", quietly = TRUE)) {
+    # Plot comparison
+    comp_dt <- data.table(
+        time = rep(as.numeric(time(test_ts)), 4),
+        value = c(as.numeric(test_ts),
+                  as.numeric(arima_fc$mean),
+                  as.numeric(ets_fc$mean),
+                  as.numeric(hw_fit$mean)),
+        model = factor(rep(c("Actual", "ARIMA", "ETS", "Holt-Winters"), each = h),
+                       levels = c("Actual", "ARIMA", "ETS", "Holt-Winters"))
+    )
+
+    ggplot2$ggplot(comp_dt, ggplot2$aes(x = time, y = value, colour = model)) +
+        ggplot2$geom_line(linewidth = 1) +
+        ggplot2$geom_point(size = 2) +
+        ggplot2$scale_colour_manual(values = c("Actual" = "black",
+                                                "ARIMA" = "#0072B2",
+                                                "ETS" = "#009E73",
+                                                "Holt-Winters" = "#D55E00")) +
+        ggplot2$labs(
+            title = "Forecast Comparison on Hold-Out Test Set",
+            subtitle = "Last 18 months reserved for evaluation",
+            x = "Year",
+            y = "Monthly Deaths",
+            colour = "Model"
+        ) +
+        ggplot2$theme_minimal() +
+        ggplot2$theme(legend.position = "bottom")
+}
+```
+
+### 7.17.3 Prediction Intervals
+
+**Prose and Intuition**
+
+Point forecasts are almost always wrong—what matters is how wrong they might be. **Prediction intervals** quantify forecast uncertainty.
+
+For ARIMA and ETS models, prediction intervals widen as the forecast horizon increases because:
+1. **Uncertainty accumulates**: Each step into the future adds more uncertainty
+2. **Parameter uncertainty**: We don't know the true model parameters
+3. **Model uncertainty**: We might have the wrong model specification
+
+A 95% prediction interval should contain the true value 95% of the time if the model is correctly specified.
+
+```{r prediction_intervals, fig.cap="Prediction intervals widen as forecast horizon increases"}
+if (requireNamespace("forecast", quietly = TRUE)) {
+    # Full model for forecasting
+    full_ets <- forecast::ets(deaths_ts)
+    fc_24 <- forecast::forecast(full_ets, h = 24, level = c(50, 80, 95))
+
+    # Calculate interval widths
+    width_dt <- data.table(
+        h = 1:24,
+        width_50 = fc_24$upper[,1] - fc_24$lower[,1],
+        width_80 = fc_24$upper[,2] - fc_24$lower[,2],
+        width_95 = fc_24$upper[,3] - fc_24$lower[,3]
+    )
+
+    width_long <- melt(width_dt, id.vars = "h",
+                       variable.name = "level", value.name = "width")
+    width_long[, level := gsub("width_", "", level)]
+
+    ggplot2$ggplot(width_long, ggplot2$aes(x = h, y = width, colour = level)) +
+        ggplot2$geom_line(linewidth = 1) +
+        ggplot2$geom_point(size = 2) +
+        ggplot2$scale_colour_manual(values = c("50" = "#009E73",
+                                                "80" = "#0072B2",
+                                                "95" = "#D55E00")) +
+        ggplot2$labs(
+            title = "Prediction Interval Width by Forecast Horizon",
+            subtitle = "Uncertainty grows with forecast distance",
+            x = "Forecast Horizon (months)",
+            y = "Interval Width (deaths)",
+            colour = "Confidence\nLevel (%)"
+        ) +
+        ggplot2$theme_minimal()
+}
+```
+
+---
+
+## 7.18 Practical Forecasting Strategies
+
+### 7.18.1 Combining Forecasts
+
+**Prose and Intuition**
+
+Research consistently shows that **forecast combinations** often outperform individual models. The intuition: different models capture different aspects of the data, and their errors tend to partially cancel out.
+
+Simple averaging often works as well as more sophisticated weighting schemes:
+$$\hat{Y}_{t+h}^{\text{combined}} = \frac{1}{M} \sum_{m=1}^{M} \hat{Y}_{t+h}^{(m)}$$
+
+```{r combined_forecast, fig.cap="Combined forecast often outperforms individual models"}
+if (requireNamespace("forecast", quietly = TRUE)) {
+    # Generate combined forecast
+    combined_fc <- (arima_fc$mean + ets_fc$mean + hw_fit$mean) / 3
+
+    # Calculate accuracy of combined forecast
+    combined_errors <- test_ts - combined_fc
+    combined_rmse <- sqrt(mean(combined_errors^2))
+    combined_mae <- mean(abs(combined_errors))
+
+    cat("Combined Forecast Accuracy:\n")
+    cat("===========================\n")
+    cat("RMSE:", round(combined_rmse, 1), "\n")
+    cat("MAE:", round(combined_mae, 1), "\n\n")
+
+    # Compare
+    cat("Individual Model RMSEs:\n")
+    cat("  ARIMA:", round(arima_acc["Test set", "RMSE"], 1), "\n")
+    cat("  ETS:", round(ets_acc["Test set", "RMSE"], 1), "\n")
+    cat("  Holt-Winters:", round(hw_acc["Test set", "RMSE"], 1), "\n")
+    cat("  Combined:", round(combined_rmse, 1), "\n")
+
+    # Plot including combined
+    comp_dt2 <- rbind(
+        comp_dt,
+        data.table(time = as.numeric(time(test_ts)),
+                   value = as.numeric(combined_fc),
+                   model = factor("Combined", levels = c("Actual", "ARIMA", "ETS",
+                                                          "Holt-Winters", "Combined")))
+    )
+    comp_dt2[, model := factor(model, levels = c("Actual", "ARIMA", "ETS",
+                                                   "Holt-Winters", "Combined"))]
+
+    ggplot2$ggplot(comp_dt2, ggplot2$aes(x = time, y = value, colour = model)) +
+        ggplot2$geom_line(ggplot2$aes(linewidth = model)) +
+        ggplot2$scale_linewidth_manual(values = c("Actual" = 1.5, "ARIMA" = 0.7,
+                                                   "ETS" = 0.7, "Holt-Winters" = 0.7,
+                                                   "Combined" = 1.2)) +
+        ggplot2$scale_colour_manual(values = c("Actual" = "black",
+                                                "ARIMA" = "#0072B2",
+                                                "ETS" = "#009E73",
+                                                "Holt-Winters" = "#D55E00",
+                                                "Combined" = "#CC79A7")) +
+        ggplot2$labs(
+            title = "Combined Forecast vs Individual Models",
+            subtitle = "Simple averaging often improves accuracy",
+            x = "Year",
+            y = "Monthly Deaths",
+            colour = "Model"
+        ) +
+        ggplot2$guides(linewidth = "none") +
+        ggplot2$theme_minimal() +
+        ggplot2$theme(legend.position = "bottom")
+}
+```
+
+### 7.18.2 Dealing with Special Events
+
+**Prose and Intuition**
+
+Real-world time series often contain **special events** that disrupt normal patterns:
+- Holidays affecting hospital admissions
+- Outbreaks affecting disease incidence
+- Policy changes affecting mortality rates
+- Data collection changes affecting measurements
+
+Strategies for handling these:
+
+1. **Pre-adjustment**: Remove known effects before modelling
+2. **Intervention analysis**: Include dummy variables for known events
+3. **Robust methods**: Use methods less sensitive to outliers
+4. **Judgmental adjustment**: Modify forecasts based on domain knowledge
+
+```{r special_events, fig.cap="Detecting and handling outliers in time series"}
+# Detect outliers in influenza data
+flu_decomp <- stl(flu_ts, s.window = "periodic")
+flu_remainder <- flu_decomp$time.series[,"remainder"]
+
+# Identify outliers (beyond 3 SDs)
+flu_sd <- sd(flu_remainder, na.rm = TRUE)
+outlier_threshold <- 3 * flu_sd
+
+outlier_dt <- data.table(
+    time = time(flu_ts),
+    cases = as.numeric(flu_ts),
+    remainder = as.numeric(flu_remainder),
+    is_outlier = abs(as.numeric(flu_remainder)) > outlier_threshold
+)
+
+n_outliers <- sum(outlier_dt$is_outlier)
+
+cat("Outlier Detection in Influenza Data:\n")
+cat("=====================================\n")
+cat("Total observations:", nrow(outlier_dt), "\n")
+cat("Outliers detected:", n_outliers, "\n")
+cat("Threshold (3 SD):", round(outlier_threshold, 1), "cases\n\n")
+
+if (n_outliers > 0) {
+    cat("Outlier weeks:\n")
+    print(outlier_dt[is_outlier == TRUE, .(time, cases, remainder)])
+}
+
+ggplot2$ggplot(outlier_dt, ggplot2$aes(x = time, y = cases)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$geom_point(data = outlier_dt[is_outlier == TRUE],
+                       colour = "#D55E00", size = 3) +
+    ggplot2$labs(
+        title = "Influenza Cases with Detected Outliers",
+        subtitle = "Unusual observations highlighted for potential investigation",
+        x = "Year",
+        y = "Weekly Cases"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 7.19 Application: Influenza Forecasting
+
+Let's apply everything we've learned to forecast influenza cases—a critically important public health application.
+
+```{r flu_comprehensive, fig.cap="Comprehensive influenza forecasting analysis"}
+if (requireNamespace("forecast", quietly = TRUE)) {
+    # Split data: use first 6 years for training, last 2 for testing
+    flu_train <- window(flu_ts, end = c(2006, 52))
+    flu_test <- window(flu_ts, start = c(2007, 1))
+    h_flu <- length(flu_test)
+
+    cat("Influenza Forecasting Analysis:\n")
+    cat("================================\n\n")
+    cat("Training period: 2001-2006 (", length(flu_train), "weeks)\n")
+    cat("Test period: 2007-2008 (", length(flu_test), "weeks)\n\n")
+
+    # Fit models
+    flu_arima <- forecast::auto.arima(flu_train, seasonal = TRUE)
+    flu_ets <- forecast::ets(flu_train, model = "ZZZ")
+
+    cat("Selected Models:\n")
+    cat("  ARIMA:", paste(flu_arima$arma[c(1,6,2,3,7,4,5)], collapse = ","), "\n")
+    cat("  ETS:", flu_ets$method, "\n\n")
+
+    # Forecasts
+    fc_arima_flu <- forecast::forecast(flu_arima, h = h_flu)
+    fc_ets_flu <- forecast::forecast(flu_ets, h = h_flu)
+    fc_combined_flu <- (fc_arima_flu$mean + fc_ets_flu$mean) / 2
+
+    # Accuracy
+    acc_arima_flu <- forecast::accuracy(fc_arima_flu, flu_test)
+    acc_ets_flu <- forecast::accuracy(fc_ets_flu, flu_test)
+
+    combined_errors_flu <- flu_test - fc_combined_flu
+    acc_combined_flu <- c(
+        RMSE = sqrt(mean(combined_errors_flu^2)),
+        MAE = mean(abs(combined_errors_flu))
+    )
+
+    cat("Test Set Accuracy:\n")
+    cat("------------------\n")
+    cat(sprintf("ARIMA:    RMSE = %.1f, MAE = %.1f\n",
+                acc_arima_flu["Test set", "RMSE"], acc_arima_flu["Test set", "MAE"]))
+    cat(sprintf("ETS:      RMSE = %.1f, MAE = %.1f\n",
+                acc_ets_flu["Test set", "RMSE"], acc_ets_flu["Test set", "MAE"]))
+    cat(sprintf("Combined: RMSE = %.1f, MAE = %.1f\n",
+                acc_combined_flu["RMSE"], acc_combined_flu["MAE"]))
+
+    # Plot
+    flu_plot_dt <- data.table(
+        time = c(time(flu_train), time(flu_test), time(flu_test), time(flu_test)),
+        value = c(as.numeric(flu_train), as.numeric(flu_test),
+                  as.numeric(fc_arima_flu$mean), as.numeric(fc_combined_flu)),
+        type = c(rep("Training", length(flu_train)),
+                 rep("Actual (Test)", length(flu_test)),
+                 rep("ARIMA Forecast", length(flu_test)),
+                 rep("Combined Forecast", length(flu_test)))
+    )
+
+    ggplot2$ggplot(flu_plot_dt, ggplot2$aes(x = time, y = value, colour = type)) +
+        ggplot2$geom_line(ggplot2$aes(linewidth = type)) +
+        ggplot2$scale_linewidth_manual(values = c("Training" = 0.5,
+                                                   "Actual (Test)" = 1.2,
+                                                   "ARIMA Forecast" = 1,
+                                                   "Combined Forecast" = 1)) +
+        ggplot2$scale_colour_manual(values = c("Training" = "grey60",
+                                                "Actual (Test)" = "black",
+                                                "ARIMA Forecast" = "#0072B2",
+                                                "Combined Forecast" = "#D55E00")) +
+        ggplot2$geom_vline(xintercept = 2007, linetype = "dashed") +
+        ggplot2$labs(
+            title = "Influenza Case Forecasting",
+            subtitle = "2-year ahead forecast evaluation",
+            x = "Year",
+            y = "Weekly Cases",
+            colour = ""
+        ) +
+        ggplot2$guides(linewidth = "none") +
+        ggplot2$theme_minimal() +
+        ggplot2$theme(legend.position = "bottom")
+}
+```
+
+---
+
+## 7.20 Communicating Forecasts to Stakeholders
+
+### 7.20.1 Effective Forecast Presentations
+
+**For Public Health Officials and Hospital Administrators**
+
+When presenting forecasts to decision-makers:
+
+**1. Lead with the actionable insight**
+
+Instead of: "Our SARIMA(2,1,1)×(1,1,1)₅₂ model forecasts 450 cases next week with RMSE of 127."
+
+Say: "We expect influenza cases to peak in the next 2-3 weeks, reaching levels 40% higher than last month. This typically strains emergency departments for about 4 weeks."
+
+**2. Always show uncertainty**
+
+```{r stakeholder_presentation, fig.cap="Forecast presentation for stakeholders with clear uncertainty bands"}
+if (requireNamespace("forecast", quietly = TRUE)) {
+    # Final forecast for stakeholder presentation
+    final_model <- forecast::ets(deaths_ts)
+    final_fc <- forecast::forecast(final_model, h = 12, level = c(50, 80, 95))
+
+    # Prepare data
+    hist_dt <- data.table(
+        time = as.numeric(time(deaths_ts)),
+        deaths = as.numeric(deaths_ts),
+        type = "Historical"
+    )
+
+    fc_dt <- data.table(
+        time = as.numeric(time(final_fc$mean)),
+        deaths = as.numeric(final_fc$mean),
+        lower_50 = as.numeric(final_fc$lower[,1]),
+        upper_50 = as.numeric(final_fc$upper[,1]),
+        lower_80 = as.numeric(final_fc$lower[,2]),
+        upper_80 = as.numeric(final_fc$upper[,2]),
+        lower_95 = as.numeric(final_fc$lower[,3]),
+        upper_95 = as.numeric(final_fc$upper[,3]),
+        type = "Forecast"
+    )
+
+    # Use only last 3 years of history for cleaner plot
+    recent_hist <- hist_dt[time >= 1976]
+
+    ggplot2$ggplot() +
+        # 95% interval
+        ggplot2$geom_ribbon(data = fc_dt,
+                            ggplot2$aes(x = time, ymin = lower_95, ymax = upper_95),
+                            fill = "#0072B2", alpha = 0.15) +
+        # 80% interval
+        ggplot2$geom_ribbon(data = fc_dt,
+                            ggplot2$aes(x = time, ymin = lower_80, ymax = upper_80),
+                            fill = "#0072B2", alpha = 0.25) +
+        # 50% interval
+        ggplot2$geom_ribbon(data = fc_dt,
+                            ggplot2$aes(x = time, ymin = lower_50, ymax = upper_50),
+                            fill = "#0072B2", alpha = 0.35) +
+        # Historical line
+        ggplot2$geom_line(data = recent_hist,
+                          ggplot2$aes(x = time, y = deaths), colour = "grey30", linewidth = 0.8) +
+        # Forecast line
+        ggplot2$geom_line(data = fc_dt,
+                          ggplot2$aes(x = time, y = deaths), colour = "#0072B2", linewidth = 1.2) +
+        ggplot2$geom_point(data = fc_dt,
+                           ggplot2$aes(x = time, y = deaths), colour = "#0072B2", size = 2) +
+        # Vertical line separating history from forecast
+        ggplot2$geom_vline(xintercept = max(hist_dt$time), linetype = "dashed", colour = "red") +
+        ggplot2$annotate("text", x = max(hist_dt$time) - 0.3, y = max(recent_hist$deaths),
+                         label = "Today", colour = "red", hjust = 1, size = 4) +
+        ggplot2$labs(
+            title = "12-Month Mortality Forecast",
+            subtitle = "Shaded regions: 50%, 80%, and 95% prediction intervals (darker = more likely)",
+            x = "Year",
+            y = "Monthly Accidental Deaths",
+            caption = "Note: Summer months historically show higher mortality; plan resources accordingly"
+        ) +
+        ggplot2$theme_minimal() +
+        ggplot2$theme(
+            plot.title = ggplot2$element_text(size = 16, face = "bold"),
+            plot.subtitle = ggplot2$element_text(size = 11),
+            plot.caption = ggplot2$element_text(size = 9, colour = "grey50")
+        )
+}
+```
+
+**3. Provide context and caveats**
+
+Always include:
+- **Data limitations**: "Based on data through December 2024; any recent changes in reporting would not be reflected"
+- **Assumptions**: "Assumes no major policy changes or unusual events"
+- **Update schedule**: "This forecast will be updated weekly as new data become available"
+- **Comparison to benchmark**: "This model has historically been accurate within ±15% at the 2-week horizon"
+
+### 7.20.2 Forecast Report Template
+
+```{r forecast_report}
+cat("========================================\n")
+cat("    MONTHLY MORTALITY FORECAST REPORT   \n")
+cat("========================================\n\n")
+
+cat("EXECUTIVE SUMMARY\n")
+cat("-----------------\n")
+cat("Based on analysis of historical patterns, we forecast continued\n")
+cat("seasonal variation in accidental deaths over the next 12 months.\n\n")
+
+if (requireNamespace("forecast", quietly = TRUE)) {
+    cat("KEY FINDINGS:\n")
+    cat(sprintf("• Expected average: %d deaths/month (range: %d-%d)\n",
+                round(mean(final_fc$mean)),
+                round(min(final_fc$lower[,2])),
+                round(max(final_fc$upper[,2]))))
+    cat(sprintf("• Peak expected: Month %d with ~%d deaths\n",
+                which.max(final_fc$mean),
+                round(max(final_fc$mean))))
+    cat(sprintf("• Low expected: Month %d with ~%d deaths\n",
+                which.min(final_fc$mean),
+                round(min(final_fc$mean))))
+
+    cat("\nMODEL INFORMATION:\n")
+    cat(sprintf("• Model type: ETS (%s)\n", final_model$method))
+    cat("• Data through: December 1978\n")
+    cat("• Forecast horizon: 12 months\n")
+    cat("• Historical accuracy: MAPE = ", round(mean(abs(residuals(final_model)/deaths_ts)*100, na.rm=TRUE), 1), "%\n")
+
+    cat("\nRECOMMENDATIONS:\n")
+    cat("1. Plan for 15-20% higher resource needs during summer months\n")
+    cat("2. Review forecasts monthly and adjust as new data arrive\n")
+    cat("3. Consider additional factors not captured in this model\n")
+    cat("   (policy changes, demographic shifts, etc.)\n")
+}
+```
+
+---
+
+## 7.21 Summary and Key Takeaways
+
+**Methods Comparison**
+
+| Method | Strengths | Weaknesses | Best For |
+|--------|-----------|------------|----------|
+| ARIMA | Flexible; interpretable ACF/PACF | Requires stationarity; complex | Complex autocorrelation |
+| ETS | Automatic; handles trends/seasons | Less flexible than ARIMA | Trend + seasonality |
+| Holt-Winters | Simple; intuitive | Fixed seasonality | Regular seasonal patterns |
+| Combined | Often most accurate | Harder to interpret | Production forecasting |
+
+**Forecasting Checklist**
+
+1. **Understand the data**: Plot, check for stationarity, identify patterns
+2. **Split appropriately**: Use temporal cross-validation, not random splits
+3. **Fit multiple models**: ARIMA, ETS, simpler benchmarks
+4. **Evaluate honestly**: Use proper accuracy metrics on held-out data
+5. **Quantify uncertainty**: Always report prediction intervals
+6. **Consider combinations**: Simple averaging often improves accuracy
+7. **Communicate clearly**: Lead with insights, show uncertainty, state caveats
+
+**R Functions Reference**
+
+| Function | Package | Purpose |
+|----------|---------|---------|
+| `forecast()` | forecast | Generate forecasts with intervals |
+| `accuracy()` | forecast | Calculate forecast accuracy metrics |
+| `ets()` | forecast | Fit exponential smoothing models |
+| `hw()`, `holt()` | forecast | Holt-Winters and Holt methods |
+| `tsCV()` | forecast | Time series cross-validation |
+| `checkresiduals()` | forecast | Residual diagnostics |
+
+---
+
+## 7.22 Exercises
+
+1. **Influenza forecasting**: Using the full influenza dataset, implement a 4-week ahead forecasting system with rolling evaluation. Compare ARIMA, ETS, and a simple seasonal naïve method.
+
+2. **Forecast combination**: Develop an optimal weighting scheme for combining ARIMA and ETS forecasts based on recent forecast accuracy. Does adaptive weighting beat simple averaging?
+
+3. **Uncertainty quantification**: For hospital admissions, generate bootstrapped prediction intervals and compare them to the parametric intervals from `forecast()`. Are the intervals well-calibrated?
+
+4. **Executive summary**: Prepare a one-page forecast report for hospital administrators planning staffing for the next quarter. Include appropriate visualisations and clear uncertainty communication.
+
+5. **Special events**: Identify weeks in the influenza data that appear to be anomalous. How would you handle these when forecasting? Implement an intervention analysis approach.
+
+---
+
+## 7.23 References
+
+- Hyndman, R. J., & Athanasopoulos, G. (2021). *Forecasting: Principles and Practice* (3rd ed.). OTexts.
+- Hyndman, R. J., Koehler, A. B., Ord, J. K., & Snyder, R. D. (2008). *Forecasting with Exponential Smoothing: The State Space Approach*. Springer.
+- Makridakis, S., Spiliotis, E., & Assimakopoulos, V. (2020). The M4 Competition: 100,000 time series and 61 forecasting methods. *International Journal of Forecasting*, 36(1), 54-74.
+- Petropoulos, F., et al. (2022). Forecasting: theory and practice. *International Journal of Forecasting*, 38(3), 845-1083.
+- WHO. (2019). *Influenza surveillance and monitoring*. World Health Organization.

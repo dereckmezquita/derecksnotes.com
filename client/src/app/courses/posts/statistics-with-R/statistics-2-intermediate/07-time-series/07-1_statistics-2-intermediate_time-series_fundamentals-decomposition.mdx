@@ -1,0 +1,699 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 7: Time Series Analysis"
+part: "Part 1: Fundamentals and Decomposition"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, time-series, decomposition, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: Fundamentals and Decomposition
+
+Time series data are observations collected sequentially over time. From disease surveillance to hospital admissions, from vital signs monitoring to epidemiological trends, temporal patterns pervade biomedical research. This chapter introduces the fundamental concepts, visualisation techniques, and decomposition methods for understanding time series structure.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load time series datasets
+hospital_admissions <- fread("../../../data/time-series/hospital_admissions_monthly.csv")
+influenza <- fread("../../../data/time-series/influenza_germany_weekly.csv")
+deaths <- fread("../../../data/time-series/us_accidental_deaths.csv")
+
+cat("Datasets loaded:\n")
+#> Datasets loaded:
+cat("  Hospital admissions:", nrow(hospital_admissions), "observations\n")
+#>   Hospital admissions: 120 observations
+cat("  Influenza Germany:", nrow(influenza), "observations\n")
+#>   Influenza Germany: 416 observations
+cat("  US accidental deaths:", nrow(deaths), "observations\n")
+#>   US accidental deaths: 72 observations
+```
+
+---
+
+## 7.1 What Makes Time Series Special?
+
+### 7.1.1 The Fundamental Difference
+
+**Prose and Intuition**
+
+Time series data differ from cross-sectional data in one crucial way: **observations are not independent**. Today's hospital admission count is related to yesterday's count. This week's flu cases depend on last week's infections.
+
+This temporal dependence (autocorrelation) violates the independence assumption of standard regression. Special methods are needed to:
+- Account for serial correlation in inference
+- Forecast future values based on past patterns
+- Decompose series into interpretable components
+- Detect changes, anomalies, and structural breaks
+
+### 7.1.2 Components of a Time Series
+
+**Prose and Intuition**
+
+A time series typically contains several components:
+
+1. **Trend**: Long-term increase or decrease in the level
+2. **Seasonality**: Regular periodic patterns (daily, weekly, annual)
+3. **Cyclical**: Irregular fluctuations not tied to fixed periods
+4. **Irregular/Noise**: Random variation not explained by other components
+
+**Mathematical Models**
+
+**Additive model** (components add):
+$$Y_t = T_t + S_t + R_t$$
+
+**Multiplicative model** (components multiply):
+$$Y_t = T_t \times S_t \times R_t$$
+
+Where $T_t$ is trend, $S_t$ is seasonal, and $R_t$ is residual/random.
+
+Use additive when seasonal variation is roughly constant over time.
+Use multiplicative when seasonal variation scales with the level.
+
+
+``` r
+# Create illustrative example
+set.seed(42)
+n <- 120  # 10 years monthly
+t <- 1:n
+
+# Generate components
+trend <- 100 + 0.5 * t  # Linear trend
+seasonal <- 20 * sin(2 * pi * t / 12)  # Annual seasonality
+noise <- rnorm(n, sd = 5)  # Random noise
+
+# Combine additively
+y_additive <- trend + seasonal + noise
+
+# Create data.table
+components_data <- data.table(
+    time = t,
+    month = rep(1:12, 10),
+    year = rep(2015:2024, each = 12),
+    Observed = y_additive,
+    Trend = trend,
+    Seasonal = seasonal,
+    Noise = noise
+)
+
+# Plot components
+p1 <- ggplot2$ggplot(components_data, ggplot2$aes(x = time, y = Observed)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$labs(title = "Observed Series", x = "", y = "Value") +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(components_data, ggplot2$aes(x = time, y = Trend)) +
+    ggplot2$geom_line(colour = "#D55E00") +
+    ggplot2$labs(title = "Trend Component", x = "", y = "") +
+    ggplot2$theme_minimal()
+
+p3 <- ggplot2$ggplot(components_data, ggplot2$aes(x = time, y = Seasonal)) +
+    ggplot2$geom_line(colour = "#009E73") +
+    ggplot2$labs(title = "Seasonal Component", x = "", y = "") +
+    ggplot2$theme_minimal()
+
+p4 <- ggplot2$ggplot(components_data, ggplot2$aes(x = time, y = Noise)) +
+    ggplot2$geom_line(colour = "#CC79A7") +
+    ggplot2$labs(title = "Irregular/Noise Component", x = "Time", y = "") +
+    ggplot2$theme_minimal()
+
+print(p1)
+```
+
+<Figure src="components_illustration-1.png" alt="The four components of a time series">
+	The four components of a time series
+</Figure>
+
+
+``` r
+print(p2)
+```
+
+<Figure src="trend_component-1.png" alt="The trend represents long-term direction">
+	The trend represents long-term direction
+</Figure>
+
+
+``` r
+print(p3)
+```
+
+<Figure src="seasonal_component-1.png" alt="Seasonality shows regular periodic patterns">
+	Seasonality shows regular periodic patterns
+</Figure>
+
+
+``` r
+print(p4)
+```
+
+<Figure src="noise_component-1.png" alt="Irregular noise is the unexplained variation">
+	Irregular noise is the unexplained variation
+</Figure>
+
+---
+
+## 7.2 Time Series Visualisation
+
+### 7.2.1 Creating Time Series Objects
+
+
+``` r
+# Convert US deaths to proper time series object
+# The data has year and month columns
+deaths_ts <- ts(deaths$deaths, start = c(deaths$year[1], deaths$month[1]), frequency = 12)
+
+cat("Time Series Object:\n")
+#> Time Series Object:
+cat("===================\n\n")
+#> ===================
+print(deaths_ts)
+#>        Jan   Feb   Mar   Apr   May   Jun   Jul   Aug   Sep   Oct   Nov   Dec
+#> 1973  9007  8106  8928  9137 10017 10826 11317 10744  9713  9938  9161  8927
+#> 1974  7750  6981  8038  8422  8714  9512 10120  9823  8743  9129  8710  8680
+#> 1975  8162  7306  8124  7870  9387  9556 10093  9620  8285  8466  8160  8034
+#> 1976  7717  7461  7767  7925  8623  8945 10078  9179  8037  8488  7874  8647
+#> 1977  7792  6957  7726  8106  8890  9299 10625  9302  8314  8850  8265  8796
+#> 1978  7836  6892  7791  8192  9115  9434 10484  9827  9110  9070  8633  9240
+cat("\nStart:", start(deaths_ts), "\n")
+#> 
+#> Start: 1973 1
+cat("End:", end(deaths_ts), "\n")
+#> End: 1978 12
+cat("Frequency:", frequency(deaths_ts), "(monthly)\n")
+#> Frequency: 12 (monthly)
+```
+
+### 7.2.2 Basic Plots
+
+
+``` r
+# Time plot
+deaths[, date := as.Date(paste(year, month, "01", sep = "-"))]
+
+ggplot2$ggplot(deaths, ggplot2$aes(x = date, y = deaths)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$labs(
+        title = "US Accidental Deaths (1973-1978)",
+        subtitle = "Monthly data showing clear seasonal pattern",
+        x = "",
+        y = "Number of Deaths"
+    ) +
+    ggplot2$scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="time_plot-1.png" alt="US accidental deaths show strong seasonal pattern">
+	US accidental deaths show strong seasonal pattern
+</Figure>
+
+### 7.2.3 Seasonal Plots
+
+**Prose and Intuition**
+
+**Seasonal plots** overlay data from different years by season, making it easy to see:
+- Which months/seasons are highest/lowest
+- Whether the seasonal pattern is consistent across years
+- Any years that deviate from the typical pattern
+
+
+``` r
+# Seasonal plot
+deaths[, month_name := month.abb[month]]
+deaths[, month_name := factor(month_name, levels = month.abb)]
+
+ggplot2$ggplot(deaths, ggplot2$aes(x = month_name, y = deaths, group = year, colour = factor(year))) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point() +
+    ggplot2$scale_colour_viridis_d() +
+    ggplot2$labs(
+        title = "Seasonal Plot: Deaths by Month for Each Year",
+        subtitle = "Summer months (June-August) consistently show higher deaths",
+        x = "Month",
+        y = "Deaths",
+        colour = "Year"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="seasonal_plot-1.png" alt="Seasonal plot reveals peak deaths in summer months">
+	Seasonal plot reveals peak deaths in summer months
+</Figure>
+
+### 7.2.4 Subseries Plots
+
+
+``` r
+# Subseries plot: each month's values across years
+deaths[, mean_deaths := mean(deaths), by = month]
+
+ggplot2$ggplot(deaths, ggplot2$aes(x = year, y = deaths)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$geom_hline(ggplot2$aes(yintercept = mean_deaths), colour = "#D55E00", linetype = "dashed") +
+    ggplot2$facet_wrap(~ month_name, nrow = 2) +
+    ggplot2$labs(
+        title = "Subseries Plot: Yearly Patterns Within Each Month",
+        subtitle = "Dashed line = mean for that month across all years",
+        x = "Year",
+        y = "Deaths"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+```
+
+<Figure src="subseries_plot-1.png" alt="Subseries plot shows both seasonal pattern and yearly trends">
+	Subseries plot shows both seasonal pattern and yearly trends
+</Figure>
+
+---
+
+## 7.3 Autocorrelation
+
+### 7.3.1 Understanding Autocorrelation
+
+**Prose and Intuition**
+
+**Autocorrelation** measures how strongly a series is related to its past values. The autocorrelation at lag $k$ measures the correlation between $Y_t$ and $Y_{t-k}$.
+
+**Mathematical Definition**
+
+$$\rho_k = \text{Corr}(Y_t, Y_{t-k}) = \frac{\text{Cov}(Y_t, Y_{t-k})}{\text{Var}(Y_t)}$$
+
+The sample autocorrelation function (ACF) estimates this:
+$$\hat{\rho}_k = \frac{\sum_{t=k+1}^{n}(Y_t - \bar{Y})(Y_{t-k} - \bar{Y})}{\sum_{t=1}^{n}(Y_t - \bar{Y})^2}$$
+
+**Interpreting the ACF:**
+- Slow decay: Strong trend present
+- Periodic peaks: Seasonality (peaks at seasonal lags)
+- Quick drop to zero: Random (white noise)
+
+
+``` r
+# Calculate ACF
+acf_vals <- acf(deaths_ts, plot = FALSE, lag.max = 36)
+
+acf_dt <- data.table(
+    lag = as.numeric(acf_vals$lag),
+    acf = as.numeric(acf_vals$acf)
+)
+
+# Critical value for significance (approximate)
+n <- length(deaths_ts)
+ci <- qnorm(0.975) / sqrt(n)
+
+ggplot2$ggplot(acf_dt, ggplot2$aes(x = lag, y = acf)) +
+    ggplot2$geom_hline(yintercept = 0, colour = "grey50") +
+    ggplot2$geom_hline(yintercept = c(-ci, ci), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(xend = lag, yend = 0), colour = "#0072B2") +
+    ggplot2$geom_point(colour = "#0072B2", size = 2) +
+    ggplot2$labs(
+        title = "Autocorrelation Function (ACF)",
+        subtitle = paste("Dashed lines show 95% significance bounds (±", round(ci, 3), ")"),
+        x = "Lag (months)",
+        y = "Autocorrelation"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="acf_calculation-1.png" alt="ACF reveals the autocorrelation structure of the series">
+	ACF reveals the autocorrelation structure of the series
+</Figure>
+
+### 7.3.2 Interpreting the ACF
+
+
+``` r
+cat("ACF Interpretation:\n")
+#> ACF Interpretation:
+cat("===================\n\n")
+#> ===================
+
+cat("Key observations from the ACF:\n\n")
+#> Key observations from the ACF:
+
+cat("1. LAG 12 (1 year): ACF =", round(acf_dt[lag == 12, acf], 3), "\n")
+#> 1. LAG 12 (1 year): ACF =
+cat("   Strong positive correlation with same month last year\n")
+#>    Strong positive correlation with same month last year
+cat("   → Confirms annual seasonality\n\n")
+#>    <U+2192> Confirms annual seasonality
+
+cat("2. LAG 6 (6 months): ACF =", round(acf_dt[lag == 6, acf], 3), "\n")
+#> 2. LAG 6 (6 months): ACF =
+cat("   Negative correlation with opposite season\n")
+#>    Negative correlation with opposite season
+cat("   → Summer is negatively correlated with winter\n\n")
+#>    <U+2192> Summer is negatively correlated with winter
+
+cat("3. SLOW DECAY: ACFs remain significant across many lags\n")
+#> 3. SLOW DECAY: ACFs remain significant across many lags
+cat("   → Indicates presence of trend and/or strong seasonality\n\n")
+#>    <U+2192> Indicates presence of trend and/or strong seasonality
+
+cat("4. PATTERN: Oscillating with period 12\n")
+#> 4. PATTERN: Oscillating with period 12
+cat("   → Clear 12-month seasonal cycle\n")
+#>    <U+2192> Clear 12-month seasonal cycle
+```
+
+### 7.3.3 Partial Autocorrelation (PACF)
+
+**Prose and Intuition**
+
+The **partial autocorrelation** at lag $k$ measures the correlation between $Y_t$ and $Y_{t-k}$ after removing the effect of intervening lags ($Y_{t-1}, Y_{t-2}, \ldots, Y_{t-k+1}$).
+
+Think of it as the "direct" effect of lag $k$, not mediated through shorter lags.
+
+
+``` r
+# Calculate PACF
+pacf_vals <- pacf(deaths_ts, plot = FALSE, lag.max = 36)
+
+pacf_dt <- data.table(
+    lag = as.numeric(pacf_vals$lag),
+    pacf = as.numeric(pacf_vals$acf)
+)
+
+ggplot2$ggplot(pacf_dt, ggplot2$aes(x = lag, y = pacf)) +
+    ggplot2$geom_hline(yintercept = 0, colour = "grey50") +
+    ggplot2$geom_hline(yintercept = c(-ci, ci), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(xend = lag, yend = 0), colour = "#009E73") +
+    ggplot2$geom_point(colour = "#009E73", size = 2) +
+    ggplot2$labs(
+        title = "Partial Autocorrelation Function (PACF)",
+        subtitle = "Direct correlations after controlling for intermediate lags",
+        x = "Lag (months)",
+        y = "Partial Autocorrelation"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="pacf_calculation-1.png" alt="PACF shows direct effects at each lag">
+	PACF shows direct effects at each lag
+</Figure>
+
+---
+
+## 7.4 Classical Decomposition
+
+### 7.4.1 Moving Average Smoothing
+
+**Prose and Intuition**
+
+A **moving average** smooths out short-term fluctuations to reveal the underlying trend. A window of size $m$ takes the average of $m$ consecutive observations:
+
+$$\hat{T}_t = \frac{1}{m}\sum_{j=-k}^{k} Y_{t+j}$$
+
+where $m = 2k + 1$ for an odd-order moving average.
+
+For seasonal data with period $m$, a centered moving average of order $m$ eliminates the seasonal component.
+
+
+``` r
+# Calculate centered moving averages
+deaths[, ma_3 := frollmean(deaths, n = 3, align = "center")]
+deaths[, ma_12 := frollmean(deaths, n = 12, align = "center")]
+
+ggplot2$ggplot(deaths, ggplot2$aes(x = date)) +
+    ggplot2$geom_line(ggplot2$aes(y = deaths, colour = "Original"), alpha = 0.6) +
+    ggplot2$geom_line(ggplot2$aes(y = ma_3, colour = "MA(3)"), size = 0.8) +
+    ggplot2$geom_line(ggplot2$aes(y = ma_12, colour = "MA(12)"), size = 1.2) +
+    ggplot2$scale_colour_manual(values = c("Original" = "grey50", "MA(3)" = "#D55E00", "MA(12)" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Moving Average Smoothing",
+        subtitle = "MA(12) reveals trend by averaging out seasonal variation",
+        x = "",
+        y = "Deaths",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="moving_average-1.png" alt="Moving average extracts the trend from noisy data">
+	Moving average extracts the trend from noisy data
+</Figure>
+
+### 7.4.2 Additive Decomposition
+
+
+``` r
+# Classical additive decomposition
+decomp_add <- decompose(deaths_ts, type = "additive")
+
+# Extract components
+decomp_dt <- data.table(
+    date = deaths$date,
+    observed = as.numeric(deaths_ts),
+    trend = as.numeric(decomp_add$trend),
+    seasonal = as.numeric(decomp_add$seasonal),
+    remainder = as.numeric(decomp_add$random)
+)
+
+# Plot
+p1 <- ggplot2$ggplot(decomp_dt, ggplot2$aes(x = date, y = observed)) +
+    ggplot2$geom_line(colour = "grey30") +
+    ggplot2$labs(title = "Observed", x = "", y = "") +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(decomp_dt, ggplot2$aes(x = date, y = trend)) +
+    ggplot2$geom_line(colour = "#0072B2", na.rm = TRUE) +
+    ggplot2$labs(title = "Trend", x = "", y = "") +
+    ggplot2$theme_minimal()
+
+p3 <- ggplot2$ggplot(decomp_dt, ggplot2$aes(x = date, y = seasonal)) +
+    ggplot2$geom_line(colour = "#009E73") +
+    ggplot2$labs(title = "Seasonal", x = "", y = "") +
+    ggplot2$theme_minimal()
+
+p4 <- ggplot2$ggplot(decomp_dt, ggplot2$aes(x = date, y = remainder)) +
+    ggplot2$geom_line(colour = "#D55E00", na.rm = TRUE) +
+    ggplot2$labs(title = "Remainder", x = "", y = "") +
+    ggplot2$theme_minimal()
+
+print(p1)
+```
+
+<Figure src="additive_decomposition-1.png" alt="Additive decomposition separates trend, seasonal, and remainder">
+	Additive decomposition separates trend, seasonal, and remainder
+</Figure>
+
+
+``` r
+print(p2)
+```
+
+<Figure src="decomp_trend-1.png" alt="Trend component shows overall level changes">
+	Trend component shows overall level changes
+</Figure>
+
+
+``` r
+print(p3)
+```
+
+<Figure src="decomp_seasonal-1.png" alt="Seasonal component repeats each year">
+	Seasonal component repeats each year
+</Figure>
+
+
+``` r
+print(p4)
+```
+
+<Figure src="decomp_remainder-1.png" alt="Remainder is what&#39;s left after removing trend and seasonal">
+	Remainder is what's left after removing trend and seasonal
+</Figure>
+
+### 7.4.3 Interpreting the Seasonal Component
+
+
+``` r
+cat("Seasonal Component Interpretation:\n")
+#> Seasonal Component Interpretation:
+cat("==================================\n\n")
+#> ==================================
+
+# Get one cycle of seasonal factors
+seasonal_factors <- decomp_dt[!is.na(trend)][1:12, .(month = month(date), seasonal)]
+
+cat("Monthly Seasonal Factors:\n")
+#> Monthly Seasonal Factors:
+print(seasonal_factors[, .(Month = month.abb[month], Effect = round(seasonal, 1))])
+#>      Month  Effect
+#>     <char>   <num>
+#>  1:    Jul  1679.4
+#>  2:    Aug   986.3
+#>  3:    Sep  -109.3
+#>  4:    Oct   263.9
+#>  5:    Nov  -261.0
+#>  6:    Dec   -59.0
+#>  7:    Jan  -805.9
+#>  8:    Feb -1523.3
+#>  9:    Mar  -740.8
+#> 10:    Apr  -514.8
+#> 11:    May   339.6
+#> 12:    Jun   744.8
+
+cat("\nInterpretation:\n")
+#> 
+#> Interpretation:
+cat("  Positive values: Above-average deaths for that month\n")
+#>   Positive values: Above-average deaths for that month
+cat("  Negative values: Below-average deaths for that month\n\n")
+#>   Negative values: Below-average deaths for that month
+
+cat("Peak month:", month.abb[seasonal_factors[which.max(seasonal), month]],
+    "( +", round(max(seasonal_factors$seasonal), 0), "deaths)\n")
+#> Peak month: Jul ( + 1679 deaths)
+cat("Low month:", month.abb[seasonal_factors[which.min(seasonal), month]],
+    "( ", round(min(seasonal_factors$seasonal), 0), "deaths)\n")
+#> Low month: Feb (  -1523 deaths)
+cat("Seasonal range:", round(max(seasonal_factors$seasonal) - min(seasonal_factors$seasonal), 0), "deaths\n")
+#> Seasonal range: 3203 deaths
+```
+
+---
+
+## 7.5 STL Decomposition
+
+### 7.5.1 Why STL?
+
+**Prose and Intuition**
+
+**STL** (Seasonal and Trend decomposition using Loess) is a more flexible and robust decomposition method. Advantages over classical decomposition:
+
+1. **Handles any seasonal period** (not just monthly or quarterly)
+2. **Robust to outliers** (uses loess smoothing)
+3. **Allows seasonal pattern to change over time**
+4. **User control** over smoothness of components
+
+
+``` r
+# STL decomposition
+stl_decomp <- stl(deaths_ts, s.window = "periodic")
+
+# Extract components
+stl_dt <- data.table(
+    date = deaths$date,
+    observed = as.numeric(deaths_ts),
+    trend = as.numeric(stl_decomp$time.series[, "trend"]),
+    seasonal = as.numeric(stl_decomp$time.series[, "seasonal"]),
+    remainder = as.numeric(stl_decomp$time.series[, "remainder"])
+)
+
+# Strength of components
+var_total <- var(stl_dt$observed)
+var_trend <- var(stl_dt$trend)
+var_seasonal <- var(stl_dt$seasonal)
+var_remainder <- var(stl_dt$remainder)
+
+cat("STL Decomposition Summary:\n")
+#> STL Decomposition Summary:
+cat("=========================\n\n")
+#> =========================
+
+cat("Variance decomposition:\n")
+#> Variance decomposition:
+cat("  Total variance:", round(var_total, 1), "\n")
+#>   Total variance: 917290.1
+cat("  Trend contribution:", round(100 * var_trend / var_total, 1), "%\n")
+#>   Trend contribution: 18.2 %
+cat("  Seasonal contribution:", round(100 * var_seasonal / var_total, 1), "%\n")
+#>   Seasonal contribution: 79.9 %
+cat("  Remainder:", round(100 * var_remainder / var_total, 1), "%\n\n")
+#>   Remainder: 4.9 %
+
+# Strength of seasonality
+strength_seasonal <- max(0, 1 - var_remainder / var(stl_dt$seasonal + stl_dt$remainder))
+strength_trend <- max(0, 1 - var_remainder / var(stl_dt$trend + stl_dt$remainder))
+
+cat("Strength of trend:", round(strength_trend, 3), "\n")
+#> Strength of trend: 0.799
+cat("Strength of seasonality:", round(strength_seasonal, 3), "\n")
+#> Strength of seasonality: 0.943
+cat("(Values close to 1 indicate strong component)\n")
+#> (Values close to 1 indicate strong component)
+```
+
+
+``` r
+# Plot STL components
+ggplot2$ggplot(stl_dt, ggplot2$aes(x = date)) +
+    ggplot2$geom_line(ggplot2$aes(y = observed), colour = "grey30", alpha = 0.5) +
+    ggplot2$geom_line(ggplot2$aes(y = trend), colour = "#0072B2", size = 1) +
+    ggplot2$labs(
+        title = "STL Trend (blue) vs Observed (grey)",
+        subtitle = "STL produces a smoother trend estimate",
+        x = "",
+        y = "Deaths"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="stl_plot-1.png" alt="STL provides smooth trend and consistent seasonal estimates">
+	STL provides smooth trend and consistent seasonal estimates
+</Figure>
+
+---
+
+## 7.6 Seasonal Adjustment
+
+### 7.6.1 Why Seasonally Adjust?
+
+**Prose and Intuition**
+
+**Seasonal adjustment** removes the seasonal component to reveal underlying trends and make fair comparisons across months. Government statistics (employment, GDP, etc.) are typically published seasonally adjusted.
+
+**Method:**
+- Additive: $Y_{adj} = Y - S$
+- Multiplicative: $Y_{adj} = Y / S$
+
+
+``` r
+# Seasonally adjusted series
+stl_dt[, seasonally_adjusted := observed - seasonal]
+
+ggplot2$ggplot(stl_dt, ggplot2$aes(x = date)) +
+    ggplot2$geom_line(ggplot2$aes(y = observed, colour = "Original"), alpha = 0.6) +
+    ggplot2$geom_line(ggplot2$aes(y = seasonally_adjusted, colour = "Seasonally Adjusted"), size = 1) +
+    ggplot2$scale_colour_manual(values = c("Original" = "grey50", "Seasonally Adjusted" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Original vs Seasonally Adjusted Series",
+        subtitle = "Removing seasonality reveals the underlying trend",
+        x = "",
+        y = "Deaths",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="seasonal_adjustment-1.png" alt="Seasonally adjusted series reveals the underlying trend">
+	Seasonally adjusted series reveals the underlying trend
+</Figure>
+
+---
+
+## 7.7 Influenza Surveillance Example
+
+Let's apply these techniques to real epidemiological data.
+
+
+
+
+

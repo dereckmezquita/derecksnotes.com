@@ -1,0 +1,793 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 9: Survival Analysis"
+part: "Part 3: Advanced Topics and Extensions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, survival-analysis, parametric-survival, competing-risks, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 3: Advanced Topics and Extensions
+
+The Kaplan-Meier method and Cox proportional hazards model form the foundation of survival analysis, but many biomedical applications require extensions. This chapter covers parametric survival models, time-dependent covariates, competing risks, and special designs like interval censoring and recurrent events. We conclude with comprehensive guidance on presenting survival analyses in publications and regulatory submissions.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(survival)
+```
+
+```{r load_data, message=FALSE}
+# Load lung cancer data
+data(lung)
+lung_dt <- as.data.table(lung)
+lung_dt[, event := status - 1]  # 0 = censored, 1 = dead
+lung_dt[, sex := factor(sex, levels = c(1, 2), labels = c("Male", "Female"))]
+
+# Load PBC (Primary Biliary Cholangitis) data for competing risks
+data(pbc)
+pbc_dt <- as.data.table(pbc)
+pbc_dt <- pbc_dt[!is.na(trt)]  # Keep only randomised patients
+
+cat("Datasets Loaded:\n")
+cat("  Lung cancer:", nrow(lung_dt), "patients\n")
+cat("  PBC trial:", nrow(pbc_dt), "patients\n")
+```
+
+---
+
+## 9.21 Parametric Survival Models
+
+### 9.21.1 Why Parametric Models?
+
+**Prose and Intuition**
+
+The Cox model is semi-parametric—it doesn't specify the baseline hazard. **Parametric models** assume a specific distribution for survival times, offering:
+
+**Advantages**:
+- More efficient estimation (use full likelihood)
+- Extrapolation beyond observed data
+- Explicit survival time predictions
+- Clearer interpretation of hazard shape
+
+**Disadvantages**:
+- Must specify correct distribution
+- Misspecification leads to bias
+- Less robust than Cox model
+
+### 9.21.2 Common Parametric Distributions
+
+**Mathematical Derivation**
+
+| Distribution | Survival Function | Hazard Function | Characteristics |
+|--------------|-------------------|-----------------|-----------------|
+| Exponential | $S(t) = e^{-\lambda t}$ | $h(t) = \lambda$ | Constant hazard |
+| Weibull | $S(t) = e^{-(\lambda t)^\gamma}$ | $h(t) = \lambda\gamma(\lambda t)^{\gamma-1}$ | Monotone hazard |
+| Log-normal | $S(t) = 1 - \Phi\left(\frac{\log t - \mu}{\sigma}\right)$ | Non-monotone | Hump-shaped hazard |
+| Log-logistic | $S(t) = \frac{1}{1 + (\lambda t)^\gamma}$ | Non-monotone | Similar to log-normal |
+| Gamma | Complex | Various shapes | Flexible |
+
+**Weibull model** is most common because:
+- Includes exponential as special case ($\gamma = 1$)
+- $\gamma > 1$: Increasing hazard (aging)
+- $\gamma < 1$: Decreasing hazard (early mortality)
+
+```{r parametric_distributions, fig.cap="Different parametric survival distributions have distinct hazard shapes"}
+t_vals <- seq(0.01, 3, length.out = 200)
+
+# Different distributions
+param_dt <- data.table(
+    t = rep(t_vals, 4),
+    hazard = c(
+        rep(1, 200),                                    # Exponential (λ=1)
+        1.5 * (t_vals)^0.5,                            # Weibull (γ=1.5, λ=1)
+        0.7 * (t_vals)^(-0.3),                         # Weibull (γ=0.7)
+        dlnorm(t_vals, 0, 0.5) / plnorm(t_vals, 0, 0.5, lower.tail = FALSE)  # Log-normal
+    ),
+    distribution = factor(rep(c("Exponential (constant)",
+                                 "Weibull γ>1 (increasing)",
+                                 "Weibull γ<1 (decreasing)",
+                                 "Log-normal (hump-shaped)"), each = 200))
+)
+
+# Cap extreme values
+param_dt[hazard > 5, hazard := NA]
+
+ggplot2$ggplot(param_dt[!is.na(hazard)], ggplot2$aes(x = t, y = hazard, colour = distribution)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$scale_colour_viridis_d(option = "C") +
+    ggplot2$labs(
+        title = "Hazard Functions for Different Parametric Distributions",
+        subtitle = "Choice of distribution determines assumed hazard shape",
+        x = "Time",
+        y = "Hazard h(t)",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 9.21.3 Fitting Parametric Models
+
+```{r parametric_fit}
+# Fit various parametric models to lung data
+lung_complete <- lung_dt[!is.na(ph.ecog)]
+
+# Exponential
+fit_exp <- survreg(Surv(time, event) ~ age + sex + factor(ph.ecog),
+                    data = lung_complete, dist = "exponential")
+
+# Weibull
+fit_weibull <- survreg(Surv(time, event) ~ age + sex + factor(ph.ecog),
+                        data = lung_complete, dist = "weibull")
+
+# Log-normal
+fit_lnorm <- survreg(Surv(time, event) ~ age + sex + factor(ph.ecog),
+                      data = lung_complete, dist = "lognormal")
+
+# Log-logistic
+fit_llogis <- survreg(Surv(time, event) ~ age + sex + factor(ph.ecog),
+                       data = lung_complete, dist = "loglogistic")
+
+# Compare AIC
+aic_comparison <- data.table(
+    Distribution = c("Exponential", "Weibull", "Log-normal", "Log-logistic"),
+    AIC = c(AIC(fit_exp), AIC(fit_weibull), AIC(fit_lnorm), AIC(fit_llogis)),
+    LogLik = c(logLik(fit_exp), logLik(fit_weibull), logLik(fit_lnorm), logLik(fit_llogis))
+)
+aic_comparison[, Delta_AIC := AIC - min(AIC)]
+
+cat("Parametric Model Comparison:\n")
+cat("============================\n\n")
+print(aic_comparison[order(AIC)])
+
+cat("\nBest fitting distribution:", aic_comparison[which.min(AIC), Distribution], "\n")
+```
+
+### 9.21.4 Interpreting Parametric Model Output
+
+**Prose and Intuition**
+
+Parametric models (via `survreg`) report coefficients on the **log-time scale**, which is the opposite direction from Cox models:
+- Positive coefficient → longer survival (lower hazard)
+- Negative coefficient → shorter survival (higher hazard)
+
+To convert to "acceleration factor" interpretation: $\exp(\beta)$ is the multiplicative effect on survival time.
+
+```{r parametric_interpretation}
+cat("Weibull Model Summary:\n")
+cat("======================\n\n")
+print(summary(fit_weibull))
+
+# Convert coefficients to acceleration factors
+weibull_coef <- coef(fit_weibull)
+acceleration_factors <- exp(weibull_coef)
+
+cat("\nAcceleration Factors (effect on survival time):\n")
+cat("===============================================\n\n")
+for (i in 1:length(acceleration_factors)) {
+    cat(sprintf("  %s: %.3f\n", names(acceleration_factors)[i], acceleration_factors[i]))
+}
+
+cat("\nInterpretation:\n")
+cat("  Females have", round((acceleration_factors["sexFemale"] - 1) * 100, 1),
+    "% longer survival times than males\n")
+cat("  ECOG 2 patients have", round((1 - acceleration_factors["factor(ph.ecog)2"]) * 100, 1),
+    "% shorter survival than ECOG 0\n")
+```
+
+---
+
+## 9.22 Time-Dependent Covariates
+
+### 9.22.1 When Covariates Change Over Time
+
+**Prose and Intuition**
+
+So far, we've assumed covariates are fixed at baseline. But many important predictors change over time:
+- Lab values (e.g., CD4 count in HIV)
+- Treatment exposure (cumulative dose)
+- Disease status (remission/relapse)
+- Transplant status (pre/post transplant)
+
+**Time-dependent covariates** require restructuring data so each row represents a time interval, with covariate values for that period.
+
+### 9.22.2 Creating Time-Dependent Data
+
+```{r time_dependent}
+# Example: Create a time-varying covariate
+# Suppose Karnofsky score decreases over time for some patients
+
+set.seed(42)
+
+# For illustration, create simplified time-varying data
+# Patient had Karnofsky score change at day 100
+n_patients <- 50
+tv_data <- rbindlist(lapply(1:n_patients, function(id) {
+    # Baseline
+    baseline_kps <- sample(c(60, 70, 80, 90, 100), 1, prob = c(0.1, 0.2, 0.3, 0.3, 0.1))
+    event_time <- rweibull(1, shape = 1.5, scale = 300)
+    event <- rbinom(1, 1, 0.7)
+
+    # Did KPS change?
+    kps_change <- runif(1) < 0.4 & event_time > 100
+
+    if (kps_change) {
+        new_kps <- max(baseline_kps - 20, 40)
+        rbind(
+            data.table(id = id, tstart = 0, tstop = 100, event = 0,
+                       kps = baseline_kps, age = 60 + rnorm(1, 0, 10)),
+            data.table(id = id, tstart = 100, tstop = event_time, event = event,
+                       kps = new_kps, age = 60 + rnorm(1, 0, 10))
+        )
+    } else {
+        data.table(id = id, tstart = 0, tstop = event_time, event = event,
+                   kps = baseline_kps, age = 60 + rnorm(1, 0, 10))
+    }
+}))
+
+cat("Time-Varying Covariate Data Structure:\n")
+cat("======================================\n\n")
+print(head(tv_data[order(id, tstart)], 10))
+
+# Fit Cox model with time-varying covariate
+cox_tv <- coxph(Surv(tstart, tstop, event) ~ kps + age, data = tv_data)
+
+cat("\nCox Model with Time-Varying Karnofsky Score:\n")
+print(summary(cox_tv))
+```
+
+---
+
+## 9.23 Competing Risks
+
+### 9.23.1 The Problem
+
+**Prose and Intuition**
+
+In many studies, patients can experience multiple types of events:
+- Cancer patients may die from cancer OR from other causes
+- Transplant patients may experience rejection, infection, or death
+- Patients may experience disease recurrence before death
+
+With **competing risks**, experiencing one event precludes others. Standard Kaplan-Meier can overestimate event probabilities because it treats competing events as censoring.
+
+**Key distinction**:
+- **Cause-specific hazard**: Risk of a specific event (treating others as censored)
+- **Cumulative incidence function (CIF)**: Probability of experiencing the event by time $t$, accounting for competing risks
+
+### 9.23.2 Cumulative Incidence Functions
+
+**Mathematical Derivation**
+
+The **cumulative incidence function** for event type $j$:
+$$F_j(t) = P(T \leq t, J = j) = \int_0^t h_j(u) S(u) \, du$$
+
+where:
+- $h_j(u)$ = cause-specific hazard for event $j$
+- $S(u) = \exp(-\sum_k H_k(u))$ = overall survival (from all causes)
+
+**Key property**: $\sum_j F_j(\infty) = 1$ (everyone eventually has one of the events or is censored)
+
+```{r competing_risks_cif, fig.cap="Cumulative incidence functions for competing risks in PBC data"}
+# PBC data has transplant and death as competing events
+# status: 0 = censored, 1 = transplant, 2 = dead
+
+# Create competing risk outcome
+pbc_dt[, cr_status := factor(status, levels = c(0, 1, 2),
+                              labels = c("censored", "transplant", "death"))]
+
+# Fit cumulative incidence
+# Using survfit for competing risks
+cif_fit <- survfit(Surv(time, factor(status)) ~ 1, data = pbc_dt)
+
+# Extract CIF data
+cif_data <- data.table(
+    time = cif_fit$time,
+    transplant = cif_fit$pstate[, 2],  # State 2 = transplant
+    death = cif_fit$pstate[, 3]        # State 3 = death
+)
+
+cif_long <- melt(cif_data, id.vars = "time",
+                  variable.name = "event", value.name = "probability")
+
+ggplot2$ggplot(cif_long, ggplot2$aes(x = time/365, y = probability, colour = event)) +
+    ggplot2$geom_step(linewidth = 1.2) +
+    ggplot2$scale_colour_manual(values = c("transplant" = "#0072B2", "death" = "#D55E00"),
+                                 labels = c("Transplant", "Death")) +
+    ggplot2$scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    ggplot2$labs(
+        title = "Cumulative Incidence Functions for Competing Risks",
+        subtitle = "Primary Biliary Cholangitis: Death vs Liver Transplant",
+        x = "Time (years)",
+        y = "Cumulative Incidence",
+        colour = "Event"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 9.23.3 Fine-Gray Model for Competing Risks
+
+**Prose and Intuition**
+
+The **Fine-Gray model** directly models the subdistribution hazard—the hazard for a specific event type while keeping patients who experienced other events "at risk":
+
+$$h^{sub}_j(t|X) = h^{sub}_{0j}(t) \exp(\beta' X)$$
+
+This differs from cause-specific Cox models and directly relates to cumulative incidence.
+
+```{r fine_gray}
+# Fit Fine-Gray model
+if (requireNamespace("cmprsk", quietly = TRUE)) {
+    library(cmprsk)
+
+    # Prepare data
+    pbc_fg <- pbc_dt[, .(time, status, trt, age, sex, bili)]
+    pbc_fg <- pbc_fg[complete.cases(pbc_fg)]
+
+    # Create covariate matrix
+    cov_mat <- model.matrix(~ factor(trt) + age + factor(sex) + log(bili), data = pbc_fg)[, -1]
+
+    # Fine-Gray for death (event = 2)
+    fg_death <- crr(
+        ftime = pbc_fg$time,
+        fstatus = pbc_fg$status,
+        cov1 = cov_mat,
+        failcode = 2
+    )
+
+    cat("Fine-Gray Model for Death (competing with transplant):\n")
+    cat("=======================================================\n\n")
+    print(summary(fg_death))
+} else {
+    cat("Install 'cmprsk' package for Fine-Gray models.\n")
+}
+```
+
+---
+
+## 9.24 Special Survival Designs
+
+### 9.24.1 Interval Censoring
+
+**Prose and Intuition**
+
+Sometimes we only know that an event occurred between two observation times:
+- Patient was disease-free at month 6 visit, had disease at month 12 visit
+- The event happened somewhere in that interval
+
+This is **interval censoring**. Standard methods assume exact event times (or right censoring only).
+
+```{r interval_censoring}
+# Simulate interval-censored data
+set.seed(42)
+n <- 100
+
+# True event times (unknown)
+true_times <- rweibull(n, shape = 2, scale = 20)
+
+# Observation times: visits at months 6, 12, 18, 24
+visit_times <- c(0, 6, 12, 18, 24, Inf)
+
+# Find interval containing true event
+interval_dt <- data.table(
+    id = 1:n,
+    true_time = true_times
+)
+
+interval_dt[, left := sapply(true_time, function(t) max(visit_times[visit_times < t]))]
+interval_dt[, right := sapply(true_time, function(t) min(visit_times[visit_times >= t]))]
+
+cat("Interval Censoring Example:\n")
+cat("===========================\n\n")
+cat("True times are unknown; we only know event occurred in interval [left, right]\n\n")
+print(head(interval_dt, 10))
+
+# Fit interval-censored model (requires survival package update)
+# Create Surv object for interval censoring
+surv_int <- Surv(time = interval_dt$left, time2 = interval_dt$right, type = "interval2")
+
+cat("\nInterval-Censored Kaplan-Meier (Turnbull estimator):\n")
+fit_int <- survfit(surv_int ~ 1)
+print(fit_int)
+```
+
+### 9.24.2 Left Truncation (Delayed Entry)
+
+**Prose and Intuition**
+
+**Left truncation** occurs when patients only enter the study after surviving to a certain point:
+- Study recruits only patients who survived initial surgery
+- Registry-based studies where patients must survive to be registered
+
+Without adjustment, we overestimate survival.
+
+```{r left_truncation}
+# Example: Study of patients who survived initial diagnosis
+# Entry time = time from diagnosis to study enrollment
+
+set.seed(42)
+n <- 100
+
+# Time from diagnosis to enrollment (everyone survived this)
+entry_time <- runif(n, 0, 100)
+
+# Additional follow-up time
+followup <- rexp(n, rate = 0.01)
+exit_time <- entry_time + followup
+
+# Event indicator
+event <- rbinom(n, 1, 0.6)
+
+trunc_dt <- data.table(
+    id = 1:n,
+    entry = entry_time,
+    exit = exit_time,
+    event = event
+)
+
+cat("Left Truncation (Delayed Entry) Example:\n")
+cat("========================================\n\n")
+cat("Patients entered study at time 'entry' after diagnosis\n")
+cat("They are at risk only from 'entry' to 'exit'\n\n")
+
+# Fit model with left truncation
+fit_trunc <- survfit(Surv(entry, exit, event) ~ 1, data = trunc_dt)
+
+cat("Survival estimate accounting for left truncation:\n")
+print(fit_trunc)
+```
+
+### 9.24.3 Recurrent Events
+
+**Prose and Intuition**
+
+Some outcomes can happen multiple times:
+- Hospital readmissions
+- Seizure episodes
+- Infection occurrences
+
+Analysis options:
+- **Time to first event**: Simple but ignores information
+- **Counting process**: Each event counted separately
+- **Frailty models**: Account for within-patient correlation
+- **Marginal models**: Population-averaged effects
+
+```{r recurrent_events}
+# Simulate recurrent event data
+set.seed(42)
+n_patients <- 50
+max_events <- 5
+
+recurrent_dt <- rbindlist(lapply(1:n_patients, function(id) {
+    # Patient-specific frailty
+    frailty <- rgamma(1, shape = 1, rate = 1)
+
+    events <- list()
+    current_time <- 0
+
+    for (k in 1:max_events) {
+        gap <- rexp(1, rate = 0.1 * frailty)
+        current_time <- current_time + gap
+
+        if (current_time > 100) break
+
+        events[[k]] <- data.table(
+            id = id,
+            event_num = k,
+            tstart = current_time - gap,
+            tstop = current_time,
+            event = 1,
+            frailty = frailty
+        )
+    }
+
+    # Add final censored period
+    if (length(events) > 0) {
+        last_event <- events[[length(events)]]$tstop
+    } else {
+        last_event <- 0
+    }
+
+    events[[length(events) + 1]] <- data.table(
+        id = id,
+        event_num = length(events) + 1,
+        tstart = last_event,
+        tstop = 100,
+        event = 0,
+        frailty = frailty
+    )
+
+    rbindlist(events)
+}))
+
+cat("Recurrent Event Data Structure:\n")
+cat("===============================\n\n")
+print(head(recurrent_dt[order(id, tstart)], 15))
+
+# Fit Andersen-Gill model (counting process)
+cox_recurrent <- coxph(Surv(tstart, tstop, event) ~ 1 + cluster(id),
+                        data = recurrent_dt)
+
+cat("\nAndersen-Gill Model for Recurrent Events:\n")
+print(summary(cox_recurrent))
+```
+
+---
+
+## 9.25 Restricted Mean Survival Time
+
+### 9.25.1 An Alternative to Hazard Ratios
+
+**Prose and Intuition**
+
+The **restricted mean survival time (RMST)** offers an intuitive alternative to hazard ratios:
+$$\text{RMST}(\tau) = \int_0^{\tau} S(t) \, dt$$
+
+This is the average survival time up to a time horizon $\tau$, or equivalently, the area under the survival curve up to $\tau$.
+
+**Advantages**:
+- Doesn't require proportional hazards
+- Directly interpretable (years/months of life)
+- Valid even when curves cross
+
+```{r rmst, fig.cap="Restricted mean survival time is the area under the survival curve"}
+# Calculate RMST
+km_fit <- survfit(Surv(time, event) ~ sex, data = lung_dt)
+
+# Set restriction time (e.g., 365 days)
+tau <- 365
+
+# Calculate RMST
+if (requireNamespace("survRM2", quietly = TRUE)) {
+    library(survRM2)
+
+    rmst_result <- rmst2(time = lung_dt$time, status = lung_dt$event,
+                          arm = as.numeric(lung_dt$sex) - 1, tau = tau)
+
+    cat("Restricted Mean Survival Time Analysis (τ =", tau, "days):\n")
+    cat("========================================================\n\n")
+    print(rmst_result)
+} else {
+    cat("Install 'survRM2' package for RMST analysis.\n")
+
+    # Manual approximation
+    cat("\nManual RMST approximation:\n")
+    for (s in c("Male", "Female")) {
+        km_s <- survfit(Surv(time, event) ~ 1, data = lung_dt[sex == s])
+        # Approximate integral
+        times <- c(0, km_s$time[km_s$time <= tau], tau)
+        surv <- c(1, km_s$surv[km_s$time <= tau],
+                  km_s$surv[max(which(km_s$time <= tau))])
+        rmst_approx <- sum(diff(times) * head(surv, -1))
+        cat(sprintf("  %s: RMST = %.1f days\n", s, rmst_approx))
+    }
+}
+```
+
+---
+
+## 9.26 Presenting Survival Analysis in Publications
+
+### 9.26.1 STROBE and CONSORT Guidelines
+
+**Prose and Intuition**
+
+For observational studies (STROBE) and clinical trials (CONSORT), survival analyses should include:
+
+**Essential Elements**:
+1. Flow diagram showing patient disposition
+2. Baseline characteristics table
+3. Number at risk over time
+4. Median follow-up time
+5. Number of events and censored observations
+6. Kaplan-Meier curves with confidence bands
+7. Median survival with 95% CI (or other quantiles)
+8. Hazard ratios with 95% CI and p-values
+9. Model diagnostics (especially PH assumption testing)
+
+### 9.26.2 Example Publication-Quality Table
+
+```{r publication_table}
+# Create publication-quality results table
+lung_complete <- lung_dt[!is.na(ph.ecog)]
+
+# Cox model
+cox_final <- coxph(Surv(time, event) ~ age + sex + factor(ph.ecog),
+                    data = lung_complete)
+
+# Extract results
+cox_summ <- summary(cox_final)
+hr_table <- data.table(
+    Variable = c("Age (per year)", "Sex: Female vs Male",
+                 "ECOG 1 vs 0", "ECOG 2 vs 0", "ECOG 3 vs 0"),
+    N = nrow(lung_complete),
+    Events = sum(lung_complete$event),
+    HR = sprintf("%.2f", cox_summ$conf.int[, "exp(coef)"]),
+    CI = sprintf("(%.2f-%.2f)",
+                 cox_summ$conf.int[, "lower .95"],
+                 cox_summ$conf.int[, "upper .95"]),
+    p = format.pval(cox_summ$coefficients[, "Pr(>|z|)"], digits = 3)
+)
+
+cat("Table 2: Cox Proportional Hazards Analysis of Survival\n")
+cat("======================================================\n\n")
+print(hr_table)
+
+cat("\nModel fit: Concordance =", round(concordance(cox_final)$concordance, 3), "\n")
+cat("PH assumption: Global test p =", round(cox.zph(cox_final)$table["GLOBAL", "p"], 3), "\n")
+```
+
+### 9.26.3 Publication-Quality Figures
+
+```{r publication_figure, fig.cap="Publication-quality Kaplan-Meier curves following reporting guidelines"}
+# Create publication-quality KM plot
+km_sex <- survfit(Surv(time, event) ~ sex, data = lung_dt)
+
+# Extract data
+km_data <- data.table(
+    time = rep(c(0, km_sex$time), 2),
+    survival = c(1, km_sex$surv[1:km_sex$strata[1]],
+                 1, km_sex$surv[(km_sex$strata[1]+1):sum(km_sex$strata)]),
+    lower = c(1, km_sex$lower[1:km_sex$strata[1]],
+              1, km_sex$lower[(km_sex$strata[1]+1):sum(km_sex$strata)]),
+    upper = c(1, km_sex$upper[1:km_sex$strata[1]],
+              1, km_sex$upper[(km_sex$strata[1]+1):sum(km_sex$strata)]),
+    sex = rep(c("Male", "Female"), c(km_sex$strata[1]+1, km_sex$strata[2]+1))
+)
+
+# Risk table at specific times
+risk_times <- c(0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000)
+risk_table <- rbindlist(lapply(c("Male", "Female"), function(s) {
+    km_s <- survfit(Surv(time, event) ~ 1, data = lung_dt[sex == s])
+    data.table(
+        time = risk_times,
+        n_risk = sapply(risk_times, function(t) sum(lung_dt[sex == s, time >= t])),
+        sex = s
+    )
+}))
+
+# Main plot
+p_main <- ggplot2$ggplot(km_data, ggplot2$aes(x = time, colour = sex, fill = sex)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = lower, ymax = upper), alpha = 0.2, colour = NA) +
+    ggplot2$geom_step(ggplot2$aes(y = survival), linewidth = 1) +
+    ggplot2$scale_colour_manual(values = c("Male" = "#0072B2", "Female" = "#D55E00")) +
+    ggplot2$scale_fill_manual(values = c("Male" = "#0072B2", "Female" = "#D55E00")) +
+    ggplot2$scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    ggplot2$scale_x_continuous(breaks = seq(0, 1000, 200)) +
+    ggplot2$annotate("text", x = 700, y = 0.85,
+                     label = sprintf("Log-rank p = %.3f",
+                                     1-pchisq(survdiff(Surv(time, event) ~ sex, lung_dt)$chisq, 1)),
+                     size = 4) +
+    ggplot2$labs(
+        title = "Overall Survival by Sex in Advanced Lung Cancer",
+        x = "Time (days)",
+        y = "Survival Probability",
+        colour = "", fill = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(
+        legend.position = c(0.85, 0.85),
+        plot.margin = ggplot2$margin(10, 10, 5, 10)
+    )
+
+print(p_main)
+
+cat("\nNumber at Risk Table:\n")
+print(dcast(risk_table, sex ~ time, value.var = "n_risk"))
+```
+
+---
+
+## 9.27 Summary and Key Takeaways
+
+**Advanced Survival Methods Overview**
+
+| Method | When to Use | R Function |
+|--------|-------------|------------|
+| Parametric models | Specific distribution assumed | `survreg()` |
+| Time-dependent covariates | Predictors change over time | `coxph()` with `(start, stop)` |
+| Competing risks (CIF) | Multiple event types | `survfit()` with factor status |
+| Fine-Gray model | Regression with competing risks | `crr()` (cmprsk) |
+| Interval censoring | Event in interval, not exact | `Surv(type="interval2")` |
+| Left truncation | Delayed entry | `Surv(entry, exit, event)` |
+| Recurrent events | Multiple events per person | `cluster()` or frailty |
+| RMST | Non-PH or crossing curves | `rmst2()` (survRM2) |
+
+**Publication Checklist**
+
+1. ☑ Report median follow-up time
+2. ☑ State number of events and censoring
+3. ☑ Present Kaplan-Meier curves with CI
+4. ☑ Include number at risk table
+5. ☑ Report hazard ratios with 95% CI
+6. ☑ Test and report PH assumption
+7. ☑ State model discrimination (C-statistic)
+8. ☑ Consider sensitivity analyses
+
+**R Packages for Survival Analysis**
+
+| Package | Purpose |
+|---------|---------|
+| `survival` | Core survival functions |
+| `survminer` | Publication-quality plots |
+| `cmprsk` | Competing risks |
+| `survRM2` | RMST analysis |
+| `frailtypack` | Frailty models |
+| `flexsurv` | Parametric models |
+
+---
+
+## 9.28 Exercises
+
+1. **Parametric model selection**: Compare exponential, Weibull, and log-normal models for the lung cancer data. Which fits best?
+
+2. **Competing risks**: Using the PBC data, estimate the 5-year cumulative incidence of death and transplant.
+
+3. **RMST analysis**: Calculate the difference in RMST between males and females at 1 year. Is this clinically meaningful?
+
+4. **Publication table**: Create a complete Table 1 and Table 2 for a survival analysis of your choice.
+
+5. **Time-dependent analysis**: Design a study where treatment status changes over time. How would you structure the data?
+
+---
+
+## 9.29 Course Summary: Survival Analysis
+
+Across three chapters, we have covered:
+
+**Part 1: Fundamentals**
+- Survival and hazard functions
+- Censoring and its implications
+- Kaplan-Meier estimation
+- Log-rank tests
+
+**Part 2: Cox Model**
+- Proportional hazards regression
+- Hazard ratio interpretation
+- PH assumption testing
+- Model diagnostics
+
+**Part 3: Advanced Topics**
+- Parametric models
+- Time-dependent covariates
+- Competing risks
+- Special designs (interval censoring, left truncation, recurrent events)
+- RMST as an alternative measure
+- Publication guidelines
+
+Survival analysis is essential for any researcher working with time-to-event data in medicine and public health.
+
+---
+
+## 9.30 References
+
+- Therneau, T. M., & Grambsch, P. M. (2000). *Modeling Survival Data: Extending the Cox Model*. Springer.
+- Collett, D. (2015). *Modelling Survival Data in Medical Research* (3rd ed.). CRC Press.
+- Fine, J. P., & Gray, R. J. (1999). A proportional hazards model for the subdistribution of a competing risk. *JASA*, 94(446), 496-509.
+- Uno, H., et al. (2014). Moving beyond the hazard ratio in quantifying the between-group difference in survival analysis. *JCO*, 32(22), 2380-2385.
+- Royston, P., & Parmar, M. K. (2013). Restricted mean survival time: an alternative to the hazard ratio for the design and analysis of randomized trials. *BMC Medical Research Methodology*, 13, 152.
