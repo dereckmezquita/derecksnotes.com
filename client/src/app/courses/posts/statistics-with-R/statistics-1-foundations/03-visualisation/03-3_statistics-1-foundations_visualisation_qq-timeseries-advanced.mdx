@@ -1,0 +1,847 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 3: Descriptive Statistics — Visualisation"
+part: "Part 3: QQ Plots, Time Series, and Advanced Topics"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-18"
+tags: [statistics, visualisation, ggplot2, QQ-plots, time-series, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 3: Descriptive Statistics — Visualisation (Part 3)
+
+This final part of the visualisation chapter covers three important topics: **QQ plots** for assessing distributional assumptions, **time series visualisation** for temporal data, and **advanced techniques** for publication-ready figures.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load datasets
+nhanes <- fread("../data/primary/nhanes.csv")
+gapminder <- fread("../data/primary/gapminder.csv")
+covid <- fread("../data/medical/covid_testing.csv")
+lung <- fread("../data/supplementary/lung.csv")
+
+cat("Datasets loaded:\n")
+#> Datasets loaded:
+cat("  NHANES:", nrow(nhanes), "observations\n")
+#>   NHANES: 10000 observations
+cat("  Gapminder:", nrow(gapminder), "observations\n")
+#>   Gapminder: 1704 observations
+cat("  COVID testing:", nrow(covid), "observations\n")
+#>   COVID testing: 15524 observations
+cat("  Lung cancer:", nrow(lung), "observations\n")
+#>   Lung cancer: 228 observations
+```
+
+## 3.7 QQ Plots
+
+Many statistical methods assume data follow a particular distribution, most commonly the normal distribution. **QQ plots** (quantile-quantile plots) provide a visual test of this assumption.
+
+### 3.7.1 Comparing Data to a Theoretical Distribution
+
+**Prose and Intuition**
+
+A QQ plot compares the quantiles of your data to the quantiles of a theoretical distribution. If the data follow the theoretical distribution, points fall along a straight diagonal line. Deviations from the line reveal how and where the data differ from the assumed distribution.
+
+Think of it this way: if your data are truly normal, then the smallest value should be about where you'd expect the smallest normal value to be, the median should match the theoretical median, and so on for every quantile.
+
+**Mathematical Foundation**
+
+For data $x_{(1)} \leq x_{(2)} \leq \cdots \leq x_{(n)}$ (order statistics), we plot:
+
+- **x-axis**: Theoretical quantiles $Q(p_i)$ from the reference distribution
+- **y-axis**: Sample quantiles $x_{(i)}$
+
+where $p_i = \frac{i - 0.5}{n}$ (or similar formula for plotting positions).
+
+For the standard normal, $Q(p) = \Phi^{-1}(p)$ is the inverse CDF (quantile function).
+
+If data follow $N(\mu, \sigma^2)$, points lie on the line $y = \mu + \sigma \cdot x$.
+
+
+``` r
+# BMI data
+bmi <- nhanes[!is.na(BMI), BMI]
+
+# Basic QQ plot
+ggplot2$ggplot(data.table(bmi = bmi), ggplot2$aes(sample = bmi)) +
+    ggplot2$stat_qq(colour = "#0072B2", alpha = 0.5) +
+    ggplot2$stat_qq_line(colour = "#D55E00", size = 1) +
+    ggplot2$labs(
+        title = "QQ Plot: BMI vs Normal Distribution",
+        subtitle = "Deviations from line indicate departures from normality",
+        x = "Theoretical Quantiles (Standard Normal)",
+        y = "Sample Quantiles (BMI)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/qq_basic-1.png" alt="QQ plot comparing BMI to normal distribution">
+	QQ plot comparing BMI to normal distribution
+</Figure>
+
+### 3.7.2 Constructing QQ Plots Step by Step
+
+**Prose and Intuition**
+
+Understanding how QQ plots are constructed helps interpret them correctly. Let's build one from scratch.
+
+
+``` r
+# Implement QQ plot from scratch
+my_qq_plot <- function(x, distribution = "norm") {
+    x <- sort(x[!is.na(x)])
+    n <- length(x)
+
+    # Plotting positions (Blom's formula)
+    p <- (seq_len(n) - 0.375) / (n + 0.25)
+
+    # Theoretical quantiles
+    if (distribution == "norm") {
+        theoretical <- qnorm(p)
+    } else if (distribution == "exp") {
+        theoretical <- qexp(p)
+    }
+
+    data.table(
+        theoretical = theoretical,
+        sample = x,
+        probability = p
+    )
+}
+
+# Apply to a sample of ages
+set.seed(42)
+age_values <- nhanes[!is.na(Age), Age]
+age_sample <- age_values[sample(length(age_values), 200)]
+qq_data <- my_qq_plot(age_sample)
+
+# Calculate reference line parameters
+# Line passes through Q1 and Q3 of both distributions
+q1_sample <- quantile(age_sample, 0.25)
+q3_sample <- quantile(age_sample, 0.75)
+q1_theory <- qnorm(0.25)
+q3_theory <- qnorm(0.75)
+
+slope <- (q3_sample - q1_sample) / (q3_theory - q1_theory)
+intercept <- q1_sample - slope * q1_theory
+
+cat("Reference line parameters:\n")
+#> Reference line parameters:
+cat("  Intercept (≈ mean):", round(intercept, 2), "\n")
+#>   Intercept (<U+2248> mean): 35.5
+cat("  Slope (≈ SD):", round(slope, 2), "\n")
+#>   Slope (<U+2248> SD): 26.32
+cat("  Actual mean:", round(mean(age_sample), 2), "\n")
+#>   Actual mean: 36.37
+cat("  Actual SD:", round(sd(age_sample), 2), "\n")
+#>   Actual SD: 23.47
+
+ggplot2$ggplot(qq_data, ggplot2$aes(x = theoretical, y = sample)) +
+    ggplot2$geom_point(colour = "#0072B2", size = 2, alpha = 0.6) +
+    ggplot2$geom_abline(intercept = intercept, slope = slope,
+               colour = "#D55E00", size = 1) +
+    ggplot2$labs(
+        title = "QQ Plot Constructed from Scratch",
+        subtitle = paste("Reference line: y =", round(intercept, 1), "+", round(slope, 1), "x"),
+        x = "Theoretical Quantiles (Standard Normal)",
+        y = "Sample Quantiles (Age)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/qq_scratch-1.png" alt="QQ plot constructed manually showing the matching of sample to theoretical quantiles">
+	QQ plot constructed manually showing the matching of sample to theoretical quantiles
+</Figure>
+
+### 3.7.3 Interpreting Deviations
+
+**Prose and Intuition**
+
+Different patterns of deviation from the reference line indicate specific departures from normality:
+
+| Pattern | Interpretation |
+|---------|---------------|
+| S-curve (both ends above line) | Light tails (platykurtic) |
+| Reverse S-curve (both ends below line) | Heavy tails (leptokurtic) |
+| Concave up (banana shape) | Right skew |
+| Concave down | Left skew |
+| Steps or plateaus | Discrete data or ties |
+| Single outliers | Individual extreme values |
+
+
+``` r
+set.seed(123)
+n <- 500
+
+# Generate different distributions
+normal_data <- rnorm(n)
+heavy_tails <- rt(n, df = 3)  # t-distribution with 3 df
+right_skew <- rexp(n)
+left_skew <- -rexp(n)
+
+# Create data for plotting
+patterns <- rbindlist(list(
+    data.table(value = normal_data, distribution = "Normal"),
+    data.table(value = heavy_tails, distribution = "Heavy Tails (t, df=3)"),
+    data.table(value = right_skew, distribution = "Right Skew (Exponential)"),
+    data.table(value = left_skew, distribution = "Left Skew")
+))
+
+ggplot2$ggplot(patterns, ggplot2$aes(sample = value)) +
+    ggplot2$stat_qq(colour = "#0072B2", alpha = 0.5, size = 1) +
+    ggplot2$stat_qq_line(colour = "#D55E00", size = 0.8) +
+    ggplot2$facet_wrap(~distribution, scales = "free") +
+    ggplot2$labs(
+        title = "QQ Plot Patterns for Different Distributions",
+        subtitle = "Comparing each distribution to the normal; deviations reveal non-normality",
+        x = "Theoretical Quantiles",
+        y = "Sample Quantiles"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/qq_patterns-1.png" alt="QQ plot patterns for different distribution shapes">
+	QQ plot patterns for different distribution shapes
+</Figure>
+
+**Interpreting the patterns:**
+
+- **Normal**: Points fall along the line (as expected)
+- **Heavy Tails**: Reverse S-shape; extreme values are more extreme than normal
+- **Right Skew**: Concave curve; upper tail extends further than normal
+- **Left Skew**: Concave curve in opposite direction; lower tail extends further
+
+**QQ Plots for Assessing Model Assumptions**
+
+QQ plots are essential for checking regression residuals:
+
+
+``` r
+# Fit a simple linear model
+bmi_bp_model <- lm(BPSysAve ~ BMI + Age, data = nhanes[!is.na(BMI) & !is.na(BPSysAve) & !is.na(Age)])
+
+# Extract residuals
+residuals_dt <- data.table(residual = residuals(bmi_bp_model))
+
+ggplot2$ggplot(residuals_dt, ggplot2$aes(sample = residual)) +
+    ggplot2$stat_qq(colour = "#0072B2", alpha = 0.3) +
+    ggplot2$stat_qq_line(colour = "#D55E00", size = 1) +
+    ggplot2$labs(
+        title = "QQ Plot of Regression Residuals",
+        subtitle = "Checking normality assumption for linear model: BP ~ BMI + Age",
+        x = "Theoretical Quantiles",
+        y = "Residual Quantiles"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/qq_residuals-1.png" alt="QQ plot of regression residuals to check normality assumption">
+	QQ plot of regression residuals to check normality assumption
+</Figure>
+
+---
+
+## 3.8 Time Series Visualisation
+
+Time series data have observations ordered in time. Visualising temporal patterns is crucial in epidemiology (disease trends), clinical research (patient trajectories), and many other fields.
+
+### 3.8.1 Line Plots
+
+**Prose and Intuition**
+
+The line plot is the fundamental time series visualisation. Points are connected chronologically, making trends, cycles, and discontinuities visible. Unlike scatter plots where order doesn't matter, time series require connecting points in temporal sequence.
+
+
+``` r
+# Calculate mean life expectancy by year and continent
+life_exp_trend <- gapminder[, .(mean_lifeExp = mean(lifeExp)), by = .(year, continent)]
+
+ggplot2$ggplot(life_exp_trend, ggplot2$aes(x = year, y = mean_lifeExp, colour = continent)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Life Expectancy Trends by Continent (1952–2007)",
+        subtitle = "All continents show improvement; Africa's progress slowed in the 1990s (HIV/AIDS epidemic)",
+        x = "Year",
+        y = "Mean Life Expectancy (years)",
+        colour = "Continent"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/lineplot_basic-1.png" alt="Line plot showing life expectancy trends over time by continent">
+	Line plot showing life expectancy trends over time by continent
+</Figure>
+
+**COVID Testing Trends**
+
+
+``` r
+# Aggregate COVID tests by day
+covid_daily <- covid[, .(
+    n_tests = .N,
+    n_positive = sum(result == "positive", na.rm = TRUE)
+), by = pan_day]
+
+covid_daily[, positivity_rate := n_positive / n_tests]
+
+# Dual-panel plot
+p1 <- ggplot2$ggplot(covid_daily, ggplot2$aes(x = pan_day, y = n_tests)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 0.8) +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE, span = 0.3) +
+    ggplot2$labs(
+        title = "Daily COVID-19 Tests",
+        x = "Pandemic Day",
+        y = "Number of Tests"
+    ) +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(covid_daily, ggplot2$aes(x = pan_day, y = positivity_rate)) +
+    ggplot2$geom_line(colour = "#009E73", size = 0.8) +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE, span = 0.3) +
+    ggplot2$scale_y_continuous(labels = scales::percent_format()) +
+    ggplot2$labs(
+        title = "Test Positivity Rate",
+        x = "Pandemic Day",
+        y = "Positivity Rate"
+    ) +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+#> `geom_smooth()` using formula = 'y ~ x'
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-1-foundations/lineplot_covid-1.png" alt="Daily COVID-19 testing volume over pandemic days">
+	Daily COVID-19 testing volume over pandemic days
+</Figure>
+
+### 3.8.2 Spaghetti Plots
+
+**Prose and Intuition**
+
+When multiple subjects are measured over time, **spaghetti plots** show each subject's trajectory as a separate line. The name comes from the tangled appearance when many trajectories overlap. Spaghetti plots reveal:
+
+- Individual variation in trajectories
+- Whether a treatment effect is consistent across subjects
+- Outlier trajectories that might indicate subgroups
+
+
+``` r
+# Country trajectories by continent
+ggplot2$ggplot(gapminder, ggplot2$aes(x = year, y = lifeExp, group = country)) +
+    ggplot2$geom_line(alpha = 0.3, colour = "#0072B2") +
+    ggplot2$facet_wrap(~continent) +
+    ggplot2$labs(
+        title = "Individual Country Life Expectancy Trajectories",
+        subtitle = "Each line represents one country; reveals heterogeneity within continents",
+        x = "Year",
+        y = "Life Expectancy (years)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/spaghetti-1.png" alt="Spaghetti plot showing individual country trajectories within each continent">
+	Spaghetti plot showing individual country trajectories within each continent
+</Figure>
+
+**Highlighting Specific Trajectories**
+
+
+``` r
+# Highlight specific countries
+highlight_countries <- c("Rwanda", "Cambodia", "China", "United States", "Japan")
+
+gapminder[, highlight := country %in% highlight_countries]
+gapminder[, country_label := ifelse(highlight & year == 2007, as.character(country), NA)]
+
+ggplot2$ggplot(gapminder, ggplot2$aes(x = year, y = lifeExp, group = country)) +
+    # Background lines
+    ggplot2$geom_line(
+        data = gapminder[highlight == FALSE],
+        alpha = 0.1,
+        colour = "grey50"
+    ) +
+    # Highlighted lines
+    ggplot2$geom_line(
+        data = gapminder[highlight == TRUE],
+        ggplot2$aes(colour = country),
+        size = 1.2
+    ) +
+    # Labels
+    ggplot2$geom_text(
+        data = gapminder[!is.na(country_label)],
+        ggplot2$aes(label = country_label, colour = country),
+        hjust = -0.1,
+        size = 3
+    ) +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Life Expectancy Trajectories: Selected Countries",
+        subtitle = "Rwanda and Cambodia show dramatic drops (genocide); China shows rapid improvement",
+        x = "Year",
+        y = "Life Expectancy (years)"
+    ) +
+    ggplot2$xlim(1950, 2015) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/spaghetti_highlight-1.png" alt="Highlighting specific country trajectories against the background of all countries">
+	Highlighting specific country trajectories against the background of all countries
+</Figure>
+
+### 3.8.3 Summary Trajectories with Confidence Bands
+
+**Prose and Intuition**
+
+Rather than showing all individual trajectories, we often want to summarise the central trend with a measure of uncertainty. **Confidence bands** or **ribbon plots** show the range of typical values at each time point.
+
+
+``` r
+# Calculate mean and 95% CI by year and continent
+summary_trend <- gapminder[, .(
+    mean_life = mean(lifeExp),
+    sd_life = sd(lifeExp),
+    n = .N,
+    se_life = sd(lifeExp) / sqrt(.N)
+), by = .(year, continent)]
+
+summary_trend[, lower := mean_life - 1.96 * se_life]
+summary_trend[, upper := mean_life + 1.96 * se_life]
+
+ggplot2$ggplot(summary_trend, ggplot2$aes(x = year, y = mean_life, colour = continent, fill = continent)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = lower, ymax = upper), alpha = 0.2, colour = NA) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$scale_fill_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Mean Life Expectancy with 95% Confidence Intervals",
+        subtitle = "Bands show uncertainty in the mean; narrower bands indicate more consistent data",
+        x = "Year",
+        y = "Life Expectancy (years)",
+        colour = "Continent",
+        fill = "Continent"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/ribbon_plot-1.png" alt="Mean trajectory with 95% confidence band showing uncertainty over time">
+	Mean trajectory with 95% confidence band showing uncertainty over time
+</Figure>
+
+**Percentile Bands**
+
+An alternative shows the range of individual values (not uncertainty in the mean):
+
+
+``` r
+# Calculate percentiles by year and continent
+percentile_trend <- gapminder[, .(
+    p25 = quantile(lifeExp, 0.25),
+    p50 = quantile(lifeExp, 0.50),
+    p75 = quantile(lifeExp, 0.75)
+), by = .(year, continent)]
+
+ggplot2$ggplot(percentile_trend, ggplot2$aes(x = year, colour = continent, fill = continent)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = p25, ymax = p75), alpha = 0.2, colour = NA) +
+    ggplot2$geom_line(ggplot2$aes(y = p50), size = 1) +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$scale_fill_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Median Life Expectancy with Interquartile Range",
+        subtitle = "Band shows middle 50% of countries; wider bands indicate more heterogeneity",
+        x = "Year",
+        y = "Life Expectancy (years)",
+        colour = "Continent",
+        fill = "Continent"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/percentile_band-1.png" alt="Median trajectory with interquartile range showing individual variation">
+	Median trajectory with interquartile range showing individual variation
+</Figure>
+
+---
+
+## 3.9 Advanced Topics
+
+### 3.9.1 Combining Plots (patchwork-style)
+
+**Prose and Intuition**
+
+Publication figures often require multiple panels showing related visualisations. While the `patchwork` package provides elegant syntax, we can achieve similar results with `gridExtra`.
+
+
+``` r
+# Create multiple related plots
+bmi_data <- nhanes[!is.na(BMI) & !is.na(Gender) & !is.na(Age)]
+
+# Panel A: Distribution by gender
+pA <- ggplot2$ggplot(bmi_data, ggplot2$aes(x = BMI, fill = Gender)) +
+    ggplot2$geom_density(alpha = 0.5) +
+    ggplot2$scale_fill_manual(values = c("female" = "#D55E00", "male" = "#0072B2")) +
+    ggplot2$labs(title = "A. BMI Distribution by Gender", x = "BMI (kg/m²)", y = "Density") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = c(0.85, 0.85))
+
+# Panel B: BMI vs Age
+pB <- ggplot2$ggplot(bmi_data[sample(.N, 2000)], ggplot2$aes(x = Age, y = BMI)) +
+    ggplot2$geom_point(alpha = 0.2, colour = "#0072B2") +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00") +
+    ggplot2$labs(title = "B. BMI vs Age", x = "Age (years)", y = "BMI (kg/m²)") +
+    ggplot2$theme_minimal()
+
+# Panel C: Box plot by age decade
+pC <- ggplot2$ggplot(bmi_data[!is.na(AgeDecade)], ggplot2$aes(x = AgeDecade, y = BMI)) +
+    ggplot2$geom_boxplot(fill = "#56B4E9", alpha = 0.7) +
+    ggplot2$labs(title = "C. BMI by Age Decade", x = "Age Decade", y = "BMI (kg/m²)") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+
+# Panel D: QQ plot
+pD <- ggplot2$ggplot(bmi_data, ggplot2$aes(sample = BMI)) +
+    ggplot2$stat_qq(alpha = 0.1, colour = "#0072B2") +
+    ggplot2$stat_qq_line(colour = "#D55E00") +
+    ggplot2$labs(title = "D. QQ Plot (Normality Check)", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+    ggplot2$theme_minimal()
+
+# Arrange in 2x2 grid
+gridExtra::grid.arrange(pA, pB, pC, pD, ncol = 2)
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-1-foundations/multi_panel-1.png" alt="Multi-panel figure combining different plot types for comprehensive data summary">
+	Multi-panel figure combining different plot types for comprehensive data summary
+</Figure>
+
+### 3.9.2 Interactive Visualisation with plotly
+
+**Prose and Intuition**
+
+Interactive plots allow viewers to explore data: hover for details, zoom into regions, toggle series on/off. While interactive plots don't appear in print, they're valuable for presentations and web-based reports.
+
+
+``` r
+# Note: This creates an interactive plot (not rendered in static document)
+# Uncomment to run interactively
+
+# box::use(plotly)
+#
+# p <- ggplot2$ggplot(gapminder[year == 2007],
+#                     ggplot2$aes(x = gdpPercap, y = lifeExp,
+#                                 colour = continent, size = pop,
+#                                 text = country)) +
+#     ggplot2$geom_point(alpha = 0.7) +
+#     ggplot2$scale_x_log10() +
+#     ggplot2$labs(title = "Gapminder 2007",
+#                  x = "GDP per Capita (log scale)",
+#                  y = "Life Expectancy") +
+#     ggplot2$theme_minimal()
+#
+# plotly$ggplotly(p, tooltip = c("text", "x", "y"))
+```
+
+Key `plotly` features:
+- **Hover tooltips**: Show values on mouseover
+- **Zoom**: Click and drag to zoom; double-click to reset
+- **Pan**: Shift-drag to pan
+- **Legend toggles**: Click legend items to hide/show series
+- **Download**: Export as PNG
+
+### 3.9.3 Annotating for Publication
+
+**Prose and Intuition**
+
+Publication-quality figures require careful annotation: clear labels, appropriate fonts, highlighted regions of interest, and statistical annotations.
+
+
+``` r
+# Create annotated scatter plot
+set.seed(42)
+sample_data <- nhanes[!is.na(BMI) & !is.na(BPSysAve)][sample(.N, 500)]
+
+# Calculate correlation
+r <- cor(sample_data$BMI, sample_data$BPSysAve, use = "complete.obs")
+
+ggplot2$ggplot(sample_data, ggplot2$aes(x = BMI, y = BPSysAve)) +
+    # Main data
+    ggplot2$geom_point(alpha = 0.4, colour = "#0072B2") +
+    ggplot2$geom_smooth(method = "lm", colour = "#D55E00", fill = "#D55E00", alpha = 0.2) +
+
+    # Highlight region of interest (obesity + hypertension)
+    ggplot2$annotate(
+        "rect",
+        xmin = 30, xmax = 60, ymin = 140, ymax = 200,
+        alpha = 0.1, fill = "red"
+    ) +
+    ggplot2$annotate(
+        "text",
+        x = 45, y = 195,
+        label = "High-risk region\n(Obese + Hypertensive)",
+        size = 3,
+        colour = "darkred"
+    ) +
+
+    # Add correlation annotation
+    ggplot2$annotate(
+        "text",
+        x = 55, y = 90,
+        label = paste("r =", round(r, 3)),
+        size = 4,
+        fontface = "italic"
+    ) +
+
+    # Reference lines for clinical thresholds
+    ggplot2$geom_hline(yintercept = 140, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_vline(xintercept = 30, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = 18, y = 142, label = "Hypertension threshold", size = 2.5, colour = "grey40") +
+    ggplot2$annotate("text", x = 31, y = 85, label = "Obesity threshold", size = 2.5, colour = "grey40", angle = 90, vjust = -0.5) +
+
+    # Labels and theme
+    ggplot2$labs(
+        title = "Association Between BMI and Systolic Blood Pressure",
+        subtitle = "NHANES data (n = 500 random sample); dashed lines show clinical thresholds",
+        x = expression(paste("Body Mass Index (kg/", m^2, ")")),
+        y = "Systolic Blood Pressure (mmHg)",
+        caption = "Data source: NHANES 2009-2012"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        plot.caption = ggplot2$element_text(colour = "grey50", size = 8)
+    )
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-1-foundations/annotation-1.png" alt="Annotated figure showing key features for publication">
+	Annotated figure showing key features for publication
+</Figure>
+
+**Adding Statistical Annotations**
+
+
+``` r
+# Compare groups with significance indicators
+species_mass <- penguins <- fread("../data/primary/penguins.csv")
+species_mass <- species_mass[!is.na(body_mass_g) & !is.na(species)]
+
+# Calculate group statistics
+stats <- species_mass[, .(
+    median = median(body_mass_g),
+    mean = mean(body_mass_g),
+    n = .N
+), by = species]
+
+# Perform pairwise comparisons (for annotation purposes)
+# Note: Proper hypothesis testing will be covered in later chapters
+adelie <- species_mass[species == "Adelie", body_mass_g]
+chinstrap <- species_mass[species == "Chinstrap", body_mass_g]
+gentoo <- species_mass[species == "Gentoo", body_mass_g]
+
+ggplot2$ggplot(species_mass, ggplot2$aes(x = species, y = body_mass_g, fill = species)) +
+    ggplot2$geom_boxplot(alpha = 0.7) +
+    ggplot2$scale_fill_manual(values = c(
+        "Adelie" = "#FF6B35",
+        "Chinstrap" = "#004E89",
+        "Gentoo" = "#7A9E7E"
+    )) +
+
+    # Add sample sizes
+    ggplot2$geom_text(
+        data = stats,
+        ggplot2$aes(x = species, y = 2500, label = paste0("n = ", n)),
+        size = 3
+    ) +
+
+    # Significance brackets (simplified manual approach)
+    ggplot2$annotate("segment", x = 1, xend = 3, y = 6200, yend = 6200) +
+    ggplot2$annotate("segment", x = 1, xend = 1, y = 6200, yend = 6100) +
+    ggplot2$annotate("segment", x = 3, xend = 3, y = 6200, yend = 6100) +
+    ggplot2$annotate("text", x = 2, y = 6300, label = "***", size = 5) +
+
+    ggplot2$labs(
+        title = "Body Mass Comparison Across Penguin Species",
+        subtitle = "Gentoo penguins significantly heavier than Adelie and Chinstrap",
+        x = "Species",
+        y = "Body Mass (g)",
+        caption = "*** p < 0.001 (proper testing covered in Chapter 10)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/stat_annotation-1.png" alt="Box plot with statistical comparison annotations">
+	Box plot with statistical comparison annotations
+</Figure>
+
+### 3.9.4 Exporting High-Quality Figures
+
+**Prose and Intuition**
+
+Different outputs require different formats:
+- **Print/PDF**: Vector formats (PDF, SVG) scale infinitely
+- **Web/Presentations**: Raster formats (PNG) at appropriate resolution
+- **Journals**: Often specify format, resolution (300+ DPI), and dimensions
+
+
+``` r
+# Create a publication-quality figure
+p <- ggplot2$ggplot(gapminder[year == 2007],
+                    ggplot2$aes(x = gdpPercap, y = lifeExp, colour = continent, size = pop)) +
+    ggplot2$geom_point(alpha = 0.7) +
+    ggplot2$scale_x_log10(labels = scales::dollar_format()) +
+    ggplot2$scale_size_continuous(range = c(1, 15), guide = "none") +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Global Health and Wealth (2007)",
+        x = "GDP per Capita (log scale)",
+        y = "Life Expectancy (years)",
+        colour = "Continent"
+    ) +
+    ggplot2$theme_minimal()
+
+# Export as PDF (vector - best for print)
+ggplot2$ggsave("figure_1.pdf", p, width = 8, height = 6, units = "in")
+
+# Export as PNG (raster - for web/presentations)
+ggplot2$ggsave("figure_1.png", p, width = 8, height = 6, units = "in", dpi = 300)
+
+# Export as TIFF (often required by journals)
+ggplot2$ggsave("figure_1.tiff", p, width = 8, height = 6, units = "in", dpi = 300,
+               compression = "lzw")
+```
+
+**Export Guidelines:**
+
+| Use Case | Format | Resolution | Notes |
+|----------|--------|------------|-------|
+| Journal submission | TIFF/EPS | 300-600 DPI | Check journal requirements |
+| Presentations | PNG | 150-300 DPI | Balance quality and file size |
+| Web | PNG/SVG | 72-150 DPI | SVG for responsive design |
+| Posters | PDF | Vector | Scales to any size |
+| R Markdown/Reports | Auto | Default | Usually sufficient |
+
+---
+
+## Communicating to Stakeholders
+
+When presenting advanced visualisations:
+
+**On QQ plots:**
+> "This plot checks whether our data follow a bell-shaped curve, which many statistical tests assume. If the points follow the straight line, we're in good shape. Here, we see some departure at the extremes, suggesting our data have heavier tails than a perfect bell curve."
+
+**On time series:**
+> "Each line shows how life expectancy changed over time for one country. You can see most lines trend upward, but there are some dramatic drops—those correspond to major crises like the Rwandan genocide and the HIV/AIDS epidemic in Africa."
+
+**On choosing the right figure:**
+> "For publication, I've combined four views of the data in one figure. Panel A shows the overall distribution, Panel B reveals the relationship with age, Panel C compares across age groups, and Panel D confirms the data are approximately bell-shaped."
+
+**On figure quality:**
+> "For the journal, I've exported at 300 DPI in TIFF format as requested. The figure is 8 by 6 inches, which will fit in a single column. All text is at least 8 points after scaling."
+
+---
+
+## Quick Reference
+
+### QQ Plots
+
+```r
+# Basic QQ plot against normal
+ggplot(data, aes(sample = variable)) +
+    stat_qq() +
+    stat_qq_line()
+
+# QQ plot against other distributions
+ggplot(data, aes(sample = variable)) +
+    stat_qq(distribution = qt, dparams = list(df = 5)) +
+    stat_qq_line(distribution = qt, dparams = list(df = 5))
+```
+
+**Interpretation Guide:**
+
+| Pattern | Meaning | Action |
+|---------|---------|--------|
+| Points on line | Normal | Proceed with normal-based methods |
+| S-shape | Light tails | Consider t-distribution |
+| Reverse S | Heavy tails | Use robust methods |
+| Curved | Skew | Transform data (log, sqrt) |
+| Steps | Discrete data | Use discrete methods |
+
+### Time Series
+
+```r
+# Line plot
+ggplot(data, aes(x = time, y = value)) + geom_line()
+
+# Spaghetti plot
+ggplot(data, aes(x = time, y = value, group = subject)) +
+    geom_line(alpha = 0.3)
+
+# Ribbon/confidence band
+ggplot(data, aes(x = time, y = mean, ymin = lower, ymax = upper)) +
+    geom_ribbon(alpha = 0.2) +
+    geom_line()
+```
+
+### Multi-Panel Figures
+
+```r
+# Using gridExtra
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol = 2)
+
+# With layout control
+layout <- rbind(c(1, 1, 2),
+                c(3, 4, 4))
+gridExtra::grid.arrange(p1, p2, p3, p4, layout_matrix = layout)
+```
+
+### Export Settings
+
+```r
+# Vector formats (print)
+ggsave("plot.pdf", p, width = 8, height = 6)
+ggsave("plot.svg", p, width = 8, height = 6)
+
+# Raster formats (screen)
+ggsave("plot.png", p, width = 8, height = 6, dpi = 300)
+ggsave("plot.tiff", p, width = 8, height = 6, dpi = 300)
+
+# Common journal requirements
+ggsave("figure.tiff", p,
+       width = 180, height = 120, units = "mm",  # Column width
+       dpi = 300, compression = "lzw")
+```
+
+### Annotation Functions
+
+```r
+# Text annotations
+annotate("text", x = 5, y = 10, label = "Important")
+
+# Geometric annotations
+annotate("rect", xmin = 1, xmax = 3, ymin = 0, ymax = 5, alpha = 0.2)
+annotate("segment", x = 1, xend = 3, y = 5, yend = 5)
+
+# Reference lines
+geom_hline(yintercept = threshold)
+geom_vline(xintercept = threshold)
+geom_abline(intercept = a, slope = b)
+```

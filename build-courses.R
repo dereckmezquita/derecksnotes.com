@@ -437,6 +437,11 @@ build_rmd <- function(rmd_path, course_dir, opts) {
             error = FALSE
         )
 
+        # IMPORTANT: Set root.dir to the Rmd file's directory so relative paths
+        # in code chunks (like "../data/primary/nhanes.csv") work correctly.
+        # Without this, paths would be relative to public_fig_dir (the cwd).
+        knitr::opts_knit$set(root.dir = dirname(rmd_path))
+
         # Knit the document
         md_output <- knitr::knit(
             input = rmd_path,

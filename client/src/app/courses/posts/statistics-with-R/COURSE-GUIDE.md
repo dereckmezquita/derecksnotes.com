@@ -12,7 +12,7 @@ This document consolidates all development guidelines, pedagogical approach, cod
 
 | Part | Title | Folder | Status |
 |------|-------|--------|--------|
-| I | Foundations | `statistics-1-foundations/` | In Progress (2/15 chapters) |
+| I | Foundations | `statistics-1-foundations/` | In Progress (4/15 chapters) |
 | II | Intermediate | `statistics-2-intermediate/` | Not Started |
 | III | Advanced | `statistics-3-advanced/` | Not Started |
 
@@ -242,6 +242,26 @@ All datasets have been downloaded as CSV files. See `DATA.md` in `statistics-1-f
 | Heart Disease Cleveland | 303 | 15 | Logistic regression |
 | Pima Diabetes | 768 | 9 | Risk factor analysis |
 
+### Microbiome Datasets
+
+| Dataset | Samples | OTUs | Application |
+|---------|---------|------|-------------|
+| GlobalPatterns | 28 | 500 | Alpha/beta diversity, ordination |
+| Simulated Microbiome | 60 | 200 | Non-parametric tests, zero-inflated data |
+
+### Proteomics Datasets
+
+| Dataset | Samples | Proteins | Application |
+|---------|---------|----------|-------------|
+| CPTAC Spike-in | 15 | 548 | Normalisation, differential abundance, FDR |
+
+### GWAS Datasets
+
+| Dataset | Individuals | SNPs | Application |
+|---------|-------------|------|-------------|
+| Rice Phenotypes | 413 | 34 traits | GWAS workflow, trait correlations |
+| Simulated GWAS | 500 | 1,000 | Manhattan plots, multiple testing |
+
 ### Loading Data
 
 ```r
@@ -312,3 +332,4 @@ Complete dataset documentation is at `statistics-1-foundations/DATA.md`.
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | January 2026 | Initial consolidation from HANDOFF.md, PREFERENCES.md |
+| 1.1 | January 2026 | Added microbiome, proteomics, GWAS datasets; updated status to 4/15 |

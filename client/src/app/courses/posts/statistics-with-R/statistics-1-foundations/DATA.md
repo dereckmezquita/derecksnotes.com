@@ -816,6 +816,270 @@ A carefully constructed simulated dataset for teaching differential expression a
 
 ---
 
+## Microbiome Datasets (`src/data/microbiome/`)
+
+These datasets are for teaching microbiome data analysis, including alpha/beta diversity, differential abundance, and compositional data analysis.
+
+**To download all microbiome datasets:**
+
+```r
+# From the statistics-1-foundations directory
+Rscript src/data/download_additional_datasets.R
+```
+
+---
+
+### 1. GlobalPatterns — Multi-Environment Microbiome Survey
+
+**Files:** `globalpatterns_otu_table.csv` (33 KB), `globalpatterns_taxonomy.csv` (41 KB), `globalpatterns_metadata.csv` (1 KB)
+**Source:** phyloseq R package (Caporaso et al., 2011)
+**Reference:** https://joey711.github.io/phyloseq/
+
+| Property | Value |
+|----------|-------|
+| OTUs | 500 |
+| Samples | 28 |
+| Environments | 7 (Feces, Tongue, Skin, Ocean, Freshwater, Sediment, Mock) |
+
+**Description:**
+A classic microbiome dataset containing 16S rRNA gene sequences from multiple environments. Originally from the Human Microbiome Project and environmental surveys. Ideal for teaching diversity analysis because it has clear biological structure across sample types.
+
+**Key Variables (OTU table):**
+- `OTU_ID`: Operational Taxonomic Unit identifier
+- Sample columns: Raw read counts per sample
+
+**Taxonomy Variables:**
+- `Kingdom`, `Phylum`, `Class`, `Order`, `Family`, `Genus`, `Species`
+
+**Metadata Variables:**
+- `Sample_ID`: Sample identifier
+- `Description`: Sample description
+- `SampleType`: Environment category (Feces, Tongue, Skin, Ocean, Freshwater, Sediment, Mock)
+
+**Course Applications:**
+- Alpha diversity (Shannon, Chao1, observed OTUs)
+- Beta diversity (Bray-Curtis, UniFrac)
+- Ordination (PCoA, NMDS)
+- Differential abundance testing
+- Compositional data analysis (CLR transformation)
+
+---
+
+### 2. Moving Pictures — Longitudinal Human Microbiome
+
+**File:** `moving_pictures_metadata.csv` (2 KB)
+**Source:** QIIME2 Tutorial (Caporaso et al., 2011)
+**Reference:** https://qiime2.org/
+
+| Property | Value |
+|----------|-------|
+| Samples | 35 |
+| Subjects | 2 |
+| Body sites | 4 (gut, left palm, right palm, tongue) |
+| Timepoints | Multiple over several days |
+
+**Description:**
+Longitudinal microbiome sampling from 2 individuals at 4 body sites over time. A classic tutorial dataset for learning QIIME2 and microbiome analysis workflows.
+
+**Key Variables:**
+- `sample-id`: Sample identifier
+- `barcode-sequence`: Sequencing barcode
+- `body-site`: Sampling location
+- `year`, `month`, `day`: Sampling date
+- `subject`: Individual identifier
+- `reported-antibiotic-usage`: Antibiotic status
+- `days-since-experiment-start`: Longitudinal timepoint
+
+**Course Applications:**
+- Longitudinal microbiome analysis
+- Within-subject vs between-subject variation
+- Body site comparisons
+
+---
+
+### 3. Simulated Microbiome Data
+
+**Files:** `simulated_otu_table.csv` (33 KB), `simulated_taxonomy.csv` (14 KB), `simulated_microbiome_metadata.csv` (2 KB)
+**Source:** Simulated (reproducible with seed 42)
+
+| Property | Value |
+|----------|-------|
+| OTUs | 200 |
+| Samples | 60 (30 Control, 30 CFS) |
+| Design | Case-control study |
+
+**Description:**
+Simulated microbiome data mimicking the structure of gut microbiome studies comparing chronic fatigue syndrome (CFS) patients to healthy controls. Features realistic zero-inflation and compositional structure.
+
+**Key Features:**
+- Zero-inflated count data (realistic sparsity)
+- Two-group comparison design
+- Known group assignments for method evaluation
+
+**Course Applications:**
+- Handling zero-inflated data
+- Two-group comparisons
+- Non-parametric tests for microbiome data
+
+---
+
+## Proteomics Datasets (`src/data/proteomics/`)
+
+These datasets teach mass spectrometry-based proteomics analysis, including normalisation, batch correction, and differential abundance.
+
+---
+
+### 1. CPTAC-Style Spike-in Proteomics
+
+**Files:** `cptac_spike_in_intensities.csv` (141 KB), `cptac_spike_in_metadata.csv` (0.2 KB), `cptac_spike_in_ground_truth.csv` (21 KB)
+**Source:** Simulated based on CPTAC Spike-in Study design
+**Reference:** Paulovich et al. (2010) Mol Cell Proteomics
+
+| Property | Value |
+|----------|-------|
+| Proteins | 548 (48 spike-in + 500 background) |
+| Samples | 15 (5 conditions × 3 replicates) |
+| Design | Spike-in with known fold changes |
+
+**Description:**
+Simulated dataset based on the Clinical Proteomic Tumor Analysis Consortium (CPTAC) spike-in study design. Human UPS1 standard proteins (48) are spiked into a constant yeast protein background at 5 different concentrations. This creates a dataset with known ground truth for evaluating differential abundance methods.
+
+**Study Design:**
+- Condition A: 1× spike-in (baseline)
+- Condition B: 2× spike-in (log2 FC = 1)
+- Condition C: 4× spike-in (log2 FC = 2)
+- Condition D: 10× spike-in (log2 FC = 3.32)
+- Condition E: 20× spike-in (log2 FC = 4.32)
+
+**Key Variables (intensities):**
+- `protein_id`: Protein identifier (UPS1_XXX or YEAST_XXXX)
+- `protein_type`: "spike_in" (DE) or "background" (constant)
+- `A_1` to `E_3`: Log2 intensity values for each sample
+
+**Ground Truth Variables:**
+- `true_de`: Boolean indicating if protein is truly differentially abundant
+- `true_fc_*_vs_A`: True log2 fold change relative to condition A
+
+**Course Applications:**
+- Proteomics normalisation methods
+- Differential abundance analysis (limma, t-test)
+- False discovery rate control
+- ROC curves and method evaluation
+- Missing value handling
+
+---
+
+## GWAS Datasets (`src/data/gwas/`)
+
+These datasets teach genome-wide association study analysis, including single-SNP testing, multiple testing correction, and visualisation.
+
+---
+
+### 1. Rice GWAS Phenotypes
+
+**File:** `rice_phenotypes.csv` (111 KB)
+**Source:** Zhao et al. (2011) Nature Communications
+**Reference:** http://www.ricediversity.org/
+
+| Property | Value |
+|----------|-------|
+| Accessions | 413 |
+| Traits | 34 |
+| Population | Diverse rice germplasm |
+
+**Description:**
+Phenotypic data from 413 diverse rice accessions (Oryza sativa), part of a comprehensive GWAS study. Includes agricultural traits like plant height, flowering time, and grain characteristics. The full genotype data (44K SNPs) is available from the Rice Diversity Project.
+
+**Key Variables:**
+- `FID`, `IID`: PLINK-format individual identifiers
+- `Flowering.time.at.Arkansas`, `Flowering.time.at.Faridpur`, etc.: Flowering time traits
+- `Plant.height`: Height measurements
+- `Panicle.length`: Grain panicle characteristics
+- `Seed.length`, `Seed.width`, `Seed.volume`: Grain dimensions
+- Various other agronomic traits
+
+**Course Applications:**
+- GWAS workflow introduction
+- Phenotype distributions and transformations
+- Heritability estimation
+- Correlation between traits
+
+---
+
+### 2. Simulated GWAS Dataset
+
+**Files:** `simulated_gwas_genotypes.csv` (989 KB), `simulated_gwas_phenotypes.csv` (15 KB), `simulated_gwas_snp_info.csv` (46 KB)
+**Source:** Simulated (reproducible with seed 123)
+
+| Property | Value |
+|----------|-------|
+| Individuals | 500 |
+| SNPs | 1,000 |
+| Causal SNPs | 5 |
+| Heritability | ~0.3 |
+
+**Description:**
+Simulated GWAS dataset with known causal variants. Genotypes follow Hardy-Weinberg equilibrium with realistic minor allele frequencies. Five SNPs have true effects on the phenotype; the rest are null. This known ground truth allows evaluation of association methods and multiple testing procedures.
+
+**Genotype Variables:**
+- `individual_id`: Individual identifier
+- `SNP_0001` to `SNP_1000`: Genotypes encoded as 0, 1, 2 (minor allele count)
+
+**Phenotype Variables:**
+- `individual_id`: Individual identifier
+- `phenotype`: Quantitative trait (standardised)
+- `age`, `sex`: Covariates
+
+**SNP Info Variables:**
+- `snp_id`: SNP identifier
+- `chromosome`: Chromosome number (1-22)
+- `position`: Base pair position
+- `maf`: Minor allele frequency
+- `is_causal`: Boolean indicating true causal status
+- `true_effect`: True effect size (0 for null SNPs)
+
+**Course Applications:**
+- Single-SNP association testing
+- Manhattan plots and QQ plots
+- Multiple testing correction (Bonferroni, FDR)
+- Power analysis with known truth
+- Population stratification concepts
+
+---
+
+## Dataset Usage by Chapter (Updated)
+
+### Part I: Foundations (Chapters 1-15)
+
+| Chapter | Primary Dataset(s) | Additional Options |
+|---------|-------------------|-------------------|
+| 1. Introduction | NHANES | penguins |
+| 2. Descriptive Numerical | NHANES | penguins, gapminder |
+| 3. Visualisation | NHANES, penguins, gapminder | breast_cancer, covid_testing |
+| 4. Probability | Simulated, NHANES | strep_tb |
+| 5. Distributions | Simulated, NHANES | pima_diabetes |
+| 6. Sampling/CLT | NHANES (bootstrap) | simulated |
+| 7. Point Estimation | NHANES, penguins | simulated |
+| 8. Confidence Intervals | strep_tb, NHANES | birthwt |
+| 9-10. Hypothesis Testing | strep_tb, indo_rct | NHANES |
+| 11. Chi-square/Non-parametric | scurvy, NHANES | **globalpatterns** (microbiome) |
+| 12. Simple Regression | penguins, gapminder | cats, birthwt |
+| 13. ANOVA | penguins, toothgrowth | NHANES |
+| 14. Experimental Design | scurvy, strep_tb | indo_rct |
+| 15. Multiple Testing | **golub_leukemia**, **simulated_rnaseq_degs** | **simulated_gwas**, **cptac_spike_in** |
+
+### Bioinformatics-Specific Chapters
+
+| Topic | Recommended Dataset(s) | Teaching Focus |
+|-------|----------------------|----------------|
+| Microbiome diversity | **globalpatterns**, **simulated_microbiome** | Alpha/beta diversity, ordination |
+| Differential expression | **golub_leukemia**, **simulated_rnaseq_degs** | t-tests, FDR, volcano plots |
+| Proteomics | **cptac_spike_in** | Normalisation, missing values, DE |
+| GWAS | **simulated_gwas**, **rice_phenotypes** | Manhattan plots, QQ plots, FDR |
+| High-dimensional data | **golub_leukemia** (3051 genes) | PCA, clustering, multiple testing |
+
+---
+
 ## References and Data Sources
 
 ### Primary Sources
@@ -864,12 +1128,12 @@ A carefully constructed simulated dataset for teaching differential expression a
 
 | Item | Value |
 |------|-------|
-| Document Version | 2.1 |
+| Document Version | 2.2 |
 | Last Updated | January 2026 |
 | Tested R Version | 4.3+ |
 | Course | Statistics with R (Levels 1-3) |
-| Download Scripts | `src/data/download_datasets.R`, `src/data/download_bioinformatics_datasets.R` |
-| Total Datasets | 46 |
+| Download Scripts | `src/data/download_datasets.R`, `src/data/download_bioinformatics_datasets.R`, `src/data/download_additional_datasets.R` |
+| Total Datasets | 57 |
 
 ---
 

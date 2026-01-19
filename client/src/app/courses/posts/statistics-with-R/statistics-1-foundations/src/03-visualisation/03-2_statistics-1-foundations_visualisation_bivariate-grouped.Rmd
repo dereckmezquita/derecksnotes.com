@@ -34,19 +34,19 @@ Part 1 covered univariate visualisations—showing distributions of single varia
 
 ```{r packages, message=FALSE, warning=FALSE}
 box::use(
-    data.table,
+    data.table[...],
     ggplot2
 )
 ```
 
 ```{r load_data, message=FALSE}
 # Load datasets
-nhanes <- data.table$fread("data/primary/nhanes.csv")
-penguins <- data.table$fread("data/primary/penguins.csv")
-gapminder <- data.table$fread("data/primary/gapminder.csv")
+nhanes <- fread("../data/primary/nhanes.csv")
+penguins <- fread("../data/primary/penguins.csv")
+gapminder <- fread("../data/primary/gapminder.csv")
 
 # Also load bioinformatics data for correlation examples
-breast_cancer <- data.table$fread("data/bioinformatics/breast_cancer_wisconsin.csv")
+breast_cancer <- fread("../data/bioinformatics/breast_cancer_wisconsin.csv")
 
 cat("Datasets loaded:\n")
 cat("  NHANES:", nrow(nhanes), "observations\n")
@@ -133,6 +133,7 @@ Understanding that a scatter plot is simply mapping data to coordinates:
 # Take a small subset for illustration
 set.seed(42)
 small_sample <- penguins_clean[sample(.N, 20)]
+small_sample[, row_id := .I]  # Add row index for labelling
 
 # The scatter plot maps:
 # - bill_length_mm -> x position
@@ -147,7 +148,7 @@ ggplot2$ggplot(small_sample) +
         colour = "#0072B2"
     ) +
     ggplot2$geom_text(
-        ggplot2$aes(x = bill_length_mm, y = bill_depth_mm, label = seq_len(.N)),
+        ggplot2$aes(x = bill_length_mm, y = bill_depth_mm, label = row_id),
         vjust = -1,
         size = 3
     ) +
@@ -491,7 +492,7 @@ This is a striking example of **Simpson's Paradox**: the overall trend is negati
 ```{r colourblind, fig.cap="Comparison of default palette with colour-blind friendly alternatives"}
 # Default palette vs colour-blind friendly
 set.seed(42)
-demo_data <- data.table$data.table(
+demo_data <- data.table(
     x = rnorm(300),
     y = rnorm(300),
     group = rep(c("A", "B", "C"), each = 100)
@@ -596,7 +597,7 @@ print(round(cor(penguin_numeric), 3))
 ```{r heatmap, fig.cap="Correlation heatmap with diverging colour scale centred at zero"}
 # Convert to long format for ggplot
 cor_dt <- as.data.table(cor_matrix, keep.rownames = "var1")
-cor_long <- data.table$melt(cor_dt, id.vars = "var1", variable.name = "var2", value.name = "correlation")
+cor_long <- melt(cor_dt, id.vars = "var1", variable.name = "var2", value.name = "correlation")
 
 # Order variables consistently
 var_order <- c("bill_length", "bill_depth", "flipper_length", "body_mass")
@@ -639,7 +640,7 @@ bc_cor <- cor(bc_numeric, use = "pairwise.complete.obs")
 
 # Convert to long format
 bc_cor_dt <- as.data.table(bc_cor, keep.rownames = "var1")
-bc_cor_long <- data.table$melt(bc_cor_dt, id.vars = "var1", variable.name = "var2", value.name = "correlation")
+bc_cor_long <- melt(bc_cor_dt, id.vars = "var1", variable.name = "var2", value.name = "correlation")
 
 # Clean variable names for display
 bc_cor_long[, var1 := gsub("mean_", "", var1)]
@@ -684,7 +685,7 @@ The clustering reveals blocks of highly correlated features: perimeter, area, an
 # Anscombe's quartet demonstrates correlation limitations
 # All four datasets have correlation r ≈ 0.816
 
-anscombe_data <- data.table$data.table(
+anscombe_data <- data.table(
     x1 = c(10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5),
     y1 = c(8.04, 6.95, 7.58, 8.81, 8.33, 9.96, 7.24, 4.26, 10.84, 4.82, 5.68),
     x2 = c(10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5),
@@ -696,11 +697,11 @@ anscombe_data <- data.table$data.table(
 )
 
 # Reshape for plotting
-anscombe_long <- data.table$rbindlist(list(
-    data.table$data.table(x = anscombe_data$x1, y = anscombe_data$y1, dataset = "Dataset 1"),
-    data.table$data.table(x = anscombe_data$x2, y = anscombe_data$y2, dataset = "Dataset 2"),
-    data.table$data.table(x = anscombe_data$x3, y = anscombe_data$y3, dataset = "Dataset 3"),
-    data.table$data.table(x = anscombe_data$x4, y = anscombe_data$y4, dataset = "Dataset 4")
+anscombe_long <- rbindlist(list(
+    data.table(x = anscombe_data$x1, y = anscombe_data$y1, dataset = "Dataset 1"),
+    data.table(x = anscombe_data$x2, y = anscombe_data$y2, dataset = "Dataset 2"),
+    data.table(x = anscombe_data$x3, y = anscombe_data$y3, dataset = "Dataset 3"),
+    data.table(x = anscombe_data$x4, y = anscombe_data$y4, dataset = "Dataset 4")
 ))
 
 # Calculate correlations

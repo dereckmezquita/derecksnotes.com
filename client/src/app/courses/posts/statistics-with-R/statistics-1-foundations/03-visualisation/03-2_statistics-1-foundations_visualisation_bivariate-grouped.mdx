@@ -1,0 +1,901 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 3: Descriptive Statistics — Visualisation"
+part: "Part 2: Bivariate and Grouped Visualisations"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-18"
+tags: [statistics, visualisation, ggplot2, correlation, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 3: Descriptive Statistics — Visualisation (Part 2)
+
+Part 1 covered univariate visualisations—showing distributions of single variables. This part extends to **bivariate** and **grouped** visualisations: how do two variables relate? How do distributions differ across groups? These questions are fundamental to statistical thinking and form the basis for regression and ANOVA.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load datasets
+nhanes <- fread("../data/primary/nhanes.csv")
+penguins <- fread("../data/primary/penguins.csv")
+gapminder <- fread("../data/primary/gapminder.csv")
+
+# Also load bioinformatics data for correlation examples
+breast_cancer <- fread("../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+cat("Datasets loaded:\n")
+#> Datasets loaded:
+cat("  NHANES:", nrow(nhanes), "observations\n")
+#>   NHANES: 10000 observations
+cat("  Penguins:", nrow(penguins), "observations\n")
+#>   Penguins: 344 observations
+cat("  Gapminder:", nrow(gapminder), "observations\n")
+#>   Gapminder: 1704 observations
+cat("  Breast Cancer:", nrow(breast_cancer), "observations\n")
+#>   Breast Cancer: 569 observations
+```
+
+## 3.4 Two Quantitative Variables
+
+When both variables are quantitative, we want to see their **relationship**: do they move together (positive association), in opposite directions (negative association), or show no pattern?
+
+### 3.4.1 Scatter Plots
+
+**Prose and Intuition**
+
+The scatter plot is the canonical visualisation for two quantitative variables. Each observation becomes a point; its x-coordinate is one variable, its y-coordinate the other. Patterns in the point cloud reveal relationships: an upward trend suggests positive association; a downward trend suggests negative association; no pattern suggests independence.
+
+Scatter plots reveal:
+- **Direction**: Positive, negative, or no association
+- **Form**: Linear or nonlinear relationship
+- **Strength**: How tightly points cluster around the trend
+- **Outliers**: Unusual observations that deviate from the pattern
+
+**Basic Scatter Plot**
+
+
+``` r
+# Clean penguin data
+penguins_clean <- penguins[!is.na(bill_length_mm) & !is.na(bill_depth_mm)]
+
+ggplot2$ggplot(penguins_clean, ggplot2$aes(x = bill_length_mm, y = bill_depth_mm)) +
+    ggplot2$geom_point(alpha = 0.6, colour = "#0072B2", size = 2) +
+    ggplot2$labs(
+        title = "Penguin Bill Dimensions",
+        subtitle = "Each point represents one penguin",
+        x = "Bill Length (mm)",
+        y = "Bill Depth (mm)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/scatter_basic-1.png" alt="Scatter plot revealing positive association between bill length and depth in penguins">
+	Scatter plot revealing positive association between bill length and depth in penguins
+</Figure>
+
+**Handling Overplotting**
+
+When datasets are large, points overlap and hide density. Several techniques address this:
+
+
+``` r
+# NHANES has many observations - perfect for demonstrating overplotting
+bmi_bp <- nhanes[!is.na(BMI) & !is.na(BPSysAve), .(BMI, BPSysAve)]
+
+# Basic scatter - overplotted
+p1 <- ggplot2$ggplot(bmi_bp, ggplot2$aes(x = BMI, y = BPSysAve)) +
+    ggplot2$geom_point(colour = "#0072B2") +
+    ggplot2$labs(title = "Overplotted", subtitle = "Points obscure density") +
+    ggplot2$theme_minimal()
+
+# Alpha transparency
+p2 <- ggplot2$ggplot(bmi_bp, ggplot2$aes(x = BMI, y = BPSysAve)) +
+    ggplot2$geom_point(alpha = 0.1, colour = "#0072B2") +
+    ggplot2$labs(title = "Alpha = 0.1", subtitle = "Transparency reveals density") +
+    ggplot2$theme_minimal()
+
+# 2D density contours
+p3 <- ggplot2$ggplot(bmi_bp, ggplot2$aes(x = BMI, y = BPSysAve)) +
+    ggplot2$geom_point(alpha = 0.05, colour = "#0072B2") +
+    ggplot2$geom_density_2d(colour = "#D55E00", size = 0.8) +
+    ggplot2$labs(title = "Density contours", subtitle = "Contours show concentration") +
+    ggplot2$theme_minimal()
+
+# Hexagonal binning
+p4 <- ggplot2$ggplot(bmi_bp, ggplot2$aes(x = BMI, y = BPSysAve)) +
+    ggplot2$geom_hex(bins = 30) +
+    ggplot2$scale_fill_viridis_c() +
+    ggplot2$labs(title = "Hexagonal binning", subtitle = "Colour encodes count") +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol = 2)
+```
+
+<Figure src="/courses/statistics-1-foundations/scatter_overplotting-1.png" alt="Techniques for handling overplotting in large datasets">
+	Techniques for handling overplotting in large datasets
+</Figure>
+
+**Building a Scatter Plot from Scratch**
+
+Understanding that a scatter plot is simply mapping data to coordinates:
+
+
+``` r
+# Take a small subset for illustration
+set.seed(42)
+small_sample <- penguins_clean[sample(.N, 20)]
+small_sample[, row_id := .I]  # Add row index for labelling
+
+# The scatter plot maps:
+# - bill_length_mm -> x position
+# - bill_depth_mm -> y position
+# - Each row -> one point
+
+# We can do this manually with geom_point
+ggplot2$ggplot(small_sample) +
+    ggplot2$geom_point(
+        ggplot2$aes(x = bill_length_mm, y = bill_depth_mm),
+        size = 4,
+        colour = "#0072B2"
+    ) +
+    ggplot2$geom_text(
+        ggplot2$aes(x = bill_length_mm, y = bill_depth_mm, label = row_id),
+        vjust = -1,
+        size = 3
+    ) +
+    ggplot2$labs(
+        title = "Scatter Plot as Coordinate Mapping",
+        subtitle = "Numbers show observation index; each maps to (x, y)",
+        x = "Bill Length (mm)",
+        y = "Bill Depth (mm)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/scatter_scratch-1.png" alt="Scatter plot as coordinate mapping: each row becomes (x, y) position">
+	Scatter plot as coordinate mapping: each row becomes (x, y) position
+</Figure>
+
+### 3.4.2 Trend Lines
+
+**Prose and Intuition**
+
+Raw scatter plots show the data; trend lines summarise the relationship. A trend line captures the "average" y-value at each x-value, making patterns clearer. Two common approaches:
+
+1. **Linear regression**: Fits a straight line; assumes linear relationship
+2. **LOESS (Locally Estimated Scatterplot Smoothing)**: Fits flexible curves; reveals nonlinearity
+
+**Linear vs LOESS Trends**
+
+
+``` r
+# GDP per capita vs life expectancy (Gapminder 2007)
+gap_2007 <- gapminder[year == 2007]
+
+# Linear fit
+p_linear <- ggplot2$ggplot(gap_2007, ggplot2$aes(x = gdpPercap, y = lifeExp)) +
+    ggplot2$geom_point(alpha = 0.6, colour = "#56B4E9") +
+    ggplot2$geom_smooth(method = "lm", colour = "#D55E00", se = TRUE) +
+    ggplot2$labs(
+        title = "Linear Trend",
+        subtitle = "Assumes straight-line relationship",
+        x = "GDP per Capita ($)",
+        y = "Life Expectancy (years)"
+    ) +
+    ggplot2$theme_minimal()
+
+# LOESS fit
+p_loess <- ggplot2$ggplot(gap_2007, ggplot2$aes(x = gdpPercap, y = lifeExp)) +
+    ggplot2$geom_point(alpha = 0.6, colour = "#56B4E9") +
+    ggplot2$geom_smooth(method = "loess", colour = "#009E73", se = TRUE) +
+    ggplot2$labs(
+        title = "LOESS Trend",
+        subtitle = "Reveals diminishing returns at high GDP",
+        x = "GDP per Capita ($)",
+        y = "Life Expectancy (years)"
+    ) +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p_linear, p_loess, ncol = 2)
+#> `geom_smooth()` using formula = 'y ~ x'
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-1-foundations/trend_lines-1.png" alt="Linear regression assumes linearity; LOESS reveals the true relationship shape">
+	Linear regression assumes linearity; LOESS reveals the true relationship shape
+</Figure>
+
+The LOESS curve reveals that life expectancy increases rapidly with GDP at low levels but plateaus at high GDP—a pattern invisible to linear regression.
+
+**Mathematical Foundation: Linear Regression Preview**
+
+The linear trend line minimises the sum of squared vertical distances from points to line. For data $(x_i, y_i)$, the line $\hat{y} = a + bx$ has:
+
+$$b = \frac{\sum(x_i - \bar{x})(y_i - \bar{y})}{\sum(x_i - \bar{x})^2} = \frac{Cov(X, Y)}{Var(X)}$$
+
+$$a = \bar{y} - b\bar{x}$$
+
+
+``` r
+# Implement linear regression from scratch
+my_lm <- function(x, y) {
+    # Remove NAs
+    valid <- !is.na(x) & !is.na(y)
+    x <- x[valid]
+    y <- y[valid]
+
+    # Calculate means
+    x_bar <- mean(x)
+    y_bar <- mean(y)
+
+    # Calculate slope (b) and intercept (a)
+    numerator <- sum((x - x_bar) * (y - y_bar))
+    denominator <- sum((x - x_bar)^2)
+    b <- numerator / denominator
+    a <- y_bar - b * x_bar
+
+    list(intercept = a, slope = b)
+}
+
+# Apply to penguin data (all species combined)
+fit <- my_lm(penguins_clean$bill_length_mm, penguins_clean$bill_depth_mm)
+cat("From scratch: intercept =", round(fit$intercept, 3), ", slope =", round(fit$slope, 3), "\n")
+#> From scratch: intercept = 20.885 , slope = -0.085
+
+# Compare to built-in
+lm_fit <- lm(bill_depth_mm ~ bill_length_mm, data = penguins_clean)
+cat("Built-in lm(): intercept =", round(coef(lm_fit)[1], 3), ", slope =", round(coef(lm_fit)[2], 3), "\n")
+#> Built-in lm(): intercept = 20.885 , slope = -0.085
+
+# Visualise
+ggplot2$ggplot(penguins_clean, ggplot2$aes(x = bill_length_mm, y = bill_depth_mm)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#56B4E9") +
+    ggplot2$geom_abline(
+        intercept = fit$intercept,
+        slope = fit$slope,
+        colour = "#D55E00",
+        size = 1.2
+    ) +
+    ggplot2$labs(
+        title = "Linear Regression from Scratch",
+        subtitle = paste("y =", round(fit$intercept, 2), "+", round(fit$slope, 3), "x"),
+        x = "Bill Length (mm)",
+        y = "Bill Depth (mm)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/lm_from_scratch-1.png" alt="Linear regression line computed from scratch">
+	Linear regression line computed from scratch
+</Figure>
+
+Note: The negative slope here is a classic example of **Simpson's Paradox**—when we ignore species, the relationship appears negative, but within each species, it's positive. We'll see this when we add colour by species.
+
+### 3.4.3 Scatter Plot Matrices
+
+**Prose and Intuition**
+
+When exploring relationships among multiple variables, examining all pairwise scatter plots simultaneously is valuable. A **scatter plot matrix** (or pairs plot) shows scatter plots for every pair of variables in a grid.
+
+
+``` r
+# Select numeric variables from penguins
+penguin_numeric <- penguins[, .(
+    bill_length = bill_length_mm,
+    bill_depth = bill_depth_mm,
+    flipper_length = flipper_length_mm,
+    body_mass = body_mass_g
+)]
+
+# Remove rows with any NA
+penguin_numeric <- na.omit(penguin_numeric)
+
+# Create pairs plot manually using ggplot2
+# We'll create a grid of plots
+
+# Get variable names
+vars <- names(penguin_numeric)
+n_vars <- length(vars)
+
+# Create list to store plots
+plot_list <- list()
+
+for (i in seq_len(n_vars)) {
+    for (j in seq_len(n_vars)) {
+        if (i == j) {
+            # Diagonal: histogram
+            p <- ggplot2$ggplot(penguin_numeric, ggplot2$aes_string(x = vars[i])) +
+                ggplot2$geom_histogram(fill = "#56B4E9", colour = "white", bins = 20) +
+                ggplot2$theme_minimal() +
+                ggplot2$theme(
+                    axis.title = ggplot2$element_blank(),
+                    axis.text = ggplot2$element_text(size = 6)
+                )
+        } else {
+            # Off-diagonal: scatter plot
+            p <- ggplot2$ggplot(penguin_numeric, ggplot2$aes_string(x = vars[j], y = vars[i])) +
+                ggplot2$geom_point(alpha = 0.3, size = 0.8, colour = "#0072B2") +
+                ggplot2$theme_minimal() +
+                ggplot2$theme(
+                    axis.title = ggplot2$element_blank(),
+                    axis.text = ggplot2$element_text(size = 6)
+                )
+        }
+        plot_list[[(i - 1) * n_vars + j]] <- p
+    }
+}
+
+# Add variable labels
+gridExtra::grid.arrange(
+    grobs = plot_list,
+    ncol = n_vars,
+    top = "Scatter Plot Matrix: Palmer Penguins\n(Diagonal: histograms; Off-diagonal: scatter plots)"
+)
+```
+
+<Figure src="/courses/statistics-1-foundations/scatter_matrix-1.png" alt="Scatter plot matrix showing all pairwise relationships among penguin measurements">
+	Scatter plot matrix showing all pairwise relationships among penguin measurements
+</Figure>
+
+The matrix reveals that flipper length and body mass are strongly correlated (large penguins have long flippers), while bill dimensions show more complex patterns.
+
+---
+
+## 3.5 Relationships with Categorical Variables
+
+Often we want to compare a quantitative variable across categories: How does blood pressure differ between males and females? How do penguin body masses differ across species?
+
+### 3.5.1 Grouped Box Plots and Violin Plots
+
+**Prose and Intuition**
+
+Placing box plots or violin plots side by side enables direct comparison of distributions across groups. The eye can compare medians, spreads, and shapes simultaneously.
+
+
+``` r
+# BMI by education level
+bmi_edu <- nhanes[!is.na(BMI) & !is.na(Education), .(BMI, Education)]
+
+# Order education levels logically
+edu_order <- c("8th Grade", "9 - 11th Grade", "High School", "Some College", "College Grad")
+bmi_edu[, Education := factor(Education, levels = edu_order)]
+bmi_edu <- bmi_edu[!is.na(Education)]
+
+ggplot2$ggplot(bmi_edu, ggplot2$aes(x = Education, y = BMI, fill = Education)) +
+    ggplot2$geom_boxplot(alpha = 0.7, outlier.alpha = 0.3) +
+    ggplot2$scale_fill_brewer(palette = "Blues") +
+    ggplot2$labs(
+        title = "BMI Distribution by Education Level",
+        subtitle = "Higher education associated with slightly lower BMI",
+        x = "Education Level",
+        y = "Body Mass Index (kg/m²)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(
+        axis.text.x = ggplot2$element_text(angle = 45, hjust = 1),
+        legend.position = "none"
+    )
+```
+
+<Figure src="/courses/statistics-1-foundations/grouped_boxplot-1.png" alt="Grouped box plots comparing BMI distributions across education levels">
+	Grouped box plots comparing BMI distributions across education levels
+</Figure>
+
+**Violin Plots for Distributional Details**
+
+
+``` r
+# Body mass by species
+mass_species <- penguins[!is.na(body_mass_g) & !is.na(species), .(body_mass_g, species)]
+
+ggplot2$ggplot(mass_species, ggplot2$aes(x = species, y = body_mass_g, fill = species)) +
+    ggplot2$geom_violin(alpha = 0.7, draw_quantiles = c(0.25, 0.5, 0.75)) +
+    ggplot2$geom_jitter(width = 0.1, alpha = 0.3, size = 1) +
+    ggplot2$scale_fill_manual(values = c(
+        "Adelie" = "#FF6B35",
+        "Chinstrap" = "#004E89",
+        "Gentoo" = "#7A9E7E"
+    )) +
+    ggplot2$labs(
+        title = "Body Mass Distribution by Penguin Species",
+        subtitle = "Gentoo penguins are notably larger; all species show bimodality (sex differences)",
+        x = "Species",
+        y = "Body Mass (g)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/grouped_violin-1.png" alt="Violin plots reveal that Gentoo penguins have bimodal body mass (likely sex dimorphism)">
+	Violin plots reveal that Gentoo penguins have bimodal body mass (likely sex dimorphism)
+</Figure>
+
+### 3.5.2 Faceting (Small Multiples)
+
+**Prose and Intuition**
+
+**Faceting** creates multiple panels, each showing a subset of the data. This technique, which Tufte calls "small multiples," enables comparison while keeping each panel uncluttered. The eye naturally compares across panels.
+
+Two faceting approaches:
+- `facet_wrap()`: Wraps panels into rows/columns
+- `facet_grid()`: Creates a grid defined by row and column variables
+
+
+``` r
+# Life expectancy over time by continent
+ggplot2$ggplot(gapminder, ggplot2$aes(x = year, y = lifeExp, group = country)) +
+    ggplot2$geom_line(alpha = 0.3, colour = "#0072B2") +
+    ggplot2$geom_smooth(
+        ggplot2$aes(group = 1),
+        method = "loess",
+        colour = "#D55E00",
+        size = 1.2,
+        se = FALSE
+    ) +
+    ggplot2$facet_wrap(~continent, ncol = 3) +
+    ggplot2$labs(
+        title = "Life Expectancy Trends by Continent (1952–2007)",
+        subtitle = "Thin lines: individual countries; Thick line: continental average",
+        x = "Year",
+        y = "Life Expectancy (years)"
+    ) +
+    ggplot2$theme_minimal()
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-1-foundations/facet_wrap-1.png" alt="Facet wrap showing life expectancy trends by continent">
+	Facet wrap showing life expectancy trends by continent
+</Figure>
+
+**Facet Grid for Two Categorical Variables**
+
+
+``` r
+# Bill dimensions by species and island
+bill_data <- penguins[!is.na(bill_length_mm) & !is.na(bill_depth_mm) &
+                       !is.na(species) & !is.na(island)]
+
+ggplot2$ggplot(bill_data, ggplot2$aes(x = bill_length_mm, y = bill_depth_mm)) +
+    ggplot2$geom_point(ggplot2$aes(colour = species), alpha = 0.6, size = 2) +
+    ggplot2$facet_grid(species ~ island) +
+    ggplot2$scale_colour_manual(values = c(
+        "Adelie" = "#FF6B35",
+        "Chinstrap" = "#004E89",
+        "Gentoo" = "#7A9E7E"
+    )) +
+    ggplot2$labs(
+        title = "Bill Dimensions by Species and Island",
+        subtitle = "Empty panels indicate species not present on that island",
+        x = "Bill Length (mm)",
+        y = "Bill Depth (mm)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/facet_grid-1.png" alt="Facet grid crossing species (rows) with island (columns)">
+	Facet grid crossing species (rows) with island (columns)
+</Figure>
+
+The empty panels are informative: Chinstrap penguins are only on Dream Island, and Gentoo only on Biscoe.
+
+### 3.5.3 Colour and Shape Encoding
+
+**Prose and Intuition**
+
+Colour and shape can encode categorical variables within a single plot. This is powerful but requires care:
+- Use **colour** for the primary grouping variable (most salient)
+- Use **shape** for secondary distinctions
+- Consider colour blindness (about 8% of males have some form)
+
+**Simpson's Paradox Revealed**
+
+
+``` r
+# Earlier we saw a negative trend for all penguins combined
+# Adding colour by species reveals the truth
+
+ggplot2$ggplot(penguins_clean, ggplot2$aes(x = bill_length_mm, y = bill_depth_mm, colour = species)) +
+    ggplot2$geom_point(alpha = 0.7, size = 2) +
+    ggplot2$geom_smooth(method = "lm", se = FALSE, size = 1) +
+    # Add overall trend for comparison
+    ggplot2$geom_smooth(
+        ggplot2$aes(group = 1),
+        method = "lm",
+        colour = "black",
+        linetype = "dashed",
+        se = FALSE
+    ) +
+    ggplot2$scale_colour_manual(values = c(
+        "Adelie" = "#FF6B35",
+        "Chinstrap" = "#004E89",
+        "Gentoo" = "#7A9E7E"
+    )) +
+    ggplot2$labs(
+        title = "Simpson's Paradox in Penguin Bill Dimensions",
+        subtitle = "Dashed black: overall trend (negative); Coloured: within-species trends (positive)",
+        x = "Bill Length (mm)",
+        y = "Bill Depth (mm)",
+        colour = "Species"
+    ) +
+    ggplot2$theme_minimal()
+#> `geom_smooth()` using formula = 'y ~ x'
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-1-foundations/colour_encoding-1.png" alt="Colour encoding reveals Simpson&#39;s Paradox: negative overall trend but positive within-species trends">
+	Colour encoding reveals Simpson's Paradox: negative overall trend but positive within-species trends
+</Figure>
+
+This is a striking example of **Simpson's Paradox**: the overall trend is negative, but within each species, the trend is positive. Ignoring species would lead to completely wrong conclusions.
+
+**Colour-Blind Friendly Palettes**
+
+
+``` r
+# Default palette vs colour-blind friendly
+set.seed(42)
+demo_data <- data.table(
+    x = rnorm(300),
+    y = rnorm(300),
+    group = rep(c("A", "B", "C"), each = 100)
+)
+
+# Default (potentially problematic)
+p_default <- ggplot2$ggplot(demo_data, ggplot2$aes(x = x, y = y, colour = group)) +
+    ggplot2$geom_point(size = 2, alpha = 0.7) +
+    ggplot2$scale_colour_manual(values = c("red", "green", "blue")) +
+    ggplot2$labs(title = "Default: Red-Green-Blue", subtitle = "Problematic for colour blindness") +
+    ggplot2$theme_minimal()
+
+# Colour-blind friendly (Okabe-Ito palette)
+p_safe <- ggplot2$ggplot(demo_data, ggplot2$aes(x = x, y = y, colour = group)) +
+    ggplot2$geom_point(size = 2, alpha = 0.7) +
+    ggplot2$scale_colour_manual(values = c("#E69F00", "#56B4E9", "#009E73")) +
+    ggplot2$labs(title = "Okabe-Ito Palette", subtitle = "Safe for most colour vision deficiencies") +
+    ggplot2$theme_minimal()
+
+# Using shape as well
+p_shape <- ggplot2$ggplot(demo_data, ggplot2$aes(x = x, y = y, colour = group, shape = group)) +
+    ggplot2$geom_point(size = 2, alpha = 0.7) +
+    ggplot2$scale_colour_manual(values = c("#E69F00", "#56B4E9", "#009E73")) +
+    ggplot2$labs(title = "Colour + Shape", subtitle = "Redundant encoding for maximum accessibility") +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p_default, p_safe, p_shape, ncol = 3)
+```
+
+<Figure src="/courses/statistics-1-foundations/colourblind-1.png" alt="Comparison of default palette with colour-blind friendly alternatives">
+	Comparison of default palette with colour-blind friendly alternatives
+</Figure>
+
+**Recommended Colour-Blind Friendly Palettes:**
+
+| Palette | Colours | Use Case |
+|---------|---------|----------|
+| Okabe-Ito | Orange, Sky Blue, Green, Yellow, Blue, Vermilion, Purple, Grey | Categorical (up to 8) |
+| Viridis | Continuous yellow-green-blue | Sequential quantitative |
+| Cividis | Yellow-blue | Sequential (colour-blind optimised) |
+
+---
+
+## 3.6 Visualising Correlation
+
+Correlation measures the strength and direction of linear association between two quantitative variables. Visualising correlation helps identify patterns, clusters, and potential multicollinearity.
+
+### 3.6.1 Correlation Matrices and Heatmaps
+
+**Prose and Intuition**
+
+A **correlation matrix** shows the pairwise Pearson correlation between every pair of variables. As a table, it's hard to scan; as a **heatmap**, patterns emerge immediately. Strong correlations appear as dark colours; weak correlations as light.
+
+**Mathematical Foundation**
+
+The Pearson correlation coefficient between variables X and Y is:
+
+$$r_{XY} = \frac{\sum(x_i - \bar{x})(y_i - \bar{y})}{\sqrt{\sum(x_i - \bar{x})^2} \cdot \sqrt{\sum(y_i - \bar{y})^2}} = \frac{Cov(X, Y)}{SD(X) \cdot SD(Y)}$$
+
+Properties:
+- $-1 \leq r \leq 1$
+- $r = 1$: Perfect positive linear relationship
+- $r = -1$: Perfect negative linear relationship
+- $r = 0$: No linear relationship (but could have nonlinear relationship)
+
+
+``` r
+# Implement Pearson correlation from scratch
+my_cor <- function(x, y) {
+    valid <- !is.na(x) & !is.na(y)
+    x <- x[valid]
+    y <- y[valid]
+
+    x_mean <- mean(x)
+    y_mean <- mean(y)
+
+    numerator <- sum((x - x_mean) * (y - y_mean))
+    denominator <- sqrt(sum((x - x_mean)^2)) * sqrt(sum((y - y_mean)^2))
+
+    numerator / denominator
+}
+
+# Calculate correlation matrix for penguin numeric variables
+cor_matrix <- matrix(NA, nrow = n_vars, ncol = n_vars)
+rownames(cor_matrix) <- vars
+colnames(cor_matrix) <- vars
+
+for (i in seq_len(n_vars)) {
+    for (j in seq_len(n_vars)) {
+        cor_matrix[i, j] <- my_cor(
+            penguin_numeric[[vars[i]]],
+            penguin_numeric[[vars[j]]]
+        )
+    }
+}
+
+cat("Correlation Matrix (from scratch):\n")
+#> Correlation Matrix (from scratch):
+print(round(cor_matrix, 3))
+#>                bill_length bill_depth flipper_length body_mass
+#> bill_length          1.000     -0.235          0.656     0.595
+#> bill_depth          -0.235      1.000         -0.584    -0.472
+#> flipper_length       0.656     -0.584          1.000     0.871
+#> body_mass            0.595     -0.472          0.871     1.000
+
+# Compare to built-in
+cat("\nCorrelation Matrix (built-in):\n")
+#> 
+#> Correlation Matrix (built-in):
+print(round(cor(penguin_numeric), 3))
+#>                bill_length bill_depth flipper_length body_mass
+#> bill_length          1.000     -0.235          0.656     0.595
+#> bill_depth          -0.235      1.000         -0.584    -0.472
+#> flipper_length       0.656     -0.584          1.000     0.871
+#> body_mass            0.595     -0.472          0.871     1.000
+```
+
+**Heatmap Visualisation**
+
+
+``` r
+# Convert to long format for ggplot
+cor_dt <- as.data.table(cor_matrix, keep.rownames = "var1")
+cor_long <- melt(cor_dt, id.vars = "var1", variable.name = "var2", value.name = "correlation")
+
+# Order variables consistently
+var_order <- c("bill_length", "bill_depth", "flipper_length", "body_mass")
+cor_long[, var1 := factor(var1, levels = var_order)]
+cor_long[, var2 := factor(var2, levels = rev(var_order))]
+
+ggplot2$ggplot(cor_long, ggplot2$aes(x = var1, y = var2, fill = correlation)) +
+    ggplot2$geom_tile(colour = "white", size = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = round(correlation, 2)), colour = "black", size = 4) +
+    ggplot2$scale_fill_gradient2(
+        low = "#D55E00",
+        mid = "white",
+        high = "#0072B2",
+        midpoint = 0,
+        limits = c(-1, 1)
+    ) +
+    ggplot2$labs(
+        title = "Correlation Matrix: Palmer Penguins",
+        subtitle = "Diverging scale: blue = positive, red = negative, white = zero",
+        x = NULL,
+        y = NULL,
+        fill = "Correlation"
+    ) +
+    ggplot2$coord_equal() +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(
+        axis.text.x = ggplot2$element_text(angle = 45, hjust = 1),
+        panel.grid = ggplot2$element_blank()
+    )
+```
+
+<Figure src="/courses/statistics-1-foundations/heatmap-1.png" alt="Correlation heatmap with diverging colour scale centred at zero">
+	Correlation heatmap with diverging colour scale centred at zero
+</Figure>
+
+**Correlation Heatmap for Larger Datasets**
+
+
+``` r
+# Breast cancer dataset has many features
+bc_numeric <- breast_cancer[, .SD, .SDcols = patterns("^mean_")]
+
+# Calculate correlation matrix
+bc_cor <- cor(bc_numeric, use = "pairwise.complete.obs")
+
+# Convert to long format
+bc_cor_dt <- as.data.table(bc_cor, keep.rownames = "var1")
+bc_cor_long <- melt(bc_cor_dt, id.vars = "var1", variable.name = "var2", value.name = "correlation")
+
+# Clean variable names for display
+bc_cor_long[, var1 := gsub("mean_", "", var1)]
+bc_cor_long[, var2 := gsub("mean_", "", var2)]
+
+# Order by hierarchical clustering
+hc <- hclust(as.dist(1 - bc_cor))
+var_order_bc <- gsub("mean_", "", colnames(bc_cor)[hc$order])
+bc_cor_long[, var1 := factor(var1, levels = var_order_bc)]
+bc_cor_long[, var2 := factor(var2, levels = rev(var_order_bc))]
+
+ggplot2$ggplot(bc_cor_long, ggplot2$aes(x = var1, y = var2, fill = correlation)) +
+    ggplot2$geom_tile() +
+    ggplot2$scale_fill_gradient2(
+        low = "#D55E00",
+        mid = "white",
+        high = "#0072B2",
+        midpoint = 0,
+        limits = c(-1, 1)
+    ) +
+    ggplot2$labs(
+        title = "Correlation Matrix: Breast Cancer Wisconsin Features",
+        subtitle = "Variables ordered by hierarchical clustering; blocks indicate feature groups",
+        x = NULL,
+        y = NULL,
+        fill = "Correlation"
+    ) +
+    ggplot2$coord_equal() +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(
+        axis.text.x = ggplot2$element_text(angle = 90, hjust = 1, vjust = 0.5, size = 8),
+        axis.text.y = ggplot2$element_text(size = 8),
+        panel.grid = ggplot2$element_blank()
+    )
+```
+
+<Figure src="/courses/statistics-1-foundations/heatmap_large-1.png" alt="Correlation heatmap for breast cancer diagnostic features">
+	Correlation heatmap for breast cancer diagnostic features
+</Figure>
+
+The clustering reveals blocks of highly correlated features: perimeter, area, and radius are essentially measuring the same thing (tumour size). Concavity-related features form another cluster.
+
+**Limitations of Correlation**
+
+
+``` r
+# Anscombe's quartet demonstrates correlation limitations
+# All four datasets have correlation r ≈ 0.816
+
+anscombe_data <- data.table(
+    x1 = c(10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5),
+    y1 = c(8.04, 6.95, 7.58, 8.81, 8.33, 9.96, 7.24, 4.26, 10.84, 4.82, 5.68),
+    x2 = c(10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5),
+    y2 = c(9.14, 8.14, 8.74, 8.77, 9.26, 8.10, 6.13, 3.10, 9.13, 7.26, 4.74),
+    x3 = c(10, 8, 13, 9, 11, 14, 6, 4, 12, 7, 5),
+    y3 = c(7.46, 6.77, 12.74, 7.11, 7.81, 8.84, 6.08, 5.39, 8.15, 6.42, 5.73),
+    x4 = c(8, 8, 8, 8, 8, 8, 8, 19, 8, 8, 8),
+    y4 = c(6.58, 5.76, 7.71, 8.84, 8.47, 7.04, 5.25, 12.50, 5.56, 7.91, 6.89)
+)
+
+# Reshape for plotting
+anscombe_long <- rbindlist(list(
+    data.table(x = anscombe_data$x1, y = anscombe_data$y1, dataset = "Dataset 1"),
+    data.table(x = anscombe_data$x2, y = anscombe_data$y2, dataset = "Dataset 2"),
+    data.table(x = anscombe_data$x3, y = anscombe_data$y3, dataset = "Dataset 3"),
+    data.table(x = anscombe_data$x4, y = anscombe_data$y4, dataset = "Dataset 4")
+))
+
+# Calculate correlations
+cors <- anscombe_long[, .(r = round(cor(x, y), 3)), by = dataset]
+
+ggplot2$ggplot(anscombe_long, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_point(colour = "#0072B2", size = 3) +
+    ggplot2$geom_smooth(method = "lm", se = FALSE, colour = "#D55E00") +
+    ggplot2$geom_text(
+        data = cors,
+        ggplot2$aes(x = 5, y = 12, label = paste("r =", r)),
+        hjust = 0,
+        size = 4
+    ) +
+    ggplot2$facet_wrap(~dataset, ncol = 2) +
+    ggplot2$labs(
+        title = "Anscombe's Quartet: Correlation Can Mislead",
+        subtitle = "All four datasets have r ≈ 0.82, but the relationships are completely different",
+        x = "X",
+        y = "Y"
+    ) +
+    ggplot2$theme_minimal()
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-1-foundations/anscombe-1.png" alt="Anscombe&#39;s quartet: four datasets with identical correlation but very different relationships">
+	Anscombe's quartet: four datasets with identical correlation but very different relationships
+</Figure>
+
+**Always visualise your data.** Correlation alone can hide:
+- Nonlinear relationships (Dataset 2)
+- Outliers driving the correlation (Dataset 3)
+- Inappropriate data for linear analysis (Dataset 4)
+
+---
+
+## Communicating to Stakeholders
+
+When presenting bivariate visualisations:
+
+**On scatter plots:**
+> "Each dot represents one person. We can see that as BMI increases, blood pressure tends to increase too—that's the upward slope. The spread of dots shows there's a lot of individual variation."
+
+**On Simpson's Paradox:**
+> "This is a great example of why we need to be careful with aggregated data. When we look at all penguins together, we see one pattern. But when we separate by species, we see the opposite pattern. The overall trend was hiding important subgroup differences."
+
+**On correlation heatmaps:**
+> "This coloured grid shows how strongly each pair of measurements is related. Dark blue means they increase together; dark red means one goes up as the other goes down. The diagonal is all ones because every variable is perfectly correlated with itself."
+
+**On correlation limitations:**
+> "The correlation number alone can be misleading. These four datasets all have the same correlation of 0.82, but look how different the actual patterns are. That's why we always look at the scatter plot first."
+
+---
+
+## Quick Reference
+
+### Bivariate Plot Types
+
+| Variables | Plot | ggplot2 Code |
+|-----------|------|--------------|
+| 2 quantitative | Scatter plot | `geom_point()` |
+| 2 quant (large n) | Hex bin | `geom_hex()` |
+| 2 quant + trend | Scatter + smooth | `geom_point() + geom_smooth()` |
+| Many pairs | Scatter matrix | Custom grid |
+| 1 quant + 1 cat | Grouped box/violin | `geom_boxplot()` / `geom_violin()` |
+| Multiple quant | Correlation heatmap | `geom_tile()` + correlation matrix |
+
+### Faceting Syntax
+
+```r
+# Wrap into rows (automatic arrangement)
+ggplot(data, aes(x, y)) + facet_wrap(~variable)
+
+# Grid by two variables
+ggplot(data, aes(x, y)) + facet_grid(row_var ~ col_var)
+
+# Control scales
+facet_wrap(~variable, scales = "free")      # Independent scales
+facet_wrap(~variable, scales = "free_x")    # Free x only
+facet_wrap(~variable, scales = "free_y")    # Free y only
+```
+
+### Colour-Blind Friendly Palettes
+
+```r
+# Okabe-Ito (categorical)
+scale_colour_manual(values = c("#E69F00", "#56B4E9", "#009E73",
+                                "#F0E442", "#0072B2", "#D55E00",
+                                "#CC79A7", "#999999"))
+
+# Viridis (sequential)
+scale_colour_viridis_c()  # continuous
+scale_colour_viridis_d()  # discrete
+```
+
+### Correlation
+
+| Statistic | Formula | R Function |
+|-----------|---------|------------|
+| Pearson r | $\frac{Cov(X,Y)}{SD(X) \cdot SD(Y)}$ | `cor(x, y)` |
+| Correlation matrix | Pairwise correlations | `cor(data_frame)` |
+
+### Overplotting Solutions
+
+| Technique | When to Use | ggplot2 |
+|-----------|-------------|---------|
+| Alpha transparency | Medium overlap | `geom_point(alpha = 0.1)` |
+| Jittering | Discrete x | `geom_jitter()` |
+| 2D density | Heavy overlap | `geom_density_2d()` |
+| Hex binning | Very large n | `geom_hex()` |
+| Contours | Continuous pattern | `stat_density_2d()` |

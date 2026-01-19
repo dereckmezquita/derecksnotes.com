@@ -34,17 +34,17 @@ This final part of the visualisation chapter covers three important topics: **QQ
 
 ```{r packages, message=FALSE, warning=FALSE}
 box::use(
-    data.table,
+    data.table[...],
     ggplot2
 )
 ```
 
 ```{r load_data, message=FALSE}
 # Load datasets
-nhanes <- data.table$fread("data/primary/nhanes.csv")
-gapminder <- data.table$fread("data/primary/gapminder.csv")
-covid <- data.table$fread("data/medical/covid_testing.csv")
-lung <- data.table$fread("data/supplementary/lung.csv")
+nhanes <- fread("../data/primary/nhanes.csv")
+gapminder <- fread("../data/primary/gapminder.csv")
+covid <- fread("../data/medical/covid_testing.csv")
+lung <- fread("../data/supplementary/lung.csv")
 
 cat("Datasets loaded:\n")
 cat("  NHANES:", nrow(nhanes), "observations\n")
@@ -83,7 +83,7 @@ If data follow $N(\mu, \sigma^2)$, points lie on the line $y = \mu + \sigma \cdo
 bmi <- nhanes[!is.na(BMI), BMI]
 
 # Basic QQ plot
-ggplot2$ggplot(data.table$data.table(bmi = bmi), ggplot2$aes(sample = bmi)) +
+ggplot2$ggplot(data.table(bmi = bmi), ggplot2$aes(sample = bmi)) +
     ggplot2$stat_qq(colour = "#0072B2", alpha = 0.5) +
     ggplot2$stat_qq_line(colour = "#D55E00", size = 1) +
     ggplot2$labs(
@@ -117,7 +117,7 @@ my_qq_plot <- function(x, distribution = "norm") {
         theoretical <- qexp(p)
     }
 
-    data.table$data.table(
+    data.table(
         theoretical = theoretical,
         sample = x,
         probability = p
@@ -126,7 +126,8 @@ my_qq_plot <- function(x, distribution = "norm") {
 
 # Apply to a sample of ages
 set.seed(42)
-age_sample <- nhanes[!is.na(Age), Age][sample(.N, 200)]
+age_values <- nhanes[!is.na(Age), Age]
+age_sample <- age_values[sample(length(age_values), 200)]
 qq_data <- my_qq_plot(age_sample)
 
 # Calculate reference line parameters
@@ -184,11 +185,11 @@ right_skew <- rexp(n)
 left_skew <- -rexp(n)
 
 # Create data for plotting
-patterns <- data.table$rbindlist(list(
-    data.table$data.table(value = normal_data, distribution = "Normal"),
-    data.table$data.table(value = heavy_tails, distribution = "Heavy Tails (t, df=3)"),
-    data.table$data.table(value = right_skew, distribution = "Right Skew (Exponential)"),
-    data.table$data.table(value = left_skew, distribution = "Left Skew")
+patterns <- rbindlist(list(
+    data.table(value = normal_data, distribution = "Normal"),
+    data.table(value = heavy_tails, distribution = "Heavy Tails (t, df=3)"),
+    data.table(value = right_skew, distribution = "Right Skew (Exponential)"),
+    data.table(value = left_skew, distribution = "Left Skew")
 ))
 
 ggplot2$ggplot(patterns, ggplot2$aes(sample = value)) +
@@ -220,7 +221,7 @@ QQ plots are essential for checking regression residuals:
 bmi_bp_model <- lm(BPSysAve ~ BMI + Age, data = nhanes[!is.na(BMI) & !is.na(BPSysAve) & !is.na(Age)])
 
 # Extract residuals
-residuals_dt <- data.table$data.table(residual = residuals(bmi_bp_model))
+residuals_dt <- data.table(residual = residuals(bmi_bp_model))
 
 ggplot2$ggplot(residuals_dt, ggplot2$aes(sample = residual)) +
     ggplot2$stat_qq(colour = "#0072B2", alpha = 0.3) +
@@ -574,7 +575,7 @@ ggplot2$ggplot(sample_data, ggplot2$aes(x = BMI, y = BPSysAve)) +
 
 ```{r stat_annotation, fig.cap="Box plot with statistical comparison annotations"}
 # Compare groups with significance indicators
-species_mass <- penguins <- data.table$fread("data/primary/penguins.csv")
+species_mass <- penguins <- fread("../data/primary/penguins.csv")
 species_mass <- species_mass[!is.na(body_mass_g) & !is.na(species)]
 
 # Calculate group statistics

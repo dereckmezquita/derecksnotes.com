@@ -37,7 +37,7 @@ box::use(
 
 ```{r load_data, message=FALSE}
 # Load NHANES data for examples
-nhanes <- data.table$fread("data/primary/nhanes.csv")
+nhanes <- data.table$fread("../data/primary/nhanes.csv")
 bmi_clean <- nhanes[!is.na(BMI), BMI]
 bp_data <- nhanes[!is.na(BPSysAve), BPSysAve]
 ```

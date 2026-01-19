@@ -1,9 +1,24 @@
 ---
-title: "Measures of Central Tendency"
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 2: Descriptive Statistics — Summarising Data Numerically"
+part: "Part 1: Measures of Central Tendency"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-18"
+tags: [statistics, mathematics, descriptive, data, R, biomedical]
 published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
 ---
 
+
+
+# Chapter 2: Descriptive Statistics — Summarising Data Numerically
+
 This chapter covers the fundamental numerical summaries used to describe datasets. We learn to quantify centre, spread, position, and shape, implementing each measure from scratch to understand what they truly measure. By the end of this chapter, you will be able to compute and interpret all major descriptive statistics and choose appropriate measures for different data types.
+
 
 ``` r
 box::use(
@@ -15,7 +30,7 @@ box::use(
 
 ``` r
 # Load NHANES data for examples
-nhanes <- data.table$fread("data/primary/nhanes.csv")
+nhanes <- data.table$fread("../data/primary/nhanes.csv")
 
 # Quick overview
 cat("NHANES dataset:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")

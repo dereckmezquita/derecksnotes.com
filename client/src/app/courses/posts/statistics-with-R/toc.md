@@ -8,7 +8,7 @@ A comprehensive three-part course on statistics using R programming, designed fo
 
 | Part | Title | Folder | Chapters | Status |
 |------|-------|--------|----------|--------|
-| I | Foundations | `statistics-1-foundations/` | 15 | In Progress (2/15) |
+| I | Foundations | `statistics-1-foundations/` | 15 | In Progress (4/15) |
 | II | Intermediate | `statistics-2-intermediate/` | 10 | Not Started |
 | III | Advanced | `statistics-3-advanced/` | 8 | Not Started |
 
@@ -17,7 +17,7 @@ A comprehensive three-part course on statistics using R programming, designed fo
 # Part I: Foundations
 
 **Folder:** `statistics-1-foundations/`
-**Status:** In Progress (2/15 chapters complete)
+**Status:** In Progress (4/15 chapters complete)
 
 A rigorous introduction to statistical thinking covering descriptive statistics, probability, distributions, sampling theory, estimation, hypothesis testing, and introductory regression/ANOVA.
 
@@ -143,7 +143,7 @@ A rigorous introduction to statistical thinking covering descriptive statistics,
 
 ---
 
-## Chapter 3: Descriptive Statistics — Visualisation
+## Chapter 3: Descriptive Statistics — Visualisation ✓
 
 *Graphical methods for exploring and presenting data.*
 
@@ -154,62 +154,62 @@ A rigorous introduction to statistical thinking covering descriptive statistics,
 
 ### Part 1 (`03-1`): Principles / Categorical / Univariate Plots
 
-- [ ] **3.1 Principles of Statistical Graphics** — Theoretical foundation.
-  - [ ] 3.1.1 The Grammar of Graphics Philosophy — Layered grammar in `ggplot2`.
-  - [ ] 3.1.2 Choosing the Right Plot — Decision framework by variable type.
-  - [ ] 3.1.3 Principles of Effective Visualisation — Tufte's principles, data-ink ratio.
-  - [ ] 3.1.4 Common Mistakes — Truncated axes, dual y-axes, 3D effects.
-- [ ] **3.2 Visualising Categorical Data** — Categories and groups.
-  - [ ] 3.2.1 Bar Charts — Simple, grouped, stacked.
-  - [ ] 3.2.2 Pie Charts and Waffle Charts — When pie charts fail.
-  - [ ] 3.2.3 Mosaic Plots — Two categorical variables.
-- [ ] **3.3 Visualising Quantitative Data — Single Variable** — Distributions.
-  - [ ] 3.3.1 Histograms — Bin width formulae (Sturges, Scott, Freedman-Diaconis).
-  - [ ] 3.3.2 Density Plots — Kernel density estimation.
-  - [ ] 3.3.3 Box Plots — Five-number summary.
-  - [ ] 3.3.4 Violin Plots — Density + box plot.
-  - [ ] 3.3.5 Strip Plots and Jittered Dot Plots — All data points.
-  - [ ] 3.3.6 Stem-and-Leaf Plots — Classic display.
-  - [ ] 3.3.7 ECDF Plots — Cumulative distribution.
-- [ ] **Communicating to Stakeholders** — Plot choice for different audiences.
-- [ ] **Quick Reference** — Plot selection guide with ggplot2 syntax.
+- [x] **3.1 Principles of Statistical Graphics** — Theoretical foundation.
+  - [x] 3.1.1 The Grammar of Graphics Philosophy — Layered grammar in `ggplot2`.
+  - [x] 3.1.2 Choosing the Right Plot — Decision framework by variable type.
+  - [x] 3.1.3 Principles of Effective Visualisation — Tufte's principles, data-ink ratio.
+  - [x] 3.1.4 Common Mistakes — Truncated axes, dual y-axes, 3D effects.
+- [x] **3.2 Visualising Categorical Data** — Categories and groups.
+  - [x] 3.2.1 Bar Charts — Simple, grouped, stacked.
+  - [x] 3.2.2 Pie Charts and Waffle Charts — When pie charts fail.
+  - [x] 3.2.3 Mosaic Plots — Two categorical variables.
+- [x] **3.3 Visualising Quantitative Data — Single Variable** — Distributions.
+  - [x] 3.3.1 Histograms — Bin width formulae (Sturges, Scott, Freedman-Diaconis).
+  - [x] 3.3.2 Density Plots — Kernel density estimation.
+  - [x] 3.3.3 Box Plots — Five-number summary.
+  - [x] 3.3.4 Violin Plots — Density + box plot.
+  - [x] 3.3.5 Strip Plots and Jittered Dot Plots — All data points.
+  - [x] 3.3.6 Stem-and-Leaf Plots — Classic display.
+  - [x] 3.3.7 ECDF Plots — Cumulative distribution.
+- [x] **Communicating to Stakeholders** — Plot choice for different audiences.
+- [x] **Quick Reference** — Plot selection guide with ggplot2 syntax.
 
 ### Part 2 (`03-2`): Bivariate / Grouped Visualisations
 
-- [ ] **3.4 Two Quantitative Variables** — Relationships.
-  - [ ] 3.4.1 Scatter Plots — Handling overplotting.
-  - [ ] 3.4.2 Trend Lines — Linear and LOESS.
-  - [ ] 3.4.3 Scatter Plot Matrices — Pairwise relationships.
-- [ ] **3.5 Relationships with Categorical Variables** — Group comparisons.
-  - [ ] 3.5.1 Grouped Box Plots and Violin Plots — Side-by-side displays.
-  - [ ] 3.5.2 Faceting (Small Multiples) — `facet_wrap()` and `facet_grid()`.
-  - [ ] 3.5.3 Colour and Shape Encoding — Accessibility considerations.
-- [ ] **3.6 Visualising Correlation** — Correlation patterns.
-  - [ ] 3.6.1 Correlation Matrices and Heatmaps — Diverging colour scales.
-- [ ] **Communicating to Stakeholders** — Presenting relationships.
-- [ ] **Quick Reference** — Bivariate visualisation syntax.
+- [x] **3.4 Two Quantitative Variables** — Relationships.
+  - [x] 3.4.1 Scatter Plots — Handling overplotting.
+  - [x] 3.4.2 Trend Lines — Linear and LOESS.
+  - [x] 3.4.3 Scatter Plot Matrices — Pairwise relationships.
+- [x] **3.5 Relationships with Categorical Variables** — Group comparisons.
+  - [x] 3.5.1 Grouped Box Plots and Violin Plots — Side-by-side displays.
+  - [x] 3.5.2 Faceting (Small Multiples) — `facet_wrap()` and `facet_grid()`.
+  - [x] 3.5.3 Colour and Shape Encoding — Accessibility considerations.
+- [x] **3.6 Visualising Correlation** — Correlation patterns.
+  - [x] 3.6.1 Correlation Matrices and Heatmaps — Diverging colour scales.
+- [x] **Communicating to Stakeholders** — Presenting relationships.
+- [x] **Quick Reference** — Bivariate visualisation syntax.
 
 ### Part 3 (`03-3`): QQ Plots / Time Series / Advanced
 
-- [ ] **3.7 QQ Plots** — Assessing distributional assumptions.
-  - [ ] 3.7.1 Comparing Data to a Theoretical Distribution — Points on a line.
-  - [ ] 3.7.2 Constructing QQ Plots Step by Step — Manual construction.
-  - [ ] 3.7.3 Interpreting Deviations — S-shapes, curves, steps.
-- [ ] **3.8 Time Series Visualisation** — Data over time.
-  - [ ] 3.8.1 Line Plots — Temporal data.
-  - [ ] 3.8.2 Spaghetti Plots — Individual trajectories.
-  - [ ] 3.8.3 Summary Trajectories — Confidence bands.
-- [ ] **3.9 Advanced Topics** — Publication-ready figures.
-  - [ ] 3.9.1 Combining Plots (patchwork) — Multi-panel figures.
-  - [ ] 3.9.2 Interactive Visualisation (plotly) — Tooltips, zoom, pan.
-  - [ ] 3.9.3 Annotating for Publication — Labels, formatting.
-  - [ ] 3.9.4 Exporting High-Quality Figures — PNG, PDF, resolution.
-- [ ] **Communicating to Stakeholders** — Publication-ready figures.
-- [ ] **Quick Reference** — QQ plots, time series, export settings.
+- [x] **3.7 QQ Plots** — Assessing distributional assumptions.
+  - [x] 3.7.1 Comparing Data to a Theoretical Distribution — Points on a line.
+  - [x] 3.7.2 Constructing QQ Plots Step by Step — Manual construction.
+  - [x] 3.7.3 Interpreting Deviations — S-shapes, curves, steps.
+- [x] **3.8 Time Series Visualisation** — Data over time.
+  - [x] 3.8.1 Line Plots — Temporal data.
+  - [x] 3.8.2 Spaghetti Plots — Individual trajectories.
+  - [x] 3.8.3 Summary Trajectories — Confidence bands.
+- [x] **3.9 Advanced Topics** — Publication-ready figures.
+  - [x] 3.9.1 Combining Plots (patchwork) — Multi-panel figures.
+  - [x] 3.9.2 Interactive Visualisation (plotly) — Tooltips, zoom, pan.
+  - [x] 3.9.3 Annotating for Publication — Labels, formatting.
+  - [x] 3.9.4 Exporting High-Quality Figures — PNG, PDF, resolution.
+- [x] **Communicating to Stakeholders** — Publication-ready figures.
+- [x] **Quick Reference** — QQ plots, time series, export settings.
 
 ---
 
-## Chapter 4: Probability — Foundations
+## Chapter 4: Probability — Foundations ✓
 
 *The mathematical framework of probability theory.*
 
@@ -220,61 +220,61 @@ A rigorous introduction to statistical thinking covering descriptive statistics,
 
 ### Part 1 (`04-1`): Probability Basics / Rules
 
-- [ ] **4.1 What Is Probability?** — Three interpretations.
-  - [ ] 4.1.1 Frequentist Interpretation — Long-run relative frequency.
-  - [ ] 4.1.2 Bayesian Interpretation — Degree of belief.
-  - [ ] 4.1.3 Axiomatic Approach — Kolmogorov's axioms.
-  - [ ] 4.1.4 Why Probability Matters for Statistics — Foundation for inference.
-- [ ] **4.2 Sample Spaces and Events** — Formal language.
-  - [ ] 4.2.1 Defining the Sample Space — Set of all possible outcomes.
-  - [ ] 4.2.2 Events as Subsets — Union, intersection, complement.
-  - [ ] 4.2.3 Simple and Compound Events — Single vs multiple outcomes.
-  - [ ] 4.2.4 Visualising Sample Spaces — Venn and tree diagrams.
-- [ ] **4.3 Basic Probability Rules** — Fundamental rules.
-  - [ ] 4.3.1 Probability Axioms (Kolmogorov) — Non-negativity, normalisation, additivity.
-  - [ ] 4.3.2 The Complement Rule — P(A') = 1 - P(A).
-  - [ ] 4.3.3 The Addition Rule — P(A ∪ B) = P(A) + P(B) - P(A ∩ B).
-  - [ ] 4.3.4 Implementing Probability in R — Functions for computation.
-- [ ] **Communicating to Stakeholders** — Explaining probability basics.
-- [ ] **Quick Reference** — Axioms and basic rules.
+- [x] **4.1 What Is Probability?** — Three interpretations.
+  - [x] 4.1.1 Frequentist Interpretation — Long-run relative frequency.
+  - [x] 4.1.2 Bayesian Interpretation — Degree of belief.
+  - [x] 4.1.3 Axiomatic Approach — Kolmogorov's axioms.
+  - [x] 4.1.4 Why Probability Matters for Statistics — Foundation for inference.
+- [x] **4.2 Sample Spaces and Events** — Formal language.
+  - [x] 4.2.1 Defining the Sample Space — Set of all possible outcomes.
+  - [x] 4.2.2 Events as Subsets — Union, intersection, complement.
+  - [x] 4.2.3 Simple and Compound Events — Single vs multiple outcomes.
+  - [x] 4.2.4 Visualising Sample Spaces — Venn and tree diagrams.
+- [x] **4.3 Basic Probability Rules** — Fundamental rules.
+  - [x] 4.3.1 Probability Axioms (Kolmogorov) — Non-negativity, normalisation, additivity.
+  - [x] 4.3.2 The Complement Rule — P(A') = 1 - P(A).
+  - [x] 4.3.3 The Addition Rule — P(A ∪ B) = P(A) + P(B) - P(A ∩ B).
+  - [x] 4.3.4 Implementing Probability in R — Functions for computation.
+- [x] **Communicating to Stakeholders** — Explaining probability basics.
+- [x] **Quick Reference** — Axioms and basic rules.
 
 ### Part 2 (`04-2`): Conditional Probability / Independence / Bayes
 
-- [ ] **4.4 Conditional Probability** — Conditioning on information.
-  - [ ] 4.4.1 Definition and Intuition — P(A|B) = P(A ∩ B) / P(B).
-  - [ ] 4.4.2 The Multiplication Rule — P(A ∩ B) = P(A|B) × P(B).
-  - [ ] 4.4.3 Visualising Conditional Probability — Tree diagrams.
-  - [ ] 4.4.4 Medical Screening Example — Sensitivity and specificity.
-- [ ] **4.5 Independence** — Events providing no information about each other.
-  - [ ] 4.5.1 Definition of Independence — P(A ∩ B) = P(A) × P(B).
-  - [ ] 4.5.2 Testing for Independence — Comparing frequencies.
-  - [ ] 4.5.3 Independence vs Mutual Exclusivity — Common confusion.
-  - [ ] 4.5.4 Independence in Biomedical Contexts — When it fails.
-- [ ] **4.6 Bayes' Theorem** — Updating beliefs with evidence.
-  - [ ] 4.6.1 Derivation — P(A|B) = P(B|A) × P(A) / P(B).
-  - [ ] 4.6.2 Components — Prior, likelihood, posterior, evidence.
-  - [ ] 4.6.3 The Base Rate Fallacy — Ignoring prior probabilities.
-  - [ ] 4.6.4 Diagnostic Testing — Sensitivity, specificity, PPV, NPV.
-  - [ ] 4.6.5 Why Screening Rare Diseases Is Hard — False positives dominate.
-  - [ ] 4.6.6 The Law of Total Probability — P(A) = Σ P(A|Bᵢ) × P(Bᵢ).
-- [ ] **Communicating to Stakeholders** — Explaining test results to patients.
-- [ ] **Quick Reference** — Conditional probability and Bayes formulae.
+- [x] **4.4 Conditional Probability** — Conditioning on information.
+  - [x] 4.4.1 Definition and Intuition — P(A|B) = P(A ∩ B) / P(B).
+  - [x] 4.4.2 The Multiplication Rule — P(A ∩ B) = P(A|B) × P(B).
+  - [x] 4.4.3 Visualising Conditional Probability — Tree diagrams.
+  - [x] 4.4.4 Medical Screening Example — Sensitivity and specificity.
+- [x] **4.5 Independence** — Events providing no information about each other.
+  - [x] 4.5.1 Definition of Independence — P(A ∩ B) = P(A) × P(B).
+  - [x] 4.5.2 Testing for Independence — Comparing frequencies.
+  - [x] 4.5.3 Independence vs Mutual Exclusivity — Common confusion.
+  - [x] 4.5.4 Independence in Biomedical Contexts — When it fails.
+- [x] **4.6 Bayes' Theorem** — Updating beliefs with evidence.
+  - [x] 4.6.1 Derivation — P(A|B) = P(B|A) × P(A) / P(B).
+  - [x] 4.6.2 Components — Prior, likelihood, posterior, evidence.
+  - [x] 4.6.3 The Base Rate Fallacy — Ignoring prior probabilities.
+  - [x] 4.6.4 Diagnostic Testing — Sensitivity, specificity, PPV, NPV.
+  - [x] 4.6.5 Why Screening Rare Diseases Is Hard — False positives dominate.
+  - [x] 4.6.6 The Law of Total Probability — P(A) = Σ P(A|Bᵢ) × P(Bᵢ).
+- [x] **Communicating to Stakeholders** — Explaining test results to patients.
+- [x] **Quick Reference** — Conditional probability and Bayes formulae.
 
 ### Part 3 (`04-3`): Counting Methods / Simulation
 
-- [ ] **4.7 Counting Methods (Combinatorics)** — Counting outcomes.
-  - [ ] 4.7.1 The Multiplication Principle — m × n ways.
-  - [ ] 4.7.2 Permutations — n!/(n-r)! when order matters.
-  - [ ] 4.7.3 Combinations — C(n,r) when order doesn't matter.
-  - [ ] 4.7.4 Applications in Probability — Genetics, sampling.
-  - [ ] 4.7.5 Implementing Counting in R — `factorial()`, `choose()`.
-- [ ] **4.8 Simulation-Based Probability** — Monte Carlo methods.
-  - [ ] 4.8.1 Monte Carlo Methods — Estimating intractable probabilities.
-  - [ ] 4.8.2 Estimating Probabilities Through Simulation — Birthday problem.
-  - [ ] 4.8.3 The Law of Large Numbers — Convergence to true probability.
-  - [ ] 4.8.4 Setting Seeds for Reproducibility — `set.seed()`.
-- [ ] **Communicating to Stakeholders** — Using simulation to explain.
-- [ ] **Quick Reference** — Counting formulae and simulation patterns.
+- [x] **4.7 Counting Methods (Combinatorics)** — Counting outcomes.
+  - [x] 4.7.1 The Multiplication Principle — m × n ways.
+  - [x] 4.7.2 Permutations — n!/(n-r)! when order matters.
+  - [x] 4.7.3 Combinations — C(n,r) when order doesn't matter.
+  - [x] 4.7.4 Applications in Probability — Genetics, sampling.
+  - [x] 4.7.5 Implementing Counting in R — `factorial()`, `choose()`.
+- [x] **4.8 Simulation-Based Probability** — Monte Carlo methods.
+  - [x] 4.8.1 Monte Carlo Methods — Estimating intractable probabilities.
+  - [x] 4.8.2 Estimating Probabilities Through Simulation — Birthday problem.
+  - [x] 4.8.3 The Law of Large Numbers — Convergence to true probability.
+  - [x] 4.8.4 Setting Seeds for Reproducibility — `set.seed()`.
+- [x] **Communicating to Stakeholders** — Using simulation to explain.
+- [x] **Quick Reference** — Counting formulae and simulation patterns.
 
 ---
 
@@ -445,7 +445,7 @@ A rigorous introduction to statistical thinking covering descriptive statistics,
 - [ ] **Appendix B:** Mathematical Foundations
 - [ ] **Appendix C:** Probability Distribution Reference
 - [ ] **Appendix D:** Statistical Tables
-- [ ] **Appendix E:** Datasets (see DATA.md for 46 datasets)
+- [ ] **Appendix E:** Datasets (see DATA.md for 57 datasets)
 - [ ] **Appendix F:** Glossary of Statistical Terms
 - [ ] **Appendix G:** Quick Reference Cards
 
@@ -591,13 +591,16 @@ statistics-with-R/                      # Organisational folder
 │
 ├── statistics-1-foundations/
 │   ├── _series.mdx                     # Course manifest
-│   ├── DATA.md                         # 46 datasets documented
+│   ├── DATA.md                         # 57 datasets documented
 │   ├── src/
 │   │   ├── data/
 │   │   │   ├── primary/                # NHANES, penguins, gapminder
 │   │   │   ├── medical/                # scurvy, strep_tb, etc.
 │   │   │   ├── supplementary/          # survival, MASS datasets
-│   │   │   └── bioinformatics/         # RNA-seq, cancer, genomics
+│   │   │   ├── bioinformatics/         # RNA-seq, cancer, genomics
+│   │   │   ├── microbiome/             # GlobalPatterns, OTU tables
+│   │   │   ├── proteomics/             # CPTAC spike-in
+│   │   │   └── gwas/                   # Rice GWAS, simulated SNPs
 │   │   └── *.Rmd                       # Source files
 │   └── 01-introduction/                # Published chapters
 │       └── 01-1_....mdx
@@ -617,7 +620,7 @@ statistics-with-R/                      # Organisational folder
 - **Language:** British Oxford English
 - **Code style:** `box::use()`, `data.table`, `ggplot2`
 - **Implementation:** From scratch before built-in functions
-- **Datasets:** 46 datasets in `DATA.md`
+- **Datasets:** 57 datasets in `DATA.md` (including microbiome, proteomics, GWAS)
 
 ---
 
