@@ -234,7 +234,7 @@ alpha <- 0.05
 critical_t <- qt(1 - alpha / (2 * n), df = n - p - 2)
 
 cat("Bonferroni-corrected critical value (α = 0.05):", round(critical_t, 3), "\n")
-#> Bonferroni-corrected critical value (<U+03B1> = 0.05): 4.497
+#> Bonferroni-corrected critical value (α = 0.05): 4.497
 cat("Potential outliers (|t| > critical value):",
     sum(abs(bp_data$stud_residual) > critical_t), "\n\n")
 #> Potential outliers (|t| > critical value): 14
@@ -422,7 +422,7 @@ cat("==================\n\n")
 cat("Average leverage:", round((p + 1) / n, 5), "\n")
 #> Average leverage: 0.00056
 cat("High leverage threshold (2× average):", round(leverage_threshold, 5), "\n")
-#> High leverage threshold (2<U+00D7> average): 0.00112
+#> High leverage threshold (2× average): 0.00112
 cat("High-leverage observations:", sum(bp_data$leverage > leverage_threshold), "\n")
 #> High-leverage observations: 451
 cat("Percentage:", round(100 * mean(bp_data$leverage > leverage_threshold), 2), "%\n")
@@ -631,7 +631,7 @@ cat("DFBETAS Analysis:\n")
 cat("=================\n\n")
 #> =================
 cat("Threshold: 2/√n =", round(dfbetas_threshold, 4), "\n\n")
-#> Threshold: 2/<U+221A>n = 0.0237
+#> Threshold: 2/√n = 0.0237
 
 # Count influential observations for each coefficient
 for (j in 1:ncol(dfbetas_mat)) {
@@ -690,7 +690,7 @@ cat("DFFITS Analysis:\n")
 cat("================\n\n")
 #> ================
 cat("Threshold: 2√((p+1)/n) =", round(dffits_threshold, 4), "\n")
-#> Threshold: 2<U+221A>((p+1)/n) = 0.0473
+#> Threshold: 2√((p+1)/n) = 0.0473
 cat("Influential observations:", sum(abs(dffits_vals) > dffits_threshold), "\n")
 #> Influential observations: 408
 ```
@@ -794,15 +794,15 @@ cat("==========================\n\n")
 cat("1. RESIDUALS VS FITTED: Clear funnel shape - variance increases with fitted values\n")
 #> 1. RESIDUALS VS FITTED: Clear funnel shape - variance increases with fitted values
 cat("   → Heteroscedasticity: standard errors are unreliable\n\n")
-#>    <U+2192> Heteroscedasticity: standard errors are unreliable
+#>    → Heteroscedasticity: standard errors are unreliable
 cat("2. Q-Q PLOT: Severe right skew - many large positive residuals\n")
 #> 2. Q-Q PLOT: Severe right skew - many large positive residuals
 cat("   → Non-normality: inference may be affected\n\n")
-#>    <U+2192> Non-normality: inference may be affected
+#>    → Non-normality: inference may be affected
 cat("3. ROOT CAUSE: Length of stay is a count/positive variable\n")
 #> 3. ROOT CAUSE: Length of stay is a count/positive variable
 cat("   → Consider: log transformation, Poisson/negative binomial regression\n")
-#>    <U+2192> Consider: log transformation, Poisson/negative binomial regression
+#>    → Consider: log transformation, Poisson/negative binomial regression
 ```
 
 ---

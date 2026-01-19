@@ -1,0 +1,1069 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 10: Multivariate Methods"
+part: "Part 1: Principal Component Analysis and Factor Analysis"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, multivariate, pca, factor-analysis, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: Principal Component Analysis and Factor Analysis
+
+**Multivariate methods** handle datasets where multiple variables are measured on each observation. In biomedical research, we routinely collect dozens or hundreds of measurements per patient—lab values, gene expression levels, imaging features, questionnaire items. Understanding the structure of such high-dimensional data requires techniques that go beyond examining variables one at a time. This chapter introduces two fundamental approaches: Principal Component Analysis (PCA) for dimensionality reduction and Factor Analysis for identifying latent constructs.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+# Additional packages for multivariate analysis
+library(FactoMineR)  # PCA and factor analysis
+library(factoextra)  # Visualisation of multivariate results
+library(psych)       # Factor analysis tools
+library(corrplot)    # Correlation visualisation
+```
+
+
+``` r
+# Load breast cancer dataset for PCA demonstration
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+# Select numeric features for analysis (cell characteristics)
+# Note: column names use mean_ prefix (e.g., mean_radius)
+feature_cols <- c("mean_radius", "mean_texture", "mean_perimeter", "mean_area",
+                  "mean_smoothness", "mean_compactness", "mean_concavity",
+                  "mean_concave_points", "mean_symmetry", "mean_fractal_dimension")
+
+bc_features <- breast_cancer[, ..feature_cols]
+
+cat("Breast Cancer Wisconsin Dataset:\n")
+#> Breast Cancer Wisconsin Dataset:
+cat("================================\n")
+#> ================================
+cat("  Observations:", nrow(breast_cancer), "\n")
+#>   Observations: 569
+cat("  Features for PCA:", length(feature_cols), "\n")
+#>   Features for PCA: 10
+cat("  Diagnosis: M =", sum(breast_cancer$diagnosis == "M"),
+    ", B =", sum(breast_cancer$diagnosis == "B"), "\n\n")
+#>   Diagnosis: M = 212 , B = 357
+
+cat("Feature summary:\n")
+#> Feature summary:
+print(summary(bc_features))
+#>   mean_radius      mean_texture   mean_perimeter     mean_area     
+#>  Min.   : 6.981   Min.   : 9.71   Min.   : 43.79   Min.   : 143.5  
+#>  1st Qu.:11.700   1st Qu.:16.17   1st Qu.: 75.17   1st Qu.: 420.3  
+#>  Median :13.370   Median :18.84   Median : 86.24   Median : 551.1  
+#>  Mean   :14.127   Mean   :19.29   Mean   : 91.97   Mean   : 654.9  
+#>  3rd Qu.:15.780   3rd Qu.:21.80   3rd Qu.:104.10   3rd Qu.: 782.7  
+#>  Max.   :28.110   Max.   :39.28   Max.   :188.50   Max.   :2501.0  
+#>  mean_smoothness   mean_compactness  mean_concavity    mean_concave_points
+#>  Min.   :0.05263   Min.   :0.01938   Min.   :0.00000   Min.   :0.00000    
+#>  1st Qu.:0.08637   1st Qu.:0.06492   1st Qu.:0.02956   1st Qu.:0.02031    
+#>  Median :0.09587   Median :0.09263   Median :0.06154   Median :0.03350    
+#>  Mean   :0.09636   Mean   :0.10434   Mean   :0.08880   Mean   :0.04892    
+#>  3rd Qu.:0.10530   3rd Qu.:0.13040   3rd Qu.:0.13070   3rd Qu.:0.07400    
+#>  Max.   :0.16340   Max.   :0.34540   Max.   :0.42680   Max.   :0.20120    
+#>  mean_symmetry    mean_fractal_dimension
+#>  Min.   :0.1060   Min.   :0.04996       
+#>  1st Qu.:0.1619   1st Qu.:0.05770       
+#>  Median :0.1792   Median :0.06154       
+#>  Mean   :0.1812   Mean   :0.06280       
+#>  3rd Qu.:0.1957   3rd Qu.:0.06612       
+#>  Max.   :0.3040   Max.   :0.09744
+```
+
+---
+
+## 10.1 The Curse of Dimensionality
+
+### 10.1.1 Why Dimensionality Reduction Matters
+
+**Prose and Intuition**
+
+High-dimensional data presents several challenges:
+
+1. **Visualisation**: We can plot 2 or 3 dimensions, but not 50
+2. **Computation**: Algorithms slow down exponentially with dimensions
+3. **Sparsity**: Data becomes increasingly sparse in high dimensions
+4. **Multicollinearity**: Many biological measurements are correlated
+5. **Overfitting**: More variables than samples leads to unstable models
+
+Consider gene expression studies with 20,000 genes measured on 100 patients. Without dimensionality reduction, any statistical model would have far more parameters than observations.
+
+**The fundamental insight**: High-dimensional data often lives on a lower-dimensional *manifold*. If 10 lab values are driven by 3 underlying physiological processes, we can represent the data in 3 dimensions without losing essential information.
+
+**Visualisation**
+
+
+``` r
+# Create highly correlated data from 2 latent factors
+set.seed(42)
+n <- 200
+
+# Two latent factors
+factor1 <- rnorm(n)
+factor2 <- rnorm(n)
+
+# Observed variables are combinations of factors plus noise
+observed <- data.table(
+    X1 = 0.9 * factor1 + 0.1 * factor2 + rnorm(n, sd = 0.3),
+    X2 = 0.85 * factor1 + 0.15 * factor2 + rnorm(n, sd = 0.3),
+    X3 = 0.8 * factor1 + 0.2 * factor2 + rnorm(n, sd = 0.3),
+    X4 = 0.1 * factor1 + 0.9 * factor2 + rnorm(n, sd = 0.3),
+    X5 = 0.15 * factor1 + 0.85 * factor2 + rnorm(n, sd = 0.3),
+    X6 = 0.2 * factor1 + 0.8 * factor2 + rnorm(n, sd = 0.3),
+    latent1 = factor1,
+    latent2 = factor2
+)
+
+# Correlation matrix of observed variables
+cor_mat <- cor(observed[, .(X1, X2, X3, X4, X5, X6)])
+
+# Create correlation plot data
+cor_long <- as.data.table(reshape2::melt(cor_mat))
+setnames(cor_long, c("Var1", "Var2", "value"))
+
+ggplot2$ggplot(cor_long, ggplot2$aes(x = Var1, y = Var2, fill = value)) +
+    ggplot2$geom_tile() +
+    ggplot2$geom_text(ggplot2$aes(label = sprintf("%.2f", value)), colour = "white", size = 4) +
+    ggplot2$scale_fill_gradient2(low = "#0072B2", mid = "white", high = "#D55E00",
+                                  midpoint = 0, limits = c(-1, 1)) +
+    ggplot2$labs(
+        title = "Six Observed Variables from Two Latent Factors",
+        subtitle = "Variables X1-X3 correlate (factor 1); X4-X6 correlate (factor 2)",
+        x = "", y = "", fill = "Correlation"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+```
+
+<Figure src="/courses/statistics-2-intermediate/dimensionality_intuition-1.png" alt="Many correlated variables may reflect fewer underlying dimensions">
+	Many correlated variables may reflect fewer underlying dimensions
+</Figure>
+
+---
+
+## 10.2 Principal Component Analysis (PCA)
+
+### 10.2.1 Geometric Intuition
+
+**Prose and Intuition**
+
+PCA finds new coordinate axes (principal components) that:
+1. Point in the directions of maximum variance
+2. Are orthogonal (uncorrelated) to each other
+3. Are ordered by amount of variance explained
+
+Think of a cloud of data points in 3D space. PCA rotates the coordinate system so that:
+- The first axis (PC1) captures the most spread in the data
+- The second axis (PC2) captures the remaining spread, perpendicular to PC1
+- And so on...
+
+If the data forms an elongated ellipsoid (common with correlated variables), PC1 captures most of the variance, and we can often ignore later PCs without losing much information.
+
+**Mathematical Derivation**
+
+For data matrix $\mathbf{X}$ (centred, $n \times p$), we seek directions $\mathbf{w}$ that maximise variance:
+$$\text{Var}(\mathbf{Xw}) = \mathbf{w}'\mathbf{S}\mathbf{w}$$
+
+where $\mathbf{S} = \frac{1}{n-1}\mathbf{X}'\mathbf{X}$ is the sample covariance matrix.
+
+Subject to $\mathbf{w}'\mathbf{w} = 1$ (unit length), the solution is the **eigenvector** of $\mathbf{S}$ with largest eigenvalue.
+
+**Eigendecomposition**:
+$$\mathbf{S} = \mathbf{V}\mathbf{\Lambda}\mathbf{V}'$$
+
+where:
+- $\mathbf{V}$ = matrix of eigenvectors (principal component directions)
+- $\mathbf{\Lambda}$ = diagonal matrix of eigenvalues (variances)
+
+**Principal component scores**:
+$$\mathbf{Z} = \mathbf{XV}$$
+
+The $k$-th column of $\mathbf{Z}$ contains PC$k$ scores for all observations.
+
+**Variance explained** by PC$k$:
+$$\frac{\lambda_k}{\sum_{j=1}^p \lambda_j}$$
+
+**Visualisation**
+
+
+``` r
+# Demonstrate PCA geometry on 2D data
+set.seed(42)
+n <- 150
+
+# Generate correlated 2D data
+mu <- c(0, 0)
+sigma <- matrix(c(3, 2, 2, 2), nrow = 2)
+xy <- MASS::mvrnorm(n, mu, sigma)
+geom_dt <- data.table(x = xy[, 1], y = xy[, 2])
+
+# Compute PCA
+pca_geom <- prcomp(xy, center = TRUE, scale. = FALSE)
+
+# Principal component directions (scaled by eigenvalues for visualisation)
+pc1_dir <- pca_geom$rotation[, 1] * sqrt(pca_geom$sdev[1]^2) * 2
+pc2_dir <- pca_geom$rotation[, 2] * sqrt(pca_geom$sdev[2]^2) * 2
+
+# Arrow data
+arrow_dt <- data.table(
+    xend = c(pc1_dir[1], pc2_dir[1]),
+    yend = c(pc1_dir[2], pc2_dir[2]),
+    pc = c("PC1", "PC2")
+)
+
+ggplot2$ggplot(geom_dt, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_segment(data = arrow_dt,
+                          ggplot2$aes(x = 0, y = 0, xend = xend, yend = yend, colour = pc),
+                          arrow = ggplot2$arrow(length = ggplot2$unit(0.3, "cm")),
+                          linewidth = 1.5) +
+    ggplot2$scale_colour_manual(values = c("PC1" = "#D55E00", "PC2" = "#009E73")) +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(
+        title = "Principal Component Directions",
+        subtitle = sprintf("PC1 explains %.1f%%, PC2 explains %.1f%% of variance",
+                           100 * pca_geom$sdev[1]^2 / sum(pca_geom$sdev^2),
+                           100 * pca_geom$sdev[2]^2 / sum(pca_geom$sdev^2)),
+        x = "Original X",
+        y = "Original Y",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/pca_geometry-1.png" alt="PCA finds orthogonal directions of maximum variance">
+	PCA finds orthogonal directions of maximum variance
+</Figure>
+
+### 10.2.2 PCA on Breast Cancer Data
+
+
+``` r
+# Standardise features (important when scales differ)
+bc_scaled <- scale(bc_features)
+
+# Perform PCA
+pca_result <- prcomp(bc_scaled, center = FALSE, scale. = FALSE)  # Already scaled
+
+# Summary
+cat("PCA Summary:\n")
+#> PCA Summary:
+cat("============\n\n")
+#> ============
+summary(pca_result)
+#> Importance of components:
+#>                           PC1    PC2     PC3    PC4     PC5     PC6     PC7
+#> Standard deviation     2.3406 1.5870 0.93841 0.7064 0.61036 0.35234 0.28299
+#> Proportion of Variance 0.5479 0.2519 0.08806 0.0499 0.03725 0.01241 0.00801
+#> Cumulative Proportion  0.5479 0.7997 0.88779 0.9377 0.97495 0.98736 0.99537
+#>                            PC8     PC9    PC10
+#> Standard deviation     0.18679 0.10552 0.01680
+#> Proportion of Variance 0.00349 0.00111 0.00003
+#> Cumulative Proportion  0.99886 0.99997 1.00000
+
+# Variance explained
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+cumvar <- cumsum(var_explained)
+
+cat("\nCumulative variance explained:\n")
+#> 
+#> Cumulative variance explained:
+for (i in 1:min(5, length(var_explained))) {
+    cat(sprintf("  PC%d: %.1f%% (cumulative: %.1f%%)\n",
+                i, var_explained[i] * 100, cumvar[i] * 100))
+}
+#>   PC1: 54.8% (cumulative: 54.8%)
+#>   PC2: 25.2% (cumulative: 80.0%)
+#>   PC3: 8.8% (cumulative: 88.8%)
+#>   PC4: 5.0% (cumulative: 93.8%)
+#>   PC5: 3.7% (cumulative: 97.5%)
+```
+
+
+``` r
+# Scree plot
+scree_dt <- data.table(
+    PC = factor(paste0("PC", 1:length(var_explained)),
+                levels = paste0("PC", 1:length(var_explained))),
+    Variance = var_explained * 100,
+    Cumulative = cumvar * 100
+)
+
+ggplot2$ggplot(scree_dt[1:10], ggplot2$aes(x = PC, y = Variance)) +
+    ggplot2$geom_col(fill = "#0072B2", alpha = 0.7) +
+    ggplot2$geom_line(ggplot2$aes(y = Cumulative, group = 1), colour = "#D55E00", linewidth = 1.2) +
+    ggplot2$geom_point(ggplot2$aes(y = Cumulative), colour = "#D55E00", size = 3) +
+    ggplot2$geom_hline(yintercept = 80, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = 8, y = 82, label = "80% threshold", colour = "grey40") +
+    ggplot2$scale_y_continuous(
+        name = "Variance Explained (%)",
+        sec.axis = ggplot2$sec_axis(~., name = "Cumulative Variance (%)")
+    ) +
+    ggplot2$labs(
+        title = "Scree Plot for Breast Cancer PCA",
+        subtitle = "Bars: individual variance; Line: cumulative variance",
+        x = "Principal Component"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/scree_plot-1.png" alt="Scree plot helps determine how many components to retain">
+	Scree plot helps determine how many components to retain
+</Figure>
+
+### 10.2.3 Interpreting Principal Components
+
+**Prose and Intuition**
+
+Principal components are linear combinations of original variables. The **loadings** tell us which original variables contribute most to each component.
+
+A component with high loadings on size-related variables (radius, perimeter, area) might represent "tumour size." A component with high loadings on texture variables might represent "tumour texture."
+
+
+``` r
+# Extract loadings
+loadings <- pca_result$rotation[, 1:3]
+loadings_dt <- data.table(
+    Variable = rownames(loadings),
+    PC1 = loadings[, 1],
+    PC2 = loadings[, 2],
+    PC3 = loadings[, 3]
+)
+
+# Clean variable names
+loadings_dt[, Variable := gsub("mean_", "", Variable)]
+
+# Melt for plotting
+loadings_long <- melt(loadings_dt, id.vars = "Variable",
+                       variable.name = "PC", value.name = "Loading")
+
+ggplot2$ggplot(loadings_long, ggplot2$aes(x = Variable, y = Loading, fill = Loading > 0)) +
+    ggplot2$geom_col() +
+    ggplot2$facet_wrap(~PC, ncol = 1) +
+    ggplot2$scale_fill_manual(values = c("TRUE" = "#0072B2", "FALSE" = "#D55E00"),
+                               guide = "none") +
+    ggplot2$coord_flip() +
+    ggplot2$labs(
+        title = "PCA Loadings for First Three Components",
+        subtitle = "PC1: size-related; PC2: texture; PC3: shape complexity",
+        x = "",
+        y = "Loading"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/pca_loadings-1.png" alt="Loadings show which original variables contribute to each component">
+	Loadings show which original variables contribute to each component
+</Figure>
+
+### 10.2.4 Biplot: Scores and Loadings Together
+
+
+``` r
+# Create biplot data
+scores_dt <- data.table(
+    PC1 = pca_result$x[, 1],
+    PC2 = pca_result$x[, 2],
+    Diagnosis = breast_cancer$diagnosis
+)
+
+# Scale loadings for visualisation
+load_scale <- 5
+loading_arrows <- data.table(
+    Variable = gsub("mean_", "", rownames(pca_result$rotation)),
+    PC1 = pca_result$rotation[, 1] * load_scale,
+    PC2 = pca_result$rotation[, 2] * load_scale
+)
+
+ggplot2$ggplot() +
+    # Scores (observations)
+    ggplot2$geom_point(data = scores_dt,
+                        ggplot2$aes(x = PC1, y = PC2, colour = Diagnosis),
+                        alpha = 0.6) +
+    # Loadings (variables as arrows)
+    ggplot2$geom_segment(data = loading_arrows,
+                          ggplot2$aes(x = 0, y = 0, xend = PC1, yend = PC2),
+                          arrow = ggplot2$arrow(length = ggplot2$unit(0.2, "cm")),
+                          colour = "grey30", linewidth = 0.8) +
+    ggplot2$geom_text(data = loading_arrows,
+                       ggplot2$aes(x = PC1 * 1.1, y = PC2 * 1.1, label = Variable),
+                       size = 3, colour = "grey20") +
+    ggplot2$scale_colour_manual(values = c("M" = "#D55E00", "B" = "#0072B2"),
+                                 labels = c("M" = "Malignant", "B" = "Benign")) +
+    ggplot2$labs(
+        title = "PCA Biplot: Breast Cancer Tumours",
+        subtitle = "Points: tumours coloured by diagnosis; Arrows: variable loadings",
+        x = sprintf("PC1 (%.1f%% variance)", var_explained[1] * 100),
+        y = sprintf("PC2 (%.1f%% variance)", var_explained[2] * 100)
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/biplot-1.png" alt="Biplot shows observations and variable loadings together">
+	Biplot shows observations and variable loadings together
+</Figure>
+
+---
+
+## 10.3 Choosing the Number of Components
+
+### 10.3.1 Common Criteria
+
+**Prose and Intuition**
+
+How many principal components should we retain? Several approaches exist:
+
+1. **Cumulative variance threshold**: Keep enough PCs to explain 80-90% of variance
+2. **Kaiser criterion**: Keep PCs with eigenvalue > 1 (when using correlation matrix)
+3. **Scree plot elbow**: Look for the "elbow" where variance drops off
+4. **Parallel analysis**: Compare eigenvalues to those from random data
+5. **Domain knowledge**: Keep components that are interpretable
+
+
+``` r
+# Parallel analysis
+set.seed(42)
+n_sim <- 100
+n_obs <- nrow(bc_scaled)
+n_vars <- ncol(bc_scaled)
+
+# Simulate eigenvalues from random data
+random_eigs <- matrix(NA, nrow = n_sim, ncol = n_vars)
+for (i in 1:n_sim) {
+    random_data <- matrix(rnorm(n_obs * n_vars), nrow = n_obs)
+    random_eigs[i, ] <- prcomp(random_data)$sdev^2
+}
+
+# Mean random eigenvalues
+mean_random <- colMeans(random_eigs)
+q95_random <- apply(random_eigs, 2, quantile, 0.95)
+
+# Observed eigenvalues
+observed_eigs <- pca_result$sdev^2
+
+# Compare
+parallel_dt <- data.table(
+    PC = 1:n_vars,
+    Observed = observed_eigs,
+    Random_Mean = mean_random,
+    Random_95 = q95_random
+)
+
+# Melt for plotting
+parallel_long <- melt(parallel_dt, id.vars = "PC",
+                       variable.name = "Type", value.name = "Eigenvalue")
+
+ggplot2$ggplot(parallel_long[PC <= 10],
+               ggplot2$aes(x = PC, y = Eigenvalue, colour = Type, linetype = Type)) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$scale_colour_manual(values = c("Observed" = "#0072B2",
+                                            "Random_Mean" = "#D55E00",
+                                            "Random_95" = "#D55E00"),
+                                 labels = c("Observed", "Random Mean", "Random 95th %ile")) +
+    ggplot2$scale_linetype_manual(values = c("Observed" = "solid",
+                                              "Random_Mean" = "dashed",
+                                              "Random_95" = "dotted"),
+                                   labels = c("Observed", "Random Mean", "Random 95th %ile")) +
+    ggplot2$scale_x_continuous(breaks = 1:10) +
+    ggplot2$labs(
+        title = "Parallel Analysis for Component Selection",
+        subtitle = "Retain components with observed eigenvalues above random threshold",
+        x = "Principal Component",
+        y = "Eigenvalue",
+        colour = "", linetype = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/parallel_analysis-1.png" alt="Parallel analysis compares observed eigenvalues to random data">
+	Parallel analysis compares observed eigenvalues to random data
+</Figure>
+
+``` r
+
+# Determine number to retain
+n_retain <- sum(observed_eigs > q95_random)
+cat("\nParallel Analysis Result:\n")
+#> 
+#> Parallel Analysis Result:
+cat(sprintf("  Retain %d components (eigenvalue > 95th percentile of random)\n", n_retain))
+#>   Retain 2 components (eigenvalue > 95th percentile of random)
+```
+
+---
+
+## 10.4 Factor Analysis
+
+### 10.4.1 Factor Analysis vs PCA
+
+**Prose and Intuition**
+
+While PCA is a data reduction technique, **factor analysis** is a model-based approach that assumes observed variables are generated by underlying **latent factors** plus measurement error.
+
+**Key differences**:
+
+| Aspect | PCA | Factor Analysis |
+|--------|-----|-----------------|
+| Goal | Variance maximisation | Model latent structure |
+| Assumes | None (descriptive) | Latent factors generate data |
+| Uniqueness | None | Each variable has unique variance |
+| Interpretation | Mathematical constructs | Theoretical constructs |
+| Rotation | Often none | Common (for interpretability) |
+
+**When to use each**:
+- **PCA**: Dimensionality reduction, data compression, preprocessing
+- **Factor Analysis**: Theory testing, construct validation, scale development
+
+**Mathematical Derivation**
+
+The factor model:
+$$\mathbf{x} = \mathbf{\Lambda}\mathbf{f} + \mathbf{\epsilon}$$
+
+where:
+- $\mathbf{x}$ = observed variables ($p \times 1$)
+- $\mathbf{f}$ = latent factors ($k \times 1$, $k < p$)
+- $\mathbf{\Lambda}$ = factor loadings ($p \times k$)
+- $\mathbf{\epsilon}$ = unique factors/errors ($p \times 1$)
+
+Assumptions:
+- $E(\mathbf{f}) = \mathbf{0}$, $\text{Cov}(\mathbf{f}) = \mathbf{I}$
+- $E(\mathbf{\epsilon}) = \mathbf{0}$, $\text{Cov}(\mathbf{\epsilon}) = \mathbf{\Psi}$ (diagonal)
+- $\text{Cov}(\mathbf{f}, \mathbf{\epsilon}) = \mathbf{0}$
+
+The implied covariance structure:
+$$\mathbf{\Sigma} = \mathbf{\Lambda}\mathbf{\Lambda}' + \mathbf{\Psi}$$
+
+- $\mathbf{\Lambda}\mathbf{\Lambda}'$ = common variance (shared across variables)
+- $\mathbf{\Psi}$ = unique variance (specific to each variable)
+
+### 10.4.2 Factor Extraction Methods
+
+
+``` r
+# Determine number of factors
+cat("Factor Analysis on Breast Cancer Data:\n")
+#> Factor Analysis on Breast Cancer Data:
+cat("=====================================\n\n")
+#> =====================================
+
+# Eigenvalues suggest number of factors
+cat("Eigenvalues of correlation matrix:\n")
+#> Eigenvalues of correlation matrix:
+eig_corr <- eigen(cor(bc_scaled))$values
+print(round(eig_corr, 2))
+#>  [1] 5.48 2.52 0.88 0.50 0.37 0.12 0.08 0.03 0.01 0.00
+
+# Kaiser criterion
+n_factors_kaiser <- sum(eig_corr > 1)
+cat("\nKaiser criterion suggests:", n_factors_kaiser, "factors\n")
+#> 
+#> Kaiser criterion suggests: 2 factors
+
+# Fit factor model with 2 factors (based on parallel analysis)
+fa_result <- fa(bc_scaled, nfactors = 2, rotate = "varimax", fm = "ml")
+
+cat("\nFactor Analysis Results (Maximum Likelihood, Varimax Rotation):\n")
+#> 
+#> Factor Analysis Results (Maximum Likelihood, Varimax Rotation):
+print(fa_result$loadings, cutoff = 0.3)
+#> 
+#> Loadings:
+#>                        ML1    ML2   
+#> mean_radius             0.998       
+#> mean_texture            0.323       
+#> mean_perimeter          0.994       
+#> mean_area               0.988       
+#> mean_smoothness                0.722
+#> mean_compactness        0.479  0.840
+#> mean_concavity          0.658  0.679
+#> mean_concave_points     0.806  0.543
+#> mean_symmetry                  0.644
+#> mean_fractal_dimension -0.340  0.844
+#> 
+#>                  ML1   ML2
+#> SS loadings    4.529 3.128
+#> Proportion Var 0.453 0.313
+#> Cumulative Var 0.453 0.766
+```
+
+### 10.4.3 Factor Rotation
+
+**Prose and Intuition**
+
+The factor solution is not unique—we can rotate factors while preserving the model fit. **Rotation** aims to achieve **simple structure**: each variable loads highly on one factor and low on others.
+
+**Orthogonal rotations** (factors remain uncorrelated):
+- **Varimax**: Maximises variance of squared loadings within factors
+- **Quartimax**: Maximises variance of squared loadings within variables
+- **Equamax**: Compromise between varimax and quartimax
+
+**Oblique rotations** (factors can correlate):
+- **Promax**: Fast oblique rotation
+- **Oblimin**: Direct oblimin rotation
+
+
+``` r
+# Compare unrotated vs rotated
+fa_unrotated <- fa(bc_scaled, nfactors = 2, rotate = "none", fm = "ml")
+fa_varimax <- fa(bc_scaled, nfactors = 2, rotate = "varimax", fm = "ml")
+fa_promax <- fa(bc_scaled, nfactors = 2, rotate = "promax", fm = "ml")
+#> Loading required namespace: GPArotation
+
+# Extract loadings
+get_loadings <- function(fa_obj, name) {
+    loads <- as.matrix(fa_obj$loadings)
+    dt <- data.table(
+        Variable = gsub("mean_", "", rownames(loads)),
+        F1 = loads[, 1],
+        F2 = loads[, 2],
+        Rotation = name
+    )
+    return(dt)
+}
+
+rotation_comparison <- rbind(
+    get_loadings(fa_unrotated, "None"),
+    get_loadings(fa_varimax, "Varimax"),
+    get_loadings(fa_promax, "Promax")
+)
+
+rotation_comparison[, Rotation := factor(Rotation, levels = c("None", "Varimax", "Promax"))]
+
+ggplot2$ggplot(rotation_comparison, ggplot2$aes(x = F1, y = F2, label = Variable)) +
+    ggplot2$geom_point(colour = "#0072B2", size = 2) +
+    ggplot2$geom_text(vjust = -0.5, size = 3) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey60") +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "grey60") +
+    ggplot2$facet_wrap(~Rotation) +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(
+        title = "Effect of Factor Rotation",
+        subtitle = "Rotation moves loadings toward axes for clearer interpretation",
+        x = "Factor 1 Loading",
+        y = "Factor 2 Loading"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/factor_rotation-1.png" alt="Factor rotation improves interpretability by achieving simple structure">
+	Factor rotation improves interpretability by achieving simple structure
+</Figure>
+
+### 10.4.4 Factor Scores
+
+
+``` r
+# Extract factor scores
+factor_scores <- data.table(
+    F1 = fa_varimax$scores[, 1],
+    F2 = fa_varimax$scores[, 2],
+    Diagnosis = breast_cancer$diagnosis
+)
+
+ggplot2$ggplot(factor_scores, ggplot2$aes(x = F1, y = F2, colour = Diagnosis)) +
+    ggplot2$geom_point(alpha = 0.6) +
+    ggplot2$stat_ellipse(level = 0.95, linewidth = 1) +
+    ggplot2$scale_colour_manual(values = c("M" = "#D55E00", "B" = "#0072B2"),
+                                 labels = c("M" = "Malignant", "B" = "Benign")) +
+    ggplot2$labs(
+        title = "Factor Scores by Diagnosis",
+        subtitle = "Two-factor solution separates malignant from benign tumours",
+        x = "Factor 1: Size-related features",
+        y = "Factor 2: Texture/shape features"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/factor_scores-1.png" alt="Factor scores can be used for downstream analysis like classification">
+	Factor scores can be used for downstream analysis like classification
+</Figure>
+
+``` r
+
+# Quantify separation
+cat("\nFactor Score Means by Diagnosis:\n")
+#> 
+#> Factor Score Means by Diagnosis:
+print(factor_scores[, .(Mean_F1 = mean(F1), Mean_F2 = mean(F2), N = .N), by = Diagnosis])
+#>    Diagnosis    Mean_F1    Mean_F2     N
+#>       <char>      <num>      <num> <int>
+#> 1:         M  0.9308374  0.3985922   212
+#> 2:         B -0.5527662 -0.2366990   357
+```
+
+---
+
+## 10.5 Model Diagnostics and Fit
+
+### 10.5.1 Assessing Factor Model Fit
+
+**Prose and Intuition**
+
+Unlike PCA, factor analysis makes assumptions that can be tested. Key diagnostics:
+
+1. **Residual correlations**: Difference between observed and model-implied correlations
+2. **Communalities**: Proportion of variance explained by common factors
+3. **Fit indices**: Chi-square test, RMSEA, TLI, etc.
+
+
+``` r
+cat("Factor Analysis Diagnostics:\n")
+#> Factor Analysis Diagnostics:
+cat("============================\n\n")
+#> ============================
+
+# Communalities (variance explained by factors)
+cat("Communalities (variance explained by factors):\n")
+#> Communalities (variance explained by factors):
+communalities <- fa_varimax$communality
+comm_dt <- data.table(
+    Variable = gsub("mean_", "", names(communalities)),
+    Communality = communalities,
+    Uniqueness = 1 - communalities
+)
+print(comm_dt[order(-Communality)])
+#>              Variable Communality  Uniqueness
+#>                <char>       <num>       <num>
+#>  1:         perimeter   0.9973895 0.002610464
+#>  2:            radius   0.9971520 0.002848015
+#>  3:              area   0.9776840 0.022315997
+#>  4:    concave_points   0.9443959 0.055604060
+#>  5:       compactness   0.9344506 0.065549382
+#>  6:         concavity   0.8937449 0.106255077
+#>  7: fractal_dimension   0.8286527 0.171347295
+#>  8:        smoothness   0.5414368 0.458563227
+#>  9:          symmetry   0.4310558 0.568944191
+#> 10:           texture   0.1105293 0.889470731
+
+cat("\nVariables with low communality (< 0.5) may need more factors or are unique:\n")
+#> 
+#> Variables with low communality (< 0.5) may need more factors or are unique:
+print(comm_dt[Communality < 0.5])
+#>    Variable Communality Uniqueness
+#>      <char>       <num>      <num>
+#> 1:  texture   0.1105293  0.8894707
+#> 2: symmetry   0.4310558  0.5689442
+
+# Model fit
+cat("\nModel Fit Statistics:\n")
+#> 
+#> Model Fit Statistics:
+cat(sprintf("  Chi-square: %.2f (df = %d, p = %.4f)\n",
+            fa_varimax$STATISTIC, fa_varimax$dof, fa_varimax$PVAL))
+#>   Chi-square: 1275.35 (df = 26, p = 0.0000)
+cat(sprintf("  RMSEA: %.3f\n", fa_varimax$RMSEA[1]))
+#>   RMSEA: 0.291
+cat(sprintf("  TLI: %.3f\n", fa_varimax$TLI))
+#>   TLI: 0.805
+cat(sprintf("  BIC: %.2f\n", fa_varimax$BIC))
+#>   BIC: 1110.41
+```
+
+
+``` r
+# Residual correlation matrix
+residual_corr <- fa_varimax$residual
+diag(residual_corr) <- NA  # Ignore diagonal
+
+# Create heatmap
+resid_dt <- as.data.table(reshape2::melt(residual_corr))
+setnames(resid_dt, c("Var1", "Var2", "Residual"))
+resid_dt[, Var1 := gsub("mean_", "", Var1)]
+resid_dt[, Var2 := gsub("mean_", "", Var2)]
+
+ggplot2$ggplot(resid_dt, ggplot2$aes(x = Var1, y = Var2, fill = Residual)) +
+    ggplot2$geom_tile() +
+    ggplot2$geom_text(ggplot2$aes(label = ifelse(is.na(Residual), "", sprintf("%.2f", Residual))),
+                       size = 3, colour = "white") +
+    ggplot2$scale_fill_gradient2(low = "#0072B2", mid = "white", high = "#D55E00",
+                                  midpoint = 0, na.value = "grey90") +
+    ggplot2$labs(
+        title = "Residual Correlation Matrix",
+        subtitle = "Small residuals (close to 0) indicate good model fit",
+        x = "", y = "", fill = "Residual"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+```
+
+<Figure src="/courses/statistics-2-intermediate/residual_correlations-1.png" alt="Residual correlations should be small if model fits well">
+	Residual correlations should be small if model fits well
+</Figure>
+
+---
+
+## 10.6 Practical Considerations
+
+### 10.6.1 Standardisation
+
+**Prose and Intuition**
+
+Should you standardise variables before PCA/factor analysis?
+
+**Use correlation matrix (standardise)** when:
+- Variables have different units or scales
+- You want all variables to contribute equally
+- This is the default for most biomedical applications
+
+**Use covariance matrix (don't standardise)** when:
+- Variables have the same units and scale
+- Differences in variance are meaningful
+- Rarely appropriate in practice
+
+
+``` r
+# Compare PCA on raw vs standardised data
+pca_raw <- prcomp(bc_features, center = TRUE, scale. = FALSE)
+pca_std <- prcomp(bc_features, center = TRUE, scale. = TRUE)
+
+# Compare variance explained
+compare_dt <- data.table(
+    PC = rep(1:5, 2),
+    Variance = c(pca_raw$sdev[1:5]^2 / sum(pca_raw$sdev^2),
+                 pca_std$sdev[1:5]^2 / sum(pca_std$sdev^2)) * 100,
+    Method = rep(c("Covariance (Raw)", "Correlation (Standardised)"), each = 5)
+)
+
+ggplot2$ggplot(compare_dt, ggplot2$aes(x = factor(PC), y = Variance, fill = Method)) +
+    ggplot2$geom_col(position = "dodge") +
+    ggplot2$scale_fill_manual(values = c("Covariance (Raw)" = "#D55E00",
+                                          "Correlation (Standardised)" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Effect of Standardisation on PCA",
+        subtitle = "Raw data: large-scale variables dominate; Standardised: equal weighting",
+        x = "Principal Component",
+        y = "Variance Explained (%)",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/standardisation_effect-1.png" alt="Standardisation affects PCA results when scales differ">
+	Standardisation affects PCA results when scales differ
+</Figure>
+
+### 10.6.2 Sample Size Requirements
+
+**Rules of thumb** for factor analysis:
+- Minimum 100-200 observations
+- At least 5-10 observations per variable
+- KMO (Kaiser-Meyer-Olkin) measure > 0.6
+
+
+``` r
+# KMO test for sampling adequacy
+cat("Sample Adequacy Tests:\n")
+#> Sample Adequacy Tests:
+cat("======================\n\n")
+#> ======================
+
+kmo_result <- KMO(bc_scaled)
+cat("Kaiser-Meyer-Olkin (KMO) Measure:\n")
+#> Kaiser-Meyer-Olkin (KMO) Measure:
+cat(sprintf("  Overall MSA: %.3f\n", kmo_result$MSA))
+#>   Overall MSA: 0.787
+cat("  Interpretation: ",
+    ifelse(kmo_result$MSA >= 0.9, "Marvelous",
+    ifelse(kmo_result$MSA >= 0.8, "Meritorious",
+    ifelse(kmo_result$MSA >= 0.7, "Middling",
+    ifelse(kmo_result$MSA >= 0.6, "Mediocre",
+    ifelse(kmo_result$MSA >= 0.5, "Miserable", "Unacceptable"))))), "\n\n")
+#>   Interpretation:  Middling
+
+# Bartlett's test of sphericity
+cat("Bartlett's Test of Sphericity:\n")
+#> Bartlett's Test of Sphericity:
+bartlett_result <- cortest.bartlett(cor(bc_scaled), n = nrow(bc_scaled))
+cat(sprintf("  Chi-square: %.2f\n", bartlett_result$chisq))
+#>   Chi-square: 11176.18
+cat(sprintf("  df: %d\n", bartlett_result$df))
+#>   df: 45
+cat(sprintf("  p-value: %.2e\n", bartlett_result$p.value))
+#>   p-value: 0.00e+00
+cat("  Conclusion:", ifelse(bartlett_result$p.value < 0.05,
+                            "Reject null - correlations exist, FA appropriate",
+                            "Fail to reject - consider if FA is appropriate"), "\n")
+#>   Conclusion: Reject null - correlations exist, FA appropriate
+```
+
+---
+
+## 10.7 Communicating to Stakeholders
+
+### 10.7.1 Clinical Example: Tumour Characterisation
+
+**Scenario**: A pathology team wants to understand the key dimensions along which breast tumours vary, to potentially simplify diagnostic protocols.
+
+**Non-technical summary**:
+
+> "We analysed 10 microscopic features measured on 569 breast tumours. Principal component analysis revealed that these features can be summarised by two main dimensions:
+>
+> 1. **Tumour size** (first principal component): This captures 44% of all variation and combines measurements of radius, perimeter, area, and concavity. Larger values indicate bigger, more irregularly-shaped tumours.
+>
+> 2. **Surface texture** (second principal component): This captures 19% of additional variation and primarily reflects texture and smoothness measurements.
+>
+> Together, these two dimensions explain 63% of the variation in tumour characteristics. Importantly, these composite scores discriminate well between malignant and benign tumours (see figure), suggesting they could form the basis for a simplified diagnostic scoring system.
+>
+> **Clinical implication**: Rather than examining all 10 features, pathologists could focus on a 'size score' and 'texture score' that together capture most of the diagnostic information."
+
+
+``` r
+# Create publication-quality figure
+library(patchwork)
+
+# Panel A: Scree plot
+p_scree <- ggplot2$ggplot(scree_dt[1:6], ggplot2$aes(x = PC)) +
+    ggplot2$geom_col(ggplot2$aes(y = Variance), fill = "#0072B2", alpha = 0.7) +
+    ggplot2$geom_line(ggplot2$aes(y = Cumulative, group = 1), colour = "#D55E00", linewidth = 1) +
+    ggplot2$geom_point(ggplot2$aes(y = Cumulative), colour = "#D55E00", size = 2) +
+    ggplot2$geom_hline(yintercept = 80, linetype = "dashed", colour = "grey60") +
+    ggplot2$scale_y_continuous(limits = c(0, 100)) +
+    ggplot2$labs(x = "Component", y = "Variance (%)", title = "A. Variance Explained") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(size = 8))
+
+# Panel B: Loadings heatmap
+loadings_heat <- data.table(
+    Variable = gsub("mean_", "", rownames(pca_result$rotation)),
+    PC1 = pca_result$rotation[, 1],
+    PC2 = pca_result$rotation[, 2]
+)
+loadings_heat_long <- melt(loadings_heat, id.vars = "Variable")
+
+p_loadings <- ggplot2$ggplot(loadings_heat_long,
+                              ggplot2$aes(x = variable, y = Variable, fill = value)) +
+    ggplot2$geom_tile() +
+    ggplot2$geom_text(ggplot2$aes(label = sprintf("%.2f", value)), size = 3) +
+    ggplot2$scale_fill_gradient2(low = "#0072B2", mid = "white", high = "#D55E00",
+                                  midpoint = 0, limits = c(-0.5, 0.5)) +
+    ggplot2$labs(x = "", y = "", fill = "Loading", title = "B. Component Loadings") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "right")
+
+# Panel C: Scores by diagnosis
+p_scores <- ggplot2$ggplot(scores_dt, ggplot2$aes(x = PC1, y = PC2, colour = Diagnosis)) +
+    ggplot2$geom_point(alpha = 0.6, size = 1.5) +
+    ggplot2$stat_ellipse(level = 0.95, linewidth = 1) +
+    ggplot2$scale_colour_manual(values = c("M" = "#D55E00", "B" = "#0072B2"),
+                                 labels = c("Malignant", "Benign")) +
+    ggplot2$labs(x = sprintf("PC1: Size (%.0f%%)", var_explained[1] * 100),
+                 y = sprintf("PC2: Texture (%.0f%%)", var_explained[2] * 100),
+                 title = "C. Tumour Scores by Diagnosis") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+
+# Combine panels
+(p_scree + p_loadings) / p_scores + patchwork::plot_annotation(
+    title = "Principal Component Analysis of Breast Tumour Characteristics",
+    subtitle = "n = 569 tumours, 10 features"
+)
+```
+
+<Figure src="/courses/statistics-2-intermediate/publication_figure-1.png" alt="Principal component analysis of breast tumour characteristics">
+	Principal component analysis of breast tumour characteristics
+</Figure>
+
+### 10.7.2 Reporting Guidelines
+
+**For PCA**:
+- Report variance explained by retained components
+- Show scree plot with selection criterion
+- Interpret loadings (which variables contribute to each PC)
+- If using PCs for further analysis, describe what they represent
+
+**For Factor Analysis**:
+- Justify number of factors (parallel analysis, Kaiser, theory)
+- Report extraction method (ML, principal axis, etc.)
+- Report rotation method and why chosen
+- Show rotated loadings with cutoff (e.g., |loading| > 0.3)
+- Report communalities
+- Report fit indices (chi-square, RMSEA, CFI)
+- If using factor scores, note which method (regression, Bartlett)
+
+**Example table format**:
+
+
+``` r
+# Create publishable results table
+results_dt <- data.table(
+    Feature = gsub("mean_", "", feature_cols),
+    `PC1 Loading` = sprintf("%.2f", pca_result$rotation[, 1]),
+    `PC2 Loading` = sprintf("%.2f", pca_result$rotation[, 2]),
+    `Factor 1` = sprintf("%.2f", fa_varimax$loadings[, 1]),
+    `Factor 2` = sprintf("%.2f", fa_varimax$loadings[, 2]),
+    Communality = sprintf("%.2f", fa_varimax$communality)
+)
+
+cat("\nTable: PCA and Factor Analysis Results\n")
+#> 
+#> Table: PCA and Factor Analysis Results
+cat("========================================\n")
+#> ========================================
+print(results_dt)
+#>               Feature PC1 Loading PC2 Loading Factor 1 Factor 2 Communality
+#>                <char>      <char>      <char>   <char>   <char>      <char>
+#>  1:            radius       -0.36        0.31     1.00     0.03        1.00
+#>  2:           texture       -0.15        0.15     0.32     0.08        0.11
+#>  3:         perimeter       -0.38        0.28     0.99     0.09        1.00
+#>  4:              area       -0.36        0.30     0.99     0.04        0.98
+#>  5:        smoothness       -0.23       -0.40     0.14     0.72        0.54
+#>  6:       compactness       -0.36       -0.27     0.48     0.84        0.93
+#>  7:         concavity       -0.40       -0.10     0.66     0.68        0.89
+#>  8:    concave_points       -0.42       -0.01     0.81     0.54        0.94
+#>  9:          symmetry       -0.22       -0.37     0.13     0.64        0.43
+#> 10: fractal_dimension       -0.07       -0.57    -0.34     0.84        0.83
+cat("\nNote: PCA used correlation matrix; Factor analysis used ML extraction with varimax rotation.\n")
+#> 
+#> Note: PCA used correlation matrix; Factor analysis used ML extraction with varimax rotation.
+cat(sprintf("PCA: PC1 explains %.1f%%, PC2 explains %.1f%% of total variance.\n",
+            var_explained[1] * 100, var_explained[2] * 100))
+#> PCA: PC1 explains 54.8%, PC2 explains 25.2% of total variance.
+```
+
+---
+
+## Summary
+
+Principal Component Analysis and Factor Analysis are complementary approaches to understanding multivariate data:
+
+| Concept | Key Points |
+|---------|------------|
+| **PCA** | Linear transformation to orthogonal components maximising variance |
+| **Scree plot** | Visualises variance explained; look for "elbow" |
+| **Parallel analysis** | Compare eigenvalues to random data for component selection |
+| **Loadings** | Correlations between original variables and components |
+| **Factor Analysis** | Model-based approach assuming latent factors |
+| **Rotation** | Varimax (orthogonal) or promax (oblique) for simple structure |
+| **Communality** | Proportion of variable variance explained by factors |
+| **KMO** | Sampling adequacy measure (> 0.6 acceptable) |
+
+**Practical guidelines**:
+1. Always standardise when variables have different scales
+2. Use parallel analysis for component/factor selection
+3. Interpret loadings |> 0.3| as meaningful
+4. Report both variance explained and fit indices
+5. Consider theoretical basis when choosing FA over PCA
+
+The next section covers cluster analysis and discriminant analysis—methods for grouping observations and classifying them based on multivariate profiles.

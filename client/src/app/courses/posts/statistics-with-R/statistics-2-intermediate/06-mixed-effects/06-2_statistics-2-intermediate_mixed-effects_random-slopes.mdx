@@ -205,12 +205,12 @@ cat("\n  Intercept SD:", round(sigma_int, 2), "\n")
 #> 
 #>   Intercept SD: 3.53
 cat("    → Patients differ by ±", round(2*sigma_int, 0), "CD4 at Time 0\n\n")
-#>     <U+2192> Patients differ by <U+00B1> 7 CD4 at Time 0
+#>     → Patients differ by ± 7 CD4 at Time 0
 
 cat("  Slope SD:", round(sigma_slope, 3), "\n")
 #>   Slope SD: 0.247
 cat("    → Weekly changes vary by ±", round(2*sigma_slope, 2), "CD4/Time between patients\n\n")
-#>     <U+2192> Weekly changes vary by <U+00B1> 0.49 CD4/Time between patients
+#>     → Weekly changes vary by ± 0.49 CD4/Time between patients
 
 cat("  Intercept-Slope correlation:", round(rho, 3), "\n")
 #>   Intercept-Slope correlation: -0.267
@@ -219,7 +219,7 @@ if (!is.na(rho) && rho > 0) {
 } else if (!is.na(rho) && rho < 0) {
     cat("    → Patients with higher baselines tend to have smaller increases (regression to mean)\n")
 }
-#>     <U+2192> Patients with higher baselines tend to have smaller increases (regression to mean)
+#>     → Patients with higher baselines tend to have smaller increases (regression to mean)
 
 cat("\n  Residual SD:", round(sigma_resid, 2), "\n")
 #> 
@@ -485,14 +485,14 @@ cat("   - Singular fit warnings\n")
 cat("   - Variance near zero\n")
 #>    - Variance near zero
 cat("   - Perfect correlation (±1)\n\n")
-#>    - Perfect correlation (<U+00B1>1)
+#>    - Perfect correlation (±1)
 
 cat("3. SIMPLIFY if needed:\n")
 #> 3. SIMPLIFY if needed:
 cat("   - Remove correlations: (1 | g) + (0 + x | g)\n")
 #>    - Remove correlations: (1 | g) + (0 + x | g)
 cat("   - Remove random slopes with variance ≈ 0\n")
-#>    - Remove random slopes with variance <U+2248> 0
+#>    - Remove random slopes with variance ≈ 0
 cat("   - Keep random intercepts (usually important)\n\n")
 #>    - Keep random intercepts (usually important)
 

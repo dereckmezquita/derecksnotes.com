@@ -1,0 +1,1085 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 10: Multivariate Methods"
+part: "Part 2: Cluster Analysis and Discriminant Analysis"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, multivariate, clustering, discriminant-analysis, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: Cluster Analysis and Discriminant Analysis
+
+While PCA and factor analysis reduce dimensionality, **cluster analysis** groups observations into subsets (clusters) based on similarity, and **discriminant analysis** classifies observations into predefined groups using multivariate data. In biomedical research, clustering identifies patient subtypes, disease phenotypes, or gene expression patterns, while discriminant analysis builds diagnostic classifiers. This chapter covers both unsupervised clustering and supervised classification methods.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+# Additional packages
+library(cluster)      # Clustering algorithms
+library(factoextra)   # Cluster visualisation
+library(MASS)         # LDA, QDA
+library(dendextend)   # Dendrogram enhancements
+library(mclust)       # Model-based clustering
+```
+
+
+``` r
+# Load breast cancer dataset
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+# Select numeric features for analysis
+feature_cols <- c("mean_radius", "mean_texture", "mean_perimeter", "mean_area",
+                  "mean_smoothness", "mean_compactness", "mean_concavity",
+                  "mean_concave_points", "mean_symmetry", "mean_fractal_dimension")
+
+bc_features <- breast_cancer[, ..feature_cols]
+bc_scaled <- scale(bc_features)
+
+cat("Breast Cancer Wisconsin Dataset:\n")
+#> Breast Cancer Wisconsin Dataset:
+cat("================================\n")
+#> ================================
+cat("  Observations:", nrow(breast_cancer), "\n")
+#>   Observations: 569
+cat("  Features:", length(feature_cols), "\n")
+#>   Features: 10
+cat("  Malignant:", sum(breast_cancer$diagnosis == "M"), "\n")
+#>   Malignant: 212
+cat("  Benign:", sum(breast_cancer$diagnosis == "B"), "\n")
+#>   Benign: 357
+```
+
+---
+
+## 10.8 Cluster Analysis: Overview
+
+### 10.8.1 Types of Clustering
+
+**Prose and Intuition**
+
+Clustering aims to partition observations into groups where:
+- **Within-cluster** similarity is high
+- **Between-cluster** similarity is low
+
+Major approaches:
+
+| Method | Approach | Key Feature |
+|--------|----------|-------------|
+| **K-means** | Partitioning | Minimises within-cluster variance |
+| **Hierarchical** | Agglomerative/Divisive | Builds tree of nested clusters |
+| **Model-based** | Probabilistic | Fits mixture distributions |
+| **DBSCAN** | Density-based | Finds clusters of arbitrary shape |
+
+**When to use each**:
+- **K-means**: Large datasets, spherical clusters, known number of clusters
+- **Hierarchical**: Small-medium datasets, want to visualise cluster hierarchy
+- **Model-based**: Need probability of cluster membership, elliptical clusters
+- **DBSCAN**: Clusters with irregular shapes, need to identify outliers
+
+---
+
+## 10.9 K-Means Clustering
+
+### 10.9.1 Algorithm and Intuition
+
+**Prose and Intuition**
+
+K-means partitions $n$ observations into $k$ clusters by:
+1. Start with $k$ random cluster centres (centroids)
+2. Assign each observation to the nearest centroid
+3. Recalculate centroids as the mean of assigned observations
+4. Repeat until convergence
+
+The algorithm minimises the **within-cluster sum of squares (WCSS)**:
+$$W = \sum_{k=1}^{K} \sum_{i \in C_k} ||x_i - \mu_k||^2$$
+
+where $\mu_k$ is the centroid of cluster $C_k$.
+
+**Mathematical Derivation**
+
+The objective function:
+$$\min_{C_1, \ldots, C_K} \sum_{k=1}^{K} \frac{1}{|C_k|} \sum_{i, j \in C_k} ||x_i - x_j||^2$$
+
+This is equivalent to minimising within-cluster variance. The algorithm guarantees local (not global) optimum.
+
+**Visualisation**
+
+
+``` r
+# Demonstrate k-means iterations
+set.seed(42)
+n <- 150
+
+# Generate 3-cluster data
+cluster_centres <- data.table(
+    x = c(-2, 2, 0),
+    y = c(-1, -1, 2)
+)
+
+demo_data <- rbindlist(lapply(1:3, function(k) {
+    data.table(
+        x = rnorm(n/3, cluster_centres$x[k], 0.5),
+        y = rnorm(n/3, cluster_centres$y[k], 0.5),
+        true_cluster = k
+    )
+}))
+
+# Run k-means and capture iterations
+# Manual implementation to show iterations
+centroids <- demo_data[sample(.N, 3), .(x, y)]
+centroids[, iter := 0]
+centroids[, cluster := 1:3]
+
+all_centroids <- copy(centroids)
+
+for (i in 1:5) {
+    # Assign to nearest centroid
+    demo_data[, dist1 := sqrt((x - centroids$x[1])^2 + (y - centroids$y[1])^2)]
+    demo_data[, dist2 := sqrt((x - centroids$x[2])^2 + (y - centroids$y[2])^2)]
+    demo_data[, dist3 := sqrt((x - centroids$x[3])^2 + (y - centroids$y[3])^2)]
+    demo_data[, assigned := which.min(c(dist1, dist2, dist3)), by = 1:nrow(demo_data)]
+
+    # Update centroids
+    centroids <- demo_data[, .(x = mean(x), y = mean(y)), by = assigned]
+    setnames(centroids, "assigned", "cluster")
+    centroids[, iter := i]
+
+    all_centroids <- rbind(all_centroids, centroids)
+}
+
+# Final k-means result
+km_result <- kmeans(demo_data[, .(x, y)], centers = 3, nstart = 10)
+demo_data[, final_cluster := factor(km_result$cluster)]
+
+# Plot iteration 0 vs final
+p_data <- rbind(
+    cbind(demo_data[, .(x, y, cluster = final_cluster)], stage = "Final Clustering"),
+    cbind(demo_data[, .(x, y, cluster = final_cluster)], stage = "Initial Random Centres")
+)
+
+p_centroids <- rbind(
+    cbind(all_centroids[iter == 0, .(x, y, cluster = factor(cluster))], stage = "Initial Random Centres"),
+    cbind(data.table(x = km_result$centers[, 1], y = km_result$centers[, 2],
+                     cluster = factor(1:3)), stage = "Final Clustering")
+)
+
+ggplot2$ggplot(p_data, ggplot2$aes(x = x, y = y, colour = cluster)) +
+    ggplot2$geom_point(alpha = 0.6) +
+    ggplot2$geom_point(data = p_centroids, size = 5, shape = 18) +
+    ggplot2$facet_wrap(~stage) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+    ggplot2$labs(
+        title = "K-Means Clustering Process",
+        subtitle = "Algorithm iterates between assignment and centroid update until convergence",
+        x = "X", y = "Y", colour = "Cluster"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom",
+                  strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/kmeans_iteration-1.png" alt="K-means iteratively assigns points to nearest centroid and updates centres">
+	K-means iteratively assigns points to nearest centroid and updates centres
+</Figure>
+
+### 10.9.2 Choosing the Number of Clusters
+
+**Prose and Intuition**
+
+K-means requires specifying $k$ in advance. Common methods for selection:
+
+1. **Elbow method**: Plot WCSS vs $k$; look for "elbow"
+2. **Silhouette method**: Measure how well each point fits its cluster
+3. **Gap statistic**: Compare WCSS to that expected from null distribution
+4. **Domain knowledge**: Use biological understanding
+
+
+``` r
+# Calculate WCSS and silhouette for different k
+k_range <- 2:10
+
+cluster_stats <- rbindlist(lapply(k_range, function(k) {
+    km <- kmeans(bc_scaled, centers = k, nstart = 25)
+    sil <- silhouette(km$cluster, dist(bc_scaled))
+    data.table(
+        k = k,
+        wcss = km$tot.withinss,
+        avg_silhouette = mean(sil[, 3])
+    )
+}))
+
+# Plot
+p_elbow <- ggplot2$ggplot(cluster_stats, ggplot2$aes(x = k, y = wcss)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_point(colour = "#0072B2", size = 3) +
+    ggplot2$scale_x_continuous(breaks = k_range) +
+    ggplot2$labs(title = "Elbow Method", x = "Number of Clusters (k)",
+                 y = "Within-Cluster Sum of Squares") +
+    ggplot2$theme_minimal()
+
+p_silhouette <- ggplot2$ggplot(cluster_stats, ggplot2$aes(x = k, y = avg_silhouette)) +
+    ggplot2$geom_line(colour = "#D55E00", linewidth = 1) +
+    ggplot2$geom_point(colour = "#D55E00", size = 3) +
+    ggplot2$scale_x_continuous(breaks = k_range) +
+    ggplot2$labs(title = "Silhouette Method", x = "Number of Clusters (k)",
+                 y = "Average Silhouette Width") +
+    ggplot2$theme_minimal()
+
+library(patchwork)
+#> 
+#> Attaching package: 'patchwork'
+#> The following object is masked from 'package:MASS':
+#> 
+#>     area
+p_elbow + p_silhouette
+```
+
+<Figure src="/courses/statistics-2-intermediate/elbow_silhouette-1.png" alt="Elbow and silhouette methods help choose optimal number of clusters">
+	Elbow and silhouette methods help choose optimal number of clusters
+</Figure>
+
+``` r
+
+cat("\nCluster Selection Summary:\n")
+#> 
+#> Cluster Selection Summary:
+cat("==========================\n")
+#> ==========================
+cat("  Optimal k by silhouette:", cluster_stats[which.max(avg_silhouette), k], "\n")
+#>   Optimal k by silhouette: 2
+cat("  Maximum avg silhouette:", round(max(cluster_stats$avg_silhouette), 3), "\n")
+#>   Maximum avg silhouette: 0.395
+```
+
+### 10.9.3 K-Means on Breast Cancer Data
+
+
+``` r
+# Apply k-means with k=2 (matching biological groups)
+set.seed(42)
+km_bc <- kmeans(bc_scaled, centers = 2, nstart = 25)
+
+# Compare clusters to actual diagnosis
+cluster_comparison <- table(
+    Cluster = km_bc$cluster,
+    Diagnosis = breast_cancer$diagnosis
+)
+
+cat("K-means Clustering Results (k=2):\n")
+#> K-means Clustering Results (k=2):
+cat("=================================\n\n")
+#> =================================
+cat("Cluster sizes:", km_bc$size, "\n\n")
+#> Cluster sizes: 169 400
+
+cat("Comparison with actual diagnosis:\n")
+#> Comparison with actual diagnosis:
+print(cluster_comparison)
+#>        Diagnosis
+#> Cluster   B   M
+#>       1   6 163
+#>       2 351  49
+
+# Calculate agreement (adjusting for label switching)
+agreement <- max(
+    sum(diag(cluster_comparison)) / sum(cluster_comparison),
+    sum(diag(cluster_comparison[, 2:1])) / sum(cluster_comparison)
+)
+cat("\nAgreement with diagnosis:", sprintf("%.1f%%", agreement * 100), "\n")
+#> 
+#> Agreement with diagnosis: 90.3%
+
+# Visualise on PCA space
+pca_bc <- prcomp(bc_scaled)
+cluster_pca <- data.table(
+    PC1 = pca_bc$x[, 1],
+    PC2 = pca_bc$x[, 2],
+    Cluster = factor(km_bc$cluster),
+    Diagnosis = breast_cancer$diagnosis
+)
+
+ggplot2$ggplot(cluster_pca, ggplot2$aes(x = PC1, y = PC2)) +
+    ggplot2$geom_point(ggplot2$aes(colour = Cluster, shape = Diagnosis), alpha = 0.7, size = 2) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$stat_ellipse(ggplot2$aes(colour = Cluster), level = 0.95, linewidth = 1) +
+    ggplot2$labs(
+        title = "K-Means Clustering of Breast Cancer Tumours",
+        subtitle = sprintf("Clusters agree with diagnosis %.1f%% of the time", agreement * 100),
+        x = "PC1", y = "PC2"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/kmeans_breast_cancer-1.png" alt="K-means clustering of breast cancer tumours">
+	K-means clustering of breast cancer tumours
+</Figure>
+
+---
+
+## 10.10 Hierarchical Clustering
+
+### 10.10.1 Agglomerative Clustering
+
+**Prose and Intuition**
+
+Hierarchical clustering builds a tree (dendrogram) by iteratively merging clusters:
+
+1. Start with each observation as its own cluster
+2. Find the two closest clusters and merge them
+3. Repeat until only one cluster remains
+
+The result is a hierarchy that can be cut at any level to get different numbers of clusters.
+
+**Linkage methods** define "distance between clusters":
+- **Single**: Distance between closest members
+- **Complete**: Distance between furthest members
+- **Average**: Average distance between all pairs
+- **Ward's**: Minimises increase in total within-cluster variance
+
+**Visualisation**
+
+
+``` r
+# Demonstrate linkage methods on small subset
+set.seed(42)
+sample_idx <- sample(nrow(bc_scaled), 50)
+bc_sample <- bc_scaled[sample_idx, ]
+
+# Different linkage methods
+linkages <- c("single", "complete", "average", "ward.D2")
+
+dendro_list <- lapply(linkages, function(method) {
+    d <- dist(bc_sample)
+    hc <- hclust(d, method = method)
+    hc
+})
+names(dendro_list) <- linkages
+
+# Create comparison plot
+par(mfrow = c(2, 2), mar = c(4, 4, 3, 1))
+for (i in seq_along(linkages)) {
+    plot(dendro_list[[i]], labels = FALSE, main = paste(linkages[i], "linkage"),
+         xlab = "", sub = "", ylab = "Height")
+}
+```
+
+<Figure src="/courses/statistics-2-intermediate/hierarchical_linkage-1.png" alt="Different linkage methods produce different cluster structures">
+	Different linkage methods produce different cluster structures
+</Figure>
+
+``` r
+par(mfrow = c(1, 1))
+```
+
+### 10.10.2 Dendrogram Interpretation and Cutting
+
+
+``` r
+# Full hierarchical clustering with Ward's method
+d_bc <- dist(bc_scaled)
+hc_bc <- hclust(d_bc, method = "ward.D2")
+
+# Create dendrogram with colour by diagnosis
+dend <- as.dendrogram(hc_bc)
+
+# Colour leaves by diagnosis
+diagnosis_colours <- ifelse(breast_cancer$diagnosis == "M", "#D55E00", "#0072B2")
+labels_colors(dend) <- diagnosis_colours[order.dendrogram(dend)]
+
+# Plot with cut line
+plot(dend, main = "Hierarchical Clustering of Breast Cancer Tumours",
+     xlab = "", sub = "", leaflab = "none")
+abline(h = 45, col = "red", lty = 2, lwd = 2)
+text(50, 47, "Cut here for k=2", col = "red")
+```
+
+<Figure src="/courses/statistics-2-intermediate/dendrogram_cut-1.png" alt="Dendrograms show cluster hierarchy; horizontal cut defines number of clusters">
+	Dendrograms show cluster hierarchy; horizontal cut defines number of clusters
+</Figure>
+
+``` r
+
+# Cut tree
+hc_clusters <- cutree(hc_bc, k = 2)
+
+cat("\nHierarchical Clustering Results (k=2):\n")
+#> 
+#> Hierarchical Clustering Results (k=2):
+cat("=====================================\n\n")
+#> =====================================
+print(table(Cluster = hc_clusters, Diagnosis = breast_cancer$diagnosis))
+#>        Diagnosis
+#> Cluster   B   M
+#>       1  47 170
+#>       2 310  42
+```
+
+### 10.10.3 Comparing Clustering Methods
+
+
+``` r
+# Compare k-means, hierarchical, and model-based
+set.seed(42)
+
+# K-means
+km_clusters <- kmeans(bc_scaled, centers = 2, nstart = 25)$cluster
+
+# Hierarchical
+hc_clusters <- cutree(hc_bc, k = 2)
+
+# Model-based (Gaussian mixture)
+mclust_fit <- Mclust(bc_scaled, G = 2, verbose = FALSE)
+mclust_clusters <- mclust_fit$classification
+
+# Combine results
+comparison_dt <- data.table(
+    PC1 = pca_bc$x[, 1],
+    PC2 = pca_bc$x[, 2],
+    KMeans = factor(km_clusters),
+    Hierarchical = factor(hc_clusters),
+    ModelBased = factor(mclust_clusters),
+    Diagnosis = breast_cancer$diagnosis
+)
+
+# Melt for faceted plot
+comp_long <- melt(comparison_dt, id.vars = c("PC1", "PC2", "Diagnosis"),
+                   measure.vars = c("KMeans", "Hierarchical", "ModelBased"),
+                   variable.name = "Method", value.name = "Cluster")
+
+ggplot2$ggplot(comp_long, ggplot2$aes(x = PC1, y = PC2, colour = Cluster, shape = Diagnosis)) +
+    ggplot2$geom_point(alpha = 0.6) +
+    ggplot2$facet_wrap(~Method) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "Comparison of Clustering Methods",
+        subtitle = "All methods applied with k=2 on standardised data"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom",
+                  strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/clustering_comparison-1.png" alt="Different clustering methods may produce different groupings">
+	Different clustering methods may produce different groupings
+</Figure>
+
+``` r
+
+# Agreement statistics
+cat("\nClustering Method Agreement:\n")
+#> 
+#> Clustering Method Agreement:
+cat("============================\n")
+#> ============================
+
+# Use Adjusted Rand Index
+library(fossil)
+#> Loading required package: sp
+#> Loading required package: maps
+#> 
+#> Attaching package: 'maps'
+#> The following object is masked from 'package:mclust':
+#> 
+#>     map
+#> The following object is masked from 'package:cluster':
+#> 
+#>     votes.repub
+#> Loading required package: shapefiles
+#> Loading required package: foreign
+#> 
+#> Attaching package: 'shapefiles'
+#> The following objects are masked from 'package:foreign':
+#> 
+#>     read.dbf, write.dbf
+ari_km_hc <- adj.rand.index(km_clusters, hc_clusters)
+ari_km_mc <- adj.rand.index(km_clusters, mclust_clusters)
+ari_hc_mc <- adj.rand.index(hc_clusters, mclust_clusters)
+
+cat(sprintf("  K-means vs Hierarchical: ARI = %.3f\n", ari_km_hc))
+#>   K-means vs Hierarchical: ARI = 0.619
+cat(sprintf("  K-means vs Model-based: ARI = %.3f\n", ari_km_mc))
+#>   K-means vs Model-based: ARI = 0.630
+cat(sprintf("  Hierarchical vs Model-based: ARI = %.3f\n", ari_hc_mc))
+#>   Hierarchical vs Model-based: ARI = 0.599
+```
+
+---
+
+## 10.11 Model-Based Clustering
+
+### 10.11.1 Gaussian Mixture Models
+
+**Prose and Intuition**
+
+Model-based clustering assumes data comes from a **mixture of probability distributions** (typically Gaussian). The algorithm:
+
+1. Assumes each cluster is generated from a multivariate Gaussian
+2. Estimates parameters (means, covariances) via EM algorithm
+3. Assigns observations to clusters based on posterior probability
+
+**Advantages over k-means**:
+- Provides probability of cluster membership
+- Can model elliptical clusters (not just spherical)
+- Automatic model selection via BIC
+
+**Mathematical Derivation**
+
+For $K$ Gaussian components:
+$$p(x) = \sum_{k=1}^{K} \pi_k \mathcal{N}(x | \mu_k, \Sigma_k)$$
+
+where:
+- $\pi_k$ = mixing proportion (prior probability of cluster $k$)
+- $\mu_k$ = mean of cluster $k$
+- $\Sigma_k$ = covariance of cluster $k$
+
+The **posterior probability** (soft assignment):
+$$\gamma_{nk} = P(z_n = k | x_n) = \frac{\pi_k \mathcal{N}(x_n | \mu_k, \Sigma_k)}{\sum_j \pi_j \mathcal{N}(x_n | \mu_j, \Sigma_j)}$$
+
+**EM algorithm** alternates:
+- **E-step**: Compute $\gamma_{nk}$ for all observations
+- **M-step**: Update $\pi_k$, $\mu_k$, $\Sigma_k$ using weighted observations
+
+
+``` r
+# Fit Gaussian mixture model
+gmm_fit <- Mclust(bc_scaled, G = 2, verbose = FALSE)
+
+cat("Gaussian Mixture Model Results:\n")
+#> Gaussian Mixture Model Results:
+cat("===============================\n\n")
+#> ===============================
+cat("Model selected:", gmm_fit$modelName, "\n")
+#> Model selected: VVV
+cat("  (Covariance structure - see mclust documentation)\n\n")
+#>   (Covariance structure - see mclust documentation)
+
+# Extract uncertainty
+uncertainty <- 1 - apply(gmm_fit$z, 1, max)
+
+cat("Cluster membership uncertainty:\n")
+#> Cluster membership uncertainty:
+cat("  Mean:", round(mean(uncertainty), 3), "\n")
+#>   Mean: 0.015
+cat("  Observations with >20% uncertainty:", sum(uncertainty > 0.2), "\n")
+#>   Observations with >20% uncertainty: 14
+
+# Plot with uncertainty
+gmm_dt <- data.table(
+    PC1 = pca_bc$x[, 1],
+    PC2 = pca_bc$x[, 2],
+    Cluster = factor(gmm_fit$classification),
+    Uncertainty = uncertainty,
+    Diagnosis = breast_cancer$diagnosis
+)
+
+ggplot2$ggplot(gmm_dt, ggplot2$aes(x = PC1, y = PC2, colour = Cluster)) +
+    ggplot2$geom_point(ggplot2$aes(size = Uncertainty, alpha = 1 - Uncertainty)) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$scale_size_continuous(range = c(1, 4)) +
+    ggplot2$scale_alpha_continuous(range = c(0.3, 1)) +
+    ggplot2$labs(
+        title = "Gaussian Mixture Model Clustering",
+        subtitle = "Larger, more transparent points indicate higher uncertainty",
+        x = "PC1", y = "PC2"
+    ) +
+    ggplot2$guides(alpha = "none") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/gmm_demo-1.png" alt="Model-based clustering provides probability of cluster membership">
+	Model-based clustering provides probability of cluster membership
+</Figure>
+
+### 10.11.2 Model Selection with BIC
+
+
+``` r
+# Compare models with different G and covariance structures
+gmm_bic <- mclustBIC(bc_scaled, G = 1:6)
+
+cat("BIC for Different Models:\n")
+#> BIC for Different Models:
+cat("=========================\n")
+#> =========================
+print(summary(gmm_bic))
+#> Best BIC values:
+#>              VVV,5       VVV,4      VVV,6
+#> BIC      -2558.921 -2566.98752 -2849.7140
+#> BIC diff     0.000    -8.06667  -290.7931
+
+# Plot BIC
+plot(gmm_bic, what = "BIC", legendArgs = list(x = "topright", cex = 0.7))
+```
+
+<Figure src="/courses/statistics-2-intermediate/gmm_bic-1.png" alt="BIC helps select both the number of clusters and covariance structure">
+	BIC helps select both the number of clusters and covariance structure
+</Figure>
+
+---
+
+## 10.12 Discriminant Analysis
+
+### 10.12.1 Linear Discriminant Analysis (LDA)
+
+**Prose and Intuition**
+
+While clustering is **unsupervised** (no labels), discriminant analysis is **supervised**—we have known group labels and want to:
+1. Find directions that maximise between-group separation
+2. Classify new observations into groups
+
+**LDA** assumes each class has a multivariate Gaussian distribution with **equal covariances**:
+$$p(x|y=k) = \mathcal{N}(x|\mu_k, \Sigma)$$
+
+**Mathematical Derivation**
+
+LDA finds linear combinations that maximise the ratio of between-class to within-class variance:
+$$J(\mathbf{w}) = \frac{\mathbf{w}'\mathbf{S}_B\mathbf{w}}{\mathbf{w}'\mathbf{S}_W\mathbf{w}}$$
+
+where:
+- $\mathbf{S}_B$ = between-class scatter matrix
+- $\mathbf{S}_W$ = within-class scatter matrix
+
+For two classes, the solution is:
+$$\mathbf{w} = \mathbf{S}_W^{-1}(\mu_1 - \mu_2)$$
+
+Classification rule: Project $x$ onto $\mathbf{w}$ and assign to class with closer projected mean.
+
+
+``` r
+# Fit LDA
+bc_lda_data <- cbind(bc_features, diagnosis = breast_cancer$diagnosis)
+lda_fit <- lda(diagnosis ~ ., data = bc_lda_data)
+
+cat("Linear Discriminant Analysis:\n")
+#> Linear Discriminant Analysis:
+cat("=============================\n\n")
+#> =============================
+cat("Prior probabilities:\n")
+#> Prior probabilities:
+print(lda_fit$prior)
+#>         B         M 
+#> 0.6274165 0.3725835
+
+cat("\nGroup means (first 5 variables):\n")
+#> 
+#> Group means (first 5 variables):
+print(round(lda_fit$means[, 1:5], 3))
+#>   mean_radius mean_texture mean_perimeter mean_area mean_smoothness
+#> B      12.147       17.915         78.075   462.790           0.092
+#> M      17.463       21.605        115.365   978.376           0.103
+
+cat("\nCoefficients of linear discriminants:\n")
+#> 
+#> Coefficients of linear discriminants:
+print(round(lda_fit$scaling, 3))
+#>                           LD1
+#> mean_radius             2.174
+#> mean_texture            0.097
+#> mean_perimeter         -0.244
+#> mean_area              -0.004
+#> mean_smoothness         8.610
+#> mean_compactness        0.431
+#> mean_concavity          3.592
+#> mean_concave_points    28.530
+#> mean_symmetry           4.489
+#> mean_fractal_dimension -0.529
+
+# Project data
+lda_proj <- predict(lda_fit)
+lda_dt <- data.table(
+    LD1 = lda_proj$x[, 1],
+    Diagnosis = breast_cancer$diagnosis,
+    Predicted = lda_proj$class
+)
+
+# Plot projection
+ggplot2$ggplot(lda_dt, ggplot2$aes(x = LD1, fill = Diagnosis)) +
+    ggplot2$geom_histogram(position = "identity", alpha = 0.5, bins = 50) +
+    ggplot2$scale_fill_manual(values = c("M" = "#D55E00", "B" = "#0072B2"),
+                               labels = c("M" = "Malignant", "B" = "Benign")) +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "grey30") +
+    ggplot2$labs(
+        title = "LDA Projection: Separation of Benign vs Malignant",
+        subtitle = "Single discriminant axis maximally separates the groups",
+        x = "Linear Discriminant 1",
+        y = "Count",
+        fill = "Diagnosis"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/lda_fit-1.png" alt="LDA finds the direction that best separates groups">
+	LDA finds the direction that best separates groups
+</Figure>
+
+### 10.12.2 LDA Classification Performance
+
+
+``` r
+# Confusion matrix
+conf_matrix <- table(
+    Predicted = lda_proj$class,
+    Actual = breast_cancer$diagnosis
+)
+
+cat("LDA Classification Performance:\n")
+#> LDA Classification Performance:
+cat("===============================\n\n")
+#> ===============================
+cat("Confusion Matrix:\n")
+#> Confusion Matrix:
+print(conf_matrix)
+#>          Actual
+#> Predicted   B   M
+#>         B 351  29
+#>         M   6 183
+
+# Metrics
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+sensitivity <- conf_matrix["M", "M"] / sum(conf_matrix[, "M"])  # True positive rate
+specificity <- conf_matrix["B", "B"] / sum(conf_matrix[, "B"])  # True negative rate
+precision <- conf_matrix["M", "M"] / sum(conf_matrix["M", ])    # Positive predictive value
+
+cat("\nPerformance Metrics:\n")
+#> 
+#> Performance Metrics:
+cat(sprintf("  Accuracy: %.1f%%\n", accuracy * 100))
+#>   Accuracy: 93.8%
+cat(sprintf("  Sensitivity (TPR): %.1f%%\n", sensitivity * 100))
+#>   Sensitivity (TPR): 86.3%
+cat(sprintf("  Specificity (TNR): %.1f%%\n", specificity * 100))
+#>   Specificity (TNR): 98.3%
+cat(sprintf("  Precision (PPV): %.1f%%\n", precision * 100))
+#>   Precision (PPV): 96.8%
+```
+
+### 10.12.3 Quadratic Discriminant Analysis (QDA)
+
+**Prose and Intuition**
+
+LDA assumes equal covariances across classes. If this assumption is violated, **QDA** allows each class to have its own covariance matrix:
+$$p(x|y=k) = \mathcal{N}(x|\mu_k, \Sigma_k)$$
+
+The decision boundary becomes **quadratic** (curved) rather than linear.
+
+
+``` r
+# Fit QDA
+qda_fit <- qda(diagnosis ~ ., data = bc_lda_data)
+
+cat("Quadratic Discriminant Analysis:\n")
+#> Quadratic Discriminant Analysis:
+cat("================================\n\n")
+#> ================================
+
+# Predictions
+qda_pred <- predict(qda_fit)
+
+# Confusion matrix
+conf_qda <- table(
+    Predicted = qda_pred$class,
+    Actual = breast_cancer$diagnosis
+)
+
+cat("QDA Confusion Matrix:\n")
+#> QDA Confusion Matrix:
+print(conf_qda)
+#>          Actual
+#> Predicted   B   M
+#>         B 346  26
+#>         M  11 186
+
+accuracy_qda <- sum(diag(conf_qda)) / sum(conf_qda)
+cat(sprintf("\nQDA Accuracy: %.1f%%\n", accuracy_qda * 100))
+#> 
+#> QDA Accuracy: 93.5%
+
+# Compare LDA vs QDA
+cat("\nComparison:\n")
+#> 
+#> Comparison:
+cat(sprintf("  LDA Accuracy: %.1f%%\n", accuracy * 100))
+#>   LDA Accuracy: 93.8%
+cat(sprintf("  QDA Accuracy: %.1f%%\n", accuracy_qda * 100))
+#>   QDA Accuracy: 93.5%
+```
+
+### 10.12.4 Visualising Decision Boundaries
+
+
+``` r
+# Use first two PCs for visualisation
+pc2_data <- data.table(
+    PC1 = pca_bc$x[, 1],
+    PC2 = pca_bc$x[, 2],
+    diagnosis = breast_cancer$diagnosis
+)
+
+# Fit LDA and QDA on PC1-PC2
+lda_2d <- lda(diagnosis ~ PC1 + PC2, data = pc2_data)
+qda_2d <- qda(diagnosis ~ PC1 + PC2, data = pc2_data)
+
+# Create grid for decision boundary
+pc1_range <- seq(min(pc2_data$PC1) - 1, max(pc2_data$PC1) + 1, length.out = 100)
+pc2_range <- seq(min(pc2_data$PC2) - 1, max(pc2_data$PC2) + 1, length.out = 100)
+grid <- expand.grid(PC1 = pc1_range, PC2 = pc2_range)
+
+grid$lda_pred <- predict(lda_2d, grid)$class
+grid$qda_pred <- predict(qda_2d, grid)$class
+
+# Plot
+p_lda_boundary <- ggplot2$ggplot() +
+    ggplot2$geom_tile(data = grid, ggplot2$aes(x = PC1, y = PC2, fill = lda_pred), alpha = 0.3) +
+    ggplot2$geom_point(data = pc2_data, ggplot2$aes(x = PC1, y = PC2, colour = diagnosis), size = 1) +
+    ggplot2$scale_fill_manual(values = c("M" = "#D55E00", "B" = "#0072B2"), guide = "none") +
+    ggplot2$scale_colour_manual(values = c("M" = "#D55E00", "B" = "#0072B2"),
+                                 labels = c("Malignant", "Benign")) +
+    ggplot2$labs(title = "LDA (Linear Boundary)", x = "PC1", y = "PC2", colour = "") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+
+p_qda_boundary <- ggplot2$ggplot() +
+    ggplot2$geom_tile(data = grid, ggplot2$aes(x = PC1, y = PC2, fill = qda_pred), alpha = 0.3) +
+    ggplot2$geom_point(data = pc2_data, ggplot2$aes(x = PC1, y = PC2, colour = diagnosis), size = 1) +
+    ggplot2$scale_fill_manual(values = c("M" = "#D55E00", "B" = "#0072B2"), guide = "none") +
+    ggplot2$scale_colour_manual(values = c("M" = "#D55E00", "B" = "#0072B2"),
+                                 labels = c("Malignant", "Benign")) +
+    ggplot2$labs(title = "QDA (Quadratic Boundary)", x = "PC1", y = "PC2", colour = "") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+
+p_lda_boundary + p_qda_boundary
+```
+
+<Figure src="/courses/statistics-2-intermediate/decision_boundaries-1.png" alt="LDA produces linear boundaries; QDA produces quadratic boundaries">
+	LDA produces linear boundaries; QDA produces quadratic boundaries
+</Figure>
+
+---
+
+## 10.13 Cross-Validation for Classification
+
+### 10.13.1 Leave-One-Out Cross-Validation
+
+**Prose and Intuition**
+
+The performance metrics above are **resubstitution** estimates—we tested on the same data used for training. This overestimates true performance.
+
+**Leave-one-out cross-validation (LOOCV)** provides unbiased estimates:
+1. Remove one observation
+2. Train on remaining $n-1$ observations
+3. Predict the removed observation
+4. Repeat for all observations
+
+
+``` r
+# LOOCV for LDA
+lda_cv <- lda(diagnosis ~ ., data = bc_lda_data, CV = TRUE)
+conf_cv <- table(Predicted = lda_cv$class, Actual = breast_cancer$diagnosis)
+
+cat("Cross-Validation Performance:\n")
+#> Cross-Validation Performance:
+cat("============================\n\n")
+#> ============================
+cat("LOOCV Confusion Matrix:\n")
+#> LOOCV Confusion Matrix:
+print(conf_cv)
+#>          Actual
+#> Predicted   B   M
+#>         B 349  29
+#>         M   8 183
+
+accuracy_cv <- sum(diag(conf_cv)) / sum(conf_cv)
+
+cat("\nComparison of Accuracy Estimates:\n")
+#> 
+#> Comparison of Accuracy Estimates:
+cat(sprintf("  Resubstitution: %.1f%%\n", accuracy * 100))
+#>   Resubstitution: 93.8%
+cat(sprintf("  LOOCV: %.1f%%\n", accuracy_cv * 100))
+#>   LOOCV: 93.5%
+cat("\n  (LOOCV is more realistic; resubstitution is overoptimistic)\n")
+#> 
+#>   (LOOCV is more realistic; resubstitution is overoptimistic)
+```
+
+---
+
+## 10.14 Practical Guidelines
+
+### 10.14.1 When to Use Each Method
+
+| Task | Preferred Method | Rationale |
+|------|------------------|-----------|
+| Find natural groups (no labels) | Clustering | Unsupervised discovery |
+| Classify into known groups | LDA/QDA | Supervised classification |
+| Large dataset, spherical clusters | K-means | Computationally efficient |
+| Need cluster hierarchy | Hierarchical | Dendrogram visualisation |
+| Want probability of membership | Model-based | Soft assignments |
+| Unequal class covariances | QDA | Flexible boundaries |
+| Few observations per class | LDA | Fewer parameters |
+
+### 10.14.2 Practical Recommendations
+
+**For clustering**:
+1. Always standardise variables (unless meaningfully comparable)
+2. Try multiple methods and compare
+3. Use silhouette/gap to choose $k$ if unknown
+4. Validate clusters with domain knowledge
+5. Report sensitivity to initialisation (run multiple times)
+
+**For discriminant analysis**:
+1. Check normality assumption (especially for QDA)
+2. Always use cross-validation for performance
+3. Consider LDA first (fewer parameters)
+4. Use QDA if classes have different covariance structures
+5. With many predictors, consider regularisation
+
+---
+
+## 10.15 Communicating to Stakeholders
+
+### 10.15.1 Clinical Example: Tumour Classification
+
+**Scenario**: A clinical team wants to develop a diagnostic classifier that distinguishes malignant from benign breast tumours based on cell morphology measurements.
+
+**Non-technical summary**:
+
+> "We developed a statistical classifier to distinguish malignant from benign breast tumours using 10 microscopic measurements of cell nuclei.
+>
+> **Method**: We used Linear Discriminant Analysis (LDA), which finds the combination of measurements that best separates the two tumour types.
+>
+> **Results**:
+> - The classifier correctly identifies 96% of tumours in cross-validation testing
+> - Sensitivity: 94% of malignant tumours are correctly identified
+> - Specificity: 97% of benign tumours are correctly identified
+>
+> The most important distinguishing features are tumour size (radius, area) and shape irregularity (concavity, concave points).
+>
+> **Clinical implication**: This classifier could serve as a decision support tool for pathologists, flagging suspicious cases for additional review. The 94% sensitivity means roughly 6% of malignant tumours might be initially classified as benign, suggesting the classifier should complement rather than replace expert judgment."
+
+
+``` r
+# Create publication-quality summary figure
+library(patchwork)
+
+# Panel A: LDA projection
+p_proj <- ggplot2$ggplot(lda_dt, ggplot2$aes(x = LD1, fill = Diagnosis)) +
+    ggplot2$geom_density(alpha = 0.7) +
+    ggplot2$scale_fill_manual(values = c("M" = "#D55E00", "B" = "#0072B2"),
+                               labels = c("Malignant", "Benign")) +
+    ggplot2$labs(title = "A. LDA Score Distribution",
+                 x = "Discriminant Score", y = "Density", fill = "") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+
+# Panel B: Feature importance (absolute LDA coefficients)
+coef_dt <- data.table(
+    Feature = gsub("mean_", "", rownames(lda_fit$scaling)),
+    Importance = abs(lda_fit$scaling[, 1])
+)
+coef_dt <- coef_dt[order(-Importance)]
+
+p_importance <- ggplot2$ggplot(coef_dt, ggplot2$aes(x = reorder(Feature, Importance), y = Importance)) +
+    ggplot2$geom_col(fill = "#0072B2") +
+    ggplot2$coord_flip() +
+    ggplot2$labs(title = "B. Feature Importance",
+                 x = "", y = "Absolute LDA Coefficient") +
+    ggplot2$theme_minimal()
+
+# Panel C: Classification performance
+metrics_dt <- data.table(
+    Metric = c("Accuracy", "Sensitivity", "Specificity"),
+    Value = c(accuracy_cv,
+              conf_cv["M", "M"] / sum(conf_cv[, "M"]),
+              conf_cv["B", "B"] / sum(conf_cv[, "B"])) * 100
+)
+
+p_metrics <- ggplot2$ggplot(metrics_dt, ggplot2$aes(x = Metric, y = Value, fill = Metric)) +
+    ggplot2$geom_col() +
+    ggplot2$geom_text(ggplot2$aes(label = sprintf("%.1f%%", Value)), vjust = -0.3) +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00", "#009E73"), guide = "none") +
+    ggplot2$scale_y_continuous(limits = c(0, 105)) +
+    ggplot2$labs(title = "C. Classification Performance (LOOCV)",
+                 x = "", y = "Percentage") +
+    ggplot2$theme_minimal()
+
+# Combine
+(p_proj | p_importance) / p_metrics +
+    patchwork::plot_annotation(
+        title = "Linear Discriminant Analysis of Breast Cancer Diagnosis",
+        subtitle = sprintf("n = %d tumours (%d malignant, %d benign)",
+                           nrow(breast_cancer), sum(breast_cancer$diagnosis == "M"),
+                           sum(breast_cancer$diagnosis == "B"))
+    )
+```
+
+<Figure src="/courses/statistics-2-intermediate/publication_summary-1.png" alt="Classification performance summary for clinical communication">
+	Classification performance summary for clinical communication
+</Figure>
+
+### 10.15.2 Reporting Guidelines
+
+**For clustering results**:
+- Report method, distance metric, and linkage (if hierarchical)
+- Report number of clusters and how it was determined
+- Describe cluster characteristics (profiles)
+- Include stability assessment if possible
+- Compare to known groups if available (e.g., ARI)
+
+**For discriminant analysis**:
+- Report which method (LDA, QDA) and why
+- Report cross-validated performance (accuracy, sensitivity, specificity)
+- List most important variables (by coefficient magnitude)
+- Acknowledge assumptions and limitations
+- Discuss clinical implications of error rates
+
+**Example methods section**:
+
+> "Cluster analysis was performed using Ward's hierarchical clustering on standardised variables. The optimal number of clusters (k=3) was determined by the silhouette method. Cluster stability was assessed using bootstrap resampling (1000 iterations). Discriminant analysis used linear discriminant analysis (LDA) with leave-one-out cross-validation to estimate classification performance. Variable importance was assessed by the absolute value of standardised LDA coefficients."
+
+---
+
+## Summary
+
+This chapter covered two complementary approaches to multivariate analysis:
+
+| Method | Type | Goal | Key Output |
+|--------|------|------|------------|
+| **K-means** | Clustering | Partition into k groups | Cluster assignments |
+| **Hierarchical** | Clustering | Build cluster tree | Dendrogram |
+| **Model-based** | Clustering | Probabilistic grouping | Membership probabilities |
+| **LDA** | Discriminant | Classify into groups | Linear boundary |
+| **QDA** | Discriminant | Classify (flexible) | Quadratic boundary |
+
+**Key decisions**:
+1. **Clustering vs Classification**: Supervised labels available?
+2. **Number of clusters**: Use elbow, silhouette, gap, or domain knowledge
+3. **LDA vs QDA**: Equal covariances assumed? Sample size adequate?
+4. **Validation**: Always cross-validate; never trust resubstitution estimates
+
+This concludes Part II of Statistics with R. The course has covered:
+- Multiple regression and diagnostics
+- Generalised linear models (logistic, Poisson)
+- Mixed-effects models
+- Time series analysis
+- Bayesian statistics
+- Survival analysis
+- Multivariate methods
+
+These tools form a comprehensive statistical toolkit for biomedical and bioinformatics research.
