@@ -1,0 +1,865 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 8: Genome-Wide Association Studies"
+part: "Part 1: Association Testing and Quality Control"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, bioinformatics, GWAS, genetics, association-testing, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: Association Testing and Quality Control
+
+**Genome-wide association studies (GWAS)** test millions of genetic variants for association with a trait or disease. This "hypothesis-free" approach has identified thousands of disease-associated loci, revolutionising our understanding of complex trait genetics. However, GWAS presents unique statistical challenges: massive multiple testing, population stratification, and the need for stringent quality control. This chapter develops the statistical framework for GWAS, from single-variant tests to genome-wide significance.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+
+``` r
+# Simulate GWAS data
+# - N individuals
+# - M SNPs across 22 chromosomes
+# - Continuous phenotype (e.g., height, blood pressure)
+# - Some true associations
+
+n_individuals <- 5000
+n_snps <- 50000  # Reduced for demonstration (real GWAS: millions)
+n_chromosomes <- 22
+
+# Simulate SNP positions across chromosomes
+# Chromosome lengths (in Mb, approximate)
+chr_lengths <- c(249, 243, 198, 191, 182, 171, 159, 145, 138, 133,
+                 135, 133, 114, 107, 102, 90, 83, 80, 59, 64, 47, 51)
+
+# Assign SNPs to chromosomes proportionally
+snps_per_chr <- round(n_snps * chr_lengths / sum(chr_lengths))
+snps_per_chr[1] <- snps_per_chr[1] + (n_snps - sum(snps_per_chr))  # Adjust for rounding
+
+# Create SNP info
+snp_info <- rbindlist(lapply(1:n_chromosomes, function(chr) {
+    n_chr <- snps_per_chr[chr]
+    positions <- sort(sample(1:(chr_lengths[chr] * 1e6), n_chr))
+    data.table(
+        snp_id = paste0("chr", chr, "_", positions),
+        chromosome = chr,
+        position = positions
+    )
+}))
+
+snp_info[, snp_idx := 1:.N]
+
+# Simulate genotypes (0, 1, 2 copies of minor allele)
+# Minor allele frequencies from realistic distribution
+mafs <- rbeta(n_snps, 1, 5)  # Most SNPs have low MAF
+mafs <- pmin(pmax(mafs, 0.01), 0.5)  # Constrain to [0.01, 0.5]
+
+# Genotype matrix (additive coding: 0, 1, 2)
+genotypes <- matrix(NA, nrow = n_individuals, ncol = n_snps)
+for (j in 1:n_snps) {
+    p <- mafs[j]
+    genotypes[, j] <- rbinom(n_individuals, 2, p)
+}
+
+# Simulate phenotype with genetic effects
+# True causal variants (sparse - only ~50 variants have real effects)
+n_causal <- 50
+causal_snps <- sample(1:n_snps, n_causal)
+true_betas <- rep(0, n_snps)
+
+# Effect sizes: most small, few moderate
+true_betas[causal_snps] <- rnorm(n_causal, 0, 0.15)
+
+# Genetic component
+genetic_value <- genotypes %*% true_betas
+
+# Environmental variance to achieve target heritability (~0.3)
+h2_target <- 0.3
+var_genetic <- var(genetic_value)
+var_env <- var_genetic * (1 - h2_target) / h2_target
+
+# Phenotype
+phenotype <- as.vector(genetic_value) + rnorm(n_individuals, 0, sqrt(var_env))
+
+# Centre and scale
+phenotype <- scale(phenotype)[, 1]
+
+cat("Simulated GWAS Data:\n")
+#> Simulated GWAS Data:
+cat("====================\n")
+#> ====================
+cat("  Individuals:", n_individuals, "\n")
+#>   Individuals: 5000
+cat("  SNPs:", n_snps, "\n")
+#>   SNPs: 50000
+cat("  Chromosomes:", n_chromosomes, "\n")
+#>   Chromosomes: 22
+cat("  Causal SNPs:", n_causal, "\n")
+#>   Causal SNPs: 50
+cat("  Target heritability:", h2_target, "\n")
+#>   Target heritability: 0.3
+cat("  Realised heritability:", round(var(genetic_value) / var(phenotype), 3), "\n")
+#>   Realised heritability: 0.245
+```
+
+---
+
+## 8.1 Genetic Association Testing
+
+### 8.1.1 The Single-SNP Regression Model
+
+**Prose and Intuition**
+
+For each SNP, we test whether genotype is associated with phenotype using linear regression:
+
+$$Y_i = \beta_0 + \beta_1 G_i + \epsilon_i$$
+
+where:
+- $Y_i$: phenotype for individual $i$
+- $G_i$: genotype (0, 1, or 2 copies of the minor allele)
+- $\beta_1$: effect size per minor allele
+- $\epsilon_i \sim N(0, \sigma^2)$: residual error
+
+Under the **additive model**, each additional copy of the minor allele adds $\beta_1$ to the phenotype.
+
+**Mathematical Framework**
+
+The test statistic for $H_0: \beta_1 = 0$:
+
+$$t = \frac{\hat{\beta}_1}{\text{SE}(\hat{\beta}_1)} \sim t_{n-2}$$
+
+For large $n$, this is approximately standard normal. The p-value:
+
+$$p = 2 \cdot \Phi(-|t|)$$
+
+
+``` r
+# Single SNP association test
+test_snp_association <- function(genotype, phenotype) {
+    # Filter out missing genotypes
+    valid <- !is.na(genotype) & !is.na(phenotype)
+    g <- genotype[valid]
+    y <- phenotype[valid]
+    n <- length(y)
+
+    # Fit linear model
+    g_centered <- g - mean(g)
+    y_centered <- y - mean(y)
+
+    # Beta estimate
+    beta <- sum(g_centered * y_centered) / sum(g_centered^2)
+
+    # Residual variance
+    y_hat <- mean(y) + beta * g_centered
+    sigma2 <- sum((y - y_hat)^2) / (n - 2)
+
+    # Standard error
+    se <- sqrt(sigma2 / sum(g_centered^2))
+
+    # Test statistic and p-value
+    t_stat <- beta / se
+    p_value <- 2 * pt(-abs(t_stat), df = n - 2)
+
+    list(beta = beta, se = se, t_stat = t_stat, p_value = p_value, n = n)
+}
+
+# Test a causal SNP vs a non-causal SNP
+causal_example <- causal_snps[which.max(abs(true_betas[causal_snps]))]
+non_causal_example <- setdiff(1:n_snps, causal_snps)[1]
+
+cat("Single SNP Association Test Examples:\n")
+#> Single SNP Association Test Examples:
+cat("=====================================\n")
+#> =====================================
+
+result_causal <- test_snp_association(genotypes[, causal_example], phenotype)
+cat("\nCausal SNP (true beta =", round(true_betas[causal_example], 4), "):\n")
+#> 
+#> Causal SNP (true beta = -0.4469 ):
+cat("  Estimated beta:", round(result_causal$beta, 4), "\n")
+#>   Estimated beta: -0.4632
+cat("  SE:", round(result_causal$se, 4), "\n")
+#>   SE: 0.0234
+cat("  t-statistic:", round(result_causal$t_stat, 2), "\n")
+#>   t-statistic: -19.82
+cat("  P-value:", format(result_causal$p_value, digits = 3), "\n")
+#>   P-value: 3.02e-84
+
+result_null <- test_snp_association(genotypes[, non_causal_example], phenotype)
+cat("\nNon-causal SNP (true beta = 0):\n")
+#> 
+#> Non-causal SNP (true beta = 0):
+cat("  Estimated beta:", round(result_null$beta, 4), "\n")
+#>   Estimated beta: 0.0383
+cat("  SE:", round(result_null$se, 4), "\n")
+#>   SE: 0.0292
+cat("  t-statistic:", round(result_null$t_stat, 2), "\n")
+#>   t-statistic: 1.31
+cat("  P-value:", format(result_null$p_value, digits = 3), "\n")
+#>   P-value: 0.189
+```
+
+### 8.1.2 Running a Genome-Wide Scan
+
+**Prose and Intuition**
+
+A GWAS tests every SNP across the genome. This is computationally intensive but conceptually simple: repeat the single-SNP test for each variant.
+
+
+``` r
+# Genome-wide association scan
+run_gwas <- function(genotypes, phenotype, snp_info) {
+    n_snps <- ncol(genotypes)
+
+    # Pre-allocate results
+    results <- data.table(
+        snp_id = snp_info$snp_id,
+        chromosome = snp_info$chromosome,
+        position = snp_info$position,
+        beta = numeric(n_snps),
+        se = numeric(n_snps),
+        t_stat = numeric(n_snps),
+        p_value = numeric(n_snps),
+        maf = numeric(n_snps)
+    )
+
+    # Test each SNP
+    for (j in 1:n_snps) {
+        g <- genotypes[, j]
+        test_result <- test_snp_association(g, phenotype)
+
+        results[j, `:=`(
+            beta = test_result$beta,
+            se = test_result$se,
+            t_stat = test_result$t_stat,
+            p_value = test_result$p_value,
+            maf = mean(g) / 2
+        )]
+    }
+
+    # Add true effect indicator
+    results[, is_causal := 1:.N %in% causal_snps]
+    results[, true_beta := true_betas]
+
+    return(results)
+}
+
+gwas_results <- run_gwas(genotypes, phenotype, snp_info)
+
+cat("GWAS Scan Complete:\n")
+#> GWAS Scan Complete:
+cat("===================\n")
+#> ===================
+cat("  SNPs tested:", nrow(gwas_results), "\n")
+#>   SNPs tested: 50000
+cat("  Significant at p < 5e-8:", sum(gwas_results$p_value < 5e-8), "\n")
+#>   Significant at p < 5e-8: 13
+cat("  Significant at p < 1e-5:", sum(gwas_results$p_value < 1e-5), "\n")
+#>   Significant at p < 1e-5: 16
+cat("  Minimum p-value:", format(min(gwas_results$p_value), digits = 3), "\n")
+#>   Minimum p-value: 3.02e-84
+```
+
+---
+
+## 8.2 Genome-Wide Significance
+
+### 8.2.1 The Multiple Testing Problem
+
+**Prose and Intuition**
+
+Testing millions of SNPs creates a massive multiple testing problem. At $\alpha = 0.05$:
+- Testing 1 million SNPs would yield 50,000 false positives by chance
+- Even at $\alpha = 10^{-5}$, we'd expect 10 false positives
+
+The conventional **genome-wide significance threshold** is $p < 5 \times 10^{-8}$, derived from Bonferroni correction for ~1 million independent tests.
+
+**Mathematical Framework**
+
+Bonferroni correction: $\alpha_{genome-wide} = \frac{\alpha}{M_{eff}}$
+
+where $M_{eff}$ is the effective number of independent tests. Due to **linkage disequilibrium** (LD, correlation between nearby SNPs), $M_{eff}$ is less than the total number of SNPs.
+
+For European ancestry: $M_{eff} \approx 10^6$, giving $\alpha_{genome-wide} \approx 5 \times 10^{-8}$.
+
+
+``` r
+# Demonstrate multiple testing burden
+alpha_nominal <- 0.05
+n_tests <- nrow(gwas_results)
+
+# Expected false positives at various thresholds
+thresholds <- c(0.05, 0.01, 1e-3, 1e-5, 5e-8)
+
+cat("Multiple Testing Burden:\n")
+#> Multiple Testing Burden:
+cat("========================\n")
+#> ========================
+cat("\nExpected false positives under the null:\n")
+#> 
+#> Expected false positives under the null:
+for (thresh in thresholds) {
+    expected_fp <- n_tests * thresh
+    observed <- sum(gwas_results$p_value < thresh & !gwas_results$is_causal)
+    cat(sprintf("  p < %s: Expected %.1f, Observed %d\n",
+                format(thresh, scientific = TRUE), expected_fp, observed))
+}
+#>   p < 5e-02: Expected 2500.0, Observed 2432
+#>   p < 1e-02: Expected 500.0, Observed 477
+#>   p < 1e-03: Expected 50.0, Observed 44
+#>   p < 1e-05: Expected 0.5, Observed 0
+#>   p < 5e-08: Expected 0.0, Observed 0
+
+# P-value distribution for null SNPs
+null_pvals <- gwas_results[is_causal == FALSE]$p_value
+
+# QQ plot
+qq_data <- data.table(
+    observed = -log10(sort(null_pvals)),
+    expected = -log10(ppoints(length(null_pvals)))
+)
+
+ggplot2$ggplot(qq_data, ggplot2$aes(x = expected, y = observed)) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, colour = "red", linetype = "dashed") +
+    ggplot2$geom_point(alpha = 0.3, size = 0.8, colour = "#2166AC") +
+    ggplot2$labs(
+        title = "QQ Plot of GWAS P-values (Null SNPs Only)",
+        subtitle = "Points should follow the diagonal under the null",
+        x = expression(-log[10](Expected~p)),
+        y = expression(-log[10](Observed~p))
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/multiple_testing-1.png" alt="GWAS requires stringent significance thresholds">
+	GWAS requires stringent significance thresholds
+</Figure>
+
+### 8.2.2 Genomic Inflation Factor
+
+**Prose and Intuition**
+
+The **genomic inflation factor** ($\lambda_{GC}$) measures systematic inflation of test statistics:
+
+$$\lambda_{GC} = \frac{\text{median}(\chi^2_{observed})}{\text{median}(\chi^2_{expected})} = \frac{\text{median}(\chi^2_{observed})}{0.455}$$
+
+- $\lambda_{GC} = 1$: No inflation (ideal)
+- $\lambda_{GC} > 1$: Inflated statistics (possible confounding)
+- $\lambda_{GC} > 1.1$: Suggests population stratification or other systematic bias
+
+**Important**: Some inflation is expected when there are true associations. The QQ plot should show inflation only in the tail (true signals), not throughout.
+
+
+``` r
+# Calculate genomic inflation factor
+calc_lambda_gc <- function(p_values) {
+    # Convert to chi-squared statistics
+    chi_sq <- qchisq(p_values, df = 1, lower.tail = FALSE)
+    # Median observed vs expected
+    lambda <- median(chi_sq) / qchisq(0.5, df = 1)
+    return(lambda)
+}
+
+lambda_all <- calc_lambda_gc(gwas_results$p_value)
+lambda_null <- calc_lambda_gc(gwas_results[is_causal == FALSE]$p_value)
+
+cat("Genomic Inflation Factor:\n")
+#> Genomic Inflation Factor:
+cat("=========================\n")
+#> =========================
+cat("  Lambda (all SNPs):", round(lambda_all, 3), "\n")
+#>   Lambda (all SNPs): 1.025
+cat("  Lambda (null SNPs only):", round(lambda_null, 3), "\n")
+#>   Lambda (null SNPs only): 1.023
+
+if (lambda_null > 1.05) {
+    cat("  Warning: Modest inflation detected in null SNPs.\n")
+} else {
+    cat("  Good: No systematic inflation in null SNPs.\n")
+}
+#>   Good: No systematic inflation in null SNPs.
+```
+
+---
+
+## 8.3 Manhattan and QQ Plots
+
+### 8.3.1 The Manhattan Plot
+
+**Prose and Intuition**
+
+**Manhattan plots** display $-\log_{10}(p)$ for each SNP, organised by chromosomal position. The name comes from the resemblance to a city skyline. Peaks indicate regions of association.
+
+Key features:
+- Alternating colours distinguish chromosomes
+- Horizontal line at genome-wide significance ($p = 5 \times 10^{-8}$)
+- Clusters of significant SNPs often represent single causal loci (due to LD)
+
+
+``` r
+# Prepare data for Manhattan plot
+manhattan_data <- copy(gwas_results)
+manhattan_data[, neg_log_p := -log10(p_value)]
+
+# Calculate cumulative position for x-axis
+chr_cumsum <- manhattan_data[, .(chr_len = max(position)), by = chromosome]
+chr_cumsum[, cumsum := cumsum(as.numeric(chr_len)) - chr_len]
+manhattan_data <- merge(manhattan_data, chr_cumsum[, .(chromosome, cumsum)], by = "chromosome")
+manhattan_data[, bp_cumulative := position + cumsum]
+
+# Chromosome midpoints for labels
+chr_midpoints <- manhattan_data[, .(mid = mean(bp_cumulative)), by = chromosome]
+
+# Create Manhattan plot
+ggplot2$ggplot(manhattan_data, ggplot2$aes(x = bp_cumulative, y = neg_log_p,
+                                            colour = factor(chromosome %% 2))) +
+    ggplot2$geom_point(alpha = 0.6, size = 0.8) +
+    ggplot2$geom_hline(yintercept = -log10(5e-8), colour = "red",
+                        linetype = "dashed", linewidth = 0.8) +
+    ggplot2$geom_hline(yintercept = -log10(1e-5), colour = "blue",
+                        linetype = "dotted", linewidth = 0.6) +
+    ggplot2$scale_colour_manual(values = c("#2166AC", "#7570B3"), guide = "none") +
+    ggplot2$scale_x_continuous(
+        breaks = chr_midpoints$mid,
+        labels = chr_midpoints$chromosome,
+        expand = ggplot2$expansion(mult = 0.01)
+    ) +
+    ggplot2$annotate("text", x = max(manhattan_data$bp_cumulative) * 0.95,
+                      y = -log10(5e-8) + 0.5, label = "p = 5e-8",
+                      colour = "red", size = 3) +
+    ggplot2$labs(
+        title = "Manhattan Plot",
+        subtitle = paste("Genome-wide significant hits:",
+                        sum(manhattan_data$p_value < 5e-8)),
+        x = "Chromosome",
+        y = expression(-log[10](p))
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        panel.grid.major.x = ggplot2$element_blank(),
+        panel.grid.minor = ggplot2$element_blank()
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/manhattan_plot-1.png" alt="Manhattan plot showing genome-wide association results">
+	Manhattan plot showing genome-wide association results
+</Figure>
+
+### 8.3.2 QQ Plot Interpretation
+
+**Prose and Intuition**
+
+The **QQ plot** (quantile-quantile) compares observed p-values to their expected distribution under the null. Points deviating upward in the tail indicate true associations.
+
+**What to look for**:
+- Diagonal line: Most SNPs should follow this (null hypothesis)
+- Upward deviation in tail: True positive signals
+- Early deviation from diagonal: Systematic inflation (population stratification)
+
+
+``` r
+# QQ plot with causal SNPs highlighted
+qq_full <- data.table(
+    observed = -log10(sort(gwas_results$p_value)),
+    expected = -log10(ppoints(nrow(gwas_results))),
+    is_causal = gwas_results[order(p_value)]$is_causal
+)
+
+ggplot2$ggplot(qq_full, ggplot2$aes(x = expected, y = observed, colour = is_causal)) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, colour = "grey50", linetype = "dashed") +
+    ggplot2$geom_point(alpha = 0.5, size = 1) +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#2166AC", "TRUE" = "#D95F02"),
+                                 labels = c("Null SNPs", "Causal SNPs"),
+                                 name = "") +
+    ggplot2$annotate("text", x = 1, y = max(qq_full$observed) - 1,
+                      label = paste("λ =", round(lambda_all, 3))) +
+    ggplot2$labs(
+        title = "QQ Plot of GWAS P-values",
+        subtitle = "Tail enrichment indicates true associations",
+        x = expression(-log[10](Expected~p)),
+        y = expression(-log[10](Observed~p))
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/qq_plot_full-1.png" alt="QQ plot with causal SNPs highlighted">
+	QQ plot with causal SNPs highlighted
+</Figure>
+
+---
+
+## 8.4 Quality Control
+
+### 8.4.1 SNP-Level Quality Control
+
+**Prose and Intuition**
+
+Before analysis, SNPs must pass quality control filters:
+
+1. **Minor allele frequency (MAF)**: Remove very rare variants (e.g., MAF < 0.01)
+   - Low power to detect associations
+   - More susceptible to genotyping errors
+
+2. **Missingness**: Remove SNPs with high missing rate (e.g., > 5%)
+   - Indicates genotyping problems
+
+3. **Hardy-Weinberg Equilibrium (HWE)**: Remove SNPs with extreme HWE deviation
+   - Departure from HWE suggests genotyping error
+   - Test in controls only (cases may show HWE departure due to selection)
+
+**Hardy-Weinberg Equilibrium**
+
+For alleles $A$ and $a$ with frequencies $p$ and $q = 1 - p$:
+
+Expected genotype frequencies: $P(AA) = p^2$, $P(Aa) = 2pq$, $P(aa) = q^2$
+
+The HWE test uses a chi-squared statistic comparing observed to expected counts.
+
+
+``` r
+# Calculate QC metrics for each SNP
+calc_snp_qc <- function(genotypes) {
+    n_snps <- ncol(genotypes)
+
+    qc_metrics <- data.table(
+        snp_idx = 1:n_snps,
+        maf = numeric(n_snps),
+        missing_rate = numeric(n_snps),
+        hwe_pvalue = numeric(n_snps)
+    )
+
+    for (j in 1:n_snps) {
+        g <- genotypes[, j]
+
+        # MAF
+        maf <- mean(g, na.rm = TRUE) / 2
+        if (maf > 0.5) maf <- 1 - maf
+        qc_metrics[j, maf := maf]
+
+        # Missing rate
+        qc_metrics[j, missing_rate := mean(is.na(g))]
+
+        # HWE test (chi-squared)
+        obs_counts <- table(factor(g, levels = 0:2))
+        n <- sum(obs_counts)
+        p <- (2 * obs_counts[1] + obs_counts[2]) / (2 * n)  # Allele frequency
+        q <- 1 - p
+
+        exp_counts <- n * c(p^2, 2*p*q, q^2)
+        exp_counts <- pmax(exp_counts, 0.01)  # Avoid division by zero
+
+        chi_sq <- sum((obs_counts - exp_counts)^2 / exp_counts)
+        qc_metrics[j, hwe_pvalue := pchisq(chi_sq, df = 1, lower.tail = FALSE)]
+    }
+
+    return(qc_metrics)
+}
+
+snp_qc <- calc_snp_qc(genotypes)
+
+cat("SNP Quality Control Summary:\n")
+#> SNP Quality Control Summary:
+cat("============================\n")
+#> ============================
+cat("  MAF < 0.01:", sum(snp_qc$maf < 0.01), "SNPs would be filtered\n")
+#>   MAF < 0.01: 50000 SNPs would be filtered
+cat("  MAF < 0.05:", sum(snp_qc$maf < 0.05), "SNPs would be filtered\n")
+#>   MAF < 0.05: 50000 SNPs would be filtered
+cat("  HWE p < 1e-6:", sum(snp_qc$hwe_pvalue < 1e-6), "SNPs would be filtered\n")
+#>   HWE p < 1e-6: 0 SNPs would be filtered
+
+# Visualise QC metrics
+qc_plot_data <- copy(snp_qc)
+qc_plot_data[, pass_qc := maf >= 0.01 & hwe_pvalue >= 1e-6]
+
+ggplot2$ggplot(qc_plot_data, ggplot2$aes(x = maf, y = -log10(hwe_pvalue),
+                                          colour = pass_qc)) +
+    ggplot2$geom_point(alpha = 0.3, size = 0.6) +
+    ggplot2$geom_vline(xintercept = 0.01, linetype = "dashed", colour = "red") +
+    ggplot2$geom_hline(yintercept = -log10(1e-6), linetype = "dashed", colour = "red") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#D95F02", "TRUE" = "#2166AC"),
+                                 labels = c("Fail QC", "Pass QC"),
+                                 name = "") +
+    ggplot2$labs(
+        title = "SNP Quality Control",
+        subtitle = "SNPs below MAF threshold or with HWE violation are filtered",
+        x = "Minor Allele Frequency (MAF)",
+        y = expression(-log[10](HWE~p-value))
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/snp_qc-1.png" alt="SNP quality control metrics">
+	SNP quality control metrics
+</Figure>
+
+### 8.4.2 Sample-Level Quality Control
+
+**Prose and Intuition**
+
+Samples also require QC:
+
+1. **Call rate**: Remove samples with high missing rate (e.g., > 5%)
+2. **Heterozygosity**: Extreme values suggest sample contamination or inbreeding
+3. **Sex check**: Verify reported sex matches genetic sex
+4. **Relatedness**: Identify and remove related individuals
+
+**Heterozygosity check**
+
+Expected heterozygosity: $H_{exp} = 2 \times MAF \times (1 - MAF)$
+
+Individuals with $H_{obs}$ much higher or lower than expected may have:
+- Contamination (high heterozygosity)
+- Inbreeding (low heterozygosity)
+- DNA quality issues
+
+
+``` r
+# Calculate sample QC metrics
+calc_sample_qc <- function(genotypes, mafs) {
+    n_individuals <- nrow(genotypes)
+    n_snps <- ncol(genotypes)
+
+    qc_metrics <- data.table(
+        sample_idx = 1:n_individuals,
+        call_rate = numeric(n_individuals),
+        het_obs = numeric(n_individuals),
+        het_exp = numeric(n_individuals)
+    )
+
+    # Expected heterozygosity for each SNP
+    het_exp_snp <- 2 * mafs * (1 - mafs)
+
+    for (i in 1:n_individuals) {
+        g <- genotypes[i, ]
+
+        # Call rate
+        qc_metrics[i, call_rate := mean(!is.na(g))]
+
+        # Observed heterozygosity
+        het_obs <- mean(g == 1, na.rm = TRUE)
+        qc_metrics[i, het_obs := het_obs]
+
+        # Expected heterozygosity
+        qc_metrics[i, het_exp := mean(het_exp_snp[!is.na(g)])]
+    }
+
+    # Heterozygosity F statistic
+    qc_metrics[, F_het := (het_exp - het_obs) / het_exp]
+
+    return(qc_metrics)
+}
+
+sample_qc <- calc_sample_qc(genotypes, snp_qc$maf)
+
+# Identify outliers
+het_mean <- mean(sample_qc$het_obs)
+het_sd <- sd(sample_qc$het_obs)
+sample_qc[, het_outlier := abs(het_obs - het_mean) > 3 * het_sd]
+
+cat("Sample Quality Control Summary:\n")
+#> Sample Quality Control Summary:
+cat("==============================\n")
+#> ==============================
+cat("  Mean call rate:", round(mean(sample_qc$call_rate), 4), "\n")
+#>   Mean call rate: 1
+cat("  Low call rate (<0.95):", sum(sample_qc$call_rate < 0.95), "samples\n")
+#>   Low call rate (<0.95): 0 samples
+cat("  Heterozygosity outliers:", sum(sample_qc$het_outlier), "samples\n")
+#>   Heterozygosity outliers: 0 samples
+
+# Visualise sample QC
+ggplot2$ggplot(sample_qc, ggplot2$aes(x = call_rate, y = het_obs, colour = het_outlier)) +
+    ggplot2$geom_point(alpha = 0.5, size = 1) +
+    ggplot2$geom_hline(yintercept = c(het_mean - 3*het_sd, het_mean + 3*het_sd),
+                        linetype = "dashed", colour = "red") +
+    ggplot2$geom_vline(xintercept = 0.95, linetype = "dashed", colour = "red") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#2166AC", "TRUE" = "#D95F02"),
+                                 labels = c("Pass", "Outlier"),
+                                 name = "Heterozygosity") +
+    ggplot2$labs(
+        title = "Sample Quality Control",
+        subtitle = "Samples with extreme heterozygosity or low call rate are flagged",
+        x = "Call Rate",
+        y = "Observed Heterozygosity"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/sample_qc-1.png" alt="Sample quality control metrics">
+	Sample quality control metrics
+</Figure>
+
+---
+
+## 8.5 GWAS Performance Evaluation
+
+### 8.5.1 Sensitivity and Specificity
+
+**Prose and Intuition**
+
+With simulated data, we can evaluate GWAS performance:
+- **Sensitivity**: Proportion of true causal SNPs detected
+- **Specificity**: Proportion of null SNPs correctly identified
+- **Positive predictive value**: Proportion of significant findings that are true
+
+
+``` r
+# Evaluate performance at different thresholds
+evaluate_gwas <- function(gwas_results, thresholds) {
+    results <- rbindlist(lapply(thresholds, function(thresh) {
+        sig <- gwas_results$p_value < thresh
+
+        TP <- sum(sig & gwas_results$is_causal)
+        FP <- sum(sig & !gwas_results$is_causal)
+        TN <- sum(!sig & !gwas_results$is_causal)
+        FN <- sum(!sig & gwas_results$is_causal)
+
+        data.table(
+            threshold = thresh,
+            TP = TP,
+            FP = FP,
+            TN = TN,
+            FN = FN,
+            sensitivity = TP / (TP + FN),
+            specificity = TN / (TN + FP),
+            PPV = ifelse(TP + FP > 0, TP / (TP + FP), NA),
+            FDR = ifelse(TP + FP > 0, FP / (TP + FP), NA)
+        )
+    }))
+    return(results)
+}
+
+thresholds <- c(5e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3)
+performance <- evaluate_gwas(gwas_results, thresholds)
+
+cat("GWAS Performance at Various Thresholds:\n")
+#> GWAS Performance at Various Thresholds:
+cat("=======================================\n")
+#> =======================================
+print(performance[, .(threshold = format(threshold, scientific = TRUE),
+                       TP, FP, sensitivity = round(sensitivity, 3),
+                       PPV = round(PPV, 3))])
+#>    threshold    TP    FP sensitivity   PPV
+#>       <char> <int> <int>       <num> <num>
+#> 1:     5e-08    13     0        0.26 1.000
+#> 2:     1e-07    14     0        0.28 1.000
+#> 3:     1e-06    15     0        0.30 1.000
+#> 4:     1e-05    16     0        0.32 1.000
+#> 5:     1e-04    20     9        0.40 0.690
+#> 6:     1e-03    22    44        0.44 0.333
+```
+
+### 8.5.2 Effect Size Estimation
+
+**Prose and Intuition**
+
+GWAS estimates effect sizes ($\hat{\beta}$). Due to **winner's curse**, significant associations tend to have overestimated effects: SNPs are more likely to reach significance if they happen to have an inflated estimate by chance.
+
+
+``` r
+# Compare estimated vs true effects for causal SNPs
+causal_results <- gwas_results[is_causal == TRUE]
+
+cat("Effect Size Estimation (Causal SNPs):\n")
+#> Effect Size Estimation (Causal SNPs):
+cat("=====================================\n")
+#> =====================================
+cat("  Correlation (estimated vs true):",
+    round(cor(causal_results$beta, causal_results$true_beta), 3), "\n")
+#>   Correlation (estimated vs true): 0.976
+cat("  Mean absolute error:", round(mean(abs(causal_results$beta - causal_results$true_beta)), 4), "\n")
+#>   Mean absolute error: 0.0255
+
+# Visualise
+ggplot2$ggplot(causal_results, ggplot2$aes(x = true_beta, y = beta,
+                                            colour = p_value < 5e-8)) +
+    ggplot2$geom_point(size = 2, alpha = 0.7) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_smooth(method = "lm", se = FALSE, colour = "red", linewidth = 0.8) +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#7570B3", "TRUE" = "#D95F02"),
+                                 labels = c("Not significant", "Genome-wide significant"),
+                                 name = "") +
+    ggplot2$labs(
+        title = "GWAS Effect Size Estimation",
+        subtitle = "Comparison of estimated vs true effects for causal SNPs",
+        x = "True Effect Size (β)",
+        y = "Estimated Effect Size (β̂)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-3-advanced/effect_size_estimation-1.png" alt="Effect size estimation accuracy for causal SNPs">
+	Effect size estimation accuracy for causal SNPs
+</Figure>
+
+---
+
+## 8.6 Summary and Key Concepts
+
+### Key Takeaways
+
+1. **GWAS Framework**: Test millions of SNPs for association using simple linear regression. The additive model is most commonly used.
+
+2. **Multiple Testing**: Testing millions of variants requires stringent correction. The genome-wide significance threshold ($p < 5 \times 10^{-8}$) is standard.
+
+3. **Manhattan Plot**: Visualise results across the genome. Peaks indicate regions of association.
+
+4. **QQ Plot**: Assess whether p-values follow the expected null distribution. Inflation suggests confounding.
+
+5. **Genomic Inflation Factor**: $\lambda_{GC} \approx 1$ indicates no systematic bias. Values > 1.05 suggest population stratification.
+
+6. **Quality Control**: Filter SNPs (MAF, HWE, missingness) and samples (call rate, heterozygosity) before analysis.
+
+### Connections to Other Topics
+
+- **Part 2**: Population stratification and advanced methods (PCA, mixed models)
+- **Chapter 2**: Multiple testing concepts apply directly to GWAS
+- **Chapter 7**: RNA-seq differential expression uses similar regression framework
+
+### Communicating to Stakeholders
+
+**For a biological audience**: "We tested 500,000 genetic variants for association with blood pressure. Using the stringent genome-wide significance threshold, we identified 12 variants that are associated with the trait. These variants collectively explain about 3% of the heritability of blood pressure."
+
+**For a methods paper**: "Genome-wide association analysis was performed using linear regression with an additive genetic model. SNPs were filtered for MAF > 0.01 and HWE p > 10^-6. Sample quality control removed individuals with call rate < 0.95 or heterozygosity > 3 SD from the mean. Genome-wide significance was defined as p < 5 × 10^-8."
+
+**Key vocabulary**:
+- Single nucleotide polymorphism (SNP)
+- Minor allele frequency (MAF)
+- Hardy-Weinberg equilibrium (HWE)
+- Manhattan plot, QQ plot
+- Genomic inflation factor ($\lambda_{GC}$)
+- Genome-wide significance, Bonferroni correction

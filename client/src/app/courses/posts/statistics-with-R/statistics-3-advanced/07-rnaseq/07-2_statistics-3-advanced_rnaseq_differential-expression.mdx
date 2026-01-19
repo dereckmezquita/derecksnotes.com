@@ -1,0 +1,1058 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 7: RNA-Seq Analysis"
+part: "Part 2: Differential Expression Testing"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, bioinformatics, RNA-seq, differential-expression, hypothesis-testing, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: Differential Expression Testing
+
+Having established the statistical framework for RNA-seq count data in Part 1, we now turn to the central question: **which genes are differentially expressed between conditions?** This chapter develops the hypothesis testing framework for count data, focusing on the negative binomial model, dispersion estimation, and the critical role of multiple testing correction.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+
+``` r
+# Simulate RNA-seq count data (same as Part 1, reproduced for completeness)
+n_genes <- 10000
+n_samples <- 6
+n_control <- 3
+n_treatment <- 3
+
+# Sample groups
+groups <- factor(c(rep("Control", n_control), rep("Treatment", n_treatment)))
+
+# Library sizes
+library_sizes <- c(15e6, 18e6, 12e6, 20e6, 14e6, 16e6)
+
+# Mean expression levels
+base_means <- exp(rnorm(n_genes, mean = 3, sd = 2))
+base_means[base_means < 1] <- 1
+
+# Differential expression: ~200 genes with true changes
+n_de <- 200
+de_genes <- sample(1:n_genes, n_de)
+log_fold_changes <- rep(0, n_genes)
+log_fold_changes[de_genes] <- rnorm(n_de, mean = 0, sd = 1.5)
+
+# Generate counts using negative binomial
+dispersion <- 0.1
+
+counts <- matrix(NA, nrow = n_genes, ncol = n_samples)
+colnames(counts) <- paste0("Sample_", 1:n_samples)
+rownames(counts) <- paste0("Gene_", 1:n_genes)
+
+for (j in 1:n_samples) {
+    size_factor <- library_sizes[j] / mean(library_sizes)
+
+    if (groups[j] == "Treatment") {
+        mean_expression <- base_means * exp(log_fold_changes) * size_factor
+    } else {
+        mean_expression <- base_means * size_factor
+    }
+
+    counts[, j] <- rnbinom(n_genes, mu = mean_expression, size = 1 / dispersion)
+}
+
+# Calculate normalisation factors (DESeq2-style)
+calc_size_factors <- function(counts) {
+    log_counts <- log(counts + 0.5)
+    geo_means <- exp(rowMeans(log_counts))
+    ratios <- sweep(counts, 1, geo_means, "/")
+    size_factors <- apply(ratios, 2, function(x) median(x[is.finite(x) & x > 0]))
+    size_factors / exp(mean(log(size_factors)))
+}
+
+size_factors <- calc_size_factors(counts)
+normalised_counts <- sweep(counts, 2, size_factors, "/")
+
+cat("Simulated RNA-seq Data\n")
+#> Simulated RNA-seq Data
+cat("======================\n")
+#> ======================
+cat("  Genes:", n_genes, "\n")
+#>   Genes: 10000
+cat("  Samples:", n_samples, "\n")
+#>   Samples: 6
+cat("  True DE genes:", n_de, "\n")
+#>   True DE genes: 200
+cat("  True positives (|log2FC| > 1):", sum(abs(log_fold_changes[de_genes]) > log(2)), "\n")
+#>   True positives (|log2FC| > 1): 134
+```
+
+---
+
+## 7.6 The Negative Binomial Model for Differential Expression
+
+### 7.6.1 Model Specification
+
+**Prose and Intuition**
+
+The **generalised linear model** (GLM) framework provides a principled approach to differential expression testing. For count data with overdispersion, we use the **negative binomial GLM**:
+
+$$Y_{ij} \sim \text{NB}(\mu_{ij}, \phi_i)$$
+
+where:
+- $Y_{ij}$: count for gene $i$ in sample $j$
+- $\mu_{ij}$: expected count (mean)
+- $\phi_i$: gene-specific dispersion
+
+The mean is modelled as:
+$$\log(\mu_{ij}) = \log(s_j) + \beta_{i0} + \beta_{i1} x_j$$
+
+where:
+- $s_j$: size factor for sample $j$ (from normalisation)
+- $\beta_{i0}$: intercept (baseline expression)
+- $\beta_{i1}$: log fold change between conditions
+- $x_j$: indicator for treatment group (0 or 1)
+
+**Key Insight**: The coefficient $\beta_{i1}$ is the **log fold change** on the natural log scale. To get $\log_2$ fold change, divide by $\log(2)$.
+
+**Mathematical Framework**
+
+The likelihood for gene $i$:
+$$L(\beta_i, \phi_i) = \prod_{j=1}^{n} P(Y_{ij} = y_{ij} | \mu_{ij}, \phi_i)$$
+
+where the NB probability mass function is:
+$$P(Y = y) = \frac{\Gamma(y + 1/\phi)}{\Gamma(y+1)\Gamma(1/\phi)} \left(\frac{1}{1 + \phi\mu}\right)^{1/\phi} \left(\frac{\phi\mu}{1 + \phi\mu}\right)^{y}$$
+
+
+``` r
+# Demonstrate NB GLM fitting for a single gene
+fit_nb_glm <- function(counts, group, size_factors) {
+    # Design matrix
+    X <- cbind(1, as.numeric(group) - 1)  # Intercept and treatment
+
+    # Normalised counts
+    y <- counts
+    offset <- log(size_factors)
+
+    # Simple iteratively reweighted least squares for NB
+    # (In practice, use MASS::glm.nb or DESeq2)
+
+    # Initial estimates using Poisson
+    fit_pois <- glm(y ~ X[, 2], family = poisson(), offset = offset)
+    beta <- coef(fit_pois)
+
+    # Estimate dispersion from Poisson residuals
+    mu_hat <- exp(offset + X %*% beta)
+    pearson_resid <- (y - mu_hat) / sqrt(mu_hat)
+    phi <- max(0.01, (sum(pearson_resid^2) / (length(y) - 2) - 1) / mean(mu_hat))
+
+    # Refit with NB (using IRLS)
+    for (iter in 1:10) {
+        mu <- exp(offset + X %*% beta)
+
+        # Working weights and response for NB
+        w <- mu / (1 + phi * mu)
+        z <- offset + X %*% beta + (y - mu) / mu
+
+        # Weighted least squares update
+        W <- diag(as.vector(w))
+        beta_new <- solve(t(X) %*% W %*% X) %*% t(X) %*% W %*% z
+
+        if (max(abs(beta_new - beta)) < 1e-6) break
+        beta <- beta_new
+    }
+
+    # Standard errors
+    mu <- exp(offset + X %*% beta)
+    W <- diag(as.vector(mu / (1 + phi * mu)))
+    vcov <- solve(t(X) %*% W %*% X)
+    se <- sqrt(diag(vcov))
+
+    list(
+        beta = as.vector(beta),
+        se = se,
+        dispersion = phi,
+        mu = as.vector(mu),
+        converged = iter < 10
+    )
+}
+
+# Fit model for a few example genes
+example_genes <- c(de_genes[1], which(log_fold_changes == 0)[1])
+
+cat("NB GLM Fits for Example Genes:\n")
+#> NB GLM Fits for Example Genes:
+cat("==============================\n")
+#> ==============================
+
+for (i in example_genes) {
+    fit <- fit_nb_glm(counts[i, ], groups, size_factors)
+
+    cat("\nGene", i, "(true log2FC =", round(log_fold_changes[i] / log(2), 3), "):\n")
+    cat("  Intercept:", round(fit$beta[1], 3), "±", round(fit$se[1], 3), "\n")
+    cat("  Log FC (natural):", round(fit$beta[2], 3), "±", round(fit$se[2], 3), "\n")
+    cat("  Log2 FC:", round(fit$beta[2] / log(2), 3), "\n")
+    cat("  Dispersion:", round(fit$dispersion, 4), "\n")
+}
+#> 
+#> Gene 8363 (true log2FC = 0.711 ):
+#>   Intercept: 4.036 ± 0.131 
+#>   Log FC (natural): 0.644 ± 0.177 
+#>   Log2 FC: 0.929 
+#>   Dispersion: 0.033 
+#> 
+#> Gene 1 (true log2FC = 0 ):
+#>   Intercept: 5.875 ± 0.186 
+#>   Log FC (natural): -0.385 ± 0.264 
+#>   Log2 FC: -0.556 
+#>   Dispersion: 0.1007
+```
+
+### 7.6.2 Dispersion Estimation
+
+**Prose and Intuition**
+
+Accurate dispersion estimation is critical. With few replicates (typically 3-5 per group), gene-specific dispersion estimates are highly variable. The solution: **share information across genes**.
+
+**DESeq2/edgeR approach**:
+1. Fit gene-specific dispersions (noisy estimates)
+2. Fit a **dispersion-mean relationship** across all genes
+3. **Shrink** gene-specific estimates toward the trend
+
+This **empirical Bayes** approach borrows strength across genes, improving power especially for lowly expressed genes.
+
+
+``` r
+# Estimate dispersion for all genes
+estimate_dispersions <- function(counts, group, size_factors) {
+    n_genes <- nrow(counts)
+
+    # Gene-specific dispersion estimates
+    dispersions <- numeric(n_genes)
+    means <- numeric(n_genes)
+
+    for (i in 1:n_genes) {
+        y <- counts[i, ]
+
+        # Mean per group
+        mu_ctrl <- mean(y[group == "Control"] / size_factors[group == "Control"])
+        mu_trt <- mean(y[group == "Treatment"] / size_factors[group == "Treatment"])
+
+        # Overall mean
+        mu <- mean(c(mu_ctrl, mu_trt))
+        means[i] <- mu
+
+        # Method of moments dispersion estimate
+        # Var(Y) = mu + phi * mu^2
+        var_y <- var(y / size_factors)
+
+        if (mu > 0) {
+            phi <- (var_y - mu) / mu^2
+            dispersions[i] <- max(0.001, phi)  # Floor at small value
+        } else {
+            dispersions[i] <- 0.1
+        }
+    }
+
+    # Fit dispersion-mean trend (lowess)
+    keep <- means > 1 & dispersions > 0.001 & dispersions < 10
+    trend <- lowess(log10(means[keep]), log10(dispersions[keep]), f = 0.5)
+
+    # Predict trend for all genes
+    fitted_disp <- 10^approx(trend$x, trend$y, xout = log10(pmax(means, 0.1)),
+                             rule = 2)$y
+
+    # Shrink toward trend (simple weighted average)
+    # Weight by information (higher for genes with more counts)
+    weights <- pmin(rowMeans(counts) / 100, 1)
+    shrunk_disp <- weights * dispersions + (1 - weights) * fitted_disp
+
+    list(
+        gene_wise = dispersions,
+        fitted = fitted_disp,
+        shrunk = shrunk_disp,
+        means = means
+    )
+}
+
+disp_results <- estimate_dispersions(counts, groups, size_factors)
+
+# Visualise dispersion estimation
+disp_data <- data.table(
+    mean = disp_results$means,
+    gene_wise = disp_results$gene_wise,
+    fitted = disp_results$fitted,
+    shrunk = disp_results$shrunk
+)
+
+# Filter for plotting
+disp_data <- disp_data[mean > 1 & gene_wise > 0.001 & gene_wise < 5]
+
+cat("Dispersion Estimation Summary:\n")
+#> Dispersion Estimation Summary:
+cat("==============================\n")
+#> ==============================
+cat("  Median gene-wise:", round(median(disp_data$gene_wise), 4), "\n")
+#>   Median gene-wise: 0.0997
+cat("  Median shrunk:", round(median(disp_data$shrunk), 4), "\n")
+#>   Median shrunk: 0.1067
+cat("  True dispersion:", dispersion, "\n")
+#>   True dispersion: 0.1
+
+ggplot2$ggplot(disp_data, ggplot2$aes(x = mean)) +
+    ggplot2$geom_point(ggplot2$aes(y = gene_wise), alpha = 0.2, size = 0.5,
+                        colour = "grey50") +
+    ggplot2$geom_point(ggplot2$aes(y = shrunk), alpha = 0.3, size = 0.5,
+                        colour = "#2166AC") +
+    ggplot2$geom_line(ggplot2$aes(y = fitted), colour = "red", linewidth = 1.2) +
+    ggplot2$geom_hline(yintercept = dispersion, linetype = "dashed",
+                        colour = "darkgreen", linewidth = 0.8) +
+    ggplot2$scale_x_log10() +
+    ggplot2$scale_y_log10() +
+    ggplot2$annotate("text", x = 1000, y = 0.5, label = "True dispersion",
+                      colour = "darkgreen") +
+    ggplot2$annotate("text", x = 1000, y = 0.02, label = "Fitted trend",
+                      colour = "red") +
+    ggplot2$labs(
+        title = "Dispersion Estimation",
+        subtitle = "Grey: gene-wise; Blue: shrunk; Red line: fitted trend",
+        x = "Mean Expression",
+        y = "Dispersion"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/dispersion_estimation-1.png" alt="Dispersion estimation: gene-specific estimates are shrunk toward a common trend">
+	Dispersion estimation: gene-specific estimates are shrunk toward a common trend
+</Figure>
+
+---
+
+## 7.7 Hypothesis Testing for Differential Expression
+
+### 7.7.1 Wald Test
+
+**Prose and Intuition**
+
+The **Wald test** tests whether a coefficient differs from zero:
+
+$$z = \frac{\hat{\beta}_1}{\text{SE}(\hat{\beta}_1)}$$
+
+Under the null hypothesis ($\beta_1 = 0$, i.e., no differential expression), $z$ follows a standard normal distribution.
+
+**Mathematical Framework**
+
+The Wald test statistic:
+$$W = \frac{(\hat{\beta}_1 - 0)^2}{\text{Var}(\hat{\beta}_1)} \sim \chi^2_1$$
+
+Or equivalently, the z-statistic: $z = \hat{\beta}_1 / \text{SE}(\hat{\beta}_1) \sim N(0, 1)$
+
+The p-value: $p = 2 \cdot \Phi(-|z|)$
+
+
+``` r
+# Perform Wald test for all genes
+perform_de_analysis <- function(counts, group, size_factors, dispersions) {
+    n_genes <- nrow(counts)
+
+    results <- data.table(
+        gene = rownames(counts),
+        baseMean = numeric(n_genes),
+        log2FC = numeric(n_genes),
+        se = numeric(n_genes),
+        stat = numeric(n_genes),
+        pvalue = numeric(n_genes)
+    )
+
+    X <- cbind(1, as.numeric(group) - 1)
+    offset <- log(size_factors)
+
+    for (i in 1:n_genes) {
+        y <- counts[i, ]
+        phi <- dispersions[i]
+
+        # Fit NB GLM (simplified - would use proper solver in practice)
+        fit_pois <- suppressWarnings(
+            glm(y ~ X[, 2], family = poisson(), offset = offset)
+        )
+        beta <- coef(fit_pois)
+
+        if (any(is.na(beta))) {
+            results[i, c("log2FC", "se", "stat", "pvalue") := list(NA, NA, NA, NA)]
+            next
+        }
+
+        # NB variance and standard error
+        mu <- exp(offset + X %*% beta)
+        W <- diag(as.vector(mu / (1 + phi * mu)))
+
+        vcov <- tryCatch(
+            solve(t(X) %*% W %*% X),
+            error = function(e) matrix(NA, 2, 2)
+        )
+
+        se_beta <- sqrt(vcov[2, 2])
+
+        # Wald test
+        z_stat <- beta[2] / se_beta
+        p_val <- 2 * pnorm(-abs(z_stat))
+
+        results[i, `:=`(
+            baseMean = mean(mu),
+            log2FC = beta[2] / log(2),
+            se = se_beta / log(2),
+            stat = z_stat,
+            pvalue = p_val
+        )]
+    }
+
+    return(results)
+}
+
+de_results <- perform_de_analysis(counts, groups, size_factors, disp_results$shrunk)
+
+# Remove any failed fits
+de_results <- de_results[!is.na(pvalue)]
+
+cat("Differential Expression Analysis (Wald Test):\n")
+#> Differential Expression Analysis (Wald Test):
+cat("=============================================\n")
+#> =============================================
+cat("  Genes tested:", nrow(de_results), "\n")
+#>   Genes tested: 10000
+cat("  p < 0.05:", sum(de_results$pvalue < 0.05, na.rm = TRUE), "\n")
+#>   p < 0.05: 403
+cat("  p < 0.01:", sum(de_results$pvalue < 0.01, na.rm = TRUE), "\n")
+#>   p < 0.01: 94
+```
+
+### 7.7.2 Likelihood Ratio Test (LRT)
+
+**Prose and Intuition**
+
+The **likelihood ratio test** compares the fit of a full model (with treatment effect) to a reduced model (without):
+
+$$\text{LRT} = 2[\log L(\text{full}) - \log L(\text{reduced})]$$
+
+Under the null, LRT follows a $\chi^2$ distribution with degrees of freedom equal to the difference in parameters.
+
+The LRT is often more powerful than the Wald test, especially for small samples, but requires fitting two models per gene.
+
+**Mathematical Framework**
+
+For testing $H_0: \beta_1 = 0$:
+- Full model: $\log(\mu_{ij}) = \log(s_j) + \beta_0 + \beta_1 x_j$
+- Reduced model: $\log(\mu_{ij}) = \log(s_j) + \beta_0$
+
+$$\text{LRT} = 2[\ell(\hat{\beta}_0, \hat{\beta}_1) - \ell(\tilde{\beta}_0)] \sim \chi^2_1$$
+
+
+``` r
+# Likelihood ratio test (comparing nested models)
+calc_nb_loglik <- function(y, mu, phi) {
+    # Negative binomial log-likelihood
+    r <- 1 / phi
+    sum(lgamma(y + r) - lgamma(r) - lgamma(y + 1) +
+        r * log(r / (r + mu)) + y * log(mu / (r + mu)))
+}
+
+perform_lrt <- function(counts, group, size_factors, dispersions) {
+    n_genes <- nrow(counts)
+
+    results <- data.table(
+        gene = rownames(counts),
+        LRT_stat = numeric(n_genes),
+        LRT_pvalue = numeric(n_genes)
+    )
+
+    X_full <- cbind(1, as.numeric(group) - 1)
+    X_reduced <- cbind(1)
+    offset <- log(size_factors)
+
+    for (i in 1:n_genes) {
+        y <- counts[i, ]
+        phi <- dispersions[i]
+
+        # Full model
+        fit_full <- suppressWarnings(
+            glm(y ~ X_full[, 2], family = poisson(), offset = offset)
+        )
+        mu_full <- exp(offset + X_full %*% coef(fit_full))
+        ll_full <- calc_nb_loglik(y, mu_full, phi)
+
+        # Reduced model (intercept only)
+        fit_reduced <- suppressWarnings(
+            glm(y ~ 1, family = poisson(), offset = offset)
+        )
+        mu_reduced <- exp(offset + coef(fit_reduced))
+        ll_reduced <- calc_nb_loglik(y, mu_reduced, phi)
+
+        # LRT statistic
+        lrt <- 2 * (ll_full - ll_reduced)
+        p_lrt <- pchisq(lrt, df = 1, lower.tail = FALSE)
+
+        results[i, `:=`(LRT_stat = lrt, LRT_pvalue = p_lrt)]
+    }
+
+    return(results)
+}
+
+lrt_results <- perform_lrt(counts, groups, size_factors, disp_results$shrunk)
+
+# Merge with Wald results
+de_results <- merge(de_results, lrt_results, by = "gene")
+
+cat("\nLikelihood Ratio Test Results:\n")
+#> 
+#> Likelihood Ratio Test Results:
+cat("==============================\n")
+#> ==============================
+cat("  p < 0.05 (LRT):", sum(de_results$LRT_pvalue < 0.05, na.rm = TRUE), "\n")
+#>   p < 0.05 (LRT): 474
+cat("  p < 0.05 (Wald):", sum(de_results$pvalue < 0.05, na.rm = TRUE), "\n")
+#>   p < 0.05 (Wald): 403
+```
+
+---
+
+## 7.8 Multiple Testing Correction
+
+### 7.8.1 The Multiple Testing Problem
+
+**Prose and Intuition**
+
+Testing 10,000 genes at $\alpha = 0.05$ would yield ~500 false positives by chance alone. We need to control either:
+
+1. **Family-wise error rate (FWER)**: Probability of ≥1 false positive
+2. **False discovery rate (FDR)**: Expected proportion of false positives among rejected hypotheses
+
+FDR control is standard in genomics because FWER is too conservative when testing thousands of hypotheses.
+
+**Mathematical Framework**
+
+The **Benjamini-Hochberg (BH) procedure** controls FDR at level $q$:
+1. Order p-values: $p_{(1)} \leq p_{(2)} \leq \cdots \leq p_{(m)}$
+2. Find largest $k$ such that $p_{(k)} \leq \frac{k}{m} q$
+3. Reject all hypotheses with $p_{(i)} \leq p_{(k)}$
+
+The **adjusted p-value** (q-value): $\tilde{p}_i = \min_{j \geq i} \frac{m \cdot p_{(j)}}{j}$
+
+
+``` r
+# Apply multiple testing correction
+de_results[, padj := p.adjust(pvalue, method = "BH")]
+de_results[, padj_lrt := p.adjust(LRT_pvalue, method = "BH")]
+
+# Also show Bonferroni for comparison
+de_results[, p_bonf := p.adjust(pvalue, method = "bonferroni")]
+
+cat("Multiple Testing Correction:\n")
+#> Multiple Testing Correction:
+cat("============================\n")
+#> ============================
+cat("  Raw p < 0.05:", sum(de_results$pvalue < 0.05, na.rm = TRUE), "\n")
+#>   Raw p < 0.05: 403
+cat("  BH FDR < 0.05:", sum(de_results$padj < 0.05, na.rm = TRUE), "\n")
+#>   BH FDR < 0.05: 16
+cat("  BH FDR < 0.10:", sum(de_results$padj < 0.10, na.rm = TRUE), "\n")
+#>   BH FDR < 0.10: 23
+cat("  Bonferroni < 0.05:", sum(de_results$p_bonf < 0.05, na.rm = TRUE), "\n")
+#>   Bonferroni < 0.05: 3
+
+# Visualise p-value adjustment
+pval_comparison <- data.table(
+    rank = 1:nrow(de_results),
+    raw = sort(de_results$pvalue),
+    adjusted = sort(de_results$padj)
+)
+
+ggplot2$ggplot(pval_comparison[1:1000], ggplot2$aes(x = rank)) +
+    ggplot2$geom_line(ggplot2$aes(y = raw, colour = "Raw p-value"), linewidth = 0.8) +
+    ggplot2$geom_line(ggplot2$aes(y = adjusted, colour = "BH adjusted"), linewidth = 0.8) +
+    ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "grey40") +
+    ggplot2$geom_abline(slope = 0.05 / nrow(de_results), intercept = 0,
+                         linetype = "dotted", colour = "red") +
+    ggplot2$scale_colour_manual(values = c("Raw p-value" = "#2166AC",
+                                            "BH adjusted" = "#D95F02")) +
+    ggplot2$annotate("text", x = 800, y = 0.07, label = "α = 0.05", colour = "grey40") +
+    ggplot2$annotate("text", x = 800, y = 0.003, label = "BH threshold", colour = "red") +
+    ggplot2$labs(
+        title = "P-value Adjustment (Benjamini-Hochberg)",
+        subtitle = "FDR control allows more discoveries than FWER",
+        x = "Rank",
+        y = "P-value",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/multiple_testing-1.png" alt="Multiple testing correction dramatically changes significance thresholds">
+	Multiple testing correction dramatically changes significance thresholds
+</Figure>
+
+### 7.8.2 Independent Hypothesis Weighting
+
+**Prose and Intuition**
+
+**Independent Hypothesis Weighting (IHW)** improves power by weighting hypotheses based on an independent covariate. In RNA-seq, genes with higher mean expression have more information, so we can weight them more heavily.
+
+The key constraint: the covariate must be independent of the p-value under the null hypothesis.
+
+
+``` r
+# Demonstrate the concept of IHW
+# Group genes by mean expression
+de_results[, expr_group := cut(baseMean,
+                                breaks = quantile(baseMean, probs = seq(0, 1, 0.2)),
+                                labels = paste0("Q", 1:5),
+                                include.lowest = TRUE)]
+
+# Show discovery rate by expression level
+discovery_by_expr <- de_results[, .(
+    n_genes = .N,
+    n_sig_raw = sum(pvalue < 0.05, na.rm = TRUE),
+    n_sig_adj = sum(padj < 0.05, na.rm = TRUE),
+    prop_sig = mean(padj < 0.05, na.rm = TRUE)
+), by = expr_group]
+
+cat("\nDiscovery Rate by Expression Level:\n")
+#> 
+#> Discovery Rate by Expression Level:
+cat("===================================\n")
+#> ===================================
+print(discovery_by_expr[order(expr_group)])
+#>    expr_group n_genes n_sig_raw n_sig_adj prop_sig
+#>        <fctr>   <int>     <int>     <int>    <num>
+#> 1:         Q1    2000        21         0   0.0000
+#> 2:         Q2    2000        77         0   0.0000
+#> 3:         Q3    2000       114        13   0.0065
+#> 4:         Q4    2000        92         2   0.0010
+#> 5:         Q5    2000        99         1   0.0005
+
+cat("\nHighly expressed genes have more power to detect differences.\n")
+#> 
+#> Highly expressed genes have more power to detect differences.
+cat("IHW exploits this by weighting hypotheses based on mean expression.\n")
+#> IHW exploits this by weighting hypotheses based on mean expression.
+```
+
+---
+
+## 7.9 Fold Change Shrinkage
+
+### 7.9.1 The Problem with Raw Fold Changes
+
+**Prose and Intuition**
+
+Genes with low counts have noisy fold change estimates. A gene with counts of 1 vs 3 has a "4-fold change" but this is statistically unreliable. **Log fold change shrinkage** pulls noisy estimates toward zero while leaving well-estimated fold changes unchanged.
+
+This is analogous to dispersion shrinkage: we use information from all genes to improve estimates for individual genes.
+
+**Mathematical Framework**
+
+DESeq2 uses an empirical Bayes approach:
+1. Estimate log fold changes $\hat{\beta}_{i1}$ for all genes
+2. Fit a prior distribution based on the observed distribution
+3. Compute posterior mode: $\tilde{\beta}_{i1} = \frac{\hat{\beta}_{i1}/\text{SE}^2 + 0/\tau^2}{1/\text{SE}^2 + 1/\tau^2}$
+
+where $\tau$ is the prior scale. Genes with large SE are shrunk heavily; genes with small SE keep their original estimates.
+
+
+``` r
+# Implement simple LFC shrinkage (apeglm-style concept)
+shrink_lfc <- function(log2fc, se) {
+    # Prior scale (estimated from data)
+    tau <- median(abs(log2fc[se < quantile(se, 0.5)]), na.rm = TRUE) / qnorm(0.75)
+    tau <- max(tau, 0.1)
+
+    # Posterior mode (assuming zero-centered prior)
+    precision_data <- 1 / se^2
+    precision_prior <- 1 / tau^2
+
+    shrunk <- log2fc * precision_data / (precision_data + precision_prior)
+
+    list(shrunk = shrunk, tau = tau)
+}
+
+shrink_result <- shrink_lfc(de_results$log2FC, de_results$se)
+de_results[, log2FC_shrunk := shrink_result$shrunk]
+
+cat("Log Fold Change Shrinkage:\n")
+#> Log Fold Change Shrinkage:
+cat("==========================\n")
+#> ==========================
+cat("  Prior scale (tau):", round(shrink_result$tau, 3), "\n")
+#>   Prior scale (tau): 0.388
+cat("  Median |log2FC| before:", round(median(abs(de_results$log2FC), na.rm = TRUE), 3), "\n")
+#>   Median |log2FC| before: 0.358
+cat("  Median |log2FC| after:", round(median(abs(de_results$log2FC_shrunk), na.rm = TRUE), 3), "\n")
+#>   Median |log2FC| after: 0.114
+
+# Visualise shrinkage
+shrink_plot_data <- de_results[, .(log2FC, log2FC_shrunk, baseMean, se)]
+shrink_plot_data <- shrink_plot_data[complete.cases(shrink_plot_data)]
+
+ggplot2$ggplot(shrink_plot_data, ggplot2$aes(x = log2FC, y = log2FC_shrunk,
+                                               colour = log10(baseMean))) +
+    ggplot2$geom_point(alpha = 0.3, size = 0.8) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "red") +
+    ggplot2$scale_colour_viridis_c(option = "plasma", name = "log10(baseMean)") +
+    ggplot2$coord_cartesian(xlim = c(-5, 5), ylim = c(-5, 5)) +
+    ggplot2$labs(
+        title = "Log Fold Change Shrinkage",
+        subtitle = "Low-expression genes (dark) are shrunk toward zero",
+        x = "Raw log2 Fold Change",
+        y = "Shrunk log2 Fold Change"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/lfc_shrinkage-1.png" alt="Log fold change shrinkage reduces noise for lowly expressed genes">
+	Log fold change shrinkage reduces noise for lowly expressed genes
+</Figure>
+
+---
+
+## 7.10 Visualising Differential Expression Results
+
+### 7.10.1 Volcano Plots
+
+**Prose and Intuition**
+
+**Volcano plots** display both statistical significance (-log10 p-value) and biological effect size (log fold change). Genes in the upper corners are both statistically significant and have large effects—these are the most interesting candidates.
+
+
+``` r
+# Add true DE status
+de_results[, is_true_de := gene %in% paste0("Gene_", de_genes)]
+de_results[, true_lfc := log_fold_changes[match(gsub("Gene_", "", gene), 1:n_genes)] / log(2)]
+
+# Classify genes
+de_results[, category := fifelse(
+    padj < 0.05 & abs(log2FC) > 1, "Significant & Large FC",
+    fifelse(padj < 0.05, "Significant only",
+    fifelse(abs(log2FC) > 1, "Large FC only", "Not significant"))
+)]
+
+# Create volcano plot
+volcano_data <- de_results[!is.na(pvalue) & is.finite(-log10(pvalue))]
+
+ggplot2$ggplot(volcano_data, ggplot2$aes(x = log2FC, y = -log10(pvalue),
+                                          colour = category)) +
+    ggplot2$geom_point(alpha = 0.4, size = 0.8) +
+    ggplot2$geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_vline(xintercept = c(-1, 1), linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(
+        values = c("Significant & Large FC" = "#D95F02",
+                   "Significant only" = "#7570B3",
+                   "Large FC only" = "#1B9E77",
+                   "Not significant" = "grey70")
+    ) +
+    ggplot2$coord_cartesian(xlim = c(-6, 6)) +
+    ggplot2$labs(
+        title = "Volcano Plot",
+        subtitle = "Upper corners contain the most biologically meaningful genes",
+        x = "log2 Fold Change",
+        y = "-log10(p-value)",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/volcano_plot-1.png" alt="Volcano plot: combining statistical significance with effect size">
+	Volcano plot: combining statistical significance with effect size
+</Figure>
+
+### 7.10.2 MA Plots with Significance
+
+**Prose and Intuition**
+
+**MA plots** show fold change against average expression. Unlike volcano plots, they reveal how effect sizes vary with expression level. Lowly expressed genes tend to have noisier fold change estimates.
+
+
+``` r
+# MA plot with significance highlighting
+ma_data <- de_results[!is.na(baseMean) & baseMean > 0]
+
+ggplot2$ggplot(ma_data, ggplot2$aes(x = baseMean, y = log2FC,
+                                     colour = padj < 0.05)) +
+    ggplot2$geom_point(alpha = 0.3, size = 0.6) +
+    ggplot2$geom_hline(yintercept = 0, colour = "grey50") +
+    ggplot2$scale_x_log10() +
+    ggplot2$scale_colour_manual(
+        values = c("FALSE" = "grey60", "TRUE" = "#D95F02"),
+        labels = c("Not significant", "FDR < 0.05"),
+        name = ""
+    ) +
+    ggplot2$coord_cartesian(ylim = c(-5, 5)) +
+    ggplot2$labs(
+        title = "MA Plot with Significance",
+        subtitle = "Fold change variance decreases with expression level",
+        x = "Mean Expression",
+        y = "log2 Fold Change"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/ma_plot_sig-1.png" alt="MA plot highlighting significant genes">
+	MA plot highlighting significant genes
+</Figure>
+
+### 7.10.3 Heatmaps of Top DE Genes
+
+**Prose and Intuition**
+
+Heatmaps visualise expression patterns across samples for top differentially expressed genes. They reveal whether replicates cluster together and whether the expression pattern is consistent.
+
+
+``` r
+# Get top DE genes
+top_de <- de_results[order(pvalue)][1:50]$gene
+top_de_idx <- match(top_de, rownames(counts))
+
+# Calculate z-scores for heatmap
+log_counts <- log2(normalised_counts + 1)
+z_scores <- t(scale(t(log_counts[top_de_idx, ])))
+
+# Prepare for plotting (simple heatmap with ggplot2)
+heatmap_data <- melt(
+    as.data.table(z_scores, keep.rownames = "gene"),
+    id.vars = "gene",
+    variable.name = "sample",
+    value.name = "z_score"
+)
+
+heatmap_data[, group := fifelse(grepl("1|2|3", sample), "Control", "Treatment")]
+
+# Order genes by fold change
+gene_order <- de_results[gene %in% top_de][order(log2FC)]$gene
+heatmap_data[, gene := factor(gene, levels = gene_order)]
+
+ggplot2$ggplot(heatmap_data, ggplot2$aes(x = sample, y = gene, fill = z_score)) +
+    ggplot2$geom_tile() +
+    ggplot2$scale_fill_gradient2(low = "#2166AC", mid = "white", high = "#D95F02",
+                                  midpoint = 0, limits = c(-3, 3),
+                                  oob = scales::squish, name = "Z-score") +
+    ggplot2$facet_grid(. ~ group, scales = "free_x", space = "free_x") +
+    ggplot2$labs(
+        title = "Top 50 Differentially Expressed Genes",
+        subtitle = "Z-scored expression values",
+        x = "",
+        y = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        axis.text.y = ggplot2$element_text(size = 6),
+        axis.text.x = ggplot2$element_text(angle = 45, hjust = 1)
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/heatmap_de-1.png" alt="Heatmap of top differentially expressed genes">
+	Heatmap of top differentially expressed genes
+</Figure>
+
+---
+
+## 7.11 Evaluating Performance
+
+### 7.11.1 Sensitivity and Specificity
+
+**Prose and Intuition**
+
+With simulated data, we can evaluate how well our analysis recovers true positives:
+- **Sensitivity (TPR)**: Proportion of true DE genes called significant
+- **Specificity (TNR)**: Proportion of non-DE genes correctly identified
+- **Precision (PPV)**: Proportion of called DE genes that are truly DE
+- **FDR**: 1 - Precision
+
+
+``` r
+# Evaluate performance against ground truth
+de_results[, called_de := padj < 0.05]
+
+confusion <- de_results[, .(
+    TP = sum(called_de & is_true_de, na.rm = TRUE),
+    FP = sum(called_de & !is_true_de, na.rm = TRUE),
+    TN = sum(!called_de & !is_true_de, na.rm = TRUE),
+    FN = sum(!called_de & is_true_de, na.rm = TRUE)
+)]
+
+confusion[, `:=`(
+    sensitivity = TP / (TP + FN),
+    specificity = TN / (TN + FP),
+    precision = TP / (TP + FP),
+    FDR = FP / (TP + FP)
+)]
+
+cat("Performance Evaluation (FDR < 0.05):\n")
+#> Performance Evaluation (FDR < 0.05):
+cat("====================================\n")
+#> ====================================
+cat("  True Positives:", confusion$TP, "\n")
+#>   True Positives: 16
+cat("  False Positives:", confusion$FP, "\n")
+#>   False Positives: 0
+cat("  True Negatives:", confusion$TN, "\n")
+#>   True Negatives: 9800
+cat("  False Negatives:", confusion$FN, "\n")
+#>   False Negatives: 184
+cat("\n")
+cat("  Sensitivity (TPR):", round(confusion$sensitivity, 3), "\n")
+#>   Sensitivity (TPR): 0.08
+cat("  Specificity (TNR):", round(confusion$specificity, 3), "\n")
+#>   Specificity (TNR): 1
+cat("  Precision (PPV):", round(confusion$precision, 3), "\n")
+#>   Precision (PPV): 1
+cat("  Observed FDR:", round(confusion$FDR, 3), "(target: 0.05)\n")
+#>   Observed FDR: 0 (target: 0.05)
+```
+
+### 7.11.2 ROC and Precision-Recall Curves
+
+**Prose and Intuition**
+
+**ROC curves** plot true positive rate against false positive rate across all thresholds. **Precision-recall curves** are often more informative when classes are imbalanced (most genes are not DE).
+
+
+``` r
+# Calculate TPR and FPR at various thresholds
+calc_roc_pr <- function(pvalues, is_true_de) {
+    thresholds <- sort(unique(c(0, pvalues, 1)))
+
+    results <- data.table(
+        threshold = thresholds,
+        TPR = numeric(length(thresholds)),
+        FPR = numeric(length(thresholds)),
+        precision = numeric(length(thresholds)),
+        recall = numeric(length(thresholds))
+    )
+
+    for (i in seq_along(thresholds)) {
+        called <- pvalues <= thresholds[i]
+
+        TP <- sum(called & is_true_de, na.rm = TRUE)
+        FP <- sum(called & !is_true_de, na.rm = TRUE)
+        TN <- sum(!called & !is_true_de, na.rm = TRUE)
+        FN <- sum(!called & is_true_de, na.rm = TRUE)
+
+        results[i, `:=`(
+            TPR = TP / (TP + FN),
+            FPR = FP / (FP + TN),
+            precision = ifelse(TP + FP > 0, TP / (TP + FP), 1),
+            recall = TP / (TP + FN)
+        )]
+    }
+
+    return(results)
+}
+
+roc_data <- calc_roc_pr(de_results$pvalue, de_results$is_true_de)
+
+# Calculate AUC
+auc <- sum(diff(roc_data$FPR) * (head(roc_data$TPR, -1) + tail(roc_data$TPR, -1)) / 2)
+
+cat("ROC Analysis:\n")
+#> ROC Analysis:
+cat("=============\n")
+#> =============
+cat("  AUC:", round(abs(auc), 3), "\n")
+#>   AUC: 0.774
+
+# ROC plot
+p_roc <- ggplot2$ggplot(roc_data, ggplot2$aes(x = FPR, y = TPR)) +
+    ggplot2$geom_line(colour = "#2166AC", linewidth = 1) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = 0.7, y = 0.3,
+                      label = paste("AUC =", round(abs(auc), 3))) +
+    ggplot2$labs(
+        title = "ROC Curve",
+        x = "False Positive Rate",
+        y = "True Positive Rate"
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+
+# PR plot
+p_pr <- ggplot2$ggplot(roc_data[recall > 0], ggplot2$aes(x = recall, y = precision)) +
+    ggplot2$geom_line(colour = "#D95F02", linewidth = 1) +
+    ggplot2$geom_hline(yintercept = n_de / n_genes, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = 0.5, y = n_de / n_genes + 0.05,
+                      label = "Random classifier") +
+    ggplot2$labs(
+        title = "Precision-Recall Curve",
+        x = "Recall (Sensitivity)",
+        y = "Precision"
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+
+# Combine plots
+gridExtra::grid.arrange(p_roc, p_pr, ncol = 2)
+```
+
+<Figure src="/courses/statistics-3-advanced/roc_pr_curves-1.png" alt="ROC and precision-recall curves for DE detection">
+	ROC and precision-recall curves for DE detection
+</Figure>
+
+---
+
+## 7.12 Summary and Key Concepts
+
+### Key Takeaways
+
+1. **Negative Binomial GLM**: The standard model for RNA-seq differential expression handles overdispersion through gene-specific dispersion parameters.
+
+2. **Dispersion Estimation**: Gene-specific dispersion estimates are shrunk toward a common trend using empirical Bayes, improving power for lowly expressed genes.
+
+3. **Hypothesis Testing**: Both Wald tests and likelihood ratio tests are used. The Wald test is faster; the LRT is more robust for small samples.
+
+4. **Multiple Testing**: FDR control (Benjamini-Hochberg) is essential. Testing 10,000 genes requires adjusting for multiple comparisons.
+
+5. **Fold Change Shrinkage**: Raw log fold changes are noisy for low-expression genes. Shrinkage estimators provide more reliable effect sizes.
+
+6. **Visualisation**: Volcano plots, MA plots, and heatmaps reveal different aspects of DE results.
+
+### Connections to Other Topics
+
+- **Part 1**: Normalisation provides the foundation for valid comparisons
+- **Part 3**: Gene set enrichment analysis interprets lists of DE genes biologically
+- **Chapter 2**: High-dimensional inference principles apply (variable selection, sparse estimation)
+
+### Communicating to Stakeholders
+
+**For a biological audience**: "We identified 150 genes differentially expressed between treatment and control at a 5% false discovery rate. This means we expect roughly 8 of these findings to be false positives by chance. The volcano plot shows that our top candidates have both strong statistical evidence (low p-values) and large biological effects (>2-fold change)."
+
+**For a methods paper**: "Differential expression analysis was performed using a negative binomial generalised linear model with size factor normalisation. Gene-specific dispersions were estimated and shrunk toward a mean-dispersion trend using empirical Bayes. Significance was assessed using Wald tests with Benjamini-Hochberg FDR correction. Log fold change estimates were shrunk using a zero-centered Cauchy prior (apeglm method)."
+
+**Key vocabulary**:
+- Negative binomial GLM, dispersion
+- Wald test, likelihood ratio test
+- False discovery rate (FDR), Benjamini-Hochberg
+- Log fold change shrinkage
+- Volcano plot, MA plot

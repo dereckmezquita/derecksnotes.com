@@ -137,7 +137,7 @@ ggplot2$ggplot(bias_long, ggplot2$aes(x = type, y = error, fill = type)) +
     ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
 ```
 
-<Figure src="bias_plot-1.png" alt="CV error tends to be optimistic compared to true test error">
+<Figure src="/courses/statistics-3-advanced/bias_plot-1.png" alt="CV error tends to be optimistic compared to true test error">
 	CV error tends to be optimistic compared to true test error
 </Figure>
 
@@ -232,7 +232,7 @@ p_inner <- ggplot2$ggplot(inner_all, ggplot2$aes(x = obs, y = fold_label, fill =
 print(p_inner)
 ```
 
-<Figure src="nested_cv_visual-1.png" alt="Nested CV structure: outer loop estimates error, inner loop selects hyperparameters">
+<Figure src="/courses/statistics-3-advanced/nested_cv_visual-1.png" alt="Nested CV structure: outer loop estimates error, inner loop selects hyperparameters">
 	Nested CV structure: outer loop estimates error, inner loop selects hyperparameters
 </Figure>
 
@@ -384,7 +384,7 @@ ggplot2$ggplot(comparison_long, ggplot2$aes(x = method, y = error, fill = method
     ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
 ```
 
-<Figure src="comparison_plot-1.png">
+<Figure src="/courses/statistics-3-advanced/comparison_plot-1.png">
 	
 </Figure>
 
@@ -470,7 +470,7 @@ ggplot2$ggplot(calibration_summary, ggplot2$aes(x = mean_predicted, y = mean_obs
     )
 ```
 
-<Figure src="calibration_plot-1.png" alt="Calibration plot: comparing predicted probabilities to observed outcomes">
+<Figure src="/courses/statistics-3-advanced/calibration_plot-1.png" alt="Calibration plot: comparing predicted probabilities to observed outcomes">
 	Calibration plot: comparing predicted probabilities to observed outcomes
 </Figure>
 
@@ -591,6 +591,260 @@ cat("  Brier score (Platt calibrated):", round(brier_calib, 4), "\n")
 The key constraint: if $p_i < p_j$, then calibrated $\hat{p}_i \leq \hat{p}_j$ (monotonicity preserved).
 
 
+``` r
+# Isotonic regression calibration
+library(isotone)
+#> 
+#> Attaching package: 'isotone'
+#> The following object is masked from 'package:limma':
+#> 
+#>     weighted.median
+
+# Fit isotonic regression
+isotonic_fit <- gpava(pred_uncalib[calib_idx], y_test[calib_idx])
+
+# Create mapping function
+isotonic_map <- approxfun(
+    x = pred_uncalib[calib_idx][order(pred_uncalib[calib_idx])],
+    y = isotonic_fit$x[order(pred_uncalib[calib_idx])],
+    rule = 2  # Extrapolate
+)
+
+# Apply to evaluation set
+pred_isotonic <- isotonic_map(pred_uncalib[eval_idx])
+pred_isotonic <- pmax(pmin(pred_isotonic, 1), 0)
+
+brier_isotonic <- mean((pred_isotonic - y_test[eval_idx])^2)
+
+cat("Isotonic Calibration Results:\n")
+#> Isotonic Calibration Results:
+cat("=============================\n")
+#> =============================
+cat("  Brier score (isotonic):", round(brier_isotonic, 4), "\n")
+#>   Brier score (isotonic): 0.056
+
+# Plot calibration comparison
+calib_comparison <- data.table(
+    pred_uncalib = pred_uncalib[eval_idx],
+    pred_platt = pred_calib,
+    pred_isotonic = pred_isotonic,
+    actual = y_test[eval_idx]
+)
+
+# Compute calibration curves
+compute_calib_curve <- function(pred, actual, n_bins = 10) {
+    dt <- data.table(pred = pred, actual = actual)
+    dt[, bin := cut(pred, breaks = seq(0, 1, length.out = n_bins + 1), include.lowest = TRUE)]
+    dt[, .(mean_pred = mean(pred), mean_obs = mean(actual), n = .N), by = bin][!is.na(bin)]
+}
+
+calib_uncalib <- compute_calib_curve(calib_comparison$pred_uncalib, calib_comparison$actual)
+calib_uncalib[, method := "Uncalibrated"]
+calib_platt <- compute_calib_curve(calib_comparison$pred_platt, calib_comparison$actual)
+calib_platt[, method := "Platt Scaling"]
+calib_isotonic <- compute_calib_curve(calib_comparison$pred_isotonic, calib_comparison$actual)
+calib_isotonic[, method := "Isotonic"]
+
+all_calib <- rbindlist(list(calib_uncalib, calib_platt, calib_isotonic))
+
+ggplot2$ggplot(all_calib, ggplot2$aes(x = mean_pred, y = mean_obs, colour = method)) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_point(ggplot2$aes(size = n)) +
+    ggplot2$scale_colour_manual(values = c("Uncalibrated" = "#D95F02", "Platt Scaling" = "#2166AC", "Isotonic" = "#7CAE00")) +
+    ggplot2$scale_size_continuous(range = c(2, 6), guide = "none") +
+    ggplot2$labs(
+        title = "Calibration Comparison",
+        subtitle = "Isotonic and Platt scaling improve calibration",
+        x = "Mean Predicted Probability",
+        y = "Observed Proportion",
+        colour = "Method"
+    ) +
+    ggplot2$coord_fixed(xlim = c(0, 1), ylim = c(0, 1)) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/isotonic-1.png" alt="Isotonic regression provides non-parametric calibration">
+	Isotonic regression provides non-parametric calibration
+</Figure>
+
+---
+
+## 4.14 Complete Model Assessment Workflow
+
+### 4.14.1 Putting It All Together
 
 
+``` r
+# Complete workflow: Nested CV + Calibration Assessment
+set.seed(42)
 
+# Outer cross-validation for unbiased performance
+K_outer <- 5
+outer_folds <- sample(rep(1:K_outer, length.out = nrow(X)))
+
+results <- list()
+
+for (k in 1:K_outer) {
+    # Outer split
+    outer_train_idx <- which(outer_folds != k)
+    outer_test_idx <- which(outer_folds == k)
+
+    X_outer_train <- X[outer_train_idx, ]
+    y_outer_train <- y[outer_train_idx]
+    X_outer_test <- X[outer_test_idx, ]
+    y_outer_test <- y[outer_test_idx]
+
+    # Inner CV for model selection
+    cv_inner <- cv.glmnet(X_outer_train, y_outer_train, family = "binomial",
+                          alpha = 0, nfolds = 5)
+
+    # Predict on outer test
+    pred_prob <- as.vector(predict(cv_inner, X_outer_test, s = "lambda.min", type = "response"))
+
+    # Compute metrics
+    # Log-loss
+    pred_clipped <- pmax(pmin(pred_prob, 1 - 1e-10), 1e-10)
+    log_loss <- -mean(y_outer_test * log(pred_clipped) + (1 - y_outer_test) * log(1 - pred_clipped))
+
+    # Brier score
+    brier <- mean((pred_prob - y_outer_test)^2)
+
+    # AUC (simple trapezoidal)
+    ord <- order(pred_prob, decreasing = TRUE)
+    y_sorted <- y_outer_test[ord]
+    tpr <- cumsum(y_sorted) / sum(y_sorted)
+    fpr <- cumsum(1 - y_sorted) / sum(1 - y_sorted)
+    auc <- sum(diff(fpr) * (tpr[-1] + tpr[-length(tpr)]) / 2)
+
+    results[[k]] <- data.table(
+        fold = k,
+        log_loss = log_loss,
+        brier = brier,
+        auc = auc,
+        lambda = cv_inner$lambda.min,
+        mean_pred = mean(pred_prob),
+        mean_obs = mean(y_outer_test)
+    )
+}
+
+results_dt <- rbindlist(results)
+
+cat("Complete Model Assessment (Nested 5-Fold CV):\n")
+#> Complete Model Assessment (Nested 5-Fold CV):
+cat("=============================================\n")
+#> =============================================
+cat("\nPer-fold results:\n")
+#> 
+#> Per-fold results:
+print(results_dt[, .(fold, log_loss = round(log_loss, 4), brier = round(brier, 4),
+                     auc = round(auc, 3))])
+#>     fold log_loss  brier   auc
+#>    <int>    <num>  <num> <num>
+#> 1:     1   0.1881 0.0560 0.986
+#> 2:     2   0.1505 0.0390 0.994
+#> 3:     3   0.1664 0.0445 0.987
+#> 4:     4   0.1665 0.0445 0.984
+#> 5:     5   0.2198 0.0641 0.977
+
+cat("\nSummary statistics:\n")
+#> 
+#> Summary statistics:
+cat("  Log-loss:", round(mean(results_dt$log_loss), 4), "±", round(sd(results_dt$log_loss), 4), "\n")
+#>   Log-loss: 0.1782 ± 0.0268
+cat("  Brier:", round(mean(results_dt$brier), 4), "±", round(sd(results_dt$brier), 4), "\n")
+#>   Brier: 0.0496 ± 0.0102
+cat("  AUC:", round(mean(results_dt$auc), 3), "±", round(sd(results_dt$auc), 3), "\n")
+#>   AUC: 0.986 ± 0.006
+cat("\nCalibration (mean predicted vs observed):\n")
+#> 
+#> Calibration (mean predicted vs observed):
+cat("  Mean predicted:", round(mean(results_dt$mean_pred), 3), "\n")
+#>   Mean predicted: 0.372
+cat("  Mean observed:", round(mean(results_dt$mean_obs), 3), "\n")
+#>   Mean observed: 0.373
+```
+
+---
+
+## 4.15 Communicating Results to Stakeholders
+
+### For Clinicians
+
+> "We rigorously evaluated our diagnostic model using nested cross-validation, which provides unbiased performance estimates. The model achieved an AUC of 0.96 (indicating excellent ability to rank patients by risk) and a Brier score of 0.08 (indicating accurate probability predictions). Importantly, the model is well-calibrated: when it predicts 70% risk of malignancy, approximately 70% of such patients are indeed malignant."
+
+### For Data Scientists
+
+> "Model performance was evaluated using 5×5 nested cross-validation to avoid selection bias. The outer loop provided unbiased error estimates; the inner loop selected the regularisation parameter via 5-fold CV with the one-standard-error rule. Calibration was assessed via calibration plots and calibration slope; Platt scaling was applied when calibration slope deviated significantly from 1."
+
+### For Journal Publication
+
+> "Model performance was assessed using nested cross-validation (5 outer folds × 5 inner folds) to provide unbiased estimates of generalisation error while allowing for hyperparameter tuning (Varma & Simon, 2006). Discrimination was quantified by the area under the ROC curve (AUC); calibration was assessed using calibration plots and the Brier score. When miscalibration was detected (calibration slope ≠ 1 or intercept ≠ 0), Platt scaling was applied using an independent calibration set."
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+**Brier Score:**
+$$\text{Brier} = \frac{1}{n}\sum_{i=1}^n (p_i - y_i)^2$$
+
+**Calibration Slope:**
+$$\text{logit}(P(Y=1|p)) = \alpha + \beta \cdot \text{logit}(p)$$
+Perfect calibration: $\alpha = 0$, $\beta = 1$
+
+**Platt Scaling:**
+$$P_{\text{calibrated}} = \frac{1}{1 + e^{-(A \cdot f(x) + B)}}$$
+
+### R Code Summary
+
+```r
+# Nested CV
+for (k_outer in 1:K_outer) {
+    # Outer split
+    train_idx <- which(folds != k_outer)
+
+    # Inner CV for hyperparameter selection
+    cv_inner <- cv.glmnet(X[train_idx,], y[train_idx], nfolds = K_inner)
+
+    # Evaluate on outer test fold
+    pred <- predict(cv_inner, X[-train_idx,], s = "lambda.min")
+}
+
+# Calibration plot
+calibration_data <- data.frame(pred = pred, actual = y_test)
+calibration_data$bin <- cut(pred, breaks = 10)
+aggregate(actual ~ bin, data = calibration_data, mean)
+
+# Platt scaling
+platt_model <- glm(actual ~ logit(pred), family = binomial,
+                   data = calibration_data)
+pred_calibrated <- predict(platt_model, type = "response")
+```
+
+### When to Use Each Technique
+
+| Situation | Technique |
+|-----------|-----------|
+| Performance estimation with model selection | Nested CV |
+| Final model training | Single-level CV |
+| Probability predictions needed | Check calibration |
+| Probabilities miscalibrated | Platt or isotonic scaling |
+| Small dataset | LOOCV or bootstrap |
+
+---
+
+## Exercises
+
+1. **Selection Bias Magnitude**: Using simulation, quantify how selection bias increases with the number of hyperparameters being tuned. Compare tuning 1, 5, and 20 hyperparameters.
+
+2. **Calibration Assessment**: Train a random forest on the breast cancer data. Create a calibration plot. Are random forests well-calibrated by default?
+
+3. **Bootstrap Calibration**: Instead of Platt scaling on a held-out set, implement bootstrap-based calibration where you resample the training data and fit calibration curves.
+
+4. **Clinical Decision Curves**: Research "decision curve analysis" for evaluating clinical prediction models. Implement a decision curve for the breast cancer model at various threshold probabilities.

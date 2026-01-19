@@ -1,0 +1,885 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 10: Advanced Bayesian Methods"
+part: "Part 1: Hierarchical Models and MCMC"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, bioinformatics, bayesian, hierarchical-models, MCMC, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 1: Hierarchical Models and MCMC
+
+Bayesian methods have become increasingly important in biomedical research, offering principled ways to incorporate prior knowledge, quantify uncertainty, and build complex hierarchical models. This chapter develops the foundations of advanced Bayesian analysis: **hierarchical (multilevel) models** and **Markov Chain Monte Carlo (MCMC)** methods for posterior computation. These tools are essential for modern biostatistics, from clinical trial design to genomic analysis.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+```{r simulate_clinical_data, message=FALSE}
+# Simulate hierarchical clinical trial data
+# Multi-centre trial with patients nested within hospitals
+
+n_hospitals <- 12
+patients_per_hospital <- 30
+n_patients <- n_hospitals * patients_per_hospital
+
+# Hospital-level effects (random intercepts)
+hospital_effects <- rnorm(n_hospitals, mean = 0, sd = 0.5)
+
+# Treatment effect (fixed)
+treatment_effect <- 0.8
+
+# Patient-level data
+patient_data <- rbindlist(lapply(1:n_hospitals, function(h) {
+    n_h <- patients_per_hospital
+
+    # Randomise treatment within hospital
+    treatment <- sample(c(0, 1), n_h, replace = TRUE)
+
+    # Covariates
+    age <- rnorm(n_h, mean = 55, sd = 10)
+    age_centered <- age - 55
+
+    # Outcome (continuous, e.g., blood pressure reduction)
+    # Y = intercept + hospital_effect + treatment_effect*treatment + noise
+    mu <- 10 + hospital_effects[h] + treatment_effect * treatment + 0.1 * age_centered
+    sigma <- 2
+
+    outcome <- rnorm(n_h, mean = mu, sd = sigma)
+
+    data.table(
+        patient_id = paste0("H", h, "_P", 1:n_h),
+        hospital_id = h,
+        treatment = treatment,
+        age = age,
+        age_centered = age_centered,
+        outcome = outcome
+    )
+}))
+
+# True parameters
+true_params <- list(
+    intercept = 10,
+    treatment_effect = treatment_effect,
+    hospital_sd = 0.5,
+    residual_sd = 2
+)
+
+cat("Simulated Clinical Trial Data:\n")
+cat("==============================\n")
+cat("  Hospitals:", n_hospitals, "\n")
+cat("  Total patients:", n_patients, "\n")
+cat("  Patients per hospital:", patients_per_hospital, "\n")
+cat("  True treatment effect:", treatment_effect, "\n")
+cat("  True hospital SD:", 0.5, "\n")
+```
+
+---
+
+## 10.1 Why Hierarchical Models?
+
+### 10.1.1 The Problem with Pooled and Unpooled Analyses
+
+**Prose and Intuition**
+
+Consider analysing treatment effects across multiple hospitals:
+
+**Complete pooling**: Ignore hospital structure, analyse all patients together
+- Assumes all hospitals are identical
+- Ignores heterogeneity
+- Underestimates uncertainty
+
+**No pooling**: Analyse each hospital separately
+- Small sample sizes per hospital
+- Noisy estimates
+- Ignores information from other hospitals
+
+**Partial pooling (hierarchical)**: Borrow strength across hospitals
+- Each hospital's estimate is pulled toward the overall mean
+- Small hospitals pulled more; large hospitals pulled less
+- Optimal bias-variance trade-off
+
+```{r pooling_comparison, fig.cap="Complete pooling ignores structure; no pooling gives noisy estimates"}
+# Complete pooling: single estimate
+pooled_model <- lm(outcome ~ treatment + age_centered, data = patient_data)
+pooled_effect <- coef(pooled_model)["treatment"]
+pooled_se <- summary(pooled_model)$coefficients["treatment", "Std. Error"]
+
+# No pooling: separate estimate per hospital
+unpooled_effects <- patient_data[, {
+    if (length(unique(treatment)) > 1) {
+        fit <- lm(outcome ~ treatment)
+        list(
+            effect = coef(fit)["treatment"],
+            se = summary(fit)$coefficients["treatment", "Std. Error"],
+            n = .N
+        )
+    } else {
+        list(effect = NA, se = NA, n = .N)
+    }
+}, by = hospital_id]
+
+cat("Pooling Comparison:\n")
+cat("===================\n")
+cat("\nComplete Pooling (ignore hospitals):\n")
+cat("  Treatment effect:", round(pooled_effect, 3), "±", round(pooled_se, 3), "\n")
+
+cat("\nNo Pooling (separate per hospital):\n")
+cat("  Mean effect:", round(mean(unpooled_effects$effect, na.rm = TRUE), 3), "\n")
+cat("  SD of effects:", round(sd(unpooled_effects$effect, na.rm = TRUE), 3), "\n")
+cat("  Range:", round(range(unpooled_effects$effect, na.rm = TRUE), 3), "\n")
+
+# Visualise
+unpooled_effects[, hospital_label := paste0("H", hospital_id)]
+
+ggplot2$ggplot(unpooled_effects[!is.na(effect)],
+               ggplot2$aes(x = reorder(hospital_label, effect), y = effect)) +
+    ggplot2$geom_point(size = 3, colour = "#2166AC") +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = effect - 1.96*se, ymax = effect + 1.96*se),
+                           width = 0.2, colour = "#2166AC") +
+    ggplot2$geom_hline(yintercept = pooled_effect, colour = "#D95F02",
+                        linetype = "dashed", linewidth = 1) +
+    ggplot2$geom_hline(yintercept = true_params$treatment_effect, colour = "darkgreen",
+                        linetype = "dotted", linewidth = 1) +
+    ggplot2$annotate("text", x = 1, y = pooled_effect + 0.3, label = "Pooled estimate",
+                      colour = "#D95F02", hjust = 0) +
+    ggplot2$annotate("text", x = 1, y = true_params$treatment_effect + 0.3,
+                      label = "True effect", colour = "darkgreen", hjust = 0) +
+    ggplot2$labs(
+        title = "Treatment Effect Estimates by Hospital (No Pooling)",
+        subtitle = "Wide confidence intervals reflect small sample sizes",
+        x = "Hospital",
+        y = "Treatment Effect (± 95% CI)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+### 10.1.2 The Hierarchical Model
+
+**Prose and Intuition**
+
+The **hierarchical model** treats hospital effects as random draws from a distribution:
+
+**Level 1 (patients)**: $Y_{ij} = \alpha_j + \beta \cdot \text{Treatment}_{ij} + \epsilon_{ij}$
+
+**Level 2 (hospitals)**: $\alpha_j \sim N(\mu_\alpha, \sigma_\alpha^2)$
+
+where $\alpha_j$ is hospital $j$'s intercept, and $\sigma_\alpha$ captures between-hospital variation.
+
+**Key insight**: Hospitals with extreme estimates (due to small samples or chance) are "shrunk" toward the overall mean. This is **partial pooling**.
+
+**Mathematical Framework**
+
+Full model:
+$$Y_{ij} | \alpha_j, \beta, \sigma^2 \sim N(\alpha_j + \beta X_{ij}, \sigma^2)$$
+$$\alpha_j | \mu_\alpha, \sigma_\alpha^2 \sim N(\mu_\alpha, \sigma_\alpha^2)$$
+
+Priors:
+$$\mu_\alpha \sim N(0, 10^2)$$
+$$\beta \sim N(0, 5^2)$$
+$$\sigma, \sigma_\alpha \sim \text{Half-Cauchy}(0, 5)$$
+
+---
+
+## 10.2 Bayesian Inference Fundamentals
+
+### 10.2.1 Bayes' Theorem
+
+**Prose and Intuition**
+
+Bayesian inference combines **prior belief** with **data** to produce **posterior belief**:
+
+$$\text{Posterior} = \frac{\text{Likelihood} \times \text{Prior}}{\text{Evidence}}$$
+
+Or more precisely:
+$$p(\theta | y) = \frac{p(y | \theta) \cdot p(\theta)}{p(y)}$$
+
+The **posterior** $p(\theta | y)$ is a full probability distribution over parameters, not just a point estimate. This naturally quantifies uncertainty.
+
+**Mathematical Framework**
+
+For parameter vector $\boldsymbol{\theta}$:
+$$p(\boldsymbol{\theta} | \mathbf{y}) \propto p(\mathbf{y} | \boldsymbol{\theta}) \cdot p(\boldsymbol{\theta})$$
+
+The normalising constant (evidence) is often intractable:
+$$p(\mathbf{y}) = \int p(\mathbf{y} | \boldsymbol{\theta}) \cdot p(\boldsymbol{\theta}) \, d\boldsymbol{\theta}$$
+
+This is why we need MCMC: to sample from the posterior without computing this integral.
+
+```{r bayes_demo, fig.cap="Bayesian updating: prior + data = posterior"}
+# Simple demonstration of Bayesian updating
+# Estimating a proportion (e.g., treatment success rate)
+
+# Prior: Beta(2, 2) - mild preference for 0.5
+alpha_prior <- 2
+beta_prior <- 2
+
+# Data: 15 successes out of 20 trials
+successes <- 15
+failures <- 5
+
+# Posterior: Beta(alpha + successes, beta + failures)
+alpha_post <- alpha_prior + successes
+beta_post <- beta_prior + failures
+
+# Grid for plotting
+theta <- seq(0.001, 0.999, length.out = 200)
+
+bayes_data <- data.table(
+    theta = rep(theta, 3),
+    density = c(
+        dbeta(theta, alpha_prior, beta_prior),
+        dbeta(theta, successes + 1, failures + 1),  # Approximate likelihood (scaled)
+        dbeta(theta, alpha_post, beta_post)
+    ),
+    type = rep(c("Prior", "Likelihood (scaled)", "Posterior"), each = length(theta))
+)
+
+# Scale likelihood for visualisation
+bayes_data[type == "Likelihood (scaled)", density := density * max(bayes_data[type == "Prior"]$density) /
+                                                              max(density)]
+
+cat("Bayesian Updating Example:\n")
+cat("==========================\n")
+cat("  Prior: Beta(", alpha_prior, ",", beta_prior, ")\n")
+cat("  Data: ", successes, "successes,", failures, "failures\n")
+cat("  Posterior: Beta(", alpha_post, ",", beta_post, ")\n")
+cat("  Posterior mean:", round(alpha_post / (alpha_post + beta_post), 3), "\n")
+cat("  95% Credible interval:", round(qbeta(c(0.025, 0.975), alpha_post, beta_post), 3), "\n")
+
+ggplot2$ggplot(bayes_data, ggplot2$aes(x = theta, y = density, colour = type, linetype = type)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$scale_colour_manual(values = c("Prior" = "#7570B3",
+                                            "Likelihood (scaled)" = "#1B9E77",
+                                            "Posterior" = "#D95F02")) +
+    ggplot2$scale_linetype_manual(values = c("Prior" = "dashed",
+                                              "Likelihood (scaled)" = "dotted",
+                                              "Posterior" = "solid")) +
+    ggplot2$labs(
+        title = "Bayesian Updating",
+        subtitle = "Prior × Likelihood ∝ Posterior",
+        x = expression(theta~"(success probability)"),
+        y = "Density",
+        colour = "",
+        linetype = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+### 10.2.2 Choosing Priors
+
+**Prose and Intuition**
+
+**Priors** encode prior knowledge or beliefs. Common approaches:
+
+1. **Weakly informative**: Allow data to dominate; regularise extreme values
+   - Example: $N(0, 10)$ for regression coefficients
+
+2. **Informative**: Based on previous studies or expert knowledge
+   - Example: Treatment effect ~N(0.5, 0.2) from literature
+
+3. **Non-informative**: Attempt to "let data speak"
+   - Often improper or lead to poor inference
+
+**Key principle**: With enough data, the prior becomes irrelevant. The posterior is dominated by the likelihood.
+
+```{r prior_sensitivity}
+# Demonstrate prior sensitivity
+# Same data, different priors
+
+# Data: 3 successes out of 5 trials (sparse data)
+successes_sparse <- 3
+failures_sparse <- 2
+
+# Different priors
+priors <- list(
+    "Uniform Beta(1,1)" = c(1, 1),
+    "Informative Beta(5,5)" = c(5, 5),
+    "Skeptical Beta(2,8)" = c(2, 8),
+    "Optimistic Beta(8,2)" = c(8, 2)
+)
+
+prior_sensitivity <- rbindlist(lapply(names(priors), function(name) {
+    alpha_pr <- priors[[name]][1]
+    beta_pr <- priors[[name]][2]
+
+    alpha_po <- alpha_pr + successes_sparse
+    beta_po <- beta_pr + failures_sparse
+
+    data.table(
+        prior = name,
+        prior_mean = alpha_pr / (alpha_pr + beta_pr),
+        posterior_mean = alpha_po / (alpha_po + beta_po),
+        ci_lower = qbeta(0.025, alpha_po, beta_po),
+        ci_upper = qbeta(0.975, alpha_po, beta_po)
+    )
+}))
+
+cat("Prior Sensitivity Analysis (Sparse Data: 3/5):\n")
+cat("===============================================\n")
+print(prior_sensitivity[, .(prior, prior_mean = round(prior_mean, 2),
+                             posterior_mean = round(posterior_mean, 2),
+                             ci_95 = paste0("[", round(ci_lower, 2), ", ",
+                                           round(ci_upper, 2), "]"))])
+```
+
+---
+
+## 10.3 Markov Chain Monte Carlo (MCMC)
+
+### 10.3.1 Why MCMC?
+
+**Prose and Intuition**
+
+For complex models, the posterior distribution has no closed form. We can't directly compute $p(\theta | y)$. MCMC provides a solution: generate samples from the posterior without knowing its normalising constant.
+
+**Key insight**: We can evaluate $p(y | \theta) \cdot p(\theta)$ (unnormalised posterior) easily. MCMC exploits this to sample from the normalised posterior.
+
+The samples allow us to:
+- Estimate posterior means, medians, quantiles
+- Compute credible intervals
+- Approximate any posterior expectation
+
+### 10.3.2 The Metropolis-Hastings Algorithm
+
+**Prose and Intuition**
+
+**Metropolis-Hastings** generates a Markov chain whose stationary distribution is the posterior:
+
+1. Start at some $\theta^{(0)}$
+2. Propose a move: $\theta^* \sim q(\theta^* | \theta^{(t)})$
+3. Accept with probability:
+   $$\alpha = \min\left(1, \frac{p(\theta^* | y) \cdot q(\theta^{(t)} | \theta^*)}{p(\theta^{(t)} | y) \cdot q(\theta^* | \theta^{(t)})}\right)$$
+4. If accepted: $\theta^{(t+1)} = \theta^*$; else: $\theta^{(t+1)} = \theta^{(t)}$
+5. Repeat
+
+For symmetric proposals (e.g., random walk), this simplifies to the **Metropolis algorithm**:
+$$\alpha = \min\left(1, \frac{p(\theta^* | y)}{p(\theta^{(t)} | y)}\right)$$
+
+```{r metropolis_demo, fig.cap="Metropolis algorithm samples from the posterior"}
+# Implement simple Metropolis algorithm for Normal mean estimation
+metropolis_normal <- function(y, mu_prior = 0, sigma_prior = 10, sigma_known = 1,
+                               n_iter = 5000, proposal_sd = 0.5) {
+    n <- length(y)
+    y_mean <- mean(y)
+
+    # Storage
+    samples <- numeric(n_iter)
+    accept <- numeric(n_iter)
+
+    # Log posterior (unnormalised)
+    log_posterior <- function(mu) {
+        log_lik <- sum(dnorm(y, mu, sigma_known, log = TRUE))
+        log_prior <- dnorm(mu, mu_prior, sigma_prior, log = TRUE)
+        log_lik + log_prior
+    }
+
+    # Initial value
+    samples[1] <- y_mean
+
+    # MCMC loop
+    for (t in 2:n_iter) {
+        # Current state
+        current <- samples[t - 1]
+
+        # Propose
+        proposed <- rnorm(1, current, proposal_sd)
+
+        # Acceptance probability (log scale)
+        log_alpha <- log_posterior(proposed) - log_posterior(current)
+
+        # Accept/reject
+        if (log(runif(1)) < log_alpha) {
+            samples[t] <- proposed
+            accept[t] <- 1
+        } else {
+            samples[t] <- current
+            accept[t] <- 0
+        }
+    }
+
+    list(
+        samples = samples,
+        acceptance_rate = mean(accept[-1])
+    )
+}
+
+# Generate data
+true_mu <- 2.5
+y_data <- rnorm(30, true_mu, 1)
+
+# Run Metropolis
+mcmc_result <- metropolis_normal(y_data, mu_prior = 0, sigma_prior = 5,
+                                  n_iter = 5000, proposal_sd = 0.3)
+
+cat("Metropolis Algorithm Results:\n")
+cat("=============================\n")
+cat("  True mu:", true_mu, "\n")
+cat("  Sample mean:", round(mean(y_data), 3), "\n")
+cat("  Posterior mean (MCMC):", round(mean(mcmc_result$samples[1001:5000]), 3), "\n")
+cat("  95% Credible interval:", round(quantile(mcmc_result$samples[1001:5000],
+                                                c(0.025, 0.975)), 3), "\n")
+cat("  Acceptance rate:", round(mcmc_result$acceptance_rate, 3), "\n")
+
+# Visualise
+mcmc_data <- data.table(
+    iteration = 1:5000,
+    mu = mcmc_result$samples
+)
+
+# Trace plot
+p_trace <- ggplot2$ggplot(mcmc_data, ggplot2$aes(x = iteration, y = mu)) +
+    ggplot2$geom_line(alpha = 0.5, colour = "#2166AC") +
+    ggplot2$geom_hline(yintercept = true_mu, colour = "#D95F02", linetype = "dashed") +
+    ggplot2$labs(title = "Trace Plot", x = "Iteration", y = expression(mu)) +
+    ggplot2$theme_minimal(base_size = 12)
+
+# Histogram of posterior
+p_hist <- ggplot2$ggplot(mcmc_data[iteration > 1000], ggplot2$aes(x = mu)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                            fill = "#2166AC", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = true_mu, colour = "#D95F02", linetype = "dashed") +
+    ggplot2$labs(title = "Posterior Distribution", x = expression(mu), y = "Density") +
+    ggplot2$theme_minimal(base_size = 12)
+
+gridExtra::grid.arrange(p_trace, p_hist, ncol = 2)
+```
+
+---
+
+## 10.4 MCMC Diagnostics
+
+### 10.4.1 Assessing Convergence
+
+**Prose and Intuition**
+
+How do we know the Markov chain has converged to the posterior? Several diagnostics help:
+
+1. **Trace plots**: Visual inspection of parameter trajectories
+   - Should look like "fuzzy caterpillars" mixing around a stable mean
+
+2. **$\hat{R}$ (R-hat)**: Gelman-Rubin diagnostic
+   - Compares variance within chains to variance between chains
+   - $\hat{R} < 1.01$ indicates convergence
+
+3. **Effective Sample Size (ESS)**: How many independent samples?
+   - MCMC samples are autocorrelated
+   - ESS << n_samples indicates poor mixing
+
+4. **Autocorrelation**: How quickly does correlation decay?
+   - Faster decay = better mixing
+
+```{r mcmc_diagnostics, fig.cap="MCMC diagnostics: trace plot, autocorrelation, and density"}
+# Run multiple chains
+run_multiple_chains <- function(y, n_chains = 4, n_iter = 2000, ...) {
+    chains <- lapply(1:n_chains, function(chain) {
+        # Different starting values
+        start <- rnorm(1, mean(y), 2)
+
+        result <- metropolis_normal(y, n_iter = n_iter, ...)
+        data.table(
+            chain = chain,
+            iteration = 1:n_iter,
+            mu = result$samples
+        )
+    })
+    rbindlist(chains)
+}
+
+multi_chain <- run_multiple_chains(y_data, n_chains = 4, n_iter = 2000, proposal_sd = 0.4)
+
+# Calculate R-hat (simplified)
+calc_rhat <- function(chains_dt, warmup = 500) {
+    post_warmup <- chains_dt[iteration > warmup]
+
+    # Between-chain variance
+    chain_means <- post_warmup[, mean(mu), by = chain]$V1
+    B <- var(chain_means) * (max(chains_dt$iteration) - warmup)
+
+    # Within-chain variance
+    chain_vars <- post_warmup[, var(mu), by = chain]$V1
+    W <- mean(chain_vars)
+
+    # Pooled variance estimate
+    n <- max(chains_dt$iteration) - warmup
+    var_plus <- ((n - 1) * W + B) / n
+
+    # R-hat
+    sqrt(var_plus / W)
+}
+
+# Calculate ESS (simplified)
+calc_ess <- function(samples) {
+    n <- length(samples)
+    acf_vals <- acf(samples, lag.max = min(n/2, 100), plot = FALSE)$acf[-1]
+
+    # Sum of autocorrelations until first negative pair
+    rho_sum <- 0
+    for (t in seq(1, length(acf_vals) - 1, by = 2)) {
+        rho_pair <- acf_vals[t] + acf_vals[t + 1]
+        if (rho_pair < 0) break
+        rho_sum <- rho_sum + rho_pair
+    }
+
+    n / (1 + 2 * rho_sum)
+}
+
+rhat <- calc_rhat(multi_chain)
+ess <- calc_ess(multi_chain[iteration > 500 & chain == 1]$mu)
+
+cat("MCMC Diagnostics:\n")
+cat("=================\n")
+cat("  R-hat:", round(rhat, 3), "(should be < 1.01)\n")
+cat("  ESS (chain 1):", round(ess, 0), "out of", 1500, "samples\n")
+
+# Visualise multiple chains
+ggplot2$ggplot(multi_chain, ggplot2$aes(x = iteration, y = mu, colour = factor(chain))) +
+    ggplot2$geom_line(alpha = 0.7) +
+    ggplot2$geom_hline(yintercept = true_mu, linetype = "dashed", colour = "black") +
+    ggplot2$scale_colour_brewer(palette = "Set1", name = "Chain") +
+    ggplot2$labs(
+        title = "Trace Plot: Multiple Chains",
+        subtitle = paste("R-hat =", round(rhat, 3)),
+        x = "Iteration",
+        y = expression(mu)
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+### 10.4.2 Improving MCMC Efficiency
+
+**Prose and Intuition**
+
+Poor mixing can be improved by:
+
+1. **Tuning proposal distribution**: Optimal acceptance rate ~23% for high-dimensional problems
+2. **Reparameterisation**: Transform to less correlated parameters
+3. **Advanced algorithms**: Hamiltonian Monte Carlo (HMC) uses gradient information for efficient exploration
+
+```{r proposal_tuning, fig.cap="Proposal variance affects mixing and acceptance rate"}
+# Compare different proposal standard deviations
+proposal_sds <- c(0.1, 0.5, 2.0, 5.0)
+
+tuning_results <- rbindlist(lapply(proposal_sds, function(sd) {
+    result <- metropolis_normal(y_data, n_iter = 2000, proposal_sd = sd)
+    data.table(
+        proposal_sd = sd,
+        iteration = 1:2000,
+        mu = result$samples,
+        acceptance_rate = result$acceptance_rate
+    )
+}))
+
+# Summary
+tuning_summary <- tuning_results[iteration > 500, .(
+    mean = mean(mu),
+    sd = sd(mu),
+    acceptance_rate = unique(acceptance_rate)
+), by = proposal_sd]
+
+cat("Proposal Tuning:\n")
+cat("================\n")
+print(tuning_summary)
+cat("\nOptimal acceptance rate is typically 0.2-0.4 for random walk MH.\n")
+
+ggplot2$ggplot(tuning_results, ggplot2$aes(x = iteration, y = mu)) +
+    ggplot2$geom_line(alpha = 0.5, colour = "#2166AC") +
+    ggplot2$geom_hline(yintercept = true_mu, colour = "#D95F02", linetype = "dashed") +
+    ggplot2$facet_wrap(~ paste("Proposal SD =", proposal_sd, "\nAccept =",
+                                round(acceptance_rate, 2)),
+                        ncol = 2) +
+    ggplot2$labs(
+        title = "Effect of Proposal Variance on Mixing",
+        subtitle = "Too small: slow mixing; Too large: high rejection",
+        x = "Iteration",
+        y = expression(mu)
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+## 10.5 Hierarchical Model Implementation
+
+### 10.5.1 Gibbs Sampling for Hierarchical Models
+
+**Prose and Intuition**
+
+**Gibbs sampling** is a special case of MCMC where we sample each parameter from its **full conditional distribution** (the distribution given all other parameters and data).
+
+For the hierarchical model:
+1. Sample each $\alpha_j$ given $\mu_\alpha$, $\sigma_\alpha$, $\beta$, $\sigma$, and data
+2. Sample $\mu_\alpha$ given all $\alpha_j$ and hyperpriors
+3. Sample $\sigma_\alpha$ given all $\alpha_j$ and hyperpriors
+4. Sample $\beta$ given all other parameters and data
+5. Repeat
+
+**Mathematical Framework**
+
+Full conditional for hospital intercept $\alpha_j$:
+$$\alpha_j | \cdot \sim N\left(\frac{\frac{n_j}{\sigma^2}\bar{y}_j + \frac{1}{\sigma_\alpha^2}\mu_\alpha}{\frac{n_j}{\sigma^2} + \frac{1}{\sigma_\alpha^2}}, \left(\frac{n_j}{\sigma^2} + \frac{1}{\sigma_\alpha^2}\right)^{-1}\right)$$
+
+```{r gibbs_hierarchical}
+# Gibbs sampler for hierarchical model
+gibbs_hierarchical <- function(patient_data, n_iter = 2000, warmup = 500) {
+    # Data preparation
+    hospitals <- unique(patient_data$hospital_id)
+    n_hospitals <- length(hospitals)
+
+    # Storage
+    samples <- data.table(
+        iteration = 1:n_iter,
+        mu_alpha = numeric(n_iter),
+        sigma_alpha = numeric(n_iter),
+        beta = numeric(n_iter),
+        sigma = numeric(n_iter)
+    )
+
+    # Also store hospital effects
+    alpha_samples <- matrix(NA, n_iter, n_hospitals)
+
+    # Initial values
+    mu_alpha <- mean(patient_data$outcome)
+    sigma_alpha <- 1
+    beta <- 0
+    sigma <- sd(patient_data$outcome)
+    alpha <- rep(mu_alpha, n_hospitals)
+
+    # Precompute hospital-level summaries
+    hospital_data <- patient_data[, .(
+        n = .N,
+        mean_outcome = mean(outcome),
+        sum_treatment = sum(treatment),
+        sum_outcome = sum(outcome)
+    ), by = hospital_id]
+
+    for (t in 1:n_iter) {
+        # Sample alpha_j (hospital intercepts)
+        for (j in 1:n_hospitals) {
+            hosp_idx <- patient_data$hospital_id == hospitals[j]
+            y_j <- patient_data$outcome[hosp_idx]
+            x_j <- patient_data$treatment[hosp_idx]
+            n_j <- length(y_j)
+
+            # Residual after removing treatment effect
+            resid_j <- y_j - beta * x_j
+
+            # Posterior for alpha_j
+            precision_data <- n_j / sigma^2
+            precision_prior <- 1 / sigma_alpha^2
+
+            post_var <- 1 / (precision_data + precision_prior)
+            post_mean <- post_var * (precision_data * mean(resid_j) + precision_prior * mu_alpha)
+
+            alpha[j] <- rnorm(1, post_mean, sqrt(post_var))
+        }
+
+        # Sample mu_alpha (grand mean)
+        precision_alpha <- n_hospitals / sigma_alpha^2
+        precision_prior_mu <- 1 / 100  # Prior: N(0, 10)
+
+        post_var_mu <- 1 / (precision_alpha + precision_prior_mu)
+        post_mean_mu <- post_var_mu * (precision_alpha * mean(alpha))
+
+        mu_alpha <- rnorm(1, post_mean_mu, sqrt(post_var_mu))
+
+        # Sample sigma_alpha (between-hospital SD)
+        # Using inverse-gamma posterior (conjugate)
+        shape_post <- (n_hospitals - 1) / 2 + 1  # Shape from prior
+        rate_post <- sum((alpha - mu_alpha)^2) / 2 + 0.1  # Rate from prior
+
+        sigma_alpha <- sqrt(1 / rgamma(1, shape_post, rate_post))
+        sigma_alpha <- max(sigma_alpha, 0.01)  # Prevent collapse
+
+        # Sample beta (treatment effect)
+        # Compute residuals after hospital effects
+        resid <- patient_data$outcome - alpha[patient_data$hospital_id]
+        x <- patient_data$treatment
+
+        precision_data <- sum(x^2) / sigma^2
+        precision_prior <- 1 / 25  # Prior: N(0, 5)
+
+        post_var_beta <- 1 / (precision_data + precision_prior)
+        post_mean_beta <- post_var_beta * (sum(x * resid) / sigma^2)
+
+        beta <- rnorm(1, post_mean_beta, sqrt(post_var_beta))
+
+        # Sample sigma (residual SD)
+        # Compute residuals after all effects
+        fitted <- alpha[patient_data$hospital_id] + beta * patient_data$treatment
+        resid_full <- patient_data$outcome - fitted
+        n_total <- nrow(patient_data)
+
+        shape_sigma <- n_total / 2 + 1
+        rate_sigma <- sum(resid_full^2) / 2 + 0.1
+
+        sigma <- sqrt(1 / rgamma(1, shape_sigma, rate_sigma))
+
+        # Store
+        samples[t, `:=`(mu_alpha = mu_alpha, sigma_alpha = sigma_alpha,
+                        beta = beta, sigma = sigma)]
+        alpha_samples[t, ] <- alpha
+    }
+
+    list(
+        samples = samples,
+        alpha_samples = alpha_samples,
+        hospital_ids = hospitals
+    )
+}
+
+# Run Gibbs sampler
+gibbs_result <- gibbs_hierarchical(patient_data, n_iter = 3000, warmup = 1000)
+
+# Summarise results
+post_warmup <- gibbs_result$samples[iteration > 1000]
+
+cat("Hierarchical Model Results (Gibbs Sampling):\n")
+cat("=============================================\n")
+cat("\nTrue values:\n")
+cat("  Treatment effect:", true_params$treatment_effect, "\n")
+cat("  Hospital SD:", true_params$hospital_sd, "\n")
+cat("  Residual SD:", true_params$residual_sd, "\n")
+
+cat("\nPosterior estimates:\n")
+cat("  Treatment effect:", round(mean(post_warmup$beta), 3),
+    "[", round(quantile(post_warmup$beta, 0.025), 3), ",",
+    round(quantile(post_warmup$beta, 0.975), 3), "]\n")
+cat("  Hospital SD:", round(mean(post_warmup$sigma_alpha), 3),
+    "[", round(quantile(post_warmup$sigma_alpha, 0.025), 3), ",",
+    round(quantile(post_warmup$sigma_alpha, 0.975), 3), "]\n")
+cat("  Residual SD:", round(mean(post_warmup$sigma), 3),
+    "[", round(quantile(post_warmup$sigma, 0.025), 3), ",",
+    round(quantile(post_warmup$sigma, 0.975), 3), "]\n")
+```
+
+### 10.5.2 Shrinkage and Partial Pooling
+
+**Prose and Intuition**
+
+Hierarchical models produce **shrinkage**: hospital-specific estimates are pulled toward the overall mean. The amount of shrinkage depends on:
+- Hospital sample size (larger → less shrinkage)
+- Within-hospital variance (larger → more shrinkage)
+- Between-hospital variance (smaller → more shrinkage)
+
+```{r shrinkage_visualisation, fig.cap="Shrinkage: hierarchical estimates are pulled toward the grand mean"}
+# Calculate posterior means for hospital intercepts
+alpha_post_means <- colMeans(gibbs_result$alpha_samples[1001:3000, ])
+
+# Compare to unpooled estimates (raw hospital means)
+unpooled_means <- patient_data[, mean(outcome - 0.8 * treatment), by = hospital_id]$V1
+
+# Calculate shrinkage
+shrinkage_data <- data.table(
+    hospital = 1:n_hospitals,
+    unpooled = unpooled_means,
+    hierarchical = alpha_post_means,
+    grand_mean = mean(post_warmup$mu_alpha),
+    true_effect = 10 + hospital_effects
+)
+
+# Shrinkage factor
+shrinkage_data[, shrinkage := (unpooled - hierarchical) / (unpooled - grand_mean)]
+
+cat("Shrinkage Analysis:\n")
+cat("===================\n")
+cat("  Grand mean:", round(mean(post_warmup$mu_alpha), 3), "\n")
+cat("  Mean shrinkage factor:", round(mean(shrinkage_data$shrinkage, na.rm = TRUE), 3), "\n")
+
+# Visualise shrinkage
+ggplot2$ggplot(shrinkage_data) +
+    ggplot2$geom_segment(ggplot2$aes(x = unpooled, xend = hierarchical,
+                                      y = hospital, yend = hospital),
+                          arrow = ggplot2$arrow(length = ggplot2$unit(0.15, "cm")),
+                          colour = "#2166AC", linewidth = 0.8) +
+    ggplot2$geom_point(ggplot2$aes(x = unpooled, y = hospital), colour = "#7570B3",
+                        size = 3, shape = 1) +
+    ggplot2$geom_point(ggplot2$aes(x = hierarchical, y = hospital), colour = "#D95F02",
+                        size = 3) +
+    ggplot2$geom_point(ggplot2$aes(x = true_effect, y = hospital), colour = "darkgreen",
+                        size = 2, shape = 4) +
+    ggplot2$geom_vline(xintercept = mean(post_warmup$mu_alpha), linetype = "dashed",
+                        colour = "grey50") +
+    ggplot2$labs(
+        title = "Shrinkage in Hierarchical Models",
+        subtitle = "Circles: unpooled; Filled: hierarchical; X: true value",
+        x = "Hospital Intercept Estimate",
+        y = "Hospital"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+## 10.6 Summary and Key Concepts
+
+### Key Takeaways
+
+1. **Hierarchical Models**: Model natural grouping structure (patients in hospitals, repeated measures). They provide partial pooling, borrowing strength across groups.
+
+2. **Bayesian Inference**: Combines prior knowledge with data to produce posterior distributions. Posteriors quantify uncertainty directly.
+
+3. **MCMC**: Enables sampling from complex posterior distributions when analytical solutions don't exist.
+
+4. **Metropolis-Hastings**: A general MCMC algorithm. Gibbs sampling is efficient when full conditionals are available.
+
+5. **Diagnostics**: Trace plots, R-hat, and ESS assess convergence and mixing. Poor diagnostics indicate unreliable inference.
+
+6. **Shrinkage**: Hierarchical estimates are pulled toward the overall mean, with the degree depending on sample size and variance components.
+
+### Connections to Other Topics
+
+- **Part 2**: Model comparison and posterior predictive checks
+- **Chapter 2**: Empirical Bayes uses similar shrinkage ideas
+- **Chapter 1**: Regularisation can be interpreted as Bayesian inference with specific priors
+
+### Communicating to Stakeholders
+
+**For a clinical audience**: "We analysed treatment effects across 12 hospitals using a hierarchical Bayesian model. This approach accounts for hospital-to-hospital variation while borrowing information across sites. The treatment effect was 0.82 [0.54, 1.10], meaning treated patients showed significantly better outcomes. The model estimates between-hospital variation at 0.48, indicating modest differences in baseline outcomes across sites."
+
+**For a methods paper**: "A Bayesian hierarchical linear model was fitted using Gibbs sampling with 3000 iterations (1000 warmup). The model included random intercepts for hospitals and a fixed treatment effect. Convergence was assessed using trace plots and the Gelman-Rubin statistic (R-hat < 1.01 for all parameters). Weakly informative priors were used: N(0, 10) for the grand mean, N(0, 5) for the treatment effect, and Half-Cauchy(0, 5) for variance components."
+
+**Key vocabulary**:
+- Hierarchical/multilevel model
+- Random effects, fixed effects
+- Prior, likelihood, posterior
+- Credible interval
+- MCMC, Gibbs sampling, Metropolis-Hastings
+- Convergence, R-hat, ESS
+- Shrinkage, partial pooling

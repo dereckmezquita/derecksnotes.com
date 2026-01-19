@@ -355,7 +355,7 @@ cat("=================\n\n")
 cat("Full model (with BMI):\n")
 #> Full model (with BMI):
 cat("  R² =", round(summary(model_full)$r.squared, 4), "\n")
-#>   R<U+00B2> = 0.1894
+#>   R² = 0.1894
 cat("  Max VIF =", round(max(vif_values), 2), "\n\n")
 #>   Max VIF = 84.31
 
@@ -363,7 +363,7 @@ vif_reduced <- compute_vif(model_reduced)
 cat("Reduced model (without BMI):\n")
 #> Reduced model (without BMI):
 cat("  R² =", round(summary(model_reduced)$r.squared, 4), "\n")
-#>   R<U+00B2> = 0.1894
+#>   R² = 0.1894
 cat("  Max VIF =", round(max(vif_reduced), 2), "\n\n")
 #>   Max VIF = 1.33
 
@@ -770,7 +770,7 @@ cat("========================\n\n")
 cat("r(SBP, Age.BMI) =", round(r_semipartial, 4), "\n")
 #> r(SBP, Age.BMI) = 0.409
 cat("r² (squared semipartial) =", round(r_semipartial^2, 4), "\n")
-#> r<U+00B2> (squared semipartial) = 0.1672
+#> r² (squared semipartial) = 0.1672
 
 # Verify: This should equal the change in R² when adding Age to BMI-only model
 model_bmi <- lm(SBP ~ BMI, data = bp_complete)
@@ -782,7 +782,7 @@ cat("\nVerification:\n")
 #> 
 #> Verification:
 cat("  R² change when adding Age:", round(r2_change, 4), "\n")
-#>   R<U+00B2> change when adding Age: 0.1672
+#>   R² change when adding Age: 0.1672
 cat("  Squared semipartial:", round(r_semipartial^2, 4), "\n")
 #>   Squared semipartial: 0.1672
 cat("  Match:", all.equal(r2_change, r_semipartial^2, tolerance = 0.001), "\n")

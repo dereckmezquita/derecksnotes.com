@@ -1,0 +1,793 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 7: RNA-Seq Analysis"
+part: "Part 1: Count Data and Normalisation"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, bioinformatics, RNA-seq, count-data, normalisation, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: Count Data and Normalisation
+
+RNA sequencing (RNA-seq) has revolutionised transcriptomics, enabling genome-wide measurement of gene expression. Unlike microarrays, RNA-seq produces **count data**—discrete integers representing sequencing reads mapped to each gene. This chapter develops the statistical framework for analysing RNA-seq data, focusing on the unique properties of count distributions and the critical role of normalisation.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+
+``` r
+# Simulate RNA-seq count data
+# This mimics a typical differential expression experiment:
+# - 10,000 genes
+# - 6 samples (3 control, 3 treatment)
+# - ~200 differentially expressed genes
+
+n_genes <- 10000
+n_samples <- 6
+n_control <- 3
+n_treatment <- 3
+
+# Sample groups
+groups <- factor(c(rep("Control", n_control), rep("Treatment", n_treatment)))
+
+# Library sizes (vary by sample - a key challenge)
+library_sizes <- c(15e6, 18e6, 12e6, 20e6, 14e6, 16e6)
+
+# Mean expression levels (most genes lowly expressed, few highly)
+# Log-normal distribution for mean expression
+base_means <- exp(rnorm(n_genes, mean = 3, sd = 2))
+base_means[base_means < 1] <- 1
+
+# Differential expression: ~200 genes with true changes
+n_de <- 200
+de_genes <- sample(1:n_genes, n_de)
+log_fold_changes <- rep(0, n_genes)
+log_fold_changes[de_genes] <- rnorm(n_de, mean = 0, sd = 1.5)
+
+# Generate counts using negative binomial distribution
+# This captures overdispersion in RNA-seq data
+dispersion <- 0.1  # Common dispersion parameter
+
+counts <- matrix(NA, nrow = n_genes, ncol = n_samples)
+colnames(counts) <- paste0("Sample_", 1:n_samples)
+rownames(counts) <- paste0("Gene_", 1:n_genes)
+
+for (j in 1:n_samples) {
+    # Sample-specific size factor
+    size_factor <- library_sizes[j] / mean(library_sizes)
+
+    # Group-specific mean
+    if (groups[j] == "Treatment") {
+        mean_expression <- base_means * exp(log_fold_changes) * size_factor
+    } else {
+        mean_expression <- base_means * size_factor
+    }
+
+    # Generate counts from negative binomial
+    counts[, j] <- rnbinom(n_genes,
+                           mu = mean_expression,
+                           size = 1 / dispersion)
+}
+
+counts_dt <- as.data.table(counts, keep.rownames = "gene")
+
+cat("Simulated RNA-seq Data\n")
+#> Simulated RNA-seq Data
+cat("======================\n")
+#> ======================
+cat("  Genes:", n_genes, "\n")
+#>   Genes: 10000
+cat("  Samples:", n_samples, "(", n_control, "control,", n_treatment, "treatment)\n")
+#>   Samples: 6 ( 3 control, 3 treatment)
+cat("  True DE genes:", n_de, "\n")
+#>   True DE genes: 200
+cat("  Library sizes:", paste(round(library_sizes/1e6, 1), "M", collapse = ", "), "\n")
+#>   Library sizes: 15 M, 18 M, 12 M, 20 M, 14 M, 16 M
+```
+
+---
+
+## 7.1 Properties of RNA-seq Count Data
+
+### 7.1.1 Count Data Distributions
+
+**Prose and Intuition**
+
+RNA-seq produces **counts**: non-negative integers representing the number of sequencing reads that map to each gene. Unlike continuous measurements, counts have distinctive properties:
+
+1. **Discrete**: Only integer values (0, 1, 2, ...)
+2. **Non-negative**: Cannot be negative
+3. **Mean-variance relationship**: Variance increases with mean
+4. **Zero-inflated**: Many genes have low or zero counts
+
+**The Poisson Starting Point**
+
+If sequencing were purely random sampling, counts would follow a **Poisson distribution**:
+$$Y \sim \text{Poisson}(\lambda)$$
+
+where $\lambda$ is the expected count. The Poisson has the property that $\text{Var}(Y) = E[Y] = \lambda$.
+
+**The Overdispersion Problem**
+
+In real RNA-seq data, the variance exceeds the mean—this is **overdispersion**:
+$$\text{Var}(Y) > E[Y]$$
+
+This occurs because of biological variability: individuals differ in their expression levels beyond what sequencing randomness would predict.
+
+
+``` r
+# Calculate mean and variance for each gene
+gene_stats <- data.table(
+    gene = rownames(counts),
+    mean_count = rowMeans(counts),
+    variance = apply(counts, 1, var)
+)
+
+# Filter to genes with non-zero counts
+gene_stats <- gene_stats[mean_count > 0]
+
+# Mean-variance relationship
+ggplot2$ggplot(gene_stats, ggplot2$aes(x = mean_count, y = variance)) +
+    ggplot2$geom_point(alpha = 0.3, size = 0.8, colour = "#2166AC") +
+    ggplot2$geom_abline(slope = 1, intercept = 0, colour = "red",
+                         linetype = "dashed", linewidth = 1) +
+    ggplot2$scale_x_log10() +
+    ggplot2$scale_y_log10() +
+    ggplot2$annotate("text", x = 10, y = 10000,
+                      label = "Var = Mean (Poisson)", colour = "red") +
+    ggplot2$labs(
+        title = "Mean-Variance Relationship in RNA-seq Counts",
+        subtitle = "Variance exceeds Poisson expectation (overdispersion)",
+        x = "Mean Count (log scale)",
+        y = "Variance (log scale)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/count_properties-1.png" alt="RNA-seq counts exhibit overdispersion: variance exceeds the mean">
+	RNA-seq counts exhibit overdispersion: variance exceeds the mean
+</Figure>
+
+### 7.1.2 The Negative Binomial Distribution
+
+**Prose and Intuition**
+
+The **negative binomial** (NB) distribution handles overdispersion by introducing a **dispersion parameter** $\phi$:
+
+$$Y \sim \text{NB}(\mu, \phi)$$
+
+with:
+- Mean: $E[Y] = \mu$
+- Variance: $\text{Var}(Y) = \mu + \phi\mu^2$
+
+The dispersion $\phi$ controls how much variance exceeds the Poisson:
+- $\phi \to 0$: Approaches Poisson
+- Large $\phi$: More overdispersion
+
+**Mathematical Framework**
+
+The NB probability mass function:
+$$P(Y = y) = \binom{y + r - 1}{y}\left(\frac{\mu}{\mu + r}\right)^y\left(\frac{r}{\mu + r}\right)^r$$
+
+where $r = 1/\phi$ (size parameter).
+
+The NB arises as a Poisson with gamma-distributed rate:
+$$Y | \lambda \sim \text{Poisson}(\lambda), \quad \lambda \sim \text{Gamma}(\alpha, \beta)$$
+
+
+``` r
+# Compare Poisson vs Negative Binomial
+mu <- 50
+phi <- 0.1  # dispersion
+
+# Generate samples
+n_sim <- 10000
+poisson_samples <- rpois(n_sim, lambda = mu)
+nb_samples <- rnbinom(n_sim, mu = mu, size = 1/phi)
+
+# Compare distributions
+dist_comparison <- rbind(
+    data.table(distribution = "Poisson", count = poisson_samples),
+    data.table(distribution = "Negative Binomial", count = nb_samples)
+)
+
+cat("Distribution Comparison (mu = 50):\n")
+#> Distribution Comparison (mu = 50):
+cat("==================================\n")
+#> ==================================
+cat("  Poisson: Mean =", round(mean(poisson_samples), 1),
+    ", Var =", round(var(poisson_samples), 1), "\n")
+#>   Poisson: Mean = 49.9 , Var = 49.3
+cat("  NB (phi=0.1): Mean =", round(mean(nb_samples), 1),
+    ", Var =", round(var(nb_samples), 1), "\n")
+#>   NB (phi=0.1): Mean = 50.2 , Var = 303.7
+cat("  Expected NB Var:", round(mu + phi * mu^2, 1), "\n")
+#>   Expected NB Var: 300
+
+ggplot2$ggplot(dist_comparison, ggplot2$aes(x = count, fill = distribution)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..),
+                            bins = 50, alpha = 0.6, position = "identity") +
+    ggplot2$scale_fill_manual(values = c("Poisson" = "#2166AC",
+                                          "Negative Binomial" = "#D95F02")) +
+    ggplot2$labs(
+        title = "Poisson vs Negative Binomial",
+        subtitle = paste0("Same mean (", mu, "), NB has greater variance"),
+        x = "Count",
+        y = "Density",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/negative_binomial-1.png" alt="Negative binomial captures overdispersion in count data">
+	Negative binomial captures overdispersion in count data
+</Figure>
+
+---
+
+## 7.2 The Library Size Problem
+
+### 7.2.1 Why Raw Counts Are Misleading
+
+**Prose and Intuition**
+
+The total number of reads per sample (the **library size**) varies dramatically between samples due to:
+- Sequencing depth (how much sequencing was done)
+- Sample preparation efficiency
+- Technical variability
+
+If Sample A has 20 million reads and Sample B has 10 million reads, a gene with 1000 reads in A and 500 reads in B isn't differentially expressed—it has the same *proportion* of reads.
+
+**Key insight**: We don't care about absolute counts; we care about the *proportion* of the transcriptome each gene represents.
+
+
+``` r
+# Show library size variation
+lib_sizes <- colSums(counts)
+
+lib_data <- data.table(
+    sample = colnames(counts),
+    library_size = lib_sizes,
+    group = groups
+)
+
+cat("Library Size Variation:\n")
+#> Library Size Variation:
+cat("=======================\n")
+#> =======================
+print(lib_data[, .(sample, library_size = format(library_size, big.mark = ","), group)])
+#>      sample library_size     group
+#>      <char>       <char>    <fctr>
+#> 1: Sample_1    1,487,786   Control
+#> 2: Sample_2    1,878,922   Control
+#> 3: Sample_3    1,125,160   Control
+#> 4: Sample_4    1,926,016 Treatment
+#> 5: Sample_5    1,441,197 Treatment
+#> 6: Sample_6    1,604,514 Treatment
+
+ggplot2$ggplot(lib_data, ggplot2$aes(x = sample, y = library_size / 1e6, fill = group)) +
+    ggplot2$geom_bar(stat = "identity", width = 0.7) +
+    ggplot2$scale_fill_manual(values = c("Control" = "#2166AC", "Treatment" = "#D95F02")) +
+    ggplot2$labs(
+        title = "Library Sizes Across Samples",
+        subtitle = "Raw counts must be normalised for these differences",
+        x = "",
+        y = "Library Size (millions)",
+        fill = "Group"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/library_size-1.png" alt="Library sizes vary substantially between samples">
+	Library sizes vary substantially between samples
+</Figure>
+
+### 7.2.2 Effect of Ignoring Library Size
+
+**Prose and Intuition**
+
+If we ignore library sizes, genes will appear differentially expressed simply because one condition was sequenced deeper. Let's see this effect.
+
+
+``` r
+# Pick a non-DE gene and a DE gene
+non_de_gene <- which(log_fold_changes == 0)[1]
+de_gene <- de_genes[which.max(abs(log_fold_changes[de_genes]))]
+
+# Raw counts
+example_counts <- data.table(
+    sample = colnames(counts),
+    group = groups,
+    library_size = lib_sizes,
+    non_DE_raw = counts[non_de_gene, ],
+    DE_raw = counts[de_gene, ]
+)
+
+# Normalised (simple library size scaling)
+example_counts[, non_DE_norm := non_DE_raw / library_size * mean(library_size)]
+example_counts[, DE_norm := DE_raw / library_size * mean(library_size)]
+
+cat("Example: Raw vs Normalised Counts\n")
+#> Example: Raw vs Normalised Counts
+cat("==================================\n")
+#> ==================================
+cat("\nNon-DE Gene (true log2FC = 0):\n")
+#> 
+#> Non-DE Gene (true log2FC = 0):
+print(example_counts[, .(sample, group, raw = round(non_DE_raw, 0),
+                          normalised = round(non_DE_norm, 1))])
+#>      sample     group   raw normalised
+#>      <char>    <fctr> <num>      <num>
+#> 1: Sample_1   Control   413      437.8
+#> 2: Sample_2   Control   470      394.5
+#> 3: Sample_3   Control   219      307.0
+#> 4: Sample_4 Treatment   234      191.6
+#> 5: Sample_5 Treatment   315      344.7
+#> 6: Sample_6 Treatment   158      155.3
+
+cat("\nDE Gene (true log2FC =", round(log_fold_changes[de_gene] / log(2), 2), "):\n")
+#> 
+#> DE Gene (true log2FC = -7.47 ):
+print(example_counts[, .(sample, group, raw = round(DE_raw, 0),
+                          normalised = round(DE_norm, 1))])
+#>      sample     group   raw normalised
+#>      <char>    <fctr> <num>      <num>
+#> 1: Sample_1   Control    14       14.8
+#> 2: Sample_2   Control    16       13.4
+#> 3: Sample_3   Control    16       22.4
+#> 4: Sample_4 Treatment     0        0.0
+#> 5: Sample_5 Treatment     0        0.0
+#> 6: Sample_6 Treatment     0        0.0
+```
+
+---
+
+## 7.3 Normalisation Methods
+
+### 7.3.1 Counts Per Million (CPM)
+
+**Prose and Intuition**
+
+The simplest normalisation: divide by library size and multiply by 1 million.
+
+$$\text{CPM}_{ij} = \frac{Y_{ij}}{N_j} \times 10^6$$
+
+where $Y_{ij}$ is the count for gene $i$ in sample $j$, and $N_j$ is the library size.
+
+**Limitation**: CPM assumes all genes have the same average expression across samples. This fails when a few highly expressed genes differ between conditions.
+
+
+``` r
+# Calculate CPM
+cpm <- sweep(counts, 2, colSums(counts), "/") * 1e6
+
+# Summary statistics
+cat("CPM Normalisation:\n")
+#> CPM Normalisation:
+cat("==================\n")
+#> ==================
+cat("  Column sums (should all be 1M):", round(colSums(cpm)/1e6, 2), "\n")
+#>   Column sums (should all be 1M): 1 1 1 1 1 1
+
+# Distribution of log-CPM
+log_cpm <- log2(cpm + 1)
+
+cat("  Mean log2(CPM+1) per sample:", round(colMeans(log_cpm), 2), "\n")
+#>   Mean log2(CPM+1) per sample: 3.93 3.88 3.99 3.98 3.88 3.93
+```
+
+### 7.3.2 Transcripts Per Million (TPM)
+
+**Prose and Intuition**
+
+**TPM** additionally corrects for gene length (longer genes get more reads by chance):
+
+$$\text{TPM}_{ij} = \frac{Y_{ij}/L_i}{\sum_k Y_{kj}/L_k} \times 10^6$$
+
+where $L_i$ is gene length.
+
+**Note**: TPM is useful for comparing expression *between* genes within a sample (which gene is more expressed?), but CPM/TMM are better for differential expression *between* samples.
+
+
+``` r
+# Simulate gene lengths (exponential distribution, typical range)
+gene_lengths <- exp(rnorm(n_genes, mean = 7, sd = 0.8))  # Mean ~1000bp
+
+# Calculate TPM
+rpk <- sweep(counts, 1, gene_lengths / 1000, "/")  # Reads per kilobase
+tpm <- sweep(rpk, 2, colSums(rpk), "/") * 1e6
+
+cat("TPM Normalisation:\n")
+#> TPM Normalisation:
+cat("==================\n")
+#> ==================
+cat("  Column sums (should all be 1M):", round(colSums(tpm)/1e6, 2), "\n")
+#>   Column sums (should all be 1M): 1 1 1 1 1 1
+```
+
+### 7.3.3 TMM Normalisation (Trimmed Mean of M-values)
+
+**Prose and Intuition**
+
+**TMM** (Robinson & Oshlack, 2010) addresses the problem of **composition bias**: when a few highly expressed genes change between conditions, they "use up" reads that would otherwise go to other genes.
+
+**TMM procedure**:
+1. Choose a reference sample (often the one with median library size)
+2. For each sample, compute M-values: $M_g = \log_2(Y_{gj}/N_j) - \log_2(Y_{gr}/N_r)$
+3. Compute A-values (average expression): $A_g = \frac{1}{2}[\log_2(Y_{gj}/N_j) + \log_2(Y_{gr}/N_r)]$
+4. Trim extreme M and A values (remove composition bias effects)
+5. Compute weighted mean of remaining M-values as the normalisation factor
+
+**Mathematical Framework**
+
+The TMM normalisation factor for sample $j$ relative to reference $r$:
+
+$$\log_2(TMM_j) = \frac{\sum_{g \in G'} w_g M_g}{\sum_{g \in G'} w_g}$$
+
+where $G'$ is the set of genes after trimming, and $w_g$ are precision weights.
+
+
+``` r
+# Simplified TMM implementation
+calc_tmm_factors <- function(counts, ref_col = NULL) {
+    n_samples <- ncol(counts)
+
+    # Choose reference: sample closest to mean library size
+    if (is.null(ref_col)) {
+        lib_sizes <- colSums(counts)
+        ref_col <- which.min(abs(lib_sizes - mean(lib_sizes)))
+    }
+
+    ref_counts <- counts[, ref_col]
+    ref_lib <- sum(ref_counts)
+
+    factors <- numeric(n_samples)
+
+    for (j in 1:n_samples) {
+        obs_counts <- counts[, j]
+        obs_lib <- sum(obs_counts)
+
+        # Filter genes with zero counts
+        keep <- ref_counts > 0 & obs_counts > 0
+
+        # M-values (log-ratios)
+        M <- log2((obs_counts[keep] / obs_lib) / (ref_counts[keep] / ref_lib))
+
+        # A-values (average expression)
+        A <- 0.5 * (log2(obs_counts[keep] / obs_lib) + log2(ref_counts[keep] / ref_lib))
+
+        # Trim: remove top/bottom 30% of M, top/bottom 5% of A
+        M_trim <- quantile(M, c(0.30, 0.70))
+        A_trim <- quantile(A, c(0.05, 0.95))
+
+        keep_trim <- M >= M_trim[1] & M <= M_trim[2] &
+                     A >= A_trim[1] & A <= A_trim[2]
+
+        # Weighted mean of M
+        M_trimmed <- M[keep_trim]
+        factors[j] <- 2^mean(M_trimmed)
+    }
+
+    # Normalise so geometric mean is 1
+    factors <- factors / exp(mean(log(factors)))
+    return(factors)
+}
+
+tmm_factors <- calc_tmm_factors(counts)
+
+cat("TMM Normalisation Factors:\n")
+#> TMM Normalisation Factors:
+cat("==========================\n")
+#> ==========================
+for (i in 1:n_samples) {
+    cat("  ", colnames(counts)[i], ": ", round(tmm_factors[i], 4), "\n", sep = "")
+}
+#>   Sample_1: 1.0034
+#>   Sample_2: 0.954
+#>   Sample_3: 1.0699
+#>   Sample_4: 1.0272
+#>   Sample_5: 0.9603
+#>   Sample_6: 0.9898
+
+# Apply TMM normalisation
+effective_lib_sizes <- colSums(counts) * tmm_factors
+tmm_cpm <- sweep(counts, 2, effective_lib_sizes, "/") * 1e6
+
+# Compare normalisation methods
+norm_comparison <- data.table(
+    sample = colnames(counts),
+    group = groups,
+    raw_lib = colSums(counts),
+    cpm_factor = colSums(counts) / mean(colSums(counts)),
+    tmm_factor = tmm_factors
+)
+
+cat("\nNormalisation Factor Comparison:\n")
+#> 
+#> Normalisation Factor Comparison:
+print(norm_comparison[, .(sample, group,
+                           cpm_factor = round(cpm_factor, 3),
+                           tmm_factor = round(tmm_factor, 3))])
+#>      sample     group cpm_factor tmm_factor
+#>      <char>    <fctr>      <num>      <num>
+#> 1: Sample_1   Control      0.943      1.003
+#> 2: Sample_2   Control      1.191      0.954
+#> 3: Sample_3   Control      0.713      1.070
+#> 4: Sample_4 Treatment      1.221      1.027
+#> 5: Sample_5 Treatment      0.914      0.960
+#> 6: Sample_6 Treatment      1.017      0.990
+```
+
+### 7.3.4 DESeq2 Size Factors (Median of Ratios)
+
+**Prose and Intuition**
+
+**DESeq2** uses a related approach based on the **median of ratios**:
+
+1. Create a pseudo-reference sample (geometric mean across samples for each gene)
+2. For each sample, compute the ratio to the pseudo-reference
+3. Take the median ratio as the size factor
+
+This is robust to outliers and composition bias.
+
+**Mathematical Framework**
+
+Pseudo-reference: $\tilde{K}_i = \left(\prod_{j=1}^{n} K_{ij}\right)^{1/n}$
+
+Size factor: $\hat{s}_j = \text{median}_i \frac{K_{ij}}{\tilde{K}_i}$
+
+
+``` r
+# DESeq2-style size factors (median of ratios)
+calc_deseq_factors <- function(counts) {
+    # Geometric mean for each gene (pseudo-reference)
+    log_counts <- log(counts + 0.5)  # Small pseudocount for zeros
+    geo_means <- exp(rowMeans(log_counts))
+
+    # Ratio to pseudo-reference for each sample
+    ratios <- sweep(counts, 1, geo_means, "/")
+
+    # Median ratio for each sample
+    size_factors <- apply(ratios, 2, function(x) median(x[is.finite(x) & x > 0]))
+
+    # Normalise
+    size_factors <- size_factors / exp(mean(log(size_factors)))
+    return(size_factors)
+}
+
+deseq_factors <- calc_deseq_factors(counts)
+
+cat("DESeq2 Size Factors:\n")
+#> DESeq2 Size Factors:
+cat("====================\n")
+#> ====================
+for (i in 1:n_samples) {
+    cat("  ", colnames(counts)[i], ": ", round(deseq_factors[i], 4), "\n", sep = "")
+}
+#>   Sample_1: 0.9613
+#>   Sample_2: 1.1453
+#>   Sample_3: 0.7785
+#>   Sample_4: 1.2639
+#>   Sample_5: 0.8978
+#>   Sample_6: 1.0281
+
+cat("\nCorrelation between TMM and DESeq2 factors:",
+    round(cor(tmm_factors, deseq_factors), 4), "\n")
+#> 
+#> Correlation between TMM and DESeq2 factors: -0.3014
+```
+
+---
+
+## 7.4 Visualising Normalised Data
+
+### 7.4.1 Density Plots
+
+**Prose and Intuition**
+
+After normalisation, the overall distribution of expression should be similar across samples. Density plots of log-transformed counts help assess this.
+
+
+``` r
+# Prepare density data
+density_data <- rbind(
+    melt(as.data.table(log2(cpm + 1), keep.rownames = "gene"),
+         id.vars = "gene", variable.name = "sample", value.name = "log_cpm")[
+             , method := "CPM"
+         ],
+    melt(as.data.table(log2(tmm_cpm + 1), keep.rownames = "gene"),
+         id.vars = "gene", variable.name = "sample", value.name = "log_cpm")[
+             , method := "TMM"
+         ]
+)
+
+density_data[, group := ifelse(grepl("1|2|3", sample), "Control", "Treatment")]
+
+# Plot densities
+ggplot2$ggplot(density_data[log_cpm > 0],
+                ggplot2$aes(x = log_cpm, colour = sample, linetype = group)) +
+    ggplot2$geom_density(linewidth = 0.8) +
+    ggplot2$facet_wrap(~ method) +
+    ggplot2$labs(
+        title = "Distribution of Log-Expression Values",
+        subtitle = "Normalisation should align distributions across samples",
+        x = "log2(CPM + 1)",
+        y = "Density",
+        colour = "Sample",
+        linetype = "Group"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "right"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/density_plots-1.png" alt="Log-expression distributions should align after normalisation">
+	Log-expression distributions should align after normalisation
+</Figure>
+
+### 7.4.2 MA Plots
+
+**Prose and Intuition**
+
+**MA plots** visualise the relationship between average expression (A) and log fold change (M) between conditions:
+- $M = \log_2(\text{Treatment}) - \log_2(\text{Control})$
+- $A = \frac{1}{2}[\log_2(\text{Treatment}) + \log_2(\text{Control})]$
+
+Most genes should have $M \approx 0$. Systematic deviations suggest normalisation problems.
+
+
+``` r
+# Calculate M and A values
+control_mean <- rowMeans(tmm_cpm[, groups == "Control"])
+treatment_mean <- rowMeans(tmm_cpm[, groups == "Treatment"])
+
+ma_data <- data.table(
+    gene = rownames(counts),
+    A = 0.5 * (log2(control_mean + 1) + log2(treatment_mean + 1)),
+    M = log2(treatment_mean + 1) - log2(control_mean + 1),
+    is_de = 1:n_genes %in% de_genes
+)
+
+# Filter for plotting
+ma_data <- ma_data[A > 0]
+
+ggplot2$ggplot(ma_data, ggplot2$aes(x = A, y = M, colour = is_de)) +
+    ggplot2$geom_point(alpha = 0.4, size = 0.8) +
+    ggplot2$geom_hline(yintercept = 0, colour = "red", linetype = "dashed") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "grey50", "TRUE" = "#D95F02"),
+                                 labels = c("Not DE", "True DE"),
+                                 name = "") +
+    ggplot2$labs(
+        title = "MA Plot (TMM Normalised)",
+        subtitle = "Most genes near M=0; DE genes deviate",
+        x = "A (Average log-expression)",
+        y = "M (log2 Fold Change)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/ma_plots-1.png" alt="MA plot: fold changes vs average expression">
+	MA plot: fold changes vs average expression
+</Figure>
+
+### 7.4.3 PCA and MDS
+
+**Prose and Intuition**
+
+**Principal Component Analysis (PCA)** and **Multidimensional Scaling (MDS)** reveal sample relationships. Samples should cluster by biological group, not by technical factors (like library size).
+
+
+``` r
+# Log-transform for PCA
+log_tmm <- log2(tmm_cpm + 1)
+
+# PCA on top variable genes
+gene_vars <- apply(log_tmm, 1, var)
+top_var_genes <- order(gene_vars, decreasing = TRUE)[1:500]
+
+pca_result <- prcomp(t(log_tmm[top_var_genes, ]), scale. = TRUE)
+
+pca_data <- data.table(
+    sample = colnames(counts),
+    PC1 = pca_result$x[, 1],
+    PC2 = pca_result$x[, 2],
+    group = groups,
+    library_size = colSums(counts) / 1e6
+)
+
+var_explained <- summary(pca_result)$importance[2, 1:2] * 100
+
+ggplot2$ggplot(pca_data, ggplot2$aes(x = PC1, y = PC2,
+                                      colour = group, size = library_size)) +
+    ggplot2$geom_point() +
+    ggplot2$scale_colour_manual(values = c("Control" = "#2166AC", "Treatment" = "#D95F02")) +
+    ggplot2$labs(
+        title = "PCA of TMM-Normalised RNA-seq Data",
+        subtitle = paste0("PC1: ", round(var_explained[1], 1), "%, PC2: ",
+                         round(var_explained[2], 1), "%"),
+        x = paste0("PC1 (", round(var_explained[1], 1), "%)"),
+        y = paste0("PC2 (", round(var_explained[2], 1), "%)"),
+        colour = "Group",
+        size = "Library Size (M)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "right"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/pca_mds-1.png" alt="PCA separates samples by biological group after normalisation">
+	PCA separates samples by biological group after normalisation
+</Figure>
+
+---
+
+## 7.5 Summary and Key Concepts
+
+### Key Takeaways
+
+1. **Count Data**: RNA-seq produces discrete counts, not continuous measurements. This requires special statistical models.
+
+2. **Overdispersion**: Real data has more variance than Poisson predicts. The negative binomial distribution handles this.
+
+3. **Library Size**: Raw counts are confounded by sequencing depth. Normalisation is essential.
+
+4. **Composition Bias**: When highly expressed genes change, they affect the apparent expression of other genes. TMM and DESeq2 normalisation account for this.
+
+5. **Normalisation Methods**:
+   - **CPM**: Simple library size scaling; doesn't handle composition bias
+   - **TPM**: Also corrects for gene length; useful for within-sample comparisons
+   - **TMM**: Robust to composition bias; recommended for differential expression
+   - **DESeq2**: Similar to TMM; uses median of ratios
+
+6. **Quality Control**: Use density plots, MA plots, and PCA to assess normalisation quality.
+
+### Connections to Next Topics
+
+- **Part 2**: Differential expression testing using the negative binomial model
+- **Part 3**: Gene set enrichment analysis for biological interpretation
+
+### Communicating to Stakeholders
+
+**For a biological audience**: "RNA-seq counts must be normalised before comparison because sequencing depth varies between samples. We used TMM normalisation, which adjusts for both library size and composition bias—the phenomenon where a few highly expressed genes can distort the apparent expression of other genes. After normalisation, PCA shows samples clustering by treatment group rather than by technical factors."
+
+**For a methods paper**: "Read counts were normalised using the TMM method implemented in edgeR. Normalisation factors ranged from 0.92 to 1.08, indicating modest library composition differences between samples. Quality was assessed using MA plots (showing symmetric distribution of log fold-changes around zero) and PCA (confirming separation by experimental group on the first principal component)."
+
+**Key vocabulary**:
+- Count data, overdispersion
+- Negative binomial distribution, dispersion parameter
+- Library size, sequencing depth
+- Composition bias
+- CPM, TPM, TMM, size factors
+- MA plot, PCA

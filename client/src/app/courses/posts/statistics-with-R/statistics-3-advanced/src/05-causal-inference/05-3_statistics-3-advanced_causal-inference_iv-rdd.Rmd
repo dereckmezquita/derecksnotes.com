@@ -1,0 +1,829 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 5: Causal Inference"
+part: "Part 3: Instrumental Variables and Regression Discontinuity"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, causal-inference, instrumental-variables, regression-discontinuity, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 3: Instrumental Variables and Regression Discontinuity
+
+When unobserved confounders make propensity score methods unreliable, we need stronger designs. **Instrumental variables (IV)** exploit exogenous variation in treatment assignment, whilst **regression discontinuity (RD)** exploits arbitrary cutoffs in assignment rules. Both methods can identify causal effects even with unmeasured confounding—under the right conditions.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(AER)  # For ivreg
+
+set.seed(42)
+```
+
+---
+
+## 5.15 Instrumental Variables
+
+### 5.15.1 The Endogeneity Problem
+
+**Prose and Intuition**
+
+Consider estimating the effect of education on earnings. Education is **endogenous**: people who get more education differ from those who don't in ways that also affect earnings (ability, motivation, family background). These unmeasured confounders bias regression estimates.
+
+**Instrumental variables** provide a solution when we find a variable $Z$ that:
+1. Affects treatment (education)
+2. Only affects outcomes *through* treatment (not directly)
+3. Is unrelated to unmeasured confounders
+
+Classic examples:
+- **Quarter of birth** affects years of schooling (compulsory schooling laws) but shouldn't directly affect earnings
+- **Draft lottery number** affected military service but was randomly assigned
+- **Distance to college** affects education but (arguably) doesn't directly affect earnings
+
+```{r iv_setup, message=FALSE}
+# Simulate IV scenario: Effect of a new medication on health outcome
+# Confounder: Patient frailty (unmeasured)
+# Instrument: Physician prescribing preference
+
+n <- 2000
+
+# Unmeasured confounder: patient frailty
+frailty <- rnorm(n, 0, 1)
+
+# Measured covariates
+age <- round(rnorm(n, 60, 10))
+baseline_severity <- round(rnorm(n, 50, 15))
+
+# Instrument: physician preference (some physicians prefer new drug)
+# Patients randomly assigned to physicians
+physician_preference <- rbinom(n, 1, 0.5)  # 50% have high-preference physicians
+
+# Treatment depends on: instrument, confounders, and measured covariates
+# Physicians who prefer new drug are more likely to prescribe it
+# But frail patients are less likely to get new drug (safety concerns)
+treat_prob <- plogis(-1 + 1.5 * physician_preference - 0.8 * frailty +
+                      0.02 * (baseline_severity - 50))
+treatment <- rbinom(n, 1, treat_prob)
+
+# Outcome depends on: treatment, confounders, covariates
+# True treatment effect = -5 (new drug reduces severity by 5 points)
+true_effect <- -5
+outcome <- 40 + true_effect * treatment +
+           3 * frailty +  # Unmeasured confounder
+           0.1 * age +
+           0.3 * baseline_severity +
+           rnorm(n, 0, 5)
+
+iv_data <- data.table(
+    id = 1:n,
+    age = age,
+    baseline_severity = baseline_severity,
+    frailty = frailty,  # Unmeasured in practice
+    physician_preference = physician_preference,
+    treatment = treatment,
+    outcome = round(outcome, 1)
+)
+
+cat("Instrumental Variables Simulation\n")
+cat("==================================\n")
+cat("  True treatment effect:", true_effect, "\n")
+cat("  Treatment rate:", round(100 * mean(treatment), 1), "%\n")
+cat("  Instrument (physician preference) rate:", round(100 * mean(physician_preference), 1), "%\n")
+```
+
+### 5.15.2 IV Assumptions
+
+**Prose and Intuition**
+
+An instrumental variable $Z$ must satisfy three conditions:
+
+1. **Relevance**: $Z$ affects treatment $W$
+   - $\text{Cov}(Z, W) \neq 0$
+   - Testable: Check first-stage regression
+
+2. **Independence (Exogeneity)**: $Z$ is independent of unmeasured confounders $U$
+   - $Z \perp\!\!\!\perp U$
+   - Not directly testable
+
+3. **Exclusion Restriction**: $Z$ affects outcome $Y$ only through treatment $W$
+   - $Z \perp\!\!\!\perp Y | W, U$
+   - Not directly testable
+
+**Mathematical Framework**
+
+Consider the structural equations:
+$$W = \gamma Z + \eta U + \epsilon_W$$
+$$Y = \beta W + \delta U + \epsilon_Y$$
+
+OLS of $Y$ on $W$ is biased because $\text{Cov}(W, U) \neq 0$.
+
+But if $Z$ is a valid instrument:
+$$\beta_{IV} = \frac{\text{Cov}(Z, Y)}{\text{Cov}(Z, W)}$$
+
+This is the **Wald estimator**.
+
+```{r iv_assumptions, fig.cap="Testing the relevance assumption: first-stage regression"}
+# Test relevance assumption: Z should predict W
+first_stage <- lm(treatment ~ physician_preference + age + baseline_severity,
+                  data = iv_data)
+
+cat("First Stage Regression (Relevance Check):\n")
+cat("=========================================\n")
+print(summary(first_stage)$coefficients[1:2, ])
+
+# F-statistic for instrument strength
+first_stage_F <- summary(first_stage)$fstatistic[1]
+cat("\nFirst-stage F-statistic:", round(first_stage_F, 2), "\n")
+cat("Rule of thumb: F > 10 suggests strong instrument\n")
+
+# Visualise first stage
+first_stage_data <- iv_data[, .(treatment_rate = mean(treatment)), by = physician_preference]
+first_stage_data[, physician_preference := factor(physician_preference,
+                                                    levels = c(0, 1),
+                                                    labels = c("Low Preference", "High Preference"))]
+
+ggplot2$ggplot(first_stage_data, ggplot2$aes(x = physician_preference, y = treatment_rate,
+                                              fill = physician_preference)) +
+    ggplot2$geom_bar(stat = "identity", width = 0.5) +
+    ggplot2$scale_fill_manual(values = c("Low Preference" = "#2166AC",
+                                          "High Preference" = "#D95F02"),
+                               guide = "none") +
+    ggplot2$scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    ggplot2$labs(
+        title = "First Stage: Instrument Predicts Treatment",
+        subtitle = "Physicians with high preference prescribe new drug more often",
+        x = "Physician Preference",
+        y = "Treatment Rate"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+### 5.15.3 Two-Stage Least Squares (2SLS)
+
+**Prose and Intuition**
+
+**Two-Stage Least Squares (2SLS)** implements IV estimation:
+
+**Stage 1**: Regress treatment on instrument and covariates
+$$\hat{W} = \hat{\gamma} Z + \hat{\beta} X$$
+
+**Stage 2**: Regress outcome on predicted treatment and covariates
+$$Y = \alpha + \beta_{IV} \hat{W} + \delta X + \epsilon$$
+
+The coefficient $\beta_{IV}$ is the IV estimate of the causal effect.
+
+**Important**: Standard errors from naive two-step OLS are wrong. Use proper IV software that computes correct standard errors.
+
+```{r two_stage_ls, fig.cap="Comparing OLS and IV estimates"}
+# OLS (biased due to confounding)
+ols_model <- lm(outcome ~ treatment + age + baseline_severity, data = iv_data)
+
+# Two-Stage Least Squares using ivreg
+iv_model <- ivreg(outcome ~ treatment + age + baseline_severity |
+                  physician_preference + age + baseline_severity,
+                  data = iv_data)
+
+cat("Comparison: OLS vs. 2SLS\n")
+cat("========================\n\n")
+
+cat("OLS Estimate (Biased):\n")
+print(summary(ols_model)$coefficients[1:2, ])
+
+cat("\n2SLS Estimate:\n")
+print(summary(iv_model)$coefficients[1:2, ])
+
+cat("\nTrue treatment effect:", true_effect, "\n")
+
+# Extract estimates for plotting
+ols_effect <- coef(ols_model)["treatment"]
+iv_effect <- coef(iv_model)["treatment"]
+ols_se <- summary(ols_model)$coefficients["treatment", "Std. Error"]
+iv_se <- summary(iv_model)$coefficients["treatment", "Std. Error"]
+
+comparison_data <- data.table(
+    Method = c("OLS (Biased)", "2SLS (IV)", "True Effect"),
+    Estimate = c(ols_effect, iv_effect, true_effect),
+    SE = c(ols_se, iv_se, NA)
+)
+
+# Plot comparison
+ggplot2$ggplot(comparison_data[Method != "True Effect"],
+                ggplot2$aes(x = Method, y = Estimate, fill = Method)) +
+    ggplot2$geom_bar(stat = "identity", width = 0.5) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = Estimate - 1.96 * SE,
+                                       ymax = Estimate + 1.96 * SE),
+                           width = 0.2) +
+    ggplot2$geom_hline(yintercept = true_effect, linetype = "dashed",
+                        colour = "red", linewidth = 1) +
+    ggplot2$annotate("text", x = 2.3, y = true_effect - 0.5,
+                      label = paste("True Effect =", true_effect),
+                      colour = "red", fontface = "bold", hjust = 0) +
+    ggplot2$scale_fill_manual(values = c("OLS (Biased)" = "#E41A1C",
+                                          "2SLS (IV)" = "#4DAF4A"),
+                               guide = "none") +
+    ggplot2$labs(
+        title = "OLS vs. Instrumental Variables Estimation",
+        subtitle = "IV corrects for unmeasured confounding; OLS is biased",
+        x = "",
+        y = "Estimated Treatment Effect"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+### 5.15.4 Local Average Treatment Effect (LATE)
+
+**Prose and Intuition**
+
+IV does not estimate the ATE for the whole population. It estimates the **Local Average Treatment Effect (LATE)**—the effect for **compliers**: those whose treatment status is affected by the instrument.
+
+**Four compliance types**:
+1. **Compliers**: Take treatment when Z=1, don't when Z=0 (respond to instrument)
+2. **Always-takers**: Take treatment regardless of Z
+3. **Never-takers**: Never take treatment regardless of Z
+4. **Defiers**: Take treatment when Z=0, don't when Z=1 (assumed away)
+
+IV identifies the effect for **compliers only**.
+
+$$\tau_{LATE} = \frac{E[Y | Z=1] - E[Y | Z=0]}{E[W | Z=1] - E[W | Z=0]}$$
+
+```{r late_illustration, fig.cap="LATE: the IV estimate applies to compliers"}
+# Identify compliance types (we can do this in simulation)
+# A patient is a complier if their treatment would change based on physician preference
+
+# Simulate potential treatments under both instrument values
+treat_prob_z1 <- plogis(-1 + 1.5 * 1 - 0.8 * iv_data$frailty +
+                         0.02 * (iv_data$baseline_severity - 50))
+treat_prob_z0 <- plogis(-1 + 1.5 * 0 - 0.8 * iv_data$frailty +
+                         0.02 * (iv_data$baseline_severity - 50))
+
+# Determine type based on probability thresholds (simplified)
+iv_data[, complier_score := treat_prob_z1 - treat_prob_z0]
+
+# Approximate compliance types
+iv_data[, compliance_type := fifelse(
+    complier_score > 0.3, "Likely Complier",
+    fifelse(treatment == 1, "Likely Always-Taker", "Likely Never-Taker")
+)]
+
+compliance_summary <- iv_data[, .N, by = compliance_type]
+compliance_summary[, pct := round(100 * N / sum(N), 1)]
+
+cat("Compliance Type Distribution (Approximate):\n")
+cat("============================================\n")
+print(compliance_summary)
+
+# Effect heterogeneity
+effect_by_type <- iv_data[, .(
+    N = .N,
+    mean_frailty = round(mean(frailty), 2),
+    treatment_rate = round(mean(treatment), 2)
+), by = compliance_type]
+
+cat("\nCharacteristics by Compliance Type:\n")
+print(effect_by_type)
+```
+
+### 5.15.5 Weak Instruments
+
+**Prose and Intuition**
+
+A **weak instrument** has little effect on treatment. This causes:
+1. Large standard errors
+2. Finite-sample bias toward OLS
+3. Poor coverage of confidence intervals
+
+**Diagnostics**:
+- First-stage F-statistic: F < 10 suggests weak instrument problem
+- Stock-Yogo critical values for testing weakness
+
+**Solutions**:
+- Find stronger instruments
+- Use limited information maximum likelihood (LIML)
+- Use weak-instrument robust inference (Anderson-Rubin test)
+
+```{r weak_instrument, fig.cap="Weak instruments lead to unreliable estimates"}
+# Simulate weak instrument scenario
+weak_instrument <- rbinom(n, 1, 0.5)
+treat_prob_weak <- plogis(-1 + 0.1 * weak_instrument - 0.8 * frailty +  # Only 0.1 coefficient
+                           0.02 * (baseline_severity - 50))
+treatment_weak <- rbinom(n, 1, treat_prob_weak)
+outcome_weak <- 40 + true_effect * treatment_weak + 3 * frailty +
+                0.1 * age + 0.3 * baseline_severity + rnorm(n, 0, 5)
+
+weak_data <- data.table(
+    treatment = treatment_weak,
+    outcome = outcome_weak,
+    instrument = weak_instrument,
+    age = age,
+    baseline_severity = baseline_severity
+)
+
+# First stage with weak instrument
+first_stage_weak <- lm(treatment ~ instrument + age + baseline_severity, data = weak_data)
+F_weak <- summary(first_stage_weak)$fstatistic[1]
+
+# IV with weak instrument
+iv_weak <- ivreg(outcome ~ treatment + age + baseline_severity |
+                 instrument + age + baseline_severity, data = weak_data)
+
+cat("Weak Instrument Example:\n")
+cat("========================\n")
+cat("Strong instrument F-statistic:", round(first_stage_F, 2), "\n")
+cat("Weak instrument F-statistic:", round(F_weak, 2), "\n\n")
+
+cat("IV estimate with strong instrument:", round(iv_effect, 2),
+    "(SE:", round(iv_se, 2), ")\n")
+cat("IV estimate with weak instrument:", round(coef(iv_weak)["treatment"], 2),
+    "(SE:", round(summary(iv_weak)$coefficients["treatment", "Std. Error"], 2), ")\n")
+cat("True effect:", true_effect, "\n")
+
+# Visualise instrument strength comparison
+strength_data <- data.table(
+    Instrument = c("Strong", "Weak"),
+    F_stat = c(first_stage_F, F_weak),
+    Estimate = c(iv_effect, coef(iv_weak)["treatment"]),
+    SE = c(iv_se, summary(iv_weak)$coefficients["treatment", "Std. Error"])
+)
+
+ggplot2$ggplot(strength_data, ggplot2$aes(x = Instrument, y = Estimate, fill = Instrument)) +
+    ggplot2$geom_bar(stat = "identity", width = 0.5) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = Estimate - 1.96 * SE,
+                                       ymax = Estimate + 1.96 * SE),
+                           width = 0.2) +
+    ggplot2$geom_hline(yintercept = true_effect, linetype = "dashed",
+                        colour = "red", linewidth = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = paste("F =", round(F_stat, 1))),
+                       vjust = -0.5, size = 4) +
+    ggplot2$scale_fill_manual(values = c("Strong" = "#4DAF4A", "Weak" = "#E41A1C"),
+                               guide = "none") +
+    ggplot2$labs(
+        title = "Effect of Instrument Strength on IV Estimation",
+        subtitle = "Weak instruments produce large standard errors and potential bias",
+        x = "Instrument Strength",
+        y = "IV Estimate"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+## 5.16 Regression Discontinuity Design
+
+### 5.16.1 The RD Idea
+
+**Prose and Intuition**
+
+**Regression Discontinuity (RD)** exploits situations where treatment is assigned based on whether a continuous variable crosses a threshold.
+
+Examples:
+- Scholarship if GPA ≥ 3.5
+- Hospital admission if oxygen saturation < 90%
+- Medication if blood pressure > 140 mmHg
+
+Just above and below the cutoff, patients are nearly identical—the only difference is treatment. This creates a "local randomisation" at the cutoff.
+
+**Sharp RD**: Treatment is deterministic based on cutoff
+$$W_i = \mathbf{1}(X_i \geq c)$$
+
+**Fuzzy RD**: Treatment probability jumps at cutoff but isn't deterministic
+$$P(W_i = 1 | X_i) \text{ jumps at } X_i = c$$
+
+```{r rdd_setup, message=FALSE, fig.cap="Regression Discontinuity: treatment changes at a cutoff"}
+# Simulate Sharp RD: Medication prescribed if BP > 140
+n_rd <- 1000
+
+# Running variable: baseline blood pressure
+running_var <- runif(n_rd, 120, 160)
+
+# Sharp RD: treatment if running variable > 140
+cutoff <- 140
+treatment_rd <- as.integer(running_var >= cutoff)
+
+# Potential outcomes with some curvature
+y0 <- 50 + 0.5 * (running_var - 140) + 0.02 * (running_var - 140)^2 + rnorm(n_rd, 0, 3)
+y1 <- y0 - 8  # True effect = -8
+
+# Observed outcome
+outcome_rd <- ifelse(treatment_rd == 1, y1, y0)
+
+rd_data <- data.table(
+    running_var = running_var,
+    treatment = treatment_rd,
+    outcome = outcome_rd,
+    distance = running_var - cutoff
+)
+
+cat("Sharp RD Simulation\n")
+cat("===================\n")
+cat("  Cutoff:", cutoff, "mmHg\n")
+cat("  True treatment effect:", -8, "\n")
+cat("  Treated:", sum(treatment_rd), "(",round(100 * mean(treatment_rd), 1), "%)\n")
+
+# Visualise the discontinuity
+ggplot2$ggplot(rd_data, ggplot2$aes(x = running_var, y = outcome)) +
+    ggplot2$geom_point(ggplot2$aes(colour = factor(treatment)), alpha = 0.5, size = 1.5) +
+    ggplot2$geom_vline(xintercept = cutoff, linetype = "dashed", colour = "grey40") +
+    ggplot2$geom_smooth(data = rd_data[running_var < cutoff],
+                         method = "lm", formula = y ~ poly(x, 2),
+                         colour = "#2166AC", fill = "#2166AC", alpha = 0.2) +
+    ggplot2$geom_smooth(data = rd_data[running_var >= cutoff],
+                         method = "lm", formula = y ~ poly(x, 2),
+                         colour = "#D95F02", fill = "#D95F02", alpha = 0.2) +
+    ggplot2$scale_colour_manual(values = c("0" = "#2166AC", "1" = "#D95F02"),
+                                 labels = c("Control", "Treated"),
+                                 name = "Treatment") +
+    ggplot2$annotate("text", x = cutoff + 1, y = max(outcome_rd) - 2,
+                      label = paste("Cutoff =", cutoff), hjust = 0) +
+    ggplot2$labs(
+        title = "Sharp Regression Discontinuity Design",
+        subtitle = "Outcome jumps discontinuously at the treatment threshold",
+        x = "Baseline Blood Pressure (Running Variable)",
+        y = "Health Outcome"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+### 5.16.2 Identification in RD
+
+**Prose and Intuition**
+
+**Key assumption**: The conditional expectation of potential outcomes is continuous at the cutoff.
+
+$$\lim_{x \downarrow c} E[Y(0) | X = x] = \lim_{x \uparrow c} E[Y(0) | X = x]$$
+
+This means there's no other discontinuity at the cutoff except treatment.
+
+**Violations** occur if:
+- People manipulate the running variable (e.g., doctors adjust BP readings)
+- Other programs have the same cutoff
+- The cutoff is known and causes behavioural changes
+
+**RD estimand** (at the cutoff):
+$$\tau_{RD} = E[Y(1) - Y(0) | X = c] = \lim_{x \downarrow c} E[Y | X = x] - \lim_{x \uparrow c} E[Y | X = x]$$
+
+```{r rd_estimation, fig.cap="RD estimation using local linear regression"}
+# Estimate RD effect using local linear regression
+# Method 1: Simple regression with interaction
+rd_model <- lm(outcome ~ treatment + distance + treatment:distance, data = rd_data)
+
+cat("RD Estimation (Global Linear):\n")
+cat("==============================\n")
+print(summary(rd_model)$coefficients[1:2, ])
+
+rd_effect_global <- coef(rd_model)["treatment"]
+cat("\nGlobal RD estimate:", round(rd_effect_global, 2), "\n")
+cat("True effect:", -8, "\n")
+
+# Method 2: Local linear regression (within bandwidth)
+bandwidth <- 10
+rd_local_data <- rd_data[abs(distance) <= bandwidth]
+
+rd_model_local <- lm(outcome ~ treatment + distance + treatment:distance,
+                      data = rd_local_data)
+
+rd_effect_local <- coef(rd_model_local)["treatment"]
+
+cat("\nLocal RD estimate (bandwidth =", bandwidth, "):", round(rd_effect_local, 2), "\n")
+
+# Visualise local linear regression
+ggplot2$ggplot(rd_data[abs(distance) <= bandwidth],
+                ggplot2$aes(x = running_var, y = outcome)) +
+    ggplot2$geom_point(ggplot2$aes(colour = factor(treatment)), alpha = 0.6, size = 2) +
+    ggplot2$geom_vline(xintercept = cutoff, linetype = "dashed", colour = "grey40") +
+    ggplot2$geom_smooth(data = rd_data[distance >= -bandwidth & distance < 0],
+                         method = "lm", formula = y ~ x,
+                         colour = "#2166AC", fill = "#2166AC", alpha = 0.2) +
+    ggplot2$geom_smooth(data = rd_data[distance >= 0 & distance <= bandwidth],
+                         method = "lm", formula = y ~ x,
+                         colour = "#D95F02", fill = "#D95F02", alpha = 0.2) +
+    ggplot2$scale_colour_manual(values = c("0" = "#2166AC", "1" = "#D95F02"),
+                                 labels = c("Control", "Treated"),
+                                 name = "Treatment") +
+    ggplot2$labs(
+        title = "Local Linear RD Estimation",
+        subtitle = paste0("Bandwidth = ±", bandwidth, " units around cutoff"),
+        x = "Baseline Blood Pressure",
+        y = "Health Outcome"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+### 5.16.3 Bandwidth Selection
+
+**Prose and Intuition**
+
+**Bandwidth** controls how much data to use around the cutoff:
+- **Narrow bandwidth**: Less data, higher variance, but estimates closer to true local effect
+- **Wide bandwidth**: More data, lower variance, but may introduce bias from functional form
+
+**Optimal bandwidth** balances bias and variance. Common approaches:
+1. **Cross-validation**: Choose bandwidth that minimises prediction error
+2. **Imbens-Kalyanaraman (IK)**: Optimal bandwidth formula
+3. **Calonico-Cattaneo-Titiunik (CCT)**: Bias-corrected robust inference
+
+```{r bandwidth_selection, fig.cap="RD estimates vary with bandwidth choice"}
+# Estimate RD effect for different bandwidths
+bandwidths <- c(5, 10, 15, 20, 25)
+
+bandwidth_results <- rbindlist(lapply(bandwidths, function(bw) {
+    local_data <- rd_data[abs(distance) <= bw]
+    model <- lm(outcome ~ treatment + distance + treatment:distance, data = local_data)
+
+    data.table(
+        bandwidth = bw,
+        estimate = coef(model)["treatment"],
+        se = summary(model)$coefficients["treatment", "Std. Error"],
+        n = nrow(local_data)
+    )
+}))
+
+cat("Bandwidth Sensitivity:\n")
+cat("======================\n")
+print(bandwidth_results[, .(bandwidth, estimate = round(estimate, 2),
+                            se = round(se, 2), n)])
+
+ggplot2$ggplot(bandwidth_results, ggplot2$aes(x = bandwidth, y = estimate)) +
+    ggplot2$geom_point(size = 4, colour = "#2166AC") +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = estimate - 1.96 * se,
+                                       ymax = estimate + 1.96 * se),
+                           width = 1, colour = "#2166AC") +
+    ggplot2$geom_hline(yintercept = -8, linetype = "dashed", colour = "red") +
+    ggplot2$annotate("text", x = max(bandwidths), y = -8 + 0.3,
+                      label = "True Effect = -8", colour = "red", hjust = 1) +
+    ggplot2$labs(
+        title = "RD Estimates Across Bandwidths",
+        subtitle = "Wider bandwidths reduce variance but may increase bias",
+        x = "Bandwidth",
+        y = "Estimated Treatment Effect"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+### 5.16.4 Validity Tests
+
+**Prose and Intuition**
+
+RD validity rests on the assumption that potential outcomes are continuous at the cutoff. We can't test this directly, but we can check:
+
+1. **Manipulation test**: Is there bunching at the cutoff? (McCrary test)
+2. **Covariate balance**: Are covariates continuous at the cutoff?
+3. **Placebo cutoffs**: No effect at fake cutoffs where no treatment change occurs
+
+```{r rd_validity, fig.cap="RD validity checks: density and covariate continuity"}
+# Manipulation test: check for bunching at cutoff
+# Visualise density of running variable
+
+ggplot2$ggplot(rd_data, ggplot2$aes(x = running_var)) +
+    ggplot2$geom_histogram(bins = 40, fill = "#2166AC", alpha = 0.7,
+                            colour = "white") +
+    ggplot2$geom_vline(xintercept = cutoff, linetype = "dashed",
+                        colour = "red", linewidth = 1) +
+    ggplot2$labs(
+        title = "Density of Running Variable (Manipulation Test)",
+        subtitle = "No discontinuity at cutoff suggests no manipulation",
+        x = "Baseline Blood Pressure",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+```{r rd_placebo, fig.cap="Placebo test: no effect at fake cutoffs"}
+# Placebo test: estimate RD at fake cutoffs
+placebo_cutoffs <- c(125, 130, 135, 145, 150, 155)
+
+placebo_results <- rbindlist(lapply(placebo_cutoffs, function(pc) {
+    # Create fake treatment based on placebo cutoff
+    fake_treat <- as.integer(running_var >= pc)
+    fake_distance <- running_var - pc
+
+    # Only use data within bandwidth that doesn't cross real cutoff
+    if (pc < cutoff) {
+        use_data <- rd_data[running_var >= (pc - 10) & running_var < cutoff]
+    } else {
+        use_data <- rd_data[running_var >= cutoff & running_var <= (pc + 10)]
+    }
+
+    if (nrow(use_data) < 30) {
+        return(data.table(cutoff = pc, estimate = NA, se = NA))
+    }
+
+    use_data[, fake_treat := as.integer(running_var >= pc)]
+    use_data[, fake_distance := running_var - pc]
+
+    model <- lm(outcome ~ fake_treat + fake_distance + fake_treat:fake_distance,
+                data = use_data)
+
+    data.table(
+        cutoff = pc,
+        estimate = coef(model)["fake_treat"],
+        se = summary(model)$coefficients["fake_treat", "Std. Error"]
+    )
+}))
+
+# Add real cutoff
+real_result <- data.table(
+    cutoff = cutoff,
+    estimate = rd_effect_local,
+    se = summary(rd_model_local)$coefficients["treatment", "Std. Error"]
+)
+placebo_results <- rbind(placebo_results[!is.na(estimate)], real_result)
+placebo_results[, is_real := cutoff == 140]
+
+cat("Placebo Test Results:\n")
+cat("=====================\n")
+print(placebo_results[, .(cutoff, estimate = round(estimate, 2),
+                           se = round(se, 2), is_real)])
+
+ggplot2$ggplot(placebo_results, ggplot2$aes(x = cutoff, y = estimate,
+                                             colour = is_real, size = is_real)) +
+    ggplot2$geom_point() +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = estimate - 1.96 * se,
+                                       ymax = estimate + 1.96 * se),
+                           width = 1, linewidth = 0.8) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#999999", "TRUE" = "#D95F02"),
+                                 labels = c("Placebo", "Real"),
+                                 name = "Cutoff Type") +
+    ggplot2$scale_size_manual(values = c("FALSE" = 3, "TRUE" = 5), guide = "none") +
+    ggplot2$labs(
+        title = "Placebo Test: RD Effects at Fake vs. Real Cutoffs",
+        subtitle = "Effects should only appear at the real cutoff",
+        x = "Cutoff Value",
+        y = "Estimated Effect"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+---
+
+## 5.17 Fuzzy RD and RD as IV
+
+### 5.17.1 Fuzzy RD
+
+**Prose and Intuition**
+
+In **fuzzy RD**, the probability of treatment jumps at the cutoff but isn't deterministic. For example:
+- Guideline recommends medication if BP > 140, but some doctors don't follow guidelines
+- Patients just above cutoff may refuse treatment
+
+Fuzzy RD is equivalent to IV where the instrument is being above the cutoff.
+
+**Fuzzy RD estimator**:
+$$\tau_{FRD} = \frac{\lim_{x \downarrow c} E[Y | X = x] - \lim_{x \uparrow c} E[Y | X = x]}{\lim_{x \downarrow c} E[W | X = x] - \lim_{x \uparrow c} E[W | X = x]}$$
+
+This is a Wald estimator with the cutoff as instrument.
+
+```{r fuzzy_rd, fig.cap="Fuzzy RD: treatment probability jumps but isn't 0-1"}
+# Create fuzzy RD: treatment probability jumps at cutoff but isn't deterministic
+treat_prob_fuzzy <- ifelse(running_var >= cutoff,
+                            plogis(2 + 0.05 * (running_var - cutoff)),
+                            plogis(-2 + 0.05 * (running_var - cutoff)))
+
+treatment_fuzzy <- rbinom(n_rd, 1, treat_prob_fuzzy)
+
+# Outcome still depends on actual treatment
+outcome_fuzzy <- ifelse(treatment_fuzzy == 1, y1, y0)
+
+fuzzy_data <- data.table(
+    running_var = running_var,
+    treatment = treatment_fuzzy,
+    outcome = outcome_fuzzy,
+    distance = running_var - cutoff,
+    above_cutoff = as.integer(running_var >= cutoff)
+)
+
+# Treatment rate by side of cutoff
+treatment_rates <- fuzzy_data[, .(treat_rate = mean(treatment)),
+                               by = .(above = above_cutoff)]
+
+cat("Fuzzy RD: Treatment Rates by Side of Cutoff\n")
+cat("============================================\n")
+cat("  Below cutoff:", round(treatment_rates[above == 0]$treat_rate, 3), "\n")
+cat("  Above cutoff:", round(treatment_rates[above == 1]$treat_rate, 3), "\n")
+cat("  Jump:", round(diff(treatment_rates$treat_rate), 3), "\n")
+
+# Visualise fuzzy RD
+fuzzy_summary <- fuzzy_data[, .(
+    treatment_rate = mean(treatment),
+    mean_outcome = mean(outcome)
+), by = .(bin = cut(running_var, breaks = seq(120, 160, by = 2)))]
+
+fuzzy_summary[, bin_mid := as.numeric(gsub("\\(|\\]|,.*", "", bin)) + 1]
+
+# Plot treatment probability
+ggplot2$ggplot(fuzzy_data, ggplot2$aes(x = running_var, y = treatment)) +
+    ggplot2$geom_jitter(height = 0.05, alpha = 0.3, size = 1) +
+    ggplot2$geom_smooth(data = fuzzy_data[running_var < cutoff],
+                         method = "loess", colour = "#2166AC") +
+    ggplot2$geom_smooth(data = fuzzy_data[running_var >= cutoff],
+                         method = "loess", colour = "#D95F02") +
+    ggplot2$geom_vline(xintercept = cutoff, linetype = "dashed", colour = "grey40") +
+    ggplot2$labs(
+        title = "Fuzzy RD: Treatment Probability vs Running Variable",
+        subtitle = "Treatment probability jumps at cutoff but isn't 0 or 1",
+        x = "Baseline Blood Pressure",
+        y = "Treatment Probability"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+```{r fuzzy_rd_estimation}
+# Estimate Fuzzy RD using 2SLS
+# Instrument: above_cutoff
+# Endogenous: treatment
+
+fuzzy_iv <- ivreg(outcome ~ treatment + distance + treatment:distance |
+                  above_cutoff + distance + above_cutoff:distance,
+                  data = fuzzy_data[abs(distance) <= 15])
+
+cat("Fuzzy RD Estimation (2SLS):\n")
+cat("===========================\n")
+print(summary(fuzzy_iv)$coefficients[1:2, ])
+
+cat("\nFuzzy RD estimate:", round(coef(fuzzy_iv)["treatment"], 2), "\n")
+cat("True effect:", -8, "\n")
+```
+
+---
+
+## 5.18 Summary: Choosing the Right Method
+
+### Decision Framework
+
+| Situation | Method | Key Assumption |
+|-----------|--------|----------------|
+| Randomised experiment | Difference-in-means | None (randomisation) |
+| Observational, all confounders measured | Propensity scores | Unconfoundedness |
+| Unmeasured confounders, valid instrument exists | IV / 2SLS | Instrument validity |
+| Treatment assigned by cutoff rule | RD | Continuity at cutoff |
+| Treatment probability jumps at cutoff | Fuzzy RD (IV) | Cutoff as instrument |
+
+### Key Takeaways
+
+1. **Instrumental Variables**: Use exogenous variation to identify effects despite unmeasured confounding. Requires a valid instrument (relevant, independent, exclusion restriction).
+
+2. **2SLS**: Standard IV estimator. Check first-stage F-statistic for weak instruments.
+
+3. **LATE**: IV estimates the effect for compliers, not the full population.
+
+4. **Regression Discontinuity**: Exploits cutoff-based treatment assignment. Valid when running variable is continuous at cutoff.
+
+5. **Bandwidth choice**: Trade-off between bias (wide bandwidth) and variance (narrow bandwidth).
+
+6. **Validity tests**: Check for manipulation, covariate continuity, and placebo cutoffs.
+
+7. **Fuzzy RD**: When treatment probability (not certainty) changes at cutoff. Equivalent to IV.
+
+### Communicating to Stakeholders
+
+**For a clinical audience**: "We used an instrumental variables approach to estimate the effect of the new medication, accounting for unmeasured factors that might influence both who receives treatment and their outcomes. We found that physicians' prescribing preferences—which vary independently of patient characteristics—strongly predict medication use. Using this variation, we estimate the medication reduces severity scores by 5 points."
+
+**For a policy audience**: "Our regression discontinuity analysis exploits the clinical guideline that recommends treatment for patients with blood pressure above 140 mmHg. By comparing patients just above and just below this threshold—who are essentially identical except for treatment status—we can credibly estimate the causal effect of treatment, free from selection bias."
+
+**Key vocabulary**:
+- Instrumental variable, endogeneity, two-stage least squares
+- First stage, relevance, exclusion restriction
+- Local average treatment effect (LATE), compliers
+- Regression discontinuity, running variable, cutoff
+- Sharp RD, fuzzy RD, bandwidth
+- Manipulation test, placebo test

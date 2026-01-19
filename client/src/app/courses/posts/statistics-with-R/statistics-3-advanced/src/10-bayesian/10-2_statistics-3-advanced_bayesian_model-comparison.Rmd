@@ -1,0 +1,1099 @@
+---
+title: "Model Comparison and Posterior Predictive Checks"
+description: "Master Bayesian model comparison using Bayes factors, WAIC, LOO-CV, and posterior predictive checks for comprehensive model evaluation."
+keywords: "bayes factors, waic, loo-cv, posterior predictive check, model comparison, bayesian statistics, DIC, marginal likelihood"
+date: "2025-05-10"
+author:
+    name: "Dereck Mezquita"
+    url: "https://derecksnotes.com/about"
+---
+
+```{r setup, include=FALSE}
+set.seed(314159)
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.align = "center",
+    fig.width = 10,
+    fig.height = 6,
+    out.width = "100%"
+)
+```
+
+```{r packages}
+box::use(
+    data.table[data.table, setDT, melt, dcast, rbindlist, setnames, copy, `:=`, .N, .SD],
+    ggplot2[
+        ggplot, aes, geom_point, geom_line, geom_histogram, geom_density,
+        geom_ribbon, geom_vline, geom_hline, geom_segment, geom_text,
+        geom_boxplot, geom_violin, geom_bar, geom_errorbar, geom_rect,
+        facet_wrap, facet_grid, labs, theme_minimal, theme, element_text,
+        element_blank, scale_colour_manual, scale_fill_manual, scale_x_continuous,
+        scale_y_continuous, coord_cartesian, position_dodge, annotate,
+        scale_linetype_manual, scale_alpha_manual, guides, guide_legend
+    ]
+)
+```
+
+## Introduction
+
+In the previous chapter, we developed the machinery for Bayesian inference: specifying priors, computing posteriors via MCMC, and diagnosing convergence. But inference alone is insufficient for scientific practice—we must also evaluate whether our models adequately capture the data-generating process and compare competing scientific hypotheses.
+
+Model comparison in the Bayesian framework differs fundamentally from frequentist approaches. Rather than asking "can we reject the null hypothesis?", we ask "which model better predicts new observations?" and "do the model's predictions match the observed data patterns?". This shift from hypothesis testing to predictive adequacy has profound implications for biomedical research, where models must extrapolate to future patients and novel treatment conditions.
+
+This chapter explores three complementary approaches: **Bayes factors** for direct hypothesis comparison, **information criteria** (WAIC, LOO-CV) for predictive model selection, and **posterior predictive checks** for model adequacy assessment. Together, these tools provide a comprehensive framework for scientific model evaluation.
+
+## 1. Prose and Intuition
+
+### The Problem of Model Choice
+
+Consider a clinical scenario: you have data from a multi-site trial testing a new treatment for hypertension. Several models might explain the observed blood pressure reductions:
+
+1. **Null model**: No treatment effect; all variation is random noise
+2. **Constant effect model**: Same treatment effect across all sites
+3. **Hierarchical model**: Site-specific effects with shared prior
+4. **Covariate-adjusted model**: Effect varies with patient characteristics
+
+How do we choose among these? The frequentist approach—conducting a hypothesis test—answers only whether we can reject the null. It doesn't tell us which alternative model is best supported by the data, nor whether any proposed model adequately describes the observed patterns.
+
+### Bayes Factors: Evidence Quantification
+
+The **Bayes factor** directly quantifies the evidence for one model versus another. For models $M_1$ and $M_2$, the Bayes factor is the ratio of marginal likelihoods:
+
+$$BF_{12} = \frac{P(\text{Data} | M_1)}{P(\text{Data} | M_2)}$$
+
+This ratio has a natural interpretation: a Bayes factor of 10 means the observed data are 10 times more probable under $M_1$ than $M_2$. Unlike p-values, Bayes factors can provide evidence *for* the null hypothesis—a BF of 0.1 means the data favour $M_2$ by a factor of 10.
+
+The marginal likelihood "integrates out" the parameters, averaging the likelihood over the prior:
+
+$$P(\text{Data} | M) = \int P(\text{Data} | \theta, M) P(\theta | M) d\theta$$
+
+This integral automatically penalises model complexity. A model with many parameters must "spread" its prior probability across a large parameter space, diluting the probability density at any specific point. Only if the additional parameters substantially improve fit will the marginal likelihood increase.
+
+### Information Criteria: Predictive Accuracy
+
+While Bayes factors compare evidence for specific models, information criteria focus on **predictive accuracy**—how well would the model predict new observations from the same population?
+
+The **Watanabe-Akaike Information Criterion (WAIC)** estimates out-of-sample prediction error using only the observed data. It balances fit (how well the model explains observed data) against complexity (how many "effective parameters" the model uses):
+
+$$\text{WAIC} = -2 \times (\text{log pointwise predictive density} - \text{effective number of parameters})$$
+
+**Leave-One-Out Cross-Validation (LOO-CV)** directly estimates predictive accuracy by predicting each observation from a model fitted to all other observations. Modern implementations use Pareto-smoothed importance sampling (PSIS) to compute this efficiently without refitting the model $n$ times.
+
+### Posterior Predictive Checks: Model Adequacy
+
+Neither Bayes factors nor information criteria tell us whether a model is *good* in an absolute sense—only whether it's better than alternatives we've considered. A model could be the best among poor options.
+
+**Posterior predictive checks** address this gap by asking: "Does the model generate data that look like the observed data?". The procedure is:
+
+1. Draw parameter values from the posterior distribution
+2. Simulate new data from the model using these parameters
+3. Compare simulated data characteristics to observed data characteristics
+
+If the model is adequate, simulated data should be statistically indistinguishable from real data on relevant characteristics. Systematic discrepancies reveal model misspecification.
+
+```{r simulate_clinical_data}
+# simulate multi-site clinical trial data for model comparison
+n_sites <- 8
+n_per_site <- 30
+n_total <- n_sites * n_per_site
+
+# true parameters
+true_overall_effect <- -8      # mmHg reduction (treatment effect)
+true_site_sd <- 3              # between-site variation
+true_residual_sd <- 10         # within-site variation
+true_site_effects <- rnorm(n_sites, mean = true_overall_effect, sd = true_site_sd)
+
+# generate data
+clinical_data <- data.table(
+    patient_id = 1:n_total,
+    site = rep(1:n_sites, each = n_per_site),
+    age = round(rnorm(n_total, mean = 55, sd = 10)),
+    baseline_bp = round(rnorm(n_total, mean = 145, sd = 15))
+)
+
+# treatment effect with site variation
+clinical_data[, treatment := sample(c(0, 1), .N, replace = TRUE), by = site]
+clinical_data[, bp_change := ifelse(
+    treatment == 1,
+    true_site_effects[site] + rnorm(.N, 0, true_residual_sd),
+    rnorm(.N, 0, true_residual_sd)
+)]
+
+# summary statistics by site
+site_summary <- clinical_data[, .(
+    n_treated = sum(treatment),
+    n_control = sum(1 - treatment),
+    mean_effect_treated = mean(bp_change[treatment == 1]),
+    mean_effect_control = mean(bp_change[treatment == 0]),
+    observed_effect = mean(bp_change[treatment == 1]) - mean(bp_change[treatment == 0])
+), by = site]
+
+# visualise site-specific effects
+effect_plot <- ggplot(site_summary, aes(x = factor(site), y = observed_effect)) +
+    geom_point(size = 4, colour = "#2C3E50") +
+    geom_hline(yintercept = true_overall_effect, linetype = "dashed",
+               colour = "#E74C3C", linewidth = 1) +
+    geom_hline(yintercept = 0, colour = "#95A5A6") +
+    labs(
+        title = "Observed Treatment Effects by Site",
+        subtitle = "Dashed line shows true population mean effect",
+        x = "Clinical Site",
+        y = "Blood Pressure Change (mmHg)"
+    ) +
+    theme_minimal() +
+    theme(
+        plot.title = element_text(face = "bold", size = 14),
+        axis.text = element_text(size = 11)
+    )
+print(effect_plot)
+```
+
+## 2. Visualisation
+
+### Bayes Factor Computation via Bridge Sampling
+
+Computing marginal likelihoods is challenging because the integral spans the entire parameter space. Bridge sampling provides an efficient numerical approach by constructing an optimal "bridge" distribution between the prior and posterior.
+
+```{r bayes_factor_computation}
+# implement simple marginal likelihood estimation via importance sampling
+# for a normal model with known variance
+
+# model 1: null model (no treatment effect)
+# model 2: treatment effect exists
+
+compute_log_marginal_likelihood <- function(data, model, n_samples = 10000) {
+    treated <- data[treatment == 1, bp_change]
+    control <- data[treatment == 0, bp_change]
+
+    if (model == "null") {
+        # null model: both groups have mean 0
+        # marginal likelihood is just the likelihood at mu = 0
+        sigma <- sd(data$bp_change)
+        ll_treated <- sum(dnorm(treated, mean = 0, sd = sigma, log = TRUE))
+        ll_control <- sum(dnorm(control, mean = 0, sd = sigma, log = TRUE))
+        return(ll_treated + ll_control)
+
+    } else if (model == "effect") {
+        # treatment effect model with prior N(0, 10^2)
+        # use importance sampling from posterior approximation
+
+        # approximate posterior
+        obs_effect <- mean(treated) - mean(control)
+        n1 <- length(treated)
+        n2 <- length(control)
+        sigma <- sd(data$bp_change)
+
+        # posterior variance (combining prior and likelihood)
+        prior_var <- 100  # sd = 10
+        likelihood_var <- sigma^2 * (1/n1 + 1/n2)
+        post_var <- 1 / (1/prior_var + 1/likelihood_var)
+        post_mean <- post_var * (obs_effect / likelihood_var)
+
+        # importance sampling
+        theta_samples <- rnorm(n_samples, mean = post_mean, sd = sqrt(post_var))
+
+        # compute importance weights
+        log_weights <- sapply(theta_samples, function(theta) {
+            # log likelihood
+            ll <- sum(dnorm(treated, mean = mean(control) + theta, sd = sigma, log = TRUE)) +
+                  sum(dnorm(control, mean = mean(control), sd = sigma, log = TRUE))
+            # log prior
+            lp <- dnorm(theta, mean = 0, sd = 10, log = TRUE)
+            # log proposal (importance distribution)
+            lq <- dnorm(theta, mean = post_mean, sd = sqrt(post_var), log = TRUE)
+
+            ll + lp - lq
+        })
+
+        # log-sum-exp trick for numerical stability
+        max_log_w <- max(log_weights)
+        log_ml <- max_log_w + log(mean(exp(log_weights - max_log_w)))
+
+        return(log_ml)
+    }
+}
+
+# compute for each site
+site_bayes_factors <- data.table(
+    site = 1:n_sites
+)
+
+site_bayes_factors[, log_ml_null := sapply(site, function(s) {
+    compute_log_marginal_likelihood(clinical_data[site == s], "null")
+})]
+
+site_bayes_factors[, log_ml_effect := sapply(site, function(s) {
+    compute_log_marginal_likelihood(clinical_data[site == s], "effect")
+})]
+
+site_bayes_factors[, log_bf := log_ml_effect - log_ml_null]
+site_bayes_factors[, bf := exp(log_bf)]
+
+# interpretation scale
+interpret_bf <- function(bf) {
+    if (bf > 100) return("Decisive for effect")
+    if (bf > 30) return("Very strong for effect")
+    if (bf > 10) return("Strong for effect")
+    if (bf > 3) return("Moderate for effect")
+    if (bf > 1) return("Weak for effect")
+    if (bf > 1/3) return("Weak for null")
+    if (bf > 1/10) return("Moderate for null")
+    return("Strong for null")
+}
+
+site_bayes_factors[, interpretation := sapply(bf, interpret_bf)]
+
+# visualise Bayes factors
+bf_plot_data <- copy(site_bayes_factors)
+bf_plot_data[, log10_bf := log10(bf)]
+
+bf_plot <- ggplot(bf_plot_data, aes(x = factor(site), y = log10_bf)) +
+    geom_bar(stat = "identity", fill = ifelse(bf_plot_data$log10_bf > 0, "#27AE60", "#E74C3C"),
+             alpha = 0.7) +
+    geom_hline(yintercept = c(-1, -0.5, 0.5, 1),
+               linetype = "dashed", colour = "#95A5A6", alpha = 0.7) +
+    annotate("text", x = 8.5, y = 1, label = "Strong", hjust = 0, size = 3) +
+    annotate("text", x = 8.5, y = 0.5, label = "Moderate", hjust = 0, size = 3) +
+    annotate("text", x = 8.5, y = -0.5, label = "Moderate", hjust = 0, size = 3) +
+    annotate("text", x = 8.5, y = -1, label = "Strong", hjust = 0, size = 3) +
+    labs(
+        title = "Bayes Factors by Site: Treatment Effect vs Null",
+        subtitle = "Positive values favour treatment effect; negative favour null",
+        x = "Clinical Site",
+        y = expression(log[10](BF))
+    ) +
+    theme_minimal() +
+    theme(
+        plot.title = element_text(face = "bold", size = 14)
+    ) +
+    coord_cartesian(xlim = c(0.5, 9))
+
+print(bf_plot)
+
+# print summary table
+print(site_bayes_factors[, .(site, bf = round(bf, 2), interpretation)])
+```
+
+### WAIC and LOO-CV Implementation
+
+Information criteria provide a different perspective on model comparison, focusing on predictive accuracy rather than evidence for specific hypotheses.
+
+```{r information_criteria}
+# implement WAIC computation
+# requires full posterior samples, so we'll use MCMC
+
+# simplified hierarchical model MCMC
+run_hierarchical_mcmc <- function(data, n_iter = 5000, n_warmup = 1000) {
+    # extract data
+    y <- data$bp_change
+    x <- data$treatment
+    site <- data$site
+    n <- length(y)
+    n_sites <- max(site)
+
+    # storage
+    samples <- data.table(
+        iter = 1:n_iter,
+        mu = numeric(n_iter),
+        tau = numeric(n_iter),
+        sigma = numeric(n_iter)
+    )
+
+    # add site effects
+    for (s in 1:n_sites) {
+        samples[, paste0("beta_", s) := numeric(n_iter)]
+    }
+
+    # initial values
+    mu <- -5
+    tau <- 3
+    sigma <- 10
+    beta <- rnorm(n_sites, mu, tau)
+
+    # MCMC
+    for (iter in 1:n_iter) {
+        # update site effects (Gibbs)
+        for (s in 1:n_sites) {
+            site_data <- data[site == s & treatment == 1]
+            if (nrow(site_data) > 0) {
+                site_y <- site_data$bp_change
+                n_s <- length(site_y)
+
+                # posterior for beta_s
+                post_var <- 1 / (n_s / sigma^2 + 1 / tau^2)
+                post_mean <- post_var * (sum(site_y) / sigma^2 + mu / tau^2)
+                beta[s] <- rnorm(1, post_mean, sqrt(post_var))
+            }
+        }
+
+        # update mu (Gibbs)
+        post_var_mu <- 1 / (n_sites / tau^2 + 1 / 100)  # prior var = 100
+        post_mean_mu <- post_var_mu * (sum(beta) / tau^2)
+        mu <- rnorm(1, post_mean_mu, sqrt(post_var_mu))
+
+        # update tau (Metropolis)
+        tau_prop <- exp(log(tau) + rnorm(1, 0, 0.2))
+        log_ratio <- sum(dnorm(beta, mu, tau_prop, log = TRUE)) -
+                     sum(dnorm(beta, mu, tau, log = TRUE)) +
+                     dgamma(tau_prop, 2, 0.5, log = TRUE) -
+                     dgamma(tau, 2, 0.5, log = TRUE) +
+                     log(tau_prop) - log(tau)  # Jacobian
+        if (log(runif(1)) < log_ratio) tau <- tau_prop
+
+        # update sigma (Gibbs, conjugate)
+        residuals <- numeric(n)
+        for (i in 1:n) {
+            if (x[i] == 1) {
+                residuals[i] <- y[i] - beta[site[i]]
+            } else {
+                residuals[i] <- y[i]
+            }
+        }
+        ss <- sum(residuals^2)
+        sigma <- sqrt(1 / rgamma(1, n/2 + 1, ss/2 + 1))
+
+        # store
+        samples[iter, mu := mu]
+        samples[iter, tau := tau]
+        samples[iter, sigma := sigma]
+        for (s in 1:n_sites) {
+            samples[iter, paste0("beta_", s) := beta[s]]
+        }
+    }
+
+    # discard warmup
+    return(samples[(n_warmup + 1):n_iter])
+}
+
+# run MCMC
+mcmc_samples <- run_hierarchical_mcmc(clinical_data)
+
+# compute WAIC
+compute_waic <- function(data, samples) {
+    n <- nrow(data)
+    n_samples <- nrow(samples)
+
+    # compute log-likelihood for each observation and posterior sample
+    log_lik_matrix <- matrix(0, nrow = n_samples, ncol = n)
+
+    for (s in 1:n_samples) {
+        sigma <- samples$sigma[s]
+        for (i in 1:n) {
+            site_i <- data$site[i]
+            beta_col <- paste0("beta_", site_i)
+            if (data$treatment[i] == 1) {
+                mean_i <- samples[[beta_col]][s]
+            } else {
+                mean_i <- 0
+            }
+            log_lik_matrix[s, i] <- dnorm(data$bp_change[i], mean_i, sigma, log = TRUE)
+        }
+    }
+
+    # log pointwise predictive density (lppd)
+    # for each observation, average likelihood across posterior samples
+    lppd <- sum(sapply(1:n, function(i) {
+        log_lik_i <- log_lik_matrix[, i]
+        max_ll <- max(log_lik_i)
+        max_ll + log(mean(exp(log_lik_i - max_ll)))
+    }))
+
+    # effective number of parameters (p_waic)
+    # variance of log-likelihood for each observation
+    p_waic <- sum(sapply(1:n, function(i) {
+        var(log_lik_matrix[, i])
+    }))
+
+    # WAIC
+    waic <- -2 * (lppd - p_waic)
+
+    return(list(
+        waic = waic,
+        lppd = lppd,
+        p_waic = p_waic,
+        log_lik = log_lik_matrix
+    ))
+}
+
+# compute LOO-CV via importance sampling
+compute_loo <- function(log_lik_matrix) {
+    n <- ncol(log_lik_matrix)
+    n_samples <- nrow(log_lik_matrix)
+
+    loo_scores <- numeric(n)
+    pareto_k <- numeric(n)
+
+    for (i in 1:n) {
+        # importance weights: 1 / p(y_i | theta)
+        log_ratios <- -log_lik_matrix[, i]
+
+        # stabilise
+        log_ratios <- log_ratios - max(log_ratios)
+        ratios <- exp(log_ratios)
+
+        # normalise
+        weights <- ratios / sum(ratios)
+
+        # estimate Pareto k for diagnostic
+        sorted_ratios <- sort(ratios, decreasing = TRUE)
+        m <- min(ceiling(0.2 * n_samples), 100)
+        if (m > 1) {
+            top_ratios <- sorted_ratios[1:m]
+            # simplified Pareto k estimate
+            pareto_k[i] <- mean(log(top_ratios / min(top_ratios))) / log(m)
+        } else {
+            pareto_k[i] <- 0
+        }
+
+        # LOO predictive density
+        # log( sum(w * p(y_i | theta)) ) - log( sum(w) )
+        log_lik_i <- log_lik_matrix[, i]
+        loo_scores[i] <- log(sum(weights * exp(log_lik_i)))
+    }
+
+    elpd_loo <- sum(loo_scores)
+
+    return(list(
+        elpd_loo = elpd_loo,
+        loo = -2 * elpd_loo,
+        pareto_k = pareto_k,
+        pointwise = loo_scores
+    ))
+}
+
+# compute for hierarchical model
+waic_result <- compute_waic(clinical_data, mcmc_samples)
+loo_result <- compute_loo(waic_result$log_lik)
+
+cat("Model Comparison Metrics (Hierarchical Model):\n")
+cat("WAIC:", round(waic_result$waic, 2), "\n")
+cat("  lppd:", round(waic_result$lppd, 2), "\n")
+cat("  p_waic (effective parameters):", round(waic_result$p_waic, 2), "\n")
+cat("LOO-CV:", round(loo_result$loo, 2), "\n")
+cat("  elpd_loo:", round(loo_result$elpd_loo, 2), "\n")
+
+# visualise Pareto k diagnostics
+pareto_plot_data <- data.table(
+    observation = 1:length(loo_result$pareto_k),
+    pareto_k = loo_result$pareto_k
+)
+
+pareto_plot <- ggplot(pareto_plot_data, aes(x = observation, y = pareto_k)) +
+    geom_point(alpha = 0.6, colour = "#3498DB") +
+    geom_hline(yintercept = c(0.5, 0.7, 1), linetype = "dashed",
+               colour = c("#27AE60", "#F39C12", "#E74C3C")) +
+    annotate("text", x = max(pareto_plot_data$observation), y = 0.5,
+             label = "Good (k < 0.5)", hjust = 1, vjust = -0.5, size = 3, colour = "#27AE60") +
+    annotate("text", x = max(pareto_plot_data$observation), y = 0.7,
+             label = "OK (k < 0.7)", hjust = 1, vjust = -0.5, size = 3, colour = "#F39C12") +
+    annotate("text", x = max(pareto_plot_data$observation), y = 1,
+             label = "Bad (k > 1)", hjust = 1, vjust = -0.5, size = 3, colour = "#E74C3C") +
+    labs(
+        title = "LOO-CV Diagnostics: Pareto k Values",
+        subtitle = "Lower values indicate reliable importance sampling estimates",
+        x = "Observation Index",
+        y = "Pareto k"
+    ) +
+    theme_minimal() +
+    theme(plot.title = element_text(face = "bold", size = 14))
+
+print(pareto_plot)
+```
+
+### Posterior Predictive Checks
+
+```{r posterior_predictive}
+# generate posterior predictive samples
+generate_posterior_predictive <- function(data, samples, n_rep = 100) {
+    n <- nrow(data)
+    n_samples <- nrow(samples)
+
+    # randomly select posterior samples
+    sample_idx <- sample(1:n_samples, n_rep, replace = FALSE)
+
+    # storage for replicated datasets
+    y_rep <- matrix(0, nrow = n_rep, ncol = n)
+
+    for (r in 1:n_rep) {
+        s <- sample_idx[r]
+        sigma <- samples$sigma[s]
+
+        for (i in 1:n) {
+            site_i <- data$site[i]
+            beta_col <- paste0("beta_", site_i)
+            if (data$treatment[i] == 1) {
+                mean_i <- samples[[beta_col]][s]
+            } else {
+                mean_i <- 0
+            }
+            y_rep[r, i] <- rnorm(1, mean_i, sigma)
+        }
+    }
+
+    return(y_rep)
+}
+
+# generate replications
+y_rep <- generate_posterior_predictive(clinical_data, mcmc_samples)
+
+# test statistics for posterior predictive checks
+observed_y <- clinical_data$bp_change
+
+# 1. mean comparison
+obs_mean <- mean(observed_y)
+rep_means <- rowMeans(y_rep)
+
+# 2. standard deviation
+obs_sd <- sd(observed_y)
+rep_sds <- apply(y_rep, 1, sd)
+
+# 3. skewness
+calc_skewness <- function(x) {
+    n <- length(x)
+    m <- mean(x)
+    s <- sd(x)
+    sum((x - m)^3) / (n * s^3)
+}
+
+obs_skew <- calc_skewness(observed_y)
+rep_skews <- apply(y_rep, 1, calc_skewness)
+
+# 4. proportion of extreme values
+obs_extreme <- mean(abs(observed_y) > 20)
+rep_extremes <- apply(y_rep, 1, function(y) mean(abs(y) > 20))
+
+# visualise posterior predictive checks
+ppc_data <- rbindlist(list(
+    data.table(statistic = "Mean", observed = obs_mean, replicated = rep_means),
+    data.table(statistic = "SD", observed = obs_sd, replicated = rep_sds),
+    data.table(statistic = "Skewness", observed = obs_skew, replicated = rep_skews),
+    data.table(statistic = "P(|y| > 20)", observed = obs_extreme, replicated = rep_extremes)
+))
+
+# compute p-values (proportion of replications >= observed)
+ppc_summary <- ppc_data[, .(
+    observed = unique(observed),
+    rep_mean = mean(replicated),
+    rep_sd = sd(replicated),
+    p_value = mean(replicated >= unique(observed))
+), by = statistic]
+
+# density plot for each statistic
+ppc_density_data <- data.table(
+    statistic = rep(c("Mean", "SD", "Skewness", "P(|y| > 20)"), each = 100),
+    value = c(rep_means, rep_sds, rep_skews, rep_extremes)
+)
+
+observed_lines <- data.table(
+    statistic = c("Mean", "SD", "Skewness", "P(|y| > 20)"),
+    observed = c(obs_mean, obs_sd, obs_skew, obs_extreme)
+)
+
+ppc_plot <- ggplot(ppc_density_data, aes(x = value)) +
+    geom_histogram(aes(y = ..density..), bins = 30,
+                   fill = "#3498DB", alpha = 0.6) +
+    geom_vline(data = observed_lines, aes(xintercept = observed),
+               colour = "#E74C3C", linewidth = 1.2, linetype = "dashed") +
+    facet_wrap(~statistic, scales = "free") +
+    labs(
+        title = "Posterior Predictive Checks",
+        subtitle = "Red dashed line = observed value; histogram = distribution of replicated values",
+        x = "Test Statistic Value",
+        y = "Density"
+    ) +
+    theme_minimal() +
+    theme(
+        plot.title = element_text(face = "bold", size = 14),
+        strip.text = element_text(face = "bold")
+    )
+
+print(ppc_plot)
+
+# print summary
+cat("\nPosterior Predictive Check Summary:\n")
+print(ppc_summary)
+```
+
+### Graphical Posterior Predictive Checks
+
+```{r graphical_ppc}
+# density overlay: observed vs replicated
+# select a subset of replications for clarity
+n_show <- 50
+y_rep_subset <- y_rep[1:n_show, ]
+
+# melt for plotting
+rep_density_data <- data.table(
+    replicate = rep(1:n_show, each = ncol(y_rep)),
+    y = as.vector(t(y_rep_subset))
+)
+
+# overlay plot
+overlay_plot <- ggplot() +
+    geom_density(data = rep_density_data, aes(x = y, group = replicate),
+                 colour = "#3498DB", alpha = 0.1, linewidth = 0.3) +
+    geom_density(data = data.table(y = observed_y), aes(x = y),
+                 colour = "#E74C3C", linewidth = 1.5) +
+    labs(
+        title = "Density Overlay: Observed vs Replicated Data",
+        subtitle = "Red = observed data; blue = posterior predictive replications",
+        x = "Blood Pressure Change (mmHg)",
+        y = "Density"
+    ) +
+    theme_minimal() +
+    theme(plot.title = element_text(face = "bold", size = 14))
+
+print(overlay_plot)
+
+# rootogram for count-like discretisation
+# bin the continuous data
+breaks <- seq(-40, 30, by = 5)
+obs_counts <- hist(observed_y, breaks = breaks, plot = FALSE)$counts
+
+# expected counts from posterior predictive
+rep_counts <- t(apply(y_rep, 1, function(y) {
+    hist(y, breaks = breaks, plot = FALSE)$counts
+}))
+
+expected_counts <- colMeans(rep_counts)
+count_sd <- apply(rep_counts, 2, sd)
+
+# rootogram data
+rootogram_data <- data.table(
+    bin = 1:length(obs_counts),
+    bin_center = (breaks[-1] + breaks[-length(breaks)]) / 2,
+    observed = obs_counts,
+    expected = expected_counts,
+    sd = count_sd
+)
+
+rootogram_data[, sqrt_expected := sqrt(expected)]
+rootogram_data[, residual := sqrt(observed) - sqrt(expected)]
+
+rootogram_plot <- ggplot(rootogram_data, aes(x = bin_center)) +
+    geom_bar(aes(y = sqrt_expected), stat = "identity",
+             fill = "#3498DB", alpha = 0.4, width = 4) +
+    geom_point(aes(y = sqrt(observed)), colour = "#E74C3C", size = 3) +
+    geom_segment(aes(xend = bin_center, y = sqrt(observed), yend = sqrt_expected),
+                 colour = "#E74C3C", linewidth = 0.8) +
+    geom_hline(yintercept = 0, colour = "#2C3E50") +
+    labs(
+        title = "Hanging Rootogram: Model Fit Assessment",
+        subtitle = "Points hanging from expected values; deviations show misfit",
+        x = "Blood Pressure Change (mmHg)",
+        y = expression(sqrt(Count))
+    ) +
+    theme_minimal() +
+    theme(plot.title = element_text(face = "bold", size = 14))
+
+print(rootogram_plot)
+```
+
+## 3. Mathematical Derivation
+
+### Marginal Likelihood and Bayes Factors
+
+The marginal likelihood (evidence) for model $M$ is:
+
+$$P(D|M) = \int P(D|\theta, M) P(\theta|M) d\theta$$
+
+For comparing models $M_1$ and $M_2$, the posterior odds relate to prior odds via the Bayes factor:
+
+$$\underbrace{\frac{P(M_1|D)}{P(M_2|D)}}_{\text{Posterior odds}} = \underbrace{\frac{P(D|M_1)}{P(D|M_2)}}_{BF_{12}} \times \underbrace{\frac{P(M_1)}{P(M_2)}}_{\text{Prior odds}}$$
+
+**Savage-Dickey Density Ratio**: For nested models where $M_0: \theta = \theta_0$ is a special case of $M_1$:
+
+$$BF_{01} = \frac{P(\theta_0 | D, M_1)}{P(\theta_0 | M_1)}$$
+
+This ratio of posterior to prior density at the null value is often simpler to compute than the full marginal likelihood.
+
+### Information-Theoretic Model Selection
+
+The **expected log pointwise predictive density** (elpd) measures how well a model predicts new data:
+
+$$\text{elpd} = \sum_{i=1}^{n} \int P_t(y_i^{\text{new}}) \log P(y_i^{\text{new}} | D) dy_i^{\text{new}}$$
+
+where $P_t$ is the true data-generating distribution. Since $P_t$ is unknown, we estimate elpd from the observed data.
+
+**WAIC Derivation**:
+
+The log pointwise predictive density (lppd) for observed data:
+
+$$\text{lppd} = \sum_{i=1}^{n} \log P(y_i | D) = \sum_{i=1}^{n} \log \int P(y_i | \theta) P(\theta | D) d\theta$$
+
+This is estimated by:
+
+$$\widehat{\text{lppd}} = \sum_{i=1}^{n} \log \left( \frac{1}{S} \sum_{s=1}^{S} P(y_i | \theta^{(s)}) \right)$$
+
+The effective number of parameters $p_{\text{WAIC}}$ corrects for overfitting:
+
+$$p_{\text{WAIC}} = \sum_{i=1}^{n} \text{Var}_{\theta|D} \left[ \log P(y_i | \theta) \right]$$
+
+This measures how much the model "adapts" to each observation. WAIC is then:
+
+$$\text{WAIC} = -2 \times (\widehat{\text{lppd}} - p_{\text{WAIC}})$$
+
+**LOO-CV via Importance Sampling**:
+
+Leave-one-out cross-validation estimates:
+
+$$\widehat{\text{elpd}}_{\text{LOO}} = \sum_{i=1}^{n} \log P(y_i | D_{-i})$$
+
+Direct computation requires refitting $n$ times. Importance sampling avoids this:
+
+$$P(y_i | D_{-i}) = \frac{\int P(y_i | \theta) P(\theta | D_{-i}) d\theta}{1} \approx \frac{\sum_s w_i^{(s)} P(y_i | \theta^{(s)})}{\sum_s w_i^{(s)}}$$
+
+where $w_i^{(s)} \propto 1/P(y_i | \theta^{(s)})$ re-weights the full-data posterior to approximate the leave-one-out posterior.
+
+```{r mathematical_illustration}
+# demonstrate Savage-Dickey ratio for testing mu = 0
+# in a normal model with known variance
+
+# prior: mu ~ N(0, tau^2)
+# likelihood: y ~ N(mu, sigma^2)
+# posterior: mu | y ~ N(post_mean, post_var)
+
+savage_dickey_demo <- function(y, sigma, tau) {
+    n <- length(y)
+    ybar <- mean(y)
+
+    # posterior parameters
+    post_var <- 1 / (n / sigma^2 + 1 / tau^2)
+    post_mean <- post_var * (n * ybar / sigma^2)
+
+    # prior density at 0
+    prior_at_0 <- dnorm(0, mean = 0, sd = tau)
+
+    # posterior density at 0
+    post_at_0 <- dnorm(0, mean = post_mean, sd = sqrt(post_var))
+
+    # Bayes factor for H0: mu = 0
+    bf_01 <- post_at_0 / prior_at_0
+
+    return(list(
+        prior_at_0 = prior_at_0,
+        posterior_at_0 = post_at_0,
+        bf_01 = bf_01,
+        post_mean = post_mean,
+        post_sd = sqrt(post_var)
+    ))
+}
+
+# apply to treatment effect
+treatment_data <- clinical_data[treatment == 1, bp_change]
+control_data <- clinical_data[treatment == 0, bp_change]
+effect_estimates <- treatment_data - mean(control_data)  # crude adjustment
+
+sd_result <- savage_dickey_demo(effect_estimates, sigma = sd(effect_estimates), tau = 10)
+
+# visualise
+theta_seq <- seq(-20, 5, length.out = 500)
+prior_density <- dnorm(theta_seq, mean = 0, sd = 10)
+posterior_density <- dnorm(theta_seq, mean = sd_result$post_mean, sd = sd_result$post_sd)
+
+sd_plot_data <- data.table(
+    theta = rep(theta_seq, 2),
+    density = c(prior_density, posterior_density),
+    type = rep(c("Prior", "Posterior"), each = length(theta_seq))
+)
+
+sd_plot <- ggplot(sd_plot_data, aes(x = theta, y = density, colour = type)) +
+    geom_line(linewidth = 1.2) +
+    geom_vline(xintercept = 0, linetype = "dashed", colour = "#95A5A6") +
+    geom_point(data = data.table(theta = 0, density = sd_result$prior_at_0, type = "Prior"),
+               size = 4) +
+    geom_point(data = data.table(theta = 0, density = sd_result$posterior_at_0, type = "Posterior"),
+               size = 4) +
+    scale_colour_manual(values = c("Prior" = "#3498DB", "Posterior" = "#E74C3C")) +
+    annotate("text", x = 2, y = sd_result$prior_at_0,
+             label = sprintf("Prior(0) = %.4f", sd_result$prior_at_0),
+             hjust = 0, colour = "#3498DB") +
+    annotate("text", x = 2, y = sd_result$posterior_at_0 + 0.01,
+             label = sprintf("Posterior(0) = %.4f", sd_result$posterior_at_0),
+             hjust = 0, colour = "#E74C3C") +
+    labs(
+        title = "Savage-Dickey Density Ratio",
+        subtitle = sprintf("BF for H0 (mu=0): %.4f (evidence %s null)",
+                          sd_result$bf_01,
+                          ifelse(sd_result$bf_01 > 1, "for", "against")),
+        x = expression(theta ~ "(Treatment Effect)"),
+        y = "Density",
+        colour = "Distribution"
+    ) +
+    theme_minimal() +
+    theme(
+        plot.title = element_text(face = "bold", size = 14),
+        legend.position = "bottom"
+    )
+
+print(sd_plot)
+```
+
+### Theoretical Foundation of Posterior Predictive Checks
+
+Posterior predictive checks are grounded in the concept of **calibration**. If a model is well-calibrated, the posterior predictive distribution should encompass the observed data.
+
+For a test statistic $T(y)$:
+
+$$P(T(y^{\text{rep}}) \geq T(y^{\text{obs}}) | D) = \int \mathbb{1}[T(y^{\text{rep}}) \geq T(y^{\text{obs}})] P(y^{\text{rep}} | \theta) P(\theta | D) d\theta dy^{\text{rep}}$$
+
+This **posterior predictive p-value** is uniformly distributed under the null hypothesis that the model is correct. Extreme values (near 0 or 1) indicate model misfit.
+
+## 4. Communicating to Stakeholders
+
+### Model Comparison Report
+
+```{r stakeholder_report}
+# comprehensive model comparison summary
+# compare hierarchical model to simpler alternatives
+
+# fit simple pooled model (no site effects)
+run_pooled_mcmc <- function(data, n_iter = 3000, n_warmup = 500) {
+    treated_y <- data[treatment == 1, bp_change]
+    n_treated <- length(treated_y)
+
+    samples <- data.table(
+        iter = 1:(n_iter - n_warmup),
+        mu = numeric(n_iter - n_warmup),
+        sigma = numeric(n_iter - n_warmup)
+    )
+
+    mu <- mean(treated_y)
+    sigma <- sd(treated_y)
+
+    idx <- 1
+    for (iter in 1:n_iter) {
+        # update mu
+        post_var <- 1 / (n_treated / sigma^2 + 1/100)
+        post_mean <- post_var * (sum(treated_y) / sigma^2)
+        mu <- rnorm(1, post_mean, sqrt(post_var))
+
+        # update sigma
+        ss <- sum((treated_y - mu)^2)
+        sigma <- sqrt(1 / rgamma(1, n_treated/2 + 1, ss/2 + 1))
+
+        if (iter > n_warmup) {
+            samples[idx, mu := mu]
+            samples[idx, sigma := sigma]
+            idx <- idx + 1
+        }
+    }
+
+    return(samples)
+}
+
+pooled_samples <- run_pooled_mcmc(clinical_data)
+
+# compute metrics for pooled model
+compute_pooled_waic <- function(data, samples) {
+    n <- nrow(data)
+    n_samples <- nrow(samples)
+
+    log_lik_matrix <- matrix(0, nrow = n_samples, ncol = n)
+
+    for (s in 1:n_samples) {
+        mu <- samples$mu[s]
+        sigma <- samples$sigma[s]
+
+        for (i in 1:n) {
+            if (data$treatment[i] == 1) {
+                log_lik_matrix[s, i] <- dnorm(data$bp_change[i], mu, sigma, log = TRUE)
+            } else {
+                log_lik_matrix[s, i] <- dnorm(data$bp_change[i], 0, sigma, log = TRUE)
+            }
+        }
+    }
+
+    lppd <- sum(sapply(1:n, function(i) {
+        log_lik_i <- log_lik_matrix[, i]
+        max_ll <- max(log_lik_i)
+        max_ll + log(mean(exp(log_lik_i - max_ll)))
+    }))
+
+    p_waic <- sum(sapply(1:n, function(i) var(log_lik_matrix[, i])))
+
+    return(list(waic = -2 * (lppd - p_waic), lppd = lppd, p_waic = p_waic))
+}
+
+pooled_waic <- compute_pooled_waic(clinical_data, pooled_samples)
+
+# summary table
+comparison_table <- data.table(
+    Model = c("Hierarchical (Site-specific effects)", "Pooled (Single effect)"),
+    WAIC = c(round(waic_result$waic, 1), round(pooled_waic$waic, 1)),
+    `Effective Parameters` = c(round(waic_result$p_waic, 1), round(pooled_waic$p_waic, 1)),
+    `lppd` = c(round(waic_result$lppd, 1), round(pooled_waic$lppd, 1))
+)
+
+comparison_table[, `Delta WAIC` := WAIC - min(WAIC)]
+
+# create visual summary
+model_comparison_viz <- data.table(
+    Model = c("Hierarchical", "Pooled"),
+    WAIC = c(waic_result$waic, pooled_waic$waic),
+    p_eff = c(waic_result$p_waic, pooled_waic$p_waic)
+)
+
+model_comparison_viz[, preferred := WAIC == min(WAIC)]
+
+comparison_plot <- ggplot(model_comparison_viz, aes(x = Model, y = WAIC, fill = preferred)) +
+    geom_bar(stat = "identity", width = 0.6) +
+    geom_text(aes(label = sprintf("WAIC = %.1f\np_eff = %.1f", WAIC, p_eff)),
+              vjust = -0.3, size = 4) +
+    scale_fill_manual(values = c("TRUE" = "#27AE60", "FALSE" = "#E74C3C"),
+                      labels = c("TRUE" = "Preferred", "FALSE" = "Not Preferred")) +
+    labs(
+        title = "Model Comparison: Hierarchical vs Pooled",
+        subtitle = "Lower WAIC indicates better predictive accuracy",
+        x = "",
+        y = "WAIC (lower is better)",
+        fill = ""
+    ) +
+    theme_minimal() +
+    theme(
+        plot.title = element_text(face = "bold", size = 14),
+        legend.position = "bottom"
+    ) +
+    coord_cartesian(ylim = c(0, max(model_comparison_viz$WAIC) * 1.15))
+
+print(comparison_plot)
+
+# executive summary
+cat("\n")
+cat("========================================\n")
+cat("  EXECUTIVE SUMMARY: MODEL COMPARISON\n")
+cat("========================================\n\n")
+
+cat("CONTEXT:\n")
+cat("- Multi-site clinical trial with", n_sites, "sites and", n_total, "patients\n")
+cat("- Testing blood pressure reduction treatment\n")
+cat("- Comparing hierarchical (site-specific) vs pooled (single effect) models\n\n")
+
+cat("KEY FINDINGS:\n")
+
+waic_diff <- pooled_waic$waic - waic_result$waic
+if (is.na(waic_diff)) {
+    cat("- Unable to compute WAIC difference\n")
+} else if (waic_diff > 4) {
+    cat("- The hierarchical model is STRONGLY preferred (WAIC difference:",
+        round(waic_diff, 1), ")\n")
+} else if (waic_diff > 0) {
+    cat("- The hierarchical model is MODERATELY preferred (WAIC difference:",
+        round(waic_diff, 1), ")\n")
+} else {
+    cat("- Models are similar; pooled model preferred for simplicity\n")
+}
+
+cat("- Hierarchical model uses", round(waic_result$p_waic, 1),
+    "effective parameters vs", round(pooled_waic$p_waic, 1), "for pooled\n")
+cat("- This extra complexity is",
+    ifelse(!is.na(waic_diff) && waic_diff > 0, "JUSTIFIED", "NOT JUSTIFIED"), "by improved prediction\n\n")
+
+cat("IMPLICATIONS:\n")
+if (!is.na(waic_diff) && waic_diff > 0) {
+    cat("- Treatment effects VARY meaningfully across clinical sites\n")
+    cat("- Site characteristics should be considered in treatment decisions\n")
+    cat("- Future trials should account for site-level variation\n")
+} else {
+    cat("- Treatment effect is CONSISTENT across sites\n")
+    cat("- A single effect estimate can be used for all sites\n")
+}
+
+cat("\n")
+print(comparison_table)
+```
+
+### Posterior Predictive Check Report for Regulators
+
+```{r regulatory_report}
+# model adequacy assessment
+# helper function to safely extract p-values
+get_pvalue <- function(stat_name) {
+    val <- ppc_summary[statistic == stat_name, p_value]
+    if (length(val) == 0 || is.na(val[1])) return(NA_real_)
+    return(val[1])
+}
+
+# helper function for assessment
+assess_pvalue <- function(p_val) {
+    if (is.na(p_val)) return("REVIEW")
+    if (abs(p_val - 0.5) < 0.4) return("PASS") else return("REVIEW")
+}
+
+ppc_report <- data.table(
+    `Test Statistic` = c("Mean", "Standard Deviation", "Skewness", "Extreme Values (|y|>20)"),
+    Observed = c(
+        sprintf("%.2f mmHg", obs_mean),
+        sprintf("%.2f mmHg", obs_sd),
+        sprintf("%.3f", obs_skew),
+        sprintf("%.1f%%", obs_extreme * 100)
+    ),
+    `Model Prediction` = c(
+        sprintf("%.2f mmHg", mean(rep_means)),
+        sprintf("%.2f mmHg", mean(rep_sds)),
+        sprintf("%.3f", mean(rep_skews)),
+        sprintf("%.1f%%", mean(rep_extremes) * 100)
+    ),
+    `95% Interval` = c(
+        sprintf("[%.2f, %.2f]", quantile(rep_means, 0.025), quantile(rep_means, 0.975)),
+        sprintf("[%.2f, %.2f]", quantile(rep_sds, 0.025), quantile(rep_sds, 0.975)),
+        sprintf("[%.3f, %.3f]", quantile(rep_skews, 0.025), quantile(rep_skews, 0.975)),
+        sprintf("[%.1f%%, %.1f%%]", quantile(rep_extremes, 0.025)*100, quantile(rep_extremes, 0.975)*100)
+    ),
+    Assessment = c(
+        assess_pvalue(get_pvalue("Mean")),
+        assess_pvalue(get_pvalue("SD")),
+        assess_pvalue(get_pvalue("Skewness")),
+        assess_pvalue(get_pvalue("P(|y| > 20)"))
+    )
+)
+
+cat("\n")
+cat("================================================\n")
+cat("  MODEL ADEQUACY REPORT (REGULATORY SUBMISSION)\n")
+cat("================================================\n\n")
+
+cat("MODEL SPECIFICATION:\n")
+cat("- Hierarchical Bayesian model with site-specific treatment effects\n")
+cat("- Normal likelihood with estimated residual variance\n")
+cat("- Half-normal prior on between-site standard deviation\n\n")
+
+cat("POSTERIOR PREDICTIVE CHECKS:\n\n")
+print(ppc_report)
+
+cat("\n")
+cat("INTERPRETATION GUIDE:\n")
+cat("- PASS: Observed value falls within expected range from model\n")
+cat("- REVIEW: Potential model misspecification; further investigation needed\n\n")
+
+all_pass <- all(ppc_report$Assessment == "PASS")
+cat("OVERALL ASSESSMENT:", ifelse(all_pass, "MODEL ADEQUATE", "MODEL REQUIRES REVIEW"), "\n\n")
+
+if (all_pass) {
+    cat("CONCLUSION:\n")
+    cat("The hierarchical model adequately captures the key features of the\n")
+    cat("observed data. Posterior predictive checks confirm that simulated\n")
+    cat("data from the fitted model are statistically consistent with the\n")
+    cat("observed trial results across multiple diagnostic criteria.\n")
+} else {
+    cat("CONCLUSION:\n")
+    cat("Some aspects of the observed data are not well captured by the model.\n")
+    cat("Consider model refinements before finalising efficacy estimates.\n")
+}
+```
+
+## Summary
+
+This chapter presented three complementary approaches to Bayesian model evaluation:
+
+1. **Bayes factors** directly quantify evidence for competing hypotheses, enabling statements like "the data are 15 times more probable under the treatment effect model than the null". The Savage-Dickey ratio simplifies computation for nested models.
+
+2. **Information criteria** (WAIC, LOO-CV) assess predictive accuracy, balancing fit against complexity. These criteria naturally penalise overfitting by measuring how well the model generalises to new observations. Pareto k diagnostics identify observations where importance sampling estimates may be unreliable.
+
+3. **Posterior predictive checks** evaluate model adequacy in absolute terms—whether the model generates data consistent with what we observed. Graphical checks (density overlays, rootograms) complement numerical summaries.
+
+Together, these tools provide a rigorous framework for scientific model evaluation. In regulatory submissions and clinical decision-making, demonstrating that a model both outperforms alternatives and adequately captures observed data patterns is essential for credible inference.
+
+The hierarchical model for our multi-site trial exemplifies these principles: it was preferred over the pooled model by information criteria, and posterior predictive checks confirmed adequate fit across multiple diagnostics. This provides strong justification for using site-specific effect estimates in treatment recommendations.

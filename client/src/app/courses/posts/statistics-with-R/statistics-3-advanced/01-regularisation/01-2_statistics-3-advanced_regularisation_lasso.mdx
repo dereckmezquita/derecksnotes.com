@@ -222,8 +222,8 @@ ggplot2$ggplot(path_dt, ggplot2$aes(x = log(lambda), y = coefficient, colour = v
     ggplot2$theme_minimal()
 ```
 
-<Figure src="/courses/statistics-3-advanced/lasso_path-1.png" alt="LASSO shrinks coefficients to exactly zero as &lt;U+03BB&gt; increases">
-	LASSO shrinks coefficients to exactly zero as &lt;U+03BB&gt; increases
+<Figure src="/courses/statistics-3-advanced/lasso_path-1.png" alt="LASSO shrinks coefficients to exactly zero as λ increases">
+	LASSO shrinks coefficients to exactly zero as λ increases
 </Figure>
 
 ### 1.7.2 Variable Selection
@@ -315,7 +315,7 @@ nonzero_vars <- which(coef_1se[-1] != 0)
 selected_vars <- gsub("mean_", "", feature_cols[nonzero_vars])
 
 cat("Selected Variables (λ.1se):\n")
-#> Selected Variables (<U+03BB>.1se):
+#> Selected Variables (λ.1se):
 cat("===========================\n")
 #> ===========================
 if (length(selected_vars) > 0) {

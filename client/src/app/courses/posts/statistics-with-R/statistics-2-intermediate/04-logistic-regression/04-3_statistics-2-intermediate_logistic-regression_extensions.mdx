@@ -452,7 +452,7 @@ cat("Selected model formula:\n")
 print(formula(model_step))
 #> diabetes ~ Age + BMI + Gender + SBP + DBP + TotChol + DirectChol + 
 #>     Pulse
-#> <environment: 0x133f59250>
+#> <environment: 0x10e6c79e8>
 cat("\nFinal AIC:", round(AIC(model_step), 1), "\n")
 #> 
 #> Final AIC: 3511.1
@@ -488,7 +488,7 @@ cat("================================\n\n")
 cat("Ridge Regression (L2):\n")
 #> Ridge Regression (L2):
 cat("  - Penalty: λ Σ β²\n")
-#>   - Penalty: <U+03BB> <U+03A3> <U+03B2><U+00B2>
+#>   - Penalty: λ Σ β²
 cat("  - Shrinks coefficients but keeps all variables\n")
 #>   - Shrinks coefficients but keeps all variables
 cat("  - Good when all predictors may be relevant\n\n")
@@ -497,7 +497,7 @@ cat("  - Good when all predictors may be relevant\n\n")
 cat("Lasso Regression (L1):\n")
 #> Lasso Regression (L1):
 cat("  - Penalty: λ Σ |β|\n")
-#>   - Penalty: <U+03BB> <U+03A3> |<U+03B2>|
+#>   - Penalty: λ Σ |β|
 cat("  - Can shrink coefficients exactly to zero\n")
 #>   - Can shrink coefficients exactly to zero
 cat("  - Performs automatic variable selection\n\n")
@@ -508,7 +508,7 @@ cat("Elastic Net:\n")
 cat("  - Combines L1 and L2 penalties\n")
 #>   - Combines L1 and L2 penalties
 cat("  - Penalty: λ[(1-α)Σβ² + αΣ|β|]\n")
-#>   - Penalty: <U+03BB>[(1-<U+03B1>)<U+03A3><U+03B2><U+00B2> + <U+03B1><U+03A3>|<U+03B2>|]
+#>   - Penalty: λ[(1-α)Σβ² + αΣ|β|]
 cat("  - Good when predictors are correlated\n\n")
 #>   - Good when predictors are correlated
 

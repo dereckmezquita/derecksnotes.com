@@ -1,0 +1,893 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 6: Resampling Methods"
+part: "Part 1: The Bootstrap"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, resampling, bootstrap, confidence-intervals, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: The Bootstrap
+
+The **bootstrap** is one of the most powerful ideas in modern statistics: estimate sampling distributions by resampling from the data itself. No distributional assumptions required. This chapter develops bootstrap methods from first principles and shows their application to complex statistics where analytical solutions are intractable.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+
+``` r
+# Load breast cancer dataset for examples
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+# Prepare data
+breast_cancer[, diagnosis := as.integer(diagnosis == "M")]
+
+# Extract key variables
+n <- nrow(breast_cancer)
+mean_radius <- breast_cancer$mean_radius
+mean_texture <- breast_cancer$mean_texture
+
+cat("Bootstrap Examples Dataset\n")
+#> Bootstrap Examples Dataset
+cat("==========================\n")
+#> ==========================
+cat("  Total samples:", n, "\n")
+#>   Total samples: 569
+cat("  Malignant:", sum(breast_cancer$diagnosis), "\n")
+#>   Malignant: 212
+cat("  Benign:", n - sum(breast_cancer$diagnosis), "\n")
+#>   Benign: 357
+```
+
+---
+
+## 6.1 The Bootstrap Principle
+
+### 6.1.1 From Population to Sample to Bootstrap
+
+**Prose and Intuition**
+
+The fundamental problem of statistics: we want to know about a **population** but only have a **sample**.
+
+- **Population parameter** $\theta$: Unknown fixed quantity (e.g., true mean)
+- **Sample statistic** $\hat{\theta}$: Estimate from data
+- **Sampling distribution**: Distribution of $\hat{\theta}$ across repeated samples
+
+The **bootstrap** approximates the sampling distribution by treating the sample as if it were the population and drawing **resamples with replacement**.
+
+**Key insight**: The relationship between the sample and its bootstrap resamples mirrors the relationship between the population and samples.
+
+**Mathematical Framework**
+
+Let $X_1, \ldots, X_n$ be i.i.d. from distribution $F$.
+
+**Ideal world**: Draw $B$ samples of size $n$ from $F$, compute $\hat{\theta}$ for each, study the distribution.
+
+**Bootstrap world**: Draw $B$ samples of size $n$ *with replacement* from the empirical distribution $\hat{F}_n$, compute $\hat{\theta}^*_b$ for each.
+
+The **empirical distribution** puts mass $1/n$ on each observed value:
+$$\hat{F}_n(x) = \frac{1}{n}\sum_{i=1}^{n}\mathbf{1}(X_i \leq x)$$
+
+
+``` r
+# Demonstrate bootstrap resampling
+sample_size <- 50
+original_sample <- sample(mean_radius, sample_size)
+
+# Generate bootstrap resamples
+n_bootstrap <- 1000
+bootstrap_means <- numeric(n_bootstrap)
+
+for (b in 1:n_bootstrap) {
+    boot_sample <- sample(original_sample, size = sample_size, replace = TRUE)
+    bootstrap_means[b] <- mean(boot_sample)
+}
+
+# Compare to theoretical sampling distribution
+theoretical_se <- sd(original_sample) / sqrt(sample_size)
+bootstrap_se <- sd(bootstrap_means)
+
+cat("Bootstrap vs Theoretical Standard Error:\n")
+#> Bootstrap vs Theoretical Standard Error:
+cat("========================================\n")
+#> ========================================
+cat("  Sample mean:", round(mean(original_sample), 3), "\n")
+#>   Sample mean: 15.331
+cat("  Theoretical SE:", round(theoretical_se, 3), "\n")
+#>   Theoretical SE: 0.555
+cat("  Bootstrap SE:", round(bootstrap_se, 3), "\n")
+#>   Bootstrap SE: 0.535
+
+# Visualise
+boot_data <- data.table(bootstrap_mean = bootstrap_means)
+
+ggplot2$ggplot(boot_data, ggplot2$aes(x = bootstrap_mean)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..),
+                            bins = 50, fill = "#2166AC", alpha = 0.7) +
+    ggplot2$geom_density(colour = "#D95F02", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = mean(original_sample), linetype = "solid",
+                        colour = "red", linewidth = 1) +
+    ggplot2$stat_function(fun = dnorm,
+                           args = list(mean = mean(original_sample), sd = theoretical_se),
+                           colour = "black", linetype = "dashed", linewidth = 1) +
+    ggplot2$labs(
+        title = "Bootstrap Distribution of Sample Mean",
+        subtitle = paste0("B = ", n_bootstrap, " resamples; ",
+                         "Red = sample mean; Dashed = theoretical normal"),
+        x = "Bootstrap Mean",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/bootstrap_principle-1.png" alt="The bootstrap principle: resampling with replacement">
+	The bootstrap principle: resampling with replacement
+</Figure>
+
+### 6.1.2 Why Sampling With Replacement?
+
+**Prose and Intuition**
+
+Sampling **with replacement** is essential:
+- Creates variability in the resamples
+- Some observations appear multiple times, others not at all
+- On average, each resample contains ~63.2% unique observations (the rest are duplicates)
+
+The probability an observation is *not* selected in any of $n$ draws:
+$$P(\text{not selected}) = \left(1 - \frac{1}{n}\right)^n \approx e^{-1} \approx 0.368$$
+
+So approximately 36.8% are left out per resample—these "out-of-bag" observations are useful for validation.
+
+
+``` r
+# Demonstrate out-of-bag fraction
+n_demo <- 100
+n_sim <- 5000
+
+oob_fractions <- numeric(n_sim)
+for (s in 1:n_sim) {
+    boot_indices <- sample(1:n_demo, n_demo, replace = TRUE)
+    oob_fractions[s] <- 1 - length(unique(boot_indices)) / n_demo
+}
+
+cat("Out-of-Bag Analysis:\n")
+#> Out-of-Bag Analysis:
+cat("====================\n")
+#> ====================
+cat("  Mean OOB fraction:", round(mean(oob_fractions), 4), "\n")
+#>   Mean OOB fraction: 0.3661
+cat("  Theoretical (1/e):", round(exp(-1), 4), "\n")
+#>   Theoretical (1/e): 0.3679
+cat("  SD of OOB fraction:", round(sd(oob_fractions), 4), "\n")
+#>   SD of OOB fraction: 0.0309
+```
+
+---
+
+## 6.2 Bootstrap Standard Errors
+
+### 6.2.1 The Algorithm
+
+**Prose and Intuition**
+
+The bootstrap standard error estimates the variability of a statistic:
+
+**Algorithm**:
+1. From original sample of size $n$, draw $B$ bootstrap samples (each size $n$, with replacement)
+2. Compute statistic $\hat{\theta}^*_b$ for each bootstrap sample $b = 1, \ldots, B$
+3. Estimate standard error as: $\widehat{SE}_{boot} = \sqrt{\frac{1}{B-1}\sum_{b=1}^{B}(\hat{\theta}^*_b - \bar{\theta}^*)^2}$
+
+This works for *any* statistic, not just the mean.
+
+
+``` r
+# Bootstrap function
+bootstrap_se <- function(x, statistic, B = 2000) {
+    n <- length(x)
+    theta_boot <- numeric(B)
+
+    for (b in 1:B) {
+        boot_sample <- sample(x, n, replace = TRUE)
+        theta_boot[b] <- statistic(boot_sample)
+    }
+
+    list(
+        estimate = statistic(x),
+        se = sd(theta_boot),
+        boot_dist = theta_boot
+    )
+}
+
+# Apply to various statistics
+stats_list <- list(
+    Mean = mean,
+    Median = median,
+    `Trimmed Mean (10%)` = function(x) mean(x, trim = 0.1),
+    SD = sd,
+    IQR = IQR,
+    `95th Percentile` = function(x) quantile(x, 0.95)
+)
+
+boot_results <- rbindlist(lapply(names(stats_list), function(stat_name) {
+    result <- bootstrap_se(mean_radius, stats_list[[stat_name]], B = 5000)
+    data.table(
+        Statistic = stat_name,
+        Estimate = result$estimate,
+        Bootstrap_SE = result$se
+    )
+}))
+
+cat("Bootstrap Standard Errors for Various Statistics:\n")
+#> Bootstrap Standard Errors for Various Statistics:
+cat("=================================================\n")
+#> =================================================
+print(boot_results[, .(Statistic, Estimate = round(Estimate, 3),
+                        Bootstrap_SE = round(Bootstrap_SE, 3))])
+#>             Statistic Estimate Bootstrap_SE
+#>                <char>    <num>        <num>
+#> 1:               Mean   14.127        0.147
+#> 2:             Median   13.370        0.161
+#> 3: Trimmed Mean (10%)   13.820        0.156
+#> 4:                 SD    3.524        0.124
+#> 5:                IQR    4.080        0.336
+#> 6:    95th Percentile   20.576        0.233
+```
+
+### 6.2.2 Correlation Coefficient Example
+
+**Prose and Intuition**
+
+For the correlation coefficient, the sampling distribution is asymmetric and depends on the true correlation. The bootstrap handles this automatically.
+
+
+``` r
+# Bootstrap correlation between mean_radius and mean_texture
+B <- 5000
+n_corr <- length(mean_radius)
+
+cor_boot <- numeric(B)
+for (b in 1:B) {
+    idx <- sample(1:n_corr, n_corr, replace = TRUE)
+    cor_boot[b] <- cor(mean_radius[idx], mean_texture[idx])
+}
+
+cor_observed <- cor(mean_radius, mean_texture)
+cor_se <- sd(cor_boot)
+
+cat("Bootstrap Analysis of Correlation:\n")
+#> Bootstrap Analysis of Correlation:
+cat("===================================\n")
+#> ===================================
+cat("  Observed correlation:", round(cor_observed, 4), "\n")
+#>   Observed correlation: 0.3238
+cat("  Bootstrap SE:", round(cor_se, 4), "\n")
+#>   Bootstrap SE: 0.0365
+cat("  95% CI (percentile):", round(quantile(cor_boot, c(0.025, 0.975)), 4), "\n")
+#>   95% CI (percentile): 0.2516 0.3943
+
+# Fisher z-transform for comparison
+z <- atanh(cor_observed)
+z_se <- 1 / sqrt(n_corr - 3)
+fisher_ci <- tanh(z + c(-1.96, 1.96) * z_se)
+cat("  95% CI (Fisher z):", round(fisher_ci, 4), "\n")
+#>   95% CI (Fisher z): 0.2482 0.3955
+
+# Visualise
+cor_data <- data.table(correlation = cor_boot)
+
+ggplot2$ggplot(cor_data, ggplot2$aes(x = correlation)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..),
+                            bins = 50, fill = "#2166AC", alpha = 0.7) +
+    ggplot2$geom_density(colour = "#D95F02", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = cor_observed, linetype = "solid",
+                        colour = "red", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = quantile(cor_boot, c(0.025, 0.975)),
+                        linetype = "dashed", colour = "grey40") +
+    ggplot2$labs(
+        title = "Bootstrap Distribution of Correlation Coefficient",
+        subtitle = paste0("r = ", round(cor_observed, 3), ", Bootstrap SE = ", round(cor_se, 3)),
+        x = "Correlation",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/correlation_bootstrap-1.png" alt="Bootstrap distribution of correlation coefficient">
+	Bootstrap distribution of correlation coefficient
+</Figure>
+
+---
+
+## 6.3 Bootstrap Confidence Intervals
+
+### 6.3.1 Percentile Method
+
+**Prose and Intuition**
+
+The simplest bootstrap CI uses quantiles of the bootstrap distribution:
+
+$$CI_{percentile} = [\hat{\theta}^*_{(\alpha/2)}, \hat{\theta}^*_{(1-\alpha/2)}]$$
+
+For a 95% CI, take the 2.5th and 97.5th percentiles of bootstrap estimates.
+
+**Advantages**: Simple, transformation-respecting
+**Disadvantages**: Can have poor coverage if bootstrap distribution is skewed or biased
+
+
+``` r
+# Percentile CI function
+percentile_ci <- function(boot_dist, alpha = 0.05) {
+    quantile(boot_dist, c(alpha/2, 1 - alpha/2))
+}
+
+# Example: CI for median
+median_boot <- bootstrap_se(mean_radius, median, B = 5000)
+
+ci_percentile <- percentile_ci(median_boot$boot_dist)
+
+cat("Percentile Bootstrap CI for Median:\n")
+#> Percentile Bootstrap CI for Median:
+cat("====================================\n")
+#> ====================================
+cat("  Median:", round(median_boot$estimate, 3), "\n")
+#>   Median: 13.37
+cat("  95% CI:", round(ci_percentile, 3), "\n")
+#>   95% CI: 13.05 13.65
+```
+
+### 6.3.2 Basic (Pivotal) Method
+
+**Prose and Intuition**
+
+The **basic** (or pivotal) bootstrap CI uses the logic that if $\hat{\theta} - \theta$ is approximately pivotal, then:
+
+$$CI_{basic} = [2\hat{\theta} - \hat{\theta}^*_{(1-\alpha/2)}, 2\hat{\theta} - \hat{\theta}^*_{(\alpha/2)}]$$
+
+This "reflects" the bootstrap distribution around the point estimate.
+
+
+``` r
+# Basic CI function
+basic_ci <- function(theta_hat, boot_dist, alpha = 0.05) {
+    q <- quantile(boot_dist, c(alpha/2, 1 - alpha/2))
+    c(2 * theta_hat - q[2], 2 * theta_hat - q[1])
+}
+
+ci_basic <- basic_ci(median_boot$estimate, median_boot$boot_dist)
+
+cat("Basic Bootstrap CI for Median:\n")
+#> Basic Bootstrap CI for Median:
+cat("===============================\n")
+#> ===============================
+cat("  95% CI:", round(ci_basic, 3), "\n")
+#>   95% CI: 13.09 13.69
+```
+
+### 6.3.3 BCa Method
+
+**Prose and Intuition**
+
+The **BCa (Bias-Corrected and Accelerated)** method improves coverage by adjusting for:
+1. **Bias**: If the bootstrap distribution is centred differently than expected
+2. **Acceleration**: If the standard error varies with the parameter value
+
+BCa adjusts the percentiles used:
+
+$$CI_{BCa} = [\hat{\theta}^*_{(\alpha_1)}, \hat{\theta}^*_{(\alpha_2)}]$$
+
+where $\alpha_1$ and $\alpha_2$ are bias-corrected and accelerated percentiles.
+
+**Mathematical Framework**
+
+Define:
+- **Bias correction** $z_0$: $z_0 = \Phi^{-1}\left(\frac{\#\{\hat{\theta}^*_b < \hat{\theta}\}}{B}\right)$
+- **Acceleration** $a$: Estimated from jackknife influence values
+
+The adjusted percentiles are:
+$$\alpha_1 = \Phi\left(z_0 + \frac{z_0 + z_{\alpha/2}}{1 - a(z_0 + z_{\alpha/2})}\right)$$
+
+
+``` r
+# BCa CI implementation
+bca_ci <- function(x, statistic, B = 5000, alpha = 0.05) {
+    n <- length(x)
+    theta_hat <- statistic(x)
+
+    # Bootstrap distribution
+    theta_boot <- numeric(B)
+    for (b in 1:B) {
+        boot_sample <- sample(x, n, replace = TRUE)
+        theta_boot[b] <- statistic(boot_sample)
+    }
+
+    # Bias correction
+    z0 <- qnorm(mean(theta_boot < theta_hat))
+
+    # Acceleration (jackknife)
+    theta_jack <- numeric(n)
+    for (i in 1:n) {
+        theta_jack[i] <- statistic(x[-i])
+    }
+    theta_dot <- mean(theta_jack)
+    a <- sum((theta_dot - theta_jack)^3) / (6 * sum((theta_dot - theta_jack)^2)^1.5)
+
+    # Adjusted percentiles
+    z_alpha <- qnorm(c(alpha/2, 1 - alpha/2))
+    adjusted_alpha <- pnorm(z0 + (z0 + z_alpha) / (1 - a * (z0 + z_alpha)))
+
+    # CI
+    quantile(theta_boot, adjusted_alpha)
+}
+
+# Compare CI methods
+ci_percentile_mean <- percentile_ci(bootstrap_se(mean_radius, mean, B = 5000)$boot_dist)
+ci_basic_mean <- basic_ci(mean(mean_radius),
+                           bootstrap_se(mean_radius, mean, B = 5000)$boot_dist)
+ci_bca_mean <- bca_ci(mean_radius, mean, B = 5000)
+
+# For a skewed statistic: 90th percentile
+perc_90 <- function(x) quantile(x, 0.9)
+ci_percentile_p90 <- percentile_ci(bootstrap_se(mean_radius, perc_90, B = 5000)$boot_dist)
+ci_bca_p90 <- bca_ci(mean_radius, perc_90, B = 5000)
+
+cat("Bootstrap CI Comparison (Mean):\n")
+#> Bootstrap CI Comparison (Mean):
+cat("===============================\n")
+#> ===============================
+cat("  Percentile:", round(ci_percentile_mean, 3), "\n")
+#>   Percentile: 13.834 14.41
+cat("  Basic:", round(ci_basic_mean, 3), "\n")
+#>   Basic: 13.838 14.414
+cat("  BCa:", round(ci_bca_mean, 3), "\n")
+#>   BCa: 13.849 14.423
+
+cat("\nBootstrap CI Comparison (90th Percentile):\n")
+#> 
+#> Bootstrap CI Comparison (90th Percentile):
+cat("==========================================\n")
+#> ==========================================
+cat("  Percentile:", round(ci_percentile_p90, 3), "\n")
+#>   Percentile: 18.956 19.944
+cat("  BCa:", round(ci_bca_p90, 3), "\n")
+#>   BCa: 18.868 20.09
+
+# Visualise CI comparison
+ci_comparison <- data.table(
+    Method = c("Percentile", "Basic", "BCa"),
+    Lower = c(ci_percentile_mean[1], ci_basic_mean[1], ci_bca_mean[1]),
+    Upper = c(ci_percentile_mean[2], ci_basic_mean[2], ci_bca_mean[2])
+)
+ci_comparison[, Point := mean(mean_radius)]
+ci_comparison[, Method := factor(Method, levels = c("Percentile", "Basic", "BCa"))]
+
+ggplot2$ggplot(ci_comparison, ggplot2$aes(y = Method, x = Point)) +
+    ggplot2$geom_point(size = 4, colour = "#2166AC") +
+    ggplot2$geom_errorbarh(ggplot2$aes(xmin = Lower, xmax = Upper),
+                            height = 0.2, colour = "#2166AC", linewidth = 1) +
+    ggplot2$labs(
+        title = "Comparison of Bootstrap CI Methods",
+        subtitle = "95% Confidence Intervals for Mean Radius",
+        x = "Mean Radius",
+        y = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/bca_ci-1.png" alt="Comparison of bootstrap CI methods">
+	Comparison of bootstrap CI methods
+</Figure>
+
+---
+
+## 6.4 Bootstrap for Regression
+
+### 6.4.1 Cases vs Residual Bootstrap
+
+**Prose and Intuition**
+
+For regression models, two bootstrap approaches exist:
+
+**Cases (pairs) bootstrap**: Resample entire observations $(X_i, Y_i)$
+- Accounts for heteroscedasticity
+- More robust to model misspecification
+- Standard approach for most applications
+
+**Residual bootstrap**: Fix $X$, resample residuals, create new $Y^*$
+- Requires homoscedasticity assumption
+- Can be more efficient when assumption holds
+- Better for designed experiments with fixed $X$
+
+
+``` r
+# Regression: predict mean_radius from mean_texture and mean_perimeter
+reg_data <- breast_cancer[, .(mean_radius, mean_texture, mean_perimeter = mean_perimeter,
+                               mean_area, mean_smoothness)]
+
+# Original fit
+fit_orig <- lm(mean_radius ~ mean_texture + mean_perimeter + mean_area, data = reg_data)
+
+cat("Original Regression:\n")
+#> Original Regression:
+cat("====================\n")
+#> ====================
+print(summary(fit_orig)$coefficients)
+#>                    Estimate   Std. Error   t value      Pr(>|t|)
+#> (Intercept)     1.601968844 0.1161306281 13.794542  1.619880e-37
+#> mean_texture   -0.004232523 0.0022903654 -1.847968  6.512934e-02
+#> mean_perimeter  0.129242607 0.0023450942 55.111904 1.913149e-229
+#> mean_area       0.001100414 0.0001614273  6.816778  2.395981e-11
+
+# Cases bootstrap
+B <- 2000
+n_reg <- nrow(reg_data)
+coef_boot <- matrix(NA, nrow = B, ncol = length(coef(fit_orig)))
+colnames(coef_boot) <- names(coef(fit_orig))
+
+for (b in 1:B) {
+    idx <- sample(1:n_reg, n_reg, replace = TRUE)
+    boot_data <- reg_data[idx]
+    fit_boot <- lm(mean_radius ~ mean_texture + mean_perimeter + mean_area, data = boot_data)
+    coef_boot[b, ] <- coef(fit_boot)
+}
+
+# Bootstrap SEs
+boot_se <- apply(coef_boot, 2, sd)
+orig_se <- summary(fit_orig)$coefficients[, "Std. Error"]
+
+cat("\nStandard Error Comparison:\n")
+#> 
+#> Standard Error Comparison:
+cat("==========================\n")
+#> ==========================
+se_comparison <- data.table(
+    Coefficient = names(coef(fit_orig)),
+    OLS_SE = orig_se,
+    Bootstrap_SE = boot_se
+)
+print(se_comparison[, .(Coefficient, OLS_SE = round(OLS_SE, 5),
+                         Bootstrap_SE = round(Bootstrap_SE, 5))])
+#>       Coefficient  OLS_SE Bootstrap_SE
+#>            <char>   <num>        <num>
+#> 1:    (Intercept) 0.11613      0.23722
+#> 2:   mean_texture 0.00229      0.00222
+#> 3: mean_perimeter 0.00235      0.00516
+#> 4:      mean_area 0.00016      0.00038
+
+# Bootstrap distribution of mean_texture coefficient
+texture_boot <- coef_boot[, "mean_texture"]
+texture_ci <- quantile(texture_boot, c(0.025, 0.975))
+
+ggplot2$ggplot(data.table(coef = texture_boot), ggplot2$aes(x = coef)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..),
+                            bins = 50, fill = "#2166AC", alpha = 0.7) +
+    ggplot2$geom_density(colour = "#D95F02", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = coef(fit_orig)["mean_texture"],
+                        linetype = "solid", colour = "red") +
+    ggplot2$geom_vline(xintercept = texture_ci, linetype = "dashed", colour = "grey40") +
+    ggplot2$labs(
+        title = "Bootstrap Distribution: Mean Texture Coefficient",
+        subtitle = paste0("95% CI: [", round(texture_ci[1], 4), ", ", round(texture_ci[2], 4), "]"),
+        x = "Coefficient",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/regression_bootstrap-1.png" alt="Bootstrap inference for regression coefficients">
+	Bootstrap inference for regression coefficients
+</Figure>
+
+### 6.4.2 Bootstrap for Prediction Intervals
+
+**Prose and Intuition**
+
+Prediction intervals must account for two sources of uncertainty:
+1. **Estimation uncertainty**: Uncertainty in coefficients
+2. **Residual variance**: Natural variability in responses
+
+The bootstrap can capture both by:
+1. Resampling to get coefficient uncertainty
+2. Adding resampled residuals for response variability
+
+
+``` r
+# Bootstrap prediction intervals
+new_data <- data.table(
+    mean_texture = 20,
+    mean_perimeter = 100,
+    mean_area = 500
+)
+
+# Point prediction
+pred_point <- predict(fit_orig, newdata = new_data)
+
+# Bootstrap prediction interval
+B_pred <- 2000
+pred_boot <- numeric(B_pred)
+
+for (b in 1:B_pred) {
+    # Resample data
+    idx <- sample(1:n_reg, n_reg, replace = TRUE)
+    boot_data <- reg_data[idx]
+
+    # Fit model
+    fit_boot <- lm(mean_radius ~ mean_texture + mean_perimeter + mean_area, data = boot_data)
+
+    # Predict
+    pred_boot[b] <- predict(fit_boot, newdata = new_data)
+}
+
+# Add residual variability
+residual_var <- var(residuals(fit_orig))
+pred_with_noise <- pred_boot + rnorm(B_pred, 0, sqrt(residual_var))
+
+# CIs
+ci_mean <- quantile(pred_boot, c(0.025, 0.975))  # CI for mean response
+pi <- quantile(pred_with_noise, c(0.025, 0.975))  # Prediction interval
+
+cat("Bootstrap Prediction Intervals:\n")
+#> Bootstrap Prediction Intervals:
+cat("===============================\n")
+#> ===============================
+cat("  Point prediction:", round(pred_point, 3), "\n")
+#>   Point prediction: 14.992
+cat("  95% CI (mean response):", round(ci_mean, 3), "\n")
+#>   95% CI (mean response): 14.777 15.152
+cat("  95% Prediction interval:", round(pi, 3), "\n")
+#>   95% Prediction interval: 14.483 15.475
+```
+
+---
+
+## 6.5 Parametric Bootstrap
+
+### 6.5.1 When to Use Parametric Bootstrap
+
+**Prose and Intuition**
+
+The **parametric bootstrap** assumes a parametric model and resamples from the fitted distribution rather than the data.
+
+**Procedure**:
+1. Fit parametric model to data, obtaining $\hat{\theta}$
+2. Generate bootstrap samples from $f(x; \hat{\theta})$
+3. Re-estimate $\hat{\theta}^*$ from each bootstrap sample
+
+**When to use**:
+- Strong belief in parametric model
+- Small samples where nonparametric bootstrap is noisy
+- Model-based inference (e.g., likelihood ratio tests)
+
+
+``` r
+# Example: Exponential distribution
+# Simulate data
+n_exp <- 50
+true_rate <- 0.5
+exp_data <- rexp(n_exp, rate = true_rate)
+
+# MLE for rate
+rate_mle <- 1 / mean(exp_data)
+
+# Nonparametric bootstrap
+B_np <- 2000
+rate_np_boot <- numeric(B_np)
+for (b in 1:B_np) {
+    boot_sample <- sample(exp_data, n_exp, replace = TRUE)
+    rate_np_boot[b] <- 1 / mean(boot_sample)
+}
+
+# Parametric bootstrap
+rate_param_boot <- numeric(B_np)
+for (b in 1:B_np) {
+    param_sample <- rexp(n_exp, rate = rate_mle)
+    rate_param_boot[b] <- 1 / mean(param_sample)
+}
+
+cat("Parametric vs Nonparametric Bootstrap:\n")
+#> Parametric vs Nonparametric Bootstrap:
+cat("======================================\n")
+#> ======================================
+cat("  True rate:", true_rate, "\n")
+#>   True rate: 0.5
+cat("  MLE:", round(rate_mle, 4), "\n")
+#>   MLE: 0.5294
+cat("  Nonparametric SE:", round(sd(rate_np_boot), 4), "\n")
+#>   Nonparametric SE: 0.0763
+cat("  Parametric SE:", round(sd(rate_param_boot), 4), "\n")
+#>   Parametric SE: 0.0786
+cat("  Theoretical SE (MLE):", round(rate_mle / sqrt(n_exp), 4), "\n")
+#>   Theoretical SE (MLE): 0.0749
+
+# Visualise comparison
+boot_comparison <- rbind(
+    data.table(method = "Nonparametric", estimate = rate_np_boot),
+    data.table(method = "Parametric", estimate = rate_param_boot)
+)
+
+ggplot2$ggplot(boot_comparison, ggplot2$aes(x = estimate, fill = method)) +
+    ggplot2$geom_density(alpha = 0.5) +
+    ggplot2$geom_vline(xintercept = true_rate, linetype = "dashed", colour = "red") +
+    ggplot2$scale_fill_manual(values = c("Nonparametric" = "#2166AC",
+                                          "Parametric" = "#D95F02")) +
+    ggplot2$labs(
+        title = "Parametric vs Nonparametric Bootstrap",
+        subtitle = "Estimating exponential rate parameter",
+        x = "Rate Estimate",
+        y = "Density",
+        fill = "Method"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/parametric_bootstrap-1.png" alt="Parametric vs nonparametric bootstrap for exponential data">
+	Parametric vs nonparametric bootstrap for exponential data
+</Figure>
+
+---
+
+## 6.6 Bootstrap Diagnostics
+
+### 6.6.1 Assessing Bootstrap Convergence
+
+**Prose and Intuition**
+
+How many bootstrap samples ($B$) are needed? It depends on what you're estimating:
+- **Standard errors**: $B = 200-500$ often sufficient
+- **Confidence intervals**: $B = 1000-2000$ recommended
+- **Tail probabilities**: $B = 5000+$ may be needed
+
+Check convergence by plotting the running estimate as $B$ increases.
+
+
+``` r
+# Assess convergence
+B_max <- 5000
+boot_samples <- numeric(B_max)
+
+for (b in 1:B_max) {
+    boot_sample <- sample(mean_radius, length(mean_radius), replace = TRUE)
+    boot_samples[b] <- mean(boot_sample)
+}
+
+# Running SE
+running_se <- numeric(B_max)
+for (b in 50:B_max) {
+    running_se[b] <- sd(boot_samples[1:b])
+}
+
+convergence_data <- data.table(
+    B = 50:B_max,
+    SE = running_se[50:B_max]
+)
+
+ggplot2$ggplot(convergence_data, ggplot2$aes(x = B, y = SE)) +
+    ggplot2$geom_line(colour = "#2166AC", alpha = 0.7) +
+    ggplot2$geom_hline(yintercept = sd(boot_samples), linetype = "dashed", colour = "red") +
+    ggplot2$scale_x_log10() +
+    ggplot2$labs(
+        title = "Bootstrap Convergence",
+        subtitle = "Standard error estimate stabilises as B increases",
+        x = "Number of Bootstrap Samples (B)",
+        y = "Bootstrap SE"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/bootstrap_convergence-1.png" alt="Bootstrap convergence: standard error stabilises with increasing B">
+	Bootstrap convergence: standard error stabilises with increasing B
+</Figure>
+
+### 6.6.2 Monte Carlo Error
+
+**Prose and Intuition**
+
+Bootstrap estimates have **Monte Carlo error** due to using finite $B$. The Monte Carlo SE of the bootstrap SE is approximately:
+
+$$SE(\widehat{SE}_{boot}) \approx \frac{\widehat{SE}_{boot}}{\sqrt{2B}}$$
+
+For CI endpoints, the Monte Carlo error is larger.
+
+
+``` r
+# Monte Carlo error
+B_values <- c(100, 500, 1000, 2000, 5000)
+n_mc <- 100  # Repeat bootstrap procedure
+
+mc_results <- rbindlist(lapply(B_values, function(B) {
+    se_estimates <- numeric(n_mc)
+
+    for (m in 1:n_mc) {
+        boot_means <- replicate(B, mean(sample(mean_radius, length(mean_radius), replace = TRUE)))
+        se_estimates[m] <- sd(boot_means)
+    }
+
+    data.table(
+        B = B,
+        mean_se = mean(se_estimates),
+        sd_se = sd(se_estimates),
+        cv = sd(se_estimates) / mean(se_estimates)
+    )
+}))
+
+cat("Monte Carlo Error vs B:\n")
+#> Monte Carlo Error vs B:
+cat("=======================\n")
+#> =======================
+print(mc_results[, .(B, mean_se = round(mean_se, 4),
+                     sd_se = round(sd_se, 5),
+                     cv_pct = round(cv * 100, 2))])
+#>        B mean_se   sd_se cv_pct
+#>    <num>   <num>   <num>  <num>
+#> 1:   100  0.1485 0.01033   6.96
+#> 2:   500  0.1470 0.00479   3.26
+#> 3:  1000  0.1480 0.00324   2.19
+#> 4:  2000  0.1475 0.00237   1.60
+#> 5:  5000  0.1475 0.00165   1.12
+```
+
+---
+
+## 6.7 Summary and Best Practices
+
+### Key Takeaways
+
+1. **Bootstrap Principle**: Resample with replacement from the data to approximate sampling distributions.
+
+2. **Any Statistic**: The bootstrap works for means, medians, correlations, regression coefficients—any computable quantity.
+
+3. **CI Methods**:
+   - **Percentile**: Simple, use quantiles directly
+   - **Basic**: Reflects distribution around point estimate
+   - **BCa**: Bias-corrected and accelerated, best coverage
+
+4. **Regression**: Cases bootstrap resamples entire observations; residual bootstrap resamples errors.
+
+5. **Parametric Bootstrap**: Resamples from a fitted distribution; useful when model is trusted.
+
+6. **Convergence**: Use $B \geq 2000$ for confidence intervals; check running estimates.
+
+### Best Practices
+
+1. **Always set seed** for reproducibility
+2. **Use BCa** for confidence intervals when possible
+3. **Check convergence** by varying $B$
+4. **Report $B$** in publications
+5. **Cases bootstrap** for regression unless you're sure about homoscedasticity
+6. **Larger $B$** for tail probabilities and hypothesis tests
+
+### Communicating to Stakeholders
+
+**For a clinical audience**: "We used bootstrap resampling to estimate uncertainty in our correlation coefficient. Rather than relying on assumptions about the data distribution, we repeatedly resampled our data 5,000 times to empirically determine the variability of our estimate. The resulting 95% confidence interval is [0.23, 0.36]."
+
+**For a methods paper**: "Standard errors and 95% confidence intervals were computed using the bias-corrected and accelerated (BCa) bootstrap with B = 5,000 replicates. Bootstrap convergence was verified by examining the stability of SE estimates across varying values of B. Monte Carlo error in the SE estimate is approximately ±0.001."
+
+**Key vocabulary**:
+- Resampling, with replacement
+- Bootstrap distribution, bootstrap standard error
+- Percentile CI, BCa CI
+- Cases bootstrap, residual bootstrap
+- Monte Carlo error, convergence

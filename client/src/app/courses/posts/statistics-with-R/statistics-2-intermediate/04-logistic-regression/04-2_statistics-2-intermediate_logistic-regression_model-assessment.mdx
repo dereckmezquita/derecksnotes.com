@@ -164,7 +164,7 @@ There's no perfect analogue to R² in logistic regression, but several *pseudo-R
 ``` r
 # Calculate various pseudo-R² measures
 cat("Pseudo-R² Measures:\n")
-#> Pseudo-R<U+00B2> Measures:
+#> Pseudo-R² Measures:
 cat("===================\n\n")
 #> ===================
 
@@ -182,17 +182,17 @@ cox_snell_r2 <- 1 - exp((2/n) * (loglik_null - loglik_full))
 nagelkerke_r2 <- cox_snell_r2 / (1 - exp((2/n) * loglik_null))
 
 cat("McFadden's R²:", round(as.numeric(mcfadden_r2), 4), "\n")
-#> McFadden's R<U+00B2>: 0.1775
+#> McFadden's R²: 0.1775
 cat("  - Values 0.2-0.4 indicate excellent fit\n\n")
 #>   - Values 0.2-0.4 indicate excellent fit
 
 cat("Cox & Snell R²:", round(as.numeric(cox_snell_r2), 4), "\n")
-#> Cox & Snell R<U+00B2>: 0.1091
+#> Cox & Snell R²: 0.1091
 cat("  - Maximum < 1, hard to interpret\n\n")
 #>   - Maximum < 1, hard to interpret
 
 cat("Nagelkerke's R²:", round(as.numeric(nagelkerke_r2), 4), "\n")
-#> Nagelkerke's R<U+00B2>: 0.2281
+#> Nagelkerke's R²: 0.2281
 cat("  - Adjusted to have max = 1\n")
 #>   - Adjusted to have max = 1
 ```

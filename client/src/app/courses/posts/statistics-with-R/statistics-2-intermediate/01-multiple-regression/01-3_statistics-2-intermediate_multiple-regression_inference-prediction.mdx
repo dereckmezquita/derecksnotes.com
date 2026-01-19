@@ -197,9 +197,9 @@ cat("Sum of squared residuals:", round(sum(residuals^2), 2), "\n")
 cat("Degrees of freedom (n - p - 1):", n - p - 1, "\n")
 #> Degrees of freedom (n - p - 1): 7146
 cat("Estimated σ² (s²):", round(s_squared, 4), "\n")
-#> Estimated <U+03C3><U+00B2> (s<U+00B2>): 235.6765
+#> Estimated σ² (s²): 235.6765
 cat("Estimated σ (s):", round(s, 4), "\n")
-#> Estimated <U+03C3> (s): 15.3518
+#> Estimated σ (s): 15.3518
 cat("\nFrom model summary:", round(summary(model)$sigma, 4), "\n")
 #> 
 #> From model summary: 15.3518
@@ -708,7 +708,7 @@ r2_comparison <- data.table(
 )
 
 cat("R² vs Adjusted R²:\n")
-#> R<U+00B2> vs Adjusted R<U+00B2>:
+#> R² vs Adjusted R²:
 cat("==================\n\n")
 #> ==================
 print(r2_comparison)
@@ -722,7 +722,7 @@ print(r2_comparison)
 
 cat("\nNote: R² increased when adding 'Random' but Adjusted R² decreased,\n")
 #> 
-#> Note: R<U+00B2> increased when adding 'Random' but Adjusted R<U+00B2> decreased,
+#> Note: R² increased when adding 'Random' but Adjusted R² decreased,
 cat("correctly indicating that the random predictor adds no information.\n")
 #> correctly indicating that the random predictor adds no information.
 
@@ -747,8 +747,8 @@ ggplot2$ggplot(r2_long, ggplot2$aes(x = Model, y = Value, colour = Measure, grou
     ggplot2$theme_minimal()
 ```
 
-<Figure src="/courses/statistics-2-intermediate/r_squared-1.png" alt="R&lt;U+00B2&gt; vs Adjusted R&lt;U+00B2&gt; as predictors are added">
-	R&lt;U+00B2&gt; vs Adjusted R&lt;U+00B2&gt; as predictors are added
+<Figure src="/courses/statistics-2-intermediate/r_squared-1.png" alt="R² vs Adjusted R² as predictors are added">
+	R² vs Adjusted R² as predictors are added
 </Figure>
 
 ---
