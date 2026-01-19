@@ -4,7 +4,7 @@ chapter: "Chapter 11: Chi-Square and Non-Parametric Tests"
 part: "Part 1: Chi-Square Tests"
 coverImage: 13
 author: "Dereck Mezquita"
-date: "`r Sys.Date()`"
+date: "2026-01-18"
 tags: [statistics, chi-square, contingency-table, goodness-of-fit, independence, R, biomedical]
 published: true
 comments: true
@@ -13,25 +13,18 @@ output:
     keep_md: true
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(
-    echo = TRUE,
-    message = FALSE,
-    warning = FALSE,
-    fig.width = 10,
-    fig.height = 6,
-    out.width = "100%"
-)
-```
 
-```{r packages}
+
+
+``` r
 box::use(
     data.table[...],
     ggplot2
 )
 ```
 
-```{r load_data}
+
+``` r
 nhanes <- fread("../data/primary/nhanes.csv")
 ```
 
@@ -62,7 +55,8 @@ $$\chi^2 = \sum_{i=1}^{k} \frac{(O_i - E_i)^2}{E_i}$$
 - Under $H_0$, this follows a chi-square distribution with appropriate degrees of freedom
 - Always non-negative (squared differences)
 
-```{r chi_square_intro, fig.cap="The chi-square distribution for various degrees of freedom"}
+
+``` r
 # Visualise chi-square distributions
 x_seq <- seq(0, 20, length.out = 200)
 
@@ -86,6 +80,11 @@ ggplot2$ggplot(chi_sq_data, ggplot2$aes(x = x, y = y, colour = df)) +
     ggplot2$theme_minimal()
 ```
 
+<div class="figure">
+<img src="/courses/statistics-1-foundations/chi_square_intro-1.png" alt="The chi-square distribution for various degrees of freedom" width="100%" />
+<p class="caption">The chi-square distribution for various degrees of freedom</p>
+</div>
+
 ---
 
 ## 11.2 Chi-Square Goodness-of-Fit Test
@@ -105,7 +104,8 @@ $$\chi^2 = \sum_{i=1}^{k} \frac{(O_i - E_i)^2}{E_i}$$
 
 ### 11.2.2 Example: Testing for Equal Proportions
 
-```{r gof_equal}
+
+``` r
 # Example: Are blood types equally distributed?
 # Suppose we observe blood types in a sample
 set.seed(123)
@@ -118,9 +118,29 @@ expected_prop <- rep(1/4, 4)
 expected <- n * expected_prop
 
 cat("Chi-Square Goodness-of-Fit: Blood Type Distribution\n")
-cat("====================================================\n\n")
-cat("H₀: Blood types are equally distributed (25% each)\n\n")
+```
 
+```
+## Chi-Square Goodness-of-Fit: Blood Type Distribution
+```
+
+``` r
+cat("====================================================\n\n")
+```
+
+```
+## ====================================================
+```
+
+``` r
+cat("H₀: Blood types are equally distributed (25% each)\n\n")
+```
+
+```
+## H<U+2080>: Blood types are equally distributed (25% each)
+```
+
+``` r
 result_table <- data.table(
     `Blood Type` = blood_types,
     Observed = observed,
@@ -128,16 +148,48 @@ result_table <- data.table(
     `(O-E)²/E` = (observed - expected)^2 / expected
 )
 print(result_table)
+```
 
+```
+##    Blood Type Observed Expected (O-E)<U+00B2>/E
+##        <char>    <num>    <num>           <num>
+## 1:          A       42       25           11.56
+## 2:          B       18       25            1.96
+## 3:         AB        8       25           11.56
+## 4:          O       32       25            1.96
+```
+
+``` r
 # Calculate chi-square statistic
 chi_sq <- sum((observed - expected)^2 / expected)
 df <- length(blood_types) - 1
 p_value <- pchisq(chi_sq, df = df, lower.tail = FALSE)
 
 cat(sprintf("\nχ² = %.3f\n", chi_sq))
-cat(sprintf("df = %d\n", df))
-cat(sprintf("p-value = %.4f\n\n", p_value))
+```
 
+```
+## 
+## <U+03C7><U+00B2> = 27.040
+```
+
+``` r
+cat(sprintf("df = %d\n", df))
+```
+
+```
+## df = 3
+```
+
+``` r
+cat(sprintf("p-value = %.4f\n\n", p_value))
+```
+
+```
+## p-value = 0.0000
+```
+
+``` r
 if (p_value < 0.05) {
     cat("Decision: Reject H₀\n")
     cat("Conclusion: Blood types are not equally distributed\n")
@@ -145,15 +197,40 @@ if (p_value < 0.05) {
     cat("Decision: Fail to reject H₀\n")
     cat("Conclusion: No evidence against equal distribution\n")
 }
+```
 
+```
+## Decision: Reject H<U+2080>
+## Conclusion: Blood types are not equally distributed
+```
+
+``` r
 # Verify with R
 cat("\n\nVerification with chisq.test():\n")
+```
+
+```
+## 
+## 
+## Verification with chisq.test():
+```
+
+``` r
 print(chisq.test(observed, p = expected_prop))
+```
+
+```
+## 
+## 	Chi-squared test for given probabilities
+## 
+## data:  observed
+## X-squared = 27.04, df = 3, p-value = 5.775e-06
 ```
 
 ### 11.2.3 Testing Against a Known Distribution
 
-```{r gof_known}
+
+``` r
 # Example: Do blood types follow known population frequencies?
 # US population frequencies (approximately)
 known_prop <- c(A = 0.42, B = 0.10, AB = 0.04, O = 0.44)
@@ -162,9 +239,29 @@ n <- sum(observed)
 expected <- n * known_prop
 
 cat("Chi-Square Goodness-of-Fit: Against Known Proportions\n")
-cat("======================================================\n\n")
-cat("H₀: Sample follows US population blood type distribution\n\n")
+```
 
+```
+## Chi-Square Goodness-of-Fit: Against Known Proportions
+```
+
+``` r
+cat("======================================================\n\n")
+```
+
+```
+## ======================================================
+```
+
+``` r
+cat("H₀: Sample follows US population blood type distribution\n\n")
+```
+
+```
+## H<U+2080>: Sample follows US population blood type distribution
+```
+
+``` r
 result_table <- data.table(
     `Blood Type` = names(known_prop),
     Observed = observed,
@@ -172,21 +269,56 @@ result_table <- data.table(
     `(O-E)²/E` = (observed - expected)^2 / expected
 )
 print(result_table)
+```
 
+```
+##    Blood Type Observed Expected (US) (O-E)<U+00B2>/E
+##        <char>    <num>         <num>           <num>
+## 1:          A       42            42        0.000000
+## 2:          B       18            10        6.400000
+## 3:         AB        8             4        4.000000
+## 4:          O       32            44        3.272727
+```
+
+``` r
 chi_sq <- sum((observed - expected)^2 / expected)
 df <- length(observed) - 1
 p_value <- pchisq(chi_sq, df = df, lower.tail = FALSE)
 
 cat(sprintf("\nχ² = %.3f, df = %d, p = %.4f\n", chi_sq, df, p_value))
+```
 
+```
+## 
+## <U+03C7><U+00B2> = 13.673, df = 3, p = 0.0034
+```
+
+``` r
 # Verify
 cat("\nVerification:\n")
+```
+
+```
+## 
+## Verification:
+```
+
+``` r
 print(chisq.test(observed, p = known_prop))
+```
+
+```
+## 
+## 	Chi-squared test for given probabilities
+## 
+## data:  observed
+## X-squared = 13.673, df = 3, p-value = 0.003386
 ```
 
 ### 11.2.4 Goodness-of-Fit Function from Scratch
 
-```{r gof_scratch}
+
+``` r
 chi_sq_gof <- function(observed, expected = NULL, p = NULL) {
     k <- length(observed)
     n <- sum(observed)
@@ -228,11 +360,44 @@ chi_sq_gof <- function(observed, expected = NULL, p = NULL) {
 result <- chi_sq_gof(c(42, 18, 8, 32), p = c(0.42, 0.10, 0.04, 0.44))
 
 cat("Custom chi_sq_gof() Results:\n")
+```
+
+```
+## Custom chi_sq_gof() Results:
+```
+
+``` r
 cat("============================\n")
+```
+
+```
+## ============================
+```
+
+``` r
 cat(sprintf("χ² = %.3f, df = %d, p = %.4f\n",
             result$statistic, result$df, result$p.value))
+```
+
+```
+## <U+03C7><U+00B2> = 13.673, df = 3, p = 0.0034
+```
+
+``` r
 cat("\nStandardised residuals:\n")
+```
+
+```
+## 
+## Standardised residuals:
+```
+
+``` r
 print(round(result$residuals, 3))
+```
+
+```
+## [1]  0.000  2.530  2.000 -1.809
 ```
 
 ---
@@ -243,7 +408,8 @@ print(round(result$residuals, 3))
 
 A **contingency table** (or cross-tabulation) displays the frequency distribution of two categorical variables.
 
-```{r contingency_table}
+
+``` r
 # Create contingency table: Smoking status vs Diabetes
 smoke_diabetes <- nhanes[!is.na(SmokeNow) & !is.na(Diabetes)]
 smoke_diabetes <- smoke_diabetes[SmokeNow %in% c("Yes", "No") & Diabetes %in% c("Yes", "No")]
@@ -253,12 +419,52 @@ cont_table <- table(smoke_diabetes$SmokeNow, smoke_diabetes$Diabetes)
 dimnames(cont_table) <- list(Smoking = c("No", "Yes"), Diabetes = c("No", "Yes"))
 
 cat("Contingency Table: Smoking Status × Diabetes\n")
-cat("=============================================\n\n")
-print(cont_table)
+```
 
+```
+## Contingency Table: Smoking Status <U+00D7> Diabetes
+```
+
+``` r
+cat("=============================================\n\n")
+```
+
+```
+## =============================================
+```
+
+``` r
+print(cont_table)
+```
+
+```
+##        Diabetes
+## Smoking   No  Yes
+##     No  1476  267
+##     Yes 1360  106
+```
+
+``` r
 # Add margins
 cat("\n\nWith row and column totals:\n")
+```
+
+```
+## 
+## 
+## With row and column totals:
+```
+
+``` r
 print(addmargins(cont_table))
+```
+
+```
+##        Diabetes
+## Smoking   No  Yes  Sum
+##     No  1476  267 1743
+##     Yes 1360  106 1466
+##     Sum 2836  373 3209
 ```
 
 ### 11.3.2 The Test of Independence
@@ -272,7 +478,8 @@ $$E_{ij} = \frac{(\text{row } i \text{ total}) \times (\text{column } j \text{ t
 
 **Degrees of freedom:** $df = (r - 1)(c - 1)$ where r = rows, c = columns
 
-```{r independence_test}
+
+``` r
 # Calculate expected frequencies under independence
 row_totals <- rowSums(cont_table)
 col_totals <- colSums(cont_table)
@@ -281,18 +488,61 @@ grand_total <- sum(cont_table)
 expected <- outer(row_totals, col_totals) / grand_total
 
 cat("Expected Frequencies Under Independence\n")
-cat("=======================================\n\n")
-print(round(expected, 1))
+```
 
+```
+## Expected Frequencies Under Independence
+```
+
+``` r
+cat("=======================================\n\n")
+```
+
+```
+## =======================================
+```
+
+``` r
+print(round(expected, 1))
+```
+
+```
+##         No   Yes
+## No  1540.4 202.6
+## Yes 1295.6 170.4
+```
+
+``` r
 # Chi-square statistic
 chi_sq <- sum((cont_table - expected)^2 / expected)
 df <- (nrow(cont_table) - 1) * (ncol(cont_table) - 1)
 p_value <- pchisq(chi_sq, df = df, lower.tail = FALSE)
 
 cat(sprintf("\nχ² = %.3f\n", chi_sq))
-cat(sprintf("df = %d\n", df))
-cat(sprintf("p-value = %.4f\n\n", p_value))
+```
 
+```
+## 
+## <U+03C7><U+00B2> = 50.705
+```
+
+``` r
+cat(sprintf("df = %d\n", df))
+```
+
+```
+## df = 1
+```
+
+``` r
+cat(sprintf("p-value = %.4f\n\n", p_value))
+```
+
+```
+## p-value = 0.0000
+```
+
+``` r
 if (p_value < 0.05) {
     cat("Decision: Reject H₀\n")
     cat("Conclusion: Smoking and diabetes are associated\n")
@@ -300,16 +550,41 @@ if (p_value < 0.05) {
     cat("Decision: Fail to reject H₀\n")
     cat("Conclusion: No evidence of association\n")
 }
+```
 
+```
+## Decision: Reject H<U+2080>
+## Conclusion: Smoking and diabetes are associated
+```
+
+``` r
 # Verify with R
 cat("\n\nVerification with chisq.test():\n")
+```
+
+```
+## 
+## 
+## Verification with chisq.test():
+```
+
+``` r
 result <- chisq.test(cont_table)
 print(result)
 ```
 
+```
+## 
+## 	Pearson's Chi-squared test with Yates' continuity correction
+## 
+## data:  cont_table
+## X-squared = 49.921, df = 1, p-value = 1.601e-12
+```
+
 ### 11.3.3 Visualising the Contingency Table
 
-```{r contingency_visual, fig.cap="Mosaic plot of smoking × diabetes"}
+
+``` r
 # Convert to data.table for plotting
 plot_data <- as.data.table(cont_table)
 setnames(plot_data, c("Smoking", "Diabetes", "N"))
@@ -331,9 +606,15 @@ ggplot2$ggplot(plot_data, ggplot2$aes(x = Smoking, y = N, fill = Diabetes)) +
     ggplot2$theme_minimal()
 ```
 
+<div class="figure">
+<img src="/courses/statistics-1-foundations/contingency_visual-1.png" alt="Mosaic plot of smoking &lt;U+00D7&gt; diabetes" width="100%" />
+<p class="caption">Mosaic plot of smoking <U+00D7> diabetes</p>
+</div>
+
 ### 11.3.4 Independence Test Function from Scratch
 
-```{r independence_scratch}
+
+``` r
 chi_sq_independence <- function(table) {
     # Get dimensions
     r <- nrow(table)
@@ -376,12 +657,47 @@ chi_sq_independence <- function(table) {
 result <- chi_sq_independence(cont_table)
 
 cat("Custom chi_sq_independence() Results:\n")
+```
+
+```
+## Custom chi_sq_independence() Results:
+```
+
+``` r
 cat("=====================================\n")
+```
+
+```
+## =====================================
+```
+
+``` r
 cat(sprintf("χ² = %.3f, df = %d, p = %.4f\n",
             result$statistic, result$df, result$p.value))
+```
 
+```
+## <U+03C7><U+00B2> = 50.705, df = 1, p = 0.0000
+```
+
+``` r
 cat("\nStandardised residuals (|z| > 2 suggest cells contributing to association):\n")
+```
+
+```
+## 
+## Standardised residuals (|z| > 2 suggest cells contributing to association):
+```
+
+``` r
 print(round(result$residuals, 3))
+```
+
+```
+##        Diabetes
+## Smoking     No    Yes
+##     No  -1.641  4.525
+##     Yes  1.789 -4.934
 ```
 
 ---
@@ -401,7 +717,8 @@ Ranges from 0 (no association) to 1 (perfect association).
 - Medium: V ≈ 0.3
 - Large: V ≈ 0.5
 
-```{r cramers_v}
+
+``` r
 cramers_v <- function(table) {
     chi_sq <- chisq.test(table)$statistic
     n <- sum(table)
@@ -413,12 +730,37 @@ cramers_v <- function(table) {
 v <- cramers_v(cont_table)
 
 cat("Effect Size: Cramér's V\n")
+```
+
+```
+## Effect Size: Cram<U+00E9>r's V
+```
+
+``` r
 cat("=======================\n\n")
+```
+
+```
+## =======================
+```
+
+``` r
 cat(sprintf("V = %.4f\n", v))
+```
+
+```
+## V = 0.1247
+```
+
+``` r
 cat(sprintf("Interpretation: %s effect\n",
             ifelse(v < 0.1, "negligible",
                    ifelse(v < 0.3, "small",
                           ifelse(v < 0.5, "medium", "large")))))
+```
+
+```
+## Interpretation: small effect
 ```
 
 ### 11.4.2 Phi Coefficient (2×2 Tables)
@@ -429,13 +771,40 @@ $$\phi = \sqrt{\frac{\chi^2}{n}}$$
 
 Also interpretable as a correlation coefficient.
 
-```{r phi_coefficient}
+
+``` r
 phi <- sqrt(chi_sq / sum(cont_table))
 
 cat("Phi Coefficient (2×2 table)\n")
+```
+
+```
+## Phi Coefficient (2<U+00D7>2 table)
+```
+
+``` r
 cat("===========================\n\n")
+```
+
+```
+## ===========================
+```
+
+``` r
 cat(sprintf("φ = %.4f\n", phi))
+```
+
+```
+## <U+03C6> = 0.1257
+```
+
+``` r
 cat("\nNote: For 2×2 tables, φ = V\n")
+```
+
+```
+## 
+## Note: For 2<U+00D7>2 tables, <U+03C6> = V
 ```
 
 ### 11.4.3 Odds Ratio (2×2 Tables)
@@ -444,7 +813,8 @@ For 2×2 tables, the odds ratio is often more interpretable:
 
 $$OR = \frac{a \cdot d}{b \cdot c}$$
 
-```{r odds_ratio_chisq}
+
+``` r
 # Extract cells
 a <- cont_table[1, 1]  # Non-smoker, No diabetes
 b <- cont_table[1, 2]  # Non-smoker, Diabetes
@@ -457,9 +827,29 @@ se_log_or <- sqrt(1/a + 1/b + 1/c + 1/d)
 ci_or <- exp(c(log_or - 1.96 * se_log_or, log_or + 1.96 * se_log_or))
 
 cat("Odds Ratio\n")
-cat("==========\n\n")
-cat(sprintf("OR = %.3f (95%% CI: %.3f to %.3f)\n", or, ci_or[1], ci_or[2]))
+```
 
+```
+## Odds Ratio
+```
+
+``` r
+cat("==========\n\n")
+```
+
+```
+## ==========
+```
+
+``` r
+cat(sprintf("OR = %.3f (95%% CI: %.3f to %.3f)\n", or, ci_or[1], ci_or[2]))
+```
+
+```
+## OR = 0.431 (95% CI: 0.340 to 0.546)
+```
+
+``` r
 if (or > 1) {
     cat(sprintf("\nInterpretation: Smokers have %.1f%% higher odds of diabetes\n",
                 (or - 1) * 100))
@@ -467,6 +857,11 @@ if (or > 1) {
     cat(sprintf("\nInterpretation: Smokers have %.1f%% lower odds of diabetes\n",
                 (1 - or) * 100))
 }
+```
+
+```
+## 
+## Interpretation: Smokers have 56.9% lower odds of diabetes
 ```
 
 ---
@@ -477,7 +872,8 @@ if (or > 1) {
 
 The chi-square test extends naturally to tables with more than 2 rows or columns.
 
-```{r larger_table}
+
+``` r
 # Create larger table: Age group × Education level
 age_edu <- nhanes[!is.na(AgeDecade) & AgeDecade != "" & !is.na(Education) & Education != ""]
 age_edu <- age_edu[AgeDecade %in% c("20-29", "30-39", "40-49", "50-59")]
@@ -487,15 +883,48 @@ age_edu <- age_edu[Education %in% c("8th Grade", "High School", "Some College", 
 large_table <- table(age_edu$AgeDecade, age_edu$Education)
 
 cat("Larger Contingency Table: Age × Education\n")
-cat("==========================================\n\n")
-print(addmargins(large_table))
+```
 
+```
+## Larger Contingency Table: Age <U+00D7> Education
+```
+
+``` r
+cat("==========================================\n\n")
+```
+
+```
+## ==========================================
+```
+
+``` r
+print(addmargins(large_table))
+```
+
+```
+##        
+##         8th Grade College Grad High School Some College  Sum
+##   20-29        37          293         313          537 1180
+##   30-39        73          447         222          452 1194
+##   40-49        88          481         303          355 1227
+##   50-59        66          417         271          386 1140
+##   Sum         264         1638        1109         1730 4741
+```
+
+``` r
 # Test
 result <- chisq.test(large_table)
 
 cat(sprintf("\nχ² = %.3f, df = %d, p = %.4f\n",
             result$statistic, result$parameter, result$p.value))
+```
 
+```
+## 
+## <U+03C7><U+00B2> = 129.081, df = 9, p = 0.0000
+```
+
+``` r
 # Effect size
 v <- cramers_v(large_table)
 cat(sprintf("Cramér's V = %.4f (%s effect)\n", v,
@@ -504,17 +933,54 @@ cat(sprintf("Cramér's V = %.4f (%s effect)\n", v,
                           ifelse(v < 0.5, "medium", "large")))))
 ```
 
+```
+## Cram<U+00E9>r's V = 0.0953 (negligible effect)
+```
+
 ### 11.5.2 Post-hoc Analysis: Standardised Residuals
 
 After finding a significant association, examine standardised residuals to identify which cells contribute most:
 
-```{r post_hoc}
+
+``` r
 # Standardised residuals
 cat("Standardised Residuals\n")
-cat("======================\n\n")
-cat("(Values > 2 or < -2 indicate significant deviation)\n\n")
-print(round(result$residuals, 2))
+```
 
+```
+## Standardised Residuals
+```
+
+``` r
+cat("======================\n\n")
+```
+
+```
+## ======================
+```
+
+``` r
+cat("(Values > 2 or < -2 indicate significant deviation)\n\n")
+```
+
+```
+## (Values > 2 or < -2 indicate significant deviation)
+```
+
+``` r
+print(round(result$residuals, 2))
+```
+
+```
+##        
+##         8th Grade College Grad High School Some College
+##   20-29     -3.54        -5.68        2.23         5.13
+##   30-39      0.80         1.70       -3.43         0.78
+##   40-49      2.38         2.77        0.94        -4.38
+##   50-59      0.32         1.17        0.27        -1.47
+```
+
+``` r
 # Visualise residuals
 resid_data <- as.data.table(result$residuals)
 setnames(resid_data, c("Age", "Education", "Residual"))
@@ -534,6 +1000,11 @@ ggplot2$ggplot(resid_data, ggplot2$aes(x = Education, y = Age, fill = Residual))
     ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
 ```
 
+<div class="figure">
+<img src="/courses/statistics-1-foundations/post_hoc-1.png" alt="plot of chunk post_hoc" width="100%" />
+<p class="caption">plot of chunk post_hoc</p>
+</div>
+
 ---
 
 ## 11.6 Assumptions and Alternatives
@@ -551,47 +1022,142 @@ For 2×2 tables with small expected counts, apply Yates' correction:
 
 $$\chi^2_{\text{Yates}} = \sum \frac{(|O_i - E_i| - 0.5)^2}{E_i}$$
 
-```{r yates_correction}
+
+``` r
 # With and without Yates correction
 cat("Yates' Continuity Correction\n")
-cat("============================\n\n")
+```
 
+```
+## Yates' Continuity Correction
+```
+
+``` r
+cat("============================\n\n")
+```
+
+```
+## ============================
+```
+
+``` r
 result_no_correction <- chisq.test(cont_table, correct = FALSE)
 result_with_correction <- chisq.test(cont_table, correct = TRUE)
 
 cat(sprintf("Without correction: χ² = %.3f, p = %.4f\n",
             result_no_correction$statistic, result_no_correction$p.value))
+```
+
+```
+## Without correction: <U+03C7><U+00B2> = 50.705, p = 0.0000
+```
+
+``` r
 cat(sprintf("With Yates' correction: χ² = %.3f, p = %.4f\n",
             result_with_correction$statistic, result_with_correction$p.value))
+```
 
+```
+## With Yates' correction: <U+03C7><U+00B2> = 49.921, p = 0.0000
+```
+
+``` r
 cat("\nNote: Yates' correction makes the test more conservative.\n")
+```
+
+```
+## 
+## Note: Yates' correction makes the test more conservative.
+```
+
+``` r
 cat("It's automatic in R's chisq.test() for 2×2 tables.\n")
+```
+
+```
+## It's automatic in R's chisq.test() for 2<U+00D7>2 tables.
 ```
 
 ### 11.6.3 Fisher's Exact Test
 
 When expected counts are small (< 5), use Fisher's exact test instead:
 
-```{r fisher_exact}
+
+``` r
 # Create a small table
 small_table <- matrix(c(3, 1, 1, 5), nrow = 2,
                       dimnames = list(c("Treatment", "Control"),
                                      c("Success", "Failure")))
 
 cat("Small Contingency Table\n")
-cat("=======================\n\n")
-print(small_table)
+```
 
+```
+## Small Contingency Table
+```
+
+``` r
+cat("=======================\n\n")
+```
+
+```
+## =======================
+```
+
+``` r
+print(small_table)
+```
+
+```
+##           Success Failure
+## Treatment       3       1
+## Control         1       5
+```
+
+``` r
 # Chi-square (with warning)
 cat("\nChi-square test:\n")
+```
+
+```
+## 
+## Chi-square test:
+```
+
+``` r
 suppressWarnings(result_chi <- chisq.test(small_table))
 cat(sprintf("χ² = %.3f, p = %.4f\n", result_chi$statistic, result_chi$p.value))
-cat("Warning: Expected counts may be too small\n")
+```
 
+```
+## <U+03C7><U+00B2> = 1.406, p = 0.2357
+```
+
+``` r
+cat("Warning: Expected counts may be too small\n")
+```
+
+```
+## Warning: Expected counts may be too small
+```
+
+``` r
 # Fisher's exact
 cat("\nFisher's exact test (preferred for small counts):\n")
+```
+
+```
+## 
+## Fisher's exact test (preferred for small counts):
+```
+
+``` r
 result_fisher <- fisher.test(small_table)
 cat(sprintf("OR = %.3f, p = %.4f\n", result_fisher$estimate, result_fisher$p.value))
+```
+
+```
+## OR = 10.294, p = 0.1905
 ```
 
 ---
@@ -606,25 +1172,94 @@ cat(sprintf("OR = %.3f, p = %.4f\n", result_fisher$estimate, result_fisher$p.val
 3. Effect size (Cramér's V or odds ratio)
 4. Interpretation in context
 
-```{r chi_sq_report}
+
+``` r
 cat("STATISTICAL REPORT: Smoking and Diabetes Association\n")
+```
+
+```
+## STATISTICAL REPORT: Smoking and Diabetes Association
+```
+
+``` r
 cat("=====================================================\n\n")
+```
 
+```
+## =====================================================
+```
+
+``` r
 cat("Contingency Table:\n")
-print(addmargins(cont_table))
+```
 
+```
+## Contingency Table:
+```
+
+``` r
+print(addmargins(cont_table))
+```
+
+```
+##        Diabetes
+## Smoking   No  Yes  Sum
+##     No  1476  267 1743
+##     Yes 1360  106 1466
+##     Sum 2836  373 3209
+```
+
+``` r
 result <- chisq.test(cont_table)
 v <- cramers_v(cont_table)
 
 cat("\n\nStatistical Analysis:\n")
+```
+
+```
+## 
+## 
+## Statistical Analysis:
+```
+
+``` r
 cat(sprintf("χ²(%d) = %.2f, p = %.4f\n", result$parameter, result$statistic, result$p.value))
+```
+
+```
+## <U+03C7><U+00B2>(1) = 49.92, p = 0.0000
+```
+
+``` r
 cat(sprintf("Cramér's V = %.3f (%s effect)\n", v,
             ifelse(v < 0.1, "negligible",
                    ifelse(v < 0.3, "small",
                           ifelse(v < 0.5, "medium", "large")))))
-cat(sprintf("Odds Ratio = %.2f (95%% CI: %.2f - %.2f)\n", or, ci_or[1], ci_or[2]))
+```
 
+```
+## Cram<U+00E9>r's V = 0.125 (small effect)
+```
+
+``` r
+cat(sprintf("Odds Ratio = %.2f (95%% CI: %.2f - %.2f)\n", or, ci_or[1], ci_or[2]))
+```
+
+```
+## Odds Ratio = 0.43 (95% CI: 0.34 - 0.55)
+```
+
+``` r
 cat("\n\nInterpretation:\n")
+```
+
+```
+## 
+## 
+## Interpretation:
+```
+
+``` r
 if (result$p.value < 0.05) {
     cat("There was a statistically significant association between smoking\n")
     cat("status and diabetes diagnosis. ")
@@ -632,8 +1267,27 @@ if (result$p.value < 0.05) {
     cat("There was no statistically significant association between smoking\n")
     cat("status and diabetes diagnosis. ")
 }
+```
+
+```
+## There was a statistically significant association between smoking
+## status and diabetes diagnosis.
+```
+
+``` r
 cat(sprintf("The effect size (V = %.3f) suggests\n", v))
+```
+
+```
+## The effect size (V = 0.125) suggests
+```
+
+``` r
 cat("this association is relatively weak.\n")
+```
+
+```
+## this association is relatively weak.
 ```
 
 ---

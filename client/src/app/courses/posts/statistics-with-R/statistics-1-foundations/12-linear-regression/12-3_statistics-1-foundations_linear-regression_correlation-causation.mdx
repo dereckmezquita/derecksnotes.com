@@ -1,0 +1,1320 @@
+---
+title: "Correlation, Causation, and Practical Considerations"
+subtitle: "Part 3 of Chapter 12: Linear Regression"
+author: "Dereck Mezquita"
+date: "2026-01-18"
+output: html_document
+---
+
+
+
+## 12.20 Correlation Revisited
+
+Before concluding our treatment of linear regression, we revisit correlation—the measure that underlies the simple linear regression relationship.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load NHANES data
+nhanes <- fread("../data/primary/nhanes.csv")
+
+# Create analysis dataset
+set.seed(123)
+reg_data <- nhanes[!is.na(Height) & !is.na(Weight) & Age >= 18]
+sample_data <- reg_data[sample(.N, 500)]
+```
+
+---
+
+## 12.21 Pearson Correlation Coefficient
+
+### 12.21.1 Definition and Properties
+
+The **Pearson correlation coefficient** measures the strength and direction of the linear relationship between two variables:
+
+$$r = \frac{\sum_{i=1}^{n}(X_i - \bar{X})(Y_i - \bar{Y})}{\sqrt{\sum_{i=1}^{n}(X_i - \bar{X})^2 \sum_{i=1}^{n}(Y_i - \bar{Y})^2}} = \frac{S_{XY}}{\sqrt{S_{XX} \cdot S_{YY}}}$$
+
+**Properties:**
+- Range: $-1 \leq r \leq 1$
+- $r = 1$: Perfect positive linear relationship
+- $r = -1$: Perfect negative linear relationship
+- $r = 0$: No linear relationship (but may have non-linear)
+- Symmetric: $r_{XY} = r_{YX}$
+- Unitless: Not affected by scale or units
+
+
+``` r
+# Manual calculation
+x <- sample_data$Height
+y <- sample_data$Weight
+
+x_bar <- mean(x)
+y_bar <- mean(y)
+
+S_xy <- sum((x - x_bar) * (y - y_bar))
+S_xx <- sum((x - x_bar)^2)
+S_yy <- sum((y - y_bar)^2)
+
+r <- S_xy / sqrt(S_xx * S_yy)
+
+cat("Pearson Correlation: Manual Calculation\n")
+```
+
+```
+## Pearson Correlation: Manual Calculation
+```
+
+``` r
+cat("=======================================\n\n")
+```
+
+```
+## =======================================
+```
+
+``` r
+cat(sprintf("S_xy = %.2f\n", S_xy))
+```
+
+```
+## S_xy = 47001.23
+```
+
+``` r
+cat(sprintf("S_xx = %.2f\n", S_xx))
+```
+
+```
+## S_xx = 50951.93
+```
+
+``` r
+cat(sprintf("S_yy = %.2f\n\n", S_yy))
+```
+
+```
+## S_yy = 203308.43
+```
+
+``` r
+cat(sprintf("r = S_xy / √(S_xx × S_yy) = %.4f\n\n", r))
+```
+
+```
+## r = S_xy / <U+221A>(S_xx <U+00D7> S_yy) = 0.4618
+```
+
+``` r
+cat(sprintf("Compare with cor(): %.4f\n", cor(x, y)))
+```
+
+```
+## Compare with cor(): 0.4618
+```
+
+### 12.21.2 Relationship to Regression
+
+The correlation and regression slope are related:
+
+$$r = \hat{\beta}_1 \times \frac{s_X}{s_Y}$$
+
+And in simple linear regression: $R^2 = r^2$
+
+
+``` r
+# Fit model
+model <- lm(Weight ~ Height, data = sample_data)
+beta_1 <- coef(model)[2]
+
+s_x <- sd(x)
+s_y <- sd(y)
+
+# Verify relationship
+r_from_beta <- beta_1 * s_x / s_y
+
+cat("Relationship Between r and β₁\n")
+```
+
+```
+## Relationship Between r and <U+03B2><U+2081>
+```
+
+``` r
+cat("=============================\n\n")
+```
+
+```
+## =============================
+```
+
+``` r
+cat(sprintf("Slope (β₁) = %.4f\n", beta_1))
+```
+
+```
+## Slope (<U+03B2><U+2081>) = 0.9225
+```
+
+``` r
+cat(sprintf("SD of X (height) = %.4f\n", s_x))
+```
+
+```
+## SD of X (height) = 10.1049
+```
+
+``` r
+cat(sprintf("SD of Y (weight) = %.4f\n\n", s_y))
+```
+
+```
+## SD of Y (weight) = 20.1849
+```
+
+``` r
+cat(sprintf("r = β₁ × (s_x / s_y) = %.4f × (%.4f / %.4f) = %.4f\n",
+            beta_1, s_x, s_y, r_from_beta))
+```
+
+```
+## r = <U+03B2><U+2081> <U+00D7> (s_x / s_y) = 0.9225 <U+00D7> (10.1049 / 20.1849) = 0.4618
+```
+
+``` r
+cat(sprintf("Direct r = %.4f\n", r))
+```
+
+```
+## Direct r = 0.4618
+```
+
+### 12.21.3 Visualising Different Correlations
+
+
+``` r
+# Generate data with different correlations
+set.seed(456)
+n <- 100
+
+# Function to generate correlated data
+generate_corr <- function(r, n) {
+    x <- rnorm(n)
+    y <- r * x + sqrt(1 - r^2) * rnorm(n)
+    data.table(x = x, y = y)
+}
+
+correlations <- c(-0.9, -0.5, 0, 0.5, 0.9)
+corr_data <- rbindlist(lapply(correlations, function(r) {
+    dt <- generate_corr(r, n)
+    dt[, r_label := sprintf("r = %.1f", r)]
+    dt
+}))
+corr_data[, r_label := factor(r_label, levels = sprintf("r = %.1f", correlations))]
+
+ggplot2$ggplot(corr_data, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_smooth(method = "lm", se = FALSE, colour = "#D55E00") +
+    ggplot2$facet_wrap(~r_label, nrow = 1) +
+    ggplot2$labs(
+        title = "Correlation Strength: Visual Guide",
+        subtitle = "From strong negative to strong positive linear relationships",
+        x = "X",
+        y = "Y"
+    ) +
+    ggplot2$theme_minimal(base_size = 11)
+```
+
+![plot of chunk correlation_examples](/courses/statistics-1-foundations/correlation_examples-1.png)
+
+---
+
+## 12.22 Inference for Correlation
+
+### 12.22.1 Testing $H_0: \rho = 0$
+
+To test whether the population correlation is zero:
+
+$$t = \frac{r\sqrt{n-2}}{\sqrt{1-r^2}} \sim t_{n-2}$$
+
+
+``` r
+# Test for correlation
+n <- nrow(sample_data)
+t_stat <- r * sqrt(n - 2) / sqrt(1 - r^2)
+p_value <- 2 * pt(-abs(t_stat), df = n - 2)
+
+cat("Test for Correlation\n")
+```
+
+```
+## Test for Correlation
+```
+
+``` r
+cat("====================\n\n")
+```
+
+```
+## ====================
+```
+
+``` r
+cat("H₀: ρ = 0 (no linear relationship)\n")
+```
+
+```
+## H<U+2080>: <U+03C1> = 0 (no linear relationship)
+```
+
+``` r
+cat("H₁: ρ ≠ 0 (linear relationship exists)\n\n")
+```
+
+```
+## H<U+2081>: <U+03C1> <U+2260> 0 (linear relationship exists)
+```
+
+``` r
+cat(sprintf("Sample correlation: r = %.4f\n", r))
+```
+
+```
+## Sample correlation: r = 0.4618
+```
+
+``` r
+cat(sprintf("Test statistic: t = %.3f\n", t_stat))
+```
+
+```
+## Test statistic: t = 11.618
+```
+
+``` r
+cat(sprintf("Degrees of freedom: %d\n", n - 2))
+```
+
+```
+## Degrees of freedom: 498
+```
+
+``` r
+cat(sprintf("p-value: %.2e\n\n", p_value))
+```
+
+```
+## p-value: 8.87e-28
+```
+
+``` r
+# Compare with cor.test
+cor_result <- cor.test(x, y)
+cat("Compare with cor.test():\n")
+```
+
+```
+## Compare with cor.test():
+```
+
+``` r
+cat(sprintf("t = %.3f, p-value = %.2e\n", cor_result$statistic, cor_result$p.value))
+```
+
+```
+## t = 11.618, p-value = 8.87e-28
+```
+
+### 12.22.2 Confidence Interval for $\rho$
+
+The Fisher z-transformation provides a CI:
+
+$$z = \frac{1}{2}\ln\left(\frac{1+r}{1-r}\right) = \text{arctanh}(r)$$
+
+The transformed value is approximately $N(\zeta, 1/(n-3))$ where $\zeta = \text{arctanh}(\rho)$.
+
+
+``` r
+# Fisher z-transformation
+z <- atanh(r)  # arctanh
+se_z <- 1 / sqrt(n - 3)
+
+# CI in z-space
+z_crit <- qnorm(0.975)
+ci_z <- c(z - z_crit * se_z, z + z_crit * se_z)
+
+# Back-transform to r-space
+ci_r <- tanh(ci_z)  # inverse of arctanh
+
+cat("95% Confidence Interval for ρ\n")
+```
+
+```
+## 95% Confidence Interval for <U+03C1>
+```
+
+``` r
+cat("=============================\n\n")
+```
+
+```
+## =============================
+```
+
+``` r
+cat(sprintf("Sample r = %.4f\n\n", r))
+```
+
+```
+## Sample r = 0.4618
+```
+
+``` r
+cat("Fisher z-transformation:\n")
+```
+
+```
+## Fisher z-transformation:
+```
+
+``` r
+cat(sprintf("z = arctanh(r) = %.4f\n", z))
+```
+
+```
+## z = arctanh(r) = 0.4996
+```
+
+``` r
+cat(sprintf("SE(z) = 1/√(n-3) = %.4f\n\n", se_z))
+```
+
+```
+## SE(z) = 1/<U+221A>(n-3) = 0.0449
+```
+
+``` r
+cat(sprintf("CI for z: (%.4f, %.4f)\n", ci_z[1], ci_z[2]))
+```
+
+```
+## CI for z: (0.4117, 0.5875)
+```
+
+``` r
+cat(sprintf("CI for ρ: (%.4f, %.4f)\n\n", ci_r[1], ci_r[2]))
+```
+
+```
+## CI for <U+03C1>: (0.3899, 0.5281)
+```
+
+``` r
+# Compare with cor.test
+cat("Compare with cor.test():\n")
+```
+
+```
+## Compare with cor.test():
+```
+
+``` r
+print(cor_result$conf.int)
+```
+
+```
+## [1] 0.3898954 0.5281020
+## attr(,"conf.level")
+## [1] 0.95
+```
+
+---
+
+## 12.23 Correlation Does Not Imply Causation
+
+### 12.23.1 The Fundamental Problem
+
+This is perhaps the most important lesson in statistics. A correlation between $X$ and $Y$ could arise from:
+
+1. **X causes Y**: The causal relationship we might hope for
+2. **Y causes X**: Reverse causation
+3. **Confounding**: A third variable $Z$ causes both $X$ and $Y$
+4. **Selection bias**: The sample is not representative
+5. **Coincidence**: Spurious correlation, especially with many variables
+
+### 12.23.2 Classic Examples
+
+
+``` r
+# Simulated spurious correlation
+set.seed(789)
+years <- 1990:2020
+n_years <- length(years)
+
+# Ice cream sales and drownings (both caused by temperature)
+temperature <- 15 + 10 * sin((years - 1990) * 2 * pi / 12) + rnorm(n_years, 0, 2)
+ice_cream <- 100 + 5 * temperature + rnorm(n_years, 0, 10)
+drownings <- 50 + 2 * temperature + rnorm(n_years, 0, 5)
+
+spurious_data <- data.table(
+    Year = years,
+    IceCream = ice_cream,
+    Drownings = drownings,
+    Temperature = temperature
+)
+
+r_spurious <- cor(ice_cream, drownings)
+
+ggplot2$ggplot(spurious_data, ggplot2$aes(x = IceCream, y = Drownings)) +
+    ggplot2$geom_point(colour = "#0072B2", size = 2) +
+    ggplot2$geom_smooth(method = "lm", colour = "#D55E00", se = TRUE) +
+    ggplot2$labs(
+        title = sprintf("Spurious Correlation: Ice Cream Sales vs Drownings (r = %.2f)", r_spurious),
+        subtitle = "Both are caused by temperature—eating ice cream doesn't cause drowning!",
+        x = "Ice Cream Sales (units)",
+        y = "Drowning Deaths"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+![plot of chunk spurious_correlation](/courses/statistics-1-foundations/spurious_correlation-1.png)
+
+### 12.23.3 The Confounding Variable
+
+
+``` r
+cat("Confounding Structure:\n")
+```
+
+```
+## Confounding Structure:
+```
+
+``` r
+cat("======================\n\n")
+```
+
+```
+## ======================
+```
+
+``` r
+cat("       Temperature (Confounder)\n")
+```
+
+```
+##        Temperature (Confounder)
+```
+
+``` r
+cat("         /            \\\n")
+```
+
+```
+##          /            \
+```
+
+``` r
+cat("        ↓              ↓\n")
+```
+
+```
+##         <U+2193>              <U+2193>
+```
+
+``` r
+cat("   Ice Cream  ←→  Drownings\n")
+```
+
+```
+##    Ice Cream  <U+2190><U+2192>  Drownings
+```
+
+``` r
+cat("    Sales      (spurious)\n\n")
+```
+
+```
+##     Sales      (spurious)
+```
+
+``` r
+cat("The observed correlation between ice cream and drownings is\n")
+```
+
+```
+## The observed correlation between ice cream and drownings is
+```
+
+``` r
+cat("spurious—it disappears when we control for temperature.\n")
+```
+
+```
+## spurious<U+2014>it disappears when we control for temperature.
+```
+
+### 12.23.4 Conditions for Causal Inference
+
+To infer causation, we need:
+
+1. **Association**: $X$ and $Y$ are correlated (necessary but not sufficient)
+2. **Temporal precedence**: $X$ precedes $Y$
+3. **No confounding**: All relevant confounders are controlled
+4. **Mechanism**: Plausible causal pathway
+
+**Gold standard**: Randomised controlled experiments (RCTs) ensure no confounding by design.
+
+---
+
+## 12.24 Simpson's Paradox
+
+### 12.24.1 When Aggregation Reverses Relationships
+
+Simpson's paradox occurs when the direction of an association reverses after controlling for a third variable.
+
+
+``` r
+# Classic example: Success rates that reverse when aggregated
+set.seed(101)
+
+# Create data where overall correlation is positive
+# but within each group, correlation is negative
+n_per_group <- 100
+
+# Group A: high baseline Y, moderate X
+group_a <- data.table(
+    x = runif(n_per_group, 1, 5),
+    group = "A"
+)
+group_a[, y := 50 - 3 * x + rnorm(.N, 0, 3)]
+
+# Group B: low baseline Y, high X
+group_b <- data.table(
+    x = runif(n_per_group, 5, 10),
+    group = "B"
+)
+group_b[, y := 25 - 3 * x + rnorm(.N, 0, 3)]
+
+simpson_data <- rbind(group_a, group_b)
+
+# Calculate correlations
+r_overall <- cor(simpson_data$x, simpson_data$y)
+r_a <- cor(group_a$x, group_a$y)
+r_b <- cor(group_b$x, group_b$y)
+
+ggplot2$ggplot(simpson_data, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_point(ggplot2$aes(colour = group), alpha = 0.6) +
+    ggplot2$geom_smooth(method = "lm", colour = "black", linetype = "dashed",
+                        linewidth = 1.2, se = FALSE) +
+    ggplot2$geom_smooth(ggplot2$aes(colour = group), method = "lm", se = FALSE, linewidth = 1) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "Simpson's Paradox",
+        subtitle = sprintf("Overall r = %.2f (positive), but within groups r ≈ %.2f (negative)",
+                           r_overall, mean(c(r_a, r_b))),
+        x = "X",
+        y = "Y",
+        colour = "Group"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+![plot of chunk simpsons_paradox](/courses/statistics-1-foundations/simpsons_paradox-1.png)
+
+``` r
+cat("\nCorrelations:\n")
+```
+
+```
+## 
+## Correlations:
+```
+
+``` r
+cat(sprintf("Overall: r = %.3f\n", r_overall))
+```
+
+```
+## Overall: r = -0.933
+```
+
+``` r
+cat(sprintf("Group A: r = %.3f\n", r_a))
+```
+
+```
+## Group A: r = -0.774
+```
+
+``` r
+cat(sprintf("Group B: r = %.3f\n", r_b))
+```
+
+```
+## Group B: r = -0.862
+```
+
+### 12.24.2 Implications
+
+Simpson's paradox reminds us that:
+- Aggregated data can be misleading
+- The "correct" analysis depends on the causal structure
+- Domain knowledge is essential for proper interpretation
+
+---
+
+## 12.25 Regression Fallacies
+
+### 12.25.1 Regression to the Mean
+
+Extreme observations tend to be followed by less extreme ones, purely due to random variation—not intervention effects.
+
+
+``` r
+# Simulate test-retest scenario
+set.seed(202)
+n <- 200
+true_ability <- rnorm(n, 100, 15)
+test1 <- true_ability + rnorm(n, 0, 10)  # Add measurement error
+test2 <- true_ability + rnorm(n, 0, 10)  # Independent error
+
+test_data <- data.table(
+    Test1 = test1,
+    Test2 = test2,
+    TrueAbility = true_ability
+)
+
+# Those who scored highest on Test 1
+top_10 <- test_data[order(-Test1)][1:20]
+bottom_10 <- test_data[order(Test1)][1:20]
+
+cat("Regression to the Mean\n")
+```
+
+```
+## Regression to the Mean
+```
+
+``` r
+cat("======================\n\n")
+```
+
+```
+## ======================
+```
+
+``` r
+cat("Top 20 scorers on Test 1:\n")
+```
+
+```
+## Top 20 scorers on Test 1:
+```
+
+``` r
+cat(sprintf("  Mean Test 1: %.1f\n", mean(top_10$Test1)))
+```
+
+```
+##   Mean Test 1: 130.4
+```
+
+``` r
+cat(sprintf("  Mean Test 2: %.1f\n", mean(top_10$Test2)))
+```
+
+```
+##   Mean Test 2: 113.4
+```
+
+``` r
+cat(sprintf("  Change: %.1f (appear to 'decline')\n\n", mean(top_10$Test2 - top_10$Test1)))
+```
+
+```
+##   Change: -16.9 (appear to 'decline')
+```
+
+``` r
+cat("Bottom 20 scorers on Test 1:\n")
+```
+
+```
+## Bottom 20 scorers on Test 1:
+```
+
+``` r
+cat(sprintf("  Mean Test 1: %.1f\n", mean(bottom_10$Test1)))
+```
+
+```
+##   Mean Test 1: 67.5
+```
+
+``` r
+cat(sprintf("  Mean Test 2: %.1f\n", mean(bottom_10$Test2)))
+```
+
+```
+##   Mean Test 2: 74.7
+```
+
+``` r
+cat(sprintf("  Change: %.1f (appear to 'improve')\n\n", mean(bottom_10$Test2 - bottom_10$Test1)))
+```
+
+```
+##   Change: 7.2 (appear to 'improve')
+```
+
+``` r
+cat("This is NOT real change—it's regression to the mean!\n")
+```
+
+```
+## This is NOT real change<U+2014>it's regression to the mean!
+```
+
+``` r
+cat("The 'changes' are artifacts of selecting extreme observations.\n")
+```
+
+```
+## The 'changes' are artifacts of selecting extreme observations.
+```
+
+
+``` r
+ggplot2$ggplot(test_data, ggplot2$aes(x = Test1, y = Test2)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "#E69F00") +
+    ggplot2$geom_smooth(method = "lm", colour = "#D55E00", se = FALSE) +
+    ggplot2$geom_vline(xintercept = mean(top_10$Test1), linetype = "dotted", colour = "#009E73") +
+    ggplot2$geom_vline(xintercept = mean(bottom_10$Test1), linetype = "dotted", colour = "#009E73") +
+    ggplot2$labs(
+        title = "Regression to the Mean",
+        subtitle = "Orange dashed: no change line; Red: regression line (slopes toward mean)",
+        x = "Test 1 Score",
+        y = "Test 2 Score"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+![plot of chunk rtm_visual](/courses/statistics-1-foundations/rtm_visual-1.png)
+
+### 12.25.2 Ecological Fallacy
+
+Making inferences about individuals from group-level (aggregate) data.
+
+
+``` r
+# State-level vs individual-level relationships
+set.seed(303)
+
+# Generate individual-level data
+n_individuals <- 1000
+income_individual <- rgamma(n_individuals, shape = 5, rate = 0.1)
+health_individual <- 50 + 0.3 * income_individual + rnorm(n_individuals, 0, 10)
+state <- sample(1:10, n_individuals, replace = TRUE)
+
+# Add state-level effects (rich states have better health infrastructure)
+state_effect <- seq(0, 20, length.out = 10)
+health_individual <- health_individual + state_effect[state]
+
+individual_data <- data.table(
+    Income = income_individual,
+    Health = health_individual,
+    State = factor(state)
+)
+
+# Aggregate to state level
+state_data <- individual_data[, .(
+    MeanIncome = mean(Income),
+    MeanHealth = mean(Health)
+), by = State]
+
+# Calculate correlations
+r_individual <- cor(individual_data$Income, individual_data$Health)
+r_state <- cor(state_data$MeanIncome, state_data$MeanHealth)
+
+cat("Ecological Fallacy Example\n")
+```
+
+```
+## Ecological Fallacy Example
+```
+
+``` r
+cat("==========================\n\n")
+```
+
+```
+## ==========================
+```
+
+``` r
+cat(sprintf("Individual-level correlation: r = %.3f\n", r_individual))
+```
+
+```
+## Individual-level correlation: r = 0.484
+```
+
+``` r
+cat(sprintf("State-level correlation: r = %.3f\n\n", r_state))
+```
+
+```
+## State-level correlation: r = -0.409
+```
+
+``` r
+cat("The aggregate correlation is much stronger!\n")
+```
+
+```
+## The aggregate correlation is much stronger!
+```
+
+``` r
+cat("We cannot use state-level data to make inferences about individuals.\n")
+```
+
+```
+## We cannot use state-level data to make inferences about individuals.
+```
+
+---
+
+## 12.26 Practical Considerations
+
+### 12.26.1 Sample Size and Power
+
+The precision of regression estimates depends on sample size. Larger samples yield:
+- Narrower confidence intervals
+- More power to detect effects
+- More stable estimates
+
+
+``` r
+# Demonstrate effect of sample size on CI width
+set.seed(404)
+sample_sizes <- c(20, 50, 100, 200, 500)
+
+ci_widths <- sapply(sample_sizes, function(n) {
+    sample <- reg_data[sample(.N, n)]
+    model <- lm(Weight ~ Height, data = sample)
+    ci <- confint(model, "Height", level = 0.95)
+    ci[2] - ci[1]  # CI width
+})
+
+size_data <- data.table(
+    n = sample_sizes,
+    CI_Width = ci_widths
+)
+
+ggplot2$ggplot(size_data, ggplot2$aes(x = n, y = CI_Width)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_point(colour = "#D55E00", size = 3) +
+    ggplot2$labs(
+        title = "Sample Size and Precision",
+        subtitle = "Larger samples yield narrower confidence intervals",
+        x = "Sample Size",
+        y = "95% CI Width for Slope"
+    ) +
+    ggplot2$scale_x_log10() +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+![plot of chunk sample_size_effect](/courses/statistics-1-foundations/sample_size_effect-1.png)
+
+### 12.26.2 Effect Size Considerations
+
+Statistical significance is not the same as practical importance:
+
+
+``` r
+# With large n, even tiny effects become "significant"
+set.seed(505)
+n_large <- 10000
+
+# Tiny effect size
+x_large <- rnorm(n_large)
+y_large <- 0.01 * x_large + rnorm(n_large)  # r ≈ 0.01
+
+model_large <- lm(y_large ~ x_large)
+summary_large <- summary(model_large)
+
+cat("Statistical Significance vs Practical Importance\n")
+```
+
+```
+## Statistical Significance vs Practical Importance
+```
+
+``` r
+cat("=================================================\n\n")
+```
+
+```
+## =================================================
+```
+
+``` r
+cat(sprintf("Sample size: n = %d\n\n", n_large))
+```
+
+```
+## Sample size: n = 10000
+```
+
+``` r
+cat(sprintf("Slope: %.5f\n", coef(model_large)[2]))
+```
+
+```
+## Slope: 0.01649
+```
+
+``` r
+cat(sprintf("R²: %.6f (%.4f%% of variance explained)\n",
+            summary_large$r.squared, summary_large$r.squared * 100))
+```
+
+```
+## R<U+00B2>: 0.000274 (0.0274% of variance explained)
+```
+
+``` r
+cat(sprintf("p-value: %.4f\n\n", summary_large$coefficients[2, 4]))
+```
+
+```
+## p-value: 0.0979
+```
+
+``` r
+if (summary_large$coefficients[2, 4] < 0.05) {
+    cat("The effect is 'statistically significant' (p < 0.05)\n")
+    cat("But is it practically meaningful? R² explains almost nothing!\n")
+}
+```
+
+### 12.26.3 Extrapolation Dangers
+
+Predictions outside the range of observed data are unreliable:
+
+
+``` r
+# Fit model on limited range
+limited_data <- sample_data[Height >= 160 & Height <= 180]
+model_limited <- lm(Weight ~ Height, data = limited_data)
+
+# Create prediction range including extrapolation
+pred_range <- data.table(Height = seq(140, 200, by = 2))
+pred_range[, predicted := predict(model_limited, newdata = pred_range)]
+pred_range[, in_range := Height >= 160 & Height <= 180]
+
+ggplot2$ggplot() +
+    ggplot2$geom_point(data = limited_data, ggplot2$aes(x = Height, y = Weight),
+                       alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_line(data = pred_range[in_range == TRUE],
+                      ggplot2$aes(x = Height, y = predicted),
+                      colour = "#009E73", linewidth = 1.5) +
+    ggplot2$geom_line(data = pred_range[in_range == FALSE],
+                      ggplot2$aes(x = Height, y = predicted),
+                      colour = "#D55E00", linewidth = 1.5, linetype = "dashed") +
+    ggplot2$geom_rect(ggplot2$aes(xmin = 140, xmax = 160, ymin = -Inf, ymax = Inf),
+                      fill = "#D55E00", alpha = 0.1) +
+    ggplot2$geom_rect(ggplot2$aes(xmin = 180, xmax = 200, ymin = -Inf, ymax = Inf),
+                      fill = "#D55E00", alpha = 0.1) +
+    ggplot2$labs(
+        title = "The Danger of Extrapolation",
+        subtitle = "Green: interpolation (safe); Orange: extrapolation (risky)",
+        x = "Height (cm)",
+        y = "Weight (kg)"
+    ) +
+    ggplot2$annotate("text", x = 150, y = 100, label = "Extrapolation\nZone",
+                     colour = "#D55E00", fontface = "bold") +
+    ggplot2$annotate("text", x = 190, y = 100, label = "Extrapolation\nZone",
+                     colour = "#D55E00", fontface = "bold") +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+![plot of chunk extrapolation](/courses/statistics-1-foundations/extrapolation-1.png)
+
+---
+
+## 12.27 Communicating to Stakeholders
+
+### 12.27.1 Key Messages
+
+When communicating regression results to non-technical audiences:
+
+1. **Focus on the story**: What question does this answer?
+2. **Use plain language**: Avoid jargon (β, p-value, R²)
+3. **Provide context**: Is the effect large or small?
+4. **Acknowledge uncertainty**: Confidence intervals, not single numbers
+5. **Be honest about limitations**: Correlation ≠ causation
+
+### 12.27.2 Example Write-Up
+
+
+``` r
+# Prepare full model summary
+full_model <- lm(Weight ~ Height, data = sample_data)
+model_sum <- summary(full_model)
+
+cat("============================================================\n")
+```
+
+```
+## ============================================================
+```
+
+``` r
+cat("       EXECUTIVE SUMMARY: HEIGHT AND WEIGHT RELATIONSHIP\n")
+```
+
+```
+##        EXECUTIVE SUMMARY: HEIGHT AND WEIGHT RELATIONSHIP
+```
+
+``` r
+cat("============================================================\n\n")
+```
+
+```
+## ============================================================
+```
+
+``` r
+cat("KEY FINDING:\n")
+```
+
+```
+## KEY FINDING:
+```
+
+``` r
+cat("------------\n")
+```
+
+```
+## ------------
+```
+
+``` r
+cat("There is a strong positive relationship between height and weight\n")
+```
+
+```
+## There is a strong positive relationship between height and weight
+```
+
+``` r
+cat("in adults. Taller individuals tend to weigh more.\n\n")
+```
+
+```
+## in adults. Taller individuals tend to weigh more.
+```
+
+``` r
+cat("THE NUMBERS:\n")
+```
+
+```
+## THE NUMBERS:
+```
+
+``` r
+cat("------------\n")
+```
+
+```
+## ------------
+```
+
+``` r
+cat(sprintf("• For every additional centimetre of height, weight increases\n"))
+```
+
+```
+## <U+2022> For every additional centimetre of height, weight increases
+```
+
+``` r
+cat(sprintf("  by approximately %.1f kg on average.\n\n", coef(full_model)[2]))
+```
+
+```
+##   by approximately 0.9 kg on average.
+```
+
+``` r
+cat(sprintf("• This relationship explains about %.0f%% of the variation\n",
+            model_sum$r.squared * 100))
+```
+
+```
+## <U+2022> This relationship explains about 21% of the variation
+```
+
+``` r
+cat("  in weight among adults.\n\n")
+```
+
+```
+##   in weight among adults.
+```
+
+``` r
+ci <- confint(full_model, "Height")
+cat(sprintf("• We are 95%% confident that the true effect is between\n"))
+```
+
+```
+## <U+2022> We are 95% confident that the true effect is between
+```
+
+``` r
+cat(sprintf("  %.2f and %.2f kg per cm.\n\n", ci[1], ci[2]))
+```
+
+```
+##   0.77 and 1.08 kg per cm.
+```
+
+``` r
+cat("WHAT THIS MEANS:\n")
+```
+
+```
+## WHAT THIS MEANS:
+```
+
+``` r
+cat("----------------\n")
+```
+
+```
+## ----------------
+```
+
+``` r
+cat("Height is a meaningful predictor of weight, but other factors\n")
+```
+
+```
+## Height is a meaningful predictor of weight, but other factors
+```
+
+``` r
+cat(sprintf("(diet, exercise, genetics) account for the remaining %.0f%%.\n\n",
+            (1 - model_sum$r.squared) * 100))
+```
+
+```
+## (diet, exercise, genetics) account for the remaining 79%.
+```
+
+``` r
+cat("IMPORTANT CAVEATS:\n")
+```
+
+```
+## IMPORTANT CAVEATS:
+```
+
+``` r
+cat("------------------\n")
+```
+
+```
+## ------------------
+```
+
+``` r
+cat("• This is an ASSOCIATION, not proof of causation.\n")
+```
+
+```
+## <U+2022> This is an ASSOCIATION, not proof of causation.
+```
+
+``` r
+cat("• Predictions are reliable only within the observed height range\n")
+```
+
+```
+## <U+2022> Predictions are reliable only within the observed height range
+```
+
+``` r
+cat(sprintf("  (%.0f–%.0f cm).\n", min(sample_data$Height), max(sample_data$Height)))
+```
+
+```
+##   (140<U+2013>194 cm).
+```
+
+``` r
+cat("• Individual variation is substantial; this describes averages.\n")
+```
+
+```
+## <U+2022> Individual variation is substantial; this describes averages.
+```
+
+---
+
+## Quick Reference
+
+### Correlation Concepts
+
+| Concept | Description |
+|---------|-------------|
+| Pearson r | Measures strength of linear relationship, -1 to 1 |
+| $R^2 = r^2$ | Proportion of variance explained (simple regression) |
+| Fisher z | Transformation for CI: $z = \text{arctanh}(r)$ |
+| Spurious correlation | Apparent relationship due to confounding |
+| Simpson's paradox | Aggregated data reverses individual relationship |
+
+### Causal Inference Checklist
+
+| Question | Why It Matters |
+|----------|----------------|
+| Is X associated with Y? | Necessary but not sufficient |
+| Does X precede Y? | Temporal order required |
+| Are confounders controlled? | Eliminates alternative explanations |
+| Is there a plausible mechanism? | Scientific coherence |
+| Was it an experiment or observation? | Experiments control confounding |
+
+### Common Pitfalls
+
+| Pitfall | Description |
+|---------|-------------|
+| Confusing correlation with causation | Association ≠ cause |
+| Regression to the mean | Extreme values tend toward average |
+| Ecological fallacy | Inferring individual from aggregate |
+| Extrapolation | Predicting beyond data range |
+| Overfitting | Model fits noise, not signal |
+
+### R Functions for Correlation
+
+| Function | Purpose |
+|----------|---------|
+| `cor(x, y)` | Pearson correlation |
+| `cor.test(x, y)` | Test and CI for correlation |
+| `cor(x, y, method = "spearman")` | Spearman rank correlation |
+| `cor(x, y, method = "kendall")` | Kendall's tau |
+| `cor(data, use = "complete")` | Correlation matrix |
+

@@ -1,0 +1,606 @@
+---
+title: "One-Way Analysis of Variance"
+subtitle: "Part 1 of Chapter 13: ANOVA"
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6
+)
+
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+## 13.1 Introduction to ANOVA
+
+### 13.1.1 The Problem of Comparing Multiple Groups
+
+In Chapter 10, we learned how to compare two groups using t-tests. But what if we have three or more groups? For example:
+- Comparing blood pressure across four age groups
+- Comparing test scores across three teaching methods
+- Comparing crop yields across five fertiliser treatments
+
+We could run multiple t-tests (Group 1 vs 2, Group 1 vs 3, Group 2 vs 3, etc.), but this approach has a serious problem: **inflated Type I error rate**.
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+# Load NHANES data
+nhanes <- fread("../data/primary/nhanes.csv")
+```
+
+### 13.1.2 The Multiple Comparisons Problem
+
+With $k$ groups, we need $\binom{k}{2} = \frac{k(k-1)}{2}$ pairwise comparisons.
+
+```{r multiple_comparisons_problem}
+# Calculate family-wise error rate
+calculate_fwer <- function(k, alpha = 0.05) {
+    n_tests <- choose(k, 2)
+    fwer <- 1 - (1 - alpha)^n_tests
+    return(c(groups = k, tests = n_tests, fwer = fwer))
+}
+
+fwer_table <- data.table(t(sapply(2:10, calculate_fwer)))
+setnames(fwer_table, c("Groups", "Pairwise Tests", "FWER"))
+
+cat("Family-Wise Error Rate with Multiple t-tests\n")
+cat("=============================================\n\n")
+cat("(Assuming α = 0.05 for each test)\n\n")
+print(fwer_table, digits = 3)
+
+cat("\nWith 5 groups and 10 pairwise comparisons, there's a 40% chance\n")
+cat("of at least one false positive, even when all null hypotheses are true!\n")
+```
+
+### 13.1.3 ANOVA: A Single Omnibus Test
+
+**Analysis of Variance (ANOVA)** solves this problem by testing all groups simultaneously with a single test:
+
+$$H_0: \mu_1 = \mu_2 = \cdots = \mu_k$$
+$$H_1: \text{At least one } \mu_i \text{ differs}$$
+
+This maintains the Type I error rate at $\alpha$ regardless of the number of groups.
+
+---
+
+## 13.2 The One-Way ANOVA Model
+
+### 13.2.1 Model Specification
+
+The one-way ANOVA model is:
+
+$$Y_{ij} = \mu + \alpha_i + \varepsilon_{ij}$$
+
+Where:
+- $Y_{ij}$ is the $j$th observation in group $i$
+- $\mu$ is the overall (grand) mean
+- $\alpha_i$ is the effect of group $i$ (deviation from grand mean)
+- $\varepsilon_{ij} \sim N(0, \sigma^2)$ is the random error
+
+With the constraint $\sum_{i=1}^{k} n_i \alpha_i = 0$ (effects sum to zero).
+
+### 13.2.2 Model Assumptions
+
+ANOVA requires:
+
+1. **Independence**: Observations are independent
+2. **Normality**: Residuals are normally distributed within each group
+3. **Homoscedasticity**: Equal variances across groups (homogeneity of variance)
+
+```{r anova_example_data}
+# Create example: BMI across age groups
+bmi_data <- nhanes[!is.na(BMI) & !is.na(AgeDecade) & AgeDecade != ""]
+bmi_data <- bmi_data[AgeDecade %in% c("20-29", "30-39", "40-49", "50-59", "60-69")]
+
+# Sample for demonstration
+set.seed(123)
+bmi_sample <- bmi_data[, .SD[sample(.N, min(80, .N))], by = AgeDecade]
+
+cat("Sample sizes by age group:\n")
+print(bmi_sample[, .N, by = AgeDecade][order(AgeDecade)])
+```
+
+---
+
+## 13.3 Visualising Group Differences
+
+### 13.3.1 Box Plots
+
+```{r boxplot_anova}
+ggplot2$ggplot(bmi_sample, ggplot2$aes(x = AgeDecade, y = BMI, fill = AgeDecade)) +
+    ggplot2$geom_boxplot(alpha = 0.7) +
+    ggplot2$geom_jitter(width = 0.2, alpha = 0.3, size = 1) +
+    ggplot2$scale_fill_brewer(palette = "Set2") +
+    ggplot2$labs(
+        title = "BMI Distribution Across Age Groups",
+        subtitle = "Does mean BMI differ significantly across age decades?",
+        x = "Age Decade",
+        y = "BMI (kg/m²)"
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(legend.position = "none")
+```
+
+### 13.3.2 Group Means with Error Bars
+
+```{r means_plot}
+# Calculate means and SE
+group_stats <- bmi_sample[, .(
+    mean = mean(BMI),
+    sd = sd(BMI),
+    n = .N,
+    se = sd(BMI) / sqrt(.N)
+), by = AgeDecade]
+
+# Grand mean
+grand_mean <- mean(bmi_sample$BMI)
+
+ggplot2$ggplot(group_stats, ggplot2$aes(x = AgeDecade, y = mean)) +
+    ggplot2$geom_hline(yintercept = grand_mean, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = mean - 1.96*se, ymax = mean + 1.96*se),
+                          width = 0.2, colour = "#0072B2") +
+    ggplot2$geom_point(size = 4, colour = "#0072B2") +
+    ggplot2$labs(
+        title = "Group Means with 95% Confidence Intervals",
+        subtitle = "Dashed line shows grand mean",
+        x = "Age Decade",
+        y = "Mean BMI (kg/m²)"
+    ) +
+    ggplot2$annotate("text", x = 5.3, y = grand_mean + 0.3,
+                     label = sprintf("Grand mean = %.1f", grand_mean),
+                     colour = "#D55E00", hjust = 0) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 13.4 Partitioning Variance
+
+### 13.4.1 The Key Insight
+
+ANOVA works by partitioning the total variability into two components:
+
+$$\underbrace{\sum_{i=1}^{k}\sum_{j=1}^{n_i}(Y_{ij} - \bar{Y}_{..})^2}_{\text{SST: Total}} = \underbrace{\sum_{i=1}^{k} n_i(\bar{Y}_{i.} - \bar{Y}_{..})^2}_{\text{SSB: Between Groups}} + \underbrace{\sum_{i=1}^{k}\sum_{j=1}^{n_i}(Y_{ij} - \bar{Y}_{i.})^2}_{\text{SSW: Within Groups}}$$
+
+Where:
+- $\bar{Y}_{..}$ is the grand mean
+- $\bar{Y}_{i.}$ is the mean of group $i$
+
+### 13.4.2 Intuition
+
+- **SSB (Between)**: Measures how much group means differ from the grand mean
+- **SSW (Within)**: Measures variability within groups (random noise)
+
+If group means are truly different, SSB will be large relative to SSW.
+
+```{r partition_variance}
+# Calculate sums of squares manually
+grand_mean <- mean(bmi_sample$BMI)
+bmi_sample[, group_mean := mean(BMI), by = AgeDecade]
+
+SST <- sum((bmi_sample$BMI - grand_mean)^2)
+SSB <- sum(bmi_sample[, .(n = .N, group_mean = first(group_mean)), by = AgeDecade][,
+            n * (group_mean - grand_mean)^2])
+SSW <- sum((bmi_sample$BMI - bmi_sample$group_mean)^2)
+
+cat("Partitioning Total Variance\n")
+cat("===========================\n\n")
+cat(sprintf("Grand mean = %.2f\n\n", grand_mean))
+cat(sprintf("Total Sum of Squares (SST) = %.2f\n", SST))
+cat(sprintf("Between Groups (SSB) = %.2f\n", SSB))
+cat(sprintf("Within Groups (SSW) = %.2f\n\n", SSW))
+cat(sprintf("Check: SSB + SSW = %.2f + %.2f = %.2f ≈ SST = %.2f ✓\n",
+            SSB, SSW, SSB + SSW, SST))
+```
+
+### 13.4.3 Visualising Variance Partition
+
+```{r variance_visual}
+# Create visual showing partition
+variance_data <- data.table(
+    Component = c("Between Groups\n(Explained)", "Within Groups\n(Unexplained)"),
+    SS = c(SSB, SSW),
+    Proportion = c(SSB/SST, SSW/SST)
+)
+
+ggplot2$ggplot(variance_data, ggplot2$aes(x = "", y = SS, fill = Component)) +
+    ggplot2$geom_col(width = 0.5) +
+    ggplot2$geom_text(ggplot2$aes(label = sprintf("%.1f%%", Proportion * 100)),
+                      position = ggplot2$position_stack(vjust = 0.5),
+                      colour = "white", fontface = "bold", size = 5) +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "Variance Partition in ANOVA",
+        subtitle = sprintf("η² = SSB/SST = %.3f (proportion explained by group membership)", SSB/SST),
+        x = "",
+        y = "Sum of Squares",
+        fill = "Variance Source"
+    ) +
+    ggplot2$coord_flip() +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 13.5 The F-Test
+
+### 13.5.1 Mean Squares and the F-Ratio
+
+We convert sums of squares to **mean squares** by dividing by degrees of freedom:
+
+$$\text{MSB} = \frac{\text{SSB}}{k-1}, \quad \text{MSW} = \frac{\text{SSW}}{N-k}$$
+
+Where:
+- $k$ is the number of groups
+- $N$ is the total sample size
+
+The **F-ratio** is:
+
+$$F = \frac{\text{MSB}}{\text{MSW}} = \frac{\text{Between-group variance}}{\text{Within-group variance}}$$
+
+### 13.5.2 The F Distribution
+
+Under $H_0$ (all means equal), $F \sim F_{k-1, N-k}$.
+
+If group means truly differ, MSB will be inflated, leading to a large F.
+
+```{r f_calculation}
+k <- length(unique(bmi_sample$AgeDecade))  # Number of groups
+N <- nrow(bmi_sample)                       # Total sample size
+
+df_between <- k - 1
+df_within <- N - k
+
+MSB <- SSB / df_between
+MSW <- SSW / df_within
+
+F_stat <- MSB / MSW
+p_value <- pf(F_stat, df1 = df_between, df2 = df_within, lower.tail = FALSE)
+
+cat("ANOVA F-Test\n")
+cat("============\n\n")
+cat(sprintf("Number of groups (k) = %d\n", k))
+cat(sprintf("Total sample size (N) = %d\n\n", N))
+cat(sprintf("Degrees of freedom:\n"))
+cat(sprintf("  Between: k - 1 = %d\n", df_between))
+cat(sprintf("  Within: N - k = %d\n\n", df_within))
+cat(sprintf("Mean Squares:\n"))
+cat(sprintf("  MSB = SSB / df = %.2f / %d = %.2f\n", SSB, df_between, MSB))
+cat(sprintf("  MSW = SSW / df = %.2f / %d = %.2f\n\n", SSW, df_within, MSW))
+cat(sprintf("F = MSB / MSW = %.2f / %.2f = %.3f\n", MSB, MSW, F_stat))
+cat(sprintf("p-value = P(F > %.3f) = %.4f\n", F_stat, p_value))
+```
+
+### 13.5.3 Visualising the F Distribution
+
+```{r f_distribution_visual}
+# Generate F distribution
+f_data <- data.table(x = seq(0, 6, length.out = 500))
+f_data[, density := df(x, df1 = df_between, df2 = df_within)]
+
+# Critical value
+f_crit <- qf(0.95, df1 = df_between, df2 = df_within)
+
+ggplot2$ggplot(f_data, ggplot2$aes(x = x, y = density)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_area(data = f_data[x >= f_crit], fill = "#D55E00", alpha = 0.3) +
+    ggplot2$geom_vline(xintercept = F_stat, colour = "#009E73", linewidth = 1.2, linetype = "dashed") +
+    ggplot2$geom_vline(xintercept = f_crit, colour = "#D55E00", linewidth = 1, linetype = "dotted") +
+    ggplot2$annotate("text", x = F_stat + 0.3, y = max(f_data$density) * 0.8,
+                     label = sprintf("F = %.2f", F_stat), colour = "#009E73") +
+    ggplot2$annotate("text", x = f_crit + 0.3, y = max(f_data$density) * 0.6,
+                     label = sprintf("F_crit = %.2f", f_crit), colour = "#D55E00") +
+    ggplot2$labs(
+        title = sprintf("F Distribution (df₁ = %d, df₂ = %d)", df_between, df_within),
+        subtitle = "Green dashed line: observed F; Orange shaded: rejection region (α = 0.05)",
+        x = "F",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 13.6 The ANOVA Table
+
+### 13.6.1 Traditional Format
+
+```{r anova_table}
+cat("ANOVA Table\n")
+cat("===========\n\n")
+cat("Source         df        SS          MS         F      p-value\n")
+cat("---------------------------------------------------------------\n")
+cat(sprintf("Between      %4d  %10.2f  %10.2f  %8.3f  %.4f\n",
+            df_between, SSB, MSB, F_stat, p_value))
+cat(sprintf("Within       %4d  %10.2f  %10.2f\n", df_within, SSW, MSW))
+cat(sprintf("Total        %4d  %10.2f\n\n", N - 1, SST))
+
+if (p_value < 0.05) {
+    cat("Conclusion: Reject H₀. There is significant evidence that\n")
+    cat("           at least one group mean differs from the others.\n")
+} else {
+    cat("Conclusion: Fail to reject H₀. No significant differences\n")
+    cat("           detected among group means.\n")
+}
+```
+
+### 13.6.2 Using R's aov() Function
+
+```{r aov_function}
+# Fit ANOVA using aov()
+anova_model <- aov(BMI ~ AgeDecade, data = bmi_sample)
+
+cat("\nR Output: aov() and summary()\n")
+cat("=============================\n\n")
+print(summary(anova_model))
+```
+
+---
+
+## 13.7 Effect Sizes
+
+### 13.7.1 Eta-Squared (η²)
+
+The proportion of variance explained by group membership:
+
+$$\eta^2 = \frac{\text{SSB}}{\text{SST}}$$
+
+This is analogous to R² in regression.
+
+```{r eta_squared}
+eta_sq <- SSB / SST
+
+cat("Eta-Squared (η²)\n")
+cat("================\n\n")
+cat(sprintf("η² = SSB / SST = %.2f / %.2f = %.4f\n\n", SSB, SST, eta_sq))
+cat(sprintf("Interpretation: %.1f%% of the variance in BMI is\n", eta_sq * 100))
+cat("               explained by age group membership.\n\n")
+
+cat("Effect size guidelines (Cohen):\n")
+cat("  η² = 0.01: Small effect\n")
+cat("  η² = 0.06: Medium effect\n")
+cat("  η² = 0.14: Large effect\n")
+```
+
+### 13.7.2 Omega-Squared (ω²)
+
+A less biased estimator of population effect size:
+
+$$\omega^2 = \frac{\text{SSB} - (k-1) \cdot \text{MSW}}{\text{SST} + \text{MSW}}$$
+
+```{r omega_squared}
+omega_sq <- (SSB - (k - 1) * MSW) / (SST + MSW)
+
+cat("Omega-Squared (ω²)\n")
+cat("==================\n\n")
+cat(sprintf("ω² = (SSB - (k-1)×MSW) / (SST + MSW)\n"))
+cat(sprintf("   = (%.2f - %d × %.2f) / (%.2f + %.2f)\n",
+            SSB, k-1, MSW, SST, MSW))
+cat(sprintf("   = %.4f\n\n", omega_sq))
+cat("Note: ω² is a more conservative (less biased) estimate than η².\n")
+```
+
+---
+
+## 13.8 Checking ANOVA Assumptions
+
+### 13.8.1 Normality Check
+
+```{r normality_check}
+# Q-Q plots by group
+ggplot2$ggplot(bmi_sample, ggplot2$aes(sample = BMI)) +
+    ggplot2$stat_qq(colour = "#0072B2", alpha = 0.5) +
+    ggplot2$stat_qq_line(colour = "#D55E00") +
+    ggplot2$facet_wrap(~AgeDecade) +
+    ggplot2$labs(
+        title = "Normality Check: Q-Q Plots by Group",
+        subtitle = "Points should follow the reference line",
+        x = "Theoretical Quantiles",
+        y = "Sample Quantiles"
+    ) +
+    ggplot2$theme_minimal(base_size = 11)
+```
+
+### 13.8.2 Homogeneity of Variance (Levene's Test)
+
+```{r levene_test}
+# Manual Levene's test (using median for robustness)
+levene_data <- copy(bmi_sample)
+levene_data[, median_group := median(BMI), by = AgeDecade]
+levene_data[, abs_deviation := abs(BMI - median_group)]
+
+levene_model <- aov(abs_deviation ~ AgeDecade, data = levene_data)
+levene_result <- summary(levene_model)[[1]]
+
+cat("Levene's Test for Homogeneity of Variance\n")
+cat("==========================================\n\n")
+cat("H₀: All group variances are equal\n")
+cat("H₁: At least one group variance differs\n\n")
+cat(sprintf("F(%d, %d) = %.3f\n",
+            levene_result$Df[1], levene_result$Df[2], levene_result$`F value`[1]))
+cat(sprintf("p-value = %.4f\n\n", levene_result$`Pr(>F)`[1]))
+
+if (levene_result$`Pr(>F)`[1] < 0.05) {
+    cat("Warning: Evidence of unequal variances. Consider Welch's ANOVA.\n")
+} else {
+    cat("No significant evidence against homogeneity of variance.\n")
+}
+```
+
+### 13.8.3 Visual Check for Equal Variances
+
+```{r variance_visual_check}
+# Compare SDs across groups
+var_check <- bmi_sample[, .(
+    n = .N,
+    mean = mean(BMI),
+    sd = sd(BMI),
+    var = var(BMI)
+), by = AgeDecade][order(AgeDecade)]
+
+cat("Variance by Group\n")
+cat("=================\n\n")
+print(var_check)
+
+cat(sprintf("\nRatio of largest to smallest variance: %.2f\n",
+            max(var_check$var) / min(var_check$var)))
+cat("Rule of thumb: If ratio > 3, consider Welch's ANOVA.\n")
+```
+
+---
+
+## 13.9 Welch's ANOVA
+
+When variances are unequal, **Welch's ANOVA** provides a robust alternative that does not assume homogeneity:
+
+```{r welch_anova}
+# Welch's ANOVA
+welch_result <- oneway.test(BMI ~ AgeDecade, data = bmi_sample, var.equal = FALSE)
+
+cat("Welch's ANOVA (Does not assume equal variances)\n")
+cat("================================================\n\n")
+cat(sprintf("F(%.1f, %.1f) = %.3f\n",
+            welch_result$parameter[1], welch_result$parameter[2], welch_result$statistic))
+cat(sprintf("p-value = %.4f\n\n", welch_result$p.value))
+
+# Compare with regular ANOVA
+regular_result <- oneway.test(BMI ~ AgeDecade, data = bmi_sample, var.equal = TRUE)
+cat("Comparison:\n")
+cat(sprintf("  Regular ANOVA: F = %.3f, p = %.4f\n",
+            regular_result$statistic, regular_result$p.value))
+cat(sprintf("  Welch's ANOVA: F = %.3f, p = %.4f\n",
+            welch_result$statistic, welch_result$p.value))
+```
+
+---
+
+## 13.10 ANOVA as Linear Regression
+
+### 13.10.1 The Connection
+
+ANOVA is a special case of linear regression with categorical predictors. Using dummy coding:
+
+```{r anova_as_regression}
+# Fit as regression with dummy variables
+reg_model <- lm(BMI ~ AgeDecade, data = bmi_sample)
+
+cat("ANOVA as Linear Regression\n")
+cat("==========================\n\n")
+cat("Regression coefficients:\n")
+print(round(coef(reg_model), 3))
+
+cat("\nInterpretation:\n")
+cat("  (Intercept): Mean BMI for reference group (20-29)\n")
+cat("  AgeDecade30-39: Difference from reference (30-39 vs 20-29)\n")
+cat("  etc.\n")
+```
+
+```{r anova_from_lm}
+# Compare ANOVA tables
+cat("\nANOVA table from lm():\n")
+print(anova(reg_model))
+
+cat("\nANOVA table from aov():\n")
+print(summary(anova_model))
+
+cat("\nNote: The F-statistics and p-values are identical!\n")
+```
+
+---
+
+## 13.11 Communicating to Stakeholders
+
+### 13.11.1 Reporting ANOVA Results
+
+When reporting ANOVA:
+
+1. State the research question
+2. Report descriptive statistics by group
+3. Report the F-statistic, degrees of freedom, and p-value
+4. Report effect size (η² or ω²)
+5. If significant, report post-hoc comparisons (next section)
+
+```{r anova_report}
+cat("Example Write-Up\n")
+cat("================\n\n")
+
+cat("Research Question: Does BMI differ across adult age groups?\n\n")
+
+cat("Descriptive Statistics:\n")
+descriptives <- bmi_sample[, .(
+    M = round(mean(BMI), 2),
+    SD = round(sd(BMI), 2),
+    n = .N
+), by = AgeDecade][order(AgeDecade)]
+print(descriptives)
+
+cat("\n\nResults:\n")
+cat("A one-way ANOVA was conducted to compare BMI across five age\n")
+cat(sprintf("decades. There was a statistically significant difference,\n"))
+cat(sprintf("F(%d, %d) = %.2f, p = %.3f, η² = %.3f.\n\n",
+            df_between, df_within, F_stat, p_value, eta_sq))
+
+if (p_value < 0.05) {
+    cat("This represents a ")
+    if (eta_sq < 0.06) {
+        cat("small")
+    } else if (eta_sq < 0.14) {
+        cat("medium")
+    } else {
+        cat("large")
+    }
+    cat(" effect. Post-hoc comparisons are needed to\n")
+    cat("determine which specific groups differ.\n")
+}
+```
+
+---
+
+## Quick Reference
+
+### Key Formulas
+
+| Quantity | Formula |
+|----------|---------|
+| SST (Total) | $\sum\sum (Y_{ij} - \bar{Y}_{..})^2$ |
+| SSB (Between) | $\sum n_i (\bar{Y}_{i.} - \bar{Y}_{..})^2$ |
+| SSW (Within) | $\sum\sum (Y_{ij} - \bar{Y}_{i.})^2$ |
+| MSB | $\text{SSB} / (k-1)$ |
+| MSW | $\text{SSW} / (N-k)$ |
+| F | $\text{MSB} / \text{MSW}$ |
+| η² | $\text{SSB} / \text{SST}$ |
+| ω² | $(\text{SSB} - (k-1)\text{MSW}) / (\text{SST} + \text{MSW})$ |
+
+### Assumptions
+
+| Assumption | Check | If Violated |
+|------------|-------|-------------|
+| Independence | Study design | Serious—use mixed models |
+| Normality | Q-Q plots, Shapiro-Wilk | Robust with large n; use Kruskal-Wallis |
+| Homoscedasticity | Levene's test, variance ratio | Use Welch's ANOVA |
+
+### R Functions
+
+| Function | Purpose |
+|----------|---------|
+| `aov(y ~ group, data)` | Fit one-way ANOVA |
+| `summary(aov_model)` | ANOVA table |
+| `oneway.test(y ~ group, var.equal = FALSE)` | Welch's ANOVA |
+| `TukeyHSD(aov_model)` | Post-hoc comparisons |
+

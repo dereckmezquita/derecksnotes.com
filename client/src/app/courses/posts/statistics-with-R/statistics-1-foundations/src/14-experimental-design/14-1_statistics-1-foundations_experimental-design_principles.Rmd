@@ -1,0 +1,576 @@
+---
+title: "Principles of Experimental Design"
+subtitle: "Part 1 of Chapter 14: Experimental Design"
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6
+)
+
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+## 14.1 Why Experimental Design Matters
+
+### 14.1.1 The Goal of Experimentation
+
+The ultimate goal of most scientific research is to establish **causal relationships**: Does X cause Y? Unlike observational studies, well-designed experiments can provide strong evidence for causation.
+
+**Key insight**: The validity of statistical conclusions depends entirely on how data were collected. No amount of sophisticated analysis can fix a poorly designed study.
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+### 14.1.2 Experiments vs Observational Studies
+
+| Aspect | Observational Study | Experiment |
+|--------|---------------------|------------|
+| Researcher control | Observes naturally occurring variation | Manipulates treatment assignment |
+| Causation | Association only | Can establish causation |
+| Confounding | Difficult to control | Controlled through randomisation |
+| Ethical constraints | Often none | May limit what can be studied |
+| Generalisability | Often higher | May be artificial |
+
+---
+
+## 14.2 The Three Pillars of Experimental Design
+
+### 14.2.1 Randomisation
+
+**Randomisation** is the random assignment of experimental units to treatments. It is the cornerstone of valid experimentation.
+
+**Why randomise?**
+- Eliminates systematic bias in treatment assignment
+- Balances known AND unknown confounders (on average)
+- Provides the basis for valid statistical inference
+
+```{r randomisation_example}
+# Simulate the power of randomisation
+set.seed(123)
+n <- 100
+
+# Population with a confounding variable (e.g., health consciousness)
+population <- data.table(
+    id = 1:n,
+    health_consciousness = rnorm(n, 50, 15),  # Confounder
+    age = rnorm(n, 45, 12)  # Another potential confounder
+)
+
+# Non-random assignment: health-conscious people choose treatment
+population[, treatment_biased := ifelse(health_consciousness > 50, 1, 0)]
+
+# Random assignment
+population[, treatment_random := sample(c(0, 1), .N, replace = TRUE)]
+
+# Check balance
+cat("Balance Check: Mean Health Consciousness by Treatment\n")
+cat("=====================================================\n\n")
+
+cat("Biased (self-selection):\n")
+print(population[, .(mean_health = mean(health_consciousness), n = .N), by = treatment_biased])
+
+cat("\nRandom assignment:\n")
+print(population[, .(mean_health = mean(health_consciousness), n = .N), by = treatment_random])
+
+cat("\nNote: Random assignment produces balanced groups!\n")
+```
+
+### 14.2.2 Visualising Randomisation Balance
+
+```{r randomisation_visual}
+# Compare distributions
+plot_data <- melt(population, id.vars = c("id", "health_consciousness"),
+                  measure.vars = c("treatment_biased", "treatment_random"),
+                  variable.name = "method", value.name = "treatment")
+
+plot_data[, method := fifelse(method == "treatment_biased",
+                               "Biased\n(Self-Selection)",
+                               "Random\nAssignment")]
+plot_data[, treatment := factor(treatment, labels = c("Control", "Treatment"))]
+
+ggplot2$ggplot(plot_data, ggplot2$aes(x = health_consciousness, fill = treatment)) +
+    ggplot2$geom_density(alpha = 0.5) +
+    ggplot2$facet_wrap(~method) +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "The Power of Randomisation",
+        subtitle = "Random assignment balances confounders between groups",
+        x = "Health Consciousness Score",
+        y = "Density",
+        fill = "Group"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 14.2.3 Replication
+
+**Replication** means having multiple independent observations per treatment. It:
+- Allows estimation of experimental error (variance)
+- Increases precision of treatment effect estimates
+- Enables statistical inference
+
+**Pseudoreplication** (a common error) occurs when non-independent observations are treated as independent replicates.
+
+```{r replication_example}
+# Proper vs pseudo-replication
+cat("Example: Testing a New Drug\n")
+cat("============================\n\n")
+
+cat("PROPER REPLICATION:\n")
+cat("• 20 patients randomly assigned to drug\n")
+cat("• 20 patients randomly assigned to placebo\n")
+cat("• Each patient is an independent replicate\n\n")
+
+cat("PSEUDOREPLICATION (WRONG!):\n")
+cat("• 2 patients get drug, measured 10 times each\n")
+cat("• 2 patients get placebo, measured 10 times each\n")
+cat("• n = 2 per group, NOT 20!\n")
+cat("• Multiple measurements on same patient are NOT independent\n")
+```
+
+### 14.2.4 Blocking (Local Control)
+
+**Blocking** groups experimental units that are similar, then randomises within blocks. This reduces noise and increases power.
+
+```{r blocking_example}
+# Simulate blocking effect
+set.seed(456)
+n_blocks <- 10
+n_per_block <- 4
+
+# Create blocked design
+blocked_data <- data.table(
+    block = rep(1:n_blocks, each = n_per_block),
+    block_effect = rep(rnorm(n_blocks, 0, 10), each = n_per_block),  # Block variation
+    treatment = rep(c("A", "A", "B", "B"), n_blocks)
+)
+
+# Randomise within blocks
+blocked_data[, treatment := sample(treatment), by = block]
+
+# Generate response
+blocked_data[, response := 50 +
+    5 * (treatment == "B") +  # Treatment effect
+    block_effect +            # Block effect (nuisance)
+    rnorm(.N, 0, 3)]          # Random error
+
+# Analyse with and without blocking
+model_no_block <- lm(response ~ treatment, data = blocked_data)
+model_blocked <- lm(response ~ treatment + factor(block), data = blocked_data)
+
+cat("Analysis of Blocked Experiment\n")
+cat("==============================\n\n")
+
+cat("Without blocking adjustment:\n")
+cat(sprintf("  Treatment effect estimate: %.2f\n", coef(model_no_block)[2]))
+cat(sprintf("  SE: %.2f\n", summary(model_no_block)$coefficients[2, 2]))
+cat(sprintf("  p-value: %.4f\n\n", summary(model_no_block)$coefficients[2, 4]))
+
+cat("With blocking adjustment:\n")
+cat(sprintf("  Treatment effect estimate: %.2f\n", coef(model_blocked)[2]))
+cat(sprintf("  SE: %.2f\n", summary(model_blocked)$coefficients[2, 2]))
+cat(sprintf("  p-value: %.4f\n\n", summary(model_blocked)$coefficients[2, 4]))
+
+cat("Note: Blocking reduced the SE by accounting for block-to-block variation!\n")
+```
+
+---
+
+## 14.3 Types of Experimental Designs
+
+### 14.3.1 Completely Randomised Design (CRD)
+
+The simplest design: experimental units are randomly assigned to treatments without any grouping.
+
+```{r crd_design}
+# Completely Randomised Design
+set.seed(789)
+n_per_group <- 10
+treatments <- c("Control", "Low Dose", "High Dose")
+
+crd_data <- data.table(
+    unit = 1:(n_per_group * length(treatments)),
+    treatment = rep(treatments, each = n_per_group)
+)
+
+# Randomise assignment
+crd_data <- crd_data[sample(.N)]
+crd_data[, unit := 1:.N]  # Renumber
+
+cat("Completely Randomised Design (CRD)\n")
+cat("==================================\n\n")
+cat("Units randomly assigned to treatments:\n\n")
+print(crd_data[order(treatment)])
+```
+
+```{r crd_visual}
+# Visualise CRD
+crd_data[, row := ceiling(unit / 6)]
+crd_data[, col := ((unit - 1) %% 6) + 1]
+
+ggplot2$ggplot(crd_data, ggplot2$aes(x = col, y = row, fill = treatment)) +
+    ggplot2$geom_tile(colour = "white", linewidth = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = unit), colour = "white", fontface = "bold") +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+    ggplot2$scale_y_reverse() +
+    ggplot2$labs(
+        title = "Completely Randomised Design",
+        subtitle = "Each number is an experimental unit; colour shows treatment",
+        x = "", y = "",
+        fill = "Treatment"
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(axis.text = ggplot2$element_blank(),
+                  axis.ticks = ggplot2$element_blank())
+```
+
+### 14.3.2 Randomised Complete Block Design (RCBD)
+
+Experimental units are grouped into blocks, and each treatment appears once per block.
+
+```{r rcbd_design}
+# Randomised Complete Block Design
+set.seed(101)
+n_blocks <- 5
+treatments <- c("Control", "Drug A", "Drug B")
+
+rcbd_data <- CJ(block = 1:n_blocks, treatment = treatments)
+
+# Randomise within blocks
+rcbd_data[, position := sample(.N), by = block]
+rcbd_data <- rcbd_data[order(block, position)]
+
+cat("Randomised Complete Block Design (RCBD)\n")
+cat("=======================================\n\n")
+print(dcast(rcbd_data, block ~ treatment, value.var = "position"))
+cat("\n(Numbers show position within each block)\n")
+```
+
+```{r rcbd_visual}
+# Visualise RCBD
+ggplot2$ggplot(rcbd_data, ggplot2$aes(x = factor(block), y = factor(position), fill = treatment)) +
+    ggplot2$geom_tile(colour = "white", linewidth = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = treatment), colour = "white", size = 3, fontface = "bold") +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+    ggplot2$labs(
+        title = "Randomised Complete Block Design",
+        subtitle = "Each block contains all treatments; randomised within blocks",
+        x = "Block",
+        y = "Position",
+        fill = "Treatment"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 14.3.3 Latin Square Design
+
+Controls for two sources of variation using rows and columns; each treatment appears once per row and once per column.
+
+```{r latin_square}
+# Latin Square Design
+treatments <- c("A", "B", "C", "D")
+n <- length(treatments)
+
+# Create standard Latin square
+latin_square <- matrix(NA, n, n)
+for (i in 1:n) {
+    latin_square[i, ] <- treatments[((0:(n-1) + i - 1) %% n) + 1]
+}
+
+# Randomise rows and columns
+latin_square <- latin_square[sample(n), sample(n)]
+
+cat("Latin Square Design (4 × 4)\n")
+cat("===========================\n\n")
+print(latin_square)
+cat("\nEach treatment appears exactly once per row and column.\n")
+```
+
+```{r latin_square_visual}
+# Convert to data.table for plotting
+n_ls <- 4  # Size of Latin square
+ls_data <- as.data.table(expand.grid(row = 1:n_ls, col = 1:n_ls))
+ls_data[, treatment := as.vector(t(latin_square))]
+
+ggplot2$ggplot(ls_data, ggplot2$aes(x = factor(col), y = factor(row), fill = treatment)) +
+    ggplot2$geom_tile(colour = "white", linewidth = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = treatment), colour = "white", size = 8, fontface = "bold") +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00", "#009E73", "#CC79A7")) +
+    ggplot2$scale_y_discrete(limits = rev) +
+    ggplot2$labs(
+        title = "Latin Square Design",
+        subtitle = "Controls for two blocking factors (rows and columns)",
+        x = "Column Factor",
+        y = "Row Factor",
+        fill = "Treatment"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 14.4 Sample Size and Power
+
+### 14.4.1 The Elements of Power Analysis
+
+**Statistical power** is the probability of detecting a true effect. It depends on:
+
+1. **Effect size**: How large is the true effect?
+2. **Sample size**: How many observations?
+3. **Significance level (α)**: Usually 0.05
+4. **Variability**: How noisy is the data?
+
+The standard target is power = 0.80 (80% chance of detecting a true effect).
+
+```{r power_elements}
+# Visualise power relationship
+effect_sizes <- seq(0.2, 1.0, by = 0.1)
+sample_sizes <- c(10, 20, 30, 50, 100)
+
+power_data <- CJ(effect = effect_sizes, n = sample_sizes)
+
+# Calculate power for two-sample t-test
+power_data[, power := sapply(1:.N, function(i) {
+    power.t.test(n = n[i], delta = effect[i], sd = 1,
+                 sig.level = 0.05, type = "two.sample")$power
+})]
+
+ggplot2$ggplot(power_data, ggplot2$aes(x = effect, y = power, colour = factor(n), group = n)) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$geom_hline(yintercept = 0.8, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_viridis_d(option = "plasma") +
+    ggplot2$labs(
+        title = "Power as a Function of Effect Size and Sample Size",
+        subtitle = "Dashed line shows conventional 80% power target",
+        x = "Effect Size (Cohen's d)",
+        y = "Power",
+        colour = "Sample Size\nper Group"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 14.4.2 Sample Size Calculation
+
+```{r sample_size_calc}
+# Calculate required sample size for different scenarios
+scenarios <- data.table(
+    Effect_Size = c("Small (d=0.2)", "Medium (d=0.5)", "Large (d=0.8)"),
+    d = c(0.2, 0.5, 0.8)
+)
+
+scenarios[, n_per_group := sapply(d, function(delta) {
+    ceiling(power.t.test(delta = delta, sd = 1, power = 0.8,
+                         sig.level = 0.05, type = "two.sample")$n)
+})]
+
+scenarios[, total_n := n_per_group * 2]
+
+cat("Required Sample Size for 80% Power (α = 0.05, two-sample t-test)\n")
+cat("================================================================\n\n")
+print(scenarios)
+
+cat("\nKey insight: Detecting small effects requires MUCH larger samples!\n")
+```
+
+### 14.4.3 Power for ANOVA
+
+```{r power_anova}
+# Power calculation for one-way ANOVA
+calculate_anova_power <- function(k, n_per_group, effect_size, alpha = 0.05) {
+    # effect_size is f = sqrt(sum(alpha_i^2) / k) / sigma
+    df1 <- k - 1
+    df2 <- k * (n_per_group - 1)
+    ncp <- k * n_per_group * effect_size^2  # Non-centrality parameter
+    f_crit <- qf(1 - alpha, df1, df2)
+    power <- 1 - pf(f_crit, df1, df2, ncp = ncp)
+    return(power)
+}
+
+# Example: 4 groups, medium effect (f = 0.25)
+n_range <- seq(5, 50, by = 5)
+power_anova <- sapply(n_range, function(n) calculate_anova_power(k = 4, n_per_group = n, effect_size = 0.25))
+
+anova_power_data <- data.table(n_per_group = n_range, power = power_anova)
+
+cat("Power for One-Way ANOVA (4 groups, f = 0.25 medium effect)\n")
+cat("==========================================================\n\n")
+print(anova_power_data)
+
+# Find n for 80% power
+n_80 <- n_range[which(power_anova >= 0.80)[1]]
+cat(sprintf("\nNeed approximately n = %d per group (total N = %d) for 80%% power.\n",
+            n_80, n_80 * 4))
+```
+
+---
+
+## 14.5 Control Groups and Placebos
+
+### 14.5.1 Types of Controls
+
+| Control Type | Description | When to Use |
+|--------------|-------------|-------------|
+| Negative control | No treatment or standard care | Baseline comparison |
+| Positive control | Known effective treatment | Verify experimental system works |
+| Placebo control | Inert treatment | Control for psychological effects |
+| Active control | Alternative treatment | Comparative effectiveness |
+
+### 14.5.2 The Placebo Effect
+
+The **placebo effect** is a real psychological/physiological response to an inert treatment. It demonstrates why blinding is essential.
+
+```{r placebo_simulation}
+# Simulate placebo effect
+set.seed(202)
+n_per_group <- 50
+
+# True drug effect = 5 units
+# Placebo effect = 3 units (just from believing you got treatment)
+placebo_data <- data.table(
+    group = rep(c("No Treatment", "Placebo", "Drug"), each = n_per_group),
+    baseline = rnorm(n_per_group * 3, 50, 10)
+)
+
+placebo_data[, outcome := baseline +
+    fifelse(group == "No Treatment", 0,
+    fifelse(group == "Placebo", 3 + rnorm(.N, 0, 3),  # Placebo effect only
+                                5 + 3 + rnorm(.N, 0, 3)))]  # Drug + placebo
+
+# Improvement from baseline
+placebo_data[, improvement := outcome - baseline]
+
+cat("Disentangling Treatment Effects\n")
+cat("===============================\n\n")
+result_table <- placebo_data[, .(
+    Mean_Improvement = mean(improvement),
+    SD = sd(improvement)
+), by = group]
+print(result_table)
+
+cat("\nInterpretation:\n")
+cat("• Total drug effect (vs no treatment): 8 units\n")
+cat("• Placebo effect: 3 units\n")
+cat("• True pharmacological effect: 5 units (Drug - Placebo)\n")
+cat("\nWithout placebo control, we would overestimate the drug's effect!\n")
+```
+
+---
+
+## 14.6 Blinding
+
+### 14.6.1 Levels of Blinding
+
+| Level | Who Is Blinded | Purpose |
+|-------|----------------|---------|
+| Single-blind | Participants only | Eliminate placebo bias |
+| Double-blind | Participants AND researchers | Eliminate all sources of bias |
+| Triple-blind | Participants, researchers, AND analysts | Most rigorous |
+
+### 14.6.2 When Blinding Is Not Possible
+
+Some interventions cannot be blinded (e.g., surgery vs medication, exercise programmes). In these cases:
+- Use objective outcomes when possible
+- Have blinded outcome assessors
+- Acknowledge limitations
+
+---
+
+## 14.7 Communicating to Stakeholders
+
+### 14.7.1 Evaluating Study Quality
+
+When reading research, ask:
+
+1. **Was randomisation used?** How was it done?
+2. **What was the sample size?** Was power adequate?
+3. **Were there appropriate controls?**
+4. **Was blinding used?** Who was blinded?
+5. **What was the comparison?** Treatment vs placebo vs active control?
+
+```{r quality_checklist}
+cat("Study Quality Checklist\n")
+cat("=======================\n\n")
+
+checklist <- data.table(
+    Question = c(
+        "1. Random assignment?",
+        "2. Adequate sample size?",
+        "3. Appropriate control group?",
+        "4. Blinding (single/double)?",
+        "5. Intention-to-treat analysis?",
+        "6. All outcomes reported?",
+        "7. Pre-registered protocol?"
+    ),
+    Good_Study = c("Yes, with clear method",
+                   "Power analysis reported",
+                   "Placebo or active control",
+                   "Double-blind preferred",
+                   "Yes, all randomised",
+                   "Primary + secondary",
+                   "Yes, publicly available"),
+    Red_Flag = c("Self-selection or unclear",
+                 "Small n, no justification",
+                 "No control or historical",
+                 "Open-label or unclear",
+                 "Per-protocol only",
+                 "Selective reporting",
+                 "No or post-hoc")
+)
+
+print(checklist)
+```
+
+---
+
+## Quick Reference
+
+### Three Pillars
+
+| Principle | Purpose | Key Benefit |
+|-----------|---------|-------------|
+| Randomisation | Balance confounders | Valid causal inference |
+| Replication | Estimate error | Statistical inference |
+| Blocking | Reduce noise | Increased power |
+
+### Design Selection Guide
+
+| Situation | Recommended Design |
+|-----------|--------------------|
+| Homogeneous units, simple | CRD |
+| Known source of variation | RCBD |
+| Two sources of variation, limited units | Latin Square |
+| Multiple factors of interest | Factorial |
+
+### Power Quick Guide
+
+| Effect Size (Cohen's d) | Description | Approx. n per group (power = 0.80) |
+|-------------------------|-------------|-----------------------------------|
+| 0.2 | Small | 400 |
+| 0.5 | Medium | 65 |
+| 0.8 | Large | 25 |
+
+### R Functions
+
+| Function | Purpose |
+|----------|---------|
+| `sample()` | Random assignment |
+| `power.t.test()` | Power for t-test |
+| `power.anova.test()` | Power for one-way ANOVA |
+| `pwr::pwr.f2.test()` | Power for regression |
+

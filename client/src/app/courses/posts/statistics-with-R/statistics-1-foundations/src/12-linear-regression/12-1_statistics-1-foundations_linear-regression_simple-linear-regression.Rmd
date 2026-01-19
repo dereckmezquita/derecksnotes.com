@@ -1,0 +1,657 @@
+---
+title: "Simple Linear Regression"
+subtitle: "Part 1 of Chapter 12: Linear Regression"
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6
+)
+
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+## 12.1 Introduction to Regression Analysis
+
+Regression analysis is one of the most widely used statistical techniques. It allows us to model the relationship between variables and make predictions. Simple linear regression examines the relationship between two continuous variables: a predictor (independent variable) and a response (dependent variable).
+
+### 12.1.1 Why Regression?
+
+Regression addresses fundamental questions:
+
+1. **Is there a relationship?** Does the predictor variable relate to the response?
+2. **How strong is it?** What is the magnitude of the relationship?
+3. **Which predictors matter?** (In multiple regression)
+4. **How accurately can we predict?** What is the uncertainty in our predictions?
+
+### 12.1.2 Historical Context
+
+The term "regression" comes from Francis Galton's 1886 study of heights. He observed that children of tall parents tended to be shorter than their parents, and children of short parents tended to be taller—a phenomenon he called "regression towards mediocrity" (now "regression to the mean").
+
+---
+
+## 12.2 The Simple Linear Regression Model
+
+### 12.2.1 Model Specification
+
+The simple linear regression model relates a response variable $Y$ to a predictor $X$:
+
+$$Y_i = \beta_0 + \beta_1 X_i + \varepsilon_i$$
+
+Where:
+- $Y_i$ is the observed response for observation $i$
+- $X_i$ is the predictor value
+- $\beta_0$ is the **intercept** (value of $Y$ when $X = 0$)
+- $\beta_1$ is the **slope** (change in $Y$ for a one-unit change in $X$)
+- $\varepsilon_i$ is the random error term
+
+### 12.2.2 Model Assumptions
+
+The classical linear regression model makes four key assumptions about the errors:
+
+1. **Linearity**: The relationship between $X$ and $E[Y|X]$ is linear
+2. **Independence**: Errors are independent of each other
+3. **Homoscedasticity**: Errors have constant variance: $\text{Var}(\varepsilon_i) = \sigma^2$
+4. **Normality**: Errors are normally distributed: $\varepsilon_i \sim N(0, \sigma^2)$
+
+These are often summarised as: $\varepsilon_i \stackrel{\text{iid}}{\sim} N(0, \sigma^2)$
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+# Load NHANES data
+nhanes <- fread("../data/primary/nhanes.csv")
+
+# Clean data for regression analysis
+reg_data <- nhanes[!is.na(Height) & !is.na(Weight) & Age >= 18]
+```
+
+---
+
+## 12.3 Visualising Linear Relationships
+
+### 12.3.1 Scatter Plots and Fitted Lines
+
+```{r scatter_plot}
+# Sample for cleaner visualisation
+set.seed(123)
+sample_data <- reg_data[sample(.N, 500)]
+
+ggplot2$ggplot(sample_data, ggplot2$aes(x = Height, y = Weight)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_smooth(method = "lm", se = TRUE, colour = "#D55E00", fill = "#D55E00", alpha = 0.2) +
+    ggplot2$labs(
+        title = "Height vs Weight: A Classic Linear Relationship",
+        subtitle = "Blue points show observations; orange line shows fitted regression",
+        x = "Height (cm)",
+        y = "Weight (kg)"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 12.3.2 Intuition: The Line of Best Fit
+
+The regression line minimises the sum of squared vertical distances (residuals) from each point to the line. This is called **ordinary least squares (OLS)**.
+
+```{r residual_visual}
+# Fit model
+model <- lm(Weight ~ Height, data = sample_data)
+
+# Add predictions
+sample_data[, predicted := predict(model)]
+sample_data[, residual := Weight - predicted]
+
+# Show residuals for a subset
+subset_indices <- sample(1:nrow(sample_data), 20)
+subset_data <- sample_data[subset_indices]
+
+ggplot2$ggplot(sample_data, ggplot2$aes(x = Height, y = Weight)) +
+    ggplot2$geom_point(alpha = 0.3, colour = "#0072B2") +
+    ggplot2$geom_segment(
+        data = subset_data,
+        ggplot2$aes(x = Height, xend = Height, y = Weight, yend = predicted),
+        colour = "#009E73", linetype = "dashed", linewidth = 0.8
+    ) +
+    ggplot2$geom_point(data = subset_data, colour = "#D55E00", size = 2) +
+    ggplot2$geom_smooth(method = "lm", se = FALSE, colour = "#D55E00", linewidth = 1) +
+    ggplot2$labs(
+        title = "Residuals: Vertical Distances from Points to Line",
+        subtitle = "Green dashed lines show residuals; OLS minimises the sum of their squares",
+        x = "Height (cm)",
+        y = "Weight (kg)"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 12.4 Least Squares Estimation
+
+### 12.4.1 The Least Squares Criterion
+
+We want to find $\hat{\beta}_0$ and $\hat{\beta}_1$ that minimise the **residual sum of squares (RSS)**:
+
+$$\text{RSS} = \sum_{i=1}^{n} (Y_i - \hat{Y}_i)^2 = \sum_{i=1}^{n} (Y_i - \hat{\beta}_0 - \hat{\beta}_1 X_i)^2$$
+
+### 12.4.2 Deriving the Estimators
+
+Taking partial derivatives and setting them to zero:
+
+$$\frac{\partial \text{RSS}}{\partial \beta_0} = -2\sum_{i=1}^{n} (Y_i - \beta_0 - \beta_1 X_i) = 0$$
+
+$$\frac{\partial \text{RSS}}{\partial \beta_1} = -2\sum_{i=1}^{n} X_i(Y_i - \beta_0 - \beta_1 X_i) = 0$$
+
+Solving these **normal equations** yields:
+
+$$\hat{\beta}_1 = \frac{\sum_{i=1}^{n}(X_i - \bar{X})(Y_i - \bar{Y})}{\sum_{i=1}^{n}(X_i - \bar{X})^2} = \frac{S_{XY}}{S_{XX}}$$
+
+$$\hat{\beta}_0 = \bar{Y} - \hat{\beta}_1 \bar{X}$$
+
+Where:
+- $S_{XY} = \sum (X_i - \bar{X})(Y_i - \bar{Y})$ is the corrected sum of cross-products
+- $S_{XX} = \sum (X_i - \bar{X})^2$ is the corrected sum of squares for $X$
+
+### 12.4.3 Computing Estimates in R
+
+```{r ols_manual}
+# Manual calculation of OLS estimates
+x <- sample_data$Height
+y <- sample_data$Weight
+
+x_bar <- mean(x)
+y_bar <- mean(y)
+
+# Corrected sums
+S_xy <- sum((x - x_bar) * (y - y_bar))
+S_xx <- sum((x - x_bar)^2)
+
+# Estimates
+beta_1 <- S_xy / S_xx
+beta_0 <- y_bar - beta_1 * x_bar
+
+cat("Manual OLS Estimation\n")
+cat("=====================\n\n")
+cat(sprintf("Mean of X (Height): %.2f cm\n", x_bar))
+cat(sprintf("Mean of Y (Weight): %.2f kg\n\n", y_bar))
+cat(sprintf("S_xy = %.2f\n", S_xy))
+cat(sprintf("S_xx = %.2f\n\n", S_xx))
+cat(sprintf("Slope (β₁) = S_xy / S_xx = %.4f\n", beta_1))
+cat(sprintf("Intercept (β₀) = ȳ - β₁x̄ = %.4f\n", beta_0))
+```
+
+```{r ols_compare}
+# Compare with R's lm() function
+model <- lm(Weight ~ Height, data = sample_data)
+
+cat("\nComparison with lm() Output\n")
+cat("===========================\n\n")
+cat(sprintf("Manual β₀: %.4f, lm() β₀: %.4f\n", beta_0, coef(model)[1]))
+cat(sprintf("Manual β₁: %.4f, lm() β₁: %.4f\n", beta_1, coef(model)[2]))
+```
+
+### 12.4.4 Interpreting the Coefficients
+
+```{r interpret_coef}
+cat("Interpretation of Coefficients\n")
+cat("==============================\n\n")
+cat(sprintf("Intercept (β₀ = %.2f):\n", coef(model)[1]))
+cat("  The predicted weight when height is 0 cm.\n")
+cat("  (Not meaningful here—extrapolation beyond data range)\n\n")
+cat(sprintf("Slope (β₁ = %.3f):\n", coef(model)[2]))
+cat(sprintf("  For every 1 cm increase in height,\n"))
+cat(sprintf("  weight increases by %.3f kg on average.\n", coef(model)[2]))
+```
+
+---
+
+## 12.5 Properties of OLS Estimators
+
+### 12.5.1 The Gauss-Markov Theorem
+
+Under the assumptions of linearity, independence, and homoscedasticity (without requiring normality), the OLS estimators are **BLUE**:
+
+- **B**est: Minimum variance among all linear unbiased estimators
+- **L**inear: Linear functions of the $Y_i$
+- **U**nbiased: $E[\hat{\beta}_0] = \beta_0$ and $E[\hat{\beta}_1] = \beta_1$
+- **E**stimators
+
+### 12.5.2 Variance of Estimators
+
+$$\text{Var}(\hat{\beta}_1) = \frac{\sigma^2}{\sum_{i=1}^{n}(X_i - \bar{X})^2} = \frac{\sigma^2}{S_{XX}}$$
+
+$$\text{Var}(\hat{\beta}_0) = \sigma^2 \left( \frac{1}{n} + \frac{\bar{X}^2}{S_{XX}} \right)$$
+
+The standard errors use $\hat{\sigma}^2 = \text{MSE} = \frac{\text{RSS}}{n-2}$ as an estimator for $\sigma^2$.
+
+```{r variance_estimators}
+# Calculate variance estimates
+n <- nrow(sample_data)
+RSS <- sum(residuals(model)^2)
+MSE <- RSS / (n - 2)  # Residual variance estimate
+
+var_beta1 <- MSE / S_xx
+var_beta0 <- MSE * (1/n + x_bar^2/S_xx)
+
+se_beta1 <- sqrt(var_beta1)
+se_beta0 <- sqrt(var_beta0)
+
+cat("Standard Errors of Estimates\n")
+cat("============================\n\n")
+cat(sprintf("Residual Sum of Squares (RSS) = %.2f\n", RSS))
+cat(sprintf("Degrees of Freedom = n - 2 = %d\n", n - 2))
+cat(sprintf("Mean Square Error (MSE) = %.4f\n\n", MSE))
+cat(sprintf("SE(β₁) = √(MSE/S_xx) = %.4f\n", se_beta1))
+cat(sprintf("SE(β₀) = √(MSE(1/n + x̄²/S_xx)) = %.4f\n", se_beta0))
+
+# Compare with summary output
+cat("\nCompare with summary(model):\n")
+print(summary(model)$coefficients[, 1:2])
+```
+
+---
+
+## 12.6 Inference for Regression Coefficients
+
+### 12.6.1 Hypothesis Tests for Slope
+
+The most common test is whether the slope differs from zero:
+
+$$H_0: \beta_1 = 0 \quad \text{vs} \quad H_1: \beta_1 \neq 0$$
+
+The test statistic:
+
+$$t = \frac{\hat{\beta}_1 - 0}{\text{SE}(\hat{\beta}_1)} \sim t_{n-2}$$
+
+```{r slope_test}
+# Test for slope
+t_stat <- coef(model)[2] / se_beta1
+p_value <- 2 * pt(-abs(t_stat), df = n - 2)
+
+cat("Hypothesis Test for Slope\n")
+cat("=========================\n\n")
+cat("H₀: β₁ = 0 (no linear relationship)\n")
+cat("H₁: β₁ ≠ 0 (linear relationship exists)\n\n")
+cat(sprintf("Test statistic: t = %.3f / %.4f = %.3f\n",
+            coef(model)[2], se_beta1, t_stat))
+cat(sprintf("Degrees of freedom: %d\n", n - 2))
+cat(sprintf("p-value: %.2e\n\n", p_value))
+
+if (p_value < 0.05) {
+    cat("Conclusion: Reject H₀. There is significant evidence of a\n")
+    cat("           linear relationship between height and weight.\n")
+}
+```
+
+### 12.6.2 Confidence Intervals
+
+A $(1-\alpha)\times 100\%$ confidence interval for $\beta_1$:
+
+$$\hat{\beta}_1 \pm t_{\alpha/2, n-2} \times \text{SE}(\hat{\beta}_1)$$
+
+```{r conf_intervals}
+# 95% confidence intervals
+alpha <- 0.05
+t_crit <- qt(1 - alpha/2, df = n - 2)
+
+ci_beta1 <- c(
+    lower = coef(model)[2] - t_crit * se_beta1,
+    upper = coef(model)[2] + t_crit * se_beta1
+)
+
+ci_beta0 <- c(
+    lower = coef(model)[1] - t_crit * se_beta0,
+    upper = coef(model)[1] + t_crit * se_beta0
+)
+
+cat("95% Confidence Intervals\n")
+cat("========================\n\n")
+cat(sprintf("For slope (β₁):\n"))
+cat(sprintf("  %.4f ± %.3f × %.4f\n", coef(model)[2], t_crit, se_beta1))
+cat(sprintf("  (%.4f, %.4f)\n\n", ci_beta1[1], ci_beta1[2]))
+cat(sprintf("For intercept (β₀):\n"))
+cat(sprintf("  (%.4f, %.4f)\n\n", ci_beta0[1], ci_beta0[2]))
+
+# Compare with confint()
+cat("Compare with confint(model):\n")
+print(confint(model))
+```
+
+### 12.6.3 Visualising Uncertainty in the Slope
+
+```{r slope_uncertainty}
+# Simulation to show sampling distribution of slope
+set.seed(456)
+n_sim <- 1000
+slopes <- numeric(n_sim)
+
+for (i in 1:n_sim) {
+    boot_idx <- sample(1:n, n, replace = TRUE)
+    boot_model <- lm(Weight ~ Height, data = sample_data[boot_idx])
+    slopes[i] <- coef(boot_model)[2]
+}
+
+slope_dt <- data.table(slope = slopes)
+
+ggplot2$ggplot(slope_dt, ggplot2$aes(x = slope)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+                           bins = 40, fill = "#0072B2", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = coef(model)[2], colour = "#D55E00",
+                       linewidth = 1.2, linetype = "solid") +
+    ggplot2$geom_vline(xintercept = ci_beta1, colour = "#009E73",
+                       linewidth = 1, linetype = "dashed") +
+    ggplot2$labs(
+        title = "Bootstrap Distribution of the Slope Estimate",
+        subtitle = "Orange line: observed slope; Green lines: 95% CI bounds",
+        x = "Estimated Slope (kg/cm)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 12.7 Coefficient of Determination (R²)
+
+### 12.7.1 Partitioning Variability
+
+Total variability in $Y$ can be partitioned:
+
+$$\underbrace{\sum_{i=1}^{n}(Y_i - \bar{Y})^2}_{\text{SST}} = \underbrace{\sum_{i=1}^{n}(\hat{Y}_i - \bar{Y})^2}_{\text{SSR}} + \underbrace{\sum_{i=1}^{n}(Y_i - \hat{Y}_i)^2}_{\text{SSE/RSS}}$$
+
+- **SST** (Total Sum of Squares): Total variation in $Y$
+- **SSR** (Regression Sum of Squares): Variation explained by the model
+- **SSE/RSS** (Error Sum of Squares): Unexplained variation
+
+### 12.7.2 The R² Statistic
+
+$$R^2 = \frac{\text{SSR}}{\text{SST}} = 1 - \frac{\text{SSE}}{\text{SST}}$$
+
+$R^2$ represents the **proportion of variance in Y explained by X**.
+
+```{r r_squared}
+# Calculate R²
+y_pred <- predict(model)
+y_mean <- mean(sample_data$Weight)
+
+SST <- sum((sample_data$Weight - y_mean)^2)
+SSR <- sum((y_pred - y_mean)^2)
+SSE <- sum((sample_data$Weight - y_pred)^2)
+
+R_squared <- SSR / SST
+R_squared_alt <- 1 - SSE / SST
+
+cat("Partitioning Variance\n")
+cat("=====================\n\n")
+cat(sprintf("Total Sum of Squares (SST) = %.2f\n", SST))
+cat(sprintf("Regression Sum of Squares (SSR) = %.2f\n", SSR))
+cat(sprintf("Error Sum of Squares (SSE) = %.2f\n\n", SSE))
+cat(sprintf("R² = SSR/SST = %.2f/%.2f = %.4f\n", SSR, SST, R_squared))
+cat(sprintf("R² = 1 - SSE/SST = 1 - %.2f/%.2f = %.4f\n\n", SSE, SST, R_squared_alt))
+cat(sprintf("Interpretation: Height explains %.1f%% of the\n", R_squared * 100))
+cat("               variation in weight.\n")
+
+# Compare with summary
+cat(sprintf("\nsummary(model)$r.squared: %.4f\n", summary(model)$r.squared))
+```
+
+### 12.7.3 Relationship to Correlation
+
+For simple linear regression, $R^2 = r^2$, where $r$ is the Pearson correlation:
+
+```{r r_sq_correlation}
+r <- cor(sample_data$Height, sample_data$Weight)
+cat(sprintf("Pearson correlation r = %.4f\n", r))
+cat(sprintf("r² = %.4f\n", r^2))
+cat(sprintf("R² from regression = %.4f\n", summary(model)$r.squared))
+```
+
+### 12.7.4 Visualising R²
+
+```{r r_squared_visual}
+# Create visual showing explained vs unexplained variance
+variance_data <- data.table(
+    Type = c("Explained by Height\n(SSR)", "Unexplained\n(SSE)"),
+    Value = c(SSR, SSE),
+    Proportion = c(R_squared, 1 - R_squared)
+)
+
+ggplot2$ggplot(variance_data, ggplot2$aes(x = "", y = Value, fill = Type)) +
+    ggplot2$geom_col(width = 0.5) +
+    ggplot2$geom_text(ggplot2$aes(label = sprintf("%.1f%%", Proportion * 100)),
+                      position = ggplot2$position_stack(vjust = 0.5),
+                      colour = "white", fontface = "bold", size = 5) +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = sprintf("R² = %.3f: Partitioning Variance in Weight", R_squared),
+        subtitle = "Height explains a substantial portion of weight variation",
+        x = "",
+        y = "Sum of Squares",
+        fill = "Variance Component"
+    ) +
+    ggplot2$coord_flip() +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 12.8 The ANOVA Table for Regression
+
+### 12.8.1 F-Test for Overall Model
+
+The F-test assesses whether the regression model explains a significant amount of variance:
+
+$$F = \frac{\text{MSR}}{\text{MSE}} = \frac{\text{SSR}/1}{\text{SSE}/(n-2)} \sim F_{1, n-2}$$
+
+```{r anova_table}
+# ANOVA table
+MSR <- SSR / 1  # 1 df for one predictor
+MSE <- SSE / (n - 2)
+F_stat <- MSR / MSE
+p_value_F <- pf(F_stat, df1 = 1, df2 = n - 2, lower.tail = FALSE)
+
+cat("ANOVA Table for Regression\n")
+cat("==========================\n\n")
+cat("Source      df        SS          MS         F       p-value\n")
+cat("--------------------------------------------------------------\n")
+cat(sprintf("Regression   1  %10.2f  %10.2f  %8.2f  %.2e\n", SSR, MSR, F_stat, p_value_F))
+cat(sprintf("Error      %3d  %10.2f  %10.2f\n", n-2, SSE, MSE))
+cat(sprintf("Total      %3d  %10.2f\n\n", n-1, SST))
+
+# Compare with anova()
+cat("Compare with anova(model):\n")
+print(anova(model))
+```
+
+### 12.8.2 Relationship Between t and F Tests
+
+For simple linear regression with one predictor, the F-test and t-test for the slope are equivalent:
+
+$$F = t^2$$
+
+```{r t_f_relationship}
+t_value <- summary(model)$coefficients[2, 3]
+F_value <- anova(model)[1, 4]
+
+cat("Relationship between t and F statistics\n")
+cat("=======================================\n\n")
+cat(sprintf("t-statistic for slope: %.4f\n", t_value))
+cat(sprintf("t² = %.4f\n\n", t_value^2))
+cat(sprintf("F-statistic from ANOVA: %.4f\n", F_value))
+```
+
+---
+
+## 12.9 Making Predictions
+
+### 12.9.1 Fitted Values and Predictions
+
+```{r predictions}
+# Predict weight for new heights
+new_heights <- data.table(Height = c(150, 165, 180, 195))
+new_heights[, predicted_weight := predict(model, newdata = new_heights)]
+
+cat("Predictions for New Observations\n")
+cat("=================================\n\n")
+print(new_heights)
+```
+
+### 12.9.2 Confidence Intervals vs Prediction Intervals
+
+Two types of intervals for predictions:
+
+1. **Confidence interval**: For the mean response at a given $X$ value
+2. **Prediction interval**: For an individual new observation
+
+```{r prediction_intervals}
+# Get both types of intervals
+ci <- predict(model, newdata = new_heights, interval = "confidence", level = 0.95)
+pi <- predict(model, newdata = new_heights, interval = "prediction", level = 0.95)
+
+prediction_table <- cbind(
+    new_heights[, .(Height)],
+    data.table(
+        Fit = ci[, 1],
+        CI_Lower = ci[, 2],
+        CI_Upper = ci[, 3],
+        PI_Lower = pi[, 2],
+        PI_Upper = pi[, 3]
+    )
+)
+
+cat("Confidence and Prediction Intervals\n")
+cat("====================================\n\n")
+print(round(prediction_table, 2))
+
+cat("\nNote: Prediction intervals are always wider than confidence intervals\n")
+cat("      because they account for both uncertainty in the mean AND\n")
+cat("      individual variation around that mean.\n")
+```
+
+### 12.9.3 Visualising Prediction Bands
+
+```{r prediction_bands}
+# Create prediction data across range
+pred_range <- data.table(Height = seq(min(sample_data$Height), max(sample_data$Height), length.out = 100))
+
+# Get intervals
+ci_band <- predict(model, newdata = pred_range, interval = "confidence")
+pi_band <- predict(model, newdata = pred_range, interval = "prediction")
+
+pred_range[, `:=`(
+    fit = ci_band[, 1],
+    ci_lower = ci_band[, 2],
+    ci_upper = ci_band[, 3],
+    pi_lower = pi_band[, 2],
+    pi_upper = pi_band[, 3]
+)]
+
+ggplot2$ggplot(sample_data, ggplot2$aes(x = Height, y = Weight)) +
+    ggplot2$geom_ribbon(data = pred_range, ggplot2$aes(y = fit, ymin = pi_lower, ymax = pi_upper),
+                        fill = "#009E73", alpha = 0.2) +
+    ggplot2$geom_ribbon(data = pred_range, ggplot2$aes(y = fit, ymin = ci_lower, ymax = ci_upper),
+                        fill = "#D55E00", alpha = 0.3) +
+    ggplot2$geom_point(alpha = 0.3, colour = "#0072B2") +
+    ggplot2$geom_line(data = pred_range, ggplot2$aes(y = fit), colour = "#D55E00", linewidth = 1.2) +
+    ggplot2$labs(
+        title = "Confidence and Prediction Intervals",
+        subtitle = "Orange band: 95% CI for mean; Green band: 95% prediction interval",
+        x = "Height (cm)",
+        y = "Weight (kg)"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 12.10 Communicating to Stakeholders
+
+### 12.10.1 Writing Up Regression Results
+
+When reporting regression results:
+
+1. **State the research question** clearly
+2. **Report the model equation** with estimated coefficients
+3. **Include measures of fit** (R², standard error)
+4. **Provide confidence intervals** for key parameters
+5. **Interpret in context** using practical units
+
+```{r regression_report}
+model_summary <- summary(model)
+
+cat("Example Results Write-Up\n")
+cat("========================\n\n")
+
+cat("Research Question: Does height predict weight in adults?\n\n")
+
+cat("We examined the relationship between height and weight using simple\n")
+cat("linear regression. The analysis included", n, "adults from the NHANES\n")
+cat("dataset.\n\n")
+
+cat("Results:\n")
+cat(sprintf("The regression equation is:\n"))
+cat(sprintf("  Weight = %.2f + %.3f × Height\n\n", coef(model)[1], coef(model)[2]))
+
+cat(sprintf("Height was a significant predictor of weight (β = %.3f, \n", coef(model)[2]))
+cat(sprintf("95%% CI [%.3f, %.3f], t(%d) = %.2f, p < .001).\n\n",
+            confint(model)[2, 1], confint(model)[2, 2],
+            n - 2, model_summary$coefficients[2, 3]))
+
+cat(sprintf("For every 1 cm increase in height, weight increased by %.2f kg\n", coef(model)[2]))
+cat(sprintf("on average. The model explained %.1f%% of the variance in weight\n",
+            model_summary$r.squared * 100))
+cat(sprintf("(R² = %.3f, F(1, %d) = %.1f, p < .001).\n",
+            model_summary$r.squared, n - 2, model_summary$fstatistic[1]))
+```
+
+### 12.10.2 Cautions and Limitations
+
+**Key points to communicate:**
+
+1. **Correlation ≠ Causation**: Regression shows association, not cause
+2. **Extrapolation risks**: Predictions outside the data range are unreliable
+3. **R² interpretation**: High R² doesn't mean the model is correct
+4. **Assumption checking**: Results are only valid if assumptions hold
+
+---
+
+## Quick Reference
+
+### Key Formulas
+
+| Quantity | Formula |
+|----------|---------|
+| Slope | $\hat{\beta}_1 = S_{XY} / S_{XX}$ |
+| Intercept | $\hat{\beta}_0 = \bar{Y} - \hat{\beta}_1\bar{X}$ |
+| SE of slope | $\text{SE}(\hat{\beta}_1) = \sqrt{MSE/S_{XX}}$ |
+| R² | $R^2 = 1 - SSE/SST$ |
+| t-test for slope | $t = \hat{\beta}_1 / \text{SE}(\hat{\beta}_1)$ |
+| F-test | $F = MSR/MSE$ |
+
+### R Functions
+
+| Function | Purpose |
+|----------|---------|
+| `lm(y ~ x, data)` | Fit linear model |
+| `summary(model)` | Coefficients, SE, t-tests, R² |
+| `coef(model)` | Extract coefficients |
+| `confint(model)` | Confidence intervals |
+| `predict(model, newdata, interval)` | Predictions with CI/PI |
+| `anova(model)` | ANOVA table |
+| `residuals(model)` | Extract residuals |
+| `fitted(model)` | Extract fitted values |
+

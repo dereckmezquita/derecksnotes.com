@@ -1,0 +1,630 @@
+---
+title: "Validity and Threats to Inference"
+subtitle: "Part 2 of Chapter 14: Experimental Design"
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6
+)
+
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+## 14.8 Types of Validity
+
+### 14.8.1 The Four Validities
+
+Understanding validity is crucial for evaluating research. There are four main types:
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r validity_types}
+validity_table <- data.table(
+    Type = c("Internal Validity", "External Validity",
+             "Construct Validity", "Statistical Conclusion Validity"),
+    Question = c("Did X actually cause Y?",
+                 "Do findings generalise to other settings/populations?",
+                 "Are we measuring what we think we're measuring?",
+                 "Are our statistical conclusions correct?"),
+    Threats = c("Confounding, selection bias, history, maturation",
+                "Sample not representative, artificial setting",
+                "Poor operationalisation, measurement error",
+                "Low power, violated assumptions, multiple testing")
+)
+
+cat("The Four Types of Research Validity\n")
+cat("===================================\n\n")
+for (i in 1:nrow(validity_table)) {
+    cat(sprintf("%s\n", validity_table$Type[i]))
+    cat(sprintf("  Question: %s\n", validity_table$Question[i]))
+    cat(sprintf("  Threats: %s\n\n", validity_table$Threats[i]))
+}
+```
+
+---
+
+## 14.9 Internal Validity
+
+### 14.9.1 Threats to Internal Validity
+
+Internal validity is threatened when alternative explanations for the observed effect exist.
+
+```{r internal_threats}
+threats <- data.table(
+    Threat = c("History", "Maturation", "Testing", "Instrumentation",
+               "Selection", "Regression to Mean", "Attrition", "Diffusion"),
+    Description = c(
+        "External events during study affect outcomes",
+        "Natural changes over time (aging, learning)",
+        "Pre-test affects post-test performance",
+        "Measurement changes during study",
+        "Groups differ before treatment",
+        "Extreme scores naturally move toward mean",
+        "Differential dropout between groups",
+        "Control group learns about treatment"
+    ),
+    Example = c(
+        "Economic crisis during job training study",
+        "Children's reading improves naturally",
+        "Taking a test improves later performance",
+        "Different raters at pre vs post",
+        "Volunteers differ from non-volunteers",
+        "Selected for low scores, improve anyway",
+        "Sicker patients drop out of treatment arm",
+        "Control patients adopt treatment behaviours"
+    )
+)
+
+cat("Threats to Internal Validity\n")
+cat("============================\n\n")
+for (i in 1:nrow(threats)) {
+    cat(sprintf("%d. %s\n", i, threats$Threat[i]))
+    cat(sprintf("   %s\n", threats$Description[i]))
+    cat(sprintf("   Example: %s\n\n", threats$Example[i]))
+}
+```
+
+### 14.9.2 Simulating Selection Bias
+
+```{r selection_bias}
+# Simulate selection bias
+set.seed(123)
+n <- 200
+
+# Create population with baseline differences
+population <- data.table(
+    id = 1:n,
+    motivation = rnorm(n, 50, 15),  # Underlying trait
+    baseline_score = 50 + 0.5 * rnorm(n, 50, 15) + rnorm(n, 0, 10)
+)
+
+# Biased selection: motivated people choose treatment
+population[, treatment := fifelse(motivation > 55, 1,
+                                  fifelse(motivation < 45, 0,
+                                          sample(c(0, 1), .N, replace = TRUE)))]
+
+# True treatment effect = 5
+# But motivated people also improve more
+population[, outcome := baseline_score +
+    5 * treatment +              # True effect
+    0.2 * motivation +           # Motivation also helps
+    rnorm(.N, 0, 5)]
+
+# Naive analysis (ignores selection)
+naive_model <- lm(outcome ~ treatment, data = population)
+
+# Analysis controlling for motivation
+adjusted_model <- lm(outcome ~ treatment + motivation, data = population)
+
+cat("Selection Bias Example\n")
+cat("======================\n\n")
+cat("True treatment effect: 5 units\n\n")
+
+cat("Naive estimate (ignoring selection):\n")
+cat(sprintf("  Treatment effect: %.2f (overestimated!)\n",
+            coef(naive_model)[2]))
+cat("  Bias: Treatment group has higher motivation\n\n")
+
+cat("Adjusted estimate (controlling for motivation):\n")
+cat(sprintf("  Treatment effect: %.2f (closer to truth)\n",
+            coef(adjusted_model)[2]))
+```
+
+### 14.9.3 Regression to the Mean
+
+```{r regression_to_mean}
+# Demonstrate regression to the mean
+set.seed(456)
+n <- 200
+
+# True ability plus random error
+true_ability <- rnorm(n, 100, 15)
+test1 <- true_ability + rnorm(n, 0, 10)
+test2 <- true_ability + rnorm(n, 0, 10)
+
+rtm_data <- data.table(test1 = test1, test2 = test2)
+
+# Select bottom 20% on test1
+rtm_data[, selected := test1 <= quantile(test1, 0.2)]
+selected_data <- rtm_data[selected == TRUE]
+
+cat("Regression to the Mean\n")
+cat("======================\n\n")
+
+cat("Selected bottom 20% on Test 1:\n")
+cat(sprintf("  Mean Test 1: %.1f\n", mean(selected_data$test1)))
+cat(sprintf("  Mean Test 2: %.1f\n", mean(selected_data$test2)))
+cat(sprintf("  Apparent 'improvement': %.1f\n\n",
+            mean(selected_data$test2) - mean(selected_data$test1)))
+
+cat("This 'improvement' is NOT a treatment effect—it's regression to the mean!\n")
+cat("Any intervention given to this group would appear effective.\n")
+
+# Visualise
+ggplot2$ggplot(rtm_data, ggplot2$aes(x = test1, y = test2, colour = selected)) +
+    ggplot2$geom_point(alpha = 0.5) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed") +
+    ggplot2$geom_smooth(data = selected_data, method = "lm", colour = "#D55E00", se = FALSE) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00"),
+                                 labels = c("Not Selected", "Selected (Bottom 20%)")) +
+    ggplot2$labs(
+        title = "Regression to the Mean",
+        subtitle = "Selected low scorers naturally improve on retest",
+        x = "Test 1 Score",
+        y = "Test 2 Score",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 14.10 External Validity
+
+### 14.10.1 Generalisability
+
+External validity concerns whether findings apply beyond the specific study conditions.
+
+```{r external_validity}
+cat("Threats to External Validity\n")
+cat("============================\n\n")
+
+external_threats <- data.table(
+    Threat = c("Population", "Setting", "Time", "Treatment Variation",
+               "Outcome Measures"),
+    Question = c(
+        "Does it work for other populations?",
+        "Does it work in other settings?",
+        "Will it work in the future?",
+        "Does it work with different doses/versions?",
+        "Does it affect other outcomes?"
+    ),
+    Example = c(
+        "Drug tested on young males—works for elderly women?",
+        "Lab finding—applies in real classrooms?",
+        "Intervention from 1990—still effective today?",
+        "Specific dosage tested—other doses work too?",
+        "Improved test scores—improves job performance?"
+    )
+)
+
+print(external_threats)
+```
+
+### 14.10.2 The Trade-Off
+
+There is often a tension between internal and external validity:
+
+```{r validity_tradeoff}
+tradeoff_data <- data.table(
+    Study_Type = c("Highly Controlled Lab Experiment",
+                   "Field Experiment",
+                   "Naturalistic Observation"),
+    Internal_Validity = c(9, 6, 3),
+    External_Validity = c(3, 6, 9)
+)
+
+tradeoff_long <- melt(tradeoff_data, id.vars = "Study_Type",
+                      variable.name = "Validity_Type", value.name = "Score")
+
+ggplot2$ggplot(tradeoff_long,
+               ggplot2$aes(x = Study_Type, y = Score, fill = Validity_Type)) +
+    ggplot2$geom_col(position = "dodge") +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00"),
+                               labels = c("Internal Validity", "External Validity")) +
+    ggplot2$labs(
+        title = "The Internal-External Validity Trade-Off",
+        subtitle = "Tight control sacrifices real-world applicability",
+        x = "",
+        y = "Relative Strength (1-10)",
+        fill = ""
+    ) +
+    ggplot2$coord_flip() +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 14.11 Statistical Conclusion Validity
+
+### 14.11.1 When Statistics Mislead
+
+Statistical conclusion validity refers to the accuracy of our statistical inferences.
+
+```{r statistical_threats}
+stat_threats <- data.table(
+    Threat = c("Low Power", "Violated Assumptions", "Multiple Testing",
+               "Unreliable Measures", "Restriction of Range",
+               "Heterogeneous Treatment Effects"),
+    Description = c(
+        "Insufficient sample size to detect true effects",
+        "Using tests when assumptions are violated",
+        "Inflated Type I error from many comparisons",
+        "Noisy measurements increase error variance",
+        "Truncated range attenuates correlations",
+        "Average effect masks variation across subgroups"
+    ),
+    Solution = c(
+        "Power analysis, larger samples",
+        "Check assumptions, use robust methods",
+        "Correction methods (Bonferroni, FDR)",
+        "Improve measurement, use multiple indicators",
+        "Sample full range of values",
+        "Examine moderators, subgroup analyses"
+    )
+)
+
+cat("Threats to Statistical Conclusion Validity\n")
+cat("==========================================\n\n")
+for (i in 1:nrow(stat_threats)) {
+    cat(sprintf("%d. %s\n", i, stat_threats$Threat[i]))
+    cat(sprintf("   Problem: %s\n", stat_threats$Description[i]))
+    cat(sprintf("   Solution: %s\n\n", stat_threats$Solution[i]))
+}
+```
+
+### 14.11.2 The Danger of Low Power
+
+```{r low_power_dangers}
+# Simulate consequences of low power
+set.seed(789)
+n_sims <- 1000
+true_effect <- 0.3
+small_n <- 20
+large_n <- 200
+
+# Function to simulate and test
+sim_test <- function(n, effect) {
+    x <- rnorm(n)
+    y <- effect * x + rnorm(n)
+    test <- cor.test(x, y)
+    c(estimate = test$estimate, p_value = test$p.value, significant = test$p.value < 0.05)
+}
+
+# Run simulations
+small_results <- t(replicate(n_sims, sim_test(small_n, true_effect)))
+large_results <- t(replicate(n_sims, sim_test(large_n, true_effect)))
+
+small_dt <- as.data.table(small_results)
+large_dt <- as.data.table(large_results)
+
+cat("Consequences of Low Power\n")
+cat("=========================\n\n")
+cat(sprintf("True effect: r = %.2f\n\n", true_effect))
+
+cat(sprintf("Small sample (n = %d):\n", small_n))
+cat(sprintf("  Power (proportion significant): %.1f%%\n", 100 * mean(small_dt$significant)))
+cat(sprintf("  Mean estimate when significant: %.3f (inflated!)\n",
+            mean(small_dt[significant == 1]$estimate)))
+cat(sprintf("  Mean estimate overall: %.3f\n\n", mean(small_dt$estimate)))
+
+cat(sprintf("Large sample (n = %d):\n", large_n))
+cat(sprintf("  Power (proportion significant): %.1f%%\n", 100 * mean(large_dt$significant)))
+cat(sprintf("  Mean estimate when significant: %.3f (accurate)\n",
+            mean(large_dt[significant == 1]$estimate)))
+cat(sprintf("  Mean estimate overall: %.3f\n\n", mean(large_dt$estimate)))
+
+cat("Key insight: Low power + publication bias = inflated effect sizes!\n")
+```
+
+```{r power_visual}
+# Visualise effect size inflation
+combined <- rbind(
+    data.table(n = "Small (n=20)", estimate = small_dt$estimate, significant = small_dt$significant),
+    data.table(n = "Large (n=200)", estimate = large_dt$estimate, significant = large_dt$significant)
+)
+combined[, significant := factor(significant, labels = c("Not Sig.", "Significant"))]
+
+ggplot2$ggplot(combined, ggplot2$aes(x = estimate, fill = significant)) +
+    ggplot2$geom_histogram(alpha = 0.7, bins = 30, position = "identity") +
+    ggplot2$geom_vline(xintercept = true_effect, linetype = "dashed", colour = "black", linewidth = 1) +
+    ggplot2$facet_wrap(~n, scales = "free_y") +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "Effect Size Inflation with Low Power",
+        subtitle = "Dashed line = true effect; Significant results in low-power studies are inflated",
+        x = "Estimated Correlation",
+        y = "Count",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 14.12 Confounding
+
+### 14.12.1 What Is Confounding?
+
+A **confounder** is a variable that:
+1. Is associated with the treatment
+2. Affects the outcome
+3. Is not on the causal pathway from treatment to outcome
+
+```{r confounding_diagram}
+cat("Confounding Structure\n")
+cat("=====================\n\n")
+
+cat("       Z (Confounder)\n")
+cat("      / \\\n")
+cat("     ↓   ↓\n")
+cat("    X     Y\n")
+cat("    ↓___↗\n")
+cat("   (spurious)\n\n")
+
+cat("Example:\n")
+cat("• X = Coffee consumption\n")
+cat("• Y = Heart disease\n")
+cat("• Z = Smoking (confounds the coffee-heart disease relationship)\n")
+```
+
+### 14.12.2 Simulating Confounding
+
+```{r confounding_sim}
+# Simulate confounding
+set.seed(101)
+n <- 500
+
+# Z is the confounder
+Z <- rnorm(n, 0, 1)
+
+# X is influenced by Z
+X <- 0.7 * Z + rnorm(n, 0, 0.5)
+
+# Y is caused by Z but NOT by X (no true causal effect)
+Y <- 0.8 * Z + rnorm(n, 0, 0.5)
+
+confound_data <- data.table(X = X, Y = Y, Z = Z)
+
+# Naive analysis (confounded)
+naive <- lm(Y ~ X, data = confound_data)
+
+# Adjusted analysis
+adjusted <- lm(Y ~ X + Z, data = confound_data)
+
+cat("Confounding Demonstration\n")
+cat("=========================\n\n")
+cat("True causal effect of X on Y: 0 (no effect)\n\n")
+
+cat("Naive analysis (ignoring confounder Z):\n")
+cat(sprintf("  Estimated effect: %.3f (spurious!)\n", coef(naive)[2]))
+cat(sprintf("  p-value: %.4f (false positive!)\n\n", summary(naive)$coefficients[2, 4]))
+
+cat("Adjusted analysis (controlling for Z):\n")
+cat(sprintf("  Estimated effect: %.3f (correct!)\n", coef(adjusted)[2]))
+cat(sprintf("  p-value: %.4f (not significant)\n", summary(adjusted)$coefficients[2, 4]))
+```
+
+### 14.12.3 Methods to Address Confounding
+
+| Method | Description | When to Use |
+|--------|-------------|-------------|
+| Randomisation | Random treatment assignment | Experiments (gold standard) |
+| Restriction | Limit to specific values of confounder | Known strong confounders |
+| Matching | Match treated/control on confounders | Observational studies |
+| Stratification | Analyse within strata of confounder | Few categorical confounders |
+| Statistical adjustment | Include confounders in model | Multiple confounders |
+| Propensity scores | Model probability of treatment | Many confounders |
+
+---
+
+## 14.13 Bias in Research
+
+### 14.13.1 Types of Bias
+
+```{r bias_types}
+bias_table <- data.table(
+    Bias_Type = c("Selection Bias", "Information Bias", "Recall Bias",
+                  "Observer Bias", "Publication Bias", "Reporting Bias"),
+    Description = c(
+        "Systematic differences in who is included",
+        "Systematic errors in measuring exposure/outcome",
+        "Differential memory of past exposures",
+        "Researcher expectations affect observations",
+        "Positive results more likely published",
+        "Selective reporting of outcomes"
+    ),
+    Prevention = c(
+        "Random sampling, clear inclusion criteria",
+        "Standardised measurements, blinding",
+        "Prospective design, objective records",
+        "Double-blinding, objective measures",
+        "Pre-registration, all trials registered",
+        "Pre-specification of outcomes"
+    )
+)
+
+cat("Types of Bias in Research\n")
+cat("=========================\n\n")
+print(bias_table)
+```
+
+### 14.13.2 Publication Bias Visualised
+
+```{r publication_bias}
+# Simulate publication bias with funnel plot
+set.seed(202)
+n_studies <- 50
+true_effect <- 0.3
+
+# Simulate studies with varying sample sizes
+sample_sizes <- sample(20:500, n_studies, replace = TRUE)
+
+study_results <- data.table(
+    n = sample_sizes,
+    se = 1 / sqrt(sample_sizes)  # Approximate SE
+)
+
+# Generate effect estimates
+study_results[, effect := true_effect + rnorm(.N, 0, se)]
+study_results[, significant := abs(effect / se) > 1.96]
+
+# Publication bias: significant studies more likely published
+study_results[, published := fifelse(significant, TRUE, runif(.N) < 0.3)]
+
+ggplot2$ggplot(study_results[published == TRUE],
+               ggplot2$aes(x = effect, y = se)) +
+    ggplot2$geom_point(colour = "#0072B2", size = 2) +
+    ggplot2$geom_vline(xintercept = true_effect, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_vline(xintercept = mean(study_results[published == TRUE]$effect),
+                       linetype = "solid", colour = "#009E73") +
+    ggplot2$scale_y_reverse() +
+    ggplot2$labs(
+        title = "Funnel Plot: Detecting Publication Bias",
+        subtitle = "Asymmetry suggests small negative studies are missing",
+        x = "Effect Size",
+        y = "Standard Error (larger = smaller studies)"
+    ) +
+    ggplot2$annotate("text", x = true_effect + 0.02, y = 0.05, label = "True Effect",
+                     colour = "#D55E00", hjust = 0) +
+    ggplot2$annotate("text", x = mean(study_results[published == TRUE]$effect) + 0.02,
+                     y = 0.08, label = "Published Mean\n(biased)", colour = "#009E73", hjust = 0) +
+    ggplot2$theme_minimal(base_size = 12)
+
+cat("\nPublication Bias Summary:\n")
+cat(sprintf("True effect: %.2f\n", true_effect))
+cat(sprintf("Mean of ALL studies: %.3f\n", mean(study_results$effect)))
+cat(sprintf("Mean of PUBLISHED studies: %.3f (inflated!)\n",
+            mean(study_results[published == TRUE]$effect)))
+```
+
+---
+
+## 14.14 Communicating to Stakeholders
+
+### 14.14.1 Critical Appraisal Checklist
+
+```{r appraisal_checklist}
+cat("Critical Appraisal Questions\n")
+cat("============================\n\n")
+
+appraisal <- data.table(
+    Category = c(rep("Internal Validity", 3), rep("External Validity", 2),
+                 rep("Statistical Validity", 3)),
+    Question = c(
+        "Was there random assignment to groups?",
+        "Were groups similar at baseline?",
+        "Were there alternative explanations for the effect?",
+        "How representative was the sample?",
+        "How similar was the setting to real-world conditions?",
+        "Was sample size adequate (power analysis)?",
+        "Were statistical assumptions checked?",
+        "Were all planned outcomes reported?"
+    )
+)
+
+for (cat_name in unique(appraisal$Category)) {
+    cat(sprintf("\n%s:\n", cat_name))
+    cat(paste(rep("-", nchar(cat_name)), collapse = ""), "\n")
+    qs <- appraisal[Category == cat_name]$Question
+    for (q in qs) {
+        cat(sprintf("□ %s\n", q))
+    }
+}
+```
+
+### 14.14.2 Hierarchy of Evidence
+
+```{r evidence_hierarchy}
+hierarchy <- data.table(
+    Level = 1:6,
+    Study_Type = c(
+        "Systematic review of RCTs",
+        "Randomised controlled trial (RCT)",
+        "Controlled trial without randomisation",
+        "Cohort or case-control study",
+        "Cross-sectional survey",
+        "Case reports, expert opinion"
+    ),
+    Strength = c("Strongest", "Strong", "Moderate", "Moderate", "Weak", "Weakest")
+)
+
+cat("Hierarchy of Evidence (for Causal Questions)\n")
+cat("=============================================\n\n")
+print(hierarchy)
+
+cat("\nNote: The 'best' study type depends on the research question.\n")
+cat("RCTs are best for treatment effects; cohort studies may be\n")
+cat("better for understanding prognosis or natural history.\n")
+```
+
+---
+
+## Quick Reference
+
+### Validity Types
+
+| Validity | Question | Key Threats |
+|----------|----------|-------------|
+| Internal | Did X cause Y? | Confounding, selection, history |
+| External | Does it generalise? | Sample, setting, time |
+| Construct | Measuring right thing? | Poor operationalisation |
+| Statistical | Correct inference? | Low power, violated assumptions |
+
+### Controlling Confounding
+
+| Stage | Method |
+|-------|--------|
+| Design | Randomisation, restriction, matching |
+| Analysis | Stratification, regression adjustment |
+| Advanced | Propensity scores, instrumental variables |
+
+### Red Flags in Research
+
+| Red Flag | Why It Matters |
+|----------|----------------|
+| No randomisation | Confounding likely |
+| Small sample, large effect | Effect probably inflated |
+| Selective outcome reporting | Cherry-picking results |
+| No pre-registration | Hypothesis may be post-hoc |
+| Open-label design | Observer bias possible |
+| High dropout, not addressed | Attrition bias |
+
+### Questions to Ask
+
+1. How were participants selected and assigned?
+2. What was the sample size and power?
+3. Who knew about treatment assignment?
+4. How were outcomes measured?
+5. Were all outcomes reported?
+6. Could there be confounding?
+7. Does the sample represent my patients/population?
+
