@@ -1,0 +1,564 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 5: Count Data Models"
+part: "Part 1: Poisson Regression"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, Poisson, count-data, GLM, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 1: Poisson Regression
+
+Count data are ubiquitous in biomedical research: number of hospital admissions, disease cases, adverse events, doctor visits, or DNA mutations. These data require special treatment because counts are non-negative integers with a typically right-skewed distribution. **Poisson regression** is the foundation for modelling such data.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load count datasets
+doctor_visits <- fread("../../../data/count/nmes1988_doctor_visits.csv")
+hospital_los <- fread("../../../data/count/arizona_hospital_los.csv")
+
+cat("Datasets loaded:\n")
+cat("  Doctor visits:", nrow(doctor_visits), "observations\n")
+cat("  Hospital LOS:", nrow(hospital_los), "observations\n")
+```
+
+---
+
+## 5.1 Why Not Linear Regression for Counts?
+
+### 5.1.1 The Problems
+
+**Prose and Intuition**
+
+When modelling count outcomes like "number of doctor visits," linear regression faces several issues:
+
+1. **Predicted values can be negative**: Counts must be 0 or positive integers
+2. **Variance increases with mean**: Counts typically show increasing spread as the mean increases
+3. **Distribution is discrete and skewed**: Not normal, especially for small counts
+
+```{r count_distribution, fig.cap="Count data have a characteristic right-skewed distribution"}
+cat("Doctor Visits Distribution:\n")
+cat("===========================\n\n")
+
+# Summary statistics
+cat("Mean:", round(mean(doctor_visits$visits), 2), "\n")
+cat("Variance:", round(var(doctor_visits$visits), 2), "\n")
+cat("Min:", min(doctor_visits$visits), "\n")
+cat("Max:", max(doctor_visits$visits), "\n")
+cat("% zeros:", round(100 * mean(doctor_visits$visits == 0), 1), "%\n")
+
+# Distribution plot
+ggplot2$ggplot(doctor_visits, ggplot2$aes(x = visits)) +
+    ggplot2$geom_histogram(binwidth = 1, fill = "#0072B2", colour = "white", alpha = 0.8) +
+    ggplot2$scale_x_continuous(breaks = seq(0, 90, by = 10)) +
+    ggplot2$labs(
+        title = "Distribution of Doctor Visits (1988 NMES Data)",
+        subtitle = paste("Mean =", round(mean(doctor_visits$visits), 2),
+                        "| Variance =", round(var(doctor_visits$visits), 2)),
+        x = "Number of Doctor Visits",
+        y = "Frequency"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 5.1.2 Linear Model Failure
+
+```{r linear_failure, fig.cap="Linear regression produces invalid predictions for count data"}
+# Fit linear model
+model_lm <- lm(visits ~ health + age + gender + income, data = doctor_visits)
+
+# Check predictions
+pred_lm <- predict(model_lm)
+
+cat("Linear Model Predictions:\n")
+cat("=========================\n\n")
+cat("Minimum predicted:", round(min(pred_lm), 2), "\n")
+cat("Maximum predicted:", round(max(pred_lm), 2), "\n")
+cat("Negative predictions:", sum(pred_lm < 0), "(", round(100 * mean(pred_lm < 0), 1), "%)\n")
+
+# Plot
+ggplot2$ggplot(data.table(Actual = doctor_visits$visits, Predicted = pred_lm),
+               ggplot2$aes(x = Predicted, y = Actual)) +
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, colour = "#009E73", linetype = "dashed") +
+    ggplot2$geom_vline(xintercept = 0, colour = "#D55E00", linetype = "dashed") +
+    ggplot2$labs(
+        title = "Linear Model for Count Data",
+        subtitle = "Red line shows where predictions become negative",
+        x = "Predicted Visits",
+        y = "Actual Visits"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 5.2 The Poisson Distribution
+
+### 5.2.1 Review of the Poisson Distribution
+
+**Prose and Intuition**
+
+The Poisson distribution models the number of events occurring in a fixed interval of time or space, given a constant average rate. It's parameterised by a single parameter $\lambda$ (lambda), which is both the mean and variance.
+
+**Mathematical Definition**
+
+$$P(Y = k) = \frac{\lambda^k e^{-\lambda}}{k!}, \quad k = 0, 1, 2, \ldots$$
+
+**Key properties:**
+- $E[Y] = \lambda$
+- $\text{Var}(Y) = \lambda$ (equidispersion)
+- Bounded below by 0
+- Discrete and typically right-skewed
+
+```{r poisson_distribution, fig.cap="Poisson distributions with different rate parameters"}
+# Show Poisson distributions with different lambda
+lambda_values <- c(1, 3, 5, 10)
+x_vals <- 0:25
+
+pois_data <- rbindlist(lapply(lambda_values, function(l) {
+    data.table(
+        x = x_vals,
+        prob = dpois(x_vals, lambda = l),
+        lambda = paste("λ =", l)
+    )
+}))
+
+ggplot2$ggplot(pois_data, ggplot2$aes(x = x, y = prob, fill = lambda)) +
+    ggplot2$geom_col(position = "dodge", alpha = 0.8) +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00", "#009E73", "#CC79A7")) +
+    ggplot2$labs(
+        title = "Poisson Distributions with Different Rate Parameters",
+        subtitle = "Mean = Variance = λ",
+        x = "Count (k)",
+        y = "Probability P(Y = k)",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 5.3 Poisson Regression Model
+
+### 5.3.1 Model Formulation
+
+**Mathematical Definition**
+
+In Poisson regression, we model the log of the expected count as a linear function of predictors:
+
+$$\log(E[Y_i]) = \log(\lambda_i) = \boldsymbol{\beta}'\mathbf{X}_i = \beta_0 + \beta_1 X_{i1} + \cdots + \beta_p X_{ip}$$
+
+Equivalently:
+$$E[Y_i] = \lambda_i = e^{\boldsymbol{\beta}'\mathbf{X}_i}$$
+
+This is a GLM with:
+- **Random component**: $Y_i \sim \text{Poisson}(\lambda_i)$
+- **Link function**: Log (canonical link)
+- **Linear predictor**: $\eta_i = \boldsymbol{\beta}'\mathbf{X}_i$
+
+**Why the log link?**
+
+1. Ensures predicted means are always positive
+2. Coefficients have a multiplicative interpretation
+3. It's the canonical link for Poisson (optimal statistical properties)
+
+### 5.3.2 Fitting Poisson Regression in R
+
+```{r fit_poisson}
+# Fit Poisson regression
+model_pois <- glm(visits ~ health + age + gender + income,
+                  data = doctor_visits, family = poisson)
+
+cat("Poisson Regression: visits ~ health + age + gender + income\n")
+cat("============================================================\n\n")
+summary(model_pois)
+```
+
+### 5.3.3 Interpreting Coefficients as Rate Ratios
+
+**Prose and Intuition**
+
+In Poisson regression, exponentiating coefficients gives **rate ratios** (or incidence rate ratios). A rate ratio of 1.5 means the rate is 50% higher in the comparison group.
+
+**Mathematical Derivation**
+
+For a one-unit increase in predictor $X_j$:
+$$\frac{\lambda(X_j + 1)}{\lambda(X_j)} = \frac{e^{\beta_0 + \cdots + \beta_j(X_j + 1) + \cdots}}{e^{\beta_0 + \cdots + \beta_j X_j + \cdots}} = e^{\beta_j}$$
+
+```{r rate_ratios}
+# Calculate rate ratios with confidence intervals
+coefs <- summary(model_pois)$coefficients
+rr <- exp(coef(model_pois))
+ci <- confint(model_pois)
+rr_ci <- exp(ci)
+
+rr_table <- data.table(
+    Variable = names(rr),
+    Coefficient = coef(model_pois),
+    SE = coefs[, "Std. Error"],
+    Rate_Ratio = rr,
+    CI_Lower = rr_ci[, 1],
+    CI_Upper = rr_ci[, 2]
+)
+
+cat("Rate Ratios (Incidence Rate Ratios):\n")
+cat("=====================================\n\n")
+print(rr_table[, .(Variable, RR = round(Rate_Ratio, 3),
+                   CI = paste0("(", round(CI_Lower, 3), ", ", round(CI_Upper, 3), ")"))])
+
+cat("\nInterpretation Examples:\n")
+cat("  health coefficient:", round(coef(model_pois)["health"], 4), "\n")
+cat("  health RR:", round(rr["health"], 3), "\n")
+cat("  → Each unit increase in health score multiplies visits by", round(rr["health"], 3), "\n")
+```
+
+```{r forest_plot_rr, fig.cap="Forest plot of rate ratios with confidence intervals"}
+# Forest plot
+rr_plot <- rr_table[-1]  # Remove intercept
+rr_plot[, Variable := factor(Variable, levels = rev(Variable))]
+
+ggplot2$ggplot(rr_plot, ggplot2$aes(x = Rate_Ratio, y = Variable)) +
+    ggplot2$geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_errorbarh(ggplot2$aes(xmin = CI_Lower, xmax = CI_Upper),
+                           height = 0.2, colour = "#0072B2") +
+    ggplot2$geom_point(size = 3, colour = "#0072B2") +
+    ggplot2$scale_x_log10() +
+    ggplot2$labs(
+        title = "Rate Ratios for Doctor Visits",
+        subtitle = "Horizontal bars show 95% confidence intervals",
+        x = "Rate Ratio (log scale)",
+        y = ""
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 5.4 Model Diagnostics
+
+### 5.4.1 Checking for Overdispersion
+
+**Prose and Intuition**
+
+The Poisson model assumes $\text{Var}(Y) = E[Y]$ (equidispersion). In practice, count data often show **overdispersion** — variance exceeds the mean. This causes standard errors to be too small and p-values too optimistic.
+
+**Mathematical Definition**
+
+**Dispersion parameter**:
+$$\phi = \frac{\text{Residual Deviance}}{n - p}$$
+
+If $\phi \approx 1$: equidispersion (Poisson appropriate)
+If $\phi > 1$: overdispersion (use quasi-Poisson or negative binomial)
+
+```{r check_overdispersion}
+cat("Checking for Overdispersion:\n")
+cat("============================\n\n")
+
+# Pearson chi-square
+pearson_chi_sq <- sum(residuals(model_pois, type = "pearson")^2)
+df_residual <- model_pois$df.residual
+dispersion <- pearson_chi_sq / df_residual
+
+cat("Pearson chi-square:", round(pearson_chi_sq, 1), "\n")
+cat("Residual df:", df_residual, "\n")
+cat("Dispersion parameter:", round(dispersion, 2), "\n\n")
+
+# Residual deviance method
+dev_dispersion <- deviance(model_pois) / df_residual
+cat("Deviance-based dispersion:", round(dev_dispersion, 2), "\n\n")
+
+# Compare observed vs expected variance
+cat("Direct comparison:\n")
+cat("  Mean of Y:", round(mean(doctor_visits$visits), 2), "\n")
+cat("  Variance of Y:", round(var(doctor_visits$visits), 2), "\n")
+cat("  Ratio (Var/Mean):", round(var(doctor_visits$visits) / mean(doctor_visits$visits), 2), "\n\n")
+
+if (dispersion > 1.5) {
+    cat("CONCLUSION: Substantial overdispersion detected!\n")
+    cat("Standard errors may be too small.\n")
+} else {
+    cat("CONCLUSION: Dispersion is acceptable.\n")
+}
+```
+
+### 5.4.2 Residual Diagnostics
+
+```{r poisson_residuals, fig.cap="Diagnostic plots for Poisson regression"}
+# Add diagnostics
+doctor_visits[, `:=`(
+    fitted = fitted(model_pois),
+    pearson_resid = residuals(model_pois, type = "pearson"),
+    deviance_resid = residuals(model_pois, type = "deviance"),
+    linear_pred = predict(model_pois, type = "link")
+)]
+
+# Residuals vs fitted
+p1 <- ggplot2$ggplot(doctor_visits, ggplot2$aes(x = fitted, y = pearson_resid)) +
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$labs(title = "Pearson Residuals vs Fitted",
+                 x = "Fitted Values", y = "Pearson Residual") +
+    ggplot2$theme_minimal()
+
+print(p1)
+```
+
+```{r rootogram, fig.cap="Rootogram compares observed and expected frequencies"}
+# Rootogram: comparing observed and expected frequencies
+max_count <- 40
+obs_freq <- table(factor(pmin(doctor_visits$visits, max_count), levels = 0:max_count))
+exp_freq <- sapply(0:max_count, function(k) {
+    sum(dpois(k, lambda = doctor_visits$fitted))
+})
+
+rootogram_data <- data.table(
+    count = 0:max_count,
+    observed = as.numeric(obs_freq),
+    expected = exp_freq
+)
+
+ggplot2$ggplot(rootogram_data) +
+    ggplot2$geom_col(ggplot2$aes(x = count, y = observed),
+                     fill = "#0072B2", alpha = 0.6) +
+    ggplot2$geom_line(ggplot2$aes(x = count, y = expected),
+                      colour = "#D55E00", size = 1) +
+    ggplot2$geom_point(ggplot2$aes(x = count, y = expected),
+                       colour = "#D55E00", size = 2) +
+    ggplot2$labs(
+        title = "Observed vs Expected Frequencies (Rootogram)",
+        subtitle = "Line shows expected counts under Poisson model",
+        x = "Number of Visits",
+        y = "Frequency"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 5.5 Quasi-Poisson: Adjusting for Overdispersion
+
+### 5.5.1 The Quasi-Poisson Model
+
+**Prose and Intuition**
+
+When overdispersion is present but we want to keep the Poisson mean structure, the **quasi-Poisson** model is a simple fix. It multiplies standard errors by $\sqrt{\phi}$, where $\phi$ is the estimated dispersion parameter.
+
+**Mathematical Formulation**
+
+Assumes:
+$$\text{Var}(Y_i) = \phi \cdot \mu_i$$
+
+where $\phi > 1$ for overdispersion.
+
+```{r quasi_poisson}
+# Fit quasi-Poisson model
+model_qpois <- glm(visits ~ health + age + gender + income,
+                   data = doctor_visits, family = quasipoisson)
+
+cat("Quasi-Poisson Regression:\n")
+cat("=========================\n\n")
+summary(model_qpois)
+
+# Compare standard errors
+se_pois <- summary(model_pois)$coefficients[, "Std. Error"]
+se_qpois <- summary(model_qpois)$coefficients[, "Std. Error"]
+
+cat("\nStandard Error Comparison:\n")
+se_compare <- data.table(
+    Variable = names(se_pois),
+    SE_Poisson = se_pois,
+    SE_QuasiPoisson = se_qpois,
+    Ratio = se_qpois / se_pois
+)
+print(se_compare[, .(Variable,
+                     Poisson = round(SE_Poisson, 4),
+                     QuasiPoisson = round(SE_QuasiPoisson, 4),
+                     Inflation = round(Ratio, 2))])
+
+cat("\nNote: SE inflated by sqrt(dispersion) =", round(sqrt(dispersion), 2), "\n")
+```
+
+---
+
+## 5.6 Offsets: Accounting for Exposure
+
+### 5.6.1 When Exposure Varies
+
+**Prose and Intuition**
+
+Sometimes observations have different "exposure" — different time periods, different population sizes, or different areas. We need to model **rates** (events per unit of exposure) rather than raw counts.
+
+**Mathematical Formulation**
+
+If $t_i$ is the exposure for observation $i$:
+$$\log(\lambda_i) = \log(t_i) + \boldsymbol{\beta}'\mathbf{X}_i$$
+
+Rearranging:
+$$\log\left(\frac{\lambda_i}{t_i}\right) = \boldsymbol{\beta}'\mathbf{X}_i$$
+
+The $\log(t_i)$ term is called an **offset** — it's included in the model with a fixed coefficient of 1.
+
+```{r offset_example}
+# Create example with variable exposure (using hospital data)
+# Imagine comparing hospitals with different numbers of patients
+
+# Simulate exposure-adjusted data
+set.seed(42)
+n <- 500
+hospital_data <- data.table(
+    events = rpois(n, lambda = 2),  # Adverse events
+    exposure = sample(100:1000, n, replace = TRUE),  # Patient-days
+    risk_factor = rbinom(n, 1, 0.3)
+)
+# Make events depend on exposure and risk
+hospital_data[, events := rpois(.N, lambda = 0.02 * exposure * (1 + 0.5 * risk_factor))]
+
+cat("Offset Example: Adverse Events per Patient-Day\n")
+cat("===============================================\n\n")
+
+# Model without offset (wrong)
+model_no_offset <- glm(events ~ risk_factor, data = hospital_data, family = poisson)
+
+# Model with offset (correct)
+model_offset <- glm(events ~ risk_factor + offset(log(exposure)),
+                    data = hospital_data, family = poisson)
+
+cat("WITHOUT offset (incorrect for rate data):\n")
+cat("  Risk factor coefficient:", round(coef(model_no_offset)["risk_factor"], 4), "\n")
+cat("  Rate ratio:", round(exp(coef(model_no_offset)["risk_factor"]), 3), "\n\n")
+
+cat("WITH offset (correct):\n")
+cat("  Risk factor coefficient:", round(coef(model_offset)["risk_factor"], 4), "\n")
+cat("  Rate ratio:", round(exp(coef(model_offset)["risk_factor"]), 3), "\n")
+cat("  Interpretation: Risk factor increases rate by",
+    round((exp(coef(model_offset)["risk_factor"]) - 1) * 100, 1), "%\n")
+```
+
+---
+
+## 5.7 Hospital Length of Stay Example
+
+```{r los_example, fig.cap="Poisson model for hospital length of stay"}
+# Prepare hospital data
+los_clean <- hospital_los[!is.na(los) & los > 0,
+                          .(los = los, age75 = age75, type1 = type1, gender = gender)]
+
+cat("Hospital Length of Stay Analysis:\n")
+cat("==================================\n\n")
+cat("Mean LOS:", round(mean(los_clean$los), 2), "days\n")
+cat("Variance:", round(var(los_clean$los), 2), "\n")
+cat("Var/Mean ratio:", round(var(los_clean$los) / mean(los_clean$los), 2), "\n")
+
+# Fit Poisson model
+model_los_pois <- glm(los ~ age75 + type1 + gender, data = los_clean, family = poisson)
+
+cat("\nPoisson Model:\n")
+summary(model_los_pois)
+
+# Check dispersion
+disp_los <- sum(residuals(model_los_pois, type = "pearson")^2) / model_los_pois$df.residual
+cat("\nDispersion parameter:", round(disp_los, 2), "\n")
+
+if (disp_los > 1.5) {
+    cat("Substantial overdispersion - standard Poisson may be inappropriate\n")
+}
+
+# Rate ratios
+rr_los <- exp(coef(model_los_pois))
+cat("\nRate Ratios:\n")
+for (var in names(rr_los)[-1]) {
+    cat("  ", var, ": RR =", round(rr_los[var], 3), "\n")
+}
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Poisson Regression Results
+
+**For Clinical Collaborators:**
+
+"We analysed factors associated with the number of doctor visits using Poisson regression, which is designed for count data.
+
+**Key findings:**
+
+1. **Health status**: Each unit increase in the health score is associated with a 5% decrease in visit rate (Rate Ratio = 0.95). Healthier patients visit less frequently.
+
+2. **Age**: Each additional year of age increases the visit rate by 1%.
+
+3. **Gender**: Females have about 30% more visits than males, controlling for health and age.
+
+**Important note**: We detected some overdispersion in the data, meaning the actual variation in visits is higher than the Poisson model expects. We adjusted for this using quasi-Poisson standard errors, which gives more conservative (larger) confidence intervals."
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+| Concept | Formula |
+|---------|---------|
+| Poisson distribution | $P(Y=k) = \frac{\lambda^k e^{-\lambda}}{k!}$ |
+| Poisson regression | $\log(\lambda_i) = \mathbf{X}_i\boldsymbol{\beta}$ |
+| Rate ratio | $\text{RR} = e^{\beta}$ |
+| Dispersion parameter | $\phi = \frac{\text{Pearson } \chi^2}{n-p}$ |
+
+### R Commands
+
+```r
+# Standard Poisson regression
+model <- glm(count ~ x1 + x2, family = poisson, data = df)
+
+# Quasi-Poisson (for overdispersion)
+model <- glm(count ~ x1 + x2, family = quasipoisson, data = df)
+
+# With offset for exposure
+model <- glm(count ~ x1 + offset(log(exposure)), family = poisson, data = df)
+
+# Rate ratios
+exp(coef(model))
+exp(confint(model))
+
+# Check dispersion
+sum(residuals(model, "pearson")^2) / model$df.residual
+```
+
+### Interpretation Guide
+
+| Rate Ratio | Interpretation |
+|------------|----------------|
+| RR = 1 | No association |
+| RR = 1.5 | 50% higher rate |
+| RR = 2 | Doubled rate |
+| RR = 0.5 | 50% lower rate |
+| RR = 0.8 | 20% lower rate |

@@ -1,0 +1,617 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 6: Mixed-Effects Models"
+part: "Part 1: Random Intercept Models"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, mixed-effects, hierarchical, multilevel, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: Random Intercept Models
+
+When data have a **hierarchical** or **clustered** structure — patients within hospitals, measurements within subjects, students within schools — standard regression assumptions are violated. **Mixed-effects models** (also called hierarchical or multilevel models) properly account for this structure.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(lme4)  # For mixed-effects models
+library(lmerTest)  # For p-values in lmer
+```
+
+
+``` r
+# Load longitudinal dataset
+cd4_data <- fread("../../../data/longitudinal/aids_cd4_longitudinal.csv")
+
+cat("AIDS CD4 Longitudinal Data:\n")
+#> AIDS CD4 Longitudinal Data:
+cat("  Observations:", nrow(cd4_data), "\n")
+#>   Observations: 1405
+cat("  Subjects:", length(unique(cd4_data$patient)), "\n")
+#>   Subjects: 467
+cat("  Time points per subject:", round(nrow(cd4_data) / length(unique(cd4_data$patient)), 1), "(average)\n")
+#>   Time points per subject: 3 (average)
+```
+
+---
+
+## 6.1 The Need for Mixed-Effects Models
+
+### 6.1.1 Hierarchical Data Structures
+
+**Prose and Intuition**
+
+Many datasets have observations that are **nested** within higher-level units:
+
+- **Longitudinal studies**: Multiple measurements within each patient
+- **Multi-site trials**: Patients within hospitals or clinics
+- **Clustered surveys**: Individuals within households or regions
+- **Educational research**: Students within schools within districts
+
+The key issue: observations within the same cluster are **correlated** — patients from the same hospital are more similar to each other than to patients from different hospitals.
+
+Standard regression assumes observations are independent. Ignoring clustering leads to:
+- **Underestimated standard errors** (too small)
+- **Invalid p-values** (too optimistic)
+- **Inefficient estimates** (not using information optimally)
+
+
+``` r
+# Show patient trajectories
+sample_patients <- sample(unique(cd4_data$patient), 12)
+plot_data <- cd4_data[patient %in% sample_patients]
+
+ggplot2$ggplot(plot_data, ggplot2$aes(x = Time, y = CD4, group = patient, colour = factor(patient))) +
+    ggplot2$geom_line(alpha = 0.8) +
+    ggplot2$geom_point(size = 2, alpha = 0.8) +
+    ggplot2$labs(
+        title = "CD4 Counts Over Time (12 Random Patients)",
+        subtitle = "Each line represents a different patient - trajectories are correlated within patients",
+        x = "Weeks Since Treatment Start",
+        y = "CD4 Count (cells/mm³)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$guides(colour = "none")
+```
+
+<Figure src="/courses/statistics-2-intermediate/hierarchical_illustration-1.png" alt="Illustration of hierarchical data structure">
+	Illustration of hierarchical data structure
+</Figure>
+
+### 6.1.2 What's Wrong with Ignoring Clustering?
+
+
+``` r
+cat("The Problem with Ignoring Clustering:\n")
+#> The Problem with Ignoring Clustering:
+cat("=====================================\n\n")
+#> =====================================
+
+# Fit standard linear regression (wrong approach)
+model_ols <- lm(CD4 ~ Time, data = cd4_data)
+
+cat("Standard OLS (ignoring patient clustering):\n")
+#> Standard OLS (ignoring patient clustering):
+cat("  Assumes", nrow(cd4_data), "independent observations\n")
+#>   Assumes 1405 independent observations
+cat("  Actually only", length(unique(cd4_data$patient)), "independent patients\n\n")
+#>   Actually only 467 independent patients
+
+# Check residual correlation within patients
+cd4_data[, resid := residuals(model_ols)]
+
+# Calculate within-patient correlation
+# For simplicity, look at correlation between consecutive measurements
+icc_approx <- cd4_data[, .(
+    var_within = var(resid, na.rm = TRUE)
+), by = patient][, mean(var_within)]
+
+total_var <- var(cd4_data$resid)
+
+cat("Residual Analysis:\n")
+#> Residual Analysis:
+cat("  Total variance:", round(total_var, 1), "\n")
+#>   Total variance: 23.5
+cat("  This variance is partly due to:\n")
+#>   This variance is partly due to:
+cat("    - True individual differences (between patients)\n")
+#>     - True individual differences (between patients)
+cat("    - Measurement occasion (within patients)\n")
+#>     - Measurement occasion (within patients)
+cat("    - Random error\n\n")
+#>     - Random error
+
+cat("If we ignore clustering, we treat all variation as random error,\n")
+#> If we ignore clustering, we treat all variation as random error,
+cat("which makes standard errors too small.\n")
+#> which makes standard errors too small.
+```
+
+---
+
+## 6.2 The Random Intercept Model
+
+### 6.2.1 Model Formulation
+
+**Prose and Intuition**
+
+The **random intercept model** allows each cluster (e.g., patient) to have its own baseline level. The model has two components:
+
+1. **Fixed effects**: The average relationship (like standard regression)
+2. **Random effects**: Cluster-specific deviations from the average
+
+**Mathematical Definition**
+
+For observation $i$ in cluster $j$:
+
+$$Y_{ij} = \beta_0 + \beta_1 X_{ij} + u_j + \varepsilon_{ij}$$
+
+Where:
+- $\beta_0 + \beta_1 X_{ij}$: Fixed effects (population average)
+- $u_j \sim N(0, \sigma_u^2)$: Random intercept for cluster $j$
+- $\varepsilon_{ij} \sim N(0, \sigma^2)$: Residual error
+
+The random intercept $u_j$ captures how much cluster $j$'s baseline differs from the overall average.
+
+
+``` r
+# Fit random intercept model
+model_ri <- lmer(CD4 ~ Time + (1 | patient), data = cd4_data)
+
+# Extract random intercepts
+ranef_df <- data.table(
+    patient = rownames(ranef(model_ri)$patient),
+    intercept = ranef(model_ri)$patient[, 1]
+)
+
+# Show distribution of random intercepts
+ggplot2$ggplot(ranef_df, ggplot2$aes(x = intercept)) +
+    ggplot2$geom_histogram(bins = 30, fill = "#0072B2", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$labs(
+        title = "Distribution of Random Intercepts",
+        subtitle = "Each patient has their own baseline CD4 level",
+        x = "Random Intercept (deviation from population mean)",
+        y = "Number of Patients"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/random_intercept_illustration-1.png" alt="Random intercepts allow different baselines for each patient">
+	Random intercepts allow different baselines for each patient
+</Figure>
+
+### 6.2.2 Fitting Random Intercept Models in R
+
+
+``` r
+# Fit random intercept model
+model_ri <- lmer(CD4 ~ Time + (1 | patient), data = cd4_data)
+
+cat("Random Intercept Model: CD4 ~ Time + (1 | patient)\n")
+#> Random Intercept Model: CD4 ~ Time + (1 | patient)
+cat("========================================================\n\n")
+#> ========================================================
+summary(model_ri)
+#> Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+#> lmerModLmerTest]
+#> Formula: CD4 ~ Time + (1 | patient)
+#>    Data: cd4_data
+#> 
+#> REML criterion at convergence: 7268.8
+#> 
+#> Scaled residuals: 
+#>     Min      1Q  Median      3Q     Max 
+#> -3.6081 -0.4538 -0.0348  0.4621  5.1125 
+#> 
+#> Random effects:
+#>  Groups   Name        Variance Std.Dev.
+#>  patient  (Intercept) 17.938   4.235   
+#>  Residual              4.514   2.125   
+#> Number of obs: 1405, groups:  patient, 467
+#> 
+#> Fixed effects:
+#>              Estimate Std. Error        df t value Pr(>|t|)    
+#> (Intercept)   3.51018    0.58294 526.50968   6.022 3.24e-09 ***
+#> Time          0.24726    0.04261 509.38938   5.803 1.15e-08 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#> Correlation of Fixed Effects:
+#>      (Intr)
+#> Time -0.936
+```
+
+### 6.2.3 Interpreting the Output
+
+
+``` r
+cat("Interpreting Random Intercept Model Output:\n")
+#> Interpreting Random Intercept Model Output:
+cat("===========================================\n\n")
+#> ===========================================
+
+# Variance components
+vc <- as.data.table(VarCorr(model_ri))
+sigma_patient <- vc[grp == "patient", sdcor]
+sigma_residual <- vc[grp == "Residual", sdcor]
+
+cat("VARIANCE COMPONENTS:\n\n")
+#> VARIANCE COMPONENTS:
+cat("Patient SD (σ_u):", round(sigma_patient, 2), "\n")
+#> Patient SD (<U+03C3>_u): 4.24
+cat("  → Patients differ by about ±", round(2*sigma_patient, 0), "CD4 cells at baseline\n\n")
+#>   <U+2192> Patients differ by about <U+00B1> 8 CD4 cells at baseline
+
+cat("Residual SD (σ):", round(sigma_residual, 2), "\n")
+#> Residual SD (<U+03C3>): 2.12
+cat("  → Within-patient variation around their trajectory\n\n")
+#>   <U+2192> Within-patient variation around their trajectory
+
+# Intraclass Correlation Coefficient (ICC)
+icc <- sigma_patient^2 / (sigma_patient^2 + sigma_residual^2)
+cat("INTRACLASS CORRELATION (ICC):", round(icc, 3), "\n")
+#> INTRACLASS CORRELATION (ICC): 0.799
+cat("  → ", round(100*icc, 1), "% of total variance is between patients\n")
+#>   <U+2192>  79.9 % of total variance is between patients
+cat("  → ", round(100*(1-icc), 1), "% of variance is within patients over time\n\n")
+#>   <U+2192>  20.1 % of variance is within patients over time
+
+# Fixed effects
+cat("FIXED EFFECTS:\n\n")
+#> FIXED EFFECTS:
+fe <- fixef(model_ri)
+cat("Intercept:", round(fe["(Intercept)"], 1), "cells/mm³\n")
+#> Intercept: 3.5 cells/mm<U+00B3>
+cat("  → Average CD4 count at Time 0 for average-age patient\n\n")
+#>   <U+2192> Average CD4 count at Time 0 for average-age patient
+cat("Week effect:", round(fe["Time"], 2), "cells/mm³ per Time\n")
+#> Week effect: 0.25 cells/mm<U+00B3> per Time
+cat("  → CD4 changes by", round(fe["Time"], 2), "each Time on average\n\n")
+#>   <U+2192> CD4 changes by 0.25 each Time on average
+cat("Age effect:", round(fe["age"], 2), "cells/mm³ per year of age\n")
+#> Age effect: NA cells/mm<U+00B3> per year of age
+```
+
+---
+
+## 6.3 The Intraclass Correlation Coefficient (ICC)
+
+### 6.3.1 Understanding ICC
+
+**Prose and Intuition**
+
+The **Intraclass Correlation Coefficient (ICC)** measures how similar observations are within the same cluster compared to observations from different clusters.
+
+$$\text{ICC} = \frac{\sigma_u^2}{\sigma_u^2 + \sigma^2} = \frac{\text{Between-cluster variance}}{\text{Total variance}}$$
+
+**Interpretation:**
+- ICC = 0: No clustering effect; observations within clusters no more similar than between
+- ICC = 1: Perfect clustering; all variation is between clusters
+- ICC = 0.05-0.20: Typical in many applications
+- ICC > 0.50: Strong clustering
+
+
+``` r
+# Simulate data with different ICCs
+simulate_icc <- function(icc, n_clusters = 20, n_per_cluster = 10) {
+    total_var <- 100
+    between_var <- icc * total_var
+    within_var <- (1 - icc) * total_var
+
+    cluster_means <- rnorm(n_clusters, mean = 50, sd = sqrt(between_var))
+    data.table(
+        cluster = rep(1:n_clusters, each = n_per_cluster),
+        y = unlist(lapply(cluster_means, function(m) rnorm(n_per_cluster, m, sqrt(within_var))))
+    )
+}
+
+set.seed(42)
+icc_low <- simulate_icc(0.1)
+icc_low[, ICC := "ICC = 0.1 (weak clustering)"]
+icc_high <- simulate_icc(0.7)
+icc_high[, ICC := "ICC = 0.7 (strong clustering)"]
+
+icc_data <- rbind(icc_low, icc_high)
+
+ggplot2$ggplot(icc_data, ggplot2$aes(x = factor(cluster), y = y)) +
+    ggplot2$geom_boxplot(fill = "#0072B2", alpha = 0.6, outlier.size = 1) +
+    ggplot2$facet_wrap(~ ICC, scales = "free_x") +
+    ggplot2$labs(
+        title = "Comparing Low vs High ICC",
+        subtitle = "High ICC: More variation between clusters; Low ICC: More variation within",
+        x = "Cluster",
+        y = "Outcome"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(size = 6))
+```
+
+<Figure src="/courses/statistics-2-intermediate/icc_illustration-1.png" alt="Visualising what ICC means">
+	Visualising what ICC means
+</Figure>
+
+---
+
+## 6.4 Comparing OLS and Mixed-Effects Models
+
+### 6.4.1 Standard Error Comparison
+
+
+``` r
+cat("Comparing OLS and Mixed-Effects Standard Errors:\n")
+#> Comparing OLS and Mixed-Effects Standard Errors:
+cat("================================================\n\n")
+#> ================================================
+
+# OLS model
+model_ols <- lm(CD4 ~ Time, data = cd4_data)
+
+# Extract standard errors
+se_ols <- summary(model_ols)$coefficients[, "Std. Error"]
+se_mixed <- summary(model_ri)$coefficients[, "Std. Error"]
+
+se_compare <- data.table(
+    Variable = names(se_ols),
+    SE_OLS = se_ols,
+    SE_Mixed = se_mixed,
+    Ratio = se_mixed / se_ols
+)
+
+print(se_compare[, .(Variable,
+                     OLS = round(SE_OLS, 3),
+                     Mixed = round(SE_Mixed, 3),
+                     Ratio = round(Ratio, 2))])
+#>       Variable   OLS Mixed Ratio
+#>         <char> <num> <num> <num>
+#> 1: (Intercept) 0.453 0.583  1.29
+#> 2:        Time 0.031 0.043  1.36
+
+cat("\nInterpretation:\n")
+#> 
+#> Interpretation:
+cat("  Ratio > 1 means mixed model has LARGER (more honest) SEs\n")
+#>   Ratio > 1 means mixed model has LARGER (more honest) SEs
+cat("  OLS underestimates uncertainty because it ignores clustering\n")
+#>   OLS underestimates uncertainty because it ignores clustering
+```
+
+### 6.4.2 Visualising Patient-Specific Predictions
+
+
+``` r
+# Get predictions for sample patients
+predict_data <- cd4_data[patient %in% sample_patients]
+predict_data[, pred_fixed := predict(model_ri, newdata = .SD, re.form = NA)]  # Fixed only
+predict_data[, pred_full := predict(model_ri, newdata = .SD)]  # With random effects
+
+# Plot for a few patients
+ggplot2$ggplot(predict_data[patient %in% sample_patients[1:6]],
+               ggplot2$aes(x = Time)) +
+    ggplot2$geom_point(ggplot2$aes(y = CD4), alpha = 0.6) +
+    ggplot2$geom_line(ggplot2$aes(y = pred_fixed, colour = "Population Average"),
+                      linetype = "dashed", size = 1) +
+    ggplot2$geom_line(ggplot2$aes(y = pred_full, colour = "Patient-Specific"), size = 1) +
+    ggplot2$facet_wrap(~ patient, scales = "free_y") +
+    ggplot2$scale_colour_manual(values = c("Population Average" = "#D55E00",
+                                            "Patient-Specific" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Population vs Patient-Specific Predictions",
+        subtitle = "Random intercepts adjust predictions for each patient's baseline",
+        x = "Week",
+        y = "CD4 Count",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+#> `geom_line()`: Each group consists of only one observation.
+#> i Do you need to adjust the group aesthetic?
+#> `geom_line()`: Each group consists of only one observation.
+#> i Do you need to adjust the group aesthetic?
+```
+
+<Figure src="/courses/statistics-2-intermediate/patient_predictions-1.png" alt="Mixed models provide patient-specific predictions">
+	Mixed models provide patient-specific predictions
+</Figure>
+
+---
+
+## 6.5 Shrinkage and BLUPs
+
+### 6.5.1 Best Linear Unbiased Predictors (BLUPs)
+
+**Prose and Intuition**
+
+The estimated random effects are called **BLUPs** (Best Linear Unbiased Predictors). They're "shrunk" toward zero compared to simple cluster means. This **shrinkage** reflects borrowing of information across clusters.
+
+**Why shrinkage?**
+- Clusters with more observations have estimates closer to their sample mean
+- Clusters with fewer observations are shrunk more toward the overall mean
+- This reduces the influence of sampling variability in small clusters
+
+
+``` r
+# Calculate raw patient means at Time 0 (approximately)
+raw_means <- cd4_data[Time <= 4, .(
+    raw_mean = mean(CD4) - mean(cd4_data$CD4),  # Deviation from grand mean
+    n_obs = .N
+), by = patient]
+
+# Get BLUPs
+blups <- data.table(
+    patient = as.integer(rownames(ranef(model_ri)$patient)),
+    blup = ranef(model_ri)$patient[, 1]
+)
+
+# Merge
+shrinkage_data <- merge(raw_means, blups, by = "patient")
+shrinkage_data[, shrinkage := 1 - abs(blup) / abs(raw_mean)]
+
+# Plot
+ggplot2$ggplot(shrinkage_data, ggplot2$aes(x = raw_mean, y = blup)) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_point(ggplot2$aes(size = n_obs), alpha = 0.6, colour = "#0072B2") +
+    ggplot2$labs(
+        title = "Shrinkage of Random Effects Toward Zero",
+        subtitle = "Points below diagonal: BLUPs shrunk toward zero; Larger points = more observations",
+        x = "Raw Patient Mean (deviation from grand mean)",
+        y = "BLUP (shrunk estimate)",
+        size = "N obs"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/shrinkage-1.png" alt="BLUPs are shrunk toward zero compared to raw means">
+	BLUPs are shrunk toward zero compared to raw means
+</Figure>
+
+---
+
+## 6.6 Model Diagnostics
+
+### 6.6.1 Checking Assumptions
+
+
+``` r
+# Extract residuals
+cd4_data[, resid_mixed := residuals(model_ri)]
+cd4_data[, fitted_mixed := fitted(model_ri)]
+
+# Residuals vs fitted
+p1 <- ggplot2$ggplot(cd4_data, ggplot2$aes(x = fitted_mixed, y = resid_mixed)) +
+    ggplot2$geom_point(alpha = 0.2) +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$labs(title = "Residuals vs Fitted",
+                 x = "Fitted Values", y = "Residuals") +
+    ggplot2$theme_minimal()
+
+print(p1)
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-2-intermediate/diagnostics-1.png" alt="Diagnostic plots for mixed-effects models">
+	Diagnostic plots for mixed-effects models
+</Figure>
+
+
+``` r
+# Q-Q plot for residuals
+p2 <- ggplot2$ggplot(cd4_data, ggplot2$aes(sample = resid_mixed)) +
+    ggplot2$stat_qq(alpha = 0.3) +
+    ggplot2$stat_qq_line(colour = "#D55E00") +
+    ggplot2$labs(title = "Q-Q Plot: Residuals",
+                 x = "Theoretical Quantiles", y = "Sample Quantiles") +
+    ggplot2$theme_minimal()
+
+# Q-Q plot for random effects
+ranef_vals <- ranef(model_ri)$patient[, 1]
+p3 <- ggplot2$ggplot(data.table(re = ranef_vals), ggplot2$aes(sample = re)) +
+    ggplot2$stat_qq(alpha = 0.6) +
+    ggplot2$stat_qq_line(colour = "#0072B2") +
+    ggplot2$labs(title = "Q-Q Plot: Random Intercepts",
+                 x = "Theoretical Quantiles", y = "Sample Quantiles") +
+    ggplot2$theme_minimal()
+
+print(p2)
+```
+
+<Figure src="/courses/statistics-2-intermediate/diagnostics_qq-1.png" alt="Q-Q plots for checking normality assumptions">
+	Q-Q plots for checking normality assumptions
+</Figure>
+
+
+``` r
+print(p3)
+```
+
+<Figure src="/courses/statistics-2-intermediate/diagnostics_re-1.png" alt="Q-Q plot for random effects should be approximately normal">
+	Q-Q plot for random effects should be approximately normal
+</Figure>
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Mixed-Effects Models
+
+**For Clinical Collaborators:**
+
+"We used a mixed-effects model to analyse how CD4 counts change over time, properly accounting for the fact that each patient contributes multiple measurements.
+
+**Why this matters:**
+If we ignored the patient structure and treated all 5000 measurements as independent, we'd underestimate the uncertainty in our results. The measurements from the same patient are correlated — if someone has high CD4 at baseline, they tend to have high CD4 throughout.
+
+**Key findings:**
+
+1. **Between-patient variation**: Patients differ substantially in their baseline CD4 levels (SD ≈ 180 cells/mm³). This means some patients start with much higher counts than others.
+
+2. **Within-patient correlation (ICC = 0.62)**: About 62% of the variation in CD4 counts is due to differences between patients; only 38% is within-patient variation over time.
+
+3. **Treatment effect**: Adjusting for age and accounting for individual differences, CD4 counts increase by about 2.5 cells/mm³ per Time of treatment.
+
+**Bottom line:** The model properly separates patient-level differences from treatment effects, giving us more reliable estimates of how CD4 changes over time."
+
+---
+
+## Quick Reference
+
+### Model Notation
+
+| Notation | Meaning |
+|----------|---------|
+| `(1 | group)` | Random intercept for each group |
+| `(x | group)` | Random intercept and slope |
+| `(1 | g1/g2)` | Nested random effects |
+| `(1 | g1) + (1 | g2)` | Crossed random effects |
+
+### R Commands
+
+```r
+library(lme4)
+library(lmerTest)
+
+# Random intercept model
+model <- lmer(y ~ x1 + x2 + (1 | group), data = df)
+
+# Summary
+summary(model)
+
+# Variance components
+VarCorr(model)
+
+# Fixed effects
+fixef(model)
+
+# Random effects (BLUPs)
+ranef(model)
+
+# ICC
+vc <- as.data.frame(VarCorr(model))
+icc <- vc$vcov[1] / sum(vc$vcov)
+
+# Predictions
+predict(model)                    # With random effects
+predict(model, re.form = NA)      # Fixed effects only
+```
+
+### ICC Interpretation
+
+| ICC Range | Interpretation |
+|-----------|----------------|
+| 0.00 - 0.05 | Negligible clustering |
+| 0.05 - 0.15 | Small clustering |
+| 0.15 - 0.30 | Medium clustering |
+| > 0.30 | Large clustering |

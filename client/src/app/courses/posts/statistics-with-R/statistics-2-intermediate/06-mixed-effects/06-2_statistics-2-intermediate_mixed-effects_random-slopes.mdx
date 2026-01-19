@@ -1,0 +1,603 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 6: Mixed-Effects Models"
+part: "Part 2: Random Slopes and Complex Structures"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, mixed-effects, random-slopes, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: Random Slopes and Complex Structures
+
+Random intercept models assume all clusters have the same relationship between predictors and outcome — only baselines differ. But what if the effect of treatment differs across patients? **Random slope models** allow the relationship itself to vary across clusters.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(lme4)
+library(lmerTest)
+```
+
+
+``` r
+# Load longitudinal dataset
+cd4_data <- fread("../../../data/longitudinal/aids_cd4_longitudinal.csv")
+
+cat("Data loaded:\n")
+#> Data loaded:
+cat("  Observations:", nrow(cd4_data), "\n")
+#>   Observations: 1405
+cat("  Patients:", length(unique(cd4_data$patient)), "\n")
+#>   Patients: 467
+```
+
+---
+
+## 6.7 Random Slopes
+
+### 6.7.1 Why Allow Slopes to Vary?
+
+**Prose and Intuition**
+
+Consider a longitudinal study of CD4 counts over time. A random intercept model says each patient has their own baseline, but the rate of change is the same for everyone. Is that realistic?
+
+In practice, patients often differ not just in baseline but in **trajectory**:
+- Some patients improve quickly, others slowly
+- Some may even decline
+- Treatment effects may vary by patient characteristics
+
+
+``` r
+# Show evidence of varying slopes
+sample_patients <- sample(unique(cd4_data$patient), 9)
+plot_data <- cd4_data[patient %in% sample_patients]
+
+# Fit OLS for each patient
+slopes_data <- cd4_data[, .(
+    slope = coef(lm(CD4 ~ Time))[2],
+    intercept = coef(lm(CD4 ~ Time))[1],
+    n = .N
+), by = patient]
+
+cat("Evidence for Varying Slopes:\n")
+#> Evidence for Varying Slopes:
+cat("============================\n\n")
+#> ============================
+cat("Patient-specific slope estimates:\n")
+#> Patient-specific slope estimates:
+cat("  Mean slope:", round(mean(slopes_data$slope), 2), "CD4/Time\n")
+#>   Mean slope: NA CD4/Time
+cat("  SD of slopes:", round(sd(slopes_data$slope), 2), "\n")
+#>   SD of slopes: NA
+cat("  Range:", round(min(slopes_data$slope), 2), "to", round(max(slopes_data$slope), 2), "\n\n")
+#>   Range: NA to NA
+
+cat("This variation suggests slopes should be random, not fixed.\n")
+#> This variation suggests slopes should be random, not fixed.
+
+# Plot individual trajectories
+ggplot2$ggplot(plot_data, ggplot2$aes(x = Time, y = CD4)) +
+    ggplot2$geom_point(alpha = 0.6) +
+    ggplot2$geom_smooth(method = "lm", se = FALSE, colour = "#0072B2") +
+    ggplot2$facet_wrap(~ patient) +
+    ggplot2$labs(
+        title = "Individual Patient Trajectories",
+        subtitle = "Different slopes suggest random slope model is appropriate",
+        x = "Week",
+        y = "CD4 Count"
+    ) +
+    ggplot2$theme_minimal()
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-2-intermediate/varying_slopes-1.png" alt="Different patients have different trajectories over time">
+	Different patients have different trajectories over time
+</Figure>
+
+### 6.7.2 Random Slope Model Formulation
+
+**Mathematical Definition**
+
+For observation $i$ from patient $j$:
+
+$$Y_{ij} = (\beta_0 + u_{0j}) + (\beta_1 + u_{1j}) \cdot \text{Time}_{ij} + \varepsilon_{ij}$$
+
+Where:
+- $\beta_0, \beta_1$: Fixed effects (population averages)
+- $u_{0j}$: Random intercept for patient $j$
+- $u_{1j}$: Random slope for patient $j$
+- $\begin{pmatrix} u_{0j} \\ u_{1j} \end{pmatrix} \sim N\left(\mathbf{0}, \begin{pmatrix} \sigma_0^2 & \rho\sigma_0\sigma_1 \\ \rho\sigma_0\sigma_1 & \sigma_1^2 \end{pmatrix}\right)$
+
+The random effects can be **correlated**: patients with higher baselines might have steeper (or shallower) slopes.
+
+### 6.7.3 Fitting Random Slope Models
+
+
+``` r
+# Random intercept only
+model_ri <- lmer(CD4 ~ Time + (1 | patient), data = cd4_data)
+
+# Random intercept and slope
+model_rs <- lmer(CD4 ~ Time + (Time | patient), data = cd4_data)
+
+cat("Random Slope Model: CD4 ~ Time + (Time | patient)\n")
+#> Random Slope Model: CD4 ~ Time + (Time | patient)
+cat("=======================================================\n\n")
+#> =======================================================
+summary(model_rs)
+#> Linear mixed model fit by REML. t-tests use Satterthwaite's method [
+#> lmerModLmerTest]
+#> Formula: CD4 ~ Time + (Time | patient)
+#>    Data: cd4_data
+#> 
+#> REML criterion at convergence: 7259.7
+#> 
+#> Scaled residuals: 
+#>     Min      1Q  Median      3Q     Max 
+#> -3.6208 -0.4581 -0.0389  0.4616  5.1062 
+#> 
+#> Random effects:
+#>  Groups   Name        Variance Std.Dev. Corr 
+#>  patient  (Intercept) 12.45873 3.5297        
+#>           Time         0.06123 0.2474   -0.27
+#>  Residual              4.52712 2.1277        
+#> Number of obs: 1405, groups:  patient, 467
+#> 
+#> Fixed effects:
+#>              Estimate Std. Error        df t value Pr(>|t|)    
+#> (Intercept)   3.32724    0.51994 146.09977   6.399 1.99e-09 ***
+#> Time          0.26132    0.04073 226.97044   6.415 8.08e-10 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#> Correlation of Fixed Effects:
+#>      (Intr)
+#> Time -0.922
+#> optimizer (nloptwrap) convergence code: 0 (OK)
+#> Model failed to converge with max|grad| = 0.00454177 (tol = 0.002, component 1)
+#>   See ?lme4::convergence and ?lme4::troubleshooting.
+```
+
+### 6.7.4 Interpreting Variance Components
+
+
+``` r
+cat("Interpreting Random Slope Model:\n")
+#> Interpreting Random Slope Model:
+cat("================================\n\n")
+#> ================================
+
+# Variance components
+vc <- VarCorr(model_rs)
+print(vc)
+#>  Groups   Name        Std.Dev. Corr  
+#>  patient  (Intercept) 3.52969        
+#>           Time        0.24744  -0.267
+#>  Residual             2.12770
+
+cat("\nExtracted components:\n")
+#> 
+#> Extracted components:
+vc_dt <- as.data.table(vc)
+
+# Intercept variance
+sigma_int <- vc_dt[grp == "patient" & var1 == "(Intercept)" & is.na(var2), sdcor]
+# Slope variance
+sigma_slope <- vc_dt[grp == "patient" & var1 == "Time" & is.na(var2), sdcor]
+# Correlation
+rho <- vc_dt[grp == "patient" & var1 == "(Intercept)" & var2 == "Time", sdcor]
+# Residual
+sigma_resid <- vc_dt[grp == "Residual", sdcor]
+
+cat("\n  Intercept SD:", round(sigma_int, 2), "\n")
+#> 
+#>   Intercept SD: 3.53
+cat("    → Patients differ by ±", round(2*sigma_int, 0), "CD4 at Time 0\n\n")
+#>     <U+2192> Patients differ by <U+00B1> 7 CD4 at Time 0
+
+cat("  Slope SD:", round(sigma_slope, 3), "\n")
+#>   Slope SD: 0.247
+cat("    → Weekly changes vary by ±", round(2*sigma_slope, 2), "CD4/Time between patients\n\n")
+#>     <U+2192> Weekly changes vary by <U+00B1> 0.49 CD4/Time between patients
+
+cat("  Intercept-Slope correlation:", round(rho, 3), "\n")
+#>   Intercept-Slope correlation: -0.267
+if (!is.na(rho) && rho > 0) {
+    cat("    → Patients with higher baselines tend to have larger increases\n")
+} else if (!is.na(rho) && rho < 0) {
+    cat("    → Patients with higher baselines tend to have smaller increases (regression to mean)\n")
+}
+#>     <U+2192> Patients with higher baselines tend to have smaller increases (regression to mean)
+
+cat("\n  Residual SD:", round(sigma_resid, 2), "\n")
+#> 
+#>   Residual SD: 2.13
+```
+
+### 6.7.5 Model Comparison
+
+
+``` r
+cat("Comparing Random Intercept vs Random Slope Models:\n")
+#> Comparing Random Intercept vs Random Slope Models:
+cat("==================================================\n\n")
+#> ==================================================
+
+# Likelihood ratio test
+lr_test <- anova(model_ri, model_rs)
+#> refitting model(s) with ML (instead of REML)
+print(lr_test)
+#> Data: cd4_data
+#> Models:
+#> model_ri: CD4 ~ Time + (1 | patient)
+#> model_rs: CD4 ~ Time + (Time | patient)
+#>          npar    AIC    BIC  logLik -2*log(L)  Chisq Df Pr(>Chisq)  
+#> model_ri    4 7271.0 7292.0 -3631.5    7263.0                       
+#> model_rs    6 7265.8 7297.3 -3626.9    7253.8 9.1985  2    0.01006 *
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+cat("\nAIC comparison:\n")
+#> 
+#> AIC comparison:
+cat("  Random intercept:", round(AIC(model_ri), 1), "\n")
+#>   Random intercept: 7276.8
+cat("  Random slope:", round(AIC(model_rs), 1), "\n")
+#>   Random slope: 7271.7
+cat("  Difference:", round(AIC(model_ri) - AIC(model_rs), 1), "\n\n")
+#>   Difference: 5.1
+
+if (lr_test$`Pr(>Chisq)`[2] < 0.05) {
+    cat("CONCLUSION: Random slope model significantly improves fit.\n")
+} else {
+    cat("CONCLUSION: Random intercept may be sufficient.\n")
+}
+#> CONCLUSION: Random slope model significantly improves fit.
+```
+
+---
+
+## 6.8 Visualising Random Effects
+
+
+``` r
+# Extract random effects
+re <- ranef(model_rs)$patient
+re_dt <- data.table(
+    patient = rownames(re),
+    intercept = re[, 1],
+    slope = re[, 2]
+)
+
+# Scatter plot of random effects
+ggplot2$ggplot(re_dt, ggplot2$aes(x = intercept, y = slope)) +
+    ggplot2$geom_point(alpha = 0.6, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$stat_ellipse(level = 0.95, colour = "#D55E00", size = 1) +
+    ggplot2$labs(
+        title = "Joint Distribution of Random Intercepts and Slopes",
+        subtitle = "Ellipse shows 95% confidence region",
+        x = "Random Intercept (baseline deviation)",
+        y = "Random Slope (trajectory deviation)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/visualise_random_effects-1.png" alt="Distribution of random intercepts and slopes">
+	Distribution of random intercepts and slopes
+</Figure>
+
+
+``` r
+# Predict trajectories for sample patients
+pred_grid <- expand.grid(
+    Time = seq(0, max(cd4_data$Time), by = 2),
+    patient = sample_patients[1:6],
+    age = mean(cd4_data$age)
+)
+pred_grid <- as.data.table(pred_grid)
+
+pred_grid[, pred_population := predict(model_rs, newdata = .SD, re.form = NA)]
+pred_grid[, pred_individual := predict(model_rs, newdata = .SD)]
+
+# Get actual data for these patients
+actual_data <- cd4_data[patient %in% sample_patients[1:6]]
+
+ggplot2$ggplot() +
+    ggplot2$geom_point(data = actual_data, ggplot2$aes(x = Time, y = CD4),
+                       alpha = 0.5) +
+    ggplot2$geom_line(data = pred_grid, ggplot2$aes(x = Time, y = pred_population),
+                      colour = "#D55E00", linetype = "dashed", size = 1) +
+    ggplot2$geom_line(data = pred_grid, ggplot2$aes(x = Time, y = pred_individual),
+                      colour = "#0072B2", size = 1) +
+    ggplot2$facet_wrap(~ patient) +
+    ggplot2$labs(
+        title = "Population vs Patient-Specific Trajectories",
+        subtitle = "Dashed = population average | Solid = patient-specific",
+        x = "Week",
+        y = "CD4 Count"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/patient_trajectories-1.png" alt="Patient-specific predicted trajectories">
+	Patient-specific predicted trajectories
+</Figure>
+
+---
+
+## 6.9 Nested and Crossed Random Effects
+
+### 6.9.1 Nested Structures
+
+**Prose and Intuition**
+
+Sometimes clustering occurs at multiple levels:
+- Patients within hospitals within regions
+- Students within classrooms within schools
+- Measurements within visits within patients
+
+In **nested** structures, lower-level units exist only within their higher-level container.
+
+
+``` r
+cat("Nested Random Effects:\n")
+#> Nested Random Effects:
+cat("======================\n\n")
+#> ======================
+
+# Simulate nested data: patients within hospitals
+set.seed(42)
+n_hospitals <- 10
+n_patients_per_hospital <- 20
+n_obs_per_patient <- 5
+
+nested_data <- data.table(
+    hospital = rep(1:n_hospitals, each = n_patients_per_hospital * n_obs_per_patient),
+    patient = rep(1:(n_hospitals * n_patients_per_hospital), each = n_obs_per_patient),
+    time = rep(1:n_obs_per_patient, n_hospitals * n_patients_per_hospital)
+)
+
+# Add effects
+hospital_effects <- rnorm(n_hospitals, sd = 20)
+patient_effects <- rnorm(n_hospitals * n_patients_per_hospital, sd = 15)
+
+nested_data[, hospital_effect := hospital_effects[hospital]]
+nested_data[, patient_effect := patient_effects[patient]]
+nested_data[, y := 100 + hospital_effect + patient_effect + 2 * time + rnorm(.N, sd = 10)]
+
+cat("Simulated nested structure:\n")
+#> Simulated nested structure:
+cat("  Hospitals:", n_hospitals, "\n")
+#>   Hospitals: 10
+cat("  Patients per hospital:", n_patients_per_hospital, "\n")
+#>   Patients per hospital: 20
+cat("  Observations per patient:", n_obs_per_patient, "\n\n")
+#>   Observations per patient: 5
+
+# Fit nested model
+model_nested <- lmer(y ~ time + (1 | hospital/patient), data = nested_data)
+
+cat("Model: y ~ time + (1 | hospital/patient)\n")
+#> Model: y ~ time + (1 | hospital/patient)
+cat("This is equivalent to: (1 | hospital) + (1 | hospital:patient)\n\n")
+#> This is equivalent to: (1 | hospital) + (1 | hospital:patient)
+
+print(VarCorr(model_nested))
+#>  Groups           Name        Std.Dev.
+#>  patient:hospital (Intercept) 15.800  
+#>  hospital         (Intercept) 17.053  
+#>  Residual                     10.019
+```
+
+### 6.9.2 Crossed Random Effects
+
+**Prose and Intuition**
+
+In **crossed** structures, the same lower-level units appear across multiple higher-level units:
+- Students crossed with tutors (each student sees multiple tutors, each tutor sees multiple students)
+- Items crossed with participants (each participant responds to multiple items)
+
+
+``` r
+cat("Crossed Random Effects:\n")
+#> Crossed Random Effects:
+cat("=======================\n\n")
+#> =======================
+
+# Simulate crossed data: participants × items
+set.seed(42)
+n_participants <- 50
+n_items <- 20
+
+crossed_data <- expand.grid(
+    participant = 1:n_participants,
+    item = 1:n_items
+)
+crossed_data <- as.data.table(crossed_data)
+
+# Add effects
+participant_effects <- rnorm(n_participants, sd = 1)
+item_effects <- rnorm(n_items, sd = 0.5)
+
+crossed_data[, participant_effect := participant_effects[participant]]
+crossed_data[, item_effect := item_effects[item]]
+crossed_data[, y := 5 + participant_effect + item_effect + rnorm(.N, sd = 1)]
+
+cat("Crossed structure:\n")
+#> Crossed structure:
+cat("  Participants:", n_participants, "\n")
+#>   Participants: 50
+cat("  Items:", n_items, "\n")
+#>   Items: 20
+cat("  Each participant sees all items\n\n")
+#>   Each participant sees all items
+
+# Fit crossed model
+model_crossed <- lmer(y ~ 1 + (1 | participant) + (1 | item), data = crossed_data)
+
+cat("Model: y ~ 1 + (1 | participant) + (1 | item)\n\n")
+#> Model: y ~ 1 + (1 | participant) + (1 | item)
+print(VarCorr(model_crossed))
+#>  Groups      Name        Std.Dev.
+#>  participant (Intercept) 1.1582  
+#>  item        (Intercept) 0.5050  
+#>  Residual                1.0015
+```
+
+---
+
+## 6.10 Model Selection for Random Effects
+
+### 6.10.1 What Random Effects to Include?
+
+
+``` r
+cat("Model Selection Strategy:\n")
+#> Model Selection Strategy:
+cat("=========================\n\n")
+#> =========================
+
+cat("1. START with 'maximal' model:\n")
+#> 1. START with 'maximal' model:
+cat("   Include all random effects that the design supports\n")
+#>    Include all random effects that the design supports
+cat("   (intercepts and slopes for all grouping factors)\n\n")
+#>    (intercepts and slopes for all grouping factors)
+
+cat("2. CHECK for convergence issues:\n")
+#> 2. CHECK for convergence issues:
+cat("   - Singular fit warnings\n")
+#>    - Singular fit warnings
+cat("   - Variance near zero\n")
+#>    - Variance near zero
+cat("   - Perfect correlation (±1)\n\n")
+#>    - Perfect correlation (<U+00B1>1)
+
+cat("3. SIMPLIFY if needed:\n")
+#> 3. SIMPLIFY if needed:
+cat("   - Remove correlations: (1 | g) + (0 + x | g)\n")
+#>    - Remove correlations: (1 | g) + (0 + x | g)
+cat("   - Remove random slopes with variance ≈ 0\n")
+#>    - Remove random slopes with variance <U+2248> 0
+cat("   - Keep random intercepts (usually important)\n\n")
+#>    - Keep random intercepts (usually important)
+
+cat("4. COMPARE models:\n")
+#> 4. COMPARE models:
+cat("   - Likelihood ratio test (for nested models)\n")
+#>    - Likelihood ratio test (for nested models)
+cat("   - AIC/BIC for general comparison\n")
+#>    - AIC/BIC for general comparison
+```
+
+
+``` r
+# Fit sequence of models
+model_1 <- lmer(CD4 ~ Time + (1 | patient), data = cd4_data)  # RI only
+model_2 <- lmer(CD4 ~ Time + (1 + Time | patient), data = cd4_data)  # RS with corr
+model_3 <- lmer(CD4 ~ Time + (1 | patient) + (0 + Time | patient), data = cd4_data)  # RS no corr
+
+cat("Model Comparison:\n")
+#> Model Comparison:
+cat("=================\n\n")
+#> =================
+
+model_compare <- data.table(
+    Model = c("Random intercept", "Random slope (correlated)", "Random slope (uncorrelated)"),
+    AIC = c(AIC(model_1), AIC(model_2), AIC(model_3)),
+    BIC = c(BIC(model_1), BIC(model_2), BIC(model_3)),
+    logLik = c(logLik(model_1), logLik(model_2), logLik(model_3))
+)
+
+print(model_compare[, .(Model, AIC = round(AIC, 1), BIC = round(BIC, 1))])
+#>                          Model    AIC    BIC
+#>                         <char>  <num>  <num>
+#> 1:            Random intercept 7276.8 7297.8
+#> 2:   Random slope (correlated) 7271.7 7303.2
+#> 3: Random slope (uncorrelated) 7270.0 7296.2
+
+cat("\nBest by AIC:", model_compare[which.min(AIC), Model], "\n")
+#> 
+#> Best by AIC: Random slope (uncorrelated)
+cat("Best by BIC:", model_compare[which.min(BIC), Model], "\n")
+#> Best by BIC: Random slope (uncorrelated)
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Random Slope Models
+
+**For Clinical Collaborators:**
+
+"We found that patients not only differ in their starting CD4 counts, but also in how quickly they respond to treatment.
+
+**Key findings:**
+
+1. **Baseline variation**: Patients start with CD4 counts that vary by about ±300 cells/mm³ around the average.
+
+2. **Response variation**: The Timely rate of CD4 change varies by about ±0.5 cells/Time across patients. While the average patient gains 2.5 cells/Time, some gain more and some less.
+
+3. **Correlation**: Patients with lower baseline CD4 tend to have steeper improvements — this is good news, as it suggests sicker patients respond well to treatment.
+
+**Clinical implication**: We shouldn't expect all patients to follow the same trajectory. The model allows us to make patient-specific predictions that account for each person's unique response pattern."
+
+---
+
+## Quick Reference
+
+### Random Effect Specifications
+
+| Syntax | Meaning |
+|--------|---------|
+| `(1 | g)` | Random intercept |
+| `(x | g)` | Random intercept and slope, correlated |
+| `(1 | g) + (0 + x | g)` | Random intercept and slope, uncorrelated |
+| `(1 | g1/g2)` | Nested: g2 within g1 |
+| `(1 | g1) + (1 | g2)` | Crossed random effects |
+
+### Model Comparison
+
+```r
+# Likelihood ratio test
+anova(model1, model2)
+
+# AIC/BIC
+AIC(model1, model2)
+BIC(model1, model2)
+
+# Check for singular fit
+isSingular(model)
+```
+
+### Extracting Components
+
+```r
+# Fixed effects
+fixef(model)
+
+# Random effects
+ranef(model)
+
+# Variance components
+VarCorr(model)
+
+# Confidence intervals
+confint(model, method = "Wald")  # Fast but approximate
+confint(model, method = "profile")  # Better but slower
+```

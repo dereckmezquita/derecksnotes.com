@@ -1,0 +1,677 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 2: Regression Diagnostics and Remedies"
+part: "Part 2: Transformations and Robust Methods"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, regression, transformations, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 2: Transformations and Robust Methods
+
+When diagnostic plots reveal assumption violations, we have several remedial options. This part covers **transformations** to stabilise variance and linearise relationships, **weighted least squares** to handle heteroscedasticity, and **robust regression** methods that resist the influence of outliers.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+hospital_los <- fread("../../../data/count/arizona_hospital_los.csv")
+
+# Create cleaned hospital LOS data for use throughout chapter
+# Note: age75 is a binary indicator for age > 75
+# Assign to global environment so MASS::boxcox() can find it
+los_data <<- hospital_los[!is.na(los) & los > 0,
+                          .(los = los, age75 = age75, type1 = type1)]
+los_data[, log_los := log(los)]
+
+cat("Datasets loaded:\n")
+cat("  NHANES:", nrow(nhanes), "observations\n")
+cat("  Hospital LOS:", nrow(hospital_los), "observations\n")
+cat("  Cleaned LOS data:", nrow(los_data), "observations\n")
+```
+
+---
+
+## 2.1 Variable Transformations
+
+### 2.1.1 Why Transform?
+
+**Prose and Intuition**
+
+Transformations serve three purposes:
+
+1. **Stabilise variance**: Make error variance constant (fix heteroscedasticity)
+2. **Linearise relationships**: Convert curved relationships to straight lines
+3. **Normalise distributions**: Make skewed residuals more symmetric
+
+The key insight: what matters is the *transformed* scale. If log(Y) has a linear relationship with X and constant error variance, then working on the log scale is appropriate—even if Y itself is skewed.
+
+### 2.1.2 The Log Transformation
+
+**Prose and Intuition**
+
+The **logarithmic transformation** is the most common. It's appropriate when:
+- The response is strictly positive
+- The relationship is multiplicative rather than additive
+- Variance increases with the mean (common for counts, concentrations, costs)
+
+**Mathematical Interpretation**
+
+If we model $\log(Y) = \beta_0 + \beta_1 X + \varepsilon$, then:
+$$Y = e^{\beta_0} \cdot e^{\beta_1 X} \cdot e^{\varepsilon}$$
+
+A one-unit increase in $X$ *multiplies* $Y$ by $e^{\beta_1}$.
+
+For small $\beta_1$: $e^{\beta_1} \approx 1 + \beta_1$, so $\beta_1$ approximates the *percentage* change in $Y$.
+
+```{r log_transform, fig.cap="Log transformation for hospital length of stay"}
+# Hospital LOS data (cleaned in load_data chunk)
+cat("Hospital Length of Stay Distribution:\n")
+cat("=====================================\n\n")
+cat("Mean:", round(mean(los_data$los), 2), "days\n")
+cat("Median:", median(los_data$los), "days\n")
+cat("SD:", round(sd(los_data$los), 2), "days\n")
+cat("Skewness: Positive (right-skewed)\n")
+
+# Compare distributions
+p1 <- ggplot2$ggplot(los_data, ggplot2$aes(x = los)) +
+    ggplot2$geom_histogram(bins = 30, fill = "#0072B2", alpha = 0.7) +
+    ggplot2$labs(title = "Original Scale", x = "Length of Stay (days)", y = "Count") +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(los_data, ggplot2$aes(x = log_los)) +
+    ggplot2$geom_histogram(bins = 30, fill = "#009E73", alpha = 0.7) +
+    ggplot2$labs(title = "Log Scale", x = "log(Length of Stay)", y = "Count") +
+    ggplot2$theme_minimal()
+
+print(p1)
+```
+
+```{r log_transform_hist, fig.cap="Log transformation makes the distribution more symmetric"}
+print(p2)
+```
+
+```{r log_model_comparison, fig.cap="Comparing models with and without log transformation"}
+# Fit both models using available predictors
+model_original <- lm(los ~ age75 + type1, data = los_data)
+model_log <- lm(log_los ~ age75 + type1, data = los_data)
+
+cat("Model Comparison:\n")
+cat("=================\n\n")
+cat("ORIGINAL SCALE: los ~ age75 + type1\n")
+print(summary(model_original)$coefficients)
+cat("\nR² =", round(summary(model_original)$r.squared, 4), "\n\n")
+
+cat("LOG SCALE: log(los) ~ age75 + type1\n")
+print(summary(model_log)$coefficients)
+cat("\nR² =", round(summary(model_log)$r.squared, 4), "\n\n")
+
+cat("Interpretation (log model):\n")
+cat("- Age > 75 increases LOS by approximately",
+    round((exp(coef(model_log)["age75"]) - 1) * 100, 1), "%\n")
+cat("- Type1 admission increases LOS by approximately",
+    round((exp(coef(model_log)["type1"]) - 1) * 100, 1), "%\n")
+```
+
+```{r log_diagnostics, fig.cap="Diagnostic plots show improvement with log transformation"}
+# Compare residual plots
+los_data[, `:=`(
+    resid_orig = residuals(model_original),
+    fitted_orig = fitted(model_original),
+    resid_log = residuals(model_log),
+    fitted_log = fitted(model_log)
+)]
+
+p1 <- ggplot2$ggplot(los_data, ggplot2$aes(x = fitted_orig, y = resid_orig)) +
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$labs(title = "Original Scale: Residuals vs Fitted",
+                 subtitle = "Clear heteroscedasticity",
+                 x = "Fitted", y = "Residual") +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(los_data, ggplot2$aes(x = fitted_log, y = resid_log)) +
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$labs(title = "Log Scale: Residuals vs Fitted",
+                 subtitle = "Much improved",
+                 x = "Fitted", y = "Residual") +
+    ggplot2$theme_minimal()
+
+print(p1)
+```
+
+```{r log_diagnostics_improved, fig.cap="Residual plot after log transformation"}
+print(p2)
+```
+
+### 2.1.3 The Box-Cox Transformation
+
+**Prose and Intuition**
+
+The **Box-Cox transformation** is a family of power transformations that includes log as a special case. It helps find the optimal transformation automatically.
+
+**Mathematical Definition**
+
+For $Y > 0$:
+$$Y^{(\lambda)} = \begin{cases}
+\frac{Y^\lambda - 1}{\lambda} & \text{if } \lambda \neq 0 \\
+\log(Y) & \text{if } \lambda = 0
+\end{cases}$$
+
+The parameter $\lambda$ is chosen to maximise the likelihood (or make residuals most normal).
+
+**Common values:**
+- $\lambda = 1$: No transformation
+- $\lambda = 0.5$: Square root
+- $\lambda = 0$: Log
+- $\lambda = -1$: Reciprocal
+
+```{r boxcox, fig.cap="Box-Cox transformation finds optimal power"}
+# Box-Cox transformation
+library(MASS)
+
+# Find optimal lambda
+bc <- boxcox(model_original, lambda = seq(-2, 2, by = 0.1), plotit = FALSE)
+optimal_lambda <- bc$x[which.max(bc$y)]
+
+cat("Box-Cox Analysis:\n")
+cat("=================\n\n")
+cat("Optimal λ:", round(optimal_lambda, 3), "\n")
+cat("95% CI: Check if λ = 0 (log) or λ = 1 (no transform) is included\n")
+
+# Plot Box-Cox profile
+bc_dt <- data.table(lambda = bc$x, loglik = bc$y)
+
+ggplot2$ggplot(bc_dt, ggplot2$aes(x = lambda, y = loglik)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1) +
+    ggplot2$geom_vline(xintercept = optimal_lambda, colour = "#D55E00",
+                       linetype = "dashed", size = 1) +
+    ggplot2$geom_vline(xintercept = 0, colour = "#009E73",
+                       linetype = "dotted", size = 1) +
+    ggplot2$annotate("text", x = optimal_lambda + 0.1, y = max(bc$y),
+                     label = paste("Optimal λ =", round(optimal_lambda, 2)),
+                     hjust = 0, colour = "#D55E00") +
+    ggplot2$annotate("text", x = 0.1, y = min(bc$y) + diff(range(bc$y)) * 0.1,
+                     label = "λ = 0 (log)", hjust = 0, colour = "#009E73") +
+    ggplot2$labs(
+        title = "Box-Cox Profile Likelihood",
+        subtitle = "Peak indicates optimal transformation",
+        x = "λ (Power Parameter)",
+        y = "Log-Likelihood"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 2.1.4 Transforming Predictors
+
+**Prose and Intuition**
+
+Sometimes the nonlinearity is in the predictors, not the response. Common predictor transformations:
+
+- **Log(X)**: For predictors spanning orders of magnitude (e.g., income, concentration)
+- **X²**: For U-shaped or inverted-U relationships
+- **√X**: For diminishing returns
+- **Polynomial terms**: For complex curved relationships
+
+```{r predictor_transform, fig.cap="Polynomial terms capture nonlinear relationships"}
+# Example: Age effect on blood pressure may be nonlinear
+bp_data <- nhanes[!is.na(BPSysAve) & !is.na(Age) & Age >= 18,
+                  .(SBP = BPSysAve, Age = Age)]
+bp_data <- bp_data[complete.cases(bp_data)]
+
+# Compare linear vs quadratic
+model_linear <- lm(SBP ~ Age, data = bp_data)
+model_quad <- lm(SBP ~ Age + I(Age^2), data = bp_data)
+
+cat("Comparing Linear vs Quadratic Age Effect:\n")
+cat("==========================================\n\n")
+cat("Linear model: SBP ~ Age\n")
+cat("  R² =", round(summary(model_linear)$r.squared, 4), "\n\n")
+cat("Quadratic model: SBP ~ Age + Age²\n")
+cat("  R² =", round(summary(model_quad)$r.squared, 4), "\n")
+cat("  Age coefficient:", round(coef(model_quad)["Age"], 3), "\n")
+cat("  Age² coefficient:", round(coef(model_quad)["I(Age^2)"], 5), "\n")
+
+# Test if quadratic term is significant
+anova_test <- anova(model_linear, model_quad)
+cat("\nF-test for quadratic term:\n")
+cat("  F =", round(anova_test$F[2], 2), ", p =", format.pval(anova_test$`Pr(>F)`[2]), "\n")
+
+# Visualise
+age_seq <- data.table(Age = seq(18, 80, by = 1))
+age_seq[, linear_pred := predict(model_linear, newdata = .SD)]
+age_seq[, quad_pred := predict(model_quad, newdata = .SD)]
+
+ggplot2$ggplot(bp_data[sample(.N, min(.N, 2000))], ggplot2$aes(x = Age, y = SBP)) +
+    ggplot2$geom_point(alpha = 0.2) +
+    ggplot2$geom_line(data = age_seq, ggplot2$aes(y = linear_pred),
+                      colour = "#0072B2", size = 1) +
+    ggplot2$geom_line(data = age_seq, ggplot2$aes(y = quad_pred),
+                      colour = "#D55E00", size = 1) +
+    ggplot2$labs(
+        title = "Linear vs Quadratic Age Effect on Blood Pressure",
+        subtitle = "Blue: linear | Orange: quadratic",
+        x = "Age (years)",
+        y = "Systolic Blood Pressure (mmHg)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 2.2 Weighted Least Squares
+
+### 2.2.1 The Idea
+
+**Prose and Intuition**
+
+When error variance is not constant (heteroscedasticity), ordinary least squares gives equal weight to all observations. But observations with larger variance are less reliable and should receive less weight.
+
+**Weighted least squares (WLS)** minimises:
+$$\sum_{i=1}^n w_i (Y_i - \hat{Y}_i)^2$$
+
+where $w_i = 1/\sigma_i^2$ gives less weight to observations with higher variance.
+
+### 2.2.2 Implementation
+
+**Mathematical Derivation**
+
+If we know the variance pattern $\text{Var}(\varepsilon_i) = \sigma^2 / w_i$, the WLS estimator is:
+$$\hat{\boldsymbol{\beta}}_{WLS} = (\mathbf{X}'\mathbf{W}\mathbf{X})^{-1}\mathbf{X}'\mathbf{W}\mathbf{Y}$$
+
+where $\mathbf{W} = \text{diag}(w_1, w_2, \ldots, w_n)$.
+
+In practice, we estimate the weights from the data, often using the fitted values from an initial OLS fit.
+
+```{r wls, fig.cap="Weighted least squares handles heteroscedasticity"}
+# Example where variance increases with fitted values
+# Use hospital LOS data (original scale)
+model_ols <- lm(los ~ age75 + type1, data = los_data)
+
+# Estimate variance function: assume Var(e) proportional to E(Y)²
+fitted_vals <- fitted(model_ols)
+weights <- 1 / fitted_vals^2
+
+# Weighted least squares
+model_wls <- lm(los ~ age75 + type1, data = los_data, weights = weights)
+
+cat("OLS vs WLS Comparison:\n")
+cat("======================\n\n")
+cat("OLS Coefficients:\n")
+print(coef(model_ols))
+cat("\nWLS Coefficients:\n")
+print(coef(model_wls))
+
+# Compare standard errors
+cat("\nStandard Errors:\n")
+se_comparison <- data.table(
+    Variable = names(coef(model_ols)),
+    SE_OLS = summary(model_ols)$coefficients[, "Std. Error"],
+    SE_WLS = summary(model_wls)$coefficients[, "Std. Error"]
+)
+print(se_comparison)
+```
+
+### 2.2.3 Feasible GLS
+
+**Prose and Intuition**
+
+In practice, we don't know the true variance structure. **Feasible GLS (FGLS)** estimates it from the data:
+
+1. Fit OLS and compute residuals
+2. Model the variance as a function of predictors or fitted values
+3. Use estimated variances as weights
+4. Refit with WLS
+
+```{r fgls, fig.cap="Feasible GLS estimates the variance function"}
+# Step 1: OLS residuals
+los_data[, resid_ols := residuals(model_ols)]
+los_data[, fitted_ols := fitted(model_ols)]
+
+# Step 2: Model variance (regress log(e²) on log(fitted))
+los_data[, log_resid_sq := log(resid_ols^2 + 0.01)]  # Add small constant to avoid log(0)
+los_data[, log_fitted := log(fitted_ols)]
+
+var_model <- lm(log_resid_sq ~ log_fitted, data = los_data)
+
+cat("Variance Function Estimation:\n")
+cat("=============================\n\n")
+cat("Model: log(e²) ~ log(fitted)\n")
+cat("Coefficient:", round(coef(var_model)["log_fitted"], 3), "\n")
+cat("If coefficient ≈ 2, variance is proportional to fitted²\n")
+
+# Step 3: Compute weights
+los_data[, est_var := exp(predict(var_model))]
+los_data[, fgls_weight := 1 / est_var]
+
+# Step 4: Refit with weights
+model_fgls <- lm(los ~ age75 + type1, data = los_data, weights = fgls_weight)
+
+cat("\nFGLS Coefficients:\n")
+print(summary(model_fgls)$coefficients)
+```
+
+---
+
+## 2.3 Robust Regression
+
+### 2.3.1 Why Robust Methods?
+
+**Prose and Intuition**
+
+Standard OLS is sensitive to outliers because the squared loss function gives disproportionate weight to large residuals. A single extreme point can dramatically change the fitted line.
+
+**Robust regression** methods reduce the influence of outliers by using loss functions that grow more slowly than quadratic.
+
+### 2.3.2 M-Estimation
+
+**Mathematical Definition**
+
+**M-estimation** minimises:
+$$\sum_{i=1}^n \rho\left(\frac{e_i}{s}\right)$$
+
+where $\rho$ is a robust loss function (less sensitive to large values than $\rho(x) = x^2$).
+
+Common choices:
+- **Huber's function**: Quadratic for small residuals, linear for large
+- **Tukey's bisquare**: Completely downweights extreme outliers
+- **Least absolute deviation (LAD)**: $\rho(x) = |x|$
+
+```{r robust_regression, fig.cap="Robust regression resists outliers"}
+# Create data with outliers
+set.seed(42)
+n <- 100
+x <- runif(n, 0, 10)
+y <- 2 + 3 * x + rnorm(n, 0, 2)
+
+# Add outliers
+outlier_idx <- c(95, 96, 97, 98, 99, 100)
+y[outlier_idx] <- y[outlier_idx] + c(20, 25, 30, -25, -30, -35)
+
+robust_data <- data.table(x = x, y = y, is_outlier = 1:n %in% outlier_idx)
+
+# Fit OLS
+model_ols <- lm(y ~ x, data = robust_data)
+
+# Fit robust regression (M-estimation with Huber weights)
+library(MASS)
+model_rlm <- rlm(y ~ x, data = robust_data)
+
+cat("OLS vs Robust Regression with Outliers:\n")
+cat("========================================\n\n")
+cat("True model: Y = 2 + 3X + ε\n\n")
+cat("OLS estimates:\n")
+cat("  Intercept:", round(coef(model_ols)[1], 3), "(true: 2)\n")
+cat("  Slope:", round(coef(model_ols)[2], 3), "(true: 3)\n\n")
+cat("Robust (Huber) estimates:\n")
+cat("  Intercept:", round(coef(model_rlm)[1], 3), "\n")
+cat("  Slope:", round(coef(model_rlm)[2], 3), "\n")
+
+# Visualise
+ggplot2$ggplot(robust_data, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_point(ggplot2$aes(colour = is_outlier, shape = is_outlier), size = 2) +
+    ggplot2$geom_abline(intercept = 2, slope = 3, colour = "#009E73",
+                        size = 1.2, linetype = "dashed") +
+    ggplot2$geom_abline(intercept = coef(model_ols)[1], slope = coef(model_ols)[2],
+                        colour = "#D55E00", size = 1) +
+    ggplot2$geom_abline(intercept = coef(model_rlm)[1], slope = coef(model_rlm)[2],
+                        colour = "#0072B2", size = 1) +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "gray50", "TRUE" = "#D55E00")) +
+    ggplot2$scale_shape_manual(values = c("FALSE" = 16, "TRUE" = 17)) +
+    ggplot2$labs(
+        title = "OLS vs Robust Regression",
+        subtitle = "Green dashed: true line | Orange: OLS | Blue: Robust (Huber)",
+        x = "X", y = "Y",
+        colour = "Outlier", shape = "Outlier"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 2.3.3 Examining Robust Weights
+
+**Prose and Intuition**
+
+Robust methods assign weights to observations based on their residuals. Outliers receive lower weights, reducing their influence on the fit.
+
+```{r robust_weights, fig.cap="Robust regression downweights outliers"}
+# Get weights from robust fit
+robust_weights <- model_rlm$w
+
+robust_data[, robust_weight := robust_weights]
+
+cat("Robust Weights:\n")
+cat("===============\n\n")
+cat("Outlier observations:\n")
+print(robust_data[is_outlier == TRUE, .(x = round(x, 2), y = round(y, 2),
+                                         weight = round(robust_weight, 3))])
+
+cat("\nNon-outlier weight statistics:\n")
+cat("  Mean:", round(mean(robust_data[is_outlier == FALSE, robust_weight]), 4), "\n")
+cat("  Min:", round(min(robust_data[is_outlier == FALSE, robust_weight]), 4), "\n")
+
+# Visualise weights
+ggplot2$ggplot(robust_data, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_point(ggplot2$aes(size = robust_weight, colour = is_outlier), alpha = 0.7) +
+    ggplot2$scale_size_continuous(range = c(0.5, 4), name = "Weight") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#0072B2", "TRUE" = "#D55E00")) +
+    ggplot2$labs(
+        title = "Robust Regression Weights",
+        subtitle = "Outliers (orange) receive near-zero weights",
+        x = "X", y = "Y",
+        colour = "Outlier"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 2.3.4 Least Trimmed Squares (LTS)
+
+**Prose and Intuition**
+
+**Least Trimmed Squares** takes a more aggressive approach: it minimises the sum of the smallest $(n - k)$ squared residuals, completely ignoring the $k$ largest.
+
+This has a high **breakdown point** — it remains reliable even when up to 50% of the data are outliers.
+
+```{r lts, fig.cap="Least trimmed squares completely ignores extreme outliers"}
+# LTS regression using lqs() with method = "lts"
+library(MASS)
+n_use <- round(0.75 * nrow(robust_data))  # Use 75% of data
+model_lts <- lqs(y ~ x, data = robust_data, method = "lts", quantile = n_use)
+
+cat("Least Trimmed Squares:\n")
+cat("======================\n\n")
+cat("Uses", n_use, "of", nrow(robust_data), "observations\n")
+cat("LTS estimates:\n")
+cat("  Intercept:", round(coef(model_lts)[1], 3), "(true: 2)\n")
+cat("  Slope:", round(coef(model_lts)[2], 3), "(true: 3)\n")
+```
+
+---
+
+## 2.4 Dealing with Influential Points
+
+### 2.4.1 Should We Remove Outliers?
+
+**Prose and Intuition**
+
+The decision to remove influential observations is context-dependent:
+
+**Remove if:**
+- Data entry error (typo, wrong units)
+- Measurement malfunction
+- Subject doesn't belong to the population of interest
+
+**Keep if:**
+- Real but unusual observation
+- No clear reason for exclusion
+- Removing would bias results
+
+**Best practice:**
+- Report results with and without influential points
+- Investigate the cause of unusual values
+- Use robust methods as a sensitivity check
+
+```{r sensitivity_analysis, fig.cap="Sensitivity analysis with and without outliers"}
+# Identify influential points in hospital data
+model_full <- lm(los ~ age75 + type1, data = los_data)
+los_data[, cooks_d := cooks.distance(model_full)]
+
+# Threshold for removal
+cooks_threshold <- 4 / nrow(los_data)
+influential <- los_data[cooks_d > cooks_threshold]
+
+cat("Sensitivity Analysis:\n")
+cat("=====================\n\n")
+cat("Influential observations (Cook's D > 4/n):", nrow(influential), "\n")
+
+# Refit without influential points
+los_clean <- los_data[cooks_d <= cooks_threshold]
+model_clean <- lm(los ~ age75 + type1, data = los_clean)
+
+# Compare
+cat("\nCoefficient Comparison:\n")
+comparison <- data.table(
+    Variable = names(coef(model_full)),
+    Full_Data = coef(model_full),
+    Without_Influential = coef(model_clean)
+)
+comparison[, Percent_Change := round((Without_Influential - Full_Data) / Full_Data * 100, 2)]
+print(comparison)
+
+cat("\nRecommendation: Report both results and note the sensitivity.\n")
+```
+
+---
+
+## 2.5 Summary: Choosing the Right Remedy
+
+```{r remedy_summary}
+cat("Decision Guide for Regression Remedies:\n")
+cat("=========================================\n\n")
+
+cat("PROBLEM: Heteroscedasticity (non-constant variance)\n")
+cat("  → Transform Y (log, sqrt) if variance increases with mean\n")
+cat("  → Use weighted least squares\n")
+cat("  → Use robust/sandwich standard errors\n\n")
+
+cat("PROBLEM: Nonlinearity\n")
+cat("  → Transform X (log, polynomial)\n")
+cat("  → Transform Y\n")
+cat("  → Use GAMs (generalized additive models)\n\n")
+
+cat("PROBLEM: Outliers\n")
+cat("  → Investigate cause\n")
+cat("  → Use robust regression (M-estimation, LTS)\n")
+cat("  → Sensitivity analysis (with/without)\n\n")
+
+cat("PROBLEM: Non-normal residuals\n")
+cat("  → With large n: Usually not a concern (CLT)\n")
+cat("  → Transform Y\n")
+cat("  → Use bootstrap for inference\n\n")
+
+cat("PROBLEM: Independence violation\n")
+cat("  → Clustered data: Use mixed-effects models (Chapter 6)\n")
+cat("  → Time series: Use time series methods (Chapter 7)\n")
+cat("  → Spatial data: Use spatial models (Part III)\n")
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Transformations
+
+**For Clinical Collaborators:**
+
+"We found that the relationship between age and hospital length of stay isn't well-captured by our initial model. The statistical diagnostics showed that:
+
+1. Patients with longer predicted stays had more variable actual stays
+2. The errors weren't evenly distributed
+
+To address this, we analysed length of stay on the *logarithmic scale*. This is common in healthcare because costs and durations tend to follow multiplicative rather than additive patterns.
+
+On this scale, we find that each additional year of age is associated with approximately a 1% increase in length of stay. This means the effect of age compounds: a 70-year-old patient stays about 50% longer than a 30-year-old, all else being equal.
+
+We also ran a 'robust' analysis that downweights unusual observations. The results were similar, giving us confidence that our findings aren't driven by a few extreme cases."
+
+---
+
+## Quick Reference
+
+### Common Transformations
+
+| Transformation | When to Use | Interpretation |
+|----------------|-------------|----------------|
+| $\log(Y)$ | Right-skewed, variance ∝ mean | Multiplicative effects |
+| $\sqrt{Y}$ | Count data, mild skew | Square root scale |
+| $1/Y$ | Strong right skew | Reciprocal scale |
+| $\log(X)$ | X spans orders of magnitude | Elasticity |
+| $X^2$ | U-shaped relationship | Quadratic |
+
+### Robust Methods
+
+| Method | Loss Function | Breakdown Point |
+|--------|---------------|-----------------|
+| OLS | $e^2$ | 0% |
+| Huber | Quadratic small, linear large | ~25% |
+| Tukey bisquare | Bounded | ~50% |
+| LAD | $|e|$ | ~30% |
+| LTS | Trimmed sum | ~50% |
+
+### R Code Patterns
+
+```r
+# Log transformation
+model_log <- lm(log(Y) ~ X1 + X2, data = mydata)
+
+# Box-Cox transformation
+library(MASS)
+bc <- boxcox(model)
+optimal_lambda <- bc$x[which.max(bc$y)]
+
+# Weighted least squares
+model_wls <- lm(Y ~ X, data = mydata, weights = 1/variance)
+
+# Robust regression (Huber)
+library(MASS)
+model_robust <- rlm(Y ~ X, data = mydata)
+
+# Robust regression (Tukey bisquare)
+model_robust <- rlm(Y ~ X, data = mydata, method = "MM")
+
+# Least trimmed squares
+model_lts <- ltsreg(Y ~ X, data = mydata)
+
+# Robust standard errors
+library(sandwich)
+library(lmtest)
+coeftest(model, vcov = vcovHC(model, type = "HC1"))
+```

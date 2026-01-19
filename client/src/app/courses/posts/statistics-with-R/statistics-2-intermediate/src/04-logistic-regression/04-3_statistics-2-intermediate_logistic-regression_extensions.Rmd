@@ -1,0 +1,668 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 4: Logistic Regression"
+part: "Part 3: Extensions and Applications"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, logistic-regression, multinomial, ordinal, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 3: Extensions and Applications
+
+Standard logistic regression handles binary outcomes. But what if you have three or more categories? This part extends logistic regression to **multinomial** outcomes (unordered categories) and **ordinal** outcomes (ordered categories), and covers practical issues like variable selection and regularisation.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+# Load nnet for multinomial regression
+library(nnet)
+library(MASS)  # For ordinal regression
+```
+
+```{r load_data, message=FALSE}
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+cat("Datasets loaded.\n")
+```
+
+---
+
+## 4.11 Multinomial Logistic Regression
+
+### 4.11.1 When Outcomes Have Multiple Categories
+
+**Prose and Intuition**
+
+Sometimes the outcome isn't binary — it has 3+ unordered categories:
+- Diagnosis: Cancer subtype A, B, or C
+- Treatment response: Complete, partial, or no response
+- Health status: Healthy, pre-diabetic, or diabetic
+
+**Multinomial logistic regression** extends binary logistic regression by modelling each category against a reference category.
+
+**Mathematical Definition**
+
+For $J$ categories, we model $J-1$ log-odds relative to a reference category (say, category 1):
+
+$$\log\left(\frac{P(Y = j)}{P(Y = 1)}\right) = \boldsymbol{\beta}_j' \mathbf{X}, \quad j = 2, \ldots, J$$
+
+This gives us $J-1$ sets of coefficients, one for each non-reference category.
+
+```{r create_multinomial_data}
+# Create a 3-category outcome: Healthy, Pre-diabetic, Diabetic
+# Based on HbA1c levels if available, or glucose levels
+health_data <- nhanes[Age >= 18,
+                      .(Age = Age, BMI = BMI, Gender = Gender,
+                        Diabetes = Diabetes, DirectChol = DirectChol)]
+health_data <- health_data[complete.cases(health_data)]
+
+# Create health status categories
+# Using Diabetes variable and creating intermediate category based on risk
+health_data[, health_status := fifelse(
+    Diabetes == "Yes", "Diabetic",
+    fifelse(BMI > 30 | Age > 60, "At-Risk", "Healthy")
+)]
+health_data[, health_status := factor(health_status, levels = c("Healthy", "At-Risk", "Diabetic"))]
+
+cat("Health Status Distribution:\n")
+cat("===========================\n\n")
+print(table(health_data$health_status))
+cat("\nPercentages:\n")
+print(round(prop.table(table(health_data$health_status)) * 100, 1))
+```
+
+### 4.11.2 Fitting Multinomial Logistic Regression
+
+```{r multinomial_fit}
+# Fit multinomial logistic regression
+# Reference category is "Healthy"
+model_multi <- multinom(health_status ~ Age + BMI + Gender,
+                        data = health_data, trace = FALSE)
+
+cat("Multinomial Logistic Regression:\n")
+cat("================================\n\n")
+cat("Reference category: Healthy\n\n")
+
+# Summary
+summary(model_multi)
+
+# Calculate z-statistics and p-values
+z <- summary(model_multi)$coefficients / summary(model_multi)$standard.errors
+p <- 2 * (1 - pnorm(abs(z)))
+
+cat("\nP-values:\n")
+print(round(p, 4))
+```
+
+### 4.11.3 Interpreting Multinomial Coefficients
+
+```{r multinomial_interpretation}
+# Extract odds ratios
+cat("Odds Ratios (Relative to Healthy):\n")
+cat("==================================\n\n")
+
+coefs <- coef(model_multi)
+or_multi <- exp(coefs)
+
+# Format nicely
+or_table <- data.table(
+    Outcome = rep(rownames(or_multi), each = ncol(or_multi)),
+    Variable = rep(colnames(or_multi), times = nrow(or_multi)),
+    OR = as.vector(t(or_multi))
+)
+
+# Confidence intervals using profile likelihood would be ideal
+# For simplicity, using Wald intervals
+se <- summary(model_multi)$standard.errors
+ci_lower <- exp(coefs - 1.96 * se)
+ci_upper <- exp(coefs + 1.96 * se)
+
+or_table[, CI_Lower := as.vector(t(ci_lower))]
+or_table[, CI_Upper := as.vector(t(ci_upper))]
+
+print(or_table[Variable != "(Intercept)",
+               .(Outcome, Variable, OR = round(OR, 3),
+                 CI = paste0("(", round(CI_Lower, 3), ", ", round(CI_Upper, 3), ")"))])
+
+cat("\nInterpretation:\n")
+cat("- For Age (At-Risk vs Healthy): OR =", round(or_multi["At-Risk", "Age"], 3), "\n")
+cat("  Each year of age increases odds of being At-Risk (vs Healthy) by",
+    round((or_multi["At-Risk", "Age"] - 1) * 100, 1), "%\n")
+```
+
+### 4.11.4 Predicted Probabilities
+
+```{r multinomial_predictions, fig.cap="Predicted probabilities across health categories"}
+# Get predicted probabilities
+health_data[, c("p_Healthy", "p_AtRisk", "p_Diabetic") :=
+            as.data.table(predict(model_multi, type = "probs"))]
+
+# Visualise how probabilities change with BMI at fixed age
+bmi_seq <- data.table(
+    BMI = rep(seq(18, 45, by = 0.5), 2),
+    Age = 50,
+    Gender = rep(c("female", "male"), each = 55)
+)
+pred_probs <- predict(model_multi, newdata = bmi_seq, type = "probs")
+bmi_seq <- cbind(bmi_seq, as.data.table(pred_probs))
+
+# Reshape for plotting
+bmi_long <- melt(bmi_seq, id.vars = c("BMI", "Age", "Gender"),
+                 measure.vars = c("Healthy", "At-Risk", "Diabetic"),
+                 variable.name = "Status", value.name = "Probability")
+
+ggplot2$ggplot(bmi_long[Gender == "female"],
+               ggplot2$aes(x = BMI, y = Probability, colour = Status)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_manual(values = c("Healthy" = "#009E73",
+                                            "At-Risk" = "#D55E00",
+                                            "Diabetic" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Predicted Health Status Probabilities by BMI",
+        subtitle = "Age = 50, Female",
+        x = "BMI",
+        y = "Predicted Probability",
+        colour = "Health Status"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 4.12 Ordinal Logistic Regression
+
+### 4.12.1 When Categories Are Ordered
+
+**Prose and Intuition**
+
+Sometimes categories have a natural ordering:
+- Disease severity: Mild < Moderate < Severe
+- Pain scale: None < Mild < Moderate < Severe
+- Satisfaction: Very dissatisfied < Dissatisfied < Neutral < Satisfied < Very satisfied
+
+**Ordinal logistic regression** exploits this ordering, assuming the effect of predictors is consistent across category transitions.
+
+**The Proportional Odds Model**
+
+The most common ordinal model uses **cumulative logits**:
+
+$$\log\left(\frac{P(Y \leq j)}{P(Y > j)}\right) = \alpha_j - \boldsymbol{\beta}'\mathbf{X}$$
+
+Note: The $\boldsymbol{\beta}$ coefficients are the same for all $j$ — this is the **proportional odds assumption**.
+
+```{r create_ordinal_data}
+# Create ordinal outcome based on BMI categories
+bmi_data <- nhanes[Age >= 18 & !is.na(BMI) & !is.na(Age) & !is.na(Gender),
+                   .(Age = Age, BMI = BMI, Gender = Gender,
+                     SBP = BPSysAve, Education = Education)]
+bmi_data <- bmi_data[complete.cases(bmi_data[, .(Age, BMI, Gender)])]
+
+# Create ordinal BMI category
+bmi_data[, bmi_cat := cut(BMI,
+                          breaks = c(0, 18.5, 25, 30, 100),
+                          labels = c("Underweight", "Normal", "Overweight", "Obese"),
+                          include.lowest = TRUE)]
+
+cat("BMI Category Distribution:\n")
+cat("==========================\n\n")
+print(table(bmi_data$bmi_cat))
+```
+
+### 4.12.2 Fitting Ordinal Logistic Regression
+
+```{r ordinal_fit}
+# Fit ordinal logistic regression (proportional odds model)
+model_ordinal <- polr(bmi_cat ~ Age + Gender, data = bmi_data, Hess = TRUE)
+
+cat("Ordinal Logistic Regression (Proportional Odds):\n")
+cat("=================================================\n\n")
+summary(model_ordinal)
+
+# Calculate p-values
+coef_table <- coef(summary(model_ordinal))
+p_values <- pnorm(abs(coef_table[, "t value"]), lower.tail = FALSE) * 2
+
+cat("\nP-values for predictors:\n")
+print(round(p_values[1:2], 4))  # Just the predictors, not thresholds
+```
+
+### 4.12.3 Interpreting Ordinal Coefficients
+
+```{r ordinal_interpretation}
+# Odds ratios
+cat("Odds Ratios for Ordinal Model:\n")
+cat("==============================\n\n")
+
+# In polr, coefficients have opposite sign convention
+# Positive coefficient = lower probability of higher categories
+or_ordinal <- exp(-coef(model_ordinal))  # Note the negative sign
+ci_ordinal <- exp(-confint(model_ordinal))
+
+or_ord_table <- data.table(
+    Variable = names(or_ordinal),
+    OR = or_ordinal,
+    CI_Lower = ci_ordinal[, 2],  # Reversed due to negative
+    CI_Upper = ci_ordinal[, 1]
+)
+
+print(or_ord_table[, .(Variable, OR = round(OR, 3),
+                       CI = paste0("(", round(CI_Lower, 3), ", ", round(CI_Upper, 3), ")"))])
+
+cat("\nInterpretation:\n")
+cat("The OR represents the odds of being in a HIGHER category\n")
+cat("- Age OR =", round(or_ordinal["Age"], 3), ": Each year increases odds of higher BMI category by",
+    round((or_ordinal["Age"] - 1) * 100, 1), "%\n")
+```
+
+### 4.12.4 Testing the Proportional Odds Assumption
+
+**Prose and Intuition**
+
+The proportional odds assumption says the effect of predictors is the same across all category boundaries. We can test this by comparing the proportional odds model to a model that allows different coefficients for each boundary.
+
+```{r proportional_odds_test}
+cat("Testing Proportional Odds Assumption:\n")
+cat("=====================================\n\n")
+
+# Fit separate binary logistic models for each cumulative probability
+# Y <= Underweight vs Y > Underweight
+# Y <= Normal vs Y > Normal (includes Underweight and Normal)
+# Y <= Overweight vs Y > Overweight
+
+bmi_data[, y_le_under := as.integer(bmi_cat == "Underweight")]
+bmi_data[, y_le_normal := as.integer(bmi_cat %in% c("Underweight", "Normal"))]
+bmi_data[, y_le_over := as.integer(bmi_cat %in% c("Underweight", "Normal", "Overweight"))]
+
+# Fit separate models
+m1 <- glm(y_le_under ~ Age + Gender, data = bmi_data, family = binomial)
+m2 <- glm(y_le_normal ~ Age + Gender, data = bmi_data, family = binomial)
+m3 <- glm(y_le_over ~ Age + Gender, data = bmi_data, family = binomial)
+
+cat("Age coefficients at different cutpoints:\n")
+cat("  Y <= Underweight:", round(coef(m1)["Age"], 4), "\n")
+cat("  Y <= Normal:", round(coef(m2)["Age"], 4), "\n")
+cat("  Y <= Overweight:", round(coef(m3)["Age"], 4), "\n")
+cat("  Proportional odds model:", round(-coef(model_ordinal)["Age"], 4), "\n\n")
+
+cat("If proportional odds holds, these should be approximately equal.\n")
+cat("Large differences suggest violation of the assumption.\n")
+```
+
+---
+
+## 4.13 Variable Selection in Logistic Regression
+
+### 4.13.1 Stepwise Selection
+
+**Prose and Intuition**
+
+With many potential predictors, we need systematic ways to select which variables to include. Stepwise selection adds or removes variables based on AIC or p-values.
+
+```{r stepwise_selection}
+# Full model with many predictors
+full_data <- nhanes[Age >= 18,
+                    .(diabetes = as.integer(Diabetes == "Yes"),
+                      Age = Age, BMI = BMI, Gender = Gender,
+                      SBP = BPSysAve, DBP = BPDiaAve,
+                      TotChol = TotChol, DirectChol = DirectChol,
+                      Pulse = Pulse)]
+full_data <- full_data[complete.cases(full_data)]
+
+# Fit full model
+model_full <- glm(diabetes ~ Age + BMI + Gender + SBP + DBP + TotChol + DirectChol + Pulse,
+                  data = full_data, family = binomial)
+
+cat("Full Model AIC:", round(AIC(model_full), 1), "\n\n")
+
+# Stepwise selection (both directions)
+model_step <- step(model_full, direction = "both", trace = 0)
+
+cat("Stepwise Selection Results:\n")
+cat("===========================\n\n")
+cat("Selected model formula:\n")
+print(formula(model_step))
+cat("\nFinal AIC:", round(AIC(model_step), 1), "\n")
+cat("Variables removed:", setdiff(names(coef(model_full)), names(coef(model_step))), "\n")
+```
+
+### 4.13.2 Regularisation: Ridge and Lasso (Conceptual Overview)
+
+**Prose and Intuition**
+
+**Regularisation** adds a penalty to the likelihood to prevent overfitting and handle multicollinearity:
+
+- **Ridge** (L2): Shrinks coefficients toward zero but doesn't eliminate variables
+- **Lasso** (L1): Can shrink coefficients to exactly zero (automatic variable selection)
+- **Elastic Net**: Combines both penalties
+
+**Mathematical Formulation**
+
+For logistic regression, regularisation modifies the log-likelihood:
+
+$$\ell_{\text{penalised}} = \ell(\boldsymbol{\beta}) - \lambda \sum_{j=1}^p |\beta_j|^\alpha$$
+
+Where $\alpha = 1$ for Lasso (L1), $\alpha = 2$ for Ridge (L2).
+
+```{r regularisation_concept}
+cat("Regularisation Methods Overview:\n")
+cat("================================\n\n")
+
+cat("Ridge Regression (L2):\n")
+cat("  - Penalty: λ Σ β²\n")
+cat("  - Shrinks coefficients but keeps all variables\n")
+cat("  - Good when all predictors may be relevant\n\n")
+
+cat("Lasso Regression (L1):\n")
+cat("  - Penalty: λ Σ |β|\n")
+cat("  - Can shrink coefficients exactly to zero\n")
+cat("  - Performs automatic variable selection\n\n")
+
+cat("Elastic Net:\n")
+cat("  - Combines L1 and L2 penalties\n")
+cat("  - Penalty: λ[(1-α)Σβ² + αΣ|β|]\n")
+cat("  - Good when predictors are correlated\n\n")
+
+cat("In R, use the 'glmnet' package for regularised regression:\n")
+cat("  library(glmnet)\n")
+cat("  fit <- glmnet(X, y, family = 'binomial', alpha = 1)  # Lasso\n")
+cat("  cv_fit <- cv.glmnet(X, y, family = 'binomial')  # Cross-validated\n")
+```
+
+---
+
+## 4.14 Handling Class Imbalance
+
+### 4.14.1 The Problem of Rare Events
+
+**Prose and Intuition**
+
+When one outcome is rare (e.g., 5% disease prevalence), logistic regression can perform poorly:
+- Model predicts "no disease" for almost everyone
+- High accuracy but useless for the clinical purpose
+
+**Solutions:**
+1. Adjust the classification threshold
+2. Use weighted likelihood
+3. Resample the training data
+
+```{r class_imbalance}
+cat("Class Imbalance in Diabetes Data:\n")
+cat("=================================\n\n")
+
+prevalence <- mean(full_data$diabetes)
+cat("Diabetes prevalence:", round(prevalence * 100, 1), "%\n")
+cat("If we predicted 'no diabetes' for everyone:\n")
+cat("  Accuracy:", round((1 - prevalence) * 100, 1), "%\n")
+cat("  But sensitivity: 0%\n\n")
+
+# Fit standard model and check predictions
+pred_prob <- predict(model_step, type = "response")
+
+cat("Standard threshold (0.5):\n")
+cat("  Predicted positive:", sum(pred_prob > 0.5), "\n")
+cat("  Actual positive:", sum(full_data$diabetes), "\n\n")
+
+# Lower threshold to match prevalence
+threshold_opt <- quantile(pred_prob, 1 - prevalence)
+cat("Threshold matching prevalence (", round(threshold_opt, 3), "):\n", sep = "")
+cat("  Predicted positive:", sum(pred_prob > threshold_opt), "\n")
+cat("  Actual positive:", sum(full_data$diabetes), "\n")
+```
+
+### 4.14.2 Adjusted Thresholds Based on Costs
+
+```{r cost_sensitive, fig.cap="Optimal threshold depends on cost of errors"}
+# Define cost function: cost of FN (miss a case) vs cost of FP (unnecessary testing)
+# In medical screening, FN is typically more costly
+
+calc_total_cost <- function(actual, pred_prob, threshold, cost_fn, cost_fp) {
+    pred_class <- as.integer(pred_prob > threshold)
+    fn <- sum(pred_class == 0 & actual == 1)
+    fp <- sum(pred_class == 1 & actual == 0)
+    fn * cost_fn + fp * cost_fp
+}
+
+# Calculate costs at different thresholds
+thresholds <- seq(0.05, 0.5, by = 0.01)
+cost_ratios <- c(1, 2, 5, 10)  # FN cost relative to FP
+
+cost_data <- rbindlist(lapply(cost_ratios, function(ratio) {
+    costs <- sapply(thresholds, function(t) {
+        calc_total_cost(full_data$diabetes, pred_prob, t, cost_fn = ratio, cost_fp = 1)
+    })
+    data.table(
+        Threshold = thresholds,
+        Cost = costs / max(costs),  # Normalise
+        Ratio = paste0("FN:FP = ", ratio, ":1")
+    )
+}))
+
+ggplot2$ggplot(cost_data, ggplot2$aes(x = Threshold, y = Cost, colour = Ratio)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$geom_point(data = cost_data[, .SD[which.min(Cost)], by = Ratio],
+                       size = 3) +
+    ggplot2$labs(
+        title = "Optimal Threshold Depends on Cost of Errors",
+        subtitle = "Points show minimum cost threshold for each cost ratio",
+        x = "Classification Threshold",
+        y = "Relative Total Cost",
+        colour = "Cost Ratio"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 4.15 Complete Analysis Example
+
+Let's put everything together with a complete analysis of breast cancer classification.
+
+```{r complete_example}
+cat("Complete Logistic Regression Analysis: Breast Cancer\n")
+cat("====================================================\n\n")
+
+# Prepare data
+bc_data <- breast_cancer[, .(
+    diagnosis = as.integer(diagnosis == "M"),
+    radius = mean_radius,
+    texture = mean_texture,
+    perimeter = mean_perimeter,
+    area = mean_area,
+    smoothness = mean_smoothness,
+    compactness = mean_compactness,
+    concavity = mean_concavity,
+    symmetry = mean_symmetry
+)]
+bc_data <- bc_data[complete.cases(bc_data)]
+
+# Split into train/test
+set.seed(42)
+train_idx <- sample(nrow(bc_data), 0.7 * nrow(bc_data))
+train_data <- bc_data[train_idx]
+test_data <- bc_data[-train_idx]
+
+cat("Data split:\n")
+cat("  Training:", nrow(train_data), "observations\n")
+cat("  Testing:", nrow(test_data), "observations\n")
+cat("  Malignant rate (train):", round(100 * mean(train_data$diagnosis), 1), "%\n\n")
+
+# Fit model with stepwise selection
+model_full_bc <- glm(diagnosis ~ ., data = train_data, family = binomial)
+model_bc_step <- step(model_full_bc, direction = "both", trace = 0)
+
+cat("Selected variables:\n")
+print(names(coef(model_bc_step))[-1])
+
+cat("\n\nModel Summary:\n")
+summary(model_bc_step)
+```
+
+```{r example_evaluation, fig.cap="Model performance on test set"}
+# Predictions on test set
+test_data[, pred_prob := predict(model_bc_step, newdata = test_data, type = "response")]
+
+# ROC curve
+calc_roc <- function(actual, predicted) {
+    thresholds <- seq(0, 1, by = 0.01)
+    rbindlist(lapply(thresholds, function(t) {
+        pred_class <- as.integer(predicted > t)
+        tp <- sum(pred_class == 1 & actual == 1)
+        fn <- sum(pred_class == 0 & actual == 1)
+        tn <- sum(pred_class == 0 & actual == 0)
+        fp <- sum(pred_class == 1 & actual == 0)
+        data.table(
+            Threshold = t,
+            TPR = tp / (tp + fn),
+            FPR = fp / (fp + tn)
+        )
+    }))
+}
+
+roc_test <- calc_roc(test_data$diagnosis, test_data$pred_prob)
+
+# AUC
+roc_sorted <- roc_test[order(FPR)]
+auc_test <- sum(diff(roc_sorted$FPR) * (head(roc_sorted$TPR, -1) + tail(roc_sorted$TPR, -1)) / 2)
+
+cat("\nTest Set Performance:\n")
+cat("=====================\n\n")
+cat("AUC:", round(auc_test, 4), "\n")
+
+# Confusion matrix at 0.5
+test_data[, pred_class := as.integer(pred_prob > 0.5)]
+cm <- table(Predicted = test_data$pred_class, Actual = test_data$diagnosis)
+print(cm)
+
+tp <- cm["1", "1"]
+tn <- cm["0", "0"]
+fp <- cm["1", "0"]
+fn <- cm["0", "1"]
+
+cat("\nMetrics:\n")
+cat("  Accuracy:", round((tp + tn) / sum(cm), 4), "\n")
+cat("  Sensitivity:", round(tp / (tp + fn), 4), "\n")
+cat("  Specificity:", round(tn / (tn + fp), 4), "\n")
+cat("  PPV:", round(tp / (tp + fp), 4), "\n")
+
+# ROC plot
+ggplot2$ggplot(roc_test, ggplot2$aes(x = FPR, y = TPR)) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
+    ggplot2$annotate("text", x = 0.6, y = 0.3,
+                     label = paste("Test AUC =", round(auc_test, 3)),
+                     size = 6, colour = "#0072B2") +
+    ggplot2$labs(
+        title = "ROC Curve: Breast Cancer Classification (Test Set)",
+        x = "False Positive Rate (1 - Specificity)",
+        y = "True Positive Rate (Sensitivity)"
+    ) +
+    ggplot2$coord_equal() +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Presenting a Complete Analysis
+
+**For Clinical Collaborators:**
+
+"We developed a classification model for breast tumour malignancy using tumour measurements.
+
+**Model Development:**
+- We evaluated 8 tumour characteristics and used stepwise selection to identify the most predictive combination
+- The final model uses: radius, texture, and concavity measurements
+
+**Performance (on held-out test data):**
+- AUC = 0.96 (outstanding discrimination)
+- At the default threshold (0.5):
+  - Sensitivity: 95% (catches 95% of malignant tumours)
+  - Specificity: 92% (correctly identifies 92% of benign tumours)
+
+**Clinical Recommendation:**
+Given that missing a malignancy is more costly than additional testing of benign cases, we recommend a lower threshold (0.3) which would:
+- Increase sensitivity to 98%
+- Decrease specificity to 85%
+- Meaning more biopsies, but very few missed cancers"
+
+---
+
+## Quick Reference
+
+### Multinomial Logistic Regression
+
+```r
+# Fit multinomial model
+library(nnet)
+model <- multinom(outcome ~ x1 + x2, data = df)
+
+# Predicted probabilities (all categories)
+predict(model, type = "probs")
+
+# Predicted class
+predict(model, type = "class")
+```
+
+### Ordinal Logistic Regression
+
+```r
+# Fit proportional odds model
+library(MASS)
+model <- polr(ordered_outcome ~ x1 + x2, data = df, Hess = TRUE)
+
+# Note: coefficients have opposite sign convention
+# Positive = lower odds of higher category
+```
+
+### Regularised Logistic Regression
+
+```r
+library(glmnet)
+
+# Lasso (alpha = 1)
+fit <- glmnet(X, y, family = "binomial", alpha = 1)
+
+# Ridge (alpha = 0)
+fit <- glmnet(X, y, family = "binomial", alpha = 0)
+
+# Cross-validation
+cv_fit <- cv.glmnet(X, y, family = "binomial", alpha = 1)
+coef(cv_fit, s = "lambda.1se")
+```
+
+### Outcome Types Summary
+
+| Outcome Type | Model | R Function |
+|--------------|-------|------------|
+| Binary | Logistic regression | `glm(..., family = binomial)` |
+| Nominal (3+ unordered) | Multinomial logistic | `nnet::multinom()` |
+| Ordinal (ordered) | Proportional odds | `MASS::polr()` |
+| Count | Poisson/NB regression | See Chapter 5 |
