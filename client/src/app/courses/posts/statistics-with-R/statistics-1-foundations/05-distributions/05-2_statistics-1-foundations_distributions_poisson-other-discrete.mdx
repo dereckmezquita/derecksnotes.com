@@ -167,7 +167,7 @@ ggplot2$ggplot(compare_long, ggplot2$aes(x = k, y = probability, fill = distribu
 
 # Show numerical convergence
 cat("Convergence of Binomial to Poisson (λ = 5)\n")
-#> Convergence of Binomial to Poisson (<U+03BB> = 5)
+#> Convergence of Binomial to Poisson (λ = 5)
 cat("==========================================\n\n")
 #> ==========================================
 
@@ -229,12 +229,12 @@ pmf_dt <- data.table(
 )
 
 cat("Poisson PMF Components: λ = 4\n")
-#> Poisson PMF Components: <U+03BB> = 4
+#> Poisson PMF Components: λ = 4
 cat("==============================\n\n")
 #> ==============================
 
 cat("P(X = k) = (λ^k × e^(-λ)) / k!\n\n")
-#> P(X = k) = (<U+03BB>^k <U+00D7> e^(-<U+03BB>)) / k!
+#> P(X = k) = (λ^k × e^(-λ)) / k!
 
 cat("For each k:\n")
 #> For each k:
@@ -243,21 +243,21 @@ print(pmf_dt[, .(k,
                  `e^(-λ)` = round(exp_neg_lambda, 6),
                  `k!` = k_factorial,
                  `P(X=k)` = round(P_X_k, 6))])
-#>         k <U+03BB>^k e^(-<U+03BB>)        k!   P(X=k)
-#>     <int>      <num>         <num>     <num>    <num>
-#>  1:     0          1      0.018316         1 0.018316
-#>  2:     1          4      0.018316         1 0.073263
-#>  3:     2         16      0.018316         2 0.146525
-#>  4:     3         64      0.018316         6 0.195367
-#>  5:     4        256      0.018316        24 0.195367
-#>  6:     5       1024      0.018316       120 0.156293
-#>  7:     6       4096      0.018316       720 0.104196
-#>  8:     7      16384      0.018316      5040 0.059540
-#>  9:     8      65536      0.018316     40320 0.029770
-#> 10:     9     262144      0.018316    362880 0.013231
-#> 11:    10    1048576      0.018316   3628800 0.005292
-#> 12:    11    4194304      0.018316  39916800 0.001925
-#> 13:    12   16777216      0.018316 479001600 0.000642
+#>         k      λ^k   e^(-λ)        k!   P(X=k)
+#>     <int>    <num>    <num>     <num>    <num>
+#>  1:     0        1 0.018316         1 0.018316
+#>  2:     1        4 0.018316         1 0.073263
+#>  3:     2       16 0.018316         2 0.146525
+#>  4:     3       64 0.018316         6 0.195367
+#>  5:     4      256 0.018316        24 0.195367
+#>  6:     5     1024 0.018316       120 0.156293
+#>  7:     6     4096 0.018316       720 0.104196
+#>  8:     7    16384 0.018316      5040 0.059540
+#>  9:     8    65536 0.018316     40320 0.029770
+#> 10:     9   262144 0.018316    362880 0.013231
+#> 11:    10  1048576 0.018316   3628800 0.005292
+#> 12:    11  4194304 0.018316  39916800 0.001925
+#> 13:    12 16777216 0.018316 479001600 0.000642
 
 cat("\nSum of probabilities:", round(sum(pmf_dt$P_X_k), 6), "\n")
 #> 
@@ -472,7 +472,7 @@ cat("==============================================\n\n")
 #> ==============================================
 
 cat(sprintf("Parameter: λ = %.1f\n\n", lambda))
-#> Parameter: <U+03BB> = 5.0
+#> Parameter: λ = 5.0
 
 # PMF comparison
 cat("PMF (dpois):\n")
@@ -553,7 +553,7 @@ cat("===============================\n\n")
 #> ===============================
 
 cat(sprintf("Average admissions per hour: λ = %.1f\n\n", lambda_hourly))
-#> Average admissions per hour: <U+03BB> = 2.1
+#> Average admissions per hour: λ = 2.1
 
 # Calculate various probabilities
 cat("Probability calculations:\n")
@@ -625,7 +625,7 @@ cat("  Background mutation rate: 1 per Mb\n")
 cat("  Gene size: 10 kb\n")
 #>   Gene size: 10 kb
 cat(sprintf("  Expected mutations per gene: λ = %.4f\n\n", lambda_mutations))
-#>   Expected mutations per gene: <U+03BB> = 0.0100
+#>   Expected mutations per gene: λ = 0.0100
 
 # For a more interesting example, consider mutations across 100 samples
 # in the same gene
@@ -633,7 +633,7 @@ n_samples <- 100
 lambda_per_sample <- 0.3  # More realistic for illustration
 
 cat("Across 100 tumour samples (λ = 0.3 per sample per gene):\n")
-#> Across 100 tumour samples (<U+03BB> = 0.3 per sample per gene):
+#> Across 100 tumour samples (λ = 0.3 per sample per gene):
 cat(sprintf("  P(no mutations in a sample) = %.4f\n", dpois(0, lambda_per_sample)))
 #>   P(no mutations in a sample) = 0.7408
 cat(sprintf("  P(exactly 1 mutation) = %.4f\n", dpois(1, lambda_per_sample)))
@@ -710,7 +710,7 @@ cat("===============================================\n\n")
 set.seed(42)
 poisson_data <- rpois(500, lambda = 4)
 cat("True Poisson data (λ = 4):\n")
-#> True Poisson data (<U+03BB> = 4):
+#> True Poisson data (λ = 4):
 cat(sprintf("  Mean: %.3f, Variance: %.3f, Ratio: %.3f\n",
             mean(poisson_data), var(poisson_data), var(poisson_data)/mean(poisson_data)))
 #>   Mean: 3.926, Variance: 4.033, Ratio: 1.027
@@ -728,11 +728,11 @@ cat("\nInterpretation:\n")
 #> 
 #> Interpretation:
 cat("  Ratio ≈ 1: Poisson is appropriate\n")
-#>   Ratio <U+2248> 1: Poisson is appropriate
+#>   Ratio ≈ 1: Poisson is appropriate
 cat("  Ratio > 1: Overdispersion — consider negative binomial\n")
-#>   Ratio > 1: Overdispersion <U+2014> consider negative binomial
+#>   Ratio > 1: Overdispersion — consider negative binomial
 cat("  Ratio < 1: Underdispersion — rare, may indicate data issues\n")
-#>   Ratio < 1: Underdispersion <U+2014> rare, may indicate data issues
+#>   Ratio < 1: Underdispersion — rare, may indicate data issues
 ```
 
 ---
@@ -1239,33 +1239,33 @@ cat("Ask these questions:\n\n")
 cat("1. Are events happening over time/space at a constant rate?\n")
 #> 1. Are events happening over time/space at a constant rate?
 cat("   → Use POISSON\n\n")
-#>    <U+2192> Use POISSON
+#>    → Use POISSON
 
 cat("2. Are you counting trials until a fixed number of successes?\n")
 #> 2. Are you counting trials until a fixed number of successes?
 cat("   → First success: GEOMETRIC\n")
-#>    <U+2192> First success: GEOMETRIC
+#>    → First success: GEOMETRIC
 cat("   → r successes: NEGATIVE BINOMIAL\n\n")
-#>    <U+2192> r successes: NEGATIVE BINOMIAL
+#>    → r successes: NEGATIVE BINOMIAL
 
 cat("3. Is variance much larger than mean (overdispersion)?\n")
 #> 3. Is variance much larger than mean (overdispersion)?
 cat("   → Use NEGATIVE BINOMIAL instead of Poisson\n\n")
-#>    <U+2192> Use NEGATIVE BINOMIAL instead of Poisson
+#>    → Use NEGATIVE BINOMIAL instead of Poisson
 
 cat("4. Are you sampling without replacement from a finite population?\n")
 #> 4. Are you sampling without replacement from a finite population?
 cat("   → Use HYPERGEOMETRIC\n")
-#>    <U+2192> Use HYPERGEOMETRIC
+#>    → Use HYPERGEOMETRIC
 cat("   → (Especially if sample > 5% of population)\n\n")
-#>    <U+2192> (Especially if sample > 5% of population)
+#>    → (Especially if sample > 5% of population)
 
 cat("5. Is the population effectively infinite (or sampling with replacement)?\n")
 #> 5. Is the population effectively infinite (or sampling with replacement)?
 cat("   → Use BINOMIAL (for fixed n)\n")
-#>    <U+2192> Use BINOMIAL (for fixed n)
+#>    → Use BINOMIAL (for fixed n)
 cat("   → Use POISSON (for rare events, large n)\n")
-#>    <U+2192> Use POISSON (for rare events, large n)
+#>    → Use POISSON (for rare events, large n)
 ```
 
 ---

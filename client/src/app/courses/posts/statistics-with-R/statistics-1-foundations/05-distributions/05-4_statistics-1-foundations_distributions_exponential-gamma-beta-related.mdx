@@ -92,7 +92,7 @@ exp_dt <- rbindlist(lapply(lambda_values, function(lam) {
 }))
 
 cat("Exponential Distribution: X ~ Exp(λ)\n")
-#> Exponential Distribution: X ~ Exp(<U+03BB>)
+#> Exponential Distribution: X ~ Exp(λ)
 cat("=====================================\n\n")
 #> =====================================
 
@@ -101,14 +101,14 @@ cat("Properties:\n")
 for (lam in lambda_values) {
     cat(sprintf("  λ = %.1f: E(X) = %.2f, SD(X) = %.2f\n", lam, 1/lam, 1/lam))
 }
-#>   <U+03BB> = 0.5: E(X) = 2.00, SD(X) = 2.00
-#>   <U+03BB> = 1.0: E(X) = 1.00, SD(X) = 1.00
-#>   <U+03BB> = 2.0: E(X) = 0.50, SD(X) = 0.50
-#>   <U+03BB> = 5.0: E(X) = 0.20, SD(X) = 0.20
+#>   λ = 0.5: E(X) = 2.00, SD(X) = 2.00
+#>   λ = 1.0: E(X) = 1.00, SD(X) = 1.00
+#>   λ = 2.0: E(X) = 0.50, SD(X) = 0.50
+#>   λ = 5.0: E(X) = 0.20, SD(X) = 0.20
 
 cat("\nNote: Mean = SD = 1/λ for the exponential distribution\n")
 #> 
-#> Note: Mean = SD = 1/<U+03BB> for the exponential distribution
+#> Note: Mean = SD = 1/λ for the exponential distribution
 
 ggplot2$ggplot(exp_dt, ggplot2$aes(x = x, y = density, colour = lambda)) +
     ggplot2$geom_line(size = 1.2) +
@@ -169,7 +169,7 @@ cat("================================================\n\n")
 #> ================================================
 
 cat(sprintf("λ = %.1f, s = %.1f, t = %.1f\n\n", lambda, s, t))
-#> <U+03BB> = 1.0, s = 2.0, t = 1.0
+#> λ = 1.0, s = 2.0, t = 1.0
 
 cat("P(X > s + t | X > s) = P(additional wait > t | already waited s)\n")
 #> P(X > s + t | X > s) = P(additional wait > t | already waited s)
@@ -238,10 +238,10 @@ cat("=========================\n\n")
 cat("Setting: Average of 3 arrivals per hour\n")
 #> Setting: Average of 3 arrivals per hour
 cat(sprintf("  Rate: λ = %.0f per hour\n", lambda))
-#>   Rate: <U+03BB> = 3 per hour
+#>   Rate: λ = 3 per hour
 cat(sprintf("  Mean time between arrivals: 1/λ = %.2f hours = %.0f minutes\n\n",
             1/lambda, 60/lambda))
-#>   Mean time between arrivals: 1/<U+03BB> = 0.33 hours = 20 minutes
+#>   Mean time between arrivals: 1/λ = 0.33 hours = 20 minutes
 
 # Probability calculations
 cat("Probability calculations:\n")
@@ -310,7 +310,7 @@ cat("==============================\n\n")
 cat(sprintf("Mean Time To Failure (MTTF): %d hours\n", MTTF))
 #> Mean Time To Failure (MTTF): 1000 hours
 cat(sprintf("Failure rate λ = 1/MTTF = %.4f per hour\n\n", lambda))
-#> Failure rate <U+03BB> = 1/MTTF = 0.0010 per hour
+#> Failure rate λ = 1/MTTF = 0.0010 per hour
 
 # Reliability function R(t) = P(survive past t)
 times <- c(100, 500, 1000, 2000)
@@ -327,9 +327,9 @@ for (t in times) {
 # Hazard function (for exponential, it's constant = λ)
 cat(sprintf("\nHazard rate (failure rate): λ = %.4f per hour (constant)\n", lambda))
 #> 
-#> Hazard rate (failure rate): <U+03BB> = 0.0010 per hour (constant)
+#> Hazard rate (failure rate): λ = 0.0010 per hour (constant)
 cat("The exponential assumes constant hazard — no wear-out or improvement.\n")
-#> The exponential assumes constant hazard <U+2014> no wear-out or improvement.
+#> The exponential assumes constant hazard — no wear-out or improvement.
 ```
 
 ---
@@ -386,16 +386,16 @@ gamma_dt <- rbindlist(lapply(params, function(p) {
 }))
 
 cat("Gamma Distribution: X ~ Gamma(α, β)\n")
-#> Gamma Distribution: X ~ Gamma(<U+03B1>, <U+03B2>)
+#> Gamma Distribution: X ~ Gamma(α, β)
 cat("====================================\n\n")
 #> ====================================
 
 cat("Parameters:\n")
 #> Parameters:
 cat("  α (shape): controls shape of distribution\n")
-#>   <U+03B1> (shape): controls shape of distribution
+#>   α (shape): controls shape of distribution
 cat("  β (rate): controls scale (higher β = more compressed)\n\n")
-#>   <U+03B2> (rate): controls scale (higher <U+03B2> = more compressed)
+#>   β (rate): controls scale (higher β = more compressed)
 
 cat("Properties:\n")
 #> Properties:
@@ -404,11 +404,11 @@ for (p in params) {
     var_val <- p$shape / p$rate^2
     cat(sprintf("  %s: E(X) = %.2f, Var(X) = %.2f\n", p$label, mean_val, var_val))
 }
-#>   <U+03B1>=1, <U+03B2>=1 (Exponential): E(X) = 1.00, Var(X) = 1.00
-#>   <U+03B1>=2, <U+03B2>=1: E(X) = 2.00, Var(X) = 2.00
-#>   <U+03B1>=5, <U+03B2>=1: E(X) = 5.00, Var(X) = 5.00
-#>   <U+03B1>=5, <U+03B2>=2: E(X) = 2.50, Var(X) = 1.25
-#>   <U+03B1>=0.5, <U+03B2>=1: E(X) = 0.50, Var(X) = 0.50
+#>   α=1, β=1 (Exponential): E(X) = 1.00, Var(X) = 1.00
+#>   α=2, β=1: E(X) = 2.00, Var(X) = 2.00
+#>   α=5, β=1: E(X) = 5.00, Var(X) = 5.00
+#>   α=5, β=2: E(X) = 2.50, Var(X) = 1.25
+#>   α=0.5, β=1: E(X) = 0.50, Var(X) = 0.50
 
 ggplot2$ggplot(gamma_dt, ggplot2$aes(x = x, y = density, colour = params)) +
     ggplot2$geom_line(size = 1.2) +
@@ -470,21 +470,21 @@ cat("========================================\n\n")
 #> ========================================
 
 cat("1. EXPONENTIAL: Gamma(1, β) = Exp(β)\n")
-#> 1. EXPONENTIAL: Gamma(1, <U+03B2>) = Exp(<U+03B2>)
+#> 1. EXPONENTIAL: Gamma(1, β) = Exp(β)
 cat("   Time until first event in Poisson process\n\n")
 #>    Time until first event in Poisson process
 
 cat("2. CHI-SQUARE: Gamma(ν/2, 1/2) = χ²(ν)\n")
-#> 2. CHI-SQUARE: Gamma(<U+03BD>/2, 1/2) = <U+03C7><U+00B2>(<U+03BD>)
+#> 2. CHI-SQUARE: Gamma(ν/2, 1/2) = χ²(ν)
 cat("   Sum of squared standard normals\n")
 #>    Sum of squared standard normals
 cat("   Fundamental for inference about variance\n\n")
 #>    Fundamental for inference about variance
 
 cat("3. ERLANG: Gamma(k, β) with integer k\n")
-#> 3. ERLANG: Gamma(k, <U+03B2>) with integer k
+#> 3. ERLANG: Gamma(k, β) with integer k
 cat("   Sum of k independent Exp(β) variables\n")
-#>    Sum of k independent Exp(<U+03B2>) variables
+#>    Sum of k independent Exp(β) variables
 cat("   Time until kth event in Poisson process\n")
 #>    Time until kth event in Poisson process
 
@@ -523,12 +523,12 @@ cat("==========================================\n\n")
 #> ==========================================
 
 cat(sprintf("Setting: Events at rate λ = %d per hour\n", lambda))
-#> Setting: Events at rate <U+03BB> = 2 per hour
+#> Setting: Events at rate λ = 2 per hour
 cat(sprintf("Question: What is the distribution of time until the %dth event?\n\n", k))
 #> Question: What is the distribution of time until the 5th event?
 
 cat("Answer: Erlang(k, λ) = Gamma(k, λ)\n\n")
-#> Answer: Erlang(k, <U+03BB>) = Gamma(k, <U+03BB>)
+#> Answer: Erlang(k, λ) = Gamma(k, λ)
 
 mean_time <- k / lambda
 sd_time <- sqrt(k) / lambda
@@ -628,15 +628,15 @@ beta_dt <- rbindlist(lapply(beta_params, function(p) {
 }))
 
 cat("Beta Distribution: X ~ Beta(α, β)\n")
-#> Beta Distribution: X ~ Beta(<U+03B1>, <U+03B2>)
+#> Beta Distribution: X ~ Beta(α, β)
 cat("===================================\n\n")
 #> ===================================
 
 cat("Support: (0, 1) — perfect for probabilities and proportions\n\n")
-#> Support: (0, 1) <U+2014> perfect for probabilities and proportions
+#> Support: (0, 1) — perfect for probabilities and proportions
 
 cat("Mean = α / (α + β)\n\n")
-#> Mean = <U+03B1> / (<U+03B1> + <U+03B2>)
+#> Mean = α / (α + β)
 
 cat("Shape interpretations:\n")
 #> Shape interpretations:
@@ -644,12 +644,12 @@ for (p in beta_params) {
     mean_val <- p$a / (p$a + p$b)
     cat(sprintf("  %s: mean = %.2f\n", p$label, mean_val))
 }
-#>   <U+03B1>=1, <U+03B2>=1 (Uniform): mean = 0.50
-#>   <U+03B1>=2, <U+03B2>=2 (Symmetric): mean = 0.50
-#>   <U+03B1>=5, <U+03B2>=2 (Left-skewed): mean = 0.71
-#>   <U+03B1>=2, <U+03B2>=5 (Right-skewed): mean = 0.29
-#>   <U+03B1>=0.5, <U+03B2>=0.5 (U-shaped): mean = 0.50
-#>   <U+03B1>=5, <U+03B2>=1 (J-shaped): mean = 0.83
+#>   α=1, β=1 (Uniform): mean = 0.50
+#>   α=2, β=2 (Symmetric): mean = 0.50
+#>   α=5, β=2 (Left-skewed): mean = 0.71
+#>   α=2, β=5 (Right-skewed): mean = 0.29
+#>   α=0.5, β=0.5 (U-shaped): mean = 0.50
+#>   α=5, β=1 (J-shaped): mean = 0.83
 
 ggplot2$ggplot(beta_dt, ggplot2$aes(x = x, y = density, colour = params)) +
     ggplot2$geom_line(size = 1.2) +
@@ -806,7 +806,7 @@ chi_dt <- rbindlist(lapply(df_values, function(df) {
 chi_dt$df <- factor(chi_dt$df, levels = paste("ν =", df_values))
 
 cat("Chi-Square Distribution: X ~ χ²(ν)\n")
-#> Chi-Square Distribution: X ~ <U+03C7><U+00B2>(<U+03BD>)
+#> Chi-Square Distribution: X ~ χ²(ν)
 cat("====================================\n\n")
 #> ====================================
 
@@ -815,17 +815,17 @@ cat("Properties:\n")
 for (df in df_values) {
     cat(sprintf("  ν = %2d: E(X) = %2d, Var(X) = %2d\n", df, df, 2 * df))
 }
-#>   <U+03BD> =  1: E(X) =  1, Var(X) =  2
-#>   <U+03BD> =  2: E(X) =  2, Var(X) =  4
-#>   <U+03BD> =  5: E(X) =  5, Var(X) = 10
-#>   <U+03BD> = 10: E(X) = 10, Var(X) = 20
-#>   <U+03BD> = 20: E(X) = 20, Var(X) = 40
+#>   ν =  1: E(X) =  1, Var(X) =  2
+#>   ν =  2: E(X) =  2, Var(X) =  4
+#>   ν =  5: E(X) =  5, Var(X) = 10
+#>   ν = 10: E(X) = 10, Var(X) = 20
+#>   ν = 20: E(X) = 20, Var(X) = 40
 
 cat("\nNote: E(X) = ν and Var(X) = 2ν\n")
 #> 
-#> Note: E(X) = <U+03BD> and Var(X) = 2<U+03BD>
+#> Note: E(X) = ν and Var(X) = 2ν
 cat("As ν → ∞, χ² approaches normal distribution\n")
-#> As <U+03BD> <U+2192> <U+221E>, <U+03C7><U+00B2> approaches normal distribution
+#> As ν → ∞, χ² approaches normal distribution
 
 ggplot2$ggplot(chi_dt, ggplot2$aes(x = x, y = density, colour = df)) +
     ggplot2$geom_line(size = 1.2) +
@@ -863,19 +863,19 @@ Z_matrix <- matrix(rnorm(n_sim * nu), nrow = n_sim, ncol = nu)
 X_sum <- rowSums(Z_matrix^2)
 
 cat("Verification: χ²(5) = Sum of 5 Squared Standard Normals\n")
-#> Verification: <U+03C7><U+00B2>(5) = Sum of 5 Squared Standard Normals
+#> Verification: χ²(5) = Sum of 5 Squared Standard Normals
 cat("=======================================================\n\n")
 #> =======================================================
 
 cat("Direct χ²(5) generation:\n")
-#> Direct <U+03C7><U+00B2>(5) generation:
+#> Direct χ²(5) generation:
 cat(sprintf("  Mean: %.4f (theoretical: %d)\n", mean(X_direct), nu))
 #>   Mean: 5.0005 (theoretical: 5)
 cat(sprintf("  Var: %.4f (theoretical: %d)\n\n", var(X_direct), 2 * nu))
 #>   Var: 10.0425 (theoretical: 10)
 
 cat("Sum of Z₁² + Z₂² + Z₃² + Z₄² + Z₅²:\n")
-#> Sum of Z<U+2081><U+00B2> + Z<U+2082><U+00B2> + Z<U+2083><U+00B2> + Z<U+2084><U+00B2> + Z<U+2085><U+00B2>:
+#> Sum of Z₁² + Z₂² + Z₃² + Z₄² + Z₅²:
 cat(sprintf("  Mean: %.4f\n", mean(X_sum)))
 #>   Mean: 4.9965
 cat(sprintf("  Var: %.4f\n", var(X_sum)))
@@ -940,11 +940,11 @@ cat("=========================\n\n")
 cat("Comparison to standard normal:\n")
 #> Comparison to standard normal:
 cat("  • Same symmetric bell shape\n")
-#>   <U+2022> Same symmetric bell shape
+#>   • Same symmetric bell shape
 cat("  • Heavier tails (more extreme values likely)\n")
-#>   <U+2022> Heavier tails (more extreme values likely)
+#>   • Heavier tails (more extreme values likely)
 cat("  • Approaches N(0, 1) as degrees of freedom increase\n\n")
-#>   <U+2022> Approaches N(0, 1) as degrees of freedom increase
+#>   • Approaches N(0, 1) as degrees of freedom increase
 
 # Show tail probabilities
 cat("P(|X| > 2):\n")
@@ -988,25 +988,25 @@ cat("============================\n\n")
 #> ============================
 
 cat("When we don't know σ (population SD), we estimate it with s (sample SD).\n")
-#> When we don't know <U+03C3> (population SD), we estimate it with s (sample SD).
+#> When we don't know σ (population SD), we estimate it with s (sample SD).
 cat("This introduces additional uncertainty beyond the sampling of X̄.\n\n")
-#> This introduces additional uncertainty beyond the sampling of X<U+0304>.
+#> This introduces additional uncertainty beyond the sampling of X̄.
 
 cat("The t-distribution accounts for this extra uncertainty:\n")
 #> The t-distribution accounts for this extra uncertainty:
 cat("  • With small samples, uncertainty in s is large → heavier tails\n")
-#>   <U+2022> With small samples, uncertainty in s is large <U+2192> heavier tails
+#>   • With small samples, uncertainty in s is large → heavier tails
 cat("  • With large samples, s → σ → t approaches normal\n\n")
-#>   <U+2022> With large samples, s <U+2192> <U+03C3> <U+2192> t approaches normal
+#>   • With large samples, s → σ → t approaches normal
 
 cat("Rule of thumb:\n")
 #> Rule of thumb:
 cat("  • n < 30: Use t-distribution\n")
-#>   <U+2022> n < 30: Use t-distribution
+#>   • n < 30: Use t-distribution
 cat("  • n ≥ 30: t ≈ normal (but using t is still correct)\n")
-#>   <U+2022> n <U+2265> 30: t <U+2248> normal (but using t is still correct)
+#>   • n ≥ 30: t ≈ normal (but using t is still correct)
 cat("  • n → ∞: t → normal\n")
-#>   <U+2022> n <U+2192> <U+221E>: t <U+2192> normal
+#>   • n → ∞: t → normal
 ```
 
 ### 5.13.3 F-Distribution
@@ -1055,7 +1055,7 @@ f_dt <- rbindlist(lapply(f_params, function(p) {
 }))
 
 cat("F-Distribution: F ~ F(ν₁, ν₂)\n")
-#> F-Distribution: F ~ F(<U+03BD><U+2081>, <U+03BD><U+2082>)
+#> F-Distribution: F ~ F(ν₁, ν₂)
 cat("==============================\n\n")
 #> ==============================
 
@@ -1112,55 +1112,55 @@ cat("=================================================\n\n")
 cat("DISCRETE DATA (counts, categories):\n")
 #> DISCRETE DATA (counts, categories):
 cat("  ├─ Binary outcome? → Bernoulli\n")
-#>   <U+251C><U+2500> Binary outcome? <U+2192> Bernoulli
+#>   ├─ Binary outcome? → Bernoulli
 cat("  ├─ Count successes in n trials? → Binomial\n")
-#>   <U+251C><U+2500> Count successes in n trials? <U+2192> Binomial
+#>   ├─ Count successes in n trials? → Binomial
 cat("  ├─ Count events at constant rate? → Poisson\n")
-#>   <U+251C><U+2500> Count events at constant rate? <U+2192> Poisson
+#>   ├─ Count events at constant rate? → Poisson
 cat("  ├─ Variance > mean (overdispersion)? → Negative Binomial\n")
-#>   <U+251C><U+2500> Variance > mean (overdispersion)? <U+2192> Negative Binomial
+#>   ├─ Variance > mean (overdispersion)? → Negative Binomial
 cat("  ├─ Trials until first success? → Geometric\n")
-#>   <U+251C><U+2500> Trials until first success? <U+2192> Geometric
+#>   ├─ Trials until first success? → Geometric
 cat("  ├─ Trials until r successes? → Negative Binomial\n")
-#>   <U+251C><U+2500> Trials until r successes? <U+2192> Negative Binomial
+#>   ├─ Trials until r successes? → Negative Binomial
 cat("  └─ Sample from finite population? → Hypergeometric\n\n")
-#>   <U+2514><U+2500> Sample from finite population? <U+2192> Hypergeometric
+#>   └─ Sample from finite population? → Hypergeometric
 
 cat("CONTINUOUS DATA (measurements):\n")
 #> CONTINUOUS DATA (measurements):
 cat("  ├─ Bounded [a, b]?\n")
-#>   <U+251C><U+2500> Bounded [a, b]?
+#>   ├─ Bounded [a, b]?
 cat("  │   ├─ Equal probability? → Uniform(a, b)\n")
-#>   <U+2502>   <U+251C><U+2500> Equal probability? <U+2192> Uniform(a, b)
+#>   │   ├─ Equal probability? → Uniform(a, b)
 cat("  │   └─ Probability/proportion on [0,1]? → Beta\n")
-#>   <U+2502>   <U+2514><U+2500> Probability/proportion on [0,1]? <U+2192> Beta
+#>   │   └─ Probability/proportion on [0,1]? → Beta
 cat("  ├─ Positive values only?\n")
-#>   <U+251C><U+2500> Positive values only?
+#>   ├─ Positive values only?
 cat("  │   ├─ Waiting/survival time? → Exponential or Gamma\n")
-#>   <U+2502>   <U+251C><U+2500> Waiting/survival time? <U+2192> Exponential or Gamma
+#>   │   ├─ Waiting/survival time? → Exponential or Gamma
 cat("  │   ├─ Time until k events? → Gamma (Erlang)\n")
-#>   <U+2502>   <U+251C><U+2500> Time until k events? <U+2192> Gamma (Erlang)
+#>   │   ├─ Time until k events? → Gamma (Erlang)
 cat("  │   └─ Skewed positive data? → Gamma or Log-normal\n")
-#>   <U+2502>   <U+2514><U+2500> Skewed positive data? <U+2192> Gamma or Log-normal
+#>   │   └─ Skewed positive data? → Gamma or Log-normal
 cat("  └─ Unbounded (all reals)?\n")
-#>   <U+2514><U+2500> Unbounded (all reals)?
+#>   └─ Unbounded (all reals)?
 cat("      ├─ Symmetric bell-shaped? → Normal\n")
-#>       <U+251C><U+2500> Symmetric bell-shaped? <U+2192> Normal
+#>       ├─ Symmetric bell-shaped? → Normal
 cat("      └─ Sum of many factors? → Normal (CLT)\n\n")
-#>       <U+2514><U+2500> Sum of many factors? <U+2192> Normal (CLT)
+#>       └─ Sum of many factors? → Normal (CLT)
 
 cat("FOR INFERENCE:\n")
 #> FOR INFERENCE:
 cat("  ├─ Sample mean, σ known? → Normal (Z)\n")
-#>   <U+251C><U+2500> Sample mean, <U+03C3> known? <U+2192> Normal (Z)
+#>   ├─ Sample mean, σ known? → Normal (Z)
 cat("  ├─ Sample mean, σ unknown? → t-distribution\n")
-#>   <U+251C><U+2500> Sample mean, <U+03C3> unknown? <U+2192> t-distribution
+#>   ├─ Sample mean, σ unknown? → t-distribution
 cat("  ├─ Sample variance? → Chi-square\n")
-#>   <U+251C><U+2500> Sample variance? <U+2192> Chi-square
+#>   ├─ Sample variance? → Chi-square
 cat("  ├─ Ratio of variances? → F-distribution\n")
-#>   <U+251C><U+2500> Ratio of variances? <U+2192> F-distribution
+#>   ├─ Ratio of variances? → F-distribution
 cat("  └─ Categorical frequencies? → Chi-square\n")
-#>   <U+2514><U+2500> Categorical frequencies? <U+2192> Chi-square
+#>   └─ Categorical frequencies? → Chi-square
 ```
 
 ### 5.14.2 Visual Assessment of Fit
@@ -1223,11 +1223,11 @@ cat("\nInterpreting QQ Plots:\n")
 #> 
 #> Interpreting QQ Plots:
 cat("  • Points on line: Good fit to reference distribution\n")
-#>   <U+2022> Points on line: Good fit to reference distribution
+#>   • Points on line: Good fit to reference distribution
 cat("  • S-shaped curve: Data is skewed\n")
-#>   <U+2022> S-shaped curve: Data is skewed
+#>   • S-shaped curve: Data is skewed
 cat("  • Points above/below at extremes: Heavy/light tails\n")
-#>   <U+2022> Points above/below at extremes: Heavy/light tails
+#>   • Points above/below at extremes: Heavy/light tails
 ```
 
 ---
@@ -1250,11 +1250,11 @@ cat("  'We chose the [distribution] because it matches how this type of data\n")
 cat("   typically behaves. For example:\n")
 #>    typically behaves. For example:
 cat("   - Waiting times are never negative and often have a long tail → Exponential\n")
-#>    - Waiting times are never negative and often have a long tail <U+2192> Exponential
+#>    - Waiting times are never negative and often have a long tail → Exponential
 cat("   - Proportions are between 0 and 1 → Beta\n")
-#>    - Proportions are between 0 and 1 <U+2192> Beta
+#>    - Proportions are between 0 and 1 → Beta
 cat("   - Measurements like height cluster around an average → Normal'\n\n")
-#>    - Measurements like height cluster around an average <U+2192> Normal'
+#>    - Measurements like height cluster around an average → Normal'
 
 cat("FOR INTERPRETATION:\n")
 #> FOR INTERPRETATION:
@@ -1263,7 +1263,7 @@ cat("  'The model tells us that:\n")
 cat("   - 95% of values fall between [X] and [Y]\n")
 #>    - 95% of values fall between [X] and [Y]
 cat("   - The average is [Z] with uncertainty ±[W]\n")
-#>    - The average is [Z] with uncertainty <U+00B1>[W]
+#>    - The average is [Z] with uncertainty ±[W]
 cat("   - Seeing a value below [V] would be unusual (happens < 5% of the time)'\n\n")
 #>    - Seeing a value below [V] would be unusual (happens < 5% of the time)'
 

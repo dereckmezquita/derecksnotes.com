@@ -277,9 +277,9 @@ cat("============================================\n\n")
 #> ============================================
 
 cat("X = BMI (kg/m²)\n")
-#> X = BMI (kg/m<U+00B2>)
+#> X = BMI (kg/m²)
 cat("Support: (0, ∞) in theory; practically about (15, 60)\n\n")
-#> Support: (0, <U+221E>) in theory; practically about (15, 60)
+#> Support: (0, ∞) in theory; practically about (15, 60)
 
 cat("Note: P(X = exactly 25.000...) = 0\n")
 #> Note: P(X = exactly 25.000...) = 0
@@ -389,9 +389,9 @@ cat("\nExpected value and variance:\n")
 #> 
 #> Expected value and variance:
 cat(sprintf("  E(X) = np = 5 × 0.5 = %.1f\n", n_flips * p_heads))
-#>   E(X) = np = 5 <U+00D7> 0.5 = 2.5
+#>   E(X) = np = 5 × 0.5 = 2.5
 cat(sprintf("  Var(X) = np(1-p) = 5 × 0.5 × 0.5 = %.2f\n", n_flips * p_heads * (1 - p_heads)))
-#>   Var(X) = np(1-p) = 5 <U+00D7> 0.5 <U+00D7> 0.5 = 1.25
+#>   Var(X) = np(1-p) = 5 × 0.5 × 0.5 = 1.25
 cat(sprintf("  SD(X) = %.4f\n", sqrt(n_flips * p_heads * (1 - p_heads))))
 #>   SD(X) = 1.1180
 ```
@@ -635,12 +635,12 @@ for (i in 1:nrow(pmf_dt)) {
     cat(sprintf("  %d × %.4f = %.4f\n", pmf_dt$x[i], pmf_dt$p_x[i],
                 pmf_dt$x[i] * pmf_dt$p_x[i]))
 }
-#>   0 <U+00D7> 0.4426 = 0.0000
-#>   1 <U+00D7> 0.3600 = 0.3600
-#>   2 <U+00D7> 0.1508 = 0.3016
-#>   3 <U+00D7> 0.0388 = 0.1164
-#>   4 <U+00D7> 0.0060 = 0.0240
-#>   5 <U+00D7> 0.0018 = 0.0090
+#>   0 × 0.4426 = 0.0000
+#>   1 × 0.3600 = 0.3600
+#>   2 × 0.1508 = 0.3016
+#>   3 × 0.0388 = 0.1164
+#>   4 × 0.0060 = 0.0240
+#>   5 × 0.0018 = 0.0090
 cat("  -----------------\n")
 #>   -----------------
 cat(sprintf("  E(X) = %.4f\n", E_X_manual))
@@ -694,9 +694,9 @@ cat("============================================\n\n")
 #> ============================================
 
 cat("To find E(X²), we don't need the distribution of X².\n")
-#> To find E(X<U+00B2>), we don't need the distribution of X<U+00B2>.
+#> To find E(X²), we don't need the distribution of X².
 cat("Instead: E(X²) = sum of x² × P(X = x)\n\n")
-#> Instead: E(X<U+00B2>) = sum of x<U+00B2> <U+00D7> P(X = x)
+#> Instead: E(X²) = sum of x² × P(X = x)
 
 cat("Calculation:\n")
 #> Calculation:
@@ -706,22 +706,22 @@ for (i in 1:nrow(pmf_dt)) {
                 pmf_dt$x[i]^2, pmf_dt$p_x[i],
                 pmf_dt$x[i]^2 * pmf_dt$p_x[i]))
 }
-#>   0<U+00B2> <U+00D7> 0.4426 = 0 <U+00D7> 0.4426 = 0.0000
-#>   1<U+00B2> <U+00D7> 0.3600 = 1 <U+00D7> 0.3600 = 0.3600
-#>   2<U+00B2> <U+00D7> 0.1508 = 4 <U+00D7> 0.1508 = 0.6032
-#>   3<U+00B2> <U+00D7> 0.0388 = 9 <U+00D7> 0.0388 = 0.3492
-#>   4<U+00B2> <U+00D7> 0.0060 = 16 <U+00D7> 0.0060 = 0.0960
-#>   5<U+00B2> <U+00D7> 0.0018 = 25 <U+00D7> 0.0018 = 0.0450
+#>   0² × 0.4426 = 0 × 0.4426 = 0.0000
+#>   1² × 0.3600 = 1 × 0.3600 = 0.3600
+#>   2² × 0.1508 = 4 × 0.1508 = 0.6032
+#>   3² × 0.0388 = 9 × 0.0388 = 0.3492
+#>   4² × 0.0060 = 16 × 0.0060 = 0.0960
+#>   5² × 0.0018 = 25 × 0.0018 = 0.0450
 cat("  -----------------\n")
 #>   -----------------
 cat(sprintf("  E(X²) = %.4f\n", E_X_squared))
-#>   E(X<U+00B2>) = 1.4534
+#>   E(X²) = 1.4534
 cat(sprintf("\n  Compare: [E(X)]² = %.4f² = %.4f\n", E_X_manual, E_X_manual^2))
 #> 
-#>   Compare: [E(X)]<U+00B2> = 0.8110<U+00B2> = 0.6577
+#>   Compare: [E(X)]² = 0.8110² = 0.6577
 cat("\n  Note: E(X²) != [E(X)]² in general!\n")
 #> 
-#>   Note: E(X<U+00B2>) != [E(X)]<U+00B2> in general!
+#>   Note: E(X²) != [E(X)]² in general!
 ```
 
 ### 5.2.4 Variance and Standard Deviation
@@ -777,9 +777,9 @@ cat("====================\n\n")
 #> ====================
 
 cat("Definition: Var(X) = E[(X - μ)²]\n")
-#> Definition: Var(X) = E[(X - <U+03BC>)<U+00B2>]
+#> Definition: Var(X) = E[(X - μ)²]
 cat(sprintf("  μ = %.4f\n\n", mu))
-#>   <U+03BC> = 0.8110
+#>   μ = 0.8110
 
 cat("Using definition formula:\n")
 #> Using definition formula:
@@ -790,22 +790,22 @@ for (i in 1:nrow(pmf_dt)) {
                 deviation^2, pmf_dt$p_x[i],
                 deviation^2 * pmf_dt$p_x[i]))
 }
-#>   (0 - 0.81)<U+00B2> <U+00D7> 0.4426 = 0.6577 <U+00D7> 0.4426 = 0.2911
-#>   (1 - 0.81)<U+00B2> <U+00D7> 0.3600 = 0.0357 <U+00D7> 0.3600 = 0.0129
-#>   (2 - 0.81)<U+00B2> <U+00D7> 0.1508 = 1.4137 <U+00D7> 0.1508 = 0.2132
-#>   (3 - 0.81)<U+00B2> <U+00D7> 0.0388 = 4.7917 <U+00D7> 0.0388 = 0.1859
-#>   (4 - 0.81)<U+00B2> <U+00D7> 0.0060 = 10.1697 <U+00D7> 0.0060 = 0.0610
-#>   (5 - 0.81)<U+00B2> <U+00D7> 0.0018 = 17.5477 <U+00D7> 0.0018 = 0.0316
+#>   (0 - 0.81)² × 0.4426 = 0.6577 × 0.4426 = 0.2911
+#>   (1 - 0.81)² × 0.3600 = 0.0357 × 0.3600 = 0.0129
+#>   (2 - 0.81)² × 0.1508 = 1.4137 × 0.1508 = 0.2132
+#>   (3 - 0.81)² × 0.0388 = 4.7917 × 0.0388 = 0.1859
+#>   (4 - 0.81)² × 0.0060 = 10.1697 × 0.0060 = 0.0610
+#>   (5 - 0.81)² × 0.0018 = 17.5477 × 0.0018 = 0.0316
 cat("  -----------------\n")
 #>   -----------------
 cat(sprintf("  Var(X) = %.4f\n\n", var_definition))
 #>   Var(X) = 0.7957
 
 cat("Using computational formula: Var(X) = E(X²) - [E(X)]²\n")
-#> Using computational formula: Var(X) = E(X<U+00B2>) - [E(X)]<U+00B2>
+#> Using computational formula: Var(X) = E(X²) - [E(X)]²
 cat(sprintf("  Var(X) = %.4f - %.4f² = %.4f - %.4f = %.4f\n",
             E_X_squared, mu, E_X_squared, mu^2, var_computational))
-#>   Var(X) = 1.4534 - 0.8110<U+00B2> = 1.4534 - 0.6577 = 0.7957
+#>   Var(X) = 1.4534 - 0.8110² = 1.4534 - 0.6577 = 0.7957
 
 cat("\nStandard Deviation:\n")
 #> 
@@ -1183,9 +1183,9 @@ cat("===================================\n\n")
 #> ===================================
 
 cat("If X₁, X₂, ..., X₁₀ ~ Bernoulli(0.3) are independent, then:\n")
-#> If X<U+2081>, X<U+2082>, ..., X<U+2081><U+2080> ~ Bernoulli(0.3) are independent, then:
+#> If X₁, X₂, ..., X₁₀ ~ Bernoulli(0.3) are independent, then:
 cat("X = X₁ + X₂ + ... + X₁₀ ~ Binomial(10, 0.3)\n\n")
-#> X = X<U+2081> + X<U+2082> + ... + X<U+2081><U+2080> ~ Binomial(10, 0.3)
+#> X = X₁ + X₂ + ... + X₁₀ ~ Binomial(10, 0.3)
 
 # Show they have same distribution
 summary_dt <- compare_dt[, .(mean = mean(x), var = var(x)), by = method]
@@ -1250,7 +1250,7 @@ cat("=======================================\n\n")
 #> =======================================
 
 cat("P(X = k) = C(n,k) × p^k × (1-p)^(n-k)\n\n")
-#> P(X = k) = C(n,k) <U+00D7> p^k <U+00D7> (1-p)^(n-k)
+#> P(X = k) = C(n,k) × p^k × (1-p)^(n-k)
 
 pmf_table <- data.table(k = 0:n)
 pmf_table[, combinations := choose(n, k)]
@@ -1273,37 +1273,37 @@ for (k in 0:n) {
 #>   C(5,0) = 1 (number of ways to choose 0 successes from 5 trials)
 #>   p^0 = 0.300^0 = 1.000000
 #>   (1-p)^5 = 0.7^5 = 0.168070
-#>   P(X = 0) = 1 <U+00D7> 1.000000 <U+00D7> 0.168070 = 0.168070
+#>   P(X = 0) = 1 × 1.000000 × 0.168070 = 0.168070
 #> 
 #> k = 1:
 #>   C(5,1) = 5 (number of ways to choose 1 successes from 5 trials)
 #>   p^1 = 0.300^1 = 0.300000
 #>   (1-p)^4 = 0.7^4 = 0.240100
-#>   P(X = 1) = 5 <U+00D7> 0.300000 <U+00D7> 0.240100 = 0.360150
+#>   P(X = 1) = 5 × 0.300000 × 0.240100 = 0.360150
 #> 
 #> k = 2:
 #>   C(5,2) = 10 (number of ways to choose 2 successes from 5 trials)
 #>   p^2 = 0.300^2 = 0.090000
 #>   (1-p)^3 = 0.7^3 = 0.343000
-#>   P(X = 2) = 10 <U+00D7> 0.090000 <U+00D7> 0.343000 = 0.308700
+#>   P(X = 2) = 10 × 0.090000 × 0.343000 = 0.308700
 #> 
 #> k = 3:
 #>   C(5,3) = 10 (number of ways to choose 3 successes from 5 trials)
 #>   p^3 = 0.300^3 = 0.027000
 #>   (1-p)^2 = 0.7^2 = 0.490000
-#>   P(X = 3) = 10 <U+00D7> 0.027000 <U+00D7> 0.490000 = 0.132300
+#>   P(X = 3) = 10 × 0.027000 × 0.490000 = 0.132300
 #> 
 #> k = 4:
 #>   C(5,4) = 5 (number of ways to choose 4 successes from 5 trials)
 #>   p^4 = 0.300^4 = 0.008100
 #>   (1-p)^1 = 0.7^1 = 0.700000
-#>   P(X = 4) = 5 <U+00D7> 0.008100 <U+00D7> 0.700000 = 0.028350
+#>   P(X = 4) = 5 × 0.008100 × 0.700000 = 0.028350
 #> 
 #> k = 5:
 #>   C(5,5) = 1 (number of ways to choose 5 successes from 5 trials)
 #>   p^5 = 0.300^5 = 0.002430
 #>   (1-p)^0 = 0.7^0 = 1.000000
-#>   P(X = 5) = 1 <U+00D7> 0.002430 <U+00D7> 1.000000 = 0.002430
+#>   P(X = 5) = 1 × 0.002430 × 1.000000 = 0.002430
 
 cat("\nFull PMF table:\n")
 #> 
@@ -1394,9 +1394,9 @@ cat(sprintf("X ~ Binomial(n = %d, p = %.1f)\n\n", n, p))
 cat("Theoretical:\n")
 #> Theoretical:
 cat(sprintf("  E(X) = np = %d × %.1f = %.1f\n", n, p, E_X_theory))
-#>   E(X) = np = 20 <U+00D7> 0.4 = 8.0
+#>   E(X) = np = 20 × 0.4 = 8.0
 cat(sprintf("  Var(X) = np(1-p) = %d × %.1f × %.1f = %.2f\n", n, p, 1-p, Var_X_theory))
-#>   Var(X) = np(1-p) = 20 <U+00D7> 0.4 <U+00D7> 0.6 = 4.80
+#>   Var(X) = np(1-p) = 20 × 0.4 × 0.6 = 4.80
 cat(sprintf("  SD(X) = sqrt(%.2f) = %.4f\n\n", Var_X_theory, sqrt(Var_X_theory)))
 #>   SD(X) = sqrt(4.80) = 2.1909
 
@@ -1767,7 +1767,7 @@ cat("=======================================\n\n")
 cat("Setting:\n")
 #> Setting:
 cat("  Cross: Aa × Aa (heterozygous parents)\n")
-#>   Cross: Aa <U+00D7> Aa (heterozygous parents)
+#>   Cross: Aa × Aa (heterozygous parents)
 cat("  Probability of recessive phenotype (aa): 1/4 = 0.25\n")
 #>   Probability of recessive phenotype (aa): 1/4 = 0.25
 cat(sprintf("  Number of offspring observed: %d\n\n", n_offspring))
@@ -1916,7 +1916,7 @@ cat("   treatment\" as 1 and \"didn't respond\" as 0.'\n\n")
 cat("Analogies that work:\n")
 #> Analogies that work:
 cat("  1. 'It's like scoring a test — we convert answers to points.'\n")
-#>   1. 'It's like scoring a test <U+2014> we convert answers to points.'
+#>   1. 'It's like scoring a test — we convert answers to points.'
 cat("  2. 'We're putting outcomes on a number line to measure them.'\n")
 #>   2. 'We're putting outcomes on a number line to measure them.'
 cat("  3. 'Think of it as translating outcomes into a common language (numbers).'\n")
@@ -1946,11 +1946,11 @@ cat("   time, what's the chance that exactly 5 out of 10 patients respond?'\n\n"
 cat("Key messages for clinical audiences:\n")
 #> Key messages for clinical audiences:
 cat("  1. 'Expected' doesn't mean 'guaranteed' — it's the average across\n")
-#>   1. 'Expected' doesn't mean 'guaranteed' <U+2014> it's the average across
+#>   1. 'Expected' doesn't mean 'guaranteed' — it's the average across
 cat("      many hypothetical repetitions\n")
 #>       many hypothetical repetitions
 cat("  2. The binomial assumes each patient responds independently — which\n")
-#>   2. The binomial assumes each patient responds independently <U+2014> which
+#>   2. The binomial assumes each patient responds independently — which
 cat("      may not always hold in practice\n")
 #>       may not always hold in practice
 cat("  3. Observed outcomes will vary around the expected value; this is\n")

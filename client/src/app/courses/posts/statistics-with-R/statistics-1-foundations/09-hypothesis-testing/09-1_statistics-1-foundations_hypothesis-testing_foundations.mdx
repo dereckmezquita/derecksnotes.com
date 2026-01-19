@@ -100,7 +100,7 @@ cat("Null hypothesis: μ = 120 mmHg\n")
 ```
 
 ```
-## Null hypothesis: <U+03BC> = 120 mmHg
+## Null hypothesis: μ = 120 mmHg
 ```
 
 ``` r
@@ -108,7 +108,7 @@ cat("Alternative: μ ≠ 120 mmHg (two-sided)\n\n")
 ```
 
 ```
-## Alternative: <U+03BC> <U+2260> 120 mmHg (two-sided)
+## Alternative: μ ≠ 120 mmHg (two-sided)
 ```
 
 ``` r
@@ -262,7 +262,7 @@ cat("Proportion of simulated z-scores beyond ±1.96:\n")
 ```
 
 ```
-## Proportion of simulated z-scores beyond <U+00B1>1.96:
+## Proportion of simulated z-scores beyond ±1.96:
 ```
 
 ``` r
@@ -314,8 +314,8 @@ ggplot2$ggplot(null_dist, ggplot2$aes(x = x, y = y)) +
 ```
 
 <div class="figure">
-<img src="/courses/statistics-1-foundations/rare_events-1.png" alt="Extreme values are rare when H&lt;U+2080&gt; is true" width="100%" />
-<p class="caption">Extreme values are rare when H<U+2080> is true</p>
+<img src="/courses/statistics-1-foundations/rare_events-1.png" alt="Extreme values are rare when H₀ is true" width="100%" />
+<p class="caption">Extreme values are rare when H₀ is true</p>
 </div>
 
 ---
@@ -367,7 +367,7 @@ cat("Z-Test for a Mean (σ known)\n")
 ```
 
 ```
-## Z-Test for a Mean (<U+03C3> known)
+## Z-Test for a Mean (σ known)
 ```
 
 ``` r
@@ -383,7 +383,7 @@ cat(sprintf("H₀: μ = %.0f\n", mu_0))
 ```
 
 ```
-## H<U+2080>: <U+03BC> = 120
+## H₀: μ = 120
 ```
 
 ``` r
@@ -391,7 +391,7 @@ cat(sprintf("H₁: μ ≠ %.0f (two-sided)\n\n", mu_0))
 ```
 
 ```
-## H<U+2081>: <U+03BC> <U+2260> 120 (two-sided)
+## H₁: μ ≠ 120 (two-sided)
 ```
 
 ``` r
@@ -407,7 +407,7 @@ cat(sprintf("Sample mean: x̄ = %.2f\n", x_bar))
 ```
 
 ```
-## Sample mean: x<U+0304> = 120.49
+## Sample mean: x̄ = 120.49
 ```
 
 ``` r
@@ -415,7 +415,7 @@ cat(sprintf("Known SD: σ = %.2f\n\n", sigma))
 ```
 
 ```
-## Known SD: <U+03C3> = 15.00
+## Known SD: σ = 15.00
 ```
 
 ``` r
@@ -424,7 +424,7 @@ cat(sprintf("Test statistic: z = (%.2f - %.0f) / (%.0f/√%d) = %.3f\n",
 ```
 
 ```
-## Test statistic: z = (120.49 - 120) / (15/<U+221A>40) = 0.207
+## Test statistic: z = (120.49 - 120) / (15/√40) = 0.207
 ```
 
 ``` r
@@ -446,8 +446,8 @@ if (p_value < 0.05) {
 ```
 
 ```
-## Decision: Fail to reject H<U+2080> at <U+03B1> = 0.05
-## Conclusion: Insufficient evidence that <U+03BC> <U+2260> 120
+## Decision: Fail to reject H₀ at α = 0.05
+## Conclusion: Insufficient evidence that μ ≠ 120
 ```
 
 ### 9.3.3 The T-Test for a Mean (σ Unknown)
@@ -472,7 +472,7 @@ cat("T-Test for a Mean (σ unknown)\n")
 ```
 
 ```
-## T-Test for a Mean (<U+03C3> unknown)
+## T-Test for a Mean (σ unknown)
 ```
 
 ``` r
@@ -488,7 +488,7 @@ cat(sprintf("H₀: μ = %.0f\n", mu_0))
 ```
 
 ```
-## H<U+2080>: <U+03BC> = 120
+## H₀: μ = 120
 ```
 
 ``` r
@@ -496,7 +496,7 @@ cat(sprintf("H₁: μ ≠ %.0f (two-sided)\n\n", mu_0))
 ```
 
 ```
-## H<U+2081>: <U+03BC> <U+2260> 120 (two-sided)
+## H₁: μ ≠ 120 (two-sided)
 ```
 
 ``` r
@@ -512,7 +512,7 @@ cat(sprintf("Sample mean: x̄ = %.2f\n", x_bar))
 ```
 
 ```
-## Sample mean: x<U+0304> = 120.49
+## Sample mean: x̄ = 120.49
 ```
 
 ``` r
@@ -529,7 +529,7 @@ cat(sprintf("Test statistic: t = (%.2f - %.0f) / (%.2f/√%d) = %.3f\n",
 ```
 
 ```
-## Test statistic: t = (120.49 - 120) / (10.66/<U+221A>40) = 0.292
+## Test statistic: t = (120.49 - 120) / (10.66/√40) = 0.292
 ```
 
 ``` r
@@ -740,7 +740,7 @@ cat(sprintf("Two-sided (H₁: μ ≠ μ₀): p = %.4f\n", 2 * pnorm(-abs(z))))
 ```
 
 ```
-## Two-sided (H<U+2081>: <U+03BC> <U+2260> <U+03BC><U+2080>): p = 0.0455
+## Two-sided (H₁: μ ≠ μ₀): p = 0.0455
 ```
 
 ``` r
@@ -748,7 +748,7 @@ cat(sprintf("One-sided (H₁: μ > μ₀): p = %.4f\n", pnorm(z, lower.tail = FA
 ```
 
 ```
-## One-sided (H<U+2081>: <U+03BC> > <U+03BC><U+2080>): p = 0.0228
+## One-sided (H₁: μ > μ₀): p = 0.0228
 ```
 
 ``` r
@@ -756,7 +756,7 @@ cat(sprintf("One-sided (H₁: μ < μ₀): p = %.4f\n", pnorm(z)))
 ```
 
 ```
-## One-sided (H<U+2081>: <U+03BC> < <U+03BC><U+2080>): p = 0.9772
+## One-sided (H₁: μ < μ₀): p = 0.9772
 ```
 
 ``` r
@@ -838,7 +838,7 @@ cat(sprintf("%-8s  %-12s  %-12s  %-12s\n", "α", "z*", "t*(df=10)", "t*(df=30)")
 ```
 
 ```
-## <U+03B1>  z*            t*(df=10)     t*(df=30)
+## α        z*            t*(df=10)     t*(df=30)
 ```
 
 ``` r
@@ -908,7 +908,7 @@ cat(sprintf("Significance level: α = %.2f\n\n", alpha))
 ```
 
 ```
-## Significance level: <U+03B1> = 0.05
+## Significance level: α = 0.05
 ```
 
 ``` r
@@ -934,7 +934,7 @@ cat(sprintf("  Since p = %.4f %s %.2f = α, %s H₀\n",
 ```
 
 ```
-##   Since p = 0.0214 < 0.05 = <U+03B1>, reject H<U+2080>
+##   Since p = 0.0214 < 0.05 = α, reject H₀
 ```
 
 ``` r
@@ -961,7 +961,7 @@ cat(sprintf("  Since |z| = %.2f %s %.3f = z*, %s H₀\n",
 ```
 
 ```
-##   Since |z| = 2.30 > 1.960 = z*, reject H<U+2080>
+##   Since |z| = 2.30 > 1.960 = z*, reject H₀
 ```
 
 ``` r

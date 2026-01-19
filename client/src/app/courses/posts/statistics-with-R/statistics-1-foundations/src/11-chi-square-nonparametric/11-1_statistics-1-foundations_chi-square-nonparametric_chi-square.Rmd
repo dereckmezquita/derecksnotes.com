@@ -1,0 +1,670 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 11: Chi-Square and Non-Parametric Tests"
+part: "Part 1: Chi-Square Tests"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, chi-square, contingency-table, goodness-of-fit, independence, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    out.width = "100%"
+)
+```
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+nhanes <- fread("../data/primary/nhanes.csv")
+```
+
+# Chapter 11: Chi-Square and Non-Parametric Tests
+
+The t-tests and z-tests we've studied assume numerical data and (often) normal distributions. But what about categorical data? And what if our data severely violate normality assumptions? This chapter introduces chi-square tests for categorical data and non-parametric methods that make minimal distributional assumptions.
+
+---
+
+## 11.1 Introduction to Chi-Square Tests
+
+### 11.1.1 When to Use Chi-Square Tests
+
+Chi-square tests are used for:
+1. **Goodness-of-fit:** Does a categorical variable follow a hypothesised distribution?
+2. **Independence:** Are two categorical variables independent?
+3. **Homogeneity:** Do two or more populations have the same distribution?
+
+The key insight: we compare **observed frequencies** to **expected frequencies** under some null hypothesis.
+
+### 11.1.2 The Chi-Square Statistic
+
+The chi-square test statistic measures the discrepancy between observed (O) and expected (E) frequencies:
+
+$$\chi^2 = \sum_{i=1}^{k} \frac{(O_i - E_i)^2}{E_i}$$
+
+- Large values indicate poor fit between observed and expected
+- Under $H_0$, this follows a chi-square distribution with appropriate degrees of freedom
+- Always non-negative (squared differences)
+
+```{r chi_square_intro, fig.cap="The chi-square distribution for various degrees of freedom"}
+# Visualise chi-square distributions
+x_seq <- seq(0, 20, length.out = 200)
+
+chi_sq_data <- rbindlist(lapply(c(1, 2, 3, 5, 10), function(df) {
+    data.table(
+        x = x_seq,
+        y = dchisq(x_seq, df = df),
+        df = factor(df)
+    )
+}))
+
+ggplot2$ggplot(chi_sq_data, ggplot2$aes(x = x, y = y, colour = df)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$scale_colour_brewer(palette = "Set1", name = "Degrees of\nFreedom") +
+    ggplot2$labs(
+        title = "Chi-Square Distribution",
+        subtitle = "Shape depends on degrees of freedom",
+        x = expression(chi^2),
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 11.2 Chi-Square Goodness-of-Fit Test
+
+### 11.2.1 The Testing Scenario
+
+Does a categorical variable follow a specified distribution?
+
+**Hypotheses:**
+- $H_0$: The data follow the hypothesised distribution
+- $H_1$: The data do not follow the hypothesised distribution
+
+**Test statistic:**
+$$\chi^2 = \sum_{i=1}^{k} \frac{(O_i - E_i)^2}{E_i}$$
+
+**Degrees of freedom:** $df = k - 1$ (where k is the number of categories)
+
+### 11.2.2 Example: Testing for Equal Proportions
+
+```{r gof_equal}
+# Example: Are blood types equally distributed?
+# Suppose we observe blood types in a sample
+set.seed(123)
+blood_types <- c("A", "B", "AB", "O")
+observed <- c(42, 18, 8, 32)  # Observed counts
+n <- sum(observed)
+
+# Under H0: equal proportions
+expected_prop <- rep(1/4, 4)
+expected <- n * expected_prop
+
+cat("Chi-Square Goodness-of-Fit: Blood Type Distribution\n")
+cat("====================================================\n\n")
+cat("H₀: Blood types are equally distributed (25% each)\n\n")
+
+result_table <- data.table(
+    `Blood Type` = blood_types,
+    Observed = observed,
+    Expected = expected,
+    `(O-E)²/E` = (observed - expected)^2 / expected
+)
+print(result_table)
+
+# Calculate chi-square statistic
+chi_sq <- sum((observed - expected)^2 / expected)
+df <- length(blood_types) - 1
+p_value <- pchisq(chi_sq, df = df, lower.tail = FALSE)
+
+cat(sprintf("\nχ² = %.3f\n", chi_sq))
+cat(sprintf("df = %d\n", df))
+cat(sprintf("p-value = %.4f\n\n", p_value))
+
+if (p_value < 0.05) {
+    cat("Decision: Reject H₀\n")
+    cat("Conclusion: Blood types are not equally distributed\n")
+} else {
+    cat("Decision: Fail to reject H₀\n")
+    cat("Conclusion: No evidence against equal distribution\n")
+}
+
+# Verify with R
+cat("\n\nVerification with chisq.test():\n")
+print(chisq.test(observed, p = expected_prop))
+```
+
+### 11.2.3 Testing Against a Known Distribution
+
+```{r gof_known}
+# Example: Do blood types follow known population frequencies?
+# US population frequencies (approximately)
+known_prop <- c(A = 0.42, B = 0.10, AB = 0.04, O = 0.44)
+observed <- c(42, 18, 8, 32)
+n <- sum(observed)
+expected <- n * known_prop
+
+cat("Chi-Square Goodness-of-Fit: Against Known Proportions\n")
+cat("======================================================\n\n")
+cat("H₀: Sample follows US population blood type distribution\n\n")
+
+result_table <- data.table(
+    `Blood Type` = names(known_prop),
+    Observed = observed,
+    `Expected (US)` = expected,
+    `(O-E)²/E` = (observed - expected)^2 / expected
+)
+print(result_table)
+
+chi_sq <- sum((observed - expected)^2 / expected)
+df <- length(observed) - 1
+p_value <- pchisq(chi_sq, df = df, lower.tail = FALSE)
+
+cat(sprintf("\nχ² = %.3f, df = %d, p = %.4f\n", chi_sq, df, p_value))
+
+# Verify
+cat("\nVerification:\n")
+print(chisq.test(observed, p = known_prop))
+```
+
+### 11.2.4 Goodness-of-Fit Function from Scratch
+
+```{r gof_scratch}
+chi_sq_gof <- function(observed, expected = NULL, p = NULL) {
+    k <- length(observed)
+    n <- sum(observed)
+
+    # Calculate expected counts
+    if (is.null(expected)) {
+        if (is.null(p)) {
+            p <- rep(1/k, k)  # Equal proportions
+        }
+        expected <- n * p
+    }
+
+    # Check assumptions
+    small_expected <- sum(expected < 5)
+    if (small_expected > 0) {
+        warning(sprintf("%d cells have expected count < 5", small_expected))
+    }
+
+    # Calculate statistic
+    chi_sq <- sum((observed - expected)^2 / expected)
+    df <- k - 1
+    p_value <- pchisq(chi_sq, df = df, lower.tail = FALSE)
+
+    # Standardised residuals
+    residuals <- (observed - expected) / sqrt(expected)
+
+    list(
+        statistic = chi_sq,
+        df = df,
+        p.value = p_value,
+        observed = observed,
+        expected = expected,
+        residuals = residuals,
+        method = "Chi-Square Goodness-of-Fit Test"
+    )
+}
+
+# Apply
+result <- chi_sq_gof(c(42, 18, 8, 32), p = c(0.42, 0.10, 0.04, 0.44))
+
+cat("Custom chi_sq_gof() Results:\n")
+cat("============================\n")
+cat(sprintf("χ² = %.3f, df = %d, p = %.4f\n",
+            result$statistic, result$df, result$p.value))
+cat("\nStandardised residuals:\n")
+print(round(result$residuals, 3))
+```
+
+---
+
+## 11.3 Chi-Square Test of Independence
+
+### 11.3.1 Contingency Tables
+
+A **contingency table** (or cross-tabulation) displays the frequency distribution of two categorical variables.
+
+```{r contingency_table}
+# Create contingency table: Smoking status vs Diabetes
+smoke_diabetes <- nhanes[!is.na(SmokeNow) & !is.na(Diabetes)]
+smoke_diabetes <- smoke_diabetes[SmokeNow %in% c("Yes", "No") & Diabetes %in% c("Yes", "No")]
+
+# Create table
+cont_table <- table(smoke_diabetes$SmokeNow, smoke_diabetes$Diabetes)
+dimnames(cont_table) <- list(Smoking = c("No", "Yes"), Diabetes = c("No", "Yes"))
+
+cat("Contingency Table: Smoking Status × Diabetes\n")
+cat("=============================================\n\n")
+print(cont_table)
+
+# Add margins
+cat("\n\nWith row and column totals:\n")
+print(addmargins(cont_table))
+```
+
+### 11.3.2 The Test of Independence
+
+**Hypotheses:**
+- $H_0$: The two variables are independent
+- $H_1$: The two variables are associated
+
+Under independence, the expected count for cell $(i, j)$ is:
+$$E_{ij} = \frac{(\text{row } i \text{ total}) \times (\text{column } j \text{ total})}{\text{grand total}}$$
+
+**Degrees of freedom:** $df = (r - 1)(c - 1)$ where r = rows, c = columns
+
+```{r independence_test}
+# Calculate expected frequencies under independence
+row_totals <- rowSums(cont_table)
+col_totals <- colSums(cont_table)
+grand_total <- sum(cont_table)
+
+expected <- outer(row_totals, col_totals) / grand_total
+
+cat("Expected Frequencies Under Independence\n")
+cat("=======================================\n\n")
+print(round(expected, 1))
+
+# Chi-square statistic
+chi_sq <- sum((cont_table - expected)^2 / expected)
+df <- (nrow(cont_table) - 1) * (ncol(cont_table) - 1)
+p_value <- pchisq(chi_sq, df = df, lower.tail = FALSE)
+
+cat(sprintf("\nχ² = %.3f\n", chi_sq))
+cat(sprintf("df = %d\n", df))
+cat(sprintf("p-value = %.4f\n\n", p_value))
+
+if (p_value < 0.05) {
+    cat("Decision: Reject H₀\n")
+    cat("Conclusion: Smoking and diabetes are associated\n")
+} else {
+    cat("Decision: Fail to reject H₀\n")
+    cat("Conclusion: No evidence of association\n")
+}
+
+# Verify with R
+cat("\n\nVerification with chisq.test():\n")
+result <- chisq.test(cont_table)
+print(result)
+```
+
+### 11.3.3 Visualising the Contingency Table
+
+```{r contingency_visual, fig.cap="Mosaic plot of smoking × diabetes"}
+# Convert to data.table for plotting
+plot_data <- as.data.table(cont_table)
+setnames(plot_data, c("Smoking", "Diabetes", "N"))
+
+# Calculate proportions within smoking groups
+plot_data[, prop := N / sum(N), by = Smoking]
+
+# Stacked bar chart
+ggplot2$ggplot(plot_data, ggplot2$aes(x = Smoking, y = N, fill = Diabetes)) +
+    ggplot2$geom_col(position = "fill") +
+    ggplot2$scale_fill_manual(values = c("No" = "#0072B2", "Yes" = "#D55E00")) +
+    ggplot2$scale_y_continuous(labels = scales::percent_format()) +
+    ggplot2$labs(
+        title = "Diabetes Prevalence by Smoking Status",
+        subtitle = sprintf("χ² = %.2f, p = %.4f", chi_sq, p_value),
+        x = "Smoking Status",
+        y = "Proportion"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 11.3.4 Independence Test Function from Scratch
+
+```{r independence_scratch}
+chi_sq_independence <- function(table) {
+    # Get dimensions
+    r <- nrow(table)
+    c <- ncol(table)
+
+    # Calculate margins
+    row_totals <- rowSums(table)
+    col_totals <- colSums(table)
+    grand_total <- sum(table)
+
+    # Expected frequencies
+    expected <- outer(row_totals, col_totals) / grand_total
+
+    # Check assumptions
+    small_expected <- sum(expected < 5)
+    if (small_expected > 0) {
+        warning(sprintf("%d cells have expected count < 5", small_expected))
+    }
+
+    # Chi-square statistic
+    chi_sq <- sum((table - expected)^2 / expected)
+    df <- (r - 1) * (c - 1)
+    p_value <- pchisq(chi_sq, df = df, lower.tail = FALSE)
+
+    # Standardised residuals
+    residuals <- (table - expected) / sqrt(expected)
+
+    list(
+        statistic = chi_sq,
+        df = df,
+        p.value = p_value,
+        observed = table,
+        expected = expected,
+        residuals = residuals,
+        method = "Chi-Square Test of Independence"
+    )
+}
+
+# Apply
+result <- chi_sq_independence(cont_table)
+
+cat("Custom chi_sq_independence() Results:\n")
+cat("=====================================\n")
+cat(sprintf("χ² = %.3f, df = %d, p = %.4f\n",
+            result$statistic, result$df, result$p.value))
+
+cat("\nStandardised residuals (|z| > 2 suggest cells contributing to association):\n")
+print(round(result$residuals, 3))
+```
+
+---
+
+## 11.4 Effect Sizes for Chi-Square Tests
+
+### 11.4.1 Cramér's V
+
+For measuring association strength in contingency tables:
+
+$$V = \sqrt{\frac{\chi^2}{n \cdot \min(r-1, c-1)}}$$
+
+Ranges from 0 (no association) to 1 (perfect association).
+
+**Interpretation guidelines:**
+- Small: V ≈ 0.1
+- Medium: V ≈ 0.3
+- Large: V ≈ 0.5
+
+```{r cramers_v}
+cramers_v <- function(table) {
+    chi_sq <- chisq.test(table)$statistic
+    n <- sum(table)
+    min_dim <- min(nrow(table) - 1, ncol(table) - 1)
+    sqrt(as.numeric(chi_sq) / (n * min_dim))
+}
+
+# Calculate for our table
+v <- cramers_v(cont_table)
+
+cat("Effect Size: Cramér's V\n")
+cat("=======================\n\n")
+cat(sprintf("V = %.4f\n", v))
+cat(sprintf("Interpretation: %s effect\n",
+            ifelse(v < 0.1, "negligible",
+                   ifelse(v < 0.3, "small",
+                          ifelse(v < 0.5, "medium", "large")))))
+```
+
+### 11.4.2 Phi Coefficient (2×2 Tables)
+
+For 2×2 tables, use the phi coefficient:
+
+$$\phi = \sqrt{\frac{\chi^2}{n}}$$
+
+Also interpretable as a correlation coefficient.
+
+```{r phi_coefficient}
+phi <- sqrt(chi_sq / sum(cont_table))
+
+cat("Phi Coefficient (2×2 table)\n")
+cat("===========================\n\n")
+cat(sprintf("φ = %.4f\n", phi))
+cat("\nNote: For 2×2 tables, φ = V\n")
+```
+
+### 11.4.3 Odds Ratio (2×2 Tables)
+
+For 2×2 tables, the odds ratio is often more interpretable:
+
+$$OR = \frac{a \cdot d}{b \cdot c}$$
+
+```{r odds_ratio_chisq}
+# Extract cells
+a <- cont_table[1, 1]  # Non-smoker, No diabetes
+b <- cont_table[1, 2]  # Non-smoker, Diabetes
+c <- cont_table[2, 1]  # Smoker, No diabetes
+d <- cont_table[2, 2]  # Smoker, Diabetes
+
+or <- (a * d) / (b * c)
+log_or <- log(or)
+se_log_or <- sqrt(1/a + 1/b + 1/c + 1/d)
+ci_or <- exp(c(log_or - 1.96 * se_log_or, log_or + 1.96 * se_log_or))
+
+cat("Odds Ratio\n")
+cat("==========\n\n")
+cat(sprintf("OR = %.3f (95%% CI: %.3f to %.3f)\n", or, ci_or[1], ci_or[2]))
+
+if (or > 1) {
+    cat(sprintf("\nInterpretation: Smokers have %.1f%% higher odds of diabetes\n",
+                (or - 1) * 100))
+} else {
+    cat(sprintf("\nInterpretation: Smokers have %.1f%% lower odds of diabetes\n",
+                (1 - or) * 100))
+}
+```
+
+---
+
+## 11.5 Larger Contingency Tables
+
+### 11.5.1 r × c Tables
+
+The chi-square test extends naturally to tables with more than 2 rows or columns.
+
+```{r larger_table}
+# Create larger table: Age group × Education level
+age_edu <- nhanes[!is.na(AgeDecade) & !is.na(Education)]
+age_edu <- age_edu[AgeDecade %in% c(" 20-29", " 30-39", " 40-49", " 50-59")]
+age_edu <- age_edu[Education %in% c("8th Grade", "High School", "Some College", "College Grad")]
+
+# Create table
+large_table <- table(age_edu$AgeDecade, age_edu$Education)
+
+cat("Larger Contingency Table: Age × Education\n")
+cat("==========================================\n\n")
+print(addmargins(large_table))
+
+# Test
+result <- chisq.test(large_table)
+
+cat(sprintf("\nχ² = %.3f, df = %d, p = %.4f\n",
+            result$statistic, result$parameter, result$p.value))
+
+# Effect size
+v <- cramers_v(large_table)
+cat(sprintf("Cramér's V = %.4f (%s effect)\n", v,
+            ifelse(v < 0.1, "negligible",
+                   ifelse(v < 0.3, "small",
+                          ifelse(v < 0.5, "medium", "large")))))
+```
+
+### 11.5.2 Post-hoc Analysis: Standardised Residuals
+
+After finding a significant association, examine standardised residuals to identify which cells contribute most:
+
+```{r post_hoc}
+# Standardised residuals
+cat("Standardised Residuals\n")
+cat("======================\n\n")
+cat("(Values > 2 or < -2 indicate significant deviation)\n\n")
+print(round(result$residuals, 2))
+
+# Visualise residuals
+resid_data <- as.data.table(result$residuals)
+setnames(resid_data, c("Age", "Education", "Residual"))
+
+ggplot2$ggplot(resid_data, ggplot2$aes(x = Education, y = Age, fill = Residual)) +
+    ggplot2$geom_tile() +
+    ggplot2$geom_text(ggplot2$aes(label = sprintf("%.1f", Residual)), colour = "white") +
+    ggplot2$scale_fill_gradient2(low = "#D55E00", mid = "white", high = "#0072B2",
+                                  midpoint = 0, name = "Std.\nResidual") +
+    ggplot2$labs(
+        title = "Standardised Residuals: Age × Education",
+        subtitle = "Cells with |residual| > 2 contribute significantly to χ²",
+        x = "Education Level",
+        y = "Age Group"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+```
+
+---
+
+## 11.6 Assumptions and Alternatives
+
+### 11.6.1 Chi-Square Assumptions
+
+1. **Independence:** Observations must be independent
+2. **Random sampling:** Data should be randomly sampled
+3. **Expected frequencies:** Expected count ≥ 5 in each cell (rule of thumb)
+4. **Mutually exclusive categories:** Each observation belongs to exactly one cell
+
+### 11.6.2 Yates' Continuity Correction
+
+For 2×2 tables with small expected counts, apply Yates' correction:
+
+$$\chi^2_{\text{Yates}} = \sum \frac{(|O_i - E_i| - 0.5)^2}{E_i}$$
+
+```{r yates_correction}
+# With and without Yates correction
+cat("Yates' Continuity Correction\n")
+cat("============================\n\n")
+
+result_no_correction <- chisq.test(cont_table, correct = FALSE)
+result_with_correction <- chisq.test(cont_table, correct = TRUE)
+
+cat(sprintf("Without correction: χ² = %.3f, p = %.4f\n",
+            result_no_correction$statistic, result_no_correction$p.value))
+cat(sprintf("With Yates' correction: χ² = %.3f, p = %.4f\n",
+            result_with_correction$statistic, result_with_correction$p.value))
+
+cat("\nNote: Yates' correction makes the test more conservative.\n")
+cat("It's automatic in R's chisq.test() for 2×2 tables.\n")
+```
+
+### 11.6.3 Fisher's Exact Test
+
+When expected counts are small (< 5), use Fisher's exact test instead:
+
+```{r fisher_exact}
+# Create a small table
+small_table <- matrix(c(3, 1, 1, 5), nrow = 2,
+                      dimnames = list(c("Treatment", "Control"),
+                                     c("Success", "Failure")))
+
+cat("Small Contingency Table\n")
+cat("=======================\n\n")
+print(small_table)
+
+# Chi-square (with warning)
+cat("\nChi-square test:\n")
+suppressWarnings(result_chi <- chisq.test(small_table))
+cat(sprintf("χ² = %.3f, p = %.4f\n", result_chi$statistic, result_chi$p.value))
+cat("Warning: Expected counts may be too small\n")
+
+# Fisher's exact
+cat("\nFisher's exact test (preferred for small counts):\n")
+result_fisher <- fisher.test(small_table)
+cat(sprintf("OR = %.3f, p = %.4f\n", result_fisher$estimate, result_fisher$p.value))
+```
+
+---
+
+## 11.7 Communicating to Stakeholders
+
+### 11.7.1 Reporting Chi-Square Results
+
+**Comprehensive reporting includes:**
+1. The contingency table with observed frequencies
+2. χ² statistic, degrees of freedom, and p-value
+3. Effect size (Cramér's V or odds ratio)
+4. Interpretation in context
+
+```{r chi_sq_report}
+cat("STATISTICAL REPORT: Smoking and Diabetes Association\n")
+cat("=====================================================\n\n")
+
+cat("Contingency Table:\n")
+print(addmargins(cont_table))
+
+result <- chisq.test(cont_table)
+v <- cramers_v(cont_table)
+
+cat("\n\nStatistical Analysis:\n")
+cat(sprintf("χ²(%d) = %.2f, p = %.4f\n", result$parameter, result$statistic, result$p.value))
+cat(sprintf("Cramér's V = %.3f (%s effect)\n", v,
+            ifelse(v < 0.1, "negligible",
+                   ifelse(v < 0.3, "small",
+                          ifelse(v < 0.5, "medium", "large")))))
+cat(sprintf("Odds Ratio = %.2f (95%% CI: %.2f - %.2f)\n", or, ci_or[1], ci_or[2]))
+
+cat("\n\nInterpretation:\n")
+if (result$p.value < 0.05) {
+    cat("There was a statistically significant association between smoking\n")
+    cat("status and diabetes diagnosis. ")
+} else {
+    cat("There was no statistically significant association between smoking\n")
+    cat("status and diabetes diagnosis. ")
+}
+cat(sprintf("The effect size (V = %.3f) suggests\n", v))
+cat("this association is relatively weak.\n")
+```
+
+---
+
+## 11.8 Quick Reference
+
+### 11.8.1 Chi-Square Test Summary
+
+| Test | Use Case | df | Assumption |
+|------|----------|-----|------------|
+| Goodness-of-fit | One variable vs specified distribution | k - 1 | E ≥ 5 |
+| Independence | Association between two variables | (r-1)(c-1) | E ≥ 5 |
+| Homogeneity | Same distribution across populations | (r-1)(c-1) | E ≥ 5 |
+
+### 11.8.2 R Functions
+
+```r
+# Goodness-of-fit test
+chisq.test(observed, p = expected_proportions)
+
+# Test of independence
+chisq.test(contingency_table)
+
+# Fisher's exact (small counts)
+fisher.test(contingency_table)
+```
+
+### 11.8.3 Effect Size Guidelines
+
+| Measure | Small | Medium | Large |
+|---------|-------|--------|-------|
+| Cramér's V | 0.1 | 0.3 | 0.5 |
+| Phi (2×2) | 0.1 | 0.3 | 0.5 |
+| Odds Ratio | 1.5 | 2.5 | 4.0 |

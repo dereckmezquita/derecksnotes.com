@@ -657,11 +657,11 @@ h_fd <- 2 * bmi_iqr / (n^(1/3))
 cat("Bin width recommendations for BMI data (n =", n, "):\n")
 #> Bin width recommendations for BMI data (n = 9634 ):
 cat("  Sturges:", round(h_sturges, 2), "kg/m² (", k_sturges, "bins)\n")
-#>   Sturges: 4.56 kg/m<U+00B2> ( 15 bins)
+#>   Sturges: 4.56 kg/m² ( 15 bins)
 cat("  Scott:", round(h_scott, 2), "kg/m²\n")
-#>   Scott: 1.21 kg/m<U+00B2>
+#>   Scott: 1.21 kg/m²
 cat("  Freedman-Diaconis:", round(h_fd, 2), "kg/m²\n")
-#>   Freedman-Diaconis: 0.88 kg/m<U+00B2>
+#>   Freedman-Diaconis: 0.88 kg/m²
 
 # Compare visually
 p_few <- ggplot2$ggplot(bmi_data, ggplot2$aes(x = BMI)) +

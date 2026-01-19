@@ -89,7 +89,7 @@ cat(sprintf("Population: μ = %.1f, σ = %.1f\n", population_mean, population_sd
 ```
 
 ```
-## Population: <U+03BC> = 10.0, <U+03C3> = 5.0
+## Population: μ = 10.0, σ = 5.0
 ```
 
 ``` r
@@ -129,7 +129,7 @@ cat(sprintf("  Mean of sample means: %.2f (true μ = %.1f)\n", mean(sample_means
 ```
 
 ```
-##   Mean of sample means: 9.87 (true <U+03BC> = 10.0)
+##   Mean of sample means: 9.87 (true μ = 10.0)
 ```
 
 ``` r
@@ -270,14 +270,6 @@ ggplot2$ggplot(all_dists, ggplot2$aes(x = sample_mean)) +
     ) +
     ggplot2$theme_minimal() +
     ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
-```
-
-```
-## Warning: The dot-dot notation (`..density..`) was deprecated in ggplot2 3.4.0.
-## i Please use `after_stat(density)` instead.
-## This warning is displayed once every 8 hours.
-## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was
-## generated.
 ```
 
 <Figure src="/courses/statistics-1-foundations/simulate_sampling_dist-1.png" alt="Simulating the sampling distribution by repeated sampling">
@@ -436,7 +428,7 @@ cat(sprintf("  SD = %.2f (population σ = %.0f)\n\n", sd(individuals), pop_sd_ch
 ```
 
 ```
-##   SD = 39.23 (population <U+03C3> = 40)
+##   SD = 39.23 (population σ = 40)
 ```
 
 ``` r
@@ -453,7 +445,7 @@ cat(sprintf("  SE = %.2f (theoretical σ/√n = %.2f)\n",
 ```
 
 ```
-##   SE = 8.05 (theoretical <U+03C3>/<U+221A>n = 8.00)
+##   SE = 8.05 (theoretical σ/√n = 8.00)
 ```
 
 ``` r
@@ -529,7 +521,7 @@ cat("σ = 10\n\n")
 ```
 
 ```
-## <U+03C3> = 10
+## σ = 10
 ```
 
 ``` r
@@ -541,9 +533,9 @@ for (n in sample_sizes_viz) {
 ```
 
 ```
-## n =  10: SE = 3.162 (95% of means within <U+00B1>6.20 of <U+03BC>)
-## n =  40: SE = 1.581 (95% of means within <U+00B1>3.10 of <U+03BC>)
-## n = 160: SE = 0.791 (95% of means within <U+00B1>1.55 of <U+03BC>)
+## n =  10: SE = 3.162 (95% of means within ±6.20 of μ)
+## n =  40: SE = 1.581 (95% of means within ±3.10 of μ)
+## n = 160: SE = 0.791 (95% of means within ±1.55 of μ)
 ```
 
 ``` r
@@ -552,7 +544,7 @@ cat("\nNote: Quadrupling n halves the SE (due to √n relationship)\n")
 
 ```
 ## 
-## Note: Quadrupling n halves the SE (due to <U+221A>n relationship)
+## Note: Quadrupling n halves the SE (due to √n relationship)
 ```
 
 ``` r
@@ -644,7 +636,7 @@ cat("The Central Limit Theorem: Any Population → Normal Sample Means\n")
 ```
 
 ```
-## The Central Limit Theorem: Any Population <U+2192> Normal Sample Means
+## The Central Limit Theorem: Any Population → Normal Sample Means
 ```
 
 ``` r
@@ -667,16 +659,16 @@ for (name in names(populations)) {
 
 ```
 ## Exponential population:
-##   Mean = 1.992, SD = 1.984, Skewness <U+2248> 1.98
+##   Mean = 1.992, SD = 1.984, Skewness ≈ 1.98
 ## 
 ## Uniform population:
-##   Mean = 5.001, SD = 2.883, Skewness <U+2248> 0.00
+##   Mean = 5.001, SD = 2.883, Skewness ≈ 0.00
 ## 
 ## Bimodal population:
-##   Mean = 4.997, SD = 3.043, Skewness <U+2248> 0.00
+##   Mean = 4.997, SD = 3.043, Skewness ≈ 0.00
 ## 
 ## Beta population:
-##   Mean = 0.286, SD = 0.159, Skewness <U+2248> 0.60
+##   Mean = 0.286, SD = 0.159, Skewness ≈ 0.60
 ```
 
 ``` r
@@ -1013,7 +1005,7 @@ cat(sprintf("Mean (μ) = %.2f kg/m²\n", mean(bmi_data)))
 ```
 
 ```
-## Mean (<U+03BC>) = 26.64 kg/m<U+00B2>
+## Mean (μ) = 26.64 kg/m²
 ```
 
 ``` r
@@ -1021,7 +1013,7 @@ cat(sprintf("SD (σ) = %.2f kg/m²\n\n", sd(bmi_data)))
 ```
 
 ```
-## SD (<U+03C3>) = 7.32 kg/m<U+00B2>
+## SD (σ) = 7.32 kg/m²
 ```
 
 ``` r
@@ -1382,7 +1374,7 @@ cat("   find an average effect within ±3 mmHg of the true effect.'\n")
 ```
 
 ```
-##    find an average effect within <U+00B1>3 mmHg of the true effect.'
+##    find an average effect within ±3 mmHg of the true effect.'
 ```
 
 ### Explaining the Central Limit Theorem
@@ -1449,7 +1441,7 @@ cat("  'One coin flip is completely unpredictable — 50/50. But if you\n")
 ```
 
 ```
-##   'One coin flip is completely unpredictable <U+2014> 50/50. But if you
+##   'One coin flip is completely unpredictable — 50/50. But if you
 ```
 
 ``` r
