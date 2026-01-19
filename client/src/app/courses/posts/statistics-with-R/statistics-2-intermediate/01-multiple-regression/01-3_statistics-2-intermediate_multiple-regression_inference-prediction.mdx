@@ -1,0 +1,106 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 1: Multiple Linear Regression"
+part: "Part 3: Inference and Prediction"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, regression, inference, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 3: Inference and Prediction
+
+Having established how to fit and interpret multiple regression models, we now turn to inference: testing hypotheses about coefficients, constructing confidence intervals, and making predictions. We'll derive the sampling distributions of our estimators and understand when the classical assumptions are crucial.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+
+# Prepare blood pressure data
+bp_data <- nhanes[!is.na(BPSysAve) & !is.na(Age) & !is.na(BMI) &
+                  !is.na(Pulse) & Age >= 18,
+                  .(SBP = BPSysAve, Age = Age, BMI = BMI, Pulse = Pulse)]
+bp_data <- bp_data[complete.cases(bp_data)]
+
+cat("Dataset prepared:\n")
+#> Dataset prepared:
+cat("  n =", nrow(bp_data), "observations\n")
+#>   n = 7150 observations
+```
+
+---
+
+## 3.1 Sampling Distribution of the OLS Estimator
+
+### 3.1.1 Properties Under Classical Assumptions
+
+**Mathematical Derivation**
+
+Under the classical assumptions (linearity, exogeneity, spherical errors, normality), the OLS estimator has a known sampling distribution.
+
+Recall:
+$$\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}$$
+
+Substituting $\mathbf{Y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}$:
+\begin{align}
+\hat{\boldsymbol{\beta}} &= (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'(\mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}) \\
+&= (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{X}\boldsymbol{\beta} + (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\boldsymbol{\varepsilon} \\
+&= \boldsymbol{\beta} + (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\boldsymbol{\varepsilon}
+\end{align}
+
+**Unbiasedness:**
+$$E(\hat{\boldsymbol{\beta}}) = \boldsymbol{\beta} + (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'E(\boldsymbol{\varepsilon}) = \boldsymbol{\beta}$$
+
+since $E(\boldsymbol{\varepsilon}) = \mathbf{0}$.
+
+**Variance:**
+\begin{align}
+\text{Var}(\hat{\boldsymbol{\beta}}) &= (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}' \text{Var}(\boldsymbol{\varepsilon}) \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1} \\
+&= (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}' \sigma^2\mathbf{I} \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1} \\
+&= \sigma^2 (\mathbf{X}'\mathbf{X})^{-1}
+\end{align}
+
+**Normality:**
+Since $\hat{\boldsymbol{\beta}}$ is a linear combination of the normal errors $\boldsymbol{\varepsilon}$:
+$$\hat{\boldsymbol{\beta}} \sim N(\boldsymbol{\beta}, \sigma^2(\mathbf{X}'\mathbf{X})^{-1})$$
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

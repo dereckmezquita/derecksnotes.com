@@ -1,0 +1,912 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 1: Multiple Linear Regression"
+part: "Part 1: Matrix Formulation and Interpretation"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, regression, linear-models, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 1: Multiple Linear Regression
+
+In Part I, we explored simple linear regression — modelling the relationship between one predictor and one outcome. But in biomedical research, outcomes are rarely determined by a single factor. Blood pressure depends on age, BMI, sodium intake, and genetics. Hospital length of stay depends on diagnosis, comorbidities, and treatment. To understand these complex relationships, we need **multiple linear regression**.
+
+This chapter extends the simple linear model to include multiple predictors. We'll develop the matrix formulation that makes computation tractable, learn to interpret coefficients as partial effects, and understand the geometry of least squares in higher dimensions.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load datasets for examples
+nhanes <- fread("../../../data/primary/nhanes.csv")
+hospital_los <- fread("../../../data/count/arizona_hospital_los.csv")
+
+cat("Datasets loaded:\n")
+#> Datasets loaded:
+cat("  NHANES:", nrow(nhanes), "observations\n")
+#>   NHANES: 10000 observations
+cat("  Arizona Hospital LOS:", nrow(hospital_los), "observations\n")
+#>   Arizona Hospital LOS: 1798 observations
+```
+
+---
+
+## 1.1 From Simple to Multiple Regression
+
+### 1.1.1 The Limitation of One Predictor
+
+**Prose and Intuition**
+
+In simple linear regression, we model:
+$$Y = \beta_0 + \beta_1 X + \varepsilon$$
+
+This captures how $Y$ changes with $X$, but attributes all variation in $Y$ to either $X$ or random error. In reality, many factors contribute simultaneously.
+
+Consider predicting systolic blood pressure. Using only age:
+
+
+``` r
+# Prepare NHANES data for blood pressure modelling
+bp_data <- nhanes[!is.na(BPSysAve) & !is.na(Age) & !is.na(BMI) & Age >= 18,
+                  .(SBP = BPSysAve, Age = Age, BMI = BMI)]
+bp_data <- bp_data[complete.cases(bp_data)]
+
+cat("Blood Pressure Analysis Sample:\n")
+#> Blood Pressure Analysis Sample:
+cat("  n =", nrow(bp_data), "adults with complete BP, Age, BMI data\n\n")
+#>   n = 7150 adults with complete BP, Age, BMI data
+
+# Simple regression: SBP ~ Age
+model_simple <- lm(SBP ~ Age, data = bp_data)
+
+cat("Simple Regression: SBP ~ Age\n")
+#> Simple Regression: SBP ~ Age
+cat("=============================\n")
+#> =============================
+print(summary(model_simple)$coefficients)
+#>                Estimate Std. Error   t value     Pr(>|t|)
+#> (Intercept) 101.9162560  0.5200261 195.98298  0.00000e+00
+#> Age           0.4065082  0.0105290  38.60843 2.29677e-296
+cat("\nR-squared:", round(summary(model_simple)$r.squared, 4), "\n")
+#> 
+#> R-squared: 0.1726
+
+# Visualise
+ggplot2$ggplot(bp_data, ggplot2$aes(x = Age, y = SBP)) +
+    ggplot2$geom_point(alpha = 0.3, colour = "#666666") +
+    ggplot2$geom_smooth(method = "lm", colour = "#0072B2", se = TRUE) +
+    ggplot2$labs(
+        title = "Simple Linear Regression: Blood Pressure vs Age",
+        subtitle = paste("R² =", round(summary(model_simple)$r.squared, 3)),
+        x = "Age (years)",
+        y = "Systolic Blood Pressure (mmHg)"
+    ) +
+    ggplot2$theme_minimal()
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-2-intermediate/simple_regression-1.png" alt="Simple regression captures only one relationship">
+	Simple regression captures only one relationship
+</Figure>
+
+The model explains only about 17.3% of the variance in blood pressure. Age matters, but it's clearly not the whole story. BMI, diet, medications, and genetics all play roles.
+
+### 1.1.2 Adding Multiple Predictors
+
+**Prose and Intuition**
+
+Multiple regression allows us to model:
+$$Y = \beta_0 + \beta_1 X_1 + \beta_2 X_2 + \cdots + \beta_p X_p + \varepsilon$$
+
+Now we can ask: "Holding BMI constant, how does blood pressure change with age?" and "Holding age constant, how does blood pressure change with BMI?"
+
+Each coefficient $\beta_j$ represents the **partial effect** of $X_j$ — the change in $Y$ for a one-unit increase in $X_j$, holding all other predictors fixed.
+
+
+``` r
+# Multiple regression: SBP ~ Age + BMI
+model_multiple <- lm(SBP ~ Age + BMI, data = bp_data)
+
+cat("Multiple Regression: SBP ~ Age + BMI\n")
+#> Multiple Regression: SBP ~ Age + BMI
+cat("=====================================\n")
+#> =====================================
+print(summary(model_multiple)$coefficients)
+#>               Estimate Std. Error   t value      Pr(>|t|)
+#> (Intercept) 94.2573169 0.90747825 103.86730  0.000000e+00
+#> Age          0.3995585 0.01047492  38.14431 6.064247e-290
+#> BMI          0.2781984 0.02710850  10.26240  1.539614e-24
+cat("\nR-squared:", round(summary(model_multiple)$r.squared, 4), "\n")
+#> 
+#> R-squared: 0.1846
+cat("Adjusted R-squared:", round(summary(model_multiple)$adj.r.squared, 4), "\n")
+#> Adjusted R-squared: 0.1843
+
+# Compare models
+cat("\nModel Comparison:\n")
+#> 
+#> Model Comparison:
+cat("  Simple (Age only):     R² =", round(summary(model_simple)$r.squared, 4), "\n")
+#>   Simple (Age only):     R² = 0.1726
+cat("  Multiple (Age + BMI):  R² =", round(summary(model_multiple)$r.squared, 4), "\n")
+#>   Multiple (Age + BMI):  R² = 0.1846
+cat("  Improvement:", round((summary(model_multiple)$r.squared - summary(model_simple)$r.squared) * 100, 2), "percentage points\n")
+#>   Improvement: 1.2 percentage points
+```
+
+**Interpretation:**
+
+- $\hat{\beta}_1$ (Age): For each additional year of age, systolic BP increases by approximately 0.4 mmHg, **holding BMI constant**.
+- $\hat{\beta}_2$ (BMI): For each additional kg/m² of BMI, systolic BP increases by approximately 0.28 mmHg, **holding age constant**.
+
+The phrase "holding constant" (or "controlling for" or "adjusting for") is crucial. It's what distinguishes multiple regression coefficients from simple correlations.
+
+
+``` r
+# Create a grid for visualisation
+age_seq <- seq(min(bp_data$Age), max(bp_data$Age), length.out = 20)
+bmi_seq <- seq(min(bp_data$BMI), max(bp_data$BMI), length.out = 20)
+grid <- CJ(Age = age_seq, BMI = bmi_seq)
+grid[, SBP_pred := predict(model_multiple, newdata = .SD)]
+
+# Sample data for plotting
+sample_data <- bp_data[sample(.N, min(.N, 500))]
+sample_data[, SBP_pred := predict(model_multiple, newdata = .SD)]
+sample_data[, residual := SBP - SBP_pred]
+
+# Visualise as contour plot
+ggplot2$ggplot(grid, ggplot2$aes(x = Age, y = BMI, z = SBP_pred)) +
+    ggplot2$geom_contour_filled(bins = 12) +
+    ggplot2$geom_point(data = sample_data, ggplot2$aes(z = NULL),
+                       alpha = 0.3, size = 0.5, colour = "white") +
+    ggplot2$scale_fill_viridis_d(option = "plasma") +
+    ggplot2$labs(
+        title = "Multiple Regression: Predicted Blood Pressure",
+        subtitle = "Contours show predicted SBP as function of Age and BMI",
+        x = "Age (years)",
+        y = "BMI (kg/m²)",
+        fill = "Predicted\nSBP (mmHg)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/visualise_3d-1.png" alt="The regression plane in three dimensions">
+	The regression plane in three dimensions
+</Figure>
+
+---
+
+## 1.2 Matrix Formulation
+
+### 1.2.1 Why Matrices?
+
+**Prose and Intuition**
+
+With two predictors, we can write out the model equation by hand. But what about 10 predictors? 50? Modern genomic studies might include thousands. We need a compact notation that scales.
+
+Matrix algebra provides this. The entire regression model — equations for all $n$ observations with all $p$ predictors — collapses into:
+$$\mathbf{Y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}$$
+
+This isn't just notational convenience. Matrix formulation reveals the geometry of regression, simplifies the derivation of estimators, and enables efficient computation.
+
+### 1.2.2 Setting Up the Matrices
+
+**Mathematical Definition**
+
+For $n$ observations and $p$ predictors, define:
+
+**Response vector** ($n \times 1$):
+$$\mathbf{Y} = \begin{pmatrix} Y_1 \\ Y_2 \\ \vdots \\ Y_n \end{pmatrix}$$
+
+**Design matrix** ($n \times (p+1)$):
+$$\mathbf{X} = \begin{pmatrix}
+1 & X_{11} & X_{12} & \cdots & X_{1p} \\
+1 & X_{21} & X_{22} & \cdots & X_{2p} \\
+\vdots & \vdots & \vdots & \ddots & \vdots \\
+1 & X_{n1} & X_{n2} & \cdots & X_{np}
+\end{pmatrix}$$
+
+The column of 1s corresponds to the intercept term $\beta_0$.
+
+**Coefficient vector** ($(p+1) \times 1$):
+$$\boldsymbol{\beta} = \begin{pmatrix} \beta_0 \\ \beta_1 \\ \vdots \\ \beta_p \end{pmatrix}$$
+
+**Error vector** ($n \times 1$):
+$$\boldsymbol{\varepsilon} = \begin{pmatrix} \varepsilon_1 \\ \varepsilon_2 \\ \vdots \\ \varepsilon_n \end{pmatrix}$$
+
+
+``` r
+# Construct the design matrix for our blood pressure model
+# Take a small sample for display
+sample_idx <- sample(nrow(bp_data), 6)
+bp_sample <- bp_data[sample_idx]
+
+# Design matrix (with intercept)
+X <- cbind(1, bp_sample$Age, bp_sample$BMI)
+colnames(X) <- c("Intercept", "Age", "BMI")
+
+cat("Design Matrix X (6 observations × 3 columns):\n")
+#> Design Matrix X (6 observations × 3 columns):
+cat("==============================================\n\n")
+#> ==============================================
+print(X)
+#>      Intercept Age   BMI
+#> [1,]         1  71 34.17
+#> [2,]         1  70 36.10
+#> [3,]         1  80 23.50
+#> [4,]         1  29 39.07
+#> [5,]         1  53 34.20
+#> [6,]         1  44 38.06
+
+cat("\n\nResponse Vector Y:\n")
+#> 
+#> 
+#> Response Vector Y:
+cat("==================\n")
+#> ==================
+print(matrix(bp_sample$SBP, ncol = 1, dimnames = list(NULL, "SBP")))
+#>      SBP
+#> [1,] 119
+#> [2,] 122
+#> [3,] 164
+#> [4,] 147
+#> [5,] 127
+#> [6,] 113
+
+cat("\n\nCoefficient Vector β (from fitted model):\n")
+#> 
+#> 
+#> Coefficient Vector β (from fitted model):
+cat("==========================================\n")
+#> ==========================================
+print(matrix(coef(model_multiple), ncol = 1, dimnames = list(names(coef(model_multiple)), "β")))
+#>                      β
+#> (Intercept) 94.2573169
+#> Age          0.3995585
+#> BMI          0.2781984
+```
+
+### 1.2.3 The Matrix Equation
+
+**Mathematical Derivation**
+
+The full model for all observations:
+
+\begin{align}
+Y_1 &= \beta_0 + \beta_1 X_{11} + \beta_2 X_{12} + \varepsilon_1 \\
+Y_2 &= \beta_0 + \beta_1 X_{21} + \beta_2 X_{22} + \varepsilon_2 \\
+&\vdots \\
+Y_n &= \beta_0 + \beta_1 X_{n1} + \beta_2 X_{n2} + \varepsilon_n
+\end{align}
+
+In matrix form:
+$$\begin{pmatrix} Y_1 \\ Y_2 \\ \vdots \\ Y_n \end{pmatrix} =
+\begin{pmatrix}
+1 & X_{11} & X_{12} \\
+1 & X_{21} & X_{22} \\
+\vdots & \vdots & \vdots \\
+1 & X_{n1} & X_{n2}
+\end{pmatrix}
+\begin{pmatrix} \beta_0 \\ \beta_1 \\ \beta_2 \end{pmatrix} +
+\begin{pmatrix} \varepsilon_1 \\ \varepsilon_2 \\ \vdots \\ \varepsilon_n \end{pmatrix}$$
+
+Or simply:
+$$\mathbf{Y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}$$
+
+
+``` r
+# Verify: X %*% beta should give predicted values
+X_full <- model.matrix(model_multiple)
+beta <- coef(model_multiple)
+
+# Matrix multiplication
+Y_pred_matrix <- X_full %*% beta
+
+# Compare to predict()
+Y_pred_function <- predict(model_multiple)
+
+cat("Verification: X × β = Ŷ\n")
+#> Verification: X × β = Ŷ
+cat("========================\n\n")
+#> ========================
+cat("First 6 predictions:\n")
+#> First 6 predictions:
+comparison <- data.table(
+    Matrix_Mult = head(Y_pred_matrix[,1]),
+    predict_fn = head(Y_pred_function),
+    Difference = head(Y_pred_matrix[,1] - Y_pred_function)
+)
+print(comparison)
+#>    Matrix_Mult predict_fn Difference
+#>          <num>      <num>      <num>
+#> 1:    116.8059   116.8059          0
+#> 2:    116.8059   116.8059          0
+#> 3:    116.8059   116.8059          0
+#> 4:    122.3402   122.3402          0
+#> 5:    119.8156   119.8156          0
+#> 6:    119.8156   119.8156          0
+cat("\nMaximum difference:", max(abs(Y_pred_matrix - Y_pred_function)), "(numerical precision)\n")
+#> 
+#> Maximum difference: 0 (numerical precision)
+```
+
+---
+
+## 1.3 The Ordinary Least Squares Estimator
+
+### 1.3.1 Minimising the Sum of Squared Residuals
+
+**Prose and Intuition**
+
+We want to find the coefficient vector $\hat{\boldsymbol{\beta}}$ that makes our predictions as close to the observed values as possible. "Close" means minimising the sum of squared residuals:
+$$SSR = \sum_{i=1}^n (Y_i - \hat{Y}_i)^2 = \sum_{i=1}^n e_i^2$$
+
+In matrix notation, the residual vector is:
+$$\mathbf{e} = \mathbf{Y} - \mathbf{X}\hat{\boldsymbol{\beta}}$$
+
+And the sum of squared residuals is:
+$$SSR = \mathbf{e}'\mathbf{e} = (\mathbf{Y} - \mathbf{X}\hat{\boldsymbol{\beta}})'(\mathbf{Y} - \mathbf{X}\hat{\boldsymbol{\beta}})$$
+
+### 1.3.2 Deriving the Normal Equations
+
+**Mathematical Derivation**
+
+To minimise $SSR$, we take the derivative with respect to $\boldsymbol{\beta}$ and set it to zero.
+
+First, expand the SSR:
+\begin{align}
+SSR &= (\mathbf{Y} - \mathbf{X}\boldsymbol{\beta})'(\mathbf{Y} - \mathbf{X}\boldsymbol{\beta}) \\
+&= \mathbf{Y}'\mathbf{Y} - \mathbf{Y}'\mathbf{X}\boldsymbol{\beta} - \boldsymbol{\beta}'\mathbf{X}'\mathbf{Y} + \boldsymbol{\beta}'\mathbf{X}'\mathbf{X}\boldsymbol{\beta} \\
+&= \mathbf{Y}'\mathbf{Y} - 2\boldsymbol{\beta}'\mathbf{X}'\mathbf{Y} + \boldsymbol{\beta}'\mathbf{X}'\mathbf{X}\boldsymbol{\beta}
+\end{align}
+
+(Note: $\mathbf{Y}'\mathbf{X}\boldsymbol{\beta}$ is a scalar, so equals its transpose $\boldsymbol{\beta}'\mathbf{X}'\mathbf{Y}$.)
+
+Taking the derivative with respect to $\boldsymbol{\beta}$:
+$$\frac{\partial SSR}{\partial \boldsymbol{\beta}} = -2\mathbf{X}'\mathbf{Y} + 2\mathbf{X}'\mathbf{X}\boldsymbol{\beta}$$
+
+Setting equal to zero:
+$$\mathbf{X}'\mathbf{X}\hat{\boldsymbol{\beta}} = \mathbf{X}'\mathbf{Y}$$
+
+These are the **normal equations**. Solving for $\hat{\boldsymbol{\beta}}$:
+
+$$\boxed{\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}}$$
+
+This is the **ordinary least squares (OLS) estimator**.
+
+
+``` r
+# Implement OLS using the matrix formula
+X <- model.matrix(model_multiple)
+Y <- bp_data$SBP
+
+# Step 1: X'X (p × p matrix)
+XtX <- t(X) %*% X
+cat("X'X (Gram matrix):\n")
+#> X'X (Gram matrix):
+print(round(XtX, 2))
+#>             (Intercept)      Age       BMI
+#> (Intercept)      7150.0   330561  205100.9
+#> Age            330561.0 17441419 9536217.1
+#> BMI            205100.9  9536217 6205743.0
+
+# Step 2: X'Y (p × 1 vector)
+XtY <- t(X) %*% Y
+cat("\nX'Y:\n")
+#> 
+#> X'Y:
+print(round(XtY, 2))
+#>                 [,1]
+#> (Intercept)   863077
+#> Age         40779620
+#> BMI         24868963
+
+# Step 3: (X'X)^(-1)
+XtX_inv <- solve(XtX)
+cat("\n(X'X)^(-1):\n")
+#> 
+#> (X'X)^(-1):
+print(XtX_inv)
+#>               (Intercept)           Age           BMI
+#> (Intercept)  3.491191e-03 -1.927294e-05 -8.576820e-05
+#> Age         -1.927294e-05  4.651600e-07 -7.782633e-08
+#> BMI         -8.576820e-05 -7.782633e-08  3.115389e-06
+
+# Step 4: β̂ = (X'X)^(-1) X'Y
+beta_hat <- XtX_inv %*% XtY
+cat("\nβ̂ from matrix formula:\n")
+#> 
+#> β̂ from matrix formula:
+print(beta_hat)
+#>                   [,1]
+#> (Intercept) 94.2573169
+#> Age          0.3995585
+#> BMI          0.2781984
+
+cat("\nβ̂ from lm():\n")
+#> 
+#> β̂ from lm():
+print(coef(model_multiple))
+#> (Intercept)         Age         BMI 
+#>  94.2573169   0.3995585   0.2781984
+
+cat("\nDifference (numerical precision):\n")
+#> 
+#> Difference (numerical precision):
+print(beta_hat[,1] - coef(model_multiple))
+#>   (Intercept)           Age           BMI 
+#>  1.823253e-11  2.586820e-14 -6.268319e-13
+```
+
+### 1.3.3 The Hat Matrix
+
+**Mathematical Definition**
+
+The **hat matrix** (or projection matrix) is:
+$$\mathbf{H} = \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'$$
+
+It "puts the hat on Y":
+$$\hat{\mathbf{Y}} = \mathbf{H}\mathbf{Y}$$
+
+The hat matrix projects $\mathbf{Y}$ onto the column space of $\mathbf{X}$.
+
+**Properties of the Hat Matrix:**
+
+1. **Symmetric**: $\mathbf{H}' = \mathbf{H}$
+2. **Idempotent**: $\mathbf{H}^2 = \mathbf{H}$
+3. **Diagonal elements**: $h_{ii}$ measures the *leverage* of observation $i$ (how much $Y_i$ influences $\hat{Y}_i$)
+4. **Trace**: $\text{tr}(\mathbf{H}) = p + 1$ (number of parameters)
+
+
+``` r
+# Compute hat matrix (for a sample due to memory)
+n_sample <- 500
+idx <- sample(nrow(bp_data), n_sample)
+bp_sample <- bp_data[idx]
+
+X_sample <- model.matrix(lm(SBP ~ Age + BMI, data = bp_sample))
+H <- X_sample %*% solve(t(X_sample) %*% X_sample) %*% t(X_sample)
+
+# Extract leverage values (diagonal of H)
+leverage <- diag(H)
+
+cat("Hat Matrix Properties:\n")
+#> Hat Matrix Properties:
+cat("======================\n\n")
+#> ======================
+cat("Dimensions:", dim(H), "\n")
+#> Dimensions: 500 500
+cat("Is symmetric:", all.equal(H, t(H)), "\n")
+#> Is symmetric: TRUE
+cat("Trace (should be p+1 = 3):", sum(leverage), "\n")
+#> Trace (should be p+1 = 3): 3
+cat("Mean leverage:", mean(leverage), "(should be (p+1)/n =", 3/n_sample, ")\n")
+#> Mean leverage: 0.006 (should be (p+1)/n = 0.006 )
+
+# Visualise leverage
+leverage_dt <- data.table(
+    observation = 1:n_sample,
+    leverage = leverage,
+    Age = bp_sample$Age,
+    BMI = bp_sample$BMI
+)
+
+# High leverage threshold
+leverage_threshold <- 2 * 3 / n_sample
+
+ggplot2$ggplot(leverage_dt, ggplot2$aes(x = Age, y = BMI, colour = leverage)) +
+    ggplot2$geom_point(alpha = 0.7) +
+    ggplot2$scale_colour_viridis_c(option = "plasma") +
+    ggplot2$geom_hline(yintercept = mean(bp_sample$BMI), linetype = "dashed", alpha = 0.3) +
+    ggplot2$geom_vline(xintercept = mean(bp_sample$Age), linetype = "dashed", alpha = 0.3) +
+    ggplot2$labs(
+        title = "Leverage Values in the Predictor Space",
+        subtitle = "Points far from the centre have higher leverage",
+        x = "Age (years)",
+        y = "BMI (kg/m²)",
+        colour = "Leverage\n(h_ii)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/hat_matrix-1.png" alt="The hat matrix and leverage">
+	The hat matrix and leverage
+</Figure>
+
+---
+
+## 1.4 Interpreting Coefficients
+
+### 1.4.1 Partial Regression Coefficients
+
+**Prose and Intuition**
+
+In multiple regression, each coefficient represents a **partial** or **marginal** effect. The coefficient $\beta_j$ answers: "If we increase $X_j$ by one unit while holding all other predictors constant, how much does $Y$ change on average?"
+
+This is fundamentally different from the bivariate correlation between $X_j$ and $Y$, which doesn't control for other variables.
+
+**Why "Holding Constant" Matters:**
+
+Consider Age and BMI predicting blood pressure. In the population:
+- Older people tend to have higher BMI (positive correlation)
+- Both Age and BMI are positively associated with blood pressure
+
+If we only look at Age, its coefficient captures:
+1. The direct effect of Age on blood pressure
+2. The indirect effect through its correlation with BMI
+
+Multiple regression separates these: the Age coefficient captures only the direct effect.
+
+
+``` r
+# Compare simple vs partial coefficients
+model_age_only <- lm(SBP ~ Age, data = bp_data)
+model_bmi_only <- lm(SBP ~ BMI, data = bp_data)
+model_both <- lm(SBP ~ Age + BMI, data = bp_data)
+
+cat("Coefficient Comparison:\n")
+#> Coefficient Comparison:
+cat("=======================\n\n")
+#> =======================
+
+comparison_dt <- data.table(
+    Predictor = c("Age", "BMI"),
+    Simple = c(coef(model_age_only)["Age"], coef(model_bmi_only)["BMI"]),
+    Partial = c(coef(model_both)["Age"], coef(model_both)["BMI"])
+)
+comparison_dt[, Change := round((Partial - Simple) / Simple * 100, 1)]
+print(comparison_dt)
+#>    Predictor    Simple   Partial Change
+#>       <char>     <num>     <num>  <num>
+#> 1:       Age 0.4065082 0.3995585   -1.7
+#> 2:       BMI 0.3450488 0.2781984  -19.4
+
+cat("\nInterpretation:\n")
+#> 
+#> Interpretation:
+cat("- Age coefficient drops by", abs(comparison_dt[Predictor == "Age", Change]),
+    "% when controlling for BMI\n")
+#> - Age coefficient drops by 1.7 % when controlling for BMI
+cat("- This suggests part of Age's apparent effect was confounded by BMI\n")
+#> - This suggests part of Age's apparent effect was confounded by BMI
+```
+
+### 1.4.2 The Geometry of Partial Regression
+
+**Visualisation**
+
+To understand what "holding $X_2$ constant" means geometrically, we can use **added variable plots** (also called partial regression plots).
+
+The partial regression coefficient for $X_1$ is the slope when regressing:
+1. Residuals of $Y$ on $X_2$ (variation in $Y$ not explained by $X_2$)
+2. Against residuals of $X_1$ on $X_2$ (variation in $X_1$ not explained by $X_2$)
+
+
+``` r
+# Added variable plot for Age (controlling for BMI)
+
+# Step 1: Regress Y on X2 (SBP on BMI), get residuals
+model_y_on_x2 <- lm(SBP ~ BMI, data = bp_data)
+resid_y <- residuals(model_y_on_x2)
+
+# Step 2: Regress X1 on X2 (Age on BMI), get residuals
+model_x1_on_x2 <- lm(Age ~ BMI, data = bp_data)
+resid_x1 <- residuals(model_x1_on_x2)
+
+# Step 3: Regress residuals of Y on residuals of X1
+model_partial <- lm(resid_y ~ resid_x1)
+
+cat("Added Variable Plot for Age:\n")
+#> Added Variable Plot for Age:
+cat("============================\n\n")
+#> ============================
+cat("Slope from added variable plot:", round(coef(model_partial)[2], 4), "\n")
+#> Slope from added variable plot: 0.3996
+cat("Partial coefficient from full model:", round(coef(model_both)["Age"], 4), "\n")
+#> Partial coefficient from full model: 0.3996
+
+# Create plot
+avp_dt <- data.table(
+    resid_Age = resid_x1,
+    resid_SBP = resid_y
+)
+
+ggplot2$ggplot(avp_dt, ggplot2$aes(x = resid_Age, y = resid_SBP)) +
+    ggplot2$geom_point(alpha = 0.3, colour = "#666666") +
+    ggplot2$geom_smooth(method = "lm", colour = "#0072B2", se = TRUE) +
+    ggplot2$labs(
+        title = "Added Variable Plot: Age Effect (Controlling for BMI)",
+        subtitle = paste("Slope =", round(coef(model_partial)[2], 3),
+                        "= partial regression coefficient for Age"),
+        x = "Age Residuals (after removing BMI effect)",
+        y = "SBP Residuals (after removing BMI effect)"
+    ) +
+    ggplot2$theme_minimal()
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-2-intermediate/added_variable_plot-1.png" alt="Added variable plot showing partial regression">
+	Added variable plot showing partial regression
+</Figure>
+
+### 1.4.3 Standardised Coefficients
+
+**Prose and Intuition**
+
+Raw coefficients are in the units of their predictors, making comparison difficult. Is an Age coefficient of 0.5 mmHg/year "bigger" than a BMI coefficient of 1.0 mmHg per kg/m²?
+
+**Standardised coefficients** (or beta weights) solve this by converting all variables to z-scores first. The standardised coefficient is the change in $Y$ (in standard deviations) for a one standard deviation increase in $X_j$.
+
+**Mathematical Definition**
+
+The standardised coefficient for predictor $j$ is:
+$$\beta_j^* = \beta_j \cdot \frac{s_{X_j}}{s_Y}$$
+
+where $s_{X_j}$ and $s_Y$ are the sample standard deviations.
+
+
+``` r
+# Standardise variables
+bp_data_std <- bp_data[, .(
+    SBP = scale(SBP)[,1],
+    Age = scale(Age)[,1],
+    BMI = scale(BMI)[,1]
+)]
+
+# Fit model on standardised data
+model_std <- lm(SBP ~ Age + BMI, data = bp_data_std)
+
+cat("Standardised Coefficients (Beta Weights):\n")
+#> Standardised Coefficients (Beta Weights):
+cat("==========================================\n\n")
+#> ==========================================
+cat("From standardised data:\n")
+#> From standardised data:
+print(coef(model_std))
+#>  (Intercept)          Age          BMI 
+#> 2.533100e-15 4.082923e-01 1.098476e-01
+
+cat("\nManually calculated:\n")
+#> 
+#> Manually calculated:
+sd_SBP <- sd(bp_data$SBP)
+sd_Age <- sd(bp_data$Age)
+sd_BMI <- sd(bp_data$BMI)
+
+cat("  Age:", round(coef(model_both)["Age"] * sd_Age / sd_SBP, 4), "\n")
+#>   Age: 0.4083
+cat("  BMI:", round(coef(model_both)["BMI"] * sd_BMI / sd_SBP, 4), "\n")
+#>   BMI: 0.1098
+
+# Compare effect sizes
+effect_comparison <- data.table(
+    Predictor = c("Age", "BMI"),
+    Raw_Coefficient = c(coef(model_both)["Age"], coef(model_both)["BMI"]),
+    Standardised = c(coef(model_std)["Age"], coef(model_std)["BMI"]),
+    Abs_Standardised = abs(c(coef(model_std)["Age"], coef(model_std)["BMI"]))
+)
+effect_comparison <- effect_comparison[order(-Abs_Standardised)]
+
+cat("\nEffect Size Ranking:\n")
+#> 
+#> Effect Size Ranking:
+print(effect_comparison)
+#>    Predictor Raw_Coefficient Standardised Abs_Standardised
+#>       <char>           <num>        <num>            <num>
+#> 1:       Age       0.3995585    0.4082923        0.4082923
+#> 2:       BMI       0.2781984    0.1098476        0.1098476
+
+# Visualise
+ggplot2$ggplot(effect_comparison, ggplot2$aes(x = reorder(Predictor, Abs_Standardised),
+                                              y = Standardised, fill = Standardised > 0)) +
+    ggplot2$geom_col(width = 0.6) +
+    ggplot2$coord_flip() +
+    ggplot2$scale_fill_manual(values = c("TRUE" = "#009E73", "FALSE" = "#D55E00"), guide = "none") +
+    ggplot2$labs(
+        title = "Standardised Coefficients: Relative Effect Sizes",
+        subtitle = "Both variables positively associated with blood pressure",
+        x = NULL,
+        y = "Standardised Coefficient (SD change in SBP per SD change in predictor)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed")
+```
+
+<Figure src="/courses/statistics-2-intermediate/standardised_coefficients-1.png" alt="Comparing standardised coefficients">
+	Comparing standardised coefficients
+</Figure>
+
+---
+
+## 1.5 Model Assumptions
+
+### 1.5.1 The Classical Assumptions
+
+**Mathematical Definition**
+
+For valid inference (confidence intervals, hypothesis tests), the classical linear regression model assumes:
+
+1. **Linearity**: $E(\mathbf{Y}|\mathbf{X}) = \mathbf{X}\boldsymbol{\beta}$ — the conditional mean is linear in parameters.
+
+2. **Full rank**: $\mathbf{X}$ has full column rank (no perfect multicollinearity) — $(\mathbf{X}'\mathbf{X})^{-1}$ exists.
+
+3. **Exogeneity**: $E(\boldsymbol{\varepsilon}|\mathbf{X}) = \mathbf{0}$ — errors are uncorrelated with predictors.
+
+4. **Spherical errors**: $\text{Var}(\boldsymbol{\varepsilon}|\mathbf{X}) = \sigma^2 \mathbf{I}_n$ — errors have constant variance (homoscedasticity) and are uncorrelated.
+
+5. **Normality** (for finite-sample inference): $\boldsymbol{\varepsilon} \sim N(\mathbf{0}, \sigma^2 \mathbf{I}_n)$
+
+Assumptions 1–4 ensure that OLS is the **Best Linear Unbiased Estimator (BLUE)** — the Gauss-Markov theorem.
+
+
+``` r
+# Diagnostic plots
+par(mfrow = c(2, 2))
+
+# 1. Residuals vs Fitted (linearity, homoscedasticity)
+fitted_vals <- fitted(model_both)
+residuals_vals <- residuals(model_both)
+
+diag_dt <- data.table(
+    fitted = fitted_vals,
+    residuals = residuals_vals,
+    std_residuals = rstandard(model_both)
+)
+
+# Reset plotting
+par(mfrow = c(1, 1))
+
+# Create diagnostic plots with ggplot2
+p1 <- ggplot2$ggplot(diag_dt, ggplot2$aes(x = fitted, y = residuals)) +
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$labs(
+        title = "Residuals vs Fitted",
+        subtitle = "Check: No pattern (linearity), constant spread (homoscedasticity)",
+        x = "Fitted Values",
+        y = "Residuals"
+    ) +
+    ggplot2$theme_minimal()
+
+# 2. Q-Q plot (normality)
+p2 <- ggplot2$ggplot(diag_dt, ggplot2$aes(sample = std_residuals)) +
+    ggplot2$stat_qq(alpha = 0.3) +
+    ggplot2$stat_qq_line(colour = "#0072B2") +
+    ggplot2$labs(
+        title = "Normal Q-Q Plot",
+        subtitle = "Check: Points follow the line (normality)",
+        x = "Theoretical Quantiles",
+        y = "Standardised Residuals"
+    ) +
+    ggplot2$theme_minimal()
+
+# Print plots
+print(p1)
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-2-intermediate/assumptions_check-1.png" alt="Visual check of key assumptions">
+	Visual check of key assumptions
+</Figure>
+
+
+``` r
+print(p2)
+```
+
+<Figure src="/courses/statistics-2-intermediate/qq_plot-1.png" alt="Q-Q plot for normality assessment">
+	Q-Q plot for normality assessment
+</Figure>
+
+---
+
+## Communicating to Stakeholders
+
+### What to Report
+
+When presenting multiple regression results to clinical or policy audiences:
+
+**1. The Research Question:**
+"We investigated how age and BMI jointly predict systolic blood pressure in adults."
+
+**2. Key Findings in Plain Language:**
+- "Blood pressure increases with both age and BMI."
+- "Each additional year of age is associated with a 0.4 mmHg increase in systolic BP, after accounting for BMI."
+- "Each additional BMI unit is associated with a 0.3 mmHg increase, after accounting for age."
+
+**3. Confidence Intervals (not just point estimates):**
+
+
+``` r
+# Report with confidence intervals
+ci <- confint(model_both)
+summary_table <- data.table(
+    Variable = rownames(ci),
+    Estimate = round(coef(model_both), 2),
+    Lower_95CI = round(ci[, 1], 2),
+    Upper_95CI = round(ci[, 2], 2),
+    p_value = round(summary(model_both)$coefficients[, 4], 4)
+)
+
+cat("Results Table for Stakeholders:\n")
+#> Results Table for Stakeholders:
+cat("================================\n")
+#> ================================
+print(summary_table)
+#>       Variable Estimate Lower_95CI Upper_95CI p_value
+#>         <char>    <num>      <num>      <num>   <num>
+#> 1: (Intercept)    94.26      92.48      96.04       0
+#> 2:         Age     0.40       0.38       0.42       0
+#> 3:         BMI     0.28       0.23       0.33       0
+```
+
+**4. Model Fit:**
+"Together, age and BMI explain approximately 18% of the variance in blood pressure."
+
+**5. Limitations:**
+- "This is an observational study; we cannot conclude causation."
+- "Other factors not measured (e.g., diet, medications) may also influence blood pressure."
+
+---
+
+## Quick Reference
+
+### Matrix Notation
+
+| Symbol | Meaning | Dimensions |
+|--------|---------|------------|
+| $\mathbf{Y}$ | Response vector | $n \times 1$ |
+| $\mathbf{X}$ | Design matrix (with intercept column) | $n \times (p+1)$ |
+| $\boldsymbol{\beta}$ | Coefficient vector | $(p+1) \times 1$ |
+| $\boldsymbol{\varepsilon}$ | Error vector | $n \times 1$ |
+| $\mathbf{H}$ | Hat matrix | $n \times n$ |
+
+### Key Formulae
+
+| Formula | Description |
+|---------|-------------|
+| $\mathbf{Y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}$ | Matrix model |
+| $\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}$ | OLS estimator |
+| $\mathbf{H} = \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'$ | Hat matrix |
+| $\hat{\mathbf{Y}} = \mathbf{H}\mathbf{Y}$ | Fitted values |
+| $\mathbf{e} = \mathbf{Y} - \hat{\mathbf{Y}} = (\mathbf{I} - \mathbf{H})\mathbf{Y}$ | Residuals |
+| $\beta_j^* = \beta_j \cdot \frac{s_{X_j}}{s_Y}$ | Standardised coefficient |
+
+### R Code Patterns
+
+```r
+# Fit multiple regression
+model <- lm(Y ~ X1 + X2 + X3, data = mydata)
+
+# Design matrix
+X <- model.matrix(model)
+
+# Coefficients with CI
+coef(model)
+confint(model)
+
+# Manual OLS
+beta_hat <- solve(t(X) %*% X) %*% t(X) %*% Y
+
+# Hat matrix (small n only)
+H <- X %*% solve(t(X) %*% X) %*% t(X)
+leverage <- hatvalues(model)  # efficient version
+
+# Standardised coefficients
+scale_model <- lm(scale(Y) ~ scale(X1) + scale(X2), data = mydata)
+```

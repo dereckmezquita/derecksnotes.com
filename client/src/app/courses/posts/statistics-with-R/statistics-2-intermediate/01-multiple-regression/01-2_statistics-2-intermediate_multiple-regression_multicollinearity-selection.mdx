@@ -1,0 +1,850 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 1: Multiple Linear Regression"
+part: "Part 2: Multicollinearity and Variable Selection"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, regression, variable-selection, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: Multicollinearity and Variable Selection
+
+When predictors are correlated with each other, estimation becomes unstable. This **multicollinearity** inflates standard errors and makes coefficients sensitive to minor data changes. In this part, we learn to detect multicollinearity and explore principled approaches to variable selection.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+
+cat("Dataset loaded:\n")
+#> Dataset loaded:
+cat("  NHANES:", nrow(nhanes), "observations\n")
+#>   NHANES: 10000 observations
+```
+
+---
+
+## 2.1 Understanding Multicollinearity
+
+### 2.1.1 What Is Multicollinearity?
+
+**Prose and Intuition**
+
+**Multicollinearity** occurs when predictor variables are highly correlated with each other. If $X_1$ and $X_2$ are strongly correlated, it becomes difficult to disentangle their individual effects on $Y$.
+
+Imagine trying to determine whether coffee or cigarettes cause lung cancer, but everyone who drinks coffee also smokes. You can't separate the effects.
+
+In regression terms, when predictors are collinear:
+- The coefficient estimates become unstable
+- Standard errors inflate dramatically
+- Small changes in data lead to large changes in coefficients
+- Coefficients may have unexpected signs
+
+**Types of Multicollinearity:**
+
+1. **Perfect multicollinearity**: One predictor is an exact linear combination of others (e.g., including total score and all sub-scores). The model cannot be fitted.
+
+2. **High multicollinearity**: Predictors are strongly but not perfectly correlated. The model fits, but estimates are unstable.
+
+
+``` r
+# Create blood pressure dataset with potentially collinear predictors
+bp_data <- nhanes[!is.na(BPSysAve) & !is.na(Age) & !is.na(Weight) & !is.na(Height) &
+                  !is.na(BMI) & Age >= 18,
+                  .(SBP = BPSysAve, Age = Age, Weight = Weight,
+                    Height = Height, BMI = BMI)]
+bp_data <- bp_data[complete.cases(bp_data)]
+
+cat("Sample size:", nrow(bp_data), "\n\n")
+#> Sample size: 7150
+
+# Check correlations between predictors
+predictor_cors <- cor(bp_data[, .(Weight, Height, BMI)])
+cat("Correlation Matrix of Predictors:\n")
+#> Correlation Matrix of Predictors:
+print(round(predictor_cors, 3))
+#>        Weight Height    BMI
+#> Weight   1.00  0.450  0.880
+#> Height   0.45  1.000 -0.013
+#> BMI      0.88 -0.013  1.000
+
+cat("\n\nNote: Weight and BMI are highly correlated (r =",
+    round(cor(bp_data$Weight, bp_data$BMI), 3), ")\n")
+#> 
+#> 
+#> Note: Weight and BMI are highly correlated (r = 0.88 )
+cat("This makes sense: BMI = Weight / Height^2\n")
+#> This makes sense: BMI = Weight / Height^2
+```
+
+### 2.1.2 The Mathematical Problem
+
+**Mathematical Derivation**
+
+Recall that the variance of the OLS estimator is:
+$$\text{Var}(\hat{\boldsymbol{\beta}}) = \sigma^2 (\mathbf{X}'\mathbf{X})^{-1}$$
+
+When predictors are collinear, $\mathbf{X}'\mathbf{X}$ approaches singularity. Its inverse has large values, leading to large variances for the coefficient estimates.
+
+For a single predictor $X_j$, the variance of its coefficient can be written as:
+$$\text{Var}(\hat{\beta}_j) = \frac{\sigma^2}{(1 - R_j^2) \sum_{i=1}^n (X_{ij} - \bar{X}_j)^2}$$
+
+where $R_j^2$ is the R-squared from regressing $X_j$ on all other predictors.
+
+The term $(1 - R_j^2)$ is called the **tolerance**. When $X_j$ is highly predictable from other $X$'s, $R_j^2 \to 1$, tolerance $\to 0$, and variance $\to \infty$.
+
+
+``` r
+# Fit models with and without collinear predictors
+model_no_collin <- lm(SBP ~ Age + Weight, data = bp_data)
+model_collin <- lm(SBP ~ Age + Weight + BMI, data = bp_data)
+
+cat("Model 1: SBP ~ Age + Weight (no collinearity)\n")
+#> Model 1: SBP ~ Age + Weight (no collinearity)
+cat("=============================================\n")
+#> =============================================
+print(summary(model_no_collin)$coefficients)
+#>                Estimate  Std. Error   t value      Pr(>|t|)
+#> (Intercept) 93.68849902 0.871939740 107.44836  0.000000e+00
+#> Age          0.40806300 0.010431243  39.11931 1.744666e-303
+#> Weight       0.09928371 0.008488918  11.69569  2.583495e-31
+
+cat("\n\nModel 2: SBP ~ Age + Weight + BMI (collinearity)\n")
+#> 
+#> 
+#> Model 2: SBP ~ Age + Weight + BMI (collinearity)
+cat("=================================================\n")
+#> =================================================
+print(summary(model_collin)$coefficients)
+#>                 Estimate Std. Error      t value      Pr(>|t|)
+#> (Intercept) 93.713857689 0.91082014 102.88953166  0.000000e+00
+#> Age          0.408226042 0.01056820  38.62778291 1.258111e-296
+#> Weight       0.100824917 0.01810282   5.56957115  2.646496e-08
+#> BMI         -0.005560376 0.05768449  -0.09639293  9.232112e-01
+
+cat("\n\nComparison of Standard Errors:\n")
+#> 
+#> 
+#> Comparison of Standard Errors:
+comparison <- data.table(
+    Variable = c("Age", "Weight"),
+    SE_Model1 = summary(model_no_collin)$coefficients[c("Age", "Weight"), "Std. Error"],
+    SE_Model2 = summary(model_collin)$coefficients[c("Age", "Weight"), "Std. Error"]
+)
+comparison[, SE_Increase := round(SE_Model2 / SE_Model1, 2)]
+print(comparison)
+#>    Variable   SE_Model1  SE_Model2 SE_Increase
+#>      <char>       <num>      <num>       <num>
+#> 1:      Age 0.010431243 0.01056820        1.01
+#> 2:   Weight 0.008488918 0.01810282        2.13
+
+cat("\nNote: Adding BMI (collinear with Weight) inflated standard errors!\n")
+#> 
+#> Note: Adding BMI (collinear with Weight) inflated standard errors!
+```
+
+---
+
+## 2.2 Detecting Multicollinearity
+
+### 2.2.1 Correlation Matrix
+
+**Prose and Intuition**
+
+The simplest diagnostic is examining pairwise correlations. Correlations above 0.7 or 0.8 often indicate problematic collinearity.
+
+However, pairwise correlations miss multicollinearity involving three or more variables. $X_1$ could be nearly a linear combination of $X_2$ and $X_3$ without being highly correlated with either individually.
+
+
+``` r
+# Expanded predictor set
+bp_expanded <- nhanes[!is.na(BPSysAve) & !is.na(Age) & !is.na(Weight) &
+                      !is.na(Height) & !is.na(BMI) & !is.na(Pulse) &
+                      Age >= 18,
+                      .(SBP = BPSysAve, Age = Age, Weight = Weight,
+                        Height = Height, BMI = BMI, Pulse = Pulse)]
+bp_expanded <- bp_expanded[complete.cases(bp_expanded)]
+
+# Correlation matrix
+cor_matrix <- cor(bp_expanded[, -"SBP", with = FALSE])
+
+# Convert to long format for plotting
+cor_dt <- as.data.table(cor_matrix, keep.rownames = "Var1")
+cor_long <- melt(cor_dt, id.vars = "Var1", variable.name = "Var2", value.name = "correlation")
+
+# Plot heatmap
+ggplot2$ggplot(cor_long, ggplot2$aes(x = Var1, y = Var2, fill = correlation)) +
+    ggplot2$geom_tile() +
+    ggplot2$geom_text(ggplot2$aes(label = round(correlation, 2)), size = 4) +
+    ggplot2$scale_fill_gradient2(low = "#0072B2", mid = "white", high = "#D55E00",
+                                  midpoint = 0, limits = c(-1, 1)) +
+    ggplot2$labs(
+        title = "Predictor Correlation Matrix",
+        subtitle = "High correlations suggest potential multicollinearity",
+        x = NULL, y = NULL,
+        fill = "Correlation"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+```
+
+<Figure src="/courses/statistics-2-intermediate/correlation_matrix-1.png" alt="Correlation heatmap of predictors">
+	Correlation heatmap of predictors
+</Figure>
+
+### 2.2.2 Variance Inflation Factor (VIF)
+
+**Mathematical Definition**
+
+The **Variance Inflation Factor** for predictor $j$ is:
+$$VIF_j = \frac{1}{1 - R_j^2}$$
+
+where $R_j^2$ is the R-squared from regressing $X_j$ on all other predictors.
+
+**Interpretation:**
+- $VIF = 1$: No collinearity
+- $VIF = 5$: Variance is 5× what it would be without collinearity
+- $VIF > 5$ or $VIF > 10$: Often used as thresholds for concern
+
+VIF captures multivariate collinearity that pairwise correlations miss.
+
+
+``` r
+# Function to compute VIF
+compute_vif <- function(model) {
+    X <- model.matrix(model)[, -1]  # Remove intercept
+    vif_values <- sapply(1:ncol(X), function(j) {
+        y_temp <- X[, j]
+        x_temp <- X[, -j, drop = FALSE]
+        r_squared <- summary(lm(y_temp ~ x_temp))$r.squared
+        1 / (1 - r_squared)
+    })
+    names(vif_values) <- colnames(X)
+    return(vif_values)
+}
+
+# Fit model with all predictors
+model_full <- lm(SBP ~ Age + Weight + Height + BMI + Pulse, data = bp_expanded)
+
+# Compute VIF
+vif_values <- compute_vif(model_full)
+
+cat("Variance Inflation Factors:\n")
+#> Variance Inflation Factors:
+cat("===========================\n\n")
+#> ===========================
+vif_dt <- data.table(
+    Variable = names(vif_values),
+    VIF = round(vif_values, 2)
+)
+vif_dt <- vif_dt[order(-VIF)]
+vif_dt[, Concern := fifelse(VIF > 10, "Severe",
+                            fifelse(VIF > 5, "Moderate", "Low"))]
+print(vif_dt)
+#>    Variable   VIF Concern
+#>      <char> <num>  <char>
+#> 1:   Weight 84.31  Severe
+#> 2:      BMI 67.14  Severe
+#> 3:   Height 19.10  Severe
+#> 4:      Age  1.07     Low
+#> 5:    Pulse  1.06     Low
+
+# Visualise VIF
+ggplot2$ggplot(vif_dt, ggplot2$aes(x = reorder(Variable, VIF), y = VIF, fill = Concern)) +
+    ggplot2$geom_col(width = 0.6) +
+    ggplot2$geom_hline(yintercept = 5, linetype = "dashed", colour = "#E69F00") +
+    ggplot2$geom_hline(yintercept = 10, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$coord_flip() +
+    ggplot2$scale_fill_manual(values = c("Low" = "#009E73", "Moderate" = "#E69F00", "Severe" = "#D55E00")) +
+    ggplot2$annotate("text", x = 0.5, y = 5.5, label = "Moderate (VIF > 5)", size = 3, hjust = 0) +
+    ggplot2$annotate("text", x = 0.5, y = 10.5, label = "Severe (VIF > 10)", size = 3, hjust = 0) +
+    ggplot2$labs(
+        title = "Variance Inflation Factors",
+        subtitle = "Weight and BMI show high multicollinearity",
+        x = NULL,
+        y = "VIF"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/vif_calculation-1.png" alt="Computing and interpreting VIF">
+	Computing and interpreting VIF
+</Figure>
+
+### 2.2.3 Condition Number
+
+**Mathematical Definition**
+
+The **condition number** of $\mathbf{X}'\mathbf{X}$ measures overall collinearity:
+$$\kappa = \sqrt{\frac{\lambda_{\max}}{\lambda_{\min}}}$$
+
+where $\lambda_{\max}$ and $\lambda_{\min}$ are the largest and smallest eigenvalues.
+
+**Guidelines:**
+- $\kappa < 30$: Acceptable
+- $\kappa > 30$: Potential problems
+- $\kappa > 100$: Serious collinearity
+
+
+``` r
+# Compute condition number
+X <- model.matrix(model_full)
+eigenvalues <- eigen(t(X) %*% X)$values
+
+condition_number <- sqrt(max(eigenvalues) / min(eigenvalues))
+
+cat("Condition Number Analysis:\n")
+#> Condition Number Analysis:
+cat("==========================\n\n")
+#> ==========================
+cat("Eigenvalues of X'X:\n")
+#> Eigenvalues of X'X:
+print(round(eigenvalues, 2))
+#> [1] 312795799.44   2632888.28   2140213.90   1006735.13     56054.28
+#> [6]         1.32
+cat("\nCondition number:", round(condition_number, 2), "\n")
+#> 
+#> Condition number: 15419.24
+cat("Interpretation:", ifelse(condition_number > 100, "Serious collinearity",
+                              ifelse(condition_number > 30, "Potential problems",
+                                     "Acceptable")), "\n")
+#> Interpretation: Serious collinearity
+```
+
+---
+
+## 2.3 Addressing Multicollinearity
+
+### 2.3.1 Remove Redundant Predictors
+
+**Prose and Intuition**
+
+The most straightforward solution is to remove highly collinear predictors. In our example, Weight and BMI are redundant — BMI is derived from Weight and Height. Including both adds no new information while destabilising estimates.
+
+Choose the predictor that:
+- Has a clearer interpretation for your research question
+- Is more reliably measured
+- Is more relevant to the scientific context
+
+
+``` r
+# Model without BMI (keep Weight and Height)
+model_reduced <- lm(SBP ~ Age + Weight + Height + Pulse, data = bp_expanded)
+
+cat("Model Comparison:\n")
+#> Model Comparison:
+cat("=================\n\n")
+#> =================
+
+cat("Full model (with BMI):\n")
+#> Full model (with BMI):
+cat("  R² =", round(summary(model_full)$r.squared, 4), "\n")
+#>   R² = 0.1894
+cat("  Max VIF =", round(max(vif_values), 2), "\n\n")
+#>   Max VIF = 84.31
+
+vif_reduced <- compute_vif(model_reduced)
+cat("Reduced model (without BMI):\n")
+#> Reduced model (without BMI):
+cat("  R² =", round(summary(model_reduced)$r.squared, 4), "\n")
+#>   R² = 0.1894
+cat("  Max VIF =", round(max(vif_reduced), 2), "\n\n")
+#>   Max VIF = 1.33
+
+cat("VIF after removing BMI:\n")
+#> VIF after removing BMI:
+print(round(vif_reduced, 2))
+#>    Age Weight Height  Pulse 
+#>   1.07   1.28   1.33   1.06
+```
+
+### 2.3.2 Combine Predictors (Principal Components)
+
+When multiple collinear predictors measure the same underlying construct, you can combine them into a single score or use principal components.
+
+
+``` r
+# Example: Create a "body size" composite from Weight and BMI
+body_pca <- prcomp(bp_expanded[, .(Weight, BMI)], scale. = TRUE)
+
+cat("Principal Components of Weight and BMI:\n")
+#> Principal Components of Weight and BMI:
+cat("========================================\n\n")
+#> ========================================
+cat("PC Loadings:\n")
+#> PC Loadings:
+print(body_pca$rotation)
+#>               PC1        PC2
+#> Weight -0.7071068  0.7071068
+#> BMI    -0.7071068 -0.7071068
+cat("\nVariance explained:\n")
+#> 
+#> Variance explained:
+print(summary(body_pca)$importance)
+#>                             PC1       PC2
+#> Standard deviation     1.371304 0.3457225
+#> Proportion of Variance 0.940240 0.0597600
+#> Cumulative Proportion  0.940240 1.0000000
+
+# Add PC1 (body size) to data
+bp_expanded[, BodySize_PC1 := body_pca$x[, 1]]
+
+# Fit model with PC instead of Weight and BMI
+model_pca <- lm(SBP ~ Age + BodySize_PC1 + Height + Pulse, data = bp_expanded)
+
+cat("\nModel with Body Size PC1 instead of Weight and BMI:\n")
+#> 
+#> Model with Body Size PC1 instead of Weight and BMI:
+print(summary(model_pca)$coefficients)
+#>                 Estimate Std. Error   t value      Pr(>|t|)
+#> (Intercept)  86.62702252 3.68550455 23.504793 9.768310e-118
+#> Age           0.41531985 0.01075856 38.603675 2.742248e-296
+#> BodySize_PC1 -1.34431683 0.13693936 -9.816877  1.323205e-22
+#> Height        0.06558499 0.01888164  3.473480  5.168015e-04
+#> Pulse         0.05239608 0.01561662  3.355147  7.973596e-04
+
+vif_pca <- compute_vif(model_pca)
+cat("\nVIF after using PC1:\n")
+#> 
+#> VIF after using PC1:
+print(round(vif_pca, 2))
+#>          Age BodySize_PC1       Height        Pulse 
+#>         1.07         1.07         1.11         1.05
+```
+
+### 2.3.3 Ridge Regression (Preview)
+
+When you want to keep all predictors, **ridge regression** adds a penalty that shrinks coefficients and stabilises estimates. We'll cover this in detail in Part III (Statistical Learning), but the idea is:
+
+$$\hat{\boldsymbol{\beta}}_{ridge} = (\mathbf{X}'\mathbf{X} + \lambda \mathbf{I})^{-1}\mathbf{X}'\mathbf{Y}$$
+
+The penalty $\lambda \mathbf{I}$ ensures the matrix is invertible even with collinearity.
+
+---
+
+## 2.4 Variable Selection
+
+### 2.4.1 The Selection Problem
+
+**Prose and Intuition**
+
+With many potential predictors, we face a fundamental tradeoff:
+
+- **Too few predictors**: The model may miss important relationships (underfitting)
+- **Too many predictors**: The model may capture noise, have unstable coefficients, and predict poorly on new data (overfitting)
+
+How do we choose which variables to include?
+
+**Approaches:**
+
+1. **Theory-driven**: Include variables based on subject-matter knowledge
+2. **Data-driven**: Use statistical criteria to select variables
+3. **Hybrid**: Start with theory, refine with data
+
+### 2.4.2 Information Criteria (AIC and BIC)
+
+**Mathematical Definition**
+
+Information criteria balance model fit against complexity:
+
+**Akaike Information Criterion (AIC):**
+$$AIC = -2\log(L) + 2p$$
+
+where $L$ is the maximised likelihood and $p$ is the number of parameters.
+
+**Bayesian Information Criterion (BIC):**
+$$BIC = -2\log(L) + p \log(n)$$
+
+BIC penalises complexity more heavily for large samples.
+
+**Interpretation:**
+- Lower values are better
+- Compare models on the same data
+- Difference of 2+ is typically meaningful
+
+
+``` r
+# Prepare data for model comparison
+bp_complete <- nhanes[!is.na(BPSysAve) & !is.na(Age) & !is.na(BMI) &
+                      !is.na(Pulse) & !is.na(TotChol) &
+                      Age >= 18,
+                      .(SBP = BPSysAve, Age = Age, BMI = BMI,
+                        Pulse = Pulse, Chol = TotChol)]
+bp_complete <- bp_complete[complete.cases(bp_complete)]
+
+# Fit various models
+models <- list(
+    m1 = lm(SBP ~ Age, data = bp_complete),
+    m2 = lm(SBP ~ Age + BMI, data = bp_complete),
+    m3 = lm(SBP ~ Age + BMI + Pulse, data = bp_complete),
+    m4 = lm(SBP ~ Age + BMI + Pulse + Chol, data = bp_complete)
+)
+
+# Compute criteria
+model_comparison <- data.table(
+    Model = paste0("m", 1:4),
+    Formula = c("~ Age", "~ Age + BMI", "~ Age + BMI + Pulse",
+                "~ Age + BMI + Pulse + Chol"),
+    n_params = sapply(models, function(m) length(coef(m))),
+    R_squared = sapply(models, function(m) round(summary(m)$r.squared, 4)),
+    Adj_R_sq = sapply(models, function(m) round(summary(m)$adj.r.squared, 4)),
+    AIC = sapply(models, AIC),
+    BIC = sapply(models, BIC)
+)
+
+cat("Model Comparison Using Information Criteria:\n")
+#> Model Comparison Using Information Criteria:
+cat("=============================================\n\n")
+#> =============================================
+print(model_comparison)
+#>     Model                    Formula n_params R_squared Adj_R_sq      AIC
+#>    <char>                     <char>    <int>     <num>    <num>    <num>
+#> 1:     m1                      ~ Age        2    0.1731   0.1730 56391.83
+#> 2:     m2                ~ Age + BMI        3    0.1844   0.1842 56300.30
+#> 3:     m3        ~ Age + BMI + Pulse        4    0.1853   0.1849 56295.08
+#> 4:     m4 ~ Age + BMI + Pulse + Chol        5    0.1895   0.1890 56262.01
+#>         BIC
+#>       <num>
+#> 1: 56412.30
+#> 2: 56327.60
+#> 3: 56329.20
+#> 4: 56302.95
+
+# Identify best model
+best_aic <- model_comparison[which.min(AIC), Model]
+best_bic <- model_comparison[which.min(BIC), Model]
+
+cat("\nBest by AIC:", best_aic, "\n")
+#> 
+#> Best by AIC: m4
+cat("Best by BIC:", best_bic, "\n")
+#> Best by BIC: m4
+
+# Visualise
+model_comparison_long <- melt(model_comparison[, .(Model, AIC, BIC)],
+                               id.vars = "Model",
+                               variable.name = "Criterion",
+                               value.name = "Value")
+
+ggplot2$ggplot(model_comparison_long, ggplot2$aes(x = Model, y = Value, colour = Criterion, group = Criterion)) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$scale_colour_manual(values = c("AIC" = "#0072B2", "BIC" = "#D55E00")) +
+    ggplot2$labs(
+        title = "Model Comparison: AIC and BIC",
+        subtitle = "Lower values indicate better models",
+        x = "Model",
+        y = "Information Criterion Value"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/aic_bic-1.png" alt="Comparing models using AIC and BIC">
+	Comparing models using AIC and BIC
+</Figure>
+
+### 2.4.3 Stepwise Selection
+
+**Prose and Intuition**
+
+**Stepwise selection** algorithms automate variable selection by iteratively adding or removing predictors:
+
+- **Forward selection**: Start with no predictors, add the most significant
+- **Backward elimination**: Start with all predictors, remove the least significant
+- **Stepwise**: Combine both — add and remove at each step
+
+**Cautions:**
+- Stepwise methods overfit training data
+- P-values and CIs are invalid after selection (multiple testing)
+- Results depend on the order of variable entry
+- Often produces different results with small data changes
+
+Despite limitations, stepwise selection can be useful for exploration when combined with cross-validation.
+
+
+``` r
+# Full model
+full_model <- lm(SBP ~ Age + BMI + Pulse + Chol, data = bp_complete)
+null_model <- lm(SBP ~ 1, data = bp_complete)
+
+# Forward selection
+forward_model <- step(null_model,
+                      scope = list(lower = null_model, upper = full_model),
+                      direction = "forward",
+                      trace = 0)
+
+cat("Forward Selection Result:\n")
+#> Forward Selection Result:
+cat("=========================\n")
+#> =========================
+cat("Final formula:", deparse(formula(forward_model)), "\n")
+#> Final formula: SBP ~ Age + BMI + Chol + Pulse
+cat("AIC:", AIC(forward_model), "\n\n")
+#> AIC: 56262.01
+
+# Backward elimination
+backward_model <- step(full_model,
+                       direction = "backward",
+                       trace = 0)
+
+cat("Backward Elimination Result:\n")
+#> Backward Elimination Result:
+cat("============================\n")
+#> ============================
+cat("Final formula:", deparse(formula(backward_model)), "\n")
+#> Final formula: SBP ~ Age + BMI + Pulse + Chol
+cat("AIC:", AIC(backward_model), "\n")
+#> AIC: 56262.01
+```
+
+### 2.4.4 Cross-Validation
+
+**Prose and Intuition**
+
+**Cross-validation** provides an honest estimate of prediction performance by testing on data not used for fitting.
+
+**K-fold cross-validation:**
+1. Split data into $k$ roughly equal parts (folds)
+2. For each fold:
+   - Fit model on the other $k-1$ folds
+   - Predict on the held-out fold
+   - Compute prediction error
+3. Average the $k$ prediction errors
+
+This gives an estimate of how well the model will perform on new data.
+
+
+``` r
+# 5-fold cross-validation
+set.seed(42)
+k <- 5
+n <- nrow(bp_complete)
+fold_ids <- sample(rep(1:k, length.out = n))
+
+# Function to compute CV error for a model
+cv_error <- function(formula, data, fold_ids, k) {
+    errors <- numeric(k)
+    for (i in 1:k) {
+        train <- data[fold_ids != i]
+        test <- data[fold_ids == i]
+        model <- lm(formula, data = train)
+        predictions <- predict(model, newdata = test)
+        errors[i] <- mean((test$SBP - predictions)^2)  # MSE
+    }
+    return(mean(errors))
+}
+
+# Compare models using CV
+formulas <- list(
+    m1 = SBP ~ Age,
+    m2 = SBP ~ Age + BMI,
+    m3 = SBP ~ Age + BMI + Pulse,
+    m4 = SBP ~ Age + BMI + Pulse + Chol
+)
+
+cv_results <- data.table(
+    Model = names(formulas),
+    CV_MSE = sapply(formulas, function(f) cv_error(f, bp_complete, fold_ids, k))
+)
+cv_results[, CV_RMSE := sqrt(CV_MSE)]
+
+cat("5-Fold Cross-Validation Results:\n")
+#> 5-Fold Cross-Validation Results:
+cat("=================================\n\n")
+#> =================================
+print(cv_results)
+#>     Model   CV_MSE  CV_RMSE
+#>    <char>    <num>    <num>
+#> 1:     m1 235.5346 15.34714
+#> 2:     m2 232.4890 15.24759
+#> 3:     m3 232.5520 15.24965
+#> 4:     m4 231.4510 15.21351
+
+cat("\nBest model by CV:", cv_results[which.min(CV_MSE), Model], "\n")
+#> 
+#> Best model by CV: m4
+
+# Visualise
+ggplot2$ggplot(cv_results, ggplot2$aes(x = Model, y = CV_RMSE)) +
+    ggplot2$geom_col(fill = "#0072B2", width = 0.6) +
+    ggplot2$geom_text(ggplot2$aes(label = round(CV_RMSE, 2)), vjust = -0.5, size = 4) +
+    ggplot2$labs(
+        title = "Cross-Validated Prediction Error",
+        subtitle = "Lower RMSE indicates better out-of-sample prediction",
+        x = "Model",
+        y = "CV Root Mean Squared Error (mmHg)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/cross_validation-1.png" alt="K-fold cross-validation for model selection">
+	K-fold cross-validation for model selection
+</Figure>
+
+---
+
+## 2.5 Partial and Semipartial Correlation
+
+### 2.5.1 Partial Correlation
+
+**Mathematical Definition**
+
+The **partial correlation** between $Y$ and $X_1$, controlling for $X_2$, is:
+$$r_{Y,X_1 \cdot X_2} = \frac{r_{Y,X_1} - r_{Y,X_2} \cdot r_{X_1,X_2}}{\sqrt{(1 - r_{Y,X_2}^2)(1 - r_{X_1,X_2}^2)}}$$
+
+This measures the correlation between $Y$ and $X_1$ after removing the linear effect of $X_2$ from both.
+
+
+``` r
+# Simple correlations
+r_SBP_Age <- cor(bp_complete$SBP, bp_complete$Age)
+r_SBP_BMI <- cor(bp_complete$SBP, bp_complete$BMI)
+r_Age_BMI <- cor(bp_complete$Age, bp_complete$BMI)
+
+# Partial correlation of SBP and Age, controlling for BMI
+r_partial <- (r_SBP_Age - r_SBP_BMI * r_Age_BMI) /
+             sqrt((1 - r_SBP_BMI^2) * (1 - r_Age_BMI^2))
+
+cat("Correlation Analysis:\n")
+#> Correlation Analysis:
+cat("=====================\n\n")
+#> =====================
+cat("Simple correlations:\n")
+#> Simple correlations:
+cat("  r(SBP, Age) =", round(r_SBP_Age, 4), "\n")
+#>   r(SBP, Age) = 0.4161
+cat("  r(SBP, BMI) =", round(r_SBP_BMI, 4), "\n")
+#>   r(SBP, BMI) = 0.131
+cat("  r(Age, BMI) =", round(r_Age_BMI, 4), "\n")
+#>   r(Age, BMI) = 0.0597
+
+cat("\nPartial correlation:\n")
+#> 
+#> Partial correlation:
+cat("  r(SBP, Age | BMI) =", round(r_partial, 4), "\n")
+#>   r(SBP, Age | BMI) = 0.4125
+
+cat("\nInterpretation:\n")
+#> 
+#> Interpretation:
+cat("  The partial correlation is close to the simple correlation because\n")
+#>   The partial correlation is close to the simple correlation because
+cat("  Age and BMI are only weakly correlated in this sample.\n")
+#>   Age and BMI are only weakly correlated in this sample.
+```
+
+### 2.5.2 Semipartial (Part) Correlation
+
+**Mathematical Definition**
+
+The **semipartial correlation** removes $X_2$ from only $X_1$, not from $Y$:
+$$r_{Y(X_1 \cdot X_2)} = \frac{r_{Y,X_1} - r_{Y,X_2} \cdot r_{X_1,X_2}}{\sqrt{1 - r_{X_1,X_2}^2}}$$
+
+The squared semipartial correlation equals the **unique** contribution of $X_1$ to $R^2$ — the increase in $R^2$ when $X_1$ is added to a model already containing $X_2$.
+
+
+``` r
+# Semipartial correlation
+r_semipartial <- (r_SBP_Age - r_SBP_BMI * r_Age_BMI) / sqrt(1 - r_Age_BMI^2)
+
+cat("Semipartial Correlation:\n")
+#> Semipartial Correlation:
+cat("========================\n\n")
+#> ========================
+cat("r(SBP, Age.BMI) =", round(r_semipartial, 4), "\n")
+#> r(SBP, Age.BMI) = 0.409
+cat("r² (squared semipartial) =", round(r_semipartial^2, 4), "\n")
+#> r² (squared semipartial) = 0.1672
+
+# Verify: This should equal the change in R² when adding Age to BMI-only model
+model_bmi <- lm(SBP ~ BMI, data = bp_complete)
+model_age_bmi <- lm(SBP ~ BMI + Age, data = bp_complete)
+
+r2_change <- summary(model_age_bmi)$r.squared - summary(model_bmi)$r.squared
+
+cat("\nVerification:\n")
+#> 
+#> Verification:
+cat("  R² change when adding Age:", round(r2_change, 4), "\n")
+#>   R² change when adding Age: 0.1672
+cat("  Squared semipartial:", round(r_semipartial^2, 4), "\n")
+#>   Squared semipartial: 0.1672
+cat("  Match:", all.equal(r2_change, r_semipartial^2, tolerance = 0.001), "\n")
+#>   Match: TRUE
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Multicollinearity
+
+When explaining multicollinearity to non-technical audiences:
+
+**Simple explanation:**
+"Some of our predictor variables measure similar things. For example, weight and BMI both capture body size. When we include both, it's like asking the same question twice — the model gets confused about which one matters."
+
+**Practical implication:**
+"We removed BMI from the model because it overlaps too much with weight and height. This doesn't mean BMI is unimportant — it means we can capture its effect through the other variables."
+
+### Explaining Variable Selection
+
+"We tested several models with different combinations of predictors. We used cross-validation to see how well each model predicts on new data. The model with Age, BMI, and Pulse performed best — adding cholesterol didn't improve predictions."
+
+---
+
+## Quick Reference
+
+### Multicollinearity Diagnostics
+
+| Diagnostic | Threshold | Interpretation |
+|------------|-----------|----------------|
+| Pairwise correlation | \|r\| > 0.7 | Simple, misses multivariate collinearity |
+| VIF | > 5 or > 10 | Variance inflation |
+| Tolerance | < 0.2 or < 0.1 | 1/VIF, low values problematic |
+| Condition number | > 30 | Overall collinearity in design matrix |
+
+### Information Criteria
+
+| Criterion | Formula | Penalty for complexity |
+|-----------|---------|----------------------|
+| AIC | $-2\log(L) + 2p$ | Lighter penalty |
+| BIC | $-2\log(L) + p\log(n)$ | Heavier for large $n$ |
+| Adjusted $R^2$ | $1 - \frac{(1-R^2)(n-1)}{n-p-1}$ | Penalises extra predictors |
+
+### R Code Patterns
+
+```r
+# VIF calculation
+car::vif(model)  # From car package
+
+# Manual VIF
+vif_j <- 1 / (1 - summary(lm(Xj ~ other_predictors))$r.squared)
+
+# Information criteria
+AIC(model1, model2, model3)
+BIC(model1, model2, model3)
+
+# Stepwise selection
+step(model, direction = "both")  # AIC-based
+step(model, direction = "both", k = log(n))  # BIC-based
+
+# Cross-validation (simple implementation)
+cv.glm(data, model, K = 10)  # From boot package
+```

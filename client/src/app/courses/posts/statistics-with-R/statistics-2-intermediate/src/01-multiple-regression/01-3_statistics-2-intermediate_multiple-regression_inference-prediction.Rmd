@@ -1,0 +1,744 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 1: Multiple Linear Regression"
+part: "Part 3: Inference and Prediction"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, regression, inference, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 3: Inference and Prediction
+
+Having established how to fit and interpret multiple regression models, we now turn to inference: testing hypotheses about coefficients, constructing confidence intervals, and making predictions. We'll derive the sampling distributions of our estimators and understand when the classical assumptions are crucial.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+
+# Prepare blood pressure data
+bp_data <- nhanes[!is.na(BPSysAve) & !is.na(Age) & !is.na(BMI) &
+                  !is.na(Pulse) & Age >= 18,
+                  .(SBP = BPSysAve, Age = Age, BMI = BMI, Pulse = Pulse)]
+bp_data <- bp_data[complete.cases(bp_data)]
+
+cat("Dataset prepared:\n")
+cat("  n =", nrow(bp_data), "observations\n")
+```
+
+---
+
+## 3.1 Sampling Distribution of the OLS Estimator
+
+### 3.1.1 Properties Under Classical Assumptions
+
+**Mathematical Derivation**
+
+Under the classical assumptions (linearity, exogeneity, spherical errors, normality), the OLS estimator has a known sampling distribution.
+
+Recall:
+$$\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{Y}$$
+
+Substituting $\mathbf{Y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}$:
+\begin{align}
+\hat{\boldsymbol{\beta}} &= (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'(\mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}) \\
+&= (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{X}\boldsymbol{\beta} + (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\boldsymbol{\varepsilon} \\
+&= \boldsymbol{\beta} + (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\boldsymbol{\varepsilon}
+\end{align}
+
+**Unbiasedness:**
+$$E(\hat{\boldsymbol{\beta}}) = \boldsymbol{\beta} + (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'E(\boldsymbol{\varepsilon}) = \boldsymbol{\beta}$$
+
+since $E(\boldsymbol{\varepsilon}) = \mathbf{0}$.
+
+**Variance:**
+\begin{align}
+\text{Var}(\hat{\boldsymbol{\beta}}) &= (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}' \text{Var}(\boldsymbol{\varepsilon}) \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1} \\
+&= (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}' \sigma^2\mathbf{I} \mathbf{X}(\mathbf{X}'\mathbf{X})^{-1} \\
+&= \sigma^2 (\mathbf{X}'\mathbf{X})^{-1}
+\end{align}
+
+**Normality:**
+Since $\hat{\boldsymbol{\beta}}$ is a linear combination of the normal errors $\boldsymbol{\varepsilon}$:
+$$\hat{\boldsymbol{\beta}} \sim N(\boldsymbol{\beta}, \sigma^2(\mathbf{X}'\mathbf{X})^{-1})$$
+
+```{r sampling_distribution, fig.cap="Simulating the sampling distribution of OLS estimates"}
+# Demonstrate sampling distribution through simulation
+set.seed(42)
+
+# True parameters
+beta_true <- c(100, 0.5, 0.8, -0.1)  # Intercept, Age, BMI, Pulse
+sigma_true <- 15
+
+# Simulation settings
+n_sim <- 1000
+n_obs <- 200
+
+# Storage for coefficient estimates
+beta_estimates <- matrix(NA, nrow = n_sim, ncol = 4)
+colnames(beta_estimates) <- c("Intercept", "Age", "BMI", "Pulse")
+
+# Simulate
+for (i in 1:n_sim) {
+    # Generate predictors (fixed across simulations for demonstration)
+    if (i == 1) {
+        X_Age <- runif(n_obs, 20, 80)
+        X_BMI <- rnorm(n_obs, 27, 5)
+        X_Pulse <- rnorm(n_obs, 75, 12)
+    }
+
+    # Generate response with noise
+    Y <- beta_true[1] + beta_true[2] * X_Age + beta_true[3] * X_BMI +
+         beta_true[4] * X_Pulse + rnorm(n_obs, 0, sigma_true)
+
+    # Fit model
+    sim_data <- data.table(Y = Y, Age = X_Age, BMI = X_BMI, Pulse = X_Pulse)
+    model <- lm(Y ~ Age + BMI + Pulse, data = sim_data)
+    beta_estimates[i, ] <- coef(model)
+}
+
+# Summarise
+sim_results <- data.table(
+    Parameter = colnames(beta_estimates),
+    True_Value = beta_true,
+    Mean_Estimate = colMeans(beta_estimates),
+    SD_Estimate = apply(beta_estimates, 2, sd)
+)
+sim_results[, Bias := Mean_Estimate - True_Value]
+
+cat("Simulation Results (n_sim =", n_sim, ", n_obs =", n_obs, "):\n")
+cat("=======================================================\n\n")
+print(sim_results)
+
+# Visualise sampling distribution for Age coefficient
+beta_age_dt <- data.table(beta_Age = beta_estimates[, "Age"])
+
+ggplot2$ggplot(beta_age_dt, ggplot2$aes(x = beta_Age)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ggplot2$after_stat(density)),
+                           bins = 40, fill = "#0072B2", alpha = 0.7) +
+    ggplot2$geom_density(colour = "#D55E00", size = 1) +
+    ggplot2$geom_vline(xintercept = beta_true[2], colour = "#009E73",
+                       linetype = "dashed", size = 1.2) +
+    ggplot2$annotate("text", x = beta_true[2], y = Inf, label = "True value",
+                     vjust = 2, colour = "#009E73", fontface = "bold") +
+    ggplot2$labs(
+        title = "Sampling Distribution of β̂_Age",
+        subtitle = paste("Based on", n_sim, "simulations with n =", n_obs),
+        x = expression(hat(beta)[Age]),
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 3.1.2 Estimating the Error Variance
+
+**Mathematical Derivation**
+
+We don't know $\sigma^2$, so we estimate it using the residual sum of squares:
+$$\hat{\sigma}^2 = s^2 = \frac{\sum_{i=1}^n e_i^2}{n - p - 1} = \frac{\mathbf{e}'\mathbf{e}}{n - p - 1}$$
+
+We divide by $n - p - 1$ (degrees of freedom) rather than $n$ because:
+1. The residuals sum to zero (lose 1 df for intercept)
+2. Each additional predictor "uses up" one more df
+
+This estimator is unbiased: $E(s^2) = \sigma^2$.
+
+```{r estimate_sigma, fig.cap="Estimating the error variance"}
+# Fit model on real data
+model <- lm(SBP ~ Age + BMI + Pulse, data = bp_data)
+
+# Extract residuals
+residuals <- residuals(model)
+n <- nrow(bp_data)
+p <- 3  # number of predictors (not counting intercept)
+
+# Compute s²
+s_squared <- sum(residuals^2) / (n - p - 1)
+s <- sqrt(s_squared)
+
+cat("Error Variance Estimation:\n")
+cat("==========================\n\n")
+cat("Sum of squared residuals:", round(sum(residuals^2), 2), "\n")
+cat("Degrees of freedom (n - p - 1):", n - p - 1, "\n")
+cat("Estimated σ² (s²):", round(s_squared, 4), "\n")
+cat("Estimated σ (s):", round(s, 4), "\n")
+cat("\nFrom model summary:", round(summary(model)$sigma, 4), "\n")
+```
+
+---
+
+## 3.2 Hypothesis Tests for Individual Coefficients
+
+### 3.2.1 The t-Test
+
+**Mathematical Derivation**
+
+To test $H_0: \beta_j = 0$ vs $H_A: \beta_j \neq 0$, we use the t-statistic:
+$$t_j = \frac{\hat{\beta}_j - 0}{SE(\hat{\beta}_j)}$$
+
+Under $H_0$, this follows a t-distribution with $n - p - 1$ degrees of freedom.
+
+The standard error of $\hat{\beta}_j$ is:
+$$SE(\hat{\beta}_j) = s \sqrt{[(\mathbf{X}'\mathbf{X})^{-1}]_{jj}}$$
+
+where $[(\mathbf{X}'\mathbf{X})^{-1}]_{jj}$ is the $j$-th diagonal element.
+
+```{r t_test, fig.cap="t-tests for individual coefficients"}
+# Get full summary
+model_summary <- summary(model)
+
+cat("Coefficient Tests:\n")
+cat("==================\n\n")
+print(model_summary$coefficients)
+
+# Manual calculation for Age coefficient
+X <- model.matrix(model)
+XtX_inv <- solve(t(X) %*% X)
+se_age <- s * sqrt(XtX_inv["Age", "Age"])
+t_age <- coef(model)["Age"] / se_age
+
+cat("\nManual calculation for Age:\n")
+cat("  Coefficient:", round(coef(model)["Age"], 5), "\n")
+cat("  SE:", round(se_age, 5), "\n")
+cat("  t-statistic:", round(t_age, 4), "\n")
+cat("  p-value:", format.pval(2 * pt(abs(t_age), df = n - p - 1, lower.tail = FALSE)), "\n")
+```
+
+### 3.2.2 Confidence Intervals for Coefficients
+
+**Mathematical Definition**
+
+A $(1 - \alpha)$% confidence interval for $\beta_j$ is:
+$$\hat{\beta}_j \pm t_{n-p-1, \alpha/2} \cdot SE(\hat{\beta}_j)$$
+
+```{r confidence_intervals, fig.cap="Confidence intervals for coefficients"}
+# Get confidence intervals
+ci <- confint(model)
+
+# Create summary table
+ci_table <- data.table(
+    Variable = rownames(ci),
+    Estimate = coef(model),
+    SE = model_summary$coefficients[, "Std. Error"],
+    Lower_95 = ci[, 1],
+    Upper_95 = ci[, 2],
+    p_value = model_summary$coefficients[, "Pr(>|t|)"]
+)
+
+cat("Coefficient Estimates with 95% Confidence Intervals:\n")
+cat("=====================================================\n\n")
+print(ci_table)
+
+# Visualise (forest plot style)
+ci_plot <- ci_table[Variable != "(Intercept)"]
+
+ggplot2$ggplot(ci_plot, ggplot2$aes(x = Estimate, y = Variable)) +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "gray50") +
+    ggplot2$geom_errorbarh(ggplot2$aes(xmin = Lower_95, xmax = Upper_95),
+                           height = 0.2, colour = "#0072B2", size = 1) +
+    ggplot2$geom_point(size = 3, colour = "#D55E00") +
+    ggplot2$labs(
+        title = "Coefficient Estimates with 95% Confidence Intervals",
+        subtitle = "Forest plot: intervals crossing zero indicate non-significance",
+        x = "Coefficient Estimate",
+        y = NULL
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 3.3 Testing Multiple Coefficients: The F-Test
+
+### 3.3.1 The Overall F-Test
+
+**Prose and Intuition**
+
+The individual t-tests tell us whether each predictor is significant *given the other predictors*. But we often want to test whether *any* of the predictors matter at all.
+
+The overall F-test answers: "Is this model better than just using the mean?"
+
+$H_0$: $\beta_1 = \beta_2 = \cdots = \beta_p = 0$ (all slopes are zero)
+$H_A$: At least one $\beta_j \neq 0$
+
+**Mathematical Derivation**
+
+The F-statistic compares explained vs unexplained variance:
+$$F = \frac{SSR / p}{SSE / (n - p - 1)} = \frac{MSR}{MSE}$$
+
+where:
+- $SSR = \sum(\hat{Y}_i - \bar{Y})^2$ is the regression sum of squares
+- $SSE = \sum(Y_i - \hat{Y}_i)^2$ is the error sum of squares
+- $MSR = SSR/p$ is the mean square regression
+- $MSE = SSE/(n-p-1)$ is the mean square error
+
+Under $H_0$, $F \sim F_{p, n-p-1}$.
+
+```{r f_test, fig.cap="The overall F-test"}
+# ANOVA table
+anova_table <- anova(model)
+
+cat("Analysis of Variance Table:\n")
+cat("===========================\n\n")
+print(anova_table)
+
+# Compute F-statistic manually
+SST <- sum((bp_data$SBP - mean(bp_data$SBP))^2)
+SSE <- sum(residuals(model)^2)
+SSR <- SST - SSE
+
+df_regression <- p
+df_error <- n - p - 1
+
+MSR <- SSR / df_regression
+MSE <- SSE / df_error
+F_stat <- MSR / MSE
+
+cat("\nManual Calculation:\n")
+cat("  SST (total):", round(SST, 2), "\n")
+cat("  SSR (regression):", round(SSR, 2), "\n")
+cat("  SSE (error):", round(SSE, 2), "\n")
+cat("  MSR:", round(MSR, 2), "\n")
+cat("  MSE:", round(MSE, 2), "\n")
+cat("  F-statistic:", round(F_stat, 4), "\n")
+cat("  p-value:", format.pval(pf(F_stat, df_regression, df_error, lower.tail = FALSE)), "\n")
+
+cat("\nFrom model summary:\n")
+cat("  F-statistic:", round(summary(model)$fstatistic[1], 4), "\n")
+```
+
+### 3.3.2 Partial F-Tests (Nested Model Comparison)
+
+**Prose and Intuition**
+
+We can also test whether a *subset* of predictors contributes significantly by comparing nested models.
+
+$H_0$: The reduced model is adequate
+$H_A$: The full model is better
+
+```{r partial_f_test, fig.cap="Comparing nested models with partial F-test"}
+# Full model: SBP ~ Age + BMI + Pulse
+# Reduced model: SBP ~ Age
+
+model_full <- lm(SBP ~ Age + BMI + Pulse, data = bp_data)
+model_reduced <- lm(SBP ~ Age, data = bp_data)
+
+# ANOVA comparison
+anova_comparison <- anova(model_reduced, model_full)
+
+cat("Nested Model Comparison:\n")
+cat("========================\n\n")
+cat("Reduced model: SBP ~ Age\n")
+cat("Full model: SBP ~ Age + BMI + Pulse\n\n")
+print(anova_comparison)
+
+# Manual calculation
+SSE_full <- sum(residuals(model_full)^2)
+SSE_reduced <- sum(residuals(model_reduced)^2)
+df_full <- n - 4  # n - (p+1)
+df_reduced <- n - 2
+
+# Extra SS due to BMI and Pulse
+extra_SS <- SSE_reduced - SSE_full
+extra_df <- df_reduced - df_full
+
+F_partial <- (extra_SS / extra_df) / (SSE_full / df_full)
+
+cat("\nManual Calculation:\n")
+cat("  SSE (reduced):", round(SSE_reduced, 2), "\n")
+cat("  SSE (full):", round(SSE_full, 2), "\n")
+cat("  Extra SS:", round(extra_SS, 2), "\n")
+cat("  Extra df:", extra_df, "\n")
+cat("  F-statistic:", round(F_partial, 4), "\n")
+cat("  p-value:", format.pval(pf(F_partial, extra_df, df_full, lower.tail = FALSE)), "\n")
+```
+
+---
+
+## 3.4 Prediction
+
+### 3.4.1 Point Predictions
+
+**Prose and Intuition**
+
+Given new predictor values $\mathbf{x}_0 = (1, x_{01}, x_{02}, \ldots, x_{0p})'$, the predicted response is:
+$$\hat{Y}_0 = \mathbf{x}_0' \hat{\boldsymbol{\beta}}$$
+
+This is straightforward: plug in the values and compute.
+
+```{r point_prediction}
+# Create new observations for prediction
+new_data <- data.table(
+    Age = c(30, 50, 70),
+    BMI = c(22, 28, 32),
+    Pulse = c(65, 75, 85)
+)
+
+# Point predictions
+predictions <- predict(model, newdata = new_data)
+
+cat("Point Predictions:\n")
+cat("==================\n\n")
+new_data[, Predicted_SBP := round(predictions, 1)]
+print(new_data)
+```
+
+### 3.4.2 Confidence vs Prediction Intervals
+
+**Prose and Intuition**
+
+There are two types of intervals for predictions:
+
+1. **Confidence interval for the mean response**: Where does the *average* response for people with these predictors lie? (Narrow)
+
+2. **Prediction interval for an individual response**: Where will a *specific individual's* response lie? (Wide)
+
+The prediction interval is always wider because it includes individual variation around the mean.
+
+**Mathematical Derivation**
+
+**Confidence interval for $E(Y | \mathbf{x}_0)$:**
+$$\hat{Y}_0 \pm t_{n-p-1, \alpha/2} \cdot s \sqrt{\mathbf{x}_0'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_0}$$
+
+**Prediction interval for an individual $Y_0$:**
+$$\hat{Y}_0 \pm t_{n-p-1, \alpha/2} \cdot s \sqrt{1 + \mathbf{x}_0'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_0}$$
+
+The extra "1" under the square root accounts for the variance of the individual error term $\varepsilon_0$.
+
+```{r prediction_intervals, fig.cap="Confidence vs prediction intervals"}
+# Get both types of intervals
+conf_int <- predict(model, newdata = new_data, interval = "confidence")
+pred_int <- predict(model, newdata = new_data, interval = "prediction")
+
+intervals_dt <- cbind(
+    new_data[, .(Age, BMI, Pulse)],
+    data.table(
+        Prediction = conf_int[, "fit"],
+        CI_Lower = conf_int[, "lwr"],
+        CI_Upper = conf_int[, "upr"],
+        PI_Lower = pred_int[, "lwr"],
+        PI_Upper = pred_int[, "upr"]
+    )
+)
+
+cat("Confidence Intervals (for mean response) vs\n")
+cat("Prediction Intervals (for individual response):\n")
+cat("================================================\n\n")
+print(intervals_dt)
+
+# Visualise across a range of ages
+age_range <- data.table(
+    Age = seq(20, 80, by = 2),
+    BMI = mean(bp_data$BMI),
+    Pulse = mean(bp_data$Pulse)
+)
+
+conf_range <- predict(model, newdata = age_range, interval = "confidence")
+pred_range <- predict(model, newdata = age_range, interval = "prediction")
+
+plot_dt <- cbind(age_range, as.data.table(conf_range))
+setnames(plot_dt, c("fit", "lwr", "upr"), c("Predicted", "CI_lower", "CI_upper"))
+plot_dt[, PI_lower := pred_range[, "lwr"]]
+plot_dt[, PI_upper := pred_range[, "upr"]]
+
+ggplot2$ggplot(plot_dt, ggplot2$aes(x = Age)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = PI_lower, ymax = PI_upper),
+                        fill = "#56B4E9", alpha = 0.3) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = CI_lower, ymax = CI_upper),
+                        fill = "#0072B2", alpha = 0.5) +
+    ggplot2$geom_line(ggplot2$aes(y = Predicted), colour = "#D55E00", size = 1.2) +
+    ggplot2$labs(
+        title = "Confidence vs Prediction Intervals",
+        subtitle = "BMI and Pulse held at their means",
+        x = "Age (years)",
+        y = "Systolic Blood Pressure (mmHg)",
+        caption = "Dark band: 95% CI for mean | Light band: 95% PI for individual"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 3.4.3 Extrapolation Warning
+
+**Prose and Intuition**
+
+Regression models are only reliable within the range of the training data. Predicting outside this range (**extrapolation**) is dangerous because:
+
+1. The linear relationship may not hold
+2. There's no data to validate predictions
+3. Standard errors don't capture this extra uncertainty
+
+```{r extrapolation, fig.cap="The danger of extrapolation"}
+# Show the data range
+cat("Predictor Ranges in Training Data:\n")
+cat("===================================\n\n")
+cat("Age:", min(bp_data$Age), "-", max(bp_data$Age), "\n")
+cat("BMI:", round(min(bp_data$BMI), 1), "-", round(max(bp_data$BMI), 1), "\n")
+cat("Pulse:", round(min(bp_data$Pulse), 1), "-", round(max(bp_data$Pulse), 1), "\n")
+
+# Predict at extreme values
+extreme_data <- data.table(
+    Description = c("Young healthy", "Very elderly", "Extreme obesity",
+                    "Within range", "Extreme extrapolation"),
+    Age = c(18, 100, 40, 50, 120),
+    BMI = c(20, 25, 60, 27, 25),
+    Pulse = c(60, 80, 80, 75, 80)
+)
+
+pred_extreme <- predict(model, newdata = extreme_data, interval = "prediction")
+extreme_data[, `:=`(
+    Predicted = round(pred_extreme[, "fit"], 1),
+    PI_Lower = round(pred_extreme[, "lwr"], 1),
+    PI_Upper = round(pred_extreme[, "upr"], 1),
+    In_Range = Age >= min(bp_data$Age) & Age <= max(bp_data$Age) &
+               BMI >= min(bp_data$BMI) & BMI <= max(bp_data$BMI) &
+               Pulse >= min(bp_data$Pulse) & Pulse <= max(bp_data$Pulse)
+)]
+
+cat("\n\nPredictions (Including Extrapolation):\n")
+cat("=======================================\n\n")
+print(extreme_data)
+
+cat("\n[WARNING] Predictions for observations outside training range are unreliable!\n")
+```
+
+---
+
+## 3.5 Coefficient of Determination (R²) and Adjusted R²
+
+### 3.5.1 R² Interpretation
+
+**Mathematical Definition**
+
+$$R^2 = 1 - \frac{SSE}{SST} = \frac{SSR}{SST}$$
+
+$R^2$ represents the proportion of variance in $Y$ explained by the predictors.
+
+**Properties:**
+- $0 \leq R^2 \leq 1$
+- $R^2 = 0$: Model explains nothing (horizontal line)
+- $R^2 = 1$: Model explains everything (perfect fit)
+- Adding predictors never decreases $R^2$
+
+### 3.5.2 Adjusted R²
+
+**Prose and Intuition**
+
+Because $R^2$ always increases with more predictors (even useless ones), we adjust for the number of parameters:
+
+$$R^2_{adj} = 1 - \frac{SSE/(n-p-1)}{SST/(n-1)} = 1 - \frac{(1-R^2)(n-1)}{n-p-1}$$
+
+Adjusted $R^2$ can decrease when adding uninformative predictors.
+
+```{r r_squared, fig.cap="R² vs Adjusted R² as predictors are added"}
+# Build models sequentially
+models <- list(
+    m0 = lm(SBP ~ 1, data = bp_data),
+    m1 = lm(SBP ~ Age, data = bp_data),
+    m2 = lm(SBP ~ Age + BMI, data = bp_data),
+    m3 = lm(SBP ~ Age + BMI + Pulse, data = bp_data)
+)
+
+# Add a random (uninformative) predictor
+set.seed(123)
+bp_data[, Random := rnorm(.N)]
+models$m4 <- lm(SBP ~ Age + BMI + Pulse + Random, data = bp_data)
+
+r2_comparison <- data.table(
+    Model = names(models),
+    Predictors = c("(Intercept only)", "Age", "Age + BMI",
+                   "Age + BMI + Pulse", "Age + BMI + Pulse + Random"),
+    n_params = c(1, 2, 3, 4, 5),
+    R_squared = sapply(models, function(m) summary(m)$r.squared),
+    Adj_R_squared = sapply(models, function(m) summary(m)$adj.r.squared)
+)
+
+cat("R² vs Adjusted R²:\n")
+cat("==================\n\n")
+print(r2_comparison)
+
+cat("\nNote: R² increased when adding 'Random' but Adjusted R² decreased,\n")
+cat("correctly indicating that the random predictor adds no information.\n")
+
+# Visualise
+r2_long <- melt(r2_comparison[, .(Model, R_squared, Adj_R_squared)],
+                id.vars = "Model",
+                variable.name = "Measure",
+                value.name = "Value")
+
+ggplot2$ggplot(r2_long, ggplot2$aes(x = Model, y = Value, colour = Measure, group = Measure)) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$scale_colour_manual(values = c("R_squared" = "#0072B2", "Adj_R_squared" = "#D55E00"),
+                                labels = c("R²", "Adjusted R²")) +
+    ggplot2$labs(
+        title = "R² Always Increases; Adjusted R² May Decrease",
+        subtitle = "Adding 'Random' (uninformative) increases R² but decreases Adj R²",
+        x = "Model",
+        y = "Value",
+        colour = NULL
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 3.6 Robust Standard Errors
+
+### 3.6.1 When Classical Assumptions Fail
+
+**Prose and Intuition**
+
+The classical standard errors assume homoscedasticity (constant error variance). When this assumption fails, the standard errors may be too small or too large, leading to incorrect inference.
+
+**Heteroscedasticity-consistent (HC) standard errors** (also called "robust" or "sandwich" standard errors) remain valid even when errors have non-constant variance.
+
+```{r robust_se, fig.cap="Classical vs robust standard errors"}
+# Check for heteroscedasticity
+diag_dt <- data.table(
+    fitted = fitted(model),
+    residuals = residuals(model),
+    abs_residuals = abs(residuals(model))
+)
+
+# Visualise
+ggplot2$ggplot(diag_dt, ggplot2$aes(x = fitted, y = abs_residuals)) +
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE) +
+    ggplot2$labs(
+        title = "Check for Heteroscedasticity",
+        subtitle = "If the loess line is not flat, error variance may not be constant",
+        x = "Fitted Values",
+        y = "|Residuals|"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+```{r sandwich_se}
+# Function to compute HC (sandwich) standard errors
+# HC0: basic heteroscedasticity-consistent
+compute_robust_se <- function(model) {
+    X <- model.matrix(model)
+    n <- nrow(X)
+    e <- residuals(model)
+    XtX_inv <- solve(t(X) %*% X)
+
+    # HC0 estimator: (X'X)^(-1) X' diag(e²) X (X'X)^(-1)
+    meat <- t(X) %*% diag(e^2) %*% X
+    sandwich <- XtX_inv %*% meat %*% XtX_inv
+
+    sqrt(diag(sandwich))
+}
+
+robust_se <- compute_robust_se(model)
+classical_se <- summary(model)$coefficients[, "Std. Error"]
+
+se_comparison <- data.table(
+    Variable = names(coef(model)),
+    Estimate = coef(model),
+    Classical_SE = classical_se,
+    Robust_SE = robust_se
+)
+se_comparison[, SE_Ratio := round(Robust_SE / Classical_SE, 3)]
+
+cat("Standard Error Comparison:\n")
+cat("==========================\n\n")
+print(se_comparison)
+
+cat("\nIf Robust SE >> Classical SE, classical inference may be anti-conservative.\n")
+cat("If Robust SE << Classical SE, classical inference may be conservative.\n")
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Presenting Regression Results
+
+**For a Clinical Audience:**
+
+"We examined how age, body mass index, and resting pulse rate relate to systolic blood pressure in `r format(nrow(bp_data), big.mark = ",")` adults.
+
+**Key findings:**
+- Blood pressure increases with age: approximately `r round(coef(model)["Age"], 1)` mmHg per year (95% CI: `r round(confint(model)["Age", 1], 1)` to `r round(confint(model)["Age", 2], 1)`)
+- Higher BMI is associated with higher blood pressure: `r round(coef(model)["BMI"], 1)` mmHg per unit BMI
+- These associations are independent of each other
+
+**Clinical interpretation:**
+A 50-year-old with BMI of 28 and pulse of 75 would be predicted to have a systolic blood pressure of approximately `r round(predict(model, newdata = data.table(Age = 50, BMI = 28, Pulse = 75)), 0)` mmHg, though individual values typically vary by about ± `r round(2 * summary(model)$sigma, 0)` mmHg.
+
+**Limitations:**
+- This is cross-sectional data; we cannot establish causation
+- The model explains only about `r round(100 * summary(model)$r.squared)`% of the variation in blood pressure — other unmeasured factors matter
+- Predictions are unreliable for ages or BMI values outside the observed range"
+
+---
+
+## Quick Reference
+
+### Inference Formulae
+
+| Quantity | Formula |
+|----------|---------|
+| SE of $\hat{\beta}_j$ | $s \sqrt{[(\mathbf{X}'\mathbf{X})^{-1}]_{jj}}$ |
+| t-statistic | $t_j = \hat{\beta}_j / SE(\hat{\beta}_j)$ |
+| CI for $\beta_j$ | $\hat{\beta}_j \pm t_{n-p-1, \alpha/2} \cdot SE(\hat{\beta}_j)$ |
+| F-statistic (overall) | $(SSR/p) / (SSE/(n-p-1))$ |
+| $R^2$ | $1 - SSE/SST$ |
+| Adjusted $R^2$ | $1 - (SSE/(n-p-1))/(SST/(n-1))$ |
+
+### Prediction Intervals
+
+| Type | Formula | Use Case |
+|------|---------|----------|
+| CI for mean | $\hat{Y}_0 \pm t \cdot s\sqrt{\mathbf{x}_0'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_0}$ | Where is the population average? |
+| PI for individual | $\hat{Y}_0 \pm t \cdot s\sqrt{1 + \mathbf{x}_0'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_0}$ | Where will an individual fall? |
+
+### R Code Patterns
+
+```r
+# Fit model
+model <- lm(Y ~ X1 + X2 + X3, data = mydata)
+
+# Summary with tests and CIs
+summary(model)
+confint(model)
+
+# Predictions
+predict(model, newdata = new_obs)
+predict(model, newdata = new_obs, interval = "confidence")
+predict(model, newdata = new_obs, interval = "prediction")
+
+# Model comparison (nested)
+anova(reduced_model, full_model)
+
+# Robust standard errors (using sandwich package)
+library(sandwich)
+library(lmtest)
+coeftest(model, vcov = vcovHC(model, type = "HC1"))
+```
