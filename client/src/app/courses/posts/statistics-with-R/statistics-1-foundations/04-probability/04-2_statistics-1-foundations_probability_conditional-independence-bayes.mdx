@@ -30,7 +30,7 @@ box::use(
 
 ``` r
 # Load NHANES data for medical examples
-nhanes <- fread("../data/primary/nhanes.csv")
+nhanes <- fread("../../../data/primary/nhanes.csv")
 
 cat("NHANES dataset:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
 #> NHANES dataset: 10000 observations, 76 variables
@@ -115,12 +115,12 @@ cat("  P(Female) =", round(P_female, 4), "\n")
 cat("  P(Diabetes) =", round(P_diabetic, 4), "\n")
 #>   P(Diabetes) = 0.076
 cat("  P(Female ∩ Diabetes) =", round(P_female_and_diabetic, 4), "\n\n")
-#>   P(Female ∩ Diabetes) = 0.0357
+#>   P(Female <U+2229> Diabetes) = 0.0357
 
 cat("Conditional probability formula:\n")
 #> Conditional probability formula:
 cat("  P(Diabetes | Female) = P(Female ∩ Diabetes) / P(Female)\n")
-#>   P(Diabetes | Female) = P(Female ∩ Diabetes) / P(Female)
+#>   P(Diabetes | Female) = P(Female <U+2229> Diabetes) / P(Female)
 cat("                       =", round(P_female_and_diabetic, 4), "/", round(P_female, 4), "\n")
 #>                        = 0.0357 / 0.502
 cat("                       =", round(P_diabetic_given_female, 4), "\n\n")
@@ -241,16 +241,16 @@ cat("  P(High Glucose | Normal BP) =", P_high_glucose_given_normal_BP, "\n\n")
 cat("Applying the multiplication rule:\n")
 #> Applying the multiplication rule:
 cat("  P(High BP ∩ High Glucose) = P(High Glucose | High BP) × P(High BP)\n")
-#>   P(High BP ∩ High Glucose) = P(High Glucose | High BP) × P(High BP)
+#>   P(High BP <U+2229> High Glucose) = P(High Glucose | High BP) <U+00D7> P(High BP)
 cat("                            =", P_high_glucose_given_high_BP, "×", P_high_BP, "\n")
-#>                             = 0.25 × 0.3
+#>                             = 0.25 <U+00D7> 0.3
 cat("                            =", P_high_BP_and_high_glucose, "\n\n")
 #>                             = 0.075
 
 cat("  P(Normal BP ∩ High Glucose) = P(High Glucose | Normal BP) × P(Normal BP)\n")
-#>   P(Normal BP ∩ High Glucose) = P(High Glucose | Normal BP) × P(Normal BP)
+#>   P(Normal BP <U+2229> High Glucose) = P(High Glucose | Normal BP) <U+00D7> P(Normal BP)
 cat("                              =", P_high_glucose_given_normal_BP, "×", P_normal_BP, "\n")
-#>                               = 0.08 × 0.7
+#>                               = 0.08 <U+00D7> 0.7
 cat("                              =", P_normal_BP_and_high_glucose, "\n\n")
 #>                               = 0.056
 
@@ -372,17 +372,17 @@ cat("  P(Test+ | No Disease) =", P_test_pos_given_no_disease, "\n\n")
 cat("Final Outcomes (joint probabilities):\n")
 #> Final Outcomes (joint probabilities):
 cat("  Disease → Symptoms → Test+:", round(p1, 5), "\n")
-#>   Disease → Symptoms → Test+: 0.01615
+#>   Disease <U+2192> Symptoms <U+2192> Test+: 0.01615
 cat("  Disease → Symptoms → Test-:", round(p2, 5), "\n")
-#>   Disease → Symptoms → Test-: 0.00085
+#>   Disease <U+2192> Symptoms <U+2192> Test-: 0.00085
 cat("  Disease → No Symptoms:", round(p3, 5), "\n")
-#>   Disease → No Symptoms: 0.003
+#>   Disease <U+2192> No Symptoms: 0.003
 cat("  No Disease → Symptoms → Test+:", round(p4, 5), "\n")
-#>   No Disease → Symptoms → Test+: 0.0098
+#>   No Disease <U+2192> Symptoms <U+2192> Test+: 0.0098
 cat("  No Disease → Symptoms → Test-:", round(p5, 5), "\n")
-#>   No Disease → Symptoms → Test-: 0.1862
+#>   No Disease <U+2192> Symptoms <U+2192> Test-: 0.1862
 cat("  No Disease → No Symptoms:", round(p6, 5), "\n")
-#>   No Disease → No Symptoms: 0.784
+#>   No Disease <U+2192> No Symptoms: 0.784
 cat("  Total:", round(p1 + p2 + p3 + p4 + p5 + p6, 5), "\n\n")
 #>   Total: 1
 
@@ -437,7 +437,7 @@ false_pos <- n_no_disease - true_neg
 
 # Create 2x2 table
 cat("Screening 10,000 People: The 2×2 Table\n")
-#> Screening 10,000 People: The 2×2 Table
+#> Screening 10,000 People: The 2<U+00D7>2 Table
 cat("======================================\n\n")
 #> ======================================
 
@@ -568,10 +568,10 @@ cat("  P(Diabetic) =", round(P_diabetic, 4), "\n\n")
 #>   P(Diabetic) = 0.076
 
 cat("If independent: P(Female ∩ Diabetic) = P(Female) × P(Diabetic)\n")
-#> If independent: P(Female ∩ Diabetic) = P(Female) × P(Diabetic)
+#> If independent: P(Female <U+2229> Diabetic) = P(Female) <U+00D7> P(Diabetic)
 cat("  Expected:", round(P_female, 4), "×", round(P_diabetic, 4), "=",
     round(expected_joint, 4), "\n")
-#>   Expected: 0.502 × 0.076 = 0.0382
+#>   Expected: 0.502 <U+00D7> 0.076 = 0.0382
 cat("  Actual:", round(actual_joint, 4), "\n\n")
 #>   Actual: 0.0357
 
@@ -710,7 +710,7 @@ if (result$p_value < 0.05) {
 } else {
     cat("Conclusion: Cannot reject independence at α = 0.05\n")
 }
-#> Conclusion: Cannot reject independence at α = 0.05
+#> Conclusion: Cannot reject independence at <U+03B1> = 0.05
 ```
 
 ### 4.5.3 Independence vs Mutual Exclusivity
@@ -747,18 +747,18 @@ cat("  P(Type A) =", P_type_A, "\n")
 cat("  P(Type B) =", P_type_B, "\n")
 #>   P(Type B) = 0.1
 cat("  P(Type A ∩ Type B) = 0 (impossible to have both)\n")
-#>   P(Type A ∩ Type B) = 0 (impossible to have both)
+#>   P(Type A <U+2229> Type B) = 0 (impossible to have both)
 cat("  P(Type A) × P(Type B) =", P_type_A * P_type_B, "\n")
-#>   P(Type A) × P(Type B) = 0.042
+#>   P(Type A) <U+00D7> P(Type B) = 0.042
 cat("  Since 0 ≠", P_type_A * P_type_B, ", they are NOT independent.\n\n")
-#>   Since 0 ≠ 0.042 , they are NOT independent.
+#>   Since 0 <U+2260> 0.042 , they are NOT independent.
 
 cat("  P(Type B | Type A) = 0 (if you have A, you can't have B)\n")
 #>   P(Type B | Type A) = 0 (if you have A, you can't have B)
 cat("  P(Type B) =", P_type_B, "\n")
 #>   P(Type B) = 0.1
 cat("  Since 0 ≠", P_type_B, ", knowing Type A changes P(Type B).\n\n")
-#>   Since 0 ≠ 0.1 , knowing Type A changes P(Type B).
+#>   Since 0 <U+2260> 0.1 , knowing Type A changes P(Type B).
 
 # Example 2: Independent events (coin flips)
 cat("Example 2: Independent Events\n")
@@ -776,14 +776,14 @@ cat("  P(H1) =", P_H1, "\n")
 cat("  P(H2) =", P_H2, "\n")
 #>   P(H2) = 0.5
 cat("  P(H1 ∩ H2) =", P_H1_and_H2, "\n")
-#>   P(H1 ∩ H2) = 0.25
+#>   P(H1 <U+2229> H2) = 0.25
 cat("  P(H1) × P(H2) =", P_H1 * P_H2, "\n")
-#>   P(H1) × P(H2) = 0.25
+#>   P(H1) <U+00D7> P(H2) = 0.25
 cat("  Since", P_H1_and_H2, "=", P_H1 * P_H2, ", they ARE independent.\n\n")
 #>   Since 0.25 = 0.25 , they ARE independent.
 
 cat("  P(H2 | H1) = P(H1 ∩ H2) / P(H1) =", P_H1_and_H2, "/", P_H1, "=", P_H1_and_H2/P_H1, "\n")
-#>   P(H2 | H1) = P(H1 ∩ H2) / P(H1) = 0.25 / 0.5 = 0.5
+#>   P(H2 | H1) = P(H1 <U+2229> H2) / P(H1) = 0.25 / 0.5 = 0.5
 cat("  P(H2) =", P_H2, "\n")
 #>   P(H2) = 0.5
 cat("  Since", P_H1_and_H2/P_H1, "=", P_H2, ", knowing H1 doesn't change P(H2).\n")
@@ -1032,18 +1032,18 @@ cat("  P(+ | No Disease) =", P_pos_given_notD, "(false positive rate)\n\n")
 cat("Step 1: Calculate P(+) using Law of Total Probability\n")
 #> Step 1: Calculate P(+) using Law of Total Probability
 cat("  P(+) = P(+ | D) × P(D) + P(+ | ~D) × P(~D)\n")
-#>   P(+) = P(+ | D) × P(D) + P(+ | ~D) × P(~D)
+#>   P(+) = P(+ | D) <U+00D7> P(D) + P(+ | ~D) <U+00D7> P(~D)
 cat("       =", P_pos_given_D, "×", P_D, "+", P_pos_given_notD, "×", 1-P_D, "\n")
-#>        = 0.95 × 0.01 + 0.1 × 0.99
+#>        = 0.95 <U+00D7> 0.01 + 0.1 <U+00D7> 0.99
 cat("       =", round(P_pos, 4), "\n\n")
 #>        = 0.1085
 
 cat("Step 2: Apply Bayes' Theorem\n")
 #> Step 2: Apply Bayes' Theorem
 cat("  P(D | +) = P(+ | D) × P(D) / P(+)\n")
-#>   P(D | +) = P(+ | D) × P(D) / P(+)
+#>   P(D | +) = P(+ | D) <U+00D7> P(D) / P(+)
 cat("           =", P_pos_given_D, "×", P_D, "/", round(P_pos, 4), "\n")
-#>            = 0.95 × 0.01 / 0.1085
+#>            = 0.95 <U+00D7> 0.01 / 0.1085
 cat("           =", round(P_D_given_pos, 4), "\n\n")
 #>            = 0.0876
 
@@ -1203,7 +1203,7 @@ cat("=====================\n\n")
 cat("Test characteristics: 99% sensitivity, 99% specificity\n")
 #> Test characteristics: 99% sensitivity, 99% specificity
 cat("Naïve estimate: 'If I test positive, there's a 99% chance I have the disease'\n\n")
-#> Naïve estimate: 'If I test positive, there's a 99% chance I have the disease'
+#> Na<U+00EF>ve estimate: 'If I test positive, there's a 99% chance I have the disease'
 
 cat("Reality (applying Bayes' theorem):\n\n")
 #> Reality (applying Bayes' theorem):
@@ -1542,10 +1542,10 @@ cat("\nApplying Law of Total Probability:\n")
 #> 
 #> Applying Law of Total Probability:
 cat("P(+) = Σ P(+ | group) × P(group)\n")
-#> P(+) = Σ P(+ | group) × P(group)
+#> P(+) = <U+03A3> P(+ | group) <U+00D7> P(group)
 cat("     =", paste(paste0(round(P_pos_given_group, 4), " × ", group_sizes),
                    collapse = " + "), "\n")
-#>      = 0.067 × 0.35 + 0.118 × 0.4 + 0.22 × 0.25
+#>      = 0.067 <U+00D7> 0.35 + 0.118 <U+00D7> 0.4 + 0.22 <U+00D7> 0.25
 cat("     =", round(P_positive_overall, 4), "\n")
 #>      = 0.1257
 
@@ -1641,7 +1641,7 @@ cat("    but there's about a 90% chance this is a false alarm.'\n\n")
 #>     but there's about a 90% chance this is a false alarm.'
 
 cat("PPV calculated:", round(PPV, 4), "≈", round(PPV * 100, 0), "%\n")
-#> PPV calculated: 0.0876 ≈ 9 %
+#> PPV calculated: 0.0876 <U+2248> 9 %
 ```
 
 ### Visual aids for probability communication

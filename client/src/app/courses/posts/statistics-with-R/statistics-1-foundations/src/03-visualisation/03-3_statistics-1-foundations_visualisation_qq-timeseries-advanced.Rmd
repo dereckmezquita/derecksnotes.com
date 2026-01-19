@@ -41,15 +41,15 @@ box::use(
 
 ```{r load_data, message=FALSE}
 # Load datasets
-nhanes <- fread("../data/primary/nhanes.csv")
-gapminder <- fread("../data/primary/gapminder.csv")
-covid <- fread("../data/medical/covid_testing.csv")
-lung <- fread("../data/supplementary/lung.csv")
+nhanes <- fread("../../../data/primary/nhanes.csv")
+gapminder <- fread("../../../data/primary/gapminder.csv")
+accidental_deaths <- fread("../../../data/time-series/us_accidental_deaths.csv")
+lung <- fread("../../../data/survival/lung.csv")
 
 cat("Datasets loaded:\n")
 cat("  NHANES:", nrow(nhanes), "observations\n")
 cat("  Gapminder:", nrow(gapminder), "observations\n")
-cat("  COVID testing:", nrow(covid), "observations\n")
+cat("  Accidental deaths:", nrow(accidental_deaths), "observations\n")
 cat("  Lung cancer:", nrow(lung), "observations\n")
 ```
 
@@ -265,36 +265,36 @@ ggplot2$ggplot(life_exp_trend, ggplot2$aes(x = year, y = mean_lifeExp, colour = 
     ggplot2$theme_minimal()
 ```
 
-**COVID Testing Trends**
+**US Accidental Deaths Trends**
 
-```{r lineplot_covid, fig.cap="Daily COVID-19 testing volume over pandemic days"}
-# Aggregate COVID tests by day
-covid_daily <- covid[, .(
-    n_tests = .N,
-    n_positive = sum(result == "positive", na.rm = TRUE)
-), by = pan_day]
+```{r lineplot_deaths, fig.cap="Monthly US accidental deaths from 1973-1978, showing seasonal patterns in mortality"}
+# Create date column for plotting
+accidental_deaths[, date := as.Date(paste(year, month, "01", sep = "-"))]
 
-covid_daily[, positivity_rate := n_positive / n_tests]
-
-# Dual-panel plot
-p1 <- ggplot2$ggplot(covid_daily, ggplot2$aes(x = pan_day, y = n_tests)) +
+# Dual-panel plot: raw data and year-over-year change
+p1 <- ggplot2$ggplot(accidental_deaths, ggplot2$aes(x = date, y = deaths)) +
     ggplot2$geom_line(colour = "#0072B2", size = 0.8) +
     ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE, span = 0.3) +
     ggplot2$labs(
-        title = "Daily COVID-19 Tests",
-        x = "Pandemic Day",
-        y = "Number of Tests"
+        title = "Monthly US Accidental Deaths",
+        x = "Date",
+        y = "Deaths"
     ) +
     ggplot2$theme_minimal()
 
-p2 <- ggplot2$ggplot(covid_daily, ggplot2$aes(x = pan_day, y = positivity_rate)) +
+# Calculate year-over-year change rate
+accidental_deaths[, deaths_lag12 := shift(deaths, 12)]
+accidental_deaths[, yoy_change := (deaths - deaths_lag12) / deaths_lag12]
+
+p2 <- ggplot2$ggplot(accidental_deaths[!is.na(yoy_change)],
+                      ggplot2$aes(x = date, y = yoy_change)) +
     ggplot2$geom_line(colour = "#009E73", size = 0.8) +
-    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE, span = 0.3) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
     ggplot2$scale_y_continuous(labels = scales::percent_format()) +
     ggplot2$labs(
-        title = "Test Positivity Rate",
-        x = "Pandemic Day",
-        y = "Positivity Rate"
+        title = "Year-over-Year Change",
+        x = "Date",
+        y = "Change Rate"
     ) +
     ggplot2$theme_minimal()
 
@@ -575,7 +575,7 @@ ggplot2$ggplot(sample_data, ggplot2$aes(x = BMI, y = BPSysAve)) +
 
 ```{r stat_annotation, fig.cap="Box plot with statistical comparison annotations"}
 # Compare groups with significance indicators
-species_mass <- penguins <- fread("../data/primary/penguins.csv")
+species_mass <- penguins <- fread("../../../data/primary/penguins.csv")
 species_mass <- species_mass[!is.na(body_mass_g) & !is.na(species)]
 
 # Calculate group statistics

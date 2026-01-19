@@ -124,7 +124,7 @@ cat(sprintf("  E(p̂) = p = %.2f\n", theoretical_mean))
 ```
 
 ```
-##   E(p̂) = p = 0.30
+##   E(p<U+0302>) = p = 0.30
 ```
 
 ``` r
@@ -132,7 +132,7 @@ cat(sprintf("  Var(p̂) = p(1-p)/n = %.4f\n", theoretical_var))
 ```
 
 ```
-##   Var(p̂) = p(1-p)/n = 0.0042
+##   Var(p<U+0302>) = p(1-p)/n = 0.0042
 ```
 
 ``` r
@@ -140,7 +140,7 @@ cat(sprintf("  SE(p̂) = √[p(1-p)/n] = %.4f\n\n", theoretical_se))
 ```
 
 ```
-##   SE(p̂) = √[p(1-p)/n] = 0.0648
+##   SE(p<U+0302>) = <U+221A>[p(1-p)/n] = 0.0648
 ```
 
 ``` r
@@ -156,7 +156,7 @@ cat(sprintf("  Mean of p̂ = %.4f\n", mean(proportions)))
 ```
 
 ```
-##   Mean of p̂ = 0.3005
+##   Mean of p<U+0302> = 0.3005
 ```
 
 ``` r
@@ -164,7 +164,7 @@ cat(sprintf("  Var of p̂ = %.4f\n", var(proportions)))
 ```
 
 ```
-##   Var of p̂ = 0.0041
+##   Var of p<U+0302> = 0.0041
 ```
 
 ``` r
@@ -172,7 +172,7 @@ cat(sprintf("  SE of p̂ = %.4f\n", sd(proportions)))
 ```
 
 ```
-##   SE of p̂ = 0.0642
+##   SE of p<U+0302> = 0.0642
 ```
 
 ``` r
@@ -353,7 +353,7 @@ cat("Rule: np ≥ 10 AND n(1-p) ≥ 10\n\n")
 ```
 
 ```
-## Rule: np ≥ 10 AND n(1-p) ≥ 10
+## Rule: np <U+2265> 10 AND n(1-p) <U+2265> 10
 ```
 
 ``` r
@@ -367,10 +367,10 @@ for (case in cases) {
 ```
 
 ```
-## n= 10, p=0.30: np=3, n(1-p)=7 → ✗ Not adequate
-## n= 30, p=0.30: np=9, n(1-p)=21 → ✗ Not adequate
-## n=100, p=0.30: np=30, n(1-p)=70 → ✓ Adequate
-## n=100, p=0.05: np=5, n(1-p)=95 → ✗ Not adequate
+## n= 10, p=0.30: np=3, n(1-p)=7 <U+2192> <U+2717> Not adequate
+## n= 30, p=0.30: np=9, n(1-p)=21 <U+2192> <U+2717> Not adequate
+## n=100, p=0.30: np=30, n(1-p)=70 <U+2192> <U+2713> Adequate
+## n=100, p=0.05: np=5, n(1-p)=95 <U+2192> <U+2717> Not adequate
 ```
 
 ``` r
@@ -472,7 +472,7 @@ cat(sprintf("Population: σ² = %.0f\n\n", pop_sigma_sq))
 ```
 
 ```
-## Population: σ² = 100
+## Population: <U+03C3><U+00B2> = 100
 ```
 
 ``` r
@@ -488,16 +488,16 @@ for (n in sample_sizes_var) {
 
 ```
 ## n =  5 (df = 4):
-##   E(S²) = 100.80 (theoretical = 100)
-##   Var(S²) = 2732.38 (theoretical = 5000.00)
+##   E(S<U+00B2>) = 100.80 (theoretical = 100)
+##   Var(S<U+00B2>) = 2732.38 (theoretical = 5000.00)
 ## 
 ## n = 10 (df = 9):
-##   E(S²) = 100.80 (theoretical = 100)
-##   Var(S²) = 2732.38 (theoretical = 2222.22)
+##   E(S<U+00B2>) = 100.80 (theoretical = 100)
+##   Var(S<U+00B2>) = 2732.38 (theoretical = 2222.22)
 ## 
 ## n = 30 (df = 29):
-##   E(S²) = 100.80 (theoretical = 100)
-##   Var(S²) = 2732.38 (theoretical = 689.66)
+##   E(S<U+00B2>) = 100.80 (theoretical = 100)
+##   Var(S<U+00B2>) = 2732.38 (theoretical = 689.66)
 ```
 
 ``` r
@@ -614,7 +614,7 @@ cat(sprintf("True variance: σ² = %.0f\n\n", pop_var))
 ```
 
 ```
-## True variance: σ² = 100
+## True variance: <U+03C3><U+00B2> = 100
 ```
 
 ``` r
@@ -733,7 +733,7 @@ cat(sprintf("  Group 1: μ₁ = %d, σ₁ = %d, n₁ = %d\n", mu1, sigma1, n1))
 ```
 
 ```
-##   Group 1: μ₁ = 120, σ₁ = 15, n₁ = 30
+##   Group 1: <U+03BC><U+2081> = 120, <U+03C3><U+2081> = 15, n<U+2081> = 30
 ```
 
 ``` r
@@ -741,7 +741,7 @@ cat(sprintf("  Group 2: μ₂ = %d, σ₂ = %d, n₂ = %d\n\n", mu2, sigma2, n2)
 ```
 
 ```
-##   Group 2: μ₂ = 115, σ₂ = 12, n₂ = 30
+##   Group 2: <U+03BC><U+2082> = 115, <U+03C3><U+2082> = 12, n<U+2082> = 30
 ```
 
 ``` r
@@ -749,7 +749,7 @@ cat("Difference (X̄₁ - X̄₂):\n")
 ```
 
 ```
-## Difference (X̄₁ - X̄₂):
+## Difference (X<U+0304><U+2081> - X<U+0304><U+2082>):
 ```
 
 ``` r
@@ -757,7 +757,7 @@ cat(sprintf("  Theoretical mean: μ₁ - μ₂ = %d\n", true_diff))
 ```
 
 ```
-##   Theoretical mean: μ₁ - μ₂ = 5
+##   Theoretical mean: <U+03BC><U+2081> - <U+03BC><U+2082> = 5
 ```
 
 ``` r
@@ -765,7 +765,7 @@ cat(sprintf("  Theoretical SE: √(σ₁²/n₁ + σ₂²/n₂) = %.3f\n\n", se_
 ```
 
 ```
-##   Theoretical SE: √(σ₁²/n₁ + σ₂²/n₂) = 3.507
+##   Theoretical SE: <U+221A>(<U+03C3><U+2081><U+00B2>/n<U+2081> + <U+03C3><U+2082><U+00B2>/n<U+2082>) = 3.507
 ```
 
 ``` r
@@ -858,7 +858,7 @@ cat("Sampling Distribution of p̂₁ - p̂₂\n")
 ```
 
 ```
-## Sampling Distribution of p̂₁ - p̂₂
+## Sampling Distribution of p<U+0302><U+2081> - p<U+0302><U+2082>
 ```
 
 ``` r
@@ -882,7 +882,7 @@ cat(sprintf("  Drug A: p₁ = %.2f, n₁ = %d\n", p1, n1_prop))
 ```
 
 ```
-##   Drug A: p₁ = 0.60, n₁ = 100
+##   Drug A: p<U+2081> = 0.60, n<U+2081> = 100
 ```
 
 ``` r
@@ -890,7 +890,7 @@ cat(sprintf("  Drug B: p₂ = %.2f, n₂ = %d\n\n", p2, n2_prop))
 ```
 
 ```
-##   Drug B: p₂ = 0.45, n₂ = 100
+##   Drug B: p<U+2082> = 0.45, n<U+2082> = 100
 ```
 
 ``` r
@@ -898,7 +898,7 @@ cat("Difference (p̂₁ - p̂₂):\n")
 ```
 
 ```
-## Difference (p̂₁ - p̂₂):
+## Difference (p<U+0302><U+2081> - p<U+0302><U+2082>):
 ```
 
 ``` r
@@ -906,7 +906,7 @@ cat(sprintf("  Theoretical mean: p₁ - p₂ = %.2f\n", true_prop_diff))
 ```
 
 ```
-##   Theoretical mean: p₁ - p₂ = 0.15
+##   Theoretical mean: p<U+2081> - p<U+2082> = 0.15
 ```
 
 ``` r
@@ -1063,7 +1063,7 @@ cat("  - Approaches normal as df → ∞\n\n")
 ```
 
 ```
-##   - Approaches normal as df → ∞
+##   - Approaches normal as df <U+2192> <U+221E>
 ```
 
 ``` r
@@ -1071,7 +1071,7 @@ cat("Critical values (two-tailed, α = 0.05):\n")
 ```
 
 ```
-## Critical values (two-tailed, α = 0.05):
+## Critical values (two-tailed, <U+03B1> = 0.05):
 ```
 
 ``` r
@@ -1079,7 +1079,7 @@ cat(sprintf("  Normal:    ±%.3f\n", qnorm(0.975)))
 ```
 
 ```
-##   Normal:    ±1.960
+##   Normal:    <U+00B1>1.960
 ```
 
 ``` r
@@ -1087,7 +1087,7 @@ cat(sprintf("  t (df=3):  ±%.3f\n", qt(0.975, df = 3)))
 ```
 
 ```
-##   t (df=3):  ±3.182
+##   t (df=3):  <U+00B1>3.182
 ```
 
 ``` r
@@ -1095,7 +1095,7 @@ cat(sprintf("  t (df=10): ±%.3f\n", qt(0.975, df = 10)))
 ```
 
 ```
-##   t (df=10): ±2.228
+##   t (df=10): <U+00B1>2.228
 ```
 
 ``` r
@@ -1103,7 +1103,7 @@ cat(sprintf("  t (df=30): ±%.3f\n", qt(0.975, df = 30)))
 ```
 
 ```
-##   t (df=30): ±2.042
+##   t (df=30): <U+00B1>2.042
 ```
 
 ``` r
@@ -1327,7 +1327,7 @@ cat("Testing H₀: μ = 0 (no effect):\n")
 ```
 
 ```
-## Testing H₀: μ = 0 (no effect):
+## Testing H<U+2080>: <U+03BC> = 0 (no effect):
 ```
 
 ``` r
@@ -1378,7 +1378,7 @@ cat(sprintf("  (using t₀.₀₂₅,₂₄ = %.3f)\n", t_crit))
 ```
 
 ```
-##   (using t₀.₀₂₅,₂₄ = 2.064)
+##   (using t<U+2080>.<U+2080><U+2082><U+2085>,<U+2082><U+2084> = 2.064)
 ```
 
 ``` r
@@ -1464,7 +1464,7 @@ cat(sprintf("   Population: n = %d, μ = %.1f, σ = %.1f\n\n",
 ```
 
 ```
-##    Population: n = 7205, μ = 120.7, σ = 17.1
+##    Population: n = 7205, <U+03BC> = 120.7, <U+03C3> = 17.1
 ```
 
 ``` r
@@ -1622,7 +1622,7 @@ cat("   30% response doesn't mean the true rate is exactly 30% — it could\n")
 ```
 
 ```
-##    30% response doesn't mean the true rate is exactly 30% — it could
+##    30% response doesn't mean the true rate is exactly 30% <U+2014> it could
 ```
 
 ``` r
@@ -1718,7 +1718,7 @@ cat("  'The margin of error you hear in polls (e.g., ±3%) is the same\n")
 ```
 
 ```
-##   'The margin of error you hear in polls (e.g., ±3%) is the same
+##   'The margin of error you hear in polls (e.g., <U+00B1>3%) is the same
 ```
 
 ``` r
@@ -1777,7 +1777,7 @@ cat("   diminishing returns — doubling precision requires quadrupling\n")
 ```
 
 ```
-##    diminishing returns — doubling precision requires quadrupling
+##    diminishing returns <U+2014> doubling precision requires quadrupling
 ```
 
 ``` r

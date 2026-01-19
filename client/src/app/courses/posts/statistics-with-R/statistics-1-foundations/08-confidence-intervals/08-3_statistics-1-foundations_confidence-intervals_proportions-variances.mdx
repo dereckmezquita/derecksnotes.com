@@ -25,7 +25,7 @@ box::use(
 
 
 ``` r
-nhanes <- fread("../data/primary/nhanes.csv")
+nhanes <- fread("../../../data/primary/nhanes.csv")
 ```
 
 # Confidence Intervals for Proportions and Variances
@@ -111,7 +111,7 @@ cat(sprintf("Sample proportion: p̂ = %.4f (%.1f%%)\n\n", p_hat, 100 * p_hat))
 ```
 
 ```
-## Sample proportion: p̂ = 0.1191 (11.9%)
+## Sample proportion: p<U+0302> = 0.1191 (11.9%)
 ```
 
 ``` r
@@ -127,7 +127,7 @@ cat(sprintf("  np̂ = %.1f (should be >= 10) ✓\n", n * p_hat))
 ```
 
 ```
-##   np̂ = 981.0 (should be >= 10) ✓
+##   np<U+0302> = 981.0 (should be >= 10) <U+2713>
 ```
 
 ``` r
@@ -135,7 +135,7 @@ cat(sprintf("  n(1-p̂) = %.1f (should be >= 10) ✓\n\n", n * (1 - p_hat)))
 ```
 
 ```
-##   n(1-p̂) = 7256.0 (should be >= 10) ✓
+##   n(1-p<U+0302>) = 7256.0 (should be >= 10) <U+2713>
 ```
 
 ``` r
@@ -143,7 +143,7 @@ cat(sprintf("Standard error: SE = √[p̂(1-p̂)/n] = %.4f\n", se_wald))
 ```
 
 ```
-## Standard error: SE = √[p̂(1-p̂)/n] = 0.0036
+## Standard error: SE = <U+221A>[p<U+0302>(1-p<U+0302>)/n] = 0.0036
 ```
 
 ``` r
@@ -271,7 +271,7 @@ cat(sprintf("Sample proportion: p̂ = %.4f\n\n", p_hat))
 ```
 
 ```
-## Sample proportion: p̂ = 0.1191
+## Sample proportion: p<U+0302> = 0.1191
 ```
 
 ``` r
@@ -317,7 +317,7 @@ cat("p̂ = 0.03\n\n")
 ```
 
 ```
-## p̂ = 0.03
+## p<U+0302> = 0.03
 ```
 
 ``` r
@@ -326,7 +326,7 @@ cat(sprintf("Wald interval:   (%.4f, %.4f) — note lower bound near 0!\n",
 ```
 
 ```
-## Wald interval:   (0.0000, 0.0634) — note lower bound near 0!
+## Wald interval:   (0.0000, 0.0634) <U+2014> note lower bound near 0!
 ```
 
 ``` r
@@ -335,7 +335,7 @@ cat(sprintf("Wilson interval: (%.4f, %.4f) — better behaved\n",
 ```
 
 ```
-## Wilson interval: (0.0103, 0.0845) — better behaved
+## Wilson interval: (0.0103, 0.0845) <U+2014> better behaved
 ```
 
 ### 8.11.5 The Agresti-Coull Interval
@@ -680,7 +680,7 @@ cat(sprintf("Sample variance: s² = %.2f\n", result$estimate))
 ```
 
 ```
-## Sample variance: s² = 347.48
+## Sample variance: s<U+00B2> = 347.48
 ```
 
 ``` r
@@ -823,7 +823,7 @@ cat(sprintf("Male BP variance: s₁² = %.2f\n", result$var1))
 ```
 
 ```
-## Male BP variance: s₁² = 301.04
+## Male BP variance: s<U+2081><U+00B2> = 301.04
 ```
 
 ``` r
@@ -831,7 +831,7 @@ cat(sprintf("Female BP variance: s₂² = %.2f\n", result$var2))
 ```
 
 ```
-## Female BP variance: s₂² = 384.88
+## Female BP variance: s<U+2082><U+00B2> = 384.88
 ```
 
 ``` r
@@ -847,7 +847,7 @@ cat(sprintf("95%% CI for σ₁²/σ₂²: (%.3f, %.3f)\n", result$lower, result$
 ```
 
 ```
-## 95% CI for σ₁²/σ₂²: (0.444, 1.378)
+## 95% CI for <U+03C3><U+2081><U+00B2>/<U+03C3><U+2082><U+00B2>: (0.444, 1.378)
 ```
 
 ``` r

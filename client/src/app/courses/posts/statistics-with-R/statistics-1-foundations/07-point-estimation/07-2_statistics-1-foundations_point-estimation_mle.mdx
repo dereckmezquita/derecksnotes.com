@@ -146,7 +146,7 @@ cat(sprintf("MLE: p̂ = %.2f (the value maximising the likelihood)\n", mle_p))
 ```
 
 ```
-## MLE: p̂ = 0.70 (the value maximising the likelihood)
+## MLE: p<U+0302> = 0.70 (the value maximising the likelihood)
 ```
 
 ``` r
@@ -309,7 +309,7 @@ cat("  L(p) = p^k × (1-p)^(n-k)\n")
 ```
 
 ```
-##   L(p) = p^k × (1-p)^(n-k)
+##   L(p) = p^k <U+00D7> (1-p)^(n-k)
 ```
 
 ``` r
@@ -317,7 +317,7 @@ cat("  ℓ(p) = k log(p) + (n-k) log(1-p)\n")
 ```
 
 ```
-##   ℓ(p) = k log(p) + (n-k) log(1-p)
+##   <U+2113>(p) = k log(p) + (n-k) log(1-p)
 ```
 
 ``` r
@@ -325,7 +325,7 @@ cat("  dℓ/dp = k/p - (n-k)/(1-p) = 0\n")
 ```
 
 ```
-##   dℓ/dp = k/p - (n-k)/(1-p) = 0
+##   d<U+2113>/dp = k/p - (n-k)/(1-p) = 0
 ```
 
 ``` r
@@ -333,7 +333,7 @@ cat("  p̂ = k/n\n\n")
 ```
 
 ```
-##   p̂ = k/n
+##   p<U+0302> = k/n
 ```
 
 ``` r
@@ -341,7 +341,7 @@ cat(sprintf("MLE: p̂ = %d/%d = %.4f\n", k, n_obs, p_mle))
 ```
 
 ```
-## MLE: p̂ = 34/80 = 0.4250
+## MLE: p<U+0302> = 34/80 = 0.4250
 ```
 
 **Example 2: Normal Distribution (Mean $\mu$, Variance $\sigma^2$)**
@@ -394,7 +394,7 @@ cat(sprintf("True parameters: μ = %.0f, σ² = %.0f (σ = %.0f)\n\n",
 ```
 
 ```
-## True parameters: μ = 50, σ² = 100 (σ = 10)
+## True parameters: <U+03BC> = 50, <U+03C3><U+00B2> = 100 (<U+03C3> = 10)
 ```
 
 ``` r
@@ -410,7 +410,7 @@ cat(sprintf("  μ̂ = X̄ = %.3f\n", mu_mle))
 ```
 
 ```
-##   μ̂ = X̄ = 50.904
+##   <U+03BC><U+0302> = X<U+0304> = 50.904
 ```
 
 ``` r
@@ -418,7 +418,7 @@ cat(sprintf("  σ̂² = (1/n)Σ(Xᵢ - X̄)² = %.3f\n\n", sigma2_mle))
 ```
 
 ```
-##   σ̂² = (1/n)Σ(Xᵢ - X̄)² = 82.490
+##   <U+03C3><U+0302><U+00B2> = (1/n)<U+03A3>(X<U+1D62> - X<U+0304>)<U+00B2> = 82.490
 ```
 
 ``` r
@@ -434,7 +434,7 @@ cat(sprintf("  MLE σ̂² (÷n) = %.3f\n", sigma2_mle))
 ```
 
 ```
-##   MLE σ̂² (÷n) = 82.490
+##   MLE <U+03C3><U+0302><U+00B2> (<U+00F7>n) = 82.490
 ```
 
 ``` r
@@ -442,7 +442,7 @@ cat(sprintf("  Unbiased S² (÷(n-1)) = %.3f\n", sigma2_unbiased))
 ```
 
 ```
-##   Unbiased S² (÷(n-1)) = 83.323
+##   Unbiased S<U+00B2> (<U+00F7>(n-1)) = 83.323
 ```
 
 ``` r
@@ -451,7 +451,7 @@ cat(sprintf("  Ratio: MLE/Unbiased = %.4f ≈ (n-1)/n = %.4f\n",
 ```
 
 ```
-##   Ratio: MLE/Unbiased = 0.9900 ≈ (n-1)/n = 0.9900
+##   Ratio: MLE/Unbiased = 0.9900 <U+2248> (n-1)/n = 0.9900
 ```
 
 ``` r
@@ -543,7 +543,7 @@ cat(sprintf("True λ = %.2f (mean = %.1f)\n", true_lambda, 1/true_lambda))
 ```
 
 ```
-## True λ = 0.20 (mean = 5.0)
+## True <U+03BB> = 0.20 (mean = 5.0)
 ```
 
 ``` r
@@ -567,7 +567,7 @@ cat("  ℓ(λ) = n log(λ) - λ Σxᵢ\n")
 ```
 
 ```
-##   ℓ(λ) = n log(λ) - λ Σxᵢ
+##   <U+2113>(<U+03BB>) = n log(<U+03BB>) - <U+03BB> <U+03A3>x<U+1D62>
 ```
 
 ``` r
@@ -575,7 +575,7 @@ cat("  dℓ/dλ = n/λ - Σxᵢ = 0\n")
 ```
 
 ```
-##   dℓ/dλ = n/λ - Σxᵢ = 0
+##   d<U+2113>/d<U+03BB> = n/<U+03BB> - <U+03A3>x<U+1D62> = 0
 ```
 
 ``` r
@@ -583,7 +583,7 @@ cat("  λ̂ = n/Σxᵢ = 1/X̄\n\n")
 ```
 
 ```
-##   λ̂ = n/Σxᵢ = 1/X̄
+##   <U+03BB><U+0302> = n/<U+03A3>x<U+1D62> = 1/X<U+0304>
 ```
 
 ``` r
@@ -591,7 +591,7 @@ cat(sprintf("MLE: λ̂ = 1/X̄ = %.4f (true: %.2f)\n", lambda_mle, true_lambda))
 ```
 
 ```
-## MLE: λ̂ = 1/X̄ = 0.2230 (true: 0.20)
+## MLE: <U+03BB><U+0302> = 1/X<U+0304> = 0.2230 (true: 0.20)
 ```
 
 **Example 4: Poisson Distribution (Rate $\lambda$)**
@@ -675,7 +675,7 @@ cat(sprintf("True λ = %.0f\n\n", true_lambda_pois))
 ```
 
 ```
-## True λ = 5
+## True <U+03BB> = 5
 ```
 
 ``` r
@@ -689,12 +689,12 @@ print(summary_asymp[, .(
 ```
 
 ```
-##        n Mean λ̂   SD λ̂ Theoretical SD
-##    <num>  <num>  <num>          <num>
-## 1:    10  5.006 0.6992         0.7071
-## 2:    30  5.012 0.4113         0.4082
-## 3:   100  4.997 0.2214         0.2236
-## 4:   500  4.998 0.1008         0.1000
+##        n Mean <U+03BB><U+0302> SD <U+03BB><U+0302> Theoretical SD
+##    <num>                 <num>               <num>          <num>
+## 1:    10                 5.006              0.6992         0.7071
+## 2:    30                 5.012              0.4113         0.4082
+## 3:   100                 4.997              0.2214         0.2236
+## 4:   500                 4.998              0.1008         0.1000
 ```
 
 ``` r
@@ -711,7 +711,7 @@ cat("  - Mean of λ̂ → true λ (consistency)\n")
 ```
 
 ```
-##   - Mean of λ̂ → true λ (consistency)
+##   - Mean of <U+03BB><U+0302> <U+2192> true <U+03BB> (consistency)
 ```
 
 ``` r
@@ -719,7 +719,7 @@ cat("  - SD matches √(λ/n) (asymptotic normality)\n")
 ```
 
 ```
-##   - SD matches √(λ/n) (asymptotic normality)
+##   - SD matches <U+221A>(<U+03BB>/n) (asymptotic normality)
 ```
 
 ``` r
@@ -793,7 +793,7 @@ cat(sprintf("Poisson data: n = %d, λ̂ = %.3f (true λ = %.0f)\n\n", n_inv, lam
 ```
 
 ```
-## Poisson data: n = 100, λ̂ = 3.150 (true λ = 3)
+## Poisson data: n = 100, <U+03BB><U+0302> = 3.150 (true <U+03BB> = 3)
 ```
 
 ``` r
@@ -801,7 +801,7 @@ cat("By invariance, MLEs of functions of λ:\n\n")
 ```
 
 ```
-## By invariance, MLEs of functions of λ:
+## By invariance, MLEs of functions of <U+03BB>:
 ```
 
 ``` r
@@ -809,7 +809,7 @@ cat("  P(X = 0) = e^(-λ)\n")
 ```
 
 ```
-##   P(X = 0) = e^(-λ)
+##   P(X = 0) = e^(-<U+03BB>)
 ```
 
 ``` r
@@ -817,7 +817,7 @@ cat(sprintf("    MLE: e^(-λ̂) = %.4f (true: %.4f)\n\n", p_zero_mle, exp(-true_
 ```
 
 ```
-##     MLE: e^(-λ̂) = 0.0429 (true: 0.0498)
+##     MLE: e^(-<U+03BB><U+0302>) = 0.0429 (true: 0.0498)
 ```
 
 ``` r
@@ -825,7 +825,7 @@ cat("  P(X ≥ 3) = 1 - P(X ≤ 2)\n")
 ```
 
 ```
-##   P(X ≥ 3) = 1 - P(X ≤ 2)
+##   P(X <U+2265> 3) = 1 - P(X <U+2264> 2)
 ```
 
 ``` r
@@ -835,7 +835,7 @@ cat(sprintf("    MLE: 1 - Σₖ₌₀² P(k;λ̂) = %.4f (true: %.4f)\n", p_ge3_
 ```
 
 ```
-##     MLE: 1 - Σₖ₌₀² P(k;λ̂) = 0.6096 (true: 0.5768)
+##     MLE: 1 - <U+03A3><U+2096><U+208C><U+2080><U+00B2> P(k;<U+03BB><U+0302>) = 0.6096 (true: 0.5768)
 ```
 
 ### 7.7.3 Fisher Information and Standard Errors
@@ -901,7 +901,7 @@ cat("Poisson distribution: I(λ) = n/λ\n")
 ```
 
 ```
-## Poisson distribution: I(λ) = n/λ
+## Poisson distribution: I(<U+03BB>) = n/<U+03BB>
 ```
 
 ``` r
@@ -909,7 +909,7 @@ cat(sprintf("True λ = %.0f\n\n", true_lambda_fi))
 ```
 
 ```
-## True λ = 4
+## True <U+03BB> = 4
 ```
 
 ``` r
@@ -917,7 +917,7 @@ cat("SE(λ̂) = 1/√I(λ) = √(λ/n)\n\n")
 ```
 
 ```
-## SE(λ̂) = 1/√I(λ) = √(λ/n)
+## SE(<U+03BB><U+0302>) = 1/<U+221A>I(<U+03BB>) = <U+221A>(<U+03BB>/n)
 ```
 
 ``` r
@@ -930,13 +930,13 @@ print(fi_dt[, .(
 ```
 
 ```
-##        n  I(λ) SE (theo) SE (emp)
-##    <num> <num>     <num>    <num>
-## 1:    20   5.0    0.4472   0.4438
-## 2:    50  12.5    0.2828   0.2810
-## 3:   100  25.0    0.2000   0.2013
-## 4:   200  50.0    0.1414   0.1415
-## 5:   500 125.0    0.0894   0.0917
+##        n I(<U+03BB>) SE (theo) SE (emp)
+##    <num>       <num>     <num>    <num>
+## 1:    20         5.0    0.4472   0.4438
+## 2:    50        12.5    0.2828   0.2810
+## 3:   100        25.0    0.2000   0.2013
+## 4:   200        50.0    0.1414   0.1415
+## 5:   500       125.0    0.0894   0.0917
 ```
 
 ``` r
@@ -1009,7 +1009,7 @@ cat(sprintf("True parameters: α = %.0f, β = %.0f\n", true_alpha, true_beta))
 ```
 
 ```
-## True parameters: α = 2, β = 5
+## True parameters: <U+03B1> = 2, <U+03B2> = 5
 ```
 
 ``` r
@@ -1060,7 +1060,7 @@ cat(sprintf("  α̂ = %.4f (SE = %.4f)\n", alpha_mle, se_params[1]))
 ```
 
 ```
-##   α̂ = 1.9055 (SE = 0.2508)
+##   <U+03B1><U+0302> = 1.9055 (SE = 0.2508)
 ```
 
 ``` r
@@ -1068,7 +1068,7 @@ cat(sprintf("  β̂ = %.4f (SE = %.4f)\n\n", beta_mle, se_params[2]))
 ```
 
 ```
-##   β̂ = 4.6961 (SE = 0.6675)
+##   <U+03B2><U+0302> = 4.6961 (SE = 0.6675)
 ```
 
 ``` r
@@ -1084,7 +1084,7 @@ cat(sprintf("  α: [%.3f, %.3f]\n", alpha_mle - 1.96*se_params[1], alpha_mle + 1
 ```
 
 ```
-##   α: [1.414, 2.397]
+##   <U+03B1>: [1.414, 2.397]
 ```
 
 ``` r
@@ -1092,7 +1092,7 @@ cat(sprintf("  β: [%.3f, %.3f]\n", beta_mle - 1.96*se_params[2], beta_mle + 1.9
 ```
 
 ```
-##   β: [3.388, 6.004]
+##   <U+03B2>: [3.388, 6.004]
 ```
 
 ``` r
@@ -1173,7 +1173,7 @@ cat(sprintf("  α₀ = %.3f, β₀ = %.3f\n\n", alpha_mom, beta_mom))
 ```
 
 ```
-##   α₀ = 3.429, β₀ = 0.559
+##   <U+03B1><U+2080> = 3.429, <U+03B2><U+2080> = 0.559
 ```
 
 ``` r
@@ -1208,7 +1208,7 @@ cat(sprintf("True parameters: α = %.1f, β = %.1f\n\n", true_shape, true_rate))
 ```
 
 ```
-## True parameters: α = 3.0, β = 0.5
+## True parameters: <U+03B1> = 3.0, <U+03B2> = 0.5
 ```
 
 ``` r
@@ -1224,7 +1224,7 @@ cat(sprintf("  α̂ = %.4f (SE = %.4f, true = %.1f)\n", shape_mle, se_gamma[1], 
 ```
 
 ```
-##   α̂ = 3.0546 (SE = 0.3352, true = 3.0)
+##   <U+03B1><U+0302> = 3.0546 (SE = 0.3352, true = 3.0)
 ```
 
 ``` r
@@ -1232,7 +1232,7 @@ cat(sprintf("  β̂ = %.4f (SE = %.4f, true = %.1f)\n\n", rate_mle, se_gamma[2],
 ```
 
 ```
-##   β̂ = 0.4975 (SE = 0.0593, true = 0.5)
+##   <U+03B2><U+0302> = 0.4975 (SE = 0.0593, true = 0.5)
 ```
 
 ``` r
@@ -1249,7 +1249,7 @@ cat(sprintf("  Method of Moments: α = %.3f, β = %.3f\n", alpha_mom, beta_mom))
 ```
 
 ```
-##   Method of Moments: α = 3.429, β = 0.559
+##   Method of Moments: <U+03B1> = 3.429, <U+03B2> = 0.559
 ```
 
 ``` r
@@ -1257,7 +1257,7 @@ cat(sprintf("  MLE:               α = %.3f, β = %.3f\n", shape_mle, rate_mle))
 ```
 
 ```
-##   MLE:               α = 3.055, β = 0.497
+##   MLE:               <U+03B1> = 3.055, <U+03B2> = 0.497
 ```
 
 ``` r
@@ -1265,7 +1265,7 @@ cat(sprintf("  True:              α = %.3f, β = %.3f\n", true_shape, true_rate
 ```
 
 ```
-##   True:              α = 3.000, β = 0.500
+##   True:              <U+03B1> = 3.000, <U+03B2> = 0.500
 ```
 
 ``` r
@@ -1347,7 +1347,7 @@ cat(sprintf("True hazard rate: λ = %.2f (mean survival = %.2f units)\n\n",
 ```
 
 ```
-## True hazard rate: λ = 0.15 (mean survival = 6.67 units)
+## True hazard rate: <U+03BB> = 0.15 (mean survival = 6.67 units)
 ```
 
 ``` r
@@ -1400,7 +1400,7 @@ cat(sprintf("  λ̂_naive = 1/X̄ = %.4f (BIASED - underestimates hazard)\n\n", 
 ```
 
 ```
-##   λ̂_naive = 1/X̄ = 0.1676 (BIASED - underestimates hazard)
+##   <U+03BB><U+0302>_naive = 1/X<U+0304> = 0.1676 (BIASED - underestimates hazard)
 ```
 
 ``` r
@@ -1424,7 +1424,7 @@ cat(sprintf("  λ̂ = d / Σtᵢ = %d / %.2f = %.4f\n", n_events, total_time, la
 ```
 
 ```
-##   λ̂ = d / Σtᵢ = 49 / 447.57 = 0.1095
+##   <U+03BB><U+0302> = d / <U+03A3>t<U+1D62> = 49 / 447.57 = 0.1095
 ```
 
 ``` r
@@ -1432,7 +1432,7 @@ cat(sprintf("  (True λ = %.2f)\n\n", true_hazard))
 ```
 
 ```
-##   (True λ = 0.15)
+##   (True <U+03BB> = 0.15)
 ```
 
 ``` r
@@ -1442,7 +1442,7 @@ cat(sprintf("Standard error: SE(λ̂) = λ̂/√d = %.4f\n", se_lambda))
 ```
 
 ```
-## Standard error: SE(λ̂) = λ̂/√d = 0.0156
+## Standard error: SE(<U+03BB><U+0302>) = <U+03BB><U+0302>/<U+221A>d = 0.0156
 ```
 
 ``` r
@@ -1570,7 +1570,7 @@ cat("   the same way — finding the parameter that best matches the data.'\n\n"
 ```
 
 ```
-##    the same way — finding the parameter that best matches the data.'
+##    the same way <U+2014> finding the parameter that best matches the data.'
 ```
 
 ``` r

@@ -32,7 +32,7 @@ box::use(
 
 ``` r
 # Load datasets for examples
-nhanes <- fread("../data/primary/nhanes.csv")
+nhanes <- fread("../../../data/primary/nhanes.csv")
 
 cat("NHANES dataset loaded:", nrow(nhanes), "observations\n")
 #> NHANES dataset loaded: 10000 observations
@@ -105,7 +105,7 @@ cat("For a triangular distribution on [0, 2]:\n")
 cat("  Peak density at x = 1 is f(1) = 1\n")
 #>   Peak density at x = 1 is f(1) = 1
 cat("  This is NOT a probability — it's density!\n\n")
-#>   This is NOT a probability — it's density!
+#>   This is NOT a probability <U+2014> it's density!
 
 cat(sprintf("P(0.5 < X < 1.5) = area under curve = %.4f\n", prob_ab))
 #> P(0.5 < X < 1.5) = area under curve = 0.7500
@@ -282,19 +282,19 @@ cat("==============================================\n\n")
 #> ==============================================
 
 cat("E(X) = ∫ x·f(x) dx\n")
-#> E(X) = ∫ x·f(x) dx
+#> E(X) = <U+222B> x<U+00B7>f(x) dx
 cat(sprintf("     = %.4f\n\n", E_X))
 #>      = 1.0000
 
 cat("E(X²) = ∫ x²·f(x) dx\n")
-#> E(X²) = ∫ x²·f(x) dx
+#> E(X<U+00B2>) = <U+222B> x<U+00B2><U+00B7>f(x) dx
 cat(sprintf("      = %.4f\n\n", E_X2))
 #>       = 1.1667
 
 cat("Var(X) = E(X²) - [E(X)]²\n")
-#> Var(X) = E(X²) - [E(X)]²
+#> Var(X) = E(X<U+00B2>) - [E(X)]<U+00B2>
 cat(sprintf("       = %.4f - %.4f²\n", E_X2, E_X))
-#>        = 1.1667 - 1.0000²
+#>        = 1.1667 - 1.0000<U+00B2>
 cat(sprintf("       = %.4f - %.4f\n", E_X2, E_X^2))
 #>        = 1.1667 - 1.0000
 cat(sprintf("       = %.4f\n", Var_X))
@@ -470,14 +470,14 @@ cat("==============================\n\n")
 #> ==============================
 
 cat("PDF: f(x) = 1/(8-2) = 1/6 ≈ 0.167 for x ∈ [2, 8]\n\n")
-#> PDF: f(x) = 1/(8-2) = 1/6 ≈ 0.167 for x ∈ [2, 8]
+#> PDF: f(x) = 1/(8-2) = 1/6 <U+2248> 0.167 for x <U+2208> [2, 8]
 
 cat("Properties:\n")
 #> Properties:
 cat(sprintf("  Mean: E(X) = (a+b)/2 = (2+8)/2 = %.1f\n", (a+b)/2))
 #>   Mean: E(X) = (a+b)/2 = (2+8)/2 = 5.0
 cat(sprintf("  Variance: Var(X) = (b-a)²/12 = (8-2)²/12 = %.2f\n", (b-a)^2/12))
-#>   Variance: Var(X) = (b-a)²/12 = (8-2)²/12 = 3.00
+#>   Variance: Var(X) = (b-a)<U+00B2>/12 = (8-2)<U+00B2>/12 = 3.00
 cat(sprintf("  SD: %.4f\n\n", sqrt((b-a)^2/12)))
 #>   SD: 1.7321
 
@@ -553,14 +553,14 @@ X_exp <- -log(1 - U) / lambda
 cat("Inverse Transform Method:\n")
 #> Inverse Transform Method:
 cat("  To get X ~ Exponential(λ):\n")
-#>   To get X ~ Exponential(λ):
+#>   To get X ~ Exponential(<U+03BB>):
 cat("    1. Generate U ~ Uniform(0, 1)\n")
 #>     1. Generate U ~ Uniform(0, 1)
 cat("    2. Compute X = -ln(1-U)/λ = F^{-1}(U)\n\n")
-#>     2. Compute X = -ln(1-U)/λ = F^{-1}(U)
+#>     2. Compute X = -ln(1-U)/<U+03BB> = F^{-1}(U)
 
 cat(sprintf("  Theoretical mean of Exp(2): 1/λ = %.2f\n", 1/lambda))
-#>   Theoretical mean of Exp(2): 1/λ = 0.50
+#>   Theoretical mean of Exp(2): 1/<U+03BB> = 0.50
 cat(sprintf("  Sample mean: %.4f\n", mean(X_exp)))
 #>   Sample mean: 0.5000
 
@@ -610,25 +610,25 @@ in_circle <- (x^2 + y^2) <= 1
 pi_estimate <- 4 * mean(in_circle)  # Area of circle / area of square = π/4
 
 cat("Monte Carlo Estimation of π\n")
-#> Monte Carlo Estimation of π
+#> Monte Carlo Estimation of <U+03C0>
 cat("===========================\n\n")
 #> ===========================
 
 cat("Method: Throw random darts at square [-1, 1] × [-1, 1]\n")
-#> Method: Throw random darts at square [-1, 1] × [-1, 1]
+#> Method: Throw random darts at square [-1, 1] <U+00D7> [-1, 1]
 cat("       Count proportion landing in unit circle\n")
 #>        Count proportion landing in unit circle
 cat("       π ≈ 4 × (proportion in circle)\n\n")
-#>        π ≈ 4 × (proportion in circle)
+#>        <U+03C0> <U+2248> 4 <U+00D7> (proportion in circle)
 
 cat(sprintf("Number of darts: %d\n", n_darts))
 #> Number of darts: 100000
 cat(sprintf("Darts in circle: %d\n", sum(in_circle)))
 #> Darts in circle: 78445
 cat(sprintf("Estimate of π: %.6f\n", pi_estimate))
-#> Estimate of π: 3.137800
+#> Estimate of <U+03C0>: 3.137800
 cat(sprintf("True value of π: %.6f\n", pi))
-#> True value of π: 3.141593
+#> True value of <U+03C0>: 3.141593
 cat(sprintf("Error: %.6f\n", abs(pi_estimate - pi)))
 #> Error: 0.003793
 ```
@@ -690,27 +690,27 @@ normal_dt <- rbindlist(lapply(params, function(p) {
 }))
 
 cat("Normal Distribution: X ~ N(μ, σ²)\n")
-#> Normal Distribution: X ~ N(μ, σ²)
+#> Normal Distribution: X ~ N(<U+03BC>, <U+03C3><U+00B2>)
 cat("==================================\n\n")
 #> ==================================
 
 cat("The two parameters:\n")
 #> The two parameters:
 cat("  μ (mu): mean — shifts the distribution left/right\n")
-#>   μ (mu): mean — shifts the distribution left/right
+#>   <U+03BC> (mu): mean <U+2014> shifts the distribution left/right
 cat("  σ (sigma): standard deviation — controls spread\n\n")
-#>   σ (sigma): standard deviation — controls spread
+#>   <U+03C3> (sigma): standard deviation <U+2014> controls spread
 
 cat("Properties:\n")
 #> Properties:
 cat("  • Symmetric about μ\n")
-#>   • Symmetric about μ
+#>   <U+2022> Symmetric about <U+03BC>
 cat("  • Mean = Median = Mode = μ\n")
-#>   • Mean = Median = Mode = μ
+#>   <U+2022> Mean = Median = Mode = <U+03BC>
 cat("  • Inflection points at μ ± σ\n")
-#>   • Inflection points at μ ± σ
+#>   <U+2022> Inflection points at <U+03BC> <U+00B1> <U+03C3>
 cat("  • Tails extend to ±∞ but decay rapidly\n")
-#>   • Tails extend to ±∞ but decay rapidly
+#>   <U+2022> Tails extend to <U+00B1><U+221E> but decay rapidly
 
 ggplot2$ggplot(normal_dt, ggplot2$aes(x = x, y = density, colour = params)) +
     ggplot2$geom_line(size = 1.2) +
@@ -761,25 +761,25 @@ unnormalised <- exp(exponent_vals)
 normalised <- normalisation * unnormalised
 
 cat("Normal PDF Components: f(x) = (1/(σ√(2π))) × exp(-(x-μ)²/(2σ²))\n")
-#> Normal PDF Components: f(x) = (1/(σ√(2π))) × exp(-(x-μ)²/(2σ²))
+#> Normal PDF Components: f(x) = (1/(<U+03C3><U+221A>(2<U+03C0>))) <U+00D7> exp(-(x-<U+03BC>)<U+00B2>/(2<U+03C3><U+00B2>))
 cat("=================================================================\n\n")
 #> =================================================================
 
 cat(sprintf("For the standard normal N(0, 1):\n"))
 #> For the standard normal N(0, 1):
 cat(sprintf("  Normalisation constant: 1/(σ√(2π)) = 1/√(2π) ≈ %.4f\n", normalisation))
-#>   Normalisation constant: 1/(σ√(2π)) = 1/√(2π) ≈ 0.3989
+#>   Normalisation constant: 1/(<U+03C3><U+221A>(2<U+03C0>)) = 1/<U+221A>(2<U+03C0>) <U+2248> 0.3989
 cat(sprintf("  This ensures the total area under the curve = 1\n\n"))
 #>   This ensures the total area under the curve = 1
 
 cat("The exp(-(x-μ)²/(2σ²)) term:\n")
-#> The exp(-(x-μ)²/(2σ²)) term:
+#> The exp(-(x-<U+03BC>)<U+00B2>/(2<U+03C3><U+00B2>)) term:
 cat("  • Maximum at x = μ (exponent = 0, exp(0) = 1)\n")
-#>   • Maximum at x = μ (exponent = 0, exp(0) = 1)
+#>   <U+2022> Maximum at x = <U+03BC> (exponent = 0, exp(0) = 1)
 cat("  • Decays symmetrically as |x - μ| increases\n")
-#>   • Decays symmetrically as |x - μ| increases
+#>   <U+2022> Decays symmetrically as |x - <U+03BC>| increases
 cat("  • Quadratic in the exponent → bell shape\n")
-#>   • Quadratic in the exponent → bell shape
+#>   <U+2022> Quadratic in the exponent <U+2192> bell shape
 
 # Visualise components
 comp_dt <- data.table(
@@ -837,20 +837,20 @@ cat("====================================\n\n")
 #> ====================================
 
 cat("For X ~ N(μ, σ²):\n\n")
-#> For X ~ N(μ, σ²):
+#> For X ~ N(<U+03BC>, <U+03C3><U+00B2>):
 cat(sprintf("  P(μ - 1σ < X < μ + 1σ) = %.4f (≈ 68%%)\n", p_1sd))
-#>   P(μ - 1σ < X < μ + 1σ) = 0.6827 (≈ 68%)
+#>   P(<U+03BC> - 1<U+03C3> < X < <U+03BC> + 1<U+03C3>) = 0.6827 (<U+2248> 68%)
 cat(sprintf("  P(μ - 2σ < X < μ + 2σ) = %.4f (≈ 95%%)\n", p_2sd))
-#>   P(μ - 2σ < X < μ + 2σ) = 0.9545 (≈ 95%)
+#>   P(<U+03BC> - 2<U+03C3> < X < <U+03BC> + 2<U+03C3>) = 0.9545 (<U+2248> 95%)
 cat(sprintf("  P(μ - 3σ < X < μ + 3σ) = %.4f (≈ 99.7%%)\n\n", p_3sd))
-#>   P(μ - 3σ < X < μ + 3σ) = 0.9973 (≈ 99.7%)
+#>   P(<U+03BC> - 3<U+03C3> < X < <U+03BC> + 3<U+03C3>) = 0.9973 (<U+2248> 99.7%)
 
 cat("Conversely:\n")
 #> Conversely:
 cat(sprintf("  P(|X - μ| > 2σ) = %.4f (about 1 in 22)\n", 1 - p_2sd))
-#>   P(|X - μ| > 2σ) = 0.0455 (about 1 in 22)
+#>   P(|X - <U+03BC>| > 2<U+03C3>) = 0.0455 (about 1 in 22)
 cat(sprintf("  P(|X - μ| > 3σ) = %.4f (about 1 in 370)\n", 1 - p_3sd))
-#>   P(|X - μ| > 3σ) = 0.0027 (about 1 in 370)
+#>   P(|X - <U+03BC>| > 3<U+03C3>) = 0.0027 (about 1 in 370)
 
 # Visualise
 x_seq <- seq(-4, 4, by = 0.01)
@@ -901,16 +901,16 @@ cat("=================================================\n\n")
 cat("1. SYMMETRY\n")
 #> 1. SYMMETRY
 cat("   f(μ + x) = f(μ - x)\n")
-#>    f(μ + x) = f(μ - x)
+#>    f(<U+03BC> + x) = f(<U+03BC> - x)
 cat("   P(X > μ + a) = P(X < μ - a)\n\n")
-#>    P(X > μ + a) = P(X < μ - a)
+#>    P(X > <U+03BC> + a) = P(X < <U+03BC> - a)
 
 cat("2. LINEAR TRANSFORMATIONS\n")
 #> 2. LINEAR TRANSFORMATIONS
 cat("   If X ~ N(μ, σ²), then:\n")
-#>    If X ~ N(μ, σ²), then:
+#>    If X ~ N(<U+03BC>, <U+03C3><U+00B2>), then:
 cat("   Y = aX + b ~ N(aμ + b, a²σ²)\n\n")
-#>    Y = aX + b ~ N(aμ + b, a²σ²)
+#>    Y = aX + b ~ N(a<U+03BC> + b, a<U+00B2><U+03C3><U+00B2>)
 
 # Verify by simulation
 set.seed(42)
@@ -927,9 +927,9 @@ cat(sprintf("   Simulated Y: mean = %.2f, SD = %.2f\n\n", mean(Y), sd(Y)))
 cat("3. SUM OF INDEPENDENT NORMALS\n")
 #> 3. SUM OF INDEPENDENT NORMALS
 cat("   If X ~ N(μ₁, σ₁²) and Y ~ N(μ₂, σ₂²) are independent, then:\n")
-#>    If X ~ N(μ₁, σ₁²) and Y ~ N(μ₂, σ₂²) are independent, then:
+#>    If X ~ N(<U+03BC><U+2081>, <U+03C3><U+2081><U+00B2>) and Y ~ N(<U+03BC><U+2082>, <U+03C3><U+2082><U+00B2>) are independent, then:
 cat("   X + Y ~ N(μ₁ + μ₂, σ₁² + σ₂²)\n\n")
-#>    X + Y ~ N(μ₁ + μ₂, σ₁² + σ₂²)
+#>    X + Y ~ N(<U+03BC><U+2081> + <U+03BC><U+2082>, <U+03C3><U+2081><U+00B2> + <U+03C3><U+2082><U+00B2>)
 
 # Verify
 X1 <- rnorm(10000, 3, 2)
@@ -937,9 +937,9 @@ X2 <- rnorm(10000, 7, 3)
 X_sum <- X1 + X2  # Should be N(10, 13)
 
 cat("   Example: X₁ ~ N(3, 4), X₂ ~ N(7, 9)\n")
-#>    Example: X₁ ~ N(3, 4), X₂ ~ N(7, 9)
+#>    Example: X<U+2081> ~ N(3, 4), X<U+2082> ~ N(7, 9)
 cat(sprintf("   Theoretical X₁ + X₂: N(10, 13) with SD = %.3f\n", sqrt(13)))
-#>    Theoretical X₁ + X₂: N(10, 13) with SD = 3.606
+#>    Theoretical X<U+2081> + X<U+2082>: N(10, 13) with SD = 3.606
 cat(sprintf("   Simulated: mean = %.2f, SD = %.2f\n", mean(X_sum), sd(X_sum)))
 #>    Simulated: mean = 10.03, SD = 3.67
 ```
@@ -995,18 +995,18 @@ cat("========================================\n\n")
 #> ========================================
 
 cat(sprintf("Original: X ~ N(%.0f, %.0f²)\n", mu, sigma))
-#> Original: X ~ N(100, 15²)
+#> Original: X ~ N(100, 15<U+00B2>)
 cat(sprintf("  Mean of X: %.2f\n", mean(X)))
 #>   Mean of X: 99.83
 cat(sprintf("  SD of X: %.2f\n\n", sd(X)))
 #>   SD of X: 15.09
 
 cat("Standardised: Z = (X - μ)/σ ~ N(0, 1)\n")
-#> Standardised: Z = (X - μ)/σ ~ N(0, 1)
+#> Standardised: Z = (X - <U+03BC>)/<U+03C3> ~ N(0, 1)
 cat(sprintf("  Mean of Z: %.4f (should be ≈ 0)\n", mean(Z)))
-#>   Mean of Z: -0.0113 (should be ≈ 0)
+#>   Mean of Z: -0.0113 (should be <U+2248> 0)
 cat(sprintf("  SD of Z: %.4f (should be ≈ 1)\n\n", sd(Z)))
-#>   SD of Z: 1.0061 (should be ≈ 1)
+#>   SD of Z: 1.0061 (should be <U+2248> 1)
 
 # Calculate a probability both ways
 x_value <- 120
@@ -1412,7 +1412,7 @@ cat("  'About 68% of patients will have values within one standard deviation\n")
 cat("   of the mean. About 95% within two standard deviations. Values more\n")
 #>    of the mean. About 95% within two standard deviations. Values more
 cat("   than 3 SDs away are very rare — less than 1 in 300.'\n\n")
-#>    than 3 SDs away are very rare — less than 1 in 300.'
+#>    than 3 SDs away are very rare <U+2014> less than 1 in 300.'
 
 cat("FOR INTERPRETING RESULTS:\n")
 #> FOR INTERPRETING RESULTS:

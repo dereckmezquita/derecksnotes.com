@@ -25,7 +25,7 @@ box::use(
 
 
 ``` r
-nhanes <- fread("../data/primary/nhanes.csv")
+nhanes <- fread("../../../data/primary/nhanes.csv")
 ```
 
 # Confidence Intervals for Means
@@ -106,7 +106,7 @@ cat("Known: σ = 5 mg/dL (from instrument specifications)\n")
 ```
 
 ```
-## Known: σ = 5 mg/dL (from instrument specifications)
+## Known: <U+03C3> = 5 mg/dL (from instrument specifications)
 ```
 
 ``` r
@@ -114,7 +114,7 @@ cat(sprintf("Sample: n = %d, x̄ = %.2f mg/dL\n", n, x_bar))
 ```
 
 ```
-## Sample: n = 25, x̄ = 99.83 mg/dL
+## Sample: n = 25, x<U+0304> = 99.83 mg/dL
 ```
 
 ``` r
@@ -122,7 +122,7 @@ cat(sprintf("Standard Error: SE = σ/√n = %.2f mg/dL\n\n", se))
 ```
 
 ```
-## Standard Error: SE = σ/√n = 1.00 mg/dL
+## Standard Error: SE = <U+03C3>/<U+221A>n = 1.00 mg/dL
 ```
 
 ``` r
@@ -139,7 +139,7 @@ cat(sprintf("  90%% CI: %.2f ± %.3f × %.2f = (%.2f, %.2f)\n",
 ```
 
 ```
-##   90% CI: 99.83 ± 1.645 × 1.00 = (98.19, 101.48)
+##   90% CI: 99.83 <U+00B1> 1.645 <U+00D7> 1.00 = (98.19, 101.48)
 ```
 
 ``` r
@@ -148,7 +148,7 @@ cat(sprintf("  95%% CI: %.2f ± %.3f × %.2f = (%.2f, %.2f)\n",
 ```
 
 ```
-##   95% CI: 99.83 ± 1.960 × 1.00 = (97.87, 101.79)
+##   95% CI: 99.83 <U+00B1> 1.960 <U+00D7> 1.00 = (97.87, 101.79)
 ```
 
 ``` r
@@ -157,7 +157,7 @@ cat(sprintf("  99%% CI: %.2f ± %.3f × %.2f = (%.2f, %.2f)\n",
 ```
 
 ```
-##   99% CI: 99.83 ± 2.576 × 1.00 = (97.26, 102.41)
+##   99% CI: 99.83 <U+00B1> 2.576 <U+00D7> 1.00 = (97.26, 102.41)
 ```
 
 ### 8.6.3 Z-Interval Function from Scratch
@@ -204,7 +204,7 @@ print(result)
 ```
 ## 95% Z-Interval for the Mean
 ## Sample mean: 99.8333
-## Known σ: 5.0000
+## Known <U+03C3>: 5.0000
 ## Standard error: 1.0000
 ## Confidence interval: (97.8734, 101.7933)
 ```
@@ -321,7 +321,7 @@ cat("\nNote: df = ∞ gives the normal (z) critical values\n")
 
 ```
 ## 
-## Note: df = ∞ gives the normal (z) critical values
+## Note: df = <U+221E> gives the normal (z) critical values
 ```
 
 ### 8.7.4 Constructing the T-Interval
@@ -375,7 +375,7 @@ cat(sprintf("Sample mean: x̄ = %.2f mmHg\n", x_bar))
 ```
 
 ```
-## Sample mean: x̄ = 115.73 mmHg
+## Sample mean: x<U+0304> = 115.73 mmHg
 ```
 
 ``` r
@@ -391,7 +391,7 @@ cat(sprintf("Standard Error: SE = s/√n = %.2f mmHg\n", se))
 ```
 
 ```
-## Standard Error: SE = s/√n = 3.67 mmHg
+## Standard Error: SE = s/<U+221A>n = 3.67 mmHg
 ```
 
 ``` r
@@ -620,7 +620,7 @@ cat(sprintf("Sample: n = %d, x̄ = %.2f, s = %.2f\n", n, x_bar, s))
 ```
 
 ```
-## Sample: n = 10, x̄ = 50.17, s = 8.98
+## Sample: n = 10, x<U+0304> = 50.17, s = 8.98
 ```
 
 ``` r
@@ -628,7 +628,7 @@ cat(sprintf("True σ = %.2f (usually unknown!)\n\n", true_sigma))
 ```
 
 ```
-## True σ = 10.00 (usually unknown!)
+## True <U+03C3> = 10.00 (usually unknown!)
 ```
 
 ``` r
@@ -636,7 +636,7 @@ cat("If σ were known (Z-interval):\n")
 ```
 
 ```
-## If σ were known (Z-interval):
+## If <U+03C3> were known (Z-interval):
 ```
 
 ``` r
@@ -644,7 +644,7 @@ cat(sprintf("  z* = %.3f, SE = σ/√n = %.3f\n", z_star, z_se))
 ```
 
 ```
-##   z* = 1.960, SE = σ/√n = 3.162
+##   z* = 1.960, SE = <U+03C3>/<U+221A>n = 3.162
 ```
 
 ``` r
@@ -661,7 +661,7 @@ cat("Since σ is estimated (T-interval):\n")
 ```
 
 ```
-## Since σ is estimated (T-interval):
+## Since <U+03C3> is estimated (T-interval):
 ```
 
 ``` r
@@ -669,7 +669,7 @@ cat(sprintf("  t* = %.3f, SE = s/√n = %.3f\n", t_star, t_se))
 ```
 
 ```
-##   t* = 2.262, SE = s/√n = 2.840
+##   t* = 2.262, SE = s/<U+221A>n = 2.840
 ```
 
 ``` r
@@ -793,7 +793,7 @@ cat(sprintf("Prior estimate: σ ≈ %.0f mmHg\n\n", sigma_bp))
 ```
 
 ```
-## Prior estimate: σ ≈ 15 mmHg
+## Prior estimate: <U+03C3> <U+2248> 15 mmHg
 ```
 
 ``` r
@@ -897,11 +897,11 @@ print(precision_table)
 ```
 ##    Margin of Error Relative Precision Sample Size Cost Multiplier
 ##              <num>             <char>       <num>          <char>
-## 1:               6                 1×          25            1.0×
-## 2:               4               1.5×          55            2.2×
-## 3:               3                 2×          97            3.9×
-## 4:               2                 3×         217            8.7×
-## 5:               1                 6×         865           34.6×
+## 1:               6          1<U+00D7>          25     1.0<U+00D7>
+## 2:               4        1.5<U+00D7>          55     2.2<U+00D7>
+## 3:               3          2<U+00D7>          97     3.9<U+00D7>
+## 4:               2          3<U+00D7>         217     8.7<U+00D7>
+## 5:               1          6<U+00D7>         865    34.6<U+00D7>
 ```
 
 ``` r
@@ -910,7 +910,7 @@ cat("\nDoubling precision (halving margin) costs 4× the sample size.\n")
 
 ```
 ## 
-## Doubling precision (halving margin) costs 4× the sample size.
+## Doubling precision (halving margin) costs 4<U+00D7> the sample size.
 ```
 
 ---

@@ -88,7 +88,7 @@ cat(sprintf("True parameter: μ = %.0f\n\n", true_mu))
 ```
 
 ```
-## True parameter: μ = 100
+## True parameter: <U+03BC> = 100
 ```
 
 ``` r
@@ -96,7 +96,7 @@ cat("Estimator: X̄ = (1/n) Σ Xᵢ\n\n")
 ```
 
 ```
-## Estimator: X̄ = (1/n) Σ Xᵢ
+## Estimator: X<U+0304> = (1/n) <U+03A3> X<U+1D62>
 ```
 
 ``` r
@@ -212,7 +212,7 @@ cat(sprintf("True variance: σ² = %.0f\n\n", true_var))
 ```
 
 ```
-## True variance: σ² = 100
+## True variance: <U+03C3><U+00B2> = 100
 ```
 
 ``` r
@@ -222,13 +222,13 @@ print(dcast(bias_dt, n ~ estimator, value.var = "bias")[,
 
 ```
 ## Key: <n>
-##        n Biased (÷n) Unbiased (÷(n-1))
-##    <num>       <num>             <num>
-## 1:     5      -19.71              0.37
-## 2:    10       -9.35             -0.09
-## 3:    25       -3.95             -0.03
-## 4:    50       -2.30             -0.11
-## 5:   100       -0.96              0.11
+##        n Biased (<U+00F7>n) Unbiased (<U+00F7>(n-1))
+##    <num>              <num>                    <num>
+## 1:     5             -19.71                     0.37
+## 2:    10              -9.35                    -0.09
+## 3:    25              -3.95                    -0.03
+## 4:    50              -2.30                    -0.11
+## 5:   100              -0.96                     0.11
 ```
 
 ``` r
@@ -237,7 +237,7 @@ cat("\nTheoretical bias of ÷n estimator: -σ²/n\n")
 
 ```
 ## 
-## Theoretical bias of ÷n estimator: -σ²/n
+## Theoretical bias of <U+00F7>n estimator: -<U+03C3><U+00B2>/n
 ```
 
 ``` r
@@ -245,7 +245,7 @@ cat("For σ² = 100:\n")
 ```
 
 ```
-## For σ² = 100:
+## For <U+03C3><U+00B2> = 100:
 ```
 
 ``` r
@@ -347,14 +347,22 @@ print(var_demo_dt[, .(
 ```
 
 ```
-##        n Var(X̄) Empirical Var(X̄) Theoretical SE Empirical SE Theoretical
-##    <num>            <num>              <num>        <num>          <num>
-## 1:     5            46.34              45.00         6.81           6.71
-## 2:    10            22.58              22.50         4.75           4.74
-## 3:    25             9.18               9.00         3.03           3.00
-## 4:    50             4.46               4.50         2.11           2.12
-## 5:   100             2.24               2.25         1.50           1.50
-## 6:   200             1.16               1.12         1.08           1.06
+##        n Var(X<U+0304>) Empirical Var(X<U+0304>) Theoretical SE Empirical
+##    <num>                    <num>                      <num>        <num>
+## 1:     5                    46.34                      45.00         6.81
+## 2:    10                    22.58                      22.50         4.75
+## 3:    25                     9.18                       9.00         3.03
+## 4:    50                     4.46                       4.50         2.11
+## 5:   100                     2.24                       2.25         1.50
+## 6:   200                     1.16                       1.12         1.08
+##    SE Theoretical
+##             <num>
+## 1:           6.71
+## 2:           4.74
+## 3:           3.00
+## 4:           2.12
+## 5:           1.50
+## 6:           1.06
 ```
 
 ``` r
@@ -461,7 +469,7 @@ cat(sprintf("n = %d, σ² = %.0f\n\n", n, true_var_mse))
 ```
 
 ```
-## n = 10, σ² = 100
+## n = 10, <U+03C3><U+00B2> = 100
 ```
 
 ``` r
@@ -587,7 +595,7 @@ cat(sprintf("True μ = %.0f, ε = %.0f\n\n", true_mu_cons, epsilon))
 ```
 
 ```
-## True μ = 50, ε = 2
+## True <U+03BC> = 50, <U+03B5> = 2
 ```
 
 ``` r
@@ -600,15 +608,24 @@ print(cons_dt[, .(
 ```
 
 ```
-##        n P(|X̄ - μ| ≤ ε) Mean of X̄ SD of X̄
-##    <num>          <num>     <num>   <num>
-## 1:    10          0.486     50.05   3.056
-## 2:    25          0.662     50.08   1.961
-## 3:    50          0.859     50.03   1.359
-## 4:   100          0.945     49.99   1.021
-## 5:   250          0.999     50.04   0.647
-## 6:   500          1.000     49.99   0.457
-## 7:  1000          1.000     49.99   0.305
+##        n P(|X<U+0304> - <U+03BC>| <U+2264> <U+03B5>) Mean of X<U+0304>
+##    <num>                                       <num>             <num>
+## 1:    10                                       0.486             50.05
+## 2:    25                                       0.662             50.08
+## 3:    50                                       0.859             50.03
+## 4:   100                                       0.945             49.99
+## 5:   250                                       0.999             50.04
+## 6:   500                                       1.000             49.99
+## 7:  1000                                       1.000             49.99
+##    SD of X<U+0304>
+##              <num>
+## 1:           3.056
+## 2:           1.961
+## 3:           1.359
+## 4:           1.021
+## 5:           0.647
+## 6:           0.457
+## 7:           0.305
 ```
 
 ``` r
@@ -709,7 +726,7 @@ cat(sprintf("True μ = %.0f, σ = %.0f, n = %d\n\n", true_mu_eff, true_sigma_eff
 ```
 
 ```
-## True μ = 100, σ = 15, n = 50
+## True <U+03BC> = 100, <U+03C3> = 15, n = 50
 ```
 
 ``` r
@@ -851,7 +868,7 @@ cat(sprintf("True parameters: μ = %.0f, σ² = %.0f\n\n", true_mu_mom, true_sig
 ```
 
 ```
-## True parameters: μ = 50, σ² = 100
+## True parameters: <U+03BC> = 50, <U+03C3><U+00B2> = 100
 ```
 
 ``` r
@@ -867,7 +884,7 @@ cat(sprintf("  μ̂ = X̄ = %.3f (true: %.0f)\n", mu_hat_mom, true_mu_mom))
 ```
 
 ```
-##   μ̂ = X̄ = 50.527 (true: 50)
+##   <U+03BC><U+0302> = X<U+0304> = 50.527 (true: 50)
 ```
 
 ``` r
@@ -876,7 +893,7 @@ cat(sprintf("  σ̂² = (1/n)Σ(Xᵢ - X̄)² = %.3f (true: %.0f)\n\n",
 ```
 
 ```
-##   σ̂² = (1/n)Σ(Xᵢ - X̄)² = 98.242 (true: 100)
+##   <U+03C3><U+0302><U+00B2> = (1/n)<U+03A3>(X<U+1D62> - X<U+0304>)<U+00B2> = 98.242 (true: 100)
 ```
 
 ``` r
@@ -892,7 +909,7 @@ cat(sprintf("  S² = (1/(n-1))Σ(Xᵢ - X̄)² = %.3f\n", sigma2_hat_unbiased))
 ```
 
 ```
-##   S² = (1/(n-1))Σ(Xᵢ - X̄)² = 99.235
+##   S<U+00B2> = (1/(n-1))<U+03A3>(X<U+1D62> - X<U+0304>)<U+00B2> = 99.235
 ```
 
 ``` r
@@ -901,7 +918,7 @@ cat(sprintf("  Ratio (MOM/S²) = %.4f ≈ (n-1)/n = %.4f\n",
 ```
 
 ```
-##   Ratio (MOM/S²) = 0.9900 ≈ (n-1)/n = 0.9900
+##   Ratio (MOM/S<U+00B2>) = 0.9900 <U+2248> (n-1)/n = 0.9900
 ```
 
 **Example 2: Exponential Distribution $\text{Exp}(\lambda)$**
@@ -946,7 +963,7 @@ cat(sprintf("True λ = %.1f (mean = %.1f)\n\n", true_lambda, 1/true_lambda))
 ```
 
 ```
-## True λ = 0.5 (mean = 2.0)
+## True <U+03BB> = 0.5 (mean = 2.0)
 ```
 
 ``` r
@@ -954,7 +971,7 @@ cat(sprintf("MOM estimator: λ̂ = 1/X̄\n\n"))
 ```
 
 ```
-## MOM estimator: λ̂ = 1/X̄
+## MOM estimator: <U+03BB><U+0302> = 1/X<U+0304>
 ```
 
 ``` r
@@ -962,7 +979,7 @@ cat("Sampling distribution of λ̂ (n = 30):\n")
 ```
 
 ```
-## Sampling distribution of λ̂ (n = 30):
+## Sampling distribution of <U+03BB><U+0302> (n = 30):
 ```
 
 ``` r
@@ -970,7 +987,7 @@ cat(sprintf("  Mean of λ̂: %.4f (true: %.1f)\n", mean(lambda_hat_samples), tru
 ```
 
 ```
-##   Mean of λ̂: 0.5181 (true: 0.5)
+##   Mean of <U+03BB><U+0302>: 0.5181 (true: 0.5)
 ```
 
 ``` r
@@ -978,7 +995,7 @@ cat(sprintf("  SD of λ̂: %.4f\n", sd(lambda_hat_samples)))
 ```
 
 ```
-##   SD of λ̂: 0.0990
+##   SD of <U+03BB><U+0302>: 0.0990
 ```
 
 ``` r
@@ -986,7 +1003,7 @@ cat(sprintf("  Note: λ̂ is biased! E(1/X̄) ≠ 1/E(X̄)\n"))
 ```
 
 ```
-##   Note: λ̂ is biased! E(1/X̄) ≠ 1/E(X̄)
+##   Note: <U+03BB><U+0302> is biased! E(1/X<U+0304>) <U+2260> 1/E(X<U+0304>)
 ```
 
 ``` r
@@ -1069,7 +1086,7 @@ cat(sprintf("True parameters: α = %.1f, β = %.1f\n", true_alpha, true_beta))
 ```
 
 ```
-## True parameters: α = 3.0, β = 0.5
+## True parameters: <U+03B1> = 3.0, <U+03B2> = 0.5
 ```
 
 ``` r
@@ -1078,7 +1095,7 @@ cat(sprintf("True mean = α/β = %.1f, True variance = α/β² = %.1f\n\n",
 ```
 
 ```
-## True mean = α/β = 6.0, True variance = α/β² = 12.0
+## True mean = <U+03B1>/<U+03B2> = 6.0, True variance = <U+03B1>/<U+03B2><U+00B2> = 12.0
 ```
 
 ``` r
@@ -1094,7 +1111,7 @@ cat(sprintf("  X̄ = %.3f, S² = %.3f\n\n", xbar_gamma, s2_gamma))
 ```
 
 ```
-##   X̄ = 5.765, S² = 8.619
+##   X<U+0304> = 5.765, S<U+00B2> = 8.619
 ```
 
 ``` r
@@ -1110,7 +1127,7 @@ cat(sprintf("  α̂ = X̄²/S² = %.3f (true: %.1f)\n", alpha_hat, true_alpha))
 ```
 
 ```
-##   α̂ = X̄²/S² = 3.857 (true: 3.0)
+##   <U+03B1><U+0302> = X<U+0304><U+00B2>/S<U+00B2> = 3.857 (true: 3.0)
 ```
 
 ``` r
@@ -1118,7 +1135,7 @@ cat(sprintf("  β̂ = X̄/S² = %.3f (true: %.1f)\n", beta_hat, true_beta))
 ```
 
 ```
-##   β̂ = X̄/S² = 0.669 (true: 0.5)
+##   <U+03B2><U+0302> = X<U+0304>/S<U+00B2> = 0.669 (true: 0.5)
 ```
 
 ### 7.3.3 Properties of MOM Estimators
@@ -1210,7 +1227,7 @@ cat("Sampling properties of prevalence estimator p̂:\n\n")
 ```
 
 ```
-## Sampling properties of prevalence estimator p̂:
+## Sampling properties of prevalence estimator p<U+0302>:
 ```
 
 ``` r
@@ -1225,12 +1242,12 @@ print(prev_dt[, .(
 ```
 
 ```
-##        n Mean p̂     Bias SE (emp) SE (theo)      MSE
-##    <num>  <num>    <num>    <num>     <num>    <num>
-## 1:    50 0.0757 -0.00025   0.0367    0.0375 0.001345
-## 2:   100 0.0760  0.00002   0.0268    0.0265 0.000717
-## 3:   200 0.0763  0.00027   0.0184    0.0187 0.000340
-## 4:   500 0.0762  0.00020   0.0118    0.0119 0.000138
+##        n Mean p<U+0302>     Bias SE (emp) SE (theo)      MSE
+##    <num>          <num>    <num>    <num>     <num>    <num>
+## 1:    50         0.0757 -0.00025   0.0367    0.0375 0.001345
+## 2:   100         0.0760  0.00002   0.0268    0.0265 0.000717
+## 3:   200         0.0763  0.00027   0.0184    0.0187 0.000340
+## 4:   500         0.0762  0.00020   0.0118    0.0119 0.000138
 ```
 
 ``` r
@@ -1247,7 +1264,7 @@ cat("  - p̂ = X̄ is unbiased (bias ≈ 0)\n")
 ```
 
 ```
-##   - p̂ = X̄ is unbiased (bias ≈ 0)
+##   - p<U+0302> = X<U+0304> is unbiased (bias <U+2248> 0)
 ```
 
 ``` r
@@ -1255,7 +1272,7 @@ cat("  - SE decreases with √n\n")
 ```
 
 ```
-##   - SE decreases with √n
+##   - SE decreases with <U+221A>n
 ```
 
 ``` r
@@ -1263,7 +1280,7 @@ cat("  - Empirical SE matches theoretical √[p(1-p)/n]\n")
 ```
 
 ```
-##   - Empirical SE matches theoretical √[p(1-p)/n]
+##   - Empirical SE matches theoretical <U+221A>[p(1-p)/n]
 ```
 
 ``` r
@@ -1359,7 +1376,7 @@ cat("   Like a scale that's properly calibrated — individual weighings\n")
 ```
 
 ```
-##    Like a scale that's properly calibrated — individual weighings
+##    Like a scale that's properly calibrated <U+2014> individual weighings
 ```
 
 ``` r
@@ -1498,7 +1515,7 @@ cat("  - Sample size affects precision (SE ∝ 1/√n)\n")
 ```
 
 ```
-##   - Sample size affects precision (SE ∝ 1/√n)
+##   - Sample size affects precision (SE <U+221D> 1/<U+221A>n)
 ```
 
 ``` r
@@ -1530,7 +1547,7 @@ cat("  - A single estimate is not the truth — it has uncertainty\n")
 ```
 
 ```
-##   - A single estimate is not the truth — it has uncertainty
+##   - A single estimate is not the truth <U+2014> it has uncertainty
 ```
 
 ``` r
