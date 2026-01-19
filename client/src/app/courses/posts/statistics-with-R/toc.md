@@ -8,7 +8,7 @@ A comprehensive three-part course on statistics using R programming, designed fo
 
 | Part | Title | Folder | Chapters | Status |
 |------|-------|--------|----------|--------|
-| I | Foundations | `statistics-1-foundations/` | 15 | In Progress (7/15) |
+| I | Foundations | `statistics-1-foundations/` | 15 | Complete (15/15) |
 | II | Intermediate | `statistics-2-intermediate/` | 10 | Not Started |
 | III | Advanced | `statistics-3-advanced/` | 8 | Not Started |
 
