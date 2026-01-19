@@ -141,9 +141,9 @@ cat("\nModel Comparison:\n")
 #> 
 #> Model Comparison:
 cat("  Simple (Age only):     R² =", round(summary(model_simple)$r.squared, 4), "\n")
-#>   Simple (Age only):     R² = 0.1726
+#>   Simple (Age only):     R<U+00B2> = 0.1726
 cat("  Multiple (Age + BMI):  R² =", round(summary(model_multiple)$r.squared, 4), "\n")
-#>   Multiple (Age + BMI):  R² = 0.1846
+#>   Multiple (Age + BMI):  R<U+00B2> = 0.1846
 cat("  Improvement:", round((summary(model_multiple)$r.squared - summary(model_simple)$r.squared) * 100, 2), "percentage points\n")
 #>   Improvement: 1.2 percentage points
 ```
@@ -240,17 +240,17 @@ X <- cbind(1, bp_sample$Age, bp_sample$BMI)
 colnames(X) <- c("Intercept", "Age", "BMI")
 
 cat("Design Matrix X (6 observations × 3 columns):\n")
-#> Design Matrix X (6 observations × 3 columns):
+#> Design Matrix X (6 observations <U+00D7> 3 columns):
 cat("==============================================\n\n")
 #> ==============================================
 print(X)
 #>      Intercept Age   BMI
-#> [1,]         1  48 41.80
-#> [2,]         1  43 39.90
-#> [3,]         1  37 35.95
-#> [4,]         1  21 19.64
-#> [5,]         1  28 35.98
-#> [6,]         1  35 26.53
+#> [1,]         1  46 20.76
+#> [2,]         1  70 29.30
+#> [3,]         1  52 24.30
+#> [4,]         1  36 24.23
+#> [5,]         1  52 29.55
+#> [6,]         1  44 37.00
 
 cat("\n\nResponse Vector Y:\n")
 #> 
@@ -260,21 +260,21 @@ cat("==================\n")
 #> ==================
 print(matrix(bp_sample$SBP, ncol = 1, dimnames = list(NULL, "SBP")))
 #>      SBP
-#> [1,] 141
-#> [2,] 134
-#> [3,] 103
-#> [4,]  98
-#> [5,] 109
-#> [6,] 124
+#> [1,] 103
+#> [2,] 118
+#> [3,] 130
+#> [4,]  96
+#> [5,] 108
+#> [6,] 129
 
 cat("\n\nCoefficient Vector β (from fitted model):\n")
 #> 
 #> 
-#> Coefficient Vector β (from fitted model):
+#> Coefficient Vector <U+03B2> (from fitted model):
 cat("==========================================\n")
 #> ==========================================
 print(matrix(coef(model_multiple), ncol = 1, dimnames = list(names(coef(model_multiple)), "β")))
-#>                      β
+#>               <U+03B2>
 #> (Intercept) 94.2573169
 #> Age          0.3995585
 #> BMI          0.2781984
@@ -320,7 +320,7 @@ Y_pred_matrix <- X_full %*% beta
 Y_pred_function <- predict(model_multiple)
 
 cat("Verification: X × β = Ŷ\n")
-#> Verification: X × β = Ŷ
+#> Verification: X <U+00D7> <U+03B2> = <U+0176>
 cat("========================\n\n")
 #> ========================
 cat("First 6 predictions:\n")
@@ -430,7 +430,7 @@ print(XtX_inv)
 beta_hat <- XtX_inv %*% XtY
 cat("\nβ̂ from matrix formula:\n")
 #> 
-#> β̂ from matrix formula:
+#> <U+03B2><U+0302> from matrix formula:
 print(beta_hat)
 #>                   [,1]
 #> (Intercept) 94.2573169
@@ -439,7 +439,7 @@ print(beta_hat)
 
 cat("\nβ̂ from lm():\n")
 #> 
-#> β̂ from lm():
+#> <U+03B2><U+0302> from lm():
 print(coef(model_multiple))
 #> (Intercept)         Age         BMI 
 #>  94.2573169   0.3995585   0.2781984

@@ -1,0 +1,881 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 2: High-Dimensional Inference"
+part: "Part 1: Multiple Testing and False Discovery Rate"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, multiple-testing, FDR, Bonferroni, R, bioinformatics]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 1: Multiple Testing and False Discovery Rate
+
+When a genomics study tests 20,000 genes for differential expression, classical hypothesis testing breaks down. At $\alpha = 0.05$, we expect 1,000 false positives by chance alone—even when no genes are truly differentially expressed. This chapter introduces the statistical framework for **multiple testing correction**, from conservative family-wise error rate control to the more practical false discovery rate.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+---
+
+## 2.1 The Multiple Testing Problem
+
+### 2.1.1 Why Single-Test Reasoning Fails
+
+**Prose and Intuition**
+
+Consider a pharmaceutical company testing 20 compounds for efficacy. If none work and we test each at $\alpha = 0.05$, the probability of at least one false positive is:
+
+$$P(\text{at least one false positive}) = 1 - (1 - 0.05)^{20} = 1 - 0.95^{20} \approx 0.64$$
+
+A 64% chance of claiming a useless drug works! In genomics, with thousands of tests, the situation is far worse.
+
+**The Prosecutor's Fallacy**
+
+A DNA match at a crime scene has a 1-in-million false positive rate. Impressive, until you realise the database contains 10 million profiles. On average, you'd expect 10 innocent matches. The individual p-value is meaningless without accounting for how many comparisons were made.
+
+**Visualisation: False Positives Multiply**
+
+```{r multiple_testing_sim, fig.cap="False positive rate explodes as the number of tests increases"}
+# Simulate multiple testing under null
+n_tests_range <- c(1, 5, 10, 20, 50, 100, 500, 1000, 5000, 10000)
+alpha <- 0.05
+n_simulations <- 10000
+
+false_positive_rates <- sapply(n_tests_range, function(m) {
+    # Simulate: for each simulation, generate m p-values under null
+    # Count how often at least one is significant
+    fp_count <- sum(sapply(1:n_simulations, function(i) {
+        p_values <- runif(m)  # Uniform under null
+        any(p_values < alpha)
+    }))
+    fp_count / n_simulations
+})
+
+fp_data <- data.table(
+    n_tests = n_tests_range,
+    observed_rate = false_positive_rates,
+    theoretical_rate = 1 - (1 - alpha)^n_tests_range
+)
+
+ggplot2$ggplot(fp_data, ggplot2$aes(x = n_tests)) +
+    ggplot2$geom_line(ggplot2$aes(y = theoretical_rate), colour = "#2166AC", linewidth = 1.2) +
+    ggplot2$geom_point(ggplot2$aes(y = observed_rate), colour = "#D95F02", size = 3) +
+    ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_x_log10(labels = scales::comma) +
+    ggplot2$annotate("text", x = 100, y = 0.15, label = "Target alpha = 0.05", colour = "grey40") +
+    ggplot2$labs(
+        title = "Probability of At Least One False Positive",
+        subtitle = "Under global null hypothesis (all tests truly null)",
+        x = "Number of Tests (log scale)",
+        y = "P(at least one false positive)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+### 2.1.2 Error Rate Concepts
+
+**Definitions**
+
+Consider $m$ hypothesis tests. Let:
+- $m_0$ = number of truly null hypotheses
+- $m_1 = m - m_0$ = number of truly alternative hypotheses
+- $V$ = number of false positives (Type I errors)
+- $S$ = number of true positives (correct rejections)
+- $R = V + S$ = total rejections
+
+| | Not Rejected | Rejected | Total |
+|---|---|---|---|
+| Null true | $m_0 - V$ | $V$ | $m_0$ |
+| Alternative true | $m_1 - S$ | $S$ | $m_1$ |
+| Total | $m - R$ | $R$ | $m$ |
+
+**Family-Wise Error Rate (FWER)**
+
+$$\text{FWER} = P(V \geq 1)$$
+
+The probability of making any false positive. Conservative but essential in some contexts (e.g., declaring any one of 20 drugs effective).
+
+**False Discovery Rate (FDR)**
+
+$$\text{FDR} = E\left[\frac{V}{R} \mid R > 0\right] \cdot P(R > 0)$$
+
+The expected proportion of false discoveries among all discoveries. More permissive than FWER but appropriate when some false positives are acceptable.
+
+**When to Use Which?**
+
+| Scenario | Error Rate | Example |
+|----------|------------|---------|
+| Any false positive is costly | FWER | Drug approval, confirming a single finding |
+| Discovery rate matters more | FDR | Genomics screening, selecting genes for follow-up |
+| Many hypotheses, exploratory | FDR | GWAS, differential expression |
+
+---
+
+## 2.2 Family-Wise Error Rate Control
+
+### 2.2.1 The Bonferroni Correction
+
+**Prose and Intuition**
+
+The simplest FWER control: divide $\alpha$ by the number of tests. If we want FWER $\leq 0.05$ with 1,000 tests, require $p < 0.00005$ for significance.
+
+**Mathematical Derivation**
+
+By the union bound (Boole's inequality):
+
+$$P\left(\bigcup_{i=1}^{m_0} \{p_i \leq \alpha/m\}\right) \leq \sum_{i=1}^{m_0} P(p_i \leq \alpha/m) = m_0 \cdot \frac{\alpha}{m} \leq \alpha$$
+
+The Bonferroni correction guarantees FWER $\leq \alpha$ regardless of the dependence structure among tests.
+
+**Implementation**
+
+```{r bonferroni_demo}
+# Simulate a genomics-like scenario
+m <- 10000  # genes
+m0 <- 9500  # truly null
+m1 <- 500   # truly differentially expressed
+
+# Generate p-values
+# Null genes: p ~ Uniform(0,1)
+p_null <- runif(m0)
+
+# Alternative genes: p-values stochastically smaller
+# Use Beta(1, 10) to simulate signal
+p_alt <- rbeta(m1, shape1 = 0.5, shape2 = 10)
+
+p_values <- c(p_null, p_alt)
+true_status <- c(rep("Null", m0), rep("Alternative", m1))
+
+results_dt <- data.table(
+    gene_id = 1:m,
+    p_value = p_values,
+    true_status = true_status
+)
+
+# Apply Bonferroni
+alpha <- 0.05
+results_dt[, bonferroni_threshold := alpha / m]
+results_dt[, bonferroni_reject := p_value < bonferroni_threshold]
+
+cat("Bonferroni Correction Results:\n")
+cat("=============================\n")
+cat("  Threshold:", alpha / m, "\n")
+cat("  Rejections:", sum(results_dt$bonferroni_reject), "\n")
+cat("  True positives:", sum(results_dt$bonferroni_reject & results_dt$true_status == "Alternative"), "\n")
+cat("  False positives:", sum(results_dt$bonferroni_reject & results_dt$true_status == "Null"), "\n")
+```
+
+**Visualisation**
+
+```{r bonferroni_visual, fig.cap="Bonferroni correction is extremely conservative—most true signals are missed"}
+# Sort p-values
+results_dt <- results_dt[order(p_value)]
+results_dt[, rank := .I]
+
+# Plot
+ggplot2$ggplot(results_dt[rank <= 1000], ggplot2$aes(x = rank, y = -log10(p_value))) +
+    ggplot2$geom_point(ggplot2$aes(colour = true_status), alpha = 0.6, size = 1.5) +
+    ggplot2$geom_hline(yintercept = -log10(alpha / m), linetype = "dashed", colour = "#D95F02", linewidth = 1) +
+    ggplot2$annotate("text", x = 800, y = -log10(alpha / m) + 0.5,
+                     label = "Bonferroni threshold", colour = "#D95F02") +
+    ggplot2$scale_colour_manual(
+        values = c("Null" = "grey60", "Alternative" = "#2166AC"),
+        name = "True Status"
+    ) +
+    ggplot2$labs(
+        title = "P-values Ranked by Significance",
+        subtitle = "Bonferroni misses many true alternatives (blue points above threshold)",
+        x = "Rank",
+        y = expression(-log[10](p))
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+### 2.2.2 The Šidák Correction
+
+**Mathematical Derivation**
+
+If tests are independent, we can be slightly less conservative:
+
+$$P(\text{no false positives}) = \prod_{i=1}^{m_0}(1 - \alpha^*) \geq (1 - \alpha^*)^{m}$$
+
+Setting this equal to $1 - \alpha$ and solving:
+
+$$\alpha^* = 1 - (1 - \alpha)^{1/m}$$
+
+For $m = 10000$ and $\alpha = 0.05$:
+
+```{r sidak}
+m <- 10000
+alpha <- 0.05
+
+sidak_threshold <- 1 - (1 - alpha)^(1/m)
+bonferroni_threshold <- alpha / m
+
+cat("Comparison of FWER Methods:\n")
+cat("===========================\n")
+cat("  Bonferroni threshold:", bonferroni_threshold, "\n")
+cat("  Šidák threshold:     ", sidak_threshold, "\n")
+cat("  Ratio (Šidák/Bonf):  ", sidak_threshold / bonferroni_threshold, "\n")
+```
+
+The difference is negligible for large $m$. Both methods are too conservative for genomics applications.
+
+---
+
+### 2.2.3 The Holm Step-Down Procedure
+
+**Prose and Intuition**
+
+Bonferroni treats all hypotheses equally, but if we've already rejected the most significant hypotheses, we can afford to be less conservative on the rest. The **Holm procedure** exploits this by ordering p-values and using progressively less stringent thresholds.
+
+**Algorithm**
+
+1. Order p-values: $p_{(1)} \leq p_{(2)} \leq \cdots \leq p_{(m)}$
+2. Find the smallest $k$ such that $p_{(k)} > \alpha / (m - k + 1)$
+3. Reject all hypotheses with $p_{(i)} < \alpha / (m - i + 1)$ for $i < k$
+
+**Implementation**
+
+```{r holm}
+# Apply Holm correction
+results_dt <- results_dt[order(p_value)]
+results_dt[, holm_threshold := alpha / (m - rank + 1)]
+results_dt[, holm_reject := p_value < holm_threshold]
+
+# Find first non-rejection and propagate
+first_fail <- which(!results_dt$holm_reject)[1]
+if (!is.na(first_fail) && first_fail > 1) {
+    results_dt[rank >= first_fail, holm_reject := FALSE]
+}
+
+cat("Holm Procedure Results:\n")
+cat("=======================\n")
+cat("  Rejections:", sum(results_dt$holm_reject), "\n")
+cat("  True positives:", sum(results_dt$holm_reject & results_dt$true_status == "Alternative"), "\n")
+cat("  False positives:", sum(results_dt$holm_reject & results_dt$true_status == "Null"), "\n")
+```
+
+The Holm procedure controls FWER at level $\alpha$ while being uniformly more powerful than Bonferroni.
+
+---
+
+## 2.3 False Discovery Rate Control
+
+### 2.3.1 The Benjamini-Hochberg Procedure
+
+**Prose and Intuition**
+
+In a genome-wide study, we don't need to prevent all false positives—we need the discoveries we make to be mostly real. If we identify 100 genes and 5 are false positives, that's acceptable for prioritising follow-up experiments.
+
+The **FDR** asks: "Of the hypotheses I reject, what proportion are false positives?"
+
+**Mathematical Formulation**
+
+Define the false discovery proportion (FDP):
+
+$$\text{FDP} = \frac{V}{R} \quad \text{(0 if } R = 0\text{)}$$
+
+The FDR is its expectation: $\text{FDR} = E[\text{FDP}]$
+
+**The BH Algorithm**
+
+1. Order p-values: $p_{(1)} \leq p_{(2)} \leq \cdots \leq p_{(m)}$
+2. Find the largest $k$ such that $p_{(k)} \leq \frac{k}{m}\alpha$
+3. Reject all hypotheses with $p_{(i)} \leq p_{(k)}$
+
+Equivalently: compare each $p_{(i)}$ to the line $\frac{i}{m}\alpha$.
+
+**Visualisation**
+
+```{r bh_procedure, fig.cap="Benjamini-Hochberg procedure: reject p-values below the diagonal line"}
+# Apply BH
+results_dt[, bh_threshold := (rank / m) * alpha]
+results_dt[, bh_reject := p_value <= bh_threshold]
+
+# Find the actual cutoff (largest k where p_(k) <= k*alpha/m)
+bh_cutoff <- max(which(results_dt$p_value <= results_dt$bh_threshold))
+results_dt[rank > bh_cutoff, bh_reject := FALSE]
+
+# Plot BH procedure
+bh_plot_data <- results_dt[rank <= 2000]
+
+ggplot2$ggplot(bh_plot_data, ggplot2$aes(x = rank, y = p_value)) +
+    ggplot2$geom_point(ggplot2$aes(colour = true_status, shape = bh_reject), alpha = 0.6, size = 1.5) +
+    ggplot2$geom_line(ggplot2$aes(y = bh_threshold), colour = "#D95F02", linewidth = 1.2) +
+    ggplot2$scale_colour_manual(
+        values = c("Null" = "grey60", "Alternative" = "#2166AC"),
+        name = "True Status"
+    ) +
+    ggplot2$scale_shape_manual(
+        values = c("FALSE" = 1, "TRUE" = 16),
+        name = "BH Rejected"
+    ) +
+    ggplot2$labs(
+        title = "Benjamini-Hochberg Procedure",
+        subtitle = "Reject hypotheses where p-value falls below the BH threshold line",
+        x = "Rank",
+        y = "P-value"
+    ) +
+    ggplot2$coord_cartesian(ylim = c(0, 0.1)) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "right",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+**Results Comparison**
+
+```{r bh_results}
+cat("BH Procedure Results:\n")
+cat("=====================\n")
+cat("  Rejections:", sum(results_dt$bh_reject), "\n")
+cat("  True positives:", sum(results_dt$bh_reject & results_dt$true_status == "Alternative"), "\n")
+cat("  False positives:", sum(results_dt$bh_reject & results_dt$true_status == "Null"), "\n")
+cat("  Observed FDP:", round(sum(results_dt$bh_reject & results_dt$true_status == "Null") /
+                             sum(results_dt$bh_reject), 3), "\n")
+```
+
+---
+
+### 2.3.2 Mathematical Foundation of BH
+
+**Theorem (Benjamini & Hochberg, 1995)**
+
+Under independence of the p-values (or positive regression dependence), the BH procedure controls FDR at level:
+
+$$\text{FDR} \leq \frac{m_0}{m} \cdot \alpha \leq \alpha$$
+
+**Proof Sketch**
+
+For each null hypothesis $i$, define:
+
+$$V_i = \mathbf{1}\{H_i \text{ rejected}\} \cdot \mathbf{1}\{H_i \text{ is null}\}$$
+
+The false discovery proportion can be bounded using martingale theory. The key insight is that under independence:
+
+$$E\left[\frac{V}{R \vee 1}\right] = \sum_{i \in \text{null}} E\left[\frac{\mathbf{1}\{H_i \text{ rejected}\}}{R \vee 1}\right]$$
+
+Using properties of order statistics of uniform random variables (null p-values), this sum equals $\frac{m_0}{m}\alpha$.
+
+---
+
+### 2.3.3 Adjusted P-Values (Q-Values)
+
+**Prose and Intuition**
+
+Rather than reporting "significant at FDR 0.05", we often want an FDR-adjusted p-value for each hypothesis. The **q-value** of a test is the minimum FDR at which it would be rejected.
+
+**Computation**
+
+For the BH procedure:
+
+$$q_{(i)} = \min_{j \geq i} \left\{\frac{m \cdot p_{(j)}}{j}\right\}$$
+
+```{r qvalues}
+# Compute q-values (BH adjusted p-values)
+results_dt <- results_dt[order(p_value)]
+results_dt[, q_value := {
+    # Start from the largest and work backwards
+    q <- p_value * m / rank
+    q <- rev(cummin(rev(q)))  # Ensure monotonicity
+    pmin(q, 1)  # Cap at 1
+}]
+
+cat("Q-value Summary:\n")
+cat("================\n")
+cat("  Min q-value:", min(results_dt$q_value), "\n")
+cat("  Median q-value:", median(results_dt$q_value), "\n")
+cat("  Genes with q < 0.05:", sum(results_dt$q_value < 0.05), "\n")
+cat("  Genes with q < 0.01:", sum(results_dt$q_value < 0.01), "\n")
+```
+
+---
+
+## 2.4 Comparing Methods
+
+### 2.4.1 Power and Error Rate Trade-offs
+
+```{r method_comparison, fig.cap="FDR methods find far more true positives than FWER methods"}
+# Summary comparison
+comparison <- data.table(
+    Method = c("Uncorrected", "Bonferroni", "Holm", "BH (FDR)"),
+    Threshold_Type = c("FWER naive", "FWER", "FWER", "FDR"),
+    Rejections = c(
+        sum(results_dt$p_value < alpha),
+        sum(results_dt$bonferroni_reject),
+        sum(results_dt$holm_reject),
+        sum(results_dt$bh_reject)
+    ),
+    True_Positives = c(
+        sum(results_dt$p_value < alpha & results_dt$true_status == "Alternative"),
+        sum(results_dt$bonferroni_reject & results_dt$true_status == "Alternative"),
+        sum(results_dt$holm_reject & results_dt$true_status == "Alternative"),
+        sum(results_dt$bh_reject & results_dt$true_status == "Alternative")
+    ),
+    False_Positives = c(
+        sum(results_dt$p_value < alpha & results_dt$true_status == "Null"),
+        sum(results_dt$bonferroni_reject & results_dt$true_status == "Null"),
+        sum(results_dt$holm_reject & results_dt$true_status == "Null"),
+        sum(results_dt$bh_reject & results_dt$true_status == "Null")
+    )
+)
+
+comparison[, FDP := round(False_Positives / Rejections, 3)]
+comparison[, Power := round(True_Positives / m1, 3)]
+
+print(comparison)
+```
+
+**Visualisation**
+
+```{r power_fdr_tradeoff, fig.cap="Power vs error control: FDR methods achieve high power with acceptable error rates"}
+comparison_long <- melt(
+    comparison,
+    id.vars = c("Method", "Threshold_Type"),
+    measure.vars = c("Power", "FDP"),
+    variable.name = "Metric",
+    value.name = "Value"
+)
+
+comparison_long[, Method := factor(Method, levels = c("Uncorrected", "Bonferroni", "Holm", "BH (FDR)"))]
+
+ggplot2$ggplot(comparison_long, ggplot2$aes(x = Method, y = Value, fill = Metric)) +
+    ggplot2$geom_col(position = ggplot2$position_dodge(width = 0.8), width = 0.7) +
+    ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "red") +
+    ggplot2$scale_fill_manual(
+        values = c("Power" = "#2166AC", "FDP" = "#D95F02"),
+        labels = c("Power (sensitivity)", "FDP (false discovery proportion)")
+    ) +
+    ggplot2$annotate("text", x = 4.3, y = 0.08, label = "Target FDR = 0.05", colour = "red", size = 3) +
+    ggplot2$labs(
+        title = "Power vs False Discovery Proportion",
+        subtitle = "Simulation: 10,000 tests, 500 true alternatives",
+        x = "",
+        y = "Proportion"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold"),
+        axis.text.x = ggplot2$element_text(angle = 15, hjust = 1)
+    )
+```
+
+---
+
+### 2.4.2 Simulation Study: Varying Signal Strength
+
+```{r signal_strength_sim, fig.cap="FDR control adapts to signal strength better than FWER methods"}
+# Vary the proportion of true alternatives
+pi1_values <- seq(0, 0.2, by = 0.02)
+n_sim <- 100
+
+sim_results <- rbindlist(lapply(pi1_values, function(pi1) {
+    rbindlist(lapply(1:n_sim, function(sim) {
+        m <- 5000
+        m1 <- round(m * pi1)
+        m0 <- m - m1
+
+        # Generate p-values
+        if (m0 > 0) p_null <- runif(m0) else p_null <- numeric(0)
+        if (m1 > 0) p_alt <- rbeta(m1, 0.5, 10) else p_alt <- numeric(0)
+
+        p_all <- c(p_null, p_alt)
+        true_alt <- c(rep(FALSE, m0), rep(TRUE, m1))
+
+        # Apply BH
+        p_sorted <- sort(p_all)
+        ranks <- rank(p_all, ties.method = "first")
+        bh_thresh <- (seq_len(m) / m) * alpha
+        bh_cutoff <- max(c(0, which(p_sorted <= bh_thresh)))
+
+        bh_reject <- ranks <= bh_cutoff
+
+        # Metrics
+        if (sum(bh_reject) > 0) {
+            fdp <- sum(bh_reject & !true_alt) / sum(bh_reject)
+        } else {
+            fdp <- 0
+        }
+
+        if (m1 > 0) {
+            power <- sum(bh_reject & true_alt) / m1
+        } else {
+            power <- NA
+        }
+
+        data.table(
+            pi1 = pi1,
+            sim = sim,
+            rejections = sum(bh_reject),
+            fdp = fdp,
+            power = power
+        )
+    }))
+}))
+
+# Summarise
+sim_summary <- sim_results[, .(
+    mean_fdp = mean(fdp),
+    se_fdp = sd(fdp) / sqrt(.N),
+    mean_power = mean(power, na.rm = TRUE),
+    se_power = sd(power, na.rm = TRUE) / sqrt(sum(!is.na(power)))
+), by = pi1]
+
+ggplot2$ggplot(sim_summary[pi1 > 0], ggplot2$aes(x = pi1)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = mean_fdp - se_fdp, ymax = mean_fdp + se_fdp),
+                        fill = "#D95F02", alpha = 0.3) +
+    ggplot2$geom_line(ggplot2$aes(y = mean_fdp), colour = "#D95F02", linewidth = 1.2) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = mean_power - se_power, ymax = mean_power + se_power),
+                        fill = "#2166AC", alpha = 0.3) +
+    ggplot2$geom_line(ggplot2$aes(y = mean_power), colour = "#2166AC", linewidth = 1.2) +
+    ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "grey40") +
+    ggplot2$annotate("text", x = 0.18, y = 0.85, label = "Power", colour = "#2166AC", fontface = "bold") +
+    ggplot2$annotate("text", x = 0.18, y = 0.1, label = "FDP", colour = "#D95F02", fontface = "bold") +
+    ggplot2$labs(
+        title = "BH Performance Across Signal Densities",
+        subtitle = "FDR controlled at 0.05 regardless of proportion of true alternatives",
+        x = expression(pi[1] ~ "(proportion of true alternatives)"),
+        y = "Proportion"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+## 2.5 Local False Discovery Rates
+
+### 2.5.1 From Global to Local
+
+**Prose and Intuition**
+
+The BH procedure gives a global FDR guarantee, but what about individual tests? The **local false discovery rate** (lfdr) answers: "Given this specific p-value, what's the probability this test is a false positive?"
+
+**Mathematical Definition**
+
+Using Bayes' theorem:
+
+$$\text{lfdr}(p) = P(H_0 \mid P = p) = \frac{P(P = p \mid H_0) \cdot P(H_0)}{P(P = p)}$$
+
+If $\pi_0$ is the proportion of null hypotheses:
+
+$$\text{lfdr}(p) = \frac{\pi_0 \cdot f_0(p)}{f(p)}$$
+
+where $f_0(p)$ is the density under null (uniform, so $f_0(p) = 1$) and $f(p)$ is the mixture density.
+
+**Estimation via Z-Scores**
+
+In practice, we work with z-scores rather than p-values. The z-score distribution is a mixture:
+
+$$f(z) = \pi_0 \cdot \phi(z) + (1 - \pi_0) \cdot f_1(z)$$
+
+where $\phi$ is the standard normal density and $f_1$ is the alternative density (typically non-central normal or unknown).
+
+```{r lfdr_illustration, fig.cap="Local FDR: probability a specific result is a false discovery"}
+# Convert p-values to z-scores (two-sided)
+results_dt[, z_score := qnorm(p_value / 2, lower.tail = FALSE) * sign(runif(.N) - 0.5)]
+
+# Estimate null proportion and lfdr using simple method
+# Fit a mixture: central null (N(0,1)) + alternative
+
+# Use histogram of z-scores
+z_hist <- hist(results_dt$z_score, breaks = 100, plot = FALSE)
+
+# Estimate pi0 from central region
+central_z <- abs(results_dt$z_score) < 1
+pi0_estimate <- sum(central_z) / (nrow(results_dt) * (pnorm(1) - pnorm(-1)))
+pi0_estimate <- min(pi0_estimate, 1)
+
+# For illustration, compute theoretical lfdr
+# lfdr(z) = pi0 * phi(z) / f(z)
+# Approximate f(z) using kernel density
+z_density <- density(results_dt$z_score, n = 512, from = -6, to = 6)
+
+# Create lfdr curve
+lfdr_data <- data.table(
+    z = z_density$x,
+    f_z = z_density$y,
+    f0_z = dnorm(z_density$x)
+)
+lfdr_data[, lfdr := pmin(1, pi0_estimate * f0_z / f_z)]
+
+# Plot
+p1 <- ggplot2$ggplot(results_dt[abs(z_score) < 6], ggplot2$aes(x = z_score)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)), bins = 80, fill = "grey70", colour = "white") +
+    ggplot2$geom_line(data = lfdr_data, ggplot2$aes(x = z, y = f0_z * pi0_estimate),
+                      colour = "#D95F02", linewidth = 1.2, linetype = "dashed") +
+    ggplot2$geom_line(data = lfdr_data, ggplot2$aes(x = z, y = f_z),
+                      colour = "#2166AC", linewidth = 1.2) +
+    ggplot2$labs(
+        title = "Z-Score Distribution: Mixture of Null and Alternative",
+        subtitle = paste0("Estimated pi0 = ", round(pi0_estimate, 3)),
+        x = "Z-score",
+        y = "Density"
+    ) +
+    ggplot2$annotate("text", x = 3, y = 0.3, label = "Observed mixture f(z)", colour = "#2166AC") +
+    ggplot2$annotate("text", x = 0, y = 0.35, label = expression(pi[0] %.% phi(z) ~ "(scaled null)"),
+                     colour = "#D95F02") +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+
+print(p1)
+```
+
+```{r lfdr_curve, fig.cap="Local FDR as a function of z-score: large z-scores have low lfdr"}
+# Plot lfdr curve
+ggplot2$ggplot(lfdr_data, ggplot2$aes(x = z, y = lfdr)) +
+    ggplot2$geom_line(colour = "#2166AC", linewidth = 1.2) +
+    ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "#D95F02") +
+    ggplot2$annotate("text", x = 4, y = 0.1, label = "lfdr = 0.05 threshold", colour = "#D95F02") +
+    ggplot2$labs(
+        title = "Local False Discovery Rate Curve",
+        subtitle = "Probability that a test with z-score z is a false discovery",
+        x = "Z-score",
+        y = "Local FDR"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+## 2.6 Practical Application: Differential Expression
+
+### 2.6.1 Gene Expression Example
+
+Let's apply these methods to a realistic gene expression scenario.
+
+```{r de_simulation}
+# Simulate a more realistic DE scenario
+set.seed(123)
+
+n_genes <- 15000
+n_samples <- 10  # 5 control, 5 treatment
+
+# Gene expression matrix (log-transformed)
+# Most genes: no change
+# Some genes: up-regulated
+# Some genes: down-regulated
+
+true_effect <- rep(0, n_genes)
+up_genes <- sample(1:n_genes, 200)
+down_genes <- sample(setdiff(1:n_genes, up_genes), 150)
+true_effect[up_genes] <- rnorm(200, mean = 1.5, sd = 0.5)
+true_effect[down_genes] <- rnorm(150, mean = -1.5, sd = 0.5)
+
+# Generate expression data
+expression_matrix <- matrix(rnorm(n_genes * n_samples, mean = 8, sd = 1),
+                            nrow = n_genes, ncol = n_samples)
+
+# Add treatment effect to treatment group (samples 6-10)
+expression_matrix[, 6:10] <- expression_matrix[, 6:10] + true_effect
+
+# Compute t-statistics
+t_stats <- apply(expression_matrix, 1, function(gene) {
+    control <- gene[1:5]
+    treatment <- gene[6:10]
+    t.test(treatment, control, var.equal = TRUE)$statistic
+})
+
+# Convert to p-values
+p_values_de <- 2 * pt(abs(t_stats), df = 8, lower.tail = FALSE)
+
+# Create results table
+de_results <- data.table(
+    gene = paste0("Gene_", 1:n_genes),
+    t_stat = t_stats,
+    p_value = p_values_de,
+    true_de = true_effect != 0,
+    direction = fifelse(true_effect > 0, "Up", fifelse(true_effect < 0, "Down", "None"))
+)
+
+# Apply multiple testing corrections
+de_results[, p_bonf := p.adjust(p_value, method = "bonferroni")]
+de_results[, p_holm := p.adjust(p_value, method = "holm")]
+de_results[, p_bh := p.adjust(p_value, method = "BH")]
+
+cat("Differential Expression Analysis Results:\n")
+cat("=========================================\n")
+cat("Total genes:", n_genes, "\n")
+cat("True DE genes:", sum(de_results$true_de), "(", sum(true_effect > 0), "up,", sum(true_effect < 0), "down)\n\n")
+```
+
+**Volcano Plot**
+
+```{r volcano_plot, fig.cap="Volcano plot with FDR-significant genes highlighted"}
+de_results[, log_fc := t_stat / sqrt(n_samples / 2)]  # Approximate log-fold-change
+de_results[, neg_log_p := -log10(p_value)]
+de_results[, significant_bh := p_bh < 0.05]
+
+ggplot2$ggplot(de_results, ggplot2$aes(x = log_fc, y = neg_log_p)) +
+    ggplot2$geom_point(ggplot2$aes(colour = interaction(significant_bh, direction)),
+                       alpha = 0.5, size = 1) +
+    ggplot2$scale_colour_manual(
+        values = c(
+            "FALSE.None" = "grey70",
+            "FALSE.Up" = "grey70",
+            "FALSE.Down" = "grey70",
+            "TRUE.None" = "grey70",
+            "TRUE.Up" = "#D95F02",
+            "TRUE.Down" = "#2166AC"
+        ),
+        labels = c("Not significant", "Not significant", "Not significant",
+                   "Not significant", "Significant (Up)", "Significant (Down)"),
+        name = ""
+    ) +
+    ggplot2$geom_hline(yintercept = -log10(0.05 / n_genes), linetype = "dashed",
+                       colour = "red", alpha = 0.5) +
+    ggplot2$annotate("text", x = 2, y = -log10(0.05 / n_genes) + 0.5,
+                     label = "Bonferroni", colour = "red", size = 3) +
+    ggplot2$labs(
+        title = "Volcano Plot: Differential Expression Analysis",
+        subtitle = "Points coloured by BH-corrected significance (q < 0.05)",
+        x = "Effect Size (approx. log-fold-change)",
+        y = expression(-log[10](p))
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    ) +
+    ggplot2$guides(colour = ggplot2$guide_legend(override.aes = list(size = 3, alpha = 1)))
+```
+
+**Performance Summary**
+
+```{r de_performance}
+# Calculate performance metrics
+calc_performance <- function(rejected, true_de) {
+    tp <- sum(rejected & true_de)
+    fp <- sum(rejected & !true_de)
+    fn <- sum(!rejected & true_de)
+    tn <- sum(!rejected & !true_de)
+
+    list(
+        rejections = sum(rejected),
+        TP = tp,
+        FP = fp,
+        power = tp / sum(true_de),
+        FDP = if (sum(rejected) > 0) fp / sum(rejected) else 0
+    )
+}
+
+de_performance <- rbindlist(list(
+    c(Method = "Uncorrected (p < 0.05)", calc_performance(de_results$p_value < 0.05, de_results$true_de)),
+    c(Method = "Bonferroni", calc_performance(de_results$p_bonf < 0.05, de_results$true_de)),
+    c(Method = "Holm", calc_performance(de_results$p_holm < 0.05, de_results$true_de)),
+    c(Method = "BH (q < 0.05)", calc_performance(de_results$p_bh < 0.05, de_results$true_de))
+))
+
+print(de_performance)
+```
+
+---
+
+## 2.7 Communicating Results to Stakeholders
+
+### For Biologists
+
+> "We tested all 15,000 genes for differential expression between treatment and control groups. To account for multiple testing, we used the Benjamini-Hochberg procedure to control the false discovery rate at 5%. This means we expect no more than 5% of the genes we call 'differentially expressed' to be false positives. We identified 287 significantly differentially expressed genes: 165 up-regulated and 122 down-regulated."
+
+### For Clinical Collaborators
+
+> "When we test thousands of genes simultaneously, we must be careful about false alarms. Using standard statistical thresholds, about 750 genes would appear significant by chance alone. We applied a correction that controls the rate of false discoveries while still having good power to detect real effects. The 287 genes we identified are unlikely to all be false positives—we estimate at most 15 (5% of 287) may be spurious."
+
+### For Journal Publication
+
+> "Multiple testing correction was performed using the Benjamini-Hochberg procedure to control the false discovery rate at 5% (Benjamini & Hochberg, 1995). Of 15,000 genes tested, 287 showed statistically significant differential expression (q < 0.05): 165 up-regulated and 122 down-regulated in the treatment condition. Effect sizes ranged from -3.2 to +4.1 log-fold-change."
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+**Bonferroni correction:**
+$$\alpha_{\text{adjusted}} = \frac{\alpha}{m}$$
+
+**Benjamini-Hochberg threshold:**
+$$\text{Reject } H_{(i)} \text{ if } p_{(i)} \leq \frac{i}{m}\alpha$$
+
+**Q-value (BH-adjusted p-value):**
+$$q_{(i)} = \min_{j \geq i}\left\{\frac{m \cdot p_{(j)}}{j}\right\}$$
+
+**Local FDR:**
+$$\text{lfdr}(z) = \frac{\pi_0 \cdot \phi(z)}{f(z)}$$
+
+### R Code Summary
+
+```r
+# Built-in adjustments
+p.adjust(p_values, method = "bonferroni")
+p.adjust(p_values, method = "holm")
+p.adjust(p_values, method = "BH")  # Benjamini-Hochberg
+p.adjust(p_values, method = "BY")  # Benjamini-Yekutieli (conservative)
+
+# Manual BH implementation
+bh_adjust <- function(p) {
+    n <- length(p)
+    o <- order(p)
+    ro <- order(o)
+    pmin(1, cummin((n / seq(n, 1)) * p[o]))[ro]
+}
+```
+
+### Decision Guide
+
+| Situation | Method | Rationale |
+|-----------|--------|-----------|
+| Must avoid ANY false positive | Bonferroni/Holm | Controls FWER |
+| Exploratory genomics | BH | Controls FDR |
+| Dependent tests | BY or permutation | Accounts for correlation |
+| Want individual probabilities | Local FDR | Per-hypothesis interpretation |
+
+---
+
+## Exercises
+
+1. **Simulation Study**: Generate 10,000 p-values where 90% are uniform (null) and 10% are beta-distributed (alternative). Apply Bonferroni, Holm, and BH procedures. Compare power and actual FDP across 100 simulations.
+
+2. **Dependence Effect**: Modify the simulation so that null p-values are positively correlated (e.g., via a multivariate normal). Does BH still control FDR? Try the Benjamini-Yekutieli procedure.
+
+3. **Real Data Application**: Download a public gene expression dataset (e.g., from GEO). Apply differential expression testing and compare results using different multiple testing corrections.
+
+4. **Q-value Interpretation**: For the breast cancer dataset, test whether each feature differs between malignant and benign tumours. Report q-values and interpret the number of features with q < 0.01, q < 0.05, and q < 0.10.

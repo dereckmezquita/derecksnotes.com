@@ -1,0 +1,1008 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 5: Causal Inference"
+part: "Part 1: Potential Outcomes and Randomised Experiments"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, causal-inference, randomisation, potential-outcomes, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: Potential Outcomes and Randomised Experiments
+
+Correlation is not causation—but when *is* it? **Causal inference** provides the mathematical framework for answering "what if" questions: What would happen if we gave this patient the treatment? How much does the drug actually cause blood pressure to drop? This chapter develops the potential outcomes framework—the foundation of modern causal inference—and explains why randomised experiments are the gold standard for causal claims.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+
+``` r
+# Simulate clinical trial data for illustration
+# This mimics a blood pressure reduction trial
+n_subjects <- 500
+
+# True causal effect: treatment reduces BP by 10 mmHg on average
+true_ate <- -10
+
+# Baseline characteristics
+age <- round(rnorm(n_subjects, 55, 10))
+baseline_bp <- round(rnorm(n_subjects, 140, 15))
+
+# Individual treatment effects vary
+individual_effects <- rnorm(n_subjects, true_ate, 5)
+
+# Potential outcomes
+y0 <- baseline_bp + rnorm(n_subjects, 0, 8)  # Outcome if not treated
+y1 <- y0 + individual_effects                 # Outcome if treated
+
+trial_data <- data.table(
+    id = 1:n_subjects,
+    age = age,
+    baseline_bp = baseline_bp,
+    y0 = round(y0),
+    y1 = round(y1),
+    individual_effect = round(individual_effects, 1)
+)
+
+cat("Simulated Clinical Trial Data\n")
+#> Simulated Clinical Trial Data
+cat("=============================\n")
+#> =============================
+cat("  Subjects:", n_subjects, "\n")
+#>   Subjects: 500
+cat("  True ATE:", true_ate, "mmHg\n")
+#>   True ATE: -10 mmHg
+cat("  Mean baseline BP:", round(mean(baseline_bp), 1), "mmHg\n")
+#>   Mean baseline BP: 139.7 mmHg
+```
+
+---
+
+## 5.1 The Fundamental Problem of Causal Inference
+
+### 5.1.1 Potential Outcomes Framework
+
+**Prose and Intuition**
+
+The **potential outcomes framework** (also called the Rubin Causal Model) formalises causal effects by imagining what *would* happen under different treatments.
+
+For each subject $i$, define:
+- $Y_i(1)$: The outcome if subject $i$ receives treatment
+- $Y_i(0)$: The outcome if subject $i$ receives control
+
+The **individual causal effect** for subject $i$ is:
+$$\tau_i = Y_i(1) - Y_i(0)$$
+
+This is the difference between what happens *with* treatment versus *without* treatment—for the same person.
+
+**The Fundamental Problem**: We can never observe both $Y_i(1)$ and $Y_i(0)$ for the same individual. Once we treat someone, we can't simultaneously observe what would have happened without treatment.
+
+**Mathematical Framework**
+
+Let $W_i \in \{0, 1\}$ denote the treatment assignment. The **observed outcome** is:
+$$Y_i^{obs} = W_i \cdot Y_i(1) + (1 - W_i) \cdot Y_i(0)$$
+
+We observe $Y_i(1)$ if treated, $Y_i(0)$ if not—never both.
+
+
+``` r
+# Illustrate the fundamental problem
+demo_subjects <- trial_data[1:10]
+
+# Format for display
+demo_display <- demo_subjects[, .(
+    Subject = id,
+    `Y(0)` = y0,
+    `Y(1)` = y1,
+    `True Effect` = individual_effect
+)]
+
+cat("Potential Outcomes (We Cannot See All of This!)\n")
+#> Potential Outcomes (We Cannot See All of This!)
+cat("================================================\n")
+#> ================================================
+print(demo_display)
+#>     Subject  Y(0)  Y(1) True Effect
+#>       <int> <num> <num>       <num>
+#>  1:       1   150   152         1.6
+#>  2:       2   153   146        -7.4
+#>  3:       3   132   127        -5.1
+#>  4:       4   149   141        -8.1
+#>  5:       5   123   108       -15.0
+#>  6:       6   140   127       -13.0
+#>  7:       7   132   123        -9.2
+#>  8:       8   116    91       -24.6
+#>  9:       9   130   116       -14.2
+#> 10:      10   136   130        -6.0
+
+cat("\nThe '?' represents the counterfactual we can never observe.\n")
+#> 
+#> The '?' represents the counterfactual we can never observe.
+
+# Visualise the missing data structure
+missing_data <- rbind(
+    demo_subjects[, .(id, outcome = "Y(0)", value = y0, observed = "If Control")],
+    demo_subjects[, .(id, outcome = "Y(1)", value = y1, observed = "If Treated")]
+)
+
+ggplot2$ggplot(missing_data, ggplot2$aes(x = factor(id), y = value, fill = outcome)) +
+    ggplot2$geom_bar(stat = "identity", position = "dodge", width = 0.7) +
+    ggplot2$scale_fill_manual(values = c("Y(0)" = "#2166AC", "Y(1)" = "#D95F02"),
+                               name = "Potential Outcome") +
+    ggplot2$geom_hline(yintercept = mean(demo_subjects$y0), linetype = "dashed",
+                        colour = "#2166AC", alpha = 0.5) +
+    ggplot2$geom_hline(yintercept = mean(demo_subjects$y1), linetype = "dashed",
+                        colour = "#D95F02", alpha = 0.5) +
+    ggplot2$labs(
+        title = "Both Potential Outcomes Exist (But We Only See One)",
+        subtitle = "In reality, we observe Y(1) OR Y(0), never both for the same person",
+        x = "Subject ID",
+        y = "Blood Pressure (mmHg)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/fundamental_problem-1.png" alt="The fundamental problem: we observe only one potential outcome per subject">
+	The fundamental problem: we observe only one potential outcome per subject
+</Figure>
+
+### 5.1.2 Causal Estimands
+
+**Prose and Intuition**
+
+Since we cannot observe individual effects, we focus on **population-level** quantities:
+
+**Average Treatment Effect (ATE)**:
+$$\tau_{ATE} = E[Y(1) - Y(0)] = E[Y(1)] - E[Y(0)]$$
+
+The expected effect of treating a randomly selected unit from the population.
+
+**Average Treatment Effect on the Treated (ATT)**:
+$$\tau_{ATT} = E[Y(1) - Y(0) | W = 1]$$
+
+The expected effect *among those who were actually treated*.
+
+**Average Treatment Effect on the Control (ATC)**:
+$$\tau_{ATC} = E[Y(1) - Y(0) | W = 0]$$
+
+The expected effect *among those who received control*.
+
+**Relationship**: $\tau_{ATE} = P(W=1) \cdot \tau_{ATT} + P(W=0) \cdot \tau_{ATC}$
+
+
+``` r
+# Calculate all estimands from our simulated data
+# (We can do this because we have both potential outcomes in simulation)
+
+ate <- mean(trial_data$y1 - trial_data$y0)
+cat("True Average Treatment Effect (ATE):", round(ate, 2), "mmHg\n")
+#> True Average Treatment Effect (ATE): -10.22 mmHg
+
+# Now simulate a treatment assignment
+# First: random assignment (we'll compare to biased later)
+trial_data[, W := sample(c(0, 1), .N, replace = TRUE)]
+trial_data[, Y_obs := ifelse(W == 1, y1, y0)]
+
+# ATT and ATC (using true potential outcomes)
+att <- mean(trial_data[W == 1]$y1 - trial_data[W == 1]$y0)
+atc <- mean(trial_data[W == 0]$y1 - trial_data[W == 0]$y0)
+
+cat("\nWith Random Assignment:\n")
+#> 
+#> With Random Assignment:
+cat("  ATT (effect on treated):", round(att, 2), "mmHg\n")
+#>   ATT (effect on treated): -10.43 mmHg
+cat("  ATC (effect on controls):", round(atc, 2), "mmHg\n")
+#>   ATC (effect on controls): -9.96 mmHg
+cat("  Expected relationship ATE = P(W=1)*ATT + P(W=0)*ATC:\n")
+#>   Expected relationship ATE = P(W=1)*ATT + P(W=0)*ATC:
+cat("  ", round(mean(trial_data$W) * att + (1 - mean(trial_data$W)) * atc, 2), "mmHg\n")
+#>    -10.22 mmHg
+
+# Visualise heterogeneous effects
+effect_dist <- data.table(
+    effect = trial_data$individual_effect,
+    treated = factor(trial_data$W, levels = c(0, 1), labels = c("Control", "Treated"))
+)
+
+ggplot2$ggplot(effect_dist, ggplot2$aes(x = effect, fill = treated)) +
+    ggplot2$geom_density(alpha = 0.6) +
+    ggplot2$geom_vline(xintercept = ate, linetype = "solid", colour = "black", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = att, linetype = "dashed", colour = "#D95F02") +
+    ggplot2$geom_vline(xintercept = atc, linetype = "dashed", colour = "#2166AC") +
+    ggplot2$scale_fill_manual(values = c("Control" = "#2166AC", "Treated" = "#D95F02")) +
+    ggplot2$annotate("text", x = ate + 1, y = 0.09, label = paste("ATE =", round(ate, 1)),
+                      fontface = "bold") +
+    ggplot2$labs(
+        title = "Distribution of Individual Treatment Effects",
+        subtitle = "Vertical lines show ATE (solid), ATT (orange dashed), ATC (blue dashed)",
+        x = "Individual Treatment Effect (mmHg)",
+        y = "Density",
+        fill = "Group"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/estimands-1.png" alt="Different causal estimands answer different questions">
+	Different causal estimands answer different questions
+</Figure>
+
+---
+
+## 5.2 Why Naive Comparisons Fail: Selection Bias
+
+### 5.2.1 The Selection Problem
+
+**Prose and Intuition**
+
+Why can't we just compare outcomes between treated and untreated groups?
+
+$$\text{Naive estimator} = E[Y^{obs} | W = 1] - E[Y^{obs} | W = 0]$$
+
+This compares:
+- Average *observed* outcome among the treated: $E[Y(1) | W = 1]$
+- Average *observed* outcome among controls: $E[Y(0) | W = 0]$
+
+But this is *not* the ATE unless the groups are comparable:
+
+$$E[Y^{obs} | W = 1] - E[Y^{obs} | W = 0] = \underbrace{E[Y(1) - Y(0)]}_{\text{ATE}} + \underbrace{E[Y(0) | W = 1] - E[Y(0) | W = 0]}_{\text{Selection Bias}}$$
+
+**Selection bias** occurs when the treated group would have different outcomes than the control group *even without treatment*.
+
+**Mathematical Derivation**
+
+\begin{align}
+&E[Y^{obs} | W = 1] - E[Y^{obs} | W = 0] \\
+&= E[Y(1) | W = 1] - E[Y(0) | W = 0] \\
+&= E[Y(1) | W = 1] - E[Y(0) | W = 1] + E[Y(0) | W = 1] - E[Y(0) | W = 0] \\
+&= \underbrace{E[Y(1) - Y(0) | W = 1]}_{\text{ATT}} + \underbrace{E[Y(0) | W = 1] - E[Y(0) | W = 0]}_{\text{Selection Bias}}
+\end{align}
+
+Selection bias $\neq 0$ when treated units would have had different outcomes *anyway*.
+
+
+``` r
+# Create biased assignment: sicker patients more likely to get treatment
+# This mimics observational data where treatment is not randomised
+
+# Re-simulate with confounding
+trial_data[, treatment_prob := plogis((baseline_bp - 140) / 10)]  # Higher BP -> more likely treated
+trial_data[, W_biased := rbinom(.N, 1, treatment_prob)]
+trial_data[, Y_obs_biased := ifelse(W_biased == 1, y1, y0)]
+
+# Naive comparison
+naive_estimate <- mean(trial_data[W_biased == 1]$Y_obs_biased) -
+                  mean(trial_data[W_biased == 0]$Y_obs_biased)
+
+# True ATE (we know this from simulation)
+true_ate_calc <- mean(trial_data$y1 - trial_data$y0)
+
+# Selection bias
+selection_bias <- naive_estimate - true_ate_calc
+
+cat("With Confounded (Biased) Assignment:\n")
+#> With Confounded (Biased) Assignment:
+cat("=====================================\n")
+#> =====================================
+cat("  Naive estimate:", round(naive_estimate, 2), "mmHg\n")
+#>   Naive estimate: 6.83 mmHg
+cat("  True ATE:", round(true_ate_calc, 2), "mmHg\n")
+#>   True ATE: -10.22 mmHg
+cat("  Selection bias:", round(selection_bias, 2), "mmHg\n\n")
+#>   Selection bias: 17.04 mmHg
+
+cat("The bias is POSITIVE because treated patients had higher baseline BP.\n")
+#> The bias is POSITIVE because treated patients had higher baseline BP.
+cat("Even without treatment, they would have had worse outcomes.\n")
+#> Even without treatment, they would have had worse outcomes.
+
+# Visualise the selection bias
+baseline_comparison <- trial_data[, .(
+    group = c("Control (Biased)", "Treated (Biased)"),
+    mean_baseline_bp = c(
+        mean(trial_data[W_biased == 0]$baseline_bp),
+        mean(trial_data[W_biased == 1]$baseline_bp)
+    ),
+    mean_y0 = c(
+        mean(trial_data[W_biased == 0]$y0),
+        mean(trial_data[W_biased == 1]$y0)
+    )
+)]
+
+cat("\nBaseline Imbalance (Biased Assignment):\n")
+#> 
+#> Baseline Imbalance (Biased Assignment):
+print(baseline_comparison)
+#>               group mean_baseline_bp  mean_y0
+#>              <char>            <num>    <num>
+#> 1: Control (Biased)         131.0551 131.4134
+#> 2: Treated (Biased)         148.5732 148.6870
+```
+
+
+``` r
+# Create visualisation data
+comparison_data <- data.table(
+    Scenario = rep(c("Random Assignment", "Biased Assignment"), each = 2),
+    Group = rep(c("Control", "Treated"), 2),
+    Mean_Baseline_BP = c(
+        mean(trial_data[W == 0]$baseline_bp),
+        mean(trial_data[W == 1]$baseline_bp),
+        mean(trial_data[W_biased == 0]$baseline_bp),
+        mean(trial_data[W_biased == 1]$baseline_bp)
+    ),
+    Mean_Outcome = c(
+        mean(trial_data[W == 0]$Y_obs),
+        mean(trial_data[W == 1]$Y_obs),
+        mean(trial_data[W_biased == 0]$Y_obs_biased),
+        mean(trial_data[W_biased == 1]$Y_obs_biased)
+    )
+)
+
+# Plot showing baseline imbalance
+ggplot2$ggplot(comparison_data, ggplot2$aes(x = Group, y = Mean_Baseline_BP, fill = Scenario)) +
+    ggplot2$geom_bar(stat = "identity", position = "dodge", width = 0.6) +
+    ggplot2$scale_fill_manual(values = c("Random Assignment" = "#4DAF4A",
+                                          "Biased Assignment" = "#E41A1C")) +
+    ggplot2$labs(
+        title = "Baseline Covariate Balance",
+        subtitle = "Random assignment creates comparable groups; biased assignment does not",
+        x = "",
+        y = "Mean Baseline Blood Pressure (mmHg)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/bias_visualisation-1.png" alt="Selection bias arises when treated and control groups are not comparable">
+	Selection bias arises when treated and control groups are not comparable
+</Figure>
+
+---
+
+## 5.3 Randomisation: The Gold Standard
+
+### 5.3.1 Why Randomisation Works
+
+**Prose and Intuition**
+
+**Randomisation** eliminates selection bias by making treatment assignment **independent** of potential outcomes:
+
+$$W \perp\!\!\!\perp (Y(0), Y(1))$$
+
+When treatment is randomly assigned, the treated and control groups are statistically identical—they differ only by chance. This means:
+- $E[Y(0) | W = 1] = E[Y(0) | W = 0] = E[Y(0)]$
+- $E[Y(1) | W = 1] = E[Y(1) | W = 0] = E[Y(1)]$
+
+Therefore, the naive comparison equals the true ATE:
+
+$$E[Y^{obs} | W = 1] - E[Y^{obs} | W = 0] = E[Y(1)] - E[Y(0)] = \tau_{ATE}$$
+
+**Mathematical Framework**
+
+**Theorem (Identification under Randomisation)**
+
+If $W \perp\!\!\!\perp (Y(0), Y(1))$, then:
+$$\tau_{ATE} = E[Y^{obs} | W = 1] - E[Y^{obs} | W = 0]$$
+
+*Proof*:
+\begin{align}
+E[Y^{obs} | W = 1] - E[Y^{obs} | W = 0] &= E[Y(1) | W = 1] - E[Y(0) | W = 0] \\
+&= E[Y(1)] - E[Y(0)] \quad \text{(by independence)} \\
+&= \tau_{ATE}
+\end{align}
+
+
+``` r
+# Show that randomisation balances covariates
+# Repeat the random assignment many times and check balance
+
+n_simulations <- 1000
+balance_results <- rbindlist(lapply(1:n_simulations, function(sim) {
+    # Random assignment
+    W_sim <- sample(c(0, 1), nrow(trial_data), replace = TRUE)
+
+    data.table(
+        simulation = sim,
+        mean_diff_age = mean(trial_data$age[W_sim == 1]) - mean(trial_data$age[W_sim == 0]),
+        mean_diff_bp = mean(trial_data$baseline_bp[W_sim == 1]) -
+                       mean(trial_data$baseline_bp[W_sim == 0])
+    )
+}))
+
+cat("Covariate Balance Across 1000 Random Assignments:\n")
+#> Covariate Balance Across 1000 Random Assignments:
+cat("=================================================\n")
+#> =================================================
+cat("  Age difference: Mean =", round(mean(balance_results$mean_diff_age), 3),
+    ", SD =", round(sd(balance_results$mean_diff_age), 3), "\n")
+#>   Age difference: Mean = -0.023 , SD = 0.905
+cat("  BP difference: Mean =", round(mean(balance_results$mean_diff_bp), 3),
+    ", SD =", round(sd(balance_results$mean_diff_bp), 3), "\n")
+#>   BP difference: Mean = -0.013 , SD = 1.376
+
+# Visualise balance
+balance_long <- melt(balance_results, id.vars = "simulation",
+                     measure.vars = c("mean_diff_age", "mean_diff_bp"),
+                     variable.name = "covariate", value.name = "difference")
+balance_long[, covariate := factor(covariate,
+                                    levels = c("mean_diff_age", "mean_diff_bp"),
+                                    labels = c("Age", "Baseline BP"))]
+
+ggplot2$ggplot(balance_long, ggplot2$aes(x = difference, fill = covariate)) +
+    ggplot2$geom_histogram(bins = 40, alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "red") +
+    ggplot2$facet_wrap(~ covariate, scales = "free_x") +
+    ggplot2$scale_fill_manual(values = c("Age" = "#1B9E77", "Baseline BP" = "#D95F02"),
+                               guide = "none") +
+    ggplot2$labs(
+        title = "Randomisation Creates Balance in Expectation",
+        subtitle = "Covariate differences centred at zero across repeated randomisations",
+        x = "Mean Difference (Treated - Control)",
+        y = "Frequency"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        strip.text = ggplot2$element_text(face = "bold", size = 12)
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/randomisation_power-1.png" alt="Randomisation makes treatment and control groups comparable across ALL variables">
+	Randomisation makes treatment and control groups comparable across ALL variables
+</Figure>
+
+### 5.3.2 Estimating ATE from RCT Data
+
+**Prose and Intuition**
+
+The **difference-in-means estimator** is unbiased for the ATE under randomisation:
+
+$$\hat{\tau} = \bar{Y}^{obs}_{W=1} - \bar{Y}^{obs}_{W=0}$$
+
+Its variance depends on the outcome variance in each group:
+
+$$\text{Var}(\hat{\tau}) = \frac{\sigma_1^2}{n_1} + \frac{\sigma_0^2}{n_0}$$
+
+Under equal allocation and homoscedasticity:
+
+$$\text{Var}(\hat{\tau}) \approx \frac{2\sigma^2}{n}$$
+
+
+``` r
+# Estimate ATE from our randomised trial
+ate_estimate <- mean(trial_data[W == 1]$Y_obs) - mean(trial_data[W == 0]$Y_obs)
+
+# Standard error
+n1 <- sum(trial_data$W == 1)
+n0 <- sum(trial_data$W == 0)
+var1 <- var(trial_data[W == 1]$Y_obs)
+var0 <- var(trial_data[W == 0]$Y_obs)
+se_ate <- sqrt(var1/n1 + var0/n0)
+
+# Confidence interval
+ci_lower <- ate_estimate - 1.96 * se_ate
+ci_upper <- ate_estimate + 1.96 * se_ate
+
+cat("ATE Estimation from Randomised Trial:\n")
+#> ATE Estimation from Randomised Trial:
+cat("=====================================\n")
+#> =====================================
+cat("  Point estimate:", round(ate_estimate, 2), "mmHg\n")
+#>   Point estimate: -8.79 mmHg
+cat("  Standard error:", round(se_ate, 2), "\n")
+#>   Standard error: 1.59
+cat("  95% CI: [", round(ci_lower, 2), ",", round(ci_upper, 2), "]\n")
+#>   95% CI: [ -11.9 , -5.67 ]
+cat("  True ATE:", round(true_ate_calc, 2), "mmHg\n\n")
+#>   True ATE: -10.22 mmHg
+
+# T-test
+t_result <- t.test(trial_data[W == 1]$Y_obs, trial_data[W == 0]$Y_obs)
+cat("Two-sample t-test:\n")
+#> Two-sample t-test:
+cat("  t-statistic:", round(t_result$statistic, 3), "\n")
+#>   t-statistic: -5.532
+cat("  p-value:", format.pval(t_result$p.value, digits = 3), "\n")
+#>   p-value: 5.2e-08
+```
+
+
+``` r
+# Simulate the sampling distribution of the ATE estimator
+n_bootstrap <- 2000
+
+ate_estimates <- numeric(n_bootstrap)
+for (b in 1:n_bootstrap) {
+    # Re-randomise treatment
+    W_b <- sample(c(0, 1), nrow(trial_data), replace = TRUE)
+    Y_obs_b <- ifelse(W_b == 1, trial_data$y1, trial_data$y0)
+
+    ate_estimates[b] <- mean(Y_obs_b[W_b == 1]) - mean(Y_obs_b[W_b == 0])
+}
+
+sampling_data <- data.table(estimate = ate_estimates)
+
+ggplot2$ggplot(sampling_data, ggplot2$aes(x = estimate)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..),
+                            bins = 50, fill = "#2166AC", alpha = 0.7) +
+    ggplot2$geom_density(colour = "#D95F02", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = true_ate_calc, linetype = "solid",
+                        colour = "red", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = mean(ate_estimates), linetype = "dashed",
+                        colour = "black") +
+    ggplot2$annotate("text", x = true_ate_calc - 1.5, y = 0.25,
+                      label = paste("True ATE =", round(true_ate_calc, 1)),
+                      colour = "red", fontface = "bold") +
+    ggplot2$labs(
+        title = "Sampling Distribution of ATE Estimator",
+        subtitle = paste0("Mean = ", round(mean(ate_estimates), 2),
+                         ", SE = ", round(sd(ate_estimates), 2),
+                         " (", n_bootstrap, " randomisations)"),
+        x = "ATE Estimate (mmHg)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/sampling_distribution-1.png" alt="Sampling distribution of the ATE estimator under repeated randomisation">
+	Sampling distribution of the ATE estimator under repeated randomisation
+</Figure>
+
+---
+
+## 5.4 Randomisation Inference
+
+### 5.4.1 Fisher's Sharp Null
+
+**Prose and Intuition**
+
+**Randomisation inference** (or permutation testing) tests the **sharp null hypothesis**:
+
+$$H_0: Y_i(1) = Y_i(0) \text{ for all } i$$
+
+Under the sharp null, treatment has *no effect* on *anyone*. This means observed outcomes equal potential outcomes regardless of assignment.
+
+The test statistic's distribution is generated by all possible ways to randomise treatment, with outcomes fixed.
+
+**Procedure**:
+1. Compute the observed test statistic (e.g., difference in means)
+2. Generate the null distribution by permuting treatment labels
+3. Calculate p-value as the proportion of permutations with test statistic as extreme as observed
+
+**Mathematical Framework**
+
+Under the sharp null $H_0$:
+$$Y_i^{obs} = Y_i(1) = Y_i(0) \quad \forall i$$
+
+The randomisation distribution of the test statistic $T(W, Y)$ is:
+$$\mathbb{P}(T(W^*, Y) \geq T(W^{obs}, Y) | H_0) = \frac{\#\{W^*: T(W^*, Y) \geq T(W^{obs}, Y)\}}{\text{total number of randomisations}}$$
+
+
+``` r
+# Randomisation inference for ATE
+observed_stat <- mean(trial_data[W == 1]$Y_obs) - mean(trial_data[W == 0]$Y_obs)
+
+# Generate null distribution by permuting treatment labels
+n_perms <- 5000
+perm_stats <- numeric(n_perms)
+
+Y_obs_fixed <- trial_data$Y_obs  # Fix outcomes
+
+for (p in 1:n_perms) {
+    W_perm <- sample(trial_data$W)  # Permute treatment labels
+    perm_stats[p] <- mean(Y_obs_fixed[W_perm == 1]) - mean(Y_obs_fixed[W_perm == 0])
+}
+
+# Two-sided p-value
+p_value <- mean(abs(perm_stats) >= abs(observed_stat))
+
+cat("Randomisation Inference (Fisher's Exact Test):\n")
+#> Randomisation Inference (Fisher's Exact Test):
+cat("==============================================\n")
+#> ==============================================
+cat("  Observed difference:", round(observed_stat, 2), "mmHg\n")
+#>   Observed difference: -8.79 mmHg
+cat("  Permutation distribution: Mean =", round(mean(perm_stats), 4),
+    ", SD =", round(sd(perm_stats), 2), "\n")
+#>   Permutation distribution: Mean = 0.0149 , SD = 1.61
+cat("  Two-sided p-value:", round(p_value, 4), "\n")
+#>   Two-sided p-value: 0
+
+# Visualise
+perm_data <- data.table(statistic = perm_stats)
+
+ggplot2$ggplot(perm_data, ggplot2$aes(x = statistic)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..),
+                            bins = 50, fill = "grey70", alpha = 0.8) +
+    ggplot2$geom_density(colour = "#2166AC", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = observed_stat, colour = "#D95F02",
+                        linewidth = 1.2, linetype = "solid") +
+    ggplot2$geom_vline(xintercept = -observed_stat, colour = "#D95F02",
+                        linewidth = 1.2, linetype = "dashed") +
+    ggplot2$annotate("text", x = observed_stat - 1, y = 0.18,
+                      label = paste("Observed =", round(observed_stat, 1)),
+                      colour = "#D95F02", fontface = "bold", hjust = 1) +
+    ggplot2$labs(
+        title = "Randomisation Distribution Under Sharp Null",
+        subtitle = paste0("p-value = ", round(p_value, 4), " (", n_perms, " permutations)"),
+        x = "Difference in Means (mmHg)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/randomisation_inference-1.png" alt="Randomisation distribution under Fisher&#39;s sharp null hypothesis">
+	Randomisation distribution under Fisher's sharp null hypothesis
+</Figure>
+
+### 5.4.2 Confidence Intervals via Inversion
+
+**Prose and Intuition**
+
+We can construct confidence intervals by **inverting** the randomisation test. Test $H_0: \tau = \tau_0$ for many values of $\tau_0$, and collect all values not rejected at level $\alpha$.
+
+**Procedure**:
+1. For each candidate $\tau_0$, shift treated outcomes: $\tilde{Y}_i = Y_i^{obs} - \tau_0 \cdot W_i$
+2. Conduct randomisation test on shifted data
+3. Include $\tau_0$ in CI if p-value $> \alpha$
+
+
+``` r
+# Construct confidence interval by test inversion
+tau_grid <- seq(-20, 5, by = 0.5)
+p_values <- numeric(length(tau_grid))
+
+for (t in seq_along(tau_grid)) {
+    tau_0 <- tau_grid[t]
+
+    # Shift treated outcomes by hypothesised effect
+    Y_shifted <- trial_data$Y_obs - tau_0 * trial_data$W
+
+    # Randomisation test
+    obs_diff <- mean(Y_shifted[trial_data$W == 1]) - mean(Y_shifted[trial_data$W == 0])
+
+    perm_diffs <- numeric(1000)
+    for (p in 1:1000) {
+        W_perm <- sample(trial_data$W)
+        perm_diffs[p] <- mean(Y_shifted[W_perm == 1]) - mean(Y_shifted[W_perm == 0])
+    }
+
+    p_values[t] <- mean(abs(perm_diffs) >= abs(obs_diff))
+}
+
+ci_grid <- data.table(tau = tau_grid, p_value = p_values)
+ci_95 <- ci_grid[p_value > 0.05]
+
+cat("95% Confidence Interval by Test Inversion:\n")
+#> 95% Confidence Interval by Test Inversion:
+cat("==========================================\n")
+#> ==========================================
+cat("  CI: [", min(ci_95$tau), ",", max(ci_95$tau), "]\n")
+#>   CI: [ -12 , -6 ]
+cat("  True ATE:", round(true_ate_calc, 2), "mmHg\n")
+#>   True ATE: -10.22 mmHg
+
+# Plot
+ggplot2$ggplot(ci_grid, ggplot2$aes(x = tau, y = p_value)) +
+    ggplot2$geom_line(linewidth = 1, colour = "#2166AC") +
+    ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "red") +
+    ggplot2$geom_vline(xintercept = true_ate_calc, linetype = "dotted", colour = "grey40") +
+    ggplot2$geom_ribbon(data = ci_grid[p_value > 0.05],
+                         ggplot2$aes(ymin = 0, ymax = p_value),
+                         fill = "#2166AC", alpha = 0.2) +
+    ggplot2$annotate("text", x = true_ate_calc + 1, y = 0.8,
+                      label = paste("True ATE =", round(true_ate_calc, 1)),
+                      hjust = 0) +
+    ggplot2$labs(
+        title = "Confidence Interval by Test Inversion",
+        subtitle = "Values of τ not rejected at α = 0.05 form the 95% CI",
+        x = "Hypothesised Treatment Effect (τ)",
+        y = "p-value"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/ci_inversion-1.png">
+	
+</Figure>
+
+---
+
+## 5.5 Covariate Adjustment in RCTs
+
+### 5.5.1 Regression Adjustment (ANCOVA)
+
+**Prose and Intuition**
+
+Even in RCTs, we can **improve precision** by adjusting for baseline covariates. If a covariate $X$ predicts the outcome, controlling for it reduces residual variance.
+
+**ANCOVA model**:
+$$Y_i = \alpha + \tau W_i + \beta X_i + \epsilon_i$$
+
+The coefficient $\tau$ estimates the ATE, and adjusting for $X$ increases precision *without* introducing bias (under randomisation).
+
+**Important**: Covariate adjustment in RCTs is for **efficiency**, not for removing confounding (there is none with randomisation).
+
+**Lin (2013)** showed that for maximum efficiency with regression adjustment:
+1. Centre covariates at their means
+2. Include treatment-covariate interactions
+
+$$Y_i = \alpha + \tau W_i + \beta (X_i - \bar{X}) + \gamma W_i(X_i - \bar{X}) + \epsilon_i$$
+
+
+``` r
+# Compare unadjusted and adjusted estimates
+
+# Unadjusted
+unadj_model <- lm(Y_obs ~ W, data = trial_data)
+unadj_ate <- coef(unadj_model)["W"]
+unadj_se <- summary(unadj_model)$coefficients["W", "Std. Error"]
+
+# Adjusted for baseline BP
+adj_model <- lm(Y_obs ~ W + baseline_bp, data = trial_data)
+adj_ate <- coef(adj_model)["W"]
+adj_se <- summary(adj_model)$coefficients["W", "Std. Error"]
+
+# Lin's fully interacted model
+trial_data[, bp_centered := baseline_bp - mean(baseline_bp)]
+lin_model <- lm(Y_obs ~ W * bp_centered, data = trial_data)
+lin_ate <- coef(lin_model)["W"]
+lin_se <- summary(lin_model)$coefficients["W", "Std. Error"]
+
+cat("Comparison of ATE Estimators:\n")
+#> Comparison of ATE Estimators:
+cat("============================\n")
+#> ============================
+cat("  Unadjusted: ATE =", round(unadj_ate, 2), ", SE =", round(unadj_se, 2), "\n")
+#>   Unadjusted: ATE = -8.79 , SE = 1.59
+cat("  ANCOVA:     ATE =", round(adj_ate, 2), ", SE =", round(adj_se, 2), "\n")
+#>   ANCOVA:     ATE = -10.76 , SE = 0.8
+cat("  Lin (2013): ATE =", round(lin_ate, 2), ", SE =", round(lin_se, 2), "\n")
+#>   Lin (2013): ATE = -10.77 , SE = 0.8
+cat("  True ATE:", round(true_ate_calc, 2), "\n\n")
+#>   True ATE: -10.22
+
+cat("Efficiency gain (SE reduction):\n")
+#> Efficiency gain (SE reduction):
+cat("  ANCOVA vs Unadjusted:", round((1 - adj_se/unadj_se) * 100, 1), "%\n")
+#>   ANCOVA vs Unadjusted: 49.7 %
+cat("  Lin vs Unadjusted:", round((1 - lin_se/unadj_se) * 100, 1), "%\n")
+#>   Lin vs Unadjusted: 49.7 %
+
+# Visualise
+comparison_results <- data.table(
+    Method = c("Unadjusted", "ANCOVA", "Lin (2013)"),
+    Estimate = c(unadj_ate, adj_ate, lin_ate),
+    SE = c(unadj_se, adj_se, lin_se)
+)
+comparison_results[, `:=`(
+    CI_lower = Estimate - 1.96 * SE,
+    CI_upper = Estimate + 1.96 * SE
+)]
+comparison_results[, Method := factor(Method, levels = c("Unadjusted", "ANCOVA", "Lin (2013)"))]
+
+ggplot2$ggplot(comparison_results, ggplot2$aes(x = Method, y = Estimate)) +
+    ggplot2$geom_point(size = 4, colour = "#2166AC") +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = CI_lower, ymax = CI_upper),
+                           width = 0.2, colour = "#2166AC", linewidth = 1) +
+    ggplot2$geom_hline(yintercept = true_ate_calc, linetype = "dashed",
+                        colour = "red", linewidth = 0.8) +
+    ggplot2$annotate("text", x = 3.3, y = true_ate_calc + 0.5,
+                      label = paste("True ATE =", round(true_ate_calc, 1)),
+                      colour = "red", hjust = 0) +
+    ggplot2$labs(
+        title = "Covariate Adjustment Improves Precision",
+        subtitle = "All methods are unbiased; adjusted methods have narrower CIs",
+        x = "",
+        y = "ATE Estimate (mmHg)"
+    ) +
+    ggplot2$coord_flip() +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/covariate_adjustment-1.png" alt="Covariate adjustment increases precision in RCTs">
+	Covariate adjustment increases precision in RCTs
+</Figure>
+
+---
+
+## 5.6 Stratified Randomisation and Block Designs
+
+### 5.6.1 Blocking for Balance
+
+**Prose and Intuition**
+
+**Stratified randomisation** (blocking) ensures balance on key covariates *by design* rather than relying on chance.
+
+**Procedure**:
+1. Divide subjects into strata (blocks) based on baseline characteristics
+2. Randomise within each stratum separately
+3. Guarantees exact balance on stratification variables
+
+**Example**: In a blood pressure trial, stratify by age group (young/old) and baseline severity (mild/moderate/severe), then randomise within each of the 6 strata.
+
+**Benefits**:
+- Guarantees covariate balance (no unlucky randomisations)
+- Increases precision
+- Enables subgroup analyses
+
+
+``` r
+# Create strata based on baseline BP
+trial_data[, bp_stratum := cut(baseline_bp, breaks = c(0, 130, 145, 200),
+                                labels = c("Low", "Medium", "High"))]
+
+# Stratified randomisation: equal allocation within each stratum
+trial_data[, W_stratified := {
+    n_stratum <- .N
+    n_treat <- floor(n_stratum / 2)
+    sample(c(rep(1, n_treat), rep(0, n_stratum - n_treat)))
+}, by = bp_stratum]
+
+trial_data[, Y_obs_stratified := ifelse(W_stratified == 1, y1, y0)]
+
+# Check balance
+balance_check <- trial_data[, .(
+    n_treated = sum(W_stratified),
+    n_control = sum(1 - W_stratified),
+    mean_bp_treated = mean(baseline_bp[W_stratified == 1]),
+    mean_bp_control = mean(baseline_bp[W_stratified == 0])
+), by = bp_stratum]
+
+cat("Balance Check After Stratified Randomisation:\n")
+#> Balance Check After Stratified Randomisation:
+cat("=============================================\n")
+#> =============================================
+print(balance_check)
+#>    bp_stratum n_treated n_control mean_bp_treated mean_bp_control
+#>        <fctr>     <num>     <num>           <num>           <num>
+#> 1:       High        89        89        155.6517        155.8539
+#> 2:     Medium        92        93        138.5000        138.1290
+#> 3:        Low        68        69        120.5294        120.7101
+
+# Compare variance of ATE estimator
+# Simple random
+n_sim <- 1000
+ate_simple <- numeric(n_sim)
+ate_stratified <- numeric(n_sim)
+
+for (s in 1:n_sim) {
+    # Simple random
+    W_s <- sample(c(0, 1), nrow(trial_data), replace = TRUE)
+    ate_simple[s] <- mean(trial_data$y1[W_s == 1] - mean(trial_data$y0[W_s == 0]))
+
+    # Stratified (ensure we're comparing same n)
+    trial_data[, W_strat_sim := {
+        n_stratum <- .N
+        n_treat <- floor(n_stratum / 2)
+        sample(c(rep(1, n_treat), rep(0, n_stratum - n_treat)))
+    }, by = bp_stratum]
+
+    ate_stratified[s] <- mean(trial_data[W_strat_sim == 1]$y1) -
+                         mean(trial_data[W_strat_sim == 0]$y0)
+}
+
+cat("\nVariance Comparison (1000 simulations):\n")
+#> 
+#> Variance Comparison (1000 simulations):
+cat("  Simple random: SD =", round(sd(ate_simple), 3), "\n")
+#>   Simple random: SD = 1.596
+cat("  Stratified: SD =", round(sd(ate_stratified), 3), "\n")
+#>   Stratified: SD = 1.014
+cat("  Efficiency gain:", round((1 - sd(ate_stratified)/sd(ate_simple)) * 100, 1), "%\n")
+#>   Efficiency gain: 36.5 %
+```
+
+### 5.6.2 Analysis of Stratified Designs
+
+**Prose and Intuition**
+
+For stratified designs, the estimator should reflect the design:
+
+$$\hat{\tau}_{stratified} = \sum_{s=1}^{S} \frac{n_s}{n} \hat{\tau}_s$$
+
+where $\hat{\tau}_s$ is the within-stratum ATE estimate and $n_s/n$ is the stratum weight.
+
+
+``` r
+# Proper analysis of stratified design
+stratum_estimates <- trial_data[, .(
+    n = .N,
+    ate = mean(Y_obs_stratified[W_stratified == 1]) -
+          mean(Y_obs_stratified[W_stratified == 0]),
+    n_t = sum(W_stratified),
+    n_c = sum(1 - W_stratified)
+), by = bp_stratum]
+
+# Weighted average
+stratum_estimates[, weight := n / sum(n)]
+stratified_ate <- sum(stratum_estimates$weight * stratum_estimates$ate)
+
+cat("Stratified Analysis:\n")
+#> Stratified Analysis:
+cat("====================\n")
+#> ====================
+print(stratum_estimates[, .(bp_stratum, n, n_t, n_c, ate = round(ate, 2),
+                            weight = round(weight, 3))])
+#>    bp_stratum     n   n_t   n_c   ate weight
+#>        <fctr> <int> <num> <num> <num>  <num>
+#> 1:       High   178    89    89 -9.44  0.356
+#> 2:     Medium   185    92    93 -9.36  0.370
+#> 3:        Low   137    68    69 -9.50  0.274
+cat("\nWeighted ATE:", round(stratified_ate, 2), "\n")
+#> 
+#> Weighted ATE: -9.43
+cat("True ATE:", round(true_ate_calc, 2), "\n")
+#> True ATE: -10.22
+```
+
+---
+
+## 5.7 Summary and Key Concepts
+
+### Key Takeaways
+
+1. **Potential Outcomes Framework**: Causal effects are defined by comparing potential outcomes $Y(1)$ and $Y(0)$, but we can never observe both for the same unit.
+
+2. **Fundamental Problem**: The "fundamental problem of causal inference" is that counterfactuals are unobservable.
+
+3. **Selection Bias**: Naive comparisons between treated and control groups are biased when groups differ in ways that affect outcomes.
+
+4. **Randomisation Solution**: Random assignment makes $W \perp\!\!\!\perp (Y(0), Y(1))$, eliminating selection bias and making the difference-in-means estimator unbiased for the ATE.
+
+5. **Randomisation Inference**: Fisher's exact test uses the randomisation distribution under the sharp null hypothesis to compute exact p-values.
+
+6. **Covariate Adjustment**: In RCTs, adjusting for baseline covariates increases precision without introducing bias.
+
+7. **Stratified Randomisation**: Blocking ensures covariate balance by design and can further improve efficiency.
+
+### Connections to Next Topics
+
+- **Part 2**: When randomisation is not possible, we need **observational methods** that adjust for confounding
+- **Propensity scores** estimate treatment probability and enable matching/weighting
+- **Instrumental variables** use exogenous variation to identify causal effects
+- **Regression discontinuity** exploits cutoff rules for identification
+
+### Communicating to Stakeholders
+
+**For a clinical audience**: "We randomly assigned patients to treatment or control, ensuring the two groups were comparable at baseline. Any difference in outcomes can be attributed to the treatment, not to pre-existing differences between groups. Our estimate of the treatment effect is -10 mmHg with a 95% confidence interval that excludes zero, indicating a statistically significant blood pressure reduction."
+
+**For a regulatory submission**: "This randomised controlled trial provides Level 1 evidence for the efficacy of the intervention. The intention-to-treat analysis demonstrates a clinically meaningful reduction in blood pressure (primary endpoint: -10.2 mmHg, 95% CI: -12.5 to -7.9, p < 0.001). Covariate-adjusted analyses confirm robustness. The trial was adequately powered and the randomisation produced excellent baseline balance."
+
+**Key vocabulary**:
+- Potential outcomes, counterfactual
+- Average treatment effect (ATE), ATT, ATC
+- Selection bias, confounding
+- Randomisation, permutation test
+- Covariate adjustment, ANCOVA
+- Stratified randomisation, blocking

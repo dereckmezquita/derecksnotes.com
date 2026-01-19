@@ -1,0 +1,653 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 1: Regularisation and Penalised Regression"
+part: "Part 2: LASSO Regression"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, regularisation, lasso, variable-selection, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: LASSO Regression
+
+While ridge regression shrinks coefficients toward zero, it never eliminates them entirely—all predictors remain in the model. The **LASSO** (Least Absolute Shrinkage and Selection Operator) achieves something remarkable: it performs **automatic variable selection** by shrinking some coefficients exactly to zero. In genomics, where we might have 20,000 genes but suspect only a handful drive the outcome, LASSO identifies the relevant few.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(glmnet)
+```
+
+
+``` r
+# Load breast cancer dataset
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+# Use all mean features
+feature_cols <- c("mean_radius", "mean_texture", "mean_perimeter", "mean_area",
+                  "mean_smoothness", "mean_compactness", "mean_concavity",
+                  "mean_concave_points", "mean_symmetry", "mean_fractal_dimension")
+
+breast_cancer[, y := as.integer(diagnosis == "M")]
+
+X <- as.matrix(breast_cancer[, ..feature_cols])
+y <- breast_cancer$y
+
+cat("Dataset Summary:\n")
+#> Dataset Summary:
+cat("================\n")
+#> ================
+cat("  n =", nrow(X), ", p =", ncol(X), "\n")
+#>   n = 569 , p = 10
+```
+
+---
+
+## 1.6 The LASSO Penalty
+
+### 1.6.1 L1 vs L2 Regularisation
+
+**Prose and Intuition**
+
+Ridge regression uses an **L2 penalty** (sum of squared coefficients):
+$$\text{Ridge: } \lambda \sum_{j=1}^{p} \beta_j^2$$
+
+LASSO uses an **L1 penalty** (sum of absolute values):
+$$\text{LASSO: } \lambda \sum_{j=1}^{p} |\beta_j|$$
+
+This seemingly minor change—squares to absolute values—has profound consequences. The L1 penalty creates **sparse solutions** where many coefficients are exactly zero.
+
+**Why does L1 produce sparsity?**
+
+Consider the geometry. The L2 constraint region is a **sphere**; the L1 constraint region is a **diamond** (in 2D) or **cross-polytope** (in higher dimensions). The diamond has **corners** where coordinates are zero. When the RSS contours touch the constraint region, they're likely to hit a corner—producing a zero coefficient.
+
+**Visualisation**
+
+
+``` r
+# Compare L1 and L2 constraint regions
+theta <- seq(0, 2 * pi, length.out = 200)
+
+# L2 (circle)
+l2_constraint <- data.table(
+    x = cos(theta),
+    y = sin(theta),
+    penalty = "L2 (Ridge)"
+)
+
+# L1 (diamond)
+# Parametrise: |x| + |y| = 1
+t_l1 <- seq(0, 4, length.out = 200)
+l1_x <- ifelse(t_l1 <= 1, t_l1,
+               ifelse(t_l1 <= 2, 2 - t_l1,
+                      ifelse(t_l1 <= 3, -(t_l1 - 2), -(4 - t_l1))))
+l1_y <- ifelse(t_l1 <= 1, 1 - t_l1,
+               ifelse(t_l1 <= 2, -(t_l1 - 1),
+                      ifelse(t_l1 <= 3, -(3 - t_l1), t_l1 - 3)))
+
+l1_constraint <- data.table(
+    x = l1_x,
+    y = l1_y,
+    penalty = "L1 (LASSO)"
+)
+
+constraints <- rbind(l1_constraint, l2_constraint)
+
+# RSS contours (ellipse centred at OLS solution)
+ols_solution <- c(0.8, 0.6)
+contour_levels <- c(0.3, 0.6, 0.9, 1.2)
+
+contours <- rbindlist(lapply(contour_levels, function(r) {
+    data.table(
+        x = ols_solution[1] + r * cos(theta) * 0.8,
+        y = ols_solution[2] + r * sin(theta) * 1.2,
+        level = r
+    )
+}))
+
+ggplot2$ggplot() +
+    # Constraint regions
+    ggplot2$geom_polygon(data = constraints, ggplot2$aes(x = x, y = y, fill = penalty),
+                          alpha = 0.3) +
+    ggplot2$geom_path(data = constraints, ggplot2$aes(x = x, y = y, colour = penalty),
+                       linewidth = 1.2) +
+    # RSS contours
+    ggplot2$geom_path(data = contours, ggplot2$aes(x = x, y = y, group = level),
+                       colour = "grey50", linetype = "dashed") +
+    # OLS solution
+    ggplot2$geom_point(data = data.table(x = ols_solution[1], y = ols_solution[2]),
+                        ggplot2$aes(x = x, y = y), size = 4, colour = "#D55E00", shape = 18) +
+    # Axes
+    ggplot2$geom_hline(yintercept = 0, colour = "grey70") +
+    ggplot2$geom_vline(xintercept = 0, colour = "grey70") +
+    # Highlight LASSO corner
+    ggplot2$geom_point(data = data.table(x = 1, y = 0),
+                        ggplot2$aes(x = x, y = y), size = 3, colour = "#0072B2") +
+    ggplot2$annotate("text", x = 1.1, y = 0.1, label = "LASSO solution\n(β₂ = 0)",
+                     colour = "#0072B2", hjust = 0, size = 3) +
+    ggplot2$scale_fill_manual(values = c("L1 (LASSO)" = "#0072B2", "L2 (Ridge)" = "#D55E00")) +
+    ggplot2$scale_colour_manual(values = c("L1 (LASSO)" = "#0072B2", "L2 (Ridge)" = "#D55E00")) +
+    ggplot2$coord_fixed(xlim = c(-1.5, 1.5), ylim = c(-1.5, 1.5)) +
+    ggplot2$labs(
+        title = "L1 vs L2 Constraint Geometry",
+        subtitle = "LASSO diamond has corners on axes; solutions often hit corners (sparse)",
+        x = expression(beta[1]),
+        y = expression(beta[2]),
+        fill = "Penalty", colour = "Penalty"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-3-advanced/lasso_vs_ridge_geometry-1.png" alt="L1 (LASSO) constraint has corners promoting sparsity; L2 (ridge) is smooth">
+	L1 (LASSO) constraint has corners promoting sparsity; L2 (ridge) is smooth
+</Figure>
+
+### 1.6.2 The LASSO Objective
+
+**Mathematical Derivation**
+
+The LASSO minimises:
+$$\hat{\boldsymbol{\beta}}_{\text{LASSO}} = \arg\min_{\boldsymbol{\beta}} \left\{ \frac{1}{2n}\sum_{i=1}^{n}(y_i - \mathbf{x}_i'\boldsymbol{\beta})^2 + \lambda \sum_{j=1}^{p}|\beta_j| \right\}$$
+
+Unlike ridge, there's no closed-form solution because the L1 penalty is not differentiable at zero. We use iterative algorithms (coordinate descent).
+
+**Subgradient conditions**: At the optimum, for each $j$:
+$$\frac{1}{n}\sum_{i=1}^{n} x_{ij}(y_i - \mathbf{x}_i'\hat{\boldsymbol{\beta}}) = \lambda \cdot \text{sign}(\hat{\beta}_j) \quad \text{if } \hat{\beta}_j \neq 0$$
+
+$$\left|\frac{1}{n}\sum_{i=1}^{n} x_{ij}(y_i - \mathbf{x}_i'\hat{\boldsymbol{\beta}})\right| \leq \lambda \quad \text{if } \hat{\beta}_j = 0$$
+
+The second condition shows that a coefficient is zero when the correlation between the predictor and the residual is below the threshold $\lambda$.
+
+---
+
+## 1.7 LASSO in Practice
+
+### 1.7.1 Fitting LASSO
+
+
+``` r
+# Fit LASSO (alpha = 1)
+lasso_fit <- glmnet(X, y, family = "binomial", alpha = 1)
+
+cat("LASSO Model:\n")
+#> LASSO Model:
+cat("============\n")
+#> ============
+cat("  Lambda values:", length(lasso_fit$lambda), "\n")
+#>   Lambda values: 100
+cat("  Lambda range:", round(min(lasso_fit$lambda), 4), "-",
+    round(max(lasso_fit$lambda), 4), "\n")
+#>   Lambda range: 0 - 0.3755
+```
+
+
+``` r
+# Extract coefficients
+coef_matrix <- as.matrix(coef(lasso_fit))[-1, ]
+lambda_vals <- lasso_fit$lambda
+
+path_dt <- rbindlist(lapply(1:nrow(coef_matrix), function(j) {
+    data.table(
+        lambda = lambda_vals,
+        coefficient = coef_matrix[j, ],
+        variable = gsub("mean_", "", rownames(coef_matrix)[j])
+    )
+}))
+
+# Count non-zero coefficients at each lambda
+nonzero_count <- colSums(coef_matrix != 0)
+
+ggplot2$ggplot(path_dt, ggplot2$aes(x = log(lambda), y = coefficient, colour = variable)) +
+    ggplot2$geom_line(linewidth = 0.8) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$labs(
+        title = "LASSO Coefficient Path",
+        subtitle = "Coefficients shrink to exactly zero—automatic variable selection",
+        x = "log(λ)",
+        y = "Coefficient",
+        colour = "Predictor"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-3-advanced/lasso_path-1.png" alt="LASSO shrinks coefficients to exactly zero as &lt;U+03BB&gt; increases">
+	LASSO shrinks coefficients to exactly zero as &lt;U+03BB&gt; increases
+</Figure>
+
+### 1.7.2 Variable Selection
+
+
+``` r
+# Track number of non-zero coefficients
+selection_dt <- data.table(
+    lambda = lambda_vals,
+    n_nonzero = nonzero_count
+)
+
+ggplot2$ggplot(selection_dt, ggplot2$aes(x = log(lambda), y = n_nonzero)) +
+    ggplot2$geom_step(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_hline(yintercept = ncol(X), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$annotate("text", x = min(log(lambda_vals)), y = ncol(X) + 0.3,
+                     label = paste("All", ncol(X), "predictors"), colour = "#D55E00", hjust = 0) +
+    ggplot2$scale_y_continuous(breaks = 0:ncol(X)) +
+    ggplot2$labs(
+        title = "Variable Selection via LASSO",
+        subtitle = "Increasing λ eliminates predictors; strong signal predictors persist longest",
+        x = "log(λ)",
+        y = "Number of Non-Zero Coefficients"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-3-advanced/lasso_selection-1.png" alt="Number of non-zero coefficients decreases with regularisation">
+	Number of non-zero coefficients decreases with regularisation
+</Figure>
+
+### 1.7.3 Cross-Validation for LASSO
+
+
+``` r
+set.seed(42)
+cv_lasso <- cv.glmnet(X, y, family = "binomial", alpha = 1, nfolds = 10)
+
+cat("LASSO Cross-Validation:\n")
+#> LASSO Cross-Validation:
+cat("=======================\n")
+#> =======================
+cat("  Lambda.min:", round(cv_lasso$lambda.min, 4), "\n")
+#>   Lambda.min: 0.0036
+cat("  Lambda.1se:", round(cv_lasso$lambda.1se, 4), "\n")
+#>   Lambda.1se: 0.0145
+cat("  Non-zero at lambda.min:", cv_lasso$nzero[cv_lasso$lambda == cv_lasso$lambda.min], "\n")
+#>   Non-zero at lambda.min: 7
+cat("  Non-zero at lambda.1se:", cv_lasso$nzero[cv_lasso$lambda == cv_lasso$lambda.1se], "\n")
+#>   Non-zero at lambda.1se: 5
+
+# Plot
+cv_dt <- data.table(
+    lambda = cv_lasso$lambda,
+    cvm = cv_lasso$cvm,
+    cvup = cv_lasso$cvup,
+    cvlo = cv_lasso$cvlo,
+    nzero = cv_lasso$nzero
+)
+
+ggplot2$ggplot(cv_dt, ggplot2$aes(x = log(lambda), y = cvm)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = cvlo, ymax = cvup), fill = "#0072B2", alpha = 0.2) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = log(cv_lasso$lambda.min), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_vline(xintercept = log(cv_lasso$lambda.1se), linetype = "dotted", colour = "#009E73") +
+    ggplot2$labs(
+        title = "LASSO Cross-Validation",
+        subtitle = "λ.min minimises error; λ.1se gives sparser model within 1 SE",
+        x = "log(λ)",
+        y = "Binomial Deviance"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-3-advanced/lasso_cv-1.png" alt="Cross-validation identifies optimal LASSO regularisation">
+	Cross-validation identifies optimal LASSO regularisation
+</Figure>
+
+### 1.7.4 Selected Variables
+
+
+``` r
+# Coefficients at lambda.1se (sparser model)
+coef_1se <- coef(cv_lasso, s = "lambda.1se")
+coef_min <- coef(cv_lasso, s = "lambda.min")
+
+# Extract non-zero coefficients
+nonzero_vars <- which(coef_1se[-1] != 0)
+selected_vars <- gsub("mean_", "", feature_cols[nonzero_vars])
+
+cat("Selected Variables (λ.1se):\n")
+#> Selected Variables (<U+03BB>.1se):
+cat("===========================\n")
+#> ===========================
+if (length(selected_vars) > 0) {
+    coef_selected <- data.table(
+        Variable = selected_vars,
+        Coefficient = round(as.vector(coef_1se[-1])[nonzero_vars], 4)
+    )
+    print(coef_selected[order(-abs(Coefficient))])
+} else {
+    cat("  No variables selected (model is null)\n")
+}
+#>          Variable Coefficient
+#>            <char>       <num>
+#> 1: concave_points     64.6659
+#> 2:       symmetry      3.0058
+#> 3:     smoothness      1.1599
+#> 4:         radius      0.4140
+#> 5:        texture      0.1926
+
+cat("\nEliminated Variables:\n")
+#> 
+#> Eliminated Variables:
+eliminated <- setdiff(gsub("mean_", "", feature_cols), selected_vars)
+cat(" ", paste(eliminated, collapse = ", "), "\n")
+#>   perimeter, area, compactness, concavity, fractal_dimension
+```
+
+---
+
+## 1.8 LASSO Theory
+
+### 1.8.1 Soft Thresholding
+
+**Prose and Intuition**
+
+For orthogonal predictors, the LASSO solution has a simple form called **soft thresholding**:
+
+$$\hat{\beta}_j^{\text{LASSO}} = \text{sign}(\hat{\beta}_j^{\text{OLS}}) \cdot (|\hat{\beta}_j^{\text{OLS}}| - \lambda)_+$$
+
+where $(x)_+ = \max(0, x)$.
+
+This shrinks small coefficients to exactly zero while reducing larger coefficients by $\lambda$.
+
+**Visualisation**
+
+
+``` r
+# Soft thresholding function
+soft_threshold <- function(z, lambda) {
+    sign(z) * pmax(abs(z) - lambda, 0)
+}
+
+# Compare soft vs hard thresholding
+z_vals <- seq(-3, 3, length.out = 200)
+lambdas <- c(0.5, 1, 1.5)
+
+threshold_dt <- rbindlist(lapply(lambdas, function(lam) {
+    data.table(
+        z = z_vals,
+        soft = soft_threshold(z_vals, lam),
+        hard = ifelse(abs(z_vals) > lam, z_vals, 0),
+        ridge = z_vals / (1 + lam),
+        lambda = paste("λ =", lam)
+    )
+}))
+
+threshold_long <- melt(threshold_dt, id.vars = c("z", "lambda"),
+                        variable.name = "method", value.name = "estimate")
+
+ggplot2$ggplot(threshold_long[method == "soft"], ggplot2$aes(x = z, y = estimate)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$facet_wrap(~lambda) +
+    ggplot2$labs(
+        title = "Soft Thresholding (LASSO)",
+        subtitle = "Coefficients within ±λ of zero are set exactly to zero",
+        x = "OLS Estimate",
+        y = "LASSO Estimate"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/soft_threshold-1.png" alt="Soft thresholding shrinks small coefficients to zero">
+	Soft thresholding shrinks small coefficients to zero
+</Figure>
+
+### 1.8.2 Bayesian Interpretation
+
+**Prose and Intuition**
+
+LASSO corresponds to a **Laplace (double-exponential) prior** on coefficients:
+$$\beta_j \sim \text{Laplace}(0, 1/\lambda) \propto \exp(-\lambda|\beta_j|)$$
+
+The Laplace distribution has heavier tails and a sharper peak at zero than the Gaussian, encouraging sparsity.
+
+
+``` r
+# Compare Gaussian and Laplace priors
+beta_vals <- seq(-4, 4, length.out = 200)
+scale <- 1
+
+prior_dt <- data.table(
+    beta = rep(beta_vals, 2),
+    density = c(
+        dnorm(beta_vals, 0, scale),  # Gaussian (ridge)
+        0.5 * exp(-abs(beta_vals) / scale) / scale  # Laplace (LASSO)
+    ),
+    prior = rep(c("Gaussian (Ridge)", "Laplace (LASSO)"), each = length(beta_vals))
+)
+
+ggplot2$ggplot(prior_dt, ggplot2$aes(x = beta, y = density, colour = prior)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$scale_colour_manual(values = c("Gaussian (Ridge)" = "#D55E00", "Laplace (LASSO)" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Prior Distributions: Ridge vs LASSO",
+        subtitle = "Laplace prior has sharper peak at zero, promoting sparsity",
+        x = expression(beta),
+        y = "Density",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-3-advanced/prior_comparison-1.png" alt="Laplace prior (LASSO) concentrates more mass at zero than Gaussian (ridge)">
+	Laplace prior (LASSO) concentrates more mass at zero than Gaussian (ridge)
+</Figure>
+
+### 1.8.3 Irrepresentable Condition
+
+**Prose and Intuition**
+
+When can LASSO correctly identify the true non-zero coefficients? The **irrepresentable condition** provides a sufficient condition for LASSO to select the correct variables.
+
+Let $S$ be the set of truly non-zero coefficients and $S^c$ its complement. The condition requires that the correlation between irrelevant predictors and relevant predictors is bounded:
+
+$$\|\mathbf{X}_{S^c}'\mathbf{X}_S(\mathbf{X}_S'\mathbf{X}_S)^{-1}\text{sign}(\boldsymbol{\beta}_S)\|_\infty < 1$$
+
+Intuitively: irrelevant predictors shouldn't be too correlated with relevant ones.
+
+---
+
+## 1.9 LASSO vs Ridge: When to Use Each
+
+### 1.9.1 Comparison
+
+| Aspect | Ridge | LASSO |
+|--------|-------|-------|
+| **Penalty** | $\lambda\sum\beta_j^2$ (L2) | $\lambda\sum|\beta_j|$ (L1) |
+| **Sparsity** | No (all coefficients non-zero) | Yes (some coefficients exactly zero) |
+| **Variable selection** | No | Yes |
+| **Correlated predictors** | Stable (includes all) | Arbitrary (selects one) |
+| **Bayesian prior** | Gaussian | Laplace |
+| **Computation** | Closed form | Iterative (coordinate descent) |
+
+### 1.9.2 When to Choose Each
+
+**Choose Ridge when**:
+- You believe all predictors contribute (no true zeros)
+- Predictors are highly correlated
+- Prediction accuracy is the primary goal
+- Interpretability via variable selection is not needed
+
+**Choose LASSO when**:
+- You expect only a few predictors to matter (sparse truth)
+- Variable selection is desired
+- Interpretability requires a small model
+- Building a simple predictive score
+
+
+``` r
+# Simulate comparison
+set.seed(42)
+n <- 200
+p <- 20
+
+# Scenario 1: Sparse truth (only 3 predictors matter)
+X_sim <- matrix(rnorm(n * p), n, p)
+beta_sparse <- c(rep(2, 3), rep(0, p - 3))
+y_sparse <- X_sim %*% beta_sparse + rnorm(n)
+
+# Scenario 2: Dense truth (all predictors matter)
+beta_dense <- rep(0.5, p)
+y_dense <- X_sim %*% beta_dense + rnorm(n)
+
+# Fit both methods
+cv_ridge_sparse <- cv.glmnet(X_sim, y_sparse, alpha = 0)
+cv_lasso_sparse <- cv.glmnet(X_sim, y_sparse, alpha = 1)
+cv_ridge_dense <- cv.glmnet(X_sim, y_dense, alpha = 0)
+cv_lasso_dense <- cv.glmnet(X_sim, y_dense, alpha = 1)
+
+# Compare MSE
+results <- data.table(
+    Scenario = rep(c("Sparse Truth", "Dense Truth"), each = 2),
+    Method = rep(c("Ridge", "LASSO"), 2),
+    CV_MSE = c(
+        min(cv_ridge_sparse$cvm),
+        min(cv_lasso_sparse$cvm),
+        min(cv_ridge_dense$cvm),
+        min(cv_lasso_dense$cvm)
+    )
+)
+
+cat("Cross-Validation MSE Comparison:\n")
+#> Cross-Validation MSE Comparison:
+cat("================================\n")
+#> ================================
+print(results)
+#>        Scenario Method   CV_MSE
+#>          <char> <char>    <num>
+#> 1: Sparse Truth  Ridge 1.213380
+#> 2: Sparse Truth  LASSO 1.205362
+#> 3:  Dense Truth  Ridge 1.247466
+#> 4:  Dense Truth  LASSO 1.252381
+
+ggplot2$ggplot(results, ggplot2$aes(x = Scenario, y = CV_MSE, fill = Method)) +
+    ggplot2$geom_col(position = "dodge") +
+    ggplot2$scale_fill_manual(values = c("Ridge" = "#D55E00", "LASSO" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Ridge vs LASSO Performance by Data Structure",
+        subtitle = "LASSO wins with sparse truth; Ridge wins with dense truth",
+        x = "",
+        y = "Cross-Validation MSE",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-3-advanced/comparison_simulation-1.png" alt="LASSO excels with sparse truth; ridge excels when all predictors matter">
+	LASSO excels with sparse truth; ridge excels when all predictors matter
+</Figure>
+
+---
+
+## 1.10 Communicating to Stakeholders
+
+### 1.10.1 Clinical Example: Biomarker Selection
+
+**Scenario**: A research team has measured 10 cell morphology features and wants to identify which are most predictive of malignancy for a simplified diagnostic panel.
+
+**Non-technical summary**:
+
+> "We used LASSO regression to identify the most important predictors of breast cancer malignancy from 10 cell measurements.
+>
+> **Why LASSO?** Unlike standard regression, LASSO automatically identifies which variables are truly predictive and eliminates the rest. This is valuable when we want a simple, interpretable diagnostic tool.
+>
+> **Results**: From 10 original measurements, LASSO selected **[N] key predictors** that together provide excellent discrimination between malignant and benign tumours:
+> - [List selected variables]
+>
+> **Clinical implication**: A diagnostic panel focusing on these [N] measurements could provide accurate classification while being simpler and potentially less expensive than measuring all 10 features. The eliminated variables add little predictive value beyond what's captured by the selected ones."
+
+
+``` r
+library(patchwork)
+
+# Panel A: Coefficient path
+p_path <- ggplot2$ggplot(path_dt, ggplot2$aes(x = log(lambda), y = coefficient, colour = variable)) +
+    ggplot2$geom_line(linewidth = 0.7) +
+    ggplot2$geom_vline(xintercept = log(cv_lasso$lambda.1se), linetype = "dashed", colour = "grey40") +
+    ggplot2$labs(title = "A. LASSO Coefficient Path",
+                 x = "log(λ)", y = "Coefficient", colour = "") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "right",
+                  legend.text = ggplot2$element_text(size = 7))
+
+# Panel B: Variables selected vs lambda
+p_select <- ggplot2$ggplot(selection_dt, ggplot2$aes(x = log(lambda), y = n_nonzero)) +
+    ggplot2$geom_step(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = log(cv_lasso$lambda.1se), linetype = "dashed", colour = "grey40") +
+    ggplot2$labs(title = "B. Number of Selected Variables",
+                 x = "log(λ)", y = "Non-zero Coefficients") +
+    ggplot2$theme_minimal()
+
+# Panel C: Final selected coefficients
+if (length(nonzero_vars) > 0) {
+    coef_plot_dt <- data.table(
+        Variable = gsub("mean_", "", feature_cols),
+        Coefficient = as.vector(coef_1se)[-1],
+        Selected = as.vector(coef_1se)[-1] != 0
+    )
+    coef_plot_dt <- coef_plot_dt[order(-abs(Coefficient))]
+    coef_plot_dt[, Variable := factor(Variable, levels = Variable)]
+
+    p_coef <- ggplot2$ggplot(coef_plot_dt, ggplot2$aes(x = Variable, y = Coefficient, fill = Selected)) +
+        ggplot2$geom_col() +
+        ggplot2$scale_fill_manual(values = c("TRUE" = "#0072B2", "FALSE" = "grey70"),
+                                   labels = c("Eliminated", "Selected")) +
+        ggplot2$coord_flip() +
+        ggplot2$labs(title = "C. LASSO Coefficients (λ.1se)",
+                     x = "", y = "Coefficient", fill = "") +
+        ggplot2$theme_minimal() +
+        ggplot2$theme(legend.position = "bottom")
+} else {
+    p_coef <- ggplot2$ggplot() + ggplot2$theme_void() +
+        ggplot2$annotate("text", x = 0.5, y = 0.5, label = "No variables selected")
+}
+
+# Combine
+(p_path / p_select) | p_coef +
+    patchwork::plot_annotation(
+        title = "LASSO Variable Selection for Cancer Diagnosis",
+        subtitle = sprintf("Selected %d of %d predictors at λ.1se = %.4f",
+                           length(nonzero_vars), ncol(X), cv_lasso$lambda.1se)
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/publication_figure_lasso-1.png" alt="LASSO variable selection for breast cancer diagnosis">
+	LASSO variable selection for breast cancer diagnosis
+</Figure>
+
+---
+
+## Summary
+
+LASSO regression extends regularisation to perform automatic variable selection:
+
+| Concept | Key Points |
+|---------|------------|
+| **L1 penalty** | $\lambda\sum|\beta_j|$ produces sparse solutions |
+| **Geometry** | Diamond constraint has corners on axes |
+| **Soft thresholding** | Small coefficients shrink exactly to zero |
+| **Bayesian view** | Equivalent to Laplace prior |
+| **Selection** | Identifies predictors with strongest signal |
+| **vs Ridge** | LASSO for sparsity; Ridge for correlated predictors |
+
+**Key practical points**:
+1. LASSO sets some coefficients exactly to zero
+2. Use when you expect sparse structure (few relevant predictors)
+3. λ.1se typically gives sparser, more interpretable models
+4. With correlated predictors, LASSO arbitrarily selects one
+5. Selected variables may vary across bootstrap samples
+
+The next section introduces elastic net, which combines the L1 and L2 penalties to get the best of both worlds.

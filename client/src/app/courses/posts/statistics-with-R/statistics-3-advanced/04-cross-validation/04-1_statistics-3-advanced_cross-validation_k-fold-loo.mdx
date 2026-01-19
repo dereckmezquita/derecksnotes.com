@@ -1,0 +1,777 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 4: Cross-Validation and Model Assessment"
+part: "Part 1: K-Fold and Leave-One-Out Cross-Validation"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, cross-validation, model-selection, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: K-Fold and Leave-One-Out Cross-Validation
+
+A model that fits training data perfectly may fail catastrophically on new observations. **Cross-validation** provides honest estimates of out-of-sample performance by systematically holding out portions of data for validation. This chapter develops the theory and practice of cross-validation—essential for any predictive modelling workflow.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(glmnet)
+
+set.seed(42)
+```
+
+
+``` r
+# Load breast cancer dataset
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+feature_cols <- c("mean_radius", "mean_texture", "mean_perimeter", "mean_area",
+                  "mean_smoothness", "mean_compactness", "mean_concavity",
+                  "mean_concave_points", "mean_symmetry", "mean_fractal_dimension")
+
+breast_cancer[, y := as.integer(diagnosis == "M")]
+
+X <- as.matrix(breast_cancer[, ..feature_cols])
+y <- breast_cancer$y
+
+cat("Dataset: n =", nrow(X), ", p =", ncol(X), "\n")
+#> Dataset: n = 569 , p = 10
+```
+
+---
+
+## 4.1 The Fundamental Problem
+
+### 4.1.1 Training Error vs Test Error
+
+**Prose and Intuition**
+
+Consider fitting a polynomial to data. A degree-1 polynomial (line) may underfit. A degree-20 polynomial passes through every point perfectly—zero training error—but oscillates wildly between points and predicts poorly on new data.
+
+The **training error** always decreases (or stays flat) as model complexity increases. The **test error** decreases initially, then increases as we overfit.
+
+**Mathematical Framework**
+
+For a model $\hat{f}$ trained on data $\mathcal{D}$:
+
+**Training error**: $\frac{1}{n}\sum_{i=1}^{n}L(y_i, \hat{f}(x_i))$
+
+**Test error (expected)**: $E_{(X,Y)}[L(Y, \hat{f}(X))]$
+
+where the expectation is over new data $(X, Y)$ from the same distribution.
+
+The training error is an **optimistically biased** estimate of test error because the same data was used to fit and evaluate the model.
+
+**Visualisation: Overfitting in Action**
+
+
+``` r
+# Demonstrate overfitting with polynomial regression
+# Use different variable names to avoid overwriting X, y from load_data
+set.seed(123)
+n_demo <- 50
+x_demo <- runif(n_demo, 0, 4)
+y_demo <- sin(x_demo * 2) + rnorm(n_demo, 0, 0.3)
+
+# Split data
+demo_train_idx <- sample(1:n_demo, 35)
+x_demo_train <- x_demo[demo_train_idx]
+y_demo_train <- y_demo[demo_train_idx]
+x_demo_test <- x_demo[-demo_train_idx]
+y_demo_test <- y_demo[-demo_train_idx]
+
+# Fit polynomials of various degrees
+degrees <- 1:15
+train_errors <- numeric(length(degrees))
+test_errors <- numeric(length(degrees))
+
+for (d in degrees) {
+    fit <- lm(y_demo_train ~ poly(x_demo_train, d, raw = TRUE))
+    train_pred <- predict(fit)
+    test_pred <- predict(fit, newdata = data.frame(x_demo_train = x_demo_test))
+
+    train_errors[d] <- mean((y_demo_train - train_pred)^2)
+    test_errors[d] <- mean((y_demo_test - test_pred)^2)
+}
+
+error_data <- data.table(
+    degree = degrees,
+    train = train_errors,
+    test = test_errors
+)
+error_long <- melt(error_data, id.vars = "degree", variable.name = "type", value.name = "MSE")
+error_long[, type := factor(type, levels = c("train", "test"), labels = c("Training Error", "Test Error"))]
+
+ggplot2$ggplot(error_long, ggplot2$aes(x = degree, y = MSE, colour = type)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$geom_vline(xintercept = degrees[which.min(test_errors)], linetype = "dashed", colour = "grey40") +
+    ggplot2$scale_colour_manual(values = c("Training Error" = "#2166AC", "Test Error" = "#D95F02")) +
+    ggplot2$annotate("text", x = degrees[which.min(test_errors)] + 0.5, y = 0.3,
+                     label = "Optimal complexity", hjust = 0) +
+    ggplot2$labs(
+        title = "The Bias-Variance Trade-off",
+        subtitle = "Training error always decreases; test error has a minimum",
+        x = "Polynomial Degree (Model Complexity)",
+        y = "Mean Squared Error",
+        colour = ""
+    ) +
+    ggplot2$coord_cartesian(ylim = c(0, 0.5)) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/overfitting_demo-1.png" alt="Training error decreases with complexity; test error has a minimum (optimal complexity)">
+	Training error decreases with complexity; test error has a minimum (optimal complexity)
+</Figure>
+
+---
+
+## 4.2 K-Fold Cross-Validation
+
+### 4.2.1 The Algorithm
+
+**Prose and Intuition**
+
+K-fold cross-validation divides data into $K$ equal parts (folds). For each fold:
+1. Train on $K-1$ folds
+2. Evaluate on the held-out fold
+3. Record the error
+
+The CV estimate is the average error across all $K$ folds.
+
+**Algorithm**:
+
+1. Randomly partition data into $K$ folds: $\mathcal{D}_1, \mathcal{D}_2, \ldots, \mathcal{D}_K$
+2. For $k = 1$ to $K$:
+   - Let training set $\mathcal{T}_k = \mathcal{D} \setminus \mathcal{D}_k$
+   - Fit model $\hat{f}^{(-k)}$ on $\mathcal{T}_k$
+   - Compute validation error: $E_k = \frac{1}{|\mathcal{D}_k|}\sum_{i \in \mathcal{D}_k} L(y_i, \hat{f}^{(-k)}(x_i))$
+3. Return $\text{CV}_K = \frac{1}{K}\sum_{k=1}^{K} E_k$
+
+**Visualisation: K-Fold Partitioning**
+
+
+``` r
+# Visualise K-fold partitioning
+n_obs <- 50
+K <- 5
+fold_assignments <- rep(1:K, length.out = n_obs)
+
+fold_data <- data.table(
+    observation = 1:n_obs,
+    fold = fold_assignments
+)
+
+# Create heatmap showing train/validation for each iteration
+cv_matrix <- matrix(NA, nrow = K, ncol = n_obs)
+for (k in 1:K) {
+    cv_matrix[k, ] <- ifelse(fold_assignments == k, "Validation", "Training")
+}
+
+cv_plot_data <- as.data.table(expand.grid(iteration = 1:K, observation = 1:n_obs))
+cv_plot_data[, role := as.vector(t(cv_matrix))]
+
+ggplot2$ggplot(cv_plot_data, ggplot2$aes(x = observation, y = factor(iteration), fill = role)) +
+    ggplot2$geom_tile(colour = "white", linewidth = 0.5) +
+    ggplot2$scale_fill_manual(values = c("Training" = "#2166AC", "Validation" = "#D95F02"), name = "") +
+    ggplot2$scale_y_discrete(limits = rev(levels(factor(1:K)))) +
+    ggplot2$labs(
+        title = "5-Fold Cross-Validation Structure",
+        subtitle = "Each observation is in the validation set exactly once",
+        x = "Observation Index",
+        y = "CV Iteration"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold"),
+        panel.grid = ggplot2$element_blank()
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/kfold_visual-1.png" alt="5-fold cross-validation: each fold serves as validation once">
+	5-fold cross-validation: each fold serves as validation once
+</Figure>
+
+### 4.2.2 Implementation from Scratch
+
+
+``` r
+# Implement K-fold CV from scratch with stratification for classification
+kfold_cv <- function(X, y, K = 5, model_fn, predict_fn, loss_fn = function(y, yhat) mean((y - yhat)^2)) {
+    n <- nrow(X)
+
+    # Stratified fold assignment for binary classification
+    # Ensures each fold has observations from both classes
+    if (K == n) {
+        # LOOCV: each observation is its own fold
+        folds <- 1:n
+    } else {
+        # Stratified K-fold: maintain class proportions in each fold
+        folds <- integer(n)
+        for (class_val in unique(y)) {
+            class_idx <- which(y == class_val)
+            n_class <- length(class_idx)
+            folds[class_idx] <- sample(rep(1:K, length.out = n_class))
+        }
+    }
+
+    fold_errors <- numeric(K)
+
+    for (k in 1:K) {
+        # Split data
+        val_idx <- which(folds == k)
+        train_idx <- which(folds != k)
+
+        X_train <- X[train_idx, , drop = FALSE]
+        y_train <- y[train_idx]
+        X_val <- X[val_idx, , drop = FALSE]
+        y_val <- y[val_idx]
+
+        # Fit model
+        model <- model_fn(X_train, y_train)
+
+        # Predict and evaluate
+        y_pred <- predict_fn(model, X_val)
+        fold_errors[k] <- loss_fn(y_val, y_pred)
+    }
+
+    list(
+        mean_error = mean(fold_errors),
+        se_error = sd(fold_errors) / sqrt(K),
+        fold_errors = fold_errors
+    )
+}
+
+# Example: Ridge regression with cross-validation
+ridge_model <- function(X, y) {
+    glmnet(X, y, family = "binomial", alpha = 0, lambda = 0.1)
+}
+
+ridge_predict <- function(model, X) {
+    as.vector(predict(model, X, type = "response"))
+}
+
+log_loss <- function(y, p) {
+    p <- pmax(pmin(p, 1 - 1e-10), 1e-10)
+    -mean(y * log(p) + (1 - y) * log(1 - p))
+}
+
+cv_result <- kfold_cv(X, y, K = 5, ridge_model, ridge_predict, log_loss)
+
+cat("5-Fold Cross-Validation Results:\n")
+#> 5-Fold Cross-Validation Results:
+cat("================================\n")
+#> ================================
+cat("  Mean CV log-loss:", round(cv_result$mean_error, 4), "\n")
+#>   Mean CV log-loss: 0.2123
+cat("  Standard error:", round(cv_result$se_error, 4), "\n")
+#>   Standard error: 0.0074
+cat("  Fold errors:", round(cv_result$fold_errors, 4), "\n")
+#>   Fold errors: 0.2367 0.2065 0.221 0.2023 0.1949
+```
+
+---
+
+## 4.3 Choosing K
+
+### 4.3.1 Bias-Variance Trade-off in CV
+
+**Prose and Intuition**
+
+The choice of $K$ involves a bias-variance trade-off:
+
+- **Small $K$ (e.g., 2-fold)**: Training sets are smaller (half the data), so models are trained on less data than the final model. This introduces **pessimistic bias**—we underestimate performance.
+
+- **Large $K$ (e.g., LOOCV, $K=n$)**: Training sets are nearly full-sized, reducing bias. But the training sets across folds are nearly identical, making fold errors highly correlated. This increases **variance** of the CV estimate.
+
+**Common choices**:
+- $K = 5$ or $K = 10$: Good balance of bias and variance
+- LOOCV ($K = n$): Unbiased but high variance; expensive for large $n$
+
+**Simulation: Effect of K**
+
+
+``` r
+# Compare different K values
+set.seed(42)
+K_values <- c(2, 5, 10, 20, nrow(X))
+n_repeats <- 100
+
+k_comparison <- rbindlist(lapply(K_values, function(K) {
+    cv_estimates <- numeric(n_repeats)
+
+    for (r in 1:n_repeats) {
+        if (K == nrow(X)) {
+            # LOOCV - only one possible partition
+            if (r == 1) {
+                cv_result <- kfold_cv(X, y, K = K, ridge_model, ridge_predict, log_loss)
+                cv_estimates <- rep(cv_result$mean_error, n_repeats)
+            }
+            break
+        } else {
+            cv_result <- kfold_cv(X, y, K = K, ridge_model, ridge_predict, log_loss)
+            cv_estimates[r] <- cv_result$mean_error
+        }
+    }
+
+    data.table(
+        K = K,
+        mean_cv = mean(cv_estimates),
+        sd_cv = sd(cv_estimates),
+        estimates = list(cv_estimates)
+    )
+}))
+
+k_comparison[, K_label := fifelse(K == nrow(X), paste0("LOOCV (", K, ")"), as.character(K))]
+k_comparison[, K_label := factor(K_label, levels = c("2", "5", "10", "20", paste0("LOOCV (", nrow(X), ")")))]
+
+cat("CV Estimate Comparison Across K:\n")
+#> CV Estimate Comparison Across K:
+cat("================================\n")
+#> ================================
+print(k_comparison[, .(K_label, mean_cv = round(mean_cv, 4), sd_cv = round(sd_cv, 4))])
+#>        K_label mean_cv  sd_cv
+#>         <fctr>   <num>  <num>
+#> 1:           2  0.2143 0.0024
+#> 2:           5  0.2136 0.0008
+#> 3:          10  0.2136 0.0005
+#> 4:          20  0.2137 0.0005
+#> 5: LOOCV (569)  0.2141 0.0000
+```
+
+
+``` r
+# Boxplot of CV estimates across K
+k_long <- rbindlist(lapply(1:nrow(k_comparison), function(i) {
+    data.table(
+        K_label = k_comparison$K_label[i],
+        cv_estimate = k_comparison$estimates[[i]]
+    )
+}))
+
+ggplot2$ggplot(k_long, ggplot2$aes(x = K_label, y = cv_estimate, fill = K_label)) +
+    ggplot2$geom_boxplot(width = 0.6, outlier.shape = 21) +
+    ggplot2$scale_fill_viridis_d(guide = "none") +
+    ggplot2$labs(
+        title = "CV Estimate Variability Across K",
+        subtitle = paste(n_repeats, "repetitions per K value"),
+        x = "Number of Folds (K)",
+        y = "CV Estimate (Log-Loss)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/k_boxplot-1.png" alt="CV estimate distributions for different K values">
+	CV estimate distributions for different K values
+</Figure>
+
+---
+
+## 4.4 Leave-One-Out Cross-Validation (LOOCV)
+
+### 4.4.1 Definition and Properties
+
+**Prose and Intuition**
+
+LOOCV is the extreme case of K-fold CV with $K = n$. Each observation is held out once, and the model is trained on the remaining $n-1$ observations.
+
+**Advantages**:
+- Nearly unbiased (training sets have size $n-1$)
+- Deterministic (no randomness in fold assignment)
+
+**Disadvantages**:
+- Computationally expensive: requires fitting $n$ models
+- High variance: fold errors are correlated
+- Not suitable for small datasets where losing one observation matters
+
+### 4.4.2 Computational Shortcut for Linear Models
+
+**Prose and Intuition**
+
+For linear regression, we don't need to fit $n$ separate models. The **LOOCV formula** gives exact LOOCV error from a single fit:
+
+$$\text{CV}_{(n)} = \frac{1}{n}\sum_{i=1}^{n}\left(\frac{y_i - \hat{y}_i}{1 - h_{ii}}\right)^2$$
+
+where $h_{ii}$ is the $i$-th diagonal element of the hat matrix $\mathbf{H} = \mathbf{X}(\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T$.
+
+**Mathematical Derivation**
+
+The key insight: removing observation $i$ changes the fitted value $\hat{y}_i$ by a factor related to its leverage $h_{ii}$.
+
+The residual when $i$ is held out:
+$$e_i^{(-i)} = y_i - \hat{y}_i^{(-i)}$$
+
+Using the Sherman-Morrison formula for matrix inverse updates:
+$$e_i^{(-i)} = \frac{e_i}{1 - h_{ii}}$$
+
+where $e_i = y_i - \hat{y}_i$ is the ordinary residual.
+
+
+``` r
+# Demonstrate LOOCV shortcut for linear regression
+set.seed(42)
+n_demo <- 100
+X_demo <- cbind(1, matrix(rnorm(n_demo * 3), ncol = 3))  # Include intercept
+y_demo <- X_demo %*% c(1, 2, -1, 0.5) + rnorm(n_demo, 0, 0.5)
+
+# Method 1: Brute force LOOCV
+loocv_brute <- function(X, y) {
+    n <- length(y)
+    cv_errors <- numeric(n)
+
+    for (i in 1:n) {
+        X_train <- X[-i, ]
+        y_train <- y[-i]
+
+        beta_hat <- solve(t(X_train) %*% X_train) %*% t(X_train) %*% y_train
+        y_pred_i <- X[i, ] %*% beta_hat
+        cv_errors[i] <- (y[i] - y_pred_i)^2
+    }
+
+    mean(cv_errors)
+}
+
+# Method 2: Shortcut formula
+loocv_shortcut <- function(X, y) {
+    H <- X %*% solve(t(X) %*% X) %*% t(X)
+    h_ii <- diag(H)
+    y_hat <- H %*% y
+    residuals <- y - y_hat
+
+    mean((residuals / (1 - h_ii))^2)
+}
+
+# Compare
+cat("LOOCV Comparison:\n")
+#> LOOCV Comparison:
+cat("=================\n")
+#> =================
+cat("  Brute force:", round(loocv_brute(X_demo, y_demo), 6), "\n")
+#>   Brute force: 0.203819
+cat("  Shortcut formula:", round(loocv_shortcut(X_demo, y_demo), 6), "\n")
+#>   Shortcut formula: 0.203819
+cat("  (Should be identical up to numerical precision)\n")
+#>   (Should be identical up to numerical precision)
+```
+
+---
+
+## 4.5 Stratified Cross-Validation
+
+### 4.5.1 Preserving Class Balance
+
+**Prose and Intuition**
+
+In classification problems with imbalanced classes, random fold assignment may create folds with very different class proportions. **Stratified CV** ensures each fold has approximately the same class distribution as the full dataset.
+
+This is especially important when:
+- Classes are imbalanced
+- Sample size is small
+- The outcome is rare
+
+
+``` r
+# Compare random vs stratified fold assignment
+K <- 5
+n <- 100
+class_labels <- c(rep(0, 70), rep(1, 30))  # 70% class 0, 30% class 1
+
+# Random assignment
+random_folds <- sample(rep(1:K, length.out = n))
+
+# Stratified assignment
+stratified_folds <- function(y, K) {
+    n <- length(y)
+    folds <- integer(n)
+
+    for (class in unique(y)) {
+        class_idx <- which(y == class)
+        n_class <- length(class_idx)
+        folds[class_idx] <- sample(rep(1:K, length.out = n_class))
+    }
+
+    folds
+}
+
+strat_folds <- stratified_folds(class_labels, K)
+
+# Compare class proportions in each fold
+fold_comparison <- rbindlist(lapply(1:K, function(k) {
+    data.table(
+        fold = k,
+        method = c("Random", "Stratified"),
+        class1_prop = c(
+            mean(class_labels[random_folds == k]),
+            mean(class_labels[strat_folds == k])
+        )
+    )
+}))
+
+ggplot2$ggplot(fold_comparison, ggplot2$aes(x = factor(fold), y = class1_prop, fill = method)) +
+    ggplot2$geom_col(position = ggplot2$position_dodge(width = 0.8), width = 0.7) +
+    ggplot2$geom_hline(yintercept = mean(class_labels), linetype = "dashed", colour = "black") +
+    ggplot2$annotate("text", x = 5.3, y = mean(class_labels) + 0.02, label = "True proportion", hjust = 0) +
+    ggplot2$scale_fill_manual(values = c("Random" = "#D95F02", "Stratified" = "#2166AC")) +
+    ggplot2$labs(
+        title = "Class Proportions: Random vs Stratified Folds",
+        subtitle = "Stratified CV preserves the 30% minority class proportion",
+        x = "Fold",
+        y = "Proportion of Class 1",
+        fill = "Method"
+    ) +
+    ggplot2$coord_cartesian(ylim = c(0, 0.6)) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/stratified_cv-1.png" alt="Stratified CV preserves class proportions in each fold">
+	Stratified CV preserves class proportions in each fold
+</Figure>
+
+---
+
+## 4.6 Repeated Cross-Validation
+
+### 4.6.1 Reducing Variance
+
+**Prose and Intuition**
+
+A single run of K-fold CV depends on the random fold assignment. **Repeated CV** runs the K-fold procedure multiple times with different random partitions, then averages the results.
+
+This reduces the variance of the CV estimate at the cost of increased computation.
+
+
+``` r
+# Implement repeated K-fold CV
+repeated_kfold_cv <- function(X, y, K = 5, n_repeats = 10, model_fn, predict_fn, loss_fn) {
+    repeat_results <- numeric(n_repeats)
+    all_fold_errors <- list()
+
+    for (r in 1:n_repeats) {
+        cv_result <- kfold_cv(X, y, K, model_fn, predict_fn, loss_fn)
+        repeat_results[r] <- cv_result$mean_error
+        all_fold_errors[[r]] <- cv_result$fold_errors
+    }
+
+    list(
+        mean_error = mean(repeat_results),
+        se_error = sd(repeat_results) / sqrt(n_repeats),
+        repeat_errors = repeat_results,
+        all_fold_errors = unlist(all_fold_errors)
+    )
+}
+
+# Compare single vs repeated CV
+single_cv <- kfold_cv(X, y, K = 5, ridge_model, ridge_predict, log_loss)
+repeated_cv <- repeated_kfold_cv(X, y, K = 5, n_repeats = 20, ridge_model, ridge_predict, log_loss)
+
+cat("Single vs Repeated 5-Fold CV:\n")
+#> Single vs Repeated 5-Fold CV:
+cat("=============================\n")
+#> =============================
+cat("Single 5-fold CV:\n")
+#> Single 5-fold CV:
+cat("  Mean:", round(single_cv$mean_error, 4), "\n")
+#>   Mean: 0.2142
+cat("  SE:", round(single_cv$se_error, 4), "\n")
+#>   SE: 0.0055
+cat("\nRepeated 5-fold CV (20 repeats):\n")
+#> 
+#> Repeated 5-fold CV (20 repeats):
+cat("  Mean:", round(repeated_cv$mean_error, 4), "\n")
+#>   Mean: 0.2137
+cat("  SE:", round(repeated_cv$se_error, 4), "\n")
+#>   SE: 2e-04
+```
+
+---
+
+## 4.7 Mathematical Properties
+
+### 4.7.1 Bias of K-Fold CV
+
+**Theorem**: The expected K-fold CV error is:
+
+$$E[\text{CV}_K] = E[\text{Err}_{n(1-1/K)}]$$
+
+where $\text{Err}_m$ is the expected test error when training on $m$ observations.
+
+**Interpretation**: K-fold CV estimates the error of a model trained on $n(1-1/K)$ observations, not $n$ observations. For 5-fold CV, we estimate the error of a model trained on 80% of the data.
+
+### 4.7.2 Variance of K-Fold CV
+
+The variance of K-fold CV depends on:
+1. The variance of individual fold errors
+2. The covariance between fold errors (due to shared training data)
+
+$$\text{Var}(\text{CV}_K) = \frac{1}{K}\text{Var}(E_k) + \frac{K-1}{K}\text{Cov}(E_k, E_{k'})$$
+
+For LOOCV, the covariance term dominates because training sets overlap almost completely.
+
+---
+
+## 4.8 Cross-Validation for Model Selection
+
+### 4.8.1 Using CV to Select Hyperparameters
+
+
+``` r
+# Use CV to select lambda for ridge regression
+lambda_grid <- exp(seq(log(0.001), log(10), length.out = 50))
+
+cv_errors <- sapply(lambda_grid, function(lambda) {
+    model_fn <- function(X, y) glmnet(X, y, family = "binomial", alpha = 0, lambda = lambda)
+    cv_result <- kfold_cv(X, y, K = 10, model_fn, ridge_predict, log_loss)
+    cv_result$mean_error
+})
+
+cv_se <- sapply(lambda_grid, function(lambda) {
+    model_fn <- function(X, y) glmnet(X, y, family = "binomial", alpha = 0, lambda = lambda)
+    cv_result <- kfold_cv(X, y, K = 10, model_fn, ridge_predict, log_loss)
+    cv_result$se_error
+})
+
+lambda_data <- data.table(
+    lambda = lambda_grid,
+    cv_error = cv_errors,
+    cv_se = cv_se
+)
+
+optimal_idx <- which.min(cv_errors)
+lambda_min <- lambda_grid[optimal_idx]
+
+# 1-SE rule: choose simplest model within 1 SE of minimum
+threshold <- cv_errors[optimal_idx] + cv_se[optimal_idx]
+lambda_1se <- max(lambda_grid[cv_errors <= threshold])
+idx_1se <- which(lambda_grid == lambda_1se)
+
+cat("Lambda Selection:\n")
+#> Lambda Selection:
+cat("=================\n")
+#> =================
+cat("  lambda.min (lowest CV error):", round(lambda_min, 4), "\n")
+#>   lambda.min (lowest CV error): 0.0045
+cat("  lambda.1se (1-SE rule):", round(lambda_1se, 4), "\n")
+#>   lambda.1se (1-SE rule): 0.0168
+
+ggplot2$ggplot(lambda_data, ggplot2$aes(x = log(lambda), y = cv_error)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = cv_error - cv_se, ymax = cv_error + cv_se),
+                        fill = "#2166AC", alpha = 0.2) +
+    ggplot2$geom_line(colour = "#2166AC", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = log(lambda_min), linetype = "dashed", colour = "#D95F02") +
+    ggplot2$geom_vline(xintercept = log(lambda_1se), linetype = "dotted", colour = "#7CAE00") +
+    ggplot2$annotate("text", x = log(lambda_min) + 0.3, y = max(cv_errors) * 0.9,
+                     label = "lambda.min", colour = "#D95F02", hjust = 0) +
+    ggplot2$annotate("text", x = log(lambda_1se) + 0.3, y = max(cv_errors) * 0.85,
+                     label = "lambda.1se", colour = "#7CAE00", hjust = 0) +
+    ggplot2$labs(
+        title = "Cross-Validation for Lambda Selection",
+        subtitle = "Shaded region shows ± 1 standard error",
+        x = expression(log(lambda)),
+        y = "CV Log-Loss"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/cv_model_selection-1.png" alt="Using CV to select the optimal regularisation parameter lambda">
+	Using CV to select the optimal regularisation parameter lambda
+</Figure>
+
+### 4.8.2 The One-Standard-Error Rule
+
+**Prose and Intuition**
+
+The **1-SE rule** selects the simplest model whose CV error is within one standard error of the minimum. Rationale: if two models have indistinguishable performance, prefer the simpler one (Occam's razor).
+
+This rule is conservative—it tends to select more regularised models that may generalise better.
+
+---
+
+## 4.9 Communicating Results to Stakeholders
+
+### For Clinicians
+
+> "We tested our diagnostic model using 10-fold cross-validation, which means we repeatedly trained the model on 90% of patients and tested on the remaining 10%. This gives us a realistic estimate of how well the model will perform on new patients. The model achieved an average accuracy of 94% (± 2%) across the folds, suggesting robust and reliable performance."
+
+### For Data Scientists
+
+> "Model performance was evaluated using repeated 10-fold stratified cross-validation (20 repeats). The regularisation parameter was selected using nested cross-validation to avoid selection bias. The final CV estimate of log-loss was 0.15 (SE: 0.02). Using the one-standard-error rule, we selected lambda = 0.05 over the minimum-CV lambda = 0.01 for better generalisation."
+
+### For Journal Publication
+
+> "Predictive performance was assessed using 10-fold stratified cross-validation repeated 20 times. Hyperparameter tuning (regularisation strength $\lambda$) was performed within each outer fold using 5-fold inner cross-validation to prevent information leakage. The optimal $\lambda$ was selected using the one-standard-error rule (Hastie et al., 2009). Final model performance was AUC 0.95 (95% CI: 0.93-0.97)."
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+**K-fold CV error:**
+$$\text{CV}_K = \frac{1}{K}\sum_{k=1}^{K} E_k = \frac{1}{K}\sum_{k=1}^{K}\frac{1}{|\mathcal{D}_k|}\sum_{i \in \mathcal{D}_k} L(y_i, \hat{f}^{(-k)}(x_i))$$
+
+**LOOCV shortcut (linear regression):**
+$$\text{CV}_{(n)} = \frac{1}{n}\sum_{i=1}^{n}\left(\frac{y_i - \hat{y}_i}{1 - h_{ii}}\right)^2$$
+
+**Standard error of CV:**
+$$\text{SE}(\text{CV}_K) = \frac{s_K}{\sqrt{K}}$$
+where $s_K$ is the standard deviation of fold errors.
+
+### R Code Summary
+
+```r
+# Manual K-fold CV
+create_folds <- function(y, K) sample(rep(1:K, length.out = length(y)))
+
+# Using caret
+library(caret)
+ctrl <- trainControl(method = "cv", number = 10)
+model <- train(x, y, method = "glm", trControl = ctrl)
+
+# Using glmnet (built-in CV)
+cv_fit <- cv.glmnet(X, y, nfolds = 10)
+coef(cv_fit, s = "lambda.min")  # Best prediction
+coef(cv_fit, s = "lambda.1se")  # 1-SE rule
+```
+
+### Guidelines for Choosing K
+
+| Scenario | Recommended K | Rationale |
+|----------|---------------|-----------|
+| Large dataset (n > 10,000) | 5 | Computational efficiency |
+| Medium dataset (1,000-10,000) | 10 | Standard choice |
+| Small dataset (100-1,000) | 10 + repeats | Reduce variance |
+| Very small (< 100) | LOOCV | Minimise bias |
+
+---
+
+## Exercises
+
+1. **LOOCV vs 10-Fold**: For the breast cancer data, compare LOOCV and 10-fold CV estimates for logistic regression. Which has higher variance? Time both approaches.
+
+2. **Stratification Impact**: Create a dataset with 95% majority class. Compare stratified vs random 5-fold CV. How often does random CV produce a fold with no minority class observations?
+
+3. **Optimal K**: Simulate data from a known model. Compute the bias and variance of CV estimates for K = 2, 5, 10, 20, and LOOCV. Which K gives the best bias-variance trade-off?
+
+4. **The 1-SE Rule**: Using CV for LASSO, compare models selected by lambda.min vs lambda.1se. Which has better test set performance on average?

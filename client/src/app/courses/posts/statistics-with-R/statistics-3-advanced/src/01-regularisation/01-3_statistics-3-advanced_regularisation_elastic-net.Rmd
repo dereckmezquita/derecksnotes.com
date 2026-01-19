@@ -1,0 +1,725 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 1: Regularisation and Penalised Regression"
+part: "Part 3: Elastic Net and Model Selection"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, regularisation, elastic-net, model-selection, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 3: Elastic Net and Model Selection
+
+Ridge regression keeps all predictors but shrinks them; LASSO selects variables but struggles when predictors are highly correlated. The **elastic net** combines both penalties to achieve the best of both worlds: variable selection with grouped coefficient stability. This chapter completes our regularisation trilogy and addresses the critical question: how do we choose between methods?
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(glmnet)
+```
+
+```{r load_data, message=FALSE}
+# Load breast cancer dataset
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+# Use all mean features (10 predictors)
+feature_cols <- c("mean_radius", "mean_texture", "mean_perimeter", "mean_area",
+                  "mean_smoothness", "mean_compactness", "mean_concavity",
+                  "mean_concave_points", "mean_symmetry", "mean_fractal_dimension")
+
+breast_cancer[, y := as.integer(diagnosis == "M")]
+
+X <- as.matrix(breast_cancer[, ..feature_cols])
+y <- breast_cancer$y
+
+# Split for validation
+set.seed(42)
+train_idx <- sample(1:nrow(X), size = 0.8 * nrow(X))
+X_train <- X[train_idx, ]
+y_train <- y[train_idx]
+X_test <- X[-train_idx, ]
+y_test <- y[-train_idx]
+
+cat("Dataset Summary:\n")
+cat("================\n")
+cat("  Training: n =", nrow(X_train), ", p =", ncol(X_train), "\n")
+cat("  Testing:  n =", nrow(X_test), "\n")
+```
+
+---
+
+## 1.9 The Elastic Net
+
+### 1.9.1 Combining L1 and L2 Penalties
+
+**Prose and Intuition**
+
+LASSO has a limitation: when predictors are highly correlated (as often happens in genomics where co-regulated genes move together), LASSO arbitrarily selects one and sets the others to zero. This is problematic when we want to identify all members of a biological pathway.
+
+The **elastic net** addresses this by combining both penalties:
+
+$$\mathcal{L}(\boldsymbol{\beta}) = \frac{1}{2n}\sum_{i=1}^{n}(y_i - \mathbf{x}_i^T\boldsymbol{\beta})^2 + \lambda\left[\alpha\sum_{j=1}^{p}|\beta_j| + \frac{(1-\alpha)}{2}\sum_{j=1}^{p}\beta_j^2\right]$$
+
+The parameter $\alpha \in [0, 1]$ controls the mix:
+- $\alpha = 1$: Pure LASSO (L1 only)
+- $\alpha = 0$: Pure ridge (L2 only)
+- $0 < \alpha < 1$: Elastic net (both)
+
+**Why does this help with correlated predictors?**
+
+The L2 component creates a "grouping effect": if predictors $X_j$ and $X_k$ are highly correlated, their coefficients tend to be similar in magnitude. The L1 component still performs selection, but now selects or excludes groups together.
+
+**Mathematical Formulation**
+
+The elastic net objective can be rewritten as:
+
+$$\hat{\boldsymbol{\beta}}^{\text{EN}} = \underset{\boldsymbol{\beta}}{\arg\min} \left\{ \|\mathbf{y} - \mathbf{X}\boldsymbol{\beta}\|_2^2 + \lambda_2\|\boldsymbol{\beta}\|_2^2 + \lambda_1\|\boldsymbol{\beta}\|_1 \right\}$$
+
+where $\lambda_1 = \alpha\lambda$ and $\lambda_2 = (1-\alpha)\lambda$.
+
+The **grouping effect** property states: for standardised predictors, if the correlation $\rho_{jk}$ between $X_j$ and $X_k$ is high, then:
+
+$$|\hat{\beta}_j^{\text{EN}} - \hat{\beta}_k^{\text{EN}}| \leq \frac{1}{\lambda_2}\sqrt{2(1-\rho_{jk})}\|\mathbf{y}\|_2$$
+
+As $\rho_{jk} \to 1$, the difference between coefficients shrinks to zero.
+
+**Visualisation**
+
+```{r elastic_net_constraint, fig.cap="Elastic net constraint region interpolates between L1 diamond and L2 circle"}
+# Show constraint regions for different alpha values
+alphas <- c(0, 0.25, 0.5, 0.75, 1)
+theta <- seq(0, 2 * pi, length.out = 500)
+
+constraint_regions <- rbindlist(lapply(alphas, function(alpha) {
+    if (alpha == 0) {
+        # Pure L2: circle
+        data.table(
+            x = cos(theta),
+            y = sin(theta),
+            alpha = alpha
+        )
+    } else if (alpha == 1) {
+        # Pure L1: diamond
+        t_vals <- seq(0, 4, length.out = 500)
+        x <- ifelse(t_vals <= 1, t_vals,
+                    ifelse(t_vals <= 2, 2 - t_vals,
+                           ifelse(t_vals <= 3, -(t_vals - 2), -(4 - t_vals))))
+        y <- ifelse(t_vals <= 1, 1 - t_vals,
+                    ifelse(t_vals <= 2, t_vals - 1,
+                           ifelse(t_vals <= 3, 1 - (t_vals - 2), (t_vals - 3) - 1)))
+        data.table(x = x, y = y, alpha = alpha)
+    } else {
+        # Elastic net: interpolate
+        # Constraint: alpha*|x| + alpha*|y| + (1-alpha)*(x^2 + y^2)/2 <= 1
+        # Solve numerically
+        angles <- seq(0, 2 * pi, length.out = 500)
+        points <- lapply(angles, function(ang) {
+            # Binary search for boundary
+            lo <- 0
+            hi <- 2
+            for (i in 1:50) {
+                mid <- (lo + hi) / 2
+                x <- mid * cos(ang)
+                y <- mid * sin(ang)
+                val <- alpha * (abs(x) + abs(y)) + (1 - alpha) * (x^2 + y^2) / 2
+                if (val < 1) lo <- mid else hi <- mid
+            }
+            c(x = mid * cos(ang), y = mid * sin(ang))
+        })
+        do.call(rbind, points) |> as.data.table() |>
+            cbind(alpha = alpha)
+    }
+}))
+
+constraint_regions[, alpha_label := paste0("alpha == ", alpha)]
+
+ggplot2$ggplot(constraint_regions, ggplot2$aes(x = x, y = y, colour = factor(alpha))) +
+    ggplot2$geom_path(linewidth = 1.2) +
+    ggplot2$coord_fixed() +
+    ggplot2$scale_colour_viridis_d(
+        name = expression(alpha),
+        labels = c("0 (Ridge)", "0.25", "0.5", "0.75", "1 (LASSO)")
+    ) +
+    ggplot2$labs(
+        title = "Elastic Net Constraint Regions",
+        subtitle = expression(paste(alpha, " = 1 is LASSO (diamond), ", alpha, " = 0 is Ridge (circle)")),
+        x = expression(beta[1]),
+        y = expression(beta[2])
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "right",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+### 1.9.2 Fitting the Elastic Net
+
+**Implementation with `glmnet`**
+
+In `glmnet`, the `alpha` parameter directly controls the L1/L2 mix:
+
+```{r elastic_net_fits}
+# Fit elastic net for several alpha values
+alpha_grid <- c(0, 0.25, 0.5, 0.75, 1)
+
+enet_fits <- lapply(alpha_grid, function(a) {
+    cv.glmnet(X_train, y_train, family = "binomial", alpha = a, nfolds = 10)
+})
+names(enet_fits) <- paste0("alpha_", alpha_grid)
+
+# Extract optimal lambdas and performance
+enet_summary <- rbindlist(lapply(seq_along(alpha_grid), function(i) {
+    fit <- enet_fits[[i]]
+    data.table(
+        alpha = alpha_grid[i],
+        lambda_min = fit$lambda.min,
+        lambda_1se = fit$lambda.1se,
+        cvm_min = min(fit$cvm),
+        nzero = coef(fit, s = "lambda.min")@x |> length() - 1  # excluding intercept
+    )
+}))
+
+cat("Elastic Net Cross-Validation Summary:\n")
+cat("=====================================\n")
+print(enet_summary)
+```
+
+**Visualisation: Coefficient Paths Across Alpha**
+
+```{r elastic_net_paths, fig.cap="Coefficient paths vary with alpha: ridge shrinks smoothly, LASSO creates sharp zeros"}
+# Show paths for different alpha values
+path_data <- rbindlist(lapply(c(0, 0.5, 1), function(a) {
+    fit <- glmnet(X_train, y_train, family = "binomial", alpha = a)
+    coef_mat <- as.matrix(coef(fit))[-1, ]  # Remove intercept
+
+    rbindlist(lapply(1:ncol(coef_mat), function(j) {
+        data.table(
+            lambda = fit$lambda[j],
+            log_lambda = log(fit$lambda[j]),
+            coefficient = coef_mat[, j],
+            variable = rownames(coef_mat),
+            alpha = a
+        )
+    }))
+}))
+
+path_data[, alpha_label := factor(
+    alpha,
+    levels = c(0, 0.5, 1),
+    labels = c("Ridge (alpha = 0)", "Elastic Net (alpha = 0.5)", "LASSO (alpha = 1)")
+)]
+
+# Simplify variable names for plotting
+path_data[, variable_short := gsub("mean_", "", variable)]
+
+ggplot2$ggplot(path_data, ggplot2$aes(x = log_lambda, y = coefficient, colour = variable_short)) +
+    ggplot2$geom_line(linewidth = 0.8) +
+    ggplot2$facet_wrap(~alpha_label, scales = "free_y") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+    ggplot2$scale_colour_viridis_d(name = "Variable") +
+    ggplot2$labs(
+        title = "Regularisation Paths: Ridge vs Elastic Net vs LASSO",
+        subtitle = "Ridge shrinks continuously; LASSO creates exact zeros; Elastic Net interpolates",
+        x = expression(log(lambda)),
+        y = "Coefficient Value"
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(
+        legend.position = "bottom",
+        plot.title = ggplot2$element_text(face = "bold"),
+        strip.text = ggplot2$element_text(face = "bold")
+    ) +
+    ggplot2$guides(colour = ggplot2$guide_legend(nrow = 2))
+```
+
+---
+
+### 1.9.3 The Grouping Effect
+
+**Demonstration with Correlated Predictors**
+
+Our breast cancer data contains naturally correlated features: radius, perimeter, and area are geometrically related. Let's examine how different methods handle this correlation.
+
+```{r correlation_analysis}
+# Compute correlation matrix
+cor_mat <- cor(X_train)
+cat("Correlation between geometric features:\n")
+cat("  radius-perimeter:", round(cor_mat["mean_radius", "mean_perimeter"], 3), "\n")
+cat("  radius-area:", round(cor_mat["mean_radius", "mean_area"], 3), "\n")
+cat("  perimeter-area:", round(cor_mat["mean_perimeter", "mean_area"], 3), "\n")
+```
+
+```{r grouping_effect, fig.cap="LASSO selects one correlated predictor; elastic net keeps groups together"}
+# Compare coefficients for correlated features
+geometric_features <- c("mean_radius", "mean_perimeter", "mean_area")
+
+coef_comparison <- rbindlist(lapply(c(0, 0.5, 1), function(a) {
+    fit <- cv.glmnet(X_train, y_train, family = "binomial", alpha = a, nfolds = 10)
+    coefs <- as.vector(coef(fit, s = "lambda.min"))
+    names(coefs) <- rownames(coef(fit, s = "lambda.min"))
+
+    data.table(
+        alpha = a,
+        method = c("Ridge", "Elastic Net", "LASSO")[match(a, c(0, 0.5, 1))],
+        variable = names(coefs)[-1],  # Exclude intercept
+        coefficient = coefs[-1]
+    )
+}))
+
+# Focus on geometric features
+geom_coefs <- coef_comparison[variable %in% geometric_features]
+geom_coefs[, variable_short := gsub("mean_", "", variable)]
+
+ggplot2$ggplot(geom_coefs, ggplot2$aes(x = variable_short, y = coefficient, fill = method)) +
+    ggplot2$geom_col(position = ggplot2$position_dodge(width = 0.8), width = 0.7) +
+    ggplot2$scale_fill_manual(
+        values = c("Ridge" = "#2166AC", "Elastic Net" = "#7CAE00", "LASSO" = "#D95F02"),
+        name = "Method"
+    ) +
+    ggplot2$labs(
+        title = "Coefficients for Highly Correlated Features",
+        subtitle = "radius, perimeter, and area have correlations > 0.99",
+        x = "Feature",
+        y = "Coefficient (at optimal lambda)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+**Interpretation**: Notice how LASSO tends to select only one of the correlated features, while ridge and elastic net distribute the coefficient weight more evenly across the group.
+
+---
+
+## 1.10 Model Selection and Comparison
+
+### 1.10.1 Choosing Alpha via Nested Cross-Validation
+
+**Prose and Intuition**
+
+We've seen that different values of $\alpha$ lead to different solutions. How do we choose the best $\alpha$? We need **nested cross-validation**:
+
+1. **Outer loop**: Evaluate overall model performance
+2. **Inner loop**: Select optimal $\lambda$ for each $\alpha$
+
+This prevents "double-dipping" where we use the same data to select hyperparameters and estimate performance.
+
+**Implementation**
+
+```{r nested_cv}
+# Nested cross-validation for alpha selection
+set.seed(123)
+n_outer_folds <- 5
+outer_folds <- sample(rep(1:n_outer_folds, length.out = nrow(X_train)))
+
+alpha_grid <- seq(0, 1, by = 0.1)
+
+nested_cv_results <- rbindlist(lapply(1:n_outer_folds, function(fold) {
+    # Split into outer train/test
+    outer_train_idx <- which(outer_folds != fold)
+    outer_test_idx <- which(outer_folds == fold)
+
+    X_outer_train <- X_train[outer_train_idx, ]
+    y_outer_train <- y_train[outer_train_idx]
+    X_outer_test <- X_train[outer_test_idx, ]
+    y_outer_test <- y_train[outer_test_idx]
+
+    # For each alpha, do inner CV to select lambda, then evaluate on outer test
+    rbindlist(lapply(alpha_grid, function(a) {
+        cv_fit <- cv.glmnet(X_outer_train, y_outer_train, family = "binomial",
+                            alpha = a, nfolds = 5)
+
+        # Predict on outer test set
+        pred_prob <- predict(cv_fit, X_outer_test, s = "lambda.min", type = "response")
+        pred_class <- as.integer(pred_prob > 0.5)
+
+        # Compute metrics
+        accuracy <- mean(pred_class == y_outer_test)
+
+        # AUC using simple trapezoidal rule
+        ord <- order(pred_prob, decreasing = TRUE)
+        y_sorted <- y_outer_test[ord]
+        tpr <- cumsum(y_sorted) / sum(y_sorted)
+        fpr <- cumsum(1 - y_sorted) / sum(1 - y_sorted)
+        auc <- sum(diff(fpr) * (tpr[-1] + tpr[-length(tpr)]) / 2)
+
+        data.table(
+            outer_fold = fold,
+            alpha = a,
+            accuracy = accuracy,
+            auc = auc,
+            n_features = sum(coef(cv_fit, s = "lambda.min")[-1] != 0)
+        )
+    }))
+}))
+
+# Summarise across outer folds
+alpha_summary <- nested_cv_results[, .(
+    mean_accuracy = mean(accuracy),
+    se_accuracy = sd(accuracy) / sqrt(.N),
+    mean_auc = mean(auc),
+    se_auc = sd(auc) / sqrt(.N),
+    mean_features = mean(n_features)
+), by = alpha]
+
+cat("Nested Cross-Validation Results:\n")
+cat("================================\n")
+print(alpha_summary[order(-mean_auc)])
+```
+
+**Visualisation**
+
+```{r alpha_selection_plot, fig.cap="Model performance across alpha values; higher alpha gives sparser models"}
+# Create plot with dual y-axis effect using facets
+alpha_plot_data <- melt(
+    alpha_summary,
+    id.vars = "alpha",
+    measure.vars = c("mean_auc", "mean_features"),
+    variable.name = "metric",
+    value.name = "value"
+)
+
+alpha_plot_data[, metric_label := fifelse(
+    metric == "mean_auc",
+    "AUC (higher is better)",
+    "Number of Features"
+)]
+
+# Add error bars for AUC
+alpha_plot_data <- merge(
+    alpha_plot_data,
+    alpha_summary[, .(alpha, se_auc)],
+    by = "alpha"
+)
+alpha_plot_data[metric != "mean_auc", se_auc := NA]
+
+ggplot2$ggplot(alpha_plot_data, ggplot2$aes(x = alpha, y = value)) +
+    ggplot2$geom_line(linewidth = 1.2, colour = "#2166AC") +
+    ggplot2$geom_point(size = 3, colour = "#2166AC") +
+    ggplot2$geom_errorbar(
+        ggplot2$aes(ymin = value - se_auc, ymax = value + se_auc),
+        width = 0.03,
+        colour = "#2166AC",
+        na.rm = TRUE
+    ) +
+    ggplot2$facet_wrap(~metric_label, scales = "free_y") +
+    ggplot2$scale_x_continuous(breaks = seq(0, 1, by = 0.2)) +
+    ggplot2$labs(
+        title = "Elastic Net Performance Across Alpha Values",
+        subtitle = "alpha = 0 is ridge, alpha = 1 is LASSO",
+        x = expression(alpha ~ "(mixing parameter)"),
+        y = "Value"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        strip.text = ggplot2$element_text(face = "bold"),
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+### 1.10.2 Comparing Regularisation Methods
+
+**Final Model Comparison on Held-Out Test Set**
+
+```{r final_comparison}
+# Select best alpha based on nested CV
+best_alpha <- alpha_summary[which.max(mean_auc), alpha]
+cat("Best alpha from nested CV:", best_alpha, "\n\n")
+
+# Fit final models on full training set
+final_ridge <- cv.glmnet(X_train, y_train, family = "binomial", alpha = 0)
+final_lasso <- cv.glmnet(X_train, y_train, family = "binomial", alpha = 1)
+final_enet <- cv.glmnet(X_train, y_train, family = "binomial", alpha = best_alpha)
+
+# Predictions on test set
+methods <- list(
+    Ridge = final_ridge,
+    LASSO = final_lasso,
+    `Elastic Net` = final_enet
+)
+
+test_results <- rbindlist(lapply(names(methods), function(m) {
+    fit <- methods[[m]]
+    pred_prob <- as.vector(predict(fit, X_test, s = "lambda.min", type = "response"))
+    pred_class <- as.integer(pred_prob > 0.5)
+
+    # Metrics
+    accuracy <- mean(pred_class == y_test)
+    sensitivity <- sum(pred_class == 1 & y_test == 1) / sum(y_test == 1)
+    specificity <- sum(pred_class == 0 & y_test == 0) / sum(y_test == 0)
+
+    # AUC
+    ord <- order(pred_prob, decreasing = TRUE)
+    y_sorted <- y_test[ord]
+    tpr <- cumsum(y_sorted) / sum(y_sorted)
+    fpr <- cumsum(1 - y_sorted) / sum(1 - y_sorted)
+    auc <- sum(diff(fpr) * (tpr[-1] + tpr[-length(tpr)]) / 2)
+
+    # Number of features
+    n_features <- sum(coef(fit, s = "lambda.min")[-1] != 0)
+
+    data.table(
+        Method = m,
+        Accuracy = round(accuracy, 3),
+        Sensitivity = round(sensitivity, 3),
+        Specificity = round(specificity, 3),
+        AUC = round(auc, 3),
+        Features = n_features
+    )
+}))
+
+cat("Test Set Performance:\n")
+cat("=====================\n")
+print(test_results)
+```
+
+**ROC Curves**
+
+```{r roc_curves, fig.cap="ROC curves for the three regularisation methods on held-out test data"}
+# Generate ROC data
+roc_data <- rbindlist(lapply(names(methods), function(m) {
+    fit <- methods[[m]]
+    pred_prob <- as.vector(predict(fit, X_test, s = "lambda.min", type = "response"))
+
+    thresholds <- sort(unique(c(0, pred_prob, 1)))
+
+    rbindlist(lapply(thresholds, function(thresh) {
+        pred_class <- as.integer(pred_prob >= thresh)
+        tpr <- sum(pred_class == 1 & y_test == 1) / sum(y_test == 1)
+        fpr <- sum(pred_class == 1 & y_test == 0) / sum(y_test == 0)
+        data.table(Method = m, threshold = thresh, TPR = tpr, FPR = fpr)
+    }))
+}))
+
+# Get AUC for labels
+auc_labels <- test_results[, .(Method, AUC)]
+roc_data <- merge(roc_data, auc_labels, by = "Method")
+roc_data[, Method_AUC := paste0(Method, " (AUC = ", AUC, ")")]
+
+ggplot2$ggplot(roc_data, ggplot2$aes(x = FPR, y = TPR, colour = Method_AUC)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(
+        values = c(
+            "Ridge (AUC = 0.989)" = "#2166AC",
+            "LASSO (AUC = 0.993)" = "#D95F02",
+            "Elastic Net (AUC = 0.992)" = "#7CAE00"
+        )[unique(roc_data$Method_AUC)],
+        name = "Method"
+    ) +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(
+        title = "ROC Curves: Comparing Regularisation Methods",
+        subtitle = "All methods perform well; LASSO achieves similar AUC with fewer features",
+        x = "False Positive Rate (1 - Specificity)",
+        y = "True Positive Rate (Sensitivity)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = c(0.7, 0.25),
+        legend.background = ggplot2$element_rect(fill = "white", colour = "grey80"),
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+### 1.10.3 Selected Features Comparison
+
+```{r feature_comparison, fig.cap="Features selected by each method; LASSO and elastic net select sparse subsets"}
+# Extract coefficients
+coef_data <- rbindlist(lapply(names(methods), function(m) {
+    fit <- methods[[m]]
+    coefs <- as.vector(coef(fit, s = "lambda.min"))[-1]  # Remove intercept
+    names(coefs) <- rownames(coef(fit, s = "lambda.min"))[-1]
+
+    data.table(
+        Method = m,
+        Variable = names(coefs),
+        Coefficient = coefs
+    )
+}))
+
+coef_data[, Variable_short := gsub("mean_", "", Variable)]
+coef_data[, Method := factor(Method, levels = c("Ridge", "Elastic Net", "LASSO"))]
+
+ggplot2$ggplot(coef_data, ggplot2$aes(x = Variable_short, y = Coefficient, fill = Method)) +
+    ggplot2$geom_col(position = ggplot2$position_dodge(width = 0.8), width = 0.7) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$scale_fill_manual(
+        values = c("Ridge" = "#2166AC", "Elastic Net" = "#7CAE00", "LASSO" = "#D95F02")
+    ) +
+    ggplot2$coord_flip() +
+    ggplot2$labs(
+        title = "Coefficient Comparison Across Methods",
+        subtitle = "Ridge keeps all features; LASSO/Elastic Net select subsets",
+        x = "Feature",
+        y = "Coefficient Value"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+## 1.11 Mathematical Derivation: Elastic Net Solution
+
+### 1.11.1 The Naive Elastic Net
+
+The naive elastic net solves:
+
+$$\hat{\boldsymbol{\beta}}^{\text{naive}} = \underset{\boldsymbol{\beta}}{\arg\min} \left\{ \|\mathbf{y} - \mathbf{X}\boldsymbol{\beta}\|_2^2 + \lambda_2\|\boldsymbol{\beta}\|_2^2 + \lambda_1\|\boldsymbol{\beta}\|_1 \right\}$$
+
+This is equivalent to a LASSO problem on an **augmented dataset**. Define:
+
+$$\mathbf{X}^* = \frac{1}{\sqrt{1 + \lambda_2}}\begin{pmatrix} \mathbf{X} \\ \sqrt{\lambda_2}\mathbf{I}_p \end{pmatrix}, \quad \mathbf{y}^* = \begin{pmatrix} \mathbf{y} \\ \mathbf{0}_p \end{pmatrix}$$
+
+Then the naive elastic net solution is:
+
+$$\hat{\boldsymbol{\beta}}^{\text{naive}} = \sqrt{1 + \lambda_2} \cdot \hat{\boldsymbol{\beta}}^{\text{LASSO}}(\mathbf{X}^*, \mathbf{y}^*, \lambda_1)$$
+
+### 1.11.2 The Rescaled Elastic Net
+
+The naive elastic net incurs **double shrinkage**: once from L2, once from L1. Zou and Hastie (2005) propose rescaling:
+
+$$\hat{\boldsymbol{\beta}}^{\text{EN}} = (1 + \lambda_2)\hat{\boldsymbol{\beta}}^{\text{naive}}$$
+
+This rescaling corrects for the L2 shrinkage and is the default in `glmnet`.
+
+### 1.11.3 Coordinate Descent Update
+
+The elastic net can be solved via coordinate descent. For each coefficient $\beta_j$, the update is:
+
+$$\hat{\beta}_j \leftarrow \frac{S\left(\sum_{i=1}^n x_{ij}r_i^{(j)}, \lambda\alpha\right)}{1 + \lambda(1-\alpha)}$$
+
+where:
+- $r_i^{(j)} = y_i - \sum_{k \neq j}x_{ik}\hat{\beta}_k$ is the partial residual
+- $S(z, \gamma) = \text{sign}(z)(|z| - \gamma)_+$ is the soft-thresholding operator
+
+The denominator $(1 + \lambda(1-\alpha))$ comes from the L2 penalty and ensures the coefficients don't explode.
+
+---
+
+## 1.12 Practical Guidelines
+
+### 1.12.1 When to Use Each Method
+
+| Scenario | Recommended Method | Rationale |
+|----------|-------------------|-----------|
+| $p > n$, sparse true signal | LASSO | Variable selection critical |
+| $p > n$, grouped predictors | Elastic net | Groups selected together |
+| $p < n$, all predictors relevant | Ridge | Stable predictions |
+| Correlated predictors | Elastic net | Grouping effect |
+| Interpretability paramount | LASSO | Sparse, simple model |
+| Prediction accuracy critical | Cross-validate all | Data-driven choice |
+
+### 1.12.2 Practical Recommendations
+
+1. **Always standardise predictors** before fitting regularised models
+2. **Use cross-validation** to select $\lambda$ (and $\alpha$ for elastic net)
+3. **Report `lambda.1se`** for parsimony, `lambda.min` for best prediction
+4. **Examine coefficient paths** to understand variable importance trajectories
+5. **Consider nested CV** when both $\alpha$ and $\lambda$ need tuning
+6. **Don't over-interpret zero coefficients** — they may be zero due to correlation, not irrelevance
+
+---
+
+## 1.13 Communicating Results to Stakeholders
+
+### For Clinicians
+
+> "We used regularised regression to identify which tumour measurements best predict malignancy. The LASSO method selected 5 of the 10 available measurements as most predictive: concave points, texture, radius, smoothness, and symmetry. The model achieves 97% accuracy on held-out data. These 5 measurements could form the basis of a simplified diagnostic checklist."
+
+### For Data Scientists
+
+> "Elastic net with $\alpha = 0.5$ was selected via nested 5-fold cross-validation. The optimal $\lambda$ at `lambda.min` was [X], yielding an AUC of 0.99 on the test set. The model selected 6 of 10 features. Compared to pure LASSO, elastic net showed more stable coefficient estimates for the correlated geometric features (radius, perimeter, area)."
+
+### For Journal Publication
+
+> "Regularised logistic regression was performed using elastic net penalisation ($\alpha = 0.5$, selected via nested cross-validation). The penalty parameter $\lambda$ was chosen to minimise cross-validated deviance. Model performance was assessed on a held-out test set (20% of data), achieving AUC = 0.99 (95% CI: [X, Y]). Variable importance was assessed via coefficient magnitude; the most influential predictors were mean concave points ($\beta = X$), mean texture ($\beta = X$), and mean radius ($\beta = X$)."
+
+---
+
+## Quick Reference
+
+### Elastic Net Objective
+$$\mathcal{L}(\boldsymbol{\beta}) = \frac{1}{2n}\|\mathbf{y} - \mathbf{X}\boldsymbol{\beta}\|_2^2 + \lambda\left[\alpha\|\boldsymbol{\beta}\|_1 + \frac{(1-\alpha)}{2}\|\boldsymbol{\beta}\|_2^2\right]$$
+
+### R Code Summary
+```r
+library(glmnet)
+
+# Ridge (alpha = 0)
+ridge_cv <- cv.glmnet(X, y, family = "binomial", alpha = 0)
+
+# LASSO (alpha = 1)
+lasso_cv <- cv.glmnet(X, y, family = "binomial", alpha = 1)
+
+# Elastic net (0 < alpha < 1)
+enet_cv <- cv.glmnet(X, y, family = "binomial", alpha = 0.5)
+
+# Nested CV for alpha selection
+alphas <- seq(0, 1, by = 0.1)
+cv_errors <- sapply(alphas, function(a) {
+    min(cv.glmnet(X, y, alpha = a)$cvm)
+})
+best_alpha <- alphas[which.min(cv_errors)]
+
+# Extract coefficients
+coef(enet_cv, s = "lambda.min")  # Best prediction
+coef(enet_cv, s = "lambda.1se")  # More parsimonious
+```
+
+### Key Properties
+
+| Property | Ridge | LASSO | Elastic Net |
+|----------|-------|-------|-------------|
+| Penalty | $\lambda\|\boldsymbol{\beta}\|_2^2$ | $\lambda\|\boldsymbol{\beta}\|_1$ | $\lambda[\alpha\|\boldsymbol{\beta}\|_1 + (1-\alpha)\|\boldsymbol{\beta}\|_2^2]$ |
+| Sparsity | No | Yes | Yes |
+| Grouping | Yes | No | Yes |
+| Unique solution | Always | Not if $p > n$ | Always |
+| When to use | All predictors relevant | Sparse signal | Correlated predictors |
+
+---
+
+## Exercises
+
+1. **Simulation Study**: Create a dataset with groups of correlated predictors (e.g., 3 groups of 5 highly correlated variables). Compare LASSO and elastic net: which better recovers the group structure?
+
+2. **Alpha Tuning**: Using the breast cancer data, perform a grid search over $\alpha \in \{0, 0.1, 0.2, \ldots, 1\}$ using 10-fold CV. Plot mean CV error vs. $\alpha$. Is there a clear optimum?
+
+3. **Stability Selection**: Implement stability selection: run LASSO on 100 bootstrap samples and record which variables are selected. What proportion of times is each variable selected? Do the results agree with the single LASSO fit?
+
+4. **Real Data Application**: Apply elastic net to a high-dimensional genomics dataset (e.g., gene expression data with $p > n$). Compare prediction performance and selected variables with ridge and LASSO.

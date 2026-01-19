@@ -932,6 +932,11 @@ cat("  Conclusion:", ifelse(bartlett_result$p.value < 0.05,
 ``` r
 # Create publication-quality figure
 library(patchwork)
+#> 
+#> Attaching package: 'patchwork'
+#> The following object is masked from 'package:MASS':
+#> 
+#>     area
 
 # Panel A: Scree plot
 p_scree <- ggplot2$ggplot(scree_dt[1:6], ggplot2$aes(x = PC)) +

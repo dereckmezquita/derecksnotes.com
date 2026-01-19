@@ -238,11 +238,6 @@ p_silhouette <- ggplot2$ggplot(cluster_stats, ggplot2$aes(x = k, y = avg_silhoue
     ggplot2$theme_minimal()
 
 library(patchwork)
-#> 
-#> Attaching package: 'patchwork'
-#> The following object is masked from 'package:MASS':
-#> 
-#>     area
 p_elbow + p_silhouette
 ```
 
@@ -504,6 +499,11 @@ library(fossil)
 #> The following objects are masked from 'package:foreign':
 #> 
 #>     read.dbf, write.dbf
+#> 
+#> Attaching package: 'fossil'
+#> The following object is masked from 'package:psych':
+#> 
+#>     manhattan
 ari_km_hc <- adj.rand.index(km_clusters, hc_clusters)
 ari_km_mc <- adj.rand.index(km_clusters, mclust_clusters)
 ari_hc_mc <- adj.rand.index(hc_clusters, mclust_clusters)

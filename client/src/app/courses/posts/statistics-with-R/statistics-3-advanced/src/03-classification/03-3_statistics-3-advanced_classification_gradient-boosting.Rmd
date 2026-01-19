@@ -1,0 +1,807 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 3: Classification Methods"
+part: "Part 3: Gradient Boosting"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, classification, gradient-boosting, XGBoost, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Part 3: Gradient Boosting
+
+Random forests build many independent trees and average them. **Gradient boosting** takes a different approach: it builds trees *sequentially*, where each new tree corrects the errors of the ensemble so far. This iterative error-correction often achieves superior predictive accuracy, making gradient boosting the go-to method for structured/tabular data in competitions and practice. XGBoost, LightGBM, and CatBoost—all gradient boosting implementations—dominate Kaggle leaderboards.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(xgboost)
+
+set.seed(42)
+```
+
+```{r load_data, message=FALSE}
+# Load breast cancer dataset
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+feature_cols <- c("mean_radius", "mean_texture", "mean_perimeter", "mean_area",
+                  "mean_smoothness", "mean_compactness", "mean_concavity",
+                  "mean_concave_points", "mean_symmetry", "mean_fractal_dimension")
+
+breast_cancer[, y := as.integer(diagnosis == "M")]
+
+# Train/test split
+set.seed(42)
+train_idx <- sample(1:nrow(breast_cancer), size = 0.7 * nrow(breast_cancer))
+train_data <- breast_cancer[train_idx]
+test_data <- breast_cancer[-train_idx]
+
+# Prepare XGBoost matrices
+X_train <- as.matrix(train_data[, ..feature_cols])
+y_train <- train_data$y
+X_test <- as.matrix(test_data[, ..feature_cols])
+y_test <- test_data$y
+
+dtrain <- xgb.DMatrix(data = X_train, label = y_train)
+dtest <- xgb.DMatrix(data = X_test, label = y_test)
+
+cat("Dataset Summary:\n")
+cat("================\n")
+cat("  Training: n =", nrow(train_data), "\n")
+cat("  Testing:  n =", nrow(test_data), "\n")
+```
+
+---
+
+## 3.19 The Boosting Paradigm
+
+### 3.19.1 From Bagging to Boosting
+
+**Prose and Intuition**
+
+**Bagging** (and random forests) reduces variance by averaging independent models. Each model sees a bootstrap sample and makes independent errors; averaging cancels much of this noise.
+
+**Boosting** reduces *bias* by building models sequentially. Each new model focuses on observations the ensemble currently gets wrong. Think of it as a student who reviews their mistakes after each exam.
+
+**Key Difference**:
+- **Bagging**: Parallel, reduces variance, uses full trees
+- **Boosting**: Sequential, reduces bias, uses shallow trees (stumps)
+
+**Visualisation: Sequential Correction**
+
+```{r boosting_intuition, fig.cap="Boosting builds models sequentially, each correcting previous errors"}
+# Demonstrate boosting on a 1D problem
+set.seed(42)
+x <- seq(0, 2*pi, length.out = 100)
+y_true <- sin(x)
+y_obs <- y_true + rnorm(100, 0, 0.3)
+
+# Fit boosting manually
+n_rounds <- 6
+learning_rate <- 0.5
+predictions <- rep(0, 100)
+residuals_history <- list()
+fit_history <- list()
+
+for (round in 1:n_rounds) {
+    # Current residuals
+    residuals <- y_obs - predictions
+
+    # Fit tree to residuals (using simple piecewise constant)
+    breaks <- c(0, pi/2, pi, 3*pi/2, 2*pi)
+    groups <- cut(x, breaks = breaks, include.lowest = TRUE)
+    group_means <- tapply(residuals, groups, mean)
+    tree_pred <- group_means[groups]
+
+    # Update predictions
+    predictions <- predictions + learning_rate * tree_pred
+
+    residuals_history[[round]] <- residuals
+    fit_history[[round]] <- predictions
+}
+
+# Create plot data
+plot_data <- rbindlist(lapply(1:n_rounds, function(r) {
+    data.table(
+        x = x,
+        residual = residuals_history[[r]],
+        ensemble = fit_history[[r]],
+        round = r
+    )
+}))
+
+# Plot ensemble progression
+ensemble_data <- rbindlist(lapply(c(1, 3, 6), function(r) {
+    data.table(x = x, y = fit_history[[r]], round = paste("Round", r))
+}))
+ensemble_data[, round := factor(round, levels = c("Round 1", "Round 3", "Round 6"))]
+
+ggplot2$ggplot() +
+    ggplot2$geom_point(data = data.table(x = x, y = y_obs),
+                       ggplot2$aes(x = x, y = y), alpha = 0.3, size = 1) +
+    ggplot2$geom_line(data = data.table(x = x, y = y_true),
+                      ggplot2$aes(x = x, y = y), colour = "black", linetype = "dashed", linewidth = 1) +
+    ggplot2$geom_line(data = ensemble_data,
+                      ggplot2$aes(x = x, y = y, colour = round), linewidth = 1.2) +
+    ggplot2$scale_colour_manual(values = c("#D95F02", "#7CAE00", "#2166AC"), name = "Boosting Round") +
+    ggplot2$labs(
+        title = "Gradient Boosting: Sequential Approximation",
+        subtitle = "Each round brings the ensemble closer to the true function (dashed)",
+        x = "X",
+        y = "Y"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+### 3.19.2 The General Boosting Framework
+
+**Forward Stagewise Additive Modelling**
+
+Boosting builds an additive model:
+$$F_M(x) = \sum_{m=1}^{M} \beta_m h_m(x; \gamma_m)$$
+
+where $h_m$ are base learners (trees) with parameters $\gamma_m$.
+
+At each stage, we add one new term:
+$$F_m(x) = F_{m-1}(x) + \beta_m h_m(x)$$
+
+choosing $\beta_m$ and $h_m$ to minimise a loss function.
+
+---
+
+## 3.20 Gradient Boosting Algorithm
+
+### 3.20.1 The Core Idea
+
+**Prose and Intuition**
+
+For squared error loss, the optimal update direction is the *residual*: $y - F_{m-1}(x)$. Fitting a tree to residuals directly corrects errors.
+
+For general loss functions (like logistic loss), we fit trees to the **negative gradient** of the loss—hence "gradient" boosting. The negative gradient points toward the steepest descent in the loss function.
+
+**Mathematical Formulation**
+
+Given loss function $L(y, F(x))$, the negative gradient (pseudo-residuals) is:
+
+$$r_{im} = -\left[\frac{\partial L(y_i, F(x_i))}{\partial F(x_i)}\right]_{F = F_{m-1}}$$
+
+**Algorithm**:
+
+1. Initialise $F_0(x) = \arg\min_\gamma \sum_i L(y_i, \gamma)$
+2. For $m = 1$ to $M$:
+   a. Compute pseudo-residuals: $r_{im} = -\frac{\partial L(y_i, F_{m-1}(x_i))}{\partial F_{m-1}(x_i)}$
+   b. Fit tree $h_m$ to pseudo-residuals
+   c. Compute step size: $\rho_m = \arg\min_\rho \sum_i L(y_i, F_{m-1}(x_i) + \rho h_m(x_i))$
+   d. Update: $F_m(x) = F_{m-1}(x) + \nu \rho_m h_m(x)$ (where $\nu$ is learning rate)
+
+### 3.20.2 Common Loss Functions
+
+| Task | Loss Function | Negative Gradient |
+|------|---------------|-------------------|
+| Regression | $\frac{1}{2}(y - F)^2$ | $y - F$ (residual) |
+| Classification | $\log(1 + e^{-yF})$ | $y / (1 + e^{yF})$ |
+| Ranking | Pairwise loss | Pairwise comparisons |
+
+For binary classification with $y \in \{0, 1\}$ and logistic loss:
+$$L(y, F) = -[y \log(p) + (1-y)\log(1-p)]$$
+where $p = \sigma(F) = 1/(1 + e^{-F})$
+
+The gradient is: $r = y - p$ (observed minus predicted probability)
+
+---
+
+## 3.21 Fitting Gradient Boosting with XGBoost
+
+### 3.21.1 Basic Model
+
+```{r fit_xgb}
+# Set parameters
+params <- list(
+    objective = "binary:logistic",
+    eval_metric = "logloss",
+    max_depth = 3,           # Shallow trees
+    eta = 0.1,               # Learning rate
+    subsample = 0.8,         # Row sampling
+    colsample_bytree = 0.8   # Column sampling
+)
+
+# Train with watchlist for evaluation
+watchlist <- list(train = dtrain, test = dtest)
+
+# Train with early stopping using xgboost 3.x API
+xgb_model <- xgb.train(
+    params = params,
+    data = dtrain,
+    nrounds = 200,
+    evals = watchlist,
+    callbacks = list(xgb.cb.early.stop(stopping_rounds = 20, verbose = FALSE)),
+    verbose = 0
+)
+
+# Get evaluation log from attributes
+eval_log <- attr(xgb_model, "evaluation_log")
+
+# Find best iteration (lowest test logloss)
+best_iter <- which.min(eval_log$test_logloss)
+best_score <- min(eval_log$test_logloss)
+
+cat("XGBoost Model Summary:\n")
+cat("======================\n")
+cat("  Best iteration:", best_iter, "\n")
+cat("  Best test logloss:", round(best_score, 4), "\n")
+```
+
+### 3.21.2 Training Progress
+
+```{r training_curve, fig.cap="Training and validation loss—early stopping prevents overfitting"}
+# Use evaluation log already extracted in previous chunk
+eval_log_dt <- as.data.table(eval_log)
+
+eval_long <- melt(eval_log_dt, id.vars = "iter", variable.name = "set", value.name = "logloss")
+eval_long[, set := gsub("_logloss", "", set)]
+eval_long[, set := factor(set, levels = c("train", "test"), labels = c("Training", "Validation"))]
+
+ggplot2$ggplot(eval_long, ggplot2$aes(x = iter, y = logloss, colour = set)) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_vline(xintercept = best_iter, linetype = "dashed", colour = "grey40") +
+    ggplot2$annotate("text", x = best_iter + 10, y = max(eval_long$logloss) * 0.8,
+                     label = paste("Best iteration:", best_iter), hjust = 0) +
+    ggplot2$scale_colour_manual(values = c("Training" = "#2166AC", "Validation" = "#D95F02")) +
+    ggplot2$labs(
+        title = "Training Progress: Log Loss vs Boosting Rounds",
+        subtitle = "Early stopping prevents overfitting when validation loss stops improving",
+        x = "Boosting Round",
+        y = "Log Loss",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+## 3.22 Regularisation in Gradient Boosting
+
+### 3.22.1 Key Regularisation Techniques
+
+**1. Learning Rate (Shrinkage)**
+
+Scale each tree's contribution by $\nu \in (0, 1]$:
+$$F_m(x) = F_{m-1}(x) + \nu h_m(x)$$
+
+Smaller $\nu$ requires more trees but typically improves generalisation.
+
+**2. Tree Complexity**
+- `max_depth`: Limit tree depth (typically 3-8)
+- `min_child_weight`: Minimum samples per leaf
+- `gamma`: Minimum loss reduction for split
+
+**3. Stochastic Gradient Boosting**
+- `subsample`: Fraction of rows per tree
+- `colsample_bytree`: Fraction of columns per tree
+
+**4. L1/L2 Regularisation on Leaf Weights**
+XGBoost's objective:
+$$\mathcal{L} = \sum_i L(y_i, \hat{y}_i) + \sum_m \left[\gamma T_m + \frac{1}{2}\lambda \sum_{j=1}^{T_m} w_{mj}^2\right]$$
+
+where $T_m$ is number of leaves in tree $m$ and $w_{mj}$ are leaf weights.
+
+```{r regularisation_comparison, fig.cap="Stronger regularisation (lower eta) requires more rounds but generalises better"}
+# Compare different learning rates
+etas <- c(0.3, 0.1, 0.05)
+
+eta_results <- rbindlist(lapply(etas, function(eta) {
+    params_temp <- list(
+        objective = "binary:logistic",
+        eval_metric = "logloss",
+        max_depth = 3,
+        eta = eta,
+        subsample = 0.8
+    )
+
+    xgb_temp <- xgb.train(
+        params = params_temp,
+        data = dtrain,
+        nrounds = 500,
+        evals = list(test = dtest),
+        verbose = 0
+    )
+
+    temp_log <- attr(xgb_temp, "evaluation_log")
+    data.table(
+        iter = 1:500,
+        logloss = temp_log$test_logloss,
+        eta = paste("eta =", eta)
+    )
+}))
+
+eta_results[, eta := factor(eta, levels = paste("eta =", etas))]
+
+ggplot2$ggplot(eta_results, ggplot2$aes(x = iter, y = logloss, colour = eta)) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$scale_colour_manual(values = c("#D95F02", "#2166AC", "#7CAE00")) +
+    ggplot2$labs(
+        title = "Effect of Learning Rate on Convergence",
+        subtitle = "Lower eta = slower convergence but often better final performance",
+        x = "Boosting Round",
+        y = "Validation Log Loss",
+        colour = "Learning Rate"
+    ) +
+    ggplot2$coord_cartesian(ylim = c(0, 0.5)) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+## 3.23 Variable Importance
+
+### 3.23.1 Importance Measures in XGBoost
+
+XGBoost provides several importance measures:
+
+1. **Gain**: Total gain (improvement in loss) from all splits using this feature
+2. **Cover**: Total number of observations in nodes split on this feature
+3. **Frequency**: Number of times feature is used in splits
+
+```{r xgb_importance, fig.cap="Variable importance in XGBoost based on gain"}
+# Get importance
+importance_matrix <- xgb.importance(
+    feature_names = feature_cols,
+    model = xgb_model
+)
+
+importance_dt <- as.data.table(importance_matrix)
+importance_dt[, Feature_short := gsub("mean_", "", Feature)]
+importance_dt[, Feature_short := factor(Feature_short, levels = rev(Feature_short))]
+
+# Plot
+ggplot2$ggplot(importance_dt, ggplot2$aes(x = Gain, y = Feature_short)) +
+    ggplot2$geom_col(fill = "#2166AC", width = 0.7) +
+    ggplot2$labs(
+        title = "Variable Importance in XGBoost",
+        subtitle = "Based on total gain from splits using each feature",
+        x = "Gain",
+        y = "Feature"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        panel.grid.major.y = ggplot2$element_blank()
+    )
+```
+
+### 3.23.2 SHAP Values
+
+**Prose and Intuition**
+
+Standard importance measures tell us *which* features are important globally, but not *how* they affect individual predictions. **SHAP (SHapley Additive exPlanations)** values decompose each prediction into contributions from each feature, based on game-theoretic principles.
+
+For prediction $f(x)$:
+$$f(x) = \phi_0 + \sum_{j=1}^{p} \phi_j$$
+
+where $\phi_j$ is feature $j$'s contribution to moving the prediction from the baseline (average prediction) to the actual prediction.
+
+```{r shap_values, fig.cap="SHAP values show how each feature contributes to individual predictions"}
+# Compute SHAP values (using built-in XGBoost method)
+shap_values <- predict(xgb_model, dtrain, predcontrib = TRUE)
+shap_dt <- as.data.table(shap_values[, 1:10])  # Exclude BIAS column
+setnames(shap_dt, feature_cols)
+
+# Add diagnosis
+shap_dt[, diagnosis := y_train]
+shap_dt[, obs_id := .I]
+
+# Melt for plotting
+shap_long <- melt(shap_dt, id.vars = c("obs_id", "diagnosis"),
+                  variable.name = "feature", value.name = "shap")
+shap_long[, feature_short := gsub("mean_", "", feature)]
+
+# Feature values for coloring
+feature_vals <- as.data.table(X_train)
+feature_vals[, obs_id := .I]
+feature_long <- melt(feature_vals, id.vars = "obs_id", variable.name = "feature", value.name = "feature_value")
+
+shap_plot_data <- merge(shap_long, feature_long, by = c("obs_id", "feature"))
+
+# Compute mean absolute SHAP for ordering
+mean_shap <- shap_long[, .(mean_abs_shap = mean(abs(shap))), by = feature_short]
+mean_shap <- mean_shap[order(-mean_abs_shap)]
+shap_plot_data[, feature_short := factor(feature_short, levels = rev(mean_shap$feature_short))]
+
+# Summary plot (beeswarm style)
+ggplot2$ggplot(shap_plot_data[feature_short %in% mean_shap$feature_short[1:6]],
+               ggplot2$aes(x = shap, y = feature_short, colour = feature_value)) +
+    ggplot2$geom_jitter(height = 0.2, alpha = 0.3, size = 1) +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_viridis_c(name = "Feature\nValue", option = "plasma") +
+    ggplot2$labs(
+        title = "SHAP Summary Plot",
+        subtitle = "How each feature pushes predictions higher (right) or lower (left)",
+        x = "SHAP Value (impact on model output)",
+        y = "Feature"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        panel.grid.major.y = ggplot2$element_blank()
+    )
+```
+
+---
+
+## 3.24 Hyperparameter Tuning
+
+### 3.24.1 Cross-Validation with XGBoost
+
+```{r xgb_cv}
+# Cross-validation to find optimal nrounds
+cv_results <- xgb.cv(
+    params = params,
+    data = dtrain,
+    nrounds = 300,
+    nfold = 5,
+    callbacks = list(xgb.cb.early.stop(stopping_rounds = 20, verbose = FALSE)),
+    verbose = 0
+)
+
+# Get evaluation log from CV results
+cv_eval_log <- cv_results$evaluation_log
+cv_best_iter <- which.min(cv_eval_log$test_logloss_mean)
+cv_best_logloss <- min(cv_eval_log$test_logloss_mean)
+cv_std <- cv_eval_log$test_logloss_std[cv_best_iter]
+
+cat("Cross-Validation Results:\n")
+cat("=========================\n")
+cat("  Best iteration:", cv_best_iter, "\n")
+cat("  Best CV logloss:", round(cv_best_logloss, 4), "\n")
+cat("  CV std:", round(cv_std, 4), "\n")
+```
+
+### 3.24.2 Grid Search
+
+```{r grid_search, fig.cap="Grid search over max_depth and eta to find optimal hyperparameters"}
+# Simple grid search
+max_depths <- c(2, 3, 4, 5, 6)
+etas <- c(0.05, 0.1, 0.2)
+
+grid_results <- rbindlist(lapply(max_depths, function(md) {
+    rbindlist(lapply(etas, function(eta) {
+        params_grid <- list(
+            objective = "binary:logistic",
+            eval_metric = "logloss",
+            max_depth = md,
+            eta = eta,
+            subsample = 0.8,
+            colsample_bytree = 0.8
+        )
+
+        cv <- xgb.cv(
+            params = params_grid,
+            data = dtrain,
+            nrounds = 200,
+            nfold = 5,
+            callbacks = list(xgb.cb.early.stop(stopping_rounds = 15, verbose = FALSE)),
+            verbose = 0
+        )
+
+        cv_log <- cv$evaluation_log
+        data.table(
+            max_depth = md,
+            eta = eta,
+            best_nrounds = which.min(cv_log$test_logloss_mean),
+            cv_logloss = min(cv_log$test_logloss_mean)
+        )
+    }))
+}))
+
+cat("Grid Search Results:\n")
+print(grid_results[order(cv_logloss)])
+
+# Heatmap
+ggplot2$ggplot(grid_results, ggplot2$aes(x = factor(eta), y = factor(max_depth), fill = cv_logloss)) +
+    ggplot2$geom_tile(colour = "white", linewidth = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = round(cv_logloss, 3)), colour = "white", size = 4) +
+    ggplot2$scale_fill_viridis_c(direction = -1, name = "CV Log Loss") +
+    ggplot2$labs(
+        title = "Hyperparameter Grid Search",
+        subtitle = "5-fold CV log loss for each max_depth x eta combination",
+        x = "Learning Rate (eta)",
+        y = "Max Depth"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        panel.grid = ggplot2$element_blank()
+    )
+```
+
+---
+
+## 3.25 Prediction and Evaluation
+
+### 3.25.1 Test Set Performance
+
+```{r xgb_prediction}
+# Predictions
+pred_prob <- predict(xgb_model, dtest)
+pred_class <- as.integer(pred_prob > 0.5)
+
+# Confusion matrix
+conf_matrix <- table(Actual = y_test, Predicted = pred_class)
+cat("Confusion Matrix:\n")
+print(conf_matrix)
+
+# Metrics
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+sensitivity <- conf_matrix["1", "1"] / sum(conf_matrix["1", ])
+specificity <- conf_matrix["0", "0"] / sum(conf_matrix["0", ])
+
+cat("\nPerformance Metrics:\n")
+cat("====================\n")
+cat("  Accuracy:", round(accuracy, 3), "\n")
+cat("  Sensitivity:", round(sensitivity, 3), "\n")
+cat("  Specificity:", round(specificity, 3), "\n")
+```
+
+### 3.25.2 Model Comparison
+
+```{r model_comparison, fig.cap="Comparison of decision tree, random forest, and gradient boosting"}
+# Fit all three models
+library(rpart)
+library(randomForest)
+
+# Decision tree
+tree_model <- rpart(
+    diagnosis ~ .,
+    data = train_data[, c(feature_cols, "diagnosis"), with = FALSE],
+    method = "class",
+    control = rpart.control(cp = 0.01)
+)
+tree_pred <- predict(tree_model, test_data, type = "prob")[, "M"]
+
+# Random forest
+rf_model <- randomForest(
+    x = X_train,
+    y = factor(y_train),
+    ntree = 300,
+    mtry = 3
+)
+rf_pred <- predict(rf_model, X_test, type = "prob")[, "1"]
+
+# ROC curves
+compute_roc <- function(pred, actual, method) {
+    thresholds <- seq(0, 1, by = 0.01)
+    rbindlist(lapply(thresholds, function(t) {
+        pred_class <- as.integer(pred >= t)
+        tpr <- sum(pred_class == 1 & actual == 1) / sum(actual == 1)
+        fpr <- sum(pred_class == 1 & actual == 0) / sum(actual == 0)
+        data.table(method = method, threshold = t, TPR = tpr, FPR = fpr)
+    }))
+}
+
+roc_tree <- compute_roc(tree_pred, y_test, "Decision Tree")
+roc_rf <- compute_roc(rf_pred, y_test, "Random Forest")
+roc_xgb <- compute_roc(pred_prob, y_test, "XGBoost")
+
+all_roc <- rbindlist(list(roc_tree, roc_rf, roc_xgb))
+
+# Compute AUCs
+compute_auc <- function(roc_dt) {
+    roc_dt <- roc_dt[order(FPR, TPR)]
+    abs(sum(diff(roc_dt$FPR) * (roc_dt$TPR[-1] + roc_dt$TPR[-nrow(roc_dt)]) / 2))
+}
+
+aucs <- c(
+    `Decision Tree` = compute_auc(roc_tree),
+    `Random Forest` = compute_auc(roc_rf),
+    `XGBoost` = compute_auc(roc_xgb)
+)
+
+cat("AUC Comparison:\n")
+print(round(aucs, 3))
+
+# Plot
+all_roc[, method_auc := paste0(method, " (AUC = ", round(aucs[method], 3), ")")]
+
+ggplot2$ggplot(all_roc, ggplot2$aes(x = FPR, y = TPR, colour = method_auc)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("#7CAE00", "#D95F02", "#2166AC")) +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(
+        title = "ROC Curve Comparison: Tree-Based Methods",
+        x = "False Positive Rate",
+        y = "True Positive Rate",
+        colour = "Method"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = c(0.7, 0.25),
+        legend.background = ggplot2$element_rect(fill = "white", colour = "grey80"),
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+## 3.26 Mathematical Derivation: XGBoost Objective
+
+### 3.26.1 Second-Order Approximation
+
+XGBoost uses a second-order Taylor expansion of the loss function. At iteration $m$, for each observation $i$:
+
+$$L^{(m)} \approx \sum_i \left[L(y_i, \hat{y}_i^{(m-1)}) + g_i f_m(x_i) + \frac{1}{2}h_i f_m(x_i)^2\right] + \Omega(f_m)$$
+
+where:
+- $g_i = \frac{\partial L(y_i, \hat{y}^{(m-1)})}{\partial \hat{y}^{(m-1)}}$ (gradient)
+- $h_i = \frac{\partial^2 L(y_i, \hat{y}^{(m-1)})}{\partial (\hat{y}^{(m-1)})^2}$ (Hessian)
+- $\Omega(f_m) = \gamma T + \frac{1}{2}\lambda \sum_{j=1}^T w_j^2$ (regularisation)
+
+### 3.26.2 Optimal Leaf Weights
+
+For a tree structure with $T$ leaves, the optimal weight for leaf $j$ is:
+
+$$w_j^* = -\frac{\sum_{i \in I_j} g_i}{\sum_{i \in I_j} h_i + \lambda}$$
+
+where $I_j$ is the set of observations in leaf $j$.
+
+The corresponding optimal loss is:
+
+$$\tilde{L}^{(m)} = -\frac{1}{2}\sum_{j=1}^T \frac{(\sum_{i \in I_j} g_i)^2}{\sum_{i \in I_j} h_i + \lambda} + \gamma T$$
+
+### 3.26.3 Split Finding
+
+The gain from splitting a node into left ($I_L$) and right ($I_R$) is:
+
+$$\text{Gain} = \frac{1}{2}\left[\frac{(\sum_{i \in I_L} g_i)^2}{\sum_{i \in I_L} h_i + \lambda} + \frac{(\sum_{i \in I_R} g_i)^2}{\sum_{i \in I_R} h_i + \lambda} - \frac{(\sum_{i \in I} g_i)^2}{\sum_{i \in I} h_i + \lambda}\right] - \gamma$$
+
+If Gain $\leq 0$, the split doesn't improve the objective (considering the penalty $\gamma$).
+
+---
+
+## 3.27 Bagging vs Boosting Summary
+
+| Aspect | Bagging (Random Forest) | Boosting (XGBoost) |
+|--------|------------------------|-------------------|
+| **Approach** | Parallel, independent | Sequential, dependent |
+| **Base learners** | Deep trees | Shallow trees (stumps) |
+| **Focus** | Reduce variance | Reduce bias |
+| **Training** | Faster (parallelisable) | Slower (sequential) |
+| **Overfitting** | Less prone | More prone (needs tuning) |
+| **Hyperparameters** | Fewer, more robust | More, requires tuning |
+| **Interpretability** | Variable importance | SHAP values |
+
+---
+
+## 3.28 Communicating Results to Stakeholders
+
+### For Clinicians
+
+> "We built a gradient boosting model—an advanced machine learning method that iteratively corrects its own mistakes. The model achieves 98% accuracy in distinguishing malignant from benign breast masses. While the model itself is complex, we can explain individual predictions: for Patient X, the model predicts malignancy primarily because of high concave points (contributing +0.3 to the risk score) and large radius (contributing +0.2). These feature contributions help clinicians understand and verify the model's reasoning."
+
+### For Data Scientists
+
+> "XGBoost with early stopping achieved AUC 0.99, outperforming random forest (0.98) and single decision tree (0.95). Optimal hyperparameters from 5-fold CV were max_depth=3, eta=0.1, with 85 boosting rounds. SHAP analysis confirmed that concave_points and radius are the primary predictors, consistent with clinical understanding. The model shows good calibration with Brier score 0.03."
+
+### For Journal Publication
+
+> "Classification was performed using gradient boosting (XGBoost v1.7, Chen & Guestrin 2016). Hyperparameters were optimised via 5-fold cross-validation: learning rate 0.1, maximum depth 3, minimum child weight 1, with L2 regularisation (lambda=1). Early stopping was employed with a patience of 20 rounds. The final model used 85 boosting iterations and achieved AUC 0.99 (95% CI: 0.98-1.00) on the held-out test set. Model interpretability was assessed using SHAP values, which identified mean concave points and mean radius as the most influential features."
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+**Gradient Boosting Update:**
+$$F_m(x) = F_{m-1}(x) + \nu h_m(x)$$
+
+**Pseudo-residuals:**
+$$r_i = -\frac{\partial L(y_i, F(x_i))}{\partial F(x_i)}$$
+
+**XGBoost Optimal Leaf Weight:**
+$$w_j^* = -\frac{\sum_{i \in I_j} g_i}{\sum_{i \in I_j} h_i + \lambda}$$
+
+**XGBoost Split Gain:**
+$$\text{Gain} = \frac{1}{2}\left[\frac{G_L^2}{H_L + \lambda} + \frac{G_R^2}{H_R + \lambda} - \frac{G^2}{H + \lambda}\right] - \gamma$$
+
+### R Code Summary (XGBoost)
+
+```r
+library(xgboost)
+
+# Prepare data
+dtrain <- xgb.DMatrix(data = X_train, label = y_train)
+dtest <- xgb.DMatrix(data = X_test, label = y_test)
+
+# Parameters
+params <- list(
+    objective = "binary:logistic",
+    eval_metric = "logloss",
+    max_depth = 3,
+    eta = 0.1,
+    subsample = 0.8,
+    colsample_bytree = 0.8,
+    lambda = 1,
+    gamma = 0
+)
+
+# Train with early stopping
+model <- xgb.train(
+    params = params,
+    data = dtrain,
+    nrounds = 500,
+    evals = list(train = dtrain, test = dtest),
+    callbacks = list(xgb.cb.early.stop(stopping_rounds = 20)),
+    verbose = 1
+)
+
+# Cross-validation
+xgb.cv(params, dtrain, nrounds = 500, nfold = 5,
+       callbacks = list(xgb.cb.early.stop(stopping_rounds = 20)))
+
+# Importance
+xgb.importance(model = model)
+
+# SHAP values
+predict(model, dtrain, predcontrib = TRUE)
+```
+
+### Hyperparameter Guidelines
+
+| Parameter | Range | Notes |
+|-----------|-------|-------|
+| `max_depth` | 3-8 | Start with 3-4 |
+| `eta` | 0.01-0.3 | Lower = more trees needed |
+| `subsample` | 0.5-1.0 | Row sampling |
+| `colsample_bytree` | 0.5-1.0 | Column sampling |
+| `lambda` | 0-10 | L2 regularisation |
+| `gamma` | 0-5 | Minimum split gain |
+| `min_child_weight` | 1-10 | Minimum Hessian sum |
+
+---
+
+## Exercises
+
+1. **Manual Boosting**: Implement gradient boosting for regression (squared error loss) from scratch using decision stumps (depth-1 trees). Compare to XGBoost on a synthetic dataset.
+
+2. **Learning Rate vs Trees**: For a fixed computational budget (total tree depth × number of trees), compare (a) few trees with high learning rate vs (b) many trees with low learning rate. Which generalises better?
+
+3. **Imbalanced Data**: Modify the breast cancer dataset to have 95% benign, 5% malignant. Compare XGBoost with and without `scale_pos_weight`. How does the threshold for classification change?
+
+4. **Feature Engineering**: Add interaction features (products of pairs of features) to the breast cancer data. Does XGBoost benefit from explicit feature engineering, or does it capture interactions automatically through tree splits?
