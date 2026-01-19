@@ -1,0 +1,1155 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 3: Descriptive Statistics — Visualisation"
+part: "Part 1: Principles, Categorical Data, and Univariate Plots"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, visualisation, ggplot2, data, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = TRUE)
+```
+
+# Chapter 3: Descriptive Statistics — Visualisation
+
+Numerical summaries tell only part of the story. Visualisation reveals patterns, outliers, and relationships that numbers alone can obscure. This chapter teaches the principles of effective statistical graphics and the practical skills to create them. We build every visualisation from first principles using `ggplot2`, understanding not just *how* to create plots but *why* each design choice matters.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table,
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets for examples
+nhanes <- data.table$fread("data/primary/nhanes.csv")
+penguins <- data.table$fread("data/primary/penguins.csv")
+gapminder <- data.table$fread("data/primary/gapminder.csv")
+
+cat("Datasets loaded:\n")
+cat("  NHANES:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
+cat("  Penguins:", nrow(penguins), "observations,", ncol(penguins), "variables\n")
+cat("  Gapminder:", nrow(gapminder), "observations,", ncol(gapminder), "variables\n")
+```
+
+## 3.1 Principles of Statistical Graphics
+
+Before we create a single plot, we must understand *why* visualisation works and what makes it effective. Statistical graphics are not decoration; they are analytical tools that leverage human visual perception to reveal patterns in data.
+
+### 3.1.1 The Grammar of Graphics Philosophy
+
+**Prose and Intuition**
+
+Traditional plotting systems treat each plot type as a separate entity: a bar chart is one thing, a scatter plot another. The **Grammar of Graphics**, developed by Leland Wilkinson and implemented in R through `ggplot2`, takes a radically different approach. It decomposes every statistical graphic into fundamental components that can be combined in arbitrary ways.
+
+Think of it like language. Rather than memorising thousands of sentences, we learn grammar rules and vocabulary that allow us to construct unlimited sentences. Similarly, the grammar of graphics lets us construct unlimited plot types from a small set of principles.
+
+**The Seven Components**
+
+Every `ggplot2` visualisation consists of:
+
+1. **Data**: The dataset being visualised
+2. **Aesthetics** (`aes`): Mappings from data variables to visual properties (position, colour, size, shape)
+3. **Geometries** (`geom_*`): The visual marks representing data (points, bars, lines)
+4. **Facets**: Subplots based on categorical variables
+5. **Statistics** (`stat_*`): Transformations applied to data (binning, smoothing)
+6. **Coordinates**: The coordinate system (Cartesian, polar, map projections)
+7. **Themes**: Non-data visual elements (fonts, backgrounds, gridlines)
+
+```{r grammar_demo, fig.cap="The same data with different geometries reveals different aspects"}
+set.seed(42)
+
+# Create a simple dataset
+demo_data <- data.table$data.table(
+    x = rep(1:5, each = 20),
+    y = rep(1:5, each = 20) + rnorm(100, sd = 0.5)
+)
+
+# Same data, same aesthetics, different geometries
+p1 <- ggplot2$ggplot(demo_data, ggplot2$aes(x = factor(x), y = y)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$labs(title = "Points", x = "Group", y = "Value") +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(demo_data, ggplot2$aes(x = factor(x), y = y)) +
+    ggplot2$geom_boxplot(fill = "#56B4E9", alpha = 0.7) +
+    ggplot2$labs(title = "Boxplot", x = "Group", y = "Value") +
+    ggplot2$theme_minimal()
+
+p3 <- ggplot2$ggplot(demo_data, ggplot2$aes(x = factor(x), y = y)) +
+    ggplot2$geom_violin(fill = "#E69F00", alpha = 0.7) +
+    ggplot2$labs(title = "Violin", x = "Group", y = "Value") +
+    ggplot2$theme_minimal()
+
+# Combine plots (using base R since we haven't introduced patchwork)
+gridExtra::grid.arrange(p1, p2, p3, ncol = 3)
+```
+
+The grammar allows us to think systematically: "What data do I have? What visual channel should encode each variable? What geometry best represents the relationship?"
+
+### 3.1.2 Choosing the Right Plot
+
+**Prose and Intuition**
+
+Choosing the right visualisation is not about personal preference; it depends on:
+
+1. **The type of variables**: Categorical? Quantitative? Both?
+2. **The number of variables**: One? Two? Many?
+3. **The question being asked**: Distribution? Relationship? Comparison?
+
+**Decision Framework**
+
+```{r plot_decision_framework, echo=FALSE, fig.cap="Decision tree for choosing the right plot type"}
+# Create a visual decision guide
+decision_data <- data.table$data.table(
+    question = c(
+        "One categorical variable",
+        "One quantitative variable",
+        "Two categorical variables",
+        "One categorical + one quantitative",
+        "Two quantitative variables",
+        "Time series"
+    ),
+    plot_types = c(
+        "Bar chart, Pie chart",
+        "Histogram, Density, Boxplot",
+        "Grouped bar, Mosaic plot",
+        "Grouped boxplot, Violin",
+        "Scatter plot",
+        "Line plot"
+    ),
+    category = c("Categorical", "Quantitative", "Categorical", "Mixed", "Quantitative", "Temporal")
+)
+
+ggplot2$ggplot(decision_data, ggplot2$aes(x = reorder(question, -seq_len(nrow(decision_data))),
+                                           y = 1, fill = category)) +
+    ggplot2$geom_tile(colour = "white", size = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = plot_types), size = 3.5, colour = "white", fontface = "bold") +
+    ggplot2$coord_flip() +
+    ggplot2$scale_fill_manual(values = c(
+        "Categorical" = "#0072B2",
+        "Quantitative" = "#D55E00",
+        "Mixed" = "#009E73",
+        "Temporal" = "#CC79A7"
+    )) +
+    ggplot2$labs(
+        title = "Plot Selection Guide",
+        subtitle = "Match your data type to appropriate visualisations",
+        x = NULL,
+        y = NULL,
+        fill = "Data Type"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(
+        axis.text.x = ggplot2$element_blank(),
+        axis.ticks = ggplot2$element_blank(),
+        panel.grid = ggplot2$element_blank(),
+        legend.position = "bottom"
+    )
+```
+
+| Data Configuration | Recommended Plots | Purpose |
+|-------------------|-------------------|---------|
+| 1 categorical | Bar chart | Counts/proportions |
+| 1 quantitative | Histogram, density, boxplot | Distribution |
+| 2 categorical | Grouped bar, mosaic | Joint frequencies |
+| 1 cat + 1 quant | Grouped boxplot, violin | Compare distributions |
+| 2 quantitative | Scatter plot | Relationship |
+| Quantitative over time | Line plot | Trends |
+
+### 3.1.3 Principles of Effective Visualisation
+
+**Prose and Intuition**
+
+Edward Tufte, the pioneer of data visualisation, articulated principles that separate excellent graphics from poor ones. These are not aesthetic preferences; they are grounded in how human perception processes visual information.
+
+**The Data-Ink Ratio**
+
+Tufte introduced the concept of the **data-ink ratio**: the proportion of ink devoted to displaying data versus non-data elements. A high data-ink ratio means removing "chart junk"—unnecessary gridlines, backgrounds, decorations—that distract from the data.
+
+$$\text{Data-Ink Ratio} = \frac{\text{Ink used for data}}{\text{Total ink used}}$$
+
+Good graphics maximise this ratio without sacrificing clarity.
+
+**Tufte's Principles**
+
+1. **Show the data**: Let the data speak; avoid distorting or hiding it
+2. **Induce the viewer to think about substance**: Not methodology or design
+3. **Avoid distorting what the data say**: No misleading scales or perspectives
+4. **Present many numbers in a small space**: Information density matters
+5. **Make large datasets coherent**: Reveal patterns, not noise
+6. **Encourage comparison**: Place related items near each other
+
+```{r tufte_comparison, fig.cap="High data-ink ratio (right) versus low data-ink ratio (left)"}
+# Same data, different design philosophies
+bmi_subset <- nhanes[!is.na(BMI) & !is.na(Gender), .(BMI, Gender)][1:200]
+
+# Low data-ink ratio (cluttered)
+p_cluttered <- ggplot2$ggplot(bmi_subset, ggplot2$aes(x = Gender, y = BMI, fill = Gender)) +
+    ggplot2$geom_boxplot() +
+    ggplot2$scale_fill_manual(values = c("female" = "pink", "male" = "lightblue")) +
+    ggplot2$labs(title = "BMI by Gender", subtitle = "With unnecessary elements") +
+    ggplot2$theme(
+        panel.background = ggplot2$element_rect(fill = "grey90"),
+        panel.grid.major = ggplot2$element_line(colour = "white", size = 1),
+        panel.grid.minor = ggplot2$element_line(colour = "white", size = 0.5),
+        legend.position = "right",
+        plot.background = ggplot2$element_rect(fill = "grey95")
+    )
+
+# High data-ink ratio (clean)
+p_clean <- ggplot2$ggplot(bmi_subset, ggplot2$aes(x = Gender, y = BMI)) +
+    ggplot2$geom_boxplot(fill = "#56B4E9", alpha = 0.7, outlier.alpha = 0.5) +
+    ggplot2$labs(title = "BMI by Gender", subtitle = "Maximised data-ink ratio") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(
+        panel.grid.minor = ggplot2$element_blank(),
+        panel.grid.major.x = ggplot2$element_blank()
+    )
+
+gridExtra::grid.arrange(p_cluttered, p_clean, ncol = 2)
+```
+
+### 3.1.4 Common Mistakes to Avoid
+
+**Prose and Intuition**
+
+Certain visualisation practices are so common yet so misleading that they deserve explicit warning. These mistakes don't just make plots ugly; they actively mislead viewers about what the data show.
+
+**Truncated Axes**
+
+Starting a y-axis at a non-zero value exaggerates differences. A change from 98 to 100 looks enormous if the axis starts at 97, but trivial if it starts at 0.
+
+```{r truncated_axes, fig.cap="Truncated axes (left) exaggerate differences; zero-baseline (right) shows true proportion"}
+# Create data with small differences
+response_data <- data.table$data.table(
+    treatment = c("Control", "Drug A", "Drug B"),
+    response = c(78, 82, 85)
+)
+
+# Truncated axis (misleading)
+p_truncated <- ggplot2$ggplot(response_data, ggplot2$aes(x = treatment, y = response, fill = treatment)) +
+    ggplot2$geom_col() +
+    ggplot2$coord_cartesian(ylim = c(75, 90)) +
+    ggplot2$scale_fill_manual(values = c("#E69F00", "#56B4E9", "#009E73")) +
+    ggplot2$labs(
+        title = "Response Rate by Treatment",
+        subtitle = "Truncated y-axis (MISLEADING)",
+        y = "Response Rate (%)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+
+# Zero baseline (honest)
+p_honest <- ggplot2$ggplot(response_data, ggplot2$aes(x = treatment, y = response, fill = treatment)) +
+    ggplot2$geom_col() +
+    ggplot2$scale_fill_manual(values = c("#E69F00", "#56B4E9", "#009E73")) +
+    ggplot2$labs(
+        title = "Response Rate by Treatment",
+        subtitle = "Zero baseline (HONEST)",
+        y = "Response Rate (%)"
+    ) +
+    ggplot2$ylim(0, 100) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+
+gridExtra::grid.arrange(p_truncated, p_honest, ncol = 2)
+```
+
+**Dual Y-Axes**
+
+Two y-axes on the same plot allow arbitrary scaling that can create spurious correlations. The relationship between two lines depends entirely on how the axes are scaled.
+
+**3D Effects**
+
+Three-dimensional effects on 2D data (3D pie charts, 3D bar charts) distort perception. Elements farther from the viewer appear smaller, and perspective makes accurate comparison impossible.
+
+**Pie Charts (Usually)**
+
+Humans are poor at comparing angles and areas. Bar charts are almost always superior for comparing quantities. Pie charts are acceptable only when:
+
+1. There are few categories (2-4)
+2. One category dominates (showing "most vs rest")
+3. The exact values are labelled
+
+---
+
+## 3.2 Visualising Categorical Data
+
+Categorical variables represent groups or categories. Visualising them means showing counts or proportions across categories.
+
+### 3.2.1 Bar Charts
+
+**Prose and Intuition**
+
+The bar chart is the workhorse of categorical data visualisation. Each category gets a bar; the bar's height (or length) represents count or proportion. Bar charts leverage our ability to compare lengths—one of the most accurate perceptual judgements humans make.
+
+**Simple Bar Chart**
+
+```{r bar_simple, fig.cap="Bar chart showing distribution of education levels in NHANES"}
+# Count education levels
+education_counts <- nhanes[!is.na(Education), .N, by = Education]
+education_counts <- education_counts[order(-N)]
+
+ggplot2$ggplot(education_counts, ggplot2$aes(x = reorder(Education, N), y = N)) +
+    ggplot2$geom_col(fill = "#0072B2", alpha = 0.8) +
+    ggplot2$geom_text(ggplot2$aes(label = N), hjust = -0.2, size = 3.5) +
+    ggplot2$coord_flip() +
+    ggplot2$labs(
+        title = "Education Level Distribution in NHANES",
+        subtitle = "n = 10,000 US adults",
+        x = "Education Level",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(panel.grid.major.y = ggplot2$element_blank()) +
+    ggplot2$expand_limits(y = max(education_counts$N) * 1.1)
+```
+
+**Building a Bar Chart from Scratch**
+
+To understand what `geom_col()` does, let's build a bar chart manually:
+
+```{r bar_from_scratch, fig.cap="Bar chart constructed from rectangles to show underlying mechanics"}
+# Calculate frequencies manually
+race_freq <- nhanes[!is.na(Race1), .N, by = Race1]
+race_freq[, proportion := N / sum(N)]
+race_freq[, cumsum := cumsum(N)]
+race_freq[, xmin := c(0, head(cumsum, -1))]
+race_freq[, xmax := cumsum]
+
+# The bar chart is just rectangles
+# geom_col() creates rectangles with:
+#   - x position from the category
+#   - y from 0 to the count
+#   - width determined automatically
+
+# We can replicate this with geom_rect
+ggplot2$ggplot(race_freq) +
+    ggplot2$geom_rect(
+        ggplot2$aes(
+            xmin = as.numeric(factor(Race1)) - 0.4,
+            xmax = as.numeric(factor(Race1)) + 0.4,
+            ymin = 0,
+            ymax = N,
+            fill = Race1
+        ),
+        colour = "white"
+    ) +
+    ggplot2$scale_x_continuous(
+        breaks = seq_along(race_freq$Race1),
+        labels = race_freq$Race1
+    ) +
+    ggplot2$scale_fill_brewer(palette = "Set2") +
+    ggplot2$labs(
+        title = "Bar Chart as Rectangles",
+        subtitle = "Each bar is a rectangle from y=0 to y=count",
+        x = "Race",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+**Grouped Bar Chart**
+
+When comparing categories across groups:
+
+```{r bar_grouped, fig.cap="Grouped bar chart comparing diabetes status by gender"}
+# Cross-tabulation of diabetes by gender
+diabetes_gender <- nhanes[!is.na(Diabetes) & !is.na(Gender), .N, by = .(Diabetes, Gender)]
+
+ggplot2$ggplot(diabetes_gender, ggplot2$aes(x = Diabetes, y = N, fill = Gender)) +
+    ggplot2$geom_col(position = "dodge", alpha = 0.8) +
+    ggplot2$geom_text(
+        ggplot2$aes(label = N),
+        position = ggplot2$position_dodge(width = 0.9),
+        vjust = -0.5,
+        size = 3.5
+    ) +
+    ggplot2$scale_fill_manual(values = c("female" = "#D55E00", "male" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Diabetes Status by Gender",
+        subtitle = "NHANES data",
+        x = "Diabetes Status",
+        y = "Count",
+        fill = "Gender"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$expand_limits(y = max(diabetes_gender$N) * 1.1)
+```
+
+**Stacked Bar Chart**
+
+For showing composition:
+
+```{r bar_stacked, fig.cap="Stacked bar chart showing education composition by age decade"}
+# Education by age decade
+edu_age <- nhanes[!is.na(Education) & !is.na(AgeDecade), .N, by = .(AgeDecade, Education)]
+
+# Calculate proportions within each age group
+edu_age[, total := sum(N), by = AgeDecade]
+edu_age[, proportion := N / total]
+
+ggplot2$ggplot(edu_age, ggplot2$aes(x = AgeDecade, y = proportion, fill = Education)) +
+    ggplot2$geom_col(alpha = 0.8) +
+    ggplot2$scale_fill_brewer(palette = "Blues") +
+    ggplot2$scale_y_continuous(labels = scales::percent_format()) +
+    ggplot2$labs(
+        title = "Education Level Composition by Age Decade",
+        subtitle = "Younger generations have higher education levels",
+        x = "Age Decade",
+        y = "Proportion",
+        fill = "Education"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+```
+
+### 3.2.2 Pie Charts and Waffle Charts
+
+**Prose and Intuition**
+
+Pie charts represent parts of a whole as slices of a circle. While ubiquitous, they have serious perceptual problems: humans compare angles and areas poorly. Waffle charts offer a superior alternative using small squares.
+
+**When Pie Charts Fail**
+
+```{r pie_problems, fig.cap="Pie charts make comparison difficult; which slice is largest after the obvious one?"}
+# Create data where differences are subtle
+market_share <- data.table$data.table(
+    company = c("Company A", "Company B", "Company C", "Company D", "Company E"),
+    share = c(28, 24, 22, 15, 11)
+)
+
+# Pie chart
+pie_plot <- ggplot2$ggplot(market_share, ggplot2$aes(x = "", y = share, fill = company)) +
+    ggplot2$geom_col(width = 1) +
+    ggplot2$coord_polar(theta = "y") +
+    ggplot2$scale_fill_brewer(palette = "Set2") +
+    ggplot2$labs(
+        title = "Market Share (Pie Chart)",
+        subtitle = "Hard to compare B, C, D"
+    ) +
+    ggplot2$theme_void() +
+    ggplot2$theme(legend.position = "right")
+
+# Bar chart equivalent
+bar_plot <- ggplot2$ggplot(market_share, ggplot2$aes(x = reorder(company, share), y = share, fill = company)) +
+    ggplot2$geom_col(alpha = 0.8) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(share, "%")), hjust = -0.2) +
+    ggplot2$coord_flip() +
+    ggplot2$scale_fill_brewer(palette = "Set2") +
+    ggplot2$labs(
+        title = "Market Share (Bar Chart)",
+        subtitle = "Easy to compare all companies"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none") +
+    ggplot2$expand_limits(y = 35)
+
+gridExtra::grid.arrange(pie_plot, bar_plot, ncol = 2)
+```
+
+**Waffle Charts**
+
+Waffle charts use a grid of squares, each representing a fixed unit (often 1%). They maintain the "part of whole" intuition while enabling accurate comparison.
+
+```{r waffle_chart, fig.cap="Waffle chart showing penguin species distribution as countable squares"}
+# Penguin species distribution
+species_counts <- penguins[!is.na(species), .N, by = species]
+species_counts[, percentage := round(100 * N / sum(N))]
+
+# Create waffle data manually
+# Each square represents ~1% (adjusted to sum to 100)
+waffle_data <- data.table$data.table(
+    x = rep(1:10, 10),
+    y = rep(1:10, each = 10),
+    id = 1:100
+)
+
+# Assign species based on percentages
+# Adelie: 44%, Chinstrap: 20%, Gentoo: 36%
+waffle_data[, species := c(
+    rep("Adelie", 44),
+    rep("Chinstrap", 20),
+    rep("Gentoo", 36)
+)]
+
+ggplot2$ggplot(waffle_data, ggplot2$aes(x = x, y = y, fill = species)) +
+    ggplot2$geom_tile(colour = "white", size = 0.5) +
+    ggplot2$scale_fill_manual(values = c(
+        "Adelie" = "#FF6B35",
+        "Chinstrap" = "#004E89",
+        "Gentoo" = "#7A9E7E"
+    )) +
+    ggplot2$coord_equal() +
+    ggplot2$labs(
+        title = "Palmer Penguins Species Distribution",
+        subtitle = "Each square = 1% of observations (n = 344)",
+        fill = "Species"
+    ) +
+    ggplot2$theme_void() +
+    ggplot2$theme(
+        legend.position = "bottom",
+        plot.title = ggplot2$element_text(hjust = 0.5),
+        plot.subtitle = ggplot2$element_text(hjust = 0.5)
+    )
+```
+
+### 3.2.3 Mosaic Plots
+
+**Prose and Intuition**
+
+Mosaic plots visualise the relationship between two categorical variables. The area of each rectangle is proportional to the cell frequency in a contingency table. They reveal associations: if two variables are independent, rectangles in each row have the same proportions.
+
+**Mathematical Foundation**
+
+For a contingency table with row variable $X$ and column variable $Y$:
+
+- Each column width is proportional to the marginal probability $P(Y = y_j)$
+- Within each column, rectangle heights are proportional to $P(X = x_i | Y = y_j)$
+
+If $X$ and $Y$ are independent, $P(X = x_i | Y = y_j) = P(X = x_i)$, so all columns have the same internal proportions.
+
+```{r mosaic_plot, fig.cap="Mosaic plot showing relationship between penguin species and island"}
+# Create contingency table
+penguin_table <- penguins[!is.na(species) & !is.na(island), .N, by = .(species, island)]
+
+# Calculate proportions for mosaic plot
+penguin_table[, island_total := sum(N), by = island]
+penguin_table[, grand_total := sum(N)]
+penguin_table[, island_prop := island_total / grand_total]
+penguin_table[, species_prop := N / island_total]
+
+# Calculate positions
+island_order <- penguin_table[, .(total = sum(N)), by = island][order(-total)]$island
+penguin_table[, island := factor(island, levels = island_order)]
+
+# Calculate x positions (cumulative island proportions)
+island_widths <- penguin_table[, .(width = unique(island_prop)), by = island]
+island_widths <- island_widths[order(match(island, island_order))]
+island_widths[, xmax := cumsum(width)]
+island_widths[, xmin := c(0, head(xmax, -1))]
+island_widths[, xmid := (xmin + xmax) / 2]
+
+# Merge back
+penguin_table <- merge(penguin_table, island_widths[, .(island, xmin, xmax, xmid)], by = "island")
+
+# Calculate y positions within each island
+penguin_table <- penguin_table[order(island, species)]
+penguin_table[, ymax := cumsum(species_prop), by = island]
+penguin_table[, ymin := c(0, head(ymax, -1)), by = island]
+
+ggplot2$ggplot(penguin_table) +
+    ggplot2$geom_rect(
+        ggplot2$aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = species),
+        colour = "white",
+        size = 1
+    ) +
+    ggplot2$geom_text(
+        ggplot2$aes(x = xmid, y = (ymin + ymax) / 2, label = N),
+        colour = "white",
+        fontface = "bold",
+        size = 4
+    ) +
+    ggplot2$scale_fill_manual(values = c(
+        "Adelie" = "#FF6B35",
+        "Chinstrap" = "#004E89",
+        "Gentoo" = "#7A9E7E"
+    )) +
+    ggplot2$scale_x_continuous(
+        breaks = island_widths$xmid,
+        labels = island_widths$island
+    ) +
+    ggplot2$scale_y_continuous(labels = scales::percent_format()) +
+    ggplot2$labs(
+        title = "Penguin Species Distribution Across Islands",
+        subtitle = "Rectangle area proportional to count; column width proportional to island sample size",
+        x = "Island",
+        y = "Proportion within Island",
+        fill = "Species"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(
+        panel.grid = ggplot2$element_blank(),
+        legend.position = "bottom"
+    )
+```
+
+The mosaic plot reveals that Chinstrap penguins are found only on Dream Island, Gentoo only on Biscoe, while Adelie penguins appear on all three islands. This strong association would be invisible in a simple frequency table.
+
+---
+
+## 3.3 Visualising Quantitative Data — Single Variable
+
+Quantitative variables require visualisations that show their distribution: where values concentrate, how spread out they are, and what shape the distribution takes.
+
+### 3.3.1 Histograms
+
+**Prose and Intuition**
+
+A histogram divides the range of data into bins and counts observations in each bin. The resulting bar heights show how data are distributed. Unlike bar charts for categorical data, histogram bars touch each other—signalling that the underlying variable is continuous.
+
+**Mathematical Foundation**
+
+For data spanning $[x_{min}, x_{max}]$ divided into $k$ bins of width $h$:
+
+$$h = \frac{x_{max} - x_{min}}{k}$$
+
+The histogram estimates the probability density function (PDF). As sample size increases and bin width decreases appropriately, the histogram converges to the true density.
+
+**Bin Width Selection**
+
+Choosing the right number of bins is crucial. Too few bins hide structure; too many create noise. Several rules exist:
+
+**Sturges' Rule** (1926): $k = \lceil \log_2(n) + 1 \rceil$
+
+Good for roughly normal data; tends to undersmooth for large n.
+
+**Scott's Rule** (1979): $h = \frac{3.5 \cdot s}{n^{1/3}}$
+
+Based on minimising mean integrated squared error for normal data.
+
+**Freedman-Diaconis Rule** (1981): $h = \frac{2 \cdot IQR}{n^{1/3}}$
+
+Uses IQR instead of standard deviation; more robust to outliers.
+
+```{r histogram_binwidth, fig.cap="Effect of bin width on histogram appearance"}
+set.seed(42)
+
+# Use BMI data
+bmi_data <- nhanes[!is.na(BMI), .(BMI)]
+n <- nrow(bmi_data)
+
+# Calculate optimal bin widths
+bmi_sd <- sd(bmi_data$BMI)
+bmi_iqr <- IQR(bmi_data$BMI)
+bmi_range <- diff(range(bmi_data$BMI))
+
+# Sturges
+k_sturges <- ceiling(log2(n) + 1)
+h_sturges <- bmi_range / k_sturges
+
+# Scott
+h_scott <- 3.5 * bmi_sd / (n^(1/3))
+
+# Freedman-Diaconis
+h_fd <- 2 * bmi_iqr / (n^(1/3))
+
+cat("Bin width recommendations for BMI data (n =", n, "):\n")
+cat("  Sturges:", round(h_sturges, 2), "kg/m² (", k_sturges, "bins)\n")
+cat("  Scott:", round(h_scott, 2), "kg/m²\n")
+cat("  Freedman-Diaconis:", round(h_fd, 2), "kg/m²\n")
+
+# Compare visually
+p_few <- ggplot2$ggplot(bmi_data, ggplot2$aes(x = BMI)) +
+    ggplot2$geom_histogram(binwidth = 10, fill = "#56B4E9", colour = "white") +
+    ggplot2$labs(title = "Too few bins (width = 10)", subtitle = "Hides bimodality") +
+    ggplot2$theme_minimal()
+
+p_optimal <- ggplot2$ggplot(bmi_data, ggplot2$aes(x = BMI)) +
+    ggplot2$geom_histogram(binwidth = h_fd, fill = "#56B4E9", colour = "white") +
+    ggplot2$labs(title = paste0("Freedman-Diaconis (width = ", round(h_fd, 1), ")"),
+                 subtitle = "Reveals distribution shape") +
+    ggplot2$theme_minimal()
+
+p_many <- ggplot2$ggplot(bmi_data, ggplot2$aes(x = BMI)) +
+    ggplot2$geom_histogram(binwidth = 0.5, fill = "#56B4E9", colour = "white") +
+    ggplot2$labs(title = "Too many bins (width = 0.5)", subtitle = "Creates noise") +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p_few, p_optimal, p_many, ncol = 3)
+```
+
+**Implementing a Histogram from Scratch**
+
+```{r histogram_scratch, fig.cap="Histogram built from scratch showing the binning process"}
+# Implement histogram binning from scratch
+my_histogram <- function(x, binwidth = NULL) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+
+    # Default to Freedman-Diaconis
+    if (is.null(binwidth)) {
+        binwidth <- 2 * IQR(x) / (n^(1/3))
+    }
+
+    # Define bins
+    x_min <- floor(min(x) / binwidth) * binwidth
+    x_max <- ceiling(max(x) / binwidth) * binwidth
+    breaks <- seq(x_min, x_max, by = binwidth)
+
+    # Count observations in each bin
+    counts <- hist(x, breaks = breaks, plot = FALSE)$counts
+
+    # Create data for plotting
+    data.table$data.table(
+        xmin = breaks[-length(breaks)],
+        xmax = breaks[-1],
+        count = counts,
+        density = counts / (n * binwidth)
+    )
+}
+
+# Apply to age data
+age_data <- nhanes[!is.na(Age), Age]
+age_hist <- my_histogram(age_data, binwidth = 5)
+
+ggplot2$ggplot(age_hist) +
+    ggplot2$geom_rect(
+        ggplot2$aes(xmin = xmin, xmax = xmax, ymin = 0, ymax = count),
+        fill = "#E69F00",
+        colour = "white"
+    ) +
+    ggplot2$labs(
+        title = "Age Distribution (Built from Scratch)",
+        subtitle = "Binwidth = 5 years",
+        x = "Age (years)",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 3.3.2 Density Plots
+
+**Prose and Intuition**
+
+While histograms use discrete bins, density plots estimate a smooth curve. The result depends less on arbitrary bin boundaries and can reveal subtle features of the distribution.
+
+**Mathematical Foundation: Kernel Density Estimation**
+
+The kernel density estimate at point $x$ is:
+
+$$\hat{f}(x) = \frac{1}{nh} \sum_{i=1}^{n} K\left(\frac{x - x_i}{h}\right)$$
+
+where $K$ is a kernel function (typically Gaussian) and $h$ is the bandwidth (analogous to bin width).
+
+Each observation contributes a "bump" centred at its location. The sum of all bumps creates the smooth density curve.
+
+```{r density_kernel, fig.cap="Kernel density estimation: each point contributes a Gaussian bump"}
+set.seed(42)
+
+# Small dataset to illustrate kernels
+small_data <- c(15, 18, 20, 22, 35)
+bandwidth <- 3
+
+# Create kernel contributions
+x_grid <- seq(5, 45, length.out = 200)
+kernel_contributions <- sapply(small_data, function(xi) {
+    dnorm(x_grid, mean = xi, sd = bandwidth)
+})
+
+# Sum of kernels
+density_estimate <- rowMeans(kernel_contributions)
+
+# Prepare for plotting
+kernel_dt <- data.table$data.table(
+    x = rep(x_grid, length(small_data)),
+    y = as.vector(kernel_contributions),
+    point = rep(paste("x =", small_data), each = length(x_grid))
+)
+
+sum_dt <- data.table$data.table(x = x_grid, y = density_estimate)
+points_dt <- data.table$data.table(x = small_data, y = 0)
+
+ggplot2$ggplot() +
+    ggplot2$geom_line(
+        data = kernel_dt,
+        ggplot2$aes(x = x, y = y, colour = point),
+        alpha = 0.5,
+        linetype = "dashed"
+    ) +
+    ggplot2$geom_line(
+        data = sum_dt,
+        ggplot2$aes(x = x, y = y),
+        colour = "black",
+        size = 1.5
+    ) +
+    ggplot2$geom_point(
+        data = points_dt,
+        ggplot2$aes(x = x, y = y),
+        size = 3,
+        colour = "red"
+    ) +
+    ggplot2$geom_rug(
+        data = points_dt,
+        ggplot2$aes(x = x),
+        colour = "red",
+        size = 1
+    ) +
+    ggplot2$labs(
+        title = "Kernel Density Estimation",
+        subtitle = "Dashed lines: individual kernels; Solid line: sum (the density estimate)",
+        x = "Value",
+        y = "Density",
+        colour = "Observation"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+**Bandwidth Selection**
+
+Bandwidth controls smoothness. Too small: noisy; too large: oversmoothed.
+
+```{r density_bandwidth, fig.cap="Effect of bandwidth on density estimation"}
+bmi_sample <- nhanes[!is.na(BMI), BMI]
+
+# Different bandwidths
+p_narrow <- ggplot2$ggplot(data.table$data.table(x = bmi_sample), ggplot2$aes(x = x)) +
+    ggplot2$geom_density(bw = 0.5, fill = "#56B4E9", alpha = 0.5) +
+    ggplot2$labs(title = "Bandwidth = 0.5 (undersmoothed)") +
+    ggplot2$theme_minimal()
+
+p_default <- ggplot2$ggplot(data.table$data.table(x = bmi_sample), ggplot2$aes(x = x)) +
+    ggplot2$geom_density(fill = "#56B4E9", alpha = 0.5) +
+    ggplot2$labs(title = "Default bandwidth (optimal)") +
+    ggplot2$theme_minimal()
+
+p_wide <- ggplot2$ggplot(data.table$data.table(x = bmi_sample), ggplot2$aes(x = x)) +
+    ggplot2$geom_density(bw = 5, fill = "#56B4E9", alpha = 0.5) +
+    ggplot2$labs(title = "Bandwidth = 5 (oversmoothed)") +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p_narrow, p_default, p_wide, ncol = 3)
+```
+
+### 3.3.3 Box Plots
+
+**Prose and Intuition**
+
+The box plot (box-and-whisker plot) is a compact summary of a distribution showing the five-number summary: minimum, Q1, median, Q3, and maximum. It reveals centre, spread, symmetry, and outliers at a glance.
+
+**Mathematical Foundation**
+
+The box plot displays:
+
+- **Box**: Extends from Q1 (25th percentile) to Q3 (75th percentile)
+- **Line inside box**: Median (Q2, 50th percentile)
+- **Whiskers**: Extend to the most extreme points within 1.5 × IQR from the box
+- **Points beyond whiskers**: Potential outliers
+
+The whisker rule defines outliers as observations beyond $Q1 - 1.5 \times IQR$ or $Q3 + 1.5 \times IQR$.
+
+```{r boxplot_anatomy, fig.cap="Anatomy of a box plot with all components labelled"}
+set.seed(42)
+
+# Generate data with outliers
+sample_data <- c(rnorm(95, mean = 50, sd = 10), c(10, 15, 85, 90, 95))
+sample_dt <- data.table$data.table(value = sample_data)
+
+# Calculate components
+q1 <- quantile(sample_data, 0.25)
+q3 <- quantile(sample_data, 0.75)
+med <- median(sample_data)
+iqr <- q3 - q1
+lower_fence <- q1 - 1.5 * iqr
+upper_fence <- q3 + 1.5 * iqr
+lower_whisker <- min(sample_data[sample_data >= lower_fence])
+upper_whisker <- max(sample_data[sample_data <= upper_fence])
+outliers <- sample_data[sample_data < lower_fence | sample_data > upper_fence]
+
+cat("Box plot components:\n")
+cat("  Q1 (25th percentile):", round(q1, 1), "\n")
+cat("  Median (50th percentile):", round(med, 1), "\n")
+cat("  Q3 (75th percentile):", round(q3, 1), "\n")
+cat("  IQR:", round(iqr, 1), "\n")
+cat("  Lower fence:", round(lower_fence, 1), "\n")
+cat("  Upper fence:", round(upper_fence, 1), "\n")
+cat("  Lower whisker:", round(lower_whisker, 1), "\n")
+cat("  Upper whisker:", round(upper_whisker, 1), "\n")
+cat("  Outliers:", round(outliers, 1), "\n")
+
+# Create annotated box plot
+ggplot2$ggplot(sample_dt, ggplot2$aes(x = "", y = value)) +
+    ggplot2$geom_boxplot(fill = "#56B4E9", alpha = 0.7, width = 0.5, outlier.shape = 21) +
+    # Annotations
+    ggplot2$annotate("text", x = 1.4, y = med, label = paste("Median =", round(med, 1)), hjust = 0) +
+    ggplot2$annotate("text", x = 1.4, y = q1, label = paste("Q1 =", round(q1, 1)), hjust = 0) +
+    ggplot2$annotate("text", x = 1.4, y = q3, label = paste("Q3 =", round(q3, 1)), hjust = 0) +
+    ggplot2$annotate("text", x = 1.4, y = upper_whisker, label = paste("Upper whisker =", round(upper_whisker, 1)), hjust = 0) +
+    ggplot2$annotate("text", x = 1.4, y = lower_whisker, label = paste("Lower whisker =", round(lower_whisker, 1)), hjust = 0) +
+    ggplot2$annotate("segment", x = 1.25, xend = 1.35, y = q1, yend = q1, colour = "red") +
+    ggplot2$annotate("segment", x = 1.25, xend = 1.35, y = q3, yend = q3, colour = "red") +
+    ggplot2$annotate("segment", x = 1.25, xend = 1.35, y = med, yend = med, colour = "red") +
+    ggplot2$labs(
+        title = "Anatomy of a Box Plot",
+        subtitle = paste("IQR =", round(iqr, 1), "; Whiskers extend to 1.5×IQR from box edges"),
+        x = NULL,
+        y = "Value"
+    ) +
+    ggplot2$coord_flip() +
+    ggplot2$theme_minimal() +
+    ggplot2$xlim(0.5, 2)
+```
+
+### 3.3.4 Violin Plots
+
+**Prose and Intuition**
+
+Violin plots combine the box plot's summary statistics with a density estimate's distributional shape. The "violin" is a mirrored density plot turned sideways. This reveals features invisible in box plots: multimodality, skewness details, and distributional tails.
+
+```{r violin_plot, fig.cap="Violin plot showing BMI distribution by gender with embedded box plots"}
+bmi_gender <- nhanes[!is.na(BMI) & !is.na(Gender), .(BMI, Gender)]
+
+ggplot2$ggplot(bmi_gender, ggplot2$aes(x = Gender, y = BMI, fill = Gender)) +
+    ggplot2$geom_violin(alpha = 0.7, draw_quantiles = c(0.25, 0.5, 0.75)) +
+    ggplot2$geom_boxplot(width = 0.1, fill = "white", alpha = 0.8) +
+    ggplot2$scale_fill_manual(values = c("female" = "#D55E00", "male" = "#0072B2")) +
+    ggplot2$labs(
+        title = "BMI Distribution by Gender",
+        subtitle = "Violin plots reveal distributional shape; box plots show summary statistics",
+        x = "Gender",
+        y = "Body Mass Index (kg/m²)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+### 3.3.5 Strip Plots and Jittered Dot Plots
+
+**Prose and Intuition**
+
+Sometimes you want to see every data point. Strip plots show individual observations along a single axis. When points overlap, **jittering** adds small random displacements to reveal density.
+
+```{r strip_jitter, fig.cap="Strip plot with jittering reveals all individual observations"}
+# Penguin bill length by species
+bill_data <- penguins[!is.na(bill_length_mm) & !is.na(species), .(bill_length_mm, species)]
+
+# Compare: no jitter vs jitter
+p_no_jitter <- ggplot2$ggplot(bill_data, ggplot2$aes(x = species, y = bill_length_mm, colour = species)) +
+    ggplot2$geom_point(alpha = 0.6) +
+    ggplot2$scale_colour_manual(values = c("Adelie" = "#FF6B35", "Chinstrap" = "#004E89", "Gentoo" = "#7A9E7E")) +
+    ggplot2$labs(title = "No jitter", subtitle = "Points overlap; density unclear") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+
+p_jitter <- ggplot2$ggplot(bill_data, ggplot2$aes(x = species, y = bill_length_mm, colour = species)) +
+    ggplot2$geom_jitter(width = 0.2, alpha = 0.6) +
+    ggplot2$scale_colour_manual(values = c("Adelie" = "#FF6B35", "Chinstrap" = "#004E89", "Gentoo" = "#7A9E7E")) +
+    ggplot2$labs(title = "With jitter", subtitle = "All points visible; density revealed") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+
+gridExtra::grid.arrange(p_no_jitter, p_jitter, ncol = 2)
+```
+
+**Beeswarm plots** offer a more sophisticated alternative, positioning points to avoid overlap while maintaining their exact y-values:
+
+```{r beeswarm, fig.cap="Beeswarm plot positions points to avoid overlap systematically"}
+# Approximate beeswarm using ggbeeswarm package
+# Since we're using box::use, we'll create a manual approximation
+bill_data[, x_offset := {
+    # Simple binning approach
+    y_binned <- cut(bill_length_mm, breaks = 30, labels = FALSE)
+    # Count within each bin for this species
+    counts <- table(y_binned)
+    # Assign offset based on order within bin
+    offset <- numeric(.N)
+    for (b in unique(y_binned)) {
+        idx <- which(y_binned == b)
+        n_in_bin <- length(idx)
+        if (n_in_bin > 1) {
+            offset[idx] <- seq(-0.2, 0.2, length.out = n_in_bin)
+        }
+    }
+    offset
+}, by = species]
+
+bill_data[, x_pos := as.numeric(factor(species)) + x_offset]
+
+ggplot2$ggplot(bill_data, ggplot2$aes(x = x_pos, y = bill_length_mm, colour = species)) +
+    ggplot2$geom_point(alpha = 0.7, size = 2) +
+    ggplot2$scale_x_continuous(
+        breaks = 1:3,
+        labels = c("Adelie", "Chinstrap", "Gentoo")
+    ) +
+    ggplot2$scale_colour_manual(values = c("Adelie" = "#FF6B35", "Chinstrap" = "#004E89", "Gentoo" = "#7A9E7E")) +
+    ggplot2$labs(
+        title = "Approximate Beeswarm Plot",
+        subtitle = "Points spread horizontally to show density while preserving y-values",
+        x = "Species",
+        y = "Bill Length (mm)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+### 3.3.6 Stem-and-Leaf Plots
+
+**Prose and Intuition**
+
+The stem-and-leaf plot is a text-based visualisation that preserves exact values while showing distributional shape. Each observation is split into a "stem" (leading digits) and "leaf" (final digit). It's particularly useful for small datasets and in contexts where graphics aren't available.
+
+```{r stem_leaf}
+# Pulse rate data (small sample for readability)
+pulse_sample <- nhanes[!is.na(Pulse), Pulse][1:50]
+
+cat("Stem-and-Leaf Plot of Pulse Rates (n = 50)\n")
+cat("=========================================\n\n")
+stem(pulse_sample, scale = 1)
+
+cat("\nInterpretation: The stem '7' with leaves '0 2 2 4 6 8' represents")
+cat("\nthe values 70, 72, 72, 74, 76, 78 beats per minute.\n")
+```
+
+### 3.3.7 ECDF Plots
+
+**Prose and Intuition**
+
+The **Empirical Cumulative Distribution Function (ECDF)** shows, for each value $x$, what proportion of observations are less than or equal to $x$. Unlike histograms, ECDFs don't require binning decisions and show exact sample quantiles.
+
+**Mathematical Definition**
+
+$$\hat{F}_n(x) = \frac{1}{n} \sum_{i=1}^{n} \mathbf{1}(x_i \leq x)$$
+
+where $\mathbf{1}(\cdot)$ is the indicator function.
+
+The ECDF is a step function that jumps by $1/n$ at each observed value.
+
+```{r ecdf_plot, fig.cap="ECDF shows cumulative proportion at each value; horizontal lines indicate percentiles"}
+# ECDF from scratch
+my_ecdf <- function(x) {
+    x <- sort(x[!is.na(x)])
+    n <- length(x)
+
+    data.table$data.table(
+        x = x,
+        y = seq_len(n) / n
+    )
+}
+
+age_ecdf <- my_ecdf(nhanes[!is.na(Age), Age])
+
+# Key percentiles
+p25 <- quantile(nhanes[!is.na(Age), Age], 0.25)
+p50 <- quantile(nhanes[!is.na(Age), Age], 0.50)
+p75 <- quantile(nhanes[!is.na(Age), Age], 0.75)
+
+ggplot2$ggplot(age_ecdf, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_step(colour = "#0072B2", size = 1) +
+    # Add percentile lines
+    ggplot2$geom_hline(yintercept = c(0.25, 0.5, 0.75), linetype = "dashed", alpha = 0.5) +
+    ggplot2$geom_vline(xintercept = c(p25, p50, p75), linetype = "dashed", alpha = 0.5) +
+    ggplot2$annotate("text", x = p25, y = 0.05, label = paste("Q1 =", round(p25)), hjust = -0.1) +
+    ggplot2$annotate("text", x = p50, y = 0.05, label = paste("Median =", round(p50)), hjust = -0.1) +
+    ggplot2$annotate("text", x = p75, y = 0.05, label = paste("Q3 =", round(p75)), hjust = -0.1) +
+    ggplot2$scale_y_continuous(labels = scales::percent_format()) +
+    ggplot2$labs(
+        title = "Empirical Cumulative Distribution Function of Age",
+        subtitle = "Read horizontally: what proportion is below age x? Read vertically: what age is at percentile p?",
+        x = "Age (years)",
+        y = "Cumulative Proportion"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+**Comparing Distributions with ECDFs**
+
+ECDFs are excellent for comparing distributions without binning artifacts:
+
+```{r ecdf_compare, fig.cap="ECDFs facilitate distribution comparison without binning artifacts"}
+# Compare BMI distributions by gender
+bmi_ecdf <- nhanes[!is.na(BMI) & !is.na(Gender), .(BMI, Gender)]
+
+ggplot2$ggplot(bmi_ecdf, ggplot2$aes(x = BMI, colour = Gender)) +
+    ggplot2$stat_ecdf(size = 1) +
+    ggplot2$scale_colour_manual(values = c("female" = "#D55E00", "male" = "#0072B2")) +
+    ggplot2$labs(
+        title = "BMI Distribution Comparison by Gender (ECDF)",
+        subtitle = "Curves to the left indicate lower values; separation shows distributional differences",
+        x = "Body Mass Index (kg/m²)",
+        y = "Cumulative Proportion"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## Communicating to Stakeholders
+
+When explaining visualisations to non-technical audiences:
+
+**On choosing plot types:**
+> "I used a bar chart because we're comparing categories. Bar charts make it easy to see which group is largest. For continuous data like blood pressure, I use histograms to show how values are distributed."
+
+**On interpreting histograms:**
+> "The height of each bar shows how many people fall in that range. The tallest bar is where most people cluster. If the bars tail off to the right, we have some people with unusually high values."
+
+**On box plots:**
+> "The box shows where the middle 50% of values fall. The line inside is the median—half are above, half below. Those dots outside the whiskers are unusual values worth investigating."
+
+**On density plots:**
+> "This smooth curve shows the same information as a histogram but without the jagged edges. Higher peaks mean more people have those values."
+
+**On avoiding chart junk:**
+> "I've kept the design simple so your eye goes straight to the data. Fancy effects like 3D or heavy backgrounds actually make it harder to read the numbers."
+
+---
+
+## Quick Reference
+
+### Plot Selection Guide
+
+| Data Type | Plot | ggplot2 Code |
+|-----------|------|--------------|
+| 1 categorical | Bar chart | `geom_bar()` or `geom_col()` |
+| 1 categorical (parts of whole) | Waffle chart | Custom (see examples) |
+| 2 categorical | Mosaic plot | Custom (see examples) |
+| 1 quantitative | Histogram | `geom_histogram()` |
+| 1 quantitative | Density | `geom_density()` |
+| 1 quantitative | Box plot | `geom_boxplot()` |
+| 1 quantitative | Violin | `geom_violin()` |
+| 1 quantitative | ECDF | `stat_ecdf()` |
+| 1 quant (small n) | Strip/jitter | `geom_jitter()` |
+
+### Bin Width Formulae
+
+| Rule | Formula | Best For |
+|------|---------|----------|
+| Sturges | $k = \lceil \log_2(n) + 1 \rceil$ | Normal data, small n |
+| Scott | $h = 3.5s / n^{1/3}$ | Normal data |
+| Freedman-Diaconis | $h = 2 \cdot IQR / n^{1/3}$ | Robust to outliers |
+
+### Key ggplot2 Functions
+
+```r
+# Categorical data
+ggplot(data, aes(x = category)) + geom_bar()
+ggplot(data, aes(x = category, y = count)) + geom_col()
+
+# Quantitative data
+ggplot(data, aes(x = value)) + geom_histogram(binwidth = h)
+ggplot(data, aes(x = value)) + geom_density()
+ggplot(data, aes(x = group, y = value)) + geom_boxplot()
+ggplot(data, aes(x = group, y = value)) + geom_violin()
+ggplot(data, aes(x = value)) + stat_ecdf()
+ggplot(data, aes(x = group, y = value)) + geom_jitter()
+```
+
+### Tufte's Principles Summary
+
+1. **Maximise data-ink ratio**: Remove non-essential elements
+2. **Avoid chart junk**: No 3D effects, heavy gridlines, decorations
+3. **Don't truncate axes**: Start bar charts at zero
+4. **Avoid dual y-axes**: They enable arbitrary scaling
+5. **Prefer bar charts to pie charts**: Length comparison beats angle comparison
