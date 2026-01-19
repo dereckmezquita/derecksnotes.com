@@ -2,7 +2,7 @@
 
 This document provides comprehensive documentation for all datasets used across the three-part Statistics with R course. All data is consolidated in a shared `data/` directory adjacent to the three course parts.
 
-**Total: 91 CSV files across 14 categories**
+**Total: 105 CSV files across 14 categories**
 
 ---
 
@@ -11,7 +11,7 @@ This document provides comprehensive documentation for all datasets used across 
 ```
 statistics-with-R/
 ├── DATA.md                         # This file
-├── data/                           # Shared datasets (91 CSV files)
+├── data/                           # Shared datasets (105 CSV files)
 │   ├── primary/                    # Core teaching datasets (5 files)
 │   ├── medical/                    # Clinical trial datasets (14 files)
 │   ├── survival/                   # Survival analysis (5 files)
@@ -20,9 +20,9 @@ statistics-with-R/
 │   ├── microbiome/                 # Microbial ecology (7 files)
 │   ├── proteomics/                 # Mass spectrometry (3 files)
 │   ├── gwas/                       # Population genetics (4 files)
-│   ├── count/                      # Count regression (5 files)
-│   ├── time-series/                # Temporal data (7 files)
-│   ├── longitudinal/               # Repeated measures (7 files)
+│   ├── count/                      # Count regression (11 files)
+│   ├── time-series/                # Temporal data (11 files)
+│   ├── longitudinal/               # Repeated measures (11 files)
 │   ├── causal/                     # Causal inference (4 files)
 │   ├── network/                    # Graph/network (4 files)
 │   ├── spatial/                    # Geospatial (5 files)
@@ -35,7 +35,8 @@ statistics-with-R/
 │   ├── download_microbiome.R       # phyloseq, simulated
 │   ├── download_proteomics.R       # CPTAC spike-in
 │   ├── download_gwas.R             # rice, simulated
-│   └── download_shared_datasets.R  # count, time-series, etc.
+│   ├── download_shared_datasets.R  # count, time-series, etc.
+│   └── download_part2_medical.R    # Part II medical datasets
 ├── statistics-1-foundations/       # Part I: Foundations (15 chapters)
 ├── statistics-2-intermediate/      # Part II: Intermediate (10 chapters)
 └── statistics-3-advanced/          # Part III: Advanced (8 chapters)
@@ -61,6 +62,7 @@ Rscript data/download_microbiome.R     # OTU tables, GlobalPatterns
 Rscript data/download_proteomics.R     # CPTAC spike-in
 Rscript data/download_gwas.R           # Rice, simulated GWAS
 Rscript data/download_shared_datasets.R # Count, time-series, causal, etc.
+Rscript data/download_part2_medical.R   # Part II medical datasets
 ```
 
 ---
@@ -283,6 +285,19 @@ Genome-wide association study data for population genetics and multiple testing.
 
 Overdispersed count data for Poisson/negative binomial regression.
 
+## Medical Count Data (Part II)
+
+| Dataset | File | n | Description | Citation |
+|---------|------|---|-------------|----------|
+| nmes1988_doctor_visits | `count/nmes1988_doctor_visits.csv` | 4,406 | Physician office visits | Deb & Trivedi (1997) J Applied Econometrics |
+| arizona_hospital_los | `count/arizona_hospital_los.csv` | 1,798 | Hospital length of stay | Hilbe (2014) Modeling Count Data |
+| german_health_visits | `count/german_health_visits.csv` | 1,127 | German doctor visits | COUNT package |
+| rand_health_insurance | `count/rand_health_insurance.csv` | 19,609 | RAND HIE doctor visits | RAND HIE Study |
+| medicare_los | `count/medicare_los.csv` | 1,495 | Medicare length of stay | COUNT package |
+| clinical_trial_adverse_events | `count/clinical_trial_adverse_events.csv` | 500 | AE counts (simulated) | Simulated for teaching |
+
+## Classic Count Data
+
 | Dataset | File | n | Description | Citation |
 |---------|------|---|-------------|----------|
 | epilepsy_seizures | `count/epilepsy_seizures.csv` | 236 | Seizure counts | Thall & Vail (1990) |
@@ -297,6 +312,17 @@ Overdispersed count data for Poisson/negative binomial regression.
 
 Temporal data with trend, seasonality, and cycles.
 
+## Medical/Epidemiological Time Series (Part II)
+
+| Dataset | File | n | Description | Citation |
+|---------|------|---|-------------|----------|
+| salmonella_germany_weekly | `time-series/salmonella_germany_weekly.csv` | 312 | Salmonella agona weekly | surveillance package |
+| influenza_germany_weekly | `time-series/influenza_germany_weekly.csv` | 416 | Flu in Bavaria/Baden-Württemberg | surveillance package |
+| hepatitis_a_berlin_weekly | `time-series/hepatitis_a_berlin_weekly.csv` | 208 | Hepatitis A in Berlin | surveillance package |
+| hospital_admissions_monthly | `time-series/hospital_admissions_monthly.csv` | 120 | Hospital admissions (simulated) | Simulated for teaching |
+
+## Classic Time Series
+
 | Dataset | File | n | Description |
 |---------|------|---|-------------|
 | air_passengers | `time-series/air_passengers.csv` | 144 | Airline passengers 1949-1960 |
@@ -307,13 +333,24 @@ Temporal data with trend, seasonality, and cycles.
 | us_economics | `time-series/us_economics.csv` | 574 | US economic indicators |
 | us_economics_long | `time-series/us_economics_long.csv` | 2,870 | Long format |
 
-**Citation**: Box & Jenkins (1976); ggplot2 package
+**Citation**: Box & Jenkins (1976); ggplot2 package; surveillance package
 
 ---
 
 # Longitudinal / Mixed-Effects Data
 
 Repeated measures data for mixed-effects modelling.
+
+## Clinical Longitudinal Data (Part II)
+
+| Dataset | File | n | Description | Citation |
+|---------|------|---|-------------|----------|
+| aids_cd4_longitudinal | `longitudinal/aids_cd4_longitudinal.csv` | 1,405 | AIDS CD4 repeated measures | Goldman et al. (1996); JM package |
+| aids_cd4_baseline | `longitudinal/aids_cd4_baseline.csv` | 467 | AIDS CD4 baseline data | Goldman et al. (1996); JM package |
+| prothrombin_liver | `longitudinal/prothrombin_liver.csv` | 2,968 | Liver disease prothrombin ratio | JM package |
+| multisite_clinical_trial | `longitudinal/multisite_clinical_trial.csv` | 2,300 | Multi-site RCT (simulated) | Simulated for teaching |
+
+## Classic Longitudinal Data
 
 | Dataset | File | n | Description | Citation |
 |---------|------|---|-------------|----------|
@@ -380,9 +417,9 @@ Geospatial data for disease mapping, geostatistics, and spatial regression.
 - **Time Series**: air_passengers
 
 ## Part II: Intermediate (10 chapters)
-- **Count**: epilepsy_seizures, ships_damage, insurance_claims, horseshoe_crabs
-- **Time Series**: air_passengers, us_economics, mauna_loa_co2
-- **Longitudinal**: sleep_deprivation, orthodont_growth, instructor_evaluations
+- **Count**: nmes1988_doctor_visits, arizona_hospital_los, medicare_los, clinical_trial_adverse_events, epilepsy_seizures
+- **Time Series**: salmonella_germany_weekly, influenza_germany_weekly, hospital_admissions_monthly, us_accidental_deaths
+- **Longitudinal**: aids_cd4_longitudinal, prothrombin_liver, multisite_clinical_trial, sleep_deprivation
 
 ## Part III: Advanced (8 chapters)
 - **Causal**: lalonde_job_training, card_krueger_minwage, close_elections_rdd
@@ -421,6 +458,7 @@ All datasets are freely available for educational purposes.
 
 # Version History
 
+- **2025-01-19**: Added 14 new biomedical datasets for Part II (count, longitudinal, time series); created download_part2_medical.R script
 - **2025-01-18**: Consolidated all data into shared `data/` directory; removed COVID datasets; created modular download scripts; updated all Rmd paths
 - **2025-01-17**: Initial data collection for Part I
 
