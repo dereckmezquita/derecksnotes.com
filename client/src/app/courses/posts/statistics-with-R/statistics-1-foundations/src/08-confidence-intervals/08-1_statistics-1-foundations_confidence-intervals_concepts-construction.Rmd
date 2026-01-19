@@ -1,0 +1,723 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 8: Confidence Intervals"
+part: "Part 1: Concepts and Construction"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, confidence-intervals, estimation, inference, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    out.width = "100%"
+)
+```
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+nhanes <- fread("../data/primary/nhanes.csv")
+```
+
+# Chapter 8: Confidence Intervals
+
+Point estimates tell us our best guess for a population parameter, but they say nothing about how certain we should be in that guess. A sample mean of 120 mmHg for systolic blood pressure is useful, but is the true population mean likely to be 119 or 121? Or could it plausibly be 110 or 130? Confidence intervals answer this question by providing a range of plausible values for the parameter, along with a measure of our confidence in that range.
+
+This chapter develops the theory of confidence intervals from first principles. We begin with the conceptual foundations, then construct intervals for means, proportions, and variances. Throughout, we emphasise the correct interpretation of confidence intervals — one of the most misunderstood concepts in statistics.
+
+---
+
+## 8.1 The Concept of a Confidence Interval
+
+### 8.1.1 From Point Estimates to Interval Estimates
+
+In Chapter 7, we learned to compute point estimates — single numbers that represent our best guess for a population parameter. The sample mean $\bar{X}$ estimates the population mean $\mu$; the sample proportion $\hat{p}$ estimates the population proportion $p$. But point estimates alone are incomplete.
+
+Consider two studies measuring mean cholesterol levels:
+- Study A: $n = 25$, $\bar{X} = 200$ mg/dL
+- Study B: $n = 2500$, $\bar{X} = 200$ mg/dL
+
+Both give the same point estimate, but we should be far more confident in Study B's result. The sample size affects our certainty, but the point estimate doesn't reflect this.
+
+An **interval estimate** provides a range of values along with a probability statement about that range. This range is called a **confidence interval**.
+
+```{r point_vs_interval, fig.cap="Point estimates vs interval estimates"}
+set.seed(123)
+
+# Simulate the two studies
+true_mu <- 200
+true_sd <- 40
+
+# Generate many replications
+n_reps <- 100
+
+# Study A: small sample
+study_a <- data.table(
+    rep = 1:n_reps,
+    mean = sapply(1:n_reps, function(i) mean(rnorm(25, true_mu, true_sd))),
+    se = true_sd / sqrt(25)
+)
+study_a[, `:=`(
+    lower = mean - 1.96 * se,
+    upper = mean + 1.96 * se
+)]
+study_a[, covers := lower <= true_mu & upper >= true_mu]
+
+# Study B: large sample
+study_b <- data.table(
+    rep = 1:n_reps,
+    mean = sapply(1:n_reps, function(i) mean(rnorm(2500, true_mu, true_sd))),
+    se = true_sd / sqrt(2500)
+)
+study_b[, `:=`(
+    lower = mean - 1.96 * se,
+    upper = mean + 1.96 * se
+)]
+study_b[, covers := lower <= true_mu & upper >= true_mu]
+
+# Plot first 20 intervals from each
+plot_data <- rbind(
+    study_a[1:20, .(rep, mean, lower, upper, covers, study = "Study A (n=25)")],
+    study_b[1:20, .(rep, mean, lower, upper, covers, study = "Study B (n=2500)")]
+)
+
+ggplot2$ggplot(plot_data, ggplot2$aes(x = rep, y = mean, colour = covers)) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = lower, ymax = upper), width = 0.3) +
+    ggplot2$geom_hline(yintercept = true_mu, linetype = "dashed", colour = "red") +
+    ggplot2$facet_wrap(~study) +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#D55E00", "TRUE" = "#0072B2"),
+                                 labels = c("Misses true value", "Covers true value")) +
+    ggplot2$labs(
+        title = "Confidence Intervals from Repeated Sampling",
+        subtitle = "Larger samples produce narrower intervals with the same coverage",
+        x = "Replication",
+        y = "Cholesterol (mg/dL)",
+        colour = "Interval"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+The figure illustrates a key insight: with larger samples, confidence intervals become narrower while maintaining the same probability of containing the true parameter.
+
+### 8.1.2 The Frequentist Interpretation
+
+A **95% confidence interval** does NOT mean "there is a 95% probability that the true parameter lies in this interval." This is a common and seductive misinterpretation.
+
+The correct frequentist interpretation is:
+
+> If we repeated this sampling procedure many times and computed a 95% confidence interval each time, approximately 95% of those intervals would contain the true parameter value.
+
+The parameter $\mu$ is a fixed (though unknown) constant — it either lies in our interval or it doesn't. The randomness comes from the sampling process, not from the parameter.
+
+```{r coverage_demo, fig.cap="The frequentist interpretation of confidence intervals"}
+set.seed(456)
+
+# Simulate 100 confidence intervals
+n_intervals <- 100
+n_sample <- 50
+true_mu <- 100
+true_sd <- 15
+
+intervals <- data.table(
+    id = 1:n_intervals,
+    sample_mean = sapply(1:n_intervals, function(i) mean(rnorm(n_sample, true_mu, true_sd))),
+    sample_sd = sapply(1:n_intervals, function(i) sd(rnorm(n_sample, true_mu, true_sd)))
+)
+
+# Calculate t-based 95% CIs
+t_crit <- qt(0.975, df = n_sample - 1)
+intervals[, `:=`(
+    se = sample_sd / sqrt(n_sample),
+    lower = sample_mean - t_crit * sample_sd / sqrt(n_sample),
+    upper = sample_mean + t_crit * sample_sd / sqrt(n_sample)
+)]
+intervals[, covers := lower <= true_mu & upper >= true_mu]
+
+coverage_rate <- mean(intervals$covers)
+
+cat("Frequentist Interpretation of 95% Confidence Intervals\n")
+cat("=======================================================\n\n")
+cat(sprintf("True population mean: μ = %.0f\n", true_mu))
+cat(sprintf("Number of intervals computed: %d\n", n_intervals))
+cat(sprintf("Intervals containing true mean: %d (%.1f%%)\n",
+            sum(intervals$covers), 100 * coverage_rate))
+cat("\nInterpretation:\n")
+cat("Each interval either contains μ or doesn't (fixed fact).\n")
+cat("The '95%' refers to the long-run proportion of intervals\n")
+cat("that would contain μ if we repeated sampling many times.\n")
+
+# Visualise
+ggplot2$ggplot(intervals, ggplot2$aes(x = id, y = sample_mean, colour = covers)) +
+    ggplot2$geom_point(size = 1.5) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = lower, ymax = upper), width = 0.3, alpha = 0.7) +
+    ggplot2$geom_hline(yintercept = true_mu, linetype = "dashed", colour = "red", linewidth = 1) +
+    ggplot2$scale_colour_manual(
+        values = c("FALSE" = "#D55E00", "TRUE" = "#0072B2"),
+        labels = c("Misses μ", "Contains μ")
+    ) +
+    ggplot2$annotate("text", x = 85, y = true_mu + 8,
+                     label = sprintf("Coverage: %.0f%%", 100 * coverage_rate),
+                     fontface = "bold") +
+    ggplot2$labs(
+        title = "100 Confidence Intervals from Repeated Sampling",
+        subtitle = sprintf("%.0f%% of intervals contain the true mean (expected: 95%%)",
+                          100 * coverage_rate),
+        x = "Sample Number",
+        y = "Value",
+        colour = "Interval"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 8.1.3 Confidence Level and Width
+
+The **confidence level** (typically denoted $1 - \alpha$) represents the long-run coverage probability. Common choices are:
+- 90% confidence ($\alpha = 0.10$)
+- 95% confidence ($\alpha = 0.05$)
+- 99% confidence ($\alpha = 0.01$)
+
+Higher confidence levels produce wider intervals. This is intuitive: if you want to be more certain you've captured the true value, you must cast a wider net.
+
+```{r confidence_levels, fig.cap="Effect of confidence level on interval width"}
+set.seed(789)
+
+# Generate one sample
+n <- 100
+sample_data <- rnorm(n, mean = 50, sd = 10)
+x_bar <- mean(sample_data)
+s <- sd(sample_data)
+se <- s / sqrt(n)
+
+# Calculate intervals at different confidence levels
+confidence_levels <- c(0.80, 0.90, 0.95, 0.99)
+
+ci_data <- data.table(
+    level = confidence_levels,
+    level_label = paste0(100 * confidence_levels, "%")
+)
+
+ci_data[, t_crit := qt(1 - (1 - level) / 2, df = n - 1)]
+ci_data[, `:=`(
+    lower = x_bar - t_crit * se,
+    upper = x_bar + t_crit * se,
+    width = 2 * t_crit * se
+)]
+
+cat("Effect of Confidence Level on Interval Width\n")
+cat("=============================================\n\n")
+cat(sprintf("Sample: n = %d, x̄ = %.2f, s = %.2f, SE = %.2f\n\n", n, x_bar, s, se))
+print(ci_data[, .(Level = level_label, `t*` = round(t_crit, 3),
+                  Lower = round(lower, 2), Upper = round(upper, 2),
+                  Width = round(width, 2))])
+
+# Visualise
+ci_data[, level_label := factor(level_label, levels = rev(level_label))]
+
+ggplot2$ggplot(ci_data, ggplot2$aes(y = level_label)) +
+    ggplot2$geom_segment(ggplot2$aes(x = lower, xend = upper, yend = level_label),
+                         linewidth = 2, colour = "#0072B2") +
+    ggplot2$geom_point(ggplot2$aes(x = x_bar), size = 4, colour = "#D55E00") +
+    ggplot2$geom_vline(xintercept = 50, linetype = "dashed", colour = "gray50") +
+    ggplot2$annotate("text", x = 50, y = 0.5, label = "True μ = 50",
+                     hjust = 0.5, vjust = -0.5, colour = "gray50") +
+    ggplot2$labs(
+        title = "Confidence Intervals at Different Confidence Levels",
+        subtitle = "Higher confidence requires wider intervals",
+        x = "Value",
+        y = "Confidence Level"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 8.2 The General Construction of Confidence Intervals
+
+### 8.2.1 The Pivotal Quantity Method
+
+Most confidence intervals are constructed using a **pivotal quantity** — a function of the data and parameter whose distribution is known and does not depend on unknown parameters.
+
+For example, when sampling from a normal distribution with known $\sigma$:
+
+$$Z = \frac{\bar{X} - \mu}{\sigma / \sqrt{n}} \sim N(0, 1)$$
+
+This $Z$ is a pivotal quantity because:
+1. It involves both data ($\bar{X}$) and the unknown parameter ($\mu$)
+2. Its distribution (standard normal) is completely known
+
+### 8.2.2 Deriving the Confidence Interval Formula
+
+To construct a confidence interval, we:
+
+1. Start with the pivotal quantity's known distribution
+2. Find critical values that capture the central $1 - \alpha$ probability
+3. Rearrange to isolate the parameter
+
+**Step 1:** For 95% confidence, we need $P(-z^* \leq Z \leq z^*) = 0.95$
+
+Since $Z \sim N(0, 1)$, we find $z^* = 1.96$ (the 97.5th percentile).
+
+**Step 2:** Substitute the definition of $Z$:
+
+$$P\left(-1.96 \leq \frac{\bar{X} - \mu}{\sigma / \sqrt{n}} \leq 1.96\right) = 0.95$$
+
+**Step 3:** Rearrange to isolate $\mu$:
+
+$$P\left(\bar{X} - 1.96 \cdot \frac{\sigma}{\sqrt{n}} \leq \mu \leq \bar{X} + 1.96 \cdot \frac{\sigma}{\sqrt{n}}\right) = 0.95$$
+
+This gives us the confidence interval formula:
+
+$$\bar{X} \pm z^* \cdot \frac{\sigma}{\sqrt{n}}$$
+
+```{r derivation_visual, fig.cap="Visual derivation of confidence interval from the sampling distribution"}
+# Show the standard normal and how we find critical values
+z_vals <- seq(-4, 4, length.out = 1000)
+density_vals <- dnorm(z_vals)
+
+z_crit <- qnorm(0.975)
+
+plot_df <- data.table(z = z_vals, density = density_vals)
+plot_df[, region := ifelse(abs(z) <= z_crit, "middle", "tail")]
+
+ggplot2$ggplot(plot_df, ggplot2$aes(x = z, y = density)) +
+    ggplot2$geom_area(data = plot_df[region == "middle"],
+                      fill = "#0072B2", alpha = 0.5) +
+    ggplot2$geom_area(data = plot_df[region == "tail"],
+                      fill = "#D55E00", alpha = 0.3) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_vline(xintercept = c(-z_crit, z_crit), linetype = "dashed") +
+    ggplot2$annotate("text", x = 0, y = 0.15, label = "95%", size = 6, fontface = "bold") +
+    ggplot2$annotate("text", x = -2.8, y = 0.05, label = "2.5%", size = 4) +
+    ggplot2$annotate("text", x = 2.8, y = 0.05, label = "2.5%", size = 4) +
+    ggplot2$annotate("text", x = -z_crit, y = -0.02, label = "-1.96", size = 4) +
+    ggplot2$annotate("text", x = z_crit, y = -0.02, label = "1.96", size = 4) +
+    ggplot2$labs(
+        title = "Finding Critical Values for a 95% Confidence Interval",
+        subtitle = "The central 95% of the standard normal distribution",
+        x = "Z",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 8.2.3 Components of a Confidence Interval
+
+Every confidence interval has three components:
+
+$$\text{Point Estimate} \pm \text{Critical Value} \times \text{Standard Error}$$
+
+Or equivalently:
+
+$$\hat{\theta} \pm z^* \cdot SE(\hat{\theta})$$
+
+Where:
+- $\hat{\theta}$ is the point estimate (e.g., $\bar{X}$, $\hat{p}$)
+- $z^*$ (or $t^*$) is the critical value from the reference distribution
+- $SE(\hat{\theta})$ is the standard error of the estimator
+
+The quantity $z^* \cdot SE(\hat{\theta})$ is called the **margin of error**.
+
+```{r ci_components, fig.cap="Components of a confidence interval"}
+# Demonstrate with NHANES blood pressure data
+bp_sample <- na.omit(nhanes$BPSys1)[1:100]  # First 100 non-missing values
+n <- length(bp_sample)
+x_bar <- mean(bp_sample)
+s <- sd(bp_sample)
+se <- s / sqrt(n)
+t_crit <- qt(0.975, df = n - 1)
+margin <- t_crit * se
+
+cat("Anatomy of a Confidence Interval\n")
+cat("=================================\n\n")
+cat("Data: Systolic blood pressure (NHANES)\n")
+cat(sprintf("Sample size: n = %d\n\n", n))
+
+cat("Components:\n")
+cat(sprintf("  Point estimate (x̄):     %.2f mmHg\n", x_bar))
+cat(sprintf("  Sample SD (s):          %.2f mmHg\n", s))
+cat(sprintf("  Standard error (SE):    %.2f mmHg\n", se))
+cat(sprintf("  Critical value (t*):    %.3f\n", t_crit))
+cat(sprintf("  Margin of error:        %.2f mmHg\n\n", margin))
+
+cat("95% Confidence Interval:\n")
+cat(sprintf("  %.2f ± %.2f = (%.2f, %.2f) mmHg\n",
+            x_bar, margin, x_bar - margin, x_bar + margin))
+
+# Visualise
+component_data <- data.table(
+    component = c("Point Estimate", "Lower Bound", "Upper Bound"),
+    value = c(x_bar, x_bar - margin, x_bar + margin)
+)
+
+ggplot2$ggplot() +
+    ggplot2$geom_segment(ggplot2$aes(x = x_bar - margin, xend = x_bar + margin,
+                                      y = 1, yend = 1),
+                         linewidth = 3, colour = "#0072B2") +
+    ggplot2$geom_point(ggplot2$aes(x = x_bar, y = 1), size = 6, colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(x = x_bar, xend = x_bar - margin, y = 0.8, yend = 0.8),
+                         arrow = ggplot2$arrow(ends = "both", length = ggplot2$unit(0.1, "inches")),
+                         colour = "gray40") +
+    ggplot2$annotate("text", x = x_bar - margin/2, y = 0.7,
+                     label = sprintf("Margin = %.1f", margin)) +
+    ggplot2$annotate("text", x = x_bar, y = 1.15, label = sprintf("x̄ = %.1f", x_bar),
+                     fontface = "bold") +
+    ggplot2$annotate("text", x = x_bar - margin, y = 0.85,
+                     label = sprintf("%.1f", x_bar - margin), hjust = 1) +
+    ggplot2$annotate("text", x = x_bar + margin, y = 0.85,
+                     label = sprintf("%.1f", x_bar + margin), hjust = 0) +
+    ggplot2$scale_y_continuous(limits = c(0.5, 1.3)) +
+    ggplot2$labs(
+        title = "Anatomy of a 95% Confidence Interval",
+        subtitle = "Systolic blood pressure from NHANES sample",
+        x = "Blood Pressure (mmHg)",
+        y = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.y = ggplot2$element_blank(),
+                  axis.ticks.y = ggplot2$element_blank())
+```
+
+---
+
+## 8.3 Factors Affecting Interval Width
+
+### 8.3.1 Sample Size
+
+The standard error is inversely proportional to $\sqrt{n}$:
+
+$$SE = \frac{\sigma}{\sqrt{n}}$$
+
+Doubling the sample size reduces the interval width by a factor of $\sqrt{2} \approx 1.41$.
+
+Quadrupling the sample size halves the interval width.
+
+```{r sample_size_effect, fig.cap="Effect of sample size on confidence interval width"}
+set.seed(123)
+true_mu <- 100
+true_sd <- 20
+
+sample_sizes <- c(10, 25, 50, 100, 200, 500, 1000)
+
+# Calculate theoretical widths
+width_data <- data.table(
+    n = sample_sizes,
+    se = true_sd / sqrt(sample_sizes)
+)
+width_data[, t_crit := qt(0.975, df = n - 1)]
+width_data[, width := 2 * t_crit * se]
+
+cat("Sample Size and Confidence Interval Width\n")
+cat("==========================================\n\n")
+cat(sprintf("Population: μ = %.0f, σ = %.0f\n\n", true_mu, true_sd))
+print(width_data[, .(n, SE = round(se, 2), `t*` = round(t_crit, 3),
+                     Width = round(width, 2))])
+
+# Visualise
+ggplot2$ggplot(width_data, ggplot2$aes(x = n, y = width)) +
+    ggplot2$geom_line(linewidth = 1, colour = "#0072B2") +
+    ggplot2$geom_point(size = 3, colour = "#0072B2") +
+    ggplot2$scale_x_log10() +
+    ggplot2$labs(
+        title = "Confidence Interval Width Decreases with Sample Size",
+        subtitle = "Width proportional to 1/√n",
+        x = "Sample Size (log scale)",
+        y = "95% CI Width"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 8.3.2 Population Variability
+
+Greater variability in the population leads to wider confidence intervals. If individual measurements vary wildly, we need more uncertainty in our estimate of the mean.
+
+```{r variability_effect, fig.cap="Effect of population variability on confidence interval width"}
+set.seed(456)
+n <- 50
+true_mu <- 100
+
+# Different standard deviations
+sds <- c(5, 10, 20, 40)
+
+variability_data <- data.table(
+    sigma = sds,
+    se = sds / sqrt(n),
+    t_crit = qt(0.975, df = n - 1)
+)
+variability_data[, `:=`(
+    lower = true_mu - t_crit * se,
+    upper = true_mu + t_crit * se,
+    width = 2 * t_crit * se
+)]
+
+cat("Population Variability and Confidence Interval Width\n")
+cat("=====================================================\n\n")
+cat(sprintf("Sample size: n = %d\n\n", n))
+print(variability_data[, .(sigma, SE = round(se, 2),
+                           Width = round(width, 2))])
+
+# Visualise
+variability_data[, sigma_label := factor(paste0("σ = ", sigma))]
+
+ggplot2$ggplot(variability_data, ggplot2$aes(y = sigma_label)) +
+    ggplot2$geom_segment(ggplot2$aes(x = lower, xend = upper, yend = sigma_label),
+                         linewidth = 3, colour = "#0072B2") +
+    ggplot2$geom_point(ggplot2$aes(x = true_mu), size = 4, colour = "#D55E00") +
+    ggplot2$labs(
+        title = "Effect of Population Variability on CI Width",
+        subtitle = "Higher variability produces wider intervals",
+        x = "Value",
+        y = "Population SD"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 8.3.3 Confidence Level
+
+Higher confidence levels require wider intervals. The critical value $z^*$ or $t^*$ increases with confidence level.
+
+| Confidence Level | $z^*$ | Interval Width Factor |
+|-----------------|-------|----------------------|
+| 90% | 1.645 | 0.84× |
+| 95% | 1.960 | 1.00× (reference) |
+| 99% | 2.576 | 1.31× |
+
+---
+
+## 8.4 Building Confidence Intervals from Scratch
+
+Let's implement confidence interval functions from scratch to understand the mechanics.
+
+```{r ci_from_scratch}
+# Function to compute z-interval (known sigma)
+ci_z <- function(x, sigma, conf_level = 0.95) {
+    n <- length(x)
+    x_bar <- mean(x)
+    alpha <- 1 - conf_level
+    z_star <- qnorm(1 - alpha / 2)
+    se <- sigma / sqrt(n)
+    margin <- z_star * se
+
+    list(
+        estimate = x_bar,
+        se = se,
+        critical_value = z_star,
+        margin = margin,
+        lower = x_bar - margin,
+        upper = x_bar + margin,
+        conf_level = conf_level
+    )
+}
+
+# Function to compute t-interval (unknown sigma)
+ci_t <- function(x, conf_level = 0.95) {
+    n <- length(x)
+    x_bar <- mean(x)
+    s <- sd(x)
+    alpha <- 1 - conf_level
+    df <- n - 1
+    t_star <- qt(1 - alpha / 2, df = df)
+    se <- s / sqrt(n)
+    margin <- t_star * se
+
+    list(
+        estimate = x_bar,
+        sd = s,
+        se = se,
+        df = df,
+        critical_value = t_star,
+        margin = margin,
+        lower = x_bar - margin,
+        upper = x_bar + margin,
+        conf_level = conf_level
+    )
+}
+
+# Example with blood pressure data
+bp_sample <- na.omit(nhanes$BPSys1)[1:50]
+
+cat("Confidence Interval from Scratch\n")
+cat("=================================\n\n")
+
+result <- ci_t(bp_sample, conf_level = 0.95)
+
+cat("Sample Statistics:\n")
+cat(sprintf("  n = %d\n", length(bp_sample)))
+cat(sprintf("  x̄ = %.2f\n", result$estimate))
+cat(sprintf("  s = %.2f\n", result$sd))
+cat(sprintf("  SE = %.2f\n\n", result$se))
+
+cat("Interval Construction:\n")
+cat(sprintf("  df = %d\n", result$df))
+cat(sprintf("  t* = %.3f\n", result$critical_value))
+cat(sprintf("  Margin of error = %.2f\n\n", result$margin))
+
+cat(sprintf("95%% Confidence Interval: (%.2f, %.2f)\n",
+            result$lower, result$upper))
+
+# Verify with built-in function
+builtin <- t.test(bp_sample, conf.level = 0.95)
+cat(sprintf("\nVerification with t.test(): (%.2f, %.2f)\n",
+            builtin$conf.int[1], builtin$conf.int[2]))
+```
+
+---
+
+## 8.5 Common Misinterpretations
+
+### 8.5.1 What a Confidence Interval Does NOT Mean
+
+**WRONG:** "There is a 95% probability that the true mean lies in this interval."
+
+The true mean $\mu$ is a fixed constant. It either lies in the interval or it doesn't — there's no probability involved for this specific interval. The 95% refers to the procedure, not to any individual interval.
+
+**WRONG:** "95% of the data falls within this interval."
+
+Confidence intervals are about the parameter (the population mean), not about individual data values. A confidence interval for the mean is typically much narrower than the range of the data.
+
+**WRONG:** "If we repeated the study, there's a 95% chance we'd get a mean within this interval."
+
+This confuses the sampling distribution of the mean with the confidence interval. The interval is about where $\mu$ might be, not about where future sample means might fall.
+
+```{r misinterpretation_demo, fig.cap="Confidence interval vs data range"}
+set.seed(123)
+
+# Generate sample
+n <- 100
+sample <- rnorm(n, mean = 50, sd = 10)
+
+x_bar <- mean(sample)
+s <- sd(sample)
+se <- s / sqrt(n)
+t_crit <- qt(0.975, df = n - 1)
+
+ci_lower <- x_bar - t_crit * se
+ci_upper <- x_bar + t_crit * se
+
+data_lower <- min(sample)
+data_upper <- max(sample)
+
+cat("Confidence Interval vs Data Range\n")
+cat("==================================\n\n")
+cat(sprintf("95%% CI for mean: (%.2f, %.2f) — width = %.2f\n",
+            ci_lower, ci_upper, ci_upper - ci_lower))
+cat(sprintf("Data range: (%.2f, %.2f) — width = %.2f\n",
+            data_lower, data_upper, data_upper - data_lower))
+cat("\nThe CI is about WHERE THE MEAN IS, not where the data falls.\n")
+
+# Visualise
+plot_data <- data.table(value = sample)
+
+ggplot2$ggplot(plot_data, ggplot2$aes(x = value)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+                           bins = 20, fill = "gray70", colour = "white") +
+    ggplot2$geom_vline(xintercept = x_bar, colour = "#D55E00", linewidth = 1.5) +
+    ggplot2$geom_segment(ggplot2$aes(x = ci_lower, xend = ci_upper, y = 0.06, yend = 0.06),
+                         colour = "#0072B2", linewidth = 3) +
+    ggplot2$annotate("text", x = x_bar, y = 0.065, label = "95% CI for μ",
+                     colour = "#0072B2", fontface = "bold", hjust = 0.5) +
+    ggplot2$annotate("text", x = x_bar, y = 0.055, label = "(about the mean)",
+                     colour = "#0072B2", size = 3, hjust = 0.5) +
+    ggplot2$labs(
+        title = "The CI is for the Mean, Not the Data",
+        subtitle = "Data spreads widely; CI for the mean is narrow",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 8.5.2 The Correct Interpretation
+
+The correct interpretation of a 95% confidence interval is:
+
+> We are 95% confident that the true population parameter lies within this interval. This confidence comes from the procedure: if we repeated this process many times, 95% of the resulting intervals would contain the true parameter.
+
+Or more precisely:
+
+> The interval was constructed using a method that captures the true parameter 95% of the time in repeated sampling.
+
+---
+
+## Communicating to Stakeholders
+
+When presenting confidence intervals to non-statistical audiences:
+
+**Instead of saying:**
+> "The 95% confidence interval is (118.5, 126.3) mmHg."
+
+**Say:**
+> "Based on our sample, we estimate the average systolic blood pressure in this population is about 122 mmHg. We can be reasonably confident the true average falls somewhere between 118 and 127 mmHg."
+
+**Key points for stakeholders:**
+
+1. **Emphasise the interval, not just the point estimate**: "Our best estimate is X, but it could reasonably be anywhere from Y to Z."
+
+2. **Explain wider intervals mean more uncertainty**: "With only 30 participants, there's considerable uncertainty in our estimate. A larger study would give us a more precise answer."
+
+3. **Avoid probability language about the specific interval**: Don't say "95% chance." Say "we're 95% confident" or "the method we used is right 95% of the time."
+
+4. **Relate to practical significance**: "The entire confidence interval falls below the threshold for concern, so even accounting for uncertainty, levels appear acceptable."
+
+---
+
+## Quick Reference
+
+### Confidence Interval Formula (General)
+
+$$\hat{\theta} \pm (\text{critical value}) \times SE(\hat{\theta})$$
+
+### For Population Mean (σ known)
+
+$$\bar{X} \pm z^* \cdot \frac{\sigma}{\sqrt{n}}$$
+
+Critical values: $z^*_{0.90} = 1.645$, $z^*_{0.95} = 1.96$, $z^*_{0.99} = 2.576$
+
+### For Population Mean (σ unknown)
+
+$$\bar{X} \pm t^*_{n-1} \cdot \frac{s}{\sqrt{n}}$$
+
+### Key Relationships
+
+- Width $\propto \frac{1}{\sqrt{n}}$ (quadruple $n$ to halve width)
+- Width $\propto \sigma$ (more variability → wider interval)
+- Width $\uparrow$ as confidence level $\uparrow$
+
+### R Functions
+
+```r
+# t-interval for mean (σ unknown)
+t.test(x, conf.level = 0.95)$conf.int
+
+# Manual calculation
+x_bar <- mean(x)
+se <- sd(x) / sqrt(length(x))
+t_star <- qt(0.975, df = length(x) - 1)
+c(x_bar - t_star * se, x_bar + t_star * se)
+```
+
+### Common Misinterpretations to Avoid
+
+| Wrong | Right |
+|-------|-------|
+| "95% probability μ is in interval" | "95% of intervals from this procedure contain μ" |
+| "95% of data falls here" | "The interval is for the mean, not individual values" |
+| "Next sample mean will be here" | "This is about where μ is, not future samples" |
