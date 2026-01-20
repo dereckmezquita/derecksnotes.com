@@ -183,66 +183,27 @@ beta_1 <- S_xy / S_xx
 beta_0 <- y_bar - beta_1 * x_bar
 
 cat("Manual OLS Estimation\n")
-```
-
-```
-## Manual OLS Estimation
-```
-
-``` r
 cat("=====================\n\n")
-```
-
-```
-## =====================
-```
-
-``` r
 cat(sprintf("Mean of X (Height): %.2f cm\n", x_bar))
-```
-
-```
-## Mean of X (Height): 168.83 cm
-```
-
-``` r
 cat(sprintf("Mean of Y (Weight): %.2f kg\n\n", y_bar))
-```
-
-```
-## Mean of Y (Weight): 81.19 kg
-```
-
-``` r
 cat(sprintf("S_xy = %.2f\n", S_xy))
-```
-
-```
-## S_xy = 47001.23
-```
-
-``` r
 cat(sprintf("S_xx = %.2f\n\n", S_xx))
-```
-
-```
-## S_xx = 50951.93
-```
-
-``` r
 cat(sprintf("Slope (β₁) = S_xy / S_xx = %.4f\n", beta_1))
-```
-
-```
-## Slope (<U+03B2><U+2081>) = S_xy / S_xx = 0.9225
-```
-
-``` r
 cat(sprintf("Intercept (β₀) = ȳ - β₁x̄ = %.4f\n", beta_0))
 ```
 
 ```
-## Intercept (<U+03B2><U+2080>) = <U+0233> - <U+03B2><U+2081>x<U+0304> = -74.5558
+## Manual OLS Estimation
+## =====================
+## 
+## Mean of X (Height): 168.83 cm
+## Mean of Y (Weight): 81.19 kg
+## 
+## S_xy = 47001.23
+## S_xx = 50951.93
+## 
+## Slope (β₁) = S_xy / S_xx = 0.9225
+## Intercept (β₀) = ȳ - β₁x̄ = -74.5558
 ```
 
 
@@ -251,35 +212,18 @@ cat(sprintf("Intercept (β₀) = ȳ - β₁x̄ = %.4f\n", beta_0))
 model <- lm(Weight ~ Height, data = sample_data)
 
 cat("\nComparison with lm() Output\n")
+cat("===========================\n\n")
+cat(sprintf("Manual β₀: %.4f, lm() β₀: %.4f\n", beta_0, coef(model)[1]))
+cat(sprintf("Manual β₁: %.4f, lm() β₁: %.4f\n", beta_1, coef(model)[2]))
 ```
 
 ```
 ## 
 ## Comparison with lm() Output
-```
-
-``` r
-cat("===========================\n\n")
-```
-
-```
 ## ===========================
-```
-
-``` r
-cat(sprintf("Manual β₀: %.4f, lm() β₀: %.4f\n", beta_0, coef(model)[1]))
-```
-
-```
-## Manual <U+03B2><U+2080>: -74.5558, lm() <U+03B2><U+2080>: -74.5558
-```
-
-``` r
-cat(sprintf("Manual β₁: %.4f, lm() β₁: %.4f\n", beta_1, coef(model)[2]))
-```
-
-```
-## Manual <U+03B2><U+2081>: 0.9225, lm() <U+03B2><U+2081>: 0.9225
+## 
+## Manual β₀: -74.5558, lm() β₀: -74.5558
+## Manual β₁: 0.9225, lm() β₁: 0.9225
 ```
 
 ### 12.4.4 Interpreting the Coefficients
@@ -287,65 +231,25 @@ cat(sprintf("Manual β₁: %.4f, lm() β₁: %.4f\n", beta_1, coef(model)[2]))
 
 ``` r
 cat("Interpretation of Coefficients\n")
-```
-
-```
-## Interpretation of Coefficients
-```
-
-``` r
 cat("==============================\n\n")
-```
-
-```
-## ==============================
-```
-
-``` r
 cat(sprintf("Intercept (β₀ = %.2f):\n", coef(model)[1]))
-```
-
-```
-## Intercept (<U+03B2><U+2080> = -74.56):
-```
-
-``` r
 cat("  The predicted weight when height is 0 cm.\n")
-```
-
-```
-##   The predicted weight when height is 0 cm.
-```
-
-``` r
 cat("  (Not meaningful here—extrapolation beyond data range)\n\n")
-```
-
-```
-##   (Not meaningful here<U+2014>extrapolation beyond data range)
-```
-
-``` r
 cat(sprintf("Slope (β₁ = %.3f):\n", coef(model)[2]))
-```
-
-```
-## Slope (<U+03B2><U+2081> = 0.922):
-```
-
-``` r
 cat(sprintf("  For every 1 cm increase in height,\n"))
-```
-
-```
-##   For every 1 cm increase in height,
-```
-
-``` r
 cat(sprintf("  weight increases by %.3f kg on average.\n", coef(model)[2]))
 ```
 
 ```
+## Interpretation of Coefficients
+## ==============================
+## 
+## Intercept (β₀ = -74.56):
+##   The predicted weight when height is 0 cm.
+##   (Not meaningful here—extrapolation beyond data range)
+## 
+## Slope (β₁ = 0.922):
+##   For every 1 cm increase in height,
 ##   weight increases by 0.922 kg on average.
 ```
 
@@ -384,75 +288,30 @@ se_beta1 <- sqrt(var_beta1)
 se_beta0 <- sqrt(var_beta0)
 
 cat("Standard Errors of Estimates\n")
-```
-
-```
-## Standard Errors of Estimates
-```
-
-``` r
 cat("============================\n\n")
-```
-
-```
-## ============================
-```
-
-``` r
 cat(sprintf("Residual Sum of Squares (RSS) = %.2f\n", RSS))
-```
-
-```
-## Residual Sum of Squares (RSS) = 159951.58
-```
-
-``` r
 cat(sprintf("Degrees of Freedom = n - 2 = %d\n", n - 2))
-```
-
-```
-## Degrees of Freedom = n - 2 = 498
-```
-
-``` r
 cat(sprintf("Mean Square Error (MSE) = %.4f\n\n", MSE))
-```
-
-```
-## Mean Square Error (MSE) = 321.1879
-```
-
-``` r
 cat(sprintf("SE(β₁) = √(MSE/S_xx) = %.4f\n", se_beta1))
-```
-
-```
-## SE(<U+03B2><U+2081>) = <U+221A>(MSE/S_xx) = 0.0794
-```
-
-``` r
 cat(sprintf("SE(β₀) = √(MSE(1/n + x̄²/S_xx)) = %.4f\n", se_beta0))
-```
 
-```
-## SE(<U+03B2><U+2080>) = <U+221A>(MSE(1/n + x<U+0304><U+00B2>/S_xx)) = 13.4287
-```
-
-``` r
 # Compare with summary output
 cat("\nCompare with summary(model):\n")
-```
-
-```
-## 
-## Compare with summary(model):
-```
-
-``` r
 print(summary(model)$coefficients[, 1:2])
 ```
 
 ```
+## Standard Errors of Estimates
+## ============================
+## 
+## Residual Sum of Squares (RSS) = 159951.58
+## Degrees of Freedom = n - 2 = 498
+## Mean Square Error (MSE) = 321.1879
+## 
+## SE(β₁) = √(MSE/S_xx) = 0.0794
+## SE(β₀) = √(MSE(1/n + x̄²/S_xx)) = 13.4287
+## 
+## Compare with summary(model):
 ##                Estimate  Std. Error
 ## (Intercept) -74.5557691 13.42872011
 ## Height        0.9224622  0.07939612
@@ -479,62 +338,14 @@ t_stat <- coef(model)[2] / se_beta1
 p_value <- 2 * pt(-abs(t_stat), df = n - 2)
 
 cat("Hypothesis Test for Slope\n")
-```
-
-```
-## Hypothesis Test for Slope
-```
-
-``` r
 cat("=========================\n\n")
-```
-
-```
-## =========================
-```
-
-``` r
 cat("H₀: β₁ = 0 (no linear relationship)\n")
-```
-
-```
-## H<U+2080>: <U+03B2><U+2081> = 0 (no linear relationship)
-```
-
-``` r
 cat("H₁: β₁ ≠ 0 (linear relationship exists)\n\n")
-```
-
-```
-## H<U+2081>: <U+03B2><U+2081> <U+2260> 0 (linear relationship exists)
-```
-
-``` r
 cat(sprintf("Test statistic: t = %.3f / %.4f = %.3f\n",
             coef(model)[2], se_beta1, t_stat))
-```
-
-```
-## Test statistic: t = 0.922 / 0.0794 = 11.618
-```
-
-``` r
 cat(sprintf("Degrees of freedom: %d\n", n - 2))
-```
-
-```
-## Degrees of freedom: 498
-```
-
-``` r
 cat(sprintf("p-value: %.2e\n\n", p_value))
-```
 
-```
-## p-value: 8.87e-28
-```
-
-``` r
 if (p_value < 0.05) {
     cat("Conclusion: Reject H₀. There is significant evidence of a\n")
     cat("           linear relationship between height and weight.\n")
@@ -542,7 +353,17 @@ if (p_value < 0.05) {
 ```
 
 ```
-## Conclusion: Reject H<U+2080>. There is significant evidence of a
+## Hypothesis Test for Slope
+## =========================
+## 
+## H₀: β₁ = 0 (no linear relationship)
+## H₁: β₁ ≠ 0 (linear relationship exists)
+## 
+## Test statistic: t = 0.922 / 0.0794 = 11.618
+## Degrees of freedom: 498
+## p-value: 8.87e-28
+## 
+## Conclusion: Reject H₀. There is significant evidence of a
 ##            linear relationship between height and weight.
 ```
 
@@ -569,74 +390,30 @@ ci_beta0 <- c(
 )
 
 cat("95% Confidence Intervals\n")
-```
-
-```
-## 95% Confidence Intervals
-```
-
-``` r
 cat("========================\n\n")
-```
-
-```
-## ========================
-```
-
-``` r
 cat(sprintf("For slope (β₁):\n"))
-```
-
-```
-## For slope (<U+03B2><U+2081>):
-```
-
-``` r
 cat(sprintf("  %.4f ± %.3f × %.4f\n", coef(model)[2], t_crit, se_beta1))
-```
-
-```
-##   0.9225 <U+00B1> 1.965 <U+00D7> 0.0794
-```
-
-``` r
 cat(sprintf("  (%.4f, %.4f)\n\n", ci_beta1[1], ci_beta1[2]))
-```
-
-```
-##   (0.7665, 1.0785)
-```
-
-``` r
 cat(sprintf("For intercept (β₀):\n"))
-```
-
-```
-## For intercept (<U+03B2><U+2080>):
-```
-
-``` r
 cat(sprintf("  (%.4f, %.4f)\n\n", ci_beta0[1], ci_beta0[2]))
-```
 
-```
-##   (-100.9397, -48.1718)
-```
-
-``` r
 # Compare with confint()
 cat("Compare with confint(model):\n")
-```
-
-```
-## Compare with confint(model):
-```
-
-``` r
 print(confint(model))
 ```
 
 ```
+## 95% Confidence Intervals
+## ========================
+## 
+## For slope (β₁):
+##   0.9225 ± 1.965 × 0.0794
+##   (0.7665, 1.0785)
+## 
+## For intercept (β₀):
+##   (-100.9397, -48.1718)
+## 
+## Compare with confint(model):
 ##                    2.5 %     97.5 %
 ## (Intercept) -100.9396990 -48.171839
 ## Height         0.7664696   1.078455
@@ -711,82 +488,32 @@ R_squared <- SSR / SST
 R_squared_alt <- 1 - SSE / SST
 
 cat("Partitioning Variance\n")
-```
-
-```
-## Partitioning Variance
-```
-
-``` r
 cat("=====================\n\n")
-```
-
-```
-## =====================
-```
-
-``` r
 cat(sprintf("Total Sum of Squares (SST) = %.2f\n", SST))
-```
-
-```
-## Total Sum of Squares (SST) = 203308.43
-```
-
-``` r
 cat(sprintf("Regression Sum of Squares (SSR) = %.2f\n", SSR))
-```
-
-```
-## Regression Sum of Squares (SSR) = 43356.85
-```
-
-``` r
 cat(sprintf("Error Sum of Squares (SSE) = %.2f\n\n", SSE))
-```
-
-```
-## Error Sum of Squares (SSE) = 159951.58
-```
-
-``` r
 cat(sprintf("R² = SSR/SST = %.2f/%.2f = %.4f\n", SSR, SST, R_squared))
-```
-
-```
-## R<U+00B2> = SSR/SST = 43356.85/203308.43 = 0.2133
-```
-
-``` r
 cat(sprintf("R² = 1 - SSE/SST = 1 - %.2f/%.2f = %.4f\n\n", SSE, SST, R_squared_alt))
-```
-
-```
-## R<U+00B2> = 1 - SSE/SST = 1 - 159951.58/203308.43 = 0.2133
-```
-
-``` r
 cat(sprintf("Interpretation: Height explains %.1f%% of the\n", R_squared * 100))
-```
-
-```
-## Interpretation: Height explains 21.3% of the
-```
-
-``` r
 cat("               variation in weight.\n")
-```
 
-```
-##                variation in weight.
-```
-
-``` r
 # Compare with summary
 cat(sprintf("\nsummary(model)$r.squared: %.4f\n", summary(model)$r.squared))
 ```
 
 ```
+## Partitioning Variance
+## =====================
+## 
+## Total Sum of Squares (SST) = 203308.43
+## Regression Sum of Squares (SSR) = 43356.85
+## Error Sum of Squares (SSE) = 159951.58
+## 
+## R² = SSR/SST = 43356.85/203308.43 = 0.2133
+## R² = 1 - SSE/SST = 1 - 159951.58/203308.43 = 0.2133
+## 
+## Interpretation: Height explains 21.3% of the
+##                variation in weight.
 ## 
 ## summary(model)$r.squared: 0.2133
 ```
@@ -799,26 +526,14 @@ For simple linear regression, $R^2 = r^2$, where $r$ is the Pearson correlation:
 ``` r
 r <- cor(sample_data$Height, sample_data$Weight)
 cat(sprintf("Pearson correlation r = %.4f\n", r))
-```
-
-```
-## Pearson correlation r = 0.4618
-```
-
-``` r
 cat(sprintf("r² = %.4f\n", r^2))
-```
-
-```
-## r<U+00B2> = 0.2133
-```
-
-``` r
 cat(sprintf("R² from regression = %.4f\n", summary(model)$r.squared))
 ```
 
 ```
-## R<U+00B2> from regression = 0.2133
+## Pearson correlation r = 0.4618
+## r² = 0.2133
+## R² from regression = 0.2133
 ```
 
 ### 12.7.4 Visualising R²
@@ -870,74 +585,29 @@ F_stat <- MSR / MSE
 p_value_F <- pf(F_stat, df1 = 1, df2 = n - 2, lower.tail = FALSE)
 
 cat("ANOVA Table for Regression\n")
-```
-
-```
-## ANOVA Table for Regression
-```
-
-``` r
 cat("==========================\n\n")
-```
-
-```
-## ==========================
-```
-
-``` r
 cat("Source      df        SS          MS         F       p-value\n")
-```
-
-```
-## Source      df        SS          MS         F       p-value
-```
-
-``` r
 cat("--------------------------------------------------------------\n")
-```
-
-```
-## --------------------------------------------------------------
-```
-
-``` r
 cat(sprintf("Regression   1  %10.2f  %10.2f  %8.2f  %.2e\n", SSR, MSR, F_stat, p_value_F))
-```
-
-```
-## Regression   1    43356.85    43356.85    134.99  8.87e-28
-```
-
-``` r
 cat(sprintf("Error      %3d  %10.2f  %10.2f\n", n-2, SSE, MSE))
-```
-
-```
-## Error      498   159951.58      321.19
-```
-
-``` r
 cat(sprintf("Total      %3d  %10.2f\n\n", n-1, SST))
-```
 
-```
-## Total      499   203308.43
-```
-
-``` r
 # Compare with anova()
 cat("Compare with anova(model):\n")
-```
-
-```
-## Compare with anova(model):
-```
-
-``` r
 print(anova(model))
 ```
 
 ```
+## ANOVA Table for Regression
+## ==========================
+## 
+## Source      df        SS          MS         F       p-value
+## --------------------------------------------------------------
+## Regression   1    43356.85    43356.85    134.99  8.87e-28
+## Error      498   159951.58      321.19
+## Total      499   203308.43
+## 
+## Compare with anova(model):
 ## Analysis of Variance Table
 ## 
 ## Response: Weight
@@ -960,41 +630,19 @@ t_value <- summary(model)$coefficients[2, 3]
 F_value <- anova(model)[1, 4]
 
 cat("Relationship between t and F statistics\n")
-```
-
-```
-## Relationship between t and F statistics
-```
-
-``` r
 cat("=======================================\n\n")
-```
-
-```
-## =======================================
-```
-
-``` r
 cat(sprintf("t-statistic for slope: %.4f\n", t_value))
-```
-
-```
-## t-statistic for slope: 11.6185
-```
-
-``` r
 cat(sprintf("t² = %.4f\n\n", t_value^2))
-```
-
-```
-## t<U+00B2> = 134.9891
-```
-
-``` r
 cat(sprintf("F-statistic from ANOVA: %.4f\n", F_value))
 ```
 
 ```
+## Relationship between t and F statistics
+## =======================================
+## 
+## t-statistic for slope: 11.6185
+## t² = 134.9891
+## 
 ## F-statistic from ANOVA: 134.9891
 ```
 
@@ -1011,25 +659,14 @@ new_heights <- data.table(Height = c(150, 165, 180, 195))
 new_heights[, predicted_weight := predict(model, newdata = new_heights)]
 
 cat("Predictions for New Observations\n")
-```
-
-```
-## Predictions for New Observations
-```
-
-``` r
 cat("=================================\n\n")
-```
-
-```
-## =================================
-```
-
-``` r
 print(new_heights)
 ```
 
 ```
+## Predictions for New Observations
+## =================================
+## 
 ##    Height predicted_weight
 ##     <num>            <num>
 ## 1:    150         63.81356
@@ -1063,55 +700,27 @@ prediction_table <- cbind(
 )
 
 cat("Confidence and Prediction Intervals\n")
+cat("====================================\n\n")
+print(round(prediction_table, 2))
+
+cat("\nNote: Prediction intervals are always wider than confidence intervals\n")
+cat("      because they account for both uncertainty in the mean AND\n")
+cat("      individual variation around that mean.\n")
 ```
 
 ```
 ## Confidence and Prediction Intervals
-```
-
-``` r
-cat("====================================\n\n")
-```
-
-```
 ## ====================================
-```
-
-``` r
-print(round(prediction_table, 2))
-```
-
-```
+## 
 ##    Height    Fit CI_Lower CI_Upper PI_Lower PI_Upper
 ##     <num>  <num>    <num>    <num>    <num>    <num>
 ## 1:    150  63.81    60.48    67.15    28.44    99.18
 ## 2:    165  77.65    75.97    79.33    42.40   112.90
 ## 3:    180  91.49    89.14    93.84    56.20   126.78
 ## 4:    195 105.32   100.95   109.70    69.84   140.81
-```
-
-``` r
-cat("\nNote: Prediction intervals are always wider than confidence intervals\n")
-```
-
-```
 ## 
 ## Note: Prediction intervals are always wider than confidence intervals
-```
-
-``` r
-cat("      because they account for both uncertainty in the mean AND\n")
-```
-
-```
 ##       because they account for both uncertainty in the mean AND
-```
-
-``` r
-cat("      individual variation around that mean.\n")
-```
-
-```
 ##       individual variation around that mean.
 ```
 
@@ -1171,118 +780,50 @@ When reporting regression results:
 model_summary <- summary(model)
 
 cat("Example Results Write-Up\n")
-```
-
-```
-## Example Results Write-Up
-```
-
-``` r
 cat("========================\n\n")
-```
 
-```
-## ========================
-```
-
-``` r
 cat("Research Question: Does height predict weight in adults?\n\n")
-```
 
-```
-## Research Question: Does height predict weight in adults?
-```
-
-``` r
 cat("We examined the relationship between height and weight using simple\n")
-```
-
-```
-## We examined the relationship between height and weight using simple
-```
-
-``` r
 cat("linear regression. The analysis included", n, "adults from the NHANES\n")
-```
-
-```
-## linear regression. The analysis included 500 adults from the NHANES
-```
-
-``` r
 cat("dataset.\n\n")
-```
 
-```
-## dataset.
-```
-
-``` r
 cat("Results:\n")
-```
-
-```
-## Results:
-```
-
-``` r
 cat(sprintf("The regression equation is:\n"))
-```
-
-```
-## The regression equation is:
-```
-
-``` r
 cat(sprintf("  Weight = %.2f + %.3f × Height\n\n", coef(model)[1], coef(model)[2]))
-```
 
-```
-##   Weight = -74.56 + 0.922 <U+00D7> Height
-```
-
-``` r
 cat(sprintf("Height was a significant predictor of weight (β = %.3f, \n", coef(model)[2]))
-```
-
-```
-## Height was a significant predictor of weight (<U+03B2> = 0.922,
-```
-
-``` r
 cat(sprintf("95%% CI [%.3f, %.3f], t(%d) = %.2f, p < .001).\n\n",
             confint(model)[2, 1], confint(model)[2, 2],
             n - 2, model_summary$coefficients[2, 3]))
-```
 
-```
-## 95% CI [0.766, 1.078], t(498) = 11.62, p < .001).
-```
-
-``` r
 cat(sprintf("For every 1 cm increase in height, weight increased by %.2f kg\n", coef(model)[2]))
-```
-
-```
-## For every 1 cm increase in height, weight increased by 0.92 kg
-```
-
-``` r
 cat(sprintf("on average. The model explained %.1f%% of the variance in weight\n",
             model_summary$r.squared * 100))
-```
-
-```
-## on average. The model explained 21.3% of the variance in weight
-```
-
-``` r
 cat(sprintf("(R² = %.3f, F(1, %d) = %.1f, p < .001).\n",
             model_summary$r.squared, n - 2, model_summary$fstatistic[1]))
 ```
 
 ```
-## (R<U+00B2> = 0.213, F(1, 498) = 135.0, p < .001).
+## Example Results Write-Up
+## ========================
+## 
+## Research Question: Does height predict weight in adults?
+## 
+## We examined the relationship between height and weight using simple
+## linear regression. The analysis included 500 adults from the NHANES
+## dataset.
+## 
+## Results:
+## The regression equation is:
+##   Weight = -74.56 + 0.922 × Height
+## 
+## Height was a significant predictor of weight (β = 0.922, 
+## 95% CI [0.766, 1.078], t(498) = 11.62, p < .001).
+## 
+## For every 1 cm increase in height, weight increased by 0.92 kg
+## on average. The model explained 21.3% of the variance in weight
+## (R² = 0.213, F(1, 498) = 135.0, p < .001).
 ```
 
 ### 12.10.2 Cautions and Limitations

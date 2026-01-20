@@ -41,11 +41,14 @@ diabetes_data <- nhanes[!is.na(Diabetes) & !is.na(BMI) & !is.na(Age) & !is.na(Ge
 diabetes_data <- diabetes_data[complete.cases(diabetes_data)]
 
 cat("Data prepared:\n")
-#> Data prepared:
 cat("  Sample size:", nrow(diabetes_data), "\n")
-#>   Sample size: 7150
 cat("  Diabetes cases:", sum(diabetes_data$diabetes), "(",
     round(100 * mean(diabetes_data$diabetes), 1), "%)\n")
+```
+
+```
+#> Data prepared:
+#>   Sample size: 7150 
 #>   Diabetes cases: 716 ( 10 %)
 ```
 
@@ -82,9 +85,7 @@ model_two <- glm(diabetes ~ Age + BMI, data = diabetes_data, family = binomial)
 model_full <- glm(diabetes ~ Age + BMI + Gender + SBP, data = diabetes_data, family = binomial)
 
 cat("Model Comparison by Deviance:\n")
-#> Model Comparison by Deviance:
 cat("=============================\n\n")
-#> =============================
 
 models <- list(
     "Null (intercept only)" = model_null,
@@ -104,6 +105,12 @@ deviance_table[, Deviance_Reduction := c(NA, -diff(Deviance))]
 print(deviance_table[, .(Model, Deviance = round(Deviance, 1),
                          DF = DF_Residual, AIC = round(AIC, 1),
                          Reduction = round(Deviance_Reduction, 1))])
+```
+
+```
+#> Model Comparison by Deviance:
+#> =============================
+#> 
 #>                    Model Deviance    DF    AIC Reduction
 #>                   <char>    <num> <int>  <num>     <num>
 #> 1: Null (intercept only)   4653.1  7149 4655.1        NA
@@ -129,30 +136,35 @@ where $df$ = difference in number of parameters.
 
 ``` r
 cat("Likelihood Ratio Tests:\n")
-#> Likelihood Ratio Tests:
 cat("=======================\n\n")
-#> =======================
 
 # Test: Does BMI add to Age?
 lrt_bmi <- anova(model_age, model_two, test = "Chisq")
 cat("Test: Age vs Age + BMI\n")
-#> Test: Age vs Age + BMI
 cat("  Chi-square:", round(lrt_bmi$Deviance[2], 2), "\n")
-#>   Chi-square: 282.94
 cat("  df:", lrt_bmi$Df[2], "\n")
-#>   df: 1
 cat("  p-value:", format.pval(lrt_bmi$`Pr(>Chi)`[2]), "\n\n")
-#>   p-value: < 2.22e-16
 
 # Test: Full model vs Age + BMI
 lrt_full <- anova(model_two, model_full, test = "Chisq")
 cat("Test: Age + BMI vs Full model\n")
-#> Test: Age + BMI vs Full model
 cat("  Chi-square:", round(lrt_full$Deviance[2], 2), "\n")
-#>   Chi-square: 26.07
 cat("  df:", lrt_full$Df[2], "\n")
-#>   df: 2
 cat("  p-value:", format.pval(lrt_full$`Pr(>Chi)`[2]), "\n")
+```
+
+```
+#> Likelihood Ratio Tests:
+#> =======================
+#> 
+#> Test: Age vs Age + BMI
+#>   Chi-square: 282.94 
+#>   df: 1 
+#>   p-value: < 2.22e-16 
+#> 
+#> Test: Age + BMI vs Full model
+#>   Chi-square: 26.07 
+#>   df: 2 
 #>   p-value: 2.1801e-06
 ```
 
@@ -166,9 +178,7 @@ There's no perfect analogue to R² in logistic regression, but several *pseudo-R
 ``` r
 # Calculate various pseudo-R² measures
 cat("Pseudo-R² Measures:\n")
-#> Pseudo-R<U+00B2> Measures:
 cat("===================\n\n")
-#> ===================
 
 n <- nrow(diabetes_data)
 
@@ -184,18 +194,26 @@ cox_snell_r2 <- 1 - exp((2/n) * (loglik_null - loglik_full))
 nagelkerke_r2 <- cox_snell_r2 / (1 - exp((2/n) * loglik_null))
 
 cat("McFadden's R²:", round(as.numeric(mcfadden_r2), 4), "\n")
-#> McFadden's R<U+00B2>: 0.1775
 cat("  - Values 0.2-0.4 indicate excellent fit\n\n")
-#>   - Values 0.2-0.4 indicate excellent fit
 
 cat("Cox & Snell R²:", round(as.numeric(cox_snell_r2), 4), "\n")
-#> Cox & Snell R<U+00B2>: 0.1091
 cat("  - Maximum < 1, hard to interpret\n\n")
-#>   - Maximum < 1, hard to interpret
 
 cat("Nagelkerke's R²:", round(as.numeric(nagelkerke_r2), 4), "\n")
-#> Nagelkerke's R<U+00B2>: 0.2281
 cat("  - Adjusted to have max = 1\n")
+```
+
+```
+#> Pseudo-R² Measures:
+#> ===================
+#> 
+#> McFadden's R²: 0.1775 
+#>   - Values 0.2-0.4 indicate excellent fit
+#> 
+#> Cox & Snell R²: 0.1091 
+#>   - Maximum < 1, hard to interpret
+#> 
+#> Nagelkerke's R²: 0.2281 
 #>   - Adjusted to have max = 1
 ```
 
@@ -224,14 +242,8 @@ confusion_at_threshold <- function(actual, predicted_prob, threshold) {
 cm_50 <- confusion_at_threshold(diabetes_data$diabetes, diabetes_data$pred_prob, 0.5)
 
 cat("Confusion Matrix (threshold = 0.5):\n")
-#> Confusion Matrix (threshold = 0.5):
 cat("====================================\n\n")
-#> ====================================
 print(cm_50)
-#>          Actual
-#> Predicted    0    1
-#>         0 6399  683
-#>         1   35   33
 
 # Calculate metrics
 tn <- cm_50[1, 1]
@@ -240,17 +252,27 @@ fn <- cm_50[1, 2]
 tp <- cm_50[2, 2]
 
 cat("\nPerformance Metrics:\n")
+cat("  Accuracy:", round((tp + tn) / sum(cm_50), 4), "\n")
+cat("  Sensitivity (Recall):", round(tp / (tp + fn), 4), "\n")
+cat("  Specificity:", round(tn / (tn + fp), 4), "\n")
+cat("  Precision (PPV):", round(tp / (tp + fp), 4), "\n")
+cat("  NPV:", round(tn / (tn + fn), 4), "\n")
+```
+
+```
+#> Confusion Matrix (threshold = 0.5):
+#> ====================================
+#> 
+#>          Actual
+#> Predicted    0    1
+#>         0 6399  683
+#>         1   35   33
 #> 
 #> Performance Metrics:
-cat("  Accuracy:", round((tp + tn) / sum(cm_50), 4), "\n")
-#>   Accuracy: 0.8996
-cat("  Sensitivity (Recall):", round(tp / (tp + fn), 4), "\n")
-#>   Sensitivity (Recall): 0.0461
-cat("  Specificity:", round(tn / (tn + fp), 4), "\n")
-#>   Specificity: 0.9946
-cat("  Precision (PPV):", round(tp / (tp + fp), 4), "\n")
-#>   Precision (PPV): 0.4853
-cat("  NPV:", round(tn / (tn + fn), 4), "\n")
+#>   Accuracy: 0.8996 
+#>   Sensitivity (Recall): 0.0461 
+#>   Specificity: 0.9946 
+#>   Precision (PPV): 0.4853 
 #>   NPV: 0.9036
 ```
 
@@ -342,16 +364,12 @@ roc_sorted <- roc_data[order(FPR)]
 auc <- sum(diff(roc_sorted$FPR) * (head(roc_sorted$TPR, -1) + tail(roc_sorted$TPR, -1)) / 2)
 
 cat("AUC Calculation:\n")
-#> AUC Calculation:
 cat("================\n\n")
-#> ================
 cat("Area Under ROC Curve:", round(auc, 4), "\n")
-#> Area Under ROC Curve: 0.7065
 cat("Interpretation: ",
     ifelse(auc >= 0.9, "Outstanding",
     ifelse(auc >= 0.8, "Excellent",
     ifelse(auc >= 0.7, "Acceptable", "Poor"))), " discrimination\n", sep = "")
-#> Interpretation: Acceptable discrimination
 
 # Plot ROC curve
 ggplot2$ggplot(roc_data, ggplot2$aes(x = FPR, y = TPR)) +
@@ -373,6 +391,14 @@ ggplot2$ggplot(roc_data, ggplot2$aes(x = FPR, y = TPR)) +
 <Figure src="/courses/statistics-2-intermediate/roc_curve-1.png" alt="ROC curve shows model discrimination across all thresholds">
 	ROC curve shows model discrimination across all thresholds
 </Figure>
+
+```
+#> AUC Calculation:
+#> ================
+#> 
+#> Area Under ROC Curve: 0.7065 
+#> Interpretation: Acceptable discrimination
+```
 
 ### 4.7.4 Comparing Models with ROC
 
@@ -421,15 +447,10 @@ auc_two <- calc_auc(roc_two)
 auc_full <- calc_auc(roc_full)
 
 cat("Model Comparison by AUC:\n")
-#> Model Comparison by AUC:
 cat("========================\n\n")
-#> ========================
 cat("Age only:    AUC =", round(auc_age, 4), "\n")
-#> Age only:    AUC = 0.7586
 cat("Age + BMI:   AUC =", round(auc_two, 4), "\n")
-#> Age + BMI:   AUC = 0.805
 cat("Full model:  AUC =", round(auc_full, 4), "\n")
-#> Full model:  AUC = 0.8092
 
 # Plot comparison
 ggplot2$ggplot(roc_all, ggplot2$aes(x = FPR, y = TPR, colour = Model)) +
@@ -455,6 +476,15 @@ ggplot2$ggplot(roc_all, ggplot2$aes(x = FPR, y = TPR, colour = Model)) +
 <Figure src="/courses/statistics-2-intermediate/roc_comparison-1.png" alt="ROC curves allow visual comparison of model discrimination">
 	ROC curves allow visual comparison of model discrimination
 </Figure>
+
+```
+#> Model Comparison by AUC:
+#> ========================
+#> 
+#> Age only:    AUC = 0.7586 
+#> Age + BMI:   AUC = 0.805 
+#> Full model:  AUC = 0.8092
+```
 
 ---
 
@@ -484,25 +514,11 @@ calibration <- diabetes_data[, .(
 ), by = prob_decile]
 
 cat("Calibration by Decile:\n")
-#> Calibration by Decile:
 cat("======================\n\n")
-#> ======================
 print(calibration[, .(Decile = prob_decile,
                       Predicted = round(Mean_Predicted, 3),
                       Observed = round(Observed_Rate, 3),
                       N = N)])
-#>     Decile Predicted Observed     N
-#>      <int>     <num>    <num> <int>
-#>  1:      5     0.048    0.034   715
-#>  2:      6     0.069    0.070   715
-#>  3:      4     0.034    0.021   715
-#>  4:      8     0.139    0.198   717
-#>  5:      7     0.097    0.112   715
-#>  6:      9     0.207    0.213   713
-#>  7:      1     0.007    0.001   715
-#>  8:      2     0.014    0.018   716
-#>  9:      3     0.023    0.011   714
-#> 10:     10     0.363    0.323   715
 
 # Calibration plot
 ggplot2$ggplot(calibration, ggplot2$aes(x = Mean_Predicted, y = Observed_Rate)) +
@@ -524,6 +540,24 @@ ggplot2$ggplot(calibration, ggplot2$aes(x = Mean_Predicted, y = Observed_Rate)) 
 <Figure src="/courses/statistics-2-intermediate/calibration_plot-1.png" alt="Calibration plot compares predicted and observed event rates">
 	Calibration plot compares predicted and observed event rates
 </Figure>
+
+```
+#> Calibration by Decile:
+#> ======================
+#> 
+#>     Decile Predicted Observed     N
+#>      <int>     <num>    <num> <int>
+#>  1:      5     0.048    0.034   715
+#>  2:      6     0.069    0.070   715
+#>  3:      4     0.034    0.021   715
+#>  4:      8     0.139    0.198   717
+#>  5:      7     0.097    0.112   715
+#>  6:      9     0.207    0.213   713
+#>  7:      1     0.007    0.001   715
+#>  8:      2     0.014    0.018   716
+#>  9:      3     0.023    0.011   714
+#> 10:     10     0.363    0.323   715
+```
 
 ### 4.8.3 Hosmer-Lemeshow Test
 
@@ -551,21 +585,26 @@ hl_df <- nrow(hl_data) - 2  # g - 2 degrees of freedom
 hl_pvalue <- pchisq(hl_stat, df = hl_df, lower.tail = FALSE)
 
 cat("Hosmer-Lemeshow Test:\n")
-#> Hosmer-Lemeshow Test:
 cat("=====================\n\n")
-#> =====================
 cat("Chi-square statistic:", round(hl_stat, 2), "\n")
-#> Chi-square statistic: 43.72
 cat("Degrees of freedom:", hl_df, "\n")
-#> Degrees of freedom: 8
 cat("P-value:", round(hl_pvalue, 4), "\n\n")
-#> P-value: 0
 
 if (hl_pvalue > 0.05) {
     cat("Result: Fail to reject H0 - no evidence of poor calibration\n")
 } else {
     cat("Result: Reject H0 - evidence of miscalibration\n")
 }
+```
+
+```
+#> Hosmer-Lemeshow Test:
+#> =====================
+#> 
+#> Chi-square statistic: 43.72 
+#> Degrees of freedom: 8 
+#> P-value: 0 
+#> 
 #> Result: Reject H0 - evidence of miscalibration
 ```
 
@@ -609,6 +648,9 @@ p1 <- ggplot2$ggplot(diabetes_data, ggplot2$aes(x = linear_pred, y = deviance_re
     ggplot2$theme_minimal()
 
 print(p1)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -652,10 +694,12 @@ print(p_influence)
 </Figure>
 
 ``` r
-
 # Summary of influential points
 n_influential <- sum(diabetes_data$cooks_d > 4/nrow(diabetes_data))
 cat("\nInfluential Observations (Cook's D > 4/n):", n_influential, "\n")
+```
+
+```
 #> 
 #> Influential Observations (Cook's D > 4/n): 668
 ```
@@ -686,18 +730,12 @@ model_bc <- glm(diagnosis ~ mean_radius + mean_texture + mean_concavity,
 bc_data[, pred_prob := predict(model_bc, type = "response")]
 
 cat("Breast Cancer Classification Assessment:\n")
-#> Breast Cancer Classification Assessment:
 cat("=========================================\n\n")
-#> =========================================
 
 # Confusion matrix at 0.5
 bc_data[, pred_class := as.integer(pred_prob > 0.5)]
 cm_bc <- table(Predicted = bc_data$pred_class, Actual = bc_data$diagnosis)
 print(cm_bc)
-#>          Actual
-#> Predicted   0   1
-#>         0 339  27
-#>         1  18 185
 
 # Metrics
 tp <- cm_bc["1", "1"]
@@ -706,21 +744,31 @@ fp <- cm_bc["1", "0"]
 fn <- cm_bc["0", "1"]
 
 cat("\nPerformance Metrics:\n")
-#> 
-#> Performance Metrics:
 cat("  Accuracy:", round((tp + tn) / sum(cm_bc), 4), "\n")
-#>   Accuracy: 0.9209
 cat("  Sensitivity:", round(tp / (tp + fn), 4), "\n")
-#>   Sensitivity: 0.8726
 cat("  Specificity:", round(tn / (tn + fp), 4), "\n")
-#>   Specificity: 0.9496
 cat("  PPV:", round(tp / (tp + fp), 4), "\n")
-#>   PPV: 0.9113
 
 # ROC and AUC
 roc_bc <- calc_roc(bc_data$diagnosis, bc_data$pred_prob)
 auc_bc <- calc_auc(roc_bc)
 cat("\n  AUC:", round(auc_bc, 4), "\n")
+```
+
+```
+#> Breast Cancer Classification Assessment:
+#> =========================================
+#> 
+#>          Actual
+#> Predicted   0   1
+#>         0 339  27
+#>         1  18 185
+#> 
+#> Performance Metrics:
+#>   Accuracy: 0.9209 
+#>   Sensitivity: 0.8726 
+#>   Specificity: 0.9496 
+#>   PPV: 0.9113 
 #> 
 #>   AUC: 0.9785
 ```

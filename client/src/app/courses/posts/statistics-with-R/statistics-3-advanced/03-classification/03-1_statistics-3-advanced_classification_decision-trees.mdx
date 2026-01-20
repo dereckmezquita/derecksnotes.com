@@ -51,14 +51,17 @@ train_data <- breast_cancer[train_idx]
 test_data <- breast_cancer[-train_idx]
 
 cat("Dataset Summary:\n")
-#> Dataset Summary:
 cat("================\n")
-#> ================
 cat("  Training: n =", nrow(train_data), "\n")
-#>   Training: n = 398
 cat("  Testing:  n =", nrow(test_data), "\n")
-#>   Testing:  n = 171
 cat("  Malignant rate (train):", round(mean(train_data$diagnosis == "M"), 3), "\n")
+```
+
+```
+#> Dataset Summary:
+#> ================
+#>   Training: n = 398 
+#>   Testing:  n = 171 
 #>   Malignant rate (train): 0.384
 ```
 
@@ -230,10 +233,13 @@ tree_full <- rpart(
 )
 
 cat("Full Tree Summary:\n")
-#> Full Tree Summary:
 cat("==================\n")
-#> ==================
 print(tree_full)
+```
+
+```
+#> Full Tree Summary:
+#> ==================
 #> n= 398 
 #> 
 #> node), split, n, loss, yval, (yprob)
@@ -282,23 +288,17 @@ Let's trace through how the algorithm chooses splits:
 ``` r
 # Examine the first split (root node)
 cat("Root Node Split Selection:\n")
-#> Root Node Split Selection:
 cat("==========================\n\n")
-#> ==========================
 
 # Calculate Gini impurity before split
 p_malignant <- mean(train_data$diagnosis == "M")
 gini_before <- 2 * p_malignant * (1 - p_malignant)
 cat("Before split:\n")
-#> Before split:
 cat("  P(Malignant) =", round(p_malignant, 3), "\n")
-#>   P(Malignant) = 0.384
 cat("  Gini impurity =", round(gini_before, 4), "\n\n")
-#>   Gini impurity = 0.4733
 
 # Examine several potential splits
 cat("Candidate splits and weighted Gini after split:\n")
-#> Candidate splits and weighted Gini after split:
 candidate_features <- c("mean_radius", "mean_concave_points", "mean_area")
 
 for (feat in candidate_features) {
@@ -335,6 +335,17 @@ for (feat in candidate_features) {
     cat(sprintf("  %s <= %.2f: weighted Gini = %.4f, reduction = %.4f\n",
                 feat, best_thresh, best_gini, gini_before - best_gini))
 }
+```
+
+```
+#> Root Node Split Selection:
+#> ==========================
+#> 
+#> Before split:
+#>   P(Malignant) = 0.384 
+#>   Gini impurity = 0.4733 
+#> 
+#> Candidate splits and weighted Gini after split:
 #>   mean_radius <= 15.13: weighted Gini = 0.1971, reduction = 0.2762
 #>   mean_concave_points <= 0.05: weighted Gini = 0.1458, reduction = 0.3274
 #>   mean_area <= 712.70: weighted Gini = 0.1889, reduction = 0.2844
@@ -373,17 +384,8 @@ setnames(cp_table, old = names(cp_table),
          new = c("cp", "nsplit", "rel_error", "xerror", "xstd"))
 
 cat("Complexity Parameter Table:\n")
-#> Complexity Parameter Table:
 cat("===========================\n")
-#> ===========================
 print(cp_table)
-#>             cp nsplit  rel_error    xerror       xstd
-#>          <num>  <num>      <num>     <num>      <num>
-#> 1: 0.803921569      0 1.00000000 1.0000000 0.06343016
-#> 2: 0.045751634      1 0.19607843 0.2156863 0.03595592
-#> 3: 0.019607843      2 0.15032680 0.1699346 0.03221997
-#> 4: 0.009803922      5 0.09150327 0.1764706 0.03278958
-#> 5: 0.001000000      7 0.07189542 0.1633987 0.03163672
 
 # Plot
 ggplot2$ggplot(cp_table, ggplot2$aes(x = cp)) +
@@ -412,6 +414,18 @@ ggplot2$ggplot(cp_table, ggplot2$aes(x = cp)) +
 	Cross-validation error vs complexity parameter; optimal pruning minimises CV error
 </Figure>
 
+```
+#> Complexity Parameter Table:
+#> ===========================
+#>             cp nsplit  rel_error    xerror       xstd
+#>          <num>  <num>      <num>     <num>      <num>
+#> 1: 0.803921569      0 1.00000000 1.0000000 0.06343016
+#> 2: 0.045751634      1 0.19607843 0.2156863 0.03595592
+#> 3: 0.019607843      2 0.15032680 0.1699346 0.03221997
+#> 4: 0.009803922      5 0.09150327 0.1764706 0.03278958
+#> 5: 0.001000000      7 0.07189542 0.1633987 0.03163672
+```
+
 ### 3.3.2 Pruning the Tree
 
 
@@ -422,25 +436,17 @@ cp_threshold <- min_error_row$xerror + min_error_row$xstd
 optimal_cp <- cp_table[xerror <= cp_threshold, max(cp)]
 
 cat("Pruning Decision:\n")
-#> Pruning Decision:
 cat("=================\n")
-#> =================
 cat("  Minimum CV error:", round(min(cp_table$xerror), 4), "\n")
-#>   Minimum CV error: 0.1634
 cat("  1-SE threshold:", round(cp_threshold, 4), "\n")
-#>   1-SE threshold: 0.195
 cat("  Optimal cp:", optimal_cp, "\n")
-#>   Optimal cp: 0.01960784
 
 # Prune
 tree_pruned <- prune(tree_full, cp = optimal_cp)
 
 # Compare
 cat("\n  Full tree leaves:", sum(tree_full$frame$var == "<leaf>"), "\n")
-#> 
-#>   Full tree leaves: 8
 cat("  Pruned tree leaves:", sum(tree_pruned$frame$var == "<leaf>"), "\n")
-#>   Pruned tree leaves: 3
 
 # Plot pruned tree
 rpart.plot(tree_pruned,
@@ -455,6 +461,17 @@ rpart.plot(tree_pruned,
 <Figure src="/courses/statistics-3-advanced/prune_tree-1.png" alt="Pruned tree retains key splits while removing overfitting branches">
 	Pruned tree retains key splits while removing overfitting branches
 </Figure>
+
+```
+#> Pruning Decision:
+#> =================
+#>   Minimum CV error: 0.1634 
+#>   1-SE threshold: 0.195 
+#>   Optimal cp: 0.01960784 
+#> 
+#>   Full tree leaves: 8 
+#>   Pruned tree leaves: 3
+```
 
 ---
 
@@ -474,12 +491,7 @@ test_data[, prob_malignant := pred_prob[, "Malignant"]]
 # Confusion matrix
 conf_matrix <- table(Actual = test_data$diagnosis_f, Predicted = test_data$pred)
 cat("Confusion Matrix:\n")
-#> Confusion Matrix:
 print(conf_matrix)
-#>            Predicted
-#> Actual      Benign Malignant
-#>   Benign       100        12
-#>   Malignant      7        52
 
 # Metrics
 accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
@@ -487,15 +499,23 @@ sensitivity <- conf_matrix["Malignant", "Malignant"] / sum(conf_matrix["Malignan
 specificity <- conf_matrix["Benign", "Benign"] / sum(conf_matrix["Benign", ])
 
 cat("\nPerformance Metrics:\n")
+cat("====================\n")
+cat("  Accuracy:", round(accuracy, 3), "\n")
+cat("  Sensitivity (recall):", round(sensitivity, 3), "\n")
+cat("  Specificity:", round(specificity, 3), "\n")
+```
+
+```
+#> Confusion Matrix:
+#>            Predicted
+#> Actual      Benign Malignant
+#>   Benign       100        12
+#>   Malignant      7        52
 #> 
 #> Performance Metrics:
-cat("====================\n")
 #> ====================
-cat("  Accuracy:", round(accuracy, 3), "\n")
-#>   Accuracy: 0.889
-cat("  Sensitivity (recall):", round(sensitivity, 3), "\n")
-#>   Sensitivity (recall): 0.881
-cat("  Specificity:", round(specificity, 3), "\n")
+#>   Accuracy: 0.889 
+#>   Sensitivity (recall): 0.881 
 #>   Specificity: 0.893
 ```
 
@@ -617,13 +637,16 @@ bootstrap_trees <- lapply(1:n_bootstraps, function(i) {
 
 # Show which variables are used at root
 cat("Root Node Variable Across Bootstrap Samples:\n")
-#> Root Node Variable Across Bootstrap Samples:
 cat("=============================================\n")
-#> =============================================
 for (i in 1:n_bootstraps) {
     root_var <- bootstrap_trees[[i]]$frame$var[1]
     cat(sprintf("  Bootstrap %d: %s\n", i, root_var))
 }
+```
+
+```
+#> Root Node Variable Across Bootstrap Samples:
+#> =============================================
 #>   Bootstrap 1: mean_concave_points
 #>   Bootstrap 2: mean_concave_points
 #>   Bootstrap 3: mean_concave_points
@@ -721,9 +744,7 @@ extract_rules <- function(tree) {
 
 # Print rules in readable format
 cat("Clinical Decision Rules:\n")
-#> Clinical Decision Rules:
 cat("========================\n\n")
-#> ========================
 
 rules <- extract_rules(tree_pruned)
 for (i in seq_along(rules)) {
@@ -732,6 +753,12 @@ for (i in seq_along(rules)) {
     cat("  IF", paste(rule$conditions, collapse = " AND "), "\n")
     cat("  THEN predict:", rule$prediction, "\n\n")
 }
+```
+
+```
+#> Clinical Decision Rules:
+#> ========================
+#> 
 #> Rule 1 (n = 241):
 #>   IF mean_concave_points < 0.05 
 #>   THEN predict: Benign 

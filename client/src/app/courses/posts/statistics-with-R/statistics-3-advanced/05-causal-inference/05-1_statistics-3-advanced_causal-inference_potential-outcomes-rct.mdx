@@ -59,14 +59,17 @@ trial_data <- data.table(
 )
 
 cat("Simulated Clinical Trial Data\n")
-#> Simulated Clinical Trial Data
 cat("=============================\n")
-#> =============================
 cat("  Subjects:", n_subjects, "\n")
-#>   Subjects: 500
 cat("  True ATE:", true_ate, "mmHg\n")
-#>   True ATE: -10 mmHg
 cat("  Mean baseline BP:", round(mean(baseline_bp), 1), "mmHg\n")
+```
+
+```
+#> Simulated Clinical Trial Data
+#> =============================
+#>   Subjects: 500 
+#>   True ATE: -10 mmHg
 #>   Mean baseline BP: 139.7 mmHg
 ```
 
@@ -114,26 +117,10 @@ demo_display <- demo_subjects[, .(
 )]
 
 cat("Potential Outcomes (We Cannot See All of This!)\n")
-#> Potential Outcomes (We Cannot See All of This!)
 cat("================================================\n")
-#> ================================================
 print(demo_display)
-#>     Subject  Y(0)  Y(1) True Effect
-#>       <int> <num> <num>       <num>
-#>  1:       1   150   152         1.6
-#>  2:       2   153   146        -7.4
-#>  3:       3   132   127        -5.1
-#>  4:       4   149   141        -8.1
-#>  5:       5   123   108       -15.0
-#>  6:       6   140   127       -13.0
-#>  7:       7   132   123        -9.2
-#>  8:       8   116    91       -24.6
-#>  9:       9   130   116       -14.2
-#> 10:      10   136   130        -6.0
 
 cat("\nThe '?' represents the counterfactual we can never observe.\n")
-#> 
-#> The '?' represents the counterfactual we can never observe.
 
 # Visualise the missing data structure
 missing_data <- rbind(
@@ -166,6 +153,25 @@ ggplot2$ggplot(missing_data, ggplot2$aes(x = factor(id), y = value, fill = outco
 	The fundamental problem: we observe only one potential outcome per subject
 </Figure>
 
+```
+#> Potential Outcomes (We Cannot See All of This!)
+#> ================================================
+#>     Subject  Y(0)  Y(1) True Effect
+#>       <int> <num> <num>       <num>
+#>  1:       1   150   152         1.6
+#>  2:       2   153   146        -7.4
+#>  3:       3   132   127        -5.1
+#>  4:       4   149   141        -8.1
+#>  5:       5   123   108       -15.0
+#>  6:       6   140   127       -13.0
+#>  7:       7   132   123        -9.2
+#>  8:       8   116    91       -24.6
+#>  9:       9   130   116       -14.2
+#> 10:      10   136   130        -6.0
+#> 
+#> The '?' represents the counterfactual we can never observe.
+```
+
 ### 5.1.2 Causal Estimands
 
 **Prose and Intuition**
@@ -196,7 +202,6 @@ The expected effect *among those who received control*.
 
 ate <- mean(trial_data$y1 - trial_data$y0)
 cat("True Average Treatment Effect (ATE):", round(ate, 2), "mmHg\n")
-#> True Average Treatment Effect (ATE): -10.22 mmHg
 
 # Now simulate a treatment assignment
 # First: random assignment (we'll compare to biased later)
@@ -208,16 +213,10 @@ att <- mean(trial_data[W == 1]$y1 - trial_data[W == 1]$y0)
 atc <- mean(trial_data[W == 0]$y1 - trial_data[W == 0]$y0)
 
 cat("\nWith Random Assignment:\n")
-#> 
-#> With Random Assignment:
 cat("  ATT (effect on treated):", round(att, 2), "mmHg\n")
-#>   ATT (effect on treated): -10.43 mmHg
 cat("  ATC (effect on controls):", round(atc, 2), "mmHg\n")
-#>   ATC (effect on controls): -9.96 mmHg
 cat("  Expected relationship ATE = P(W=1)*ATT + P(W=0)*ATC:\n")
-#>   Expected relationship ATE = P(W=1)*ATT + P(W=0)*ATC:
 cat("  ", round(mean(trial_data$W) * att + (1 - mean(trial_data$W)) * atc, 2), "mmHg\n")
-#>    -10.22 mmHg
 
 # Visualise heterogeneous effects
 effect_dist <- data.table(
@@ -250,6 +249,16 @@ ggplot2$ggplot(effect_dist, ggplot2$aes(x = effect, fill = treated)) +
 <Figure src="/courses/statistics-3-advanced/estimands-1.png" alt="Different causal estimands answer different questions">
 	Different causal estimands answer different questions
 </Figure>
+
+```
+#> True Average Treatment Effect (ATE): -10.22 mmHg
+#> 
+#> With Random Assignment:
+#>   ATT (effect on treated): -10.43 mmHg
+#>   ATC (effect on controls): -9.96 mmHg
+#>   Expected relationship ATE = P(W=1)*ATT + P(W=0)*ATC:
+#>    -10.22 mmHg
+```
 
 ---
 
@@ -305,20 +314,13 @@ true_ate_calc <- mean(trial_data$y1 - trial_data$y0)
 selection_bias <- naive_estimate - true_ate_calc
 
 cat("With Confounded (Biased) Assignment:\n")
-#> With Confounded (Biased) Assignment:
 cat("=====================================\n")
-#> =====================================
 cat("  Naive estimate:", round(naive_estimate, 2), "mmHg\n")
-#>   Naive estimate: 6.83 mmHg
 cat("  True ATE:", round(true_ate_calc, 2), "mmHg\n")
-#>   True ATE: -10.22 mmHg
 cat("  Selection bias:", round(selection_bias, 2), "mmHg\n\n")
-#>   Selection bias: 17.04 mmHg
 
 cat("The bias is POSITIVE because treated patients had higher baseline BP.\n")
-#> The bias is POSITIVE because treated patients had higher baseline BP.
 cat("Even without treatment, they would have had worse outcomes.\n")
-#> Even without treatment, they would have had worse outcomes.
 
 # Visualise the selection bias
 baseline_comparison <- trial_data[, .(
@@ -334,9 +336,20 @@ baseline_comparison <- trial_data[, .(
 )]
 
 cat("\nBaseline Imbalance (Biased Assignment):\n")
+print(baseline_comparison)
+```
+
+```
+#> With Confounded (Biased) Assignment:
+#> =====================================
+#>   Naive estimate: 6.83 mmHg
+#>   True ATE: -10.22 mmHg
+#>   Selection bias: 17.04 mmHg
+#> 
+#> The bias is POSITIVE because treated patients had higher baseline BP.
+#> Even without treatment, they would have had worse outcomes.
 #> 
 #> Baseline Imbalance (Biased Assignment):
-print(baseline_comparison)
 #>               group mean_baseline_bp  mean_y0
 #>              <char>            <num>    <num>
 #> 1: Control (Biased)         131.0551 131.4134
@@ -438,15 +451,11 @@ balance_results <- rbindlist(lapply(1:n_simulations, function(sim) {
 }))
 
 cat("Covariate Balance Across 1000 Random Assignments:\n")
-#> Covariate Balance Across 1000 Random Assignments:
 cat("=================================================\n")
-#> =================================================
 cat("  Age difference: Mean =", round(mean(balance_results$mean_diff_age), 3),
     ", SD =", round(sd(balance_results$mean_diff_age), 3), "\n")
-#>   Age difference: Mean = -0.023 , SD = 0.905
 cat("  BP difference: Mean =", round(mean(balance_results$mean_diff_bp), 3),
     ", SD =", round(sd(balance_results$mean_diff_bp), 3), "\n")
-#>   BP difference: Mean = -0.013 , SD = 1.376
 
 # Visualise balance
 balance_long <- melt(balance_results, id.vars = "simulation",
@@ -478,6 +487,13 @@ ggplot2$ggplot(balance_long, ggplot2$aes(x = difference, fill = covariate)) +
 <Figure src="/courses/statistics-3-advanced/randomisation_power-1.png" alt="Randomisation makes treatment and control groups comparable across ALL variables">
 	Randomisation makes treatment and control groups comparable across ALL variables
 </Figure>
+
+```
+#> Covariate Balance Across 1000 Random Assignments:
+#> =================================================
+#>   Age difference: Mean = -0.023 , SD = 0.905 
+#>   BP difference: Mean = -0.013 , SD = 1.376
+```
 
 ### 5.3.2 Estimating ATE from RCT Data
 
@@ -512,25 +528,29 @@ ci_lower <- ate_estimate - 1.96 * se_ate
 ci_upper <- ate_estimate + 1.96 * se_ate
 
 cat("ATE Estimation from Randomised Trial:\n")
-#> ATE Estimation from Randomised Trial:
 cat("=====================================\n")
-#> =====================================
 cat("  Point estimate:", round(ate_estimate, 2), "mmHg\n")
-#>   Point estimate: -8.79 mmHg
 cat("  Standard error:", round(se_ate, 2), "\n")
-#>   Standard error: 1.59
 cat("  95% CI: [", round(ci_lower, 2), ",", round(ci_upper, 2), "]\n")
-#>   95% CI: [ -11.9 , -5.67 ]
 cat("  True ATE:", round(true_ate_calc, 2), "mmHg\n\n")
-#>   True ATE: -10.22 mmHg
 
 # T-test
 t_result <- t.test(trial_data[W == 1]$Y_obs, trial_data[W == 0]$Y_obs)
 cat("Two-sample t-test:\n")
-#> Two-sample t-test:
 cat("  t-statistic:", round(t_result$statistic, 3), "\n")
-#>   t-statistic: -5.532
 cat("  p-value:", format.pval(t_result$p.value, digits = 3), "\n")
+```
+
+```
+#> ATE Estimation from Randomised Trial:
+#> =====================================
+#>   Point estimate: -8.79 mmHg
+#>   Standard error: 1.59 
+#>   95% CI: [ -11.9 , -5.67 ]
+#>   True ATE: -10.22 mmHg
+#> 
+#> Two-sample t-test:
+#>   t-statistic: -5.532 
 #>   p-value: 5.2e-08
 ```
 
@@ -626,16 +646,11 @@ for (p in 1:n_perms) {
 p_value <- mean(abs(perm_stats) >= abs(observed_stat))
 
 cat("Randomisation Inference (Fisher's Exact Test):\n")
-#> Randomisation Inference (Fisher's Exact Test):
 cat("==============================================\n")
-#> ==============================================
 cat("  Observed difference:", round(observed_stat, 2), "mmHg\n")
-#>   Observed difference: -8.79 mmHg
 cat("  Permutation distribution: Mean =", round(mean(perm_stats), 4),
     ", SD =", round(sd(perm_stats), 2), "\n")
-#>   Permutation distribution: Mean = 0.0149 , SD = 1.61
 cat("  Two-sided p-value:", round(p_value, 4), "\n")
-#>   Two-sided p-value: 0
 
 # Visualise
 perm_data <- data.table(statistic = perm_stats)
@@ -664,6 +679,14 @@ ggplot2$ggplot(perm_data, ggplot2$aes(x = statistic)) +
 <Figure src="/courses/statistics-3-advanced/randomisation_inference-1.png" alt="Randomisation distribution under Fisher&#39;s sharp null hypothesis">
 	Randomisation distribution under Fisher's sharp null hypothesis
 </Figure>
+
+```
+#> Randomisation Inference (Fisher's Exact Test):
+#> ==============================================
+#>   Observed difference: -8.79 mmHg
+#>   Permutation distribution: Mean = 0.0149 , SD = 1.61 
+#>   Two-sided p-value: 0
+```
 
 ### 5.4.2 Confidence Intervals via Inversion
 
@@ -704,13 +727,9 @@ ci_grid <- data.table(tau = tau_grid, p_value = p_values)
 ci_95 <- ci_grid[p_value > 0.05]
 
 cat("95% Confidence Interval by Test Inversion:\n")
-#> 95% Confidence Interval by Test Inversion:
 cat("==========================================\n")
-#> ==========================================
 cat("  CI: [", min(ci_95$tau), ",", max(ci_95$tau), "]\n")
-#>   CI: [ -12 , -6 ]
 cat("  True ATE:", round(true_ate_calc, 2), "mmHg\n")
-#>   True ATE: -10.22 mmHg
 
 # Plot
 ggplot2$ggplot(ci_grid, ggplot2$aes(x = tau, y = p_value)) +
@@ -736,6 +755,13 @@ ggplot2$ggplot(ci_grid, ggplot2$aes(x = tau, y = p_value)) +
 <Figure src="/courses/statistics-3-advanced/ci_inversion-1.png">
 	
 </Figure>
+
+```
+#> 95% Confidence Interval by Test Inversion:
+#> ==========================================
+#>   CI: [ -12 , -6 ]
+#>   True ATE: -10.22 mmHg
+```
 
 ---
 
@@ -781,24 +807,15 @@ lin_ate <- coef(lin_model)["W"]
 lin_se <- summary(lin_model)$coefficients["W", "Std. Error"]
 
 cat("Comparison of ATE Estimators:\n")
-#> Comparison of ATE Estimators:
 cat("============================\n")
-#> ============================
 cat("  Unadjusted: ATE =", round(unadj_ate, 2), ", SE =", round(unadj_se, 2), "\n")
-#>   Unadjusted: ATE = -8.79 , SE = 1.59
 cat("  ANCOVA:     ATE =", round(adj_ate, 2), ", SE =", round(adj_se, 2), "\n")
-#>   ANCOVA:     ATE = -10.76 , SE = 0.8
 cat("  Lin (2013): ATE =", round(lin_ate, 2), ", SE =", round(lin_se, 2), "\n")
-#>   Lin (2013): ATE = -10.77 , SE = 0.8
 cat("  True ATE:", round(true_ate_calc, 2), "\n\n")
-#>   True ATE: -10.22
 
 cat("Efficiency gain (SE reduction):\n")
-#> Efficiency gain (SE reduction):
 cat("  ANCOVA vs Unadjusted:", round((1 - adj_se/unadj_se) * 100, 1), "%\n")
-#>   ANCOVA vs Unadjusted: 49.7 %
 cat("  Lin vs Unadjusted:", round((1 - lin_se/unadj_se) * 100, 1), "%\n")
-#>   Lin vs Unadjusted: 49.7 %
 
 # Visualise
 comparison_results <- data.table(
@@ -835,6 +852,19 @@ ggplot2$ggplot(comparison_results, ggplot2$aes(x = Method, y = Estimate)) +
 <Figure src="/courses/statistics-3-advanced/covariate_adjustment-1.png" alt="Covariate adjustment increases precision in RCTs">
 	Covariate adjustment increases precision in RCTs
 </Figure>
+
+```
+#> Comparison of ATE Estimators:
+#> ============================
+#>   Unadjusted: ATE = -8.79 , SE = 1.59 
+#>   ANCOVA:     ATE = -10.76 , SE = 0.8 
+#>   Lin (2013): ATE = -10.77 , SE = 0.8 
+#>   True ATE: -10.22 
+#> 
+#> Efficiency gain (SE reduction):
+#>   ANCOVA vs Unadjusted: 49.7 %
+#>   Lin vs Unadjusted: 49.7 %
+```
 
 ---
 
@@ -882,15 +912,8 @@ balance_check <- trial_data[, .(
 ), by = bp_stratum]
 
 cat("Balance Check After Stratified Randomisation:\n")
-#> Balance Check After Stratified Randomisation:
 cat("=============================================\n")
-#> =============================================
 print(balance_check)
-#>    bp_stratum n_treated n_control mean_bp_treated mean_bp_control
-#>        <fctr>     <num>     <num>           <num>           <num>
-#> 1:       High        89        89        155.6517        155.8539
-#> 2:     Medium        92        93        138.5000        138.1290
-#> 3:        Low        68        69        120.5294        120.7101
 
 # Compare variance of ATE estimator
 # Simple random
@@ -915,13 +938,23 @@ for (s in 1:n_sim) {
 }
 
 cat("\nVariance Comparison (1000 simulations):\n")
+cat("  Simple random: SD =", round(sd(ate_simple), 3), "\n")
+cat("  Stratified: SD =", round(sd(ate_stratified), 3), "\n")
+cat("  Efficiency gain:", round((1 - sd(ate_stratified)/sd(ate_simple)) * 100, 1), "%\n")
+```
+
+```
+#> Balance Check After Stratified Randomisation:
+#> =============================================
+#>    bp_stratum n_treated n_control mean_bp_treated mean_bp_control
+#>        <fctr>     <num>     <num>           <num>           <num>
+#> 1:       High        89        89        155.6517        155.8539
+#> 2:     Medium        92        93        138.5000        138.1290
+#> 3:        Low        68        69        120.5294        120.7101
 #> 
 #> Variance Comparison (1000 simulations):
-cat("  Simple random: SD =", round(sd(ate_simple), 3), "\n")
-#>   Simple random: SD = 1.596
-cat("  Stratified: SD =", round(sd(ate_stratified), 3), "\n")
-#>   Stratified: SD = 1.014
-cat("  Efficiency gain:", round((1 - sd(ate_stratified)/sd(ate_simple)) * 100, 1), "%\n")
+#>   Simple random: SD = 1.596 
+#>   Stratified: SD = 1.014 
 #>   Efficiency gain: 36.5 %
 ```
 
@@ -951,20 +984,23 @@ stratum_estimates[, weight := n / sum(n)]
 stratified_ate <- sum(stratum_estimates$weight * stratum_estimates$ate)
 
 cat("Stratified Analysis:\n")
-#> Stratified Analysis:
 cat("====================\n")
-#> ====================
 print(stratum_estimates[, .(bp_stratum, n, n_t, n_c, ate = round(ate, 2),
                             weight = round(weight, 3))])
+cat("\nWeighted ATE:", round(stratified_ate, 2), "\n")
+cat("True ATE:", round(true_ate_calc, 2), "\n")
+```
+
+```
+#> Stratified Analysis:
+#> ====================
 #>    bp_stratum     n   n_t   n_c   ate weight
 #>        <fctr> <int> <num> <num> <num>  <num>
 #> 1:       High   178    89    89 -9.44  0.356
 #> 2:     Medium   185    92    93 -9.36  0.370
 #> 3:        Low   137    68    69 -9.50  0.274
-cat("\nWeighted ATE:", round(stratified_ate, 2), "\n")
 #> 
-#> Weighted ATE: -9.43
-cat("True ATE:", round(true_ate_calc, 2), "\n")
+#> Weighted ATE: -9.43 
 #> True ATE: -10.22
 ```
 

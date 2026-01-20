@@ -99,20 +99,23 @@ phenotype <- as.vector(genetic_value) + rnorm(n_individuals, 0, sqrt(var_env))
 phenotype <- scale(phenotype)[, 1]
 
 cat("Simulated GWAS Data:\n")
-#> Simulated GWAS Data:
 cat("====================\n")
-#> ====================
 cat("  Individuals:", n_individuals, "\n")
-#>   Individuals: 5000
 cat("  SNPs:", n_snps, "\n")
-#>   SNPs: 50000
 cat("  Chromosomes:", n_chromosomes, "\n")
-#>   Chromosomes: 22
 cat("  Causal SNPs:", n_causal, "\n")
-#>   Causal SNPs: 50
 cat("  Target heritability:", h2_target, "\n")
-#>   Target heritability: 0.3
 cat("  Realised heritability:", round(var(genetic_value) / var(phenotype), 3), "\n")
+```
+
+```
+#> Simulated GWAS Data:
+#> ====================
+#>   Individuals: 5000 
+#>   SNPs: 50000 
+#>   Chromosomes: 22 
+#>   Causal SNPs: 50 
+#>   Target heritability: 0.3 
 #>   Realised heritability: 0.245
 ```
 
@@ -184,34 +187,37 @@ causal_example <- causal_snps[which.max(abs(true_betas[causal_snps]))]
 non_causal_example <- setdiff(1:n_snps, causal_snps)[1]
 
 cat("Single SNP Association Test Examples:\n")
-#> Single SNP Association Test Examples:
 cat("=====================================\n")
-#> =====================================
 
 result_causal <- test_snp_association(genotypes[, causal_example], phenotype)
 cat("\nCausal SNP (true beta =", round(true_betas[causal_example], 4), "):\n")
-#> 
-#> Causal SNP (true beta = -0.4469 ):
 cat("  Estimated beta:", round(result_causal$beta, 4), "\n")
-#>   Estimated beta: -0.4632
 cat("  SE:", round(result_causal$se, 4), "\n")
-#>   SE: 0.0234
 cat("  t-statistic:", round(result_causal$t_stat, 2), "\n")
-#>   t-statistic: -19.82
 cat("  P-value:", format(result_causal$p_value, digits = 3), "\n")
-#>   P-value: 3.02e-84
 
 result_null <- test_snp_association(genotypes[, non_causal_example], phenotype)
 cat("\nNon-causal SNP (true beta = 0):\n")
+cat("  Estimated beta:", round(result_null$beta, 4), "\n")
+cat("  SE:", round(result_null$se, 4), "\n")
+cat("  t-statistic:", round(result_null$t_stat, 2), "\n")
+cat("  P-value:", format(result_null$p_value, digits = 3), "\n")
+```
+
+```
+#> Single SNP Association Test Examples:
+#> =====================================
+#> 
+#> Causal SNP (true beta = -0.4469 ):
+#>   Estimated beta: -0.4632 
+#>   SE: 0.0234 
+#>   t-statistic: -19.82 
+#>   P-value: 3.02e-84 
 #> 
 #> Non-causal SNP (true beta = 0):
-cat("  Estimated beta:", round(result_null$beta, 4), "\n")
-#>   Estimated beta: 0.0383
-cat("  SE:", round(result_null$se, 4), "\n")
-#>   SE: 0.0292
-cat("  t-statistic:", round(result_null$t_stat, 2), "\n")
-#>   t-statistic: 1.31
-cat("  P-value:", format(result_null$p_value, digits = 3), "\n")
+#>   Estimated beta: 0.0383 
+#>   SE: 0.0292 
+#>   t-statistic: 1.31 
 #>   P-value: 0.189
 ```
 
@@ -263,16 +269,19 @@ run_gwas <- function(genotypes, phenotype, snp_info) {
 gwas_results <- run_gwas(genotypes, phenotype, snp_info)
 
 cat("GWAS Scan Complete:\n")
-#> GWAS Scan Complete:
 cat("===================\n")
-#> ===================
 cat("  SNPs tested:", nrow(gwas_results), "\n")
-#>   SNPs tested: 50000
 cat("  Significant at p < 5e-8:", sum(gwas_results$p_value < 5e-8), "\n")
-#>   Significant at p < 5e-8: 13
 cat("  Significant at p < 1e-5:", sum(gwas_results$p_value < 1e-5), "\n")
-#>   Significant at p < 1e-5: 16
 cat("  Minimum p-value:", format(min(gwas_results$p_value), digits = 3), "\n")
+```
+
+```
+#> GWAS Scan Complete:
+#> ===================
+#>   SNPs tested: 50000 
+#>   Significant at p < 5e-8: 13 
+#>   Significant at p < 1e-5: 16 
 #>   Minimum p-value: 3.02e-84
 ```
 
@@ -308,23 +317,14 @@ n_tests <- nrow(gwas_results)
 thresholds <- c(0.05, 0.01, 1e-3, 1e-5, 5e-8)
 
 cat("Multiple Testing Burden:\n")
-#> Multiple Testing Burden:
 cat("========================\n")
-#> ========================
 cat("\nExpected false positives under the null:\n")
-#> 
-#> Expected false positives under the null:
 for (thresh in thresholds) {
     expected_fp <- n_tests * thresh
     observed <- sum(gwas_results$p_value < thresh & !gwas_results$is_causal)
     cat(sprintf("  p < %s: Expected %.1f, Observed %d\n",
                 format(thresh, scientific = TRUE), expected_fp, observed))
 }
-#>   p < 5e-02: Expected 2500.0, Observed 2432
-#>   p < 1e-02: Expected 500.0, Observed 477
-#>   p < 1e-03: Expected 50.0, Observed 44
-#>   p < 1e-05: Expected 0.5, Observed 0
-#>   p < 5e-08: Expected 0.0, Observed 0
 
 # P-value distribution for null SNPs
 null_pvals <- gwas_results[is_causal == FALSE]$p_value
@@ -351,6 +351,18 @@ ggplot2$ggplot(qq_data, ggplot2$aes(x = expected, y = observed)) +
 <Figure src="/courses/statistics-3-advanced/multiple_testing-1.png" alt="GWAS requires stringent significance thresholds">
 	GWAS requires stringent significance thresholds
 </Figure>
+
+```
+#> Multiple Testing Burden:
+#> ========================
+#> 
+#> Expected false positives under the null:
+#>   p < 5e-02: Expected 2500.0, Observed 2432
+#>   p < 1e-02: Expected 500.0, Observed 477
+#>   p < 1e-03: Expected 50.0, Observed 44
+#>   p < 1e-05: Expected 0.5, Observed 0
+#>   p < 5e-08: Expected 0.0, Observed 0
+```
 
 ### 8.2.2 Genomic Inflation Factor
 
@@ -381,19 +393,22 @@ lambda_all <- calc_lambda_gc(gwas_results$p_value)
 lambda_null <- calc_lambda_gc(gwas_results[is_causal == FALSE]$p_value)
 
 cat("Genomic Inflation Factor:\n")
-#> Genomic Inflation Factor:
 cat("=========================\n")
-#> =========================
 cat("  Lambda (all SNPs):", round(lambda_all, 3), "\n")
-#>   Lambda (all SNPs): 1.025
 cat("  Lambda (null SNPs only):", round(lambda_null, 3), "\n")
-#>   Lambda (null SNPs only): 1.023
 
 if (lambda_null > 1.05) {
     cat("  Warning: Modest inflation detected in null SNPs.\n")
 } else {
     cat("  Good: No systematic inflation in null SNPs.\n")
 }
+```
+
+```
+#> Genomic Inflation Factor:
+#> =========================
+#>   Lambda (all SNPs): 1.025 
+#>   Lambda (null SNPs only): 1.023 
 #>   Good: No systematic inflation in null SNPs.
 ```
 
@@ -580,15 +595,10 @@ calc_snp_qc <- function(genotypes) {
 snp_qc <- calc_snp_qc(genotypes)
 
 cat("SNP Quality Control Summary:\n")
-#> SNP Quality Control Summary:
 cat("============================\n")
-#> ============================
 cat("  MAF < 0.01:", sum(snp_qc$maf < 0.01), "SNPs would be filtered\n")
-#>   MAF < 0.01: 50000 SNPs would be filtered
 cat("  MAF < 0.05:", sum(snp_qc$maf < 0.05), "SNPs would be filtered\n")
-#>   MAF < 0.05: 50000 SNPs would be filtered
 cat("  HWE p < 1e-6:", sum(snp_qc$hwe_pvalue < 1e-6), "SNPs would be filtered\n")
-#>   HWE p < 1e-6: 0 SNPs would be filtered
 
 # Visualise QC metrics
 qc_plot_data <- copy(snp_qc)
@@ -618,6 +628,14 @@ ggplot2$ggplot(qc_plot_data, ggplot2$aes(x = maf, y = -log10(hwe_pvalue),
 <Figure src="/courses/statistics-3-advanced/snp_qc-1.png" alt="SNP quality control metrics">
 	SNP quality control metrics
 </Figure>
+
+```
+#> SNP Quality Control Summary:
+#> ============================
+#>   MAF < 0.01: 50000 SNPs would be filtered
+#>   MAF < 0.05: 50000 SNPs would be filtered
+#>   HWE p < 1e-6: 0 SNPs would be filtered
+```
 
 ### 8.4.2 Sample-Level Quality Control
 
@@ -684,15 +702,10 @@ het_sd <- sd(sample_qc$het_obs)
 sample_qc[, het_outlier := abs(het_obs - het_mean) > 3 * het_sd]
 
 cat("Sample Quality Control Summary:\n")
-#> Sample Quality Control Summary:
 cat("==============================\n")
-#> ==============================
 cat("  Mean call rate:", round(mean(sample_qc$call_rate), 4), "\n")
-#>   Mean call rate: 1
 cat("  Low call rate (<0.95):", sum(sample_qc$call_rate < 0.95), "samples\n")
-#>   Low call rate (<0.95): 0 samples
 cat("  Heterozygosity outliers:", sum(sample_qc$het_outlier), "samples\n")
-#>   Heterozygosity outliers: 0 samples
 
 # Visualise sample QC
 ggplot2$ggplot(sample_qc, ggplot2$aes(x = call_rate, y = het_obs, colour = het_outlier)) +
@@ -719,6 +732,14 @@ ggplot2$ggplot(sample_qc, ggplot2$aes(x = call_rate, y = het_obs, colour = het_o
 <Figure src="/courses/statistics-3-advanced/sample_qc-1.png" alt="Sample quality control metrics">
 	Sample quality control metrics
 </Figure>
+
+```
+#> Sample Quality Control Summary:
+#> ==============================
+#>   Mean call rate: 1 
+#>   Low call rate (<0.95): 0 samples
+#>   Heterozygosity outliers: 0 samples
+```
 
 ---
 
@@ -764,12 +785,15 @@ thresholds <- c(5e-8, 1e-7, 1e-6, 1e-5, 1e-4, 1e-3)
 performance <- evaluate_gwas(gwas_results, thresholds)
 
 cat("GWAS Performance at Various Thresholds:\n")
-#> GWAS Performance at Various Thresholds:
 cat("=======================================\n")
-#> =======================================
 print(performance[, .(threshold = format(threshold, scientific = TRUE),
                        TP, FP, sensitivity = round(sensitivity, 3),
                        PPV = round(PPV, 3))])
+```
+
+```
+#> GWAS Performance at Various Thresholds:
+#> =======================================
 #>    threshold    TP    FP sensitivity   PPV
 #>       <char> <int> <int>       <num> <num>
 #> 1:     5e-08    13     0        0.26 1.000
@@ -792,14 +816,10 @@ GWAS estimates effect sizes ($\hat{\beta}$). Due to **winner's curse**, signific
 causal_results <- gwas_results[is_causal == TRUE]
 
 cat("Effect Size Estimation (Causal SNPs):\n")
-#> Effect Size Estimation (Causal SNPs):
 cat("=====================================\n")
-#> =====================================
 cat("  Correlation (estimated vs true):",
     round(cor(causal_results$beta, causal_results$true_beta), 3), "\n")
-#>   Correlation (estimated vs true): 0.976
 cat("  Mean absolute error:", round(mean(abs(causal_results$beta - causal_results$true_beta)), 4), "\n")
-#>   Mean absolute error: 0.0255
 
 # Visualise
 ggplot2$ggplot(causal_results, ggplot2$aes(x = true_beta, y = beta,
@@ -821,12 +841,22 @@ ggplot2$ggplot(causal_results, ggplot2$aes(x = true_beta, y = beta,
         plot.title = ggplot2$element_text(face = "bold"),
         legend.position = "top"
     )
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
 <Figure src="/courses/statistics-3-advanced/effect_size_estimation-1.png" alt="Effect size estimation accuracy for causal SNPs">
 	Effect size estimation accuracy for causal SNPs
 </Figure>
+
+```
+#> Effect Size Estimation (Causal SNPs):
+#> =====================================
+#>   Correlation (estimated vs true): 0.976 
+#>   Mean absolute error: 0.0255
+```
 
 ---
 

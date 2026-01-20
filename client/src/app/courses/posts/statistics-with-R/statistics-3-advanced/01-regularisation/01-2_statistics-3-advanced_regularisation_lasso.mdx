@@ -45,10 +45,13 @@ X <- as.matrix(breast_cancer[, ..feature_cols])
 y <- breast_cancer$y
 
 cat("Dataset Summary:\n")
-#> Dataset Summary:
 cat("================\n")
-#> ================
 cat("  n =", nrow(X), ", p =", ncol(X), "\n")
+```
+
+```
+#> Dataset Summary:
+#> ================
 #>   n = 569 , p = 10
 ```
 
@@ -184,13 +187,16 @@ The second condition shows that a coefficient is zero when the correlation betwe
 lasso_fit <- glmnet(X, y, family = "binomial", alpha = 1)
 
 cat("LASSO Model:\n")
-#> LASSO Model:
 cat("============\n")
-#> ============
 cat("  Lambda values:", length(lasso_fit$lambda), "\n")
-#>   Lambda values: 100
 cat("  Lambda range:", round(min(lasso_fit$lambda), 4), "-",
     round(max(lasso_fit$lambda), 4), "\n")
+```
+
+```
+#> LASSO Model:
+#> ============
+#>   Lambda values: 100 
 #>   Lambda range: 0 - 0.3755
 ```
 
@@ -265,17 +271,11 @@ set.seed(42)
 cv_lasso <- cv.glmnet(X, y, family = "binomial", alpha = 1, nfolds = 10)
 
 cat("LASSO Cross-Validation:\n")
-#> LASSO Cross-Validation:
 cat("=======================\n")
-#> =======================
 cat("  Lambda.min:", round(cv_lasso$lambda.min, 4), "\n")
-#>   Lambda.min: 0.0036
 cat("  Lambda.1se:", round(cv_lasso$lambda.1se, 4), "\n")
-#>   Lambda.1se: 0.0145
 cat("  Non-zero at lambda.min:", cv_lasso$nzero[cv_lasso$lambda == cv_lasso$lambda.min], "\n")
-#>   Non-zero at lambda.min: 7
 cat("  Non-zero at lambda.1se:", cv_lasso$nzero[cv_lasso$lambda == cv_lasso$lambda.1se], "\n")
-#>   Non-zero at lambda.1se: 5
 
 # Plot
 cv_dt <- data.table(
@@ -304,6 +304,15 @@ ggplot2$ggplot(cv_dt, ggplot2$aes(x = log(lambda), y = cvm)) +
 	Cross-validation identifies optimal LASSO regularisation
 </Figure>
 
+```
+#> LASSO Cross-Validation:
+#> =======================
+#>   Lambda.min: 0.0036 
+#>   Lambda.1se: 0.0145 
+#>   Non-zero at lambda.min: 7 
+#>   Non-zero at lambda.1se: 5
+```
+
 ### 1.7.4 Selected Variables
 
 
@@ -317,9 +326,7 @@ nonzero_vars <- which(coef_1se[-1] != 0)
 selected_vars <- gsub("mean_", "", feature_cols[nonzero_vars])
 
 cat("Selected Variables (λ.1se):\n")
-#> Selected Variables (λ.1se):
 cat("===========================\n")
-#> ===========================
 if (length(selected_vars) > 0) {
     coef_selected <- data.table(
         Variable = selected_vars,
@@ -329,6 +336,15 @@ if (length(selected_vars) > 0) {
 } else {
     cat("  No variables selected (model is null)\n")
 }
+
+cat("\nEliminated Variables:\n")
+eliminated <- setdiff(gsub("mean_", "", feature_cols), selected_vars)
+cat(" ", paste(eliminated, collapse = ", "), "\n")
+```
+
+```
+#> Selected Variables (λ.1se):
+#> ===========================
 #>          Variable Coefficient
 #>            <char>       <num>
 #> 1: concave_points     64.6659
@@ -336,12 +352,8 @@ if (length(selected_vars) > 0) {
 #> 3:     smoothness      1.1599
 #> 4:         radius      0.4140
 #> 5:        texture      0.1926
-
-cat("\nEliminated Variables:\n")
 #> 
 #> Eliminated Variables:
-eliminated <- setdiff(gsub("mean_", "", feature_cols), selected_vars)
-cat(" ", paste(eliminated, collapse = ", "), "\n")
 #>   perimeter, area, compactness, concavity, fractal_dimension
 ```
 
@@ -523,16 +535,8 @@ results <- data.table(
 )
 
 cat("Cross-Validation MSE Comparison:\n")
-#> Cross-Validation MSE Comparison:
 cat("================================\n")
-#> ================================
 print(results)
-#>        Scenario Method   CV_MSE
-#>          <char> <char>    <num>
-#> 1: Sparse Truth  Ridge 1.213380
-#> 2: Sparse Truth  LASSO 1.205362
-#> 3:  Dense Truth  Ridge 1.247466
-#> 4:  Dense Truth  LASSO 1.252381
 
 ggplot2$ggplot(results, ggplot2$aes(x = Scenario, y = CV_MSE, fill = Method)) +
     ggplot2$geom_col(position = "dodge") +
@@ -551,6 +555,17 @@ ggplot2$ggplot(results, ggplot2$aes(x = Scenario, y = CV_MSE, fill = Method)) +
 <Figure src="/courses/statistics-3-advanced/comparison_simulation-1.png" alt="LASSO excels with sparse truth; ridge excels when all predictors matter">
 	LASSO excels with sparse truth; ridge excels when all predictors matter
 </Figure>
+
+```
+#> Cross-Validation MSE Comparison:
+#> ================================
+#>        Scenario Method   CV_MSE
+#>          <char> <char>    <num>
+#> 1: Sparse Truth  Ridge 1.213380
+#> 2: Sparse Truth  LASSO 1.205362
+#> 3:  Dense Truth  Ridge 1.247466
+#> 4:  Dense Truth  LASSO 1.252381
+```
 
 ---
 

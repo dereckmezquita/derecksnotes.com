@@ -158,12 +158,6 @@ scales_data <- data.table$data.table(
 )
 
 print(scales_data)
-#>       scale                 example equality    order difference    ratio
-#>      <fctr>                  <char>   <char>   <char>     <char>   <char>
-#> 1:  Nominal              Blood type <U+2713> <U+2717>   <U+2717> <U+2717>
-#> 2:  Ordinal             Pain rating <U+2713> <U+2713>   <U+2717> <U+2717>
-#> 3: Interval Temperature (<U+00B0>C) <U+2713> <U+2713>   <U+2713> <U+2717>
-#> 4:    Ratio             Weight (kg) <U+2713> <U+2713>   <U+2713> <U+2713>
 
 # Visual representation
 scales_visual <- data.table$data.table(
@@ -199,6 +193,15 @@ ggplot2$ggplot(scales_visual, ggplot2$aes(x = operation, y = scale, fill = meani
 	Four scales of measurement with progressively more mathematical operations
 </Figure>
 
+```
+#>       scale          example equality  order difference  ratio
+#>      <fctr>           <char>   <char> <char>     <char> <char>
+#> 1:  Nominal       Blood type        ✓      ✗          ✗      ✗
+#> 2:  Ordinal      Pain rating        ✓      ✓          ✗      ✗
+#> 3: Interval Temperature (°C)        ✓      ✓          ✓      ✗
+#> 4:    Ratio      Weight (kg)        ✓      ✓          ✓      ✓
+```
+
 ### 1.3.4 Identifying Variable Types in Practice
 
 Let us examine real variables from the NHANES dataset:
@@ -231,6 +234,9 @@ nhanes_vars <- data.table$data.table(
 )
 
 print(nhanes_vars)
+```
+
+```
 #>         variable               description                      type   scale
 #>           <char>                    <char>                    <char>  <char>
 #>  1:          Age              Age in years   Quantitative (discrete)   Ratio
@@ -278,6 +284,9 @@ design_data <- data.table$data.table(
 )
 
 print(design_data)
+```
+
+```
 #>             design time_direction       starts_with              strength
 #>             <char>         <char>            <char>                <char>
 #> 1: Cross-sectional       Snapshot Population sample Efficient, prevalence
@@ -332,12 +341,7 @@ balance_check <- rct_data[, .(
 ), by = treatment]
 
 print("Balance check after randomisation:")
-#> [1] "Balance check after randomisation:"
 print(balance_check)
-#>    treatment mean_age mean_baseline_bp prop_smoker mean_outcome_bp     n
-#>       <char>    <num>            <num>       <num>           <num> <int>
-#> 1:   Control 54.69307         144.2376   0.2178218        143.5921   101
-#> 2: Treatment 54.53535         145.5354   0.2424242        134.1245    99
 
 # Visualise outcomes
 ggplot2$ggplot(rct_data, ggplot2$aes(x = treatment, y = outcome_bp, fill = treatment)) +
@@ -357,6 +361,14 @@ ggplot2$ggplot(rct_data, ggplot2$aes(x = treatment, y = outcome_bp, fill = treat
 <Figure src="/courses/statistics-1-foundations/rct_simulation-1.png" alt="Randomisation creates comparable groups on both observed and unobserved characteristics">
 	Randomisation creates comparable groups on both observed and unobserved characteristics
 </Figure>
+
+```
+#> [1] "Balance check after randomisation:"
+#>    treatment mean_age mean_baseline_bp prop_smoker mean_outcome_bp     n
+#>       <char>    <num>            <num>       <num>           <num> <int>
+#> 1:   Control 54.69307         144.2376   0.2178218        143.5921   101
+#> 2: Treatment 54.53535         145.5354   0.2424242        134.1245    99
+```
 
 ### 1.4.3 The Crucial Difference: Association vs Causation
 
@@ -393,13 +405,7 @@ naive_result <- confound_data[, .(
 ), by = .(coffee_group = cut(coffee, breaks = c(0, 1, 2, 3, 5)))]
 
 print("Naive analysis (ignoring confounder):")
-#> [1] "Naive analysis (ignoring confounder):"
 print(naive_result)
-#>    coffee_group depression_rate     n
-#>          <fctr>           <num> <int>
-#> 1:        (0,1]       0.6145833    96
-#> 2:        (2,3]       0.5662651    83
-#> 3:        (1,2]       0.5264798   321
 
 # The naive analysis suggests coffee is protective, but this is confounding!
 # High SES -> more coffee AND less depression
@@ -416,12 +422,24 @@ ggplot2$ggplot(confound_data, ggplot2$aes(x = coffee, y = depression, colour = s
         colour = "SES"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
 <Figure src="/courses/statistics-1-foundations/confounding_illustration-1.png" alt="Confounding creates misleading associations">
 	Confounding creates misleading associations
 </Figure>
+
+```
+#> [1] "Naive analysis (ignoring confounder):"
+#>    coffee_group depression_rate     n
+#>          <fctr>           <num> <int>
+#> 1:        (0,1]       0.6145833    96
+#> 2:        (2,3]       0.5662651    83
+#> 3:        (1,2]       0.5264798   321
+```
 
 **Why randomisation solves confounding:**
 

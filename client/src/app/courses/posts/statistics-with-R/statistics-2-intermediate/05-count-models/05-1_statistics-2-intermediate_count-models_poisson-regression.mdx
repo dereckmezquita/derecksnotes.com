@@ -34,10 +34,13 @@ doctor_visits <- fread("../../../data/count/nmes1988_doctor_visits.csv")
 hospital_los <- fread("../../../data/count/arizona_hospital_los.csv")
 
 cat("Datasets loaded:\n")
-#> Datasets loaded:
 cat("  Doctor visits:", nrow(doctor_visits), "observations\n")
-#>   Doctor visits: 4406 observations
 cat("  Hospital LOS:", nrow(hospital_los), "observations\n")
+```
+
+```
+#> Datasets loaded:
+#>   Doctor visits: 4406 observations
 #>   Hospital LOS: 1798 observations
 ```
 
@@ -60,21 +63,14 @@ When modelling count outcomes like "number of doctor visits," linear regression 
 
 ``` r
 cat("Doctor Visits Distribution:\n")
-#> Doctor Visits Distribution:
 cat("===========================\n\n")
-#> ===========================
 
 # Summary statistics
 cat("Mean:", round(mean(doctor_visits$visits), 2), "\n")
-#> Mean: 5.77
 cat("Variance:", round(var(doctor_visits$visits), 2), "\n")
-#> Variance: 45.69
 cat("Min:", min(doctor_visits$visits), "\n")
-#> Min: 0
 cat("Max:", max(doctor_visits$visits), "\n")
-#> Max: 89
 cat("% zeros:", round(100 * mean(doctor_visits$visits == 0), 1), "%\n")
-#> % zeros: 15.5 %
 
 # Distribution plot
 ggplot2$ggplot(doctor_visits, ggplot2$aes(x = visits)) +
@@ -94,6 +90,17 @@ ggplot2$ggplot(doctor_visits, ggplot2$aes(x = visits)) +
 	Count data have a characteristic right-skewed distribution
 </Figure>
 
+```
+#> Doctor Visits Distribution:
+#> ===========================
+#> 
+#> Mean: 5.77 
+#> Variance: 45.69 
+#> Min: 0 
+#> Max: 89 
+#> % zeros: 15.5 %
+```
+
 ### 5.1.2 Linear Model Failure
 
 
@@ -105,15 +112,10 @@ model_lm <- lm(visits ~ health + age + gender + income, data = doctor_visits)
 pred_lm <- predict(model_lm)
 
 cat("Linear Model Predictions:\n")
-#> Linear Model Predictions:
 cat("=========================\n\n")
-#> =========================
 cat("Minimum predicted:", round(min(pred_lm), 2), "\n")
-#> Minimum predicted: 2.48
 cat("Maximum predicted:", round(max(pred_lm), 2), "\n")
-#> Maximum predicted: 9.61
 cat("Negative predictions:", sum(pred_lm < 0), "(", round(100 * mean(pred_lm < 0), 1), "%)\n")
-#> Negative predictions: 0 ( 0 %)
 
 # Plot
 ggplot2$ggplot(data.table(Actual = doctor_visits$visits, Predicted = pred_lm),
@@ -133,6 +135,15 @@ ggplot2$ggplot(data.table(Actual = doctor_visits$visits, Predicted = pred_lm),
 <Figure src="/courses/statistics-2-intermediate/linear_failure-1.png" alt="Linear regression produces invalid predictions for count data">
 	Linear regression produces invalid predictions for count data
 </Figure>
+
+```
+#> Linear Model Predictions:
+#> =========================
+#> 
+#> Minimum predicted: 2.48 
+#> Maximum predicted: 9.61 
+#> Negative predictions: 0 ( 0 %)
+```
 
 ---
 
@@ -221,10 +232,14 @@ model_pois <- glm(visits ~ health + age + gender + income,
                   data = doctor_visits, family = poisson)
 
 cat("Poisson Regression: visits ~ health + age + gender + income\n")
-#> Poisson Regression: visits ~ health + age + gender + income
 cat("============================================================\n\n")
-#> ============================================================
 summary(model_pois)
+```
+
+```
+#> Poisson Regression: visits ~ health + age + gender + income
+#> ============================================================
+#> 
 #> 
 #> Call:
 #> glm(formula = visits ~ health + age + gender + income, family = poisson, 
@@ -267,7 +282,13 @@ $$\frac{\lambda(X_j + 1)}{\lambda(X_j)} = \frac{e^{\beta_0 + \cdots + \beta_j(X_
 coefs <- summary(model_pois)$coefficients
 rr <- exp(coef(model_pois))
 ci <- confint(model_pois)
+```
+
+```
 #> Waiting for profiling to be done...
+```
+
+``` r
 rr_ci <- exp(ci)
 
 rr_table <- data.table(
@@ -280,11 +301,20 @@ rr_table <- data.table(
 )
 
 cat("Rate Ratios (Incidence Rate Ratios):\n")
-#> Rate Ratios (Incidence Rate Ratios):
 cat("=====================================\n\n")
-#> =====================================
 print(rr_table[, .(Variable, RR = round(Rate_Ratio, 3),
                    CI = paste0("(", round(CI_Lower, 3), ", ", round(CI_Upper, 3), ")"))])
+
+cat("\nInterpretation Examples:\n")
+cat("  health coefficient:", round(coef(model_pois)["health"], 4), "\n")
+cat("  health RR:", round(rr["health"], 3), "\n")
+cat("  → Each unit increase in health score multiplies visits by", round(rr["health"], 3), "\n")
+```
+
+```
+#> Rate Ratios (Incidence Rate Ratios):
+#> =====================================
+#> 
 #>           Variable    RR             CI
 #>             <char> <num>         <char>
 #> 1:     (Intercept) 7.217 (6.235, 8.358)
@@ -293,16 +323,11 @@ print(rr_table[, .(Variable, RR = round(Rate_Ratio, 3),
 #> 4:             age 0.967 (0.948, 0.986)
 #> 5:      gendermale 0.904 (0.881, 0.927)
 #> 6:          income 1.007 (1.003, 1.011)
-
-cat("\nInterpretation Examples:\n")
 #> 
 #> Interpretation Examples:
-cat("  health coefficient:", round(coef(model_pois)["health"], 4), "\n")
-#>   health coefficient: NA
-cat("  health RR:", round(rr["health"], 3), "\n")
-#>   health RR: NA
-cat("  → Each unit increase in health score multiplies visits by", round(rr["health"], 3), "\n")
-#>   <U+2192> Each unit increase in health score multiplies visits by NA
+#>   health coefficient: NA 
+#>   health RR: NA 
+#>   → Each unit increase in health score multiplies visits by NA
 ```
 
 
@@ -351,9 +376,7 @@ If $\phi > 1$: overdispersion (use quasi-Poisson or negative binomial)
 
 ``` r
 cat("Checking for Overdispersion:\n")
-#> Checking for Overdispersion:
 cat("============================\n\n")
-#> ============================
 
 # Pearson chi-square
 pearson_chi_sq <- sum(residuals(model_pois, type = "pearson")^2)
@@ -361,26 +384,18 @@ df_residual <- model_pois$df.residual
 dispersion <- pearson_chi_sq / df_residual
 
 cat("Pearson chi-square:", round(pearson_chi_sq, 1), "\n")
-#> Pearson chi-square: 32902.8
 cat("Residual df:", df_residual, "\n")
-#> Residual df: 4400
 cat("Dispersion parameter:", round(dispersion, 2), "\n\n")
-#> Dispersion parameter: 7.48
 
 # Residual deviance method
 dev_dispersion <- deviance(model_pois) / df_residual
 cat("Deviance-based dispersion:", round(dev_dispersion, 2), "\n\n")
-#> Deviance-based dispersion: 5.83
 
 # Compare observed vs expected variance
 cat("Direct comparison:\n")
-#> Direct comparison:
 cat("  Mean of Y:", round(mean(doctor_visits$visits), 2), "\n")
-#>   Mean of Y: 5.77
 cat("  Variance of Y:", round(var(doctor_visits$visits), 2), "\n")
-#>   Variance of Y: 45.69
 cat("  Ratio (Var/Mean):", round(var(doctor_visits$visits) / mean(doctor_visits$visits), 2), "\n\n")
-#>   Ratio (Var/Mean): 7.91
 
 if (dispersion > 1.5) {
     cat("CONCLUSION: Substantial overdispersion detected!\n")
@@ -388,6 +403,23 @@ if (dispersion > 1.5) {
 } else {
     cat("CONCLUSION: Dispersion is acceptable.\n")
 }
+```
+
+```
+#> Checking for Overdispersion:
+#> ============================
+#> 
+#> Pearson chi-square: 32902.8 
+#> Residual df: 4400 
+#> Dispersion parameter: 7.48 
+#> 
+#> Deviance-based dispersion: 5.83 
+#> 
+#> Direct comparison:
+#>   Mean of Y: 5.77 
+#>   Variance of Y: 45.69 
+#>   Ratio (Var/Mean): 7.91 
+#> 
 #> CONCLUSION: Substantial overdispersion detected!
 #> Standard errors may be too small.
 ```
@@ -414,6 +446,9 @@ p1 <- ggplot2$ggplot(doctor_visits, ggplot2$aes(x = fitted, y = pearson_resid)) 
     ggplot2$theme_minimal()
 
 print(p1)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -480,10 +515,32 @@ model_qpois <- glm(visits ~ health + age + gender + income,
                    data = doctor_visits, family = quasipoisson)
 
 cat("Quasi-Poisson Regression:\n")
-#> Quasi-Poisson Regression:
 cat("=========================\n\n")
-#> =========================
 summary(model_qpois)
+
+# Compare standard errors
+se_pois <- summary(model_pois)$coefficients[, "Std. Error"]
+se_qpois <- summary(model_qpois)$coefficients[, "Std. Error"]
+
+cat("\nStandard Error Comparison:\n")
+se_compare <- data.table(
+    Variable = names(se_pois),
+    SE_Poisson = se_pois,
+    SE_QuasiPoisson = se_qpois,
+    Ratio = se_qpois / se_pois
+)
+print(se_compare[, .(Variable,
+                     Poisson = round(SE_Poisson, 4),
+                     QuasiPoisson = round(SE_QuasiPoisson, 4),
+                     Inflation = round(Ratio, 2))])
+
+cat("\nNote: SE inflated by sqrt(dispersion) =", round(sqrt(dispersion), 2), "\n")
+```
+
+```
+#> Quasi-Poisson Regression:
+#> =========================
+#> 
 #> 
 #> Call:
 #> glm(formula = visits ~ health + age + gender + income, family = quasipoisson, 
@@ -507,24 +564,9 @@ summary(model_qpois)
 #> AIC: NA
 #> 
 #> Number of Fisher Scoring iterations: 5
-
-# Compare standard errors
-se_pois <- summary(model_pois)$coefficients[, "Std. Error"]
-se_qpois <- summary(model_qpois)$coefficients[, "Std. Error"]
-
-cat("\nStandard Error Comparison:\n")
+#> 
 #> 
 #> Standard Error Comparison:
-se_compare <- data.table(
-    Variable = names(se_pois),
-    SE_Poisson = se_pois,
-    SE_QuasiPoisson = se_qpois,
-    Ratio = se_qpois / se_pois
-)
-print(se_compare[, .(Variable,
-                     Poisson = round(SE_Poisson, 4),
-                     QuasiPoisson = round(SE_QuasiPoisson, 4),
-                     Inflation = round(Ratio, 2))])
 #>           Variable Poisson QuasiPoisson Inflation
 #>             <char>   <num>        <num>     <num>
 #> 1:     (Intercept)  0.0748       0.2044      2.73
@@ -533,8 +575,6 @@ print(se_compare[, .(Variable,
 #> 4:             age  0.0100       0.0273      2.73
 #> 5:      gendermale  0.0130       0.0356      2.73
 #> 6:          income  0.0021       0.0057      2.73
-
-cat("\nNote: SE inflated by sqrt(dispersion) =", round(sqrt(dispersion), 2), "\n")
 #> 
 #> Note: SE inflated by sqrt(dispersion) = 2.73
 ```
@@ -576,9 +616,7 @@ hospital_data <- data.table(
 hospital_data[, events := rpois(.N, lambda = 0.02 * exposure * (1 + 0.5 * risk_factor))]
 
 cat("Offset Example: Adverse Events per Patient-Day\n")
-#> Offset Example: Adverse Events per Patient-Day
 cat("===============================================\n\n")
-#> ===============================================
 
 # Model without offset (wrong)
 model_no_offset <- glm(events ~ risk_factor, data = hospital_data, family = poisson)
@@ -588,20 +626,27 @@ model_offset <- glm(events ~ risk_factor + offset(log(exposure)),
                     data = hospital_data, family = poisson)
 
 cat("WITHOUT offset (incorrect for rate data):\n")
-#> WITHOUT offset (incorrect for rate data):
 cat("  Risk factor coefficient:", round(coef(model_no_offset)["risk_factor"], 4), "\n")
-#>   Risk factor coefficient: 0.3518
 cat("  Rate ratio:", round(exp(coef(model_no_offset)["risk_factor"]), 3), "\n\n")
-#>   Rate ratio: 1.422
 
 cat("WITH offset (correct):\n")
-#> WITH offset (correct):
 cat("  Risk factor coefficient:", round(coef(model_offset)["risk_factor"], 4), "\n")
-#>   Risk factor coefficient: 0.3676
 cat("  Rate ratio:", round(exp(coef(model_offset)["risk_factor"]), 3), "\n")
-#>   Rate ratio: 1.444
 cat("  Interpretation: Risk factor increases rate by",
     round((exp(coef(model_offset)["risk_factor"]) - 1) * 100, 1), "%\n")
+```
+
+```
+#> Offset Example: Adverse Events per Patient-Day
+#> ===============================================
+#> 
+#> WITHOUT offset (incorrect for rate data):
+#>   Risk factor coefficient: 0.3518 
+#>   Rate ratio: 1.422 
+#> 
+#> WITH offset (correct):
+#>   Risk factor coefficient: 0.3676 
+#>   Rate ratio: 1.444 
 #>   Interpretation: Risk factor increases rate by 44.4 %
 ```
 
@@ -616,23 +661,42 @@ los_clean <- hospital_los[!is.na(los) & los > 0,
                           .(los = los, age75 = age75, type1 = type1, gender = gender)]
 
 cat("Hospital Length of Stay Analysis:\n")
-#> Hospital Length of Stay Analysis:
 cat("==================================\n\n")
-#> ==================================
 cat("Mean LOS:", round(mean(los_clean$los), 2), "days\n")
-#> Mean LOS: 4.85 days
 cat("Variance:", round(var(los_clean$los), 2), "\n")
-#> Variance: 13.97
 cat("Var/Mean ratio:", round(var(los_clean$los) / mean(los_clean$los), 2), "\n")
-#> Var/Mean ratio: 2.88
 
 # Fit Poisson model
 model_los_pois <- glm(los ~ age75 + type1 + gender, data = los_clean, family = poisson)
 
 cat("\nPoisson Model:\n")
+summary(model_los_pois)
+
+# Check dispersion
+disp_los <- sum(residuals(model_los_pois, type = "pearson")^2) / model_los_pois$df.residual
+cat("\nDispersion parameter:", round(disp_los, 2), "\n")
+
+if (disp_los > 1.5) {
+    cat("Substantial overdispersion - standard Poisson may be inappropriate\n")
+}
+
+# Rate ratios
+rr_los <- exp(coef(model_los_pois))
+cat("\nRate Ratios:\n")
+for (var in names(rr_los)[-1]) {
+    cat("  ", var, ": RR =", round(rr_los[var], 3), "\n")
+}
+```
+
+```
+#> Hospital Length of Stay Analysis:
+#> ==================================
+#> 
+#> Mean LOS: 4.85 days
+#> Variance: 13.97 
+#> Var/Mean ratio: 2.88 
 #> 
 #> Poisson Model:
-summary(model_los_pois)
 #> 
 #> Call:
 #> glm(formula = los ~ age75 + type1 + gender, family = poisson, 
@@ -654,26 +718,12 @@ summary(model_los_pois)
 #> AIC: 9178.5
 #> 
 #> Number of Fisher Scoring iterations: 5
-
-# Check dispersion
-disp_los <- sum(residuals(model_los_pois, type = "pearson")^2) / model_los_pois$df.residual
-cat("\nDispersion parameter:", round(disp_los, 2), "\n")
 #> 
-#> Dispersion parameter: 2.32
-
-if (disp_los > 1.5) {
-    cat("Substantial overdispersion - standard Poisson may be inappropriate\n")
-}
+#> 
+#> Dispersion parameter: 2.32 
 #> Substantial overdispersion - standard Poisson may be inappropriate
-
-# Rate ratios
-rr_los <- exp(coef(model_los_pois))
-cat("\nRate Ratios:\n")
 #> 
 #> Rate Ratios:
-for (var in names(rr_los)[-1]) {
-    cat("  ", var, ": RR =", round(rr_los[var], 3), "\n")
-}
 #>    age75 : RR = 1.139 
 #>    type1 : RR = 1.874 
 #>    gender : RR = 0.863

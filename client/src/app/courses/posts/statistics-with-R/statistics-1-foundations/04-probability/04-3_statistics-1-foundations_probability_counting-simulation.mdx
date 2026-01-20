@@ -33,6 +33,9 @@ box::use(
 nhanes <- fread("../../../data/primary/nhanes.csv")
 
 cat("NHANES dataset:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
+```
+
+```
 #> NHANES dataset: 10000 observations, 76 variables
 ```
 
@@ -78,38 +81,22 @@ n_durations <- length(durations)
 total_protocols <- n_drugs * n_doses * n_durations
 
 cat("Multiplication Principle: Clinical Trial Protocols\n")
-#> Multiplication Principle: Clinical Trial Protocols
 cat("==================================================\n\n")
-#> ==================================================
 
 cat("Choices at each stage:\n")
-#> Choices at each stage:
 cat("  Stage 1 (Drug):", n_drugs, "options -", paste(drugs, collapse = ", "), "\n")
-#>   Stage 1 (Drug): 3 options - Drug A, Drug B, Drug C
 cat("  Stage 2 (Dose):", n_doses, "options -", paste(doses, collapse = ", "), "\n")
-#>   Stage 2 (Dose): 4 options - Low, Medium, High, Very High
 cat("  Stage 3 (Duration):", n_durations, "options -", paste(durations, collapse = ", "), "\n\n")
-#>   Stage 3 (Duration): 2 options - 4 weeks, 8 weeks
 
 cat("Total protocols =", n_drugs, "×", n_doses, "×", n_durations, "=", total_protocols, "\n\n")
-#> Total protocols = 3 <U+00D7> 4 <U+00D7> 2 = 24
 
 # Generate all combinations to verify
 all_protocols <- expand.grid(Drug = drugs, Dose = doses, Duration = durations)
 cat("Verification: Generating all combinations yields", nrow(all_protocols), "protocols.\n\n")
-#> Verification: Generating all combinations yields 24 protocols.
 
 # Show a sample
 cat("First 6 protocols:\n")
-#> First 6 protocols:
 print(head(all_protocols))
-#>     Drug   Dose Duration
-#> 1 Drug A    Low  4 weeks
-#> 2 Drug B    Low  4 weeks
-#> 3 Drug C    Low  4 weeks
-#> 4 Drug A Medium  4 weeks
-#> 5 Drug B Medium  4 weeks
-#> 6 Drug C Medium  4 weeks
 
 # Visualise as tree (simplified)
 tree_dt <- data.table(
@@ -150,6 +137,29 @@ ggplot2$ggplot(tree_dt, ggplot2$aes(x = x, y = y)) +
 <Figure src="/courses/statistics-1-foundations/multiplication_principle-1.png" alt="The multiplication principle counts sequential choices">
 	The multiplication principle counts sequential choices
 </Figure>
+
+```
+#> Multiplication Principle: Clinical Trial Protocols
+#> ==================================================
+#> 
+#> Choices at each stage:
+#>   Stage 1 (Drug): 3 options - Drug A, Drug B, Drug C 
+#>   Stage 2 (Dose): 4 options - Low, Medium, High, Very High 
+#>   Stage 3 (Duration): 2 options - 4 weeks, 8 weeks 
+#> 
+#> Total protocols = 3 × 4 × 2 = 24 
+#> 
+#> Verification: Generating all combinations yields 24 protocols.
+#> 
+#> First 6 protocols:
+#>     Drug   Dose Duration
+#> 1 Drug A    Low  4 weeks
+#> 2 Drug B    Low  4 weeks
+#> 3 Drug C    Low  4 weeks
+#> 4 Drug A Medium  4 weeks
+#> 5 Drug B Medium  4 weeks
+#> 6 Drug C Medium  4 weeks
+```
 
 ### 4.7.2 Permutations
 
@@ -193,54 +203,33 @@ my_permutation <- function(n, r) {
 
 # Verify against R's built-in
 cat("Factorial Implementation\n")
-#> Factorial Implementation
 cat("========================\n\n")
-#> ========================
 
 for (n in 0:7) {
     cat(sprintf("  %d! = %d (built-in: %d)\n",
                 n, my_factorial(n), factorial(n)))
 }
-#>   0! = 1 (built-in: 1)
-#>   1! = 1 (built-in: 1)
-#>   2! = 2 (built-in: 2)
-#>   3! = 6 (built-in: 6)
-#>   4! = 24 (built-in: 24)
-#>   5! = 120 (built-in: 120)
-#>   6! = 720 (built-in: 720)
-#>   7! = 5040 (built-in: 5040)
 
 cat("\nPermutation Examples\n")
-#> 
-#> Permutation Examples
 cat("====================\n\n")
-#> ====================
 
 # Example 1: Arrange 5 patients in a queue
 n1 <- 5
 cat("Arranging", n1, "patients in a queue:\n")
-#> Arranging 5 patients in a queue:
 cat("  P(5, 5) = 5! =", my_permutation(5, 5), "\n\n")
-#>   P(5, 5) = 5! = 120
 
 # Example 2: Assign gold, silver, bronze to 3 of 10 athletes
 n2 <- 10
 r2 <- 3
 cat("Awarding gold/silver/bronze to 3 of 10 athletes:\n")
-#> Awarding gold/silver/bronze to 3 of 10 athletes:
 cat("  P(10, 3) = 10! / 7! =", my_permutation(10, 3), "\n")
-#>   P(10, 3) = 10! / 7! = 720
 cat("  Verification: 10 × 9 × 8 =", 10 * 9 * 8, "\n\n")
-#>   Verification: 10 <U+00D7> 9 <U+00D7> 8 = 720
 
 # Example 3: DNA sequence
 # How many 4-nucleotide sequences (order matters, with replacement)?
 cat("4-nucleotide DNA sequences (with replacement):\n")
-#> 4-nucleotide DNA sequences (with replacement):
 cat("  4^4 =", 4^4, "sequences\n")
-#>   4^4 = 256 sequences
 cat("  (This is multiplication principle, not permutation)\n\n")
-#>   (This is multiplication principle, not permutation)
 
 # List all permutations for small case
 patients <- c("A", "B", "C")
@@ -258,17 +247,46 @@ all_perms <- function(x) {
 
 perms <- all_perms(patients)
 cat("All permutations of 3 patients:\n")
-#> All permutations of 3 patients:
 for (i in seq_along(perms)) {
     cat("  ", i, ": ", paste(perms[[i]], collapse = " -> "), "\n", sep = "")
 }
+cat("Total:", length(perms), "(matches 3! =", factorial(3), ")\n")
+```
+
+```
+#> Factorial Implementation
+#> ========================
+#> 
+#>   0! = 1 (built-in: 1)
+#>   1! = 1 (built-in: 1)
+#>   2! = 2 (built-in: 2)
+#>   3! = 6 (built-in: 6)
+#>   4! = 24 (built-in: 24)
+#>   5! = 120 (built-in: 120)
+#>   6! = 720 (built-in: 720)
+#>   7! = 5040 (built-in: 5040)
+#> 
+#> Permutation Examples
+#> ====================
+#> 
+#> Arranging 5 patients in a queue:
+#>   P(5, 5) = 5! = 120 
+#> 
+#> Awarding gold/silver/bronze to 3 of 10 athletes:
+#>   P(10, 3) = 10! / 7! = 720 
+#>   Verification: 10 × 9 × 8 = 720 
+#> 
+#> 4-nucleotide DNA sequences (with replacement):
+#>   4^4 = 256 sequences
+#>   (This is multiplication principle, not permutation)
+#> 
+#> All permutations of 3 patients:
 #>   1: A -> B -> C
 #>   2: A -> C -> B
 #>   3: B -> A -> C
 #>   4: B -> C -> A
 #>   5: C -> A -> B
 #>   6: C -> B -> A
-cat("Total:", length(perms), "(matches 3! =", factorial(3), ")\n")
 #> Total: 6 (matches 3! = 6 )
 ```
 
@@ -311,9 +329,7 @@ my_combination <- function(n, r) {
 
 # Verify against R's built-in choose()
 cat("Combination Implementation\n")
-#> Combination Implementation
 cat("==========================\n\n")
-#> ==========================
 
 test_cases <- list(c(5, 2), c(10, 3), c(20, 5), c(52, 5))
 
@@ -323,60 +339,71 @@ for (tc in test_cases) {
     cat(sprintf("  C(%d, %d) = %d (built-in: %d)\n",
                 n, r, my_combination(n, r), choose(n, r)))
 }
-#>   C(5, 2) = 10 (built-in: 10)
-#>   C(10, 3) = 120 (built-in: 120)
-#>   C(20, 5) = 15504 (built-in: 15504)
-#>   C(52, 5) = 2598960 (built-in: 2598960)
 
 cat("\nPractical Examples\n")
-#> 
-#> Practical Examples
 cat("==================\n\n")
-#> ==================
 
 # Example 1: Choose 3 patients from 10 for treatment
 cat("Choosing 3 patients from 10 for treatment group:\n")
-#> Choosing 3 patients from 10 for treatment group:
 cat("  C(10, 3) =", choose(10, 3), "\n\n")
-#>   C(10, 3) = 120
 
 # Example 2: Choose 5 genes from 20 for a panel
 cat("Selecting 5 genes from 20 for a diagnostic panel:\n")
-#> Selecting 5 genes from 20 for a diagnostic panel:
 cat("  C(20, 5) =", choose(20, 5), "\n\n")
-#>   C(20, 5) = 15504
 
 # Example 3: Poker hand (5 cards from 52)
 cat("Number of possible 5-card poker hands:\n")
-#> Number of possible 5-card poker hands:
 cat("  C(52, 5) =", format(choose(52, 5), big.mark = ","), "\n\n")
-#>   C(52, 5) = 2,598,960
 
 # Show relationship between permutations and combinations
 cat("Relationship: C(n, r) = P(n, r) / r!\n")
-#> Relationship: C(n, r) = P(n, r) / r!
 cat("  P(10, 3) =", my_permutation(10, 3), "\n")
-#>   P(10, 3) = 720
 cat("  3! =", factorial(3), "\n")
-#>   3! = 6
 cat("  P(10, 3) / 3! =", my_permutation(10, 3) / factorial(3), "= C(10, 3)\n\n")
-#>   P(10, 3) / 3! = 120 = C(10, 3)
 
 # List all combinations for small case
 patients <- c("A", "B", "C", "D")
 all_combs <- combn(patients, 2, simplify = FALSE)
 cat("All combinations of 2 patients from 4:\n")
-#> All combinations of 2 patients from 4:
 for (i in seq_along(all_combs)) {
     cat("  ", i, ": {", paste(all_combs[[i]], collapse = ", "), "}\n", sep = "")
 }
+cat("Total:", length(all_combs), "(matches C(4,2) =", choose(4, 2), ")\n")
+```
+
+```
+#> Combination Implementation
+#> ==========================
+#> 
+#>   C(5, 2) = 10 (built-in: 10)
+#>   C(10, 3) = 120 (built-in: 120)
+#>   C(20, 5) = 15504 (built-in: 15504)
+#>   C(52, 5) = 2598960 (built-in: 2598960)
+#> 
+#> Practical Examples
+#> ==================
+#> 
+#> Choosing 3 patients from 10 for treatment group:
+#>   C(10, 3) = 120 
+#> 
+#> Selecting 5 genes from 20 for a diagnostic panel:
+#>   C(20, 5) = 15504 
+#> 
+#> Number of possible 5-card poker hands:
+#>   C(52, 5) = 2,598,960 
+#> 
+#> Relationship: C(n, r) = P(n, r) / r!
+#>   P(10, 3) = 720 
+#>   3! = 6 
+#>   P(10, 3) / 3! = 120 = C(10, 3)
+#> 
+#> All combinations of 2 patients from 4:
 #>   1: {A, B}
 #>   2: {A, C}
 #>   3: {A, D}
 #>   4: {B, C}
 #>   5: {B, D}
 #>   6: {C, D}
-cat("Total:", length(all_combs), "(matches C(4,2) =", choose(4, 2), ")\n")
 #> Total: 6 (matches C(4,2) = 6 )
 ```
 
@@ -458,43 +485,29 @@ total_ways <- choose(n_doctors + n_nurses, committee_size)
 prob_exactly_2_doctors <- ways_target / total_ways
 
 cat("Example 1: Committee Selection\n")
-#> Example 1: Committee Selection
 cat("==============================\n\n")
-#> ==============================
 
 cat("Select committee of 4 from 8 doctors and 5 nurses.\n")
-#> Select committee of 4 from 8 doctors and 5 nurses.
 cat("What is P(exactly 2 doctors on committee)?\n\n")
-#> What is P(exactly 2 doctors on committee)?
 
 cat("Ways to choose 2 doctors from 8: C(8, 2) =", ways_doctors, "\n")
-#> Ways to choose 2 doctors from 8: C(8, 2) = 28
 cat("Ways to choose 2 nurses from 5: C(5, 2) =", ways_nurses, "\n")
-#> Ways to choose 2 nurses from 5: C(5, 2) = 10
 cat("Ways to form target committee:", ways_doctors, "×", ways_nurses, "=", ways_target, "\n\n")
-#> Ways to form target committee: 28 <U+00D7> 10 = 280
 
 cat("Total ways to choose any 4 from 13: C(13, 4) =", total_ways, "\n\n")
-#> Total ways to choose any 4 from 13: C(13, 4) = 715
 
 cat("P(exactly 2 doctors) =", ways_target, "/", total_ways, "=", round(prob_exactly_2_doctors, 4), "\n\n")
-#> P(exactly 2 doctors) = 280 / 715 = 0.3916
 
 # Example 2: Genetic inheritance (Mendelian probability)
 # Two heterozygous parents (Aa × Aa)
 # P(exactly 2 of 3 offspring are carriers, Aa)?
 
 cat("Example 2: Mendelian Genetics\n")
-#> Example 2: Mendelian Genetics
 cat("=============================\n\n")
-#> =============================
 
 cat("Parents: Aa × Aa (both carriers)\n")
-#> Parents: Aa <U+00D7> Aa (both carriers)
 cat("Offspring genotype probabilities:\n")
-#> Offspring genotype probabilities:
 cat("  P(AA) = 1/4, P(Aa) = 1/2, P(aa) = 1/4\n\n")
-#>   P(AA) = 1/4, P(Aa) = 1/2, P(aa) = 1/4
 
 # P(carrier) = 1/2
 p_carrier <- 0.5
@@ -507,13 +520,9 @@ prob_2_carriers <- choose(n_offspring, k_carriers) *
                    (1 - p_carrier)^(n_offspring - k_carriers)
 
 cat("P(exactly 2 of 3 offspring are carriers):\n")
-#> P(exactly 2 of 3 offspring are carriers):
 cat("  = C(3, 2) × (1/2)^2 × (1/2)^1\n")
-#>   = C(3, 2) <U+00D7> (1/2)^2 <U+00D7> (1/2)^1
 cat("  =", choose(3, 2), "× 0.25 × 0.5\n")
-#>   = 3 <U+00D7> 0.25 <U+00D7> 0.5
 cat("  =", prob_2_carriers, "\n\n")
-#>   = 0.375
 
 # Example 3: Quality control (hypergeometric)
 # Batch of 20 items contains 4 defective. Sample 5 without replacement.
@@ -533,31 +542,63 @@ ways_total <- choose(batch_size, sample_size)
 prob_1_defective <- (ways_defective * ways_good) / ways_total
 
 cat("Example 3: Quality Control Sampling\n")
-#> Example 3: Quality Control Sampling
 cat("====================================\n\n")
-#> ====================================
 
 cat("Batch: 20 items (4 defective, 16 good)\n")
-#> Batch: 20 items (4 defective, 16 good)
 cat("Sample 5 items without replacement.\n")
-#> Sample 5 items without replacement.
 cat("P(exactly 1 defective in sample)?\n\n")
-#> P(exactly 1 defective in sample)?
 
 cat("Ways to choose 1 defective from 4: C(4, 1) =", ways_defective, "\n")
-#> Ways to choose 1 defective from 4: C(4, 1) = 4
 cat("Ways to choose 4 good from 16: C(16, 4) =", ways_good, "\n")
-#> Ways to choose 4 good from 16: C(16, 4) = 1820
 cat("Total ways to choose 5 from 20: C(20, 5) =", ways_total, "\n\n")
-#> Total ways to choose 5 from 20: C(20, 5) = 15504
 
 cat("P(exactly 1 defective) =", ways_defective, "×", ways_good, "/", ways_total, "\n")
-#> P(exactly 1 defective) = 4 <U+00D7> 1820 / 15504
 cat("                       =", round(prob_1_defective, 4), "\n")
-#>                        = 0.4696
 
 # Verify with dhyper
 cat("\nVerification using R's dhyper():", dhyper(1, 4, 16, 5), "\n")
+```
+
+```
+#> Example 1: Committee Selection
+#> ==============================
+#> 
+#> Select committee of 4 from 8 doctors and 5 nurses.
+#> What is P(exactly 2 doctors on committee)?
+#> 
+#> Ways to choose 2 doctors from 8: C(8, 2) = 28 
+#> Ways to choose 2 nurses from 5: C(5, 2) = 10 
+#> Ways to form target committee: 28 × 10 = 280 
+#> 
+#> Total ways to choose any 4 from 13: C(13, 4) = 715 
+#> 
+#> P(exactly 2 doctors) = 280 / 715 = 0.3916 
+#> 
+#> Example 2: Mendelian Genetics
+#> =============================
+#> 
+#> Parents: Aa × Aa (both carriers)
+#> Offspring genotype probabilities:
+#>   P(AA) = 1/4, P(Aa) = 1/2, P(aa) = 1/4
+#> 
+#> P(exactly 2 of 3 offspring are carriers):
+#>   = C(3, 2) × (1/2)^2 × (1/2)^1
+#>   = 3 × 0.25 × 0.5
+#>   = 0.375 
+#> 
+#> Example 3: Quality Control Sampling
+#> ====================================
+#> 
+#> Batch: 20 items (4 defective, 16 good)
+#> Sample 5 items without replacement.
+#> P(exactly 1 defective in sample)?
+#> 
+#> Ways to choose 1 defective from 4: C(4, 1) = 4 
+#> Ways to choose 4 good from 16: C(16, 4) = 1820 
+#> Total ways to choose 5 from 20: C(20, 5) = 15504 
+#> 
+#> P(exactly 1 defective) = 4 × 1820 / 15504 
+#>                        = 0.4696 
 #> 
 #> Verification using R's dhyper(): 0.4695562
 ```
@@ -569,59 +610,67 @@ cat("\nVerification using R's dhyper():", dhyper(1, 4, 16, 5), "\n")
 
 ``` r
 cat("R Functions for Combinatorics\n")
-#> R Functions for Combinatorics
 cat("=============================\n\n")
-#> =============================
 
 # Factorial
 cat("factorial(n) — Computes n!\n")
-#> factorial(n) <U+2014> Computes n!
 cat("  factorial(5) =", factorial(5), "\n")
-#>   factorial(5) = 120
 cat("  factorial(10) =", format(factorial(10), big.mark = ","), "\n")
-#>   factorial(10) = 3,628,800
 cat("  factorial(20) =", format(factorial(20), big.mark = ",", scientific = FALSE), "\n\n")
-#>   factorial(20) = 2,432,902,008,176,640,000
 
 # Note: factorial grows quickly; use lfactorial for large n
 cat("lfactorial(n) — Log factorial for large n\n")
-#> lfactorial(n) <U+2014> Log factorial for large n
 cat("  lfactorial(100) =", round(lfactorial(100), 2), "\n")
-#>   lfactorial(100) = 363.74
 cat("  exp(lfactorial(100)) is too large to store!\n\n")
-#>   exp(lfactorial(100)) is too large to store!
 
 # Combinations
 cat("choose(n, k) — Binomial coefficient C(n, k)\n")
-#> choose(n, k) <U+2014> Binomial coefficient C(n, k)
 cat("  choose(52, 5) =", format(choose(52, 5), big.mark = ","), "\n")
-#>   choose(52, 5) = 2,598,960
 cat("  choose(100, 10) =", format(choose(100, 10), big.mark = ",", scientific = FALSE), "\n\n")
-#>   choose(100, 10) = 17,310,309,456,440
 
 # lchoose for large values
 cat("lchoose(n, k) — Log of binomial coefficient\n")
-#> lchoose(n, k) <U+2014> Log of binomial coefficient
 cat("  lchoose(1000, 500) =", round(lchoose(1000, 500), 2), "\n\n")
-#>   lchoose(1000, 500) = 689.47
 
 # Generate combinations
 cat("combn(x, m) — Generate all combinations\n")
-#> combn(x, m) <U+2014> Generate all combinations
 cat("  combn(1:4, 2):\n")
-#>   combn(1:4, 2):
 print(combn(1:4, 2))
-#>      [,1] [,2] [,3] [,4] [,5] [,6]
-#> [1,]    1    1    1    2    2    3
-#> [2,]    2    3    4    3    4    4
 
 # Permutations (no built-in, but can use gtools or implement)
 cat("\nImplementing permutations:\n")
+cat("  Using factorial: P(n, r) = n! / (n-r)!\n")
+cat("  P(5, 3) = factorial(5) / factorial(2) =", factorial(5) / factorial(2), "\n")
+```
+
+```
+#> R Functions for Combinatorics
+#> =============================
+#> 
+#> factorial(n) — Computes n!
+#>   factorial(5) = 120 
+#>   factorial(10) = 3,628,800 
+#>   factorial(20) = 2,432,902,008,176,640,000 
+#> 
+#> lfactorial(n) — Log factorial for large n
+#>   lfactorial(100) = 363.74 
+#>   exp(lfactorial(100)) is too large to store!
+#> 
+#> choose(n, k) — Binomial coefficient C(n, k)
+#>   choose(52, 5) = 2,598,960 
+#>   choose(100, 10) = 17,310,309,456,440 
+#> 
+#> lchoose(n, k) — Log of binomial coefficient
+#>   lchoose(1000, 500) = 689.47 
+#> 
+#> combn(x, m) — Generate all combinations
+#>   combn(1:4, 2):
+#>      [,1] [,2] [,3] [,4] [,5] [,6]
+#> [1,]    1    1    1    2    2    3
+#> [2,]    2    3    4    3    4    4
 #> 
 #> Implementing permutations:
-cat("  Using factorial: P(n, r) = n! / (n-r)!\n")
 #>   Using factorial: P(n, r) = n! / (n-r)!
-cat("  P(5, 3) = factorial(5) / factorial(2) =", factorial(5) / factorial(2), "\n")
 #>   P(5, 3) = factorial(5) / factorial(2) = 60
 ```
 
@@ -655,39 +704,25 @@ multinomial <- function(n, groups) {
 }
 
 cat("Custom Counting Functions\n")
-#> Custom Counting Functions
 cat("=========================\n\n")
-#> =========================
 
 cat("Permutations (order matters, no replacement):\n")
-#> Permutations (order matters, no replacement):
 cat("  P(10, 3) =", permutation(10, 3), "\n\n")
-#>   P(10, 3) = 720
 
 cat("Permutations with repetition (order matters, with replacement):\n")
-#> Permutations with repetition (order matters, with replacement):
 cat("  4-digit PIN using digits 0-9:", permutation_rep(10, 4), "\n\n")
-#>   4-digit PIN using digits 0-9: 10000
 
 cat("Combinations (order doesn't matter, no replacement):\n")
-#> Combinations (order doesn't matter, no replacement):
 cat("  C(10, 3) =", combination(10, 3), "\n\n")
-#>   C(10, 3) = 120
 
 cat("Multinomial coefficient:\n")
-#> Multinomial coefficient:
 cat("  Arranging 10 objects into groups of 4, 3, 3:\n")
-#>   Arranging 10 objects into groups of 4, 3, 3:
 cat("  10! / (4! × 3! × 3!) =", multinomial(10, c(4, 3, 3)), "\n\n")
-#>   10! / (4! <U+00D7> 3! <U+00D7> 3!) = 4200
 
 # Application: Probability of specific poker hand
 cat("Application: Probability of a Flush in Poker\n")
-#> Application: Probability of a Flush in Poker
 cat("--------------------------------------------\n")
-#> --------------------------------------------
 cat("A flush is 5 cards of the same suit.\n\n")
-#> A flush is 5 cards of the same suit.
 
 # Choose 1 suit from 4
 ways_suit <- choose(4, 1)
@@ -705,15 +740,38 @@ total_hands <- choose(52, 5)
 prob_flush <- total_flush / total_hands
 
 cat("Ways to choose suit: C(4, 1) =", ways_suit, "\n")
-#> Ways to choose suit: C(4, 1) = 4
 cat("Ways to choose 5 from 13: C(13, 5) =", ways_cards, "\n")
-#> Ways to choose 5 from 13: C(13, 5) = 1287
 cat("Total flush hands:", format(total_flush, big.mark = ","), "\n")
-#> Total flush hands: 5,148
 cat("Total possible hands:", format(total_hands, big.mark = ","), "\n")
-#> Total possible hands: 2,598,960
 cat("P(flush) ≈", round(prob_flush, 5), "or about 1 in", round(1/prob_flush), "\n")
-#> P(flush) <U+2248> 0.00198 or about 1 in 505
+```
+
+```
+#> Custom Counting Functions
+#> =========================
+#> 
+#> Permutations (order matters, no replacement):
+#>   P(10, 3) = 720 
+#> 
+#> Permutations with repetition (order matters, with replacement):
+#>   4-digit PIN using digits 0-9: 10000 
+#> 
+#> Combinations (order doesn't matter, no replacement):
+#>   C(10, 3) = 120 
+#> 
+#> Multinomial coefficient:
+#>   Arranging 10 objects into groups of 4, 3, 3:
+#>   10! / (4! × 3! × 3!) = 4200 
+#> 
+#> Application: Probability of a Flush in Poker
+#> --------------------------------------------
+#> A flush is 5 cards of the same suit.
+#> 
+#> Ways to choose suit: C(4, 1) = 4 
+#> Ways to choose 5 from 13: C(13, 5) = 1287 
+#> Total flush hands: 5,148 
+#> Total possible hands: 2,598,960 
+#> P(flush) ≈ 0.00198 or about 1 in 505
 ```
 
 ---
@@ -788,21 +846,14 @@ result <- monte_carlo_estimate(simulate_dice_sum_7, n_sims = 10000, seed = 42)
 p_true <- 6/36
 
 cat("Monte Carlo Example: P(two dice sum to 7)\n")
-#> Monte Carlo Example: P(two dice sum to 7)
 cat("=========================================\n\n")
-#> =========================================
 
 cat("True probability: 6/36 =", round(p_true, 4), "\n\n")
-#> True probability: 6/36 = 0.1667
 
 cat("Monte Carlo estimate (", result$n_sims, " simulations):\n", sep = "")
-#> Monte Carlo estimate (10000 simulations):
 cat("  Estimated P:", round(result$estimate, 4), "\n")
-#>   Estimated P: 0.1565
 cat("  Standard error:", round(result$se, 4), "\n")
-#>   Standard error: 0.0036
 cat("  95% CI: [", round(result$ci[1], 4), ",", round(result$ci[2], 4), "]\n")
-#>   95% CI: [ 0.1494 , 0.1636 ]
 
 # Show convergence
 set.seed(42)
@@ -833,6 +884,18 @@ ggplot2$ggplot(convergence_dt, ggplot2$aes(x = n, y = estimate)) +
 <Figure src="/courses/statistics-1-foundations/monte_carlo_intro-1.png" alt="Monte Carlo estimation of probability">
 	Monte Carlo estimation of probability
 </Figure>
+
+```
+#> Monte Carlo Example: P(two dice sum to 7)
+#> =========================================
+#> 
+#> True probability: 6/36 = 0.1667 
+#> 
+#> Monte Carlo estimate (10000 simulations):
+#>   Estimated P: 0.1565 
+#>   Standard error: 0.0036 
+#>   95% CI: [ 0.1494 , 0.1636 ]
+```
 
 ### 4.8.2 Estimating Probabilities Through Simulation
 
@@ -874,12 +937,9 @@ for (i in seq_along(group_sizes)) {
 }
 
 cat("The Birthday Problem\n")
-#> The Birthday Problem
 cat("====================\n\n")
-#> ====================
 
 cat("P(at least two people share a birthday) in a group of n:\n\n")
-#> P(at least two people share a birthday) in a group of n:
 
 key_values <- c(10, 20, 23, 30, 40, 50)
 for (n in key_values) {
@@ -887,17 +947,9 @@ for (n in key_values) {
     cat(sprintf("  n = %2d: Simulated = %.3f, Theoretical = %.3f\n",
                 n, birthday_probs$simulated[idx], birthday_probs$theoretical[idx]))
 }
-#>   n = 10: Simulated = 0.121, Theoretical = 0.117
-#>   n = 20: Simulated = 0.413, Theoretical = 0.411
-#>   n = 23: Simulated = 0.501, Theoretical = 0.507
-#>   n = 30: Simulated = 0.705, Theoretical = 0.706
-#>   n = 40: Simulated = 0.892, Theoretical = 0.891
-#>   n = 50: Simulated = 0.975, Theoretical = 0.970
 
 cat("\nThe 50% threshold is reached at n =",
     min(birthday_probs$n_people[birthday_probs$theoretical >= 0.5]), "\n")
-#> 
-#> The 50% threshold is reached at n = 23
 
 # Plot
 birthday_long <- melt(birthday_probs, id.vars = "n_people",
@@ -925,6 +977,22 @@ ggplot2$ggplot(birthday_long, ggplot2$aes(x = n_people, y = probability,
 <Figure src="/courses/statistics-1-foundations/birthday_problem-1.png" alt="The birthday problem: probability of shared birthdays">
 	The birthday problem: probability of shared birthdays
 </Figure>
+
+```
+#> The Birthday Problem
+#> ====================
+#> 
+#> P(at least two people share a birthday) in a group of n:
+#> 
+#>   n = 10: Simulated = 0.121, Theoretical = 0.117
+#>   n = 20: Simulated = 0.413, Theoretical = 0.411
+#>   n = 23: Simulated = 0.501, Theoretical = 0.507
+#>   n = 30: Simulated = 0.705, Theoretical = 0.706
+#>   n = 40: Simulated = 0.892, Theoretical = 0.891
+#>   n = 50: Simulated = 0.975, Theoretical = 0.970
+#> 
+#> The 50% threshold is reached at n = 23
+```
 
 **The Monty Hall Problem**
 
@@ -972,28 +1040,19 @@ stay_wins <- mean(replicate(n_sims, monty_hall(switch = FALSE)))
 switch_wins <- mean(replicate(n_sims, monty_hall(switch = TRUE)))
 
 cat("The Monty Hall Problem\n")
-#> The Monty Hall Problem
 cat("======================\n\n")
-#> ======================
 
 cat("Simulation results (", n_sims, " games):\n\n", sep = "")
-#> Simulation results (10000 games):
 cat("  Strategy: STAY   -> Win rate:", round(stay_wins, 3),
     "(theoretical: 1/3 ≈ 0.333)\n")
-#>   Strategy: STAY   -> Win rate: 0.338 (theoretical: 1/3 <U+2248> 0.333)
 cat("  Strategy: SWITCH -> Win rate:", round(switch_wins, 3),
     "(theoretical: 2/3 ≈ 0.667)\n\n")
-#>   Strategy: SWITCH -> Win rate: NA (theoretical: 2/3 <U+2248> 0.667)
 
 cat("Conclusion: ALWAYS SWITCH! Switching doubles your chances of winning.\n\n")
-#> Conclusion: ALWAYS SWITCH! Switching doubles your chances of winning.
 
 cat("Intuition: When you first pick, you have 1/3 chance of being right.\n")
-#> Intuition: When you first pick, you have 1/3 chance of being right.
 cat("The host's reveal doesn't change this. If you were wrong (2/3 chance),\n")
-#> The host's reveal doesn't change this. If you were wrong (2/3 chance),
 cat("switching gets you the car. If you were right (1/3 chance), switching loses.\n")
-#> switching gets you the car. If you were right (1/3 chance), switching loses.
 
 # Visualise
 strategy_dt <- data.table(
@@ -1023,6 +1082,22 @@ ggplot2$ggplot(strategy_dt, ggplot2$aes(x = strategy, y = win_rate, fill = strat
 <Figure src="/courses/statistics-1-foundations/monty_hall-1.png" alt="The Monty Hall problem: always switch!">
 	The Monty Hall problem: always switch!
 </Figure>
+
+```
+#> The Monty Hall Problem
+#> ======================
+#> 
+#> Simulation results (10000 games):
+#> 
+#>   Strategy: STAY   -> Win rate: 0.338 (theoretical: 1/3 ≈ 0.333)
+#>   Strategy: SWITCH -> Win rate: NA (theoretical: 2/3 ≈ 0.667)
+#> 
+#> Conclusion: ALWAYS SWITCH! Switching doubles your chances of winning.
+#> 
+#> Intuition: When you first pick, you have 1/3 chance of being right.
+#> The host's reveal doesn't change this. If you were wrong (2/3 chance),
+#> switching gets you the car. If you were right (1/3 chance), switching loses.
+```
 
 **Clinical Trial Simulation**
 
@@ -1063,32 +1138,22 @@ for (i in seq_along(sample_sizes)) {
 }
 
 cat("Clinical Trial Power Simulation\n")
-#> Clinical Trial Power Simulation
 cat("===============================\n\n")
-#> ===============================
 
 cat("Scenario: Two-arm trial, continuous outcome\n")
-#> Scenario: Two-arm trial, continuous outcome
 cat("  True treatment effect: Cohen's d =", true_effect, "\n")
-#>   True treatment effect: Cohen's d = 0.5
 cat("  Standard deviation:", sd, "\n")
-#>   Standard deviation: 1
 cat("  Alpha level: 0.05\n\n")
-#>   Alpha level: 0.05
 
 cat("Sample size required for 80% power:\n")
-#> Sample size required for 80% power:
 idx_80 <- which(power_results$estimated_power >= 0.80)[1]
 cat("  Approximately n =", power_results$n_per_arm[idx_80], "per arm\n")
-#>   Approximately n = 70 per arm
 cat("  (Simulated power:", round(power_results$estimated_power[idx_80], 3), ")\n\n")
-#>   (Simulated power: 0.844 )
 
 # Compare to theoretical (using power.t.test)
 theoretical_n <- power.t.test(delta = true_effect, sd = sd, power = 0.80,
                               type = "two.sample")$n
 cat("Theoretical n per arm for 80% power:", ceiling(theoretical_n), "\n")
-#> Theoretical n per arm for 80% power: 64
 
 # Plot power curve
 ggplot2$ggplot(power_results, ggplot2$aes(x = n_per_arm, y = estimated_power)) +
@@ -1113,6 +1178,22 @@ ggplot2$ggplot(power_results, ggplot2$aes(x = n_per_arm, y = estimated_power)) +
 <Figure src="/courses/statistics-1-foundations/clinical_simulation-1.png" alt="Simulating a clinical trial to estimate power">
 	Simulating a clinical trial to estimate power
 </Figure>
+
+```
+#> Clinical Trial Power Simulation
+#> ===============================
+#> 
+#> Scenario: Two-arm trial, continuous outcome
+#>   True treatment effect: Cohen's d = 0.5 
+#>   Standard deviation: 1 
+#>   Alpha level: 0.05
+#> 
+#> Sample size required for 80% power:
+#>   Approximately n = 70 per arm
+#>   (Simulated power: 0.844 )
+#> 
+#> Theoretical n per arm for 80% power: 64
+```
 
 ### 4.8.3 The Law of Large Numbers
 
@@ -1190,62 +1271,69 @@ This is essential for:
 # Demonstrate seed behaviour
 
 cat("Setting Seeds for Reproducibility\n")
-#> Setting Seeds for Reproducibility
 cat("==================================\n\n")
-#> ==================================
 
 cat("Without seed: Different results each run\n")
-#> Without seed: Different results each run
 cat("  Run 1:", paste(round(runif(5), 3), collapse = ", "), "\n")
-#>   Run 1: 0.591, 0.488, 0.927, 0.852, 0.047
 cat("  Run 2:", paste(round(runif(5), 3), collapse = ", "), "\n\n")
-#>   Run 2: 0.822, 0.968, 0.137, 0.662, 0.482
 
 cat("With seed: Identical results each run\n")
-#> With seed: Identical results each run
 set.seed(123)
 cat("  Seed 123, Run 1:", paste(round(runif(5), 3), collapse = ", "), "\n")
-#>   Seed 123, Run 1: 0.288, 0.788, 0.409, 0.883, 0.94
 set.seed(123)
 cat("  Seed 123, Run 2:", paste(round(runif(5), 3), collapse = ", "), "\n\n")
-#>   Seed 123, Run 2: 0.288, 0.788, 0.409, 0.883, 0.94
 
 cat("Different seeds give different sequences:\n")
-#> Different seeds give different sequences:
 set.seed(42)
 cat("  Seed 42:", paste(round(runif(5), 3), collapse = ", "), "\n")
-#>   Seed 42: 0.915, 0.937, 0.286, 0.83, 0.642
 set.seed(99)
 cat("  Seed 99:", paste(round(runif(5), 3), collapse = ", "), "\n\n")
-#>   Seed 99: 0.585, 0.114, 0.684, 0.993, 0.535
 
 # Best practice: Set seed once at start of analysis
 cat("Best Practice:\n")
-#> Best Practice:
 cat("  1. Set seed once at the beginning of your script\n")
-#>   1. Set seed once at the beginning of your script
 cat("  2. Use meaningful seed (e.g., date, paper ID)\n")
-#>   2. Use meaningful seed (e.g., date, paper ID)
 cat("  3. Document your seed in methods section\n")
-#>   3. Document your seed in methods section
 cat("  4. For parallel computing, use different seeds per worker\n")
-#>   4. For parallel computing, use different seeds per worker
 
 # Show that sequence continues
 cat("\nNote: Seed only affects SUBSEQUENT random calls:\n")
-#> 
-#> Note: Seed only affects SUBSEQUENT random calls:
 set.seed(42)
 first_batch <- runif(3)
 second_batch <- runif(3)  # Different from first
 cat("  First 3:", paste(round(first_batch, 3), collapse = ", "), "\n")
-#>   First 3: 0.915, 0.937, 0.286
 cat("  Next 3:", paste(round(second_batch, 3), collapse = ", "), "\n")
-#>   Next 3: 0.83, 0.642, 0.519
 
 set.seed(42)
 combined <- runif(6)  # Same as first + second
 cat("  All 6 (same seed):", paste(round(combined, 3), collapse = ", "), "\n")
+```
+
+```
+#> Setting Seeds for Reproducibility
+#> ==================================
+#> 
+#> Without seed: Different results each run
+#>   Run 1: 0.591, 0.488, 0.927, 0.852, 0.047 
+#>   Run 2: 0.822, 0.968, 0.137, 0.662, 0.482 
+#> 
+#> With seed: Identical results each run
+#>   Seed 123, Run 1: 0.288, 0.788, 0.409, 0.883, 0.94 
+#>   Seed 123, Run 2: 0.288, 0.788, 0.409, 0.883, 0.94 
+#> 
+#> Different seeds give different sequences:
+#>   Seed 42: 0.915, 0.937, 0.286, 0.83, 0.642 
+#>   Seed 99: 0.585, 0.114, 0.684, 0.993, 0.535 
+#> 
+#> Best Practice:
+#>   1. Set seed once at the beginning of your script
+#>   2. Use meaningful seed (e.g., date, paper ID)
+#>   3. Document your seed in methods section
+#>   4. For parallel computing, use different seeds per worker
+#> 
+#> Note: Seed only affects SUBSEQUENT random calls:
+#>   First 3: 0.915, 0.937, 0.286 
+#>   Next 3: 0.83, 0.642, 0.519 
 #>   All 6 (same seed): 0.915, 0.937, 0.286, 0.83, 0.642, 0.519
 ```
 
@@ -1294,31 +1382,37 @@ params <- list(sample_size = 30, true_mean = 100, true_sd = 15)
 results <- run_simulation(n_sims = 1000, scenario_params = params, seed = 42)
 
 cat("Reproducible Simulation Results\n")
-#> Reproducible Simulation Results
 cat("===============================\n\n")
-#> ===============================
 
 cat("Parameters:\n")
-#> Parameters:
 cat("  True mean:", params$true_mean, "\n")
-#>   True mean: 100
 cat("  True SD:", params$true_sd, "\n")
-#>   True SD: 15
 cat("  Sample size:", params$sample_size, "\n\n")
-#>   Sample size: 30
 
 cat("Results from 1000 simulations:\n")
-#> Results from 1000 simulations:
 cat("  Mean of sample means:", round(mean(results$sample_mean), 2), "\n")
-#>   Mean of sample means: 99.99
 cat("  SD of sample means:", round(sd(results$sample_mean), 2), "\n")
-#>   SD of sample means: 2.85
 cat("  Theoretical SE:", round(params$true_sd / sqrt(params$sample_size), 2), "\n\n")
-#>   Theoretical SE: 2.74
 
 cat("Coverage of 95% CI:", round(mean(results$covers_true), 3), "\n")
-#> Coverage of 95% CI: 0.935
 cat("  (Should be close to 0.95)\n")
+```
+
+```
+#> Reproducible Simulation Results
+#> ===============================
+#> 
+#> Parameters:
+#>   True mean: 100 
+#>   True SD: 15 
+#>   Sample size: 30 
+#> 
+#> Results from 1000 simulations:
+#>   Mean of sample means: 99.99 
+#>   SD of sample means: 2.85 
+#>   Theoretical SE: 2.74 
+#> 
+#> Coverage of 95% CI: 0.935 
 #>   (Should be close to 0.95)
 ```
 
@@ -1331,46 +1425,55 @@ cat("  (Should be close to 0.95)\n")
 
 ``` r
 cat("Communicating Simulation Results to Stakeholders\n")
-#> Communicating Simulation Results to Stakeholders
 cat("=================================================\n\n")
-#> =================================================
 
 cat("When presenting simulation-based findings:\n\n")
-#> When presenting simulation-based findings:
 
 cat("1. EXPLAIN WHAT SIMULATION DOES\n")
-#> 1. EXPLAIN WHAT SIMULATION DOES
 cat("   'We ran the experiment virtually 10,000 times to see what\n")
-#>    'We ran the experiment virtually 10,000 times to see what
 cat("    typically happens under these conditions.'\n\n")
-#>     typically happens under these conditions.'
 
 cat("2. REPORT UNCERTAINTY\n")
-#> 2. REPORT UNCERTAINTY
 cat("   Instead of: 'The probability is 0.47'\n")
-#>    Instead of: 'The probability is 0.47'
 cat("   Say: 'The probability is approximately 47% (±1%)'\n\n")
-#>    Say: 'The probability is approximately 47% (<U+00B1>1%)'
 
 cat("3. USE CONCRETE EXAMPLES\n")
-#> 3. USE CONCRETE EXAMPLES
 cat("   'If we treat 1,000 patients this way, we expect about\n")
-#>    'If we treat 1,000 patients this way, we expect about
 cat("    470 to respond, give or take 30.'\n\n")
-#>     470 to respond, give or take 30.'
 
 cat("4. VALIDATE WHEN POSSIBLE\n")
-#> 4. VALIDATE WHEN POSSIBLE
 cat("   'We compared our simulation to real data from similar\n")
-#>    'We compared our simulation to real data from similar
 cat("    studies and found good agreement.'\n\n")
-#>     studies and found good agreement.'
 
 cat("5. ACKNOWLEDGE ASSUMPTIONS\n")
-#> 5. ACKNOWLEDGE ASSUMPTIONS
 cat("   'These results assume patients in the trial are similar\n")
-#>    'These results assume patients in the trial are similar
 cat("    to our target population.'\n")
+```
+
+```
+#> Communicating Simulation Results to Stakeholders
+#> =================================================
+#> 
+#> When presenting simulation-based findings:
+#> 
+#> 1. EXPLAIN WHAT SIMULATION DOES
+#>    'We ran the experiment virtually 10,000 times to see what
+#>     typically happens under these conditions.'
+#> 
+#> 2. REPORT UNCERTAINTY
+#>    Instead of: 'The probability is 0.47'
+#>    Say: 'The probability is approximately 47% (±1%)'
+#> 
+#> 3. USE CONCRETE EXAMPLES
+#>    'If we treat 1,000 patients this way, we expect about
+#>     470 to respond, give or take 30.'
+#> 
+#> 4. VALIDATE WHEN POSSIBLE
+#>    'We compared our simulation to real data from similar
+#>     studies and found good agreement.'
+#> 
+#> 5. ACKNOWLEDGE ASSUMPTIONS
+#>    'These results assume patients in the trial are similar
 #>     to our target population.'
 ```
 
@@ -1381,39 +1484,24 @@ cat("    to our target population.'\n")
 # Demonstrate when simulation excels
 
 cat("When to Use Simulation vs Exact Calculation\n")
-#> When to Use Simulation vs Exact Calculation
 cat("============================================\n\n")
-#> ============================================
 
 cat("USE EXACT CALCULATION when:\n")
-#> USE EXACT CALCULATION when:
 cat("  - Problem is simple (dice, cards, coin flips)\n")
-#>   - Problem is simple (dice, cards, coin flips)
 cat("  - Closed-form formula exists\n")
-#>   - Closed-form formula exists
 cat("  - Distributions are standard (binomial, normal, etc.)\n")
-#>   - Distributions are standard (binomial, normal, etc.)
 cat("  - You need very high precision\n\n")
-#>   - You need very high precision
 
 cat("USE SIMULATION when:\n")
-#> USE SIMULATION when:
 cat("  - Problem is complex or involves many steps\n")
-#>   - Problem is complex or involves many steps
 cat("  - Closed-form solution is intractable\n")
-#>   - Closed-form solution is intractable
 cat("  - Exploring 'what-if' scenarios\n")
-#>   - Exploring 'what-if' scenarios
 cat("  - Verifying analytical solutions\n")
-#>   - Verifying analytical solutions
 cat("  - Continuous distributions with complex boundaries\n\n")
-#>   - Continuous distributions with complex boundaries
 
 # Example: Simple problem - exact wins
 cat("Example 1: P(sum of 3 dice = 10)\n")
-#> Example 1: P(sum of 3 dice = 10)
 cat("--------------------------------\n")
-#> --------------------------------
 
 # Exact enumeration
 outcomes <- expand.grid(d1 = 1:6, d2 = 1:6, d3 = 1:6)
@@ -1424,17 +1512,12 @@ set.seed(42)
 p_sim <- mean(replicate(10000, sum(sample(1:6, 3, replace = TRUE)) == 10))
 
 cat("  Exact:", round(p_exact, 5), "\n")
-#>   Exact: 0.125
 cat("  Simulation (10,000):", round(p_sim, 5), "\n")
-#>   Simulation (10,000): 0.1243
 cat("  → Exact is easy and precise here\n\n")
-#>   <U+2192> Exact is easy and precise here
 
 # Example: Complex problem - simulation wins
 cat("Example 2: First time in random walk to return to origin\n")
-#> Example 2: First time in random walk to return to origin
 cat("--------------------------------------------------------\n")
-#> --------------------------------------------------------
 
 first_return <- function(max_steps = 1000) {
     position <- 0
@@ -1450,13 +1533,40 @@ returns <- replicate(5000, first_return())
 returns <- returns[!is.na(returns)]
 
 cat("  Mean first return time:", round(mean(returns), 1), "steps\n")
-#>   Mean first return time: 27.6 steps
 cat("  Median first return time:", median(returns), "steps\n")
-#>   Median first return time: 2 steps
 cat("  P(return within 10 steps):", round(mean(returns <= 10), 3), "\n")
-#>   P(return within 10 steps): 0.766
 cat("  → Simulation handles this complex problem easily\n")
-#>   <U+2192> Simulation handles this complex problem easily
+```
+
+```
+#> When to Use Simulation vs Exact Calculation
+#> ============================================
+#> 
+#> USE EXACT CALCULATION when:
+#>   - Problem is simple (dice, cards, coin flips)
+#>   - Closed-form formula exists
+#>   - Distributions are standard (binomial, normal, etc.)
+#>   - You need very high precision
+#> 
+#> USE SIMULATION when:
+#>   - Problem is complex or involves many steps
+#>   - Closed-form solution is intractable
+#>   - Exploring 'what-if' scenarios
+#>   - Verifying analytical solutions
+#>   - Continuous distributions with complex boundaries
+#> 
+#> Example 1: P(sum of 3 dice = 10)
+#> --------------------------------
+#>   Exact: 0.125 
+#>   Simulation (10,000): 0.1243 
+#>   → Exact is easy and precise here
+#> 
+#> Example 2: First time in random walk to return to origin
+#> --------------------------------------------------------
+#>   Mean first return time: 27.6 steps
+#>   Median first return time: 2 steps
+#>   P(return within 10 steps): 0.766 
+#>   → Simulation handles this complex problem easily
 ```
 
 ---

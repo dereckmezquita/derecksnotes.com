@@ -46,6 +46,9 @@ X <- as.matrix(breast_cancer[, ..feature_cols])
 y <- breast_cancer$y
 
 cat("Dataset: n =", nrow(X), ", p =", ncol(X), "\n")
+```
+
+```
 #> Dataset: n = 569 , p = 10
 ```
 
@@ -106,16 +109,19 @@ bias_data <- data.table(
 )
 
 cat("Selection Bias Analysis:\n")
-#> Selection Bias Analysis:
 cat("========================\n")
-#> ========================
 cat("  Mean CV error at selected lambda:", round(mean(cv_selected_errors), 4), "\n")
-#>   Mean CV error at selected lambda: 0.3619
 cat("  Mean true test error:", round(mean(true_errors), 4), "\n")
-#>   Mean true test error: 0.1731
 cat("  Mean bias (CV - true):", round(mean(bias_data$bias), 4), "\n")
-#>   Mean bias (CV - true): 0.1888
 cat("  Percentage of times CV is optimistic:", round(100 * mean(bias_data$bias < 0), 1), "%\n")
+```
+
+```
+#> Selection Bias Analysis:
+#> ========================
+#>   Mean CV error at selected lambda: 0.3619 
+#>   Mean true test error: 0.1731 
+#>   Mean bias (CV - true): 0.1888 
 #>   Percentage of times CV is optimistic: 0 %
 ```
 
@@ -295,14 +301,17 @@ nested_cv <- function(X, y, K_outer = 5, K_inner = 5, lambda_grid = NULL) {
 nested_result <- nested_cv(X, y, K_outer = 5, K_inner = 5)
 
 cat("Nested Cross-Validation Results:\n")
-#> Nested Cross-Validation Results:
 cat("================================\n")
-#> ================================
 cat("  Nested CV error:", round(nested_result$cv_error, 4), "\n")
-#>   Nested CV error: 0.1464
 cat("  SE:", round(nested_result$se_error, 4), "\n")
-#>   SE: 0.0096
 cat("  Selected lambdas per fold:", round(nested_result$selected_lambdas, 4), "\n")
+```
+
+```
+#> Nested Cross-Validation Results:
+#> ================================
+#>   Nested CV error: 0.1464 
+#>   SE: 0.0096 
 #>   Selected lambdas per fold: 0.0026 0.0026 0.0033 0.0026 0.0042
 ```
 
@@ -344,19 +353,22 @@ comparison_results <- rbindlist(lapply(1:n_sims, function(sim) {
 }))
 
 cat("Comparison Summary:\n")
-#> Comparison Summary:
 cat("===================\n")
-#> ===================
 cat("  Mean single-level CV:", round(mean(comparison_results$single_cv), 4), "\n")
-#>   Mean single-level CV: 0.3628
 cat("  Mean nested CV:", round(mean(comparison_results$nested_cv), 4), "\n")
-#>   Mean nested CV: 0.1572
 cat("  Mean true error:", round(mean(comparison_results$true_error), 4), "\n")
-#>   Mean true error: 0.1756
 cat("\n  Single-level bias:", round(mean(comparison_results$single_cv - comparison_results$true_error), 4), "\n")
-#> 
-#>   Single-level bias: 0.1872
 cat("  Nested CV bias:", round(mean(comparison_results$nested_cv - comparison_results$true_error), 4), "\n")
+```
+
+```
+#> Comparison Summary:
+#> ===================
+#>   Mean single-level CV: 0.3628 
+#>   Mean nested CV: 0.1572 
+#>   Mean true error: 0.1756 
+#> 
+#>   Single-level bias: 0.1872 
 #>   Nested CV bias: -0.0184
 ```
 
@@ -515,18 +527,21 @@ logit_pred <- logit(pmax(pmin(pred_prob, 0.999), 0.001))
 calib_model <- glm(y_test ~ logit_pred, family = binomial)
 
 cat("Calibration Metrics:\n")
-#> Calibration Metrics:
 cat("====================\n")
-#> ====================
 cat("  Brier score:", round(brier_score, 4), "\n")
-#>   Brier score: 0.0511
 cat("  Mean predicted:", round(mean_pred, 4), "\n")
-#>   Mean predicted: 0.3663
 cat("  Mean observed:", round(mean_obs, 4), "\n")
-#>   Mean observed: 0.345
 cat("  Calibration intercept:", round(coef(calib_model)[1], 4), "(should be ~0)\n")
-#>   Calibration intercept: 0.142 (should be ~0)
 cat("  Calibration slope:", round(coef(calib_model)[2], 4), "(should be ~1)\n")
+```
+
+```
+#> Calibration Metrics:
+#> ====================
+#>   Brier score: 0.0511 
+#>   Mean predicted: 0.3663 
+#>   Mean observed: 0.345 
+#>   Calibration intercept: 0.142 (should be ~0)
 #>   Calibration slope: 2.0277 (should be ~1)
 ```
 
@@ -575,12 +590,15 @@ brier_uncalib <- mean((pred_uncalib[eval_idx] - y_test[eval_idx])^2)
 brier_calib <- mean((pred_calib - y_test[eval_idx])^2)
 
 cat("Platt Scaling Results:\n")
-#> Platt Scaling Results:
 cat("======================\n")
-#> ======================
 cat("  Brier score (uncalibrated):", round(brier_uncalib, 4), "\n")
-#>   Brier score (uncalibrated): 0.099
 cat("  Brier score (Platt calibrated):", round(brier_calib, 4), "\n")
+```
+
+```
+#> Platt Scaling Results:
+#> ======================
+#>   Brier score (uncalibrated): 0.099 
 #>   Brier score (Platt calibrated): 0.0378
 ```
 
@@ -596,12 +614,20 @@ The key constraint: if $p_i < p_j$, then calibrated $\hat{p}_i \leq \hat{p}_j$ (
 ``` r
 # Isotonic regression calibration
 library(isotone)
+```
+
+```
 #> 
 #> Attaching package: 'isotone'
+```
+
+```
 #> The following object is masked from 'package:limma':
 #> 
 #>     weighted.median
+```
 
+``` r
 # Fit isotonic regression
 isotonic_fit <- gpava(pred_uncalib[calib_idx], y_test[calib_idx])
 
@@ -619,11 +645,8 @@ pred_isotonic <- pmax(pmin(pred_isotonic, 1), 0)
 brier_isotonic <- mean((pred_isotonic - y_test[eval_idx])^2)
 
 cat("Isotonic Calibration Results:\n")
-#> Isotonic Calibration Results:
 cat("=============================\n")
-#> =============================
 cat("  Brier score (isotonic):", round(brier_isotonic, 4), "\n")
-#>   Brier score (isotonic): 0.056
 
 # Plot calibration comparison
 calib_comparison <- data.table(
@@ -673,6 +696,12 @@ ggplot2$ggplot(all_calib, ggplot2$aes(x = mean_pred, y = mean_obs, colour = meth
 <Figure src="/courses/statistics-3-advanced/isotonic-1.png" alt="Isotonic regression provides non-parametric calibration">
 	Isotonic regression provides non-parametric calibration
 </Figure>
+
+```
+#> Isotonic Calibration Results:
+#> =============================
+#>   Brier score (isotonic): 0.056
+```
 
 ---
 
@@ -737,14 +766,25 @@ for (k in 1:K_outer) {
 results_dt <- rbindlist(results)
 
 cat("Complete Model Assessment (Nested 5-Fold CV):\n")
-#> Complete Model Assessment (Nested 5-Fold CV):
 cat("=============================================\n")
-#> =============================================
 cat("\nPer-fold results:\n")
-#> 
-#> Per-fold results:
 print(results_dt[, .(fold, log_loss = round(log_loss, 4), brier = round(brier, 4),
                      auc = round(auc, 3))])
+
+cat("\nSummary statistics:\n")
+cat("  Log-loss:", round(mean(results_dt$log_loss), 4), "±", round(sd(results_dt$log_loss), 4), "\n")
+cat("  Brier:", round(mean(results_dt$brier), 4), "±", round(sd(results_dt$brier), 4), "\n")
+cat("  AUC:", round(mean(results_dt$auc), 3), "±", round(sd(results_dt$auc), 3), "\n")
+cat("\nCalibration (mean predicted vs observed):\n")
+cat("  Mean predicted:", round(mean(results_dt$mean_pred), 3), "\n")
+cat("  Mean observed:", round(mean(results_dt$mean_obs), 3), "\n")
+```
+
+```
+#> Complete Model Assessment (Nested 5-Fold CV):
+#> =============================================
+#> 
+#> Per-fold results:
 #>     fold log_loss  brier   auc
 #>    <int>    <num>  <num> <num>
 #> 1:     1   0.1881 0.0560 0.986
@@ -752,22 +792,14 @@ print(results_dt[, .(fold, log_loss = round(log_loss, 4), brier = round(brier, 4
 #> 3:     3   0.1664 0.0445 0.987
 #> 4:     4   0.1665 0.0445 0.984
 #> 5:     5   0.2198 0.0641 0.977
-
-cat("\nSummary statistics:\n")
 #> 
 #> Summary statistics:
-cat("  Log-loss:", round(mean(results_dt$log_loss), 4), "±", round(sd(results_dt$log_loss), 4), "\n")
-#>   Log-loss: 0.1782 ± 0.0268
-cat("  Brier:", round(mean(results_dt$brier), 4), "±", round(sd(results_dt$brier), 4), "\n")
-#>   Brier: 0.0496 ± 0.0102
-cat("  AUC:", round(mean(results_dt$auc), 3), "±", round(sd(results_dt$auc), 3), "\n")
-#>   AUC: 0.986 ± 0.006
-cat("\nCalibration (mean predicted vs observed):\n")
+#>   Log-loss: 0.1782 ± 0.0268 
+#>   Brier: 0.0496 ± 0.0102 
+#>   AUC: 0.986 ± 0.006 
 #> 
 #> Calibration (mean predicted vs observed):
-cat("  Mean predicted:", round(mean(results_dt$mean_pred), 3), "\n")
-#>   Mean predicted: 0.372
-cat("  Mean observed:", round(mean(results_dt$mean_obs), 3), "\n")
+#>   Mean predicted: 0.372 
 #>   Mean observed: 0.373
 ```
 

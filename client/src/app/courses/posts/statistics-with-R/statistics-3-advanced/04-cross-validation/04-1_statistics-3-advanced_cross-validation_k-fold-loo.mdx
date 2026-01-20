@@ -46,6 +46,9 @@ X <- as.matrix(breast_cancer[, ..feature_cols])
 y <- breast_cancer$y
 
 cat("Dataset: n =", nrow(X), ", p =", ncol(X), "\n")
+```
+
+```
 #> Dataset: n = 569 , p = 10
 ```
 
@@ -277,14 +280,17 @@ log_loss <- function(y, p) {
 cv_result <- kfold_cv(X, y, K = 5, ridge_model, ridge_predict, log_loss)
 
 cat("5-Fold Cross-Validation Results:\n")
-#> 5-Fold Cross-Validation Results:
 cat("================================\n")
-#> ================================
 cat("  Mean CV log-loss:", round(cv_result$mean_error, 4), "\n")
-#>   Mean CV log-loss: 0.2123
 cat("  Standard error:", round(cv_result$se_error, 4), "\n")
-#>   Standard error: 0.0074
 cat("  Fold errors:", round(cv_result$fold_errors, 4), "\n")
+```
+
+```
+#> 5-Fold Cross-Validation Results:
+#> ================================
+#>   Mean CV log-loss: 0.2123 
+#>   Standard error: 0.0074 
 #>   Fold errors: 0.2367 0.2065 0.221 0.2023 0.1949
 ```
 
@@ -344,10 +350,13 @@ k_comparison[, K_label := fifelse(K == nrow(X), paste0("LOOCV (", K, ")"), as.ch
 k_comparison[, K_label := factor(K_label, levels = c("2", "5", "10", "20", paste0("LOOCV (", nrow(X), ")")))]
 
 cat("CV Estimate Comparison Across K:\n")
-#> CV Estimate Comparison Across K:
 cat("================================\n")
-#> ================================
 print(k_comparison[, .(K_label, mean_cv = round(mean_cv, 4), sd_cv = round(sd_cv, 4))])
+```
+
+```
+#> CV Estimate Comparison Across K:
+#> ================================
 #>        K_label mean_cv  sd_cv
 #>         <fctr>   <num>  <num>
 #> 1:           2  0.2143 0.0024
@@ -462,14 +471,17 @@ loocv_shortcut <- function(X, y) {
 
 # Compare
 cat("LOOCV Comparison:\n")
-#> LOOCV Comparison:
 cat("=================\n")
-#> =================
 cat("  Brute force:", round(loocv_brute(X_demo, y_demo), 6), "\n")
-#>   Brute force: 0.203819
 cat("  Shortcut formula:", round(loocv_shortcut(X_demo, y_demo), 6), "\n")
-#>   Shortcut formula: 0.203819
 cat("  (Should be identical up to numerical precision)\n")
+```
+
+```
+#> LOOCV Comparison:
+#> =================
+#>   Brute force: 0.203819 
+#>   Shortcut formula: 0.203819 
 #>   (Should be identical up to numerical precision)
 ```
 
@@ -588,21 +600,24 @@ single_cv <- kfold_cv(X, y, K = 5, ridge_model, ridge_predict, log_loss)
 repeated_cv <- repeated_kfold_cv(X, y, K = 5, n_repeats = 20, ridge_model, ridge_predict, log_loss)
 
 cat("Single vs Repeated 5-Fold CV:\n")
-#> Single vs Repeated 5-Fold CV:
 cat("=============================\n")
-#> =============================
 cat("Single 5-fold CV:\n")
-#> Single 5-fold CV:
 cat("  Mean:", round(single_cv$mean_error, 4), "\n")
-#>   Mean: 0.2142
 cat("  SE:", round(single_cv$se_error, 4), "\n")
-#>   SE: 0.0055
 cat("\nRepeated 5-fold CV (20 repeats):\n")
+cat("  Mean:", round(repeated_cv$mean_error, 4), "\n")
+cat("  SE:", round(repeated_cv$se_error, 4), "\n")
+```
+
+```
+#> Single vs Repeated 5-Fold CV:
+#> =============================
+#> Single 5-fold CV:
+#>   Mean: 0.2142 
+#>   SE: 0.0055 
 #> 
 #> Repeated 5-fold CV (20 repeats):
-cat("  Mean:", round(repeated_cv$mean_error, 4), "\n")
-#>   Mean: 0.2137
-cat("  SE:", round(repeated_cv$se_error, 4), "\n")
+#>   Mean: 0.2137 
 #>   SE: 2e-04
 ```
 
@@ -668,13 +683,9 @@ lambda_1se <- max(lambda_grid[cv_errors <= threshold])
 idx_1se <- which(lambda_grid == lambda_1se)
 
 cat("Lambda Selection:\n")
-#> Lambda Selection:
 cat("=================\n")
-#> =================
 cat("  lambda.min (lowest CV error):", round(lambda_min, 4), "\n")
-#>   lambda.min (lowest CV error): 0.0045
 cat("  lambda.1se (1-SE rule):", round(lambda_1se, 4), "\n")
-#>   lambda.1se (1-SE rule): 0.0168
 
 ggplot2$ggplot(lambda_data, ggplot2$aes(x = log(lambda), y = cv_error)) +
     ggplot2$geom_ribbon(ggplot2$aes(ymin = cv_error - cv_se, ymax = cv_error + cv_se),
@@ -699,6 +710,13 @@ ggplot2$ggplot(lambda_data, ggplot2$aes(x = log(lambda), y = cv_error)) +
 <Figure src="/courses/statistics-3-advanced/cv_model_selection-1.png" alt="Using CV to select the optimal regularisation parameter lambda">
 	Using CV to select the optimal regularisation parameter lambda
 </Figure>
+
+```
+#> Lambda Selection:
+#> =================
+#>   lambda.min (lowest CV error): 0.0045 
+#>   lambda.1se (1-SE rule): 0.0168
+```
 
 ### 4.8.2 The One-Standard-Error Rule
 

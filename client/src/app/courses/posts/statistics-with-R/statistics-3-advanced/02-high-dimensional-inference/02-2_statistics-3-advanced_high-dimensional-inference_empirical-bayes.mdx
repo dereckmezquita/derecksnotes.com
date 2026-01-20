@@ -175,16 +175,19 @@ sigma_sq <- rep(noise_sd^2, n_genes)
 tau_sq_hat <- estimate_tau_squared(observed_effects, sigma_sq)
 
 cat("Variance Decomposition:\n")
-#> Variance Decomposition:
 cat("=======================\n")
-#> =======================
 cat("  True tau^2:", 0.5^2, "\n")
-#>   True tau^2: 0.25
 cat("  Estimated tau^2:", round(tau_sq_hat, 4), "\n")
-#>   Estimated tau^2: 0.2948
 cat("  Noise variance:", noise_sd^2, "\n")
-#>   Noise variance: 1
 cat("  Total observed variance:", round(var(observed_effects), 4), "\n")
+```
+
+```
+#> Variance Decomposition:
+#> =======================
+#>   True tau^2: 0.25 
+#>   Estimated tau^2: 0.2948 
+#>   Noise variance: 1 
 #>   Total observed variance: 1.2948
 ```
 
@@ -251,14 +254,6 @@ js_results <- rbindlist(lapply(k_values, function(k) {
 }))
 
 print(js_results)
-#>        k   mse_mle    mse_js improvement
-#>    <num>     <num>     <num>       <num>
-#> 1:     3 1.0113503 0.7846327   0.2241731
-#> 2:     5 0.9897399 0.6601935   0.3329626
-#> 3:    10 1.0261495 0.5965706   0.4186319
-#> 4:    20 1.0022561 0.5479598   0.4532736
-#> 5:    50 1.0058921 0.5205683   0.4824810
-#> 6:   100 1.0002995 0.5093618   0.4907907
 
 # Plot
 js_long <- melt(js_results, id.vars = "k", measure.vars = c("mse_mle", "mse_js"))
@@ -285,6 +280,17 @@ ggplot2$ggplot(js_long, ggplot2$aes(x = k, y = value, colour = Estimator)) +
 <Figure src="/courses/statistics-3-advanced/james_stein-1.png" alt="James-Stein estimation reduces MSE compared to sample means">
 	James-Stein estimation reduces MSE compared to sample means
 </Figure>
+
+```
+#>        k   mse_mle    mse_js improvement
+#>    <num>     <num>     <num>       <num>
+#> 1:     3 1.0113503 0.7846327   0.2241731
+#> 2:     5 0.9897399 0.6601935   0.3329626
+#> 3:    10 1.0261495 0.5965706   0.4186319
+#> 4:    20 1.0022561 0.5479598   0.4532736
+#> 5:    50 1.0058921 0.5205683   0.4824810
+#> 6:   100 1.0002995 0.5093618   0.4907907
+```
 
 ---
 
@@ -361,12 +367,15 @@ gene_stats[, sample_var := {
 }]
 
 cat("Gene-wise Statistics Summary:\n")
-#> Gene-wise Statistics Summary:
 cat("============================\n")
-#> ============================
 cat("  Mean true variance:", round(mean(true_variances), 4), "\n")
-#>   Mean true variance: 0.1831
 cat("  Mean estimated variance:", round(mean(gene_stats$sample_var), 4), "\n")
+```
+
+```
+#> Gene-wise Statistics Summary:
+#> ============================
+#>   Mean true variance: 0.1831 
 #>   Mean estimated variance: 0.183
 ```
 
@@ -397,12 +406,15 @@ d0_hat <- estimate_d0(var_log_s2)
 s0_sq_hat <- exp(mean_log_s2 + digamma(d0_hat/2) - log(d0_hat/2))
 
 cat("Prior Parameter Estimates:\n")
-#> Prior Parameter Estimates:
 cat("=========================\n")
-#> =========================
 cat("  True d0:", d0_true, "  Estimated d0:", round(d0_hat, 2), "\n")
-#>   True d0: 4   Estimated d0: 2.71
 cat("  True s0^2:", s0_true^2, "  Estimated s0^2:", round(s0_sq_hat, 4), "\n")
+```
+
+```
+#> Prior Parameter Estimates:
+#> =========================
+#>   True d0: 4   Estimated d0: 2.71 
 #>   True s0^2: 0.09   Estimated s0^2: 0.0664
 ```
 
@@ -485,22 +497,6 @@ performance_comparison[, power := true_positives / sum(gene_stats$is_de)]
 performance_comparison[, FDP := false_positives / pmax(rejections, 1)]
 
 print(performance_comparison)
-#>    threshold    method rejections true_positives false_positives power
-#>        <num>    <char>      <int>          <int>           <int> <num>
-#> 1:      0.01 Classical        138            135               3 0.270
-#> 2:      0.01 Moderated        205            203               2 0.406
-#> 3:      0.05 Classical        231            218              13 0.436
-#> 4:      0.05 Moderated        264            255               9 0.510
-#> 5:      0.10 Classical        275            247              28 0.494
-#> 6:      0.10 Moderated        321            284              37 0.568
-#>            FDP
-#>          <num>
-#> 1: 0.021739130
-#> 2: 0.009756098
-#> 3: 0.056277056
-#> 4: 0.034090909
-#> 5: 0.101818182
-#> 6: 0.115264798
 
 # Plot power comparison
 ggplot2$ggplot(performance_comparison, ggplot2$aes(x = factor(threshold), y = power, fill = method)) +
@@ -523,6 +519,25 @@ ggplot2$ggplot(performance_comparison, ggplot2$aes(x = factor(threshold), y = po
 <Figure src="/courses/statistics-3-advanced/limma_performance-1.png" alt="Moderated t-test achieves higher power than classical t-test">
 	Moderated t-test achieves higher power than classical t-test
 </Figure>
+
+```
+#>    threshold    method rejections true_positives false_positives power
+#>        <num>    <char>      <int>          <int>           <int> <num>
+#> 1:      0.01 Classical        138            135               3 0.270
+#> 2:      0.01 Moderated        205            203               2 0.406
+#> 3:      0.05 Classical        231            218              13 0.436
+#> 4:      0.05 Moderated        264            255               9 0.510
+#> 5:      0.10 Classical        275            247              28 0.494
+#> 6:      0.10 Moderated        321            284              37 0.568
+#>            FDP
+#>          <num>
+#> 1: 0.021739130
+#> 2: 0.009756098
+#> 3: 0.056277056
+#> 4: 0.034090909
+#> 5: 0.101818182
+#> 6: 0.115264798
+```
 
 ---
 
@@ -652,13 +667,9 @@ pi0_hat <- predict(spline_fit, 1)$y
 pi0_hat <- min(pi0_hat, 1)  # Cap at 1
 
 cat("Null Proportion Estimation:\n")
-#> Null Proportion Estimation:
 cat("===========================\n")
-#> ===========================
 cat("  True pi0:", 1 - sum(gene_stats$is_de) / nrow(gene_stats), "\n")
-#>   True pi0: 0.9
 cat("  Estimated pi0:", round(pi0_hat, 3), "\n")
-#>   Estimated pi0: 0.871
 
 # Visualise
 pi0_data <- data.table(lambda = lambda_grid, pi0 = pi0_estimates)
@@ -680,12 +691,22 @@ ggplot2$ggplot(pi0_data, ggplot2$aes(x = lambda, y = pi0)) +
     ggplot2$coord_cartesian(ylim = c(0.7, 1.1)) +
     ggplot2$theme_minimal(base_size = 14) +
     ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
 <Figure src="/courses/statistics-3-advanced/pi0_estimation-1.png" alt="Estimating the null proportion from p-value histogram">
 	Estimating the null proportion from p-value histogram
 </Figure>
+
+```
+#> Null Proportion Estimation:
+#> ===========================
+#>   True pi0: 0.9 
+#>   Estimated pi0: 0.871
+```
 
 ---
 
@@ -720,22 +741,25 @@ gene_stats[, q_storey := compute_qvalue(p_classical, pi0 = pi0_hat)]
 q_threshold <- 0.05
 
 cat("\nDiscovery Comparison (q < 0.05):\n")
-#> 
-#> Discovery Comparison (q < 0.05):
 cat("================================\n")
-#> ================================
 cat("  BH procedure (pi0 = 1):\n")
-#>   BH procedure (pi0 = 1):
 cat("    Discoveries:", sum(gene_stats$q_bh < q_threshold), "\n")
-#>     Discoveries: 231
 cat("    True positives:", sum(gene_stats$q_bh < q_threshold & gene_stats$is_de), "\n")
-#>     True positives: 218
 
 cat("  Storey procedure (pi0 =", round(pi0_hat, 3), "):\n")
-#>   Storey procedure (pi0 = 0.871 ):
 cat("    Discoveries:", sum(gene_stats$q_storey < q_threshold), "\n")
-#>     Discoveries: 244
 cat("    True positives:", sum(gene_stats$q_storey < q_threshold & gene_stats$is_de), "\n")
+```
+
+```
+#> 
+#> Discovery Comparison (q < 0.05):
+#> ================================
+#>   BH procedure (pi0 = 1):
+#>     Discoveries: 231 
+#>     True positives: 218 
+#>   Storey procedure (pi0 = 0.871 ):
+#>     Discoveries: 244 
 #>     True positives: 226
 ```
 
@@ -773,12 +797,15 @@ comparison_dt <- data.table(
 )
 
 cat("Comparison: Manual vs limma Implementation:\n")
-#> Comparison: Manual vs limma Implementation:
 cat("==========================================\n")
-#> ==========================================
 cat("  Correlation of t-statistics:", round(cor(comparison_dt$t_manual, comparison_dt$t_limma), 4), "\n")
-#>   Correlation of t-statistics: 0.9977
 cat("  Correlation of p-values:", round(cor(comparison_dt$p_manual, comparison_dt$p_limma), 4), "\n")
+```
+
+```
+#> Comparison: Manual vs limma Implementation:
+#> ==========================================
+#>   Correlation of t-statistics: 0.9977 
 #>   Correlation of p-values: 0.9978
 ```
 

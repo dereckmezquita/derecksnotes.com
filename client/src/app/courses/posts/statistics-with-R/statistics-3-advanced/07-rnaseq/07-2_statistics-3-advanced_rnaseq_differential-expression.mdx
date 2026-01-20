@@ -85,16 +85,19 @@ size_factors <- calc_size_factors(counts)
 normalised_counts <- sweep(counts, 2, size_factors, "/")
 
 cat("Simulated RNA-seq Data\n")
-#> Simulated RNA-seq Data
 cat("======================\n")
-#> ======================
 cat("  Genes:", n_genes, "\n")
-#>   Genes: 10000
 cat("  Samples:", n_samples, "\n")
-#>   Samples: 6
 cat("  True DE genes:", n_de, "\n")
-#>   True DE genes: 200
 cat("  True positives (|log2FC| > 1):", sum(abs(log_fold_changes[de_genes]) > log(2)), "\n")
+```
+
+```
+#> Simulated RNA-seq Data
+#> ======================
+#>   Genes: 10000 
+#>   Samples: 6 
+#>   True DE genes: 200 
 #>   True positives (|log2FC| > 1): 134
 ```
 
@@ -194,9 +197,7 @@ fit_nb_glm <- function(counts, group, size_factors) {
 example_genes <- c(de_genes[1], which(log_fold_changes == 0)[1])
 
 cat("NB GLM Fits for Example Genes:\n")
-#> NB GLM Fits for Example Genes:
 cat("==============================\n")
-#> ==============================
 
 for (i in example_genes) {
     fit <- fit_nb_glm(counts[i, ], groups, size_factors)
@@ -207,6 +208,11 @@ for (i in example_genes) {
     cat("  Log2 FC:", round(fit$beta[2] / log(2), 3), "\n")
     cat("  Dispersion:", round(fit$dispersion, 4), "\n")
 }
+```
+
+```
+#> NB GLM Fits for Example Genes:
+#> ==============================
 #> 
 #> Gene 8363 (true log2FC = 0.711 ):
 #>   Intercept: 4.036 ± 0.131 
@@ -302,15 +308,10 @@ disp_data <- data.table(
 disp_data <- disp_data[mean > 1 & gene_wise > 0.001 & gene_wise < 5]
 
 cat("Dispersion Estimation Summary:\n")
-#> Dispersion Estimation Summary:
 cat("==============================\n")
-#> ==============================
 cat("  Median gene-wise:", round(median(disp_data$gene_wise), 4), "\n")
-#>   Median gene-wise: 0.0997
 cat("  Median shrunk:", round(median(disp_data$shrunk), 4), "\n")
-#>   Median shrunk: 0.1067
 cat("  True dispersion:", dispersion, "\n")
-#>   True dispersion: 0.1
 
 ggplot2$ggplot(disp_data, ggplot2$aes(x = mean)) +
     ggplot2$geom_point(ggplot2$aes(y = gene_wise), alpha = 0.2, size = 0.5,
@@ -339,6 +340,14 @@ ggplot2$ggplot(disp_data, ggplot2$aes(x = mean)) +
 <Figure src="/courses/statistics-3-advanced/dispersion_estimation-1.png" alt="Dispersion estimation: gene-specific estimates are shrunk toward a common trend">
 	Dispersion estimation: gene-specific estimates are shrunk toward a common trend
 </Figure>
+
+```
+#> Dispersion Estimation Summary:
+#> ==============================
+#>   Median gene-wise: 0.0997 
+#>   Median shrunk: 0.1067 
+#>   True dispersion: 0.1
+```
 
 ---
 
@@ -429,14 +438,17 @@ de_results <- perform_de_analysis(counts, groups, size_factors, disp_results$shr
 de_results <- de_results[!is.na(pvalue)]
 
 cat("Differential Expression Analysis (Wald Test):\n")
-#> Differential Expression Analysis (Wald Test):
 cat("=============================================\n")
-#> =============================================
 cat("  Genes tested:", nrow(de_results), "\n")
-#>   Genes tested: 10000
 cat("  p < 0.05:", sum(de_results$pvalue < 0.05, na.rm = TRUE), "\n")
-#>   p < 0.05: 403
 cat("  p < 0.01:", sum(de_results$pvalue < 0.01, na.rm = TRUE), "\n")
+```
+
+```
+#> Differential Expression Analysis (Wald Test):
+#> =============================================
+#>   Genes tested: 10000 
+#>   p < 0.05: 403 
 #>   p < 0.01: 94
 ```
 
@@ -517,13 +529,16 @@ lrt_results <- perform_lrt(counts, groups, size_factors, disp_results$shrunk)
 de_results <- merge(de_results, lrt_results, by = "gene")
 
 cat("\nLikelihood Ratio Test Results:\n")
+cat("==============================\n")
+cat("  p < 0.05 (LRT):", sum(de_results$LRT_pvalue < 0.05, na.rm = TRUE), "\n")
+cat("  p < 0.05 (Wald):", sum(de_results$pvalue < 0.05, na.rm = TRUE), "\n")
+```
+
+```
 #> 
 #> Likelihood Ratio Test Results:
-cat("==============================\n")
 #> ==============================
-cat("  p < 0.05 (LRT):", sum(de_results$LRT_pvalue < 0.05, na.rm = TRUE), "\n")
-#>   p < 0.05 (LRT): 474
-cat("  p < 0.05 (Wald):", sum(de_results$pvalue < 0.05, na.rm = TRUE), "\n")
+#>   p < 0.05 (LRT): 474 
 #>   p < 0.05 (Wald): 403
 ```
 
@@ -561,17 +576,11 @@ de_results[, padj_lrt := p.adjust(LRT_pvalue, method = "BH")]
 de_results[, p_bonf := p.adjust(pvalue, method = "bonferroni")]
 
 cat("Multiple Testing Correction:\n")
-#> Multiple Testing Correction:
 cat("============================\n")
-#> ============================
 cat("  Raw p < 0.05:", sum(de_results$pvalue < 0.05, na.rm = TRUE), "\n")
-#>   Raw p < 0.05: 403
 cat("  BH FDR < 0.05:", sum(de_results$padj < 0.05, na.rm = TRUE), "\n")
-#>   BH FDR < 0.05: 16
 cat("  BH FDR < 0.10:", sum(de_results$padj < 0.10, na.rm = TRUE), "\n")
-#>   BH FDR < 0.10: 23
 cat("  Bonferroni < 0.05:", sum(de_results$p_bonf < 0.05, na.rm = TRUE), "\n")
-#>   Bonferroni < 0.05: 3
 
 # Visualise p-value adjustment
 pval_comparison <- data.table(
@@ -608,6 +617,15 @@ ggplot2$ggplot(pval_comparison[1:1000], ggplot2$aes(x = rank)) +
 	Multiple testing correction dramatically changes significance thresholds
 </Figure>
 
+```
+#> Multiple Testing Correction:
+#> ============================
+#>   Raw p < 0.05: 403 
+#>   BH FDR < 0.05: 16 
+#>   BH FDR < 0.10: 23 
+#>   Bonferroni < 0.05: 3
+```
+
 ### 7.8.2 Independent Hypothesis Weighting
 
 **Prose and Intuition**
@@ -634,11 +652,17 @@ discovery_by_expr <- de_results[, .(
 ), by = expr_group]
 
 cat("\nDiscovery Rate by Expression Level:\n")
+cat("===================================\n")
+print(discovery_by_expr[order(expr_group)])
+
+cat("\nHighly expressed genes have more power to detect differences.\n")
+cat("IHW exploits this by weighting hypotheses based on mean expression.\n")
+```
+
+```
 #> 
 #> Discovery Rate by Expression Level:
-cat("===================================\n")
 #> ===================================
-print(discovery_by_expr[order(expr_group)])
 #>    expr_group n_genes n_sig_raw n_sig_adj prop_sig
 #>        <fctr>   <int>     <int>     <int>    <num>
 #> 1:         Q1    2000        21         0   0.0000
@@ -646,11 +670,8 @@ print(discovery_by_expr[order(expr_group)])
 #> 3:         Q3    2000       114        13   0.0065
 #> 4:         Q4    2000        92         2   0.0010
 #> 5:         Q5    2000        99         1   0.0005
-
-cat("\nHighly expressed genes have more power to detect differences.\n")
 #> 
 #> Highly expressed genes have more power to detect differences.
-cat("IHW exploits this by weighting hypotheses based on mean expression.\n")
 #> IHW exploits this by weighting hypotheses based on mean expression.
 ```
 
@@ -696,15 +717,10 @@ shrink_result <- shrink_lfc(de_results$log2FC, de_results$se)
 de_results[, log2FC_shrunk := shrink_result$shrunk]
 
 cat("Log Fold Change Shrinkage:\n")
-#> Log Fold Change Shrinkage:
 cat("==========================\n")
-#> ==========================
 cat("  Prior scale (tau):", round(shrink_result$tau, 3), "\n")
-#>   Prior scale (tau): 0.388
 cat("  Median |log2FC| before:", round(median(abs(de_results$log2FC), na.rm = TRUE), 3), "\n")
-#>   Median |log2FC| before: 0.358
 cat("  Median |log2FC| after:", round(median(abs(de_results$log2FC_shrunk), na.rm = TRUE), 3), "\n")
-#>   Median |log2FC| after: 0.114
 
 # Visualise shrinkage
 shrink_plot_data <- de_results[, .(log2FC, log2FC_shrunk, baseMean, se)]
@@ -729,6 +745,14 @@ ggplot2$ggplot(shrink_plot_data, ggplot2$aes(x = log2FC, y = log2FC_shrunk,
 <Figure src="/courses/statistics-3-advanced/lfc_shrinkage-1.png" alt="Log fold change shrinkage reduces noise for lowly expressed genes">
 	Log fold change shrinkage reduces noise for lowly expressed genes
 </Figure>
+
+```
+#> Log Fold Change Shrinkage:
+#> ==========================
+#>   Prior scale (tau): 0.388 
+#>   Median |log2FC| before: 0.358 
+#>   Median |log2FC| after: 0.114
+```
 
 ---
 
@@ -913,25 +937,29 @@ confusion[, `:=`(
 )]
 
 cat("Performance Evaluation (FDR < 0.05):\n")
-#> Performance Evaluation (FDR < 0.05):
 cat("====================================\n")
-#> ====================================
 cat("  True Positives:", confusion$TP, "\n")
-#>   True Positives: 16
 cat("  False Positives:", confusion$FP, "\n")
-#>   False Positives: 0
 cat("  True Negatives:", confusion$TN, "\n")
-#>   True Negatives: 9800
 cat("  False Negatives:", confusion$FN, "\n")
-#>   False Negatives: 184
 cat("\n")
 cat("  Sensitivity (TPR):", round(confusion$sensitivity, 3), "\n")
-#>   Sensitivity (TPR): 0.08
 cat("  Specificity (TNR):", round(confusion$specificity, 3), "\n")
-#>   Specificity (TNR): 1
 cat("  Precision (PPV):", round(confusion$precision, 3), "\n")
-#>   Precision (PPV): 1
 cat("  Observed FDR:", round(confusion$FDR, 3), "(target: 0.05)\n")
+```
+
+```
+#> Performance Evaluation (FDR < 0.05):
+#> ====================================
+#>   True Positives: 16 
+#>   False Positives: 0 
+#>   True Negatives: 9800 
+#>   False Negatives: 184 
+#> 
+#>   Sensitivity (TPR): 0.08 
+#>   Specificity (TNR): 1 
+#>   Precision (PPV): 1 
 #>   Observed FDR: 0 (target: 0.05)
 ```
 
@@ -980,11 +1008,8 @@ roc_data <- calc_roc_pr(de_results$pvalue, de_results$is_true_de)
 auc <- sum(diff(roc_data$FPR) * (head(roc_data$TPR, -1) + tail(roc_data$TPR, -1)) / 2)
 
 cat("ROC Analysis:\n")
-#> ROC Analysis:
 cat("=============\n")
-#> =============
 cat("  AUC:", round(abs(auc), 3), "\n")
-#>   AUC: 0.774
 
 # ROC plot
 p_roc <- ggplot2$ggplot(roc_data, ggplot2$aes(x = FPR, y = TPR)) +
@@ -1021,6 +1046,12 @@ gridExtra::grid.arrange(p_roc, p_pr, ncol = 2)
 <Figure src="/courses/statistics-3-advanced/roc_pr_curves-1.png" alt="ROC and precision-recall curves for DE detection">
 	ROC and precision-recall curves for DE detection
 </Figure>
+
+```
+#> ROC Analysis:
+#> =============
+#>   AUC: 0.774
+```
 
 ---
 

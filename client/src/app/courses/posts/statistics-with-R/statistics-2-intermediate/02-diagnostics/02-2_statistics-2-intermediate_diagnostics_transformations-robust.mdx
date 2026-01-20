@@ -41,12 +41,15 @@ los_data <<- hospital_los[!is.na(los) & los > 0,
 los_data[, log_los := log(los)]
 
 cat("Datasets loaded:\n")
-#> Datasets loaded:
 cat("  NHANES:", nrow(nhanes), "observations\n")
-#>   NHANES: 10000 observations
 cat("  Hospital LOS:", nrow(hospital_los), "observations\n")
-#>   Hospital LOS: 1798 observations
 cat("  Cleaned LOS data:", nrow(los_data), "observations\n")
+```
+
+```
+#> Datasets loaded:
+#>   NHANES: 10000 observations
+#>   Hospital LOS: 1798 observations
 #>   Cleaned LOS data: 1798 observations
 ```
 
@@ -90,17 +93,11 @@ For small $\beta_1$: $e^{\beta_1} \approx 1 + \beta_1$, so $\beta_1$ approximate
 ``` r
 # Hospital LOS data (cleaned in load_data chunk)
 cat("Hospital Length of Stay Distribution:\n")
-#> Hospital Length of Stay Distribution:
 cat("=====================================\n\n")
-#> =====================================
 cat("Mean:", round(mean(los_data$los), 2), "days\n")
-#> Mean: 4.85 days
 cat("Median:", median(los_data$los), "days\n")
-#> Median: 4 days
 cat("SD:", round(sd(los_data$los), 2), "days\n")
-#> SD: 3.74 days
 cat("Skewness: Positive (right-skewed)\n")
-#> Skewness: Positive (right-skewed)
 
 # Compare distributions
 p1 <- ggplot2$ggplot(los_data, ggplot2$aes(x = los)) +
@@ -120,6 +117,16 @@ print(p1)
 	Log transformation for hospital length of stay
 </Figure>
 
+```
+#> Hospital Length of Stay Distribution:
+#> =====================================
+#> 
+#> Mean: 4.85 days
+#> Median: 4 days
+#> SD: 3.74 days
+#> Skewness: Positive (right-skewed)
+```
+
 
 ``` r
 print(p2)
@@ -136,38 +143,44 @@ model_original <- lm(los ~ age75 + type1, data = los_data)
 model_log <- lm(log_los ~ age75 + type1, data = los_data)
 
 cat("Model Comparison:\n")
-#> Model Comparison:
 cat("=================\n\n")
-#> =================
 cat("ORIGINAL SCALE: los ~ age75 + type1\n")
-#> ORIGINAL SCALE: los ~ age75 + type1
 print(summary(model_original)$coefficients)
+cat("\nR² =", round(summary(model_original)$r.squared, 4), "\n\n")
+
+cat("LOG SCALE: log(los) ~ age75 + type1\n")
+print(summary(model_log)$coefficients)
+cat("\nR² =", round(summary(model_log)$r.squared, 4), "\n\n")
+
+cat("Interpretation (log model):\n")
+cat("- Age > 75 increases LOS by approximately",
+    round((exp(coef(model_log)["age75"]) - 1) * 100, 1), "%\n")
+cat("- Type1 admission increases LOS by approximately",
+    round((exp(coef(model_log)["type1"]) - 1) * 100, 1), "%\n")
+```
+
+```
+#> Model Comparison:
+#> =================
+#> 
+#> ORIGINAL SCALE: los ~ age75 + type1
 #>              Estimate Std. Error   t value     Pr(>|t|)
 #> (Intercept) 2.8896379  0.1452206 19.898267 8.954962e-80
 #> age75       0.6823371  0.1839311  3.709743 2.137833e-04
 #> type1       2.7397330  0.1721057 15.918896 1.790190e-53
-cat("\nR² =", round(summary(model_original)$r.squared, 4), "\n\n")
 #> 
-#> R<U+00B2> = 0.1327
-
-cat("LOG SCALE: log(los) ~ age75 + type1\n")
+#> R² = 0.1327 
+#> 
 #> LOG SCALE: log(los) ~ age75 + type1
-print(summary(model_log)$coefficients)
 #>              Estimate Std. Error   t value      Pr(>|t|)
 #> (Intercept) 0.8985806 0.02628690 34.183592 1.127514e-197
 #> age75       0.1253416 0.03329403  3.764687  1.721241e-04
 #> type1       0.6233549 0.03115347 20.009162  1.457372e-80
-cat("\nR² =", round(summary(model_log)$r.squared, 4), "\n\n")
 #> 
-#> R<U+00B2> = 0.1912
-
-cat("Interpretation (log model):\n")
+#> R² = 0.1912 
+#> 
 #> Interpretation (log model):
-cat("- Age > 75 increases LOS by approximately",
-    round((exp(coef(model_log)["age75"]) - 1) * 100, 1), "%\n")
 #> - Age > 75 increases LOS by approximately 13.4 %
-cat("- Type1 admission increases LOS by approximately",
-    round((exp(coef(model_log)["type1"]) - 1) * 100, 1), "%\n")
 #> - Type1 admission increases LOS by approximately 86.5 %
 ```
 
@@ -200,6 +213,9 @@ p2 <- ggplot2$ggplot(los_data, ggplot2$aes(x = fitted_log, y = resid_log)) +
     ggplot2$theme_minimal()
 
 print(p1)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -210,6 +226,9 @@ print(p1)
 
 ``` r
 print(p2)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -249,13 +268,9 @@ bc <- boxcox(model_original, lambda = seq(-2, 2, by = 0.1), plotit = FALSE)
 optimal_lambda <- bc$x[which.max(bc$y)]
 
 cat("Box-Cox Analysis:\n")
-#> Box-Cox Analysis:
 cat("=================\n\n")
-#> =================
 cat("Optimal λ:", round(optimal_lambda, 3), "\n")
-#> Optimal <U+03BB>: 0
 cat("95% CI: Check if λ = 0 (log) or λ = 1 (no transform) is included\n")
-#> 95% CI: Check if <U+03BB> = 0 (log) or <U+03BB> = 1 (no transform) is included
 
 # Plot Box-Cox profile
 bc_dt <- data.table(lambda = bc$x, loglik = bc$y)
@@ -284,6 +299,14 @@ ggplot2$ggplot(bc_dt, ggplot2$aes(x = lambda, y = loglik)) +
 	Box-Cox transformation finds optimal power
 </Figure>
 
+```
+#> Box-Cox Analysis:
+#> =================
+#> 
+#> Optimal λ: 0 
+#> 95% CI: Check if λ = 0 (log) or λ = 1 (no transform) is included
+```
+
 ### 2.1.4 Transforming Predictors
 
 **Prose and Intuition**
@@ -307,29 +330,18 @@ model_linear <- lm(SBP ~ Age, data = bp_data)
 model_quad <- lm(SBP ~ Age + I(Age^2), data = bp_data)
 
 cat("Comparing Linear vs Quadratic Age Effect:\n")
-#> Comparing Linear vs Quadratic Age Effect:
 cat("==========================================\n\n")
-#> ==========================================
 cat("Linear model: SBP ~ Age\n")
-#> Linear model: SBP ~ Age
 cat("  R² =", round(summary(model_linear)$r.squared, 4), "\n\n")
-#>   R<U+00B2> = 0.1733
 cat("Quadratic model: SBP ~ Age + Age²\n")
-#> Quadratic model: SBP ~ Age + Age<U+00B2>
 cat("  R² =", round(summary(model_quad)$r.squared, 4), "\n")
-#>   R<U+00B2> = 0.1805
 cat("  Age coefficient:", round(coef(model_quad)["Age"], 3), "\n")
-#>   Age coefficient: -0.053
 cat("  Age² coefficient:", round(coef(model_quad)["I(Age^2)"], 5), "\n")
-#>   Age<U+00B2> coefficient: 0.00477
 
 # Test if quadratic term is significant
 anova_test <- anova(model_linear, model_quad)
 cat("\nF-test for quadratic term:\n")
-#> 
-#> F-test for quadratic term:
 cat("  F =", round(anova_test$F[2], 2), ", p =", format.pval(anova_test$`Pr(>F)`[2]), "\n")
-#>   F = 63.52 , p = 1.836e-15
 
 # Visualise
 age_seq <- data.table(Age = seq(18, 80, by = 1))
@@ -354,6 +366,22 @@ ggplot2$ggplot(bp_data[sample(.N, min(.N, 2000))], ggplot2$aes(x = Age, y = SBP)
 <Figure src="/courses/statistics-2-intermediate/predictor_transform-1.png" alt="Polynomial terms capture nonlinear relationships">
 	Polynomial terms capture nonlinear relationships
 </Figure>
+
+```
+#> Comparing Linear vs Quadratic Age Effect:
+#> ==========================================
+#> 
+#> Linear model: SBP ~ Age
+#>   R² = 0.1733 
+#> 
+#> Quadratic model: SBP ~ Age + Age²
+#>   R² = 0.1805 
+#>   Age coefficient: -0.053 
+#>   Age² coefficient: 0.00477 
+#> 
+#> F-test for quadratic term:
+#>   F = 63.52 , p = 1.836e-15
+```
 
 ---
 
@@ -395,31 +423,35 @@ weights <- 1 / fitted_vals^2
 model_wls <- lm(los ~ age75 + type1, data = los_data, weights = weights)
 
 cat("OLS vs WLS Comparison:\n")
-#> OLS vs WLS Comparison:
 cat("======================\n\n")
-#> ======================
 cat("OLS Coefficients:\n")
-#> OLS Coefficients:
 print(coef(model_ols))
-#> (Intercept)       age75       type1 
-#>   2.8896379   0.6823371   2.7397330
 cat("\nWLS Coefficients:\n")
-#> 
-#> WLS Coefficients:
 print(coef(model_wls))
-#> (Intercept)       age75       type1 
-#>   3.0050622   0.3420568   2.6914703
 
 # Compare standard errors
 cat("\nStandard Errors:\n")
-#> 
-#> Standard Errors:
 se_comparison <- data.table(
     Variable = names(coef(model_ols)),
     SE_OLS = summary(model_ols)$coefficients[, "Std. Error"],
     SE_WLS = summary(model_wls)$coefficients[, "Std. Error"]
 )
 print(se_comparison)
+```
+
+```
+#> OLS vs WLS Comparison:
+#> ======================
+#> 
+#> OLS Coefficients:
+#> (Intercept)       age75       type1 
+#>   2.8896379   0.6823371   2.7397330 
+#> 
+#> WLS Coefficients:
+#> (Intercept)       age75       type1 
+#>   3.0050622   0.3420568   2.6914703 
+#> 
+#> Standard Errors:
 #>       Variable    SE_OLS     SE_WLS
 #>         <char>     <num>      <num>
 #> 1: (Intercept) 0.1452206 0.09107428
@@ -451,15 +483,10 @@ los_data[, log_fitted := log(fitted_ols)]
 var_model <- lm(log_resid_sq ~ log_fitted, data = los_data)
 
 cat("Variance Function Estimation:\n")
-#> Variance Function Estimation:
 cat("=============================\n\n")
-#> =============================
 cat("Model: log(e²) ~ log(fitted)\n")
-#> Model: log(e<U+00B2>) ~ log(fitted)
 cat("Coefficient:", round(coef(var_model)["log_fitted"], 3), "\n")
-#> Coefficient: 2.262
 cat("If coefficient ≈ 2, variance is proportional to fitted²\n")
-#> If coefficient <U+2248> 2, variance is proportional to fitted<U+00B2>
 
 # Step 3: Compute weights
 los_data[, est_var := exp(predict(var_model))]
@@ -469,9 +496,18 @@ los_data[, fgls_weight := 1 / est_var]
 model_fgls <- lm(los ~ age75 + type1, data = los_data, weights = fgls_weight)
 
 cat("\nFGLS Coefficients:\n")
+print(summary(model_fgls)$coefficients)
+```
+
+```
+#> Variance Function Estimation:
+#> =============================
+#> 
+#> Model: log(e²) ~ log(fitted)
+#> Coefficient: 2.262 
+#> If coefficient ≈ 2, variance is proportional to fitted²
 #> 
 #> FGLS Coefficients:
-print(summary(model_fgls)$coefficients)
 #>              Estimate Std. Error   t value      Pr(>|t|)
 #> (Intercept) 3.0158505 0.08673268 34.771790 5.613617e-203
 #> age75       0.2992612 0.17621482  1.698275  8.962920e-02
@@ -526,23 +562,14 @@ library(MASS)
 model_rlm <- rlm(y ~ x, data = robust_data)
 
 cat("OLS vs Robust Regression with Outliers:\n")
-#> OLS vs Robust Regression with Outliers:
 cat("========================================\n\n")
-#> ========================================
 cat("True model: Y = 2 + 3X + ε\n\n")
-#> True model: Y = 2 + 3X + <U+03B5>
 cat("OLS estimates:\n")
-#> OLS estimates:
 cat("  Intercept:", round(coef(model_ols)[1], 3), "(true: 2)\n")
-#>   Intercept: 1.467 (true: 2)
 cat("  Slope:", round(coef(model_ols)[2], 3), "(true: 3)\n\n")
-#>   Slope: 3.063 (true: 3)
 cat("Robust (Huber) estimates:\n")
-#> Robust (Huber) estimates:
 cat("  Intercept:", round(coef(model_rlm)[1], 3), "\n")
-#>   Intercept: 1.494
 cat("  Slope:", round(coef(model_rlm)[2], 3), "\n")
-#>   Slope: 3.091
 
 # Visualise
 ggplot2$ggplot(robust_data, ggplot2$aes(x = x, y = y)) +
@@ -568,6 +595,21 @@ ggplot2$ggplot(robust_data, ggplot2$aes(x = x, y = y)) +
 	Robust regression resists outliers
 </Figure>
 
+```
+#> OLS vs Robust Regression with Outliers:
+#> ========================================
+#> 
+#> True model: Y = 2 + 3X + ε
+#> 
+#> OLS estimates:
+#>   Intercept: 1.467 (true: 2)
+#>   Slope: 3.063 (true: 3)
+#> 
+#> Robust (Huber) estimates:
+#>   Intercept: 1.494 
+#>   Slope: 3.091
+```
+
 ### 2.3.3 Examining Robust Weights
 
 **Prose and Intuition**
@@ -582,29 +624,14 @@ robust_weights <- model_rlm$w
 robust_data[, robust_weight := robust_weights]
 
 cat("Robust Weights:\n")
-#> Robust Weights:
 cat("===============\n\n")
-#> ===============
 cat("Outlier observations:\n")
-#> Outlier observations:
 print(robust_data[is_outlier == TRUE, .(x = round(x, 2), y = round(y, 2),
                                          weight = round(robust_weight, 3))])
-#>        x      y weight
-#>    <num>  <num>  <num>
-#> 1:  9.26  48.94  0.127
-#> 2:  7.34  51.25  0.088
-#> 3:  3.33  41.03  0.082
-#> 4:  5.15  -8.41  0.093
-#> 5:  7.44  -4.29  0.083
-#> 6:  6.19 -16.54  0.064
 
 cat("\nNon-outlier weight statistics:\n")
-#> 
-#> Non-outlier weight statistics:
 cat("  Mean:", round(mean(robust_data[is_outlier == FALSE, robust_weight]), 4), "\n")
-#>   Mean: 0.9574
 cat("  Min:", round(min(robust_data[is_outlier == FALSE, robust_weight]), 4), "\n")
-#>   Min: 0.3939
 
 # Visualise weights
 ggplot2$ggplot(robust_data, ggplot2$aes(x = x, y = y)) +
@@ -624,6 +651,25 @@ ggplot2$ggplot(robust_data, ggplot2$aes(x = x, y = y)) +
 	Robust regression downweights outliers
 </Figure>
 
+```
+#> Robust Weights:
+#> ===============
+#> 
+#> Outlier observations:
+#>        x      y weight
+#>    <num>  <num>  <num>
+#> 1:  9.26  48.94  0.127
+#> 2:  7.34  51.25  0.088
+#> 3:  3.33  41.03  0.082
+#> 4:  5.15  -8.41  0.093
+#> 5:  7.44  -4.29  0.083
+#> 6:  6.19 -16.54  0.064
+#> 
+#> Non-outlier weight statistics:
+#>   Mean: 0.9574 
+#>   Min: 0.3939
+```
+
 ### 2.3.4 Least Trimmed Squares (LTS)
 
 **Prose and Intuition**
@@ -640,16 +686,20 @@ n_use <- round(0.75 * nrow(robust_data))  # Use 75% of data
 model_lts <- lqs(y ~ x, data = robust_data, method = "lts", quantile = n_use)
 
 cat("Least Trimmed Squares:\n")
-#> Least Trimmed Squares:
 cat("======================\n\n")
-#> ======================
 cat("Uses", n_use, "of", nrow(robust_data), "observations\n")
-#> Uses 75 of 100 observations
 cat("LTS estimates:\n")
-#> LTS estimates:
 cat("  Intercept:", round(coef(model_lts)[1], 3), "(true: 2)\n")
-#>   Intercept: 0.9 (true: 2)
 cat("  Slope:", round(coef(model_lts)[2], 3), "(true: 3)\n")
+```
+
+```
+#> Least Trimmed Squares:
+#> ======================
+#> 
+#> Uses 75 of 100 observations
+#> LTS estimates:
+#>   Intercept: 0.9 (true: 2)
 #>   Slope: 3.23 (true: 3)
 ```
 
@@ -689,11 +739,8 @@ cooks_threshold <- 4 / nrow(los_data)
 influential <- los_data[cooks_d > cooks_threshold]
 
 cat("Sensitivity Analysis:\n")
-#> Sensitivity Analysis:
 cat("=====================\n\n")
-#> =====================
 cat("Influential observations (Cook's D > 4/n):", nrow(influential), "\n")
-#> Influential observations (Cook's D > 4/n): 63
 
 # Refit without influential points
 los_clean <- los_data[cooks_d <= cooks_threshold]
@@ -701,8 +748,6 @@ model_clean <- lm(los ~ age75 + type1, data = los_clean)
 
 # Compare
 cat("\nCoefficient Comparison:\n")
-#> 
-#> Coefficient Comparison:
 comparison <- data.table(
     Variable = names(coef(model_full)),
     Full_Data = coef(model_full),
@@ -710,13 +755,22 @@ comparison <- data.table(
 )
 comparison[, Percent_Change := round((Without_Influential - Full_Data) / Full_Data * 100, 2)]
 print(comparison)
+
+cat("\nRecommendation: Report both results and note the sensitivity.\n")
+```
+
+```
+#> Sensitivity Analysis:
+#> =====================
+#> 
+#> Influential observations (Cook's D > 4/n): 63 
+#> 
+#> Coefficient Comparison:
 #>       Variable Full_Data Without_Influential Percent_Change
 #>         <char>     <num>               <num>          <num>
 #> 1: (Intercept) 2.8896379           2.7062115          -6.35
 #> 2:       age75 0.6823371           0.3937835         -42.29
 #> 3:       type1 2.7397330           2.4892819          -9.14
-
-cat("\nRecommendation: Report both results and note the sensitivity.\n")
 #> 
 #> Recommendation: Report both results and note the sensitivity.
 ```
@@ -728,54 +782,62 @@ cat("\nRecommendation: Report both results and note the sensitivity.\n")
 
 ``` r
 cat("Decision Guide for Regression Remedies:\n")
-#> Decision Guide for Regression Remedies:
 cat("=========================================\n\n")
-#> =========================================
 
 cat("PROBLEM: Heteroscedasticity (non-constant variance)\n")
-#> PROBLEM: Heteroscedasticity (non-constant variance)
 cat("  → Transform Y (log, sqrt) if variance increases with mean\n")
-#>   <U+2192> Transform Y (log, sqrt) if variance increases with mean
 cat("  → Use weighted least squares\n")
-#>   <U+2192> Use weighted least squares
 cat("  → Use robust/sandwich standard errors\n\n")
-#>   <U+2192> Use robust/sandwich standard errors
 
 cat("PROBLEM: Nonlinearity\n")
-#> PROBLEM: Nonlinearity
 cat("  → Transform X (log, polynomial)\n")
-#>   <U+2192> Transform X (log, polynomial)
 cat("  → Transform Y\n")
-#>   <U+2192> Transform Y
 cat("  → Use GAMs (generalized additive models)\n\n")
-#>   <U+2192> Use GAMs (generalized additive models)
 
 cat("PROBLEM: Outliers\n")
-#> PROBLEM: Outliers
 cat("  → Investigate cause\n")
-#>   <U+2192> Investigate cause
 cat("  → Use robust regression (M-estimation, LTS)\n")
-#>   <U+2192> Use robust regression (M-estimation, LTS)
 cat("  → Sensitivity analysis (with/without)\n\n")
-#>   <U+2192> Sensitivity analysis (with/without)
 
 cat("PROBLEM: Non-normal residuals\n")
-#> PROBLEM: Non-normal residuals
 cat("  → With large n: Usually not a concern (CLT)\n")
-#>   <U+2192> With large n: Usually not a concern (CLT)
 cat("  → Transform Y\n")
-#>   <U+2192> Transform Y
 cat("  → Use bootstrap for inference\n\n")
-#>   <U+2192> Use bootstrap for inference
 
 cat("PROBLEM: Independence violation\n")
-#> PROBLEM: Independence violation
 cat("  → Clustered data: Use mixed-effects models (Chapter 6)\n")
-#>   <U+2192> Clustered data: Use mixed-effects models (Chapter 6)
 cat("  → Time series: Use time series methods (Chapter 7)\n")
-#>   <U+2192> Time series: Use time series methods (Chapter 7)
 cat("  → Spatial data: Use spatial models (Part III)\n")
-#>   <U+2192> Spatial data: Use spatial models (Part III)
+```
+
+```
+#> Decision Guide for Regression Remedies:
+#> =========================================
+#> 
+#> PROBLEM: Heteroscedasticity (non-constant variance)
+#>   → Transform Y (log, sqrt) if variance increases with mean
+#>   → Use weighted least squares
+#>   → Use robust/sandwich standard errors
+#> 
+#> PROBLEM: Nonlinearity
+#>   → Transform X (log, polynomial)
+#>   → Transform Y
+#>   → Use GAMs (generalized additive models)
+#> 
+#> PROBLEM: Outliers
+#>   → Investigate cause
+#>   → Use robust regression (M-estimation, LTS)
+#>   → Sensitivity analysis (with/without)
+#> 
+#> PROBLEM: Non-normal residuals
+#>   → With large n: Usually not a concern (CLT)
+#>   → Transform Y
+#>   → Use bootstrap for inference
+#> 
+#> PROBLEM: Independence violation
+#>   → Clustered data: Use mixed-effects models (Chapter 6)
+#>   → Time series: Use time series methods (Chapter 7)
+#>   → Spatial data: Use spatial models (Part III)
 ```
 
 ---

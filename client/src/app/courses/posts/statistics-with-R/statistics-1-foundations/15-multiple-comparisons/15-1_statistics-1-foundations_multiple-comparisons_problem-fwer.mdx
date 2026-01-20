@@ -37,57 +37,24 @@ prob_no_fp <- (1 - alpha)^n_tests
 prob_at_least_one <- 1 - prob_no_fp
 
 cat("The Multiple Testing Problem\n")
-```
-
-```
-## The Multiple Testing Problem
-```
-
-``` r
 cat("============================\n\n")
-```
-
-```
-## ============================
-```
-
-``` r
 cat(sprintf("If you run %d independent tests at α = %.2f:\n\n", n_tests, alpha))
-```
-
-```
-## If you run 20 independent tests at <U+03B1> = 0.05:
-```
-
-``` r
 cat(sprintf("P(no false positives) = (1 - %.2f)^%d = %.4f\n", alpha, n_tests, prob_no_fp))
-```
-
-```
-## P(no false positives) = (1 - 0.05)^20 = 0.3585
-```
-
-``` r
 cat(sprintf("P(at least one false positive) = 1 - %.4f = %.4f\n\n", prob_no_fp, prob_at_least_one))
-```
-
-```
-## P(at least one false positive) = 1 - 0.3585 = 0.6415
-```
-
-``` r
 cat(sprintf("There is a %.1f%% chance of at least one false positive!\n", prob_at_least_one * 100))
-```
-
-```
-## There is a 64.2% chance of at least one false positive!
-```
-
-``` r
 cat("This is called the 'Family-Wise Error Rate' (FWER).\n")
 ```
 
 ```
+## The Multiple Testing Problem
+## ============================
+## 
+## If you run 20 independent tests at α = 0.05:
+## 
+## P(no false positives) = (1 - 0.05)^20 = 0.3585
+## P(at least one false positive) = 1 - 0.3585 = 0.6415
+## 
+## There is a 64.2% chance of at least one false positive!
 ## This is called the 'Family-Wise Error Rate' (FWER).
 ```
 
@@ -158,77 +125,33 @@ simulation_results <- replicate(n_simulations, run_null_tests(n_tests, n_per_gro
 fp_per_sim <- apply(simulation_results, 2, function(p) sum(p < alpha))
 
 cat("Simulation Results: Multiple Testing Under the Null\n")
-```
-
-```
-## Simulation Results: Multiple Testing Under the Null
-```
-
-``` r
 cat("====================================================\n\n")
-```
-
-```
-## ====================================================
-```
-
-``` r
 cat(sprintf("Simulations: %d\n", n_simulations))
-```
-
-```
-## Simulations: 1000
-```
-
-``` r
 cat(sprintf("Tests per simulation: %d\n", n_tests))
-```
-
-```
-## Tests per simulation: 20
-```
-
-``` r
 cat(sprintf("α level: %.2f\n\n", alpha))
-```
 
-```
-## <U+03B1> level: 0.05
-```
-
-``` r
 cat("Distribution of false positives per simulation:\n")
-```
-
-```
-## Distribution of false positives per simulation:
-```
-
-``` r
 print(table(fp_per_sim))
-```
 
-```
-## fp_per_sim
-##   0   1   2   3   4   5   6 
-## 374 358 191  61  11   4   1
-```
-
-``` r
 cat(sprintf("\nSimulations with at least 1 false positive: %.1f%%\n",
             100 * mean(fp_per_sim >= 1)))
-```
-
-```
-## 
-## Simulations with at least 1 false positive: 62.6%
-```
-
-``` r
 cat(sprintf("Expected from theory: %.1f%%\n", 100 * (1 - (1 - alpha)^n_tests)))
 ```
 
 ```
+## Simulation Results: Multiple Testing Under the Null
+## ====================================================
+## 
+## Simulations: 1000
+## Tests per simulation: 20
+## α level: 0.05
+## 
+## Distribution of false positives per simulation:
+## fp_per_sim
+##   0   1   2   3   4   5   6 
+## 374 358 191  61  11   4   1 
+## 
+## Simulations with at least 1 false positive: 62.6%
 ## Expected from theory: 64.2%
 ```
 
@@ -279,25 +202,14 @@ error_rates <- data.table(
 )
 
 cat("Error Rates for Different Numbers of Tests\n")
-```
-
-```
-## Error Rates for Different Numbers of Tests
-```
-
-``` r
 cat("===========================================\n\n")
-```
-
-```
-## ===========================================
-```
-
-``` r
 print(round(error_rates, 4))
 ```
 
 ```
+## Error Rates for Different Numbers of Tests
+## ===========================================
+## 
 ##    Tests  PCER FWER_Uncorrected FWER_Bonferroni
 ##    <num> <num>            <num>           <num>
 ## 1:     1  0.05           0.0500            0.05
@@ -355,123 +267,46 @@ results <- data.table(
 )
 
 cat("Bonferroni Correction Example: 1000 Genes\n")
-```
-
-```
-## Bonferroni Correction Example: 1000 Genes
-```
-
-``` r
 cat("==========================================\n\n")
-```
-
-```
-## ==========================================
-```
-
-``` r
 cat(sprintf("True effects: %d genes\n", n_true_effects))
-```
-
-```
-## True effects: 50 genes
-```
-
-``` r
 cat(sprintf("Null genes: %d genes\n\n", n_genes - n_true_effects))
-```
 
-```
-## Null genes: 950 genes
-```
-
-``` r
 cat(sprintf("Bonferroni threshold: 0.05 / %d = %.6f\n\n", n_genes, bonferroni_threshold))
-```
 
-```
-## Bonferroni threshold: 0.05 / 1000 = 0.000050
-```
-
-``` r
 # Confusion matrix: Unadjusted
 cat("Without correction (α = 0.05):\n")
-```
-
-```
-## Without correction (<U+03B1> = 0.05):
-```
-
-``` r
 cat(sprintf("  True Positives: %d\n", sum(results$sig_unadjusted & results$true_effect)))
-```
-
-```
-##   True Positives: 32
-```
-
-``` r
 cat(sprintf("  False Positives: %d\n", sum(results$sig_unadjusted & !results$true_effect)))
-```
-
-```
-##   False Positives: 52
-```
-
-``` r
 cat(sprintf("  True Negatives: %d\n", sum(!results$sig_unadjusted & !results$true_effect)))
-```
-
-```
-##   True Negatives: 898
-```
-
-``` r
 cat(sprintf("  False Negatives: %d\n\n", sum(!results$sig_unadjusted & results$true_effect)))
-```
 
-```
-##   False Negatives: 18
-```
-
-``` r
 # Confusion matrix: Bonferroni
 cat("With Bonferroni correction:\n")
-```
-
-```
-## With Bonferroni correction:
-```
-
-``` r
 cat(sprintf("  True Positives: %d\n", sum(results$sig_bonferroni & results$true_effect)))
-```
-
-```
-##   True Positives: 5
-```
-
-``` r
 cat(sprintf("  False Positives: %d\n", sum(results$sig_bonferroni & !results$true_effect)))
-```
-
-```
-##   False Positives: 0
-```
-
-``` r
 cat(sprintf("  True Negatives: %d\n", sum(!results$sig_bonferroni & !results$true_effect)))
-```
-
-```
-##   True Negatives: 950
-```
-
-``` r
 cat(sprintf("  False Negatives: %d\n", sum(!results$sig_bonferroni & results$true_effect)))
 ```
 
 ```
+## Bonferroni Correction Example: 1000 Genes
+## ==========================================
+## 
+## True effects: 50 genes
+## Null genes: 950 genes
+## 
+## Bonferroni threshold: 0.05 / 1000 = 0.000050
+## 
+## Without correction (α = 0.05):
+##   True Positives: 32
+##   False Positives: 52
+##   True Negatives: 898
+##   False Negatives: 18
+## 
+## With Bonferroni correction:
+##   True Positives: 5
+##   False Positives: 0
+##   True Negatives: 950
 ##   False Negatives: 45
 ```
 
@@ -530,43 +365,20 @@ $$\alpha_{\text{Šidák}} = 1 - (1 - \alpha)^{1/m}$$
 sidak_threshold <- 1 - (1 - 0.05)^(1/n_genes)
 
 cat("Šidák vs Bonferroni Threshold\n")
-```
-
-```
-## <U+0160>id<U+00E1>k vs Bonferroni Threshold
-```
-
-``` r
 cat("=============================\n\n")
-```
-
-```
-## =============================
-```
-
-``` r
 cat(sprintf("Bonferroni: 0.05 / %d = %.8f\n", n_genes, 0.05/n_genes))
-```
-
-```
-## Bonferroni: 0.05 / 1000 = 0.00005000
-```
-
-``` r
 cat(sprintf("Šidák:      1 - (1-0.05)^(1/%d) = %.8f\n", n_genes, sidak_threshold))
-```
-
-```
-## <U+0160>id<U+00E1>k:      1 - (1-0.05)^(1/1000) = 0.00005129
-```
-
-``` r
 cat("\nŠidák is slightly less conservative.\n")
 ```
 
 ```
+## Šidák vs Bonferroni Threshold
+## =============================
 ## 
-## <U+0160>id<U+00E1>k is slightly less conservative.
+## Bonferroni: 0.05 / 1000 = 0.00005000
+## Šidák:      1 - (1-0.05)^(1/1000) = 0.00005129
+## 
+## Šidák is slightly less conservative.
 ```
 
 ### 15.5.2 Holm's Step-Down Method
@@ -585,38 +397,27 @@ results[, holm_adjusted := p.adjust(p_value, method = "holm")]
 results[, sig_holm := holm_adjusted < 0.05]
 
 cat("Holm's Step-Down Method\n")
-```
-
-```
-## Holm's Step-Down Method
-```
-
-``` r
 cat("=======================\n\n")
-```
 
-```
-## =======================
-```
-
-``` r
 # Show the step-down procedure for top p-values
 top_10 <- results[order(p_value)][1:10]
 top_10[, rank := 1:.N]
 top_10[, holm_threshold := 0.05 / (n_genes - rank + 1)]
 
 cat("Top 10 p-values with Holm thresholds:\n")
-```
-
-```
-## Top 10 p-values with Holm thresholds:
-```
-
-``` r
 print(top_10[, .(rank, p_value, holm_threshold, significant = p_value < holm_threshold)])
+
+cat("\n\nComparison of methods:\n")
+cat(sprintf("  Bonferroni rejections: %d\n", sum(results$sig_bonferroni)))
+cat(sprintf("  Holm rejections: %d\n", sum(results$sig_holm)))
+cat("\nHolm is always at least as powerful as Bonferroni.\n")
 ```
 
 ```
+## Holm's Step-Down Method
+## =======================
+## 
+## Top 10 p-values with Holm thresholds:
 ##      rank      p_value holm_threshold significant
 ##     <int>        <num>          <num>      <lgcl>
 ##  1:     1 6.433666e-06   5.000000e-05        TRUE
@@ -629,39 +430,11 @@ print(top_10[, .(rank, p_value, holm_threshold, significant = p_value < holm_thr
 ##  8:     8 8.521529e-05   5.035247e-05       FALSE
 ##  9:     9 1.324573e-04   5.040323e-05       FALSE
 ## 10:    10 2.503779e-04   5.045409e-05       FALSE
-```
-
-``` r
-cat("\n\nComparison of methods:\n")
-```
-
-```
 ## 
 ## 
 ## Comparison of methods:
-```
-
-``` r
-cat(sprintf("  Bonferroni rejections: %d\n", sum(results$sig_bonferroni)))
-```
-
-```
 ##   Bonferroni rejections: 5
-```
-
-``` r
-cat(sprintf("  Holm rejections: %d\n", sum(results$sig_holm)))
-```
-
-```
 ##   Holm rejections: 5
-```
-
-``` r
-cat("\nHolm is always at least as powerful as Bonferroni.\n")
-```
-
-```
 ## 
 ## Holm is always at least as powerful as Bonferroni.
 ```
@@ -682,21 +455,8 @@ results[, hochberg_adjusted := p.adjust(p_value, method = "hochberg")]
 results[, sig_hochberg := hochberg_adjusted < 0.05]
 
 cat("Comparison of FWER Methods\n")
-```
-
-```
-## Comparison of FWER Methods
-```
-
-``` r
 cat("==========================\n\n")
-```
 
-```
-## ==========================
-```
-
-``` r
 methods_comparison <- data.table(
     Method = c("Bonferroni", "Holm", "Hochberg"),
     Rejections = c(sum(results$sig_bonferroni),
@@ -714,6 +474,9 @@ print(methods_comparison)
 ```
 
 ```
+## Comparison of FWER Methods
+## ==========================
+## 
 ##        Method Rejections True_Positives False_Positives
 ##        <char>      <int>          <int>           <int>
 ## 1: Bonferroni          5              5               0
@@ -792,97 +555,37 @@ ggplot2$ggplot(results, ggplot2$aes(x = p_value, fill = true_effect)) +
 
 ``` r
 cat("Example Reporting Language\n")
-```
-
-```
-## Example Reporting Language
-```
-
-``` r
 cat("==========================\n\n")
-```
 
-```
-## ==========================
-```
-
-``` r
 cat("POOR: 'We found a significant effect (p = 0.03).'\n")
-```
-
-```
-## POOR: 'We found a significant effect (p = 0.03).'
-```
-
-``` r
 cat("      (Ignores that 20 other tests were also run)\n\n")
-```
 
-```
-##       (Ignores that 20 other tests were also run)
-```
-
-``` r
 cat("GOOD: 'After testing 20 candidate genes, we found Gene X was\n")
-```
-
-```
-## GOOD: 'After testing 20 candidate genes, we found Gene X was
-```
-
-``` r
 cat("       significant (uncorrected p = 0.03). Applying Bonferroni\n")
-```
-
-```
-##        significant (uncorrected p = 0.03). Applying Bonferroni
-```
-
-``` r
 cat("       correction for 20 tests, this result is not significant\n")
-```
-
-```
-##        correction for 20 tests, this result is not significant
-```
-
-``` r
 cat("       at the family-wise α = 0.05 level (adjusted p = 0.60).'\n\n")
-```
 
-```
-##        at the family-wise <U+03B1> = 0.05 level (adjusted p = 0.60).'
-```
-
-``` r
 cat("BEST: 'We pre-registered our primary hypothesis (Gene X) and\n")
-```
-
-```
-## BEST: 'We pre-registered our primary hypothesis (Gene X) and
-```
-
-``` r
 cat("       found a significant effect (p = 0.03). Exploratory\n")
-```
-
-```
-##        found a significant effect (p = 0.03). Exploratory
-```
-
-``` r
 cat("       analyses of 19 additional genes were corrected using\n")
-```
-
-```
-##        analyses of 19 additional genes were corrected using
-```
-
-``` r
 cat("       Holm's method, with 3 additional significant findings.'\n")
 ```
 
 ```
+## Example Reporting Language
+## ==========================
+## 
+## POOR: 'We found a significant effect (p = 0.03).'
+##       (Ignores that 20 other tests were also run)
+## 
+## GOOD: 'After testing 20 candidate genes, we found Gene X was
+##        significant (uncorrected p = 0.03). Applying Bonferroni
+##        correction for 20 tests, this result is not significant
+##        at the family-wise α = 0.05 level (adjusted p = 0.60).'
+## 
+## BEST: 'We pre-registered our primary hypothesis (Gene X) and
+##        found a significant effect (p = 0.03). Exploratory
+##        analyses of 19 additional genes were corrected using
 ##        Holm's method, with 3 additional significant findings.'
 ```
 

@@ -36,12 +36,15 @@ library(lmerTest)  # For p-values in lmer
 cd4_data <- fread("../../../data/longitudinal/aids_cd4_longitudinal.csv")
 
 cat("AIDS CD4 Longitudinal Data:\n")
-#> AIDS CD4 Longitudinal Data:
 cat("  Observations:", nrow(cd4_data), "\n")
-#>   Observations: 1405
 cat("  Subjects:", length(unique(cd4_data$patient)), "\n")
-#>   Subjects: 467
 cat("  Time points per subject:", round(nrow(cd4_data) / length(unique(cd4_data$patient)), 1), "(average)\n")
+```
+
+```
+#> AIDS CD4 Longitudinal Data:
+#>   Observations: 1405 
+#>   Subjects: 467 
 #>   Time points per subject: 3 (average)
 ```
 
@@ -97,19 +100,14 @@ ggplot2$ggplot(plot_data, ggplot2$aes(x = Time, y = CD4, group = patient, colour
 
 ``` r
 cat("The Problem with Ignoring Clustering:\n")
-#> The Problem with Ignoring Clustering:
 cat("=====================================\n\n")
-#> =====================================
 
 # Fit standard linear regression (wrong approach)
 model_ols <- lm(CD4 ~ Time, data = cd4_data)
 
 cat("Standard OLS (ignoring patient clustering):\n")
-#> Standard OLS (ignoring patient clustering):
 cat("  Assumes", nrow(cd4_data), "independent observations\n")
-#>   Assumes 1405 independent observations
 cat("  Actually only", length(unique(cd4_data$patient)), "independent patients\n\n")
-#>   Actually only 467 independent patients
 
 # Check residual correlation within patients
 cd4_data[, resid := residuals(model_ols)]
@@ -123,21 +121,32 @@ icc_approx <- cd4_data[, .(
 total_var <- var(cd4_data$resid)
 
 cat("Residual Analysis:\n")
-#> Residual Analysis:
 cat("  Total variance:", round(total_var, 1), "\n")
-#>   Total variance: 23.5
 cat("  This variance is partly due to:\n")
-#>   This variance is partly due to:
 cat("    - True individual differences (between patients)\n")
-#>     - True individual differences (between patients)
 cat("    - Measurement occasion (within patients)\n")
-#>     - Measurement occasion (within patients)
 cat("    - Random error\n\n")
-#>     - Random error
 
 cat("If we ignore clustering, we treat all variation as random error,\n")
-#> If we ignore clustering, we treat all variation as random error,
 cat("which makes standard errors too small.\n")
+```
+
+```
+#> The Problem with Ignoring Clustering:
+#> =====================================
+#> 
+#> Standard OLS (ignoring patient clustering):
+#>   Assumes 1405 independent observations
+#>   Actually only 467 independent patients
+#> 
+#> Residual Analysis:
+#>   Total variance: 23.5 
+#>   This variance is partly due to:
+#>     - True individual differences (between patients)
+#>     - Measurement occasion (within patients)
+#>     - Random error
+#> 
+#> If we ignore clustering, we treat all variation as random error,
 #> which makes standard errors too small.
 ```
 
@@ -203,10 +212,14 @@ ggplot2$ggplot(ranef_df, ggplot2$aes(x = intercept)) +
 model_ri <- lmer(CD4 ~ Time + (1 | patient), data = cd4_data)
 
 cat("Random Intercept Model: CD4 ~ Time + (1 | patient)\n")
-#> Random Intercept Model: CD4 ~ Time + (1 | patient)
 cat("========================================================\n\n")
-#> ========================================================
 summary(model_ri)
+```
+
+```
+#> Random Intercept Model: CD4 ~ Time + (1 | patient)
+#> ========================================================
+#> 
 #> Linear mixed model fit by REML. t-tests use Satterthwaite's method [
 #> lmerModLmerTest]
 #> Formula: CD4 ~ Time + (1 | patient)
@@ -241,9 +254,7 @@ summary(model_ri)
 
 ``` r
 cat("Interpreting Random Intercept Model Output:\n")
-#> Interpreting Random Intercept Model Output:
 cat("===========================================\n\n")
-#> ===========================================
 
 # Variance components
 vc <- as.data.table(VarCorr(model_ri))
@@ -251,40 +262,53 @@ sigma_patient <- vc[grp == "patient", sdcor]
 sigma_residual <- vc[grp == "Residual", sdcor]
 
 cat("VARIANCE COMPONENTS:\n\n")
-#> VARIANCE COMPONENTS:
 cat("Patient SD (σ_u):", round(sigma_patient, 2), "\n")
-#> Patient SD (<U+03C3>_u): 4.24
 cat("  → Patients differ by about ±", round(2*sigma_patient, 0), "CD4 cells at baseline\n\n")
-#>   <U+2192> Patients differ by about <U+00B1> 8 CD4 cells at baseline
 
 cat("Residual SD (σ):", round(sigma_residual, 2), "\n")
-#> Residual SD (<U+03C3>): 2.12
 cat("  → Within-patient variation around their trajectory\n\n")
-#>   <U+2192> Within-patient variation around their trajectory
 
 # Intraclass Correlation Coefficient (ICC)
 icc <- sigma_patient^2 / (sigma_patient^2 + sigma_residual^2)
 cat("INTRACLASS CORRELATION (ICC):", round(icc, 3), "\n")
-#> INTRACLASS CORRELATION (ICC): 0.799
 cat("  → ", round(100*icc, 1), "% of total variance is between patients\n")
-#>   <U+2192>  79.9 % of total variance is between patients
 cat("  → ", round(100*(1-icc), 1), "% of variance is within patients over time\n\n")
-#>   <U+2192>  20.1 % of variance is within patients over time
 
 # Fixed effects
 cat("FIXED EFFECTS:\n\n")
-#> FIXED EFFECTS:
 fe <- fixef(model_ri)
 cat("Intercept:", round(fe["(Intercept)"], 1), "cells/mm³\n")
-#> Intercept: 3.5 cells/mm<U+00B3>
 cat("  → Average CD4 count at Time 0 for average-age patient\n\n")
-#>   <U+2192> Average CD4 count at Time 0 for average-age patient
 cat("Week effect:", round(fe["Time"], 2), "cells/mm³ per Time\n")
-#> Week effect: 0.25 cells/mm<U+00B3> per Time
 cat("  → CD4 changes by", round(fe["Time"], 2), "each Time on average\n\n")
-#>   <U+2192> CD4 changes by 0.25 each Time on average
 cat("Age effect:", round(fe["age"], 2), "cells/mm³ per year of age\n")
-#> Age effect: NA cells/mm<U+00B3> per year of age
+```
+
+```
+#> Interpreting Random Intercept Model Output:
+#> ===========================================
+#> 
+#> VARIANCE COMPONENTS:
+#> 
+#> Patient SD (σ_u): 4.24 
+#>   → Patients differ by about ± 8 CD4 cells at baseline
+#> 
+#> Residual SD (σ): 2.12 
+#>   → Within-patient variation around their trajectory
+#> 
+#> INTRACLASS CORRELATION (ICC): 0.799 
+#>   →  79.9 % of total variance is between patients
+#>   →  20.1 % of variance is within patients over time
+#> 
+#> FIXED EFFECTS:
+#> 
+#> Intercept: 3.5 cells/mm³
+#>   → Average CD4 count at Time 0 for average-age patient
+#> 
+#> Week effect: 0.25 cells/mm³ per Time
+#>   → CD4 changes by 0.25 each Time on average
+#> 
+#> Age effect: NA cells/mm³ per year of age
 ```
 
 ---
@@ -354,9 +378,7 @@ ggplot2$ggplot(icc_data, ggplot2$aes(x = factor(cluster), y = y)) +
 
 ``` r
 cat("Comparing OLS and Mixed-Effects Standard Errors:\n")
-#> Comparing OLS and Mixed-Effects Standard Errors:
 cat("================================================\n\n")
-#> ================================================
 
 # OLS model
 model_ols <- lm(CD4 ~ Time, data = cd4_data)
@@ -376,17 +398,23 @@ print(se_compare[, .(Variable,
                      OLS = round(SE_OLS, 3),
                      Mixed = round(SE_Mixed, 3),
                      Ratio = round(Ratio, 2))])
+
+cat("\nInterpretation:\n")
+cat("  Ratio > 1 means mixed model has LARGER (more honest) SEs\n")
+cat("  OLS underestimates uncertainty because it ignores clustering\n")
+```
+
+```
+#> Comparing OLS and Mixed-Effects Standard Errors:
+#> ================================================
+#> 
 #>       Variable   OLS Mixed Ratio
 #>         <char> <num> <num> <num>
 #> 1: (Intercept) 0.453 0.583  1.29
 #> 2:        Time 0.031 0.043  1.36
-
-cat("\nInterpretation:\n")
 #> 
 #> Interpretation:
-cat("  Ratio > 1 means mixed model has LARGER (more honest) SEs\n")
 #>   Ratio > 1 means mixed model has LARGER (more honest) SEs
-cat("  OLS underestimates uncertainty because it ignores clustering\n")
 #>   OLS underestimates uncertainty because it ignores clustering
 ```
 
@@ -497,6 +525,9 @@ p1 <- ggplot2$ggplot(cd4_data, ggplot2$aes(x = fitted_mixed, y = resid_mixed)) +
     ggplot2$theme_minimal()
 
 print(p1)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 

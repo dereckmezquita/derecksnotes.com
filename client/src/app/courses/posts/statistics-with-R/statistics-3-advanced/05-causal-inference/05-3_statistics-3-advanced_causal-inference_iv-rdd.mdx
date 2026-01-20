@@ -99,14 +99,17 @@ iv_data <- data.table(
 )
 
 cat("Instrumental Variables Simulation\n")
-#> Instrumental Variables Simulation
 cat("==================================\n")
-#> ==================================
 cat("  True treatment effect:", true_effect, "\n")
-#>   True treatment effect: -5
 cat("  Treatment rate:", round(100 * mean(treatment), 1), "%\n")
-#>   Treatment rate: 45.5 %
 cat("  Instrument (physician preference) rate:", round(100 * mean(physician_preference), 1), "%\n")
+```
+
+```
+#> Instrumental Variables Simulation
+#> ==================================
+#>   True treatment effect: -5 
+#>   Treatment rate: 45.5 %
 #>   Instrument (physician preference) rate: 51 %
 ```
 
@@ -148,21 +151,13 @@ first_stage <- lm(treatment ~ physician_preference + age + baseline_severity,
                   data = iv_data)
 
 cat("First Stage Regression (Relevance Check):\n")
-#> First Stage Regression (Relevance Check):
 cat("=========================================\n")
-#> =========================================
 print(summary(first_stage)$coefficients[1:2, ])
-#>                       Estimate Std. Error   t value     Pr(>|t|)
-#> (Intercept)          0.1635631 0.07335088  2.229872 2.586675e-02
-#> physician_preference 0.3033930 0.02106519 14.402578 8.112701e-45
 
 # F-statistic for instrument strength
 first_stage_F <- summary(first_stage)$fstatistic[1]
 cat("\nFirst-stage F-statistic:", round(first_stage_F, 2), "\n")
-#> 
-#> First-stage F-statistic: 80.15
 cat("Rule of thumb: F > 10 suggests strong instrument\n")
-#> Rule of thumb: F > 10 suggests strong instrument
 
 # Visualise first stage
 first_stage_data <- iv_data[, .(treatment_rate = mean(treatment)), by = physician_preference]
@@ -191,6 +186,17 @@ ggplot2$ggplot(first_stage_data, ggplot2$aes(x = physician_preference, y = treat
 	Testing the relevance assumption: first-stage regression
 </Figure>
 
+```
+#> First Stage Regression (Relevance Check):
+#> =========================================
+#>                       Estimate Std. Error   t value     Pr(>|t|)
+#> (Intercept)          0.1635631 0.07335088  2.229872 2.586675e-02
+#> physician_preference 0.3033930 0.02106519 14.402578 8.112701e-45
+#> 
+#> First-stage F-statistic: 80.15 
+#> Rule of thumb: F > 10 suggests strong instrument
+```
+
 ### 5.15.3 Two-Stage Least Squares (2SLS)
 
 **Prose and Intuition**
@@ -218,28 +224,15 @@ iv_model <- ivreg(outcome ~ treatment + age + baseline_severity |
                   data = iv_data)
 
 cat("Comparison: OLS vs. 2SLS\n")
-#> Comparison: OLS vs. 2SLS
 cat("========================\n\n")
-#> ========================
 
 cat("OLS Estimate (Biased):\n")
-#> OLS Estimate (Biased):
 print(summary(ols_model)$coefficients[1:2, ])
-#>              Estimate Std. Error   t value      Pr(>|t|)
-#> (Intercept) 38.722456  0.8936278  43.33175 1.061578e-289
-#> treatment   -7.219534  0.2614978 -27.60839 2.200745e-142
 
 cat("\n2SLS Estimate:\n")
-#> 
-#> 2SLS Estimate:
 print(summary(iv_model)$coefficients[1:2, ])
-#>              Estimate Std. Error   t value      Pr(>|t|)
-#> (Intercept) 37.772081  0.9605794 39.322183 6.501861e-251
-#> treatment   -4.313846  0.8782360 -4.911944  9.751692e-07
 
 cat("\nTrue treatment effect:", true_effect, "\n")
-#> 
-#> True treatment effect: -5
 
 # Extract estimates for plotting
 ols_effect <- coef(ols_model)["treatment"]
@@ -282,6 +275,23 @@ ggplot2$ggplot(comparison_data[Method != "True Effect"],
 	Comparing OLS and IV estimates
 </Figure>
 
+```
+#> Comparison: OLS vs. 2SLS
+#> ========================
+#> 
+#> OLS Estimate (Biased):
+#>              Estimate Std. Error   t value      Pr(>|t|)
+#> (Intercept) 38.722456  0.8936278  43.33175 1.061578e-289
+#> treatment   -7.219534  0.2614978 -27.60839 2.200745e-142
+#> 
+#> 2SLS Estimate:
+#>              Estimate Std. Error   t value      Pr(>|t|)
+#> (Intercept) 37.772081  0.9605794 39.322183 6.501861e-251
+#> treatment   -4.313846  0.8782360 -4.911944  9.751692e-07
+#> 
+#> True treatment effect: -5
+```
+
 ### 5.15.4 Local Average Treatment Effect (LATE)
 
 **Prose and Intuition**
@@ -322,15 +332,8 @@ compliance_summary <- iv_data[, .N, by = compliance_type]
 compliance_summary[, pct := round(100 * N / sum(N), 1)]
 
 cat("Compliance Type Distribution (Approximate):\n")
-#> Compliance Type Distribution (Approximate):
 cat("============================================\n")
-#> ============================================
 print(compliance_summary)
-#>        compliance_type     N   pct
-#>                 <char> <int> <num>
-#> 1: Likely Always-Taker   211  10.6
-#> 2:     Likely Complier  1410  70.5
-#> 3:  Likely Never-Taker   379  19.0
 
 # Effect heterogeneity
 effect_by_type <- iv_data[, .(
@@ -340,9 +343,19 @@ effect_by_type <- iv_data[, .(
 ), by = compliance_type]
 
 cat("\nCharacteristics by Compliance Type:\n")
+print(effect_by_type)
+```
+
+```
+#> Compliance Type Distribution (Approximate):
+#> ============================================
+#>        compliance_type     N   pct
+#>                 <char> <int> <num>
+#> 1: Likely Always-Taker   211  10.6
+#> 2:     Likely Complier  1410  70.5
+#> 3:  Likely Never-Taker   379  19.0
 #> 
 #> Characteristics by Compliance Type:
-print(effect_by_type)
 #>        compliance_type     N mean_frailty treatment_rate
 #>                 <char> <int>        <num>          <num>
 #> 1: Likely Always-Taker   211        -0.61            1.0
@@ -395,22 +408,15 @@ iv_weak <- ivreg(outcome ~ treatment + age + baseline_severity |
                  instrument + age + baseline_severity, data = weak_data)
 
 cat("Weak Instrument Example:\n")
-#> Weak Instrument Example:
 cat("========================\n")
-#> ========================
 cat("Strong instrument F-statistic:", round(first_stage_F, 2), "\n")
-#> Strong instrument F-statistic: 80.15
 cat("Weak instrument F-statistic:", round(F_weak, 2), "\n\n")
-#> Weak instrument F-statistic: 7.07
 
 cat("IV estimate with strong instrument:", round(iv_effect, 2),
     "(SE:", round(iv_se, 2), ")\n")
-#> IV estimate with strong instrument: -4.31 (SE: 0.88 )
 cat("IV estimate with weak instrument:", round(coef(iv_weak)["treatment"], 2),
     "(SE:", round(summary(iv_weak)$coefficients["treatment", "Std. Error"], 2), ")\n")
-#> IV estimate with weak instrument: 11.61 (SE: 39.72 )
 cat("True effect:", true_effect, "\n")
-#> True effect: -5
 
 # Visualise instrument strength comparison
 strength_data <- data.table(
@@ -444,6 +450,17 @@ ggplot2$ggplot(strength_data, ggplot2$aes(x = Instrument, y = Estimate, fill = I
 <Figure src="/courses/statistics-3-advanced/weak_instrument-1.png" alt="Weak instruments lead to unreliable estimates">
 	Weak instruments lead to unreliable estimates
 </Figure>
+
+```
+#> Weak Instrument Example:
+#> ========================
+#> Strong instrument F-statistic: 80.15 
+#> Weak instrument F-statistic: 7.07 
+#> 
+#> IV estimate with strong instrument: -4.31 (SE: 0.88 )
+#> IV estimate with weak instrument: 11.61 (SE: 39.72 )
+#> True effect: -5
+```
 
 ---
 
@@ -495,15 +512,10 @@ rd_data <- data.table(
 )
 
 cat("Sharp RD Simulation\n")
-#> Sharp RD Simulation
 cat("===================\n")
-#> ===================
 cat("  Cutoff:", cutoff, "mmHg\n")
-#>   Cutoff: 140 mmHg
 cat("  True treatment effect:", -8, "\n")
-#>   True treatment effect: -8
 cat("  Treated:", sum(treatment_rd), "(",round(100 * mean(treatment_rd), 1), "%)\n")
-#>   Treated: 480 ( 48 %)
 
 # Visualise the discontinuity
 ggplot2$ggplot(rd_data, ggplot2$aes(x = running_var, y = outcome)) +
@@ -537,6 +549,14 @@ ggplot2$ggplot(rd_data, ggplot2$aes(x = running_var, y = outcome)) +
 	Regression Discontinuity: treatment changes at a cutoff
 </Figure>
 
+```
+#> Sharp RD Simulation
+#> ===================
+#>   Cutoff: 140 mmHg
+#>   True treatment effect: -8 
+#>   Treated: 480 ( 48 %)
+```
+
 ### 5.16.2 Identification in RD
 
 **Prose and Intuition**
@@ -562,20 +582,12 @@ $$\tau_{RD} = E[Y(1) - Y(0) | X = c] = \lim_{x \downarrow c} E[Y | X = x] - \lim
 rd_model <- lm(outcome ~ treatment + distance + treatment:distance, data = rd_data)
 
 cat("RD Estimation (Global Linear):\n")
-#> RD Estimation (Global Linear):
 cat("==============================\n")
-#> ==============================
 print(summary(rd_model)$coefficients[1:2, ])
-#>              Estimate Std. Error   t value     Pr(>|t|)
-#> (Intercept) 48.997726  0.2765083 177.20165 0.000000e+00
-#> treatment   -7.988985  0.3965723 -20.14509 5.630216e-76
 
 rd_effect_global <- coef(rd_model)["treatment"]
 cat("\nGlobal RD estimate:", round(rd_effect_global, 2), "\n")
-#> 
-#> Global RD estimate: -7.99
 cat("True effect:", -8, "\n")
-#> True effect: -8
 
 # Method 2: Local linear regression (within bandwidth)
 bandwidth <- 10
@@ -587,8 +599,6 @@ rd_model_local <- lm(outcome ~ treatment + distance + treatment:distance,
 rd_effect_local <- coef(rd_model_local)["treatment"]
 
 cat("\nLocal RD estimate (bandwidth =", bandwidth, "):", round(rd_effect_local, 2), "\n")
-#> 
-#> Local RD estimate (bandwidth = 10 ): -8.07
 
 # Visualise local linear regression
 ggplot2$ggplot(rd_data[abs(distance) <= bandwidth],
@@ -621,6 +631,19 @@ ggplot2$ggplot(rd_data[abs(distance) <= bandwidth],
 	RD estimation using local linear regression
 </Figure>
 
+```
+#> RD Estimation (Global Linear):
+#> ==============================
+#>              Estimate Std. Error   t value     Pr(>|t|)
+#> (Intercept) 48.997726  0.2765083 177.20165 0.000000e+00
+#> treatment   -7.988985  0.3965723 -20.14509 5.630216e-76
+#> 
+#> Global RD estimate: -7.99 
+#> True effect: -8 
+#> 
+#> Local RD estimate (bandwidth = 10 ): -8.07
+```
+
 ### 5.16.3 Bandwidth Selection
 
 **Prose and Intuition**
@@ -652,18 +675,9 @@ bandwidth_results <- rbindlist(lapply(bandwidths, function(bw) {
 }))
 
 cat("Bandwidth Sensitivity:\n")
-#> Bandwidth Sensitivity:
 cat("======================\n")
-#> ======================
 print(bandwidth_results[, .(bandwidth, estimate = round(estimate, 2),
                             se = round(se, 2), n)])
-#>    bandwidth estimate    se     n
-#>        <num>    <num> <num> <int>
-#> 1:         5    -8.34  0.79   234
-#> 2:        10    -8.07  0.57   485
-#> 3:        15    -8.19  0.45   756
-#> 4:        20    -7.99  0.40  1000
-#> 5:        25    -7.99  0.40  1000
 
 ggplot2$ggplot(bandwidth_results, ggplot2$aes(x = bandwidth, y = estimate)) +
     ggplot2$geom_point(size = 4, colour = "#2166AC") +
@@ -686,6 +700,18 @@ ggplot2$ggplot(bandwidth_results, ggplot2$aes(x = bandwidth, y = estimate)) +
 <Figure src="/courses/statistics-3-advanced/bandwidth_selection-1.png" alt="RD estimates vary with bandwidth choice">
 	RD estimates vary with bandwidth choice
 </Figure>
+
+```
+#> Bandwidth Sensitivity:
+#> ======================
+#>    bandwidth estimate    se     n
+#>        <num>    <num> <num> <int>
+#> 1:         5    -8.34  0.79   234
+#> 2:        10    -8.07  0.57   485
+#> 3:        15    -8.19  0.45   756
+#> 4:        20    -7.99  0.40  1000
+#> 5:        25    -7.99  0.40  1000
+```
 
 ### 5.16.4 Validity Tests
 
@@ -765,20 +791,9 @@ placebo_results <- rbind(placebo_results[!is.na(estimate)], real_result)
 placebo_results[, is_real := cutoff == 140]
 
 cat("Placebo Test Results:\n")
-#> Placebo Test Results:
 cat("=====================\n")
-#> =====================
 print(placebo_results[, .(cutoff, estimate = round(estimate, 2),
                            se = round(se, 2), is_real)])
-#>    cutoff estimate    se is_real
-#>     <num>    <num> <num>  <lgcl>
-#> 1:    125    -1.54  0.64   FALSE
-#> 2:    130     0.01  0.54   FALSE
-#> 3:    135     0.37  0.63   FALSE
-#> 4:    145    -0.65  0.69   FALSE
-#> 5:    150     0.76  0.55   FALSE
-#> 6:    155    -0.53  0.63   FALSE
-#> 7:    140    -8.07  0.57    TRUE
 
 ggplot2$ggplot(placebo_results, ggplot2$aes(x = cutoff, y = estimate,
                                              colour = is_real, size = is_real)) +
@@ -807,6 +822,20 @@ ggplot2$ggplot(placebo_results, ggplot2$aes(x = cutoff, y = estimate,
 <Figure src="/courses/statistics-3-advanced/rd_placebo-1.png" alt="Placebo test: no effect at fake cutoffs">
 	Placebo test: no effect at fake cutoffs
 </Figure>
+
+```
+#> Placebo Test Results:
+#> =====================
+#>    cutoff estimate    se is_real
+#>     <num>    <num> <num>  <lgcl>
+#> 1:    125    -1.54  0.64   FALSE
+#> 2:    130     0.01  0.54   FALSE
+#> 3:    135     0.37  0.63   FALSE
+#> 4:    145    -0.65  0.69   FALSE
+#> 5:    150     0.76  0.55   FALSE
+#> 6:    155    -0.53  0.63   FALSE
+#> 7:    140    -8.07  0.57    TRUE
+```
 
 ---
 
@@ -852,15 +881,10 @@ treatment_rates <- fuzzy_data[, .(treat_rate = mean(treatment)),
                                by = .(above = above_cutoff)]
 
 cat("Fuzzy RD: Treatment Rates by Side of Cutoff\n")
-#> Fuzzy RD: Treatment Rates by Side of Cutoff
 cat("============================================\n")
-#> ============================================
 cat("  Below cutoff:", round(treatment_rates[above == 0]$treat_rate, 3), "\n")
-#>   Below cutoff: 0.073
 cat("  Above cutoff:", round(treatment_rates[above == 1]$treat_rate, 3), "\n")
-#>   Above cutoff: 0.919
 cat("  Jump:", round(diff(treatment_rates$treat_rate), 3), "\n")
-#>   Jump: 0.846
 
 # Visualise fuzzy RD
 fuzzy_summary <- fuzzy_data[, .(
@@ -886,6 +910,9 @@ ggplot2$ggplot(fuzzy_data, ggplot2$aes(x = running_var, y = treatment)) +
     ) +
     ggplot2$theme_minimal(base_size = 14) +
     ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
@@ -893,6 +920,14 @@ ggplot2$ggplot(fuzzy_data, ggplot2$aes(x = running_var, y = treatment)) +
 <Figure src="/courses/statistics-3-advanced/fuzzy_rd-1.png" alt="Fuzzy RD: treatment probability jumps but isn&#39;t 0-1">
 	Fuzzy RD: treatment probability jumps but isn't 0-1
 </Figure>
+
+```
+#> Fuzzy RD: Treatment Rates by Side of Cutoff
+#> ============================================
+#>   Below cutoff: 0.073 
+#>   Above cutoff: 0.919 
+#>   Jump: 0.846
+```
 
 
 ``` r
@@ -905,18 +940,21 @@ fuzzy_iv <- ivreg(outcome ~ treatment + distance + treatment:distance |
                   data = fuzzy_data[abs(distance) <= 15])
 
 cat("Fuzzy RD Estimation (2SLS):\n")
-#> Fuzzy RD Estimation (2SLS):
 cat("===========================\n")
-#> ===========================
 print(summary(fuzzy_iv)$coefficients[1:2, ])
+
+cat("\nFuzzy RD estimate:", round(coef(fuzzy_iv)["treatment"], 2), "\n")
+cat("True effect:", -8, "\n")
+```
+
+```
+#> Fuzzy RD Estimation (2SLS):
+#> ===========================
 #>              Estimate Std. Error   t value     Pr(>|t|)
 #> (Intercept) 49.733588  0.4282971 116.11938 0.000000e+00
 #> treatment   -8.468199  0.6987946 -12.11829 5.310592e-31
-
-cat("\nFuzzy RD estimate:", round(coef(fuzzy_iv)["treatment"], 2), "\n")
 #> 
-#> Fuzzy RD estimate: -8.47
-cat("True effect:", -8, "\n")
+#> Fuzzy RD estimate: -8.47 
 #> True effect: -8
 ```
 

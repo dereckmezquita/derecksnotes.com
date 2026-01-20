@@ -49,16 +49,19 @@ X <- as.matrix(breast_cancer[, ..feature_cols])
 y <- breast_cancer$y
 
 cat("Breast Cancer Wisconsin Dataset:\n")
-#> Breast Cancer Wisconsin Dataset:
 cat("================================\n")
-#> ================================
 cat("  Observations (n):", nrow(X), "\n")
-#>   Observations (n): 569
 cat("  Predictors (p):", ncol(X), "\n")
-#>   Predictors (p): 10
 cat("  Malignant:", sum(y), "\n")
-#>   Malignant: 212
 cat("  Benign:", sum(1 - y), "\n")
+```
+
+```
+#> Breast Cancer Wisconsin Dataset:
+#> ================================
+#>   Observations (n): 569 
+#>   Predictors (p): 10 
+#>   Malignant: 212 
 #>   Benign: 357
 ```
 
@@ -125,16 +128,8 @@ var_summary <- sim_results[, .(
 ), by = correlation]
 
 cat("Variance of OLS Estimates by Predictor Correlation:\n")
-#> Variance of OLS Estimates by Predictor Correlation:
 cat("===================================================\n")
-#> ===================================================
 print(var_summary)
-#>    correlation  var_beta1  var_beta2 mean_beta1 mean_beta2
-#>          <num>      <num>      <num>      <num>      <num>
-#> 1:        0.00 0.02285679 0.02257596   1.997704   2.997091
-#> 2:        0.50 0.02762430 0.02655666   2.016423   2.983509
-#> 3:        0.90 0.11508917 0.11273822   1.994837   3.003106
-#> 4:        0.99 1.08705400 1.08953963   2.010405   2.992055
 
 # Plot sampling distributions
 sim_results[, correlation_label := paste0("ρ = ", correlation)]
@@ -158,6 +153,17 @@ ggplot2$ggplot(sim_results, ggplot2$aes(x = beta1)) +
 <Figure src="/courses/statistics-3-advanced/variance_inflation_demo-1.png" alt="Multicollinearity inflates coefficient variance, making estimates unstable">
 	Multicollinearity inflates coefficient variance, making estimates unstable
 </Figure>
+
+```
+#> Variance of OLS Estimates by Predictor Correlation:
+#> ===================================================
+#>    correlation  var_beta1  var_beta2 mean_beta1 mean_beta2
+#>          <num>      <num>      <num>      <num>      <num>
+#> 1:        0.00 0.02285679 0.02257596   1.997704   2.997091
+#> 2:        0.50 0.02762430 0.02655666   2.016423   2.983509
+#> 3:        0.90 0.11508917 0.11273822   1.994837   3.003106
+#> 4:        0.99 1.08705400 1.08953963   2.010405   2.992055
+```
 
 ### 1.1.2 The Bias-Variance Trade-off
 
@@ -352,13 +358,16 @@ The `glmnet` package standardises internally by default.
 ridge_fit <- glmnet(X, y, family = "binomial", alpha = 0)  # alpha = 0 for ridge
 
 cat("Ridge Regression Model:\n")
-#> Ridge Regression Model:
 cat("=======================\n")
-#> =======================
 cat("  Number of lambda values:", length(ridge_fit$lambda), "\n")
-#>   Number of lambda values: 100
 cat("  Lambda range:", round(min(ridge_fit$lambda), 4), "to",
     round(max(ridge_fit$lambda), 4), "\n")
+```
+
+```
+#> Ridge Regression Model:
+#> =======================
+#>   Number of lambda values: 100 
 #>   Lambda range: 0.0375 to 375.487
 ```
 
@@ -410,13 +419,9 @@ set.seed(42)
 cv_ridge <- cv.glmnet(X, y, family = "binomial", alpha = 0, nfolds = 10)
 
 cat("Cross-Validation Results:\n")
-#> Cross-Validation Results:
 cat("=========================\n")
-#> =========================
 cat("  Lambda.min:", round(cv_ridge$lambda.min, 4), "\n")
-#>   Lambda.min: 0.0375
 cat("  Lambda.1se:", round(cv_ridge$lambda.1se, 4), "\n")
-#>   Lambda.1se: 0.0598
 
 # Plot CV curve
 cv_dt <- data.table(
@@ -448,6 +453,13 @@ ggplot2$ggplot(cv_dt, ggplot2$aes(x = log(lambda), y = cvm)) +
 	Cross-validation selects the optimal regularisation parameter
 </Figure>
 
+```
+#> Cross-Validation Results:
+#> =========================
+#>   Lambda.min: 0.0375 
+#>   Lambda.1se: 0.0598
+```
+
 ### 1.3.4 Interpreting the Results
 
 
@@ -468,10 +480,21 @@ coef_comparison <- data.table(
 )
 
 cat("Coefficient Comparison:\n")
-#> Coefficient Comparison:
 cat("=======================\n\n")
-#> =======================
 print(coef_comparison)
+
+cat("\nShrinkage Factor (Ridge.1se / OLS):\n")
+shrinkage <- coef_comparison[-1, .(
+    Variable,
+    Shrinkage = round(Ridge_1se / OLS, 2)
+)]
+print(shrinkage[order(abs(Shrinkage))])
+```
+
+```
+#> Coefficient Comparison:
+#> =======================
+#> 
 #>              Variable      OLS Ridge_min Ridge_1se
 #>                <char>    <num>     <num>     <num>
 #>  1:       (Intercept) -13.6045  -13.6045  -11.9307
@@ -485,15 +508,8 @@ print(coef_comparison)
 #>  9:    concave_points  18.0664   18.0664   15.4379
 #> 10:          symmetry   8.9208    8.9208    7.8031
 #> 11: fractal_dimension -32.0852  -32.0852  -25.1800
-
-cat("\nShrinkage Factor (Ridge.1se / OLS):\n")
 #> 
 #> Shrinkage Factor (Ridge.1se / OLS):
-shrinkage <- coef_comparison[-1, .(
-    Variable,
-    Shrinkage = round(Ridge_1se / OLS, 2)
-)]
-print(shrinkage[order(abs(Shrinkage))])
 #>              Variable Shrinkage
 #>                <char>     <num>
 #>  1: fractal_dimension      0.78
@@ -612,12 +628,20 @@ ggplot2$ggplot(df_dt, ggplot2$aes(x = log(lambda), y = effective_df)) +
 
 ``` r
 library(patchwork)
+```
+
+```
 #> 
 #> Attaching package: 'patchwork'
+```
+
+```
 #> The following object is masked from 'package:MASS':
 #> 
 #>     area
+```
 
+``` r
 # Panel A: Coefficient path
 p_path <- ggplot2$ggplot(path_dt, ggplot2$aes(x = log(lambda), y = coefficient, colour = variable)) +
     ggplot2$geom_line(linewidth = 0.7) +

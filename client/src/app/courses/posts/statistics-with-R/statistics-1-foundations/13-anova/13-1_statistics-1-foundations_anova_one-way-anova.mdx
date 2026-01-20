@@ -52,33 +52,20 @@ fwer_table <- data.table(t(sapply(2:10, calculate_fwer)))
 setnames(fwer_table, c("Groups", "Pairwise Tests", "FWER"))
 
 cat("Family-Wise Error Rate with Multiple t-tests\n")
+cat("=============================================\n\n")
+cat("(Assuming α = 0.05 for each test)\n\n")
+print(fwer_table, digits = 3)
+
+cat("\nWith 5 groups and 10 pairwise comparisons, there's a 40% chance\n")
+cat("of at least one false positive, even when all null hypotheses are true!\n")
 ```
 
 ```
 ## Family-Wise Error Rate with Multiple t-tests
-```
-
-``` r
-cat("=============================================\n\n")
-```
-
-```
 ## =============================================
-```
-
-``` r
-cat("(Assuming α = 0.05 for each test)\n\n")
-```
-
-```
-## (Assuming <U+03B1> = 0.05 for each test)
-```
-
-``` r
-print(fwer_table, digits = 3)
-```
-
-```
+## 
+## (Assuming α = 0.05 for each test)
+## 
 ##    Groups Pairwise Tests  FWER
 ##     <num>          <num> <num>
 ## 1:      2              1 0.050
@@ -90,22 +77,8 @@ print(fwer_table, digits = 3)
 ## 7:      8             28 0.762
 ## 8:      9             36 0.842
 ## 9:     10             45 0.901
-```
-
-``` r
-cat("\nWith 5 groups and 10 pairwise comparisons, there's a 40% chance\n")
-```
-
-```
 ## 
 ## With 5 groups and 10 pairwise comparisons, there's a 40% chance
-```
-
-``` r
-cat("of at least one false positive, even when all null hypotheses are true!\n")
-```
-
-```
 ## of at least one false positive, even when all null hypotheses are true!
 ```
 
@@ -155,17 +128,11 @@ set.seed(123)
 bmi_sample <- bmi_data[, .SD[sample(.N, min(80, .N))], by = AgeDecade]
 
 cat("Sample sizes by age group:\n")
-```
-
-```
-## Sample sizes by age group:
-```
-
-``` r
 print(bmi_sample[, .N, by = AgeDecade][order(AgeDecade)])
 ```
 
 ```
+## Sample sizes by age group:
 ##    AgeDecade     N
 ##       <char> <int>
 ## 1:     20-29    80
@@ -266,59 +233,26 @@ SSB <- sum(bmi_sample[, .(n = .N, group_mean = first(group_mean)), by = AgeDecad
 SSW <- sum((bmi_sample$BMI - bmi_sample$group_mean)^2)
 
 cat("Partitioning Total Variance\n")
-```
-
-```
-## Partitioning Total Variance
-```
-
-``` r
 cat("===========================\n\n")
-```
-
-```
-## ===========================
-```
-
-``` r
 cat(sprintf("Grand mean = %.2f\n\n", grand_mean))
-```
-
-```
-## Grand mean = 29.05
-```
-
-``` r
 cat(sprintf("Total Sum of Squares (SST) = %.2f\n", SST))
-```
-
-```
-## Total Sum of Squares (SST) = 17791.91
-```
-
-``` r
 cat(sprintf("Between Groups (SSB) = %.2f\n", SSB))
-```
-
-```
-## Between Groups (SSB) = 256.29
-```
-
-``` r
 cat(sprintf("Within Groups (SSW) = %.2f\n\n", SSW))
-```
-
-```
-## Within Groups (SSW) = 17535.63
-```
-
-``` r
 cat(sprintf("Check: SSB + SSW = %.2f + %.2f = %.2f ≈ SST = %.2f ✓\n",
             SSB, SSW, SSB + SSW, SST))
 ```
 
 ```
-## Check: SSB + SSW = 256.29 + 17535.63 = 17791.91 <U+2248> SST = 17791.91 <U+2713>
+## Partitioning Total Variance
+## ===========================
+## 
+## Grand mean = 29.05
+## 
+## Total Sum of Squares (SST) = 17791.91
+## Between Groups (SSB) = 256.29
+## Within Groups (SSW) = 17535.63
+## 
+## Check: SSB + SSW = 256.29 + 17535.63 = 17791.91 ≈ SST = 17791.91 ✓
 ```
 
 ### 13.4.3 Visualising Variance Partition
@@ -390,97 +324,35 @@ F_stat <- MSB / MSW
 p_value <- pf(F_stat, df1 = df_between, df2 = df_within, lower.tail = FALSE)
 
 cat("ANOVA F-Test\n")
-```
-
-```
-## ANOVA F-Test
-```
-
-``` r
 cat("============\n\n")
-```
-
-```
-## ============
-```
-
-``` r
 cat(sprintf("Number of groups (k) = %d\n", k))
-```
-
-```
-## Number of groups (k) = 5
-```
-
-``` r
 cat(sprintf("Total sample size (N) = %d\n\n", N))
-```
-
-```
-## Total sample size (N) = 400
-```
-
-``` r
 cat(sprintf("Degrees of freedom:\n"))
-```
-
-```
-## Degrees of freedom:
-```
-
-``` r
 cat(sprintf("  Between: k - 1 = %d\n", df_between))
-```
-
-```
-##   Between: k - 1 = 4
-```
-
-``` r
 cat(sprintf("  Within: N - k = %d\n\n", df_within))
-```
-
-```
-##   Within: N - k = 395
-```
-
-``` r
 cat(sprintf("Mean Squares:\n"))
-```
-
-```
-## Mean Squares:
-```
-
-``` r
 cat(sprintf("  MSB = SSB / df = %.2f / %d = %.2f\n", SSB, df_between, MSB))
-```
-
-```
-##   MSB = SSB / df = 256.29 / 4 = 64.07
-```
-
-``` r
 cat(sprintf("  MSW = SSW / df = %.2f / %d = %.2f\n\n", SSW, df_within, MSW))
-```
-
-```
-##   MSW = SSW / df = 17535.63 / 395 = 44.39
-```
-
-``` r
 cat(sprintf("F = MSB / MSW = %.2f / %.2f = %.3f\n", MSB, MSW, F_stat))
-```
-
-```
-## F = MSB / MSW = 64.07 / 44.39 = 1.443
-```
-
-``` r
 cat(sprintf("p-value = P(F > %.3f) = %.4f\n", F_stat, p_value))
 ```
 
 ```
+## ANOVA F-Test
+## ============
+## 
+## Number of groups (k) = 5
+## Total sample size (N) = 400
+## 
+## Degrees of freedom:
+##   Between: k - 1 = 4
+##   Within: N - k = 395
+## 
+## Mean Squares:
+##   MSB = SSB / df = 256.29 / 4 = 64.07
+##   MSW = SSW / df = 17535.63 / 395 = 44.39
+## 
+## F = MSB / MSW = 64.07 / 44.39 = 1.443
 ## p-value = P(F > 1.443) = 0.2190
 ```
 
@@ -524,62 +396,14 @@ ggplot2$ggplot(f_data, ggplot2$aes(x = x, y = density)) +
 
 ``` r
 cat("ANOVA Table\n")
-```
-
-```
-## ANOVA Table
-```
-
-``` r
 cat("===========\n\n")
-```
-
-```
-## ===========
-```
-
-``` r
 cat("Source         df        SS          MS         F      p-value\n")
-```
-
-```
-## Source         df        SS          MS         F      p-value
-```
-
-``` r
 cat("---------------------------------------------------------------\n")
-```
-
-```
-## ---------------------------------------------------------------
-```
-
-``` r
 cat(sprintf("Between      %4d  %10.2f  %10.2f  %8.3f  %.4f\n",
             df_between, SSB, MSB, F_stat, p_value))
-```
-
-```
-## Between         4      256.29       64.07     1.443  0.2190
-```
-
-``` r
 cat(sprintf("Within       %4d  %10.2f  %10.2f\n", df_within, SSW, MSW))
-```
-
-```
-## Within        395    17535.63       44.39
-```
-
-``` r
 cat(sprintf("Total        %4d  %10.2f\n\n", N - 1, SST))
-```
 
-```
-## Total         399    17791.91
-```
-
-``` r
 if (p_value < 0.05) {
     cat("Conclusion: Reject H₀. There is significant evidence that\n")
     cat("           at least one group mean differs from the others.\n")
@@ -590,7 +414,16 @@ if (p_value < 0.05) {
 ```
 
 ```
-## Conclusion: Fail to reject H<U+2080>. No significant differences
+## ANOVA Table
+## ===========
+## 
+## Source         df        SS          MS         F      p-value
+## ---------------------------------------------------------------
+## Between         4      256.29       64.07     1.443  0.2190
+## Within        395    17535.63       44.39
+## Total         399    17791.91
+## 
+## Conclusion: Fail to reject H₀. No significant differences
 ##            detected among group means.
 ```
 
@@ -602,26 +435,15 @@ if (p_value < 0.05) {
 anova_model <- aov(BMI ~ AgeDecade, data = bmi_sample)
 
 cat("\nR Output: aov() and summary()\n")
+cat("=============================\n\n")
+print(summary(anova_model))
 ```
 
 ```
 ## 
 ## R Output: aov() and summary()
-```
-
-``` r
-cat("=============================\n\n")
-```
-
-```
 ## =============================
-```
-
-``` r
-print(summary(anova_model))
-```
-
-```
+## 
 ##              Df Sum Sq Mean Sq F value Pr(>F)
 ## AgeDecade     4    256   64.07   1.443  0.219
 ## Residuals   395  17536   44.39
@@ -644,74 +466,30 @@ This is analogous to R² in regression.
 eta_sq <- SSB / SST
 
 cat("Eta-Squared (η²)\n")
-```
-
-```
-## Eta-Squared (<U+03B7><U+00B2>)
-```
-
-``` r
 cat("================\n\n")
-```
-
-```
-## ================
-```
-
-``` r
 cat(sprintf("η² = SSB / SST = %.2f / %.2f = %.4f\n\n", SSB, SST, eta_sq))
-```
-
-```
-## <U+03B7><U+00B2> = SSB / SST = 256.29 / 17791.91 = 0.0144
-```
-
-``` r
 cat(sprintf("Interpretation: %.1f%% of the variance in BMI is\n", eta_sq * 100))
-```
-
-```
-## Interpretation: 1.4% of the variance in BMI is
-```
-
-``` r
 cat("               explained by age group membership.\n\n")
-```
 
-```
-##                explained by age group membership.
-```
-
-``` r
 cat("Effect size guidelines (Cohen):\n")
-```
-
-```
-## Effect size guidelines (Cohen):
-```
-
-``` r
 cat("  η² = 0.01: Small effect\n")
-```
-
-```
-##   <U+03B7><U+00B2> = 0.01: Small effect
-```
-
-``` r
 cat("  η² = 0.06: Medium effect\n")
-```
-
-```
-##   <U+03B7><U+00B2> = 0.06: Medium effect
-```
-
-``` r
 cat("  η² = 0.14: Large effect\n")
 ```
 
 ```
-##   <U+03B7><U+00B2> = 0.14: Large effect
+## Eta-Squared (η²)
+## ================
+## 
+## η² = SSB / SST = 256.29 / 17791.91 = 0.0144
+## 
+## Interpretation: 1.4% of the variance in BMI is
+##                explained by age group membership.
+## 
+## Effect size guidelines (Cohen):
+##   η² = 0.01: Small effect
+##   η² = 0.06: Medium effect
+##   η² = 0.14: Large effect
 ```
 
 ### 13.7.2 Omega-Squared (ω²)
@@ -725,51 +503,23 @@ $$\omega^2 = \frac{\text{SSB} - (k-1) \cdot \text{MSW}}{\text{SST} + \text{MSW}}
 omega_sq <- (SSB - (k - 1) * MSW) / (SST + MSW)
 
 cat("Omega-Squared (ω²)\n")
-```
-
-```
-## Omega-Squared (<U+03C9><U+00B2>)
-```
-
-``` r
 cat("==================\n\n")
-```
-
-```
-## ==================
-```
-
-``` r
 cat(sprintf("ω² = (SSB - (k-1)×MSW) / (SST + MSW)\n"))
-```
-
-```
-## <U+03C9><U+00B2> = (SSB - (k-1)<U+00D7>MSW) / (SST + MSW)
-```
-
-``` r
 cat(sprintf("   = (%.2f - %d × %.2f) / (%.2f + %.2f)\n",
             SSB, k-1, MSW, SST, MSW))
-```
-
-```
-##    = (256.29 - 4 <U+00D7> 44.39) / (17791.91 + 44.39)
-```
-
-``` r
 cat(sprintf("   = %.4f\n\n", omega_sq))
-```
-
-```
-##    = 0.0044
-```
-
-``` r
 cat("Note: ω² is a more conservative (less biased) estimate than η².\n")
 ```
 
 ```
-## Note: <U+03C9><U+00B2> is a more conservative (less biased) estimate than <U+03B7><U+00B2>.
+## Omega-Squared (ω²)
+## ==================
+## 
+## ω² = (SSB - (k-1)×MSW) / (SST + MSW)
+##    = (256.29 - 4 × 44.39) / (17791.91 + 44.39)
+##    = 0.0044
+## 
+## Note: ω² is a more conservative (less biased) estimate than η².
 ```
 
 ---
@@ -809,54 +559,13 @@ levene_model <- aov(abs_deviation ~ AgeDecade, data = levene_data)
 levene_result <- summary(levene_model)[[1]]
 
 cat("Levene's Test for Homogeneity of Variance\n")
-```
-
-```
-## Levene's Test for Homogeneity of Variance
-```
-
-``` r
 cat("==========================================\n\n")
-```
-
-```
-## ==========================================
-```
-
-``` r
 cat("H₀: All group variances are equal\n")
-```
-
-```
-## H<U+2080>: All group variances are equal
-```
-
-``` r
 cat("H₁: At least one group variance differs\n\n")
-```
-
-```
-## H<U+2081>: At least one group variance differs
-```
-
-``` r
 cat(sprintf("F(%d, %d) = %.3f\n",
             levene_result$Df[1], levene_result$Df[2], levene_result$`F value`[1]))
-```
-
-```
-## F(4, 395) = 0.839
-```
-
-``` r
 cat(sprintf("p-value = %.4f\n\n", levene_result$`Pr(>F)`[1]))
-```
 
-```
-## p-value = 0.5010
-```
-
-``` r
 if (levene_result$`Pr(>F)`[1] < 0.05) {
     cat("Warning: Evidence of unequal variances. Consider Welch's ANOVA.\n")
 } else {
@@ -865,6 +574,15 @@ if (levene_result$`Pr(>F)`[1] < 0.05) {
 ```
 
 ```
+## Levene's Test for Homogeneity of Variance
+## ==========================================
+## 
+## H₀: All group variances are equal
+## H₁: At least one group variance differs
+## 
+## F(4, 395) = 0.839
+## p-value = 0.5010
+## 
 ## No significant evidence against homogeneity of variance.
 ```
 
@@ -881,25 +599,18 @@ var_check <- bmi_sample[, .(
 ), by = AgeDecade][order(AgeDecade)]
 
 cat("Variance by Group\n")
+cat("=================\n\n")
+print(var_check)
+
+cat(sprintf("\nRatio of largest to smallest variance: %.2f\n",
+            max(var_check$var) / min(var_check$var)))
+cat("Rule of thumb: If ratio > 3, consider Welch's ANOVA.\n")
 ```
 
 ```
 ## Variance by Group
-```
-
-``` r
-cat("=================\n\n")
-```
-
-```
 ## =================
-```
-
-``` r
-print(var_check)
-```
-
-```
+## 
 ##    AgeDecade     n     mean       sd      var
 ##       <char> <int>    <num>    <num>    <num>
 ## 1:     20-29    80 27.64338 5.486734 30.10425
@@ -907,23 +618,8 @@ print(var_check)
 ## 3:     40-49    80 29.61688 7.369270 54.30615
 ## 4:     50-59    80 29.16800 7.152500 51.15825
 ## 5:     60-69    80 29.96825 6.301606 39.71023
-```
-
-``` r
-cat(sprintf("\nRatio of largest to smallest variance: %.2f\n",
-            max(var_check$var) / min(var_check$var)))
-```
-
-```
 ## 
 ## Ratio of largest to smallest variance: 1.80
-```
-
-``` r
-cat("Rule of thumb: If ratio > 3, consider Welch's ANOVA.\n")
-```
-
-```
 ## Rule of thumb: If ratio > 3, consider Welch's ANOVA.
 ```
 
@@ -939,62 +635,29 @@ When variances are unequal, **Welch's ANOVA** provides a robust alternative that
 welch_result <- oneway.test(BMI ~ AgeDecade, data = bmi_sample, var.equal = FALSE)
 
 cat("Welch's ANOVA (Does not assume equal variances)\n")
-```
-
-```
-## Welch's ANOVA (Does not assume equal variances)
-```
-
-``` r
 cat("================================================\n\n")
-```
-
-```
-## ================================================
-```
-
-``` r
 cat(sprintf("F(%.1f, %.1f) = %.3f\n",
             welch_result$parameter[1], welch_result$parameter[2], welch_result$statistic))
-```
-
-```
-## F(4.0, 196.9) = 1.824
-```
-
-``` r
 cat(sprintf("p-value = %.4f\n\n", welch_result$p.value))
-```
 
-```
-## p-value = 0.1257
-```
-
-``` r
 # Compare with regular ANOVA
 regular_result <- oneway.test(BMI ~ AgeDecade, data = bmi_sample, var.equal = TRUE)
 cat("Comparison:\n")
-```
-
-```
-## Comparison:
-```
-
-``` r
 cat(sprintf("  Regular ANOVA: F = %.3f, p = %.4f\n",
             regular_result$statistic, regular_result$p.value))
-```
-
-```
-##   Regular ANOVA: F = 1.443, p = 0.2190
-```
-
-``` r
 cat(sprintf("  Welch's ANOVA: F = %.3f, p = %.4f\n",
             welch_result$statistic, welch_result$p.value))
 ```
 
 ```
+## Welch's ANOVA (Does not assume equal variances)
+## ================================================
+## 
+## F(4.0, 196.9) = 1.824
+## p-value = 0.1257
+## 
+## Comparison:
+##   Regular ANOVA: F = 1.443, p = 0.2190
 ##   Welch's ANOVA: F = 1.824, p = 0.1257
 ```
 
@@ -1012,67 +675,27 @@ ANOVA is a special case of linear regression with categorical predictors. Using 
 reg_model <- lm(BMI ~ AgeDecade, data = bmi_sample)
 
 cat("ANOVA as Linear Regression\n")
-```
-
-```
-## ANOVA as Linear Regression
-```
-
-``` r
 cat("==========================\n\n")
-```
-
-```
-## ==========================
-```
-
-``` r
 cat("Regression coefficients:\n")
-```
-
-```
-## Regression coefficients:
-```
-
-``` r
 print(round(coef(reg_model), 3))
-```
 
-```
-##    (Intercept) AgeDecade30-39 AgeDecade40-49 AgeDecade50-59 AgeDecade60-69 
-##         27.643          1.191          1.973          1.525          2.325
-```
-
-``` r
 cat("\nInterpretation:\n")
-```
-
-```
-## 
-## Interpretation:
-```
-
-``` r
 cat("  (Intercept): Mean BMI for reference group (20-29)\n")
-```
-
-```
-##   (Intercept): Mean BMI for reference group (20-29)
-```
-
-``` r
 cat("  AgeDecade30-39: Difference from reference (30-39 vs 20-29)\n")
-```
-
-```
-##   AgeDecade30-39: Difference from reference (30-39 vs 20-29)
-```
-
-``` r
 cat("  etc.\n")
 ```
 
 ```
+## ANOVA as Linear Regression
+## ==========================
+## 
+## Regression coefficients:
+##    (Intercept) AgeDecade30-39 AgeDecade40-49 AgeDecade50-59 AgeDecade60-69 
+##         27.643          1.191          1.973          1.525          2.325 
+## 
+## Interpretation:
+##   (Intercept): Mean BMI for reference group (20-29)
+##   AgeDecade30-39: Difference from reference (30-39 vs 20-29)
 ##   etc.
 ```
 
@@ -1080,50 +703,28 @@ cat("  etc.\n")
 ``` r
 # Compare ANOVA tables
 cat("\nANOVA table from lm():\n")
+print(anova(reg_model))
+
+cat("\nANOVA table from aov():\n")
+print(summary(anova_model))
+
+cat("\nNote: The F-statistics and p-values are identical!\n")
 ```
 
 ```
 ## 
 ## ANOVA table from lm():
-```
-
-``` r
-print(anova(reg_model))
-```
-
-```
 ## Analysis of Variance Table
 ## 
 ## Response: BMI
 ##            Df  Sum Sq Mean Sq F value Pr(>F)
 ## AgeDecade   4   256.3  64.072  1.4432  0.219
-## Residuals 395 17535.6  44.394
-```
-
-``` r
-cat("\nANOVA table from aov():\n")
-```
-
-```
+## Residuals 395 17535.6  44.394               
 ## 
 ## ANOVA table from aov():
-```
-
-``` r
-print(summary(anova_model))
-```
-
-```
 ##              Df Sum Sq Mean Sq F value Pr(>F)
 ## AgeDecade     4    256   64.07   1.443  0.219
-## Residuals   395  17536   44.39
-```
-
-``` r
-cat("\nNote: The F-statistics and p-values are identical!\n")
-```
-
-```
+## Residuals   395  17536   44.39               
 ## 
 ## Note: The F-statistics and p-values are identical!
 ```
@@ -1145,91 +746,24 @@ When reporting ANOVA:
 
 ``` r
 cat("Example Write-Up\n")
-```
-
-```
-## Example Write-Up
-```
-
-``` r
 cat("================\n\n")
-```
 
-```
-## ================
-```
-
-``` r
 cat("Research Question: Does BMI differ across adult age groups?\n\n")
-```
 
-```
-## Research Question: Does BMI differ across adult age groups?
-```
-
-``` r
 cat("Descriptive Statistics:\n")
-```
-
-```
-## Descriptive Statistics:
-```
-
-``` r
 descriptives <- bmi_sample[, .(
     M = round(mean(BMI), 2),
     SD = round(sd(BMI), 2),
     n = .N
 ), by = AgeDecade][order(AgeDecade)]
 print(descriptives)
-```
 
-```
-##    AgeDecade     M    SD     n
-##       <char> <num> <num> <int>
-## 1:     20-29 27.64  5.49    80
-## 2:     30-39 28.83  6.83    80
-## 3:     40-49 29.62  7.37    80
-## 4:     50-59 29.17  7.15    80
-## 5:     60-69 29.97  6.30    80
-```
-
-``` r
 cat("\n\nResults:\n")
-```
-
-```
-## 
-## 
-## Results:
-```
-
-``` r
 cat("A one-way ANOVA was conducted to compare BMI across five age\n")
-```
-
-```
-## A one-way ANOVA was conducted to compare BMI across five age
-```
-
-``` r
 cat(sprintf("decades. There was a statistically significant difference,\n"))
-```
-
-```
-## decades. There was a statistically significant difference,
-```
-
-``` r
 cat(sprintf("F(%d, %d) = %.2f, p = %.3f, η² = %.3f.\n\n",
             df_between, df_within, F_stat, p_value, eta_sq))
-```
 
-```
-## F(4, 395) = 1.44, p = 0.219, <U+03B7><U+00B2> = 0.014.
-```
-
-``` r
 if (p_value < 0.05) {
     cat("This represents a ")
     if (eta_sq < 0.06) {
@@ -1242,6 +776,28 @@ if (p_value < 0.05) {
     cat(" effect. Post-hoc comparisons are needed to\n")
     cat("determine which specific groups differ.\n")
 }
+```
+
+```
+## Example Write-Up
+## ================
+## 
+## Research Question: Does BMI differ across adult age groups?
+## 
+## Descriptive Statistics:
+##    AgeDecade     M    SD     n
+##       <char> <num> <num> <int>
+## 1:     20-29 27.64  5.49    80
+## 2:     30-39 28.83  6.83    80
+## 3:     40-49 29.62  7.37    80
+## 4:     50-59 29.17  7.15    80
+## 5:     60-69 29.97  6.30    80
+## 
+## 
+## Results:
+## A one-way ANOVA was conducted to compare BMI across five age
+## decades. There was a statistically significant difference,
+## F(4, 395) = 1.44, p = 0.219, η² = 0.014.
 ```
 
 ---

@@ -45,12 +45,15 @@ hospital[, date := as.Date(date)]
 hosp_ts <- ts(hospital$admissions, start = c(2010, 1), frequency = 12)
 
 cat("Time Series Objects Created:\n")
-#> Time Series Objects Created:
 cat("  Deaths:", length(deaths_ts), "months (1973-1978)\n")
-#>   Deaths: 72 months (1973-1978)
 cat("  Influenza:", length(flu_ts), "weeks (2001-2008)\n")
-#>   Influenza: 416 weeks (2001-2008)
 cat("  Hospital:", length(hosp_ts), "months (2010-2019)\n")
+```
+
+```
+#> Time Series Objects Created:
+#>   Deaths: 72 months (1973-1978)
+#>   Influenza: 416 weeks (2001-2008)
 #>   Hospital: 120 months (2010-2019)
 ```
 
@@ -203,9 +206,12 @@ if (requireNamespace("forecast", quietly = TRUE)) {
     cat("  Level smoothing (α):", round(holt_fit$model$par["alpha"], 3), "\n")
     cat("  Trend smoothing (β):", round(holt_fit$model$par["beta"], 3), "\n")
 }
+```
+
+```
 #> Holt's Method Parameters:
-#>   Level smoothing (<U+03B1>): 0.747 
-#>   Trend smoothing (<U+03B2>): 0
+#>   Level smoothing (α): 0.747 
+#>   Trend smoothing (β): 0
 ```
 
 ### 7.15.3 Holt-Winters Seasonal Method
@@ -272,6 +278,13 @@ if (requireNamespace("forecast", quietly = TRUE)) {
         ggplot2$theme_minimal() +
         ggplot2$theme(legend.position = "bottom")
 }
+```
+
+<Figure src="/courses/statistics-2-intermediate/hw_demo-1.png" alt="Holt-Winters method captures trend and seasonal patterns in mortality data">
+	Holt-Winters method captures trend and seasonal patterns in mortality data
+</Figure>
+
+```
 #> Holt-Winters Model Comparison:
 #> ==============================
 #> 
@@ -280,10 +293,6 @@ if (requireNamespace("forecast", quietly = TRUE)) {
 #> 
 #> Better model: Additive
 ```
-
-<Figure src="/courses/statistics-2-intermediate/hw_demo-1.png" alt="Holt-Winters method captures trend and seasonal patterns in mortality data">
-	Holt-Winters method captures trend and seasonal patterns in mortality data
-</Figure>
 
 ---
 
@@ -388,6 +397,13 @@ if (requireNamespace("forecast", quietly = TRUE)) {
         ) +
         ggplot2$theme_minimal()
 }
+```
+
+<Figure src="/courses/statistics-2-intermediate/ets_auto-1.png" alt="ETS automatically selects the best model based on AIC">
+	ETS automatically selects the best model based on AIC
+</Figure>
+
+```
 #> Automatically Selected ETS Model:
 #> ==================================
 #> ETS(A,N,A) 
@@ -409,10 +425,6 @@ if (requireNamespace("forecast", quietly = TRUE)) {
 #>      AIC     AICc      BIC 
 #> 1140.145 1148.716 1174.295
 ```
-
-<Figure src="/courses/statistics-2-intermediate/ets_auto-1.png" alt="ETS automatically selects the best model based on AIC">
-	ETS automatically selects the best model based on AIC
-</Figure>
 
 ---
 
@@ -545,6 +557,9 @@ if (requireNamespace("forecast", quietly = TRUE)) {
 
     print(acc_dt[order(RMSE)])
 }
+```
+
+```
 #> Forecast Accuracy Comparison (Test Set):
 #> =========================================
 #> 
@@ -639,8 +654,11 @@ if (requireNamespace("forecast", quietly = TRUE)) {
         ) +
         ggplot2$theme_minimal()
 }
-#> Don't know how to automatically pick scale for object of type <ts>. Defaulting
-#> to continuous.
+```
+
+```
+#> Don't know how to automatically pick scale for object of type <ts>.
+#> Defaulting to continuous.
 ```
 
 <Figure src="/courses/statistics-2-intermediate/prediction_intervals-1.png" alt="Prediction intervals widen as forecast horizon increases">
@@ -715,6 +733,13 @@ if (requireNamespace("forecast", quietly = TRUE)) {
         ggplot2$theme_minimal() +
         ggplot2$theme(legend.position = "bottom")
 }
+```
+
+<Figure src="/courses/statistics-2-intermediate/combined_forecast-1.png" alt="Combined forecast often outperforms individual models">
+	Combined forecast often outperforms individual models
+</Figure>
+
+```
 #> Combined Forecast Accuracy:
 #> ===========================
 #> RMSE: 545.4 
@@ -726,10 +751,6 @@ if (requireNamespace("forecast", quietly = TRUE)) {
 #>   Holt-Winters: 694.1 
 #>   Combined: 545.4
 ```
-
-<Figure src="/courses/statistics-2-intermediate/combined_forecast-1.png" alt="Combined forecast often outperforms individual models">
-	Combined forecast often outperforms individual models
-</Figure>
 
 ### 7.18.2 Dealing with Special Events
 
@@ -768,31 +789,15 @@ outlier_dt <- data.table(
 n_outliers <- sum(outlier_dt$is_outlier)
 
 cat("Outlier Detection in Influenza Data:\n")
-#> Outlier Detection in Influenza Data:
 cat("=====================================\n")
-#> =====================================
 cat("Total observations:", nrow(outlier_dt), "\n")
-#> Total observations: 416
 cat("Outliers detected:", n_outliers, "\n")
-#> Outliers detected: 8
 cat("Threshold (3 SD):", round(outlier_threshold, 1), "cases\n\n")
-#> Threshold (3 SD): 297.6 cases
 
 if (n_outliers > 0) {
     cat("Outlier weeks:\n")
     print(outlier_dt[is_outlier == TRUE, .(time, cases, remainder)])
 }
-#> Outlier weeks:
-#>        time cases remainder
-#>        <ts> <num>     <num>
-#> 1: 2006.154    44 -340.1972
-#> 2: 2007.115   768  409.8031
-#> 3: 2007.135   927  497.9794
-#> 4: 2007.154  1158  667.5306
-#> 5: 2007.173   981  556.9332
-#> 6: 2007.192   657  307.4608
-#> 7: 2008.058   591  400.2368
-#> 8: 2008.077   731  487.9823
 
 ggplot2$ggplot(outlier_dt, ggplot2$aes(x = time, y = cases)) +
     ggplot2$geom_line(colour = "#0072B2") +
@@ -805,13 +810,36 @@ ggplot2$ggplot(outlier_dt, ggplot2$aes(x = time, y = cases)) +
         y = "Weekly Cases"
     ) +
     ggplot2$theme_minimal()
-#> Don't know how to automatically pick scale for object of type <ts>. Defaulting
-#> to continuous.
+```
+
+```
+#> Don't know how to automatically pick scale for object of type <ts>.
+#> Defaulting to continuous.
 ```
 
 <Figure src="/courses/statistics-2-intermediate/special_events-1.png" alt="Detecting and handling outliers in time series">
 	Detecting and handling outliers in time series
 </Figure>
+
+```
+#> Outlier Detection in Influenza Data:
+#> =====================================
+#> Total observations: 416 
+#> Outliers detected: 8 
+#> Threshold (3 SD): 297.6 cases
+#> 
+#> Outlier weeks:
+#>        time cases remainder
+#>        <ts> <num>     <num>
+#> 1: 2006.154    44 -340.1972
+#> 2: 2007.115   768  409.8031
+#> 3: 2007.135   927  497.9794
+#> 4: 2007.154  1158  667.5306
+#> 5: 2007.173   981  556.9332
+#> 6: 2007.192   657  307.4608
+#> 7: 2008.058   591  400.2368
+#> 8: 2008.077   731  487.9823
+```
 
 ---
 
@@ -897,11 +925,19 @@ if (requireNamespace("forecast", quietly = TRUE)) {
         ggplot2$theme_minimal() +
         ggplot2$theme(legend.position = "bottom")
 }
+```
+
+<Figure src="/courses/statistics-2-intermediate/flu_comprehensive-1.png" alt="Comprehensive influenza forecasting analysis">
+	Comprehensive influenza forecasting analysis
+</Figure>
+
+```
 #> Influenza Forecasting Analysis:
 #> ================================
 #> 
 #> Training period: 2001-2006 ( 312 weeks)
 #> Test period: 2007-2008 ( 104 weeks)
+#> 
 #> Selected Models:
 #>   ARIMA: 4,0,0,0,0,0,52 
 #>   ETS: ETS(A,Ad,N) 
@@ -912,10 +948,6 @@ if (requireNamespace("forecast", quietly = TRUE)) {
 #> ETS:      RMSE = 278.0, MAE = 123.2
 #> Combined: RMSE = 270.5, MAE = 119.0
 ```
-
-<Figure src="/courses/statistics-2-intermediate/flu_comprehensive-1.png" alt="Comprehensive influenza forecasting analysis">
-	Comprehensive influenza forecasting analysis
-</Figure>
 
 ---
 
@@ -1022,20 +1054,13 @@ Always include:
 
 ``` r
 cat("========================================\n")
-#> ========================================
 cat("    MONTHLY MORTALITY FORECAST REPORT   \n")
-#>     MONTHLY MORTALITY FORECAST REPORT
 cat("========================================\n\n")
-#> ========================================
 
 cat("EXECUTIVE SUMMARY\n")
-#> EXECUTIVE SUMMARY
 cat("-----------------\n")
-#> -----------------
 cat("Based on analysis of historical patterns, we forecast continued\n")
-#> Based on analysis of historical patterns, we forecast continued
 cat("seasonal variation in accidental deaths over the next 12 months.\n\n")
-#> seasonal variation in accidental deaths over the next 12 months.
 
 if (requireNamespace("forecast", quietly = TRUE)) {
     cat("KEY FINDINGS:\n")
@@ -1062,16 +1087,28 @@ if (requireNamespace("forecast", quietly = TRUE)) {
     cat("3. Consider additional factors not captured in this model\n")
     cat("   (policy changes, demographic shifts, etc.)\n")
 }
+```
+
+```
+#> ========================================
+#>     MONTHLY MORTALITY FORECAST REPORT   
+#> ========================================
+#> 
+#> EXECUTIVE SUMMARY
+#> -----------------
+#> Based on analysis of historical patterns, we forecast continued
+#> seasonal variation in accidental deaths over the next 12 months.
+#> 
 #> KEY FINDINGS:
-#> <U+2022> Expected average: 9137 deaths/month (range: 7163-11482)
-#> <U+2022> Peak expected: Month 7 with ~10819 deaths
-#> <U+2022> Low expected: Month 2 with ~7599 deaths
+#> • Expected average: 9137 deaths/month (range: 7163-11482)
+#> • Peak expected: Month 7 with ~10819 deaths
+#> • Low expected: Month 2 with ~7599 deaths
 #> 
 #> MODEL INFORMATION:
-#> <U+2022> Model type: ETS (ETS(A,N,A))
-#> <U+2022> Data through: December 1978
-#> <U+2022> Forecast horizon: 12 months
-#> <U+2022> Historical accuracy: MAPE =  2.3 %
+#> • Model type: ETS (ETS(A,N,A))
+#> • Data through: December 1978
+#> • Forecast horizon: 12 months
+#> • Historical accuracy: MAPE =  2.3 %
 #> 
 #> RECOMMENDATIONS:
 #> 1. Plan for 15-20% higher resource needs during summer months

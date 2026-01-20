@@ -43,10 +43,13 @@ pbc_dt <- as.data.table(pbc)
 pbc_dt <- pbc_dt[!is.na(trt)]  # Keep only randomised patients
 
 cat("Datasets Loaded:\n")
-#> Datasets Loaded:
 cat("  Lung cancer:", nrow(lung_dt), "patients\n")
-#>   Lung cancer: 228 patients
 cat("  PBC trial:", nrow(pbc_dt), "patients\n")
+```
+
+```
+#> Datasets Loaded:
+#>   Lung cancer: 228 patients
 #>   PBC trial: 312 patients
 ```
 
@@ -162,18 +165,22 @@ aic_comparison <- data.table(
 aic_comparison[, Delta_AIC := AIC - min(AIC)]
 
 cat("Parametric Model Comparison:\n")
-#> Parametric Model Comparison:
 cat("============================\n\n")
-#> ============================
 print(aic_comparison[order(AIC)])
+
+cat("\nBest fitting distribution:", aic_comparison[which.min(AIC), Distribution], "\n")
+```
+
+```
+#> Parametric Model Comparison:
+#> ============================
+#> 
 #>    Distribution      AIC    LogLik Delta_AIC
 #>          <char>    <num>     <num>     <num>
 #> 1:      Weibull 2278.535 -1132.268   0.00000
 #> 2: Log-logistic 2288.130 -1137.065   9.59492
 #> 3:  Exponential 2298.945 -1143.473  20.41011
 #> 4:   Log-normal 2306.374 -1146.187  27.83913
-
-cat("\nBest fitting distribution:", aic_comparison[which.min(AIC), Distribution], "\n")
 #> 
 #> Best fitting distribution: Weibull
 ```
@@ -191,10 +198,30 @@ To convert to "acceleration factor" interpretation: $\exp(\beta)$ is the multipl
 
 ``` r
 cat("Weibull Model Summary:\n")
-#> Weibull Model Summary:
 cat("======================\n\n")
-#> ======================
 print(summary(fit_weibull))
+
+# Convert coefficients to acceleration factors
+weibull_coef <- coef(fit_weibull)
+acceleration_factors <- exp(weibull_coef)
+
+cat("\nAcceleration Factors (effect on survival time):\n")
+cat("===============================================\n\n")
+for (i in 1:length(acceleration_factors)) {
+    cat(sprintf("  %s: %.3f\n", names(acceleration_factors)[i], acceleration_factors[i]))
+}
+
+cat("\nInterpretation:\n")
+cat("  Females have", round((acceleration_factors["sexFemale"] - 1) * 100, 1),
+    "% longer survival times than males\n")
+cat("  ECOG 2 patients have", round((1 - acceleration_factors["factor(ph.ecog)2"]) * 100, 1),
+    "% shorter survival than ECOG 0\n")
+```
+
+```
+#> Weibull Model Summary:
+#> ======================
+#> 
 #> 
 #> Call:
 #> survreg(formula = Surv(time, event) ~ age + sex + factor(ph.ecog), 
@@ -214,35 +241,21 @@ print(summary(fit_weibull))
 #> Loglik(model)= -1132.3   Loglik(intercept only)= -1147.4
 #> 	Chisq= 30.32 on 5 degrees of freedom, p= 1.3e-05 
 #> Number of Newton-Raphson Iterations: 5 
-#> n= 227
-
-# Convert coefficients to acceleration factors
-weibull_coef <- coef(fit_weibull)
-acceleration_factors <- exp(weibull_coef)
-
-cat("\nAcceleration Factors (effect on survival time):\n")
+#> n= 227 
+#> 
 #> 
 #> Acceleration Factors (effect on survival time):
-cat("===============================================\n\n")
 #> ===============================================
-for (i in 1:length(acceleration_factors)) {
-    cat(sprintf("  %s: %.3f\n", names(acceleration_factors)[i], acceleration_factors[i]))
-}
+#> 
 #>   (Intercept): 760.648
 #>   age: 0.993
 #>   sexFemale: 1.485
 #>   factor(ph.ecog)1: 0.748
 #>   factor(ph.ecog)2: 0.516
 #>   factor(ph.ecog)3: 0.258
-
-cat("\nInterpretation:\n")
 #> 
 #> Interpretation:
-cat("  Females have", round((acceleration_factors["sexFemale"] - 1) * 100, 1),
-    "% longer survival times than males\n")
 #>   Females have 48.5 % longer survival times than males
-cat("  ECOG 2 patients have", round((1 - acceleration_factors["factor(ph.ecog)2"]) * 100, 1),
-    "% shorter survival than ECOG 0\n")
 #>   ECOG 2 patients have 48.4 % shorter survival than ECOG 0
 ```
 
@@ -298,10 +311,20 @@ tv_data <- rbindlist(lapply(1:n_patients, function(id) {
 }))
 
 cat("Time-Varying Covariate Data Structure:\n")
-#> Time-Varying Covariate Data Structure:
 cat("======================================\n\n")
-#> ======================================
 print(head(tv_data[order(id, tstart)], 10))
+
+# Fit Cox model with time-varying covariate
+cox_tv <- coxph(Surv(tstart, tstop, event) ~ kps + age, data = tv_data)
+
+cat("\nCox Model with Time-Varying Karnofsky Score:\n")
+print(summary(cox_tv))
+```
+
+```
+#> Time-Varying Covariate Data Structure:
+#> ======================================
+#> 
 #>        id tstart     tstop event   kps      age
 #>     <int>  <num>     <num> <num> <num>    <num>
 #>  1:     1      0  48.49449     1    60 63.63128
@@ -314,14 +337,8 @@ print(head(tv_data[order(id, tstart)], 10))
 #>  8:     7      0 186.81097     1    60 42.18692
 #>  9:     8      0  37.02068     0    80 78.95193
 #> 10:     9      0 311.71757     1    80 42.36837
-
-# Fit Cox model with time-varying covariate
-cox_tv <- coxph(Surv(tstart, tstop, event) ~ kps + age, data = tv_data)
-
-cat("\nCox Model with Time-Varying Karnofsky Score:\n")
 #> 
 #> Cox Model with Time-Varying Karnofsky Score:
-print(summary(cox_tv))
 #> Call:
 #> coxph(formula = Surv(tstart, tstop, event) ~ kps + age, data = tv_data)
 #> 
@@ -455,6 +472,9 @@ if (requireNamespace("cmprsk", quietly = TRUE)) {
 } else {
     cat("Install 'cmprsk' package for Fine-Gray models.\n")
 }
+```
+
+```
 #> Install 'cmprsk' package for Fine-Gray models.
 ```
 
@@ -494,12 +514,25 @@ interval_dt[, left := sapply(true_time, function(t) max(visit_times[visit_times 
 interval_dt[, right := sapply(true_time, function(t) min(visit_times[visit_times >= t]))]
 
 cat("Interval Censoring Example:\n")
-#> Interval Censoring Example:
 cat("===========================\n\n")
-#> ===========================
 cat("True times are unknown; we only know event occurred in interval [left, right]\n\n")
-#> True times are unknown; we only know event occurred in interval [left, right]
 print(head(interval_dt, 10))
+
+# Fit interval-censored model (requires survival package update)
+# Create Surv object for interval censoring
+surv_int <- Surv(time = interval_dt$left, time2 = interval_dt$right, type = "interval2")
+
+cat("\nInterval-Censored Kaplan-Meier (Turnbull estimator):\n")
+fit_int <- survfit(surv_int ~ 1)
+print(fit_int)
+```
+
+```
+#> Interval Censoring Example:
+#> ===========================
+#> 
+#> True times are unknown; we only know event occurred in interval [left, right]
+#> 
 #>        id true_time  left right
 #>     <int>     <num> <num> <num>
 #>  1:     1  5.968022     0     6
@@ -512,16 +545,8 @@ print(head(interval_dt, 10))
 #>  8:     8 28.319274    24   Inf
 #>  9:     9 12.962762    12    18
 #> 10:    10 11.823123     6    12
-
-# Fit interval-censored model (requires survival package update)
-# Create Surv object for interval censoring
-surv_int <- Surv(time = interval_dt$left, time2 = interval_dt$right, type = "interval2")
-
-cat("\nInterval-Censored Kaplan-Meier (Turnbull estimator):\n")
 #> 
 #> Interval-Censored Kaplan-Meier (Turnbull estimator):
-fit_int <- survfit(surv_int ~ 1)
-print(fit_int)
 #> Call: survfit(formula = surv_int ~ 1)
 #> 
 #>        n events median 0.95LCL 0.95UCL
@@ -564,20 +589,25 @@ trunc_dt <- data.table(
 )
 
 cat("Left Truncation (Delayed Entry) Example:\n")
-#> Left Truncation (Delayed Entry) Example:
 cat("========================================\n\n")
-#> ========================================
 cat("Patients entered study at time 'entry' after diagnosis\n")
-#> Patients entered study at time 'entry' after diagnosis
 cat("They are at risk only from 'entry' to 'exit'\n\n")
-#> They are at risk only from 'entry' to 'exit'
 
 # Fit model with left truncation
 fit_trunc <- survfit(Surv(entry, exit, event) ~ 1, data = trunc_dt)
 
 cat("Survival estimate accounting for left truncation:\n")
-#> Survival estimate accounting for left truncation:
 print(fit_trunc)
+```
+
+```
+#> Left Truncation (Delayed Entry) Example:
+#> ========================================
+#> 
+#> Patients entered study at time 'entry' after diagnosis
+#> They are at risk only from 'entry' to 'exit'
+#> 
+#> Survival estimate accounting for left truncation:
 #> Call: survfit(formula = Surv(entry, exit, event) ~ 1, data = trunc_dt)
 #> 
 #>      records n.max n.start events median 0.95LCL 0.95UCL
@@ -649,10 +679,21 @@ recurrent_dt <- rbindlist(lapply(1:n_patients, function(id) {
 }))
 
 cat("Recurrent Event Data Structure:\n")
-#> Recurrent Event Data Structure:
 cat("===============================\n\n")
-#> ===============================
 print(head(recurrent_dt[order(id, tstart)], 15))
+
+# Fit Andersen-Gill model (counting process)
+cox_recurrent <- coxph(Surv(tstart, tstop, event) ~ 1 + cluster(id),
+                        data = recurrent_dt)
+
+cat("\nAndersen-Gill Model for Recurrent Events:\n")
+print(summary(cox_recurrent))
+```
+
+```
+#> Recurrent Event Data Structure:
+#> ===============================
+#> 
 #>        id event_num    tstart      tstop event    frailty
 #>     <int>     <num>     <num>      <num> <num>      <num>
 #>  1:     1         1  0.000000   4.319637     1 1.93929578
@@ -670,15 +711,8 @@ print(head(recurrent_dt[order(id, tstart)], 15))
 #> 13:     4         2  3.608883   6.160800     1 1.86209551
 #> 14:     4         3  6.160800   9.501715     1 1.86209551
 #> 15:     4         4  9.501715  16.190847     1 1.86209551
-
-# Fit Andersen-Gill model (counting process)
-cox_recurrent <- coxph(Surv(tstart, tstop, event) ~ 1 + cluster(id),
-                        data = recurrent_dt)
-
-cat("\nAndersen-Gill Model for Recurrent Events:\n")
 #> 
 #> Andersen-Gill Model for Recurrent Events:
-print(summary(cox_recurrent))
 #> Call:  coxph(formula = Surv(tstart, tstop, event) ~ 1, data = recurrent_dt, 
 #>     cluster = id)
 #> 
@@ -738,6 +772,9 @@ if (requireNamespace("survRM2", quietly = TRUE)) {
         cat(sprintf("  %s: RMST = %.1f days\n", s, rmst_approx))
     }
 }
+```
+
+```
 #> Install 'survRM2' package for RMST analysis.
 #> 
 #> Manual RMST approximation:
@@ -792,10 +829,17 @@ hr_table <- data.table(
 )
 
 cat("Table 2: Cox Proportional Hazards Analysis of Survival\n")
-#> Table 2: Cox Proportional Hazards Analysis of Survival
 cat("======================================================\n\n")
-#> ======================================================
 print(hr_table)
+
+cat("\nModel fit: Concordance =", round(concordance(cox_final)$concordance, 3), "\n")
+cat("PH assumption: Global test p =", round(cox.zph(cox_final)$table["GLOBAL", "p"], 3), "\n")
+```
+
+```
+#> Table 2: Cox Proportional Hazards Analysis of Survival
+#> ======================================================
+#> 
 #>               Variable     N Events     HR           CI        p
 #>                 <char> <int>  <num> <char>       <char>   <char>
 #> 1:      Age (per year)   227    164   1.01  (0.99-1.03)  0.24637
@@ -803,11 +847,8 @@ print(hr_table)
 #> 3:         ECOG 1 vs 0   227    164   1.51  (1.02-2.23)  0.03995
 #> 4:         ECOG 2 vs 0   227    164   2.47  (1.58-3.86) 7.48e-05
 #> 5:         ECOG 3 vs 0   227    164   7.06 (0.94-53.13)  0.05767
-
-cat("\nModel fit: Concordance =", round(concordance(cox_final)$concordance, 3), "\n")
 #> 
-#> Model fit: Concordance = 0.637
-cat("PH assumption: Global test p =", round(cox.zph(cox_final)$table["GLOBAL", "p"], 3), "\n")
+#> Model fit: Concordance = 0.637 
 #> PH assumption: Global test p = 0.169
 ```
 
@@ -873,11 +914,13 @@ print(p_main)
 </Figure>
 
 ``` r
-
 cat("\nNumber at Risk Table:\n")
+print(dcast(risk_table, sex ~ time, value.var = "n_risk"))
+```
+
+```
 #> 
 #> Number at Risk Table:
-print(dcast(risk_table, sex ~ time, value.var = "n_risk"))
 #> Key: <sex>
 #>       sex     0   100   200   300   400   500   600   700   800   900  1000
 #>    <char> <int> <int> <int> <int> <int> <int> <int> <int> <int> <int> <int>

@@ -4,7 +4,7 @@ chapter: "Chapter 9: Microbiome Data Analysis"
 part: "Part 1: Diversity and Compositional Data"
 coverImage: 13
 author: "Dereck Mezquita"
-date: "2026-01-19"
+date: "2026-01-20"
 tags: [statistics, bioinformatics, microbiome, diversity, compositional-data, R, biomedical]
 published: true
 comments: true
@@ -116,18 +116,21 @@ true_diff_taxa <- data.table(
 )
 
 cat("Simulated Microbiome Data:\n")
-#> Simulated Microbiome Data:
 cat("==========================\n")
-#> ==========================
 cat("  Samples:", n_samples, "(", n_healthy, "healthy,", n_disease, "disease)\n")
-#>   Samples: 100 ( 50 healthy, 50 disease)
 cat("  Taxa:", n_taxa, "\n")
-#>   Taxa: 200
 cat("  True differential taxa:", n_diff, "\n")
-#>   True differential taxa: 20
 cat("  Median library size:", median(metadata$library_size), "\n")
-#>   Median library size: 9376
 cat("  Sparsity:", round(mean(counts == 0) * 100, 1), "% zeros\n")
+```
+
+```
+#> Simulated Microbiome Data:
+#> ==========================
+#>   Samples: 100 ( 50 healthy, 50 disease)
+#>   Taxa: 200 
+#>   True differential taxa: 20 
+#>   Median library size: 9376 
 #>   Sparsity: 14.9 % zeros
 ```
 
@@ -172,18 +175,12 @@ independent_rel <- independent_counts / rowSums(independent_counts)
 
 # Even independent counts become correlated after normalisation
 cat("Compositional Correlation Problem:\n")
-#> Compositional Correlation Problem:
 cat("==================================\n")
-#> ==================================
 cat("  Correlation of truly independent counts:",
     round(cor(independent_counts[, 1], independent_counts[, 2]), 3), "\n")
-#>   Correlation of truly independent counts: -0.047
 cat("  Correlation after converting to proportions:",
     round(cor(independent_rel[, 1], independent_rel[, 2]), 3), "\n")
-#>   Correlation after converting to proportions: -0.488
 cat("\n  Note: Negative correlation is induced by the compositional constraint!\n")
-#> 
-#>   Note: Negative correlation is induced by the compositional constraint!
 
 # Visualise the spurious correlation
 independent_data <- data.table(
@@ -208,6 +205,9 @@ p2 <- ggplot2$ggplot(independent_data, ggplot2$aes(x = taxon_1_rel, y = taxon_2_
     ggplot2$theme_minimal(base_size = 12)
 
 gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
@@ -215,6 +215,15 @@ gridExtra::grid.arrange(p1, p2, ncol = 2)
 <Figure src="/courses/statistics-3-advanced/compositional_problem-1.png" alt="Compositional data creates spurious correlations">
 	Compositional data creates spurious correlations
 </Figure>
+
+```
+#> Compositional Correlation Problem:
+#> ==================================
+#>   Correlation of truly independent counts: -0.047 
+#>   Correlation after converting to proportions: -0.488 
+#> 
+#>   Note: Negative correlation is induced by the compositional constraint!
+```
 
 ### 9.1.2 Log-Ratio Transformations
 
@@ -274,20 +283,23 @@ alr_transform <- function(counts, reference = ncol(counts), pseudocount = 0.5) {
 clr_data <- clr_transform(counts)
 
 cat("Log-Ratio Transformations:\n")
-#> Log-Ratio Transformations:
 cat("==========================\n")
-#> ==========================
 cat("  CLR dimensions:", dim(clr_data), "\n")
-#>   CLR dimensions: 100 200
 cat("  CLR row sums (should be ~0):", round(mean(rowSums(clr_data)), 6), "\n")
-#>   CLR row sums (should be ~0): 0
 cat("  CLR range:", round(range(clr_data), 2), "\n")
-#>   CLR range: -3.58 6.22
 
 # Verify CLR removes spurious correlation
 clr_independent <- clr_transform(independent_counts)
 cat("\n  Correlation after CLR:",
     round(cor(clr_independent[, 1], clr_independent[, 2]), 3), "\n")
+```
+
+```
+#> Log-Ratio Transformations:
+#> ==========================
+#>   CLR dimensions: 100 200 
+#>   CLR row sums (should be ~0): 0 
+#>   CLR range: -3.58 6.22 
 #> 
 #>   Correlation after CLR: -0.489
 ```
@@ -357,31 +369,21 @@ alpha_div <- calc_alpha_diversity(counts)
 alpha_div <- merge(alpha_div, metadata, by.x = "sample", by.y = "sample_id")
 
 cat("Alpha Diversity Summary:\n")
-#> Alpha Diversity Summary:
 cat("========================\n")
-#> ========================
 print(alpha_div[, .(
     group,
     observed = round(mean(observed), 1),
     shannon = round(mean(shannon), 2),
     simpson = round(mean(simpson), 3)
 ), by = group])
-#>      group   group observed shannon simpson
-#>     <fctr>  <fctr>    <num>   <num>   <num>
-#> 1: Healthy Healthy    173.1    3.66   0.940
-#> 2: Disease Disease    167.3    3.64   0.944
 
 # Test for group differences
 wilcox_observed <- wilcox.test(observed ~ group, data = alpha_div)
 wilcox_shannon <- wilcox.test(shannon ~ group, data = alpha_div)
 
 cat("\nGroup Comparisons (Wilcoxon test):\n")
-#> 
-#> Group Comparisons (Wilcoxon test):
 cat("  Observed richness p-value:", format(wilcox_observed$p.value, digits = 3), "\n")
-#>   Observed richness p-value: 0.00188
 cat("  Shannon diversity p-value:", format(wilcox_shannon$p.value, digits = 3), "\n")
-#>   Shannon diversity p-value: 0.632
 
 # Visualise alpha diversity
 # Rename column to avoid confusion after merge
@@ -416,6 +418,19 @@ ggplot2$ggplot(alpha_long, ggplot2$aes(x = group_merged, y = value, fill = group
 <Figure src="/courses/statistics-3-advanced/alpha_diversity-1.png" alt="Alpha diversity metrics capture different aspects of community structure">
 	Alpha diversity metrics capture different aspects of community structure
 </Figure>
+
+```
+#> Alpha Diversity Summary:
+#> ========================
+#>      group   group observed shannon simpson
+#>     <fctr>  <fctr>    <num>   <num>   <num>
+#> 1: Healthy Healthy    173.1    3.66   0.940
+#> 2: Disease Disease    167.3    3.64   0.944
+#> 
+#> Group Comparisons (Wilcoxon test):
+#>   Observed richness p-value: 0.00188 
+#>   Shannon diversity p-value: 0.632
+```
 
 ### 9.2.2 Rarefaction Curves
 
@@ -569,14 +584,17 @@ dist_jaccard <- calc_distance_matrix(counts, jaccard)
 dist_aitchison <- calc_distance_matrix(counts, aitchison)
 
 cat("Beta Diversity Distance Matrices:\n")
-#> Beta Diversity Distance Matrices:
 cat("=================================\n")
-#> =================================
 cat("  Bray-Curtis range:", round(range(dist_bc[lower.tri(dist_bc)]), 3), "\n")
-#>   Bray-Curtis range: 0.177 0.844
 cat("  Jaccard range:", round(range(dist_jaccard[lower.tri(dist_jaccard)]), 3), "\n")
-#>   Jaccard range: 0.048 0.323
 cat("  Aitchison range:", round(range(dist_aitchison[lower.tri(dist_aitchison)]), 3), "\n")
+```
+
+```
+#> Beta Diversity Distance Matrices:
+#> =================================
+#>   Bray-Curtis range: 0.177 0.844 
+#>   Jaccard range: 0.048 0.323 
 #>   Aitchison range: 11.527 17.548
 ```
 
@@ -629,13 +647,9 @@ pcoa_bc <- perform_pcoa(dist_bc)
 pcoa_aitchison <- perform_pcoa(dist_aitchison)
 
 cat("PCoA Results (Bray-Curtis):\n")
-#> PCoA Results (Bray-Curtis):
 cat("===========================\n")
-#> ===========================
 cat("  PC1 variance explained:", round(pcoa_bc$var_explained[1] * 100, 1), "%\n")
-#>   PC1 variance explained: 37.6 %
 cat("  PC2 variance explained:", round(pcoa_bc$var_explained[2] * 100, 1), "%\n")
-#>   PC2 variance explained: 7.6 %
 
 # Create ordination plot data
 ordination_data <- data.table(
@@ -667,6 +681,13 @@ ggplot2$ggplot(ordination_data, ggplot2$aes(x = PC1, y = PC2, colour = group)) +
 <Figure src="/courses/statistics-3-advanced/ordination_pcoa-1.png" alt="PCoA ordination reveals community structure">
 	PCoA ordination reveals community structure
 </Figure>
+
+```
+#> PCoA Results (Bray-Curtis):
+#> ===========================
+#>   PC1 variance explained: 37.6 %
+#>   PC2 variance explained: 7.6 %
+```
 
 ### 9.3.3 PERMANOVA: Testing Group Differences
 
@@ -749,27 +770,30 @@ permanova_bc <- permanova(dist_bc, group)
 permanova_aitchison <- permanova(dist_aitchison, group)
 
 cat("PERMANOVA Results:\n")
-#> PERMANOVA Results:
 cat("==================\n")
-#> ==================
 cat("\nBray-Curtis:\n")
-#> 
-#> Bray-Curtis:
 cat("  Pseudo-F:", round(permanova_bc$F_stat, 2), "\n")
-#>   Pseudo-F: 8.23
 cat("  R²:", round(permanova_bc$R2, 3), "\n")
-#>   R²: 0.077
 cat("  P-value:", permanova_bc$p_value, "\n")
-#>   P-value: 0.001
 
 cat("\nAitchison:\n")
+cat("  Pseudo-F:", round(permanova_aitchison$F_stat, 2), "\n")
+cat("  R²:", round(permanova_aitchison$R2, 3), "\n")
+cat("  P-value:", permanova_aitchison$p_value, "\n")
+```
+
+```
+#> PERMANOVA Results:
+#> ==================
+#> 
+#> Bray-Curtis:
+#>   Pseudo-F: 8.23 
+#>   R²: 0.077 
+#>   P-value: 0.001 
 #> 
 #> Aitchison:
-cat("  Pseudo-F:", round(permanova_aitchison$F_stat, 2), "\n")
-#>   Pseudo-F: 8.06
-cat("  R²:", round(permanova_aitchison$R2, 3), "\n")
-#>   R²: 0.076
-cat("  P-value:", permanova_aitchison$p_value, "\n")
+#>   Pseudo-F: 8.06 
+#>   R²: 0.076 
 #>   P-value: 0.001
 ```
 
@@ -831,15 +855,18 @@ mult_replace <- function(x, delta = 0.65) {
 replaced <- mult_replace(example_sample)
 
 cat("Zero-Handling Comparison:\n")
-#> Zero-Handling Comparison:
 cat("=========================\n")
-#> =========================
 cat("  Zeros in example sample:", sum(example_sample == 0), "/", length(example_sample), "\n")
-#>   Zeros in example sample: 20 / 200
 cat("  Pseudocount (0.5) range:", round(range(log_pseudo), 2), "\n")
-#>   Pseudocount (0.5) range: -0.69 8.18
 cat("  Multiplicative replacement preserves total:",
     round(sum(replaced), 0), "vs", round(sum(example_sample), 0), "\n")
+```
+
+```
+#> Zero-Handling Comparison:
+#> =========================
+#>   Zeros in example sample: 20 / 200 
+#>   Pseudocount (0.5) range: -0.69 8.18 
 #>   Multiplicative replacement preserves total: 18195 vs 18195
 ```
 
@@ -866,15 +893,10 @@ zero_analysis <- data.table(
 )
 
 cat("Zero Inflation Analysis:\n")
-#> Zero Inflation Analysis:
 cat("========================\n")
-#> ========================
 cat("  Taxa present in <10% of samples:", sum(zero_analysis$prevalence < 0.1), "\n")
-#>   Taxa present in <10% of samples: 2
 cat("  Taxa present in >90% of samples:", sum(zero_analysis$prevalence > 0.9), "\n")
-#>   Taxa present in >90% of samples: 130
 cat("  Median prevalence:", round(median(zero_analysis$prevalence), 2), "\n")
-#>   Median prevalence: 0.96
 
 # Prevalence vs abundance relationship
 ggplot2$ggplot(zero_analysis, ggplot2$aes(x = log10(total_abundance + 1), y = prevalence)) +
@@ -888,12 +910,23 @@ ggplot2$ggplot(zero_analysis, ggplot2$aes(x = log10(total_abundance + 1), y = pr
     ) +
     ggplot2$theme_minimal(base_size = 14) +
     ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
 <Figure src="/courses/statistics-3-advanced/zero_inflation_analysis-1.png">
 	
 </Figure>
+
+```
+#> Zero Inflation Analysis:
+#> ========================
+#>   Taxa present in <10% of samples: 2 
+#>   Taxa present in >90% of samples: 130 
+#>   Median prevalence: 0.96
+```
 
 ---
 

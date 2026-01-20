@@ -67,18 +67,12 @@ sample_2way <- two_way_data[, .SD[sample(.N, min(50, .N))],
                              by = .(Gender, AgeGroup)]
 
 cat("Sample sizes by cell:\n")
-```
-
-```
-## Sample sizes by cell:
-```
-
-``` r
 print(dcast(sample_2way[, .N, by = .(Gender, AgeGroup)],
             Gender ~ AgeGroup, value.var = "N"))
 ```
 
 ```
+## Sample sizes by cell:
 ## Key: <Gender>
 ##    Gender 20-29 40-49 60-69
 ##    <fctr> <int> <int> <int>
@@ -207,25 +201,14 @@ Where $a$ and $b$ are the number of levels for each factor.
 model_2way <- aov(BMI ~ Gender * AgeGroup, data = sample_2way)
 
 cat("Two-Way ANOVA Results\n")
-```
-
-```
-## Two-Way ANOVA Results
-```
-
-``` r
 cat("=====================\n\n")
-```
-
-```
-## =====================
-```
-
-``` r
 print(summary(model_2way))
 ```
 
 ```
+## Two-Way ANOVA Results
+## =====================
+## 
 ##                  Df Sum Sq Mean Sq F value   Pr(>F)    
 ## Gender            1     61    61.0   1.449 0.229722    
 ## AgeGroup          2    715   357.4   8.482 0.000262 ***
@@ -243,99 +226,32 @@ print(summary(model_2way))
 anova_results <- summary(model_2way)[[1]]
 
 cat("Interpretation\n")
-```
-
-```
-## Interpretation
-```
-
-``` r
 cat("==============\n\n")
-```
 
-```
-## ==============
-```
-
-``` r
 # Main effect of Gender
 cat(sprintf("1. Main Effect of Gender:\n"))
-```
-
-```
-## 1. Main Effect of Gender:
-```
-
-``` r
 cat(sprintf("   F(1, %d) = %.2f, p = %.4f\n",
             anova_results$Df[4], anova_results$`F value`[1], anova_results$`Pr(>F)`[1]))
-```
-
-```
-##    F(1, 294) = 1.45, p = 0.2297
-```
-
-``` r
 if (anova_results$`Pr(>F)`[1] < 0.05) {
     cat("   → Significant main effect: BMI differs between genders.\n\n")
 } else {
     cat("   → No significant main effect of gender.\n\n")
 }
-```
 
-```
-##    <U+2192> No significant main effect of gender.
-```
-
-``` r
 # Main effect of Age
 cat(sprintf("2. Main Effect of Age Group:\n"))
-```
-
-```
-## 2. Main Effect of Age Group:
-```
-
-``` r
 cat(sprintf("   F(2, %d) = %.2f, p = %.4f\n",
             anova_results$Df[4], anova_results$`F value`[2], anova_results$`Pr(>F)`[2]))
-```
-
-```
-##    F(2, 294) = 8.48, p = 0.0003
-```
-
-``` r
 if (anova_results$`Pr(>F)`[2] < 0.05) {
     cat("   → Significant main effect: BMI differs across age groups.\n\n")
 } else {
     cat("   → No significant main effect of age group.\n\n")
 }
-```
 
-```
-##    <U+2192> Significant main effect: BMI differs across age groups.
-```
-
-``` r
 # Interaction
 cat(sprintf("3. Interaction (Gender × Age):\n"))
-```
-
-```
-## 3. Interaction (Gender <U+00D7> Age):
-```
-
-``` r
 cat(sprintf("   F(2, %d) = %.2f, p = %.4f\n",
             anova_results$Df[4], anova_results$`F value`[3], anova_results$`Pr(>F)`[3]))
-```
-
-```
-##    F(2, 294) = 1.82, p = 0.1646
-```
-
-``` r
 if (anova_results$`Pr(>F)`[3] < 0.05) {
     cat("   → Significant interaction: The effect of age on BMI\n")
     cat("     depends on gender (or vice versa).\n")
@@ -346,7 +262,20 @@ if (anova_results$`Pr(>F)`[3] < 0.05) {
 ```
 
 ```
-##    <U+2192> No significant interaction: The effect of age on BMI
+## Interpretation
+## ==============
+## 
+## 1. Main Effect of Gender:
+##    F(1, 294) = 1.45, p = 0.2297
+##    → No significant main effect of gender.
+## 
+## 2. Main Effect of Age Group:
+##    F(2, 294) = 8.48, p = 0.0003
+##    → Significant main effect: BMI differs across age groups.
+## 
+## 3. Interaction (Gender × Age):
+##    F(2, 294) = 1.82, p = 0.1646
+##    → No significant interaction: The effect of age on BMI
 ##      is similar for both genders.
 ```
 
@@ -374,74 +303,29 @@ eta_p_age <- SS_age / (SS_age + SS_error)
 eta_p_int <- SS_interaction / (SS_interaction + SS_error)
 
 cat("Partial Eta-Squared (η²p)\n")
-```
-
-```
-## Partial Eta-Squared (<U+03B7><U+00B2>p)
-```
-
-``` r
 cat("=========================\n\n")
-```
-
-```
-## =========================
-```
-
-``` r
 cat(sprintf("Gender:       η²p = %.4f (%.1f%% of variance)\n", eta_p_gender, eta_p_gender * 100))
-```
-
-```
-## Gender:       <U+03B7><U+00B2>p = 0.0049 (0.5% of variance)
-```
-
-``` r
 cat(sprintf("Age Group:    η²p = %.4f (%.1f%% of variance)\n", eta_p_age, eta_p_age * 100))
-```
-
-```
-## Age Group:    <U+03B7><U+00B2>p = 0.0546 (5.5% of variance)
-```
-
-``` r
 cat(sprintf("Interaction:  η²p = %.4f (%.1f%% of variance)\n\n", eta_p_int, eta_p_int * 100))
-```
 
-```
-## Interaction:  <U+03B7><U+00B2>p = 0.0122 (1.2% of variance)
-```
-
-``` r
 cat("Effect size guidelines:\n")
-```
-
-```
-## Effect size guidelines:
-```
-
-``` r
 cat("  η²p ≈ 0.01: Small\n")
-```
-
-```
-##   <U+03B7><U+00B2>p <U+2248> 0.01: Small
-```
-
-``` r
 cat("  η²p ≈ 0.06: Medium\n")
-```
-
-```
-##   <U+03B7><U+00B2>p <U+2248> 0.06: Medium
-```
-
-``` r
 cat("  η²p ≈ 0.14: Large\n")
 ```
 
 ```
-##   <U+03B7><U+00B2>p <U+2248> 0.14: Large
+## Partial Eta-Squared (η²p)
+## =========================
+## 
+## Gender:       η²p = 0.0049 (0.5% of variance)
+## Age Group:    η²p = 0.0546 (5.5% of variance)
+## Interaction:  η²p = 0.0122 (1.2% of variance)
+## 
+## Effect size guidelines:
+##   η²p ≈ 0.01: Small
+##   η²p ≈ 0.06: Medium
+##   η²p ≈ 0.14: Large
 ```
 
 ---
@@ -455,30 +339,10 @@ When there's a significant interaction, the main effects become difficult to int
 
 ``` r
 cat("Simple Effects Analysis\n")
-```
-
-```
-## Simple Effects Analysis
-```
-
-``` r
 cat("=======================\n\n")
-```
 
-```
-## =======================
-```
-
-``` r
 # Effect of Age within each Gender
 cat("Effect of Age Group within each Gender:\n\n")
-```
-
-```
-## Effect of Age Group within each Gender:
-```
-
-``` r
 for (g in c("female", "male")) {
     subset_data <- sample_2way[Gender == g]
     simple_model <- aov(BMI ~ AgeGroup, data = subset_data)
@@ -486,24 +350,8 @@ for (g in c("female", "male")) {
     cat(sprintf("  %s: F(2, %d) = %.2f, p = %.4f\n",
                 g, result$Df[2], result$`F value`[1], result$`Pr(>F)`[1]))
 }
-```
 
-```
-##   female: F(2, 147) = 9.49, p = 0.0001
-##   male: F(2, 147) = 1.27, p = 0.2829
-```
-
-``` r
 cat("\n\nEffect of Gender within each Age Group:\n\n")
-```
-
-```
-## 
-## 
-## Effect of Gender within each Age Group:
-```
-
-``` r
 for (age in c("20-29", "40-49", "60-69")) {
     subset_data <- sample_2way[AgeGroup == age]
     simple_model <- aov(BMI ~ Gender, data = subset_data)
@@ -514,6 +362,17 @@ for (age in c("20-29", "40-49", "60-69")) {
 ```
 
 ```
+## Simple Effects Analysis
+## =======================
+## 
+## Effect of Age Group within each Gender:
+## 
+##   female: F(2, 147) = 9.49, p = 0.0001
+##   male: F(2, 147) = 1.27, p = 0.2829
+## 
+## 
+## Effect of Gender within each Age Group:
+## 
 ##   20-29: F(1, 98) = 2.25, p = 0.1372
 ##   40-49: F(1, 98) = 2.40, p = 0.1247
 ##   60-69: F(1, 98) = 0.66, p = 0.4201
@@ -533,26 +392,16 @@ After finding a significant main effect (in the absence of interaction), use pos
 one_way_model <- aov(BMI ~ AgeGroup, data = sample_2way)
 
 cat("Tukey's Honest Significant Difference\n")
-```
-
-```
-## Tukey's Honest Significant Difference
-```
-
-``` r
 cat("=====================================\n\n")
-```
 
-```
-## =====================================
-```
-
-``` r
 tukey_result <- TukeyHSD(one_way_model, "AgeGroup")
 print(tukey_result)
 ```
 
 ```
+## Tukey's Honest Significant Difference
+## =====================================
+## 
 ##   Tukey multiple comparisons of means
 ##     95% family-wise confidence level
 ## 
@@ -629,25 +478,14 @@ factorial_data[, Y := 50 +
 model_3way <- aov(Y ~ Factor_A * Factor_B * Factor_C, data = factorial_data)
 
 cat("Three-Way Factorial ANOVA\n")
-```
-
-```
-## Three-Way Factorial ANOVA
-```
-
-``` r
 cat("=========================\n\n")
-```
-
-```
-## =========================
-```
-
-``` r
 print(summary(model_3way))
 ```
 
 ```
+## Three-Way Factorial ANOVA
+## =========================
+## 
 ##                            Df Sum Sq Mean Sq F value   Pr(>F)    
 ## Factor_A                    1  838.2   838.2  38.643 2.97e-08 ***
 ## Factor_B                    1  630.0   630.0  29.048 8.51e-07 ***
@@ -709,40 +547,29 @@ set.seed(202)
 unbalanced <- sample_2way[sample(.N, 150)]
 
 cat("Cell Sizes (Unbalanced Design):\n")
+print(dcast(unbalanced[, .N, by = .(Gender, AgeGroup)],
+            Gender ~ AgeGroup, value.var = "N"))
+
+cat("\n\nType I SS (order: Gender, AgeGroup):\n")
+print(anova(lm(BMI ~ Gender + AgeGroup, data = unbalanced)))
+
+cat("\nType I SS (order: AgeGroup, Gender):\n")
+print(anova(lm(BMI ~ AgeGroup + Gender, data = unbalanced)))
+
+cat("\nNote: The SS values differ depending on order!\n")
+cat("For unbalanced designs, Type III SS is often preferred.\n")
 ```
 
 ```
 ## Cell Sizes (Unbalanced Design):
-```
-
-``` r
-print(dcast(unbalanced[, .N, by = .(Gender, AgeGroup)],
-            Gender ~ AgeGroup, value.var = "N"))
-```
-
-```
 ## Key: <Gender>
 ##    Gender 20-29 40-49 60-69
 ##    <fctr> <int> <int> <int>
 ## 1: female    25    26    22
 ## 2:   male    26    24    27
-```
-
-``` r
-cat("\n\nType I SS (order: Gender, AgeGroup):\n")
-```
-
-```
 ## 
 ## 
 ## Type I SS (order: Gender, AgeGroup):
-```
-
-``` r
-print(anova(lm(BMI ~ Gender + AgeGroup, data = unbalanced)))
-```
-
-```
 ## Analysis of Variance Table
 ## 
 ## Response: BMI
@@ -752,22 +579,8 @@ print(anova(lm(BMI ~ Gender + AgeGroup, data = unbalanced)))
 ## Residuals 146 6524.9   44.69                     
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-```
-
-``` r
-cat("\nType I SS (order: AgeGroup, Gender):\n")
-```
-
-```
 ## 
 ## Type I SS (order: AgeGroup, Gender):
-```
-
-``` r
-print(anova(lm(BMI ~ AgeGroup + Gender, data = unbalanced)))
-```
-
-```
 ## Analysis of Variance Table
 ## 
 ## Response: BMI
@@ -777,22 +590,8 @@ print(anova(lm(BMI ~ AgeGroup + Gender, data = unbalanced)))
 ## Residuals 146 6524.9   44.69                      
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-```
-
-``` r
-cat("\nNote: The SS values differ depending on order!\n")
-```
-
-```
 ## 
 ## Note: The SS values differ depending on order!
-```
-
-``` r
-cat("For unbalanced designs, Type III SS is often preferred.\n")
-```
-
-```
 ## For unbalanced designs, Type III SS is often preferred.
 ```
 
@@ -854,25 +653,17 @@ cell_var <- sample_2way[, .(
 ), by = .(Gender, AgeGroup)]
 
 cat("Variance by Cell\n")
+cat("================\n\n")
+print(cell_var)
+
+cat(sprintf("\nVariance ratio (max/min): %.2f\n",
+            max(cell_var$var) / min(cell_var$var)))
 ```
 
 ```
 ## Variance by Cell
-```
-
-``` r
-cat("================\n\n")
-```
-
-```
 ## ================
-```
-
-``` r
-print(cell_var)
-```
-
-```
+## 
 ##    Gender AgeGroup     n    mean      var
 ##    <fctr>   <fctr> <int>   <num>    <num>
 ## 1: female    40-49    50 27.3432 40.46483
@@ -881,14 +672,6 @@ print(cell_var)
 ## 4: female    60-69    50 31.2510 36.72921
 ## 5: female    20-29    50 25.9532 42.11076
 ## 6:   male    20-29    50 28.0110 52.17445
-```
-
-``` r
-cat(sprintf("\nVariance ratio (max/min): %.2f\n",
-            max(cell_var$var) / min(cell_var$var)))
-```
-
-```
 ## 
 ## Variance ratio (max/min): 2.38
 ```
@@ -902,69 +685,17 @@ cat(sprintf("\nVariance ratio (max/min): %.2f\n",
 
 ``` r
 cat("Example Write-Up: Two-Way ANOVA\n")
-```
-
-```
-## Example Write-Up: Two-Way ANOVA
-```
-
-``` r
 cat("================================\n\n")
-```
 
-```
-## ================================
-```
-
-``` r
 cat("Research Question: Does BMI differ by gender and age group, and\n")
-```
-
-```
-## Research Question: Does BMI differ by gender and age group, and
-```
-
-``` r
 cat("is there an interaction between these factors?\n\n")
-```
 
-```
-## is there an interaction between these factors?
-```
-
-``` r
 cat("Method:\n")
-```
-
-```
-## Method:
-```
-
-``` r
 cat("A two-way ANOVA was conducted with Gender (male, female) and\n")
-```
-
-```
-## A two-way ANOVA was conducted with Gender (male, female) and
-```
-
-``` r
 cat("Age Group (20-29, 40-49, 60-69) as between-subjects factors.\n\n")
-```
 
-```
-## Age Group (20-29, 40-49, 60-69) as between-subjects factors.
-```
-
-``` r
 cat("Results:\n")
-```
 
-```
-## Results:
-```
-
-``` r
 # Main effect of Gender
 if (anova_results$`Pr(>F)`[1] < 0.05) {
     cat(sprintf("There was a significant main effect of Gender, F(1, %d) = %.2f,\n",
@@ -975,14 +706,7 @@ if (anova_results$`Pr(>F)`[1] < 0.05) {
                 anova_results$Df[4], anova_results$`F value`[1]))
     cat(sprintf("p = %.3f. ", anova_results$`Pr(>F)`[1]))
 }
-```
 
-```
-## The main effect of Gender was not significant, F(1, 294) = 1.45,
-## p = 0.230.
-```
-
-``` r
 # Main effect of Age
 if (anova_results$`Pr(>F)`[2] < 0.05) {
     cat(sprintf("\n\nThere was a significant main effect of Age Group, F(2, %d) = %.2f,\n",
@@ -993,16 +717,7 @@ if (anova_results$`Pr(>F)`[2] < 0.05) {
                 anova_results$Df[4], anova_results$`F value`[2]))
     cat(sprintf("p = %.3f. ", anova_results$`Pr(>F)`[2]))
 }
-```
 
-```
-## 
-## 
-## There was a significant main effect of Age Group, F(2, 294) = 8.48,
-## p = 0.000, <U+03B7><U+00B2>p = 0.055.
-```
-
-``` r
 # Interaction
 if (anova_results$`Pr(>F)`[3] < 0.05) {
     cat(sprintf("\n\nThe Gender × Age Group interaction was significant, F(2, %d) = %.2f,\n",
@@ -1020,9 +735,24 @@ if (anova_results$`Pr(>F)`[3] < 0.05) {
 ```
 
 ```
+## Example Write-Up: Two-Way ANOVA
+## ================================
 ## 
+## Research Question: Does BMI differ by gender and age group, and
+## is there an interaction between these factors?
 ## 
-## The Gender <U+00D7> Age Group interaction was not significant, F(2, 294) = 1.82,
+## Method:
+## A two-way ANOVA was conducted with Gender (male, female) and
+## Age Group (20-29, 40-49, 60-69) as between-subjects factors.
+## 
+## Results:
+## The main effect of Gender was not significant, F(1, 294) = 1.45,
+## p = 0.230. 
+## 
+## There was a significant main effect of Age Group, F(2, 294) = 8.48,
+## p = 0.000, η²p = 0.055. 
+## 
+## The Gender × Age Group interaction was not significant, F(2, 294) = 1.82,
 ## p = 0.165, suggesting that the effect of age on BMI is similar
 ## for both genders.
 ```

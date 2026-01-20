@@ -153,10 +153,6 @@ descriptive_summary[, c("ci_lower", "ci_upper") := {
 }, by = group]
 
 print(descriptive_summary)
-#>        group     n responders proportion  ci_lower  ci_upper
-#>       <char> <int>      <int>      <num>     <num>     <num>
-#> 1: Treatment    50         31       0.62 0.4815045 0.7413721
-#> 2:   Control    50         21       0.42 0.2937500 0.5576656
 
 # Visualise
 ggplot2$ggplot(descriptive_summary, ggplot2$aes(x = group, y = proportion, fill = group)) +
@@ -179,6 +175,13 @@ ggplot2$ggplot(descriptive_summary, ggplot2$aes(x = group, y = proportion, fill 
 <Figure src="/courses/statistics-1-foundations/descriptive_vs_inferential-1.png" alt="Descriptive statistics summarises data; inferential statistics generalises to populations">
 	Descriptive statistics summarises data; inferential statistics generalises to populations
 </Figure>
+
+```
+#>        group     n responders proportion  ci_lower  ci_upper
+#>       <char> <int>      <int>      <num>     <num>     <num>
+#> 1: Treatment    50         31       0.62 0.4815045 0.7413721
+#> 2:   Control    50         21       0.42 0.2937500 0.5576656
+```
 
 In the figure above, the bar heights represent descriptive statistics; they simply report what we observed in our sample. The error bars represent inferential statistics; they tell us the range of plausible values for the true population proportion, accounting for sampling variability.
 

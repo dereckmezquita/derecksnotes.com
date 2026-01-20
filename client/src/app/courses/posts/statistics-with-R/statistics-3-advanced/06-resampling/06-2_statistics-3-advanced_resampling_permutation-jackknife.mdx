@@ -37,14 +37,17 @@ breast_cancer[, diagnosis := factor(diagnosis, levels = c("B", "M"),
                                      labels = c("Benign", "Malignant"))]
 
 cat("Dataset Summary\n")
-#> Dataset Summary
 cat("===============\n")
-#> ===============
 cat("  Total samples:", nrow(breast_cancer), "\n")
-#>   Total samples: 569
 cat("  Benign:", sum(breast_cancer$diagnosis == "Benign"), "\n")
-#>   Benign: 357
 cat("  Malignant:", sum(breast_cancer$diagnosis == "Malignant"), "\n")
+```
+
+```
+#> Dataset Summary
+#> ===============
+#>   Total samples: 569 
+#>   Benign: 357 
 #>   Malignant: 212
 ```
 
@@ -110,22 +113,15 @@ for (p in 1:n_perm) {
 p_value <- mean(abs(perm_diffs) >= abs(obs_diff))
 
 cat("Permutation Test: Mean Radius by Diagnosis\n")
-#> Permutation Test: Mean Radius by Diagnosis
 cat("==========================================\n")
-#> ==========================================
 cat("  Mean (Benign):", round(mean(benign), 3), "\n")
-#>   Mean (Benign): 12.147
 cat("  Mean (Malignant):", round(mean(malignant), 3), "\n")
-#>   Mean (Malignant): 17.463
 cat("  Observed difference:", round(obs_diff, 3), "\n")
-#>   Observed difference: 5.316
 cat("  Permutation p-value:", format.pval(p_value, digits = 4), "\n")
-#>   Permutation p-value: < 2.2e-16
 
 # Compare to t-test
 t_result <- t.test(malignant, benign)
 cat("  T-test p-value:", format.pval(t_result$p.value, digits = 4), "\n")
-#>   T-test p-value: < 2.2e-16
 
 # Visualise null distribution
 perm_data <- data.table(difference = perm_diffs)
@@ -156,6 +152,16 @@ ggplot2$ggplot(perm_data, ggplot2$aes(x = difference)) +
 	Permutation test: generating the null distribution by shuffling labels
 </Figure>
 
+```
+#> Permutation Test: Mean Radius by Diagnosis
+#> ==========================================
+#>   Mean (Benign): 12.147 
+#>   Mean (Malignant): 17.463 
+#>   Observed difference: 5.316 
+#>   Permutation p-value: < 2.2e-16 
+#>   T-test p-value: < 2.2e-16
+```
+
 ### 6.8.2 Permutation Test for Correlation
 
 **Prose and Intuition**
@@ -184,18 +190,13 @@ for (p in 1:n_perm) {
 p_value_cor <- mean(abs(perm_cors) >= abs(obs_cor))
 
 cat("Permutation Test for Correlation:\n")
-#> Permutation Test for Correlation:
 cat("==================================\n")
-#> ==================================
 cat("  Observed r:", round(obs_cor, 4), "\n")
-#>   Observed r: 0.3238
 cat("  Permutation p-value:", format.pval(p_value_cor, digits = 4), "\n")
-#>   Permutation p-value: < 2.2e-16
 
 # Compare to parametric test
 cor_test <- cor.test(x, y)
 cat("  Parametric p-value:", format.pval(cor_test$p.value, digits = 4), "\n")
-#>   Parametric p-value: 2.36e-15
 
 # Visualise
 cor_perm_data <- data.table(correlation = perm_cors)
@@ -221,6 +222,14 @@ ggplot2$ggplot(cor_perm_data, ggplot2$aes(x = correlation)) +
 <Figure src="/courses/statistics-3-advanced/permutation_correlation-1.png" alt="Permutation test for correlation coefficient">
 	Permutation test for correlation coefficient
 </Figure>
+
+```
+#> Permutation Test for Correlation:
+#> ==================================
+#>   Observed r: 0.3238 
+#>   Permutation p-value: < 2.2e-16 
+#>   Parametric p-value: 2.36e-15
+```
 
 ### 6.8.3 Permutation Test for Regression
 
@@ -257,13 +266,9 @@ for (p in 1:n_perm) {
 p_value_F <- mean(perm_F >= obs_F)
 
 cat("Permutation Test for Regression F-statistic:\n")
-#> Permutation Test for Regression F-statistic:
 cat("============================================\n")
-#> ============================================
 cat("  Observed F:", round(obs_F, 2), "\n")
-#>   Observed F: 66374.7
 cat("  Permutation p-value:", format.pval(p_value_F, digits = 4), "\n")
-#>   Permutation p-value: < 2.2e-16
 
 # Compare to parametric
 param_p <- pf(summary(fit)$fstatistic[1],
@@ -271,7 +276,6 @@ param_p <- pf(summary(fit)$fstatistic[1],
               summary(fit)$fstatistic[3],
               lower.tail = FALSE)
 cat("  Parametric p-value:", format.pval(param_p, digits = 4), "\n")
-#>   Parametric p-value: < 2.2e-16
 
 # Visualise
 F_perm_data <- data.table(F_stat = perm_F)
@@ -296,6 +300,14 @@ ggplot2$ggplot(F_perm_data, ggplot2$aes(x = F_stat)) +
 <Figure src="/courses/statistics-3-advanced/permutation_regression-1.png" alt="Permutation test for regression F-statistic">
 	Permutation test for regression F-statistic
 </Figure>
+
+```
+#> Permutation Test for Regression F-statistic:
+#> ============================================
+#>   Observed F: 66374.7 
+#>   Permutation p-value: < 2.2e-16 
+#>   Parametric p-value: < 2.2e-16
+```
 
 ### 6.8.4 Exact vs Monte Carlo Permutation Tests
 
@@ -327,14 +339,26 @@ obs_diff_small <- mean(group_b) - mean(group_a)
 
 # Generate all permutations
 library(gtools)  # for combinations
+```
+
+```
 #> 
 #> Attaching package: 'gtools'
+```
+
+```
 #> The following object is masked from 'package:car':
 #> 
 #>     logit
+```
+
+```
 #> The following object is masked from 'package:glmnet':
 #> 
 #>     na.replace
+```
+
+``` r
 all_combs <- combinations(n_total_small, n_a)
 
 n_exact <- nrow(all_combs)
@@ -349,17 +373,11 @@ for (i in 1:n_exact) {
 p_exact <- mean(abs(exact_diffs) >= abs(obs_diff_small))
 
 cat("Exact Permutation Test (Small Sample):\n")
-#> Exact Permutation Test (Small Sample):
 cat("======================================\n")
-#> ======================================
 cat("  Sample sizes:", n_a, "+", n_total_small - n_a, "\n")
-#>   Sample sizes: 5 + 5
 cat("  Total permutations:", n_exact, "\n")
-#>   Total permutations: 252
 cat("  Observed difference:", round(obs_diff_small, 3), "\n")
-#>   Observed difference: 0.762
 cat("  Exact p-value:", round(p_exact, 4), "\n")
-#>   Exact p-value: 0.254
 
 # Compare to Monte Carlo
 n_mc <- 10000
@@ -369,6 +387,15 @@ mc_diffs <- replicate(n_mc, {
 })
 p_mc <- mean(abs(mc_diffs) >= abs(obs_diff_small))
 cat("  Monte Carlo p-value (B=10000):", round(p_mc, 4), "\n")
+```
+
+```
+#> Exact Permutation Test (Small Sample):
+#> ======================================
+#>   Sample sizes: 5 + 5 
+#>   Total permutations: 252 
+#>   Observed difference: 0.762 
+#>   Exact p-value: 0.254 
 #>   Monte Carlo p-value (B=10000): 0.2499
 ```
 
@@ -428,19 +455,12 @@ bias_jack <- (n - 1) * (theta_bar - theta_hat)
 theta_jack <- theta_hat - bias_jack
 
 cat("Jackknife Analysis of Variance Estimator:\n")
-#> Jackknife Analysis of Variance Estimator:
 cat("=========================================\n")
-#> =========================================
 cat("  Original estimate:", round(theta_hat, 4), "\n")
-#>   Original estimate: 11.2174
 cat("  Jackknife mean:", round(theta_bar, 4), "\n")
-#>   Jackknife mean: 11.2174
 cat("  Jackknife SE:", round(se_jack, 4), "\n")
-#>   Jackknife SE: 1.5468
 cat("  Jackknife bias:", round(bias_jack, 4), "\n")
-#>   Jackknife bias: 0
 cat("  Bias-corrected estimate:", round(theta_jack, 4), "\n")
-#>   Bias-corrected estimate: 11.2174
 
 # Visualise leave-one-out estimates
 jack_data <- data.table(
@@ -472,6 +492,16 @@ ggplot2$ggplot(jack_data, ggplot2$aes(x = index, y = estimate)) +
 	Jackknife leave-one-out estimates
 </Figure>
 
+```
+#> Jackknife Analysis of Variance Estimator:
+#> =========================================
+#>   Original estimate: 11.2174 
+#>   Jackknife mean: 11.2174 
+#>   Jackknife SE: 1.5468 
+#>   Jackknife bias: 0 
+#>   Bias-corrected estimate: 11.2174
+```
+
 ### 6.9.2 Jackknife Pseudo-Values and Influence
 
 **Prose and Intuition**
@@ -496,15 +526,10 @@ influence <- pseudo_values - mean(pseudo_values)
 influential_idx <- which(abs(influence) > 2 * sd(influence))
 
 cat("Jackknife Influence Analysis:\n")
-#> Jackknife Influence Analysis:
 cat("============================\n")
-#> ============================
 cat("  Mean pseudo-value:", round(mean(pseudo_values), 4), "\n")
-#>   Mean pseudo-value: 11.2174
 cat("  SD of pseudo-values:", round(sd(pseudo_values), 4), "\n")
-#>   SD of pseudo-values: 15.4682
 cat("  Influential observations (|z| > 2):", length(influential_idx), "\n")
-#>   Influential observations (|z| > 2): 3
 
 # Visualise influence
 influence_data <- data.table(
@@ -540,6 +565,14 @@ ggplot2$ggplot(influence_data, ggplot2$aes(x = index, y = influence,
 	Jackknife pseudo-values identify influential observations
 </Figure>
 
+```
+#> Jackknife Influence Analysis:
+#> ============================
+#>   Mean pseudo-value: 11.2174 
+#>   SD of pseudo-values: 15.4682 
+#>   Influential observations (|z| > 2): 3
+```
+
 ### 6.9.3 Delete-d Jackknife
 
 **Prose and Intuition**
@@ -564,15 +597,10 @@ d <- 5
 # Number of subsets
 n_subsets <- choose(n_small, d)
 cat("Delete-5 Jackknife:\n")
-#> Delete-5 Jackknife:
 cat("===================\n")
-#> ===================
 cat("  Sample size:", n_small, "\n")
-#>   Sample size: 30
 cat("  d:", d, "\n")
-#>   d: 5
 cat("  Number of subsets:", n_subsets, "\n")
-#>   Number of subsets: 142506
 
 # Sample subsets (too many to enumerate all)
 n_sample <- min(500, n_subsets)
@@ -589,8 +617,16 @@ for (s in 1:n_sample) {
 var_delete_d <- var(theta_delete_d) * (n_small - d) / d
 
 cat("  Delete-1 SE:", round(se_jack, 4), "\n")
-#>   Delete-1 SE: 1.5468
 cat("  Delete-5 SE (estimated):", round(sqrt(var_delete_d), 4), "\n")
+```
+
+```
+#> Delete-5 Jackknife:
+#> ===================
+#>   Sample size: 30 
+#>   d: 5 
+#>   Number of subsets: 142506 
+#>   Delete-1 SE: 1.5468 
 #>   Delete-5 SE (estimated): 1.9052
 ```
 
@@ -652,20 +688,10 @@ se_comparison <- rbindlist(lapply(names(stats_to_compare), function(name) {
 }))
 
 cat("Bootstrap vs Jackknife Standard Errors:\n")
-#> Bootstrap vs Jackknife Standard Errors:
 cat("=======================================\n")
-#> =======================================
 print(se_comparison[, .(Statistic,
                          Bootstrap_SE = round(Bootstrap_SE, 4),
                          Jackknife_SE = round(Jackknife_SE, 4))])
-#>          Statistic Bootstrap_SE Jackknife_SE
-#>             <char>        <num>        <num>
-#> 1:            Mean       0.1519       0.1477
-#> 2:          Median       0.1600       0.2382
-#> 3:    Trimmed Mean       0.1557       0.1541
-#> 4:              SD       0.1255       0.1249
-#> 5:             MAD       0.1701       0.2051
-#> 6: 25th Percentile       0.1087       0.1032
 
 # Visualise
 se_long <- melt(se_comparison, id.vars = "Statistic",
@@ -693,6 +719,19 @@ ggplot2$ggplot(se_long, ggplot2$aes(x = Statistic, y = SE, fill = Method)) +
 <Figure src="/courses/statistics-3-advanced/method_comparison-1.png" alt="SE estimates from bootstrap vs jackknife">
 	SE estimates from bootstrap vs jackknife
 </Figure>
+
+```
+#> Bootstrap vs Jackknife Standard Errors:
+#> =======================================
+#>          Statistic Bootstrap_SE Jackknife_SE
+#>             <char>        <num>        <num>
+#> 1:            Mean       0.1519       0.1477
+#> 2:          Median       0.1600       0.2382
+#> 3:    Trimmed Mean       0.1557       0.1541
+#> 4:              SD       0.1255       0.1249
+#> 5:             MAD       0.1701       0.2051
+#> 6: 25th Percentile       0.1087       0.1032
+```
 
 ### 6.10.2 When Jackknife Fails
 
@@ -724,15 +763,10 @@ jack_se_median <- sqrt(((n_demo - 1) / n_demo) * sum((jack_medians - mean(jack_m
 boot_se_median <- sd(replicate(2000, median(sample(x_demo, n_demo, replace = TRUE))))
 
 cat("Jackknife for Median (Non-Smooth Statistic):\n")
-#> Jackknife for Median (Non-Smooth Statistic):
 cat("============================================\n")
-#> ============================================
 cat("  True SE (simulation):", round(true_se_median, 4), "\n")
-#>   True SE (simulation): 0.2131
 cat("  Bootstrap SE:", round(boot_se_median, 4), "\n")
-#>   Bootstrap SE: 0.2074
 cat("  Jackknife SE:", round(jack_se_median, 4), "\n\n")
-#>   Jackknife SE: 0.0221
 
 # Compare for mean (smooth statistic)
 true_se_mean <- sd(replicate(10000, mean(sample(x_demo, n_demo, replace = TRUE))))
@@ -741,14 +775,23 @@ jack_means <- sapply(1:n_demo, function(i) mean(x_demo[-i]))
 jack_se_mean <- sqrt(((n_demo - 1) / n_demo) * sum((jack_means - mean(jack_means))^2))
 
 cat("Comparison with Mean (Smooth Statistic):\n")
-#> Comparison with Mean (Smooth Statistic):
 cat("========================================\n")
-#> ========================================
 cat("  True SE:", round(true_se_mean, 4), "\n")
-#>   True SE: 0.1706
 cat("  Bootstrap SE:", round(boot_se_mean, 4), "\n")
-#>   Bootstrap SE: 0.1694
 cat("  Jackknife SE:", round(jack_se_mean, 4), "\n")
+```
+
+```
+#> Jackknife for Median (Non-Smooth Statistic):
+#> ============================================
+#>   True SE (simulation): 0.2131 
+#>   Bootstrap SE: 0.2074 
+#>   Jackknife SE: 0.0221 
+#> 
+#> Comparison with Mean (Smooth Statistic):
+#> ========================================
+#>   True SE: 0.1706 
+#>   Bootstrap SE: 0.1694 
 #>   Jackknife SE: 0.1756
 ```
 
@@ -813,17 +856,11 @@ results <- data.table(
 )
 
 cat("Permutation-Based Multiple Testing:\n")
-#> Permutation-Based Multiple Testing:
 cat("===================================\n")
-#> ===================================
 cat("  Genes tested:", n_genes, "\n")
-#>   Genes tested: 100
 cat("  True positives:", n_true, "\n")
-#>   True positives: 10
 cat("  Significant (raw p < 0.05):", sum(raw_p < 0.05), "\n")
-#>   Significant (raw p < 0.05): 13
 cat("  Significant (perm p < 0.05):", sum(p_adj < 0.05), "\n")
-#>   Significant (perm p < 0.05): 2
 
 # Visualise
 ggplot2$ggplot(results, ggplot2$aes(x = -log10(raw_p), y = -log10(perm_p),
@@ -851,6 +888,15 @@ ggplot2$ggplot(results, ggplot2$aes(x = -log10(raw_p), y = -log10(perm_p),
 <Figure src="/courses/statistics-3-advanced/permutation_multiple_testing-1.png" alt="Permutation-based FDR control in multiple testing">
 	Permutation-based FDR control in multiple testing
 </Figure>
+
+```
+#> Permutation-Based Multiple Testing:
+#> ===================================
+#>   Genes tested: 100 
+#>   True positives: 10 
+#>   Significant (raw p < 0.05): 13 
+#>   Significant (perm p < 0.05): 2
+```
 
 ### 6.11.2 Block Bootstrap for Dependent Data
 
@@ -899,17 +945,11 @@ for (b in 1:B) {
 true_se <- sqrt(var(ts_data) / n_ts * (1 + ar_coef) / (1 - ar_coef))
 
 cat("Bootstrap for Autocorrelated Data:\n")
-#> Bootstrap for Autocorrelated Data:
 cat("==================================\n")
-#> ==================================
 cat("  AR(1) coefficient:", ar_coef, "\n")
-#>   AR(1) coefficient: 0.7
 cat("  True SE (theory):", round(true_se, 4), "\n")
-#>   True SE (theory): 0.1957
 cat("  i.i.d. Bootstrap SE:", round(sd(boot_means_iid), 4), "\n")
-#>   i.i.d. Bootstrap SE: 0.0804
 cat("  Block Bootstrap SE:", round(sd(boot_means_block), 4), "\n")
-#>   Block Bootstrap SE: 0.1486
 
 # Visualise
 boot_comparison <- rbind(
@@ -939,6 +979,15 @@ ggplot2$ggplot(boot_comparison, ggplot2$aes(x = mean, fill = method)) +
 <Figure src="/courses/statistics-3-advanced/block_bootstrap-1.png" alt="Block bootstrap for time series data">
 	Block bootstrap for time series data
 </Figure>
+
+```
+#> Bootstrap for Autocorrelated Data:
+#> ==================================
+#>   AR(1) coefficient: 0.7 
+#>   True SE (theory): 0.1957 
+#>   i.i.d. Bootstrap SE: 0.0804 
+#>   Block Bootstrap SE: 0.1486
+```
 
 ---
 

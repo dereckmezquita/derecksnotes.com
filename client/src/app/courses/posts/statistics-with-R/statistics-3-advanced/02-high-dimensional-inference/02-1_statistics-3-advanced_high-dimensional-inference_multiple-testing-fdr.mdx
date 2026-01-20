@@ -183,16 +183,19 @@ results_dt[, bonferroni_threshold := alpha / m]
 results_dt[, bonferroni_reject := p_value < bonferroni_threshold]
 
 cat("Bonferroni Correction Results:\n")
-#> Bonferroni Correction Results:
 cat("=============================\n")
-#> =============================
 cat("  Threshold:", alpha / m, "\n")
-#>   Threshold: 5e-06
 cat("  Rejections:", sum(results_dt$bonferroni_reject), "\n")
-#>   Rejections: 5
 cat("  True positives:", sum(results_dt$bonferroni_reject & results_dt$true_status == "Alternative"), "\n")
-#>   True positives: 5
 cat("  False positives:", sum(results_dt$bonferroni_reject & results_dt$true_status == "Null"), "\n")
+```
+
+```
+#> Bonferroni Correction Results:
+#> =============================
+#>   Threshold: 5e-06 
+#>   Rejections: 5 
+#>   True positives: 5 
 #>   False positives: 0
 ```
 
@@ -256,14 +259,17 @@ sidak_threshold <- 1 - (1 - alpha)^(1/m)
 bonferroni_threshold <- alpha / m
 
 cat("Comparison of FWER Methods:\n")
-#> Comparison of FWER Methods:
 cat("===========================\n")
-#> ===========================
 cat("  Bonferroni threshold:", bonferroni_threshold, "\n")
-#>   Bonferroni threshold: 5e-06
 cat("  Šidák threshold:     ", sidak_threshold, "\n")
-#>   Šidák threshold:      5.129316e-06
 cat("  Ratio (Šidák/Bonf):  ", sidak_threshold / bonferroni_threshold, "\n")
+```
+
+```
+#> Comparison of FWER Methods:
+#> ===========================
+#>   Bonferroni threshold: 5e-06 
+#>   Šidák threshold:      5.129316e-06 
 #>   Ratio (Šidák/Bonf):   1.025863
 ```
 
@@ -299,14 +305,17 @@ if (!is.na(first_fail) && first_fail > 1) {
 }
 
 cat("Holm Procedure Results:\n")
-#> Holm Procedure Results:
 cat("=======================\n")
-#> =======================
 cat("  Rejections:", sum(results_dt$holm_reject), "\n")
-#>   Rejections: 5
 cat("  True positives:", sum(results_dt$holm_reject & results_dt$true_status == "Alternative"), "\n")
-#>   True positives: 5
 cat("  False positives:", sum(results_dt$holm_reject & results_dt$true_status == "Null"), "\n")
+```
+
+```
+#> Holm Procedure Results:
+#> =======================
+#>   Rejections: 5 
+#>   True positives: 5 
 #>   False positives: 0
 ```
 
@@ -389,17 +398,20 @@ ggplot2$ggplot(bh_plot_data, ggplot2$aes(x = rank, y = p_value)) +
 
 ``` r
 cat("BH Procedure Results:\n")
-#> BH Procedure Results:
 cat("=====================\n")
-#> =====================
 cat("  Rejections:", sum(results_dt$bh_reject), "\n")
-#>   Rejections: 15
 cat("  True positives:", sum(results_dt$bh_reject & results_dt$true_status == "Alternative"), "\n")
-#>   True positives: 15
 cat("  False positives:", sum(results_dt$bh_reject & results_dt$true_status == "Null"), "\n")
-#>   False positives: 0
 cat("  Observed FDP:", round(sum(results_dt$bh_reject & results_dt$true_status == "Null") /
                              sum(results_dt$bh_reject), 3), "\n")
+```
+
+```
+#> BH Procedure Results:
+#> =====================
+#>   Rejections: 15 
+#>   True positives: 15 
+#>   False positives: 0 
 #>   Observed FDP: 0
 ```
 
@@ -451,16 +463,19 @@ results_dt[, q_value := {
 }]
 
 cat("Q-value Summary:\n")
-#> Q-value Summary:
 cat("================\n")
-#> ================
 cat("  Min q-value:", min(results_dt$q_value), "\n")
-#>   Min q-value: 0.001071037
 cat("  Median q-value:", median(results_dt$q_value), "\n")
-#>   Median q-value: 0.9460504
 cat("  Genes with q < 0.05:", sum(results_dt$q_value < 0.05), "\n")
-#>   Genes with q < 0.05: 15
 cat("  Genes with q < 0.01:", sum(results_dt$q_value < 0.01), "\n")
+```
+
+```
+#> Q-value Summary:
+#> ================
+#>   Min q-value: 0.001071037 
+#>   Median q-value: 0.9460504 
+#>   Genes with q < 0.05: 15 
 #>   Genes with q < 0.01: 5
 ```
 
@@ -500,6 +515,9 @@ comparison[, FDP := round(False_Positives / Rejections, 3)]
 comparison[, Power := round(True_Positives / m1, 3)]
 
 print(comparison)
+```
+
+```
 #>         Method Threshold_Type Rejections True_Positives False_Positives   FDP
 #>         <char>         <char>      <int>          <int>           <int> <num>
 #> 1: Uncorrected     FWER naive        786            340             446 0.567
@@ -805,12 +823,15 @@ de_results[, p_holm := p.adjust(p_value, method = "holm")]
 de_results[, p_bh := p.adjust(p_value, method = "BH")]
 
 cat("Differential Expression Analysis Results:\n")
-#> Differential Expression Analysis Results:
 cat("=========================================\n")
-#> =========================================
 cat("Total genes:", n_genes, "\n")
-#> Total genes: 15000
 cat("True DE genes:", sum(de_results$true_de), "(", sum(true_effect > 0), "up,", sum(true_effect < 0), "down)\n\n")
+```
+
+```
+#> Differential Expression Analysis Results:
+#> =========================================
+#> Total genes: 15000 
 #> True DE genes: 350 ( 198 up, 152 down)
 ```
 
@@ -888,6 +909,9 @@ de_performance <- rbindlist(list(
 ))
 
 print(de_performance)
+```
+
+```
 #>                    Method rejections    TP    FP     power       FDP
 #>                    <char>      <int> <int> <int>     <num>     <num>
 #> 1: Uncorrected (p < 0.05)        930   192   738 0.5485714 0.7935484

@@ -70,64 +70,32 @@ population[, treatment_random := sample(c(0, 1), .N, replace = TRUE)]
 
 # Check balance
 cat("Balance Check: Mean Health Consciousness by Treatment\n")
-```
-
-```
-## Balance Check: Mean Health Consciousness by Treatment
-```
-
-``` r
 cat("=====================================================\n\n")
-```
 
-```
-## =====================================================
-```
-
-``` r
 cat("Biased (self-selection):\n")
-```
-
-```
-## Biased (self-selection):
-```
-
-``` r
 print(population[, .(mean_health = mean(health_consciousness), n = .N), by = treatment_biased])
-```
 
-```
-##    treatment_biased mean_health     n
-##               <num>       <num> <int>
-## 1:                0    40.00547    48
-## 2:                1    61.83358    52
-```
-
-``` r
 cat("\nRandom assignment:\n")
-```
-
-```
-## 
-## Random assignment:
-```
-
-``` r
 print(population[, .(mean_health = mean(health_consciousness), n = .N), by = treatment_random])
-```
 
-```
-##    treatment_random mean_health     n
-##               <num>       <num> <int>
-## 1:                0    48.91192    50
-## 2:                1    53.80025    50
-```
-
-``` r
 cat("\nNote: Random assignment produces balanced groups!\n")
 ```
 
 ```
+## Balance Check: Mean Health Consciousness by Treatment
+## =====================================================
+## 
+## Biased (self-selection):
+##    treatment_biased mean_health     n
+##               <num>       <num> <int>
+## 1:                0    40.00547    48
+## 2:                1    61.83358    52
+## 
+## Random assignment:
+##    treatment_random mean_health     n
+##               <num>       <num> <int>
+## 1:                0    48.91192    50
+## 2:                1    53.80025    50
 ## 
 ## Note: Random assignment produces balanced groups!
 ```
@@ -175,90 +143,34 @@ ggplot2$ggplot(plot_data, ggplot2$aes(x = health_consciousness, fill = treatment
 ``` r
 # Proper vs pseudo-replication
 cat("Example: Testing a New Drug\n")
-```
-
-```
-## Example: Testing a New Drug
-```
-
-``` r
 cat("============================\n\n")
-```
 
-```
-## ============================
-```
-
-``` r
 cat("PROPER REPLICATION:\n")
-```
-
-```
-## PROPER REPLICATION:
-```
-
-``` r
 cat("• 20 patients randomly assigned to drug\n")
-```
-
-```
-## <U+2022> 20 patients randomly assigned to drug
-```
-
-``` r
 cat("• 20 patients randomly assigned to placebo\n")
-```
-
-```
-## <U+2022> 20 patients randomly assigned to placebo
-```
-
-``` r
 cat("• Each patient is an independent replicate\n\n")
-```
 
-```
-## <U+2022> Each patient is an independent replicate
-```
-
-``` r
 cat("PSEUDOREPLICATION (WRONG!):\n")
-```
-
-```
-## PSEUDOREPLICATION (WRONG!):
-```
-
-``` r
 cat("• 2 patients get drug, measured 10 times each\n")
-```
-
-```
-## <U+2022> 2 patients get drug, measured 10 times each
-```
-
-``` r
 cat("• 2 patients get placebo, measured 10 times each\n")
-```
-
-```
-## <U+2022> 2 patients get placebo, measured 10 times each
-```
-
-``` r
 cat("• n = 2 per group, NOT 20!\n")
-```
-
-```
-## <U+2022> n = 2 per group, NOT 20!
-```
-
-``` r
 cat("• Multiple measurements on same patient are NOT independent\n")
 ```
 
 ```
-## <U+2022> Multiple measurements on same patient are NOT independent
+## Example: Testing a New Drug
+## ============================
+## 
+## PROPER REPLICATION:
+## • 20 patients randomly assigned to drug
+## • 20 patients randomly assigned to placebo
+## • Each patient is an independent replicate
+## 
+## PSEUDOREPLICATION (WRONG!):
+## • 2 patients get drug, measured 10 times each
+## • 2 patients get placebo, measured 10 times each
+## • n = 2 per group, NOT 20!
+## • Multiple measurements on same patient are NOT independent
 ```
 
 ### 14.2.4 Blocking (Local Control)
@@ -293,89 +205,35 @@ model_no_block <- lm(response ~ treatment, data = blocked_data)
 model_blocked <- lm(response ~ treatment + factor(block), data = blocked_data)
 
 cat("Analysis of Blocked Experiment\n")
-```
-
-```
-## Analysis of Blocked Experiment
-```
-
-``` r
 cat("==============================\n\n")
-```
 
-```
-## ==============================
-```
-
-``` r
 cat("Without blocking adjustment:\n")
-```
-
-```
-## Without blocking adjustment:
-```
-
-``` r
 cat(sprintf("  Treatment effect estimate: %.2f\n", coef(model_no_block)[2]))
-```
-
-```
-##   Treatment effect estimate: 5.39
-```
-
-``` r
 cat(sprintf("  SE: %.2f\n", summary(model_no_block)$coefficients[2, 2]))
-```
-
-```
-##   SE: 2.85
-```
-
-``` r
 cat(sprintf("  p-value: %.4f\n\n", summary(model_no_block)$coefficients[2, 4]))
-```
 
-```
-##   p-value: 0.0662
-```
-
-``` r
 cat("With blocking adjustment:\n")
-```
-
-```
-## With blocking adjustment:
-```
-
-``` r
 cat(sprintf("  Treatment effect estimate: %.2f\n", coef(model_blocked)[2]))
-```
-
-```
-##   Treatment effect estimate: 5.39
-```
-
-``` r
 cat(sprintf("  SE: %.2f\n", summary(model_blocked)$coefficients[2, 2]))
-```
-
-```
-##   SE: 0.97
-```
-
-``` r
 cat(sprintf("  p-value: %.4f\n\n", summary(model_blocked)$coefficients[2, 4]))
-```
 
-```
-##   p-value: 0.0000
-```
-
-``` r
 cat("Note: Blocking reduced the SE by accounting for block-to-block variation!\n")
 ```
 
 ```
+## Analysis of Blocked Experiment
+## ==============================
+## 
+## Without blocking adjustment:
+##   Treatment effect estimate: 5.39
+##   SE: 2.85
+##   p-value: 0.0662
+## 
+## With blocking adjustment:
+##   Treatment effect estimate: 5.39
+##   SE: 0.97
+##   p-value: 0.0000
+## 
 ## Note: Blocking reduced the SE by accounting for block-to-block variation!
 ```
 
@@ -404,33 +262,17 @@ crd_data <- crd_data[sample(.N)]
 crd_data[, unit := 1:.N]  # Renumber
 
 cat("Completely Randomised Design (CRD)\n")
-```
-
-```
-## Completely Randomised Design (CRD)
-```
-
-``` r
 cat("==================================\n\n")
-```
-
-```
-## ==================================
-```
-
-``` r
 cat("Units randomly assigned to treatments:\n\n")
-```
-
-```
-## Units randomly assigned to treatments:
-```
-
-``` r
 print(crd_data[order(treatment)])
 ```
 
 ```
+## Completely Randomised Design (CRD)
+## ==================================
+## 
+## Units randomly assigned to treatments:
+## 
 ##      unit treatment
 ##     <int>    <char>
 ##  1:     5   Control
@@ -508,25 +350,15 @@ rcbd_data[, position := sample(.N), by = block]
 rcbd_data <- rcbd_data[order(block, position)]
 
 cat("Randomised Complete Block Design (RCBD)\n")
+cat("=======================================\n\n")
+print(dcast(rcbd_data, block ~ treatment, value.var = "position"))
+cat("\n(Numbers show position within each block)\n")
 ```
 
 ```
 ## Randomised Complete Block Design (RCBD)
-```
-
-``` r
-cat("=======================================\n\n")
-```
-
-```
 ## =======================================
-```
-
-``` r
-print(dcast(rcbd_data, block ~ treatment, value.var = "position"))
-```
-
-```
+## 
 ## Key: <block>
 ##    block Control Drug A Drug B
 ##    <int>   <int>  <int>  <int>
@@ -535,13 +367,6 @@ print(dcast(rcbd_data, block ~ treatment, value.var = "position"))
 ## 3:     3       2      1      3
 ## 4:     4       3      2      1
 ## 5:     5       3      2      1
-```
-
-``` r
-cat("\n(Numbers show position within each block)\n")
-```
-
-```
 ## 
 ## (Numbers show position within each block)
 ```
@@ -585,37 +410,20 @@ for (i in 1:n) {
 latin_square <- latin_square[sample(n), sample(n)]
 
 cat("Latin Square Design (4 × 4)\n")
-```
-
-```
-## Latin Square Design (4 <U+00D7> 4)
-```
-
-``` r
 cat("===========================\n\n")
-```
-
-```
-## ===========================
-```
-
-``` r
 print(latin_square)
-```
-
-```
-##      [,1] [,2] [,3] [,4]
-## [1,] "C"  "B"  "A"  "D" 
-## [2,] "B"  "A"  "D"  "C" 
-## [3,] "D"  "C"  "B"  "A" 
-## [4,] "A"  "D"  "C"  "B"
-```
-
-``` r
 cat("\nEach treatment appears exactly once per row and column.\n")
 ```
 
 ```
+## Latin Square Design (4 × 4)
+## ===========================
+## 
+##      [,1] [,2] [,3] [,4]
+## [1,] "C"  "B"  "A"  "D" 
+## [2,] "B"  "A"  "D"  "C" 
+## [3,] "D"  "C"  "B"  "A" 
+## [4,] "A"  "D"  "C"  "B" 
 ## 
 ## Each treatment appears exactly once per row and column.
 ```
@@ -708,37 +516,21 @@ scenarios[, n_per_group := sapply(d, function(delta) {
 scenarios[, total_n := n_per_group * 2]
 
 cat("Required Sample Size for 80% Power (α = 0.05, two-sample t-test)\n")
-```
-
-```
-## Required Sample Size for 80% Power (<U+03B1> = 0.05, two-sample t-test)
-```
-
-``` r
 cat("================================================================\n\n")
-```
-
-```
-## ================================================================
-```
-
-``` r
 print(scenarios)
+
+cat("\nKey insight: Detecting small effects requires MUCH larger samples!\n")
 ```
 
 ```
+## Required Sample Size for 80% Power (α = 0.05, two-sample t-test)
+## ================================================================
+## 
 ##       Effect_Size     d n_per_group total_n
 ##            <char> <num>       <num>   <num>
 ## 1:  Small (d=0.2)   0.2         394     788
 ## 2: Medium (d=0.5)   0.5          64     128
 ## 3:  Large (d=0.8)   0.8          26      52
-```
-
-``` r
-cat("\nKey insight: Detecting small effects requires MUCH larger samples!\n")
-```
-
-```
 ## 
 ## Key insight: Detecting small effects requires MUCH larger samples!
 ```
@@ -765,25 +557,19 @@ power_anova <- sapply(n_range, function(n) calculate_anova_power(k = 4, n_per_gr
 anova_power_data <- data.table(n_per_group = n_range, power = power_anova)
 
 cat("Power for One-Way ANOVA (4 groups, f = 0.25 medium effect)\n")
+cat("==========================================================\n\n")
+print(anova_power_data)
+
+# Find n for 80% power
+n_80 <- n_range[which(power_anova >= 0.80)[1]]
+cat(sprintf("\nNeed approximately n = %d per group (total N = %d) for 80%% power.\n",
+            n_80, n_80 * 4))
 ```
 
 ```
 ## Power for One-Way ANOVA (4 groups, f = 0.25 medium effect)
-```
-
-``` r
-cat("==========================================================\n\n")
-```
-
-```
 ## ==========================================================
-```
-
-``` r
-print(anova_power_data)
-```
-
-```
+## 
 ##     n_per_group     power
 ##           <num>     <num>
 ##  1:           5 0.1150101
@@ -796,16 +582,6 @@ print(anova_power_data)
 ##  8:          40 0.7494045
 ##  9:          45 0.8039869
 ## 10:          50 0.8484718
-```
-
-``` r
-# Find n for 80% power
-n_80 <- n_range[which(power_anova >= 0.80)[1]]
-cat(sprintf("\nNeed approximately n = %d per group (total N = %d) for 80%% power.\n",
-            n_80, n_80 * 4))
-```
-
-```
 ## 
 ## Need approximately n = 45 per group (total N = 180) for 80% power.
 ```
@@ -849,74 +625,34 @@ placebo_data[, outcome := baseline +
 placebo_data[, improvement := outcome - baseline]
 
 cat("Disentangling Treatment Effects\n")
-```
-
-```
-## Disentangling Treatment Effects
-```
-
-``` r
 cat("===============================\n\n")
-```
-
-```
-## ===============================
-```
-
-``` r
 result_table <- placebo_data[, .(
     Mean_Improvement = mean(improvement),
     SD = sd(improvement)
 ), by = group]
 print(result_table)
+
+cat("\nInterpretation:\n")
+cat("• Total drug effect (vs no treatment): 8 units\n")
+cat("• Placebo effect: 3 units\n")
+cat("• True pharmacological effect: 5 units (Drug - Placebo)\n")
+cat("\nWithout placebo control, we would overestimate the drug's effect!\n")
 ```
 
 ```
+## Disentangling Treatment Effects
+## ===============================
+## 
 ##           group Mean_Improvement       SD
 ##          <char>            <num>    <num>
 ## 1: No Treatment         0.000000 0.000000
 ## 2:      Placebo         2.928156 3.273059
 ## 3:         Drug         8.032773 2.987565
-```
-
-``` r
-cat("\nInterpretation:\n")
-```
-
-```
 ## 
 ## Interpretation:
-```
-
-``` r
-cat("• Total drug effect (vs no treatment): 8 units\n")
-```
-
-```
-## <U+2022> Total drug effect (vs no treatment): 8 units
-```
-
-``` r
-cat("• Placebo effect: 3 units\n")
-```
-
-```
-## <U+2022> Placebo effect: 3 units
-```
-
-``` r
-cat("• True pharmacological effect: 5 units (Drug - Placebo)\n")
-```
-
-```
-## <U+2022> True pharmacological effect: 5 units (Drug - Placebo)
-```
-
-``` r
-cat("\nWithout placebo control, we would overestimate the drug's effect!\n")
-```
-
-```
+## • Total drug effect (vs no treatment): 8 units
+## • Placebo effect: 3 units
+## • True pharmacological effect: 5 units (Drug - Placebo)
 ## 
 ## Without placebo control, we would overestimate the drug's effect!
 ```
@@ -957,21 +693,8 @@ When reading research, ask:
 
 ``` r
 cat("Study Quality Checklist\n")
-```
-
-```
-## Study Quality Checklist
-```
-
-``` r
 cat("=======================\n\n")
-```
 
-```
-## =======================
-```
-
-``` r
 checklist <- data.table(
     Question = c(
         "1. Random assignment?",
@@ -1002,6 +725,9 @@ print(checklist)
 ```
 
 ```
+## Study Quality Checklist
+## =======================
+## 
 ##                           Question                Good_Study
 ##                             <char>                    <char>
 ## 1:           1. Random assignment?    Yes, with clear method

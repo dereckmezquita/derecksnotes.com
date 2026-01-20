@@ -118,18 +118,21 @@ de_results <- data.table(
 )
 
 cat("Simulated RNA-seq Differential Expression:\n")
-#> Simulated RNA-seq Differential Expression:
 cat("==========================================\n")
-#> ==========================================
 cat("  Total genes:", n_genes, "\n")
-#>   Total genes: 5000
 cat("  Pathways:", n_pathways, "\n")
-#>   Pathways: 50
 cat("  Affected pathways:", length(affected_pathways), "\n")
-#>   Affected pathways: 8
 cat("  True DE genes:", sum(true_effect), "\n")
-#>   True DE genes: 275
 cat("  Significant genes (FDR < 0.05):", sum(de_results$padj < 0.05), "\n")
+```
+
+```
+#> Simulated RNA-seq Differential Expression:
+#> ==========================================
+#>   Total genes: 5000 
+#>   Pathways: 50 
+#>   Affected pathways: 8 
+#>   True DE genes: 275 
 #>   Significant genes (FDR < 0.05): 40
 ```
 
@@ -185,25 +188,15 @@ p_hyper <- phyper(k - 1, K, N - K, n, lower.tail = FALSE)
 expected <- n * K / N
 
 cat("Over-Representation Analysis Example:\n")
-#> Over-Representation Analysis Example:
 cat("====================================\n")
-#> ====================================
 cat("  Pathway:", pathways[[example_pathway]]$name, "(truly affected)\n")
-#>   Pathway: Pathway_32 (truly affected)
 cat("  N (total genes):", N, "\n")
-#>   N (total genes): 5000
 cat("  K (genes in pathway):", K, "\n")
-#>   K (genes in pathway): 46
 cat("  n (significant genes):", n, "\n")
-#>   n (significant genes): 40
 cat("  k (significant in pathway):", k, "\n")
-#>   k (significant in pathway): 5
 cat("  Expected by chance:", round(expected, 1), "\n")
-#>   Expected by chance: 0.4
 cat("  Enrichment ratio:", round(k / expected, 2), "\n")
-#>   Enrichment ratio: 13.59
 cat("  P-value:", format(p_hyper, digits = 3), "\n")
-#>   P-value: 2.73e-05
 
 # Visualise hypergeometric distribution
 x_vals <- 0:min(K, n)
@@ -243,6 +236,19 @@ ggplot2$ggplot(hyper_data, ggplot2$aes(x = x, y = probability, fill = observed))
 <Figure src="/courses/statistics-3-advanced/ora_single_pathway-1.png" alt="Hypergeometric test for a single pathway">
 	Hypergeometric test for a single pathway
 </Figure>
+
+```
+#> Over-Representation Analysis Example:
+#> ====================================
+#>   Pathway: Pathway_32 (truly affected)
+#>   N (total genes): 5000 
+#>   K (genes in pathway): 46 
+#>   n (significant genes): 40 
+#>   k (significant in pathway): 5 
+#>   Expected by chance: 0.4 
+#>   Enrichment ratio: 13.59 
+#>   P-value: 2.73e-05
+```
 
 ### 7.13.2 Testing All Pathways
 
@@ -297,26 +303,29 @@ perform_ora <- function(de_results, pathways, alpha_sig = 0.05) {
 ora_results <- perform_ora(de_results, pathways)
 
 cat("Over-Representation Analysis Results:\n")
-#> Over-Representation Analysis Results:
 cat("====================================\n")
-#> ====================================
 cat("  Pathways tested:", nrow(ora_results), "\n")
-#>   Pathways tested: 50
 cat("  Significant (FDR < 0.05):", sum(ora_results$padj < 0.05), "\n")
-#>   Significant (FDR < 0.05): 3
 cat("  True positives:", sum(ora_results$padj < 0.05 & ora_results$is_truly_affected), "\n")
-#>   True positives: 3
 cat("  False positives:", sum(ora_results$padj < 0.05 & !ora_results$is_truly_affected), "\n")
-#>   False positives: 0
 
 cat("\nTop 10 Enriched Pathways:\n")
-#> 
-#> Top 10 Enriched Pathways:
 print(ora_results[1:10, .(pathway, pathway_size, overlap, expected = round(expected, 1),
                            enrichment = round(enrichment_ratio, 2),
                            pvalue = format(pvalue, digits = 2),
                            padj = format(padj, digits = 2),
                            truly_affected = is_truly_affected)])
+```
+
+```
+#> Over-Representation Analysis Results:
+#> ====================================
+#>   Pathways tested: 50 
+#>   Significant (FDR < 0.05): 3 
+#>   True positives: 3 
+#>   False positives: 0 
+#> 
+#> Top 10 Enriched Pathways:
 #>        pathway pathway_size overlap expected enrichment  pvalue    padj
 #>         <char>        <int>   <int>    <num>      <num>  <char>  <char>
 #>  1:  Pathway_1           36       9      0.3      31.25 4.1e-12 2.1e-10
@@ -375,17 +384,8 @@ top_10_performance <- threshold_sensitivity[rank <= 10, .(
 ), by = threshold]
 
 cat("\nSensitivity to Threshold Choice (Top 10 Pathways):\n")
-#> 
-#> Sensitivity to Threshold Choice (Top 10 Pathways):
 cat("=================================================\n")
-#> =================================================
 print(top_10_performance)
-#>    threshold true_positives mean_enrichment
-#>        <num>          <int>           <num>
-#> 1:      0.01              5       15.980229
-#> 2:      0.05              5       10.028177
-#> 3:      0.10              6        9.689309
-#> 4:      0.20              6        7.676863
 
 # Visualise threshold sensitivity
 ggplot2$ggplot(threshold_sensitivity[pathway_idx %in% affected_pathways],
@@ -412,6 +412,18 @@ ggplot2$ggplot(threshold_sensitivity[pathway_idx %in% affected_pathways],
 <Figure src="/courses/statistics-3-advanced/ora_threshold_sensitivity-1.png" alt="ORA results are sensitive to significance threshold">
 	ORA results are sensitive to significance threshold
 </Figure>
+
+```
+#> 
+#> Sensitivity to Threshold Choice (Top 10 Pathways):
+#> =================================================
+#>    threshold true_positives mean_enrichment
+#>        <num>          <int>           <num>
+#> 1:      0.01              5       15.980229
+#> 2:      0.05              5       10.028177
+#> 3:      0.10              6        9.689309
+#> 4:      0.20              6        7.676863
+```
 
 ---
 
@@ -507,10 +519,13 @@ ranked_gene_idx <- de_results[order(-signal)]$gene_idx
 example_es <- calc_enrichment_score(ranked_gene_idx, pathways[[example_pathway]]$genes)
 
 cat("GSEA Example (", pathways[[example_pathway]]$name, "):\n")
-#> GSEA Example ( Pathway_32 ):
 cat("Enrichment Score:", round(example_es$ES, 4), "\n")
-#> Enrichment Score: -0.4532
 cat("Leading edge genes:", length(example_es$leading_edge), "\n")
+```
+
+```
+#> GSEA Example ( Pathway_32 ):
+#> Enrichment Score: -0.4532 
 #> Leading edge genes: 44
 ```
 
@@ -642,24 +657,27 @@ perform_gsea <- function(ranked_genes, pathways, n_perm = 1000) {
 gsea_results <- perform_gsea(ranked_gene_idx, pathways, n_perm = 500)
 
 cat("GSEA Results:\n")
-#> GSEA Results:
 cat("=============\n")
-#> =============
 cat("  Pathways tested:", nrow(gsea_results), "\n")
-#>   Pathways tested: 50
 cat("  Significant (FDR < 0.25):", sum(gsea_results$padj < 0.25), "\n")
-#>   Significant (FDR < 0.25): 7
 cat("  Significant (FDR < 0.05):", sum(gsea_results$padj < 0.05), "\n")
-#>   Significant (FDR < 0.05): 7
 
 cat("\nTop 10 Enriched Pathways (GSEA):\n")
-#> 
-#> Top 10 Enriched Pathways (GSEA):
 print(gsea_results[1:10, .(pathway, size = pathway_size,
                             ES = round(ES, 3), NES = round(NES, 3),
                             pvalue = format(pvalue, digits = 2),
                             padj = format(padj, digits = 2),
                             truly_affected = is_truly_affected)])
+```
+
+```
+#> GSEA Results:
+#> =============
+#>   Pathways tested: 50 
+#>   Significant (FDR < 0.25): 7 
+#>   Significant (FDR < 0.05): 7 
+#> 
+#> Top 10 Enriched Pathways (GSEA):
 #>        pathway  size    ES   NES pvalue   padj truly_affected
 #>         <char> <int> <num> <num> <char> <char>         <lgcl>
 #>  1:  Pathway_1    36 0.874 2.831  0.002  0.020           TRUE
@@ -699,36 +717,15 @@ comparison <- merge(
 tp_ranks <- comparison[is_truly_affected == TRUE]
 
 cat("Performance Comparison:\n")
-#> Performance Comparison:
 cat("=======================\n")
-#> =======================
 cat("\nRanks of Truly Affected Pathways:\n")
-#> 
-#> Ranks of Truly Affected Pathways:
 print(tp_ranks[, .(pathway, ORA_rank = ora_rank, GSEA_rank = gsea_rank)])
-#> Key: <pathway>
-#>       pathway ORA_rank GSEA_rank
-#>        <char>    <int>     <int>
-#> 1:  Pathway_1        1         1
-#> 2: Pathway_14       11        49
-#> 3: Pathway_21        5         4
-#> 4: Pathway_23        4         5
-#> 5:  Pathway_3       15        20
-#> 6: Pathway_30       13         2
-#> 7: Pathway_32        2        50
-#> 8: Pathway_43        3         3
 
 cat("\nSummary Statistics:\n")
-#> 
-#> Summary Statistics:
 cat("  Mean ORA rank:", round(mean(tp_ranks$ora_rank), 1), "\n")
-#>   Mean ORA rank: 6.8
 cat("  Mean GSEA rank:", round(mean(tp_ranks$gsea_rank), 1), "\n")
-#>   Mean GSEA rank: 16.8
 cat("  ORA: TPs in top 10:", sum(tp_ranks$ora_rank <= 10), "/", nrow(tp_ranks), "\n")
-#>   ORA: TPs in top 10: 5 / 8
 cat("  GSEA: TPs in top 10:", sum(tp_ranks$gsea_rank <= 10), "/", nrow(tp_ranks), "\n")
-#>   GSEA: TPs in top 10: 5 / 8
 
 # Visualise rank comparison
 ggplot2$ggplot(comparison, ggplot2$aes(x = ora_rank, y = gsea_rank,
@@ -754,6 +751,30 @@ ggplot2$ggplot(comparison, ggplot2$aes(x = ora_rank, y = gsea_rank,
 <Figure src="/courses/statistics-3-advanced/ora_vs_gsea-1.png" alt="Comparison of ORA and GSEA for detecting true pathway effects">
 	Comparison of ORA and GSEA for detecting true pathway effects
 </Figure>
+
+```
+#> Performance Comparison:
+#> =======================
+#> 
+#> Ranks of Truly Affected Pathways:
+#> Key: <pathway>
+#>       pathway ORA_rank GSEA_rank
+#>        <char>    <int>     <int>
+#> 1:  Pathway_1        1         1
+#> 2: Pathway_14       11        49
+#> 3: Pathway_21        5         4
+#> 4: Pathway_23        4         5
+#> 5:  Pathway_3       15        20
+#> 6: Pathway_30       13         2
+#> 7: Pathway_32        2        50
+#> 8: Pathway_43        3         3
+#> 
+#> Summary Statistics:
+#>   Mean ORA rank: 6.8 
+#>   Mean GSEA rank: 16.8 
+#>   ORA: TPs in top 10: 5 / 8 
+#>   GSEA: TPs in top 10: 5 / 8
+```
 
 ### 7.15.2 When to Use Each Method
 
@@ -853,15 +874,10 @@ estimate_pi0 <- function(pvalues, lambda = 0.5) {
 pi0_gsea <- estimate_pi0(gsea_results$pvalue)
 
 cat("Estimating True Null Proportion:\n")
-#> Estimating True Null Proportion:
 cat("================================\n")
-#> ================================
 cat("  Estimated pi0:", round(pi0_gsea, 3), "\n")
-#>   Estimated pi0: 0.84
 cat("  Expected true signals:", round((1 - pi0_gsea) * n_pathways), "\n")
-#>   Expected true signals: 8
 cat("  Actual true signals:", length(affected_pathways), "\n")
-#>   Actual true signals: 8
 
 # Calculate q-values
 calc_qvalues <- function(pvalues) {
@@ -890,11 +906,19 @@ calc_qvalues <- function(pvalues) {
 gsea_results[, qvalue := calc_qvalues(pvalue)]
 
 cat("\nQ-value vs FDR Comparison:\n")
+cat("  Significant at FDR < 0.05:", sum(gsea_results$padj < 0.05), "\n")
+cat("  Significant at q < 0.05:", sum(gsea_results$qvalue < 0.05), "\n")
+```
+
+```
+#> Estimating True Null Proportion:
+#> ================================
+#>   Estimated pi0: 0.84 
+#>   Expected true signals: 8 
+#>   Actual true signals: 8 
 #> 
 #> Q-value vs FDR Comparison:
-cat("  Significant at FDR < 0.05:", sum(gsea_results$padj < 0.05), "\n")
-#>   Significant at FDR < 0.05: 7
-cat("  Significant at q < 0.05:", sum(gsea_results$qvalue < 0.05), "\n")
+#>   Significant at FDR < 0.05: 7 
 #>   Significant at q < 0.05: 7
 ```
 

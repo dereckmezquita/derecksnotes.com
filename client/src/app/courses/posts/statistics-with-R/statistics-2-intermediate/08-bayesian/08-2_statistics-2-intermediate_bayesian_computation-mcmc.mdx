@@ -44,14 +44,17 @@ y <- beta0_true + beta1_true * x + rnorm(n, 0, sigma_true)  # Blood pressure
 bp_data <- data.table(age = x, bp = y)
 
 cat("Simulated Blood Pressure Data:\n")
-#> Simulated Blood Pressure Data:
 cat("  Observations:", n, "\n")
-#>   Observations: 100
 cat("  True intercept:", beta0_true, "\n")
-#>   True intercept: 100
 cat("  True slope:", beta1_true, "\n")
-#>   True slope: 0.5
 cat("  True sigma:", sigma_true, "\n")
+```
+
+```
+#> Simulated Blood Pressure Data:
+#>   Observations: 100 
+#>   True intercept: 100 
+#>   True slope: 0.5 
 #>   True sigma: 5
 ```
 
@@ -169,21 +172,11 @@ mc_accuracy <- rbindlist(lapply(sample_sizes, function(S) {
 }))
 
 cat("Monte Carlo Estimation Accuracy:\n")
-#> Monte Carlo Estimation Accuracy:
 cat("================================\n\n")
-#> ================================
 print(mc_accuracy[, .(Samples = S,
                       `Est. Mean` = round(mean_estimate, 4),
                       `MC Std. Error` = round(sd_estimate, 4),
                       `Theoretical SE` = round(theoretical_se, 4))])
-#>    Samples Est. Mean MC Std. Error Theoretical SE
-#>      <num>     <num>         <num>          <num>
-#> 1:      10    0.6579        0.0247         0.0250
-#> 2:      50    0.6568        0.0109         0.0112
-#> 3:     100    0.6571        0.0081         0.0079
-#> 4:     500    0.6572        0.0035         0.0035
-#> 5:    1000    0.6572        0.0025         0.0025
-#> 6:    5000    0.6572        0.0011         0.0011
 
 ggplot2$ggplot(mc_accuracy, ggplot2$aes(x = S, y = sd_estimate)) +
     ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
@@ -203,6 +196,20 @@ ggplot2$ggplot(mc_accuracy, ggplot2$aes(x = S, y = sd_estimate)) +
 <Figure src="/courses/statistics-2-intermediate/mc_accuracy-1.png" alt="Monte Carlo standard error decreases with more samples">
 	Monte Carlo standard error decreases with more samples
 </Figure>
+
+```
+#> Monte Carlo Estimation Accuracy:
+#> ================================
+#> 
+#>    Samples Est. Mean MC Std. Error Theoretical SE
+#>      <num>     <num>         <num>          <num>
+#> 1:      10    0.6579        0.0247         0.0250
+#> 2:      50    0.6568        0.0109         0.0112
+#> 3:     100    0.6571        0.0081         0.0079
+#> 4:     500    0.6572        0.0035         0.0035
+#> 5:    1000    0.6572        0.0025         0.0025
+#> 6:    5000    0.6572        0.0011         0.0011
+```
 
 ---
 
@@ -294,19 +301,12 @@ n_iter <- 10000
 result <- metropolis_beta(n_iter, true_alpha, true_beta, proposal_sd = 0.05)
 
 cat("Metropolis Algorithm Results:\n")
-#> Metropolis Algorithm Results:
 cat("=============================\n\n")
-#> =============================
 cat("True posterior: Beta(", true_alpha, ",", true_beta, ")\n")
-#> True posterior: Beta( 23 , 12 )
 cat("Iterations:", n_iter, "\n")
-#> Iterations: 10000
 cat("Acceptance rate:", round(result$acceptance_rate * 100, 1), "%\n\n")
-#> Acceptance rate: 80.7 %
 cat("Estimated posterior mean:", round(mean(result$samples[1001:n_iter]), 4), "\n")
-#> Estimated posterior mean: 0.658
 cat("True posterior mean:", round(true_alpha / (true_alpha + true_beta), 4), "\n")
-#> True posterior mean: 0.6571
 
 # Visualise chain
 chain_dt <- data.table(
@@ -338,6 +338,18 @@ gridExtra::grid.arrange(p1, p2, ncol = 2)
 <Figure src="/courses/statistics-2-intermediate/metropolis_implementation-1.png" alt="Metropolis algorithm sampling from a Beta posterior">
 	Metropolis algorithm sampling from a Beta posterior
 </Figure>
+
+```
+#> Metropolis Algorithm Results:
+#> =============================
+#> 
+#> True posterior: Beta( 23 , 12 )
+#> Iterations: 10000 
+#> Acceptance rate: 80.7 %
+#> 
+#> Estimated posterior mean: 0.658 
+#> True posterior mean: 0.6571
+```
 
 ### 8.12.3 Effect of Proposal Scale
 
@@ -432,21 +444,13 @@ running_mean_dt <- data.table(
 )
 
 cat("MCMC Diagnostics:\n")
-#> MCMC Diagnostics:
 cat("=================\n\n")
-#> =================
 cat("Total iterations:", 20000, "\n")
-#> Total iterations: 20000
 cat("Burn-in:", burnin, "\n")
-#> Burn-in: 2000
 cat("Post-burn-in samples:", length(post_samples), "\n")
-#> Post-burn-in samples: 18000
 cat("Acceptance rate:", round(long_chain$acceptance_rate * 100, 1), "%\n\n")
-#> Acceptance rate: 80.5 %
 cat("Effective sample size:", round(ess), "\n")
-#> Effective sample size: 1334
 cat("Efficiency:", round(ess / length(post_samples) * 100, 1), "%\n")
-#> Efficiency: 7.4 %
 
 # Plots
 p1 <- ggplot2$ggplot(data.table(iteration = 1:20000, theta = long_chain$samples),
@@ -480,6 +484,19 @@ gridExtra::grid.arrange(p1, p2, p3, layout_matrix = rbind(c(1, 1), c(2, 3)))
 <Figure src="/courses/statistics-2-intermediate/mcmc_diagnostics-1.png" alt="MCMC diagnostics: trace, autocorrelation, and effective sample size">
 	MCMC diagnostics: trace, autocorrelation, and effective sample size
 </Figure>
+
+```
+#> MCMC Diagnostics:
+#> =================
+#> 
+#> Total iterations: 20000 
+#> Burn-in: 2000 
+#> Post-burn-in samples: 18000 
+#> Acceptance rate: 80.5 %
+#> 
+#> Effective sample size: 1334 
+#> Efficiency: 7.4 %
+```
 
 ### 8.13.2 Multiple Chains and R-hat
 
@@ -521,15 +538,10 @@ W <- mean(chain_means$chain_var)                       # Within-chain variance
 R_hat <- sqrt((B/W + 1))
 
 cat("\nGelman-Rubin Diagnostic:\n")
-#> 
-#> Gelman-Rubin Diagnostic:
 cat("========================\n")
-#> ========================
 cat("R-hat:", round(R_hat, 3), "\n")
-#> R-hat: 2.145
 cat("Interpretation:", ifelse(R_hat < 1.1, "Chains have converged",
                                 "Chains have NOT converged - run longer"), "\n")
-#> Interpretation: Chains have NOT converged - run longer
 
 ggplot2$ggplot(all_chains, ggplot2$aes(x = iteration, y = theta, colour = chain)) +
     ggplot2$geom_line(alpha = 0.7) +
@@ -551,6 +563,14 @@ ggplot2$ggplot(all_chains, ggplot2$aes(x = iteration, y = theta, colour = chain)
 <Figure src="/courses/statistics-2-intermediate/multiple_chains-1.png" alt="Multiple chains from different starting points should converge">
 	Multiple chains from different starting points should converge
 </Figure>
+
+```
+#> 
+#> Gelman-Rubin Diagnostic:
+#> ========================
+#> R-hat: 2.145 
+#> Interpretation: Chains have NOT converged - run longer
+```
 
 ---
 
@@ -632,33 +652,38 @@ set.seed(42)
 reg_result <- metropolis_regression(bp_data$age, bp_data$bp, n_iter = 20000)
 
 cat("Bayesian Regression MCMC Results:\n")
-#> Bayesian Regression MCMC Results:
 cat("==================================\n\n")
-#> ==================================
 cat("Acceptance rate:", round(reg_result$acceptance_rate * 100, 1), "%\n\n")
-#> Acceptance rate: 6.3 %
 
 # Discard burn-in
 burnin <- 5000
 post_reg <- reg_result$samples[(burnin + 1):20000, ]
 
 cat("Posterior Summaries (after burn-in):\n")
-#> Posterior Summaries (after burn-in):
 cat("------------------------------------\n")
-#> ------------------------------------
 for (param in colnames(post_reg)) {
     cat(sprintf("  %s: Mean = %.3f, SD = %.3f, 95%% CI = [%.3f, %.3f]\n",
                 param, mean(post_reg[, param]), sd(post_reg[, param]),
                 quantile(post_reg[, param], 0.025),
                 quantile(post_reg[, param], 0.975)))
 }
+
+cat("\nTrue values: β₀ =", beta0_true, ", β₁ =", beta1_true, ", σ =", sigma_true, "\n")
+```
+
+```
+#> Bayesian Regression MCMC Results:
+#> ==================================
+#> 
+#> Acceptance rate: 6.3 %
+#> 
+#> Posterior Summaries (after burn-in):
+#> ------------------------------------
 #>   beta0: Mean = 99.145, SD = 2.195, 95% CI = [94.534, 104.005]
 #>   beta1: Mean = 0.508, SD = 0.042, 95% CI = [0.417, 0.594]
 #>   sigma: Mean = 4.612, SD = 0.331, 95% CI = [3.951, 5.251]
-
-cat("\nTrue values: β₀ =", beta0_true, ", β₁ =", beta1_true, ", σ =", sigma_true, "\n")
 #> 
-#> True values: <U+03B2><U+2080> = 100 , <U+03B2><U+2081> = 0.5 , <U+03C3> = 5
+#> True values: β₀ = 100 , β₁ = 0.5 , σ = 5
 ```
 
 

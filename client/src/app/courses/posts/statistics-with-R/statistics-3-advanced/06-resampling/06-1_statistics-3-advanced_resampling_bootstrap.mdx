@@ -43,14 +43,17 @@ mean_radius <- breast_cancer$mean_radius
 mean_texture <- breast_cancer$mean_texture
 
 cat("Bootstrap Examples Dataset\n")
-#> Bootstrap Examples Dataset
 cat("==========================\n")
-#> ==========================
 cat("  Total samples:", n, "\n")
-#>   Total samples: 569
 cat("  Malignant:", sum(breast_cancer$diagnosis), "\n")
-#>   Malignant: 212
 cat("  Benign:", n - sum(breast_cancer$diagnosis), "\n")
+```
+
+```
+#> Bootstrap Examples Dataset
+#> ==========================
+#>   Total samples: 569 
+#>   Malignant: 212 
 #>   Benign: 357
 ```
 
@@ -105,15 +108,10 @@ theoretical_se <- sd(original_sample) / sqrt(sample_size)
 bootstrap_se <- sd(bootstrap_means)
 
 cat("Bootstrap vs Theoretical Standard Error:\n")
-#> Bootstrap vs Theoretical Standard Error:
 cat("========================================\n")
-#> ========================================
 cat("  Sample mean:", round(mean(original_sample), 3), "\n")
-#>   Sample mean: 15.331
 cat("  Theoretical SE:", round(theoretical_se, 3), "\n")
-#>   Theoretical SE: 0.555
 cat("  Bootstrap SE:", round(bootstrap_se, 3), "\n")
-#>   Bootstrap SE: 0.535
 
 # Visualise
 boot_data <- data.table(bootstrap_mean = bootstrap_means)
@@ -142,6 +140,14 @@ ggplot2$ggplot(boot_data, ggplot2$aes(x = bootstrap_mean)) +
 	The bootstrap principle: resampling with replacement
 </Figure>
 
+```
+#> Bootstrap vs Theoretical Standard Error:
+#> ========================================
+#>   Sample mean: 15.331 
+#>   Theoretical SE: 0.555 
+#>   Bootstrap SE: 0.535
+```
+
 ### 6.1.2 Why Sampling With Replacement?
 
 **Prose and Intuition**
@@ -169,14 +175,17 @@ for (s in 1:n_sim) {
 }
 
 cat("Out-of-Bag Analysis:\n")
-#> Out-of-Bag Analysis:
 cat("====================\n")
-#> ====================
 cat("  Mean OOB fraction:", round(mean(oob_fractions), 4), "\n")
-#>   Mean OOB fraction: 0.3661
 cat("  Theoretical (1/e):", round(exp(-1), 4), "\n")
-#>   Theoretical (1/e): 0.3679
 cat("  SD of OOB fraction:", round(sd(oob_fractions), 4), "\n")
+```
+
+```
+#> Out-of-Bag Analysis:
+#> ====================
+#>   Mean OOB fraction: 0.3661 
+#>   Theoretical (1/e): 0.3679 
 #>   SD of OOB fraction: 0.0309
 ```
 
@@ -236,11 +245,14 @@ boot_results <- rbindlist(lapply(names(stats_list), function(stat_name) {
 }))
 
 cat("Bootstrap Standard Errors for Various Statistics:\n")
-#> Bootstrap Standard Errors for Various Statistics:
 cat("=================================================\n")
-#> =================================================
 print(boot_results[, .(Statistic, Estimate = round(Estimate, 3),
                         Bootstrap_SE = round(Bootstrap_SE, 3))])
+```
+
+```
+#> Bootstrap Standard Errors for Various Statistics:
+#> =================================================
 #>             Statistic Estimate Bootstrap_SE
 #>                <char>    <num>        <num>
 #> 1:               Mean   14.127        0.147
@@ -273,22 +285,16 @@ cor_observed <- cor(mean_radius, mean_texture)
 cor_se <- sd(cor_boot)
 
 cat("Bootstrap Analysis of Correlation:\n")
-#> Bootstrap Analysis of Correlation:
 cat("===================================\n")
-#> ===================================
 cat("  Observed correlation:", round(cor_observed, 4), "\n")
-#>   Observed correlation: 0.3238
 cat("  Bootstrap SE:", round(cor_se, 4), "\n")
-#>   Bootstrap SE: 0.0365
 cat("  95% CI (percentile):", round(quantile(cor_boot, c(0.025, 0.975)), 4), "\n")
-#>   95% CI (percentile): 0.2516 0.3943
 
 # Fisher z-transform for comparison
 z <- atanh(cor_observed)
 z_se <- 1 / sqrt(n_corr - 3)
 fisher_ci <- tanh(z + c(-1.96, 1.96) * z_se)
 cat("  95% CI (Fisher z):", round(fisher_ci, 4), "\n")
-#>   95% CI (Fisher z): 0.2482 0.3955
 
 # Visualise
 cor_data <- data.table(correlation = cor_boot)
@@ -314,6 +320,15 @@ ggplot2$ggplot(cor_data, ggplot2$aes(x = correlation)) +
 <Figure src="/courses/statistics-3-advanced/correlation_bootstrap-1.png" alt="Bootstrap distribution of correlation coefficient">
 	Bootstrap distribution of correlation coefficient
 </Figure>
+
+```
+#> Bootstrap Analysis of Correlation:
+#> ===================================
+#>   Observed correlation: 0.3238 
+#>   Bootstrap SE: 0.0365 
+#>   95% CI (percentile): 0.2516 0.3943 
+#>   95% CI (Fisher z): 0.2482 0.3955
+```
 
 ---
 
@@ -345,12 +360,15 @@ median_boot <- bootstrap_se(mean_radius, median, B = 5000)
 ci_percentile <- percentile_ci(median_boot$boot_dist)
 
 cat("Percentile Bootstrap CI for Median:\n")
-#> Percentile Bootstrap CI for Median:
 cat("====================================\n")
-#> ====================================
 cat("  Median:", round(median_boot$estimate, 3), "\n")
-#>   Median: 13.37
 cat("  95% CI:", round(ci_percentile, 3), "\n")
+```
+
+```
+#> Percentile Bootstrap CI for Median:
+#> ====================================
+#>   Median: 13.37 
 #>   95% CI: 13.05 13.65
 ```
 
@@ -375,10 +393,13 @@ basic_ci <- function(theta_hat, boot_dist, alpha = 0.05) {
 ci_basic <- basic_ci(median_boot$estimate, median_boot$boot_dist)
 
 cat("Basic Bootstrap CI for Median:\n")
-#> Basic Bootstrap CI for Median:
 cat("===============================\n")
-#> ===============================
 cat("  95% CI:", round(ci_basic, 3), "\n")
+```
+
+```
+#> Basic Bootstrap CI for Median:
+#> ===============================
 #>   95% CI: 13.09 13.69
 ```
 
@@ -450,25 +471,15 @@ ci_percentile_p90 <- percentile_ci(bootstrap_se(mean_radius, perc_90, B = 5000)$
 ci_bca_p90 <- bca_ci(mean_radius, perc_90, B = 5000)
 
 cat("Bootstrap CI Comparison (Mean):\n")
-#> Bootstrap CI Comparison (Mean):
 cat("===============================\n")
-#> ===============================
 cat("  Percentile:", round(ci_percentile_mean, 3), "\n")
-#>   Percentile: 13.834 14.41
 cat("  Basic:", round(ci_basic_mean, 3), "\n")
-#>   Basic: 13.838 14.414
 cat("  BCa:", round(ci_bca_mean, 3), "\n")
-#>   BCa: 13.849 14.423
 
 cat("\nBootstrap CI Comparison (90th Percentile):\n")
-#> 
-#> Bootstrap CI Comparison (90th Percentile):
 cat("==========================================\n")
-#> ==========================================
 cat("  Percentile:", round(ci_percentile_p90, 3), "\n")
-#>   Percentile: 18.956 19.944
 cat("  BCa:", round(ci_bca_p90, 3), "\n")
-#>   BCa: 18.868 20.09
 
 # Visualise CI comparison
 ci_comparison <- data.table(
@@ -496,6 +507,19 @@ ggplot2$ggplot(ci_comparison, ggplot2$aes(y = Method, x = Point)) +
 <Figure src="/courses/statistics-3-advanced/bca_ci-1.png" alt="Comparison of bootstrap CI methods">
 	Comparison of bootstrap CI methods
 </Figure>
+
+```
+#> Bootstrap CI Comparison (Mean):
+#> ===============================
+#>   Percentile: 13.834 14.41 
+#>   Basic: 13.838 14.414 
+#>   BCa: 13.849 14.423 
+#> 
+#> Bootstrap CI Comparison (90th Percentile):
+#> ==========================================
+#>   Percentile: 18.956 19.944 
+#>   BCa: 18.868 20.09
+```
 
 ---
 
@@ -527,15 +551,8 @@ reg_data <- breast_cancer[, .(mean_radius, mean_texture, mean_perimeter = mean_p
 fit_orig <- lm(mean_radius ~ mean_texture + mean_perimeter + mean_area, data = reg_data)
 
 cat("Original Regression:\n")
-#> Original Regression:
 cat("====================\n")
-#> ====================
 print(summary(fit_orig)$coefficients)
-#>                    Estimate   Std. Error   t value      Pr(>|t|)
-#> (Intercept)     1.601968844 0.1161306281 13.794542  1.619880e-37
-#> mean_texture   -0.004232523 0.0022903654 -1.847968  6.512934e-02
-#> mean_perimeter  0.129242607 0.0023450942 55.111904 1.913149e-229
-#> mean_area       0.001100414 0.0001614273  6.816778  2.395981e-11
 
 # Cases bootstrap
 B <- 2000
@@ -555,10 +572,7 @@ boot_se <- apply(coef_boot, 2, sd)
 orig_se <- summary(fit_orig)$coefficients[, "Std. Error"]
 
 cat("\nStandard Error Comparison:\n")
-#> 
-#> Standard Error Comparison:
 cat("==========================\n")
-#> ==========================
 se_comparison <- data.table(
     Coefficient = names(coef(fit_orig)),
     OLS_SE = orig_se,
@@ -566,12 +580,6 @@ se_comparison <- data.table(
 )
 print(se_comparison[, .(Coefficient, OLS_SE = round(OLS_SE, 5),
                          Bootstrap_SE = round(Bootstrap_SE, 5))])
-#>       Coefficient  OLS_SE Bootstrap_SE
-#>            <char>   <num>        <num>
-#> 1:    (Intercept) 0.11613      0.23722
-#> 2:   mean_texture 0.00229      0.00222
-#> 3: mean_perimeter 0.00235      0.00516
-#> 4:      mean_area 0.00016      0.00038
 
 # Bootstrap distribution of mean_texture coefficient
 texture_boot <- coef_boot[, "mean_texture"]
@@ -597,6 +605,25 @@ ggplot2$ggplot(data.table(coef = texture_boot), ggplot2$aes(x = coef)) +
 <Figure src="/courses/statistics-3-advanced/regression_bootstrap-1.png" alt="Bootstrap inference for regression coefficients">
 	Bootstrap inference for regression coefficients
 </Figure>
+
+```
+#> Original Regression:
+#> ====================
+#>                    Estimate   Std. Error   t value      Pr(>|t|)
+#> (Intercept)     1.601968844 0.1161306281 13.794542  1.619880e-37
+#> mean_texture   -0.004232523 0.0022903654 -1.847968  6.512934e-02
+#> mean_perimeter  0.129242607 0.0023450942 55.111904 1.913149e-229
+#> mean_area       0.001100414 0.0001614273  6.816778  2.395981e-11
+#> 
+#> Standard Error Comparison:
+#> ==========================
+#>       Coefficient  OLS_SE Bootstrap_SE
+#>            <char>   <num>        <num>
+#> 1:    (Intercept) 0.11613      0.23722
+#> 2:   mean_texture 0.00229      0.00222
+#> 3: mean_perimeter 0.00235      0.00516
+#> 4:      mean_area 0.00016      0.00038
+```
 
 ### 6.4.2 Bootstrap for Prediction Intervals
 
@@ -647,14 +674,17 @@ ci_mean <- quantile(pred_boot, c(0.025, 0.975))  # CI for mean response
 pi <- quantile(pred_with_noise, c(0.025, 0.975))  # Prediction interval
 
 cat("Bootstrap Prediction Intervals:\n")
-#> Bootstrap Prediction Intervals:
 cat("===============================\n")
-#> ===============================
 cat("  Point prediction:", round(pred_point, 3), "\n")
-#>   Point prediction: 14.992
 cat("  95% CI (mean response):", round(ci_mean, 3), "\n")
-#>   95% CI (mean response): 14.777 15.152
 cat("  95% Prediction interval:", round(pi, 3), "\n")
+```
+
+```
+#> Bootstrap Prediction Intervals:
+#> ===============================
+#>   Point prediction: 14.992 
+#>   95% CI (mean response): 14.777 15.152 
 #>   95% Prediction interval: 14.483 15.475
 ```
 
@@ -705,19 +735,12 @@ for (b in 1:B_np) {
 }
 
 cat("Parametric vs Nonparametric Bootstrap:\n")
-#> Parametric vs Nonparametric Bootstrap:
 cat("======================================\n")
-#> ======================================
 cat("  True rate:", true_rate, "\n")
-#>   True rate: 0.5
 cat("  MLE:", round(rate_mle, 4), "\n")
-#>   MLE: 0.5294
 cat("  Nonparametric SE:", round(sd(rate_np_boot), 4), "\n")
-#>   Nonparametric SE: 0.0763
 cat("  Parametric SE:", round(sd(rate_param_boot), 4), "\n")
-#>   Parametric SE: 0.0786
 cat("  Theoretical SE (MLE):", round(rate_mle / sqrt(n_exp), 4), "\n")
-#>   Theoretical SE (MLE): 0.0749
 
 # Visualise comparison
 boot_comparison <- rbind(
@@ -747,6 +770,16 @@ ggplot2$ggplot(boot_comparison, ggplot2$aes(x = estimate, fill = method)) +
 <Figure src="/courses/statistics-3-advanced/parametric_bootstrap-1.png" alt="Parametric vs nonparametric bootstrap for exponential data">
 	Parametric vs nonparametric bootstrap for exponential data
 </Figure>
+
+```
+#> Parametric vs Nonparametric Bootstrap:
+#> ======================================
+#>   True rate: 0.5 
+#>   MLE: 0.5294 
+#>   Nonparametric SE: 0.0763 
+#>   Parametric SE: 0.0786 
+#>   Theoretical SE (MLE): 0.0749
+```
 
 ---
 
@@ -836,12 +869,15 @@ mc_results <- rbindlist(lapply(B_values, function(B) {
 }))
 
 cat("Monte Carlo Error vs B:\n")
-#> Monte Carlo Error vs B:
 cat("=======================\n")
-#> =======================
 print(mc_results[, .(B, mean_se = round(mean_se, 4),
                      sd_se = round(sd_se, 5),
                      cv_pct = round(cv * 100, 2))])
+```
+
+```
+#> Monte Carlo Error vs B:
+#> =======================
 #>        B mean_se   sd_se cv_pct
 #>    <num>   <num>   <num>  <num>
 #> 1:   100  0.1485 0.01033   6.96

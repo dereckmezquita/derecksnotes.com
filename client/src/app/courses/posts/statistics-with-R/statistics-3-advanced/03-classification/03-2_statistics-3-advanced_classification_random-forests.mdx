@@ -49,12 +49,15 @@ train_data <- breast_cancer[train_idx]
 test_data <- breast_cancer[-train_idx]
 
 cat("Dataset Summary:\n")
-#> Dataset Summary:
 cat("================\n")
-#> ================
 cat("  Training: n =", nrow(train_data), "\n")
-#>   Training: n = 398
 cat("  Testing:  n =", nrow(test_data), "\n")
+```
+
+```
+#> Dataset Summary:
+#> ================
+#>   Training: n = 398 
 #>   Testing:  n = 171
 ```
 
@@ -198,6 +201,9 @@ rf_model <- randomForest(
 )
 
 print(rf_model)
+```
+
+```
 #> 
 #> Call:
 #>  randomForest(x = X_train, y = y_train, ntree = 500, mtry = 3,      nodesize = 5, importance = TRUE, keep.forest = TRUE) 
@@ -298,9 +304,7 @@ mtry_data <- data.table(mtry = mtry_values, oob_error = oob_errors)
 
 optimal_mtry <- mtry_values[which.min(oob_errors)]
 cat("Optimal mtry:", optimal_mtry, "\n")
-#> Optimal mtry: 7
 cat("Default mtry (sqrt(p)):", floor(sqrt(ncol(X_train))), "\n")
-#> Default mtry (sqrt(p)): 3
 
 ggplot2$ggplot(mtry_data, ggplot2$aes(x = mtry, y = oob_error)) +
     ggplot2$geom_line(colour = "#2166AC", linewidth = 1.2) +
@@ -321,6 +325,11 @@ ggplot2$ggplot(mtry_data, ggplot2$aes(x = mtry, y = oob_error)) +
 <Figure src="/courses/statistics-3-advanced/tune_mtry-1.png" alt="OOB error vs mtry—optimal is often near sqrt(p)">
 	OOB error vs mtry—optimal is often near sqrt(p)
 </Figure>
+
+```
+#> Optimal mtry: 7 
+#> Default mtry (sqrt(p)): 3
+```
 
 ---
 
@@ -476,12 +485,7 @@ pred_prob <- predict(rf_model, X_test, type = "prob")
 # Confusion matrix
 conf_matrix <- table(Actual = y_test, Predicted = pred_class)
 cat("Confusion Matrix:\n")
-#> Confusion Matrix:
 print(conf_matrix)
-#>            Predicted
-#> Actual      Benign Malignant
-#>   Benign       103         9
-#>   Malignant      3        56
 
 # Metrics
 accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
@@ -489,17 +493,25 @@ sensitivity <- conf_matrix["Malignant", "Malignant"] / sum(conf_matrix["Malignan
 specificity <- conf_matrix["Benign", "Benign"] / sum(conf_matrix["Benign", ])
 
 cat("\nPerformance Metrics:\n")
+cat("====================\n")
+cat("  Accuracy:", round(accuracy, 3), "\n")
+cat("  Sensitivity:", round(sensitivity, 3), "\n")
+cat("  Specificity:", round(specificity, 3), "\n")
+cat("  OOB Error:", round(rf_model$err.rate[nrow(rf_model$err.rate), "OOB"], 3), "\n")
+```
+
+```
+#> Confusion Matrix:
+#>            Predicted
+#> Actual      Benign Malignant
+#>   Benign       103         9
+#>   Malignant      3        56
 #> 
 #> Performance Metrics:
-cat("====================\n")
 #> ====================
-cat("  Accuracy:", round(accuracy, 3), "\n")
-#>   Accuracy: 0.93
-cat("  Sensitivity:", round(sensitivity, 3), "\n")
-#>   Sensitivity: 0.949
-cat("  Specificity:", round(specificity, 3), "\n")
-#>   Specificity: 0.92
-cat("  OOB Error:", round(rf_model$err.rate[nrow(rf_model$err.rate), "OOB"], 3), "\n")
+#>   Accuracy: 0.93 
+#>   Sensitivity: 0.949 
+#>   Specificity: 0.92 
 #>   OOB Error: 0.065
 ```
 
@@ -670,10 +682,6 @@ results_summary <- results[, .(
 ), by = model]
 
 print(results_summary)
-#>            model mean_accuracy sd_accuracy min_accuracy max_accuracy
-#>           <char>         <num>       <num>        <num>        <num>
-#> 1: Decision Tree     0.9097076  0.01842328    0.8654971    0.9649123
-#> 2: Random Forest     0.9367251  0.01914885    0.8947368    0.9766082
 
 # Plot
 ggplot2$ggplot(results, ggplot2$aes(x = model, y = accuracy, fill = model)) +
@@ -693,6 +701,13 @@ ggplot2$ggplot(results, ggplot2$aes(x = model, y = accuracy, fill = model)) +
 <Figure src="/courses/statistics-3-advanced/tree_vs_rf-1.png" alt="Random forest achieves higher and more stable accuracy than single tree">
 	Random forest achieves higher and more stable accuracy than single tree
 </Figure>
+
+```
+#>            model mean_accuracy sd_accuracy min_accuracy max_accuracy
+#>           <char>         <num>       <num>        <num>        <num>
+#> 1: Decision Tree     0.9097076  0.01842328    0.8654971    0.9649123
+#> 2: Random Forest     0.9367251  0.01914885    0.8947368    0.9766082
+```
 
 ---
 

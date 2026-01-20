@@ -4,7 +4,7 @@ chapter: "Chapter 10: Advanced Bayesian Methods"
 part: "Part 1: Hierarchical Models and MCMC"
 coverImage: 13
 author: "Dereck Mezquita"
-date: "2026-01-19"
+date: "2026-01-20"
 tags: [statistics, bioinformatics, bayesian, hierarchical-models, MCMC, R, biomedical]
 published: true
 comments: true
@@ -81,18 +81,21 @@ true_params <- list(
 )
 
 cat("Simulated Clinical Trial Data:\n")
-#> Simulated Clinical Trial Data:
 cat("==============================\n")
-#> ==============================
 cat("  Hospitals:", n_hospitals, "\n")
-#>   Hospitals: 12
 cat("  Total patients:", n_patients, "\n")
-#>   Total patients: 360
 cat("  Patients per hospital:", patients_per_hospital, "\n")
-#>   Patients per hospital: 30
 cat("  True treatment effect:", treatment_effect, "\n")
-#>   True treatment effect: 0.8
 cat("  True hospital SD:", 0.5, "\n")
+```
+
+```
+#> Simulated Clinical Trial Data:
+#> ==============================
+#>   Hospitals: 12 
+#>   Total patients: 360 
+#>   Patients per hospital: 30 
+#>   True treatment effect: 0.8 
 #>   True hospital SD: 0.5
 ```
 
@@ -145,24 +148,14 @@ unpooled_effects <- patient_data[, {
 }, by = hospital_id]
 
 cat("Pooling Comparison:\n")
-#> Pooling Comparison:
 cat("===================\n")
-#> ===================
 cat("\nComplete Pooling (ignore hospitals):\n")
-#> 
-#> Complete Pooling (ignore hospitals):
 cat("  Treatment effect:", round(pooled_effect, 3), "±", round(pooled_se, 3), "\n")
-#>   Treatment effect: 0.886 ± 0.229
 
 cat("\nNo Pooling (separate per hospital):\n")
-#> 
-#> No Pooling (separate per hospital):
 cat("  Mean effect:", round(mean(unpooled_effects$effect, na.rm = TRUE), 3), "\n")
-#>   Mean effect: 0.971
 cat("  SD of effects:", round(sd(unpooled_effects$effect, na.rm = TRUE), 3), "\n")
-#>   SD of effects: 0.724
 cat("  Range:", round(range(unpooled_effects$effect, na.rm = TRUE), 3), "\n")
-#>   Range: 0.037 2.397
 
 # Visualise
 unpooled_effects[, hospital_label := paste0("H", hospital_id)]
@@ -193,6 +186,19 @@ ggplot2$ggplot(unpooled_effects[!is.na(effect)],
 <Figure src="/courses/statistics-3-advanced/pooling_comparison-1.png" alt="Complete pooling ignores structure; no pooling gives noisy estimates">
 	Complete pooling ignores structure; no pooling gives noisy estimates
 </Figure>
+
+```
+#> Pooling Comparison:
+#> ===================
+#> 
+#> Complete Pooling (ignore hospitals):
+#>   Treatment effect: 0.886 ± 0.229 
+#> 
+#> No Pooling (separate per hospital):
+#>   Mean effect: 0.971 
+#>   SD of effects: 0.724 
+#>   Range: 0.037 2.397
+```
 
 ### 10.1.2 The Hierarchical Model
 
@@ -281,19 +287,12 @@ bayes_data[type == "Likelihood (scaled)", density := density * max(bayes_data[ty
                                                               max(density)]
 
 cat("Bayesian Updating Example:\n")
-#> Bayesian Updating Example:
 cat("==========================\n")
-#> ==========================
 cat("  Prior: Beta(", alpha_prior, ",", beta_prior, ")\n")
-#>   Prior: Beta( 2 , 2 )
 cat("  Data: ", successes, "successes,", failures, "failures\n")
-#>   Data:  15 successes, 5 failures
 cat("  Posterior: Beta(", alpha_post, ",", beta_post, ")\n")
-#>   Posterior: Beta( 17 , 7 )
 cat("  Posterior mean:", round(alpha_post / (alpha_post + beta_post), 3), "\n")
-#>   Posterior mean: 0.708
 cat("  95% Credible interval:", round(qbeta(c(0.025, 0.975), alpha_post, beta_post), 3), "\n")
-#>   95% Credible interval: 0.516 0.868
 
 ggplot2$ggplot(bayes_data, ggplot2$aes(x = theta, y = density, colour = type, linetype = type)) +
     ggplot2$geom_line(linewidth = 1.2) +
@@ -321,6 +320,16 @@ ggplot2$ggplot(bayes_data, ggplot2$aes(x = theta, y = density, colour = type, li
 <Figure src="/courses/statistics-3-advanced/bayes_demo-1.png" alt="Bayesian updating: prior + data = posterior">
 	Bayesian updating: prior + data = posterior
 </Figure>
+
+```
+#> Bayesian Updating Example:
+#> ==========================
+#>   Prior: Beta( 2 , 2 )
+#>   Data:  15 successes, 5 failures
+#>   Posterior: Beta( 17 , 7 )
+#>   Posterior mean: 0.708 
+#>   95% Credible interval: 0.516 0.868
+```
 
 ### 10.2.2 Choosing Priors
 
@@ -373,13 +382,16 @@ prior_sensitivity <- rbindlist(lapply(names(priors), function(name) {
 }))
 
 cat("Prior Sensitivity Analysis (Sparse Data: 3/5):\n")
-#> Prior Sensitivity Analysis (Sparse Data: 3/5):
 cat("===============================================\n")
-#> ===============================================
 print(prior_sensitivity[, .(prior, prior_mean = round(prior_mean, 2),
                              posterior_mean = round(posterior_mean, 2),
                              ci_95 = paste0("[", round(ci_lower, 2), ", ",
                                            round(ci_upper, 2), "]"))])
+```
+
+```
+#> Prior Sensitivity Analysis (Sparse Data: 3/5):
+#> ===============================================
 #>                    prior prior_mean posterior_mean        ci_95
 #>                   <char>      <num>          <num>       <char>
 #> 1:     Uniform Beta(1,1)        0.5           0.57 [0.22, 0.88]
@@ -479,20 +491,13 @@ mcmc_result <- metropolis_normal(y_data, mu_prior = 0, sigma_prior = 5,
                                   n_iter = 5000, proposal_sd = 0.3)
 
 cat("Metropolis Algorithm Results:\n")
-#> Metropolis Algorithm Results:
 cat("=============================\n")
-#> =============================
 cat("  True mu:", true_mu, "\n")
-#>   True mu: 2.5
 cat("  Sample mean:", round(mean(y_data), 3), "\n")
-#>   Sample mean: 2.384
 cat("  Posterior mean (MCMC):", round(mean(mcmc_result$samples[1001:5000]), 3), "\n")
-#>   Posterior mean (MCMC): 2.39
 cat("  95% Credible interval:", round(quantile(mcmc_result$samples[1001:5000],
                                                 c(0.025, 0.975)), 3), "\n")
-#>   95% Credible interval: 2.051 2.747
 cat("  Acceptance rate:", round(mcmc_result$acceptance_rate, 3), "\n")
-#>   Acceptance rate: 0.556
 
 # Visualise
 mcmc_data <- data.table(
@@ -521,6 +526,16 @@ gridExtra::grid.arrange(p_trace, p_hist, ncol = 2)
 <Figure src="/courses/statistics-3-advanced/metropolis_demo-1.png" alt="Metropolis algorithm samples from the posterior">
 	Metropolis algorithm samples from the posterior
 </Figure>
+
+```
+#> Metropolis Algorithm Results:
+#> =============================
+#>   True mu: 2.5 
+#>   Sample mean: 2.384 
+#>   Posterior mean (MCMC): 2.39 
+#>   95% Credible interval: 2.051 2.747 
+#>   Acceptance rate: 0.556
+```
 
 ---
 
@@ -606,13 +621,9 @@ rhat <- calc_rhat(multi_chain)
 ess <- calc_ess(multi_chain[iteration > 500 & chain == 1]$mu)
 
 cat("MCMC Diagnostics:\n")
-#> MCMC Diagnostics:
 cat("=================\n")
-#> =================
 cat("  R-hat:", round(rhat, 3), "(should be < 1.01)\n")
-#>   R-hat: 1 (should be < 1.01)
 cat("  ESS (chain 1):", round(ess, 0), "out of", 1500, "samples\n")
-#>   ESS (chain 1): 357 out of 1500 samples
 
 # Visualise multiple chains
 ggplot2$ggplot(multi_chain, ggplot2$aes(x = iteration, y = mu, colour = factor(chain))) +
@@ -635,6 +646,13 @@ ggplot2$ggplot(multi_chain, ggplot2$aes(x = iteration, y = mu, colour = factor(c
 <Figure src="/courses/statistics-3-advanced/mcmc_diagnostics-1.png" alt="MCMC diagnostics: trace plot, autocorrelation, and density">
 	MCMC diagnostics: trace plot, autocorrelation, and density
 </Figure>
+
+```
+#> MCMC Diagnostics:
+#> =================
+#>   R-hat: 1 (should be < 1.01)
+#>   ESS (chain 1): 357 out of 1500 samples
+```
 
 ### 10.4.2 Improving MCMC Efficiency
 
@@ -669,19 +687,9 @@ tuning_summary <- tuning_results[iteration > 500, .(
 ), by = proposal_sd]
 
 cat("Proposal Tuning:\n")
-#> Proposal Tuning:
 cat("================\n")
-#> ================
 print(tuning_summary)
-#>    proposal_sd     mean        sd acceptance_rate
-#>          <num>    <num>     <num>           <num>
-#> 1:         0.1 2.419337 0.1827040      0.80940470
-#> 2:         0.5 2.379119 0.1851247      0.39969985
-#> 3:         2.0 2.375858 0.1762574      0.11855928
-#> 4:         5.0 2.400988 0.1973911      0.05902951
 cat("\nOptimal acceptance rate is typically 0.2-0.4 for random walk MH.\n")
-#> 
-#> Optimal acceptance rate is typically 0.2-0.4 for random walk MH.
 
 ggplot2$ggplot(tuning_results, ggplot2$aes(x = iteration, y = mu)) +
     ggplot2$geom_line(alpha = 0.5, colour = "#2166AC") +
@@ -702,6 +710,19 @@ ggplot2$ggplot(tuning_results, ggplot2$aes(x = iteration, y = mu)) +
 <Figure src="/courses/statistics-3-advanced/proposal_tuning-1.png" alt="Proposal variance affects mixing and acceptance rate">
 	Proposal variance affects mixing and acceptance rate
 </Figure>
+
+```
+#> Proposal Tuning:
+#> ================
+#>    proposal_sd     mean        sd acceptance_rate
+#>          <num>    <num>     <num>           <num>
+#> 1:         0.1 2.419337 0.1827040      0.80940470
+#> 2:         0.5 2.379119 0.1851247      0.39969985
+#> 3:         2.0 2.375858 0.1762574      0.11855928
+#> 4:         5.0 2.400988 0.1973911      0.05902951
+#> 
+#> Optimal acceptance rate is typically 0.2-0.4 for random walk MH.
+```
 
 ---
 
@@ -842,33 +863,36 @@ gibbs_result <- gibbs_hierarchical(patient_data, n_iter = 3000, warmup = 1000)
 post_warmup <- gibbs_result$samples[iteration > 1000]
 
 cat("Hierarchical Model Results (Gibbs Sampling):\n")
-#> Hierarchical Model Results (Gibbs Sampling):
 cat("=============================================\n")
-#> =============================================
 cat("\nTrue values:\n")
-#> 
-#> True values:
 cat("  Treatment effect:", true_params$treatment_effect, "\n")
-#>   Treatment effect: 0.8
 cat("  Hospital SD:", true_params$hospital_sd, "\n")
-#>   Hospital SD: 0.5
 cat("  Residual SD:", true_params$residual_sd, "\n")
-#>   Residual SD: 2
 
 cat("\nPosterior estimates:\n")
-#> 
-#> Posterior estimates:
 cat("  Treatment effect:", round(mean(post_warmup$beta), 3),
     "[", round(quantile(post_warmup$beta, 0.025), 3), ",",
     round(quantile(post_warmup$beta, 0.975), 3), "]\n")
-#>   Treatment effect: 0 [ 0 , 0 ]
 cat("  Hospital SD:", round(mean(post_warmup$sigma_alpha), 3),
     "[", round(quantile(post_warmup$sigma_alpha, 0.025), 3), ",",
     round(quantile(post_warmup$sigma_alpha, 0.975), 3), "]\n")
-#>   Hospital SD: 0 [ 0 , 0 ]
 cat("  Residual SD:", round(mean(post_warmup$sigma), 3),
     "[", round(quantile(post_warmup$sigma, 0.025), 3), ",",
     round(quantile(post_warmup$sigma, 0.975), 3), "]\n")
+```
+
+```
+#> Hierarchical Model Results (Gibbs Sampling):
+#> =============================================
+#> 
+#> True values:
+#>   Treatment effect: 0.8 
+#>   Hospital SD: 0.5 
+#>   Residual SD: 2 
+#> 
+#> Posterior estimates:
+#>   Treatment effect: 0 [ 0 , 0 ]
+#>   Hospital SD: 0 [ 0 , 0 ]
 #>   Residual SD: 0 [ 0 , 0 ]
 ```
 
@@ -902,13 +926,9 @@ shrinkage_data <- data.table(
 shrinkage_data[, shrinkage := (unpooled - hierarchical) / (unpooled - grand_mean)]
 
 cat("Shrinkage Analysis:\n")
-#> Shrinkage Analysis:
 cat("===================\n")
-#> ===================
 cat("  Grand mean:", round(mean(post_warmup$mu_alpha), 3), "\n")
-#>   Grand mean: 0
 cat("  Mean shrinkage factor:", round(mean(shrinkage_data$shrinkage, na.rm = TRUE), 3), "\n")
-#>   Mean shrinkage factor: 0.005
 
 # Visualise shrinkage
 ggplot2$ggplot(shrinkage_data) +
@@ -937,6 +957,13 @@ ggplot2$ggplot(shrinkage_data) +
 <Figure src="/courses/statistics-3-advanced/shrinkage_visualisation-1.png" alt="Shrinkage: hierarchical estimates are pulled toward the grand mean">
 	Shrinkage: hierarchical estimates are pulled toward the grand mean
 </Figure>
+
+```
+#> Shrinkage Analysis:
+#> ===================
+#>   Grand mean: 0 
+#>   Mean shrinkage factor: 0.005
+```
 
 ---
 

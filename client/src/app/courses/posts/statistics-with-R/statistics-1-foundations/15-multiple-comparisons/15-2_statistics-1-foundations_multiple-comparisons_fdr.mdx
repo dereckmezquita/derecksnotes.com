@@ -27,97 +27,37 @@ box::use(
 
 ``` r
 cat("FWER vs FDR Philosophy\n")
-```
-
-```
-## FWER vs FDR Philosophy
-```
-
-``` r
 cat("======================\n\n")
-```
 
-```
-## ======================
-```
-
-``` r
 cat("FWER: 'I want to be sure that if I claim ANY discovery,\n")
-```
-
-```
-## FWER: 'I want to be sure that if I claim ANY discovery,
-```
-
-``` r
 cat("       it is a true discovery.'\n")
-```
-
-```
-##        it is a true discovery.'
-```
-
-``` r
 cat("       → Controls: P(at least 1 false positive)\n\n")
-```
 
-```
-##        <U+2192> Controls: P(at least 1 false positive)
-```
-
-``` r
 cat("FDR:  'I accept that some of my discoveries may be false,\n")
-```
-
-```
-## FDR:  'I accept that some of my discoveries may be false,
-```
-
-``` r
 cat("       but I want the FALSE PROPORTION to be small.'\n")
-```
-
-```
-##        but I want the FALSE PROPORTION to be small.'
-```
-
-``` r
 cat("       → Controls: E[false positives / total positives]\n\n")
-```
 
-```
-##        <U+2192> Controls: E[false positives / total positives]
-```
-
-``` r
 cat("Example:\n")
-```
-
-```
-## Example:
-```
-
-``` r
 cat("  - 100 discoveries total\n")
-```
-
-```
-##   - 100 discoveries total
-```
-
-``` r
 cat("  - FDR = 5% means ~5 are expected to be false positives\n")
-```
-
-```
-##   - FDR = 5% means ~5 are expected to be false positives
-```
-
-``` r
 cat("  - This is often acceptable in exploratory research\n")
 ```
 
 ```
+## FWER vs FDR Philosophy
+## ======================
+## 
+## FWER: 'I want to be sure that if I claim ANY discovery,
+##        it is a true discovery.'
+##        → Controls: P(at least 1 false positive)
+## 
+## FDR:  'I accept that some of my discoveries may be false,
+##        but I want the FALSE PROPORTION to be small.'
+##        → Controls: E[false positives / total positives]
+## 
+## Example:
+##   - 100 discoveries total
+##   - FDR = 5% means ~5 are expected to be false positives
 ##   - This is often acceptable in exploratory research
 ```
 
@@ -174,33 +114,23 @@ results[, bh_adjusted := p.adjust(p_value, method = "BH")]
 results[, reject_bh_adj := bh_adjusted < 0.05]
 
 cat("Benjamini-Hochberg Procedure (FDR = 5%)\n")
+cat("=======================================\n\n")
+
+cat("Top 20 ordered p-values with BH thresholds:\n")
+print(results[1:20, .(rank, p_value, bh_threshold, reject = p_value <= bh_threshold)])
+
+cat(sprintf("\n\nTotal rejections: %d\n", sum(results$reject_bh)))
+cat(sprintf("True positives: %d\n", sum(results$reject_bh & results$true_effect)))
+cat(sprintf("False positives: %d\n", sum(results$reject_bh & !results$true_effect)))
+cat(sprintf("Observed FDR: %.3f\n",
+            sum(results$reject_bh & !results$true_effect) / sum(results$reject_bh)))
 ```
 
 ```
 ## Benjamini-Hochberg Procedure (FDR = 5%)
-```
-
-``` r
-cat("=======================================\n\n")
-```
-
-```
 ## =======================================
-```
-
-``` r
-cat("Top 20 ordered p-values with BH thresholds:\n")
-```
-
-```
+## 
 ## Top 20 ordered p-values with BH thresholds:
-```
-
-``` r
-print(results[1:20, .(rank, p_value, bh_threshold, reject = p_value <= bh_threshold)])
-```
-
-```
 ##      rank      p_value bh_threshold reject
 ##     <int>        <num>        <num> <lgcl>
 ##  1:     1 5.339757e-12      0.00005   TRUE
@@ -224,40 +154,11 @@ print(results[1:20, .(rank, p_value, bh_threshold, reject = p_value <= bh_thresh
 ## 19:    19 3.010602e-03      0.00095  FALSE
 ## 20:    20 3.307298e-03      0.00100  FALSE
 ##      rank      p_value bh_threshold reject
-```
-
-``` r
-cat(sprintf("\n\nTotal rejections: %d\n", sum(results$reject_bh)))
-```
-
-```
 ## 
 ## 
 ## Total rejections: 7
-```
-
-``` r
-cat(sprintf("True positives: %d\n", sum(results$reject_bh & results$true_effect)))
-```
-
-```
 ## True positives: 7
-```
-
-``` r
-cat(sprintf("False positives: %d\n", sum(results$reject_bh & !results$true_effect)))
-```
-
-```
 ## False positives: 0
-```
-
-``` r
-cat(sprintf("Observed FDR: %.3f\n",
-            sum(results$reject_bh & !results$true_effect) / sum(results$reject_bh)))
-```
-
-```
 ## Observed FDR: 0.000
 ```
 
@@ -331,33 +232,22 @@ comparison[, Sensitivity := True_Positives / n_true]
 comparison[, FDR := False_Positives / Total_Rejections]
 
 cat("Comparison of Correction Methods\n")
+cat("=================================\n\n")
+cat(sprintf("Total tests: %d (100 true effects, 900 null)\n\n", n_tests))
+print(comparison)
+
+cat("\n\nKey observations:\n")
+cat("• Uncorrected: High sensitivity but many false positives\n")
+cat("• FWER methods: Very few false positives but low sensitivity\n")
+cat("• FDR (BH): Good balance—high sensitivity with controlled FDR\n")
 ```
 
 ```
 ## Comparison of Correction Methods
-```
-
-``` r
-cat("=================================\n\n")
-```
-
-```
 ## =================================
-```
-
-``` r
-cat(sprintf("Total tests: %d (100 true effects, 900 null)\n\n", n_tests))
-```
-
-```
+## 
 ## Total tests: 1000 (100 true effects, 900 null)
-```
-
-``` r
-print(comparison)
-```
-
-```
+## 
 ##                Method   Type Total_Rejections True_Positives False_Positives
 ##                <char> <char>            <int>          <int>           <int>
 ## 1:        Uncorrected   None               87             37              50
@@ -370,40 +260,12 @@ print(comparison)
 ## 2:        0.04 0.0000000
 ## 3:        0.04 0.0000000
 ## 4:        0.07 0.0000000
-```
-
-``` r
-cat("\n\nKey observations:\n")
-```
-
-```
 ## 
 ## 
 ## Key observations:
-```
-
-``` r
-cat("• Uncorrected: High sensitivity but many false positives\n")
-```
-
-```
-## <U+2022> Uncorrected: High sensitivity but many false positives
-```
-
-``` r
-cat("• FWER methods: Very few false positives but low sensitivity\n")
-```
-
-```
-## <U+2022> FWER methods: Very few false positives but low sensitivity
-```
-
-``` r
-cat("• FDR (BH): Good balance—high sensitivity with controlled FDR\n")
-```
-
-```
-## <U+2022> FDR (BH): Good balance<U+2014>high sensitivity with controlled FDR
+## • Uncorrected: High sensitivity but many false positives
+## • FWER methods: Very few false positives but low sensitivity
+## • FDR (BH): Good balance—high sensitivity with controlled FDR
 ```
 
 ### 15.10.2 Visual Comparison
@@ -449,66 +311,30 @@ A **q-value** is the minimum FDR at which a particular test would be called sign
 results[, q_value := bh_adjusted]
 
 cat("Q-Values\n")
+cat("========\n\n")
+
+cat("Interpretation:\n")
+cat("• p-value: probability of observing this result if null is true\n")
+cat("• q-value: expected proportion of false positives among all\n")
+cat("           results with this q-value or smaller\n\n")
+
+cat("Example from our data:\n")
+example_tests <- results[1:10, .(rank, p_value, q_value, true_effect)]
+print(example_tests)
+
+cat("\nIf we reject all tests with q < 0.05, we expect ~5% to be false positives.\n")
 ```
 
 ```
 ## Q-Values
-```
-
-``` r
-cat("========\n\n")
-```
-
-```
 ## ========
-```
-
-``` r
-cat("Interpretation:\n")
-```
-
-```
+## 
 ## Interpretation:
-```
-
-``` r
-cat("• p-value: probability of observing this result if null is true\n")
-```
-
-```
-## <U+2022> p-value: probability of observing this result if null is true
-```
-
-``` r
-cat("• q-value: expected proportion of false positives among all\n")
-```
-
-```
-## <U+2022> q-value: expected proportion of false positives among all
-```
-
-``` r
-cat("           results with this q-value or smaller\n\n")
-```
-
-```
+## • p-value: probability of observing this result if null is true
+## • q-value: expected proportion of false positives among all
 ##            results with this q-value or smaller
-```
-
-``` r
-cat("Example from our data:\n")
-```
-
-```
+## 
 ## Example from our data:
-```
-
-``` r
-example_tests <- results[1:10, .(rank, p_value, q_value, true_effect)]
-print(example_tests)
-```
-
-```
 ##      rank      p_value      q_value true_effect
 ##     <int>        <num>        <num>      <lgcl>
 ##  1:     1 5.339757e-12 5.339757e-09        TRUE
@@ -521,13 +347,6 @@ print(example_tests)
 ##  8:     8 4.653491e-04 5.719186e-02       FALSE
 ##  9:     9 5.147268e-04 5.719186e-02        TRUE
 ## 10:    10 5.880987e-04 5.880987e-02        TRUE
-```
-
-``` r
-cat("\nIf we reject all tests with q < 0.05, we expect ~5% to be false positives.\n")
-```
-
-```
 ## 
 ## If we reject all tests with q < 0.05, we expect ~5% to be false positives.
 ```
@@ -543,90 +362,38 @@ The **local false discovery rate (lfdr)** estimates the probability that a speci
 
 ``` r
 cat("Local FDR Concept\n")
-```
-
-```
-## Local FDR Concept
-```
-
-``` r
 cat("=================\n\n")
-```
 
-```
-## =================
-```
-
-``` r
 cat("Global FDR (q-value): 'If I reject all tests at this level,\n")
-```
-
-```
-## Global FDR (q-value): 'If I reject all tests at this level,
-```
-
-``` r
 cat("                       what proportion are false positives?'\n\n")
-```
 
-```
-##                        what proportion are false positives?'
-```
-
-``` r
 cat("Local FDR (lfdr):     'What is the probability that THIS specific\n")
-```
-
-```
-## Local FDR (lfdr):     'What is the probability that THIS specific
-```
-
-``` r
 cat("                       test is a false positive?'\n\n")
-```
 
-```
-##                        test is a false positive?'
-```
-
-``` r
 cat("The local FDR uses the mixture model:\n")
-```
-
-```
-## The local FDR uses the mixture model:
-```
-
-``` r
 cat("• π₀ = proportion of null hypotheses\n")
-```
-
-```
-## <U+2022> <U+03C0><U+2080> = proportion of null hypotheses
-```
-
-``` r
 cat("• f₀(z) = density of test statistics under null\n")
-```
-
-```
-## <U+2022> f<U+2080>(z) = density of test statistics under null
-```
-
-``` r
 cat("• f₁(z) = density of test statistics under alternative\n\n")
-```
 
-```
-## <U+2022> f<U+2081>(z) = density of test statistics under alternative
-```
-
-``` r
 cat("lfdr(z) = π₀ × f₀(z) / [π₀ × f₀(z) + (1-π₀) × f₁(z)]\n")
 ```
 
 ```
-## lfdr(z) = <U+03C0><U+2080> <U+00D7> f<U+2080>(z) / [<U+03C0><U+2080> <U+00D7> f<U+2080>(z) + (1-<U+03C0><U+2080>) <U+00D7> f<U+2081>(z)]
+## Local FDR Concept
+## =================
+## 
+## Global FDR (q-value): 'If I reject all tests at this level,
+##                        what proportion are false positives?'
+## 
+## Local FDR (lfdr):     'What is the probability that THIS specific
+##                        test is a false positive?'
+## 
+## The local FDR uses the mixture model:
+## • π₀ = proportion of null hypotheses
+## • f₀(z) = density of test statistics under null
+## • f₁(z) = density of test statistics under alternative
+## 
+## lfdr(z) = π₀ × f₀(z) / [π₀ × f₀(z) + (1-π₀) × f₁(z)]
 ```
 
 ---
@@ -646,49 +413,23 @@ lambda <- 0.5
 pi0_estimate <- sum(results$p_value > lambda) / ((1 - lambda) * n_tests)
 
 cat("Estimating π₀ (Proportion of True Nulls)\n")
-```
-
-```
-## Estimating <U+03C0><U+2080> (Proportion of True Nulls)
-```
-
-``` r
 cat("=========================================\n\n")
-```
 
-```
-## =========================================
-```
-
-``` r
 cat(sprintf("True π₀: %.2f\n", (n_tests - n_true) / n_tests))
-```
-
-```
-## True <U+03C0><U+2080>: 0.90
-```
-
-``` r
 cat(sprintf("Estimated π₀ (Storey's method): %.3f\n\n", pi0_estimate))
-```
 
-```
-## Estimated <U+03C0><U+2080> (Storey's method): 0.948
-```
-
-``` r
 cat("If π₀ < 1, we can use adaptive procedures for more power.\n")
-```
-
-```
-## If <U+03C0><U+2080> < 1, we can use adaptive procedures for more power.
-```
-
-``` r
 cat("The BH procedure is conservative when many alternatives exist.\n")
 ```
 
 ```
+## Estimating π₀ (Proportion of True Nulls)
+## =========================================
+## 
+## True π₀: 0.90
+## Estimated π₀ (Storey's method): 0.948
+## 
+## If π₀ < 1, we can use adaptive procedures for more power.
 ## The BH procedure is conservative when many alternatives exist.
 ```
 
@@ -701,41 +442,19 @@ results[, adaptive_q := bh_adjusted * pi0_estimate]
 
 # Compare
 cat("Adaptive vs Standard BH\n")
-```
-
-```
-## Adaptive vs Standard BH
-```
-
-``` r
 cat("=======================\n\n")
-```
 
-```
-## =======================
-```
-
-``` r
 cat(sprintf("Standard BH rejections (q < 0.05): %d\n", sum(results$q_value < 0.05)))
-```
-
-```
-## Standard BH rejections (q < 0.05): 7
-```
-
-``` r
 cat(sprintf("Adaptive BH rejections (q < 0.05): %d\n", sum(results$adaptive_q < 0.05)))
-```
-
-```
-## Adaptive BH rejections (q < 0.05): 7
-```
-
-``` r
 cat("\nAdaptive methods can increase power when many alternatives exist.\n")
 ```
 
 ```
+## Adaptive vs Standard BH
+## =======================
+## 
+## Standard BH rejections (q < 0.05): 7
+## Adaptive BH rejections (q < 0.05): 7
 ## 
 ## Adaptive methods can increase power when many alternatives exist.
 ```
@@ -778,73 +497,33 @@ fdr_table <- data.table(
 )
 
 cat("Impact of FDR Level Choice\n")
+cat("==========================\n\n")
+print(fdr_table)
+
+cat("\n\nGuidelines:\n")
+cat("• FDR = 0.01: Conservative, high confidence in findings\n")
+cat("• FDR = 0.05: Standard choice, balanced\n")
+cat("• FDR = 0.10: Lenient, for exploratory screening\n")
+cat("• FDR = 0.20: Very lenient, for initial discovery\n")
 ```
 
 ```
 ## Impact of FDR Level Choice
-```
-
-``` r
-cat("==========================\n\n")
-```
-
-```
 ## ==========================
-```
-
-``` r
-print(fdr_table)
-```
-
-```
+## 
 ##    Target_FDR Rejections Sensitivity Observed_FDR
 ##         <num>      <int>       <num>        <num>
 ## 1:       0.01          2        0.02    0.0000000
 ## 2:       0.05          7        0.07    0.0000000
 ## 3:       0.10         16        0.13    0.1875000
 ## 4:       0.20         27        0.19    0.2962963
-```
-
-``` r
-cat("\n\nGuidelines:\n")
-```
-
-```
 ## 
 ## 
 ## Guidelines:
-```
-
-``` r
-cat("• FDR = 0.01: Conservative, high confidence in findings\n")
-```
-
-```
-## <U+2022> FDR = 0.01: Conservative, high confidence in findings
-```
-
-``` r
-cat("• FDR = 0.05: Standard choice, balanced\n")
-```
-
-```
-## <U+2022> FDR = 0.05: Standard choice, balanced
-```
-
-``` r
-cat("• FDR = 0.10: Lenient, for exploratory screening\n")
-```
-
-```
-## <U+2022> FDR = 0.10: Lenient, for exploratory screening
-```
-
-``` r
-cat("• FDR = 0.20: Very lenient, for initial discovery\n")
-```
-
-```
-## <U+2022> FDR = 0.20: Very lenient, for initial discovery
+## • FDR = 0.01: Conservative, high confidence in findings
+## • FDR = 0.05: Standard choice, balanced
+## • FDR = 0.10: Lenient, for exploratory screening
+## • FDR = 0.20: Very lenient, for initial discovery
 ```
 
 ---

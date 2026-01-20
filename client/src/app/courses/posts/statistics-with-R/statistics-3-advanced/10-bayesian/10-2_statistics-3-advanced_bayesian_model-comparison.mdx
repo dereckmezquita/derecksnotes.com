@@ -488,53 +488,12 @@ waic_result <- compute_waic(clinical_data, mcmc_samples)
 loo_result <- compute_loo(waic_result$log_lik)
 
 cat("Model Comparison Metrics (Hierarchical Model):\n")
-```
-
-```
-## Model Comparison Metrics (Hierarchical Model):
-```
-
-``` r
 cat("WAIC:", round(waic_result$waic, 2), "\n")
-```
-
-```
-## WAIC: NaN
-```
-
-``` r
 cat("  lppd:", round(waic_result$lppd, 2), "\n")
-```
-
-```
-##   lppd: NaN
-```
-
-``` r
 cat("  p_waic (effective parameters):", round(waic_result$p_waic, 2), "\n")
-```
-
-```
-##   p_waic (effective parameters): NaN
-```
-
-``` r
 cat("LOO-CV:", round(loo_result$loo, 2), "\n")
-```
-
-```
-## LOO-CV: NaN
-```
-
-``` r
 cat("  elpd_loo:", round(loo_result$elpd_loo, 2), "\n")
-```
 
-```
-##   elpd_loo: NaN
-```
-
-``` r
 # visualise Pareto k diagnostics
 pareto_plot_data <- data.table(
     observation = 1:length(loo_result$pareto_k),
@@ -567,6 +526,15 @@ print(pareto_plot)
 <img src="/courses/statistics-3-advanced/information_criteria-1.png" alt="plot of chunk information_criteria" width="100%" />
 <p class="caption">plot of chunk information_criteria</p>
 </div>
+
+```
+## Model Comparison Metrics (Hierarchical Model):
+## WAIC: NaN 
+##   lppd: NaN 
+##   p_waic (effective parameters): NaN 
+## LOO-CV: NaN 
+##   elpd_loo: NaN
+```
 
 ### Posterior Predictive Checks
 
@@ -687,18 +655,12 @@ print(ppc_plot)
 ``` r
 # print summary
 cat("\nPosterior Predictive Check Summary:\n")
+print(ppc_summary)
 ```
 
 ```
 ## 
 ## Posterior Predictive Check Summary:
-```
-
-``` r
-print(ppc_summary)
-```
-
-```
 ##      statistic    observed   rep_mean    rep_sd p_value
 ##         <char>       <num>      <num>     <num>   <num>
 ## 1:        Mean -4.49381309 -4.5160999 0.4683476    0.53
@@ -1080,73 +1042,17 @@ print(comparison_plot)
 ``` r
 # executive summary
 cat("\n")
-```
-
-``` r
 cat("========================================\n")
-```
-
-```
-## ========================================
-```
-
-``` r
 cat("  EXECUTIVE SUMMARY: MODEL COMPARISON\n")
-```
-
-```
-##   EXECUTIVE SUMMARY: MODEL COMPARISON
-```
-
-``` r
 cat("========================================\n\n")
-```
 
-```
-## ========================================
-```
-
-``` r
 cat("CONTEXT:\n")
-```
-
-```
-## CONTEXT:
-```
-
-``` r
 cat("- Multi-site clinical trial with", n_sites, "sites and", n_total, "patients\n")
-```
-
-```
-## - Multi-site clinical trial with 8 sites and 240 patients
-```
-
-``` r
 cat("- Testing blood pressure reduction treatment\n")
-```
-
-```
-## - Testing blood pressure reduction treatment
-```
-
-``` r
 cat("- Comparing hierarchical (site-specific) vs pooled (single effect) models\n\n")
-```
 
-```
-## - Comparing hierarchical (site-specific) vs pooled (single effect) models
-```
-
-``` r
 cat("KEY FINDINGS:\n")
-```
 
-```
-## KEY FINDINGS:
-```
-
-``` r
 waic_diff <- pooled_waic$waic - waic_result$waic
 if (is.na(waic_diff)) {
     cat("- Unable to compute WAIC difference\n")
@@ -1159,39 +1065,13 @@ if (is.na(waic_diff)) {
 } else {
     cat("- Models are similar; pooled model preferred for simplicity\n")
 }
-```
 
-```
-## - Unable to compute WAIC difference
-```
-
-``` r
 cat("- Hierarchical model uses", round(waic_result$p_waic, 1),
     "effective parameters vs", round(pooled_waic$p_waic, 1), "for pooled\n")
-```
-
-```
-## - Hierarchical model uses NaN effective parameters vs NaN for pooled
-```
-
-``` r
 cat("- This extra complexity is",
     ifelse(!is.na(waic_diff) && waic_diff > 0, "JUSTIFIED", "NOT JUSTIFIED"), "by improved prediction\n\n")
-```
 
-```
-## - This extra complexity is NOT JUSTIFIED by improved prediction
-```
-
-``` r
 cat("IMPLICATIONS:\n")
-```
-
-```
-## IMPLICATIONS:
-```
-
-``` r
 if (!is.na(waic_diff) && waic_diff > 0) {
     cat("- Treatment effects VARY meaningfully across clinical sites\n")
     cat("- Site characteristics should be considered in treatment decisions\n")
@@ -1200,22 +1080,31 @@ if (!is.na(waic_diff) && waic_diff > 0) {
     cat("- Treatment effect is CONSISTENT across sites\n")
     cat("- A single effect estimate can be used for all sites\n")
 }
-```
 
-```
-## - Treatment effect is CONSISTENT across sites
-## - A single effect estimate can be used for all sites
-```
-
-``` r
 cat("\n")
-```
-
-``` r
 print(comparison_table)
 ```
 
 ```
+## 
+## ========================================
+##   EXECUTIVE SUMMARY: MODEL COMPARISON
+## ========================================
+## 
+## CONTEXT:
+## - Multi-site clinical trial with 8 sites and 240 patients
+## - Testing blood pressure reduction treatment
+## - Comparing hierarchical (site-specific) vs pooled (single effect) models
+## 
+## KEY FINDINGS:
+## - Unable to compute WAIC difference
+## - Hierarchical model uses NaN effective parameters vs NaN for pooled
+## - This extra complexity is NOT JUSTIFIED by improved prediction
+## 
+## IMPLICATIONS:
+## - Treatment effect is CONSISTENT across sites
+## - A single effect estimate can be used for all sites
+## 
 ##                                   Model  WAIC Effective Parameters  lppd
 ##                                  <char> <num>                <num> <num>
 ## 1: Hierarchical (Site-specific effects)   NaN                  NaN   NaN
@@ -1273,129 +1162,26 @@ ppc_report <- data.table(
 )
 
 cat("\n")
-```
-
-``` r
 cat("================================================\n")
-```
-
-```
-## ================================================
-```
-
-``` r
 cat("  MODEL ADEQUACY REPORT (REGULATORY SUBMISSION)\n")
-```
-
-```
-##   MODEL ADEQUACY REPORT (REGULATORY SUBMISSION)
-```
-
-``` r
 cat("================================================\n\n")
-```
 
-```
-## ================================================
-```
-
-``` r
 cat("MODEL SPECIFICATION:\n")
-```
-
-```
-## MODEL SPECIFICATION:
-```
-
-``` r
 cat("- Hierarchical Bayesian model with site-specific treatment effects\n")
-```
-
-```
-## - Hierarchical Bayesian model with site-specific treatment effects
-```
-
-``` r
 cat("- Normal likelihood with estimated residual variance\n")
-```
-
-```
-## - Normal likelihood with estimated residual variance
-```
-
-``` r
 cat("- Half-normal prior on between-site standard deviation\n\n")
-```
 
-```
-## - Half-normal prior on between-site standard deviation
-```
-
-``` r
 cat("POSTERIOR PREDICTIVE CHECKS:\n\n")
-```
-
-```
-## POSTERIOR PREDICTIVE CHECKS:
-```
-
-``` r
 print(ppc_report)
-```
 
-```
-##             Test Statistic   Observed Model Prediction     95% Interval
-##                     <char>     <char>           <char>           <char>
-## 1:                    Mean -4.49 mmHg       -4.52 mmHg   [-5.40, -3.72]
-## 2:      Standard Deviation 11.14 mmHg        4.95 mmHg     [3.99, 5.83]
-## 3:                Skewness     -0.104           -0.462 [-0.826, -0.131]
-## 4: Extreme Values (|y|>20)       8.3%             0.0%     [0.0%, 0.0%]
-##    Assessment
-##        <char>
-## 1:       PASS
-## 2:     REVIEW
-## 3:     REVIEW
-## 4:     REVIEW
-```
-
-``` r
 cat("\n")
-```
-
-``` r
 cat("INTERPRETATION GUIDE:\n")
-```
-
-```
-## INTERPRETATION GUIDE:
-```
-
-``` r
 cat("- PASS: Observed value falls within expected range from model\n")
-```
-
-```
-## - PASS: Observed value falls within expected range from model
-```
-
-``` r
 cat("- REVIEW: Potential model misspecification; further investigation needed\n\n")
-```
 
-```
-## - REVIEW: Potential model misspecification; further investigation needed
-```
-
-``` r
 all_pass <- all(ppc_report$Assessment == "PASS")
 cat("OVERALL ASSESSMENT:", ifelse(all_pass, "MODEL ADEQUATE", "MODEL REQUIRES REVIEW"), "\n\n")
-```
 
-```
-## OVERALL ASSESSMENT: MODEL REQUIRES REVIEW
-```
-
-``` r
 if (all_pass) {
     cat("CONCLUSION:\n")
     cat("The hierarchical model adequately captures the key features of the\n")
@@ -1410,6 +1196,37 @@ if (all_pass) {
 ```
 
 ```
+## 
+## ================================================
+##   MODEL ADEQUACY REPORT (REGULATORY SUBMISSION)
+## ================================================
+## 
+## MODEL SPECIFICATION:
+## - Hierarchical Bayesian model with site-specific treatment effects
+## - Normal likelihood with estimated residual variance
+## - Half-normal prior on between-site standard deviation
+## 
+## POSTERIOR PREDICTIVE CHECKS:
+## 
+##             Test Statistic   Observed Model Prediction     95% Interval
+##                     <char>     <char>           <char>           <char>
+## 1:                    Mean -4.49 mmHg       -4.52 mmHg   [-5.40, -3.72]
+## 2:      Standard Deviation 11.14 mmHg        4.95 mmHg     [3.99, 5.83]
+## 3:                Skewness     -0.104           -0.462 [-0.826, -0.131]
+## 4: Extreme Values (|y|>20)       8.3%             0.0%     [0.0%, 0.0%]
+##    Assessment
+##        <char>
+## 1:       PASS
+## 2:     REVIEW
+## 3:     REVIEW
+## 4:     REVIEW
+## 
+## INTERPRETATION GUIDE:
+## - PASS: Observed value falls within expected range from model
+## - REVIEW: Potential model misspecification; further investigation needed
+## 
+## OVERALL ASSESSMENT: MODEL REQUIRES REVIEW 
+## 
 ## CONCLUSION:
 ## Some aspects of the observed data are not well captured by the model.
 ## Consider model refinements before finalising efficacy estimates.

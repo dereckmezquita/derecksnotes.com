@@ -83,57 +83,23 @@ set.seed(123)
 bp_sample <- na.omit(nhanes$BPSys1)[1:50]
 
 cat("Hypothesis Test Example: Blood Pressure\n")
-```
-
-```
-## Hypothesis Test Example: Blood Pressure
-```
-
-``` r
 cat("========================================\n\n")
-```
-
-```
-## ========================================
-```
-
-``` r
 cat("Null hypothesis: μ = 120 mmHg\n")
-```
-
-```
-## Null hypothesis: <U+03BC> = 120 mmHg
-```
-
-``` r
 cat("Alternative: μ ≠ 120 mmHg (two-sided)\n\n")
-```
-
-```
-## Alternative: <U+03BC> <U+2260> 120 mmHg (two-sided)
-```
-
-``` r
 cat(sprintf("Sample: n = %d\n", length(bp_sample)))
-```
-
-```
-## Sample: n = 50
-```
-
-``` r
 cat(sprintf("Sample mean: %.2f mmHg\n", mean(bp_sample)))
-```
-
-```
-## Sample mean: 117.56 mmHg
-```
-
-``` r
 cat(sprintf("Sample SD: %.2f mmHg\n", sd(bp_sample)))
 ```
 
 ```
+## Hypothesis Test Example: Blood Pressure
+## ========================================
+## 
+## Null hypothesis: μ = 120 mmHg
+## Alternative: μ ≠ 120 mmHg (two-sided)
+## 
+## Sample: n = 50
+## Sample mean: 117.56 mmHg
 ## Sample SD: 18.64 mmHg
 ```
 
@@ -261,29 +227,9 @@ We define a **significance level** $\alpha$ (commonly 0.05) as our threshold. If
 prop_extreme <- mean(abs(z_scores) > 1.96)
 
 cat("Proportion of simulated z-scores beyond ±1.96:\n")
-```
-
-```
-## Proportion of simulated z-scores beyond <U+00B1>1.96:
-```
-
-``` r
 cat(sprintf("  Observed: %.4f\n", prop_extreme))
-```
-
-```
-##   Observed: 0.0512
-```
-
-``` r
 cat(sprintf("  Expected: %.4f (2.5%% in each tail)\n", 0.05))
-```
 
-```
-##   Expected: 0.0500 (2.5% in each tail)
-```
-
-``` r
 # Visualise with actual observed value
 observed_mean <- 126  # Suppose we observed this
 observed_z <- (observed_mean - true_mu) / (sigma / sqrt(n))
@@ -316,9 +262,15 @@ ggplot2$ggplot(null_dist, ggplot2$aes(x = x, y = y)) +
 ```
 
 <div class="figure">
-<img src="/courses/statistics-1-foundations/rare_events-1.png" alt="Extreme values are rare when H&lt;U+2080&gt; is true" width="100%" />
-<p class="caption">Extreme values are rare when H<U+2080> is true</p>
+<img src="/courses/statistics-1-foundations/rare_events-1.png" alt="Extreme values are rare when H₀ is true" width="100%" />
+<p class="caption">Extreme values are rare when H₀ is true</p>
 </div>
+
+```
+## Proportion of simulated z-scores beyond ±1.96:
+##   Observed: 0.0512
+##   Expected: 0.0500 (2.5% in each tail)
+```
 
 ---
 
@@ -366,78 +318,16 @@ z_stat <- (x_bar - mu_0) / (sigma / sqrt(n))
 p_value <- 2 * pnorm(-abs(z_stat))
 
 cat("Z-Test for a Mean (σ known)\n")
-```
-
-```
-## Z-Test for a Mean (<U+03C3> known)
-```
-
-``` r
 cat("===========================\n\n")
-```
-
-```
-## ===========================
-```
-
-``` r
 cat(sprintf("H₀: μ = %.0f\n", mu_0))
-```
-
-```
-## H<U+2080>: <U+03BC> = 120
-```
-
-``` r
 cat(sprintf("H₁: μ ≠ %.0f (two-sided)\n\n", mu_0))
-```
-
-```
-## H<U+2081>: <U+03BC> <U+2260> 120 (two-sided)
-```
-
-``` r
 cat(sprintf("Sample size: n = %d\n", n))
-```
-
-```
-## Sample size: n = 40
-```
-
-``` r
 cat(sprintf("Sample mean: x̄ = %.2f\n", x_bar))
-```
-
-```
-## Sample mean: x<U+0304> = 120.49
-```
-
-``` r
 cat(sprintf("Known SD: σ = %.2f\n\n", sigma))
-```
-
-```
-## Known SD: <U+03C3> = 15.00
-```
-
-``` r
 cat(sprintf("Test statistic: z = (%.2f - %.0f) / (%.0f/√%d) = %.3f\n",
             x_bar, mu_0, sigma, n, z_stat))
-```
-
-```
-## Test statistic: z = (120.49 - 120) / (15/<U+221A>40) = 0.207
-```
-
-``` r
 cat(sprintf("P-value: %.4f\n\n", p_value))
-```
 
-```
-## P-value: 0.8357
-```
-
-``` r
 if (p_value < 0.05) {
     cat("Decision: Reject H₀ at α = 0.05\n")
     cat("Conclusion: Evidence suggests μ ≠ 120\n")
@@ -448,8 +338,21 @@ if (p_value < 0.05) {
 ```
 
 ```
-## Decision: Fail to reject H<U+2080> at <U+03B1> = 0.05
-## Conclusion: Insufficient evidence that <U+03BC> <U+2260> 120
+## Z-Test for a Mean (σ known)
+## ===========================
+## 
+## H₀: μ = 120
+## H₁: μ ≠ 120 (two-sided)
+## 
+## Sample size: n = 40
+## Sample mean: x̄ = 120.49
+## Known SD: σ = 15.00
+## 
+## Test statistic: z = (120.49 - 120) / (15/√40) = 0.207
+## P-value: 0.8357
+## 
+## Decision: Fail to reject H₀ at α = 0.05
+## Conclusion: Insufficient evidence that μ ≠ 120
 ```
 
 ### 9.3.3 The T-Test for a Mean (σ Unknown)
@@ -471,115 +374,42 @@ df <- n - 1
 p_value_t <- 2 * pt(-abs(t_stat), df = df)
 
 cat("T-Test for a Mean (σ unknown)\n")
-```
-
-```
-## T-Test for a Mean (<U+03C3> unknown)
-```
-
-``` r
 cat("=============================\n\n")
-```
-
-```
-## =============================
-```
-
-``` r
 cat(sprintf("H₀: μ = %.0f\n", mu_0))
-```
-
-```
-## H<U+2080>: <U+03BC> = 120
-```
-
-``` r
 cat(sprintf("H₁: μ ≠ %.0f (two-sided)\n\n", mu_0))
-```
-
-```
-## H<U+2081>: <U+03BC> <U+2260> 120 (two-sided)
-```
-
-``` r
 cat(sprintf("Sample size: n = %d\n", n))
-```
-
-```
-## Sample size: n = 40
-```
-
-``` r
 cat(sprintf("Sample mean: x̄ = %.2f\n", x_bar))
-```
-
-```
-## Sample mean: x<U+0304> = 120.49
-```
-
-``` r
 cat(sprintf("Sample SD: s = %.2f\n\n", s))
-```
-
-```
-## Sample SD: s = 10.66
-```
-
-``` r
 cat(sprintf("Test statistic: t = (%.2f - %.0f) / (%.2f/√%d) = %.3f\n",
             x_bar, mu_0, s, n, t_stat))
-```
-
-```
-## Test statistic: t = (120.49 - 120) / (10.66/<U+221A>40) = 0.292
-```
-
-``` r
 cat(sprintf("Degrees of freedom: df = %d\n", df))
-```
-
-```
-## Degrees of freedom: df = 39
-```
-
-``` r
 cat(sprintf("P-value: %.4f\n\n", p_value_t))
-```
 
-```
-## P-value: 0.7718
-```
-
-``` r
 # Compare z and t critical values
 cat("Comparison of z and t approaches:\n")
-```
-
-```
-## Comparison of z and t approaches:
-```
-
-``` r
 cat(sprintf("  z-statistic: %.3f, p-value: %.4f\n", z_stat, p_value))
-```
-
-```
-##   z-statistic: 0.207, p-value: 0.8357
-```
-
-``` r
 cat(sprintf("  t-statistic: %.3f, p-value: %.4f\n", t_stat, p_value_t))
-```
-
-```
-##   t-statistic: 0.292, p-value: 0.7718
-```
-
-``` r
 cat("\nNote: With n = 40, z and t are similar.\n")
 ```
 
 ```
+## T-Test for a Mean (σ unknown)
+## =============================
+## 
+## H₀: μ = 120
+## H₁: μ ≠ 120 (two-sided)
+## 
+## Sample size: n = 40
+## Sample mean: x̄ = 120.49
+## Sample SD: s = 10.66
+## 
+## Test statistic: t = (120.49 - 120) / (10.66/√40) = 0.292
+## Degrees of freedom: df = 39
+## P-value: 0.7718
+## 
+## Comparison of z and t approaches:
+##   z-statistic: 0.207, p-value: 0.8357
+##   t-statistic: 0.292, p-value: 0.7718
 ## 
 ## Note: With n = 40, z and t are similar.
 ```
@@ -626,39 +456,22 @@ t_test <- function(x, mu_0 = 0, alternative = "two.sided") {
 result <- t_test(sample_data, mu_0 = 120, alternative = "two.sided")
 
 cat("Our t_test() function:\n")
-```
-
-```
-## Our t_test() function:
-```
-
-``` r
 cat(sprintf("  t = %.4f, df = %d, p = %.4f\n",
             result$statistic, result$df, result$p.value))
-```
 
-```
-##   t = 0.2920, df = 39, p = 0.7718
-```
-
-``` r
 # Compare to R's t.test
 builtin <- t.test(sample_data, mu = 120)
 
 cat("\nR's t.test():\n")
-```
-
-```
-## 
-## R's t.test():
-```
-
-``` r
 cat(sprintf("  t = %.4f, df = %d, p = %.4f\n",
             builtin$statistic, builtin$parameter, builtin$p.value))
 ```
 
 ```
+## Our t_test() function:
+##   t = 0.2920, df = 39, p = 0.7718
+## 
+## R's t.test():
 ##   t = 0.2920, df = 39, p = 0.7718
 ```
 
@@ -723,58 +536,23 @@ For the same test statistic, one-sided p-values are half of two-sided p-values (
 z <- 2.0
 
 cat("P-values for z = 2.0\n")
-```
-
-```
-## P-values for z = 2.0
-```
-
-``` r
 cat("====================\n\n")
-```
-
-```
-## ====================
-```
-
-``` r
 cat(sprintf("Two-sided (H₁: μ ≠ μ₀): p = %.4f\n", 2 * pnorm(-abs(z))))
-```
-
-```
-## Two-sided (H<U+2081>: <U+03BC> <U+2260> <U+03BC><U+2080>): p = 0.0455
-```
-
-``` r
 cat(sprintf("One-sided (H₁: μ > μ₀): p = %.4f\n", pnorm(z, lower.tail = FALSE)))
-```
-
-```
-## One-sided (H<U+2081>: <U+03BC> > <U+03BC><U+2080>): p = 0.0228
-```
-
-``` r
 cat(sprintf("One-sided (H₁: μ < μ₀): p = %.4f\n", pnorm(z)))
-```
-
-```
-## One-sided (H<U+2081>: <U+03BC> < <U+03BC><U+2080>): p = 0.9772
-```
-
-``` r
 cat("\nNote: The one-sided p-value is exactly half the two-sided\n")
-```
-
-```
-## 
-## Note: The one-sided p-value is exactly half the two-sided
-```
-
-``` r
 cat("when the direction matches the observed effect.\n")
 ```
 
 ```
+## P-values for z = 2.0
+## ====================
+## 
+## Two-sided (H₁: μ ≠ μ₀): p = 0.0455
+## One-sided (H₁: μ > μ₀): p = 0.0228
+## One-sided (H₁: μ < μ₀): p = 0.9772
+## 
+## Note: The one-sided p-value is exactly half the two-sided
 ## when the direction matches the observed effect.
 ```
 
@@ -813,45 +591,10 @@ critical_values <- data.table(
 )
 
 cat("Critical Values for Common Significance Levels\n")
-```
-
-```
-## Critical Values for Common Significance Levels
-```
-
-``` r
 cat("===============================================\n\n")
-```
-
-```
-## ===============================================
-```
-
-``` r
 cat("Two-sided tests (|statistic| > critical value to reject):\n\n")
-```
-
-```
-## Two-sided tests (|statistic| > critical value to reject):
-```
-
-``` r
 cat(sprintf("%-8s  %-12s  %-12s  %-12s\n", "α", "z*", "t*(df=10)", "t*(df=30)"))
-```
-
-```
-## <U+03B1>  z*            t*(df=10)     t*(df=30)
-```
-
-``` r
 cat(sprintf("%-8s  %-12s  %-12s  %-12s\n", "---", "---", "---", "---"))
-```
-
-```
-## ---       ---           ---           ---
-```
-
-``` r
 for (i in 1:nrow(critical_values)) {
     cat(sprintf("%-8s  %-12.3f  %-12.3f  %-12.3f\n",
                 critical_values$alpha[i],
@@ -862,6 +605,13 @@ for (i in 1:nrow(critical_values)) {
 ```
 
 ```
+## Critical Values for Common Significance Levels
+## ===============================================
+## 
+## Two-sided tests (|statistic| > critical value to reject):
+## 
+## α        z*            t*(df=10)     t*(df=30)   
+## ---       ---           ---           ---         
 ## 0.1       1.645         1.812         1.697       
 ## 0.05      1.960         2.228         2.042       
 ## 0.01      2.576         3.169         2.750       
@@ -883,94 +633,39 @@ p_value <- 2 * pnorm(-abs(z))
 z_crit <- qnorm(1 - alpha / 2)
 
 cat("Equivalence of P-value and Critical Value Approaches\n")
-```
-
-```
-## Equivalence of P-value and Critical Value Approaches
-```
-
-``` r
 cat("====================================================\n\n")
-```
-
-```
-## ====================================================
-```
-
-``` r
 cat(sprintf("Test statistic: z = %.2f\n", z))
-```
-
-```
-## Test statistic: z = 2.30
-```
-
-``` r
 cat(sprintf("Significance level: α = %.2f\n\n", alpha))
-```
 
-```
-## Significance level: <U+03B1> = 0.05
-```
-
-``` r
 cat("P-value approach:\n")
-```
-
-```
-## P-value approach:
-```
-
-``` r
 cat(sprintf("  p-value = %.4f\n", p_value))
-```
-
-```
-##   p-value = 0.0214
-```
-
-``` r
 cat(sprintf("  Since p = %.4f %s %.2f = α, %s H₀\n",
             p_value, ifelse(p_value < alpha, "<", "≥"), alpha,
             ifelse(p_value < alpha, "reject", "fail to reject")))
-```
 
-```
-##   Since p = 0.0214 < 0.05 = <U+03B1>, reject H<U+2080>
-```
-
-``` r
 cat("\nCritical value approach:\n")
-```
-
-```
-## 
-## Critical value approach:
-```
-
-``` r
 cat(sprintf("  z* = %.3f\n", z_crit))
-```
-
-```
-##   z* = 1.960
-```
-
-``` r
 cat(sprintf("  Since |z| = %.2f %s %.3f = z*, %s H₀\n",
             abs(z), ifelse(abs(z) > z_crit, ">", "≤"), z_crit,
             ifelse(abs(z) > z_crit, "reject", "fail to reject")))
-```
 
-```
-##   Since |z| = 2.30 > 1.960 = z*, reject H<U+2080>
-```
-
-``` r
 cat("\nBoth approaches give the same decision.\n")
 ```
 
 ```
+## Equivalence of P-value and Critical Value Approaches
+## ====================================================
+## 
+## Test statistic: z = 2.30
+## Significance level: α = 0.05
+## 
+## P-value approach:
+##   p-value = 0.0214
+##   Since p = 0.0214 < 0.05 = α, reject H₀
+## 
+## Critical value approach:
+##   z* = 1.960
+##   Since |z| = 2.30 > 1.960 = z*, reject H₀
 ## 
 ## Both approaches give the same decision.
 ```
@@ -1020,115 +715,43 @@ small_sample <- rnorm(n_small, mean = 120 + effect_size_large, sd = 15)
 result_small <- t.test(small_sample, mu = 120)
 
 cat("Statistical vs Practical Significance\n")
-```
-
-```
-## Statistical vs Practical Significance
-```
-
-``` r
 cat("=====================================\n\n")
-```
 
-```
-## =====================================
-```
-
-``` r
 cat("Large sample (n = 10,000), tiny effect:\n")
-```
-
-```
-## Large sample (n = 10,000), tiny effect:
-```
-
-``` r
 cat(sprintf("  True effect: %.1f mmHg\n", effect_size))
-```
-
-```
-##   True effect: 0.5 mmHg
-```
-
-``` r
 cat(sprintf("  Sample mean: %.2f mmHg\n", mean(large_sample)))
-```
-
-```
-##   Sample mean: 120.46 mmHg
-```
-
-``` r
 cat(sprintf("  p-value: %.4f\n", result_large$p.value))
-```
-
-```
-##   p-value: 0.0019
-```
-
-``` r
 cat(sprintf("  Result: %s\n\n",
             ifelse(result_large$p.value < 0.05, "Statistically significant", "Not significant")))
-```
 
-```
-##   Result: Statistically significant
-```
-
-``` r
 cat("Small sample (n = 20), larger effect:\n")
-```
-
-```
-## Small sample (n = 20), larger effect:
-```
-
-``` r
 cat(sprintf("  True effect: %.1f mmHg\n", effect_size_large))
-```
-
-```
-##   True effect: 3.0 mmHg
-```
-
-``` r
 cat(sprintf("  Sample mean: %.2f mmHg\n", mean(small_sample)))
-```
-
-```
-##   Sample mean: 123.29 mmHg
-```
-
-``` r
 cat(sprintf("  p-value: %.4f\n", result_small$p.value))
-```
-
-```
-##   p-value: 0.3593
-```
-
-``` r
 cat(sprintf("  Result: %s\n\n",
             ifelse(result_small$p.value < 0.05, "Statistically significant", "Not significant")))
-```
 
-```
-##   Result: Not significant
-```
-
-``` r
 cat("Key insight: With enough data, even trivial effects become\n")
-```
-
-```
-## Key insight: With enough data, even trivial effects become
-```
-
-``` r
 cat("'significant'. Always consider the effect size, not just p-values.\n")
 ```
 
 ```
+## Statistical vs Practical Significance
+## =====================================
+## 
+## Large sample (n = 10,000), tiny effect:
+##   True effect: 0.5 mmHg
+##   Sample mean: 120.46 mmHg
+##   p-value: 0.0019
+##   Result: Statistically significant
+## 
+## Small sample (n = 20), larger effect:
+##   True effect: 3.0 mmHg
+##   Sample mean: 123.29 mmHg
+##   p-value: 0.3593
+##   Result: Not significant
+## 
+## Key insight: With enough data, even trivial effects become
 ## 'significant'. Always consider the effect size, not just p-values.
 ```
 
@@ -1151,56 +774,27 @@ d_large <- (mean(large_sample) - 120) / sd(large_sample)
 d_small <- (mean(small_sample) - 120) / sd(small_sample)
 
 cat("Effect Sizes (Cohen's d)\n")
-```
-
-```
-## Effect Sizes (Cohen's d)
-```
-
-``` r
 cat("========================\n\n")
-```
-
-```
-## ========================
-```
-
-``` r
 cat(sprintf("Large sample: d = %.3f (%s effect)\n", d_large,
             ifelse(abs(d_large) < 0.2, "negligible",
                    ifelse(abs(d_large) < 0.5, "small",
                           ifelse(abs(d_large) < 0.8, "medium", "large")))))
-```
-
-```
-## Large sample: d = 0.031 (negligible effect)
-```
-
-``` r
 cat(sprintf("Small sample: d = %.3f (%s effect)\n", d_small,
             ifelse(abs(d_small) < 0.2, "negligible",
                    ifelse(abs(d_small) < 0.5, "small",
                           ifelse(abs(d_small) < 0.8, "medium", "large")))))
-```
-
-```
-## Small sample: d = 0.210 (small effect)
-```
-
-``` r
 cat("\nThe large sample detected a negligible effect.\n")
-```
-
-```
-## 
-## The large sample detected a negligible effect.
-```
-
-``` r
 cat("The small sample missed a small-medium effect.\n")
 ```
 
 ```
+## Effect Sizes (Cohen's d)
+## ========================
+## 
+## Large sample: d = 0.031 (negligible effect)
+## Small sample: d = 0.210 (small effect)
+## 
+## The large sample detected a negligible effect.
 ## The small sample missed a small-medium effect.
 ```
 

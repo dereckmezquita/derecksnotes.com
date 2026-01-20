@@ -33,6 +33,9 @@ box::use(
 nhanes <- fread("../../../data/primary/nhanes.csv")
 
 cat("NHANES dataset:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
+```
+
+```
 #> NHANES dataset: 10000 observations, 76 variables
 ```
 
@@ -166,12 +169,14 @@ ggplot2$ggplot(belief_dt, ggplot2$aes(x = stage, y = probability, fill = stage))
 </Figure>
 
 ``` r
-
 cat("Prior P(disease):", prior_disease, "\n")
-#> Prior P(disease): 0.01
 cat("P(positive test):", round(p_positive, 4), "\n")
-#> P(positive test): 0.0585
 cat("Posterior P(disease | positive test):", round(posterior_disease, 4), "\n")
+```
+
+```
+#> Prior P(disease): 0.01 
+#> P(positive test): 0.0585 
 #> Posterior P(disease | positive test): 0.1538
 ```
 
@@ -205,21 +210,15 @@ frequencies <- c(0.42, 0.10, 0.04, 0.44)
 
 # Verify axioms
 cat("Verifying Kolmogorov's Axioms:\n\n")
-#> Verifying Kolmogorov's Axioms:
 
 # Axiom 1: Non-negativity
 cat("Axiom 1 (Non-negativity): All P(event) >= 0?\n")
-#> Axiom 1 (Non-negativity): All P(event) >= 0?
 cat("  Probabilities:", frequencies, "\n")
-#>   Probabilities: 0.42 0.1 0.04 0.44
 cat("  All non-negative?", all(frequencies >= 0), "\n\n")
-#>   All non-negative? TRUE
 
 # Axiom 2: Normalisation
 cat("Axiom 2 (Normalisation): P(S) = 1?\n")
-#> Axiom 2 (Normalisation): P(S) = 1?
 cat("  Sum of all probabilities:", sum(frequencies), "\n\n")
-#>   Sum of all probabilities: 1
 
 # Axiom 3: Additivity (for disjoint events)
 # P(A or B) = P(A) + P(B) for disjoint events
@@ -228,13 +227,9 @@ p_B <- frequencies[2]
 p_A_or_B <- p_A + p_B  # A and B are disjoint (can't have both blood types)
 
 cat("Axiom 3 (Additivity): P(A or B) = P(A) + P(B) for disjoint events?\n")
-#> Axiom 3 (Additivity): P(A or B) = P(A) + P(B) for disjoint events?
 cat("  P(type A):", p_A, "\n")
-#>   P(type A): 0.42
 cat("  P(type B):", p_B, "\n")
-#>   P(type B): 0.1
 cat("  P(type A or B):", p_A_or_B, "\n")
-#>   P(type A or B): 0.52
 
 # Visualise
 blood_dt <- data.table(
@@ -261,6 +256,22 @@ ggplot2$ggplot(blood_dt, ggplot2$aes(x = type, y = probability, fill = type)) +
 <Figure src="/courses/statistics-1-foundations/axiom_demonstration-1.png" alt="The axioms constrain probability to the [0, 1] interval">
 	The axioms constrain probability to the [0, 1] interval
 </Figure>
+
+```
+#> Verifying Kolmogorov's Axioms:
+#> 
+#> Axiom 1 (Non-negativity): All P(event) >= 0?
+#>   Probabilities: 0.42 0.1 0.04 0.44 
+#>   All non-negative? TRUE 
+#> 
+#> Axiom 2 (Normalisation): P(S) = 1?
+#>   Sum of all probabilities: 1 
+#> 
+#> Axiom 3 (Additivity): P(A or B) = P(A) + P(B) for disjoint events?
+#>   P(type A): 0.42 
+#>   P(type B): 0.1 
+#>   P(type A or B): 0.52
+```
 
 ### 4.1.4 Why Probability Matters for Statistics
 
@@ -326,14 +337,16 @@ ggplot2$ggplot(sample_dt, ggplot2$aes(x = mean)) +
 </Figure>
 
 ``` r
-
 cat("Population mean BMI:", round(pop_mean, 2), "\n")
-#> Population mean BMI: 26.66
 cat("Mean of sample means:", round(mean(sample_means), 2), "\n")
-#> Mean of sample means: 26.71
 cat("SE of sample means:", round(sd(sample_means), 2), "\n")
-#> SE of sample means: 1.06
 cat("Theoretical SE:", round(pop_sd / sqrt(sample_size), 2), "\n")
+```
+
+```
+#> Population mean BMI: 26.66 
+#> Mean of sample means: 26.71 
+#> SE of sample means: 1.06 
 #> Theoretical SE: 1.04
 ```
 
@@ -464,23 +477,14 @@ n_either <- sum(patients$has_diabetes | patients$has_hypertension)
 n_neither <- sum(!patients$has_diabetes & !patients$has_hypertension)
 
 cat("Set Operations on Medical Events\n")
-#> Set Operations on Medical Events
 cat("================================\n\n")
-#> ================================
 cat("Sample space S: All", n_patients, "patients\n\n")
-#> Sample space S: All 500 patients
 cat("Event A (Diabetes):", n_diabetes, "patients, P(A) =", round(n_diabetes/n_patients, 3), "\n")
-#> Event A (Diabetes): 148 patients, P(A) = 0.296
 cat("Event B (Hypertension):", n_hypertension, "patients, P(B) =", round(n_hypertension/n_patients, 3), "\n\n")
-#> Event B (Hypertension): 190 patients, P(B) = 0.38
 cat("A ∩ B (Both):", n_both, "patients, P(A ∩ B) =", round(n_both/n_patients, 3), "\n")
-#> A <U+2229> B (Both): 48 patients, P(A <U+2229> B) = 0.096
 cat("A ∪ B (Either):", n_either, "patients, P(A ∪ B) =", round(n_either/n_patients, 3), "\n")
-#> A <U+222A> B (Either): 290 patients, P(A <U+222A> B) = 0.58
 cat("A' (No diabetes):", n_patients - n_diabetes, "patients, P(A') =", round((n_patients - n_diabetes)/n_patients, 3), "\n")
-#> A' (No diabetes): 352 patients, P(A') = 0.704
 cat("(A ∪ B)' (Neither):", n_neither, "patients, P(neither) =", round(n_neither/n_patients, 3), "\n")
-#> (A <U+222A> B)' (Neither): 210 patients, P(neither) = 0.42
 
 # Create contingency table visualisation
 contingency <- patients[, .(count = .N), by = .(has_diabetes, has_hypertension)]
@@ -505,6 +509,21 @@ ggplot2$ggplot(contingency, ggplot2$aes(x = diabetes, y = hypertension, fill = c
 <Figure src="/courses/statistics-1-foundations/set_operations-1.png" alt="Set operations on events visualised with Venn diagrams">
 	Set operations on events visualised with Venn diagrams
 </Figure>
+
+```
+#> Set Operations on Medical Events
+#> ================================
+#> 
+#> Sample space S: All 500 patients
+#> 
+#> Event A (Diabetes): 148 patients, P(A) = 0.296 
+#> Event B (Hypertension): 190 patients, P(B) = 0.38 
+#> 
+#> A ∩ B (Both): 48 patients, P(A ∩ B) = 0.096 
+#> A ∪ B (Either): 290 patients, P(A ∪ B) = 0.58 
+#> A' (No diabetes): 352 patients, P(A') = 0.704 
+#> (A ∪ B)' (Neither): 210 patients, P(neither) = 0.42
+```
 
 ### 4.2.3 Simple and Compound Events
 
@@ -541,28 +560,18 @@ odd_event <- c(1, 3, 5)  # Rolling an odd number
 greater_than_4 <- c(5, 6)  # Rolling greater than 4
 
 cat("Sample space S:", paste(S, collapse = ", "), "\n\n")
-#> Sample space S: 1, 2, 3, 4, 5, 6
 
 cat("Simple event (roll a 3):\n")
-#> Simple event (roll a 3):
 cat("  Outcomes: {3}\n")
-#>   Outcomes: {3}
 cat("  P(roll 3) = 1/6 =", round(1/6, 4), "\n\n")
-#>   P(roll 3) = 1/6 = 0.1667
 
 cat("Compound event (roll odd):\n")
-#> Compound event (roll odd):
 cat("  Outcomes: {1, 3, 5}\n")
-#>   Outcomes: {1, 3, 5}
 cat("  P(odd) = 3/6 =", round(3/6, 4), "\n\n")
-#>   P(odd) = 3/6 = 0.5
 
 cat("Compound event (roll > 4):\n")
-#> Compound event (roll > 4):
 cat("  Outcomes: {5, 6}\n")
-#>   Outcomes: {5, 6}
 cat("  P(>4) = 2/6 =", round(2/6, 4), "\n")
-#>   P(>4) = 2/6 = 0.3333
 
 # Simulate to verify
 set.seed(42)
@@ -570,13 +579,29 @@ n_rolls <- 10000
 rolls <- sample(S, n_rolls, replace = TRUE)
 
 cat("\nSimulation verification (", n_rolls, " rolls):\n", sep = "")
+cat("  Proportion of 3s:", mean(rolls == 3), "\n")
+cat("  Proportion odd:", mean(rolls %% 2 == 1), "\n")
+cat("  Proportion > 4:", mean(rolls > 4), "\n")
+```
+
+```
+#> Sample space S: 1, 2, 3, 4, 5, 6 
+#> 
+#> Simple event (roll a 3):
+#>   Outcomes: {3}
+#>   P(roll 3) = 1/6 = 0.1667 
+#> 
+#> Compound event (roll odd):
+#>   Outcomes: {1, 3, 5}
+#>   P(odd) = 3/6 = 0.5 
+#> 
+#> Compound event (roll > 4):
+#>   Outcomes: {5, 6}
+#>   P(>4) = 2/6 = 0.3333 
 #> 
 #> Simulation verification (10000 rolls):
-cat("  Proportion of 3s:", mean(rolls == 3), "\n")
-#>   Proportion of 3s: 0.1667
-cat("  Proportion odd:", mean(rolls %% 2 == 1), "\n")
-#>   Proportion odd: 0.5031
-cat("  Proportion > 4:", mean(rolls > 4), "\n")
+#>   Proportion of 3s: 0.1667 
+#>   Proportion odd: 0.5031 
 #>   Proportion > 4: 0.3242
 ```
 
@@ -693,7 +718,6 @@ ggplot2$ggplot() +
 </Figure>
 
 ``` r
-
 # Verify by simulation
 set.seed(42)
 n_sims <- 10000
@@ -702,15 +726,18 @@ flip2 <- sample(c("H", "T"), n_sims, replace = TRUE)
 outcomes <- paste0(flip1, flip2)
 
 cat("\nTwo-coin flip simulation (", n_sims, " trials):\n", sep = "")
+cat("P(HH):", mean(outcomes == "HH"), "(theoretical: 0.25)\n")
+cat("P(HT):", mean(outcomes == "HT"), "(theoretical: 0.25)\n")
+cat("P(TH):", mean(outcomes == "TH"), "(theoretical: 0.25)\n")
+cat("P(TT):", mean(outcomes == "TT"), "(theoretical: 0.25)\n")
+```
+
+```
 #> 
 #> Two-coin flip simulation (10000 trials):
-cat("P(HH):", mean(outcomes == "HH"), "(theoretical: 0.25)\n")
 #> P(HH): 0.2578 (theoretical: 0.25)
-cat("P(HT):", mean(outcomes == "HT"), "(theoretical: 0.25)\n")
 #> P(HT): 0.2438 (theoretical: 0.25)
-cat("P(TH):", mean(outcomes == "TH"), "(theoretical: 0.25)\n")
 #> P(TH): 0.2457 (theoretical: 0.25)
-cat("P(TT):", mean(outcomes == "TT"), "(theoretical: 0.25)\n")
 #> P(TT): 0.2527 (theoretical: 0.25)
 ```
 
@@ -755,42 +782,49 @@ n_prediabetic <- sum(diabetes_status$Diabetes == "Pre")
 n_nondiabetic <- sum(diabetes_status$Diabetes == "No")
 
 cat("Derived Properties from Kolmogorov's Axioms\n")
-#> Derived Properties from Kolmogorov's Axioms
 cat("==========================================\n\n")
-#> ==========================================
 
 cat("Sample space S: All", n_total, "participants with diabetes data\n\n")
-#> Sample space S: All 10000 participants with diabetes data
 
 # Property 1: P(empty set) = 0
 cat("1. P(∅) = 0: The probability of an impossible event is zero\n")
-#> 1. P(<U+2205>) = 0: The probability of an impossible event is zero
 cat("   Example: P(person has both diabetes AND no diabetes) = 0\n\n")
-#>    Example: P(person has both diabetes AND no diabetes) = 0
 
 # Property 2: Probabilities bounded
 cat("2. 0 ≤ P(A) ≤ 1: All probabilities are between 0 and 1\n")
-#> 2. 0 <U+2264> P(A) <U+2264> 1: All probabilities are between 0 and 1
 cat("   P(Diabetic) =", round(n_diabetic/n_total, 4), "\n")
-#>    P(Diabetic) = 0.076
 cat("   P(Pre-diabetic) =", round(n_prediabetic/n_total, 4), "\n")
-#>    P(Pre-diabetic) = 0
 cat("   P(Non-diabetic) =", round(n_nondiabetic/n_total, 4), "\n")
-#>    P(Non-diabetic) = 0.9098
 cat("   Sum:", round((n_diabetic + n_prediabetic + n_nondiabetic)/n_total, 4), "\n\n")
-#>    Sum: 0.9858
 
 # Property 3: Monotonicity
 cat("3. Monotonicity: If A ⊆ B, then P(A) ≤ P(B)\n")
-#> 3. Monotonicity: If A <U+2286> B, then P(A) <U+2264> P(B)
 cat("   Let A = 'Diabetic', B = 'Diabetic or Pre-diabetic'\n")
-#>    Let A = 'Diabetic', B = 'Diabetic or Pre-diabetic'
 cat("   P(A) =", round(n_diabetic/n_total, 4), "\n")
-#>    P(A) = 0.076
 cat("   P(B) =", round((n_diabetic + n_prediabetic)/n_total, 4), "\n")
-#>    P(B) = 0.076
 cat("   P(A) ≤ P(B)?", n_diabetic/n_total <= (n_diabetic + n_prediabetic)/n_total, "\n")
-#>    P(A) <U+2264> P(B)? TRUE
+```
+
+```
+#> Derived Properties from Kolmogorov's Axioms
+#> ==========================================
+#> 
+#> Sample space S: All 10000 participants with diabetes data
+#> 
+#> 1. P(∅) = 0: The probability of an impossible event is zero
+#>    Example: P(person has both diabetes AND no diabetes) = 0
+#> 
+#> 2. 0 ≤ P(A) ≤ 1: All probabilities are between 0 and 1
+#>    P(Diabetic) = 0.076 
+#>    P(Pre-diabetic) = 0 
+#>    P(Non-diabetic) = 0.9098 
+#>    Sum: 0.9858 
+#> 
+#> 3. Monotonicity: If A ⊆ B, then P(A) ≤ P(B)
+#>    Let A = 'Diabetic', B = 'Diabetic or Pre-diabetic'
+#>    P(A) = 0.076 
+#>    P(B) = 0.076 
+#>    P(A) ≤ P(B)? TRUE
 ```
 
 ### 4.3.2 The Complement Rule
@@ -829,29 +863,19 @@ p_none <- (1 - p_adverse)^n_patients
 p_at_least_one <- 1 - p_none
 
 cat("The Complement Rule: A Practical Example\n")
-#> The Complement Rule: A Practical Example
 cat("========================================\n\n")
-#> ========================================
 
 cat("Problem: 5 patients, each with 10% chance of adverse event.\n")
-#> Problem: 5 patients, each with 10% chance of adverse event.
 cat("Question: What is P(at least one adverse event)?\n\n")
-#> Question: What is P(at least one adverse event)?
 
 cat("Method 1 (Direct): Sum P(exactly k) for k = 1, 2, ..., 5\n")
-#> Method 1 (Direct): Sum P(exactly k) for k = 1, 2, ..., 5
 cat("  P(at least one) =", round(p_direct, 4), "\n\n")
-#>   P(at least one) = 0.4095
 
 cat("Method 2 (Complement): 1 - P(none)\n")
-#> Method 2 (Complement): 1 - P(none)
 cat("  P(none) = (0.9)^5 =", round(p_none, 4), "\n")
-#>   P(none) = (0.9)^5 = 0.5905
 cat("  P(at least one) = 1 -", round(p_none, 4), "=", round(p_at_least_one, 4), "\n\n")
-#>   P(at least one) = 1 - 0.5905 = 0.4095
 
 cat("The complement approach is much simpler!\n")
-#> The complement approach is much simpler!
 
 # Visualise
 probs <- data.table(
@@ -878,6 +902,23 @@ ggplot2$ggplot(probs, ggplot2$aes(x = "", y = probability, fill = event)) +
 <Figure src="/courses/statistics-1-foundations/complement_rule-1.png" alt="The complement rule: P(A) + P(A&#39;) = 1">
 	The complement rule: P(A) + P(A') = 1
 </Figure>
+
+```
+#> The Complement Rule: A Practical Example
+#> ========================================
+#> 
+#> Problem: 5 patients, each with 10% chance of adverse event.
+#> Question: What is P(at least one adverse event)?
+#> 
+#> Method 1 (Direct): Sum P(exactly k) for k = 1, 2, ..., 5
+#>   P(at least one) = 0.4095 
+#> 
+#> Method 2 (Complement): 1 - P(none)
+#>   P(none) = (0.9)^5 = 0.5905 
+#>   P(at least one) = 1 - 0.5905 = 0.4095 
+#> 
+#> The complement approach is much simpler!
+```
 
 ### 4.3.3 The Addition Rule
 
@@ -941,34 +982,21 @@ P_A_or_B_rule <- P_A + P_B - P_A_and_B
 P_wrong <- P_A + P_B
 
 cat("The Addition Rule: Medical Risk Factors\n")
-#> The Addition Rule: Medical Risk Factors
 cat("=======================================\n\n")
-#> =======================================
 
 cat("Events:\n")
-#> Events:
 cat("  A = Hypertension (BP ≥ 140 mmHg)\n")
-#>   A = Hypertension (BP <U+2265> 140 mmHg)
 cat("  B = Obesity (BMI ≥ 30)\n\n")
-#>   B = Obesity (BMI <U+2265> 30)
 
 cat("Probabilities:\n")
-#> Probabilities:
 cat("  P(A) =", round(P_A, 4), "(", n_A, "of", n_total, ")\n")
-#>   P(A) = 0.1276 ( 919 of 7205 )
 cat("  P(B) =", round(P_B, 4), "(", n_B, "of", n_total, ")\n")
-#>   P(B) = 0.3535 ( 2547 of 7205 )
 cat("  P(A ∩ B) =", round(P_A_and_B, 4), "(", n_both, "of", n_total, ")\n\n")
-#>   P(A <U+2229> B) = 0.0509 ( 367 of 7205 )
 
 cat("P(A ∪ B) — Probability of either risk factor:\n")
-#> P(A <U+222A> B) <U+2014> Probability of either risk factor:
 cat("  Wrong (simple sum): P(A) + P(B) =", round(P_wrong, 4), "\n")
-#>   Wrong (simple sum): P(A) + P(B) = 0.4811
 cat("  Correct (addition rule): P(A) + P(B) - P(A ∩ B) =", round(P_A_or_B_rule, 4), "\n")
-#>   Correct (addition rule): P(A) + P(B) - P(A <U+2229> B) = 0.4301
 cat("  Actual from data:", round(P_A_or_B_actual, 4), "\n")
-#>   Actual from data: 0.4301
 
 # Visualise the overcounting
 components <- data.table(
@@ -1001,6 +1029,25 @@ ggplot2$ggplot(components, ggplot2$aes(x = component, y = probability, fill = gr
 	The addition rule corrects for double-counting the intersection
 </Figure>
 
+```
+#> The Addition Rule: Medical Risk Factors
+#> =======================================
+#> 
+#> Events:
+#>   A = Hypertension (BP ≥ 140 mmHg)
+#>   B = Obesity (BMI ≥ 30)
+#> 
+#> Probabilities:
+#>   P(A) = 0.1276 ( 919 of 7205 )
+#>   P(B) = 0.3535 ( 2547 of 7205 )
+#>   P(A ∩ B) = 0.0509 ( 367 of 7205 )
+#> 
+#> P(A ∪ B) — Probability of either risk factor:
+#>   Wrong (simple sum): P(A) + P(B) = 0.4811 
+#>   Correct (addition rule): P(A) + P(B) - P(A ∩ B) = 0.4301 
+#>   Actual from data: 0.4301
+```
+
 ### 4.3.4 Implementing Probability in R
 
 **Core R Functions for Probability**
@@ -1026,15 +1073,10 @@ S <- 1:6
 A <- c(2, 4, 6)  # Even numbers
 
 cat("Classical Probability\n")
-#> Classical Probability
 cat("====================\n")
-#> ====================
 cat("S = {1, 2, 3, 4, 5, 6}\n")
-#> S = {1, 2, 3, 4, 5, 6}
 cat("A = {2, 4, 6} (even numbers)\n")
-#> A = {2, 4, 6} (even numbers)
 cat("P(A) =", classical_prob(A, S), "\n\n")
-#> P(A) = 0.5
 
 # ============================================================
 # 2. Complement
@@ -1045,13 +1087,9 @@ prob_complement <- function(p_A) {
 }
 
 cat("Complement Rule\n")
-#> Complement Rule
 cat("==============\n")
-#> ==============
 cat("P(A) =", 0.3, "\n")
-#> P(A) = 0.3
 cat("P(A') = 1 - P(A) =", prob_complement(0.3), "\n\n")
-#> P(A') = 1 - P(A) = 0.7
 
 # ============================================================
 # 3. Union (addition rule)
@@ -1062,19 +1100,13 @@ prob_union <- function(p_A, p_B, p_A_and_B = 0) {
 }
 
 cat("Addition Rule\n")
-#> Addition Rule
 cat("=============\n")
-#> =============
 cat("P(A) = 0.4, P(B) = 0.5, P(A ∩ B) = 0.2\n")
-#> P(A) = 0.4, P(B) = 0.5, P(A <U+2229> B) = 0.2
 cat("P(A ∪ B) =", prob_union(0.4, 0.5, 0.2), "\n\n")
-#> P(A <U+222A> B) = 0.7
 
 # For mutually exclusive events
 cat("If A and B are mutually exclusive (P(A ∩ B) = 0):\n")
-#> If A and B are mutually exclusive (P(A <U+2229> B) = 0):
 cat("P(A ∪ B) =", prob_union(0.4, 0.5, 0), "\n\n")
-#> P(A <U+222A> B) = 0.9
 
 # ============================================================
 # 4. Simulation-based probability estimation
@@ -1110,14 +1142,36 @@ p_sum_7_sim <- estimate_prob(roll_two_dice, sum_is_seven, n_trials = 10000, seed
 p_sum_7_theory <- 6/36
 
 cat("Simulation-Based Probability\n")
-#> Simulation-Based Probability
 cat("============================\n")
-#> ============================
 cat("Event: Sum of two dice equals 7\n")
-#> Event: Sum of two dice equals 7
 cat("Theoretical P(sum = 7) = 6/36 =", round(p_sum_7_theory, 4), "\n")
-#> Theoretical P(sum = 7) = 6/36 = 0.1667
 cat("Simulated P(sum = 7) =", p_sum_7_sim, "\n")
+```
+
+```
+#> Classical Probability
+#> ====================
+#> S = {1, 2, 3, 4, 5, 6}
+#> A = {2, 4, 6} (even numbers)
+#> P(A) = 0.5 
+#> 
+#> Complement Rule
+#> ==============
+#> P(A) = 0.3 
+#> P(A') = 1 - P(A) = 0.7 
+#> 
+#> Addition Rule
+#> =============
+#> P(A) = 0.4, P(B) = 0.5, P(A ∩ B) = 0.2
+#> P(A ∪ B) = 0.7 
+#> 
+#> If A and B are mutually exclusive (P(A ∩ B) = 0):
+#> P(A ∪ B) = 0.9 
+#> 
+#> Simulation-Based Probability
+#> ============================
+#> Event: Sum of two dice equals 7
+#> Theoretical P(sum = 7) = 6/36 = 0.1667 
 #> Simulated P(sum = 7) = 0.1565
 ```
 
@@ -1139,45 +1193,20 @@ total_n <- sum(prob_table$count)
 prob_table[, probability := count / total_n]
 
 cat("Joint Probability Table\n")
-#> Joint Probability Table
 cat("=======================\n")
-#> =======================
 print(prob_table)
-#>    Gender Diabetes count probability
-#>    <char>   <char> <int>       <num>
-#> 1:   male       No  4506      0.4506
-#> 2: female       No  4592      0.4592
-#> 3:   male      Yes   403      0.0403
-#> 4: female      Yes   357      0.0357
-#> 5: female             71      0.0071
-#> 6:   male             71      0.0071
 
 cat("\nMarginal Probabilities:\n")
-#> 
-#> Marginal Probabilities:
 
 # P(Gender)
 gender_probs <- prob_table[, .(prob = sum(probability)), by = Gender]
 cat("\nP(Gender):\n")
-#> 
-#> P(Gender):
 print(gender_probs)
-#>    Gender  prob
-#>    <char> <num>
-#> 1:   male 0.498
-#> 2: female 0.502
 
 # P(Diabetes)
 diabetes_probs <- prob_table[, .(prob = sum(probability)), by = Diabetes]
 cat("\nP(Diabetes):\n")
-#> 
-#> P(Diabetes):
 print(diabetes_probs)
-#>    Diabetes   prob
-#>      <char>  <num>
-#> 1:       No 0.9098
-#> 2:      Yes 0.0760
-#> 3:          0.0142
 
 # Verify addition rule
 # P(Female OR Diabetic)
@@ -1187,21 +1216,49 @@ P_female_and_diabetic <- prob_table[Gender == "female" & Diabetes == "Yes", prob
 P_female_or_diabetic <- P_female + P_diabetic - P_female_and_diabetic
 
 cat("\nAddition Rule Verification:\n")
-#> 
-#> Addition Rule Verification:
 cat("P(Female) =", round(P_female, 4), "\n")
-#> P(Female) = 0.502
 cat("P(Diabetic) =", round(P_diabetic, 4), "\n")
-#> P(Diabetic) = 0.076
 cat("P(Female ∩ Diabetic) =", round(P_female_and_diabetic, 4), "\n")
-#> P(Female <U+2229> Diabetic) = 0.0357
 cat("P(Female ∪ Diabetic) = P(F) + P(D) - P(F ∩ D) =", round(P_female_or_diabetic, 4), "\n")
-#> P(Female <U+222A> Diabetic) = P(F) + P(D) - P(F <U+2229> D) = 0.5423
 
 # Verify empirically
 actual <- nhanes[!is.na(Gender) & !is.na(Diabetes),
                  mean(Gender == "female" | Diabetes == "Yes")]
 cat("Actual from data:", round(actual, 4), "\n")
+```
+
+```
+#> Joint Probability Table
+#> =======================
+#>    Gender Diabetes count probability
+#>    <char>   <char> <int>       <num>
+#> 1:   male       No  4506      0.4506
+#> 2: female       No  4592      0.4592
+#> 3:   male      Yes   403      0.0403
+#> 4: female      Yes   357      0.0357
+#> 5: female             71      0.0071
+#> 6:   male             71      0.0071
+#> 
+#> Marginal Probabilities:
+#> 
+#> P(Gender):
+#>    Gender  prob
+#>    <char> <num>
+#> 1:   male 0.498
+#> 2: female 0.502
+#> 
+#> P(Diabetes):
+#>    Diabetes   prob
+#>      <char>  <num>
+#> 1:       No 0.9098
+#> 2:      Yes 0.0760
+#> 3:          0.0142
+#> 
+#> Addition Rule Verification:
+#> P(Female) = 0.502 
+#> P(Diabetic) = 0.076 
+#> P(Female ∩ Diabetic) = 0.0357 
+#> P(Female ∪ Diabetic) = P(F) + P(D) - P(F ∩ D) = 0.5423 
 #> Actual from data: 0.5423
 ```
 
@@ -1216,44 +1273,51 @@ When explaining probability concepts to collaborators, clinicians, or patients:
 
 ``` r
 cat("Common Probability Misconceptions to Address\n")
-#> Common Probability Misconceptions to Address
 cat("=============================================\n\n")
-#> =============================================
 
 cat("1. THE GAMBLER'S FALLACY\n")
-#> 1. THE GAMBLER'S FALLACY
 cat("   Wrong: 'After 5 heads, tails is due'\n")
-#>    Wrong: 'After 5 heads, tails is due'
 cat("   Right: 'Each flip is independent; past results don't affect future'\n")
-#>    Right: 'Each flip is independent; past results don't affect future'
 cat("   Key: Previous outcomes don't change future probabilities\n\n")
-#>    Key: Previous outcomes don't change future probabilities
 
 cat("2. CONFUSING P(A|B) WITH P(B|A)\n")
-#> 2. CONFUSING P(A|B) WITH P(B|A)
 cat("   Wrong: 'P(disease|positive test) = P(positive test|disease)'\n")
-#>    Wrong: 'P(disease|positive test) = P(positive test|disease)'
 cat("   Right: 'These are different; P(disease|+) depends on prevalence'\n")
-#>    Right: 'These are different; P(disease|+) depends on prevalence'
 cat("   Key: Use Bayes' theorem to convert between them\n\n")
-#>    Key: Use Bayes' theorem to convert between them
 
 cat("3. BASE RATE NEGLECT\n")
-#> 3. BASE RATE NEGLECT
 cat("   Wrong: 'A 95% accurate test means 95% chance of disease if positive'\n")
-#>    Wrong: 'A 95% accurate test means 95% chance of disease if positive'
 cat("   Right: 'Must consider how rare the disease is in the population'\n")
-#>    Right: 'Must consider how rare the disease is in the population'
 cat("   Key: Rare conditions have many false positives even with good tests\n\n")
-#>    Key: Rare conditions have many false positives even with good tests
 
 cat("4. INTERPRETING 'PROBABILITY' IN EVERYDAY LANGUAGE\n")
-#> 4. INTERPRETING 'PROBABILITY' IN EVERYDAY LANGUAGE
 cat("   What patients hear: 'There's a 30% chance of this side effect'\n")
-#>    What patients hear: 'There's a 30% chance of this side effect'
 cat("   What they might think: 'If I take this, I'll be 30% sick'\n")
-#>    What they might think: 'If I take this, I'll be 30% sick'
 cat("   Better explanation: 'Of 100 patients like you, about 30 experience this'\n")
+```
+
+```
+#> Common Probability Misconceptions to Address
+#> =============================================
+#> 
+#> 1. THE GAMBLER'S FALLACY
+#>    Wrong: 'After 5 heads, tails is due'
+#>    Right: 'Each flip is independent; past results don't affect future'
+#>    Key: Previous outcomes don't change future probabilities
+#> 
+#> 2. CONFUSING P(A|B) WITH P(B|A)
+#>    Wrong: 'P(disease|positive test) = P(positive test|disease)'
+#>    Right: 'These are different; P(disease|+) depends on prevalence'
+#>    Key: Use Bayes' theorem to convert between them
+#> 
+#> 3. BASE RATE NEGLECT
+#>    Wrong: 'A 95% accurate test means 95% chance of disease if positive'
+#>    Right: 'Must consider how rare the disease is in the population'
+#>    Key: Rare conditions have many false positives even with good tests
+#> 
+#> 4. INTERPRETING 'PROBABILITY' IN EVERYDAY LANGUAGE
+#>    What patients hear: 'There's a 30% chance of this side effect'
+#>    What they might think: 'If I take this, I'll be 30% sick'
 #>    Better explanation: 'Of 100 patients like you, about 30 experience this'
 ```
 
@@ -1293,32 +1357,19 @@ total_positives <- true_positives + false_positives  # 585
 ppv <- true_positives / total_positives
 
 cat("Natural Frequency Explanation of Screening\n")
-#> Natural Frequency Explanation of Screening
 cat("==========================================\n\n")
-#> ==========================================
 
 cat("Imagine we test 10,000 people:\n\n")
-#> Imagine we test 10,000 people:
 cat("• 100 have the disease, 9,900 don't\n\n")
-#> <U+2022> 100 have the disease, 9,900 don't
 cat("Among the 100 WITH disease:\n")
-#> Among the 100 WITH disease:
 cat("  - 90 test positive (correctly detected)\n")
-#>   - 90 test positive (correctly detected)
 cat("  - 10 test negative (missed)\n\n")
-#>   - 10 test negative (missed)
 cat("Among the 9,900 WITHOUT disease:\n")
-#> Among the 9,900 WITHOUT disease:
 cat("  - 495 test positive (false alarms)\n")
-#>   - 495 test positive (false alarms)
 cat("  - 9,405 test negative (correctly cleared)\n\n")
-#>   - 9,405 test negative (correctly cleared)
 cat("Total testing positive: 90 + 495 =", total_positives, "\n")
-#> Total testing positive: 90 + 495 = 585
 cat("Of these, truly have disease: 90\n")
-#> Of these, truly have disease: 90
 cat("Probability disease if positive:", round(90/total_positives, 3), "(or about 1 in 6)\n")
-#> Probability disease if positive: 0.154 (or about 1 in 6)
 
 # Visualise as icon array
 test_outcomes <- data.table(
@@ -1350,6 +1401,27 @@ ggplot2$ggplot(test_outcomes, ggplot2$aes(x = reorder(group, -count), y = count,
 <Figure src="/courses/statistics-1-foundations/natural_frequencies-1.png" alt="Natural frequencies are easier to understand than probabilities">
 	Natural frequencies are easier to understand than probabilities
 </Figure>
+
+```
+#> Natural Frequency Explanation of Screening
+#> ==========================================
+#> 
+#> Imagine we test 10,000 people:
+#> 
+#> • 100 have the disease, 9,900 don't
+#> 
+#> Among the 100 WITH disease:
+#>   - 90 test positive (correctly detected)
+#>   - 10 test negative (missed)
+#> 
+#> Among the 9,900 WITHOUT disease:
+#>   - 495 test positive (false alarms)
+#>   - 9,405 test negative (correctly cleared)
+#> 
+#> Total testing positive: 90 + 495 = 585 
+#> Of these, truly have disease: 90
+#> Probability disease if positive: 0.154 (or about 1 in 6)
+```
 
 ---
 

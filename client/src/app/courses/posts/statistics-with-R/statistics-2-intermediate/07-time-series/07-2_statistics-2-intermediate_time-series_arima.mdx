@@ -35,12 +35,15 @@ influenza <- fread("../../../data/time-series/influenza_germany_weekly.csv")
 hospital <- fread("../../../data/time-series/hospital_admissions_monthly.csv")
 
 cat("Datasets loaded:\n")
-#> Datasets loaded:
 cat("  US accidental deaths:", nrow(deaths), "observations\n")
-#>   US accidental deaths: 72 observations
 cat("  Influenza Germany:", nrow(influenza), "observations\n")
-#>   Influenza Germany: 416 observations
 cat("  Hospital admissions:", nrow(hospital), "observations\n")
+```
+
+```
+#> Datasets loaded:
+#>   US accidental deaths: 72 observations
+#>   Influenza Germany: 416 observations
 #>   Hospital admissions: 120 observations
 ```
 
@@ -139,34 +142,45 @@ The **KPSS test** reverses the hypotheses—null is stationarity.
 ``` r
 # Test the series we created
 adf_stationary <- tseries::adf.test(stationary)
+```
+
+```
 #> Registered S3 method overwritten by 'quantmod':
 #>   method            from
 #>   as.zoo.data.frame zoo
+```
+
+``` r
 adf_random_walk <- tseries::adf.test(random_walk)
 kpss_stationary <- tseries::kpss.test(stationary)
 kpss_random_walk <- tseries::kpss.test(random_walk)
 
 cat("Stationarity Tests:\n")
-#> Stationarity Tests:
 cat("===================\n\n")
-#> ===================
 
 cat("Stationary AR(1) Process:\n")
-#> Stationary AR(1) Process:
 cat("  ADF test: p-value =", round(adf_stationary$p.value, 4),
     ifelse(adf_stationary$p.value < 0.05, "(STATIONARY)", "(non-stationary)"), "\n")
-#>   ADF test: p-value = 0.01 (STATIONARY)
 cat("  KPSS test: p-value =", round(kpss_stationary$p.value, 4),
     ifelse(kpss_stationary$p.value > 0.05, "(STATIONARY)", "(non-stationary)"), "\n\n")
-#>   KPSS test: p-value = 0.1 (STATIONARY)
 
 cat("Random Walk:\n")
-#> Random Walk:
 cat("  ADF test: p-value =", round(adf_random_walk$p.value, 4),
     ifelse(adf_random_walk$p.value < 0.05, "(stationary)", "(NON-STATIONARY)"), "\n")
-#>   ADF test: p-value = 0.5185 (NON-STATIONARY)
 cat("  KPSS test: p-value =", round(kpss_random_walk$p.value, 4),
     ifelse(kpss_random_walk$p.value > 0.05, "(stationary)", "(NON-STATIONARY)"), "\n")
+```
+
+```
+#> Stationarity Tests:
+#> ===================
+#> 
+#> Stationary AR(1) Process:
+#>   ADF test: p-value = 0.01 (STATIONARY) 
+#>   KPSS test: p-value = 0.1 (STATIONARY) 
+#> 
+#> Random Walk:
+#>   ADF test: p-value = 0.5185 (NON-STATIONARY) 
 #>   KPSS test: p-value = 0.0276 (NON-STATIONARY)
 ```
 
@@ -576,6 +590,9 @@ ggplot2$ggplot(hospital, ggplot2$aes(x = date, y = admissions)) +
     ) +
     ggplot2$scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -590,17 +607,12 @@ adf_hosp <- tseries::adf.test(hosp_ts)
 kpss_hosp <- tseries::kpss.test(hosp_ts)
 
 cat("Stationarity Tests for Hospital Admissions:\n")
-#> Stationarity Tests for Hospital Admissions:
 cat("============================================\n\n")
-#> ============================================
 cat("ADF test p-value:", round(adf_hosp$p.value, 4),
     ifelse(adf_hosp$p.value < 0.05, "(stationary)", "(NON-STATIONARY)"), "\n")
-#> ADF test p-value: 0.01 (stationary)
 cat("KPSS test p-value:", round(kpss_hosp$p.value, 4),
     ifelse(kpss_hosp$p.value > 0.05, "(stationary)", "(NON-STATIONARY)"), "\n\n")
-#> KPSS test p-value: 0.01 (NON-STATIONARY)
 cat("Conclusion: The series requires differencing.\n")
-#> Conclusion: The series requires differencing.
 
 # ACF of original
 acf_hosp <- acf(hosp_ts, plot = FALSE, lag.max = 36)
@@ -626,6 +638,16 @@ ggplot2$ggplot(acf_hosp_dt, ggplot2$aes(x = lag, y = acf)) +
 	ACF of hospital admissions shows slow decay typical of non-stationarity
 </Figure>
 
+```
+#> Stationarity Tests for Hospital Admissions:
+#> ============================================
+#> 
+#> ADF test p-value: 0.01 (stationary) 
+#> KPSS test p-value: 0.01 (NON-STATIONARY) 
+#> 
+#> Conclusion: The series requires differencing.
+```
+
 
 ``` r
 # First difference
@@ -635,11 +657,8 @@ hosp_diff <- diff(hosp_ts)
 adf_diff <- tseries::adf.test(hosp_diff)
 
 cat("\nAfter First Differencing:\n")
-#> 
-#> After First Differencing:
 cat("ADF test p-value:", round(adf_diff$p.value, 4),
     ifelse(adf_diff$p.value < 0.05, "(STATIONARY)", "(non-stationary)"), "\n")
-#> ADF test p-value: 0.01 (STATIONARY)
 
 # Plot differenced series
 diff_dt <- data.table(
@@ -657,13 +676,22 @@ ggplot2$ggplot(diff_dt, ggplot2$aes(x = time, y = value)) +
         y = "Change in Admissions"
     ) +
     ggplot2$theme_minimal()
-#> Don't know how to automatically pick scale for object of type <ts>. Defaulting
-#> to continuous.
+```
+
+```
+#> Don't know how to automatically pick scale for object of type <ts>.
+#> Defaulting to continuous.
 ```
 
 <Figure src="/courses/statistics-2-intermediate/hospital_diff-1.png" alt="First differenced hospital admissions appear stationary">
 	First differenced hospital admissions appear stationary
 </Figure>
+
+```
+#> 
+#> After First Differencing:
+#> ADF test p-value: 0.01 (STATIONARY)
+```
 
 
 ``` r
@@ -728,10 +756,14 @@ comparison[, AIC_rank := rank(AIC)]
 comparison[, BIC_rank := rank(BIC)]
 
 cat("Model Comparison:\n")
-#> Model Comparison:
 cat("=================\n\n")
-#> =================
 print(comparison[order(AIC)])
+```
+
+```
+#> Model Comparison:
+#> =================
+#> 
 #>           Model      AIC      BIC    LogLik AIC_rank BIC_rank
 #>          <char>    <num>    <num>     <num>    <num>    <num>
 #> 1: ARIMA(1,1,0) 1253.723 1259.282 -624.8616        1        1
@@ -752,6 +784,9 @@ if (requireNamespace("forecast", quietly = TRUE)) {
     cat("\nNote: Install 'forecast' package for auto.arima functionality\n")
     auto_model <- model_011  # Use our best manual selection
 }
+```
+
+```
 #> 
 #> Auto-selected model:
 #> Series: hosp_ts 
@@ -787,17 +822,12 @@ resid_ts <- residuals(best_model)
 lb_test <- Box.test(resid_ts, lag = 12, type = "Ljung-Box")
 
 cat("Ljung-Box Test for Residual Autocorrelation:\n")
-#> Ljung-Box Test for Residual Autocorrelation:
 cat("=============================================\n")
-#> =============================================
 cat("Test statistic:", round(lb_test$statistic, 3), "\n")
-#> Test statistic: 57.188
 cat("p-value:", round(lb_test$p.value, 4), "\n")
-#> p-value: 0
 cat("Conclusion:", ifelse(lb_test$p.value > 0.05,
                           "Residuals appear to be white noise (good!)",
                           "Residuals show autocorrelation (model misspecified)"), "\n")
-#> Conclusion: Residuals show autocorrelation (model misspecified)
 
 # Diagnostic plots
 resid_dt <- data.table(
@@ -836,13 +866,24 @@ p3 <- ggplot2$ggplot(acf_resid_dt, ggplot2$aes(x = lag, y = acf)) +
     ggplot2$theme_minimal()
 
 gridExtra::grid.arrange(p1, p2, p3, ncol = 1)
-#> Don't know how to automatically pick scale for object of type <ts>. Defaulting
-#> to continuous.
+```
+
+```
+#> Don't know how to automatically pick scale for object of type <ts>.
+#> Defaulting to continuous.
 ```
 
 <Figure src="/courses/statistics-2-intermediate/residual_diagnostics-1.png" alt="Residual diagnostics for the ARIMA(0,1,1) model">
 	Residual diagnostics for the ARIMA(0,1,1) model
 </Figure>
+
+```
+#> Ljung-Box Test for Residual Autocorrelation:
+#> =============================================
+#> Test statistic: 57.188 
+#> p-value: 0 
+#> Conclusion: Residuals show autocorrelation (model misspecified)
+```
 
 ---
 
@@ -957,6 +998,9 @@ if (requireNamespace("forecast", quietly = TRUE)) {
     print(sarima_manual)
     sarima_auto <- sarima_manual
 }
+```
+
+```
 #> Auto-selected Seasonal ARIMA Model:
 #> ===================================
 #> Series: deaths_ts 
@@ -978,14 +1022,10 @@ sarima_resid <- residuals(sarima_auto)
 lb_sarima <- Box.test(sarima_resid, lag = 24, type = "Ljung-Box")
 
 cat("\nLjung-Box Test (lag 24):\n")
-#> 
-#> Ljung-Box Test (lag 24):
 cat("p-value:", round(lb_sarima$p.value, 4), "\n")
-#> p-value: 0.3484
 cat("Interpretation:", ifelse(lb_sarima$p.value > 0.05,
                                "Residuals are white noise",
                                "Some structure remains"), "\n")
-#> Interpretation: Residuals are white noise
 
 # ACF of SARIMA residuals
 acf_sarima <- acf(sarima_resid, plot = FALSE, lag.max = 36)
@@ -1016,6 +1056,13 @@ ggplot2$ggplot(acf_sarima_dt, ggplot2$aes(x = lag, y = acf)) +
 <Figure src="/courses/statistics-2-intermediate/sarima_diagnostics-1.png" alt="SARIMA model residuals appear to be white noise">
 	SARIMA model residuals appear to be white noise
 </Figure>
+
+```
+#> 
+#> Ljung-Box Test (lag 24):
+#> p-value: 0.3484 
+#> Interpretation: Residuals are white noise
+```
 
 ---
 
@@ -1094,6 +1141,9 @@ if (requireNamespace("forecast", quietly = TRUE)) {
     cat("Peak month (July/August): ~", round(max(fc$mean)), "deaths\n")
     cat("Low month (February): ~", round(min(fc$mean)), "deaths\n")
 }
+```
+
+```
 #> 
 #> Forecast Summary:
 #> =================
@@ -1148,6 +1198,9 @@ patterns <- data.table(
 )
 
 print(patterns)
+```
+
+```
 #>             Model               ACF              PACF
 #>            <char>            <char>            <char>
 #> 1:          AR(p) Exponential decay  Cuts off after p

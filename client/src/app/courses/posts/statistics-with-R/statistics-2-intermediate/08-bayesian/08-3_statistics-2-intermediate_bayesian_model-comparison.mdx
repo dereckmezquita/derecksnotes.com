@@ -50,14 +50,17 @@ bp_trial <- data.table(
 )
 
 cat("Clinical Trial Data:\n")
-#> Clinical Trial Data:
 cat("  Placebo group:", sum(treatment == "Placebo"), "patients\n")
-#>   Placebo group: 25 patients
 cat("  Drug group:", sum(treatment == "Drug"), "patients\n")
-#>   Drug group: 25 patients
 cat("  Mean BP (Placebo):", round(mean(bp_trial[treatment == "Placebo", bp]), 1), "\n")
-#>   Mean BP (Placebo): 142.8
 cat("  Mean BP (Drug):", round(mean(bp_trial[treatment == "Drug", bp]), 1), "\n")
+```
+
+```
+#> Clinical Trial Data:
+#>   Placebo group: 25 patients
+#>   Drug group: 25 patients
+#>   Mean BP (Placebo): 142.8 
 #>   Mean BP (Drug): 126.1
 ```
 
@@ -136,17 +139,11 @@ pooled_se <- sqrt(var(placebo_data)/length(placebo_data) +
 observed_diff <- drug_mean - placebo_mean
 
 cat("Observed Treatment Effect:\n")
-#> Observed Treatment Effect:
 cat("==========================\n")
-#> ==========================
 cat("Placebo mean:", round(placebo_mean, 2), "\n")
-#> Placebo mean: 142.81
 cat("Drug mean:", round(drug_mean, 2), "\n")
-#> Drug mean: 126.12
 cat("Difference (Drug - Placebo):", round(observed_diff, 2), "\n")
-#> Difference (Drug - Placebo): -16.7
 cat("Standard error:", round(pooled_se, 2), "\n")
-#> Standard error: 4.84
 
 # Visualise the problem
 effect_dt <- data.table(
@@ -171,17 +168,10 @@ bf_10 <- ml_m1 / ml_m0
 bf_01 <- 1 / bf_10
 
 cat("\nBayes Factor Calculation:\n")
-#> 
-#> Bayes Factor Calculation:
 cat("-------------------------\n")
-#> -------------------------
 cat("BF₁₀ (effect vs no effect):", round(bf_10, 2), "\n")
-#> BF<U+2081><U+2080> (effect vs no effect): 54
 cat("BF₀₁ (no effect vs effect):", round(bf_01, 2), "\n")
-#> BF<U+2080><U+2081> (no effect vs effect): 0.02
 cat("\nInterpretation: ")
-#> 
-#> Interpretation:
 if (bf_10 > 10) {
     cat("Strong evidence for treatment effect\n")
 } else if (bf_10 > 3) {
@@ -193,7 +183,6 @@ if (bf_10 > 10) {
 } else {
     cat("Strong evidence for no effect\n")
 }
-#> Strong evidence for treatment effect
 
 # Visualise
 ggplot2$ggplot(effect_dt, ggplot2$aes(x = effect)) +
@@ -219,6 +208,22 @@ ggplot2$ggplot(effect_dt, ggplot2$aes(x = effect)) +
 <Figure src="/courses/statistics-2-intermediate/bayes_factor_concept-1.png" alt="Bayes factor measures relative evidence for two models">
 	Bayes factor measures relative evidence for two models
 </Figure>
+
+```
+#> Observed Treatment Effect:
+#> ==========================
+#> Placebo mean: 142.81 
+#> Drug mean: 126.12 
+#> Difference (Drug - Placebo): -16.7 
+#> Standard error: 4.84 
+#> 
+#> Bayes Factor Calculation:
+#> -------------------------
+#> BF₁₀ (effect vs no effect): 54 
+#> BF₀₁ (no effect vs effect): 0.02 
+#> 
+#> Interpretation: Strong evidence for treatment effect
+```
 
 ### 8.20.3 Using BayesFactor Package
 
@@ -251,6 +256,9 @@ if (requireNamespace("BayesFactor", quietly = TRUE)) {
     cat("BayesFactor package not installed.\n")
     cat("Install with: install.packages('BayesFactor')\n")
 }
+```
+
+```
 #> BayesFactor package not installed.
 #> Install with: install.packages('BayesFactor')
 ```
@@ -290,19 +298,8 @@ sens_dt <- data.table(
 )
 
 cat("Prior Sensitivity Analysis:\n")
-#> Prior Sensitivity Analysis:
 cat("===========================\n\n")
-#> ===========================
 print(sens_dt[, .(Prior_SD = prior_sd, BF_10 = round(bf, 2))])
-#>    Prior_SD BF_10
-#>       <num> <num>
-#> 1:        1  1.25
-#> 2:        5 15.00
-#> 3:       10 54.00
-#> 4:       25 58.69
-#> 5:       50 34.87
-#> 6:      100 18.23
-#> 7:      200  9.22
 
 ggplot2$ggplot(sens_dt, ggplot2$aes(x = prior_sd, y = bf)) +
     ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
@@ -324,6 +321,21 @@ ggplot2$ggplot(sens_dt, ggplot2$aes(x = prior_sd, y = bf)) +
 <Figure src="/courses/statistics-2-intermediate/prior_sensitivity_bf-1.png" alt="Bayes factor sensitivity to prior width">
 	Bayes factor sensitivity to prior width
 </Figure>
+
+```
+#> Prior Sensitivity Analysis:
+#> ===========================
+#> 
+#>    Prior_SD BF_10
+#>       <num> <num>
+#> 1:        1  1.25
+#> 2:        5 15.00
+#> 3:       10 54.00
+#> 4:       25 58.69
+#> 5:       50 34.87
+#> 6:      100 18.23
+#> 7:      200  9.22
+```
 
 ---
 
@@ -385,18 +397,10 @@ model_comparison[, Delta_AIC := AIC - min(AIC)]
 model_comparison[, AIC_weight := exp(-Delta_AIC/2) / sum(exp(-Delta_AIC/2))]
 
 cat("Model Comparison (AIC/BIC):\n")
-#> Model Comparison (AIC/BIC):
 cat("===========================\n\n")
-#> ===========================
 print(model_comparison[, .(Model, df, AIC = round(AIC, 1),
                             Delta_AIC = round(Delta_AIC, 1),
                             Weight = round(AIC_weight, 3))])
-#>             Model    df   AIC Delta_AIC Weight
-#>            <char> <num> <num>     <num>  <num>
-#> 1: Intercept only     2 238.2      10.0  0.005
-#> 2:         Linear     3 231.3       3.1  0.154
-#> 3:      Quadratic     4 228.2       0.0  0.733
-#> 4:       Degree 5     7 232.0       3.8  0.108
 
 # Visualise fits
 pred_dt <- rbindlist(lapply(list(fit1, fit2, fit3, fit4), function(fit) {
@@ -428,6 +432,18 @@ ggplot2$ggplot(model_data, ggplot2$aes(x = x, y = y)) +
 <Figure src="/courses/statistics-2-intermediate/waic_concept-1.png" alt="WAIC balances model fit and complexity">
 	WAIC balances model fit and complexity
 </Figure>
+
+```
+#> Model Comparison (AIC/BIC):
+#> ===========================
+#> 
+#>             Model    df   AIC Delta_AIC Weight
+#>            <char> <num> <num>     <num>  <num>
+#> 1: Intercept only     2 238.2      10.0  0.005
+#> 2:         Linear     3 231.3       3.1  0.154
+#> 3:      Quadratic     4 228.2       0.0  0.733
+#> 4:       Degree 5     7 232.0       3.8  0.108
+```
 
 ---
 
@@ -532,27 +548,18 @@ se_diff <- sqrt(var(bp_trial[treatment == "Placebo", bp])/n_placebo +
 observed_effect <- mean_drug - mean_placebo
 
 cat("Bayesian Clinical Trial Analysis:\n")
-#> Bayesian Clinical Trial Analysis:
 cat("==================================\n\n")
-#> ==================================
 
 cat("PRIOR BELIEFS:\n")
-#> PRIOR BELIEFS:
 cat("  Based on similar drugs, expect effect around", prior_effect_mean, "mmHg\n")
-#>   Based on similar drugs, expect effect around -10 mmHg
 cat("  Prior 95% interval: [",
     round(prior_effect_mean - 1.96 * prior_effect_sd, 1), ",",
     round(prior_effect_mean + 1.96 * prior_effect_sd, 1), "]\n\n")
-#>   Prior 95% interval: [ -19.8 , -0.2 ]
 
 cat("DATA:\n")
-#> DATA:
 cat("  Placebo (n =", n_placebo, "): mean =", round(mean_placebo, 1), "mmHg\n")
-#>   Placebo (n = 25 ): mean = 142.8 mmHg
 cat("  Drug (n =", n_drug, "): mean =", round(mean_drug, 1), "mmHg\n")
-#>   Drug (n = 25 ): mean = 126.1 mmHg
 cat("  Observed effect:", round(observed_effect, 1), "mmHg (SE =", round(se_diff, 1), ")\n\n")
-#>   Observed effect: -16.7 mmHg (SE = 4.8 )
 
 # Bayesian update (Normal-Normal conjugate)
 # Posterior for effect
@@ -563,26 +570,18 @@ posterior_mean <- (prior_precision * prior_effect_mean + data_precision * observ
 posterior_sd <- sqrt(1 / posterior_precision)
 
 cat("POSTERIOR:\n")
-#> POSTERIOR:
 cat("  Posterior mean effect:", round(posterior_mean, 1), "mmHg\n")
-#>   Posterior mean effect: -13.5 mmHg
 cat("  Posterior SD:", round(posterior_sd, 1), "\n")
-#>   Posterior SD: 3.5
 cat("  95% Credible interval: [",
     round(qnorm(0.025, posterior_mean, posterior_sd), 1), ",",
     round(qnorm(0.975, posterior_mean, posterior_sd), 1), "]\n\n")
-#>   95% Credible interval: [ -20.3 , -6.6 ]
 
 # Probability of clinically meaningful effect (> 5 mmHg reduction)
 prob_meaningful <- pnorm(-5, posterior_mean, posterior_sd)
 cat("CLINICAL DECISIONS:\n")
-#> CLINICAL DECISIONS:
 cat("  P(effect < 0) =", round(pnorm(0, posterior_mean, posterior_sd) * 100, 1), "%\n")
-#>   P(effect < 0) = 100 %
 cat("  P(effect < -5 mmHg) =", round(prob_meaningful * 100, 1), "%\n")
-#>   P(effect < -5 mmHg) = 99.2 %
 cat("  P(effect < -10 mmHg) =", round(pnorm(-10, posterior_mean, posterior_sd) * 100, 1), "%\n")
-#>   P(effect < -10 mmHg) = 84 %
 
 # Visualise
 effect_vals <- seq(-30, 10, length.out = 200)
@@ -625,6 +624,30 @@ ggplot2$ggplot(analysis_dt, ggplot2$aes(x = effect, y = density, colour = distri
 <Figure src="/courses/statistics-2-intermediate/clinical_trial_bayesian-1.png" alt="Complete Bayesian analysis of clinical trial data">
 	Complete Bayesian analysis of clinical trial data
 </Figure>
+
+```
+#> Bayesian Clinical Trial Analysis:
+#> ==================================
+#> 
+#> PRIOR BELIEFS:
+#>   Based on similar drugs, expect effect around -10 mmHg
+#>   Prior 95% interval: [ -19.8 , -0.2 ]
+#> 
+#> DATA:
+#>   Placebo (n = 25 ): mean = 142.8 mmHg
+#>   Drug (n = 25 ): mean = 126.1 mmHg
+#>   Observed effect: -16.7 mmHg (SE = 4.8 )
+#> 
+#> POSTERIOR:
+#>   Posterior mean effect: -13.5 mmHg
+#>   Posterior SD: 3.5 
+#>   95% Credible interval: [ -20.3 , -6.6 ]
+#> 
+#> CLINICAL DECISIONS:
+#>   P(effect < 0) = 100 %
+#>   P(effect < -5 mmHg) = 99.2 %
+#>   P(effect < -10 mmHg) = 84 %
+```
 
 ### 8.24.2 Adaptive Clinical Trials
 
@@ -690,29 +713,16 @@ interim_results <- rbindlist(lapply(interim_points, function(n_current) {
 }))
 
 cat("\nAdaptive Trial: Interim Analyses\n")
-#> 
-#> Adaptive Trial: Interim Analyses
 cat("=================================\n\n")
-#> =================================
 print(interim_results[, .(n,
                           `Obs. Effect` = round(observed_effect, 1),
                           `Post. Mean` = round(posterior_mean, 1),
                           `95% CI` = paste0("[", round(ci_lower, 1), ", ", round(ci_upper, 1), "]"),
                           `P(effective)` = round(p_effective * 100, 1))])
-#>        n Obs. Effect Post. Mean        95% CI P(effective)
-#>    <num>       <num>      <num>        <char>        <num>
-#> 1:    25         NaN         NA      [NA, NA]           NA
-#> 2:    50         NaN         NA      [NA, NA]           NA
-#> 3:    75       -10.4      -10.2 [-15.9, -4.6]         96.6
-#> 4:   100        -8.3       -8.7   [-13.4, -4]         93.8
 
 cat("\nDecision rules:\n")
-#> 
-#> Decision rules:
 cat("  Stop for efficacy if P(effect < -5) > 0.95\n")
-#>   Stop for efficacy if P(effect < -5) > 0.95
 cat("  Stop for futility if P(effect > 0) > 0.90\n")
-#>   Stop for futility if P(effect > 0) > 0.90
 
 # Plot evolution
 evolution_dt <- rbindlist(lapply(1:nrow(interim_results), function(i) {
@@ -745,6 +755,23 @@ ggplot2$ggplot(evolution_dt, ggplot2$aes(x = effect, y = density, colour = n)) +
 <Figure src="/courses/statistics-2-intermediate/adaptive_trial-1.png" alt="Sequential Bayesian updating in an adaptive trial">
 	Sequential Bayesian updating in an adaptive trial
 </Figure>
+
+```
+#> 
+#> Adaptive Trial: Interim Analyses
+#> =================================
+#> 
+#>        n Obs. Effect Post. Mean        95% CI P(effective)
+#>    <num>       <num>      <num>        <char>        <num>
+#> 1:    25         NaN         NA      [NA, NA]           NA
+#> 2:    50         NaN         NA      [NA, NA]           NA
+#> 3:    75       -10.4      -10.2 [-15.9, -4.6]         96.6
+#> 4:   100        -8.3       -8.7   [-13.4, -4]         93.8
+#> 
+#> Decision rules:
+#>   Stop for efficacy if P(effect < -5) > 0.95
+#>   Stop for futility if P(effect > 0) > 0.90
+```
 
 ---
 

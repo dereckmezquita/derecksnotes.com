@@ -36,10 +36,13 @@ library(lmerTest)
 cd4_data <- fread("../../../data/longitudinal/aids_cd4_longitudinal.csv")
 
 cat("Data loaded:\n")
-#> Data loaded:
 cat("  Observations:", nrow(cd4_data), "\n")
-#>   Observations: 1405
 cat("  Patients:", length(unique(cd4_data$patient)), "\n")
+```
+
+```
+#> Data loaded:
+#>   Observations: 1405 
 #>   Patients: 467
 ```
 
@@ -74,20 +77,13 @@ slopes_data <- cd4_data[, .(
 ), by = patient]
 
 cat("Evidence for Varying Slopes:\n")
-#> Evidence for Varying Slopes:
 cat("============================\n\n")
-#> ============================
 cat("Patient-specific slope estimates:\n")
-#> Patient-specific slope estimates:
 cat("  Mean slope:", round(mean(slopes_data$slope), 2), "CD4/Time\n")
-#>   Mean slope: NA CD4/Time
 cat("  SD of slopes:", round(sd(slopes_data$slope), 2), "\n")
-#>   SD of slopes: NA
 cat("  Range:", round(min(slopes_data$slope), 2), "to", round(max(slopes_data$slope), 2), "\n\n")
-#>   Range: NA to NA
 
 cat("This variation suggests slopes should be random, not fixed.\n")
-#> This variation suggests slopes should be random, not fixed.
 
 # Plot individual trajectories
 ggplot2$ggplot(plot_data, ggplot2$aes(x = Time, y = CD4)) +
@@ -101,12 +97,27 @@ ggplot2$ggplot(plot_data, ggplot2$aes(x = Time, y = CD4)) +
         y = "CD4 Count"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
 <Figure src="/courses/statistics-2-intermediate/varying_slopes-1.png" alt="Different patients have different trajectories over time">
 	Different patients have different trajectories over time
 </Figure>
+
+```
+#> Evidence for Varying Slopes:
+#> ============================
+#> 
+#> Patient-specific slope estimates:
+#>   Mean slope: NA CD4/Time
+#>   SD of slopes: NA 
+#>   Range: NA to NA 
+#> 
+#> This variation suggests slopes should be random, not fixed.
+```
 
 ### 6.7.2 Random Slope Model Formulation
 
@@ -135,10 +146,14 @@ model_ri <- lmer(CD4 ~ Time + (1 | patient), data = cd4_data)
 model_rs <- lmer(CD4 ~ Time + (Time | patient), data = cd4_data)
 
 cat("Random Slope Model: CD4 ~ Time + (Time | patient)\n")
-#> Random Slope Model: CD4 ~ Time + (Time | patient)
 cat("=======================================================\n\n")
-#> =======================================================
 summary(model_rs)
+```
+
+```
+#> Random Slope Model: CD4 ~ Time + (Time | patient)
+#> =======================================================
+#> 
 #> Linear mixed model fit by REML. t-tests use Satterthwaite's method [
 #> lmerModLmerTest]
 #> Formula: CD4 ~ Time + (Time | patient)
@@ -177,21 +192,13 @@ summary(model_rs)
 
 ``` r
 cat("Interpreting Random Slope Model:\n")
-#> Interpreting Random Slope Model:
 cat("================================\n\n")
-#> ================================
 
 # Variance components
 vc <- VarCorr(model_rs)
 print(vc)
-#>  Groups   Name        Std.Dev. Corr  
-#>  patient  (Intercept) 3.52969        
-#>           Time        0.24744  -0.267
-#>  Residual             2.12770
 
 cat("\nExtracted components:\n")
-#> 
-#> Extracted components:
 vc_dt <- as.data.table(vc)
 
 # Intercept variance
@@ -204,26 +211,40 @@ rho <- vc_dt[grp == "patient" & var1 == "(Intercept)" & var2 == "Time", sdcor]
 sigma_resid <- vc_dt[grp == "Residual", sdcor]
 
 cat("\n  Intercept SD:", round(sigma_int, 2), "\n")
-#> 
-#>   Intercept SD: 3.53
 cat("    → Patients differ by ±", round(2*sigma_int, 0), "CD4 at Time 0\n\n")
-#>     <U+2192> Patients differ by <U+00B1> 7 CD4 at Time 0
 
 cat("  Slope SD:", round(sigma_slope, 3), "\n")
-#>   Slope SD: 0.247
 cat("    → Weekly changes vary by ±", round(2*sigma_slope, 2), "CD4/Time between patients\n\n")
-#>     <U+2192> Weekly changes vary by <U+00B1> 0.49 CD4/Time between patients
 
 cat("  Intercept-Slope correlation:", round(rho, 3), "\n")
-#>   Intercept-Slope correlation: -0.267
 if (!is.na(rho) && rho > 0) {
     cat("    → Patients with higher baselines tend to have larger increases\n")
 } else if (!is.na(rho) && rho < 0) {
     cat("    → Patients with higher baselines tend to have smaller increases (regression to mean)\n")
 }
-#>     <U+2192> Patients with higher baselines tend to have smaller increases (regression to mean)
 
 cat("\n  Residual SD:", round(sigma_resid, 2), "\n")
+```
+
+```
+#> Interpreting Random Slope Model:
+#> ================================
+#> 
+#>  Groups   Name        Std.Dev. Corr  
+#>  patient  (Intercept) 3.52969        
+#>           Time        0.24744  -0.267
+#>  Residual             2.12770        
+#> 
+#> Extracted components:
+#> 
+#>   Intercept SD: 3.53 
+#>     → Patients differ by ± 7 CD4 at Time 0
+#> 
+#>   Slope SD: 0.247 
+#>     → Weekly changes vary by ± 0.49 CD4/Time between patients
+#> 
+#>   Intercept-Slope correlation: -0.267 
+#>     → Patients with higher baselines tend to have smaller increases (regression to mean)
 #> 
 #>   Residual SD: 2.13
 ```
@@ -233,14 +254,35 @@ cat("\n  Residual SD:", round(sigma_resid, 2), "\n")
 
 ``` r
 cat("Comparing Random Intercept vs Random Slope Models:\n")
-#> Comparing Random Intercept vs Random Slope Models:
 cat("==================================================\n\n")
-#> ==================================================
 
 # Likelihood ratio test
 lr_test <- anova(model_ri, model_rs)
+```
+
+```
 #> refitting model(s) with ML (instead of REML)
+```
+
+``` r
 print(lr_test)
+
+cat("\nAIC comparison:\n")
+cat("  Random intercept:", round(AIC(model_ri), 1), "\n")
+cat("  Random slope:", round(AIC(model_rs), 1), "\n")
+cat("  Difference:", round(AIC(model_ri) - AIC(model_rs), 1), "\n\n")
+
+if (lr_test$`Pr(>Chisq)`[2] < 0.05) {
+    cat("CONCLUSION: Random slope model significantly improves fit.\n")
+} else {
+    cat("CONCLUSION: Random intercept may be sufficient.\n")
+}
+```
+
+```
+#> Comparing Random Intercept vs Random Slope Models:
+#> ==================================================
+#> 
 #> Data: cd4_data
 #> Models:
 #> model_ri: CD4 ~ Time + (1 | patient)
@@ -250,22 +292,12 @@ print(lr_test)
 #> model_rs    6 7265.8 7297.3 -3626.9    7253.8 9.1985  2    0.01006 *
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-
-cat("\nAIC comparison:\n")
 #> 
 #> AIC comparison:
-cat("  Random intercept:", round(AIC(model_ri), 1), "\n")
-#>   Random intercept: 7276.8
-cat("  Random slope:", round(AIC(model_rs), 1), "\n")
-#>   Random slope: 7271.7
-cat("  Difference:", round(AIC(model_ri) - AIC(model_rs), 1), "\n\n")
-#>   Difference: 5.1
-
-if (lr_test$`Pr(>Chisq)`[2] < 0.05) {
-    cat("CONCLUSION: Random slope model significantly improves fit.\n")
-} else {
-    cat("CONCLUSION: Random intercept may be sufficient.\n")
-}
+#>   Random intercept: 7276.8 
+#>   Random slope: 7271.7 
+#>   Difference: 5.1 
+#> 
 #> CONCLUSION: Random slope model significantly improves fit.
 ```
 
@@ -357,9 +389,7 @@ In **nested** structures, lower-level units exist only within their higher-level
 
 ``` r
 cat("Nested Random Effects:\n")
-#> Nested Random Effects:
 cat("======================\n\n")
-#> ======================
 
 # Simulate nested data: patients within hospitals
 set.seed(42)
@@ -382,23 +412,31 @@ nested_data[, patient_effect := patient_effects[patient]]
 nested_data[, y := 100 + hospital_effect + patient_effect + 2 * time + rnorm(.N, sd = 10)]
 
 cat("Simulated nested structure:\n")
-#> Simulated nested structure:
 cat("  Hospitals:", n_hospitals, "\n")
-#>   Hospitals: 10
 cat("  Patients per hospital:", n_patients_per_hospital, "\n")
-#>   Patients per hospital: 20
 cat("  Observations per patient:", n_obs_per_patient, "\n\n")
-#>   Observations per patient: 5
 
 # Fit nested model
 model_nested <- lmer(y ~ time + (1 | hospital/patient), data = nested_data)
 
 cat("Model: y ~ time + (1 | hospital/patient)\n")
-#> Model: y ~ time + (1 | hospital/patient)
 cat("This is equivalent to: (1 | hospital) + (1 | hospital:patient)\n\n")
-#> This is equivalent to: (1 | hospital) + (1 | hospital:patient)
 
 print(VarCorr(model_nested))
+```
+
+```
+#> Nested Random Effects:
+#> ======================
+#> 
+#> Simulated nested structure:
+#>   Hospitals: 10 
+#>   Patients per hospital: 20 
+#>   Observations per patient: 5 
+#> 
+#> Model: y ~ time + (1 | hospital/patient)
+#> This is equivalent to: (1 | hospital) + (1 | hospital:patient)
+#> 
 #>  Groups           Name        Std.Dev.
 #>  patient:hospital (Intercept) 15.800  
 #>  hospital         (Intercept) 17.053  
@@ -416,9 +454,7 @@ In **crossed** structures, the same lower-level units appear across multiple hig
 
 ``` r
 cat("Crossed Random Effects:\n")
-#> Crossed Random Effects:
 cat("=======================\n\n")
-#> =======================
 
 # Simulate crossed data: participants × items
 set.seed(42)
@@ -440,20 +476,28 @@ crossed_data[, item_effect := item_effects[item]]
 crossed_data[, y := 5 + participant_effect + item_effect + rnorm(.N, sd = 1)]
 
 cat("Crossed structure:\n")
-#> Crossed structure:
 cat("  Participants:", n_participants, "\n")
-#>   Participants: 50
 cat("  Items:", n_items, "\n")
-#>   Items: 20
 cat("  Each participant sees all items\n\n")
-#>   Each participant sees all items
 
 # Fit crossed model
 model_crossed <- lmer(y ~ 1 + (1 | participant) + (1 | item), data = crossed_data)
 
 cat("Model: y ~ 1 + (1 | participant) + (1 | item)\n\n")
-#> Model: y ~ 1 + (1 | participant) + (1 | item)
 print(VarCorr(model_crossed))
+```
+
+```
+#> Crossed Random Effects:
+#> =======================
+#> 
+#> Crossed structure:
+#>   Participants: 50 
+#>   Items: 20 
+#>   Each participant sees all items
+#> 
+#> Model: y ~ 1 + (1 | participant) + (1 | item)
+#> 
 #>  Groups      Name        Std.Dev.
 #>  participant (Intercept) 1.1582  
 #>  item        (Intercept) 0.5050  
@@ -469,40 +513,47 @@ print(VarCorr(model_crossed))
 
 ``` r
 cat("Model Selection Strategy:\n")
-#> Model Selection Strategy:
 cat("=========================\n\n")
-#> =========================
 
 cat("1. START with 'maximal' model:\n")
-#> 1. START with 'maximal' model:
 cat("   Include all random effects that the design supports\n")
-#>    Include all random effects that the design supports
 cat("   (intercepts and slopes for all grouping factors)\n\n")
-#>    (intercepts and slopes for all grouping factors)
 
 cat("2. CHECK for convergence issues:\n")
-#> 2. CHECK for convergence issues:
 cat("   - Singular fit warnings\n")
-#>    - Singular fit warnings
 cat("   - Variance near zero\n")
-#>    - Variance near zero
 cat("   - Perfect correlation (±1)\n\n")
-#>    - Perfect correlation (<U+00B1>1)
 
 cat("3. SIMPLIFY if needed:\n")
-#> 3. SIMPLIFY if needed:
 cat("   - Remove correlations: (1 | g) + (0 + x | g)\n")
-#>    - Remove correlations: (1 | g) + (0 + x | g)
 cat("   - Remove random slopes with variance ≈ 0\n")
-#>    - Remove random slopes with variance <U+2248> 0
 cat("   - Keep random intercepts (usually important)\n\n")
-#>    - Keep random intercepts (usually important)
 
 cat("4. COMPARE models:\n")
-#> 4. COMPARE models:
 cat("   - Likelihood ratio test (for nested models)\n")
-#>    - Likelihood ratio test (for nested models)
 cat("   - AIC/BIC for general comparison\n")
+```
+
+```
+#> Model Selection Strategy:
+#> =========================
+#> 
+#> 1. START with 'maximal' model:
+#>    Include all random effects that the design supports
+#>    (intercepts and slopes for all grouping factors)
+#> 
+#> 2. CHECK for convergence issues:
+#>    - Singular fit warnings
+#>    - Variance near zero
+#>    - Perfect correlation (±1)
+#> 
+#> 3. SIMPLIFY if needed:
+#>    - Remove correlations: (1 | g) + (0 + x | g)
+#>    - Remove random slopes with variance ≈ 0
+#>    - Keep random intercepts (usually important)
+#> 
+#> 4. COMPARE models:
+#>    - Likelihood ratio test (for nested models)
 #>    - AIC/BIC for general comparison
 ```
 
@@ -514,9 +565,7 @@ model_2 <- lmer(CD4 ~ Time + (1 + Time | patient), data = cd4_data)  # RS with c
 model_3 <- lmer(CD4 ~ Time + (1 | patient) + (0 + Time | patient), data = cd4_data)  # RS no corr
 
 cat("Model Comparison:\n")
-#> Model Comparison:
 cat("=================\n\n")
-#> =================
 
 model_compare <- data.table(
     Model = c("Random intercept", "Random slope (correlated)", "Random slope (uncorrelated)"),
@@ -526,16 +575,22 @@ model_compare <- data.table(
 )
 
 print(model_compare[, .(Model, AIC = round(AIC, 1), BIC = round(BIC, 1))])
+
+cat("\nBest by AIC:", model_compare[which.min(AIC), Model], "\n")
+cat("Best by BIC:", model_compare[which.min(BIC), Model], "\n")
+```
+
+```
+#> Model Comparison:
+#> =================
+#> 
 #>                          Model    AIC    BIC
 #>                         <char>  <num>  <num>
 #> 1:            Random intercept 7276.8 7297.8
 #> 2:   Random slope (correlated) 7271.7 7303.2
 #> 3: Random slope (uncorrelated) 7270.0 7296.2
-
-cat("\nBest by AIC:", model_compare[which.min(AIC), Model], "\n")
 #> 
-#> Best by AIC: Random slope (uncorrelated)
-cat("Best by BIC:", model_compare[which.min(BIC), Model], "\n")
+#> Best by AIC: Random slope (uncorrelated) 
 #> Best by BIC: Random slope (uncorrelated)
 ```
 

@@ -95,20 +95,23 @@ sample_info <- data.table(
 )
 
 cat("Simulated Stratified GWAS Data:\n")
-#> Simulated Stratified GWAS Data:
 cat("===============================\n")
-#> ===============================
 cat("  Individuals:", n_individuals, "\n")
-#>   Individuals: 5000
 cat("  Population 1:", sum(pop_assignment == 1), "\n")
-#>   Population 1: 2971
 cat("  Population 2:", sum(pop_assignment == 2), "\n")
-#>   Population 2: 2029
 cat("  SNPs:", n_snps, "\n")
-#>   SNPs: 10000
 cat("  Causal SNPs:", n_causal, "\n")
-#>   Causal SNPs: 30
 cat("  Population effect size:", pop_effects[2], "SD\n")
+```
+
+```
+#> Simulated Stratified GWAS Data:
+#> ===============================
+#>   Individuals: 5000 
+#>   Population 1: 2971 
+#>   Population 2: 2029 
+#>   SNPs: 10000 
+#>   Causal SNPs: 30 
 #>   Population effect size: 0.5 SD
 ```
 
@@ -183,21 +186,15 @@ calc_fst <- function(genotypes, pop_assignment) {
 naive_gwas[, fst := calc_fst(genotypes, pop_assignment)]
 
 cat("Naive GWAS Results (Ignoring Population Structure):\n")
-#> Naive GWAS Results (Ignoring Population Structure):
 cat("===================================================\n")
-#> ===================================================
 cat("  Significant at p < 5e-8:", sum(naive_gwas$p_value < 5e-8), "\n")
-#>   Significant at p < 5e-8: 136
 cat("  True positives:", sum(naive_gwas$p_value < 5e-8 & naive_gwas$is_causal), "\n")
-#>   True positives: 12
 cat("  False positives:", sum(naive_gwas$p_value < 5e-8 & !naive_gwas$is_causal), "\n")
-#>   False positives: 124
 
 # Genomic inflation
 lambda_naive <- median(qchisq(naive_gwas$p_value, df = 1, lower.tail = FALSE)) /
                 qchisq(0.5, df = 1)
 cat("  Genomic inflation (λ):", round(lambda_naive, 3), "\n")
-#>   Genomic inflation (λ): 4.869
 
 # Visualise: Fst vs significance
 ggplot2$ggplot(naive_gwas, ggplot2$aes(x = fst, y = -log10(p_value),
@@ -223,6 +220,15 @@ ggplot2$ggplot(naive_gwas, ggplot2$aes(x = fst, y = -log10(p_value),
 <Figure src="/courses/statistics-3-advanced/demonstrate_confounding-1.png" alt="Population stratification creates spurious associations">
 	Population stratification creates spurious associations
 </Figure>
+
+```
+#> Naive GWAS Results (Ignoring Population Structure):
+#> ===================================================
+#>   Significant at p < 5e-8: 136 
+#>   True positives: 12 
+#>   False positives: 124 
+#>   Genomic inflation (λ): 4.869
+```
 
 ### 8.7.2 Principal Component Analysis for Ancestry
 
@@ -275,15 +281,10 @@ sample_info[, PC2 := pca_result$pcs[, 2]]
 sample_info[, PC3 := pca_result$pcs[, 3]]
 
 cat("PCA for Population Structure:\n")
-#> PCA for Population Structure:
 cat("=============================\n")
-#> =============================
 cat("  Variance explained by PC1:", round(pca_result$var_explained[1] * 100, 2), "%\n")
-#>   Variance explained by PC1: 1.1 %
 cat("  Variance explained by PC2:", round(pca_result$var_explained[2] * 100, 2), "%\n")
-#>   Variance explained by PC2: 0.06 %
 cat("  Variance explained by PC1-10:", round(sum(pca_result$var_explained) * 100, 2), "%\n")
-#>   Variance explained by PC1-10: 1.61 %
 
 # Visualise PCA
 ggplot2$ggplot(sample_info, ggplot2$aes(x = PC1, y = PC2,
@@ -308,6 +309,14 @@ ggplot2$ggplot(sample_info, ggplot2$aes(x = PC1, y = PC2,
 <Figure src="/courses/statistics-3-advanced/ancestry_pca-1.png" alt="PCA reveals population structure in genotype data">
 	PCA reveals population structure in genotype data
 </Figure>
+
+```
+#> PCA for Population Structure:
+#> =============================
+#>   Variance explained by PC1: 1.1 %
+#>   Variance explained by PC2: 0.06 %
+#>   Variance explained by PC1-10: 1.61 %
+```
 
 ### 8.7.3 GWAS with PC Covariates
 
@@ -354,25 +363,15 @@ lambda_pcs <- median(qchisq(gwas_with_pcs$p_value, df = 1, lower.tail = FALSE)) 
               qchisq(0.5, df = 1)
 
 cat("GWAS with PC Covariates:\n")
-#> GWAS with PC Covariates:
 cat("========================\n")
-#> ========================
 cat("  Significant at p < 5e-8:", sum(gwas_with_pcs$p_value < 5e-8), "\n")
-#>   Significant at p < 5e-8: 14
 cat("  True positives:", sum(gwas_with_pcs$p_value < 5e-8 & gwas_with_pcs$is_causal), "\n")
-#>   True positives: 14
 cat("  False positives:", sum(gwas_with_pcs$p_value < 5e-8 & !gwas_with_pcs$is_causal), "\n")
-#>   False positives: 0
 cat("  Genomic inflation (λ):", round(lambda_pcs, 3), "\n")
-#>   Genomic inflation (λ): 1.006
 
 cat("\nComparison:\n")
-#> 
-#> Comparison:
 cat("  λ without PCs:", round(lambda_naive, 3), "\n")
-#>   λ without PCs: 4.869
 cat("  λ with PCs:", round(lambda_pcs, 3), "\n")
-#>   λ with PCs: 1.006
 
 # Compare QQ plots
 qq_comparison <- rbind(
@@ -410,6 +409,19 @@ ggplot2$ggplot(qq_comparison, ggplot2$aes(x = expected, y = observed, colour = m
 <Figure src="/courses/statistics-3-advanced/gwas_with_pcs-1.png" alt="Including PCs as covariates corrects for stratification">
 	Including PCs as covariates corrects for stratification
 </Figure>
+
+```
+#> GWAS with PC Covariates:
+#> ========================
+#>   Significant at p < 5e-8: 14 
+#>   True positives: 14 
+#>   False positives: 0 
+#>   Genomic inflation (λ): 1.006 
+#> 
+#> Comparison:
+#>   λ without PCs: 4.869 
+#>   λ with PCs: 1.006
+```
 
 ---
 
@@ -466,15 +478,10 @@ calc_grm <- function(genotypes) {
 grm <- calc_grm(genotypes)
 
 cat("Genetic Relationship Matrix:\n")
-#> Genetic Relationship Matrix:
 cat("============================\n")
-#> ============================
 cat("  Dimension:", nrow(grm), "x", ncol(grm), "\n")
-#>   Dimension: 5000 x 5000
 cat("  Mean diagonal:", round(mean(diag(grm)), 4), "\n")
-#>   Mean diagonal: 1.0053
 cat("  Mean off-diagonal:", round(mean(grm[lower.tri(grm)]), 4), "\n")
-#>   Mean off-diagonal: -2e-04
 
 # Visualise GRM structure (subset for clarity)
 n_subset <- 200
@@ -513,6 +520,14 @@ ggplot2$ggplot(grm_long, ggplot2$aes(x = col, y = row, fill = relatedness)) +
 <Figure src="/courses/statistics-3-advanced/grm_calculation-1.png" alt="Genetic relationship matrix captures population structure">
 	Genetic relationship matrix captures population structure
 </Figure>
+
+```
+#> Genetic Relationship Matrix:
+#> ============================
+#>   Dimension: 5000 x 5000 
+#>   Mean diagonal: 1.0053 
+#>   Mean off-diagonal: -2e-04
+```
 
 ### 8.8.2 Mixed Model Association Test
 
@@ -576,11 +591,8 @@ fit_mixed_model_approx <- function(phenotype, grm) {
 mm_result <- fit_mixed_model_approx(phenotype, grm)
 
 cat("Mixed Model Null Fit:\n")
-#> Mixed Model Null Fit:
 cat("=====================\n")
-#> =====================
 cat("  Estimated heritability:", round(mm_result$h2, 3), "\n")
-#>   Estimated heritability: 0.34
 
 # GWAS on residuals (approximation to full mixed model)
 gwas_mm <- run_naive_gwas(genotypes, mm_result$residuals)
@@ -590,8 +602,14 @@ lambda_mm <- median(qchisq(gwas_mm$p_value, df = 1, lower.tail = FALSE)) /
              qchisq(0.5, df = 1)
 
 cat("  Genomic inflation (λ) with MM:", round(lambda_mm, 3), "\n")
-#>   Genomic inflation (λ) with MM: 55.405
 cat("  Compare to PC correction:", round(lambda_pcs, 3), "\n")
+```
+
+```
+#> Mixed Model Null Fit:
+#> =====================
+#>   Estimated heritability: 0.34 
+#>   Genomic inflation (λ) with MM: 55.405 
 #>   Compare to PC correction: 1.006
 ```
 
@@ -646,13 +664,9 @@ for (i in 1:ld_subset_size) {
 }
 
 cat("Linkage Disequilibrium Analysis:\n")
-#> Linkage Disequilibrium Analysis:
 cat("================================\n")
-#> ================================
 cat("  Mean r² (adjacent SNPs):", round(mean(diag(ld_matrix[-1, ]), na.rm = TRUE), 3), "\n")
-#>   Mean r² (adjacent SNPs): 0
 cat("  Mean r² (all pairs):", round(mean(ld_matrix, na.rm = TRUE), 3), "\n")
-#>   Mean r² (all pairs): 0.01
 
 # Visualise LD matrix
 rownames(ld_matrix) <- 1:nrow(ld_matrix)
@@ -680,6 +694,13 @@ ggplot2$ggplot(ld_long, ggplot2$aes(x = snp2, y = snp1, fill = r2)) +
 <Figure src="/courses/statistics-3-advanced/ld_calculation-1.png" alt="Linkage disequilibrium between nearby SNPs">
 	Linkage disequilibrium between nearby SNPs
 </Figure>
+
+```
+#> Linkage Disequilibrium Analysis:
+#> ================================
+#>   Mean r² (adjacent SNPs): 0 
+#>   Mean r² (all pairs): 0.01
+```
 
 ### 8.9.2 LD Clumping
 
@@ -736,15 +757,18 @@ ld_clump <- function(gwas_results, genotypes, p_threshold = 1e-5, r2_threshold =
 clumped_signals <- ld_clump(gwas_with_pcs, genotypes, p_threshold = 1e-4)
 
 cat("LD Clumping Results:\n")
-#> LD Clumping Results:
 cat("====================\n")
-#> ====================
 cat("  Significant SNPs (p < 1e-4):", sum(gwas_with_pcs$p_value < 1e-4), "\n")
-#>   Significant SNPs (p < 1e-4): 20
 cat("  Independent signals:", nrow(clumped_signals), "\n")
-#>   Independent signals: 20
 cat("  Lead SNPs in causal set:",
     sum(clumped_signals$snp_idx %in% causal_snps), "/", nrow(clumped_signals), "\n")
+```
+
+```
+#> LD Clumping Results:
+#> ====================
+#>   Significant SNPs (p < 1e-4): 20 
+#>   Independent signals: 20 
 #>   Lead SNPs in causal set: 19 / 20
 ```
 
@@ -819,32 +843,17 @@ prs_performance <- rbindlist(lapply(p_thresholds, function(thresh) {
 }))
 
 cat("Polygenic Risk Score Performance:\n")
-#> Polygenic Risk Score Performance:
 cat("=================================\n")
-#> =================================
 print(prs_performance[, .(threshold = format(threshold, scientific = TRUE),
                            n_snps, r2_phenotype = round(r2_phenotype, 4),
                            r_genetic = round(r_genetic, 3))])
-#>    threshold n_snps r2_phenotype r_genetic
-#>       <char>  <int>        <num>     <num>
-#> 1:     5e-08     14       0.2765     0.933
-#> 2:     1e-05     18       0.2877     0.971
-#> 3:     1e-03     33       0.3111     0.940
-#> 4:     1e-02    116       0.3630     0.826
-#> 5:     5e-02    534       0.4691     0.693
-#> 6:     1e-01   1000       0.5260     0.663
-#> 7:     5e-01   5020       0.6515     0.606
-#> 8:     1e+00  10000       0.6578     0.604
 
 # Find best threshold
 best_thresh <- prs_performance[which.max(r2_phenotype)]$threshold
 best_prs_col <- paste0("PRS_", best_thresh)
 
 cat("\nBest threshold:", format(best_thresh, scientific = TRUE), "\n")
-#> 
-#> Best threshold: 1e+00
 cat("  Variance explained:", round(max(prs_performance$r2_phenotype) * 100, 2), "%\n")
-#>   Variance explained: 65.78 %
 
 # Visualise PRS vs phenotype
 prs_results[, best_prs := .SD[[best_prs_col]]]
@@ -861,12 +870,33 @@ ggplot2$ggplot(prs_results, ggplot2$aes(x = best_prs, y = phenotype)) +
     ) +
     ggplot2$theme_minimal(base_size = 14) +
     ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
 <Figure src="/courses/statistics-3-advanced/prs_calculation-1.png" alt="Polygenic risk scores predict phenotype">
 	Polygenic risk scores predict phenotype
 </Figure>
+
+```
+#> Polygenic Risk Score Performance:
+#> =================================
+#>    threshold n_snps r2_phenotype r_genetic
+#>       <char>  <int>        <num>     <num>
+#> 1:     5e-08     14       0.2765     0.933
+#> 2:     1e-05     18       0.2877     0.971
+#> 3:     1e-03     33       0.3111     0.940
+#> 4:     1e-02    116       0.3630     0.826
+#> 5:     5e-02    534       0.4691     0.693
+#> 6:     1e-01   1000       0.5260     0.663
+#> 7:     5e-01   5020       0.6515     0.606
+#> 8:     1e+00  10000       0.6578     0.604
+#> 
+#> Best threshold: 1e+00 
+#>   Variance explained: 65.78 %
+```
 
 ### 8.10.2 PRS Performance by Threshold
 
@@ -933,22 +963,8 @@ decile_summary <- prs_results[, .(
 ), by = risk_decile]
 
 cat("Phenotype by PRS Decile:\n")
-#> Phenotype by PRS Decile:
 cat("========================\n")
-#> ========================
 print(decile_summary[order(risk_decile)])
-#>     risk_decile mean_phenotype se_phenotype     n
-#>          <fctr>          <num>        <num> <int>
-#>  1:           1    -1.39421320   0.03033604   500
-#>  2:           2    -0.84838763   0.02576509   500
-#>  3:           3    -0.58233561   0.02662669   500
-#>  4:           4    -0.29686055   0.02666886   500
-#>  5:           5    -0.11159421   0.02566314   500
-#>  6:           6     0.06070585   0.02561494   500
-#>  7:           7     0.34513869   0.02621525   500
-#>  8:           8     0.57167512   0.02646528   500
-#>  9:           9     0.82902026   0.02718876   500
-#> 10:          10     1.42685129   0.03182491   500
 
 # Visualise
 ggplot2$ggplot(decile_summary, ggplot2$aes(x = risk_decile, y = mean_phenotype)) +
@@ -970,6 +986,23 @@ ggplot2$ggplot(decile_summary, ggplot2$aes(x = risk_decile, y = mean_phenotype))
 <Figure src="/courses/statistics-3-advanced/prs_risk_stratification-1.png" alt="PRS stratifies individuals by genetic risk">
 	PRS stratifies individuals by genetic risk
 </Figure>
+
+```
+#> Phenotype by PRS Decile:
+#> ========================
+#>     risk_decile mean_phenotype se_phenotype     n
+#>          <fctr>          <num>        <num> <int>
+#>  1:           1    -1.39421320   0.03033604   500
+#>  2:           2    -0.84838763   0.02576509   500
+#>  3:           3    -0.58233561   0.02662669   500
+#>  4:           4    -0.29686055   0.02666886   500
+#>  5:           5    -0.11159421   0.02566314   500
+#>  6:           6     0.06070585   0.02561494   500
+#>  7:           7     0.34513869   0.02621525   500
+#>  8:           8     0.57167512   0.02646528   500
+#>  9:           9     0.82902026   0.02718876   500
+#> 10:          10     1.42685129   0.03182491   500
+```
 
 ---
 

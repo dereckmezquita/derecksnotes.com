@@ -35,12 +35,15 @@ penguins <- fread("../../../data/primary/penguins.csv")
 gapminder <- fread("../../../data/primary/gapminder.csv")
 
 cat("Datasets loaded:\n")
-#> Datasets loaded:
 cat("  NHANES:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
-#>   NHANES: 10000 observations, 76 variables
 cat("  Penguins:", nrow(penguins), "observations,", ncol(penguins), "variables\n")
-#>   Penguins: 344 observations, 8 variables
 cat("  Gapminder:", nrow(gapminder), "observations,", ncol(gapminder), "variables\n")
+```
+
+```
+#> Datasets loaded:
+#>   NHANES: 10000 observations, 76 variables
+#>   Penguins: 344 observations, 8 variables
 #>   Gapminder: 1704 observations, 6 variables
 ```
 
@@ -657,13 +660,9 @@ h_scott <- 3.5 * bmi_sd / (n^(1/3))
 h_fd <- 2 * bmi_iqr / (n^(1/3))
 
 cat("Bin width recommendations for BMI data (n =", n, "):\n")
-#> Bin width recommendations for BMI data (n = 9634 ):
 cat("  Sturges:", round(h_sturges, 2), "kg/m² (", k_sturges, "bins)\n")
-#>   Sturges: 4.56 kg/m<U+00B2> ( 15 bins)
 cat("  Scott:", round(h_scott, 2), "kg/m²\n")
-#>   Scott: 1.21 kg/m<U+00B2>
 cat("  Freedman-Diaconis:", round(h_fd, 2), "kg/m²\n")
-#>   Freedman-Diaconis: 0.88 kg/m<U+00B2>
 
 # Compare visually
 p_few <- ggplot2$ggplot(bmi_data, ggplot2$aes(x = BMI)) +
@@ -688,6 +687,13 @@ gridExtra::grid.arrange(p_few, p_optimal, p_many, ncol = 3)
 <Figure src="/courses/statistics-1-foundations/histogram_binwidth-1.png" alt="Effect of bin width on histogram appearance">
 	Effect of bin width on histogram appearance
 </Figure>
+
+```
+#> Bin width recommendations for BMI data (n = 9634 ):
+#>   Sturges: 4.56 kg/m² ( 15 bins)
+#>   Scott: 1.21 kg/m²
+#>   Freedman-Diaconis: 0.88 kg/m²
+```
 
 **Implementing a Histogram from Scratch**
 
@@ -894,25 +900,15 @@ upper_whisker <- max(sample_data[sample_data <= upper_fence])
 outliers <- sample_data[sample_data < lower_fence | sample_data > upper_fence]
 
 cat("Box plot components:\n")
-#> Box plot components:
 cat("  Q1 (25th percentile):", round(q1, 1), "\n")
-#>   Q1 (25th percentile): 44.2
 cat("  Median (50th percentile):", round(med, 1), "\n")
-#>   Median (50th percentile): 52
 cat("  Q3 (75th percentile):", round(q3, 1), "\n")
-#>   Q3 (75th percentile): 57.3
 cat("  IQR:", round(iqr, 1), "\n")
-#>   IQR: 13.1
 cat("  Lower fence:", round(lower_fence, 1), "\n")
-#>   Lower fence: 24.7
 cat("  Upper fence:", round(upper_fence, 1), "\n")
-#>   Upper fence: 76.9
 cat("  Lower whisker:", round(lower_whisker, 1), "\n")
-#>   Lower whisker: 25.6
 cat("  Upper whisker:", round(upper_whisker, 1), "\n")
-#>   Upper whisker: 72.9
 cat("  Outliers:", round(outliers, 1), "\n")
-#>   Outliers: 23.4 20.1 10 15 85 90 95
 
 # Create annotated box plot
 # Use numeric x to allow xlim
@@ -943,6 +939,19 @@ ggplot2$ggplot(sample_dt, ggplot2$aes(x = x_pos, y = value, group = 1)) +
 <Figure src="/courses/statistics-1-foundations/boxplot_anatomy-1.png" alt="Anatomy of a box plot with all components labelled">
 	Anatomy of a box plot with all components labelled
 </Figure>
+
+```
+#> Box plot components:
+#>   Q1 (25th percentile): 44.2 
+#>   Median (50th percentile): 52 
+#>   Q3 (75th percentile): 57.3 
+#>   IQR: 13.1 
+#>   Lower fence: 24.7 
+#>   Upper fence: 76.9 
+#>   Lower whisker: 25.6 
+#>   Upper whisker: 72.9 
+#>   Outliers: 23.4 20.1 10 15 85 90 95
+```
 
 ### 3.3.4 Violin Plots
 
@@ -1063,10 +1072,17 @@ The stem-and-leaf plot is a text-based visualisation that preserves exact values
 pulse_sample <- nhanes[!is.na(Pulse), Pulse][1:50]
 
 cat("Stem-and-Leaf Plot of Pulse Rates (n = 50)\n")
-#> Stem-and-Leaf Plot of Pulse Rates (n = 50)
 cat("=========================================\n\n")
-#> =========================================
 stem(pulse_sample, scale = 1)
+
+cat("\nInterpretation: The stem '7' with leaves '0 2 2 4 6 8' represents")
+cat("\nthe values 70, 72, 72, 74, 76, 78 beats per minute.\n")
+```
+
+```
+#> Stem-and-Leaf Plot of Pulse Rates (n = 50)
+#> =========================================
+#> 
 #> 
 #>   The decimal point is 1 digit(s) to the right of the |
 #> 
@@ -1076,12 +1092,9 @@ stem(pulse_sample, scale = 1)
 #>    8 | 0000022444666
 #>    9 | 24446
 #>   10 | 00
-
-cat("\nInterpretation: The stem '7' with leaves '0 2 2 4 6 8' represents")
+#> 
 #> 
 #> Interpretation: The stem '7' with leaves '0 2 2 4 6 8' represents
-cat("\nthe values 70, 72, 72, 74, 76, 78 beats per minute.\n")
-#> 
 #> the values 70, 72, 72, 74, 76, 78 beats per minute.
 ```
 

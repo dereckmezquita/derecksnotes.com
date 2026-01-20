@@ -72,78 +72,17 @@ samples_dt <- data.table(
 )
 
 cat("Sampling Variability Demonstration\n")
-```
-
-```
-## Sampling Variability Demonstration
-```
-
-``` r
 cat("==================================\n\n")
-```
-
-```
-## ==================================
-```
-
-``` r
 cat(sprintf("Population: μ = %.1f, σ = %.1f\n", population_mean, population_sd))
-```
-
-```
-## Population: <U+03BC> = 10.0, <U+03C3> = 5.0
-```
-
-``` r
 cat(sprintf("Sample size: n = %d\n", sample_size))
-```
-
-```
-## Sample size: n = 50
-```
-
-``` r
 cat(sprintf("Number of samples: %d\n\n", n_samples))
-```
 
-```
-## Number of samples: 20
-```
-
-``` r
 cat("Sample means:\n")
-```
-
-```
-## Sample means:
-```
-
-``` r
 cat(sprintf("  Range: %.2f to %.2f\n", min(sample_means), max(sample_means)))
-```
-
-```
-##   Range: 8.97 to 11.42
-```
-
-``` r
 cat(sprintf("  Mean of sample means: %.2f (true μ = %.1f)\n", mean(sample_means), population_mean))
-```
-
-```
-##   Mean of sample means: 9.87 (true <U+03BC> = 10.0)
-```
-
-``` r
 cat(sprintf("  SD of sample means: %.2f (theoretical SE = %.2f)\n",
             sd(sample_means), population_sd / sqrt(sample_size)))
-```
 
-```
-##   SD of sample means: 0.72 (theoretical SE = 0.71)
-```
-
-``` r
 # Visualise
 ggplot2$ggplot(samples_dt, ggplot2$aes(x = sample_id, y = sample_mean)) +
     ggplot2$geom_hline(yintercept = population_mean, colour = "#D55E00",
@@ -166,6 +105,20 @@ ggplot2$ggplot(samples_dt, ggplot2$aes(x = sample_id, y = sample_mean)) +
 <Figure src="/courses/statistics-1-foundations/sampling_variability-1.png" alt="Each sample from the same population produces a different sample mean">
 	Each sample from the same population produces a different sample mean
 </Figure>
+
+```
+## Sampling Variability Demonstration
+## ==================================
+## 
+## Population: μ = 10.0, σ = 5.0
+## Sample size: n = 50
+## Number of samples: 20
+## 
+## Sample means:
+##   Range: 8.97 to 11.42
+##   Mean of sample means: 9.87 (true μ = 10.0)
+##   SD of sample means: 0.72 (theoretical SE = 0.71)
+```
 
 Each of the 20 samples produced a different mean, scattered around the true population mean of 10 mmHg. No single sample hit the target exactly, but their average is close.
 
@@ -224,21 +177,8 @@ all_dists <- rbindlist(sampling_dists)
 all_dists[, sample_size := factor(sample_size, levels = paste0("n = ", sample_sizes))]
 
 cat("Simulated Sampling Distributions\n")
-```
-
-```
-## Simulated Sampling Distributions
-```
-
-``` r
 cat("================================\n\n")
-```
 
-```
-## ================================
-```
-
-``` r
 for (n in sample_sizes) {
     subset <- all_dists[sample_size == paste0("n = ", n)]
     emp_se <- sd(subset$sample_mean)
@@ -247,16 +187,7 @@ for (n in sample_sizes) {
     cat(sprintf("n = %3d: Empirical SE = %.3f, Theoretical SE = %.3f\n",
                 n, emp_se, theo_se))
 }
-```
 
-```
-## n =   5: Empirical SE = 6.662, Theoretical SE = 6.708
-## n =  10: Empirical SE = 4.724, Theoretical SE = 4.743
-## n =  30: Empirical SE = 2.719, Theoretical SE = 2.739
-## n = 100: Empirical SE = 1.509, Theoretical SE = 1.500
-```
-
-``` r
 # Plot
 ggplot2$ggplot(all_dists, ggplot2$aes(x = sample_mean)) +
     ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
@@ -277,6 +208,16 @@ ggplot2$ggplot(all_dists, ggplot2$aes(x = sample_mean)) +
 <Figure src="/courses/statistics-1-foundations/simulate_sampling_dist-1.png" alt="Simulating the sampling distribution by repeated sampling">
 	Simulating the sampling distribution by repeated sampling
 </Figure>
+
+```
+## Simulated Sampling Distributions
+## ================================
+## 
+## n =   5: Empirical SE = 6.662, Theoretical SE = 6.708
+## n =  10: Empirical SE = 4.724, Theoretical SE = 4.743
+## n =  30: Empirical SE = 2.719, Theoretical SE = 2.739
+## n = 100: Empirical SE = 1.509, Theoretical SE = 1.500
+```
 
 **Key observations:**
 
@@ -403,54 +344,13 @@ comparison_dt <- rbind(
 )
 
 cat("Standard Deviation vs Standard Error\n")
-```
-
-```
-## Standard Deviation vs Standard Error
-```
-
-``` r
 cat("=====================================\n\n")
-```
-
-```
-## =====================================
-```
-
-``` r
 cat(sprintf("Individual observations:\n"))
-```
-
-```
-## Individual observations:
-```
-
-``` r
 cat(sprintf("  SD = %.2f (population σ = %.0f)\n\n", sd(individuals), pop_sd_chol))
-```
-
-```
-##   SD = 39.23 (population <U+03C3> = 40)
-```
-
-``` r
 cat(sprintf("Sample means (n = 25):\n"))
-```
-
-```
-## Sample means (n = 25):
-```
-
-``` r
 cat(sprintf("  SE = %.2f (theoretical σ/√n = %.2f)\n",
             sd(sample_means_chol), pop_sd_chol / sqrt(n)))
-```
 
-```
-##   SE = 8.05 (theoretical <U+03C3>/<U+221A>n = 8.00)
-```
-
-``` r
 ggplot2$ggplot(comparison_dt, ggplot2$aes(x = value, fill = type)) +
     ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
                            colour = "white", alpha = 0.8) +
@@ -472,6 +372,17 @@ ggplot2$ggplot(comparison_dt, ggplot2$aes(x = value, fill = type)) +
 <Figure src="/courses/statistics-1-foundations/se_vs_sd-1.png" alt="Standard deviation describes individual variation; standard error describes variation in sample means">
 	Standard deviation describes individual variation; standard error describes variation in sample means
 </Figure>
+
+```
+## Standard Deviation vs Standard Error
+## =====================================
+## 
+## Individual observations:
+##   SD = 39.23 (population σ = 40)
+## 
+## Sample means (n = 25):
+##   SE = 8.05 (theoretical σ/√n = 8.00)
+```
 
 The sample means are tightly clustered around 200 mg/dL (SE ≈ 8), while individual observations spread widely (SD = 40).
 
@@ -504,52 +415,17 @@ viz_dt[, label := factor(label, levels = unique(label))]
 
 # Summary
 cat("Effect of Sample Size on Standard Error\n")
-```
-
-```
-## Effect of Sample Size on Standard Error
-```
-
-``` r
 cat("========================================\n\n")
-```
-
-```
-## ========================================
-```
-
-``` r
 cat("σ = 10\n\n")
-```
 
-```
-## <U+03C3> = 10
-```
-
-``` r
 for (n in sample_sizes_viz) {
     se <- pop_sig / sqrt(n)
     cat(sprintf("n = %3d: SE = %.3f (95%% of means within ±%.2f of μ)\n",
                 n, se, 1.96 * se))
 }
-```
 
-```
-## n =  10: SE = 3.162 (95% of means within <U+00B1>6.20 of <U+03BC>)
-## n =  40: SE = 1.581 (95% of means within <U+00B1>3.10 of <U+03BC>)
-## n = 160: SE = 0.791 (95% of means within <U+00B1>1.55 of <U+03BC>)
-```
-
-``` r
 cat("\nNote: Quadrupling n halves the SE (due to √n relationship)\n")
-```
 
-```
-## 
-## Note: Quadrupling n halves the SE (due to <U+221A>n relationship)
-```
-
-``` r
 ggplot2$ggplot(viz_dt, ggplot2$aes(x = sample_mean, fill = label)) +
     ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
                            colour = "white", alpha = 0.8) +
@@ -572,6 +448,19 @@ ggplot2$ggplot(viz_dt, ggplot2$aes(x = sample_mean, fill = label)) +
 <Figure src="/courses/statistics-1-foundations/sample_size_effect-1.png" alt="The sqrt(n) relationship: quadrupling sample size halves the standard error">
 	The sqrt(n) relationship: quadrupling sample size halves the standard error
 </Figure>
+
+```
+## Effect of Sample Size on Standard Error
+## ========================================
+## 
+## σ = 10
+## 
+## n =  10: SE = 3.162 (95% of means within ±6.20 of μ)
+## n =  40: SE = 1.581 (95% of means within ±3.10 of μ)
+## n = 160: SE = 0.791 (95% of means within ±1.55 of μ)
+## 
+## Note: Quadrupling n halves the SE (due to √n relationship)
+```
 
 **Practical implications:**
 
@@ -635,21 +524,8 @@ populations <- list(
 
 # For each population, show the CLT in action
 cat("The Central Limit Theorem: Any Population → Normal Sample Means\n")
-```
-
-```
-## The Central Limit Theorem: Any Population <U+2192> Normal Sample Means
-```
-
-``` r
 cat("================================================================\n\n")
-```
 
-```
-## ================================================================
-```
-
-``` r
 for (name in names(populations)) {
     pop <- populations[[name]]
     cat(sprintf("%s population:\n", name))
@@ -657,23 +533,7 @@ for (name in names(populations)) {
                 mean(pop), sd(pop),
                 mean((pop - mean(pop))^3) / sd(pop)^3))
 }
-```
 
-```
-## Exponential population:
-##   Mean = 1.992, SD = 1.984, Skewness <U+2248> 1.98
-## 
-## Uniform population:
-##   Mean = 5.001, SD = 2.883, Skewness <U+2248> 0.00
-## 
-## Bimodal population:
-##   Mean = 4.997, SD = 3.043, Skewness <U+2248> 0.00
-## 
-## Beta population:
-##   Mean = 0.286, SD = 0.159, Skewness <U+2248> 0.60
-```
-
-``` r
 # Plot populations
 pop_plot_data <- rbind(
     data.table(distribution = "Exponential", value = sample(pop_exp, 5000)),
@@ -701,6 +561,23 @@ ggplot2$ggplot(pop_plot_data, ggplot2$aes(x = value)) +
 <Figure src="/courses/statistics-1-foundations/clt_remarkable-1.png" alt="The CLT works for any population distribution">
 	The CLT works for any population distribution
 </Figure>
+
+```
+## The Central Limit Theorem: Any Population → Normal Sample Means
+## ================================================================
+## 
+## Exponential population:
+##   Mean = 1.992, SD = 1.984, Skewness ≈ 1.98
+## 
+## Uniform population:
+##   Mean = 5.001, SD = 2.883, Skewness ≈ 0.00
+## 
+## Bimodal population:
+##   Mean = 4.997, SD = 3.043, Skewness ≈ 0.00
+## 
+## Beta population:
+##   Mean = 0.286, SD = 0.159, Skewness ≈ 0.60
+```
 
 ### 6.3.3 Visualising the CLT: Simulations from Various Populations
 
@@ -818,48 +695,13 @@ for (n in test_sizes) {
 convergence_dt <- rbindlist(convergence_results)
 
 cat("Convergence to Normality\n")
-```
-
-```
-## Convergence to Normality
-```
-
-``` r
 cat("========================\n\n")
-```
-
-```
-## ========================
-```
-
-``` r
 cat("Shapiro-Wilk p-value (higher = more normal):\n\n")
-```
 
-```
-## Shapiro-Wilk p-value (higher = more normal):
-```
-
-``` r
 print(dcast(convergence_dt, n ~ population, value.var = "shapiro_p")[,
     lapply(.SD, function(x) round(x, 4)), .SDcols = c("Symmetric (Normal)", "Highly Skewed (Exponential)"),
     by = n])
-```
 
-```
-## Key: <n>
-##        n Symmetric (Normal) Highly Skewed (Exponential)
-##    <num>              <num>                       <num>
-## 1:     2             0.4836                      0.0000
-## 2:     5             0.1842                      0.0000
-## 3:    10             0.5282                      0.0000
-## 4:    20             0.7529                      0.0003
-## 5:    30             0.9092                      0.0005
-## 6:    50             0.7532                      0.0321
-## 7:   100             0.9591                      0.3298
-```
-
-``` r
 ggplot2$ggplot(convergence_dt, ggplot2$aes(x = n, y = shapiro_p, colour = population)) +
     ggplot2$geom_line(linewidth = 1.2) +
     ggplot2$geom_point(size = 3) +
@@ -880,6 +722,24 @@ ggplot2$ggplot(convergence_dt, ggplot2$aes(x = n, y = shapiro_p, colour = popula
 <Figure src="/courses/statistics-1-foundations/sample_size_requirement-1.png" alt="More skewed populations require larger samples for CLT to apply">
 	More skewed populations require larger samples for CLT to apply
 </Figure>
+
+```
+## Convergence to Normality
+## ========================
+## 
+## Shapiro-Wilk p-value (higher = more normal):
+## 
+## Key: <n>
+##        n Symmetric (Normal) Highly Skewed (Exponential)
+##    <num>              <num>                       <num>
+## 1:     2             0.4836                      0.0000
+## 2:     5             0.1842                      0.0000
+## 3:    10             0.5282                      0.0000
+## 4:    20             0.7529                      0.0003
+## 5:    30             0.9092                      0.0005
+## 6:    50             0.7532                      0.0321
+## 7:   100             0.9591                      0.3298
+```
 
 **Guidelines:**
 
@@ -980,45 +840,11 @@ set.seed(505)
 bmi_data <- nhanes[!is.na(BMI) & BMI > 10 & BMI < 70, BMI]
 
 cat("NHANES BMI Data\n")
-```
-
-```
-## NHANES BMI Data
-```
-
-``` r
 cat("===============\n\n")
-```
-
-```
-## ===============
-```
-
-``` r
 cat(sprintf("Population: n = %d observations\n", length(bmi_data)))
-```
-
-```
-## Population: n = 9631 observations
-```
-
-``` r
 cat(sprintf("Mean (μ) = %.2f kg/m²\n", mean(bmi_data)))
-```
-
-```
-## Mean (<U+03BC>) = 26.64 kg/m<U+00B2>
-```
-
-``` r
 cat(sprintf("SD (σ) = %.2f kg/m²\n\n", sd(bmi_data)))
-```
 
-```
-## SD (<U+03C3>) = 7.32 kg/m<U+00B2>
-```
-
-``` r
 # Simulate sampling distributions
 sample_sizes_bmi <- c(10, 30, 100)
 n_sims_bmi <- 5000
@@ -1037,13 +863,6 @@ bmi_sampling_dt[, sample_size := factor(sample_size, levels = paste0("n = ", sam
 
 # Summary statistics
 cat("Sampling Distribution Properties:\n")
-```
-
-```
-## Sampling Distribution Properties:
-```
-
-``` r
 for (n in sample_sizes_bmi) {
     subset <- bmi_sampling_dt[sample_size == paste0("n = ", n)]
     cat(sprintf("\nn = %3d:\n", n))
@@ -1053,27 +872,7 @@ for (n in sample_sizes_bmi) {
                 mean(bmi_data) - 1.96 * sd(bmi_data) / sqrt(n),
                 mean(bmi_data) + 1.96 * sd(bmi_data) / sqrt(n)))
 }
-```
 
-```
-## 
-## n =  10:
-##   Theoretical SE = 2.313
-##   Empirical SE = 2.296
-##   95% of sample means between 22.1 and 31.2
-## 
-## n =  30:
-##   Theoretical SE = 1.336
-##   Empirical SE = 1.312
-##   95% of sample means between 24.0 and 29.3
-## 
-## n = 100:
-##   Theoretical SE = 0.732
-##   Empirical SE = 0.720
-##   95% of sample means between 25.2 and 28.1
-```
-
-``` r
 # Plot
 ggplot2$ggplot(bmi_sampling_dt, ggplot2$aes(x = sample_mean)) +
     ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
@@ -1094,6 +893,32 @@ ggplot2$ggplot(bmi_sampling_dt, ggplot2$aes(x = sample_mean)) +
 <Figure src="/courses/statistics-1-foundations/nhanes_sampling_dist-1.png" alt="Sampling distribution of mean BMI from NHANES data">
 	Sampling distribution of mean BMI from NHANES data
 </Figure>
+
+```
+## NHANES BMI Data
+## ===============
+## 
+## Population: n = 9631 observations
+## Mean (μ) = 26.64 kg/m²
+## SD (σ) = 7.32 kg/m²
+## 
+## Sampling Distribution Properties:
+## 
+## n =  10:
+##   Theoretical SE = 2.313
+##   Empirical SE = 2.296
+##   95% of sample means between 22.1 and 31.2
+## 
+## n =  30:
+##   Theoretical SE = 1.336
+##   Empirical SE = 1.312
+##   95% of sample means between 24.0 and 29.3
+## 
+## n = 100:
+##   Theoretical SE = 0.732
+##   Empirical SE = 0.720
+##   95% of sample means between 25.2 and 28.1
+```
 
 ### 6.4.2 Clinical Trial Power Calculations
 
@@ -1120,63 +945,15 @@ power_data[, margin_of_error := 1.96 * se]
 power_data[, detectable := ci_width < 2 * abs(true_effect)]
 
 cat("Clinical Trial Sample Size Planning\n")
-```
-
-```
-## Clinical Trial Sample Size Planning
-```
-
-``` r
 cat("====================================\n\n")
-```
-
-```
-## ====================================
-```
-
-``` r
 cat(sprintf("True effect: %.1f mmHg reduction\n", true_effect))
-```
-
-```
-## True effect: 5.0 mmHg reduction
-```
-
-``` r
 cat(sprintf("Population SD: %.1f mmHg\n\n", population_sd))
-```
 
-```
-## Population SD: 12.0 mmHg
-```
-
-``` r
 cat("Sample size needed for:\n")
-```
-
-```
-## Sample size needed for:
-```
-
-``` r
 cat(sprintf("  95%% CI width < 10 mmHg: n >= %.0f\n",
             min(power_data[ci_width < 10, n])))
-```
-
-```
-##   95% CI width < 10 mmHg: n >= 30
-```
-
-``` r
 cat(sprintf("  95%% CI width < 5 mmHg:  n >= %.0f\n",
             min(power_data[ci_width < 5, n])))
-```
-
-```
-##   95% CI width < 5 mmHg:  n >= 90
-```
-
-``` r
 cat(sprintf("  95%% CI width < 3 mmHg:  n >= %.0f\n",
             min(power_data[ci_width < 3, n])))
 ```
@@ -1184,10 +961,6 @@ cat(sprintf("  95%% CI width < 3 mmHg:  n >= %.0f\n",
 ```
 ## Warning in min(power_data[ci_width < 3, n]): no non-missing arguments to min;
 ## returning Inf
-```
-
-```
-##   95% CI width < 3 mmHg:  n >= Inf
 ```
 
 ``` r
@@ -1212,6 +985,19 @@ ggplot2$ggplot(power_data, ggplot2$aes(x = n)) +
 	How sample size affects the precision of clinical trial estimates
 </Figure>
 
+```
+## Clinical Trial Sample Size Planning
+## ====================================
+## 
+## True effect: 5.0 mmHg reduction
+## Population SD: 12.0 mmHg
+## 
+## Sample size needed for:
+##   95% CI width < 10 mmHg: n >= 30
+##   95% CI width < 5 mmHg:  n >= 90
+##   95% CI width < 3 mmHg:  n >= Inf
+```
+
 ---
 
 ## Communicating to Stakeholders
@@ -1221,162 +1007,58 @@ ggplot2$ggplot(power_data, ggplot2$aes(x = n)) +
 
 ``` r
 cat("Explaining Sampling Distributions to Non-Statisticians\n")
-```
-
-```
-## Explaining Sampling Distributions to Non-Statisticians
-```
-
-``` r
 cat("======================================================\n\n")
-```
 
-```
-## ======================================================
-```
-
-``` r
 cat("THE CORE MESSAGE:\n")
-```
-
-```
-## THE CORE MESSAGE:
-```
-
-``` r
 cat("  'If we repeated this study many times with different participants,\n")
-```
-
-```
-##   'If we repeated this study many times with different participants,
-```
-
-``` r
 cat("   we would get slightly different results each time. The sampling\n")
-```
-
-```
-##    we would get slightly different results each time. The sampling
-```
-
-``` r
 cat("   distribution tells us how much variation to expect.'\n\n")
-```
 
-```
-##    distribution tells us how much variation to expect.'
-```
-
-``` r
 cat("ANALOGY: Opinion polls\n")
-```
-
-```
-## ANALOGY: Opinion polls
-```
-
-``` r
 cat("  'Just as different polls of 1,000 voters give slightly different\n")
-```
-
-```
-##   'Just as different polls of 1,000 voters give slightly different
-```
-
-``` r
 cat("   estimates, different clinical studies of 100 patients give slightly\n")
-```
-
-```
-##    estimates, different clinical studies of 100 patients give slightly
-```
-
-``` r
 cat("   different estimates of treatment effect.'\n\n")
-```
 
-```
-##    different estimates of treatment effect.'
-```
-
-``` r
 cat("KEY DISTINCTIONS:\n")
-```
-
-```
-## KEY DISTINCTIONS:
-```
-
-``` r
 cat("  1. Standard Deviation vs Standard Error:\n")
-```
-
-```
-##   1. Standard Deviation vs Standard Error:
-```
-
-``` r
 cat("     SD: How much individual patients vary\n")
-```
-
-```
-##      SD: How much individual patients vary
-```
-
-``` r
 cat("     SE: How precisely we've estimated the average\n\n")
-```
 
-```
-##      SE: How precisely we've estimated the average
-```
-
-``` r
 cat("  2. Sample mean vs Population mean:\n")
-```
-
-```
-##   2. Sample mean vs Population mean:
-```
-
-``` r
 cat("     'Our sample average of 8.3 mmHg is our best guess,\n")
-```
-
-```
-##      'Our sample average of 8.3 mmHg is our best guess,
-```
-
-``` r
 cat("      but the true effect could be slightly higher or lower.'\n\n")
-```
 
-```
-##       but the true effect could be slightly higher or lower.'
-```
-
-``` r
 cat("PRACTICAL INTERPRETATION:\n")
-```
-
-```
-## PRACTICAL INTERPRETATION:
-```
-
-``` r
 cat("  'With a standard error of 1.5 mmHg, about 95% of studies would\n")
-```
-
-```
-##   'With a standard error of 1.5 mmHg, about 95% of studies would
-```
-
-``` r
 cat("   find an average effect within ±3 mmHg of the true effect.'\n")
 ```
 
 ```
-##    find an average effect within <U+00B1>3 mmHg of the true effect.'
+## Explaining Sampling Distributions to Non-Statisticians
+## ======================================================
+## 
+## THE CORE MESSAGE:
+##   'If we repeated this study many times with different participants,
+##    we would get slightly different results each time. The sampling
+##    distribution tells us how much variation to expect.'
+## 
+## ANALOGY: Opinion polls
+##   'Just as different polls of 1,000 voters give slightly different
+##    estimates, different clinical studies of 100 patients give slightly
+##    different estimates of treatment effect.'
+## 
+## KEY DISTINCTIONS:
+##   1. Standard Deviation vs Standard Error:
+##      SD: How much individual patients vary
+##      SE: How precisely we've estimated the average
+## 
+##   2. Sample mean vs Population mean:
+##      'Our sample average of 8.3 mmHg is our best guess,
+##       but the true effect could be slightly higher or lower.'
+## 
+## PRACTICAL INTERPRETATION:
+##   'With a standard error of 1.5 mmHg, about 95% of studies would
+##    find an average effect within ±3 mmHg of the true effect.'
 ```
 
 ### Explaining the Central Limit Theorem
@@ -1384,137 +1066,49 @@ cat("   find an average effect within ±3 mmHg of the true effect.'\n")
 
 ``` r
 cat("Explaining the CLT to Non-Statisticians\n")
-```
-
-```
-## Explaining the CLT to Non-Statisticians
-```
-
-``` r
 cat("=======================================\n\n")
-```
 
-```
-## =======================================
-```
-
-``` r
 cat("THE REMARKABLE RESULT:\n")
-```
-
-```
-## THE REMARKABLE RESULT:
-```
-
-``` r
 cat("  'No matter how unusual individual patients are, averages are\n")
-```
-
-```
-##   'No matter how unusual individual patients are, averages are
-```
-
-``` r
 cat("   predictable. This is why we can make reliable inferences from\n")
-```
-
-```
-##    predictable. This is why we can make reliable inferences from
-```
-
-``` r
 cat("   samples, even when individual variation is high.'\n\n")
-```
 
-```
-##    samples, even when individual variation is high.'
-```
-
-``` r
 cat("ANALOGY: Coin flips\n")
-```
-
-```
-## ANALOGY: Coin flips
-```
-
-``` r
 cat("  'One coin flip is completely unpredictable — 50/50. But if you\n")
-```
-
-```
-##   'One coin flip is completely unpredictable <U+2014> 50/50. But if you
-```
-
-``` r
 cat("   flip 100 coins, you'll nearly always get between 40 and 60 heads.\n")
-```
-
-```
-##    flip 100 coins, you'll nearly always get between 40 and 60 heads.
-```
-
-``` r
 cat("   That predictability of averages is the CLT.'\n\n")
-```
 
-```
-##    That predictability of averages is the CLT.'
-```
-
-``` r
 cat("CLINICAL APPLICATION:\n")
-```
-
-```
-## CLINICAL APPLICATION:
-```
-
-``` r
 cat("  'Even though individual patients respond very differently to\n")
-```
-
-```
-##   'Even though individual patients respond very differently to
-```
-
-``` r
 cat("   treatment, we can predict the average response quite precisely\n")
-```
-
-```
-##    treatment, we can predict the average response quite precisely
-```
-
-``` r
 cat("   if we have enough patients.'\n\n")
-```
 
-```
-##    if we have enough patients.'
-```
-
-``` r
 cat("WHY LARGER STUDIES ARE BETTER:\n")
-```
-
-```
-## WHY LARGER STUDIES ARE BETTER:
-```
-
-``` r
 cat("  'Quadrupling the sample size halves the uncertainty.\n")
-```
-
-```
-##   'Quadrupling the sample size halves the uncertainty.
-```
-
-``` r
 cat("   A study with 400 patients is twice as precise as one with 100.'\n")
 ```
 
 ```
+## Explaining the CLT to Non-Statisticians
+## =======================================
+## 
+## THE REMARKABLE RESULT:
+##   'No matter how unusual individual patients are, averages are
+##    predictable. This is why we can make reliable inferences from
+##    samples, even when individual variation is high.'
+## 
+## ANALOGY: Coin flips
+##   'One coin flip is completely unpredictable — 50/50. But if you
+##    flip 100 coins, you'll nearly always get between 40 and 60 heads.
+##    That predictability of averages is the CLT.'
+## 
+## CLINICAL APPLICATION:
+##   'Even though individual patients respond very differently to
+##    treatment, we can predict the average response quite precisely
+##    if we have enough patients.'
+## 
+## WHY LARGER STUDIES ARE BETTER:
+##   'Quadrupling the sample size halves the uncertainty.
 ##    A study with 400 patients is twice as precise as one with 100.'
 ```
 

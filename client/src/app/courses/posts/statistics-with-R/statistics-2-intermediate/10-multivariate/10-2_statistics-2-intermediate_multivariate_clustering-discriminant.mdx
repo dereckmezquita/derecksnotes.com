@@ -48,16 +48,19 @@ bc_features <- breast_cancer[, ..feature_cols]
 bc_scaled <- scale(bc_features)
 
 cat("Breast Cancer Wisconsin Dataset:\n")
-#> Breast Cancer Wisconsin Dataset:
 cat("================================\n")
-#> ================================
 cat("  Observations:", nrow(breast_cancer), "\n")
-#>   Observations: 569
 cat("  Features:", length(feature_cols), "\n")
-#>   Features: 10
 cat("  Malignant:", sum(breast_cancer$diagnosis == "M"), "\n")
-#>   Malignant: 212
 cat("  Benign:", sum(breast_cancer$diagnosis == "B"), "\n")
+```
+
+```
+#> Breast Cancer Wisconsin Dataset:
+#> ================================
+#>   Observations: 569 
+#>   Features: 10 
+#>   Malignant: 212 
 #>   Benign: 357
 ```
 
@@ -248,15 +251,17 @@ p_elbow + p_silhouette
 </Figure>
 
 ``` r
-
 cat("\nCluster Selection Summary:\n")
+cat("==========================\n")
+cat("  Optimal k by silhouette:", cluster_stats[which.max(avg_silhouette), k], "\n")
+cat("  Maximum avg silhouette:", round(max(cluster_stats$avg_silhouette), 3), "\n")
+```
+
+```
 #> 
 #> Cluster Selection Summary:
-cat("==========================\n")
 #> ==========================
-cat("  Optimal k by silhouette:", cluster_stats[which.max(avg_silhouette), k], "\n")
-#>   Optimal k by silhouette: 2
-cat("  Maximum avg silhouette:", round(max(cluster_stats$avg_silhouette), 3), "\n")
+#>   Optimal k by silhouette: 2 
 #>   Maximum avg silhouette: 0.395
 ```
 
@@ -275,19 +280,11 @@ cluster_comparison <- table(
 )
 
 cat("K-means Clustering Results (k=2):\n")
-#> K-means Clustering Results (k=2):
 cat("=================================\n\n")
-#> =================================
 cat("Cluster sizes:", km_bc$size, "\n\n")
-#> Cluster sizes: 169 400
 
 cat("Comparison with actual diagnosis:\n")
-#> Comparison with actual diagnosis:
 print(cluster_comparison)
-#>        Diagnosis
-#> Cluster   B   M
-#>       1   6 163
-#>       2 351  49
 
 # Calculate agreement (adjusting for label switching)
 agreement <- max(
@@ -295,8 +292,6 @@ agreement <- max(
     sum(diag(cluster_comparison[, 2:1])) / sum(cluster_comparison)
 )
 cat("\nAgreement with diagnosis:", sprintf("%.1f%%", agreement * 100), "\n")
-#> 
-#> Agreement with diagnosis: 90.3%
 
 # Visualise on PCA space
 pca_bc <- prcomp(bc_scaled)
@@ -323,6 +318,21 @@ ggplot2$ggplot(cluster_pca, ggplot2$aes(x = PC1, y = PC2)) +
 <Figure src="/courses/statistics-2-intermediate/kmeans_breast_cancer-1.png" alt="K-means clustering of breast cancer tumours">
 	K-means clustering of breast cancer tumours
 </Figure>
+
+```
+#> K-means Clustering Results (k=2):
+#> =================================
+#> 
+#> Cluster sizes: 169 400 
+#> 
+#> Comparison with actual diagnosis:
+#>        Diagnosis
+#> Cluster   B   M
+#>       1   6 163
+#>       2 351  49
+#> 
+#> Agreement with diagnosis: 90.3%
+```
 
 ---
 
@@ -408,16 +418,19 @@ text(50, 47, "Cut here for k=2", col = "red")
 </Figure>
 
 ``` r
-
 # Cut tree
 hc_clusters <- cutree(hc_bc, k = 2)
 
 cat("\nHierarchical Clustering Results (k=2):\n")
+cat("=====================================\n\n")
+print(table(Cluster = hc_clusters, Diagnosis = breast_cancer$diagnosis))
+```
+
+```
 #> 
 #> Hierarchical Clustering Results (k=2):
-cat("=====================================\n\n")
 #> =====================================
-print(table(Cluster = hc_clusters, Diagnosis = breast_cancer$diagnosis))
+#> 
 #>        Diagnosis
 #> Cluster   B   M
 #>       1  47 170
@@ -474,47 +487,85 @@ ggplot2$ggplot(comp_long, ggplot2$aes(x = PC1, y = PC2, colour = Cluster, shape 
 </Figure>
 
 ``` r
-
 # Agreement statistics
 cat("\nClustering Method Agreement:\n")
-#> 
-#> Clustering Method Agreement:
 cat("============================\n")
-#> ============================
 
 # Use Adjusted Rand Index
 library(fossil)
+```
+
+```
 #> Loading required package: sp
+```
+
+```
 #> Loading required package: maps
+```
+
+```
 #> 
 #> Attaching package: 'maps'
+```
+
+```
 #> The following object is masked from 'package:mclust':
 #> 
 #>     map
+```
+
+```
 #> The following object is masked from 'package:cluster':
 #> 
 #>     votes.repub
+```
+
+```
 #> Loading required package: shapefiles
+```
+
+```
 #> Loading required package: foreign
+```
+
+```
 #> 
 #> Attaching package: 'shapefiles'
+```
+
+```
 #> The following objects are masked from 'package:foreign':
 #> 
 #>     read.dbf, write.dbf
+```
+
+```
 #> 
 #> Attaching package: 'fossil'
+```
+
+```
 #> The following object is masked from 'package:psych':
 #> 
 #>     manhattan
+```
+
+``` r
 ari_km_hc <- adj.rand.index(km_clusters, hc_clusters)
 ari_km_mc <- adj.rand.index(km_clusters, mclust_clusters)
 ari_hc_mc <- adj.rand.index(hc_clusters, mclust_clusters)
 
 cat(sprintf("  K-means vs Hierarchical: ARI = %.3f\n", ari_km_hc))
-#>   K-means vs Hierarchical: ARI = 0.619
 cat(sprintf("  K-means vs Model-based: ARI = %.3f\n", ari_km_mc))
-#>   K-means vs Model-based: ARI = 0.630
 cat(sprintf("  Hierarchical vs Model-based: ARI = %.3f\n", ari_hc_mc))
+```
+
+```
+#> 
+#> Clustering Method Agreement:
+#> ============================
+#>   K-means vs Hierarchical: ARI = 0.619
+#>   K-means vs Model-based: ARI = 0.630
 #>   Hierarchical vs Model-based: ARI = 0.599
 ```
 
@@ -560,23 +611,16 @@ $$\gamma_{nk} = P(z_n = k | x_n) = \frac{\pi_k \mathcal{N}(x_n | \mu_k, \Sigma_k
 gmm_fit <- Mclust(bc_scaled, G = 2, verbose = FALSE)
 
 cat("Gaussian Mixture Model Results:\n")
-#> Gaussian Mixture Model Results:
 cat("===============================\n\n")
-#> ===============================
 cat("Model selected:", gmm_fit$modelName, "\n")
-#> Model selected: VVV
 cat("  (Covariance structure - see mclust documentation)\n\n")
-#>   (Covariance structure - see mclust documentation)
 
 # Extract uncertainty
 uncertainty <- 1 - apply(gmm_fit$z, 1, max)
 
 cat("Cluster membership uncertainty:\n")
-#> Cluster membership uncertainty:
 cat("  Mean:", round(mean(uncertainty), 3), "\n")
-#>   Mean: 0.015
 cat("  Observations with >20% uncertainty:", sum(uncertainty > 0.2), "\n")
-#>   Observations with >20% uncertainty: 14
 
 # Plot with uncertainty
 gmm_dt <- data.table(
@@ -606,6 +650,18 @@ ggplot2$ggplot(gmm_dt, ggplot2$aes(x = PC1, y = PC2, colour = Cluster)) +
 	Model-based clustering provides probability of cluster membership
 </Figure>
 
+```
+#> Gaussian Mixture Model Results:
+#> ===============================
+#> 
+#> Model selected: VVV 
+#>   (Covariance structure - see mclust documentation)
+#> 
+#> Cluster membership uncertainty:
+#>   Mean: 0.015 
+#>   Observations with >20% uncertainty: 14
+```
+
 ### 10.11.2 Model Selection with BIC
 
 
@@ -614,14 +670,8 @@ ggplot2$ggplot(gmm_dt, ggplot2$aes(x = PC1, y = PC2, colour = Cluster)) +
 gmm_bic <- mclustBIC(bc_scaled, G = 1:6)
 
 cat("BIC for Different Models:\n")
-#> BIC for Different Models:
 cat("=========================\n")
-#> =========================
 print(summary(gmm_bic))
-#> Best BIC values:
-#>              VVV,5       VVV,4      VVV,6
-#> BIC      -2558.921 -2566.98752 -2849.7140
-#> BIC diff     0.000    -8.06667  -290.7931
 
 # Plot BIC
 plot(gmm_bic, what = "BIC", legendArgs = list(x = "topright", cex = 0.7))
@@ -630,6 +680,15 @@ plot(gmm_bic, what = "BIC", legendArgs = list(x = "topright", cex = 0.7))
 <Figure src="/courses/statistics-2-intermediate/gmm_bic-1.png" alt="BIC helps select both the number of clusters and covariance structure">
 	BIC helps select both the number of clusters and covariance structure
 </Figure>
+
+```
+#> BIC for Different Models:
+#> =========================
+#> Best BIC values:
+#>              VVV,5       VVV,4      VVV,6
+#> BIC      -2558.921 -2566.98752 -2849.7140
+#> BIC diff     0.000    -8.06667  -290.7931
+```
 
 ---
 
@@ -667,38 +726,15 @@ bc_lda_data <- cbind(bc_features, diagnosis = breast_cancer$diagnosis)
 lda_fit <- lda(diagnosis ~ ., data = bc_lda_data)
 
 cat("Linear Discriminant Analysis:\n")
-#> Linear Discriminant Analysis:
 cat("=============================\n\n")
-#> =============================
 cat("Prior probabilities:\n")
-#> Prior probabilities:
 print(lda_fit$prior)
-#>         B         M 
-#> 0.6274165 0.3725835
 
 cat("\nGroup means (first 5 variables):\n")
-#> 
-#> Group means (first 5 variables):
 print(round(lda_fit$means[, 1:5], 3))
-#>   mean_radius mean_texture mean_perimeter mean_area mean_smoothness
-#> B      12.147       17.915         78.075   462.790           0.092
-#> M      17.463       21.605        115.365   978.376           0.103
 
 cat("\nCoefficients of linear discriminants:\n")
-#> 
-#> Coefficients of linear discriminants:
 print(round(lda_fit$scaling, 3))
-#>                           LD1
-#> mean_radius             2.174
-#> mean_texture            0.097
-#> mean_perimeter         -0.244
-#> mean_area              -0.004
-#> mean_smoothness         8.610
-#> mean_compactness        0.431
-#> mean_concavity          3.592
-#> mean_concave_points    28.530
-#> mean_symmetry           4.489
-#> mean_fractal_dimension -0.529
 
 # Project data
 lda_proj <- predict(lda_fit)
@@ -729,6 +765,33 @@ ggplot2$ggplot(lda_dt, ggplot2$aes(x = LD1, fill = Diagnosis)) +
 	LDA finds the direction that best separates groups
 </Figure>
 
+```
+#> Linear Discriminant Analysis:
+#> =============================
+#> 
+#> Prior probabilities:
+#>         B         M 
+#> 0.6274165 0.3725835 
+#> 
+#> Group means (first 5 variables):
+#>   mean_radius mean_texture mean_perimeter mean_area mean_smoothness
+#> B      12.147       17.915         78.075   462.790           0.092
+#> M      17.463       21.605        115.365   978.376           0.103
+#> 
+#> Coefficients of linear discriminants:
+#>                           LD1
+#> mean_radius             2.174
+#> mean_texture            0.097
+#> mean_perimeter         -0.244
+#> mean_area              -0.004
+#> mean_smoothness         8.610
+#> mean_compactness        0.431
+#> mean_concavity          3.592
+#> mean_concave_points    28.530
+#> mean_symmetry           4.489
+#> mean_fractal_dimension -0.529
+```
+
 ### 10.12.2 LDA Classification Performance
 
 
@@ -740,16 +803,9 @@ conf_matrix <- table(
 )
 
 cat("LDA Classification Performance:\n")
-#> LDA Classification Performance:
 cat("===============================\n\n")
-#> ===============================
 cat("Confusion Matrix:\n")
-#> Confusion Matrix:
 print(conf_matrix)
-#>          Actual
-#> Predicted   B   M
-#>         B 351  29
-#>         M   6 183
 
 # Metrics
 accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
@@ -758,15 +814,26 @@ specificity <- conf_matrix["B", "B"] / sum(conf_matrix[, "B"])  # True negative 
 precision <- conf_matrix["M", "M"] / sum(conf_matrix["M", ])    # Positive predictive value
 
 cat("\nPerformance Metrics:\n")
+cat(sprintf("  Accuracy: %.1f%%\n", accuracy * 100))
+cat(sprintf("  Sensitivity (TPR): %.1f%%\n", sensitivity * 100))
+cat(sprintf("  Specificity (TNR): %.1f%%\n", specificity * 100))
+cat(sprintf("  Precision (PPV): %.1f%%\n", precision * 100))
+```
+
+```
+#> LDA Classification Performance:
+#> ===============================
+#> 
+#> Confusion Matrix:
+#>          Actual
+#> Predicted   B   M
+#>         B 351  29
+#>         M   6 183
 #> 
 #> Performance Metrics:
-cat(sprintf("  Accuracy: %.1f%%\n", accuracy * 100))
 #>   Accuracy: 93.8%
-cat(sprintf("  Sensitivity (TPR): %.1f%%\n", sensitivity * 100))
 #>   Sensitivity (TPR): 86.3%
-cat(sprintf("  Specificity (TNR): %.1f%%\n", specificity * 100))
 #>   Specificity (TNR): 98.3%
-cat(sprintf("  Precision (PPV): %.1f%%\n", precision * 100))
 #>   Precision (PPV): 96.8%
 ```
 
@@ -785,9 +852,7 @@ The decision boundary becomes **quadratic** (curved) rather than linear.
 qda_fit <- qda(diagnosis ~ ., data = bc_lda_data)
 
 cat("Quadratic Discriminant Analysis:\n")
-#> Quadratic Discriminant Analysis:
 cat("================================\n\n")
-#> ================================
 
 # Predictions
 qda_pred <- predict(qda_fit)
@@ -799,25 +864,31 @@ conf_qda <- table(
 )
 
 cat("QDA Confusion Matrix:\n")
-#> QDA Confusion Matrix:
 print(conf_qda)
+
+accuracy_qda <- sum(diag(conf_qda)) / sum(conf_qda)
+cat(sprintf("\nQDA Accuracy: %.1f%%\n", accuracy_qda * 100))
+
+# Compare LDA vs QDA
+cat("\nComparison:\n")
+cat(sprintf("  LDA Accuracy: %.1f%%\n", accuracy * 100))
+cat(sprintf("  QDA Accuracy: %.1f%%\n", accuracy_qda * 100))
+```
+
+```
+#> Quadratic Discriminant Analysis:
+#> ================================
+#> 
+#> QDA Confusion Matrix:
 #>          Actual
 #> Predicted   B   M
 #>         B 346  26
 #>         M  11 186
-
-accuracy_qda <- sum(diag(conf_qda)) / sum(conf_qda)
-cat(sprintf("\nQDA Accuracy: %.1f%%\n", accuracy_qda * 100))
 #> 
 #> QDA Accuracy: 93.5%
-
-# Compare LDA vs QDA
-cat("\nComparison:\n")
 #> 
 #> Comparison:
-cat(sprintf("  LDA Accuracy: %.1f%%\n", accuracy * 100))
 #>   LDA Accuracy: 93.8%
-cat(sprintf("  QDA Accuracy: %.1f%%\n", accuracy_qda * 100))
 #>   QDA Accuracy: 93.5%
 ```
 
@@ -895,27 +966,31 @@ lda_cv <- lda(diagnosis ~ ., data = bc_lda_data, CV = TRUE)
 conf_cv <- table(Predicted = lda_cv$class, Actual = breast_cancer$diagnosis)
 
 cat("Cross-Validation Performance:\n")
-#> Cross-Validation Performance:
 cat("============================\n\n")
-#> ============================
 cat("LOOCV Confusion Matrix:\n")
-#> LOOCV Confusion Matrix:
 print(conf_cv)
-#>          Actual
-#> Predicted   B   M
-#>         B 349  29
-#>         M   8 183
 
 accuracy_cv <- sum(diag(conf_cv)) / sum(conf_cv)
 
 cat("\nComparison of Accuracy Estimates:\n")
+cat(sprintf("  Resubstitution: %.1f%%\n", accuracy * 100))
+cat(sprintf("  LOOCV: %.1f%%\n", accuracy_cv * 100))
+cat("\n  (LOOCV is more realistic; resubstitution is overoptimistic)\n")
+```
+
+```
+#> Cross-Validation Performance:
+#> ============================
+#> 
+#> LOOCV Confusion Matrix:
+#>          Actual
+#> Predicted   B   M
+#>         B 349  29
+#>         M   8 183
 #> 
 #> Comparison of Accuracy Estimates:
-cat(sprintf("  Resubstitution: %.1f%%\n", accuracy * 100))
 #>   Resubstitution: 93.8%
-cat(sprintf("  LOOCV: %.1f%%\n", accuracy_cv * 100))
 #>   LOOCV: 93.5%
-cat("\n  (LOOCV is more realistic; resubstitution is overoptimistic)\n")
 #> 
 #>   (LOOCV is more realistic; resubstitution is overoptimistic)
 ```

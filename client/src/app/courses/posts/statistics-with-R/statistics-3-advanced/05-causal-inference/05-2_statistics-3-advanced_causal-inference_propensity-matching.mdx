@@ -78,19 +78,13 @@ obs_data <- data.table(
 )
 
 cat("Simulated Observational Data\n")
-#> Simulated Observational Data
 cat("============================\n")
-#> ============================
 cat("  Total subjects:", n_obs, "\n")
-#>   Total subjects: 1000
 cat("  Treated:", sum(treatment), "(", round(100 * mean(treatment), 1), "%)\n")
-#>   Treated: 166 ( 16.6 %)
 cat("  True ATE:", true_ate, "mmHg\n\n")
-#>   True ATE: -10 mmHg
 
 # Show confounding: treated are sicker at baseline
 cat("Baseline Characteristics (Evidence of Confounding):\n")
-#> Baseline Characteristics (Evidence of Confounding):
 baseline_compare <- obs_data[, .(
     N = .N,
     Age = round(mean(age), 1),
@@ -99,6 +93,16 @@ baseline_compare <- obs_data[, .(
     BMI = round(mean(bmi), 1)
 ), by = .(Treatment = treatment)]
 print(baseline_compare)
+```
+
+```
+#> Simulated Observational Data
+#> ============================
+#>   Total subjects: 1000 
+#>   Treated: 166 ( 16.6 %)
+#>   True ATE: -10 mmHg
+#> 
+#> Baseline Characteristics (Evidence of Confounding):
 #>    Treatment     N   Age Baseline_BP Diabetes_pct   BMI
 #>        <int> <int> <num>       <num>        <num> <num>
 #> 1:         0   834  53.6       138.6         44.7  29.1
@@ -139,24 +143,15 @@ naive_effect <- mean(obs_data[treatment == 1]$y_obs) -
                 mean(obs_data[treatment == 0]$y_obs)
 
 cat("Naive Analysis (Ignoring Confounding):\n")
-#> Naive Analysis (Ignoring Confounding):
 cat("======================================\n")
-#> ======================================
 cat("  Mean outcome (treated):", round(mean(obs_data[treatment == 1]$y_obs), 2), "\n")
-#>   Mean outcome (treated): 160.1
 cat("  Mean outcome (control):", round(mean(obs_data[treatment == 0]$y_obs), 2), "\n")
-#>   Mean outcome (control): 159.77
 cat("  Naive estimate:", round(naive_effect, 2), "mmHg\n")
-#>   Naive estimate: 0.33 mmHg
 cat("  True ATE:", true_ate, "mmHg\n")
-#>   True ATE: -10 mmHg
 cat("  Bias:", round(naive_effect - true_ate, 2), "mmHg\n\n")
-#>   Bias: 10.33 mmHg
 
 cat("The naive estimate suggests treatment increases BP!\n")
-#> The naive estimate suggests treatment increases BP!
 cat("This is because treated patients were sicker to begin with.\n")
-#> This is because treated patients were sicker to begin with.
 
 # Visualise confounding
 confound_data <- melt(obs_data[, .(id, treatment, age, baseline_bp, bmi)],
@@ -186,6 +181,19 @@ ggplot2$ggplot(confound_data, ggplot2$aes(x = value, fill = treatment)) +
 <Figure src="/courses/statistics-3-advanced/confounding_demo-1.png" alt="Confounding: treated patients have worse baseline characteristics">
 	Confounding: treated patients have worse baseline characteristics
 </Figure>
+
+```
+#> Naive Analysis (Ignoring Confounding):
+#> ======================================
+#>   Mean outcome (treated): 160.1 
+#>   Mean outcome (control): 159.77 
+#>   Naive estimate: 0.33 mmHg
+#>   True ATE: -10 mmHg
+#>   Bias: 10.33 mmHg
+#> 
+#> The naive estimate suggests treatment increases BP!
+#> This is because treated patients were sicker to begin with.
+```
 
 ### 5.8.2 The Unconfoundedness Assumption
 
@@ -238,23 +246,12 @@ ps_model <- glm(treatment ~ age + baseline_bp + diabetes + bmi,
 obs_data[, ps_estimated := predict(ps_model, type = "response")]
 
 cat("Propensity Score Model:\n")
-#> Propensity Score Model:
 cat("=======================\n")
-#> =======================
 print(summary(ps_model)$coefficients)
-#>                Estimate  Std. Error   z value     Pr(>|z|)
-#> (Intercept) -9.24487159 1.122349465 -8.237070 1.764786e-16
-#> age          0.03066132 0.008598724  3.565799 3.627489e-04
-#> baseline_bp  0.02564820 0.005178726  4.952607 7.322567e-07
-#> diabetes     0.73979212 0.224678503  3.292670 9.924096e-04
-#> bmi          0.05950733 0.021919414  2.714823 6.631116e-03
 
 # Compare estimated vs true propensity scores
 cat("\nPropensity Score Comparison:\n")
-#> 
-#> Propensity Score Comparison:
 cat("  Correlation with true PS:", round(cor(obs_data$treat_prob, obs_data$ps_estimated), 3), "\n")
-#>   Correlation with true PS: 0.968
 
 # Visualise propensity score distributions
 ps_plot_data <- obs_data[, .(id, treatment, ps_estimated)]
@@ -283,6 +280,20 @@ ggplot2$ggplot(ps_plot_data, ggplot2$aes(x = ps_estimated, fill = treatment)) +
 	Propensity score distributions by treatment group
 </Figure>
 
+```
+#> Propensity Score Model:
+#> =======================
+#>                Estimate  Std. Error   z value     Pr(>|z|)
+#> (Intercept) -9.24487159 1.122349465 -8.237070 1.764786e-16
+#> age          0.03066132 0.008598724  3.565799 3.627489e-04
+#> baseline_bp  0.02564820 0.005178726  4.952607 7.322567e-07
+#> diabetes     0.73979212 0.224678503  3.292670 9.924096e-04
+#> bmi          0.05950733 0.021919414  2.714823 6.631116e-03
+#> 
+#> Propensity Score Comparison:
+#>   Correlation with true PS: 0.968
+```
+
 ### 5.9.2 Overlap and Positivity
 
 **Prose and Intuition**
@@ -309,21 +320,13 @@ overlap_summary <- obs_data[, .(
 ), by = treatment]
 
 cat("Propensity Score Overlap Check:\n")
-#> Propensity Score Overlap Check:
 cat("===============================\n")
-#> ===============================
 print(overlap_summary)
-#>    treatment     min_ps    max_ps   mean_ps     n
-#>        <int>      <num>     <num>     <num> <int>
-#> 1:         0 0.00797553 0.6435622 0.1491531   834
-#> 2:         1 0.03995294 0.6869204 0.2506402   166
 
 # Check for extreme propensity scores
 n_extreme_low <- sum(obs_data$ps_estimated < 0.05)
 n_extreme_high <- sum(obs_data$ps_estimated > 0.95)
 cat("\nExtreme PS (<0.05 or >0.95):", n_extreme_low + n_extreme_high, "subjects\n")
-#> 
-#> Extreme PS (<0.05 or >0.95): 118 subjects
 
 # Visualise overlap with cumulative distributions
 ggplot2$ggplot(ps_plot_data, ggplot2$aes(x = ps_estimated, colour = treatment)) +
@@ -346,6 +349,17 @@ ggplot2$ggplot(ps_plot_data, ggplot2$aes(x = ps_estimated, colour = treatment)) 
 <Figure src="/courses/statistics-3-advanced/overlap_check-1.png" alt="Checking overlap: comparing propensity score distributions">
 	Checking overlap: comparing propensity score distributions
 </Figure>
+
+```
+#> Propensity Score Overlap Check:
+#> ===============================
+#>    treatment     min_ps    max_ps   mean_ps     n
+#>        <int>      <num>     <num>     <num> <int>
+#> 1:         0 0.00797553 0.6435622 0.1491531   834
+#> 2:         1 0.03995294 0.6869204 0.2506402   166
+#> 
+#> Extreme PS (<0.05 or >0.95): 118 subjects
+```
 
 ---
 
@@ -381,6 +395,17 @@ match_result <- matchit(treatment ~ age + baseline_bp + diabetes + bmi,
                          replace = FALSE)
 
 summary(match_result)
+
+# Extract matched data
+matched_data <- match.data(match_result)
+
+cat("\nMatching Summary:\n")
+cat("  Original treated:", sum(obs_data$treatment), "\n")
+cat("  Original control:", sum(1 - obs_data$treatment), "\n")
+cat("  Matched pairs:", sum(matched_data$treatment), "\n")
+```
+
+```
 #> 
 #> Call:
 #> matchit(formula = treatment ~ age + baseline_bp + diabetes + 
@@ -421,18 +446,11 @@ summary(match_result)
 #> Matched       166     166
 #> Unmatched     668       0
 #> Discarded       0       0
-
-# Extract matched data
-matched_data <- match.data(match_result)
-
-cat("\nMatching Summary:\n")
+#> 
 #> 
 #> Matching Summary:
-cat("  Original treated:", sum(obs_data$treatment), "\n")
-#>   Original treated: 166
-cat("  Original control:", sum(1 - obs_data$treatment), "\n")
-#>   Original control: 834
-cat("  Matched pairs:", sum(matched_data$treatment), "\n")
+#>   Original treated: 166 
+#>   Original control: 834 
 #>   Matched pairs: 166
 ```
 
@@ -479,16 +497,8 @@ balance_data <- data.table(
 )
 
 cat("Standardised Mean Differences (Absolute Values):\n")
-#> Standardised Mean Differences (Absolute Values):
 cat("================================================\n")
-#> ================================================
 print(balance_data)
-#>      covariate    before      after
-#>         <char>     <num>      <num>
-#> 1:         age 0.5311585 0.04215991
-#> 2: baseline_bp 0.4244325 0.01415978
-#> 3:    diabetes 0.6257809 0.04161933
-#> 4:         bmi 0.4299344 0.02982796
 
 # Love plot
 balance_long <- melt(balance_data, id.vars = "covariate",
@@ -522,6 +532,17 @@ ggplot2$ggplot(balance_long, ggplot2$aes(x = smd, y = covariate, colour = sample
 	Love plot showing covariate balance before and after matching
 </Figure>
 
+```
+#> Standardised Mean Differences (Absolute Values):
+#> ================================================
+#>      covariate    before      after
+#>         <char>     <num>      <num>
+#> 1:         age 0.5311585 0.04215991
+#> 2: baseline_bp 0.4244325 0.01415978
+#> 3:    diabetes 0.6257809 0.04161933
+#> 4:         bmi 0.4299344 0.02982796
+```
+
 ### 5.10.3 Treatment Effect Estimation After Matching
 
 **Prose and Intuition**
@@ -550,26 +571,30 @@ var_c <- var(matched_data$y_obs[matched_data$treatment == 0])
 se_matched <- sqrt(var_t/n_matched + var_c/n_matched)
 
 cat("Treatment Effect Estimation:\n")
-#> Treatment Effect Estimation:
 cat("============================\n")
-#> ============================
 cat("  Naive estimate (full data):", round(naive_effect, 2), "mmHg\n")
-#>   Naive estimate (full data): 0.33 mmHg
 cat("  Matched estimate:", round(ate_matched, 2), "mmHg\n")
-#>   Matched estimate: -9.54 mmHg
 cat("  SE:", round(se_matched, 2), "\n")
-#>   SE: 2.22
 cat("  95% CI: [", round(ate_matched - 1.96*se_matched, 2), ",",
                    round(ate_matched + 1.96*se_matched, 2), "]\n")
-#>   95% CI: [ -13.89 , -5.2 ]
 cat("  True ATE:", true_ate, "mmHg\n\n")
-#>   True ATE: -10 mmHg
 
 # T-test on matched data
 t_matched <- t.test(y_obs ~ treatment, data = matched_data)
 cat("Two-sample t-test (matched data):\n")
-#> Two-sample t-test (matched data):
 cat("  t =", round(t_matched$statistic, 3), ", p =", format.pval(t_matched$p.value, 3), "\n")
+```
+
+```
+#> Treatment Effect Estimation:
+#> ============================
+#>   Naive estimate (full data): 0.33 mmHg
+#>   Matched estimate: -9.54 mmHg
+#>   SE: 2.22 
+#>   95% CI: [ -13.89 , -5.2 ]
+#>   True ATE: -10 mmHg
+#> 
+#> Two-sample t-test (matched data):
 #>   t = 4.307 , p = 2.19e-05
 ```
 
@@ -619,17 +644,13 @@ obs_data[, ipw_att := ifelse(treatment == 1,
                               ps_estimated / (1 - ps_estimated))]
 
 cat("IPW Weight Summary:\n")
-#> IPW Weight Summary:
 cat("==================\n")
-#> ==================
 cat("  ATE weights - Min:", round(min(obs_data$ipw_ate), 2),
     ", Max:", round(max(obs_data$ipw_ate), 2),
     ", Mean:", round(mean(obs_data$ipw_ate), 2), "\n")
-#>   ATE weights - Min: 1.01 , Max: 25.03 , Mean: 2.01
 cat("  ATE stable - Min:", round(min(obs_data$ipw_ate_stable), 2),
     ", Max:", round(max(obs_data$ipw_ate_stable), 2),
     ", Mean:", round(mean(obs_data$ipw_ate_stable), 2), "\n")
-#>   ATE stable - Min: 0.24 , Max: 4.15 , Mean: 1
 
 # IPW estimate of ATE
 weighted_mean_t <- sum(obs_data$treatment * obs_data$y_obs / obs_data$ps_estimated) /
@@ -640,12 +661,8 @@ weighted_mean_c <- sum((1 - obs_data$treatment) * obs_data$y_obs / (1 - obs_data
 ate_ipw <- weighted_mean_t - weighted_mean_c
 
 cat("\nIPW Estimates:\n")
-#> 
-#> IPW Estimates:
 cat("  ATE (IPW):", round(ate_ipw, 2), "mmHg\n")
-#>   ATE (IPW): -8.61 mmHg
 cat("  True ATE:", true_ate, "mmHg\n")
-#>   True ATE: -10 mmHg
 
 # Visualise weight distribution
 obs_data[, treatment_label := factor(treatment, levels = c(0, 1),
@@ -671,6 +688,17 @@ ggplot2$ggplot(obs_data, ggplot2$aes(x = ipw_ate_stable, fill = treatment_label)
 <Figure src="/courses/statistics-3-advanced/ipw_estimation-1.png" alt="IPW reweights observations to achieve balance">
 	IPW reweights observations to achieve balance
 </Figure>
+
+```
+#> IPW Weight Summary:
+#> ==================
+#>   ATE weights - Min: 1.01 , Max: 25.03 , Mean: 2.01 
+#>   ATE stable - Min: 0.24 , Max: 4.15 , Mean: 1 
+#> 
+#> IPW Estimates:
+#>   ATE (IPW): -8.61 mmHg
+#>   True ATE: -10 mmHg
+```
 
 ### 5.11.2 Checking Balance with Weights
 
@@ -713,12 +741,15 @@ weighted_balance[, `:=`(
 )]
 
 cat("Covariate Balance with IPW:\n")
-#> Covariate Balance with IPW:
 cat("===========================\n")
-#> ===========================
 print(weighted_balance[, .(covariate,
                            smd_unweighted = round(smd_unweighted, 3),
                            smd_weighted = round(smd_weighted, 3))])
+```
+
+```
+#> Covariate Balance with IPW:
+#> ===========================
 #>      covariate smd_unweighted smd_weighted
 #>         <char>          <num>        <num>
 #> 1:         age          0.531        0.037
@@ -765,13 +796,9 @@ dr_term3 <- obs_data$m1_hat - obs_data$m0_hat
 ate_dr <- mean(dr_term1 - dr_term2 + dr_term3)
 
 cat("Doubly Robust Estimation:\n")
-#> Doubly Robust Estimation:
 cat("=========================\n")
-#> =========================
 cat("  ATE (DR):", round(ate_dr, 2), "mmHg\n")
-#>   ATE (DR): -9.5 mmHg
 cat("  True ATE:", true_ate, "mmHg\n\n")
-#>   True ATE: -10 mmHg
 
 # Compare all methods
 method_comparison <- data.table(
@@ -780,8 +807,16 @@ method_comparison <- data.table(
 )
 
 cat("Method Comparison:\n")
-#> Method Comparison:
 print(method_comparison[, .(Method, Estimate = round(Estimate, 2))])
+```
+
+```
+#> Doubly Robust Estimation:
+#> =========================
+#>   ATE (DR): -9.5 mmHg
+#>   True ATE: -10 mmHg
+#> 
+#> Method Comparison:
 #>           Method Estimate
 #>           <char>    <num>
 #> 1:         Naive     0.33
@@ -867,18 +902,12 @@ sensitivity_bounds <- rbindlist(lapply(gamma_values, function(gamma) {
 }))
 
 cat("Sensitivity Analysis:\n")
-#> Sensitivity Analysis:
 cat("=====================\n")
-#> =====================
 cat("At what Gamma does the CI include zero?\n")
-#> At what Gamma does the CI include zero?
 gamma_critical <- sensitivity_bounds[null_in_interval == TRUE, min(gamma)]
 cat("Critical Gamma:", gamma_critical, "\n")
-#> Critical Gamma: 3
 cat("Interpretation: An unmeasured confounder would need to increase\n")
-#> Interpretation: An unmeasured confounder would need to increase
 cat("treatment odds by", gamma_critical, "x to explain away our result.\n")
-#> treatment odds by 3 x to explain away our result.
 
 ggplot2$ggplot(sensitivity_bounds, ggplot2$aes(x = gamma)) +
     ggplot2$geom_ribbon(ggplot2$aes(ymin = lower_bound, ymax = upper_bound),
@@ -902,6 +931,15 @@ ggplot2$ggplot(sensitivity_bounds, ggplot2$aes(x = gamma)) +
 <Figure src="/courses/statistics-3-advanced/sensitivity_analysis-1.png" alt="Sensitivity analysis: how robust are results to unmeasured confounding?">
 	Sensitivity analysis: how robust are results to unmeasured confounding?
 </Figure>
+
+```
+#> Sensitivity Analysis:
+#> =====================
+#> At what Gamma does the CI include zero?
+#> Critical Gamma: 3 
+#> Interpretation: An unmeasured confounder would need to increase
+#> treatment odds by 3 x to explain away our result.
+```
 
 ---
 

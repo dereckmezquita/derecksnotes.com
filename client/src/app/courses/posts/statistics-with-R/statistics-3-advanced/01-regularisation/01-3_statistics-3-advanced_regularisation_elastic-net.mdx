@@ -53,12 +53,15 @@ X_test <- X[-train_idx, ]
 y_test <- y[-train_idx]
 
 cat("Dataset Summary:\n")
-#> Dataset Summary:
 cat("================\n")
-#> ================
 cat("  Training: n =", nrow(X_train), ", p =", ncol(X_train), "\n")
-#>   Training: n = 455 , p = 10
 cat("  Testing:  n =", nrow(X_test), "\n")
+```
+
+```
+#> Dataset Summary:
+#> ================
+#>   Training: n = 455 , p = 10 
 #>   Testing:  n = 114
 ```
 
@@ -207,10 +210,13 @@ enet_summary <- rbindlist(lapply(seq_along(alpha_grid), function(i) {
 }))
 
 cat("Elastic Net Cross-Validation Summary:\n")
-#> Elastic Net Cross-Validation Summary:
 cat("=====================================\n")
-#> =====================================
 print(enet_summary)
+```
+
+```
+#> Elastic Net Cross-Validation Summary:
+#> =====================================
 #>    alpha  lambda_min lambda_1se   cvm_min nzero
 #>    <num>       <num>      <num>     <num> <num>
 #> 1:  0.00 0.037745669 0.05476250 0.3591680    10
@@ -286,12 +292,15 @@ Our breast cancer data contains naturally correlated features: radius, perimeter
 # Compute correlation matrix
 cor_mat <- cor(X_train)
 cat("Correlation between geometric features:\n")
-#> Correlation between geometric features:
 cat("  radius-perimeter:", round(cor_mat["mean_radius", "mean_perimeter"], 3), "\n")
-#>   radius-perimeter: 0.998
 cat("  radius-area:", round(cor_mat["mean_radius", "mean_area"], 3), "\n")
-#>   radius-area: 0.989
 cat("  perimeter-area:", round(cor_mat["mean_perimeter", "mean_area"], 3), "\n")
+```
+
+```
+#> Correlation between geometric features:
+#>   radius-perimeter: 0.998 
+#>   radius-area: 0.989 
 #>   perimeter-area: 0.987
 ```
 
@@ -417,10 +426,13 @@ alpha_summary <- nested_cv_results[, .(
 ), by = alpha]
 
 cat("Nested Cross-Validation Results:\n")
-#> Nested Cross-Validation Results:
 cat("================================\n")
-#> ================================
 print(alpha_summary[order(-mean_auc)])
+```
+
+```
+#> Nested Cross-Validation Results:
+#> ================================
 #>     alpha mean_accuracy se_accuracy  mean_auc      se_auc mean_features
 #>     <num>         <num>       <num>     <num>       <num>         <num>
 #>  1:   0.1     0.9362637  0.01607554 0.9850907 0.004094742          10.0
@@ -502,7 +514,6 @@ ggplot2$ggplot(alpha_plot_data, ggplot2$aes(x = alpha, y = value)) +
 # Select best alpha based on nested CV
 best_alpha <- alpha_summary[which.max(mean_auc), alpha]
 cat("Best alpha from nested CV:", best_alpha, "\n\n")
-#> Best alpha from nested CV: 0.1
 
 # Fit final models on full training set
 final_ridge <- cv.glmnet(X_train, y_train, family = "binomial", alpha = 0)
@@ -547,10 +558,15 @@ test_results <- rbindlist(lapply(names(methods), function(m) {
 }))
 
 cat("Test Set Performance:\n")
-#> Test Set Performance:
 cat("=====================\n")
-#> =====================
 print(test_results)
+```
+
+```
+#> Best alpha from nested CV: 0.1 
+#> 
+#> Test Set Performance:
+#> =====================
 #>         Method Accuracy Sensitivity Specificity   AUC Features
 #>         <char>    <num>       <num>       <num> <num>    <int>
 #> 1:       Ridge    0.939       0.900       0.959 0.992       10

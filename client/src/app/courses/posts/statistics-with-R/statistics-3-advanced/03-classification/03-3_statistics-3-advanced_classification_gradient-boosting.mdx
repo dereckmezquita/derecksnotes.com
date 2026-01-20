@@ -58,12 +58,15 @@ dtrain <- xgb.DMatrix(data = X_train, label = y_train)
 dtest <- xgb.DMatrix(data = X_test, label = y_test)
 
 cat("Dataset Summary:\n")
-#> Dataset Summary:
 cat("================\n")
-#> ================
 cat("  Training: n =", nrow(train_data), "\n")
-#>   Training: n = 398
 cat("  Testing:  n =", nrow(test_data), "\n")
+```
+
+```
+#> Dataset Summary:
+#> ================
+#>   Training: n = 398 
 #>   Testing:  n = 171
 ```
 
@@ -256,12 +259,15 @@ best_iter <- which.min(eval_log$test_logloss)
 best_score <- min(eval_log$test_logloss)
 
 cat("XGBoost Model Summary:\n")
-#> XGBoost Model Summary:
 cat("======================\n")
-#> ======================
 cat("  Best iteration:", best_iter, "\n")
-#>   Best iteration: 108
 cat("  Best test logloss:", round(best_score, 4), "\n")
+```
+
+```
+#> XGBoost Model Summary:
+#> ======================
+#>   Best iteration: 108 
 #>   Best test logloss: 0.1529
 ```
 
@@ -513,14 +519,17 @@ cv_best_logloss <- min(cv_eval_log$test_logloss_mean)
 cv_std <- cv_eval_log$test_logloss_std[cv_best_iter]
 
 cat("Cross-Validation Results:\n")
-#> Cross-Validation Results:
 cat("=========================\n")
-#> =========================
 cat("  Best iteration:", cv_best_iter, "\n")
-#>   Best iteration: 61
 cat("  Best CV logloss:", round(cv_best_logloss, 4), "\n")
-#>   Best CV logloss: 0.1667
 cat("  CV std:", round(cv_std, 4), "\n")
+```
+
+```
+#> Cross-Validation Results:
+#> =========================
+#>   Best iteration: 61 
+#>   Best CV logloss: 0.1667 
 #>   CV std: 0.0582
 ```
 
@@ -563,25 +572,7 @@ grid_results <- rbindlist(lapply(max_depths, function(md) {
 }))
 
 cat("Grid Search Results:\n")
-#> Grid Search Results:
 print(grid_results[order(cv_logloss)])
-#>     max_depth   eta best_nrounds cv_logloss
-#>         <num> <num>        <int>      <num>
-#>  1:         2  0.05          163  0.1455656
-#>  2:         2  0.10          106  0.1479071
-#>  3:         4  0.05          136  0.1494292
-#>  4:         6  0.20           34  0.1523695
-#>  5:         4  0.10           67  0.1553598
-#>  6:         2  0.20           40  0.1567956
-#>  7:         3  0.10           65  0.1577270
-#>  8:         4  0.20           27  0.1578149
-#>  9:         5  0.10           66  0.1589532
-#> 10:         5  0.20           38  0.1641782
-#> 11:         6  0.10           55  0.1653417
-#> 12:         3  0.05          108  0.1672334
-#> 13:         5  0.05           94  0.1675618
-#> 14:         3  0.20           26  0.1717466
-#> 15:         6  0.05           94  0.1811758
 
 # Heatmap
 ggplot2$ggplot(grid_results, ggplot2$aes(x = factor(eta), y = factor(max_depth), fill = cv_logloss)) +
@@ -605,6 +596,27 @@ ggplot2$ggplot(grid_results, ggplot2$aes(x = factor(eta), y = factor(max_depth),
 	Grid search over max_depth and eta to find optimal hyperparameters
 </Figure>
 
+```
+#> Grid Search Results:
+#>     max_depth   eta best_nrounds cv_logloss
+#>         <num> <num>        <int>      <num>
+#>  1:         2  0.05          163  0.1455656
+#>  2:         2  0.10          106  0.1479071
+#>  3:         4  0.05          136  0.1494292
+#>  4:         6  0.20           34  0.1523695
+#>  5:         4  0.10           67  0.1553598
+#>  6:         2  0.20           40  0.1567956
+#>  7:         3  0.10           65  0.1577270
+#>  8:         4  0.20           27  0.1578149
+#>  9:         5  0.10           66  0.1589532
+#> 10:         5  0.20           38  0.1641782
+#> 11:         6  0.10           55  0.1653417
+#> 12:         3  0.05          108  0.1672334
+#> 13:         5  0.05           94  0.1675618
+#> 14:         3  0.20           26  0.1717466
+#> 15:         6  0.05           94  0.1811758
+```
+
 ---
 
 ## 3.25 Prediction and Evaluation
@@ -620,12 +632,7 @@ pred_class <- as.integer(pred_prob > 0.5)
 # Confusion matrix
 conf_matrix <- table(Actual = y_test, Predicted = pred_class)
 cat("Confusion Matrix:\n")
-#> Confusion Matrix:
 print(conf_matrix)
-#>       Predicted
-#> Actual   0   1
-#>      0 103   9
-#>      1   1  58
 
 # Metrics
 accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
@@ -633,15 +640,23 @@ sensitivity <- conf_matrix["1", "1"] / sum(conf_matrix["1", ])
 specificity <- conf_matrix["0", "0"] / sum(conf_matrix["0", ])
 
 cat("\nPerformance Metrics:\n")
+cat("====================\n")
+cat("  Accuracy:", round(accuracy, 3), "\n")
+cat("  Sensitivity:", round(sensitivity, 3), "\n")
+cat("  Specificity:", round(specificity, 3), "\n")
+```
+
+```
+#> Confusion Matrix:
+#>       Predicted
+#> Actual   0   1
+#>      0 103   9
+#>      1   1  58
 #> 
 #> Performance Metrics:
-cat("====================\n")
 #> ====================
-cat("  Accuracy:", round(accuracy, 3), "\n")
-#>   Accuracy: 0.942
-cat("  Sensitivity:", round(sensitivity, 3), "\n")
-#>   Sensitivity: 0.983
-cat("  Specificity:", round(specificity, 3), "\n")
+#>   Accuracy: 0.942 
+#>   Sensitivity: 0.983 
 #>   Specificity: 0.92
 ```
 
@@ -701,10 +716,7 @@ aucs <- c(
 )
 
 cat("AUC Comparison:\n")
-#> AUC Comparison:
 print(round(aucs, 3))
-#> Decision Tree Random Forest       XGBoost 
-#>         0.922         0.985         0.989
 
 # Plot
 all_roc[, method_auc := paste0(method, " (AUC = ", round(aucs[method], 3), ")")]
@@ -731,6 +743,12 @@ ggplot2$ggplot(all_roc, ggplot2$aes(x = FPR, y = TPR, colour = method_auc)) +
 <Figure src="/courses/statistics-3-advanced/model_comparison-1.png" alt="Comparison of decision tree, random forest, and gradient boosting">
 	Comparison of decision tree, random forest, and gradient boosting
 </Figure>
+
+```
+#> AUC Comparison:
+#> Decision Tree Random Forest       XGBoost 
+#>         0.922         0.985         0.989
+```
 
 ---
 

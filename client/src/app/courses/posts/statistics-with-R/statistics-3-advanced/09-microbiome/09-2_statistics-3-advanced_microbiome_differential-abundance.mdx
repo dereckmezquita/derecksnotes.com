@@ -4,7 +4,7 @@ chapter: "Chapter 9: Microbiome Data Analysis"
 part: "Part 2: Differential Abundance Analysis"
 coverImage: 13
 author: "Dereck Mezquita"
-date: "2026-01-19"
+date: "2026-01-20"
 tags: [statistics, bioinformatics, microbiome, differential-abundance, R, biomedical]
 published: true
 comments: true
@@ -96,16 +96,19 @@ metadata <- data.table(
 )
 
 cat("Simulated Microbiome Data:\n")
-#> Simulated Microbiome Data:
 cat("==========================\n")
-#> ==========================
 cat("  Samples:", n_samples, "\n")
-#>   Samples: 100
 cat("  Taxa:", n_taxa, "\n")
-#>   Taxa: 200
 cat("  True differential taxa:", n_diff, "\n")
-#>   True differential taxa: 20
 cat("  Sparsity:", round(mean(counts == 0) * 100, 1), "% zeros\n")
+```
+
+```
+#> Simulated Microbiome Data:
+#> ==========================
+#>   Samples: 100 
+#>   Taxa: 200 
+#>   True differential taxa: 20 
 #>   Sparsity: 14.9 % zeros
 ```
 
@@ -174,14 +177,17 @@ da_relative <- test_relative_abundance(rel_abundance, group)
 da_relative[, is_true_diff := taxon %in% true_diff$taxon]
 
 cat("Relative Abundance Analysis:\n")
-#> Relative Abundance Analysis:
 cat("============================\n")
-#> ============================
 cat("  Significant (FDR < 0.1):", sum(da_relative$padj < 0.1), "\n")
-#>   Significant (FDR < 0.1): 30
 cat("  True positives:", sum(da_relative$padj < 0.1 & da_relative$is_true_diff), "\n")
-#>   True positives: 18
 cat("  False positives:", sum(da_relative$padj < 0.1 & !da_relative$is_true_diff), "\n")
+```
+
+```
+#> Relative Abundance Analysis:
+#> ============================
+#>   Significant (FDR < 0.1): 30 
+#>   True positives: 18 
 #>   False positives: 12
 ```
 
@@ -208,33 +214,17 @@ changed_prop <- changed / sum(changed)
 log2_fc_prop <- log2(changed_prop / original_prop)
 
 cat("Compositional Bias Example:\n")
-#> Compositional Bias Example:
 cat("===========================\n")
-#> ===========================
 cat("\nAbsolute counts:\n")
-#> 
-#> Absolute counts:
 cat("  Original:", original, "\n")
-#>   Original: 100 100 100 100 100
 cat("  Changed:", changed, "\n")
-#>   Changed: 200 100 100 100 100
 cat("\nProportions:\n")
-#> 
-#> Proportions:
 cat("  Original:", round(original_prop, 3), "\n")
-#>   Original: 0.2 0.2 0.2 0.2 0.2
 cat("  Changed:", round(changed_prop, 3), "\n")
-#>   Changed: 0.333 0.167 0.167 0.167 0.167
 cat("\nLog2 fold change in proportions:\n")
-#> 
-#> Log2 fold change in proportions:
 cat("  ", round(log2_fc_prop, 3), "\n")
-#>    0.737 -0.263 -0.263 -0.263 -0.263
 cat("\nNote: Taxa B-E appear to decrease (", round(log2_fc_prop[2], 3),
     ") even though\n      their absolute counts are unchanged!\n")
-#> 
-#> Note: Taxa B-E appear to decrease ( -0.263 ) even though
-#>       their absolute counts are unchanged!
 
 # Visualise
 bias_data <- data.table(
@@ -262,6 +252,25 @@ gridExtra::grid.arrange(p1, p2, ncol = 2)
 <Figure src="/courses/statistics-3-advanced/compositional_bias_demo-1.png" alt="Compositional bias: apparent changes may be artefacts">
 	Compositional bias: apparent changes may be artefacts
 </Figure>
+
+```
+#> Compositional Bias Example:
+#> ===========================
+#> 
+#> Absolute counts:
+#>   Original: 100 100 100 100 100 
+#>   Changed: 200 100 100 100 100 
+#> 
+#> Proportions:
+#>   Original: 0.2 0.2 0.2 0.2 0.2 
+#>   Changed: 0.333 0.167 0.167 0.167 0.167 
+#> 
+#> Log2 fold change in proportions:
+#>    0.737 -0.263 -0.263 -0.263 -0.263 
+#> 
+#> Note: Taxa B-E appear to decrease ( -0.263 ) even though
+#>       their absolute counts are unchanged!
+```
 
 ---
 
@@ -353,14 +362,17 @@ da_aldex <- aldex2_test(counts, group, n_mc = 64)
 da_aldex[, is_true_diff := taxon %in% true_diff$taxon]
 
 cat("ALDEx2-like Analysis:\n")
-#> ALDEx2-like Analysis:
 cat("=====================\n")
-#> =====================
 cat("  Significant (FDR < 0.1):", sum(da_aldex$padj < 0.1), "\n")
-#>   Significant (FDR < 0.1): 18
 cat("  True positives:", sum(da_aldex$padj < 0.1 & da_aldex$is_true_diff), "\n")
-#>   True positives: 17
 cat("  False positives:", sum(da_aldex$padj < 0.1 & !da_aldex$is_true_diff), "\n")
+```
+
+```
+#> ALDEx2-like Analysis:
+#> =====================
+#>   Significant (FDR < 0.1): 18 
+#>   True positives: 17 
 #>   False positives: 1
 ```
 
@@ -426,14 +438,17 @@ da_ancom <- ancom_test(counts, group)
 da_ancom[, is_true_diff := taxon %in% true_diff$taxon]
 
 cat("ANCOM-like Analysis:\n")
-#> ANCOM-like Analysis:
 cat("====================\n")
-#> ====================
 cat("  Significant (W > 60%):", sum(da_ancom$significant), "\n")
-#>   Significant (W > 60%): 20
 cat("  True positives:", sum(da_ancom$significant & da_ancom$is_true_diff), "\n")
-#>   True positives: 18
 cat("  False positives:", sum(da_ancom$significant & !da_ancom$is_true_diff), "\n")
+```
+
+```
+#> ANCOM-like Analysis:
+#> ====================
+#>   Significant (W > 60%): 20 
+#>   True positives: 18 
 #>   False positives: 2
 ```
 
@@ -511,16 +526,19 @@ da_nb <- fit_nb_per_taxon(counts, group, metadata$library_size)
 da_nb[, is_true_diff := taxon %in% true_diff$taxon]
 
 cat("Negative Binomial Regression:\n")
-#> Negative Binomial Regression:
 cat("=============================\n")
-#> =============================
 cat("  Successful fits:", sum(!is.na(da_nb$p_value)), "/", nrow(da_nb), "\n")
-#>   Successful fits: 200 / 200
 cat("  Significant (FDR < 0.1):", sum(da_nb$padj < 0.1, na.rm = TRUE), "\n")
-#>   Significant (FDR < 0.1): 107
 cat("  True positives:", sum(da_nb$padj < 0.1 & da_nb$is_true_diff, na.rm = TRUE), "\n")
-#>   True positives: 19
 cat("  False positives:", sum(da_nb$padj < 0.1 & !da_nb$is_true_diff, na.rm = TRUE), "\n")
+```
+
+```
+#> Negative Binomial Regression:
+#> =============================
+#>   Successful fits: 200 / 200 
+#>   Significant (FDR < 0.1): 107 
+#>   True positives: 19 
 #>   False positives: 88
 ```
 
@@ -554,9 +572,7 @@ comparison[, sig_nb := nb_padj < 0.1]
 
 # Count agreements
 cat("Method Agreement:\n")
-#> Method Agreement:
 cat("=================\n")
-#> =================
 
 methods <- c("sig_relative", "sig_aldex", "ancom_sig", "sig_nb")
 method_names <- c("Relative", "ALDEx2", "ANCOM", "NB")
@@ -574,34 +590,16 @@ for (i in 1:(length(methods)-1)) {
             round(agreement * 100, 1), "% agreement\n")
     }
 }
-#>    Relative vs ALDEx2 : 94 % agreement
-#>    Relative vs ANCOM : 94 % agreement
-#>    Relative vs NB : 61.5 % agreement
-#>    ALDEx2 vs ANCOM : 99 % agreement
-#>    ALDEx2 vs NB : 55.5 % agreement
-#>    ANCOM vs NB : 56.5 % agreement
 
 # Venn-like summary
 comparison[, n_methods := sig_relative + sig_aldex + ancom_sig + fifelse(is.na(sig_nb), FALSE, sig_nb)]
 
 cat("\nConsistency of significant calls:\n")
-#> 
-#> Consistency of significant calls:
 print(comparison[, .N, by = n_methods][order(n_methods)])
-#>    n_methods     N
-#>        <int> <int>
-#> 1:         0    93
-#> 2:         1    76
-#> 3:         2    12
-#> 4:         3     1
-#> 5:         4    18
 
 # Performance summary
 cat("\nPerformance Summary (FDR < 0.1 or ANCOM significant):\n")
-#> 
-#> Performance Summary (FDR < 0.1 or ANCOM significant):
 cat("=====================================================\n")
-#> =====================================================
 perf_summary <- data.table(
     Method = method_names,
     Significant = c(
@@ -626,6 +624,29 @@ perf_summary <- data.table(
 perf_summary[, Precision := True_Positives / Significant]
 perf_summary[, Sensitivity := True_Positives / n_diff]
 print(perf_summary)
+```
+
+```
+#> Method Agreement:
+#> =================
+#>    Relative vs ALDEx2 : 94 % agreement
+#>    Relative vs ANCOM : 94 % agreement
+#>    Relative vs NB : 61.5 % agreement
+#>    ALDEx2 vs ANCOM : 99 % agreement
+#>    ALDEx2 vs NB : 55.5 % agreement
+#>    ANCOM vs NB : 56.5 % agreement
+#> 
+#> Consistency of significant calls:
+#>    n_methods     N
+#>        <int> <int>
+#> 1:         0    93
+#> 2:         1    76
+#> 3:         2    12
+#> 4:         3     1
+#> 5:         4    18
+#> 
+#> Performance Summary (FDR < 0.1 or ANCOM significant):
+#> =====================================================
 #>      Method Significant True_Positives False_Positives Precision Sensitivity
 #>      <char>       <int>          <int>           <int>     <num>       <num>
 #> 1: Relative          30             18              12 0.6000000        0.90
@@ -652,14 +673,8 @@ effect_cols <- c("rel_lfc", "aldex_effect", "nb_lfc")
 cor_matrix <- cor(effect_comparison[, ..effect_cols], use = "pairwise.complete.obs")
 
 cat("Effect Size Correlations:\n")
-#> Effect Size Correlations:
 cat("=========================\n")
-#> =========================
 print(round(cor_matrix, 3))
-#>              rel_lfc aldex_effect nb_lfc
-#> rel_lfc        1.000        0.821 -0.533
-#> aldex_effect   0.821        1.000 -0.300
-#> nb_lfc        -0.533       -0.300  1.000
 
 # Visualise effect size agreement
 ggplot2$ggplot(effect_comparison, ggplot2$aes(x = rel_lfc, y = nb_lfc,
@@ -687,6 +702,15 @@ ggplot2$ggplot(effect_comparison, ggplot2$aes(x = rel_lfc, y = nb_lfc,
 <Figure src="/courses/statistics-3-advanced/effect_size_agreement-1.png" alt="Effect size correlation between methods">
 	Effect size correlation between methods
 </Figure>
+
+```
+#> Effect Size Correlations:
+#> =========================
+#>              rel_lfc aldex_effect nb_lfc
+#> rel_lfc        1.000        0.821 -0.533
+#> aldex_effect   0.821        1.000 -0.300
+#> nb_lfc        -0.533       -0.300  1.000
+```
 
 ---
 

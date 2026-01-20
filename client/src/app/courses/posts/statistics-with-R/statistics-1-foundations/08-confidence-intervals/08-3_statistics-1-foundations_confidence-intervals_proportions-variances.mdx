@@ -78,82 +78,33 @@ wald_lower <- p_hat - z_star * se_wald
 wald_upper <- p_hat + z_star * se_wald
 
 cat("Wald Interval for Proportion with High Blood Pressure\n")
-```
-
-```
-## Wald Interval for Proportion with High Blood Pressure
-```
-
-``` r
 cat("======================================================\n\n")
-```
-
-```
-## ======================================================
-```
-
-``` r
 cat(sprintf("Sample: n = %d\n", n))
-```
-
-```
-## Sample: n = 8237
-```
-
-``` r
 cat(sprintf("High BP (SBP >= 140): x = %d\n", x))
-```
-
-```
-## High BP (SBP >= 140): x = 981
-```
-
-``` r
 cat(sprintf("Sample proportion: p̂ = %.4f (%.1f%%)\n\n", p_hat, 100 * p_hat))
-```
 
-```
-## Sample proportion: p<U+0302> = 0.1191 (11.9%)
-```
-
-``` r
 cat("Checking normal approximation adequacy:\n")
-```
-
-```
-## Checking normal approximation adequacy:
-```
-
-``` r
 cat(sprintf("  np̂ = %.1f (should be >= 10) ✓\n", n * p_hat))
-```
-
-```
-##   np<U+0302> = 981.0 (should be >= 10) <U+2713>
-```
-
-``` r
 cat(sprintf("  n(1-p̂) = %.1f (should be >= 10) ✓\n\n", n * (1 - p_hat)))
-```
 
-```
-##   n(1-p<U+0302>) = 7256.0 (should be >= 10) <U+2713>
-```
-
-``` r
 cat(sprintf("Standard error: SE = √[p̂(1-p̂)/n] = %.4f\n", se_wald))
-```
-
-```
-## Standard error: SE = <U+221A>[p<U+0302>(1-p<U+0302>)/n] = 0.0036
-```
-
-``` r
 cat(sprintf("95%% Wald interval: (%.4f, %.4f) or (%.1f%%, %.1f%%)\n",
             wald_lower, wald_upper, 100 * wald_lower, 100 * wald_upper))
 ```
 
 ```
+## Wald Interval for Proportion with High Blood Pressure
+## ======================================================
+## 
+## Sample: n = 8237
+## High BP (SBP >= 140): x = 981
+## Sample proportion: p̂ = 0.1191 (11.9%)
+## 
+## Checking normal approximation adequacy:
+##   np̂ = 981.0 (should be >= 10) ✓
+##   n(1-p̂) = 7256.0 (should be >= 10) ✓
+## 
+## Standard error: SE = √[p̂(1-p̂)/n] = 0.0036
 ## 95% Wald interval: (0.1121, 0.1261) or (11.2%, 12.6%)
 ```
 
@@ -246,55 +197,13 @@ wilson_interval <- function(x, n, conf_level = 0.95) {
 wilson <- wilson_interval(x, n)
 
 cat("Comparison: Wald vs Wilson Interval\n")
-```
-
-```
-## Comparison: Wald vs Wilson Interval
-```
-
-``` r
 cat("====================================\n\n")
-```
-
-```
-## ====================================
-```
-
-``` r
 cat(sprintf("Data: x = %d successes out of n = %d\n", x, n))
-```
-
-```
-## Data: x = 981 successes out of n = 8237
-```
-
-``` r
 cat(sprintf("Sample proportion: p̂ = %.4f\n\n", p_hat))
-```
 
-```
-## Sample proportion: p<U+0302> = 0.1191
-```
-
-``` r
 cat("95% Wald interval:   (%.4f, %.4f)\n", wald_lower, wald_upper)
-```
-
-```
-## 95% Wald interval:   (%.4f, %.4f)
-##  0.1121019 0.1260916
-```
-
-``` r
 cat("95% Wilson interval: (%.4f, %.4f)\n", wilson$lower, wilson$upper)
-```
 
-```
-## 95% Wilson interval: (%.4f, %.4f)
-##  0.1122789 0.1262698
-```
-
-``` r
 # Example with extreme proportion
 x_rare <- 3
 n_rare <- 100
@@ -306,38 +215,29 @@ wald_rare_upper <- p_rare + 1.96 * se_rare
 wilson_rare <- wilson_interval(x_rare, n_rare)
 
 cat("\n\nExtreme Example: Rare Event (3 successes in 100)\n")
-```
-
-```
-## 
-## 
-## Extreme Example: Rare Event (3 successes in 100)
-```
-
-``` r
 cat("p̂ = 0.03\n\n")
-```
-
-```
-## p<U+0302> = 0.03
-```
-
-``` r
 cat(sprintf("Wald interval:   (%.4f, %.4f) — note lower bound near 0!\n",
             max(0, wald_rare_lower), wald_rare_upper))
-```
-
-```
-## Wald interval:   (0.0000, 0.0634) <U+2014> note lower bound near 0!
-```
-
-``` r
 cat(sprintf("Wilson interval: (%.4f, %.4f) — better behaved\n",
             wilson_rare$lower, wilson_rare$upper))
 ```
 
 ```
-## Wilson interval: (0.0103, 0.0845) <U+2014> better behaved
+## Comparison: Wald vs Wilson Interval
+## ====================================
+## 
+## Data: x = 981 successes out of n = 8237
+## Sample proportion: p̂ = 0.1191
+## 
+## 95% Wald interval:   (%.4f, %.4f)
+##  0.1121019 0.126091695% Wilson interval: (%.4f, %.4f)
+##  0.1122789 0.1262698
+## 
+## Extreme Example: Rare Event (3 successes in 100)
+## p̂ = 0.03
+## 
+## Wald interval:   (0.0000, 0.0634) — note lower bound near 0!
+## Wilson interval: (0.0103, 0.0845) — better behaved
 ```
 
 ### 8.11.5 The Agresti-Coull Interval
@@ -369,49 +269,21 @@ agresti_coull_interval <- function(x, n, conf_level = 0.95) {
 ac <- agresti_coull_interval(x, n)
 
 cat("Three Methods for Proportion CI\n")
-```
-
-```
-## Three Methods for Proportion CI
-```
-
-``` r
 cat("================================\n\n")
-```
-
-```
-## ================================
-```
-
-``` r
 cat(sprintf("Data: %d/%d = %.3f\n\n", x, n, p_hat))
-```
-
-```
-## Data: 981/8237 = 0.119
-```
-
-``` r
 cat(sprintf("Wald:          (%.4f, %.4f)\n", wald_lower, wald_upper))
-```
-
-```
-## Wald:          (0.1121, 0.1261)
-```
-
-``` r
 cat(sprintf("Wilson:        (%.4f, %.4f)\n", wilson$lower, wilson$upper))
-```
-
-```
-## Wilson:        (0.1123, 0.1263)
-```
-
-``` r
 cat(sprintf("Agresti-Coull: (%.4f, %.4f)\n", ac$lower, ac$upper))
 ```
 
 ```
+## Three Methods for Proportion CI
+## ================================
+## 
+## Data: 981/8237 = 0.119
+## 
+## Wald:          (0.1121, 0.1261)
+## Wilson:        (0.1123, 0.1263)
 ## Agresti-Coull: (0.1123, 0.1263)
 ```
 
@@ -423,37 +295,10 @@ cat(sprintf("Agresti-Coull: (%.4f, %.4f)\n", ac$lower, ac$upper))
 result <- prop.test(x, n, conf.level = 0.95)
 
 cat("Using prop.test() for Proportion CI\n")
-```
-
-```
-## Using prop.test() for Proportion CI
-```
-
-``` r
 cat("====================================\n\n")
-```
-
-```
-## ====================================
-```
-
-``` r
 cat(sprintf("Sample proportion: %.4f\n", result$estimate))
-```
-
-```
-## Sample proportion: 0.1191
-```
-
-``` r
 cat(sprintf("95%% CI: (%.4f, %.4f)\n", result$conf.int[1], result$conf.int[2]))
-```
 
-```
-## 95% CI: (0.1122, 0.1263)
-```
-
-``` r
 # binom.test uses exact Clopper-Pearson interval
 exact_result <- binom.test(x, n, conf.level = 0.95)
 cat(sprintf("\nExact (Clopper-Pearson) CI: (%.4f, %.4f)\n",
@@ -461,6 +306,11 @@ cat(sprintf("\nExact (Clopper-Pearson) CI: (%.4f, %.4f)\n",
 ```
 
 ```
+## Using prop.test() for Proportion CI
+## ====================================
+## 
+## Sample proportion: 0.1191
+## 95% CI: (0.1122, 0.1263)
 ## 
 ## Exact (Clopper-Pearson) CI: (0.1122, 0.1263)
 ```
@@ -502,63 +352,14 @@ lower <- diff - 1.96 * se_diff
 upper <- diff + 1.96 * se_diff
 
 cat("Difference in Proportions: High BP by Smoking Status\n")
-```
-
-```
-## Difference in Proportions: High BP by Smoking Status
-```
-
-``` r
 cat("=====================================================\n\n")
-```
-
-```
-## =====================================================
-```
-
-``` r
 cat(sprintf("Smokers: %d/%d = %.3f (%.1f%%)\n", x1, n1, p1, 100 * p1))
-```
-
-```
-## Smokers: 146/1369 = 0.107 (10.7%)
-```
-
-``` r
 cat(sprintf("Non-smokers: %d/%d = %.3f (%.1f%%)\n", x2, n2, p2, 100 * p2))
-```
-
-```
-## Non-smokers: 835/6868 = 0.122 (12.2%)
-```
-
-``` r
 cat(sprintf("\nDifference (smokers - non-smokers): %.3f (%.1f%%)\n", diff, 100 * diff))
-```
-
-```
-## 
-## Difference (smokers - non-smokers): -0.015 (-1.5%)
-```
-
-``` r
 cat(sprintf("Standard error: %.4f\n", se_diff))
-```
-
-```
-## Standard error: 0.0092
-```
-
-``` r
 cat(sprintf("95%% CI for difference: (%.3f, %.3f) or (%.1f%%, %.1f%%)\n",
             lower, upper, 100 * lower, 100 * upper))
-```
 
-```
-## 95% CI for difference: (-0.033, 0.003) or (-3.3%, 0.3%)
-```
-
-``` r
 # Using prop.test
 result <- prop.test(c(x1, x2), c(n1, n2), conf.level = 0.95)
 cat(sprintf("\nVerification with prop.test(): (%.4f, %.4f)\n",
@@ -566,6 +367,15 @@ cat(sprintf("\nVerification with prop.test(): (%.4f, %.4f)\n",
 ```
 
 ```
+## Difference in Proportions: High BP by Smoking Status
+## =====================================================
+## 
+## Smokers: 146/1369 = 0.107 (10.7%)
+## Non-smokers: 835/6868 = 0.122 (12.2%)
+## 
+## Difference (smokers - non-smokers): -0.015 (-1.5%)
+## Standard error: 0.0092
+## 95% CI for difference: (-0.033, 0.003) or (-3.3%, 0.3%)
 ## 
 ## Verification with prop.test(): (-0.0149, -0.0335)
 ```
@@ -655,73 +465,30 @@ bp_sample <- na.omit(nhanes$BPSys1)[1:50]
 result <- variance_ci(bp_sample)
 
 cat("Confidence Interval for Variance\n")
-```
-
-```
-## Confidence Interval for Variance
-```
-
-``` r
 cat("=================================\n\n")
-```
-
-```
-## =================================
-```
-
-``` r
 cat(sprintf("Sample: n = %d\n", length(bp_sample)))
-```
-
-```
-## Sample: n = 50
-```
-
-``` r
 cat(sprintf("Sample variance: s² = %.2f\n", result$estimate))
-```
-
-```
-## Sample variance: s<U+00B2> = 347.48
-```
-
-``` r
 cat(sprintf("Sample SD: s = %.2f mmHg\n\n", result$sd_estimate))
-```
 
-```
-## Sample SD: s = 18.64 mmHg
-```
-
-``` r
 cat("95% CI for population variance:\n")
-```
-
-```
-## 95% CI for population variance:
-```
-
-``` r
 cat(sprintf("  (%.2f, %.2f)\n\n", result$lower, result$upper))
-```
 
-```
-##   (242.46, 539.58)
-```
-
-``` r
 cat("95% CI for population SD:\n")
-```
-
-```
-## 95% CI for population SD:
-```
-
-``` r
 cat(sprintf("  (%.2f, %.2f) mmHg\n", result$sd_lower, result$sd_upper))
 ```
 
 ```
+## Confidence Interval for Variance
+## =================================
+## 
+## Sample: n = 50
+## Sample variance: s² = 347.48
+## Sample SD: s = 18.64 mmHg
+## 
+## 95% CI for population variance:
+##   (242.46, 539.58)
+## 
+## 95% CI for population SD:
 ##   (15.57, 23.23) mmHg
 ```
 
@@ -806,66 +573,18 @@ var_ratio_ci <- function(x, y, conf_level = 0.95) {
 result <- var_ratio_ci(male_bp, female_bp)
 
 cat("CI for Ratio of Variances: Male vs Female Blood Pressure\n")
-```
-
-```
-## CI for Ratio of Variances: Male vs Female Blood Pressure
-```
-
-``` r
 cat("=========================================================\n\n")
-```
-
-```
-## =========================================================
-```
-
-``` r
 cat(sprintf("Male BP variance: s₁² = %.2f\n", result$var1))
-```
-
-```
-## Male BP variance: s<U+2081><U+00B2> = 301.04
-```
-
-``` r
 cat(sprintf("Female BP variance: s₂² = %.2f\n", result$var2))
-```
-
-```
-## Female BP variance: s<U+2082><U+00B2> = 384.88
-```
-
-``` r
 cat(sprintf("Variance ratio (M/F): %.3f\n\n", result$ratio))
-```
-
-```
-## Variance ratio (M/F): 0.782
-```
-
-``` r
 cat(sprintf("95%% CI for σ₁²/σ₂²: (%.3f, %.3f)\n", result$lower, result$upper))
-```
 
-```
-## 95% CI for <U+03C3><U+2081><U+00B2>/<U+03C3><U+2082><U+00B2>: (0.444, 1.378)
-```
-
-``` r
 if (result$lower <= 1 && result$upper >= 1) {
     cat("\nThe CI includes 1, so we cannot conclude variances differ.\n")
 } else {
     cat("\nThe CI excludes 1, suggesting the variances are different.\n")
 }
-```
 
-```
-## 
-## The CI includes 1, so we cannot conclude variances differ.
-```
-
-``` r
 # Verify with var.test
 verify <- var.test(male_bp, female_bp)
 cat(sprintf("\nVerification with var.test(): (%.3f, %.3f)\n",
@@ -873,6 +592,16 @@ cat(sprintf("\nVerification with var.test(): (%.3f, %.3f)\n",
 ```
 
 ```
+## CI for Ratio of Variances: Male vs Female Blood Pressure
+## =========================================================
+## 
+## Male BP variance: s₁² = 301.04
+## Female BP variance: s₂² = 384.88
+## Variance ratio (M/F): 0.782
+## 
+## 95% CI for σ₁²/σ₂²: (0.444, 1.378)
+## 
+## The CI includes 1, so we cannot conclude variances differ.
 ## 
 ## Verification with var.test(): (0.444, 1.378)
 ```
@@ -912,52 +641,11 @@ size_data <- data.table(
 )
 
 cat("Sample Size for Proportion Estimation\n")
-```
-
-```
-## Sample Size for Proportion Estimation
-```
-
-``` r
 cat("======================================\n\n")
-```
-
-```
-## ======================================
-```
-
-``` r
 print(size_data)
-```
-
-```
-##    margin p = 0.5 (conservative) p = 0.15 (prior estimate)
-##     <num>                  <num>                     <num>
-## 1:   0.01                   9604                      4898
-## 2:   0.02                   2401                      1225
-## 3:   0.03                   1068                       545
-## 4:   0.05                    385                       196
-## 5:   0.10                     97                        49
-```
-
-``` r
 cat("\nNote: Using p = 0.5 is conservative (gives largest n).\n")
-```
-
-```
-## 
-## Note: Using p = 0.5 is conservative (gives largest n).
-```
-
-``` r
 cat("If you have a prior estimate, you may need fewer subjects.\n")
-```
 
-```
-## If you have a prior estimate, you may need fewer subjects.
-```
-
-``` r
 # Visualise
 plot_data <- melt(size_data, id.vars = "margin", variable.name = "assumption", value.name = "n")
 
@@ -980,6 +668,22 @@ ggplot2$ggplot(plot_data, ggplot2$aes(x = margin, y = n, colour = assumption)) +
 <img src="/courses/statistics-1-foundations/sample_size_proportion-1.png" alt="plot of chunk sample_size_proportion" width="100%" />
 <p class="caption">plot of chunk sample_size_proportion</p>
 </div>
+
+```
+## Sample Size for Proportion Estimation
+## ======================================
+## 
+##    margin p = 0.5 (conservative) p = 0.15 (prior estimate)
+##     <num>                  <num>                     <num>
+## 1:   0.01                   9604                      4898
+## 2:   0.02                   2401                      1225
+## 3:   0.03                   1068                       545
+## 4:   0.05                    385                       196
+## 5:   0.10                     97                        49
+## 
+## Note: Using p = 0.5 is conservative (gives largest n).
+## If you have a prior estimate, you may need fewer subjects.
+```
 
 ---
 

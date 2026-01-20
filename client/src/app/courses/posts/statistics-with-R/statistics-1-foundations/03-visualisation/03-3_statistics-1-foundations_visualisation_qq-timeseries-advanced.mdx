@@ -36,14 +36,17 @@ accidental_deaths <- fread("../../../data/time-series/us_accidental_deaths.csv")
 lung <- fread("../../../data/survival/lung.csv")
 
 cat("Datasets loaded:\n")
-#> Datasets loaded:
 cat("  NHANES:", nrow(nhanes), "observations\n")
-#>   NHANES: 10000 observations
 cat("  Gapminder:", nrow(gapminder), "observations\n")
-#>   Gapminder: 1704 observations
 cat("  Accidental deaths:", nrow(accidental_deaths), "observations\n")
-#>   Accidental deaths: 72 observations
 cat("  Lung cancer:", nrow(lung), "observations\n")
+```
+
+```
+#> Datasets loaded:
+#>   NHANES: 10000 observations
+#>   Gapminder: 1704 observations
+#>   Accidental deaths: 72 observations
 #>   Lung cancer: 228 observations
 ```
 
@@ -143,15 +146,10 @@ slope <- (q3_sample - q1_sample) / (q3_theory - q1_theory)
 intercept <- q1_sample - slope * q1_theory
 
 cat("Reference line parameters:\n")
-#> Reference line parameters:
 cat("  Intercept (≈ mean):", round(intercept, 2), "\n")
-#>   Intercept (<U+2248> mean): 35.5
 cat("  Slope (≈ SD):", round(slope, 2), "\n")
-#>   Slope (<U+2248> SD): 26.32
 cat("  Actual mean:", round(mean(age_sample), 2), "\n")
-#>   Actual mean: 36.37
 cat("  Actual SD:", round(sd(age_sample), 2), "\n")
-#>   Actual SD: 23.47
 
 ggplot2$ggplot(qq_data, ggplot2$aes(x = theoretical, y = sample)) +
     ggplot2$geom_point(colour = "#0072B2", size = 2, alpha = 0.6) +
@@ -169,6 +167,14 @@ ggplot2$ggplot(qq_data, ggplot2$aes(x = theoretical, y = sample)) +
 <Figure src="/courses/statistics-1-foundations/qq_scratch-1.png" alt="QQ plot constructed manually showing the matching of sample to theoretical quantiles">
 	QQ plot constructed manually showing the matching of sample to theoretical quantiles
 </Figure>
+
+```
+#> Reference line parameters:
+#>   Intercept (≈ mean): 35.5 
+#>   Slope (≈ SD): 26.32 
+#>   Actual mean: 36.37 
+#>   Actual SD: 23.47
+```
 
 ### 3.7.3 Interpreting Deviations
 
@@ -326,6 +332,9 @@ p2 <- ggplot2$ggplot(accidental_deaths[!is.na(yoy_change)],
     ggplot2$theme_minimal()
 
 gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -526,6 +535,9 @@ pD <- ggplot2$ggplot(bmi_data, ggplot2$aes(sample = BMI)) +
 
 # Arrange in 2x2 grid
 gridExtra::grid.arrange(pA, pB, pC, pD, ncol = 2)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -629,6 +641,9 @@ ggplot2$ggplot(sample_data, ggplot2$aes(x = BMI, y = BPSysAve)) +
         plot.title = ggplot2$element_text(face = "bold"),
         plot.caption = ggplot2$element_text(colour = "grey50", size = 8)
     )
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 

@@ -42,10 +42,13 @@ bp_data <- nhanes[!is.na(BPSysAve) & !is.na(Age) & !is.na(BMI) &
 bp_data <- bp_data[complete.cases(bp_data)]
 
 cat("Datasets loaded:\n")
-#> Datasets loaded:
 cat("  NHANES (BP data):", nrow(bp_data), "observations\n")
-#>   NHANES (BP data): 7150 observations
 cat("  Hospital LOS:", nrow(hospital_los), "observations\n")
+```
+
+```
+#> Datasets loaded:
+#>   NHANES (BP data): 7150 observations
 #>   Hospital LOS: 1798 observations
 ```
 
@@ -82,36 +85,40 @@ The good news: OLS is robust to moderate departures from normality (especially w
 model <- lm(SBP ~ Age + BMI + Pulse, data = bp_data)
 
 cat("Diagnostic Workflow:\n")
-#> Diagnostic Workflow:
 cat("====================\n\n")
-#> ====================
 cat("1. Fit the model\n")
-#> 1. Fit the model
 cat("2. Examine residual plots\n")
-#> 2. Examine residual plots
 cat("   - Residuals vs Fitted (linearity, homoscedasticity)\n")
-#>    - Residuals vs Fitted (linearity, homoscedasticity)
 cat("   - Q-Q plot (normality)\n")
-#>    - Q-Q plot (normality)
 cat("   - Scale-Location plot (homoscedasticity)\n")
-#>    - Scale-Location plot (homoscedasticity)
 cat("   - Residuals vs predictors (linearity per predictor)\n")
-#>    - Residuals vs predictors (linearity per predictor)
 cat("3. Check for influential observations\n")
-#> 3. Check for influential observations
 cat("   - Leverage (unusual X values)\n")
-#>    - Leverage (unusual X values)
 cat("   - Standardised/studentised residuals (unusual Y values)\n")
-#>    - Standardised/studentised residuals (unusual Y values)
 cat("   - Cook's distance (overall influence)\n")
-#>    - Cook's distance (overall influence)
 cat("4. Apply remedies if needed\n")
-#> 4. Apply remedies if needed
 cat("   - Transform variables\n")
-#>    - Transform variables
 cat("   - Use robust methods\n")
-#>    - Use robust methods
 cat("   - Remove influential points (with caution)\n")
+```
+
+```
+#> Diagnostic Workflow:
+#> ====================
+#> 
+#> 1. Fit the model
+#> 2. Examine residual plots
+#>    - Residuals vs Fitted (linearity, homoscedasticity)
+#>    - Q-Q plot (normality)
+#>    - Scale-Location plot (homoscedasticity)
+#>    - Residuals vs predictors (linearity per predictor)
+#> 3. Check for influential observations
+#>    - Leverage (unusual X values)
+#>    - Standardised/studentised residuals (unusual Y values)
+#>    - Cook's distance (overall influence)
+#> 4. Apply remedies if needed
+#>    - Transform variables
+#>    - Use robust methods
 #>    - Remove influential points (with caution)
 ```
 
@@ -137,17 +144,11 @@ bp_data[, residual := residuals(model)]
 bp_data[, fitted := fitted(model)]
 
 cat("Raw Residuals Summary:\n")
-#> Raw Residuals Summary:
 cat("======================\n\n")
-#> ======================
 cat("Mean:", round(mean(bp_data$residual), 6), "(should be ~0)\n")
-#> Mean: 0 (should be ~0)
 cat("SD:", round(sd(bp_data$residual), 2), "\n")
-#> SD: 15.35
 cat("Min:", round(min(bp_data$residual), 2), "\n")
-#> Min: -55.23
 cat("Max:", round(max(bp_data$residual), 2), "\n")
-#> Max: 101.6
 
 # Histogram of residuals
 ggplot2$ggplot(bp_data, ggplot2$aes(x = residual)) +
@@ -170,6 +171,16 @@ ggplot2$ggplot(bp_data, ggplot2$aes(x = residual)) +
 	Distribution of raw residuals
 </Figure>
 
+```
+#> Raw Residuals Summary:
+#> ======================
+#> 
+#> Mean: 0 (should be ~0)
+#> SD: 15.35 
+#> Min: -55.23 
+#> Max: 101.6
+```
+
 ### 1.2.2 Standardised Residuals
 
 **Mathematical Definition**
@@ -190,19 +201,23 @@ bp_data[, std_residual := rstandard(model)]
 bp_data[, leverage := hatvalues(model)]
 
 cat("Standardised Residuals:\n")
-#> Standardised Residuals:
 cat("=======================\n\n")
-#> =======================
 cat("SD of standardised residuals:", round(sd(bp_data$std_residual), 4),
     "(should be ~1)\n")
-#> SD of standardised residuals: 1.0001 (should be ~1)
 cat("Observations with |r| > 2:", sum(abs(bp_data$std_residual) > 2), "\n")
-#> Observations with |r| > 2: 331
 cat("Observations with |r| > 3:", sum(abs(bp_data$std_residual) > 3), "\n")
-#> Observations with |r| > 3: 81
 cat("Expected with |r| > 2 (normal):", round(nrow(bp_data) * 0.046), "\n")
-#> Expected with |r| > 2 (normal): 329
 cat("Expected with |r| > 3 (normal):", round(nrow(bp_data) * 0.003), "\n")
+```
+
+```
+#> Standardised Residuals:
+#> =======================
+#> 
+#> SD of standardised residuals: 1.0001 (should be ~1)
+#> Observations with |r| > 2: 331 
+#> Observations with |r| > 3: 81 
+#> Expected with |r| > 2 (normal): 329 
 #> Expected with |r| > 3 (normal): 21
 ```
 
@@ -225,9 +240,7 @@ This makes studentised residuals ideal for detecting outliers because each obser
 bp_data[, stud_residual := rstudent(model)]
 
 cat("Studentised Residuals:\n")
-#> Studentised Residuals:
 cat("======================\n\n")
-#> ======================
 
 # Formal outlier test using Bonferroni correction
 n <- nrow(bp_data)
@@ -236,16 +249,23 @@ alpha <- 0.05
 critical_t <- qt(1 - alpha / (2 * n), df = n - p - 2)
 
 cat("Bonferroni-corrected critical value (α = 0.05):", round(critical_t, 3), "\n")
-#> Bonferroni-corrected critical value (<U+03B1> = 0.05): 4.497
 cat("Potential outliers (|t| > critical value):",
     sum(abs(bp_data$stud_residual) > critical_t), "\n\n")
-#> Potential outliers (|t| > critical value): 14
 
 # Show the most extreme
 extreme <- bp_data[order(-abs(stud_residual))][1:5]
 cat("Five most extreme studentised residuals:\n")
-#> Five most extreme studentised residuals:
 print(extreme[, .(SBP, Age, BMI, Pulse, stud_residual = round(stud_residual, 2))])
+```
+
+```
+#> Studentised Residuals:
+#> ======================
+#> 
+#> Bonferroni-corrected critical value (α = 0.05): 4.497 
+#> Potential outliers (|t| > critical value): 14 
+#> 
+#> Five most extreme studentised residuals:
 #>      SBP   Age   BMI Pulse stud_residual
 #>    <int> <int> <num> <int>         <num>
 #> 1:   221    50 19.20    66          6.64
@@ -283,6 +303,9 @@ ggplot2$ggplot(bp_data, ggplot2$aes(x = fitted, y = residual)) +
         y = "Residuals (mmHg)"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -344,6 +367,9 @@ ggplot2$ggplot(bp_data, ggplot2$aes(x = fitted, y = sqrt_abs_std_resid)) +
         y = expression(sqrt("|Standardised Residuals|"))
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -380,6 +406,9 @@ ggplot2$ggplot(resid_long, ggplot2$aes(x = Value, y = residual)) +
         y = "Residual"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -418,17 +447,11 @@ p <- 3  # number of predictors
 leverage_threshold <- 2 * (p + 1) / n
 
 cat("Leverage Analysis:\n")
-#> Leverage Analysis:
 cat("==================\n\n")
-#> ==================
 cat("Average leverage:", round((p + 1) / n, 5), "\n")
-#> Average leverage: 0.00056
 cat("High leverage threshold (2× average):", round(leverage_threshold, 5), "\n")
-#> High leverage threshold (2<U+00D7> average): 0.00112
 cat("High-leverage observations:", sum(bp_data$leverage > leverage_threshold), "\n")
-#> High-leverage observations: 451
 cat("Percentage:", round(100 * mean(bp_data$leverage > leverage_threshold), 2), "%\n")
-#> Percentage: 6.31 %
 
 # Visualise leverage in predictor space
 bp_data[, high_leverage := leverage > leverage_threshold]
@@ -453,6 +476,16 @@ ggplot2$ggplot(bp_data, ggplot2$aes(x = Age, y = BMI, colour = leverage)) +
 	Identifying high-leverage observations
 </Figure>
 
+```
+#> Leverage Analysis:
+#> ==================
+#> 
+#> Average leverage: 0.00056 
+#> High leverage threshold (2× average): 0.00112 
+#> High-leverage observations: 451 
+#> Percentage: 6.31 %
+```
+
 ### 1.4.2 Outliers (Unusual Y Values)
 
 **Prose and Intuition**
@@ -472,13 +505,9 @@ outlier_threshold <- 3  # Conservative threshold
 bp_data[, is_outlier := abs(stud_residual) > outlier_threshold]
 
 cat("Outlier Analysis:\n")
-#> Outlier Analysis:
 cat("=================\n\n")
-#> =================
 cat("Threshold: |studentised residual| >", outlier_threshold, "\n")
-#> Threshold: |studentised residual| > 3
 cat("Potential outliers:", sum(bp_data$is_outlier), "\n")
-#> Potential outliers: 81
 
 # Distribution of studentised residuals with outlier regions
 ggplot2$ggplot(bp_data, ggplot2$aes(x = stud_residual)) +
@@ -501,6 +530,14 @@ ggplot2$ggplot(bp_data, ggplot2$aes(x = stud_residual)) +
 <Figure src="/courses/statistics-2-intermediate/outliers-1.png" alt="Identifying outliers by studentised residuals">
 	Identifying outliers by studentised residuals
 </Figure>
+
+```
+#> Outlier Analysis:
+#> =================
+#> 
+#> Threshold: |studentised residual| > 3 
+#> Potential outliers: 81
+```
 
 ### 1.4.3 Cook's Distance
 
@@ -534,15 +571,10 @@ bp_data[, cooks_d := cooks.distance(model)]
 cooks_threshold <- 4 / n
 
 cat("Cook's Distance Analysis:\n")
-#> Cook's Distance Analysis:
 cat("=========================\n\n")
-#> =========================
 cat("Threshold (4/n):", round(cooks_threshold, 5), "\n")
-#> Threshold (4/n): 0.00056
 cat("Influential observations:", sum(bp_data$cooks_d > cooks_threshold), "\n")
-#> Influential observations: 408
 cat("Max Cook's distance:", round(max(bp_data$cooks_d), 5), "\n")
-#> Max Cook's distance: 0.01544
 
 # Index plot of Cook's distance
 bp_data[, index := .I]
@@ -566,6 +598,15 @@ ggplot2$ggplot(bp_data, ggplot2$aes(x = index, y = cooks_d)) +
 <Figure src="/courses/statistics-2-intermediate/cooks_distance-1.png" alt="Cook&#39;s distance identifies influential points">
 	Cook's distance identifies influential points
 </Figure>
+
+```
+#> Cook's Distance Analysis:
+#> =========================
+#> 
+#> Threshold (4/n): 0.00056 
+#> Influential observations: 408 
+#> Max Cook's distance: 0.01544
+```
 
 ### 1.4.4 Influence Plot (Bubble Plot)
 
@@ -629,21 +670,14 @@ dfbetas_mat <- dfbetas(model)
 dfbetas_threshold <- 2 / sqrt(n)
 
 cat("DFBETAS Analysis:\n")
-#> DFBETAS Analysis:
 cat("=================\n\n")
-#> =================
 cat("Threshold: 2/√n =", round(dfbetas_threshold, 4), "\n\n")
-#> Threshold: 2/<U+221A>n = 0.0237
 
 # Count influential observations for each coefficient
 for (j in 1:ncol(dfbetas_mat)) {
     n_influential <- sum(abs(dfbetas_mat[, j]) > dfbetas_threshold)
     cat(colnames(dfbetas_mat)[j], ": ", n_influential, " influential observations\n", sep = "")
 }
-#> (Intercept): 390 influential observations
-#> Age: 467 influential observations
-#> BMI: 393 influential observations
-#> Pulse: 407 influential observations
 
 # Visualise DFBETAS for Age coefficient
 dfbetas_dt <- data.table(
@@ -672,6 +706,18 @@ ggplot2$ggplot(dfbetas_dt, ggplot2$aes(x = index, y = DFBETAS_Age)) +
 	DFBETAS shows influence on individual coefficients
 </Figure>
 
+```
+#> DFBETAS Analysis:
+#> =================
+#> 
+#> Threshold: 2/√n = 0.0237 
+#> 
+#> (Intercept): 390 influential observations
+#> Age: 467 influential observations
+#> BMI: 393 influential observations
+#> Pulse: 407 influential observations
+```
+
 ### 1.5.2 DFFITS
 
 **Mathematical Definition**
@@ -688,12 +734,16 @@ dffits_vals <- dffits(model)
 dffits_threshold <- 2 * sqrt((p + 1) / n)
 
 cat("DFFITS Analysis:\n")
-#> DFFITS Analysis:
 cat("================\n\n")
-#> ================
 cat("Threshold: 2√((p+1)/n) =", round(dffits_threshold, 4), "\n")
-#> Threshold: 2<U+221A>((p+1)/n) = 0.0473
 cat("Influential observations:", sum(abs(dffits_vals) > dffits_threshold), "\n")
+```
+
+```
+#> DFFITS Analysis:
+#> ================
+#> 
+#> Threshold: 2√((p+1)/n) = 0.0473 
 #> Influential observations: 408
 ```
 
@@ -711,19 +761,23 @@ los_data <- hospital_los[!is.na(los) & los > 0,
                          .(los = los, age75 = age75, type1 = type1)]
 
 cat("Hospital Length of Stay Data:\n")
-#> Hospital Length of Stay Data:
 cat("=============================\n\n")
-#> =============================
 cat("n =", nrow(los_data), "\n")
-#> n = 1798
 cat("LOS range:", min(los_data$los), "-", max(los_data$los), "days\n")
-#> LOS range: 1 - 53 days
 cat("Age > 75:", sum(los_data$age75), "patients (", round(100*mean(los_data$age75), 1), "%)\n")
-#> Age > 75: 497 patients ( 27.6 %)
 
 # Fit model
 model_los <- lm(los ~ age75 + type1, data = los_data)
 print(summary(model_los))
+```
+
+```
+#> Hospital Length of Stay Data:
+#> =============================
+#> 
+#> n = 1798 
+#> LOS range: 1 - 53 days
+#> Age > 75: 497 patients ( 27.6 %)
 #> 
 #> Call:
 #> lm(formula = los ~ age75 + type1, data = los_data)
@@ -771,6 +825,9 @@ p2 <- ggplot2$ggplot(los_data, ggplot2$aes(sample = std_residual)) +
     ggplot2$theme_minimal()
 
 print(p1)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -790,21 +847,27 @@ print(p2)
 
 ``` r
 cat("Diagnostic Interpretation:\n")
-#> Diagnostic Interpretation:
 cat("==========================\n\n")
-#> ==========================
 cat("1. RESIDUALS VS FITTED: Clear funnel shape - variance increases with fitted values\n")
-#> 1. RESIDUALS VS FITTED: Clear funnel shape - variance increases with fitted values
 cat("   → Heteroscedasticity: standard errors are unreliable\n\n")
-#>    <U+2192> Heteroscedasticity: standard errors are unreliable
 cat("2. Q-Q PLOT: Severe right skew - many large positive residuals\n")
-#> 2. Q-Q PLOT: Severe right skew - many large positive residuals
 cat("   → Non-normality: inference may be affected\n\n")
-#>    <U+2192> Non-normality: inference may be affected
 cat("3. ROOT CAUSE: Length of stay is a count/positive variable\n")
-#> 3. ROOT CAUSE: Length of stay is a count/positive variable
 cat("   → Consider: log transformation, Poisson/negative binomial regression\n")
-#>    <U+2192> Consider: log transformation, Poisson/negative binomial regression
+```
+
+```
+#> Diagnostic Interpretation:
+#> ==========================
+#> 
+#> 1. RESIDUALS VS FITTED: Clear funnel shape - variance increases with fitted values
+#>    → Heteroscedasticity: standard errors are unreliable
+#> 
+#> 2. Q-Q PLOT: Severe right skew - many large positive residuals
+#>    → Non-normality: inference may be affected
+#> 
+#> 3. ROOT CAUSE: Length of stay is a count/positive variable
+#>    → Consider: log transformation, Poisson/negative binomial regression
 ```
 
 ---

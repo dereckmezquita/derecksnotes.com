@@ -36,10 +36,13 @@ nhanes <- fread("../../../data/primary/nhanes.csv")
 hospital_los <- fread("../../../data/count/arizona_hospital_los.csv")
 
 cat("Datasets loaded:\n")
-#> Datasets loaded:
 cat("  NHANES:", nrow(nhanes), "observations\n")
-#>   NHANES: 10000 observations
 cat("  Arizona Hospital LOS:", nrow(hospital_los), "observations\n")
+```
+
+```
+#> Datasets loaded:
+#>   NHANES: 10000 observations
 #>   Arizona Hospital LOS: 1798 observations
 ```
 
@@ -68,24 +71,15 @@ bp_data <- nhanes[!is.na(BPSysAve) & !is.na(Age) & !is.na(BMI) & Age >= 18,
 bp_data <- bp_data[complete.cases(bp_data)]
 
 cat("Blood Pressure Analysis Sample:\n")
-#> Blood Pressure Analysis Sample:
 cat("  n =", nrow(bp_data), "adults with complete BP, Age, BMI data\n\n")
-#>   n = 7150 adults with complete BP, Age, BMI data
 
 # Simple regression: SBP ~ Age
 model_simple <- lm(SBP ~ Age, data = bp_data)
 
 cat("Simple Regression: SBP ~ Age\n")
-#> Simple Regression: SBP ~ Age
 cat("=============================\n")
-#> =============================
 print(summary(model_simple)$coefficients)
-#>                Estimate Std. Error   t value     Pr(>|t|)
-#> (Intercept) 101.9162560  0.5200261 195.98298  0.00000e+00
-#> Age           0.4065082  0.0105290  38.60843 2.29677e-296
 cat("\nR-squared:", round(summary(model_simple)$r.squared, 4), "\n")
-#> 
-#> R-squared: 0.1726
 
 # Visualise
 ggplot2$ggplot(bp_data, ggplot2$aes(x = Age, y = SBP)) +
@@ -98,12 +92,28 @@ ggplot2$ggplot(bp_data, ggplot2$aes(x = Age, y = SBP)) +
         y = "Systolic Blood Pressure (mmHg)"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
 <Figure src="/courses/statistics-2-intermediate/simple_regression-1.png" alt="Simple regression captures only one relationship">
 	Simple regression captures only one relationship
 </Figure>
+
+```
+#> Blood Pressure Analysis Sample:
+#>   n = 7150 adults with complete BP, Age, BMI data
+#> 
+#> Simple Regression: SBP ~ Age
+#> =============================
+#>                Estimate Std. Error   t value     Pr(>|t|)
+#> (Intercept) 101.9162560  0.5200261 195.98298  0.00000e+00
+#> Age           0.4065082  0.0105290  38.60843 2.29677e-296
+#> 
+#> R-squared: 0.1726
+```
 
 The model explains only about 17.3% of the variance in blood pressure. Age matters, but it's clearly not the whole story. BMI, diet, medications, and genetics all play roles.
 
@@ -124,29 +134,32 @@ Each coefficient $\beta_j$ represents the **partial effect** of $X_j$ — the ch
 model_multiple <- lm(SBP ~ Age + BMI, data = bp_data)
 
 cat("Multiple Regression: SBP ~ Age + BMI\n")
-#> Multiple Regression: SBP ~ Age + BMI
 cat("=====================================\n")
-#> =====================================
 print(summary(model_multiple)$coefficients)
+cat("\nR-squared:", round(summary(model_multiple)$r.squared, 4), "\n")
+cat("Adjusted R-squared:", round(summary(model_multiple)$adj.r.squared, 4), "\n")
+
+# Compare models
+cat("\nModel Comparison:\n")
+cat("  Simple (Age only):     R² =", round(summary(model_simple)$r.squared, 4), "\n")
+cat("  Multiple (Age + BMI):  R² =", round(summary(model_multiple)$r.squared, 4), "\n")
+cat("  Improvement:", round((summary(model_multiple)$r.squared - summary(model_simple)$r.squared) * 100, 2), "percentage points\n")
+```
+
+```
+#> Multiple Regression: SBP ~ Age + BMI
+#> =====================================
 #>               Estimate Std. Error   t value      Pr(>|t|)
 #> (Intercept) 94.2573169 0.90747825 103.86730  0.000000e+00
 #> Age          0.3995585 0.01047492  38.14431 6.064247e-290
 #> BMI          0.2781984 0.02710850  10.26240  1.539614e-24
-cat("\nR-squared:", round(summary(model_multiple)$r.squared, 4), "\n")
 #> 
-#> R-squared: 0.1846
-cat("Adjusted R-squared:", round(summary(model_multiple)$adj.r.squared, 4), "\n")
-#> Adjusted R-squared: 0.1843
-
-# Compare models
-cat("\nModel Comparison:\n")
+#> R-squared: 0.1846 
+#> Adjusted R-squared: 0.1843 
 #> 
 #> Model Comparison:
-cat("  Simple (Age only):     R² =", round(summary(model_simple)$r.squared, 4), "\n")
-#>   Simple (Age only):     R<U+00B2> = 0.1726
-cat("  Multiple (Age + BMI):  R² =", round(summary(model_multiple)$r.squared, 4), "\n")
-#>   Multiple (Age + BMI):  R<U+00B2> = 0.1846
-cat("  Improvement:", round((summary(model_multiple)$r.squared - summary(model_simple)$r.squared) * 100, 2), "percentage points\n")
+#>   Simple (Age only):     R² = 0.1726 
+#>   Multiple (Age + BMI):  R² = 0.1846 
 #>   Improvement: 1.2 percentage points
 ```
 
@@ -242,41 +255,45 @@ X <- cbind(1, bp_sample$Age, bp_sample$BMI)
 colnames(X) <- c("Intercept", "Age", "BMI")
 
 cat("Design Matrix X (6 observations × 3 columns):\n")
-#> Design Matrix X (6 observations <U+00D7> 3 columns):
 cat("==============================================\n\n")
-#> ==============================================
 print(X)
-#>      Intercept Age   BMI
-#> [1,]         1  24 25.00
-#> [2,]         1  38 25.91
-#> [3,]         1  53 27.40
-#> [4,]         1  56 29.00
-#> [5,]         1  65 37.10
-#> [6,]         1  28 25.66
 
 cat("\n\nResponse Vector Y:\n")
+cat("==================\n")
+print(matrix(bp_sample$SBP, ncol = 1, dimnames = list(NULL, "SBP")))
+
+cat("\n\nCoefficient Vector β (from fitted model):\n")
+cat("==========================================\n")
+print(matrix(coef(model_multiple), ncol = 1, dimnames = list(names(coef(model_multiple)), "β")))
+```
+
+```
+#> Design Matrix X (6 observations × 3 columns):
+#> ==============================================
+#> 
+#>      Intercept Age   BMI
+#> [1,]         1  47 25.90
+#> [2,]         1  53 18.32
+#> [3,]         1  29 39.70
+#> [4,]         1  42 36.77
+#> [5,]         1  80 20.80
+#> [6,]         1  67 29.10
 #> 
 #> 
 #> Response Vector Y:
-cat("==================\n")
 #> ==================
-print(matrix(bp_sample$SBP, ncol = 1, dimnames = list(NULL, "SBP")))
 #>      SBP
-#> [1,] 113
-#> [2,] 118
-#> [3,] 120
-#> [4,] 147
-#> [5,] 143
-#> [6,] 112
-
-cat("\n\nCoefficient Vector β (from fitted model):\n")
+#> [1,] 112
+#> [2,] 109
+#> [3,] 119
+#> [4,] 118
+#> [5,] 161
+#> [6,] 119
 #> 
 #> 
-#> Coefficient Vector <U+03B2> (from fitted model):
-cat("==========================================\n")
+#> Coefficient Vector β (from fitted model):
 #> ==========================================
-print(matrix(coef(model_multiple), ncol = 1, dimnames = list(names(coef(model_multiple)), "β")))
-#>               <U+03B2>
+#>                      β
 #> (Intercept) 94.2573169
 #> Age          0.3995585
 #> BMI          0.2781984
@@ -322,17 +339,22 @@ Y_pred_matrix <- X_full %*% beta
 Y_pred_function <- predict(model_multiple)
 
 cat("Verification: X × β = Ŷ\n")
-#> Verification: X <U+00D7> <U+03B2> = <U+0176>
 cat("========================\n\n")
-#> ========================
 cat("First 6 predictions:\n")
-#> First 6 predictions:
 comparison <- data.table(
     Matrix_Mult = head(Y_pred_matrix[,1]),
     predict_fn = head(Y_pred_function),
     Difference = head(Y_pred_matrix[,1] - Y_pred_function)
 )
 print(comparison)
+cat("\nMaximum difference:", max(abs(Y_pred_matrix - Y_pred_function)), "(numerical precision)\n")
+```
+
+```
+#> Verification: X × β = Ŷ
+#> ========================
+#> 
+#> First 6 predictions:
 #>    Matrix_Mult predict_fn Difference
 #>          <num>      <num>      <num>
 #> 1:    116.8059   116.8059          0
@@ -341,7 +363,6 @@ print(comparison)
 #> 4:    122.3402   122.3402          0
 #> 5:    119.8156   119.8156          0
 #> 6:    119.8156   119.8156          0
-cat("\nMaximum difference:", max(abs(Y_pred_matrix - Y_pred_function)), "(numerical precision)\n")
 #> 
 #> Maximum difference: 0 (numerical precision)
 ```
@@ -399,57 +420,60 @@ Y <- bp_data$SBP
 # Step 1: X'X (p × p matrix)
 XtX <- t(X) %*% X
 cat("X'X (Gram matrix):\n")
-#> X'X (Gram matrix):
 print(round(XtX, 2))
-#>             (Intercept)      Age       BMI
-#> (Intercept)      7150.0   330561  205100.9
-#> Age            330561.0 17441419 9536217.1
-#> BMI            205100.9  9536217 6205743.0
 
 # Step 2: X'Y (p × 1 vector)
 XtY <- t(X) %*% Y
 cat("\nX'Y:\n")
-#> 
-#> X'Y:
 print(round(XtY, 2))
-#>                 [,1]
-#> (Intercept)   863077
-#> Age         40779620
-#> BMI         24868963
 
 # Step 3: (X'X)^(-1)
 XtX_inv <- solve(XtX)
 cat("\n(X'X)^(-1):\n")
-#> 
-#> (X'X)^(-1):
 print(XtX_inv)
-#>               (Intercept)           Age           BMI
-#> (Intercept)  3.491191e-03 -1.927294e-05 -8.576820e-05
-#> Age         -1.927294e-05  4.651600e-07 -7.782633e-08
-#> BMI         -8.576820e-05 -7.782633e-08  3.115389e-06
 
 # Step 4: β̂ = (X'X)^(-1) X'Y
 beta_hat <- XtX_inv %*% XtY
 cat("\nβ̂ from matrix formula:\n")
-#> 
-#> <U+03B2><U+0302> from matrix formula:
 print(beta_hat)
+
+cat("\nβ̂ from lm():\n")
+print(coef(model_multiple))
+
+cat("\nDifference (numerical precision):\n")
+print(beta_hat[,1] - coef(model_multiple))
+```
+
+```
+#> X'X (Gram matrix):
+#>             (Intercept)      Age       BMI
+#> (Intercept)      7150.0   330561  205100.9
+#> Age            330561.0 17441419 9536217.1
+#> BMI            205100.9  9536217 6205743.0
+#> 
+#> X'Y:
+#>                 [,1]
+#> (Intercept)   863077
+#> Age         40779620
+#> BMI         24868963
+#> 
+#> (X'X)^(-1):
+#>               (Intercept)           Age           BMI
+#> (Intercept)  3.491191e-03 -1.927294e-05 -8.576820e-05
+#> Age         -1.927294e-05  4.651600e-07 -7.782633e-08
+#> BMI         -8.576820e-05 -7.782633e-08  3.115389e-06
+#> 
+#> β̂ from matrix formula:
 #>                   [,1]
 #> (Intercept) 94.2573169
 #> Age          0.3995585
 #> BMI          0.2781984
-
-cat("\nβ̂ from lm():\n")
 #> 
-#> <U+03B2><U+0302> from lm():
-print(coef(model_multiple))
+#> β̂ from lm():
 #> (Intercept)         Age         BMI 
-#>  94.2573169   0.3995585   0.2781984
-
-cat("\nDifference (numerical precision):\n")
+#>  94.2573169   0.3995585   0.2781984 
 #> 
 #> Difference (numerical precision):
-print(beta_hat[,1] - coef(model_multiple))
 #>   (Intercept)           Age           BMI 
 #>  1.823253e-11  2.586820e-14 -6.268319e-13
 ```
@@ -487,17 +511,11 @@ H <- X_sample %*% solve(t(X_sample) %*% X_sample) %*% t(X_sample)
 leverage <- diag(H)
 
 cat("Hat Matrix Properties:\n")
-#> Hat Matrix Properties:
 cat("======================\n\n")
-#> ======================
 cat("Dimensions:", dim(H), "\n")
-#> Dimensions: 500 500
 cat("Is symmetric:", all.equal(H, t(H)), "\n")
-#> Is symmetric: TRUE
 cat("Trace (should be p+1 = 3):", sum(leverage), "\n")
-#> Trace (should be p+1 = 3): 3
 cat("Mean leverage:", mean(leverage), "(should be (p+1)/n =", 3/n_sample, ")\n")
-#> Mean leverage: 0.006 (should be (p+1)/n = 0.006 )
 
 # Visualise leverage
 leverage_dt <- data.table(
@@ -528,6 +546,16 @@ ggplot2$ggplot(leverage_dt, ggplot2$aes(x = Age, y = BMI, colour = leverage)) +
 <Figure src="/courses/statistics-2-intermediate/hat_matrix-1.png" alt="The hat matrix and leverage">
 	The hat matrix and leverage
 </Figure>
+
+```
+#> Hat Matrix Properties:
+#> ======================
+#> 
+#> Dimensions: 500 500 
+#> Is symmetric: TRUE 
+#> Trace (should be p+1 = 3): 3 
+#> Mean leverage: 0.006 (should be (p+1)/n = 0.006 )
+```
 
 ---
 
@@ -561,9 +589,7 @@ model_bmi_only <- lm(SBP ~ BMI, data = bp_data)
 model_both <- lm(SBP ~ Age + BMI, data = bp_data)
 
 cat("Coefficient Comparison:\n")
-#> Coefficient Comparison:
 cat("=======================\n\n")
-#> =======================
 
 comparison_dt <- data.table(
     Predictor = c("Age", "BMI"),
@@ -572,18 +598,24 @@ comparison_dt <- data.table(
 )
 comparison_dt[, Change := round((Partial - Simple) / Simple * 100, 1)]
 print(comparison_dt)
+
+cat("\nInterpretation:\n")
+cat("- Age coefficient drops by", abs(comparison_dt[Predictor == "Age", Change]),
+    "% when controlling for BMI\n")
+cat("- This suggests part of Age's apparent effect was confounded by BMI\n")
+```
+
+```
+#> Coefficient Comparison:
+#> =======================
+#> 
 #>    Predictor    Simple   Partial Change
 #>       <char>     <num>     <num>  <num>
 #> 1:       Age 0.4065082 0.3995585   -1.7
 #> 2:       BMI 0.3450488 0.2781984  -19.4
-
-cat("\nInterpretation:\n")
 #> 
 #> Interpretation:
-cat("- Age coefficient drops by", abs(comparison_dt[Predictor == "Age", Change]),
-    "% when controlling for BMI\n")
 #> - Age coefficient drops by 1.7 % when controlling for BMI
-cat("- This suggests part of Age's apparent effect was confounded by BMI\n")
 #> - This suggests part of Age's apparent effect was confounded by BMI
 ```
 
@@ -613,13 +645,9 @@ resid_x1 <- residuals(model_x1_on_x2)
 model_partial <- lm(resid_y ~ resid_x1)
 
 cat("Added Variable Plot for Age:\n")
-#> Added Variable Plot for Age:
 cat("============================\n\n")
-#> ============================
 cat("Slope from added variable plot:", round(coef(model_partial)[2], 4), "\n")
-#> Slope from added variable plot: 0.3996
 cat("Partial coefficient from full model:", round(coef(model_both)["Age"], 4), "\n")
-#> Partial coefficient from full model: 0.3996
 
 # Create plot
 avp_dt <- data.table(
@@ -638,12 +666,23 @@ ggplot2$ggplot(avp_dt, ggplot2$aes(x = resid_Age, y = resid_SBP)) +
         y = "SBP Residuals (after removing BMI effect)"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
 <Figure src="/courses/statistics-2-intermediate/added_variable_plot-1.png" alt="Added variable plot showing partial regression">
 	Added variable plot showing partial regression
 </Figure>
+
+```
+#> Added Variable Plot for Age:
+#> ============================
+#> 
+#> Slope from added variable plot: 0.3996 
+#> Partial coefficient from full model: 0.3996
+```
 
 ### 1.4.3 Standardised Coefficients
 
@@ -673,26 +712,17 @@ bp_data_std <- bp_data[, .(
 model_std <- lm(SBP ~ Age + BMI, data = bp_data_std)
 
 cat("Standardised Coefficients (Beta Weights):\n")
-#> Standardised Coefficients (Beta Weights):
 cat("==========================================\n\n")
-#> ==========================================
 cat("From standardised data:\n")
-#> From standardised data:
 print(coef(model_std))
-#>  (Intercept)          Age          BMI 
-#> 2.533100e-15 4.082923e-01 1.098476e-01
 
 cat("\nManually calculated:\n")
-#> 
-#> Manually calculated:
 sd_SBP <- sd(bp_data$SBP)
 sd_Age <- sd(bp_data$Age)
 sd_BMI <- sd(bp_data$BMI)
 
 cat("  Age:", round(coef(model_both)["Age"] * sd_Age / sd_SBP, 4), "\n")
-#>   Age: 0.4083
 cat("  BMI:", round(coef(model_both)["BMI"] * sd_BMI / sd_SBP, 4), "\n")
-#>   BMI: 0.1098
 
 # Compare effect sizes
 effect_comparison <- data.table(
@@ -704,13 +734,7 @@ effect_comparison <- data.table(
 effect_comparison <- effect_comparison[order(-Abs_Standardised)]
 
 cat("\nEffect Size Ranking:\n")
-#> 
-#> Effect Size Ranking:
 print(effect_comparison)
-#>    Predictor Raw_Coefficient Standardised Abs_Standardised
-#>       <char>           <num>        <num>            <num>
-#> 1:       Age       0.3995585    0.4082923        0.4082923
-#> 2:       BMI       0.2781984    0.1098476        0.1098476
 
 # Visualise
 ggplot2$ggplot(effect_comparison, ggplot2$aes(x = reorder(Predictor, Abs_Standardised),
@@ -731,6 +755,25 @@ ggplot2$ggplot(effect_comparison, ggplot2$aes(x = reorder(Predictor, Abs_Standar
 <Figure src="/courses/statistics-2-intermediate/standardised_coefficients-1.png" alt="Comparing standardised coefficients">
 	Comparing standardised coefficients
 </Figure>
+
+```
+#> Standardised Coefficients (Beta Weights):
+#> ==========================================
+#> 
+#> From standardised data:
+#>  (Intercept)          Age          BMI 
+#> 2.533100e-15 4.082923e-01 1.098476e-01 
+#> 
+#> Manually calculated:
+#>   Age: 0.4083 
+#>   BMI: 0.1098 
+#> 
+#> Effect Size Ranking:
+#>    Predictor Raw_Coefficient Standardised Abs_Standardised
+#>       <char>           <num>        <num>            <num>
+#> 1:       Age       0.3995585    0.4082923        0.4082923
+#> 2:       BMI       0.2781984    0.1098476        0.1098476
+```
 
 ---
 
@@ -799,6 +842,9 @@ p2 <- ggplot2$ggplot(diag_dt, ggplot2$aes(sample = std_residuals)) +
 
 # Print plots
 print(p1)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -846,10 +892,13 @@ summary_table <- data.table(
 )
 
 cat("Results Table for Stakeholders:\n")
-#> Results Table for Stakeholders:
 cat("================================\n")
-#> ================================
 print(summary_table)
+```
+
+```
+#> Results Table for Stakeholders:
+#> ================================
 #>       Variable Estimate Lower_95CI Upper_95CI p_value
 #>         <char>    <num>      <num>      <num>   <num>
 #> 1: (Intercept)    94.26      92.48      96.04       0

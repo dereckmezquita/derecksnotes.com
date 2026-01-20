@@ -55,8 +55,11 @@ my_range <- function(x) {
 
 # Example with NHANES blood pressure
 cat("Range of systolic BP:", my_range(bp_data), "mmHg\n")
-#> Range of systolic BP: 150 mmHg
 cat("Min:", min(bp_data), " Max:", max(bp_data), "\n")
+```
+
+```
+#> Range of systolic BP: 150 mmHg
 #> Min: 76  Max: 226
 ```
 
@@ -97,13 +100,9 @@ my_iqr <- function(x) {
 
 # Test
 cat("Q1:", my_quantile(bp_data, 0.25), "\n")
-#> Q1: 106
 cat("Q3:", my_quantile(bp_data, 0.75), "\n")
-#> Q3: 127
 cat("Our IQR:", my_iqr(bp_data), "\n")
-#> Our IQR: 21
 cat("Built-in IQR():", IQR(bp_data), "\n")
-#> Built-in IQR(): 21
 
 # Visualise
 bp_dt <- data.table$data.table(bp = bp_data)
@@ -131,6 +130,13 @@ ggplot2$ggplot(bp_dt, ggplot2$aes(x = bp)) +
 <Figure src="/courses/statistics-1-foundations/iqr_from_scratch-1.png" alt="The IQR captures the spread of the middle 50% of data">
 	The IQR captures the spread of the middle 50% of data
 </Figure>
+
+```
+#> Q1: 106 
+#> Q3: 127 
+#> Our IQR: 21 
+#> Built-in IQR(): 21
+```
 
 ### 2.2.2 Variance
 
@@ -179,10 +185,13 @@ my_sample_variance <- function(x) {
 
 # Test
 cat("Population variance:", my_pop_variance(bmi_clean), "\n")
-#> Population variance: 54.40827
 cat("Sample variance:", my_sample_variance(bmi_clean), "\n")
-#> Sample variance: 54.41392
 cat("Built-in var():", var(bmi_clean), "\n")
+```
+
+```
+#> Population variance: 54.40827 
+#> Sample variance: 54.41392 
 #> Built-in var(): 54.41392
 ```
 
@@ -219,13 +228,10 @@ for (i in 1:n_simulations) {
 }
 
 cat("True population variance:", round(true_variance, 2), "\n")
-#> True population variance: 99.68
 cat("Mean of s² (divide by n):", round(mean(results$var_n), 2),
     "- biased LOW\n")
-#> Mean of s<U+00B2> (divide by n): 90.63 - biased LOW
 cat("Mean of s² (divide by n-1):", round(mean(results$var_n_minus_1), 2),
     "- unbiased\n")
-#> Mean of s<U+00B2> (divide by n-1): 100.7 - unbiased
 
 # Visualise
 results_long <- data.table$melt(
@@ -259,6 +265,12 @@ ggplot2$ggplot(results_long, ggplot2$aes(x = variance, fill = method)) +
 	Dividing by n-1 corrects the bias in variance estimation
 </Figure>
 
+```
+#> True population variance: 99.68 
+#> Mean of s² (divide by n): 90.63 - biased LOW
+#> Mean of s² (divide by n-1): 100.7 - unbiased
+```
+
 ### 2.2.3 Standard Deviation
 
 The standard deviation is the square root of variance:
@@ -276,9 +288,7 @@ my_sd <- function(x) {
 
 # Test
 cat("Our implementation:", my_sd(bmi_clean), "\n")
-#> Our implementation: 7.376579
 cat("Built-in sd():", sd(bmi_clean), "\n")
-#> Built-in sd(): 7.376579
 
 # Interpretation: for approximately normal data
 # About 68% of data fall within 1 SD of the mean
@@ -295,13 +305,18 @@ within_3sd <- mean(bmi_clean >= mean_bmi - 3*sd_bmi &
                    bmi_clean <= mean_bmi + 3*sd_bmi)
 
 cat("\nEmpirical rule check for BMI data:\n")
+cat("Within 1 SD:", round(within_1sd * 100, 1), "% (expected ~68%)\n")
+cat("Within 2 SD:", round(within_2sd * 100, 1), "% (expected ~95%)\n")
+cat("Within 3 SD:", round(within_3sd * 100, 1), "% (expected ~99.7%)\n")
+```
+
+```
+#> Our implementation: 7.376579 
+#> Built-in sd(): 7.376579 
 #> 
 #> Empirical rule check for BMI data:
-cat("Within 1 SD:", round(within_1sd * 100, 1), "% (expected ~68%)\n")
 #> Within 1 SD: 69.9 % (expected ~68%)
-cat("Within 2 SD:", round(within_2sd * 100, 1), "% (expected ~95%)\n")
 #> Within 2 SD: 96.6 % (expected ~95%)
-cat("Within 3 SD:", round(within_3sd * 100, 1), "% (expected ~99.7%)\n")
 #> Within 3 SD: 99.2 % (expected ~99.7%)
 ```
 
@@ -328,17 +343,20 @@ weight_data <- nhanes[!is.na(Weight), Weight]
 cat("Height: mean =", round(mean(height_data), 1), "cm,",
     "SD =", round(sd(height_data), 1), "cm,",
     "CV =", round(my_cv(height_data), 1), "%\n")
-#> Height: mean = 161.9 cm, SD = 20.2 cm, CV = 12.5 %
 
 cat("Weight: mean =", round(mean(weight_data), 1), "kg,",
     "SD =", round(sd(weight_data), 1), "kg,",
     "CV =", round(my_cv(weight_data), 1), "%\n")
-#> Weight: mean = 71 kg, SD = 29.1 kg, CV = 41 %
 
 cat("\nWeight is relatively more variable than height\n")
+cat("(even though height has a larger SD in absolute terms)\n")
+```
+
+```
+#> Height: mean = 161.9 cm, SD = 20.2 cm, CV = 12.5 %
+#> Weight: mean = 71 kg, SD = 29.1 kg, CV = 41 %
 #> 
 #> Weight is relatively more variable than height
-cat("(even though height has a larger SD in absolute terms)\n")
 #> (even though height has a larger SD in absolute terms)
 ```
 
@@ -358,10 +376,13 @@ my_mad_mean <- function(x) {
 
 # Test
 cat("Mean absolute deviation (from mean):", my_mad_mean(bmi_clean), "\n")
-#> Mean absolute deviation (from mean): 5.700316
 cat("Standard deviation:", sd(bmi_clean), "\n")
-#> Standard deviation: 7.376579
 cat("\nMAD is always smaller than SD because squaring amplifies large deviations\n")
+```
+
+```
+#> Mean absolute deviation (from mean): 5.700316 
+#> Standard deviation: 7.376579 
 #> 
 #> MAD is always smaller than SD because squaring amplifies large deviations
 ```
@@ -392,18 +413,12 @@ clean_data <- c(10, 11, 12, 12, 13, 13, 14, 15, 16)
 contaminated <- c(10, 11, 12, 12, 13, 13, 14, 15, 100)  # One outlier
 
 cat("Clean data:\n")
-#> Clean data:
 cat("  SD:", round(sd(clean_data), 2), "\n")
-#>   SD: 1.9
 cat("  MAD:", round(my_mad_median(clean_data), 2), "\n\n")
-#>   MAD: 1.48
 
 cat("With outlier (100):\n")
-#> With outlier (100):
 cat("  SD:", round(sd(contaminated), 2), "(increased dramatically)\n")
-#>   SD: 29.21 (increased dramatically)
 cat("  MAD:", round(my_mad_median(contaminated), 2), "(barely changed)\n")
-#>   MAD: 1.48 (barely changed)
 
 # Visualise comparison
 set.seed(111)
@@ -422,10 +437,6 @@ stats_summary <- comparison_data[, .(
 ), by = dataset]
 
 print(stats_summary)
-#>            dataset       SD      MAD
-#>             <char>    <num>    <num>
-#> 1:      Clean Data 10.70855 10.38011
-#> 2: 5% Contaminated 14.56410 10.02536
 
 ggplot2$ggplot(comparison_data, ggplot2$aes(x = value, fill = dataset)) +
     ggplot2$geom_histogram(bins = 25, alpha = 0.7, colour = "white") +
@@ -443,6 +454,20 @@ ggplot2$ggplot(comparison_data, ggplot2$aes(x = value, fill = dataset)) +
 <Figure src="/courses/statistics-1-foundations/robust_mad-1.png" alt="MAD is robust to outliers whilst SD is sensitive">
 	MAD is robust to outliers whilst SD is sensitive
 </Figure>
+
+```
+#> Clean data:
+#>   SD: 1.9 
+#>   MAD: 1.48 
+#> 
+#> With outlier (100):
+#>   SD: 29.21 (increased dramatically)
+#>   MAD: 1.48 (barely changed)
+#>            dataset       SD      MAD
+#>             <char>    <num>    <num>
+#> 1:      Clean Data 10.70855 10.38011
+#> 2: 5% Contaminated 14.56410 10.02536
+```
 
 ## 2.3 Measures of Position
 
@@ -486,22 +511,25 @@ my_percentile <- function(x, p) {
 
 # Test with NHANES BMI
 cat("Selected BMI percentiles:\n")
-#> Selected BMI percentiles:
 for (p in c(5, 10, 25, 50, 75, 90, 95)) {
     cat(p, "th percentile:", round(my_percentile(bmi_clean, p), 1), "\n")
 }
+
+cat("\nBuilt-in quantile() for comparison:\n")
+print(quantile(bmi_clean, probs = c(0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95)))
+```
+
+```
+#> Selected BMI percentiles:
 #> 5 th percentile: 15.8 
 #> 10 th percentile: 17.5 
 #> 25 th percentile: 21.6 
 #> 50 th percentile: 26 
 #> 75 th percentile: 30.9 
 #> 90 th percentile: 36 
-#> 95 th percentile: 40
-
-cat("\nBuilt-in quantile() for comparison:\n")
+#> 95 th percentile: 40 
 #> 
 #> Built-in quantile() for comparison:
-print(quantile(bmi_clean, probs = c(0.05, 0.10, 0.25, 0.50, 0.75, 0.90, 0.95)))
 #>      5%     10%     25%     50%     75%     90%     95% 
 #> 15.8265 17.5000 21.5800 25.9800 30.8900 36.0000 40.0000
 ```
@@ -537,15 +565,10 @@ my_fivenum <- function(x) {
 # Example with blood pressure
 bp_fivenum <- my_fivenum(bp_data)
 print(round(bp_fivenum, 1))
-#>    Min     Q1 Median     Q3    Max 
-#>     76    106    116    127    226
 
 # Compare to built-in
 cat("\nBuilt-in fivenum():\n")
-#> 
-#> Built-in fivenum():
 print(round(fivenum(bp_data), 1))
-#> [1]  76 106 116 127 226
 
 # Visualise with boxplot
 bp_dt <- data.table$data.table(bp = bp_data)
@@ -576,6 +599,14 @@ ggplot2$ggplot(bp_dt, ggplot2$aes(y = bp)) +
 	The five-number summary provides a concise distribution snapshot
 </Figure>
 
+```
+#>    Min     Q1 Median     Q3    Max 
+#>     76    106    116    127    226 
+#> 
+#> Built-in fivenum():
+#> [1]  76 106 116 127 226
+```
+
 ### 2.3.3 Z-Scores (Standard Scores)
 
 A **z-score** expresses how many standard deviations an observation is from the mean:
@@ -598,18 +629,14 @@ bmi_z <- my_zscore(bmi_clean)
 
 cat("Original BMI: mean =", round(mean(bmi_clean), 1),
     ", SD =", round(sd(bmi_clean), 1), "\n")
-#> Original BMI: mean = 26.7 , SD = 7.4
 cat("Z-scores: mean =", round(mean(bmi_z), 6),
     ", SD =", round(sd(bmi_z), 6), "\n")
-#> Z-scores: mean = 0 , SD = 1
 
 # Interpretation examples
 example_bmis <- c(18.5, 25, 30, 40)
 example_z <- (example_bmis - mean(bmi_clean)) / sd(bmi_clean)
 
 cat("\nZ-score interpretation:\n")
-#> 
-#> Z-score interpretation:
 for (i in seq_along(example_bmis)) {
     cat("BMI =", example_bmis[i], "-> z =", round(example_z[i], 2))
     if (abs(example_z[i]) < 1) {
@@ -620,10 +647,6 @@ for (i in seq_along(example_bmis)) {
         cat(" (>2 SD from mean, unusual)\n")
     }
 }
-#> BMI = 18.5 -> z = -1.11 (1-2 SD from mean)
-#> BMI = 25 -> z = -0.23 (within 1 SD, typical)
-#> BMI = 30 -> z = 0.45 (within 1 SD, typical)
-#> BMI = 40 -> z = 1.81 (1-2 SD from mean)
 
 # Visualise
 z_dt <- data.table$data.table(original = bmi_clean, zscore = bmi_z)
@@ -648,6 +671,17 @@ ggplot2$ggplot(z_dt, ggplot2$aes(x = zscore)) +
 	Z-scores standardise data to a common scale
 </Figure>
 
+```
+#> Original BMI: mean = 26.7 , SD = 7.4 
+#> Z-scores: mean = 0 , SD = 1 
+#> 
+#> Z-score interpretation:
+#> BMI = 18.5 -> z = -1.11 (1-2 SD from mean)
+#> BMI = 25 -> z = -0.23 (within 1 SD, typical)
+#> BMI = 30 -> z = 0.45 (within 1 SD, typical)
+#> BMI = 40 -> z = 1.81 (1-2 SD from mean)
+```
+
 ### 2.3.4 Percentile Ranks
 
 The **percentile rank** of a value tells us what percentage of the data fall at or below that value.
@@ -664,22 +698,25 @@ my_percentile_rank <- function(x, value) {
 # Example: what percentile is a BMI of 25?
 cat("BMI = 25 is at the", round(my_percentile_rank(bmi_clean, 25), 1),
     "percentile\n")
-#> BMI = 25 is at the 44.1 percentile
 cat("BMI = 30 is at the", round(my_percentile_rank(bmi_clean, 30), 1),
     "percentile\n")
-#> BMI = 30 is at the 71.4 percentile
 cat("BMI = 40 is at the", round(my_percentile_rank(bmi_clean, 40), 1),
     "percentile\n")
-#> BMI = 40 is at the 95.1 percentile
 
 # Application: clinical reference ranges
 # Often defined as 5th to 95th percentile
 cat("\nReference range (5th-95th percentile) for BMI:\n")
-#> 
-#> Reference range (5th-95th percentile) for BMI:
 cat(round(quantile(bmi_clean, 0.05), 1), "to",
     round(quantile(bmi_clean, 0.95), 1), "kg/m²\n")
-#> 15.8 to 40 kg/m<U+00B2>
+```
+
+```
+#> BMI = 25 is at the 44.1 percentile
+#> BMI = 30 is at the 71.4 percentile
+#> BMI = 40 is at the 95.1 percentile
+#> 
+#> Reference range (5th-95th percentile) for BMI:
+#> 15.8 to 40 kg/m²
 ```
 
 ---

@@ -47,20 +47,24 @@ feature_cols <- c("mean_radius", "mean_texture", "mean_perimeter", "mean_area",
 bc_features <- breast_cancer[, ..feature_cols]
 
 cat("Breast Cancer Wisconsin Dataset:\n")
-#> Breast Cancer Wisconsin Dataset:
 cat("================================\n")
-#> ================================
 cat("  Observations:", nrow(breast_cancer), "\n")
-#>   Observations: 569
 cat("  Features for PCA:", length(feature_cols), "\n")
-#>   Features for PCA: 10
 cat("  Diagnosis: M =", sum(breast_cancer$diagnosis == "M"),
     ", B =", sum(breast_cancer$diagnosis == "B"), "\n\n")
-#>   Diagnosis: M = 212 , B = 357
 
 cat("Feature summary:\n")
-#> Feature summary:
 print(summary(bc_features))
+```
+
+```
+#> Breast Cancer Wisconsin Dataset:
+#> ================================
+#>   Observations: 569 
+#>   Features for PCA: 10 
+#>   Diagnosis: M = 212 , B = 357 
+#> 
+#> Feature summary:
 #>   mean_radius      mean_texture   mean_perimeter     mean_area     
 #>  Min.   : 6.981   Min.   : 9.71   Min.   : 43.79   Min.   : 143.5  
 #>  1st Qu.:11.700   1st Qu.:16.17   1st Qu.: 75.17   1st Qu.: 420.3  
@@ -264,10 +268,24 @@ pca_result <- prcomp(bc_scaled, center = FALSE, scale. = FALSE)  # Already scale
 
 # Summary
 cat("PCA Summary:\n")
-#> PCA Summary:
 cat("============\n\n")
-#> ============
 summary(pca_result)
+
+# Variance explained
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+cumvar <- cumsum(var_explained)
+
+cat("\nCumulative variance explained:\n")
+for (i in 1:min(5, length(var_explained))) {
+    cat(sprintf("  PC%d: %.1f%% (cumulative: %.1f%%)\n",
+                i, var_explained[i] * 100, cumvar[i] * 100))
+}
+```
+
+```
+#> PCA Summary:
+#> ============
+#> 
 #> Importance of components:
 #>                           PC1    PC2     PC3    PC4     PC5     PC6     PC7
 #> Standard deviation     2.3406 1.5870 0.93841 0.7064 0.61036 0.35234 0.28299
@@ -277,18 +295,8 @@ summary(pca_result)
 #> Standard deviation     0.18679 0.10552 0.01680
 #> Proportion of Variance 0.00349 0.00111 0.00003
 #> Cumulative Proportion  0.99886 0.99997 1.00000
-
-# Variance explained
-var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
-cumvar <- cumsum(var_explained)
-
-cat("\nCumulative variance explained:\n")
 #> 
 #> Cumulative variance explained:
-for (i in 1:min(5, length(var_explained))) {
-    cat(sprintf("  PC%d: %.1f%% (cumulative: %.1f%%)\n",
-                i, var_explained[i] * 100, cumvar[i] * 100))
-}
 #>   PC1: 54.8% (cumulative: 54.8%)
 #>   PC2: 25.2% (cumulative: 80.0%)
 #>   PC3: 8.8% (cumulative: 88.8%)
@@ -501,13 +509,15 @@ ggplot2$ggplot(parallel_long[PC <= 10],
 </Figure>
 
 ``` r
-
 # Determine number to retain
 n_retain <- sum(observed_eigs > q95_random)
 cat("\nParallel Analysis Result:\n")
+cat(sprintf("  Retain %d components (eigenvalue > 95th percentile of random)\n", n_retain))
+```
+
+```
 #> 
 #> Parallel Analysis Result:
-cat(sprintf("  Retain %d components (eigenvalue > 95th percentile of random)\n", n_retain))
 #>   Retain 2 components (eigenvalue > 95th percentile of random)
 ```
 
@@ -563,30 +573,34 @@ $$\mathbf{\Sigma} = \mathbf{\Lambda}\mathbf{\Lambda}' + \mathbf{\Psi}$$
 ``` r
 # Determine number of factors
 cat("Factor Analysis on Breast Cancer Data:\n")
-#> Factor Analysis on Breast Cancer Data:
 cat("=====================================\n\n")
-#> =====================================
 
 # Eigenvalues suggest number of factors
 cat("Eigenvalues of correlation matrix:\n")
-#> Eigenvalues of correlation matrix:
 eig_corr <- eigen(cor(bc_scaled))$values
 print(round(eig_corr, 2))
-#>  [1] 5.48 2.52 0.88 0.50 0.37 0.12 0.08 0.03 0.01 0.00
 
 # Kaiser criterion
 n_factors_kaiser <- sum(eig_corr > 1)
 cat("\nKaiser criterion suggests:", n_factors_kaiser, "factors\n")
-#> 
-#> Kaiser criterion suggests: 2 factors
 
 # Fit factor model with 2 factors (based on parallel analysis)
 fa_result <- fa(bc_scaled, nfactors = 2, rotate = "varimax", fm = "ml")
 
 cat("\nFactor Analysis Results (Maximum Likelihood, Varimax Rotation):\n")
+print(fa_result$loadings, cutoff = 0.3)
+```
+
+```
+#> Factor Analysis on Breast Cancer Data:
+#> =====================================
+#> 
+#> Eigenvalues of correlation matrix:
+#>  [1] 5.48 2.52 0.88 0.50 0.37 0.12 0.08 0.03 0.01 0.00
+#> 
+#> Kaiser criterion suggests: 2 factors
 #> 
 #> Factor Analysis Results (Maximum Likelihood, Varimax Rotation):
-print(fa_result$loadings, cutoff = 0.3)
 #> 
 #> Loadings:
 #>                        ML1    ML2   
@@ -628,8 +642,13 @@ The factor solution is not unique—we can rotate factors while preserving the m
 fa_unrotated <- fa(bc_scaled, nfactors = 2, rotate = "none", fm = "ml")
 fa_varimax <- fa(bc_scaled, nfactors = 2, rotate = "varimax", fm = "ml")
 fa_promax <- fa(bc_scaled, nfactors = 2, rotate = "promax", fm = "ml")
-#> Loading required namespace: GPArotation
+```
 
+```
+#> Loading required namespace: GPArotation
+```
+
+``` r
 # Extract loadings
 get_loadings <- function(fa_obj, name) {
     loads <- as.matrix(fa_obj$loadings)
@@ -702,12 +721,14 @@ ggplot2$ggplot(factor_scores, ggplot2$aes(x = F1, y = F2, colour = Diagnosis)) +
 </Figure>
 
 ``` r
-
 # Quantify separation
 cat("\nFactor Score Means by Diagnosis:\n")
+print(factor_scores[, .(Mean_F1 = mean(F1), Mean_F2 = mean(F2), N = .N), by = Diagnosis])
+```
+
+```
 #> 
 #> Factor Score Means by Diagnosis:
-print(factor_scores[, .(Mean_F1 = mean(F1), Mean_F2 = mean(F2), N = .N), by = Diagnosis])
 #>    Diagnosis    Mean_F1    Mean_F2     N
 #>       <char>      <num>      <num> <int>
 #> 1:         M  0.9308374  0.3985922   212
@@ -731,13 +752,10 @@ Unlike PCA, factor analysis makes assumptions that can be tested. Key diagnostic
 
 ``` r
 cat("Factor Analysis Diagnostics:\n")
-#> Factor Analysis Diagnostics:
 cat("============================\n\n")
-#> ============================
 
 # Communalities (variance explained by factors)
 cat("Communalities (variance explained by factors):\n")
-#> Communalities (variance explained by factors):
 communalities <- fa_varimax$communality
 comm_dt <- data.table(
     Variable = gsub("mean_", "", names(communalities)),
@@ -745,6 +763,24 @@ comm_dt <- data.table(
     Uniqueness = 1 - communalities
 )
 print(comm_dt[order(-Communality)])
+
+cat("\nVariables with low communality (< 0.5) may need more factors or are unique:\n")
+print(comm_dt[Communality < 0.5])
+
+# Model fit
+cat("\nModel Fit Statistics:\n")
+cat(sprintf("  Chi-square: %.2f (df = %d, p = %.4f)\n",
+            fa_varimax$STATISTIC, fa_varimax$dof, fa_varimax$PVAL))
+cat(sprintf("  RMSEA: %.3f\n", fa_varimax$RMSEA[1]))
+cat(sprintf("  TLI: %.3f\n", fa_varimax$TLI))
+cat(sprintf("  BIC: %.2f\n", fa_varimax$BIC))
+```
+
+```
+#> Factor Analysis Diagnostics:
+#> ============================
+#> 
+#> Communalities (variance explained by factors):
 #>              Variable Communality  Uniqueness
 #>                <char>       <num>       <num>
 #>  1:         perimeter   0.9973895 0.002610464
@@ -757,28 +793,17 @@ print(comm_dt[order(-Communality)])
 #>  8:        smoothness   0.5414368 0.458563227
 #>  9:          symmetry   0.4310558 0.568944191
 #> 10:           texture   0.1105293 0.889470731
-
-cat("\nVariables with low communality (< 0.5) may need more factors or are unique:\n")
 #> 
 #> Variables with low communality (< 0.5) may need more factors or are unique:
-print(comm_dt[Communality < 0.5])
 #>    Variable Communality Uniqueness
 #>      <char>       <num>      <num>
 #> 1:  texture   0.1105293  0.8894707
 #> 2: symmetry   0.4310558  0.5689442
-
-# Model fit
-cat("\nModel Fit Statistics:\n")
 #> 
 #> Model Fit Statistics:
-cat(sprintf("  Chi-square: %.2f (df = %d, p = %.4f)\n",
-            fa_varimax$STATISTIC, fa_varimax$dof, fa_varimax$PVAL))
 #>   Chi-square: 1275.35 (df = 26, p = 0.0000)
-cat(sprintf("  RMSEA: %.3f\n", fa_varimax$RMSEA[1]))
 #>   RMSEA: 0.291
-cat(sprintf("  TLI: %.3f\n", fa_varimax$TLI))
 #>   TLI: 0.805
-cat(sprintf("  BIC: %.2f\n", fa_varimax$BIC))
 #>   BIC: 1110.41
 ```
 
@@ -877,36 +902,41 @@ ggplot2$ggplot(compare_dt, ggplot2$aes(x = factor(PC), y = Variance, fill = Meth
 ``` r
 # KMO test for sampling adequacy
 cat("Sample Adequacy Tests:\n")
-#> Sample Adequacy Tests:
 cat("======================\n\n")
-#> ======================
 
 kmo_result <- KMO(bc_scaled)
 cat("Kaiser-Meyer-Olkin (KMO) Measure:\n")
-#> Kaiser-Meyer-Olkin (KMO) Measure:
 cat(sprintf("  Overall MSA: %.3f\n", kmo_result$MSA))
-#>   Overall MSA: 0.787
 cat("  Interpretation: ",
     ifelse(kmo_result$MSA >= 0.9, "Marvelous",
     ifelse(kmo_result$MSA >= 0.8, "Meritorious",
     ifelse(kmo_result$MSA >= 0.7, "Middling",
     ifelse(kmo_result$MSA >= 0.6, "Mediocre",
     ifelse(kmo_result$MSA >= 0.5, "Miserable", "Unacceptable"))))), "\n\n")
-#>   Interpretation:  Middling
 
 # Bartlett's test of sphericity
 cat("Bartlett's Test of Sphericity:\n")
-#> Bartlett's Test of Sphericity:
 bartlett_result <- cortest.bartlett(cor(bc_scaled), n = nrow(bc_scaled))
 cat(sprintf("  Chi-square: %.2f\n", bartlett_result$chisq))
-#>   Chi-square: 11176.18
 cat(sprintf("  df: %d\n", bartlett_result$df))
-#>   df: 45
 cat(sprintf("  p-value: %.2e\n", bartlett_result$p.value))
-#>   p-value: 0.00e+00
 cat("  Conclusion:", ifelse(bartlett_result$p.value < 0.05,
                             "Reject null - correlations exist, FA appropriate",
                             "Fail to reject - consider if FA is appropriate"), "\n")
+```
+
+```
+#> Sample Adequacy Tests:
+#> ======================
+#> 
+#> Kaiser-Meyer-Olkin (KMO) Measure:
+#>   Overall MSA: 0.787
+#>   Interpretation:  Middling 
+#> 
+#> Bartlett's Test of Sphericity:
+#>   Chi-square: 11176.18
+#>   df: 45
+#>   p-value: 0.00e+00
 #>   Conclusion: Reject null - correlations exist, FA appropriate
 ```
 
@@ -934,12 +964,20 @@ cat("  Conclusion:", ifelse(bartlett_result$p.value < 0.05,
 ``` r
 # Create publication-quality figure
 library(patchwork)
+```
+
+```
 #> 
 #> Attaching package: 'patchwork'
+```
+
+```
 #> The following object is masked from 'package:MASS':
 #> 
 #>     area
+```
 
+``` r
 # Panel A: Scree plot
 p_scree <- ggplot2$ggplot(scree_dt[1:6], ggplot2$aes(x = PC)) +
     ggplot2$geom_col(ggplot2$aes(y = Variance), fill = "#0072B2", alpha = 0.7) +
@@ -1024,11 +1062,17 @@ results_dt <- data.table(
 )
 
 cat("\nTable: PCA and Factor Analysis Results\n")
+cat("========================================\n")
+print(results_dt)
+cat("\nNote: PCA used correlation matrix; Factor analysis used ML extraction with varimax rotation.\n")
+cat(sprintf("PCA: PC1 explains %.1f%%, PC2 explains %.1f%% of total variance.\n",
+            var_explained[1] * 100, var_explained[2] * 100))
+```
+
+```
 #> 
 #> Table: PCA and Factor Analysis Results
-cat("========================================\n")
 #> ========================================
-print(results_dt)
 #>               Feature PC1 Loading PC2 Loading Factor 1 Factor 2 Communality
 #>                <char>      <char>      <char>   <char>   <char>      <char>
 #>  1:            radius       -0.36        0.31     1.00     0.03        1.00
@@ -1041,11 +1085,8 @@ print(results_dt)
 #>  8:    concave_points       -0.42       -0.01     0.81     0.54        0.94
 #>  9:          symmetry       -0.22       -0.37     0.13     0.64        0.43
 #> 10: fractal_dimension       -0.07       -0.57    -0.34     0.84        0.83
-cat("\nNote: PCA used correlation matrix; Factor analysis used ML extraction with varimax rotation.\n")
 #> 
 #> Note: PCA used correlation matrix; Factor analysis used ML extraction with varimax rotation.
-cat(sprintf("PCA: PC1 explains %.1f%%, PC2 explains %.1f%% of total variance.\n",
-            var_explained[1] * 100, var_explained[2] * 100))
 #> PCA: PC1 explains 54.8%, PC2 explains 25.2% of total variance.
 ```
 

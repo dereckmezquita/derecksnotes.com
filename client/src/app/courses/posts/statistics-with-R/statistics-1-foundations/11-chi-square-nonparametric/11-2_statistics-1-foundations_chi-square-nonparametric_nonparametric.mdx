@@ -57,21 +57,8 @@ Parametric tests (t-tests, ANOVA) assume data come from distributions with speci
 
 ``` r
 cat("When to Use Non-Parametric Tests\n")
-```
-
-```
-## When to Use Non-Parametric Tests
-```
-
-``` r
 cat("=================================\n\n")
-```
 
-```
-## =================================
-```
-
-``` r
 guide <- data.table(
     Situation = c(
         "Normal data, moderate sample",
@@ -97,6 +84,9 @@ print(guide)
 ```
 
 ```
+## When to Use Non-Parametric Tests
+## =================================
+## 
 ##                             Situation                           Recommendation
 ##                                <char>                                   <char>
 ## 1:       Normal data, moderate sample               Parametric (t-test, ANOVA)
@@ -144,77 +134,25 @@ after <- before - rexp(n, rate = 0.2)  # Generally improves
 differences <- after - before
 
 cat("Wilcoxon Signed-Rank Test: Paired Data\n")
-```
-
-```
-## Wilcoxon Signed-Rank Test: Paired Data
-```
-
-``` r
 cat("======================================\n\n")
-```
 
-```
-## ======================================
-```
-
-``` r
 # Show the data
 cat("Sample of differences (After - Before):\n")
-```
-
-```
-## Sample of differences (After - Before):
-```
-
-``` r
 print(round(differences[1:10], 2))
-```
-
-```
-##  [1] -4.22 -4.83 -7.43 -6.74 -5.84 -8.03 -7.48 -7.85 -0.16 -2.99
-```
-
-``` r
 cat("...\n\n")
-```
 
-```
-## ...
-```
-
-``` r
 # Test for median = 0
 result <- wilcox.test(differences, mu = 0, alternative = "two.sided")
 
 cat(sprintf("V = %.0f (sum of positive ranks)\n", result$statistic))
-```
-
-```
-## V = 0 (sum of positive ranks)
-```
-
-``` r
 cat(sprintf("p-value = %.4f\n\n", result$p.value))
-```
 
-```
-## p-value = 0.0000
-```
-
-``` r
 if (result$p.value < 0.05) {
     cat("Conclusion: Median difference is significantly different from 0\n")
 } else {
     cat("Conclusion: No significant difference from 0\n")
 }
-```
 
-```
-## Conclusion: Median difference is significantly different from 0
-```
-
-``` r
 # Compare to t-test
 t_result <- t.test(differences, mu = 0)
 cat(sprintf("\nFor comparison, t-test: t = %.3f, p = %.4f\n",
@@ -222,6 +160,17 @@ cat(sprintf("\nFor comparison, t-test: t = %.3f, p = %.4f\n",
 ```
 
 ```
+## Wilcoxon Signed-Rank Test: Paired Data
+## ======================================
+## 
+## Sample of differences (After - Before):
+##  [1] -4.22 -4.83 -7.43 -6.74 -5.84 -8.03 -7.48 -7.85 -0.16 -2.99
+## ...
+## 
+## V = 0 (sum of positive ranks)
+## p-value = 0.0000
+## 
+## Conclusion: Median difference is significantly different from 0
 ## 
 ## For comparison, t-test: t = -7.987, p = 0.0000
 ```
@@ -275,41 +224,17 @@ wilcoxon_signed_rank <- function(x, mu = 0, alternative = "two.sided") {
 result <- wilcoxon_signed_rank(differences)
 
 cat("Custom wilcoxon_signed_rank() Results:\n")
-```
-
-```
-## Custom wilcoxon_signed_rank() Results:
-```
-
-``` r
 cat("======================================\n")
-```
-
-```
-## ======================================
-```
-
-``` r
 cat(sprintf("W+ = %.0f, W- = %.0f\n", result$statistic["W_plus"], result$statistic["W_minus"]))
-```
-
-```
-## W+ = 0, W- = 210
-```
-
-``` r
 cat(sprintf("z = %.3f (normal approximation)\n", result$z))
-```
-
-```
-## z = -3.920 (normal approximation)
-```
-
-``` r
 cat(sprintf("p-value = %.4f\n", result$p.value))
 ```
 
 ```
+## Custom wilcoxon_signed_rank() Results:
+## ======================================
+## W+ = 0, W- = 210
+## z = -3.920 (normal approximation)
 ## p-value = 0.0001
 ```
 
@@ -382,71 +307,26 @@ sample_diabetic <- sample(diabetic, min(50, length(diabetic)))
 sample_non_diabetic <- sample(non_diabetic, min(50, length(non_diabetic)))
 
 cat("Wilcoxon Rank-Sum Test: BMI by Diabetes Status\n")
-```
-
-```
-## Wilcoxon Rank-Sum Test: BMI by Diabetes Status
-```
-
-``` r
 cat("===============================================\n\n")
-```
 
-```
-## ===============================================
-```
-
-``` r
 cat(sprintf("Diabetic: n = %d, median = %.1f\n",
             length(sample_diabetic), median(sample_diabetic)))
-```
-
-```
-## Diabetic: n = 50, median = 31.5
-```
-
-``` r
 cat(sprintf("Non-diabetic: n = %d, median = %.1f\n\n",
             length(sample_non_diabetic), median(sample_non_diabetic)))
-```
 
-```
-## Non-diabetic: n = 50, median = 26.6
-```
-
-``` r
 # Perform test
 result <- wilcox.test(sample_diabetic, sample_non_diabetic,
                       alternative = "two.sided")
 
 cat(sprintf("W = %.0f\n", result$statistic))
-```
-
-```
-## W = 1784
-```
-
-``` r
 cat(sprintf("p-value = %.4f\n\n", result$p.value))
-```
 
-```
-## p-value = 0.0002
-```
-
-``` r
 if (result$p.value < 0.05) {
     cat("Conclusion: Significant difference in BMI distributions\n")
 } else {
     cat("Conclusion: No significant difference detected\n")
 }
-```
 
-```
-## Conclusion: Significant difference in BMI distributions
-```
-
-``` r
 # Compare to t-test
 t_result <- t.test(sample_diabetic, sample_non_diabetic)
 cat(sprintf("\nFor comparison, t-test: t = %.3f, p = %.4f\n",
@@ -454,6 +334,16 @@ cat(sprintf("\nFor comparison, t-test: t = %.3f, p = %.4f\n",
 ```
 
 ```
+## Wilcoxon Rank-Sum Test: BMI by Diabetes Status
+## ===============================================
+## 
+## Diabetic: n = 50, median = 31.5
+## Non-diabetic: n = 50, median = 26.6
+## 
+## W = 1784
+## p-value = 0.0002
+## 
+## Conclusion: Significant difference in BMI distributions
 ## 
 ## For comparison, t-test: t = 3.908, p = 0.0002
 ```
@@ -476,29 +366,8 @@ n2 <- length(sample_non_diabetic)
 r_biserial <- (2 * U) / (n1 * n2) - 1
 
 cat("Effect Size: Rank-Biserial Correlation\n")
-```
-
-```
-## Effect Size: Rank-Biserial Correlation
-```
-
-``` r
 cat("======================================\n\n")
-```
-
-```
-## ======================================
-```
-
-``` r
 cat(sprintf("r = %.4f\n", r_biserial))
-```
-
-```
-## r = 0.4268
-```
-
-``` r
 cat(sprintf("Interpretation: %s effect\n",
             ifelse(abs(r_biserial) < 0.1, "negligible",
                    ifelse(abs(r_biserial) < 0.3, "small",
@@ -506,6 +375,10 @@ cat(sprintf("Interpretation: %s effect\n",
 ```
 
 ```
+## Effect Size: Rank-Biserial Correlation
+## ======================================
+## 
+## r = 0.4268
 ## Interpretation: medium effect
 ```
 
@@ -572,21 +445,8 @@ set.seed(789)
 sampled <- bmi_age[, .SD[sample(.N, min(40, .N))], by = AgeDecade]
 
 cat("Kruskal-Wallis Test: BMI Across Age Groups\n")
-```
-
-```
-## Kruskal-Wallis Test: BMI Across Age Groups
-```
-
-``` r
 cat("==========================================\n\n")
-```
 
-```
-## ==========================================
-```
-
-``` r
 # Summary by group
 summary_table <- sampled[, .(
     n = .N,
@@ -594,47 +454,14 @@ summary_table <- sampled[, .(
     IQR = IQR(BMI)
 ), by = AgeDecade]
 print(summary_table)
-```
 
-```
-##    AgeDecade     n median    IQR
-##       <char> <int>  <num>  <num>
-## 1:     30-39    40 28.985 7.4000
-## 2:     40-49    40 27.915 7.0175
-## 3:     60-69    40 28.775 5.7550
-## 4:     50-59    40 28.425 7.5125
-## 5:     20-29    40 25.015 7.6275
-```
-
-``` r
 # Perform test
 result <- kruskal.test(BMI ~ AgeDecade, data = sampled)
 
 cat(sprintf("\nH = %.3f\n", result$statistic))
-```
-
-```
-## 
-## H = 7.892
-```
-
-``` r
 cat(sprintf("df = %d\n", result$parameter))
-```
-
-```
-## df = 4
-```
-
-``` r
 cat(sprintf("p-value = %.4f\n\n", result$p.value))
-```
 
-```
-## p-value = 0.0956
-```
-
-``` r
 if (result$p.value < 0.05) {
     cat("Conclusion: Significant differences in BMI across age groups\n")
 } else {
@@ -643,6 +470,21 @@ if (result$p.value < 0.05) {
 ```
 
 ```
+## Kruskal-Wallis Test: BMI Across Age Groups
+## ==========================================
+## 
+##    AgeDecade     n median    IQR
+##       <char> <int>  <num>  <num>
+## 1:     30-39    40 28.985 7.4000
+## 2:     40-49    40 27.915 7.0175
+## 3:     60-69    40 28.775 5.7550
+## 4:     50-59    40 28.425 7.5125
+## 5:     20-29    40 25.015 7.6275
+## 
+## H = 7.892
+## df = 4
+## p-value = 0.0956
+## 
 ## Conclusion: No significant differences detected
 ```
 
@@ -657,40 +499,25 @@ groups <- unique(sampled$AgeDecade)
 n_comparisons <- choose(length(groups), 2)
 
 cat("Pairwise Comparisons (Wilcoxon with Bonferroni)\n")
-```
-
-```
-## Pairwise Comparisons (Wilcoxon with Bonferroni)
-```
-
-``` r
 cat("================================================\n\n")
-```
 
-```
-## ================================================
-```
-
-``` r
 pairwise_results <- pairwise.wilcox.test(sampled$BMI, sampled$AgeDecade,
                                           p.adjust.method = "bonferroni")
 
 print(round(pairwise_results$p.value, 4))
+
+cat("\n(Values < 0.05 indicate significant differences)\n")
 ```
 
 ```
+## Pairwise Comparisons (Wilcoxon with Bonferroni)
+## ================================================
+## 
 ##        20-29 30-39 40-49 50-59
 ## 30-39 0.2013    NA    NA    NA
 ## 40-49 0.3993     1    NA    NA
 ## 50-59 0.1304     1     1    NA
 ## 60-69 0.7583     1     1     1
-```
-
-``` r
-cat("\n(Values < 0.05 indicate significant differences)\n")
-```
-
-```
 ## 
 ## (Values < 0.05 indicate significant differences)
 ```
@@ -706,29 +533,8 @@ N <- nrow(sampled)
 epsilon_sq <- H / (N - 1)
 
 cat("Effect Size: Epsilon-Squared\n")
-```
-
-```
-## Effect Size: Epsilon-Squared
-```
-
-``` r
 cat("============================\n\n")
-```
-
-```
-## ============================
-```
-
-``` r
 cat(sprintf("ε² = %.4f\n", epsilon_sq))
-```
-
-```
-## <U+03B5><U+00B2> = 0.0397
-```
-
-``` r
 cat(sprintf("Interpretation: %s effect\n",
             ifelse(epsilon_sq < 0.01, "negligible",
                    ifelse(epsilon_sq < 0.06, "small",
@@ -736,6 +542,10 @@ cat(sprintf("Interpretation: %s effect\n",
 ```
 
 ```
+## Effect Size: Epsilon-Squared
+## ============================
+## 
+## ε² = 0.0397
 ## Interpretation: small effect
 ```
 
@@ -768,21 +578,8 @@ set.seed(321)
 sample_data <- bmi_bp[sample(.N, 100)]
 
 cat("Spearman Rank Correlation: BMI vs Systolic BP\n")
-```
-
-```
-## Spearman Rank Correlation: BMI vs Systolic BP
-```
-
-``` r
 cat("==============================================\n\n")
-```
 
-```
-## ==============================================
-```
-
-``` r
 # Pearson (parametric)
 pearson <- cor.test(sample_data$BMI, sample_data$BPSys1, method = "pearson")
 
@@ -790,49 +587,26 @@ pearson <- cor.test(sample_data$BMI, sample_data$BPSys1, method = "pearson")
 spearman <- cor.test(sample_data$BMI, sample_data$BPSys1, method = "spearman")
 
 cat("Pearson correlation (assumes normality):\n")
-```
-
-```
-## Pearson correlation (assumes normality):
-```
-
-``` r
 cat(sprintf("  r = %.4f, p = %.4f\n\n", pearson$estimate, pearson$p.value))
-```
 
-```
-##   r = 0.4554, p = 0.0000
-```
-
-``` r
 cat("Spearman correlation (rank-based):\n")
-```
-
-```
-## Spearman correlation (rank-based):
-```
-
-``` r
 cat(sprintf("  ρ = %.4f, p = %.4f\n\n", spearman$estimate, spearman$p.value))
-```
 
-```
-##   <U+03C1> = 0.5636, p = 0.0000
-```
-
-``` r
 cat("Note: Spearman is more robust but may differ from Pearson\n")
-```
-
-```
-## Note: Spearman is more robust but may differ from Pearson
-```
-
-``` r
 cat("when relationship is non-linear or data have outliers.\n")
 ```
 
 ```
+## Spearman Rank Correlation: BMI vs Systolic BP
+## ==============================================
+## 
+## Pearson correlation (assumes normality):
+##   r = 0.4554, p = 0.0000
+## 
+## Spearman correlation (rank-based):
+##   ρ = 0.5636, p = 0.0000
+## 
+## Note: Spearman is more robust but may differ from Pearson
 ## when relationship is non-linear or data have outliers.
 ```
 
@@ -902,83 +676,32 @@ sign_test <- function(x, mu = 0) {
 result <- sign_test(differences)
 
 cat("Sign Test\n")
-```
-
-```
-## Sign Test
-```
-
-``` r
 cat("=========\n\n")
-```
-
-```
-## =========
-```
-
-``` r
 cat(sprintf("Positive differences: %d\n", result$n_positive))
-```
-
-```
-## Positive differences: 0
-```
-
-``` r
 cat(sprintf("Negative differences: %d\n", result$n_negative))
-```
-
-```
-## Negative differences: 20
-```
-
-``` r
 cat(sprintf("Test statistic: %d\n", result$test_statistic))
-```
-
-```
-## Test statistic: 0
-```
-
-``` r
 cat(sprintf("p-value: %.4f\n\n", result$p.value))
-```
 
-```
-## p-value: 0.0000
-```
-
-``` r
 # Compare to Wilcoxon
 wilcox_result <- wilcox.test(differences)
 cat(sprintf("For comparison:\n"))
-```
-
-```
-## For comparison:
-```
-
-``` r
 cat(sprintf("  Sign test p-value: %.4f\n", result$p.value))
-```
-
-```
-##   Sign test p-value: 0.0000
-```
-
-``` r
 cat(sprintf("  Wilcoxon p-value: %.4f\n", wilcox_result$p.value))
-```
-
-```
-##   Wilcoxon p-value: 0.0000
-```
-
-``` r
 cat("\nNote: Wilcoxon uses magnitude information, so is typically more powerful.\n")
 ```
 
 ```
+## Sign Test
+## =========
+## 
+## Positive differences: 0
+## Negative differences: 20
+## Test statistic: 0
+## p-value: 0.0000
+## 
+## For comparison:
+##   Sign test p-value: 0.0000
+##   Wilcoxon p-value: 0.0000
 ## 
 ## Note: Wilcoxon uses magnitude information, so is typically more powerful.
 ```
@@ -1035,44 +758,33 @@ summary_table <- data.table(
 )
 
 cat("Choosing Between Parametric and Non-Parametric Tests\n")
-```
-
-```
-## Choosing Between Parametric and Non-Parametric Tests
-```
-
-``` r
 cat("=====================================================\n\n")
-```
-
-```
-## =====================================================
-```
-
-``` r
 print(summary_table)
 ```
 
 ```
+## Choosing Between Parametric and Non-Parametric Tests
+## =====================================================
+## 
 ##                  Scenario        Parametric       Non-Parametric
 ##                    <char>            <char>               <char>
 ## 1:      One sample/paired One-sample t-test Wilcoxon signed-rank
 ## 2:      One sample/paired     Paired t-test Wilcoxon signed-rank
-## 3:      One sample/paired          <U+2014>            Sign test
+## 3:      One sample/paired                 —            Sign test
 ## 4: Two independent groups Two-sample t-test    Wilcoxon rank-sum
-## 5: Two independent groups          <U+2014>     (Mann-Whitney U)
+## 5: Two independent groups                 —     (Mann-Whitney U)
 ## 6:   k independent groups     One-way ANOVA       Kruskal-Wallis
-## 7:   k independent groups          <U+2014>             <U+2014>
-## 8:            Correlation         Pearson r    Spearman <U+03C1>
+## 7:   k independent groups                 —                    —
+## 8:            Correlation         Pearson r           Spearman ρ
 ##                Assumption
 ##                    <char>
 ## 1:     Normal differences
 ## 2:     Normal differences
 ## 3: None (uses signs only)
 ## 4:     Normal populations
-## 5:               <U+2014>
+## 5:                      —
 ## 6:     Normal populations
-## 7:               <U+2014>
+## 7:                      —
 ## 8:       Bivariate normal
 ```
 
@@ -1109,81 +821,30 @@ power_wilcox_skewed <- mean(sapply(1:n_sim, function(i) {
 }))
 
 cat("Power Comparison (n = 20, effect = 0.5 SD)\n")
-```
-
-```
-## Power Comparison (n = 20, effect = 0.5 SD)
-```
-
-``` r
 cat("==========================================\n\n")
-```
-
-```
-## ==========================================
-```
-
-``` r
 cat(sprintf("Normal data:\n"))
-```
-
-```
-## Normal data:
-```
-
-``` r
 cat(sprintf("  t-test power: %.1f%%\n", 100 * power_t_normal))
-```
-
-```
-##   t-test power: 57.2%
-```
-
-``` r
 cat(sprintf("  Wilcoxon power: %.1f%%\n\n", 100 * power_wilcox_normal))
-```
-
-```
-##   Wilcoxon power: 50.0%
-```
-
-``` r
 cat(sprintf("Skewed data (exponential):\n"))
-```
-
-```
-## Skewed data (exponential):
-```
-
-``` r
 cat(sprintf("  t-test power: %.1f%%\n", 100 * power_t_skewed))
-```
-
-```
-##   t-test power: 62.2%
-```
-
-``` r
 cat(sprintf("  Wilcoxon power: %.1f%%\n\n", 100 * power_wilcox_skewed))
-```
-
-```
-##   Wilcoxon power: 47.1%
-```
-
-``` r
 cat("Note: For normal data, t-test is slightly more powerful.\n")
-```
-
-```
-## Note: For normal data, t-test is slightly more powerful.
-```
-
-``` r
 cat("For skewed data, Wilcoxon may be more powerful.\n")
 ```
 
 ```
+## Power Comparison (n = 20, effect = 0.5 SD)
+## ==========================================
+## 
+## Normal data:
+##   t-test power: 57.2%
+##   Wilcoxon power: 50.0%
+## 
+## Skewed data (exponential):
+##   t-test power: 62.2%
+##   Wilcoxon power: 47.1%
+## 
+## Note: For normal data, t-test is slightly more powerful.
 ## For skewed data, Wilcoxon may be more powerful.
 ```
 
@@ -1202,101 +863,28 @@ The advantage is that this method is more robust — a few extreme values won't 
 
 ``` r
 cat("STATISTICAL REPORT: Non-Parametric Analysis\n")
-```
-
-```
-## STATISTICAL REPORT: Non-Parametric Analysis
-```
-
-``` r
 cat("============================================\n\n")
-```
 
-```
-## ============================================
-```
-
-``` r
 cat("Comparison: BMI by Diabetes Status\n\n")
-```
 
-```
-## Comparison: BMI by Diabetes Status
-```
-
-``` r
 cat("Descriptive Statistics (Medians):\n")
-```
-
-```
-## Descriptive Statistics (Medians):
-```
-
-``` r
 cat(sprintf("  Diabetic: Median = %.1f, n = %d\n",
             median(sample_diabetic), length(sample_diabetic)))
-```
-
-```
-##   Diabetic: Median = 31.5, n = 50
-```
-
-``` r
 cat(sprintf("  Non-diabetic: Median = %.1f, n = %d\n\n",
             median(sample_non_diabetic), length(sample_non_diabetic)))
-```
 
-```
-##   Non-diabetic: Median = 26.6, n = 50
-```
-
-``` r
 result <- wilcox.test(sample_diabetic, sample_non_diabetic)
 r <- (2 * result$statistic) / (length(sample_diabetic) * length(sample_non_diabetic)) - 1
 
 cat("Inferential Statistics:\n")
-```
-
-```
-## Inferential Statistics:
-```
-
-``` r
 cat(sprintf("  Mann-Whitney U = %.0f\n", result$statistic))
-```
-
-```
-##   Mann-Whitney U = 1784
-```
-
-``` r
 cat(sprintf("  p-value = %.4f\n", result$p.value))
-```
-
-```
-##   p-value = 0.0002
-```
-
-``` r
 cat(sprintf("  Rank-biserial r = %.3f (%s effect)\n\n",
             r, ifelse(abs(r) < 0.1, "negligible",
                       ifelse(abs(r) < 0.3, "small",
                              ifelse(abs(r) < 0.5, "medium", "large")))))
-```
 
-```
-##   Rank-biserial r = 0.427 (medium effect)
-```
-
-``` r
 cat("Interpretation:\n")
-```
-
-```
-## Interpretation:
-```
-
-``` r
 if (result$p.value < 0.05) {
     cat("There was a statistically significant difference in BMI\n")
     cat("between diabetic and non-diabetic individuals.\n")
@@ -1307,6 +895,21 @@ if (result$p.value < 0.05) {
 ```
 
 ```
+## STATISTICAL REPORT: Non-Parametric Analysis
+## ============================================
+## 
+## Comparison: BMI by Diabetes Status
+## 
+## Descriptive Statistics (Medians):
+##   Diabetic: Median = 31.5, n = 50
+##   Non-diabetic: Median = 26.6, n = 50
+## 
+## Inferential Statistics:
+##   Mann-Whitney U = 1784
+##   p-value = 0.0002
+##   Rank-biserial r = 0.427 (medium effect)
+## 
+## Interpretation:
 ## There was a statistically significant difference in BMI
 ## between diabetic and non-diabetic individuals.
 ```

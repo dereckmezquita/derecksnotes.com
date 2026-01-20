@@ -67,57 +67,24 @@ S_yy <- sum((y - y_bar)^2)
 r <- S_xy / sqrt(S_xx * S_yy)
 
 cat("Pearson Correlation: Manual Calculation\n")
-```
-
-```
-## Pearson Correlation: Manual Calculation
-```
-
-``` r
 cat("=======================================\n\n")
-```
-
-```
-## =======================================
-```
-
-``` r
 cat(sprintf("S_xy = %.2f\n", S_xy))
-```
-
-```
-## S_xy = 47001.23
-```
-
-``` r
 cat(sprintf("S_xx = %.2f\n", S_xx))
-```
-
-```
-## S_xx = 50951.93
-```
-
-``` r
 cat(sprintf("S_yy = %.2f\n\n", S_yy))
-```
-
-```
-## S_yy = 203308.43
-```
-
-``` r
 cat(sprintf("r = S_xy / √(S_xx × S_yy) = %.4f\n\n", r))
-```
-
-```
-## r = S_xy / <U+221A>(S_xx <U+00D7> S_yy) = 0.4618
-```
-
-``` r
 cat(sprintf("Compare with cor(): %.4f\n", cor(x, y)))
 ```
 
 ```
+## Pearson Correlation: Manual Calculation
+## =======================================
+## 
+## S_xy = 47001.23
+## S_xx = 50951.93
+## S_yy = 203308.43
+## 
+## r = S_xy / √(S_xx × S_yy) = 0.4618
+## 
 ## Compare with cor(): 0.4618
 ```
 
@@ -142,58 +109,24 @@ s_y <- sd(y)
 r_from_beta <- beta_1 * s_x / s_y
 
 cat("Relationship Between r and β₁\n")
-```
-
-```
-## Relationship Between r and <U+03B2><U+2081>
-```
-
-``` r
 cat("=============================\n\n")
-```
-
-```
-## =============================
-```
-
-``` r
 cat(sprintf("Slope (β₁) = %.4f\n", beta_1))
-```
-
-```
-## Slope (<U+03B2><U+2081>) = 0.9225
-```
-
-``` r
 cat(sprintf("SD of X (height) = %.4f\n", s_x))
-```
-
-```
-## SD of X (height) = 10.1049
-```
-
-``` r
 cat(sprintf("SD of Y (weight) = %.4f\n\n", s_y))
-```
-
-```
-## SD of Y (weight) = 20.1849
-```
-
-``` r
 cat(sprintf("r = β₁ × (s_x / s_y) = %.4f × (%.4f / %.4f) = %.4f\n",
             beta_1, s_x, s_y, r_from_beta))
-```
-
-```
-## r = <U+03B2><U+2081> <U+00D7> (s_x / s_y) = 0.9225 <U+00D7> (10.1049 / 20.1849) = 0.4618
-```
-
-``` r
 cat(sprintf("Direct r = %.4f\n", r))
 ```
 
 ```
+## Relationship Between r and β₁
+## =============================
+## 
+## Slope (β₁) = 0.9225
+## SD of X (height) = 10.1049
+## SD of Y (weight) = 20.1849
+## 
+## r = β₁ × (s_x / s_y) = 0.9225 × (10.1049 / 20.1849) = 0.4618
 ## Direct r = 0.4618
 ```
 
@@ -253,83 +186,33 @@ t_stat <- r * sqrt(n - 2) / sqrt(1 - r^2)
 p_value <- 2 * pt(-abs(t_stat), df = n - 2)
 
 cat("Test for Correlation\n")
-```
-
-```
-## Test for Correlation
-```
-
-``` r
 cat("====================\n\n")
-```
-
-```
-## ====================
-```
-
-``` r
 cat("H₀: ρ = 0 (no linear relationship)\n")
-```
-
-```
-## H<U+2080>: <U+03C1> = 0 (no linear relationship)
-```
-
-``` r
 cat("H₁: ρ ≠ 0 (linear relationship exists)\n\n")
-```
-
-```
-## H<U+2081>: <U+03C1> <U+2260> 0 (linear relationship exists)
-```
-
-``` r
 cat(sprintf("Sample correlation: r = %.4f\n", r))
-```
-
-```
-## Sample correlation: r = 0.4618
-```
-
-``` r
 cat(sprintf("Test statistic: t = %.3f\n", t_stat))
-```
-
-```
-## Test statistic: t = 11.618
-```
-
-``` r
 cat(sprintf("Degrees of freedom: %d\n", n - 2))
-```
-
-```
-## Degrees of freedom: 498
-```
-
-``` r
 cat(sprintf("p-value: %.2e\n\n", p_value))
-```
 
-```
-## p-value: 8.87e-28
-```
-
-``` r
 # Compare with cor.test
 cor_result <- cor.test(x, y)
 cat("Compare with cor.test():\n")
-```
-
-```
-## Compare with cor.test():
-```
-
-``` r
 cat(sprintf("t = %.3f, p-value = %.2e\n", cor_result$statistic, cor_result$p.value))
 ```
 
 ```
+## Test for Correlation
+## ====================
+## 
+## H₀: ρ = 0 (no linear relationship)
+## H₁: ρ ≠ 0 (linear relationship exists)
+## 
+## Sample correlation: r = 0.4618
+## Test statistic: t = 11.618
+## Degrees of freedom: 498
+## p-value: 8.87e-28
+## 
+## Compare with cor.test():
 ## t = 11.618, p-value = 8.87e-28
 ```
 
@@ -355,82 +238,33 @@ ci_z <- c(z - z_crit * se_z, z + z_crit * se_z)
 ci_r <- tanh(ci_z)  # inverse of arctanh
 
 cat("95% Confidence Interval for ρ\n")
-```
-
-```
-## 95% Confidence Interval for <U+03C1>
-```
-
-``` r
 cat("=============================\n\n")
-```
-
-```
-## =============================
-```
-
-``` r
 cat(sprintf("Sample r = %.4f\n\n", r))
-```
-
-```
-## Sample r = 0.4618
-```
-
-``` r
 cat("Fisher z-transformation:\n")
-```
-
-```
-## Fisher z-transformation:
-```
-
-``` r
 cat(sprintf("z = arctanh(r) = %.4f\n", z))
-```
-
-```
-## z = arctanh(r) = 0.4996
-```
-
-``` r
 cat(sprintf("SE(z) = 1/√(n-3) = %.4f\n\n", se_z))
-```
-
-```
-## SE(z) = 1/<U+221A>(n-3) = 0.0449
-```
-
-``` r
 cat(sprintf("CI for z: (%.4f, %.4f)\n", ci_z[1], ci_z[2]))
-```
-
-```
-## CI for z: (0.4117, 0.5875)
-```
-
-``` r
 cat(sprintf("CI for ρ: (%.4f, %.4f)\n\n", ci_r[1], ci_r[2]))
-```
 
-```
-## CI for <U+03C1>: (0.3899, 0.5281)
-```
-
-``` r
 # Compare with cor.test
 cat("Compare with cor.test():\n")
-```
-
-```
-## Compare with cor.test():
-```
-
-``` r
 print(cor_result$conf.int)
 ```
 
 ```
+## 95% Confidence Interval for ρ
+## =============================
+## 
+## Sample r = 0.4618
+## 
+## Fisher z-transformation:
+## z = arctanh(r) = 0.4996
+## SE(z) = 1/√(n-3) = 0.0449
+## 
+## CI for z: (0.4117, 0.5875)
+## CI for ρ: (0.3899, 0.5281)
+## 
+## Compare with cor.test():
 ## [1] 0.3898954 0.5281020
 ## attr(,"conf.level")
 ## [1] 0.95
@@ -492,74 +326,29 @@ ggplot2$ggplot(spurious_data, ggplot2$aes(x = IceCream, y = Drownings)) +
 
 ``` r
 cat("Confounding Structure:\n")
-```
-
-```
-## Confounding Structure:
-```
-
-``` r
 cat("======================\n\n")
-```
-
-```
-## ======================
-```
-
-``` r
 cat("       Temperature (Confounder)\n")
-```
-
-```
-##        Temperature (Confounder)
-```
-
-``` r
 cat("         /            \\\n")
-```
-
-```
-##          /            \
-```
-
-``` r
 cat("        ↓              ↓\n")
-```
-
-```
-##         <U+2193>              <U+2193>
-```
-
-``` r
 cat("   Ice Cream  ←→  Drownings\n")
-```
-
-```
-##    Ice Cream  <U+2190><U+2192>  Drownings
-```
-
-``` r
 cat("    Sales      (spurious)\n\n")
-```
 
-```
-##     Sales      (spurious)
-```
-
-``` r
 cat("The observed correlation between ice cream and drownings is\n")
-```
-
-```
-## The observed correlation between ice cream and drownings is
-```
-
-``` r
 cat("spurious—it disappears when we control for temperature.\n")
 ```
 
 ```
-## spurious<U+2014>it disappears when we control for temperature.
+## Confounding Structure:
+## ======================
+## 
+##        Temperature (Confounder)
+##          /            \
+##         ↓              ↓
+##    Ice Cream  ←→  Drownings
+##     Sales      (spurious)
+## 
+## The observed correlation between ice cream and drownings is
+## spurious—it disappears when we control for temperature.
 ```
 
 ### 12.23.4 Conditions for Causal Inference
@@ -632,34 +421,16 @@ ggplot2$ggplot(simpson_data, ggplot2$aes(x = x, y = y)) +
 
 ``` r
 cat("\nCorrelations:\n")
+cat(sprintf("Overall: r = %.3f\n", r_overall))
+cat(sprintf("Group A: r = %.3f\n", r_a))
+cat(sprintf("Group B: r = %.3f\n", r_b))
 ```
 
 ```
 ## 
 ## Correlations:
-```
-
-``` r
-cat(sprintf("Overall: r = %.3f\n", r_overall))
-```
-
-```
 ## Overall: r = -0.933
-```
-
-``` r
-cat(sprintf("Group A: r = %.3f\n", r_a))
-```
-
-```
 ## Group A: r = -0.774
-```
-
-``` r
-cat(sprintf("Group B: r = %.3f\n", r_b))
-```
-
-```
 ## Group B: r = -0.862
 ```
 
@@ -698,97 +469,37 @@ top_10 <- test_data[order(-Test1)][1:20]
 bottom_10 <- test_data[order(Test1)][1:20]
 
 cat("Regression to the Mean\n")
-```
-
-```
-## Regression to the Mean
-```
-
-``` r
 cat("======================\n\n")
-```
 
-```
-## ======================
-```
-
-``` r
 cat("Top 20 scorers on Test 1:\n")
-```
-
-```
-## Top 20 scorers on Test 1:
-```
-
-``` r
 cat(sprintf("  Mean Test 1: %.1f\n", mean(top_10$Test1)))
-```
-
-```
-##   Mean Test 1: 130.4
-```
-
-``` r
 cat(sprintf("  Mean Test 2: %.1f\n", mean(top_10$Test2)))
-```
-
-```
-##   Mean Test 2: 113.4
-```
-
-``` r
 cat(sprintf("  Change: %.1f (appear to 'decline')\n\n", mean(top_10$Test2 - top_10$Test1)))
-```
 
-```
-##   Change: -16.9 (appear to 'decline')
-```
-
-``` r
 cat("Bottom 20 scorers on Test 1:\n")
-```
-
-```
-## Bottom 20 scorers on Test 1:
-```
-
-``` r
 cat(sprintf("  Mean Test 1: %.1f\n", mean(bottom_10$Test1)))
-```
-
-```
-##   Mean Test 1: 67.5
-```
-
-``` r
 cat(sprintf("  Mean Test 2: %.1f\n", mean(bottom_10$Test2)))
-```
-
-```
-##   Mean Test 2: 74.7
-```
-
-``` r
 cat(sprintf("  Change: %.1f (appear to 'improve')\n\n", mean(bottom_10$Test2 - bottom_10$Test1)))
-```
 
-```
-##   Change: 7.2 (appear to 'improve')
-```
-
-``` r
 cat("This is NOT real change—it's regression to the mean!\n")
-```
-
-```
-## This is NOT real change<U+2014>it's regression to the mean!
-```
-
-``` r
 cat("The 'changes' are artifacts of selecting extreme observations.\n")
 ```
 
 ```
+## Regression to the Mean
+## ======================
+## 
+## Top 20 scorers on Test 1:
+##   Mean Test 1: 130.4
+##   Mean Test 2: 113.4
+##   Change: -16.9 (appear to 'decline')
+## 
+## Bottom 20 scorers on Test 1:
+##   Mean Test 1: 67.5
+##   Mean Test 2: 74.7
+##   Change: 7.2 (appear to 'improve')
+## 
+## This is NOT real change—it's regression to the mean!
 ## The 'changes' are artifacts of selecting extreme observations.
 ```
 
@@ -847,49 +558,21 @@ r_individual <- cor(individual_data$Income, individual_data$Health)
 r_state <- cor(state_data$MeanIncome, state_data$MeanHealth)
 
 cat("Ecological Fallacy Example\n")
-```
-
-```
-## Ecological Fallacy Example
-```
-
-``` r
 cat("==========================\n\n")
-```
-
-```
-## ==========================
-```
-
-``` r
 cat(sprintf("Individual-level correlation: r = %.3f\n", r_individual))
-```
-
-```
-## Individual-level correlation: r = 0.484
-```
-
-``` r
 cat(sprintf("State-level correlation: r = %.3f\n\n", r_state))
-```
-
-```
-## State-level correlation: r = -0.409
-```
-
-``` r
 cat("The aggregate correlation is much stronger!\n")
-```
-
-```
-## The aggregate correlation is much stronger!
-```
-
-``` r
 cat("We cannot use state-level data to make inferences about individuals.\n")
 ```
 
 ```
+## Ecological Fallacy Example
+## ==========================
+## 
+## Individual-level correlation: r = 0.484
+## State-level correlation: r = -0.409
+## 
+## The aggregate correlation is much stronger!
 ## We cannot use state-level data to make inferences about individuals.
 ```
 
@@ -955,58 +638,28 @@ model_large <- lm(y_large ~ x_large)
 summary_large <- summary(model_large)
 
 cat("Statistical Significance vs Practical Importance\n")
-```
-
-```
-## Statistical Significance vs Practical Importance
-```
-
-``` r
 cat("=================================================\n\n")
-```
-
-```
-## =================================================
-```
-
-``` r
 cat(sprintf("Sample size: n = %d\n\n", n_large))
-```
-
-```
-## Sample size: n = 10000
-```
-
-``` r
 cat(sprintf("Slope: %.5f\n", coef(model_large)[2]))
-```
-
-```
-## Slope: 0.01649
-```
-
-``` r
 cat(sprintf("R²: %.6f (%.4f%% of variance explained)\n",
             summary_large$r.squared, summary_large$r.squared * 100))
-```
-
-```
-## R<U+00B2>: 0.000274 (0.0274% of variance explained)
-```
-
-``` r
 cat(sprintf("p-value: %.4f\n\n", summary_large$coefficients[2, 4]))
-```
 
-```
-## p-value: 0.0979
-```
-
-``` r
 if (summary_large$coefficients[2, 4] < 0.05) {
     cat("The effect is 'statistically significant' (p < 0.05)\n")
     cat("But is it practically meaningful? R² explains almost nothing!\n")
 }
+```
+
+```
+## Statistical Significance vs Practical Importance
+## =================================================
+## 
+## Sample size: n = 10000
+## 
+## Slope: 0.01649
+## R²: 0.000274 (0.0274% of variance explained)
+## p-value: 0.0979
 ```
 
 ### 12.26.3 Extrapolation Dangers
@@ -1075,205 +728,73 @@ full_model <- lm(Weight ~ Height, data = sample_data)
 model_sum <- summary(full_model)
 
 cat("============================================================\n")
-```
-
-```
-## ============================================================
-```
-
-``` r
 cat("       EXECUTIVE SUMMARY: HEIGHT AND WEIGHT RELATIONSHIP\n")
-```
-
-```
-##        EXECUTIVE SUMMARY: HEIGHT AND WEIGHT RELATIONSHIP
-```
-
-``` r
 cat("============================================================\n\n")
-```
 
-```
-## ============================================================
-```
-
-``` r
 cat("KEY FINDING:\n")
-```
-
-```
-## KEY FINDING:
-```
-
-``` r
 cat("------------\n")
-```
-
-```
-## ------------
-```
-
-``` r
 cat("There is a strong positive relationship between height and weight\n")
-```
-
-```
-## There is a strong positive relationship between height and weight
-```
-
-``` r
 cat("in adults. Taller individuals tend to weigh more.\n\n")
-```
 
-```
-## in adults. Taller individuals tend to weigh more.
-```
-
-``` r
 cat("THE NUMBERS:\n")
-```
-
-```
-## THE NUMBERS:
-```
-
-``` r
 cat("------------\n")
-```
-
-```
-## ------------
-```
-
-``` r
 cat(sprintf("• For every additional centimetre of height, weight increases\n"))
-```
-
-```
-## <U+2022> For every additional centimetre of height, weight increases
-```
-
-``` r
 cat(sprintf("  by approximately %.1f kg on average.\n\n", coef(full_model)[2]))
-```
 
-```
-##   by approximately 0.9 kg on average.
-```
-
-``` r
 cat(sprintf("• This relationship explains about %.0f%% of the variation\n",
             model_sum$r.squared * 100))
-```
-
-```
-## <U+2022> This relationship explains about 21% of the variation
-```
-
-``` r
 cat("  in weight among adults.\n\n")
-```
 
-```
-##   in weight among adults.
-```
-
-``` r
 ci <- confint(full_model, "Height")
 cat(sprintf("• We are 95%% confident that the true effect is between\n"))
-```
-
-```
-## <U+2022> We are 95% confident that the true effect is between
-```
-
-``` r
 cat(sprintf("  %.2f and %.2f kg per cm.\n\n", ci[1], ci[2]))
-```
 
-```
-##   0.77 and 1.08 kg per cm.
-```
-
-``` r
 cat("WHAT THIS MEANS:\n")
-```
-
-```
-## WHAT THIS MEANS:
-```
-
-``` r
 cat("----------------\n")
-```
-
-```
-## ----------------
-```
-
-``` r
 cat("Height is a meaningful predictor of weight, but other factors\n")
-```
-
-```
-## Height is a meaningful predictor of weight, but other factors
-```
-
-``` r
 cat(sprintf("(diet, exercise, genetics) account for the remaining %.0f%%.\n\n",
             (1 - model_sum$r.squared) * 100))
-```
 
-```
-## (diet, exercise, genetics) account for the remaining 79%.
-```
-
-``` r
 cat("IMPORTANT CAVEATS:\n")
-```
-
-```
-## IMPORTANT CAVEATS:
-```
-
-``` r
 cat("------------------\n")
-```
-
-```
-## ------------------
-```
-
-``` r
 cat("• This is an ASSOCIATION, not proof of causation.\n")
-```
-
-```
-## <U+2022> This is an ASSOCIATION, not proof of causation.
-```
-
-``` r
 cat("• Predictions are reliable only within the observed height range\n")
-```
-
-```
-## <U+2022> Predictions are reliable only within the observed height range
-```
-
-``` r
 cat(sprintf("  (%.0f–%.0f cm).\n", min(sample_data$Height), max(sample_data$Height)))
-```
-
-```
-##   (140<U+2013>194 cm).
-```
-
-``` r
 cat("• Individual variation is substantial; this describes averages.\n")
 ```
 
 ```
-## <U+2022> Individual variation is substantial; this describes averages.
+## ============================================================
+##        EXECUTIVE SUMMARY: HEIGHT AND WEIGHT RELATIONSHIP
+## ============================================================
+## 
+## KEY FINDING:
+## ------------
+## There is a strong positive relationship between height and weight
+## in adults. Taller individuals tend to weigh more.
+## 
+## THE NUMBERS:
+## ------------
+## • For every additional centimetre of height, weight increases
+##   by approximately 0.9 kg on average.
+## 
+## • This relationship explains about 21% of the variation
+##   in weight among adults.
+## 
+## • We are 95% confident that the true effect is between
+##   0.77 and 1.08 kg per cm.
+## 
+## WHAT THIS MEANS:
+## ----------------
+## Height is a meaningful predictor of weight, but other factors
+## (diet, exercise, genetics) account for the remaining 79%.
+## 
+## IMPORTANT CAVEATS:
+## ------------------
+## • This is an ASSOCIATION, not proof of causation.
+## • Predictions are reliable only within the observed height range
+##   (140–194 cm).
+## • Individual variation is substantial; this describes averages.
 ```
 
 ---

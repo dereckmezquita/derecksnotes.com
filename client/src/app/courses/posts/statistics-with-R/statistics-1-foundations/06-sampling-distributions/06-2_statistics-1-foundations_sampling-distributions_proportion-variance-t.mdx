@@ -83,101 +83,20 @@ theoretical_var <- true_p * (1 - true_p) / n_patients
 theoretical_se <- sqrt(theoretical_var)
 
 cat("Sample Proportion as a Mean\n")
-```
-
-```
-## Sample Proportion as a Mean
-```
-
-``` r
 cat("===========================\n\n")
-```
-
-```
-## ===========================
-```
-
-``` r
 cat(sprintf("True response rate: p = %.2f\n", true_p))
-```
-
-```
-## True response rate: p = 0.30
-```
-
-``` r
 cat(sprintf("Sample size: n = %d\n\n", n_patients))
-```
 
-```
-## Sample size: n = 50
-```
-
-``` r
 cat("Theoretical:\n")
-```
-
-```
-## Theoretical:
-```
-
-``` r
 cat(sprintf("  E(p̂) = p = %.2f\n", theoretical_mean))
-```
-
-```
-##   E(p<U+0302>) = p = 0.30
-```
-
-``` r
 cat(sprintf("  Var(p̂) = p(1-p)/n = %.4f\n", theoretical_var))
-```
-
-```
-##   Var(p<U+0302>) = p(1-p)/n = 0.0042
-```
-
-``` r
 cat(sprintf("  SE(p̂) = √[p(1-p)/n] = %.4f\n\n", theoretical_se))
-```
 
-```
-##   SE(p<U+0302>) = <U+221A>[p(1-p)/n] = 0.0648
-```
-
-``` r
 cat("Empirical (from simulation):\n")
-```
-
-```
-## Empirical (from simulation):
-```
-
-``` r
 cat(sprintf("  Mean of p̂ = %.4f\n", mean(proportions)))
-```
-
-```
-##   Mean of p<U+0302> = 0.3005
-```
-
-``` r
 cat(sprintf("  Var of p̂ = %.4f\n", var(proportions)))
-```
-
-```
-##   Var of p<U+0302> = 0.0041
-```
-
-``` r
 cat(sprintf("  SE of p̂ = %.4f\n", sd(proportions)))
-```
 
-```
-##   SE of p<U+0302> = 0.0642
-```
-
-``` r
 # Visualise
 prop_dt <- data.table(proportion = proportions)
 
@@ -201,6 +120,24 @@ ggplot2$ggplot(prop_dt, ggplot2$aes(x = proportion)) +
 <Figure src="/courses/statistics-1-foundations/proportion_as_mean-1.png" alt="The sample proportion is the mean of binary outcomes">
 	The sample proportion is the mean of binary outcomes
 </Figure>
+
+```
+## Sample Proportion as a Mean
+## ===========================
+## 
+## True response rate: p = 0.30
+## Sample size: n = 50
+## 
+## Theoretical:
+##   E(p̂) = p = 0.30
+##   Var(p̂) = p(1-p)/n = 0.0042
+##   SE(p̂) = √[p(1-p)/n] = 0.0648
+## 
+## Empirical (from simulation):
+##   Mean of p̂ = 0.3005
+##   Var of p̂ = 0.0041
+##   SE of p̂ = 0.0642
+```
 
 ### 6.4.2 Standard Error of a Proportion
 
@@ -336,29 +273,9 @@ binomial_data[, case := factor(case, levels = case_levels)]
 normal_data[, case := factor(case, levels = case_levels)]
 
 cat("Normal Approximation to Binomial\n")
-```
-
-```
-## Normal Approximation to Binomial
-```
-
-``` r
 cat("=================================\n\n")
-```
-
-```
-## =================================
-```
-
-``` r
 cat("Rule: np ≥ 10 AND n(1-p) ≥ 10\n\n")
-```
 
-```
-## Rule: np <U+2265> 10 AND n(1-p) <U+2265> 10
-```
-
-``` r
 for (case in cases) {
     adequate <- case$n * case$p >= 10 && case$n * (1 - case$p) >= 10
     cat(sprintf("n=%3d, p=%.2f: np=%.0f, n(1-p)=%.0f → %s\n",
@@ -366,16 +283,7 @@ for (case in cases) {
                 case$n * case$p, case$n * (1 - case$p),
                 ifelse(adequate, "✓ Adequate", "✗ Not adequate")))
 }
-```
 
-```
-## n= 10, p=0.30: np=3, n(1-p)=7 <U+2192> <U+2717> Not adequate
-## n= 30, p=0.30: np=9, n(1-p)=21 <U+2192> <U+2717> Not adequate
-## n=100, p=0.30: np=30, n(1-p)=70 <U+2192> <U+2713> Adequate
-## n=100, p=0.05: np=5, n(1-p)=95 <U+2192> <U+2717> Not adequate
-```
-
-``` r
 ggplot2$ggplot() +
     ggplot2$geom_col(data = binomial_data,
                      ggplot2$aes(x = k, y = prob),
@@ -397,6 +305,18 @@ ggplot2$ggplot() +
 <Figure src="/courses/statistics-1-foundations/normal_approx_binomial-1.png" alt="Normal approximation improves as np and n(1-p) increase">
 	Normal approximation improves as np and n(1-p) increase
 </Figure>
+
+```
+## Normal Approximation to Binomial
+## =================================
+## 
+## Rule: np ≥ 10 AND n(1-p) ≥ 10
+## 
+## n= 10, p=0.30: np=3, n(1-p)=7 → ✗ Not adequate
+## n= 30, p=0.30: np=9, n(1-p)=21 → ✗ Not adequate
+## n=100, p=0.30: np=30, n(1-p)=70 → ✓ Adequate
+## n=100, p=0.05: np=5, n(1-p)=95 → ✗ Not adequate
+```
 
 **Important:** When $p$ is close to 0 or 1 (like the n=100, p=0.05 case), you need larger samples for the normal approximation to work well.
 
@@ -455,29 +375,9 @@ var_dt[, label := paste0("n = ", n, "\ndf = ", df)]
 var_dt[, label := factor(label, levels = unique(label))]
 
 cat("Sampling Distribution of Sample Variance\n")
-```
-
-```
-## Sampling Distribution of Sample Variance
-```
-
-``` r
 cat("=========================================\n\n")
-```
-
-```
-## =========================================
-```
-
-``` r
 cat(sprintf("Population: σ² = %.0f\n\n", pop_sigma_sq))
-```
 
-```
-## Population: <U+03C3><U+00B2> = 100
-```
-
-``` r
 for (n in sample_sizes_var) {
     subset <- var_dt[n == n]
     cat(sprintf("n = %2d (df = %d):\n", n, n - 1))
@@ -486,23 +386,7 @@ for (n in sample_sizes_var) {
     cat(sprintf("  Var(S²) = %.2f (theoretical = %.2f)\n\n",
                 var(subset$s_squared), 2 * pop_sigma_sq^2 / (n - 1)))
 }
-```
 
-```
-## n =  5 (df = 4):
-##   E(S<U+00B2>) = 100.80 (theoretical = 100)
-##   Var(S<U+00B2>) = 2732.38 (theoretical = 5000.00)
-## 
-## n = 10 (df = 9):
-##   E(S<U+00B2>) = 100.80 (theoretical = 100)
-##   Var(S<U+00B2>) = 2732.38 (theoretical = 2222.22)
-## 
-## n = 30 (df = 29):
-##   E(S<U+00B2>) = 100.80 (theoretical = 100)
-##   Var(S<U+00B2>) = 2732.38 (theoretical = 689.66)
-```
-
-``` r
 # Plot chi-square scaled values with theoretical curve
 ggplot2$ggplot(var_dt, ggplot2$aes(x = chi_squared)) +
     ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
@@ -530,6 +414,25 @@ ggplot2$ggplot(var_dt, ggplot2$aes(x = chi_squared)) +
 <Figure src="/courses/statistics-1-foundations/variance_distribution-1.png" alt="Sample variance follows a scaled chi-square distribution">
 	Sample variance follows a scaled chi-square distribution
 </Figure>
+
+```
+## Sampling Distribution of Sample Variance
+## =========================================
+## 
+## Population: σ² = 100
+## 
+## n =  5 (df = 4):
+##   E(S²) = 100.80 (theoretical = 100)
+##   Var(S²) = 2732.38 (theoretical = 5000.00)
+## 
+## n = 10 (df = 9):
+##   E(S²) = 100.80 (theoretical = 100)
+##   Var(S²) = 2732.38 (theoretical = 2222.22)
+## 
+## n = 30 (df = 29):
+##   E(S²) = 100.80 (theoretical = 100)
+##   Var(S²) = 2732.38 (theoretical = 689.66)
+```
 
 ### 6.5.2 Why We Divide by n-1: A Rigorous Proof
 
@@ -597,29 +500,9 @@ bessel_results <- lapply(sample_sizes_bessel, function(n) {
 bessel_dt <- rbindlist(bessel_results)
 
 cat("Bessel's Correction: n vs n-1\n")
-```
-
-```
-## Bessel's Correction: n vs n-1
-```
-
-``` r
 cat("==============================\n\n")
-```
-
-```
-## ==============================
-```
-
-``` r
 cat(sprintf("True variance: σ² = %.0f\n\n", pop_var))
-```
 
-```
-## True variance: <U+03C3><U+00B2> = 100
-```
-
-``` r
 print(bessel_dt[, .(
     n = n,
     `E(biased)` = round(biased_mean, 2),
@@ -627,32 +510,25 @@ print(bessel_dt[, .(
     `Bias (n)` = round(bias_biased, 2),
     `Bias (n-1)` = round(bias_unbiased, 2)
 )])
+
+cat("\nThe 'bias' of the n-1 estimator is due to simulation error,")
+cat("\nnot actual bias. It converges to 0 with more simulations.\n")
 ```
 
 ```
+## Bessel's Correction: n vs n-1
+## ==============================
+## 
+## True variance: σ² = 100
+## 
 ##        n E(biased) E(unbiased) Bias (n) Bias (n-1)
 ##    <num>     <num>       <num>    <num>      <num>
 ## 1:     5     79.67      100.35   -20.33       0.35
 ## 2:    10     89.82      100.11   -10.18       0.11
 ## 3:    30     96.46       99.99    -3.54      -0.01
 ## 4:   100     99.06       99.96    -0.94      -0.04
-```
-
-``` r
-cat("\nThe 'bias' of the n-1 estimator is due to simulation error,")
-```
-
-```
 ## 
 ## The 'bias' of the n-1 estimator is due to simulation error,
-```
-
-``` r
-cat("\nnot actual bias. It converges to 0 with more simulations.\n")
-```
-
-```
-## 
 ## not actual bias. It converges to 0 with more simulations.
 ```
 
@@ -708,93 +584,20 @@ var_diff <- sigma1^2/n1 + sigma2^2/n2
 se_diff <- sqrt(var_diff)
 
 cat("Sampling Distribution of the Difference of Two Means\n")
-```
-
-```
-## Sampling Distribution of the Difference of Two Means
-```
-
-``` r
 cat("====================================================\n\n")
-```
 
-```
-## ====================================================
-```
-
-``` r
 cat("Population parameters:\n")
-```
-
-```
-## Population parameters:
-```
-
-``` r
 cat(sprintf("  Group 1: μ₁ = %d, σ₁ = %d, n₁ = %d\n", mu1, sigma1, n1))
-```
-
-```
-##   Group 1: <U+03BC><U+2081> = 120, <U+03C3><U+2081> = 15, n<U+2081> = 30
-```
-
-``` r
 cat(sprintf("  Group 2: μ₂ = %d, σ₂ = %d, n₂ = %d\n\n", mu2, sigma2, n2))
-```
 
-```
-##   Group 2: <U+03BC><U+2082> = 115, <U+03C3><U+2082> = 12, n<U+2082> = 30
-```
-
-``` r
 cat("Difference (X̄₁ - X̄₂):\n")
-```
-
-```
-## Difference (X<U+0304><U+2081> - X<U+0304><U+2082>):
-```
-
-``` r
 cat(sprintf("  Theoretical mean: μ₁ - μ₂ = %d\n", true_diff))
-```
-
-```
-##   Theoretical mean: <U+03BC><U+2081> - <U+03BC><U+2082> = 5
-```
-
-``` r
 cat(sprintf("  Theoretical SE: √(σ₁²/n₁ + σ₂²/n₂) = %.3f\n\n", se_diff))
-```
 
-```
-##   Theoretical SE: <U+221A>(<U+03C3><U+2081><U+00B2>/n<U+2081> + <U+03C3><U+2082><U+00B2>/n<U+2082>) = 3.507
-```
-
-``` r
 cat("Empirical (simulation):\n")
-```
-
-```
-## Empirical (simulation):
-```
-
-``` r
 cat(sprintf("  Mean difference: %.3f\n", mean(differences)))
-```
-
-```
-##   Mean difference: 4.967
-```
-
-``` r
 cat(sprintf("  SD of differences: %.3f\n", sd(differences)))
-```
 
-```
-##   SD of differences: 3.471
-```
-
-``` r
 diff_dt <- data.table(difference = differences)
 
 ggplot2$ggplot(diff_dt, ggplot2$aes(x = difference)) +
@@ -822,6 +625,23 @@ ggplot2$ggplot(diff_dt, ggplot2$aes(x = difference)) +
 <Figure src="/courses/statistics-1-foundations/difference_means-1.png" alt="Sampling distribution of the difference between two means">
 	Sampling distribution of the difference between two means
 </Figure>
+
+```
+## Sampling Distribution of the Difference of Two Means
+## ====================================================
+## 
+## Population parameters:
+##   Group 1: μ₁ = 120, σ₁ = 15, n₁ = 30
+##   Group 2: μ₂ = 115, σ₂ = 12, n₂ = 30
+## 
+## Difference (X̄₁ - X̄₂):
+##   Theoretical mean: μ₁ - μ₂ = 5
+##   Theoretical SE: √(σ₁²/n₁ + σ₂²/n₂) = 3.507
+## 
+## Empirical (simulation):
+##   Mean difference: 4.967
+##   SD of differences: 3.471
+```
 
 ### 6.6.2 Difference of Two Proportions
 
@@ -857,93 +677,20 @@ var_prop_diff <- p1*(1-p1)/n1_prop + p2*(1-p2)/n2_prop
 se_prop_diff <- sqrt(var_prop_diff)
 
 cat("Sampling Distribution of p̂₁ - p̂₂\n")
-```
-
-```
-## Sampling Distribution of p<U+0302><U+2081> - p<U+0302><U+2082>
-```
-
-``` r
 cat("==================================\n\n")
-```
 
-```
-## ==================================
-```
-
-``` r
 cat("Population parameters:\n")
-```
-
-```
-## Population parameters:
-```
-
-``` r
 cat(sprintf("  Drug A: p₁ = %.2f, n₁ = %d\n", p1, n1_prop))
-```
-
-```
-##   Drug A: p<U+2081> = 0.60, n<U+2081> = 100
-```
-
-``` r
 cat(sprintf("  Drug B: p₂ = %.2f, n₂ = %d\n\n", p2, n2_prop))
-```
 
-```
-##   Drug B: p<U+2082> = 0.45, n<U+2082> = 100
-```
-
-``` r
 cat("Difference (p̂₁ - p̂₂):\n")
-```
-
-```
-## Difference (p<U+0302><U+2081> - p<U+0302><U+2082>):
-```
-
-``` r
 cat(sprintf("  Theoretical mean: p₁ - p₂ = %.2f\n", true_prop_diff))
-```
-
-```
-##   Theoretical mean: p<U+2081> - p<U+2082> = 0.15
-```
-
-``` r
 cat(sprintf("  Theoretical SE = %.4f\n\n", se_prop_diff))
-```
 
-```
-##   Theoretical SE = 0.0698
-```
-
-``` r
 cat("Empirical:\n")
-```
-
-```
-## Empirical:
-```
-
-``` r
 cat(sprintf("  Mean difference: %.4f\n", mean(prop_differences)))
-```
-
-```
-##   Mean difference: 0.1493
-```
-
-``` r
 cat(sprintf("  SD of differences: %.4f\n", sd(prop_differences)))
-```
 
-```
-##   SD of differences: 0.0696
-```
-
-``` r
 prop_diff_dt <- data.table(difference = prop_differences)
 
 ggplot2$ggplot(prop_diff_dt, ggplot2$aes(x = difference)) +
@@ -967,6 +714,23 @@ ggplot2$ggplot(prop_diff_dt, ggplot2$aes(x = difference)) +
 <Figure src="/courses/statistics-1-foundations/difference_proportions-1.png" alt="Sampling distribution of the difference between two proportions">
 	Sampling distribution of the difference between two proportions
 </Figure>
+
+```
+## Sampling Distribution of p̂₁ - p̂₂
+## ==================================
+## 
+## Population parameters:
+##   Drug A: p₁ = 0.60, n₁ = 100
+##   Drug B: p₂ = 0.45, n₂ = 100
+## 
+## Difference (p̂₁ - p̂₂):
+##   Theoretical mean: p₁ - p₂ = 0.15
+##   Theoretical SE = 0.0698
+## 
+## Empirical:
+##   Mean difference: 0.1493
+##   SD of differences: 0.0696
+```
 
 ---
 
@@ -1014,101 +778,20 @@ dist_comparison[, distribution := factor(distribution,
     levels = c("Normal (Z)", "t (df = 30)", "t (df = 10)", "t (df = 3)"))]
 
 cat("The t-Distribution\n")
-```
-
-```
-## The t-Distribution
-```
-
-``` r
 cat("==================\n\n")
-```
 
-```
-## ==================
-```
-
-``` r
 cat("Properties:\n")
-```
-
-```
-## Properties:
-```
-
-``` r
 cat("  - Bell-shaped and symmetric like normal\n")
-```
-
-```
-##   - Bell-shaped and symmetric like normal
-```
-
-``` r
 cat("  - Heavier tails (more probability in extremes)\n")
-```
-
-```
-##   - Heavier tails (more probability in extremes)
-```
-
-``` r
 cat("  - Defined by degrees of freedom (df = n - 1)\n")
-```
-
-```
-##   - Defined by degrees of freedom (df = n - 1)
-```
-
-``` r
 cat("  - Approaches normal as df → ∞\n\n")
-```
 
-```
-##   - Approaches normal as df <U+2192> <U+221E>
-```
-
-``` r
 cat("Critical values (two-tailed, α = 0.05):\n")
-```
-
-```
-## Critical values (two-tailed, <U+03B1> = 0.05):
-```
-
-``` r
 cat(sprintf("  Normal:    ±%.3f\n", qnorm(0.975)))
-```
-
-```
-##   Normal:    <U+00B1>1.960
-```
-
-``` r
 cat(sprintf("  t (df=3):  ±%.3f\n", qt(0.975, df = 3)))
-```
-
-```
-##   t (df=3):  <U+00B1>3.182
-```
-
-``` r
 cat(sprintf("  t (df=10): ±%.3f\n", qt(0.975, df = 10)))
-```
-
-```
-##   t (df=10): <U+00B1>2.228
-```
-
-``` r
 cat(sprintf("  t (df=30): ±%.3f\n", qt(0.975, df = 30)))
-```
 
-```
-##   t (df=30): <U+00B1>2.042
-```
-
-``` r
 ggplot2$ggplot(dist_comparison, ggplot2$aes(x = x, y = density, colour = distribution)) +
     ggplot2$geom_line(linewidth = 1.2) +
     ggplot2$scale_colour_manual(values = c("black", "#0072B2", "#D55E00", "#CC79A7")) +
@@ -1126,6 +809,23 @@ ggplot2$ggplot(dist_comparison, ggplot2$aes(x = x, y = density, colour = distrib
 <Figure src="/courses/statistics-1-foundations/t_distribution_intro-1.png" alt="The t-distribution has heavier tails than the normal, especially for small samples">
 	The t-distribution has heavier tails than the normal, especially for small samples
 </Figure>
+
+```
+## The t-Distribution
+## ==================
+## 
+## Properties:
+##   - Bell-shaped and symmetric like normal
+##   - Heavier tails (more probability in extremes)
+##   - Defined by degrees of freedom (df = n - 1)
+##   - Approaches normal as df → ∞
+## 
+## Critical values (two-tailed, α = 0.05):
+##   Normal:    ±1.960
+##   t (df=3):  ±3.182
+##   t (df=10): ±2.228
+##   t (df=30): ±2.042
+```
 
 ### 6.7.3 Degrees of Freedom and Convergence
 
@@ -1169,21 +869,8 @@ t_dt[, label := factor(label, levels = unique(label))]
 
 # Compare to theoretical t and normal
 cat("t-Statistic Simulation\n")
-```
-
-```
-## t-Statistic Simulation
-```
-
-``` r
 cat("======================\n\n")
-```
 
-```
-## ======================
-```
-
-``` r
 for (n in sample_sizes_t) {
     subset <- t_dt[n == n]
     df <- n - 1
@@ -1197,31 +884,7 @@ for (n in sample_sizes_t) {
                 2 * pt(-2, df),
                 2 * pnorm(-2)))
 }
-```
 
-```
-## n =   5 (df =  4):
-##   Empirical SD of T: 1.143
-##   Theoretical SD (t): 1.414 (normal = 1.000)
-##   Proportion |T| > 2: 0.073 (t: 0.116, normal: 0.046)
-## 
-## n =  10 (df =  9):
-##   Empirical SD of T: 1.143
-##   Theoretical SD (t): 1.134 (normal = 1.000)
-##   Proportion |T| > 2: 0.073 (t: 0.077, normal: 0.046)
-## 
-## n =  30 (df = 29):
-##   Empirical SD of T: 1.143
-##   Theoretical SD (t): 1.036 (normal = 1.000)
-##   Proportion |T| > 2: 0.073 (t: 0.055, normal: 0.046)
-## 
-## n = 100 (df = 99):
-##   Empirical SD of T: 1.143
-##   Theoretical SD (t): 1.010 (normal = 1.000)
-##   Proportion |T| > 2: 0.073 (t: 0.048, normal: 0.046)
-```
-
-``` r
 ggplot2$ggplot(t_dt, ggplot2$aes(x = t_stat)) +
     ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
                            fill = "#56B4E9", colour = "white", alpha = 0.7) +
@@ -1242,6 +905,31 @@ ggplot2$ggplot(t_dt, ggplot2$aes(x = t_stat)) +
 <Figure src="/courses/statistics-1-foundations/t_convergence-1.png" alt="The t-distribution converges to normal as sample size increases">
 	The t-distribution converges to normal as sample size increases
 </Figure>
+
+```
+## t-Statistic Simulation
+## ======================
+## 
+## n =   5 (df =  4):
+##   Empirical SD of T: 1.143
+##   Theoretical SD (t): 1.414 (normal = 1.000)
+##   Proportion |T| > 2: 0.073 (t: 0.116, normal: 0.046)
+## 
+## n =  10 (df =  9):
+##   Empirical SD of T: 1.143
+##   Theoretical SD (t): 1.134 (normal = 1.000)
+##   Proportion |T| > 2: 0.073 (t: 0.077, normal: 0.046)
+## 
+## n =  30 (df = 29):
+##   Empirical SD of T: 1.143
+##   Theoretical SD (t): 1.036 (normal = 1.000)
+##   Proportion |T| > 2: 0.073 (t: 0.055, normal: 0.046)
+## 
+## n = 100 (df = 99):
+##   Empirical SD of T: 1.143
+##   Theoretical SD (t): 1.010 (normal = 1.000)
+##   Proportion |T| > 2: 0.073 (t: 0.048, normal: 0.046)
+```
 
 ### 6.7.4 Why the t-Distribution Matters
 
@@ -1270,120 +958,26 @@ se_study <- s_study / sqrt(n_study)
 t_stat_study <- xbar_study / se_study  # Testing if reduction > 0
 
 cat("Clinical Study Example\n")
-```
-
-```
-## Clinical Study Example
-```
-
-``` r
 cat("======================\n\n")
-```
-
-```
-## ======================
-```
-
-``` r
 cat("Blood pressure reduction study (n = 25)\n\n")
-```
 
-```
-## Blood pressure reduction study (n = 25)
-```
-
-``` r
 cat("Sample statistics:\n")
-```
-
-```
-## Sample statistics:
-```
-
-``` r
 cat(sprintf("  Mean reduction: %.2f mmHg\n", xbar_study))
-```
-
-```
-##   Mean reduction: 8.32 mmHg
-```
-
-``` r
 cat(sprintf("  Sample SD: %.2f mmHg\n", s_study))
-```
-
-```
-##   Sample SD: 10.90 mmHg
-```
-
-``` r
 cat(sprintf("  Standard error: %.2f mmHg\n\n", se_study))
-```
 
-```
-##   Standard error: 2.18 mmHg
-```
-
-``` r
 cat("Testing H₀: μ = 0 (no effect):\n")
-```
-
-```
-## Testing H<U+2080>: <U+03BC> = 0 (no effect):
-```
-
-``` r
 cat(sprintf("  t-statistic: %.3f\n", t_stat_study))
-```
-
-```
-##   t-statistic: 3.814
-```
-
-``` r
 cat(sprintf("  Degrees of freedom: %d\n", n_study - 1))
-```
-
-```
-##   Degrees of freedom: 24
-```
-
-``` r
 cat(sprintf("  p-value (two-tailed): %.4f\n\n", 2 * pt(-abs(t_stat_study), df = n_study - 1)))
-```
 
-```
-##   p-value (two-tailed): 0.0008
-```
-
-``` r
 cat("95%% Confidence interval:\n")
-```
-
-```
-## 95%% Confidence interval:
-```
-
-``` r
 t_crit <- qt(0.975, df = n_study - 1)
 ci_lower <- xbar_study - t_crit * se_study
 ci_upper <- xbar_study + t_crit * se_study
 cat(sprintf("  %.2f to %.2f mmHg\n", ci_lower, ci_upper))
-```
-
-```
-##   3.82 to 12.82 mmHg
-```
-
-``` r
 cat(sprintf("  (using t₀.₀₂₅,₂₄ = %.3f)\n", t_crit))
-```
 
-```
-##   (using t<U+2080>.<U+2080><U+2082><U+2085>,<U+2082><U+2084> = 2.064)
-```
-
-``` r
 # Visualise the t-distribution and our result
 t_x <- seq(-5, 5, length.out = 1000)
 t_density <- dt(t_x, df = n_study - 1)
@@ -1416,6 +1010,27 @@ ggplot2$ggplot(t_plot_dt, ggplot2$aes(x = x, y = density)) +
 	Practical application: blood pressure study with n=25
 </Figure>
 
+```
+## Clinical Study Example
+## ======================
+## 
+## Blood pressure reduction study (n = 25)
+## 
+## Sample statistics:
+##   Mean reduction: 8.32 mmHg
+##   Sample SD: 10.90 mmHg
+##   Standard error: 2.18 mmHg
+## 
+## Testing H₀: μ = 0 (no effect):
+##   t-statistic: 3.814
+##   Degrees of freedom: 24
+##   p-value (two-tailed): 0.0008
+## 
+## 95%% Confidence interval:
+##   3.82 to 12.82 mmHg
+##   (using t₀.₀₂₅,₂₄ = 2.064)
+```
+
 ---
 
 ## 6.8 Real Data Application: NHANES
@@ -1437,115 +1052,36 @@ weight_data <- nhanes[!is.na(Weight) & Weight > 0, Weight]
 diabetes_prop <- nhanes[!is.na(Diabetes), .(is_diabetic = as.numeric(Diabetes == "Yes"))]
 
 cat("NHANES Sampling Distribution Examples\n")
-```
-
-```
-## NHANES Sampling Distribution Examples
-```
-
-``` r
 cat("=====================================\n\n")
-```
 
-```
-## =====================================
-```
-
-``` r
 # 1. Blood pressure means
 cat("1. Systolic Blood Pressure (mmHg)\n")
-```
-
-```
-## 1. Systolic Blood Pressure (mmHg)
-```
-
-``` r
 cat(sprintf("   Population: n = %d, μ = %.1f, σ = %.1f\n\n",
             length(bp_data), mean(bp_data), sd(bp_data)))
-```
 
-```
-##    Population: n = 7205, <U+03BC> = 120.7, <U+03C3> = 17.1
-```
-
-``` r
 # Simulate sampling distribution
 n_bp <- 50
 bp_means <- replicate(5000, mean(sample(bp_data, n_bp, replace = TRUE)))
 
 cat(sprintf("   Sampling distribution (n = %d):\n", n_bp))
-```
-
-```
-##    Sampling distribution (n = 50):
-```
-
-``` r
 cat(sprintf("   Theoretical SE: %.2f\n", sd(bp_data) / sqrt(n_bp)))
-```
-
-```
-##    Theoretical SE: 2.41
-```
-
-``` r
 cat(sprintf("   Empirical SE:   %.2f\n\n", sd(bp_means)))
-```
 
-```
-##    Empirical SE:   2.38
-```
-
-``` r
 # 2. Diabetes proportion
 diabetes_vec <- diabetes_prop$is_diabetic
 overall_p <- mean(diabetes_vec)
 
 cat("2. Diabetes Prevalence\n")
-```
-
-```
-## 2. Diabetes Prevalence
-```
-
-``` r
 cat(sprintf("   Population proportion: %.3f (%.1f%%)\n\n", overall_p, overall_p * 100))
-```
 
-```
-##    Population proportion: 0.076 (7.6%)
-```
-
-``` r
 # Simulate sampling distribution
 n_diab <- 200
 diab_props <- replicate(5000, mean(sample(diabetes_vec, n_diab, replace = TRUE)))
 
 cat(sprintf("   Sampling distribution (n = %d):\n", n_diab))
-```
-
-```
-##    Sampling distribution (n = 200):
-```
-
-``` r
 cat(sprintf("   Theoretical SE: %.4f\n", sqrt(overall_p * (1 - overall_p) / n_diab)))
-```
-
-```
-##    Theoretical SE: 0.0187
-```
-
-``` r
 cat(sprintf("   Empirical SE:   %.4f\n", sd(diab_props)))
-```
 
-```
-##    Empirical SE:   0.0190
-```
-
-``` r
 # Combined visualisation
 bp_plot <- ggplot2$ggplot(data.table(mean = bp_means), ggplot2$aes(x = mean)) +
     ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
@@ -1580,6 +1116,25 @@ gridExtra::grid.arrange(bp_plot, diab_plot, ncol = 2)
 	Sampling distributions from NHANES demonstrate real-world variability
 </Figure>
 
+```
+## NHANES Sampling Distribution Examples
+## =====================================
+## 
+## 1. Systolic Blood Pressure (mmHg)
+##    Population: n = 7205, μ = 120.7, σ = 17.1
+## 
+##    Sampling distribution (n = 50):
+##    Theoretical SE: 2.41
+##    Empirical SE:   2.38
+## 
+## 2. Diabetes Prevalence
+##    Population proportion: 0.076 (7.6%)
+## 
+##    Sampling distribution (n = 200):
+##    Theoretical SE: 0.0187
+##    Empirical SE:   0.0190
+```
+
 ---
 
 ## Communicating to Stakeholders
@@ -1589,153 +1144,53 @@ gridExtra::grid.arrange(bp_plot, diab_plot, ncol = 2)
 
 ``` r
 cat("Explaining Proportions to Non-Statisticians\n")
-```
-
-```
-## Explaining Proportions to Non-Statisticians
-```
-
-``` r
 cat("============================================\n\n")
-```
 
-```
-## ============================================
-```
-
-``` r
 cat("KEY MESSAGE:\n")
-```
-
-```
-## KEY MESSAGE:
-```
-
-``` r
 cat("  'Just like averages, proportions from samples vary. A study finding\n")
-```
-
-```
-##   'Just like averages, proportions from samples vary. A study finding
-```
-
-``` r
 cat("   30% response doesn't mean the true rate is exactly 30% — it could\n")
-```
-
-```
-##    30% response doesn't mean the true rate is exactly 30% <U+2014> it could
-```
-
-``` r
 cat("   be somewhat higher or lower.'\n\n")
-```
 
-```
-##    be somewhat higher or lower.'
-```
-
-``` r
 cat("SAMPLE SIZE AND PRECISION:\n")
-```
-
-```
-## SAMPLE SIZE AND PRECISION:
-```
-
-``` r
 cat("  'With 100 patients, a 30% observed response rate means the true\n")
-```
-
-```
-##   'With 100 patients, a 30% observed response rate means the true
-```
-
-``` r
 cat("   rate is likely between about 21% and 39%. With 400 patients,\n")
-```
-
-```
-##    rate is likely between about 21% and 39%. With 400 patients,
-```
-
-``` r
 cat("   we narrow that to about 25% to 35%.'\n\n")
-```
 
-```
-##    we narrow that to about 25% to 35%.'
-```
-
-``` r
 cat("COMPARING GROUPS:\n")
-```
-
-```
-## COMPARING GROUPS:
-```
-
-``` r
 cat("  'When comparing two treatments, we need enough patients in each\n")
-```
-
-```
-##   'When comparing two treatments, we need enough patients in each
-```
-
-``` r
 cat("   group to see through the random variation. A 10% difference\n")
-```
-
-```
-##    group to see through the random variation. A 10% difference
-```
-
-``` r
 cat("   might not be real with 50 patients per group, but is convincing\n")
-```
-
-```
-##    might not be real with 50 patients per group, but is convincing
-```
-
-``` r
 cat("   with 200 per group.'\n\n")
-```
 
-```
-##    with 200 per group.'
-```
-
-``` r
 cat("THE MARGIN OF ERROR:\n")
-```
-
-```
-## THE MARGIN OF ERROR:
-```
-
-``` r
 cat("  'The margin of error you hear in polls (e.g., ±3%) is the same\n")
-```
-
-```
-##   'The margin of error you hear in polls (e.g., <U+00B1>3%) is the same
-```
-
-``` r
 cat("   concept. It tells you how much the result might differ from the\n")
-```
-
-```
-##    concept. It tells you how much the result might differ from the
-```
-
-``` r
 cat("   truth due to sampling.'\n")
 ```
 
 ```
+## Explaining Proportions to Non-Statisticians
+## ============================================
+## 
+## KEY MESSAGE:
+##   'Just like averages, proportions from samples vary. A study finding
+##    30% response doesn't mean the true rate is exactly 30% — it could
+##    be somewhat higher or lower.'
+## 
+## SAMPLE SIZE AND PRECISION:
+##   'With 100 patients, a 30% observed response rate means the true
+##    rate is likely between about 21% and 39%. With 400 patients,
+##    we narrow that to about 25% to 35%.'
+## 
+## COMPARING GROUPS:
+##   'When comparing two treatments, we need enough patients in each
+##    group to see through the random variation. A 10% difference
+##    might not be real with 50 patients per group, but is convincing
+##    with 200 per group.'
+## 
+## THE MARGIN OF ERROR:
+##   'The margin of error you hear in polls (e.g., ±3%) is the same
+##    concept. It tells you how much the result might differ from the
 ##    truth due to sampling.'
 ```
 
@@ -1744,145 +1199,51 @@ cat("   truth due to sampling.'\n")
 
 ``` r
 cat("Explaining Sample Size to Stakeholders\n")
-```
-
-```
-## Explaining Sample Size to Stakeholders
-```
-
-``` r
 cat("======================================\n\n")
-```
 
-```
-## ======================================
-```
-
-``` r
 cat("THE CORE PRINCIPLE:\n")
-```
-
-```
-## THE CORE PRINCIPLE:
-```
-
-``` r
 cat("  'Larger samples give more precise estimates. But there are\n")
-```
-
-```
-##   'Larger samples give more precise estimates. But there are
-```
-
-``` r
 cat("   diminishing returns — doubling precision requires quadrupling\n")
-```
-
-```
-##    diminishing returns <U+2014> doubling precision requires quadrupling
-```
-
-``` r
 cat("   the sample size.'\n\n")
-```
 
-```
-##    the sample size.'
-```
-
-``` r
 cat("ANALOGY: Weather forecasts\n")
-```
-
-```
-## ANALOGY: Weather forecasts
-```
-
-``` r
 cat("  'A weather station taking one reading per hour is less reliable\n")
-```
-
-```
-##   'A weather station taking one reading per hour is less reliable
-```
-
-``` r
 cat("   than one taking readings every minute. More measurements = more\n")
-```
-
-```
-##    than one taking readings every minute. More measurements = more
-```
-
-``` r
 cat("   reliable average.'\n\n")
-```
 
-```
-##    reliable average.'
-```
-
-``` r
 cat("PRACTICAL GUIDANCE:\n")
-```
-
-```
-## PRACTICAL GUIDANCE:
-```
-
-``` r
 cat("  'When planning a study, we calculate the sample size needed to\n")
-```
-
-```
-##   'When planning a study, we calculate the sample size needed to
-```
-
-``` r
 cat("   detect the effect we care about. Too small = we might miss real\n")
-```
-
-```
-##    detect the effect we care about. Too small = we might miss real
-```
-
-``` r
 cat("   effects. Too large = wastes resources.'\n\n")
-```
 
-```
-##    effects. Too large = wastes resources.'
-```
-
-``` r
 cat("THE t-DISTRIBUTION CAVEAT:\n")
-```
-
-```
-## THE t-DISTRIBUTION CAVEAT:
-```
-
-``` r
 cat("  'For small studies (n < 30), we account for extra uncertainty\n")
-```
-
-```
-##   'For small studies (n < 30), we account for extra uncertainty
-```
-
-``` r
 cat("   about variability by using slightly wider confidence intervals.\n")
-```
-
-```
-##    about variability by using slightly wider confidence intervals.
-```
-
-``` r
 cat("   This is the t-distribution adjustment.'\n")
 ```
 
 ```
+## Explaining Sample Size to Stakeholders
+## ======================================
+## 
+## THE CORE PRINCIPLE:
+##   'Larger samples give more precise estimates. But there are
+##    diminishing returns — doubling precision requires quadrupling
+##    the sample size.'
+## 
+## ANALOGY: Weather forecasts
+##   'A weather station taking one reading per hour is less reliable
+##    than one taking readings every minute. More measurements = more
+##    reliable average.'
+## 
+## PRACTICAL GUIDANCE:
+##   'When planning a study, we calculate the sample size needed to
+##    detect the effect we care about. Too small = we might miss real
+##    effects. Too large = wastes resources.'
+## 
+## THE t-DISTRIBUTION CAVEAT:
+##   'For small studies (n < 30), we account for extra uncertainty
+##    about variability by using slightly wider confidence intervals.
 ##    This is the t-distribution adjustment.'
 ```
 

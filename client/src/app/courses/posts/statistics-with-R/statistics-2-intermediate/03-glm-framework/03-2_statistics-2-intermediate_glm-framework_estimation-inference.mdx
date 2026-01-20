@@ -40,8 +40,11 @@ diabetes_data <- nhanes[!is.na(Diabetes) & !is.na(Age) & !is.na(BMI) & Age >= 18
 diabetes_data <- diabetes_data[complete.cases(diabetes_data)]
 
 cat("Datasets prepared:\n")
-#> Datasets prepared:
 cat("  Diabetes data: n =", nrow(diabetes_data), "\n")
+```
+
+```
+#> Datasets prepared:
 #>   Diabetes data: n = 7414
 ```
 
@@ -114,17 +117,11 @@ model_logistic <- glm(Diabetic ~ Age, data = diabetes_data, family = binomial)
 mle_beta <- coef(model_logistic)
 
 cat("Log-Likelihood Analysis:\n")
-#> Log-Likelihood Analysis:
 cat("========================\n\n")
-#> ========================
 cat("MLE from glm():\n")
-#> MLE from glm():
 cat("  β₀ =", round(mle_beta[1], 4), "\n")
-#>   <U+03B2><U+2080> = -5.0588
 cat("  β₁ =", round(mle_beta[2], 5), "\n")
-#>   <U+03B2><U+2081> = 0.05419
 cat("  Log-likelihood at MLE:", round(logLik(model_logistic), 2), "\n")
-#>   Log-likelihood at MLE: -2123.47
 
 # Visualise
 ll_dt <- as.data.table(ll_grid)
@@ -147,6 +144,16 @@ ggplot2$ggplot(ll_dt, ggplot2$aes(x = beta0, y = beta1, z = loglik)) +
 <Figure src="/courses/statistics-2-intermediate/logistic_likelihood-1.png" alt="Log-likelihood surface for logistic regression">
 	Log-likelihood surface for logistic regression
 </Figure>
+
+```
+#> Log-Likelihood Analysis:
+#> ========================
+#> 
+#> MLE from glm():
+#>   β₀ = -5.0588 
+#>   β₁ = 0.05419 
+#>   Log-likelihood at MLE: -2123.47
+```
 
 ---
 
@@ -226,26 +233,15 @@ irls_logistic <- function(X, Y, max_iter = 25, tol = 1e-8) {
 
 # Run IRLS
 irls_result <- irls_logistic(X, Y)
-#> Converged at iteration 7
 
 cat("\nIRLS Results:\n")
-#> 
-#> IRLS Results:
 cat("=============\n")
-#> =============
 cat("IRLS estimates:\n")
-#> IRLS estimates:
 cat("  β₀ =", round(irls_result$beta[1], 4), "\n")
-#>   <U+03B2><U+2080> = -5.0588
 cat("  β₁ =", round(irls_result$beta[2], 5), "\n")
-#>   <U+03B2><U+2081> = 0.05419
 cat("\nglm() estimates:\n")
-#> 
-#> glm() estimates:
 cat("  β₀ =", round(mle_beta[1], 4), "\n")
-#>   <U+03B2><U+2080> = -5.0588
 cat("  β₁ =", round(mle_beta[2], 5), "\n")
-#>   <U+03B2><U+2081> = 0.05419
 
 # Extract convergence history
 history_dt <- rbindlist(lapply(irls_result$history, function(h) {
@@ -268,6 +264,20 @@ ggplot2$ggplot(history_dt, ggplot2$aes(x = iteration, y = loglik)) +
 <Figure src="/courses/statistics-2-intermediate/irls_implementation-1.png" alt="IRLS convergence for logistic regression">
 	IRLS convergence for logistic regression
 </Figure>
+
+```
+#> Converged at iteration 7 
+#> 
+#> IRLS Results:
+#> =============
+#> IRLS estimates:
+#>   β₀ = -5.0588 
+#>   β₁ = 0.05419 
+#> 
+#> glm() estimates:
+#>   β₀ = -5.0588 
+#>   β₁ = 0.05419
+```
 
 ---
 
@@ -309,25 +319,12 @@ coef_table <- summary(model_full)$coefficients
 ci_wald <- confint.default(model_full)  # Wald-based CI
 
 cat("Wald-Based Inference:\n")
-#> Wald-Based Inference:
 cat("=====================\n\n")
-#> =====================
 cat("Coefficients and Wald Tests:\n")
-#> Coefficients and Wald Tests:
 print(coef_table)
-#>                Estimate  Std. Error   z value      Pr(>|z|)
-#> (Intercept) -8.27481528 0.270622665 -30.57695 2.479240e-205
-#> Age          0.05942748 0.002741811  21.67454 3.568051e-104
-#> BMI          0.09609988 0.005727537  16.77857  3.501611e-63
 
 cat("\n95% Wald Confidence Intervals:\n")
-#> 
-#> 95% Wald Confidence Intervals:
 print(ci_wald)
-#>                   2.5 %      97.5 %
-#> (Intercept) -8.80522596 -7.74440461
-#> Age          0.05405363  0.06480134
-#> BMI          0.08487411  0.10732564
 
 # Odds ratios with CI
 or_table <- data.table(
@@ -338,9 +335,26 @@ or_table <- data.table(
 )
 
 cat("\nOdds Ratios (95% CI):\n")
+print(or_table[-1])  # Exclude intercept
+```
+
+```
+#> Wald-Based Inference:
+#> =====================
+#> 
+#> Coefficients and Wald Tests:
+#>                Estimate  Std. Error   z value      Pr(>|z|)
+#> (Intercept) -8.27481528 0.270622665 -30.57695 2.479240e-205
+#> Age          0.05942748 0.002741811  21.67454 3.568051e-104
+#> BMI          0.09609988 0.005727537  16.77857  3.501611e-63
+#> 
+#> 95% Wald Confidence Intervals:
+#>                   2.5 %      97.5 %
+#> (Intercept) -8.80522596 -7.74440461
+#> Age          0.05405363  0.06480134
+#> BMI          0.08487411  0.10732564
 #> 
 #> Odds Ratios (95% CI):
-print(or_table[-1])  # Exclude intercept
 #>    Variable Odds_Ratio OR_Lower OR_Upper
 #>      <char>      <num>    <num>    <num>
 #> 1:      Age   1.061229 1.055541 1.066947
@@ -368,23 +382,10 @@ model_full <- glm(Diabetic ~ Age + BMI, data = diabetes_data, family = binomial)
 lrt <- anova(model_age, model_full, test = "LRT")
 
 cat("Likelihood Ratio Test:\n")
-#> Likelihood Ratio Test:
 cat("======================\n\n")
-#> ======================
 cat("Model 1: Diabetic ~ Age\n")
-#> Model 1: Diabetic ~ Age
 cat("Model 2: Diabetic ~ Age + BMI\n\n")
-#> Model 2: Diabetic ~ Age + BMI
 print(lrt)
-#> Analysis of Deviance Table
-#> 
-#> Model 1: Diabetic ~ Age
-#> Model 2: Diabetic ~ Age + BMI
-#>   Resid. Df Resid. Dev Df Deviance  Pr(>Chi)    
-#> 1      7412     4246.9                          
-#> 2      7411     3960.7  1   286.19 < 2.2e-16 ***
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
 # Manual calculation
 ll_reduced <- logLik(model_age)
@@ -394,17 +395,35 @@ df <- 1
 p_value <- pchisq(lr_stat, df, lower.tail = FALSE)
 
 cat("\nManual Calculation:\n")
+cat("  Log-likelihood (reduced):", round(as.numeric(ll_reduced), 2), "\n")
+cat("  Log-likelihood (full):", round(as.numeric(ll_full), 2), "\n")
+cat("  LR statistic:", round(lr_stat, 4), "\n")
+cat("  df:", df, "\n")
+cat("  p-value:", format.pval(p_value), "\n")
+```
+
+```
+#> Likelihood Ratio Test:
+#> ======================
+#> 
+#> Model 1: Diabetic ~ Age
+#> Model 2: Diabetic ~ Age + BMI
+#> 
+#> Analysis of Deviance Table
+#> 
+#> Model 1: Diabetic ~ Age
+#> Model 2: Diabetic ~ Age + BMI
+#>   Resid. Df Resid. Dev Df Deviance  Pr(>Chi)    
+#> 1      7412     4246.9                          
+#> 2      7411     3960.7  1   286.19 < 2.2e-16 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #> Manual Calculation:
-cat("  Log-likelihood (reduced):", round(as.numeric(ll_reduced), 2), "\n")
-#>   Log-likelihood (reduced): -2123.47
-cat("  Log-likelihood (full):", round(as.numeric(ll_full), 2), "\n")
-#>   Log-likelihood (full): -1980.37
-cat("  LR statistic:", round(lr_stat, 4), "\n")
-#>   LR statistic: 286.1879
-cat("  df:", df, "\n")
-#>   df: 1
-cat("  p-value:", format.pval(p_value), "\n")
+#>   Log-likelihood (reduced): -2123.47 
+#>   Log-likelihood (full): -1980.37 
+#>   LR statistic: 286.1879 
+#>   df: 1 
 #>   p-value: < 2.22e-16
 ```
 
@@ -424,12 +443,15 @@ $$\ell_P(\beta_j) \geq \ell(\hat{\boldsymbol{\beta}}) - \frac{\chi^2_{1,\alpha}}
 ``` r
 # Profile likelihood confidence intervals
 ci_profile <- confint(model_full)  # Profile-based CI
-#> Waiting for profiling to be done...
+```
 
+```
+#> Waiting for profiling to be done...
+```
+
+``` r
 cat("Comparison: Wald vs Profile CI:\n")
-#> Comparison: Wald vs Profile CI:
 cat("================================\n\n")
-#> ================================
 
 comparison <- data.table(
     Variable = rownames(ci_wald),
@@ -439,16 +461,22 @@ comparison <- data.table(
     Profile_Upper = ci_profile[, 2]
 )
 print(comparison)
+
+cat("\nNote: Profile intervals are often slightly asymmetric,\n")
+cat("reflecting the true shape of the likelihood.\n")
+```
+
+```
+#> Comparison: Wald vs Profile CI:
+#> ================================
+#> 
 #>       Variable  Wald_Lower  Wald_Upper Profile_Lower Profile_Upper
 #>         <char>       <num>       <num>         <num>         <num>
 #> 1: (Intercept) -8.80522596 -7.74440461   -8.81351012   -7.75239006
 #> 2:         Age  0.05405363  0.06480134    0.05410979    0.06486058
 #> 3:         BMI  0.08487411  0.10732564    0.08493032    0.10739146
-
-cat("\nNote: Profile intervals are often slightly asymmetric,\n")
 #> 
 #> Note: Profile intervals are often slightly asymmetric,
-cat("reflecting the true shape of the likelihood.\n")
 #> reflecting the true shape of the likelihood.
 ```
 
@@ -478,29 +506,18 @@ where $d_i^2$ is the contribution of observation $i$ to the deviance.
 ``` r
 # Deviance components
 cat("Deviance Analysis:\n")
-#> Deviance Analysis:
 cat("==================\n\n")
-#> ==================
 
 cat("Model: Diabetic ~ Age + BMI\n")
-#> Model: Diabetic ~ Age + BMI
 cat("Null deviance:", round(model_full$null.deviance, 2), "on", model_full$df.null, "df\n")
-#> Null deviance: 4778.89 on 7413 df
 cat("Residual deviance:", round(model_full$deviance, 2), "on", model_full$df.residual, "df\n")
-#> Residual deviance: 3960.75 on 7411 df
 cat("\nDeviance explained:", round((1 - model_full$deviance / model_full$null.deviance) * 100, 2), "%\n")
-#> 
-#> Deviance explained: 17.12 %
 
 # Deviance residuals
 dev_resid <- residuals(model_full, type = "deviance")
 
 cat("\nDeviance Residuals Summary:\n")
-#> 
-#> Deviance Residuals Summary:
 print(summary(dev_resid))
-#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-#> -1.9440 -0.4693 -0.2924 -0.1583 -0.1759  3.0272
 
 # Plot deviance residuals
 diabetes_data[, dev_residual := dev_resid]
@@ -517,12 +534,30 @@ ggplot2$ggplot(diabetes_data, ggplot2$aes(x = fitted_prob, y = dev_residual)) +
         y = "Deviance Residual"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
 <Figure src="/courses/statistics-2-intermediate/deviance-1.png" alt="Deviance analysis for model fit">
 	Deviance analysis for model fit
 </Figure>
+
+```
+#> Deviance Analysis:
+#> ==================
+#> 
+#> Model: Diabetic ~ Age + BMI
+#> Null deviance: 4778.89 on 7413 df
+#> Residual deviance: 3960.75 on 7411 df
+#> 
+#> Deviance explained: 17.12 %
+#> 
+#> Deviance Residuals Summary:
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#> -1.9440 -0.4693 -0.2924 -0.1583 -0.1759  3.0272
+```
 
 ### 2.4.2 Pearson Residuals and Overdispersion
 
@@ -557,18 +592,11 @@ df_residual <- model_poisson$df.residual
 dispersion_est <- pearson_chisq / df_residual
 
 cat("Overdispersion Check (Poisson Model):\n")
-#> Overdispersion Check (Poisson Model):
 cat("=====================================\n\n")
-#> =====================================
 cat("Pearson χ²:", round(pearson_chisq, 2), "\n")
-#> Pearson <U+03C7><U+00B2>: 34872.24
 cat("df:", df_residual, "\n")
-#> df: 4404
 cat("Estimated dispersion (φ):", round(dispersion_est, 3), "\n")
-#> Estimated dispersion (<U+03C6>): 7.918
 cat("\nInterpretation:\n")
-#> 
-#> Interpretation:
 if (dispersion_est > 1.5) {
     cat("  φ >> 1 indicates substantial overdispersion.\n")
     cat("  Consider quasipoisson or negative binomial.\n")
@@ -577,15 +605,11 @@ if (dispersion_est > 1.5) {
 } else {
     cat("  φ ≈ 1, no evidence of overdispersion.\n")
 }
-#>   <U+03C6> >> 1 indicates substantial overdispersion.
-#>   Consider quasipoisson or negative binomial.
 
 # Fit quasipoisson for comparison
 model_quasi <- glm(visits ~ age, data = visits_data, family = quasipoisson)
 
 cat("\nStandard Errors Comparison:\n")
-#> 
-#> Standard Errors Comparison:
 se_comparison <- data.table(
     Variable = names(coef(model_poisson)),
     SE_Poisson = summary(model_poisson)$coefficients[, "Std. Error"],
@@ -593,14 +617,29 @@ se_comparison <- data.table(
 )
 se_comparison[, Ratio := round(SE_Quasipoisson / SE_Poisson, 2)]
 print(se_comparison)
+
+cat("\nNote: Quasipoisson SEs are √φ times larger.\n")
+```
+
+```
+#> Overdispersion Check (Poisson Model):
+#> =====================================
+#> 
+#> Pearson χ²: 34872.24 
+#> df: 4404 
+#> Estimated dispersion (φ): 7.918 
+#> 
+#> Interpretation:
+#>   φ >> 1 indicates substantial overdispersion.
+#>   Consider quasipoisson or negative binomial.
+#> 
+#> Standard Errors Comparison:
 #>       Variable  SE_Poisson SE_Quasipoisson Ratio
 #>         <char>       <num>           <num> <num>
 #> 1: (Intercept) 0.073439315      0.20665654  2.81
 #> 2:         age 0.009881429      0.02780611  2.81
-
-cat("\nNote: Quasipoisson SEs are √φ times larger.\n")
 #> 
-#> Note: Quasipoisson SEs are <U+221A><U+03C6> times larger.
+#> Note: Quasipoisson SEs are √φ times larger.
 ```
 
 ---
@@ -640,21 +679,25 @@ model_comparison <- data.table(
 model_comparison <- model_comparison[order(AIC)]
 
 cat("Model Comparison:\n")
-#> Model Comparison:
 cat("=================\n\n")
-#> =================
 print(model_comparison)
+
+cat("\nBest model by AIC:", model_comparison[1, Model], "\n")
+cat("Best model by BIC:", model_comparison[which.min(BIC), Model], "\n")
+```
+
+```
+#> Model Comparison:
+#> =================
+#> 
 #>        Model n_params   LogLik      AIC      BIC
 #>       <char>    <int>    <num>    <num>    <num>
 #> 1: Age + BMI        3 -1980.37 3966.750 3987.483
 #> 2: Age * BMI        4 -1979.65 3967.301 3994.945
 #> 3:  Age only        2 -2123.47 4250.938 4264.760
 #> 4:  BMI only        2 -2262.93 4529.853 4543.675
-
-cat("\nBest model by AIC:", model_comparison[1, Model], "\n")
 #> 
-#> Best model by AIC: Age + BMI
-cat("Best model by BIC:", model_comparison[which.min(BIC), Model], "\n")
+#> Best model by AIC: Age + BMI 
 #> Best model by BIC: Age + BMI
 ```
 

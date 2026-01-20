@@ -42,12 +42,15 @@ lung_dt[, age_c := age - mean(age, na.rm = TRUE)]  # Centre age
 lung_dt[, ph.ecog := as.factor(ph.ecog)]
 
 cat("Lung Cancer Dataset:\n")
-#> Lung Cancer Dataset:
 cat("  Patients:", nrow(lung_dt), "\n")
-#>   Patients: 228
 cat("  Deaths:", sum(lung_dt$event), "\n")
-#>   Deaths: 165
 cat("  Predictors: age, sex, ECOG status, Karnofsky score\n")
+```
+
+```
+#> Lung Cancer Dataset:
+#>   Patients: 228 
+#>   Deaths: 165 
 #>   Predictors: age, sex, ECOG status, Karnofsky score
 ```
 
@@ -188,10 +191,14 @@ cox_model <- coxph(Surv(time, event) ~ age + sex + factor(ph.ecog),
                     data = lung_dt[!is.na(ph.ecog)])
 
 cat("Cox Proportional Hazards Model:\n")
-#> Cox Proportional Hazards Model:
 cat("===============================\n\n")
-#> ===============================
 print(summary(cox_model))
+```
+
+```
+#> Cox Proportional Hazards Model:
+#> ===============================
+#> 
 #> Call:
 #> coxph(formula = Surv(time, event) ~ age + sex + factor(ph.ecog), 
 #>     data = lung_dt[!is.na(ph.ecog)])
@@ -233,13 +240,17 @@ hr_table <- data.table(
 )
 
 cat("\nHazard Ratios with 95% Confidence Intervals:\n")
-#> 
-#> Hazard Ratios with 95% Confidence Intervals:
 cat("=============================================\n\n")
-#> =============================================
 print(hr_table[, .(Variable, HR = round(HR, 3),
                    `95% CI` = paste0("[", round(CI_lower, 3), ", ", round(CI_upper, 3), "]"),
                    p = format.pval(p_value, digits = 3))])
+```
+
+```
+#> 
+#> Hazard Ratios with 95% Confidence Intervals:
+#> =============================================
+#> 
 #>            Variable    HR          95% CI        p
 #>              <char> <num>          <char>   <char>
 #> 1:              age 1.011  [0.993, 1.029]  0.24637
@@ -263,41 +274,47 @@ The **hazard ratio (HR)** is the key measure of effect:
 
 ``` r
 cat("Interpretation of Hazard Ratios:\n")
-#> Interpretation of Hazard Ratios:
 cat("================================\n\n")
-#> ================================
 
 # Age
 hr_age <- exp(coef(cox_model)["age"])
 cat("AGE:\n")
-#> AGE:
 cat(sprintf("  HR = %.3f per year of age\n", hr_age))
-#>   HR = 1.011 per year of age
 cat(sprintf("  For each additional year of age, the hazard of death increases by %.1f%%\n",
             (hr_age - 1) * 100))
-#>   For each additional year of age, the hazard of death increases by 1.1%
 cat(sprintf("  For 10 years: HR = %.3f (%.1f%% increase in hazard)\n\n",
             hr_age^10, (hr_age^10 - 1) * 100))
-#>   For 10 years: HR = 1.114 (11.4% increase in hazard)
 
 # Sex
 hr_sex <- exp(coef(cox_model)["sexFemale"])
 cat("SEX:\n")
-#> SEX:
 cat(sprintf("  HR (Female vs Male) = %.3f\n", hr_sex))
-#>   HR (Female vs Male) = 0.579
 cat(sprintf("  Females have %.1f%% lower hazard of death compared to males\n\n",
             (1 - hr_sex) * 100))
-#>   Females have 42.1% lower hazard of death compared to males
 
 # ECOG
 hr_ecog2 <- exp(coef(cox_model)["factor(ph.ecog)2"])
 cat("ECOG PERFORMANCE STATUS:\n")
-#> ECOG PERFORMANCE STATUS:
 cat(sprintf("  HR (ECOG 2 vs ECOG 0) = %.3f\n", hr_ecog2))
-#>   HR (ECOG 2 vs ECOG 0) = 2.468
 cat(sprintf("  ECOG 2 patients have %.1f%% higher hazard than ECOG 0 patients\n",
             (hr_ecog2 - 1) * 100))
+```
+
+```
+#> Interpretation of Hazard Ratios:
+#> ================================
+#> 
+#> AGE:
+#>   HR = 1.011 per year of age
+#>   For each additional year of age, the hazard of death increases by 1.1%
+#>   For 10 years: HR = 1.114 (11.4% increase in hazard)
+#> 
+#> SEX:
+#>   HR (Female vs Male) = 0.579
+#>   Females have 42.1% lower hazard of death compared to males
+#> 
+#> ECOG PERFORMANCE STATUS:
+#>   HR (ECOG 2 vs ECOG 0) = 2.468
 #>   ECOG 2 patients have 146.8% higher hazard than ECOG 0 patients
 ```
 
@@ -371,22 +388,26 @@ Under PH, scaled Schoenfeld residuals should have no systematic relationship wit
 ph_test <- cox.zph(cox_model)
 
 cat("Test of Proportional Hazards Assumption:\n")
-#> Test of Proportional Hazards Assumption:
 cat("========================================\n\n")
-#> ========================================
 print(ph_test)
+
+cat("\nInterpretation:\n")
+cat("  p < 0.05 suggests violation of PH assumption\n")
+cat("  Global test examines overall model\n")
+```
+
+```
+#> Test of Proportional Hazards Assumption:
+#> ========================================
+#> 
 #>                 chisq df    p
 #> age             0.163  1 0.69
 #> sex             2.406  1 0.12
 #> factor(ph.ecog) 5.650  3 0.13
 #> GLOBAL          7.777  5 0.17
-
-cat("\nInterpretation:\n")
 #> 
 #> Interpretation:
-cat("  p < 0.05 suggests violation of PH assumption\n")
 #>   p < 0.05 suggests violation of PH assumption
-cat("  Global test examines overall model\n")
 #>   Global test examines overall model
 ```
 
@@ -430,6 +451,9 @@ ggplot2$ggplot(schoenfeld_long, ggplot2$aes(x = time, y = residual)) +
     ) +
     ggplot2$theme_minimal() +
     ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -498,10 +522,14 @@ cox_strat <- coxph(Surv(time, event) ~ age + sex + strata(ph.ecog),
                     data = lung_dt[!is.na(ph.ecog)])
 
 cat("Stratified Cox Model (stratified by ECOG):\n")
-#> Stratified Cox Model (stratified by ECOG):
 cat("==========================================\n\n")
-#> ==========================================
 print(summary(cox_strat))
+```
+
+```
+#> Stratified Cox Model (stratified by ECOG):
+#> ==========================================
+#> 
 #> Call:
 #> coxph(formula = Surv(time, event) ~ age + sex + strata(ph.ecog), 
 #>     data = lung_dt[!is.na(ph.ecog)])
@@ -547,10 +575,18 @@ cox_tv <- coxph(Surv(tstart, time, event) ~ age + sex:factor(tgroup) + factor(ph
                  data = lung_split_dt)
 
 cat("Cox Model with Time-Varying Effect for Sex:\n")
-#> Cox Model with Time-Varying Effect for Sex:
 cat("============================================\n\n")
-#> ============================================
 print(summary(cox_tv))
+
+cat("\nInterpretation:\n")
+cat("  Different hazard ratios for sex at different time periods\n")
+cat("  If coefficients differ substantially, PH was violated for sex\n")
+```
+
+```
+#> Cox Model with Time-Varying Effect for Sex:
+#> ============================================
+#> 
 #> Call:
 #> coxph(formula = Surv(tstart, time, event) ~ age + sex:factor(tgroup) + 
 #>     factor(ph.ecog), data = lung_split_dt)
@@ -587,13 +623,10 @@ print(summary(cox_tv))
 #> Likelihood ratio test= 33.18  on 7 df,   p=2e-05
 #> Wald test            = 32.84  on 7 df,   p=3e-05
 #> Score (logrank) test = 35.4  on 7 df,   p=9e-06
-
-cat("\nInterpretation:\n")
+#> 
 #> 
 #> Interpretation:
-cat("  Different hazard ratios for sex at different time periods\n")
 #>   Different hazard ratios for sex at different time periods
-cat("  If coefficients differ substantially, PH was violated for sex\n")
 #>   If coefficients differ substantially, PH was violated for sex
 ```
 
@@ -653,6 +686,9 @@ p2 <- ggplot2$ggplot(resid_dt, ggplot2$aes(x = linear_pred, y = deviance)) +
     ggplot2$theme_minimal()
 
 gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -682,13 +718,9 @@ cutoff <- 2 / sqrt(nrow(lung_complete))
 influence_dt[, influential := influence > cutoff]
 
 cat("Influential Observation Analysis:\n")
-#> Influential Observation Analysis:
 cat("=================================\n\n")
-#> =================================
 cat("Cutoff for influence:", round(cutoff, 4), "\n")
-#> Cutoff for influence: 0.1327
 cat("Potentially influential patients:", sum(influence_dt$influential), "\n")
-#> Potentially influential patients: 130
 
 ggplot2$ggplot(influence_dt, ggplot2$aes(x = patient, y = influence)) +
     ggplot2$geom_point(ggplot2$aes(colour = influential), alpha = 0.7) +
@@ -708,6 +740,14 @@ ggplot2$ggplot(influence_dt, ggplot2$aes(x = patient, y = influence)) +
 <Figure src="/courses/statistics-2-intermediate/influential-1.png" alt="Identifying influential observations in the Cox model">
 	Identifying influential observations in the Cox model
 </Figure>
+
+```
+#> Influential Observation Analysis:
+#> =================================
+#> 
+#> Cutoff for influence: 0.1327 
+#> Potentially influential patients: 130
+```
 
 ---
 
@@ -739,26 +779,32 @@ cox_full <- coxph(Surv(time, event) ~ age + sex + factor(ph.ecog), data = lung_c
 lr_test <- anova(cox_simple, cox_full)
 
 cat("Model Comparison:\n")
-#> Model Comparison:
 cat("=================\n\n")
-#> =================
 cat("Simple model (sex only):\n")
-#> Simple model (sex only):
 cat("  AIC:", AIC(cox_simple), "\n")
-#>   AIC: 1480.662
 cat("  Concordance:", concordance(cox_simple)$concordance, "\n\n")
-#>   Concordance: 0.5774751
 
 cat("Full model (age + sex + ECOG):\n")
-#> Full model (age + sex + ECOG):
 cat("  AIC:", AIC(cox_full), "\n")
-#>   AIC: 1468.094
 cat("  Concordance:", concordance(cox_full)$concordance, "\n\n")
-#>   Concordance: 0.6369839
 
 cat("Likelihood ratio test:\n")
-#> Likelihood ratio test:
 print(lr_test)
+```
+
+```
+#> Model Comparison:
+#> =================
+#> 
+#> Simple model (sex only):
+#>   AIC: 1480.662 
+#>   Concordance: 0.5774751 
+#> 
+#> Full model (age + sex + ECOG):
+#>   AIC: 1468.094 
+#>   Concordance: 0.6369839 
+#> 
+#> Likelihood ratio test:
 #> Analysis of Deviance Table
 #>  Cox model: response is  Surv(time, event)
 #>  Model 1: ~ sex
@@ -785,19 +831,24 @@ print(lr_test)
 c_stat <- concordance(cox_full)
 
 cat("Model Discrimination (Concordance):\n")
-#> Model Discrimination (Concordance):
 cat("===================================\n\n")
-#> ===================================
 cat("C-statistic:", round(c_stat$concordance, 3), "\n")
-#> C-statistic: 0.637
 cat("Standard error:", round(sqrt(c_stat$var), 3), "\n")
-#> Standard error: 0.025
 cat("95% CI: [", round(c_stat$concordance - 1.96*sqrt(c_stat$var), 3), ",",
     round(c_stat$concordance + 1.96*sqrt(c_stat$var), 3), "]\n\n")
-#> 95% CI: [ 0.588 , 0.686 ]
 
 cat("Interpretation: The model correctly orders survival for",
     round(c_stat$concordance * 100, 1), "% of comparable patient pairs.\n")
+```
+
+```
+#> Model Discrimination (Concordance):
+#> ===================================
+#> 
+#> C-statistic: 0.637 
+#> Standard error: 0.025 
+#> 95% CI: [ 0.588 , 0.686 ]
+#> 
 #> Interpretation: The model correctly orders survival for 63.7 % of comparable patient pairs.
 ```
 

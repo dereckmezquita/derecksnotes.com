@@ -81,85 +81,18 @@ likelihood_dt <- data.table(p = p_values, likelihood = likelihood)
 mle_p <- p_values[which.max(likelihood)]
 
 cat("Likelihood Function Example\n")
-```
-
-```
-## Likelihood Function Example
-```
-
-``` r
 cat("===========================\n\n")
-```
-
-```
-## ===========================
-```
-
-``` r
 cat(sprintf("Data: %d heads in %d flips\n\n", n_heads, n_flips))
-```
 
-```
-## Data: 7 heads in 10 flips
-```
-
-``` r
 cat("Likelihood at different values of p:\n")
-```
-
-```
-## Likelihood at different values of p:
-```
-
-``` r
 cat(sprintf("  p = 0.3: L(0.3) = %.6f\n", dbinom(n_heads, n_flips, 0.3)))
-```
-
-```
-##   p = 0.3: L(0.3) = 0.009002
-```
-
-``` r
 cat(sprintf("  p = 0.5: L(0.5) = %.6f\n", dbinom(n_heads, n_flips, 0.5)))
-```
-
-```
-##   p = 0.5: L(0.5) = 0.117188
-```
-
-``` r
 cat(sprintf("  p = 0.7: L(0.7) = %.6f\n", dbinom(n_heads, n_flips, 0.7)))
-```
-
-```
-##   p = 0.7: L(0.7) = 0.266828
-```
-
-``` r
 cat(sprintf("  p = 0.9: L(0.9) = %.6f\n\n", dbinom(n_heads, n_flips, 0.9)))
-```
 
-```
-##   p = 0.9: L(0.9) = 0.057396
-```
-
-``` r
 cat(sprintf("MLE: p̂ = %.2f (the value maximising the likelihood)\n", mle_p))
-```
-
-```
-## MLE: p<U+0302> = 0.70 (the value maximising the likelihood)
-```
-
-``` r
 cat(sprintf("Note: This equals k/n = %d/%d = %.2f\n", n_heads, n_flips, n_heads/n_flips))
-```
 
-```
-## Note: This equals k/n = 7/10 = 0.70
-```
-
-``` r
 ggplot2$ggplot(likelihood_dt, ggplot2$aes(x = p, y = likelihood)) +
     ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
     ggplot2$geom_vline(xintercept = mle_p, colour = "#D55E00",
@@ -181,6 +114,22 @@ ggplot2$ggplot(likelihood_dt, ggplot2$aes(x = p, y = likelihood)) +
 <Figure src="/courses/statistics-1-foundations/likelihood_concept-1.png" alt="The likelihood function: same formula as probability, but viewed differently">
 	The likelihood function: same formula as probability, but viewed differently
 </Figure>
+
+```
+## Likelihood Function Example
+## ===========================
+## 
+## Data: 7 heads in 10 flips
+## 
+## Likelihood at different values of p:
+##   p = 0.3: L(0.3) = 0.009002
+##   p = 0.5: L(0.5) = 0.117188
+##   p = 0.7: L(0.7) = 0.266828
+##   p = 0.9: L(0.9) = 0.057396
+## 
+## MLE: p̂ = 0.70 (the value maximising the likelihood)
+## Note: This equals k/n = 7/10 = 0.70
+```
 
 ### 7.5.2 The Log-Likelihood
 
@@ -268,82 +217,34 @@ k <- sum(bernoulli_data)
 p_mle <- k / n_obs
 
 cat("MLE for Bernoulli Proportion\n")
-```
-
-```
-## MLE for Bernoulli Proportion
-```
-
-``` r
 cat("============================\n\n")
-```
 
-```
-## ============================
-```
-
-``` r
 cat(sprintf("True p = %.2f\n", true_p))
-```
-
-```
-## True p = 0.35
-```
-
-``` r
 cat(sprintf("Observed: %d successes in %d trials\n\n", k, n_obs))
-```
 
-```
-## Observed: 34 successes in 80 trials
-```
-
-``` r
 cat("Derivation:\n")
-```
-
-```
-## Derivation:
-```
-
-``` r
 cat("  L(p) = p^k × (1-p)^(n-k)\n")
-```
-
-```
-##   L(p) = p^k <U+00D7> (1-p)^(n-k)
-```
-
-``` r
 cat("  ℓ(p) = k log(p) + (n-k) log(1-p)\n")
-```
-
-```
-##   <U+2113>(p) = k log(p) + (n-k) log(1-p)
-```
-
-``` r
 cat("  dℓ/dp = k/p - (n-k)/(1-p) = 0\n")
-```
-
-```
-##   d<U+2113>/dp = k/p - (n-k)/(1-p) = 0
-```
-
-``` r
 cat("  p̂ = k/n\n\n")
-```
 
-```
-##   p<U+0302> = k/n
-```
-
-``` r
 cat(sprintf("MLE: p̂ = %d/%d = %.4f\n", k, n_obs, p_mle))
 ```
 
 ```
-## MLE: p<U+0302> = 34/80 = 0.4250
+## MLE for Bernoulli Proportion
+## ============================
+## 
+## True p = 0.35
+## Observed: 34 successes in 80 trials
+## 
+## Derivation:
+##   L(p) = p^k × (1-p)^(n-k)
+##   ℓ(p) = k log(p) + (n-k) log(1-p)
+##   dℓ/dp = k/p - (n-k)/(1-p) = 0
+##   p̂ = k/n
+## 
+## MLE: p̂ = 34/80 = 0.4250
 ```
 
 **Example 2: Normal Distribution (Mean $\mu$, Variance $\sigma^2$)**
@@ -376,87 +277,21 @@ sigma2_mle <- mean((normal_data - mu_mle)^2)  # MLE (divide by n)
 sigma2_unbiased <- var(normal_data)            # Unbiased (divide by n-1)
 
 cat("MLE for Normal Distribution\n")
-```
-
-```
-## MLE for Normal Distribution
-```
-
-``` r
 cat("===========================\n\n")
-```
 
-```
-## ===========================
-```
-
-``` r
 cat(sprintf("True parameters: μ = %.0f, σ² = %.0f (σ = %.0f)\n\n",
             true_mu, true_sigma^2, true_sigma))
-```
 
-```
-## True parameters: <U+03BC> = 50, <U+03C3><U+00B2> = 100 (<U+03C3> = 10)
-```
-
-``` r
 cat("MLEs:\n")
-```
-
-```
-## MLEs:
-```
-
-``` r
 cat(sprintf("  μ̂ = X̄ = %.3f\n", mu_mle))
-```
-
-```
-##   <U+03BC><U+0302> = X<U+0304> = 50.904
-```
-
-``` r
 cat(sprintf("  σ̂² = (1/n)Σ(Xᵢ - X̄)² = %.3f\n\n", sigma2_mle))
-```
 
-```
-##   <U+03C3><U+0302><U+00B2> = (1/n)<U+03A3>(X<U+1D62> - X<U+0304>)<U+00B2> = 82.490
-```
-
-``` r
 cat("Comparison:\n")
-```
-
-```
-## Comparison:
-```
-
-``` r
 cat(sprintf("  MLE σ̂² (÷n) = %.3f\n", sigma2_mle))
-```
-
-```
-##   MLE <U+03C3><U+0302><U+00B2> (<U+00F7>n) = 82.490
-```
-
-``` r
 cat(sprintf("  Unbiased S² (÷(n-1)) = %.3f\n", sigma2_unbiased))
-```
-
-```
-##   Unbiased S<U+00B2> (<U+00F7>(n-1)) = 83.323
-```
-
-``` r
 cat(sprintf("  Ratio: MLE/Unbiased = %.4f ≈ (n-1)/n = %.4f\n",
             sigma2_mle / sigma2_unbiased, (n_normal - 1) / n_normal))
-```
 
-```
-##   Ratio: MLE/Unbiased = 0.9900 <U+2248> (n-1)/n = 0.9900
-```
-
-``` r
 # Visualise the log-likelihood surface using a heatmap
 mu_grid <- seq(45, 55, length.out = 50)
 sigma2_grid <- seq(60, 140, length.out = 50)
@@ -500,6 +335,22 @@ ggplot2$ggplot(loglik_surface, ggplot2$aes(x = mu, y = sigma2)) +
 	MLE for normal distribution parameters
 </Figure>
 
+```
+## MLE for Normal Distribution
+## ===========================
+## 
+## True parameters: μ = 50, σ² = 100 (σ = 10)
+## 
+## MLEs:
+##   μ̂ = X̄ = 50.904
+##   σ̂² = (1/n)Σ(Xᵢ - X̄)² = 82.490
+## 
+## Comparison:
+##   MLE σ̂² (÷n) = 82.490
+##   Unbiased S² (÷(n-1)) = 83.323
+##   Ratio: MLE/Unbiased = 0.9900 ≈ (n-1)/n = 0.9900
+```
+
 **Example 3: Exponential Distribution (Rate $\lambda$)**
 
 $$f(x|\lambda) = \lambda e^{-\lambda x}, \quad x > 0$$
@@ -526,74 +377,32 @@ exp_data <- rexp(n_exp, rate = true_lambda)
 lambda_mle <- 1 / mean(exp_data)
 
 cat("MLE for Exponential Distribution\n")
-```
-
-```
-## MLE for Exponential Distribution
-```
-
-``` r
 cat("================================\n\n")
-```
 
-```
-## ================================
-```
-
-``` r
 cat(sprintf("True λ = %.2f (mean = %.1f)\n", true_lambda, 1/true_lambda))
-```
-
-```
-## True <U+03BB> = 0.20 (mean = 5.0)
-```
-
-``` r
 cat(sprintf("Sample mean = %.3f\n\n", mean(exp_data)))
-```
 
-```
-## Sample mean = 4.484
-```
-
-``` r
 cat("Derivation:\n")
-```
-
-```
-## Derivation:
-```
-
-``` r
 cat("  ℓ(λ) = n log(λ) - λ Σxᵢ\n")
-```
-
-```
-##   <U+2113>(<U+03BB>) = n log(<U+03BB>) - <U+03BB> <U+03A3>x<U+1D62>
-```
-
-``` r
 cat("  dℓ/dλ = n/λ - Σxᵢ = 0\n")
-```
-
-```
-##   d<U+2113>/d<U+03BB> = n/<U+03BB> - <U+03A3>x<U+1D62> = 0
-```
-
-``` r
 cat("  λ̂ = n/Σxᵢ = 1/X̄\n\n")
-```
 
-```
-##   <U+03BB><U+0302> = n/<U+03A3>x<U+1D62> = 1/X<U+0304>
-```
-
-``` r
 cat(sprintf("MLE: λ̂ = 1/X̄ = %.4f (true: %.2f)\n", lambda_mle, true_lambda))
 ```
 
 ```
-## MLE: <U+03BB><U+0302> = 1/X<U+0304> = 0.2230 (true: 0.20)
+## MLE for Exponential Distribution
+## ================================
+## 
+## True λ = 0.20 (mean = 5.0)
+## Sample mean = 4.484
+## 
+## Derivation:
+##   ℓ(λ) = n log(λ) - λ Σxᵢ
+##   dℓ/dλ = n/λ - Σxᵢ = 0
+##   λ̂ = n/Σxᵢ = 1/X̄
+## 
+## MLE: λ̂ = 1/X̄ = 0.2230 (true: 0.20)
 ```
 
 **Example 4: Poisson Distribution (Rate $\lambda$)**
@@ -658,29 +467,10 @@ asymp_results <- lapply(sample_sizes_asymp, function(n) {
 asymp_dt <- rbindlist(asymp_results)
 
 cat("Asymptotic Properties of Poisson MLE\n")
-```
-
-```
-## Asymptotic Properties of Poisson MLE
-```
-
-``` r
 cat("====================================\n\n")
-```
 
-```
-## ====================================
-```
-
-``` r
 cat(sprintf("True λ = %.0f\n\n", true_lambda_pois))
-```
 
-```
-## True <U+03BB> = 5
-```
-
-``` r
 summary_asymp <- unique(asymp_dt[, .(n, mean_mle, sd_mle, theoretical_sd)])
 print(summary_asymp[, .(
     n = n,
@@ -688,43 +478,11 @@ print(summary_asymp[, .(
     `SD λ̂` = round(sd_mle, 4),
     `Theoretical SD` = round(theoretical_sd, 4)
 )])
-```
 
-```
-##        n Mean <U+03BB><U+0302> SD <U+03BB><U+0302> Theoretical SD
-##    <num>                 <num>               <num>          <num>
-## 1:    10                 5.006              0.6992         0.7071
-## 2:    30                 5.012              0.4113         0.4082
-## 3:   100                 4.997              0.2214         0.2236
-## 4:   500                 4.998              0.1008         0.1000
-```
-
-``` r
 cat("\nAs n increases:\n")
-```
-
-```
-## 
-## As n increases:
-```
-
-``` r
 cat("  - Mean of λ̂ → true λ (consistency)\n")
-```
-
-```
-##   - Mean of <U+03BB><U+0302> <U+2192> true <U+03BB> (consistency)
-```
-
-``` r
 cat("  - SD matches √(λ/n) (asymptotic normality)\n")
-```
 
-```
-##   - SD matches <U+221A>(<U+03BB>/n) (asymptotic normality)
-```
-
-``` r
 # Visualise
 asymp_dt[, n_label := paste0("n = ", n)]
 asymp_dt[, n_label := factor(n_label, levels = paste0("n = ", sample_sizes_asymp))]
@@ -748,6 +506,24 @@ ggplot2$ggplot(asymp_dt, ggplot2$aes(x = mle)) +
 <Figure src="/courses/statistics-1-foundations/mle_asymptotic-1.png" alt="MLEs are consistent and asymptotically normal">
 	MLEs are consistent and asymptotically normal
 </Figure>
+
+```
+## Asymptotic Properties of Poisson MLE
+## ====================================
+## 
+## True λ = 5
+## 
+##        n Mean λ̂   SD λ̂ Theoretical SD
+##    <num>  <num>  <num>          <num>
+## 1:    10  5.006 0.6992         0.7071
+## 2:    30  5.012 0.4113         0.4082
+## 3:   100  4.997 0.2214         0.2236
+## 4:   500  4.998 0.1008         0.1000
+## 
+## As n increases:
+##   - Mean of λ̂ → true λ (consistency)
+##   - SD matches √(λ/n) (asymptotic normality)
+```
 
 ### 7.7.2 Invariance Property
 
@@ -776,68 +552,34 @@ var_mle <- lambda_mle_inv   # For Poisson, variance = λ
 p_zero_mle <- exp(-lambda_mle_inv)
 
 cat("Invariance Property of MLE\n")
-```
-
-```
-## Invariance Property of MLE
-```
-
-``` r
 cat("==========================\n\n")
-```
 
-```
-## ==========================
-```
-
-``` r
 cat(sprintf("Poisson data: n = %d, λ̂ = %.3f (true λ = %.0f)\n\n", n_inv, lambda_mle_inv, true_lambda_inv))
-```
 
-```
-## Poisson data: n = 100, <U+03BB><U+0302> = 3.150 (true <U+03BB> = 3)
-```
-
-``` r
 cat("By invariance, MLEs of functions of λ:\n\n")
-```
 
-```
-## By invariance, MLEs of functions of <U+03BB>:
-```
-
-``` r
 cat("  P(X = 0) = e^(-λ)\n")
-```
-
-```
-##   P(X = 0) = e^(-<U+03BB>)
-```
-
-``` r
 cat(sprintf("    MLE: e^(-λ̂) = %.4f (true: %.4f)\n\n", p_zero_mle, exp(-true_lambda_inv)))
-```
 
-```
-##     MLE: e^(-<U+03BB><U+0302>) = 0.0429 (true: 0.0498)
-```
-
-``` r
 cat("  P(X ≥ 3) = 1 - P(X ≤ 2)\n")
-```
-
-```
-##   P(X <U+2265> 3) = 1 - P(X <U+2264> 2)
-```
-
-``` r
 p_ge3_mle <- 1 - ppois(2, lambda_mle_inv)
 p_ge3_true <- 1 - ppois(2, true_lambda_inv)
 cat(sprintf("    MLE: 1 - Σₖ₌₀² P(k;λ̂) = %.4f (true: %.4f)\n", p_ge3_mle, p_ge3_true))
 ```
 
 ```
-##     MLE: 1 - <U+03A3><U+2096><U+208C><U+2080><U+00B2> P(k;<U+03BB><U+0302>) = 0.6096 (true: 0.5768)
+## Invariance Property of MLE
+## ==========================
+## 
+## Poisson data: n = 100, λ̂ = 3.150 (true λ = 3)
+## 
+## By invariance, MLEs of functions of λ:
+## 
+##   P(X = 0) = e^(-λ)
+##     MLE: e^(-λ̂) = 0.0429 (true: 0.0498)
+## 
+##   P(X ≥ 3) = 1 - P(X ≤ 2)
+##     MLE: 1 - Σₖ₌₀² P(k;λ̂) = 0.6096 (true: 0.5768)
 ```
 
 ### 7.7.3 Fisher Information and Standard Errors
@@ -884,64 +626,20 @@ fi_results <- lapply(n_values_fi, function(n) {
 fi_dt <- rbindlist(fi_results)
 
 cat("Fisher Information and Standard Error\n")
-```
-
-```
-## Fisher Information and Standard Error
-```
-
-``` r
 cat("=====================================\n\n")
-```
 
-```
-## =====================================
-```
-
-``` r
 cat("Poisson distribution: I(λ) = n/λ\n")
-```
-
-```
-## Poisson distribution: I(<U+03BB>) = n/<U+03BB>
-```
-
-``` r
 cat(sprintf("True λ = %.0f\n\n", true_lambda_fi))
-```
 
-```
-## True <U+03BB> = 4
-```
-
-``` r
 cat("SE(λ̂) = 1/√I(λ) = √(λ/n)\n\n")
-```
 
-```
-## SE(<U+03BB><U+0302>) = 1/<U+221A>I(<U+03BB>) = <U+221A>(<U+03BB>/n)
-```
-
-``` r
 print(fi_dt[, .(
     n = n,
     `I(λ)` = round(fisher_info, 1),
     `SE (theo)` = round(theoretical_se, 4),
     `SE (emp)` = round(empirical_se, 4)
 )])
-```
 
-```
-##        n I(<U+03BB>) SE (theo) SE (emp)
-##    <num>       <num>     <num>    <num>
-## 1:    20         5.0    0.4472   0.4438
-## 2:    50        12.5    0.2828   0.2810
-## 3:   100        25.0    0.2000   0.2013
-## 4:   200        50.0    0.1414   0.1415
-## 5:   500       125.0    0.0894   0.0917
-```
-
-``` r
 # Plot
 fi_long <- melt(fi_dt[, .(n, Empirical = empirical_se, Theoretical = theoretical_se)],
                  id.vars = "n", variable.name = "type", value.name = "se")
@@ -964,6 +662,24 @@ ggplot2$ggplot(fi_long, ggplot2$aes(x = n, y = se, colour = type)) +
 <Figure src="/courses/statistics-1-foundations/fisher_info-1.png" alt="Standard error of MLE comes from Fisher information">
 	Standard error of MLE comes from Fisher information
 </Figure>
+
+```
+## Fisher Information and Standard Error
+## =====================================
+## 
+## Poisson distribution: I(λ) = n/λ
+## True λ = 4
+## 
+## SE(λ̂) = 1/√I(λ) = √(λ/n)
+## 
+##        n  I(λ) SE (theo) SE (emp)
+##    <num> <num>     <num>    <num>
+## 1:    20   5.0    0.4472   0.4438
+## 2:    50  12.5    0.2828   0.2810
+## 3:   100  25.0    0.2000   0.2013
+## 4:   200  50.0    0.1414   0.1415
+## 5:   500 125.0    0.0894   0.0917
+```
 
 ---
 
@@ -992,38 +708,12 @@ n_beta <- 100
 beta_data <- rbeta(n_beta, true_alpha, true_beta)
 
 cat("Numerical MLE for Beta Distribution\n")
-```
-
-```
-## Numerical MLE for Beta Distribution
-```
-
-``` r
 cat("====================================\n\n")
-```
 
-```
-## ====================================
-```
-
-``` r
 cat(sprintf("True parameters: α = %.0f, β = %.0f\n", true_alpha, true_beta))
-```
-
-```
-## True parameters: <U+03B1> = 2, <U+03B2> = 5
-```
-
-``` r
 cat(sprintf("Sample mean = %.4f (theoretical = %.4f)\n\n",
             mean(beta_data), true_alpha / (true_alpha + true_beta)))
-```
 
-```
-## Sample mean = 0.2912 (theoretical = 0.2857)
-```
-
-``` r
 # Define negative log-likelihood
 neg_log_lik_beta <- function(params) {
     alpha <- params[1]
@@ -1051,53 +741,13 @@ beta_mle <- mle_result$par[2]
 se_params <- sqrt(diag(solve(mle_result$hessian)))
 
 cat("MLEs (found numerically):\n")
-```
-
-```
-## MLEs (found numerically):
-```
-
-``` r
 cat(sprintf("  α̂ = %.4f (SE = %.4f)\n", alpha_mle, se_params[1]))
-```
-
-```
-##   <U+03B1><U+0302> = 1.9055 (SE = 0.2508)
-```
-
-``` r
 cat(sprintf("  β̂ = %.4f (SE = %.4f)\n\n", beta_mle, se_params[2]))
-```
 
-```
-##   <U+03B2><U+0302> = 4.6961 (SE = 0.6675)
-```
-
-``` r
 cat("95%% Confidence intervals:\n")
-```
-
-```
-## 95%% Confidence intervals:
-```
-
-``` r
 cat(sprintf("  α: [%.3f, %.3f]\n", alpha_mle - 1.96*se_params[1], alpha_mle + 1.96*se_params[1]))
-```
-
-```
-##   <U+03B1>: [1.414, 2.397]
-```
-
-``` r
 cat(sprintf("  β: [%.3f, %.3f]\n", beta_mle - 1.96*se_params[2], beta_mle + 1.96*se_params[2]))
-```
 
-```
-##   <U+03B2>: [3.388, 6.004]
-```
-
-``` r
 # Visualise fit
 x_seq <- seq(0.001, 0.999, length.out = 200)
 
@@ -1125,6 +775,22 @@ ggplot2$ggplot(data.table(x = beta_data), ggplot2$aes(x = x)) +
 	Numerical optimisation to find MLE for beta distribution
 </Figure>
 
+```
+## Numerical MLE for Beta Distribution
+## ====================================
+## 
+## True parameters: α = 2, β = 5
+## Sample mean = 0.2912 (theoretical = 0.2857)
+## 
+## MLEs (found numerically):
+##   α̂ = 1.9055 (SE = 0.2508)
+##   β̂ = 4.6961 (SE = 0.6675)
+## 
+## 95%% Confidence intervals:
+##   α: [1.414, 2.397]
+##   β: [3.388, 6.004]
+```
+
 ### 7.8.2 Implementation from Scratch
 
 Let's implement MLE for a gamma distribution:
@@ -1141,21 +807,8 @@ n_gamma_mle <- 150
 gamma_data <- rgamma(n_gamma_mle, shape = true_shape, rate = true_rate)
 
 cat("MLE for Gamma Distribution (from scratch)\n")
-```
-
-```
-## MLE for Gamma Distribution (from scratch)
-```
-
-``` r
 cat("==========================================\n\n")
-```
 
-```
-## ==========================================
-```
-
-``` r
 # Method of Moments for starting values
 xbar <- mean(gamma_data)
 s2 <- var(gamma_data)
@@ -1164,21 +817,8 @@ alpha_mom <- xbar^2 / s2
 beta_mom <- xbar / s2
 
 cat("Starting values (Method of Moments):\n")
-```
-
-```
-## Starting values (Method of Moments):
-```
-
-``` r
 cat(sprintf("  α₀ = %.3f, β₀ = %.3f\n\n", alpha_mom, beta_mom))
-```
 
-```
-##   <U+03B1><U+2080> = 3.429, <U+03B2><U+2080> = 0.559
-```
-
-``` r
 # Negative log-likelihood for gamma
 neg_loglik_gamma <- function(params) {
     shape <- params[1]
@@ -1207,70 +847,17 @@ rate_mle <- gamma_mle$par[2]
 se_gamma <- sqrt(diag(solve(gamma_mle$hessian)))
 
 cat(sprintf("True parameters: α = %.1f, β = %.1f\n\n", true_shape, true_rate))
-```
 
-```
-## True parameters: <U+03B1> = 3.0, <U+03B2> = 0.5
-```
-
-``` r
 cat("MLEs:\n")
-```
-
-```
-## MLEs:
-```
-
-``` r
 cat(sprintf("  α̂ = %.4f (SE = %.4f, true = %.1f)\n", shape_mle, se_gamma[1], true_shape))
-```
-
-```
-##   <U+03B1><U+0302> = 3.0546 (SE = 0.3352, true = 3.0)
-```
-
-``` r
 cat(sprintf("  β̂ = %.4f (SE = %.4f, true = %.1f)\n\n", rate_mle, se_gamma[2], true_rate))
-```
 
-```
-##   <U+03B2><U+0302> = 0.4975 (SE = 0.0593, true = 0.5)
-```
-
-``` r
 # Compare MOM and MLE
 cat("Comparison:\n")
-```
-
-```
-## Comparison:
-```
-
-``` r
 cat(sprintf("  Method of Moments: α = %.3f, β = %.3f\n", alpha_mom, beta_mom))
-```
-
-```
-##   Method of Moments: <U+03B1> = 3.429, <U+03B2> = 0.559
-```
-
-``` r
 cat(sprintf("  MLE:               α = %.3f, β = %.3f\n", shape_mle, rate_mle))
-```
-
-```
-##   MLE:               <U+03B1> = 3.055, <U+03B2> = 0.497
-```
-
-``` r
 cat(sprintf("  True:              α = %.3f, β = %.3f\n", true_shape, true_rate))
-```
 
-```
-##   True:              <U+03B1> = 3.000, <U+03B2> = 0.500
-```
-
-``` r
 # Visualise
 x_gamma <- seq(0.01, max(gamma_data) * 1.1, length.out = 200)
 
@@ -1302,6 +889,25 @@ ggplot2$ggplot(data.table(x = gamma_data), ggplot2$aes(x = x)) +
 	MLE for gamma distribution using numerical optimisation
 </Figure>
 
+```
+## MLE for Gamma Distribution (from scratch)
+## ==========================================
+## 
+## Starting values (Method of Moments):
+##   α₀ = 3.429, β₀ = 0.559
+## 
+## True parameters: α = 3.0, β = 0.5
+## 
+## MLEs:
+##   α̂ = 3.0546 (SE = 0.3352, true = 3.0)
+##   β̂ = 0.4975 (SE = 0.0593, true = 0.5)
+## 
+## Comparison:
+##   Method of Moments: α = 3.429, β = 0.559
+##   MLE:               α = 3.055, β = 0.497
+##   True:              α = 3.000, β = 0.500
+```
+
 ---
 
 ## 7.9 Biomedical Application: Survival Time Estimation
@@ -1329,83 +935,24 @@ observed_times <- pmin(true_times, censoring_time)
 event_occurred <- true_times <= censoring_time
 
 cat("Survival Time Analysis with MLE\n")
-```
-
-```
-## Survival Time Analysis with MLE
-```
-
-``` r
 cat("===============================\n\n")
-```
 
-```
-## ===============================
-```
-
-``` r
 cat(sprintf("True hazard rate: λ = %.2f (mean survival = %.2f units)\n\n",
             true_hazard, 1/true_hazard))
-```
 
-```
-## True hazard rate: <U+03BB> = 0.15 (mean survival = 6.67 units)
-```
-
-``` r
 cat("Sample characteristics:\n")
-```
-
-```
-## Sample characteristics:
-```
-
-``` r
 cat(sprintf("  n = %d patients\n", n_patients))
-```
-
-```
-##   n = 75 patients
-```
-
-``` r
 cat(sprintf("  Events observed: %d (%.1f%%)\n",
             sum(event_occurred), 100 * mean(event_occurred)))
-```
-
-```
-##   Events observed: 49 (65.3%)
-```
-
-``` r
 cat(sprintf("  Censored: %d (%.1f%%)\n\n",
             sum(!event_occurred), 100 * mean(!event_occurred)))
-```
 
-```
-##   Censored: 26 (34.7%)
-```
-
-``` r
 # Naive estimate (ignoring censoring) - WRONG!
 naive_lambda <- 1 / mean(observed_times)
 
 cat("Naive estimate (ignoring censoring):\n")
-```
-
-```
-## Naive estimate (ignoring censoring):
-```
-
-``` r
 cat(sprintf("  λ̂_naive = 1/X̄ = %.4f (BIASED - underestimates hazard)\n\n", naive_lambda))
-```
 
-```
-##   <U+03BB><U+0302>_naive = 1/X<U+0304> = 0.1676 (BIASED - underestimates hazard)
-```
-
-``` r
 # Correct MLE for censored exponential data
 # Log-likelihood: ℓ(λ) = d·log(λ) - λ·Σtᵢ
 # where d = number of events, Σtᵢ = total time at risk
@@ -1415,48 +962,15 @@ total_time <- sum(observed_times)
 lambda_mle_correct <- n_events / total_time
 
 cat("Correct MLE (accounting for censoring):\n")
-```
-
-```
-## Correct MLE (accounting for censoring):
-```
-
-``` r
 cat(sprintf("  λ̂ = d / Σtᵢ = %d / %.2f = %.4f\n", n_events, total_time, lambda_mle_correct))
-```
-
-```
-##   <U+03BB><U+0302> = d / <U+03A3>t<U+1D62> = 49 / 447.57 = 0.1095
-```
-
-``` r
 cat(sprintf("  (True λ = %.2f)\n\n", true_hazard))
-```
 
-```
-##   (True <U+03BB> = 0.15)
-```
-
-``` r
 # Standard error
 se_lambda <- lambda_mle_correct / sqrt(n_events)
 cat(sprintf("Standard error: SE(λ̂) = λ̂/√d = %.4f\n", se_lambda))
-```
-
-```
-## Standard error: SE(<U+03BB><U+0302>) = <U+03BB><U+0302>/<U+221A>d = 0.0156
-```
-
-``` r
 cat(sprintf("95%% CI: [%.4f, %.4f]\n", lambda_mle_correct - 1.96*se_lambda,
             lambda_mle_correct + 1.96*se_lambda))
-```
 
-```
-## 95% CI: [0.0788, 0.1401]
-```
-
-``` r
 # Visualise
 survival_dt <- data.table(
     time = observed_times,
@@ -1488,6 +1002,28 @@ ggplot2$ggplot(survival_dt, ggplot2$aes(x = time, fill = status)) +
 	Estimating disease progression rate using MLE
 </Figure>
 
+```
+## Survival Time Analysis with MLE
+## ===============================
+## 
+## True hazard rate: λ = 0.15 (mean survival = 6.67 units)
+## 
+## Sample characteristics:
+##   n = 75 patients
+##   Events observed: 49 (65.3%)
+##   Censored: 26 (34.7%)
+## 
+## Naive estimate (ignoring censoring):
+##   λ̂_naive = 1/X̄ = 0.1676 (BIASED - underestimates hazard)
+## 
+## Correct MLE (accounting for censoring):
+##   λ̂ = d / Σtᵢ = 49 / 447.57 = 0.1095
+##   (True λ = 0.15)
+## 
+## Standard error: SE(λ̂) = λ̂/√d = 0.0156
+## 95% CI: [0.0788, 0.1401]
+```
+
 ---
 
 ## Communicating to Stakeholders
@@ -1497,153 +1033,53 @@ ggplot2$ggplot(survival_dt, ggplot2$aes(x = time, fill = status)) +
 
 ``` r
 cat("Explaining Maximum Likelihood to Non-Statisticians\n")
-```
-
-```
-## Explaining Maximum Likelihood to Non-Statisticians
-```
-
-``` r
 cat("===================================================\n\n")
-```
 
-```
-## ===================================================
-```
-
-``` r
 cat("THE CORE IDEA:\n")
-```
-
-```
-## THE CORE IDEA:
-```
-
-``` r
 cat("  'We choose parameter values that make the observed data\n")
-```
-
-```
-##   'We choose parameter values that make the observed data
-```
-
-``` r
 cat("   most probable. If we observed 70 responders out of 100,\n")
-```
-
-```
-##    most probable. If we observed 70 responders out of 100,
-```
-
-``` r
 cat("   the most likely true response rate is 70%.'\n\n")
-```
 
-```
-##    the most likely true response rate is 70%.'
-```
-
-``` r
 cat("ANALOGY:\n")
-```
-
-```
-## ANALOGY:
-```
-
-``` r
 cat("  'Imagine finding footprints and trying to guess the shoe size.\n")
-```
-
-```
-##   'Imagine finding footprints and trying to guess the shoe size.
-```
-
-``` r
 cat("   You'd pick the size that best matches the prints. MLE works\n")
-```
-
-```
-##    You'd pick the size that best matches the prints. MLE works
-```
-
-``` r
 cat("   the same way — finding the parameter that best matches the data.'\n\n")
-```
 
-```
-##    the same way <U+2014> finding the parameter that best matches the data.'
-```
-
-``` r
 cat("WHY MLE IS PREFERRED:\n")
-```
-
-```
-## WHY MLE IS PREFERRED:
-```
-
-``` r
 cat("  1. Makes efficient use of all information in the data\n")
-```
-
-```
-##   1. Makes efficient use of all information in the data
-```
-
-``` r
 cat("  2. Works for almost any statistical model\n")
-```
-
-```
-##   2. Works for almost any statistical model
-```
-
-``` r
 cat("  3. Has well-understood mathematical properties\n")
-```
-
-```
-##   3. Has well-understood mathematical properties
-```
-
-``` r
 cat("  4. Provides natural standard errors for uncertainty\n\n")
-```
 
-```
-##   4. Provides natural standard errors for uncertainty
-```
-
-``` r
 cat("INTERPRETING RESULTS:\n")
-```
-
-```
-## INTERPRETING RESULTS:
-```
-
-``` r
 cat("  'The MLE is our best guess for the true parameter,\n")
-```
-
-```
-##   'The MLE is our best guess for the true parameter,
-```
-
-``` r
 cat("   and the standard error tells us how uncertain we are.\n")
-```
-
-```
-##    and the standard error tells us how uncertain we are.
-```
-
-``` r
 cat("   Larger samples give smaller standard errors (more certainty).'\n")
 ```
 
 ```
+## Explaining Maximum Likelihood to Non-Statisticians
+## ===================================================
+## 
+## THE CORE IDEA:
+##   'We choose parameter values that make the observed data
+##    most probable. If we observed 70 responders out of 100,
+##    the most likely true response rate is 70%.'
+## 
+## ANALOGY:
+##   'Imagine finding footprints and trying to guess the shoe size.
+##    You'd pick the size that best matches the prints. MLE works
+##    the same way — finding the parameter that best matches the data.'
+## 
+## WHY MLE IS PREFERRED:
+##   1. Makes efficient use of all information in the data
+##   2. Works for almost any statistical model
+##   3. Has well-understood mathematical properties
+##   4. Provides natural standard errors for uncertainty
+## 
+## INTERPRETING RESULTS:
+##   'The MLE is our best guess for the true parameter,
+##    and the standard error tells us how uncertain we are.
 ##    Larger samples give smaller standard errors (more certainty).'
 ```
 

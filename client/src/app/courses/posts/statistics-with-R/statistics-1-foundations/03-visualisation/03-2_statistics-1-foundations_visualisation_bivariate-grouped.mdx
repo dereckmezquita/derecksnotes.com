@@ -38,14 +38,17 @@ gapminder <- fread("../../../data/primary/gapminder.csv")
 breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
 
 cat("Datasets loaded:\n")
-#> Datasets loaded:
 cat("  NHANES:", nrow(nhanes), "observations\n")
-#>   NHANES: 10000 observations
 cat("  Penguins:", nrow(penguins), "observations\n")
-#>   Penguins: 344 observations
 cat("  Gapminder:", nrow(gapminder), "observations\n")
-#>   Gapminder: 1704 observations
 cat("  Breast Cancer:", nrow(breast_cancer), "observations\n")
+```
+
+```
+#> Datasets loaded:
+#>   NHANES: 10000 observations
+#>   Penguins: 344 observations
+#>   Gapminder: 1704 observations
 #>   Breast Cancer: 569 observations
 ```
 
@@ -213,6 +216,9 @@ p_loess <- ggplot2$ggplot(gap_2007, ggplot2$aes(x = gdpPercap, y = lifeExp)) +
     ggplot2$theme_minimal()
 
 gridExtra::grid.arrange(p_linear, p_loess, ncol = 2)
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
@@ -256,12 +262,10 @@ my_lm <- function(x, y) {
 # Apply to penguin data (all species combined)
 fit <- my_lm(penguins_clean$bill_length_mm, penguins_clean$bill_depth_mm)
 cat("From scratch: intercept =", round(fit$intercept, 3), ", slope =", round(fit$slope, 3), "\n")
-#> From scratch: intercept = 20.885 , slope = -0.085
 
 # Compare to built-in
 lm_fit <- lm(bill_depth_mm ~ bill_length_mm, data = penguins_clean)
 cat("Built-in lm(): intercept =", round(coef(lm_fit)[1], 3), ", slope =", round(coef(lm_fit)[2], 3), "\n")
-#> Built-in lm(): intercept = 20.885 , slope = -0.085
 
 # Visualise
 ggplot2$ggplot(penguins_clean, ggplot2$aes(x = bill_length_mm, y = bill_depth_mm)) +
@@ -284,6 +288,11 @@ ggplot2$ggplot(penguins_clean, ggplot2$aes(x = bill_length_mm, y = bill_depth_mm
 <Figure src="/courses/statistics-1-foundations/lm_from_scratch-1.png" alt="Linear regression line computed from scratch">
 	Linear regression line computed from scratch
 </Figure>
+
+```
+#> From scratch: intercept = 20.885 , slope = -0.085 
+#> Built-in lm(): intercept = 20.885 , slope = -0.085
+```
 
 Note: The negative slope here is a classic example of **Simpson's Paradox**—when we ignore species, the relationship appears negative, but within each species, it's positive. We'll see this when we add colour by species.
 
@@ -456,6 +465,9 @@ ggplot2$ggplot(gapminder, ggplot2$aes(x = year, y = lifeExp, group = country)) +
         y = "Life Expectancy (years)"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -535,6 +547,9 @@ ggplot2$ggplot(penguins_clean, ggplot2$aes(x = bill_length_mm, y = bill_depth_mm
         colour = "Species"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
@@ -649,19 +664,22 @@ for (i in seq_len(n_vars)) {
 }
 
 cat("Correlation Matrix (from scratch):\n")
-#> Correlation Matrix (from scratch):
 print(round(cor_matrix, 3))
+
+# Compare to built-in
+cat("\nCorrelation Matrix (built-in):\n")
+print(round(cor(penguin_numeric), 3))
+```
+
+```
+#> Correlation Matrix (from scratch):
 #>                bill_length bill_depth flipper_length body_mass
 #> bill_length          1.000     -0.235          0.656     0.595
 #> bill_depth          -0.235      1.000         -0.584    -0.472
 #> flipper_length       0.656     -0.584          1.000     0.871
 #> body_mass            0.595     -0.472          0.871     1.000
-
-# Compare to built-in
-cat("\nCorrelation Matrix (built-in):\n")
 #> 
 #> Correlation Matrix (built-in):
-print(round(cor(penguin_numeric), 3))
 #>                bill_length bill_depth flipper_length body_mass
 #> bill_length          1.000     -0.235          0.656     0.595
 #> bill_depth          -0.235      1.000         -0.584    -0.472
@@ -812,6 +830,9 @@ ggplot2$ggplot(anscombe_long, ggplot2$aes(x = x, y = y)) +
         y = "Y"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 

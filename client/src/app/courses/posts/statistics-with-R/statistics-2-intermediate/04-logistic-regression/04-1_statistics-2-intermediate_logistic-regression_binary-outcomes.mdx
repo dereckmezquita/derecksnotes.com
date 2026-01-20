@@ -34,10 +34,13 @@ nhanes <- fread("../../../data/primary/nhanes.csv")
 breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
 
 cat("Datasets loaded:\n")
-#> Datasets loaded:
 cat("  NHANES:", nrow(nhanes), "observations\n")
-#>   NHANES: 10000 observations
 cat("  Breast cancer:", nrow(breast_cancer), "observations\n")
+```
+
+```
+#> Datasets loaded:
+#>   NHANES: 10000 observations
 #>   Breast cancer: 569 observations
 ```
 
@@ -72,30 +75,20 @@ diabetes_data <- diabetes_data[complete.cases(diabetes_data)]
 model_lpm <- lm(diabetes ~ BMI, data = diabetes_data)
 
 cat("Linear Probability Model: diabetes ~ BMI\n")
-#> Linear Probability Model: diabetes ~ BMI
 cat("=========================================\n\n")
-#> =========================================
 cat("Coefficients:\n")
-#> Coefficients:
 cat("  Intercept:", round(coef(model_lpm)[1], 4), "\n")
-#>   Intercept: -0.157
 cat("  BMI:", round(coef(model_lpm)[2], 4), "\n\n")
-#>   BMI: 0.0089
 
 # Check predictions
 bmi_range <- data.table(BMI = seq(15, 60, by = 0.5))
 bmi_range[, pred_linear := predict(model_lpm, newdata = .SD)]
 
 cat("Problems with predictions:\n")
-#> Problems with predictions:
 cat("  At BMI = 15:", round(predict(model_lpm, newdata = data.table(BMI = 15)), 3), "\n")
-#>   At BMI = 15: -0.023
 cat("  At BMI = 50:", round(predict(model_lpm, newdata = data.table(BMI = 50)), 3), "\n")
-#>   At BMI = 50: 0.289
 cat("  Min prediction:", round(min(bmi_range$pred_linear), 3), "\n")
-#>   Min prediction: -0.023
 cat("  Max prediction:", round(max(bmi_range$pred_linear), 3), "\n")
-#>   Max prediction: 0.378
 
 # Visualise
 ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 3000))],
@@ -122,6 +115,21 @@ ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 3000))],
 <Figure src="/courses/statistics-2-intermediate/linear_probability_problem-1.png" alt="Linear regression produces impossible probability predictions">
 	Linear regression produces impossible probability predictions
 </Figure>
+
+```
+#> Linear Probability Model: diabetes ~ BMI
+#> =========================================
+#> 
+#> Coefficients:
+#>   Intercept: -0.157 
+#>   BMI: 0.0089 
+#> 
+#> Problems with predictions:
+#>   At BMI = 15: -0.023 
+#>   At BMI = 50: 0.289 
+#>   Min prediction: -0.023 
+#>   Max prediction: 0.378
+```
 
 ### 4.1.2 The Solution: Transform the Probability
 
@@ -240,41 +248,17 @@ print(p2)
 model_logistic <- glm(diabetes ~ BMI, data = diabetes_data, family = binomial)
 
 cat("Logistic Regression: diabetes ~ BMI\n")
-#> Logistic Regression: diabetes ~ BMI
 cat("====================================\n\n")
-#> ====================================
 summary(model_logistic)
-#> 
-#> Call:
-#> glm(formula = diabetes ~ BMI, family = binomial, data = diabetes_data)
-#> 
-#> Coefficients:
-#>              Estimate Std. Error z value Pr(>|z|)    
-#> (Intercept) -4.680549   0.166589  -28.10   <2e-16 ***
-#> BMI          0.081755   0.005115   15.98   <2e-16 ***
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
-#> 
-#> (Dispersion parameter for binomial family taken to be 1)
-#> 
-#>     Null deviance: 4778.9  on 7413  degrees of freedom
-#> Residual deviance: 4525.9  on 7412  degrees of freedom
-#> AIC: 4529.9
-#> 
-#> Number of Fisher Scoring iterations: 5
 
 # Get predictions
 bmi_range[, pred_logistic := predict(model_logistic, newdata = .SD, type = "response")]
 
 cat("\nPredictions properly bounded:\n")
-#> 
-#> Predictions properly bounded:
 cat("  At BMI = 15:", round(predict(model_logistic, newdata = data.table(BMI = 15),
                                     type = "response"), 4), "\n")
-#>   At BMI = 15: 0.0306
 cat("  At BMI = 50:", round(predict(model_logistic, newdata = data.table(BMI = 50),
                                     type = "response"), 4), "\n")
-#>   At BMI = 50: 0.356
 
 # Compare models
 ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 3000))],
@@ -300,6 +284,35 @@ ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 3000))],
 <Figure src="/courses/statistics-2-intermediate/fit_logistic-1.png" alt="Logistic regression properly constrains predictions to [0,1]">
 	Logistic regression properly constrains predictions to [0,1]
 </Figure>
+
+```
+#> Logistic Regression: diabetes ~ BMI
+#> ====================================
+#> 
+#> 
+#> Call:
+#> glm(formula = diabetes ~ BMI, family = binomial, data = diabetes_data)
+#> 
+#> Coefficients:
+#>              Estimate Std. Error z value Pr(>|z|)    
+#> (Intercept) -4.680549   0.166589  -28.10   <2e-16 ***
+#> BMI          0.081755   0.005115   15.98   <2e-16 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#> (Dispersion parameter for binomial family taken to be 1)
+#> 
+#>     Null deviance: 4778.9  on 7413  degrees of freedom
+#> Residual deviance: 4525.9  on 7412  degrees of freedom
+#> AIC: 4529.9
+#> 
+#> Number of Fisher Scoring iterations: 5
+#> 
+#> 
+#> Predictions properly bounded:
+#>   At BMI = 15: 0.0306 
+#>   At BMI = 50: 0.356
+```
 
 ---
 
@@ -337,32 +350,44 @@ $$\text{OR} = \frac{\text{odds}_{x+1}}{\text{odds}_x} = e^{\beta_1}$$
 coefs <- summary(model_logistic)$coefficients
 or_bmi <- exp(coef(model_logistic)["BMI"])
 ci_logit <- confint(model_logistic)
+```
+
+```
 #> Waiting for profiling to be done...
+```
+
+``` r
 or_ci <- exp(ci_logit["BMI", ])
 
 cat("Odds Ratio Interpretation:\n")
-#> Odds Ratio Interpretation:
 cat("==========================\n\n")
-#> ==========================
 cat("Log-odds coefficient for BMI:", round(coef(model_logistic)["BMI"], 4), "\n")
-#> Log-odds coefficient for BMI: 0.0818
 cat("Odds Ratio for BMI:", round(or_bmi, 3), "\n")
-#> Odds Ratio for BMI: 1.085
 cat("95% CI for OR:", round(or_ci[1], 3), "-", round(or_ci[2], 3), "\n\n")
-#> 95% CI for OR: 1.074 - 1.096
 
 cat("Interpretation:\n")
-#> Interpretation:
 cat("For each 1-unit increase in BMI, the odds of diabetes\n")
-#> For each 1-unit increase in BMI, the odds of diabetes
 cat("are multiplied by", round(or_bmi, 3), "\n\n")
-#> are multiplied by 1.085
 
 cat("For a 5-unit increase in BMI:\n")
-#> For a 5-unit increase in BMI:
 cat("  Odds multiplied by", round(or_bmi^5, 2), "\n")
-#>   Odds multiplied by 1.5
 cat("  (i.e., OR^5 =", round(or_bmi, 3), "^5 =", round(or_bmi^5, 2), ")\n")
+```
+
+```
+#> Odds Ratio Interpretation:
+#> ==========================
+#> 
+#> Log-odds coefficient for BMI: 0.0818 
+#> Odds Ratio for BMI: 1.085 
+#> 95% CI for OR: 1.074 - 1.096 
+#> 
+#> Interpretation:
+#> For each 1-unit increase in BMI, the odds of diabetes
+#> are multiplied by 1.085 
+#> 
+#> For a 5-unit increase in BMI:
+#>   Odds multiplied by 1.5 
 #>   (i.e., OR^5 = 1.085 ^5 = 1.5 )
 ```
 
@@ -383,25 +408,13 @@ prob_changes[, P_plus_5 := predict(model_logistic, newdata = data.table(BMI = BM
 prob_changes[, Prob_Change := P_plus_5 - P_baseline]
 
 cat("Probability Change for +5 BMI Units:\n")
-#> Probability Change for +5 BMI Units:
 cat("=====================================\n\n")
-#> =====================================
 print(prob_changes[, .(BMI, P_baseline = round(P_baseline, 3),
                        P_plus_5 = round(P_plus_5, 3),
                        Prob_Change = round(Prob_Change, 3))])
-#>      BMI P_baseline P_plus_5 Prob_Change
-#>    <num>      <num>    <num>       <num>
-#> 1:    20      0.045    0.067       0.021
-#> 2:    25      0.067    0.097       0.030
-#> 3:    30      0.097    0.140       0.042
-#> 4:    35      0.140    0.196       0.057
-#> 5:    40      0.196    0.269       0.072
 
 cat("\nNote: The probability increase depends on where you start!\n")
-#> 
-#> Note: The probability increase depends on where you start!
 cat("This is because the logistic curve is steepest near p = 0.5\n")
-#> This is because the logistic curve is steepest near p = 0.5
 
 # Visualise this
 ggplot2$ggplot(bmi_range, ggplot2$aes(x = BMI, y = pred_logistic)) +
@@ -425,6 +438,22 @@ ggplot2$ggplot(bmi_range, ggplot2$aes(x = BMI, y = pred_logistic)) +
 	Probability change depends on baseline probability
 </Figure>
 
+```
+#> Probability Change for +5 BMI Units:
+#> =====================================
+#> 
+#>      BMI P_baseline P_plus_5 Prob_Change
+#>    <num>      <num>    <num>       <num>
+#> 1:    20      0.045    0.067       0.021
+#> 2:    25      0.067    0.097       0.030
+#> 3:    30      0.097    0.140       0.042
+#> 4:    35      0.140    0.196       0.057
+#> 5:    40      0.196    0.269       0.072
+#> 
+#> Note: The probability increase depends on where you start!
+#> This is because the logistic curve is steepest near p = 0.5
+```
+
 ### 4.3.3 Categorical Predictors
 
 
@@ -445,9 +474,7 @@ model_cat <- glm(diabetes ~ BMI + Gender + AgeGroup, data = diabetes_full,
                  family = binomial)
 
 cat("Logistic Regression with Categorical Predictors:\n")
-#> Logistic Regression with Categorical Predictors:
 cat("=================================================\n\n")
-#> =================================================
 
 # Create odds ratio table
 or_table <- data.table(
@@ -459,17 +486,29 @@ or_table <- data.table(
 
 # Add confidence intervals
 ci <- confint(model_cat)
+```
+
+```
 #> Waiting for profiling to be done...
+```
+
+``` r
 or_table[, `:=`(
     OR_Lower = exp(ci[, 1]),
     OR_Upper = exp(ci[, 2])
 )]
 
 cat("Odds Ratios with 95% CI:\n")
-#> Odds Ratios with 95% CI:
 print(or_table[, .(Variable,
                    OR = round(OR, 3),
                    CI = paste0("(", round(OR_Lower, 3), ", ", round(OR_Upper, 3), ")"))])
+```
+
+```
+#> Logistic Regression with Categorical Predictors:
+#> =================================================
+#> 
+#> Odds Ratios with 95% CI:
 #>         Variable     OR              CI
 #>           <char>  <num>          <char>
 #> 1:   (Intercept)  0.001      (0, 0.001)
@@ -535,10 +574,36 @@ model_multiple <- glm(diabetes ~ Age + BMI + Gender + SBP + TotChol,
                       data = diabetes_model, family = binomial)
 
 cat("Multiple Logistic Regression:\n")
-#> Multiple Logistic Regression:
 cat("=============================\n\n")
-#> =============================
 summary(model_multiple)
+
+# Odds ratios
+or_multiple <- data.table(
+    Variable = names(coef(model_multiple)),
+    OR = exp(coef(model_multiple))
+)
+ci_multiple <- confint(model_multiple)
+```
+
+```
+#> Waiting for profiling to be done...
+```
+
+``` r
+or_multiple[, `:=`(
+    Lower = exp(ci_multiple[, 1]),
+    Upper = exp(ci_multiple[, 2])
+)]
+
+cat("\nAdjusted Odds Ratios:\n")
+print(or_multiple[-1, .(Variable, OR = round(OR, 3),
+                        CI = paste0("(", round(Lower, 3), ", ", round(Upper, 3), ")"))])
+```
+
+```
+#> Multiple Logistic Regression:
+#> =============================
+#> 
 #> 
 #> Call:
 #> glm(formula = diabetes ~ Age + BMI + Gender + SBP + TotChol, 
@@ -562,24 +627,9 @@ summary(model_multiple)
 #> AIC: 3554.2
 #> 
 #> Number of Fisher Scoring iterations: 6
-
-# Odds ratios
-or_multiple <- data.table(
-    Variable = names(coef(model_multiple)),
-    OR = exp(coef(model_multiple))
-)
-ci_multiple <- confint(model_multiple)
-#> Waiting for profiling to be done...
-or_multiple[, `:=`(
-    Lower = exp(ci_multiple[, 1]),
-    Upper = exp(ci_multiple[, 2])
-)]
-
-cat("\nAdjusted Odds Ratios:\n")
+#> 
 #> 
 #> Adjusted Odds Ratios:
-print(or_multiple[-1, .(Variable, OR = round(OR, 3),
-                        CI = paste0("(", round(Lower, 3), ", ", round(Upper, 3), ")"))])
 #>      Variable    OR             CI
 #>        <char> <num>         <char>
 #> 1:        Age 1.057 (1.051, 1.063)
@@ -595,9 +645,7 @@ print(or_multiple[-1, .(Variable, OR = round(OR, 3),
 ``` r
 # Compare adjusted and unadjusted ORs
 cat("Comparing Adjusted vs Unadjusted Odds Ratios:\n")
-#> Comparing Adjusted vs Unadjusted Odds Ratios:
 cat("==============================================\n\n")
-#> ==============================================
 
 # Unadjusted OR for BMI
 model_unadj <- glm(diabetes ~ BMI, data = diabetes_model, family = binomial)
@@ -607,18 +655,25 @@ or_unadj <- exp(coef(model_unadj)["BMI"])
 or_adj <- exp(coef(model_multiple)["BMI"])
 
 cat("BMI and Diabetes:\n")
-#> BMI and Diabetes:
 cat("  Unadjusted OR:", round(or_unadj, 3), "\n")
-#>   Unadjusted OR: 1.085
 cat("  Adjusted OR:", round(or_adj, 3), "(controlling for Age, Gender, SBP, TotChol)\n\n")
-#>   Adjusted OR: 1.098 (controlling for Age, Gender, SBP, TotChol)
 
 cat("Interpretation:\n")
-#> Interpretation:
 cat("The adjusted OR controls for confounders.\n")
-#> The adjusted OR controls for confounders.
 cat("If adjusted OR ≠ unadjusted OR, there may be confounding.\n")
-#> If adjusted OR <U+2260> unadjusted OR, there may be confounding.
+```
+
+```
+#> Comparing Adjusted vs Unadjusted Odds Ratios:
+#> ==============================================
+#> 
+#> BMI and Diabetes:
+#>   Unadjusted OR: 1.085 
+#>   Adjusted OR: 1.098 (controlling for Age, Gender, SBP, TotChol)
+#> 
+#> Interpretation:
+#> The adjusted OR controls for confounders.
+#> If adjusted OR ≠ unadjusted OR, there may be confounding.
 ```
 
 ---
@@ -643,24 +698,44 @@ bc_data <- breast_cancer[, .(
 bc_data <- bc_data[complete.cases(bc_data)]
 
 cat("Breast Cancer Wisconsin Dataset:\n")
-#> Breast Cancer Wisconsin Dataset:
 cat("================================\n\n")
-#> ================================
 cat("Total cases:", nrow(bc_data), "\n")
-#> Total cases: 569
 cat("Malignant (1):", sum(bc_data$diagnosis), "(", round(100*mean(bc_data$diagnosis), 1), "%)\n")
-#> Malignant (1): 212 ( 37.3 %)
 cat("Benign (0):", sum(1 - bc_data$diagnosis), "(", round(100*(1 - mean(bc_data$diagnosis)), 1), "%)\n")
-#> Benign (0): 357 ( 62.7 %)
 
 # Fit logistic regression with key predictors
 model_bc <- glm(diagnosis ~ mean_radius + mean_texture + mean_concavity,
                 data = bc_data, family = binomial)
 
 cat("\nLogistic Regression for Malignancy:\n")
+summary(model_bc)
+
+# Odds ratios
+or_bc <- exp(coef(model_bc))
+ci_bc <- exp(confint(model_bc))
+```
+
+```
+#> Waiting for profiling to be done...
+```
+
+``` r
+cat("\nOdds Ratios (per 1-unit increase):\n")
+for (var in names(or_bc)[-1]) {
+    cat(sprintf("  %s: OR = %.2f (95%% CI: %.2f - %.2f)\n",
+                var, or_bc[var], ci_bc[var, 1], ci_bc[var, 2]))
+}
+```
+
+```
+#> Breast Cancer Wisconsin Dataset:
+#> ================================
+#> 
+#> Total cases: 569 
+#> Malignant (1): 212 ( 37.3 %)
+#> Benign (0): 357 ( 62.7 %)
 #> 
 #> Logistic Regression for Malignancy:
-summary(model_bc)
 #> 
 #> Call:
 #> glm(formula = diagnosis ~ mean_radius + mean_texture + mean_concavity, 
@@ -682,19 +757,9 @@ summary(model_bc)
 #> AIC: 205.31
 #> 
 #> Number of Fisher Scoring iterations: 7
-
-# Odds ratios
-or_bc <- exp(coef(model_bc))
-ci_bc <- exp(confint(model_bc))
-#> Waiting for profiling to be done...
-
-cat("\nOdds Ratios (per 1-unit increase):\n")
+#> 
 #> 
 #> Odds Ratios (per 1-unit increase):
-for (var in names(or_bc)[-1]) {
-    cat(sprintf("  %s: OR = %.2f (95%% CI: %.2f - %.2f)\n",
-                var, or_bc[var], ci_bc[var, 1], ci_bc[var, 2]))
-}
 #>   mean_radius: OR = 2.69 (95% CI: 2.16 - 3.48)
 #>   mean_texture: OR = 1.30 (95% CI: 1.19 - 1.43)
 #>   mean_concavity: OR = 3241153706802.40 (95% CI: 3328576938.75 - 9297336674009026.00)

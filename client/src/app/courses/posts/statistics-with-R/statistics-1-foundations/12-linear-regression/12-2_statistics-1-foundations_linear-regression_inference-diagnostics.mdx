@@ -62,25 +62,14 @@ sample_data[, `:=`(
 )]
 
 cat("Comparison of Residual Types\n")
-```
-
-```
-## Comparison of Residual Types
-```
-
-``` r
 cat("============================\n\n")
-```
-
-```
-## ============================
-```
-
-``` r
 print(sample_data[1:10, .(Height, Weight, fitted, raw_resid, std_resid, stud_resid)])
 ```
 
 ```
+## Comparison of Residual Types
+## ============================
+## 
 ##     Height Weight   fitted  raw_resid  std_resid stud_resid
 ##      <num>  <num>    <num>      <num>      <num>      <num>
 ##  1:  169.3   94.2 81.61708  12.582917  0.7028091  0.7024516
@@ -306,53 +295,12 @@ bp_stat <- n * bp_r2
 bp_pvalue <- pchisq(bp_stat, df = 1, lower.tail = FALSE)
 
 cat("Breusch-Pagan Test for Heteroscedasticity\n")
-```
-
-```
-## Breusch-Pagan Test for Heteroscedasticity
-```
-
-``` r
 cat("=========================================\n\n")
-```
-
-```
-## =========================================
-```
-
-``` r
 cat("H₀: Constant variance (homoscedasticity)\n")
-```
-
-```
-## H<U+2080>: Constant variance (homoscedasticity)
-```
-
-``` r
 cat("H₁: Variance depends on fitted values\n\n")
-```
-
-```
-## H<U+2081>: Variance depends on fitted values
-```
-
-``` r
 cat(sprintf("Test statistic: BP = n × R² = %d × %.4f = %.3f\n", n, bp_r2, bp_stat))
-```
-
-```
-## Test statistic: BP = n <U+00D7> R<U+00B2> = 200 <U+00D7> 0.1502 = 30.048
-```
-
-``` r
 cat(sprintf("p-value: %.4f\n\n", bp_pvalue))
-```
 
-```
-## p-value: 0.0000
-```
-
-``` r
 if (bp_pvalue < 0.05) {
     cat("Conclusion: Reject H₀. Evidence of heteroscedasticity.\n")
 } else {
@@ -361,7 +309,16 @@ if (bp_pvalue < 0.05) {
 ```
 
 ```
-## Conclusion: Reject H<U+2080>. Evidence of heteroscedasticity.
+## Breusch-Pagan Test for Heteroscedasticity
+## =========================================
+## 
+## H₀: Constant variance (homoscedasticity)
+## H₁: Variance depends on fitted values
+## 
+## Test statistic: BP = n × R² = 200 × 0.1502 = 30.048
+## p-value: 0.0000
+## 
+## Conclusion: Reject H₀. Evidence of heteroscedasticity.
 ```
 
 ### 12.14.3 Consequences and Solutions
@@ -436,53 +393,12 @@ ggplot2$ggplot(qq_data, ggplot2$aes(sample = std_resid)) +
 sw_test <- shapiro.test(residuals(model))
 
 cat("Shapiro-Wilk Test for Normality of Residuals\n")
-```
-
-```
-## Shapiro-Wilk Test for Normality of Residuals
-```
-
-``` r
 cat("=============================================\n\n")
-```
-
-```
-## =============================================
-```
-
-``` r
 cat("H₀: Residuals are normally distributed\n")
-```
-
-```
-## H<U+2080>: Residuals are normally distributed
-```
-
-``` r
 cat("H₁: Residuals are not normally distributed\n\n")
-```
-
-```
-## H<U+2081>: Residuals are not normally distributed
-```
-
-``` r
 cat(sprintf("W = %.4f\n", sw_test$statistic))
-```
-
-```
-## W = 0.9442
-```
-
-``` r
 cat(sprintf("p-value = %.4f\n\n", sw_test$p.value))
-```
 
-```
-## p-value = 0.0000
-```
-
-``` r
 if (sw_test$p.value < 0.05) {
     cat("Conclusion: Evidence against normality.\n")
     cat("          However, regression is robust to moderate departures\n")
@@ -493,6 +409,15 @@ if (sw_test$p.value < 0.05) {
 ```
 
 ```
+## Shapiro-Wilk Test for Normality of Residuals
+## =============================================
+## 
+## H₀: Residuals are normally distributed
+## H₁: Residuals are not normally distributed
+## 
+## W = 0.9442
+## p-value = 0.0000
+## 
 ## Conclusion: Evidence against normality.
 ##           However, regression is robust to moderate departures
 ##           from normality with large samples (CLT applies).
@@ -533,46 +458,12 @@ leverage_threshold <- 2 * p / nrow(sample_data)
 high_leverage <- sample_data[leverage > leverage_threshold]
 
 cat("Leverage Analysis\n")
-```
-
-```
-## Leverage Analysis
-```
-
-``` r
 cat("=================\n\n")
-```
-
-```
-## =================
-```
-
-``` r
 cat(sprintf("Mean leverage: %.4f\n", mean(sample_data$leverage)))
-```
-
-```
-## Mean leverage: 0.0040
-```
-
-``` r
 cat(sprintf("Threshold (2p/n): %.4f\n", leverage_threshold))
-```
-
-```
-## Threshold (2p/n): 0.0080
-```
-
-``` r
 cat(sprintf("Points with high leverage: %d (%.1f%%)\n\n",
             nrow(high_leverage), 100 * nrow(high_leverage) / nrow(sample_data)))
-```
 
-```
-## Points with high leverage: 46 (9.2%)
-```
-
-``` r
 # Visualise
 ggplot2$ggplot(sample_data, ggplot2$aes(x = Height, y = leverage)) +
     ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
@@ -589,6 +480,15 @@ ggplot2$ggplot(sample_data, ggplot2$aes(x = Height, y = leverage)) +
 ```
 
 ![plot of chunk leverage](/courses/statistics-1-foundations/leverage-1.png)
+
+```
+## Leverage Analysis
+## =================
+## 
+## Mean leverage: 0.0040
+## Threshold (2p/n): 0.0080
+## Points with high leverage: 46 (9.2%)
+```
 
 ### 12.16.2 Cook's Distance
 
@@ -611,50 +511,23 @@ threshold_4n <- 4 / nrow(sample_data)
 influential <- sample_data[cooks_d > threshold_4n]
 
 cat("Cook's Distance Analysis\n")
-```
-
-```
-## Cook's Distance Analysis
-```
-
-``` r
 cat("========================\n\n")
-```
-
-```
-## ========================
-```
-
-``` r
 cat(sprintf("Threshold 4/n: %.4f\n", threshold_4n))
-```
-
-```
-## Threshold 4/n: 0.0080
-```
-
-``` r
 cat(sprintf("Observations exceeding threshold: %d\n\n", nrow(influential)))
-```
 
-```
-## Observations exceeding threshold: 21
-```
-
-``` r
 # Show most influential points
 cat("Top 10 Most Influential Points:\n")
-```
-
-```
-## Top 10 Most Influential Points:
-```
-
-``` r
 print(sample_data[order(-cooks_d)][1:10, .(Height, Weight, leverage, std_resid, cooks_d)])
 ```
 
 ```
+## Cook's Distance Analysis
+## ========================
+## 
+## Threshold 4/n: 0.0080
+## Observations exceeding threshold: 21
+## 
+## Top 10 Most Influential Points:
 ##     Height Weight    leverage std_resid    cooks_d
 ##      <num>  <num>       <num>     <num>      <num>
 ##  1:  186.8  203.0 0.008334794  5.896822 0.14612880
@@ -732,49 +605,11 @@ model_all <- lm(Weight ~ Height, data = sample_data)
 model_without <- lm(Weight ~ Height, data = sample_data[-most_influential])
 
 cat("Sensitivity Analysis: Most Influential Observation\n")
-```
-
-```
-## Sensitivity Analysis: Most Influential Observation
-```
-
-``` r
 cat("===================================================\n\n")
-```
-
-```
-## ===================================================
-```
-
-``` r
 cat("Observation details:\n")
-```
-
-```
-## Observation details:
-```
-
-``` r
 print(sample_data[most_influential, .(Height, Weight, std_resid, leverage, cooks_d)])
-```
 
-```
-##    Height Weight std_resid    leverage   cooks_d
-##     <num>  <num>     <num>       <num>     <num>
-## 1:  186.8    203  5.896822 0.008334794 0.1461288
-```
-
-``` r
 cat("\n\nCoefficient Comparison:\n")
-```
-
-```
-## 
-## 
-## Coefficient Comparison:
-```
-
-``` r
 coef_compare <- data.table(
     Parameter = c("Intercept", "Slope"),
     With_All = coef(model_all),
@@ -782,37 +617,30 @@ coef_compare <- data.table(
     Change_Pct = 100 * (coef(model_without) - coef(model_all)) / coef(model_all)
 )
 print(coef_compare)
-```
 
-```
-##    Parameter    With_All     Without Change_Pct
-##       <char>       <num>       <num>      <num>
-## 1: Intercept -74.5557691 -68.4502823  -8.189154
-## 2:     Slope   0.9224622   0.8850424  -4.056509
-```
-
-``` r
 cat("\nR² Comparison:\n")
-```
-
-```
-## 
-## R<U+00B2> Comparison:
-```
-
-``` r
 cat(sprintf("With all data: %.4f\n", summary(model_all)$r.squared))
-```
-
-```
-## With all data: 0.2133
-```
-
-``` r
 cat(sprintf("Without influential point: %.4f\n", summary(model_without)$r.squared))
 ```
 
 ```
+## Sensitivity Analysis: Most Influential Observation
+## ===================================================
+## 
+## Observation details:
+##    Height Weight std_resid    leverage   cooks_d
+##     <num>  <num>     <num>       <num>     <num>
+## 1:  186.8    203  5.896822 0.008334794 0.1461288
+## 
+## 
+## Coefficient Comparison:
+##    Parameter    With_All     Without Change_Pct
+##       <char>       <num>       <num>      <num>
+## 1: Intercept -74.5557691 -68.4502823  -8.189154
+## 2:     Slope   0.9224622   0.8850424  -4.056509
+## 
+## R² Comparison:
+## With all data: 0.2133
 ## Without influential point: 0.2105
 ```
 
@@ -837,42 +665,21 @@ sample_data[, dfbeta_slope := dfb[, 2]]
 dfbetas_threshold <- 2 / sqrt(nrow(sample_data))
 
 cat("DFBETAS Analysis\n")
-```
-
-```
-## DFBETAS Analysis
-```
-
-``` r
 cat("================\n\n")
-```
-
-```
-## ================
-```
-
-``` r
 cat(sprintf("Threshold: 2/√n = %.4f\n\n", dfbetas_threshold))
-```
 
-```
-## Threshold: 2/<U+221A>n = 0.0894
-```
-
-``` r
 cat("Observations with large DFBETAS for slope:\n")
-```
-
-```
-## Observations with large DFBETAS for slope:
-```
-
-``` r
 large_dfbeta <- sample_data[abs(dfbeta_slope) > dfbetas_threshold]
 print(large_dfbeta[order(-abs(dfbeta_slope))][1:5, .(Height, Weight, dfbeta_slope)])
 ```
 
 ```
+## DFBETAS Analysis
+## ================
+## 
+## Threshold: 2/√n = 0.0894
+## 
+## Observations with large DFBETAS for slope:
 ##    Height Weight dfbeta_slope
 ##     <num>  <num>        <num>
 ## 1:  186.8  203.0    0.4881831
@@ -897,42 +704,21 @@ sample_data[, dffits := dffits(model)]
 dffits_threshold <- 2 * sqrt(p / nrow(sample_data))
 
 cat("DFFITS Analysis\n")
-```
-
-```
-## DFFITS Analysis
-```
-
-``` r
 cat("===============\n\n")
-```
-
-```
-## ===============
-```
-
-``` r
 cat(sprintf("Threshold: 2√(p/n) = %.4f\n\n", dffits_threshold))
-```
 
-```
-## Threshold: 2<U+221A>(p/n) = 0.1265
-```
-
-``` r
 cat("Observations with large DFFITS:\n")
-```
-
-```
-## Observations with large DFFITS:
-```
-
-``` r
 large_dffits <- sample_data[abs(dffits) > dffits_threshold]
 print(large_dffits[order(-abs(dffits))][1:5, .(Height, Weight, dffits, cooks_d)])
 ```
 
 ```
+## DFFITS Analysis
+## ===============
+## 
+## Threshold: 2√(p/n) = 0.1265
+## 
+## Observations with large DFFITS:
 ##    Height Weight    dffits    cooks_d
 ##     <num>  <num>     <num>      <num>
 ## 1:  186.8  203.0 0.5599689 0.14612880
@@ -992,35 +778,18 @@ print(p2)
 
 ``` r
 cat("\nModel Comparison\n")
+cat("================\n\n")
+cat(sprintf("Raw model R²: %.4f\n", summary(model_raw)$r.squared))
+cat(sprintf("Log model R²: %.4f\n", summary(model_log)$r.squared))
 ```
 
 ```
 ## 
 ## Model Comparison
-```
-
-``` r
-cat("================\n\n")
-```
-
-```
 ## ================
-```
-
-``` r
-cat(sprintf("Raw model R²: %.4f\n", summary(model_raw)$r.squared))
-```
-
-```
-## Raw model R<U+00B2>: 0.3650
-```
-
-``` r
-cat(sprintf("Log model R²: %.4f\n", summary(model_log)$r.squared))
-```
-
-```
-## Log model R<U+00B2>: 0.3913
+## 
+## Raw model R²: 0.3650
+## Log model R²: 0.3913
 ```
 
 ### 12.18.2 Interpreting Log-Transformed Models
@@ -1033,59 +802,24 @@ For $\log(Y) = \beta_0 + \beta_1 X$:
 
 ``` r
 cat("Interpreting the Log Model\n")
-```
-
-```
-## Interpreting the Log Model
-```
-
-``` r
 cat("==========================\n\n")
-```
-
-```
-## ==========================
-```
-
-``` r
 cat(sprintf("Slope: %.4f\n", coef(model_log)[2]))
-```
-
-```
-## Slope: 0.0450
-```
-
-``` r
 cat(sprintf("\nInterpretation:\n"))
-```
-
-```
-## 
-## Interpretation:
-```
-
-``` r
 cat(sprintf("Each additional year of experience is associated with\n"))
-```
-
-```
-## Each additional year of experience is associated with
-```
-
-``` r
 cat(sprintf("approximately a %.1f%% increase in income.\n", 100 * coef(model_log)[2]))
-```
-
-```
-## approximately a 4.5% increase in income.
-```
-
-``` r
 cat(sprintf("\nExact multiplier: e^%.4f = %.4f\n",
             coef(model_log)[2], exp(coef(model_log)[2])))
 ```
 
 ```
+## Interpreting the Log Model
+## ==========================
+## 
+## Slope: 0.0450
+## 
+## Interpretation:
+## Each additional year of experience is associated with
+## approximately a 4.5% increase in income.
 ## 
 ## Exact multiplier: e^0.0450 = 1.0460
 ```
@@ -1153,109 +887,47 @@ When reporting regression diagnostics:
 
 ``` r
 cat("Example Diagnostic Report\n")
-```
-
-```
-## Example Diagnostic Report
-```
-
-``` r
 cat("=========================\n\n")
-```
 
-```
-## =========================
-```
-
-``` r
 cat("Model Diagnostics:\n\n")
-```
 
-```
-## Model Diagnostics:
-```
-
-``` r
 cat("1. Linearity: The residuals vs fitted plot showed no systematic pattern,\n")
-```
-
-```
-## 1. Linearity: The residuals vs fitted plot showed no systematic pattern,
-```
-
-``` r
 cat("   suggesting the linear assumption is reasonable.\n\n")
-```
 
-```
-##    suggesting the linear assumption is reasonable.
-```
-
-``` r
 cat("2. Homoscedasticity: The scale-location plot showed approximately constant\n")
-```
-
-```
-## 2. Homoscedasticity: The scale-location plot showed approximately constant
-```
-
-``` r
 cat("   spread across fitted values. No formal test was significant.\n\n")
-```
 
-```
-##    spread across fitted values. No formal test was significant.
-```
-
-``` r
 # Actually run Shapiro-Wilk
 sw <- shapiro.test(residuals(model))
 cat(sprintf("3. Normality: The Q-Q plot showed minor deviations in the tails.\n"))
-```
-
-```
-## 3. Normality: The Q-Q plot showed minor deviations in the tails.
-```
-
-``` r
 cat(sprintf("   Shapiro-Wilk test: W = %.3f, p = %.3f. With n = %d,\n",
             sw$statistic, sw$p.value, nrow(sample_data)))
-```
-
-```
-##    Shapiro-Wilk test: W = 0.944, p = 0.000. With n = 500,
-```
-
-``` r
 cat("   inference remains valid by CLT.\n\n")
-```
 
-```
-##    inference remains valid by CLT.
-```
-
-``` r
 cat(sprintf("4. Influential observations: %d observations had Cook's D > 4/n.\n",
             sum(sample_data$cooks_d > 4/nrow(sample_data))))
-```
-
-```
-## 4. Influential observations: 21 observations had Cook's D > 4/n.
-```
-
-``` r
 cat("   Sensitivity analysis showed coefficients stable when these\n")
-```
-
-```
-##    Sensitivity analysis showed coefficients stable when these
-```
-
-``` r
 cat("   observations were excluded (slope changed by < 5%).\n")
 ```
 
 ```
+## Example Diagnostic Report
+## =========================
+## 
+## Model Diagnostics:
+## 
+## 1. Linearity: The residuals vs fitted plot showed no systematic pattern,
+##    suggesting the linear assumption is reasonable.
+## 
+## 2. Homoscedasticity: The scale-location plot showed approximately constant
+##    spread across fitted values. No formal test was significant.
+## 
+## 3. Normality: The Q-Q plot showed minor deviations in the tails.
+##    Shapiro-Wilk test: W = 0.944, p = 0.000. With n = 500,
+##    inference remains valid by CLT.
+## 
+## 4. Influential observations: 21 observations had Cook's D > 4/n.
+##    Sensitivity analysis showed coefficients stable when these
 ##    observations were excluded (slope changed by < 5%).
 ```
 

@@ -74,18 +74,13 @@ right_skewed_data <- rgamma(1000, shape = 2, rate = 0.1)
 left_skewed_data <- 100 - rgamma(1000, shape = 2, rate = 0.1)
 
 cat("Symmetric data: skewness =", round(my_skewness(symmetric_data), 3), "\n")
-#> Symmetric data: skewness = 0.097
 cat("Right-skewed data: skewness =", round(my_skewness(right_skewed_data), 3), "\n")
-#> Right-skewed data: skewness = 1.393
 cat("Left-skewed data: skewness =", round(my_skewness(left_skewed_data), 3), "\n")
-#> Left-skewed data: skewness = -1.291
 
 # Real example: income is typically right-skewed
 # Simulate income data
 income_data <- rgamma(1000, shape = 2, rate = 0.00005)
 cat("\nSimulated income: skewness =", round(my_skewness(income_data), 3), "\n")
-#> 
-#> Simulated income: skewness = 1.191
 
 # Visualise
 skew_dt <- data.table$rbindlist(list(
@@ -116,6 +111,14 @@ ggplot2$ggplot(skew_dt, ggplot2$aes(x = value, fill = type)) +
 <Figure src="/courses/statistics-1-foundations/skewness_from_scratch-1.png" alt="Skewness measures distributional asymmetry">
 	Skewness measures distributional asymmetry
 </Figure>
+
+```
+#> Symmetric data: skewness = 0.097 
+#> Right-skewed data: skewness = 1.393 
+#> Left-skewed data: skewness = -1.291 
+#> 
+#> Simulated income: skewness = 1.191
+```
 
 ### 2.4.2 Kurtosis
 
@@ -158,11 +161,8 @@ heavy_tails <- rt(1000, df = 3)  # t-distribution: heavier tails
 light_tails <- runif(1000, -2, 2)  # Uniform: lighter tails
 
 cat("Normal data: excess kurtosis =", round(my_kurtosis(normal_data), 3), "\n")
-#> Normal data: excess kurtosis = 0.146
 cat("Heavy-tailed (t, df=3): excess kurtosis =", round(my_kurtosis(heavy_tails), 3), "\n")
-#> Heavy-tailed (t, df=3): excess kurtosis = 8.07
 cat("Light-tailed (uniform): excess kurtosis =", round(my_kurtosis(light_tails), 3), "\n")
-#> Light-tailed (uniform): excess kurtosis = -1.166
 
 # Visualise
 kurt_dt <- data.table$rbindlist(list(
@@ -193,6 +193,12 @@ ggplot2$ggplot(kurt_dt[!is.na(value)], ggplot2$aes(x = value, fill = type)) +
 	Kurtosis measures tail heaviness relative to normal
 </Figure>
 
+```
+#> Normal data: excess kurtosis = 0.146 
+#> Heavy-tailed (t, df=3): excess kurtosis = 8.07 
+#> Light-tailed (uniform): excess kurtosis = -1.166
+```
+
 ### 2.4.3 Why Shape Matters
 
 Distribution shape affects:
@@ -219,6 +225,15 @@ compare_stats <- data.table$data.table(
 
 print(compare_stats[, lapply(.SD, round, 2), .SDcols = c("Symmetric", "Skewed"),
                     by = Statistic])
+
+cat("\nFor the skewed distribution:\n")
+cat("- Mean (", round(mean(skewed), 1), ") > Median (",
+    round(median(skewed), 1), ")\n")
+cat("- Mean is pulled by the long right tail\n")
+cat("- Median is a better 'typical' value\n")
+```
+
+```
 #>    Statistic Symmetric Skewed
 #>       <char>     <num>  <num>
 #> 1:      Mean    100.32 100.19
@@ -226,16 +241,10 @@ print(compare_stats[, lapply(.SD, round, 2), .SDcols = c("Symmetric", "Skewed"),
 #> 3:        SD     14.60  47.58
 #> 4:       IQR     20.09  63.00
 #> 5:  Skewness      0.09   0.85
-
-cat("\nFor the skewed distribution:\n")
 #> 
 #> For the skewed distribution:
-cat("- Mean (", round(mean(skewed), 1), ") > Median (",
-    round(median(skewed), 1), ")\n")
 #> - Mean ( 100.2 ) > Median ( 93.1 )
-cat("- Mean is pulled by the long right tail\n")
 #> - Mean is pulled by the long right tail
-cat("- Median is a better 'typical' value\n")
 #> - Median is a better 'typical' value
 ```
 
@@ -274,14 +283,6 @@ freq_table <- freq_table[order(match(category,
     c("Underweight", "Normal", "Overweight", "Obese I", "Obese II", "Obese III")))]
 
 print(freq_table)
-#>       category frequency relative_freq cumulative_freq cumulative_rel_freq
-#>         <fctr>     <int>         <num>           <int>               <num>
-#> 1: Underweight      1271    0.13192859            2884           0.2993564
-#> 2:      Normal      2941    0.30527299            5825           0.6046294
-#> 3:  Overweight      2656    0.27569026            8481           0.8803197
-#> 4:     Obese I      1613    0.16742786            1613           0.1674279
-#> 5:    Obese II       668    0.06933776            9149           0.9496575
-#> 6:   Obese III       485    0.05034254            9634           1.0000000
 
 # Visualise
 freq_table[, category := factor(category, levels = c(
@@ -306,6 +307,17 @@ ggplot2$ggplot(freq_table, ggplot2$aes(x = category, y = frequency, fill = categ
 <Figure src="/courses/statistics-1-foundations/frequency_distribution-1.png" alt="Frequency distributions show how data are distributed across categories">
 	Frequency distributions show how data are distributed across categories
 </Figure>
+
+```
+#>       category frequency relative_freq cumulative_freq cumulative_rel_freq
+#>         <fctr>     <int>         <num>           <int>               <num>
+#> 1: Underweight      1271    0.13192859            2884           0.2993564
+#> 2:      Normal      2941    0.30527299            5825           0.6046294
+#> 3:  Overweight      2656    0.27569026            8481           0.8803197
+#> 4:     Obese I      1613    0.16742786            1613           0.1674279
+#> 5:    Obese II       668    0.06933776            9149           0.9496575
+#> 6:   Obese III       485    0.05034254            9634           1.0000000
+```
 
 ### 2.5.2 Computing Statistics from Grouped Data
 
@@ -342,17 +354,21 @@ estimated_var <- sum(grouped_data$frequency *
 estimated_sd <- sqrt(estimated_var)
 
 cat("From grouped data:\n")
-#> From grouped data:
 cat("  Estimated mean:", round(estimated_mean, 2), "\n")
-#>   Estimated mean: 29.39
 cat("  Estimated SD:", round(estimated_sd, 2), "\n\n")
-#>   Estimated SD: 8.17
 
 cat("From raw data (for comparison):\n")
-#> From raw data (for comparison):
 cat("  Actual mean:", round(mean(bmi_clean), 2), "\n")
-#>   Actual mean: 26.66
 cat("  Actual SD:", round(sd(bmi_clean), 2), "\n")
+```
+
+```
+#> From grouped data:
+#>   Estimated mean: 29.39 
+#>   Estimated SD: 8.17 
+#> 
+#> From raw data (for comparison):
+#>   Actual mean: 26.66 
 #>   Actual SD: 7.38
 ```
 
@@ -377,26 +393,6 @@ grouped_summary <- nhanes[!is.na(BMI) & !is.na(Gender) & !is.na(AgeDecade), .(
 grouped_summary <- grouped_summary[order(AgeDecade, Gender)]
 
 print(grouped_summary[, lapply(.SD, function(x) if(is.numeric(x)) round(x, 1) else x)])
-#>     Gender AgeDecade     n mean_bmi sd_bmi median_bmi iqr_bmi min_bmi max_bmi
-#>     <char>    <char> <num>    <num>  <num>      <num>   <num>   <num>   <num>
-#>  1: female             191     26.7    5.1       26.8     7.8    15.9    43.4
-#>  2:   male             132     27.0    4.0       27.0     5.7    15.7    36.1
-#>  3: female       0-9   512     17.3    3.3       16.2     3.1    12.9    33.6
-#>  4:   male       0-9   589     17.0    2.7       16.3     2.4    12.9    31.1
-#>  5: female     10-19   674     23.3    6.5       21.6     7.7    13.5    55.1
-#>  6:   male     10-19   687     23.2    5.6       22.3     6.9    13.3    53.5
-#>  7: female     20-29   678     27.5    7.7       25.5     9.6    15.8    80.6
-#>  8:   male     20-29   668     27.5    6.1       26.7     8.7    16.5    56.8
-#>  9: female     30-39   673     29.3    7.7       28.1     9.9    17.4    69.0
-#> 10:   male     30-39   661     29.0    6.1       27.7     7.2    18.4    63.9
-#> 11: female     40-49   674     28.5    7.4       27.3     9.7    15.0    65.6
-#> 12:   male     40-49   712     29.3    5.4       28.6     6.9    18.2    49.4
-#> 13: female     50-59   621     29.1    7.6       27.4     8.8    17.6    81.2
-#> 14:   male     50-59   677     29.3    5.5       28.4     6.6    17.0    52.6
-#> 15: female     60-69   474     29.6    6.8       28.7     8.3    15.2    67.0
-#> 16:   male     60-69   434     29.5    6.1       28.2     7.0    18.4    58.2
-#> 17: female       70+   344     29.4    7.3       28.3     8.3    16.6    65.2
-#> 18:   male       70+   233     29.0    4.8       28.6     5.6    17.6    43.7
 
 # Visualise means by group
 ggplot2$ggplot(grouped_summary, ggplot2$aes(x = AgeDecade, y = mean_bmi,
@@ -419,6 +415,29 @@ ggplot2$ggplot(grouped_summary, ggplot2$aes(x = AgeDecade, y = mean_bmi,
 <Figure src="/courses/statistics-1-foundations/grouped_summaries_datatable-1.png" alt="Grouped statistics reveal patterns across subgroups">
 	Grouped statistics reveal patterns across subgroups
 </Figure>
+
+```
+#>     Gender AgeDecade     n mean_bmi sd_bmi median_bmi iqr_bmi min_bmi max_bmi
+#>     <char>    <char> <num>    <num>  <num>      <num>   <num>   <num>   <num>
+#>  1: female             191     26.7    5.1       26.8     7.8    15.9    43.4
+#>  2:   male             132     27.0    4.0       27.0     5.7    15.7    36.1
+#>  3: female       0-9   512     17.3    3.3       16.2     3.1    12.9    33.6
+#>  4:   male       0-9   589     17.0    2.7       16.3     2.4    12.9    31.1
+#>  5: female     10-19   674     23.3    6.5       21.6     7.7    13.5    55.1
+#>  6:   male     10-19   687     23.2    5.6       22.3     6.9    13.3    53.5
+#>  7: female     20-29   678     27.5    7.7       25.5     9.6    15.8    80.6
+#>  8:   male     20-29   668     27.5    6.1       26.7     8.7    16.5    56.8
+#>  9: female     30-39   673     29.3    7.7       28.1     9.9    17.4    69.0
+#> 10:   male     30-39   661     29.0    6.1       27.7     7.2    18.4    63.9
+#> 11: female     40-49   674     28.5    7.4       27.3     9.7    15.0    65.6
+#> 12:   male     40-49   712     29.3    5.4       28.6     6.9    18.2    49.4
+#> 13: female     50-59   621     29.1    7.6       27.4     8.8    17.6    81.2
+#> 14:   male     50-59   677     29.3    5.5       28.4     6.6    17.0    52.6
+#> 15: female     60-69   474     29.6    6.8       28.7     8.3    15.2    67.0
+#> 16:   male     60-69   434     29.5    6.1       28.2     7.0    18.4    58.2
+#> 17: female       70+   344     29.4    7.3       28.3     8.3    16.6    65.2
+#> 18:   male       70+   233     29.0    4.8       28.6     5.6    17.6    43.7
+```
 
 ## 2.6 Detecting Outliers
 
@@ -470,15 +489,10 @@ detect_outliers_iqr <- function(x, k = 1.5) {
 bp_outliers <- detect_outliers_iqr(bp_data)
 
 cat("IQR outlier detection for systolic BP:\n")
-#> IQR outlier detection for systolic BP:
 cat("Lower fence:", round(bp_outliers$lower_fence, 1), "\n")
-#> Lower fence: 74.5
 cat("Upper fence:", round(bp_outliers$upper_fence, 1), "\n")
-#> Upper fence: 158.5
 cat("Number of outliers:", bp_outliers$n_outliers, "\n")
-#> Number of outliers: 215
 cat("Proportion:", round(bp_outliers$proportion * 100, 2), "%\n")
-#> Proportion: 2.51 %
 
 # Visualise with boxplot
 bp_dt <- data.table$data.table(bp = bp_data)
@@ -508,6 +522,14 @@ ggplot2$ggplot(bp_dt, ggplot2$aes(y = bp)) +
 <Figure src="/courses/statistics-1-foundations/iqr_outliers-1.png" alt="Tukey&#39;s fences identify potential outliers using the IQR rule">
 	Tukey's fences identify potential outliers using the IQR rule
 </Figure>
+
+```
+#> IQR outlier detection for systolic BP:
+#> Lower fence: 74.5 
+#> Upper fence: 158.5 
+#> Number of outliers: 215 
+#> Proportion: 2.51 %
+```
 
 ### 2.6.3 Z-Score Method
 
@@ -539,22 +561,25 @@ detect_outliers_zscore <- function(x, k = 3) {
 bp_z_outliers <- detect_outliers_zscore(bp_data, k = 3)
 
 cat("\nZ-score outlier detection (k = 3):\n")
-#> 
-#> Z-score outlier detection (k = 3):
 cat("Number of outliers:", bp_z_outliers$n_outliers, "\n")
-#> Number of outliers: 109
 cat("Proportion:", round(bp_z_outliers$proportion * 100, 2), "%\n")
-#> Proportion: 1.27 %
 
 # Compare methods
 cat("\nComparison of methods:\n")
+cat("IQR rule:", bp_outliers$n_outliers, "outliers\n")
+cat("Z-score (k=3):", bp_z_outliers$n_outliers, "outliers\n")
+cat("Z-score (k=2):", detect_outliers_zscore(bp_data, k = 2)$n_outliers, "outliers\n")
+```
+
+```
+#> 
+#> Z-score outlier detection (k = 3):
+#> Number of outliers: 109 
+#> Proportion: 1.27 %
 #> 
 #> Comparison of methods:
-cat("IQR rule:", bp_outliers$n_outliers, "outliers\n")
 #> IQR rule: 215 outliers
-cat("Z-score (k=3):", bp_z_outliers$n_outliers, "outliers\n")
 #> Z-score (k=3): 109 outliers
-cat("Z-score (k=2):", detect_outliers_zscore(bp_data, k = 2)$n_outliers, "outliers\n")
 #> Z-score (k=2): 357 outliers
 ```
 
@@ -594,11 +619,8 @@ detect_outliers_mad <- function(x, k = 3.5) {
 bp_mad_outliers <- detect_outliers_mad(bp_data)
 
 cat("Modified z-score outlier detection:\n")
-#> Modified z-score outlier detection:
 cat("Number of outliers:", bp_mad_outliers$n_outliers, "\n")
-#> Number of outliers: 24
 cat("Proportion:", round(bp_mad_outliers$proportion * 100, 2), "%\n")
-#> Proportion: 0.28 %
 
 # Demonstrate robustness
 set.seed(555)
@@ -606,20 +628,26 @@ clean <- rnorm(100, mean = 50, sd = 5)
 contaminated <- c(clean, 150, 160, 170)  # Add three extreme outliers
 
 cat("\nDemonstrating masking effect:\n")
-#> 
-#> Demonstrating masking effect:
 cat("Clean data: z-score detects",
     detect_outliers_zscore(clean, k = 3)$n_outliers, "outliers\n")
-#> Clean data: z-score detects 1 outliers
 cat("With 3 extreme outliers added:\n")
-#> With 3 extreme outliers added:
 cat("  Z-score method detects",
     detect_outliers_zscore(contaminated, k = 3)$n_outliers, "outliers\n")
-#>   Z-score method detects 3 outliers
 cat("  Modified z-score detects",
     detect_outliers_mad(contaminated)$n_outliers, "outliers\n")
-#>   Modified z-score detects 3 outliers
 cat("\n(Z-score method missed some because outliers inflated the SD)\n")
+```
+
+```
+#> Modified z-score outlier detection:
+#> Number of outliers: 24 
+#> Proportion: 0.28 %
+#> 
+#> Demonstrating masking effect:
+#> Clean data: z-score detects 1 outliers
+#> With 3 extreme outliers added:
+#>   Z-score method detects 3 outliers
+#>   Modified z-score detects 3 outliers
 #> 
 #> (Z-score method missed some because outliers inflated the SD)
 ```
@@ -652,6 +680,20 @@ outlier_decisions <- data.table$data.table(
 )
 
 print(outlier_decisions)
+
+# Example: Investigating an outlier
+# Find the highest BMI values
+extreme_bmi <- nhanes[!is.na(BMI), .(BMI, Age, Gender, Diabetes, BPSysAve)]
+extreme_bmi <- extreme_bmi[order(-BMI)][1:10]
+
+cat("\nTop 10 highest BMI values in NHANES:\n")
+print(extreme_bmi)
+
+cat("\nThese are real people with extreme obesity, not errors.\n")
+cat("We should NOT automatically exclude them.\n")
+```
+
+```
 #>                   Cause                                  Action
 #>                  <char>                                  <char>
 #> 1:     Data entry error       Correct if possible, else exclude
@@ -664,18 +706,10 @@ print(outlier_decisions)
 #> 1:                  Age = 999 years
 #> 2:                      BP = 0 mmHg
 #> 3:            Patient skipped doses
-#> 4:            BMI = 55 kg/m<U+00B2>
+#> 4:                   BMI = 55 kg/m²
 #> 5: Pediatric patient in adult study
-
-# Example: Investigating an outlier
-# Find the highest BMI values
-extreme_bmi <- nhanes[!is.na(BMI), .(BMI, Age, Gender, Diabetes, BPSysAve)]
-extreme_bmi <- extreme_bmi[order(-BMI)][1:10]
-
-cat("\nTop 10 highest BMI values in NHANES:\n")
 #> 
 #> Top 10 highest BMI values in NHANES:
-print(extreme_bmi)
 #>       BMI   Age Gender Diabetes BPSysAve
 #>     <num> <int> <char>   <char>    <int>
 #>  1: 81.25    52 female      Yes      111
@@ -688,11 +722,8 @@ print(extreme_bmi)
 #>  8: 65.62    45 female       No       NA
 #>  9: 65.19    72 female      Yes      160
 #> 10: 63.91    37   male      Yes       92
-
-cat("\nThese are real people with extreme obesity, not errors.\n")
 #> 
 #> These are real people with extreme obesity, not errors.
-cat("We should NOT automatically exclude them.\n")
 #> We should NOT automatically exclude them.
 ```
 

@@ -36,10 +36,13 @@ nhanes <- fread("../../../data/primary/nhanes.csv")
 doctor_visits <- fread("../../../data/count/nmes1988_doctor_visits.csv")
 
 cat("Datasets loaded:\n")
-#> Datasets loaded:
 cat("  NHANES:", nrow(nhanes), "observations\n")
-#>   NHANES: 10000 observations
 cat("  Doctor Visits (NMES):", nrow(doctor_visits), "observations\n")
+```
+
+```
+#> Datasets loaded:
+#>   NHANES: 10000 observations
 #>   Doctor Visits (NMES): 4406 observations
 ```
 
@@ -75,13 +78,9 @@ diabetes_data <- nhanes[!is.na(Diabetes) & !is.na(Age) & !is.na(BMI) & Age >= 18
 diabetes_data <- diabetes_data[complete.cases(diabetes_data)]
 
 cat("Diabetes Data:\n")
-#> Diabetes Data:
 cat("=============\n")
-#> =============
 cat("n =", nrow(diabetes_data), "\n")
-#> n = 7414
 cat("Prevalence:", round(mean(diabetes_data$Diabetic) * 100, 1), "%\n\n")
-#> Prevalence: 9.9 %
 
 # Fit linear regression (wrong approach)
 model_linear <- lm(Diabetic ~ Age, data = diabetes_data)
@@ -92,15 +91,10 @@ age_seq[, linear_pred := predict(model_linear, newdata = .SD)]
 
 # Show the problem
 cat("Linear Regression Problems:\n")
-#> Linear Regression Problems:
 cat("  Predicted probability at age 20:", round(predict(model_linear, newdata = data.frame(Age = 20)), 3), "\n")
-#>   Predicted probability at age 20: -0.021
 cat("  Predicted probability at age 85:", round(predict(model_linear, newdata = data.frame(Age = 85)), 3), "\n")
-#>   Predicted probability at age 85: 0.276
 cat("  Min prediction:", round(min(age_seq$linear_pred), 3), "\n")
-#>   Min prediction: -0.03
 cat("  Max prediction:", round(max(age_seq$linear_pred), 3), "\n")
-#>   Max prediction: 0.276
 
 # Visualise the problem
 ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 2000))],
@@ -121,6 +115,19 @@ ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 2000))],
 <Figure src="/courses/statistics-2-intermediate/problems_illustration-1.png" alt="Why linear regression fails for binary outcomes">
 	Why linear regression fails for binary outcomes
 </Figure>
+
+```
+#> Diabetes Data:
+#> =============
+#> n = 7414 
+#> Prevalence: 9.9 %
+#> 
+#> Linear Regression Problems:
+#>   Predicted probability at age 20: -0.021 
+#>   Predicted probability at age 85: 0.276 
+#>   Min prediction: -0.03 
+#>   Max prediction: 0.276
+```
 
 ### 1.1.2 The GLM Solution
 
@@ -242,24 +249,21 @@ exp_fam_dt <- data.table(
 )
 
 cat("Exponential Family Summary:\n")
-#> Exponential Family Summary:
 cat("===========================\n\n")
-#> ===========================
 print(exp_fam_dt)
-#>        Distribution        Canonical Link    Variance Function
-#>              <char>                <char>               <char>
-#> 1:           Normal   Identity (<U+03BC>)         1 (constant)
-#> 2:         Binomial  Logit (log(p/(1-p))) <U+03BC>(1-<U+03BC>)
-#> 3:          Poisson    Log (log <U+03BB>)             <U+03BC>
-#> 4:            Gamma Inverse (-1/<U+03BC>)     <U+03BC><U+00B2>
-#> 5: Inverse Gaussian   -1/<U+03BC><U+00B2>     <U+03BC><U+00B3>
-#>             Common Use
-#>                 <char>
-#> 1:          Continuous
-#> 2:  Binary/Proportions
-#> 3:              Counts
-#> 4: Positive continuous
-#> 5: Positive continuous
+```
+
+```
+#> Exponential Family Summary:
+#> ===========================
+#> 
+#>        Distribution       Canonical Link Variance Function          Common Use
+#>              <char>               <char>            <char>              <char>
+#> 1:           Normal         Identity (μ)      1 (constant)          Continuous
+#> 2:         Binomial Logit (log(p/(1-p)))            μ(1-μ)  Binary/Proportions
+#> 3:          Poisson          Log (log λ)                 μ              Counts
+#> 4:            Gamma       Inverse (-1/μ)                μ² Positive continuous
+#> 5: Inverse Gaussian                -1/μ²                μ³ Positive continuous
 ```
 
 ---
@@ -368,23 +372,28 @@ Using the canonical link simplifies the mathematics and ensures certain nice pro
 
 ``` r
 cat("Canonical Links:\n")
-#> Canonical Links:
 cat("================\n\n")
-#> ================
 cat("The canonical link is special because θ = η.\n\n")
-#> The canonical link is special because <U+03B8> = <U+03B7>.
 cat("Distribution   Canonical Link    Why?\n")
-#> Distribution   Canonical Link    Why?
 cat("-----------    --------------    ----\n")
-#> -----------    --------------    ----
 cat("Normal         g(μ) = μ          θ = μ for normal\n")
-#> Normal         g(<U+03BC>) = <U+03BC>          <U+03B8> = <U+03BC> for normal
 cat("Binomial       g(μ) = logit(μ)   θ = log(μ/(1-μ))\n")
-#> Binomial       g(<U+03BC>) = logit(<U+03BC>)   <U+03B8> = log(<U+03BC>/(1-<U+03BC>))
 cat("Poisson        g(μ) = log(μ)     θ = log(μ)\n")
-#> Poisson        g(<U+03BC>) = log(<U+03BC>)     <U+03B8> = log(<U+03BC>)
 cat("Gamma          g(μ) = -1/μ       θ = -1/μ\n")
-#> Gamma          g(<U+03BC>) = -1/<U+03BC>       <U+03B8> = -1/<U+03BC>
+```
+
+```
+#> Canonical Links:
+#> ================
+#> 
+#> The canonical link is special because θ = η.
+#> 
+#> Distribution   Canonical Link    Why?
+#> -----------    --------------    ----
+#> Normal         g(μ) = μ          θ = μ for normal
+#> Binomial       g(μ) = logit(μ)   θ = log(μ/(1-μ))
+#> Poisson        g(μ) = log(μ)     θ = log(μ)
+#> Gamma          g(μ) = -1/μ       θ = -1/μ
 ```
 
 ---
@@ -432,26 +441,14 @@ model_logistic <- glm(Diabetic ~ Age, data = diabetes_data, family = binomial(li
 age_seq[, logistic_pred := predict(model_logistic, newdata = .SD, type = "response")]
 
 cat("GLM (Logistic) vs Linear Regression:\n")
-#> GLM (Logistic) vs Linear Regression:
 cat("====================================\n\n")
-#> ====================================
 cat("Linear model (wrong):\n")
-#> Linear model (wrong):
 print(coef(model_linear))
-#>  (Intercept)          Age 
-#> -0.112420242  0.004573466
 cat("\nLogistic model (correct):\n")
-#> 
-#> Logistic model (correct):
 print(coef(model_logistic))
-#> (Intercept)         Age 
-#> -5.05883991  0.05418587
 cat("\nOdds ratio for Age:", round(exp(coef(model_logistic)["Age"]), 4), "\n")
-#> 
-#> Odds ratio for Age: 1.0557
 cat("Interpretation: Each year of age multiplies the odds of diabetes by",
     round(exp(coef(model_logistic)["Age"]), 3), "\n")
-#> Interpretation: Each year of age multiplies the odds of diabetes by 1.056
 
 # Visualise comparison
 ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 2000))],
@@ -474,6 +471,22 @@ ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 2000))],
 <Figure src="/courses/statistics-2-intermediate/glm_example-1.png" alt="Comparing linear model to logistic GLM">
 	Comparing linear model to logistic GLM
 </Figure>
+
+```
+#> GLM (Logistic) vs Linear Regression:
+#> ====================================
+#> 
+#> Linear model (wrong):
+#>  (Intercept)          Age 
+#> -0.112420242  0.004573466 
+#> 
+#> Logistic model (correct):
+#> (Intercept)         Age 
+#> -5.05883991  0.05418587 
+#> 
+#> Odds ratio for Age: 1.0557 
+#> Interpretation: Each year of age multiplies the odds of diabetes by 1.056
+```
 
 ---
 
@@ -506,43 +519,47 @@ visits_data <- visits_data[complete.cases(visits_data)]
 visits_data[, health_poor := as.integer(health == "poor")]
 
 cat("Doctor Visits Data:\n")
-#> Doctor Visits Data:
 cat("===================\n")
-#> ===================
 cat("n =", nrow(visits_data), "\n")
-#> n = 4406
 cat("Mean visits:", round(mean(visits_data$visits), 2), "\n")
-#> Mean visits: 5.77
 cat("Variance of visits:", round(var(visits_data$visits), 2), "\n")
-#> Variance of visits: 45.69
 cat("Note: Variance >> Mean suggests overdispersion\n\n")
-#> Note: Variance >> Mean suggests overdispersion
 
 # Fit different models
 model_linear <- lm(visits ~ age + health_poor, data = visits_data)
 model_poisson <- glm(visits ~ age + health_poor, data = visits_data, family = poisson)
 
 cat("Linear Model (Gaussian):\n")
-#> Linear Model (Gaussian):
 print(coef(model_linear))
-#> (Intercept)         age health_poor 
-#>   6.4550274  -0.1531174   3.6012166
 
 cat("\nPoisson Model (Log link):\n")
-#> 
-#> Poisson Model (Log link):
 print(coef(model_poisson))
-#> (Intercept)         age health_poor 
-#>  1.86621086 -0.02627672  0.51827109
 cat("\nRate ratios:\n")
-#> 
-#> Rate ratios:
 cat("  Age:", round(exp(coef(model_poisson)["age"]), 4), "\n")
-#>   Age: 0.9741
 cat("  Poor health:", round(exp(coef(model_poisson)["health_poor"]), 2), "\n")
-#>   Poor health: 1.68
 cat("  Interpretation: Poor health multiplies expected visits by",
     round(exp(coef(model_poisson)["health_poor"]), 2), "\n")
+```
+
+```
+#> Doctor Visits Data:
+#> ===================
+#> n = 4406 
+#> Mean visits: 5.77 
+#> Variance of visits: 45.69 
+#> Note: Variance >> Mean suggests overdispersion
+#> 
+#> Linear Model (Gaussian):
+#> (Intercept)         age health_poor 
+#>   6.4550274  -0.1531174   3.6012166 
+#> 
+#> Poisson Model (Log link):
+#> (Intercept)         age health_poor 
+#>  1.86621086 -0.02627672  0.51827109 
+#> 
+#> Rate ratios:
+#>   Age: 0.9741 
+#>   Poor health: 1.68 
 #>   Interpretation: Poor health multiplies expected visits by 1.68
 ```
 
@@ -552,10 +569,14 @@ cat("  Interpretation: Poor health multiplies expected visits by",
 ``` r
 # Full summary of Poisson model
 cat("Poisson GLM Summary:\n")
-#> Poisson GLM Summary:
 cat("====================\n\n")
-#> ====================
 print(summary(model_poisson))
+```
+
+```
+#> Poisson GLM Summary:
+#> ====================
+#> 
 #> 
 #> Call:
 #> glm(formula = visits ~ age + health_poor, family = poisson, data = visits_data)
@@ -584,56 +605,64 @@ print(summary(model_poisson))
 
 ``` r
 cat("GLM Selection Guide:\n")
-#> GLM Selection Guide:
 cat("====================\n\n")
-#> ====================
 
 cat("1. RESPONSE TYPE: Binary (0/1, yes/no, success/failure)\n")
-#> 1. RESPONSE TYPE: Binary (0/1, yes/no, success/failure)
 cat("   → Family: binomial\n")
-#>    <U+2192> Family: binomial
 cat("   → Links: logit (most common), probit, cloglog\n")
-#>    <U+2192> Links: logit (most common), probit, cloglog
 cat("   → Examples: Disease status, treatment response, mortality\n\n")
-#>    <U+2192> Examples: Disease status, treatment response, mortality
 
 cat("2. RESPONSE TYPE: Counts (0, 1, 2, 3, ...)\n")
-#> 2. RESPONSE TYPE: Counts (0, 1, 2, 3, ...)
 cat("   → Family: poisson (if variance ≈ mean)\n")
-#>    <U+2192> Family: poisson (if variance <U+2248> mean)
 cat("   → Family: quasipoisson or negative.binomial (if variance > mean)\n")
-#>    <U+2192> Family: quasipoisson or negative.binomial (if variance > mean)
 cat("   → Link: log\n")
-#>    <U+2192> Link: log
 cat("   → Examples: Doctor visits, mutations, adverse events\n\n")
-#>    <U+2192> Examples: Doctor visits, mutations, adverse events
 
 cat("3. RESPONSE TYPE: Positive continuous (costs, times, concentrations)\n")
-#> 3. RESPONSE TYPE: Positive continuous (costs, times, concentrations)
 cat("   → Family: Gamma (if variance ∝ mean²)\n")
-#>    <U+2192> Family: Gamma (if variance <U+221D> mean<U+00B2>)
 cat("   → Link: log (most interpretable) or inverse (canonical)\n")
-#>    <U+2192> Link: log (most interpretable) or inverse (canonical)
 cat("   → Examples: Hospital costs, survival times, drug concentrations\n\n")
-#>    <U+2192> Examples: Hospital costs, survival times, drug concentrations
 
 cat("4. RESPONSE TYPE: Continuous, unbounded\n")
-#> 4. RESPONSE TYPE: Continuous, unbounded
 cat("   → Family: gaussian (= normal linear regression)\n")
-#>    <U+2192> Family: gaussian (= normal linear regression)
 cat("   → Link: identity\n")
-#>    <U+2192> Link: identity
 cat("   → Examples: Blood pressure, BMI, test scores\n\n")
-#>    <U+2192> Examples: Blood pressure, BMI, test scores
 
 cat("5. RESPONSE TYPE: Proportion (between 0 and 1)\n")
-#> 5. RESPONSE TYPE: Proportion (between 0 and 1)
 cat("   → Family: quasibinomial or beta regression\n")
-#>    <U+2192> Family: quasibinomial or beta regression
 cat("   → Link: logit\n")
-#>    <U+2192> Link: logit
 cat("   → Examples: Percentage of cells responding\n")
-#>    <U+2192> Examples: Percentage of cells responding
+```
+
+```
+#> GLM Selection Guide:
+#> ====================
+#> 
+#> 1. RESPONSE TYPE: Binary (0/1, yes/no, success/failure)
+#>    → Family: binomial
+#>    → Links: logit (most common), probit, cloglog
+#>    → Examples: Disease status, treatment response, mortality
+#> 
+#> 2. RESPONSE TYPE: Counts (0, 1, 2, 3, ...)
+#>    → Family: poisson (if variance ≈ mean)
+#>    → Family: quasipoisson or negative.binomial (if variance > mean)
+#>    → Link: log
+#>    → Examples: Doctor visits, mutations, adverse events
+#> 
+#> 3. RESPONSE TYPE: Positive continuous (costs, times, concentrations)
+#>    → Family: Gamma (if variance ∝ mean²)
+#>    → Link: log (most interpretable) or inverse (canonical)
+#>    → Examples: Hospital costs, survival times, drug concentrations
+#> 
+#> 4. RESPONSE TYPE: Continuous, unbounded
+#>    → Family: gaussian (= normal linear regression)
+#>    → Link: identity
+#>    → Examples: Blood pressure, BMI, test scores
+#> 
+#> 5. RESPONSE TYPE: Proportion (between 0 and 1)
+#>    → Family: quasibinomial or beta regression
+#>    → Link: logit
+#>    → Examples: Percentage of cells responding
 ```
 
 ---

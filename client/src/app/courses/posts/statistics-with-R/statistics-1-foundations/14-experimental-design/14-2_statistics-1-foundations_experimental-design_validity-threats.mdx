@@ -40,21 +40,7 @@ validity_table <- data.table(
 )
 
 cat("The Four Types of Research Validity\n")
-```
-
-```
-## The Four Types of Research Validity
-```
-
-``` r
 cat("===================================\n\n")
-```
-
-```
-## ===================================
-```
-
-``` r
 for (i in 1:nrow(validity_table)) {
     cat(sprintf("%s\n", validity_table$Type[i]))
     cat(sprintf("  Question: %s\n", validity_table$Question[i]))
@@ -63,6 +49,9 @@ for (i in 1:nrow(validity_table)) {
 ```
 
 ```
+## The Four Types of Research Validity
+## ===================================
+## 
 ## Internal Validity
 ##   Question: Did X actually cause Y?
 ##   Threats: Confounding, selection bias, history, maturation
@@ -116,21 +105,7 @@ threats <- data.table(
 )
 
 cat("Threats to Internal Validity\n")
-```
-
-```
-## Threats to Internal Validity
-```
-
-``` r
 cat("============================\n\n")
-```
-
-```
-## ============================
-```
-
-``` r
 for (i in 1:nrow(threats)) {
     cat(sprintf("%d. %s\n", i, threats$Threat[i]))
     cat(sprintf("   %s\n", threats$Description[i]))
@@ -139,6 +114,9 @@ for (i in 1:nrow(threats)) {
 ```
 
 ```
+## Threats to Internal Validity
+## ============================
+## 
 ## 1. History
 ##    External events during study affect outcomes
 ##    Example: Economic crisis during job training study
@@ -206,67 +184,30 @@ naive_model <- lm(outcome ~ treatment, data = population)
 adjusted_model <- lm(outcome ~ treatment + motivation, data = population)
 
 cat("Selection Bias Example\n")
-```
-
-```
-## Selection Bias Example
-```
-
-``` r
 cat("======================\n\n")
-```
-
-```
-## ======================
-```
-
-``` r
 cat("True treatment effect: 5 units\n\n")
-```
 
-```
-## True treatment effect: 5 units
-```
-
-``` r
 cat("Naive estimate (ignoring selection):\n")
-```
-
-```
-## Naive estimate (ignoring selection):
-```
-
-``` r
 cat(sprintf("  Treatment effect: %.2f (overestimated!)\n",
             coef(naive_model)[2]))
-```
-
-```
-##   Treatment effect: 9.45 (overestimated!)
-```
-
-``` r
 cat("  Bias: Treatment group has higher motivation\n\n")
-```
 
-```
-##   Bias: Treatment group has higher motivation
-```
-
-``` r
 cat("Adjusted estimate (controlling for motivation):\n")
-```
-
-```
-## Adjusted estimate (controlling for motivation):
-```
-
-``` r
 cat(sprintf("  Treatment effect: %.2f (closer to truth)\n",
             coef(adjusted_model)[2]))
 ```
 
 ```
+## Selection Bias Example
+## ======================
+## 
+## True treatment effect: 5 units
+## 
+## Naive estimate (ignoring selection):
+##   Treatment effect: 9.45 (overestimated!)
+##   Bias: Treatment group has higher motivation
+## 
+## Adjusted estimate (controlling for motivation):
 ##   Treatment effect: 6.24 (closer to truth)
 ```
 
@@ -290,70 +231,17 @@ rtm_data[, selected := test1 <= quantile(test1, 0.2)]
 selected_data <- rtm_data[selected == TRUE]
 
 cat("Regression to the Mean\n")
-```
-
-```
-## Regression to the Mean
-```
-
-``` r
 cat("======================\n\n")
-```
 
-```
-## ======================
-```
-
-``` r
 cat("Selected bottom 20% on Test 1:\n")
-```
-
-```
-## Selected bottom 20% on Test 1:
-```
-
-``` r
 cat(sprintf("  Mean Test 1: %.1f\n", mean(selected_data$test1)))
-```
-
-```
-##   Mean Test 1: 76.0
-```
-
-``` r
 cat(sprintf("  Mean Test 2: %.1f\n", mean(selected_data$test2)))
-```
-
-```
-##   Mean Test 2: 85.5
-```
-
-``` r
 cat(sprintf("  Apparent 'improvement': %.1f\n\n",
             mean(selected_data$test2) - mean(selected_data$test1)))
-```
 
-```
-##   Apparent 'improvement': 9.5
-```
-
-``` r
 cat("This 'improvement' is NOT a treatment effect—it's regression to the mean!\n")
-```
-
-```
-## This 'improvement' is NOT a treatment effect<U+2014>it's regression to the mean!
-```
-
-``` r
 cat("Any intervention given to this group would appear effective.\n")
-```
 
-```
-## Any intervention given to this group would appear effective.
-```
-
-``` r
 # Visualise
 ggplot2$ggplot(rtm_data, ggplot2$aes(x = test1, y = test2, colour = selected)) +
     ggplot2$geom_point(alpha = 0.5) +
@@ -374,6 +262,19 @@ ggplot2$ggplot(rtm_data, ggplot2$aes(x = test1, y = test2, colour = selected)) +
 
 ![plot of chunk regression_to_mean](/courses/statistics-1-foundations/regression_to_mean-1.png)
 
+```
+## Regression to the Mean
+## ======================
+## 
+## Selected bottom 20% on Test 1:
+##   Mean Test 1: 76.0
+##   Mean Test 2: 85.5
+##   Apparent 'improvement': 9.5
+## 
+## This 'improvement' is NOT a treatment effect—it's regression to the mean!
+## Any intervention given to this group would appear effective.
+```
+
 ---
 
 ## 14.10 External Validity
@@ -385,21 +286,8 @@ External validity concerns whether findings apply beyond the specific study cond
 
 ``` r
 cat("Threats to External Validity\n")
-```
-
-```
-## Threats to External Validity
-```
-
-``` r
 cat("============================\n\n")
-```
 
-```
-## ============================
-```
-
-``` r
 external_threats <- data.table(
     Threat = c("Population", "Setting", "Time", "Treatment Variation",
                "Outcome Measures"),
@@ -423,6 +311,9 @@ print(external_threats)
 ```
 
 ```
+## Threats to External Validity
+## ============================
+## 
 ##                 Threat                                    Question
 ##                 <char>                                      <char>
 ## 1:          Population         Does it work for other populations?
@@ -430,13 +321,13 @@ print(external_threats)
 ## 3:                Time                 Will it work in the future?
 ## 4: Treatment Variation Does it work with different doses/versions?
 ## 5:    Outcome Measures              Does it affect other outcomes?
-##                                                       Example
-##                                                        <char>
-## 1: Drug tested on young males<U+2014>works for elderly women?
-## 2:             Lab finding<U+2014>applies in real classrooms?
-## 3:       Intervention from 1990<U+2014>still effective today?
-## 4:        Specific dosage tested<U+2014>other doses work too?
-## 5:      Improved test scores<U+2014>improves job performance?
+##                                                Example
+##                                                 <char>
+## 1: Drug tested on young males—works for elderly women?
+## 2:             Lab finding—applies in real classrooms?
+## 3:       Intervention from 1990—still effective today?
+## 4:        Specific dosage tested—other doses work too?
+## 5:      Improved test scores—improves job performance?
 ```
 
 ### 14.10.2 The Trade-Off
@@ -508,21 +399,7 @@ stat_threats <- data.table(
 )
 
 cat("Threats to Statistical Conclusion Validity\n")
-```
-
-```
-## Threats to Statistical Conclusion Validity
-```
-
-``` r
 cat("==========================================\n\n")
-```
-
-```
-## ==========================================
-```
-
-``` r
 for (i in 1:nrow(stat_threats)) {
     cat(sprintf("%d. %s\n", i, stat_threats$Threat[i]))
     cat(sprintf("   Problem: %s\n", stat_threats$Description[i]))
@@ -531,6 +408,9 @@ for (i in 1:nrow(stat_threats)) {
 ```
 
 ```
+## Threats to Statistical Conclusion Validity
+## ==========================================
+## 
 ## 1. Low Power
 ##    Problem: Insufficient sample size to detect true effects
 ##    Solution: Power analysis, larger samples
@@ -583,99 +463,40 @@ small_dt <- as.data.table(small_results)
 large_dt <- as.data.table(large_results)
 
 cat("Consequences of Low Power\n")
-```
-
-```
-## Consequences of Low Power
-```
-
-``` r
 cat("=========================\n\n")
-```
-
-```
-## =========================
-```
-
-``` r
 cat(sprintf("True effect: r = %.2f\n\n", true_effect))
-```
 
-```
-## True effect: r = 0.30
-```
-
-``` r
 cat(sprintf("Small sample (n = %d):\n", small_n))
-```
-
-```
-## Small sample (n = 20):
-```
-
-``` r
 cat(sprintf("  Power (proportion significant): %.1f%%\n", 100 * mean(small_dt$significant)))
-```
-
-```
-##   Power (proportion significant): 24.2%
-```
-
-``` r
 cat(sprintf("  Mean estimate when significant: %.3f (inflated!)\n",
             mean(small_dt[significant == 1]$estimate)))
-```
-
-```
-##   Mean estimate when significant: 0.547 (inflated!)
-```
-
-``` r
 cat(sprintf("  Mean estimate overall: %.3f\n\n", mean(small_dt$estimate)))
-```
 
-```
-##   Mean estimate overall: 0.283
-```
-
-``` r
 cat(sprintf("Large sample (n = %d):\n", large_n))
-```
-
-```
-## Large sample (n = 200):
-```
-
-``` r
 cat(sprintf("  Power (proportion significant): %.1f%%\n", 100 * mean(large_dt$significant)))
-```
-
-```
-##   Power (proportion significant): 98.6%
-```
-
-``` r
 cat(sprintf("  Mean estimate when significant: %.3f (accurate)\n",
             mean(large_dt[significant == 1]$estimate)))
-```
-
-```
-##   Mean estimate when significant: 0.288 (accurate)
-```
-
-``` r
 cat(sprintf("  Mean estimate overall: %.3f\n\n", mean(large_dt$estimate)))
-```
 
-```
-##   Mean estimate overall: 0.286
-```
-
-``` r
 cat("Key insight: Low power + publication bias = inflated effect sizes!\n")
 ```
 
 ```
+## Consequences of Low Power
+## =========================
+## 
+## True effect: r = 0.30
+## 
+## Small sample (n = 20):
+##   Power (proportion significant): 24.2%
+##   Mean estimate when significant: 0.547 (inflated!)
+##   Mean estimate overall: 0.283
+## 
+## Large sample (n = 200):
+##   Power (proportion significant): 98.6%
+##   Mean estimate when significant: 0.288 (accurate)
+##   Mean estimate overall: 0.286
+## 
 ## Key insight: Low power + publication bias = inflated effect sizes!
 ```
 
@@ -719,98 +540,36 @@ A **confounder** is a variable that:
 
 ``` r
 cat("Confounding Structure\n")
-```
-
-```
-## Confounding Structure
-```
-
-``` r
 cat("=====================\n\n")
-```
 
-```
-## =====================
-```
-
-``` r
 cat("       Z (Confounder)\n")
-```
-
-```
-##        Z (Confounder)
-```
-
-``` r
 cat("      / \\\n")
-```
-
-```
-##       / \
-```
-
-``` r
 cat("     ↓   ↓\n")
-```
-
-```
-##      <U+2193>   <U+2193>
-```
-
-``` r
 cat("    X     Y\n")
-```
-
-```
-##     X     Y
-```
-
-``` r
 cat("    ↓___↗\n")
-```
-
-```
-##     <U+2193>___<U+2197>
-```
-
-``` r
 cat("   (spurious)\n\n")
-```
 
-```
-##    (spurious)
-```
-
-``` r
 cat("Example:\n")
-```
-
-```
-## Example:
-```
-
-``` r
 cat("• X = Coffee consumption\n")
-```
-
-```
-## <U+2022> X = Coffee consumption
-```
-
-``` r
 cat("• Y = Heart disease\n")
-```
-
-```
-## <U+2022> Y = Heart disease
-```
-
-``` r
 cat("• Z = Smoking (confounds the coffee-heart disease relationship)\n")
 ```
 
 ```
-## <U+2022> Z = Smoking (confounds the coffee-heart disease relationship)
+## Confounding Structure
+## =====================
+## 
+##        Z (Confounder)
+##       / \
+##      ↓   ↓
+##     X     Y
+##     ↓___↗
+##    (spurious)
+## 
+## Example:
+## • X = Coffee consumption
+## • Y = Heart disease
+## • Z = Smoking (confounds the coffee-heart disease relationship)
 ```
 
 ### 14.12.2 Simulating Confounding
@@ -839,73 +598,30 @@ naive <- lm(Y ~ X, data = confound_data)
 adjusted <- lm(Y ~ X + Z, data = confound_data)
 
 cat("Confounding Demonstration\n")
-```
-
-```
-## Confounding Demonstration
-```
-
-``` r
 cat("=========================\n\n")
-```
-
-```
-## =========================
-```
-
-``` r
 cat("True causal effect of X on Y: 0 (no effect)\n\n")
-```
 
-```
-## True causal effect of X on Y: 0 (no effect)
-```
-
-``` r
 cat("Naive analysis (ignoring confounder Z):\n")
-```
-
-```
-## Naive analysis (ignoring confounder Z):
-```
-
-``` r
 cat(sprintf("  Estimated effect: %.3f (spurious!)\n", coef(naive)[2]))
-```
-
-```
-##   Estimated effect: 0.756 (spurious!)
-```
-
-``` r
 cat(sprintf("  p-value: %.4f (false positive!)\n\n", summary(naive)$coefficients[2, 4]))
-```
 
-```
-##   p-value: 0.0000 (false positive!)
-```
-
-``` r
 cat("Adjusted analysis (controlling for Z):\n")
-```
-
-```
-## Adjusted analysis (controlling for Z):
-```
-
-``` r
 cat(sprintf("  Estimated effect: %.3f (correct!)\n", coef(adjusted)[2]))
-```
-
-```
-##   Estimated effect: 0.043 (correct!)
-```
-
-``` r
 cat(sprintf("  p-value: %.4f (not significant)\n", summary(adjusted)$coefficients[2, 4]))
 ```
 
 ```
+## Confounding Demonstration
+## =========================
+## 
+## True causal effect of X on Y: 0 (no effect)
+## 
+## Naive analysis (ignoring confounder Z):
+##   Estimated effect: 0.756 (spurious!)
+##   p-value: 0.0000 (false positive!)
+## 
+## Adjusted analysis (controlling for Z):
+##   Estimated effect: 0.043 (correct!)
 ##   p-value: 0.3828 (not significant)
 ```
 
@@ -950,25 +666,14 @@ bias_table <- data.table(
 )
 
 cat("Types of Bias in Research\n")
-```
-
-```
-## Types of Bias in Research
-```
-
-``` r
 cat("=========================\n\n")
-```
-
-```
-## =========================
-```
-
-``` r
 print(bias_table)
 ```
 
 ```
+## Types of Bias in Research
+## =========================
+## 
 ##           Bias_Type                                     Description
 ##              <char>                                          <char>
 ## 1:   Selection Bias       Systematic differences in who is included
@@ -1035,35 +740,17 @@ ggplot2$ggplot(study_results[published == TRUE],
 
 ``` r
 cat("\nPublication Bias Summary:\n")
-```
-
-```
-## 
-## Publication Bias Summary:
-```
-
-``` r
 cat(sprintf("True effect: %.2f\n", true_effect))
-```
-
-```
-## True effect: 0.30
-```
-
-``` r
 cat(sprintf("Mean of ALL studies: %.3f\n", mean(study_results$effect)))
-```
-
-```
-## Mean of ALL studies: 0.286
-```
-
-``` r
 cat(sprintf("Mean of PUBLISHED studies: %.3f (inflated!)\n",
             mean(study_results[published == TRUE]$effect)))
 ```
 
 ```
+## 
+## Publication Bias Summary:
+## True effect: 0.30
+## Mean of ALL studies: 0.286
 ## Mean of PUBLISHED studies: 0.311 (inflated!)
 ```
 
@@ -1076,21 +763,8 @@ cat(sprintf("Mean of PUBLISHED studies: %.3f (inflated!)\n",
 
 ``` r
 cat("Critical Appraisal Questions\n")
-```
-
-```
-## Critical Appraisal Questions
-```
-
-``` r
 cat("============================\n\n")
-```
 
-```
-## ============================
-```
-
-``` r
 appraisal <- data.table(
     Category = c(rep("Internal Validity", 3), rep("External Validity", 2),
                  rep("Statistical Validity", 3)),
@@ -1117,23 +791,26 @@ for (cat_name in unique(appraisal$Category)) {
 ```
 
 ```
+## Critical Appraisal Questions
+## ============================
+## 
 ## 
 ## Internal Validity:
 ## ----------------- 
-## <U+25A1> Was there random assignment to groups?
-## <U+25A1> Were groups similar at baseline?
-## <U+25A1> Were there alternative explanations for the effect?
+## □ Was there random assignment to groups?
+## □ Were groups similar at baseline?
+## □ Were there alternative explanations for the effect?
 ## 
 ## External Validity:
 ## ----------------- 
-## <U+25A1> How representative was the sample?
-## <U+25A1> How similar was the setting to real-world conditions?
+## □ How representative was the sample?
+## □ How similar was the setting to real-world conditions?
 ## 
 ## Statistical Validity:
 ## -------------------- 
-## <U+25A1> Was sample size adequate (power analysis)?
-## <U+25A1> Were statistical assumptions checked?
-## <U+25A1> Were all planned outcomes reported?
+## □ Was sample size adequate (power analysis)?
+## □ Were statistical assumptions checked?
+## □ Were all planned outcomes reported?
 ```
 
 ### 14.14.2 Hierarchy of Evidence
@@ -1154,25 +831,18 @@ hierarchy <- data.table(
 )
 
 cat("Hierarchy of Evidence (for Causal Questions)\n")
+cat("=============================================\n\n")
+print(hierarchy)
+
+cat("\nNote: The 'best' study type depends on the research question.\n")
+cat("RCTs are best for treatment effects; cohort studies may be\n")
+cat("better for understanding prognosis or natural history.\n")
 ```
 
 ```
 ## Hierarchy of Evidence (for Causal Questions)
-```
-
-``` r
-cat("=============================================\n\n")
-```
-
-```
 ## =============================================
-```
-
-``` r
-print(hierarchy)
-```
-
-```
+## 
 ##    Level                             Study_Type  Strength
 ##    <int>                                 <char>    <char>
 ## 1:     1              Systematic review of RCTs Strongest
@@ -1181,30 +851,9 @@ print(hierarchy)
 ## 4:     4           Cohort or case-control study  Moderate
 ## 5:     5                 Cross-sectional survey      Weak
 ## 6:     6           Case reports, expert opinion   Weakest
-```
-
-``` r
-cat("\nNote: The 'best' study type depends on the research question.\n")
-```
-
-```
 ## 
 ## Note: The 'best' study type depends on the research question.
-```
-
-``` r
-cat("RCTs are best for treatment effects; cohort studies may be\n")
-```
-
-```
 ## RCTs are best for treatment effects; cohort studies may be
-```
-
-``` r
-cat("better for understanding prognosis or natural history.\n")
-```
-
-```
 ## better for understanding prognosis or natural history.
 ```
 

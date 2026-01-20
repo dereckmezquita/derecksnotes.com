@@ -39,8 +39,11 @@ bp_data <- nhanes[!is.na(BPSysAve) & !is.na(Age) & !is.na(BMI) &
 bp_data <- bp_data[complete.cases(bp_data)]
 
 cat("Dataset prepared:\n")
-#> Dataset prepared:
 cat("  n =", nrow(bp_data), "observations\n")
+```
+
+```
+#> Dataset prepared:
 #>   n = 7150 observations
 ```
 
@@ -128,16 +131,8 @@ sim_results <- data.table(
 sim_results[, Bias := Mean_Estimate - True_Value]
 
 cat("Simulation Results (n_sim =", n_sim, ", n_obs =", n_obs, "):\n")
-#> Simulation Results (n_sim = 1000 , n_obs = 200 ):
 cat("=======================================================\n\n")
-#> =======================================================
 print(sim_results)
-#>    Parameter True_Value Mean_Estimate SD_Estimate         Bias
-#>       <char>      <num>         <num>       <num>        <num>
-#> 1: Intercept      100.0   100.3400222  9.62264856  0.340022216
-#> 2:       Age        0.5     0.4978136  0.06029575 -0.002186366
-#> 3:       BMI        0.8     0.7959452  0.22728695 -0.004054775
-#> 4:     Pulse       -0.1    -0.1021442  0.09102646 -0.002144181
 
 # Visualise sampling distribution for Age coefficient
 beta_age_dt <- data.table(beta_Age = beta_estimates[, "Age"])
@@ -162,6 +157,18 @@ ggplot2$ggplot(beta_age_dt, ggplot2$aes(x = beta_Age)) +
 <Figure src="/courses/statistics-2-intermediate/sampling_distribution-1.png" alt="Simulating the sampling distribution of OLS estimates">
 	Simulating the sampling distribution of OLS estimates
 </Figure>
+
+```
+#> Simulation Results (n_sim = 1000 , n_obs = 200 ):
+#> =======================================================
+#> 
+#>    Parameter True_Value Mean_Estimate SD_Estimate         Bias
+#>       <char>      <num>         <num>       <num>        <num>
+#> 1: Intercept      100.0   100.3400222  9.62264856  0.340022216
+#> 2:       Age        0.5     0.4978136  0.06029575 -0.002186366
+#> 3:       BMI        0.8     0.7959452  0.22728695 -0.004054775
+#> 4:     Pulse       -0.1    -0.1021442  0.09102646 -0.002144181
+```
 
 ### 3.1.2 Estimating the Error Variance
 
@@ -191,18 +198,22 @@ s_squared <- sum(residuals^2) / (n - p - 1)
 s <- sqrt(s_squared)
 
 cat("Error Variance Estimation:\n")
-#> Error Variance Estimation:
 cat("==========================\n\n")
-#> ==========================
 cat("Sum of squared residuals:", round(sum(residuals^2), 2), "\n")
-#> Sum of squared residuals: 1684144
 cat("Degrees of freedom (n - p - 1):", n - p - 1, "\n")
-#> Degrees of freedom (n - p - 1): 7146
 cat("Estimated σ² (s²):", round(s_squared, 4), "\n")
-#> Estimated <U+03C3><U+00B2> (s<U+00B2>): 235.6765
 cat("Estimated σ (s):", round(s, 4), "\n")
-#> Estimated <U+03C3> (s): 15.3518
 cat("\nFrom model summary:", round(summary(model)$sigma, 4), "\n")
+```
+
+```
+#> Error Variance Estimation:
+#> ==========================
+#> 
+#> Sum of squared residuals: 1684144 
+#> Degrees of freedom (n - p - 1): 7146 
+#> Estimated σ² (s²): 235.6765 
+#> Estimated σ (s): 15.3518 
 #> 
 #> From model summary: 15.3518
 ```
@@ -231,15 +242,8 @@ where $[(\mathbf{X}'\mathbf{X})^{-1}]_{jj}$ is the $j$-th diagonal element.
 model_summary <- summary(model)
 
 cat("Coefficient Tests:\n")
-#> Coefficient Tests:
 cat("==================\n\n")
-#> ==================
 print(model_summary$coefficients)
-#>                Estimate Std. Error   t value      Pr(>|t|)
-#> (Intercept) 91.25551802 1.43438491 63.619965  0.000000e+00
-#> Age          0.40420067 0.01061038 38.094851 2.932166e-289
-#> BMI          0.26917165 0.02730181  9.859115  8.744794e-23
-#> Pulse        0.04198857 0.01554264  2.701509  6.918847e-03
 
 # Manual calculation for Age coefficient
 X <- model.matrix(model)
@@ -248,15 +252,26 @@ se_age <- s * sqrt(XtX_inv["Age", "Age"])
 t_age <- coef(model)["Age"] / se_age
 
 cat("\nManual calculation for Age:\n")
+cat("  Coefficient:", round(coef(model)["Age"], 5), "\n")
+cat("  SE:", round(se_age, 5), "\n")
+cat("  t-statistic:", round(t_age, 4), "\n")
+cat("  p-value:", format.pval(2 * pt(abs(t_age), df = n - p - 1, lower.tail = FALSE)), "\n")
+```
+
+```
+#> Coefficient Tests:
+#> ==================
+#> 
+#>                Estimate Std. Error   t value      Pr(>|t|)
+#> (Intercept) 91.25551802 1.43438491 63.619965  0.000000e+00
+#> Age          0.40420067 0.01061038 38.094851 2.932166e-289
+#> BMI          0.26917165 0.02730181  9.859115  8.744794e-23
+#> Pulse        0.04198857 0.01554264  2.701509  6.918847e-03
 #> 
 #> Manual calculation for Age:
-cat("  Coefficient:", round(coef(model)["Age"], 5), "\n")
-#>   Coefficient: 0.4042
-cat("  SE:", round(se_age, 5), "\n")
-#>   SE: 0.01061
-cat("  t-statistic:", round(t_age, 4), "\n")
-#>   t-statistic: 38.0949
-cat("  p-value:", format.pval(2 * pt(abs(t_age), df = n - p - 1, lower.tail = FALSE)), "\n")
+#>   Coefficient: 0.4042 
+#>   SE: 0.01061 
+#>   t-statistic: 38.0949 
 #>   p-value: < 2.22e-16
 ```
 
@@ -283,16 +298,8 @@ ci_table <- data.table(
 )
 
 cat("Coefficient Estimates with 95% Confidence Intervals:\n")
-#> Coefficient Estimates with 95% Confidence Intervals:
 cat("=====================================================\n\n")
-#> =====================================================
 print(ci_table)
-#>       Variable    Estimate         SE    Lower_95    Upper_95       p_value
-#>         <char>       <num>      <num>       <num>       <num>         <num>
-#> 1: (Intercept) 91.25551802 1.43438491 88.44369900 94.06733705  0.000000e+00
-#> 2:         Age  0.40420067 0.01061038  0.38340119  0.42500015 2.932166e-289
-#> 3:         BMI  0.26917165 0.02730181  0.21565203  0.32269128  8.744794e-23
-#> 4:       Pulse  0.04198857 0.01554264  0.01152041  0.07245674  6.918847e-03
 
 # Visualise (forest plot style)
 ci_plot <- ci_table[Variable != "(Intercept)"]
@@ -314,6 +321,18 @@ ggplot2$ggplot(ci_plot, ggplot2$aes(x = Estimate, y = Variable)) +
 <Figure src="/courses/statistics-2-intermediate/confidence_intervals-1.png" alt="Confidence intervals for coefficients">
 	Confidence intervals for coefficients
 </Figure>
+
+```
+#> Coefficient Estimates with 95% Confidence Intervals:
+#> =====================================================
+#> 
+#>       Variable    Estimate         SE    Lower_95    Upper_95       p_value
+#>         <char>       <num>      <num>       <num>       <num>         <num>
+#> 1: (Intercept) 91.25551802 1.43438491 88.44369900 94.06733705  0.000000e+00
+#> 2:         Age  0.40420067 0.01061038  0.38340119  0.42500015 2.932166e-289
+#> 3:         BMI  0.26917165 0.02730181  0.21565203  0.32269128  8.744794e-23
+#> 4:       Pulse  0.04198857 0.01554264  0.01152041  0.07245674  6.918847e-03
+```
 
 ---
 
@@ -349,20 +368,8 @@ Under $H_0$, $F \sim F_{p, n-p-1}$.
 anova_table <- anova(model)
 
 cat("Analysis of Variance Table:\n")
-#> Analysis of Variance Table:
 cat("===========================\n\n")
-#> ===========================
 print(anova_table)
-#> Analysis of Variance Table
-#> 
-#> Response: SBP
-#>             Df  Sum Sq Mean Sq   F value    Pr(>F)    
-#> Age          1  356743  356743 1513.6973 < 2.2e-16 ***
-#> BMI          1   24843   24843  105.4097 < 2.2e-16 ***
-#> Pulse        1    1720    1720    7.2982  0.006919 ** 
-#> Residuals 7146 1684144     236                        
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
 # Compute F-statistic manually
 SST <- sum((bp_data$SBP - mean(bp_data$SBP))^2)
@@ -377,27 +384,43 @@ MSE <- SSE / df_error
 F_stat <- MSR / MSE
 
 cat("\nManual Calculation:\n")
-#> 
-#> Manual Calculation:
 cat("  SST (total):", round(SST, 2), "\n")
-#>   SST (total): 2067450
 cat("  SSR (regression):", round(SSR, 2), "\n")
-#>   SSR (regression): 383305.5
 cat("  SSE (error):", round(SSE, 2), "\n")
-#>   SSE (error): 1684144
 cat("  MSR:", round(MSR, 2), "\n")
-#>   MSR: 127768.5
 cat("  MSE:", round(MSE, 2), "\n")
-#>   MSE: 235.68
 cat("  F-statistic:", round(F_stat, 4), "\n")
-#>   F-statistic: 542.135
 cat("  p-value:", format.pval(pf(F_stat, df_regression, df_error, lower.tail = FALSE)), "\n")
-#>   p-value: < 2.22e-16
 
 cat("\nFrom model summary:\n")
+cat("  F-statistic:", round(summary(model)$fstatistic[1], 4), "\n")
+```
+
+```
+#> Analysis of Variance Table:
+#> ===========================
+#> 
+#> Analysis of Variance Table
+#> 
+#> Response: SBP
+#>             Df  Sum Sq Mean Sq   F value    Pr(>F)    
+#> Age          1  356743  356743 1513.6973 < 2.2e-16 ***
+#> BMI          1   24843   24843  105.4097 < 2.2e-16 ***
+#> Pulse        1    1720    1720    7.2982  0.006919 ** 
+#> Residuals 7146 1684144     236                        
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#> Manual Calculation:
+#>   SST (total): 2067450 
+#>   SSR (regression): 383305.5 
+#>   SSE (error): 1684144 
+#>   MSR: 127768.5 
+#>   MSE: 235.68 
+#>   F-statistic: 542.135 
+#>   p-value: < 2.22e-16 
 #> 
 #> From model summary:
-cat("  F-statistic:", round(summary(model)$fstatistic[1], 4), "\n")
 #>   F-statistic: 542.135
 ```
 
@@ -422,23 +445,10 @@ model_reduced <- lm(SBP ~ Age, data = bp_data)
 anova_comparison <- anova(model_reduced, model_full)
 
 cat("Nested Model Comparison:\n")
-#> Nested Model Comparison:
 cat("========================\n\n")
-#> ========================
 cat("Reduced model: SBP ~ Age\n")
-#> Reduced model: SBP ~ Age
 cat("Full model: SBP ~ Age + BMI + Pulse\n\n")
-#> Full model: SBP ~ Age + BMI + Pulse
 print(anova_comparison)
-#> Analysis of Variance Table
-#> 
-#> Model 1: SBP ~ Age
-#> Model 2: SBP ~ Age + BMI + Pulse
-#>   Res.Df     RSS Df Sum of Sq      F    Pr(>F)    
-#> 1   7148 1710707                                  
-#> 2   7146 1684144  2     26563 56.354 < 2.2e-16 ***
-#> ---
-#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
 # Manual calculation
 SSE_full <- sum(residuals(model_full)^2)
@@ -453,19 +463,37 @@ extra_df <- df_reduced - df_full
 F_partial <- (extra_SS / extra_df) / (SSE_full / df_full)
 
 cat("\nManual Calculation:\n")
+cat("  SSE (reduced):", round(SSE_reduced, 2), "\n")
+cat("  SSE (full):", round(SSE_full, 2), "\n")
+cat("  Extra SS:", round(extra_SS, 2), "\n")
+cat("  Extra df:", extra_df, "\n")
+cat("  F-statistic:", round(F_partial, 4), "\n")
+cat("  p-value:", format.pval(pf(F_partial, extra_df, df_full, lower.tail = FALSE)), "\n")
+```
+
+```
+#> Nested Model Comparison:
+#> ========================
+#> 
+#> Reduced model: SBP ~ Age
+#> Full model: SBP ~ Age + BMI + Pulse
+#> 
+#> Analysis of Variance Table
+#> 
+#> Model 1: SBP ~ Age
+#> Model 2: SBP ~ Age + BMI + Pulse
+#>   Res.Df     RSS Df Sum of Sq      F    Pr(>F)    
+#> 1   7148 1710707                                  
+#> 2   7146 1684144  2     26563 56.354 < 2.2e-16 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #> Manual Calculation:
-cat("  SSE (reduced):", round(SSE_reduced, 2), "\n")
-#>   SSE (reduced): 1710707
-cat("  SSE (full):", round(SSE_full, 2), "\n")
-#>   SSE (full): 1684144
-cat("  Extra SS:", round(extra_SS, 2), "\n")
-#>   Extra SS: 26562.6
-cat("  Extra df:", extra_df, "\n")
-#>   Extra df: 2
-cat("  F-statistic:", round(F_partial, 4), "\n")
-#>   F-statistic: 56.3539
-cat("  p-value:", format.pval(pf(F_partial, extra_df, df_full, lower.tail = FALSE)), "\n")
+#>   SSE (reduced): 1710707 
+#>   SSE (full): 1684144 
+#>   Extra SS: 26562.6 
+#>   Extra df: 2 
+#>   F-statistic: 56.3539 
 #>   p-value: < 2.22e-16
 ```
 
@@ -495,11 +523,15 @@ new_data <- data.table(
 predictions <- predict(model, newdata = new_data)
 
 cat("Point Predictions:\n")
-#> Point Predictions:
 cat("==================\n\n")
-#> ==================
 new_data[, Predicted_SBP := round(predictions, 1)]
 print(new_data)
+```
+
+```
+#> Point Predictions:
+#> ==================
+#> 
 #>      Age   BMI Pulse Predicted_SBP
 #>    <num> <num> <num>         <num>
 #> 1:    30    22    65         112.0
@@ -547,17 +579,9 @@ intervals_dt <- cbind(
 )
 
 cat("Confidence Intervals (for mean response) vs\n")
-#> Confidence Intervals (for mean response) vs
 cat("Prediction Intervals (for individual response):\n")
-#> Prediction Intervals (for individual response):
 cat("================================================\n\n")
-#> ================================================
 print(intervals_dt)
-#>      Age   BMI Pulse Prediction CI_Lower CI_Upper  PI_Lower PI_Upper
-#>    <num> <num> <num>      <num>    <num>    <num>     <num>    <num>
-#> 1:    30    22    65   112.0326 111.3950 112.6701  81.93183 142.1333
-#> 2:    50    28    75   122.1515 121.7736 122.5294  92.05514 152.2479
-#> 3:    70    32    85   131.7321 130.9730 132.4912 101.62852 161.8357
 
 # Visualise across a range of ages
 age_range <- data.table(
@@ -594,6 +618,18 @@ ggplot2$ggplot(plot_dt, ggplot2$aes(x = Age)) +
 	Confidence vs prediction intervals
 </Figure>
 
+```
+#> Confidence Intervals (for mean response) vs
+#> Prediction Intervals (for individual response):
+#> ================================================
+#> 
+#>      Age   BMI Pulse Prediction CI_Lower CI_Upper  PI_Lower PI_Upper
+#>    <num> <num> <num>      <num>    <num>    <num>     <num>    <num>
+#> 1:    30    22    65   112.0326 111.3950 112.6701  81.93183 142.1333
+#> 2:    50    28    75   122.1515 121.7736 122.5294  92.05514 152.2479
+#> 3:    70    32    85   131.7321 130.9730 132.4912 101.62852 161.8357
+```
+
 ### 3.4.3 Extrapolation Warning
 
 **Prose and Intuition**
@@ -608,15 +644,10 @@ Regression models are only reliable within the range of the training data. Predi
 ``` r
 # Show the data range
 cat("Predictor Ranges in Training Data:\n")
-#> Predictor Ranges in Training Data:
 cat("===================================\n\n")
-#> ===================================
 cat("Age:", min(bp_data$Age), "-", max(bp_data$Age), "\n")
-#> Age: 18 - 80
 cat("BMI:", round(min(bp_data$BMI), 1), "-", round(max(bp_data$BMI), 1), "\n")
-#> BMI: 15 - 81.2
 cat("Pulse:", round(min(bp_data$Pulse), 1), "-", round(max(bp_data$Pulse), 1), "\n")
-#> Pulse: 40 - 136
 
 # Predict at extreme values
 extreme_data <- data.table(
@@ -638,12 +669,24 @@ extreme_data[, `:=`(
 )]
 
 cat("\n\nPredictions (Including Extrapolation):\n")
+cat("=======================================\n\n")
+print(extreme_data)
+
+cat("\n[WARNING] Predictions for observations outside training range are unreliable!\n")
+```
+
+```
+#> Predictor Ranges in Training Data:
+#> ===================================
+#> 
+#> Age: 18 - 80 
+#> BMI: 15 - 81.2 
+#> Pulse: 40 - 136 
 #> 
 #> 
 #> Predictions (Including Extrapolation):
-cat("=======================================\n\n")
 #> =======================================
-print(extreme_data)
+#> 
 #>              Description   Age   BMI Pulse Predicted PI_Lower PI_Upper In_Range
 #>                   <char> <num> <num> <num>     <num>    <num>    <num>   <lgcl>
 #> 1:         Young healthy    18    20    60     106.4     76.3    136.5     TRUE
@@ -651,8 +694,6 @@ print(extreme_data)
 #> 3:       Extreme obesity    40    60    80     126.9     96.8    157.1     TRUE
 #> 4:          Within range    50    27    75     121.9     91.8    152.0     TRUE
 #> 5: Extreme extrapolation   120    25    80     149.8    119.7    180.0    FALSE
-
-cat("\n[WARNING] Predictions for observations outside training range are unreliable!\n")
 #> 
 #> [WARNING] Predictions for observations outside training range are unreliable!
 ```
@@ -710,23 +751,11 @@ r2_comparison <- data.table(
 )
 
 cat("R² vs Adjusted R²:\n")
-#> R<U+00B2> vs Adjusted R<U+00B2>:
 cat("==================\n\n")
-#> ==================
 print(r2_comparison)
-#>     Model                 Predictors n_params R_squared Adj_R_squared
-#>    <char>                     <char>    <num>     <num>         <num>
-#> 1:     m0           (Intercept only)        1 0.0000000     0.0000000
-#> 2:     m1                        Age        2 0.1725521     0.1724364
-#> 3:     m2                  Age + BMI        3 0.1845682     0.1843400
-#> 4:     m3          Age + BMI + Pulse        4 0.1854001     0.1850582
-#> 5:     m4 Age + BMI + Pulse + Random        5 0.1855099     0.1850539
 
 cat("\nNote: R² increased when adding 'Random' but Adjusted R² decreased,\n")
-#> 
-#> Note: R<U+00B2> increased when adding 'Random' but Adjusted R<U+00B2> decreased,
 cat("correctly indicating that the random predictor adds no information.\n")
-#> correctly indicating that the random predictor adds no information.
 
 # Visualise
 r2_long <- melt(r2_comparison[, .(Model, R_squared, Adj_R_squared)],
@@ -749,9 +778,25 @@ ggplot2$ggplot(r2_long, ggplot2$aes(x = Model, y = Value, colour = Measure, grou
     ggplot2$theme_minimal()
 ```
 
-<Figure src="/courses/statistics-2-intermediate/r_squared-1.png" alt="R&lt;U+00B2&gt; vs Adjusted R&lt;U+00B2&gt; as predictors are added">
-	R&lt;U+00B2&gt; vs Adjusted R&lt;U+00B2&gt; as predictors are added
+<Figure src="/courses/statistics-2-intermediate/r_squared-1.png" alt="R² vs Adjusted R² as predictors are added">
+	R² vs Adjusted R² as predictors are added
 </Figure>
+
+```
+#> R² vs Adjusted R²:
+#> ==================
+#> 
+#>     Model                 Predictors n_params R_squared Adj_R_squared
+#>    <char>                     <char>    <num>     <num>         <num>
+#> 1:     m0           (Intercept only)        1 0.0000000     0.0000000
+#> 2:     m1                        Age        2 0.1725521     0.1724364
+#> 3:     m2                  Age + BMI        3 0.1845682     0.1843400
+#> 4:     m3          Age + BMI + Pulse        4 0.1854001     0.1850582
+#> 5:     m4 Age + BMI + Pulse + Random        5 0.1855099     0.1850539
+#> 
+#> Note: R² increased when adding 'Random' but Adjusted R² decreased,
+#> correctly indicating that the random predictor adds no information.
+```
 
 ---
 
@@ -785,6 +830,9 @@ ggplot2$ggplot(diag_dt, ggplot2$aes(x = fitted, y = abs_residuals)) +
         y = "|Residuals|"
     ) +
     ggplot2$theme_minimal()
+```
+
+```
 #> `geom_smooth()` using formula = 'y ~ x'
 ```
 
@@ -821,21 +869,25 @@ se_comparison <- data.table(
 se_comparison[, SE_Ratio := round(Robust_SE / Classical_SE, 3)]
 
 cat("Standard Error Comparison:\n")
-#> Standard Error Comparison:
 cat("==========================\n\n")
-#> ==========================
 print(se_comparison)
+
+cat("\nIf Robust SE >> Classical SE, classical inference may be anti-conservative.\n")
+cat("If Robust SE << Classical SE, classical inference may be conservative.\n")
+```
+
+```
+#> Standard Error Comparison:
+#> ==========================
+#> 
 #>       Variable    Estimate Classical_SE  Robust_SE SE_Ratio
 #>         <char>       <num>        <num>      <num>    <num>
 #> 1: (Intercept) 91.25551802   1.43438491 1.48141461    1.033
 #> 2:         Age  0.40420067   0.01061038 0.01178906    1.111
 #> 3:         BMI  0.26917165   0.02730181 0.03083486    1.129
 #> 4:       Pulse  0.04198857   0.01554264 0.01655993    1.065
-
-cat("\nIf Robust SE >> Classical SE, classical inference may be anti-conservative.\n")
 #> 
 #> If Robust SE >> Classical SE, classical inference may be anti-conservative.
-cat("If Robust SE << Classical SE, classical inference may be conservative.\n")
 #> If Robust SE << Classical SE, classical inference may be conservative.
 ```
 

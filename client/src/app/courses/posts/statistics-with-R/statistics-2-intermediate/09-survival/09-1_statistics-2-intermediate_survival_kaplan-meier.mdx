@@ -41,20 +41,23 @@ lung_dt[, event := status - 1]  # Now 0 = censored, 1 = dead
 lung_dt[, sex := factor(sex, levels = c(1, 2), labels = c("Male", "Female"))]
 
 cat("Lung Cancer Dataset:\n")
-#> Lung Cancer Dataset:
 cat("====================\n")
-#> ====================
 cat("  Patients:", nrow(lung_dt), "\n")
-#>   Patients: 228
 cat("  Deaths:", sum(lung_dt$event), "\n")
-#>   Deaths: 165
 cat("  Censored:", sum(lung_dt$event == 0), "\n")
-#>   Censored: 63
 cat("  Males:", sum(lung_dt$sex == "Male"), "\n")
-#>   Males: 138
 cat("  Females:", sum(lung_dt$sex == "Female"), "\n")
-#>   Females: 90
 cat("  Follow-up range:", min(lung_dt$time), "-", max(lung_dt$time), "days\n")
+```
+
+```
+#> Lung Cancer Dataset:
+#> ====================
+#>   Patients: 228 
+#>   Deaths: 165 
+#>   Censored: 63 
+#>   Males: 138 
+#>   Females: 90 
 #>   Follow-up range: 5 - 1022 days
 ```
 
@@ -329,17 +332,8 @@ km_table[, conditional_prob := (n_at_risk - events) / n_at_risk]
 km_table[, survival := cumprod(conditional_prob)]
 
 cat("Kaplan-Meier Calculation:\n")
-#> Kaplan-Meier Calculation:
 cat("=========================\n\n")
-#> =========================
 print(km_table)
-#>     time n_at_risk events censored conditional_prob survival
-#>    <num>     <int>  <int>    <int>            <num>    <num>
-#> 1:     2        10      1        0        0.9000000   0.9000
-#> 2:     4         8      1        0        0.8750000   0.7875
-#> 3:     5         7      1        1        0.8571429   0.6750
-#> 4:     8         5      2        0        0.6000000   0.4050
-#> 5:    12         2      1        0        0.5000000   0.2025
 
 # Create KM curve data (step function)
 km_curve <- data.table(
@@ -392,6 +386,19 @@ ggplot2$ggplot() +
 	Step-by-step Kaplan-Meier calculation
 </Figure>
 
+```
+#> Kaplan-Meier Calculation:
+#> =========================
+#> 
+#>     time n_at_risk events censored conditional_prob survival
+#>    <num>     <int>  <int>    <int>            <num>    <num>
+#> 1:     2        10      1        0        0.9000000   0.9000
+#> 2:     4         8      1        0        0.8750000   0.7875
+#> 3:     5         7      1        1        0.8571429   0.6750
+#> 4:     8         5      2        0        0.6000000   0.4050
+#> 5:    12         2      1        0        0.5000000   0.2025
+```
+
 ### 9.3.2 Application to Lung Cancer Data
 
 
@@ -411,29 +418,20 @@ km_data <- data.table(
 )
 
 cat("Kaplan-Meier Summary:\n")
-#> Kaplan-Meier Summary:
 cat("=====================\n\n")
-#> =====================
 cat("Median survival:", km_fit$median, "days\n")
-#> Median survival: days
 
 # Get CI for median from quantile (works for single stratum)
 q_fit <- quantile(km_fit, probs = 0.5)
 cat("95% CI for median: [", q_fit$lower, ",", q_fit$upper, "]\n\n")
-#> 95% CI for median: [ 285 , 363 ]
 
 cat("Survival estimates at key time points:\n")
-#> Survival estimates at key time points:
 surv_times <- c(100, 200, 365, 500)
 for (t in surv_times) {
     s <- summary(km_fit, times = t)
     cat(sprintf("  %d days: %.1f%% (95%% CI: %.1f%%-%.1f%%)\n",
                 t, s$surv * 100, s$lower * 100, s$upper * 100))
 }
-#>   100 days: 86.4% (95% CI: 82.1%-91.0%)
-#>   200 days: 68.0% (95% CI: 62.2%-74.4%)
-#>   365 days: 40.9% (95% CI: 34.5%-48.6%)
-#>   500 days: 29.3% (95% CI: 23.2%-37.1%)
 
 # Plot with confidence intervals
 ggplot2$ggplot(km_data, ggplot2$aes(x = time)) +
@@ -457,6 +455,20 @@ ggplot2$ggplot(km_data, ggplot2$aes(x = time)) +
 <Figure src="/courses/statistics-2-intermediate/km_lung-1.png" alt="Kaplan-Meier survival curve for lung cancer patients">
 	Kaplan-Meier survival curve for lung cancer patients
 </Figure>
+
+```
+#> Kaplan-Meier Summary:
+#> =====================
+#> 
+#> Median survival: days
+#> 95% CI for median: [ 285 , 363 ]
+#> 
+#> Survival estimates at key time points:
+#>   100 days: 86.4% (95% CI: 82.1%-91.0%)
+#>   200 days: 68.0% (95% CI: 62.2%-74.4%)
+#>   365 days: 40.9% (95% CI: 34.5%-48.6%)
+#>   500 days: 29.3% (95% CI: 23.2%-37.1%)
+```
 
 ### 9.3.3 Number at Risk Table
 
@@ -555,30 +567,15 @@ km_sex <- survfit(Surv(time, event) ~ sex, data = lung_dt)
 logrank_test <- survdiff(Surv(time, event) ~ sex, data = lung_dt)
 
 cat("Log-Rank Test: Survival by Sex\n")
-#> Log-Rank Test: Survival by Sex
 cat("===============================\n\n")
-#> ===============================
 print(logrank_test)
-#> Call:
-#> survdiff(formula = Surv(time, event) ~ sex, data = lung_dt)
-#> 
-#>              N Observed Expected (O-E)^2/E (O-E)^2/V
-#> sex=Male   138      112     91.6      4.55      10.3
-#> sex=Female  90       53     73.4      5.68      10.3
-#> 
-#>  Chisq= 10.3  on 1 degrees of freedom, p= 0.001
 
 p_value <- 1 - pchisq(logrank_test$chisq, df = length(logrank_test$n) - 1)
 cat("\nChi-square statistic:", round(logrank_test$chisq, 2), "\n")
-#> 
-#> Chi-square statistic: 10.33
 cat("p-value:", format.pval(p_value, digits = 3), "\n")
-#> p-value: 0.00131
 cat("\nConclusion:", ifelse(p_value < 0.05,
                             "Significant difference in survival between sexes",
                             "No significant difference"), "\n")
-#> 
-#> Conclusion: Significant difference in survival between sexes
 
 # Extract data for plotting
 km_sex_summary <- summary(km_sex)
@@ -614,29 +611,52 @@ ggplot2$ggplot(km_sex_data, ggplot2$aes(x = time, colour = sex, fill = sex)) +
 	Kaplan-Meier curves comparing survival by sex with log-rank test
 </Figure>
 
+```
+#> Log-Rank Test: Survival by Sex
+#> ===============================
+#> 
+#> Call:
+#> survdiff(formula = Surv(time, event) ~ sex, data = lung_dt)
+#> 
+#>              N Observed Expected (O-E)^2/E (O-E)^2/V
+#> sex=Male   138      112     91.6      4.55      10.3
+#> sex=Female  90       53     73.4      5.68      10.3
+#> 
+#>  Chisq= 10.3  on 1 degrees of freedom, p= 0.001 
+#> 
+#> Chi-square statistic: 10.33 
+#> p-value: 0.00131 
+#> 
+#> Conclusion: Significant difference in survival between sexes
+```
+
 ### 9.4.3 Median Survival Comparison
 
 
 ``` r
 # Extract median survival by group
 cat("Median Survival by Sex:\n")
-#> Median Survival by Sex:
 cat("=======================\n\n")
-#> =======================
 
 km_sex_summary_full <- summary(km_sex)$table
 print(round(km_sex_summary_full, 1))
+
+cat("\nInterpretation:\n")
+cat("  Female patients have better survival than males.\n")
+cat("  Median survival: Males =", round(km_sex_summary_full["sex=Male", "median"]),
+    "days vs Females =", round(km_sex_summary_full["sex=Female", "median"]), "days\n")
+```
+
+```
+#> Median Survival by Sex:
+#> =======================
+#> 
 #>            records n.max n.start events rmean se(rmean) median 0.95LCL 0.95UCL
 #> sex=Male       138   138     138    112 326.1      22.9    270     212     310
 #> sex=Female      90    90      90     53 460.6      34.7    426     348     550
-
-cat("\nInterpretation:\n")
 #> 
 #> Interpretation:
-cat("  Female patients have better survival than males.\n")
 #>   Female patients have better survival than males.
-cat("  Median survival: Males =", round(km_sex_summary_full["sex=Male", "median"]),
-    "days vs Females =", round(km_sex_summary_full["sex=Female", "median"]), "days\n")
 #>   Median survival: Males = 270 days vs Females = 426 days
 ```
 
@@ -664,25 +684,31 @@ When hazards cross or differ primarily at certain times, **weighted log-rank tes
 ``` r
 # Compare different weights
 cat("Weighted Log-Rank Tests:\n")
-#> Weighted Log-Rank Tests:
 cat("========================\n\n")
-#> ========================
 
 # Standard log-rank (rho = 0)
 lr_standard <- survdiff(Surv(time, event) ~ sex, data = lung_dt, rho = 0)
 cat("Log-rank (rho=0):\n")
-#> Log-rank (rho=0):
 cat("  Chi-square:", round(lr_standard$chisq, 3), ", p =", format.pval(1 - pchisq(lr_standard$chisq, 1)), "\n\n")
-#>   Chi-square: 10.327 , p = 0.0013112
 
 # Peto-Peto (rho = 1)
 lr_peto <- survdiff(Surv(time, event) ~ sex, data = lung_dt, rho = 1)
 cat("Peto-Peto (rho=1):\n")
-#> Peto-Peto (rho=1):
 cat("  Chi-square:", round(lr_peto$chisq, 3), ", p =", format.pval(1 - pchisq(lr_peto$chisq, 1)), "\n\n")
-#>   Chi-square: 12.714 , p = 0.0003629
 
 cat("Note: rho=0 weights all times equally; rho=1 gives more weight to early times.\n")
+```
+
+```
+#> Weighted Log-Rank Tests:
+#> ========================
+#> 
+#> Log-rank (rho=0):
+#>   Chi-square: 10.327 , p = 0.0013112 
+#> 
+#> Peto-Peto (rho=1):
+#>   Chi-square: 12.714 , p = 0.0003629 
+#> 
 #> Note: rho=0 weights all times equally; rho=1 gives more weight to early times.
 ```
 
@@ -704,10 +730,14 @@ lung_dt[, ecog_cat := factor(ifelse(ph.ecog %in% c(0, 1), "Good (0-1)", "Poor (2
 lr_strat <- survdiff(Surv(time, event) ~ sex + strata(ecog_cat), data = lung_dt[!is.na(ecog_cat)])
 
 cat("Stratified Log-Rank Test (stratified by ECOG status):\n")
-#> Stratified Log-Rank Test (stratified by ECOG status):
 cat("=====================================================\n\n")
-#> =====================================================
 print(lr_strat)
+```
+
+```
+#> Stratified Log-Rank Test (stratified by ECOG status):
+#> =====================================================
+#> 
 #> Call:
 #> survdiff(formula = Surv(time, event) ~ sex + strata(ecog_cat), 
 #>     data = lung_dt[!is.na(ecog_cat)])

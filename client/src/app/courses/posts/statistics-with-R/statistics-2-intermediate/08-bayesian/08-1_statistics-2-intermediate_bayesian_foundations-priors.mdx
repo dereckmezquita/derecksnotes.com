@@ -51,14 +51,17 @@ diagnostic_data <- data.table(
 )
 
 cat("Data Loaded:\n")
-#> Data Loaded:
 cat("  Blood storage study:", nrow(clinical), "patients\n")
-#>   Blood storage study: 316 patients
 cat("  Simulated diagnostic tests:", n_tested, "patients\n")
-#>   Simulated diagnostic tests: 1000 patients
 cat("    Positive tests:", sum(test_result), "\n")
-#>     Positive tests: 138
 cat("    True disease cases:", sum(disease_status), "\n")
+```
+
+```
+#> Data Loaded:
+#>   Blood storage study: 316 patients
+#>   Simulated diagnostic tests: 1000 patients
+#>     Positive tests: 138 
 #>     True disease cases: 43
 ```
 
@@ -253,32 +256,38 @@ p_negative <- (1 - sensitivity) * prevalence + specificity * (1 - prevalence)
 npv <- (specificity * (1 - prevalence)) / p_negative
 
 cat("Diagnostic Test Analysis (Bayes' Theorem):\n")
-#> Diagnostic Test Analysis (Bayes' Theorem):
 cat("==========================================\n\n")
-#> ==========================================
 cat("Test characteristics:\n")
-#> Test characteristics:
 cat("  Sensitivity (P(+|D)):", sensitivity, "\n")
-#>   Sensitivity (P(+|D)): 0.95
 cat("  Specificity (P(-|~D)):", specificity, "\n")
-#>   Specificity (P(-|~D)): 0.9
 cat("  Prevalence (P(D)):", prevalence, "\n\n")
-#>   Prevalence (P(D)): 0.05
 
 cat("Results:\n")
-#> Results:
 cat("  P(positive test):", round(p_positive, 3), "\n")
-#>   P(positive test): 0.142
 cat("  P(Disease | Positive test) - PPV:", round(ppv, 3), "\n")
-#>   P(Disease | Positive test) - PPV: 0.333
 cat("  P(No Disease | Negative test) - NPV:", round(npv, 3), "\n\n")
-#>   P(No Disease | Negative test) - NPV: 0.997
 
 cat("Interpretation:\n")
-#> Interpretation:
 cat(sprintf("  Only %.1f%% of positive tests indicate true disease!\n", ppv * 100))
-#>   Only 33.3% of positive tests indicate true disease!
 cat("  This is because the disease is rare (low prevalence).\n")
+```
+
+```
+#> Diagnostic Test Analysis (Bayes' Theorem):
+#> ==========================================
+#> 
+#> Test characteristics:
+#>   Sensitivity (P(+|D)): 0.95 
+#>   Specificity (P(-|~D)): 0.9 
+#>   Prevalence (P(D)): 0.05 
+#> 
+#> Results:
+#>   P(positive test): 0.142 
+#>   P(Disease | Positive test) - PPV: 0.333 
+#>   P(No Disease | Negative test) - NPV: 0.997 
+#> 
+#> Interpretation:
+#>   Only 33.3% of positive tests indicate true disease!
 #>   This is because the disease is rare (low prevalence).
 ```
 
@@ -492,27 +501,17 @@ post_mean <- post_alpha / (post_alpha + post_beta)
 post_ci <- qbeta(c(0.025, 0.975), post_alpha, post_beta)
 
 cat("Clinical Trial Bayesian Analysis:\n")
-#> Clinical Trial Bayesian Analysis:
 cat("==================================\n\n")
-#> ==================================
 cat("Prior: Beta(15, 10)\n")
-#> Prior: Beta(15, 10)
 cat("  Prior mean:", round(prior_mean, 3), "\n")
-#>   Prior mean: 0.6
 cat("  Prior 95% CI:", round(qbeta(c(0.025, 0.975), prior_alpha, prior_beta), 3), "\n\n")
-#>   Prior 95% CI: 0.406 0.779
 
 cat("Data: 23 successes out of 30 patients\n")
-#> Data: 23 successes out of 30 patients
 cat("  MLE:", round(n_success/n_patients, 3), "\n\n")
-#>   MLE: 0.767
 
 cat("Posterior: Beta(38, 17)\n")
-#> Posterior: Beta(38, 17)
 cat("  Posterior mean:", round(post_mean, 3), "\n")
-#>   Posterior mean: 0.691
 cat("  95% Credible interval:", round(post_ci, 3), "\n")
-#>   95% Credible interval: 0.564 0.805
 
 ggplot2$ggplot(conjugate_dt, ggplot2$aes(x = theta, y = density, colour = distribution)) +
     ggplot2$geom_line(linewidth = 1.2) +
@@ -537,6 +536,22 @@ ggplot2$ggplot(conjugate_dt, ggplot2$aes(x = theta, y = density, colour = distri
 <Figure src="/courses/statistics-2-intermediate/conjugate_example-1.png" alt="Beta-Binomial conjugacy: prior to posterior updating">
 	Beta-Binomial conjugacy: prior to posterior updating
 </Figure>
+
+```
+#> Clinical Trial Bayesian Analysis:
+#> ==================================
+#> 
+#> Prior: Beta(15, 10)
+#>   Prior mean: 0.6 
+#>   Prior 95% CI: 0.406 0.779 
+#> 
+#> Data: 23 successes out of 30 patients
+#>   MLE: 0.767 
+#> 
+#> Posterior: Beta(38, 17)
+#>   Posterior mean: 0.691 
+#>   95% Credible interval: 0.564 0.805
+```
 
 ### 8.3.3 Effect of Sample Size on Prior Influence
 
@@ -724,20 +739,12 @@ find_hdi <- function(shape, rate, prob = 0.95) {
 ci_hdi <- find_hdi(shape, rate)
 
 cat("Credible Intervals for Gamma(3, 1) Posterior:\n")
-#> Credible Intervals for Gamma(3, 1) Posterior:
 cat("=============================================\n\n")
-#> =============================================
 cat("Equal-tailed 95% CI:", round(ci_et, 3), "\n")
-#> Equal-tailed 95% CI: 0.619 7.225
 cat("  Width:", round(diff(ci_et), 3), "\n\n")
-#>   Width: 6.606
 cat("Highest Density 95% CI:", round(ci_hdi, 3), "\n")
-#> Highest Density 95% CI: 0.308 6.386
 cat("  Width:", round(diff(ci_hdi), 3), "\n")
-#>   Width: 6.078
 cat("\nHDI is shorter for skewed distributions.\n")
-#> 
-#> HDI is shorter for skewed distributions.
 
 # Visualise both intervals
 ci_plot_dt <- data.table(
@@ -773,6 +780,19 @@ gridExtra::grid.arrange(p_eti, p_hdi, ncol = 2)
 <Figure src="/courses/statistics-2-intermediate/credible_intervals-1.png" alt="Equal-tailed interval vs highest density interval for a skewed posterior">
 	Equal-tailed interval vs highest density interval for a skewed posterior
 </Figure>
+
+```
+#> Credible Intervals for Gamma(3, 1) Posterior:
+#> =============================================
+#> 
+#> Equal-tailed 95% CI: 0.619 7.225 
+#>   Width: 6.606 
+#> 
+#> Highest Density 95% CI: 0.308 6.386 
+#>   Width: 6.078 
+#> 
+#> HDI is shorter for skewed distributions.
+```
 
 ---
 
@@ -816,21 +836,13 @@ elicited_alpha <- emp_mean * common_term
 elicited_beta <- (1 - emp_mean) * common_term
 
 cat("Prior Elicitation from Historical Data:\n")
-#> Prior Elicitation from Historical Data:
 cat("========================================\n\n")
-#> ========================================
 cat("Historical vaccine efficacies:", round(historical_efficacy, 2), "\n")
-#> Historical vaccine efficacies: 0.65 0.72 0.58 0.81 0.69 0.75 0.62
 cat("  Mean:", round(emp_mean, 3), "\n")
-#>   Mean: 0.689
 cat("  Variance:", round(emp_var, 4), "\n\n")
-#>   Variance: 0.0062
 cat("Elicited prior: Beta(", round(elicited_alpha, 1), ",", round(elicited_beta, 1), ")\n")
-#> Elicited prior: Beta( 22.9 , 10.4 )
 cat("  Prior mean:", round(elicited_alpha/(elicited_alpha + elicited_beta), 3), "\n")
-#>   Prior mean: 0.689
 cat("  Prior 95% CI:", round(qbeta(c(0.025, 0.975), elicited_alpha, elicited_beta), 3), "\n")
-#>   Prior 95% CI: 0.524 0.831
 
 # Visualise
 theta <- seq(0, 1, length.out = 200)
@@ -861,6 +873,19 @@ ggplot2$ggplot(elicit_dt, ggplot2$aes(x = theta, y = density)) +
 <Figure src="/courses/statistics-2-intermediate/prior_elicitation-1.png" alt="Prior elicitation for vaccine efficacy based on historical data">
 	Prior elicitation for vaccine efficacy based on historical data
 </Figure>
+
+```
+#> Prior Elicitation from Historical Data:
+#> ========================================
+#> 
+#> Historical vaccine efficacies: 0.65 0.72 0.58 0.81 0.69 0.75 0.62 
+#>   Mean: 0.689 
+#>   Variance: 0.0062 
+#> 
+#> Elicited prior: Beta( 22.9 , 10.4 )
+#>   Prior mean: 0.689 
+#>   Prior 95% CI: 0.524 0.831
+```
 
 ### 8.5.2 Sensitivity Analysis
 
@@ -906,22 +931,12 @@ sensitivity_dt <- rbindlist(lapply(names(priors), function(prior_name) {
 # Summary table
 summary_dt <- unique(sensitivity_dt[, .(prior_name, post_mean, ci_lower, ci_upper)])
 cat("\nSensitivity Analysis: Effect of Prior Choice\n")
-#> 
-#> Sensitivity Analysis: Effect of Prior Choice
 cat("=============================================\n")
-#> =============================================
 cat("Data: 15 successes in 20 trials (MLE = 0.75)\n\n")
-#> Data: 15 successes in 20 trials (MLE = 0.75)
 print(summary_dt[, .(Prior = prior_name,
                      `Post. Mean` = round(post_mean, 3),
                      `95% CI Lower` = round(ci_lower, 3),
                      `95% CI Upper` = round(ci_upper, 3))])
-#>          Prior Post. Mean 95% CI Lower 95% CI Upper
-#>         <char>      <num>        <num>        <num>
-#> 1:     Uniform      0.727        0.528        0.887
-#> 2:   Skeptical      0.567        0.389        0.736
-#> 3:  Optimistic      0.767        0.603        0.897
-#> 4: Informative      0.714        0.556        0.849
 
 ggplot2$ggplot(sensitivity_dt, ggplot2$aes(x = theta, y = density, colour = prior_name)) +
     ggplot2$geom_line(linewidth = 1.2) +
@@ -946,6 +961,20 @@ ggplot2$ggplot(sensitivity_dt, ggplot2$aes(x = theta, y = density, colour = prio
 <Figure src="/courses/statistics-2-intermediate/sensitivity_analysis-1.png" alt="Sensitivity analysis: how different priors affect the posterior">
 	Sensitivity analysis: how different priors affect the posterior
 </Figure>
+
+```
+#> 
+#> Sensitivity Analysis: Effect of Prior Choice
+#> =============================================
+#> Data: 15 successes in 20 trials (MLE = 0.75)
+#> 
+#>          Prior Post. Mean 95% CI Lower 95% CI Upper
+#>         <char>      <num>        <num>        <num>
+#> 1:     Uniform      0.727        0.528        0.887
+#> 2:   Skeptical      0.567        0.389        0.736
+#> 3:  Optimistic      0.767        0.603        0.897
+#> 4: Informative      0.714        0.556        0.849
+```
 
 ---
 

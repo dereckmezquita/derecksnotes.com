@@ -87,16 +87,19 @@ for (j in 1:n_samples) {
 counts_dt <- as.data.table(counts, keep.rownames = "gene")
 
 cat("Simulated RNA-seq Data\n")
-#> Simulated RNA-seq Data
 cat("======================\n")
-#> ======================
 cat("  Genes:", n_genes, "\n")
-#>   Genes: 10000
 cat("  Samples:", n_samples, "(", n_control, "control,", n_treatment, "treatment)\n")
-#>   Samples: 6 ( 3 control, 3 treatment)
 cat("  True DE genes:", n_de, "\n")
-#>   True DE genes: 200
 cat("  Library sizes:", paste(round(library_sizes/1e6, 1), "M", collapse = ", "), "\n")
+```
+
+```
+#> Simulated RNA-seq Data
+#> ======================
+#>   Genes: 10000 
+#>   Samples: 6 ( 3 control, 3 treatment)
+#>   True DE genes: 200 
 #>   Library sizes: 15 M, 18 M, 12 M, 20 M, 14 M, 16 M
 ```
 
@@ -210,17 +213,12 @@ dist_comparison <- rbind(
 )
 
 cat("Distribution Comparison (mu = 50):\n")
-#> Distribution Comparison (mu = 50):
 cat("==================================\n")
-#> ==================================
 cat("  Poisson: Mean =", round(mean(poisson_samples), 1),
     ", Var =", round(var(poisson_samples), 1), "\n")
-#>   Poisson: Mean = 49.9 , Var = 49.3
 cat("  NB (phi=0.1): Mean =", round(mean(nb_samples), 1),
     ", Var =", round(var(nb_samples), 1), "\n")
-#>   NB (phi=0.1): Mean = 50.2 , Var = 303.7
 cat("  Expected NB Var:", round(mu + phi * mu^2, 1), "\n")
-#>   Expected NB Var: 300
 
 ggplot2$ggplot(dist_comparison, ggplot2$aes(x = count, fill = distribution)) +
     ggplot2$geom_histogram(ggplot2$aes(y = ..density..),
@@ -244,6 +242,14 @@ ggplot2$ggplot(dist_comparison, ggplot2$aes(x = count, fill = distribution)) +
 <Figure src="/courses/statistics-3-advanced/negative_binomial-1.png" alt="Negative binomial captures overdispersion in count data">
 	Negative binomial captures overdispersion in count data
 </Figure>
+
+```
+#> Distribution Comparison (mu = 50):
+#> ==================================
+#>   Poisson: Mean = 49.9 , Var = 49.3 
+#>   NB (phi=0.1): Mean = 50.2 , Var = 303.7 
+#>   Expected NB Var: 300
+```
 
 ---
 
@@ -274,18 +280,8 @@ lib_data <- data.table(
 )
 
 cat("Library Size Variation:\n")
-#> Library Size Variation:
 cat("=======================\n")
-#> =======================
 print(lib_data[, .(sample, library_size = format(library_size, big.mark = ","), group)])
-#>      sample library_size     group
-#>      <char>       <char>    <fctr>
-#> 1: Sample_1    1,487,786   Control
-#> 2: Sample_2    1,878,922   Control
-#> 3: Sample_3    1,125,160   Control
-#> 4: Sample_4    1,926,016 Treatment
-#> 5: Sample_5    1,441,197 Treatment
-#> 6: Sample_6    1,604,514 Treatment
 
 ggplot2$ggplot(lib_data, ggplot2$aes(x = sample, y = library_size / 1e6, fill = group)) +
     ggplot2$geom_bar(stat = "identity", width = 0.7) +
@@ -307,6 +303,19 @@ ggplot2$ggplot(lib_data, ggplot2$aes(x = sample, y = library_size / 1e6, fill = 
 <Figure src="/courses/statistics-3-advanced/library_size-1.png" alt="Library sizes vary substantially between samples">
 	Library sizes vary substantially between samples
 </Figure>
+
+```
+#> Library Size Variation:
+#> =======================
+#>      sample library_size     group
+#>      <char>       <char>    <fctr>
+#> 1: Sample_1    1,487,786   Control
+#> 2: Sample_2    1,878,922   Control
+#> 3: Sample_3    1,125,160   Control
+#> 4: Sample_4    1,926,016 Treatment
+#> 5: Sample_5    1,441,197 Treatment
+#> 6: Sample_6    1,604,514 Treatment
+```
 
 ### 7.2.2 Effect of Ignoring Library Size
 
@@ -334,14 +343,21 @@ example_counts[, non_DE_norm := non_DE_raw / library_size * mean(library_size)]
 example_counts[, DE_norm := DE_raw / library_size * mean(library_size)]
 
 cat("Example: Raw vs Normalised Counts\n")
-#> Example: Raw vs Normalised Counts
 cat("==================================\n")
-#> ==================================
 cat("\nNon-DE Gene (true log2FC = 0):\n")
-#> 
-#> Non-DE Gene (true log2FC = 0):
 print(example_counts[, .(sample, group, raw = round(non_DE_raw, 0),
                           normalised = round(non_DE_norm, 1))])
+
+cat("\nDE Gene (true log2FC =", round(log_fold_changes[de_gene] / log(2), 2), "):\n")
+print(example_counts[, .(sample, group, raw = round(DE_raw, 0),
+                          normalised = round(DE_norm, 1))])
+```
+
+```
+#> Example: Raw vs Normalised Counts
+#> ==================================
+#> 
+#> Non-DE Gene (true log2FC = 0):
 #>      sample     group   raw normalised
 #>      <char>    <fctr> <num>      <num>
 #> 1: Sample_1   Control   413      437.8
@@ -350,12 +366,8 @@ print(example_counts[, .(sample, group, raw = round(non_DE_raw, 0),
 #> 4: Sample_4 Treatment   234      191.6
 #> 5: Sample_5 Treatment   315      344.7
 #> 6: Sample_6 Treatment   158      155.3
-
-cat("\nDE Gene (true log2FC =", round(log_fold_changes[de_gene] / log(2), 2), "):\n")
 #> 
 #> DE Gene (true log2FC = -7.47 ):
-print(example_counts[, .(sample, group, raw = round(DE_raw, 0),
-                          normalised = round(DE_norm, 1))])
 #>      sample     group   raw normalised
 #>      <char>    <fctr> <num>      <num>
 #> 1: Sample_1   Control    14       14.8
@@ -389,16 +401,19 @@ cpm <- sweep(counts, 2, colSums(counts), "/") * 1e6
 
 # Summary statistics
 cat("CPM Normalisation:\n")
-#> CPM Normalisation:
 cat("==================\n")
-#> ==================
 cat("  Column sums (should all be 1M):", round(colSums(cpm)/1e6, 2), "\n")
-#>   Column sums (should all be 1M): 1 1 1 1 1 1
 
 # Distribution of log-CPM
 log_cpm <- log2(cpm + 1)
 
 cat("  Mean log2(CPM+1) per sample:", round(colMeans(log_cpm), 2), "\n")
+```
+
+```
+#> CPM Normalisation:
+#> ==================
+#>   Column sums (should all be 1M): 1 1 1 1 1 1 
 #>   Mean log2(CPM+1) per sample: 3.93 3.88 3.99 3.98 3.88 3.93
 ```
 
@@ -424,10 +439,13 @@ rpk <- sweep(counts, 1, gene_lengths / 1000, "/")  # Reads per kilobase
 tpm <- sweep(rpk, 2, colSums(rpk), "/") * 1e6
 
 cat("TPM Normalisation:\n")
-#> TPM Normalisation:
 cat("==================\n")
-#> ==================
 cat("  Column sums (should all be 1M):", round(colSums(tpm)/1e6, 2), "\n")
+```
+
+```
+#> TPM Normalisation:
+#> ==================
 #>   Column sums (should all be 1M): 1 1 1 1 1 1
 ```
 
@@ -502,18 +520,10 @@ calc_tmm_factors <- function(counts, ref_col = NULL) {
 tmm_factors <- calc_tmm_factors(counts)
 
 cat("TMM Normalisation Factors:\n")
-#> TMM Normalisation Factors:
 cat("==========================\n")
-#> ==========================
 for (i in 1:n_samples) {
     cat("  ", colnames(counts)[i], ": ", round(tmm_factors[i], 4), "\n", sep = "")
 }
-#>   Sample_1: 1.0034
-#>   Sample_2: 0.954
-#>   Sample_3: 1.0699
-#>   Sample_4: 1.0272
-#>   Sample_5: 0.9603
-#>   Sample_6: 0.9898
 
 # Apply TMM normalisation
 effective_lib_sizes <- colSums(counts) * tmm_factors
@@ -529,11 +539,22 @@ norm_comparison <- data.table(
 )
 
 cat("\nNormalisation Factor Comparison:\n")
-#> 
-#> Normalisation Factor Comparison:
 print(norm_comparison[, .(sample, group,
                            cpm_factor = round(cpm_factor, 3),
                            tmm_factor = round(tmm_factor, 3))])
+```
+
+```
+#> TMM Normalisation Factors:
+#> ==========================
+#>   Sample_1: 1.0034
+#>   Sample_2: 0.954
+#>   Sample_3: 1.0699
+#>   Sample_4: 1.0272
+#>   Sample_5: 0.9603
+#>   Sample_6: 0.9898
+#> 
+#> Normalisation Factor Comparison:
 #>      sample     group cpm_factor tmm_factor
 #>      <char>    <fctr>      <num>      <num>
 #> 1: Sample_1   Control      0.943      1.003
@@ -584,21 +605,24 @@ calc_deseq_factors <- function(counts) {
 deseq_factors <- calc_deseq_factors(counts)
 
 cat("DESeq2 Size Factors:\n")
-#> DESeq2 Size Factors:
 cat("====================\n")
-#> ====================
 for (i in 1:n_samples) {
     cat("  ", colnames(counts)[i], ": ", round(deseq_factors[i], 4), "\n", sep = "")
 }
+
+cat("\nCorrelation between TMM and DESeq2 factors:",
+    round(cor(tmm_factors, deseq_factors), 4), "\n")
+```
+
+```
+#> DESeq2 Size Factors:
+#> ====================
 #>   Sample_1: 0.9613
 #>   Sample_2: 1.1453
 #>   Sample_3: 0.7785
 #>   Sample_4: 1.2639
 #>   Sample_5: 0.8978
 #>   Sample_6: 1.0281
-
-cat("\nCorrelation between TMM and DESeq2 factors:",
-    round(cor(tmm_factors, deseq_factors), 4), "\n")
 #> 
 #> Correlation between TMM and DESeq2 factors: -0.3014
 ```

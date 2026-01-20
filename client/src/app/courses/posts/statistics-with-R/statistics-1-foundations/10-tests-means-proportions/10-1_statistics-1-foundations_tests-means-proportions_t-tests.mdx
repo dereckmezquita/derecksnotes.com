@@ -81,94 +81,18 @@ df <- n - 1
 p_value <- 2 * pt(-abs(t_stat), df = df)
 
 cat("One-Sample T-Test: Systolic Blood Pressure\n")
-```
-
-```
-## One-Sample T-Test: Systolic Blood Pressure
-```
-
-``` r
 cat("==========================================\n\n")
-```
-
-```
-## ==========================================
-```
-
-``` r
 cat(sprintf("H₀: μ = %d mmHg\n", mu_0))
-```
-
-```
-## H<U+2080>: <U+03BC> = 120 mmHg
-```
-
-``` r
 cat(sprintf("H₁: μ ≠ %d mmHg (two-sided)\n\n", mu_0))
-```
-
-```
-## H<U+2081>: <U+03BC> <U+2260> 120 mmHg (two-sided)
-```
-
-``` r
 cat(sprintf("Sample size: n = %d\n", n))
-```
-
-```
-## Sample size: n = 50
-```
-
-``` r
 cat(sprintf("Sample mean: x̄ = %.2f mmHg\n", x_bar))
-```
-
-```
-## Sample mean: x<U+0304> = 117.56 mmHg
-```
-
-``` r
 cat(sprintf("Sample SD: s = %.2f mmHg\n", s))
-```
-
-```
-## Sample SD: s = 18.64 mmHg
-```
-
-``` r
 cat(sprintf("Standard error: SE = %.2f mmHg\n\n", se))
-```
-
-```
-## Standard error: SE = 2.64 mmHg
-```
-
-``` r
 cat(sprintf("Test statistic: t = (%.2f - %d) / %.2f = %.3f\n",
             x_bar, mu_0, se, t_stat))
-```
-
-```
-## Test statistic: t = (117.56 - 120) / 2.64 = -0.926
-```
-
-``` r
 cat(sprintf("Degrees of freedom: df = %d\n", df))
-```
-
-```
-## Degrees of freedom: df = 49
-```
-
-``` r
 cat(sprintf("P-value: %.4f\n\n", p_value))
-```
 
-```
-## P-value: 0.3592
-```
-
-``` r
 if (p_value < 0.05) {
     cat("Decision: Reject H₀ at α = 0.05\n")
     cat(sprintf("Conclusion: Mean BP significantly differs from %d mmHg\n", mu_0))
@@ -176,30 +100,34 @@ if (p_value < 0.05) {
     cat("Decision: Fail to reject H₀ at α = 0.05\n")
     cat(sprintf("Conclusion: Insufficient evidence that mean BP differs from %d mmHg\n", mu_0))
 }
-```
 
-```
-## Decision: Fail to reject H<U+2080> at <U+03B1> = 0.05
-## Conclusion: Insufficient evidence that mean BP differs from 120 mmHg
-```
-
-``` r
 # Verify with R's t.test
 cat("\n\nVerification with t.test():\n")
-```
-
-```
-## 
-## 
-## Verification with t.test():
-```
-
-``` r
 result <- t.test(bp_sample, mu = mu_0)
 print(result)
 ```
 
 ```
+## One-Sample T-Test: Systolic Blood Pressure
+## ==========================================
+## 
+## H₀: μ = 120 mmHg
+## H₁: μ ≠ 120 mmHg (two-sided)
+## 
+## Sample size: n = 50
+## Sample mean: x̄ = 117.56 mmHg
+## Sample SD: s = 18.64 mmHg
+## Standard error: SE = 2.64 mmHg
+## 
+## Test statistic: t = (117.56 - 120) / 2.64 = -0.926
+## Degrees of freedom: df = 49
+## P-value: 0.3592
+## 
+## Decision: Fail to reject H₀ at α = 0.05
+## Conclusion: Insufficient evidence that mean BP differs from 120 mmHg
+## 
+## 
+## Verification with t.test():
 ## 
 ## 	One Sample t-test
 ## 
@@ -265,42 +193,18 @@ one_sample_t_test <- function(x, mu_0 = 0, alternative = "two.sided",
 result <- one_sample_t_test(bp_sample, mu_0 = 120)
 
 cat("Custom one_sample_t_test() Results:\n")
-```
-
-```
-## Custom one_sample_t_test() Results:
-```
-
-``` r
 cat("===================================\n")
-```
-
-```
-## ===================================
-```
-
-``` r
 cat(sprintf("t = %.4f, df = %d, p = %.4f\n",
             result$statistic, result$df, result$p.value))
-```
-
-```
-## t = -0.9256, df = 49, p = 0.3592
-```
-
-``` r
 cat(sprintf("95%% CI: (%.2f, %.2f)\n", result$conf.int[1], result$conf.int[2]))
-```
-
-```
-## 95% CI: (112.26, 122.86)
-```
-
-``` r
 cat(sprintf("Cohen's d = %.3f\n", result$cohens_d))
 ```
 
 ```
+## Custom one_sample_t_test() Results:
+## ===================================
+## t = -0.9256, df = 49, p = 0.3592
+## 95% CI: (112.26, 122.86)
 ## Cohen's d = -0.131
 ```
 
@@ -401,37 +305,10 @@ s1 <- sd(male_bp)
 s2 <- sd(female_bp)
 
 cat("Two-Sample T-Test: Blood Pressure by Sex\n")
-```
-
-```
-## Two-Sample T-Test: Blood Pressure by Sex
-```
-
-``` r
 cat("=========================================\n\n")
-```
-
-```
-## =========================================
-```
-
-``` r
 cat(sprintf("Males: n = %d, mean = %.2f, SD = %.2f\n", n1, x1_bar, s1))
-```
-
-```
-## Males: n = 40, mean = 119.85, SD = 18.12
-```
-
-``` r
 cat(sprintf("Females: n = %d, mean = %.2f, SD = %.2f\n\n", n2, x2_bar, s2))
-```
 
-```
-## Females: n = 40, mean = 115.20, SD = 17.66
-```
-
-``` r
 # Pooled variance approach
 s_pooled <- sqrt(((n1 - 1) * s1^2 + (n2 - 1) * s2^2) / (n1 + n2 - 2))
 se_pooled <- s_pooled * sqrt(1/n1 + 1/n2)
@@ -440,29 +317,9 @@ df_pooled <- n1 + n2 - 2
 p_pooled <- 2 * pt(-abs(t_pooled), df = df_pooled)
 
 cat("Pooled Variance T-Test (assumes equal variances):\n")
-```
-
-```
-## Pooled Variance T-Test (assumes equal variances):
-```
-
-``` r
 cat(sprintf("  s_pooled = %.2f\n", s_pooled))
-```
-
-```
-##   s_pooled = 17.89
-```
-
-``` r
 cat(sprintf("  t = %.3f, df = %d, p = %.4f\n\n", t_pooled, df_pooled, p_pooled))
-```
 
-```
-##   t = 1.162, df = 78, p = 0.2487
-```
-
-``` r
 # Welch's approach
 se_welch <- sqrt(s1^2/n1 + s2^2/n2)
 t_welch <- (x1_bar - x2_bar) / se_welch
@@ -471,47 +328,36 @@ df_welch <- (s1^2/n1 + s2^2/n2)^2 /
 p_welch <- 2 * pt(-abs(t_welch), df = df_welch)
 
 cat("Welch's T-Test (does not assume equal variances):\n")
-```
-
-```
-## Welch's T-Test (does not assume equal variances):
-```
-
-``` r
 cat(sprintf("  t = %.3f, df = %.2f, p = %.4f\n\n", t_welch, df_welch, p_welch))
-```
 
-```
-##   t = 1.162, df = 77.95, p = 0.2487
-```
-
-``` r
 # Effect size
 pooled_sd <- sqrt((s1^2 + s2^2) / 2)
 d <- (x1_bar - x2_bar) / pooled_sd
 cat(sprintf("Effect size (Cohen's d): %.3f\n", d))
-```
 
-```
-## Effect size (Cohen's d): 0.260
-```
-
-``` r
 # Verify with R
 cat("\n\nVerification with t.test():\n")
-```
-
-```
-## 
-## 
-## Verification with t.test():
-```
-
-``` r
 print(t.test(male_bp, female_bp))
 ```
 
 ```
+## Two-Sample T-Test: Blood Pressure by Sex
+## =========================================
+## 
+## Males: n = 40, mean = 119.85, SD = 18.12
+## Females: n = 40, mean = 115.20, SD = 17.66
+## 
+## Pooled Variance T-Test (assumes equal variances):
+##   s_pooled = 17.89
+##   t = 1.162, df = 78, p = 0.2487
+## 
+## Welch's T-Test (does not assume equal variances):
+##   t = 1.162, df = 77.95, p = 0.2487
+## 
+## Effect size (Cohen's d): 0.260
+## 
+## 
+## Verification with t.test():
 ## 
 ## 	Welch Two Sample t-test
 ## 
@@ -596,61 +442,27 @@ result_welch <- two_sample_t_test(male_bp, female_bp)
 result_pooled <- two_sample_t_test(male_bp, female_bp, var_equal = TRUE)
 
 cat("Custom two_sample_t_test() Results:\n")
-```
-
-```
-## Custom two_sample_t_test() Results:
-```
-
-``` r
 cat("===================================\n\n")
-```
-
-```
-## ===================================
-```
-
-``` r
 cat("Welch's (unequal variances):\n")
-```
-
-```
-## Welch's (unequal variances):
-```
-
-``` r
 cat(sprintf("  t = %.4f, df = %.2f, p = %.4f\n",
             result_welch$statistic, result_welch$df, result_welch$p.value))
-```
-
-```
-##   t = 1.1623, df = 77.95, p = 0.2487
-```
-
-``` r
 cat(sprintf("  95%% CI for difference: (%.2f, %.2f)\n",
             result_welch$conf.int[1], result_welch$conf.int[2]))
-```
 
-```
-##   95% CI for difference: (-3.31, 12.61)
-```
-
-``` r
 cat("\nPooled (equal variances):\n")
-```
-
-```
-## 
-## Pooled (equal variances):
-```
-
-``` r
 cat(sprintf("  t = %.4f, df = %.0f, p = %.4f\n",
             result_pooled$statistic, result_pooled$df, result_pooled$p.value))
 ```
 
 ```
+## Custom two_sample_t_test() Results:
+## ===================================
+## 
+## Welch's (unequal variances):
+##   t = 1.1623, df = 77.95, p = 0.2487
+##   95% CI for difference: (-3.31, 12.61)
+## 
+## Pooled (equal variances):
 ##   t = 1.1623, df = 78, p = 0.2487
 ```
 
@@ -728,21 +540,8 @@ paired_data <- data.table(
 )
 
 cat("Paired T-Test: Before vs After Treatment\n")
-```
-
-```
-## Paired T-Test: Before vs After Treatment
-```
-
-``` r
 cat("=========================================\n\n")
-```
 
-```
-## =========================================
-```
-
-``` r
 # Paired test (correct)
 d_bar <- mean(paired_data$difference)
 s_d <- sd(paired_data$difference)
@@ -752,78 +551,37 @@ df_paired <- n - 1
 p_paired <- 2 * pt(-abs(t_paired), df = df_paired)
 
 cat("Paired T-Test (correct analysis):\n")
-```
-
-```
-## Paired T-Test (correct analysis):
-```
-
-``` r
 cat(sprintf("  Mean difference: %.2f\n", d_bar))
-```
-
-```
-##   Mean difference: -2.10
-```
-
-``` r
 cat(sprintf("  SD of differences: %.2f\n", s_d))
-```
-
-```
-##   SD of differences: 6.18
-```
-
-``` r
 cat(sprintf("  t = %.3f, df = %d, p = %.4f\n\n", t_paired, df_paired, p_paired))
-```
 
-```
-##   t = -1.521, df = 19, p = 0.1447
-```
-
-``` r
 # Unpaired test (incorrect for paired data)
 result_unpaired <- t.test(before, after, paired = FALSE)
 
 cat("Two-Sample T-Test (incorrect for paired data):\n")
-```
-
-```
-## Two-Sample T-Test (incorrect for paired data):
-```
-
-``` r
 cat(sprintf("  t = %.3f, df = %.1f, p = %.4f\n\n",
             result_unpaired$statistic, result_unpaired$parameter, result_unpaired$p.value))
-```
 
-```
-##   t = 0.283, df = 38.0, p = 0.7787
-```
-
-``` r
 cat("Key insight: The paired test is much more powerful because\n")
-```
-
-```
-## Key insight: The paired test is much more powerful because
-```
-
-``` r
 cat("it removes between-subject variability.\n")
-```
-
-```
-## it removes between-subject variability.
-```
-
-``` r
 cat(sprintf("\nCorrelation between before and after: r = %.3f\n",
             cor(before, after)))
 ```
 
 ```
+## Paired T-Test: Before vs After Treatment
+## =========================================
+## 
+## Paired T-Test (correct analysis):
+##   Mean difference: -2.10
+##   SD of differences: 6.18
+##   t = -1.521, df = 19, p = 0.1447
+## 
+## Two-Sample T-Test (incorrect for paired data):
+##   t = 0.283, df = 38.0, p = 0.7787
+## 
+## Key insight: The paired test is much more powerful because
+## it removes between-subject variability.
 ## 
 ## Correlation between before and after: r = 0.965
 ```
@@ -883,69 +641,28 @@ paired_t_test <- function(x, y, alternative = "two.sided", conf_level = 0.95) {
 result <- paired_t_test(before, after)
 
 cat("Custom paired_t_test() Results:\n")
-```
-
-```
-## Custom paired_t_test() Results:
-```
-
-``` r
 cat("===============================\n")
-```
-
-```
-## ===============================
-```
-
-``` r
 cat(sprintf("Mean difference: %.3f\n", result$estimate))
-```
-
-```
-## Mean difference: 2.101
-```
-
-``` r
 cat(sprintf("t = %.4f, df = %d, p = %.4f\n",
             result$statistic, result$df, result$p.value))
-```
-
-```
-## t = 1.5211, df = 19, p = 0.1447
-```
-
-``` r
 cat(sprintf("95%% CI: (%.2f, %.2f)\n", result$conf.int[1], result$conf.int[2]))
-```
-
-```
-## 95% CI: (-0.79, 4.99)
-```
-
-``` r
 cat(sprintf("Cohen's d = %.3f\n", result$cohens_d))
-```
 
-```
-## Cohen's d = 0.340
-```
-
-``` r
 # Verify with R
 cat("\n\nVerification with t.test():\n")
-```
-
-```
-## 
-## 
-## Verification with t.test():
-```
-
-``` r
 print(t.test(before, after, paired = TRUE))
 ```
 
 ```
+## Custom paired_t_test() Results:
+## ===============================
+## Mean difference: 2.101
+## t = 1.5211, df = 19, p = 0.1447
+## 95% CI: (-0.79, 4.99)
+## Cohen's d = 0.340
+## 
+## 
+## Verification with t.test():
 ## 
 ## 	Paired t-test
 ## 
@@ -1051,22 +768,7 @@ par(mfrow = c(1, 1))
 # Shapiro-Wilk test
 shapiro_result <- shapiro.test(test_sample)
 cat("\nShapiro-Wilk Normality Test:\n")
-```
-
-```
-## 
-## Shapiro-Wilk Normality Test:
-```
-
-``` r
 cat(sprintf("W = %.4f, p = %.4f\n", shapiro_result$statistic, shapiro_result$p.value))
-```
-
-```
-## W = 0.9833, p = 0.9055
-```
-
-``` r
 if (shapiro_result$p.value > 0.05) {
     cat("Result: No significant departure from normality\n")
 } else {
@@ -1075,6 +777,9 @@ if (shapiro_result$p.value > 0.05) {
 ```
 
 ```
+## 
+## Shapiro-Wilk Normality Test:
+## W = 0.9833, p = 0.9055
 ## Result: No significant departure from normality
 ```
 
@@ -1086,63 +791,16 @@ For the pooled t-test, check variance equality using Levene's or Bartlett's test
 ``` r
 # Compare variances
 cat("Variance Equality Check\n")
-```
-
-```
-## Variance Equality Check
-```
-
-``` r
 cat("=======================\n\n")
-```
-
-```
-## =======================
-```
-
-``` r
 cat(sprintf("Male BP variance: %.2f\n", var(male_bp)))
-```
-
-```
-## Male BP variance: 328.49
-```
-
-``` r
 cat(sprintf("Female BP variance: %.2f\n", var(female_bp)))
-```
-
-```
-## Female BP variance: 311.75
-```
-
-``` r
 cat(sprintf("Ratio: %.2f\n\n", var(male_bp) / var(female_bp)))
-```
 
-```
-## Ratio: 1.05
-```
-
-``` r
 # F-test for variance equality
 var_test <- var.test(male_bp, female_bp)
 cat("F-Test for Equal Variances:\n")
-```
-
-```
-## F-Test for Equal Variances:
-```
-
-``` r
 cat(sprintf("F = %.3f, p = %.4f\n\n", var_test$statistic, var_test$p.value))
-```
 
-```
-## F = 1.054, p = 0.8711
-```
-
-``` r
 if (var_test$p.value > 0.05) {
     cat("Conclusion: No evidence of unequal variances\n")
     cat("Pooled t-test is appropriate\n")
@@ -1153,6 +811,16 @@ if (var_test$p.value > 0.05) {
 ```
 
 ```
+## Variance Equality Check
+## =======================
+## 
+## Male BP variance: 328.49
+## Female BP variance: 311.75
+## Ratio: 1.05
+## 
+## F-Test for Equal Variances:
+## F = 1.054, p = 0.8711
+## 
 ## Conclusion: No evidence of unequal variances
 ## Pooled t-test is appropriate
 ```
@@ -1185,39 +853,12 @@ for (i in 1:n_sim) {
 
 # Check Type I error rate
 cat("Type I Error Rate Check (α = 0.05)\n")
-```
-
-```
-## Type I Error Rate Check (<U+03B1> = 0.05)
-```
-
-``` r
 cat("==================================\n\n")
-```
-
-```
-## ==================================
-```
-
-``` r
 cat(sprintf("Normal data: %.4f (should be ≈ 0.05)\n",
             mean(p_values_normal < 0.05)))
-```
-
-```
-## Normal data: 0.0524 (should be <U+2248> 0.05)
-```
-
-``` r
 cat(sprintf("Exponential data: %.4f (should be ≈ 0.05)\n",
             mean(p_values_nonnormal < 0.05)))
-```
 
-```
-## Exponential data: 0.0756 (should be <U+2248> 0.05)
-```
-
-``` r
 # Visualise p-value distributions
 pval_data <- rbind(
     data.table(p = p_values_normal, dist = "Normal"),
@@ -1243,6 +884,14 @@ ggplot2$ggplot(pval_data, ggplot2$aes(x = p, fill = dist)) +
 <img src="/courses/statistics-1-foundations/robustness_demo-1.png" alt="T-test is robust to moderate non-normality" width="100%" />
 <p class="caption">T-test is robust to moderate non-normality</p>
 </div>
+
+```
+## Type I Error Rate Check (α = 0.05)
+## ==================================
+## 
+## Normal data: 0.0524 (should be ≈ 0.05)
+## Exponential data: 0.0756 (should be ≈ 0.05)
+```
 
 ---
 
@@ -1289,45 +938,11 @@ d <- cohens_d(male_bp, female_bp)
 g <- hedges_g(male_bp, female_bp)
 
 cat("Effect Size Calculations\n")
-```
-
-```
-## Effect Size Calculations
-```
-
-``` r
 cat("========================\n\n")
-```
-
-```
-## ========================
-```
-
-``` r
 cat(sprintf("Cohen's d = %.4f\n", d))
-```
-
-```
-## Cohen's d = 0.2599
-```
-
-``` r
 cat(sprintf("Hedges' g = %.4f (bias-corrected)\n\n", g))
-```
 
-```
-## Hedges' g = 0.2574 (bias-corrected)
-```
-
-``` r
 cat("Interpretation:\n")
-```
-
-```
-## Interpretation:
-```
-
-``` r
 cat(sprintf("  |d| = %.2f → %s effect\n", abs(d),
             ifelse(abs(d) < 0.2, "negligible",
                    ifelse(abs(d) < 0.5, "small",
@@ -1335,7 +950,14 @@ cat(sprintf("  |d| = %.2f → %s effect\n", abs(d),
 ```
 
 ```
-##   |d| = 0.26 <U+2192> small effect
+## Effect Size Calculations
+## ========================
+## 
+## Cohen's d = 0.2599
+## Hedges' g = 0.2574 (bias-corrected)
+## 
+## Interpretation:
+##   |d| = 0.26 → small effect
 ```
 
 ### 10.5.3 Confidence Interval for Effect Size
@@ -1362,41 +984,17 @@ set.seed(123)
 d_result <- bootstrap_d_ci(male_bp, female_bp)
 
 cat("Effect Size with 95% CI (Bootstrap)\n")
-```
-
-```
-## Effect Size with 95% CI (Bootstrap)
-```
-
-``` r
 cat("====================================\n")
-```
-
-```
-## ====================================
-```
-
-``` r
 cat(sprintf("Cohen's d = %.3f\n", d_result$d))
-```
-
-```
-## Cohen's d = 0.260
-```
-
-``` r
 cat(sprintf("95%% CI: (%.3f, %.3f)\n", d_result$ci[1], d_result$ci[2]))
-```
-
-```
-## 95% CI: (-0.170, 0.705)
-```
-
-``` r
 cat(sprintf("SE(d) = %.3f\n", d_result$se))
 ```
 
 ```
+## Effect Size with 95% CI (Bootstrap)
+## ====================================
+## Cohen's d = 0.260
+## 95% CI: (-0.170, 0.705)
 ## SE(d) = 0.225
 ```
 
@@ -1419,127 +1017,32 @@ cat(sprintf("SE(d) = %.3f\n", d_result$se))
 ``` r
 # Generate a complete report
 cat("STATISTICAL REPORT: Blood Pressure by Sex\n")
-```
-
-```
-## STATISTICAL REPORT: Blood Pressure by Sex
-```
-
-``` r
 cat("==========================================\n\n")
-```
 
-```
-## ==========================================
-```
-
-``` r
 cat("Descriptive Statistics:\n")
-```
-
-```
-## Descriptive Statistics:
-```
-
-``` r
 cat("-----------------------\n")
-```
-
-```
-## -----------------------
-```
-
-``` r
 cat(sprintf("Male: M = %.1f mmHg (SD = %.1f), n = %d\n",
             mean(male_bp), sd(male_bp), length(male_bp)))
-```
-
-```
-## Male: M = 119.8 mmHg (SD = 18.1), n = 40
-```
-
-``` r
 cat(sprintf("Female: M = %.1f mmHg (SD = %.1f), n = %d\n\n",
             mean(female_bp), sd(female_bp), length(female_bp)))
-```
 
-```
-## Female: M = 115.2 mmHg (SD = 17.7), n = 40
-```
-
-``` r
 result <- t.test(male_bp, female_bp)
 d <- cohens_d(male_bp, female_bp)
 
 cat("Inferential Statistics:\n")
-```
-
-```
-## Inferential Statistics:
-```
-
-``` r
 cat("-----------------------\n")
-```
-
-```
-## -----------------------
-```
-
-``` r
 cat(sprintf("Mean difference: %.1f mmHg\n", mean(male_bp) - mean(female_bp)))
-```
-
-```
-## Mean difference: 4.6 mmHg
-```
-
-``` r
 cat(sprintf("95%% CI for difference: [%.1f, %.1f] mmHg\n",
             result$conf.int[1], result$conf.int[2]))
-```
-
-```
-## 95% CI for difference: [-3.3, 12.6] mmHg
-```
-
-``` r
 cat(sprintf("Welch's t(%.1f) = %.2f, p = %.3f\n",
             result$parameter, result$statistic, result$p.value))
-```
-
-```
-## Welch's t(77.9) = 1.16, p = 0.249
-```
-
-``` r
 cat(sprintf("Cohen's d = %.2f (%s effect)\n\n",
             d, ifelse(abs(d) < 0.2, "negligible",
                       ifelse(abs(d) < 0.5, "small",
                              ifelse(abs(d) < 0.8, "medium", "large")))))
-```
 
-```
-## Cohen's d = 0.26 (small effect)
-```
-
-``` r
 cat("Interpretation:\n")
-```
-
-```
-## Interpretation:
-```
-
-``` r
 cat("--------------\n")
-```
-
-```
-## --------------
-```
-
-``` r
 if (result$p.value < 0.05) {
     cat("There was a statistically significant difference in blood pressure\n")
     cat("between males and females. ")
@@ -1547,26 +1050,30 @@ if (result$p.value < 0.05) {
     cat("There was no statistically significant difference in blood pressure\n")
     cat("between males and females. ")
 }
-```
-
-```
-## There was no statistically significant difference in blood pressure
-## between males and females.
-```
-
-``` r
 cat("However, the effect size suggests the practical\n")
-```
-
-```
-## However, the effect size suggests the practical
-```
-
-``` r
 cat("significance is limited.\n")
 ```
 
 ```
+## STATISTICAL REPORT: Blood Pressure by Sex
+## ==========================================
+## 
+## Descriptive Statistics:
+## -----------------------
+## Male: M = 119.8 mmHg (SD = 18.1), n = 40
+## Female: M = 115.2 mmHg (SD = 17.7), n = 40
+## 
+## Inferential Statistics:
+## -----------------------
+## Mean difference: 4.6 mmHg
+## 95% CI for difference: [-3.3, 12.6] mmHg
+## Welch's t(77.9) = 1.16, p = 0.249
+## Cohen's d = 0.26 (small effect)
+## 
+## Interpretation:
+## --------------
+## There was no statistically significant difference in blood pressure
+## between males and females. However, the effect size suggests the practical
 ## significance is limited.
 ```
 

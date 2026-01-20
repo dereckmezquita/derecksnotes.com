@@ -34,6 +34,9 @@ nhanes <- data.table$fread("../../../data/primary/nhanes.csv")
 
 # Quick overview
 cat("NHANES dataset:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
+```
+
+```
 #> NHANES dataset: 10000 observations, 76 variables
 ```
 
@@ -98,9 +101,7 @@ my_mean <- function(x) {
 bmi_sample <- nhanes[!is.na(BMI), BMI][1:100]
 
 cat("Our implementation:", my_mean(bmi_sample), "\n")
-#> Our implementation: 26.3844
 cat("Built-in mean():", mean(bmi_sample), "\n")
-#> Built-in mean(): 26.3844
 
 # Visualise the mean as balance point
 bmi_dt <- data.table$data.table(bmi = bmi_sample)
@@ -127,6 +128,11 @@ ggplot2$ggplot(bmi_dt, ggplot2$aes(x = bmi)) +
 <Figure src="/courses/statistics-1-foundations/mean_from_scratch-1.png" alt="The mean is the balance point of the distribution">
 	The mean is the balance point of the distribution
 </Figure>
+
+```
+#> Our implementation: 26.3844 
+#> Built-in mean(): 26.3844
+```
 
 **Key properties of the mean:**
 
@@ -183,26 +189,29 @@ my_median <- function(x) {
 
 # Test
 cat("Our implementation:", my_median(bmi_sample), "\n")
-#> Our implementation: 26.46
 cat("Built-in median():", median(bmi_sample), "\n")
-#> Built-in median(): 26.46
 
 # Demonstrate robustness to outliers
 normal_data <- c(10, 12, 14, 15, 16, 18, 20)
 outlier_data <- c(10, 12, 14, 15, 16, 18, 200)  # 200 is an outlier
 
 cat("\nNormal data:\n")
-#> 
-#> Normal data:
 cat("  Mean:", mean(normal_data), "  Median:", median(normal_data), "\n")
-#>   Mean: 15   Median: 15
 
 cat("\nWith outlier (200):\n")
+cat("  Mean:", mean(outlier_data), "  Median:", median(outlier_data), "\n")
+cat("\nThe mean shifted dramatically; the median barely changed.\n")
+```
+
+```
+#> Our implementation: 26.46 
+#> Built-in median(): 26.46 
+#> 
+#> Normal data:
+#>   Mean: 15   Median: 15 
 #> 
 #> With outlier (200):
-cat("  Mean:", mean(outlier_data), "  Median:", median(outlier_data), "\n")
-#>   Mean: 40.71429   Median: 15
-cat("\nThe mean shifted dramatically; the median barely changed.\n")
+#>   Mean: 40.71429   Median: 15 
 #> 
 #> The mean shifted dramatically; the median barely changed.
 ```
@@ -244,13 +253,7 @@ my_mode <- function(x) {
 # Mode works well for discrete/categorical data
 education_data <- nhanes[!is.na(Education), Education]
 cat("Mode of Education levels:", my_mode(education_data), "\n")
-#> Mode of Education levels:
 print(table(education_data))
-#> education_data
-#>                     8th Grade 9 - 11th Grade   College Grad    High School 
-#>           2779            451            888           2098           1517 
-#>   Some College 
-#>           2267
 
 # For continuous data, mode is less useful without binning
 # Create bimodal data to illustrate
@@ -282,6 +285,15 @@ ggplot2$ggplot(bimodal_dt, ggplot2$aes(x = age)) +
 <Figure src="/courses/statistics-1-foundations/mode_from_scratch-1.png" alt="Bimodal distributions have two modes indicating distinct subgroups">
 	Bimodal distributions have two modes indicating distinct subgroups
 </Figure>
+
+```
+#> Mode of Education levels:  
+#> education_data
+#>                     8th Grade 9 - 11th Grade   College Grad    High School 
+#>           2779            451            888           2098           1517 
+#>   Some College 
+#>           2267
+```
 
 ### 2.1.4 Comparing Mean, Median, and Mode
 
@@ -405,10 +417,13 @@ assignments <- c(85, 90, 78, 92)  # Assignment scores
 weights <- c(0.1, 0.1, 0.3, 0.5)  # 10%, 10%, 30%, 50%
 
 cat("Unweighted mean:", mean(assignments), "\n")
-#> Unweighted mean: 86.25
 cat("Weighted mean:", my_weighted_mean(assignments, weights), "\n")
-#> Weighted mean: 86.9
 cat("Built-in weighted.mean():", weighted.mean(assignments, weights), "\n")
+```
+
+```
+#> Unweighted mean: 86.25 
+#> Weighted mean: 86.9 
 #> Built-in weighted.mean(): 86.9
 ```
 
@@ -441,12 +456,15 @@ my_trimmed_mean <- function(x, trim = 0.1) {
 outlier_data <- c(2, 3, 4, 4, 5, 5, 5, 6, 6, 7, 100)
 
 cat("Regular mean:", mean(outlier_data), "\n")
-#> Regular mean: 13.36364
 cat("10% trimmed mean:", my_trimmed_mean(outlier_data, 0.1), "\n")
-#> 10% trimmed mean: 5
 cat("Built-in mean(trim=0.1):", mean(outlier_data, trim = 0.1), "\n")
-#> Built-in mean(trim=0.1): 5
 cat("Median:", median(outlier_data), "\n")
+```
+
+```
+#> Regular mean: 13.36364 
+#> 10% trimmed mean: 5 
+#> Built-in mean(trim=0.1): 5 
 #> Median: 5
 ```
 
@@ -477,22 +495,27 @@ growth_factors <- c(1.10, 1.20, 0.95)
 
 # Arithmetic mean suggests 8.33% average growth
 cat("Arithmetic mean of growth factors:", mean(growth_factors), "\n")
-#> Arithmetic mean of growth factors: 1.083333
 cat("Suggests average growth of:", (mean(growth_factors) - 1) * 100, "%\n\n")
-#> Suggests average growth of: 8.333333 %
 
 # Geometric mean gives the true average growth
 cat("Geometric mean of growth factors:", my_geometric_mean(growth_factors), "\n")
-#> Geometric mean of growth factors: 1.078365
 cat("True average growth:", (my_geometric_mean(growth_factors) - 1) * 100, "%\n\n")
-#> True average growth: 7.836515 %
 
 # Verify: $100 after 3 years
 initial <- 100
 final <- initial * prod(growth_factors)
 cat("$100 after 3 years: $", round(final, 2), "\n")
-#> $100 after 3 years: $ 125.4
 cat("Using geometric mean:", round(initial * my_geometric_mean(growth_factors)^3, 2), "\n")
+```
+
+```
+#> Arithmetic mean of growth factors: 1.083333 
+#> Suggests average growth of: 8.333333 %
+#> 
+#> Geometric mean of growth factors: 1.078365 
+#> True average growth: 7.836515 %
+#> 
+#> $100 after 3 years: $ 125.4 
 #> Using geometric mean: 125.4
 ```
 
@@ -522,9 +545,7 @@ my_harmonic_mean <- function(x) {
 speeds <- c(30, 60)
 
 cat("Arithmetic mean:", mean(speeds), "km/h (WRONG!)\n")
-#> Arithmetic mean: 45 km/h (WRONG!)
 cat("Harmonic mean:", my_harmonic_mean(speeds), "km/h (CORRECT)\n\n")
-#> Harmonic mean: 40 km/h (CORRECT)
 
 # Verify: for distance d each way
 # Time to work: d/30 hours
@@ -533,6 +554,12 @@ cat("Harmonic mean:", my_harmonic_mean(speeds), "km/h (CORRECT)\n\n")
 # Total distance: 2d km
 # Average speed: 2d / (d/20) = 40 km/h
 cat("Verification: average speed = total distance / total time = 40 km/h\n")
+```
+
+```
+#> Arithmetic mean: 45 km/h (WRONG!)
+#> Harmonic mean: 40 km/h (CORRECT)
+#> 
 #> Verification: average speed = total distance / total time = 40 km/h
 ```
 

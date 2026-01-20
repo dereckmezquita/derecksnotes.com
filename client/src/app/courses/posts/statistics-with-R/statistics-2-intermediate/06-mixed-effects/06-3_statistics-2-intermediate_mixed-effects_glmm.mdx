@@ -37,6 +37,9 @@ nhanes <- fread("../../../data/primary/nhanes.csv")
 doctor_visits <- fread("../../../data/count/nmes1988_doctor_visits.csv")
 
 cat("Datasets loaded.\n")
+```
+
+```
 #> Datasets loaded.
 ```
 
@@ -119,24 +122,17 @@ trial_data[, prob := 1 / (1 + exp(-log_odds))]
 trial_data[, response := rbinom(.N, 1, prob)]
 
 cat("Simulated Multi-Site Trial:\n")
-#> Simulated Multi-Site Trial:
 cat("===========================\n\n")
-#> ===========================
 cat("Hospitals:", n_hospitals, "\n")
-#> Hospitals: 15
 cat("Patients per hospital:", n_patients_per_hospital, "\n")
-#> Patients per hospital: 50
 cat("Total patients:", nrow(trial_data), "\n")
-#> Total patients: 750
 cat("Overall response rate:", round(100 * mean(trial_data$response), 1), "%\n\n")
-#> Overall response rate: 30.1 %
 
 # Hospital-specific response rates
 hosp_rates <- trial_data[, .(rate = mean(response), n = .N), by = hospital]
 cat("Hospital response rates range from",
     round(100 * min(hosp_rates$rate), 1), "% to",
     round(100 * max(hosp_rates$rate), 1), "%\n")
-#> Hospital response rates range from 14 % to 50 %
 
 # Visualise
 ggplot2$ggplot(hosp_rates, ggplot2$aes(x = factor(hospital), y = rate)) +
@@ -157,6 +153,18 @@ ggplot2$ggplot(hosp_rates, ggplot2$aes(x = factor(hospital), y = rate)) +
 	Simulated multi-site trial with varying hospital effects
 </Figure>
 
+```
+#> Simulated Multi-Site Trial:
+#> ===========================
+#> 
+#> Hospitals: 15 
+#> Patients per hospital: 50 
+#> Total patients: 750 
+#> Overall response rate: 30.1 %
+#> 
+#> Hospital response rates range from 14 % to 50 %
+```
+
 ### 6.12.2 Fitting Logistic Mixed Models
 
 
@@ -170,10 +178,14 @@ model_glmm <- glmer(response ~ treatment + age + severity + (1 | hospital),
                     data = trial_data, family = binomial)
 
 cat("Logistic Mixed Model:\n")
-#> Logistic Mixed Model:
 cat("=====================\n\n")
-#> =====================
 summary(model_glmm)
+```
+
+```
+#> Logistic Mixed Model:
+#> =====================
+#> 
 #> Generalized linear mixed model fit by maximum likelihood (Laplace
 #>   Approximation) [glmerMod]
 #>  Family: binomial  ( logit )
@@ -213,9 +225,7 @@ summary(model_glmm)
 
 ``` r
 cat("Comparing Standard GLM vs GLMM:\n")
-#> Comparing Standard GLM vs GLMM:
 cat("===============================\n\n")
-#> ===============================
 
 # Extract coefficients
 coef_glm <- coef(model_glm)
@@ -236,23 +246,29 @@ comparison <- data.table(
 print(comparison[, .(Variable,
                      GLM = paste0(round(Coef_GLM, 3), " (", round(SE_GLM, 3), ")"),
                      GLMM = paste0(round(Coef_GLMM, 3), " (", round(SE_GLMM, 3), ")"))])
+
+cat("\nKey observations:\n")
+cat("  - Coefficients are often similar\n")
+cat("  - SEs in GLMM may be larger (more honest)\n")
+cat("  - Treatment effect:", round(coef_glmm["treatment"], 3), "on log-odds scale\n")
+cat("  - OR for treatment:", round(exp(coef_glmm["treatment"]), 2), "\n")
+```
+
+```
+#> Comparing Standard GLM vs GLMM:
+#> ===============================
+#> 
 #>       Variable           GLM           GLMM
 #>         <char>        <char>         <char>
 #> 1: (Intercept) 0.054 (0.408)  0.059 (0.436)
 #> 2:   treatment  0.74 (0.165)   0.787 (0.17)
 #> 3:         age -0.03 (0.008) -0.031 (0.008)
 #> 4:    severity 0.531 (0.171)  0.542 (0.176)
-
-cat("\nKey observations:\n")
 #> 
 #> Key observations:
-cat("  - Coefficients are often similar\n")
 #>   - Coefficients are often similar
-cat("  - SEs in GLMM may be larger (more honest)\n")
 #>   - SEs in GLMM may be larger (more honest)
-cat("  - Treatment effect:", round(coef_glmm["treatment"], 3), "on log-odds scale\n")
 #>   - Treatment effect: 0.787 on log-odds scale
-cat("  - OR for treatment:", round(exp(coef_glmm["treatment"]), 2), "\n")
 #>   - OR for treatment: 2.2
 ```
 
@@ -261,35 +277,41 @@ cat("  - OR for treatment:", round(exp(coef_glmm["treatment"]), 2), "\n")
 
 ``` r
 cat("Random Effects in Logistic GLMM:\n")
-#> Random Effects in Logistic GLMM:
 cat("================================\n\n")
-#> ================================
 
 # Variance component
 vc <- VarCorr(model_glmm)
 sigma_hospital <- as.numeric(attr(vc$hospital, "stddev"))
 
 cat("Hospital SD (on log-odds scale):", round(sigma_hospital, 3), "\n\n")
-#> Hospital SD (on log-odds scale): 0.46
 
 # Convert to probability scale (approximate)
 cat("What this means:\n")
-#> What this means:
 cat("  An 'average' hospital has log-odds at the fixed effect prediction\n")
-#>   An 'average' hospital has log-odds at the fixed effect prediction
 cat("  A hospital 1 SD above average: multiply odds by exp(", round(sigma_hospital, 3), ") =",
     round(exp(sigma_hospital), 2), "\n")
-#>   A hospital 1 SD above average: multiply odds by exp( 0.46 ) = 1.58
 cat("  A hospital 1 SD below average: divide odds by", round(exp(sigma_hospital), 2), "\n\n")
-#>   A hospital 1 SD below average: divide odds by 1.58
 
 # Hospital random effects
 re_hospital <- ranef(model_glmm)$hospital[, 1]
 cat("Range of hospital effects:\n")
-#> Range of hospital effects:
 cat("  Min:", round(min(re_hospital), 3), "(OR multiplier:", round(exp(min(re_hospital)), 2), ")\n")
-#>   Min: -0.607 (OR multiplier: 0.54 )
 cat("  Max:", round(max(re_hospital), 3), "(OR multiplier:", round(exp(max(re_hospital)), 2), ")\n")
+```
+
+```
+#> Random Effects in Logistic GLMM:
+#> ================================
+#> 
+#> Hospital SD (on log-odds scale): 0.46 
+#> 
+#> What this means:
+#>   An 'average' hospital has log-odds at the fixed effect prediction
+#>   A hospital 1 SD above average: multiply odds by exp( 0.46 ) = 1.58 
+#>   A hospital 1 SD below average: divide odds by 1.58 
+#> 
+#> Range of hospital effects:
+#>   Min: -0.607 (OR multiplier: 0.54 )
 #>   Max: 0.664 (OR multiplier: 1.94 )
 ```
 
@@ -341,12 +363,16 @@ count_data[, log_rate := 1 + 0.5 * chronic + 0.01 * age + clinic_effect]
 count_data[, visits := rpois(.N, exp(log_rate))]
 
 cat("Simulated Clinic Visit Data:\n")
-#> Simulated Clinic Visit Data:
 cat("============================\n\n")
-#> ============================
 cat("Mean visits:", round(mean(count_data$visits), 2), "\n")
-#> Mean visits: 7.04
 cat("Variance:", round(var(count_data$visits), 2), "\n")
+```
+
+```
+#> Simulated Clinic Visit Data:
+#> ============================
+#> 
+#> Mean visits: 7.04 
 #> Variance: 17.84
 ```
 
@@ -357,10 +383,21 @@ model_pois_glmm <- glmer(visits ~ chronic + age + (1 | clinic),
                           data = count_data, family = poisson)
 
 cat("Poisson Mixed Model:\n")
-#> Poisson Mixed Model:
 cat("====================\n\n")
-#> ====================
 summary(model_pois_glmm)
+
+# Rate ratios
+cat("\nRate Ratios:\n")
+fe <- fixef(model_pois_glmm)
+rr <- exp(fe)
+cat("  Chronic condition: RR =", round(rr["chronic"], 2), "\n")
+cat("  Age (per year): RR =", round(rr["age"], 3), "\n")
+```
+
+```
+#> Poisson Mixed Model:
+#> ====================
+#> 
 #> Generalized linear mixed model fit by maximum likelihood (Laplace
 #>   Approximation) [glmerMod]
 #>  Family: poisson  ( log )
@@ -394,16 +431,10 @@ summary(model_pois_glmm)
 #> optimizer (Nelder_Mead) convergence code: 0 (OK)
 #> Model is nearly unidentifiable: very large eigenvalue
 #>  - Rescale variables?
-
-# Rate ratios
-cat("\nRate Ratios:\n")
+#> 
 #> 
 #> Rate Ratios:
-fe <- fixef(model_pois_glmm)
-rr <- exp(fe)
-cat("  Chronic condition: RR =", round(rr["chronic"], 2), "\n")
-#>   Chronic condition: RR = 1.6
-cat("  Age (per year): RR =", round(rr["age"], 3), "\n")
+#>   Chronic condition: RR = 1.6 
 #>   Age (per year): RR = 1.01
 ```
 
@@ -489,13 +520,9 @@ diabetes_data[, age_group := cut(Age, breaks = seq(18, 90, by = 10), include.low
 diabetes_data[, cluster := as.integer(age_group)]
 
 cat("NHANES Diabetes Analysis:\n")
-#> NHANES Diabetes Analysis:
 cat("=========================\n\n")
-#> =========================
 cat("Observations:", nrow(diabetes_data), "\n")
-#> Observations: 7414
 cat("Diabetes prevalence:", round(100 * mean(diabetes_data$diabetes), 1), "%\n\n")
-#> Diabetes prevalence: 9.9 %
 
 # Fit models
 model_fixed <- glm(diabetes ~ BMI + Gender, data = diabetes_data, family = binomial)
@@ -503,31 +530,41 @@ model_mixed <- glmer(diabetes ~ BMI + Gender + (1 | cluster),
                      data = diabetes_data, family = binomial)
 
 cat("Standard Logistic vs Mixed Model:\n")
-#> Standard Logistic vs Mixed Model:
 cat("---------------------------------\n\n")
-#> ---------------------------------
 
 cat("Fixed effects (log-odds):\n")
-#> Fixed effects (log-odds):
 print(data.table(
     Variable = names(fixef(model_mixed)),
     Fixed_Only = round(coef(model_fixed), 4),
     Mixed = round(fixef(model_mixed), 4)
 ))
+
+cat("\nOdds Ratios:\n")
+or_mixed <- exp(fixef(model_mixed))
+ci_mixed <- exp(confint(model_mixed, method = "Wald", parm = "beta_"))
+cat("  BMI (per unit): OR =", round(or_mixed["BMI"], 3), "\n")
+cat("  Gender (male): OR =", round(or_mixed["Gendermale"], 3), "\n")
+```
+
+```
+#> NHANES Diabetes Analysis:
+#> =========================
+#> 
+#> Observations: 7414 
+#> Diabetes prevalence: 9.9 %
+#> 
+#> Standard Logistic vs Mixed Model:
+#> ---------------------------------
+#> 
+#> Fixed effects (log-odds):
 #>       Variable Fixed_Only   Mixed
 #>         <char>      <num>   <num>
 #> 1: (Intercept)    -4.8591 -5.4925
 #> 2:         BMI     0.0833  0.0955
 #> 3:  Gendermale     0.2558  0.3671
-
-cat("\nOdds Ratios:\n")
 #> 
 #> Odds Ratios:
-or_mixed <- exp(fixef(model_mixed))
-ci_mixed <- exp(confint(model_mixed, method = "Wald", parm = "beta_"))
-cat("  BMI (per unit): OR =", round(or_mixed["BMI"], 3), "\n")
-#>   BMI (per unit): OR = 1.1
-cat("  Gender (male): OR =", round(or_mixed["Gendermale"], 3), "\n")
+#>   BMI (per unit): OR = 1.1 
 #>   Gender (male): OR = 1.444
 ```
 
