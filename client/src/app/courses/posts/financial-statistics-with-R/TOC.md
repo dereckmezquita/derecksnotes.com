@@ -1211,7 +1211,7 @@ A complete, self-contained course. After Part I, you can build and deploy profit
 # Part II: Advanced Methods and Specialised Markets
 
 **Folder:** `financial-statistics-2-advanced/`
-**Status:** Not Started (0/9 chapters complete)
+**Status:** Not Started (0/11 chapters complete)
 
 Advanced techniques and specialised applications. Extends Part I with statistical learning, alternative data sources, derivatives, and strategies for less efficient markets. Each chapter assumes mastery of Part I foundations.
 
@@ -1841,7 +1841,7 @@ This chapter strips away the mystique from ML. Neural networks are function appr
 ### Part 1 (`20-1`): Options Foundations
 
 - [ ] **20.1 Option Pricing Review** — Black-Scholes and beyond.
-  - [ ] 22.1.1 **Why It Works** — Risk-neutral pricing, replication.
+  - [ ] 20.1.1 **Why It Works** — Risk-neutral pricing, replication.
   - [ ] 20.1.2 **Visual Evidence** — Option payoffs, price surfaces.
   - [ ] 20.1.3 **The Mathematics** — BS formula: C = S×N(d₁) - K×e^{-rT}×N(d₂).
     - Greeks: Δ = ∂C/∂S, Γ = ∂²C/∂S², θ = ∂C/∂t, ν = ∂C/∂σ.
@@ -2036,78 +2036,78 @@ This chapter explores markets where the strategies that worked in developed mark
 
 - [ ] **22.1 Correlation is Not Causation** — Why it matters for trading.
   - [ ] 22.1.1 **Why It Works** — Spurious correlations don't persist.
-  - [ ] 20.1.2 **Visual Evidence** — Spurious correlations, data mining examples.
-  - [ ] 20.1.3 **The Mathematics** — Confounding, selection bias, reverse causation.
+  - [ ] 22.1.2 **Visual Evidence** — Spurious correlations, data mining examples.
+  - [ ] 22.1.3 **The Mathematics** — Confounding, selection bias, reverse causation.
     - DAGs (Directed Acyclic Graphs) for causal reasoning.
-  - [ ] 20.1.4 **Implementation** — Identifying potential confounders.
-  - [ ] 20.1.5 **Trading Application** — Why understanding mechanism matters.
-- [ ] **20.2 The Potential Outcomes Framework** — Formalising causation.
-  - [ ] 20.2.1 **Why It Works** — Rigorous definition of causal effect.
-  - [ ] 20.2.2 **Visual Evidence** — Treatment/control, counterfactuals.
-  - [ ] 20.2.3 **The Mathematics** — Y(1), Y(0), ATE = E[Y(1) - Y(0)].
+  - [ ] 22.1.4 **Implementation** — Identifying potential confounders.
+  - [ ] 22.1.5 **Trading Application** — Why understanding mechanism matters.
+- [ ] **22.2 The Potential Outcomes Framework** — Formalising causation.
+  - [ ] 22.2.1 **Why It Works** — Rigorous definition of causal effect.
+  - [ ] 22.2.2 **Visual Evidence** — Treatment/control, counterfactuals.
+  - [ ] 22.2.3 **The Mathematics** — Y(1), Y(0), ATE = E[Y(1) - Y(0)].
     - SUTVA, ignorability assumptions.
-  - [ ] 20.2.4 **Implementation** — Potential outcomes notation in practice.
-  - [ ] 20.2.5 **Trading Application** — Causal effect of signals on returns.
-- [ ] **20.3 Natural Experiments in Finance** — Quasi-experimental designs.
-  - [ ] 20.3.1 **Why It Works** — Nature provides random variation.
-  - [ ] 20.3.2 **Visual Evidence** — Examples: index additions, analyst coverage.
-  - [ ] 20.3.3 **The Mathematics** — Difference-in-differences, regression discontinuity.
-  - [ ] 20.3.4 **Implementation** — DiD estimation in R.
-  - [ ] 20.3.5 **Trading Application** — Testing factor causality.
+  - [ ] 22.2.4 **Implementation** — Potential outcomes notation in practice.
+  - [ ] 22.2.5 **Trading Application** — Causal effect of signals on returns.
+- [ ] **22.3 Natural Experiments in Finance** — Quasi-experimental designs.
+  - [ ] 22.3.1 **Why It Works** — Nature provides random variation.
+  - [ ] 22.3.2 **Visual Evidence** — Examples: index additions, analyst coverage.
+  - [ ] 22.3.3 **The Mathematics** — Difference-in-differences, regression discontinuity.
+  - [ ] 22.3.4 **Implementation** — DiD estimation in R.
+  - [ ] 22.3.5 **Trading Application** — Testing factor causality.
 - [ ] **Quick Reference** — Causal inference concepts.
 
-### Part 2 (`20-2`): Causal Methods
+### Part 2 (`22-2`): Causal Methods
 
-- [ ] **20.4 Instrumental Variables** — Finding exogenous variation.
-  - [ ] 20.4.1 **Why It Works** — IV isolates causal effect.
-  - [ ] 20.4.2 **Visual Evidence** — IV diagram, instrument validity.
-  - [ ] 20.4.3 **The Mathematics** — 2SLS: regress X on Z, then Y on X̂.
+- [ ] **22.4 Instrumental Variables** — Finding exogenous variation.
+  - [ ] 22.4.1 **Why It Works** — IV isolates causal effect.
+  - [ ] 22.4.2 **Visual Evidence** — IV diagram, instrument validity.
+  - [ ] 22.4.3 **The Mathematics** — 2SLS: regress X on Z, then Y on X̂.
     - Relevance and exclusion assumptions.
-  - [ ] 20.4.4 **Implementation** — IV regression in R.
-  - [ ] 20.4.5 **Trading Application** — Testing signal causality.
-- [ ] **20.5 Propensity Score Methods** — Creating comparable groups.
-  - [ ] 20.5.1 **Why It Works** — Balance observables between treated/control.
-  - [ ] 20.5.2 **Visual Evidence** — Covariate balance before/after matching.
-  - [ ] 20.5.3 **The Mathematics** — e(X) = P(T=1|X), matching, IPW.
-  - [ ] 20.5.4 **Implementation** — Propensity score matching in R.
-  - [ ] 20.5.5 **Trading Application** — Evaluating strategy performance.
-- [ ] **20.6 Regression Discontinuity** — Exploiting thresholds.
-  - [ ] 20.6.1 **Why It Works** — Sharp cutoffs create quasi-experiments.
-  - [ ] 20.6.2 **Visual Evidence** — RD plots, discontinuity detection.
-  - [ ] 20.6.3 **The Mathematics** — Local linear regression around cutoff.
-  - [ ] 20.6.4 **Implementation** — RD analysis in R.
-  - [ ] 20.6.5 **Trading Application** — Index inclusion effects.
+  - [ ] 22.4.4 **Implementation** — IV regression in R.
+  - [ ] 22.4.5 **Trading Application** — Testing signal causality.
+- [ ] **22.5 Propensity Score Methods** — Creating comparable groups.
+  - [ ] 22.5.1 **Why It Works** — Balance observables between treated/control.
+  - [ ] 22.5.2 **Visual Evidence** — Covariate balance before/after matching.
+  - [ ] 22.5.3 **The Mathematics** — e(X) = P(T=1|X), matching, IPW.
+  - [ ] 22.5.4 **Implementation** — Propensity score matching in R.
+  - [ ] 22.5.5 **Trading Application** — Evaluating strategy performance.
+- [ ] **22.6 Regression Discontinuity** — Exploiting thresholds.
+  - [ ] 22.6.1 **Why It Works** — Sharp cutoffs create quasi-experiments.
+  - [ ] 22.6.2 **Visual Evidence** — RD plots, discontinuity detection.
+  - [ ] 22.6.3 **The Mathematics** — Local linear regression around cutoff.
+  - [ ] 22.6.4 **Implementation** — RD analysis in R.
+  - [ ] 22.6.5 **Trading Application** — Index inclusion effects.
 - [ ] **Quick Reference** — Causal method comparison.
 
-### Part 3 (`20-3`): Model Robustness
+### Part 3 (`22-3`): Model Robustness
 
-- [ ] **20.7 Regime Detection** — Markets change.
-  - [ ] 20.7.1 **Why It Works** — One model doesn't fit all regimes.
-  - [ ] 20.7.2 **Visual Evidence** — Regime classification, conditional performance.
-  - [ ] 20.7.3 **The Mathematics** — Hidden Markov Models, Markov switching regression.
+- [ ] **22.7 Regime Detection** — Markets change.
+  - [ ] 22.7.1 **Why It Works** — One model doesn't fit all regimes.
+  - [ ] 22.7.2 **Visual Evidence** — Regime classification, conditional performance.
+  - [ ] 22.7.3 **The Mathematics** — Hidden Markov Models, Markov switching regression.
     - Regime probability estimation.
-  - [ ] 20.7.4 **Implementation** — Regime detection with HMM in R.
-  - [ ] 20.7.5 **Trading Application** — Regime-adaptive strategies.
-- [ ] **20.8 Structural Breaks** — When relationships change.
-  - [ ] 20.8.1 **Why It Works** — Past performance doesn't guarantee future.
-  - [ ] 20.8.2 **Visual Evidence** — Break detection, rolling coefficients.
-  - [ ] 20.8.3 **The Mathematics** — Chow test, CUSUM, Bai-Perron.
-  - [ ] 20.8.4 **Implementation** — Structural break tests in R.
-  - [ ] 20.8.5 **Trading Application** — When to retrain, when to stop.
-- [ ] **20.9 Model Uncertainty** — How wrong are you?
-  - [ ] 20.9.1 **Why It Works** — All models are wrong, some are useful.
-  - [ ] 20.9.2 **Visual Evidence** — Prediction intervals, model comparison.
-  - [ ] 20.9.3 **The Mathematics** — Bayesian model averaging, ensemble methods.
+  - [ ] 22.7.4 **Implementation** — Regime detection with HMM in R.
+  - [ ] 22.7.5 **Trading Application** — Regime-adaptive strategies.
+- [ ] **22.8 Structural Breaks** — When relationships change.
+  - [ ] 22.8.1 **Why It Works** — Past performance doesn't guarantee future.
+  - [ ] 22.8.2 **Visual Evidence** — Break detection, rolling coefficients.
+  - [ ] 22.8.3 **The Mathematics** — Chow test, CUSUM, Bai-Perron.
+  - [ ] 22.8.4 **Implementation** — Structural break tests in R.
+  - [ ] 22.8.5 **Trading Application** — When to retrain, when to stop.
+- [ ] **22.9 Model Uncertainty** — How wrong are you?
+  - [ ] 22.9.1 **Why It Works** — All models are wrong, some are useful.
+  - [ ] 22.9.2 **Visual Evidence** — Prediction intervals, model comparison.
+  - [ ] 22.9.3 **The Mathematics** — Bayesian model averaging, ensemble methods.
     - Confidence intervals vs prediction intervals.
-  - [ ] 20.9.4 **Implementation** — Model uncertainty quantification.
-  - [ ] 20.9.5 **Trading Application** — Sizing positions by confidence.
-- [ ] **20.10 Building Robust Strategies** — Surviving regime changes.
-  - [ ] 20.10.1 **Why It Works** — Robustness beats optimisation.
-  - [ ] 20.10.2 **Visual Evidence** — Robust vs optimised strategy performance.
-  - [ ] 20.10.3 **The Mathematics** — Worst-case optimisation, minimax.
+  - [ ] 22.9.4 **Implementation** — Model uncertainty quantification.
+  - [ ] 22.9.5 **Trading Application** — Sizing positions by confidence.
+- [ ] **22.10 Building Robust Strategies** — Surviving regime changes.
+  - [ ] 22.10.1 **Why It Works** — Robustness beats optimisation.
+  - [ ] 22.10.2 **Visual Evidence** — Robust vs optimised strategy performance.
+  - [ ] 22.10.3 **The Mathematics** — Worst-case optimisation, minimax.
     - Diversification across regimes.
-  - [ ] 20.10.4 **Implementation** — Robust strategy construction.
-  - [ ] 20.10.5 **Trading Application** — Checklist for strategy robustness.
+  - [ ] 22.10.4 **Implementation** — Robust strategy construction.
+  - [ ] 22.10.5 **Trading Application** — Checklist for strategy robustness.
 - [ ] **Quick Reference** — Robustness testing checklist.
 
 ---
@@ -2117,72 +2117,72 @@ This chapter explores markets where the strategies that worked in developed mark
 *Putting it all together — the complete trading research process.*
 
 **Files:**
-- `21-1_financial-statistics-2-advanced_workflow_research.Rmd`
-- `21-2_financial-statistics-2-advanced_workflow_production.Rmd`
-- `21-3_financial-statistics-2-advanced_workflow_career.Rmd`
+- `23-1_financial-statistics-2-advanced_workflow_research.Rmd`
+- `23-2_financial-statistics-2-advanced_workflow_production.Rmd`
+- `23-3_financial-statistics-2-advanced_workflow_career.Rmd`
 
-### Part 1 (`21-1`): Research Process
+### Part 1 (`23-1`): Research Process
 
-- [ ] **21.1 Idea Generation** — Where do strategies come from?
-  - [ ] 21.1.1 **Why It Works** — Systematic approach to finding edges.
-  - [ ] 21.1.2 **Visual Evidence** — Idea funnel, success rates.
-  - [ ] 21.1.3 **The Mathematics** — Not applicable (process focus).
-  - [ ] 21.1.4 **Implementation** — Research log, idea tracking.
-  - [ ] 21.1.5 **Trading Application** — Sources of trading ideas.
-- [ ] **21.2 Research Hygiene** — Avoiding self-deception.
-  - [ ] 21.2.1 **Why It Works** — Biases are everywhere.
-  - [ ] 21.2.2 **Visual Evidence** — Common research mistakes.
-  - [ ] 21.2.3 **The Mathematics** — Pre-registration, multiple testing correction.
-  - [ ] 21.2.4 **Implementation** — Research protocol template.
-  - [ ] 21.2.5 **Trading Application** — The research log discipline.
-- [ ] **21.3 Documentation and Reproducibility** — Your future self will thank you.
-  - [ ] 21.3.1 **Why It Works** — Code and results need to be reproducible.
-  - [ ] 21.3.2 **Visual Evidence** — Good vs bad documentation.
-  - [ ] 21.3.3 **The Mathematics** — Not applicable (engineering focus).
-  - [ ] 21.3.4 **Implementation** — R Markdown, git, version control.
-  - [ ] 21.3.5 **Trading Application** — Documenting strategies for production.
+- [ ] **23.1 Idea Generation** — Where do strategies come from?
+  - [ ] 23.1.1 **Why It Works** — Systematic approach to finding edges.
+  - [ ] 23.1.2 **Visual Evidence** — Idea funnel, success rates.
+  - [ ] 23.1.3 **The Mathematics** — Not applicable (process focus).
+  - [ ] 23.1.4 **Implementation** — Research log, idea tracking.
+  - [ ] 23.1.5 **Trading Application** — Sources of trading ideas.
+- [ ] **23.2 Research Hygiene** — Avoiding self-deception.
+  - [ ] 23.2.1 **Why It Works** — Biases are everywhere.
+  - [ ] 23.2.2 **Visual Evidence** — Common research mistakes.
+  - [ ] 23.2.3 **The Mathematics** — Pre-registration, multiple testing correction.
+  - [ ] 23.2.4 **Implementation** — Research protocol template.
+  - [ ] 23.2.5 **Trading Application** — The research log discipline.
+- [ ] **23.3 Documentation and Reproducibility** — Your future self will thank you.
+  - [ ] 23.3.1 **Why It Works** — Code and results need to be reproducible.
+  - [ ] 23.3.2 **Visual Evidence** — Good vs bad documentation.
+  - [ ] 23.3.3 **The Mathematics** — Not applicable (engineering focus).
+  - [ ] 23.3.4 **Implementation** — R Markdown, git, version control.
+  - [ ] 23.3.5 **Trading Application** — Documenting strategies for production.
 - [ ] **Quick Reference** — Research process checklist.
 
-### Part 2 (`21-2`): Production Considerations
+### Part 2 (`23-2`): Production Considerations
 
-- [ ] **21.4 From Research to Production** — Crossing the divide.
-  - [ ] 21.4.1 **Why It Works** — Research code is not production code.
-  - [ ] 21.4.2 **Visual Evidence** — Research vs production architecture.
-  - [ ] 21.4.3 **The Mathematics** — Not applicable (engineering focus).
-  - [ ] 21.4.4 **Implementation** — Code refactoring, testing, deployment.
-  - [ ] 21.4.5 **Trading Application** — Phased deployment approach.
-- [ ] **21.5 Monitoring and Alerting** — Knowing when things go wrong.
-  - [ ] 21.5.1 **Why It Works** — Early detection prevents disaster.
-  - [ ] 21.5.2 **Visual Evidence** — Dashboard examples, alert systems.
-  - [ ] 21.5.3 **The Mathematics** — Anomaly detection, statistical process control.
-  - [ ] 21.5.4 **Implementation** — Monitoring system setup.
-  - [ ] 21.5.5 **Trading Application** — What to monitor, when to intervene.
-- [ ] **21.6 Continuous Improvement** — The strategy lifecycle.
-  - [ ] 21.6.1 **Why It Works** — Markets evolve, strategies must too.
-  - [ ] 21.6.2 **Visual Evidence** — Strategy evolution, version history.
-  - [ ] 21.6.3 **The Mathematics** — A/B testing, gradual rollout.
-  - [ ] 21.6.4 **Implementation** — Continuous improvement framework.
-  - [ ] 21.6.5 **Trading Application** — When to update vs when to retire.
+- [ ] **23.4 From Research to Production** — Crossing the divide.
+  - [ ] 23.4.1 **Why It Works** — Research code is not production code.
+  - [ ] 23.4.2 **Visual Evidence** — Research vs production architecture.
+  - [ ] 23.4.3 **The Mathematics** — Not applicable (engineering focus).
+  - [ ] 23.4.4 **Implementation** — Code refactoring, testing, deployment.
+  - [ ] 23.4.5 **Trading Application** — Phased deployment approach.
+- [ ] **23.5 Monitoring and Alerting** — Knowing when things go wrong.
+  - [ ] 23.5.1 **Why It Works** — Early detection prevents disaster.
+  - [ ] 23.5.2 **Visual Evidence** — Dashboard examples, alert systems.
+  - [ ] 23.5.3 **The Mathematics** — Anomaly detection, statistical process control.
+  - [ ] 23.5.4 **Implementation** — Monitoring system setup.
+  - [ ] 23.5.5 **Trading Application** — What to monitor, when to intervene.
+- [ ] **23.6 Continuous Improvement** — The strategy lifecycle.
+  - [ ] 23.6.1 **Why It Works** — Markets evolve, strategies must too.
+  - [ ] 23.6.2 **Visual Evidence** — Strategy evolution, version history.
+  - [ ] 23.6.3 **The Mathematics** — A/B testing, gradual rollout.
+  - [ ] 23.6.4 **Implementation** — Continuous improvement framework.
+  - [ ] 23.6.5 **Trading Application** — When to update vs when to retire.
 - [ ] **Quick Reference** — Production checklist.
 
-### Part 3 (`21-3`): Career and Resources
+### Part 3 (`23-3`): Career and Resources
 
-- [ ] **21.7 Building a Track Record** — Proving your edge.
-  - [ ] 21.7.1 **Why It Works** — Track record is the ultimate credential.
-  - [ ] 21.7.2 **Visual Evidence** — Track record presentation examples.
-  - [ ] 21.7.3 **The Mathematics** — Statistical significance of track records.
-  - [ ] 21.7.4 **Implementation** — Track record documentation.
-  - [ ] 21.7.5 **Trading Application** — Personal trading as proof of concept.
-- [ ] **21.8 Resources and Continued Learning** — The journey continues.
-  - [ ] 21.8.1 **Why It Works** — This field evolves rapidly.
-  - [ ] 21.8.2 **Visual Evidence** — Resource map, learning paths.
-  - [ ] 21.8.3 **The Mathematics** — Not applicable (resource focus).
-  - [ ] 21.8.4 **Implementation** — Reading list, conferences, communities.
-  - [ ] 21.8.5 **Trading Application** — Staying current.
-- [ ] **21.9 Course Summary** — What you've learned.
-  - [ ] 21.9.1 **Part I Recap** — Foundations and core strategies.
-  - [ ] 21.9.2 **Part II Recap** — Advanced methods and specialised markets.
-  - [ ] 21.9.3 **Next Steps** — Where to go from here.
+- [ ] **23.7 Building a Track Record** — Proving your edge.
+  - [ ] 23.7.1 **Why It Works** — Track record is the ultimate credential.
+  - [ ] 23.7.2 **Visual Evidence** — Track record presentation examples.
+  - [ ] 23.7.3 **The Mathematics** — Statistical significance of track records.
+  - [ ] 23.7.4 **Implementation** — Track record documentation.
+  - [ ] 23.7.5 **Trading Application** — Personal trading as proof of concept.
+- [ ] **23.8 Resources and Continued Learning** — The journey continues.
+  - [ ] 23.8.1 **Why It Works** — This field evolves rapidly.
+  - [ ] 23.8.2 **Visual Evidence** — Resource map, learning paths.
+  - [ ] 23.8.3 **The Mathematics** — Not applicable (resource focus).
+  - [ ] 23.8.4 **Implementation** — Reading list, conferences, communities.
+  - [ ] 23.8.5 **Trading Application** — Staying current.
+- [ ] **23.9 Course Summary** — What you've learned.
+  - [ ] 23.9.1 **Part I Recap** — Foundations and core strategies.
+  - [ ] 23.9.2 **Part II Recap** — Advanced methods and specialised markets.
+  - [ ] 23.9.3 **Next Steps** — Where to go from here.
 - [ ] **Quick Reference** — Complete course reference card.
 
 ---
