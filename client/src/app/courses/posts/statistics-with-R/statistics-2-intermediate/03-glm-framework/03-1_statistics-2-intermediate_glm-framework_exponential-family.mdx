@@ -45,6 +45,8 @@ cat("  Doctor Visits (NMES):", nrow(doctor_visits), "observations\n")
 
 ---
 
+## Table of Contents
+
 ## 1.1 Beyond Linear Regression
 
 ### 1.1.1 The Problem with Non-Normal Responses
@@ -244,13 +246,20 @@ cat("Exponential Family Summary:\n")
 cat("===========================\n\n")
 #> ===========================
 print(exp_fam_dt)
-#>        Distribution       Canonical Link Variance Function          Common Use
-#>              <char>               <char>            <char>              <char>
-#> 1:           Normal         Identity (μ)      1 (constant)          Continuous
-#> 2:         Binomial Logit (log(p/(1-p)))            μ(1-μ)  Binary/Proportions
-#> 3:          Poisson          Log (log λ)                 μ              Counts
-#> 4:            Gamma       Inverse (-1/μ)                μ² Positive continuous
-#> 5: Inverse Gaussian                -1/μ²                μ³ Positive continuous
+#>        Distribution        Canonical Link    Variance Function
+#>              <char>                <char>               <char>
+#> 1:           Normal   Identity (<U+03BC>)         1 (constant)
+#> 2:         Binomial  Logit (log(p/(1-p))) <U+03BC>(1-<U+03BC>)
+#> 3:          Poisson    Log (log <U+03BB>)             <U+03BC>
+#> 4:            Gamma Inverse (-1/<U+03BC>)     <U+03BC><U+00B2>
+#> 5: Inverse Gaussian   -1/<U+03BC><U+00B2>     <U+03BC><U+00B3>
+#>             Common Use
+#>                 <char>
+#> 1:          Continuous
+#> 2:  Binary/Proportions
+#> 3:              Counts
+#> 4: Positive continuous
+#> 5: Positive continuous
 ```
 
 ---
@@ -363,19 +372,19 @@ cat("Canonical Links:\n")
 cat("================\n\n")
 #> ================
 cat("The canonical link is special because θ = η.\n\n")
-#> The canonical link is special because θ = η.
+#> The canonical link is special because <U+03B8> = <U+03B7>.
 cat("Distribution   Canonical Link    Why?\n")
 #> Distribution   Canonical Link    Why?
 cat("-----------    --------------    ----\n")
 #> -----------    --------------    ----
 cat("Normal         g(μ) = μ          θ = μ for normal\n")
-#> Normal         g(μ) = μ          θ = μ for normal
+#> Normal         g(<U+03BC>) = <U+03BC>          <U+03B8> = <U+03BC> for normal
 cat("Binomial       g(μ) = logit(μ)   θ = log(μ/(1-μ))\n")
-#> Binomial       g(μ) = logit(μ)   θ = log(μ/(1-μ))
+#> Binomial       g(<U+03BC>) = logit(<U+03BC>)   <U+03B8> = log(<U+03BC>/(1-<U+03BC>))
 cat("Poisson        g(μ) = log(μ)     θ = log(μ)\n")
-#> Poisson        g(μ) = log(μ)     θ = log(μ)
+#> Poisson        g(<U+03BC>) = log(<U+03BC>)     <U+03B8> = log(<U+03BC>)
 cat("Gamma          g(μ) = -1/μ       θ = -1/μ\n")
-#> Gamma          g(μ) = -1/μ       θ = -1/μ
+#> Gamma          g(<U+03BC>) = -1/<U+03BC>       <U+03B8> = -1/<U+03BC>
 ```
 
 ---
@@ -582,49 +591,49 @@ cat("====================\n\n")
 cat("1. RESPONSE TYPE: Binary (0/1, yes/no, success/failure)\n")
 #> 1. RESPONSE TYPE: Binary (0/1, yes/no, success/failure)
 cat("   → Family: binomial\n")
-#>    → Family: binomial
+#>    <U+2192> Family: binomial
 cat("   → Links: logit (most common), probit, cloglog\n")
-#>    → Links: logit (most common), probit, cloglog
+#>    <U+2192> Links: logit (most common), probit, cloglog
 cat("   → Examples: Disease status, treatment response, mortality\n\n")
-#>    → Examples: Disease status, treatment response, mortality
+#>    <U+2192> Examples: Disease status, treatment response, mortality
 
 cat("2. RESPONSE TYPE: Counts (0, 1, 2, 3, ...)\n")
 #> 2. RESPONSE TYPE: Counts (0, 1, 2, 3, ...)
 cat("   → Family: poisson (if variance ≈ mean)\n")
-#>    → Family: poisson (if variance ≈ mean)
+#>    <U+2192> Family: poisson (if variance <U+2248> mean)
 cat("   → Family: quasipoisson or negative.binomial (if variance > mean)\n")
-#>    → Family: quasipoisson or negative.binomial (if variance > mean)
+#>    <U+2192> Family: quasipoisson or negative.binomial (if variance > mean)
 cat("   → Link: log\n")
-#>    → Link: log
+#>    <U+2192> Link: log
 cat("   → Examples: Doctor visits, mutations, adverse events\n\n")
-#>    → Examples: Doctor visits, mutations, adverse events
+#>    <U+2192> Examples: Doctor visits, mutations, adverse events
 
 cat("3. RESPONSE TYPE: Positive continuous (costs, times, concentrations)\n")
 #> 3. RESPONSE TYPE: Positive continuous (costs, times, concentrations)
 cat("   → Family: Gamma (if variance ∝ mean²)\n")
-#>    → Family: Gamma (if variance ∝ mean²)
+#>    <U+2192> Family: Gamma (if variance <U+221D> mean<U+00B2>)
 cat("   → Link: log (most interpretable) or inverse (canonical)\n")
-#>    → Link: log (most interpretable) or inverse (canonical)
+#>    <U+2192> Link: log (most interpretable) or inverse (canonical)
 cat("   → Examples: Hospital costs, survival times, drug concentrations\n\n")
-#>    → Examples: Hospital costs, survival times, drug concentrations
+#>    <U+2192> Examples: Hospital costs, survival times, drug concentrations
 
 cat("4. RESPONSE TYPE: Continuous, unbounded\n")
 #> 4. RESPONSE TYPE: Continuous, unbounded
 cat("   → Family: gaussian (= normal linear regression)\n")
-#>    → Family: gaussian (= normal linear regression)
+#>    <U+2192> Family: gaussian (= normal linear regression)
 cat("   → Link: identity\n")
-#>    → Link: identity
+#>    <U+2192> Link: identity
 cat("   → Examples: Blood pressure, BMI, test scores\n\n")
-#>    → Examples: Blood pressure, BMI, test scores
+#>    <U+2192> Examples: Blood pressure, BMI, test scores
 
 cat("5. RESPONSE TYPE: Proportion (between 0 and 1)\n")
 #> 5. RESPONSE TYPE: Proportion (between 0 and 1)
 cat("   → Family: quasibinomial or beta regression\n")
-#>    → Family: quasibinomial or beta regression
+#>    <U+2192> Family: quasibinomial or beta regression
 cat("   → Link: logit\n")
-#>    → Link: logit
+#>    <U+2192> Link: logit
 cat("   → Examples: Percentage of cells responding\n")
-#>    → Examples: Percentage of cells responding
+#>    <U+2192> Examples: Percentage of cells responding
 ```
 
 ---

@@ -47,6 +47,8 @@ cat("  Diabetes data: n =", nrow(diabetes_data), "\n")
 
 ---
 
+## Table of Contents
+
 ## 2.1 Maximum Likelihood for GLMs
 
 ### 2.1.1 The Likelihood Function
@@ -118,9 +120,9 @@ cat("========================\n\n")
 cat("MLE from glm():\n")
 #> MLE from glm():
 cat("  β₀ =", round(mle_beta[1], 4), "\n")
-#>   β₀ = -5.0588
+#>   <U+03B2><U+2080> = -5.0588
 cat("  β₁ =", round(mle_beta[2], 5), "\n")
-#>   β₁ = 0.05419
+#>   <U+03B2><U+2081> = 0.05419
 cat("  Log-likelihood at MLE:", round(logLik(model_logistic), 2), "\n")
 #>   Log-likelihood at MLE: -2123.47
 
@@ -234,16 +236,16 @@ cat("=============\n")
 cat("IRLS estimates:\n")
 #> IRLS estimates:
 cat("  β₀ =", round(irls_result$beta[1], 4), "\n")
-#>   β₀ = -5.0588
+#>   <U+03B2><U+2080> = -5.0588
 cat("  β₁ =", round(irls_result$beta[2], 5), "\n")
-#>   β₁ = 0.05419
+#>   <U+03B2><U+2081> = 0.05419
 cat("\nglm() estimates:\n")
 #> 
 #> glm() estimates:
 cat("  β₀ =", round(mle_beta[1], 4), "\n")
-#>   β₀ = -5.0588
+#>   <U+03B2><U+2080> = -5.0588
 cat("  β₁ =", round(mle_beta[2], 5), "\n")
-#>   β₁ = 0.05419
+#>   <U+03B2><U+2081> = 0.05419
 
 # Extract convergence history
 history_dt <- rbindlist(lapply(irls_result$history, function(h) {
@@ -559,11 +561,11 @@ cat("Overdispersion Check (Poisson Model):\n")
 cat("=====================================\n\n")
 #> =====================================
 cat("Pearson χ²:", round(pearson_chisq, 2), "\n")
-#> Pearson χ²: 34872.24
+#> Pearson <U+03C7><U+00B2>: 34872.24
 cat("df:", df_residual, "\n")
 #> df: 4404
 cat("Estimated dispersion (φ):", round(dispersion_est, 3), "\n")
-#> Estimated dispersion (φ): 7.918
+#> Estimated dispersion (<U+03C6>): 7.918
 cat("\nInterpretation:\n")
 #> 
 #> Interpretation:
@@ -575,7 +577,7 @@ if (dispersion_est > 1.5) {
 } else {
     cat("  φ ≈ 1, no evidence of overdispersion.\n")
 }
-#>   φ >> 1 indicates substantial overdispersion.
+#>   <U+03C6> >> 1 indicates substantial overdispersion.
 #>   Consider quasipoisson or negative binomial.
 
 # Fit quasipoisson for comparison
@@ -598,7 +600,7 @@ print(se_comparison)
 
 cat("\nNote: Quasipoisson SEs are √φ times larger.\n")
 #> 
-#> Note: Quasipoisson SEs are √φ times larger.
+#> Note: Quasipoisson SEs are <U+221A><U+03C6> times larger.
 ```
 
 ---

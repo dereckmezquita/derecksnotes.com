@@ -50,6 +50,8 @@ cat("  Malignant:", sum(breast_cancer$diagnosis == "Malignant"), "\n")
 
 ---
 
+## Table of Contents
+
 ## 6.8 Permutation Tests
 
 ### 6.8.1 The Permutation Principle
@@ -150,7 +152,7 @@ ggplot2$ggplot(perm_data, ggplot2$aes(x = difference)) +
     ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
 ```
 
-<Figure src="permutation_principle-1.png" alt="Permutation test: generating the null distribution by shuffling labels">
+<Figure src="/courses/statistics-3-advanced/permutation_principle-1.png" alt="Permutation test: generating the null distribution by shuffling labels">
 	Permutation test: generating the null distribution by shuffling labels
 </Figure>
 
@@ -216,7 +218,7 @@ ggplot2$ggplot(cor_perm_data, ggplot2$aes(x = correlation)) +
     ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
 ```
 
-<Figure src="permutation_correlation-1.png" alt="Permutation test for correlation coefficient">
+<Figure src="/courses/statistics-3-advanced/permutation_correlation-1.png" alt="Permutation test for correlation coefficient">
 	Permutation test for correlation coefficient
 </Figure>
 
@@ -291,7 +293,7 @@ ggplot2$ggplot(F_perm_data, ggplot2$aes(x = F_stat)) +
     ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
 ```
 
-<Figure src="permutation_regression-1.png" alt="Permutation test for regression F-statistic">
+<Figure src="/courses/statistics-3-advanced/permutation_regression-1.png" alt="Permutation test for regression F-statistic">
 	Permutation test for regression F-statistic
 </Figure>
 
@@ -466,7 +468,7 @@ ggplot2$ggplot(jack_data, ggplot2$aes(x = index, y = estimate)) +
     ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
 ```
 
-<Figure src="jackknife_basics-1.png" alt="Jackknife leave-one-out estimates">
+<Figure src="/courses/statistics-3-advanced/jackknife_basics-1.png" alt="Jackknife leave-one-out estimates">
 	Jackknife leave-one-out estimates
 </Figure>
 
@@ -483,14 +485,501 @@ If $\tilde{\theta}_i$ differs greatly from $\hat{\theta}$, observation $i$ is **
 The pseudo-values are approximately independent with mean $\theta$ and variance $n \cdot Var(\hat{\theta})$. This allows using standard methods (t-tests, regression) on pseudo-values.
 
 
+``` r
+# Compute pseudo-values
+pseudo_values <- n * theta_hat - (n - 1) * theta_loo
+
+# Influence: deviation from mean
+influence <- pseudo_values - mean(pseudo_values)
+
+# Identify influential observations
+influential_idx <- which(abs(influence) > 2 * sd(influence))
+
+cat("Jackknife Influence Analysis:\n")
+#> Jackknife Influence Analysis:
+cat("============================\n")
+#> ============================
+cat("  Mean pseudo-value:", round(mean(pseudo_values), 4), "\n")
+#>   Mean pseudo-value: 11.2174
+cat("  SD of pseudo-values:", round(sd(pseudo_values), 4), "\n")
+#>   SD of pseudo-values: 15.4682
+cat("  Influential observations (|z| > 2):", length(influential_idx), "\n")
+#>   Influential observations (|z| > 2): 3
+
+# Visualise influence
+influence_data <- data.table(
+    index = 1:n,
+    pseudo_value = pseudo_values,
+    influence = influence,
+    influential = (1:n) %in% influential_idx
+)
+
+ggplot2$ggplot(influence_data, ggplot2$aes(x = index, y = influence,
+                                            colour = influential)) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "solid", colour = "grey40") +
+    ggplot2$geom_hline(yintercept = c(-2, 2) * sd(influence),
+                        linetype = "dashed", colour = "red") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#2166AC", "TRUE" = "#D95F02"),
+                                 labels = c("Normal", "Influential"),
+                                 name = "") +
+    ggplot2$labs(
+        title = "Jackknife Influence Analysis",
+        subtitle = "Observations outside dashed lines are influential",
+        x = "Observation Index",
+        y = "Influence"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/jackknife_influence-1.png" alt="Jackknife pseudo-values identify influential observations">
+	Jackknife pseudo-values identify influential observations
+</Figure>
+
+### 6.9.3 Delete-d Jackknife
+
+**Prose and Intuition**
+
+The standard jackknife deletes one observation. The **delete-d jackknife** generalises this by deleting $d$ observations at a time.
+
+For delete-d jackknife:
+- Number of subsets: $\binom{n}{d}$
+- Each subset has $n - d$ observations
+
+This is useful when:
+- Single-observation influence is too small to detect
+- Clustered data (delete entire clusters)
 
 
+``` r
+# Delete-d jackknife for d=5
+x_small <- x[1:30]  # Smaller sample for computational feasibility
+n_small <- length(x_small)
+d <- 5
+
+# Number of subsets
+n_subsets <- choose(n_small, d)
+cat("Delete-5 Jackknife:\n")
+#> Delete-5 Jackknife:
+cat("===================\n")
+#> ===================
+cat("  Sample size:", n_small, "\n")
+#>   Sample size: 30
+cat("  d:", d, "\n")
+#>   d: 5
+cat("  Number of subsets:", n_subsets, "\n")
+#>   Number of subsets: 142506
+
+# Sample subsets (too many to enumerate all)
+n_sample <- min(500, n_subsets)
+theta_delete_d <- numeric(n_sample)
+
+for (s in 1:n_sample) {
+    delete_idx <- sample(1:n_small, d)
+    theta_delete_d[s] <- var(x_small[-delete_idx])
+}
+
+# Variance estimate
+# Formula for delete-d: Var = (n-d)/(d*n) * (n choose d)^(-1) * sum((theta_i - theta_bar)^2)
+# Simplified estimate
+var_delete_d <- var(theta_delete_d) * (n_small - d) / d
+
+cat("  Delete-1 SE:", round(se_jack, 4), "\n")
+#>   Delete-1 SE: 1.5468
+cat("  Delete-5 SE (estimated):", round(sqrt(var_delete_d), 4), "\n")
+#>   Delete-5 SE (estimated): 1.9052
+```
+
+---
+
+## 6.10 Bootstrap vs Jackknife vs Permutation
+
+### 6.10.1 Comparison of Methods
+
+**Prose and Intuition**
+
+| Method | Purpose | Resampling | Assumption |
+|--------|---------|------------|------------|
+| **Bootstrap** | SE, CI, bias | With replacement | i.i.d. sample |
+| **Jackknife** | SE, bias, influence | Leave-one-out | Smooth statistics |
+| **Permutation** | Hypothesis testing | Shuffle labels | Exchangeability under $H_0$ |
+
+**When to use each**:
+- **Bootstrap**: General-purpose SE and CI estimation
+- **Jackknife**: Bias estimation, influence diagnostics, BCa acceleration
+- **Permutation**: Exact tests, small samples, non-standard test statistics
 
 
+``` r
+# Compare bootstrap and jackknife SEs for various statistics
+compare_methods <- function(x, statistic, B = 2000) {
+    n <- length(x)
+
+    # Bootstrap SE
+    boot_vals <- replicate(B, statistic(sample(x, n, replace = TRUE)))
+    boot_se <- sd(boot_vals)
+
+    # Jackknife SE
+    jack_vals <- sapply(1:n, function(i) statistic(x[-i]))
+    jack_se <- sqrt(((n - 1) / n) * sum((jack_vals - mean(jack_vals))^2))
+
+    c(bootstrap = boot_se, jackknife = jack_se)
+}
+
+# Apply to various statistics
+x_compare <- breast_cancer$mean_radius
+
+stats_to_compare <- list(
+    Mean = mean,
+    Median = median,
+    `Trimmed Mean` = function(x) mean(x, trim = 0.1),
+    SD = sd,
+    MAD = mad,
+    `25th Percentile` = function(x) quantile(x, 0.25)
+)
+
+se_comparison <- rbindlist(lapply(names(stats_to_compare), function(name) {
+    ses <- compare_methods(x_compare, stats_to_compare[[name]])
+    data.table(
+        Statistic = name,
+        Bootstrap_SE = ses["bootstrap"],
+        Jackknife_SE = ses["jackknife"]
+    )
+}))
+
+cat("Bootstrap vs Jackknife Standard Errors:\n")
+#> Bootstrap vs Jackknife Standard Errors:
+cat("=======================================\n")
+#> =======================================
+print(se_comparison[, .(Statistic,
+                         Bootstrap_SE = round(Bootstrap_SE, 4),
+                         Jackknife_SE = round(Jackknife_SE, 4))])
+#>          Statistic Bootstrap_SE Jackknife_SE
+#>             <char>        <num>        <num>
+#> 1:            Mean       0.1519       0.1477
+#> 2:          Median       0.1600       0.2382
+#> 3:    Trimmed Mean       0.1557       0.1541
+#> 4:              SD       0.1255       0.1249
+#> 5:             MAD       0.1701       0.2051
+#> 6: 25th Percentile       0.1087       0.1032
+
+# Visualise
+se_long <- melt(se_comparison, id.vars = "Statistic",
+                variable.name = "Method", value.name = "SE")
+
+ggplot2$ggplot(se_long, ggplot2$aes(x = Statistic, y = SE, fill = Method)) +
+    ggplot2$geom_bar(stat = "identity", position = "dodge", width = 0.7) +
+    ggplot2$scale_fill_manual(values = c("Bootstrap_SE" = "#2166AC",
+                                          "Jackknife_SE" = "#D95F02"),
+                               labels = c("Bootstrap", "Jackknife")) +
+    ggplot2$labs(
+        title = "Standard Error Estimates: Bootstrap vs Jackknife",
+        x = "",
+        y = "Standard Error",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top",
+        axis.text.x = ggplot2$element_text(angle = 30, hjust = 1)
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/method_comparison-1.png" alt="SE estimates from bootstrap vs jackknife">
+	SE estimates from bootstrap vs jackknife
+</Figure>
+
+### 6.10.2 When Jackknife Fails
+
+**Prose and Intuition**
+
+The jackknife fails for **non-smooth** statistics—those that can change discontinuously when a single observation is removed.
+
+**Examples**:
+- Median (when sample size is even, removing one observation shifts the median)
+- Quantiles
+- Range, min, max
+
+For these statistics, the bootstrap is preferred.
 
 
+``` r
+# Demonstrate jackknife failure for median
+n_demo <- 20
+x_demo <- rnorm(n_demo)
+
+# True SE (from simulation)
+true_se_median <- sd(replicate(10000, median(sample(x_demo, n_demo, replace = TRUE))))
+
+# Jackknife SE for median
+jack_medians <- sapply(1:n_demo, function(i) median(x_demo[-i]))
+jack_se_median <- sqrt(((n_demo - 1) / n_demo) * sum((jack_medians - mean(jack_medians))^2))
+
+# Bootstrap SE
+boot_se_median <- sd(replicate(2000, median(sample(x_demo, n_demo, replace = TRUE))))
+
+cat("Jackknife for Median (Non-Smooth Statistic):\n")
+#> Jackknife for Median (Non-Smooth Statistic):
+cat("============================================\n")
+#> ============================================
+cat("  True SE (simulation):", round(true_se_median, 4), "\n")
+#>   True SE (simulation): 0.2131
+cat("  Bootstrap SE:", round(boot_se_median, 4), "\n")
+#>   Bootstrap SE: 0.2074
+cat("  Jackknife SE:", round(jack_se_median, 4), "\n\n")
+#>   Jackknife SE: 0.0221
+
+# Compare for mean (smooth statistic)
+true_se_mean <- sd(replicate(10000, mean(sample(x_demo, n_demo, replace = TRUE))))
+boot_se_mean <- sd(replicate(2000, mean(sample(x_demo, n_demo, replace = TRUE))))
+jack_means <- sapply(1:n_demo, function(i) mean(x_demo[-i]))
+jack_se_mean <- sqrt(((n_demo - 1) / n_demo) * sum((jack_means - mean(jack_means))^2))
+
+cat("Comparison with Mean (Smooth Statistic):\n")
+#> Comparison with Mean (Smooth Statistic):
+cat("========================================\n")
+#> ========================================
+cat("  True SE:", round(true_se_mean, 4), "\n")
+#>   True SE: 0.1706
+cat("  Bootstrap SE:", round(boot_se_mean, 4), "\n")
+#>   Bootstrap SE: 0.1694
+cat("  Jackknife SE:", round(jack_se_mean, 4), "\n")
+#>   Jackknife SE: 0.1756
+```
+
+---
+
+## 6.11 Advanced Applications
+
+### 6.11.1 Permutation Tests for High-Dimensional Data
+
+**Prose and Intuition**
+
+In high-dimensional settings (e.g., genomics), permutation tests are valuable for controlling multiple testing while accounting for correlation structure.
 
 
+``` r
+# Simulate high-dimensional data (mini gene expression)
+n_genes <- 100
+n_samples <- 20
+n_group1 <- 10
+
+# Expression matrix (rows = genes, cols = samples)
+expression <- matrix(rnorm(n_genes * n_samples), nrow = n_genes)
+
+# Add signal to first 10 genes (true positives)
+n_true <- 10
+effect_size <- 1.5
+expression[1:n_true, 1:n_group1] <- expression[1:n_true, 1:n_group1] + effect_size
+
+groups <- c(rep(1, n_group1), rep(2, n_samples - n_group1))
+
+# Observed t-statistics
+calc_t <- function(x, g) {
+    x1 <- x[g == 1]
+    x2 <- x[g == 2]
+    (mean(x1) - mean(x2)) / sqrt(var(x1)/length(x1) + var(x2)/length(x2))
+}
+
+obs_t <- apply(expression, 1, calc_t, g = groups)
+
+# Permutation null
+n_perm <- 1000
+perm_max_t <- numeric(n_perm)
+
+for (p in 1:n_perm) {
+    g_perm <- sample(groups)
+    perm_t <- apply(expression, 1, calc_t, g = g_perm)
+    perm_max_t[p] <- max(abs(perm_t))  # Maximum statistic for FWER control
+}
+
+# FWER-adjusted p-values
+p_adj <- sapply(abs(obs_t), function(t) mean(perm_max_t >= t))
+
+# Compare to raw p-values
+raw_p <- 2 * (1 - pt(abs(obs_t), df = n_samples - 2))
+
+results <- data.table(
+    gene = 1:n_genes,
+    true_positive = 1:n_genes <= n_true,
+    t_stat = obs_t,
+    raw_p = raw_p,
+    perm_p = p_adj
+)
+
+cat("Permutation-Based Multiple Testing:\n")
+#> Permutation-Based Multiple Testing:
+cat("===================================\n")
+#> ===================================
+cat("  Genes tested:", n_genes, "\n")
+#>   Genes tested: 100
+cat("  True positives:", n_true, "\n")
+#>   True positives: 10
+cat("  Significant (raw p < 0.05):", sum(raw_p < 0.05), "\n")
+#>   Significant (raw p < 0.05): 13
+cat("  Significant (perm p < 0.05):", sum(p_adj < 0.05), "\n")
+#>   Significant (perm p < 0.05): 2
+
+# Visualise
+ggplot2$ggplot(results, ggplot2$aes(x = -log10(raw_p), y = -log10(perm_p),
+                                     colour = true_positive)) +
+    ggplot2$geom_point(size = 2, alpha = 0.7) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey40") +
+    ggplot2$geom_hline(yintercept = -log10(0.05), linetype = "dotted", colour = "red") +
+    ggplot2$geom_vline(xintercept = -log10(0.05), linetype = "dotted", colour = "red") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#2166AC", "TRUE" = "#D95F02"),
+                                 labels = c("Null", "True Positive"),
+                                 name = "") +
+    ggplot2$labs(
+        title = "Raw vs Permutation-Adjusted P-values",
+        subtitle = "Permutation controls for multiple testing",
+        x = "-log10(Raw P-value)",
+        y = "-log10(Permutation P-value)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/permutation_multiple_testing-1.png" alt="Permutation-based FDR control in multiple testing">
+	Permutation-based FDR control in multiple testing
+</Figure>
+
+### 6.11.2 Block Bootstrap for Dependent Data
+
+**Prose and Intuition**
+
+Standard bootstrap assumes i.i.d. data. For **time series** or **clustered data**, we need to preserve the dependence structure.
+
+**Block bootstrap**: Resample blocks of consecutive observations rather than individual observations.
+
+**Types**:
+- **Non-overlapping blocks**: Divide data into fixed blocks
+- **Moving blocks**: Overlapping blocks of fixed length
+- **Circular blocks**: Wrap-around to handle edges
 
 
+``` r
+# Simulate autocorrelated time series
+n_ts <- 200
+ar_coef <- 0.7
+ts_data <- numeric(n_ts)
+ts_data[1] <- rnorm(1)
 
+for (t in 2:n_ts) {
+    ts_data[t] <- ar_coef * ts_data[t-1] + rnorm(1)
+}
+
+# Estimate mean with standard bootstrap (incorrect for dependent data)
+B <- 2000
+boot_means_iid <- replicate(B, mean(sample(ts_data, n_ts, replace = TRUE)))
+
+# Block bootstrap
+block_size <- 10
+n_blocks <- ceiling(n_ts / block_size)
+
+boot_means_block <- numeric(B)
+for (b in 1:B) {
+    # Sample block starting positions
+    block_starts <- sample(1:(n_ts - block_size + 1), n_blocks, replace = TRUE)
+    # Extract blocks
+    boot_sample <- unlist(lapply(block_starts, function(s) ts_data[s:(s + block_size - 1)]))
+    boot_sample <- boot_sample[1:n_ts]  # Trim to original length
+    boot_means_block[b] <- mean(boot_sample)
+}
+
+# True SE (from AR(1) theory)
+true_se <- sqrt(var(ts_data) / n_ts * (1 + ar_coef) / (1 - ar_coef))
+
+cat("Bootstrap for Autocorrelated Data:\n")
+#> Bootstrap for Autocorrelated Data:
+cat("==================================\n")
+#> ==================================
+cat("  AR(1) coefficient:", ar_coef, "\n")
+#>   AR(1) coefficient: 0.7
+cat("  True SE (theory):", round(true_se, 4), "\n")
+#>   True SE (theory): 0.1957
+cat("  i.i.d. Bootstrap SE:", round(sd(boot_means_iid), 4), "\n")
+#>   i.i.d. Bootstrap SE: 0.0804
+cat("  Block Bootstrap SE:", round(sd(boot_means_block), 4), "\n")
+#>   Block Bootstrap SE: 0.1486
+
+# Visualise
+boot_comparison <- rbind(
+    data.table(method = "i.i.d. Bootstrap", mean = boot_means_iid),
+    data.table(method = "Block Bootstrap", mean = boot_means_block)
+)
+
+ggplot2$ggplot(boot_comparison, ggplot2$aes(x = mean, fill = method)) +
+    ggplot2$geom_density(alpha = 0.5) +
+    ggplot2$geom_vline(xintercept = mean(ts_data), linetype = "dashed", colour = "red") +
+    ggplot2$scale_fill_manual(values = c("i.i.d. Bootstrap" = "#E41A1C",
+                                          "Block Bootstrap" = "#4DAF4A")) +
+    ggplot2$labs(
+        title = "i.i.d. vs Block Bootstrap for Time Series",
+        subtitle = paste0("Block size = ", block_size, "; AR(1) coefficient = ", ar_coef),
+        x = "Bootstrap Mean",
+        y = "Density",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/block_bootstrap-1.png" alt="Block bootstrap for time series data">
+	Block bootstrap for time series data
+</Figure>
+
+---
+
+## 6.12 Summary and Key Concepts
+
+### Key Takeaways
+
+1. **Permutation Tests**: Test hypotheses by shuffling labels to generate the exact null distribution. Valid without distributional assumptions.
+
+2. **Exchangeability**: Permutation tests assume observations are exchangeable under the null—group labels are arbitrary.
+
+3. **Jackknife**: Leave-one-out resampling for bias estimation, variance estimation, and influence diagnostics.
+
+4. **Pseudo-values**: Jackknife pseudo-values measure each observation's contribution; can be used for regression-based inference.
+
+5. **Non-smooth Statistics**: Jackknife fails for statistics like the median; bootstrap is preferred.
+
+6. **Method Selection**:
+   - Hypothesis testing → Permutation
+   - Standard errors/CIs → Bootstrap
+   - Bias estimation/influence → Jackknife
+
+7. **Dependent Data**: Use block bootstrap to preserve correlation structure.
+
+### Best Practices
+
+1. **Permutation tests**: Use for exact p-values, especially with non-standard test statistics
+2. **Report number of permutations**: Monte Carlo error decreases with more permutations
+3. **Check jackknife assumptions**: Avoid for quantiles and other non-smooth statistics
+4. **Block bootstrap**: Choose block size to capture the dependence structure
+5. **Combine methods**: Use jackknife for BCa acceleration in bootstrap CIs
+
+### Communicating to Stakeholders
+
+**For a clinical audience**: "We tested whether mean tumour size differs between treatment groups using a permutation test. By randomly shuffling the group labels 10,000 times, we determined how unusual our observed difference would be if there were truly no effect. The permutation p-value of 0.003 indicates our result is highly unlikely under the null hypothesis."
+
+**For a methods paper**: "The permutation null distribution was constructed from 10,000 random permutations of group labels. For the block bootstrap, we used non-overlapping blocks of size 10, chosen based on the estimated autocorrelation decay. Jackknife pseudo-values were computed to identify influential observations, with five observations exceeding the 2-SD threshold."
+
+**Key vocabulary**:
+- Permutation test, exact test, exchangeability
+- Null distribution, Monte Carlo p-value
+- Jackknife, leave-one-out, pseudo-values
+- Influence, delete-d jackknife
+- Block bootstrap, moving blocks

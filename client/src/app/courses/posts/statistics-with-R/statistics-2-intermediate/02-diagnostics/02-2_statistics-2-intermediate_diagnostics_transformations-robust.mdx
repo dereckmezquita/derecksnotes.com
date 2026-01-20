@@ -52,6 +52,8 @@ cat("  Cleaned LOS data:", nrow(los_data), "observations\n")
 
 ---
 
+## Table of Contents
+
 ## 2.1 Variable Transformations
 
 ### 2.1.1 Why Transform?
@@ -146,7 +148,7 @@ print(summary(model_original)$coefficients)
 #> type1       2.7397330  0.1721057 15.918896 1.790190e-53
 cat("\nR² =", round(summary(model_original)$r.squared, 4), "\n\n")
 #> 
-#> R² = 0.1327
+#> R<U+00B2> = 0.1327
 
 cat("LOG SCALE: log(los) ~ age75 + type1\n")
 #> LOG SCALE: log(los) ~ age75 + type1
@@ -157,7 +159,7 @@ print(summary(model_log)$coefficients)
 #> type1       0.6233549 0.03115347 20.009162  1.457372e-80
 cat("\nR² =", round(summary(model_log)$r.squared, 4), "\n\n")
 #> 
-#> R² = 0.1912
+#> R<U+00B2> = 0.1912
 
 cat("Interpretation (log model):\n")
 #> Interpretation (log model):
@@ -251,9 +253,9 @@ cat("Box-Cox Analysis:\n")
 cat("=================\n\n")
 #> =================
 cat("Optimal λ:", round(optimal_lambda, 3), "\n")
-#> Optimal λ: 0
+#> Optimal <U+03BB>: 0
 cat("95% CI: Check if λ = 0 (log) or λ = 1 (no transform) is included\n")
-#> 95% CI: Check if λ = 0 (log) or λ = 1 (no transform) is included
+#> 95% CI: Check if <U+03BB> = 0 (log) or <U+03BB> = 1 (no transform) is included
 
 # Plot Box-Cox profile
 bc_dt <- data.table(lambda = bc$x, loglik = bc$y)
@@ -311,15 +313,15 @@ cat("==========================================\n\n")
 cat("Linear model: SBP ~ Age\n")
 #> Linear model: SBP ~ Age
 cat("  R² =", round(summary(model_linear)$r.squared, 4), "\n\n")
-#>   R² = 0.1733
+#>   R<U+00B2> = 0.1733
 cat("Quadratic model: SBP ~ Age + Age²\n")
-#> Quadratic model: SBP ~ Age + Age²
+#> Quadratic model: SBP ~ Age + Age<U+00B2>
 cat("  R² =", round(summary(model_quad)$r.squared, 4), "\n")
-#>   R² = 0.1805
+#>   R<U+00B2> = 0.1805
 cat("  Age coefficient:", round(coef(model_quad)["Age"], 3), "\n")
 #>   Age coefficient: -0.053
 cat("  Age² coefficient:", round(coef(model_quad)["I(Age^2)"], 5), "\n")
-#>   Age² coefficient: 0.00477
+#>   Age<U+00B2> coefficient: 0.00477
 
 # Test if quadratic term is significant
 anova_test <- anova(model_linear, model_quad)
@@ -453,11 +455,11 @@ cat("Variance Function Estimation:\n")
 cat("=============================\n\n")
 #> =============================
 cat("Model: log(e²) ~ log(fitted)\n")
-#> Model: log(e²) ~ log(fitted)
+#> Model: log(e<U+00B2>) ~ log(fitted)
 cat("Coefficient:", round(coef(var_model)["log_fitted"], 3), "\n")
 #> Coefficient: 2.262
 cat("If coefficient ≈ 2, variance is proportional to fitted²\n")
-#> If coefficient ≈ 2, variance is proportional to fitted²
+#> If coefficient <U+2248> 2, variance is proportional to fitted<U+00B2>
 
 # Step 3: Compute weights
 los_data[, est_var := exp(predict(var_model))]
@@ -528,7 +530,7 @@ cat("OLS vs Robust Regression with Outliers:\n")
 cat("========================================\n\n")
 #> ========================================
 cat("True model: Y = 2 + 3X + ε\n\n")
-#> True model: Y = 2 + 3X + ε
+#> True model: Y = 2 + 3X + <U+03B5>
 cat("OLS estimates:\n")
 #> OLS estimates:
 cat("  Intercept:", round(coef(model_ols)[1], 3), "(true: 2)\n")
@@ -733,47 +735,47 @@ cat("=========================================\n\n")
 cat("PROBLEM: Heteroscedasticity (non-constant variance)\n")
 #> PROBLEM: Heteroscedasticity (non-constant variance)
 cat("  → Transform Y (log, sqrt) if variance increases with mean\n")
-#>   → Transform Y (log, sqrt) if variance increases with mean
+#>   <U+2192> Transform Y (log, sqrt) if variance increases with mean
 cat("  → Use weighted least squares\n")
-#>   → Use weighted least squares
+#>   <U+2192> Use weighted least squares
 cat("  → Use robust/sandwich standard errors\n\n")
-#>   → Use robust/sandwich standard errors
+#>   <U+2192> Use robust/sandwich standard errors
 
 cat("PROBLEM: Nonlinearity\n")
 #> PROBLEM: Nonlinearity
 cat("  → Transform X (log, polynomial)\n")
-#>   → Transform X (log, polynomial)
+#>   <U+2192> Transform X (log, polynomial)
 cat("  → Transform Y\n")
-#>   → Transform Y
+#>   <U+2192> Transform Y
 cat("  → Use GAMs (generalized additive models)\n\n")
-#>   → Use GAMs (generalized additive models)
+#>   <U+2192> Use GAMs (generalized additive models)
 
 cat("PROBLEM: Outliers\n")
 #> PROBLEM: Outliers
 cat("  → Investigate cause\n")
-#>   → Investigate cause
+#>   <U+2192> Investigate cause
 cat("  → Use robust regression (M-estimation, LTS)\n")
-#>   → Use robust regression (M-estimation, LTS)
+#>   <U+2192> Use robust regression (M-estimation, LTS)
 cat("  → Sensitivity analysis (with/without)\n\n")
-#>   → Sensitivity analysis (with/without)
+#>   <U+2192> Sensitivity analysis (with/without)
 
 cat("PROBLEM: Non-normal residuals\n")
 #> PROBLEM: Non-normal residuals
 cat("  → With large n: Usually not a concern (CLT)\n")
-#>   → With large n: Usually not a concern (CLT)
+#>   <U+2192> With large n: Usually not a concern (CLT)
 cat("  → Transform Y\n")
-#>   → Transform Y
+#>   <U+2192> Transform Y
 cat("  → Use bootstrap for inference\n\n")
-#>   → Use bootstrap for inference
+#>   <U+2192> Use bootstrap for inference
 
 cat("PROBLEM: Independence violation\n")
 #> PROBLEM: Independence violation
 cat("  → Clustered data: Use mixed-effects models (Chapter 6)\n")
-#>   → Clustered data: Use mixed-effects models (Chapter 6)
+#>   <U+2192> Clustered data: Use mixed-effects models (Chapter 6)
 cat("  → Time series: Use time series methods (Chapter 7)\n")
-#>   → Time series: Use time series methods (Chapter 7)
+#>   <U+2192> Time series: Use time series methods (Chapter 7)
 cat("  → Spatial data: Use spatial models (Part III)\n")
-#>   → Spatial data: Use spatial models (Part III)
+#>   <U+2192> Spatial data: Use spatial models (Part III)
 ```
 
 ---

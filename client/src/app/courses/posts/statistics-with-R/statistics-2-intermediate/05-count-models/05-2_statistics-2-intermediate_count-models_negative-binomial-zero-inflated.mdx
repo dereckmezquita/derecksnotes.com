@@ -45,6 +45,8 @@ cat("  Hospital LOS:", nrow(hospital_los), "observations\n")
 
 ---
 
+## Table of Contents
+
 ## 5.8 The Negative Binomial Distribution
 
 ### 5.8.1 Why Negative Binomial?
@@ -175,9 +177,9 @@ summary(model_nb)
 
 cat("\nDispersion parameter θ:", round(model_nb$theta, 3), "\n")
 #> 
-#> Dispersion parameter θ: 1.053
+#> Dispersion parameter <U+03B8>: 1.053
 cat("(Larger θ = less overdispersion; θ → ∞ approaches Poisson)\n")
-#> (Larger θ = less overdispersion; θ → ∞ approaches Poisson)
+#> (Larger <U+03B8> = less overdispersion; <U+03B8> <U+2192> <U+221E> approaches Poisson)
 ```
 
 ### 5.9.3 Comparing Poisson and Negative Binomial
@@ -213,7 +215,7 @@ cat("Likelihood Ratio Test (Poisson vs NB):\n")
 cat("  LR statistic:", round(lr_stat, 2), "\n")
 #>   LR statistic: 13618.3
 cat("  Note: Testing θ at boundary (null is Poisson), so use mixture chi-square\n")
-#>   Note: Testing θ at boundary (null is Poisson), so use mixture chi-square
+#>   Note: Testing <U+03B8> at boundary (null is Poisson), so use mixture chi-square
 cat("  p-value (approx):", format.pval(pchisq(lr_stat, df = 1, lower.tail = FALSE) / 2), "\n\n")
 #>   p-value (approx): < 2.22e-16
 
@@ -442,15 +444,15 @@ zip_data <- data.table(
 )
 
 cat("Simulated ZIP Data (π = 0.3, λ = 3):\n")
-#> Simulated ZIP Data (π = 0.3, λ = 3):
+#> Simulated ZIP Data (<U+03C0> = 0.3, <U+03BB> = 3):
 cat("  % zeros:", round(100 * mean(zip_data$y == 0), 1), "%\n")
 #>   % zeros: 33 %
 cat("  (Expected: π + (1-π)e^(-λ) =", round(100 * (0.3 + 0.7 * exp(-3)), 1), "%)\n")
-#>   (Expected: π + (1-π)e^(-λ) = 33.5 %)
+#>   (Expected: <U+03C0> + (1-<U+03C0>)e^(-<U+03BB>) = 33.5 %)
 cat("  Mean (observed):", round(mean(zip_data$y), 2), "\n")
 #>   Mean (observed): 2.11
 cat("  Mean (expected): (1-π)λ =", round(0.7 * 3, 2), "\n")
-#>   Mean (expected): (1-π)λ = 2.1
+#>   Mean (expected): (1-<U+03C0>)<U+03BB> = 2.1
 ```
 
 ### 5.10.3 Zero-Inflated Negative Binomial (ZINB)
@@ -471,32 +473,32 @@ cat("Decision Tree:\n")
 cat("1. Start with Poisson regression\n")
 #> 1. Start with Poisson regression
 cat("   ↓\n")
-#>    ↓
+#>    <U+2193>
 cat("2. Check dispersion: Var/Mean > 1.5?\n")
 #> 2. Check dispersion: Var/Mean > 1.5?
 cat("   • NO  → Poisson may be adequate\n")
-#>    • NO  → Poisson may be adequate
+#>    <U+2022> NO  <U+2192> Poisson may be adequate
 cat("   • YES → Consider Negative Binomial\n")
-#>    • YES → Consider Negative Binomial
+#>    <U+2022> YES <U+2192> Consider Negative Binomial
 cat("   ↓\n")
-#>    ↓
+#>    <U+2193>
 cat("3. Check zero frequency: More zeros than NegBin predicts?\n")
 #> 3. Check zero frequency: More zeros than NegBin predicts?
 cat("   • NO  → NegBin may be adequate\n")
-#>    • NO  → NegBin may be adequate
+#>    <U+2022> NO  <U+2192> NegBin may be adequate
 cat("   • YES → Consider Zero-Inflated model (ZINB)\n")
-#>    • YES → Consider Zero-Inflated model (ZINB)
+#>    <U+2022> YES <U+2192> Consider Zero-Inflated model (ZINB)
 cat("   ↓\n")
-#>    ↓
+#>    <U+2193>
 cat("4. Compare models using AIC/BIC and Vuong test\n\n")
 #> 4. Compare models using AIC/BIC and Vuong test
 
 cat("R packages:\n")
 #> R packages:
 cat("  • MASS: glm.nb() for negative binomial\n")
-#>   • MASS: glm.nb() for negative binomial
+#>   <U+2022> MASS: glm.nb() for negative binomial
 cat("  • pscl: zeroinfl() and hurdle() for zero-inflated/hurdle models\n")
-#>   • pscl: zeroinfl() and hurdle() for zero-inflated/hurdle models
+#>   <U+2022> pscl: zeroinfl() and hurdle() for zero-inflated/hurdle models
 ```
 
 ---
@@ -540,11 +542,11 @@ cat("  model <- hurdle(count ~ x1 + x2 | z1 + z2, data = df)\n\n")
 cat("When to use hurdle vs zero-inflated:\n")
 #> When to use hurdle vs zero-inflated:
 cat("  • Hurdle: When zeros represent 'no participation'\n")
-#>   • Hurdle: When zeros represent 'no participation'
+#>   <U+2022> Hurdle: When zeros represent 'no participation'
 cat("    Example: # cigarettes (0 for non-smokers)\n")
 #>     Example: # cigarettes (0 for non-smokers)
 cat("  • Zero-inflated: When zeros are a mix of types\n")
-#>   • Zero-inflated: When zeros are a mix of types
+#>   <U+2022> Zero-inflated: When zeros are a mix of types
 cat("    Example: # doctor visits (0 = healthy OR unlucky)\n")
 #>     Example: # doctor visits (0 = healthy OR unlucky)
 ```

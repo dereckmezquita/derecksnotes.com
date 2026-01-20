@@ -47,6 +47,8 @@ cat("  Time points per subject:", round(nrow(cd4_data) / length(unique(cd4_data$
 
 ---
 
+## Table of Contents
+
 ## 6.1 The Need for Mixed-Effects Models
 
 ### 6.1.1 Hierarchical Data Structures
@@ -251,38 +253,38 @@ sigma_residual <- vc[grp == "Residual", sdcor]
 cat("VARIANCE COMPONENTS:\n\n")
 #> VARIANCE COMPONENTS:
 cat("Patient SD (σ_u):", round(sigma_patient, 2), "\n")
-#> Patient SD (σ_u): 4.24
+#> Patient SD (<U+03C3>_u): 4.24
 cat("  → Patients differ by about ±", round(2*sigma_patient, 0), "CD4 cells at baseline\n\n")
-#>   → Patients differ by about ± 8 CD4 cells at baseline
+#>   <U+2192> Patients differ by about <U+00B1> 8 CD4 cells at baseline
 
 cat("Residual SD (σ):", round(sigma_residual, 2), "\n")
-#> Residual SD (σ): 2.12
+#> Residual SD (<U+03C3>): 2.12
 cat("  → Within-patient variation around their trajectory\n\n")
-#>   → Within-patient variation around their trajectory
+#>   <U+2192> Within-patient variation around their trajectory
 
 # Intraclass Correlation Coefficient (ICC)
 icc <- sigma_patient^2 / (sigma_patient^2 + sigma_residual^2)
 cat("INTRACLASS CORRELATION (ICC):", round(icc, 3), "\n")
 #> INTRACLASS CORRELATION (ICC): 0.799
 cat("  → ", round(100*icc, 1), "% of total variance is between patients\n")
-#>   →  79.9 % of total variance is between patients
+#>   <U+2192>  79.9 % of total variance is between patients
 cat("  → ", round(100*(1-icc), 1), "% of variance is within patients over time\n\n")
-#>   →  20.1 % of variance is within patients over time
+#>   <U+2192>  20.1 % of variance is within patients over time
 
 # Fixed effects
 cat("FIXED EFFECTS:\n\n")
 #> FIXED EFFECTS:
 fe <- fixef(model_ri)
 cat("Intercept:", round(fe["(Intercept)"], 1), "cells/mm³\n")
-#> Intercept: 3.5 cells/mm³
+#> Intercept: 3.5 cells/mm<U+00B3>
 cat("  → Average CD4 count at Time 0 for average-age patient\n\n")
-#>   → Average CD4 count at Time 0 for average-age patient
+#>   <U+2192> Average CD4 count at Time 0 for average-age patient
 cat("Week effect:", round(fe["Time"], 2), "cells/mm³ per Time\n")
-#> Week effect: 0.25 cells/mm³ per Time
+#> Week effect: 0.25 cells/mm<U+00B3> per Time
 cat("  → CD4 changes by", round(fe["Time"], 2), "each Time on average\n\n")
-#>   → CD4 changes by 0.25 each Time on average
+#>   <U+2192> CD4 changes by 0.25 each Time on average
 cat("Age effect:", round(fe["age"], 2), "cells/mm³ per year of age\n")
-#> Age effect: NA cells/mm³ per year of age
+#> Age effect: NA cells/mm<U+00B3> per year of age
 ```
 
 ---

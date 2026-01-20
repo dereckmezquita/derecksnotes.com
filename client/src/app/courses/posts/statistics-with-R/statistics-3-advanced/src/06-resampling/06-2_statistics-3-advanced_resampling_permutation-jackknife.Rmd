@@ -55,6 +55,8 @@ cat("  Malignant:", sum(breast_cancer$diagnosis == "Malignant"), "\n")
 
 ---
 
+## Table of Contents
+
 ## 6.8 Permutation Tests
 
 ### 6.8.1 The Permutation Principle
@@ -448,7 +450,7 @@ influence_data <- data.table(
     index = 1:n,
     pseudo_value = pseudo_values,
     influence = influence,
-    influential = index %in% influential_idx
+    influential = (1:n) %in% influential_idx
 )
 
 ggplot2$ggplot(influence_data, ggplot2$aes(x = index, y = influence,

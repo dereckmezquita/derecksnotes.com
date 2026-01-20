@@ -114,6 +114,8 @@ cat("  Population effect size:", pop_effects[2], "SD\n")
 
 ---
 
+## Table of Contents
+
 ## 8.7 Population Stratification
 
 ### 8.7.1 The Confounding Problem
@@ -195,7 +197,7 @@ cat("  False positives:", sum(naive_gwas$p_value < 5e-8 & !naive_gwas$is_causal)
 lambda_naive <- median(qchisq(naive_gwas$p_value, df = 1, lower.tail = FALSE)) /
                 qchisq(0.5, df = 1)
 cat("  Genomic inflation (λ):", round(lambda_naive, 3), "\n")
-#>   Genomic inflation (<U+03BB>): 4.869
+#>   Genomic inflation (λ): 4.869
 
 # Visualise: Fst vs significance
 ggplot2$ggplot(naive_gwas, ggplot2$aes(x = fst, y = -log10(p_value),
@@ -362,15 +364,15 @@ cat("  True positives:", sum(gwas_with_pcs$p_value < 5e-8 & gwas_with_pcs$is_cau
 cat("  False positives:", sum(gwas_with_pcs$p_value < 5e-8 & !gwas_with_pcs$is_causal), "\n")
 #>   False positives: 0
 cat("  Genomic inflation (λ):", round(lambda_pcs, 3), "\n")
-#>   Genomic inflation (<U+03BB>): 1.006
+#>   Genomic inflation (λ): 1.006
 
 cat("\nComparison:\n")
 #> 
 #> Comparison:
 cat("  λ without PCs:", round(lambda_naive, 3), "\n")
-#>   <U+03BB> without PCs: 4.869
+#>   λ without PCs: 4.869
 cat("  λ with PCs:", round(lambda_pcs, 3), "\n")
-#>   <U+03BB> with PCs: 1.006
+#>   λ with PCs: 1.006
 
 # Compare QQ plots
 qq_comparison <- rbind(
@@ -588,7 +590,7 @@ lambda_mm <- median(qchisq(gwas_mm$p_value, df = 1, lower.tail = FALSE)) /
              qchisq(0.5, df = 1)
 
 cat("  Genomic inflation (λ) with MM:", round(lambda_mm, 3), "\n")
-#>   Genomic inflation (<U+03BB>) with MM: 55.405
+#>   Genomic inflation (λ) with MM: 55.405
 cat("  Compare to PC correction:", round(lambda_pcs, 3), "\n")
 #>   Compare to PC correction: 1.006
 ```
@@ -648,9 +650,9 @@ cat("Linkage Disequilibrium Analysis:\n")
 cat("================================\n")
 #> ================================
 cat("  Mean r² (adjacent SNPs):", round(mean(diag(ld_matrix[-1, ]), na.rm = TRUE), 3), "\n")
-#>   Mean r<U+00B2> (adjacent SNPs): 0
+#>   Mean r² (adjacent SNPs): 0
 cat("  Mean r² (all pairs):", round(mean(ld_matrix, na.rm = TRUE), 3), "\n")
-#>   Mean r<U+00B2> (all pairs): 0.01
+#>   Mean r² (all pairs): 0.01
 
 # Visualise LD matrix
 rownames(ld_matrix) <- 1:nrow(ld_matrix)
