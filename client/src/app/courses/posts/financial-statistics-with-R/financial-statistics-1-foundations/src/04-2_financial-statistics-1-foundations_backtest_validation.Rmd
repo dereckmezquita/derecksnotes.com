@@ -1,0 +1,1012 @@
+---
+title: "Validation Methods"
+---
+
+```{r setup, include=FALSE}
+box::use(
+    ./modules/data[load_market, filter_dates],
+    ./modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ./modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+tc <- unlist(trading_colors)
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = "../figures/04-2_"
+)
+
+set.seed(42)
+```
+
+# Validation Methods
+
+Identifying biases is only half the battle. You need systematic methods to validate that your strategy has genuine predictive power. This chapter covers the validation toolkit: from simple train/test splits to sophisticated combinatorial cross-validation.
+
+---
+
+## 4.5 Train/Test Split
+
+The simplest validation: reserve data you never touch until the final test.
+
+### 4.5.1 Prose/Intuition
+
+The train/test split embodies a fundamental principle: **you cannot evaluate a model on data used to build it.** The training set is for developing and tuning your strategy. The test set is for final validation—a simulation of live trading on unseen data.
+
+**The holdout principle:**
+
+Once you look at test set performance, you've contaminated it. Even if you don't formally retrain, knowledge of test results influences subsequent decisions. Many practitioners keep a "lockbox" test set that remains untouched until the very end of development.
+
+**Key considerations:**
+
+1. **Temporal ordering** — Financial data is time-series. Random splits violate temporal structure.
+
+2. **Regime coverage** — Your split should include diverse market conditions in both sets.
+
+3. **Embargo periods** — Leave a gap between train and test to prevent information leakage.
+
+### 4.5.2 Visual Evidence
+
+```{r train-test-split, fig.cap="Temporal train/test split with embargo period. The embargo prevents information leakage from overlapping signals."}
+# Load data
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2000-01-01"), as.Date("2023-12-31"))
+spy[, returns := c(NA, diff(log(adjusted)))]
+spy <- spy[!is.na(returns)]
+
+# Define split points
+train_end <- as.Date("2017-12-31")
+embargo_end <- as.Date("2018-03-31")  # 3-month embargo
+test_start <- embargo_end + 1
+
+# Mark periods
+spy[, period := fifelse(date <= train_end, "Training",
+                         fifelse(date <= embargo_end, "Embargo", "Test"))]
+spy[, period := factor(period, levels = c("Training", "Embargo", "Test"))]
+
+# Calculate cumulative returns
+spy[, cum_return := cumprod(1 + returns)]
+
+# Plot
+ggplot(spy, aes(x = date, y = cum_return, colour = period)) +
+    geom_line(linewidth = 0.6) +
+    scale_colour_manual(values = c(tc[1], tc[5], tc[3]),
+                        name = "Period") +
+    geom_vline(xintercept = as.numeric(train_end),
+               linetype = "dashed", colour = "grey30") +
+    geom_vline(xintercept = as.numeric(embargo_end),
+               linetype = "dashed", colour = "grey30") +
+    annotate("text", x = train_end - 500, y = 4, label = "Training",
+             colour = tc[1], size = 4) +
+    annotate("text", x = mean(c(train_end, embargo_end)), y = 4,
+             label = "Embargo", colour = tc[5], size = 4) +
+    annotate("text", x = as.Date("2021-01-01"), y = 4, label = "Test",
+             colour = tc[3], size = 4) +
+    labs(
+        title = "Temporal Train/Test Split with Embargo",
+        subtitle = "Embargo period prevents signal overlap between train and test",
+        x = NULL,
+        y = "Cumulative Return"
+    ) +
+    theme_trading() +
+    theme(legend.position = "none")
+```
+
+```{r split-regime-analysis, fig.cap="Both train and test sets should contain diverse market regimes (bull, bear, high vol, low vol)."}
+# Analyse regime coverage in each period
+spy[, rolling_vol := frollapply(returns, 60, sd) * sqrt(252)]
+spy[, rolling_ret := frollapply(returns, 252, function(x) mean(x) * 252)]
+
+# Classify regimes
+spy[, vol_regime := fifelse(rolling_vol > 0.20, "High Vol", "Low Vol")]
+spy[, return_regime := fifelse(rolling_ret > 0, "Bull", "Bear")]
+spy[, regime := paste(return_regime, vol_regime, sep = " / ")]
+
+# Count regime coverage
+regime_coverage <- spy[!is.na(regime), .(days = .N), by = .(period, regime)]
+regime_coverage[, pct := days / sum(days) * 100, by = period]
+
+ggplot(regime_coverage, aes(x = regime, y = pct, fill = period)) +
+    geom_col(position = "dodge", alpha = 0.8) +
+    scale_fill_manual(values = c(tc[1], tc[5], tc[3])) +
+    labs(
+        title = "Regime Coverage by Period",
+        subtitle = "Good splits have similar regime distributions",
+        x = "Market Regime",
+        y = "Percentage of Period (%)",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "bottom")
+```
+
+### 4.5.3 Mathematical Derivation
+
+**Statistical power trade-off:**
+
+With total observations $T$, splitting into train ($T_1$) and test ($T_2 = T - T_1$):
+
+- Larger $T_1$: Better parameter estimates, but less test data
+- Larger $T_2$: More reliable test, but weaker model training
+
+**Variance of test Sharpe:**
+
+The variance of the estimated Sharpe ratio is approximately:
+$$\text{Var}(\widehat{SR}) \approx \frac{1 + 0.5 \cdot SR^2}{T_2}$$
+
+For a strategy with true $SR = 1.0$ and $T_2 = 500$ test days:
+$$\text{SE}(\widehat{SR}) \approx \sqrt{\frac{1.5}{500}} \approx 0.055$$
+
+**Optimal split ratio:**
+
+Balancing training accuracy and test reliability, the optimal split depends on model complexity. A common heuristic:
+
+$$\text{Test fraction} \approx \frac{1}{\sqrt{1 + p/20}}$$
+
+where $p$ is the number of model parameters. For simple strategies ($p \leq 5$), this suggests ~30% test data.
+
+### 4.5.4 Implementation & Application
+
+```{r train-test-implementation}
+# Robust train/test split implementation
+temporal_split <- function(data, train_fraction = 0.7, embargo_days = 63) {
+    n <- nrow(data)
+
+    # Calculate split points
+    train_end_idx <- floor(n * train_fraction)
+    embargo_end_idx <- train_end_idx + embargo_days
+    test_start_idx <- embargo_end_idx + 1
+
+    if (test_start_idx > n) {
+        stop("Insufficient data for embargo period")
+    }
+
+    list(
+        train = data[1:train_end_idx],
+        embargo = data[(train_end_idx + 1):embargo_end_idx],
+        test = data[test_start_idx:n],
+        train_end_date = data$date[train_end_idx],
+        test_start_date = data$date[test_start_idx]
+    )
+}
+
+# Apply split
+split_data <- temporal_split(spy, train_fraction = 0.7, embargo_days = 63)
+
+cat("=== Train/Test Split Summary ===\n")
+cat(sprintf("Training: %d days (%s to %s)\n",
+            nrow(split_data$train),
+            min(split_data$train$date),
+            max(split_data$train$date)))
+cat(sprintf("Embargo: %d days\n", nrow(split_data$embargo)))
+cat(sprintf("Test: %d days (%s to %s)\n",
+            nrow(split_data$test),
+            min(split_data$test$date),
+            max(split_data$test$date)))
+```
+
+```{r train-test-strategy-example, fig.cap="Strategy performance comparison: in-sample (training) vs out-of-sample (test)."}
+# Example: MA crossover strategy evaluated on split
+train_data <- split_data$train
+test_data <- split_data$test
+
+# Train: Find best parameters (on training set only)
+evaluate_ma_strategy <- function(data, fast, slow) {
+    if (fast >= slow) return(NA)
+
+    dt <- copy(data)
+    dt[, ma_fast := frollmean(adjusted, fast)]
+    dt[, ma_slow := frollmean(adjusted, slow)]
+    dt[, signal := shift(fifelse(ma_fast > ma_slow, 1, 0), 1)]
+    dt[, strat_ret := signal * c(NA, diff(log(adjusted)))]
+    dt <- dt[!is.na(strat_ret)]
+
+    if (nrow(dt) < 100) return(NA)
+    sharpe_ratio(dt$strat_ret)
+}
+
+# Grid search on training data
+best_sharpe <- -Inf
+best_params <- c(NA, NA)
+
+for (fast in seq(10, 50, by = 5)) {
+    for (slow in seq(50, 200, by = 10)) {
+        sr <- evaluate_ma_strategy(train_data, fast, slow)
+        if (!is.na(sr) && sr > best_sharpe) {
+            best_sharpe <- sr
+            best_params <- c(fast, slow)
+        }
+    }
+}
+
+cat("\n=== Optimal Parameters (Training Set) ===\n")
+cat(sprintf("Best fast MA: %d\n", best_params[1]))
+cat(sprintf("Best slow MA: %d\n", best_params[2]))
+cat(sprintf("Training Sharpe: %.2f\n", best_sharpe))
+
+# Evaluate on test set with optimal parameters
+test_sharpe <- evaluate_ma_strategy(test_data, best_params[1], best_params[2])
+cat(sprintf("Test Sharpe: %.2f\n", test_sharpe))
+
+# Generate equity curves for visualisation
+apply_strategy <- function(data, fast, slow) {
+    dt <- copy(data)
+    dt[, ma_fast := frollmean(adjusted, fast)]
+    dt[, ma_slow := frollmean(adjusted, slow)]
+    dt[, signal := shift(fifelse(ma_fast > ma_slow, 1, 0), 1)]
+    dt[, strat_ret := signal * c(NA, diff(log(adjusted)))]
+    dt[, buy_hold_ret := c(NA, diff(log(adjusted)))]
+    dt <- dt[!is.na(strat_ret)]
+    dt[, strategy_equity := exp(cumsum(strat_ret))]
+    dt[, buyhold_equity := exp(cumsum(buy_hold_ret))]
+    dt
+}
+
+train_result <- apply_strategy(train_data, best_params[1], best_params[2])
+test_result <- apply_strategy(test_data, best_params[1], best_params[2])
+
+# Combine and plot
+train_result[, period := "Training"]
+test_result[, period := "Test"]
+combined <- rbind(
+    train_result[, .(date, strategy_equity, buyhold_equity, period)],
+    test_result[, .(date, strategy_equity, buyhold_equity, period)]
+)
+
+# Normalise test period to start where training ended
+test_start_strategy <- tail(train_result$strategy_equity, 1)
+test_start_buyhold <- tail(train_result$buyhold_equity, 1)
+
+combined[period == "Test", `:=`(
+    strategy_equity = strategy_equity / strategy_equity[1] * test_start_strategy,
+    buyhold_equity = buyhold_equity / buyhold_equity[1] * test_start_buyhold
+)]
+
+plot_long <- melt(combined, id.vars = c("date", "period"),
+                  measure.vars = c("strategy_equity", "buyhold_equity"),
+                  variable.name = "series", value.name = "equity")
+plot_long[, series := fifelse(series == "strategy_equity", "Strategy", "Buy & Hold")]
+
+ggplot(plot_long, aes(x = date, y = equity, colour = series, linetype = period)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[5])) +
+    scale_linetype_manual(values = c("solid", "dashed")) +
+    geom_vline(xintercept = as.numeric(split_data$test_start_date),
+               colour = "grey30", linetype = "dotted") +
+    annotate("text", x = split_data$test_start_date + 100, y = 0.5,
+             label = "Test begins", colour = "grey30", hjust = 0) +
+    labs(
+        title = "Strategy Performance: Training vs Test",
+        subtitle = sprintf("Training Sharpe: %.2f | Test Sharpe: %.2f",
+                          best_sharpe, test_sharpe),
+        x = NULL,
+        y = "Equity",
+        colour = NULL,
+        linetype = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+---
+
+## 4.6 Walk-Forward Optimisation
+
+Walk-forward testing produces multiple out-of-sample tests by rolling the train/test split through time.
+
+### 4.6.1 Prose/Intuition
+
+A single train/test split is one draw from a potentially noisy distribution. Walk-forward testing generates multiple independent out-of-sample tests, each with parameters optimised on prior data.
+
+**The process:**
+
+1. Train on period 1, test on period 2
+2. Train on periods 1-2, test on period 3
+3. Continue rolling forward
+4. Combine all out-of-sample results
+
+This mimics realistic strategy deployment: you periodically retrain your model on accumulating data and trade on new data.
+
+### 4.6.2 Visual Evidence
+
+```{r walk-forward-diagram, fig.cap="Walk-forward optimisation creates multiple train/test pairs. Each test period uses only past data for training."}
+# Visualise walk-forward windows
+n_walks <- 6
+train_length <- 756  # 3 years
+test_length <- 252   # 1 year
+total_length <- nrow(spy)
+
+walk_windows <- data.table()
+
+for (i in 1:n_walks) {
+    train_start <- 1 + (i - 1) * test_length
+    train_end <- train_start + train_length - 1
+    test_start <- train_end + 1
+    test_end <- min(test_start + test_length - 1, total_length)
+
+    if (test_end > total_length) break
+
+    walk_windows <- rbind(walk_windows, data.table(
+        walk = i,
+        period = "Train",
+        start_idx = train_start,
+        end_idx = train_end,
+        start_date = spy$date[train_start],
+        end_date = spy$date[train_end]
+    ))
+
+    walk_windows <- rbind(walk_windows, data.table(
+        walk = i,
+        period = "Test",
+        start_idx = test_start,
+        end_idx = test_end,
+        start_date = spy$date[test_start],
+        end_date = spy$date[test_end]
+    ))
+}
+
+# Plot
+ggplot(walk_windows, aes(xmin = start_date, xmax = end_date,
+                          ymin = walk - 0.4, ymax = walk + 0.4,
+                          fill = period)) +
+    geom_rect(alpha = 0.8) +
+    scale_fill_manual(values = c(tc[1], tc[3])) +
+    scale_y_continuous(breaks = 1:max(walk_windows$walk),
+                       labels = paste("Walk", 1:max(walk_windows$walk))) +
+    labs(
+        title = "Walk-Forward Optimisation Windows",
+        subtitle = "Expanding training window, rolling test periods",
+        x = "Date",
+        y = NULL,
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom",
+          panel.grid.major.y = element_blank())
+```
+
+### 4.6.3 Mathematical Derivation
+
+**Expanding vs rolling window:**
+
+- **Expanding window:** Train on $[1, T_i]$, test on $[T_i+1, T_i + \tau]$
+- **Rolling window:** Train on $[T_i - W, T_i]$, test on $[T_i+1, T_i + \tau]$
+
+**Bias-variance trade-off:**
+
+Expanding window:
+- More training data → lower variance in parameter estimates
+- Old data may be less relevant → potential bias if market structure changes
+
+Rolling window:
+- More adaptive to regime changes
+- Less stable parameter estimates
+- Better for non-stationary environments
+
+**Combining walk results:**
+
+The overall out-of-sample performance is the concatenation of all test periods:
+$$r_{OOS} = \{r_{test,1}, r_{test,2}, ..., r_{test,K}\}$$
+
+The Sharpe ratio of $r_{OOS}$ represents true out-of-sample performance.
+
+### 4.6.4 Implementation & Application
+
+```{r walk-forward-implementation}
+# Walk-forward optimisation framework
+walk_forward_test <- function(data, optimise_func, apply_func,
+                               train_length = 756, test_length = 252,
+                               step = 252, expanding = TRUE) {
+
+    n <- nrow(data)
+    results <- list()
+    walk <- 1
+
+    train_start <- 1
+
+    while (TRUE) {
+        if (expanding) {
+            train_end <- train_length + (walk - 1) * step
+        } else {
+            train_start <- 1 + (walk - 1) * step
+            train_end <- train_start + train_length - 1
+        }
+
+        test_start <- train_end + 1
+        test_end <- test_start + test_length - 1
+
+        if (test_end > n) break
+
+        # Split data
+        train_data <- data[train_start:train_end]
+        test_data <- data[test_start:test_end]
+
+        # Optimise on training data
+        optimal_params <- optimise_func(train_data)
+
+        # Apply to test data
+        test_result <- apply_func(test_data, optimal_params)
+
+        results[[walk]] <- list(
+            walk = walk,
+            train_start = data$date[train_start],
+            train_end = data$date[train_end],
+            test_start = data$date[test_start],
+            test_end = data$date[test_end],
+            params = optimal_params,
+            test_returns = test_result$returns,
+            test_sharpe = test_result$sharpe
+        )
+
+        walk <- walk + 1
+    }
+
+    results
+}
+
+# Define optimisation and application functions
+optimise_ma <- function(train_data) {
+    best_sharpe <- -Inf
+    best_params <- c(20, 50)
+
+    for (fast in seq(10, 40, by = 5)) {
+        for (slow in seq(50, 150, by = 10)) {
+            sr <- evaluate_ma_strategy(train_data, fast, slow)
+            if (!is.na(sr) && sr > best_sharpe) {
+                best_sharpe <- sr
+                best_params <- c(fast, slow)
+            }
+        }
+    }
+
+    best_params
+}
+
+apply_ma <- function(test_data, params) {
+    dt <- copy(test_data)
+    dt[, ma_fast := frollmean(adjusted, params[1])]
+    dt[, ma_slow := frollmean(adjusted, params[2])]
+    dt[, signal := shift(fifelse(ma_fast > ma_slow, 1, 0), 1)]
+    dt[, strat_ret := signal * c(NA, diff(log(adjusted)))]
+    dt <- dt[!is.na(strat_ret)]
+
+    list(
+        returns = dt$strat_ret,
+        sharpe = sharpe_ratio(dt$strat_ret)
+    )
+}
+
+# Run walk-forward
+wf_results <- walk_forward_test(
+    spy,
+    optimise_func = optimise_ma,
+    apply_func = apply_ma,
+    train_length = 756,
+    test_length = 252,
+    expanding = TRUE
+)
+
+cat("=== Walk-Forward Results ===\n")
+for (r in wf_results) {
+    cat(sprintf("Walk %d: Train [%s to %s], Test [%s to %s]\n",
+                r$walk, r$train_start, r$train_end, r$test_start, r$test_end))
+    cat(sprintf("  Params: fast=%d, slow=%d | Test Sharpe: %.2f\n",
+                r$params[1], r$params[2], r$test_sharpe))
+}
+```
+
+```{r walk-forward-results, fig.cap="Walk-forward test results: out-of-sample Sharpe ratios across different time periods."}
+# Compile results
+wf_summary <- rbindlist(lapply(wf_results, function(r) {
+    data.table(
+        walk = r$walk,
+        test_start = r$test_start,
+        test_sharpe = r$test_sharpe,
+        fast_ma = r$params[1],
+        slow_ma = r$params[2]
+    )
+}))
+
+# Plot test Sharpe by walk
+ggplot(wf_summary, aes(x = factor(walk), y = test_sharpe)) +
+    geom_col(fill = tc[1], alpha = 0.8) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_hline(yintercept = mean(wf_summary$test_sharpe),
+               colour = tc[3], linewidth = 1) +
+    annotate("text", x = nrow(wf_summary), y = mean(wf_summary$test_sharpe) + 0.1,
+             label = sprintf("Avg: %.2f", mean(wf_summary$test_sharpe)),
+             colour = tc[3], hjust = 1) +
+    labs(
+        title = "Walk-Forward Out-of-Sample Sharpe Ratios",
+        subtitle = "Each bar is an independent out-of-sample test",
+        x = "Walk Number",
+        y = "Test Sharpe Ratio"
+    ) +
+    theme_trading()
+```
+
+```{r walk-forward-equity, fig.cap="Combined out-of-sample equity curve from walk-forward testing."}
+# Combine all test returns
+all_test_returns <- unlist(lapply(wf_results, function(r) r$test_returns))
+
+# Calculate overall performance
+overall_sharpe <- mean(all_test_returns) / sd(all_test_returns) * sqrt(252)
+
+# Create equity curve
+equity_dt <- data.table(
+    day = 1:length(all_test_returns),
+    return = all_test_returns
+)
+equity_dt[, equity := exp(cumsum(return))]
+
+ggplot(equity_dt, aes(x = day, y = equity)) +
+    geom_line(colour = tc[1], linewidth = 0.6) +
+    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+    labs(
+        title = "Walk-Forward Combined Out-of-Sample Equity",
+        subtitle = sprintf("Overall OOS Sharpe: %.2f | %d total test days",
+                          overall_sharpe, nrow(equity_dt)),
+        x = "Out-of-Sample Day",
+        y = "Equity"
+    ) +
+    theme_trading()
+```
+
+---
+
+## 4.7 Cross-Validation for Time Series
+
+Standard k-fold cross-validation violates temporal ordering. Time-series CV respects the arrow of time.
+
+### 4.7.1 Prose/Intuition
+
+In standard k-fold CV, any observation can appear in any fold's training or test set. For time series, this allows future data to "leak" into past predictions.
+
+**Time-series CV requirements:**
+
+1. Training data must precede test data
+2. No shuffling of observations
+3. Purging: remove samples that overlap with test period
+4. Embargo: leave gaps to prevent information leakage
+
+### 4.7.2 Visual Evidence
+
+```{r ts-cv-comparison, fig.cap="Standard k-fold CV vs time-series CV. Standard CV allows future data to train models predicting the past."}
+# Visualise the difference
+n_folds <- 5
+n_obs <- 20  # Simplified for visualisation
+
+# Standard k-fold (wrong for time series)
+standard_cv <- data.table()
+for (fold in 1:n_folds) {
+    test_idx <- ((fold - 1) * (n_obs / n_folds) + 1):(fold * n_obs / n_folds)
+    for (i in 1:n_obs) {
+        standard_cv <- rbind(standard_cv, data.table(
+            method = "Standard K-Fold (Wrong)",
+            fold = fold,
+            observation = i,
+            role = ifelse(i %in% test_idx, "Test", "Train")
+        ))
+    }
+}
+
+# Time-series CV (correct)
+ts_cv <- data.table()
+initial_train <- 8
+for (fold in 1:n_folds) {
+    train_end <- initial_train + fold - 1
+    test_idx <- (train_end + 1):min(train_end + 2, n_obs)
+
+    for (i in 1:n_obs) {
+        if (i <= train_end) {
+            role <- "Train"
+        } else if (i %in% test_idx) {
+            role <- "Test"
+        } else {
+            role <- "Unused"
+        }
+
+        ts_cv <- rbind(ts_cv, data.table(
+            method = "Time-Series CV (Correct)",
+            fold = fold,
+            observation = i,
+            role = role
+        ))
+    }
+}
+
+cv_compare <- rbind(standard_cv, ts_cv)
+cv_compare[, role := factor(role, levels = c("Train", "Test", "Unused"))]
+
+ggplot(cv_compare, aes(x = observation, y = fold, fill = role)) +
+    geom_tile(colour = "white", linewidth = 0.5) +
+    facet_wrap(~method, ncol = 1) +
+    scale_fill_manual(values = c(tc[1], tc[3], "grey90")) +
+    scale_y_reverse() +
+    labs(
+        title = "Cross-Validation Methods Comparison",
+        subtitle = "Standard CV uses future data to predict past; time-series CV respects temporal order",
+        x = "Observation (Time)",
+        y = "Fold",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+### 4.7.3 Mathematical Derivation
+
+**Purging requirement:**
+
+If signals have lookback window $L$, test observations at time $t$ depend on data from $[t-L, t]$. Training observations in this window must be removed:
+
+$$\text{Purge window} = [t_{test,start} - L, t_{test,start})$$
+
+**Embargo period calculation:**
+
+If signals have forward-looking components (e.g., labels based on returns over next $H$ periods), we need an embargo:
+
+$$\text{Embargo} = H \text{ periods after training end}$$
+
+For a strategy with 20-day lookback and 5-day forward return labels:
+- Purge: 20 days before test start
+- Embargo: 5 days after training end
+
+### 4.7.4 Implementation & Application
+
+```{r ts-cv-implementation}
+# Time-series cross-validation with purging and embargo
+ts_cross_validate <- function(data, model_func, n_folds = 5,
+                               min_train_pct = 0.5,
+                               purge_window = 20, embargo = 5) {
+
+    n <- nrow(data)
+    min_train <- floor(n * min_train_pct)
+
+    # Calculate fold boundaries
+    remaining <- n - min_train
+    fold_size <- floor(remaining / n_folds)
+
+    results <- vector("list", n_folds)
+
+    for (fold in 1:n_folds) {
+        # Define boundaries
+        train_end <- min_train + (fold - 1) * fold_size
+        test_start <- train_end + embargo + 1
+        test_end <- min(test_start + fold_size - 1, n)
+
+        if (test_start >= n || test_end > n) break
+
+        # Apply purging to training data
+        purge_start <- max(1, train_end - purge_window + 1)
+        train_data <- data[1:(purge_start - 1)]
+
+        # Test data
+        test_data <- data[test_start:test_end]
+
+        if (nrow(train_data) < 100 || nrow(test_data) < 20) next
+
+        # Evaluate
+        train_perf <- model_func(train_data, train_data)
+        test_perf <- model_func(train_data, test_data)
+
+        results[[fold]] <- data.table(
+            fold = fold,
+            train_end = data$date[train_end],
+            test_start = data$date[test_start],
+            test_end = data$date[test_end],
+            train_n = nrow(train_data),
+            test_n = nrow(test_data),
+            purged_n = train_end - purge_start + 1,
+            train_sharpe = train_perf,
+            test_sharpe = test_perf
+        )
+    }
+
+    rbindlist(results[!sapply(results, is.null)])
+}
+
+# Model function for MA crossover
+ma_cv_model <- function(train_data, eval_data) {
+    # Simple fixed parameters for CV (no optimisation within CV)
+    fast <- 20
+    slow <- 50
+
+    dt <- copy(eval_data)
+    dt[, ma_fast := frollmean(adjusted, fast)]
+    dt[, ma_slow := frollmean(adjusted, slow)]
+    dt[, signal := shift(fifelse(ma_fast > ma_slow, 1, 0), 1)]
+    dt[, strat_ret := signal * c(NA, diff(log(adjusted)))]
+    dt <- dt[!is.na(strat_ret)]
+
+    if (nrow(dt) < 50) return(NA)
+    sharpe_ratio(dt$strat_ret)
+}
+
+# Run time-series CV
+ts_cv_results <- ts_cross_validate(
+    spy,
+    model_func = ma_cv_model,
+    n_folds = 8,
+    min_train_pct = 0.4,
+    purge_window = 50,
+    embargo = 5
+)
+
+cat("=== Time-Series Cross-Validation Results ===\n")
+print(ts_cv_results[, .(fold, train_n, test_n, purged_n, train_sharpe, test_sharpe)])
+cat(sprintf("\nMean Train Sharpe: %.2f\n", mean(ts_cv_results$train_sharpe, na.rm = TRUE)))
+cat(sprintf("Mean Test Sharpe: %.2f\n", mean(ts_cv_results$test_sharpe, na.rm = TRUE)))
+cat(sprintf("Train-Test Gap: %.2f\n",
+            mean(ts_cv_results$train_sharpe, na.rm = TRUE) -
+            mean(ts_cv_results$test_sharpe, na.rm = TRUE)))
+```
+
+```{r ts-cv-results-plot, fig.cap="Time-series CV results showing train vs test performance across folds."}
+# Plot train vs test by fold
+cv_long <- melt(ts_cv_results,
+                id.vars = c("fold"),
+                measure.vars = c("train_sharpe", "test_sharpe"),
+                variable.name = "sample", value.name = "sharpe")
+cv_long[, sample := fifelse(sample == "train_sharpe", "Training", "Test")]
+
+ggplot(cv_long, aes(x = factor(fold), y = sharpe, fill = sample)) +
+    geom_col(position = "dodge", alpha = 0.8) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    scale_fill_manual(values = c(tc[1], tc[3])) +
+    labs(
+        title = "Time-Series CV: Train vs Test Performance",
+        subtitle = "Consistent gap suggests overfitting; similar performance suggests robust model",
+        x = "Fold",
+        y = "Sharpe Ratio",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+---
+
+## 4.8 Combinatorial Purged Cross-Validation (CPCV)
+
+CPCV generates many independent backtest paths through the data, providing a distribution of out-of-sample performances.
+
+### 4.8.1 Prose/Intuition
+
+Standard walk-forward testing gives you a single out-of-sample equity curve. But there are many ways to split data into train/test sequences. CPCV exploits this by:
+
+1. Dividing data into $N$ blocks
+2. Choosing $k$ blocks as test data
+3. Using the remaining $N-k$ blocks for training
+4. Generating $C(N, k)$ different train/test combinations
+
+Each combination produces an independent out-of-sample path. The distribution of results reveals true strategy performance and variability.
+
+### 4.8.2 Visual Evidence
+
+```{r cpcv-paths, fig.cap="CPCV generates multiple independent backtest paths. Each path uses a different subset of data for testing."}
+# Simplified CPCV demonstration
+n_blocks <- 6
+k_test <- 2  # Number of test blocks per path
+
+# Generate all combinations
+combinations <- combn(1:n_blocks, k_test)
+n_paths <- ncol(combinations)
+
+# Visualise first few paths
+paths_to_show <- min(10, n_paths)
+
+path_vis <- data.table()
+for (path in 1:paths_to_show) {
+    test_blocks <- combinations[, path]
+    train_blocks <- setdiff(1:n_blocks, test_blocks)
+
+    for (block in 1:n_blocks) {
+        role <- ifelse(block %in% test_blocks, "Test", "Train")
+        path_vis <- rbind(path_vis, data.table(
+            path = path,
+            block = block,
+            role = role
+        ))
+    }
+}
+
+ggplot(path_vis, aes(x = block, y = path, fill = role)) +
+    geom_tile(colour = "white", linewidth = 0.5) +
+    scale_fill_manual(values = c(tc[1], tc[3])) +
+    scale_y_reverse() +
+    labs(
+        title = sprintf("CPCV: %d Independent Paths from %d Blocks",
+                       n_paths, n_blocks),
+        subtitle = sprintf("Showing first %d paths (k=%d test blocks per path)",
+                          paths_to_show, k_test),
+        x = "Data Block (Time)",
+        y = "Path",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+### 4.8.3 Mathematical Derivation
+
+**Number of CPCV paths:**
+
+For $N$ blocks with $k$ held out for testing:
+$$\text{Number of paths} = \binom{N}{k} = \frac{N!}{k!(N-k)!}$$
+
+For $N=10$ blocks and $k=2$: $\binom{10}{2} = 45$ paths
+
+**Probability of false strategy (PFS):**
+
+The PFS is the probability that a strategy with no true edge appears profitable across CPCV paths:
+
+$$PFS = \frac{\text{Number of paths with positive OOS return}}{\text{Total paths}}$$
+
+Under the null (no skill), $PFS \approx 0.5$. Strategies with $PFS > 0.6$ show evidence of genuine edge.
+
+### 4.8.4 Implementation & Application
+
+```{r cpcv-implementation}
+# Simplified CPCV implementation
+cpcv_backtest <- function(data, model_func, n_blocks = 10, k_test = 2,
+                           purge_window = 20) {
+
+    n <- nrow(data)
+    block_size <- floor(n / n_blocks)
+
+    # Create block boundaries
+    block_bounds <- lapply(1:n_blocks, function(b) {
+        start_idx <- (b - 1) * block_size + 1
+        end_idx <- ifelse(b == n_blocks, n, b * block_size)
+        c(start_idx, end_idx)
+    })
+
+    # Generate all test block combinations
+    combinations <- combn(1:n_blocks, k_test)
+    n_paths <- ncol(combinations)
+
+    results <- vector("list", n_paths)
+
+    for (path in 1:n_paths) {
+        test_blocks <- combinations[, path]
+        train_blocks <- setdiff(1:n_blocks, test_blocks)
+
+        # Get train and test indices
+        train_idx <- unlist(lapply(train_blocks, function(b) {
+            block_bounds[[b]][1]:block_bounds[[b]][2]
+        }))
+
+        test_idx <- unlist(lapply(test_blocks, function(b) {
+            block_bounds[[b]][1]:block_bounds[[b]][2]
+        }))
+
+        # Apply purging: remove train samples near test boundaries
+        for (test_block in test_blocks) {
+            test_start <- block_bounds[[test_block]][1]
+            purge_idx <- max(1, test_start - purge_window):(test_start - 1)
+            train_idx <- setdiff(train_idx, purge_idx)
+        }
+
+        train_data <- data[sort(train_idx)]
+        test_data <- data[sort(test_idx)]
+
+        if (nrow(train_data) < 100 || nrow(test_data) < 50) {
+            results[[path]] <- data.table(
+                path = path,
+                test_blocks = paste(test_blocks, collapse = ","),
+                test_sharpe = NA,
+                test_return = NA
+            )
+            next
+        }
+
+        # Evaluate
+        test_sharpe <- model_func(train_data, test_data)
+        test_returns <- sum(test_data$returns, na.rm = TRUE)
+
+        results[[path]] <- data.table(
+            path = path,
+            test_blocks = paste(test_blocks, collapse = ","),
+            test_sharpe = test_sharpe,
+            test_return = test_returns
+        )
+    }
+
+    rbindlist(results)
+}
+
+# Run CPCV
+cpcv_results <- cpcv_backtest(
+    spy,
+    model_func = ma_cv_model,
+    n_blocks = 8,
+    k_test = 2,
+    purge_window = 50
+)
+
+# Calculate probability of false strategy
+pfs <- mean(cpcv_results$test_sharpe > 0, na.rm = TRUE)
+
+cat("=== CPCV Results ===\n")
+cat(sprintf("Total paths tested: %d\n", nrow(cpcv_results)))
+cat(sprintf("Paths with positive Sharpe: %d (%.1f%%)\n",
+            sum(cpcv_results$test_sharpe > 0, na.rm = TRUE),
+            pfs * 100))
+cat(sprintf("Mean OOS Sharpe: %.3f\n", mean(cpcv_results$test_sharpe, na.rm = TRUE)))
+cat(sprintf("Median OOS Sharpe: %.3f\n", median(cpcv_results$test_sharpe, na.rm = TRUE)))
+cat(sprintf("Sharpe Std Dev: %.3f\n", sd(cpcv_results$test_sharpe, na.rm = TRUE)))
+```
+
+```{r cpcv-distribution, fig.cap="CPCV Sharpe distribution shows the range of out-of-sample outcomes across all paths."}
+# Plot distribution of CPCV Sharpes
+ggplot(cpcv_results[!is.na(test_sharpe)], aes(x = test_sharpe)) +
+    geom_histogram(bins = 30, fill = tc[1], alpha = 0.8, colour = "white") +
+    geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = mean(cpcv_results$test_sharpe, na.rm = TRUE),
+               colour = tc[3], linewidth = 1.2) +
+    annotate("text", x = mean(cpcv_results$test_sharpe, na.rm = TRUE) + 0.1,
+             y = Inf, vjust = 2,
+             label = sprintf("Mean: %.2f", mean(cpcv_results$test_sharpe, na.rm = TRUE)),
+             colour = tc[3]) +
+    labs(
+        title = "CPCV: Distribution of Out-of-Sample Sharpe Ratios",
+        subtitle = sprintf("PFS = %.1f%% (probability strategy appears profitable by chance)",
+                          pfs * 100),
+        x = "Sharpe Ratio",
+        y = "Number of Paths"
+    ) +
+    theme_trading()
+```
+
+---
+
+## Quick Reference: Validation Method Comparison
+
+| Method | Pros | Cons | Best For |
+|--------|------|------|----------|
+| **Train/Test Split** | Simple, interpretable | Single test, regime-dependent | Initial validation |
+| **Walk-Forward** | Multiple OOS tests, realistic | Sequential dependency | Production deployment |
+| **Time-Series CV** | Respects temporal order | Less data efficiency | Model selection |
+| **CPCV** | Many independent paths, PFS metric | Computationally intensive | Final validation |
+
+**Decision tree for validation method:**
+
+1. **Development stage:** Use train/test split for rapid iteration
+2. **Model selection:** Use time-series CV to compare alternatives
+3. **Final validation:** Use walk-forward or CPCV for deployment decision
+4. **Production monitoring:** Track walk-forward performance continuously
+
+## Summary
+
+Proper validation is the only way to distinguish genuine alpha from overfitting:
+
+1. **Train/test split** provides a simple baseline but gives only one out-of-sample result.
+
+2. **Walk-forward optimisation** generates multiple out-of-sample tests and mimics realistic deployment.
+
+3. **Time-series CV** with purging and embargo respects temporal structure while maximising data efficiency.
+
+4. **CPCV** provides a distribution of outcomes and the Probability of False Strategy metric.
+
+The key insight: **any single backtest result is unreliable.** Only by examining the distribution of out-of-sample performances can you assess true strategy quality.
+
+## Exercises
+
+1. **Split Sensitivity:** Run the same strategy with different train/test splits (60/40, 70/30, 80/20). How sensitive are results to the split point?
+
+2. **Walk-Forward Windows:** Compare expanding vs rolling windows in walk-forward testing. Which produces more stable out-of-sample performance?
+
+3. **CPCV Analysis:** Implement CPCV for a strategy you've developed. What is the PFS? How does the Sharpe distribution compare to a random strategy?
+
+4. **Optimal Embargo:** Experimentally determine the optimal embargo period for a strategy with 50-day lookback signals.

@@ -1,0 +1,491 @@
+---
+title: "Algorithmic Trading with R"
+chapter: "Prologue: Finance for Statisticians"
+part: "A Bridge for Mathematicians"
+section: "00"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2026-01-20
+tags: [algorithmic-trading, quantitative-finance, R, statistics]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# HTML5 figure hook for accessibility
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+    dpi = 300,
+    fig.width = 10,
+    fig.height = 7,
+    comment = "",
+    warning = FALSE,
+    collapse = FALSE,
+    results = 'hold'
+)
+
+# Set working directory for data access
+course_root <- dirname(knitr::current_input(dir = TRUE))
+knitr::opts_knit$set(root.dir = course_root)
+setwd(course_root)
+
+# Load modules
+box::use(
+    ./modules/data[load_market, load_factors, filter_dates],
+    ./modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ./modules/viz[theme_trading, trading_colors]
+)
+
+# Load core packages
+library(data.table)
+library(ggplot2)
+```
+
+# Prologue: Finance for Statisticians
+
+This prologue is for readers who are already proficient in statistics and mathematics but new to finance. If you've studied time series analysis, regression, or stochastic processes, you already possess most of the tools needed for quantitative trading. What you may lack is the vocabulary and context to apply them.
+
+Finance has developed its own terminology, often giving familiar concepts unfamiliar names. A Sharpe ratio is essentially a t-statistic. Volatility is just standard deviation. Alpha is an intercept. Once you learn the translation, the statistical structure becomes clear.
+
+This prologue establishes that translation. We won't derive anything rigorously here—that comes in the chapters that follow. Instead, we provide a map: what concepts exist, what they're called, and how they relate to statistics you already know.
+
+---
+
+## 0.1 Financial Markets as Data Generating Processes
+
+### Markets as Stochastic Processes
+
+To a statistician, a financial market is a data generating process. Asset prices $\{P_t\}$ are realisations of a stochastic process, typically modelled in continuous time:
+
+$$dP_t = \mu P_t \, dt + \sigma P_t \, dW_t$$
+
+This is **geometric Brownian motion** (GBM)—the foundation of the Black-Scholes model. The key features:
+
+- **Multiplicative noise**: The standard deviation scales with price level ($\sigma P_t$), so percentage changes have constant volatility.
+- **Log-normal prices**: If $P_t$ follows GBM, then $\ln(P_t)$ is normally distributed.
+- **Markov property**: Future prices depend only on the current price, not the path taken to reach it.
+
+In practice, we work with **returns** rather than prices:
+
+$$r_t = \ln(P_t / P_{t-1})$$
+
+Returns have better statistical properties than prices:
+
+| Property | Prices | Returns |
+|----------|--------|---------|
+| Stationarity | Non-stationary (I(1)) | Approximately stationary (I(0)) |
+| Interpretability | Scale-dependent | Scale-free (percentages) |
+| Aggregation | Multiplicative | Additive (for log returns) |
+
+```{r price-vs-returns, fig.cap="Prices are non-stationary (trending), while returns fluctuate around zero. This is why we model returns, not prices."}
+# Load S&P 500 data
+sp500 <- load_market("sp500")
+sp500 <- filter_dates(sp500, "2010-01-01")
+sp500[, returns := c(NA, diff(log(close)))]
+
+# Create side-by-side comparison
+p1 <- ggplot(sp500, aes(x = date, y = close)) +
+    geom_line(colour = trading_colors$primary, linewidth = 0.4) +
+    labs(title = "S&P 500 Price (Non-Stationary)",
+         subtitle = "Clear upward trend; mean and variance change over time",
+         x = NULL, y = "Price") +
+    theme_trading()
+
+p2 <- ggplot(sp500[!is.na(returns)], aes(x = date, y = returns)) +
+    geom_line(colour = trading_colors$secondary, linewidth = 0.3) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(title = "S&P 500 Returns (Approximately Stationary)",
+         subtitle = "Fluctuates around zero; statistical properties more stable",
+         x = NULL, y = "Daily Log Return") +
+    scale_y_continuous(labels = scales::percent) +
+    theme_trading()
+
+gridExtra::grid.arrange(p1, p2, ncol = 1)
+```
+
+### The Efficient Market Hypothesis
+
+The **Efficient Market Hypothesis** (EMH) is the claim that prices fully reflect available information. In statistical terms:
+
+$$E[r_{t+1} | \Omega_t] = r_f$$
+
+where $\Omega_t$ is the information set at time $t$ and $r_f$ is the risk-free rate.
+
+Three forms of efficiency:
+
+| Form | Information Set | Statistical Implication |
+|------|-----------------|------------------------|
+| Weak | Past prices and returns | Returns are serially uncorrelated |
+| Semi-strong | All public information | No profitable trading on news |
+| Strong | All information (including private) | No profitable trading at all |
+
+**What efficiency does NOT mean:**
+
+- Returns are normally distributed (they're not—fat tails)
+- Returns are i.i.d. (they're not—volatility clusters)
+- Markets are always "correct" (prices can deviate from fundamental value)
+
+What efficiency DOES mean: systematic profit is hard. Any predictable pattern will be arbitraged away. The signal-to-noise ratio for return prediction is extremely low.
+
+### Market Microstructure
+
+At the finest level, prices emerge from the interaction of **orders**:
+
+- **Limit orders**: "I will buy 100 shares at £50.00"—these wait in a queue.
+- **Market orders**: "Buy 100 shares now at the best available price"—these execute immediately.
+
+The **bid-ask spread** is the gap between the best bid (highest buy order) and best ask (lowest sell order). This spread represents:
+
+1. The cost of immediacy (you pay to trade now rather than wait)
+2. Compensation to market makers for providing liquidity
+3. Protection against informed traders
+
+For liquid stocks (Apple, S&P 500 ETF), spreads are 1-5 basis points. For illiquid stocks, spreads can exceed 1%.
+
+---
+
+## 0.2 Vocabulary Translation
+
+### Asset Classes and Instruments
+
+| Asset Class | What It Is | Statistical Characteristics |
+|-------------|------------|----------------------------|
+| **Equity (Stocks)** | Ownership claims on firms | High vol (~15-25% annual), positive long-term drift, fat tails |
+| **Fixed Income (Bonds)** | Debt with contractual payments | Lower vol (~5-10%), mean-reverting yields, interest rate sensitivity |
+| **Derivatives** | Contracts on underlying assets | Highly non-linear, time-decaying (options), leveraged |
+| **Currencies (FX)** | Exchange rates | Mean-reverting in real terms, carry trade dynamics |
+| **Commodities** | Physical goods (oil, gold) | Supply/demand driven, seasonality, contango/backwardation |
+
+### Return Conventions
+
+Finance uses multiple return definitions. Know which one you're working with:
+
+**Simple (Arithmetic) Return:**
+$$r_t^{simple} = \frac{P_t - P_{t-1}}{P_{t-1}} = \frac{P_t}{P_{t-1}} - 1$$
+
+**Log (Continuously Compounded) Return:**
+$$r_t^{log} = \ln\left(\frac{P_t}{P_{t-1}}\right) = \ln(P_t) - \ln(P_{t-1})$$
+
+**Key difference:** Log returns are time-additive ($r_{t \to T} = \sum r_t$), while simple returns are cross-sectionally additive ($r_p = \sum w_i r_i$). Use log returns for time-series analysis; use simple returns for portfolio construction.
+
+**Excess Return:**
+$$r_t^{excess} = r_t - r_f$$
+
+This isolates the compensation for risk. The risk-free rate $r_f$ is typically the Treasury bill rate.
+
+### Risk Measures: Finance vs Statistics
+
+| Finance Term | Statistical Definition | Notes |
+|--------------|----------------------|-------|
+| **Volatility** | $\sigma = \sqrt{Var(r)}$ | Usually annualised: $\sigma_{annual} = \sigma_{daily} \times \sqrt{252}$ |
+| **Sharpe Ratio** | $SR = \frac{E[r] - r_f}{\sigma}$ | A t-statistic: $SR \approx t / \sqrt{T}$ |
+| **Drawdown** | $DD_t = \frac{\max_{s \leq t}(W_s) - W_t}{\max_{s \leq t}(W_s)}$ | Path-dependent; not a moment |
+| **VaR (Value-at-Risk)** | $VaR_\alpha = -F^{-1}(\alpha)$ | The $\alpha$-quantile of the loss distribution |
+| **CVaR / ES** | $ES_\alpha = E[L | L > VaR_\alpha]$ | Expected loss in the tail |
+| **Beta** | $\beta = \frac{Cov(r_i, r_m)}{Var(r_m)}$ | Regression coefficient on market |
+| **Alpha** | $\alpha = E[r_i] - \beta E[r_m]$ | Intercept; "unexplained" return |
+
+### Common Abbreviations
+
+| Abbreviation | Meaning | Context |
+|--------------|---------|---------|
+| OHLCV | Open, High, Low, Close, Volume | Daily price data format |
+| AUM | Assets Under Management | Fund size |
+| ADV | Average Daily Volume | Liquidity measure |
+| P&L / PnL | Profit and Loss | Performance measure |
+| HFT | High-Frequency Trading | Microsecond-scale strategies |
+| OTC | Over-The-Counter | Non-exchange trading |
+| NAV | Net Asset Value | Fund price per share |
+| CAGR | Compound Annual Growth Rate | Geometric mean return |
+| bps | Basis points | 1 bp = 0.01% |
+| IR | Information Ratio | Risk-adjusted active return |
+| MDD | Maximum Drawdown | Worst peak-to-trough loss |
+
+---
+
+## 0.3 Statistical Concepts in Finance Context
+
+### Time Series in Finance
+
+Financial time series exhibit distinctive features:
+
+**1. Non-stationarity of prices:**
+
+Prices are integrated of order 1 (I(1)). They have a unit root: shocks have permanent effects. Returns are I(0)—stationary.
+
+**2. Heteroskedasticity (Volatility Clustering):**
+
+Large returns tend to follow large returns. The variance is time-varying:
+
+$$Var(r_t | \Omega_{t-1}) = \sigma_t^2$$
+
+This motivates GARCH models. The autocorrelation of $r_t^2$ is positive and slowly decaying.
+
+**3. Fat Tails (Leptokurtosis):**
+
+Return distributions have excess kurtosis $\kappa > 3$. For daily S&P 500 returns, $\kappa \approx 20$. Extreme events occur far more often than normal distributions predict.
+
+**4. Leverage Effect:**
+
+Negative returns predict higher future volatility:
+
+$$Corr(r_t, \sigma_{t+1}^2) < 0$$
+
+Bad news increases uncertainty more than good news decreases it.
+
+```{r stylised-facts-summary, fig.cap="The four stylised facts: no autocorrelation in returns, strong autocorrelation in squared returns, fat tails vs normal, and leverage effect."}
+# Demonstrate stylised facts
+sp500_stats <- copy(sp500)[!is.na(returns)]
+
+# ACF of returns vs squared returns
+acf_r <- acf(sp500_stats$returns, lag.max = 20, plot = FALSE)
+acf_r2 <- acf(sp500_stats$returns^2, lag.max = 20, plot = FALSE)
+
+acf_dt <- data.table(
+    lag = rep(1:20, 2),
+    acf = c(acf_r$acf[2:21], acf_r2$acf[2:21]),
+    series = rep(c("Returns r_t", "Squared Returns r²_t"), each = 20)
+)
+
+p1 <- ggplot(acf_dt, aes(x = lag, y = acf, fill = series)) +
+    geom_col(position = "dodge", alpha = 0.8) +
+    geom_hline(yintercept = c(-1.96/sqrt(nrow(sp500_stats)), 1.96/sqrt(nrow(sp500_stats))),
+               linetype = "dashed", colour = "grey50") +
+    scale_fill_manual(values = c(trading_colors$primary, trading_colors$secondary)) +
+    labs(title = "Autocorrelation: Returns vs Squared Returns",
+         subtitle = "Returns uncorrelated; volatility highly persistent",
+         x = "Lag", y = "ACF", fill = NULL) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+
+# Fat tails comparison
+set.seed(42)
+normal_sample <- rnorm(nrow(sp500_stats), mean(sp500_stats$returns), sd(sp500_stats$returns))
+
+tail_dt <- data.table(
+    x = c(sp500_stats$returns, normal_sample),
+    type = rep(c("Empirical", "Normal"), each = nrow(sp500_stats))
+)
+
+p2 <- ggplot(tail_dt, aes(x = x, fill = type)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 100, alpha = 0.6, position = "identity") +
+    scale_fill_manual(values = c("Empirical" = trading_colors$primary, "Normal" = trading_colors$secondary)) +
+    coord_cartesian(xlim = c(-0.06, 0.06)) +
+    labs(title = "Fat Tails: Empirical vs Normal",
+         subtitle = "Empirical distribution has heavier tails",
+         x = "Return", y = "Density", fill = NULL) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+### Cross-Sectional Analysis
+
+Much of empirical finance involves **cross-sectional** relationships: which characteristics predict returns across many assets?
+
+**Factor Models:**
+
+$$r_i = \alpha_i + \beta_i^{mkt} r_{mkt} + \beta_i^{smb} r_{smb} + \beta_i^{hml} r_{hml} + \epsilon_i$$
+
+This is just multiple regression where:
+- $r_{mkt}$ = market excess return
+- $r_{smb}$ = small-minus-big (size factor)
+- $r_{hml}$ = high-minus-low (value factor)
+
+**Fama-MacBeth Regression:**
+
+A two-stage procedure for panel data:
+
+1. **Time-series stage**: For each asset, regress returns on factors to get betas.
+2. **Cross-sectional stage**: Each period, regress returns on betas to get factor premia.
+
+This handles the correlation structure of panel data.
+
+**Portfolio Sorts:**
+
+Non-parametric signal analysis:
+
+1. Rank assets by some characteristic (e.g., momentum)
+2. Form portfolios (quintiles or deciles)
+3. Compare returns across portfolios
+
+The spread between top and bottom portfolios estimates the factor premium.
+
+### Hypothesis Testing Caveats
+
+Finance data invites overfitting. Be aware of:
+
+**Multiple Testing:**
+
+If you test 1,000 strategies at $\alpha = 0.05$, you expect 50 false positives. The more strategies you test, the higher your false discovery rate.
+
+**Look-Ahead Bias:**
+
+Using information that wasn't available at the time. Examples:
+- Using revised GDP data (initial releases differ)
+- Conditioning on survival (only firms that still exist)
+- Point-in-time database issues
+
+**Survivorship Bias:**
+
+Only successful firms/funds remain in databases. Failed ones disappear. This biases performance estimates upward.
+
+**Data Snooping:**
+
+The collective effect of researchers testing strategies on the same historical data. Published anomalies may be the survivors of a selection process.
+
+---
+
+## 0.4 The Trading Problem as Statistical Inference
+
+### Signal Extraction
+
+The core problem: estimate $E[r_{t+1} | X_t]$ where $X_t$ is some observable information.
+
+Any variable $X_t$ correlated with future returns is a "signal." But the signal-to-noise ratio in finance is extremely low:
+
+| Domain | Typical R² |
+|--------|-----------|
+| Physics experiments | 0.90+ |
+| Medical trials | 0.20-0.50 |
+| Return prediction | 0.01-0.05 |
+
+A model that explains 2% of return variation is considered excellent. This has profound implications:
+
+1. **Large samples needed**: Statistical power requires many observations.
+2. **Overfitting is easy**: Noise looks like signal in-sample.
+3. **Economic significance matters**: A 0.01 correlation can still be profitable if scaled correctly.
+
+### Position Sizing
+
+Given a signal, how much to bet?
+
+**Kelly Criterion:**
+
+Maximise expected log-wealth:
+
+$$f^* = \frac{p(b+1) - 1}{b} = \frac{\text{edge}}{\text{odds}}$$
+
+where $p$ = probability of winning, $b$ = odds (payoff ratio).
+
+For continuous returns with mean $\mu$ and variance $\sigma^2$:
+
+$$f^* = \frac{\mu}{\sigma^2}$$
+
+In practice, Kelly is too aggressive. Most practitioners use "half-Kelly" or less.
+
+**Mean-Variance Optimisation:**
+
+Maximise:
+
+$$U = E[r_p] - \frac{\lambda}{2} Var(r_p)$$
+
+where $\lambda$ is risk aversion. This yields:
+
+$$w^* = \frac{1}{\lambda} \Sigma^{-1} \mu$$
+
+The problem: estimating $\mu$ and $\Sigma$ is difficult. Small estimation errors produce wildly different portfolios.
+
+### Transaction Costs
+
+Theory must confront reality. Transaction costs include:
+
+| Cost | Magnitude | Notes |
+|------|-----------|-------|
+| Bid-ask spread | 1-100 bps | Depends on liquidity |
+| Market impact | $\propto \sqrt{size/ADV}$ | Square-root law |
+| Slippage | Variable | Execution vs. decision price |
+| Commissions | ~0-5 bps | Largely eliminated for retail |
+
+A strategy with 5% annual gross return and 3% annual turnover costs is worthless.
+
+**Rule of thumb:** Estimate costs conservatively. If the strategy isn't profitable at 2x your cost estimate, it probably won't work.
+
+### Backtesting
+
+Backtesting is out-of-sample validation applied to trading strategies. Key principles:
+
+**Walk-Forward Testing:**
+
+1. Train on data up to time $t$
+2. Generate signals for time $t+1$
+3. Roll forward and repeat
+
+This mimics real trading where you can only use past data.
+
+**Train/Test Splits:**
+
+- **In-sample**: Data used to develop the strategy (fitting parameters)
+- **Out-of-sample**: Data used to evaluate the strategy (no peeking!)
+
+Never use the same data for both. Once you've looked at out-of-sample results, that data becomes in-sample.
+
+**Paper Trading:**
+
+Run the strategy in real-time with simulated capital before risking real money. This catches bugs and reveals execution realities.
+
+---
+
+## 0.5 Quick Reference: Finance-Statistics Dictionary
+
+| Finance Term | Statistical Equivalent | Formula |
+|--------------|----------------------|---------|
+| Alpha | Regression intercept | $\alpha = E[r] - \beta E[r_m]$ |
+| Beta | Regression coefficient | $\beta = Cov(r, r_m)/Var(r_m)$ |
+| Sharpe Ratio | Scaled t-statistic | $SR = \bar{r}/\hat{\sigma} \cdot \sqrt{T}$ |
+| Information Ratio | t-stat of active returns | $IR = \bar{r}_{active}/\sigma_{active}$ |
+| Volatility | Standard deviation | $\sigma = \sqrt{E[(r-\mu)^2]}$ |
+| Correlation | Pearson correlation | $\rho = Cov(X,Y)/(\sigma_X \sigma_Y)$ |
+| Cointegration | Common stochastic trend | $y_t = \beta x_t + z_t$, $z_t$ stationary |
+| Mean Reversion | Stationarity / OU process | $dx = \theta(\mu - x)dt + \sigma dW$ |
+| Momentum | Positive serial correlation | $Corr(r_t, r_{t-k}) > 0$ |
+| Factor | Explanatory variable | $r = \alpha + \sum \beta_j F_j + \epsilon$ |
+| Drawdown | Running max minus current | $DD_t = 1 - W_t/\max_{s \leq t}W_s$ |
+| VaR | Loss quantile | $VaR_\alpha = -F^{-1}(\alpha)$ |
+| CVaR / ES | Tail expectation | $ES = E[L \| L > VaR]$ |
+| GARCH | Conditional heteroskedasticity | $\sigma_t^2 = \omega + \alpha r_{t-1}^2 + \beta \sigma_{t-1}^2$ |
+| Greeks | Partial derivatives | $\Delta = \partial V/\partial S$, etc. |
+
+### Useful Conversions
+
+**Annualisation (assuming i.i.d.):**
+
+- Daily to annual return: $\mu_{annual} = 252 \times \mu_{daily}$
+- Daily to annual volatility: $\sigma_{annual} = \sqrt{252} \times \sigma_{daily}$
+- Daily to annual Sharpe: $SR_{annual} = \sqrt{252} \times SR_{daily}$
+
+**Sharpe to t-statistic:**
+
+$$t = SR \times \sqrt{T}$$
+
+where $T$ is the number of observations.
+
+**Kelly fraction:**
+
+$$f^* = \frac{\mu}{\sigma^2} = SR \times \frac{1}{\sigma}$$
+
+### What's Next
+
+This prologue provided vocabulary and context. The chapters that follow will develop each concept rigorously:
+
+- **Chapter 1**: Financial data, returns, and stylised facts
+- **Chapter 2**: Risk and performance metrics
+- **Chapter 3**: Backtesting methodology
+- **Chapters 4-6**: Core strategies (trend following, mean reversion, factor models)
+- **Chapters 7-9**: Position sizing, volatility, and correlation
+- **Chapters 10-12**: Machine learning, execution, and going live
+
+You now have the map. Let's begin the journey.

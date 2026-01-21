@@ -19,8 +19,8 @@ Designed for PhD-level practitioners who want rigorous understanding, not just c
 
 | Part | Title | Folder | Chapters | Status |
 |------|-------|--------|----------|--------|
-| — | Prologue: Finance for Statisticians | `financial-statistics-1-foundations/` | 0 | Not Started |
-| I | Foundations and Core Strategies | `financial-statistics-1-foundations/` | 1–12 | Not Started |
+| — | Prologue: Finance for Statisticians | `financial-statistics-1-foundations/` | 0 | Complete |
+| I | Foundations and Core Strategies | `financial-statistics-1-foundations/` | 1–12 | In Progress (5/12) |
 | II | Advanced Methods and Specialised Markets | `financial-statistics-2-advanced/` | 13–23 | Not Started |
 
 ---
@@ -37,38 +37,38 @@ This prologue is for readers who are already proficient in statistics and mathem
 
 ## 0.1 Financial Markets as Data Generating Processes
 
-- [ ] **Markets as stochastic processes** — Prices as realisations of random variables.
+- [x] **Markets as stochastic processes** — Prices as realisations of random variables.
   - Asset prices: continuous-time stochastic processes (Brownian motion, jump-diffusion).
   - Returns: the differenced/log-differenced series you'll actually model.
   - Why returns, not prices: stationarity, interpretability.
-- [ ] **The efficient market hypothesis** — What "unpredictable" means statistically.
+- [x] **The efficient market hypothesis** — What "unpredictable" means statistically.
   - Weak form: returns are serially uncorrelated (martingale property).
   - Semi-strong: public information instantly priced (conditional expectation).
   - Strong form: all information priced (an idealisation).
   - Implication: E[r_{t+1} | Ω_t] ≈ r_f (risk-free rate).
-- [ ] **Market microstructure** — The mechanics of price formation.
+- [x] **Market microstructure** — The mechanics of price formation.
   - Bid-ask spread: the cost of immediacy.
   - Order book: a queue of limit orders.
   - Market makers: liquidity providers earning spread.
 
 ## 0.2 Vocabulary Translation
 
-- [ ] **Asset classes and instruments**
+- [x] **Asset classes and instruments**
   - Equity (stocks): ownership claims on firms.
   - Fixed income (bonds): debt instruments with contractual cash flows.
   - Derivatives: contracts deriving value from underlying assets (options, futures).
   - Currencies (FX): exchange rates between monetary units.
   - Commodities: physical goods (oil, gold, wheat).
-- [ ] **Return conventions**
+- [x] **Return conventions**
   - Simple return: r = (P_t - P_{t-1}) / P_{t-1} — percentage change.
   - Log return: r = ln(P_t / P_{t-1}) — time-additive, approximately equal for small returns.
   - Excess return: r - r_f — return above risk-free rate.
-- [ ] **Risk measures in finance vs statistics**
+- [x] **Risk measures in finance vs statistics**
   - Volatility = standard deviation of returns.
   - Sharpe ratio = (mean excess return) / volatility — a t-statistic scaled by √T.
   - Drawdown = peak-to-trough decline — a path-dependent risk measure.
   - VaR/CVaR = quantiles and tail expectations — familiar from extreme value theory.
-- [ ] **Common abbreviations**
+- [x] **Common abbreviations**
   - OHLCV: Open, High, Low, Close, Volume.
   - AUM: Assets Under Management.
   - ADV: Average Daily Volume.
@@ -78,16 +78,16 @@ This prologue is for readers who are already proficient in statistics and mathem
 
 ## 0.3 Statistical Concepts in Finance Context
 
-- [ ] **Time series in finance**
+- [x] **Time series in finance**
   - Non-stationarity: prices are I(1), returns are I(0).
   - Heteroskedasticity: volatility clustering (GARCH).
   - Fat tails: kurtosis >> 3, power-law behaviour.
   - Leverage effect: negative correlation between returns and volatility.
-- [ ] **Cross-sectional analysis**
+- [x] **Cross-sectional analysis**
   - Factor models: linear models where "factors" are characteristics.
   - Fama-MacBeth regression: two-stage procedure for panel data.
   - Sorting and portfolios: non-parametric signal-return analysis.
-- [ ] **Hypothesis testing caveats**
+- [x] **Hypothesis testing caveats**
   - Multiple testing: thousands of strategies tested, few reported.
   - Look-ahead bias: using future information in past decisions.
   - Survivorship bias: only successful firms/funds remain in data.
@@ -95,16 +95,16 @@ This prologue is for readers who are already proficient in statistics and mathem
 
 ## 0.4 The Trading Problem as Statistical Inference
 
-- [ ] **Signal extraction** — Estimating E[r_{t+1} | X_t].
+- [x] **Signal extraction** — Estimating E[r_{t+1} | X_t].
   - Any feature X_t correlated with future returns is a "signal."
   - Signal-to-noise ratio in finance is extremely low (~0.01-0.05 correlation).
-- [ ] **Position sizing** — Optimal betting under uncertainty.
+- [x] **Position sizing** — Optimal betting under uncertainty.
   - Kelly criterion: maximise E[log(wealth)].
   - Mean-variance optimisation: maximise E[r] - λVar(r).
-- [ ] **Transaction costs** — The friction that destroys theoretical alpha.
+- [x] **Transaction costs** — The friction that destroys theoretical alpha.
   - Bid-ask spread, market impact, slippage.
   - Strategies must overcome costs to be profitable.
-- [ ] **Backtesting** — Out-of-sample validation for trading strategies.
+- [x] **Backtesting** — Out-of-sample validation for trading strategies.
   - Walk-forward testing ≈ time-series cross-validation.
   - Train/test splits with temporal ordering.
 
@@ -130,7 +130,7 @@ This prologue is for readers who are already proficient in statistics and mathem
 # Part I: Foundations and Core Strategies
 
 **Folder:** `financial-statistics-1-foundations/`
-**Status:** Not Started (0/12 chapters complete)
+**Status:** In Progress (5/12 chapters complete)
 
 A complete, self-contained course. After Part I, you can build and deploy profitable trading strategies. Covers everything from understanding financial data to going live with real capital.
 
@@ -147,83 +147,83 @@ A complete, self-contained course. After Part I, you can build and deploy profit
 
 ### Part 1 (`01-1`): Market Structure and Data
 
-- [ ] **1.1 How Markets Work** — The mechanics underlying every trade.
-  - [ ] 1.1.1 **Prose/Intuition** — Order flow, price discovery, and information aggregation; exchanges vs OTC markets; the role of market makers.
-  - [ ] 1.1.2 **Visual Evidence** — Order book dynamics, bid-ask spread over time, trade and quote data.
-  - [ ] 1.1.3 **Mathematical Derivation** — Market clearing conditions; Kyle's lambda (price impact) derivation from first principles.
-  - [ ] 1.1.4 **Implementation & Application** — Simulating an order book in R; estimating effective spread from trade data.
-- [ ] **1.2 Price Data: OHLCV** — What the numbers actually mean.
-  - [ ] 1.2.1 **Prose/Intuition** — Open, high, low, close as summary statistics of price path; volume as a measure of activity.
-  - [ ] 1.2.2 **Visual Evidence** — Candlestick charts, bar charts, information loss from aggregation.
-  - [ ] 1.2.3 **Mathematical Derivation** — OHLC as sufficient statistics for range-based volatility estimators (Parkinson, Garman-Klass).
-  - [ ] 1.2.4 **Implementation & Application** — Loading data with `quantmod`, converting to `data.table`; detecting data quality issues (gaps, splits, survivorship).
-- [ ] **1.3 Adjusted Prices** — Why raw prices lie.
-  - [ ] 1.3.1 **Prose/Intuition** — Corporate actions (splits, dividends) create artificial discontinuities; the need for adjustment.
-  - [ ] 1.3.2 **Visual Evidence** — AAPL before/after adjustment showing splits and dividends.
-  - [ ] 1.3.3 **Mathematical Derivation** — Adjustment factor calculation, chain multiplication for multiple events.
-  - [ ] 1.3.4 **Implementation & Application** — Building an adjustment function from scratch; when to use adjusted vs unadjusted prices.
-- [ ] **Quick Reference** — Data loading recipes, quality checks.
+- [x] **1.1 How Markets Work** — The mechanics underlying every trade.
+  - [x] 1.1.1 **Prose/Intuition** — Order flow, price discovery, and information aggregation; exchanges vs OTC markets; the role of market makers.
+  - [x] 1.1.2 **Visual Evidence** — Order book dynamics, bid-ask spread over time, trade and quote data.
+  - [x] 1.1.3 **Mathematical Derivation** — Market clearing conditions; Kyle's lambda (price impact) derivation from first principles.
+  - [x] 1.1.4 **Implementation & Application** — Simulating an order book in R; estimating effective spread from trade data.
+- [x] **1.2 Price Data: OHLCV** — What the numbers actually mean.
+  - [x] 1.2.1 **Prose/Intuition** — Open, high, low, close as summary statistics of price path; volume as a measure of activity.
+  - [x] 1.2.2 **Visual Evidence** — Candlestick charts, bar charts, information loss from aggregation.
+  - [x] 1.2.3 **Mathematical Derivation** — OHLC as sufficient statistics for range-based volatility estimators (Parkinson, Garman-Klass).
+  - [x] 1.2.4 **Implementation & Application** — Loading data with `quantmod`, converting to `data.table`; detecting data quality issues (gaps, splits, survivorship).
+- [x] **1.3 Adjusted Prices** — Why raw prices lie.
+  - [x] 1.3.1 **Prose/Intuition** — Corporate actions (splits, dividends) create artificial discontinuities; the need for adjustment.
+  - [x] 1.3.2 **Visual Evidence** — AAPL before/after adjustment showing splits and dividends.
+  - [x] 1.3.3 **Mathematical Derivation** — Adjustment factor calculation, chain multiplication for multiple events.
+  - [x] 1.3.4 **Implementation & Application** — Building an adjustment function from scratch; when to use adjusted vs unadjusted prices.
+- [x] **Quick Reference** — Data loading recipes, quality checks.
 
 ### Part 2 (`01-2`): The Mathematics of Returns
 
-- [ ] **1.4 Simple vs Log Returns** — The fundamental choice.
-  - [ ] 1.4.1 **Prose/Intuition** — Two valid ways to measure percentage change; historical context and conventions.
-  - [ ] 1.4.2 **Visual Evidence** — Divergence at large returns, distribution comparison.
-  - [ ] 1.4.3 **Mathematical Derivation** —
+- [x] **1.4 Simple vs Log Returns** — The fundamental choice.
+  - [x] 1.4.1 **Prose/Intuition** — Two valid ways to measure percentage change; historical context and conventions.
+  - [x] 1.4.2 **Visual Evidence** — Divergence at large returns, distribution comparison.
+  - [x] 1.4.3 **Mathematical Derivation** —
     - Simple return: r_simple = (P_t - P_{t-1})/P_{t-1}.
     - Log return: r_log = ln(P_t/P_{t-1}).
     - Taylor series expansion: ln(1+x) ≈ x for small x.
     - Time additivity proof: r_log(t,T) = Σr_log(t,t+1).
     - Cross-sectional additivity: r_portfolio = Σw_i × r_simple,i (not true for log returns).
-  - [ ] 1.4.4 **Implementation & Application** — Return calculation functions; handling NA and zero prices; when to use which (backtesting vs portfolio construction).
-- [ ] **1.5 Multi-Period Compounding** — From daily to annual.
-  - [ ] 1.5.1 **Prose/Intuition** — Geometric growth of wealth; why arithmetic averages mislead.
-  - [ ] 1.5.2 **Visual Evidence** — $1 growing at different rates: arithmetic vs geometric average comparison.
-  - [ ] 1.5.3 **Mathematical Derivation** —
+  - [x] 1.4.4 **Implementation & Application** — Return calculation functions; handling NA and zero prices; when to use which (backtesting vs portfolio construction).
+- [x] **1.5 Multi-Period Compounding** — From daily to annual.
+  - [x] 1.5.1 **Prose/Intuition** — Geometric growth of wealth; why arithmetic averages mislead.
+  - [x] 1.5.2 **Visual Evidence** — $1 growing at different rates: arithmetic vs geometric average comparison.
+  - [x] 1.5.3 **Mathematical Derivation** —
     - Wealth equation: W_T = W_0 × exp(Σr_log) = W_0 × Π(1 + r_simple).
     - CAGR derivation from terminal wealth.
     - Annualisation under i.i.d. assumption: σ_annual = σ_daily × √252 (derivation from variance of sums).
     - Continuous compounding limit.
-  - [ ] 1.5.4 **Implementation & Application** — Annualisation functions; rolling return calculations; reporting returns correctly.
-- [ ] **1.6 Excess Returns and Risk-Free Rates** — What you're actually earning.
-  - [ ] 1.6.1 **Prose/Intuition** — Separating compensation for time vs risk; what the risk-free rate represents.
-  - [ ] 1.6.2 **Visual Evidence** — Excess returns over T-bills, time-varying risk premia through decades.
-  - [ ] 1.6.3 **Mathematical Derivation** — Excess return: r_excess = r_asset - r_f; continuous vs discrete subtraction; compounding considerations.
-  - [ ] 1.6.4 **Implementation & Application** — Merging with risk-free rate data; handling frequency mismatch; using Fama-French data correctly.
-- [ ] **Quick Reference** — Return formulae, annualisation factors.
+  - [x] 1.5.4 **Implementation & Application** — Annualisation functions; rolling return calculations; reporting returns correctly.
+- [x] **1.6 Excess Returns and Risk-Free Rates** — What you're actually earning.
+  - [x] 1.6.1 **Prose/Intuition** — Separating compensation for time vs risk; what the risk-free rate represents.
+  - [x] 1.6.2 **Visual Evidence** — Excess returns over T-bills, time-varying risk premia through decades.
+  - [x] 1.6.3 **Mathematical Derivation** — Excess return: r_excess = r_asset - r_f; continuous vs discrete subtraction; compounding considerations.
+  - [x] 1.6.4 **Implementation & Application** — Merging with risk-free rate data; handling frequency mismatch; using Fama-French data correctly.
+- [x] **Quick Reference** — Return formulae, annualisation factors.
 
 ### Part 3 (`01-3`): Stylised Facts of Financial Returns
 
-- [ ] **1.7 Fat Tails** — Why normal distributions fail.
-  - [ ] 1.7.1 **Prose/Intuition** — Information arrives in bursts; herding amplifies moves; extreme events occur more often than Gaussian models predict.
-  - [ ] 1.7.2 **Visual Evidence** — S&P 500 returns vs normal: QQ plots, tail probability comparison, histogram overlay.
-  - [ ] 1.7.3 **Mathematical Derivation** —
+- [x] **1.7 Fat Tails** — Why normal distributions fail.
+  - [x] 1.7.1 **Prose/Intuition** — Information arrives in bursts; herding amplifies moves; extreme events occur more often than Gaussian models predict.
+  - [x] 1.7.2 **Visual Evidence** — S&P 500 returns vs normal: QQ plots, tail probability comparison, histogram overlay.
+  - [x] 1.7.3 **Mathematical Derivation** —
     - Kurtosis: κ = E[(X-μ)⁴]/σ⁴; excess kurtosis = κ - 3.
     - For normal distribution: κ = 3 (derivation from moment generating function).
     - Empirical: S&P 500 daily κ ≈ 25.
     - Tail probability comparison: P(|Z| > 4) under normal vs empirical.
-  - [ ] 1.7.4 **Implementation & Application** — Computing kurtosis; comparing to theoretical distributions; implications for VaR and position sizing.
-- [ ] **1.8 Volatility Clustering** — Calm and storm periods.
-  - [ ] 1.8.1 **Prose/Intuition** — Information cascades; uncertainty propagation; volatility as a persistent state variable.
-  - [ ] 1.8.2 **Visual Evidence** — |r_t| time series showing clusters; autocorrelation of squared returns.
-  - [ ] 1.8.3 **Mathematical Derivation** —
+  - [x] 1.7.4 **Implementation & Application** — Computing kurtosis; comparing to theoretical distributions; implications for VaR and position sizing.
+- [x] **1.8 Volatility Clustering** — Calm and storm periods.
+  - [x] 1.8.1 **Prose/Intuition** — Information cascades; uncertainty propagation; volatility as a persistent state variable.
+  - [x] 1.8.2 **Visual Evidence** — |r_t| time series showing clusters; autocorrelation of squared returns.
+  - [x] 1.8.3 **Mathematical Derivation** —
     - Autocorrelation function: ρ(k) = Cov(X_t, X_{t-k})/Var(X).
     - For returns: ρ(k) ≈ 0 (no linear predictability).
     - For squared returns: ρ(k) > 0 with slow decay (volatility is predictable).
-  - [ ] 1.8.4 **Implementation & Application** — ACF plots for returns vs absolute returns vs squared returns; implications for volatility forecasting and regime detection.
-- [ ] **1.9 Leverage Effect** — Bad news hits harder.
-  - [ ] 1.9.1 **Prose/Intuition** — Falling prices increase firm leverage, amplifying volatility; asymmetric response to news.
-  - [ ] 1.9.2 **Visual Evidence** — Asymmetric volatility response to positive vs negative returns; scatter plot of r_t vs σ²_{t+1}.
-  - [ ] 1.9.3 **Mathematical Derivation** — Correlation(r_t, σ²_{t+1}) < 0; News Impact Curve derivation; connection to option skew.
-  - [ ] 1.9.4 **Implementation & Application** — Measuring leverage effect; asymmetric hedging strategies; put skew explanation.
-- [ ] **1.10 Absence of Autocorrelation** — Returns are (nearly) unpredictable.
-  - [ ] 1.10.1 **Prose/Intuition** — Efficient markets arbitrage away predictability; what "efficiency" means statistically.
-  - [ ] 1.10.2 **Visual Evidence** — ACF of returns: insignificant at most lags; comparison across asset classes.
-  - [ ] 1.10.3 **Mathematical Derivation** —
+  - [x] 1.8.4 **Implementation & Application** — ACF plots for returns vs absolute returns vs squared returns; implications for volatility forecasting and regime detection.
+- [x] **1.9 Leverage Effect** — Bad news hits harder.
+  - [x] 1.9.1 **Prose/Intuition** — Falling prices increase firm leverage, amplifying volatility; asymmetric response to news.
+  - [x] 1.9.2 **Visual Evidence** — Asymmetric volatility response to positive vs negative returns; scatter plot of r_t vs σ²_{t+1}.
+  - [x] 1.9.3 **Mathematical Derivation** — Correlation(r_t, σ²_{t+1}) < 0; News Impact Curve derivation; connection to option skew.
+  - [x] 1.9.4 **Implementation & Application** — Measuring leverage effect; asymmetric hedging strategies; put skew explanation.
+- [x] **1.10 Absence of Autocorrelation** — Returns are (nearly) unpredictable.
+  - [x] 1.10.1 **Prose/Intuition** — Efficient markets arbitrage away predictability; what "efficiency" means statistically.
+  - [x] 1.10.2 **Visual Evidence** — ACF of returns: insignificant at most lags; comparison across asset classes.
+  - [x] 1.10.3 **Mathematical Derivation** —
     - Sample autocorrelation: ρ̂(k) = Σ(r_t - r̄)(r_{t-k} - r̄) / Σ(r_t - r̄)².
     - Ljung-Box test: Q = n(n+2)Σρ̂²(k)/(n-k) ~ χ²_K under null of no autocorrelation.
-  - [ ] 1.10.4 **Implementation & Application** — Testing for autocorrelation in R; interpreting results; what "weak" predictability means for alpha generation.
-- [ ] **Quick Reference** — Stylised facts summary, diagnostic tests.
+  - [x] 1.10.4 **Implementation & Application** — Testing for autocorrelation in R; interpreting results; what "weak" predictability means for alpha generation.
+- [x] **Quick Reference** — Stylised facts summary, diagnostic tests.
 
 ---
 
@@ -238,106 +238,106 @@ A complete, self-contained course. After Part I, you can build and deploy profit
 
 ### Part 1 (`02-1`): Measuring Returns
 
-- [ ] **2.1 Expected Return Estimation** — What can you realistically expect?
-  - [ ] 2.1.1 **Prose/Intuition** — Sample mean as estimator of population mean; the fundamental difficulty of predicting returns.
-  - [ ] 2.1.2 **Visual Evidence** — Rolling mean returns showing instability; estimation uncertainty bands.
-  - [ ] 2.1.3 **Mathematical Derivation** —
+- [x] **2.1 Expected Return Estimation** — What can you realistically expect?
+  - [x] 2.1.1 **Prose/Intuition** — Sample mean as estimator of population mean; the fundamental difficulty of predicting returns.
+  - [x] 2.1.2 **Visual Evidence** — Rolling mean returns showing instability; estimation uncertainty bands.
+  - [x] 2.1.3 **Mathematical Derivation** —
     - Sample mean: μ̂ = (1/T)Σr_t.
     - Standard error derivation: SE(μ̂) = σ/√T.
     - Confidence interval: 95% CI width for annual return with 10 years of data ≈ ±6%.
-  - [ ] 2.1.4 **Implementation & Application** — Bootstrap confidence intervals; why mean estimation is the hardest problem in finance.
-- [ ] **2.2 Trade-Level Statistics** — Win rate, average win/loss.
-  - [ ] 2.2.1 **Prose/Intuition** — Alternative to return-based analysis for discrete strategies; thinking in terms of bets.
-  - [ ] 2.2.2 **Visual Evidence** — Trade P&L distribution, win/loss ratio charts.
-  - [ ] 2.2.3 **Mathematical Derivation** —
+  - [x] 2.1.4 **Implementation & Application** — Bootstrap confidence intervals; why mean estimation is the hardest problem in finance.
+- [x] **2.2 Trade-Level Statistics** — Win rate, average win/loss.
+  - [x] 2.2.1 **Prose/Intuition** — Alternative to return-based analysis for discrete strategies; thinking in terms of bets.
+  - [x] 2.2.2 **Visual Evidence** — Trade P&L distribution, win/loss ratio charts.
+  - [x] 2.2.3 **Mathematical Derivation** —
     - Expectancy: E[trade] = (Win% × Avg Win) - (Loss% × Avg Loss).
     - Relationship to Sharpe: approximate conversion formulae.
-  - [ ] 2.2.4 **Implementation & Application** — Trade extraction from position series; using trade stats for strategy diagnosis.
-- [ ] **Quick Reference** — Return metrics formulae.
+  - [x] 2.2.4 **Implementation & Application** — Trade extraction from position series; using trade stats for strategy diagnosis.
+- [x] **Quick Reference** — Return metrics formulae.
 
 ### Part 2 (`02-2`): Measuring Risk
 
-- [ ] **2.3 Volatility** — The standard measure of risk.
-  - [ ] 2.3.1 **Prose/Intuition** — Standard deviation captures dispersion around mean; historical context and why it became the standard.
-  - [ ] 2.3.2 **Visual Evidence** — High vs low volatility return series, volatility time series.
-  - [ ] 2.3.3 **Mathematical Derivation** —
+- [x] **2.3 Volatility** — The standard measure of risk.
+  - [x] 2.3.1 **Prose/Intuition** — Standard deviation captures dispersion around mean; historical context and why it became the standard.
+  - [x] 2.3.2 **Visual Evidence** — High vs low volatility return series, volatility time series.
+  - [x] 2.3.3 **Mathematical Derivation** —
     - Sample variance: σ̂² = (1/(T-1))Σ(r_t - r̄)².
     - Bessel's correction derivation: why T-1? Proof that E[s²] = σ² only with correction.
     - Annualisation derivation: σ_annual = σ_daily × √252 from variance of sums under independence.
-  - [ ] 2.3.4 **Implementation & Application** — Rolling volatility, EWMA volatility; volatility targeting for position sizing.
-- [ ] **2.4 Downside Risk Measures** — Risk you actually care about.
-  - [ ] 2.4.1 **Prose/Intuition** — Upside "risk" is actually good; investors have asymmetric preferences.
-  - [ ] 2.4.2 **Visual Evidence** — Return distributions with same σ but different downside profiles.
-  - [ ] 2.4.3 **Mathematical Derivation** —
+  - [x] 2.3.4 **Implementation & Application** — Rolling volatility, EWMA volatility; volatility targeting for position sizing.
+- [x] **2.4 Downside Risk Measures** — Risk you actually care about.
+  - [x] 2.4.1 **Prose/Intuition** — Upside "risk" is actually good; investors have asymmetric preferences.
+  - [x] 2.4.2 **Visual Evidence** — Return distributions with same σ but different downside profiles.
+  - [x] 2.4.3 **Mathematical Derivation** —
     - Semi-deviation: σ_down = √[E[(min(r-τ, 0))²]].
     - Lower partial moments: LPM_n(τ) = E[(max(τ-r, 0))^n].
     - Connection to utility theory.
-  - [ ] 2.4.4 **Implementation & Application** — Downside deviation, LPM in R; comparing strategies with asymmetric returns.
-- [ ] **2.5 Drawdown** — The pain you'll actually experience.
-  - [ ] 2.5.1 **Prose/Intuition** — Psychological and practical impact of losses from peak; why investors abandon strategies.
-  - [ ] 2.5.2 **Visual Evidence** — Drawdown chart, underwater curve, drawdown duration histogram.
-  - [ ] 2.5.3 **Mathematical Derivation** —
+  - [x] 2.4.4 **Implementation & Application** — Downside deviation, LPM in R; comparing strategies with asymmetric returns.
+- [x] **2.5 Drawdown** — The pain you'll actually experience.
+  - [x] 2.5.1 **Prose/Intuition** — Psychological and practical impact of losses from peak; why investors abandon strategies.
+  - [x] 2.5.2 **Visual Evidence** — Drawdown chart, underwater curve, drawdown duration histogram.
+  - [x] 2.5.3 **Mathematical Derivation** —
     - High-water mark: HWM_t = max_{s≤t}(W_s).
     - Drawdown: DD_t = (HWM_t - W_t)/HWM_t.
     - Maximum drawdown: MDD = max_t(DD_t).
     - Expected MDD under random walk (analytical approximation).
-  - [ ] 2.5.4 **Implementation & Application** — Drawdown functions from scratch; setting drawdown limits; investor expectations.
-- [ ] **2.6 Value-at-Risk (VaR)** — Quantile-based risk measure.
-  - [ ] 2.6.1 **Prose/Intuition** — "What's the worst that can happen (95% of the time)?"; regulatory context.
-  - [ ] 2.6.2 **Visual Evidence** — VaR on return distribution, exceedances over time.
-  - [ ] 2.6.3 **Mathematical Derivation** —
+  - [x] 2.5.4 **Implementation & Application** — Drawdown functions from scratch; setting drawdown limits; investor expectations.
+- [x] **2.6 Value-at-Risk (VaR)** — Quantile-based risk measure.
+  - [x] 2.6.1 **Prose/Intuition** — "What's the worst that can happen (95% of the time)?"; regulatory context.
+  - [x] 2.6.2 **Visual Evidence** — VaR on return distribution, exceedances over time.
+  - [x] 2.6.3 **Mathematical Derivation** —
     - Definition: VaR_α = -F^{-1}(α) where F is return CDF.
     - Historical method: empirical quantile.
     - Parametric (normal): VaR = -μ + σ × z_α, derivation from normal CDF.
     - Delta-normal for portfolios.
-  - [ ] 2.6.4 **Implementation & Application** — All three VaR methods; backtesting VaR; limitations (not subadditive, ignores tail shape).
-- [ ] **2.7 Expected Shortfall (CVaR)** — Average loss in the tail.
-  - [ ] 2.7.1 **Prose/Intuition** — "When things go wrong, how bad on average?"; why regulators prefer it.
-  - [ ] 2.7.2 **Visual Evidence** — CVaR vs VaR on distribution, tail averaging visualised.
-  - [ ] 2.7.3 **Mathematical Derivation** —
+  - [x] 2.6.4 **Implementation & Application** — All three VaR methods; backtesting VaR; limitations (not subadditive, ignores tail shape).
+- [x] **2.7 Expected Shortfall (CVaR)** — Average loss in the tail.
+  - [x] 2.7.1 **Prose/Intuition** — "When things go wrong, how bad on average?"; why regulators prefer it.
+  - [x] 2.7.2 **Visual Evidence** — CVaR vs VaR on distribution, tail averaging visualised.
+  - [x] 2.7.3 **Mathematical Derivation** —
     - Definition: ES_α = E[r | r < VaR_α] = (1/α)∫_{-∞}^{VaR} r×f(r)dr.
     - Coherent risk measure properties: subadditivity proof ES(A+B) ≤ ES(A) + ES(B).
     - Closed form under normality.
-  - [ ] 2.7.4 **Implementation & Application** — Historical and parametric ES calculation; regulatory applications.
-- [ ] **Quick Reference** — Risk metrics formulae, comparison table.
+  - [x] 2.7.4 **Implementation & Application** — Historical and parametric ES calculation; regulatory applications.
+- [x] **Quick Reference** — Risk metrics formulae, comparison table.
 
 ### Part 3 (`02-3`): Risk-Adjusted Performance
 
-- [ ] **2.8 Sharpe Ratio** — The industry standard.
-  - [ ] 2.8.1 **Prose/Intuition** — Return per unit of risk; comparable across strategies; historical context (William Sharpe).
-  - [ ] 2.8.2 **Visual Evidence** — Iso-Sharpe lines in mean-variance space; Sharpe distribution under null hypothesis.
-  - [ ] 2.8.3 **Mathematical Derivation** —
+- [x] **2.8 Sharpe Ratio** — The industry standard.
+  - [x] 2.8.1 **Prose/Intuition** — Return per unit of risk; comparable across strategies; historical context (William Sharpe).
+  - [x] 2.8.2 **Visual Evidence** — Iso-Sharpe lines in mean-variance space; Sharpe distribution under null hypothesis.
+  - [x] 2.8.3 **Mathematical Derivation** —
     - Definition: SR = (μ - r_f)/σ.
     - Annualisation derivation: SR_annual = SR_daily × √252 (from scaling properties).
     - Standard error (Lo's formula): SE(SR) ≈ √[(1 + SR²/2)/T], full derivation.
     - Asymptotic distribution: SR ~ N(SR_true, SE).
-  - [ ] 2.8.4 **Implementation & Application** — Sharpe calculation with confidence intervals; benchmarks (1.0 = good, 2.0 = excellent).
-- [ ] **2.9 Sortino and Calmar Ratios** — Downside-focused alternatives.
-  - [ ] 2.9.1 **Prose/Intuition** — Penalise downside volatility, not upside; when symmetric measures mislead.
-  - [ ] 2.9.2 **Visual Evidence** — Comparing strategies with same Sharpe but different Sortino.
-  - [ ] 2.9.3 **Mathematical Derivation** —
+  - [x] 2.8.4 **Implementation & Application** — Sharpe calculation with confidence intervals; benchmarks (1.0 = good, 2.0 = excellent).
+- [x] **2.9 Sortino and Calmar Ratios** — Downside-focused alternatives.
+  - [x] 2.9.1 **Prose/Intuition** — Penalise downside volatility, not upside; when symmetric measures mislead.
+  - [x] 2.9.2 **Visual Evidence** — Comparing strategies with same Sharpe but different Sortino.
+  - [x] 2.9.3 **Mathematical Derivation** —
     - Sortino: (μ - r_f)/σ_downside.
     - Calmar: CAGR/MDD.
     - Relationship between measures.
-  - [ ] 2.9.4 **Implementation & Application** — Calculation from scratch; when to prefer Sortino/Calmar over Sharpe.
-- [ ] **2.10 Information Ratio and Tracking Error** — Active management metrics.
-  - [ ] 2.10.1 **Prose/Intuition** — Measuring skill relative to a benchmark; institutional context.
-  - [ ] 2.10.2 **Visual Evidence** — Active returns distribution, tracking error over time.
-  - [ ] 2.10.3 **Mathematical Derivation** —
+  - [x] 2.9.4 **Implementation & Application** — Calculation from scratch; when to prefer Sortino/Calmar over Sharpe.
+- [x] **2.10 Information Ratio and Tracking Error** — Active management metrics.
+  - [x] 2.10.1 **Prose/Intuition** — Measuring skill relative to a benchmark; institutional context.
+  - [x] 2.10.2 **Visual Evidence** — Active returns distribution, tracking error over time.
+  - [x] 2.10.3 **Mathematical Derivation** —
     - Tracking error: TE = σ(r_p - r_b).
     - Information ratio: IR = E[r_p - r_b]/TE.
     - Relationship to Sharpe of active returns.
-  - [ ] 2.10.4 **Implementation & Application** — IR calculation; benchmark alignment; IR targets for institutional managers.
-- [ ] **2.11 Alpha and Beta** — Decomposing returns.
-  - [ ] 2.11.1 **Prose/Intuition** — Separating market exposure from skill; CAPM context.
-  - [ ] 2.11.2 **Visual Evidence** — Scatter plot of returns vs benchmark, regression line, residuals.
-  - [ ] 2.11.3 **Mathematical Derivation** —
+  - [x] 2.10.4 **Implementation & Application** — IR calculation; benchmark alignment; IR targets for institutional managers.
+- [x] **2.11 Alpha and Beta** — Decomposing returns.
+  - [x] 2.11.1 **Prose/Intuition** — Separating market exposure from skill; CAPM context.
+  - [x] 2.11.2 **Visual Evidence** — Scatter plot of returns vs benchmark, regression line, residuals.
+  - [x] 2.11.3 **Mathematical Derivation** —
     - Market model: r_p = α + β × r_m + ε.
     - OLS derivation: β = Cov(r_p, r_m)/Var(r_m).
     - Alpha: α = E[r_p] - β × E[r_m].
     - Standard errors and hypothesis testing.
-  - [ ] 2.11.4 **Implementation & Application** — Rolling alpha/beta estimation; significance testing; detecting hidden beta exposures.
-- [ ] **Quick Reference** — Risk-adjusted metrics summary, interpretation benchmarks.
+  - [x] 2.11.4 **Implementation & Application** — Rolling alpha/beta estimation; significance testing; detecting hidden beta exposures.
+- [x] **Quick Reference** — Risk-adjusted metrics summary, interpretation benchmarks.
 
 ---
 
@@ -352,90 +352,90 @@ A complete, self-contained course. After Part I, you can build and deploy profit
 
 ### Part 1 (`03-1`): Backtest Architecture
 
-- [ ] **3.1 The Backtesting Pipeline** — From data to P&L.
-  - [ ] 3.1.1 **Prose/Intuition** — Systematic simulation of historical trading; what a backtest actually does.
-  - [ ] 3.1.2 **Visual Evidence** — Flowchart: data → signals → positions → returns → metrics.
-  - [ ] 3.1.3 **Mathematical Derivation** —
+- [x] **3.1 The Backtesting Pipeline** — From data to P&L.
+  - [x] 3.1.1 **Prose/Intuition** — Systematic simulation of historical trading; what a backtest actually does.
+  - [x] 3.1.2 **Visual Evidence** — Flowchart: data → signals → positions → returns → metrics.
+  - [x] 3.1.3 **Mathematical Derivation** —
     - P&L equation: P&L_t = position_{t-1} × return_t - costs_t.
     - Cumulative return from daily returns.
-  - [ ] 3.1.4 **Implementation & Application** — Minimal vectorised backtester in R (~50 lines); when to use vectorised vs event-driven.
-- [ ] **3.2 Signal Generation** — From data to trading signals.
-  - [ ] 3.2.1 **Prose/Intuition** — Signals encode beliefs about future returns; the core of any strategy.
-  - [ ] 3.2.2 **Visual Evidence** — Signal time series, signal-return scatter plots.
-  - [ ] 3.2.3 **Mathematical Derivation** —
+  - [x] 3.1.4 **Implementation & Application** — Minimal vectorised backtester in R (~50 lines); when to use vectorised vs event-driven.
+- [x] **3.2 Signal Generation** — From data to trading signals.
+  - [x] 3.2.1 **Prose/Intuition** — Signals encode beliefs about future returns; the core of any strategy.
+  - [x] 3.2.2 **Visual Evidence** — Signal time series, signal-return scatter plots.
+  - [x] 3.2.3 **Mathematical Derivation** —
     - Signal as function: s_t = f(Ω_t) where Ω_t is the information set at time t.
     - Point-in-time constraint: s_t depends only on data available at t (no look-ahead).
-  - [ ] 3.2.4 **Implementation & Application** — Signal generation with proper lagging; normalisation and z-scoring.
-- [ ] **3.3 Position Mapping** — From signals to positions.
-  - [ ] 3.3.1 **Prose/Intuition** — Converting predictions to tradeable positions; the link between signal and portfolio.
-  - [ ] 3.3.2 **Visual Evidence** — Different mapping functions: linear, threshold, rank-based.
-  - [ ] 3.3.3 **Mathematical Derivation** —
+  - [x] 3.2.4 **Implementation & Application** — Signal generation with proper lagging; normalisation and z-scoring.
+- [x] **3.3 Position Mapping** — From signals to positions.
+  - [x] 3.3.1 **Prose/Intuition** — Converting predictions to tradeable positions; the link between signal and portfolio.
+  - [x] 3.3.2 **Visual Evidence** — Different mapping functions: linear, threshold, rank-based.
+  - [x] 3.3.3 **Mathematical Derivation** —
     - Position sizing: w_t = g(s_t) subject to constraints.
     - Long-only constraint: w_t ≥ 0.
     - Dollar neutral: Σw_t = 0.
-  - [ ] 3.3.4 **Implementation & Application** — Position mapping functions; constraint handling; capacity considerations.
-- [ ] **Quick Reference** — Backtest architecture checklist.
+  - [x] 3.3.4 **Implementation & Application** — Position mapping functions; constraint handling; capacity considerations.
+- [x] **Quick Reference** — Backtest architecture checklist.
 
 ### Part 2 (`03-2`): Transaction Costs
 
-- [ ] **3.4 Bid-Ask Spread** — The immediate cost of trading.
-  - [ ] 3.4.1 **Prose/Intuition** — Market makers charge for immediacy; the most visible trading cost.
-  - [ ] 3.4.2 **Visual Evidence** — Spread over time, intraday patterns, spread by market cap.
-  - [ ] 3.4.3 **Mathematical Derivation** —
+- [x] **3.4 Bid-Ask Spread** — The immediate cost of trading.
+  - [x] 3.4.1 **Prose/Intuition** — Market makers charge for immediacy; the most visible trading cost.
+  - [x] 3.4.2 **Visual Evidence** — Spread over time, intraday patterns, spread by market cap.
+  - [x] 3.4.3 **Mathematical Derivation** —
     - Half-spread cost: c = spread/(2 × mid).
     - Round-trip cost: 2c.
     - Effective spread estimation from trade data.
-  - [ ] 3.4.4 **Implementation & Application** — Incorporating spread in backtest; spread estimates by asset class.
-- [ ] **3.5 Market Impact** — Moving the price against yourself.
-  - [ ] 3.5.1 **Prose/Intuition** — Large orders signal information, move prices; the invisible cost.
-  - [ ] 3.5.2 **Visual Evidence** — Price impact curves, temporary vs permanent impact separation.
-  - [ ] 3.5.3 **Mathematical Derivation** —
+  - [x] 3.4.4 **Implementation & Application** — Incorporating spread in backtest; spread estimates by asset class.
+- [x] **3.5 Market Impact** — Moving the price against yourself.
+  - [x] 3.5.1 **Prose/Intuition** — Large orders signal information, move prices; the invisible cost.
+  - [x] 3.5.2 **Visual Evidence** — Price impact curves, temporary vs permanent impact separation.
+  - [x] 3.5.3 **Mathematical Derivation** —
     - Square-root law: impact = σ × √(Q/ADV), derivation from microstructure theory.
     - Almgren-Chriss framework: optimal execution derivation.
     - Temporary vs permanent impact decomposition.
-  - [ ] 3.5.4 **Implementation & Application** — Market impact models; capacity limits from impact analysis.
-- [ ] **3.6 Slippage and Execution** — The difference between plan and reality.
-  - [ ] 3.6.1 **Prose/Intuition** — Prices move between signal and execution; execution quality matters.
-  - [ ] 3.6.2 **Visual Evidence** — Implementation shortfall decomposition chart.
-  - [ ] 3.6.3 **Mathematical Derivation** —
+  - [x] 3.5.4 **Implementation & Application** — Market impact models; capacity limits from impact analysis.
+- [x] **3.6 Slippage and Execution** — The difference between plan and reality.
+  - [x] 3.6.1 **Prose/Intuition** — Prices move between signal and execution; execution quality matters.
+  - [x] 3.6.2 **Visual Evidence** — Implementation shortfall decomposition chart.
+  - [x] 3.6.3 **Mathematical Derivation** —
     - Implementation shortfall: IS = (paper return) - (actual return).
     - Decomposition: IS = delay + spread + impact + timing + opportunity.
-  - [ ] 3.6.4 **Implementation & Application** — Slippage models; conservative cost assumptions for realistic backtests.
-- [ ] **3.7 Borrowing Costs** — The hidden cost of shorting.
-  - [ ] 3.7.1 **Prose/Intuition** — Shorting requires borrowing shares; costs vary dramatically.
-  - [ ] 3.7.2 **Visual Evidence** — Short interest vs borrow cost; hard-to-borrow list examples.
-  - [ ] 3.7.3 **Mathematical Derivation** —
+  - [x] 3.6.4 **Implementation & Application** — Slippage models; conservative cost assumptions for realistic backtests.
+- [x] **3.7 Borrowing Costs** — The hidden cost of shorting.
+  - [x] 3.7.1 **Prose/Intuition** — Shorting requires borrowing shares; costs vary dramatically.
+  - [x] 3.7.2 **Visual Evidence** — Short interest vs borrow cost; hard-to-borrow list examples.
+  - [x] 3.7.3 **Mathematical Derivation** —
     - Annualised borrow cost calculation.
     - Rebate rate mechanics.
-  - [ ] 3.7.4 **Implementation & Application** — Incorporating borrow costs for short positions; when shorting destroys alpha.
-- [ ] **Quick Reference** — Transaction cost estimates by asset class.
+  - [x] 3.7.4 **Implementation & Application** — Incorporating borrow costs for short positions; when shorting destroys alpha.
+- [x] **Quick Reference** — Transaction cost estimates by asset class.
 
 ### Part 3 (`03-3`): Building a Complete Backtester
 
-- [ ] **3.8 Event-Driven Backtesting** — For complex strategies.
-  - [ ] 3.8.1 **Prose/Intuition** — Some strategies can't be vectorised; path-dependent execution.
-  - [ ] 3.8.2 **Visual Evidence** — Event queue diagram, state machine for strategy logic.
-  - [ ] 3.8.3 **Mathematical Derivation** —
-    - Discrete event simulation formalisation.
-    - State transition functions.
-  - [ ] 3.8.4 **Implementation & Application** — R6-based event-driven backtester; when to use event-driven vs vectorised.
-- [ ] **3.9 Portfolio-Level Backtesting** — Multiple assets, rebalancing.
-  - [ ] 3.9.1 **Prose/Intuition** — Real strategies trade portfolios, not single assets; rebalancing mechanics.
-  - [ ] 3.9.2 **Visual Evidence** — Portfolio weights over time, turnover charts.
-  - [ ] 3.9.3 **Mathematical Derivation** —
+- [x] **3.8 Portfolio-Level Backtesting** — Multiple assets, rebalancing.
+  - [x] 3.8.1 **Prose/Intuition** — Real strategies trade portfolios, not single assets; rebalancing mechanics.
+  - [x] 3.8.2 **Visual Evidence** — Portfolio weights over time, turnover charts.
+  - [x] 3.8.3 **Mathematical Derivation** —
     - Portfolio return: r_p = Σw_i × r_i.
     - Weight drift and rebalancing: w_{t+1} = w_t × (1 + r_t) / Σw_t × (1 + r_t).
     - Turnover calculation.
-  - [ ] 3.9.4 **Implementation & Application** — Multi-asset backtester with rebalancing; frequency trade-offs.
-- [ ] **3.10 Monte Carlo Validation** — Statistical significance of results.
-  - [ ] 3.10.1 **Prose/Intuition** — One equity curve tells you almost nothing; quantifying luck vs skill.
-  - [ ] 3.10.2 **Visual Evidence** — Confidence bands around equity curve, distribution of outcomes.
-  - [ ] 3.10.3 **Mathematical Derivation** —
+  - [x] 3.8.4 **Implementation & Application** — Multi-asset backtester with rebalancing; frequency trade-offs.
+- [x] **3.9 Monte Carlo Validation** — Statistical significance of results.
+  - [x] 3.9.1 **Prose/Intuition** — One equity curve tells you almost nothing; quantifying luck vs skill.
+  - [x] 3.9.2 **Visual Evidence** — Confidence bands around equity curve, distribution of outcomes.
+  - [x] 3.9.3 **Mathematical Derivation** —
     - Permutation test: null hypothesis that strategy has no edge.
     - Bootstrap resampling for confidence intervals.
     - p-value calculation from shuffled signals.
-  - [ ] 3.10.4 **Implementation & Application** — Monte Carlo significance testing; minimum 10,000 simulations; interpreting results.
-- [ ] **Quick Reference** — Backtester implementation checklist.
+  - [x] 3.9.4 **Implementation & Application** — Monte Carlo significance testing; minimum 10,000 simulations; interpreting results.
+- [x] **3.10 Regime-Conditional Analysis** — Strategy performance by market regime.
+  - [x] 3.10.1 **Prose/Intuition** — Strategies may only work in certain market conditions; conditional performance.
+  - [x] 3.10.2 **Visual Evidence** — Performance by regime: bull/bear, high/low volatility.
+  - [x] 3.10.3 **Mathematical Derivation** —
+    - Regime classification using rolling volatility and trend indicators.
+    - Conditional Sharpe ratio calculation.
+  - [x] 3.10.4 **Implementation & Application** — Regime detection and conditional performance analysis in R.
+- [x] **Quick Reference** — Backtester implementation checklist.
 
 ---
 
@@ -450,102 +450,101 @@ A complete, self-contained course. After Part I, you can build and deploy profit
 
 ### Part 1 (`04-1`): Backtesting Biases
 
-- [ ] **4.1 Look-Ahead Bias** — Using future information.
-  - [ ] 4.1.1 **Prose/Intuition** — The most common and deadly bias; using information you wouldn't have had.
-  - [ ] 4.1.2 **Visual Evidence** — Before/after fixing look-ahead: dramatic performance difference.
-  - [ ] 4.1.3 **Mathematical Derivation** —
+- [x] **4.1 Look-Ahead Bias** — Using future information.
+  - [x] 4.1.1 **Prose/Intuition** — The most common and deadly bias; using information you wouldn't have had.
+  - [x] 4.1.2 **Visual Evidence** — Before/after fixing look-ahead: dramatic performance difference.
+  - [x] 4.1.3 **Mathematical Derivation** —
     - Information set formalisation: Ω_t = {data available at time t}.
     - Point-in-time requirement: signal s_t ∈ σ(Ω_t).
-  - [ ] 4.1.4 **Implementation & Application** — Detecting look-ahead with lag analysis; common sources (point-in-time data, index composition changes).
-- [ ] **4.2 Survivorship Bias** — Only winners remain.
-  - [ ] 4.2.1 **Prose/Intuition** — Databases drop delisted stocks; you only see the survivors.
-  - [ ] 4.2.2 **Visual Evidence** — S&P 500 returns with vs without dead companies.
-  - [ ] 4.2.3 **Mathematical Derivation** —
+  - [x] 4.1.4 **Implementation & Application** — Detecting look-ahead with lag analysis; common sources (point-in-time data, index composition changes).
+- [x] **4.2 Survivorship Bias** — Only winners remain.
+  - [x] 4.2.1 **Prose/Intuition** — Databases drop delisted stocks; you only see the survivors.
+  - [x] 4.2.2 **Visual Evidence** — S&P 500 returns with vs without dead companies.
+  - [x] 4.2.3 **Mathematical Derivation** —
     - Selection bias formalisation.
     - Expected magnitude estimation (~1-2% annual inflation).
-  - [ ] 4.2.4 **Implementation & Application** — Survivorship-free databases; point-in-time index constituents; why "buy index components" backtests are inflated.
-- [ ] **4.3 Overfitting** — Fitting noise, not signal.
-  - [ ] 4.3.1 **Prose/Intuition** — More parameters means better in-sample fit but worse out-of-sample performance.
-  - [ ] 4.3.2 **Visual Evidence** — In-sample vs out-of-sample Sharpe as function of model complexity.
-  - [ ] 4.3.3 **Mathematical Derivation** —
+  - [x] 4.2.4 **Implementation & Application** — Survivorship-free databases; point-in-time index constituents; why "buy index components" backtests are inflated.
+- [x] **4.3 Overfitting** — Fitting noise, not signal.
+  - [x] 4.3.1 **Prose/Intuition** — More parameters means better in-sample fit but worse out-of-sample performance.
+  - [x] 4.3.2 **Visual Evidence** — In-sample vs out-of-sample Sharpe as function of model complexity.
+  - [x] 4.3.3 **Mathematical Derivation** —
     - Bias-variance trade-off derivation.
     - Effective degrees of freedom.
     - Bailey et al. deflated Sharpe ratio: adjusting for number of trials.
-  - [ ] 4.3.4 **Implementation & Application** — Measuring overfitting; complexity penalties; rule of thumb (max parameters ≈ √T).
-- [ ] **4.4 Selection Bias and Data Mining** — Cherry-picking winners.
-  - [ ] 4.4.1 **Prose/Intuition** — Test 1000 strategies, some will "work" by chance; publication bias.
-  - [ ] 4.4.2 **Visual Evidence** — Multiple testing: expected best result under null hypothesis.
-  - [ ] 4.4.3 **Mathematical Derivation** —
+  - [x] 4.3.4 **Implementation & Application** — Measuring overfitting; complexity penalties; rule of thumb (max parameters ≈ √T).
+- [x] **4.4 Selection Bias and Data Mining** — Cherry-picking winners.
+  - [x] 4.4.1 **Prose/Intuition** — Test 1000 strategies, some will "work" by chance; publication bias.
+  - [x] 4.4.2 **Visual Evidence** — Multiple testing: expected best result under null hypothesis.
+  - [x] 4.4.3 **Mathematical Derivation** —
     - Multiple hypothesis correction: Bonferroni, Holm, Benjamini-Hochberg (FDR).
     - Harvey et al. result: t-statistic threshold of 3.0 for new factors.
-  - [ ] 4.4.4 **Implementation & Application** — Tracking all tests; deflating for multiplicity; keeping a research log of all tested ideas.
-- [ ] **Quick Reference** — Bias detection checklist.
+  - [x] 4.4.4 **Implementation & Application** — Tracking all tests; deflating for multiplicity; keeping a research log of all tested ideas.
+- [x] **Quick Reference** — Bias detection checklist.
 
 ### Part 2 (`04-2`): Validation Methods
 
-- [ ] **4.5 Train/Test Split** — The simplest validation.
-  - [ ] 4.5.1 **Prose/Intuition** — Reserve data you never touch until final test; the holdout principle.
-  - [ ] 4.5.2 **Visual Evidence** — Split timeline, in-sample vs out-of-sample performance comparison.
-  - [ ] 4.5.3 **Mathematical Derivation** —
+- [x] **4.5 Train/Test Split** — The simplest validation.
+  - [x] 4.5.1 **Prose/Intuition** — Reserve data you never touch until final test; the holdout principle.
+  - [x] 4.5.2 **Visual Evidence** — Split timeline, in-sample vs out-of-sample performance comparison.
+  - [x] 4.5.3 **Mathematical Derivation** —
     - Statistical power trade-off: train size vs test reliability.
     - Optimal split ratio derivation.
-  - [ ] 4.5.4 **Implementation & Application** — Proper splitting with embargo periods; 70/30 as starting point.
-- [ ] **4.6 Walk-Forward Optimisation** — Rolling out-of-sample.
-  - [ ] 4.6.1 **Prose/Intuition** — Multiple out-of-sample tests; allows parameter adaptation over time.
-  - [ ] 4.6.2 **Visual Evidence** — Rolling windows diagram, anchored vs sliding windows.
-  - [ ] 4.6.3 **Mathematical Derivation** —
+  - [x] 4.5.4 **Implementation & Application** — Proper splitting with embargo periods; 70/30 as starting point.
+- [x] **4.6 Walk-Forward Optimisation** — Rolling out-of-sample.
+  - [x] 4.6.1 **Prose/Intuition** — Multiple out-of-sample tests; allows parameter adaptation over time.
+  - [x] 4.6.2 **Visual Evidence** — Rolling windows diagram, anchored vs sliding windows.
+  - [x] 4.6.3 **Mathematical Derivation** —
     - Expanding window vs rolling window bias-variance trade-off.
     - Optimal window length considerations.
-  - [ ] 4.6.4 **Implementation & Application** — Walk-forward framework in R; optimal retraining frequency.
-- [ ] **4.7 Cross-Validation for Time Series** — Respecting temporal structure.
-  - [ ] 4.7.1 **Prose/Intuition** — Standard k-fold CV violates time ordering; future leaks into past.
-  - [ ] 4.7.2 **Visual Evidence** — Blocked CV, purged CV diagrams.
-  - [ ] 4.7.3 **Mathematical Derivation** —
+  - [x] 4.6.4 **Implementation & Application** — Walk-forward framework in R; optimal retraining frequency.
+- [x] **4.7 Cross-Validation for Time Series** — Respecting temporal structure.
+  - [x] 4.7.1 **Prose/Intuition** — Standard k-fold CV violates time ordering; future leaks into past.
+  - [x] 4.7.2 **Visual Evidence** — Blocked CV, purged CV diagrams.
+  - [x] 4.7.3 **Mathematical Derivation** —
     - Purging requirement: removing overlap to prevent leakage.
     - Embargo period calculation based on autocorrelation decay.
-  - [ ] 4.7.4 **Implementation & Application** — Time-series CV in R; choosing appropriate gap lengths.
-- [ ] **4.8 Combinatorial Purged Cross-Validation** — The gold standard.
-  - [ ] 4.8.1 **Prose/Intuition** — Multiple independent test paths through the data; de Prado's method.
-  - [ ] 4.8.2 **Visual Evidence** — CPCV path generation diagram, coverage illustration.
-  - [ ] 4.8.3 **Mathematical Derivation** —
+  - [x] 4.7.4 **Implementation & Application** — Time-series CV in R; choosing appropriate gap lengths.
+- [x] **4.8 Combinatorial Purged Cross-Validation** — The gold standard.
+  - [x] 4.8.1 **Prose/Intuition** — Multiple independent test paths through the data; de Prado's method.
+  - [x] 4.8.2 **Visual Evidence** — CPCV path generation diagram, coverage illustration.
+  - [x] 4.8.3 **Mathematical Derivation** —
     - CPCV framework: number of paths = C(N, N-k).
     - Probability of false strategy derivation.
-  - [ ] 4.8.4 **Implementation & Application** — CPCV in R; when the computational cost is justified.
-- [ ] **Quick Reference** — Validation method comparison table.
+  - [x] 4.8.4 **Implementation & Application** — CPCV in R; when the computational cost is justified.
+- [x] **Quick Reference** — Validation method comparison table.
 
 ### Part 3 (`04-3`): Interpreting Backtest Results
 
-- [ ] **4.9 Statistical Significance** — Is your Sharpe real?
-  - [ ] 4.9.1 **Prose/Intuition** — Distinguishing skill from luck; the null hypothesis of no edge.
-  - [ ] 4.9.2 **Visual Evidence** — Sharpe ratio distribution under null, confidence intervals visualised.
-  - [ ] 4.9.3 **Mathematical Derivation** —
+- [x] **4.9 Statistical Significance** — Is your Sharpe real?
+  - [x] 4.9.1 **Prose/Intuition** — Distinguishing skill from luck; the null hypothesis of no edge.
+  - [x] 4.9.2 **Visual Evidence** — Sharpe ratio distribution under null, confidence intervals visualised.
+  - [x] 4.9.3 **Mathematical Derivation** —
     - t-test for Sharpe: t = SR × √T.
     - Required track record length for given power.
     - Sample size calculation for detecting true SR.
-  - [ ] 4.9.4 **Implementation & Application** — Significance tests; Sharpe confidence intervals; why 3 years is rarely enough.
-- [ ] **4.10 Regime Analysis** — Does it work everywhere?
-  - [ ] 4.10.1 **Prose/Intuition** — Strategies may only work in certain market conditions; conditional performance.
-  - [ ] 4.10.2 **Visual Evidence** — Performance by regime: bull/bear, high/low volatility, expansion/recession.
-  - [ ] 4.10.3 **Mathematical Derivation** —
+  - [x] 4.9.4 **Implementation & Application** — Significance tests; Sharpe confidence intervals; why 3 years is rarely enough.
+- [x] **4.10 Regime Analysis** — Does it work everywhere?
+  - [x] 4.10.1 **Prose/Intuition** — Strategies may only work in certain market conditions; conditional performance.
+  - [x] 4.10.2 **Visual Evidence** — Performance by regime: bull/bear, high/low volatility, expansion/recession.
+  - [x] 4.10.3 **Mathematical Derivation** —
     - Conditional expectation: E[r | regime = k].
     - Testing for regime dependence.
-  - [ ] 4.10.4 **Implementation & Application** — Regime classification methods; conditional analysis; regime-dependent position sizing.
-- [ ] **4.11 Stability Analysis** — How sensitive to parameters?
-  - [ ] 4.11.1 **Prose/Intuition** — Robust strategies work across parameter ranges; fragile strategies don't.
-  - [ ] 4.11.2 **Visual Evidence** — Parameter sensitivity heatmaps, cliff edges vs plateaus.
-  - [ ] 4.11.3 **Mathematical Derivation** —
-    - Stability metrics: local vs global sensitivity.
-    - Parameter neighbourhood analysis.
-  - [ ] 4.11.4 **Implementation & Application** — Parameter sweep visualisation; choosing robust over optimal parameters.
-- [ ] **4.12 Decay Analysis** — Has the edge eroded?
-  - [ ] 4.12.1 **Prose/Intuition** — Alpha decays as strategies become crowded; edges get arbitraged away.
-  - [ ] 4.12.2 **Visual Evidence** — Rolling Sharpe over time, structural break points.
-  - [ ] 4.12.3 **Mathematical Derivation** —
-    - Chow test for structural breaks.
-    - CUSUM and CUSUMSQ tests.
-    - Bai-Perron multiple breakpoint detection.
-  - [ ] 4.12.4 **Implementation & Application** — Decay detection; rolling performance metrics; when to retire a strategy.
-- [ ] **Quick Reference** — Backtest interpretation checklist.
+  - [x] 4.10.4 **Implementation & Application** — Regime classification methods; conditional analysis; regime-dependent position sizing.
+- [x] **4.11 Minimum Believable Sharpe** — What threshold matters?
+  - [x] 4.11.1 **Prose/Intuition** — Accounting for multiple testing, overfitting, and cost uncertainty.
+  - [x] 4.11.2 **Visual Evidence** — Minimum Sharpe surface by track record and tests.
+  - [x] 4.11.3 **Mathematical Derivation** —
+    - Comprehensive adjustment formula combining statistical, multiple testing, and cost components.
+    - Bailey's haircut rule.
+  - [x] 4.11.4 **Implementation & Application** — Minimum Sharpe calculator; deployment decision framework.
+- [x] **4.12 Deployment Decision Framework** — When to go live.
+  - [x] 4.12.1 **Prose/Intuition** — Systematic checklist for deployment readiness.
+  - [x] 4.12.2 **Visual Evidence** — Strategy evaluation dashboard.
+  - [x] 4.12.3 **Mathematical Derivation** —
+    - Threshold calculations for each criterion.
+    - Pass/fail logic.
+  - [x] 4.12.4 **Implementation & Application** — Complete evaluation framework; decision checklist.
+- [x] **Quick Reference** — Backtest interpretation checklist.
 
 ---
 
@@ -560,86 +559,86 @@ A complete, self-contained course. After Part I, you can build and deploy profit
 
 ### Part 1 (`05-1`): Kelly Criterion and Optimal Betting
 
-- [ ] **5.1 The Kelly Criterion** — Mathematically optimal position sizing.
-  - [ ] 5.1.1 **Prose/Intuition** — Maximises long-term geometric growth rate; the gambler's ruin problem.
-  - [ ] 5.1.2 **Visual Evidence** — Growth curves for different bet fractions; long-term wealth paths.
-  - [ ] 5.1.3 **Mathematical Derivation** —
+- [x] **5.1 The Kelly Criterion** — Mathematically optimal position sizing.
+  - [x] 5.1.1 **Prose/Intuition** — Maximises long-term geometric growth rate; the gambler's ruin problem.
+  - [x] 5.1.2 **Visual Evidence** — Growth curves for different bet fractions; long-term wealth paths.
+  - [x] 5.1.3 **Mathematical Derivation** —
     - Discrete Kelly: f* = (p × b - q) / b = edge / odds.
     - Continuous Kelly: f* = μ/σ² (derivation from log utility maximisation).
     - Connection to E[log(W)] maximisation.
-  - [ ] 5.1.4 **Implementation & Application** — Kelly calculation from win rate and payoff ratio; why full Kelly is too aggressive in practice.
-- [ ] **5.2 Fractional Kelly** — Trading off growth for survival.
-  - [ ] 5.2.1 **Prose/Intuition** — Full Kelly has brutal drawdowns; practical considerations.
-  - [ ] 5.2.2 **Visual Evidence** — Growth rate vs drawdown for different Kelly fractions.
-  - [ ] 5.2.3 **Mathematical Derivation** —
+  - [x] 5.1.4 **Implementation & Application** — Kelly calculation from win rate and payoff ratio; why full Kelly is too aggressive in practice.
+- [x] **5.2 Fractional Kelly** — Trading off growth for survival.
+  - [x] 5.2.1 **Prose/Intuition** — Full Kelly has brutal drawdowns; practical considerations.
+  - [x] 5.2.2 **Visual Evidence** — Growth rate vs drawdown for different Kelly fractions.
+  - [x] 5.2.3 **Mathematical Derivation** —
     - Half-Kelly growth penalty: (0.5)² × 0.5 = 75% of full Kelly growth.
     - Drawdown distribution under fractional Kelly.
     - Probability of ruin calculations.
-  - [ ] 5.2.4 **Implementation & Application** — Fractional Kelly sizing; quarter-Kelly as practical default.
-- [ ] **5.3 Multi-Asset Kelly** — Portfolio-level optimal sizing.
-  - [ ] 5.3.1 **Prose/Intuition** — Correlations matter for aggregate risk; portfolio context.
-  - [ ] 5.3.2 **Visual Evidence** — Optimal weights vs naive equal weight comparison.
-  - [ ] 5.3.3 **Mathematical Derivation** —
+  - [x] 5.2.4 **Implementation & Application** — Fractional Kelly sizing; quarter-Kelly as practical default.
+- [x] **5.3 Multi-Asset Kelly** — Portfolio-level optimal sizing.
+  - [x] 5.3.1 **Prose/Intuition** — Correlations matter for aggregate risk; portfolio context.
+  - [x] 5.3.2 **Visual Evidence** — Optimal weights vs naive equal weight comparison.
+  - [x] 5.3.3 **Mathematical Derivation** —
     - Multi-asset Kelly: f* = Σ^{-1} × μ.
     - Matrix formulation derivation.
     - Constraint handling (no short-selling, leverage limits).
-  - [ ] 5.3.4 **Implementation & Application** — Multi-asset Kelly optimisation; when covariance estimation fails.
-- [ ] **Quick Reference** — Kelly formulae summary.
+  - [x] 5.3.4 **Implementation & Application** — Multi-asset Kelly optimisation; when covariance estimation fails.
+- [x] **Quick Reference** — Kelly formulae summary.
 
 ### Part 2 (`05-2`): Volatility-Based Sizing
 
-- [ ] **5.4 Volatility Targeting** — Consistent risk exposure.
-  - [ ] 5.4.1 **Prose/Intuition** — Keep risk constant despite changing volatility; managed futures approach.
-  - [ ] 5.4.2 **Visual Evidence** — Raw returns vs vol-targeted returns; Sharpe improvement.
-  - [ ] 5.4.3 **Mathematical Derivation** —
+- [x] **5.4 Volatility Targeting** — Consistent risk exposure.
+  - [x] 5.4.1 **Prose/Intuition** — Keep risk constant despite changing volatility; managed futures approach.
+  - [x] 5.4.2 **Visual Evidence** — Raw returns vs vol-targeted returns; Sharpe improvement.
+  - [x] 5.4.3 **Mathematical Derivation** —
     - Position sizing: w_t = σ_target / σ̂_t.
     - Inverse volatility weighting derivation.
     - Impact on return distribution.
-  - [ ] 5.4.4 **Implementation & Application** — Volatility targeting with rolling estimates; choosing target volatility (10-15% typical).
-- [ ] **5.5 ATR-Based Position Sizing** — Range-normalised exposure.
-  - [ ] 5.5.1 **Prose/Intuition** — ATR captures realistic daily price movement; Turtle trading origins.
-  - [ ] 5.5.2 **Visual Evidence** — ATR over time, position size variation.
-  - [ ] 5.5.3 **Mathematical Derivation** —
+  - [x] 5.4.4 **Implementation & Application** — Volatility targeting with rolling estimates; choosing target volatility (10-15% typical).
+- [x] **5.5 ATR-Based Position Sizing** — Range-normalised exposure.
+  - [x] 5.5.1 **Prose/Intuition** — ATR captures realistic daily price movement; Turtle trading origins.
+  - [x] 5.5.2 **Visual Evidence** — ATR over time, position size variation.
+  - [x] 5.5.3 **Mathematical Derivation** —
     - True Range: TR = max(H-L, |H-C_{t-1}|, |L-C_{t-1}|).
     - ATR = EMA(TR) or SMA(TR).
     - Position size = (risk budget) / (ATR × point value).
-  - [ ] 5.5.4 **Implementation & Application** — ATR calculation; Turtle trading position sizing rules.
-- [ ] **5.6 Risk Parity** — Equal risk contribution.
-  - [ ] 5.6.1 **Prose/Intuition** — All assets contribute equally to portfolio risk; Bridgewater's approach.
-  - [ ] 5.6.2 **Visual Evidence** — Risk contributions before/after parity adjustment.
-  - [ ] 5.6.3 **Mathematical Derivation** —
+  - [x] 5.5.4 **Implementation & Application** — ATR calculation; Turtle trading position sizing rules.
+- [x] **5.6 Risk Parity** — Equal risk contribution.
+  - [x] 5.6.1 **Prose/Intuition** — All assets contribute equally to portfolio risk; Bridgewater's approach.
+  - [x] 5.6.2 **Visual Evidence** — Risk contributions before/after parity adjustment.
+  - [x] 5.6.3 **Mathematical Derivation** —
     - Marginal risk contribution: MRC_i = (Σw)_i / σ_p.
     - Total risk contribution: TRC_i = w_i × MRC_i.
     - Equal TRC condition and iterative solution.
-  - [ ] 5.6.4 **Implementation & Application** — Risk parity optimisation in R; application across asset classes.
-- [ ] **Quick Reference** — Volatility-based sizing formulae.
+  - [x] 5.6.4 **Implementation & Application** — Risk parity optimisation in R; application across asset classes.
+- [x] **Quick Reference** — Volatility-based sizing formulae.
 
 ### Part 3 (`05-3`): Risk Management and Stops
 
-- [ ] **5.7 Stop-Loss Orders** — Limiting downside.
-  - [ ] 5.7.1 **Prose/Intuition** — Cutting losses before they compound; behavioural benefits.
-  - [ ] 5.7.2 **Visual Evidence** — Stop-loss impact on return distribution; truncated left tail.
-  - [ ] 5.7.3 **Mathematical Derivation** —
+- [x] **5.7 Stop-Loss Orders** — Limiting downside.
+  - [x] 5.7.1 **Prose/Intuition** — Cutting losses before they compound; behavioural benefits.
+  - [x] 5.7.2 **Visual Evidence** — Stop-loss impact on return distribution; truncated left tail.
+  - [x] 5.7.3 **Mathematical Derivation** —
     - Stop-loss as option: P&L = max(r, -stop).
     - Expected cost of stop (getting stopped out then price reverses).
     - Optimal stop placement (Kaminski framework).
-  - [ ] 5.7.4 **Implementation & Application** — Stop-loss in backtesting; when stops help vs hurt.
-- [ ] **5.8 Position Limits and Leverage Constraints** — Staying alive.
-  - [ ] 5.8.1 **Prose/Intuition** — Preventing catastrophic concentration; institutional requirements.
-  - [ ] 5.8.2 **Visual Evidence** — Leverage vs blow-up probability; LTCM example.
-  - [ ] 5.8.3 **Mathematical Derivation** —
+  - [x] 5.7.4 **Implementation & Application** — Stop-loss in backtesting; when stops help vs hurt.
+- [x] **5.8 Position Limits and Leverage Constraints** — Staying alive.
+  - [x] 5.8.1 **Prose/Intuition** — Preventing catastrophic concentration; institutional requirements.
+  - [x] 5.8.2 **Visual Evidence** — Leverage vs blow-up probability; LTCM example.
+  - [x] 5.8.3 **Mathematical Derivation** —
     - Gross leverage: Σ|w_i|.
     - Net exposure: Σw_i.
     - Concentration metrics (Herfindahl).
-  - [ ] 5.8.4 **Implementation & Application** — Constraint checking; typical institutional limits.
-- [ ] **5.9 Drawdown Control** — Managing the pain.
-  - [ ] 5.9.1 **Prose/Intuition** — Investors can't tolerate unlimited drawdowns; psychological limits.
-  - [ ] 5.9.2 **Visual Evidence** — Drawdown-triggered deleveraging; strategy behaviour.
-  - [ ] 5.9.3 **Mathematical Derivation** —
+  - [x] 5.8.4 **Implementation & Application** — Constraint checking; typical institutional limits.
+- [x] **5.9 Drawdown Control** — Managing the pain.
+  - [x] 5.9.1 **Prose/Intuition** — Investors can't tolerate unlimited drawdowns; psychological limits.
+  - [x] 5.9.2 **Visual Evidence** — Drawdown-triggered deleveraging; strategy behaviour.
+  - [x] 5.9.3 **Mathematical Derivation** —
     - CPPI: Exposure = m × (W - Floor).
     - Drawdown-based position reduction: w_t = w_0 × (1 - DD_t/DD_max).
-  - [ ] 5.9.4 **Implementation & Application** — Dynamic position sizing based on drawdown; setting max drawdown limits.
-- [ ] **Quick Reference** — Risk management rules summary.
+  - [x] 5.9.4 **Implementation & Application** — Dynamic position sizing based on drawdown; setting max drawdown limits.
+- [x] **Quick Reference** — Risk management rules summary.
 
 ---
 

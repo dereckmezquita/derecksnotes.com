@@ -1,0 +1,988 @@
+---
+title: "Volatility-Based Sizing"
+---
+
+```{r setup, include=FALSE}
+box::use(
+    ./modules/data[load_market, filter_dates],
+    ./modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ./modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+tc <- unlist(trading_colors)
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = "../figures/05-2_"
+)
+
+set.seed(42)
+```
+
+# Volatility-Based Sizing
+
+Kelly tells us the optimal bet size given known parameters. But in practice, we don't know the true expected return—and estimating it is notoriously difficult. What we *can* estimate with reasonable precision is volatility.
+
+Volatility-based sizing sidesteps the expected return problem entirely. Instead of asking "how much should I bet to maximise growth?", we ask "how much should I bet to maintain consistent risk exposure?"
+
+The managed futures industry has used volatility targeting for decades. It works because volatility is persistent and predictable—unlike returns.
+
+---
+
+## 5.4 Volatility Targeting
+
+### 5.4.1 Prose/Intuition
+
+The idea is simple: adjust your position size so that your dollar risk stays constant regardless of how volatile the underlying asset is.
+
+When volatility is high, take smaller positions. When volatility is low, take larger positions. This ensures you're always taking approximately the same amount of risk.
+
+**Why this works:**
+
+1. **Volatility is predictable:** Tomorrow's volatility is highly correlated with today's volatility (autocorrelation ~0.9). Returns are not predictable (autocorrelation ~0).
+
+2. **Consistent risk exposure:** A 10% target volatility portfolio experiences similar day-to-day fluctuations whether markets are calm or turbulent.
+
+3. **Avoids blow-ups:** During crises, you automatically reduce exposure before losses compound.
+
+4. **Improves Sharpe ratio:** By equalising risk across regimes, you avoid taking too much risk when conditions are poor.
+
+### 5.4.2 Visual Evidence
+
+```{r vol-targeting-concept, fig.cap="Volatility targeting scales position size inversely with volatility, maintaining consistent risk exposure through different market regimes."}
+# Load SPY data
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+# Calculate 20-day rolling volatility
+spy[, vol_20d := frollapply(returns, 20, sd, fill = NA) * sqrt(252)]
+spy <- spy[!is.na(vol_20d)]
+
+# Target volatility: 15% annualised
+target_vol <- 0.15
+
+# Position sizing based on vol targeting
+spy[, vol_target_weight := target_vol / vol_20d]
+spy[, vol_target_weight := pmin(vol_target_weight, 3)]  # Cap at 3x leverage
+
+# Returns under different approaches
+spy[, raw_returns := returns]
+spy[, vol_targeted_returns := shift(vol_target_weight, 1) * returns]
+spy <- spy[!is.na(vol_targeted_returns)]
+
+# Realised volatility comparison
+spy[, raw_realised_vol := frollapply(raw_returns, 60, sd, fill = NA) * sqrt(252)]
+spy[, targeted_realised_vol := frollapply(vol_targeted_returns, 60, sd, fill = NA) * sqrt(252)]
+
+# Plot comparison
+vol_comparison <- melt(spy[!is.na(raw_realised_vol), .(date,
+    `Raw SPY` = raw_realised_vol,
+    `Vol-Targeted (15%)` = targeted_realised_vol)],
+    id.vars = "date",
+    variable.name = "Strategy",
+    value.name = "Realised_Vol")
+
+ggplot(vol_comparison, aes(x = date, y = Realised_Vol * 100, colour = Strategy)) +
+    geom_line(linewidth = 0.6) +
+    geom_hline(yintercept = target_vol * 100, linetype = "dashed", colour = tc[3]) +
+    annotate("text", x = min(vol_comparison$date) + 100, y = target_vol * 100 + 3,
+             label = "Target: 15%", colour = tc[3], size = 3.5) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(
+        title = "Realised Volatility: Raw vs Vol-Targeted",
+        subtitle = "60-day rolling annualised volatility",
+        x = NULL,
+        y = "Realised Volatility (%)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r vol-targeting-performance, fig.cap="Vol-targeted strategy achieves similar total return with dramatically reduced peak-to-trough drawdowns and more consistent risk exposure."}
+# Cumulative performance comparison
+spy[, cum_raw := exp(cumsum(raw_returns))]
+spy[, cum_targeted := exp(cumsum(vol_targeted_returns))]
+
+perf_comparison <- melt(spy[, .(date,
+    `Raw SPY` = cum_raw,
+    `Vol-Targeted` = cum_targeted)],
+    id.vars = "date",
+    variable.name = "Strategy",
+    value.name = "Wealth")
+
+ggplot(perf_comparison, aes(x = date, y = Wealth, colour = Strategy)) +
+    geom_line(linewidth = 0.8) +
+    scale_y_log10(labels = scales::dollar) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(
+        title = "Performance: Raw SPY vs Vol-Targeted",
+        subtitle = "Starting with $1, log scale",
+        x = NULL,
+        y = "Wealth",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r vol-targeting-stats}
+# Compare statistics
+raw_sharpe <- sharpe_ratio(spy$raw_returns)
+targeted_sharpe <- sharpe_ratio(spy$vol_targeted_returns)
+
+raw_dd <- max_drawdown(exp(cumsum(spy$raw_returns)))
+targeted_dd <- max_drawdown(exp(cumsum(spy$vol_targeted_returns)))
+
+cat("=== Volatility Targeting Impact ===\n\n")
+cat("                     Raw SPY    Vol-Targeted\n")
+cat(sprintf("Annual Return:        %.1f%%        %.1f%%\n",
+            annualised_return(spy$raw_returns, type = "simple") * 100,
+            annualised_return(spy$vol_targeted_returns, type = "simple") * 100))
+cat(sprintf("Annual Volatility:    %.1f%%        %.1f%%\n",
+            annualised_vol(spy$raw_returns) * 100,
+            annualised_vol(spy$vol_targeted_returns) * 100))
+cat(sprintf("Sharpe Ratio:         %.2f          %.2f\n", raw_sharpe, targeted_sharpe))
+cat(sprintf("Max Drawdown:         %.1f%%        %.1f%%\n", raw_dd * 100, targeted_dd * 100))
+cat(sprintf("Avg Leverage:         1.00x         %.2fx\n", mean(spy$vol_target_weight)))
+```
+
+### 5.4.3 Mathematical Derivation
+
+**Basic volatility targeting:**
+
+Let $\sigma_t$ be the estimated volatility at time $t$ and $\sigma^*$ be the target volatility. The position weight is:
+
+$$w_t = \frac{\sigma^*}{\hat{\sigma}_t}$$
+
+**Returns under volatility targeting:**
+
+If the raw return is $r_t$ and we use lagged weight $w_{t-1}$ (to avoid look-ahead):
+
+$$r_t^{vol-target} = w_{t-1} \cdot r_t = \frac{\sigma^*}{\hat{\sigma}_{t-1}} \cdot r_t$$
+
+**Expected volatility of targeted returns:**
+
+If our volatility forecast is unbiased:
+
+$$\text{Var}(r_t^{vol-target}) = E\left[\frac{(\sigma^*)^2}{\hat{\sigma}_{t-1}^2} \cdot r_t^2\right]$$
+
+If $\hat{\sigma}_{t-1}^2 \approx \sigma_t^2$ (volatility persistence):
+
+$$\text{Var}(r_t^{vol-target}) \approx E\left[\frac{(\sigma^*)^2}{\sigma_t^2} \cdot r_t^2\right] = (\sigma^*)^2$$
+
+**Sharpe ratio improvement:**
+
+Why does vol targeting improve Sharpe? The key insight is that the Sharpe ratio of raw returns varies with volatility regimes:
+
+$$SR_t = \frac{\mu_t}{\sigma_t}$$
+
+If expected returns don't scale proportionally with volatility (which is empirically true—low-vol periods often have similar returns to high-vol periods), then:
+
+- In low-vol periods: high risk-adjusted return
+- In high-vol periods: low risk-adjusted return
+
+Vol targeting overweights low-vol periods and underweights high-vol periods, improving the average risk-adjusted return.
+
+**Mathematically:**
+
+$$SR^{vol-target} = \frac{E[w_t \cdot r_t]}{\sqrt{Var(w_t \cdot r_t)}} > \frac{E[r_t]}{\sqrt{Var(r_t)}} = SR^{raw}$$
+
+when the risk-return relationship is not linear.
+
+### 5.4.4 Implementation & Application
+
+```{r vol-targeting-implementation}
+# Volatility targeting function
+vol_target <- function(returns, target_vol, lookback = 20,
+                       max_leverage = 3, min_leverage = 0.1) {
+    n <- length(returns)
+
+    # Calculate rolling volatility (annualised)
+    rolling_vol <- rep(NA_real_, n)
+    for (i in lookback:n) {
+        rolling_vol[i] <- sd(returns[(i - lookback + 1):i]) * sqrt(252)
+    }
+
+    # Position sizing
+    weights <- target_vol / rolling_vol
+    weights <- pmin(pmax(weights, min_leverage), max_leverage)
+
+    # Lag weights to avoid look-ahead
+    weights_lagged <- c(NA, weights[-n])
+
+    # Calculate returns
+    targeted_returns <- weights_lagged * returns
+
+    data.table(
+        raw_return = returns,
+        rolling_vol = rolling_vol,
+        weight = weights,
+        weight_lagged = weights_lagged,
+        targeted_return = targeted_returns
+    )
+}
+
+# Apply to SPY
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+vol_result <- vol_target(spy$returns, target_vol = 0.10, lookback = 20)
+spy[, c("rolling_vol", "weight", "targeted_return") :=
+    .(vol_result$rolling_vol, vol_result$weight_lagged, vol_result$targeted_return)]
+
+spy <- spy[!is.na(targeted_return)]
+
+cat("=== Volatility Targeting Implementation ===\n")
+cat(sprintf("Target volatility: 10%%\n"))
+cat(sprintf("Lookback period: 20 days\n"))
+cat(sprintf("Average weight: %.2fx\n", mean(spy$weight, na.rm = TRUE)))
+cat(sprintf("Weight range: [%.2f, %.2f]\n",
+            min(spy$weight, na.rm = TRUE), max(spy$weight, na.rm = TRUE)))
+```
+
+```{r vol-target-regimes, fig.cap="Vol targeting position sizes during different market regimes. The 2020 COVID crash shows automatic deleveraging."}
+# Highlight specific periods
+spy[, period := "Normal"]
+spy[date >= "2020-02-01" & date <= "2020-05-01", period := "COVID Crash"]
+spy[date >= "2022-01-01" & date <= "2022-06-30", period := "2022 Drawdown"]
+spy[date >= "2017-01-01" & date <= "2017-12-31", period := "Low Vol 2017"]
+
+ggplot(spy[!is.na(weight)], aes(x = date, y = weight)) +
+    geom_line(colour = tc[1], linewidth = 0.5, alpha = 0.7) +
+    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+    geom_rect(data = spy[period == "COVID Crash", .(xmin = min(date), xmax = max(date))],
+              aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
+              fill = tc[4], alpha = 0.2, inherit.aes = FALSE) +
+    geom_rect(data = spy[period == "Low Vol 2017", .(xmin = min(date), xmax = max(date))],
+              aes(xmin = xmin, xmax = xmax, ymin = -Inf, ymax = Inf),
+              fill = tc[3], alpha = 0.2, inherit.aes = FALSE) +
+    annotate("text", x = as.Date("2020-03-15"), y = 2.8, label = "COVID Crash\n(Auto-deleverage)",
+             colour = tc[4], size = 3) +
+    annotate("text", x = as.Date("2017-07-01"), y = 2.8, label = "Low Vol 2017\n(Increase leverage)",
+             colour = tc[3], size = 3) +
+    labs(
+        title = "Vol-Targeting Position Size Over Time",
+        subtitle = "10% target volatility, 20-day lookback",
+        x = NULL,
+        y = "Position Weight (1 = unlevered)"
+    ) +
+    theme_trading()
+```
+
+**Choosing target volatility:**
+
+| Target Vol | Character | Typical Use |
+|-----------|-----------|-------------|
+| 5-8% | Conservative | Pension funds, risk-averse |
+| 10-12% | Moderate | Balanced portfolios |
+| 15-20% | Aggressive | Hedge funds, active trading |
+| 25%+ | Very aggressive | Prop trading, high conviction |
+
+---
+
+## 5.5 ATR-Based Position Sizing
+
+### 5.5.1 Prose/Intuition
+
+Average True Range (ATR) is a volatility measure beloved by technical traders. Unlike standard deviation, ATR captures the *full range* of daily price movement, including gaps.
+
+The Turtle traders—made famous by Richard Dennis's experiment—used ATR to size positions. Their insight: a position size should be calibrated so that one ATR of movement equals a fixed dollar amount of risk.
+
+This normalises risk across different instruments. A $100 stock with $5 daily range is sized the same as a $50 stock with $2.50 daily range.
+
+### 5.5.2 Visual Evidence
+
+```{r atr-calculation, fig.cap="True Range captures gaps that standard deviation misses. ATR smooths True Range over time to give a stable volatility estimate."}
+# Calculate ATR
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2018-01-01"), as.Date("2023-12-31"))
+
+# True Range: max of (H-L, |H-C_prev|, |L-C_prev|)
+spy[, prev_close := shift(adjusted, 1)]
+spy[, TR := pmax(
+    high - low,
+    abs(high - prev_close),
+    abs(low - prev_close)
+)]
+
+# ATR: 14-day EMA of TR (using SMA for simplicity)
+spy[, ATR_14 := frollmean(TR, 14)]
+
+# Also calculate close-to-close volatility for comparison
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, cc_vol := frollapply(returns, 14, sd, fill = NA) * adjusted]
+
+spy <- spy[!is.na(ATR_14) & !is.na(cc_vol)]
+
+# Plot comparison
+vol_measures <- melt(spy[, .(date,
+    `True Range` = TR,
+    `ATR (14-day)` = ATR_14,
+    `Close-to-Close Vol × Price` = cc_vol)],
+    id.vars = "date",
+    variable.name = "Measure",
+    value.name = "Value")
+
+ggplot(vol_measures[Measure != "True Range"], aes(x = date, y = Value, colour = Measure)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(
+        title = "ATR vs Close-to-Close Volatility",
+        subtitle = "ATR captures intraday range and gaps; close-to-close can miss significant moves",
+        x = NULL,
+        y = "Dollar Volatility per Share",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r atr-position-sizing, fig.cap="ATR-based position sizing: number of shares to trade so that 1 ATR move equals a fixed dollar risk amount."}
+# ATR-based position sizing
+# Risk per trade: 1% of $100,000 = $1,000
+# Position size = Risk / ATR
+
+account_value <- 100000
+risk_per_trade <- 0.01  # 1% risk
+dollar_risk <- account_value * risk_per_trade
+
+spy[, atr_position_size := dollar_risk / ATR_14]
+spy[, atr_position_value := atr_position_size * adjusted]
+spy[, atr_weight := atr_position_value / account_value]
+
+# Plot position size over time
+ggplot(spy, aes(x = date)) +
+    geom_line(aes(y = atr_position_size), colour = tc[1], linewidth = 0.7) +
+    labs(
+        title = "ATR-Based Position Size Over Time",
+        subtitle = sprintf("$%s account, %s%% risk per trade → $%s risk",
+                           format(account_value, big.mark = ","),
+                           risk_per_trade * 100,
+                           format(dollar_risk, big.mark = ",")),
+        x = NULL,
+        y = "Number of Shares"
+    ) +
+    theme_trading()
+```
+
+### 5.5.3 Mathematical Derivation
+
+**True Range definition:**
+
+$$TR_t = \max(H_t - L_t, |H_t - C_{t-1}|, |L_t - C_{t-1}|)$$
+
+where:
+- $H_t$ = High price on day $t$
+- $L_t$ = Low price on day $t$
+- $C_{t-1}$ = Close price on day $t-1$
+
+The three components capture:
+1. Normal intraday range ($H_t - L_t$)
+2. Gap up from previous close ($|H_t - C_{t-1}|$)
+3. Gap down from previous close ($|L_t - C_{t-1}|$)
+
+**Average True Range:**
+
+$$ATR_t = \frac{1}{n}\sum_{i=0}^{n-1} TR_{t-i}$$
+
+Or using exponential smoothing:
+
+$$ATR_t = \alpha \cdot TR_t + (1-\alpha) \cdot ATR_{t-1}$$
+
+**Position sizing formula:**
+
+Given:
+- Account value: $V$
+- Risk per trade: $R$ (as fraction of account)
+- Stop-loss distance: $k$ ATRs
+- Point value: $PV$ (dollars per point move, = 1 for stocks)
+
+Position size (shares/contracts):
+
+$$N = \frac{V \times R}{k \times ATR_t \times PV}$$
+
+**Turtle trading rule:**
+
+The original Turtle rule: risk 1% of account per trade with a 2-ATR stop:
+
+$$N = \frac{0.01 \times V}{2 \times ATR}$$
+
+This means a 2-ATR adverse move loses 1% of account value.
+
+### 5.5.4 Implementation & Application
+
+```{r atr-implementation}
+# ATR calculation function
+calc_atr <- function(high, low, close, n = 14, method = "sma") {
+    prev_close <- shift(close, 1)
+
+    tr <- pmax(
+        high - low,
+        abs(high - prev_close),
+        abs(low - prev_close)
+    )
+
+    if (method == "sma") {
+        atr <- frollmean(tr, n)
+    } else if (method == "ema") {
+        # EMA with Wilder smoothing (alpha = 1/n)
+        atr <- rep(NA_real_, length(tr))
+        atr[n] <- mean(tr[1:n], na.rm = TRUE)
+        for (i in (n + 1):length(tr)) {
+            atr[i] <- (tr[i] + (n - 1) * atr[i - 1]) / n
+        }
+    }
+
+    atr
+}
+
+# Position sizing function
+atr_position_size <- function(atr, price, account_value, risk_fraction = 0.01,
+                               atr_multiple = 2, point_value = 1) {
+    # Dollar risk per trade
+    dollar_risk <- account_value * risk_fraction
+
+    # Position size in shares
+    shares <- dollar_risk / (atr_multiple * atr * point_value)
+
+    # Position value
+    position_value <- shares * price
+
+    # Weight (fraction of account)
+    weight <- position_value / account_value
+
+    data.table(
+        shares = shares,
+        position_value = position_value,
+        weight = weight,
+        dollar_at_risk = atr_multiple * atr * shares
+    )
+}
+
+# Example
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2020-01-01"), as.Date("2023-12-31"))
+spy[, atr := calc_atr(high, low, adjusted, n = 14)]
+spy <- spy[!is.na(atr)]
+
+# Get latest position sizing
+latest <- tail(spy, 1)
+pos_info <- atr_position_size(
+    atr = latest$atr,
+    price = latest$adjusted,
+    account_value = 100000,
+    risk_fraction = 0.01,
+    atr_multiple = 2
+)
+
+cat("=== ATR Position Sizing Example ===\n")
+cat(sprintf("Date: %s\n", latest$date))
+cat(sprintf("SPY Price: $%.2f\n", latest$adjusted))
+cat(sprintf("14-day ATR: $%.2f\n", latest$atr))
+cat(sprintf("ATR as %% of price: %.2f%%\n", latest$atr / latest$adjusted * 100))
+cat(sprintf("\nFor $100,000 account, 1%% risk, 2-ATR stop:\n"))
+cat(sprintf("  Position size: %.0f shares\n", pos_info$shares))
+cat(sprintf("  Position value: $%.0f\n", pos_info$position_value))
+cat(sprintf("  Weight: %.1f%%\n", pos_info$weight * 100))
+cat(sprintf("  Dollar at risk: $%.0f\n", pos_info$dollar_at_risk))
+```
+
+```{r turtle-sizing-demo, fig.cap="Turtle-style position sizing across multiple assets. Each position is sized so that 2-ATR move equals 1% account risk."}
+# Multi-asset Turtle sizing
+# Load several assets
+tickers <- c("SPY", "QQQ", "TLT", "GLD")
+multi_asset <- data.table()
+
+for (ticker in tickers) {
+    dt <- load_market(ticker)
+    dt <- filter_dates(dt, as.Date("2023-01-01"), as.Date("2023-12-31"))
+    dt[, atr := calc_atr(high, low, adjusted, n = 14)]
+    dt <- dt[!is.na(atr)]
+
+    # Calculate position sizes
+    dt[, shares := (100000 * 0.01) / (2 * atr)]
+    dt[, position_value := shares * adjusted]
+    dt[, weight := position_value / 100000]
+    dt[, ticker := ticker]
+
+    multi_asset <- rbind(multi_asset, dt[, .(date, ticker, adjusted, atr, shares, weight)])
+}
+
+# Latest positions
+latest_positions <- multi_asset[, .SD[.N], by = ticker]
+
+cat("\n=== Multi-Asset Turtle Sizing (Latest) ===\n")
+cat("$100,000 account, 1% risk per trade, 2-ATR stop\n\n")
+print(latest_positions[, .(
+    Ticker = ticker,
+    Price = sprintf("$%.2f", adjusted),
+    ATR = sprintf("$%.2f", atr),
+    `ATR %` = sprintf("%.1f%%", atr / adjusted * 100),
+    Shares = sprintf("%.0f", shares),
+    Weight = sprintf("%.1f%%", weight * 100)
+)])
+
+# Plot weight over time
+ggplot(multi_asset, aes(x = date, y = weight * 100, colour = ticker)) +
+    geom_line(linewidth = 0.8) +
+    scale_colour_manual(values = c(tc[1], tc[3], tc[5], tc[2])) +
+    labs(
+        title = "ATR-Based Position Weights Across Assets",
+        subtitle = "Each position sized for 1% risk with 2-ATR stop",
+        x = NULL,
+        y = "Position Weight (%)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+---
+
+## 5.6 Risk Parity
+
+### 5.6.1 Prose/Intuition
+
+Risk parity asks: "What if each asset contributed equally to portfolio risk?"
+
+Traditional portfolios weight by capital (60% stocks, 40% bonds). But a 60/40 portfolio gets ~90% of its risk from stocks because stocks are much more volatile than bonds.
+
+Risk parity equalises *risk contributions*, not capital allocations. This typically means:
+- Less equity than traditional portfolios
+- More bonds/fixed income
+- Often uses leverage to achieve competitive returns
+
+Bridgewater's "All Weather" fund popularised this approach.
+
+### 5.6.2 Visual Evidence
+
+```{r risk-parity-concept, fig.cap="Traditional 60/40 portfolios derive most risk from equities. Risk parity equalises risk contributions."}
+# Compare 60/40 vs risk parity
+spy <- load_market("SPY")
+tlt <- load_market("TLT")
+
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+tlt <- filter_dates(tlt, as.Date("2010-01-01"), as.Date("2023-12-31"))
+
+# Merge
+prices <- merge(
+    spy[, .(date, spy = adjusted)],
+    tlt[, .(date, tlt = adjusted)],
+    by = "date"
+)
+
+prices[, spy_ret := log(spy / shift(spy))]
+prices[, tlt_ret := log(tlt / shift(tlt))]
+prices <- prices[!is.na(spy_ret) & !is.na(tlt_ret)]
+
+# Calculate rolling volatilities and correlation
+lookback <- 60
+prices[, spy_vol := frollapply(spy_ret, lookback, sd) * sqrt(252)]
+prices[, tlt_vol := frollapply(tlt_ret, lookback, sd) * sqrt(252)]
+prices[, correlation := frollapply(1:.N, lookback, function(idx) {
+    if (length(idx) < lookback) return(NA)
+    cor(spy_ret[idx], tlt_ret[idx])
+}, fill = NA)]
+
+prices <- prices[!is.na(spy_vol)]
+
+# Calculate risk contributions for 60/40
+prices[, w_spy_6040 := 0.6]
+prices[, w_tlt_6040 := 0.4]
+
+# Portfolio variance
+prices[, port_var_6040 := w_spy_6040^2 * spy_vol^2 +
+                          w_tlt_6040^2 * tlt_vol^2 +
+                          2 * w_spy_6040 * w_tlt_6040 * spy_vol * tlt_vol * correlation]
+prices[, port_vol_6040 := sqrt(port_var_6040)]
+
+# Marginal risk contribution
+prices[, mrc_spy := (w_spy_6040 * spy_vol^2 + w_tlt_6040 * spy_vol * tlt_vol * correlation) / port_vol_6040]
+prices[, mrc_tlt := (w_tlt_6040 * tlt_vol^2 + w_spy_6040 * spy_vol * tlt_vol * correlation) / port_vol_6040]
+
+# Total risk contribution
+prices[, trc_spy := w_spy_6040 * mrc_spy]
+prices[, trc_tlt := w_tlt_6040 * mrc_tlt]
+
+# Risk contribution percentages
+prices[, rc_pct_spy := trc_spy / port_vol_6040]
+prices[, rc_pct_tlt := trc_tlt / port_vol_6040]
+
+# Average risk contributions
+avg_rc_spy <- mean(prices$rc_pct_spy, na.rm = TRUE)
+avg_rc_tlt <- mean(prices$rc_pct_tlt, na.rm = TRUE)
+
+# Bar chart of risk contributions
+rc_data <- data.table(
+    Asset = c("SPY (Equity)", "TLT (Bonds)"),
+    `Capital Weight` = c(60, 40),
+    `Risk Contribution` = c(avg_rc_spy * 100, avg_rc_tlt * 100)
+)
+
+rc_long <- melt(rc_data, id.vars = "Asset", variable.name = "Metric", value.name = "Percent")
+
+ggplot(rc_long, aes(x = Asset, y = Percent, fill = Metric)) +
+    geom_col(position = "dodge", alpha = 0.8) +
+    geom_hline(yintercept = 50, linetype = "dashed", colour = "grey50") +
+    annotate("text", x = 2.3, y = 52, label = "Equal (50%)", colour = "grey30", size = 3) +
+    scale_fill_manual(values = c(tc[1], tc[4])) +
+    labs(
+        title = "60/40 Portfolio: Capital vs Risk Allocation",
+        subtitle = "60% of capital in equities contributes ~85% of portfolio risk",
+        x = NULL,
+        y = "Percentage (%)",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r risk-parity-weights, fig.cap="Risk parity weights vary over time as relative volatilities change. Bonds get higher weight due to lower volatility."}
+# Calculate risk parity weights
+# For 2 assets: w_i / w_j = sigma_j / sigma_i (ignoring correlation for simplicity)
+# Equal risk contribution: w_spy * vol_spy = w_tlt * vol_tlt
+# With constraint w_spy + w_tlt = 1:
+
+prices[, rp_w_spy := tlt_vol / (spy_vol + tlt_vol)]
+prices[, rp_w_tlt := spy_vol / (spy_vol + tlt_vol)]
+
+# Plot weights over time
+weight_comparison <- melt(prices[, .(date,
+    `60/40 SPY` = 0.6,
+    `60/40 TLT` = 0.4,
+    `Risk Parity SPY` = rp_w_spy,
+    `Risk Parity TLT` = rp_w_tlt)],
+    id.vars = "date",
+    variable.name = "Allocation",
+    value.name = "Weight")
+
+ggplot(weight_comparison, aes(x = date, y = Weight * 100, colour = Allocation)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[5], tc[3], tc[2])) +
+    labs(
+        title = "Portfolio Weights: 60/40 vs Risk Parity",
+        subtitle = "Risk parity gives more weight to lower-volatility bonds",
+        x = NULL,
+        y = "Weight (%)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r risk-parity-performance, fig.cap="Risk parity achieves similar return to 60/40 with lower volatility—but relies on leverage for competitive absolute returns."}
+# Calculate returns for each portfolio
+prices[, ret_6040 := 0.6 * spy_ret + 0.4 * tlt_ret]
+prices[, ret_rp := shift(rp_w_spy, 1) * spy_ret + shift(rp_w_tlt, 1) * tlt_ret]
+
+# Levered risk parity to match 60/40 volatility
+target_vol <- annualised_vol(prices$ret_6040[!is.na(prices$ret_6040)])
+rp_vol <- annualised_vol(prices$ret_rp[!is.na(prices$ret_rp)])
+leverage_factor <- target_vol / rp_vol
+
+prices[, ret_rp_levered := ret_rp * leverage_factor]
+
+prices <- prices[!is.na(ret_rp)]
+
+# Cumulative performance
+prices[, cum_6040 := exp(cumsum(ret_6040))]
+prices[, cum_rp := exp(cumsum(ret_rp))]
+prices[, cum_rp_lev := exp(cumsum(ret_rp_levered))]
+
+perf_data <- melt(prices[, .(date,
+    `60/40` = cum_6040,
+    `Risk Parity (unlevered)` = cum_rp,
+    `Risk Parity (levered)` = cum_rp_lev)],
+    id.vars = "date",
+    variable.name = "Portfolio",
+    value.name = "Wealth")
+
+ggplot(perf_data, aes(x = date, y = Wealth, colour = Portfolio)) +
+    geom_line(linewidth = 0.8) +
+    scale_y_log10(labels = scales::dollar) +
+    scale_colour_manual(values = c(tc[1], tc[3], tc[5])) +
+    labs(
+        title = "Performance: 60/40 vs Risk Parity",
+        subtitle = sprintf("Levered RP uses %.1fx leverage to match 60/40 volatility", leverage_factor),
+        x = NULL,
+        y = "Wealth (log scale)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r risk-parity-stats}
+# Compare statistics
+cat("=== Portfolio Comparison ===\n\n")
+
+stats_table <- data.table(
+    Portfolio = c("60/40", "Risk Parity", "Risk Parity (Levered)"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(prices$ret_6040, type = "simple") * 100,
+        annualised_return(prices$ret_rp, type = "simple") * 100,
+        annualised_return(prices$ret_rp_levered, type = "simple") * 100)),
+    `Ann. Vol` = sprintf("%.1f%%", c(
+        annualised_vol(prices$ret_6040) * 100,
+        annualised_vol(prices$ret_rp) * 100,
+        annualised_vol(prices$ret_rp_levered) * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(prices$ret_6040),
+        sharpe_ratio(prices$ret_rp),
+        sharpe_ratio(prices$ret_rp_levered))),
+    `Max DD` = sprintf("%.1f%%", c(
+        max_drawdown(prices$cum_6040) * 100,
+        max_drawdown(prices$cum_rp) * 100,
+        max_drawdown(prices$cum_rp_lev) * 100))
+)
+
+print(stats_table)
+```
+
+### 5.6.3 Mathematical Derivation
+
+**Portfolio risk decomposition:**
+
+For a portfolio with weights $\mathbf{w}$ and covariance matrix $\boldsymbol{\Sigma}$:
+
+Portfolio variance: $\sigma_p^2 = \mathbf{w}^T \boldsymbol{\Sigma} \mathbf{w}$
+
+**Marginal Risk Contribution (MRC):**
+
+The marginal contribution of asset $i$ to portfolio risk:
+
+$$MRC_i = \frac{\partial \sigma_p}{\partial w_i} = \frac{(\boldsymbol{\Sigma}\mathbf{w})_i}{\sigma_p}$$
+
+**Total Risk Contribution (TRC):**
+
+The total risk contributed by asset $i$:
+
+$$TRC_i = w_i \times MRC_i = \frac{w_i (\boldsymbol{\Sigma}\mathbf{w})_i}{\sigma_p}$$
+
+**Euler decomposition:**
+
+By Euler's theorem, the sum of TRCs equals portfolio volatility:
+
+$$\sum_i TRC_i = \sigma_p$$
+
+**Equal risk contribution condition:**
+
+For risk parity, we want all TRCs equal:
+
+$$TRC_i = TRC_j \quad \forall i, j$$
+
+$$w_i (\boldsymbol{\Sigma}\mathbf{w})_i = w_j (\boldsymbol{\Sigma}\mathbf{w})_j$$
+
+**Two-asset case (uncorrelated):**
+
+If assets are uncorrelated ($\rho = 0$):
+
+$$w_i \sigma_i = w_j \sigma_j$$
+
+With constraint $w_i + w_j = 1$:
+
+$$w_i = \frac{\sigma_j}{\sigma_i + \sigma_j}, \quad w_j = \frac{\sigma_i}{\sigma_i + \sigma_j}$$
+
+**General case: iterative solution**
+
+For $n$ assets with correlations, there's no closed-form solution. Use numerical optimisation:
+
+$$\min_{\mathbf{w}} \sum_{i=1}^n \sum_{j=1}^n \left(TRC_i - TRC_j\right)^2$$
+
+subject to $\sum_i w_i = 1$ and $w_i \geq 0$.
+
+### 5.6.4 Implementation & Application
+
+```{r risk-parity-implementation}
+# Risk parity optimisation
+risk_parity_weights <- function(Sigma, tol = 1e-8, max_iter = 100) {
+    n <- nrow(Sigma)
+
+    # Start with inverse vol weights
+    w <- 1 / sqrt(diag(Sigma))
+    w <- w / sum(w)
+
+    for (iter in 1:max_iter) {
+        # Calculate risk contributions
+        port_vol <- as.numeric(sqrt(t(w) %*% Sigma %*% w))
+        mrc <- as.vector(Sigma %*% w) / port_vol
+        trc <- w * mrc
+
+        # Target: equal TRC
+        avg_trc <- mean(trc)
+
+        # Check convergence
+        if (max(abs(trc - avg_trc)) < tol) break
+
+        # Update weights: scale by (avg_trc / trc)^0.5
+        w_new <- w * (avg_trc / trc)^0.5
+        w_new <- w_new / sum(w_new)
+
+        w <- w_new
+    }
+
+    # Final calculations
+    port_vol <- as.numeric(sqrt(t(w) %*% Sigma %*% w))
+    mrc <- as.vector(Sigma %*% w) / port_vol
+    trc <- w * mrc
+
+    list(
+        weights = w,
+        portfolio_vol = port_vol,
+        mrc = mrc,
+        trc = trc,
+        risk_contribution_pct = trc / port_vol
+    )
+}
+
+# Example: 4-asset portfolio
+# SPY, TLT, GLD, TIP
+vols <- c(0.18, 0.12, 0.15, 0.06)  # Annual volatilities
+corr_matrix <- matrix(c(
+    1.0,  -0.3,  0.0,  -0.2,
+   -0.3,   1.0,  0.1,   0.6,
+    0.0,   0.1,  1.0,   0.2,
+   -0.2,   0.6,  0.2,   1.0
+), nrow = 4, byrow = TRUE)
+
+Sigma <- diag(vols) %*% corr_matrix %*% diag(vols)
+
+rp_result <- risk_parity_weights(Sigma)
+
+cat("=== Risk Parity Weights (4 Assets) ===\n")
+cat("Assets: SPY, TLT, GLD, TIP\n\n")
+
+rp_table <- data.table(
+    Asset = c("SPY (Equity)", "TLT (Bonds)", "GLD (Gold)", "TIP (TIPS)"),
+    Volatility = sprintf("%.0f%%", vols * 100),
+    Weight = sprintf("%.1f%%", rp_result$weights * 100),
+    `Risk Contrib.` = sprintf("%.1f%%", rp_result$risk_contribution_pct * 100)
+)
+
+print(rp_table)
+cat(sprintf("\nPortfolio Volatility: %.1f%%\n", rp_result$portfolio_vol * 100))
+```
+
+```{r risk-parity-comparison, fig.cap="Risk parity vs equal weight vs market cap weight. Risk parity naturally tilts toward lower-volatility assets."}
+# Compare different weighting schemes
+equal_weights <- rep(0.25, 4)
+market_cap_weights <- c(0.5, 0.3, 0.1, 0.1)  # Hypothetical
+rp_weights <- rp_result$weights
+
+# Calculate metrics for each
+calc_portfolio_metrics <- function(w, Sigma, mu = NULL) {
+    port_vol <- as.numeric(sqrt(t(w) %*% Sigma %*% w))
+
+    # Risk contributions
+    mrc <- as.vector(Sigma %*% w) / port_vol
+    trc <- w * mrc
+    rc_pct <- trc / port_vol
+
+    list(
+        weights = w,
+        vol = port_vol,
+        rc_pct = rc_pct
+    )
+}
+
+equal_metrics <- calc_portfolio_metrics(equal_weights, Sigma)
+mcap_metrics <- calc_portfolio_metrics(market_cap_weights, Sigma)
+rp_metrics <- calc_portfolio_metrics(rp_weights, Sigma)
+
+# Create comparison plot
+assets <- c("SPY", "TLT", "GLD", "TIP")
+
+comparison_dt <- rbind(
+    data.table(Scheme = "Equal Weight", Asset = assets,
+               Weight = equal_metrics$weights * 100,
+               Risk_Contrib = equal_metrics$rc_pct * 100),
+    data.table(Scheme = "Market Cap", Asset = assets,
+               Weight = mcap_metrics$weights * 100,
+               Risk_Contrib = mcap_metrics$rc_pct * 100),
+    data.table(Scheme = "Risk Parity", Asset = assets,
+               Weight = rp_metrics$weights * 100,
+               Risk_Contrib = rp_metrics$rc_pct * 100)
+)
+
+comparison_dt[, Scheme := factor(Scheme, levels = c("Market Cap", "Equal Weight", "Risk Parity"))]
+
+ggplot(comparison_dt, aes(x = Asset, y = Risk_Contrib, fill = Scheme)) +
+    geom_col(position = "dodge", alpha = 0.8) +
+    geom_hline(yintercept = 25, linetype = "dashed", colour = "grey50") +
+    annotate("text", x = 4.4, y = 27, label = "Equal\n(25%)", colour = "grey30", size = 2.5) +
+    scale_fill_manual(values = c(tc[4], tc[1], tc[3])) +
+    labs(
+        title = "Risk Contribution by Weighting Scheme",
+        subtitle = "Only risk parity achieves equal risk contribution",
+        x = NULL,
+        y = "Risk Contribution (%)",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+**When to use risk parity:**
+
+| Situation | Risk Parity Appropriate? |
+|-----------|------------------------|
+| Long-term strategic allocation | Yes |
+| Multi-asset class portfolio | Yes |
+| Diversified bond-heavy mandate | Yes |
+| Pure equity portfolio | Limited benefit |
+| High conviction tactical bets | No |
+| Leverage-constrained | Problematic |
+
+---
+
+## Quick Reference
+
+### Volatility Targeting
+
+| Parameter | Typical Value | Formula |
+|-----------|---------------|---------|
+| Target Vol | 10-15% | Choose based on risk tolerance |
+| Lookback | 20-60 days | Shorter = more reactive |
+| Position Weight | $w_t = \sigma^* / \hat{\sigma}_t$ | Scale inversely with vol |
+| Max Leverage | 2-3x | Cap to prevent over-leverage |
+
+### ATR Position Sizing
+
+| Parameter | Formula | Notes |
+|-----------|---------|-------|
+| True Range | $TR = \max(H-L, \|H-C_{-1}\|, \|L-C_{-1}\|)$ | Captures gaps |
+| ATR | SMA or EMA of TR | Usually 14 periods |
+| Position Size | $N = \frac{V \times R}{k \times ATR}$ | $V$=account, $R$=risk%, $k$=ATR multiple |
+| Turtle Rule | $N = \frac{0.01V}{2 \times ATR}$ | 1% risk, 2-ATR stop |
+
+### Risk Parity
+
+| Concept | Formula | Notes |
+|---------|---------|-------|
+| Total Risk Contribution | $TRC_i = w_i \times MRC_i$ | Sum = portfolio vol |
+| Equal TRC Condition | $TRC_i = TRC_j \; \forall i,j$ | Defines risk parity |
+| 2-Asset (uncorrelated) | $w_i = \sigma_j/(\sigma_i + \sigma_j)$ | Closed form |
+| General Case | Numerical optimisation | Iterative solution |
+
+### Comparison of Methods
+
+| Method | Pros | Cons |
+|--------|------|------|
+| **Vol Targeting** | Simple, consistent risk | Requires vol forecast |
+| **ATR Sizing** | Captures gaps, intuitive | Single-asset focus |
+| **Risk Parity** | Diversification, robust | Needs leverage, estimation error |
+| **Kelly** | Optimal growth | Needs return estimate, aggressive |
