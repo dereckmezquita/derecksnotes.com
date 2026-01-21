@@ -1,0 +1,1344 @@
+---
+title: "Algorithmic Trading with R"
+chapter: "Chapter 1: Financial Data and Returns"
+part: "Part 3: Stylised Facts of Financial Returns"
+section: "01-3"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2026-01-20
+tags: [algorithmic-trading, quantitative-finance, R, statistics]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 3: Stylised Facts of Financial Returns
+
+Financial returns exhibit empirical regularities that are remarkably consistent across different assets, markets, and time periods. These **stylised facts** are the fingerprints of real markets—patterns that any realistic model must capture.
+
+Understanding these facts is essential for two reasons. First, they determine which models are appropriate: the normal distribution fails spectacularly for daily returns. Second, they reveal opportunities: volatility clustering can be exploited, even if returns themselves are unpredictable.
+
+This chapter documents four key stylised facts: fat tails, volatility clustering, the leverage effect, and the absence of linear autocorrelation in returns.
+
+---
+
+## 1.7 Fat Tails
+
+### 1.7.1 Prose/Intuition
+
+If you believed returns were normally distributed, you would expect a 4-standard-deviation move to occur about once every 126 years. In reality, the S&P 500 experiences such moves multiple times per decade.
+
+**Why fat tails exist:**
+
+1. **Information arrives in bursts**: News doesn't trickle in smoothly. Earnings announcements, policy decisions, and geopolitical events concentrate information arrival.
+
+2. **Herding behaviour**: When fear spreads, everyone sells simultaneously. The same happens with greed during rallies. This coordination amplifies moves.
+
+3. **Leverage and forced liquidation**: When prices fall, leveraged investors face margin calls, forcing them to sell, which pushes prices down further, triggering more margin calls—a cascade that produces extreme returns.
+
+4. **Option hedging (gamma feedback)**: Market makers who sell options must hedge by buying when prices rise and selling when prices fall. This amplifies both moves.
+
+The fat-tailed nature of returns has profound implications:
+
+- **VaR underestimates risk**: Using normal-distribution VaR dramatically understates tail risk.
+- **Diversification breaks down in crises**: Correlations spike during market stress, precisely when diversification is needed most.
+- **Kelly criterion must be adjusted**: Optimal position sizing is smaller with fat tails than a Gaussian model suggests.
+
+### 1.7.2 Visual Evidence
+
+
+``` r
+# Load S&P 500 data
+sp500 <- load_market("sp500")
+sp500[, returns := c(NA, diff(log(close)))]
+sp500 <- sp500[!is.na(returns)]
+
+cat("S&P 500 data:\n")
+cat("  Period:", as.character(min(sp500$date)), "to", as.character(max(sp500$date)), "\n")
+cat("  Observations:", nrow(sp500), "\n")
+```
+
+```
+S&P 500 data:
+  Period: 1990-01-03 to 2026-01-16 
+  Observations: 9077 
+```
+
+
+``` r
+# Calculate standardised returns
+sp500_std <- (sp500$returns - mean(sp500$returns)) / sd(sp500$returns)
+
+# Theoretical quantiles from normal distribution
+n <- length(sp500_std)
+theoretical <- qnorm(ppoints(n))
+
+qq_data <- data.table(
+    theoretical = theoretical,
+    sample = sort(sp500_std)
+)
+
+ggplot(qq_data, aes(x = theoretical, y = sample)) +
+    geom_point(alpha = 0.3, colour = trading_colors$primary, size = 0.8) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = trading_colors$negative) +
+    annotate("rect", xmin = -6, xmax = -3, ymin = -6, ymax = -3,
+             fill = trading_colors$negative, alpha = 0.1) +
+    annotate("rect", xmin = 3, xmax = 6, ymin = 3, ymax = 6,
+             fill = trading_colors$negative, alpha = 0.1) +
+    annotate("text", x = -4.5, y = -2, label = "Left tail:\nMore extreme losses\nthan normal predicts",
+             size = 3, colour = trading_colors$negative) +
+    annotate("text", x = 4.5, y = 2, label = "Right tail:\nMore extreme gains\nthan normal predicts",
+             size = 3, colour = trading_colors$negative) +
+    labs(
+        title = "QQ Plot: S&P 500 Returns vs Normal Distribution",
+        subtitle = "Points above/below line indicate fatter tails than normal",
+        x = "Theoretical Quantiles (Normal)",
+        y = "Sample Quantiles (Standardised Returns)"
+    ) +
+    coord_cartesian(xlim = c(-5, 5), ylim = c(-6, 6)) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/qq-plot-1.png" alt="QQ plot of S&amp;P 500 daily returns against normal distribution. The S-shaped deviation in the tails reveals fat tails.">
+	QQ plot of S&amp;P 500 daily returns against normal distribution. The S-shaped deviation in the tails reveals fat tails.
+</Figure>
+
+
+``` r
+# Create histogram with normal overlay
+return_mean <- mean(sp500$returns)
+return_sd <- sd(sp500$returns)
+
+ggplot(sp500, aes(x = returns)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 100,
+                   fill = trading_colors$primary, alpha = 0.7, colour = "white") +
+    stat_function(fun = dnorm, args = list(mean = return_mean, sd = return_sd),
+                  colour = trading_colors$negative, linewidth = 1, linetype = "dashed") +
+    geom_vline(xintercept = 0, linetype = "dotted", colour = "grey50") +
+    labs(
+        title = "S&P 500 Daily Returns vs Normal Distribution",
+        subtitle = "Empirical distribution (blue) vs Gaussian (red dashed)",
+        x = "Daily Log Return",
+        y = "Density"
+    ) +
+    coord_cartesian(xlim = c(-0.10, 0.10)) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/histogram-overlay-1.png" alt="Distribution of S&amp;P 500 daily returns overlaid with normal distribution. The empirical distribution has a higher peak and fatter tails.">
+	Distribution of S&amp;P 500 daily returns overlaid with normal distribution. The empirical distribution has a higher peak and fatter tails.
+</Figure>
+
+
+``` r
+# Calculate empirical vs normal tail probabilities
+thresholds <- c(2, 3, 4, 5)
+n_obs <- nrow(sp500)
+
+tail_probs <- data.table(
+    threshold = thresholds,
+    empirical = sapply(thresholds, function(k) {
+        mean(abs(sp500_std) > k)
+    }),
+    normal = sapply(thresholds, function(k) {
+        2 * pnorm(-k)  # Two-tailed
+    })
+)
+
+tail_probs[, ratio := empirical / normal]
+
+cat("\nTail probability comparison (two-tailed):\n")
+print(tail_probs[, .(
+    `Threshold (σ)` = threshold,
+    `Empirical` = paste0(round(empirical * 100, 4), "%"),
+    `Normal` = paste0(round(normal * 100, 4), "%"),
+    `Ratio (Emp/Norm)` = round(ratio, 1)
+)])
+
+# Plot the comparison
+tail_long <- melt(tail_probs[, .(threshold, Empirical = empirical, Normal = normal)],
+                  id.vars = "threshold", variable.name = "distribution", value.name = "probability")
+
+ggplot(tail_long, aes(x = factor(threshold), y = probability, fill = distribution)) +
+    geom_col(position = "dodge", alpha = 0.8) +
+    geom_text(aes(label = ifelse(probability > 0.001,
+                                  sprintf("%.2f%%", probability * 100),
+                                  sprintf("%.4f%%", probability * 100))),
+              position = position_dodge(width = 0.9), vjust = -0.5, size = 3) +
+    scale_fill_manual(values = c("Empirical" = trading_colors$primary,
+                                  "Normal" = trading_colors$secondary)) +
+    scale_y_log10(labels = scales::percent) +
+    labs(
+        title = "Probability of Extreme Moves (S&P 500)",
+        subtitle = "Two-tailed probability of exceeding k standard deviations",
+        x = "Threshold (standard deviations)",
+        y = "Probability (log scale)",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/tail-probability-comparison-1.png" alt="Probability of extreme moves: empirical vs normal. The normal distribution dramatically underestimates tail risk.">
+	Probability of extreme moves: empirical vs normal. The normal distribution dramatically underestimates tail risk.
+</Figure>
+
+```
+
+Tail probability comparison (two-tailed):
+   Threshold (σ) Empirical  Normal Ratio (Emp/Norm)
+           <num>    <char>  <char>            <num>
+1:             2   4.8915%   4.55%              1.1
+2:             3   1.5534%   0.27%              5.8
+3:             4     0.65% 0.0063%            102.6
+4:             5   0.3305%  1e-04%           5764.9
+```
+
+### 1.7.3 Mathematical Derivation
+
+**Kurtosis: measuring tail heaviness**
+
+The kurtosis of a random variable $X$ with mean $\mu$ and standard deviation $\sigma$ is the fourth standardised moment:
+
+$$\kappa = \frac{E[(X - \mu)^4]}{\sigma^4} = \frac{E[(X - \mu)^4]}{(E[(X - \mu)^2])^2}$$
+
+**Excess kurtosis** is defined as $\kappa - 3$, since the normal distribution has kurtosis exactly 3.
+
+**Derivation: Kurtosis of Normal Distribution**
+
+For $X \sim N(\mu, \sigma^2)$, we need $E[(X - \mu)^4]$.
+
+Using the moment generating function $M(t) = \exp(\mu t + \sigma^2 t^2/2)$ and the relationship $E[X^n] = M^{(n)}(0)$, or more directly:
+
+For the standard normal $Z \sim N(0,1)$:
+
+$$E[Z^4] = \int_{-\infty}^{\infty} z^4 \cdot \frac{1}{\sqrt{2\pi}} e^{-z^2/2} dz$$
+
+Using the identity $E[Z^{2n}] = (2n-1)!! = 1 \cdot 3 \cdot 5 \cdots (2n-1)$:
+
+$$E[Z^4] = 3!! = 1 \cdot 3 = 3$$
+
+Since $Var(Z) = 1$:
+
+$$\kappa_{normal} = \frac{E[Z^4]}{1^2} = 3$$
+
+**Empirical excess kurtosis:**
+
+For the S&P 500, the excess kurtosis is typically 15-25 for daily returns—meaning returns are 5-8 times more peaked and fat-tailed than normal.
+
+**Sample kurtosis estimator:**
+
+Given observations $x_1, \ldots, x_n$ with sample mean $\bar{x}$ and sample standard deviation $s$:
+
+$$\hat{\kappa} = \frac{n(n+1)}{(n-1)(n-2)(n-3)} \sum_{i=1}^{n} \left(\frac{x_i - \bar{x}}{s}\right)^4 - \frac{3(n-1)^2}{(n-2)(n-3)}$$
+
+This is the excess kurtosis estimator with bias correction.
+
+**Tail probability under normal vs heavy tails:**
+
+For normal distribution:
+
+$$P(|Z| > k) = 2\Phi(-k) = 2 \int_{-\infty}^{-k} \frac{1}{\sqrt{2\pi}} e^{-z^2/2} dz$$
+
+| k | P(|Z| > k) | Expected frequency |
+|---|------------|-------------------|
+| 3 | 0.27% | Once per 370 days |
+| 4 | 0.0063% | Once per 126 years |
+| 5 | 0.000057% | Once per 13,932 years |
+
+Empirically, 4σ events occur several times per decade.
+
+### 1.7.4 Implementation and Application
+
+
+``` r
+#' Calculate sample kurtosis (excess)
+#' @param x Numeric vector
+#' @return Excess kurtosis (normal = 0)
+sample_kurtosis <- function(x) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+    m <- mean(x)
+    s <- sd(x)
+
+    # Bias-corrected excess kurtosis
+    m4 <- mean((x - m)^4)
+    kurt <- (n * (n + 1) / ((n - 1) * (n - 2) * (n - 3))) * sum(((x - m) / s)^4)
+    excess_kurt <- kurt - (3 * (n - 1)^2 / ((n - 2) * (n - 3)))
+
+    return(excess_kurt)
+}
+
+#' Calculate sample skewness
+#' @param x Numeric vector
+#' @return Skewness
+sample_skewness <- function(x) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+    m <- mean(x)
+    s <- sd(x)
+
+    (n / ((n - 1) * (n - 2))) * sum(((x - m) / s)^3)
+}
+
+# Calculate for S&P 500
+sp500_kurt <- sample_kurtosis(sp500$returns)
+sp500_skew <- sample_skewness(sp500$returns)
+
+cat("S&P 500 return distribution:\n")
+cat("  Mean:", round(mean(sp500$returns) * 100, 4), "%\n")
+cat("  Std Dev:", round(sd(sp500$returns) * 100, 2), "%\n")
+cat("  Skewness:", round(sp500_skew, 2), "(normal = 0)\n")
+cat("  Excess Kurtosis:", round(sp500_kurt, 2), "(normal = 0)\n")
+```
+
+```
+S&P 500 return distribution:
+  Mean: 0.0326 %
+  Std Dev: 1.14 %
+  Skewness: -0.37 (normal = 0)
+  Excess Kurtosis: 10.9 (normal = 0)
+```
+
+
+``` r
+# Calculate kurtosis for multiple assets
+symbols <- c("spy", "qqq", "iwm", "eem", "tlt", "gld", "aapl", "msft", "nvda")
+
+kurtosis_data <- rbindlist(lapply(symbols, function(sym) {
+    dt <- load_market(sym)
+    dt[, returns := c(NA, diff(log(close)))]
+    returns <- dt$returns[!is.na(dt$returns)]
+
+    data.table(
+        symbol = toupper(sym),
+        n_obs = length(returns),
+        skewness = sample_skewness(returns),
+        excess_kurtosis = sample_kurtosis(returns)
+    )
+}))
+
+# Sort by kurtosis
+kurtosis_data <- kurtosis_data[order(-excess_kurtosis)]
+
+ggplot(kurtosis_data, aes(x = reorder(symbol, excess_kurtosis), y = excess_kurtosis)) +
+    geom_col(fill = trading_colors$primary, alpha = 0.8) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = trading_colors$negative) +
+    geom_text(aes(label = round(excess_kurtosis, 1)), hjust = -0.2, size = 3) +
+    annotate("text", x = 1, y = 1, label = "Normal distribution (κ = 0)",
+             hjust = 0, colour = trading_colors$negative, size = 3) +
+    coord_flip() +
+    labs(
+        title = "Excess Kurtosis Across Assets",
+        subtitle = "All assets have fat tails; individual stocks > indices",
+        x = NULL,
+        y = "Excess Kurtosis (normal = 0)"
+    ) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/kurtosis-across-assets-1.png" alt="Excess kurtosis across different assets. All show fat tails, with individual stocks typically having heavier tails than indices.">
+	Excess kurtosis across different assets. All show fat tails, with individual stocks typically having heavier tails than indices.
+</Figure>
+
+**Implications for risk management:**
+
+
+``` r
+#' Calculate VaR using different methods
+#' @param returns Vector of returns
+#' @param alpha Confidence level (e.g., 0.05 for 95% VaR)
+#' @return List with historical and parametric VaR
+calculate_var <- function(returns, alpha = 0.05) {
+    returns <- returns[!is.na(returns)]
+
+    # Historical VaR (empirical quantile)
+    var_hist <- -quantile(returns, alpha)
+
+    # Parametric VaR (assuming normal)
+    var_param <- -qnorm(alpha, mean = mean(returns), sd = sd(returns))
+
+    list(
+        historical = var_hist,
+        parametric = var_param,
+        ratio = var_hist / var_param
+    )
+}
+
+# Calculate for S&P 500
+var_95 <- calculate_var(sp500$returns, 0.05)
+var_99 <- calculate_var(sp500$returns, 0.01)
+
+cat("\nValue-at-Risk comparison:\n")
+cat("95% VaR:\n")
+cat("  Historical:", round(var_95$historical * 100, 2), "%\n")
+cat("  Parametric (Normal):", round(var_95$parametric * 100, 2), "%\n")
+cat("  Ratio (Hist/Param):", round(var_95$ratio, 2), "\n\n")
+
+cat("99% VaR:\n")
+cat("  Historical:", round(var_99$historical * 100, 2), "%\n")
+cat("  Parametric (Normal):", round(var_99$parametric * 100, 2), "%\n")
+cat("  Ratio (Hist/Param):", round(var_99$ratio, 2), "\n")
+cat("\nConclusion: Normal VaR underestimates tail risk by",
+    round((var_99$ratio - 1) * 100, 0), "% at 99% level\n")
+```
+
+```
+
+Value-at-Risk comparison:
+95% VaR:
+  Historical: 1.73 %
+  Parametric (Normal): 1.84 %
+  Ratio (Hist/Param): 0.94 
+
+99% VaR:
+  Historical: 3.17 %
+  Parametric (Normal): 2.61 %
+  Ratio (Hist/Param): 1.21 
+
+Conclusion: Normal VaR underestimates tail risk by 21 % at 99% level
+```
+
+---
+
+## 1.8 Volatility Clustering
+
+### 1.8.1 Prose/Intuition
+
+Look at any long time series of returns, and you'll notice that large moves cluster together. Periods of high volatility persist for weeks or months, followed by calmer periods. This is **volatility clustering**: today's volatility predicts tomorrow's volatility.
+
+**Why volatility clusters:**
+
+1. **Information cascades**: News triggers reactions, which trigger more news and reactions. Uncertainty resolves slowly.
+
+2. **Uncertainty about uncertainty**: Market participants don't just revise price expectations—they revise their confidence in those expectations. Both updates are sticky.
+
+3. **Institutional constraints**: Risk limits, margin requirements, and VaR-based position sizing create feedback. When volatility spikes, everyone reduces positions, which can further amplify volatility.
+
+4. **Leverage and deleveraging cycles**: During calm periods, leverage builds up. When volatility rises, forced deleveraging occurs, amplifying the spike.
+
+**Why this matters for trading:**
+
+- **Volatility is predictable**: Unlike returns, volatility exhibits strong autocorrelation. This is exploitable.
+- **Option pricing**: Volatility forecasting directly affects option values.
+- **Position sizing**: Dynamic position sizing based on volatility (volatility targeting) improves risk-adjusted returns.
+- **Regime detection**: Volatility regimes (high vs low) can inform strategy selection.
+
+### 1.8.2 Visual Evidence
+
+
+``` r
+# Visualise volatility clustering
+sp500_recent <- filter_dates(sp500, "2015-01-01")
+
+# Create two-panel plot
+p1 <- ggplot(sp500_recent, aes(x = date, y = returns)) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    geom_line(colour = trading_colors$primary, linewidth = 0.3) +
+    labs(title = "S&P 500 Daily Returns", y = "Return", x = NULL) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_trading() +
+    theme(axis.text.x = element_blank())
+
+p2 <- ggplot(sp500_recent, aes(x = date, y = abs(returns))) +
+    geom_line(colour = trading_colors$secondary, linewidth = 0.3) +
+    labs(title = "Absolute Returns (Volatility Proxy)",
+         subtitle = "Note how large values cluster together",
+         y = "|Return|", x = NULL) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_trading()
+
+# Combine plots
+gridExtra::grid.arrange(p1, p2, nrow = 2, heights = c(1, 1))
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/volatility-clustering-visual-1.png" alt="S&amp;P 500 returns (top) and absolute returns (bottom). Large moves cluster together.">
+	S&amp;P 500 returns (top) and absolute returns (bottom). Large moves cluster together.
+</Figure>
+
+
+``` r
+# Calculate ACF for returns and squared returns
+max_lag <- 50
+
+acf_returns <- acf(sp500$returns, lag.max = max_lag, plot = FALSE)
+acf_abs <- acf(abs(sp500$returns), lag.max = max_lag, plot = FALSE)
+acf_squared <- acf(sp500$returns^2, lag.max = max_lag, plot = FALSE)
+
+acf_data <- data.table(
+    lag = 1:max_lag,
+    returns = acf_returns$acf[2:(max_lag + 1)],
+    absolute = acf_abs$acf[2:(max_lag + 1)],
+    squared = acf_squared$acf[2:(max_lag + 1)]
+)
+
+acf_long <- melt(acf_data, id.vars = "lag",
+                 variable.name = "series", value.name = "acf")
+acf_long[, series := factor(series,
+                            levels = c("returns", "absolute", "squared"),
+                            labels = c("Returns r_t", "|Returns| |r_t|", "Squared r²_t"))]
+
+# Significance bound
+n <- nrow(sp500)
+sig_bound <- qnorm(0.975) / sqrt(n)
+
+ggplot(acf_long, aes(x = lag, y = acf)) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    geom_hline(yintercept = c(-sig_bound, sig_bound),
+               linetype = "dashed", colour = trading_colors$negative, alpha = 0.7) +
+    geom_segment(aes(xend = lag, yend = 0), colour = trading_colors$primary) +
+    geom_point(colour = trading_colors$primary, size = 1) +
+    facet_wrap(~ series, ncol = 1, scales = "free_y") +
+    labs(
+        title = "Autocorrelation Functions: Returns vs Volatility Proxies",
+        subtitle = "Returns are uncorrelated; volatility shows strong persistence",
+        x = "Lag (days)",
+        y = "Autocorrelation"
+    ) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/acf-comparison-1.png" alt="Autocorrelation functions: returns show no autocorrelation, but squared returns show strong persistence.">
+	Autocorrelation functions: returns show no autocorrelation, but squared returns show strong persistence.
+</Figure>
+
+
+``` r
+# Quantify volatility persistence
+cat("Autocorrelation analysis:\n\n")
+cat("Returns (should be ~0):\n")
+cat("  Lag 1:", round(acf_data$returns[1], 4), "\n")
+cat("  Lag 5:", round(acf_data$returns[5], 4), "\n")
+cat("  Lag 20:", round(acf_data$returns[20], 4), "\n\n")
+
+cat("Squared returns (volatility proxy):\n")
+cat("  Lag 1:", round(acf_data$squared[1], 4), "\n")
+cat("  Lag 5:", round(acf_data$squared[5], 4), "\n")
+cat("  Lag 20:", round(acf_data$squared[20], 4), "\n")
+cat("  Lag 50:", round(acf_data$squared[50], 4), "\n\n")
+
+cat("Half-life of volatility autocorrelation: approximately",
+    round(-1 / log(acf_data$squared[1]), 0), "days\n")
+```
+
+```
+Autocorrelation analysis:
+
+Returns (should be ~0):
+  Lag 1: -0.0793 
+  Lag 5: -0.0167 
+  Lag 20: 0.0104 
+
+Squared returns (volatility proxy):
+  Lag 1: 0.3108 
+  Lag 5: 0.3079 
+  Lag 20: 0.1625 
+  Lag 50: 0.0588 
+
+Half-life of volatility autocorrelation: approximately 1 days
+```
+
+### 1.8.3 Mathematical Derivation
+
+**Autocorrelation function:**
+
+For a stationary time series $\{X_t\}$, the autocorrelation at lag $k$ is:
+
+$$\rho(k) = \frac{Cov(X_t, X_{t-k})}{Var(X_t)} = \frac{E[(X_t - \mu)(X_{t-k} - \mu)]}{\sigma^2}$$
+
+**For returns:**
+
+Let $r_t$ be returns. The stylised fact states:
+
+$$\rho_r(k) = Corr(r_t, r_{t-k}) \approx 0 \quad \text{for } k \geq 1$$
+
+Returns are approximately uncorrelated (but not independent!).
+
+**For squared returns:**
+
+$$\rho_{r^2}(k) = Corr(r_t^2, r_{t-k}^2) > 0 \quad \text{with slow decay}$$
+
+Squared returns are positively autocorrelated. The decay is often well-approximated by:
+
+$$\rho_{r^2}(k) \approx \alpha^k$$
+
+where $\alpha$ is close to 1 (high persistence).
+
+**Sample autocorrelation estimator:**
+
+Given observations $x_1, \ldots, x_n$:
+
+$$\hat{\rho}(k) = \frac{\sum_{t=k+1}^{n}(x_t - \bar{x})(x_{t-k} - \bar{x})}{\sum_{t=1}^{n}(x_t - \bar{x})^2}$$
+
+**Distribution under null hypothesis:**
+
+Under the null hypothesis that $\{X_t\}$ is white noise:
+
+$$\hat{\rho}(k) \dot{\sim} N\left(0, \frac{1}{n}\right)$$
+
+The 95% confidence band is approximately $\pm 1.96/\sqrt{n}$.
+
+**Ljung-Box test for overall autocorrelation:**
+
+The Ljung-Box statistic tests whether the first $K$ autocorrelations are jointly zero:
+
+$$Q = n(n+2) \sum_{k=1}^{K} \frac{\hat{\rho}^2(k)}{n-k}$$
+
+Under the null of no autocorrelation:
+
+$$Q \sim \chi^2_K$$
+
+### 1.8.4 Implementation and Application
+
+
+``` r
+#' Calculate sample autocorrelation
+#' @param x Numeric vector
+#' @param lag Lag at which to calculate ACF
+#' @return Autocorrelation at specified lag
+sample_acf <- function(x, lag) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+    x_mean <- mean(x)
+
+    numerator <- sum((x[(lag+1):n] - x_mean) * (x[1:(n-lag)] - x_mean))
+    denominator <- sum((x - x_mean)^2)
+
+    numerator / denominator
+}
+
+#' Ljung-Box test for autocorrelation
+#' @param x Numeric vector
+#' @param K Maximum lag to test
+#' @return List with test statistic, p-value, and conclusion
+ljung_box_test <- function(x, K = 20) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+
+    # Calculate autocorrelations
+    acf_vals <- sapply(1:K, function(k) sample_acf(x, k))
+
+    # Ljung-Box statistic
+    Q <- n * (n + 2) * sum(acf_vals^2 / (n - 1:K))
+
+    # P-value from chi-squared distribution
+    p_value <- 1 - pchisq(Q, df = K)
+
+    list(
+        statistic = Q,
+        p_value = p_value,
+        K = K,
+        significant = p_value < 0.05
+    )
+}
+
+# Test returns vs squared returns
+lb_returns <- ljung_box_test(sp500$returns, K = 20)
+lb_squared <- ljung_box_test(sp500$returns^2, K = 20)
+
+cat("Ljung-Box test results (K = 20):\n\n")
+cat("Returns:\n")
+cat("  Q statistic:", round(lb_returns$statistic, 2), "\n")
+cat("  P-value:", format(lb_returns$p_value, digits = 4), "\n")
+cat("  Conclusion:", ifelse(lb_returns$significant,
+                            "Reject null (some autocorrelation)",
+                            "Fail to reject null (no autocorrelation)"), "\n\n")
+
+cat("Squared returns:\n")
+cat("  Q statistic:", round(lb_squared$statistic, 2), "\n")
+cat("  P-value:", format(lb_squared$p_value, digits = 4), "\n")
+cat("  Conclusion:", ifelse(lb_squared$significant,
+                            "Reject null (significant autocorrelation)",
+                            "Fail to reject null"), "\n")
+```
+
+```
+Ljung-Box test results (K = 20):
+
+Returns:
+  Q statistic: 146.14 
+  P-value: 0 
+  Conclusion: Reject null (some autocorrelation) 
+
+Squared returns:
+  Q statistic: 11154.26 
+  P-value: 0 
+  Conclusion: Reject null (significant autocorrelation) 
+```
+
+**Exploiting volatility clustering:**
+
+
+``` r
+# Simple volatility targeting demonstration
+spy_vol <- copy(sp500_recent)
+spy_vol[, vol_20d := sqrt(frollapply(returns^2, n = 20, FUN = mean, fill = NA)) * sqrt(252)]
+spy_vol <- spy_vol[!is.na(vol_20d)]
+
+# Target 15% annual volatility
+target_vol <- 0.15
+
+# Position size inversely proportional to volatility
+spy_vol[, leverage := target_vol / vol_20d]
+spy_vol[, leverage := pmin(leverage, 2.0)]  # Cap at 2x
+
+# Volatility-targeted returns
+spy_vol[, targeted_returns := leverage * returns]
+
+# Calculate cumulative returns
+spy_vol[, cum_raw := cumsum(returns)]
+spy_vol[, cum_targeted := cumsum(targeted_returns)]
+
+# Plot comparison
+cum_long <- melt(
+    spy_vol[, .(date, `Raw Returns` = exp(cum_raw), `Vol-Targeted` = exp(cum_targeted))],
+    id.vars = "date", variable.name = "strategy", value.name = "wealth"
+)
+
+ggplot(cum_long, aes(x = date, y = wealth, colour = strategy)) +
+    geom_line(linewidth = 0.6) +
+    scale_colour_manual(values = c("Raw Returns" = trading_colors$primary,
+                                    "Vol-Targeted" = trading_colors$secondary)) +
+    labs(
+        title = "Volatility Targeting: Exploiting Predictable Volatility",
+        subtitle = "Position size inversely proportional to 20-day realised volatility",
+        x = NULL,
+        y = "Growth of £1",
+        colour = NULL
+    ) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/volatility-targeting-1.png" alt="Volatility-targeted strategy scales positions inversely to recent volatility.">
+	Volatility-targeted strategy scales positions inversely to recent volatility.
+</Figure>
+
+``` r
+# Performance comparison
+cat("\nVolatility targeting comparison:\n")
+cat("Raw returns:\n")
+cat("  Annualised return:", round(mean(spy_vol$returns) * 252 * 100, 2), "%\n")
+cat("  Annualised vol:", round(sd(spy_vol$returns) * sqrt(252) * 100, 2), "%\n")
+cat("  Sharpe:", round(mean(spy_vol$returns) / sd(spy_vol$returns) * sqrt(252), 2), "\n\n")
+
+cat("Vol-targeted:\n")
+cat("  Annualised return:", round(mean(spy_vol$targeted_returns) * 252 * 100, 2), "%\n")
+cat("  Annualised vol:", round(sd(spy_vol$targeted_returns) * sqrt(252) * 100, 2), "%\n")
+cat("  Sharpe:", round(mean(spy_vol$targeted_returns) / sd(spy_vol$targeted_returns) * sqrt(252), 2), "\n")
+```
+
+```
+
+Volatility targeting comparison:
+Raw returns:
+  Annualised return: 11.27 %
+  Annualised vol: 17.93 %
+  Sharpe: 0.63 
+
+Vol-targeted:
+  Annualised return: 15.16 %
+  Annualised vol: 14.95 %
+  Sharpe: 1.01 
+```
+
+---
+
+## 1.9 Leverage Effect
+
+### 1.9.1 Prose/Intuition
+
+When stock prices fall, volatility tends to rise. This asymmetric relationship—bad news increases volatility more than good news decreases it—is called the **leverage effect**.
+
+**Why the leverage effect exists:**
+
+1. **Mechanical leverage**: When a firm's equity value falls, its debt-to-equity ratio rises (leverage increases). Higher leverage means equity is riskier, hence more volatile.
+
+2. **Behavioural asymmetry**: Fear is a stronger emotion than greed. Panic selling during declines is more intense than enthusiasm during rallies.
+
+3. **Information asymmetry**: Negative surprises reveal more about the future than positive ones. A firm that misses earnings may have deeper problems; a firm that beats may just have had a good quarter.
+
+4. **Feedback mechanisms**: Falling prices trigger stop-losses, margin calls, and forced selling. Rising prices attract buyers more gradually.
+
+**Trading implications:**
+
+- **Option skew**: Put options are more expensive (higher implied volatility) than equidistant calls, reflecting the leverage effect.
+- **Asymmetric hedging**: Hedges need to be larger for downside protection.
+- **Risk models**: Volatility forecasts should account for the sign of recent returns.
+
+### 1.9.2 Visual Evidence
+
+
+``` r
+# Calculate tomorrow's volatility proxy (squared return)
+sp500_leverage <- copy(sp500)
+sp500_leverage[, vol_tomorrow := shift(abs(returns), -1)]  # Tomorrow's |return|
+sp500_leverage <- sp500_leverage[!is.na(vol_tomorrow) & !is.na(returns)]
+
+# Create bins for visualisation
+sp500_leverage[, return_bin := cut(returns, breaks = quantile(returns, probs = seq(0, 1, 0.1)),
+                                   include.lowest = TRUE)]
+
+# Calculate mean future volatility by bin
+binned_vol <- sp500_leverage[, .(mean_vol = mean(vol_tomorrow),
+                                  se = sd(vol_tomorrow) / sqrt(.N),
+                                  mean_return = mean(returns)), by = return_bin]
+binned_vol <- binned_vol[!is.na(return_bin)]
+
+# Scatter with regression
+ggplot(sp500_leverage, aes(x = returns, y = vol_tomorrow)) +
+    geom_point(alpha = 0.1, colour = trading_colors$primary, size = 0.5) +
+    geom_smooth(method = "lm", colour = trading_colors$negative, se = TRUE,
+                fill = trading_colors$negative, alpha = 0.2) +
+    geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(
+        title = "The Leverage Effect",
+        subtitle = "Today's return vs tomorrow's absolute return; negative slope indicates leverage effect",
+        x = "Today's Return",
+        y = "Tomorrow's |Return|"
+    ) +
+    coord_cartesian(xlim = c(-0.05, 0.05), ylim = c(0, 0.05)) +
+    theme_trading()
+```
+
+```
+`geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/leverage-effect-scatter-1.png" alt="The leverage effect: negative returns predict higher future volatility. Each point is one day.">
+	The leverage effect: negative returns predict higher future volatility. Each point is one day.
+</Figure>
+
+
+``` r
+# Plot binned relationship
+ggplot(binned_vol, aes(x = mean_return, y = mean_vol)) +
+    geom_point(size = 3, colour = trading_colors$primary) +
+    geom_errorbar(aes(ymin = mean_vol - 1.96 * se, ymax = mean_vol + 1.96 * se),
+                  width = 0.002, colour = trading_colors$primary) +
+    geom_smooth(method = "lm", colour = trading_colors$negative,
+                se = FALSE, linetype = "dashed") +
+    geom_vline(xintercept = 0, linetype = "dotted", colour = "grey50") +
+    labs(
+        title = "Leverage Effect: Binned Analysis",
+        subtitle = "Mean future |return| by decile of current return",
+        x = "Mean Return in Decile",
+        y = "Mean Next-Day |Return|"
+    ) +
+    theme_trading()
+```
+
+```
+`geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/leverage-binned-1.png" alt="Binned analysis: mean future volatility by decile of current return. Clear asymmetry visible.">
+	Binned analysis: mean future volatility by decile of current return. Clear asymmetry visible.
+</Figure>
+
+
+``` r
+# Estimate simple news impact curve
+# Regress tomorrow's squared return on today's return and squared return
+
+sp500_nic <- copy(sp500)
+sp500_nic[, sq_ret_tomorrow := shift(returns^2, -1)]
+sp500_nic <- sp500_nic[!is.na(sq_ret_tomorrow)]
+
+# Simple asymmetric model: σ²_{t+1} = a + b*r_t + c*r_t² (for r_t < 0) or d*r_t² (for r_t >= 0)
+sp500_nic[, negative := returns < 0]
+sp500_nic[, r_neg := ifelse(negative, returns, 0)]
+sp500_nic[, r_pos := ifelse(!negative, returns, 0)]
+sp500_nic[, r2_neg := ifelse(negative, returns^2, 0)]
+sp500_nic[, r2_pos := ifelse(!negative, returns^2, 0)]
+
+# Asymmetric GARCH-style model
+model <- lm(sq_ret_tomorrow ~ r_neg + r_pos + r2_neg + r2_pos, data = sp500_nic)
+
+# Generate news impact curve
+shock_range <- seq(-0.05, 0.05, by = 0.001)
+nic_data <- data.table(shock = shock_range)
+nic_data[, predicted_vol := {
+    sapply(shock, function(s) {
+        if (s < 0) {
+            coef(model)[1] + coef(model)[2] * s + coef(model)[4] * s^2
+        } else {
+            coef(model)[1] + coef(model)[3] * s + coef(model)[5] * s^2
+        }
+    })
+}]
+
+# Symmetric baseline for comparison
+nic_data[, symmetric_vol := coef(model)[1] + mean(c(coef(model)[4], coef(model)[5])) * shock^2]
+
+ggplot(nic_data, aes(x = shock)) +
+    geom_line(aes(y = predicted_vol, colour = "Asymmetric (Actual)"), linewidth = 1) +
+    geom_line(aes(y = symmetric_vol, colour = "Symmetric (If no leverage effect)"),
+              linewidth = 1, linetype = "dashed") +
+    geom_vline(xintercept = 0, linetype = "dotted", colour = "grey50") +
+    scale_colour_manual(values = c("Asymmetric (Actual)" = trading_colors$primary,
+                                    "Symmetric (If no leverage effect)" = trading_colors$neutral)) +
+    labs(
+        title = "News Impact Curve",
+        subtitle = "Predicted next-day variance as function of today's return",
+        x = "Today's Return (shock)",
+        y = "Expected Next-Day Variance",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/news-impact-curve-1.png" alt="News impact curve: volatility response to shocks of different signs and magnitudes.">
+	News impact curve: volatility response to shocks of different signs and magnitudes.
+</Figure>
+
+### 1.9.3 Mathematical Derivation
+
+**Correlation between returns and future volatility:**
+
+The leverage effect implies:
+
+$$Corr(r_t, \sigma^2_{t+1}) < 0$$
+
+Using squared returns as a volatility proxy:
+
+$$Corr(r_t, r^2_{t+1}) < 0$$
+
+**News Impact Curve:**
+
+The news impact curve shows expected conditional variance as a function of the current shock:
+
+$$E[\sigma^2_{t+1} | r_t] = f(r_t)$$
+
+For a symmetric model (standard GARCH):
+
+$$f(r_t) = \omega + \alpha r_t^2$$
+
+This is symmetric around $r_t = 0$.
+
+For an asymmetric model (GJR-GARCH or similar):
+
+$$f(r_t) = \omega + \alpha r_t^2 + \gamma r_t^2 \mathbf{1}_{r_t < 0}$$
+
+When $\gamma > 0$, negative returns have a larger impact on future volatility.
+
+**Connection to option skew:**
+
+The leverage effect explains why out-of-the-money puts have higher implied volatility than equidistant calls. Under the Black-Scholes model, if volatility were symmetric, the implied volatility smile would be symmetric. The observed skew (puts more expensive) reflects the market's knowledge that downside moves come with higher volatility.
+
+### 1.9.4 Implementation and Application
+
+
+``` r
+#' Calculate leverage effect correlation
+#' @param returns Vector of returns
+#' @param vol_measure "squared" or "absolute"
+#' @return Correlation between returns and future volatility
+leverage_correlation <- function(returns, vol_measure = "squared") {
+    returns <- returns[!is.na(returns)]
+    n <- length(returns)
+
+    if (vol_measure == "squared") {
+        future_vol <- c(returns[-1]^2, NA)
+    } else {
+        future_vol <- c(abs(returns[-1]), NA)
+    }
+
+    cor(returns[-n], future_vol[-n], use = "complete.obs")
+}
+
+# Calculate for multiple assets
+leverage_data <- rbindlist(lapply(c("spy", "qqq", "iwm", "aapl", "nvda", "tlt"), function(sym) {
+    dt <- load_market(sym)
+    dt[, returns := c(NA, diff(log(close)))]
+    returns <- dt$returns[!is.na(dt$returns)]
+
+    data.table(
+        symbol = toupper(sym),
+        leverage_corr = leverage_correlation(returns, "squared")
+    )
+}))
+
+cat("\nLeverage effect (correlation between r_t and r²_{t+1}):\n")
+print(leverage_data[order(leverage_corr)])
+cat("\nNote: Negative values indicate leverage effect (bad news → higher vol)\n")
+cat("TLT (bonds) typically shows weaker or opposite effect\n")
+```
+
+```
+
+Leverage effect (correlation between r_t and r²_{t+1}):
+   symbol leverage_corr
+   <char>         <num>
+1:    SPY   -0.11220676
+2:    QQQ   -0.09193073
+3:    IWM   -0.07737105
+4:   NVDA   -0.01076947
+5:   AAPL    0.03365025
+6:    TLT    0.04116318
+
+Note: Negative values indicate leverage effect (bad news → higher vol)
+TLT (bonds) typically shows weaker or opposite effect
+```
+
+**Asymmetric hedging application:**
+
+
+``` r
+# Demonstrate why hedging should be asymmetric
+
+# If we size hedges based on symmetric volatility, we underhedge in downturns
+sp500_hedge <- copy(sp500_recent)
+sp500_hedge[, vol_20d := frollapply(returns, n = 20, FUN = sd, fill = NA) * sqrt(252)]
+
+# Measure actual volatility in up vs down markets
+sp500_hedge[, market_up := shift(cumsum(returns) - cumsum(returns) / 1:nrow(sp500_hedge), 20) > 0]
+
+cat("\nVolatility in different market regimes:\n")
+cat("After positive 20-day returns:",
+    round(mean(abs(sp500_hedge$returns[sp500_hedge$market_up == TRUE]), na.rm = TRUE) * sqrt(252) * 100, 2), "% ann.\n")
+cat("After negative 20-day returns:",
+    round(mean(abs(sp500_hedge$returns[sp500_hedge$market_up == FALSE]), na.rm = TRUE) * sqrt(252) * 100, 2), "% ann.\n")
+```
+
+```
+
+Volatility in different market regimes:
+After positive 20-day returns: 11.68 % ann.
+After negative 20-day returns: 10.34 % ann.
+```
+
+---
+
+## 1.10 Absence of Autocorrelation
+
+### 1.10.1 Prose/Intuition
+
+If past returns reliably predicted future returns, everyone would trade on this information. The trading pressure would move prices until the pattern disappeared. This is the essence of market efficiency: predictable patterns are arbitraged away.
+
+**What "efficient" means statistically:**
+
+The Efficient Market Hypothesis (EMH) in its weak form states that prices fully reflect all information in past prices. Mathematically:
+
+$$E[r_{t+1} | r_t, r_{t-1}, \ldots] = E[r_{t+1}]$$
+
+Past returns don't help predict future returns beyond the unconditional mean.
+
+**What efficiency does NOT mean:**
+
+1. Returns are i.i.d. (they're not—volatility is predictable)
+2. Returns are normally distributed (they're not—fat tails)
+3. Markets are "correct" (prices can deviate from fundamental value)
+4. No one can make money (skill and risk premia still exist)
+
+**Small predictability in practice:**
+
+While returns are largely unpredictable, slight autocorrelation does exist:
+
+- **Negative at very short horizons** (bid-ask bounce): Market orders alternate between hitting bid and ask, creating spurious negative autocorrelation.
+- **Slightly positive at daily-weekly horizons** (momentum): Documented anomaly, though economically small and decaying over time.
+- **Negative at longer horizons** (mean reversion): Prices eventually correct overreactions.
+
+The signal-to-noise ratio is extremely low (R² ≈ 0.01-0.05), making profitable trading challenging after costs.
+
+### 1.10.2 Visual Evidence
+
+
+``` r
+# Detailed ACF analysis
+acf_returns <- acf(sp500$returns, lag.max = 30, plot = FALSE)
+
+acf_detail <- data.table(
+    lag = 1:30,
+    acf = acf_returns$acf[2:31]
+)
+
+# Significance bounds
+n <- nrow(sp500)
+sig_bound <- qnorm(0.975) / sqrt(n)
+
+ggplot(acf_detail, aes(x = lag, y = acf)) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    geom_hline(yintercept = c(-sig_bound, sig_bound),
+               linetype = "dashed", colour = trading_colors$negative, alpha = 0.7) +
+    geom_segment(aes(xend = lag, yend = 0), colour = trading_colors$primary, linewidth = 1) +
+    geom_point(colour = trading_colors$primary, size = 2) +
+    annotate("text", x = 25, y = sig_bound + 0.005,
+             label = "95% significance bounds", colour = trading_colors$negative, size = 3) +
+    labs(
+        title = "Autocorrelation of S&P 500 Daily Returns",
+        subtitle = "Most lags are within significance bounds → no predictable pattern",
+        x = "Lag (days)",
+        y = "Autocorrelation"
+    ) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/return-acf-detail-1.png" alt="ACF of daily returns shows no significant autocorrelation at most lags.">
+	ACF of daily returns shows no significant autocorrelation at most lags.
+</Figure>
+
+``` r
+# Count significant lags
+n_significant <- sum(abs(acf_detail$acf) > sig_bound)
+cat("\nSignificant autocorrelations:", n_significant, "out of 30 lags\n")
+cat("Expected by chance (5%):", round(30 * 0.05), "lags\n")
+```
+
+```
+
+Significant autocorrelations: 9 out of 30 lags
+Expected by chance (5%): 2 lags
+```
+
+
+``` r
+# Compare ACF across assets
+assets <- c("spy", "qqq", "tlt", "gld")
+
+acf_comparison <- rbindlist(lapply(assets, function(sym) {
+    dt <- load_market(sym)
+    dt[, returns := c(NA, diff(log(close)))]
+    returns <- dt$returns[!is.na(dt$returns)]
+
+    acf_vals <- acf(returns, lag.max = 20, plot = FALSE)
+
+    data.table(
+        asset = toupper(sym),
+        lag = 1:20,
+        acf = acf_vals$acf[2:21]
+    )
+}))
+
+ggplot(acf_comparison, aes(x = lag, y = acf)) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    geom_hline(yintercept = c(-sig_bound, sig_bound),
+               linetype = "dashed", colour = trading_colors$negative, alpha = 0.5) +
+    geom_line(colour = trading_colors$primary, alpha = 0.7) +
+    geom_point(colour = trading_colors$primary, size = 1) +
+    facet_wrap(~ asset, ncol = 2) +
+    labs(
+        title = "Return Autocorrelation Across Asset Classes",
+        subtitle = "Equities, bonds, and gold all show minimal predictability",
+        x = "Lag (days)",
+        y = "Autocorrelation"
+    ) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/cross-asset-acf-1.png" alt="ACF comparison across asset classes. All show minimal return autocorrelation.">
+	ACF comparison across asset classes. All show minimal return autocorrelation.
+</Figure>
+
+### 1.10.3 Mathematical Derivation
+
+**Sample autocorrelation:**
+
+Given observations $r_1, \ldots, r_n$ with sample mean $\bar{r}$:
+
+$$\hat{\rho}(k) = \frac{\sum_{t=k+1}^{n}(r_t - \bar{r})(r_{t-k} - \bar{r})}{\sum_{t=1}^{n}(r_t - \bar{r})^2}$$
+
+This estimates the true autocorrelation $\rho(k) = Corr(r_t, r_{t-k})$.
+
+**Asymptotic distribution:**
+
+Under the null hypothesis that $\{r_t\}$ is a white noise process (i.i.d. with finite variance), for large $n$:
+
+$$\sqrt{n} \cdot \hat{\rho}(k) \xrightarrow{d} N(0, 1)$$
+
+Thus $\hat{\rho}(k)$ is approximately $N(0, 1/n)$, giving the 95% confidence bands:
+
+$$\hat{\rho}(k) \in \left(-\frac{1.96}{\sqrt{n}}, \frac{1.96}{\sqrt{n}}\right)$$
+
+**Ljung-Box test derivation:**
+
+To test whether the first $K$ autocorrelations are jointly zero:
+
+$H_0: \rho(1) = \rho(2) = \cdots = \rho(K) = 0$
+
+$H_1$: At least one $\rho(k) \neq 0$
+
+Under $H_0$, the vector $(\hat{\rho}(1), \ldots, \hat{\rho}(K))$ is asymptotically multivariate normal with covariance matrix $(1/n)I_K$.
+
+The sum of squared standardised autocorrelations:
+
+$$\sum_{k=1}^{K} n \hat{\rho}^2(k) \xrightarrow{d} \chi^2_K$$
+
+The Ljung-Box modification includes a small-sample correction:
+
+$$Q = n(n+2) \sum_{k=1}^{K} \frac{\hat{\rho}^2(k)}{n-k} \sim \chi^2_K$$
+
+### 1.10.4 Implementation and Application
+
+
+``` r
+#' Test for return autocorrelation
+#' @param returns Vector of returns
+#' @param max_lag Maximum lag to test
+#' @return List with ACF values, Ljung-Box statistic, and conclusion
+test_autocorrelation <- function(returns, max_lag = 20) {
+    returns <- returns[!is.na(returns)]
+    n <- length(returns)
+
+    # Calculate ACF
+    acf_vals <- acf(returns, lag.max = max_lag, plot = FALSE)$acf[2:(max_lag + 1)]
+
+    # Ljung-Box test
+    Q <- n * (n + 2) * sum(acf_vals^2 / (n - 1:max_lag))
+    p_value <- 1 - pchisq(Q, df = max_lag)
+
+    # Count significant individual autocorrelations
+    sig_bound <- qnorm(0.975) / sqrt(n)
+    n_significant <- sum(abs(acf_vals) > sig_bound)
+
+    list(
+        acf = acf_vals,
+        Q_statistic = Q,
+        p_value = p_value,
+        n_significant = n_significant,
+        expected_significant = round(max_lag * 0.05),
+        conclusion = ifelse(p_value < 0.05, "Reject null (autocorrelation present)",
+                           "Fail to reject null (no autocorrelation)")
+    )
+}
+
+# Test S&P 500
+sp500_ac_test <- test_autocorrelation(sp500$returns)
+
+cat("Autocorrelation test for S&P 500 returns:\n")
+cat("  Ljung-Box Q:", round(sp500_ac_test$Q_statistic, 2), "\n")
+cat("  P-value:", format(sp500_ac_test$p_value, digits = 4), "\n")
+cat("  Significant lags:", sp500_ac_test$n_significant, "out of 20\n")
+cat("  Expected by chance:", sp500_ac_test$expected_significant, "\n")
+cat("  Conclusion:", sp500_ac_test$conclusion, "\n")
+```
+
+```
+Autocorrelation test for S&P 500 returns:
+  Ljung-Box Q: 146.14 
+  P-value: 0 
+  Significant lags: 8 out of 20
+  Expected by chance: 1 
+  Conclusion: Reject null (autocorrelation present) 
+```
+
+**What "weak" predictability means for alpha:**
+
+
+``` r
+# Suppose we found a strategy with 1% R² (correlating past returns with future)
+# What does this mean economically?
+
+# Assume: daily return vol = 1%, 252 trading days, no transaction costs (unrealistic!)
+daily_vol <- 0.01
+r_squared <- 0.01  # 1% R² - typical "predictability"
+
+# IC (Information Coefficient) from R²
+ic <- sqrt(r_squared)  # Approximately
+
+# Expected return from Fundamental Law of Active Management
+# IR ≈ IC × √(breadth)
+# For daily trading, breadth ≈ 252
+
+annual_ir <- ic * sqrt(252)
+
+# Convert to annual alpha (assuming 15% target volatility)
+target_vol <- 0.15
+expected_alpha <- annual_ir * target_vol
+
+cat("Alpha implications of 1% return predictability:\n")
+cat("  Information Coefficient (IC):", round(ic * 100, 1), "%\n")
+cat("  Implied annual IR:", round(annual_ir, 2), "\n")
+cat("  Expected alpha (before costs):", round(expected_alpha * 100, 1), "%\n\n")
+
+# Now add realistic transaction costs
+spread_cost <- 0.001  # 10 bps round-trip
+turnover_daily <- 0.5  # 50% daily turnover for active strategy
+annual_costs <- spread_cost * turnover_daily * 252
+
+cat("After transaction costs (10 bps × 50% turnover × 252 days):\n")
+cat("  Annual costs:", round(annual_costs * 100, 1), "%\n")
+cat("  Net alpha:", round((expected_alpha - annual_costs) * 100, 1), "%\n")
+cat("\nConclusion: Small predictability is easily overwhelmed by costs.\n")
+```
+
+```
+Alpha implications of 1% return predictability:
+  Information Coefficient (IC): 10 %
+  Implied annual IR: 1.59 
+  Expected alpha (before costs): 23.8 %
+
+After transaction costs (10 bps × 50% turnover × 252 days):
+  Annual costs: 12.6 %
+  Net alpha: 11.2 %
+
+Conclusion: Small predictability is easily overwhelmed by costs.
+```
+
+---
+
+## Quick Reference
+
+### Stylised Facts Summary
+
+| Fact | Description | Test | Trading Implication |
+|------|-------------|------|---------------------|
+| Fat tails | Excess kurtosis >> 0 | QQ plot, kurtosis | Normal VaR underestimates risk |
+| Vol clustering | $Corr(r_t^2, r_{t-k}^2) > 0$ | ACF of $r^2$ | Volatility is predictable |
+| Leverage effect | $Corr(r_t, \sigma^2_{t+1}) < 0$ | Regression | Asymmetric hedging needed |
+| No autocorrelation | $Corr(r_t, r_{t-k}) \approx 0$ | Ljung-Box | Returns unpredictable |
+
+### Key Formulae
+
+**Excess kurtosis:**
+$$\kappa - 3 = \frac{E[(X-\mu)^4]}{\sigma^4} - 3$$
+
+**Sample autocorrelation:**
+$$\hat{\rho}(k) = \frac{\sum_{t=k+1}^{n}(r_t - \bar{r})(r_{t-k} - \bar{r})}{\sum_{t=1}^{n}(r_t - \bar{r})^2}$$
+
+**Ljung-Box statistic:**
+$$Q = n(n+2) \sum_{k=1}^{K} \frac{\hat{\rho}^2(k)}{n-k} \sim \chi^2_K$$
+
+**Significance bounds for ACF:**
+$$\pm \frac{1.96}{\sqrt{n}}$$
+
+### Diagnostic Checklist
+
+When analysing a new return series:
+
+- [ ] Calculate and report kurtosis (expect >> 3 for daily data)
+- [ ] Plot QQ against normal (expect S-shaped deviation)
+- [ ] Test ACF of returns (expect insignificant)
+- [ ] Test ACF of squared returns (expect significant persistence)
+- [ ] Estimate leverage effect correlation (expect negative for equities)
+- [ ] Run Ljung-Box on returns and squared returns
+- [ ] Compare VaR: historical vs parametric normal
+
+### R Functions
+
+```r
+# Kurtosis
+sample_kurtosis(returns)  # Excess kurtosis
+
+# Skewness
+sample_skewness(returns)
+
+# ACF and Ljung-Box
+acf(returns, lag.max = 20)
+Box.test(returns, lag = 20, type = "Ljung-Box")
+
+# Leverage effect
+cor(returns[-n], returns[-1]^2)  # Should be negative
+
+# VaR comparison
+quantile(returns, 0.05)  # Historical 5% VaR
+qnorm(0.05, mean(returns), sd(returns))  # Parametric VaR
+```
+
+---
+
+*This concludes Chapter 1. We have established the foundations: how markets generate price data, the mathematics of returns, and the empirical regularities that any realistic model must capture. Chapter 2 will build on these foundations to develop the risk and performance metrics that determine whether a strategy is worth pursuing.*

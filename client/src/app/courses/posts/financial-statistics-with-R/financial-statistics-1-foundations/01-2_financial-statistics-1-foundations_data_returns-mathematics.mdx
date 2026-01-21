@@ -1,0 +1,1127 @@
+---
+title: "Algorithmic Trading with R"
+chapter: "Chapter 1: Financial Data and Returns"
+part: "Part 2: The Mathematics of Returns"
+section: "01-2"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2026-01-20
+tags: [algorithmic-trading, quantitative-finance, R, statistics]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: The Mathematics of Returns
+
+Returns are the fundamental unit of analysis in quantitative finance. We study returns rather than prices because returns have more desirable statistical properties: they are (roughly) stationary, scale-free, and directly comparable across assets.
+
+But there are two different ways to compute returns, and the choice matters. This chapter develops the mathematics of simple and log returns, derives their properties, and establishes when to use each.
+
+---
+
+## 1.4 Simple vs Log Returns
+
+### 1.4.1 Prose/Intuition
+
+When a stock price moves from £100 to £110, we can express this gain in two mathematically distinct ways:
+
+**Simple (arithmetic) return:**
+$$r_{simple} = \frac{110 - 100}{100} = 0.10 = 10\%$$
+
+This is the intuitive definition: the percentage change in price.
+
+**Log (continuously compounded) return:**
+$$r_{log} = \ln\left(\frac{110}{100}\right) = \ln(1.10) \approx 0.0953 = 9.53\%$$
+
+The log return is smaller because it represents the continuously compounded rate that would produce the same price change.
+
+**Why do both exist?**
+
+Simple returns arose naturally in early finance: "the stock is up 10%" is a straightforward statement. Log returns come from continuous-time stochastic calculus, where prices are modelled as geometric Brownian motion:
+
+$$dS = \mu S \, dt + \sigma S \, dW$$
+
+This equation implies log returns are normally distributed (Itô's lemma), which made them mathematically convenient for option pricing and risk management.
+
+**Historical context:** Before computers, the distinction mattered less. Both converge for small returns. But as quantitative finance matured and daily returns became the standard unit of analysis, the choice became more consequential.
+
+**Which is "correct"?** Both are valid transformations of price data. The question is which is more useful for a given purpose. As we will see, they have different additivity properties, and this dictates when to use each.
+
+### 1.4.2 Visual Evidence
+
+
+``` r
+# Create comparison of simple vs log returns across range of price changes
+price_ratios <- seq(0.5, 2.0, by = 0.01)  # Price final/initial from 0.5 to 2.0
+
+returns_comparison <- data.table(
+    price_ratio = price_ratios,
+    simple = price_ratios - 1,  # (P_t - P_{t-1})/P_{t-1} = P_t/P_{t-1} - 1
+    log = log(price_ratios)      # ln(P_t/P_{t-1})
+)
+
+# Melt for plotting
+returns_long <- melt(returns_comparison, id.vars = "price_ratio",
+                     variable.name = "type", value.name = "return")
+returns_long[, type := ifelse(type == "simple", "Simple Return", "Log Return")]
+
+ggplot(returns_long, aes(x = price_ratio, y = return, colour = type)) +
+    geom_line(linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+    geom_abline(intercept = -1, slope = 1, linetype = "dotted", colour = "grey70") +
+    scale_colour_manual(values = c("Simple Return" = trading_colors$primary,
+                                    "Log Return" = trading_colors$secondary)) +
+    labs(
+        title = "Simple vs Log Returns",
+        subtitle = "Divergence increases with magnitude; they converge near zero",
+        x = "Price Ratio (P_t / P_{t-1})",
+        y = "Return",
+        colour = NULL
+    ) +
+    scale_y_continuous(labels = scales::percent, limits = c(-0.6, 1.0)) +
+    scale_x_continuous(breaks = seq(0.5, 2.0, by = 0.25)) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/return-divergence-1.png" alt="Simple and log returns diverge for large price moves. For small daily returns, they are nearly identical.">
+	Simple and log returns diverge for large price moves. For small daily returns, they are nearly identical.
+</Figure>
+
+
+``` r
+# Zoom in on the daily return range
+small_ratios <- seq(0.95, 1.05, by = 0.001)
+
+small_returns <- data.table(
+    price_ratio = small_ratios,
+    simple = small_ratios - 1,
+    log = log(small_ratios)
+)
+
+small_long <- melt(small_returns, id.vars = "price_ratio",
+                   variable.name = "type", value.name = "return")
+small_long[, type := ifelse(type == "simple", "Simple Return", "Log Return")]
+
+ggplot(small_long, aes(x = price_ratio, y = return, colour = type)) +
+    geom_line(linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+    scale_colour_manual(values = c("Simple Return" = trading_colors$primary,
+                                    "Log Return" = trading_colors$secondary)) +
+    labs(
+        title = "Simple vs Log Returns (Daily Range)",
+        subtitle = "For typical daily moves (±5%), the difference is negligible",
+        x = "Price Ratio (P_t / P_{t-1})",
+        y = "Return",
+        colour = NULL
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/small-return-approximation-1.png" alt="For typical daily returns (±5%), simple and log returns are nearly indistinguishable.">
+	For typical daily returns (±5%), simple and log returns are nearly indistinguishable.
+</Figure>
+
+
+``` r
+# Load S&P 500 data
+sp500 <- load_market("sp500")
+
+# Calculate both types of returns
+sp500[, simple_return := close / shift(close) - 1]
+sp500[, log_return := log(close / shift(close))]
+
+# Remove NAs
+sp500_returns <- sp500[!is.na(simple_return)]
+
+# Melt for comparison
+returns_dist <- melt(
+    sp500_returns[, .(date, simple_return, log_return)],
+    id.vars = "date",
+    variable.name = "type",
+    value.name = "return"
+)
+returns_dist[, type := ifelse(type == "simple_return", "Simple", "Log")]
+
+ggplot(returns_dist, aes(x = return, fill = type)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 100, alpha = 0.6, position = "identity") +
+    geom_density(aes(colour = type), linewidth = 0.8, fill = NA) +
+    scale_fill_manual(values = c("Simple" = trading_colors$primary,
+                                  "Log" = trading_colors$secondary)) +
+    scale_colour_manual(values = c("Simple" = trading_colors$primary,
+                                    "Log" = trading_colors$secondary)) +
+    labs(
+        title = "Distribution of S&P 500 Daily Returns",
+        subtitle = "Simple vs log returns; nearly identical for daily data",
+        x = "Return",
+        y = "Density",
+        fill = "Type",
+        colour = "Type"
+    ) +
+    coord_cartesian(xlim = c(-0.10, 0.10)) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/distribution-comparison-1.png" alt="Distribution of simple vs log returns for the S&amp;P 500. Log returns are slightly more symmetric.">
+	Distribution of simple vs log returns for the S&amp;P 500. Log returns are slightly more symmetric.
+</Figure>
+
+``` r
+# Summary statistics
+cat("\nReturn distribution summary:\n")
+cat("Simple returns - Mean:", round(mean(sp500_returns$simple_return) * 100, 4), "%,",
+    "SD:", round(sd(sp500_returns$simple_return) * 100, 2), "%\n")
+cat("Log returns    - Mean:", round(mean(sp500_returns$log_return) * 100, 4), "%,",
+    "SD:", round(sd(sp500_returns$log_return) * 100, 2), "%\n")
+```
+
+```
+
+Return distribution summary:
+Simple returns - Mean: 0.0391 %, SD: 1.14 %
+Log returns    - Mean: 0.0326 %, SD: 1.14 %
+```
+
+### 1.4.3 Mathematical Derivation
+
+**Definition of simple return:**
+
+Given prices $P_{t-1}$ and $P_t$, the simple (arithmetic) return is:
+
+$$r_t^{simple} = \frac{P_t - P_{t-1}}{P_{t-1}} = \frac{P_t}{P_{t-1}} - 1$$
+
+Equivalently: $P_t = P_{t-1}(1 + r_t^{simple})$
+
+**Definition of log return:**
+
+The log (continuously compounded) return is:
+
+$$r_t^{log} = \ln\left(\frac{P_t}{P_{t-1}}\right) = \ln(P_t) - \ln(P_{t-1})$$
+
+Equivalently: $P_t = P_{t-1} \exp(r_t^{log})$
+
+**Taylor series approximation:**
+
+For small $x$, the Taylor expansion of $\ln(1 + x)$ around $x = 0$ is:
+
+$$\ln(1 + x) = x - \frac{x^2}{2} + \frac{x^3}{3} - \frac{x^4}{4} + \cdots$$
+
+For $|x| < 0.1$ (typical daily returns), truncating at the first term:
+
+$$\ln(1 + x) \approx x$$
+
+This shows why simple and log returns are approximately equal for small returns:
+
+$$r^{log} = \ln(1 + r^{simple}) \approx r^{simple} \text{ for small } r^{simple}$$
+
+The second-order approximation gives the correction:
+
+$$r^{log} \approx r^{simple} - \frac{(r^{simple})^2}{2}$$
+
+This explains why log returns are smaller for positive returns and larger (less negative) for negative returns.
+
+**Time additivity of log returns (Proof):**
+
+Log returns are additive over time. For a period from $t$ to $T$:
+
+$$r_{t \to T}^{log} = \ln\left(\frac{P_T}{P_t}\right) = \ln\left(\frac{P_T}{P_{T-1}} \cdot \frac{P_{T-1}}{P_{T-2}} \cdots \frac{P_{t+1}}{P_t}\right)$$
+
+Using the property $\ln(ab) = \ln(a) + \ln(b)$:
+
+$$r_{t \to T}^{log} = \ln\left(\frac{P_T}{P_{T-1}}\right) + \ln\left(\frac{P_{T-1}}{P_{T-2}}\right) + \cdots + \ln\left(\frac{P_{t+1}}{P_t}\right)$$
+
+$$r_{t \to T}^{log} = \sum_{s=t+1}^{T} r_s^{log}$$
+
+**QED.** Multi-period log returns are the sum of single-period log returns.
+
+**Cross-sectional additivity of simple returns (Portfolio returns):**
+
+For a portfolio with weights $w_i$ summing to 1, the portfolio simple return is:
+
+$$r_p^{simple} = \sum_i w_i \cdot r_i^{simple}$$
+
+**Proof:** Let $V_0$ be initial portfolio value, invested $w_i V_0$ in asset $i$.
+
+At time 1, asset $i$ holding is worth $w_i V_0 (1 + r_i^{simple})$.
+
+Total portfolio value:
+
+$$V_1 = \sum_i w_i V_0 (1 + r_i^{simple}) = V_0 \sum_i w_i (1 + r_i^{simple}) = V_0 \left(1 + \sum_i w_i r_i^{simple}\right)$$
+
+Therefore:
+
+$$r_p^{simple} = \frac{V_1 - V_0}{V_0} = \sum_i w_i r_i^{simple}$$
+
+**QED.** Portfolio simple returns are weighted averages of component simple returns.
+
+**Warning:** Log returns are NOT cross-sectionally additive:
+
+$$r_p^{log} \neq \sum_i w_i \cdot r_i^{log}$$
+
+This is because $\ln(\sum_i w_i e^{r_i}) \neq \sum_i w_i r_i$ in general.
+
+### 1.4.4 Implementation and Application
+
+
+``` r
+#' Calculate simple returns from price vector
+#' @param prices Numeric vector of prices
+#' @param na_fill Value to use for first observation (default NA)
+#' @return Numeric vector of simple returns
+calc_simple_returns <- function(prices, na_fill = NA_real_) {
+    n <- length(prices)
+    if (n < 2) return(rep(na_fill, n))
+
+    returns <- prices[-1] / prices[-n] - 1
+    c(na_fill, returns)
+}
+
+#' Calculate log returns from price vector
+#' @param prices Numeric vector of prices
+#' @param na_fill Value to use for first observation (default NA)
+#' @return Numeric vector of log returns
+calc_log_returns <- function(prices, na_fill = NA_real_) {
+    n <- length(prices)
+    if (n < 2) return(rep(na_fill, n))
+
+    returns <- diff(log(prices))
+    c(na_fill, returns)
+}
+
+#' Convert simple returns to log returns
+#' @param simple_returns Numeric vector of simple returns
+#' @return Numeric vector of log returns
+simple_to_log <- function(simple_returns) {
+    log(1 + simple_returns)
+}
+
+#' Convert log returns to simple returns
+#' @param log_returns Numeric vector of log returns
+#' @return Numeric vector of simple returns
+log_to_simple <- function(log_returns) {
+    exp(log_returns) - 1
+}
+
+# Demonstrate with SPY data
+spy <- load_market("spy")
+spy <- filter_dates(spy, "2020-01-01")
+
+spy[, simple_ret := calc_simple_returns(close)]
+spy[, log_ret := calc_log_returns(close)]
+
+# Verify conversion
+spy[, log_from_simple := simple_to_log(simple_ret)]
+spy[, simple_from_log := log_to_simple(log_ret)]
+
+cat("Conversion verification (should be very small):\n")
+cat("  Max |log - converted log|:", max(abs(spy$log_ret - spy$log_from_simple), na.rm = TRUE), "\n")
+cat("  Max |simple - converted simple|:", max(abs(spy$simple_ret - spy$simple_from_log), na.rm = TRUE), "\n")
+```
+
+```
+Conversion verification (should be very small):
+  Max |log - converted log|: 9.584347e-16 
+  Max |simple - converted simple|: 8.881784e-16 
+```
+
+**Handling edge cases:**
+
+
+``` r
+#' Robust return calculation handling edge cases
+#' @param prices Numeric vector of prices
+#' @param type "simple" or "log"
+#' @return Numeric vector of returns with edge cases handled
+calc_returns_robust <- function(prices, type = "log") {
+    n <- length(prices)
+    if (n < 2) return(rep(NA_real_, n))
+
+    # Handle zeros and negatives
+    prices[prices <= 0] <- NA
+
+    # Calculate returns
+    if (type == "log") {
+        returns <- c(NA_real_, diff(log(prices)))
+    } else {
+        returns <- c(NA_real_, prices[-1] / prices[-n] - 1)
+    }
+
+    # Flag suspicious returns (possible data errors or splits)
+    suspicious <- abs(returns) > 0.5  # >50% single-day move
+    returns[suspicious & !is.na(returns)] <- NA
+
+    return(returns)
+}
+
+# Test edge cases
+test_prices <- c(100, 102, 0, 105, -10, 110, 55)  # Includes zero, negative, potential split
+
+cat("\nEdge case handling:\n")
+cat("  Prices:", paste(test_prices, collapse = ", "), "\n")
+cat("  Naive log returns:", paste(round(calc_log_returns(test_prices), 4), collapse = ", "), "\n")
+cat("  Robust log returns:", paste(round(calc_returns_robust(test_prices, "log"), 4), collapse = ", "), "\n")
+```
+
+```
+
+Edge case handling:
+  Prices: 100, 102, 0, 105, -10, 110, 55 
+  Naive log returns: NA, 0.0198, -Inf, Inf, NaN, NaN, -0.6931 
+  Robust log returns: NA, 0.0198, NA, NA, NA, NA, NA 
+```
+
+**When to use which:**
+
+| Use Case | Return Type | Reason |
+|----------|-------------|--------|
+| Backtesting cumulative performance | Log | Time-additive: sum returns to get total |
+| Portfolio optimisation | Simple | Cross-sectionally additive: weighted average |
+| Risk models (VaR, volatility) | Either | Approximately equal for short horizons |
+| Reporting to clients | Simple | More intuitive: "up 10%" |
+| Statistical modelling | Log | Better distributional properties |
+| Multi-period holding | Log | Compound correctly |
+
+
+``` r
+# Demonstrate time additivity
+spy_subset <- filter_dates(spy, "2024-01-01", "2024-06-30")
+
+# Calculate total return both ways
+log_sum <- sum(spy_subset$log_ret, na.rm = TRUE)
+simple_product <- prod(1 + spy_subset$simple_ret, na.rm = TRUE) - 1
+
+# Direct calculation
+direct_log <- log(tail(spy_subset$close, 1) / head(spy_subset$close[!is.na(spy_subset$close)], 1))
+direct_simple <- tail(spy_subset$close, 1) / head(spy_subset$close[!is.na(spy_subset$close)], 1) - 1
+
+cat("\nTime additivity demonstration (H1 2024):\n")
+cat("  Sum of daily log returns:", round(log_sum * 100, 2), "%\n")
+cat("  Direct log calculation:", round(direct_log * 100, 2), "%\n")
+cat("  Difference:", round(abs(log_sum - direct_log) * 100, 6), "%\n\n")
+cat("  Product of (1 + simple) - 1:", round(simple_product * 100, 2), "%\n")
+cat("  Direct simple calculation:", round(direct_simple * 100, 2), "%\n")
+```
+
+```
+
+Time additivity demonstration (H1 2024):
+  Sum of daily log returns: 13.54 %
+  Direct log calculation: 14.1 %
+  Difference: 0.561207 %
+
+  Product of (1 + simple) - 1: 14.5 %
+  Direct simple calculation: 15.14 %
+```
+
+---
+
+## 1.5 Multi-Period Compounding
+
+### 1.5.1 Prose/Intuition
+
+A stock that returns +20% one year and -20% the next does not break even. Starting with £100:
+
+- After Year 1: £100 × 1.20 = £120
+- After Year 2: £120 × 0.80 = £96
+
+You've lost £4, despite the arithmetic average return being 0%.
+
+This is the fundamental asymmetry of compounding. Losses require larger gains to recover: a 50% loss requires a 100% gain to break even. This asymmetry is why understanding geometric vs arithmetic returns is essential.
+
+**The arithmetic average misleads:**
+
+The arithmetic average of +20% and -20% is 0%. But this overstates the true growth rate. The **geometric average** (or compound annual growth rate, CAGR) correctly captures wealth evolution:
+
+$$CAGR = \left(\frac{W_T}{W_0}\right)^{1/T} - 1 = (0.96)^{1/2} - 1 \approx -2.0\%$$
+
+**Volatility drag:**
+
+The gap between arithmetic and geometric averages increases with volatility. A highly volatile asset with a 0% arithmetic average return will actually lose money over time. This "volatility drag" is approximately:
+
+$$\text{Geometric mean} \approx \text{Arithmetic mean} - \frac{\sigma^2}{2}$$
+
+High volatility literally destroys long-term wealth, even without a directional bias.
+
+### 1.5.2 Visual Evidence
+
+
+``` r
+set.seed(42)
+
+# Simulate two paths with same arithmetic mean but different volatility
+n_days <- 252 * 5  # 5 years
+arithmetic_mean <- 0.10 / 252  # 10% annual target
+
+# Low volatility: 10% annual
+vol_low <- 0.10 / sqrt(252)
+returns_low <- rnorm(n_days, mean = arithmetic_mean, sd = vol_low)
+
+# High volatility: 40% annual
+vol_high <- 0.40 / sqrt(252)
+returns_high <- rnorm(n_days, mean = arithmetic_mean, sd = vol_high)
+
+# Calculate wealth paths (log returns)
+wealth_low <- 100 * exp(cumsum(returns_low))
+wealth_high <- 100 * exp(cumsum(returns_high))
+
+# Create data.table
+wealth_dt <- data.table(
+    day = 1:n_days,
+    Low_Volatility = wealth_low,
+    High_Volatility = wealth_high
+)
+
+wealth_long <- melt(wealth_dt, id.vars = "day", variable.name = "strategy", value.name = "wealth")
+
+ggplot(wealth_long, aes(x = day / 252, y = wealth, colour = strategy)) +
+    geom_line(linewidth = 0.6) +
+    geom_hline(yintercept = 100, linetype = "dashed", colour = "grey50") +
+    scale_colour_manual(
+        values = c("Low_Volatility" = trading_colors$primary,
+                   "High_Volatility" = trading_colors$negative),
+        labels = c("Low Vol (10%)", "High Vol (40%)")
+    ) +
+    labs(
+        title = "Volatility Drag: Same Arithmetic Mean, Different Outcomes",
+        subtitle = sprintf("Both have %.0f%% arithmetic mean daily return. Low vol wins.",
+                          arithmetic_mean * 252 * 100),
+        x = "Years",
+        y = "Wealth (starting = £100)",
+        colour = "Strategy"
+    ) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/arithmetic-vs-geometric-1.png" alt="Two assets with the same arithmetic average return but different volatility. Higher volatility leads to lower terminal wealth.">
+	Two assets with the same arithmetic average return but different volatility. Higher volatility leads to lower terminal wealth.
+</Figure>
+
+``` r
+# Calculate actual statistics
+cat("\nSimulation results (5 years):\n")
+cat("Low volatility:\n")
+cat("  Arithmetic mean (annualised):", round(mean(returns_low) * 252 * 100, 2), "%\n")
+cat("  Volatility:", round(sd(returns_low) * sqrt(252) * 100, 2), "%\n")
+cat("  Terminal wealth:", round(tail(wealth_low, 1), 2), "\n")
+cat("  CAGR:", round((tail(wealth_low, 1)/100)^(1/5) * 100 - 100, 2), "%\n\n")
+
+cat("High volatility:\n")
+cat("  Arithmetic mean (annualised):", round(mean(returns_high) * 252 * 100, 2), "%\n")
+cat("  Volatility:", round(sd(returns_high) * sqrt(252) * 100, 2), "%\n")
+cat("  Terminal wealth:", round(tail(wealth_high, 1), 2), "\n")
+cat("  CAGR:", round((tail(wealth_high, 1)/100)^(1/5) * 100 - 100, 2), "%\n")
+```
+
+```
+
+Simulation results (5 years):
+Low volatility:
+  Arithmetic mean (annualised): 6.1 %
+  Volatility: 10.01 %
+  Terminal wealth: 135.63 
+  CAGR: 6.29 %
+
+High volatility:
+  Arithmetic mean (annualised): 15.12 %
+  Volatility: 39.35 %
+  Terminal wealth: 212.95 
+  CAGR: 16.32 %
+```
+
+
+``` r
+# Demonstrate loss/recovery asymmetry
+losses <- seq(0.05, 0.95, by = 0.05)
+recovery_needed <- 1 / (1 - losses) - 1
+
+asymmetry_dt <- data.table(
+    loss = losses,
+    recovery = recovery_needed
+)
+
+ggplot(asymmetry_dt, aes(x = loss, y = recovery)) +
+    geom_line(colour = trading_colors$negative, linewidth = 1) +
+    geom_point(colour = trading_colors$negative, size = 2) +
+    geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "grey50") +
+    annotate("text", x = 0.3, y = 0.3, label = "If losses = gains needed",
+             colour = "grey50", angle = 45, hjust = 0) +
+    annotate("point", x = 0.5, y = 1.0, colour = trading_colors$primary, size = 4) +
+    annotate("text", x = 0.52, y = 1.0, label = "50% loss needs 100% gain",
+             hjust = 0, size = 3.5) +
+    labs(
+        title = "The Asymmetry of Losses",
+        subtitle = "Larger losses require disproportionately larger gains to recover",
+        x = "Loss (as decimal)",
+        y = "Gain Needed to Recover"
+    ) +
+    scale_x_continuous(labels = scales::percent) +
+    scale_y_continuous(labels = scales::percent, limits = c(0, 5)) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/recovery-asymmetry-1.png" alt="Recovery asymmetry: a 50% loss requires a 100% gain to break even.">
+	Recovery asymmetry: a 50% loss requires a 100% gain to break even.
+</Figure>
+
+### 1.5.3 Mathematical Derivation
+
+**Wealth equation:**
+
+Starting with wealth $W_0$, after $T$ periods with simple returns $r_1, r_2, \ldots, r_T$:
+
+$$W_T = W_0 \prod_{t=1}^{T} (1 + r_t)$$
+
+Equivalently, with log returns:
+
+$$W_T = W_0 \exp\left(\sum_{t=1}^{T} r_t^{log}\right)$$
+
+**CAGR derivation:**
+
+The Compound Annual Growth Rate is the constant return that would produce the same terminal wealth:
+
+$$W_T = W_0 (1 + CAGR)^T$$
+
+Solving for CAGR:
+
+$$CAGR = \left(\frac{W_T}{W_0}\right)^{1/T} - 1 = \exp\left(\frac{1}{T}\sum_{t=1}^{T} r_t^{log}\right) - 1$$
+
+The second form shows that CAGR equals $\exp(\text{average log return}) - 1$.
+
+**Annualisation of volatility (derivation from variance of sums):**
+
+Assume daily log returns $r_t$ are i.i.d. with $E[r_t] = \mu$ and $Var(r_t) = \sigma^2$.
+
+The $n$-day cumulative return is $R_n = \sum_{t=1}^{n} r_t$.
+
+Under independence:
+
+$$Var(R_n) = Var\left(\sum_{t=1}^{n} r_t\right) = \sum_{t=1}^{n} Var(r_t) = n\sigma^2$$
+
+Therefore, the standard deviation of $n$-day returns is:
+
+$$\sigma_n = \sqrt{n} \cdot \sigma$$
+
+For annual volatility from daily data ($n = 252$ trading days):
+
+$$\sigma_{annual} = \sqrt{252} \cdot \sigma_{daily}$$
+
+Note: $\sqrt{252} \approx 15.87$
+
+**Continuous compounding limit:**
+
+Consider investing £1 at rate $r$ compounded $n$ times per year for 1 year. The terminal value is:
+
+$$W = \left(1 + \frac{r}{n}\right)^n$$
+
+As $n \to \infty$ (continuous compounding):
+
+$$\lim_{n \to \infty} \left(1 + \frac{r}{n}\right)^n = e^r$$
+
+This is the mathematical foundation for using $\exp(r^{log})$ for compounding.
+
+**Volatility drag (Jensen's inequality):**
+
+For a random variable $X$ with $E[X] = \mu$ and $Var(X) = \sigma^2$, if $f$ is concave (like $\ln$):
+
+$$E[f(X)] \leq f(E[X])$$
+
+Applied to wealth:
+
+$$E[\ln(W_T)] \leq \ln(E[W_T])$$
+
+The geometric average (which uses $\ln$) is always less than or equal to the arithmetic average. The gap is the volatility drag:
+
+$$\mu_{geometric} \approx \mu_{arithmetic} - \frac{\sigma^2}{2}$$
+
+This approximation comes from the second-order Taylor expansion of $\ln(1 + r)$.
+
+### 1.5.4 Implementation and Application
+
+
+``` r
+#' Calculate CAGR from returns
+#' @param returns Vector of log returns
+#' @param periods_per_year Number of periods per year (252 for daily)
+#' @return CAGR as decimal
+calc_cagr <- function(returns, periods_per_year = 252) {
+    returns <- returns[!is.na(returns)]
+    n_years <- length(returns) / periods_per_year
+    total_return <- sum(returns)  # Sum of log returns
+    exp(total_return / n_years) - 1
+}
+
+#' Annualise returns
+#' @param mean_return Mean period return (simple or log)
+#' @param periods_per_year Number of periods per year
+#' @param type "log" or "simple"
+#' @return Annualised return
+annualise_return <- function(mean_return, periods_per_year = 252, type = "log") {
+    if (type == "log") {
+        mean_return * periods_per_year
+    } else {
+        (1 + mean_return)^periods_per_year - 1
+    }
+}
+
+#' Annualise volatility
+#' @param vol_period Period volatility (daily standard deviation)
+#' @param periods_per_year Number of periods per year
+#' @return Annualised volatility
+annualise_vol <- function(vol_period, periods_per_year = 252) {
+    vol_period * sqrt(periods_per_year)
+}
+
+#' Calculate volatility drag
+#' @param vol Volatility (same period as returns)
+#' @return Approximate volatility drag (reduction in geometric vs arithmetic mean)
+volatility_drag <- function(vol) {
+    vol^2 / 2
+}
+
+# Demonstrate with real data
+spy <- load_market("spy")
+spy_returns <- spy$returns[!is.na(spy$returns)]
+
+# Calculate various statistics
+daily_mean <- mean(spy_returns)
+daily_vol <- sd(spy_returns)
+ann_mean_log <- annualise_return(daily_mean, type = "log")
+ann_vol <- annualise_vol(daily_vol)
+cagr <- calc_cagr(spy_returns)
+expected_drag <- volatility_drag(ann_vol)
+
+cat("SPY Return Statistics:\n")
+cat("  Daily mean (log):", round(daily_mean * 100, 4), "%\n")
+cat("  Daily volatility:", round(daily_vol * 100, 2), "%\n")
+cat("  Annualised mean (log):", round(ann_mean_log * 100, 2), "%\n")
+cat("  Annualised volatility:", round(ann_vol * 100, 2), "%\n")
+cat("  CAGR:", round(cagr * 100, 2), "%\n")
+cat("  Expected volatility drag:", round(expected_drag * 100, 2), "%\n")
+cat("  Arithmetic - Geometric (empirical):", round((ann_mean_log - cagr) * 100, 2), "%\n")
+```
+
+```
+SPY Return Statistics:
+  Daily mean (log): 0.0404 %
+  Daily volatility: 1.2 %
+  Annualised mean (log): 10.18 %
+  Annualised volatility: 19.05 %
+  CAGR: 10.71 %
+  Expected volatility drag: 1.81 %
+  Arithmetic - Geometric (empirical): -0.54 %
+```
+
+
+``` r
+# Calculate rolling 1-year CAGR
+spy_recent <- filter_dates(load_market("spy"), "2010-01-01")
+spy_recent[, returns := c(NA, diff(log(close)))]
+
+window <- 252
+spy_recent[, row_id := .I]
+
+spy_recent[row_id >= window, rolling_cagr := {
+    sapply(row_id[row_id >= window], function(i) {
+        r <- returns[(i - window + 1):i]
+        calc_cagr(r, 252)
+    })
+}]
+
+ggplot(spy_recent[!is.na(rolling_cagr)], aes(x = date, y = rolling_cagr)) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_line(colour = trading_colors$primary, linewidth = 0.5) +
+    labs(
+        title = "S&P 500 Rolling 1-Year CAGR",
+        subtitle = "Substantial variation in realised annual returns",
+        x = NULL,
+        y = "CAGR"
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/rolling-cagr-1.png" alt="Rolling 1-year CAGR for the S&amp;P 500 showing the variability of annual returns.">
+	Rolling 1-year CAGR for the S&amp;P 500 showing the variability of annual returns.
+</Figure>
+
+**Reporting returns correctly:**
+
+| Horizon | Return Type | Compounding |
+|---------|-------------|-------------|
+| Daily | Log or simple | N/A |
+| Monthly from daily | Sum log returns | Yes |
+| Annual from monthly | Sum log returns, then convert | Yes |
+| Cumulative | exp(sum(log returns)) - 1 | Yes |
+| Marketing materials | Simple, annualised | Depends |
+
+---
+
+## 1.6 Excess Returns and Risk-Free Rates
+
+### 1.6.1 Prose/Intuition
+
+When you invest in equities, you earn compensation for two things:
+
+1. **Time value of money**: The compensation for deferring consumption. Even a completely safe investment earns this.
+2. **Risk premium**: Additional compensation for bearing uncertainty about future returns.
+
+The **risk-free rate** $r_f$ represents pure time value—the return you'd earn with zero risk. In practice, we use short-term government securities (US Treasury bills, UK gilts) as proxies for the risk-free rate.
+
+**Excess return** is the return above the risk-free rate:
+
+$$r_{excess} = r_{asset} - r_f$$
+
+This isolates the compensation for risk-taking. Two important uses:
+
+1. **Sharpe ratio**: Uses excess returns in the numerator to measure risk-adjusted performance.
+2. **Factor models (CAPM, Fama-French)**: Excess returns are the dependent variable.
+
+**Why the risk-free rate matters:**
+
+- In high-interest-rate environments, stocks must earn more to be attractive.
+- The risk-free rate represents the opportunity cost of any investment.
+- Central bank policy directly affects the risk-free rate and, consequently, asset valuations.
+
+### 1.6.2 Visual Evidence
+
+
+``` r
+# Load Fama-French data which includes the risk-free rate
+ff3 <- load_factors("ff3", "daily")
+
+cat("Fama-French data structure:\n")
+head(ff3)
+```
+
+```
+Fama-French data structure:
+Key: <date>
+         date  Mkt_RF     SMB     HML    RF
+       <Date>   <num>   <num>   <num> <num>
+1: 1926-07-01  0.0009 -0.0025 -0.0027 1e-04
+2: 1926-07-02  0.0045 -0.0033 -0.0006 1e-04
+3: 1926-07-06  0.0017  0.0030 -0.0039 1e-04
+4: 1926-07-07  0.0009 -0.0058  0.0002 1e-04
+5: 1926-07-08  0.0022 -0.0038  0.0019 1e-04
+6: 1926-07-09 -0.0071  0.0043  0.0057 1e-04
+```
+
+
+``` r
+# RF is in percentage points in the original FF data
+# Our data should have it in decimal form already
+ff3_plot <- filter_dates(ff3, "2000-01-01")
+
+ggplot(ff3_plot, aes(x = date, y = RF * 252)) +  # Annualise daily RF
+    geom_line(colour = trading_colors$neutral, linewidth = 0.4) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(
+        title = "Annualised Risk-Free Rate (3-Month Treasury Bills)",
+        subtitle = "The opportunity cost of holding risky assets",
+        x = NULL,
+        y = "Annualised Rate"
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/risk-free-history-1.png" alt="The risk-free rate (Treasury bills) over time, showing how the opportunity cost of investment has varied.">
+	The risk-free rate (Treasury bills) over time, showing how the opportunity cost of investment has varied.
+</Figure>
+
+
+``` r
+# Merge SPY with risk-free rate
+spy <- load_market("spy")
+spy <- filter_dates(spy, "2000-01-01")
+spy[, returns := c(NA, diff(log(close)))]
+
+# Merge with FF data to get risk-free rate
+spy_ff <- merge(spy[, .(date, returns)], ff3[, .(date, RF)], by = "date")
+
+# Calculate excess returns
+spy_ff[, excess_returns := returns - RF]
+
+# Calculate cumulative returns
+spy_ff[, cum_total := cumsum(ifelse(is.na(returns), 0, returns))]
+spy_ff[, cum_excess := cumsum(ifelse(is.na(excess_returns), 0, excess_returns))]
+spy_ff[, cum_rf := cumsum(ifelse(is.na(RF), 0, RF))]
+
+# Melt for plotting
+cum_long <- melt(
+    spy_ff[, .(date, Total = exp(cum_total), Excess = exp(cum_excess), `Risk-Free` = exp(cum_rf))],
+    id.vars = "date",
+    variable.name = "type",
+    value.name = "wealth"
+)
+
+ggplot(cum_long, aes(x = date, y = wealth, colour = type)) +
+    geom_line(linewidth = 0.6) +
+    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+    scale_colour_manual(values = c("Total" = trading_colors$primary,
+                                    "Excess" = trading_colors$secondary,
+                                    "Risk-Free" = trading_colors$neutral)) +
+    labs(
+        title = "S&P 500: Total vs Excess Returns",
+        subtitle = "Total return = excess return + risk-free; the gap represents compounded T-bill returns",
+        x = NULL,
+        y = "Growth of £1",
+        colour = NULL
+    ) +
+    scale_y_continuous(trans = "log10") +
+    theme_trading()
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/excess-returns-comparison-1.png" alt="Comparing total returns to excess returns for the S&amp;P 500.">
+	Comparing total returns to excess returns for the S&amp;P 500.
+</Figure>
+
+
+``` r
+# Calculate statistics
+cat("\nS&P 500 Return Decomposition (2000-present):\n")
+cat("  Total return (annualised):",
+    round(mean(spy_ff$returns, na.rm = TRUE) * 252 * 100, 2), "%\n")
+cat("  Risk-free rate (annualised):",
+    round(mean(spy_ff$RF, na.rm = TRUE) * 252 * 100, 2), "%\n")
+cat("  Excess return (annualised):",
+    round(mean(spy_ff$excess_returns, na.rm = TRUE) * 252 * 100, 2), "%\n")
+cat("  Sharpe ratio:",
+    round(mean(spy_ff$excess_returns, na.rm = TRUE) / sd(spy_ff$excess_returns, na.rm = TRUE) * sqrt(252), 2), "\n")
+```
+
+```
+
+S&P 500 Return Decomposition (2000-present):
+  Total return (annualised): 8.32 %
+  Risk-free rate (annualised): 1.71 %
+  Excess return (annualised): 6.61 %
+  Sharpe ratio: 0.35 
+```
+
+### 1.6.3 Mathematical Derivation
+
+**Excess return definition:**
+
+For discrete returns:
+
+$$r_{excess,t} = r_{asset,t} - r_{f,t}$$
+
+For continuous (log) returns, the same formula applies because for small values, the difference in logs approximately equals the log of the ratio:
+
+$$r_{excess,t}^{log} = r_{asset,t}^{log} - r_{f,t}^{log}$$
+
+**Compounding considerations:**
+
+When computing multi-period excess returns, we have two approaches:
+
+1. **Difference of compounded returns:**
+
+$$R_{excess}^{(1)} = \left(\prod_t (1 + r_{asset,t}) - 1\right) - \left(\prod_t (1 + r_{f,t}) - 1\right)$$
+
+2. **Compounded excess returns:**
+
+$$R_{excess}^{(2)} = \prod_t (1 + r_{excess,t}) - 1$$
+
+These are **not equal** because:
+
+$$\prod_t (1 + r_t - r_{f,t}) \neq \prod_t (1 + r_t) - \prod_t (1 + r_{f,t}) + 1$$
+
+**Which to use?**
+
+For short horizons (daily, weekly), the difference is negligible. For longer horizons or when precision matters, the first approach (difference of compounded returns) more accurately represents economic reality.
+
+In factor regressions (CAPM, Fama-French), we use period-by-period excess returns:
+
+$$r_{i,t} - r_{f,t} = \alpha + \beta(r_{m,t} - r_{f,t}) + \epsilon_t$$
+
+The interpretation is: "What excess return did I earn relative to a levered/delevered market position?"
+
+### 1.6.4 Implementation and Application
+
+
+``` r
+#' Calculate excess returns
+#' @param asset_returns Vector of asset returns
+#' @param rf Vector of risk-free rates (same frequency as asset_returns)
+#' @return Vector of excess returns
+calc_excess_returns <- function(asset_returns, rf) {
+    if (length(rf) == 1) {
+        # Constant risk-free rate
+        rf <- rep(rf, length(asset_returns))
+    }
+    asset_returns - rf
+}
+
+#' Merge asset data with risk-free rate from Fama-French
+#' @param asset_dt data.table with date and returns columns
+#' @param ff_dt Fama-French data.table with date and RF columns
+#' @return Merged data.table with excess_returns column
+merge_with_rf <- function(asset_dt, ff_dt) {
+    merged <- merge(asset_dt, ff_dt[, .(date, RF)], by = "date", all.x = TRUE)
+    merged[, excess_returns := returns - RF]
+    return(merged)
+}
+
+# Example: Calculate excess returns for multiple assets
+symbols <- c("spy", "qqq", "tlt")
+ff3 <- load_factors("ff3", "daily")
+
+excess_returns_list <- lapply(symbols, function(sym) {
+    dt <- load_market(sym)
+    dt[, returns := c(NA, diff(log(close)))]
+    merged <- merge(dt[, .(date, returns)], ff3[, .(date, RF)], by = "date")
+    merged[, excess_returns := returns - RF]
+    merged[, symbol := toupper(sym)]
+    return(merged[, .(date, symbol, returns, RF, excess_returns)])
+})
+
+all_excess <- rbindlist(excess_returns_list)
+
+# Summary by asset
+excess_summary <- all_excess[, .(
+    ann_return = mean(returns, na.rm = TRUE) * 252,
+    ann_rf = mean(RF, na.rm = TRUE) * 252,
+    ann_excess = mean(excess_returns, na.rm = TRUE) * 252,
+    vol = sd(returns, na.rm = TRUE) * sqrt(252),
+    sharpe = mean(excess_returns, na.rm = TRUE) / sd(excess_returns, na.rm = TRUE) * sqrt(252)
+), by = symbol]
+
+cat("\nExcess Return Summary:\n")
+print(excess_summary[, .(
+    Symbol = symbol,
+    `Ann. Return` = paste0(round(ann_return * 100, 1), "%"),
+    `Ann. RF` = paste0(round(ann_rf * 100, 1), "%"),
+    `Ann. Excess` = paste0(round(ann_excess * 100, 1), "%"),
+    Volatility = paste0(round(vol * 100, 1), "%"),
+    Sharpe = round(sharpe, 2)
+)])
+```
+
+```
+
+Excess Return Summary:
+   Symbol Ann. Return Ann. RF Ann. Excess Volatility Sharpe
+   <char>      <char>  <char>      <char>     <char>  <num>
+1:    SPY        8.3%    1.7%        6.6%      19.1%   0.35
+2:    QQQ       13.2%    1.7%       11.5%      21.7%   0.53
+3:    TLT        0.1%    1.7%       -1.6%      14.7%  -0.11
+```
+
+**Handling frequency mismatch:**
+
+The Fama-French risk-free rate is the one-month Treasury bill rate, converted to a daily equivalent. When merging:
+
+
+``` r
+#' Convert annual risk-free rate to daily
+#' @param annual_rf Annual risk-free rate (decimal)
+#' @param type "simple" or "continuous"
+#' @return Daily risk-free rate
+annual_to_daily_rf <- function(annual_rf, type = "continuous") {
+    if (type == "continuous") {
+        annual_rf / 252
+    } else {
+        (1 + annual_rf)^(1/252) - 1
+    }
+}
+
+#' Convert monthly risk-free rate to daily
+#' @param monthly_rf Monthly risk-free rate (decimal)
+#' @param type "simple" or "continuous"
+#' @return Daily risk-free rate
+monthly_to_daily_rf <- function(monthly_rf, type = "continuous") {
+    if (type == "continuous") {
+        monthly_rf / 21  # Approximately 21 trading days per month
+    } else {
+        (1 + monthly_rf)^(1/21) - 1
+    }
+}
+
+# Example conversions
+cat("\nRisk-free rate conversions:\n")
+annual_rf <- 0.05  # 5% annual
+cat("  5% annual (continuous) to daily:", round(annual_to_daily_rf(0.05, "continuous") * 100, 4), "%\n")
+cat("  5% annual (simple) to daily:", round(annual_to_daily_rf(0.05, "simple") * 100, 4), "%\n")
+```
+
+```
+
+Risk-free rate conversions:
+  5% annual (continuous) to daily: 0.0198 %
+  5% annual (simple) to daily: 0.0194 %
+```
+
+**Using Fama-French data correctly:**
+
+The Fama-French data provides:
+- `Mkt-RF`: Market return minus risk-free rate (already excess return)
+- `RF`: Risk-free rate (daily equivalent of 1-month T-bill rate)
+
+When running CAPM regressions:
+
+```r
+# Correct: Use Mkt_RF directly (it's already excess return)
+model <- lm(excess_returns ~ Mkt_RF, data = merged_data)
+
+# Incorrect: Don't subtract RF from Mkt_RF
+# model <- lm(excess_returns ~ (Mkt_RF - RF), data = merged_data)  # WRONG
+```
+
+---
+
+## Quick Reference
+
+### Return Formulae
+
+| Type | Formula | From Prices |
+|------|---------|-------------|
+| Simple | $r = \frac{P_t - P_{t-1}}{P_{t-1}}$ | `diff(prices)/prices[-n]` |
+| Log | $r = \ln\left(\frac{P_t}{P_{t-1}}\right)$ | `diff(log(prices))` |
+| Conversion | $r^{log} = \ln(1 + r^{simple})$ | `log(1 + r_simple)` |
+| Inverse | $r^{simple} = e^{r^{log}} - 1$ | `exp(r_log) - 1` |
+
+### Additivity Properties
+
+| Property | Log Returns | Simple Returns |
+|----------|-------------|----------------|
+| Time additivity | $r_{t \to T} = \sum r_t$ | $W_T/W_0 = \prod(1+r_t)$ |
+| Cross-sectional | NOT additive | $r_p = \sum w_i r_i$ |
+
+### Compounding and Annualisation
+
+| Measure | Formula | R Code |
+|---------|---------|--------|
+| Multi-period log | $\sum r_t^{log}$ | `sum(returns)` |
+| Multi-period simple | $\prod(1+r_t) - 1$ | `prod(1+returns) - 1` |
+| CAGR | $\exp(\bar{r}^{log}) - 1$ | `exp(mean(returns)) - 1` |
+| Annualised vol | $\sigma_{daily} \times \sqrt{252}$ | `sd(returns) * sqrt(252)` |
+| Volatility drag | $\approx \sigma^2/2$ | `var(returns) / 2` |
+
+### Annualisation Factors
+
+| From | Periods/Year | $\sqrt{n}$ |
+|------|--------------|------------|
+| Daily | 252 | 15.87 |
+| Weekly | 52 | 7.21 |
+| Monthly | 12 | 3.46 |
+| Quarterly | 4 | 2.00 |
+
+### Excess Returns
+
+$$r_{excess} = r_{asset} - r_f$$
+
+For Sharpe ratio:
+
+$$SR = \frac{E[r_{excess}]}{\sigma_{excess}} = \frac{\bar{r} - r_f}{\sigma}$$
+
+---
+
+*Next: Part 3 examines the stylised facts of financial returns—fat tails, volatility clustering, the leverage effect, and the absence of autocorrelation.*
