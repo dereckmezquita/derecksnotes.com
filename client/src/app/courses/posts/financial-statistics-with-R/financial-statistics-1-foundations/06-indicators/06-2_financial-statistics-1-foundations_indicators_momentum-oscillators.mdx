@@ -1,0 +1,1225 @@
+---
+title: "Momentum and Oscillators"
+---
+
+
+
+# Momentum and Oscillators
+
+Oscillators are bounded indicators that fluctuate between fixed values (often 0-100). They're designed to identify overbought and oversold conditions—extremes that may signal reversals.
+
+Unlike trend indicators that work best in trending markets, oscillators excel in ranging markets. The art is knowing which regime you're in.
+
+---
+
+## 6.4 RSI (Relative Strength Index)
+
+### 6.4.1 Prose/Intuition
+
+RSI measures the relative magnitude of recent gains versus losses. When a stock has risen strongly, RSI approaches 100; when it has fallen sharply, RSI approaches 0.
+
+J. Welles Wilder introduced RSI in 1978. His interpretation:
+- **RSI > 70:** Overbought—consider selling
+- **RSI < 30:** Oversold—consider buying
+
+But these levels are arbitrary. In strong trends, RSI can remain "overbought" for extended periods. The indicator works better as a mean-reversion signal in ranging markets.
+
+### 6.4.2 Visual Evidence
+
+
+``` r
+# Calculate RSI
+calc_rsi <- function(price, n = 14) {
+    delta <- diff(price)
+
+    gain <- ifelse(delta > 0, delta, 0)
+    loss <- ifelse(delta < 0, -delta, 0)
+
+    # Wilder smoothing for average gain/loss
+    avg_gain <- numeric(length(gain))
+    avg_loss <- numeric(length(gain))
+
+    # First average is simple mean
+    avg_gain[n] <- mean(gain[1:n])
+    avg_loss[n] <- mean(loss[1:n])
+
+    # Subsequent values use Wilder smoothing
+    for (i in (n + 1):length(gain)) {
+        avg_gain[i] <- (avg_gain[i - 1] * (n - 1) + gain[i]) / n
+        avg_loss[i] <- (avg_loss[i - 1] * (n - 1) + loss[i]) / n
+    }
+
+    rs <- avg_gain / avg_loss
+    rsi <- 100 - 100 / (1 + rs)
+
+    # Prepend NA to align with original price
+    c(NA, rsi)
+}
+
+# Apply to SPY
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+spy[, rsi := calc_rsi(adjusted, 14)]
+spy <- spy[!is.na(rsi)]
+
+# Plot
+p1 <- ggplot(spy, aes(x = date, y = adjusted)) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    labs(title = "SPY Price", x = NULL, y = "Price ($)") +
+    theme_trading()
+
+p2 <- ggplot(spy, aes(x = date, y = rsi)) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 70, ymax = 100),
+              fill = tc[4], alpha = 0.1) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 0, ymax = 30),
+              fill = tc[3], alpha = 0.1) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    geom_hline(yintercept = c(30, 50, 70), linetype = c("dashed", "dotted", "dashed"),
+               colour = c(tc[3], "grey50", tc[4])) +
+    scale_y_continuous(limits = c(0, 100)) +
+    labs(title = "RSI (14)", x = NULL, y = "RSI") +
+    theme_trading()
+
+print(p1)
+```
+
+![RSI oscillates between 0 and 100. Traditional overbought (70) and oversold (30) levels are shown.](/courses/financial-statistics-1-foundations/../figures/06-2_rsi-calculation-1.png)
+
+``` r
+print(p2)
+```
+
+![RSI oscillates between 0 and 100. Traditional overbought (70) and oversold (30) levels are shown.](/courses/financial-statistics-1-foundations/../figures/06-2_rsi-calculation-2.png)
+
+
+``` r
+# RSI mean-reversion strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, rsi := calc_rsi(adjusted, 14)]
+spy <- spy[!is.na(rsi) & !is.na(returns)]
+
+# Strategy: long when RSI < 30, flat when RSI > 70
+spy[, position := 0]
+spy[rsi < 30, position := 1]  # Oversold -> buy
+spy[rsi > 70, position := 0]  # Overbought -> sell
+
+# Carry position forward (stay in trade until exit signal)
+for (i in 2:nrow(spy)) {
+    if (spy$position[i] == 0 && spy$rsi[i] >= 30 && spy$rsi[i] <= 70) {
+        spy$position[i] <- spy$position[i - 1]
+    }
+}
+
+spy[, signal := shift(position, 1)]
+spy[, strat_returns := signal * returns]
+spy <- spy[!is.na(strat_returns)]
+
+# Calculate cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_rsi := exp(cumsum(strat_returns))]
+
+# Statistics
+cat("=== RSI Mean-Reversion Strategy ===\n")
+```
+
+```
+## === RSI Mean-Reversion Strategy ===
+```
+
+``` r
+cat("Buy when RSI < 30, sell when RSI > 70\n\n")
+```
+
+```
+## Buy when RSI < 30, sell when RSI > 70
+```
+
+``` r
+rsi_stats <- data.table(
+    Strategy = c("Buy & Hold", "RSI Mean-Reversion"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns))),
+    `Time in Market` = sprintf("%.0f%%", c(100, mean(spy$signal, na.rm = TRUE) * 100))
+)
+print(rsi_stats)
+```
+
+```
+##              Strategy Ann. Return Sharpe Time in Market
+##                <char>      <char> <char>         <char>
+## 1:         Buy & Hold       11.9%   0.62           100%
+## 2: RSI Mean-Reversion        7.4%   0.47            36%
+```
+
+``` r
+# Plot
+perf_data <- melt(spy[, .(date, `Buy & Hold` = cum_bh, `RSI Strategy` = cum_rsi)],
+                  id.vars = "date",
+                  variable.name = "Strategy",
+                  value.name = "Wealth")
+
+ggplot(perf_data, aes(x = date, y = Wealth, colour = Strategy)) +
+    geom_line(linewidth = 0.8) +
+    scale_y_log10(labels = scales::dollar) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(
+        title = "RSI Mean-Reversion Strategy Performance",
+        subtitle = "Buy RSI < 30, Sell RSI > 70",
+        x = NULL,
+        y = "Wealth (log scale)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![RSI mean-reversion strategy: buy when RSI < 30, sell when RSI > 70. Works well in ranging markets, poorly in trends.](/courses/financial-statistics-1-foundations/../figures/06-2_rsi-mean-reversion-1.png)
+
+### 6.4.3 Mathematical Derivation
+
+**Relative Strength (RS):**
+
+$$RS = \frac{\text{Average Gain over } n \text{ periods}}{\text{Average Loss over } n \text{ periods}}$$
+
+Using Wilder smoothing:
+
+$$\text{Avg Gain}_t = \frac{(n-1) \times \text{Avg Gain}_{t-1} + \text{Current Gain}}{n}$$
+
+**RSI Formula:**
+
+$$RSI = 100 - \frac{100}{1 + RS}$$
+
+**Bounded nature:**
+
+- If all periods are gains: $RS \to \infty$, $RSI \to 100$
+- If all periods are losses: $RS = 0$, $RSI = 0$
+- If gains = losses: $RS = 1$, $RSI = 50$
+
+**Statistical properties:**
+
+Under a random walk (equal probability of up/down):
+- Expected RSI = 50
+- RSI distribution is symmetric around 50
+
+In a trending market:
+- Uptrend: RSI biased above 50
+- Downtrend: RSI biased below 50
+
+### 6.4.4 Implementation & Application
+
+
+``` r
+# RSI function with different smoothing methods
+calc_rsi_flexible <- function(price, n = 14, method = "wilder") {
+    delta <- diff(price)
+
+    gain <- pmax(delta, 0)
+    loss <- pmax(-delta, 0)
+
+    if (method == "wilder") {
+        # Original Wilder smoothing
+        avg_gain <- numeric(length(gain))
+        avg_loss <- numeric(length(gain))
+
+        avg_gain[n] <- mean(gain[1:n])
+        avg_loss[n] <- mean(loss[1:n])
+
+        for (i in (n + 1):length(gain)) {
+            avg_gain[i] <- (avg_gain[i - 1] * (n - 1) + gain[i]) / n
+            avg_loss[i] <- (avg_loss[i - 1] * (n - 1) + loss[i]) / n
+        }
+    } else if (method == "sma") {
+        avg_gain <- frollmean(gain, n)
+        avg_loss <- frollmean(loss, n)
+    } else if (method == "ema") {
+        alpha <- 2 / (n + 1)
+        avg_gain <- numeric(length(gain))
+        avg_loss <- numeric(length(gain))
+        avg_gain[1] <- gain[1]
+        avg_loss[1] <- loss[1]
+        for (i in 2:length(gain)) {
+            avg_gain[i] <- alpha * gain[i] + (1 - alpha) * avg_gain[i - 1]
+            avg_loss[i] <- alpha * loss[i] + (1 - alpha) * avg_loss[i - 1]
+        }
+    }
+
+    rs <- avg_gain / avg_loss
+    rsi <- 100 - 100 / (1 + rs)
+    rsi[is.nan(rsi)] <- 50  # When both avg_gain and avg_loss are 0
+
+    c(NA, rsi)
+}
+
+# Compare RSI with MACD signals
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-06-01"), as.Date("2023-06-30"))
+spy[, rsi := calc_rsi(adjusted, 14)]
+
+# EMA for MACD
+calc_ema <- function(x, n) {
+    alpha <- 2 / (n + 1)
+    ema <- numeric(length(x))
+    ema[1] <- x[1]
+    for (i in 2:length(x)) {
+        ema[i] <- alpha * x[i] + (1 - alpha) * ema[i - 1]
+    }
+    ema
+}
+
+spy[, ema_12 := calc_ema(adjusted, 12)]
+spy[, ema_26 := calc_ema(adjusted, 26)]
+spy[, macd := ema_12 - ema_26]
+spy[, macd_signal := calc_ema(macd, 9)]
+
+spy <- spy[!is.na(macd_signal) & !is.na(rsi)]
+
+# Combined signal: RSI oversold AND MACD bullish crossover
+spy[, rsi_oversold := rsi < 30]
+spy[, macd_bullish := macd > macd_signal & shift(macd, 1) <= shift(macd_signal, 1)]
+
+cat("=== RSI + MACD Confirmation ===\n")
+```
+
+```
+## === RSI + MACD Confirmation ===
+```
+
+``` r
+cat(sprintf("RSI oversold signals: %d\n", sum(spy$rsi_oversold, na.rm = TRUE)))
+```
+
+```
+## RSI oversold signals: 4
+```
+
+``` r
+cat(sprintf("MACD bullish crossovers: %d\n", sum(spy$macd_bullish, na.rm = TRUE)))
+```
+
+```
+## MACD bullish crossovers: 7
+```
+
+``` r
+cat(sprintf("Combined confirmations: %d\n",
+            sum(spy$rsi_oversold & spy$macd_bullish, na.rm = TRUE)))
+```
+
+```
+## Combined confirmations: 0
+```
+
+---
+
+## 6.5 Stochastic Oscillator
+
+### 6.5.1 Prose/Intuition
+
+The stochastic oscillator measures where the current close sits within the recent price range. If price is near the top of its range, %K is high; if near the bottom, %K is low.
+
+George Lane developed this indicator in the 1950s. His insight: in uptrends, prices tend to close near their highs; in downtrends, near their lows. A failure to close near highs during an "uptrend" signals weakening momentum.
+
+### 6.5.2 Visual Evidence
+
+
+``` r
+# Calculate Stochastic
+calc_stochastic <- function(high, low, close, k_period = 14, d_period = 3) {
+    n <- length(close)
+
+    # %K: (Close - Lowest Low) / (Highest High - Lowest Low)
+    lowest_low <- frollapply(low, k_period, min)
+    highest_high <- frollapply(high, k_period, max)
+
+    pct_k <- 100 * (close - lowest_low) / (highest_high - lowest_low)
+
+    # %D: SMA of %K
+    pct_d <- frollmean(pct_k, d_period)
+
+    data.table(
+        pct_k = pct_k,
+        pct_d = pct_d
+    )
+}
+
+# Apply to SPY
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+
+stoch_result <- calc_stochastic(spy$high, spy$low, spy$adjusted)
+spy[, c("pct_k", "pct_d") := stoch_result]
+spy <- spy[!is.na(pct_d)]
+
+# Plot
+p1 <- ggplot(spy, aes(x = date, y = adjusted)) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    labs(title = "SPY Price", x = NULL, y = "Price ($)") +
+    theme_trading()
+
+p2 <- ggplot(spy, aes(x = date)) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 80, ymax = 100),
+              fill = tc[4], alpha = 0.1) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 0, ymax = 20),
+              fill = tc[3], alpha = 0.1) +
+    geom_line(aes(y = pct_k, colour = "%K"), linewidth = 0.6) +
+    geom_line(aes(y = pct_d, colour = "%D"), linewidth = 0.8) +
+    geom_hline(yintercept = c(20, 80), linetype = "dashed", colour = "grey50") +
+    scale_colour_manual(values = c("%K" = tc[1], "%D" = tc[5])) +
+    scale_y_continuous(limits = c(0, 100)) +
+    labs(title = "Stochastic Oscillator (14, 3)", x = NULL, y = "Value", colour = NULL) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+
+print(p1)
+```
+
+![Stochastic oscillator shows where price closes relative to its recent range. %K is the fast line, %D is the smoothed signal.](/courses/financial-statistics-1-foundations/../figures/06-2_stochastic-calculation-1.png)
+
+``` r
+print(p2)
+```
+
+![Stochastic oscillator shows where price closes relative to its recent range. %K is the fast line, %D is the smoothed signal.](/courses/financial-statistics-1-foundations/../figures/06-2_stochastic-calculation-2.png)
+
+
+``` r
+# Stochastic crossover strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+stoch_result <- calc_stochastic(spy$high, spy$low, spy$adjusted)
+spy[, c("pct_k", "pct_d") := stoch_result]
+spy <- spy[!is.na(pct_d) & !is.na(returns)]
+
+# Signals
+spy[, prev_k := shift(pct_k, 1)]
+spy[, prev_d := shift(pct_d, 1)]
+
+# Buy: %K crosses above %D from below 20
+spy[, buy_signal := pct_k > pct_d & prev_k <= prev_d & pct_d < 30]
+# Sell: %K crosses below %D from above 80
+spy[, sell_signal := pct_k < pct_d & prev_k >= prev_d & pct_d > 70]
+
+# Build position
+spy[, position := 0]
+for (i in 2:nrow(spy)) {
+    if (spy$buy_signal[i]) {
+        spy$position[i] <- 1
+    } else if (spy$sell_signal[i]) {
+        spy$position[i] <- 0
+    } else {
+        spy$position[i] <- spy$position[i - 1]
+    }
+}
+
+spy[, signal := shift(position, 1)]
+spy[, strat_returns := signal * returns]
+spy <- spy[!is.na(strat_returns)]
+
+cat("=== Stochastic Crossover Strategy ===\n")
+```
+
+```
+## === Stochastic Crossover Strategy ===
+```
+
+``` r
+cat("Buy: %K crosses above %D when %D < 30\n")
+```
+
+```
+## Buy: %K crosses above %D when %D < 30
+```
+
+``` r
+cat("Sell: %K crosses below %D when %D > 70\n\n")
+```
+
+```
+## Sell: %K crosses below %D when %D > 70
+```
+
+``` r
+stoch_stats <- data.table(
+    Strategy = c("Buy & Hold", "Stochastic Crossover"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns)))
+)
+print(stoch_stats)
+```
+
+```
+##                Strategy Ann. Return Sharpe
+##                  <char>      <char> <char>
+## 1:           Buy & Hold       11.9%   0.62
+## 2: Stochastic Crossover       12.1%   0.63
+```
+
+### 6.5.3 Mathematical Derivation
+
+**Fast %K:**
+
+$$\%K = \frac{C - L_n}{H_n - L_n} \times 100$$
+
+where:
+- $C$ = Current close
+- $L_n$ = Lowest low over last $n$ periods
+- $H_n$ = Highest high over last $n$ periods
+
+**Slow %K (also called %D):**
+
+$$\%D = SMA_m(\%K)$$
+
+typically $m = 3$.
+
+**Full vs Slow Stochastic:**
+
+- **Fast Stochastic:** Raw %K and %D as above
+- **Slow Stochastic:** Slow %K = Fast %D; Slow %D = SMA of Slow %K
+
+**Statistical interpretation:**
+
+%K measures the percentile rank of the close within the recent range. If %K = 80, the close is at the 80th percentile of the range.
+
+### 6.5.4 Implementation & Application
+
+
+``` r
+# Full stochastic implementation
+calc_stochastic_full <- function(high, low, close, k_period = 14, d_period = 3,
+                                  type = "slow") {
+    n <- length(close)
+
+    # Fast %K
+    lowest_low <- frollapply(low, k_period, min)
+    highest_high <- frollapply(high, k_period, max)
+    fast_k <- 100 * (close - lowest_low) / (highest_high - lowest_low)
+
+    # Fast %D = SMA of Fast %K
+    fast_d <- frollmean(fast_k, d_period)
+
+    if (type == "fast") {
+        return(data.table(k = fast_k, d = fast_d))
+    } else {
+        # Slow %K = Fast %D
+        slow_k <- fast_d
+        # Slow %D = SMA of Slow %K
+        slow_d <- frollmean(slow_k, d_period)
+        return(data.table(k = slow_k, d = slow_d))
+    }
+}
+
+cat("=== Stochastic Interpretation Guide ===\n\n")
+```
+
+```
+## === Stochastic Interpretation Guide ===
+```
+
+``` r
+cat("Overbought/Oversold:\n")
+```
+
+```
+## Overbought/Oversold:
+```
+
+``` r
+cat("  %K > 80: Overbought (price near top of range)\n")
+```
+
+```
+##   %K > 80: Overbought (price near top of range)
+```
+
+``` r
+cat("  %K < 20: Oversold (price near bottom of range)\n\n")
+```
+
+```
+##   %K < 20: Oversold (price near bottom of range)
+```
+
+``` r
+cat("Crossover Signals:\n")
+```
+
+```
+## Crossover Signals:
+```
+
+``` r
+cat("  Buy:  %K crosses above %D from oversold zone\n")
+```
+
+```
+##   Buy:  %K crosses above %D from oversold zone
+```
+
+``` r
+cat("  Sell: %K crosses below %D from overbought zone\n\n")
+```
+
+```
+##   Sell: %K crosses below %D from overbought zone
+```
+
+``` r
+cat("Divergence:\n")
+```
+
+```
+## Divergence:
+```
+
+``` r
+cat("  Bullish: Price makes lower low, stochastic makes higher low\n")
+```
+
+```
+##   Bullish: Price makes lower low, stochastic makes higher low
+```
+
+``` r
+cat("  Bearish: Price makes higher high, stochastic makes lower high\n")
+```
+
+```
+##   Bearish: Price makes higher high, stochastic makes lower high
+```
+
+---
+
+## 6.6 Bollinger Bands
+
+### 6.6.1 Prose/Intuition
+
+Bollinger Bands create dynamic support and resistance levels based on volatility. The bands widen when volatility increases and narrow when it decreases.
+
+John Bollinger introduced these bands in the 1980s. Key insights:
+- **Price tends to stay within the bands** (~95% of the time with standard settings)
+- **Band squeezes** (low volatility) often precede breakouts
+- **Band walks** (price hugging a band) indicate strong trends
+
+### 6.6.2 Visual Evidence
+
+
+``` r
+# Calculate Bollinger Bands
+calc_bollinger <- function(price, n = 20, k = 2) {
+    middle <- frollmean(price, n)
+    std_dev <- frollapply(price, n, sd)
+
+    upper <- middle + k * std_dev
+    lower <- middle - k * std_dev
+
+    # %B: where is price relative to bands
+    pct_b <- (price - lower) / (upper - lower)
+
+    # Bandwidth: how wide are bands relative to middle
+    bandwidth <- (upper - lower) / middle
+
+    data.table(
+        middle = middle,
+        upper = upper,
+        lower = lower,
+        pct_b = pct_b,
+        bandwidth = bandwidth
+    )
+}
+
+# Apply to SPY
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+
+bb_result <- calc_bollinger(spy$adjusted, 20, 2)
+spy[, c("bb_middle", "bb_upper", "bb_lower", "pct_b", "bandwidth") := bb_result]
+spy <- spy[!is.na(bb_middle)]
+
+# Plot
+ggplot(spy, aes(x = date)) +
+    geom_ribbon(aes(ymin = bb_lower, ymax = bb_upper), fill = tc[1], alpha = 0.2) +
+    geom_line(aes(y = adjusted, colour = "Price"), linewidth = 0.7) +
+    geom_line(aes(y = bb_middle, colour = "Middle"), linewidth = 0.5) +
+    geom_line(aes(y = bb_upper, colour = "Bands"), linewidth = 0.5, linetype = "dashed") +
+    geom_line(aes(y = bb_lower, colour = "Bands"), linewidth = 0.5, linetype = "dashed") +
+    scale_colour_manual(values = c("Price" = tc[1], "Middle" = tc[5], "Bands" = tc[3])) +
+    labs(
+        title = "Bollinger Bands (20, 2)",
+        subtitle = "Price with ±2 standard deviation bands",
+        x = NULL,
+        y = "Price ($)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Bollinger Bands expand and contract with volatility. The bands contain approximately 95% of price action.](/courses/financial-statistics-1-foundations/../figures/06-2_bollinger-calculation-1.png)
+
+
+``` r
+# Identify squeeze periods
+spy[, squeeze := bandwidth < quantile(bandwidth, 0.20, na.rm = TRUE)]
+spy[, squeeze_start := squeeze & !shift(squeeze, fill = FALSE)]
+
+squeeze_points <- spy[squeeze_start == TRUE]
+
+# Plot bandwidth with squeeze detection
+ggplot(spy, aes(x = date)) +
+    geom_line(aes(y = bandwidth * 100), colour = tc[1], linewidth = 0.7) +
+    geom_hline(yintercept = quantile(spy$bandwidth, 0.20, na.rm = TRUE) * 100,
+               linetype = "dashed", colour = tc[4]) +
+    geom_point(data = squeeze_points, aes(y = bandwidth * 100),
+               colour = tc[3], size = 2) +
+    labs(
+        title = "Bollinger Band Width (Squeeze Detection)",
+        subtitle = "Points mark squeeze beginnings (bandwidth below 20th percentile)",
+        x = NULL,
+        y = "Bandwidth (%)"
+    ) +
+    theme_trading()
+```
+
+![Bollinger Band squeeze: low bandwidth often precedes significant price moves. Band expansion signals breakout direction.](/courses/financial-statistics-1-foundations/../figures/06-2_bollinger-squeeze-1.png)
+
+
+``` r
+# Bollinger Band mean-reversion strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+bb_result <- calc_bollinger(spy$adjusted, 20, 2)
+spy[, c("bb_middle", "bb_upper", "bb_lower") := .(bb_result$middle, bb_result$upper, bb_result$lower)]
+spy <- spy[!is.na(bb_middle) & !is.na(returns)]
+
+# Strategy: buy at lower band, sell at upper band
+spy[, position := 0]
+spy[adjusted <= bb_lower, position := 1]  # Buy at lower band
+spy[adjusted >= bb_upper, position := 0]  # Sell at upper band
+
+# Carry position forward
+for (i in 2:nrow(spy)) {
+    if (spy$adjusted[i] > spy$bb_lower[i] && spy$adjusted[i] < spy$bb_upper[i]) {
+        spy$position[i] <- spy$position[i - 1]
+    }
+}
+
+spy[, signal := shift(position, 1)]
+spy[, strat_returns := signal * returns]
+spy <- spy[!is.na(strat_returns)]
+
+cat("=== Bollinger Band Mean-Reversion ===\n")
+```
+
+```
+## === Bollinger Band Mean-Reversion ===
+```
+
+``` r
+cat("Buy at lower band, sell at upper band\n\n")
+```
+
+```
+## Buy at lower band, sell at upper band
+```
+
+``` r
+bb_stats <- data.table(
+    Strategy = c("Buy & Hold", "Bollinger Mean-Reversion"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns)))
+)
+print(bb_stats)
+```
+
+```
+##                    Strategy Ann. Return Sharpe
+##                      <char>      <char> <char>
+## 1:               Buy & Hold       12.3%   0.64
+## 2: Bollinger Mean-Reversion        9.9%   0.60
+```
+
+### 6.6.3 Mathematical Derivation
+
+**Bollinger Bands:**
+
+$$\text{Middle} = SMA_n(P)$$
+
+$$\text{Upper} = \text{Middle} + k \times \sigma_n$$
+
+$$\text{Lower} = \text{Middle} - k \times \sigma_n$$
+
+where $\sigma_n$ is the rolling standard deviation over $n$ periods.
+
+**%B (Percent B):**
+
+$$\%B = \frac{P - \text{Lower}}{\text{Upper} - \text{Lower}}$$
+
+Interpretation:
+- %B = 1: Price at upper band
+- %B = 0.5: Price at middle (SMA)
+- %B = 0: Price at lower band
+- %B > 1 or < 0: Price outside bands
+
+**Bandwidth:**
+
+$$\text{Bandwidth} = \frac{\text{Upper} - \text{Lower}}{\text{Middle}} = \frac{2k\sigma_n}{SMA_n}$$
+
+Low bandwidth indicates consolidation; high bandwidth indicates volatility expansion.
+
+**Statistical interpretation:**
+
+If prices were normally distributed:
+- $k = 1$: ~68% of prices within bands
+- $k = 2$: ~95% of prices within bands
+- $k = 3$: ~99.7% of prices within bands
+
+But financial returns have fat tails, so actual containment is often less.
+
+### 6.6.4 Implementation & Application
+
+
+``` r
+# Complete Bollinger Bands implementation
+calc_bollinger_complete <- function(price, n = 20, k = 2) {
+    middle <- frollmean(price, n)
+    std_dev <- frollapply(price, n, sd)
+
+    upper <- middle + k * std_dev
+    lower <- middle - k * std_dev
+
+    pct_b <- (price - lower) / (upper - lower)
+    bandwidth <- (upper - lower) / middle * 100
+
+    # Tag events
+    touch_upper <- price >= upper
+    touch_lower <- price <= lower
+    squeeze <- bandwidth < frollmean(bandwidth, 100, na.rm = TRUE) * 0.8
+
+    data.table(
+        middle = middle,
+        upper = upper,
+        lower = lower,
+        pct_b = pct_b,
+        bandwidth = bandwidth,
+        touch_upper = touch_upper,
+        touch_lower = touch_lower,
+        squeeze = squeeze
+    )
+}
+
+cat("=== Bollinger Bands Trading Guide ===\n\n")
+```
+
+```
+## === Bollinger Bands Trading Guide ===
+```
+
+``` r
+cat("Mean Reversion:\n")
+```
+
+```
+## Mean Reversion:
+```
+
+``` r
+cat("  Buy when price touches lower band\n")
+```
+
+```
+##   Buy when price touches lower band
+```
+
+``` r
+cat("  Sell when price touches upper band\n")
+```
+
+```
+##   Sell when price touches upper band
+```
+
+``` r
+cat("  Works best in ranging markets\n\n")
+```
+
+```
+##   Works best in ranging markets
+```
+
+``` r
+cat("Breakout:\n")
+```
+
+```
+## Breakout:
+```
+
+``` r
+cat("  Buy when price closes above upper band after squeeze\n")
+```
+
+```
+##   Buy when price closes above upper band after squeeze
+```
+
+``` r
+cat("  Sell when price closes below lower band after squeeze\n")
+```
+
+```
+##   Sell when price closes below lower band after squeeze
+```
+
+``` r
+cat("  Works best when trend is starting\n\n")
+```
+
+```
+##   Works best when trend is starting
+```
+
+``` r
+cat("Band Walk:\n")
+```
+
+```
+## Band Walk:
+```
+
+``` r
+cat("  Strong uptrend: price walks along upper band\n")
+```
+
+```
+##   Strong uptrend: price walks along upper band
+```
+
+``` r
+cat("  Strong downtrend: price walks along lower band\n")
+```
+
+```
+##   Strong downtrend: price walks along lower band
+```
+
+``` r
+cat("  Don't fade these moves!\n")
+```
+
+```
+##   Don't fade these moves!
+```
+
+---
+
+## 6.7 Combining Indicators
+
+### 6.7.1 Prose/Intuition
+
+Single indicators generate many false signals. Combining multiple indicators can improve accuracy by requiring confirmation—but it also means missing some valid signals.
+
+The key is finding indicators that capture different aspects of price behavior:
+- Trend indicators (MACD, MA crossovers)
+- Momentum oscillators (RSI, Stochastic)
+- Volatility measures (Bollinger Bands)
+
+### 6.7.2 Visual Evidence
+
+
+``` r
+# Multi-indicator strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# Calculate indicators
+# MACD
+calc_ema <- function(x, n) {
+    alpha <- 2 / (n + 1)
+    ema <- numeric(length(x))
+    ema[1] <- x[1]
+    for (i in 2:length(x)) {
+        ema[i] <- alpha * x[i] + (1 - alpha) * ema[i - 1]
+    }
+    ema
+}
+
+spy[, ema_12 := calc_ema(adjusted, 12)]
+spy[, ema_26 := calc_ema(adjusted, 26)]
+spy[, macd := ema_12 - ema_26]
+spy[, macd_signal := calc_ema(macd, 9)]
+
+# RSI
+spy[, rsi := calc_rsi(adjusted, 14)]
+
+spy <- spy[!is.na(macd_signal) & !is.na(rsi) & !is.na(returns)]
+
+# Individual signals
+spy[, macd_long := macd > macd_signal]
+spy[, rsi_long := rsi > 30 & rsi < 70]  # Not overbought
+
+# Combined signal: MACD bullish AND RSI not overbought
+spy[, combined := macd_long & rsi_long]
+
+# Strategies
+spy[, macd_only := shift(fifelse(macd_long, 1, 0), 1)]
+spy[, combined_signal := shift(fifelse(combined, 1, 0), 1)]
+
+spy[, macd_ret := macd_only * returns]
+spy[, combined_ret := combined_signal * returns]
+
+spy <- spy[!is.na(macd_ret)]
+
+# Compare
+cat("=== Indicator Combination Comparison ===\n\n")
+```
+
+```
+## === Indicator Combination Comparison ===
+```
+
+``` r
+combo_stats <- data.table(
+    Strategy = c("Buy & Hold", "MACD Only", "MACD + RSI Filter"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$macd_ret, type = "simple") * 100,
+        annualised_return(spy$combined_ret, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$macd_ret),
+        sharpe_ratio(spy$combined_ret))),
+    `Time in Market` = sprintf("%.0f%%", c(
+        100,
+        mean(spy$macd_only, na.rm = TRUE) * 100,
+        mean(spy$combined_signal, na.rm = TRUE) * 100))
+)
+print(combo_stats)
+```
+
+```
+##             Strategy Ann. Return Sharpe Time in Market
+##               <char>      <char> <char>         <char>
+## 1:        Buy & Hold       11.9%   0.62           100%
+## 2:         MACD Only        7.3%   0.68            52%
+## 3: MACD + RSI Filter        6.7%   0.64            44%
+```
+
+``` r
+# Plot cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_macd := exp(cumsum(macd_ret))]
+spy[, cum_combo := exp(cumsum(combined_ret))]
+
+combo_perf <- melt(spy[, .(date, `Buy & Hold` = cum_bh,
+                            `MACD Only` = cum_macd,
+                            `MACD + RSI` = cum_combo)],
+                   id.vars = "date",
+                   variable.name = "Strategy",
+                   value.name = "Wealth")
+
+ggplot(combo_perf, aes(x = date, y = Wealth, colour = Strategy)) +
+    geom_line(linewidth = 0.8) +
+    scale_y_log10(labels = scales::dollar) +
+    scale_colour_manual(values = c(tc[1], tc[3], tc[5])) +
+    labs(
+        title = "Effect of Indicator Combination",
+        subtitle = "Adding RSI filter reduces exposure but may improve risk-adjusted returns",
+        x = NULL,
+        y = "Wealth (log scale)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Combining MACD (trend) with RSI (momentum) reduces false signals but also reduces total signal count.](/courses/financial-statistics-1-foundations/../figures/06-2_indicator-combination-1.png)
+
+### 6.7.3 Mathematical Derivation
+
+**Voting combination:**
+
+Given $n$ binary signals $s_1, s_2, ..., s_n \in \{0, 1\}$:
+
+$$S_{combined} = \mathbb{1}\left[\sum_{i=1}^n s_i \geq k\right]$$
+
+where $k$ is the threshold (e.g., $k = n$ for unanimity, $k = \lceil n/2 \rceil$ for majority).
+
+**Weighted combination:**
+
+$$S_{weighted} = \sum_{i=1}^n w_i \cdot s_i$$
+
+where weights $w_i$ can be:
+- Equal: $w_i = 1/n$
+- Performance-based: Proportional to historical accuracy
+- Optimised: Chosen to maximise some objective
+
+**Information Coefficient aggregation:**
+
+If each indicator has Information Coefficient $IC_i$ (correlation with future returns):
+
+$$IC_{combined} \approx \sqrt{\sum_i IC_i^2}$$
+
+This assumes indicators are uncorrelated. In practice, technical indicators are often correlated, reducing the diversification benefit.
+
+### 6.7.4 Implementation & Application
+
+
+``` r
+# Multi-indicator signal generator
+generate_combined_signal <- function(price, high, low,
+                                      use_macd = TRUE,
+                                      use_rsi = TRUE,
+                                      use_stoch = TRUE,
+                                      method = "voting",
+                                      threshold = 2) {
+    signals <- data.table()
+
+    if (use_macd) {
+        ema_12 <- calc_ema(price, 12)
+        ema_26 <- calc_ema(price, 26)
+        macd <- ema_12 - ema_26
+        macd_signal <- calc_ema(macd, 9)
+        signals$macd <- as.numeric(macd > macd_signal)
+    }
+
+    if (use_rsi) {
+        rsi <- calc_rsi(price, 14)
+        signals$rsi <- as.numeric(rsi > 30 & rsi < 70)  # Not extreme
+    }
+
+    if (use_stoch) {
+        stoch <- calc_stochastic(high, low, price)
+        signals$stoch <- as.numeric(stoch$pct_k > stoch$pct_d)
+    }
+
+    # Combine
+    signal_sum <- rowSums(signals, na.rm = TRUE)
+    n_signals <- ncol(signals)
+
+    if (method == "voting") {
+        combined <- as.numeric(signal_sum >= threshold)
+    } else if (method == "any") {
+        combined <- as.numeric(signal_sum > 0)
+    } else if (method == "all") {
+        combined <- as.numeric(signal_sum == n_signals)
+    }
+
+    combined
+}
+
+# Test on SPY
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2020-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+spy[, signal_any := generate_combined_signal(adjusted, high, low, method = "any")]
+spy[, signal_majority := generate_combined_signal(adjusted, high, low, method = "voting", threshold = 2)]
+spy[, signal_all := generate_combined_signal(adjusted, high, low, method = "all")]
+
+spy <- spy[!is.na(signal_all) & !is.na(returns)]
+
+spy[, ret_any := shift(signal_any, 1) * returns]
+spy[, ret_majority := shift(signal_majority, 1) * returns]
+spy[, ret_all := shift(signal_all, 1) * returns]
+
+spy <- spy[!is.na(ret_any)]
+
+cat("=== Signal Combination Methods ===\n\n")
+```
+
+```
+## === Signal Combination Methods ===
+```
+
+``` r
+method_stats <- data.table(
+    Method = c("Any Signal", "Majority (2/3)", "All Signals"),
+    `Time in Market` = sprintf("%.0f%%", c(
+        mean(spy$signal_any, na.rm = TRUE) * 100,
+        mean(spy$signal_majority, na.rm = TRUE) * 100,
+        mean(spy$signal_all, na.rm = TRUE) * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$ret_any),
+        sharpe_ratio(spy$ret_majority),
+        sharpe_ratio(spy$ret_all)))
+)
+print(method_stats)
+```
+
+```
+##            Method Time in Market Sharpe
+##            <char>         <char> <char>
+## 1:     Any Signal            99%   0.29
+## 2: Majority (2/3)            76%   0.41
+## 3:    All Signals            25%   0.51
+```
+
+---
+
+## Quick Reference
+
+### RSI Formulae
+
+| Component | Formula |
+|-----------|---------|
+| **Relative Strength** | $RS = \frac{\text{Avg Gain}}{\text{Avg Loss}}$ |
+| **RSI** | $RSI = 100 - \frac{100}{1 + RS}$ |
+| **Overbought** | RSI > 70 |
+| **Oversold** | RSI < 30 |
+
+### Stochastic Formulae
+
+| Component | Formula |
+|-----------|---------|
+| **%K** | $\frac{C - L_n}{H_n - L_n} \times 100$ |
+| **%D** | $SMA_3(\%K)$ |
+| **Overbought** | %K > 80 |
+| **Oversold** | %K < 20 |
+
+### Bollinger Bands
+
+| Component | Formula |
+|-----------|---------|
+| **Middle** | $SMA_n$ |
+| **Upper** | $SMA_n + k \times \sigma_n$ |
+| **Lower** | $SMA_n - k \times \sigma_n$ |
+| **%B** | $\frac{P - Lower}{Upper - Lower}$ |
+| **Bandwidth** | $\frac{Upper - Lower}{Middle}$ |
+
+### Indicator Combination Guidelines
+
+| Combination | Character | Best For |
+|-------------|-----------|----------|
+| Any (OR) | Liberal, many signals | Catching all moves |
+| Majority | Balanced | General trading |
+| All (AND) | Conservative, few signals | High conviction |
+
+### Indicator Correlations
+
+Combining indicators works best when they capture different information:
+
+| Indicator Type | Measures | Good Combinations |
+|----------------|----------|-------------------|
+| Trend (MACD, MA) | Direction | + Momentum |
+| Momentum (RSI) | Speed | + Trend, + Volume |
+| Volatility (BB) | Range | + Trend |
+| Volume (OBV) | Conviction | + Momentum |

@@ -1,0 +1,1219 @@
+---
+title: "Volume and Volatility Indicators"
+---
+
+
+
+# Volume and Volatility Indicators
+
+Volume tells us *conviction*. Price tells us direction, but volume tells us how strongly the market believes in that direction. Volatility tells us *uncertainty*—how much prices are fluctuating and, by implication, how nervous the market is.
+
+Both volume and volatility often *precede* price moves. This makes them valuable leading indicators, unlike the lagging trend and momentum indicators we've covered.
+
+---
+
+## 6.8 Volume Analysis
+
+### 6.8.1 Prose/Intuition
+
+The adage "volume precedes price" captures centuries of market wisdom. When prices rise on high volume, buyers are committed. When prices rise on declining volume, the move lacks conviction and may reverse.
+
+Volume analysis serves three purposes:
+1. **Confirmation:** Validates price moves—strong trends should have strong volume
+2. **Divergence detection:** Price making highs while volume declines warns of exhaustion
+3. **Breakout validation:** Breakouts on high volume are more likely to follow through
+
+The challenge with volume is that it's not stationary. Volume in 2024 differs vastly from volume in 2004 due to market growth, algorithmic trading, and structural changes. We need indicators that normalise for these changes.
+
+### 6.8.2 Visual Evidence
+
+
+``` r
+# On-Balance Volume calculation
+calc_obv <- function(close, volume) {
+    price_change <- diff(close)
+    direction <- sign(price_change)
+
+    # OBV: cumulative sum of signed volume
+    obv <- c(0, cumsum(direction * volume[-1]))
+    obv
+}
+
+# Load SPY with volume
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+spy[, obv := calc_obv(adjusted, volume)]
+
+# Plot price and OBV
+p1 <- ggplot(spy, aes(x = date, y = adjusted)) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    labs(title = "SPY Price", x = NULL, y = "Price ($)") +
+    theme_trading()
+
+p2 <- ggplot(spy, aes(x = date, y = obv / 1e9)) +
+    geom_line(colour = tc[2], linewidth = 0.7) +
+    labs(title = "On-Balance Volume (OBV)", x = NULL, y = "OBV (billions)") +
+    theme_trading()
+
+print(p1)
+```
+
+![On-Balance Volume (OBV) accumulates volume on up days and subtracts on down days. Divergences between OBV and price can signal reversals.](/courses/financial-statistics-1-foundations/../figures/06-3_obv-calculation-1.png)
+
+``` r
+print(p2)
+```
+
+![On-Balance Volume (OBV) accumulates volume on up days and subtracts on down days. Divergences between OBV and price can signal reversals.](/courses/financial-statistics-1-foundations/../figures/06-3_obv-calculation-2.png)
+
+
+``` r
+# VWAP calculation
+calc_vwap <- function(high, low, close, volume) {
+    # Typical price
+    typical_price <- (high + low + close) / 3
+
+    # Cumulative VWAP
+    cum_tp_vol <- cumsum(typical_price * volume)
+    cum_vol <- cumsum(volume)
+
+    vwap <- cum_tp_vol / cum_vol
+    vwap
+}
+
+# Calculate daily VWAP (reset each day in practice, but we show rolling for illustration)
+# For intraday, this resets each day. Here we calculate a rolling VWAP
+calc_rolling_vwap <- function(high, low, close, volume, n = 20) {
+    typical_price <- (high + low + close) / 3
+
+    sum_tp_vol <- frollsum(typical_price * volume, n)
+    sum_vol <- frollsum(volume, n)
+
+    vwap <- sum_tp_vol / sum_vol
+    vwap
+}
+
+spy[, vwap := calc_rolling_vwap(high, low, adjusted, volume, 20)]
+spy <- spy[!is.na(vwap)]
+
+ggplot(spy, aes(x = date)) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    geom_line(aes(y = vwap), colour = tc[3], linewidth = 0.7, linetype = "dashed") +
+    labs(title = "SPY with 20-day Rolling VWAP",
+         subtitle = "VWAP acts as volume-weighted support/resistance",
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+```
+
+![VWAP (Volume-Weighted Average Price) gives the average price weighted by volume. Institutional traders use it as a benchmark<U+2014>buying below VWAP is considered favourable execution.](/courses/financial-statistics-1-foundations/../figures/06-3_vwap-calculation-1.png)
+
+### 6.8.3 Mathematical Derivation
+
+**On-Balance Volume (OBV)** accumulates volume based on price direction:
+
+$$
+\text{OBV}_t = \text{OBV}_{t-1} + \text{sign}(\Delta p_t) \times V_t
+$$
+
+where:
+- $\Delta p_t = p_t - p_{t-1}$ is the price change
+- $V_t$ is the volume at time $t$
+- $\text{sign}(x)$ returns +1, -1, or 0
+
+OBV's absolute value is meaningless—we care about its *direction* relative to price.
+
+**Volume-Weighted Average Price (VWAP)** gives the true average price transacted:
+
+$$
+\text{VWAP} = \frac{\sum_{i=1}^{n} P_i \times V_i}{\sum_{i=1}^{n} V_i}
+$$
+
+In practice, we use the *typical price* $P_i = (H_i + L_i + C_i) / 3$ for each bar.
+
+For a rolling VWAP over window $n$:
+
+$$
+\text{VWAP}_t = \frac{\sum_{i=t-n+1}^{t} P_i \times V_i}{\sum_{i=t-n+1}^{t} V_i}
+$$
+
+**Money Flow Index (MFI)** combines price and volume into an oscillator:
+
+$$
+\text{Money Flow} = \text{Typical Price} \times \text{Volume}
+$$
+
+$$
+\text{MFI} = 100 - \frac{100}{1 + \text{Money Ratio}}
+$$
+
+where Money Ratio = Positive Money Flow / Negative Money Flow over $n$ periods. MFI is essentially RSI applied to money flow rather than price.
+
+
+``` r
+# Money Flow Index calculation
+calc_mfi <- function(high, low, close, volume, n = 14) {
+    typical_price <- (high + low + close) / 3
+    money_flow <- typical_price * volume
+
+    # Determine positive/negative flow based on typical price change
+    tp_change <- diff(typical_price)
+    direction <- c(0, sign(tp_change))
+
+    positive_mf <- ifelse(direction > 0, money_flow, 0)
+    negative_mf <- ifelse(direction < 0, money_flow, 0)
+
+    # Rolling sums
+    pos_sum <- frollsum(positive_mf, n)
+    neg_sum <- frollsum(negative_mf, n)
+
+    # Handle division by zero
+    money_ratio <- pos_sum / pmax(neg_sum, 1e-10)
+    mfi <- 100 - 100 / (1 + money_ratio)
+
+    mfi
+}
+
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+spy[, mfi := calc_mfi(high, low, adjusted, volume, 14)]
+spy <- spy[!is.na(mfi)]
+
+# Plot
+p1 <- ggplot(spy, aes(x = date, y = adjusted)) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    labs(title = "SPY Price", x = NULL, y = "Price ($)") +
+    theme_trading()
+
+p2 <- ggplot(spy, aes(x = date, y = mfi)) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 80, ymax = 100),
+              fill = tc[4], alpha = 0.1) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 0, ymax = 20),
+              fill = tc[3], alpha = 0.1) +
+    geom_line(colour = tc[2], linewidth = 0.7) +
+    geom_hline(yintercept = c(20, 50, 80), linetype = c("dashed", "dotted", "dashed"),
+               colour = c(tc[3], "grey50", tc[4])) +
+    scale_y_continuous(limits = c(0, 100)) +
+    labs(title = "Money Flow Index (14)", x = NULL, y = "MFI") +
+    theme_trading()
+
+print(p1)
+```
+
+![Money Flow Index (MFI) combines price and volume into an RSI-like oscillator. It identifies overbought/oversold conditions with volume confirmation.](/courses/financial-statistics-1-foundations/../figures/06-3_mfi-calculation-1.png)
+
+``` r
+print(p2)
+```
+
+![Money Flow Index (MFI) combines price and volume into an RSI-like oscillator. It identifies overbought/oversold conditions with volume confirmation.](/courses/financial-statistics-1-foundations/../figures/06-3_mfi-calculation-2.png)
+
+### 6.8.4 Implementation & Application
+
+
+``` r
+# Volume confirmation strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# Moving averages for trend signal
+spy[, sma_50 := frollmean(adjusted, 50)]
+spy[, sma_200 := frollmean(adjusted, 200)]
+
+# Volume filter
+spy[, vol_avg := frollmean(volume, 20)]
+spy[, high_volume := volume > vol_avg]
+
+# Base strategy: Golden cross
+spy[, base_signal := fifelse(sma_50 > sma_200, 1, 0)]
+
+# Filtered strategy: Golden cross + high volume
+spy[, filtered_signal := fifelse(sma_50 > sma_200 & high_volume, 1, 0)]
+
+# Shift signals for realistic execution
+spy[, base_signal := shift(base_signal, 1)]
+spy[, filtered_signal := shift(filtered_signal, 1)]
+
+spy <- spy[!is.na(base_signal) & !is.na(filtered_signal)]
+
+spy[, base_returns := base_signal * returns]
+spy[, filtered_returns := filtered_signal * returns]
+
+# Cumulative performance
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_base := exp(cumsum(base_returns))]
+spy[, cum_filtered := exp(cumsum(filtered_returns))]
+
+# Results table
+cat("=== Volume Confirmation Filter ===\n")
+```
+
+```
+## === Volume Confirmation Filter ===
+```
+
+``` r
+cat("Base strategy: Golden cross (50/200 SMA)\n")
+```
+
+```
+## Base strategy: Golden cross (50/200 SMA)
+```
+
+``` r
+cat("Filtered: Only when volume > 20-day average\n\n")
+```
+
+```
+## Filtered: Only when volume > 20-day average
+```
+
+``` r
+vol_stats <- data.table(
+    Strategy = c("Buy & Hold", "Golden Cross", "Golden Cross + Volume"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$base_returns, type = "simple") * 100,
+        annualised_return(spy$filtered_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$base_returns),
+        sharpe_ratio(spy$filtered_returns))),
+    `Time in Market` = sprintf("%.0f%%", c(
+        100,
+        mean(spy$base_signal, na.rm = TRUE) * 100,
+        mean(spy$filtered_signal, na.rm = TRUE) * 100))
+)
+print(vol_stats)
+```
+
+```
+##                 Strategy Ann. Return Sharpe Time in Market
+##                   <char>      <char> <char>         <char>
+## 1:            Buy & Hold       12.9%   0.66           100%
+## 2:          Golden Cross        8.2%   0.53            78%
+## 3: Golden Cross + Volume        4.9%   0.37            33%
+```
+
+``` r
+# Plot cumulative returns
+spy_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh, `Golden Cross` = cum_base,
+                         `Golden Cross + Volume` = cum_filtered)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[3])) +
+    labs(title = "Volume Confirmation Filter",
+         subtitle = "Adding volume filter can improve signal quality",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Volume confirmation filter: only take signals when volume is above its 20-day average. This filters out low-conviction moves.](/courses/financial-statistics-1-foundations/../figures/06-3_volume-confirmation-strategy-1.png)
+
+
+``` r
+# Detect OBV divergence
+detect_divergence <- function(price, obv, lookback = 20) {
+    n <- length(price)
+    divergence <- rep(0, n)
+
+    for (i in (lookback + 1):n) {
+        window <- (i - lookback):i
+
+        # Price making new high in window
+        price_new_high <- price[i] == max(price[window])
+
+        # OBV NOT making new high
+        obv_not_high <- obv[i] < max(obv[window[-length(window)]])
+
+        # Bearish divergence
+        if (price_new_high && obv_not_high) {
+            divergence[i] <- -1
+        }
+
+        # Price making new low
+        price_new_low <- price[i] == min(price[window])
+
+        # OBV NOT making new low
+        obv_not_low <- obv[i] > min(obv[window[-length(window)]])
+
+        # Bullish divergence
+        if (price_new_low && obv_not_low) {
+            divergence[i] <- 1
+        }
+    }
+
+    divergence
+}
+
+# Apply to recent data
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-06-01"), as.Date("2023-06-30"))
+spy[, obv := calc_obv(adjusted, volume)]
+spy[, divergence := detect_divergence(adjusted, obv, 20)]
+
+# Mark divergence points
+spy[, div_point := fifelse(divergence != 0, adjusted, NA_real_)]
+
+ggplot(spy, aes(x = date, y = adjusted)) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    geom_point(aes(y = div_point), colour = tc[4], size = 3,
+               data = spy[divergence == -1], na.rm = TRUE) +
+    geom_point(aes(y = div_point), colour = tc[3], size = 3,
+               data = spy[divergence == 1], na.rm = TRUE) +
+    labs(title = "OBV Divergence Detection",
+         subtitle = "Red = bearish divergence (price high, OBV not), Green = bullish divergence",
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+```
+
+![OBV divergence detection: when price makes new highs but OBV doesn't, the rally lacks conviction and may reverse.](/courses/financial-statistics-1-foundations/../figures/06-3_obv-divergence-1.png)
+
+---
+
+## 6.9 ATR and Volatility Indicators
+
+### 6.9.1 Prose/Intuition
+
+Volatility is often *predictive*. Low volatility tends to be followed by high volatility (the "volatility squeeze"), and vice versa. Markets alternate between calm consolidation and explosive moves.
+
+Average True Range (ATR) measures volatility using the full daily range, including gaps. Unlike standard deviation (which uses close-to-close), ATR captures intraday volatility and gaps—crucial information for traders managing risk.
+
+ATR has two primary uses:
+1. **Position sizing:** Larger ATR means wider stops, smaller positions
+2. **Breakout detection:** ATR expansion signals potential trend beginning
+
+### 6.9.2 Visual Evidence
+
+
+``` r
+# True Range and ATR calculation
+calc_tr <- function(high, low, close) {
+    close_prev <- shift(close, 1)
+
+    # True Range is the maximum of:
+    # 1. High - Low (current bar range)
+    # 2. |High - Previous Close| (gap up captured)
+    # 3. |Low - Previous Close| (gap down captured)
+    tr <- pmax(
+        high - low,
+        abs(high - close_prev),
+        abs(low - close_prev)
+    )
+
+    tr
+}
+
+calc_atr <- function(high, low, close, n = 14) {
+    tr <- calc_tr(high, low, close)
+
+    # Wilder smoothing (same as EMA with alpha = 1/n)
+    atr <- numeric(length(tr))
+    atr[n] <- mean(tr[1:n], na.rm = TRUE)
+
+    for (i in (n + 1):length(tr)) {
+        atr[i] <- (atr[i - 1] * (n - 1) + tr[i]) / n
+    }
+
+    atr[1:(n - 1)] <- NA
+    atr
+}
+
+# Load SPY
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2020-01-01"), as.Date("2023-12-31"))
+spy[, tr := calc_tr(high, low, adjusted)]
+spy[, atr := calc_atr(high, low, adjusted, 14)]
+spy <- spy[!is.na(atr)]
+
+# Plot price and ATR
+p1 <- ggplot(spy, aes(x = date, y = adjusted)) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    labs(title = "SPY Price", x = NULL, y = "Price ($)") +
+    theme_trading()
+
+p2 <- ggplot(spy, aes(x = date, y = atr)) +
+    geom_line(colour = tc[2], linewidth = 0.7) +
+    labs(title = "ATR (14-day)", x = NULL, y = "ATR ($)") +
+    theme_trading()
+
+print(p1)
+```
+
+![ATR (Average True Range) captures daily volatility including gaps. Notice how ATR expands during turbulent periods and contracts during calm markets.](/courses/financial-statistics-1-foundations/../figures/06-3_atr-calculation-1.png)
+
+``` r
+print(p2)
+```
+
+![ATR (Average True Range) captures daily volatility including gaps. Notice how ATR expands during turbulent periods and contracts during calm markets.](/courses/financial-statistics-1-foundations/../figures/06-3_atr-calculation-2.png)
+
+
+``` r
+# Normalised ATR for cross-asset comparison
+spy[, atr_pct := atr / adjusted * 100]
+
+ggplot(spy, aes(x = date, y = atr_pct)) +
+    geom_line(colour = tc[2], linewidth = 0.7) +
+    geom_hline(yintercept = median(spy$atr_pct), linetype = "dashed", colour = "grey50") +
+    labs(title = "Normalised ATR (ATR as % of Price)",
+         subtitle = paste0("Median: ", round(median(spy$atr_pct), 2), "%"),
+         x = NULL, y = "ATR (%)") +
+    theme_trading()
+```
+
+![Normalised ATR (ATR/Price) allows comparison across time and assets. A 5 ATR move in 2020 meant the same relative risk as in 2023.](/courses/financial-statistics-1-foundations/../figures/06-3_normalised-atr-1.png)
+
+### 6.9.3 Mathematical Derivation
+
+**True Range** extends the simple High-Low range to capture gaps:
+
+$$
+\text{TR}_t = \max\left(H_t - L_t, |H_t - C_{t-1}|, |L_t - C_{t-1}|\right)
+$$
+
+The three components capture:
+1. $H_t - L_t$: Intraday range
+2. $|H_t - C_{t-1}|$: Gap up plus intraday high
+3. $|L_t - C_{t-1}|$: Gap down plus intraday low
+
+**Average True Range** smooths TR using Wilder's method:
+
+$$
+\text{ATR}_t = \frac{(n-1) \times \text{ATR}_{t-1} + \text{TR}_t}{n}
+$$
+
+This is equivalent to an EMA with $\alpha = 1/n$, giving more weight to recent volatility while maintaining smoothness.
+
+**Normalised ATR** allows cross-asset and cross-time comparison:
+
+$$
+\text{NATR}_t = \frac{\text{ATR}_t}{C_t} \times 100
+$$
+
+A stock at $100 with ATR of $2 has the same normalised volatility as a stock at $50 with ATR of $1 (both 2%).
+
+**ATR Bands** create volatility-adjusted channels:
+
+$$
+\text{Upper} = C_{t-1} + k \times \text{ATR}_t
+$$
+$$
+\text{Lower} = C_{t-1} - k \times \text{ATR}_t
+$$
+
+Keltner Channels use $k = 2$ by default. Prices breaking these bands signal unusual moves.
+
+### 6.9.4 Implementation & Application
+
+
+``` r
+# ATR-based stop placement
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+spy[, atr := calc_atr(high, low, adjusted, 14)]
+spy <- spy[!is.na(atr)]
+
+# Trailing stop at 2 ATR below the highest high since entry
+atr_multiplier <- 2
+
+# Simulate a long position with ATR trailing stop
+spy[, stop_level := adjusted - atr_multiplier * atr]
+spy[, trailing_stop := frollapply(stop_level, 20, max)]
+
+# Show last 6 months
+spy_recent <- spy[date >= as.Date("2023-06-01")]
+
+ggplot(spy_recent, aes(x = date)) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    geom_line(aes(y = trailing_stop), colour = tc[4], linewidth = 0.7, linetype = "dashed") +
+    labs(title = "ATR-Based Trailing Stop",
+         subtitle = paste0("Stop at ", atr_multiplier, " × ATR below recent high"),
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+```
+
+![ATR-based stop placement: stops are set at 2<U+00D7>ATR below entry. This automatically widens stops in volatile markets and tightens them in calm markets.](/courses/financial-statistics-1-foundations/../figures/06-3_atr-stops-1.png)
+
+
+``` r
+# Volatility breakout strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, atr := calc_atr(high, low, adjusted, 14)]
+spy <- spy[!is.na(atr)]
+
+# Breakout threshold
+breakout_mult <- 1.5
+spy[, prev_close := shift(adjusted)]
+spy[, upper_breakout := prev_close + breakout_mult * shift(atr)]
+spy[, lower_breakout := prev_close - breakout_mult * shift(atr)]
+
+# Generate signals
+spy[, signal := 0]
+spy[adjusted > upper_breakout, signal := 1]  # Bullish breakout
+spy[adjusted < lower_breakout, signal := -1] # Bearish breakout
+
+# Stay in position for 5 days after breakout
+spy[, position := 0]
+for (i in 1:nrow(spy)) {
+    if (spy$signal[i] != 0) {
+        # Enter position on breakout
+        end_idx <- min(i + 5, nrow(spy))
+        spy$position[i:end_idx] <- spy$signal[i]
+    }
+}
+
+spy[, strat_returns := shift(position, 1) * returns]
+spy <- spy[!is.na(strat_returns)]
+
+# Cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_breakout := exp(cumsum(strat_returns))]
+
+# Results
+cat("=== Volatility Breakout Strategy ===\n")
+```
+
+```
+## === Volatility Breakout Strategy ===
+```
+
+``` r
+cat(paste0("Enter when price moves > ", breakout_mult, " ATR from previous close\n"))
+```
+
+```
+## Enter when price moves > 1.5 ATR from previous close
+```
+
+``` r
+cat("Hold for 5 days\n\n")
+```
+
+```
+## Hold for 5 days
+```
+
+``` r
+breakout_stats <- data.table(
+    Strategy = c("Buy & Hold", "Volatility Breakout"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(spy$returns) * 100,
+        max_drawdown(spy$strat_returns) * 100))
+)
+print(breakout_stats)
+```
+
+```
+##               Strategy Ann. Return Sharpe Max Drawdown
+##                 <char>      <char> <char>       <char>
+## 1:          Buy & Hold       11.8%   0.61        33.7%
+## 2: Volatility Breakout        0.0%    NaN         0.0%
+```
+
+``` r
+# Plot
+spy_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh, `Volatility Breakout` = cum_breakout)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Volatility Breakout Strategy",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Volatility breakout strategy: enter when price moves more than 1.5<U+00D7>ATR from previous close. Captures explosive moves.](/courses/financial-statistics-1-foundations/../figures/06-3_volatility-breakout-1.png)
+
+
+``` r
+# Keltner Channels
+calc_ema <- function(x, n, alpha = NULL) {
+    if (is.null(alpha)) alpha <- 2 / (n + 1)
+    ema <- numeric(length(x))
+    ema[1] <- x[1]
+    for (i in 2:length(x)) {
+        ema[i] <- alpha * x[i] + (1 - alpha) * ema[i - 1]
+    }
+    ema
+}
+
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-06-01"), as.Date("2023-12-31"))
+spy[, atr := calc_atr(high, low, adjusted, 14)]
+spy[, ema_20 := calc_ema(adjusted, 20)]
+spy <- spy[!is.na(atr)]
+
+# Keltner bands
+keltner_mult <- 2
+spy[, keltner_upper := ema_20 + keltner_mult * atr]
+spy[, keltner_lower := ema_20 - keltner_mult * atr]
+
+ggplot(spy, aes(x = date)) +
+    geom_ribbon(aes(ymin = keltner_lower, ymax = keltner_upper),
+                fill = tc[2], alpha = 0.2) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    geom_line(aes(y = ema_20), colour = tc[3], linewidth = 0.7, linetype = "dashed") +
+    labs(title = "Keltner Channels (20 EMA, 2×ATR)",
+         subtitle = "ATR-based bands capture intraday volatility and gaps",
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+```
+
+![Keltner Channels use ATR to create volatility-adjusted bands around an EMA. Unlike Bollinger Bands (which use standard deviation), Keltner Channels capture intraday volatility and gaps.](/courses/financial-statistics-1-foundations/../figures/06-3_keltner-channels-1.png)
+
+---
+
+## 6.10 Indicator Optimisation
+
+### 6.10.1 Prose/Intuition
+
+Every indicator has parameters. RSI uses 14 periods, but why not 10 or 20? Moving average crossovers use 50/200, but what about 40/150?
+
+Default parameters are historical conventions, not optimised settings. Different markets, timeframes, and regimes may benefit from different parameters.
+
+But optimisation is dangerous. With enough parameter combinations, you'll always find something that worked historically. The key questions:
+- Will it continue to work out-of-sample?
+- How robust is performance across similar parameter values?
+- Are we overfitting to historical noise?
+
+### 6.10.2 Visual Evidence
+
+
+``` r
+# Grid search for RSI parameters
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# RSI calculation function (from 06-2)
+calc_rsi <- function(price, n = 14) {
+    delta <- diff(price)
+
+    gain <- ifelse(delta > 0, delta, 0)
+    loss <- ifelse(delta < 0, -delta, 0)
+
+    avg_gain <- numeric(length(gain))
+    avg_loss <- numeric(length(gain))
+
+    avg_gain[n] <- mean(gain[1:n])
+    avg_loss[n] <- mean(loss[1:n])
+
+    for (i in (n + 1):length(gain)) {
+        avg_gain[i] <- (avg_gain[i - 1] * (n - 1) + gain[i]) / n
+        avg_loss[i] <- (avg_loss[i - 1] * (n - 1) + loss[i]) / n
+    }
+
+    rs <- avg_gain / avg_loss
+    rsi <- 100 - 100 / (1 + rs)
+
+    c(NA, rsi)
+}
+
+# Test RSI strategy with different parameters
+test_rsi_strategy <- function(data, rsi_period, oversold, overbought) {
+    dt <- copy(data)
+    dt[, rsi := calc_rsi(adjusted, rsi_period)]
+    dt <- dt[!is.na(rsi) & !is.na(returns)]
+
+    # Signal generation
+    dt[, position := 0]
+    dt[rsi < oversold, position := 1]
+    dt[rsi > overbought, position := 0]
+
+    # Carry forward
+    for (i in 2:nrow(dt)) {
+        if (dt$position[i] == 0 && dt$rsi[i] >= oversold && dt$rsi[i] <= overbought) {
+            dt$position[i] <- dt$position[i - 1]
+        }
+    }
+
+    dt[, signal := shift(position, 1)]
+    dt[, strat_returns := signal * returns]
+
+    sr <- sharpe_ratio(dt$strat_returns[!is.na(dt$strat_returns)])
+    if (is.na(sr) || !is.finite(sr)) sr <- 0
+    sr
+}
+
+# Grid search
+rsi_periods <- seq(5, 25, by = 5)
+oversold_levels <- seq(20, 40, by = 5)
+
+results <- data.table()
+
+for (period in rsi_periods) {
+    for (oversold in oversold_levels) {
+        overbought <- 100 - oversold  # Symmetric thresholds
+        sharpe <- test_rsi_strategy(spy, period, oversold, overbought)
+        results <- rbind(results, data.table(
+            Period = period,
+            Oversold = oversold,
+            Overbought = overbought,
+            Sharpe = sharpe
+        ))
+    }
+}
+
+# Heatmap
+ggplot(results, aes(x = factor(Period), y = factor(Oversold), fill = Sharpe)) +
+    geom_tile() +
+    geom_text(aes(label = sprintf("%.2f", Sharpe)), colour = "white", size = 3) +
+    scale_fill_gradient2(low = tc[4], mid = "grey30", high = tc[3], midpoint = 0) +
+    labs(title = "RSI Strategy Parameter Sensitivity",
+         subtitle = "Sharpe ratio across RSI period and oversold threshold",
+         x = "RSI Period", y = "Oversold Threshold") +
+    theme_trading()
+```
+
+![Parameter sensitivity surface for RSI strategy. The surface shows Sharpe ratio for different RSI periods and thresholds. Smooth plateaus indicate robust parameters; sharp peaks suggest overfitting.](/courses/financial-statistics-1-foundations/../figures/06-3_parameter-surface-1.png)
+
+### 6.10.3 Mathematical Derivation
+
+**Grid Search Complexity:**
+
+For $k$ parameters, each with $n$ values to test:
+$$
+\text{Total combinations} = n^k
+$$
+
+With 3 parameters and 10 values each, we have $10^3 = 1000$ combinations. This grows exponentially—the "curse of dimensionality."
+
+**Overfitting Risk:**
+
+The probability of finding spuriously good parameters increases with the number of tests. If we test $m$ parameter combinations at significance level $\alpha$:
+$$
+P(\text{at least one false positive}) = 1 - (1 - \alpha)^m
+$$
+
+With 1000 tests and $\alpha = 0.05$, there's a 99.9% chance of finding at least one spuriously significant result.
+
+**Robust Parameter Selection:**
+
+Rather than selecting the single best parameter, choose the *median* of the top performers:
+
+1. Run grid search across parameter space
+2. Rank results by performance metric
+3. Take top 10-20% of parameter combinations
+4. Choose the median parameter values from this group
+
+This avoids selecting outliers that may have been lucky.
+
+**Walk-Forward Optimisation** prevents overfitting by:
+1. Optimise on period 1 → Test on period 2
+2. Optimise on periods 1-2 → Test on period 3
+3. Continue, always testing on unseen data
+
+$$
+\text{Total OOS Return} = \sum_{i=1}^{N} r_{i,\text{OOS}}
+$$
+
+where each $r_{i,\text{OOS}}$ is tested on data the optimiser never saw.
+
+
+``` r
+# Demonstrate overfitting risk
+spy <- load_market("SPY")
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# Split into in-sample and out-of-sample
+split_date <- as.Date("2020-01-01")
+spy_is <- spy[date < split_date]
+spy_oos <- spy[date >= split_date]
+
+# Test on both samples
+results_is <- data.table()
+results_oos <- data.table()
+
+for (period in rsi_periods) {
+    for (oversold in oversold_levels) {
+        overbought <- 100 - oversold
+
+        sharpe_is <- test_rsi_strategy(spy_is, period, oversold, overbought)
+        sharpe_oos <- test_rsi_strategy(spy_oos, period, oversold, overbought)
+
+        results_is <- rbind(results_is, data.table(Period = period, Oversold = oversold, Sharpe = sharpe_is))
+        results_oos <- rbind(results_oos, data.table(Period = period, Oversold = oversold, Sharpe = sharpe_oos))
+    }
+}
+
+# Find best in-sample parameters
+best_is <- results_is[which.max(Sharpe)]
+cat("=== Overfitting Demonstration ===\n\n")
+```
+
+```
+## === Overfitting Demonstration ===
+```
+
+``` r
+cat("Best In-Sample Parameters:\n")
+```
+
+```
+## Best In-Sample Parameters:
+```
+
+``` r
+cat(sprintf("  RSI Period: %d, Oversold: %d\n", best_is$Period, best_is$Oversold))
+```
+
+```
+##   RSI Period: 15, Oversold: 20
+```
+
+``` r
+cat(sprintf("  In-Sample Sharpe: %.2f\n", best_is$Sharpe))
+```
+
+```
+##   In-Sample Sharpe: 0.71
+```
+
+``` r
+# How do they perform out-of-sample?
+oos_performance <- results_oos[Period == best_is$Period & Oversold == best_is$Oversold]
+cat(sprintf("  Out-of-Sample Sharpe: %.2f\n\n", oos_performance$Sharpe))
+```
+
+```
+##   Out-of-Sample Sharpe: 0.00
+```
+
+``` r
+# Compare to robust selection (median of top performers)
+top_is <- results_is[order(-Sharpe)][1:5]
+robust_period <- median(top_is$Period)
+robust_oversold <- median(top_is$Oversold)
+
+robust_is <- test_rsi_strategy(spy_is, robust_period, robust_oversold, 100 - robust_oversold)
+robust_oos <- test_rsi_strategy(spy_oos, robust_period, robust_oversold, 100 - robust_oversold)
+
+cat("Robust Parameters (median of top 5):\n")
+```
+
+```
+## Robust Parameters (median of top 5):
+```
+
+``` r
+cat(sprintf("  RSI Period: %d, Oversold: %d\n", robust_period, robust_oversold))
+```
+
+```
+##   RSI Period: 15, Oversold: 30
+```
+
+``` r
+cat(sprintf("  In-Sample Sharpe: %.2f\n", robust_is))
+```
+
+```
+##   In-Sample Sharpe: 0.25
+```
+
+``` r
+cat(sprintf("  Out-of-Sample Sharpe: %.2f\n", robust_oos))
+```
+
+```
+##   Out-of-Sample Sharpe: 0.37
+```
+
+``` r
+# Plot IS vs OOS
+comparison <- merge(results_is, results_oos, by = c("Period", "Oversold"), suffixes = c("_IS", "_OOS"))
+
+ggplot(comparison, aes(x = Sharpe_IS, y = Sharpe_OOS)) +
+    geom_point(colour = tc[1], size = 2, alpha = 0.7) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_smooth(method = "lm", se = TRUE, colour = tc[2], fill = tc[2], alpha = 0.2) +
+    labs(title = "In-Sample vs Out-of-Sample Performance",
+         subtitle = "Points below the diagonal indicate overfitting",
+         x = "In-Sample Sharpe", y = "Out-of-Sample Sharpe") +
+    theme_trading()
+```
+
+![Overfitting demonstration: In-sample performance peaks at complex parameters that fail out-of-sample. Simpler parameters often generalise better.](/courses/financial-statistics-1-foundations/../figures/06-3_overfitting-risk-1.png)
+
+### 6.10.4 Implementation & Application
+
+
+``` r
+# Helper function to add months to a date (base R)
+add_months <- function(date, n) {
+    # Use seq.Date to add months reliably
+    seq(date, by = paste(n, "months"), length.out = 2)[2]
+}
+
+# Walk-forward optimisation framework
+walk_forward_rsi <- function(data, train_months = 24, test_months = 6) {
+    results <- data.table()
+
+    dates <- sort(unique(data$date))
+    start_date <- min(dates)
+    end_date <- max(dates)
+
+    # Walk forward through time
+    current_train_start <- start_date
+
+    while (TRUE) {
+        train_end <- add_months(current_train_start, train_months)
+        test_end <- add_months(train_end, test_months)
+
+        if (test_end > end_date) break
+
+        # Training data
+        train_data <- data[date >= current_train_start & date < train_end]
+
+        # Find best parameters on training data
+        best_sharpe <- -Inf
+        best_period <- 14
+        best_oversold <- 30
+
+        for (period in rsi_periods) {
+            for (oversold in oversold_levels) {
+                sharpe <- test_rsi_strategy(train_data, period, oversold, 100 - oversold)
+                if (sharpe > best_sharpe) {
+                    best_sharpe <- sharpe
+                    best_period <- period
+                    best_oversold <- oversold
+                }
+            }
+        }
+
+        # Test on out-of-sample data
+        test_data <- data[date >= train_end & date < test_end]
+        oos_sharpe <- test_rsi_strategy(test_data, best_period, best_oversold, 100 - best_oversold)
+
+        results <- rbind(results, data.table(
+            Train_Start = current_train_start,
+            Train_End = train_end,
+            Test_End = test_end,
+            Best_Period = best_period,
+            Best_Oversold = best_oversold,
+            IS_Sharpe = best_sharpe,
+            OOS_Sharpe = oos_sharpe
+        ))
+
+        # Slide forward
+        current_train_start <- add_months(current_train_start, test_months)
+    }
+
+    results
+}
+
+# Run walk-forward
+wf_results <- walk_forward_rsi(spy, train_months = 24, test_months = 6)
+
+# Display results
+cat("=== Walk-Forward Optimisation Results ===\n\n")
+```
+
+```
+## === Walk-Forward Optimisation Results ===
+```
+
+``` r
+print(wf_results[, .(Train_End, Best_Period, Best_Oversold,
+                     IS_Sharpe = round(IS_Sharpe, 2),
+                     OOS_Sharpe = round(OOS_Sharpe, 2))])
+```
+
+```
+##      Train_End Best_Period Best_Oversold IS_Sharpe OOS_Sharpe
+##         <Date>       <num>         <num>     <num>      <num>
+##  1: 2007-01-03           5            30      1.91       1.42
+##  2: 2007-07-03           5            30      1.75       0.32
+##  3: 2008-01-03           5            40      1.40      -0.50
+##  4: 2008-07-03           5            40      0.49      -0.23
+##  5: 2009-01-03          20            25      0.12       0.00
+##  6: 2009-07-03          20            25      0.06       0.00
+##  7: 2010-01-03          20            25      0.44       0.00
+##  8: 2010-07-03          25            30      0.54       0.00
+##  9: 2011-01-03          25            30      1.80       0.00
+## 10: 2011-07-03           5            25      1.42       0.04
+## 11: 2012-01-03          15            40      0.86       0.19
+## 12: 2012-07-03          25            30      0.74       0.00
+## 13: 2013-01-03          15            30      1.03       0.00
+## 14: 2013-07-03          25            30      1.25       0.00
+## 15: 2014-01-03          15            30      1.60       0.00
+## 16: 2014-07-03          15            40      2.03       2.18
+## 17: 2015-01-03          15            35      2.92       0.00
+## 18: 2015-07-03          20            40      2.67       0.83
+## 19: 2016-01-03          15            35      1.69       2.87
+## 20: 2016-07-03          15            35      1.62       2.63
+## 21: 2017-01-03          25            40      1.28       0.00
+## 22: 2017-07-03          25            40      1.28       0.00
+## 23: 2018-01-03          25            40      2.52       1.47
+## 24: 2018-07-03           5            35      1.30      -0.65
+## 25: 2019-01-03          25            30      0.94       0.00
+## 26: 2019-07-03          25            30      1.73       0.00
+## 27: 2020-01-03          20            25      1.82       0.00
+## 28: 2020-07-03          20            25      1.81       0.00
+## 29: 2021-01-03          15            40      0.52       0.00
+## 30: 2021-07-03          20            30      0.63       0.00
+## 31: 2022-01-03          25            30      0.99       0.00
+## 32: 2022-07-03           5            30      0.80      -0.35
+## 33: 2023-01-03          20            40      0.54       0.00
+## 34: 2023-07-03          10            30      0.74       0.69
+## 35: 2024-01-03          15            30      0.73       0.00
+## 36: 2024-07-03          10            25      1.30       0.00
+## 37: 2025-01-03           5            20      2.31      -0.26
+## 38: 2025-07-03          25            30      1.12       0.00
+##      Train_End Best_Period Best_Oversold IS_Sharpe OOS_Sharpe
+```
+
+``` r
+cat(sprintf("\nAverage IS Sharpe:  %.2f\n", mean(wf_results$IS_Sharpe)))
+```
+
+```
+## 
+## Average IS Sharpe:  1.28
+```
+
+``` r
+cat(sprintf("Average OOS Sharpe: %.2f\n", mean(wf_results$OOS_Sharpe)))
+```
+
+```
+## Average OOS Sharpe: 0.28
+```
+
+``` r
+cat(sprintf("Sharpe Decay:       %.0f%%\n", (1 - mean(wf_results$OOS_Sharpe) / mean(wf_results$IS_Sharpe)) * 100))
+```
+
+```
+## Sharpe Decay:       78%
+```
+
+``` r
+# Plot walk-forward performance
+wf_long <- melt(wf_results[, .(Period = .I, `In-Sample` = IS_Sharpe, `Out-of-Sample` = OOS_Sharpe)],
+                id.vars = "Period", variable.name = "Sample", value.name = "Sharpe")
+
+ggplot(wf_long, aes(x = Period, y = Sharpe, fill = Sample)) +
+    geom_col(position = "dodge") +
+    scale_fill_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Walk-Forward Optimisation",
+         subtitle = "Out-of-sample performance typically lower than in-sample",
+         x = "Test Period", y = "Sharpe Ratio") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Walk-forward optimisation: always test on data the optimiser never saw. This prevents overfitting and gives realistic performance expectations.](/courses/financial-statistics-1-foundations/../figures/06-3_walk-forward-optimisation-1.png)
+
+
+``` r
+# Analyse parameter stability over time
+ggplot(wf_results, aes(x = Train_End)) +
+    geom_line(aes(y = Best_Period), colour = tc[1], linewidth = 0.8) +
+    geom_point(aes(y = Best_Period), colour = tc[1], size = 2) +
+    labs(title = "Optimal RSI Period Over Time",
+         subtitle = "Stable parameters suggest robust signal; varying parameters suggest overfitting",
+         x = NULL, y = "RSI Period") +
+    theme_trading()
+```
+
+![Parameter stability analysis: track which parameters are selected over time. Stable parameters suggest robust signals; wildly varying parameters suggest noise.](/courses/financial-statistics-1-foundations/../figures/06-3_parameter-stability-1.png)
+
+``` r
+# Parameter frequency table
+cat("\n=== Parameter Selection Frequency ===\n")
+```
+
+```
+## 
+## === Parameter Selection Frequency ===
+```
+
+``` r
+param_freq <- wf_results[, .N, by = .(Best_Period, Best_Oversold)]
+param_freq <- param_freq[order(-N)]
+print(param_freq)
+```
+
+```
+##     Best_Period Best_Oversold     N
+##           <num>         <num> <int>
+##  1:          25            30     8
+##  2:          20            25     5
+##  3:           5            30     3
+##  4:          15            40     3
+##  5:          15            30     3
+##  6:          15            35     3
+##  7:          25            40     3
+##  8:           5            40     2
+##  9:          20            40     2
+## 10:           5            25     1
+## 11:           5            35     1
+## 12:          20            30     1
+## 13:          10            30     1
+## 14:          10            25     1
+## 15:           5            20     1
+```
+
+``` r
+# Most common parameters
+most_common <- param_freq[1]
+cat(sprintf("\nMost frequently selected: Period = %d, Oversold = %d (%d times)\n",
+            most_common$Best_Period, most_common$Best_Oversold, most_common$N))
+```
+
+```
+## 
+## Most frequently selected: Period = 25, Oversold = 30 (8 times)
+```
+
+---
+
+## Quick Reference
+
+### Volume Indicators
+
+| Indicator | Formula | Interpretation |
+|-----------|---------|----------------|
+| OBV | $\sum \text{sign}(\Delta p) \times V$ | Trend direction: rising = accumulation |
+| VWAP | $\frac{\sum P \times V}{\sum V}$ | Fair value benchmark for execution |
+| MFI | RSI applied to money flow | Volume-weighted overbought/oversold |
+
+### Volatility Indicators
+
+| Indicator | Formula | Use Case |
+|-----------|---------|----------|
+| True Range | $\max(H-L, \|H-C_{-1}\|, \|L-C_{-1}\|)$ | Daily volatility with gaps |
+| ATR | Smoothed TR (Wilder method) | Stop placement, position sizing |
+| NATR | $\text{ATR} / \text{Price} \times 100$ | Cross-asset comparison |
+
+### Optimisation Guidelines
+
+| Principle | Implementation |
+|-----------|----------------|
+| Avoid overfitting | Walk-forward validation |
+| Robust selection | Median of top performers |
+| Parameter stability | Track changes over time |
+| Complexity penalty | Prefer simpler indicators |
+| Reality check | Compare to buy-and-hold |
+
+### Key Relationships
+
+1. **Volume confirms price:** Strong moves should have strong volume
+2. **Divergence warns:** Price highs on declining volume signal weakness
+3. **Volatility clusters:** Low vol followed by high vol (squeeze → breakout)
+4. **Optimisation decays:** Expect 30-50% Sharpe decline out-of-sample

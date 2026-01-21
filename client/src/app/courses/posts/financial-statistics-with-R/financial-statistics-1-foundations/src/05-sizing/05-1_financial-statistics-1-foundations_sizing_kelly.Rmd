@@ -1,0 +1,1036 @@
+---
+title: "Kelly Criterion and Optimal Betting"
+---
+
+```{r setup, include=FALSE}
+box::use(
+    ../modules/data[load_market, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+tc <- unlist(trading_colors)
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = "../figures/05-1_"
+)
+
+set.seed(42)
+```
+
+# Position Sizing: Kelly Criterion and Optimal Betting
+
+You've built a strategy with an edge. Now comes the question that separates professional traders from amateurs: *how much should you bet?*
+
+Bet too little and your edge compounds slowly—you leave money on the table. Bet too much and a string of losses wipes you out before your edge can manifest. Position sizing isn't glamorous, but it's often the difference between a winning strategy and a bankrupt trader.
+
+The Kelly criterion provides the mathematically optimal answer: the bet size that maximises long-term geometric growth rate. But "optimal" in mathematics can be brutal in practice.
+
+---
+
+## 5.1 The Kelly Criterion
+
+### 5.1.1 Prose/Intuition
+
+John Kelly, a physicist at Bell Labs, developed his criterion in 1956 while working on information theory and signal transmission. His insight was profound: if you have an edge and want to grow your wealth as fast as possible over the long run, there's exactly one correct fraction of your bankroll to bet.
+
+**The gambler's ruin problem:**
+
+Consider a simple coin-flip game where you have a 55% chance of winning and the payoff is 1:1. You clearly have an edge—but how much should you bet?
+
+- **Bet everything:** You'll eventually lose it all. One bad flip and you're done.
+- **Bet nothing:** Your wealth never grows.
+- **Bet some fraction:** Your wealth compounds at a rate that depends on this fraction.
+
+Kelly's insight: there's an *optimal* fraction that maximises your expected geometric growth rate. Bet less and you sacrifice growth. Bet more and you increase variance so much that your long-term growth actually *decreases*—and your probability of ruin increases dramatically.
+
+**The key insight:**
+
+We don't want to maximise expected wealth (that would suggest betting everything). We want to maximise expected *log* wealth:
+
+$$\max_f E[\log(W_T)]$$
+
+This objective captures the reality that wealth compounds multiplicatively, and that a 50% loss followed by a 50% gain leaves you at 75%, not 100%.
+
+### 5.1.2 Visual Evidence
+
+```{r kelly-growth-curves, fig.cap="Growth rate as a function of bet fraction. The Kelly fraction maximises geometric growth, but the curve is asymmetric—overbetting is much more costly than underbetting."}
+# Simulate wealth growth for different bet fractions
+# Simple game: win with prob p, payoff b:1
+
+p <- 0.55  # Win probability
+b <- 1     # Payoff ratio (1:1)
+n_bets <- 500
+n_sims <- 200
+
+# Kelly fraction for this game
+kelly_f <- (p * b - (1 - p)) / b
+cat(sprintf("Kelly fraction for p=%.2f, b=%.0f: f* = %.3f\n", p, b, kelly_f))
+
+# Test different fractions
+fractions <- seq(0.01, 0.5, by = 0.01)
+results <- data.table()
+
+for (f in fractions) {
+    # Simulate many paths
+    final_wealth <- numeric(n_sims)
+    for (sim in 1:n_sims) {
+        wealth <- 1
+        outcomes <- rbinom(n_bets, 1, p)
+        for (i in 1:n_bets) {
+            if (outcomes[i] == 1) {
+                wealth <- wealth * (1 + f * b)
+            } else {
+                wealth <- wealth * (1 - f)
+            }
+        }
+        final_wealth[sim] <- wealth
+    }
+
+    results <- rbind(results, data.table(
+        fraction = f,
+        median_wealth = median(final_wealth),
+        mean_wealth = mean(final_wealth),
+        geometric_mean = exp(mean(log(pmax(final_wealth, 1e-10)))),
+        pct_ruined = mean(final_wealth < 0.01)
+    ))
+}
+
+# Plot growth rate vs fraction
+ggplot(results, aes(x = fraction, y = log(geometric_mean) / n_bets * 100)) +
+    geom_line(linewidth = 1.2, colour = tc[1]) +
+    geom_vline(xintercept = kelly_f, linetype = "dashed", colour = tc[3], linewidth = 0.8) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    annotate("text", x = kelly_f + 0.03, y = max(log(results$geometric_mean) / n_bets * 100) * 0.9,
+             label = sprintf("Kelly f* = %.1f%%", kelly_f * 100),
+             colour = tc[3], hjust = 0, size = 4) +
+    annotate("text", x = kelly_f * 2, y = log(results[fraction == round(kelly_f * 2, 2)]$geometric_mean[1]) / n_bets * 100 - 0.02,
+             label = "Overbetting zone",
+             colour = tc[4], hjust = 0.5, size = 3.5) +
+    labs(
+        title = "Geometric Growth Rate vs Bet Fraction",
+        subtitle = sprintf("Coin flip game: p = %.0f%%, payoff = %d:1, %d bets", p * 100, b, n_bets),
+        x = "Bet Fraction (f)",
+        y = "Growth Rate per Bet (%)"
+    ) +
+    theme_trading()
+```
+
+```{r kelly-wealth-paths, fig.cap="Sample wealth paths for different Kelly fractions. Full Kelly grows fastest on average but has huge variance. Half-Kelly is much smoother."}
+# Show actual wealth paths for different fractions
+fractions_demo <- c(0.05, kelly_f / 2, kelly_f, kelly_f * 1.5)
+fraction_labels <- c("Quarter Kelly", "Half Kelly", "Full Kelly", "1.5x Kelly")
+n_paths <- 50
+
+wealth_paths <- data.table()
+
+for (i in seq_along(fractions_demo)) {
+    f <- fractions_demo[i]
+    for (path in 1:n_paths) {
+        wealth <- numeric(n_bets + 1)
+        wealth[1] <- 1
+        outcomes <- rbinom(n_bets, 1, p)
+
+        for (j in 1:n_bets) {
+            if (outcomes[j] == 1) {
+                wealth[j + 1] <- wealth[j] * (1 + f * b)
+            } else {
+                wealth[j + 1] <- wealth[j] * (1 - f)
+            }
+        }
+
+        wealth_paths <- rbind(wealth_paths, data.table(
+            bet = 0:n_bets,
+            wealth = wealth,
+            fraction = fraction_labels[i],
+            path = path
+        ))
+    }
+}
+
+wealth_paths[, fraction := factor(fraction, levels = fraction_labels)]
+
+# Calculate median path for each fraction
+median_paths <- wealth_paths[, .(median_wealth = median(wealth)), by = .(bet, fraction)]
+
+ggplot() +
+    geom_line(data = wealth_paths, aes(x = bet, y = wealth, group = interaction(fraction, path)),
+              alpha = 0.1, linewidth = 0.3, colour = "grey30") +
+    geom_line(data = median_paths, aes(x = bet, y = median_wealth, colour = fraction),
+              linewidth = 1.2) +
+    scale_y_log10(labels = scales::comma) +
+    scale_colour_manual(values = c(tc[2], tc[3], tc[1], tc[4])) +
+    facet_wrap(~fraction, scales = "free_y") +
+    labs(
+        title = "Wealth Paths Under Different Position Sizes",
+        subtitle = "Grey: individual paths | Coloured: median path",
+        x = "Number of Bets",
+        y = "Wealth (log scale)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "none")
+```
+
+```{r kelly-drawdown-comparison, fig.cap="Maximum drawdown distribution for different Kelly fractions. Full Kelly has brutal drawdowns that most traders cannot tolerate."}
+# Calculate drawdown distribution for each fraction
+drawdown_dist <- data.table()
+
+for (i in seq_along(fractions_demo)) {
+    f <- fractions_demo[i]
+    max_dds <- numeric(500)
+
+    for (sim in 1:500) {
+        wealth <- numeric(n_bets + 1)
+        wealth[1] <- 1
+        outcomes <- rbinom(n_bets, 1, p)
+
+        for (j in 1:n_bets) {
+            if (outcomes[j] == 1) {
+                wealth[j + 1] <- wealth[j] * (1 + f * b)
+            } else {
+                wealth[j + 1] <- wealth[j] * (1 - f)
+            }
+        }
+
+        # Calculate max drawdown
+        running_max <- cummax(wealth)
+        drawdowns <- (running_max - wealth) / running_max
+        max_dds[sim] <- max(drawdowns)
+    }
+
+    drawdown_dist <- rbind(drawdown_dist, data.table(
+        fraction = fraction_labels[i],
+        max_dd = max_dds
+    ))
+}
+
+drawdown_dist[, fraction := factor(fraction, levels = fraction_labels)]
+
+ggplot(drawdown_dist, aes(x = max_dd * 100, fill = fraction)) +
+    geom_histogram(bins = 40, alpha = 0.7, colour = "white", linewidth = 0.2) +
+    geom_vline(data = drawdown_dist[, .(median_dd = median(max_dd) * 100), by = fraction],
+               aes(xintercept = median_dd, colour = fraction),
+               linetype = "dashed", linewidth = 0.8) +
+    scale_fill_manual(values = c(tc[2], tc[3], tc[1], tc[4])) +
+    scale_colour_manual(values = c(tc[2], tc[3], tc[1], tc[4])) +
+    facet_wrap(~fraction, scales = "free_y") +
+    labs(
+        title = "Maximum Drawdown Distribution by Kelly Fraction",
+        subtitle = "Dashed line = median max drawdown",
+        x = "Maximum Drawdown (%)",
+        y = "Frequency",
+        fill = NULL,
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "none")
+```
+
+### 5.1.3 Mathematical Derivation
+
+**The discrete Kelly criterion:**
+
+Consider a binary bet with:
+- Win probability: $p$
+- Loss probability: $q = 1 - p$
+- Payoff ratio: $b$ (you win $b$ for every $1$ bet)
+
+If you bet fraction $f$ of your wealth, after one bet your wealth is:
+
+$$W_1 = \begin{cases}
+W_0(1 + bf) & \text{with probability } p \\
+W_0(1 - f) & \text{with probability } q
+\end{cases}$$
+
+After $n$ bets with $w$ wins and $n-w$ losses:
+
+$$W_n = W_0 (1 + bf)^w (1 - f)^{n-w}$$
+
+Taking logs:
+
+$$\log(W_n/W_0) = w\log(1+bf) + (n-w)\log(1-f)$$
+
+**Maximising expected log growth:**
+
+The expected log growth rate per bet is:
+
+$$G(f) = E\left[\frac{\log(W_n/W_0)}{n}\right] = p\log(1+bf) + q\log(1-f)$$
+
+To find the optimal $f^*$, take the derivative and set to zero:
+
+$$\frac{dG}{df} = \frac{pb}{1+bf} - \frac{q}{1-f} = 0$$
+
+Solving:
+
+$$\frac{pb}{1+bf} = \frac{q}{1-f}$$
+
+$$pb(1-f) = q(1+bf)$$
+
+$$pb - pbf = q + qbf$$
+
+$$pb - q = pbf + qbf = bf(p + q) = bf$$
+
+$$f^* = \frac{pb - q}{b} = \frac{p(b+1) - 1}{b}$$
+
+For 1:1 payoffs ($b = 1$):
+
+$$\boxed{f^* = 2p - 1 = p - q}$$
+
+This is Kelly's famous result: bet the edge!
+
+**The continuous Kelly criterion:**
+
+For continuously distributed returns with mean $\mu$ and variance $\sigma^2$:
+
+$$G(f) = E[\log(1 + fr)] \approx E\left[fr - \frac{(fr)^2}{2}\right] = f\mu - \frac{f^2\sigma^2}{2}$$
+
+Setting the derivative to zero:
+
+$$\frac{dG}{df} = \mu - f\sigma^2 = 0$$
+
+$$\boxed{f^* = \frac{\mu}{\sigma^2}}$$
+
+This is the continuous Kelly fraction: expected return divided by variance.
+
+**Connection to log utility:**
+
+The Kelly criterion maximises expected log wealth, which is equivalent to maximising expected utility under logarithmic utility $U(W) = \log(W)$.
+
+This utility function has constant relative risk aversion (CRRA) with coefficient $\gamma = 1$:
+
+$$-\frac{WU''(W)}{U'(W)} = 1$$
+
+### 5.1.4 Implementation & Application
+
+```{r kelly-implementation}
+# Discrete Kelly for binary bets
+kelly_discrete <- function(p, b = 1) {
+    # p: win probability
+    # b: payoff ratio (win/loss)
+    q <- 1 - p
+
+    # Kelly fraction
+    f <- (p * b - q) / b
+
+    # Growth rate at optimal
+    if (f > 0 && f < 1) {
+        g <- p * log(1 + b * f) + q * log(1 - f)
+    } else {
+        g <- 0
+    }
+
+    list(
+        fraction = max(0, f),  # Can't be negative
+        edge = p * b - q,
+        growth_rate = g
+    )
+}
+
+# Continuous Kelly for normal returns
+kelly_continuous <- function(mu, sigma) {
+    # mu: expected return
+    # sigma: standard deviation
+    f <- mu / sigma^2
+    g <- mu^2 / (2 * sigma^2)  # Growth rate at optimal
+
+    list(
+        fraction = f,
+        sharpe = mu / sigma,
+        growth_rate = g
+    )
+}
+
+# Examples
+cat("=== Discrete Kelly Examples ===\n")
+cat("\n55% coin flip (1:1):\n")
+print(kelly_discrete(0.55, 1))
+
+cat("\n60% win rate with 0.8:1 payoff:\n")
+print(kelly_discrete(0.60, 0.8))
+
+cat("\n52% win rate with 2:1 payoff:\n")
+print(kelly_discrete(0.52, 2))
+
+cat("\n=== Continuous Kelly Examples ===\n")
+cat("\nStrategy with 10% annual return, 15% vol:\n")
+print(kelly_continuous(0.10, 0.15))
+
+cat("\nStrategy with 5% annual return, 20% vol:\n")
+print(kelly_continuous(0.05, 0.20))
+```
+
+```{r kelly-real-strategy, fig.cap="Applying Kelly to a real trading strategy shows that full Kelly suggests aggressive leverage that would be impractical."}
+# Apply Kelly to a real strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+# Simple momentum strategy returns
+spy[, signal := shift(fifelse(adjusted > frollmean(adjusted, 50), 1, 0), 1)]
+spy[, strat_returns := signal * returns]
+spy <- spy[!is.na(strat_returns)]
+
+# Calculate Kelly
+mu <- mean(spy$strat_returns) * 252  # Annualised
+sigma <- sd(spy$strat_returns) * sqrt(252)
+kelly_result <- kelly_continuous(mu, sigma)
+
+cat("=== Kelly Analysis for SPY Momentum Strategy ===\n")
+cat(sprintf("Annual return: %.2f%%\n", mu * 100))
+cat(sprintf("Annual volatility: %.2f%%\n", sigma * 100))
+cat(sprintf("Sharpe ratio: %.2f\n", mu / sigma))
+cat(sprintf("Kelly fraction: %.2f (i.e., %.0fx leverage!)\n",
+            kelly_result$fraction, kelly_result$fraction))
+cat(sprintf("Kelly growth rate: %.2f%%/year\n", kelly_result$growth_rate * 100))
+
+# Simulate different leverage levels
+leverages <- c(0.25, 0.5, 1, 2, kelly_result$fraction)
+leverage_labels <- c("0.25x", "0.5x", "1x", "2x", sprintf("Kelly (%.1fx)", kelly_result$fraction))
+
+leverage_results <- data.table()
+
+for (i in seq_along(leverages)) {
+    lev <- leverages[i]
+    lev_returns <- spy$strat_returns * lev
+    cum_returns <- exp(cumsum(lev_returns))
+
+    # Calculate max drawdown
+    running_max <- cummax(cum_returns)
+    drawdowns <- (running_max - cum_returns) / running_max
+
+    leverage_results <- rbind(leverage_results, data.table(
+        date = spy$date,
+        leverage = leverage_labels[i],
+        wealth = cum_returns,
+        drawdown = drawdowns
+    ))
+}
+
+leverage_results[, leverage := factor(leverage, levels = leverage_labels)]
+
+# Plot wealth curves
+ggplot(leverage_results, aes(x = date, y = wealth, colour = leverage)) +
+    geom_line(linewidth = 0.8) +
+    scale_y_log10(labels = scales::comma) +
+    scale_colour_manual(values = c(tc[2], tc[3], tc[1], tc[5], tc[4])) +
+    labs(
+        title = "Kelly Leverage Applied to Real Strategy",
+        subtitle = "Full Kelly suggests aggressive leverage that leads to extreme drawdowns",
+        x = NULL,
+        y = "Wealth (log scale)",
+        colour = "Leverage"
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+**Why full Kelly is too aggressive in practice:**
+
+1. **Parameter uncertainty:** We estimate $\mu$ and $\sigma$ from data. Our estimates have error, and Kelly overweights when $\mu$ is overestimated.
+
+2. **Non-normal returns:** Fat tails mean more extreme outcomes than Kelly assumes.
+
+3. **Serial correlation:** Returns aren't i.i.d.; bad periods cluster.
+
+4. **Drawdown tolerance:** Even if Kelly maximises long-term growth, 50%+ drawdowns are psychologically and practically intolerable.
+
+---
+
+## 5.2 Fractional Kelly
+
+### 5.2.1 Prose/Intuition
+
+Full Kelly is mathematically optimal for long-term growth, but it comes with brutal drawdowns. Most practitioners use a fraction of Kelly—typically one-quarter to one-half.
+
+Why accept slower growth? Because:
+
+1. **You might not survive long enough** for the law of large numbers to kick in
+2. **You might abandon the strategy** during a drawdown
+3. **Your parameter estimates might be wrong**, and Kelly is very sensitive to errors
+
+The beautiful property of fractional Kelly: it trades off growth rate quadratically for linear reductions in variance.
+
+### 5.2.2 Visual Evidence
+
+```{r fractional-kelly-tradeoff, fig.cap="The growth-drawdown tradeoff of fractional Kelly. Half-Kelly gives 75% of full Kelly growth but much smaller drawdowns."}
+# Calculate growth rate and drawdown for different Kelly fractions
+kelly_fractions <- seq(0.1, 2, by = 0.1)
+
+# For our coin flip example
+p <- 0.55
+b <- 1
+full_kelly <- kelly_discrete(p, b)$fraction
+
+tradeoff <- data.table()
+
+for (kf in kelly_fractions) {
+    f <- full_kelly * kf
+
+    # Expected growth rate
+    g <- p * log(1 + b * f) + (1 - p) * log(1 - f)
+
+    # Simulate drawdowns (1000 sims, 500 bets)
+    max_dds <- numeric(1000)
+    for (sim in 1:1000) {
+        wealth <- cumprod(c(1, ifelse(rbinom(500, 1, p) == 1, 1 + b * f, 1 - f)))
+        running_max <- cummax(wealth)
+        max_dds[sim] <- max((running_max - wealth) / running_max)
+    }
+
+    tradeoff <- rbind(tradeoff, data.table(
+        kelly_multiple = kf,
+        fraction = f,
+        growth_rate = g,
+        growth_pct_of_full = g / max(g[kf == 1], 1e-10),
+        median_max_dd = median(max_dds),
+        pct95_max_dd = quantile(max_dds, 0.95)
+    ))
+}
+
+# Reference: full Kelly growth
+full_kelly_growth <- tradeoff[kelly_multiple == 1]$growth_rate
+
+# Normalise growth to full Kelly
+tradeoff[, growth_relative := growth_rate / full_kelly_growth]
+
+# Plot the tradeoff
+ggplot(tradeoff, aes(x = median_max_dd * 100, y = growth_relative * 100)) +
+    geom_path(linewidth = 1.2, colour = tc[1]) +
+    geom_point(aes(colour = kelly_multiple), size = 3) +
+    geom_point(data = tradeoff[kelly_multiple %in% c(0.25, 0.5, 1.0)],
+               colour = "black", size = 4, shape = 1, stroke = 1.5) +
+    geom_text(data = tradeoff[kelly_multiple %in% c(0.25, 0.5, 1.0, 1.5, 2.0)],
+              aes(label = sprintf("%.0f%%", kelly_multiple * 100)),
+              vjust = -1.2, size = 3.5) +
+    scale_colour_gradient(low = tc[3], high = tc[4]) +
+    labs(
+        title = "Growth Rate vs Drawdown: The Fractional Kelly Tradeoff",
+        subtitle = "Labels show Kelly fraction (100% = full Kelly)",
+        x = "Median Maximum Drawdown (%)",
+        y = "Growth Rate (% of Full Kelly)",
+        colour = "Kelly %"
+    ) +
+    theme_trading() +
+    theme(legend.position = "right")
+```
+
+```{r fractional-kelly-table}
+# Summary table
+key_fractions <- tradeoff[kelly_multiple %in% c(0.25, 0.5, 0.75, 1.0, 1.25, 1.5)]
+
+cat("=== Fractional Kelly Summary ===\n")
+cat("(Coin flip game: 55% win rate, 1:1 payoff)\n\n")
+
+summary_table <- key_fractions[, .(
+    `Kelly %` = sprintf("%.0f%%", kelly_multiple * 100),
+    `Bet Fraction` = sprintf("%.1f%%", fraction * 100),
+    `Growth vs Full` = sprintf("%.0f%%", growth_relative * 100),
+    `Median Max DD` = sprintf("%.1f%%", median_max_dd * 100),
+    `95th %ile DD` = sprintf("%.1f%%", pct95_max_dd * 100)
+)]
+
+print(summary_table)
+```
+
+### 5.2.3 Mathematical Derivation
+
+**Growth rate under fractional Kelly:**
+
+If $f^*$ is the full Kelly fraction and we use $\lambda f^*$ where $\lambda \in (0, 1]$, the growth rate is:
+
+$$G(\lambda f^*) = p\log(1 + b\lambda f^*) + q\log(1 - \lambda f^*)$$
+
+Using Taylor expansion around $\lambda = 1$, we can show that:
+
+$$G(\lambda f^*) \approx G(f^*) \cdot \lambda(2 - \lambda)$$
+
+At half-Kelly ($\lambda = 0.5$):
+
+$$G(0.5f^*) \approx G(f^*) \cdot 0.5(2 - 0.5) = 0.75 \cdot G(f^*)$$
+
+**Half-Kelly gives 75% of full Kelly growth** while dramatically reducing variance.
+
+**Probability of ruin:**
+
+Under continuous compounding with fractional Kelly, the probability of ever reaching a wealth level $x < 1$ (starting at 1) is:
+
+$$P(\text{ruin at level } x) = x^{2\mu/\sigma^2} = x^{2f^*/\lambda}$$
+
+For half-Kelly, the probability of a 50% drawdown:
+
+$$P(W \leq 0.5) = 0.5^{4f^*}$$
+
+This decreases exponentially with reduced Kelly fraction.
+
+**Optimal fractional Kelly under parameter uncertainty:**
+
+If we have uncertainty in our estimate of expected return $\hat{\mu}$ with standard error $SE(\hat{\mu})$, the optimal Kelly fraction accounting for this uncertainty is approximately:
+
+$$\lambda^* \approx \frac{1}{1 + (SE(\hat{\mu})/\hat{\mu})^2}$$
+
+With typical financial data where $SE(\hat{\mu})/\hat{\mu} \approx 1$, this suggests $\lambda^* \approx 0.5$ (half-Kelly).
+
+### 5.2.4 Implementation & Application
+
+```{r fractional-kelly-implementation}
+# Fractional Kelly with uncertainty adjustment
+kelly_with_uncertainty <- function(mu_hat, sigma, se_mu = NULL) {
+    # Full Kelly
+    f_full <- mu_hat / sigma^2
+
+    # If standard error provided, adjust for uncertainty
+    if (!is.null(se_mu) && se_mu > 0) {
+        # Shrinkage factor
+        lambda <- 1 / (1 + (se_mu / mu_hat)^2)
+        f_adjusted <- f_full * lambda
+    } else {
+        lambda <- 1
+        f_adjusted <- f_full
+    }
+
+    list(
+        full_kelly = f_full,
+        adjusted_kelly = f_adjusted,
+        shrinkage = lambda,
+        recommended = f_adjusted * 0.5  # Further half for safety
+    )
+}
+
+# Example with real strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+# Simple momentum
+spy[, signal := shift(fifelse(adjusted > frollmean(adjusted, 50), 1, 0), 1)]
+spy[, strat_returns := signal * returns]
+spy <- spy[!is.na(strat_returns)]
+
+# Calculate Kelly with uncertainty
+mu_hat <- mean(spy$strat_returns) * 252
+sigma <- sd(spy$strat_returns) * sqrt(252)
+se_mu <- sigma / sqrt(nrow(spy) / 252)  # SE of annual mean
+
+kelly_adj <- kelly_with_uncertainty(mu_hat, sigma, se_mu)
+
+cat("=== Uncertainty-Adjusted Kelly ===\n")
+cat(sprintf("Estimated annual return: %.2f%%\n", mu_hat * 100))
+cat(sprintf("Standard error of estimate: %.2f%%\n", se_mu * 100))
+cat(sprintf("Full Kelly: %.2fx leverage\n", kelly_adj$full_kelly))
+cat(sprintf("Uncertainty-adjusted: %.2fx (shrinkage = %.1f%%)\n",
+            kelly_adj$adjusted_kelly, kelly_adj$shrinkage * 100))
+cat(sprintf("Recommended (half of adjusted): %.2fx\n", kelly_adj$recommended))
+```
+
+```{r practical-kelly-sizing, fig.cap="Practical Kelly sizing with uncertainty adjustment leads to much more reasonable position sizes."}
+# Compare different Kelly approaches
+approaches <- data.table(
+    Approach = c("Full Kelly", "Uncertainty-Adjusted", "Half of Adjusted", "Quarter Kelly"),
+    Leverage = c(kelly_adj$full_kelly, kelly_adj$adjusted_kelly,
+                 kelly_adj$recommended, kelly_adj$full_kelly * 0.25)
+)
+
+# Simulate each approach
+leverage_comparison <- data.table()
+
+for (i in 1:nrow(approaches)) {
+    lev <- approaches$Leverage[i]
+    lev_returns <- spy$strat_returns * lev
+    cum_wealth <- exp(cumsum(lev_returns))
+
+    # Max drawdown
+    running_max <- cummax(cum_wealth)
+    drawdowns <- (running_max - cum_wealth) / running_max
+
+    leverage_comparison <- rbind(leverage_comparison, data.table(
+        date = spy$date,
+        approach = approaches$Approach[i],
+        wealth = cum_wealth,
+        drawdown = drawdowns
+    ))
+}
+
+leverage_comparison[, approach := factor(approach, levels = approaches$Approach)]
+
+# Calculate summary stats
+summary_stats <- leverage_comparison[, .(
+    final_wealth = tail(wealth, 1),
+    max_drawdown = max(drawdown),
+    cagr = (tail(wealth, 1)^(1 / (as.numeric(max(date) - min(date)) / 365)) - 1)
+), by = approach]
+
+cat("\n=== Comparison of Kelly Approaches ===\n")
+print(summary_stats[, .(
+    Approach = approach,
+    `Final Wealth` = sprintf("$%.2f", final_wealth),
+    `CAGR` = sprintf("%.1f%%", cagr * 100),
+    `Max DD` = sprintf("%.1f%%", max_drawdown * 100)
+)])
+
+# Plot
+ggplot(leverage_comparison, aes(x = date, y = wealth, colour = approach)) +
+    geom_line(linewidth = 0.8) +
+    scale_y_log10(labels = scales::dollar) +
+    scale_colour_manual(values = c(tc[4], tc[5], tc[3], tc[2])) +
+    labs(
+        title = "Kelly Approaches: Growth vs Survival",
+        subtitle = "Starting with $1, log scale",
+        x = NULL,
+        y = "Wealth",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+**Practical recommendation: Quarter Kelly**
+
+For most traders, quarter-Kelly is a sensible starting point:
+
+1. **Parameter uncertainty:** Your estimates of return and volatility have large standard errors.
+2. **Model uncertainty:** The true return distribution isn't normal; tails are fatter.
+3. **Regime changes:** Past performance doesn't guarantee future results.
+4. **Behavioural tolerance:** Most people can't stomach 30%+ drawdowns.
+
+---
+
+## 5.3 Multi-Asset Kelly
+
+### 5.3.1 Prose/Intuition
+
+Real portfolios hold multiple assets. The Kelly criterion extends naturally to this case, but now correlations matter tremendously.
+
+Two assets with 10% expected return and 20% volatility might seem equally attractive. But if one is negatively correlated with your existing portfolio, it's far more valuable—it allows you to take larger positions in both.
+
+The multi-asset Kelly formula looks like mean-variance optimisation, and that's not a coincidence.
+
+### 5.3.2 Visual Evidence
+
+```{r multi-asset-kelly, fig.cap="Multi-asset Kelly weights account for correlations. Negative correlation allows larger positions in both assets."}
+# Simple 2-asset example
+# Asset A: 8% return, 15% vol
+# Asset B: 6% return, 12% vol
+# Vary correlation
+
+correlations <- seq(-0.8, 0.8, by = 0.1)
+multi_kelly <- data.table()
+
+mu <- c(0.08, 0.06)
+vol <- c(0.15, 0.12)
+
+for (rho in correlations) {
+    # Covariance matrix
+    Sigma <- matrix(c(vol[1]^2, rho * vol[1] * vol[2],
+                      rho * vol[1] * vol[2], vol[2]^2),
+                    nrow = 2)
+
+    # Multi-asset Kelly: f* = Sigma^(-1) * mu
+    Sigma_inv <- solve(Sigma)
+    f_star <- Sigma_inv %*% mu
+
+    # Total leverage
+    total_leverage <- sum(abs(f_star))
+
+    multi_kelly <- rbind(multi_kelly, data.table(
+        correlation = rho,
+        weight_A = f_star[1],
+        weight_B = f_star[2],
+        total_leverage = total_leverage
+    ))
+}
+
+# Plot weights vs correlation
+plot_data <- melt(multi_kelly[, .(correlation, `Asset A` = weight_A, `Asset B` = weight_B)],
+                  id.vars = "correlation",
+                  variable.name = "Asset",
+                  value.name = "Kelly_Weight")
+
+ggplot(plot_data, aes(x = correlation, y = Kelly_Weight, colour = Asset)) +
+    geom_line(linewidth = 1.2) +
+    geom_hline(yintercept = 0, colour = "grey50", linetype = "dashed") +
+    geom_vline(xintercept = 0, colour = "grey50", linetype = "dashed") +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(
+        title = "Multi-Asset Kelly Weights vs Correlation",
+        subtitle = "Asset A: 8%/15% | Asset B: 6%/12% (return/vol)",
+        x = "Correlation Between Assets",
+        y = "Kelly Weight (Leverage)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r multi-asset-leverage, fig.cap="Total leverage increases dramatically when assets are negatively correlated, as diversification reduces portfolio risk."}
+ggplot(multi_kelly, aes(x = correlation, y = total_leverage)) +
+    geom_line(linewidth = 1.2, colour = tc[1]) +
+    geom_point(size = 2, colour = tc[1]) +
+    labs(
+        title = "Total Kelly Leverage vs Asset Correlation",
+        subtitle = "Negative correlation allows much higher leverage",
+        x = "Correlation Between Assets",
+        y = "Total Leverage (|w_A| + |w_B|)"
+    ) +
+    theme_trading()
+```
+
+### 5.3.3 Mathematical Derivation
+
+**Multi-asset Kelly formulation:**
+
+For $n$ assets with expected return vector $\boldsymbol{\mu}$ and covariance matrix $\boldsymbol{\Sigma}$, the optimal Kelly fraction vector is:
+
+$$\mathbf{f}^* = \boldsymbol{\Sigma}^{-1} \boldsymbol{\mu}$$
+
+**Derivation:**
+
+Expected log growth rate with position vector $\mathbf{f}$:
+
+$$G(\mathbf{f}) = E[\log(1 + \mathbf{f}^T \mathbf{r})]$$
+
+Using second-order Taylor expansion:
+
+$$G(\mathbf{f}) \approx \mathbf{f}^T \boldsymbol{\mu} - \frac{1}{2} \mathbf{f}^T \boldsymbol{\Sigma} \mathbf{f}$$
+
+Taking the gradient and setting to zero:
+
+$$\nabla G = \boldsymbol{\mu} - \boldsymbol{\Sigma} \mathbf{f} = 0$$
+
+$$\boxed{\mathbf{f}^* = \boldsymbol{\Sigma}^{-1} \boldsymbol{\mu}}$$
+
+This is identical to unconstrained mean-variance optimisation with risk aversion $\gamma = 1$.
+
+**Connection to Sharpe ratio maximisation:**
+
+The Kelly portfolio has Sharpe ratio:
+
+$$SR = \frac{\boldsymbol{\mu}^T \mathbf{f}^*}{\sqrt{\mathbf{f}^{*T} \boldsymbol{\Sigma} \mathbf{f}^*}} = \sqrt{\boldsymbol{\mu}^T \boldsymbol{\Sigma}^{-1} \boldsymbol{\mu}}$$
+
+This is the maximum achievable Sharpe ratio given the assets.
+
+**With constraints:**
+
+Real portfolios have constraints (no leverage, no shorting). The constrained problem becomes:
+
+$$\max_{\mathbf{f}} \left[ \mathbf{f}^T \boldsymbol{\mu} - \frac{1}{2} \mathbf{f}^T \boldsymbol{\Sigma} \mathbf{f} \right]$$
+
+subject to:
+- $\sum_i f_i \leq 1$ (no leverage)
+- $f_i \geq 0$ (no shorting)
+
+This is a quadratic program with a unique solution.
+
+### 5.3.4 Implementation & Application
+
+```{r multi-kelly-implementation}
+# Multi-asset Kelly calculator
+multi_asset_kelly <- function(mu, Sigma, leverage_limit = NULL, no_short = FALSE) {
+    n <- length(mu)
+
+    # Unconstrained Kelly
+    Sigma_inv <- solve(Sigma)
+    f_unconstrained <- as.vector(Sigma_inv %*% mu)
+
+    # If constraints needed, use quadratic programming
+    if (!is.null(leverage_limit) || no_short) {
+        # Use simple iterative projection for basic constraints
+        f <- f_unconstrained
+
+        if (no_short) {
+            f <- pmax(f, 0)
+        }
+
+        if (!is.null(leverage_limit) && sum(abs(f)) > leverage_limit) {
+            f <- f * leverage_limit / sum(abs(f))
+        }
+    } else {
+        f <- f_unconstrained
+    }
+
+    # Portfolio stats
+    port_return <- sum(f * mu)
+    port_vol <- sqrt(t(f) %*% Sigma %*% f)
+    sharpe <- port_return / port_vol
+
+    list(
+        weights = f,
+        expected_return = port_return,
+        volatility = port_vol,
+        sharpe = as.numeric(sharpe),
+        leverage = sum(abs(f))
+    )
+}
+
+# Example: 3-asset portfolio
+mu <- c(0.10, 0.08, 0.06)  # Expected returns
+vol <- c(0.20, 0.15, 0.12)  # Volatilities
+corr <- matrix(c(1.0, 0.5, 0.3,
+                 0.5, 1.0, 0.4,
+                 0.3, 0.4, 1.0), nrow = 3)
+
+# Build covariance matrix
+Sigma <- diag(vol) %*% corr %*% diag(vol)
+
+cat("=== Multi-Asset Kelly Example ===\n")
+cat("Assets: A (10%/20%), B (8%/15%), C (6%/12%)\n\n")
+
+# Unconstrained
+result_unc <- multi_asset_kelly(mu, Sigma)
+cat("Unconstrained Kelly:\n")
+cat(sprintf("  Weights: [%.2f, %.2f, %.2f]\n",
+            result_unc$weights[1], result_unc$weights[2], result_unc$weights[3]))
+cat(sprintf("  Total leverage: %.2fx\n", result_unc$leverage))
+cat(sprintf("  Expected return: %.1f%%\n", result_unc$expected_return * 100))
+cat(sprintf("  Sharpe ratio: %.2f\n\n", result_unc$sharpe))
+
+# With leverage constraint
+result_lev <- multi_asset_kelly(mu, Sigma, leverage_limit = 1)
+cat("Kelly with 1x leverage limit:\n")
+cat(sprintf("  Weights: [%.2f, %.2f, %.2f]\n",
+            result_lev$weights[1], result_lev$weights[2], result_lev$weights[3]))
+cat(sprintf("  Expected return: %.1f%%\n", result_lev$expected_return * 100))
+cat(sprintf("  Sharpe ratio: %.2f\n\n", result_lev$sharpe))
+
+# Long-only with leverage constraint
+result_long <- multi_asset_kelly(mu, Sigma, leverage_limit = 1, no_short = TRUE)
+cat("Long-only Kelly with 1x leverage limit:\n")
+cat(sprintf("  Weights: [%.2f, %.2f, %.2f]\n",
+            result_long$weights[1], result_long$weights[2], result_long$weights[3]))
+cat(sprintf("  Expected return: %.1f%%\n", result_long$expected_return * 100))
+cat(sprintf("  Sharpe ratio: %.2f\n", result_long$sharpe))
+```
+
+```{r kelly-covariance-estimation, fig.cap="Kelly is extremely sensitive to covariance estimation error. Small changes in correlation estimates produce wildly different weights."}
+# Demonstrate sensitivity to covariance estimation
+# Perturb correlation and see how weights change
+
+set.seed(42)
+n_perturbations <- 500
+weight_samples <- data.table()
+
+for (i in 1:n_perturbations) {
+    # Add noise to correlation matrix
+    noise <- matrix(rnorm(9, 0, 0.1), nrow = 3)
+    noise <- (noise + t(noise)) / 2  # Make symmetric
+    diag(noise) <- 0
+
+    corr_perturbed <- corr + noise
+    # Ensure valid correlation matrix
+    corr_perturbed <- pmax(pmin(corr_perturbed, 0.99), -0.99)
+    diag(corr_perturbed) <- 1
+
+    # Make positive semi-definite
+    eigen_decomp <- eigen(corr_perturbed)
+    if (any(eigen_decomp$values < 0)) {
+        eigen_decomp$values <- pmax(eigen_decomp$values, 0.01)
+        corr_perturbed <- eigen_decomp$vectors %*% diag(eigen_decomp$values) %*% t(eigen_decomp$vectors)
+        # Rescale to correlation matrix
+        D <- diag(1 / sqrt(diag(corr_perturbed)))
+        corr_perturbed <- D %*% corr_perturbed %*% D
+    }
+
+    Sigma_perturbed <- diag(vol) %*% corr_perturbed %*% diag(vol)
+
+    result <- multi_asset_kelly(mu, Sigma_perturbed, leverage_limit = 2)
+
+    weight_samples <- rbind(weight_samples, data.table(
+        sim = i,
+        Asset_A = result$weights[1],
+        Asset_B = result$weights[2],
+        Asset_C = result$weights[3]
+    ))
+}
+
+# Plot distribution of weights
+weight_long <- melt(weight_samples, id.vars = "sim",
+                    variable.name = "Asset", value.name = "Weight")
+
+ggplot(weight_long, aes(x = Weight, fill = Asset)) +
+    geom_histogram(bins = 40, alpha = 0.7, colour = "white", linewidth = 0.2) +
+    geom_vline(data = data.table(Asset = c("Asset_A", "Asset_B", "Asset_C"),
+                                  true_weight = result_lev$weights * 2),
+               aes(xintercept = true_weight),
+               linetype = "dashed", colour = "black", linewidth = 0.8) +
+    facet_wrap(~Asset, scales = "free") +
+    scale_fill_manual(values = c(tc[1], tc[3], tc[5])) +
+    labs(
+        title = "Kelly Weight Sensitivity to Covariance Estimation",
+        subtitle = "Dashed lines = weights with true covariance | Adding ±10% noise to correlations",
+        x = "Kelly Weight",
+        y = "Frequency"
+    ) +
+    theme_trading() +
+    theme(legend.position = "none")
+```
+
+**When multi-asset Kelly fails:**
+
+1. **Covariance estimation error:** With $n$ assets, you need to estimate $n(n+1)/2$ parameters. Errors compound badly.
+
+2. **Instability:** Small changes in estimates produce large changes in weights.
+
+3. **Concentration risk:** Optimal portfolios often concentrate in a few assets.
+
+**Practical solutions:**
+
+1. **Shrinkage estimators:** Shrink sample covariance toward a structured target (diagonal, single-factor).
+
+2. **Regularisation:** Add penalty for extreme weights.
+
+3. **Robust optimisation:** Optimise for worst-case within estimation uncertainty.
+
+4. **Simpler models:** Use equal-weight or risk parity as robust alternatives.
+
+---
+
+## Quick Reference
+
+### Kelly Formulae
+
+| Setting | Formula | Notes |
+|---------|---------|-------|
+| **Discrete (binary bet)** | $f^* = \frac{pb - q}{b}$ | $p$ = win prob, $b$ = payoff ratio |
+| **1:1 payoff** | $f^* = p - q = 2p - 1$ | Bet the edge |
+| **Continuous** | $f^* = \frac{\mu}{\sigma^2}$ | $\mu$ = expected return, $\sigma$ = std dev |
+| **Multi-asset** | $\mathbf{f}^* = \boldsymbol{\Sigma}^{-1}\boldsymbol{\mu}$ | Requires covariance matrix inversion |
+| **Fractional Kelly** | $f = \lambda f^*$ | Typical: $\lambda = 0.25$ to $0.5$ |
+
+### Growth Rate Properties
+
+| Kelly Fraction | Growth Rate | Typical Max DD |
+|---------------|-------------|----------------|
+| 25% | ~44% of full | Low |
+| 50% | ~75% of full | Moderate |
+| 100% (Full) | Maximum | Severe (30-50%) |
+| 150% | ~94% of full | Extreme |
+| 200% | ~75% of full | Catastrophic |
+
+### Practical Guidelines
+
+1. **Start with quarter-Kelly** as a default
+2. **Account for parameter uncertainty** — shrink toward zero
+3. **Check sensitivity** to input estimates
+4. **Set hard leverage limits** regardless of Kelly output
+5. **Never use full Kelly** unless you truly have no parameter uncertainty
+
+### Common Mistakes
+
+| Mistake | Why It's Wrong | Solution |
+|---------|---------------|----------|
+| Using full Kelly | Too aggressive given uncertainty | Use quarter to half Kelly |
+| Ignoring correlation | Overstates diversification benefit | Use full covariance matrix |
+| Daily Kelly calculation | Estimates too noisy | Use longer estimation window |
+| No leverage constraint | Kelly suggests impossible leverage | Cap at 2x max |

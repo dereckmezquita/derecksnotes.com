@@ -1,0 +1,1036 @@
+---
+title: "Breakout Strategies"
+---
+
+```{r setup, include=FALSE}
+box::use(
+    ../modules/data[load_market, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+tc <- unlist(trading_colors)
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = "../figures/07-2_"
+)
+
+set.seed(42)
+```
+
+# Breakout Strategies
+
+Breakout trading captures trend initiation rather than trend continuation. The logic: when price breaks to new highs or lows, it signals a potential shift in supply and demand that may persist.
+
+The most famous breakout system is the Turtle Trading method, taught by Richard Dennis to a group of novice traders in the 1980s. The Turtles became legendary, demonstrating that systematic trend following could be taught and executed profitably.
+
+---
+
+## 7.4 Donchian Channel Breakouts
+
+### 7.4.1 Prose/Intuition
+
+Donchian Channels—named after Richard Donchian, the "father of trend following"—plot the highest high and lowest low over a lookback period. When price breaks above the upper channel, it's making a new high; when it breaks below the lower channel, a new low.
+
+The Turtle Trading rules used this system:
+- **Entry:** Buy when price breaks 20-day high; short when price breaks 20-day low
+- **Exit:** Exit long when price breaks 10-day low; exit short when price breaks 10-day high
+
+The logic is elegant:
+- New highs indicate demand exceeds supply; trend may continue
+- Shorter exit periods cut losses faster than entries develop, creating asymmetry
+
+### 7.4.2 Visual Evidence
+
+```{r donchian-channels, fig.cap="Donchian Channels create a trading range from highest highs and lowest lows. Breakouts above/below these levels signal trend initiation."}
+# Calculate Donchian Channels
+calc_donchian <- function(high, low, n) {
+    upper <- frollapply(high, n, max)
+    lower <- frollapply(low, n, min)
+    middle <- (upper + lower) / 2
+
+    list(upper = upper, lower = lower, middle = middle)
+}
+
+# Load data
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-06-01"), as.Date("2023-06-30"))
+
+# Calculate 20-day Donchian channels
+donchian <- calc_donchian(spy$high, spy$low, 20)
+spy[, don_upper := donchian$upper]
+spy[, don_lower := donchian$lower]
+spy[, don_middle := donchian$middle]
+
+spy <- spy[!is.na(don_upper)]
+
+# Detect breakouts
+spy[, breakout_up := adjusted > shift(don_upper, 1)]
+spy[, breakout_down := adjusted < shift(don_lower, 1)]
+
+# Plot
+ggplot(spy, aes(x = date)) +
+    geom_ribbon(aes(ymin = don_lower, ymax = don_upper), fill = tc[2], alpha = 0.2) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    geom_line(aes(y = don_upper), colour = tc[3], linewidth = 0.5, linetype = "dashed") +
+    geom_line(aes(y = don_lower), colour = tc[4], linewidth = 0.5, linetype = "dashed") +
+    geom_point(data = spy[breakout_up == TRUE], aes(y = adjusted),
+               colour = tc[3], size = 2, shape = 24, fill = tc[3]) +
+    geom_point(data = spy[breakout_down == TRUE], aes(y = adjusted),
+               colour = tc[4], size = 2, shape = 25, fill = tc[4]) +
+    labs(title = "20-Day Donchian Channels",
+         subtitle = "Triangles mark breakouts above/below the channel",
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+```
+
+```{r turtle-entries-exits, fig.cap="Turtle Trading system: enter on 20-day breakouts, exit on 10-day breakouts in the opposite direction. The asymmetry helps cut losses quickly."}
+# Full Turtle entry/exit system
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2021-01-01"), as.Date("2023-12-31"))
+
+# Entry channels (20-day)
+entry_n <- 20
+spy[, entry_high := frollapply(high, entry_n, max)]
+spy[, entry_low := frollapply(low, entry_n, min)]
+
+# Exit channels (10-day)
+exit_n <- 10
+spy[, exit_high := frollapply(high, exit_n, max)]
+spy[, exit_low := frollapply(low, exit_n, min)]
+
+spy <- spy[!is.na(entry_high) & !is.na(exit_high)]
+
+# Generate signals
+spy[, position := 0L]
+
+# Simulate position tracking
+position <- 0
+positions <- numeric(nrow(spy))
+
+for (i in 2:nrow(spy)) {
+    # Entry signals
+    if (position == 0) {
+        if (spy$adjusted[i] > spy$entry_high[i - 1]) {
+            position <- 1  # Go long
+        } else if (spy$adjusted[i] < spy$entry_low[i - 1]) {
+            position <- -1  # Go short
+        }
+    }
+    # Exit signals
+    else if (position == 1) {
+        if (spy$adjusted[i] < spy$exit_low[i - 1]) {
+            position <- 0  # Exit long
+        }
+    }
+    else if (position == -1) {
+        if (spy$adjusted[i] > spy$exit_high[i - 1]) {
+            position <- 0  # Exit short
+        }
+    }
+    positions[i] <- position
+}
+
+spy[, position := positions]
+
+# Calculate returns
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, strat_returns := shift(position, 1) * returns]
+spy <- spy[!is.na(strat_returns)]
+
+# Count trades
+spy[, trade_change := position != shift(position)]
+n_trades <- sum(spy$trade_change, na.rm = TRUE)
+
+# Cumulative performance
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_turtle := exp(cumsum(strat_returns))]
+
+# Statistics
+cat("=== Turtle Trading System (20/10 Donchian) ===\n\n")
+
+turtle_stats <- data.table(
+    Strategy = c("Buy & Hold", "Turtle System"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(spy$returns) * 100,
+        max_drawdown(spy$strat_returns) * 100))
+)
+print(turtle_stats)
+cat(sprintf("\nTotal trades: %d\n", n_trades))
+
+# Plot
+spy_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh, `Turtle System` = cum_turtle)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Turtle Trading System Performance",
+         subtitle = "Entry on 20-day breakout, exit on 10-day reverse breakout",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+### 7.4.3 Mathematical Derivation
+
+**Donchian Channel Calculation:**
+
+$$
+\text{Upper}_t = \max(H_{t-n}, H_{t-n+1}, ..., H_{t-1})
+$$
+$$
+\text{Lower}_t = \min(L_{t-n}, L_{t-n+1}, ..., L_{t-1})
+$$
+
+where $H_t$ and $L_t$ are the high and low prices at time $t$.
+
+**Entry and Exit Rules:**
+
+Entry (20-day):
+$$
+\text{Enter Long: } P_t > \text{Upper}_{t-1}^{(20)}
+$$
+$$
+\text{Enter Short: } P_t < \text{Lower}_{t-1}^{(20)}
+$$
+
+Exit (10-day):
+$$
+\text{Exit Long: } P_t < \text{Lower}_{t-1}^{(10)}
+$$
+$$
+\text{Exit Short: } P_t > \text{Upper}_{t-1}^{(10)}
+$$
+
+**Why Asymmetric Lookbacks?**
+
+Using a shorter exit period means:
+- Exits happen more quickly than entries develop
+- Losing positions are cut faster
+- Creates positive asymmetry: hold winners longer, cut losers sooner
+
+The ratio of entry/exit periods (20/10 = 2:1) determines this asymmetry.
+
+```{r channel-asymmetry, fig.cap="Effect of entry/exit asymmetry on trade outcomes. Higher ratios (longer entries, shorter exits) create more favourable risk/reward profiles."}
+# Compare different entry/exit ratios
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# Test function for different periods
+test_donchian <- function(data, entry_n, exit_n) {
+    dt <- copy(data)
+
+    dt[, entry_high := frollapply(high, entry_n, max)]
+    dt[, entry_low := frollapply(low, entry_n, min)]
+    dt[, exit_high := frollapply(high, exit_n, max)]
+    dt[, exit_low := frollapply(low, exit_n, min)]
+
+    dt <- dt[!is.na(entry_high) & !is.na(exit_high)]
+
+    # Simulate
+    position <- 0
+    positions <- numeric(nrow(dt))
+
+    for (i in 2:nrow(dt)) {
+        if (position == 0) {
+            if (dt$adjusted[i] > dt$entry_high[i - 1]) position <- 1
+            else if (dt$adjusted[i] < dt$entry_low[i - 1]) position <- -1
+        } else if (position == 1) {
+            if (dt$adjusted[i] < dt$exit_low[i - 1]) position <- 0
+        } else if (position == -1) {
+            if (dt$adjusted[i] > dt$exit_high[i - 1]) position <- 0
+        }
+        positions[i] <- position
+    }
+
+    dt[, position := positions]
+    dt[, strat_ret := shift(position, 1) * returns]
+    dt <- dt[!is.na(strat_ret)]
+
+    list(
+        sharpe = sharpe_ratio(dt$strat_ret),
+        ann_ret = annualised_return(dt$strat_ret, type = "simple"),
+        max_dd = max_drawdown(dt$strat_ret)
+    )
+}
+
+# Test different ratios
+entry_periods <- c(10, 20, 30, 40, 50)
+exit_periods <- c(5, 10, 15, 20)
+
+results <- data.table()
+for (entry in entry_periods) {
+    for (exit in exit_periods) {
+        if (exit < entry) {
+            perf <- test_donchian(spy, entry, exit)
+            results <- rbind(results, data.table(
+                Entry = entry,
+                Exit = exit,
+                Ratio = entry / exit,
+                Sharpe = perf$sharpe,
+                Ann_Return = perf$ann_ret * 100,
+                Max_DD = perf$max_dd * 100
+            ))
+        }
+    }
+}
+
+# Plot heatmap
+ggplot(results, aes(x = factor(Entry), y = factor(Exit), fill = Sharpe)) +
+    geom_tile() +
+    geom_text(aes(label = sprintf("%.2f", Sharpe)), colour = "white", size = 3) +
+    scale_fill_gradient2(low = tc[4], mid = "grey30", high = tc[3], midpoint = 0.3) +
+    labs(title = "Donchian Breakout Parameter Sensitivity",
+         subtitle = "Sharpe ratio for different entry/exit period combinations",
+         x = "Entry Period (days)", y = "Exit Period (days)") +
+    theme_trading()
+```
+
+### 7.4.4 Implementation & Application
+
+```{r turtle-with-sizing, fig.cap="Complete Turtle system with ATR-based position sizing. Position size is inverse to volatility: smaller positions in volatile markets, larger in calm markets."}
+# True Range and ATR for position sizing
+calc_tr <- function(high, low, close) {
+    close_prev <- shift(close, 1)
+    pmax(high - low, abs(high - close_prev), abs(low - close_prev))
+}
+
+calc_atr <- function(high, low, close, n = 20) {
+    tr <- calc_tr(high, low, close)
+    frollmean(tr, n)
+}
+
+# Full Turtle system with sizing
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# ATR for position sizing
+spy[, atr := calc_atr(high, low, adjusted, 20)]
+
+# Donchian channels
+spy[, entry_high := frollapply(high, 20, max)]
+spy[, entry_low := frollapply(low, 20, min)]
+spy[, exit_high := frollapply(high, 10, max)]
+spy[, exit_low := frollapply(low, 10, min)]
+
+spy <- spy[!is.na(atr) & !is.na(entry_high) & !is.na(exit_high)]
+
+# Position sizing: risk 2% of account per ATR
+# If ATR = $5 on a $100 stock, and we risk 2%, position = 2% / (5/100) = 40%
+risk_per_trade <- 0.02
+spy[, pos_size := risk_per_trade / (atr / adjusted)]
+spy[, pos_size := pmin(pos_size, 2)]  # Cap at 2x leverage
+
+# Simulate with sizing
+position <- 0
+direction <- 0
+size <- 0
+positions <- numeric(nrow(spy))
+sizes <- numeric(nrow(spy))
+
+for (i in 2:nrow(spy)) {
+    # Entry signals
+    if (position == 0) {
+        if (spy$adjusted[i] > spy$entry_high[i - 1]) {
+            position <- 1
+            direction <- 1
+            size <- spy$pos_size[i - 1]
+        } else if (spy$adjusted[i] < spy$entry_low[i - 1]) {
+            position <- 1
+            direction <- -1
+            size <- spy$pos_size[i - 1]
+        }
+    }
+    # Exit signals
+    else if (direction == 1) {
+        if (spy$adjusted[i] < spy$exit_low[i - 1]) {
+            position <- 0
+            direction <- 0
+            size <- 0
+        }
+    }
+    else if (direction == -1) {
+        if (spy$adjusted[i] > spy$exit_high[i - 1]) {
+            position <- 0
+            direction <- 0
+            size <- 0
+        }
+    }
+    positions[i] <- direction * size
+    sizes[i] <- size
+}
+
+spy[, weighted_position := positions]
+spy[, strat_returns := shift(weighted_position, 1) * returns]
+spy <- spy[!is.na(strat_returns)]
+
+# Cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_turtle := exp(cumsum(strat_returns))]
+
+# Statistics
+cat("=== Turtle System with ATR Position Sizing ===\n\n")
+
+turtle_sized_stats <- data.table(
+    Strategy = c("Buy & Hold", "Turtle + ATR Sizing"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    `Realised Vol` = sprintf("%.1f%%", c(
+        sd(spy$returns, na.rm = TRUE) * sqrt(252) * 100,
+        sd(spy$strat_returns, na.rm = TRUE) * sqrt(252) * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(spy$returns) * 100,
+        max_drawdown(spy$strat_returns) * 100))
+)
+print(turtle_sized_stats)
+
+# Plot
+spy_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh, `Turtle + Sizing` = cum_turtle)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Turtle System with ATR Position Sizing",
+         subtitle = "Risk 2% per ATR, position size capped at 2x",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+---
+
+## 7.5 Volatility Breakouts
+
+### 7.5.1 Prose/Intuition
+
+Volatility breakout systems exploit a key market pattern: *volatility clusters*. Low volatility periods tend to be followed by high volatility periods. When a market has been quiet and then makes an unusually large move, it often signals the start of a new trend.
+
+The classic setup:
+1. Wait for volatility to contract (ATR declining, Bollinger Bands narrowing)
+2. Enter when price makes a move beyond the expected range
+3. The compressed spring releases—hopefully in a sustained direction
+
+This differs from Donchian breakouts: instead of new highs/lows, we're looking for *unusually large moves* relative to recent volatility.
+
+### 7.5.2 Visual Evidence
+
+```{r vol-compression, fig.cap="Volatility compression and expansion cycle. After periods of low ATR (shaded), price often makes large directional moves."}
+# Show volatility compression/expansion
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+spy[, atr := calc_atr(high, low, adjusted, 14)]
+spy <- spy[!is.na(atr)]
+
+# ATR percentile (rolling 252-day)
+spy[, atr_pct := frank(atr) / .N * 100, by = .(year(date))]
+spy[, low_vol := atr_pct < 20]
+
+# Plot
+p1 <- ggplot(spy, aes(x = date)) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    labs(title = "SPY Price", x = NULL, y = "Price ($)") +
+    theme_trading()
+
+p2 <- ggplot(spy, aes(x = date)) +
+    geom_rect(data = spy[low_vol == TRUE],
+              aes(xmin = date - 1, xmax = date + 1, ymin = 0, ymax = Inf),
+              fill = tc[3], alpha = 0.3) +
+    geom_line(aes(y = atr), colour = tc[2], linewidth = 0.7) +
+    labs(title = "ATR (14-day)", subtitle = "Green shading indicates low volatility periods",
+         x = NULL, y = "ATR ($)") +
+    theme_trading()
+
+print(p1)
+print(p2)
+```
+
+```{r volatility-breakout-signals, fig.cap="Volatility breakout signals: enter when price moves more than k×ATR from previous close. The threshold k determines signal frequency and quality."}
+# Volatility breakout signals
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+spy[, atr := calc_atr(high, low, adjusted, 14)]
+spy <- spy[!is.na(atr)]
+
+# Breakout threshold (1.5 ATR)
+k <- 1.5
+spy[, prev_close := shift(adjusted, 1)]
+spy[, breakout_up := adjusted > prev_close + k * shift(atr, 1)]
+spy[, breakout_down := adjusted < prev_close - k * shift(atr, 1)]
+
+# Upper and lower bands
+spy[, upper_band := prev_close + k * shift(atr, 1)]
+spy[, lower_band := prev_close - k * shift(atr, 1)]
+
+# Plot
+ggplot(spy, aes(x = date)) +
+    geom_ribbon(aes(ymin = lower_band, ymax = upper_band), fill = tc[2], alpha = 0.2) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    geom_point(data = spy[breakout_up == TRUE], aes(y = adjusted),
+               colour = tc[3], size = 2, shape = 24, fill = tc[3]) +
+    geom_point(data = spy[breakout_down == TRUE], aes(y = adjusted),
+               colour = tc[4], size = 2, shape = 25, fill = tc[4]) +
+    labs(title = "Volatility Breakout Signals (1.5×ATR)",
+         subtitle = "Bands show expected range; triangles mark breakouts",
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+```
+
+### 7.5.3 Mathematical Derivation
+
+**Volatility Breakout Condition:**
+
+$$
+\text{Long Signal: } P_t > C_{t-1} + k \times \text{ATR}_{t-1}
+$$
+$$
+\text{Short Signal: } P_t < C_{t-1} - k \times \text{ATR}_{t-1}
+$$
+
+where $k$ is typically 1.5 to 2.5.
+
+**Statistical Properties:**
+
+Under normality assumption:
+- 1.5×ATR corresponds to roughly 1.5σ, or 87% coverage
+- 2.0×ATR corresponds to roughly 2σ, or 95% coverage
+
+However, returns are fat-tailed. In practice:
+- Breakouts occur more frequently than normal distribution predicts
+- When they occur, they tend to persist (momentum)
+
+**Opening Range Breakout:**
+
+A variant uses the first hour's range:
+
+$$
+\text{Opening Range (OR)} = H_{\text{first hour}} - L_{\text{first hour}}
+$$
+$$
+\text{Long: } P_t > H_{\text{OR}} + k \times \text{OR}
+$$
+$$
+\text{Short: } P_t < L_{\text{OR}} - k \times \text{OR}
+$$
+
+This capitalises on early directional moves persisting through the day.
+
+### 7.5.4 Implementation & Application
+
+```{r volatility-breakout-strategy, fig.cap="Volatility breakout strategy: enter on 2×ATR moves, hold for 5 days. The strategy captures explosive moves but suffers from false breakouts in choppy markets."}
+# Volatility breakout strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, atr := calc_atr(high, low, adjusted, 14)]
+spy <- spy[!is.na(atr)]
+
+# Breakout signals
+k <- 2.0
+spy[, prev_close := shift(adjusted, 1)]
+spy[, breakout_up := adjusted > prev_close + k * shift(atr, 1)]
+spy[, breakout_down := adjusted < prev_close - k * shift(atr, 1)]
+
+# Strategy: hold for 5 days after breakout
+hold_period <- 5
+spy[, signal := 0L]
+
+# Vectorised holding (approximate)
+spy[, entry_up := breakout_up]
+spy[, entry_down := breakout_down]
+
+# Track positions
+position <- 0
+hold_remaining <- 0
+direction <- 0
+positions <- numeric(nrow(spy))
+
+for (i in 1:nrow(spy)) {
+    # Check for new entry
+    if (hold_remaining == 0) {
+        if (!is.na(spy$entry_up[i]) && spy$entry_up[i]) {
+            direction <- 1
+            hold_remaining <- hold_period
+        } else if (!is.na(spy$entry_down[i]) && spy$entry_down[i]) {
+            direction <- -1
+            hold_remaining <- hold_period
+        }
+    }
+
+    if (hold_remaining > 0) {
+        positions[i] <- direction
+        hold_remaining <- hold_remaining - 1
+    } else {
+        positions[i] <- 0
+    }
+}
+
+spy[, position := positions]
+spy[, strat_returns := shift(position, 1) * returns]
+spy <- spy[!is.na(strat_returns)]
+
+# Cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_breakout := exp(cumsum(strat_returns))]
+
+# Statistics
+cat("=== Volatility Breakout Strategy (2×ATR, 5-day hold) ===\n\n")
+
+breakout_stats <- data.table(
+    Strategy = c("Buy & Hold", "Vol Breakout"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(spy$returns) * 100,
+        max_drawdown(spy$strat_returns) * 100)),
+    `Time in Market` = sprintf("%.0f%%", c(
+        100, mean(spy$position != 0, na.rm = TRUE) * 100))
+)
+print(breakout_stats)
+
+# Count breakouts
+n_up <- sum(spy$entry_up, na.rm = TRUE)
+n_down <- sum(spy$entry_down, na.rm = TRUE)
+cat(sprintf("\nBreakouts: %d up, %d down (total: %d)\n", n_up, n_down, n_up + n_down))
+
+# Plot
+spy_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh, `Vol Breakout` = cum_breakout)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Volatility Breakout Strategy",
+         subtitle = "Enter on 2×ATR move, hold 5 days",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r breakout-parameter-sensitivity, fig.cap="Breakout parameter sensitivity: different ATR multipliers and holding periods produce varying results. The optimal zone is relatively stable."}
+# Parameter sensitivity
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, atr := calc_atr(high, low, adjusted, 14)]
+spy <- spy[!is.na(atr)]
+
+test_breakout <- function(data, k, hold) {
+    dt <- copy(data)
+    dt[, prev_close := shift(adjusted, 1)]
+    dt[, breakout_up := adjusted > prev_close + k * shift(atr, 1)]
+    dt[, breakout_down := adjusted < prev_close - k * shift(atr, 1)]
+
+    position <- 0
+    hold_remaining <- 0
+    direction <- 0
+    positions <- numeric(nrow(dt))
+
+    for (i in 1:nrow(dt)) {
+        if (hold_remaining == 0) {
+            if (!is.na(dt$breakout_up[i]) && dt$breakout_up[i]) {
+                direction <- 1
+                hold_remaining <- hold
+            } else if (!is.na(dt$breakout_down[i]) && dt$breakout_down[i]) {
+                direction <- -1
+                hold_remaining <- hold
+            }
+        }
+        if (hold_remaining > 0) {
+            positions[i] <- direction
+            hold_remaining <- hold_remaining - 1
+        }
+    }
+
+    dt[, position := positions]
+    dt[, strat_ret := shift(position, 1) * returns]
+    dt <- dt[!is.na(strat_ret)]
+
+    sharpe_ratio(dt$strat_ret)
+}
+
+# Grid search
+k_values <- seq(1.0, 3.0, by = 0.5)
+hold_values <- c(1, 3, 5, 10, 20)
+
+results <- data.table()
+for (k in k_values) {
+    for (hold in hold_values) {
+        sr <- test_breakout(spy, k, hold)
+        results <- rbind(results, data.table(ATR_Mult = k, Hold_Days = hold, Sharpe = sr))
+    }
+}
+
+# Heatmap
+ggplot(results, aes(x = factor(ATR_Mult), y = factor(Hold_Days), fill = Sharpe)) +
+    geom_tile() +
+    geom_text(aes(label = sprintf("%.2f", Sharpe)), colour = "white", size = 3) +
+    scale_fill_gradient2(low = tc[4], mid = "grey30", high = tc[3], midpoint = 0.2) +
+    labs(title = "Volatility Breakout Parameter Sensitivity",
+         x = "ATR Multiplier", y = "Hold Period (days)") +
+    theme_trading()
+```
+
+---
+
+## 7.6 Trend Filters
+
+### 7.6.1 Prose/Intuition
+
+Not all breakouts lead to trends. In ranging markets, prices break out and reverse, creating costly whipsaws. Trend filters help by requiring confirmation before entering.
+
+Common filters:
+1. **ADX filter:** Only trade breakouts when ADX > 25 (trending regime)
+2. **MA filter:** Only take long breakouts when price > 200 MA
+3. **Volatility filter:** Only trade when volatility is expanding, not contracting
+
+The trade-off: filters reduce false signals but also miss some real trends. Finding the right balance is key.
+
+### 7.6.2 Visual Evidence
+
+```{r adx-filter-comparison, fig.cap="ADX filter for breakout systems. When ADX < 25 (ranging market), breakout signals are more likely to fail."}
+# ADX calculation
+calc_adx <- function(high, low, close, n = 14) {
+    # True Range
+    tr <- calc_tr(high, low, close)
+
+    # Directional Movement
+    up_move <- high - shift(high, 1)
+    down_move <- shift(low, 1) - low
+
+    plus_dm <- ifelse(up_move > down_move & up_move > 0, up_move, 0)
+    minus_dm <- ifelse(down_move > up_move & down_move > 0, down_move, 0)
+
+    # Smoothed averages
+    atr <- frollmean(tr, n)
+    plus_di <- 100 * frollmean(plus_dm, n) / atr
+    minus_di <- 100 * frollmean(minus_dm, n) / atr
+
+    # ADX
+    dx <- 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+    adx <- frollmean(dx, n)
+
+    list(adx = adx, plus_di = plus_di, minus_di = minus_di)
+}
+
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2021-01-01"), as.Date("2023-12-31"))
+
+adx_result <- calc_adx(spy$high, spy$low, spy$adjusted, 14)
+spy[, adx := adx_result$adx]
+spy[, trending := adx > 25]
+spy <- spy[!is.na(adx)]
+
+# Plot price with ADX regime
+p1 <- ggplot(spy, aes(x = date)) +
+    geom_rect(data = spy[trending == FALSE],
+              aes(xmin = date - 1, xmax = date + 1, ymin = -Inf, ymax = Inf),
+              fill = tc[4], alpha = 0.15) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    labs(title = "SPY with ADX Regime Overlay",
+         subtitle = "Red shading = ADX < 25 (ranging market)",
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+
+p2 <- ggplot(spy, aes(x = date, y = adx)) +
+    geom_hline(yintercept = 25, linetype = "dashed", colour = tc[4]) +
+    geom_line(colour = tc[2], linewidth = 0.7) +
+    labs(title = "ADX (14-day)", x = NULL, y = "ADX") +
+    theme_trading()
+
+print(p1)
+print(p2)
+```
+
+```{r filtered-vs-unfiltered, fig.cap="Impact of ADX filter on Donchian breakout system. Filtering reduces whipsaws but may miss some trend starts."}
+# Compare filtered vs unfiltered
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# ADX
+adx_result <- calc_adx(spy$high, spy$low, spy$adjusted, 14)
+spy[, adx := adx_result$adx]
+
+# Donchian channels
+spy[, entry_high := frollapply(high, 20, max)]
+spy[, entry_low := frollapply(low, 20, min)]
+spy[, exit_high := frollapply(high, 10, max)]
+spy[, exit_low := frollapply(low, 10, min)]
+
+spy <- spy[!is.na(adx) & !is.na(entry_high) & !is.na(exit_high)]
+
+# Simulate both strategies
+simulate_donchian <- function(data, use_filter = FALSE) {
+    dt <- copy(data)
+
+    position <- 0
+    positions <- numeric(nrow(dt))
+
+    for (i in 2:nrow(dt)) {
+        # Entry signals (with optional ADX filter)
+        adx_ok <- if (use_filter) dt$adx[i - 1] > 25 else TRUE
+
+        if (position == 0 && adx_ok) {
+            if (dt$adjusted[i] > dt$entry_high[i - 1]) position <- 1
+            else if (dt$adjusted[i] < dt$entry_low[i - 1]) position <- -1
+        } else if (position == 1) {
+            if (dt$adjusted[i] < dt$exit_low[i - 1]) position <- 0
+        } else if (position == -1) {
+            if (dt$adjusted[i] > dt$exit_high[i - 1]) position <- 0
+        }
+        positions[i] <- position
+    }
+
+    dt[, position := positions]
+    dt[, strat_ret := shift(position, 1) * returns]
+    dt <- dt[!is.na(strat_ret)]
+
+    list(
+        returns = dt$strat_ret,
+        dates = dt$date,
+        sharpe = sharpe_ratio(dt$strat_ret),
+        max_dd = max_drawdown(dt$strat_ret),
+        ann_ret = annualised_return(dt$strat_ret, type = "simple"),
+        n_trades = sum(dt$position != shift(dt$position, 1), na.rm = TRUE)
+    )
+}
+
+unfiltered <- simulate_donchian(spy, use_filter = FALSE)
+filtered <- simulate_donchian(spy, use_filter = TRUE)
+
+# Compare
+cat("=== ADX Filter Impact on Donchian Breakout ===\n\n")
+
+filter_comparison <- data.table(
+    Strategy = c("Unfiltered", "ADX Filtered"),
+    `Ann. Return` = sprintf("%.1f%%", c(unfiltered$ann_ret * 100, filtered$ann_ret * 100)),
+    Sharpe = sprintf("%.2f", c(unfiltered$sharpe, filtered$sharpe)),
+    `Max Drawdown` = sprintf("%.1f%%", c(unfiltered$max_dd * 100, filtered$max_dd * 100)),
+    Trades = c(unfiltered$n_trades, filtered$n_trades)
+)
+print(filter_comparison)
+
+# Cumulative returns
+cum_unfiltered <- exp(cumsum(unfiltered$returns))
+cum_filtered <- exp(cumsum(filtered$returns))
+
+plot_dt <- data.table(
+    date = c(unfiltered$dates, filtered$dates),
+    Growth = c(cum_unfiltered, cum_filtered),
+    Strategy = c(rep("Unfiltered", length(unfiltered$dates)),
+                 rep("ADX Filtered", length(filtered$dates)))
+)
+
+ggplot(plot_dt, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[2], tc[1])) +
+    labs(title = "Donchian Breakout: Filtered vs Unfiltered",
+         subtitle = "ADX > 25 filter reduces trades but may improve consistency",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+### 7.6.3 Mathematical Derivation
+
+**ADX Filter Threshold:**
+
+ADX measures trend strength on a 0-100 scale:
+- ADX < 20: Weak or no trend (ranging)
+- ADX 20-40: Moderate trend
+- ADX > 40: Strong trend
+
+The filter condition:
+$$
+\text{Trade} = \text{Signal} \times \mathbb{1}[\text{ADX}_t > \theta]
+$$
+
+where $\theta$ is typically 25.
+
+**MA Filter:**
+
+Only trade in the direction of the long-term trend:
+$$
+\text{Long only if } P_t > \text{MA}_{200}
+$$
+$$
+\text{Short only if } P_t < \text{MA}_{200}
+$$
+
+**Regime Classification:**
+
+More sophisticated filters use regime classification:
+
+$$
+\text{Regime}_t = \begin{cases}
+\text{Trending} & \text{if ADX}_t > 25 \text{ and } |\text{+DI} - \text{-DI}| > 20 \\
+\text{Ranging} & \text{otherwise}
+\end{cases}
+$$
+
+### 7.6.4 Implementation & Application
+
+```{r multi-filter-system, fig.cap="Multi-filter trend system combining ADX and MA filters. Both conditions must be met for entry, reducing false signals significantly."}
+# Multi-filter system
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# Indicators
+adx_result <- calc_adx(spy$high, spy$low, spy$adjusted, 14)
+spy[, adx := adx_result$adx]
+spy[, ma_200 := frollmean(adjusted, 200)]
+spy[, atr := calc_atr(high, low, adjusted, 14)]
+
+# Donchian channels
+spy[, entry_high := frollapply(high, 20, max)]
+spy[, entry_low := frollapply(low, 20, min)]
+spy[, exit_high := frollapply(high, 10, max)]
+spy[, exit_low := frollapply(low, 10, min)]
+
+spy <- spy[!is.na(adx) & !is.na(ma_200) & !is.na(entry_high) & !is.na(exit_high)]
+
+# Multi-filter Donchian
+simulate_multi_filter <- function(data) {
+    dt <- copy(data)
+
+    position <- 0
+    positions <- numeric(nrow(dt))
+
+    for (i in 2:nrow(dt)) {
+        # Filters
+        adx_ok <- dt$adx[i - 1] > 25
+        above_ma <- dt$adjusted[i - 1] > dt$ma_200[i - 1]
+        below_ma <- dt$adjusted[i - 1] < dt$ma_200[i - 1]
+
+        # Entry signals
+        if (position == 0) {
+            # Long: ADX ok, above MA, breakout up
+            if (adx_ok && above_ma && dt$adjusted[i] > dt$entry_high[i - 1]) {
+                position <- 1
+            }
+            # Short: ADX ok, below MA, breakout down
+            else if (adx_ok && below_ma && dt$adjusted[i] < dt$entry_low[i - 1]) {
+                position <- -1
+            }
+        }
+        # Exits (no filter required)
+        else if (position == 1 && dt$adjusted[i] < dt$exit_low[i - 1]) {
+            position <- 0
+        }
+        else if (position == -1 && dt$adjusted[i] > dt$exit_high[i - 1]) {
+            position <- 0
+        }
+
+        positions[i] <- position
+    }
+
+    dt[, position := positions]
+    dt[, strat_ret := shift(position, 1) * returns]
+    dt <- dt[!is.na(strat_ret)]
+    dt
+}
+
+result <- simulate_multi_filter(spy)
+
+# Statistics
+cat("=== Multi-Filter Donchian System ===\n")
+cat("Filters: ADX > 25 AND price aligned with 200 MA\n\n")
+
+result[, cum_bh := exp(cumsum(returns))]
+result[, cum_strat := exp(cumsum(strat_ret))]
+
+multi_stats <- data.table(
+    Strategy = c("Buy & Hold", "Multi-Filter Donchian"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(result$returns, type = "simple") * 100,
+        annualised_return(result$strat_ret, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(result$returns),
+        sharpe_ratio(result$strat_ret))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(result$returns) * 100,
+        max_drawdown(result$strat_ret) * 100)),
+    `Time in Market` = sprintf("%.0f%%", c(
+        100, mean(result$position != 0, na.rm = TRUE) * 100))
+)
+print(multi_stats)
+
+# Plot
+result_long <- melt(result[, .(date, `Buy & Hold` = cum_bh, `Multi-Filter` = cum_strat)],
+                    id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(result_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Multi-Filter Donchian Breakout System",
+         subtitle = "Requires ADX > 25 and price aligned with 200 MA",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+---
+
+## Quick Reference
+
+### Donchian Channels
+
+| Component | Formula | Typical Values |
+|-----------|---------|----------------|
+| Upper Channel | $\max(H_{t-n:t-1})$ | n = 20 (entry), 10 (exit) |
+| Lower Channel | $\min(L_{t-n:t-1})$ | Same periods |
+| Entry Long | $P_t > \text{Upper}_{t-1}$ | On new high |
+| Exit Long | $P_t < \text{Lower}_{t-1}^{(exit)}$ | On shorter-period low |
+
+### Volatility Breakout
+
+| Component | Formula | Notes |
+|-----------|---------|-------|
+| Breakout Long | $P_t > C_{t-1} + k \times \text{ATR}_{t-1}$ | $k$ = 1.5-2.5 |
+| Breakout Short | $P_t < C_{t-1} - k \times \text{ATR}_{t-1}$ | Same multiplier |
+| Holding Period | Fixed 1-20 days | Or use trailing stop |
+
+### Trend Filters
+
+| Filter | Condition | Purpose |
+|--------|-----------|---------|
+| ADX | ADX > 25 | Only trade trending markets |
+| MA Direction | Long only if $P > MA_{200}$ | Align with long-term trend |
+| Volatility | ATR expanding | Trade during active periods |
+
+### System Design Principles
+
+1. **Asymmetric periods:** Shorter exits than entries cut losses faster
+2. **Position sizing:** Risk fixed % per ATR (typically 1-2%)
+3. **Filters reduce trades:** Accept fewer but higher-quality signals
+4. **Combine multiple filters:** Reduces false signals substantially
+5. **Test robustly:** Walk-forward optimisation prevents overfitting

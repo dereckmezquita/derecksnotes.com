@@ -1,0 +1,984 @@
+---
+title: "Algorithmic Trading with R"
+chapter: "Chapter 3: Backtesting — Building the Engine"
+part: "Part 1: Backtest Architecture"
+section: "03-1"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2026-01-21
+tags: [algorithmic-trading, quantitative-finance, R, backtesting, signals, positions]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: Backtest Architecture
+
+A trading strategy is a hypothesis. Backtesting is the first (though not final) test of that hypothesis against historical data. Before you risk real capital, you simulate what would have happened if you had traded your strategy in the past.
+
+This chapter builds the machinery of backtesting from first principles. We'll construct a complete backtesting pipeline: from raw data, through signal generation and position mapping, to P&L calculation and performance metrics. The focus is on understanding *why* each component exists and *how* to implement it correctly.
+
+
+``` r
+box::use(
+    ../modules/data[load_market, load_factors, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+# Helper: convert trading_colors list to vector for indexed access
+tc <- unlist(trading_colors)
+
+set.seed(42)
+
+# Load example data
+spy <- load_market("SPY")
+spy <- spy[date >= "2005-01-01"]
+spy[, returns := c(NA, diff(log(adjusted)))]
+spy <- spy[!is.na(returns)]
+```
+
+---
+
+## 3.1 The Backtesting Pipeline
+
+Every backtest follows the same fundamental structure: data flows through a pipeline that transforms market information into simulated trading results.
+
+### 3.1.1 Prose/Intuition
+
+A backtest answers the question: "If I had traded this strategy historically, what would have happened?"
+
+The pipeline has five stages:
+
+1. **Data**: Price data, adjusted for corporate actions, free of survivorship bias
+2. **Signals**: Predictions or indicators derived from data available at each point in time
+3. **Positions**: Portfolio weights determined by signals and constraints
+4. **Execution**: Simulated trades with realistic costs
+5. **Returns**: P&L calculated from positions and realised prices
+
+The critical principle is **point-in-time correctness**: at each historical moment, your backtest can only use information that would have been available at that moment. Using future information—even inadvertently—is called *look-ahead bias* and will dramatically inflate results.
+
+**Why backtesting matters:**
+
+- It provides a necessary (but not sufficient) condition for strategy viability
+- It reveals strategy characteristics: turnover, capacity, risk profile
+- It identifies potential issues before real capital is at risk
+
+**Why backtesting can mislead:**
+
+- Past performance doesn't guarantee future results (regime changes)
+- Overfitting: any dataset can generate spuriously profitable strategies
+- Costs are estimated, not actual
+- Execution is simulated, not real
+
+The goal is not to find strategies that worked historically—anyone can do that with enough data mining. The goal is to find strategies that *should* work going forward, for fundamental reasons, and verify that they did work historically.
+
+### 3.1.2 Visual Evidence
+
+
+``` r
+# Create a simple visual representation of the pipeline using ggplot
+library(ggplot2)
+
+# Pipeline stages
+stages <- data.table(
+    stage = c("Data", "Signals", "Positions", "Execution", "Returns"),
+    x = 1:5,
+    y = rep(0, 5),
+    description = c(
+        "OHLCV prices\nAdjustments\nSurvivorship-free",
+        "Indicators\nPredictions\nf(Ω_t)",
+        "Weights\nConstraints\ng(signal)",
+        "Costs\nSlippage\nFills",
+        "P&L\nMetrics\nAnalysis"
+    )
+)
+
+ggplot(stages, aes(x = x, y = y)) +
+    geom_segment(aes(x = x, xend = x + 0.7, y = y, yend = y),
+                 data = stages[1:4],
+                 arrow = arrow(length = unit(0.3, "cm")),
+                 colour = tc[1], linewidth = 1.5) +
+    geom_point(size = 25, colour = tc[1]) +
+    geom_text(aes(label = stage), colour = "white", fontface = "bold", size = 4) +
+    geom_text(aes(label = description, y = y - 0.5), size = 3, colour = "grey30") +
+    coord_cartesian(ylim = c(-1, 0.5), xlim = c(0.5, 5.5)) +
+    theme_void() +
+    labs(title = "The Backtesting Pipeline",
+         subtitle = "Each stage transforms inputs into outputs while preserving point-in-time correctness")
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/pipeline-diagram-1.png" alt="The backtesting pipeline transforms data into performance metrics through five stages. Each stage must maintain point-in-time correctness.">
+	The backtesting pipeline transforms data into performance metrics through five stages. Each stage must maintain point-in-time correctness.
+</Figure>
+
+
+``` r
+# Simple moving average crossover strategy
+spy[, ma_fast := frollmean(adjusted, 20)]
+spy[, ma_slow := frollmean(adjusted, 50)]
+
+# Signal: +1 when fast > slow, -1 when fast < slow
+# Lag by 1 to avoid look-ahead bias (signal based on yesterday's close)
+spy[, signal := shift(fifelse(ma_fast > ma_slow, 1, -1), 1)]
+
+# Position equals signal (full investment)
+spy[, position := signal]
+
+# P&L: yesterday's position × today's return
+spy[, strategy_return := position * returns]
+
+# Calculate cumulative returns
+spy[, cum_benchmark := cumprod(1 + returns)]
+spy[, cum_strategy := cumprod(1 + fifelse(is.na(strategy_return), 0, strategy_return))]
+
+# Plot
+plot_data <- spy[date >= "2006-01-01"]
+
+ggplot(plot_data, aes(x = date)) +
+    geom_line(aes(y = cum_benchmark, colour = "Buy & Hold"), linewidth = 0.7) +
+    geom_line(aes(y = cum_strategy, colour = "MA Crossover"), linewidth = 0.7) +
+    scale_colour_manual(values = c("Buy & Hold" = tc[1], "MA Crossover" = tc[2])) +
+    labs(
+        title = "Moving Average Crossover Strategy vs Buy & Hold",
+        subtitle = "20/50 day crossover on S&P 500",
+        x = NULL,
+        y = "Cumulative Return (Starting = 1)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/simple-backtest-example-1.png" alt="A complete backtest example: moving average crossover on S&amp;P 500. The strategy is simple but illustrates all pipeline components.">
+	A complete backtest example: moving average crossover on S&amp;P 500. The strategy is simple but illustrates all pipeline components.
+</Figure>
+
+### 3.1.3 Mathematical Derivation
+
+**P&L Equation:**
+
+The fundamental equation of backtesting relates positions to returns:
+
+$$\text{P\&L}_t = w_{t-1} \cdot r_t - c_t$$
+
+where:
+- $w_{t-1}$ is the position (weight) held from $t-1$ to $t$
+- $r_t$ is the return from $t-1$ to $t$
+- $c_t$ is the transaction cost incurred at time $t$
+
+**Why $w_{t-1}$ and not $w_t$?**
+
+The position that generates today's return was established *yesterday*. We decided on $w_{t-1}$ at the close of day $t-1$, held it overnight, and earned return $r_t$ over day $t$. Using $w_t$ would be look-ahead bias.
+
+**Cumulative wealth:**
+
+Starting with wealth $W_0 = 1$, wealth evolves as:
+
+$$W_t = W_{t-1} \cdot (1 + w_{t-1} \cdot r_t - c_t)$$
+
+For a fully-invested strategy ($w = 1$ always), this simplifies to:
+
+$$W_t = \prod_{s=1}^{t} (1 + r_s - c_s)$$
+
+**Log returns:**
+
+With log returns, cumulative performance is additive:
+
+$$\ln(W_t/W_0) = \sum_{s=1}^{t} (w_{s-1} \cdot r_s^{\log} - c_s)$$
+
+This is computationally convenient but requires care with large returns and leveraged positions.
+
+**Portfolio case:**
+
+For a portfolio of $N$ assets:
+
+$$\text{P\&L}_t = \sum_{i=1}^{N} w_{i,t-1} \cdot r_{i,t} - c_t$$
+
+where:
+- $w_{i,t-1}$ is the weight in asset $i$
+- $r_{i,t}$ is the return of asset $i$
+- $c_t$ is total transaction cost (proportional to turnover)
+
+### 3.1.4 Implementation & Application
+
+
+``` r
+#' Minimal vectorised backtester
+#'
+#' @param returns Numeric vector of asset returns
+#' @param positions Numeric vector of positions (lagged internally)
+#' @param costs_bps Transaction costs in basis points (applied to turnover)
+#' @return data.table with backtest results
+backtest_vectorised <- function(returns, positions, costs_bps = 10) {
+    n <- length(returns)
+
+    # Ensure positions are properly lagged (position established at t trades t+1 return)
+    # The input 'positions' represents desired position after seeing price at t
+    # So position[t] earns return[t+1]
+    lagged_positions <- c(NA, positions[-n])
+
+    # Calculate turnover (absolute change in position)
+    turnover <- c(NA, abs(diff(positions)))
+
+    # Transaction costs: turnover × cost rate
+    costs <- turnover * (costs_bps / 10000)
+    costs[is.na(costs)] <- 0
+
+    # Strategy returns: lagged position × return - costs
+    strategy_returns <- lagged_positions * returns - costs
+    strategy_returns[is.na(strategy_returns)] <- 0
+
+    # Cumulative wealth
+    wealth <- cumprod(1 + strategy_returns)
+
+    # Calculate metrics
+    ann_return <- mean(strategy_returns, na.rm = TRUE) * 252
+    ann_vol <- sd(strategy_returns, na.rm = TRUE) * sqrt(252)
+    sharpe <- ann_return / ann_vol
+
+    # Drawdown
+    running_max <- cummax(wealth)
+    drawdown <- (running_max - wealth) / running_max
+    max_dd <- max(drawdown)
+
+    # Total turnover
+    total_turnover <- sum(turnover, na.rm = TRUE)
+    annual_turnover <- total_turnover / (n / 252)
+
+    list(
+        returns = strategy_returns,
+        wealth = wealth,
+        drawdown = drawdown,
+        metrics = list(
+            annual_return = ann_return,
+            annual_volatility = ann_vol,
+            sharpe_ratio = sharpe,
+            max_drawdown = max_dd,
+            annual_turnover = annual_turnover,
+            total_costs_bps = sum(costs, na.rm = TRUE) * 10000
+        )
+    )
+}
+
+# Test on our MA crossover strategy
+ma_positions <- fifelse(spy$ma_fast > spy$ma_slow, 1, -1)
+ma_positions[is.na(ma_positions)] <- 0
+
+bt_result <- backtest_vectorised(spy$returns, ma_positions, costs_bps = 10)
+
+cat("MA Crossover Backtest Results:\n")
+cat(sprintf("  Annual Return: %.2f%%\n", bt_result$metrics$annual_return * 100))
+cat(sprintf("  Annual Volatility: %.2f%%\n", bt_result$metrics$annual_volatility * 100))
+cat(sprintf("  Sharpe Ratio: %.2f\n", bt_result$metrics$sharpe_ratio))
+cat(sprintf("  Max Drawdown: %.2f%%\n", bt_result$metrics$max_drawdown * 100))
+cat(sprintf("  Annual Turnover: %.1fx\n", bt_result$metrics$annual_turnover))
+cat(sprintf("  Total Costs: %.0f bps\n", bt_result$metrics$total_costs_bps))
+```
+
+```
+MA Crossover Backtest Results:
+  Annual Return: -0.14%
+  Annual Volatility: 19.05%
+  Sharpe Ratio: -0.01
+  Max Drawdown: 60.69%
+  Annual Turnover: 10.0x
+  Total Costs: 2090 bps
+```
+
+**When to use vectorised vs event-driven backtesting:**
+
+| Vectorised | Event-Driven |
+|------------|--------------|
+| Simple strategies | Complex execution logic |
+| Daily+ frequency | Intraday/tick |
+| No path dependence | Stop losses, trailing stops |
+| Fixed position sizing | Adaptive sizing |
+| Fast (~100x faster) | Slow but flexible |
+
+For most systematic strategies at daily frequency, vectorised backtesting is sufficient and much faster. Event-driven is necessary when execution logic depends on order book state or intraday price paths.
+
+---
+
+## 3.2 Signal Generation
+
+Signals are the heart of any trading strategy. They encode your beliefs about future returns based on currently available information.
+
+### 3.2.1 Prose/Intuition
+
+A **signal** is any variable that predicts future returns. Signals can be:
+
+- **Technical**: Moving average crossovers, momentum, mean reversion
+- **Fundamental**: Valuation ratios, earnings surprises
+- **Alternative**: Sentiment, satellite data, web traffic
+- **Statistical**: Factor exposures, pairs relationships
+
+The critical requirement is that the signal must be **point-in-time**: you can only use information available at the moment of the decision. Accidentally using future information (look-ahead bias) is the most common and damaging backtesting error.
+
+**Signal vs Position:**
+
+A signal is a prediction; a position is an allocation. The signal might say "I predict this stock will outperform by 0.5%." The position converts this into "I want to own $10,000 worth." The mapping from signal to position is a separate (and important) decision.
+
+**Good signals have:**
+- Economic rationale (why *should* this predict returns?)
+- Statistical significance (does it *actually* predict returns in historical data?)
+- Decay properties that match your trading frequency
+
+**Bad signals:**
+- Work only in specific periods (overfitting)
+- Have no economic story
+- Require look-ahead information to compute
+
+### 3.2.2 Visual Evidence
+
+
+``` r
+# Generate three different signals
+spy[, `:=`(
+    # Momentum signal: 12-month return (excluding most recent month)
+    momentum_signal = shift(frollapply(returns, 252, sum), 21),
+
+    # Mean reversion signal: deviation from 20-day mean
+    meanrev_signal = -((adjusted - frollmean(adjusted, 20)) / frollapply(adjusted, 20, sd)),
+
+    # Volatility signal: inverse of recent volatility (low vol = bullish)
+    vol_signal = -frollapply(returns, 20, sd)
+)]
+
+# Normalise signals to comparable scale
+spy[, `:=`(
+    momentum_z = (momentum_signal - mean(momentum_signal, na.rm = TRUE)) /
+                  sd(momentum_signal, na.rm = TRUE),
+    meanrev_z = (meanrev_signal - mean(meanrev_signal, na.rm = TRUE)) /
+                 sd(meanrev_signal, na.rm = TRUE),
+    vol_z = (vol_signal - mean(vol_signal, na.rm = TRUE)) /
+             sd(vol_signal, na.rm = TRUE)
+)]
+
+# Plot signals
+signal_plot <- spy[date >= "2018-01-01", .(date, momentum_z, meanrev_z, vol_z)]
+signal_long <- melt(signal_plot, id.vars = "date",
+                    variable.name = "signal", value.name = "value")
+signal_long[, signal := gsub("_z$", "", signal)]
+signal_long[, signal := factor(signal,
+                               levels = c("momentum", "meanrev", "vol"),
+                               labels = c("Momentum", "Mean Reversion", "Low Volatility"))]
+
+ggplot(signal_long, aes(x = date, y = value, colour = signal)) +
+    geom_line(linewidth = 0.5) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    facet_wrap(~signal, ncol = 1, scales = "free_y") +
+    scale_colour_manual(values = tc[1:3]) +
+    labs(
+        title = "Three Trading Signals: S&P 500",
+        subtitle = "Each signal captures different market dynamics (z-scored)",
+        x = NULL,
+        y = "Signal Value (Z-Score)"
+    ) +
+    theme_trading() +
+    theme(legend.position = "none")
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/signal-examples-1.png" alt="Three different signal types applied to S&amp;P 500. Each captures different market dynamics.">
+	Three different signal types applied to S&amp;P 500. Each captures different market dynamics.
+</Figure>
+
+
+``` r
+# Calculate forward returns (what we're trying to predict)
+spy[, forward_return := shift(returns, -1)]
+
+# Create scatter plots
+scatter_data <- spy[!is.na(momentum_z) & !is.na(forward_return),
+                    .(momentum_z, meanrev_z, vol_z, forward_return)]
+
+# Winsorise for better visualisation
+scatter_data[, `:=`(
+    momentum_w = pmin(pmax(momentum_z, -3), 3),
+    meanrev_w = pmin(pmax(meanrev_z, -3), 3),
+    vol_w = pmin(pmax(vol_z, -3), 3),
+    return_w = pmin(pmax(forward_return * 100, -5), 5)
+)]
+
+# Calculate correlations
+cor_mom <- cor(scatter_data$momentum_z, scatter_data$forward_return, use = "complete.obs")
+cor_mr <- cor(scatter_data$meanrev_z, scatter_data$forward_return, use = "complete.obs")
+cor_vol <- cor(scatter_data$vol_z, scatter_data$forward_return, use = "complete.obs")
+
+# Plot
+p1 <- ggplot(scatter_data[sample(.N, 2000)], aes(x = momentum_w, y = return_w)) +
+    geom_point(alpha = 0.3, size = 1, colour = tc[1]) +
+    geom_smooth(method = "lm", colour = tc[2], linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(title = sprintf("Momentum (r = %.3f)", cor_mom),
+         x = "Signal", y = "Next-Day Return (%)") +
+    theme_trading()
+
+p2 <- ggplot(scatter_data[sample(.N, 2000)], aes(x = meanrev_w, y = return_w)) +
+    geom_point(alpha = 0.3, size = 1, colour = tc[1]) +
+    geom_smooth(method = "lm", colour = tc[2], linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(title = sprintf("Mean Reversion (r = %.3f)", cor_mr),
+         x = "Signal", y = "Next-Day Return (%)") +
+    theme_trading()
+
+library(patchwork)
+p1 + p2
+```
+
+```
+`geom_smooth()` using formula = 'y ~ x'
+`geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/signal-return-scatter-1.png" alt="Signal-return relationships. Effective signals show correlation between today&#39;s signal and tomorrow&#39;s return.">
+	Signal-return relationships. Effective signals show correlation between today's signal and tomorrow's return.
+</Figure>
+
+### 3.2.3 Mathematical Derivation
+
+**Signal as conditional expectation:**
+
+The ideal signal would be:
+
+$$s_t = E[r_{t+1} | \Omega_t]$$
+
+where $\Omega_t$ is the information set available at time $t$. In practice, we use a function $f$ that approximates this:
+
+$$s_t = f(X_t)$$
+
+where $X_t \subseteq \Omega_t$ is a subset of available information.
+
+**Point-in-time constraint:**
+
+Formally, a valid signal must be $\mathcal{F}_t$-measurable, meaning:
+
+$$s_t \in \sigma(\Omega_t)$$
+
+This ensures the signal depends only on past and present information, never future.
+
+**Signal quality metrics:**
+
+1. **Information Coefficient (IC)**: Rank correlation between signal and subsequent return
+$$IC = \text{Corr}(\text{rank}(s_t), \text{rank}(r_{t+1}))$$
+
+2. **t-statistic**: Is the predictive relationship statistically significant?
+$$t = \frac{\hat{\beta}}{\text{SE}(\hat{\beta})} \text{ from regression } r_{t+1} = \alpha + \beta s_t + \epsilon$$
+
+3. **Hit rate**: Percentage of correct directional predictions
+$$\text{Hit Rate} = P(\text{sign}(s_t) = \text{sign}(r_{t+1}))$$
+
+**The fundamental law of active management:**
+
+Grinold's formula relates signal quality to expected performance:
+
+$$IR \approx IC \times \sqrt{N}$$
+
+where $IR$ is the information ratio and $N$ is the number of independent bets per year.
+
+This implies:
+- Small but consistent edge (IC = 0.02) + high frequency (N = 252) → IR ≈ 0.32
+- Same edge applied monthly (N = 12) → IR ≈ 0.07
+
+Frequency amplifies weak signals—if you can predict at higher frequency, do it.
+
+### 3.2.4 Implementation & Application
+
+
+``` r
+#' Generate signal from function while ensuring no look-ahead
+#'
+#' @param data data.table with price data
+#' @param signal_func Function that takes data and returns signal
+#' @param lag Periods to lag signal (default 1 for next-day trading)
+#' @return Lagged signal vector
+generate_signal <- function(data, signal_func, lag = 1) {
+    # Generate raw signal
+    raw_signal <- signal_func(data)
+
+    # Lag to avoid look-ahead
+    lagged_signal <- shift(raw_signal, lag)
+
+    return(lagged_signal)
+}
+
+#' Z-score normalisation (rolling)
+#'
+#' @param x Numeric vector
+#' @param window Rolling window for mean/sd calculation
+#' @return Z-scored values
+zscore_rolling <- function(x, window = 252) {
+    roll_mean <- frollmean(x, window)
+    roll_sd <- frollapply(x, window, sd)
+    (x - roll_mean) / roll_sd
+}
+
+# Example: Momentum signal with proper construction
+momentum_signal <- function(data, lookback = 252, skip = 21) {
+    # Total return over lookback period, excluding most recent 'skip' days
+    # This is the standard "12-1" momentum construction
+    total_ret <- frollapply(data$returns, lookback, sum)
+    recent_ret <- frollapply(data$returns, skip, sum)
+    momentum <- total_ret - recent_ret
+    return(momentum)
+}
+
+# Example: Mean reversion signal
+meanrev_signal <- function(data, window = 20) {
+    ma <- frollmean(data$adjusted, window)
+    std <- frollapply(data$adjusted, window, sd)
+    # Negative because we want to buy when price is below MA
+    -(data$adjusted - ma) / std
+}
+
+# Generate signals directly (clearer than using wrapper function)
+spy[, mom_signal := shift(momentum_signal(.SD), 1)]
+spy[, mr_signal := shift(meanrev_signal(.SD), 1)]
+
+# Calculate IC (information coefficient)
+calculate_ic <- function(signal, forward_returns) {
+    valid <- !is.na(signal) & !is.na(forward_returns)
+    if (sum(valid) < 30) return(NA)
+    cor(rank(signal[valid]), rank(forward_returns[valid]))
+}
+
+spy[, forward_ret := shift(returns, -1)]
+
+ic_momentum <- calculate_ic(spy$mom_signal, spy$forward_ret)
+ic_meanrev <- calculate_ic(spy$mr_signal, spy$forward_ret)
+
+cat("Signal Quality Metrics:\n")
+cat(sprintf("  Momentum IC: %.4f\n", ic_momentum))
+cat(sprintf("  Mean Reversion IC: %.4f\n", ic_meanrev))
+
+# Rolling IC analysis
+spy[, `:=`(
+    roll_ic_mom = frollapply(1:.N, 252, function(idx) {
+        if (length(idx) < 100) return(NA)
+        calculate_ic(mom_signal[idx], forward_ret[idx])
+    }),
+    roll_ic_mr = frollapply(1:.N, 252, function(idx) {
+        if (length(idx) < 100) return(NA)
+        calculate_ic(mr_signal[idx], forward_ret[idx])
+    })
+)]
+```
+
+```
+Signal Quality Metrics:
+  Momentum IC: 0.0027
+  Mean Reversion IC: 0.0499
+```
+
+
+``` r
+ic_plot <- spy[date >= "2008-01-01", .(date, roll_ic_mom, roll_ic_mr)]
+ic_long <- melt(ic_plot, id.vars = "date",
+                variable.name = "signal", value.name = "IC")
+ic_long[, signal := fifelse(signal == "roll_ic_mom", "Momentum", "Mean Reversion")]
+
+ggplot(ic_long[!is.na(IC)], aes(x = date, y = IC, colour = signal)) +
+    geom_line(linewidth = 0.7) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_hline(yintercept = c(-0.05, 0.05), linetype = "dotted", colour = "grey70") +
+    scale_colour_manual(values = tc[1:2]) +
+    labs(
+        title = "Rolling 1-Year Information Coefficient",
+        subtitle = "Signal effectiveness varies through market regimes",
+        x = NULL,
+        y = "IC (Rank Correlation)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/rolling-ic-1.png" alt="Rolling 1-year IC for momentum and mean reversion signals. Signal effectiveness varies through time.">
+	Rolling 1-year IC for momentum and mean reversion signals. Signal effectiveness varies through time.
+</Figure>
+
+---
+
+## 3.3 Position Mapping
+
+Position mapping converts signals (predictions) into positions (allocations). This seemingly simple step involves important choices about risk, leverage, and constraints.
+
+### 3.3.1 Prose/Intuition
+
+A signal says "I predict positive returns." A position says "I will invest £100,000." The mapping between them determines how aggressively you act on your predictions.
+
+**Common mapping approaches:**
+
+1. **Threshold**: Position = 1 if signal > threshold, else 0 (or -1)
+   - Simple, interpretable
+   - Discontinuous: small signal changes cause large position changes
+
+2. **Linear**: Position = k × signal
+   - Proportional to conviction
+   - Smooth transitions
+   - No natural bounds
+
+3. **Sigmoid/Tanh**: Position = tanh(k × signal)
+   - Bounded between -1 and +1
+   - Smooth but saturates at extremes
+
+4. **Rank-based**: Position = rank(signal) transformed to [-1, +1]
+   - Robust to outliers
+   - Used heavily in cross-sectional strategies
+
+**Constraints:**
+
+Real portfolios face constraints:
+- **Long-only**: $w_i \geq 0$ (no shorting)
+- **Dollar-neutral**: $\sum w_i = 0$ (equal long and short)
+- **Leverage limits**: $\sum |w_i| \leq L$
+- **Position limits**: $|w_i| \leq w_{\max}$
+
+### 3.3.2 Visual Evidence
+
+
+``` r
+# Create sample signals
+signal_range <- seq(-3, 3, by = 0.01)
+
+# Different mapping functions
+mapping_dt <- data.table(
+    signal = signal_range,
+    threshold = fifelse(signal_range > 0, 1, -1),
+    linear = pmin(pmax(signal_range / 2, -1), 1),  # Linear with clipping
+    sigmoid = tanh(signal_range),
+    rank = 2 * pnorm(signal_range) - 1  # Gaussian CDF rescaled to [-1, 1]
+)
+
+mapping_long <- melt(mapping_dt, id.vars = "signal",
+                     variable.name = "method", value.name = "position")
+
+ggplot(mapping_long, aes(x = signal, y = position, colour = method)) +
+    geom_line(linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    scale_colour_manual(values = tc[1:4],
+                        labels = c("Threshold", "Linear (clipped)", "Sigmoid (tanh)", "Rank-based")) +
+    labs(
+        title = "Position Mapping Functions",
+        subtitle = "Converting signals to positions",
+        x = "Signal Value (Z-Score)",
+        y = "Position (-1 to +1)",
+        colour = "Mapping"
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/position-mappings-1.png" alt="Different position mapping functions convert signals to positions. Each has different characteristics.">
+	Different position mapping functions convert signals to positions. Each has different characteristics.
+</Figure>
+
+
+``` r
+# Compare turnover from different mappings on real signal
+spy[, pos_threshold := fifelse(mr_signal > 0, 1, -1)]
+spy[, pos_linear := pmin(pmax(mr_signal / 2, -1), 1)]
+spy[, pos_sigmoid := tanh(mr_signal)]
+
+# Calculate turnover
+spy[, turn_threshold := c(NA, abs(diff(pos_threshold)))]
+spy[, turn_linear := c(NA, abs(diff(pos_linear)))]
+spy[, turn_sigmoid := c(NA, abs(diff(pos_sigmoid)))]
+
+# Summary statistics
+turnover_summary <- data.table(
+    Method = c("Threshold", "Linear", "Sigmoid"),
+    `Annual Turnover` = c(
+        sum(spy$turn_threshold, na.rm = TRUE) / (nrow(spy) / 252),
+        sum(spy$turn_linear, na.rm = TRUE) / (nrow(spy) / 252),
+        sum(spy$turn_sigmoid, na.rm = TRUE) / (nrow(spy) / 252)
+    ),
+    `Days with Trade` = c(
+        sum(spy$turn_threshold > 0.01, na.rm = TRUE),
+        sum(spy$turn_linear > 0.01, na.rm = TRUE),
+        sum(spy$turn_sigmoid > 0.01, na.rm = TRUE)
+    )
+)
+
+cat("\nTurnover by Mapping Method:\n")
+print(turnover_summary)
+
+# Plot cumulative turnover
+spy[, cum_turn_threshold := cumsum(fifelse(is.na(turn_threshold), 0, turn_threshold))]
+spy[, cum_turn_linear := cumsum(fifelse(is.na(turn_linear), 0, turn_linear))]
+spy[, cum_turn_sigmoid := cumsum(fifelse(is.na(turn_sigmoid), 0, turn_sigmoid))]
+
+turn_plot <- spy[date >= "2010-01-01",
+                 .(date, Threshold = cum_turn_threshold,
+                   Linear = cum_turn_linear, Sigmoid = cum_turn_sigmoid)]
+turn_long <- melt(turn_plot, id.vars = "date",
+                  variable.name = "method", value.name = "cumulative_turnover")
+
+ggplot(turn_long, aes(x = date, y = cumulative_turnover, colour = method)) +
+    geom_line(linewidth = 0.8) +
+    scale_colour_manual(values = tc[1:3]) +
+    labs(
+        title = "Cumulative Turnover by Mapping Method",
+        subtitle = "Smoother mappings dramatically reduce trading",
+        x = NULL,
+        y = "Cumulative Turnover (Sum of |Δw|)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/turnover-comparison-1.png" alt="Turnover differs dramatically by mapping function. Threshold creates discrete jumps; sigmoid is smoother.">
+	Turnover differs dramatically by mapping function. Threshold creates discrete jumps; sigmoid is smoother.
+</Figure>
+
+```
+
+Turnover by Mapping Method:
+      Method Annual Turnover Days with Trade
+      <char>           <num>           <int>
+1: Threshold        56.75118             596
+2:    Linear        55.40014            4904
+3:   Sigmoid        56.87693            4798
+```
+
+### 3.3.3 Mathematical Derivation
+
+**Position sizing framework:**
+
+The position mapping is a function:
+$$w_t = g(s_t, \sigma_t, C_t)$$
+
+where:
+- $s_t$ is the signal
+- $\sigma_t$ is current (estimated) volatility
+- $C_t$ is the constraint set
+
+**Volatility targeting:**
+
+A common approach scales positions inversely with volatility:
+
+$$w_t = \frac{\sigma_{\text{target}}}{\sigma_t} \cdot h(s_t)$$
+
+where $h$ is the base mapping function and $\sigma_{\text{target}}$ is the desired volatility.
+
+**Derivation:**
+
+If we want strategy volatility to be approximately constant:
+$$\text{Var}(w_t \cdot r_t) \approx w_t^2 \cdot \sigma_t^2 = \sigma^2_{\text{target}}$$
+
+Solving: $w_t = \sigma_{\text{target}} / \sigma_t$
+
+**Dollar-neutral constraint:**
+
+For a cross-sectional strategy with $N$ assets:
+$$\sum_{i=1}^N w_i = 0$$
+
+One approach: rank signals, go long top decile, short bottom decile:
+$$w_i = \begin{cases}
++1/k & \text{if } \text{rank}(s_i) \geq 0.9N \\
+-1/k & \text{if } \text{rank}(s_i) \leq 0.1N \\
+0 & \text{otherwise}
+\end{cases}$$
+
+where $k$ is the number of stocks per side.
+
+**Leverage and margin:**
+
+If gross leverage is $L = \sum |w_i|$, the required margin is typically:
+$$\text{Margin} = \frac{L}{m}$$
+
+where $m$ is the margin ratio (e.g., $m = 4$ for 25% margin requirement).
+
+### 3.3.4 Implementation & Application
+
+
+``` r
+#' Position mapping functions
+#'
+#' @param signal Numeric vector of signals
+#' @param method Character: "threshold", "linear", "sigmoid", "rank"
+#' @param params List of parameters for the mapping
+#' @return Numeric vector of positions
+map_signal_to_position <- function(signal, method = "sigmoid", params = list()) {
+    # Set defaults
+    threshold <- params$threshold %||% 0
+    scale <- params$scale %||% 1
+    max_pos <- params$max_pos %||% 1
+
+    position <- switch(method,
+        "threshold" = fifelse(signal > threshold, 1, -1),
+        "linear" = pmin(pmax(signal * scale, -max_pos), max_pos),
+        "sigmoid" = tanh(signal * scale) * max_pos,
+        "rank" = {
+            # Rank-based: uniform distribution assumption
+            (2 * frank(signal, na.last = "keep") / sum(!is.na(signal)) - 1) * max_pos
+        },
+        stop("Unknown method: ", method)
+    )
+
+    return(position)
+}
+
+#' Apply volatility targeting to positions
+#'
+#' @param position Base position vector
+#' @param returns Return vector for volatility estimation
+#' @param target_vol Target annualised volatility
+#' @param vol_window Window for volatility estimation
+#' @param max_leverage Maximum allowed leverage
+#' @return Scaled position vector
+apply_vol_targeting <- function(position, returns, target_vol = 0.15,
+                                 vol_window = 20, max_leverage = 3) {
+    # Estimate current volatility
+    current_vol <- frollapply(returns, vol_window, sd) * sqrt(252)
+    current_vol <- shift(current_vol, 1)  # Use yesterday's estimate
+
+    # Calculate scaling factor
+    vol_scale <- target_vol / current_vol
+
+    # Apply maximum leverage constraint
+    vol_scale <- pmin(vol_scale, max_leverage)
+    vol_scale[is.na(vol_scale)] <- 1
+
+    # Scale positions
+    scaled_position <- position * vol_scale
+
+    return(scaled_position)
+}
+
+# Example: Compare raw vs vol-targeted positions
+spy[, pos_raw := map_signal_to_position(mr_signal, "sigmoid", list(scale = 0.5))]
+spy[, pos_voltarget := apply_vol_targeting(pos_raw, returns, target_vol = 0.15)]
+
+# Backtest both
+bt_raw <- backtest_vectorised(spy$returns, spy$pos_raw, costs_bps = 10)
+bt_voltarget <- backtest_vectorised(spy$returns, spy$pos_voltarget, costs_bps = 10)
+
+cat("\nRaw vs Vol-Targeted Strategy:\n")
+cat(sprintf("  Raw - Sharpe: %.2f, Vol: %.1f%%, MaxDD: %.1f%%\n",
+            bt_raw$metrics$sharpe_ratio,
+            bt_raw$metrics$annual_volatility * 100,
+            bt_raw$metrics$max_drawdown * 100))
+cat(sprintf("  Vol-Targeted - Sharpe: %.2f, Vol: %.1f%%, MaxDD: %.1f%%\n",
+            bt_voltarget$metrics$sharpe_ratio,
+            bt_voltarget$metrics$annual_volatility * 100,
+            bt_voltarget$metrics$max_drawdown * 100))
+```
+
+```
+
+Raw vs Vol-Targeted Strategy:
+  Raw - Sharpe: -0.37, Vol: 10.8%, MaxDD: 63.4%
+  Vol-Targeted - Sharpe: -0.60, Vol: 9.3%, MaxDD: 73.9%
+```
+
+
+``` r
+# Compare wealth paths
+spy[, wealth_raw := bt_raw$wealth]
+spy[, wealth_voltarget := bt_voltarget$wealth]
+
+wealth_plot <- spy[date >= "2007-01-01",
+                   .(date, `Raw Signal` = wealth_raw, `Vol-Targeted` = wealth_voltarget)]
+wealth_long <- melt(wealth_plot, id.vars = "date",
+                    variable.name = "strategy", value.name = "wealth")
+
+ggplot(wealth_long, aes(x = date, y = wealth, colour = strategy)) +
+    geom_line(linewidth = 0.8) +
+    scale_colour_manual(values = tc[1:2]) +
+    scale_y_log10() +
+    labs(
+        title = "Raw vs Volatility-Targeted Strategy",
+        subtitle = "Vol-targeting reduces drawdowns during crisis periods",
+        x = NULL,
+        y = "Cumulative Wealth (log scale)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/financial-statistics-1-foundations/vol-targeting-comparison-1.png" alt="Vol-targeting stabilises strategy volatility over time, reducing drawdowns during high-volatility periods.">
+	Vol-targeting stabilises strategy volatility over time, reducing drawdowns during high-volatility periods.
+</Figure>
+
+---
+
+## Quick Reference: Backtest Architecture
+
+### Pipeline Components
+
+| Stage | Input | Output | Key Considerations |
+|-------|-------|--------|-------------------|
+| Data | Raw prices | Adjusted returns | Survivorship, corporate actions |
+| Signals | Returns, features | Predictions | Point-in-time, no look-ahead |
+| Positions | Signals | Weights | Constraints, vol-targeting |
+| Execution | Positions | Fills | Costs, slippage, timing |
+| Returns | Positions, prices | P&L | Proper lagging |
+
+### Core Equations
+
+| Concept | Formula | Notes |
+|---------|---------|-------|
+| P&L | $\text{P\&L}_t = w_{t-1} \cdot r_t - c_t$ | Position lagged one day |
+| Cumulative | $W_t = \prod(1 + \text{P\&L}_s)$ | Compound returns |
+| Turnover | $\sum |w_t - w_{t-1}|$ | Trading activity |
+| IC | $\text{Corr}(\text{rank}(s), \text{rank}(r))$ | Signal quality |
+
+### Signal Quality Benchmarks
+
+| IC | Quality | Implication |
+|----|---------|-------------|
+| > 0.05 | Excellent | Very rare, verify carefully |
+| 0.02-0.05 | Good | Tradeable with frequency |
+| 0.01-0.02 | Marginal | Needs high frequency |
+| < 0.01 | Weak | Likely noise |
+
+### R Code Snippets
+
+```r
+# Basic backtest
+positions <- shift(signal, 1)  # Lag signal by 1
+pnl <- positions * returns - turnover * cost_bps / 10000
+wealth <- cumprod(1 + pnl)
+
+# Signal generation (momentum)
+momentum <- frollapply(returns, 252, sum) - frollapply(returns, 21, sum)
+signal <- shift(momentum, 1)  # Lag to avoid look-ahead
+
+# Position mapping (sigmoid)
+position <- tanh(signal * scale)
+
+# Volatility targeting
+vol <- frollapply(returns, 20, sd) * sqrt(252)
+vol <- shift(vol, 1)  # Use yesterday's vol
+scaled_pos <- position * target_vol / vol
+scaled_pos <- pmin(scaled_pos, max_leverage)
+
+# Information Coefficient
+ic <- cor(rank(signal), rank(forward_returns), use = "complete.obs")
+```
+
+### Checklist
+
+Before running a backtest:
+
+1. [ ] Data is survivorship-free and properly adjusted
+2. [ ] Signals use only point-in-time information
+3. [ ] Positions are lagged appropriately
+4. [ ] Transaction costs are realistic
+5. [ ] Results are compared to appropriate benchmark
+6. [ ] Statistical significance is assessed

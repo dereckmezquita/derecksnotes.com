@@ -653,98 +653,98 @@ A complete, self-contained course. After Part I, you can build and deploy profit
 
 ### Part 1 (`06-1`): Trend Indicators
 
-- [ ] **6.1 Moving Averages** — The foundation of trend following.
-  - [ ] 6.1.1 **Prose/Intuition** — Smoothing noise to reveal trend; the oldest technical tool.
-  - [ ] 6.1.2 **Visual Evidence** — SMA, EMA, WMA on price series; lag comparison.
-  - [ ] 6.1.3 **Mathematical Derivation** —
+- [x] **6.1 Moving Averages** — The foundation of trend following.
+  - [x] 6.1.1 **Prose/Intuition** — Smoothing noise to reveal trend; the oldest technical tool.
+  - [x] 6.1.2 **Visual Evidence** — SMA, EMA, WMA on price series; lag comparison.
+  - [x] 6.1.3 **Mathematical Derivation** —
     - SMA: (1/n)Σp_i.
     - EMA: recursive form and closed-form derivation.
     - Lag analysis: SMA lag = (n-1)/2; EMA effective lag.
     - Frequency response: low-pass filter interpretation.
-  - [ ] 6.1.4 **Implementation & Application** — MA functions from scratch; crossover strategies; performance by market regime.
-- [ ] **6.2 MACD** — Momentum from moving averages.
-  - [ ] 6.2.1 **Prose/Intuition** — Captures trend acceleration/deceleration; widely used momentum indicator.
-  - [ ] 6.2.2 **Visual Evidence** — MACD line, signal line, histogram interpretation.
-  - [ ] 6.2.3 **Mathematical Derivation** —
+  - [x] 6.1.4 **Implementation & Application** — MA functions from scratch; crossover strategies; performance by market regime.
+- [x] **6.2 MACD** — Momentum from moving averages.
+  - [x] 6.2.1 **Prose/Intuition** — Captures trend acceleration/deceleration; widely used momentum indicator.
+  - [x] 6.2.2 **Visual Evidence** — MACD line, signal line, histogram interpretation.
+  - [x] 6.2.3 **Mathematical Derivation** —
     - MACD = EMA_12 - EMA_26.
     - Signal line = EMA_9(MACD).
     - Histogram = MACD - Signal.
     - MACD as approximate derivative of price.
-  - [ ] 6.2.4 **Implementation & Application** — MACD calculation; divergence detection; combining with other indicators.
-- [ ] **6.3 ADX and DMI** — Trend strength measurement.
-  - [ ] 6.3.1 **Prose/Intuition** — Separating trending from ranging markets; when to apply trend-following.
-  - [ ] 6.3.2 **Visual Evidence** — ADX with price action, regime identification.
-  - [ ] 6.3.3 **Mathematical Derivation** —
+  - [x] 6.2.4 **Implementation & Application** — MACD calculation; divergence detection; combining with other indicators.
+- [x] **6.3 ADX and DMI** — Trend strength measurement.
+  - [x] 6.3.1 **Prose/Intuition** — Separating trending from ranging markets; when to apply trend-following.
+  - [x] 6.3.2 **Visual Evidence** — ADX with price action, regime identification.
+  - [x] 6.3.3 **Mathematical Derivation** —
     - Directional movement: +DM, -DM definitions.
     - +DI, -DI normalisation.
     - ADX = smoothed(|+DI - -DI|/(+DI + -DI)) × 100.
-  - [ ] 6.3.4 **Implementation & Application** — ADX calculation from scratch; using ADX to filter trend-following signals.
-- [ ] **Quick Reference** — Trend indicator formulae.
+  - [x] 6.3.4 **Implementation & Application** — ADX calculation from scratch; using ADX to filter trend-following signals.
+- [x] **Quick Reference** — Trend indicator formulae.
 
 ### Part 2 (`06-2`): Momentum and Oscillators
 
-- [ ] **6.4 RSI** — Relative strength measurement.
-  - [ ] 6.4.1 **Prose/Intuition** — Measures buying vs selling pressure; overbought/oversold identification.
-  - [ ] 6.4.2 **Visual Evidence** — RSI with traditional levels (30/70), divergences.
-  - [ ] 6.4.3 **Mathematical Derivation** —
+- [x] **6.4 RSI** — Relative strength measurement.
+  - [x] 6.4.1 **Prose/Intuition** — Measures buying vs selling pressure; overbought/oversold identification.
+  - [x] 6.4.2 **Visual Evidence** — RSI with traditional levels (30/70), divergences.
+  - [x] 6.4.3 **Mathematical Derivation** —
     - Relative Strength: RS = avg_gain / avg_loss.
     - RSI = 100 - 100/(1 + RS).
     - Statistical properties: bounded [0, 100].
-  - [ ] 6.4.4 **Implementation & Application** — RSI calculation; parameter optimisation; combining with MACD for higher accuracy.
-- [ ] **6.5 Stochastic Oscillator** — Price position in range.
-  - [ ] 6.5.1 **Prose/Intuition** — Where price sits relative to recent range; mean-reversion indicator.
-  - [ ] 6.5.2 **Visual Evidence** — %K, %D lines, crossovers, divergences.
-  - [ ] 6.5.3 **Mathematical Derivation** —
+  - [x] 6.4.4 **Implementation & Application** — RSI calculation; parameter optimisation; combining with MACD for higher accuracy.
+- [x] **6.5 Stochastic Oscillator** — Price position in range.
+  - [x] 6.5.1 **Prose/Intuition** — Where price sits relative to recent range; mean-reversion indicator.
+  - [x] 6.5.2 **Visual Evidence** — %K, %D lines, crossovers, divergences.
+  - [x] 6.5.3 **Mathematical Derivation** —
     - %K = (C - L_n)/(H_n - L_n) × 100.
     - %D = SMA(%K, 3).
     - Fast vs slow stochastic.
-  - [ ] 6.5.4 **Implementation & Application** — Stochastic calculation; signal generation; better in ranging markets.
-- [ ] **6.6 Bollinger Bands** — Volatility-adjusted channels.
-  - [ ] 6.6.1 **Prose/Intuition** — Dynamic support/resistance from volatility; John Bollinger's framework.
-  - [ ] 6.6.2 **Visual Evidence** — Band width expansion/contraction cycles.
-  - [ ] 6.6.3 **Mathematical Derivation** —
+  - [x] 6.5.4 **Implementation & Application** — Stochastic calculation; signal generation; better in ranging markets.
+- [x] **6.6 Bollinger Bands** — Volatility-adjusted channels.
+  - [x] 6.6.1 **Prose/Intuition** — Dynamic support/resistance from volatility; John Bollinger's framework.
+  - [x] 6.6.2 **Visual Evidence** — Band width expansion/contraction cycles.
+  - [x] 6.6.3 **Mathematical Derivation** —
     - Upper = SMA + k×σ, Lower = SMA - k×σ (typically k=2).
     - %B = (price - lower)/(upper - lower).
     - Bandwidth = (upper - lower)/middle.
-  - [ ] 6.6.4 **Implementation & Application** — Bollinger Bands calculation; squeeze detection for breakout prediction.
-- [ ] **6.7 Combining Indicators** — Multi-signal confirmation.
-  - [ ] 6.7.1 **Prose/Intuition** — Reducing false signals through consensus; diversification of signal sources.
-  - [ ] 6.7.2 **Visual Evidence** — Confirmation rates: single vs combined indicators.
-  - [ ] 6.7.3 **Mathematical Derivation** —
+  - [x] 6.6.4 **Implementation & Application** — Bollinger Bands calculation; squeeze detection for breakout prediction.
+- [x] **6.7 Combining Indicators** — Multi-signal confirmation.
+  - [x] 6.7.1 **Prose/Intuition** — Reducing false signals through consensus; diversification of signal sources.
+  - [x] 6.7.2 **Visual Evidence** — Confirmation rates: single vs combined indicators.
+  - [x] 6.7.3 **Mathematical Derivation** —
     - Signal combination methods: voting, weighted averaging.
     - Optimal combination weights via regression.
     - Information coefficient aggregation.
-  - [ ] 6.7.4 **Implementation & Application** — Multi-indicator signal generation; MACD + RSI + volume systems.
-- [ ] **Quick Reference** — Oscillator formulae, combination rules.
+  - [x] 6.7.4 **Implementation & Application** — Multi-indicator signal generation; MACD + RSI + volume systems.
+- [x] **Quick Reference** — Oscillator formulae, combination rules.
 
 ### Part 3 (`06-3`): Volume and Volatility Indicators
 
-- [ ] **6.8 Volume Analysis** — Confirming price moves.
-  - [ ] 6.8.1 **Prose/Intuition** — Volume validates conviction; "volume precedes price."
-  - [ ] 6.8.2 **Visual Evidence** — Price-volume relationship, divergences.
-  - [ ] 6.8.3 **Mathematical Derivation** —
+- [x] **6.8 Volume Analysis** — Confirming price moves.
+  - [x] 6.8.1 **Prose/Intuition** — Volume validates conviction; "volume precedes price."
+  - [x] 6.8.2 **Visual Evidence** — Price-volume relationship, divergences.
+  - [x] 6.8.3 **Mathematical Derivation** —
     - On-Balance Volume: OBV = cumsum(sign(Δp) × volume).
     - Volume-Weighted Average Price: VWAP = Σ(price × volume) / Σvolume.
     - Money Flow Index derivation.
-  - [ ] 6.8.4 **Implementation & Application** — OBV, VWAP calculation; volume confirmation filters.
-- [ ] **6.9 ATR and Volatility Indicators** — Measuring market nervousness.
-  - [ ] 6.9.1 **Prose/Intuition** — Volatility often precedes direction; useful for stop placement and sizing.
-  - [ ] 6.9.2 **Visual Evidence** — ATR expansion before breakouts.
-  - [ ] 6.9.3 **Mathematical Derivation** —
+  - [x] 6.8.4 **Implementation & Application** — OBV, VWAP calculation; volume confirmation filters.
+- [x] **6.9 ATR and Volatility Indicators** — Measuring market nervousness.
+  - [x] 6.9.1 **Prose/Intuition** — Volatility often precedes direction; useful for stop placement and sizing.
+  - [x] 6.9.2 **Visual Evidence** — ATR expansion before breakouts.
+  - [x] 6.9.3 **Mathematical Derivation** —
     - True Range: TR = max(H-L, |H-C_{t-1}|, |L-C_{t-1}|).
     - ATR = smoothed(TR) via EMA or SMA.
     - Normalised ATR for cross-asset comparison.
-  - [ ] 6.9.4 **Implementation & Application** — ATR calculation; volatility breakout signals; ATR-based stop placement.
-- [ ] **6.10 Indicator Optimisation** — Finding robust parameters.
-  - [ ] 6.10.1 **Prose/Intuition** — Default parameters are arbitrary; finding what works for your market.
-  - [ ] 6.10.2 **Visual Evidence** — Parameter sensitivity surfaces, cliff edges vs plateaus.
-  - [ ] 6.10.3 **Mathematical Derivation** —
+  - [x] 6.9.4 **Implementation & Application** — ATR calculation; volatility breakout signals; ATR-based stop placement.
+- [x] **6.10 Indicator Optimisation** — Finding robust parameters.
+  - [x] 6.10.1 **Prose/Intuition** — Default parameters are arbitrary; finding what works for your market.
+  - [x] 6.10.2 **Visual Evidence** — Parameter sensitivity surfaces, cliff edges vs plateaus.
+  - [x] 6.10.3 **Mathematical Derivation** —
     - Grid search complexity.
     - Genetic algorithm optimisation.
     - Bayesian optimisation with Gaussian processes.
     - Overfitting risk vs parameter count.
-  - [ ] 6.10.4 **Implementation & Application** — Walk-forward parameter optimisation; robust selection using median over top performers.
-- [ ] **Quick Reference** — Volume/volatility indicators, optimisation guidelines.
+  - [x] 6.10.4 **Implementation & Application** — Walk-forward parameter optimisation; robust selection using median over top performers.
+- [x] **Quick Reference** — Volume/volatility indicators, optimisation guidelines.
 
 ---
 
@@ -759,75 +759,75 @@ A complete, self-contained course. After Part I, you can build and deploy profit
 
 ### Part 1 (`07-1`): Time-Series Momentum
 
-- [ ] **7.1 The Momentum Anomaly** — Why trends persist.
-  - [ ] 7.1.1 **Prose/Intuition** — Behavioural explanations: underreaction, herding, confirmation bias; risk-based explanations.
-  - [ ] 7.1.2 **Visual Evidence** — 12-month momentum portfolios, crisis performance, decade-by-decade returns.
-  - [ ] 7.1.3 **Mathematical Derivation** —
+- [x] **7.1 The Momentum Anomaly** — Why trends persist.
+  - [x] 7.1.1 **Prose/Intuition** — Behavioural explanations: underreaction, herding, confirmation bias; risk-based explanations.
+  - [x] 7.1.2 **Visual Evidence** — 12-month momentum portfolios, crisis performance, decade-by-decade returns.
+  - [x] 7.1.3 **Mathematical Derivation** —
     - TSMOM signal: sign(r_{t-12:t}) or scaled by volatility.
     - Moskowitz, Ooi, Pedersen (2012) framework derivation.
     - Expected return under momentum.
-  - [ ] 7.1.4 **Implementation & Application** — Time-series momentum strategy; 12-1 momentum across asset classes.
-- [ ] **7.2 Moving Average Crossovers** — Classic trend signals.
-  - [ ] 7.2.1 **Prose/Intuition** — Fast MA crossing slow MA indicates trend change; historical context.
-  - [ ] 7.2.2 **Visual Evidence** — Golden cross, death cross, whipsaw examples.
-  - [ ] 7.2.3 **Mathematical Derivation** —
+  - [x] 7.1.4 **Implementation & Application** — Time-series momentum strategy; 12-1 momentum across asset classes.
+- [x] **7.2 Moving Average Crossovers** — Classic trend signals.
+  - [x] 7.2.1 **Prose/Intuition** — Fast MA crossing slow MA indicates trend change; historical context.
+  - [x] 7.2.2 **Visual Evidence** — Golden cross, death cross, whipsaw examples.
+  - [x] 7.2.3 **Mathematical Derivation** —
     - Signal = sign(MA_fast - MA_slow).
     - Position smoothing mathematics.
     - Optimal lookback derivation (Levine and Pedersen 2016).
-  - [ ] 7.2.4 **Implementation & Application** — MA crossover strategy; parameter selection; 50/200 crossover on equity indices.
-- [ ] **7.3 Position Sizing for Trend Following** — Volatility-scaling returns.
-  - [ ] 7.3.1 **Prose/Intuition** — Trend strength varies, position should scale accordingly.
-  - [ ] 7.3.2 **Visual Evidence** — Raw vs vol-scaled trend following comparison.
-  - [ ] 7.3.3 **Mathematical Derivation** —
+  - [x] 7.2.4 **Implementation & Application** — MA crossover strategy; parameter selection; 50/200 crossover on equity indices.
+- [x] **7.3 Position Sizing for Trend Following** — Volatility-scaling returns.
+  - [x] 7.3.1 **Prose/Intuition** — Trend strength varies, position should scale accordingly.
+  - [x] 7.3.2 **Visual Evidence** — Raw vs vol-scaled trend following comparison.
+  - [x] 7.3.3 **Mathematical Derivation** —
     - Position = signal × target_vol / asset_vol.
     - Impact on Sharpe ratio derivation.
-  - [ ] 7.3.4 **Implementation & Application** — Volatility-scaled positions; typical 40% vol target for diversified trend.
-- [ ] **Quick Reference** — Time-series momentum formulae.
+  - [x] 7.3.4 **Implementation & Application** — Volatility-scaled positions; typical 40% vol target for diversified trend.
+- [x] **Quick Reference** — Time-series momentum formulae.
 
 ### Part 2 (`07-2`): Breakout Strategies
 
-- [ ] **7.4 Donchian Channel Breakouts** — Turtle trading foundation.
-  - [ ] 7.4.1 **Prose/Intuition** — New highs/lows signal trend initiation; Richard Dennis and the Turtles.
-  - [ ] 7.4.2 **Visual Evidence** — Channel breakouts, entries and exits visualised.
-  - [ ] 7.4.3 **Mathematical Derivation** —
+- [x] **7.4 Donchian Channel Breakouts** — Turtle trading foundation.
+  - [x] 7.4.1 **Prose/Intuition** — New highs/lows signal trend initiation; Richard Dennis and the Turtles.
+  - [x] 7.4.2 **Visual Evidence** — Channel breakouts, entries and exits visualised.
+  - [x] 7.4.3 **Mathematical Derivation** —
     - Upper = max(H_{t-n:t-1}), Lower = min(L_{t-n:t-1}).
     - Entry/exit rule formalisation.
-  - [ ] 7.4.4 **Implementation & Application** — Donchian channel strategy; original Turtle 20/10 system.
-- [ ] **7.5 Volatility Breakouts** — Trading range expansion.
-  - [ ] 7.5.1 **Prose/Intuition** — Low volatility precedes directional moves; Bollinger squeeze concept.
-  - [ ] 7.5.2 **Visual Evidence** — ATR squeeze then expansion examples.
-  - [ ] 7.5.3 **Mathematical Derivation** —
+  - [x] 7.4.4 **Implementation & Application** — Donchian channel strategy; original Turtle 20/10 system.
+- [x] **7.5 Volatility Breakouts** — Trading range expansion.
+  - [x] 7.5.1 **Prose/Intuition** — Low volatility precedes directional moves; Bollinger squeeze concept.
+  - [x] 7.5.2 **Visual Evidence** — ATR squeeze then expansion examples.
+  - [x] 7.5.3 **Mathematical Derivation** —
     - Breakout condition: price > close_{t-1} ± k × ATR.
     - Statistical properties of breakout signals.
-  - [ ] 7.5.4 **Implementation & Application** — Volatility breakout strategy; opening range breakouts.
-- [ ] **7.6 Trend Filters** — Avoiding whipsaws.
-  - [ ] 7.6.1 **Prose/Intuition** — Not all breakouts lead to trends; filtering improves signal quality.
-  - [ ] 7.6.2 **Visual Evidence** — Filtered vs unfiltered breakout performance comparison.
-  - [ ] 7.6.3 **Mathematical Derivation** —
+  - [x] 7.5.4 **Implementation & Application** — Volatility breakout strategy; opening range breakouts.
+- [x] **7.6 Trend Filters** — Avoiding whipsaws.
+  - [x] 7.6.1 **Prose/Intuition** — Not all breakouts lead to trends; filtering improves signal quality.
+  - [x] 7.6.2 **Visual Evidence** — Filtered vs unfiltered breakout performance comparison.
+  - [x] 7.6.3 **Mathematical Derivation** —
     - ADX filter threshold derivation.
     - MA filter formalisation.
     - Regime classification methods.
-  - [ ] 7.6.4 **Implementation & Application** — Multi-filter trend confirmation; when to trade breakouts.
-- [ ] **Quick Reference** — Breakout system rules.
+  - [x] 7.6.4 **Implementation & Application** — Multi-filter trend confirmation; when to trade breakouts.
+- [x] **Quick Reference** — Breakout system rules.
 
 ### Part 3 (`07-3`): Multi-Asset Trend Following
 
-- [ ] **7.7 Managed Futures** — Diversified trend following.
-  - [ ] 7.7.1 **Prose/Intuition** — Trends exist across all asset classes; CTA industry context.
-  - [ ] 7.7.2 **Visual Evidence** — CTA performance, crisis alpha, diversification benefit.
-  - [ ] 7.7.3 **Mathematical Derivation** —
+- [x] **7.7 Managed Futures** — Diversified trend following.
+  - [x] 7.7.1 **Prose/Intuition** — Trends exist across all asset classes; CTA industry context.
+  - [x] 7.7.2 **Visual Evidence** — CTA performance, crisis alpha, diversification benefit.
+  - [x] 7.7.3 **Mathematical Derivation** —
     - Portfolio construction: many assets × trend signal × vol scaling.
     - Correlation structure analysis.
     - Diversification benefit derivation.
-  - [ ] 7.7.4 **Implementation & Application** — Multi-asset trend following system; asset class selection; rebalancing.
-- [ ] **7.8 Trend Following in Different Regimes** — When it works and fails.
-  - [ ] 7.8.1 **Prose/Intuition** — Trend following struggles in choppy reversals; regime dependence.
-  - [ ] 7.8.2 **Visual Evidence** — Performance by regime, drawdowns during reversals.
-  - [ ] 7.8.3 **Mathematical Derivation** —
+  - [x] 7.7.4 **Implementation & Application** — Multi-asset trend following system; asset class selection; rebalancing.
+- [x] **7.8 Trend Following in Different Regimes** — When it works and fails.
+  - [x] 7.8.1 **Prose/Intuition** — Trend following struggles in choppy reversals; regime dependence.
+  - [x] 7.8.2 **Visual Evidence** — Performance by regime, drawdowns during reversals.
+  - [x] 7.8.3 **Mathematical Derivation** —
     - Regime detection methods (HMM, threshold).
     - Conditional performance estimation.
-  - [ ] 7.8.4 **Implementation & Application** — Regime-conditional trend following; blending with other strategies.
-- [ ] **Quick Reference** — Multi-asset trend following guidelines.
+  - [x] 7.8.4 **Implementation & Application** — Regime-conditional trend following; blending with other strategies.
+- [x] **Quick Reference** — Multi-asset trend following guidelines.
 
 ---
 
