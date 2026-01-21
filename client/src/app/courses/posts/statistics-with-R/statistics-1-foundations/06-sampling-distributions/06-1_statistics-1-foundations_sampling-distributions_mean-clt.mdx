@@ -1,0 +1,1170 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 6: Sampling Distributions and the Central Limit Theorem"
+part: "Part 1: Sampling Distribution of the Mean and the CLT"
+section: "06-1"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2025-01-18
+tags: [statistics, mathematics, probability, sampling, clt, inference, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+This chapter introduces one of the most profound ideas in statistics: the **sampling distribution**. We move from describing data to understanding how sample statistics vary from sample to sample. This conceptual leap—from thinking about individual observations to thinking about the behaviour of statistics—is the foundation of all statistical inference.
+
+The **Central Limit Theorem (CLT)** then provides a remarkable guarantee: regardless of the shape of the population, the distribution of sample means becomes approximately normal as sample size increases. This theorem explains why the normal distribution appears everywhere in statistics and why we can make inferences about unknown populations from samples.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load NHANES for real biomedical data examples
+data_dir <- "../data"
+nhanes <- fread(file.path(data_dir, "primary/nhanes.csv"))
+```
+
+---
+
+## Table of Contents
+
+## 6.1 The Concept of a Sampling Distribution
+
+### 6.1.1 What Happens When We Sample Repeatedly?
+
+Imagine conducting a clinical trial to estimate the mean blood pressure reduction from a new antihypertensive drug. You enrol 50 patients, administer the drug, and measure the mean reduction: perhaps 8.3 mmHg. But what if you had enrolled a *different* set of 50 patients? Would you get the same answer?
+
+Of course not. Different samples yield different results. This variability isn't a flaw—it's fundamental to sampling. The critical question is: **how much do sample statistics vary?**
+
+
+``` r
+set.seed(42)
+
+# Simulate a population: blood pressure reductions (true mean = 10, SD = 5)
+population_mean <- 10
+population_sd <- 5
+
+# Take 20 different samples of n = 50
+n_samples <- 20
+sample_size <- 50
+
+# Generate samples and calculate means
+sample_means <- sapply(1:n_samples, function(i) {
+    sample <- rnorm(sample_size, mean = population_mean, sd = population_sd)
+    mean(sample)
+})
+
+# Create data for plotting
+samples_dt <- data.table(
+    sample_id = 1:n_samples,
+    sample_mean = sample_means
+)
+
+cat("Sampling Variability Demonstration\n")
+cat("==================================\n\n")
+cat(sprintf("Population: μ = %.1f, σ = %.1f\n", population_mean, population_sd))
+cat(sprintf("Sample size: n = %d\n", sample_size))
+cat(sprintf("Number of samples: %d\n\n", n_samples))
+
+cat("Sample means:\n")
+cat(sprintf("  Range: %.2f to %.2f\n", min(sample_means), max(sample_means)))
+cat(sprintf("  Mean of sample means: %.2f (true μ = %.1f)\n", mean(sample_means), population_mean))
+cat(sprintf("  SD of sample means: %.2f (theoretical SE = %.2f)\n",
+            sd(sample_means), population_sd / sqrt(sample_size)))
+
+# Visualise
+ggplot2$ggplot(samples_dt, ggplot2$aes(x = sample_id, y = sample_mean)) +
+    ggplot2$geom_hline(yintercept = population_mean, colour = "#D55E00",
+                       linetype = "dashed", linewidth = 1) +
+    ggplot2$geom_segment(ggplot2$aes(xend = sample_id, y = population_mean, yend = sample_mean),
+                         colour = "grey60") +
+    ggplot2$geom_point(size = 4, colour = "#0072B2") +
+    ggplot2$annotate("text", x = 21, y = population_mean, label = "True μ",
+                     colour = "#D55E00", hjust = 0) +
+    ggplot2$labs(
+        title = "Sample Means Vary from Sample to Sample",
+        subtitle = "Each point is the mean of a different random sample of n = 50",
+        x = "Sample Number",
+        y = "Sample Mean (Blood Pressure Reduction, mmHg)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(panel.grid.minor = ggplot2$element_blank())
+```
+
+<Figure src="/courses/statistics-1-foundations/sampling_variability-1.png" alt="Each sample from the same population produces a different sample mean">
+	Each sample from the same population produces a different sample mean
+</Figure>
+
+```
+## Sampling Variability Demonstration
+## ==================================
+## 
+## Population: μ = 10.0, σ = 5.0
+## Sample size: n = 50
+## Number of samples: 20
+## 
+## Sample means:
+##   Range: 8.97 to 11.42
+##   Mean of sample means: 9.87 (true μ = 10.0)
+##   SD of sample means: 0.72 (theoretical SE = 0.71)
+```
+
+Each of the 20 samples produced a different mean, scattered around the true population mean of 10 mmHg. No single sample hit the target exactly, but their average is close.
+
+### 6.1.2 Statistics as Random Variables
+
+In Chapter 5, we defined random variables as mappings from sample spaces to real numbers. Now we apply this same framework to *statistics*.
+
+**Key insight:** A statistic (like the sample mean $\bar{X}$) is itself a random variable. Before we collect data, we don't know what value it will take. It has:
+
+- A **distribution** (the sampling distribution)
+- An **expected value** (often equals the parameter we're estimating)
+- A **variance** (quantifying sampling variability)
+
+**Definition:** The **sampling distribution** of a statistic is the probability distribution of that statistic computed from all possible samples of a given size from a population.
+
+For a sample mean $\bar{X}$:
+
+- Each possible sample of size $n$ yields a different $\bar{X}$
+- The collection of all possible $\bar{X}$ values forms the sampling distribution
+- This distribution describes the long-run behaviour of $\bar{X}$
+
+### 6.1.3 Simulating Sampling Distributions in R
+
+We can't usually examine all possible samples, but we can approximate the sampling distribution through simulation.
+
+
+``` r
+set.seed(123)
+
+# Population parameters
+pop_mean <- 120   # Systolic blood pressure
+pop_sd <- 15
+
+# Simulate 10,000 samples of various sizes
+sample_sizes <- c(5, 10, 30, 100)
+n_simulations <- 10000
+
+# Function to simulate sampling distribution
+simulate_sampling_dist <- function(n, n_sims, mu, sigma) {
+    replicate(n_sims, {
+        sample <- rnorm(n, mean = mu, sd = sigma)
+        mean(sample)
+    })
+}
+
+# Generate sampling distributions for each sample size
+sampling_dists <- lapply(sample_sizes, function(n) {
+    data.table(
+        sample_size = paste0("n = ", n),
+        sample_mean = simulate_sampling_dist(n, n_simulations, pop_mean, pop_sd),
+        theoretical_se = pop_sd / sqrt(n)
+    )
+})
+
+all_dists <- rbindlist(sampling_dists)
+all_dists[, sample_size := factor(sample_size, levels = paste0("n = ", sample_sizes))]
+
+cat("Simulated Sampling Distributions\n")
+cat("================================\n\n")
+
+for (n in sample_sizes) {
+    subset <- all_dists[sample_size == paste0("n = ", n)]
+    emp_se <- sd(subset$sample_mean)
+    theo_se <- pop_sd / sqrt(n)
+
+    cat(sprintf("n = %3d: Empirical SE = %.3f, Theoretical SE = %.3f\n",
+                n, emp_se, theo_se))
+}
+
+# Plot
+ggplot2$ggplot(all_dists, ggplot2$aes(x = sample_mean)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                           fill = "#56B4E9", colour = "white", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = pop_mean, colour = "#D55E00",
+                       linetype = "dashed", linewidth = 1) +
+    ggplot2$facet_wrap(~sample_size, scales = "free_y") +
+    ggplot2$labs(
+        title = "Sampling Distribution of the Mean",
+        subtitle = "10,000 simulated samples at each sample size",
+        x = "Sample Mean (Systolic Blood Pressure, mmHg)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-1-foundations/simulate_sampling_dist-1.png" alt="Simulating the sampling distribution by repeated sampling">
+	Simulating the sampling distribution by repeated sampling
+</Figure>
+
+```
+## Simulated Sampling Distributions
+## ================================
+## 
+## n =   5: Empirical SE = 6.662, Theoretical SE = 6.708
+## n =  10: Empirical SE = 4.724, Theoretical SE = 4.743
+## n =  30: Empirical SE = 2.719, Theoretical SE = 2.739
+## n = 100: Empirical SE = 1.509, Theoretical SE = 1.500
+```
+
+**Key observations:**
+
+1. All four distributions are centred at the population mean (120 mmHg)
+2. Larger sample sizes produce narrower distributions
+3. Even small samples (n = 5) produce symmetric, approximately normal distributions
+4. The standard deviation decreases as $n$ increases
+
+---
+
+## 6.2 Sampling Distribution of the Sample Mean
+
+We now derive the theoretical properties of the sampling distribution of $\bar{X}$.
+
+### 6.2.1 Expected Value: $E(\bar{X}) = \mu$
+
+**Theorem:** The expected value of the sample mean equals the population mean.
+
+**Proof:**
+
+Let $X_1, X_2, \ldots, X_n$ be a random sample from a population with mean $\mu$. The sample mean is:
+
+$$\bar{X} = \frac{1}{n} \sum_{i=1}^{n} X_i$$
+
+Taking the expected value:
+
+$$E(\bar{X}) = E\left(\frac{1}{n} \sum_{i=1}^{n} X_i\right)$$
+
+By linearity of expectation:
+
+$$E(\bar{X}) = \frac{1}{n} \sum_{i=1}^{n} E(X_i)$$
+
+Since each $X_i$ has the same distribution with mean $\mu$:
+
+$$E(\bar{X}) = \frac{1}{n} \sum_{i=1}^{n} \mu = \frac{1}{n} \cdot n\mu = \mu$$
+
+**Interpretation:** This result tells us that the sample mean is an *unbiased* estimator of the population mean. On average, across all possible samples, $\bar{X}$ equals $\mu$.
+
+### 6.2.2 Variance: $\text{Var}(\bar{X}) = \sigma^2/n$
+
+**Theorem:** The variance of the sample mean is the population variance divided by the sample size.
+
+**Proof:**
+
+For independent random variables, the variance of a sum equals the sum of variances:
+
+$$\text{Var}(\bar{X}) = \text{Var}\left(\frac{1}{n} \sum_{i=1}^{n} X_i\right)$$
+
+Since $\text{Var}(cY) = c^2 \text{Var}(Y)$:
+
+$$\text{Var}(\bar{X}) = \frac{1}{n^2} \text{Var}\left(\sum_{i=1}^{n} X_i\right)$$
+
+For independent observations:
+
+$$\text{Var}(\bar{X}) = \frac{1}{n^2} \sum_{i=1}^{n} \text{Var}(X_i) = \frac{1}{n^2} \cdot n\sigma^2 = \frac{\sigma^2}{n}$$
+
+**Critical insight:** The variance of $\bar{X}$ decreases with sample size. This is why larger studies are more precise.
+
+
+``` r
+# Demonstrate variance reduction
+sample_sizes_demo <- seq(5, 200, by = 5)
+sigma <- 15
+
+variance_dt <- data.table(
+    n = sample_sizes_demo,
+    var_xbar = sigma^2 / sample_sizes_demo,
+    sd_xbar = sigma / sqrt(sample_sizes_demo)
+)
+
+ggplot2$ggplot(variance_dt, ggplot2$aes(x = n, y = var_xbar)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$annotate("text", x = 150, y = sigma^2 / 10,
+                     label = paste0("sigma^2 = ", sigma^2), colour = "grey40") +
+    ggplot2$labs(
+        title = "Variance of the Sample Mean Decreases with n",
+        subtitle = expression(Var(bar(X)) == sigma^2 / n),
+        x = "Sample Size (n)",
+        y = expression(Var(bar(X)))
+    ) +
+    ggplot2$scale_y_continuous(limits = c(0, 50)) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/variance_demo-1.png" alt="Variance of the sample mean decreases with sample size">
+	Variance of the sample mean decreases with sample size
+</Figure>
+
+### 6.2.3 Standard Error: $SE(\bar{X}) = \sigma/\sqrt{n}$
+
+**Definition:** The **standard error** of a statistic is the standard deviation of its sampling distribution.
+
+For the sample mean:
+
+$$SE(\bar{X}) = \sqrt{\text{Var}(\bar{X})} = \sqrt{\frac{\sigma^2}{n}} = \frac{\sigma}{\sqrt{n}}$$
+
+**Standard Error vs Standard Deviation:**
+
+| Concept | Measures | Formula |
+|---------|----------|---------|
+| Standard Deviation (SD) | Spread of individual observations | $\sigma$ or $s$ |
+| Standard Error (SE) | Spread of sample means across samples | $\sigma/\sqrt{n}$ |
+
+
+``` r
+set.seed(456)
+
+# Population: cholesterol levels
+pop_mean_chol <- 200
+pop_sd_chol <- 40
+
+# Individual observations
+individuals <- rnorm(1000, pop_mean_chol, pop_sd_chol)
+
+# Sample means (n = 25)
+n <- 25
+sample_means_chol <- replicate(1000, mean(rnorm(n, pop_mean_chol, pop_sd_chol)))
+
+# Create combined data
+comparison_dt <- rbind(
+    data.table(type = "Individual Observations", value = individuals),
+    data.table(type = "Sample Means (n = 25)", value = sample_means_chol)
+)
+
+cat("Standard Deviation vs Standard Error\n")
+cat("=====================================\n\n")
+cat(sprintf("Individual observations:\n"))
+cat(sprintf("  SD = %.2f (population σ = %.0f)\n\n", sd(individuals), pop_sd_chol))
+cat(sprintf("Sample means (n = 25):\n"))
+cat(sprintf("  SE = %.2f (theoretical σ/√n = %.2f)\n",
+            sd(sample_means_chol), pop_sd_chol / sqrt(n)))
+
+ggplot2$ggplot(comparison_dt, ggplot2$aes(x = value, fill = type)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                           colour = "white", alpha = 0.8) +
+    ggplot2$facet_wrap(~type, scales = "free_y", ncol = 1) +
+    ggplot2$geom_vline(xintercept = pop_mean_chol, colour = "#D55E00",
+                       linetype = "dashed", linewidth = 1) +
+    ggplot2$scale_fill_manual(values = c("#56B4E9", "#009E73")) +
+    ggplot2$labs(
+        title = "Individual Variation vs Sampling Variation",
+        subtitle = "Sample means are much less variable than individual observations",
+        x = "Cholesterol (mg/dL)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$guides(fill = "none") +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold", size = 11))
+```
+
+<Figure src="/courses/statistics-1-foundations/se_vs_sd-1.png" alt="Standard deviation describes individual variation; standard error describes variation in sample means">
+	Standard deviation describes individual variation; standard error describes variation in sample means
+</Figure>
+
+```
+## Standard Deviation vs Standard Error
+## =====================================
+## 
+## Individual observations:
+##   SD = 39.23 (population σ = 40)
+## 
+## Sample means (n = 25):
+##   SE = 8.05 (theoretical σ/√n = 8.00)
+```
+
+The sample means are tightly clustered around 200 mg/dL (SE ≈ 8), while individual observations spread widely (SD = 40).
+
+### 6.2.4 Visualising Sample Size Effect
+
+The $\sqrt{n}$ relationship has important practical implications.
+
+
+``` r
+set.seed(789)
+
+# Visualise sampling distributions at different n
+sample_sizes_viz <- c(10, 40, 160)  # Each 4x previous
+pop_mu <- 50
+pop_sig <- 10
+n_sims_viz <- 10000
+
+viz_data <- lapply(sample_sizes_viz, function(n) {
+    means <- replicate(n_sims_viz, mean(rnorm(n, pop_mu, pop_sig)))
+    data.table(
+        n = n,
+        sample_mean = means,
+        theoretical_se = pop_sig / sqrt(n)
+    )
+})
+
+viz_dt <- rbindlist(viz_data)
+viz_dt[, label := sprintf("n = %d\nSE = %.2f", n, theoretical_se)]
+viz_dt[, label := factor(label, levels = unique(label))]
+
+# Summary
+cat("Effect of Sample Size on Standard Error\n")
+cat("========================================\n\n")
+cat("σ = 10\n\n")
+
+for (n in sample_sizes_viz) {
+    se <- pop_sig / sqrt(n)
+    cat(sprintf("n = %3d: SE = %.3f (95%% of means within ±%.2f of μ)\n",
+                n, se, 1.96 * se))
+}
+
+cat("\nNote: Quadrupling n halves the SE (due to √n relationship)\n")
+
+ggplot2$ggplot(viz_dt, ggplot2$aes(x = sample_mean, fill = label)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                           colour = "white", alpha = 0.8) +
+    ggplot2$geom_vline(xintercept = pop_mu, colour = "#D55E00",
+                       linetype = "dashed", linewidth = 1) +
+    ggplot2$facet_wrap(~label, ncol = 3) +
+    ggplot2$scale_fill_manual(values = c("#E69F00", "#56B4E9", "#009E73")) +
+    ggplot2$labs(
+        title = "The √n Law: Larger Samples Give More Precise Estimates",
+        subtitle = "Quadrupling sample size halves the standard error",
+        x = "Sample Mean",
+        y = "Density"
+    ) +
+    ggplot2$coord_cartesian(xlim = c(44, 56)) +
+    ggplot2$theme_minimal() +
+    ggplot2$guides(fill = "none") +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-1-foundations/sample_size_effect-1.png" alt="The sqrt(n) relationship: quadrupling sample size halves the standard error">
+	The sqrt(n) relationship: quadrupling sample size halves the standard error
+</Figure>
+
+```
+## Effect of Sample Size on Standard Error
+## ========================================
+## 
+## σ = 10
+## 
+## n =  10: SE = 3.162 (95% of means within ±6.20 of μ)
+## n =  40: SE = 1.581 (95% of means within ±3.10 of μ)
+## n = 160: SE = 0.791 (95% of means within ±1.55 of μ)
+## 
+## Note: Quadrupling n halves the SE (due to √n relationship)
+```
+
+**Practical implications:**
+
+- To halve the standard error, you need to *quadruple* the sample size
+- Diminishing returns: going from n = 100 to n = 400 gives the same SE reduction as n = 25 to n = 100
+- This is why power calculations matter for study design
+
+---
+
+## 6.3 The Central Limit Theorem
+
+The Central Limit Theorem (CLT) is one of the most remarkable results in all of mathematics. It explains why the normal distribution appears so frequently in nature and statistics.
+
+### 6.3.1 Statement of the CLT
+
+**Central Limit Theorem:** Let $X_1, X_2, \ldots, X_n$ be independent, identically distributed random variables with mean $\mu$ and finite variance $\sigma^2$. Then, as $n \to \infty$:
+
+$$\frac{\bar{X} - \mu}{\sigma/\sqrt{n}} \xrightarrow{d} N(0, 1)$$
+
+Or equivalently:
+
+$$\bar{X} \xrightarrow{d} N\left(\mu, \frac{\sigma^2}{n}\right)$$
+
+**In words:** Regardless of the shape of the population distribution, the distribution of sample means approaches a normal distribution as sample size increases.
+
+### 6.3.2 Why the CLT Is Remarkable
+
+The CLT is astonishing because:
+
+1. **No restrictions on population shape:** The population can be skewed, bimodal, uniform, exponential—it doesn't matter
+2. **Convergence is fast:** For many distributions, n = 30 is often sufficient
+3. **Universal applicability:** It works for almost any distribution with finite variance
+4. **Explains the ubiquity of the normal:** Many real-world quantities are sums or averages, hence approximately normal
+
+
+``` r
+set.seed(101)
+
+# Create populations with very different shapes
+n_pop <- 100000
+
+# 1. Exponential (highly skewed)
+pop_exp <- rexp(n_pop, rate = 0.5)
+
+# 2. Uniform (flat)
+pop_uniform <- runif(n_pop, min = 0, max = 10)
+
+# 3. Bimodal (two peaks)
+pop_bimodal <- c(rnorm(n_pop/2, mean = 2, sd = 0.5),
+                  rnorm(n_pop/2, mean = 8, sd = 0.5))
+
+# 4. Beta (asymmetric)
+pop_beta <- rbeta(n_pop, shape1 = 2, shape2 = 5)
+
+populations <- list(
+    "Exponential" = pop_exp,
+    "Uniform" = pop_uniform,
+    "Bimodal" = pop_bimodal,
+    "Beta" = pop_beta
+)
+
+# For each population, show the CLT in action
+cat("The Central Limit Theorem: Any Population → Normal Sample Means\n")
+cat("================================================================\n\n")
+
+for (name in names(populations)) {
+    pop <- populations[[name]]
+    cat(sprintf("%s population:\n", name))
+    cat(sprintf("  Mean = %.3f, SD = %.3f, Skewness ≈ %.2f\n\n",
+                mean(pop), sd(pop),
+                mean((pop - mean(pop))^3) / sd(pop)^3))
+}
+
+# Plot populations
+pop_plot_data <- rbind(
+    data.table(distribution = "Exponential", value = sample(pop_exp, 5000)),
+    data.table(distribution = "Uniform", value = sample(pop_uniform, 5000)),
+    data.table(distribution = "Bimodal", value = sample(pop_bimodal, 5000)),
+    data.table(distribution = "Beta", value = sample(pop_beta, 5000) * 10)  # Scale for visibility
+)
+pop_plot_data[, distribution := factor(distribution,
+                                        levels = c("Exponential", "Uniform", "Bimodal", "Beta"))]
+
+ggplot2$ggplot(pop_plot_data, ggplot2$aes(x = value)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                           fill = "#CC79A7", colour = "white", alpha = 0.7) +
+    ggplot2$facet_wrap(~distribution, scales = "free") +
+    ggplot2$labs(
+        title = "Four Very Different Population Distributions",
+        subtitle = "Each has a unique shape, yet sample means from all become normal",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-1-foundations/clt_remarkable-1.png" alt="The CLT works for any population distribution">
+	The CLT works for any population distribution
+</Figure>
+
+```
+## The Central Limit Theorem: Any Population → Normal Sample Means
+## ================================================================
+## 
+## Exponential population:
+##   Mean = 1.992, SD = 1.984, Skewness ≈ 1.98
+## 
+## Uniform population:
+##   Mean = 5.001, SD = 2.883, Skewness ≈ 0.00
+## 
+## Bimodal population:
+##   Mean = 4.997, SD = 3.043, Skewness ≈ 0.00
+## 
+## Beta population:
+##   Mean = 0.286, SD = 0.159, Skewness ≈ 0.60
+```
+
+### 6.3.3 Visualising the CLT: Simulations from Various Populations
+
+Now let's see the CLT in action by taking samples from each of these populations.
+
+
+``` r
+set.seed(202)
+
+# Sample sizes to demonstrate
+sample_sizes_clt <- c(5, 30, 100)
+n_sims_clt <- 5000
+
+# Function to generate sampling distribution
+generate_sampling_dist <- function(population, n, n_sims) {
+    replicate(n_sims, mean(sample(population, n, replace = TRUE)))
+}
+
+# Generate sampling distributions for each population and sample size
+clt_results <- list()
+
+for (pop_name in names(populations)) {
+    pop <- populations[[pop_name]]
+    pop_mu <- mean(pop)
+    pop_sigma <- sd(pop)
+
+    for (n in sample_sizes_clt) {
+        means <- generate_sampling_dist(pop, n, n_sims_clt)
+
+        # Standardise for comparison
+        standardised <- (means - pop_mu) / (pop_sigma / sqrt(n))
+
+        clt_results[[length(clt_results) + 1]] <- data.table(
+            population = pop_name,
+            sample_size = n,
+            sample_mean = means,
+            standardised = standardised
+        )
+    }
+}
+
+clt_dt <- rbindlist(clt_results)
+clt_dt[, sample_size_label := paste0("n = ", sample_size)]
+clt_dt[, sample_size_label := factor(sample_size_label,
+                                      levels = c("n = 5", "n = 30", "n = 100"))]
+clt_dt[, population := factor(population,
+                               levels = c("Exponential", "Uniform", "Bimodal", "Beta"))]
+
+# Plot standardised distributions
+ggplot2$ggplot(clt_dt, ggplot2$aes(x = standardised)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
+                           fill = "#56B4E9", colour = "white", alpha = 0.7) +
+    ggplot2$stat_function(fun = dnorm, colour = "#D55E00", linewidth = 1) +
+    ggplot2$facet_grid(population ~ sample_size_label) +
+    ggplot2$labs(
+        title = "The Central Limit Theorem in Action",
+        subtitle = "Red curve is standard normal; all distributions converge to it",
+        x = "Standardised Sample Mean (Z-score)",
+        y = "Density"
+    ) +
+    ggplot2$coord_cartesian(xlim = c(-4, 4)) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-1-foundations/clt_demo-1.png" alt="The CLT transforms any distribution into a normal distribution of sample means">
+	The CLT transforms any distribution into a normal distribution of sample means
+</Figure>
+
+**Key observations:**
+
+- **n = 5:** The exponential shows residual skewness; bimodal shows flatness
+- **n = 30:** All distributions are nearly normal
+- **n = 100:** All distributions are indistinguishable from normal
+
+### 6.3.4 How Large Is "Large Enough"?
+
+The classic rule of thumb is **n ≥ 30**, but the required sample size depends on how non-normal the population is.
+
+
+``` r
+set.seed(303)
+
+# Compare convergence rates
+# Symmetric (fast convergence) vs Highly skewed (slow convergence)
+
+pop_symmetric <- rnorm(100000, mean = 50, sd = 10)  # Normal population
+pop_skewed <- rexp(100000, rate = 0.1)               # Exponential (skewed)
+
+test_sizes <- c(2, 5, 10, 20, 30, 50, 100)
+n_sims_test <- 5000
+
+convergence_results <- list()
+
+for (n in test_sizes) {
+    # Sample from symmetric
+    means_sym <- replicate(n_sims_test, mean(sample(pop_symmetric, n)))
+    std_sym <- (means_sym - mean(pop_symmetric)) / (sd(pop_symmetric) / sqrt(n))
+
+    # Sample from skewed
+    means_skew <- replicate(n_sims_test, mean(sample(pop_skewed, n)))
+    std_skew <- (means_skew - mean(pop_skewed)) / (sd(pop_skewed) / sqrt(n))
+
+    # Test normality using Shapiro-Wilk on subset
+    sw_sym <- shapiro.test(sample(std_sym, 500))$p.value
+    sw_skew <- shapiro.test(sample(std_skew, 500))$p.value
+
+    convergence_results[[length(convergence_results) + 1]] <- data.table(
+        n = n,
+        population = c("Symmetric (Normal)", "Highly Skewed (Exponential)"),
+        shapiro_p = c(sw_sym, sw_skew)
+    )
+}
+
+convergence_dt <- rbindlist(convergence_results)
+
+cat("Convergence to Normality\n")
+cat("========================\n\n")
+cat("Shapiro-Wilk p-value (higher = more normal):\n\n")
+
+print(dcast(convergence_dt, n ~ population, value.var = "shapiro_p")[,
+    lapply(.SD, function(x) round(x, 4)), .SDcols = c("Symmetric (Normal)", "Highly Skewed (Exponential)"),
+    by = n])
+
+ggplot2$ggplot(convergence_dt, ggplot2$aes(x = n, y = shapiro_p, colour = population)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = 80, y = 0.1, label = "p = 0.05 threshold", colour = "grey40") +
+    ggplot2$scale_colour_manual(values = c("#009E73", "#D55E00")) +
+    ggplot2$labs(
+        title = "Rate of Convergence to Normality",
+        subtitle = "Skewed populations need larger samples",
+        x = "Sample Size (n)",
+        y = "Shapiro-Wilk p-value",
+        colour = "Population"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-1-foundations/sample_size_requirement-1.png" alt="More skewed populations require larger samples for CLT to apply">
+	More skewed populations require larger samples for CLT to apply
+</Figure>
+
+```
+## Convergence to Normality
+## ========================
+## 
+## Shapiro-Wilk p-value (higher = more normal):
+## 
+## Key: <n>
+##        n Symmetric (Normal) Highly Skewed (Exponential)
+##    <num>              <num>                       <num>
+## 1:     2             0.4836                      0.0000
+## 2:     5             0.1842                      0.0000
+## 3:    10             0.5282                      0.0000
+## 4:    20             0.7529                      0.0003
+## 5:    30             0.9092                      0.0005
+## 6:    50             0.7532                      0.0321
+## 7:   100             0.9591                      0.3298
+```
+
+**Guidelines:**
+
+| Population Type | Recommended Minimum n |
+|-----------------|----------------------|
+| Symmetric, unimodal | n ≥ 10-15 |
+| Moderate skew | n ≥ 30 |
+| Heavy skew | n ≥ 50-100 |
+| Extreme outliers | May need n > 100 |
+
+### 6.3.5 Mathematical Intuition: Why Sums Become Normal
+
+The CLT works because of how probability distributions combine through addition.
+
+**Convolution:** When we add independent random variables, their distributions *convolve*. Convolution has a smoothing effect—it averages out bumps and asymmetries.
+
+**Characteristic functions:** The mathematical proof uses characteristic functions (Fourier transforms of probability distributions). The characteristic function of a sum is the product of individual characteristic functions. Taking powers and limits leads to the Gaussian characteristic function.
+
+**Intuitive explanation:**
+
+1. Start with any distribution
+2. Add two copies: the sum is smoother than the original
+3. Add more copies: each addition smooths further
+4. In the limit: the smoothing converges to the Gaussian bell curve
+
+
+``` r
+set.seed(404)
+
+# Start with a uniform distribution
+# Show progressive convolution
+
+n_obs <- 100000
+
+# 1 uniform
+u1 <- runif(n_obs, 0, 1)
+
+# Sum of 2 uniforms (triangular)
+u2 <- runif(n_obs, 0, 1) + runif(n_obs, 0, 1)
+
+# Sum of 3 uniforms
+u3 <- runif(n_obs, 0, 1) + runif(n_obs, 0, 1) + runif(n_obs, 0, 1)
+
+# Sum of 5 uniforms
+u5 <- rowSums(matrix(runif(n_obs * 5, 0, 1), ncol = 5))
+
+# Sum of 12 uniforms (classic approximation to normal)
+u12 <- rowSums(matrix(runif(n_obs * 12, 0, 1), ncol = 12))
+
+convolution_data <- rbind(
+    data.table(k = "k = 1\n(Uniform)", value = u1, mean = 0.5, sd = sqrt(1/12)),
+    data.table(k = "k = 2\n(Triangular)", value = u2, mean = 1, sd = sqrt(2/12)),
+    data.table(k = "k = 3", value = u3, mean = 1.5, sd = sqrt(3/12)),
+    data.table(k = "k = 5", value = u5, mean = 2.5, sd = sqrt(5/12)),
+    data.table(k = "k = 12", value = u12, mean = 6, sd = sqrt(12/12))
+)
+
+convolution_data[, k := factor(k, levels = unique(k))]
+
+ggplot2$ggplot(convolution_data, ggplot2$aes(x = value)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                           fill = "#56B4E9", colour = "white", alpha = 0.7) +
+    ggplot2$stat_function(
+        data = convolution_data[k == "k = 12"],
+        fun = function(x) dnorm(x, mean = 6, sd = 1),
+        colour = "#D55E00", linewidth = 1
+    ) +
+    ggplot2$facet_wrap(~k, scales = "free", nrow = 1) +
+    ggplot2$labs(
+        title = "Convolution: Adding Uniforms Converges to Normal",
+        subtitle = "Each panel shows the sum of k independent Uniform(0,1) variables",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-1-foundations/convolution_demo-1.png" alt="Adding random variables progressively smooths the distribution">
+	Adding random variables progressively smooths the distribution
+</Figure>
+
+The sum of 12 uniform random variables is indistinguishable from a normal distribution. This was historically used to generate pseudo-normal random numbers before computers had efficient algorithms.
+
+---
+
+## 6.4 Applications in Biomedical Research
+
+### 6.4.1 Using NHANES Data
+
+Let's apply these concepts to real biomedical data from NHANES.
+
+
+``` r
+set.seed(505)
+
+# Clean BMI data
+bmi_data <- nhanes[!is.na(BMI) & BMI > 10 & BMI < 70, BMI]
+
+cat("NHANES BMI Data\n")
+cat("===============\n\n")
+cat(sprintf("Population: n = %d observations\n", length(bmi_data)))
+cat(sprintf("Mean (μ) = %.2f kg/m²\n", mean(bmi_data)))
+cat(sprintf("SD (σ) = %.2f kg/m²\n\n", sd(bmi_data)))
+
+# Simulate sampling distributions
+sample_sizes_bmi <- c(10, 30, 100)
+n_sims_bmi <- 5000
+
+bmi_sampling <- lapply(sample_sizes_bmi, function(n) {
+    means <- replicate(n_sims_bmi, mean(sample(bmi_data, n, replace = TRUE)))
+    data.table(
+        sample_size = paste0("n = ", n),
+        sample_mean = means,
+        se = sd(bmi_data) / sqrt(n)
+    )
+})
+
+bmi_sampling_dt <- rbindlist(bmi_sampling)
+bmi_sampling_dt[, sample_size := factor(sample_size, levels = paste0("n = ", sample_sizes_bmi))]
+
+# Summary statistics
+cat("Sampling Distribution Properties:\n")
+for (n in sample_sizes_bmi) {
+    subset <- bmi_sampling_dt[sample_size == paste0("n = ", n)]
+    cat(sprintf("\nn = %3d:\n", n))
+    cat(sprintf("  Theoretical SE = %.3f\n", sd(bmi_data) / sqrt(n)))
+    cat(sprintf("  Empirical SE = %.3f\n", sd(subset$sample_mean)))
+    cat(sprintf("  95%% of sample means between %.1f and %.1f\n",
+                mean(bmi_data) - 1.96 * sd(bmi_data) / sqrt(n),
+                mean(bmi_data) + 1.96 * sd(bmi_data) / sqrt(n)))
+}
+
+# Plot
+ggplot2$ggplot(bmi_sampling_dt, ggplot2$aes(x = sample_mean)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
+                           fill = "#56B4E9", colour = "white", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = mean(bmi_data), colour = "#D55E00",
+                       linetype = "dashed", linewidth = 1) +
+    ggplot2$facet_wrap(~sample_size, scales = "free_y") +
+    ggplot2$labs(
+        title = "Sampling Distribution of Mean BMI",
+        subtitle = "NHANES data: simulated samples at different sizes",
+        x = "Sample Mean BMI (kg/m²)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-1-foundations/nhanes_sampling_dist-1.png" alt="Sampling distribution of mean BMI from NHANES data">
+	Sampling distribution of mean BMI from NHANES data
+</Figure>
+
+```
+## NHANES BMI Data
+## ===============
+## 
+## Population: n = 9631 observations
+## Mean (μ) = 26.64 kg/m²
+## SD (σ) = 7.32 kg/m²
+## 
+## Sampling Distribution Properties:
+## 
+## n =  10:
+##   Theoretical SE = 2.313
+##   Empirical SE = 2.296
+##   95% of sample means between 22.1 and 31.2
+## 
+## n =  30:
+##   Theoretical SE = 1.336
+##   Empirical SE = 1.312
+##   95% of sample means between 24.0 and 29.3
+## 
+## n = 100:
+##   Theoretical SE = 0.732
+##   Empirical SE = 0.720
+##   95% of sample means between 25.2 and 28.1
+```
+
+### 6.4.2 Clinical Trial Power Calculations
+
+The standard error formula directly informs power calculations.
+
+
+``` r
+# Scenario: Drug reduces blood pressure by 5 mmHg (true effect)
+# Population SD = 12 mmHg
+# What sample sizes give adequate precision?
+
+true_effect <- 5
+population_sd <- 12
+
+sample_sizes_power <- seq(10, 200, by = 10)
+
+power_data <- data.table(
+    n = sample_sizes_power,
+    se = population_sd / sqrt(sample_sizes_power),
+    ci_width = 2 * 1.96 * population_sd / sqrt(sample_sizes_power)
+)
+
+power_data[, margin_of_error := 1.96 * se]
+power_data[, detectable := ci_width < 2 * abs(true_effect)]
+
+cat("Clinical Trial Sample Size Planning\n")
+cat("====================================\n\n")
+cat(sprintf("True effect: %.1f mmHg reduction\n", true_effect))
+cat(sprintf("Population SD: %.1f mmHg\n\n", population_sd))
+
+cat("Sample size needed for:\n")
+cat(sprintf("  95%% CI width < 10 mmHg: n >= %.0f\n",
+            min(power_data[ci_width < 10, n])))
+cat(sprintf("  95%% CI width < 5 mmHg:  n >= %.0f\n",
+            min(power_data[ci_width < 5, n])))
+cat(sprintf("  95%% CI width < 3 mmHg:  n >= %.0f\n",
+            min(power_data[ci_width < 3, n])))
+```
+
+```
+## Warning in min(power_data[ci_width < 3, n]): no non-missing arguments to min;
+## returning Inf
+```
+
+``` r
+ggplot2$ggplot(power_data, ggplot2$aes(x = n)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = true_effect - margin_of_error,
+                                     ymax = true_effect + margin_of_error),
+                        fill = "#56B4E9", alpha = 0.3) +
+    ggplot2$geom_line(ggplot2$aes(y = true_effect), colour = "#D55E00", linewidth = 1) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = 180, y = true_effect, label = "True Effect",
+                     colour = "#D55E00", vjust = -1) +
+    ggplot2$labs(
+        title = "Effect of Sample Size on Confidence Interval Width",
+        subtitle = "Shaded region shows 95% CI around true effect of 5 mmHg",
+        x = "Sample Size (n)",
+        y = "Blood Pressure Change (mmHg)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/power_demo-1.png" alt="How sample size affects the precision of clinical trial estimates">
+	How sample size affects the precision of clinical trial estimates
+</Figure>
+
+```
+## Clinical Trial Sample Size Planning
+## ====================================
+## 
+## True effect: 5.0 mmHg reduction
+## Population SD: 12.0 mmHg
+## 
+## Sample size needed for:
+##   95% CI width < 10 mmHg: n >= 30
+##   95% CI width < 5 mmHg:  n >= 90
+##   95% CI width < 3 mmHg:  n >= Inf
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Sampling Variability
+
+
+``` r
+cat("Explaining Sampling Distributions to Non-Statisticians\n")
+cat("======================================================\n\n")
+
+cat("THE CORE MESSAGE:\n")
+cat("  'If we repeated this study many times with different participants,\n")
+cat("   we would get slightly different results each time. The sampling\n")
+cat("   distribution tells us how much variation to expect.'\n\n")
+
+cat("ANALOGY: Opinion polls\n")
+cat("  'Just as different polls of 1,000 voters give slightly different\n")
+cat("   estimates, different clinical studies of 100 patients give slightly\n")
+cat("   different estimates of treatment effect.'\n\n")
+
+cat("KEY DISTINCTIONS:\n")
+cat("  1. Standard Deviation vs Standard Error:\n")
+cat("     SD: How much individual patients vary\n")
+cat("     SE: How precisely we've estimated the average\n\n")
+
+cat("  2. Sample mean vs Population mean:\n")
+cat("     'Our sample average of 8.3 mmHg is our best guess,\n")
+cat("      but the true effect could be slightly higher or lower.'\n\n")
+
+cat("PRACTICAL INTERPRETATION:\n")
+cat("  'With a standard error of 1.5 mmHg, about 95% of studies would\n")
+cat("   find an average effect within ±3 mmHg of the true effect.'\n")
+```
+
+```
+## Explaining Sampling Distributions to Non-Statisticians
+## ======================================================
+## 
+## THE CORE MESSAGE:
+##   'If we repeated this study many times with different participants,
+##    we would get slightly different results each time. The sampling
+##    distribution tells us how much variation to expect.'
+## 
+## ANALOGY: Opinion polls
+##   'Just as different polls of 1,000 voters give slightly different
+##    estimates, different clinical studies of 100 patients give slightly
+##    different estimates of treatment effect.'
+## 
+## KEY DISTINCTIONS:
+##   1. Standard Deviation vs Standard Error:
+##      SD: How much individual patients vary
+##      SE: How precisely we've estimated the average
+## 
+##   2. Sample mean vs Population mean:
+##      'Our sample average of 8.3 mmHg is our best guess,
+##       but the true effect could be slightly higher or lower.'
+## 
+## PRACTICAL INTERPRETATION:
+##   'With a standard error of 1.5 mmHg, about 95% of studies would
+##    find an average effect within ±3 mmHg of the true effect.'
+```
+
+### Explaining the Central Limit Theorem
+
+
+``` r
+cat("Explaining the CLT to Non-Statisticians\n")
+cat("=======================================\n\n")
+
+cat("THE REMARKABLE RESULT:\n")
+cat("  'No matter how unusual individual patients are, averages are\n")
+cat("   predictable. This is why we can make reliable inferences from\n")
+cat("   samples, even when individual variation is high.'\n\n")
+
+cat("ANALOGY: Coin flips\n")
+cat("  'One coin flip is completely unpredictable — 50/50. But if you\n")
+cat("   flip 100 coins, you'll nearly always get between 40 and 60 heads.\n")
+cat("   That predictability of averages is the CLT.'\n\n")
+
+cat("CLINICAL APPLICATION:\n")
+cat("  'Even though individual patients respond very differently to\n")
+cat("   treatment, we can predict the average response quite precisely\n")
+cat("   if we have enough patients.'\n\n")
+
+cat("WHY LARGER STUDIES ARE BETTER:\n")
+cat("  'Quadrupling the sample size halves the uncertainty.\n")
+cat("   A study with 400 patients is twice as precise as one with 100.'\n")
+```
+
+```
+## Explaining the CLT to Non-Statisticians
+## =======================================
+## 
+## THE REMARKABLE RESULT:
+##   'No matter how unusual individual patients are, averages are
+##    predictable. This is why we can make reliable inferences from
+##    samples, even when individual variation is high.'
+## 
+## ANALOGY: Coin flips
+##   'One coin flip is completely unpredictable — 50/50. But if you
+##    flip 100 coins, you'll nearly always get between 40 and 60 heads.
+##    That predictability of averages is the CLT.'
+## 
+## CLINICAL APPLICATION:
+##   'Even though individual patients respond very differently to
+##    treatment, we can predict the average response quite precisely
+##    if we have enough patients.'
+## 
+## WHY LARGER STUDIES ARE BETTER:
+##   'Quadrupling the sample size halves the uncertainty.
+##    A study with 400 patients is twice as precise as one with 100.'
+```
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+**Sample Mean as Random Variable:**
+
+| Property | Formula | Description |
+|----------|---------|-------------|
+| Expected Value | $E(\bar{X}) = \mu$ | Unbiased estimator |
+| Variance | $\text{Var}(\bar{X}) = \sigma^2/n$ | Decreases with n |
+| Standard Error | $SE(\bar{X}) = \sigma/\sqrt{n}$ | Standard deviation of $\bar{X}$ |
+
+**Central Limit Theorem:**
+
+$$\bar{X} \xrightarrow{d} N\left(\mu, \frac{\sigma^2}{n}\right) \quad \text{as } n \to \infty$$
+
+Standardised form:
+
+$$Z = \frac{\bar{X} - \mu}{\sigma/\sqrt{n}} \xrightarrow{d} N(0, 1)$$
+
+### R Code Patterns
+
+```r
+# Simulate sampling distribution
+set.seed(42)
+n <- 30  # Sample size
+n_sims <- 10000
+
+sample_means <- replicate(n_sims, {
+    sample <- rnorm(n, mean = mu, sd = sigma)
+    mean(sample)
+})
+
+# Theoretical vs empirical SE
+theoretical_se <- sigma / sqrt(n)
+empirical_se <- sd(sample_means)
+
+# 95% interval for sample means
+lower <- mu - 1.96 * theoretical_se
+upper <- mu + 1.96 * theoretical_se
+```
+
+### Sample Size Guidelines
+
+| Population | Minimum n for CLT |
+|------------|-------------------|
+| Normal/symmetric | 10-15 |
+| Moderate skew | 30 |
+| Heavy skew | 50-100 |
+| Extreme outliers | >100 |
+
+---
+
+*Next: Part 2 covers sampling distributions for proportions and variances, and introduces the t-distribution for when the population standard deviation is unknown.*

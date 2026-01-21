@@ -1,0 +1,718 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 1: Regularisation and Penalised Regression"
+part: "Part 1: Ridge Regression"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, regularisation, ridge-regression, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: Ridge Regression
+
+**Ordinary least squares** (OLS) regression works beautifully when the number of observations greatly exceeds the number of predictors. But in modern biomedical research—genomics, proteomics, imaging—we routinely face situations where predictors outnumber observations. In these "large p, small n" settings, OLS fails catastrophically: it produces unstable estimates with enormous variance, and when $p > n$, the solution isn't even unique. **Regularisation** rescues us by adding a penalty that constrains model complexity, trading a small amount of bias for a substantial reduction in variance.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+# Regularisation packages
+library(glmnet)   # LASSO, ridge, elastic net
+library(MASS)     # Ridge regression (lm.ridge)
+```
+
+
+``` r
+# Load breast cancer dataset for demonstration
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+# Select all mean features as predictors
+feature_cols <- c("mean_radius", "mean_texture", "mean_perimeter", "mean_area",
+                  "mean_smoothness", "mean_compactness", "mean_concavity",
+                  "mean_concave_points", "mean_symmetry", "mean_fractal_dimension")
+
+# Create binary outcome (1 = malignant, 0 = benign)
+breast_cancer[, y := as.integer(diagnosis == "M")]
+
+# Prepare matrices for glmnet
+X <- as.matrix(breast_cancer[, ..feature_cols])
+y <- breast_cancer$y
+
+cat("Breast Cancer Wisconsin Dataset:\n")
+cat("================================\n")
+cat("  Observations (n):", nrow(X), "\n")
+cat("  Predictors (p):", ncol(X), "\n")
+cat("  Malignant:", sum(y), "\n")
+cat("  Benign:", sum(1 - y), "\n")
+```
+
+```
+#> Breast Cancer Wisconsin Dataset:
+#> ================================
+#>   Observations (n): 569 
+#>   Predictors (p): 10 
+#>   Malignant: 212 
+#>   Benign: 357
+```
+
+---
+
+## Table of Contents
+
+## 1.1 The Problem with OLS in High Dimensions
+
+### 1.1.1 Variance Explosion
+
+**Prose and Intuition**
+
+Consider the OLS estimator:
+$$\hat{\boldsymbol{\beta}}_{\text{OLS}} = (\mathbf{X}'\mathbf{X})^{-1}\mathbf{X}'\mathbf{y}$$
+
+The variance of this estimator is:
+$$\text{Var}(\hat{\boldsymbol{\beta}}_{\text{OLS}}) = \sigma^2(\mathbf{X}'\mathbf{X})^{-1}$$
+
+When predictors are highly correlated (multicollinearity), or when $p$ is large relative to $n$, the matrix $\mathbf{X}'\mathbf{X}$ becomes nearly singular. Its inverse has very large elements, inflating the variance of $\hat{\boldsymbol{\beta}}$. The coefficients become unstable—small changes in the data cause wild swings in estimates.
+
+When $p > n$, the matrix $\mathbf{X}'\mathbf{X}$ is singular (rank-deficient), and no unique OLS solution exists. Infinitely many coefficient vectors fit the training data perfectly.
+
+**Visualisation**
+
+
+``` r
+# Demonstrate variance inflation with correlated predictors
+set.seed(42)
+n_sim <- 500
+n_obs <- 50
+
+# Simulate data with varying correlation
+correlations <- c(0, 0.5, 0.9, 0.99)
+sim_results <- rbindlist(lapply(correlations, function(rho) {
+    beta_estimates <- matrix(NA, nrow = n_sim, ncol = 2)
+
+    for (i in 1:n_sim) {
+        # Generate correlated predictors
+        x1 <- rnorm(n_obs)
+        x2 <- rho * x1 + sqrt(1 - rho^2) * rnorm(n_obs)
+
+        # True model: y = 1 + 2*x1 + 3*x2 + error
+        y <- 1 + 2 * x1 + 3 * x2 + rnorm(n_obs, sd = 1)
+
+        # Fit OLS
+        fit <- lm(y ~ x1 + x2)
+        beta_estimates[i, ] <- coef(fit)[2:3]
+    }
+
+    data.table(
+        correlation = rho,
+        beta1 = beta_estimates[, 1],
+        beta2 = beta_estimates[, 2]
+    )
+}))
+
+# Calculate variance for each correlation level
+var_summary <- sim_results[, .(
+    var_beta1 = var(beta1),
+    var_beta2 = var(beta2),
+    mean_beta1 = mean(beta1),
+    mean_beta2 = mean(beta2)
+), by = correlation]
+
+cat("Variance of OLS Estimates by Predictor Correlation:\n")
+cat("===================================================\n")
+print(var_summary)
+
+# Plot sampling distributions
+sim_results[, correlation_label := paste0("ρ = ", correlation)]
+sim_results[, correlation_label := factor(correlation_label,
+    levels = paste0("ρ = ", correlations))]
+
+ggplot2$ggplot(sim_results, ggplot2$aes(x = beta1)) +
+    ggplot2$geom_histogram(bins = 40, fill = "#0072B2", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = 2, colour = "#D55E00", linetype = "dashed", linewidth = 1) +
+    ggplot2$facet_wrap(~correlation_label, scales = "free_y") +
+    ggplot2$labs(
+        title = "Sampling Distribution of β₁ Under Multicollinearity",
+        subtitle = "True value = 2. Higher correlation → wider distribution (more variance)",
+        x = expression(hat(beta)[1]),
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/variance_inflation_demo-1.png" alt="Multicollinearity inflates coefficient variance, making estimates unstable">
+	Multicollinearity inflates coefficient variance, making estimates unstable
+</Figure>
+
+```
+#> Variance of OLS Estimates by Predictor Correlation:
+#> ===================================================
+#>    correlation  var_beta1  var_beta2 mean_beta1 mean_beta2
+#>          <num>      <num>      <num>      <num>      <num>
+#> 1:        0.00 0.02285679 0.02257596   1.997704   2.997091
+#> 2:        0.50 0.02762430 0.02655666   2.016423   2.983509
+#> 3:        0.90 0.11508917 0.11273822   1.994837   3.003106
+#> 4:        0.99 1.08705400 1.08953963   2.010405   2.992055
+```
+
+### 1.1.2 The Bias-Variance Trade-off
+
+**Prose and Intuition**
+
+The **mean squared error (MSE)** of an estimator decomposes into bias and variance:
+$$\text{MSE}(\hat{\beta}) = \text{Bias}^2(\hat{\beta}) + \text{Var}(\hat{\beta})$$
+
+OLS is unbiased, but in high dimensions, its variance can be enormous. If we accept a small amount of bias, we can dramatically reduce variance, often improving overall MSE. This is the fundamental insight behind regularisation.
+
+**Mathematical Derivation**
+
+For a single coefficient $\beta_j$:
+$$\text{MSE}(\hat{\beta}_j) = E[(\hat{\beta}_j - \beta_j)^2] = (E[\hat{\beta}_j] - \beta_j)^2 + \text{Var}(\hat{\beta}_j)$$
+
+For OLS: $\text{Bias} = 0$, but $\text{Var}$ can be large.
+
+For ridge: $\text{Bias} \neq 0$, but $\text{Var}$ is reduced. The optimal regularisation strength minimises total MSE.
+
+
+``` r
+# Illustrate bias-variance trade-off
+lambda_vals <- seq(0, 5, length.out = 100)
+
+# Simulated relationship (simplified)
+bias_squared <- 0.1 * lambda_vals^2
+variance <- 2 / (1 + lambda_vals)^2
+mse <- bias_squared + variance
+
+bv_dt <- data.table(
+    lambda = rep(lambda_vals, 3),
+    value = c(bias_squared, variance, mse),
+    component = factor(rep(c("Bias²", "Variance", "MSE"), each = length(lambda_vals)),
+                       levels = c("Bias²", "Variance", "MSE"))
+)
+
+optimal_lambda <- lambda_vals[which.min(mse)]
+
+ggplot2$ggplot(bv_dt, ggplot2$aes(x = lambda, y = value, colour = component)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = optimal_lambda, linetype = "dashed", colour = "grey40") +
+    ggplot2$annotate("text", x = optimal_lambda + 0.2, y = max(mse) * 0.9,
+                     label = paste("Optimal λ ≈", round(optimal_lambda, 2)),
+                     hjust = 0, colour = "grey30") +
+    ggplot2$scale_colour_manual(values = c("Bias²" = "#D55E00", "Variance" = "#0072B2", "MSE" = "#009E73")) +
+    ggplot2$labs(
+        title = "Bias-Variance Trade-off in Ridge Regression",
+        subtitle = "Increasing λ adds bias but reduces variance; MSE is minimised at optimal λ",
+        x = "Regularisation Parameter (λ)",
+        y = "Error Component",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-3-advanced/bias_variance_plot-1.png" alt="The bias-variance trade-off: regularisation reduces variance at the cost of some bias">
+	The bias-variance trade-off: regularisation reduces variance at the cost of some bias
+</Figure>
+
+---
+
+## 1.2 Ridge Regression
+
+### 1.2.1 The Ridge Penalty
+
+**Prose and Intuition**
+
+Ridge regression modifies the OLS objective by adding a penalty on the squared magnitude of coefficients:
+
+$$\hat{\boldsymbol{\beta}}_{\text{ridge}} = \arg\min_{\boldsymbol{\beta}} \left\{ \sum_{i=1}^{n}(y_i - \mathbf{x}_i'\boldsymbol{\beta})^2 + \lambda \sum_{j=1}^{p}\beta_j^2 \right\}$$
+
+The penalty $\lambda \sum \beta_j^2$ discourages large coefficients. As $\lambda$ increases:
+- Coefficients **shrink toward zero** (but never exactly to zero)
+- The solution becomes more **stable**
+- **Bias increases**, but **variance decreases**
+
+When $\lambda = 0$, we get OLS. When $\lambda \to \infty$, all coefficients shrink to zero.
+
+**Mathematical Derivation**
+
+The ridge objective in matrix form:
+$$L(\boldsymbol{\beta}) = (\mathbf{y} - \mathbf{X}\boldsymbol{\beta})'(\mathbf{y} - \mathbf{X}\boldsymbol{\beta}) + \lambda\boldsymbol{\beta}'\boldsymbol{\beta}$$
+
+Taking the derivative and setting to zero:
+$$\frac{\partial L}{\partial \boldsymbol{\beta}} = -2\mathbf{X}'(\mathbf{y} - \mathbf{X}\boldsymbol{\beta}) + 2\lambda\boldsymbol{\beta} = 0$$
+
+Solving for $\boldsymbol{\beta}$:
+$$\mathbf{X}'\mathbf{y} = (\mathbf{X}'\mathbf{X} + \lambda\mathbf{I})\boldsymbol{\beta}$$
+
+$$\hat{\boldsymbol{\beta}}_{\text{ridge}} = (\mathbf{X}'\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}'\mathbf{y}$$
+
+The key insight: Adding $\lambda\mathbf{I}$ to $\mathbf{X}'\mathbf{X}$ ensures the matrix is always invertible, even when $p > n$ or predictors are perfectly collinear.
+
+### 1.2.2 Geometric Interpretation
+
+**Prose and Intuition**
+
+Ridge regression can be viewed as constrained optimisation:
+
+$$\min_{\boldsymbol{\beta}} \sum_{i=1}^{n}(y_i - \mathbf{x}_i'\boldsymbol{\beta})^2 \quad \text{subject to} \quad \sum_{j=1}^{p}\beta_j^2 \leq t$$
+
+The constraint $\sum \beta_j^2 \leq t$ defines a **sphere** in coefficient space. Ridge regression finds the point on this sphere closest to the OLS solution.
+
+
+``` r
+# Visualise ridge constraint in 2D
+set.seed(42)
+
+# Generate contours of RSS
+beta1_grid <- seq(-2, 4, length.out = 100)
+beta2_grid <- seq(-1, 5, length.out = 100)
+grid <- expand.grid(beta1 = beta1_grid, beta2 = beta2_grid)
+
+# Simulated RSS surface (centred at OLS solution)
+ols_beta <- c(2, 3)  # "True" OLS solution
+grid$rss <- (grid$beta1 - ols_beta[1])^2 + 0.5 * (grid$beta2 - ols_beta[2])^2 +
+    0.3 * (grid$beta1 - ols_beta[1]) * (grid$beta2 - ols_beta[2])
+
+# Ridge constraint circle
+theta <- seq(0, 2 * pi, length.out = 100)
+constraint_radii <- c(1, 1.5, 2)
+
+constraint_circles <- rbindlist(lapply(constraint_radii, function(r) {
+    data.table(
+        beta1 = r * cos(theta),
+        beta2 = r * sin(theta),
+        radius = factor(r)
+    )
+}))
+
+# Find ridge solutions (where contour meets constraint)
+ridge_solutions <- data.table(
+    beta1 = c(0.8, 1.2, 1.6),
+    beta2 = c(0.6, 0.9, 1.2),
+    radius = factor(constraint_radii)
+)
+
+ggplot2$ggplot() +
+    ggplot2$geom_contour(data = as.data.table(grid),
+                          ggplot2$aes(x = beta1, y = beta2, z = rss),
+                          colour = "grey70", bins = 15) +
+    ggplot2$geom_path(data = constraint_circles,
+                       ggplot2$aes(x = beta1, y = beta2, colour = radius),
+                       linewidth = 1.2) +
+    ggplot2$geom_point(data = data.table(beta1 = ols_beta[1], beta2 = ols_beta[2]),
+                        ggplot2$aes(x = beta1, y = beta2),
+                        size = 4, shape = 18, colour = "#D55E00") +
+    ggplot2$geom_point(data = ridge_solutions,
+                        ggplot2$aes(x = beta1, y = beta2, colour = radius),
+                        size = 3) +
+    ggplot2$annotate("text", x = ols_beta[1] + 0.2, y = ols_beta[2] + 0.2,
+                     label = "OLS", colour = "#D55E00", fontface = "bold") +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#009E73", "#CC79A7"),
+                                 labels = c("t = 1 (strong)", "t = 1.5", "t = 2 (weak)")) +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(
+        title = "Geometric View of Ridge Regression",
+        subtitle = "Ellipses: RSS contours; Circles: constraint regions; Points: ridge solutions",
+        x = expression(beta[1]),
+        y = expression(beta[2]),
+        colour = "Constraint"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-3-advanced/ridge_geometry-1.png" alt="Ridge regression constrains coefficients to lie within a sphere">
+	Ridge regression constrains coefficients to lie within a sphere
+</Figure>
+
+---
+
+## 1.3 Ridge Regression in Practice
+
+### 1.3.1 Standardisation
+
+**Prose and Intuition**
+
+Ridge regression penalises coefficients equally, so predictors must be on comparable scales. If one predictor is measured in millimetres and another in metres, the penalty treats them unfairly.
+
+**Always standardise predictors** before ridge regression:
+$$\tilde{x}_{ij} = \frac{x_{ij} - \bar{x}_j}{s_j}$$
+
+The `glmnet` package standardises internally by default.
+
+### 1.3.2 Fitting Ridge Regression
+
+
+``` r
+# Fit ridge regression path
+ridge_fit <- glmnet(X, y, family = "binomial", alpha = 0)  # alpha = 0 for ridge
+
+cat("Ridge Regression Model:\n")
+cat("=======================\n")
+cat("  Number of lambda values:", length(ridge_fit$lambda), "\n")
+cat("  Lambda range:", round(min(ridge_fit$lambda), 4), "to",
+    round(max(ridge_fit$lambda), 4), "\n")
+```
+
+```
+#> Ridge Regression Model:
+#> =======================
+#>   Number of lambda values: 100 
+#>   Lambda range: 0.0375 to 375.487
+```
+
+
+``` r
+# Extract coefficients along the regularisation path
+coef_matrix <- as.matrix(coef(ridge_fit))[-1, ]  # Exclude intercept
+lambda_vals <- ridge_fit$lambda
+
+# Create data for plotting
+path_dt <- rbindlist(lapply(1:ncol(coef_matrix), function(j) {
+    data.table(
+        lambda = lambda_vals,
+        coefficient = coef_matrix[, j],
+        variable = gsub("mean_", "", rownames(coef_matrix))
+    )
+}))
+
+ggplot2$ggplot(path_dt, ggplot2$aes(x = log(lambda), y = coefficient, colour = variable)) +
+    ggplot2$geom_line(linewidth = 0.8) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$labs(
+        title = "Ridge Regression Coefficient Path",
+        subtitle = "All coefficients shrink toward zero but never reach exactly zero",
+        x = "log(λ)",
+        y = "Coefficient Value",
+        colour = "Predictor"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "right")
+```
+
+<Figure src="/courses/statistics-3-advanced/ridge_path-1.png" alt="Ridge regression shrinks coefficients toward zero as λ increases">
+	Ridge regression shrinks coefficients toward zero as λ increases
+</Figure>
+
+### 1.3.3 Choosing λ via Cross-Validation
+
+**Prose and Intuition**
+
+The regularisation parameter $\lambda$ controls the bias-variance trade-off. Too small: overfitting (high variance). Too large: underfitting (high bias).
+
+**Cross-validation** estimates prediction error for different $\lambda$ values and selects the one that minimises error.
+
+
+``` r
+# Cross-validation for ridge
+set.seed(42)
+cv_ridge <- cv.glmnet(X, y, family = "binomial", alpha = 0, nfolds = 10)
+
+cat("Cross-Validation Results:\n")
+cat("=========================\n")
+cat("  Lambda.min:", round(cv_ridge$lambda.min, 4), "\n")
+cat("  Lambda.1se:", round(cv_ridge$lambda.1se, 4), "\n")
+
+# Plot CV curve
+cv_dt <- data.table(
+    lambda = cv_ridge$lambda,
+    cvm = cv_ridge$cvm,  # Mean CV error
+    cvup = cv_ridge$cvup,
+    cvlo = cv_ridge$cvlo
+)
+
+ggplot2$ggplot(cv_dt, ggplot2$aes(x = log(lambda), y = cvm)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = cvlo, ymax = cvup), fill = "#0072B2", alpha = 0.2) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = log(cv_ridge$lambda.min), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_vline(xintercept = log(cv_ridge$lambda.1se), linetype = "dotted", colour = "#009E73") +
+    ggplot2$annotate("text", x = log(cv_ridge$lambda.min), y = max(cv_dt$cvup),
+                     label = "λ.min", colour = "#D55E00", hjust = -0.1, vjust = 1) +
+    ggplot2$annotate("text", x = log(cv_ridge$lambda.1se), y = max(cv_dt$cvup),
+                     label = "λ.1se", colour = "#009E73", hjust = -0.1, vjust = 1) +
+    ggplot2$labs(
+        title = "Cross-Validation for Ridge Regression",
+        subtitle = "Shaded region: ±1 SE; λ.min minimises error; λ.1se is most regularised within 1 SE",
+        x = "log(λ)",
+        y = "Binomial Deviance (CV Error)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-3-advanced/ridge_cv-1.png" alt="Cross-validation selects the optimal regularisation parameter">
+	Cross-validation selects the optimal regularisation parameter
+</Figure>
+
+```
+#> Cross-Validation Results:
+#> =========================
+#>   Lambda.min: 0.0375 
+#>   Lambda.1se: 0.0598
+```
+
+### 1.3.4 Interpreting the Results
+
+
+``` r
+# Extract coefficients at optimal lambda
+coef_min <- coef(cv_ridge, s = "lambda.min")
+coef_1se <- coef(cv_ridge, s = "lambda.1se")
+
+# Compare to OLS (using very small lambda as proxy)
+coef_ols <- coef(cv_ridge, s = min(cv_ridge$lambda))
+
+# Create comparison table
+coef_comparison <- data.table(
+    Variable = c("(Intercept)", gsub("mean_", "", feature_cols)),
+    OLS = round(as.vector(coef_ols), 4),
+    Ridge_min = round(as.vector(coef_min), 4),
+    Ridge_1se = round(as.vector(coef_1se), 4)
+)
+
+cat("Coefficient Comparison:\n")
+cat("=======================\n\n")
+print(coef_comparison)
+
+cat("\nShrinkage Factor (Ridge.1se / OLS):\n")
+shrinkage <- coef_comparison[-1, .(
+    Variable,
+    Shrinkage = round(Ridge_1se / OLS, 2)
+)]
+print(shrinkage[order(abs(Shrinkage))])
+```
+
+```
+#> Coefficient Comparison:
+#> =======================
+#> 
+#>              Variable      OLS Ridge_min Ridge_1se
+#>                <char>    <num>     <num>     <num>
+#>  1:       (Intercept) -13.6045  -13.6045  -11.9307
+#>  2:            radius   0.1751    0.1751    0.1542
+#>  3:           texture   0.1508    0.1508    0.1240
+#>  4:         perimeter   0.0251    0.0251    0.0222
+#>  5:              area   0.0017    0.0017    0.0014
+#>  6:        smoothness  26.8199   26.8199   21.7290
+#>  7:       compactness   5.3622    5.3622    5.3929
+#>  8:         concavity   6.6229    6.6229    5.8031
+#>  9:    concave_points  18.0664   18.0664   15.4379
+#> 10:          symmetry   8.9208    8.9208    7.8031
+#> 11: fractal_dimension -32.0852  -32.0852  -25.1800
+#> 
+#> Shrinkage Factor (Ridge.1se / OLS):
+#>              Variable Shrinkage
+#>                <char>     <num>
+#>  1: fractal_dimension      0.78
+#>  2:        smoothness      0.81
+#>  3:           texture      0.82
+#>  4:              area      0.82
+#>  5:    concave_points      0.85
+#>  6:          symmetry      0.87
+#>  7:            radius      0.88
+#>  8:         perimeter      0.88
+#>  9:         concavity      0.88
+#> 10:       compactness      1.01
+```
+
+---
+
+## 1.4 Ridge Regression Theory
+
+### 1.4.1 Connection to Bayesian Regression
+
+**Prose and Intuition**
+
+Ridge regression has a beautiful Bayesian interpretation. If we place a **Gaussian prior** on the coefficients:
+$$\beta_j \sim N(0, \tau^2)$$
+
+then the ridge estimator is the **posterior mode** (MAP estimate) under this prior.
+
+The penalty $\lambda = \sigma^2/\tau^2$ relates the error variance to the prior variance. Larger $\lambda$ means a tighter prior (more shrinkage).
+
+**Mathematical Derivation**
+
+The posterior of $\boldsymbol{\beta}$ given the data:
+$$p(\boldsymbol{\beta}|\mathbf{y}, \mathbf{X}) \propto p(\mathbf{y}|\mathbf{X}, \boldsymbol{\beta}) \cdot p(\boldsymbol{\beta})$$
+
+With Gaussian likelihood and Gaussian prior:
+$$\log p(\boldsymbol{\beta}|\mathbf{y}, \mathbf{X}) \propto -\frac{1}{2\sigma^2}(\mathbf{y} - \mathbf{X}\boldsymbol{\beta})'(\mathbf{y} - \mathbf{X}\boldsymbol{\beta}) - \frac{1}{2\tau^2}\boldsymbol{\beta}'\boldsymbol{\beta}$$
+
+Maximising this is equivalent to minimising:
+$$(\mathbf{y} - \mathbf{X}\boldsymbol{\beta})'(\mathbf{y} - \mathbf{X}\boldsymbol{\beta}) + \frac{\sigma^2}{\tau^2}\boldsymbol{\beta}'\boldsymbol{\beta}$$
+
+which is exactly the ridge objective with $\lambda = \sigma^2/\tau^2$.
+
+### 1.4.2 Effective Degrees of Freedom
+
+**Prose and Intuition**
+
+In OLS, the degrees of freedom used by the model equals the number of predictors $p$. In ridge regression, the penalty reduces the effective complexity.
+
+The **effective degrees of freedom** for ridge:
+$$\text{df}(\lambda) = \text{tr}[\mathbf{X}(\mathbf{X}'\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}'] = \sum_{j=1}^{p}\frac{d_j^2}{d_j^2 + \lambda}$$
+
+where $d_j$ are the singular values of $\mathbf{X}$.
+
+As $\lambda \to 0$: $\text{df} \to p$ (OLS complexity)
+As $\lambda \to \infty$: $\text{df} \to 0$ (null model)
+
+
+``` r
+# Calculate effective degrees of freedom
+# Using SVD of X
+X_centered <- scale(X, center = TRUE, scale = FALSE)
+svd_X <- svd(X_centered)
+d_squared <- svd_X$d^2
+
+lambda_seq <- exp(seq(log(0.001), log(1000), length.out = 100))
+eff_df <- sapply(lambda_seq, function(lam) {
+    sum(d_squared / (d_squared + lam))
+})
+
+df_dt <- data.table(
+    lambda = lambda_seq,
+    effective_df = eff_df
+)
+
+ggplot2$ggplot(df_dt, ggplot2$aes(x = log(lambda), y = effective_df)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$geom_hline(yintercept = ncol(X), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$annotate("text", x = min(log(lambda_seq)), y = ncol(X) + 0.3,
+                     label = paste("p =", ncol(X)), colour = "#D55E00", hjust = 0) +
+    ggplot2$labs(
+        title = "Effective Degrees of Freedom in Ridge Regression",
+        subtitle = "Regularisation reduces model complexity; df ranges from p (OLS) to 0",
+        x = "log(λ)",
+        y = "Effective Degrees of Freedom"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-3-advanced/effective_df-1.png" alt="Effective degrees of freedom decreases as regularisation increases">
+	Effective degrees of freedom decreases as regularisation increases
+</Figure>
+
+---
+
+## 1.5 Communicating to Stakeholders
+
+### 1.5.1 Clinical Example: Cancer Diagnosis
+
+**Scenario**: A pathology team wants to develop a predictive model for breast cancer diagnosis using cell morphology measurements. With 10 predictors and potential correlations among them, they're concerned about model stability.
+
+**Non-technical summary**:
+
+> "We developed a predictive model for breast cancer diagnosis using 10 microscopic measurements of cell nuclei. Rather than using standard regression, we employed **ridge regression**, a technique that produces more stable and reliable predictions when measurements are correlated.
+>
+> **Why ridge regression?** Standard regression can be unstable when predictors are related to each other (as cell measurements often are). Ridge regression adds a 'shrinkage' constraint that produces more reliable predictions, especially for new patients.
+>
+> **Results**: Using 10-fold cross-validation, we identified the optimal model complexity. The ridge model shows:
+> - More stable coefficient estimates
+> - Better generalisation to new data
+> - All predictors contribute to prediction (none excluded)
+>
+> **Key predictors**: Tumour concavity and concave points show the strongest associations with malignancy, consistent with clinical knowledge that irregular cell shapes indicate cancer.
+>
+> **Clinical implication**: This model can serve as a decision support tool for pathologists, providing a probability of malignancy based on objective measurements. The ridge approach ensures predictions remain stable even when some measurements are missing or uncertain."
+
+
+``` r
+library(patchwork)
+```
+
+```
+#> 
+#> Attaching package: 'patchwork'
+```
+
+```
+#> The following object is masked from 'package:MASS':
+#> 
+#>     area
+```
+
+``` r
+# Panel A: Coefficient path
+p_path <- ggplot2$ggplot(path_dt, ggplot2$aes(x = log(lambda), y = coefficient, colour = variable)) +
+    ggplot2$geom_line(linewidth = 0.7) +
+    ggplot2$geom_vline(xintercept = log(cv_ridge$lambda.1se), linetype = "dashed", colour = "grey40") +
+    ggplot2$labs(title = "A. Coefficient Shrinkage Path",
+                 x = "log(λ)", y = "Coefficient", colour = "") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "right",
+                  legend.text = ggplot2$element_text(size = 7))
+
+# Panel B: CV curve
+p_cv <- ggplot2$ggplot(cv_dt, ggplot2$aes(x = log(lambda), y = cvm)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = cvlo, ymax = cvup), fill = "#0072B2", alpha = 0.2) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = log(cv_ridge$lambda.min), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_vline(xintercept = log(cv_ridge$lambda.1se), linetype = "dotted", colour = "#009E73") +
+    ggplot2$labs(title = "B. Cross-Validation Error",
+                 x = "log(λ)", y = "CV Deviance") +
+    ggplot2$theme_minimal()
+
+# Panel C: Final coefficients
+coef_final <- data.table(
+    Variable = gsub("mean_", "", feature_cols),
+    Coefficient = as.vector(coef_1se)[-1]
+)
+coef_final <- coef_final[order(-abs(Coefficient))]
+coef_final[, Variable := factor(Variable, levels = Variable)]
+
+p_coef <- ggplot2$ggplot(coef_final, ggplot2$aes(x = Variable, y = Coefficient,
+                                                   fill = Coefficient > 0)) +
+    ggplot2$geom_col() +
+    ggplot2$scale_fill_manual(values = c("TRUE" = "#D55E00", "FALSE" = "#0072B2"), guide = "none") +
+    ggplot2$coord_flip() +
+    ggplot2$labs(title = "C. Ridge Coefficients (λ.1se)",
+                 x = "", y = "Coefficient") +
+    ggplot2$theme_minimal()
+
+# Combine
+(p_path / p_cv) | p_coef +
+    patchwork::plot_annotation(
+        title = "Ridge Regression for Breast Cancer Diagnosis",
+        subtitle = sprintf("n = %d tumours, p = %d predictors, optimal λ = %.3f",
+                           nrow(X), ncol(X), cv_ridge$lambda.1se)
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/publication_figure-1.png" alt="Ridge regression analysis of breast cancer predictors">
+	Ridge regression analysis of breast cancer predictors
+</Figure>
+
+---
+
+## Summary
+
+Ridge regression addresses the variance explosion problem in high-dimensional or correlated data:
+
+| Concept | Key Points |
+|---------|------------|
+| **Problem** | OLS variance explodes with multicollinearity or high dimensions |
+| **Ridge penalty** | $\lambda \sum \beta_j^2$ shrinks coefficients toward zero |
+| **Solution** | $\hat{\boldsymbol{\beta}} = (\mathbf{X}'\mathbf{X} + \lambda\mathbf{I})^{-1}\mathbf{X}'\mathbf{y}$ |
+| **Bias-variance** | Ridge trades bias for reduced variance |
+| **Bayesian view** | Equivalent to Gaussian prior on coefficients |
+| **Effective df** | $\sum d_j^2/(d_j^2 + \lambda)$ measures model complexity |
+| **λ selection** | Cross-validation minimises prediction error |
+
+**Key practical points**:
+1. Always standardise predictors before ridge regression
+2. Use cross-validation to select λ
+3. λ.1se often preferred for parsimony (more regularisation)
+4. Ridge shrinks but never eliminates coefficients
+5. Particularly useful when predictors are correlated
+
+The next section introduces LASSO regression, which can shrink coefficients exactly to zero, performing variable selection alongside regularisation.

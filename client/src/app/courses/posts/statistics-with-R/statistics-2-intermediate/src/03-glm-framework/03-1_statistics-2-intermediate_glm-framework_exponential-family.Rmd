@@ -1,0 +1,586 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 3: Generalised Linear Models Framework"
+part: "Part 1: The Exponential Family and Link Functions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, GLM, exponential-family, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Chapter 3: Generalised Linear Models Framework
+
+Linear regression assumes a continuous response with normally distributed errors. But what about binary outcomes (disease/no disease), counts (number of adverse events), or proportions? The **Generalised Linear Model (GLM)** framework elegantly extends regression to handle all these cases within a unified theory.
+
+This chapter develops the mathematical foundation: the exponential family of distributions, link functions that connect the mean to predictors, and maximum likelihood estimation. Understanding this framework is essential for the logistic regression and count models that follow.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+doctor_visits <- fread("../../../data/count/nmes1988_doctor_visits.csv")
+
+cat("Datasets loaded:\n")
+cat("  NHANES:", nrow(nhanes), "observations\n")
+cat("  Doctor Visits (NMES):", nrow(doctor_visits), "observations\n")
+```
+
+---
+
+## Table of Contents
+
+## 1.1 Beyond Linear Regression
+
+### 1.1.1 The Problem with Non-Normal Responses
+
+**Prose and Intuition**
+
+In Chapters 1–2, we modelled continuous responses like blood pressure. But many biomedical outcomes are not continuous:
+
+- **Binary**: Disease present/absent, treatment success/failure
+- **Counts**: Number of doctor visits, adverse events, mutations
+- **Proportions**: Percentage of cells responding, survival rates
+- **Positive continuous**: Length of stay, costs, concentrations
+
+Standard linear regression fails for these:
+
+1. **Predictions can be impossible**: Linear regression might predict negative counts or probabilities > 1
+2. **Variance assumptions are wrong**: Binary data has variance p(1-p), counts often have variance > mean
+3. **Relationships aren't linear**: A probability can't increase linearly forever
+
+```{r problems_illustration, fig.cap="Why linear regression fails for binary outcomes"}
+# Prepare diabetes data (binary outcome)
+diabetes_data <- nhanes[!is.na(Diabetes) & !is.na(Age) & !is.na(BMI) & Age >= 18,
+                        .(Diabetic = as.integer(Diabetes == "Yes"),
+                          Age = Age, BMI = BMI)]
+diabetes_data <- diabetes_data[complete.cases(diabetes_data)]
+
+cat("Diabetes Data:\n")
+cat("=============\n")
+cat("n =", nrow(diabetes_data), "\n")
+cat("Prevalence:", round(mean(diabetes_data$Diabetic) * 100, 1), "%\n\n")
+
+# Fit linear regression (wrong approach)
+model_linear <- lm(Diabetic ~ Age, data = diabetes_data)
+
+# Predict across age range
+age_seq <- data.table(Age = seq(18, 85, by = 1))
+age_seq[, linear_pred := predict(model_linear, newdata = .SD)]
+
+# Show the problem
+cat("Linear Regression Problems:\n")
+cat("  Predicted probability at age 20:", round(predict(model_linear, newdata = data.frame(Age = 20)), 3), "\n")
+cat("  Predicted probability at age 85:", round(predict(model_linear, newdata = data.frame(Age = 85)), 3), "\n")
+cat("  Min prediction:", round(min(age_seq$linear_pred), 3), "\n")
+cat("  Max prediction:", round(max(age_seq$linear_pred), 3), "\n")
+
+# Visualise the problem
+ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 2000))],
+               ggplot2$aes(x = Age, y = Diabetic)) +
+    ggplot2$geom_jitter(height = 0.05, alpha = 0.2, width = 0) +
+    ggplot2$geom_line(data = age_seq, ggplot2$aes(y = linear_pred),
+                      colour = "#D55E00", size = 1.2) +
+    ggplot2$geom_hline(yintercept = c(0, 1), linetype = "dashed", alpha = 0.5) +
+    ggplot2$labs(
+        title = "Linear Regression for Binary Outcome: Problems",
+        subtitle = "Predictions can exceed [0, 1] bounds",
+        x = "Age (years)",
+        y = "Diabetic (0/1)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.1.2 The GLM Solution
+
+**Prose and Intuition**
+
+The GLM framework solves these problems by:
+
+1. **Allowing non-normal distributions**: The response can follow any exponential family distribution (binomial, Poisson, gamma, etc.)
+
+2. **Using a link function**: Instead of modelling $E(Y)$ directly, we model a transformed version $g(E(Y)) = \mathbf{X}\boldsymbol{\beta}$
+
+3. **Relating variance to mean**: The variance is a function of the mean, not a constant
+
+**The three components of a GLM:**
+1. **Random component**: Distribution of Y (exponential family)
+2. **Systematic component**: Linear predictor $\eta = \mathbf{X}\boldsymbol{\beta}$
+3. **Link function**: $g(\mu) = \eta$, connecting mean to linear predictor
+
+---
+
+## 1.2 The Exponential Family
+
+### 1.2.1 Definition
+
+**Mathematical Definition**
+
+A distribution belongs to the **exponential family** if its density/mass function can be written as:
+$$f(y; \theta, \phi) = \exp\left\{\frac{y\theta - b(\theta)}{a(\phi)} + c(y, \phi)\right\}$$
+
+where:
+- $\theta$ is the **canonical parameter** (related to the mean)
+- $\phi$ is the **dispersion parameter** (related to variance)
+- $b(\theta)$ is the **cumulant function**
+- $a(\phi)$ and $c(y, \phi)$ are known functions
+
+**Key property**: The mean and variance are determined by derivatives of $b(\theta)$:
+$$E(Y) = \mu = b'(\theta)$$
+$$\text{Var}(Y) = a(\phi) \cdot b''(\theta) = a(\phi) \cdot V(\mu)$$
+
+where $V(\mu)$ is the **variance function**.
+
+### 1.2.2 Common Exponential Family Members
+
+**Normal Distribution**
+
+$$f(y; \mu, \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left\{-\frac{(y-\mu)^2}{2\sigma^2}\right\}$$
+
+Rewriting in exponential family form:
+$$f(y; \mu, \sigma^2) = \exp\left\{\frac{y\mu - \mu^2/2}{\sigma^2} - \frac{y^2}{2\sigma^2} - \frac{1}{2}\log(2\pi\sigma^2)\right\}$$
+
+- Canonical parameter: $\theta = \mu$
+- Cumulant function: $b(\theta) = \theta^2/2$
+- Dispersion: $a(\phi) = \sigma^2$
+- Variance function: $V(\mu) = 1$ (constant variance)
+
+**Binomial Distribution**
+
+For $Y \sim \text{Binomial}(n, p)$, the PMF of $Y/n$ can be written:
+$$f(y; p) = \exp\left\{y \log\frac{p}{1-p} + n\log(1-p) + \log\binom{n}{ny}\right\}$$
+
+- Canonical parameter: $\theta = \log\frac{p}{1-p}$ (log-odds)
+- Mean: $\mu = p$
+- Variance function: $V(\mu) = \mu(1-\mu)$
+
+**Poisson Distribution**
+
+For $Y \sim \text{Poisson}(\lambda)$:
+$$f(y; \lambda) = \frac{\lambda^y e^{-\lambda}}{y!} = \exp\{y\log\lambda - \lambda - \log(y!)\}$$
+
+- Canonical parameter: $\theta = \log\lambda$
+- Mean: $\mu = \lambda$
+- Variance function: $V(\mu) = \mu$
+
+```{r exponential_family, fig.cap="Variance functions for different exponential family distributions"}
+# Visualise variance functions
+mu_seq <- seq(0.01, 0.99, by = 0.01)
+
+variance_dt <- data.table(
+    mu = rep(mu_seq, 3),
+    Distribution = rep(c("Normal", "Binomial", "Poisson"), each = length(mu_seq)),
+    Variance = c(rep(1, length(mu_seq)),                    # Normal: V(μ) = constant
+                 mu_seq * (1 - mu_seq),                      # Binomial: V(μ) = μ(1-μ)
+                 mu_seq)                                     # Poisson: V(μ) = μ
+)
+
+# Scale for visualisation
+variance_dt[Distribution == "Poisson", Variance := Variance / max(Variance) * 0.25]
+
+ggplot2$ggplot(variance_dt, ggplot2$aes(x = mu, y = Variance, colour = Distribution)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_manual(values = c("Normal" = "#0072B2",
+                                            "Binomial" = "#D55E00",
+                                            "Poisson" = "#009E73")) +
+    ggplot2$labs(
+        title = "Variance Functions for Exponential Family Distributions",
+        subtitle = "Normal: constant | Binomial: μ(1-μ) | Poisson: μ",
+        x = "Mean (μ)",
+        y = "Variance (scaled for display)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.2.3 Summary Table
+
+```{r exponential_family_table}
+exp_fam_dt <- data.table(
+    Distribution = c("Normal", "Binomial", "Poisson", "Gamma", "Inverse Gaussian"),
+    `Canonical Link` = c("Identity (μ)", "Logit (log(p/(1-p)))", "Log (log λ)",
+                         "Inverse (-1/μ)", "-1/μ²"),
+    `Variance Function` = c("1 (constant)", "μ(1-μ)", "μ", "μ²", "μ³"),
+    `Common Use` = c("Continuous", "Binary/Proportions", "Counts",
+                     "Positive continuous", "Positive continuous")
+)
+
+cat("Exponential Family Summary:\n")
+cat("===========================\n\n")
+print(exp_fam_dt)
+```
+
+---
+
+## 1.3 Link Functions
+
+### 1.3.1 The Concept
+
+**Prose and Intuition**
+
+The **link function** $g$ connects the mean response $\mu$ to the linear predictor $\eta$:
+$$g(\mu) = \eta = \mathbf{X}\boldsymbol{\beta}$$
+
+The link function serves two purposes:
+1. **Constrains predictions**: Ensures predictions stay in valid range (e.g., [0,1] for probabilities)
+2. **Linearises the relationship**: Transforms a nonlinear relationship to linear on the link scale
+
+The **inverse link function** $g^{-1}$ gives us back the mean:
+$$\mu = g^{-1}(\eta) = g^{-1}(\mathbf{X}\boldsymbol{\beta})$$
+
+### 1.3.2 Common Link Functions
+
+**Identity Link**
+
+$$g(\mu) = \mu$$
+
+- Used for: Normal (Gaussian) response
+- Range of $\mu$: $(-\infty, \infty)$
+- This is standard linear regression
+
+**Logit Link**
+
+$$g(\mu) = \log\frac{\mu}{1-\mu}$$
+
+- Used for: Binary outcomes (logistic regression)
+- Range of $\mu$: $(0, 1)$ — perfect for probabilities
+- Inverse: $\mu = \frac{e^\eta}{1 + e^\eta} = \frac{1}{1 + e^{-\eta}}$
+
+**Log Link**
+
+$$g(\mu) = \log(\mu)$$
+
+- Used for: Count data (Poisson regression)
+- Range of $\mu$: $(0, \infty)$ — perfect for positive counts
+- Inverse: $\mu = e^\eta$
+
+**Probit Link**
+
+$$g(\mu) = \Phi^{-1}(\mu)$$
+
+where $\Phi^{-1}$ is the standard normal quantile function.
+
+- Used for: Binary outcomes (alternative to logit)
+- Range of $\mu$: $(0, 1)$
+
+```{r link_functions, fig.cap="Common link functions and their inverse"}
+# Visualise link functions
+eta_seq <- seq(-5, 5, by = 0.1)
+mu_seq <- seq(0.001, 0.999, by = 0.001)
+
+# Inverse link functions (what we use for prediction)
+link_dt <- data.table(
+    eta = rep(eta_seq, 3),
+    Link = rep(c("Identity", "Logit", "Probit"), each = length(eta_seq)),
+    mu = c(eta_seq,                              # Identity: μ = η
+           1 / (1 + exp(-eta_seq)),              # Logit: μ = 1/(1+exp(-η))
+           pnorm(eta_seq))                        # Probit: μ = Φ(η)
+)
+
+ggplot2$ggplot(link_dt, ggplot2$aes(x = eta, y = mu, colour = Link)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_manual(values = c("Identity" = "#0072B2",
+                                            "Logit" = "#D55E00",
+                                            "Probit" = "#009E73")) +
+    ggplot2$geom_hline(yintercept = c(0, 1), linetype = "dashed", alpha = 0.5) +
+    ggplot2$coord_cartesian(ylim = c(-0.5, 1.5)) +
+    ggplot2$labs(
+        title = "Inverse Link Functions: From Linear Predictor to Mean",
+        subtitle = "Logit and probit constrain μ to (0, 1)",
+        x = "Linear Predictor (η)",
+        y = "Mean Response (μ)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.3.3 Canonical Links
+
+**Prose and Intuition**
+
+The **canonical link** is the link function where the canonical parameter equals the linear predictor: $\theta = \eta$.
+
+Using the canonical link simplifies the mathematics and ensures certain nice properties (like uniqueness of MLE), but it's not always required.
+
+| Distribution | Canonical Link | Alternative Links |
+|--------------|----------------|-------------------|
+| Normal | Identity | — |
+| Binomial | Logit | Probit, complementary log-log |
+| Poisson | Log | Identity (for small counts), sqrt |
+| Gamma | Inverse | Log, identity |
+
+```{r canonical_links}
+cat("Canonical Links:\n")
+cat("================\n\n")
+cat("The canonical link is special because θ = η.\n\n")
+cat("Distribution   Canonical Link    Why?\n")
+cat("-----------    --------------    ----\n")
+cat("Normal         g(μ) = μ          θ = μ for normal\n")
+cat("Binomial       g(μ) = logit(μ)   θ = log(μ/(1-μ))\n")
+cat("Poisson        g(μ) = log(μ)     θ = log(μ)\n")
+cat("Gamma          g(μ) = -1/μ       θ = -1/μ\n")
+```
+
+---
+
+## 1.4 The GLM Model
+
+### 1.4.1 Putting It Together
+
+**Mathematical Definition**
+
+A **Generalised Linear Model** consists of:
+
+1. **Random Component**: $Y_i$ independently distributed from exponential family with mean $\mu_i$
+
+2. **Systematic Component**: Linear predictor
+$$\eta_i = \beta_0 + \beta_1 X_{i1} + \cdots + \beta_p X_{ip} = \mathbf{x}_i'\boldsymbol{\beta}$$
+
+3. **Link Function**: Connects mean to linear predictor
+$$g(\mu_i) = \eta_i$$
+
+**Key difference from linear regression:**
+- Linear regression: $E(Y_i) = \mathbf{x}_i'\boldsymbol{\beta}$ directly
+- GLM: $g(E(Y_i)) = \mathbf{x}_i'\boldsymbol{\beta}$ through a link
+
+### 1.4.2 Coefficient Interpretation
+
+**Prose and Intuition**
+
+In a GLM, coefficients are interpreted on the **link scale**, not the response scale.
+
+**For logistic regression** (logit link):
+- $\beta_j$ is the change in log-odds for a one-unit increase in $X_j$
+- $e^{\beta_j}$ is the odds ratio
+
+**For Poisson regression** (log link):
+- $\beta_j$ is the change in log-count for a one-unit increase in $X_j$
+- $e^{\beta_j}$ is the multiplicative effect (rate ratio)
+
+```{r glm_example, fig.cap="Comparing linear model to logistic GLM"}
+# Fit logistic regression (proper approach)
+model_logistic <- glm(Diabetic ~ Age, data = diabetes_data, family = binomial(link = "logit"))
+
+# Predictions on probability scale
+age_seq[, logistic_pred := predict(model_logistic, newdata = .SD, type = "response")]
+
+cat("GLM (Logistic) vs Linear Regression:\n")
+cat("====================================\n\n")
+cat("Linear model (wrong):\n")
+print(coef(model_linear))
+cat("\nLogistic model (correct):\n")
+print(coef(model_logistic))
+cat("\nOdds ratio for Age:", round(exp(coef(model_logistic)["Age"]), 4), "\n")
+cat("Interpretation: Each year of age multiplies the odds of diabetes by",
+    round(exp(coef(model_logistic)["Age"]), 3), "\n")
+
+# Visualise comparison
+ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 2000))],
+               ggplot2$aes(x = Age, y = Diabetic)) +
+    ggplot2$geom_jitter(height = 0.05, alpha = 0.2, width = 0) +
+    ggplot2$geom_line(data = age_seq, ggplot2$aes(y = linear_pred),
+                      colour = "#D55E00", size = 1, linetype = "dashed") +
+    ggplot2$geom_line(data = age_seq, ggplot2$aes(y = logistic_pred),
+                      colour = "#0072B2", size = 1.2) +
+    ggplot2$geom_hline(yintercept = c(0, 1), linetype = "dotted", alpha = 0.5) +
+    ggplot2$labs(
+        title = "Linear vs Logistic Regression for Binary Outcome",
+        subtitle = "Orange dashed: linear (wrong) | Blue: logistic (correct)",
+        x = "Age (years)",
+        y = "P(Diabetic)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 1.5 GLM Families in R
+
+### 1.5.1 The `family` Argument
+
+**Prose and Intuition**
+
+In R, the `glm()` function uses the `family` argument to specify the distribution and link:
+
+```r
+glm(Y ~ X, data = mydata, family = binomial(link = "logit"))
+```
+
+Common families:
+- `gaussian(link = "identity")` — Normal, identity (same as `lm()`)
+- `binomial(link = "logit")` — Binomial, logit (logistic regression)
+- `binomial(link = "probit")` — Binomial, probit
+- `poisson(link = "log")` — Poisson, log
+- `Gamma(link = "inverse")` — Gamma, inverse
+- `Gamma(link = "log")` — Gamma, log
+
+```{r glm_families, fig.cap="Different GLM families for the same data"}
+# Prepare count data (doctor visits)
+visits_data <- doctor_visits[!is.na(visits) & !is.na(age),
+                             .(visits = visits, age = age, health = health)]
+visits_data <- visits_data[complete.cases(visits_data)]
+visits_data[, health_poor := as.integer(health == "poor")]
+
+cat("Doctor Visits Data:\n")
+cat("===================\n")
+cat("n =", nrow(visits_data), "\n")
+cat("Mean visits:", round(mean(visits_data$visits), 2), "\n")
+cat("Variance of visits:", round(var(visits_data$visits), 2), "\n")
+cat("Note: Variance >> Mean suggests overdispersion\n\n")
+
+# Fit different models
+model_linear <- lm(visits ~ age + health_poor, data = visits_data)
+model_poisson <- glm(visits ~ age + health_poor, data = visits_data, family = poisson)
+
+cat("Linear Model (Gaussian):\n")
+print(coef(model_linear))
+
+cat("\nPoisson Model (Log link):\n")
+print(coef(model_poisson))
+cat("\nRate ratios:\n")
+cat("  Age:", round(exp(coef(model_poisson)["age"]), 4), "\n")
+cat("  Poor health:", round(exp(coef(model_poisson)["health_poor"]), 2), "\n")
+cat("  Interpretation: Poor health multiplies expected visits by",
+    round(exp(coef(model_poisson)["health_poor"]), 2), "\n")
+```
+
+### 1.5.2 Model Summary
+
+```{r glm_summary}
+# Full summary of Poisson model
+cat("Poisson GLM Summary:\n")
+cat("====================\n\n")
+print(summary(model_poisson))
+```
+
+---
+
+## 1.6 When to Use Which GLM
+
+```{r glm_decision_tree}
+cat("GLM Selection Guide:\n")
+cat("====================\n\n")
+
+cat("1. RESPONSE TYPE: Binary (0/1, yes/no, success/failure)\n")
+cat("   → Family: binomial\n")
+cat("   → Links: logit (most common), probit, cloglog\n")
+cat("   → Examples: Disease status, treatment response, mortality\n\n")
+
+cat("2. RESPONSE TYPE: Counts (0, 1, 2, 3, ...)\n")
+cat("   → Family: poisson (if variance ≈ mean)\n")
+cat("   → Family: quasipoisson or negative.binomial (if variance > mean)\n")
+cat("   → Link: log\n")
+cat("   → Examples: Doctor visits, mutations, adverse events\n\n")
+
+cat("3. RESPONSE TYPE: Positive continuous (costs, times, concentrations)\n")
+cat("   → Family: Gamma (if variance ∝ mean²)\n")
+cat("   → Link: log (most interpretable) or inverse (canonical)\n")
+cat("   → Examples: Hospital costs, survival times, drug concentrations\n\n")
+
+cat("4. RESPONSE TYPE: Continuous, unbounded\n")
+cat("   → Family: gaussian (= normal linear regression)\n")
+cat("   → Link: identity\n")
+cat("   → Examples: Blood pressure, BMI, test scores\n\n")
+
+cat("5. RESPONSE TYPE: Proportion (between 0 and 1)\n")
+cat("   → Family: quasibinomial or beta regression\n")
+cat("   → Link: logit\n")
+cat("   → Examples: Percentage of cells responding\n")
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining GLMs
+
+**For Clinical Collaborators:**
+
+"Standard regression assumes the outcome follows a bell curve (normal distribution), but many medical outcomes don't work that way:
+
+- **Disease presence**: Either yes or no — not a continuous scale
+- **Hospital visits**: Can only be 0, 1, 2, etc. — no fractions or negatives
+- **Treatment costs**: Always positive, often right-skewed
+
+Generalised Linear Models let us handle these situations properly. Instead of predicting the outcome directly, we predict a transformed version that respects the outcome's natural constraints.
+
+For example, when predicting diabetes risk:
+- A regular model might predict probabilities like -0.1 or 1.3, which are impossible
+- A logistic model always predicts probabilities between 0 and 1
+
+The results are also more interpretable:
+- Each year of age increases the *odds* of diabetes by about 5%
+- This is more meaningful than saying 'adds 0.01 to the probability' because the effect isn't constant — going from 1% to 2% is a doubling, while going from 50% to 51% is tiny."
+
+---
+
+## Quick Reference
+
+### Exponential Family Form
+
+$$f(y; \theta, \phi) = \exp\left\{\frac{y\theta - b(\theta)}{a(\phi)} + c(y, \phi)\right\}$$
+
+- Mean: $\mu = b'(\theta)$
+- Variance: $\text{Var}(Y) = a(\phi) \cdot b''(\theta)$
+
+### GLM Components
+
+| Component | Description |
+|-----------|-------------|
+| Random | $Y_i \sim$ exponential family distribution |
+| Systematic | $\eta_i = \mathbf{x}_i'\boldsymbol{\beta}$ (linear predictor) |
+| Link | $g(\mu_i) = \eta_i$ |
+
+### Common GLM Specifications
+
+| Response | Family | Link | R Code |
+|----------|--------|------|--------|
+| Continuous | `gaussian` | identity | `lm()` or `glm(..., family = gaussian)` |
+| Binary | `binomial` | logit | `glm(..., family = binomial)` |
+| Count | `poisson` | log | `glm(..., family = poisson)` |
+| Positive continuous | `Gamma` | log | `glm(..., family = Gamma(link = "log"))` |
+
+### R Code Patterns
+
+```r
+# Logistic regression
+model <- glm(Y ~ X1 + X2, data = mydata, family = binomial)
+
+# Poisson regression
+model <- glm(Y ~ X1 + X2, data = mydata, family = poisson)
+
+# Gamma regression with log link
+model <- glm(Y ~ X1 + X2, data = mydata, family = Gamma(link = "log"))
+
+# Predictions on response scale
+predict(model, type = "response")
+
+# Predictions on link scale
+predict(model, type = "link")
+
+# Coefficients as odds/rate ratios
+exp(coef(model))
+exp(confint(model))
+```

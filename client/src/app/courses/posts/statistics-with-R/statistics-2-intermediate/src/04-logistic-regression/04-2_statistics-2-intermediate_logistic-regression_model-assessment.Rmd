@@ -1,0 +1,700 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 4: Logistic Regression"
+part: "Part 2: Model Assessment and Diagnostics"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, logistic-regression, ROC, AUC, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Part 2: Model Assessment and Diagnostics
+
+How do we know if our logistic regression model is any good? Unlike linear regression where we have R², logistic regression requires different metrics for assessing fit, discrimination, and calibration. This part covers the essential tools for evaluating classification models.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+# Prepare diabetes data
+diabetes_data <- nhanes[!is.na(Diabetes) & !is.na(BMI) & !is.na(Age) & !is.na(Gender) &
+                        !is.na(BPSysAve) & Age >= 18,
+                        .(diabetes = as.integer(Diabetes == "Yes"),
+                          Age = Age, BMI = BMI, Gender = Gender, SBP = BPSysAve)]
+diabetes_data <- diabetes_data[complete.cases(diabetes_data)]
+
+cat("Data prepared:\n")
+cat("  Sample size:", nrow(diabetes_data), "\n")
+cat("  Diabetes cases:", sum(diabetes_data$diabetes), "(",
+    round(100 * mean(diabetes_data$diabetes), 1), "%)\n")
+```
+
+---
+
+## Table of Contents
+
+## 4.6 Model Fit Statistics
+
+### 4.6.1 Deviance and Log-Likelihood
+
+**Prose and Intuition**
+
+In linear regression, we use residual sum of squares to measure fit. In logistic regression (and all GLMs), we use **deviance** — a likelihood-based measure of model fit.
+
+**Mathematical Definition**
+
+The **deviance** compares the fitted model to a *saturated model* (one with a parameter for each observation):
+
+$$D = -2 \log \frac{L(\text{fitted model})}{L(\text{saturated model})} = -2 (\ell_{\text{fitted}} - \ell_{\text{saturated}})$$
+
+For binary data, the saturated model has $\ell = 0$, so:
+
+$$D = -2 \ell_{\text{fitted}} = -2 \sum_{i=1}^n \left[ y_i \log(\hat{p}_i) + (1-y_i) \log(1-\hat{p}_i) \right]$$
+
+Lower deviance = better fit.
+
+```{r deviance_example}
+# Fit models of increasing complexity
+model_null <- glm(diabetes ~ 1, data = diabetes_data, family = binomial)
+model_age <- glm(diabetes ~ Age, data = diabetes_data, family = binomial)
+model_two <- glm(diabetes ~ Age + BMI, data = diabetes_data, family = binomial)
+model_full <- glm(diabetes ~ Age + BMI + Gender + SBP, data = diabetes_data, family = binomial)
+
+cat("Model Comparison by Deviance:\n")
+cat("=============================\n\n")
+
+models <- list(
+    "Null (intercept only)" = model_null,
+    "Age only" = model_age,
+    "Age + BMI" = model_two,
+    "Full model" = model_full
+)
+
+deviance_table <- data.table(
+    Model = names(models),
+    Deviance = sapply(models, deviance),
+    DF_Residual = sapply(models, df.residual),
+    AIC = sapply(models, AIC)
+)
+deviance_table[, Deviance_Reduction := c(NA, -diff(Deviance))]
+
+print(deviance_table[, .(Model, Deviance = round(Deviance, 1),
+                         DF = DF_Residual, AIC = round(AIC, 1),
+                         Reduction = round(Deviance_Reduction, 1))])
+```
+
+### 4.6.2 Likelihood Ratio Test
+
+**Prose and Intuition**
+
+The **likelihood ratio test (LRT)** compares nested models by examining whether the additional parameters significantly improve the fit.
+
+**Mathematical Definition**
+
+$$G^2 = D_{\text{reduced}} - D_{\text{full}} = -2(\ell_{\text{reduced}} - \ell_{\text{full}})$$
+
+Under $H_0$ (reduced model is correct): $G^2 \sim \chi^2_{df}$
+
+where $df$ = difference in number of parameters.
+
+```{r lrt_test}
+cat("Likelihood Ratio Tests:\n")
+cat("=======================\n\n")
+
+# Test: Does BMI add to Age?
+lrt_bmi <- anova(model_age, model_two, test = "Chisq")
+cat("Test: Age vs Age + BMI\n")
+cat("  Chi-square:", round(lrt_bmi$Deviance[2], 2), "\n")
+cat("  df:", lrt_bmi$Df[2], "\n")
+cat("  p-value:", format.pval(lrt_bmi$`Pr(>Chi)`[2]), "\n\n")
+
+# Test: Full model vs Age + BMI
+lrt_full <- anova(model_two, model_full, test = "Chisq")
+cat("Test: Age + BMI vs Full model\n")
+cat("  Chi-square:", round(lrt_full$Deviance[2], 2), "\n")
+cat("  df:", lrt_full$Df[2], "\n")
+cat("  p-value:", format.pval(lrt_full$`Pr(>Chi)`[2]), "\n")
+```
+
+### 4.6.3 Pseudo-R² Measures
+
+**Prose and Intuition**
+
+There's no perfect analogue to R² in logistic regression, but several *pseudo-R²* measures attempt to quantify the proportion of variation explained.
+
+```{r pseudo_r2}
+# Calculate various pseudo-R² measures
+cat("Pseudo-R² Measures:\n")
+cat("===================\n\n")
+
+n <- nrow(diabetes_data)
+
+# McFadden's R²
+loglik_null <- logLik(model_null)
+loglik_full <- logLik(model_full)
+mcfadden_r2 <- 1 - (loglik_full / loglik_null)
+
+# Cox & Snell R²
+cox_snell_r2 <- 1 - exp((2/n) * (loglik_null - loglik_full))
+
+# Nagelkerke's R² (adjusted Cox & Snell)
+nagelkerke_r2 <- cox_snell_r2 / (1 - exp((2/n) * loglik_null))
+
+cat("McFadden's R²:", round(as.numeric(mcfadden_r2), 4), "\n")
+cat("  - Values 0.2-0.4 indicate excellent fit\n\n")
+
+cat("Cox & Snell R²:", round(as.numeric(cox_snell_r2), 4), "\n")
+cat("  - Maximum < 1, hard to interpret\n\n")
+
+cat("Nagelkerke's R²:", round(as.numeric(nagelkerke_r2), 4), "\n")
+cat("  - Adjusted to have max = 1\n")
+```
+
+---
+
+## 4.7 Classification Performance
+
+### 4.7.1 The Classification Table
+
+**Prose and Intuition**
+
+To classify observations, we need a **threshold** probability. If $\hat{p} > c$, predict $Y = 1$; otherwise predict $Y = 0$. The confusion matrix shows how well we classify.
+
+```{r confusion_matrix, fig.cap="Confusion matrix at different thresholds"}
+# Get predictions
+diabetes_data[, pred_prob := predict(model_full, type = "response")]
+
+# Function to create confusion matrix at a given threshold
+confusion_at_threshold <- function(actual, predicted_prob, threshold) {
+    predicted <- as.integer(predicted_prob > threshold)
+    table(Predicted = predicted, Actual = actual)
+}
+
+# Standard threshold of 0.5
+cm_50 <- confusion_at_threshold(diabetes_data$diabetes, diabetes_data$pred_prob, 0.5)
+
+cat("Confusion Matrix (threshold = 0.5):\n")
+cat("====================================\n\n")
+print(cm_50)
+
+# Calculate metrics
+tn <- cm_50[1, 1]
+fp <- cm_50[2, 1]
+fn <- cm_50[1, 2]
+tp <- cm_50[2, 2]
+
+cat("\nPerformance Metrics:\n")
+cat("  Accuracy:", round((tp + tn) / sum(cm_50), 4), "\n")
+cat("  Sensitivity (Recall):", round(tp / (tp + fn), 4), "\n")
+cat("  Specificity:", round(tn / (tn + fp), 4), "\n")
+cat("  Precision (PPV):", round(tp / (tp + fp), 4), "\n")
+cat("  NPV:", round(tn / (tn + fn), 4), "\n")
+```
+
+### 4.7.2 The Sensitivity-Specificity Trade-off
+
+**Prose and Intuition**
+
+Choosing a threshold involves a fundamental trade-off:
+- **Lower threshold**: Catch more true positives (higher sensitivity) but more false positives (lower specificity)
+- **Higher threshold**: Fewer false positives (higher specificity) but miss more cases (lower sensitivity)
+
+The optimal threshold depends on the **costs** of each type of error.
+
+```{r threshold_tradeoff, fig.cap="Sensitivity and specificity vary with classification threshold"}
+# Calculate metrics at different thresholds
+thresholds <- seq(0.01, 0.99, by = 0.01)
+
+threshold_metrics <- rbindlist(lapply(thresholds, function(t) {
+    cm <- confusion_at_threshold(diabetes_data$diabetes, diabetes_data$pred_prob, t)
+
+    # Handle edge cases where confusion matrix might not have all cells
+    tn <- ifelse("0" %in% rownames(cm) & "0" %in% colnames(cm), cm["0", "0"], 0)
+    fp <- ifelse("1" %in% rownames(cm) & "0" %in% colnames(cm), cm["1", "0"], 0)
+    fn <- ifelse("0" %in% rownames(cm) & "1" %in% colnames(cm), cm["0", "1"], 0)
+    tp <- ifelse("1" %in% rownames(cm) & "1" %in% colnames(cm), cm["1", "1"], 0)
+
+    data.table(
+        Threshold = t,
+        Sensitivity = tp / (tp + fn),
+        Specificity = tn / (tn + fp),
+        PPV = ifelse(tp + fp > 0, tp / (tp + fp), NA),
+        NPV = ifelse(tn + fn > 0, tn / (tn + fn), NA),
+        Accuracy = (tp + tn) / sum(cm)
+    )
+}))
+
+# Plot sensitivity and specificity vs threshold
+threshold_long <- melt(threshold_metrics, id.vars = "Threshold",
+                       measure.vars = c("Sensitivity", "Specificity"))
+
+ggplot2$ggplot(threshold_long, ggplot2$aes(x = Threshold, y = value, colour = variable)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$geom_vline(xintercept = 0.5, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("Sensitivity" = "#D55E00", "Specificity" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Sensitivity-Specificity Trade-off",
+        subtitle = "As threshold increases: sensitivity decreases, specificity increases",
+        x = "Classification Threshold",
+        y = "Value",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 4.7.3 ROC Curve and AUC
+
+**Prose and Intuition**
+
+The **Receiver Operating Characteristic (ROC) curve** plots sensitivity vs (1 - specificity) at all possible thresholds. It shows the model's discriminative ability across all thresholds.
+
+The **Area Under the Curve (AUC)** summarises the ROC curve in a single number:
+- AUC = 0.5: No discrimination (random guessing)
+- AUC = 0.7-0.8: Acceptable discrimination
+- AUC = 0.8-0.9: Excellent discrimination
+- AUC > 0.9: Outstanding discrimination
+
+**Mathematical Interpretation**
+
+AUC equals the probability that a randomly chosen positive case has a higher predicted probability than a randomly chosen negative case.
+
+```{r roc_curve, fig.cap="ROC curve shows model discrimination across all thresholds"}
+# Calculate ROC curve points
+roc_data <- threshold_metrics[, .(
+    Threshold = Threshold,
+    FPR = 1 - Specificity,  # False Positive Rate
+    TPR = Sensitivity       # True Positive Rate
+)]
+
+# Calculate AUC using trapezoidal rule
+# Sort by FPR
+roc_sorted <- roc_data[order(FPR)]
+auc <- sum(diff(roc_sorted$FPR) * (head(roc_sorted$TPR, -1) + tail(roc_sorted$TPR, -1)) / 2)
+
+cat("AUC Calculation:\n")
+cat("================\n\n")
+cat("Area Under ROC Curve:", round(auc, 4), "\n")
+cat("Interpretation: ",
+    ifelse(auc >= 0.9, "Outstanding",
+    ifelse(auc >= 0.8, "Excellent",
+    ifelse(auc >= 0.7, "Acceptable", "Poor"))), " discrimination\n", sep = "")
+
+# Plot ROC curve
+ggplot2$ggplot(roc_data, ggplot2$aes(x = FPR, y = TPR)) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
+    ggplot2$annotate("text", x = 0.6, y = 0.3,
+                     label = paste("AUC =", round(auc, 3)),
+                     size = 6, colour = "#0072B2") +
+    ggplot2$labs(
+        title = "ROC Curve for Diabetes Prediction Model",
+        subtitle = "Diagonal line represents random guessing (AUC = 0.5)",
+        x = "False Positive Rate (1 - Specificity)",
+        y = "True Positive Rate (Sensitivity)"
+    ) +
+    ggplot2$coord_equal() +
+    ggplot2$theme_minimal()
+```
+
+### 4.7.4 Comparing Models with ROC
+
+```{r roc_comparison, fig.cap="ROC curves allow visual comparison of model discrimination"}
+# Calculate ROC for different models
+calc_roc <- function(actual, predicted) {
+    thresholds <- seq(0, 1, by = 0.01)
+    rbindlist(lapply(thresholds, function(t) {
+        pred_class <- as.integer(predicted > t)
+        tp <- sum(pred_class == 1 & actual == 1)
+        fn <- sum(pred_class == 0 & actual == 1)
+        tn <- sum(pred_class == 0 & actual == 0)
+        fp <- sum(pred_class == 1 & actual == 0)
+        data.table(
+            Threshold = t,
+            TPR = tp / (tp + fn),
+            FPR = fp / (fp + tn)
+        )
+    }))
+}
+
+# Calculate AUC for a model
+calc_auc <- function(roc_dt) {
+    roc_sorted <- roc_dt[order(FPR)]
+    sum(diff(roc_sorted$FPR) * (head(roc_sorted$TPR, -1) + tail(roc_sorted$TPR, -1)) / 2)
+}
+
+# Get ROC for each model
+diabetes_data[, pred_age := predict(model_age, type = "response")]
+diabetes_data[, pred_two := predict(model_two, type = "response")]
+diabetes_data[, pred_full := predict(model_full, type = "response")]
+
+roc_age <- calc_roc(diabetes_data$diabetes, diabetes_data$pred_age)
+roc_age[, Model := "Age only"]
+roc_two <- calc_roc(diabetes_data$diabetes, diabetes_data$pred_two)
+roc_two[, Model := "Age + BMI"]
+roc_full <- calc_roc(diabetes_data$diabetes, diabetes_data$pred_full)
+roc_full[, Model := "Full model"]
+
+roc_all <- rbindlist(list(roc_age, roc_two, roc_full))
+
+# Calculate AUCs
+auc_age <- calc_auc(roc_age)
+auc_two <- calc_auc(roc_two)
+auc_full <- calc_auc(roc_full)
+
+cat("Model Comparison by AUC:\n")
+cat("========================\n\n")
+cat("Age only:    AUC =", round(auc_age, 4), "\n")
+cat("Age + BMI:   AUC =", round(auc_two, 4), "\n")
+cat("Full model:  AUC =", round(auc_full, 4), "\n")
+
+# Plot comparison
+ggplot2$ggplot(roc_all, ggplot2$aes(x = FPR, y = TPR, colour = Model)) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$scale_colour_manual(values = c("Age only" = "#009E73",
+                                            "Age + BMI" = "#D55E00",
+                                            "Full model" = "#0072B2")) +
+    ggplot2$labs(
+        title = "ROC Curve Comparison",
+        subtitle = paste0("AUC: Age=", round(auc_age, 3),
+                         ", Age+BMI=", round(auc_two, 3),
+                         ", Full=", round(auc_full, 3)),
+        x = "False Positive Rate (1 - Specificity)",
+        y = "True Positive Rate (Sensitivity)",
+        colour = "Model"
+    ) +
+    ggplot2$coord_equal() +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 4.8 Calibration
+
+### 4.8.1 What is Calibration?
+
+**Prose and Intuition**
+
+**Discrimination** tells us whether the model ranks cases correctly. **Calibration** tells us whether the predicted probabilities are accurate.
+
+A well-calibrated model means: among patients with predicted probability 20%, about 20% actually have the disease.
+
+### 4.8.2 Calibration Plots
+
+```{r calibration_plot, fig.cap="Calibration plot compares predicted and observed event rates"}
+# Create calibration plot by deciles
+diabetes_data[, prob_decile := cut(pred_prob,
+                                   breaks = quantile(pred_prob, probs = seq(0, 1, 0.1)),
+                                   include.lowest = TRUE, labels = FALSE)]
+
+calibration <- diabetes_data[, .(
+    Mean_Predicted = mean(pred_prob),
+    Observed_Rate = mean(diabetes),
+    N = .N
+), by = prob_decile]
+
+cat("Calibration by Decile:\n")
+cat("======================\n\n")
+print(calibration[, .(Decile = prob_decile,
+                      Predicted = round(Mean_Predicted, 3),
+                      Observed = round(Observed_Rate, 3),
+                      N = N)])
+
+# Calibration plot
+ggplot2$ggplot(calibration, ggplot2$aes(x = Mean_Predicted, y = Observed_Rate)) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_point(ggplot2$aes(size = N), colour = "#0072B2") +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$scale_size_continuous(range = c(3, 10)) +
+    ggplot2$labs(
+        title = "Calibration Plot",
+        subtitle = "Points should fall on the diagonal for perfect calibration",
+        x = "Mean Predicted Probability",
+        y = "Observed Event Rate",
+        size = "N"
+    ) +
+    ggplot2$coord_equal(xlim = c(0, 0.5), ylim = c(0, 0.5)) +
+    ggplot2$theme_minimal()
+```
+
+### 4.8.3 Hosmer-Lemeshow Test
+
+**Prose and Intuition**
+
+The **Hosmer-Lemeshow test** formally tests calibration. It groups observations by predicted probability and compares observed vs expected counts using a chi-square statistic.
+
+```{r hosmer_lemeshow}
+# Manual Hosmer-Lemeshow calculation
+# Group into 10 groups by predicted probability
+
+hl_data <- diabetes_data[, .(
+    O1 = sum(diabetes),      # Observed events
+    E1 = sum(pred_prob),     # Expected events
+    O0 = sum(1 - diabetes),  # Observed non-events
+    E0 = sum(1 - pred_prob), # Expected non-events
+    N = .N
+), by = prob_decile]
+
+# Chi-square statistic
+hl_data[, chi_sq := ((O1 - E1)^2 / E1) + ((O0 - E0)^2 / E0)]
+hl_stat <- sum(hl_data$chi_sq, na.rm = TRUE)
+hl_df <- nrow(hl_data) - 2  # g - 2 degrees of freedom
+hl_pvalue <- pchisq(hl_stat, df = hl_df, lower.tail = FALSE)
+
+cat("Hosmer-Lemeshow Test:\n")
+cat("=====================\n\n")
+cat("Chi-square statistic:", round(hl_stat, 2), "\n")
+cat("Degrees of freedom:", hl_df, "\n")
+cat("P-value:", round(hl_pvalue, 4), "\n\n")
+
+if (hl_pvalue > 0.05) {
+    cat("Result: Fail to reject H0 - no evidence of poor calibration\n")
+} else {
+    cat("Result: Reject H0 - evidence of miscalibration\n")
+}
+```
+
+---
+
+## 4.9 Residual Diagnostics for Logistic Regression
+
+### 4.9.1 Pearson and Deviance Residuals
+
+**Prose and Intuition**
+
+Unlike linear regression where residuals are simply $y_i - \hat{y}_i$, logistic regression has several residual types.
+
+**Mathematical Definitions**
+
+**Pearson residuals:**
+$$r_i^P = \frac{y_i - \hat{p}_i}{\sqrt{\hat{p}_i(1 - \hat{p}_i)}}$$
+
+**Deviance residuals:**
+$$r_i^D = \text{sign}(y_i - \hat{p}_i) \sqrt{d_i}$$
+
+where $d_i$ is the contribution of observation $i$ to the deviance.
+
+```{r logistic_residuals, fig.cap="Residual plots for logistic regression"}
+# Calculate residuals
+diabetes_data[, `:=`(
+    pearson_resid = residuals(model_full, type = "pearson"),
+    deviance_resid = residuals(model_full, type = "deviance"),
+    linear_pred = predict(model_full, type = "link")
+)]
+
+# Residual vs linear predictor
+p1 <- ggplot2$ggplot(diabetes_data, ggplot2$aes(x = linear_pred, y = deviance_resid)) +
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$labs(title = "Deviance Residuals vs Linear Predictor",
+                 x = "Linear Predictor (log-odds)",
+                 y = "Deviance Residual") +
+    ggplot2$theme_minimal()
+
+print(p1)
+```
+
+### 4.9.2 Influential Observations
+
+```{r logistic_influence, fig.cap="Identifying influential observations in logistic regression"}
+# Calculate influence measures
+diabetes_data[, `:=`(
+    leverage = hatvalues(model_full),
+    cooks_d = cooks.distance(model_full),
+    dfbeta_bmi = dfbetas(model_full)[, "BMI"]
+)]
+
+# Influence plot
+p_influence <- ggplot2$ggplot(diabetes_data,
+                               ggplot2$aes(x = leverage, y = deviance_resid)) +
+    ggplot2$geom_point(ggplot2$aes(size = cooks_d, colour = cooks_d > 4/nrow(diabetes_data)),
+                       alpha = 0.6) +
+    ggplot2$geom_hline(yintercept = c(-2, 0, 2), linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#0072B2", "TRUE" = "#D55E00")) +
+    ggplot2$labs(
+        title = "Influence Plot for Logistic Regression",
+        subtitle = "Large points with high Cook's D are influential",
+        x = "Leverage",
+        y = "Deviance Residual",
+        size = "Cook's D"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$guides(colour = "none")
+
+print(p_influence)
+
+# Summary of influential points
+n_influential <- sum(diabetes_data$cooks_d > 4/nrow(diabetes_data))
+cat("\nInfluential Observations (Cook's D > 4/n):", n_influential, "\n")
+```
+
+---
+
+## 4.10 Breast Cancer Model Assessment
+
+Let's apply these assessment techniques to our breast cancer classification model.
+
+```{r bc_assessment, fig.cap="Complete model assessment for breast cancer classification"}
+# Prepare breast cancer data
+bc_data <- breast_cancer[, .(
+    diagnosis = as.integer(diagnosis == "M"),
+    mean_radius = mean_radius,
+    mean_texture = mean_texture,
+    mean_concavity = mean_concavity,
+    mean_area = mean_area
+)]
+bc_data <- bc_data[complete.cases(bc_data)]
+
+# Fit model
+model_bc <- glm(diagnosis ~ mean_radius + mean_texture + mean_concavity,
+                data = bc_data, family = binomial)
+
+# Predictions
+bc_data[, pred_prob := predict(model_bc, type = "response")]
+
+cat("Breast Cancer Classification Assessment:\n")
+cat("=========================================\n\n")
+
+# Confusion matrix at 0.5
+bc_data[, pred_class := as.integer(pred_prob > 0.5)]
+cm_bc <- table(Predicted = bc_data$pred_class, Actual = bc_data$diagnosis)
+print(cm_bc)
+
+# Metrics
+tp <- cm_bc["1", "1"]
+tn <- cm_bc["0", "0"]
+fp <- cm_bc["1", "0"]
+fn <- cm_bc["0", "1"]
+
+cat("\nPerformance Metrics:\n")
+cat("  Accuracy:", round((tp + tn) / sum(cm_bc), 4), "\n")
+cat("  Sensitivity:", round(tp / (tp + fn), 4), "\n")
+cat("  Specificity:", round(tn / (tn + fp), 4), "\n")
+cat("  PPV:", round(tp / (tp + fp), 4), "\n")
+
+# ROC and AUC
+roc_bc <- calc_roc(bc_data$diagnosis, bc_data$pred_prob)
+auc_bc <- calc_auc(roc_bc)
+cat("\n  AUC:", round(auc_bc, 4), "\n")
+```
+
+```{r bc_roc, fig.cap="ROC curve for breast cancer classification model"}
+ggplot2$ggplot(roc_bc, ggplot2$aes(x = FPR, y = TPR)) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_line(colour = "#D55E00", size = 1.2) +
+    ggplot2$annotate("text", x = 0.6, y = 0.3,
+                     label = paste("AUC =", round(auc_bc, 3)),
+                     size = 6, colour = "#D55E00") +
+    ggplot2$labs(
+        title = "ROC Curve: Breast Cancer Classification",
+        x = "False Positive Rate (1 - Specificity)",
+        y = "True Positive Rate (Sensitivity)"
+    ) +
+    ggplot2$coord_equal() +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Reporting Classification Model Results
+
+**For Clinical Collaborators:**
+
+"We developed a logistic regression model to predict diabetes risk using age, BMI, gender, and blood pressure. Here's how well it performs:
+
+**Overall performance:**
+- The model correctly classifies about 85% of patients
+- AUC = 0.78 indicates acceptable discriminative ability
+
+**For a screening scenario:**
+- Setting the threshold at 0.15 (to catch more cases):
+  - Sensitivity: 80% (catches 4 out of 5 diabetics)
+  - Specificity: 65% (about 35% of healthy patients flagged for follow-up)
+
+**Calibration:**
+- The predicted probabilities match observed rates well
+- When we predict 20% risk, about 20% actually have diabetes
+
+**Key insight:** The model performs best at distinguishing very low-risk from moderate-risk patients. For high-risk patients, clinical judgment remains essential."
+
+---
+
+## Quick Reference
+
+### Performance Metrics
+
+| Metric | Formula | Interpretation |
+|--------|---------|----------------|
+| Sensitivity | TP / (TP + FN) | % of positives correctly identified |
+| Specificity | TN / (TN + FP) | % of negatives correctly identified |
+| PPV | TP / (TP + FP) | % of positive predictions that are correct |
+| NPV | TN / (TN + FN) | % of negative predictions that are correct |
+| Accuracy | (TP + TN) / N | Overall % correct |
+| AUC | Area under ROC | Discrimination (0.5 = chance, 1 = perfect) |
+
+### R Commands
+
+```r
+# Model fit statistics
+deviance(model)
+AIC(model)
+logLik(model)
+
+# Likelihood ratio test
+anova(model1, model2, test = "Chisq")
+
+# Residuals
+residuals(model, type = "pearson")
+residuals(model, type = "deviance")
+
+# Influence
+hatvalues(model)
+cooks.distance(model)
+dfbetas(model)
+
+# Predictions
+predict(model, type = "response")  # Probabilities
+predict(model, type = "link")      # Log-odds
+```
+
+### AUC Interpretation Guide
+
+| AUC Range | Interpretation |
+|-----------|----------------|
+| 0.5 - 0.6 | Fail |
+| 0.6 - 0.7 | Poor |
+| 0.7 - 0.8 | Acceptable |
+| 0.8 - 0.9 | Excellent |
+| 0.9 - 1.0 | Outstanding |

@@ -1,0 +1,797 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 9: Hypothesis Testing"
+part: "Part 2: P-values, Errors, and Statistical Power"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, hypothesis-testing, p-value, type-I-error, type-II-error, power, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    out.width = "100%",
+    collapse = FALSE, results = 'hold'
+)
+```
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+nhanes <- fread("../../../data/primary/nhanes.csv")
+```
+
+# P-values, Errors, and Statistical Power
+
+Part 1 introduced the logic of hypothesis testing. This part deepens our understanding of p-values, examines the two types of errors we can make, and develops the concept of statistical power — the probability of detecting a real effect when one exists.
+
+---
+
+## Table of Contents
+
+## 9.9 Understanding P-values
+
+### 9.9.1 What a P-value Actually Is
+
+The **p-value** is the probability of observing a test statistic as extreme as, or more extreme than, the one calculated from your data, *assuming the null hypothesis is true*.
+
+$$\text{p-value} = P(|T| \geq |t_{\text{obs}}| \mid H_0 \text{ is true})$$
+
+Key points:
+- It's a conditional probability — given H₀ is true
+- It measures how "surprising" our data is under H₀
+- A small p-value means the data are unlikely if H₀ is true
+- It is NOT the probability that H₀ is true
+
+```{r pvalue_visual, fig.cap="P-value as area in the tails"}
+# Observed test statistic
+t_obs <- 2.3
+df <- 25
+
+# Create the distribution
+x_seq <- seq(-4, 4, length.out = 200)
+t_dist <- data.table(
+    x = x_seq,
+    y = dt(x_seq, df = df)
+)
+
+# P-value
+p_value <- 2 * pt(-abs(t_obs), df = df)
+
+# Plot
+ggplot2$ggplot(t_dist, ggplot2$aes(x = x, y = y)) +
+    # Shade the tails
+    ggplot2$geom_area(data = t_dist[x <= -t_obs],
+                      fill = "#D55E00", alpha = 0.6) +
+    ggplot2$geom_area(data = t_dist[x >= t_obs],
+                      fill = "#D55E00", alpha = 0.6) +
+    # The distribution curve
+    ggplot2$geom_line(linewidth = 1.2) +
+    # Vertical lines at observed value
+    ggplot2$geom_vline(xintercept = c(-t_obs, t_obs),
+                       linetype = "dashed", colour = "#D55E00", linewidth = 1) +
+    # Annotations
+    ggplot2$annotate("text", x = t_obs + 0.5, y = 0.15,
+                     label = sprintf("t = %.1f", t_obs),
+                     colour = "#D55E00", fontface = "bold") +
+    ggplot2$annotate("text", x = 0, y = 0.2,
+                     label = sprintf("P-value = %.4f\n(total shaded area)", p_value),
+                     size = 5) +
+    ggplot2$labs(
+        title = "P-value as Area in the Distribution",
+        subtitle = "The probability of observing a result this extreme or more extreme, if H₀ is true",
+        x = "t-statistic",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 9.9.2 What P-values Are NOT
+
+The p-value is one of the most misunderstood concepts in statistics. Here's what it is NOT:
+
+1. **NOT the probability that H₀ is true**
+   - P(H₀ true | data) ≠ p-value
+   - The p-value is P(data | H₀ true)
+
+2. **NOT the probability that the result is due to chance**
+   - Even if p = 0.05, we cannot say "5% probability it's due to chance"
+
+3. **NOT the probability that H₁ is true**
+   - A small p-value doesn't tell us the probability the alternative is correct
+
+4. **NOT the probability of replicating the result**
+   - P(p < 0.05 in a new study | p < 0.05 in this study) ≠ p-value
+
+```{r pvalue_misconceptions}
+cat("Common P-value Misconceptions\n")
+cat("=============================\n\n")
+
+cat("❌ WRONG: 'p = 0.03 means there's a 3% chance H₀ is true'\n")
+cat("✓ RIGHT:  'If H₀ is true, we'd see data this extreme only 3% of the time'\n\n")
+
+cat("❌ WRONG: 'p = 0.03 means there's a 97% chance the effect is real'\n")
+cat("✓ RIGHT:  'The p-value says nothing about the probability of H₁'\n\n")
+
+cat("❌ WRONG: 'Not significant means no effect exists'\n")
+cat("✓ RIGHT:  'Not significant means insufficient evidence to reject H₀'\n\n")
+
+cat("❌ WRONG: 'p = 0.049 is significant, p = 0.051 is not, so they're different'\n")
+cat("✓ RIGHT:  'These p-values represent nearly identical evidence'\n")
+```
+
+### 9.9.3 The Distribution of P-values Under H₀ and H₁
+
+When H₀ is true, p-values are uniformly distributed on [0, 1]. When H₁ is true, p-values are skewed towards 0.
+
+```{r pvalue_distribution, fig.cap="Distribution of p-values under H₀ and H₁"}
+set.seed(123)
+n_sim <- 10000
+n <- 30
+
+# Simulate under H0 (no effect)
+pvalues_h0 <- sapply(1:n_sim, function(i) {
+    x <- rnorm(n, mean = 0, sd = 1)  # True mean = 0 = H0 value
+    t.test(x, mu = 0)$p.value
+})
+
+# Simulate under H1 (real effect)
+effect <- 0.5  # True mean = 0.5, H0 says mean = 0
+pvalues_h1 <- sapply(1:n_sim, function(i) {
+    x <- rnorm(n, mean = effect, sd = 1)
+    t.test(x, mu = 0)$p.value
+})
+
+# Create data for plotting
+pvalue_data <- rbind(
+    data.table(p = pvalues_h0, hypothesis = "H₀ True (no effect)"),
+    data.table(p = pvalues_h1, hypothesis = "H₁ True (effect = 0.5)")
+)
+
+ggplot2$ggplot(pvalue_data, ggplot2$aes(x = p, fill = hypothesis)) +
+    ggplot2$geom_histogram(bins = 20, alpha = 0.7, colour = "white") +
+    ggplot2$facet_wrap(~hypothesis, ncol = 1, scales = "free_y") +
+    ggplot2$geom_vline(xintercept = 0.05, linetype = "dashed", colour = "red") +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$annotate("text", x = 0.15, y = Inf, label = "α = 0.05",
+                     vjust = 2, colour = "red") +
+    ggplot2$labs(
+        title = "Distribution of P-values",
+        subtitle = "Under H₀, p-values are uniform; under H₁, they're skewed towards 0",
+        x = "P-value",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+---
+
+## 9.10 Type I and Type II Errors
+
+### 9.10.1 The Two Kinds of Mistakes
+
+When making a decision (reject or fail to reject H₀), we can make two types of errors:
+
+| | H₀ is True | H₀ is False |
+|---|---|---|
+| **Reject H₀** | Type I Error (α) | Correct Decision (Power = 1−β) |
+| **Fail to Reject H₀** | Correct Decision | Type II Error (β) |
+
+**Type I Error (False Positive):** Rejecting H₀ when it's actually true.
+- Probability = α (significance level)
+- Claiming an effect exists when it doesn't
+
+**Type II Error (False Negative):** Failing to reject H₀ when it's actually false.
+- Probability = β
+- Missing a real effect
+
+```{r error_types, fig.cap="Type I and Type II errors illustrated"}
+# Parameters
+mu0 <- 0      # Null hypothesis mean
+mu1 <- 2      # True mean under H1
+sigma <- 1
+n <- 25
+se <- sigma / sqrt(n)
+
+# Critical value for alpha = 0.05, one-sided
+alpha <- 0.05
+z_crit <- qnorm(1 - alpha)
+x_crit <- mu0 + z_crit * se
+
+# Create distributions
+x_seq <- seq(-1.5, 4, length.out = 300)
+h0_dist <- data.table(
+    x = x_seq,
+    y = dnorm(x_seq, mean = mu0, sd = se),
+    dist = "H₀ Distribution"
+)
+h1_dist <- data.table(
+    x = x_seq,
+    y = dnorm(x_seq, mean = mu1, sd = se),
+    dist = "H₁ Distribution"
+)
+
+# Type I error area (reject H0 when H0 true)
+type1_area <- h0_dist[x >= x_crit]
+
+# Type II error area (fail to reject when H1 true)
+type2_area <- h1_dist[x <= x_crit]
+
+# Calculate probabilities
+prob_type1 <- 1 - pnorm(x_crit, mean = mu0, sd = se)
+prob_type2 <- pnorm(x_crit, mean = mu1, sd = se)
+power <- 1 - prob_type2
+
+ggplot2$ggplot() +
+    # Type II error area (under H1, below critical value)
+    ggplot2$geom_area(data = type2_area,
+                      ggplot2$aes(x = x, y = y),
+                      fill = "#E69F00", alpha = 0.5) +
+    # Type I error area (under H0, above critical value)
+    ggplot2$geom_area(data = type1_area,
+                      ggplot2$aes(x = x, y = y),
+                      fill = "#D55E00", alpha = 0.5) +
+    # Distribution curves
+    ggplot2$geom_line(data = h0_dist, ggplot2$aes(x = x, y = y),
+                      colour = "#0072B2", linewidth = 1.5) +
+    ggplot2$geom_line(data = h1_dist, ggplot2$aes(x = x, y = y),
+                      colour = "#009E73", linewidth = 1.5) +
+    # Critical value
+    ggplot2$geom_vline(xintercept = x_crit, linetype = "dashed",
+                       linewidth = 1.2) +
+    # Labels
+    ggplot2$annotate("text", x = mu0, y = max(h0_dist$y) + 0.5,
+                     label = sprintf("H₀: μ = %d", mu0),
+                     colour = "#0072B2", fontface = "bold") +
+    ggplot2$annotate("text", x = mu1, y = max(h1_dist$y) + 0.5,
+                     label = sprintf("H₁: μ = %d", mu1),
+                     colour = "#009E73", fontface = "bold") +
+    ggplot2$annotate("text", x = x_crit + 0.3, y = 0.5,
+                     label = sprintf("Critical value\nx = %.2f", x_crit),
+                     hjust = 0) +
+    ggplot2$annotate("text", x = x_crit + 0.5, y = 0.8,
+                     label = sprintf("Type I (α) = %.3f", prob_type1),
+                     colour = "#D55E00", fontface = "bold") +
+    ggplot2$annotate("text", x = x_crit - 0.5, y = 0.8,
+                     label = sprintf("Type II (β) = %.3f", prob_type2),
+                     colour = "#E69F00", fontface = "bold", hjust = 1) +
+    ggplot2$labs(
+        title = "Type I and Type II Errors",
+        subtitle = sprintf("α = %.2f, β = %.2f, Power = 1 - β = %.2f",
+                          prob_type1, prob_type2, power),
+        x = "Sample Mean",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 9.10.2 The Trade-off Between Errors
+
+There's an inherent trade-off: reducing Type I error (α) increases Type II error (β), and vice versa.
+
+```{r error_tradeoff, fig.cap="The trade-off between Type I and Type II errors"}
+# Calculate how alpha affects beta
+alpha_values <- seq(0.001, 0.20, length.out = 100)
+mu0 <- 0
+mu1 <- 1.5
+sigma <- 1
+n <- 25
+se <- sigma / sqrt(n)
+
+beta_values <- sapply(alpha_values, function(a) {
+    x_crit <- mu0 + qnorm(1 - a) * se
+    pnorm(x_crit, mean = mu1, sd = se)
+})
+
+tradeoff_data <- data.table(
+    alpha = alpha_values,
+    beta = beta_values,
+    power = 1 - beta_values
+)
+
+ggplot2$ggplot(tradeoff_data, ggplot2$aes(x = alpha, y = beta)) +
+    ggplot2$geom_line(linewidth = 1.5, colour = "#D55E00") +
+    ggplot2$geom_point(data = tradeoff_data[alpha %in% c(0.01, 0.05, 0.10)],
+                       size = 4, colour = "#0072B2") +
+    ggplot2$geom_text(data = tradeoff_data[alpha %in% c(0.01, 0.05, 0.10)],
+                      ggplot2$aes(label = sprintf("α=%.2f, β=%.2f", alpha, beta)),
+                      vjust = -1, size = 3.5) +
+    ggplot2$labs(
+        title = "Trade-off Between Type I and Type II Errors",
+        subtitle = "Decreasing α increases β (for fixed sample size and effect)",
+        x = "Type I Error Rate (α)",
+        y = "Type II Error Rate (β)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 9.10.3 Consequences of Each Error Type
+
+Which error is worse depends on context:
+
+**When Type I error is worse:**
+- Approving an ineffective drug (patient gets treatment that doesn't work)
+- Convicting an innocent person
+- Publishing a false discovery
+
+**When Type II error is worse:**
+- Missing an effective cancer treatment
+- Failing to detect a dangerous pathogen
+- Acquitting a dangerous criminal
+
+```{r error_consequences}
+cat("Relative Severity of Errors by Context\n")
+cat("======================================\n\n")
+
+examples <- data.table(
+    Context = c("Drug approval", "Criminal trial", "Disease screening",
+                "Quality control", "Scientific publication"),
+    `Type I (False Positive)` = c(
+        "Approve ineffective drug",
+        "Convict innocent person",
+        "Healthy person treated unnecessarily",
+        "Good product rejected",
+        "False discovery published"
+    ),
+    `Type II (False Negative)` = c(
+        "Reject effective drug",
+        "Acquit guilty person",
+        "Sick person goes untreated",
+        "Defective product shipped",
+        "Real effect missed"
+    ),
+    `Usually Worse` = c("Type I", "Type I", "Type II",
+                        "Depends", "Type I")
+)
+
+print(examples)
+```
+
+---
+
+## 9.11 Statistical Power
+
+### 9.11.1 What Is Power?
+
+**Power** is the probability of correctly rejecting H₀ when it is false — i.e., the probability of detecting a real effect.
+
+$$\text{Power} = 1 - \beta = P(\text{Reject } H_0 \mid H_0 \text{ is false})$$
+
+Power depends on:
+1. **Effect size (δ):** Larger effects are easier to detect
+2. **Sample size (n):** More data means more power
+3. **Significance level (α):** Higher α means more power (but more Type I errors)
+4. **Variability (σ):** Less noise means more power
+
+### 9.11.2 Power as a Function of Effect Size
+
+```{r power_vs_effect, fig.cap="Power increases with effect size"}
+# Fixed parameters
+n <- 30
+sigma <- 1
+alpha <- 0.05
+se <- sigma / sqrt(n)
+
+# Range of effect sizes
+effect_sizes <- seq(0, 1.5, length.out = 100)
+
+# Calculate power for each
+power_values <- sapply(effect_sizes, function(d) {
+    # True mean under H1 is d (effect size in SD units)
+    mu1 <- d
+    mu0 <- 0
+
+    # Critical value (one-sided test)
+    x_crit <- mu0 + qnorm(1 - alpha) * se
+
+    # Power = P(reject | H1 true)
+    1 - pnorm(x_crit, mean = mu1, sd = se)
+})
+
+power_effect <- data.table(
+    effect = effect_sizes,
+    power = power_values
+)
+
+ggplot2$ggplot(power_effect, ggplot2$aes(x = effect, y = power)) +
+    ggplot2$geom_line(linewidth = 1.5, colour = "#009E73") +
+    ggplot2$geom_hline(yintercept = 0.80, linetype = "dashed",
+                       colour = "red") +
+    ggplot2$geom_hline(yintercept = alpha, linetype = "dotted",
+                       colour = "gray50") +
+    ggplot2$annotate("text", x = 1.3, y = 0.83, label = "80% power target",
+                     colour = "red") +
+    ggplot2$annotate("text", x = 1.3, y = 0.08,
+                     label = sprintf("Power at d=0 equals α=%.2f", alpha),
+                     colour = "gray50") +
+    ggplot2$labs(
+        title = "Power as a Function of Effect Size",
+        subtitle = sprintf("n = %d, α = %.2f, σ = 1 (one-sided test)", n, alpha),
+        x = "Effect Size (Cohen's d)",
+        y = "Power"
+    ) +
+    ggplot2$scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
+    ggplot2$theme_minimal()
+```
+
+### 9.11.3 Power as a Function of Sample Size
+
+```{r power_vs_n, fig.cap="Power increases with sample size"}
+# Fixed parameters
+effect <- 0.5  # Medium effect size
+sigma <- 1
+alpha <- 0.05
+
+# Range of sample sizes
+sample_sizes <- seq(5, 150, by = 1)
+
+# Calculate power for each
+power_n <- sapply(sample_sizes, function(n) {
+    se <- sigma / sqrt(n)
+    x_crit <- 0 + qnorm(1 - alpha) * se  # mu0 = 0
+    1 - pnorm(x_crit, mean = effect, sd = se)
+})
+
+power_sample <- data.table(
+    n = sample_sizes,
+    power = power_n
+)
+
+# Find n for 80% power
+n_80 <- sample_sizes[which.min(abs(power_n - 0.80))]
+
+ggplot2$ggplot(power_sample, ggplot2$aes(x = n, y = power)) +
+    ggplot2$geom_line(linewidth = 1.5, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0.80, linetype = "dashed",
+                       colour = "red") +
+    ggplot2$geom_vline(xintercept = n_80, linetype = "dashed",
+                       colour = "red", alpha = 0.5) +
+    ggplot2$annotate("text", x = n_80 + 10, y = 0.5,
+                     label = sprintf("n = %d for\n80%% power", n_80),
+                     colour = "red", hjust = 0) +
+    ggplot2$labs(
+        title = "Power as a Function of Sample Size",
+        subtitle = sprintf("Effect size d = %.1f, α = %.2f (one-sided test)", effect, alpha),
+        x = "Sample Size (n)",
+        y = "Power"
+    ) +
+    ggplot2$scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
+    ggplot2$theme_minimal()
+```
+
+### 9.11.4 Power Analysis: Sample Size Calculation
+
+Before conducting a study, we should perform **power analysis** to determine the sample size needed to detect a meaningful effect.
+
+For a one-sample t-test:
+
+$$n = \left(\frac{(z_{1-\alpha/2} + z_{1-\beta}) \cdot \sigma}{\delta}\right)^2$$
+
+Where:
+- $z_{1-\alpha/2}$ is the critical value for the desired significance level
+- $z_{1-\beta}$ is the critical value for the desired power
+- $\sigma$ is the population standard deviation
+- $\delta$ is the minimum effect size of interest
+
+```{r sample_size_calculation}
+# Sample size calculation function
+sample_size_t <- function(effect_size, power = 0.80, alpha = 0.05,
+                          alternative = "two.sided") {
+    # For a one-sample or paired t-test
+    # effect_size is Cohen's d = (mu1 - mu0) / sigma
+
+    if (alternative == "two.sided") {
+        z_alpha <- qnorm(1 - alpha / 2)
+    } else {
+        z_alpha <- qnorm(1 - alpha)
+    }
+    z_beta <- qnorm(power)
+
+    # n = ((z_alpha + z_beta) / d)^2
+    n <- ((z_alpha + z_beta) / effect_size)^2
+
+    ceiling(n)  # Round up
+}
+
+# Examples
+cat("Sample Size Calculations (80% Power, α = 0.05, Two-sided)\n")
+cat("=========================================================\n\n")
+
+effects <- c(0.2, 0.5, 0.8)
+for (d in effects) {
+    n <- sample_size_t(d)
+    cat(sprintf("Effect size d = %.1f (%s): n = %d per group\n",
+                d, ifelse(d == 0.2, "small",
+                          ifelse(d == 0.5, "medium", "large")), n))
+}
+
+cat("\n\nUsing R's power.t.test():\n")
+cat("=========================\n")
+for (d in effects) {
+    result <- power.t.test(delta = d, sd = 1, sig.level = 0.05,
+                           power = 0.80, type = "one.sample")
+    cat(sprintf("d = %.1f: n = %.0f\n", d, ceiling(result$n)))
+}
+```
+
+### 9.11.5 Power Curve Visualisation
+
+```{r power_curve, fig.cap="Power curves for different sample sizes"}
+# Multiple sample sizes
+sample_sizes <- c(20, 50, 100, 200)
+effect_range <- seq(0, 1, length.out = 100)
+alpha <- 0.05
+
+# Calculate power curves
+power_curves <- rbindlist(lapply(sample_sizes, function(n) {
+    se <- 1 / sqrt(n)
+    powers <- sapply(effect_range, function(d) {
+        x_crit <- qnorm(1 - alpha / 2) * se
+        # Two-sided power
+        pnorm(-x_crit + d / se) + 1 - pnorm(x_crit + d / se)
+    })
+    data.table(effect = effect_range, power = powers, n = factor(n))
+}))
+
+ggplot2$ggplot(power_curves, ggplot2$aes(x = effect, y = power, colour = n)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_hline(yintercept = 0.80, linetype = "dashed", colour = "gray50") +
+    ggplot2$annotate("text", x = 0.05, y = 0.83, label = "80% power",
+                     hjust = 0, colour = "gray50") +
+    ggplot2$scale_colour_manual(values = c("#D55E00", "#E69F00", "#009E73", "#0072B2"),
+                                name = "Sample Size") +
+    ggplot2$labs(
+        title = "Power Curves for Different Sample Sizes",
+        subtitle = "Two-sided test, α = 0.05",
+        x = "Effect Size (Cohen's d)",
+        y = "Power"
+    ) +
+    ggplot2$scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, 0.2)) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "right")
+```
+
+---
+
+## 9.12 The Relationship Between CI and Hypothesis Testing
+
+### 9.12.1 Duality of CI and Tests
+
+There's a deep connection between confidence intervals and hypothesis tests:
+
+> A 95% confidence interval contains all values $\mu_0$ for which we would fail to reject $H_0: \mu = \mu_0$ at the α = 0.05 level.
+
+In other words:
+- If $\mu_0$ is outside the 95% CI → we reject $H_0: \mu = \mu_0$ at α = 0.05
+- If $\mu_0$ is inside the 95% CI → we fail to reject $H_0: \mu = \mu_0$ at α = 0.05
+
+```{r ci_test_duality, fig.cap="Duality between CI and hypothesis testing"}
+set.seed(123)
+sample_data <- rnorm(30, mean = 5.5, sd = 2)
+
+x_bar <- mean(sample_data)
+s <- sd(sample_data)
+se <- s / sqrt(30)
+t_crit <- qt(0.975, df = 29)
+ci <- c(x_bar - t_crit * se, x_bar + t_crit * se)
+
+# Test several null values
+null_values <- c(4, 5, 5.5, 6, 7)
+test_results <- sapply(null_values, function(mu0) {
+    result <- t.test(sample_data, mu = mu0)
+    c(t_stat = result$statistic, p_value = result$p.value,
+      in_ci = mu0 >= ci[1] & mu0 <= ci[2])
+})
+
+results_dt <- data.table(
+    mu0 = null_values,
+    t_stat = round(test_results[1, ], 3),
+    p_value = round(test_results[2, ], 4),
+    in_ci = as.logical(test_results[3, ]),
+    reject = test_results[2, ] < 0.05
+)
+
+cat("Duality Between CI and Hypothesis Tests\n")
+cat("=======================================\n\n")
+cat(sprintf("Sample mean: %.3f\n", x_bar))
+cat(sprintf("95%% CI: (%.3f, %.3f)\n\n", ci[1], ci[2]))
+cat("Testing different null hypotheses:\n\n")
+print(results_dt)
+cat("\nNote: μ₀ is rejected (p < 0.05) if and only if μ₀ is outside the CI.\n")
+
+# Visualise
+ggplot2$ggplot() +
+    ggplot2$geom_segment(ggplot2$aes(x = ci[1], xend = ci[2], y = 0.5, yend = 0.5),
+                         linewidth = 4, colour = "#0072B2") +
+    ggplot2$geom_point(ggplot2$aes(x = x_bar, y = 0.5), size = 5, colour = "#D55E00") +
+    ggplot2$geom_point(ggplot2$aes(x = null_values, y = 0.5,
+                                    colour = results_dt$reject),
+                       size = 4, shape = 17) +
+    ggplot2$geom_text(ggplot2$aes(x = null_values, y = 0.45,
+                                   label = sprintf("μ₀ = %.0f\np = %.3f",
+                                                   null_values, results_dt$p_value)),
+                      size = 3) +
+    ggplot2$scale_colour_manual(values = c("TRUE" = "#D55E00", "FALSE" = "#009E73"),
+                                 labels = c("Fail to reject", "Reject"),
+                                 name = "Decision") +
+    ggplot2$labs(
+        title = "CI and Hypothesis Testing are Equivalent",
+        subtitle = "Values outside CI are rejected; values inside CI are not rejected",
+        x = "Parameter Value"
+    ) +
+    ggplot2$scale_y_continuous(limits = c(0.3, 0.7)) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.y = ggplot2$element_blank(),
+                  axis.title.y = ggplot2$element_blank())
+```
+
+---
+
+## 9.13 Common Pitfalls and Best Practices
+
+### 9.13.1 The P-value Threshold Problem
+
+Using p < 0.05 as a binary threshold creates problems:
+- p = 0.049 and p = 0.051 are treated as fundamentally different
+- Encourages "p-hacking" to cross the threshold
+- Ignores the continuous nature of evidence
+
+```{r pvalue_cliff, fig.cap="The arbitrary cliff at p = 0.05"}
+# Simulate studies with p-values around 0.05
+set.seed(42)
+p_values <- c(runif(20, 0.001, 0.045),
+              runif(20, 0.055, 0.10))
+
+pval_data <- data.table(
+    study = 1:40,
+    p = p_values,
+    significant = p_values < 0.05
+)
+
+ggplot2$ggplot(pval_data, ggplot2$aes(x = reorder(study, p), y = p,
+                                       fill = significant)) +
+    ggplot2$geom_col() +
+    ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "red",
+                       linewidth = 1) +
+    ggplot2$annotate("text", x = 5, y = 0.08, label = "α = 0.05",
+                     colour = "red", fontface = "bold") +
+    ggplot2$scale_fill_manual(values = c("TRUE" = "#009E73", "FALSE" = "gray60"),
+                               name = "Significant?") +
+    ggplot2$labs(
+        title = "The Arbitrary Cliff at p = 0.05",
+        subtitle = "Studies just above and below the threshold have similar evidence",
+        x = "Study (ordered by p-value)",
+        y = "P-value"
+    ) +
+    ggplot2$coord_flip() +
+    ggplot2$theme_minimal()
+```
+
+### 9.13.2 Best Practices
+
+1. **Report exact p-values** (e.g., p = 0.034), not just "p < 0.05"
+2. **Report effect sizes** alongside p-values
+3. **Report confidence intervals** — more informative than p-values alone
+4. **Pre-specify hypotheses** before collecting data
+5. **Consider the context** — what are the consequences of each error type?
+6. **Be cautious with small samples** — low power means unreliable p-values
+7. **Don't over-interpret non-significance** — it doesn't prove the null
+
+```{r best_practices}
+# Example of good reporting
+set.seed(123)
+treatment <- rnorm(30, mean = 10, sd = 3)
+control <- rnorm(30, mean = 8, sd = 3)
+
+result <- t.test(treatment, control)
+
+cat("POOR REPORTING:\n")
+cat("===============\n")
+cat("The treatment was statistically significant (p < 0.05).\n\n")
+
+cat("GOOD REPORTING:\n")
+cat("===============\n")
+cat(sprintf("Treatment group: M = %.2f, SD = %.2f, n = %d\n",
+            mean(treatment), sd(treatment), length(treatment)))
+cat(sprintf("Control group: M = %.2f, SD = %.2f, n = %d\n",
+            mean(control), sd(control), length(control)))
+cat(sprintf("\nMean difference: %.2f (95%% CI: %.2f to %.2f)\n",
+            mean(treatment) - mean(control),
+            result$conf.int[1], result$conf.int[2]))
+cat(sprintf("t(%.0f) = %.2f, p = %.4f\n", result$parameter, result$statistic, result$p.value))
+
+# Effect size
+pooled_sd <- sqrt(((29 * var(treatment)) + (29 * var(control))) / 58)
+d <- (mean(treatment) - mean(control)) / pooled_sd
+cat(sprintf("Cohen's d = %.2f (%s effect)\n", d,
+            ifelse(abs(d) < 0.2, "negligible",
+                   ifelse(abs(d) < 0.5, "small",
+                          ifelse(abs(d) < 0.8, "medium", "large")))))
+```
+
+---
+
+## 9.14 Communicating to Stakeholders
+
+### 9.14.1 Explaining P-values Simply
+
+"A p-value tells us how surprising our results would be if the treatment had no effect at all. Our p-value of 0.02 means that if the treatment truly did nothing, we'd only see results this strong about 2% of the time. This is pretty unlikely, so we have reasonable evidence the treatment does have an effect."
+
+### 9.14.2 Explaining Power to Collaborators
+
+"Power is our study's ability to detect a real effect if one exists. With only 20 patients, our power was only 40% — meaning we'd miss the effect more often than we'd find it, even if the treatment really works. That's why we're recommending a larger study with 80 patients, which gives us 80% power."
+
+### 9.14.3 Addressing Common Questions
+
+**"So p = 0.03 means there's only a 3% chance the treatment doesn't work?"**
+Not quite. The p-value tells us how unusual our data would be if the treatment had no effect. It doesn't directly tell us the probability that the treatment works or doesn't work.
+
+**"Why do we need so many patients? Can't we just test 10 people?"**
+Small studies lack the power to reliably detect effects. With only 10 people, we might miss a real effect 70% of the time. Larger studies give us confidence that if we find no effect, there probably isn't one — and if we find an effect, it's likely real.
+
+**"The p-value was 0.06. That's almost significant — doesn't that mean something?"**
+A p-value of 0.06 provides some evidence but not enough to meet our pre-set threshold. Rather than calling it "almost significant," we should say the evidence is suggestive but inconclusive. The confidence interval might be more informative here.
+
+---
+
+## 9.15 Quick Reference
+
+### 9.15.1 P-value Interpretation
+
+| P-value | Evidence Against H₀ |
+|---------|---------------------|
+| > 0.10 | Weak or no evidence |
+| 0.05 – 0.10 | Suggestive, inconclusive |
+| 0.01 – 0.05 | Moderate evidence |
+| 0.001 – 0.01 | Strong evidence |
+| < 0.001 | Very strong evidence |
+
+*Note: These are guidelines, not rigid rules.*
+
+### 9.15.2 Error Types
+
+| Error | Description | Probability | Consequence |
+|-------|-------------|-------------|-------------|
+| Type I | Reject true H₀ | α | False positive |
+| Type II | Fail to reject false H₀ | β | False negative |
+
+### 9.15.3 Power Formula
+
+For a one-sample z-test:
+$$\text{Power} = \Phi\left(\frac{\delta\sqrt{n}}{\sigma} - z_{1-\alpha/2}\right) + \Phi\left(-\frac{\delta\sqrt{n}}{\sigma} - z_{1-\alpha/2}\right)$$
+
+Sample size for desired power:
+$$n = \left(\frac{(z_{1-\alpha/2} + z_{1-\beta})\sigma}{\delta}\right)^2$$
+
+### 9.15.4 Key Functions in R
+
+```r
+# P-values from test statistics
+pnorm(z, lower.tail = FALSE)  # One-sided z
+2 * pnorm(-abs(z))            # Two-sided z
+pt(t, df, lower.tail = FALSE) # One-sided t
+2 * pt(-abs(t), df)           # Two-sided t
+
+# Power analysis
+power.t.test(delta, sd, sig.level, power, type)
+
+# Built-in tests
+t.test(x, mu = mu0)           # One-sample t-test
+t.test(x, y)                  # Two-sample t-test
+```

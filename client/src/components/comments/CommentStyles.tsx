@@ -38,18 +38,13 @@ const spin = keyframes`
 
 export const CommentsContainer = styled.div`
     margin-top: ${(props) => props.theme.container.spacing.xlarge};
-    padding: ${(props) => props.theme.container.spacing.medium};
-    background-color: ${(props) =>
-        props.theme.container.background.colour.content()};
-    border: 1px solid
+    padding-top: ${(props) => props.theme.container.spacing.medium};
+    border-top: 1px solid
         ${(props) => props.theme.container.border.colour.primary()};
-    border-radius: ${(props) => props.theme.container.border.radius};
-    box-shadow: ${(props) => props.theme.container.shadow.box};
     color: ${(props) => props.theme.text.colour.primary()};
 
     @media (max-width: ${(props) =>
             props.theme.container.widths.min_width_mobile}) {
-        padding: ${(props) => props.theme.container.spacing.small};
         margin-top: ${(props) => props.theme.container.spacing.large};
     }
 `;

@@ -1,0 +1,771 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 3: Generalised Linear Models Framework"
+part: "Part 2: Maximum Likelihood Estimation and Inference"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, GLM, MLE, inference, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: Maximum Likelihood Estimation and Inference
+
+Unlike ordinary least squares, GLMs cannot be solved with a simple closed-form formula. Instead, we use **maximum likelihood estimation (MLE)**, finding the parameter values that make the observed data most probable. This part develops the theory of MLE for GLMs, the iteratively reweighted least squares algorithm, and inference methods including Wald tests, likelihood ratio tests, and deviance.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+doctor_visits <- fread("../../../data/count/nmes1988_doctor_visits.csv")
+
+# Prepare diabetes data
+diabetes_data <- nhanes[!is.na(Diabetes) & !is.na(Age) & !is.na(BMI) & Age >= 18,
+                        .(Diabetic = as.integer(Diabetes == "Yes"),
+                          Age = Age, BMI = BMI)]
+diabetes_data <- diabetes_data[complete.cases(diabetes_data)]
+
+cat("Datasets prepared:\n")
+cat("  Diabetes data: n =", nrow(diabetes_data), "\n")
+```
+
+```
+#> Datasets prepared:
+#>   Diabetes data: n = 7414
+```
+
+---
+
+## Table of Contents
+
+## 2.1 Maximum Likelihood for GLMs
+
+### 2.1.1 The Likelihood Function
+
+**Mathematical Derivation**
+
+For independent observations $Y_1, \ldots, Y_n$ from an exponential family, the log-likelihood is:
+$$\ell(\boldsymbol{\beta}) = \sum_{i=1}^n \log f(Y_i; \theta_i, \phi) = \sum_{i=1}^n \frac{Y_i\theta_i - b(\theta_i)}{a(\phi)} + c(Y_i, \phi)$$
+
+The canonical parameter $\theta_i$ is linked to the linear predictor through:
+$$\theta_i = h(\eta_i) = h(\mathbf{x}_i'\boldsymbol{\beta})$$
+
+where $h = (b')^{-1}$ for the canonical link.
+
+**Score Equations**
+
+Taking derivatives and setting to zero:
+$$\frac{\partial \ell}{\partial \beta_j} = \sum_{i=1}^n \frac{(Y_i - \mu_i) X_{ij}}{a(\phi) V(\mu_i) g'(\mu_i)} = 0$$
+
+These are the **score equations**. Unlike linear regression, they're nonlinear in $\boldsymbol{\beta}$ and require iterative solution.
+
+### 2.1.2 Example: Logistic Regression Log-Likelihood
+
+**Mathematical Derivation**
+
+For logistic regression with $Y_i \sim \text{Bernoulli}(p_i)$:
+$$p_i = \frac{e^{\eta_i}}{1 + e^{\eta_i}}$$
+
+where $\eta_i = \mathbf{x}_i'\boldsymbol{\beta}$.
+
+The log-likelihood is:
+$$\ell(\boldsymbol{\beta}) = \sum_{i=1}^n \left[Y_i \log(p_i) + (1 - Y_i)\log(1 - p_i)\right]$$
+
+Substituting $p_i$:
+$$\ell(\boldsymbol{\beta}) = \sum_{i=1}^n \left[Y_i \eta_i - \log(1 + e^{\eta_i})\right]$$
+
+
+``` r
+# Manual log-likelihood for simple logistic regression
+log_likelihood <- function(beta, X, Y) {
+    eta <- X %*% beta
+    p <- 1 / (1 + exp(-eta))
+    # Avoid log(0) issues
+    p <- pmax(pmin(p, 1 - 1e-10), 1e-10)
+    sum(Y * log(p) + (1 - Y) * log(1 - p))
+}
+
+# Prepare design matrix for simple model
+X <- cbind(1, diabetes_data$Age)
+Y <- diabetes_data$Diabetic
+
+# Grid of parameter values
+beta0_seq <- seq(-6, -2, length.out = 50)
+beta1_seq <- seq(0.02, 0.08, length.out = 50)
+
+ll_grid <- expand.grid(beta0 = beta0_seq, beta1 = beta1_seq)
+ll_grid$loglik <- sapply(1:nrow(ll_grid), function(i) {
+    log_likelihood(c(ll_grid$beta0[i], ll_grid$beta1[i]), X, Y)
+})
+
+# Find MLE from glm
+model_logistic <- glm(Diabetic ~ Age, data = diabetes_data, family = binomial)
+mle_beta <- coef(model_logistic)
+
+cat("Log-Likelihood Analysis:\n")
+cat("========================\n\n")
+cat("MLE from glm():\n")
+cat("  β₀ =", round(mle_beta[1], 4), "\n")
+cat("  β₁ =", round(mle_beta[2], 5), "\n")
+cat("  Log-likelihood at MLE:", round(logLik(model_logistic), 2), "\n")
+
+# Visualise
+ll_dt <- as.data.table(ll_grid)
+
+ggplot2$ggplot(ll_dt, ggplot2$aes(x = beta0, y = beta1, z = loglik)) +
+    ggplot2$geom_contour_filled(bins = 20) +
+    ggplot2$geom_point(x = mle_beta[1], y = mle_beta[2],
+                       colour = "white", size = 4, shape = 4, stroke = 2) +
+    ggplot2$scale_fill_viridis_d(option = "plasma") +
+    ggplot2$labs(
+        title = "Log-Likelihood Surface for Logistic Regression",
+        subtitle = "White X marks the MLE",
+        x = expression(beta[0] ~ "(Intercept)"),
+        y = expression(beta[1] ~ "(Age)"),
+        fill = "Log-Likelihood"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/logistic_likelihood-1.png" alt="Log-likelihood surface for logistic regression">
+	Log-likelihood surface for logistic regression
+</Figure>
+
+```
+#> Log-Likelihood Analysis:
+#> ========================
+#> 
+#> MLE from glm():
+#>   β₀ = -5.0588 
+#>   β₁ = 0.05419 
+#>   Log-likelihood at MLE: -2123.47
+```
+
+---
+
+## 2.2 Iteratively Reweighted Least Squares (IRLS)
+
+### 2.2.1 The Algorithm
+
+**Mathematical Derivation**
+
+The score equations can be rewritten as a **weighted least squares** problem. At iteration $t$, we solve:
+$$(\mathbf{X}'\mathbf{W}^{(t)}\mathbf{X})\boldsymbol{\beta}^{(t+1)} = \mathbf{X}'\mathbf{W}^{(t)}\mathbf{z}^{(t)}$$
+
+where:
+- $\mathbf{W}^{(t)} = \text{diag}(w_1^{(t)}, \ldots, w_n^{(t)})$ with $w_i = \frac{1}{V(\mu_i)[g'(\mu_i)]^2}$
+- $\mathbf{z}^{(t)}$ is the **working response**: $z_i = \eta_i + (Y_i - \mu_i)g'(\mu_i)$
+
+This is why the algorithm is called **Iteratively Reweighted Least Squares** — at each step, we solve a weighted OLS problem with updated weights.
+
+**IRLS Algorithm:**
+1. Initialize $\boldsymbol{\beta}^{(0)}$ (e.g., from OLS)
+2. Compute $\eta^{(t)} = \mathbf{X}\boldsymbol{\beta}^{(t)}$
+3. Compute $\mu^{(t)} = g^{-1}(\eta^{(t)})$
+4. Compute weights $\mathbf{W}^{(t)}$ and working response $\mathbf{z}^{(t)}$
+5. Solve weighted OLS: $\boldsymbol{\beta}^{(t+1)} = (\mathbf{X}'\mathbf{W}^{(t)}\mathbf{X})^{-1}\mathbf{X}'\mathbf{W}^{(t)}\mathbf{z}^{(t)}$
+6. Repeat until convergence
+
+
+``` r
+# Implement IRLS for logistic regression
+irls_logistic <- function(X, Y, max_iter = 25, tol = 1e-8) {
+    n <- nrow(X)
+    p <- ncol(X)
+
+    # Initialize with zeros
+    beta <- rep(0, p)
+    history <- list()
+
+    for (iter in 1:max_iter) {
+        # Linear predictor
+        eta <- as.vector(X %*% beta)
+
+        # Mean (inverse logit)
+        mu <- 1 / (1 + exp(-eta))
+        mu <- pmax(pmin(mu, 1 - 1e-10), 1e-10)  # Avoid 0 and 1
+
+        # Weights: W = mu * (1 - mu) for logistic
+        W <- mu * (1 - mu)
+        W <- pmax(W, 1e-10)  # Avoid zero weights
+
+        # Working response: z = eta + (y - mu) / (mu * (1 - mu))
+        z <- eta + (Y - mu) / W
+
+        # Weighted least squares
+        W_diag <- diag(W)
+        XtWX <- t(X) %*% W_diag %*% X
+        XtWz <- t(X) %*% W_diag %*% z
+
+        beta_new <- solve(XtWX) %*% XtWz
+
+        # Store history
+        history[[iter]] <- list(
+            iteration = iter,
+            beta = as.vector(beta_new),
+            loglik = sum(Y * log(mu) + (1 - Y) * log(1 - mu))
+        )
+
+        # Check convergence
+        if (max(abs(beta_new - beta)) < tol) {
+            cat("Converged at iteration", iter, "\n")
+            break
+        }
+        beta <- as.vector(beta_new)
+    }
+
+    list(beta = beta, history = history)
+}
+
+# Run IRLS
+irls_result <- irls_logistic(X, Y)
+
+cat("\nIRLS Results:\n")
+cat("=============\n")
+cat("IRLS estimates:\n")
+cat("  β₀ =", round(irls_result$beta[1], 4), "\n")
+cat("  β₁ =", round(irls_result$beta[2], 5), "\n")
+cat("\nglm() estimates:\n")
+cat("  β₀ =", round(mle_beta[1], 4), "\n")
+cat("  β₁ =", round(mle_beta[2], 5), "\n")
+
+# Extract convergence history
+history_dt <- rbindlist(lapply(irls_result$history, function(h) {
+    data.table(iteration = h$iteration, beta0 = h$beta[1], beta1 = h$beta[2], loglik = h$loglik)
+}))
+
+# Plot convergence
+ggplot2$ggplot(history_dt, ggplot2$aes(x = iteration, y = loglik)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1) +
+    ggplot2$geom_point(colour = "#0072B2", size = 3) +
+    ggplot2$labs(
+        title = "IRLS Convergence",
+        subtitle = "Log-likelihood increases at each iteration until convergence",
+        x = "Iteration",
+        y = "Log-Likelihood"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/irls_implementation-1.png" alt="IRLS convergence for logistic regression">
+	IRLS convergence for logistic regression
+</Figure>
+
+```
+#> Converged at iteration 7 
+#> 
+#> IRLS Results:
+#> =============
+#> IRLS estimates:
+#>   β₀ = -5.0588 
+#>   β₁ = 0.05419 
+#> 
+#> glm() estimates:
+#>   β₀ = -5.0588 
+#>   β₁ = 0.05419
+```
+
+---
+
+## 2.3 Inference in GLMs
+
+### 2.3.1 Asymptotic Distribution of MLEs
+
+**Mathematical Derivation**
+
+Under regularity conditions, the MLE $\hat{\boldsymbol{\beta}}$ is asymptotically normal:
+$$\hat{\boldsymbol{\beta}} \stackrel{d}{\to} N(\boldsymbol{\beta}, \mathbf{I}(\boldsymbol{\beta})^{-1})$$
+
+where $\mathbf{I}(\boldsymbol{\beta})$ is the **Fisher information matrix**:
+$$\mathbf{I}(\boldsymbol{\beta}) = -E\left[\frac{\partial^2 \ell}{\partial \boldsymbol{\beta} \partial \boldsymbol{\beta}'}\right] = \mathbf{X}'\mathbf{W}\mathbf{X} / a(\phi)$$
+
+The standard errors are:
+$$SE(\hat{\beta}_j) = \sqrt{[\mathbf{I}(\hat{\boldsymbol{\beta}})^{-1}]_{jj}}$$
+
+### 2.3.2 Wald Tests and Confidence Intervals
+
+**Mathematical Definition**
+
+The **Wald test** for $H_0: \beta_j = 0$ uses:
+$$z = \frac{\hat{\beta}_j}{SE(\hat{\beta}_j)} \stackrel{H_0}{\sim} N(0, 1)$$
+
+A $(1-\alpha)$% **Wald confidence interval** is:
+$$\hat{\beta}_j \pm z_{\alpha/2} \cdot SE(\hat{\beta}_j)$$
+
+For odds ratios in logistic regression:
+$$\exp(\hat{\beta}_j \pm z_{\alpha/2} \cdot SE(\hat{\beta}_j))$$
+
+
+``` r
+# Full model with Age and BMI
+model_full <- glm(Diabetic ~ Age + BMI, data = diabetes_data, family = binomial)
+
+# Extract Wald-based inference
+coef_table <- summary(model_full)$coefficients
+ci_wald <- confint.default(model_full)  # Wald-based CI
+
+cat("Wald-Based Inference:\n")
+cat("=====================\n\n")
+cat("Coefficients and Wald Tests:\n")
+print(coef_table)
+
+cat("\n95% Wald Confidence Intervals:\n")
+print(ci_wald)
+
+# Odds ratios with CI
+or_table <- data.table(
+    Variable = rownames(ci_wald),
+    Odds_Ratio = exp(coef(model_full)),
+    OR_Lower = exp(ci_wald[, 1]),
+    OR_Upper = exp(ci_wald[, 2])
+)
+
+cat("\nOdds Ratios (95% CI):\n")
+print(or_table[-1])  # Exclude intercept
+```
+
+```
+#> Wald-Based Inference:
+#> =====================
+#> 
+#> Coefficients and Wald Tests:
+#>                Estimate  Std. Error   z value      Pr(>|z|)
+#> (Intercept) -8.27481528 0.270622665 -30.57695 2.479240e-205
+#> Age          0.05942748 0.002741811  21.67454 3.568051e-104
+#> BMI          0.09609988 0.005727537  16.77857  3.501611e-63
+#> 
+#> 95% Wald Confidence Intervals:
+#>                   2.5 %      97.5 %
+#> (Intercept) -8.80522596 -7.74440461
+#> Age          0.05405363  0.06480134
+#> BMI          0.08487411  0.10732564
+#> 
+#> Odds Ratios (95% CI):
+#>    Variable Odds_Ratio OR_Lower OR_Upper
+#>      <char>      <num>    <num>    <num>
+#> 1:      Age   1.061229 1.055541 1.066947
+#> 2:      BMI   1.100869 1.088580 1.113297
+```
+
+### 2.3.3 Likelihood Ratio Test
+
+**Mathematical Definition**
+
+The **likelihood ratio test (LRT)** compares nested models:
+$$\Lambda = -2[\ell(\hat{\boldsymbol{\beta}}_0) - \ell(\hat{\boldsymbol{\beta}})]$$
+
+Under $H_0$, $\Lambda \stackrel{d}{\to} \chi^2_{df}$, where $df$ is the difference in number of parameters.
+
+The LRT is generally more reliable than the Wald test, especially for small samples or when parameters are near boundary values.
+
+
+``` r
+# Compare models
+model_age <- glm(Diabetic ~ Age, data = diabetes_data, family = binomial)
+model_full <- glm(Diabetic ~ Age + BMI, data = diabetes_data, family = binomial)
+
+# Likelihood ratio test
+lrt <- anova(model_age, model_full, test = "LRT")
+
+cat("Likelihood Ratio Test:\n")
+cat("======================\n\n")
+cat("Model 1: Diabetic ~ Age\n")
+cat("Model 2: Diabetic ~ Age + BMI\n\n")
+print(lrt)
+
+# Manual calculation
+ll_reduced <- logLik(model_age)
+ll_full <- logLik(model_full)
+lr_stat <- -2 * (as.numeric(ll_reduced) - as.numeric(ll_full))
+df <- 1
+p_value <- pchisq(lr_stat, df, lower.tail = FALSE)
+
+cat("\nManual Calculation:\n")
+cat("  Log-likelihood (reduced):", round(as.numeric(ll_reduced), 2), "\n")
+cat("  Log-likelihood (full):", round(as.numeric(ll_full), 2), "\n")
+cat("  LR statistic:", round(lr_stat, 4), "\n")
+cat("  df:", df, "\n")
+cat("  p-value:", format.pval(p_value), "\n")
+```
+
+```
+#> Likelihood Ratio Test:
+#> ======================
+#> 
+#> Model 1: Diabetic ~ Age
+#> Model 2: Diabetic ~ Age + BMI
+#> 
+#> Analysis of Deviance Table
+#> 
+#> Model 1: Diabetic ~ Age
+#> Model 2: Diabetic ~ Age + BMI
+#>   Resid. Df Resid. Dev Df Deviance  Pr(>Chi)    
+#> 1      7412     4246.9                          
+#> 2      7411     3960.7  1   286.19 < 2.2e-16 ***
+#> ---
+#> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+#> 
+#> Manual Calculation:
+#>   Log-likelihood (reduced): -2123.47 
+#>   Log-likelihood (full): -1980.37 
+#>   LR statistic: 286.1879 
+#>   df: 1 
+#>   p-value: < 2.22e-16
+```
+
+### 2.3.4 Profile Likelihood Confidence Intervals
+
+**Prose and Intuition**
+
+**Profile likelihood intervals** are more accurate than Wald intervals, especially when the log-likelihood is not quadratic (asymmetric or curved).
+
+The profile likelihood for $\beta_j$ is formed by maximising over all other parameters:
+$$\ell_P(\beta_j) = \max_{\beta_{-j}} \ell(\beta_j, \boldsymbol{\beta}_{-j})$$
+
+The interval includes all $\beta_j$ where:
+$$\ell_P(\beta_j) \geq \ell(\hat{\boldsymbol{\beta}}) - \frac{\chi^2_{1,\alpha}}{2}$$
+
+
+``` r
+# Profile likelihood confidence intervals
+ci_profile <- confint(model_full)  # Profile-based CI
+```
+
+```
+#> Waiting for profiling to be done...
+```
+
+``` r
+cat("Comparison: Wald vs Profile CI:\n")
+cat("================================\n\n")
+
+comparison <- data.table(
+    Variable = rownames(ci_wald),
+    Wald_Lower = ci_wald[, 1],
+    Wald_Upper = ci_wald[, 2],
+    Profile_Lower = ci_profile[, 1],
+    Profile_Upper = ci_profile[, 2]
+)
+print(comparison)
+
+cat("\nNote: Profile intervals are often slightly asymmetric,\n")
+cat("reflecting the true shape of the likelihood.\n")
+```
+
+```
+#> Comparison: Wald vs Profile CI:
+#> ================================
+#> 
+#>       Variable  Wald_Lower  Wald_Upper Profile_Lower Profile_Upper
+#>         <char>       <num>       <num>         <num>         <num>
+#> 1: (Intercept) -8.80522596 -7.74440461   -8.81351012   -7.75239006
+#> 2:         Age  0.05405363  0.06480134    0.05410979    0.06486058
+#> 3:         BMI  0.08487411  0.10732564    0.08493032    0.10739146
+#> 
+#> Note: Profile intervals are often slightly asymmetric,
+#> reflecting the true shape of the likelihood.
+```
+
+---
+
+## 2.4 Model Fit and Deviance
+
+### 2.4.1 Deviance
+
+**Mathematical Definition**
+
+The **deviance** measures the discrepancy between the fitted model and the saturated model (which has one parameter per observation):
+$$D = 2[\ell(\text{saturated}) - \ell(\text{fitted})]$$
+
+For the saturated model, $\hat{\mu}_i = Y_i$ exactly.
+
+**Deviance as a goodness-of-fit measure:**
+- Small deviance → good fit
+- For Poisson and binomial with large counts: $D \stackrel{\cdot}{\sim} \chi^2_{n-p-1}$ under the correct model
+
+**Deviance residuals:**
+$$d_i = \text{sign}(Y_i - \hat{\mu}_i) \sqrt{d_i^2}$$
+
+where $d_i^2$ is the contribution of observation $i$ to the deviance.
+
+
+``` r
+# Deviance components
+cat("Deviance Analysis:\n")
+cat("==================\n\n")
+
+cat("Model: Diabetic ~ Age + BMI\n")
+cat("Null deviance:", round(model_full$null.deviance, 2), "on", model_full$df.null, "df\n")
+cat("Residual deviance:", round(model_full$deviance, 2), "on", model_full$df.residual, "df\n")
+cat("\nDeviance explained:", round((1 - model_full$deviance / model_full$null.deviance) * 100, 2), "%\n")
+
+# Deviance residuals
+dev_resid <- residuals(model_full, type = "deviance")
+
+cat("\nDeviance Residuals Summary:\n")
+print(summary(dev_resid))
+
+# Plot deviance residuals
+diabetes_data[, dev_residual := dev_resid]
+diabetes_data[, fitted_prob := fitted(model_full)]
+
+ggplot2$ggplot(diabetes_data, ggplot2$aes(x = fitted_prob, y = dev_residual)) +
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE) +
+    ggplot2$labs(
+        title = "Deviance Residuals vs Fitted Probabilities",
+        subtitle = "Check for patterns indicating model misfit",
+        x = "Fitted Probability",
+        y = "Deviance Residual"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+```
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-2-intermediate/deviance-1.png" alt="Deviance analysis for model fit">
+	Deviance analysis for model fit
+</Figure>
+
+```
+#> Deviance Analysis:
+#> ==================
+#> 
+#> Model: Diabetic ~ Age + BMI
+#> Null deviance: 4778.89 on 7413 df
+#> Residual deviance: 3960.75 on 7411 df
+#> 
+#> Deviance explained: 17.12 %
+#> 
+#> Deviance Residuals Summary:
+#>    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+#> -1.9440 -0.4693 -0.2924 -0.1583 -0.1759  3.0272
+```
+
+### 2.4.2 Pearson Residuals and Overdispersion
+
+**Mathematical Definition**
+
+**Pearson residuals** are:
+$$r_i^P = \frac{Y_i - \hat{\mu}_i}{\sqrt{V(\hat{\mu}_i)}}$$
+
+The **Pearson chi-square statistic** is:
+$$X^2 = \sum_{i=1}^n (r_i^P)^2$$
+
+**Overdispersion** occurs when $\text{Var}(Y) > V(\mu)$ expected by the model. We estimate the dispersion parameter:
+$$\hat{\phi} = \frac{X^2}{n - p - 1}$$
+
+If $\hat{\phi} > 1$, we have overdispersion.
+
+
+``` r
+# Check overdispersion in Poisson model
+visits_data <- doctor_visits[!is.na(visits) & !is.na(age),
+                             .(visits = visits, age = age)]
+visits_data <- visits_data[complete.cases(visits_data)]
+
+model_poisson <- glm(visits ~ age, data = visits_data, family = poisson)
+
+# Pearson residuals
+pearson_resid <- residuals(model_poisson, type = "pearson")
+pearson_chisq <- sum(pearson_resid^2)
+df_residual <- model_poisson$df.residual
+
+# Dispersion estimate
+dispersion_est <- pearson_chisq / df_residual
+
+cat("Overdispersion Check (Poisson Model):\n")
+cat("=====================================\n\n")
+cat("Pearson χ²:", round(pearson_chisq, 2), "\n")
+cat("df:", df_residual, "\n")
+cat("Estimated dispersion (φ):", round(dispersion_est, 3), "\n")
+cat("\nInterpretation:\n")
+if (dispersion_est > 1.5) {
+    cat("  φ >> 1 indicates substantial overdispersion.\n")
+    cat("  Consider quasipoisson or negative binomial.\n")
+} else if (dispersion_est > 1.1) {
+    cat("  φ slightly > 1, mild overdispersion.\n")
+} else {
+    cat("  φ ≈ 1, no evidence of overdispersion.\n")
+}
+
+# Fit quasipoisson for comparison
+model_quasi <- glm(visits ~ age, data = visits_data, family = quasipoisson)
+
+cat("\nStandard Errors Comparison:\n")
+se_comparison <- data.table(
+    Variable = names(coef(model_poisson)),
+    SE_Poisson = summary(model_poisson)$coefficients[, "Std. Error"],
+    SE_Quasipoisson = summary(model_quasi)$coefficients[, "Std. Error"]
+)
+se_comparison[, Ratio := round(SE_Quasipoisson / SE_Poisson, 2)]
+print(se_comparison)
+
+cat("\nNote: Quasipoisson SEs are √φ times larger.\n")
+```
+
+```
+#> Overdispersion Check (Poisson Model):
+#> =====================================
+#> 
+#> Pearson χ²: 34872.24 
+#> df: 4404 
+#> Estimated dispersion (φ): 7.918 
+#> 
+#> Interpretation:
+#>   φ >> 1 indicates substantial overdispersion.
+#>   Consider quasipoisson or negative binomial.
+#> 
+#> Standard Errors Comparison:
+#>       Variable  SE_Poisson SE_Quasipoisson Ratio
+#>         <char>       <num>           <num> <num>
+#> 1: (Intercept) 0.073439315      0.20665654  2.81
+#> 2:         age 0.009881429      0.02780611  2.81
+#> 
+#> Note: Quasipoisson SEs are √φ times larger.
+```
+
+---
+
+## 2.5 Model Comparison
+
+### 2.5.1 AIC and BIC for GLMs
+
+**Mathematical Definition**
+
+**AIC** (Akaike Information Criterion):
+$$AIC = -2\ell(\hat{\boldsymbol{\beta}}) + 2p$$
+
+**BIC** (Bayesian Information Criterion):
+$$BIC = -2\ell(\hat{\boldsymbol{\beta}}) + p \log(n)$$
+
+Lower values indicate better models (balancing fit and complexity).
+
+
+``` r
+# Compare several models
+models <- list(
+    "Age only" = glm(Diabetic ~ Age, data = diabetes_data, family = binomial),
+    "BMI only" = glm(Diabetic ~ BMI, data = diabetes_data, family = binomial),
+    "Age + BMI" = glm(Diabetic ~ Age + BMI, data = diabetes_data, family = binomial),
+    "Age * BMI" = glm(Diabetic ~ Age * BMI, data = diabetes_data, family = binomial)
+)
+
+# Extract criteria
+model_comparison <- data.table(
+    Model = names(models),
+    n_params = sapply(models, function(m) length(coef(m))),
+    LogLik = sapply(models, function(m) round(as.numeric(logLik(m)), 2)),
+    AIC = sapply(models, AIC),
+    BIC = sapply(models, BIC)
+)
+model_comparison <- model_comparison[order(AIC)]
+
+cat("Model Comparison:\n")
+cat("=================\n\n")
+print(model_comparison)
+
+cat("\nBest model by AIC:", model_comparison[1, Model], "\n")
+cat("Best model by BIC:", model_comparison[which.min(BIC), Model], "\n")
+```
+
+```
+#> Model Comparison:
+#> =================
+#> 
+#>        Model n_params   LogLik      AIC      BIC
+#>       <char>    <int>    <num>    <num>    <num>
+#> 1: Age + BMI        3 -1980.37 3966.750 3987.483
+#> 2: Age * BMI        4 -1979.65 3967.301 3994.945
+#> 3:  Age only        2 -2123.47 4250.938 4264.760
+#> 4:  BMI only        2 -2262.93 4529.853 4543.675
+#> 
+#> Best model by AIC: Age + BMI 
+#> Best model by BIC: Age + BMI
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining GLM Results
+
+**For Clinical Collaborators:**
+
+"We used logistic regression to identify factors associated with diabetes. This method is specifically designed for yes/no outcomes and gives us results in terms of 'odds ratios' — how much more likely someone is to have diabetes given a change in a risk factor.
+
+**Key findings:**
+
+1. **Age effect**: For each additional year of age, the odds of having diabetes increase by about 6.1% (95% CI: 5.6% to 6.7%).
+
+2. **BMI effect**: For each additional unit of BMI, the odds increase by about 10.1%.
+
+**Model validation:**
+We used likelihood ratio tests to confirm that both age and BMI significantly improve our predictions beyond what we'd expect by chance alone (p < 0.001). The model correctly distinguishes between diabetic and non-diabetic individuals about 70% of the time."
+
+---
+
+## Quick Reference
+
+### MLEs for Common GLMs
+
+| Distribution | Log-Likelihood |
+|--------------|----------------|
+| Binomial | $\sum[Y_i\log p_i + (1-Y_i)\log(1-p_i)]$ |
+| Poisson | $\sum[Y_i\log\mu_i - \mu_i]$ |
+| Normal | $-\frac{n}{2}\log(2\pi\sigma^2) - \frac{\sum(Y_i-\mu_i)^2}{2\sigma^2}$ |
+
+### Test Statistics
+
+| Test | Statistic | Distribution |
+|------|-----------|--------------|
+| Wald | $z = \hat{\beta}/SE(\hat{\beta})$ | $N(0,1)$ |
+| LRT | $-2[\ell_0 - \ell_1]$ | $\chi^2_{df}$ |
+| Score | Based on score function | $\chi^2_{df}$ |
+
+### R Code Patterns
+
+```r
+# Fit GLM
+model <- glm(Y ~ X1 + X2, family = binomial, data = mydata)
+
+# Summary with Wald tests
+summary(model)
+
+# Confidence intervals
+confint.default(model)  # Wald-based
+confint(model)          # Profile likelihood
+
+# Likelihood ratio test
+anova(model_reduced, model_full, test = "LRT")
+
+# AIC/BIC
+AIC(model1, model2)
+BIC(model1, model2)
+
+# Deviance residuals
+residuals(model, type = "deviance")
+
+# Pearson residuals
+residuals(model, type = "pearson")
+
+# Overdispersion check
+sum(residuals(model, "pearson")^2) / model$df.residual
+```

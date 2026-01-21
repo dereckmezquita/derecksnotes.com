@@ -1,0 +1,814 @@
+---
+title: "Interpreting Backtest Results"
+---
+
+```{r setup, include=FALSE}
+box::use(
+    ../modules/data[load_market, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+tc <- unlist(trading_colors)
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = "../figures/04-3_"
+)
+
+set.seed(42)
+```
+
+# Interpreting Backtest Results
+
+You've run a backtest with proper validation. Now comes the hardest part: deciding whether the results justify live trading. This chapter covers statistical significance, regime analysis, and the "minimum believable Sharpe" needed to overcome randomness.
+
+---
+
+## 4.9 Statistical Significance
+
+A Sharpe ratio of 1.5 sounds impressive—but is it statistically distinguishable from luck?
+
+### 4.9.1 Prose/Intuition
+
+Every backtest Sharpe ratio is a sample statistic with uncertainty. A strategy with true Sharpe of 0.5 might produce a backtest Sharpe of 1.5 over a 3-year period, simply due to sampling variation.
+
+**The fundamental question:** Given the observed Sharpe and sample size, what is the probability that the true Sharpe is greater than zero?
+
+**Why this matters:**
+
+- Short track records (< 3 years) have enormous uncertainty
+- Strategies with Sharpe < 0.5 are nearly impossible to distinguish from noise
+- Even excellent strategies (true Sharpe = 1.0) can produce poor backtests
+
+### 4.9.2 Visual Evidence
+
+```{r sharpe-distribution, fig.cap="Sampling distribution of Sharpe ratio. A true Sharpe of 0.5 can easily produce observed values from 0 to 1.0 over 3 years."}
+# Simulate Sharpe ratio sampling distribution
+simulate_sharpe_distribution <- function(true_sharpe, n_days, n_simulations = 5000) {
+    # Daily mean and vol implied by Sharpe
+    daily_vol <- 0.01  # 1% daily vol
+    daily_mean <- true_sharpe * daily_vol / sqrt(252)
+
+    sharpes <- replicate(n_simulations, {
+        returns <- rnorm(n_days, mean = daily_mean, sd = daily_vol)
+        mean(returns) / sd(returns) * sqrt(252)
+    })
+
+    sharpes
+}
+
+# Different track record lengths
+true_sr <- 0.5
+lengths <- c(252, 504, 756, 1260, 2520)  # 1, 2, 3, 5, 10 years
+
+sim_results <- rbindlist(lapply(lengths, function(n) {
+    srs <- simulate_sharpe_distribution(true_sr, n)
+    data.table(
+        years = n / 252,
+        sharpe = srs
+    )
+}))
+
+sim_results[, years_label := paste(years, "year(s)")]
+sim_results[, years_label := factor(years_label, levels = paste(c(1, 2, 3, 5, 10), "year(s)"))]
+
+ggplot(sim_results, aes(x = sharpe, fill = years_label)) +
+    geom_density(alpha = 0.5) +
+    geom_vline(xintercept = true_sr, colour = "black", linewidth = 1, linetype = "dashed") +
+    geom_vline(xintercept = 0, colour = "grey50", linetype = "dotted") +
+    annotate("text", x = true_sr + 0.05, y = 2.5, label = "True Sharpe = 0.5",
+             hjust = 0, fontface = "bold") +
+    scale_fill_manual(values = c(tc[1], tc[2], tc[3], tc[5], tc[6])) +
+    labs(
+        title = "Sharpe Ratio Uncertainty by Track Record Length",
+        subtitle = "Longer track records narrow the distribution around the true value",
+        x = "Observed Sharpe Ratio",
+        y = "Density",
+        fill = "Track Record"
+    ) +
+    theme_trading() +
+    theme(legend.position = "right")
+```
+
+```{r sharpe-confidence-intervals, fig.cap="95% confidence intervals for Sharpe ratio estimation. Even 10 years of data has substantial uncertainty."}
+# Calculate confidence intervals by track record length
+ci_data <- rbindlist(lapply(lengths, function(n) {
+    srs <- simulate_sharpe_distribution(true_sr, n)
+    data.table(
+        years = n / 252,
+        mean = mean(srs),
+        lower = quantile(srs, 0.025),
+        upper = quantile(srs, 0.975),
+        lower_90 = quantile(srs, 0.05),
+        upper_90 = quantile(srs, 0.95)
+    )
+}))
+
+ggplot(ci_data, aes(x = years)) +
+    geom_ribbon(aes(ymin = lower, ymax = upper), fill = tc[1], alpha = 0.3) +
+    geom_ribbon(aes(ymin = lower_90, ymax = upper_90), fill = tc[1], alpha = 0.3) +
+    geom_line(aes(y = mean), colour = tc[1], linewidth = 1) +
+    geom_hline(yintercept = true_sr, colour = "black", linetype = "dashed") +
+    geom_hline(yintercept = 0, colour = "grey50", linetype = "dotted") +
+    annotate("text", x = 9, y = true_sr + 0.05, label = "True Sharpe", hjust = 1) +
+    labs(
+        title = "Sharpe Ratio Confidence Intervals by Track Record",
+        subtitle = "Shaded regions show 90% and 95% confidence intervals",
+        x = "Years of Data",
+        y = "Sharpe Ratio"
+    ) +
+    scale_x_continuous(breaks = c(1, 2, 3, 5, 10)) +
+    theme_trading()
+```
+
+### 4.9.3 Mathematical Derivation
+
+**Standard error of Sharpe ratio:**
+
+For a sample of $T$ returns with estimated Sharpe $\widehat{SR}$:
+
+$$SE(\widehat{SR}) = \sqrt{\frac{1 + 0.5 \cdot \widehat{SR}^2}{T}}$$
+
+This accounts for the joint estimation of mean and standard deviation.
+
+**Confidence interval:**
+
+$$CI_{1-\alpha} = \widehat{SR} \pm z_{\alpha/2} \cdot SE(\widehat{SR})$$
+
+For 95% CI with $\widehat{SR} = 1.0$ and $T = 756$ (3 years):
+$$SE = \sqrt{\frac{1 + 0.5}{756}} = 0.045$$
+$$CI_{95\%} = 1.0 \pm 1.96 \times 0.045 = [0.91, 1.09]$$
+
+**t-test for Sharpe > 0:**
+
+$$t = \frac{\widehat{SR}}{SE(\widehat{SR})} = \widehat{SR} \times \sqrt{\frac{T}{1 + 0.5 \cdot \widehat{SR}^2}}$$
+
+For significance at $\alpha = 0.05$ (one-sided), need $t > 1.645$.
+
+**Minimum detectable Sharpe:**
+
+To reject $H_0: SR = 0$ at significance $\alpha$ with power $1 - \beta$:
+
+$$SR_{min} \approx \frac{z_\alpha + z_\beta}{\sqrt{T}}$$
+
+For $\alpha = 0.05$, power = 80%, and 3 years of daily data:
+$$SR_{min} = \frac{1.645 + 0.84}{\sqrt{756}} \approx 0.09$$
+
+### 4.9.4 Implementation & Application
+
+```{r sharpe-significance-testing}
+# Function to test Sharpe ratio significance
+sharpe_significance <- function(returns, null_sharpe = 0, alpha = 0.05) {
+    n <- length(returns)
+    returns <- returns[!is.na(returns)]
+
+    # Estimated Sharpe
+    sr <- mean(returns) / sd(returns) * sqrt(252)
+
+    # Standard error
+    se <- sqrt((1 + 0.5 * sr^2) / n)
+
+    # t-statistic
+    t_stat <- (sr - null_sharpe) / se
+
+    # p-value (one-sided: is SR > null_sharpe?)
+    p_value <- 1 - pnorm(t_stat)
+
+    # Confidence interval
+    z <- qnorm(1 - alpha / 2)
+    ci_lower <- sr - z * se
+    ci_upper <- sr + z * se
+
+    list(
+        sharpe = sr,
+        se = se,
+        t_stat = t_stat,
+        p_value = p_value,
+        ci_lower = ci_lower,
+        ci_upper = ci_upper,
+        significant = p_value < alpha
+    )
+}
+
+# Load and test real strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := c(NA, diff(log(adjusted)))]
+
+# Simple momentum strategy
+spy[, signal := shift(fifelse(adjusted > frollmean(adjusted, 200), 1, 0), 1)]
+spy[, strat_ret := signal * returns]
+spy <- spy[!is.na(strat_ret)]
+
+# Test significance
+sig_test <- sharpe_significance(spy$strat_ret)
+
+cat("=== Sharpe Ratio Significance Test ===\n")
+cat(sprintf("Sample size: %d days (%.1f years)\n",
+            length(spy$strat_ret), length(spy$strat_ret) / 252))
+cat(sprintf("Estimated Sharpe: %.3f\n", sig_test$sharpe))
+cat(sprintf("Standard Error: %.3f\n", sig_test$se))
+cat(sprintf("t-statistic: %.2f\n", sig_test$t_stat))
+cat(sprintf("p-value: %.4f\n", sig_test$p_value))
+cat(sprintf("95%% CI: [%.3f, %.3f]\n", sig_test$ci_lower, sig_test$ci_upper))
+cat(sprintf("Significant at 5%%: %s\n", sig_test$significant))
+```
+
+```{r required-track-record, fig.cap="Minimum track record length to achieve statistical significance at various Sharpe ratios."}
+# Calculate required track record for significance
+required_track_record <- function(true_sharpe, alpha = 0.05, power = 0.80) {
+    z_alpha <- qnorm(1 - alpha)
+    z_beta <- qnorm(power)
+
+    # Approximate formula
+    n <- ((z_alpha + z_beta) / true_sharpe)^2 * (1 + 0.5 * true_sharpe^2)
+    n
+}
+
+sharpe_levels <- seq(0.2, 2.0, by = 0.1)
+track_records <- sapply(sharpe_levels, required_track_record)
+
+track_dt <- data.table(
+    sharpe = sharpe_levels,
+    days = track_records,
+    years = track_records / 252
+)
+
+ggplot(track_dt, aes(x = sharpe, y = years)) +
+    geom_line(colour = tc[1], linewidth = 1.2) +
+    geom_hline(yintercept = c(1, 3, 5, 10), linetype = "dotted", colour = "grey50") +
+    annotate("text", x = 0.25, y = c(1, 3, 5, 10) + 0.5,
+             label = c("1 year", "3 years", "5 years", "10 years"),
+             colour = "grey50", hjust = 0, size = 3) +
+    scale_y_log10(breaks = c(0.5, 1, 2, 5, 10, 20)) +
+    labs(
+        title = "Required Track Record for Statistical Significance",
+        subtitle = "Years needed to reject null hypothesis (Sharpe = 0) with 80% power",
+        x = "True Sharpe Ratio",
+        y = "Years of Data (log scale)"
+    ) +
+    theme_trading()
+```
+
+---
+
+## 4.10 Regime Analysis
+
+Strategies often perform differently across market regimes. Understanding this variation is critical for realistic expectations.
+
+### 4.10.1 Prose/Intuition
+
+A strategy with overall Sharpe of 0.8 might have:
+- Sharpe = 1.5 in low-volatility uptrends
+- Sharpe = -0.3 in high-volatility bear markets
+- Sharpe = 0.5 in sideways markets
+
+**Why this matters:**
+
+1. **Survivability:** Can you stomach the losses during adverse regimes?
+2. **Capital allocation:** Should you scale down in certain conditions?
+3. **Combination:** Strategies with complementary regime profiles can be combined.
+
+### 4.10.2 Visual Evidence
+
+```{r regime-classification, fig.cap="Market regime classification based on volatility and trend indicators."}
+# Classify market regimes
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2000-01-01"), as.Date("2023-12-31"))
+spy[, returns := c(NA, diff(log(adjusted)))]
+
+# Rolling indicators
+spy[, roll_vol := frollapply(returns, 63, sd) * sqrt(252)]
+spy[, roll_ret := frollapply(returns, 252, function(x) sum(x, na.rm = TRUE))]
+spy[, sma_200 := frollmean(adjusted, 200)]
+
+# Regime classification
+spy[, vol_regime := fifelse(roll_vol > median(roll_vol, na.rm = TRUE),
+                            "High Vol", "Low Vol")]
+spy[, trend_regime := fifelse(adjusted > sma_200, "Uptrend", "Downtrend")]
+spy[, regime := paste(trend_regime, vol_regime, sep = " / ")]
+
+# Clean NAs
+spy <- spy[!is.na(regime)]
+
+# Visualise regime over time
+ggplot(spy, aes(x = date, y = adjusted, colour = regime)) +
+    geom_line(linewidth = 0.5) +
+    scale_colour_manual(values = c(tc[3], tc[4], tc[1], tc[2])) +
+    labs(
+        title = "Market Regimes Over Time",
+        subtitle = "Classified by trend (price vs 200-day MA) and volatility (above/below median)",
+        x = NULL,
+        y = "Price",
+        colour = "Regime"
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r regime-strategy-analysis, fig.cap="Strategy performance varies dramatically by regime. Understanding these patterns is essential."}
+# Apply momentum strategy
+spy[, signal := shift(fifelse(adjusted > frollmean(adjusted, 50), 1, 0), 1)]
+spy[, strat_ret := signal * returns]
+spy[, buyhold_ret := returns]
+
+# Calculate performance by regime
+regime_perf <- spy[, .(
+    strategy_sharpe = mean(strat_ret, na.rm = TRUE) / sd(strat_ret, na.rm = TRUE) * sqrt(252),
+    buyhold_sharpe = mean(buyhold_ret, na.rm = TRUE) / sd(buyhold_ret, na.rm = TRUE) * sqrt(252),
+    strategy_ret = mean(strat_ret, na.rm = TRUE) * 252,
+    buyhold_ret = mean(buyhold_ret, na.rm = TRUE) * 252,
+    days = .N
+), by = regime]
+
+# Melt for plotting
+regime_long <- melt(regime_perf,
+                    id.vars = c("regime", "days"),
+                    measure.vars = c("strategy_sharpe", "buyhold_sharpe"),
+                    variable.name = "portfolio", value.name = "sharpe")
+regime_long[, portfolio := fifelse(portfolio == "strategy_sharpe",
+                                   "Momentum Strategy", "Buy & Hold")]
+
+ggplot(regime_long, aes(x = regime, y = sharpe, fill = portfolio)) +
+    geom_col(position = "dodge", alpha = 0.8) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    scale_fill_manual(values = c(tc[1], tc[5])) +
+    labs(
+        title = "Sharpe Ratio by Market Regime",
+        subtitle = "Strategy outperforms in downtrends, underperforms in low-vol uptrends",
+        x = "Market Regime",
+        y = "Sharpe Ratio",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1),
+          legend.position = "bottom")
+```
+
+### 4.10.3 Mathematical Derivation
+
+**Conditional Sharpe ratio:**
+
+For regime $R$, the conditional Sharpe is:
+$$SR_R = \frac{E[r | R]}{\sqrt{Var(r | R)}}$$
+
+**Decomposing overall Sharpe:**
+
+The unconditional Sharpe is *not* simply the weighted average of conditional Sharpes:
+$$SR \neq \sum_R P(R) \cdot SR_R$$
+
+Instead, the relationship involves the covariance between regime probability and returns:
+$$E[r] = \sum_R P(R) \cdot E[r | R]$$
+$$Var(r) = \sum_R P(R) \cdot Var(r | R) + \sum_R P(R) \cdot (E[r | R] - E[r])^2$$
+
+**Regime-switching alpha:**
+
+If $\alpha_R$ is the alpha in regime $R$:
+$$\bar{\alpha} = \sum_R P(R) \cdot \alpha_R$$
+
+A strategy with $\alpha_R > 0$ in some regimes and $\alpha_R < 0$ in others may still have $\bar{\alpha} > 0$ if it performs well when it matters most.
+
+### 4.10.4 Implementation & Application
+
+```{r regime-analysis-implementation}
+# Comprehensive regime analysis function
+regime_analysis <- function(data, regime_col = "regime") {
+    data[, .(
+        n_days = .N,
+        pct_days = .N / nrow(data) * 100,
+        mean_ret = mean(strat_ret, na.rm = TRUE) * 252 * 100,
+        vol = sd(strat_ret, na.rm = TRUE) * sqrt(252) * 100,
+        sharpe = mean(strat_ret, na.rm = TRUE) / sd(strat_ret, na.rm = TRUE) * sqrt(252),
+        max_dd = {
+            wealth <- cumprod(1 + strat_ret)
+            max((cummax(wealth) - wealth) / cummax(wealth)) * 100
+        },
+        win_rate = mean(strat_ret > 0, na.rm = TRUE) * 100
+    ), by = regime_col]
+}
+
+regime_stats <- regime_analysis(spy)
+setorder(regime_stats, -sharpe)
+
+cat("=== Regime-Conditional Performance ===\n")
+print(regime_stats)
+```
+
+```{r regime-transition-analysis, fig.cap="Performance following regime transitions reveals adaptation patterns."}
+# Analyse performance around regime changes
+spy[, regime_change := !is.na(regime) & regime != shift(regime, fill = regime[1])]
+
+# Calculate days since regime change
+spy[, days_since_change := {
+    rc <- regime_change
+    rc[is.na(rc)] <- FALSE
+    cs <- cumsum(rc)
+    idx <- 1:.N
+    result <- rep(NA_integer_, .N)
+    for (g in unique(cs)) {
+        mask <- cs == g
+        result[mask] <- seq_len(sum(mask))
+    }
+    result
+}]
+
+# Performance in first N days after regime change
+spy_clean <- spy[!is.na(days_since_change) & !is.na(strat_ret) & !is.na(regime)]
+transition_perf <- spy_clean[days_since_change <= 20, .(
+    mean_ret = mean(strat_ret, na.rm = TRUE) * 252
+), by = .(days_since_change, regime)]
+
+ggplot(transition_perf, aes(x = days_since_change, y = mean_ret * 100, colour = regime)) +
+    geom_line(linewidth = 0.8) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    scale_colour_manual(values = c(tc[3], tc[4], tc[1], tc[2])) +
+    labs(
+        title = "Strategy Performance After Regime Change",
+        subtitle = "Annualised return in first 20 days of new regime",
+        x = "Days Since Regime Change",
+        y = "Annualised Return (%)",
+        colour = "New Regime"
+    ) +
+    theme_trading() +
+    theme(legend.position = "right")
+```
+
+---
+
+## 4.11 The Minimum Believable Sharpe
+
+Given all sources of uncertainty and bias, what Sharpe ratio should you require before trading live?
+
+### 4.11.1 Prose/Intuition
+
+Academic studies suggest required Sharpe ratios far higher than commonly assumed:
+
+- **Harvey et al. (2016):** New factors need t-stat > 3.0, implying Sharpe thresholds of ~0.3 just for statistical significance.
+
+- **Bailey & de Prado (2014):** After adjusting for multiple testing, most "good" backtests are indistinguishable from noise.
+
+- **Practical rule:** Double your required Sharpe for every decade of data you lack.
+
+**The minimum believable Sharpe depends on:**
+
+1. Track record length
+2. Number of strategies tested
+3. Complexity of the strategy
+4. Transaction costs not yet modelled
+5. Implementation reality vs backtest assumptions
+
+### 4.11.2 Visual Evidence
+
+```{r minimum-sharpe-surface, fig.cap="Minimum believable Sharpe as a function of track record and number of tests."}
+# Calculate minimum believable Sharpe
+min_believable_sharpe <- function(n_years, n_tests, confidence = 0.95) {
+    n_days <- n_years * 252
+
+    # Base uncertainty from sample size
+    se_base <- sqrt(1.5 / n_days)  # Assuming moderate Sharpe
+
+    # Multiple testing adjustment
+    expected_max_null <- sqrt(2 * log(n_tests)) / sqrt(n_days)
+
+    # Required Sharpe to be significant after adjustment
+    z <- qnorm(confidence)
+    min_sharpe <- z * se_base + expected_max_null
+
+    min_sharpe
+}
+
+# Create surface
+years_range <- seq(1, 10, by = 0.5)
+tests_range <- c(1, 10, 50, 100, 500, 1000)
+
+surface_data <- expand.grid(years = years_range, n_tests = tests_range)
+surface_data$min_sharpe <- mapply(min_believable_sharpe,
+                                   surface_data$years,
+                                   surface_data$n_tests)
+surface_dt <- as.data.table(surface_data)
+surface_dt[, tests_label := factor(paste(n_tests, "tests"))]
+
+ggplot(surface_dt, aes(x = years, y = min_sharpe, colour = tests_label)) +
+    geom_line(linewidth = 1) +
+    geom_hline(yintercept = c(0.5, 1.0, 1.5), linetype = "dotted", colour = "grey50") +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[3], tc[4], tc[5], tc[6])) +
+    labs(
+        title = "Minimum Believable Sharpe Ratio",
+        subtitle = "Accounting for sample size and multiple testing",
+        x = "Years of Track Record",
+        y = "Minimum Sharpe",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "right")
+```
+
+### 4.11.3 Mathematical Derivation
+
+**Comprehensive adjustment formula:**
+
+The minimum believable Sharpe combines several adjustments:
+
+$$SR_{min} = SR_{statistical} + SR_{multiple} + SR_{overfit} + SR_{costs}$$
+
+where:
+
+- $SR_{statistical} = \frac{z_\alpha}{\sqrt{T}} \cdot \sqrt{1 + 0.5 \cdot SR^2}$ — statistical significance
+- $SR_{multiple} = \sqrt{\frac{2 \ln(K)}{T}}$ — multiple testing (K strategies)
+- $SR_{overfit} = \frac{\sqrt{p}}{T}$ — parameter overfitting (p parameters)
+- $SR_{costs} = \frac{\Delta c}{σ}$ — unmodelled costs (cost underestimate Δc, volatility σ)
+
+**Bailey's haircut:**
+
+A practical rule from Bailey et al.:
+$$SR_{required} = 3.0 \times \frac{1}{\sqrt{T/252}}$$
+
+For 3 years of data: $SR_{required} = 3.0 / \sqrt{3} = 1.73$
+
+### 4.11.4 Implementation & Application
+
+```{r minimum-sharpe-calculator}
+# Comprehensive minimum Sharpe calculator
+calculate_minimum_sharpe <- function(n_years, n_tests = 1, n_params = 5,
+                                      cost_uncertainty_pct = 0.5,
+                                      annual_vol = 0.15,
+                                      confidence = 0.95) {
+    n_days <- n_years * 252
+    z <- qnorm(confidence)
+
+    # Statistical significance component
+    sr_stat <- z * sqrt(1.5 / n_days)
+
+    # Multiple testing component
+    sr_multiple <- sqrt(2 * log(max(n_tests, 1))) / sqrt(n_days)
+
+    # Overfitting component (rough approximation)
+    sr_overfit <- sqrt(n_params) / n_days * sqrt(252)
+
+    # Cost uncertainty component
+    sr_costs <- cost_uncertainty_pct / 100 / annual_vol
+
+    total <- sr_stat + sr_multiple + sr_overfit + sr_costs
+
+    list(
+        statistical = sr_stat,
+        multiple_testing = sr_multiple,
+        overfitting = sr_overfit,
+        cost_uncertainty = sr_costs,
+        total = total
+    )
+}
+
+# Example calculation
+min_sr <- calculate_minimum_sharpe(
+    n_years = 5,
+    n_tests = 100,
+    n_params = 10,
+    cost_uncertainty_pct = 0.3,
+    annual_vol = 0.15
+)
+
+cat("=== Minimum Believable Sharpe Calculation ===\n")
+cat("Assumptions:\n")
+cat("  - 5 years of data\n")
+cat("  - 100 strategies tested\n")
+cat("  - 10 parameters\n")
+cat("  - 0.3% annual cost uncertainty\n")
+cat("  - 15% annual volatility\n\n")
+cat("Components:\n")
+cat(sprintf("  Statistical significance: %.3f\n", min_sr$statistical))
+cat(sprintf("  Multiple testing: %.3f\n", min_sr$multiple_testing))
+cat(sprintf("  Overfitting: %.3f\n", min_sr$overfitting))
+cat(sprintf("  Cost uncertainty: %.3f\n", min_sr$cost_uncertainty))
+cat(sprintf("\nMinimum Believable Sharpe: %.2f\n", min_sr$total))
+```
+
+```{r sharpe-reality-check, fig.cap="Decomposition of minimum Sharpe requirements by source of uncertainty."}
+# Visualise components across different scenarios
+scenarios <- data.table(
+    scenario = c("Conservative\n(3yr, 10 tests)",
+                 "Moderate\n(5yr, 50 tests)",
+                 "Aggressive\n(10yr, 200 tests)"),
+    n_years = c(3, 5, 10),
+    n_tests = c(10, 50, 200)
+)
+
+scenario_results <- rbindlist(lapply(1:nrow(scenarios), function(i) {
+    res <- calculate_minimum_sharpe(scenarios$n_years[i], scenarios$n_tests[i])
+    data.table(
+        scenario = scenarios$scenario[i],
+        component = c("Statistical", "Multiple Testing", "Overfitting", "Cost Uncertainty"),
+        value = c(res$statistical, res$multiple_testing, res$overfitting, res$cost_uncertainty)
+    )
+}))
+
+scenario_results[, scenario := factor(scenario, levels = scenarios$scenario)]
+
+ggplot(scenario_results, aes(x = scenario, y = value, fill = component)) +
+    geom_col(alpha = 0.8) +
+    scale_fill_manual(values = c(tc[1], tc[2], tc[3], tc[5])) +
+    labs(
+        title = "Minimum Sharpe Decomposition by Scenario",
+        subtitle = "Each component contributes to the required Sharpe threshold",
+        x = NULL,
+        y = "Sharpe Contribution",
+        fill = "Uncertainty Source"
+    ) +
+    theme_trading() +
+    theme(legend.position = "right")
+```
+
+---
+
+## 4.12 Decision Framework
+
+Synthesising all validation insights into a deployment decision.
+
+### 4.12.1 The Decision Checklist
+
+```{r decision-checklist}
+# Strategy deployment decision framework
+evaluate_deployment_readiness <- function(
+    observed_sharpe,
+    track_record_years,
+    n_tests,
+    n_params,
+    train_test_gap,  # Sharpe gap between train and test
+    regime_consistency,  # Sharpe std dev across regimes
+    max_drawdown_pct,
+    cost_uncertainty_pct = 0.5
+) {
+
+    # Calculate minimum believable Sharpe
+    min_sr <- calculate_minimum_sharpe(track_record_years, n_tests, n_params,
+                                        cost_uncertainty_pct)$total
+
+    # Evaluate criteria
+    criteria <- data.table(
+        criterion = character(),
+        threshold = character(),
+        value = character(),
+        pass = logical()
+    )
+
+    # 1. Sharpe significance
+    criteria <- rbind(criteria, data.table(
+        criterion = "Sharpe > Minimum",
+        threshold = sprintf("%.2f", min_sr),
+        value = sprintf("%.2f", observed_sharpe),
+        pass = observed_sharpe > min_sr
+    ))
+
+    # 2. Train/test gap
+    max_gap <- 0.5  # Maximum acceptable Sharpe drop
+    criteria <- rbind(criteria, data.table(
+        criterion = "Train-Test Gap < 0.5",
+        threshold = "0.50",
+        value = sprintf("%.2f", train_test_gap),
+        pass = train_test_gap < max_gap
+    ))
+
+    # 3. Regime consistency
+    max_regime_std <- 0.8  # Maximum Sharpe variation across regimes
+    criteria <- rbind(criteria, data.table(
+        criterion = "Regime Std Dev < 0.8",
+        threshold = "0.80",
+        value = sprintf("%.2f", regime_consistency),
+        pass = regime_consistency < max_regime_std
+    ))
+
+    # 4. Drawdown tolerance
+    max_dd <- 30  # Maximum acceptable drawdown
+    criteria <- rbind(criteria, data.table(
+        criterion = "Max Drawdown < 30%",
+        threshold = "30%",
+        value = sprintf("%.1f%%", max_drawdown_pct),
+        pass = max_drawdown_pct < max_dd
+    ))
+
+    # 5. Track record length
+    min_years <- 3
+    criteria <- rbind(criteria, data.table(
+        criterion = "Track Record >= 3 years",
+        threshold = "3 years",
+        value = sprintf("%.1f years", track_record_years),
+        pass = track_record_years >= min_years
+    ))
+
+    list(
+        criteria = criteria,
+        all_pass = all(criteria$pass),
+        pass_count = sum(criteria$pass),
+        min_sharpe_required = min_sr
+    )
+}
+
+# Example evaluation
+eval_result <- evaluate_deployment_readiness(
+    observed_sharpe = 0.85,
+    track_record_years = 5,
+    n_tests = 50,
+    n_params = 8,
+    train_test_gap = 0.35,
+    regime_consistency = 0.6,
+    max_drawdown_pct = 22,
+    cost_uncertainty_pct = 0.3
+)
+
+cat("=== Strategy Deployment Evaluation ===\n\n")
+print(eval_result$criteria)
+cat(sprintf("\nCriteria passed: %d / %d\n", eval_result$pass_count, nrow(eval_result$criteria)))
+cat(sprintf("Deployment recommendation: %s\n",
+            ifelse(eval_result$all_pass, "PROCEED", "DO NOT PROCEED")))
+```
+
+### 4.12.2 Final Summary
+
+```{r final-decision-visual, fig.cap="Strategy evaluation dashboard summarising all key metrics and thresholds."}
+# Create visual summary
+criteria_plot <- copy(eval_result$criteria)
+criteria_plot[, pass_label := fifelse(pass, "Pass", "Fail")]
+criteria_plot[, criterion := factor(criterion, levels = rev(criterion))]
+
+ggplot(criteria_plot, aes(x = criterion, y = 1, fill = pass_label)) +
+    geom_tile(colour = "white", linewidth = 2) +
+    geom_text(aes(label = paste0(value, "\n(", threshold, ")")),
+              size = 3.5, colour = "white", fontface = "bold") +
+    scale_fill_manual(values = c("Pass" = tc[3], "Fail" = tc[4])) +
+    coord_flip() +
+    labs(
+        title = "Strategy Deployment Checklist",
+        subtitle = sprintf("Minimum Sharpe Required: %.2f", eval_result$min_sharpe_required),
+        x = NULL,
+        y = NULL,
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(axis.text.x = element_blank(),
+          axis.ticks = element_blank(),
+          panel.grid = element_blank(),
+          legend.position = "bottom")
+```
+
+---
+
+## Quick Reference: Backtest Interpretation
+
+**Statistical Significance:**
+- t-stat > 2.0 for basic significance
+- t-stat > 3.0 recommended for new strategies (Harvey threshold)
+- Sharpe SE ≈ sqrt(1.5/T) where T = number of observations
+
+**Minimum Track Record:**
+| True Sharpe | Years for 80% Power |
+|-------------|---------------------|
+| 0.3 | 45 years |
+| 0.5 | 16 years |
+| 1.0 | 4 years |
+| 1.5 | 2 years |
+| 2.0 | 1 year |
+
+**Red Flags:**
+- Train-test Sharpe gap > 0.5
+- Sharpe variation across regimes > 1.0
+- Performance concentrated in one regime > 80%
+- Parameter sensitivity showing "islands" of good performance
+
+**Deployment Thresholds:**
+- Conservative: Observed Sharpe > 2 × Minimum Required
+- Moderate: Observed Sharpe > 1.5 × Minimum Required
+- Aggressive: Observed Sharpe > 1 × Minimum Required
+
+## Summary
+
+Interpreting backtest results requires disciplined scepticism:
+
+1. **Statistical significance** is much harder to achieve than commonly believed. Most strategies with Sharpe < 0.5 cannot be distinguished from luck.
+
+2. **Regime analysis** reveals that aggregate metrics hide conditional performance. Understand when your strategy works and when it fails.
+
+3. **The minimum believable Sharpe** accounts for sample size, multiple testing, overfitting, and cost uncertainty. It's almost always higher than expected.
+
+4. **The deployment decision** should follow a systematic checklist, not gut feeling. If the strategy doesn't pass all criteria, don't trade it.
+
+The harsh reality: most backtested strategies fail not because they were poorly constructed, but because their apparent edge was statistical noise. Rigorous interpretation protects you from this trap.
+
+## Exercises
+
+1. **Significance Testing:** Calculate the t-statistic and confidence interval for a strategy you've developed. How long would you need to trade it to achieve 95% confidence that Sharpe > 0?
+
+2. **Regime Decomposition:** For your strategy, identify at least 4 market regimes and calculate conditional Sharpe for each. Which regime drives most of the performance?
+
+3. **Minimum Sharpe Calculator:** Build a function that calculates the minimum believable Sharpe for your specific situation. What does it imply for your current strategy?
+
+4. **Deployment Checklist:** Apply the full deployment evaluation framework to your best strategy. Does it pass? If not, what would need to change?

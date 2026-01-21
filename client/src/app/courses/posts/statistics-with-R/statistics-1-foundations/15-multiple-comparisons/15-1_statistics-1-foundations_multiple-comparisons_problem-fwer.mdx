@@ -1,0 +1,620 @@
+---
+title: "The Multiple Comparisons Problem"
+subtitle: "Part 1 of Chapter 15: Multiple Comparisons"
+author: "Dereck Mezquita"
+date: "2026-01-19"
+output: html_document
+---
+
+
+
+## Table of Contents
+
+## 15.1 The Multiple Testing Problem
+
+### 15.1.1 A Surprising Result
+
+Suppose you run 20 hypothesis tests, each at the α = 0.05 level. Even if ALL null hypotheses are true (no real effects), what is the probability of finding at least one "significant" result?
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Calculate probability of at least one false positive
+alpha <- 0.05
+n_tests <- 20
+
+# Probability of no false positives
+prob_no_fp <- (1 - alpha)^n_tests
+
+# Probability of at least one false positive
+prob_at_least_one <- 1 - prob_no_fp
+
+cat("The Multiple Testing Problem\n")
+cat("============================\n\n")
+cat(sprintf("If you run %d independent tests at α = %.2f:\n\n", n_tests, alpha))
+cat(sprintf("P(no false positives) = (1 - %.2f)^%d = %.4f\n", alpha, n_tests, prob_no_fp))
+cat(sprintf("P(at least one false positive) = 1 - %.4f = %.4f\n\n", prob_no_fp, prob_at_least_one))
+cat(sprintf("There is a %.1f%% chance of at least one false positive!\n", prob_at_least_one * 100))
+cat("This is called the 'Family-Wise Error Rate' (FWER).\n")
+```
+
+```
+## The Multiple Testing Problem
+## ============================
+## 
+## If you run 20 independent tests at α = 0.05:
+## 
+## P(no false positives) = (1 - 0.05)^20 = 0.3585
+## P(at least one false positive) = 1 - 0.3585 = 0.6415
+## 
+## There is a 64.2% chance of at least one false positive!
+## This is called the 'Family-Wise Error Rate' (FWER).
+```
+
+### 15.1.2 Why This Matters
+
+Every time we conduct a hypothesis test at α = 0.05, we accept a 5% chance of a false positive. When we conduct many tests, these chances accumulate.
+
+
+``` r
+# FWER as function of number of tests
+n_tests <- 1:100
+fwer <- 1 - (1 - 0.05)^n_tests
+
+fwer_data <- data.table(tests = n_tests, fwer = fwer)
+
+ggplot2$ggplot(fwer_data, ggplot2$aes(x = tests, y = fwer)) +
+    ggplot2$geom_line(colour = "#D55E00", linewidth = 1.2) +
+    ggplot2$geom_hline(yintercept = 0.05, linetype = "dashed", colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0.5, linetype = "dotted", colour = "grey50") +
+    ggplot2$annotate("text", x = 80, y = 0.08, label = "Desired α = 0.05",
+                     colour = "#0072B2") +
+    ggplot2$annotate("text", x = 80, y = 0.53, label = "50% chance!",
+                     colour = "grey40") +
+    ggplot2$labs(
+        title = "Family-Wise Error Rate Increases with Number of Tests",
+        subtitle = "The probability of at least one false positive when all null hypotheses are true",
+        x = "Number of Hypothesis Tests",
+        y = "Family-Wise Error Rate"
+    ) +
+    ggplot2$scale_y_continuous(labels = scales::percent_format()) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+![plot of chunk fwer_accumulation](/courses/statistics-1-foundations/fwer_accumulation-1.png)
+
+---
+
+## 15.2 Simulating the Problem
+
+### 15.2.1 Testing Null Data
+
+Let's simulate what happens when we test data with NO real effects:
+
+
+``` r
+# Simulate multiple testing under the null
+set.seed(123)
+n_simulations <- 1000
+n_tests <- 20
+n_per_group <- 30
+alpha <- 0.05
+
+# Function to run n_tests t-tests on null data
+run_null_tests <- function(n_tests, n_per_group) {
+    p_values <- numeric(n_tests)
+    for (i in 1:n_tests) {
+        group1 <- rnorm(n_per_group)
+        group2 <- rnorm(n_per_group)  # Same distribution - no true effect
+        p_values[i] <- t.test(group1, group2)$p.value
+    }
+    return(p_values)
+}
+
+# Run simulation
+simulation_results <- replicate(n_simulations, run_null_tests(n_tests, n_per_group))
+
+# Count false positives per simulation
+fp_per_sim <- apply(simulation_results, 2, function(p) sum(p < alpha))
+
+cat("Simulation Results: Multiple Testing Under the Null\n")
+cat("====================================================\n\n")
+cat(sprintf("Simulations: %d\n", n_simulations))
+cat(sprintf("Tests per simulation: %d\n", n_tests))
+cat(sprintf("α level: %.2f\n\n", alpha))
+
+cat("Distribution of false positives per simulation:\n")
+print(table(fp_per_sim))
+
+cat(sprintf("\nSimulations with at least 1 false positive: %.1f%%\n",
+            100 * mean(fp_per_sim >= 1)))
+cat(sprintf("Expected from theory: %.1f%%\n", 100 * (1 - (1 - alpha)^n_tests)))
+```
+
+```
+## Simulation Results: Multiple Testing Under the Null
+## ====================================================
+## 
+## Simulations: 1000
+## Tests per simulation: 20
+## α level: 0.05
+## 
+## Distribution of false positives per simulation:
+## fp_per_sim
+##   0   1   2   3   4   5   6 
+## 374 358 191  61  11   4   1 
+## 
+## Simulations with at least 1 false positive: 62.6%
+## Expected from theory: 64.2%
+```
+
+### 15.2.2 Visualising the Distribution
+
+
+``` r
+fp_data <- data.table(false_positives = fp_per_sim)
+
+ggplot2$ggplot(fp_data, ggplot2$aes(x = factor(false_positives))) +
+    ggplot2$geom_bar(fill = "#D55E00", alpha = 0.8) +
+    ggplot2$labs(
+        title = sprintf("Distribution of False Positives (%d tests per experiment)", n_tests),
+        subtitle = "All null hypotheses are true—any 'significant' result is a false positive",
+        x = "Number of False Positives",
+        y = "Count (out of 1000 simulations)"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+![plot of chunk fp_distribution](/courses/statistics-1-foundations/fp_distribution-1.png)
+
+---
+
+## 15.3 Error Rate Concepts
+
+### 15.3.1 Per-Comparison vs Family-Wise Error Rate
+
+| Error Rate | Definition | Formula |
+|------------|------------|---------|
+| Per-Comparison Error Rate (PCER) | Probability of Type I error on a single test | α |
+| Family-Wise Error Rate (FWER) | Probability of at least one Type I error in the family | 1 - (1-α)^m |
+| False Discovery Rate (FDR) | Expected proportion of false positives among rejections | E[V/R] |
+
+Where m is the number of tests, V is the number of false positives, and R is the total number of rejections.
+
+
+``` r
+# Compare error rates for different numbers of tests
+n_tests <- c(1, 5, 10, 20, 50, 100)
+alpha <- 0.05
+
+error_rates <- data.table(
+    Tests = n_tests,
+    PCER = rep(alpha, length(n_tests)),
+    FWER_Uncorrected = 1 - (1 - alpha)^n_tests,
+    FWER_Bonferroni = pmin(alpha, n_tests * alpha)  # Corrected to control FWER
+)
+
+cat("Error Rates for Different Numbers of Tests\n")
+cat("===========================================\n\n")
+print(round(error_rates, 4))
+```
+
+```
+## Error Rates for Different Numbers of Tests
+## ===========================================
+## 
+##    Tests  PCER FWER_Uncorrected FWER_Bonferroni
+##    <num> <num>            <num>           <num>
+## 1:     1  0.05           0.0500            0.05
+## 2:     5  0.05           0.2262            0.05
+## 3:    10  0.05           0.4013            0.05
+## 4:    20  0.05           0.6415            0.05
+## 5:    50  0.05           0.9231            0.05
+## 6:   100  0.05           0.9941            0.05
+```
+
+---
+
+## 15.4 Bonferroni Correction
+
+### 15.4.1 The Method
+
+The **Bonferroni correction** is the simplest and most conservative approach. To control FWER at α when conducting m tests:
+
+$$\alpha_{\text{adjusted}} = \frac{\alpha}{m}$$
+
+Equivalently, multiply each p-value by m (or compare to α/m).
+
+
+``` r
+# Example: Gene expression comparison across 1000 genes
+set.seed(456)
+n_genes <- 1000
+n_samples <- 20
+
+# Simulate: 50 genes have real effects, 950 are null
+n_true_effects <- 50
+true_effects <- rep(0, n_genes)
+true_effects[1:n_true_effects] <- rnorm(n_true_effects, mean = 0.8, sd = 0.2)
+
+# Generate p-values
+p_values <- numeric(n_genes)
+for (i in 1:n_genes) {
+    group1 <- rnorm(n_samples)
+    group2 <- rnorm(n_samples, mean = true_effects[i])
+    p_values[i] <- t.test(group1, group2)$p.value
+}
+
+# Apply Bonferroni correction
+bonferroni_threshold <- 0.05 / n_genes
+bonferroni_adjusted <- p.adjust(p_values, method = "bonferroni")
+
+# Results
+results <- data.table(
+    gene = 1:n_genes,
+    true_effect = true_effects != 0,
+    p_value = p_values,
+    bonf_adjusted = bonferroni_adjusted,
+    sig_unadjusted = p_values < 0.05,
+    sig_bonferroni = bonferroni_adjusted < 0.05
+)
+
+cat("Bonferroni Correction Example: 1000 Genes\n")
+cat("==========================================\n\n")
+cat(sprintf("True effects: %d genes\n", n_true_effects))
+cat(sprintf("Null genes: %d genes\n\n", n_genes - n_true_effects))
+
+cat(sprintf("Bonferroni threshold: 0.05 / %d = %.6f\n\n", n_genes, bonferroni_threshold))
+
+# Confusion matrix: Unadjusted
+cat("Without correction (α = 0.05):\n")
+cat(sprintf("  True Positives: %d\n", sum(results$sig_unadjusted & results$true_effect)))
+cat(sprintf("  False Positives: %d\n", sum(results$sig_unadjusted & !results$true_effect)))
+cat(sprintf("  True Negatives: %d\n", sum(!results$sig_unadjusted & !results$true_effect)))
+cat(sprintf("  False Negatives: %d\n\n", sum(!results$sig_unadjusted & results$true_effect)))
+
+# Confusion matrix: Bonferroni
+cat("With Bonferroni correction:\n")
+cat(sprintf("  True Positives: %d\n", sum(results$sig_bonferroni & results$true_effect)))
+cat(sprintf("  False Positives: %d\n", sum(results$sig_bonferroni & !results$true_effect)))
+cat(sprintf("  True Negatives: %d\n", sum(!results$sig_bonferroni & !results$true_effect)))
+cat(sprintf("  False Negatives: %d\n", sum(!results$sig_bonferroni & results$true_effect)))
+```
+
+```
+## Bonferroni Correction Example: 1000 Genes
+## ==========================================
+## 
+## True effects: 50 genes
+## Null genes: 950 genes
+## 
+## Bonferroni threshold: 0.05 / 1000 = 0.000050
+## 
+## Without correction (α = 0.05):
+##   True Positives: 32
+##   False Positives: 52
+##   True Negatives: 898
+##   False Negatives: 18
+## 
+## With Bonferroni correction:
+##   True Positives: 5
+##   False Positives: 0
+##   True Negatives: 950
+##   False Negatives: 45
+```
+
+### 15.4.2 The Trade-Off: Power vs Error Control
+
+
+``` r
+# Visualise the trade-off
+tradeoff_data <- data.table(
+    Method = c("No Correction", "Bonferroni"),
+    True_Positives = c(sum(results$sig_unadjusted & results$true_effect),
+                       sum(results$sig_bonferroni & results$true_effect)),
+    False_Positives = c(sum(results$sig_unadjusted & !results$true_effect),
+                        sum(results$sig_bonferroni & !results$true_effect))
+)
+
+tradeoff_long <- melt(tradeoff_data, id.vars = "Method",
+                      variable.name = "Type", value.name = "Count")
+
+ggplot2$ggplot(tradeoff_long, ggplot2$aes(x = Method, y = Count, fill = Type)) +
+    ggplot2$geom_col(position = "dodge") +
+    ggplot2$scale_fill_manual(values = c("#009E73", "#D55E00"),
+                               labels = c("True Positives", "False Positives")) +
+    ggplot2$labs(
+        title = "The Correction Trade-Off",
+        subtitle = "Bonferroni eliminates false positives but also misses true effects",
+        x = "",
+        y = "Count",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+![plot of chunk power_tradeoff](/courses/statistics-1-foundations/power_tradeoff-1.png)
+
+### 15.4.3 Limitations of Bonferroni
+
+1. **Too conservative**: Especially with many correlated tests
+2. **Low power**: Many true effects are missed
+3. **Treats all tests equally**: No distinction between important and exploratory tests
+
+---
+
+## 15.5 Other FWER-Controlling Methods
+
+### 15.5.1 Šidák Correction
+
+Slightly less conservative than Bonferroni:
+
+$$\alpha_{\text{Šidák}} = 1 - (1 - \alpha)^{1/m}$$
+
+
+``` r
+# Šidák correction
+sidak_threshold <- 1 - (1 - 0.05)^(1/n_genes)
+
+cat("Šidák vs Bonferroni Threshold\n")
+cat("=============================\n\n")
+cat(sprintf("Bonferroni: 0.05 / %d = %.8f\n", n_genes, 0.05/n_genes))
+cat(sprintf("Šidák:      1 - (1-0.05)^(1/%d) = %.8f\n", n_genes, sidak_threshold))
+cat("\nŠidák is slightly less conservative.\n")
+```
+
+```
+## Šidák vs Bonferroni Threshold
+## =============================
+## 
+## Bonferroni: 0.05 / 1000 = 0.00005000
+## Šidák:      1 - (1-0.05)^(1/1000) = 0.00005129
+## 
+## Šidák is slightly less conservative.
+```
+
+### 15.5.2 Holm's Step-Down Method
+
+A more powerful alternative that still controls FWER:
+
+1. Order p-values from smallest to largest: $p_{(1)} \leq p_{(2)} \leq \cdots \leq p_{(m)}$
+2. Compare $p_{(1)}$ to $\alpha/m$; if significant, continue
+3. Compare $p_{(2)}$ to $\alpha/(m-1)$; if significant, continue
+4. Stop at first non-significant test
+
+
+``` r
+# Apply Holm correction
+results[, holm_adjusted := p.adjust(p_value, method = "holm")]
+results[, sig_holm := holm_adjusted < 0.05]
+
+cat("Holm's Step-Down Method\n")
+cat("=======================\n\n")
+
+# Show the step-down procedure for top p-values
+top_10 <- results[order(p_value)][1:10]
+top_10[, rank := 1:.N]
+top_10[, holm_threshold := 0.05 / (n_genes - rank + 1)]
+
+cat("Top 10 p-values with Holm thresholds:\n")
+print(top_10[, .(rank, p_value, holm_threshold, significant = p_value < holm_threshold)])
+
+cat("\n\nComparison of methods:\n")
+cat(sprintf("  Bonferroni rejections: %d\n", sum(results$sig_bonferroni)))
+cat(sprintf("  Holm rejections: %d\n", sum(results$sig_holm)))
+cat("\nHolm is always at least as powerful as Bonferroni.\n")
+```
+
+```
+## Holm's Step-Down Method
+## =======================
+## 
+## Top 10 p-values with Holm thresholds:
+##      rank      p_value holm_threshold significant
+##     <int>        <num>          <num>      <lgcl>
+##  1:     1 6.433666e-06   5.000000e-05        TRUE
+##  2:     2 1.103330e-05   5.005005e-05        TRUE
+##  3:     3 1.704623e-05   5.010020e-05        TRUE
+##  4:     4 2.047948e-05   5.015045e-05        TRUE
+##  5:     5 2.985750e-05   5.020080e-05        TRUE
+##  6:     6 5.478547e-05   5.025126e-05       FALSE
+##  7:     7 7.530388e-05   5.030181e-05       FALSE
+##  8:     8 8.521529e-05   5.035247e-05       FALSE
+##  9:     9 1.324573e-04   5.040323e-05       FALSE
+## 10:    10 2.503779e-04   5.045409e-05       FALSE
+## 
+## 
+## Comparison of methods:
+##   Bonferroni rejections: 5
+##   Holm rejections: 5
+## 
+## Holm is always at least as powerful as Bonferroni.
+```
+
+### 15.5.3 Hochberg's Step-Up Method
+
+An even more powerful step-up procedure (assumes positive dependence or independence):
+
+1. Order p-values: $p_{(1)} \leq p_{(2)} \leq \cdots \leq p_{(m)}$
+2. Start from largest: if $p_{(m)} < \alpha$, reject all
+3. If not, check $p_{(m-1)} < \alpha/2$
+4. Continue until finding first rejection, then reject all smaller
+
+
+``` r
+# Apply Hochberg correction
+results[, hochberg_adjusted := p.adjust(p_value, method = "hochberg")]
+results[, sig_hochberg := hochberg_adjusted < 0.05]
+
+cat("Comparison of FWER Methods\n")
+cat("==========================\n\n")
+
+methods_comparison <- data.table(
+    Method = c("Bonferroni", "Holm", "Hochberg"),
+    Rejections = c(sum(results$sig_bonferroni),
+                   sum(results$sig_holm),
+                   sum(results$sig_hochberg)),
+    True_Positives = c(sum(results$sig_bonferroni & results$true_effect),
+                       sum(results$sig_holm & results$true_effect),
+                       sum(results$sig_hochberg & results$true_effect)),
+    False_Positives = c(sum(results$sig_bonferroni & !results$true_effect),
+                        sum(results$sig_holm & !results$true_effect),
+                        sum(results$sig_hochberg & !results$true_effect))
+)
+
+print(methods_comparison)
+```
+
+```
+## Comparison of FWER Methods
+## ==========================
+## 
+##        Method Rejections True_Positives False_Positives
+##        <char>      <int>          <int>           <int>
+## 1: Bonferroni          5              5               0
+## 2:       Holm          5              5               0
+## 3:   Hochberg          5              5               0
+```
+
+---
+
+## 15.6 Visualising P-Value Distributions
+
+### 15.6.1 Understanding the Null P-Value Distribution
+
+Under the null hypothesis, p-values should be uniformly distributed:
+
+
+``` r
+# P-value distribution under null
+set.seed(789)
+null_pvalues <- replicate(10000, t.test(rnorm(30), rnorm(30))$p.value)
+
+ggplot2$ggplot(data.table(p = null_pvalues), ggplot2$aes(x = p)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+                           bins = 50, fill = "#0072B2", alpha = 0.7) +
+    ggplot2$geom_hline(yintercept = 1, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$labs(
+        title = "P-Value Distribution Under the Null Hypothesis",
+        subtitle = "Should be uniform (flat)—dashed line shows expected density",
+        x = "P-Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+![plot of chunk null_pvalue_dist](/courses/statistics-1-foundations/null_pvalue_dist-1.png)
+
+### 15.6.2 Mixed Distribution (Null + Alternative)
+
+When some effects are real, we see a spike near zero:
+
+
+``` r
+ggplot2$ggplot(results, ggplot2$aes(x = p_value, fill = true_effect)) +
+    ggplot2$geom_histogram(bins = 50, alpha = 0.7, position = "identity") +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00"),
+                               labels = c("Null (no effect)", "Alternative (real effect)")) +
+    ggplot2$labs(
+        title = "P-Value Distribution: Mixture of Null and Alternative",
+        subtitle = "Real effects produce small p-values; null effects are uniform",
+        x = "P-Value",
+        y = "Count",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+![plot of chunk mixed_pvalue_dist](/courses/statistics-1-foundations/mixed_pvalue_dist-1.png)
+
+---
+
+## 15.7 Communicating to Stakeholders
+
+### 15.7.1 When to Apply Corrections
+
+| Situation | Recommendation |
+|-----------|----------------|
+| Pre-specified primary outcome | No correction needed (single test) |
+| Few exploratory comparisons | Consider Bonferroni or Holm |
+| Many tests (genomics, imaging) | Use FDR (next section) |
+| Post-hoc pairwise comparisons | Use Tukey HSD or similar |
+| Subgroup analyses | Pre-specify or be transparent |
+
+### 15.7.2 Reporting Multiple Comparisons
+
+
+``` r
+cat("Example Reporting Language\n")
+cat("==========================\n\n")
+
+cat("POOR: 'We found a significant effect (p = 0.03).'\n")
+cat("      (Ignores that 20 other tests were also run)\n\n")
+
+cat("GOOD: 'After testing 20 candidate genes, we found Gene X was\n")
+cat("       significant (uncorrected p = 0.03). Applying Bonferroni\n")
+cat("       correction for 20 tests, this result is not significant\n")
+cat("       at the family-wise α = 0.05 level (adjusted p = 0.60).'\n\n")
+
+cat("BEST: 'We pre-registered our primary hypothesis (Gene X) and\n")
+cat("       found a significant effect (p = 0.03). Exploratory\n")
+cat("       analyses of 19 additional genes were corrected using\n")
+cat("       Holm's method, with 3 additional significant findings.'\n")
+```
+
+```
+## Example Reporting Language
+## ==========================
+## 
+## POOR: 'We found a significant effect (p = 0.03).'
+##       (Ignores that 20 other tests were also run)
+## 
+## GOOD: 'After testing 20 candidate genes, we found Gene X was
+##        significant (uncorrected p = 0.03). Applying Bonferroni
+##        correction for 20 tests, this result is not significant
+##        at the family-wise α = 0.05 level (adjusted p = 0.60).'
+## 
+## BEST: 'We pre-registered our primary hypothesis (Gene X) and
+##        found a significant effect (p = 0.03). Exploratory
+##        analyses of 19 additional genes were corrected using
+##        Holm's method, with 3 additional significant findings.'
+```
+
+---
+
+## Quick Reference
+
+### FWER Control Methods
+
+| Method | Formula | Type | Conservativeness |
+|--------|---------|------|------------------|
+| Bonferroni | p × m | Single-step | Most conservative |
+| Šidák | 1 - (1-p)^m | Single-step | Slightly less |
+| Holm | Step-down | Sequential | Moderate |
+| Hochberg | Step-up | Sequential | Least conservative |
+
+### R Functions
+
+| Function | Purpose |
+|----------|---------|
+| `p.adjust(p, method = "bonferroni")` | Bonferroni correction |
+| `p.adjust(p, method = "holm")` | Holm's method |
+| `p.adjust(p, method = "hochberg")` | Hochberg's method |
+| `p.adjust.methods` | List all available methods |
+
+### When to Use FWER Control
+
+- Few hypothesis tests
+- All tests are of equal importance
+- Any false positive is costly
+- Confirmatory (not exploratory) research
+

@@ -1,0 +1,691 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 9: Hypothesis Testing"
+part: "Part 1: Foundations and Logic"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, hypothesis-testing, null-hypothesis, inference, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    out.width = "100%",
+    collapse = FALSE, results = 'hold'
+)
+```
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+nhanes <- fread("../../../data/primary/nhanes.csv")
+```
+
+# Chapter 9: Hypothesis Testing
+
+Confidence intervals provide a range of plausible values for a parameter. But often we need to answer a more direct question: Is there evidence against a specific claim? Does this new drug work? Is there a difference between two treatments? Does this gene affect disease risk?
+
+Hypothesis testing provides a formal framework for evaluating evidence against claims. This chapter develops the logic of hypothesis testing from first principles, emphasising correct interpretation and common pitfalls.
+
+---
+
+## Table of Contents
+
+## 9.1 The Logic of Hypothesis Testing
+
+### 9.1.1 Scientific Claims and Statistical Evidence
+
+Science progresses through conjecture and refutation. We propose hypotheses about how the world works, then gather evidence to evaluate them. Statistics formalises this process.
+
+Consider a pharmaceutical company claiming their new drug lowers blood pressure. How do we evaluate this claim? We could:
+
+1. Give the drug to patients and measure their blood pressure
+2. Compare to what we would expect without the drug
+3. Determine whether the observed difference is large enough to be convincing
+
+The challenge is that even if the drug does nothing, we would still see *some* difference due to random variation. The key question is: **Is the observed difference larger than what we would expect from chance alone?**
+
+### 9.1.2 The Null Hypothesis
+
+The **null hypothesis** ($H_0$) is the default position — typically that there is no effect, no difference, or no relationship. It represents the status quo, the sceptical position that nothing interesting is happening.
+
+Examples of null hypotheses:
+- The new drug has no effect on blood pressure: $H_0: \mu_{\text{drug}} = \mu_{\text{placebo}}$
+- There is no difference in survival between treatments: $H_0: \mu_1 = \mu_2$
+- The gene has no effect on disease risk: $H_0: \text{OR} = 1$
+- The correlation is zero: $H_0: \rho = 0$
+
+The null hypothesis is precise and specific — it gives us something concrete to evaluate.
+
+### 9.1.3 The Alternative Hypothesis
+
+The **alternative hypothesis** ($H_1$ or $H_a$) is what we would conclude if we reject the null. It represents the research hypothesis — typically that there is an effect, a difference, or a relationship.
+
+Alternatives can be:
+- **Two-sided:** $H_1: \mu \neq \mu_0$ (any difference matters)
+- **One-sided:** $H_1: \mu > \mu_0$ or $H_1: \mu < \mu_0$ (direction specified)
+
+```{r hypothesis_examples}
+# Example: Testing whether mean blood pressure differs from 120 mmHg
+# H0: μ = 120
+# H1: μ ≠ 120 (two-sided)
+
+# Take a sample
+set.seed(123)
+bp_sample <- na.omit(nhanes$BPSys1)[1:50]
+
+cat("Hypothesis Test Example: Blood Pressure\n")
+cat("========================================\n\n")
+cat("Null hypothesis: μ = 120 mmHg\n")
+cat("Alternative: μ ≠ 120 mmHg (two-sided)\n\n")
+cat(sprintf("Sample: n = %d\n", length(bp_sample)))
+cat(sprintf("Sample mean: %.2f mmHg\n", mean(bp_sample)))
+cat(sprintf("Sample SD: %.2f mmHg\n", sd(bp_sample)))
+```
+
+### 9.1.4 The Logic: Proof by Contradiction
+
+Hypothesis testing follows a logic similar to proof by contradiction in mathematics:
+
+1. **Assume the null hypothesis is true**
+2. **Calculate what we would expect to observe** under this assumption
+3. **Compare what we actually observed** to these expectations
+4. **If the observation is very unlikely** under the null, we have evidence against it
+
+This is indirect reasoning. We don't prove the alternative is true; we find evidence against the null being true.
+
+```{r logic_diagram, fig.cap="The logic of hypothesis testing"}
+# Visualise the logical flow
+logic_data <- data.table(
+    step = c("1. State hypotheses", "2. Assume H₀ true",
+             "3. Calculate expected under H₀", "4. Compare observed to expected",
+             "5. Decide"),
+    x = c(1, 2, 3, 4, 5),
+    y = c(1, 1, 1, 1, 1)
+)
+
+ggplot2$ggplot(logic_data, ggplot2$aes(x = x, y = y, label = step)) +
+    ggplot2$geom_point(size = 8, colour = "#0072B2") +
+    ggplot2$geom_text(vjust = -1.5, size = 4) +
+    ggplot2$geom_segment(ggplot2$aes(x = x + 0.3, xend = x + 0.7,
+                                      y = y, yend = y),
+                         arrow = ggplot2$arrow(length = ggplot2$unit(0.2, "cm")),
+                         data = logic_data[x < 5]) +
+    ggplot2$scale_x_continuous(limits = c(0.5, 5.5)) +
+    ggplot2$scale_y_continuous(limits = c(0.5, 1.5)) +
+    ggplot2$labs(title = "The Logic of Hypothesis Testing",
+                 subtitle = "Indirect reasoning: find evidence against the null") +
+    ggplot2$theme_void() +
+    ggplot2$theme(plot.title = ggplot2$element_text(hjust = 0.5, face = "bold"),
+                  plot.subtitle = ggplot2$element_text(hjust = 0.5))
+```
+
+---
+
+## 9.2 The Sampling Distribution Under H₀
+
+### 9.2.1 What Would We Expect?
+
+If the null hypothesis is true, we know what the sampling distribution of our test statistic looks like. This is the key insight that makes hypothesis testing possible.
+
+For example, if $H_0: \mu = \mu_0$ is true and we have a random sample from a normal population:
+- The sample mean $\bar{X}$ follows $N(\mu_0, \sigma^2/n)$
+- The test statistic $Z = \frac{\bar{X} - \mu_0}{\sigma/\sqrt{n}}$ follows $N(0, 1)$
+- If $\sigma$ is unknown, $T = \frac{\bar{X} - \mu_0}{s/\sqrt{n}}$ follows $t_{n-1}$
+
+```{r null_distribution, fig.cap="The sampling distribution under the null hypothesis"}
+set.seed(456)
+
+# Parameters
+true_mu <- 120  # Null hypothesis value
+sigma <- 15
+n <- 50
+
+# Simulate 10,000 samples under H0
+n_sim <- 10000
+sample_means <- sapply(1:n_sim, function(i) {
+    mean(rnorm(n, mean = true_mu, sd = sigma))
+})
+
+# Calculate z-scores
+z_scores <- (sample_means - true_mu) / (sigma / sqrt(n))
+
+# Create data for plot
+sim_data <- data.table(z = z_scores)
+
+# Standard normal overlay
+x_seq <- seq(-4, 4, length.out = 200)
+normal_data <- data.table(
+    x = x_seq,
+    y = dnorm(x_seq)
+)
+
+ggplot2$ggplot() +
+    ggplot2$geom_histogram(data = sim_data,
+                           ggplot2$aes(x = z, y = ggplot2::after_stat(density)),
+                           bins = 50, fill = "gray70", colour = "white") +
+    ggplot2$geom_line(data = normal_data, ggplot2$aes(x = x, y = y),
+                      colour = "#D55E00", linewidth = 1.5) +
+    ggplot2$geom_vline(xintercept = c(-1.96, 1.96), linetype = "dashed",
+                       colour = "#0072B2", linewidth = 1) +
+    ggplot2$annotate("text", x = -2.5, y = 0.35, label = "Rejection\nregion",
+                     colour = "#0072B2", fontface = "bold") +
+    ggplot2$annotate("text", x = 2.5, y = 0.35, label = "Rejection\nregion",
+                     colour = "#0072B2", fontface = "bold") +
+    ggplot2$annotate("text", x = 0, y = 0.35, label = "Fail to reject\nregion",
+                     colour = "gray50") +
+    ggplot2$labs(
+        title = "Sampling Distribution Under the Null Hypothesis",
+        subtitle = "10,000 simulated sample means when H₀ is true",
+        x = "Z-score (standardised sample mean)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 9.2.2 Rare Events Under the Null
+
+If we observe a sample mean that is very far from $\mu_0$, this is unlikely to have occurred if $H_0$ is true. How unlikely is "unlikely enough"?
+
+We define a **significance level** $\alpha$ (commonly 0.05) as our threshold. If the probability of observing a result as extreme as ours (or more extreme) is less than $\alpha$, we reject $H_0$.
+
+```{r rare_events, fig.cap="Extreme values are rare when H₀ is true"}
+# What proportion of z-scores fall beyond ±1.96?
+prop_extreme <- mean(abs(z_scores) > 1.96)
+
+cat("Proportion of simulated z-scores beyond ±1.96:\n")
+cat(sprintf("  Observed: %.4f\n", prop_extreme))
+cat(sprintf("  Expected: %.4f (2.5%% in each tail)\n", 0.05))
+
+# Visualise with actual observed value
+observed_mean <- 126  # Suppose we observed this
+observed_z <- (observed_mean - true_mu) / (sigma / sqrt(n))
+
+x_seq <- seq(-4, 4, length.out = 200)
+null_dist <- data.table(
+    x = x_seq,
+    y = dnorm(x_seq)
+)
+
+ggplot2$ggplot(null_dist, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_area(data = null_dist[x <= -1.96],
+                      fill = "#D55E00", alpha = 0.5) +
+    ggplot2$geom_area(data = null_dist[x >= 1.96],
+                      fill = "#D55E00", alpha = 0.5) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = observed_z, colour = "#009E73",
+                       linewidth = 1.5, linetype = "dashed") +
+    ggplot2$annotate("text", x = observed_z + 0.3, y = 0.3,
+                     label = sprintf("Observed\nz = %.2f", observed_z),
+                     colour = "#009E73", hjust = 0, fontface = "bold") +
+    ggplot2$labs(
+        title = "Evaluating Our Observed Result",
+        subtitle = sprintf("If H₀ is true, values beyond ±1.96 occur only %.1f%% of the time",
+                          100 * pnorm(-1.96) * 2),
+        x = "Z-score",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 9.3 Test Statistics
+
+### 9.3.1 What Is a Test Statistic?
+
+A **test statistic** is a quantity calculated from the sample that:
+1. Measures how far our sample result is from what we'd expect under $H_0$
+2. Has a known distribution when $H_0$ is true
+3. Allows us to calculate how unusual our observation is
+
+Common test statistics:
+- **Z-statistic:** $Z = \frac{\bar{X} - \mu_0}{\sigma/\sqrt{n}}$ for means with known σ
+- **T-statistic:** $T = \frac{\bar{X} - \mu_0}{s/\sqrt{n}}$ for means with unknown σ
+- **Chi-square statistic:** $\chi^2 = \sum \frac{(O - E)^2}{E}$ for categorical data
+- **F-statistic:** $F = \frac{\text{between-group variance}}{\text{within-group variance}}$ for comparing variances
+
+### 9.3.2 The Z-Test for a Mean (σ Known)
+
+When the population standard deviation is known:
+
+$$Z = \frac{\bar{X} - \mu_0}{\sigma/\sqrt{n}}$$
+
+Under $H_0$, this follows a standard normal distribution.
+
+```{r z_test_example}
+# Example: Testing blood pressure against 120 mmHg
+# Suppose we know σ = 15 from previous research
+
+set.seed(789)
+sample_data <- rnorm(40, mean = 125, sd = 15)  # True mean is 125
+
+# Test parameters
+mu_0 <- 120
+sigma <- 15
+n <- length(sample_data)
+x_bar <- mean(sample_data)
+
+# Calculate test statistic
+z_stat <- (x_bar - mu_0) / (sigma / sqrt(n))
+
+# P-value (two-sided)
+p_value <- 2 * pnorm(-abs(z_stat))
+
+cat("Z-Test for a Mean (σ known)\n")
+cat("===========================\n\n")
+cat(sprintf("H₀: μ = %.0f\n", mu_0))
+cat(sprintf("H₁: μ ≠ %.0f (two-sided)\n\n", mu_0))
+cat(sprintf("Sample size: n = %d\n", n))
+cat(sprintf("Sample mean: x̄ = %.2f\n", x_bar))
+cat(sprintf("Known SD: σ = %.2f\n\n", sigma))
+cat(sprintf("Test statistic: z = (%.2f - %.0f) / (%.0f/√%d) = %.3f\n",
+            x_bar, mu_0, sigma, n, z_stat))
+cat(sprintf("P-value: %.4f\n\n", p_value))
+
+if (p_value < 0.05) {
+    cat("Decision: Reject H₀ at α = 0.05\n")
+    cat("Conclusion: Evidence suggests μ ≠ 120\n")
+} else {
+    cat("Decision: Fail to reject H₀ at α = 0.05\n")
+    cat("Conclusion: Insufficient evidence that μ ≠ 120\n")
+}
+```
+
+### 9.3.3 The T-Test for a Mean (σ Unknown)
+
+When σ is unknown (the usual case), we use the sample standard deviation and the t-distribution:
+
+$$T = \frac{\bar{X} - \mu_0}{s/\sqrt{n}}$$
+
+Under $H_0$, this follows a t-distribution with $n-1$ degrees of freedom.
+
+```{r t_test_example}
+# Same data, but now treating σ as unknown
+s <- sd(sample_data)
+t_stat <- (x_bar - mu_0) / (s / sqrt(n))
+df <- n - 1
+
+# P-value (two-sided)
+p_value_t <- 2 * pt(-abs(t_stat), df = df)
+
+cat("T-Test for a Mean (σ unknown)\n")
+cat("=============================\n\n")
+cat(sprintf("H₀: μ = %.0f\n", mu_0))
+cat(sprintf("H₁: μ ≠ %.0f (two-sided)\n\n", mu_0))
+cat(sprintf("Sample size: n = %d\n", n))
+cat(sprintf("Sample mean: x̄ = %.2f\n", x_bar))
+cat(sprintf("Sample SD: s = %.2f\n\n", s))
+cat(sprintf("Test statistic: t = (%.2f - %.0f) / (%.2f/√%d) = %.3f\n",
+            x_bar, mu_0, s, n, t_stat))
+cat(sprintf("Degrees of freedom: df = %d\n", df))
+cat(sprintf("P-value: %.4f\n\n", p_value_t))
+
+# Compare z and t critical values
+cat("Comparison of z and t approaches:\n")
+cat(sprintf("  z-statistic: %.3f, p-value: %.4f\n", z_stat, p_value))
+cat(sprintf("  t-statistic: %.3f, p-value: %.4f\n", t_stat, p_value_t))
+cat("\nNote: With n = 40, z and t are similar.\n")
+```
+
+### 9.3.4 Implementing Tests from Scratch
+
+```{r t_test_scratch}
+# T-test function from scratch
+t_test <- function(x, mu_0 = 0, alternative = "two.sided") {
+    n <- length(x)
+    x_bar <- mean(x)
+    s <- sd(x)
+    se <- s / sqrt(n)
+    t_stat <- (x_bar - mu_0) / se
+    df <- n - 1
+
+    # Calculate p-value based on alternative
+    if (alternative == "two.sided") {
+        p_value <- 2 * pt(-abs(t_stat), df = df)
+    } else if (alternative == "greater") {
+        p_value <- pt(t_stat, df = df, lower.tail = FALSE)
+    } else if (alternative == "less") {
+        p_value <- pt(t_stat, df = df)
+    }
+
+    # Confidence interval
+    t_crit <- qt(0.975, df = df)
+    ci <- c(x_bar - t_crit * se, x_bar + t_crit * se)
+
+    list(
+        statistic = t_stat,
+        df = df,
+        p.value = p_value,
+        estimate = x_bar,
+        null.value = mu_0,
+        alternative = alternative,
+        conf.int = ci,
+        se = se
+    )
+}
+
+# Apply to our data
+result <- t_test(sample_data, mu_0 = 120, alternative = "two.sided")
+
+cat("Our t_test() function:\n")
+cat(sprintf("  t = %.4f, df = %d, p = %.4f\n",
+            result$statistic, result$df, result$p.value))
+
+# Compare to R's t.test
+builtin <- t.test(sample_data, mu = 120)
+
+cat("\nR's t.test():\n")
+cat(sprintf("  t = %.4f, df = %d, p = %.4f\n",
+            builtin$statistic, builtin$parameter, builtin$p.value))
+```
+
+---
+
+## 9.4 One-Sided vs Two-Sided Tests
+
+### 9.4.1 When to Use Each
+
+**Two-sided test** ($H_1: \mu \neq \mu_0$):
+- Use when any difference from the null is of interest
+- More conservative (harder to reject $H_0$)
+- Generally preferred unless there's a strong reason for one-sided
+
+**One-sided test** ($H_1: \mu > \mu_0$ or $H_1: \mu < \mu_0$):
+- Use when only one direction is meaningful
+- Less conservative (easier to reject $H_0$)
+- Must be specified *before* seeing the data
+
+```{r sided_comparison, fig.cap="One-sided vs two-sided rejection regions"}
+x_seq <- seq(-4, 4, length.out = 200)
+null_dist <- data.table(x = x_seq, y = dnorm(x_seq))
+
+# Two-sided regions
+p1 <- ggplot2$ggplot(null_dist, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_area(data = null_dist[x <= -1.96],
+                      fill = "#D55E00", alpha = 0.6) +
+    ggplot2$geom_area(data = null_dist[x >= 1.96],
+                      fill = "#D55E00", alpha = 0.6) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_vline(xintercept = c(-1.96, 1.96), linetype = "dashed") +
+    ggplot2$annotate("text", x = 0, y = 0.3, label = "Two-sided test\nα = 0.05 total\n(0.025 each tail)") +
+    ggplot2$labs(title = "Two-Sided Test (H₁: μ ≠ μ₀)", x = "Z", y = "") +
+    ggplot2$theme_minimal()
+
+# One-sided (greater)
+p2 <- ggplot2$ggplot(null_dist, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_area(data = null_dist[x >= 1.645],
+                      fill = "#0072B2", alpha = 0.6) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_vline(xintercept = 1.645, linetype = "dashed") +
+    ggplot2$annotate("text", x = -1, y = 0.3, label = "One-sided test\nα = 0.05\n(all in one tail)") +
+    ggplot2$labs(title = "One-Sided Test (H₁: μ > μ₀)", x = "Z", y = "") +
+    ggplot2$theme_minimal()
+
+# Display side by side using patchwork-like approach
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+### 9.4.2 P-value Differences
+
+For the same test statistic, one-sided p-values are half of two-sided p-values (when the direction matches):
+
+```{r pvalue_comparison}
+z <- 2.0
+
+cat("P-values for z = 2.0\n")
+cat("====================\n\n")
+cat(sprintf("Two-sided (H₁: μ ≠ μ₀): p = %.4f\n", 2 * pnorm(-abs(z))))
+cat(sprintf("One-sided (H₁: μ > μ₀): p = %.4f\n", pnorm(z, lower.tail = FALSE)))
+cat(sprintf("One-sided (H₁: μ < μ₀): p = %.4f\n", pnorm(z)))
+cat("\nNote: The one-sided p-value is exactly half the two-sided\n")
+cat("when the direction matches the observed effect.\n")
+```
+
+### 9.4.3 Dangers of Choosing After Seeing Data
+
+If you observe $z = 2.0$ and then choose a one-sided test (because the effect went in that direction), you're cheating. The p-value calculation assumes the test was specified before the data were collected.
+
+This is a form of **p-hacking** — choosing the analysis that gives the most favourable result.
+
+---
+
+## 9.5 Critical Values and Rejection Regions
+
+### 9.5.1 The Critical Value Approach
+
+Instead of computing p-values, we can define **rejection regions** based on **critical values**:
+
+For a two-sided test at $\alpha = 0.05$:
+- Reject $H_0$ if $|Z| > z_{\alpha/2} = 1.96$ (or equivalently $|T| > t_{\alpha/2, df}$)
+
+For a one-sided test at $\alpha = 0.05$:
+- Reject $H_0$ if $Z > z_\alpha = 1.645$ (for $H_1: \mu > \mu_0$)
+- Reject $H_0$ if $Z < -z_\alpha = -1.645$ (for $H_1: \mu < \mu_0$)
+
+```{r critical_values}
+# Critical values for common α levels
+alpha_levels <- c(0.10, 0.05, 0.01, 0.001)
+
+critical_values <- data.table(
+    alpha = alpha_levels,
+    z_two_sided = qnorm(1 - alpha_levels / 2),
+    z_one_sided = qnorm(1 - alpha_levels),
+    t_df10_two = qt(1 - alpha_levels / 2, df = 10),
+    t_df30_two = qt(1 - alpha_levels / 2, df = 30)
+)
+
+cat("Critical Values for Common Significance Levels\n")
+cat("===============================================\n\n")
+cat("Two-sided tests (|statistic| > critical value to reject):\n\n")
+cat(sprintf("%-8s  %-12s  %-12s  %-12s\n", "α", "z*", "t*(df=10)", "t*(df=30)"))
+cat(sprintf("%-8s  %-12s  %-12s  %-12s\n", "---", "---", "---", "---"))
+for (i in 1:nrow(critical_values)) {
+    cat(sprintf("%-8s  %-12.3f  %-12.3f  %-12.3f\n",
+                critical_values$alpha[i],
+                critical_values$z_two_sided[i],
+                critical_values$t_df10_two[i],
+                critical_values$t_df30_two[i]))
+}
+```
+
+### 9.5.2 Equivalence of Approaches
+
+The critical value approach and p-value approach always give the same decision:
+- Reject when $p < \alpha$ is equivalent to reject when $|\text{statistic}| > \text{critical value}$
+
+```{r equivalence}
+# Example demonstrating equivalence
+z <- 2.3
+alpha <- 0.05
+
+p_value <- 2 * pnorm(-abs(z))
+z_crit <- qnorm(1 - alpha / 2)
+
+cat("Equivalence of P-value and Critical Value Approaches\n")
+cat("====================================================\n\n")
+cat(sprintf("Test statistic: z = %.2f\n", z))
+cat(sprintf("Significance level: α = %.2f\n\n", alpha))
+
+cat("P-value approach:\n")
+cat(sprintf("  p-value = %.4f\n", p_value))
+cat(sprintf("  Since p = %.4f %s %.2f = α, %s H₀\n",
+            p_value, ifelse(p_value < alpha, "<", "≥"), alpha,
+            ifelse(p_value < alpha, "reject", "fail to reject")))
+
+cat("\nCritical value approach:\n")
+cat(sprintf("  z* = %.3f\n", z_crit))
+cat(sprintf("  Since |z| = %.2f %s %.3f = z*, %s H₀\n",
+            abs(z), ifelse(abs(z) > z_crit, ">", "≤"), z_crit,
+            ifelse(abs(z) > z_crit, "reject", "fail to reject")))
+
+cat("\nBoth approaches give the same decision.\n")
+```
+
+---
+
+## 9.6 Decision Rules and Conclusions
+
+### 9.6.1 Stating Results
+
+When reporting hypothesis test results, include:
+1. The test statistic value
+2. The degrees of freedom (for t, χ², F tests)
+3. The p-value
+4. A clear statement of the conclusion
+
+**Correct language:**
+- "Reject H₀" or "Fail to reject H₀"
+- "There is (sufficient/insufficient) evidence that..."
+- "We conclude that..."
+
+**Incorrect language:**
+- ~~"Accept H₀"~~ (we never "accept" the null)
+- ~~"Prove H₀"~~ (we cannot prove anything)
+- ~~"The difference is significant at p = 0.03"~~ (use p < 0.05 or report exact p)
+
+### 9.6.2 The Difference Between Statistical and Practical Significance
+
+A result can be **statistically significant** (p < 0.05) but not **practically significant** (too small to matter). This is especially common with large samples.
+
+```{r practical_significance, fig.cap="Statistical vs practical significance"}
+set.seed(123)
+
+# Large sample: tiny effect becomes significant
+n_large <- 10000
+effect_size <- 0.5  # Small effect: 0.5 mmHg difference
+large_sample <- rnorm(n_large, mean = 120 + effect_size, sd = 15)
+
+result_large <- t.test(large_sample, mu = 120)
+
+# Small sample: larger effect is not significant
+n_small <- 20
+effect_size_large <- 3  # Larger effect: 3 mmHg
+small_sample <- rnorm(n_small, mean = 120 + effect_size_large, sd = 15)
+
+result_small <- t.test(small_sample, mu = 120)
+
+cat("Statistical vs Practical Significance\n")
+cat("=====================================\n\n")
+
+cat("Large sample (n = 10,000), tiny effect:\n")
+cat(sprintf("  True effect: %.1f mmHg\n", effect_size))
+cat(sprintf("  Sample mean: %.2f mmHg\n", mean(large_sample)))
+cat(sprintf("  p-value: %.4f\n", result_large$p.value))
+cat(sprintf("  Result: %s\n\n",
+            ifelse(result_large$p.value < 0.05, "Statistically significant", "Not significant")))
+
+cat("Small sample (n = 20), larger effect:\n")
+cat(sprintf("  True effect: %.1f mmHg\n", effect_size_large))
+cat(sprintf("  Sample mean: %.2f mmHg\n", mean(small_sample)))
+cat(sprintf("  p-value: %.4f\n", result_small$p.value))
+cat(sprintf("  Result: %s\n\n",
+            ifelse(result_small$p.value < 0.05, "Statistically significant", "Not significant")))
+
+cat("Key insight: With enough data, even trivial effects become\n")
+cat("'significant'. Always consider the effect size, not just p-values.\n")
+```
+
+### 9.6.3 Effect Sizes
+
+**Effect sizes** quantify the magnitude of an effect, independent of sample size:
+
+**Cohen's d** (for means):
+$$d = \frac{\bar{X} - \mu_0}{s}$$
+
+Interpretation guidelines (Cohen's conventions):
+- Small: $d \approx 0.2$
+- Medium: $d \approx 0.5$
+- Large: $d \approx 0.8$
+
+```{r effect_size}
+# Calculate Cohen's d for our examples
+d_large <- (mean(large_sample) - 120) / sd(large_sample)
+d_small <- (mean(small_sample) - 120) / sd(small_sample)
+
+cat("Effect Sizes (Cohen's d)\n")
+cat("========================\n\n")
+cat(sprintf("Large sample: d = %.3f (%s effect)\n", d_large,
+            ifelse(abs(d_large) < 0.2, "negligible",
+                   ifelse(abs(d_large) < 0.5, "small",
+                          ifelse(abs(d_large) < 0.8, "medium", "large")))))
+cat(sprintf("Small sample: d = %.3f (%s effect)\n", d_small,
+            ifelse(abs(d_small) < 0.2, "negligible",
+                   ifelse(abs(d_small) < 0.5, "small",
+                          ifelse(abs(d_small) < 0.8, "medium", "large")))))
+cat("\nThe large sample detected a negligible effect.\n")
+cat("The small sample missed a small-medium effect.\n")
+```
+
+---
+
+## 9.7 Communicating to Stakeholders
+
+### 9.7.1 Explaining Hypothesis Testing to Non-Statisticians
+
+"We wanted to know if the new treatment affects blood pressure. The standard approach is to assume it doesn't work (the 'null hypothesis') and then look at the data to see if this assumption seems wrong.
+
+If the results would be very unusual under this assumption — something we'd see less than 5% of the time by chance — we conclude the treatment probably does have an effect.
+
+In our study, the probability of seeing results this extreme by chance alone was only 2%. This is strong evidence that the treatment really does affect blood pressure."
+
+### 9.7.2 Common Misunderstandings to Address
+
+1. **"So there's only a 2% chance the treatment doesn't work?"**
+   - No. The p-value is not the probability that H₀ is true. It's the probability of seeing data this extreme *if* H₀ is true.
+
+2. **"Why 5%? Isn't that arbitrary?"**
+   - Yes, it's a convention. We could use 1% or 10%. The 5% threshold balances false positives and false negatives, but it's not magical.
+
+3. **"The result wasn't significant, so the treatment definitely doesn't work?"**
+   - No. "Not significant" means "insufficient evidence to reject H₀." It doesn't mean H₀ is true. We may simply need more data.
+
+4. **"A significant result proves the treatment works?"**
+   - Not quite. It provides evidence against the null, but doesn't prove the alternative. Other explanations (confounding, bias) remain possible.
+
+---
+
+## 9.8 Quick Reference
+
+### 9.8.1 Hypothesis Testing Framework
+
+| Component | Description |
+|-----------|-------------|
+| Null hypothesis (H₀) | The default, typically "no effect" |
+| Alternative (H₁) | What we conclude if we reject H₀ |
+| Test statistic | Measures how far sample is from H₀ |
+| P-value | Probability of this extreme a result if H₀ true |
+| Significance level (α) | Threshold for rejection (typically 0.05) |
+| Decision | Reject H₀ if p < α |
+
+### 9.8.2 Common Test Statistics
+
+| Parameter | σ Known | σ Unknown |
+|-----------|---------|-----------|
+| Single mean | $Z = \frac{\bar{X} - \mu_0}{\sigma/\sqrt{n}}$ | $T = \frac{\bar{X} - \mu_0}{s/\sqrt{n}}$ |
+| Two means | $Z = \frac{(\bar{X}_1 - \bar{X}_2) - 0}{SE}$ | $T = \frac{(\bar{X}_1 - \bar{X}_2) - 0}{SE}$ |
+| Proportion | $Z = \frac{\hat{p} - p_0}{\sqrt{p_0(1-p_0)/n}}$ | — |
+
+### 9.8.3 Critical Values (Two-Sided)
+
+| α | z* | t* (df=10) | t* (df=30) | t* (df=∞) |
+|---|---|---|---|---|
+| 0.10 | 1.645 | 1.812 | 1.697 | 1.645 |
+| 0.05 | 1.960 | 2.228 | 2.042 | 1.960 |
+| 0.01 | 2.576 | 3.169 | 2.750 | 2.576 |
+| 0.001 | 3.291 | 4.587 | 3.646 | 3.291 |

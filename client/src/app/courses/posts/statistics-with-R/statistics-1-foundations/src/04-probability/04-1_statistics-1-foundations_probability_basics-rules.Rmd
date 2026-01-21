@@ -1,0 +1,1221 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 4: Probability — Foundations"
+part: "Part 1: Probability Basics and Rules"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, data, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Chapter 4: Probability — Foundations
+
+Probability is the mathematical language of uncertainty. Before we can make inferences about populations from samples, we need a rigorous framework for quantifying how likely different outcomes are. This chapter establishes that framework, building from basic definitions through to the fundamental rules that govern probabilistic reasoning.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load NHANES data for medical examples
+nhanes <- fread("../../../data/primary/nhanes.csv")
+
+cat("NHANES dataset:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
+```
+
+## Table of Contents
+
+## 4.1 What Is Probability?
+
+Probability quantifies uncertainty. But what exactly does a probability mean? Three interpretations have shaped statistical thinking, each providing different insights into the nature of chance.
+
+### 4.1.1 Frequentist Interpretation
+
+**Prose and Intuition**
+
+The frequentist interpretation defines probability as the long-run relative frequency of an event. If you flip a fair coin infinitely many times, the proportion of heads converges to 0.5. Probability is not a property of a single flip but a limiting characteristic of repeated trials.
+
+This interpretation aligns with experimental science: we can estimate probabilities by counting outcomes across many repetitions. The probability of a drug causing side effects is estimated by the proportion of patients who experience them in trials.
+
+**Mathematical Derivation**
+
+For an event $A$ observed in $n$ identical, independent trials, the frequentist probability is:
+
+$$P(A) = \lim_{n \to \infty} \frac{n_A}{n}$$
+
+where $n_A$ is the number of times event $A$ occurred.
+
+```{r frequentist_coin_flip, fig.cap="Convergence of relative frequency to probability"}
+set.seed(42)
+
+# Simulate coin flips and track running proportion of heads
+n_flips <- 10000
+flips <- sample(c(0, 1), n_flips, replace = TRUE)  # 0 = Tails, 1 = Heads
+
+# Calculate cumulative proportion of heads
+cumulative_heads <- cumsum(flips)
+flip_number <- seq_len(n_flips)
+running_proportion <- cumulative_heads / flip_number
+
+# Create data for plotting
+freq_dt <- data.table(
+    flip = flip_number,
+    proportion = running_proportion
+)
+
+# Plot convergence
+ggplot2$ggplot(freq_dt, ggplot2$aes(x = flip, y = proportion)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 0.5) +
+    ggplot2$geom_hline(yintercept = 0.5, colour = "red", linetype = "dashed", size = 1) +
+    ggplot2$scale_x_log10(labels = scales::comma) +
+    ggplot2$labs(
+        title = "Frequentist Probability: Convergence to True Value",
+        subtitle = "As trials increase, relative frequency approaches P(Heads) = 0.5",
+        x = "Number of Flips (log scale)",
+        y = "Proportion of Heads"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$annotate("text", x = 5000, y = 0.52, label = "P(Heads) = 0.5",
+             colour = "red", size = 5)
+```
+
+**Limitations of the frequentist view:**
+
+- Requires repeatable experiments (what about one-off events?)
+- The limit is theoretical; we never truly reach infinity
+- Cannot assign probabilities to unique events like "Will this patient survive?"
+
+### 4.1.2 Bayesian Interpretation
+
+**Prose and Intuition**
+
+The Bayesian interpretation views probability as a degree of belief or confidence. A probability of 0.7 means we are 70% confident an event will occur, based on available information. Unlike the frequentist view, Bayesian probability applies to unique, non-repeatable events.
+
+A clinician might say, "I believe there is a 30% chance this tumour is malignant," expressing their current belief given the patient's symptoms, history, and test results. This probability can be updated as new evidence arrives.
+
+**Mathematical Framework**
+
+Bayesian probability is personal but not arbitrary: beliefs must be coherent (logically consistent) and should update according to Bayes' theorem:
+
+$$P(H|E) = \frac{P(E|H) \cdot P(H)}{P(E)}$$
+
+where:
+- $P(H)$ is the prior probability (belief before evidence)
+- $P(E|H)$ is the likelihood (probability of evidence given hypothesis)
+- $P(H|E)$ is the posterior probability (belief after evidence)
+
+```{r bayesian_belief_update, fig.cap="Bayesian belief updating with diagnostic evidence"}
+# Example: Updating belief about disease status after a test result
+# Prior: 1% of patients have the disease (based on population prevalence)
+# Test has 90% sensitivity, 95% specificity
+
+prior_disease <- 0.01
+sensitivity <- 0.90  # P(positive test | disease)
+specificity <- 0.95  # P(negative test | no disease)
+
+# P(positive test)
+p_positive <- sensitivity * prior_disease + (1 - specificity) * (1 - prior_disease)
+
+# Posterior: P(disease | positive test)
+posterior_disease <- (sensitivity * prior_disease) / p_positive
+
+# Show the dramatic shift in belief
+belief_dt <- data.table(
+    stage = factor(c("Prior", "Posterior (after + test)"),
+                   levels = c("Prior", "Posterior (after + test)")),
+    probability = c(prior_disease, posterior_disease)
+)
+
+ggplot2$ggplot(belief_dt, ggplot2$aes(x = stage, y = probability, fill = stage)) +
+    ggplot2$geom_col(width = 0.6) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(round(probability * 100, 1), "%")),
+              vjust = -0.5, size = 5) +
+    ggplot2$scale_fill_manual(values = c("#56B4E9", "#D55E00")) +
+    ggplot2$scale_y_continuous(limits = c(0, 0.25), labels = scales::percent) +
+    ggplot2$labs(
+        title = "Bayesian Belief Updating",
+        subtitle = "A positive test increases P(disease) from 1% to 15.4%",
+        x = NULL,
+        y = "Probability of Disease"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+
+cat("Prior P(disease):", prior_disease, "\n")
+cat("P(positive test):", round(p_positive, 4), "\n")
+cat("Posterior P(disease | positive test):", round(posterior_disease, 4), "\n")
+```
+
+### 4.1.3 Axiomatic Approach
+
+**Prose and Intuition**
+
+The axiomatic approach, formalised by Andrey Kolmogorov in 1933, sidesteps philosophical debates by specifying what probabilities must satisfy mathematically, without requiring a particular interpretation. Any function satisfying the axioms qualifies as a probability measure.
+
+This approach unifies frequentist and Bayesian methods: both must obey the same mathematical rules, regardless of how they interpret what probabilities mean.
+
+**Mathematical Derivation: Kolmogorov's Axioms**
+
+A probability function $P$ assigns a number to each event in a sample space $S$, satisfying:
+
+1. **Non-negativity:** For any event $A$, $P(A) \geq 0$
+
+2. **Normalisation:** $P(S) = 1$ (something must happen)
+
+3. **Additivity:** For mutually exclusive events $A_1, A_2, \ldots$:
+$$P\left(\bigcup_{i=1}^{\infty} A_i\right) = \sum_{i=1}^{\infty} P(A_i)$$
+
+```{r axiom_demonstration, fig.cap="The axioms constrain probability to the [0, 1] interval"}
+# Demonstrate that axioms constrain probabilities
+
+# Create a simple sample space: blood types
+blood_types <- c("A", "B", "AB", "O")
+# Approximate population frequencies
+frequencies <- c(0.42, 0.10, 0.04, 0.44)
+
+# Verify axioms
+cat("Verifying Kolmogorov's Axioms:\n\n")
+
+# Axiom 1: Non-negativity
+cat("Axiom 1 (Non-negativity): All P(event) >= 0?\n")
+cat("  Probabilities:", frequencies, "\n")
+cat("  All non-negative?", all(frequencies >= 0), "\n\n")
+
+# Axiom 2: Normalisation
+cat("Axiom 2 (Normalisation): P(S) = 1?\n")
+cat("  Sum of all probabilities:", sum(frequencies), "\n\n")
+
+# Axiom 3: Additivity (for disjoint events)
+# P(A or B) = P(A) + P(B) for disjoint events
+p_A <- frequencies[1]
+p_B <- frequencies[2]
+p_A_or_B <- p_A + p_B  # A and B are disjoint (can't have both blood types)
+
+cat("Axiom 3 (Additivity): P(A or B) = P(A) + P(B) for disjoint events?\n")
+cat("  P(type A):", p_A, "\n")
+cat("  P(type B):", p_B, "\n")
+cat("  P(type A or B):", p_A_or_B, "\n")
+
+# Visualise
+blood_dt <- data.table(
+    type = factor(blood_types, levels = blood_types),
+    probability = frequencies
+)
+
+ggplot2$ggplot(blood_dt, ggplot2$aes(x = type, y = probability, fill = type)) +
+    ggplot2$geom_col(width = 0.7) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(probability * 100, "%")),
+              vjust = -0.5, size = 5) +
+    ggplot2$scale_fill_brewer(palette = "Set2") +
+    ggplot2$scale_y_continuous(limits = c(0, 0.55), labels = scales::percent) +
+    ggplot2$labs(
+        title = "Blood Type Probabilities Satisfy Kolmogorov's Axioms",
+        subtitle = "All values are non-negative and sum to 1",
+        x = "Blood Type",
+        y = "Probability"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+### 4.1.4 Why Probability Matters for Statistics
+
+**Prose and Intuition**
+
+Statistics without probability is merely data description. Probability provides the bridge from samples to populations, allowing us to:
+
+1. **Quantify uncertainty** in estimates (confidence intervals)
+2. **Make decisions** under uncertainty (hypothesis testing)
+3. **Model random processes** (distributions, stochastic models)
+4. **Update beliefs** with new data (Bayesian inference)
+
+Every confidence interval, p-value, and prediction interval rests on probability theory.
+
+**Visualisation: The inferential chain**
+
+```{r inference_chain, fig.cap="Probability connects samples to populations"}
+# Create a diagram showing the inferential chain
+# Population -> Sampling -> Sample -> Probability -> Inference -> Population
+
+# Demonstrate with sampling from NHANES
+set.seed(42)
+
+# True population parameters (treating full NHANES as population)
+pop_mean <- mean(nhanes$BMI, na.rm = TRUE)
+pop_sd <- sd(nhanes$BMI, na.rm = TRUE)
+
+# Simulate many samples and their estimates
+n_samples <- 1000
+sample_size <- 50
+sample_means <- numeric(n_samples)
+
+for (i in seq_len(n_samples)) {
+    sample_data <- sample(nhanes$BMI[!is.na(nhanes$BMI)], sample_size)
+    sample_means[i] <- mean(sample_data)
+}
+
+# Plot the sampling distribution
+sample_dt <- data.table(mean = sample_means)
+
+ggplot2$ggplot(sample_dt, ggplot2$aes(x = mean)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
+                   fill = "#56B4E9", colour = "white", alpha = 0.8) +
+    ggplot2$geom_density(colour = "#0072B2", size = 1) +
+    ggplot2$geom_vline(xintercept = pop_mean, colour = "red",
+               linetype = "dashed", size = 1.2) +
+    ggplot2$labs(
+        title = "Probability Connects Samples to Population",
+        subtitle = paste("Distribution of sample means (n =", sample_size,
+                        "); red line = population mean"),
+        x = "Sample Mean BMI",
+        y = "Density"
+    ) +
+    ggplot2$annotate("text", x = pop_mean + 0.5, y = 0.5,
+             label = paste("μ =", round(pop_mean, 1)),
+             colour = "red", size = 5, hjust = 0) +
+    ggplot2$theme_minimal()
+
+cat("Population mean BMI:", round(pop_mean, 2), "\n")
+cat("Mean of sample means:", round(mean(sample_means), 2), "\n")
+cat("SE of sample means:", round(sd(sample_means), 2), "\n")
+cat("Theoretical SE:", round(pop_sd / sqrt(sample_size), 2), "\n")
+```
+
+---
+
+## 4.2 Sample Spaces and Events
+
+To reason rigorously about probability, we need precise terminology. This section establishes the formal language of probability theory.
+
+### 4.2.1 Defining the Sample Space
+
+**Prose and Intuition**
+
+The **sample space** $S$ (also denoted $\Omega$) is the set of all possible outcomes of a random experiment. Before computing probabilities, we must enumerate what could happen.
+
+Examples:
+- Coin flip: $S = \{\text{Heads}, \text{Tails}\}$
+- Die roll: $S = \{1, 2, 3, 4, 5, 6\}$
+- Blood pressure measurement: $S = (0, \infty)$ or some realistic interval
+- DNA base: $S = \{A, T, G, C\}$
+
+The sample space must be exhaustive (cover all possibilities) and mutually exclusive (outcomes don't overlap).
+
+**Mathematical Definition**
+
+A **sample space** is a set $S$ containing all possible outcomes of a random experiment. Sample spaces can be:
+
+- **Finite:** $S = \{1, 2, 3, 4, 5, 6\}$ (die roll)
+- **Countably infinite:** $S = \{0, 1, 2, 3, \ldots\}$ (count of events)
+- **Uncountably infinite:** $S = [0, \infty)$ (continuous measurements)
+
+```{r sample_spaces, fig.cap="Different types of sample spaces"}
+# Demonstrate finite, countable, and continuous sample spaces
+
+# Finite: Dice roll simulation
+set.seed(42)
+die_rolls <- sample(1:6, 1000, replace = TRUE)
+die_dt <- data.table(outcome = factor(die_rolls))
+
+p1 <- ggplot2$ggplot(die_dt, ggplot2$aes(x = outcome)) +
+    ggplot2$geom_bar(fill = "#56B4E9", width = 0.7) +
+    ggplot2$labs(
+        title = "Finite Sample Space",
+        subtitle = "S = {1, 2, 3, 4, 5, 6}",
+        x = "Die Outcome",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal()
+
+# Countably infinite: Poisson counts (e.g., daily admissions)
+poisson_counts <- rpois(1000, lambda = 5)
+count_dt <- data.table(count = poisson_counts)
+
+p2 <- ggplot2$ggplot(count_dt, ggplot2$aes(x = factor(count))) +
+    ggplot2$geom_bar(fill = "#D55E00", width = 0.7) +
+    ggplot2$labs(
+        title = "Countably Infinite Sample Space",
+        subtitle = "S = {0, 1, 2, 3, ...}",
+        x = "Count (e.g., daily admissions)",
+        y = "Frequency"
+    ) +
+    ggplot2$scale_x_discrete(breaks = seq(0, max(poisson_counts), by = 2)) +
+    ggplot2$theme_minimal()
+
+# Continuous: BMI measurements
+bmi_dt <- data.table(bmi = nhanes$BMI[!is.na(nhanes$BMI)])
+
+p3 <- ggplot2$ggplot(bmi_dt[1:1000], ggplot2$aes(x = bmi)) +
+    ggplot2$geom_histogram(bins = 40, fill = "#009E73", colour = "white") +
+    ggplot2$labs(
+        title = "Uncountably Infinite Sample Space",
+        subtitle = "S = (0, ∞) for continuous measurements",
+        x = "BMI (kg/m²)",
+        y = "Frequency"
+    ) +
+    ggplot2$theme_minimal()
+
+# Arrange plots
+gridExtra::grid.arrange(p1, p2, p3, nrow = 1)
+```
+
+### 4.2.2 Events as Subsets
+
+**Prose and Intuition**
+
+An **event** is a subset of the sample space: a collection of outcomes we care about. When we ask "What is the probability of rolling an even number?", we are asking about the event $A = \{2, 4, 6\}$, which is a subset of $S = \{1, 2, 3, 4, 5, 6\}$.
+
+Events can be combined using set operations:
+- **Union** ($A \cup B$): Either A or B (or both) occurs
+- **Intersection** ($A \cap B$): Both A and B occur
+- **Complement** ($A'$ or $A^c$): A does not occur
+
+**Mathematical Definitions**
+
+Given a sample space $S$:
+
+- An **event** $A$ is a subset $A \subseteq S$
+- The **union** $A \cup B = \{x : x \in A \text{ or } x \in B\}$
+- The **intersection** $A \cap B = \{x : x \in A \text{ and } x \in B\}$
+- The **complement** $A' = \{x : x \in S \text{ and } x \notin A\}$
+- Events are **mutually exclusive** (disjoint) if $A \cap B = \emptyset$
+
+```{r set_operations, fig.cap="Set operations on events visualised with Venn diagrams"}
+# Create a visual demonstration of set operations
+# Using medical example: patients classified by two conditions
+
+# Simulate patient data
+set.seed(42)
+n_patients <- 500
+
+patients <- data.table(
+    id = 1:n_patients,
+    has_diabetes = sample(c(TRUE, FALSE), n_patients, replace = TRUE, prob = c(0.3, 0.7)),
+    has_hypertension = sample(c(TRUE, FALSE), n_patients, replace = TRUE, prob = c(0.4, 0.6))
+)
+
+# Calculate event probabilities
+n_diabetes <- sum(patients$has_diabetes)
+n_hypertension <- sum(patients$has_hypertension)
+n_both <- sum(patients$has_diabetes & patients$has_hypertension)
+n_either <- sum(patients$has_diabetes | patients$has_hypertension)
+n_neither <- sum(!patients$has_diabetes & !patients$has_hypertension)
+
+cat("Set Operations on Medical Events\n")
+cat("================================\n\n")
+cat("Sample space S: All", n_patients, "patients\n\n")
+cat("Event A (Diabetes):", n_diabetes, "patients, P(A) =", round(n_diabetes/n_patients, 3), "\n")
+cat("Event B (Hypertension):", n_hypertension, "patients, P(B) =", round(n_hypertension/n_patients, 3), "\n\n")
+cat("A ∩ B (Both):", n_both, "patients, P(A ∩ B) =", round(n_both/n_patients, 3), "\n")
+cat("A ∪ B (Either):", n_either, "patients, P(A ∪ B) =", round(n_either/n_patients, 3), "\n")
+cat("A' (No diabetes):", n_patients - n_diabetes, "patients, P(A') =", round((n_patients - n_diabetes)/n_patients, 3), "\n")
+cat("(A ∪ B)' (Neither):", n_neither, "patients, P(neither) =", round(n_neither/n_patients, 3), "\n")
+
+# Create contingency table visualisation
+contingency <- patients[, .(count = .N), by = .(has_diabetes, has_hypertension)]
+contingency[, diabetes := ifelse(has_diabetes, "Diabetes", "No Diabetes")]
+contingency[, hypertension := ifelse(has_hypertension, "Hypertension", "No Hypertension")]
+
+ggplot2$ggplot(contingency, ggplot2$aes(x = diabetes, y = hypertension, fill = count)) +
+    ggplot2$geom_tile(colour = "white", size = 2) +
+    ggplot2$geom_text(ggplot2$aes(label = count), size = 8, colour = "white") +
+    ggplot2$scale_fill_gradient(low = "#56B4E9", high = "#0072B2") +
+    ggplot2$labs(
+        title = "Contingency Table: Events A (Diabetes) and B (Hypertension)",
+        subtitle = "Each cell shows count of patients",
+        x = NULL,
+        y = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none",
+          panel.grid = ggplot2$element_blank())
+```
+
+### 4.2.3 Simple and Compound Events
+
+**Prose and Intuition**
+
+A **simple event** (or elementary event) consists of a single outcome from the sample space. Rolling a 3 is a simple event. A **compound event** contains multiple outcomes. Rolling an odd number ($\{1, 3, 5\}$) is a compound event comprising three simple events.
+
+This distinction matters because:
+- In discrete uniform sample spaces, P(simple event) = 1/|S|
+- P(compound event) = sum of probabilities of its simple events
+
+**Mathematical Framework**
+
+For a finite sample space $S = \{s_1, s_2, \ldots, s_n\}$:
+
+- Simple event: $\{s_i\}$ for some $i$
+- Compound event: $A = \{s_{i_1}, s_{i_2}, \ldots, s_{i_k}\}$ where $k \geq 2$
+
+If outcomes are equally likely:
+$$P(A) = \frac{|A|}{|S|} = \frac{\text{number of outcomes in } A}{\text{total number of outcomes}}$$
+
+```{r simple_compound_events}
+# Demonstrate simple vs compound events with dice
+
+# Sample space
+S <- 1:6
+
+# Simple events
+simple_event <- 3  # Rolling a 3
+
+# Compound events
+odd_event <- c(1, 3, 5)  # Rolling an odd number
+greater_than_4 <- c(5, 6)  # Rolling greater than 4
+
+cat("Sample space S:", paste(S, collapse = ", "), "\n\n")
+
+cat("Simple event (roll a 3):\n")
+cat("  Outcomes: {3}\n")
+cat("  P(roll 3) = 1/6 =", round(1/6, 4), "\n\n")
+
+cat("Compound event (roll odd):\n")
+cat("  Outcomes: {1, 3, 5}\n")
+cat("  P(odd) = 3/6 =", round(3/6, 4), "\n\n")
+
+cat("Compound event (roll > 4):\n")
+cat("  Outcomes: {5, 6}\n")
+cat("  P(>4) = 2/6 =", round(2/6, 4), "\n")
+
+# Simulate to verify
+set.seed(42)
+n_rolls <- 10000
+rolls <- sample(S, n_rolls, replace = TRUE)
+
+cat("\nSimulation verification (", n_rolls, " rolls):\n", sep = "")
+cat("  Proportion of 3s:", mean(rolls == 3), "\n")
+cat("  Proportion odd:", mean(rolls %% 2 == 1), "\n")
+cat("  Proportion > 4:", mean(rolls > 4), "\n")
+```
+
+### 4.2.4 Visualising Sample Spaces
+
+**Prose and Intuition**
+
+Visual representations help us enumerate outcomes and calculate probabilities correctly. The two most useful tools are:
+
+1. **Venn diagrams**: Show relationships between events (unions, intersections, complements)
+2. **Tree diagrams**: Show sequential experiments and compound probabilities
+
+**Venn Diagrams**
+
+```{r venn_diagram, fig.cap="Venn diagram showing relationships between events"}
+# Create a Venn diagram visualisation using ggplot2
+# Events: A = Diabetes, B = Hypertension
+
+# Create circles for Venn diagram
+theta <- seq(0, 2*pi, length.out = 100)
+radius <- 1.5
+
+# Circle A (Diabetes) - centered at (-0.8, 0)
+circle_a <- data.table(
+    x = -0.8 + radius * cos(theta),
+    y = radius * sin(theta),
+    group = "A"
+)
+
+# Circle B (Hypertension) - centered at (0.8, 0)
+circle_b <- data.table(
+    x = 0.8 + radius * cos(theta),
+    y = radius * sin(theta),
+    group = "B"
+)
+
+# Combine
+circles <- rbindlist(list(circle_a, circle_b))
+
+# Create the plot
+ggplot2$ggplot() +
+    ggplot2$geom_polygon(data = circle_a, ggplot2$aes(x = x, y = y),
+                 fill = "#56B4E9", alpha = 0.3, colour = "#0072B2", size = 1.5) +
+    ggplot2$geom_polygon(data = circle_b, ggplot2$aes(x = x, y = y),
+                 fill = "#D55E00", alpha = 0.3, colour = "#CC79A7", size = 1.5) +
+    # Labels
+    ggplot2$annotate("text", x = -1.8, y = 0, label = "A only\nP(A ∩ B')", size = 4) +
+    ggplot2$annotate("text", x = 1.8, y = 0, label = "B only\nP(A' ∩ B)", size = 4) +
+    ggplot2$annotate("text", x = 0, y = 0, label = "A ∩ B\nP(A ∩ B)", size = 4) +
+    ggplot2$annotate("text", x = 0, y = 2.5, label = "(A ∪ B)'\nP(neither)", size = 4) +
+    ggplot2$annotate("text", x = -2.3, y = 1.5, label = "A = Diabetes",
+             colour = "#0072B2", size = 5, fontface = "bold") +
+    ggplot2$annotate("text", x = 2.3, y = 1.5, label = "B = Hypertension",
+             colour = "#CC79A7", size = 5, fontface = "bold") +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(
+        title = "Venn Diagram: Two Events",
+        subtitle = "Sample space S represented by the rectangle"
+    ) +
+    ggplot2$theme_void() +
+    ggplot2$theme(plot.title = ggplot2$element_text(hjust = 0.5, size = 14, face = "bold"),
+          plot.subtitle = ggplot2$element_text(hjust = 0.5, size = 12))
+```
+
+**Tree Diagrams**
+
+Tree diagrams are particularly useful for sequential experiments.
+
+```{r tree_diagram, fig.cap="Tree diagram for sequential coin flips"}
+# Simulate and visualise two-coin flip outcomes
+# Sample space: {HH, HT, TH, TT}
+
+# Create tree structure data
+tree_data <- data.table(
+    level = c(0, 1, 1, 2, 2, 2, 2),
+    x = c(0, -2, 2, -3, -1, 1, 3),
+    y = c(3, 1.5, 1.5, 0, 0, 0, 0),
+    label = c("Start", "H (0.5)", "T (0.5)", "HH\n0.25", "HT\n0.25", "TH\n0.25", "TT\n0.25")
+)
+
+# Create edges
+edges <- data.table(
+    x_start = c(0, 0, -2, -2, 2, 2),
+    y_start = c(3, 3, 1.5, 1.5, 1.5, 1.5),
+    x_end = c(-2, 2, -3, -1, 1, 3),
+    y_end = c(1.5, 1.5, 0, 0, 0, 0)
+)
+
+ggplot2$ggplot() +
+    ggplot2$geom_segment(data = edges,
+                 ggplot2$aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
+                 colour = "grey40", size = 1) +
+    ggplot2$geom_point(data = tree_data, ggplot2$aes(x = x, y = y),
+               size = 20, colour = "#56B4E9") +
+    ggplot2$geom_text(data = tree_data, ggplot2$aes(x = x, y = y, label = label),
+              size = 3.5) +
+    ggplot2$labs(
+        title = "Tree Diagram: Two Sequential Coin Flips",
+        subtitle = "Each path has probability 0.5 × 0.5 = 0.25"
+    ) +
+    ggplot2$theme_void() +
+    ggplot2$theme(plot.title = ggplot2$element_text(hjust = 0.5, size = 14, face = "bold"),
+          plot.subtitle = ggplot2$element_text(hjust = 0.5, size = 12))
+
+# Verify by simulation
+set.seed(42)
+n_sims <- 10000
+flip1 <- sample(c("H", "T"), n_sims, replace = TRUE)
+flip2 <- sample(c("H", "T"), n_sims, replace = TRUE)
+outcomes <- paste0(flip1, flip2)
+
+cat("\nTwo-coin flip simulation (", n_sims, " trials):\n", sep = "")
+cat("P(HH):", mean(outcomes == "HH"), "(theoretical: 0.25)\n")
+cat("P(HT):", mean(outcomes == "HT"), "(theoretical: 0.25)\n")
+cat("P(TH):", mean(outcomes == "TH"), "(theoretical: 0.25)\n")
+cat("P(TT):", mean(outcomes == "TT"), "(theoretical: 0.25)\n")
+```
+
+---
+
+## 4.3 Basic Probability Rules
+
+The axioms give rise to several fundamental rules that allow us to compute probabilities of complex events from simpler ones.
+
+### 4.3.1 Probability Axioms (Kolmogorov)
+
+**Mathematical Statement**
+
+The three axioms form the foundation of probability theory:
+
+**Axiom 1 (Non-negativity):** For any event $A$,
+$$P(A) \geq 0$$
+
+**Axiom 2 (Normalisation):** For the sample space $S$,
+$$P(S) = 1$$
+
+**Axiom 3 (Countable Additivity):** For mutually exclusive events $A_1, A_2, \ldots$,
+$$P\left(\bigcup_{i=1}^{\infty} A_i\right) = \sum_{i=1}^{\infty} P(A_i)$$
+
+**Immediate Consequences**
+
+From these three axioms, we can derive:
+
+1. $P(\emptyset) = 0$ (the impossible event has probability zero)
+2. $0 \leq P(A) \leq 1$ for any event $A$
+3. If $A \subseteq B$, then $P(A) \leq P(B)$ (monotonicity)
+
+```{r axiom_consequences}
+# Demonstrate derived properties from axioms
+
+# Use NHANES diabetes status as an example
+diabetes_status <- nhanes[!is.na(Diabetes), .(Diabetes)]
+n_total <- nrow(diabetes_status)
+n_diabetic <- sum(diabetes_status$Diabetes == "Yes")
+n_prediabetic <- sum(diabetes_status$Diabetes == "Pre")
+n_nondiabetic <- sum(diabetes_status$Diabetes == "No")
+
+cat("Derived Properties from Kolmogorov's Axioms\n")
+cat("==========================================\n\n")
+
+cat("Sample space S: All", n_total, "participants with diabetes data\n\n")
+
+# Property 1: P(empty set) = 0
+cat("1. P(∅) = 0: The probability of an impossible event is zero\n")
+cat("   Example: P(person has both diabetes AND no diabetes) = 0\n\n")
+
+# Property 2: Probabilities bounded
+cat("2. 0 ≤ P(A) ≤ 1: All probabilities are between 0 and 1\n")
+cat("   P(Diabetic) =", round(n_diabetic/n_total, 4), "\n")
+cat("   P(Pre-diabetic) =", round(n_prediabetic/n_total, 4), "\n")
+cat("   P(Non-diabetic) =", round(n_nondiabetic/n_total, 4), "\n")
+cat("   Sum:", round((n_diabetic + n_prediabetic + n_nondiabetic)/n_total, 4), "\n\n")
+
+# Property 3: Monotonicity
+cat("3. Monotonicity: If A ⊆ B, then P(A) ≤ P(B)\n")
+cat("   Let A = 'Diabetic', B = 'Diabetic or Pre-diabetic'\n")
+cat("   P(A) =", round(n_diabetic/n_total, 4), "\n")
+cat("   P(B) =", round((n_diabetic + n_prediabetic)/n_total, 4), "\n")
+cat("   P(A) ≤ P(B)?", n_diabetic/n_total <= (n_diabetic + n_prediabetic)/n_total, "\n")
+```
+
+### 4.3.2 The Complement Rule
+
+**Prose and Intuition**
+
+Since something must happen (P(S) = 1), the probability that an event does NOT occur is one minus the probability that it does occur. This is often the easiest way to compute probabilities of "at least one" events.
+
+**Mathematical Derivation**
+
+For any event $A$:
+$$P(A') = 1 - P(A)$$
+
+**Proof:** Since $A$ and $A'$ are mutually exclusive and $A \cup A' = S$:
+$$P(S) = P(A \cup A') = P(A) + P(A') = 1$$
+
+Therefore: $P(A') = 1 - P(A)$
+
+```{r complement_rule, fig.cap="The complement rule: P(A) + P(A') = 1"}
+# Practical example: Probability of at least one adverse event
+# When direct calculation is hard, use complement
+
+# Problem: 5 patients each have 10% chance of adverse event
+# What's P(at least one adverse event)?
+
+p_adverse <- 0.10
+n_patients <- 5
+
+# Direct approach (complicated): sum P(exactly 1) + P(exactly 2) + ... + P(exactly 5)
+# Using binomial:
+p_direct <- sum(dbinom(1:n_patients, n_patients, p_adverse))
+
+# Complement approach (simple): 1 - P(none)
+p_none <- (1 - p_adverse)^n_patients
+p_at_least_one <- 1 - p_none
+
+cat("The Complement Rule: A Practical Example\n")
+cat("========================================\n\n")
+
+cat("Problem: 5 patients, each with 10% chance of adverse event.\n")
+cat("Question: What is P(at least one adverse event)?\n\n")
+
+cat("Method 1 (Direct): Sum P(exactly k) for k = 1, 2, ..., 5\n")
+cat("  P(at least one) =", round(p_direct, 4), "\n\n")
+
+cat("Method 2 (Complement): 1 - P(none)\n")
+cat("  P(none) = (0.9)^5 =", round(p_none, 4), "\n")
+cat("  P(at least one) = 1 -", round(p_none, 4), "=", round(p_at_least_one, 4), "\n\n")
+
+cat("The complement approach is much simpler!\n")
+
+# Visualise
+probs <- data.table(
+    event = factor(c("P(A): At least one\nadverse event", "P(A'): No adverse\nevents"),
+                   levels = c("P(A): At least one\nadverse event", "P(A'): No adverse\nevents")),
+    probability = c(p_at_least_one, p_none)
+)
+
+ggplot2$ggplot(probs, ggplot2$aes(x = "", y = probability, fill = event)) +
+    ggplot2$geom_col(width = 1) +
+    ggplot2$coord_polar("y", start = 0) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(round(probability * 100, 1), "%")),
+              position = ggplot2$position_stack(vjust = 0.5), size = 6, colour = "white") +
+    ggplot2$scale_fill_manual(values = c("#D55E00", "#56B4E9")) +
+    ggplot2$labs(
+        title = "The Complement Rule",
+        subtitle = "P(A) + P(A') = 1",
+        fill = NULL
+    ) +
+    ggplot2$theme_void() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 4.3.3 The Addition Rule
+
+**Prose and Intuition**
+
+The addition rule tells us how to compute the probability that at least one of two events occurs. The key insight is that simply adding P(A) + P(B) overcounts the outcomes where both occur, so we must subtract P(A ∩ B).
+
+**Mathematical Derivation**
+
+For any events $A$ and $B$:
+$$P(A \cup B) = P(A) + P(B) - P(A \cap B)$$
+
+**Special case (mutually exclusive events):** If $A \cap B = \emptyset$, then:
+$$P(A \cup B) = P(A) + P(B)$$
+
+**Proof:** We can partition $A \cup B$ into three disjoint pieces:
+- $A \cap B'$ (only A)
+- $A' \cap B$ (only B)
+- $A \cap B$ (both)
+
+Since $P(A) = P(A \cap B') + P(A \cap B)$ and $P(B) = P(A' \cap B) + P(A \cap B)$:
+
+$$P(A \cup B) = P(A \cap B') + P(A' \cap B) + P(A \cap B)$$
+$$= [P(A) - P(A \cap B)] + [P(B) - P(A \cap B)] + P(A \cap B)$$
+$$= P(A) + P(B) - P(A \cap B)$$
+
+```{r addition_rule, fig.cap="The addition rule corrects for double-counting the intersection"}
+# Medical example: Risk factors for cardiovascular disease
+# A = Hypertension, B = High Cholesterol
+
+# Using NHANES data (simulating since we don't have cholesterol coded simply)
+set.seed(42)
+
+# Subset to adults
+adults <- nhanes[Age >= 18 & !is.na(BPSysAve)]
+
+# Define events
+# A: Hypertension (systolic BP >= 140)
+adults[, hypertension := BPSysAve >= 140]
+
+# B: Elevated BMI (BMI >= 30) as proxy for metabolic risk
+adults[, obese := BMI >= 30]
+
+n_total <- nrow(adults)
+n_A <- sum(adults$hypertension, na.rm = TRUE)
+n_B <- sum(adults$obese, na.rm = TRUE)
+n_both <- sum(adults$hypertension & adults$obese, na.rm = TRUE)
+n_either <- sum(adults$hypertension | adults$obese, na.rm = TRUE)
+
+# Calculate probabilities
+P_A <- n_A / n_total
+P_B <- n_B / n_total
+P_A_and_B <- n_both / n_total
+P_A_or_B_actual <- n_either / n_total
+
+# Using addition rule
+P_A_or_B_rule <- P_A + P_B - P_A_and_B
+
+# Without correction (wrong)
+P_wrong <- P_A + P_B
+
+cat("The Addition Rule: Medical Risk Factors\n")
+cat("=======================================\n\n")
+
+cat("Events:\n")
+cat("  A = Hypertension (BP ≥ 140 mmHg)\n")
+cat("  B = Obesity (BMI ≥ 30)\n\n")
+
+cat("Probabilities:\n")
+cat("  P(A) =", round(P_A, 4), "(", n_A, "of", n_total, ")\n")
+cat("  P(B) =", round(P_B, 4), "(", n_B, "of", n_total, ")\n")
+cat("  P(A ∩ B) =", round(P_A_and_B, 4), "(", n_both, "of", n_total, ")\n\n")
+
+cat("P(A ∪ B) — Probability of either risk factor:\n")
+cat("  Wrong (simple sum): P(A) + P(B) =", round(P_wrong, 4), "\n")
+cat("  Correct (addition rule): P(A) + P(B) - P(A ∩ B) =", round(P_A_or_B_rule, 4), "\n")
+cat("  Actual from data:", round(P_A_or_B_actual, 4), "\n")
+
+# Visualise the overcounting
+components <- data.table(
+    component = factor(c("A only", "B only", "A ∩ B (both)", "Overcounted\n(A ∩ B again)"),
+                       levels = c("A only", "B only", "A ∩ B (both)", "Overcounted\n(A ∩ B again)")),
+    probability = c(P_A - P_A_and_B, P_B - P_A_and_B, P_A_and_B, P_A_and_B),
+    group = c("Correct", "Correct", "Correct", "Overcounted")
+)
+
+ggplot2$ggplot(components, ggplot2$aes(x = component, y = probability, fill = group)) +
+    ggplot2$geom_col(width = 0.7) +
+    ggplot2$geom_hline(yintercept = P_A_or_B_actual, colour = "red",
+               linetype = "dashed", size = 1) +
+    ggplot2$annotate("text", x = 3.5, y = P_A_or_B_actual + 0.02,
+             label = paste("P(A ∪ B) =", round(P_A_or_B_actual, 3)),
+             colour = "red", size = 4) +
+    ggplot2$scale_fill_manual(values = c("#56B4E9", "#D55E00")) +
+    ggplot2$labs(
+        title = "Why the Addition Rule Subtracts P(A ∩ B)",
+        subtitle = "P(A) + P(B) double-counts the intersection",
+        x = NULL,
+        y = "Probability",
+        fill = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 4.3.4 Implementing Probability in R
+
+**Core R Functions for Probability**
+
+R provides several functions for probability calculations:
+
+```{r probability_functions}
+# Implement basic probability computations from scratch
+# Then show built-in equivalents
+
+# ============================================================
+# 1. Classical probability (equally likely outcomes)
+# ============================================================
+
+classical_prob <- function(event_outcomes, sample_space) {
+    # P(A) = |A| / |S| when outcomes are equally likely
+    length(event_outcomes) / length(sample_space)
+}
+
+# Example: Die roll
+S <- 1:6
+A <- c(2, 4, 6)  # Even numbers
+
+cat("Classical Probability\n")
+cat("====================\n")
+cat("S = {1, 2, 3, 4, 5, 6}\n")
+cat("A = {2, 4, 6} (even numbers)\n")
+cat("P(A) =", classical_prob(A, S), "\n\n")
+
+# ============================================================
+# 2. Complement
+# ============================================================
+
+prob_complement <- function(p_A) {
+    1 - p_A
+}
+
+cat("Complement Rule\n")
+cat("==============\n")
+cat("P(A) =", 0.3, "\n")
+cat("P(A') = 1 - P(A) =", prob_complement(0.3), "\n\n")
+
+# ============================================================
+# 3. Union (addition rule)
+# ============================================================
+
+prob_union <- function(p_A, p_B, p_A_and_B = 0) {
+    p_A + p_B - p_A_and_B
+}
+
+cat("Addition Rule\n")
+cat("=============\n")
+cat("P(A) = 0.4, P(B) = 0.5, P(A ∩ B) = 0.2\n")
+cat("P(A ∪ B) =", prob_union(0.4, 0.5, 0.2), "\n\n")
+
+# For mutually exclusive events
+cat("If A and B are mutually exclusive (P(A ∩ B) = 0):\n")
+cat("P(A ∪ B) =", prob_union(0.4, 0.5, 0), "\n\n")
+
+# ============================================================
+# 4. Simulation-based probability estimation
+# ============================================================
+
+estimate_prob <- function(experiment_fn, event_fn, n_trials = 10000, seed = NULL) {
+    # experiment_fn: function that generates one outcome
+    # event_fn: function that returns TRUE if event occurred
+    if (!is.null(seed)) set.seed(seed)
+
+    successes <- 0
+    for (i in seq_len(n_trials)) {
+        outcome <- experiment_fn()
+        if (event_fn(outcome)) {
+            successes <- successes + 1
+        }
+    }
+    successes / n_trials
+}
+
+# Example: Two dice sum to 7
+roll_two_dice <- function() {
+    sample(1:6, 2, replace = TRUE)
+}
+
+sum_is_seven <- function(outcome) {
+    sum(outcome) == 7
+}
+
+p_sum_7_sim <- estimate_prob(roll_two_dice, sum_is_seven, n_trials = 10000, seed = 42)
+
+# Theoretical: 6 ways to get 7 (1+6, 2+5, 3+4, 4+3, 5+2, 6+1) out of 36
+p_sum_7_theory <- 6/36
+
+cat("Simulation-Based Probability\n")
+cat("============================\n")
+cat("Event: Sum of two dice equals 7\n")
+cat("Theoretical P(sum = 7) = 6/36 =", round(p_sum_7_theory, 4), "\n")
+cat("Simulated P(sum = 7) =", p_sum_7_sim, "\n")
+```
+
+**Probability with data.table**
+
+For empirical probability from data:
+
+```{r probability_datatable}
+# Calculate empirical probabilities from NHANES
+
+# Calculate joint and marginal probabilities
+prob_table <- nhanes[!is.na(Gender) & !is.na(Diabetes), .(
+    count = .N
+), by = .(Gender, Diabetes)]
+
+# Add total
+total_n <- sum(prob_table$count)
+prob_table[, probability := count / total_n]
+
+cat("Joint Probability Table\n")
+cat("=======================\n")
+print(prob_table)
+
+cat("\nMarginal Probabilities:\n")
+
+# P(Gender)
+gender_probs <- prob_table[, .(prob = sum(probability)), by = Gender]
+cat("\nP(Gender):\n")
+print(gender_probs)
+
+# P(Diabetes)
+diabetes_probs <- prob_table[, .(prob = sum(probability)), by = Diabetes]
+cat("\nP(Diabetes):\n")
+print(diabetes_probs)
+
+# Verify addition rule
+# P(Female OR Diabetic)
+P_female <- gender_probs[Gender == "female", prob]
+P_diabetic <- diabetes_probs[Diabetes == "Yes", prob]
+P_female_and_diabetic <- prob_table[Gender == "female" & Diabetes == "Yes", probability]
+P_female_or_diabetic <- P_female + P_diabetic - P_female_and_diabetic
+
+cat("\nAddition Rule Verification:\n")
+cat("P(Female) =", round(P_female, 4), "\n")
+cat("P(Diabetic) =", round(P_diabetic, 4), "\n")
+cat("P(Female ∩ Diabetic) =", round(P_female_and_diabetic, 4), "\n")
+cat("P(Female ∪ Diabetic) = P(F) + P(D) - P(F ∩ D) =", round(P_female_or_diabetic, 4), "\n")
+
+# Verify empirically
+actual <- nhanes[!is.na(Gender) & !is.na(Diabetes),
+                 mean(Gender == "female" | Diabetes == "Yes")]
+cat("Actual from data:", round(actual, 4), "\n")
+```
+
+---
+
+## Communicating to Stakeholders
+
+When explaining probability concepts to collaborators, clinicians, or patients:
+
+### Avoid common misconceptions
+
+```{r stakeholder_misconceptions}
+cat("Common Probability Misconceptions to Address\n")
+cat("=============================================\n\n")
+
+cat("1. THE GAMBLER'S FALLACY\n")
+cat("   Wrong: 'After 5 heads, tails is due'\n")
+cat("   Right: 'Each flip is independent; past results don't affect future'\n")
+cat("   Key: Previous outcomes don't change future probabilities\n\n")
+
+cat("2. CONFUSING P(A|B) WITH P(B|A)\n")
+cat("   Wrong: 'P(disease|positive test) = P(positive test|disease)'\n")
+cat("   Right: 'These are different; P(disease|+) depends on prevalence'\n")
+cat("   Key: Use Bayes' theorem to convert between them\n\n")
+
+cat("3. BASE RATE NEGLECT\n")
+cat("   Wrong: 'A 95% accurate test means 95% chance of disease if positive'\n")
+cat("   Right: 'Must consider how rare the disease is in the population'\n")
+cat("   Key: Rare conditions have many false positives even with good tests\n\n")
+
+cat("4. INTERPRETING 'PROBABILITY' IN EVERYDAY LANGUAGE\n")
+cat("   What patients hear: 'There's a 30% chance of this side effect'\n")
+cat("   What they might think: 'If I take this, I'll be 30% sick'\n")
+cat("   Better explanation: 'Of 100 patients like you, about 30 experience this'\n")
+```
+
+### Using natural frequencies
+
+Instead of abstract probabilities, use natural frequencies:
+
+```{r natural_frequencies, fig.cap="Natural frequencies are easier to understand than probabilities"}
+# Example: Communicating screening test results
+# Disease prevalence: 1%
+# Test sensitivity: 90%
+# Test specificity: 95%
+
+prevalence <- 0.01
+sensitivity <- 0.90
+specificity <- 0.95
+
+# Consider 10,000 people
+n_people <- 10000
+
+# How many have disease
+n_disease <- n_people * prevalence  # 100
+n_no_disease <- n_people - n_disease  # 9900
+
+# True positives and false positives
+true_positives <- n_disease * sensitivity  # 90
+false_negatives <- n_disease - true_positives  # 10
+
+false_positives <- n_no_disease * (1 - specificity)  # 495
+true_negatives <- n_no_disease - false_positives  # 9405
+
+# Total positives
+total_positives <- true_positives + false_positives  # 585
+
+# PPV = TP / (TP + FP)
+ppv <- true_positives / total_positives
+
+cat("Natural Frequency Explanation of Screening\n")
+cat("==========================================\n\n")
+
+cat("Imagine we test 10,000 people:\n\n")
+cat("• 100 have the disease, 9,900 don't\n\n")
+cat("Among the 100 WITH disease:\n")
+cat("  - 90 test positive (correctly detected)\n")
+cat("  - 10 test negative (missed)\n\n")
+cat("Among the 9,900 WITHOUT disease:\n")
+cat("  - 495 test positive (false alarms)\n")
+cat("  - 9,405 test negative (correctly cleared)\n\n")
+cat("Total testing positive: 90 + 495 =", total_positives, "\n")
+cat("Of these, truly have disease: 90\n")
+cat("Probability disease if positive:", round(90/total_positives, 3), "(or about 1 in 6)\n")
+
+# Visualise as icon array
+test_outcomes <- data.table(
+    group = c("True Positive\n(Has disease, + test)",
+              "False Positive\n(No disease, + test)",
+              "False Negative\n(Has disease, - test)",
+              "True Negative\n(No disease, - test)"),
+    count = c(true_positives, false_positives, false_negatives, true_negatives),
+    category = c("Positive test", "Positive test", "Negative test", "Negative test")
+)
+
+ggplot2$ggplot(test_outcomes, ggplot2$aes(x = reorder(group, -count), y = count, fill = category)) +
+    ggplot2$geom_col(width = 0.7) +
+    ggplot2$geom_text(ggplot2$aes(label = scales::comma(count)), vjust = -0.5, size = 5) +
+    ggplot2$scale_fill_manual(values = c("Positive test" = "#D55E00", "Negative test" = "#56B4E9")) +
+    ggplot2$scale_y_continuous(labels = scales::comma, limits = c(0, 10500)) +
+    ggplot2$labs(
+        title = "Screening 10,000 People: Natural Frequencies",
+        subtitle = paste("Only", round(ppv * 100, 0), "% of positive tests are true positives"),
+        x = NULL,
+        y = "Number of People",
+        fill = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(size = 10),
+          legend.position = "bottom")
+```
+
+---
+
+## Quick Reference
+
+### Probability Interpretations
+
+| Interpretation | Definition | Example | Limitation |
+|---------------|------------|---------|------------|
+| Frequentist | Long-run relative frequency | Coin flip proportion → 0.5 | Requires repeatable experiments |
+| Bayesian | Degree of belief | "30% confident patient has disease" | Subjective; requires coherent priors |
+| Axiomatic | Function satisfying three axioms | Any valid probability measure | Mathematical; doesn't specify meaning |
+
+### Kolmogorov's Axioms
+
+| Axiom | Statement | Consequence |
+|-------|-----------|-------------|
+| Non-negativity | $P(A) \geq 0$ | Probabilities can't be negative |
+| Normalisation | $P(S) = 1$ | Something must happen |
+| Additivity | $P(\bigcup A_i) = \sum P(A_i)$ for disjoint events | Can add probabilities of mutually exclusive events |
+
+### Fundamental Rules
+
+| Rule | Formula | When to Use |
+|------|---------|-------------|
+| Complement | $P(A') = 1 - P(A)$ | "At least one" problems |
+| Addition | $P(A \cup B) = P(A) + P(B) - P(A \cap B)$ | "Either A or B" |
+| Addition (disjoint) | $P(A \cup B) = P(A) + P(B)$ | When A and B can't both occur |
+
+### Set Notation Summary
+
+| Symbol | Meaning | Example |
+|--------|---------|---------|
+| $S$ or $\Omega$ | Sample space | All possible outcomes |
+| $A \subseteq S$ | A is a subset of S | Event A |
+| $A \cup B$ | Union (A or B or both) | Either hypertension or diabetes |
+| $A \cap B$ | Intersection (both A and B) | Both hypertension and diabetes |
+| $A'$ or $A^c$ | Complement (not A) | No hypertension |
+| $\emptyset$ | Empty set | Impossible event |
+
+### R Functions for Probability
+
+```r
+# Classical probability (equally likely)
+length(event) / length(sample_space)
+
+# Complement
+1 - p_A
+
+# Union
+p_A + p_B - p_A_and_B
+
+# Simulation estimate
+mean(replicate(n, event_occurred(experiment())))
+
+# Random sampling
+sample(x, size, replace = TRUE/FALSE, prob = weights)
+
+# Set seed for reproducibility
+set.seed(42)
+```
+
+---
+
+## Exercises
+
+1. **Sample spaces**: Define the sample space for:
+   a) Measuring a patient's blood type (ABO system with Rh factor)
+   b) Recording the number of patients admitted to A&E in one hour
+   c) Measuring a participant's exact height in centimetres
+
+2. **Complement rule**: A genetic test correctly identifies carriers of a mutation 85% of the time. What is the probability it misses a carrier?
+
+3. **Addition rule**: In a clinical trial, P(headache) = 0.25, P(nausea) = 0.15, and P(both) = 0.08. What is P(headache or nausea)?
+
+4. **Simulation**: Write R code to estimate the probability that in a group of 23 people, at least two share a birthday. (Hint: use the complement.)
+
+5. **Natural frequencies**: A disease affects 5% of the population. A test has 80% sensitivity and 90% specificity. Express the outcomes using natural frequencies for 1,000 people tested.
+
+---
+
+## Chapter Summary
+
+This chapter established the mathematical foundations of probability:
+
+1. **Three interpretations** of probability (frequentist, Bayesian, axiomatic) provide different perspectives, but all must satisfy Kolmogorov's axioms
+
+2. **Sample spaces and events** give us precise language: sample spaces enumerate all possibilities; events are subsets we care about
+
+3. **Set operations** (union, intersection, complement) allow us to combine events logically
+
+4. **The fundamental rules** (complement, addition) let us compute complex probabilities from simpler ones
+
+5. **Natural frequencies** help communicate probabilistic concepts to stakeholders more effectively than abstract probabilities
+
+In Part 2, we extend these foundations to conditional probability, independence, and Bayes' theorem—the tools for updating beliefs with evidence.

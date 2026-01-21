@@ -1,0 +1,807 @@
+---
+title: "Multi-Asset Trend Following"
+---
+
+
+
+# Multi-Asset Trend Following
+
+The true power of trend following emerges when applied across many markets simultaneously. Trends exist in equities, bonds, commodities, and currencies—often uncorrelated with each other. A diversified trend-following portfolio captures these movements while diversifying away idiosyncratic noise.
+
+This is the foundation of the managed futures industry: Commodity Trading Advisors (CTAs) that systematically follow trends across 50-100+ markets, generating returns that are often negatively correlated with traditional equity portfolios during crises.
+
+---
+
+## 7.7 Managed Futures
+
+### 7.7.1 Prose/Intuition
+
+Managed futures strategies share a common DNA:
+1. **Diversification:** Trade many markets (typically 50-100)
+2. **Trend signals:** Go long assets in uptrends, short assets in downtrends
+3. **Volatility targeting:** Size positions to equalise risk contribution
+4. **Systematic execution:** Remove human emotion from trading decisions
+
+The key insight: trends exist everywhere, but individual trends are noisy. By combining many weak trend signals, we get a stronger aggregate signal with lower variance.
+
+**Crisis Alpha:** Managed futures have historically performed well during equity crises:
+- 2008 Financial Crisis: Many CTAs made money by being short equities and long bonds
+- 2022 Rate Hikes: CTAs profited from short bond positions as rates rose
+- The strategy naturally positions for regime changes by following price
+
+This negative correlation with equities during stress makes managed futures valuable portfolio diversifiers.
+
+### 7.7.2 Visual Evidence
+
+
+``` r
+# Load multiple assets
+symbols <- c("SPY", "TLT", "GLD", "USO")
+asset_names <- c("US Equities", "US Bonds", "Gold", "Oil")
+
+# Load and calculate TSMOM for each
+all_data <- data.table()
+for (i in seq_along(symbols)) {
+    dt <- load_market(symbols[i])
+    dt <- filter_dates(dt, as.Date("2010-01-01"), as.Date("2023-12-31"))
+    dt[, returns := log(adjusted / shift(adjusted))]
+    dt[, asset := asset_names[i]]
+    dt[, symbol := symbols[i]]
+
+    # TSMOM signal (12-month)
+    dt[, ret_12m := frollsum(returns, 252)]
+    dt[, signal := fifelse(shift(ret_12m, 1) > 0, 1, -1)]
+
+    # Volatility for sizing (20-day realised)
+    dt[, vol := frollapply(returns, 20, sd, na.rm = TRUE) * sqrt(252)]
+
+    dt <- dt[!is.na(signal) & !is.na(vol), .(date, asset, symbol, returns, signal, vol)]
+    all_data <- rbind(all_data, dt)
+}
+
+# Calculate individual asset TSMOM returns
+all_data[, tsmom_ret := signal * returns]
+
+# Cumulative returns by asset
+cum_by_asset <- all_data[, .(cum_tsmom = exp(cumsum(tsmom_ret))), by = .(asset, date)]
+
+ggplot(cum_by_asset, aes(x = date, y = cum_tsmom, colour = asset)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[3], tc[4])) +
+    scale_y_log10() +
+    labs(title = "TSMOM Performance by Asset Class",
+         subtitle = "12-month trend following applied individually",
+         x = NULL, y = "Growth of $1 (log scale)", colour = "Asset") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Trend following applied to multiple asset classes. Each market trends independently; combined, they provide diversification.](/courses/financial-statistics-1-foundations/../figures/07-3_multi-asset-performance-1.png)
+
+
+``` r
+# Create portfolio
+# Target volatility for each position
+target_vol <- 0.10
+
+# Vol-scaled TSMOM returns
+all_data[, pos_scale := pmin(target_vol / shift(vol, 1), 2), by = symbol]
+all_data[, scaled_tsmom := pos_scale * signal * returns]
+
+# Equal-weight portfolio
+portfolio <- dcast(all_data, date ~ symbol, value.var = "scaled_tsmom")
+portfolio[, portfolio_ret := rowMeans(.SD, na.rm = TRUE), .SDcols = symbols]
+
+# Buy-and-hold comparison
+bh_data <- dcast(all_data, date ~ symbol, value.var = "returns")
+bh_data[, bh_ret := rowMeans(.SD, na.rm = TRUE), .SDcols = symbols]
+portfolio <- merge(portfolio, bh_data[, .(date, bh_ret)], by = "date")
+
+portfolio <- portfolio[!is.na(portfolio_ret)]
+
+# Cumulative returns
+portfolio[, cum_tsmom := exp(cumsum(portfolio_ret))]
+portfolio[, cum_bh := exp(cumsum(bh_ret))]
+
+# Statistics
+cat("=== Diversified TSMOM Portfolio ===\n")
+```
+
+```
+## === Diversified TSMOM Portfolio ===
+```
+
+``` r
+cat("Assets: SPY, TLT, GLD, USO\n")
+```
+
+```
+## Assets: SPY, TLT, GLD, USO
+```
+
+``` r
+cat(sprintf("Target Vol per Asset: %d%%\n\n", target_vol * 100))
+```
+
+```
+## Target Vol per Asset: 10%
+```
+
+``` r
+port_stats <- data.table(
+    Strategy = c("Buy & Hold (EW)", "TSMOM Portfolio"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(portfolio$bh_ret, type = "simple") * 100,
+        annualised_return(portfolio$portfolio_ret, type = "simple") * 100)),
+    `Realised Vol` = sprintf("%.1f%%", c(
+        sd(portfolio$bh_ret, na.rm = TRUE) * sqrt(252) * 100,
+        sd(portfolio$portfolio_ret, na.rm = TRUE) * sqrt(252) * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(portfolio$bh_ret),
+        sharpe_ratio(portfolio$portfolio_ret))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(portfolio$bh_ret) * 100,
+        max_drawdown(portfolio$portfolio_ret) * 100))
+)
+print(port_stats)
+```
+
+```
+##           Strategy Ann. Return Realised Vol Sharpe Max Drawdown
+##             <char>      <char>       <char> <char>       <char>
+## 1: Buy & Hold (EW)        1.5%        12.4%   0.12        33.7%
+## 2: TSMOM Portfolio        1.1%         5.6%   0.19        17.9%
+```
+
+``` r
+# Plot
+port_long <- melt(portfolio[, .(date, `Buy & Hold` = cum_bh, `TSMOM Portfolio` = cum_tsmom)],
+                  id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(port_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Diversified TSMOM vs Buy & Hold",
+         subtitle = "Equal-weight portfolio with 10% vol target per asset",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Diversified TSMOM portfolio: equal-weight combination of individual TSMOM signals. Diversification smooths returns substantially.](/courses/financial-statistics-1-foundations/../figures/07-3_portfolio-tsmom-1.png)
+
+### 7.7.3 Mathematical Derivation
+
+**Portfolio TSMOM Construction:**
+
+For $N$ assets, the portfolio return is:
+
+$$
+r^{\text{portfolio}}_t = \sum_{i=1}^{N} w_{i,t} \times \text{Signal}_{i,t} \times r_{i,t}
+$$
+
+where $w_{i,t}$ is the weight of asset $i$ at time $t$.
+
+**Volatility-Targeted Weights:**
+
+To equalise risk contribution:
+
+$$
+w_{i,t} = \frac{\sigma_{\text{target}}}{N \times \hat{\sigma}_{i,t}}
+$$
+
+This ensures each asset contributes approximately $\sigma_{\text{target}}/N$ to portfolio volatility.
+
+**Diversification Benefit:**
+
+If individual asset returns have volatility $\sigma$ and average correlation $\bar{\rho}$:
+
+$$
+\sigma_{\text{portfolio}} = \sigma \sqrt{\frac{1 + (N-1)\bar{\rho}}{N}}
+$$
+
+As $N \to \infty$ and if $\bar{\rho}$ is low:
+
+$$
+\sigma_{\text{portfolio}} \to \sigma \sqrt{\bar{\rho}}
+$$
+
+With $\bar{\rho} = 0.2$ and $\sigma = 15\%$:
+$$
+\sigma_{\text{portfolio}} \to 15\% \times \sqrt{0.2} \approx 6.7\%
+$$
+
+Diversification reduces volatility significantly.
+
+
+``` r
+# Calculate correlation matrix
+all_data_wide <- dcast(all_data, date ~ symbol, value.var = "tsmom_ret")
+corr_matrix <- cor(all_data_wide[, -1, with = FALSE], use = "pairwise.complete.obs")
+
+# Convert to data.table for plotting
+corr_dt <- as.data.table(as.table(corr_matrix))
+setnames(corr_dt, c("Asset1", "Asset2", "Correlation"))
+
+# Heatmap
+ggplot(corr_dt, aes(x = Asset1, y = Asset2, fill = Correlation)) +
+    geom_tile() +
+    geom_text(aes(label = sprintf("%.2f", Correlation)), colour = "white", size = 4) +
+    scale_fill_gradient2(low = tc[4], mid = "grey30", high = tc[3],
+                         midpoint = 0, limits = c(-1, 1)) +
+    labs(title = "TSMOM Return Correlations",
+         subtitle = "Low correlations enable diversification",
+         x = NULL, y = NULL) +
+    theme_trading() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+![Correlation structure of TSMOM returns across assets. Low correlations enable substantial diversification benefits.](/courses/financial-statistics-1-foundations/../figures/07-3_correlation-analysis-1.png)
+
+### 7.7.4 Implementation & Application
+
+
+``` r
+# Full managed futures implementation
+# Load all assets
+symbols <- c("SPY", "TLT", "GLD", "USO")
+
+# Combine into single framework
+all_data <- data.table()
+for (sym in symbols) {
+    dt <- load_market(sym)
+    dt <- filter_dates(dt, as.Date("2010-01-01"), as.Date("2023-12-31"))
+    dt[, symbol := sym]
+    dt[, returns := log(adjusted / shift(adjusted))]
+
+    # TSMOM signal
+    dt[, ret_12m := frollsum(returns, 252)]
+    dt[, signal := fifelse(ret_12m > 0, 1, -1)]
+
+    # Volatility estimate (exponential)
+    calc_ewm_vol <- function(x, lambda = 0.94) {
+        n <- length(x)
+        var <- numeric(n)
+        var[1] <- x[1]^2
+        for (i in 2:n) var[i] <- lambda * var[i - 1] + (1 - lambda) * x[i - 1]^2
+        sqrt(var * 252)
+    }
+    dt[, vol := calc_ewm_vol(returns)]
+
+    dt <- dt[!is.na(signal) & !is.na(vol)]
+    all_data <- rbind(all_data, dt[, .(date, symbol, returns, signal, vol)])
+}
+
+# Portfolio construction
+portfolio_vol_target <- 0.15  # 15% portfolio vol target
+max_position <- 0.5          # Max 50% in any single asset
+n_assets <- length(symbols)
+
+# Calculate position sizes
+all_data[, asset_vol_target := portfolio_vol_target / n_assets]
+all_data[, position := pmin(asset_vol_target / shift(vol, 1), max_position) * shift(signal, 1), by = symbol]
+
+# Calculate returns
+all_data[, weighted_return := position * returns]
+
+# Aggregate to portfolio level
+portfolio <- all_data[, .(
+    portfolio_ret = sum(weighted_return, na.rm = TRUE),
+    total_exposure = sum(abs(position), na.rm = TRUE)
+), by = date]
+
+portfolio <- portfolio[!is.na(portfolio_ret)]
+
+# Cumulative returns
+portfolio[, cum_ret := exp(cumsum(portfolio_ret))]
+
+# Statistics
+cat("=== Managed Futures System ===\n")
+```
+
+```
+## === Managed Futures System ===
+```
+
+``` r
+cat(sprintf("Portfolio Vol Target: %d%%\n", portfolio_vol_target * 100))
+```
+
+```
+## Portfolio Vol Target: 15%
+```
+
+``` r
+cat(sprintf("Max Position Size: %d%%\n\n", max_position * 100))
+```
+
+```
+## Max Position Size: 50%
+```
+
+``` r
+cat("Performance Metrics:\n")
+```
+
+```
+## Performance Metrics:
+```
+
+``` r
+cat(sprintf("  Annualised Return: %.1f%%\n", annualised_return(portfolio$portfolio_ret, type = "simple") * 100))
+```
+
+```
+##   Annualised Return: NaN%
+```
+
+``` r
+cat(sprintf("  Realised Vol: %.1f%%\n", sd(portfolio$portfolio_ret, na.rm = TRUE) * sqrt(252) * 100))
+```
+
+```
+##   Realised Vol: NA%
+```
+
+``` r
+cat(sprintf("  Sharpe Ratio: %.2f\n", sharpe_ratio(portfolio$portfolio_ret)))
+```
+
+```
+##   Sharpe Ratio: NaN
+```
+
+``` r
+cat(sprintf("  Max Drawdown: %.1f%%\n", max_drawdown(portfolio$portfolio_ret) * 100))
+```
+
+```
+##   Max Drawdown: NA%
+```
+
+``` r
+cat(sprintf("\nAverage Total Exposure: %.1f%%\n", mean(portfolio$total_exposure, na.rm = TRUE) * 100))
+```
+
+```
+## 
+## Average Total Exposure: NaN%
+```
+
+``` r
+# Plot
+ggplot(portfolio, aes(x = date, y = cum_ret)) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    labs(title = "Managed Futures Strategy",
+         subtitle = sprintf("4 assets, %d%% vol target, max %.0f%% per position",
+                            portfolio_vol_target * 100, max_position * 100),
+         x = NULL, y = "Growth of $1") +
+    theme_trading()
+```
+
+![Complete managed futures system with volatility targeting and position limits. This structure underlies most CTA strategies.](/courses/financial-statistics-1-foundations/../figures/07-3_full-managed-futures-1.png)
+
+
+``` r
+# Show exposure over time
+ggplot(portfolio, aes(x = date, y = total_exposure * 100)) +
+    geom_line(colour = tc[2], linewidth = 0.6) +
+    geom_hline(yintercept = 100, linetype = "dashed", colour = "grey50") +
+    labs(title = "Total Portfolio Exposure Over Time",
+         subtitle = "Exposure varies inversely with volatility",
+         x = NULL, y = "Gross Exposure (%)") +
+    theme_trading()
+```
+
+![Portfolio exposure varies with volatility regime. During high-vol periods, positions are reduced automatically.](/courses/financial-statistics-1-foundations/../figures/07-3_exposure-over-time-1.png)
+
+---
+
+## 7.8 Trend Following in Different Regimes
+
+### 7.8.1 Prose/Intuition
+
+Trend following doesn't work equally well all the time. It excels during:
+- **Sustained trends:** Extended bull or bear markets
+- **Volatility expansions:** Crises where trends develop
+- **Regime transitions:** When one regime clearly ends and another begins
+
+It struggles during:
+- **Choppy reversals:** V-shaped recoveries or whipsaw markets
+- **Range-bound markets:** Prices oscillating without clear direction
+- **Sudden trend reversals:** Flash crashes with immediate recovery
+
+Understanding these regimes helps set realistic expectations and potentially blend trend following with other strategies.
+
+### 7.8.2 Visual Evidence
+
+
+``` r
+# Analyze performance by regime
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# Calculate volatility for regime classification
+spy[, vol := frollapply(returns, 20, sd, na.rm = TRUE) * sqrt(252)]
+
+# Simple regime classification
+spy[, regime := fifelse(vol > median(vol, na.rm = TRUE), "High Vol", "Low Vol")]
+
+# TSMOM
+spy[, ret_12m := frollsum(returns, 252)]
+spy[, signal := fifelse(shift(ret_12m, 1) > 0, 1, 0)]
+spy[, tsmom_ret := signal * returns]
+
+spy <- spy[!is.na(tsmom_ret) & !is.na(regime)]
+
+# Performance by regime
+regime_stats <- spy[, .(
+    `B&H Return` = annualised_return(returns, type = "simple") * 100,
+    `TSMOM Return` = annualised_return(tsmom_ret, type = "simple") * 100,
+    `B&H Sharpe` = sharpe_ratio(returns),
+    `TSMOM Sharpe` = sharpe_ratio(tsmom_ret),
+    Observations = .N
+), by = regime]
+
+cat("=== Performance by Volatility Regime ===\n\n")
+```
+
+```
+## === Performance by Volatility Regime ===
+```
+
+``` r
+print(regime_stats)
+```
+
+```
+##      regime B&H Return TSMOM Return B&H Sharpe TSMOM Sharpe Observations
+##      <char>      <num>        <num>      <num>        <num>        <int>
+## 1:  Low Vol   15.08097   14.6454027  1.4882714   1.46880662         1685
+## 2: High Vol   10.42337    0.2253534  0.4323878   0.01235672         1584
+```
+
+``` r
+# Cumulative returns with regime shading
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_tsmom := exp(cumsum(tsmom_ret))]
+
+ggplot(spy, aes(x = date)) +
+    geom_rect(data = spy[regime == "High Vol"],
+              aes(xmin = date - 1, xmax = date + 1, ymin = 0, ymax = Inf),
+              fill = tc[4], alpha = 0.15) +
+    geom_line(aes(y = cum_tsmom), colour = tc[2], linewidth = 0.7) +
+    labs(title = "TSMOM Performance with Regime Overlay",
+         subtitle = "Red shading = high volatility regime",
+         x = NULL, y = "Growth of $1") +
+    theme_trading()
+```
+
+![TSMOM performance varies by market regime. The strategy struggles during sharp reversals (like March 2020 recovery) but captures sustained trends.](/courses/financial-statistics-1-foundations/../figures/07-3_regime-performance-1.png)
+
+
+``` r
+# Drawdown analysis
+spy[, peak := cummax(cum_tsmom)]
+spy[, drawdown := (cum_tsmom - peak) / peak * 100]
+
+# Find worst drawdowns
+spy[, dd_group := cumsum(c(0, diff(drawdown > 0) < 0))]
+worst_dd <- spy[, .(
+    Start = min(date),
+    End = max(date),
+    Max_DD = min(drawdown)
+), by = dd_group][order(Max_DD)][1:5]
+
+cat("=== Worst TSMOM Drawdowns ===\n\n")
+```
+
+```
+## === Worst TSMOM Drawdowns ===
+```
+
+``` r
+print(worst_dd)
+```
+
+```
+##    dd_group      Start        End    Max_DD
+##       <num>     <Date>     <Date>     <num>
+## 1:        0 2011-01-04 2023-12-29 -31.16824
+## 2:       NA       <NA>       <NA>        NA
+## 3:       NA       <NA>       <NA>        NA
+## 4:       NA       <NA>       <NA>        NA
+## 5:       NA       <NA>       <NA>        NA
+```
+
+``` r
+# Plot drawdown
+ggplot(spy, aes(x = date, y = drawdown)) +
+    geom_area(fill = tc[4], alpha = 0.5) +
+    geom_line(colour = tc[4], linewidth = 0.5) +
+    labs(title = "TSMOM Strategy Drawdown",
+         subtitle = "Major drawdowns occur during sudden trend reversals",
+         x = NULL, y = "Drawdown (%)") +
+    theme_trading()
+```
+
+![TSMOM drawdown analysis. The largest drawdowns typically occur during sudden trend reversals when the strategy is caught wrong-footed.](/courses/financial-statistics-1-foundations/../figures/07-3_drawdown-analysis-1.png)
+
+### 7.8.3 Mathematical Derivation
+
+**Regime Detection Methods:**
+
+**Threshold-based:**
+$$
+\text{Regime}_t = \begin{cases}
+\text{Trending} & \text{if } |\text{MA}_{50} - \text{MA}_{200}| > k \times \sigma \\
+\text{Ranging} & \text{otherwise}
+\end{cases}
+$$
+
+**Hidden Markov Model (HMM):**
+
+Two states: Trending (T) and Mean-Reverting (MR)
+
+Transition probabilities:
+$$
+P(\text{State}_t | \text{State}_{t-1}) = \begin{pmatrix} p_{TT} & p_{TMR} \\ p_{MRT} & p_{MRMR} \end{pmatrix}
+$$
+
+Emission distributions:
+- Trending: Returns have positive autocorrelation
+- Mean-Reverting: Returns have negative autocorrelation
+
+**Conditional Performance:**
+
+Expected strategy return given regime:
+$$
+E[r^{\text{TSMOM}} | \text{Trending}] = \mu_{\text{trend}} > 0
+$$
+$$
+E[r^{\text{TSMOM}} | \text{Ranging}] = -\mu_{\text{costs}} < 0
+$$
+
+The unconditional expected return depends on time spent in each regime:
+$$
+E[r^{\text{TSMOM}}] = P(\text{Trending}) \times \mu_{\text{trend}} + P(\text{Ranging}) \times (-\mu_{\text{costs}})
+$$
+
+### 7.8.4 Implementation & Application
+
+
+``` r
+# Regime-adaptive position sizing
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# ADX for regime
+calc_adx <- function(high, low, close, n = 14) {
+    tr <- pmax(high - low, abs(high - shift(close, 1)), abs(low - shift(close, 1)))
+    up_move <- high - shift(high, 1)
+    down_move <- shift(low, 1) - low
+    plus_dm <- ifelse(up_move > down_move & up_move > 0, up_move, 0)
+    minus_dm <- ifelse(down_move > up_move & down_move > 0, down_move, 0)
+    atr <- frollmean(tr, n)
+    plus_di <- 100 * frollmean(plus_dm, n) / atr
+    minus_di <- 100 * frollmean(minus_dm, n) / atr
+    dx <- 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+    frollmean(dx, n)
+}
+
+spy[, adx := calc_adx(high, low, adjusted, 14)]
+
+# TSMOM signal
+spy[, ret_12m := frollsum(returns, 252)]
+spy[, base_signal := fifelse(shift(ret_12m, 1) > 0, 1, 0)]
+
+spy <- spy[!is.na(adx) & !is.na(base_signal)]
+
+# Standard TSMOM
+spy[, tsmom_ret := base_signal * returns]
+
+# Regime-adaptive: scale by ADX
+# ADX 0-20: half position, ADX 20-40: full position, ADX 40+: full position
+spy[, regime_scale := pmin(shift(adx, 1) / 25, 1)]
+spy[, adaptive_ret := regime_scale * base_signal * returns]
+
+# Cumulative returns
+spy[, cum_tsmom := exp(cumsum(tsmom_ret))]
+spy[, cum_adaptive := exp(cumsum(adaptive_ret))]
+
+# Statistics
+cat("=== Regime-Adaptive TSMOM ===\n\n")
+```
+
+```
+## === Regime-Adaptive TSMOM ===
+```
+
+``` r
+adaptive_stats <- data.table(
+    Strategy = c("Standard TSMOM", "Regime-Adaptive"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$tsmom_ret, type = "simple") * 100,
+        annualised_return(spy$adaptive_ret, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$tsmom_ret),
+        sharpe_ratio(spy$adaptive_ret))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(spy$tsmom_ret) * 100,
+        max_drawdown(spy$adaptive_ret) * 100))
+)
+print(adaptive_stats)
+```
+
+```
+##           Strategy Ann. Return Sharpe Max Drawdown
+##             <char>      <char> <char>       <char>
+## 1:  Standard TSMOM        7.4%   0.50        31.2%
+## 2: Regime-Adaptive        7.1%   0.51        27.8%
+```
+
+``` r
+# Plot
+spy_long <- melt(spy[, .(date, `Standard TSMOM` = cum_tsmom, `Regime-Adaptive` = cum_adaptive)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Standard vs Regime-Adaptive TSMOM",
+         subtitle = "Position scaled by ADX (reduces position in ranging markets)",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Regime-adaptive trend following: reduce position size when market appears to be ranging (ADX low). This reduces whipsaw losses.](/courses/financial-statistics-1-foundations/../figures/07-3_regime-adaptive-1.png)
+
+
+``` r
+# Blend TSMOM with mean reversion
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# RSI for mean reversion
+calc_rsi <- function(price, n = 14) {
+    delta <- diff(price)
+    gain <- ifelse(delta > 0, delta, 0)
+    loss <- ifelse(delta < 0, -delta, 0)
+    avg_gain <- avg_loss <- numeric(length(gain))
+    avg_gain[n] <- mean(gain[1:n])
+    avg_loss[n] <- mean(loss[1:n])
+    for (i in (n + 1):length(gain)) {
+        avg_gain[i] <- (avg_gain[i - 1] * (n - 1) + gain[i]) / n
+        avg_loss[i] <- (avg_loss[i - 1] * (n - 1) + loss[i]) / n
+    }
+    rs <- avg_gain / avg_loss
+    c(NA, 100 - 100 / (1 + rs))
+}
+
+spy[, rsi := calc_rsi(adjusted, 14)]
+
+# ADX for regime
+spy[, adx := calc_adx(high, low, adjusted, 14)]
+
+# TSMOM signal
+spy[, ret_12m := frollsum(returns, 252)]
+spy[, tsmom_signal := fifelse(shift(ret_12m, 1) > 0, 1, 0)]
+
+# Mean reversion signal (buy oversold, sell overbought)
+spy[, mr_signal := fifelse(shift(rsi, 1) < 30, 1, fifelse(shift(rsi, 1) > 70, 0, NA_real_))]
+# Fill forward
+for (i in 2:nrow(spy)) {
+    if (is.na(spy$mr_signal[i])) spy$mr_signal[i] <- spy$mr_signal[i - 1]
+}
+
+spy <- spy[!is.na(adx) & !is.na(tsmom_signal) & !is.na(mr_signal)]
+
+# Blend based on regime
+# Trending (ADX > 25): 100% TSMOM
+# Ranging (ADX < 25): 50% TSMOM, 50% Mean Reversion
+spy[, trending := shift(adx, 1) > 25]
+spy[, tsmom_weight := fifelse(trending, 1.0, 0.5)]
+spy[, mr_weight := fifelse(trending, 0.0, 0.5)]
+
+spy[, blend_signal := tsmom_weight * tsmom_signal + mr_weight * mr_signal]
+spy[, blend_ret := blend_signal * returns]
+spy[, tsmom_ret := tsmom_signal * returns]
+
+# Cumulative returns
+spy[, cum_tsmom := exp(cumsum(tsmom_ret))]
+spy[, cum_blend := exp(cumsum(blend_ret))]
+
+# Statistics
+cat("=== Trend/Mean-Reversion Blend ===\n\n")
+```
+
+```
+## === Trend/Mean-Reversion Blend ===
+```
+
+``` r
+blend_stats <- data.table(
+    Strategy = c("Pure TSMOM", "Regime Blend"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$tsmom_ret, type = "simple") * 100,
+        annualised_return(spy$blend_ret, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$tsmom_ret),
+        sharpe_ratio(spy$blend_ret))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(spy$tsmom_ret) * 100,
+        max_drawdown(spy$blend_ret) * 100))
+)
+print(blend_stats)
+```
+
+```
+##        Strategy Ann. Return Sharpe Max Drawdown
+##          <char>      <char> <char>       <char>
+## 1:   Pure TSMOM        7.4%   0.50        31.2%
+## 2: Regime Blend        8.0%   0.57        28.4%
+```
+
+``` r
+# Plot
+spy_long <- melt(spy[, .(date, `Pure TSMOM` = cum_tsmom, `Regime Blend` = cum_blend)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Pure TSMOM vs Regime-Based Strategy Blend",
+         subtitle = "Trending: 100% TSMOM | Ranging: 50% TSMOM + 50% Mean Reversion",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Blending trend following with mean reversion. Using regime signals to allocate between strategies can improve overall performance.](/courses/financial-statistics-1-foundations/../figures/07-3_strategy-blend-1.png)
+
+---
+
+## Quick Reference
+
+### Portfolio Construction
+
+| Component | Formula | Notes |
+|-----------|---------|-------|
+| Position Weight | $w_{i,t} = \frac{\sigma_{target}}{N \times \hat{\sigma}_{i,t}}$ | Vol-targeted |
+| Total Exposure | $\sum_i |w_{i,t} \times \text{Signal}_{i,t}|$ | Gross exposure |
+| Portfolio Return | $\sum_i w_{i,t} \times \text{Signal}_{i,t} \times r_{i,t}$ | Weighted sum |
+
+### Diversification
+
+| Metric | Formula | Interpretation |
+|--------|---------|----------------|
+| Portfolio Vol | $\sigma_p = \sigma \sqrt{\frac{1 + (N-1)\bar{\rho}}{N}}$ | Falls with $N$ and low $\bar{\rho}$ |
+| Diversification Ratio | $\frac{\sum w_i \sigma_i}{\sigma_p}$ | Higher = more diversified |
+
+### Regime Classification
+
+| Method | Criteria | Use Case |
+|--------|----------|----------|
+| ADX | ADX > 25 = trending | Simple, effective |
+| Vol Regime | Vol > median = high | Volatility-based |
+| MA Spread | |MA_fast - MA_slow| > k×σ | Trend strength |
+
+### Strategy Blend Guidelines
+
+| Regime | Trend Weight | Mean Reversion Weight |
+|--------|-------------|-----------------------|
+| Strong Trend (ADX > 40) | 100% | 0% |
+| Moderate Trend (25-40) | 75% | 25% |
+| Ranging (ADX < 25) | 50% | 50% |
+
+### Key Takeaways
+
+1. **Diversification is essential:** Single-market trend following is noisy; multi-market is robust
+2. **Volatility targeting equalises risk:** Each position contributes similar risk
+3. **Regimes matter:** Trend following excels in trending markets, struggles in ranging
+4. **Blending improves consistency:** Combining trend and mean reversion can smooth returns
+5. **Crisis alpha is real:** Trend following historically performs during equity drawdowns

@@ -1,0 +1,822 @@
+---
+title: "Trend Indicators"
+---
+
+```{r setup, include=FALSE}
+box::use(
+    ../modules/data[load_market, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+tc <- unlist(trading_colors)
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = "../figures/06-1_"
+)
+
+set.seed(42)
+```
+
+# Technical Indicators: Trend Indicators
+
+Technical indicators are mathematical transformations of price and volume data. They don't predict the future—they summarise the past in ways that might be useful for trading decisions.
+
+This chapter takes a rigorous approach. We'll derive each indicator from first principles, understand its statistical properties, and critically evaluate when it works and when it doesn't.
+
+---
+
+## 6.1 Moving Averages
+
+Moving averages are the foundation of trend following. They smooth price noise to reveal the underlying trend—but this smoothing comes at a cost: lag.
+
+### 6.1.1 Prose/Intuition
+
+The simplest idea in technical analysis: average recent prices to reduce noise and see the trend more clearly.
+
+Consider a price series contaminated with random fluctuations. By averaging over the last $n$ periods, we reduce the variance of these fluctuations by a factor of $\sqrt{n}$. But we also introduce lag—the average responds to price changes with a delay.
+
+**The fundamental tradeoff:**
+- **Longer lookback:** More smoothing (less noise), but more lag
+- **Shorter lookback:** Less smoothing (more noise), but faster response
+
+Different averaging schemes (SMA, EMA, WMA) offer different points on this tradeoff curve.
+
+### 6.1.2 Visual Evidence
+
+```{r ma-comparison, fig.cap="Different moving averages applied to the same price series. EMA responds faster but is noisier than SMA."}
+# Load data
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+
+# Calculate different moving averages
+n <- 20
+
+# Simple Moving Average
+spy[, sma := frollmean(adjusted, n)]
+
+# Exponential Moving Average
+alpha <- 2 / (n + 1)
+spy[, ema := {
+    ema_vec <- numeric(.N)
+    ema_vec[1] <- adjusted[1]
+    for (i in 2:.N) {
+        ema_vec[i] <- alpha * adjusted[i] + (1 - alpha) * ema_vec[i - 1]
+    }
+    ema_vec
+}]
+
+# Weighted Moving Average
+spy[, wma := {
+    weights <- 1:n
+    frollapply(adjusted, n, function(x) sum(x * weights) / sum(weights))
+}]
+
+spy <- spy[!is.na(sma)]
+
+# Plot comparison
+ma_data <- melt(spy[, .(date, Price = adjusted, `SMA(20)` = sma, `EMA(20)` = ema, `WMA(20)` = wma)],
+                id.vars = "date",
+                variable.name = "Series",
+                value.name = "Value")
+
+ggplot(ma_data, aes(x = date, y = Value, colour = Series)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c("grey50", tc[1], tc[3], tc[5])) +
+    labs(
+        title = "Moving Average Comparison",
+        subtitle = "20-period SMA, EMA, and WMA on SPY",
+        x = NULL,
+        y = "Price ($)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r ma-lag-analysis, fig.cap="Moving average lag: the average trails the price, responding to changes with delay. Longer MAs have more lag."}
+# Demonstrate lag with a synthetic trend change
+set.seed(42)
+n_days <- 200
+t <- 1:n_days
+
+# Synthetic price: flat, then trending up, then flat again
+price <- c(rep(100, 50), 100 + 0.5 * (1:100), rep(150, 50)) + rnorm(n_days, 0, 2)
+
+synth_dt <- data.table(
+    t = t,
+    price = price
+)
+
+# Calculate SMAs of different lengths
+for (len in c(10, 20, 50)) {
+    synth_dt[, paste0("sma_", len) := frollmean(price, len)]
+}
+
+synth_long <- melt(synth_dt[!is.na(sma_50), .(t, Price = price, `SMA(10)` = sma_10,
+                                              `SMA(20)` = sma_20, `SMA(50)` = sma_50)],
+                   id.vars = "t",
+                   variable.name = "Series",
+                   value.name = "Value")
+
+ggplot(synth_long, aes(x = t, y = Value, colour = Series)) +
+    geom_line(linewidth = 0.8) +
+    geom_vline(xintercept = c(50, 150), linetype = "dashed", colour = "grey50") +
+    annotate("text", x = 100, y = 155, label = "Trend period",
+             colour = "grey30", size = 3.5) +
+    scale_colour_manual(values = c("grey50", tc[1], tc[3], tc[5])) +
+    labs(
+        title = "Moving Average Lag Demonstration",
+        subtitle = "Longer MAs respond more slowly to trend changes",
+        x = "Time",
+        y = "Price",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r ma-crossover, fig.cap="Moving average crossover signals. Golden cross (fast crosses above slow) signals uptrend; death cross signals downtrend."}
+# Crossover strategy demonstration
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2020-01-01"), as.Date("2023-12-31"))
+
+spy[, sma_50 := frollmean(adjusted, 50)]
+spy[, sma_200 := frollmean(adjusted, 200)]
+spy <- spy[!is.na(sma_200)]
+
+# Identify crossovers
+spy[, signal := fifelse(sma_50 > sma_200, 1, -1)]
+spy[, cross := signal != shift(signal, fill = signal[1])]
+
+crossovers <- spy[cross == TRUE]
+
+ggplot(spy, aes(x = date)) +
+    geom_line(aes(y = adjusted, colour = "Price"), linewidth = 0.5) +
+    geom_line(aes(y = sma_50, colour = "SMA(50)"), linewidth = 0.8) +
+    geom_line(aes(y = sma_200, colour = "SMA(200)"), linewidth = 0.8) +
+    geom_point(data = crossovers[signal == 1],
+               aes(y = sma_50), colour = tc[3], size = 3, shape = 24, fill = tc[3]) +
+    geom_point(data = crossovers[signal == -1],
+               aes(y = sma_50), colour = tc[4], size = 3, shape = 25, fill = tc[4]) +
+    scale_colour_manual(values = c("Price" = "grey50", "SMA(50)" = tc[1], "SMA(200)" = tc[5])) +
+    labs(
+        title = "Moving Average Crossover Signals",
+        subtitle = "▲ = Golden Cross (bullish) | ▼ = Death Cross (bearish)",
+        x = NULL,
+        y = "Price ($)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+### 6.1.3 Mathematical Derivation
+
+**Simple Moving Average (SMA):**
+
+The SMA is the arithmetic mean of the last $n$ prices:
+
+$$SMA_t(n) = \frac{1}{n}\sum_{i=0}^{n-1} P_{t-i}$$
+
+**Properties:**
+
+1. **Lag:** The SMA has a fixed lag of $(n-1)/2$ periods. This comes from the center of mass of equal weights.
+
+2. **Variance reduction:** If prices have variance $\sigma^2$, the SMA has variance $\sigma^2/n$ (assuming independent observations).
+
+3. **Frequency response:** The SMA acts as a low-pass filter, attenuating high-frequency (short-term) fluctuations.
+
+**Exponential Moving Average (EMA):**
+
+The EMA uses exponentially decaying weights:
+
+$$EMA_t = \alpha P_t + (1-\alpha) EMA_{t-1}$$
+
+where $\alpha = \frac{2}{n+1}$ for an EMA "equivalent" to an $n$-period SMA.
+
+**Closed-form expression:**
+
+Expanding the recursion:
+
+$$EMA_t = \alpha \sum_{i=0}^{\infty} (1-\alpha)^i P_{t-i}$$
+
+**Effective lag:**
+
+The EMA lag is:
+
+$$\text{Lag}_{EMA} = \frac{1-\alpha}{\alpha} = \frac{n-1}{2}$$
+
+This equals the SMA lag for equivalent period settings.
+
+**Weighted Moving Average (WMA):**
+
+Weights are linearly decreasing:
+
+$$WMA_t(n) = \frac{\sum_{i=0}^{n-1} (n-i) \cdot P_{t-i}}{\sum_{i=0}^{n-1} (n-i)} = \frac{2}{n(n+1)}\sum_{i=0}^{n-1} (n-i) \cdot P_{t-i}$$
+
+**Low-pass filter interpretation:**
+
+All moving averages can be viewed as low-pass filters in signal processing terms. The cutoff frequency is inversely related to the lookback period:
+
+$$f_{cutoff} \propto \frac{1}{n}$$
+
+Higher frequencies (rapid fluctuations) are attenuated; lower frequencies (trends) pass through.
+
+### 6.1.4 Implementation & Application
+
+```{r ma-implementation}
+# Moving average functions from scratch
+
+# Simple Moving Average
+calc_sma <- function(x, n) {
+    frollmean(x, n)
+}
+
+# Exponential Moving Average
+calc_ema <- function(x, n, alpha = NULL) {
+    if (is.null(alpha)) alpha <- 2 / (n + 1)
+
+    ema <- numeric(length(x))
+    ema[1] <- x[1]
+
+    for (i in 2:length(x)) {
+        ema[i] <- alpha * x[i] + (1 - alpha) * ema[i - 1]
+    }
+
+    ema
+}
+
+# Weighted Moving Average
+calc_wma <- function(x, n) {
+    weights <- 1:n
+    frollapply(x, n, function(prices) sum(prices * weights) / sum(weights))
+}
+
+# Hull Moving Average (for reduced lag)
+calc_hma <- function(x, n) {
+    # HMA = WMA(2*WMA(n/2) - WMA(n), sqrt(n))
+    wma_half <- calc_wma(x, floor(n / 2))
+    wma_full <- calc_wma(x, n)
+
+    raw_hma <- 2 * wma_half - wma_full
+
+    calc_wma(raw_hma, floor(sqrt(n)))
+}
+
+# Test on SPY
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2023-01-01"), as.Date("2023-12-31"))
+
+n <- 20
+spy[, sma := calc_sma(adjusted, n)]
+spy[, ema := calc_ema(adjusted, n)]
+spy[, wma := calc_wma(adjusted, n)]
+spy[, hma := calc_hma(adjusted, n)]
+
+cat("=== Moving Average Comparison ===\n")
+cat(sprintf("Period: %d days\n\n", n))
+
+# Compare smoothness (variance of first differences)
+spy_clean <- spy[!is.na(hma)]
+cat("Smoothness (variance of daily changes):\n")
+cat(sprintf("  Price:  %.4f\n", var(diff(spy_clean$adjusted))))
+cat(sprintf("  SMA:    %.4f\n", var(diff(spy_clean$sma))))
+cat(sprintf("  EMA:    %.4f\n", var(diff(spy_clean$ema))))
+cat(sprintf("  WMA:    %.4f\n", var(diff(spy_clean$wma))))
+cat(sprintf("  HMA:    %.4f\n", var(diff(spy_clean$hma))))
+```
+
+```{r ma-crossover-strategy, fig.cap="Backtest of a simple SMA crossover strategy. Signal quality depends heavily on market regime."}
+# Backtest SMA crossover
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, sma_50 := calc_sma(adjusted, 50)]
+spy[, sma_200 := calc_sma(adjusted, 200)]
+spy <- spy[!is.na(sma_200) & !is.na(returns)]
+
+# Signal: long when 50 > 200, flat otherwise
+spy[, signal := shift(fifelse(sma_50 > sma_200, 1, 0), 1)]
+spy[, strat_returns := signal * returns]
+spy <- spy[!is.na(strat_returns)]
+
+# Cumulative performance
+spy[, buy_hold := exp(cumsum(returns))]
+spy[, crossover := exp(cumsum(strat_returns))]
+
+# Statistics
+cat("\n=== SMA Crossover (50/200) Backtest ===\n")
+cat(sprintf("Period: %s to %s\n\n", min(spy$date), max(spy$date)))
+
+stats <- data.table(
+    Strategy = c("Buy & Hold", "SMA Crossover"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    `Ann. Vol` = sprintf("%.1f%%", c(
+        annualised_vol(spy$returns) * 100,
+        annualised_vol(spy$strat_returns) * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns))),
+    `Max DD` = sprintf("%.1f%%", c(
+        max_drawdown(spy$buy_hold) * 100,
+        max_drawdown(spy$crossover) * 100))
+)
+print(stats)
+
+# Plot
+perf_data <- melt(spy[, .(date, `Buy & Hold` = buy_hold, `SMA Crossover` = crossover)],
+                  id.vars = "date",
+                  variable.name = "Strategy",
+                  value.name = "Wealth")
+
+ggplot(perf_data, aes(x = date, y = Wealth, colour = Strategy)) +
+    geom_line(linewidth = 0.8) +
+    scale_y_log10(labels = scales::dollar) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(
+        title = "SMA Crossover Strategy vs Buy & Hold",
+        subtitle = "50/200 day crossover on SPY",
+        x = NULL,
+        y = "Wealth (log scale)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+---
+
+## 6.2 MACD
+
+The Moving Average Convergence/Divergence (MACD) indicator measures the momentum of the trend by comparing two exponential moving averages.
+
+### 6.2.1 Prose/Intuition
+
+MACD captures trend acceleration and deceleration. When the fast EMA pulls away from the slow EMA, momentum is increasing. When they converge, momentum is fading.
+
+Gerald Appel developed MACD in the late 1970s. It became one of the most popular technical indicators because it:
+
+1. **Shows both trend direction and momentum**
+2. **Generates clear crossover signals**
+3. **Identifies divergences** between price and momentum
+
+### 6.2.2 Visual Evidence
+
+```{r macd-calculation, fig.cap="MACD consists of three components: the MACD line (fast EMA - slow EMA), the signal line (EMA of MACD), and the histogram (difference between them)."}
+# Calculate MACD
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+
+spy[, ema_12 := calc_ema(adjusted, 12)]
+spy[, ema_26 := calc_ema(adjusted, 26)]
+spy[, macd := ema_12 - ema_26]
+spy[, signal := calc_ema(macd, 9)]
+spy[, histogram := macd - signal]
+
+spy <- spy[!is.na(signal)]
+
+# Create multi-panel plot
+p1 <- ggplot(spy, aes(x = date)) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    labs(title = "SPY Price", x = NULL, y = "Price ($)") +
+    theme_trading()
+
+p2 <- ggplot(spy, aes(x = date)) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    geom_col(aes(y = histogram, fill = histogram > 0), alpha = 0.7, width = 1) +
+    geom_line(aes(y = macd, colour = "MACD"), linewidth = 0.8) +
+    geom_line(aes(y = signal, colour = "Signal"), linewidth = 0.8) +
+    scale_fill_manual(values = c("TRUE" = tc[3], "FALSE" = tc[4]), guide = "none") +
+    scale_colour_manual(values = c("MACD" = tc[1], "Signal" = tc[5])) +
+    labs(title = "MACD (12, 26, 9)", x = NULL, y = "MACD", colour = NULL) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+
+print(p1)
+print(p2)
+```
+
+```{r macd-divergence, fig.cap="MACD divergence: when price makes new highs but MACD doesn't (or vice versa), it often signals a reversal."}
+# Identify divergences (simplified: local maxima comparison)
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2021-06-01"), as.Date("2022-06-30"))
+
+spy[, ema_12 := calc_ema(adjusted, 12)]
+spy[, ema_26 := calc_ema(adjusted, 26)]
+spy[, macd := ema_12 - ema_26]
+spy <- spy[!is.na(macd)]
+
+# Find local peaks (simplified)
+spy[, price_peak := adjusted > shift(adjusted, 5) & adjusted > shift(adjusted, -5, type = "lead")]
+spy[, macd_peak := macd > shift(macd, 5) & macd > shift(macd, -5, type = "lead")]
+
+price_peaks <- spy[price_peak == TRUE]
+macd_peaks <- spy[macd_peak == TRUE]
+
+# Plot with annotations
+ggplot(spy, aes(x = date)) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    geom_point(data = price_peaks, aes(y = adjusted), colour = tc[5], size = 2) +
+    labs(
+        title = "Price with Local Peaks Identified",
+        subtitle = "Compare peak heights to MACD peaks for divergence detection",
+        x = NULL,
+        y = "Price ($)"
+    ) +
+    theme_trading()
+```
+
+### 6.2.3 Mathematical Derivation
+
+**MACD Line:**
+
+$$MACD_t = EMA_{12}(P_t) - EMA_{26}(P_t)$$
+
+**Signal Line:**
+
+$$Signal_t = EMA_9(MACD_t)$$
+
+**Histogram:**
+
+$$Histogram_t = MACD_t - Signal_t$$
+
+**MACD as approximate derivative:**
+
+Using the Taylor expansion, the difference of two EMAs approximates a scaled derivative:
+
+$$EMA_{fast} - EMA_{slow} \approx k \cdot \frac{dP}{dt}$$
+
+where $k$ depends on the specific parameters. This is why MACD measures "momentum"—it approximates the rate of change of a smoothed price.
+
+**Statistical properties:**
+
+If price follows a random walk: $P_t = P_{t-1} + \epsilon_t$
+
+Then:
+- $E[MACD_t] = 0$ (no expected trend)
+- MACD will oscillate around zero
+
+In a trending market ($P_t = P_{t-1} + \mu + \epsilon_t$):
+- $E[MACD_t] \propto \mu$ (proportional to drift)
+- MACD will persistently deviate from zero
+
+### 6.2.4 Implementation & Application
+
+```{r macd-implementation}
+# MACD calculation function
+calc_macd <- function(price, fast = 12, slow = 26, signal_period = 9) {
+    ema_fast <- calc_ema(price, fast)
+    ema_slow <- calc_ema(price, slow)
+
+    macd_line <- ema_fast - ema_slow
+    signal_line <- calc_ema(macd_line, signal_period)
+    histogram <- macd_line - signal_line
+
+    data.table(
+        macd = macd_line,
+        signal = signal_line,
+        histogram = histogram
+    )
+}
+
+# MACD crossover strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+macd_result <- calc_macd(spy$adjusted)
+spy[, c("macd", "signal_line", "histogram") := macd_result]
+spy <- spy[!is.na(signal_line) & !is.na(returns)]
+
+# Signal: long when MACD > signal line
+spy[, trade_signal := shift(fifelse(macd > signal_line, 1, 0), 1)]
+spy[, strat_returns := trade_signal * returns]
+spy <- spy[!is.na(strat_returns)]
+
+# Statistics
+cat("=== MACD Crossover Strategy ===\n\n")
+
+macd_stats <- data.table(
+    Strategy = c("Buy & Hold", "MACD Crossover"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    `Ann. Vol` = sprintf("%.1f%%", c(
+        annualised_vol(spy$returns) * 100,
+        annualised_vol(spy$strat_returns) * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns))),
+    `Max DD` = sprintf("%.1f%%", c(
+        max_drawdown(exp(cumsum(spy$returns))) * 100,
+        max_drawdown(exp(cumsum(spy$strat_returns))) * 100))
+)
+print(macd_stats)
+```
+
+---
+
+## 6.3 ADX and DMI
+
+The Average Directional Index (ADX) measures trend strength, not direction. The Directional Movement Indicators (+DI and -DI) measure directional movement.
+
+### 6.3.1 Prose/Intuition
+
+ADX answers a crucial question: Is the market trending or ranging?
+
+- **High ADX (>25):** Strong trend—apply trend-following strategies
+- **Low ADX (<20):** Weak trend—apply mean-reversion strategies
+
+This makes ADX a "meta-indicator"—it tells you which type of strategy to use.
+
+J. Welles Wilder developed ADX in his 1978 book "New Concepts in Technical Trading Systems."
+
+### 6.3.2 Visual Evidence
+
+```{r adx-calculation, fig.cap="ADX measures trend strength. Values above 25 indicate strong trends; values below 20 suggest ranging markets."}
+# Calculate ADX
+calc_adx <- function(high, low, close, n = 14) {
+    len <- length(close)
+
+    # True Range
+    prev_close <- c(NA, close[-len])
+    tr <- pmax(high - low, abs(high - prev_close), abs(low - prev_close))
+
+    # Directional Movement
+    up_move <- high - c(NA, high[-len])
+    down_move <- c(NA, low[-len]) - low
+
+    plus_dm <- ifelse(up_move > down_move & up_move > 0, up_move, 0)
+    minus_dm <- ifelse(down_move > up_move & down_move > 0, down_move, 0)
+
+    # Smoothed values (Wilder smoothing = EMA with alpha = 1/n)
+    atr <- calc_ema(tr, n, alpha = 1/n)
+    plus_dm_smooth <- calc_ema(plus_dm, n, alpha = 1/n)
+    minus_dm_smooth <- calc_ema(minus_dm, n, alpha = 1/n)
+
+    # Directional Indicators
+    plus_di <- 100 * plus_dm_smooth / atr
+    minus_di <- 100 * minus_dm_smooth / atr
+
+    # Directional Index
+    dx <- 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+
+    # ADX (smoothed DX)
+    adx <- calc_ema(dx, n, alpha = 1/n)
+
+    data.table(
+        plus_di = plus_di,
+        minus_di = minus_di,
+        adx = adx
+    )
+}
+
+# Apply to SPY
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+
+adx_result <- calc_adx(spy$high, spy$low, spy$adjusted)
+spy[, c("plus_di", "minus_di", "adx") := adx_result]
+spy <- spy[!is.na(adx)]
+
+# Plot
+p1 <- ggplot(spy, aes(x = date, y = adjusted)) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    labs(title = "SPY Price", x = NULL, y = "Price ($)") +
+    theme_trading()
+
+p2 <- ggplot(spy, aes(x = date)) +
+    geom_line(aes(y = plus_di, colour = "+DI"), linewidth = 0.7) +
+    geom_line(aes(y = minus_di, colour = "-DI"), linewidth = 0.7) +
+    geom_line(aes(y = adx, colour = "ADX"), linewidth = 1) +
+    geom_hline(yintercept = c(20, 25), linetype = "dashed", colour = "grey50") +
+    scale_colour_manual(values = c("+DI" = tc[3], "-DI" = tc[4], "ADX" = tc[1])) +
+    labs(title = "ADX and Directional Indicators", x = NULL, y = "Value", colour = NULL) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+
+print(p1)
+print(p2)
+```
+
+```{r adx-regime-filter, fig.cap="Using ADX as a regime filter: only trade trend-following signals when ADX > 25."}
+# ADX-filtered crossover strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# Calculate indicators
+spy[, sma_50 := calc_sma(adjusted, 50)]
+spy[, sma_200 := calc_sma(adjusted, 200)]
+adx_result <- calc_adx(spy$high, spy$low, spy$adjusted)
+spy[, adx := adx_result$adx]
+
+spy <- spy[!is.na(sma_200) & !is.na(adx) & !is.na(returns)]
+
+# Strategies
+spy[, ma_signal := shift(fifelse(sma_50 > sma_200, 1, 0), 1)]  # Basic MA crossover
+spy[, adx_filter := shift(fifelse(adx > 25, 1, 0), 1)]  # ADX filter
+spy[, filtered_signal := ma_signal * adx_filter]  # Combined
+
+spy[, basic_returns := ma_signal * returns]
+spy[, filtered_returns := filtered_signal * returns]
+spy <- spy[!is.na(basic_returns)]
+
+# Compare performance
+cat("=== ADX-Filtered Strategy Comparison ===\n\n")
+
+filter_stats <- data.table(
+    Strategy = c("Buy & Hold", "MA Crossover", "ADX-Filtered MA"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$basic_returns, type = "simple") * 100,
+        annualised_return(spy$filtered_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$basic_returns),
+        sharpe_ratio(spy$filtered_returns))),
+    `Time in Market` = sprintf("%.0f%%", c(
+        100,
+        mean(spy$ma_signal, na.rm = TRUE) * 100,
+        mean(spy$filtered_signal, na.rm = TRUE) * 100))
+)
+print(filter_stats)
+
+# Plot cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_basic := exp(cumsum(basic_returns))]
+spy[, cum_filtered := exp(cumsum(filtered_returns))]
+
+perf_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh,
+                           `MA Crossover` = cum_basic,
+                           `ADX-Filtered` = cum_filtered)],
+                  id.vars = "date",
+                  variable.name = "Strategy",
+                  value.name = "Wealth")
+
+ggplot(perf_long, aes(x = date, y = Wealth, colour = Strategy)) +
+    geom_line(linewidth = 0.8) +
+    scale_y_log10(labels = scales::dollar) +
+    scale_colour_manual(values = c(tc[1], tc[3], tc[5])) +
+    labs(
+        title = "Effect of ADX Filter on MA Crossover Strategy",
+        subtitle = "Only trade when ADX > 25 (strong trend)",
+        x = NULL,
+        y = "Wealth (log scale)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+### 6.3.3 Mathematical Derivation
+
+**Directional Movement (+DM, -DM):**
+
+$$+DM_t = \begin{cases}
+H_t - H_{t-1} & \text{if } H_t - H_{t-1} > L_{t-1} - L_t \text{ and } H_t - H_{t-1} > 0 \\
+0 & \text{otherwise}
+\end{cases}$$
+
+$$-DM_t = \begin{cases}
+L_{t-1} - L_t & \text{if } L_{t-1} - L_t > H_t - H_{t-1} \text{ and } L_{t-1} - L_t > 0 \\
+0 & \text{otherwise}
+\end{cases}$$
+
+**Directional Indicators:**
+
+$$+DI = 100 \times \frac{\text{Smoothed}(+DM)}{\text{ATR}}$$
+
+$$-DI = 100 \times \frac{\text{Smoothed}(-DM)}{\text{ATR}}$$
+
+**Directional Index:**
+
+$$DX = 100 \times \frac{|+DI - -DI|}{+DI + -DI}$$
+
+**Average Directional Index:**
+
+$$ADX = \text{Smoothed}(DX)$$
+
+Wilder's smoothing uses $\alpha = 1/n$ in the EMA formula.
+
+### 6.3.4 Implementation & Application
+
+```{r adx-implementation}
+# ADX function (already defined above, but here's the complete version)
+calc_adx_complete <- function(high, low, close, n = 14) {
+    len <- length(close)
+
+    # True Range
+    prev_close <- c(NA, close[-len])
+    tr <- pmax(high - low, abs(high - prev_close), abs(low - prev_close))
+
+    # Directional Movement
+    prev_high <- c(NA, high[-len])
+    prev_low <- c(NA, low[-len])
+
+    up_move <- high - prev_high
+    down_move <- prev_low - low
+
+    plus_dm <- ifelse(!is.na(up_move) & !is.na(down_move) &
+                      up_move > down_move & up_move > 0, up_move, 0)
+    minus_dm <- ifelse(!is.na(up_move) & !is.na(down_move) &
+                       down_move > up_move & down_move > 0, down_move, 0)
+
+    # Wilder smoothing
+    wilder_smooth <- function(x, n) {
+        result <- numeric(length(x))
+        result[1:n] <- NA
+        result[n] <- sum(x[1:n], na.rm = TRUE)
+        for (i in (n + 1):length(x)) {
+            result[i] <- result[i - 1] - result[i - 1]/n + x[i]
+        }
+        result
+    }
+
+    atr <- wilder_smooth(tr, n)
+    plus_dm_smooth <- wilder_smooth(plus_dm, n)
+    minus_dm_smooth <- wilder_smooth(minus_dm, n)
+
+    plus_di <- 100 * plus_dm_smooth / atr
+    minus_di <- 100 * minus_dm_smooth / atr
+
+    dx <- 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+    dx[is.nan(dx)] <- 0
+
+    adx <- wilder_smooth(dx, n)
+
+    list(
+        tr = tr,
+        atr = atr,
+        plus_di = plus_di,
+        minus_di = minus_di,
+        dx = dx,
+        adx = adx
+    )
+}
+
+cat("=== ADX Implementation Notes ===\n\n")
+cat("ADX interpretation:\n")
+cat("  0-20:  Weak or no trend (range-bound market)\n")
+cat("  20-25: Trend may be developing\n")
+cat("  25-50: Strong trend\n")
+cat("  50-75: Very strong trend\n")
+cat("  75+:   Extremely strong trend (rare)\n\n")
+cat("Trading applications:\n")
+cat("  • Use ADX > 25 to filter trend-following signals\n")
+cat("  • Use ADX < 20 to apply mean-reversion strategies\n")
+cat("  • Rising ADX = strengthening trend\n")
+cat("  • Falling ADX = weakening trend\n")
+```
+
+---
+
+## Quick Reference
+
+### Moving Average Formulae
+
+| Indicator | Formula | Lag |
+|-----------|---------|-----|
+| **SMA(n)** | $\frac{1}{n}\sum_{i=0}^{n-1} P_{t-i}$ | $(n-1)/2$ |
+| **EMA(n)** | $\alpha P_t + (1-\alpha) EMA_{t-1}$ | $(n-1)/2$ |
+| **WMA(n)** | $\frac{\sum w_i P_{t-i}}{\sum w_i}$, $w_i = n-i$ | $(n-1)/3$ |
+
+### MACD Components
+
+| Component | Formula | Interpretation |
+|-----------|---------|----------------|
+| **MACD Line** | $EMA_{12} - EMA_{26}$ | Momentum |
+| **Signal Line** | $EMA_9(MACD)$ | Smoothed momentum |
+| **Histogram** | $MACD - Signal$ | Momentum of momentum |
+
+### ADX Interpretation
+
+| ADX Range | Market State | Strategy |
+|-----------|--------------|----------|
+| 0-20 | Weak/No Trend | Mean reversion |
+| 20-25 | Emerging Trend | Wait for confirmation |
+| 25-50 | Strong Trend | Trend following |
+| 50+ | Very Strong | Trail stops tightly |
+
+### Common Crossover Strategies
+
+| Strategy | Fast | Slow | Character |
+|----------|------|------|-----------|
+| Very Short | 5 | 20 | Aggressive, many signals |
+| Short | 10 | 50 | Balanced |
+| Medium | 20 | 50 | Traditional |
+| Long | 50 | 200 | Conservative, few signals |
+| Golden/Death | 50 | 200 | Classic institutional |

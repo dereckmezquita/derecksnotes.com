@@ -1,0 +1,808 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 9: Microbiome Data Analysis"
+part: "Part 2: Differential Abundance Analysis"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, bioinformatics, microbiome, differential-abundance, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Part 2: Differential Abundance Analysis
+
+Having established the compositional nature of microbiome data in Part 1, we now address the central question: **which taxa differ in abundance between conditions?** This seemingly simple question is surprisingly complex. The compositional constraint means that an increase in one taxon necessarily decreases others' proportions—so what does "differential abundance" even mean? This chapter explores methods from simple parametric tests to sophisticated compositional approaches.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+```{r simulate_data, message=FALSE}
+# Reproduce simulation from Part 1 (for self-containment)
+n_samples <- 100
+n_taxa <- 200
+n_healthy <- 50
+n_disease <- 50
+group <- factor(c(rep("Healthy", n_healthy), rep("Disease", n_disease)))
+sample_ids <- paste0("Sample_", 1:n_samples)
+
+# Library sizes
+library_sizes <- rnbinom(n_samples, mu = 10000, size = 5)
+library_sizes <- pmax(library_sizes, 1000)
+
+# Base proportions
+log_props <- rnorm(n_taxa, mean = -5, sd = 2)
+base_props <- exp(log_props)
+base_props <- base_props / sum(base_props)
+
+# Differential taxa
+n_diff <- 20
+diff_taxa <- sample(1:n_taxa, n_diff)
+diff_direction <- sample(c(-1, 1), n_diff, replace = TRUE)
+diff_magnitude <- runif(n_diff, 0.5, 2)
+
+# True effect information
+true_diff <- data.table(
+    taxon_idx = diff_taxa,
+    taxon = paste0("Taxon_", diff_taxa),
+    direction = diff_direction,
+    log_fc = diff_direction * diff_magnitude
+)
+
+# Generate counts
+counts <- matrix(0, nrow = n_samples, ncol = n_taxa)
+colnames(counts) <- paste0("Taxon_", 1:n_taxa)
+rownames(counts) <- sample_ids
+
+for (i in 1:n_samples) {
+    props <- base_props
+    if (group[i] == "Disease") {
+        for (j in seq_along(diff_taxa)) {
+            props[diff_taxa[j]] <- props[diff_taxa[j]] * exp(diff_direction[j] * diff_magnitude[j])
+        }
+        props <- props / sum(props)
+    }
+
+    dispersion <- 0.3
+    for (k in 1:n_taxa) {
+        expected <- library_sizes[i] * props[k]
+        if (expected > 0.1) {
+            counts[i, k] <- rnbinom(1, mu = expected, size = 1/dispersion)
+        } else {
+            if (runif(1) < 0.8) counts[i, k] <- 0
+            else counts[i, k] <- rpois(1, expected * 2)
+        }
+    }
+}
+
+# Metadata
+metadata <- data.table(
+    sample_id = sample_ids,
+    group = group,
+    library_size = rowSums(counts)
+)
+
+cat("Simulated Microbiome Data:\n")
+cat("==========================\n")
+cat("  Samples:", n_samples, "\n")
+cat("  Taxa:", n_taxa, "\n")
+cat("  True differential taxa:", n_diff, "\n")
+cat("  Sparsity:", round(mean(counts == 0) * 100, 1), "% zeros\n")
+```
+
+---
+
+## Table of Contents
+
+## 9.6 Simple Approaches to Differential Abundance
+
+### 9.6.1 Relative Abundance Comparison
+
+**Prose and Intuition**
+
+The simplest approach: convert counts to relative abundances, then compare using t-tests or Wilcoxon tests. This is widely used but has problems:
+
+1. **Compositional bias**: An increase in one taxon automatically decreases others
+2. **Zeros**: What proportion is a zero count?
+3. **Library size effects**: Different sequencing depths aren't fully corrected
+
+Despite these issues, relative abundance tests are a useful starting point.
+
+```{r relative_abundance_tests}
+# Calculate relative abundances
+rel_abundance <- counts / rowSums(counts)
+
+# Test each taxon using Wilcoxon test
+test_relative_abundance <- function(rel_abundance, group) {
+    n_taxa <- ncol(rel_abundance)
+    groups <- unique(group)
+
+    results <- data.table(
+        taxon = colnames(rel_abundance),
+        mean_healthy = numeric(n_taxa),
+        mean_disease = numeric(n_taxa),
+        log2_fc = numeric(n_taxa),
+        p_value = numeric(n_taxa)
+    )
+
+    for (j in 1:n_taxa) {
+        x <- rel_abundance[, j]
+
+        # Mean per group
+        mean_h <- mean(x[group == "Healthy"])
+        mean_d <- mean(x[group == "Disease"])
+
+        results[j, mean_healthy := mean_h]
+        results[j, mean_disease := mean_d]
+
+        # Log2 fold change (with pseudocount)
+        pseudo <- 1e-6
+        results[j, log2_fc := log2((mean_d + pseudo) / (mean_h + pseudo))]
+
+        # Wilcoxon test
+        test <- wilcox.test(x ~ group)
+        results[j, p_value := test$p.value]
+    }
+
+    # Multiple testing correction
+    results[, padj := p.adjust(p_value, method = "BH")]
+
+    return(results)
+}
+
+da_relative <- test_relative_abundance(rel_abundance, group)
+da_relative[, is_true_diff := taxon %in% true_diff$taxon]
+
+cat("Relative Abundance Analysis:\n")
+cat("============================\n")
+cat("  Significant (FDR < 0.1):", sum(da_relative$padj < 0.1), "\n")
+cat("  True positives:", sum(da_relative$padj < 0.1 & da_relative$is_true_diff), "\n")
+cat("  False positives:", sum(da_relative$padj < 0.1 & !da_relative$is_true_diff), "\n")
+```
+
+### 9.6.2 The Problem with Compositional Data
+
+**Prose and Intuition**
+
+Let's demonstrate why relative abundance tests can be misleading. If one dominant taxon increases, all others appear to decrease—even if their **absolute** abundance is unchanged.
+
+```{r compositional_bias_demo, fig.cap="Compositional bias: apparent changes may be artefacts"}
+# Demonstrate compositional bias
+# Scenario: Taxon A doubles, others unchanged
+
+# Original composition
+original <- c(A = 100, B = 100, C = 100, D = 100, E = 100)
+original_prop <- original / sum(original)
+
+# Taxon A doubles
+changed <- c(A = 200, B = 100, C = 100, D = 100, E = 100)
+changed_prop <- changed / sum(changed)
+
+# Log fold change in proportions
+log2_fc_prop <- log2(changed_prop / original_prop)
+
+cat("Compositional Bias Example:\n")
+cat("===========================\n")
+cat("\nAbsolute counts:\n")
+cat("  Original:", original, "\n")
+cat("  Changed:", changed, "\n")
+cat("\nProportions:\n")
+cat("  Original:", round(original_prop, 3), "\n")
+cat("  Changed:", round(changed_prop, 3), "\n")
+cat("\nLog2 fold change in proportions:\n")
+cat("  ", round(log2_fc_prop, 3), "\n")
+cat("\nNote: Taxa B-E appear to decrease (", round(log2_fc_prop[2], 3),
+    ") even though\n      their absolute counts are unchanged!\n")
+
+# Visualise
+bias_data <- data.table(
+    taxon = rep(names(original), 2),
+    condition = rep(c("Original", "Changed"), each = 5),
+    absolute = c(original, changed),
+    proportion = c(original_prop, changed_prop)
+)
+
+p1 <- ggplot2$ggplot(bias_data, ggplot2$aes(x = taxon, y = absolute, fill = condition)) +
+    ggplot2$geom_bar(stat = "identity", position = "dodge") +
+    ggplot2$scale_fill_manual(values = c("Original" = "#2166AC", "Changed" = "#D95F02")) +
+    ggplot2$labs(title = "Absolute Counts", y = "Count", x = "") +
+    ggplot2$theme_minimal(base_size = 12)
+
+p2 <- ggplot2$ggplot(bias_data, ggplot2$aes(x = taxon, y = proportion, fill = condition)) +
+    ggplot2$geom_bar(stat = "identity", position = "dodge") +
+    ggplot2$scale_fill_manual(values = c("Original" = "#2166AC", "Changed" = "#D95F02")) +
+    ggplot2$labs(title = "Proportions (Compositional)", y = "Proportion", x = "") +
+    ggplot2$theme_minimal(base_size = 12)
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+---
+
+## 9.7 Compositional Approaches
+
+### 9.7.1 ALDEx2: Analysis of Differential Abundance
+
+**Prose and Intuition**
+
+**ALDEx2** addresses compositionality through:
+1. **Monte Carlo sampling**: Generate multiple instances of count data using Dirichlet priors
+2. **CLR transformation**: Apply centred log-ratio per instance
+3. **Test on CLR values**: Use Welch's t-test or Wilcoxon on transformed data
+4. **Average across instances**: Report median p-value and effect size
+
+This accounts for both compositional nature and count uncertainty.
+
+**Mathematical Framework**
+
+Given counts $\mathbf{x}$, ALDEx2 samples from a Dirichlet-Multinomial:
+$$\mathbf{p} \sim \text{Dirichlet}(\mathbf{x} + 0.5)$$
+
+Then applies CLR:
+$$\text{clr}(\mathbf{p})_i = \log(p_i) - \frac{1}{D}\sum_{j=1}^D \log(p_j)$$
+
+```{r aldex2_implementation}
+# Simplified ALDEx2-like approach
+aldex2_test <- function(counts, group, n_mc = 128) {
+    n_taxa <- ncol(counts)
+    n_samples <- nrow(counts)
+
+    # Store results across Monte Carlo instances
+    p_values_mc <- matrix(NA, n_mc, n_taxa)
+    effect_sizes_mc <- matrix(NA, n_mc, n_taxa)
+
+    for (mc in 1:n_mc) {
+        # Sample from Dirichlet (using gamma distribution)
+        # Dirichlet(alpha) = Gamma(alpha) / sum(Gamma(alpha))
+        sampled_props <- matrix(NA, n_samples, n_taxa)
+
+        for (i in 1:n_samples) {
+            alpha <- counts[i, ] + 0.5
+            gamma_samples <- rgamma(n_taxa, shape = alpha, rate = 1)
+            sampled_props[i, ] <- gamma_samples / sum(gamma_samples)
+        }
+
+        # CLR transformation
+        log_props <- log(sampled_props)
+        geo_means <- exp(rowMeans(log_props))
+        clr_data <- log_props - log(geo_means)
+
+        # Test each taxon
+        for (j in 1:n_taxa) {
+            x_healthy <- clr_data[group == "Healthy", j]
+            x_disease <- clr_data[group == "Disease", j]
+
+            # Welch's t-test
+            test <- t.test(x_disease, x_healthy)
+            p_values_mc[mc, j] <- test$p.value
+
+            # Effect size (difference in means / pooled sd)
+            pooled_sd <- sqrt((var(x_healthy) + var(x_disease)) / 2)
+            if (pooled_sd > 0) {
+                effect_sizes_mc[mc, j] <- (mean(x_disease) - mean(x_healthy)) / pooled_sd
+            } else {
+                effect_sizes_mc[mc, j] <- 0
+            }
+        }
+    }
+
+    # Aggregate across MC instances
+    results <- data.table(
+        taxon = colnames(counts),
+        effect_size = colMedians(effect_sizes_mc),
+        p_value = colMedians(p_values_mc)
+    )
+
+    results[, padj := p.adjust(p_value, method = "BH")]
+
+    return(results)
+}
+
+# Helper function for column medians
+colMedians <- function(x) apply(x, 2, median)
+
+# Run ALDEx2-like analysis
+da_aldex <- aldex2_test(counts, group, n_mc = 64)
+da_aldex[, is_true_diff := taxon %in% true_diff$taxon]
+
+cat("ALDEx2-like Analysis:\n")
+cat("=====================\n")
+cat("  Significant (FDR < 0.1):", sum(da_aldex$padj < 0.1), "\n")
+cat("  True positives:", sum(da_aldex$padj < 0.1 & da_aldex$is_true_diff), "\n")
+cat("  False positives:", sum(da_aldex$padj < 0.1 & !da_aldex$is_true_diff), "\n")
+```
+
+### 9.7.2 ANCOM: Analysis of Compositions of Microbiomes
+
+**Prose and Intuition**
+
+**ANCOM** takes a different approach: instead of testing each taxon separately, it tests pairwise log-ratios and counts how many ratios involving a taxon are significant.
+
+**Key insight**: If taxon A is truly differentially abundant, the ratio A/B should differ between groups for most taxa B. If only taxon A changed, the ratio A/B changes but B/C doesn't.
+
+**The procedure**:
+1. For each pair (i, j), compute log(taxon_i / taxon_j)
+2. Test whether this ratio differs between groups
+3. Count W_i = number of taxa j where ratio i/j is significant
+4. Large W indicates differential abundance
+
+```{r ancom_implementation}
+# Simplified ANCOM-like approach
+ancom_test <- function(counts, group, alpha = 0.05) {
+    n_taxa <- ncol(counts)
+
+    # Add pseudocount for zeros
+    counts_adj <- counts + 0.5
+
+    # Matrix to store significance of each pairwise ratio
+    W <- numeric(n_taxa)
+
+    for (i in 1:n_taxa) {
+        sig_count <- 0
+
+        for (j in 1:n_taxa) {
+            if (i == j) next
+
+            # Log ratio
+            log_ratio <- log(counts_adj[, i] / counts_adj[, j])
+
+            # Test
+            test <- wilcox.test(log_ratio ~ group)
+
+            if (test$p.value < alpha) {
+                sig_count <- sig_count + 1
+            }
+        }
+
+        W[i] <- sig_count
+    }
+
+    results <- data.table(
+        taxon = colnames(counts),
+        W = W,
+        W_ratio = W / (n_taxa - 1)
+    )
+
+    # Threshold: taxon is DA if W > 0.6 * (n_taxa - 1)
+    results[, significant := W_ratio > 0.6]
+
+    return(results)
+}
+
+da_ancom <- ancom_test(counts, group)
+da_ancom[, is_true_diff := taxon %in% true_diff$taxon]
+
+cat("ANCOM-like Analysis:\n")
+cat("====================\n")
+cat("  Significant (W > 60%):", sum(da_ancom$significant), "\n")
+cat("  True positives:", sum(da_ancom$significant & da_ancom$is_true_diff), "\n")
+cat("  False positives:", sum(da_ancom$significant & !da_ancom$is_true_diff), "\n")
+```
+
+---
+
+## 9.8 Count-Based Models
+
+### 9.8.1 Negative Binomial Regression
+
+**Prose and Intuition**
+
+Like RNA-seq differential expression, microbiome counts can be modelled with **negative binomial regression**. This accounts for:
+- **Overdispersion**: Variance exceeds Poisson expectation
+- **Library size**: Via offset term
+- **Covariates**: Age, sex, BMI, etc.
+
+**Mathematical Framework**
+
+$$Y_{ij} \sim \text{NB}(\mu_{ij}, \phi)$$
+$$\log(\mu_{ij}) = \log(N_i) + \beta_0 + \beta_1 \times \text{Group}_i$$
+
+where $N_i$ is the library size (offset), and $\beta_1$ is the log fold change.
+
+```{r nb_regression}
+# Negative binomial regression per taxon
+fit_nb_per_taxon <- function(counts, group, library_sizes) {
+    n_taxa <- ncol(counts)
+
+    results <- data.table(
+        taxon = colnames(counts),
+        log_fc = numeric(n_taxa),
+        se = numeric(n_taxa),
+        p_value = numeric(n_taxa)
+    )
+
+    # Design matrix
+    X <- model.matrix(~ group)
+    offset <- log(library_sizes)
+
+    for (j in 1:n_taxa) {
+        y <- counts[, j]
+
+        # Use Poisson as approximation (full NB requires more machinery)
+        fit <- tryCatch({
+            glm(y ~ group, family = poisson(), offset = offset)
+        }, error = function(e) NULL)
+
+        if (is.null(fit) || !fit$converged) {
+            results[j, `:=`(log_fc = NA, se = NA, p_value = NA)]
+            next
+        }
+
+        coefs <- summary(fit)$coefficients
+
+        if (nrow(coefs) < 2) {
+            results[j, `:=`(log_fc = NA, se = NA, p_value = NA)]
+            next
+        }
+
+        results[j, `:=`(
+            log_fc = coefs[2, 1],
+            se = coefs[2, 2],
+            p_value = coefs[2, 4]
+        )]
+    }
+
+    results[, padj := p.adjust(p_value, method = "BH")]
+    results[, log2_fc := log_fc / log(2)]
+
+    return(results)
+}
+
+da_nb <- fit_nb_per_taxon(counts, group, metadata$library_size)
+da_nb[, is_true_diff := taxon %in% true_diff$taxon]
+
+cat("Negative Binomial Regression:\n")
+cat("=============================\n")
+cat("  Successful fits:", sum(!is.na(da_nb$p_value)), "/", nrow(da_nb), "\n")
+cat("  Significant (FDR < 0.1):", sum(da_nb$padj < 0.1, na.rm = TRUE), "\n")
+cat("  True positives:", sum(da_nb$padj < 0.1 & da_nb$is_true_diff, na.rm = TRUE), "\n")
+cat("  False positives:", sum(da_nb$padj < 0.1 & !da_nb$is_true_diff, na.rm = TRUE), "\n")
+```
+
+---
+
+## 9.9 Comparing Methods
+
+### 9.9.1 Agreement Between Methods
+
+**Prose and Intuition**
+
+Different methods make different assumptions and may identify different taxa. Examining agreement helps understand which findings are robust.
+
+```{r method_comparison, fig.cap="Comparing differential abundance methods"}
+# Combine results
+comparison <- data.table(
+    taxon = colnames(counts),
+    is_true_diff = colnames(counts) %in% true_diff$taxon
+)
+
+comparison <- merge(comparison, da_relative[, .(taxon, rel_padj = padj, rel_lfc = log2_fc)], by = "taxon")
+comparison <- merge(comparison, da_aldex[, .(taxon, aldex_padj = padj, aldex_effect = effect_size)], by = "taxon")
+comparison <- merge(comparison, da_ancom[, .(taxon, ancom_sig = significant, ancom_W = W_ratio)], by = "taxon")
+comparison <- merge(comparison, da_nb[, .(taxon, nb_padj = padj, nb_lfc = log2_fc)], by = "taxon", all.x = TRUE)
+
+# Classify by each method
+comparison[, sig_relative := rel_padj < 0.1]
+comparison[, sig_aldex := aldex_padj < 0.1]
+comparison[, sig_nb := nb_padj < 0.1]
+
+# Count agreements
+cat("Method Agreement:\n")
+cat("=================\n")
+
+methods <- c("sig_relative", "sig_aldex", "ancom_sig", "sig_nb")
+method_names <- c("Relative", "ALDEx2", "ANCOM", "NB")
+
+# Pairwise agreement
+for (i in 1:(length(methods)-1)) {
+    for (j in (i+1):length(methods)) {
+        m1 <- comparison[[methods[i]]]
+        m2 <- comparison[[methods[j]]]
+        m1[is.na(m1)] <- FALSE
+        m2[is.na(m2)] <- FALSE
+
+        agreement <- mean(m1 == m2)
+        cat("  ", method_names[i], "vs", method_names[j], ":",
+            round(agreement * 100, 1), "% agreement\n")
+    }
+}
+
+# Venn-like summary
+comparison[, n_methods := sig_relative + sig_aldex + ancom_sig + fifelse(is.na(sig_nb), FALSE, sig_nb)]
+
+cat("\nConsistency of significant calls:\n")
+print(comparison[, .N, by = n_methods][order(n_methods)])
+
+# Performance summary
+cat("\nPerformance Summary (FDR < 0.1 or ANCOM significant):\n")
+cat("=====================================================\n")
+perf_summary <- data.table(
+    Method = method_names,
+    Significant = c(
+        sum(comparison$sig_relative, na.rm = TRUE),
+        sum(comparison$sig_aldex, na.rm = TRUE),
+        sum(comparison$ancom_sig, na.rm = TRUE),
+        sum(comparison$sig_nb, na.rm = TRUE)
+    ),
+    True_Positives = c(
+        sum(comparison$sig_relative & comparison$is_true_diff, na.rm = TRUE),
+        sum(comparison$sig_aldex & comparison$is_true_diff, na.rm = TRUE),
+        sum(comparison$ancom_sig & comparison$is_true_diff, na.rm = TRUE),
+        sum(comparison$sig_nb & comparison$is_true_diff, na.rm = TRUE)
+    ),
+    False_Positives = c(
+        sum(comparison$sig_relative & !comparison$is_true_diff, na.rm = TRUE),
+        sum(comparison$sig_aldex & !comparison$is_true_diff, na.rm = TRUE),
+        sum(comparison$ancom_sig & !comparison$is_true_diff, na.rm = TRUE),
+        sum(comparison$sig_nb & !comparison$is_true_diff, na.rm = TRUE)
+    )
+)
+perf_summary[, Precision := True_Positives / Significant]
+perf_summary[, Sensitivity := True_Positives / n_diff]
+print(perf_summary)
+```
+
+### 9.9.2 Effect Size Agreement
+
+**Prose and Intuition**
+
+Do methods agree on the *direction* and *magnitude* of effects? High correlation in effect sizes across methods suggests robust findings.
+
+```{r effect_size_agreement, fig.cap="Effect size correlation between methods"}
+# Compare effect sizes
+effect_comparison <- comparison[!is.na(nb_lfc), .(
+    taxon, is_true_diff, rel_lfc, aldex_effect, nb_lfc
+)]
+
+# Correlation matrix
+effect_cols <- c("rel_lfc", "aldex_effect", "nb_lfc")
+cor_matrix <- cor(effect_comparison[, ..effect_cols], use = "pairwise.complete.obs")
+
+cat("Effect Size Correlations:\n")
+cat("=========================\n")
+print(round(cor_matrix, 3))
+
+# Visualise effect size agreement
+ggplot2$ggplot(effect_comparison, ggplot2$aes(x = rel_lfc, y = nb_lfc,
+                                               colour = is_true_diff)) +
+    ggplot2$geom_point(alpha = 0.5, size = 2) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#7570B3", "TRUE" = "#D95F02"),
+                                 labels = c("Non-differential", "True differential"),
+                                 name = "") +
+    ggplot2$labs(
+        title = "Effect Size Agreement: Relative vs NB",
+        subtitle = paste("Correlation:", round(cor(effect_comparison$rel_lfc,
+                                                    effect_comparison$nb_lfc,
+                                                    use = "complete.obs"), 3)),
+        x = "log2 FC (Relative Abundance)",
+        y = "log2 FC (Negative Binomial)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+---
+
+## 9.10 Visualising Differential Abundance
+
+### 9.10.1 Volcano Plots
+
+**Prose and Intuition**
+
+As with RNA-seq, **volcano plots** show effect size vs significance. Taxa in the upper corners are both statistically significant and have large effects.
+
+```{r volcano_plot_microbiome, fig.cap="Volcano plot of differential abundance results"}
+# Prepare volcano data
+volcano_data <- da_nb[!is.na(p_value)]
+volcano_data[, is_true_diff := taxon %in% true_diff$taxon]
+
+# Classify
+volcano_data[, category := fifelse(
+    padj < 0.1 & abs(log2_fc) > 1, "Significant & Large Effect",
+    fifelse(padj < 0.1, "Significant", "Not significant")
+)]
+
+ggplot2$ggplot(volcano_data, ggplot2$aes(x = log2_fc, y = -log10(p_value),
+                                          colour = category)) +
+    ggplot2$geom_point(alpha = 0.6, size = 2) +
+    ggplot2$geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_vline(xintercept = c(-1, 1), linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(
+        values = c("Significant & Large Effect" = "#D95F02",
+                   "Significant" = "#7570B3",
+                   "Not significant" = "grey70")
+    ) +
+    ggplot2$coord_cartesian(xlim = c(-5, 5)) +
+    ggplot2$labs(
+        title = "Volcano Plot: Microbiome Differential Abundance",
+        subtitle = "Negative Binomial regression results",
+        x = "log2 Fold Change (Disease vs Healthy)",
+        y = "-log10(p-value)",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+### 9.10.2 Relative Abundance Bar Plots
+
+**Prose and Intuition**
+
+Stacked bar plots show community composition per sample. They reveal whether groups have visibly different profiles.
+
+```{r abundance_barplot, fig.cap="Relative abundance profiles by group"}
+# Get top taxa by mean abundance
+mean_abundance <- colMeans(rel_abundance)
+top_taxa_idx <- order(mean_abundance, decreasing = TRUE)[1:15]
+top_taxa <- colnames(counts)[top_taxa_idx]
+
+# Aggregate remaining taxa as "Other"
+rel_top <- rel_abundance[, top_taxa_idx]
+rel_other <- 1 - rowSums(rel_top)
+
+rel_plot_matrix <- cbind(rel_top, Other = rel_other)
+
+# Convert to long format
+rel_plot_dt <- as.data.table(rel_plot_matrix)
+rel_plot_dt[, sample := sample_ids]
+rel_plot_dt[, group := group]
+
+rel_long <- melt(rel_plot_dt, id.vars = c("sample", "group"),
+                  variable.name = "taxon", value.name = "abundance")
+
+# Order samples by group and dominant taxa
+sample_order <- rel_plot_dt[order(group, -rel_plot_matrix[, 1])]$sample
+rel_long[, sample := factor(sample, levels = sample_order)]
+
+# Mark differential taxa
+rel_long[, is_diff := taxon %in% true_diff$taxon]
+
+# Create colour palette
+n_taxa_plot <- ncol(rel_plot_matrix)
+colours <- c(scales::hue_pal()(n_taxa_plot - 1), "grey70")  # Grey for "Other"
+
+ggplot2$ggplot(rel_long, ggplot2$aes(x = sample, y = abundance, fill = taxon)) +
+    ggplot2$geom_bar(stat = "identity", width = 1) +
+    ggplot2$facet_wrap(~ group, scales = "free_x") +
+    ggplot2$scale_fill_manual(values = colours) +
+    ggplot2$labs(
+        title = "Microbiome Composition by Group",
+        subtitle = "Top 15 taxa shown",
+        x = "",
+        y = "Relative Abundance",
+        fill = "Taxon"
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        axis.text.x = ggplot2$element_blank(),
+        axis.ticks.x = ggplot2$element_blank(),
+        legend.position = "right",
+        legend.text = ggplot2$element_text(size = 8)
+    )
+```
+
+### 9.10.3 Box Plots for Significant Taxa
+
+**Prose and Intuition**
+
+Individual box plots for significant taxa show the distribution of abundances in each group.
+
+```{r significant_taxa_boxplot, fig.cap="Abundance distributions of top differential taxa"}
+# Get top significant taxa
+top_sig <- da_nb[padj < 0.1][order(padj)][1:min(9, sum(da_nb$padj < 0.1, na.rm = TRUE))]
+
+if (nrow(top_sig) > 0) {
+    # Extract data for these taxa
+    sig_taxa_names <- top_sig$taxon
+
+    boxplot_data <- rbindlist(lapply(sig_taxa_names, function(t) {
+        idx <- which(colnames(counts) == t)
+        data.table(
+            taxon = t,
+            sample = sample_ids,
+            group = group,
+            rel_abundance = rel_abundance[, idx],
+            is_true_diff = t %in% true_diff$taxon
+        )
+    }))
+
+    # Add significance stars
+    boxplot_data <- merge(boxplot_data, top_sig[, .(taxon, padj, log2_fc)], by = "taxon")
+    boxplot_data[, label := paste0(taxon, "\n(FDR=", format(padj, digits = 2),
+                                    ", LFC=", round(log2_fc, 1), ")")]
+
+    ggplot2$ggplot(boxplot_data, ggplot2$aes(x = group, y = rel_abundance + 1e-6,
+                                              fill = group)) +
+        ggplot2$geom_boxplot(alpha = 0.7, outlier.shape = NA) +
+        ggplot2$geom_jitter(width = 0.2, alpha = 0.3, size = 1) +
+        ggplot2$facet_wrap(~ label, scales = "free_y", ncol = 3) +
+        ggplot2$scale_y_log10() +
+        ggplot2$scale_fill_manual(values = c("Healthy" = "#2166AC", "Disease" = "#D95F02")) +
+        ggplot2$labs(
+            title = "Top Differentially Abundant Taxa",
+            subtitle = "Relative abundance (log scale)",
+            x = "",
+            y = "Relative Abundance",
+            fill = "Group"
+        ) +
+        ggplot2$theme_minimal(base_size = 12) +
+        ggplot2$theme(
+            plot.title = ggplot2$element_text(face = "bold"),
+            legend.position = "none",
+            strip.text = ggplot2$element_text(size = 9)
+        )
+} else {
+    cat("No taxa significant at FDR < 0.1\n")
+}
+```
+
+---
+
+## 9.11 Summary and Key Concepts
+
+### Key Takeaways
+
+1. **Compositionality Challenge**: Microbiome data is relative, creating spurious correlations and requiring special methods.
+
+2. **Simple Methods**: Relative abundance tests (Wilcoxon) are a reasonable starting point but don't account for compositionality.
+
+3. **Compositional Methods**:
+   - **ALDEx2**: Monte Carlo sampling with CLR transformation
+   - **ANCOM**: Tests pairwise log-ratios, counts significant comparisons
+
+4. **Count Models**: Negative binomial regression with library size offsets handles overdispersion.
+
+5. **Method Agreement**: Different methods may identify different taxa. Consensus findings are more robust.
+
+6. **Visualisation**: Volcano plots, composition bar plots, and box plots communicate results effectively.
+
+### Connections to Other Topics
+
+- **Part 1**: Diversity metrics and compositional foundations
+- **Chapter 7**: RNA-seq differential expression uses similar count models
+- **Chapter 2**: Multiple testing correction applies throughout
+
+### Communicating to Stakeholders
+
+**For a biological audience**: "We identified 15 bacterial taxa that differ significantly in abundance between healthy and diseased individuals (FDR < 10%). Of these, 8 were enriched in disease (including Bacteroides and Prevotella species) while 7 were depleted. The most significant finding was a 4-fold increase in Taxon_42 (p = 0.0001), which is known to be associated with inflammation."
+
+**For a methods paper**: "Differential abundance analysis was performed using three complementary approaches: ALDEx2 (CLR transformation with Welch's t-test), ANCOM (pairwise log-ratio testing), and negative binomial regression with library size offset. Taxa were considered differentially abundant if significant by at least two methods at FDR < 0.1. Effect sizes were reported as log2 fold changes from the negative binomial model."
+
+**Key vocabulary**:
+- Compositional data, log-ratio transformation
+- ALDEx2, ANCOM
+- Negative binomial regression, overdispersion
+- Library size normalisation
+- Multiple testing correction, FDR
+- Effect size, log fold change

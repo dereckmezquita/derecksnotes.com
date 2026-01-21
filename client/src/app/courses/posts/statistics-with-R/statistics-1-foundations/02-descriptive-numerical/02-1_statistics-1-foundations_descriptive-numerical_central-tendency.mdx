@@ -1,0 +1,622 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 2: Descriptive Statistics — Summarising Data Numerically"
+part: "Part 1: Measures of Central Tendency"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, descriptive, data, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 2: Descriptive Statistics — Summarising Data Numerically
+
+This chapter covers the fundamental numerical summaries used to describe datasets. We learn to quantify centre, spread, position, and shape, implementing each measure from scratch to understand what they truly measure. By the end of this chapter, you will be able to compute and interpret all major descriptive statistics and choose appropriate measures for different data types.
+
+
+``` r
+box::use(
+    data.table,
+    ggplot2
+)
+```
+
+
+``` r
+# Load NHANES data for examples
+nhanes <- data.table$fread("../../../data/primary/nhanes.csv")
+
+# Quick overview
+cat("NHANES dataset:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
+```
+
+```
+#> NHANES dataset: 10000 observations, 76 variables
+```
+
+## Table of Contents
+
+## 2.1 Measures of Central Tendency
+
+Central tendency describes where the "middle" of a distribution lies. Three measures dominate: the mean, median, and mode. Each captures a different aspect of centrality, and understanding when to use each is essential for proper data description.
+
+### 2.1.1 The Arithmetic Mean
+
+The **arithmetic mean** is the most familiar measure of central tendency. Informally, it is the "average": add up all values and divide by the count.
+
+**Prose and Intuition**
+
+Imagine placing data points on a number line as physical weights. The mean is the balance point: if you placed a fulcrum at the mean, the number line would balance perfectly. Points far from the mean exert greater leverage; they "pull" the mean toward themselves.
+
+This physical intuition explains why the mean is sensitive to extreme values. A single outlier, far from the others, exerts disproportionate influence on the balance point.
+
+**Mathematical Derivation**
+
+For a sample of n observations $x_1, x_2, \ldots, x_n$, the sample mean is defined as:
+
+$$\bar{x} = \frac{1}{n} \sum_{i=1}^{n} x_i = \frac{x_1 + x_2 + \cdots + x_n}{n}$$
+
+Why this formula? The mean has a deeper mathematical justification: it is the value that minimises the sum of squared deviations. That is, if we seek a value $c$ that minimises:
+
+$$\sum_{i=1}^{n} (x_i - c)^2$$
+
+then the unique solution is $c = \bar{x}$.
+
+**Proof:** Take the derivative with respect to $c$ and set it to zero:
+
+$$\frac{d}{dc} \sum_{i=1}^{n} (x_i - c)^2 = -2 \sum_{i=1}^{n} (x_i - c) = 0$$
+
+$$\sum_{i=1}^{n} x_i - nc = 0$$
+
+$$c = \frac{1}{n} \sum_{i=1}^{n} x_i = \bar{x}$$
+
+The mean is thus the "least squares" measure of location.
+
+
+``` r
+set.seed(42)
+
+# Implement mean from scratch
+my_mean <- function(x) {
+    # Remove NA values
+    x <- x[!is.na(x)]
+
+    # Sum all values
+    total <- 0
+    for (i in seq_along(x)) {
+        total <- total + x[i]
+    }
+
+    # Divide by count
+    return(total / length(x))
+}
+
+# Test on NHANES BMI data
+bmi_sample <- nhanes[!is.na(BMI), BMI][1:100]
+
+cat("Our implementation:", my_mean(bmi_sample), "\n")
+cat("Built-in mean():", mean(bmi_sample), "\n")
+
+# Visualise the mean as balance point
+bmi_dt <- data.table$data.table(bmi = bmi_sample)
+mean_bmi <- mean(bmi_sample)
+
+ggplot2$ggplot(bmi_dt, ggplot2$aes(x = bmi)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 20,
+                   fill = "#56B4E9", colour = "white", alpha = 0.8) +
+    ggplot2$geom_density(colour = "#0072B2", size = 1) +
+    ggplot2$geom_vline(xintercept = mean_bmi, colour = "red",
+               linetype = "dashed", size = 1.2) +
+    ggplot2$annotate("text", x = mean_bmi + 2, y = 0.08,
+             label = paste("Mean =", round(mean_bmi, 1)),
+             colour = "red", size = 5) +
+    ggplot2$labs(
+        title = "The Mean as Balance Point",
+        subtitle = "BMI data from NHANES; mean marked with red dashed line",
+        x = "Body Mass Index (kg/m²)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/mean_from_scratch-1.png" alt="The mean is the balance point of the distribution">
+	The mean is the balance point of the distribution
+</Figure>
+
+```
+#> Our implementation: 26.3844 
+#> Built-in mean(): 26.3844
+```
+
+**Key properties of the mean:**
+
+1. **Uniqueness**: Every dataset has exactly one mean
+2. **Sensitivity to outliers**: Extreme values strongly affect the mean
+3. **Uses all data**: Every observation contributes to the mean
+4. **Algebraic tractability**: Mathematical operations on means are straightforward
+
+### 2.1.2 The Median
+
+The **median** is the middle value when data are arranged in order. Half the observations fall below the median, and half fall above.
+
+**Prose and Intuition**
+
+If the mean is the balance point, the median is the "halfway point" in terms of count. Imagine lining up people by height: the median height is the height of the person standing in the middle, regardless of whether the tallest person is 180 cm or 250 cm. This explains the median's robustness: extreme values do not shift the middle position.
+
+**Mathematical Derivation**
+
+For ordered data $x_{(1)} \leq x_{(2)} \leq \cdots \leq x_{(n)}$:
+
+$$\text{Median} = \begin{cases}
+x_{((n+1)/2)} & \text{if } n \text{ is odd} \\
+\frac{x_{(n/2)} + x_{(n/2+1)}}{2} & \text{if } n \text{ is even}
+\end{cases}$$
+
+The median minimises the sum of **absolute** deviations (not squared):
+
+$$\sum_{i=1}^{n} |x_i - c|$$
+
+is minimised when $c$ equals the median. This is why the median is more robust: absolute deviations do not give extra weight to extreme values as squared deviations do.
+
+
+``` r
+# Implement median from scratch
+my_median <- function(x) {
+    # Remove NA values
+    x <- x[!is.na(x)]
+
+    # Sort the data
+    x_sorted <- sort(x)
+    n <- length(x_sorted)
+
+    if (n %% 2 == 1) {
+        # Odd number of observations: middle value
+        middle_index <- (n + 1) / 2
+        return(x_sorted[middle_index])
+    } else {
+        # Even number: average of two middle values
+        lower_index <- n / 2
+        upper_index <- n / 2 + 1
+        return((x_sorted[lower_index] + x_sorted[upper_index]) / 2)
+    }
+}
+
+# Test
+cat("Our implementation:", my_median(bmi_sample), "\n")
+cat("Built-in median():", median(bmi_sample), "\n")
+
+# Demonstrate robustness to outliers
+normal_data <- c(10, 12, 14, 15, 16, 18, 20)
+outlier_data <- c(10, 12, 14, 15, 16, 18, 200)  # 200 is an outlier
+
+cat("\nNormal data:\n")
+cat("  Mean:", mean(normal_data), "  Median:", median(normal_data), "\n")
+
+cat("\nWith outlier (200):\n")
+cat("  Mean:", mean(outlier_data), "  Median:", median(outlier_data), "\n")
+cat("\nThe mean shifted dramatically; the median barely changed.\n")
+```
+
+```
+#> Our implementation: 26.46 
+#> Built-in median(): 26.46 
+#> 
+#> Normal data:
+#>   Mean: 15   Median: 15 
+#> 
+#> With outlier (200):
+#>   Mean: 40.71429   Median: 15 
+#> 
+#> The mean shifted dramatically; the median barely changed.
+```
+
+### 2.1.3 The Mode
+
+The **mode** is the most frequently occurring value. Unlike mean and median, the mode can be used with nominal data.
+
+**Prose and Intuition**
+
+The mode identifies the "typical" value in the sense of "most common." In a histogram, the mode corresponds to the peak. Some distributions are **unimodal** (one peak), **bimodal** (two peaks), or **multimodal** (multiple peaks). The presence of multiple modes often signals distinct subgroups in the data.
+
+**Implementation**
+
+
+``` r
+# Implement mode from scratch
+my_mode <- function(x) {
+    # Remove NA values
+    x <- x[!is.na(x)]
+
+    # Create frequency table
+    freq_table <- table(x)
+
+    # Find maximum frequency
+    max_freq <- max(freq_table)
+
+    # Return all values with maximum frequency
+    modes <- names(freq_table)[freq_table == max_freq]
+
+    # Convert back to numeric if possible
+    if (is.numeric(x)) {
+        modes <- as.numeric(modes)
+    }
+
+    return(modes)
+}
+
+# Mode works well for discrete/categorical data
+education_data <- nhanes[!is.na(Education), Education]
+cat("Mode of Education levels:", my_mode(education_data), "\n")
+print(table(education_data))
+
+# For continuous data, mode is less useful without binning
+# Create bimodal data to illustrate
+set.seed(123)
+bimodal_data <- c(
+    rnorm(200, mean = 25, sd = 3),  # Young adults
+    rnorm(150, mean = 55, sd = 5)   # Older adults
+)
+
+bimodal_dt <- data.table$data.table(age = bimodal_data)
+
+ggplot2$ggplot(bimodal_dt, ggplot2$aes(x = age)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 30,
+                   fill = "#E69F00", colour = "white", alpha = 0.8) +
+    ggplot2$geom_density(colour = "#D55E00", size = 1.2) +
+    ggplot2$geom_vline(xintercept = c(25, 55), colour = "blue",
+               linetype = "dashed", size = 1) +
+    ggplot2$labs(
+        title = "Bimodal Distribution: Two Peaks Indicate Subgroups",
+        subtitle = "Example: Age distribution with young and older adult populations",
+        x = "Age (years)",
+        y = "Density"
+    ) +
+    ggplot2$annotate("text", x = 25, y = 0.055, label = "Mode 1", colour = "blue") +
+    ggplot2$annotate("text", x = 55, y = 0.055, label = "Mode 2", colour = "blue") +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/mode_from_scratch-1.png" alt="Bimodal distributions have two modes indicating distinct subgroups">
+	Bimodal distributions have two modes indicating distinct subgroups
+</Figure>
+
+```
+#> Mode of Education levels:  
+#> education_data
+#>                     8th Grade 9 - 11th Grade   College Grad    High School 
+#>           2779            451            888           2098           1517 
+#>   Some College 
+#>           2267
+```
+
+### 2.1.4 Comparing Mean, Median, and Mode
+
+The relationship between mean, median, and mode reveals the shape of a distribution.
+
+
+``` r
+set.seed(456)
+
+# Create three distributions: symmetric, right-skewed, left-skewed
+n <- 1000
+
+symmetric <- rnorm(n, mean = 50, sd = 10)
+right_skewed <- rgamma(n, shape = 2, rate = 0.1)
+left_skewed <- 100 - rgamma(n, shape = 2, rate = 0.1)
+
+# Calculate measures for each
+calc_measures <- function(x) {
+    # For mode, use density estimation peak
+    dens <- density(x)
+    mode_val <- dens$x[which.max(dens$y)]
+
+    data.table$data.table(
+        mean = mean(x),
+        median = median(x),
+        mode = mode_val
+    )
+}
+
+symmetric_measures <- calc_measures(symmetric)
+right_measures <- calc_measures(right_skewed)
+left_measures <- calc_measures(left_skewed)
+
+# Combine for plotting
+plot_data <- data.table$rbindlist(list(
+    data.table$data.table(value = symmetric, distribution = "Symmetric"),
+    data.table$data.table(value = right_skewed, distribution = "Right-Skewed"),
+    data.table$data.table(value = left_skewed, distribution = "Left-Skewed")
+))
+
+measures_data <- data.table$rbindlist(list(
+    cbind(symmetric_measures, distribution = "Symmetric"),
+    cbind(right_measures, distribution = "Right-Skewed"),
+    cbind(left_measures, distribution = "Left-Skewed")
+))
+
+measures_long <- data.table$melt(
+    measures_data,
+    id.vars = "distribution",
+    variable.name = "measure",
+    value.name = "value"
+)
+
+ggplot2$ggplot(plot_data, ggplot2$aes(x = value)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 30,
+                   fill = "#56B4E9", colour = "white", alpha = 0.7) +
+    ggplot2$geom_density(colour = "#0072B2", size = 1) +
+    ggplot2$geom_vline(data = measures_long,
+               ggplot2$aes(xintercept = value, colour = measure, linetype = measure),
+               size = 1) +
+    ggplot2$facet_wrap(~distribution, scales = "free", ncol = 1) +
+    ggplot2$scale_colour_manual(
+        values = c("mean" = "red", "median" = "green", "mode" = "purple")
+    ) +
+    ggplot2$scale_linetype_manual(
+        values = c("mean" = "dashed", "median" = "dotted", "mode" = "solid")
+    ) +
+    ggplot2$labs(
+        title = "Mean, Median, and Mode in Different Distributions",
+        subtitle = "Symmetric: all equal; Right-skewed: mode < median < mean; Left-skewed: mean < median < mode",
+        x = "Value",
+        y = "Density",
+        colour = "Measure",
+        linetype = "Measure"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-1-foundations/compare_measures-1.png" alt="Skewness determines the relationship between mean, median, and mode">
+	Skewness determines the relationship between mean, median, and mode
+</Figure>
+
+**Guidelines for choosing:**
+
+| Situation | Best Measure | Reason |
+|-----------|--------------|--------|
+| Symmetric distribution | Mean | Uses all data efficiently |
+| Skewed distribution | Median | Not affected by extreme values |
+| Outliers present | Median | Robust to extremes |
+| Categorical data | Mode | Only applicable measure |
+| Comparing to population mean | Mean | Algebraically compatible |
+
+### 2.1.5 Other Means: Weighted, Trimmed, Geometric, Harmonic
+
+Beyond the arithmetic mean, specialised means serve specific purposes.
+
+**Weighted Mean**
+
+When observations have different importances, we use a weighted mean:
+
+$$\bar{x}_w = \frac{\sum_{i=1}^{n} w_i x_i}{\sum_{i=1}^{n} w_i}$$
+
+where $w_i$ is the weight for observation $i$.
+
+
+``` r
+# Implement weighted mean from scratch
+my_weighted_mean <- function(x, w) {
+    # Remove NA values (from both x and corresponding weights)
+    valid <- !is.na(x) & !is.na(w)
+    x <- x[valid]
+    w <- w[valid]
+
+    return(sum(w * x) / sum(w))
+}
+
+# Example: calculating course grade
+# Different assessments have different weights
+assignments <- c(85, 90, 78, 92)  # Assignment scores
+weights <- c(0.1, 0.1, 0.3, 0.5)  # 10%, 10%, 30%, 50%
+
+cat("Unweighted mean:", mean(assignments), "\n")
+cat("Weighted mean:", my_weighted_mean(assignments, weights), "\n")
+cat("Built-in weighted.mean():", weighted.mean(assignments, weights), "\n")
+```
+
+```
+#> Unweighted mean: 86.25 
+#> Weighted mean: 86.9 
+#> Built-in weighted.mean(): 86.9
+```
+
+**Trimmed Mean**
+
+The trimmed mean removes a percentage of extreme values before calculating:
+
+
+``` r
+# Implement trimmed mean from scratch
+my_trimmed_mean <- function(x, trim = 0.1) {
+    x <- x[!is.na(x)]
+    x_sorted <- sort(x)
+    n <- length(x_sorted)
+
+    # Number of observations to trim from each end
+    k <- floor(n * trim)
+
+    # Calculate mean of remaining values
+    if (k > 0) {
+        trimmed_values <- x_sorted[(k + 1):(n - k)]
+    } else {
+        trimmed_values <- x_sorted
+    }
+
+    return(mean(trimmed_values))
+}
+
+# Data with outliers
+outlier_data <- c(2, 3, 4, 4, 5, 5, 5, 6, 6, 7, 100)
+
+cat("Regular mean:", mean(outlier_data), "\n")
+cat("10% trimmed mean:", my_trimmed_mean(outlier_data, 0.1), "\n")
+cat("Built-in mean(trim=0.1):", mean(outlier_data, trim = 0.1), "\n")
+cat("Median:", median(outlier_data), "\n")
+```
+
+```
+#> Regular mean: 13.36364 
+#> 10% trimmed mean: 5 
+#> Built-in mean(trim=0.1): 5 
+#> Median: 5
+```
+
+**Geometric Mean**
+
+The geometric mean is appropriate for multiplicative relationships, such as growth rates:
+
+$$\bar{x}_g = \left(\prod_{i=1}^{n} x_i\right)^{1/n} = \exp\left(\frac{1}{n}\sum_{i=1}^{n} \ln(x_i)\right)$$
+
+
+``` r
+# Implement geometric mean from scratch
+my_geometric_mean <- function(x) {
+    x <- x[!is.na(x)]
+
+    # All values must be positive
+    if (any(x <= 0)) {
+        stop("Geometric mean requires all positive values")
+    }
+
+    # Use log transformation for numerical stability
+    return(exp(mean(log(x))))
+}
+
+# Example: average annual growth rate
+# Year 1: 10% growth, Year 2: 20% growth, Year 3: -5% loss
+growth_factors <- c(1.10, 1.20, 0.95)
+
+# Arithmetic mean suggests 8.33% average growth
+cat("Arithmetic mean of growth factors:", mean(growth_factors), "\n")
+cat("Suggests average growth of:", (mean(growth_factors) - 1) * 100, "%\n\n")
+
+# Geometric mean gives the true average growth
+cat("Geometric mean of growth factors:", my_geometric_mean(growth_factors), "\n")
+cat("True average growth:", (my_geometric_mean(growth_factors) - 1) * 100, "%\n\n")
+
+# Verify: $100 after 3 years
+initial <- 100
+final <- initial * prod(growth_factors)
+cat("$100 after 3 years: $", round(final, 2), "\n")
+cat("Using geometric mean:", round(initial * my_geometric_mean(growth_factors)^3, 2), "\n")
+```
+
+```
+#> Arithmetic mean of growth factors: 1.083333 
+#> Suggests average growth of: 8.333333 %
+#> 
+#> Geometric mean of growth factors: 1.078365 
+#> True average growth: 7.836515 %
+#> 
+#> $100 after 3 years: $ 125.4 
+#> Using geometric mean: 125.4
+```
+
+**Harmonic Mean**
+
+The harmonic mean is appropriate for rates and ratios:
+
+$$\bar{x}_h = \frac{n}{\sum_{i=1}^{n} \frac{1}{x_i}}$$
+
+
+``` r
+# Implement harmonic mean from scratch
+my_harmonic_mean <- function(x) {
+    x <- x[!is.na(x)]
+
+    # All values must be positive
+    if (any(x <= 0)) {
+        stop("Harmonic mean requires all positive values")
+    }
+
+    return(length(x) / sum(1 / x))
+}
+
+# Example: average speed
+# Drive to work at 30 km/h, return at 60 km/h
+# What is the average speed?
+speeds <- c(30, 60)
+
+cat("Arithmetic mean:", mean(speeds), "km/h (WRONG!)\n")
+cat("Harmonic mean:", my_harmonic_mean(speeds), "km/h (CORRECT)\n\n")
+
+# Verify: for distance d each way
+# Time to work: d/30 hours
+# Time home: d/60 hours
+# Total time: d/30 + d/60 = d/20 hours
+# Total distance: 2d km
+# Average speed: 2d / (d/20) = 40 km/h
+cat("Verification: average speed = total distance / total time = 40 km/h\n")
+```
+
+```
+#> Arithmetic mean: 45 km/h (WRONG!)
+#> Harmonic mean: 40 km/h (CORRECT)
+#> 
+#> Verification: average speed = total distance / total time = 40 km/h
+```
+
+**Relationship between means:**
+
+For any dataset with positive values: Harmonic ≤ Geometric ≤ Arithmetic
+
+Equality holds only when all values are identical.
+
+---
+
+## Communicating to Stakeholders
+
+When explaining central tendency to collaborators or non-technical audiences:
+
+**On the mean:**
+> "The average gives us the typical value, but it can be misleading if the data are skewed. Think of it as the balance point of all the values."
+
+**On the median:**
+> "The median tells us the middle value—half are above, half below. For income data, we often report the median because a few very high earners can inflate the average."
+
+**On choosing between them:**
+> "When we have outliers or a skewed distribution, the median is usually more representative of the 'typical' case. When data are symmetric and well-behaved, the mean is often more useful."
+
+---
+
+## Quick Reference
+
+### Central Tendency Formulae
+
+| Measure | Formula | R Function |
+|---------|---------|------------|
+| Mean | $\bar{x} = \frac{1}{n}\sum x_i$ | `mean(x)` |
+| Median | Middle value | `median(x)` |
+| Mode | Most frequent | Custom function |
+| Weighted Mean | $\bar{x}_w = \frac{\sum w_i x_i}{\sum w_i}$ | `weighted.mean(x, w)` |
+| Trimmed Mean | Mean after removing extremes | `mean(x, trim = 0.1)` |
+| Geometric Mean | $\exp(\frac{1}{n}\sum \ln x_i)$ | `exp(mean(log(x)))` |
+| Harmonic Mean | $\frac{n}{\sum \frac{1}{x_i}}$ | `1/mean(1/x)` |
+
+### When to Use Each Measure
+
+| Situation | Best Measure | Reason |
+|-----------|--------------|--------|
+| Symmetric distribution | Mean | Uses all data efficiently |
+| Skewed distribution | Median | Not affected by extreme values |
+| Outliers present | Median or Trimmed Mean | Robust to extremes |
+| Categorical data | Mode | Only applicable measure |
+| Growth rates | Geometric Mean | Multiplicative relationships |
+| Rates/ratios | Harmonic Mean | Accounts for different denominators |
+
+### Key Properties
+
+| Property | Mean | Median | Mode |
+|----------|------|--------|------|
+| Uniqueness | Always unique | Unique (or range) | May have multiple |
+| Outlier sensitivity | High | Low | None |
+| Uses all data | Yes | Sort order only | Frequencies only |
+| Algebraic tractability | Excellent | Limited | Limited |
+| Works with categorical | No | Ordinal only | Yes |

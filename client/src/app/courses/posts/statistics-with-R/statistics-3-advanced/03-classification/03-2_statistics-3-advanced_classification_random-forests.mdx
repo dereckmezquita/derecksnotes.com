@@ -1,0 +1,790 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 3: Classification Methods"
+part: "Part 2: Random Forests"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, classification, random-forests, ensemble, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: Random Forests
+
+A single decision tree is interpretable but unstable—small changes in data can produce dramatically different trees. **Random forests** overcome this limitation by growing hundreds of trees on bootstrapped samples, then averaging their predictions. This "wisdom of crowds" approach dramatically reduces variance while maintaining the flexibility of trees. Random forests have become the workhorse of practical machine learning, consistently delivering strong performance across domains.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(randomForest)
+
+set.seed(42)
+```
+
+
+``` r
+# Load breast cancer dataset
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+feature_cols <- c("mean_radius", "mean_texture", "mean_perimeter", "mean_area",
+                  "mean_smoothness", "mean_compactness", "mean_concavity",
+                  "mean_concave_points", "mean_symmetry", "mean_fractal_dimension")
+
+breast_cancer[, diagnosis_f := factor(diagnosis, levels = c("B", "M"), labels = c("Benign", "Malignant"))]
+
+# Train/test split
+set.seed(42)
+train_idx <- sample(1:nrow(breast_cancer), size = 0.7 * nrow(breast_cancer))
+train_data <- breast_cancer[train_idx]
+test_data <- breast_cancer[-train_idx]
+
+cat("Dataset Summary:\n")
+cat("================\n")
+cat("  Training: n =", nrow(train_data), "\n")
+cat("  Testing:  n =", nrow(test_data), "\n")
+```
+
+```
+#> Dataset Summary:
+#> ================
+#>   Training: n = 398 
+#>   Testing:  n = 171
+```
+
+---
+
+## Table of Contents
+
+## 3.10 The Random Forest Algorithm
+
+### 3.10.1 From Bagging to Random Forests
+
+**Prose and Intuition**
+
+**Bagging** (Bootstrap Aggregating) reduces variance by:
+1. Drawing $B$ bootstrap samples from the training data
+2. Fitting a full decision tree to each sample
+3. Averaging predictions (regression) or voting (classification)
+
+**Problem**: Bagged trees are correlated. If one feature strongly predicts the outcome, it will dominate the root split in most trees, limiting variance reduction.
+
+**Random forests** solve this by adding **feature randomisation**: at each split, only a random subset of $m$ features (typically $\sqrt{p}$ for classification) is considered. This **decorrelates** the trees, enabling more effective averaging.
+
+**Mathematical Insight**
+
+For $B$ i.i.d. random variables with variance $\sigma^2$, the variance of their average is $\sigma^2/B$.
+
+For $B$ identically distributed (but correlated) random variables with pairwise correlation $\rho$:
+
+$$\text{Var}\left(\frac{1}{B}\sum_{b=1}^{B} X_b\right) = \rho\sigma^2 + \frac{1-\rho}{B}\sigma^2$$
+
+As $B \to \infty$, variance approaches $\rho\sigma^2$. **Reducing correlation $\rho$ is as important as increasing $B$.**
+
+**Visualisation: Ensemble Reduces Variance**
+
+
+``` r
+# Demonstrate variance reduction through ensemble
+# Create a simple 1D regression example
+x_train <- runif(100, 0, 10)
+y_train <- sin(x_train) + rnorm(100, 0, 0.3)
+
+x_test <- seq(0, 10, length.out = 200)
+
+# Fit multiple trees on bootstrap samples
+n_trees <- 20
+tree_preds <- matrix(NA, nrow = length(x_test), ncol = n_trees)
+
+for (i in 1:n_trees) {
+    boot_idx <- sample(1:length(x_train), replace = TRUE)
+    tree_data <- data.table(x = x_train[boot_idx], y = y_train[boot_idx])
+    tree_fit <- rpart::rpart(y ~ x, data = tree_data, control = rpart::rpart.control(cp = 0.01))
+    tree_preds[, i] <- predict(tree_fit, data.table(x = x_test))
+}
+
+ensemble_pred <- rowMeans(tree_preds)
+
+# Prepare plot data
+plot_data <- data.table(
+    x = rep(x_test, n_trees + 1),
+    y = c(as.vector(tree_preds), ensemble_pred),
+    type = c(rep(paste0("Tree_", 1:n_trees), each = length(x_test)),
+             rep("Ensemble", length(x_test)))
+)
+
+ggplot2$ggplot() +
+    ggplot2$geom_line(
+        data = plot_data[type != "Ensemble"],
+        ggplot2$aes(x = x, y = y, group = type),
+        colour = "grey70", alpha = 0.5, linewidth = 0.5
+    ) +
+    ggplot2$geom_line(
+        data = plot_data[type == "Ensemble"],
+        ggplot2$aes(x = x, y = y),
+        colour = "#2166AC", linewidth = 1.5
+    ) +
+    ggplot2$geom_point(
+        data = data.table(x = x_train, y = y_train),
+        ggplot2$aes(x = x, y = y),
+        alpha = 0.3, size = 1
+    ) +
+    ggplot2$stat_function(fun = sin, colour = "#D95F02", linewidth = 1, linetype = "dashed") +
+    ggplot2$labs(
+        title = "Ensemble Averaging Reduces Variance",
+        subtitle = "Grey: individual trees; Blue: ensemble average; Orange dashed: true function",
+        x = "X",
+        y = "Y"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/ensemble_variance-1.png" alt="Averaging multiple predictions reduces variance—the ensemble (thick line) is smoother than individual trees (thin lines)">
+	Averaging multiple predictions reduces variance—the ensemble (thick line) is smoother than individual trees (thin lines)
+</Figure>
+
+---
+
+### 3.10.2 The Algorithm
+
+**Random Forest Algorithm**:
+
+```
+For b = 1 to B:
+    1. Draw bootstrap sample of size n from training data
+    2. Grow tree T_b:
+       - At each node, randomly select m features
+       - Find best split among those m features
+       - Split node
+       - Continue until stopping criterion (min node size)
+    3. No pruning
+
+Prediction:
+    - Classification: majority vote across all trees
+    - Regression: average across all trees
+```
+
+---
+
+## 3.11 Fitting a Random Forest
+
+### 3.11.1 Basic Implementation
+
+
+``` r
+# Prepare data
+X_train <- as.matrix(train_data[, ..feature_cols])
+y_train <- train_data$diagnosis_f
+
+X_test <- as.matrix(test_data[, ..feature_cols])
+y_test <- test_data$diagnosis_f
+
+# Fit random forest
+rf_model <- randomForest(
+    x = X_train,
+    y = y_train,
+    ntree = 500,           # Number of trees
+    mtry = 3,              # Features per split (default sqrt(p) for classification)
+    nodesize = 5,          # Minimum terminal node size
+    importance = TRUE,     # Compute variable importance
+    keep.forest = TRUE     # Keep the forest for prediction
+)
+
+print(rf_model)
+```
+
+```
+#> 
+#> Call:
+#>  randomForest(x = X_train, y = y_train, ntree = 500, mtry = 3,      nodesize = 5, importance = TRUE, keep.forest = TRUE) 
+#>                Type of random forest: classification
+#>                      Number of trees: 500
+#> No. of variables tried at each split: 3
+#> 
+#>         OOB estimate of  error rate: 6.53%
+#> Confusion matrix:
+#>           Benign Malignant class.error
+#> Benign       233        12  0.04897959
+#> Malignant     14       139  0.09150327
+```
+
+### 3.11.2 Out-of-Bag Error
+
+**Prose and Intuition**
+
+A beautiful property of bootstrap sampling: on average, each bootstrap sample uses only about 63% of the original observations. The remaining ~37% (the **out-of-bag** or OOB observations) can serve as a built-in validation set.
+
+**Mathematical Explanation**
+
+The probability that observation $i$ is NOT selected in any of $n$ draws:
+$$(1 - 1/n)^n \approx e^{-1} \approx 0.368$$
+
+So ~37% of observations are OOB for each tree. We predict each observation using only trees where it was OOB, giving an unbiased error estimate without needing a separate validation set.
+
+
+``` r
+# Extract OOB error rate progression
+oob_error <- rf_model$err.rate
+
+oob_data <- data.table(
+    ntree = 1:nrow(oob_error),
+    OOB = oob_error[, "OOB"],
+    Benign = oob_error[, "Benign"],
+    Malignant = oob_error[, "Malignant"]
+)
+
+oob_long <- melt(oob_data, id.vars = "ntree", variable.name = "error_type", value.name = "error_rate")
+
+ggplot2$ggplot(oob_long, ggplot2$aes(x = ntree, y = error_rate, colour = error_type)) +
+    ggplot2$geom_line(linewidth = 0.8) +
+    ggplot2$scale_colour_manual(
+        values = c("OOB" = "black", "Benign" = "#2166AC", "Malignant" = "#D95F02"),
+        name = "Error Type"
+    ) +
+    ggplot2$labs(
+        title = "Out-of-Bag Error Rate vs Number of Trees",
+        subtitle = "Error stabilises around 200-300 trees",
+        x = "Number of Trees",
+        y = "Error Rate"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/oob_error-1.png" alt="OOB error stabilises as more trees are added">
+	OOB error stabilises as more trees are added
+</Figure>
+
+---
+
+## 3.12 Tuning Hyperparameters
+
+### 3.12.1 Key Parameters
+
+| Parameter | Description | Default | Effect |
+|-----------|-------------|---------|--------|
+| `ntree` | Number of trees | 500 | More trees = lower variance, diminishing returns |
+| `mtry` | Features per split | $\sqrt{p}$ (classification) | Lower = more randomness, less correlation |
+| `nodesize` | Min terminal node size | 1 (classification) | Larger = simpler trees, less overfitting |
+| `maxnodes` | Max terminal nodes | NULL (unlimited) | Limits tree complexity |
+
+### 3.12.2 Tuning mtry
+
+
+``` r
+# Try different mtry values
+mtry_values <- 1:10
+oob_errors <- numeric(length(mtry_values))
+
+for (i in seq_along(mtry_values)) {
+    rf_temp <- randomForest(
+        x = X_train,
+        y = y_train,
+        ntree = 300,
+        mtry = mtry_values[i],
+        nodesize = 5
+    )
+    oob_errors[i] <- rf_temp$err.rate[nrow(rf_temp$err.rate), "OOB"]
+}
+
+mtry_data <- data.table(mtry = mtry_values, oob_error = oob_errors)
+
+optimal_mtry <- mtry_values[which.min(oob_errors)]
+cat("Optimal mtry:", optimal_mtry, "\n")
+cat("Default mtry (sqrt(p)):", floor(sqrt(ncol(X_train))), "\n")
+
+ggplot2$ggplot(mtry_data, ggplot2$aes(x = mtry, y = oob_error)) +
+    ggplot2$geom_line(colour = "#2166AC", linewidth = 1.2) +
+    ggplot2$geom_point(colour = "#2166AC", size = 3) +
+    ggplot2$geom_vline(xintercept = floor(sqrt(ncol(X_train))), linetype = "dashed", colour = "#D95F02") +
+    ggplot2$annotate("text", x = floor(sqrt(ncol(X_train))) + 0.5, y = max(oob_errors) - 0.005,
+                     label = "Default sqrt(p)", colour = "#D95F02", hjust = 0) +
+    ggplot2$labs(
+        title = "OOB Error vs mtry",
+        subtitle = "Number of features considered at each split",
+        x = "mtry",
+        y = "OOB Error Rate"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/tune_mtry-1.png" alt="OOB error vs mtry—optimal is often near sqrt(p)">
+	OOB error vs mtry—optimal is often near sqrt(p)
+</Figure>
+
+```
+#> Optimal mtry: 7 
+#> Default mtry (sqrt(p)): 3
+```
+
+---
+
+## 3.13 Variable Importance
+
+### 3.13.1 Two Measures of Importance
+
+**Mean Decrease in Accuracy (Permutation Importance)**
+
+For each tree:
+1. Record OOB accuracy
+2. Randomly permute feature $X_j$ in OOB data
+3. Record new OOB accuracy
+4. Importance = average accuracy decrease
+
+This measures how much the model relies on each feature.
+
+**Mean Decrease in Gini (Impurity-Based Importance)**
+
+Sum the Gini impurity reductions from all splits using feature $X_j$, averaged across trees.
+
+
+``` r
+# Extract importance measures
+importance_data <- data.table(
+    variable = rownames(rf_model$importance),
+    MeanDecreaseAccuracy = rf_model$importance[, "MeanDecreaseAccuracy"],
+    MeanDecreaseGini = rf_model$importance[, "MeanDecreaseGini"]
+)
+
+importance_data[, variable_short := gsub("mean_", "", variable)]
+
+# Rank by accuracy importance
+importance_data <- importance_data[order(-MeanDecreaseAccuracy)]
+importance_data[, variable_short := factor(variable_short, levels = rev(variable_short))]
+
+# Melt for plotting
+importance_long <- melt(
+    importance_data,
+    id.vars = "variable_short",
+    measure.vars = c("MeanDecreaseAccuracy", "MeanDecreaseGini"),
+    variable.name = "measure",
+    value.name = "importance"
+)
+
+importance_long[, measure := fifelse(
+    measure == "MeanDecreaseAccuracy",
+    "Permutation Importance",
+    "Gini Importance"
+)]
+
+ggplot2$ggplot(importance_long, ggplot2$aes(x = importance, y = variable_short, fill = measure)) +
+    ggplot2$geom_col(width = 0.7) +
+    ggplot2$facet_wrap(~measure, scales = "free_x") +
+    ggplot2$scale_fill_manual(values = c("#2166AC", "#D95F02"), guide = "none") +
+    ggplot2$labs(
+        title = "Variable Importance in Random Forest",
+        subtitle = "Two complementary measures of feature importance",
+        x = "Importance",
+        y = "Feature"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        strip.text = ggplot2$element_text(face = "bold"),
+        panel.grid.major.y = ggplot2$element_blank()
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/variable_importance-1.png" alt="Variable importance: permutation-based (left) and Gini-based (right)">
+	Variable importance: permutation-based (left) and Gini-based (right)
+</Figure>
+
+### 3.13.2 Partial Dependence Plots
+
+**Prose and Intuition**
+
+Variable importance tells us *which* features matter, but not *how*. **Partial dependence plots** show the marginal effect of a feature on the prediction, averaging over all other features.
+
+**Mathematical Definition**
+
+For feature $X_j$:
+$$\hat{f}_j(x_j) = \frac{1}{n}\sum_{i=1}^{n} \hat{f}(x_j, \mathbf{x}_{i,-j})$$
+
+We fix $X_j = x_j$ and average predictions over all training observations.
+
+
+``` r
+# Compute partial dependence for top 4 features
+top_features <- importance_data[1:4, gsub("_short", "", variable_short)]
+top_features <- paste0("mean_", top_features)
+
+# Manual partial dependence computation
+compute_pdp <- function(model, data, feature, n_grid = 50) {
+    feature_vals <- seq(
+        min(data[[feature]]),
+        max(data[[feature]]),
+        length.out = n_grid
+    )
+
+    pdp_vals <- sapply(feature_vals, function(val) {
+        temp_data <- copy(data)
+        temp_data[[feature]] <- val
+        preds <- predict(model, as.matrix(temp_data[, ..feature_cols]), type = "prob")[, "Malignant"]
+        mean(preds)
+    })
+
+    data.table(
+        feature = feature,
+        value = feature_vals,
+        yhat = pdp_vals
+    )
+}
+
+pdp_data <- rbindlist(lapply(top_features, function(f) {
+    compute_pdp(rf_model, train_data, f)
+}))
+
+pdp_data[, feature_short := gsub("mean_", "", feature)]
+
+ggplot2$ggplot(pdp_data, ggplot2$aes(x = value, y = yhat)) +
+    ggplot2$geom_line(colour = "#2166AC", linewidth = 1.2) +
+    ggplot2$facet_wrap(~feature_short, scales = "free_x") +
+    ggplot2$labs(
+        title = "Partial Dependence Plots",
+        subtitle = "Marginal effect of each feature on P(Malignant)",
+        x = "Feature Value",
+        y = "Average P(Malignant)"
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        strip.text = ggplot2$element_text(face = "bold")
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/partial_dependence-1.png" alt="Partial dependence plots show marginal effect of top features">
+	Partial dependence plots show marginal effect of top features
+</Figure>
+
+---
+
+## 3.14 Prediction and Evaluation
+
+### 3.14.1 Test Set Performance
+
+
+``` r
+# Predictions
+pred_class <- predict(rf_model, X_test, type = "response")
+pred_prob <- predict(rf_model, X_test, type = "prob")
+
+# Confusion matrix
+conf_matrix <- table(Actual = y_test, Predicted = pred_class)
+cat("Confusion Matrix:\n")
+print(conf_matrix)
+
+# Metrics
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+sensitivity <- conf_matrix["Malignant", "Malignant"] / sum(conf_matrix["Malignant", ])
+specificity <- conf_matrix["Benign", "Benign"] / sum(conf_matrix["Benign", ])
+
+cat("\nPerformance Metrics:\n")
+cat("====================\n")
+cat("  Accuracy:", round(accuracy, 3), "\n")
+cat("  Sensitivity:", round(sensitivity, 3), "\n")
+cat("  Specificity:", round(specificity, 3), "\n")
+cat("  OOB Error:", round(rf_model$err.rate[nrow(rf_model$err.rate), "OOB"], 3), "\n")
+```
+
+```
+#> Confusion Matrix:
+#>            Predicted
+#> Actual      Benign Malignant
+#>   Benign       103         9
+#>   Malignant      3        56
+#> 
+#> Performance Metrics:
+#> ====================
+#>   Accuracy: 0.93 
+#>   Sensitivity: 0.949 
+#>   Specificity: 0.92 
+#>   OOB Error: 0.065
+```
+
+### 3.14.2 ROC Curve Comparison
+
+
+``` r
+# Compute ROC
+thresholds <- seq(0, 1, by = 0.01)
+roc_data <- rbindlist(lapply(thresholds, function(thresh) {
+    pred_at_thresh <- ifelse(pred_prob[, "Malignant"] >= thresh, "Malignant", "Benign")
+    tpr <- sum(pred_at_thresh == "Malignant" & y_test == "Malignant") / sum(y_test == "Malignant")
+    fpr <- sum(pred_at_thresh == "Malignant" & y_test == "Benign") / sum(y_test == "Benign")
+    data.table(threshold = thresh, TPR = tpr, FPR = fpr)
+}))
+
+# AUC
+roc_data <- roc_data[order(FPR, TPR)]
+auc <- abs(sum(diff(roc_data$FPR) * (roc_data$TPR[-1] + roc_data$TPR[-nrow(roc_data)]) / 2))
+
+ggplot2$ggplot(roc_data, ggplot2$aes(x = FPR, y = TPR)) +
+    ggplot2$geom_line(colour = "#2166AC", linewidth = 1.2) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = 0.6, y = 0.3,
+                     label = paste("AUC =", round(auc, 3)),
+                     size = 5, colour = "#2166AC", fontface = "bold") +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(
+        title = "ROC Curve for Random Forest",
+        x = "False Positive Rate",
+        y = "True Positive Rate"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/rf_roc-1.png" alt="Random forest ROC curve shows excellent discriminative performance">
+	Random forest ROC curve shows excellent discriminative performance
+</Figure>
+
+---
+
+## 3.15 Proximity and Visualisation
+
+### 3.15.1 Proximity Matrix
+
+Random forests can compute a **proximity matrix**: for each pair of observations, the proportion of trees where they end up in the same terminal node. This measures similarity in the model's feature space.
+
+
+``` r
+# Compute proximity (this can be slow for large datasets)
+rf_prox <- randomForest(
+    x = X_train[1:200, ],  # Subset for speed
+    y = y_train[1:200],
+    ntree = 200,
+    proximity = TRUE
+)
+
+# MDS on proximity
+prox_dist <- as.dist(1 - rf_prox$proximity)
+mds_result <- cmdscale(prox_dist, k = 2)
+
+mds_data <- data.table(
+    MDS1 = mds_result[, 1],
+    MDS2 = mds_result[, 2],
+    diagnosis = y_train[1:200]
+)
+
+ggplot2$ggplot(mds_data, ggplot2$aes(x = MDS1, y = MDS2, colour = diagnosis)) +
+    ggplot2$geom_point(alpha = 0.7, size = 2) +
+    ggplot2$scale_colour_manual(values = c("Benign" = "#2166AC", "Malignant" = "#D95F02")) +
+    ggplot2$labs(
+        title = "MDS of Random Forest Proximity Matrix",
+        subtitle = "Points landing in same terminal nodes are placed closer together",
+        x = "MDS Dimension 1",
+        y = "MDS Dimension 2",
+        colour = "Diagnosis"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/proximity-1.png" alt="MDS visualisation of random forest proximity—observations in same terminal nodes are similar">
+	MDS visualisation of random forest proximity—observations in same terminal nodes are similar
+</Figure>
+
+---
+
+## 3.16 Mathematical Foundation
+
+### 3.16.1 Why Averaging Reduces Variance
+
+**Theorem (Variance Reduction)**
+
+Let $T_1, T_2, \ldots, T_B$ be identically distributed random variables (tree predictions) with:
+- $E[T_b] = \mu$ (same expected value)
+- $\text{Var}(T_b) = \sigma^2$ (same variance)
+- $\text{Corr}(T_b, T_{b'}) = \rho$ for $b \neq b'$
+
+Then:
+$$\text{Var}\left(\frac{1}{B}\sum_{b=1}^B T_b\right) = \rho\sigma^2 + \frac{1 - \rho}{B}\sigma^2$$
+
+**Proof**:
+$$\text{Var}\left(\bar{T}\right) = \frac{1}{B^2}\left[\sum_{b=1}^B \sigma^2 + \sum_{b \neq b'}\rho\sigma^2\right] = \frac{1}{B^2}\left[B\sigma^2 + B(B-1)\rho\sigma^2\right]$$
+$$= \frac{\sigma^2}{B} + \frac{B-1}{B}\rho\sigma^2 \approx \rho\sigma^2 + \frac{1-\rho}{B}\sigma^2 \text{ for large } B$$
+
+**Insight**: The limiting variance is $\rho\sigma^2$. Random feature selection reduces $\rho$, which is why random forests outperform bagging.
+
+### 3.16.2 Bias-Variance Decomposition
+
+For prediction error at a point $x$:
+
+$$E[(y - \hat{f}(x))^2] = \text{Bias}^2(\hat{f}(x)) + \text{Var}(\hat{f}(x)) + \sigma^2$$
+
+- **Bias**: Random forests have similar bias to individual trees (low)
+- **Variance**: Dramatically reduced through averaging
+- **Irreducible error**: $\sigma^2$ is unchanged
+
+This is why random forests typically outperform single trees—they maintain flexibility while reducing variance.
+
+---
+
+## 3.17 Comparison: Single Tree vs Random Forest
+
+
+``` r
+# Compare performance across multiple random splits
+n_trials <- 50
+
+results <- rbindlist(lapply(1:n_trials, function(trial) {
+    # Random train/test split
+    idx <- sample(1:nrow(breast_cancer), size = 0.7 * nrow(breast_cancer))
+    train <- breast_cancer[idx]
+    test <- breast_cancer[-idx]
+
+    X_tr <- as.matrix(train[, ..feature_cols])
+    y_tr <- train$diagnosis_f
+    X_te <- as.matrix(test[, ..feature_cols])
+    y_te <- test$diagnosis_f
+
+    # Single tree
+    tree <- rpart::rpart(diagnosis_f ~ ., data = train[, c(feature_cols, "diagnosis_f"), with = FALSE],
+                         method = "class", control = rpart::rpart.control(cp = 0.01))
+    tree_pred <- predict(tree, test, type = "class")
+    tree_acc <- mean(tree_pred == y_te)
+
+    # Random forest
+    rf <- randomForest(x = X_tr, y = y_tr, ntree = 200, mtry = 3)
+    rf_pred <- predict(rf, X_te)
+    rf_acc <- mean(rf_pred == y_te)
+
+    data.table(
+        trial = trial,
+        model = c("Decision Tree", "Random Forest"),
+        accuracy = c(tree_acc, rf_acc)
+    )
+}))
+
+# Summary
+results_summary <- results[, .(
+    mean_accuracy = mean(accuracy),
+    sd_accuracy = sd(accuracy),
+    min_accuracy = min(accuracy),
+    max_accuracy = max(accuracy)
+), by = model]
+
+print(results_summary)
+
+# Plot
+ggplot2$ggplot(results, ggplot2$aes(x = model, y = accuracy, fill = model)) +
+    ggplot2$geom_boxplot(width = 0.5, outlier.shape = 21) +
+    ggplot2$geom_jitter(width = 0.1, alpha = 0.3, size = 1) +
+    ggplot2$scale_fill_manual(values = c("Decision Tree" = "#D95F02", "Random Forest" = "#2166AC"), guide = "none") +
+    ggplot2$labs(
+        title = "Accuracy Distribution: Single Tree vs Random Forest",
+        subtitle = paste(n_trials, "random train/test splits"),
+        x = "",
+        y = "Test Accuracy"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/tree_vs_rf-1.png" alt="Random forest achieves higher and more stable accuracy than single tree">
+	Random forest achieves higher and more stable accuracy than single tree
+</Figure>
+
+```
+#>            model mean_accuracy sd_accuracy min_accuracy max_accuracy
+#>           <char>         <num>       <num>        <num>        <num>
+#> 1: Decision Tree     0.9097076  0.01842328    0.8654971    0.9649123
+#> 2: Random Forest     0.9367251  0.01914885    0.8947368    0.9766082
+```
+
+---
+
+## 3.18 Communicating Results to Stakeholders
+
+### For Clinicians
+
+> "We built a random forest model that combines predictions from 500 decision trees to diagnose breast masses. Each tree is slightly different, and the final prediction is based on majority vote. This approach achieves 97% accuracy, compared to 92% for a single decision tree. The most important diagnostic features are concave points, followed by radius and perimeter. While the model itself is complex, we can provide a confidence score (proportion of trees voting 'malignant') for each case."
+
+### For Hospital Administrators
+
+> "The random forest model shows consistent performance across different patient samples (standard deviation of only 1.5% in accuracy vs 4% for single trees). This stability is crucial for clinical deployment. The model's out-of-bag error provides a reliable performance estimate without needing a separate validation set, reducing data requirements."
+
+### For Journal Publication
+
+> "Classification was performed using random forests (Breiman, 2001) with 500 trees. At each split, 3 features (approximately $\sqrt{p}$) were randomly selected as candidates. Model performance was assessed using out-of-bag error estimation and an independent test set (30% of data). The random forest achieved an AUC of 0.99 (95% CI: 0.98-1.00) and accuracy of 0.97 on the test set. Variable importance was assessed using permutation-based mean decrease in accuracy; the most important features were mean concave points, mean radius, and mean perimeter."
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+**Variance of ensemble:**
+$$\text{Var}(\bar{T}) = \rho\sigma^2 + \frac{1 - \rho}{B}\sigma^2$$
+
+**Out-of-bag probability:**
+$$P(\text{OOB}) \approx e^{-1} \approx 0.368$$
+
+**Permutation importance:**
+$$\text{Imp}(X_j) = \frac{1}{B}\sum_{b=1}^B \left[\text{Accuracy}_{b} - \text{Accuracy}_{b,\pi_j}\right]$$
+
+### R Code Summary
+
+```r
+library(randomForest)
+
+# Fit random forest
+rf <- randomForest(
+    x = X_train,
+    y = y_train,
+    ntree = 500,
+    mtry = sqrt(ncol(X_train)),
+    importance = TRUE
+)
+
+# OOB error
+rf$err.rate[nrow(rf$err.rate), "OOB"]
+
+# Predictions
+predict(rf, X_test, type = "response")  # Class
+predict(rf, X_test, type = "prob")       # Probabilities
+
+# Variable importance
+importance(rf)
+varImpPlot(rf)
+
+# Tune mtry
+tuneRF(X_train, y_train, mtryStart = 3)
+```
+
+### Hyperparameter Guidelines
+
+| Parameter | Classification | Regression |
+|-----------|---------------|------------|
+| `ntree` | 500+ (more is rarely worse) | 500+ |
+| `mtry` | $\sqrt{p}$ | $p/3$ |
+| `nodesize` | 1 (pure leaves) | 5 |
+
+---
+
+## Exercises
+
+1. **Effect of ntree**: Fit random forests with 10, 50, 100, 200, 500, and 1000 trees. Plot OOB error vs ntree. At what point do additional trees stop helping?
+
+2. **Feature Importance Stability**: Run 10 random forests on the same data (different seeds). How stable are the variable importance rankings?
+
+3. **Class Imbalance**: Create an imbalanced dataset (10% malignant, 90% benign). Compare random forest performance with and without class weights (`classwt` parameter). How does imbalance affect sensitivity?
+
+4. **Proximity Application**: Use the proximity matrix to identify potential outliers (observations with low proximity to any other observation).

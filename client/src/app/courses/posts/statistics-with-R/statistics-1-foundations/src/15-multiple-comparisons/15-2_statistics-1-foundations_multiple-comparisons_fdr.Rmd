@@ -1,0 +1,428 @@
+---
+title: "False Discovery Rate"
+subtitle: "Part 2 of Chapter 15: Multiple Comparisons"
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    collapse = FALSE, results = 'hold'
+)
+
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+## Table of Contents
+
+## 15.8 The False Discovery Rate (FDR)
+
+### 15.8.1 A Different Philosophy
+
+While FWER controls the probability of ANY false positive, this is often too strict for exploratory research. The **False Discovery Rate (FDR)** instead controls the expected proportion of false positives among all rejections.
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r fdr_vs_fwer}
+cat("FWER vs FDR Philosophy\n")
+cat("======================\n\n")
+
+cat("FWER: 'I want to be sure that if I claim ANY discovery,\n")
+cat("       it is a true discovery.'\n")
+cat("       → Controls: P(at least 1 false positive)\n\n")
+
+cat("FDR:  'I accept that some of my discoveries may be false,\n")
+cat("       but I want the FALSE PROPORTION to be small.'\n")
+cat("       → Controls: E[false positives / total positives]\n\n")
+
+cat("Example:\n")
+cat("  - 100 discoveries total\n")
+cat("  - FDR = 5% means ~5 are expected to be false positives\n")
+cat("  - This is often acceptable in exploratory research\n")
+```
+
+### 15.8.2 Formal Definition
+
+Let:
+- V = number of false positives (falsely rejected null hypotheses)
+- R = total number of rejections
+- Q = V/R (proportion of false discoveries)
+
+Then FDR = E[Q], where Q = 0 if R = 0.
+
+---
+
+## 15.9 The Benjamini-Hochberg Procedure
+
+### 15.9.1 The Algorithm
+
+The **Benjamini-Hochberg (BH)** procedure controls FDR at level q:
+
+1. Order p-values: $p_{(1)} \leq p_{(2)} \leq \cdots \leq p_{(m)}$
+2. Find the largest k such that $p_{(k)} \leq \frac{k}{m} \cdot q$
+3. Reject all hypotheses with $p_{(i)} \leq p_{(k)}$
+
+```{r bh_procedure}
+# Simulate data with some true effects
+set.seed(123)
+n_tests <- 1000
+n_true <- 100
+
+# Generate p-values
+p_values <- c(
+    rbeta(n_true, 0.3, 1),           # True effects (small p-values)
+    runif(n_tests - n_true, 0, 1)    # Null (uniform p-values)
+)
+true_effect <- c(rep(TRUE, n_true), rep(FALSE, n_tests - n_true))
+
+# Apply BH procedure
+results <- data.table(
+    test = 1:n_tests,
+    true_effect = true_effect,
+    p_value = p_values
+)
+results <- results[order(p_value)]
+results[, rank := 1:.N]
+results[, bh_threshold := (rank / n_tests) * 0.05]
+
+# Find largest k where p <= k/m * q
+results[, reject_bh := p_value <= bh_threshold]
+
+# The BH-adjusted p-values
+results[, bh_adjusted := p.adjust(p_value, method = "BH")]
+results[, reject_bh_adj := bh_adjusted < 0.05]
+
+cat("Benjamini-Hochberg Procedure (FDR = 5%)\n")
+cat("=======================================\n\n")
+
+cat("Top 20 ordered p-values with BH thresholds:\n")
+print(results[1:20, .(rank, p_value, bh_threshold, reject = p_value <= bh_threshold)])
+
+cat(sprintf("\n\nTotal rejections: %d\n", sum(results$reject_bh)))
+cat(sprintf("True positives: %d\n", sum(results$reject_bh & results$true_effect)))
+cat(sprintf("False positives: %d\n", sum(results$reject_bh & !results$true_effect)))
+cat(sprintf("Observed FDR: %.3f\n",
+            sum(results$reject_bh & !results$true_effect) / sum(results$reject_bh)))
+```
+
+### 15.9.2 Visualising the BH Procedure
+
+```{r bh_visual}
+# Create visualisation
+plot_data <- results[1:200]  # First 200 for clarity
+
+ggplot2$ggplot(plot_data, ggplot2$aes(x = rank, y = p_value)) +
+    ggplot2$geom_point(ggplot2$aes(colour = reject_bh), size = 1.5) +
+    ggplot2$geom_line(ggplot2$aes(y = bh_threshold), colour = "#D55E00", linewidth = 1) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#009E73"),
+                                 labels = c("Not Rejected", "Rejected")) +
+    ggplot2$labs(
+        title = "Benjamini-Hochberg Procedure",
+        subtitle = "Orange line: BH threshold (k/m × q); Points below line are rejected",
+        x = "Rank",
+        y = "P-Value",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 15.10 Comparing FWER and FDR Control
+
+### 15.10.1 Simulation Comparison
+
+```{r fwer_fdr_comparison}
+# Compare different methods
+results[, `:=`(
+    bonf_adjusted = p.adjust(p_value, method = "bonferroni"),
+    holm_adjusted = p.adjust(p_value, method = "holm")
+)]
+results[, `:=`(
+    reject_bonf = bonf_adjusted < 0.05,
+    reject_holm = holm_adjusted < 0.05
+)]
+
+comparison <- data.table(
+    Method = c("Uncorrected", "Bonferroni", "Holm", "Benjamini-Hochberg"),
+    Type = c("None", "FWER", "FWER", "FDR"),
+    Total_Rejections = c(
+        sum(results$p_value < 0.05),
+        sum(results$reject_bonf),
+        sum(results$reject_holm),
+        sum(results$reject_bh)
+    ),
+    True_Positives = c(
+        sum(results$p_value < 0.05 & results$true_effect),
+        sum(results$reject_bonf & results$true_effect),
+        sum(results$reject_holm & results$true_effect),
+        sum(results$reject_bh & results$true_effect)
+    ),
+    False_Positives = c(
+        sum(results$p_value < 0.05 & !results$true_effect),
+        sum(results$reject_bonf & !results$true_effect),
+        sum(results$reject_holm & !results$true_effect),
+        sum(results$reject_bh & !results$true_effect)
+    )
+)
+
+comparison[, Sensitivity := True_Positives / n_true]
+comparison[, FDR := False_Positives / Total_Rejections]
+
+cat("Comparison of Correction Methods\n")
+cat("=================================\n\n")
+cat(sprintf("Total tests: %d (100 true effects, 900 null)\n\n", n_tests))
+print(comparison)
+
+cat("\n\nKey observations:\n")
+cat("• Uncorrected: High sensitivity but many false positives\n")
+cat("• FWER methods: Very few false positives but low sensitivity\n")
+cat("• FDR (BH): Good balance—high sensitivity with controlled FDR\n")
+```
+
+### 15.10.2 Visual Comparison
+
+```{r comparison_visual}
+comp_long <- melt(comparison, id.vars = c("Method", "Type"),
+                  measure.vars = c("True_Positives", "False_Positives"),
+                  variable.name = "Outcome", value.name = "Count")
+
+comp_long[, Method := factor(Method, levels = c("Uncorrected", "Bonferroni",
+                                                  "Holm", "Benjamini-Hochberg"))]
+
+ggplot2$ggplot(comp_long, ggplot2$aes(x = Method, y = Count, fill = Outcome)) +
+    ggplot2$geom_col(position = "dodge") +
+    ggplot2$scale_fill_manual(values = c("#009E73", "#D55E00"),
+                               labels = c("True Positives", "False Positives")) +
+    ggplot2$labs(
+        title = "Comparison of Multiple Testing Corrections",
+        subtitle = "100 true effects among 1000 tests",
+        x = "",
+        y = "Count",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 20, hjust = 1),
+                  legend.position = "bottom")
+```
+
+---
+
+## 15.11 Q-Values
+
+### 15.11.1 The Q-Value Concept
+
+A **q-value** is the minimum FDR at which a particular test would be called significant. It's the FDR analog of the p-value.
+
+```{r qvalues}
+# Calculate q-values (BH-adjusted p-values are essentially q-values)
+results[, q_value := bh_adjusted]
+
+cat("Q-Values\n")
+cat("========\n\n")
+
+cat("Interpretation:\n")
+cat("• p-value: probability of observing this result if null is true\n")
+cat("• q-value: expected proportion of false positives among all\n")
+cat("           results with this q-value or smaller\n\n")
+
+cat("Example from our data:\n")
+example_tests <- results[1:10, .(rank, p_value, q_value, true_effect)]
+print(example_tests)
+
+cat("\nIf we reject all tests with q < 0.05, we expect ~5% to be false positives.\n")
+```
+
+---
+
+## 15.12 Local FDR and Posterior Probability
+
+### 15.12.1 Beyond Global FDR
+
+The **local false discovery rate (lfdr)** estimates the probability that a specific test is a false positive, given its test statistic.
+
+```{r lfdr_concept}
+cat("Local FDR Concept\n")
+cat("=================\n\n")
+
+cat("Global FDR (q-value): 'If I reject all tests at this level,\n")
+cat("                       what proportion are false positives?'\n\n")
+
+cat("Local FDR (lfdr):     'What is the probability that THIS specific\n")
+cat("                       test is a false positive?'\n\n")
+
+cat("The local FDR uses the mixture model:\n")
+cat("• π₀ = proportion of null hypotheses\n")
+cat("• f₀(z) = density of test statistics under null\n")
+cat("• f₁(z) = density of test statistics under alternative\n\n")
+
+cat("lfdr(z) = π₀ × f₀(z) / [π₀ × f₀(z) + (1-π₀) × f₁(z)]\n")
+```
+
+---
+
+## 15.13 Adaptive FDR Procedures
+
+### 15.13.1 Estimating π₀
+
+The BH procedure assumes all nulls could be true. If we can estimate the proportion of true nulls (π₀), we can gain power:
+
+```{r pi0_estimation}
+# Estimate π₀ using Storey's method (simplified)
+# Use p-values in (0.5, 1) to estimate proportion of nulls
+
+lambda <- 0.5
+pi0_estimate <- sum(results$p_value > lambda) / ((1 - lambda) * n_tests)
+
+cat("Estimating π₀ (Proportion of True Nulls)\n")
+cat("=========================================\n\n")
+
+cat(sprintf("True π₀: %.2f\n", (n_tests - n_true) / n_tests))
+cat(sprintf("Estimated π₀ (Storey's method): %.3f\n\n", pi0_estimate))
+
+cat("If π₀ < 1, we can use adaptive procedures for more power.\n")
+cat("The BH procedure is conservative when many alternatives exist.\n")
+```
+
+### 15.13.2 Storey's Q-Value Approach
+
+```{r storey_qvalue}
+# Adaptive BH using π₀ estimate
+results[, adaptive_q := bh_adjusted * pi0_estimate]
+
+# Compare
+cat("Adaptive vs Standard BH\n")
+cat("=======================\n\n")
+
+cat(sprintf("Standard BH rejections (q < 0.05): %d\n", sum(results$q_value < 0.05)))
+cat(sprintf("Adaptive BH rejections (q < 0.05): %d\n", sum(results$adaptive_q < 0.05)))
+cat("\nAdaptive methods can increase power when many alternatives exist.\n")
+```
+
+---
+
+## 15.14 Practical Considerations
+
+### 15.14.1 When to Use FDR
+
+| Situation | Recommendation |
+|-----------|----------------|
+| Genomics, proteomics | FDR strongly preferred |
+| Exploratory analyses | FDR appropriate |
+| Large-scale screens | FDR necessary |
+| Confirmatory research | FWER may be preferred |
+| High stakes (drug approval) | FWER usually required |
+
+### 15.14.2 Choosing the FDR Level
+
+```{r fdr_levels}
+fdr_levels <- c(0.01, 0.05, 0.10, 0.20)
+
+sensitivity <- sapply(fdr_levels, function(q) {
+    sum(p.adjust(results$p_value, method = "BH") < q & results$true_effect) / n_true
+})
+
+fdr_observed <- sapply(fdr_levels, function(q) {
+    rejected <- p.adjust(results$p_value, method = "BH") < q
+    if (sum(rejected) == 0) return(NA)
+    sum(rejected & !results$true_effect) / sum(rejected)
+})
+
+fdr_table <- data.table(
+    Target_FDR = fdr_levels,
+    Rejections = sapply(fdr_levels, function(q) sum(p.adjust(results$p_value, method = "BH") < q)),
+    Sensitivity = sensitivity,
+    Observed_FDR = fdr_observed
+)
+
+cat("Impact of FDR Level Choice\n")
+cat("==========================\n\n")
+print(fdr_table)
+
+cat("\n\nGuidelines:\n")
+cat("• FDR = 0.01: Conservative, high confidence in findings\n")
+cat("• FDR = 0.05: Standard choice, balanced\n")
+cat("• FDR = 0.10: Lenient, for exploratory screening\n")
+cat("• FDR = 0.20: Very lenient, for initial discovery\n")
+```
+
+---
+
+## 15.15 Visualising Multiple Testing Results
+
+### 15.15.1 Volcano Plots
+
+```{r volcano_plot}
+# Create volcano plot data
+set.seed(456)
+volcano_data <- data.table(
+    gene = paste0("Gene_", 1:n_tests),
+    log2FC = c(rnorm(n_true, 1.5, 0.5), rnorm(n_tests - n_true, 0, 0.3)),
+    true_effect = true_effect
+)
+volcano_data[, p_value := results$p_value]
+volcano_data[, neg_log10_p := -log10(p_value)]
+volcano_data[, significant := p.adjust(p_value, method = "BH") < 0.05]
+
+ggplot2$ggplot(volcano_data, ggplot2$aes(x = log2FC, y = neg_log10_p, colour = significant)) +
+    ggplot2$geom_point(alpha = 0.5) +
+    ggplot2$geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00"),
+                                 labels = c("Not Significant", "Significant (FDR < 5%)")) +
+    ggplot2$labs(
+        title = "Volcano Plot: Effect Size vs Significance",
+        subtitle = "Points coloured by FDR-corrected significance",
+        x = "Log₂ Fold Change",
+        y = "-Log₁₀(P-Value)",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## Quick Reference
+
+### FDR Methods
+
+| Method | Controls | Assumption |
+|--------|----------|------------|
+| Benjamini-Hochberg | FDR | Independence or PRDS |
+| Benjamini-Yekutieli | FDR | Any dependence |
+| Storey Q-Value | FDR | Estimates π₀ |
+| Local FDR | Individual probability | Mixture model |
+
+### R Functions
+
+| Function | Purpose |
+|----------|---------|
+| `p.adjust(p, method = "BH")` | Benjamini-Hochberg |
+| `p.adjust(p, method = "BY")` | Benjamini-Yekutieli |
+| `qvalue::qvalue(p)` | Storey's q-values |
+| `fdrtool::fdrtool()` | Local FDR |
+
+### Choosing FDR Level
+
+| FDR Level | Use Case |
+|-----------|----------|
+| 0.01 | High-confidence findings |
+| 0.05 | Standard (most common) |
+| 0.10 | Exploratory screening |
+| 0.20 | Very preliminary discovery |
+

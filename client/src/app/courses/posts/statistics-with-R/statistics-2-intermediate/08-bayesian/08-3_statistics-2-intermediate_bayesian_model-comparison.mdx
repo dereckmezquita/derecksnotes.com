@@ -1,0 +1,899 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 8: Bayesian Statistics"
+part: "Part 3: Model Comparison and Applications"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, bayesian, bayes-factor, model-comparison, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 3: Model Comparison and Applications
+
+The final chapter on Bayesian statistics addresses a fundamental question: given multiple models that could explain our data, how do we choose between them? Bayesian model comparison offers principled approaches through Bayes factors and information criteria, along with model averaging to incorporate uncertainty about the correct model. We conclude with comprehensive applications to biomedical problems.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load clinical data
+clinical <- fread("../../../data/medical/blood_storage.csv")
+
+# Create example data for model comparison
+set.seed(42)
+n <- 50
+
+# Treatment effect study: drug vs placebo
+treatment <- rep(c("Placebo", "Drug"), each = n/2)
+# True effect: drug reduces blood pressure by 10 mmHg
+true_effect <- -10
+baseline_bp <- 140
+response <- baseline_bp + rnorm(n, 0, 15) + ifelse(treatment == "Drug", true_effect, 0)
+
+bp_trial <- data.table(
+    patient_id = 1:n,
+    treatment = treatment,
+    bp = response
+)
+
+cat("Clinical Trial Data:\n")
+cat("  Placebo group:", sum(treatment == "Placebo"), "patients\n")
+cat("  Drug group:", sum(treatment == "Drug"), "patients\n")
+cat("  Mean BP (Placebo):", round(mean(bp_trial[treatment == "Placebo", bp]), 1), "\n")
+cat("  Mean BP (Drug):", round(mean(bp_trial[treatment == "Drug", bp]), 1), "\n")
+```
+
+```
+#> Clinical Trial Data:
+#>   Placebo group: 25 patients
+#>   Drug group: 25 patients
+#>   Mean BP (Placebo): 142.8 
+#>   Mean BP (Drug): 126.1
+```
+
+---
+
+## Table of Contents
+
+## 8.20 Bayesian Model Comparison
+
+### 8.20.1 The Model Comparison Problem
+
+**Prose and Intuition**
+
+In frequentist statistics, we often use p-values to test null hypotheses or compare nested models. But p-values have limitations:
+- Cannot provide evidence *for* the null
+- Sensitive to sample size
+- Binary decision framework
+
+Bayesian model comparison offers alternatives:
+- **Bayes factors**: Compare how well models predict the data
+- **Posterior model probabilities**: Probability each model is correct
+- **Model averaging**: Weight predictions by model probability
+- **Information criteria**: LOO-CV, WAIC approximate predictive performance
+
+### 8.20.2 Bayes Factors
+
+**Prose and Intuition**
+
+The **Bayes factor** compares the marginal likelihoods of two models:
+
+$$\text{BF}_{10} = \frac{P(D|M_1)}{P(D|M_0)} = \frac{\int f(D|\theta_1, M_1)\pi(\theta_1|M_1)d\theta_1}{\int f(D|\theta_0, M_0)\pi(\theta_0|M_0)d\theta_0}$$
+
+Interpretation: How much more likely is the data under Model 1 vs Model 0?
+
+**Bayes Factor Interpretation Scale** (Kass & Raftery, 1995):
+
+| BF₁₀ | Evidence for M₁ |
+|------|-----------------|
+| 1-3 | Anecdotal |
+| 3-10 | Moderate |
+| 10-30 | Strong |
+| 30-100 | Very strong |
+| > 100 | Extreme |
+
+Note: BF₁₀ < 1 provides evidence for M₀ (use 1/BF₁₀).
+
+**Mathematical Derivation**
+
+The marginal likelihood integrates over all possible parameter values, weighted by the prior:
+$$P(D|M) = \int f(D|\theta, M)\pi(\theta|M)d\theta$$
+
+This is the denominator from Bayes' theorem—the "evidence" or "model evidence."
+
+**Key properties**:
+1. Automatically penalises complexity (Occam's razor)
+2. Compares models, not parameters
+3. Sensitive to prior choice (especially for vague priors)
+
+**Visualisation**
+
+
+``` r
+# Example: Is there a treatment effect?
+# M0: No effect (μ_drug = μ_placebo)
+# M1: There is an effect (μ_drug ≠ μ_placebo)
+
+# Calculate means and SEs
+placebo_data <- bp_trial[treatment == "Placebo", bp]
+drug_data <- bp_trial[treatment == "Drug", bp]
+
+placebo_mean <- mean(placebo_data)
+drug_mean <- mean(drug_data)
+pooled_se <- sqrt(var(placebo_data)/length(placebo_data) +
+                   var(drug_data)/length(drug_data))
+
+observed_diff <- drug_mean - placebo_mean
+
+cat("Observed Treatment Effect:\n")
+cat("==========================\n")
+cat("Placebo mean:", round(placebo_mean, 2), "\n")
+cat("Drug mean:", round(drug_mean, 2), "\n")
+cat("Difference (Drug - Placebo):", round(observed_diff, 2), "\n")
+cat("Standard error:", round(pooled_se, 2), "\n")
+
+# Visualise the problem
+effect_dt <- data.table(
+    effect = seq(-30, 10, length.out = 200)
+)
+
+# Likelihood of observed data under different true effects
+effect_dt[, likelihood := dnorm(observed_diff, effect, pooled_se)]
+
+# Prior under M1 (effect exists): N(0, 10^2)
+effect_dt[, prior_m1 := dnorm(effect, 0, 10)]
+
+# Marginal likelihood calculation (approximate)
+# M0: point null at effect = 0
+ml_m0 <- dnorm(observed_diff, 0, pooled_se)
+
+# M1: integrate likelihood × prior (approximate with grid)
+grid_width <- diff(effect_dt$effect)[1]
+ml_m1 <- sum(effect_dt$likelihood * effect_dt$prior_m1 * grid_width)
+
+bf_10 <- ml_m1 / ml_m0
+bf_01 <- 1 / bf_10
+
+cat("\nBayes Factor Calculation:\n")
+cat("-------------------------\n")
+cat("BF₁₀ (effect vs no effect):", round(bf_10, 2), "\n")
+cat("BF₀₁ (no effect vs effect):", round(bf_01, 2), "\n")
+cat("\nInterpretation: ")
+if (bf_10 > 10) {
+    cat("Strong evidence for treatment effect\n")
+} else if (bf_10 > 3) {
+    cat("Moderate evidence for treatment effect\n")
+} else if (bf_10 > 1/3) {
+    cat("Anecdotal evidence\n")
+} else if (bf_10 > 1/10) {
+    cat("Moderate evidence for no effect\n")
+} else {
+    cat("Strong evidence for no effect\n")
+}
+
+# Visualise
+ggplot2$ggplot(effect_dt, ggplot2$aes(x = effect)) +
+    ggplot2$geom_line(ggplot2$aes(y = likelihood / max(likelihood)), colour = "#0072B2",
+                      linewidth = 1.2) +
+    ggplot2$geom_line(ggplot2$aes(y = prior_m1 / max(prior_m1)), colour = "#009E73",
+                      linewidth = 1.2, linetype = "dashed") +
+    ggplot2$geom_vline(xintercept = 0, colour = "#D55E00", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = observed_diff, colour = "grey50", linetype = "dotted") +
+    ggplot2$annotate("text", x = 0, y = 1.05, label = "M₀: No effect", colour = "#D55E00") +
+    ggplot2$annotate("text", x = observed_diff, y = 1.05, label = "Observed", colour = "grey50") +
+    ggplot2$labs(
+        title = "Bayes Factor: Comparing Effect vs No Effect",
+        subtitle = sprintf("BF₁₀ = %.2f — %s for treatment effect",
+                           bf_10, ifelse(bf_10 > 3, "Evidence", "Weak evidence")),
+        x = "Treatment Effect (mmHg)",
+        y = "Relative Scale",
+        caption = "Blue = Likelihood; Green dashed = Prior under M₁; Orange = M₀"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/bayes_factor_concept-1.png" alt="Bayes factor measures relative evidence for two models">
+	Bayes factor measures relative evidence for two models
+</Figure>
+
+```
+#> Observed Treatment Effect:
+#> ==========================
+#> Placebo mean: 142.81 
+#> Drug mean: 126.12 
+#> Difference (Drug - Placebo): -16.7 
+#> Standard error: 4.84 
+#> 
+#> Bayes Factor Calculation:
+#> -------------------------
+#> BF₁₀ (effect vs no effect): 54 
+#> BF₀₁ (no effect vs effect): 0.02 
+#> 
+#> Interpretation: Strong evidence for treatment effect
+```
+
+### 8.20.3 Using BayesFactor Package
+
+
+``` r
+if (requireNamespace("BayesFactor", quietly = TRUE)) {
+    library(BayesFactor)
+
+    # Compare means with Bayes factor
+    bf_result <- ttestBF(
+        x = drug_data,
+        y = placebo_data,
+        paired = FALSE,
+        rscale = "medium"  # Prior scale
+    )
+
+    cat("BayesFactor Package Results:\n")
+    cat("============================\n\n")
+    print(bf_result)
+
+    # Extract BF
+    bf_val <- extractBF(bf_result)$bf
+
+    cat("\nBayes Factor (BF₁₀):", round(bf_val, 2), "\n")
+    cat("Evidence:", ifelse(bf_val > 10, "Strong for effect",
+                            ifelse(bf_val > 3, "Moderate for effect",
+                                   ifelse(bf_val > 1, "Weak for effect",
+                                          "Evidence for null"))), "\n")
+} else {
+    cat("BayesFactor package not installed.\n")
+    cat("Install with: install.packages('BayesFactor')\n")
+}
+```
+
+```
+#> BayesFactor package not installed.
+#> Install with: install.packages('BayesFactor')
+```
+
+---
+
+## 8.21 Prior Sensitivity in Bayes Factors
+
+### 8.21.1 The Jeffreys-Lindley Paradox
+
+**Prose and Intuition**
+
+A critical issue with Bayes factors: they are sensitive to prior specification, especially for vague priors. The **Jeffreys-Lindley paradox** shows that with a very diffuse prior under M₁, the Bayes factor can favour M₀ even when the p-value is tiny.
+
+This happens because diffuse priors spread probability over implausible parameter values, reducing the average likelihood under M₁.
+
+**Implication**: Always use **informed priors** for Bayes factor calculations. Default priors exist (Cauchy, scaled) but should be justified.
+
+
+``` r
+# Calculate BF for different prior widths
+prior_sds <- c(1, 5, 10, 25, 50, 100, 200)
+
+bf_sensitivity <- sapply(prior_sds, function(prior_sd) {
+    # Prior under M1: N(0, prior_sd^2)
+    prior_vals <- dnorm(effect_dt$effect, 0, prior_sd)
+
+    # Marginal likelihood (grid approximation)
+    ml_m1_local <- sum(effect_dt$likelihood * prior_vals * grid_width)
+
+    ml_m1_local / ml_m0
+})
+
+sens_dt <- data.table(
+    prior_sd = prior_sds,
+    bf = bf_sensitivity
+)
+
+cat("Prior Sensitivity Analysis:\n")
+cat("===========================\n\n")
+print(sens_dt[, .(Prior_SD = prior_sd, BF_10 = round(bf, 2))])
+
+ggplot2$ggplot(sens_dt, ggplot2$aes(x = prior_sd, y = bf)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$geom_point(colour = "#0072B2", size = 3) +
+    ggplot2$geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_hline(yintercept = c(1/3, 3), linetype = "dotted", colour = "#D55E00") +
+    ggplot2$annotate("text", x = max(prior_sds) * 0.8, y = 3.3, label = "BF = 3", colour = "#D55E00") +
+    ggplot2$annotate("text", x = max(prior_sds) * 0.8, y = 0.4, label = "BF = 1/3", colour = "#D55E00") +
+    ggplot2$scale_x_log10() +
+    ggplot2$labs(
+        title = "Bayes Factor Sensitivity to Prior Width",
+        subtitle = "Very diffuse priors can favour the null even with 'significant' effects",
+        x = "Prior Standard Deviation (log scale)",
+        y = expression(BF[10])
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/prior_sensitivity_bf-1.png" alt="Bayes factor sensitivity to prior width">
+	Bayes factor sensitivity to prior width
+</Figure>
+
+```
+#> Prior Sensitivity Analysis:
+#> ===========================
+#> 
+#>    Prior_SD BF_10
+#>       <num> <num>
+#> 1:        1  1.25
+#> 2:        5 15.00
+#> 3:       10 54.00
+#> 4:       25 58.69
+#> 5:       50 34.87
+#> 6:      100 18.23
+#> 7:      200  9.22
+```
+
+---
+
+## 8.22 Information Criteria for Bayesian Models
+
+### 8.22.1 LOO-CV and WAIC
+
+**Prose and Intuition**
+
+An alternative to Bayes factors: estimate **predictive performance** using information criteria.
+
+**WAIC (Widely Applicable Information Criterion)**: Fully Bayesian generalisation of AIC
+$$\text{WAIC} = -2(\text{lppd} - p_{\text{WAIC}})$$
+where lppd is the log pointwise predictive density and $p_{\text{WAIC}}$ is an effective number of parameters penalty.
+
+**LOO-CV (Leave-One-Out Cross-Validation)**: Estimate out-of-sample predictive performance
+$$\text{ELPD}_{\text{LOO}} = \sum_{i=1}^{n} \log p(y_i | y_{-i})$$
+
+Can be efficiently approximated using **Pareto-smoothed importance sampling (PSIS)**.
+
+**Advantages over Bayes factors**:
+- Less sensitive to prior specification
+- Focus on prediction rather than model "truth"
+- Can compare non-nested models
+- Sum of pointwise contributions (can identify influential observations)
+
+**Disadvantages**:
+- Cannot provide evidence for "simpler" model
+- Requires full posterior samples
+
+
+``` r
+# Conceptual illustration
+# Compare models with different complexity
+set.seed(42)
+
+# Generate data with quadratic relationship
+n <- 50
+x <- seq(0, 10, length.out = n)
+y_true <- 5 + 2*x - 0.15*x^2
+y <- y_true + rnorm(n, 0, 2)
+
+model_data <- data.table(x = x, y = y, y_true = y_true)
+
+# Fit models of different complexity
+fit1 <- lm(y ~ 1, data = model_data)  # Intercept only
+fit2 <- lm(y ~ x, data = model_data)  # Linear
+fit3 <- lm(y ~ x + I(x^2), data = model_data)  # Quadratic
+fit4 <- lm(y ~ poly(x, 5), data = model_data)  # Polynomial degree 5
+
+# Calculate AIC (frequentist analogue to WAIC)
+model_comparison <- data.table(
+    Model = c("Intercept only", "Linear", "Quadratic", "Degree 5"),
+    df = c(2, 3, 4, 7),
+    AIC = c(AIC(fit1), AIC(fit2), AIC(fit3), AIC(fit4)),
+    BIC = c(BIC(fit1), BIC(fit2), BIC(fit3), BIC(fit4))
+)
+model_comparison[, Delta_AIC := AIC - min(AIC)]
+model_comparison[, AIC_weight := exp(-Delta_AIC/2) / sum(exp(-Delta_AIC/2))]
+
+cat("Model Comparison (AIC/BIC):\n")
+cat("===========================\n\n")
+print(model_comparison[, .(Model, df, AIC = round(AIC, 1),
+                            Delta_AIC = round(Delta_AIC, 1),
+                            Weight = round(AIC_weight, 3))])
+
+# Visualise fits
+pred_dt <- rbindlist(lapply(list(fit1, fit2, fit3, fit4), function(fit) {
+    data.table(
+        x = x,
+        pred = predict(fit),
+        model = c("Intercept only", "Linear", "Quadratic", "Degree 5")[
+            match(length(coef(fit)), c(1, 2, 3, 6))]
+    )
+}))
+pred_dt[, model := factor(model, levels = c("Intercept only", "Linear", "Quadratic", "Degree 5"))]
+
+ggplot2$ggplot(model_data, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_point(alpha = 0.6) +
+    ggplot2$geom_line(data = pred_dt, ggplot2$aes(y = pred, colour = model), linewidth = 1) +
+    ggplot2$geom_line(ggplot2$aes(y = y_true), linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_viridis_d(option = "C") +
+    ggplot2$labs(
+        title = "Model Comparison: Balancing Fit and Complexity",
+        subtitle = "Quadratic model best balances fit and parsimony",
+        x = "X",
+        y = "Y",
+        colour = "Model"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/waic_concept-1.png" alt="WAIC balances model fit and complexity">
+	WAIC balances model fit and complexity
+</Figure>
+
+```
+#> Model Comparison (AIC/BIC):
+#> ===========================
+#> 
+#>             Model    df   AIC Delta_AIC Weight
+#>            <char> <num> <num>     <num>  <num>
+#> 1: Intercept only     2 238.2      10.0  0.005
+#> 2:         Linear     3 231.3       3.1  0.154
+#> 3:      Quadratic     4 228.2       0.0  0.733
+#> 4:       Degree 5     7 232.0       3.8  0.108
+```
+
+---
+
+## 8.23 Bayesian Model Averaging
+
+### 8.23.1 Incorporating Model Uncertainty
+
+**Prose and Intuition**
+
+What if we're uncertain about which model is correct? **Bayesian Model Averaging (BMA)** weights predictions by model probabilities:
+
+$$p(\tilde{y}|D) = \sum_{k=1}^{K} p(\tilde{y}|M_k, D) \cdot P(M_k|D)$$
+
+where:
+- $P(M_k|D)$ = posterior probability of model $k$
+- $p(\tilde{y}|M_k, D)$ = prediction under model $k$
+
+**Benefits**:
+- Honest uncertainty quantification
+- Better calibrated predictions
+- Robust to model misspecification
+
+**Visualisation**
+
+
+``` r
+# Simple BMA using AIC weights as proxy for model probabilities
+# (True BMA uses Bayes factors, but AIC weights are similar for large n)
+
+# Generate predictions at new x values
+x_new <- seq(-1, 12, length.out = 100)
+
+# Predictions from each model
+pred_bma <- data.table(
+    x = x_new,
+    intercept = predict(fit1, newdata = data.frame(x = x_new)),
+    linear = predict(fit2, newdata = data.frame(x = x_new)),
+    quadratic = predict(fit3, newdata = data.frame(x = x_new)),
+    degree5 = predict(fit4, newdata = data.frame(x = x_new))
+)
+
+# Model-averaged prediction
+weights <- model_comparison$AIC_weight
+pred_bma[, averaged := weights[1] * intercept + weights[2] * linear +
+                        weights[3] * quadratic + weights[4] * degree5]
+
+# Melt for plotting
+pred_long <- melt(pred_bma, id.vars = "x", variable.name = "model", value.name = "prediction")
+pred_long[, model := factor(model, levels = c("intercept", "linear", "quadratic", "degree5", "averaged"),
+                            labels = c("Intercept", "Linear", "Quadratic", "Degree 5", "BMA"))]
+
+ggplot2$ggplot() +
+    ggplot2$geom_point(data = model_data, ggplot2$aes(x = x, y = y), alpha = 0.6) +
+    ggplot2$geom_line(data = pred_long[model != "BMA"],
+                      ggplot2$aes(x = x, y = prediction, colour = model),
+                      alpha = 0.5, linewidth = 0.8) +
+    ggplot2$geom_line(data = pred_long[model == "BMA"],
+                      ggplot2$aes(x = x, y = prediction),
+                      colour = "black", linewidth = 1.5) +
+    ggplot2$scale_colour_viridis_d(option = "C") +
+    ggplot2$labs(
+        title = "Bayesian Model Averaging",
+        subtitle = sprintf("BMA (black) = weighted average (weights: %.0f%% quad, %.0f%% linear)",
+                           weights[3] * 100, weights[2] * 100),
+        x = "X",
+        y = "Y",
+        colour = "Individual\nModels"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/model_averaging-1.png" alt="Model-averaged predictions incorporate model uncertainty">
+	Model-averaged predictions incorporate model uncertainty
+</Figure>
+
+---
+
+## 8.24 Complete Biomedical Application: Clinical Trial Analysis
+
+### 8.24.1 Bayesian Analysis of Treatment Effect
+
+Let's apply all concepts to a comprehensive clinical trial analysis.
+
+
+``` r
+# Full Bayesian analysis of the treatment effect
+
+# Prior: Based on previous similar drugs
+# Expected effect around -5 to -15 mmHg, with uncertainty
+prior_effect_mean <- -10  # Expected from similar drugs
+prior_effect_sd <- 5      # Uncertainty about expected effect
+
+# Data summary
+n_placebo <- sum(bp_trial$treatment == "Placebo")
+n_drug <- sum(bp_trial$treatment == "Drug")
+mean_placebo <- mean(bp_trial[treatment == "Placebo", bp])
+mean_drug <- mean(bp_trial[treatment == "Drug", bp])
+se_diff <- sqrt(var(bp_trial[treatment == "Placebo", bp])/n_placebo +
+                 var(bp_trial[treatment == "Drug", bp])/n_drug)
+
+observed_effect <- mean_drug - mean_placebo
+
+cat("Bayesian Clinical Trial Analysis:\n")
+cat("==================================\n\n")
+
+cat("PRIOR BELIEFS:\n")
+cat("  Based on similar drugs, expect effect around", prior_effect_mean, "mmHg\n")
+cat("  Prior 95% interval: [",
+    round(prior_effect_mean - 1.96 * prior_effect_sd, 1), ",",
+    round(prior_effect_mean + 1.96 * prior_effect_sd, 1), "]\n\n")
+
+cat("DATA:\n")
+cat("  Placebo (n =", n_placebo, "): mean =", round(mean_placebo, 1), "mmHg\n")
+cat("  Drug (n =", n_drug, "): mean =", round(mean_drug, 1), "mmHg\n")
+cat("  Observed effect:", round(observed_effect, 1), "mmHg (SE =", round(se_diff, 1), ")\n\n")
+
+# Bayesian update (Normal-Normal conjugate)
+# Posterior for effect
+prior_precision <- 1 / prior_effect_sd^2
+data_precision <- 1 / se_diff^2
+posterior_precision <- prior_precision + data_precision
+posterior_mean <- (prior_precision * prior_effect_mean + data_precision * observed_effect) / posterior_precision
+posterior_sd <- sqrt(1 / posterior_precision)
+
+cat("POSTERIOR:\n")
+cat("  Posterior mean effect:", round(posterior_mean, 1), "mmHg\n")
+cat("  Posterior SD:", round(posterior_sd, 1), "\n")
+cat("  95% Credible interval: [",
+    round(qnorm(0.025, posterior_mean, posterior_sd), 1), ",",
+    round(qnorm(0.975, posterior_mean, posterior_sd), 1), "]\n\n")
+
+# Probability of clinically meaningful effect (> 5 mmHg reduction)
+prob_meaningful <- pnorm(-5, posterior_mean, posterior_sd)
+cat("CLINICAL DECISIONS:\n")
+cat("  P(effect < 0) =", round(pnorm(0, posterior_mean, posterior_sd) * 100, 1), "%\n")
+cat("  P(effect < -5 mmHg) =", round(prob_meaningful * 100, 1), "%\n")
+cat("  P(effect < -10 mmHg) =", round(pnorm(-10, posterior_mean, posterior_sd) * 100, 1), "%\n")
+
+# Visualise
+effect_vals <- seq(-30, 10, length.out = 200)
+
+analysis_dt <- data.table(
+    effect = rep(effect_vals, 3),
+    density = c(
+        dnorm(effect_vals, prior_effect_mean, prior_effect_sd),
+        dnorm(effect_vals, observed_effect, se_diff),
+        dnorm(effect_vals, posterior_mean, posterior_sd)
+    ),
+    distribution = factor(rep(c("Prior", "Likelihood", "Posterior"), each = 200),
+                          levels = c("Prior", "Likelihood", "Posterior"))
+)
+
+ggplot2$ggplot(analysis_dt, ggplot2$aes(x = effect, y = density, colour = distribution)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_vline(xintercept = -5, linetype = "dotted", colour = "#D55E00") +
+    ggplot2$annotate("text", x = -5, y = max(analysis_dt$density) * 0.9,
+                     label = "MCID = -5", hjust = 1.1, colour = "#D55E00") +
+    ggplot2$annotate("rect", xmin = -30, xmax = -5, ymin = 0, ymax = Inf,
+                     alpha = 0.1, fill = "#009E73") +
+    ggplot2$scale_colour_manual(values = c("Prior" = "#0072B2",
+                                            "Likelihood" = "#E69F00",
+                                            "Posterior" = "#009E73")) +
+    ggplot2$labs(
+        title = "Bayesian Analysis of Treatment Effect",
+        subtitle = sprintf("%.0f%% probability of clinically meaningful effect (< -5 mmHg)",
+                           prob_meaningful * 100),
+        x = "Treatment Effect (mmHg)",
+        y = "Density",
+        colour = "",
+        caption = "MCID = Minimum Clinically Important Difference"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/clinical_trial_bayesian-1.png" alt="Complete Bayesian analysis of clinical trial data">
+	Complete Bayesian analysis of clinical trial data
+</Figure>
+
+```
+#> Bayesian Clinical Trial Analysis:
+#> ==================================
+#> 
+#> PRIOR BELIEFS:
+#>   Based on similar drugs, expect effect around -10 mmHg
+#>   Prior 95% interval: [ -19.8 , -0.2 ]
+#> 
+#> DATA:
+#>   Placebo (n = 25 ): mean = 142.8 mmHg
+#>   Drug (n = 25 ): mean = 126.1 mmHg
+#>   Observed effect: -16.7 mmHg (SE = 4.8 )
+#> 
+#> POSTERIOR:
+#>   Posterior mean effect: -13.5 mmHg
+#>   Posterior SD: 3.5 
+#>   95% Credible interval: [ -20.3 , -6.6 ]
+#> 
+#> CLINICAL DECISIONS:
+#>   P(effect < 0) = 100 %
+#>   P(effect < -5 mmHg) = 99.2 %
+#>   P(effect < -10 mmHg) = 84 %
+```
+
+### 8.24.2 Adaptive Clinical Trials
+
+**Prose and Intuition**
+
+Bayesian methods excel in **adaptive designs** where interim analyses guide trial conduct:
+
+1. **Sequential updating**: Update posterior as data accumulate
+2. **Stopping rules**: Stop for efficacy/futility based on posterior probabilities
+3. **Sample size re-estimation**: Adjust based on observed effects
+4. **Adaptive randomisation**: Assign more patients to better-performing arms
+
+
+``` r
+# Simulate interim analyses
+set.seed(123)
+
+# Generate full trial data
+n_total <- 100
+treatment_full <- rep(c("Placebo", "Drug"), each = n_total/2)
+response_full <- baseline_bp + rnorm(n_total, 0, 15) +
+                  ifelse(treatment_full == "Drug", true_effect, 0)
+
+# Interim analyses at 25%, 50%, 75%, 100%
+interim_points <- c(25, 50, 75, 100)
+
+# Track posterior evolution
+interim_results <- rbindlist(lapply(interim_points, function(n_current) {
+    # Data up to this point
+    idx <- 1:n_current
+    current_data <- data.table(
+        treatment = treatment_full[idx],
+        response = response_full[idx]
+    )
+
+    # Calculate effect
+    placebo_interim <- current_data[treatment == "Placebo", response]
+    drug_interim <- current_data[treatment == "Drug", response]
+    effect_interim <- mean(drug_interim) - mean(placebo_interim)
+    se_interim <- sqrt(var(placebo_interim)/length(placebo_interim) +
+                        var(drug_interim)/length(drug_interim))
+
+    # Update posterior
+    data_prec <- 1 / se_interim^2
+    post_prec <- prior_precision + data_prec
+    post_mean <- (prior_precision * prior_effect_mean + data_prec * effect_interim) / post_prec
+    post_sd <- sqrt(1 / post_prec)
+
+    # Posterior probabilities
+    p_effective <- pnorm(-5, post_mean, post_sd)
+    p_futile <- 1 - pnorm(0, post_mean, post_sd)
+
+    data.table(
+        n = n_current,
+        observed_effect = effect_interim,
+        posterior_mean = post_mean,
+        posterior_sd = post_sd,
+        ci_lower = qnorm(0.025, post_mean, post_sd),
+        ci_upper = qnorm(0.975, post_mean, post_sd),
+        p_effective = p_effective,
+        p_futile = p_futile
+    )
+}))
+
+cat("\nAdaptive Trial: Interim Analyses\n")
+cat("=================================\n\n")
+print(interim_results[, .(n,
+                          `Obs. Effect` = round(observed_effect, 1),
+                          `Post. Mean` = round(posterior_mean, 1),
+                          `95% CI` = paste0("[", round(ci_lower, 1), ", ", round(ci_upper, 1), "]"),
+                          `P(effective)` = round(p_effective * 100, 1))])
+
+cat("\nDecision rules:\n")
+cat("  Stop for efficacy if P(effect < -5) > 0.95\n")
+cat("  Stop for futility if P(effect > 0) > 0.90\n")
+
+# Plot evolution
+evolution_dt <- rbindlist(lapply(1:nrow(interim_results), function(i) {
+    row <- interim_results[i]
+    effect_vals <- seq(-30, 10, length.out = 100)
+    data.table(
+        effect = effect_vals,
+        density = dnorm(effect_vals, row$posterior_mean, row$posterior_sd),
+        n = paste0("n = ", row$n)
+    )
+}))
+
+evolution_dt[, n := factor(n, levels = paste0("n = ", interim_points))]
+
+ggplot2$ggplot(evolution_dt, ggplot2$aes(x = effect, y = density, colour = n)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = c(0, -5), linetype = c("dashed", "dotted"), colour = "grey50") +
+    ggplot2$scale_colour_viridis_d(option = "C", begin = 0.2, end = 0.8) +
+    ggplot2$labs(
+        title = "Sequential Posterior Updates: Adaptive Clinical Trial",
+        subtitle = "Posterior concentrates as evidence accumulates",
+        x = "Treatment Effect (mmHg)",
+        y = "Density",
+        colour = "Sample Size"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/adaptive_trial-1.png" alt="Sequential Bayesian updating in an adaptive trial">
+	Sequential Bayesian updating in an adaptive trial
+</Figure>
+
+```
+#> 
+#> Adaptive Trial: Interim Analyses
+#> =================================
+#> 
+#>        n Obs. Effect Post. Mean        95% CI P(effective)
+#>    <num>       <num>      <num>        <char>        <num>
+#> 1:    25         NaN         NA      [NA, NA]           NA
+#> 2:    50         NaN         NA      [NA, NA]           NA
+#> 3:    75       -10.4      -10.2 [-15.9, -4.6]         96.6
+#> 4:   100        -8.3       -8.7   [-13.4, -4]         93.8
+#> 
+#> Decision rules:
+#>   Stop for efficacy if P(effect < -5) > 0.95
+#>   Stop for futility if P(effect > 0) > 0.90
+```
+
+---
+
+## 8.25 Communicating Bayesian Model Comparison to Stakeholders
+
+**For Regulatory Bodies and Ethics Committees**
+
+When presenting Bayesian model comparison results:
+
+**1. Explain Bayes factors intuitively**
+
+Instead of: "The Bayes factor was 15.3 in favour of the alternative hypothesis"
+
+Say: "The data are about 15 times more likely under the hypothesis that the drug works than under the hypothesis of no effect. This constitutes strong evidence for a treatment benefit."
+
+**2. Present probability statements**
+
+- "There is a 92% probability that the treatment effect exceeds the minimum clinically important difference"
+- "The probability of a harmful effect is less than 2%"
+
+**3. Address prior choice transparently**
+
+- "We based our initial beliefs on three previous Phase II trials of similar drugs"
+- "Results remain qualitatively similar under different reasonable prior assumptions"
+- Show sensitivity analysis results
+
+**4. For adaptive trials, explain the benefits**
+
+- "The Bayesian design allows us to stop the trial early if the evidence becomes overwhelming, protecting patients from ineffective treatments"
+- "Continuous monitoring with Bayesian methods does not inflate error rates like repeated frequentist testing"
+
+---
+
+## 8.26 Summary and Key Takeaways
+
+**Model Comparison Methods**
+
+| Method | What it Measures | Advantages | Disadvantages |
+|--------|------------------|------------|---------------|
+| Bayes Factor | Relative evidence | Can support null; natural interpretation | Prior-sensitive |
+| WAIC/LOO | Predictive accuracy | Less prior-sensitive | Cannot support simpler model |
+| BMA | Weighted average | Accounts for model uncertainty | Computationally intensive |
+
+**Bayes Factor Interpretation**
+
+| BF₁₀ | Interpretation | Action |
+|------|----------------|--------|
+| > 100 | Extreme evidence for H₁ | Strong conclusion for effect |
+| 10-100 | Strong evidence | Publishable result |
+| 3-10 | Moderate evidence | More data helpful |
+| 1-3 | Anecdotal | Inconclusive |
+| 1/3-1 | Anecdotal for H₀ | Inconclusive |
+| 1/10-1/3 | Moderate for H₀ | Evidence for null |
+| < 1/10 | Strong for H₀ | Strong conclusion for no effect |
+
+**Key Bayesian Probabilities for Clinical Trials**
+
+- $P(\text{effect} < 0 | D)$: Probability treatment is beneficial
+- $P(\text{effect} < \text{MCID} | D)$: Probability of clinically meaningful benefit
+- $P(\text{effect} > \text{harm threshold} | D)$: Probability of harm
+
+**R Packages for Bayesian Model Comparison**
+
+| Package | Purpose |
+|---------|---------|
+| `BayesFactor` | Compute Bayes factors |
+| `bridgesampling` | Bridge sampling for BF |
+| `loo` | LOO-CV and WAIC |
+| `brms` | Full Bayesian modelling |
+| `BMS` | Bayesian model selection/averaging |
+
+---
+
+## 8.27 Exercises
+
+1. **Bayes factor calculation**: For a study with observed effect d = 0.5, n = 30 per group, calculate the Bayes factor comparing H₁: δ ≠ 0 to H₀: δ = 0 using a Cauchy(0, 0.707) prior.
+
+2. **Prior sensitivity**: Show how the Bayes factor from Exercise 1 changes with prior scales of 0.3, 0.707, and 1.5.
+
+3. **Model averaging**: Given three regression models with WAIC values of 245, 248, and 260, calculate the WAIC weights and model-averaged prediction at x = 5.
+
+4. **Adaptive trial design**: Design stopping rules for a Bayesian adaptive trial where you stop for efficacy if P(effective) > 0.99 and for futility if P(futile) > 0.95. What sample size do you need to have 80% power?
+
+5. **Stakeholder report**: Write a one-page summary of a Bayesian analysis for a drug regulatory submission, including prior justification, posterior summaries, and decision probabilities.
+
+---
+
+## 8.28 Course Summary: Bayesian Statistics
+
+Across three chapters, we have covered:
+
+**Part 1: Foundations**
+- Bayes' theorem and probability interpretation
+- Prior distributions and their roles
+- Conjugate analysis and posterior inference
+- Prior elicitation and sensitivity analysis
+
+**Part 2: Computation**
+- Monte Carlo integration
+- Markov Chain Monte Carlo (MCMC)
+- Metropolis algorithm
+- Diagnostics and convergence
+- Modern software (Stan, brms)
+
+**Part 3: Model Comparison**
+- Bayes factors and their interpretation
+- Information criteria (WAIC, LOO)
+- Bayesian model averaging
+- Clinical trial applications
+
+Bayesian statistics provides a coherent framework for:
+- Incorporating prior knowledge
+- Making direct probability statements
+- Handling complex models
+- Adaptive decision-making
+
+---
+
+## 8.29 References
+
+- Kass, R. E., & Raftery, A. E. (1995). Bayes factors. *Journal of the American Statistical Association*, 90(430), 773-795.
+- Vehtari, A., Gelman, A., & Gabry, J. (2017). Practical Bayesian model evaluation using leave-one-out cross-validation and WAIC. *Statistics and Computing*, 27(5), 1413-1432.
+- Hoeting, J. A., et al. (1999). Bayesian model averaging: A tutorial. *Statistical Science*, 14(4), 382-417.
+- FDA. (2010). *Guidance for the Use of Bayesian Statistics in Medical Device Clinical Trials*. US Food and Drug Administration.
+- Berry, S. M., et al. (2010). *Bayesian Adaptive Methods for Clinical Trials*. CRC Press.

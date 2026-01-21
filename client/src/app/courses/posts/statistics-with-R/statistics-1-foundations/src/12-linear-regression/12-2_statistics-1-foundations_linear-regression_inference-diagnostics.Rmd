@@ -1,0 +1,750 @@
+---
+title: "Regression Inference and Diagnostics"
+subtitle: "Part 2 of Chapter 12: Linear Regression"
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    collapse = FALSE, results = 'hold'
+)
+
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+## Table of Contents
+
+## 12.11 Model Diagnostics: Checking Assumptions
+
+The validity of regression inference depends on the model assumptions. This section covers how to diagnose violations and their consequences.
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+# Load NHANES data
+nhanes <- fread("../../../data/primary/nhanes.csv")
+
+# Create analysis dataset
+set.seed(123)
+reg_data <- nhanes[!is.na(Height) & !is.na(Weight) & Age >= 18]
+sample_data <- reg_data[sample(.N, 500)]
+
+# Fit the model
+model <- lm(Weight ~ Height, data = sample_data)
+```
+
+---
+
+## 12.12 Residual Analysis
+
+### 12.12.1 Types of Residuals
+
+Three types of residuals are commonly used:
+
+1. **Raw residuals**: $e_i = Y_i - \hat{Y}_i$
+2. **Standardised residuals**: $r_i = e_i / \hat{\sigma}$
+3. **Studentised residuals**: $t_i = e_i / (s_{-i}\sqrt{1 - h_{ii}})$
+
+Where $h_{ii}$ is the leverage (diagonal of the hat matrix) and $s_{-i}$ is the standard error computed without observation $i$.
+
+```{r residual_types}
+# Extract different residual types
+sample_data[, `:=`(
+    raw_resid = residuals(model),
+    std_resid = rstandard(model),      # Standardised
+    stud_resid = rstudent(model),      # Studentised (external)
+    fitted = fitted(model),
+    leverage = hatvalues(model)
+)]
+
+cat("Comparison of Residual Types\n")
+cat("============================\n\n")
+print(sample_data[1:10, .(Height, Weight, fitted, raw_resid, std_resid, stud_resid)])
+```
+
+### 12.12.2 Residual Plots
+
+The four standard diagnostic plots assess different assumptions:
+
+```{r diagnostic_plots}
+# Create diagnostic data
+diag_data <- data.table(
+    fitted = fitted(model),
+    residuals = residuals(model),
+    std_resid = rstandard(model),
+    leverage = hatvalues(model),
+    cooks_d = cooks.distance(model)
+)
+
+# 1. Residuals vs Fitted (linearity, homoscedasticity)
+p1 <- ggplot2$ggplot(diag_data, ggplot2$aes(x = fitted, y = residuals)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_smooth(method = "loess", se = FALSE, colour = "#009E73") +
+    ggplot2$labs(
+        title = "1. Residuals vs Fitted",
+        subtitle = "Check: Linearity and homoscedasticity",
+        x = "Fitted Values",
+        y = "Residuals"
+    ) +
+    ggplot2$theme_minimal(base_size = 11)
+
+# 2. Q-Q Plot (normality)
+p2 <- ggplot2$ggplot(diag_data, ggplot2$aes(sample = std_resid)) +
+    ggplot2$stat_qq(colour = "#0072B2", alpha = 0.5) +
+    ggplot2$stat_qq_line(colour = "#D55E00", linewidth = 1) +
+    ggplot2$labs(
+        title = "2. Normal Q-Q Plot",
+        subtitle = "Check: Normality of residuals",
+        x = "Theoretical Quantiles",
+        y = "Standardised Residuals"
+    ) +
+    ggplot2$theme_minimal(base_size = 11)
+
+# 3. Scale-Location (homoscedasticity)
+p3 <- ggplot2$ggplot(diag_data, ggplot2$aes(x = fitted, y = sqrt(abs(std_resid)))) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_smooth(method = "loess", se = FALSE, colour = "#009E73") +
+    ggplot2$labs(
+        title = "3. Scale-Location",
+        subtitle = "Check: Homoscedasticity (equal variance)",
+        x = "Fitted Values",
+        y = expression(sqrt("|Standardised Residuals|"))
+    ) +
+    ggplot2$theme_minimal(base_size = 11)
+
+# 4. Residuals vs Leverage (influential points)
+p4 <- ggplot2$ggplot(diag_data, ggplot2$aes(x = leverage, y = std_resid)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_vline(xintercept = 2 * 2 / nrow(sample_data), linetype = "dashed", colour = "#009E73") +
+    ggplot2$labs(
+        title = "4. Residuals vs Leverage",
+        subtitle = "Check: Influential observations",
+        x = "Leverage",
+        y = "Standardised Residuals"
+    ) +
+    ggplot2$theme_minimal(base_size = 11)
+
+print(p1)
+print(p2)
+print(p3)
+print(p4)
+```
+
+---
+
+## 12.13 Checking Linearity
+
+### 12.13.1 What to Look For
+
+In the residuals vs fitted plot, look for:
+- **Random scatter**: Good—linearity assumption met
+- **Curved pattern**: Bad—relationship may be non-linear
+
+```{r linearity_examples}
+# Create examples of linear and non-linear relationships
+set.seed(456)
+n <- 200
+x <- runif(n, 0, 10)
+
+# Linear relationship
+y_linear <- 2 + 3 * x + rnorm(n, 0, 3)
+# Quadratic relationship
+y_quadratic <- 2 + 3 * x - 0.3 * x^2 + rnorm(n, 0, 2)
+
+examples <- data.table(
+    x = rep(x, 2),
+    y = c(y_linear, y_quadratic),
+    type = rep(c("Linear (Assumption Met)", "Non-linear (Violation)"), each = n)
+)
+
+# Fit linear models to both
+model_lin <- lm(y_linear ~ x)
+model_quad <- lm(y_quadratic ~ x)
+
+resid_examples <- data.table(
+    fitted = c(fitted(model_lin), fitted(model_quad)),
+    residuals = c(residuals(model_lin), residuals(model_quad)),
+    type = rep(c("Linear (Assumption Met)", "Non-linear (Violation)"), each = n)
+)
+
+ggplot2$ggplot(resid_examples, ggplot2$aes(x = fitted, y = residuals)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_smooth(method = "loess", se = FALSE, colour = "#009E73") +
+    ggplot2$facet_wrap(~type) +
+    ggplot2$labs(
+        title = "Detecting Non-Linearity in Residual Plots",
+        subtitle = "Left: random scatter (good); Right: curved pattern (violation)",
+        x = "Fitted Values",
+        y = "Residuals"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 12.13.2 Solutions for Non-Linearity
+
+1. **Transform predictor**: Use $\log(X)$, $\sqrt{X}$, or $X^2$
+2. **Transform response**: Use $\log(Y)$ or $\sqrt{Y}$
+3. **Add polynomial terms**: Include $X^2$, $X^3$, etc.
+4. **Use non-linear models**: Generalised additive models (GAMs)
+
+---
+
+## 12.14 Checking Homoscedasticity
+
+### 12.14.1 Constant Variance Assumption
+
+Homoscedasticity means the variance of residuals is constant across all levels of the predictor.
+
+**Heteroscedasticity** (non-constant variance) appears as:
+- Fan or funnel shapes in residual plots
+- Increasing or decreasing spread as fitted values increase
+
+```{r heteroscedasticity_examples}
+# Create examples
+set.seed(789)
+x <- runif(n, 1, 10)
+
+# Homoscedastic
+y_homo <- 2 + 3 * x + rnorm(n, 0, 3)
+# Heteroscedastic (variance increases with x)
+y_hetero <- 2 + 3 * x + rnorm(n, 0, 0.5 * x)
+
+# Fit models
+model_homo <- lm(y_homo ~ x)
+model_hetero <- lm(y_hetero ~ x)
+
+var_examples <- data.table(
+    fitted = c(fitted(model_homo), fitted(model_hetero)),
+    residuals = c(residuals(model_homo), residuals(model_hetero)),
+    type = rep(c("Homoscedastic (Good)", "Heteroscedastic (Violation)"), each = n)
+)
+
+ggplot2$ggplot(var_examples, ggplot2$aes(x = fitted, y = residuals)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$facet_wrap(~type) +
+    ggplot2$labs(
+        title = "Detecting Heteroscedasticity",
+        subtitle = "Left: constant spread (good); Right: increasing spread (violation)",
+        x = "Fitted Values",
+        y = "Residuals"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 12.14.2 Formal Tests for Heteroscedasticity
+
+**Breusch-Pagan Test** tests $H_0$: Homoscedasticity vs $H_1$: Heteroscedasticity
+
+```{r bp_test}
+# Manual Breusch-Pagan test
+resid_sq <- residuals(model_hetero)^2
+bp_model <- lm(resid_sq ~ x)
+bp_r2 <- summary(bp_model)$r.squared
+bp_stat <- n * bp_r2
+bp_pvalue <- pchisq(bp_stat, df = 1, lower.tail = FALSE)
+
+cat("Breusch-Pagan Test for Heteroscedasticity\n")
+cat("=========================================\n\n")
+cat("H₀: Constant variance (homoscedasticity)\n")
+cat("H₁: Variance depends on fitted values\n\n")
+cat(sprintf("Test statistic: BP = n × R² = %d × %.4f = %.3f\n", n, bp_r2, bp_stat))
+cat(sprintf("p-value: %.4f\n\n", bp_pvalue))
+
+if (bp_pvalue < 0.05) {
+    cat("Conclusion: Reject H₀. Evidence of heteroscedasticity.\n")
+} else {
+    cat("Conclusion: Fail to reject H₀. No evidence of heteroscedasticity.\n")
+}
+```
+
+### 12.14.3 Consequences and Solutions
+
+**Consequences of heteroscedasticity:**
+- OLS estimates remain unbiased
+- Standard errors are biased (usually underestimated)
+- t-tests and confidence intervals are invalid
+
+**Solutions:**
+1. **Transform response**: Often $\log(Y)$ stabilises variance
+2. **Weighted least squares**: Down-weight high-variance observations
+3. **Robust standard errors**: Use heteroscedasticity-consistent (HC) standard errors
+
+---
+
+## 12.15 Checking Normality
+
+### 12.15.1 Q-Q Plots
+
+The Q-Q plot compares the distribution of residuals to a theoretical normal distribution.
+
+```{r normality_examples}
+# Create examples
+set.seed(101)
+
+# Normal residuals
+y_normal <- 2 + 3 * x + rnorm(n, 0, 3)
+# Heavy-tailed residuals (t-distribution)
+y_heavy <- 2 + 3 * x + rt(n, df = 3) * 2
+# Skewed residuals
+y_skew <- 2 + 3 * x + rexp(n, 0.5) - 2
+
+models <- list(
+    Normal = lm(y_normal ~ x),
+    HeavyTails = lm(y_heavy ~ x),
+    Skewed = lm(y_skew ~ x)
+)
+
+qq_data <- rbindlist(lapply(names(models), function(nm) {
+    data.table(
+        std_resid = rstandard(models[[nm]]),
+        type = nm
+    )
+}))
+
+qq_data[, type := factor(type, levels = c("Normal", "HeavyTails", "Skewed"))]
+
+ggplot2$ggplot(qq_data, ggplot2$aes(sample = std_resid)) +
+    ggplot2$stat_qq(colour = "#0072B2", alpha = 0.5) +
+    ggplot2$stat_qq_line(colour = "#D55E00", linewidth = 1) +
+    ggplot2$facet_wrap(~type) +
+    ggplot2$labs(
+        title = "Q-Q Plot Patterns",
+        subtitle = "Normal: straight line; Heavy tails: S-curve; Skewed: curved",
+        x = "Theoretical Quantiles",
+        y = "Sample Quantiles"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 12.15.2 Formal Normality Tests
+
+**Shapiro-Wilk Test** is recommended for moderate sample sizes (n < 5000).
+
+```{r shapiro_test}
+# Test residuals from our height-weight model
+sw_test <- shapiro.test(residuals(model))
+
+cat("Shapiro-Wilk Test for Normality of Residuals\n")
+cat("=============================================\n\n")
+cat("H₀: Residuals are normally distributed\n")
+cat("H₁: Residuals are not normally distributed\n\n")
+cat(sprintf("W = %.4f\n", sw_test$statistic))
+cat(sprintf("p-value = %.4f\n\n", sw_test$p.value))
+
+if (sw_test$p.value < 0.05) {
+    cat("Conclusion: Evidence against normality.\n")
+    cat("          However, regression is robust to moderate departures\n")
+    cat("          from normality with large samples (CLT applies).\n")
+} else {
+    cat("Conclusion: No evidence against normality.\n")
+}
+```
+
+### 12.15.3 When Does Normality Matter?
+
+**Normality matters for:**
+- Small sample inference (t-tests, F-tests, confidence intervals)
+- Prediction intervals
+
+**Normality matters less when:**
+- Sample size is large (n > 30-50): CLT ensures approximately normal sampling distributions
+- Only using the model for estimation (not prediction intervals)
+
+---
+
+## 12.16 Influential Observations
+
+### 12.16.1 Leverage
+
+**Leverage** measures how unusual an observation's predictor value is. High-leverage points have the potential to influence the regression line.
+
+$$h_{ii} = \frac{1}{n} + \frac{(X_i - \bar{X})^2}{\sum_{j=1}^n (X_j - \bar{X})^2}$$
+
+Rule of thumb: Points with $h_{ii} > 2p/n$ deserve attention (where $p$ is the number of parameters).
+
+```{r leverage}
+# Calculate leverage
+sample_data[, leverage := hatvalues(model)]
+
+# Threshold
+p <- 2  # intercept + slope
+leverage_threshold <- 2 * p / nrow(sample_data)
+
+# Count high leverage points
+high_leverage <- sample_data[leverage > leverage_threshold]
+
+cat("Leverage Analysis\n")
+cat("=================\n\n")
+cat(sprintf("Mean leverage: %.4f\n", mean(sample_data$leverage)))
+cat(sprintf("Threshold (2p/n): %.4f\n", leverage_threshold))
+cat(sprintf("Points with high leverage: %d (%.1f%%)\n\n",
+            nrow(high_leverage), 100 * nrow(high_leverage) / nrow(sample_data)))
+
+# Visualise
+ggplot2$ggplot(sample_data, ggplot2$aes(x = Height, y = leverage)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = leverage_threshold, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$labs(
+        title = "Leverage Values",
+        subtitle = "Points far from the mean of X have higher leverage",
+        x = "Height (cm)",
+        y = "Leverage (hᵢᵢ)"
+    ) +
+    ggplot2$annotate("text", x = max(sample_data$Height) - 5, y = leverage_threshold + 0.002,
+                     label = "Threshold = 2p/n", colour = "#D55E00") +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 12.16.2 Cook's Distance
+
+**Cook's Distance** combines leverage and residual size to measure overall influence on the fitted values:
+
+$$D_i = \frac{e_i^2}{p \cdot \text{MSE}} \times \frac{h_{ii}}{(1 - h_{ii})^2}$$
+
+Common thresholds: $D_i > 1$ or $D_i > 4/n$
+
+```{r cooks_distance}
+# Calculate Cook's distance
+sample_data[, cooks_d := cooks.distance(model)]
+
+# Thresholds
+threshold_1 <- 1
+threshold_4n <- 4 / nrow(sample_data)
+
+# Identify influential points
+influential <- sample_data[cooks_d > threshold_4n]
+
+cat("Cook's Distance Analysis\n")
+cat("========================\n\n")
+cat(sprintf("Threshold 4/n: %.4f\n", threshold_4n))
+cat(sprintf("Observations exceeding threshold: %d\n\n", nrow(influential)))
+
+# Show most influential points
+cat("Top 10 Most Influential Points:\n")
+print(sample_data[order(-cooks_d)][1:10, .(Height, Weight, leverage, std_resid, cooks_d)])
+```
+
+```{r cooks_plot}
+# Create index for plotting
+sample_data[, obs := .I]
+
+ggplot2$ggplot(sample_data, ggplot2$aes(x = obs, y = cooks_d)) +
+    ggplot2$geom_segment(ggplot2$aes(xend = obs, yend = 0), colour = "#0072B2", alpha = 0.5) +
+    ggplot2$geom_point(colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = threshold_4n, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$labs(
+        title = "Cook's Distance",
+        subtitle = "Identifying influential observations",
+        x = "Observation Index",
+        y = "Cook's Distance"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 12.16.3 Influence Plot
+
+An influence plot combines residuals, leverage, and Cook's distance:
+
+```{r influence_plot}
+# Create influence plot
+sample_data[, influential := cooks_d > threshold_4n]
+
+ggplot2$ggplot(sample_data, ggplot2$aes(x = leverage, y = std_resid)) +
+    ggplot2$geom_point(ggplot2$aes(size = cooks_d, colour = influential), alpha = 0.6) +
+    ggplot2$scale_size_continuous(range = c(1, 8), name = "Cook's D") +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00"), name = "Influential") +
+    ggplot2$geom_hline(yintercept = c(-2, 0, 2), linetype = c("dashed", "solid", "dashed"),
+                       colour = c("#E69F00", "black", "#E69F00")) +
+    ggplot2$geom_vline(xintercept = leverage_threshold, linetype = "dashed", colour = "#009E73") +
+    ggplot2$labs(
+        title = "Influence Plot",
+        subtitle = "Size shows Cook's D; Colour shows influential (> 4/n)",
+        x = "Leverage",
+        y = "Standardised Residuals"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 12.16.4 What to Do with Influential Points
+
+1. **Investigate**: Are they data entry errors? Special cases?
+2. **Run sensitivity analysis**: Fit with and without the point
+3. **Report both analyses**: Show robustness (or lack thereof)
+4. **Don't automatically remove**: May contain valuable information
+
+```{r sensitivity_analysis}
+# Compare model with and without most influential point
+most_influential <- which.max(sample_data$cooks_d)
+
+model_all <- lm(Weight ~ Height, data = sample_data)
+model_without <- lm(Weight ~ Height, data = sample_data[-most_influential])
+
+cat("Sensitivity Analysis: Most Influential Observation\n")
+cat("===================================================\n\n")
+cat("Observation details:\n")
+print(sample_data[most_influential, .(Height, Weight, std_resid, leverage, cooks_d)])
+
+cat("\n\nCoefficient Comparison:\n")
+coef_compare <- data.table(
+    Parameter = c("Intercept", "Slope"),
+    With_All = coef(model_all),
+    Without = coef(model_without),
+    Change_Pct = 100 * (coef(model_without) - coef(model_all)) / coef(model_all)
+)
+print(coef_compare)
+
+cat("\nR² Comparison:\n")
+cat(sprintf("With all data: %.4f\n", summary(model_all)$r.squared))
+cat(sprintf("Without influential point: %.4f\n", summary(model_without)$r.squared))
+```
+
+---
+
+## 12.17 DFBETAS and DFFITS
+
+### 12.17.1 DFBETAS
+
+DFBETAS measures how much each coefficient changes when observation $i$ is removed:
+
+$$\text{DFBETAS}_{j,i} = \frac{\hat{\beta}_j - \hat{\beta}_{j(-i)}}{\text{SE}(\hat{\beta}_j)_{(-i)}}$$
+
+```{r dfbetas}
+# Calculate DFBETAS
+dfb <- dfbetas(model)
+sample_data[, dfbeta_intercept := dfb[, 1]]
+sample_data[, dfbeta_slope := dfb[, 2]]
+
+# Threshold
+dfbetas_threshold <- 2 / sqrt(nrow(sample_data))
+
+cat("DFBETAS Analysis\n")
+cat("================\n\n")
+cat(sprintf("Threshold: 2/√n = %.4f\n\n", dfbetas_threshold))
+
+cat("Observations with large DFBETAS for slope:\n")
+large_dfbeta <- sample_data[abs(dfbeta_slope) > dfbetas_threshold]
+print(large_dfbeta[order(-abs(dfbeta_slope))][1:5, .(Height, Weight, dfbeta_slope)])
+```
+
+### 12.17.2 DFFITS
+
+DFFITS measures the scaled difference in fitted values when observation $i$ is removed:
+
+$$\text{DFFITS}_i = \frac{\hat{Y}_i - \hat{Y}_{i(-i)}}{\hat{\sigma}_{(-i)}\sqrt{h_{ii}}}$$
+
+```{r dffits}
+# Calculate DFFITS
+sample_data[, dffits := dffits(model)]
+
+# Threshold
+dffits_threshold <- 2 * sqrt(p / nrow(sample_data))
+
+cat("DFFITS Analysis\n")
+cat("===============\n\n")
+cat(sprintf("Threshold: 2√(p/n) = %.4f\n\n", dffits_threshold))
+
+cat("Observations with large DFFITS:\n")
+large_dffits <- sample_data[abs(dffits) > dffits_threshold]
+print(large_dffits[order(-abs(dffits))][1:5, .(Height, Weight, dffits, cooks_d)])
+```
+
+---
+
+## 12.18 Transformations
+
+### 12.18.1 Log Transformation
+
+The log transformation is commonly used when:
+- Response is strictly positive
+- Variance increases with the mean
+- Relationship is multiplicative
+
+```{r log_transform}
+# Example with income data (simulated)
+set.seed(202)
+years_exp <- runif(100, 0, 30)
+income <- exp(10 + 0.05 * years_exp + rnorm(100, 0, 0.5))  # Log-linear relationship
+
+income_data <- data.table(years = years_exp, income = income)
+
+# Compare models
+model_raw <- lm(income ~ years, data = income_data)
+model_log <- lm(log(income) ~ years, data = income_data)
+
+# Plot comparison
+p1 <- ggplot2$ggplot(income_data, ggplot2$aes(x = years, y = income)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_smooth(method = "lm", colour = "#D55E00") +
+    ggplot2$labs(title = "Raw Scale", x = "Years Experience", y = "Income") +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(income_data, ggplot2$aes(x = years, y = log(income))) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_smooth(method = "lm", colour = "#D55E00") +
+    ggplot2$labs(title = "Log Scale", x = "Years Experience", y = "log(Income)") +
+    ggplot2$theme_minimal()
+
+print(p1)
+print(p2)
+
+cat("\nModel Comparison\n")
+cat("================\n\n")
+cat(sprintf("Raw model R²: %.4f\n", summary(model_raw)$r.squared))
+cat(sprintf("Log model R²: %.4f\n", summary(model_log)$r.squared))
+```
+
+### 12.18.2 Interpreting Log-Transformed Models
+
+For $\log(Y) = \beta_0 + \beta_1 X$:
+
+- A one-unit increase in $X$ is associated with approximately a $100 \times \beta_1$% change in $Y$ (for small $\beta_1$)
+- More precisely: $Y$ is multiplied by $e^{\beta_1}$
+
+```{r log_interpretation}
+cat("Interpreting the Log Model\n")
+cat("==========================\n\n")
+cat(sprintf("Slope: %.4f\n", coef(model_log)[2]))
+cat(sprintf("\nInterpretation:\n"))
+cat(sprintf("Each additional year of experience is associated with\n"))
+cat(sprintf("approximately a %.1f%% increase in income.\n", 100 * coef(model_log)[2]))
+cat(sprintf("\nExact multiplier: e^%.4f = %.4f\n",
+            coef(model_log)[2], exp(coef(model_log)[2])))
+```
+
+### 12.18.3 Box-Cox Transformation
+
+The Box-Cox transformation finds the optimal power transformation:
+
+$$Y^{(\lambda)} = \begin{cases} \frac{Y^\lambda - 1}{\lambda} & \lambda \neq 0 \\ \log(Y) & \lambda = 0 \end{cases}$$
+
+```{r boxcox}
+# Box-Cox for our height-weight model
+# Note: Response must be positive
+positive_data <- sample_data[Weight > 0]
+
+# Calculate log-likelihood for different lambda values
+lambda_seq <- seq(-2, 2, by = 0.1)
+
+boxcox_ll <- sapply(lambda_seq, function(lam) {
+    if (abs(lam) < 0.001) {
+        y_trans <- log(positive_data$Weight)
+    } else {
+        y_trans <- (positive_data$Weight^lam - 1) / lam
+    }
+    mod <- lm(y_trans ~ Height, data = positive_data)
+    # Jacobian adjustment
+    n <- nrow(positive_data)
+    ll <- -n/2 * log(sum(residuals(mod)^2)/n) + (lam - 1) * sum(log(positive_data$Weight))
+    return(ll)
+})
+
+bc_data <- data.table(lambda = lambda_seq, loglik = boxcox_ll)
+best_lambda <- lambda_seq[which.max(boxcox_ll)]
+
+ggplot2$ggplot(bc_data, ggplot2$aes(x = lambda, y = loglik)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = best_lambda, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_vline(xintercept = 1, linetype = "dotted", colour = "#009E73") +
+    ggplot2$labs(
+        title = "Box-Cox Transformation",
+        subtitle = sprintf("Optimal λ = %.1f; λ = 1 means no transformation needed", best_lambda),
+        x = "λ",
+        y = "Log-Likelihood"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 12.19 Communicating Diagnostic Findings
+
+### 12.19.1 Reporting Diagnostics
+
+When reporting regression diagnostics:
+
+1. **State assumptions checked**: Linearity, homoscedasticity, normality, influential points
+2. **Describe diagnostic approach**: Which plots and tests were used
+3. **Report findings**: Any violations detected
+4. **Describe remedies applied**: Transformations, robust methods, sensitivity analyses
+5. **Acknowledge limitations**: What couldn't be fixed
+
+```{r diagnostic_report}
+cat("Example Diagnostic Report\n")
+cat("=========================\n\n")
+
+cat("Model Diagnostics:\n\n")
+
+cat("1. Linearity: The residuals vs fitted plot showed no systematic pattern,\n")
+cat("   suggesting the linear assumption is reasonable.\n\n")
+
+cat("2. Homoscedasticity: The scale-location plot showed approximately constant\n")
+cat("   spread across fitted values. No formal test was significant.\n\n")
+
+# Actually run Shapiro-Wilk
+sw <- shapiro.test(residuals(model))
+cat(sprintf("3. Normality: The Q-Q plot showed minor deviations in the tails.\n"))
+cat(sprintf("   Shapiro-Wilk test: W = %.3f, p = %.3f. With n = %d,\n",
+            sw$statistic, sw$p.value, nrow(sample_data)))
+cat("   inference remains valid by CLT.\n\n")
+
+cat(sprintf("4. Influential observations: %d observations had Cook's D > 4/n.\n",
+            sum(sample_data$cooks_d > 4/nrow(sample_data))))
+cat("   Sensitivity analysis showed coefficients stable when these\n")
+cat("   observations were excluded (slope changed by < 5%).\n")
+```
+
+---
+
+## Quick Reference
+
+### Diagnostic Checks
+
+| Assumption | Plot | Test | Remedy |
+|------------|------|------|--------|
+| Linearity | Residuals vs Fitted | - | Transform X or Y, add polynomial |
+| Homoscedasticity | Scale-Location | Breusch-Pagan | Transform Y, WLS, robust SE |
+| Normality | Q-Q Plot | Shapiro-Wilk | Transform Y (large n: less critical) |
+| Independence | Residuals vs Order | Durbin-Watson | Model time structure |
+| Influential points | Influence plot | Cook's D, DFBETAS | Investigate, sensitivity analysis |
+
+### Thresholds
+
+| Measure | Threshold | Meaning |
+|---------|-----------|---------|
+| Leverage | $> 2p/n$ | Unusual predictor value |
+| Cook's D | $> 4/n$ or $> 1$ | Influential on all fitted values |
+| DFBETAS | $> 2/\sqrt{n}$ | Influential on specific coefficient |
+| DFFITS | $> 2\sqrt{p/n}$ | Influential on specific fitted value |
+| Standardised residual | $> 2$ or $< -2$ | Potential outlier |
+
+### R Functions
+
+| Function | Purpose |
+|----------|---------|
+| `rstandard(model)` | Standardised residuals |
+| `rstudent(model)` | Studentised residuals |
+| `hatvalues(model)` | Leverage values |
+| `cooks.distance(model)` | Cook's distance |
+| `dfbetas(model)` | DFBETAS |
+| `dffits(model)` | DFFITS |
+| `plot(model)` | Four diagnostic plots |
+

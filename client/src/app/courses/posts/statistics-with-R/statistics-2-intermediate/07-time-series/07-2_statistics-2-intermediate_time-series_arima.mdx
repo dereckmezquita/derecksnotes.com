@@ -1,0 +1,1243 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 7: Time Series Analysis"
+part: "Part 2: ARIMA Models"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, time-series, arima, forecasting, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: ARIMA Models
+
+Having explored the fundamental concepts of time series structure and decomposition in Part 1, we now turn to the Box-Jenkins methodology—the workhorse of classical time series modelling. ARIMA models (AutoRegressive Integrated Moving Average) provide a flexible framework for capturing complex temporal dependencies and generating forecasts. This chapter develops the theoretical foundations and practical application of these models.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load time series datasets
+deaths <- fread("../../../data/time-series/us_accidental_deaths.csv")
+influenza <- fread("../../../data/time-series/influenza_germany_weekly.csv")
+hospital <- fread("../../../data/time-series/hospital_admissions_monthly.csv")
+
+cat("Datasets loaded:\n")
+cat("  US accidental deaths:", nrow(deaths), "observations\n")
+cat("  Influenza Germany:", nrow(influenza), "observations\n")
+cat("  Hospital admissions:", nrow(hospital), "observations\n")
+```
+
+```
+#> Datasets loaded:
+#>   US accidental deaths: 72 observations
+#>   Influenza Germany: 416 observations
+#>   Hospital admissions: 120 observations
+```
+
+---
+
+## Table of Contents
+
+## 7.5 Stationarity: The Foundation of ARIMA
+
+### 7.5.1 What is Stationarity?
+
+**Prose and Intuition**
+
+A time series is **stationary** when its statistical properties—mean, variance, and autocorrelation structure—remain constant over time. Think of it like a calm river: the water level fluctuates randomly around a constant average, the size of fluctuations stays consistent, and the correlation between today's level and yesterday's level doesn't depend on which day we choose. The river has no overall trend, no seasonal flooding pattern, and no periods of unusual volatility.
+
+**Why does stationarity matter?** ARIMA models assume stationarity because:
+1. **Estimation becomes possible**: If the mean changes over time, we cannot estimate a single value for it
+2. **Forecasts become meaningful**: We can only forecast the "typical" behaviour if such typicality exists
+3. **Inference is valid**: Standard errors and confidence intervals require stable variance
+
+Most real-world biomedical time series are **not** stationary—hospital admissions grow over time, disease incidence has seasonal patterns, mortality rates show trends. The "I" in ARIMA (Integration) addresses this by differencing the series to achieve stationarity.
+
+**Visualisation**
+
+
+``` r
+set.seed(42)
+n <- 200
+
+# Stationary: AR(1) process with |phi| < 1
+stationary <- numeric(n)
+stationary[1] <- 0
+for (i in 2:n) {
+    stationary[i] <- 0.6 * stationary[i-1] + rnorm(1)
+}
+
+# Non-stationary: Random walk
+random_walk <- cumsum(rnorm(n))
+
+# Non-stationary: Trend + seasonal
+trend_seasonal <- 0.1 * (1:n) + 3 * sin(2 * pi * (1:n) / 12) + rnorm(n, sd = 0.5)
+
+# Combine for plotting
+plot_dt <- data.table(
+    time = rep(1:n, 3),
+    value = c(stationary, random_walk, trend_seasonal),
+    type = factor(rep(c("Stationary AR(1)", "Random Walk", "Trend + Seasonal"), each = n),
+                  levels = c("Stationary AR(1)", "Random Walk", "Trend + Seasonal"))
+)
+
+ggplot2$ggplot(plot_dt, ggplot2$aes(x = time, y = value)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$facet_wrap(~type, scales = "free_y", ncol = 1) +
+    ggplot2$labs(
+        title = "Stationary vs Non-Stationary Time Series",
+        subtitle = "Only the stationary process has constant mean and variance over time",
+        x = "Time",
+        y = "Value"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(size = 11, face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/stationary_nonstationary-1.png" alt="Comparison of stationary and non-stationary time series processes">
+	Comparison of stationary and non-stationary time series processes
+</Figure>
+
+### 7.5.2 Formal Definition
+
+**Mathematical Derivation**
+
+A time series $\{Y_t\}$ is **strictly stationary** if the joint distribution of $(Y_{t_1}, Y_{t_2}, \ldots, Y_{t_k})$ is identical to that of $(Y_{t_1+h}, Y_{t_2+h}, \ldots, Y_{t_k+h})$ for all choices of times $t_1, \ldots, t_k$ and all lags $h$.
+
+In practice, we work with **weak (covariance) stationarity**, which requires:
+
+1. **Constant mean**: $\mathbb{E}[Y_t] = \mu$ for all $t$
+
+2. **Constant variance**: $\text{Var}(Y_t) = \sigma^2$ for all $t$
+
+3. **Autocovariance depends only on lag**: $\text{Cov}(Y_t, Y_{t+h}) = \gamma(h)$ for all $t$
+
+The autocovariance function $\gamma(h) = \text{Cov}(Y_t, Y_{t+h})$ depends only on the lag $h$, not on the time $t$. This gives rise to the autocorrelation function:
+$$\rho(h) = \frac{\gamma(h)}{\gamma(0)} = \frac{\text{Cov}(Y_t, Y_{t+h})}{\text{Var}(Y_t)}$$
+
+**Testing for Stationarity**
+
+The **Augmented Dickey-Fuller (ADF) test** tests the null hypothesis that the series has a unit root (is non-stationary):
+$$\Delta Y_t = \alpha + \beta t + (\rho - 1) Y_{t-1} + \sum_{j=1}^{p} \phi_j \Delta Y_{t-j} + \varepsilon_t$$
+
+Under $H_0$: $\rho = 1$ (unit root, non-stationary)
+Under $H_1$: $|\rho| < 1$ (stationary)
+
+The **KPSS test** reverses the hypotheses—null is stationarity.
+
+
+``` r
+# Test the series we created
+adf_stationary <- tseries::adf.test(stationary)
+```
+
+```
+#> Registered S3 method overwritten by 'quantmod':
+#>   method            from
+#>   as.zoo.data.frame zoo
+```
+
+``` r
+adf_random_walk <- tseries::adf.test(random_walk)
+kpss_stationary <- tseries::kpss.test(stationary)
+kpss_random_walk <- tseries::kpss.test(random_walk)
+
+cat("Stationarity Tests:\n")
+cat("===================\n\n")
+
+cat("Stationary AR(1) Process:\n")
+cat("  ADF test: p-value =", round(adf_stationary$p.value, 4),
+    ifelse(adf_stationary$p.value < 0.05, "(STATIONARY)", "(non-stationary)"), "\n")
+cat("  KPSS test: p-value =", round(kpss_stationary$p.value, 4),
+    ifelse(kpss_stationary$p.value > 0.05, "(STATIONARY)", "(non-stationary)"), "\n\n")
+
+cat("Random Walk:\n")
+cat("  ADF test: p-value =", round(adf_random_walk$p.value, 4),
+    ifelse(adf_random_walk$p.value < 0.05, "(stationary)", "(NON-STATIONARY)"), "\n")
+cat("  KPSS test: p-value =", round(kpss_random_walk$p.value, 4),
+    ifelse(kpss_random_walk$p.value > 0.05, "(stationary)", "(NON-STATIONARY)"), "\n")
+```
+
+```
+#> Stationarity Tests:
+#> ===================
+#> 
+#> Stationary AR(1) Process:
+#>   ADF test: p-value = 0.01 (STATIONARY) 
+#>   KPSS test: p-value = 0.1 (STATIONARY) 
+#> 
+#> Random Walk:
+#>   ADF test: p-value = 0.5185 (NON-STATIONARY) 
+#>   KPSS test: p-value = 0.0276 (NON-STATIONARY)
+```
+
+### 7.5.3 Achieving Stationarity Through Differencing
+
+**Prose and Intuition**
+
+When a series is non-stationary, we can often achieve stationarity by **differencing**—subtracting each observation from the previous one. This removes trends and stabilises the mean.
+
+- **First difference**: $\nabla Y_t = Y_t - Y_{t-1}$ removes linear trends
+- **Second difference**: $\nabla^2 Y_t = \nabla(\nabla Y_t) = Y_t - 2Y_{t-1} + Y_{t-2}$ removes quadratic trends
+- **Seasonal difference**: $\nabla_s Y_t = Y_t - Y_{t-s}$ removes seasonal patterns
+
+The "I" in ARIMA(p,d,q) refers to integration order $d$—the number of differences needed.
+
+**Visualisation**
+
+
+``` r
+# Differencing a random walk gives white noise
+diff_rw <- diff(random_walk)
+
+# Combine for plotting
+diff_dt <- data.table(
+    time = c(1:n, 2:n),
+    value = c(random_walk, diff_rw),
+    type = factor(rep(c("Original (Random Walk)", "First Difference (White Noise)"),
+                      c(n, n-1)),
+                  levels = c("Original (Random Walk)", "First Difference (White Noise)"))
+)
+
+ggplot2$ggplot(diff_dt, ggplot2$aes(x = time, y = value)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$facet_wrap(~type, scales = "free_y", ncol = 1) +
+    ggplot2$geom_hline(data = data.table(type = factor("First Difference (White Noise)",
+                                                        levels = c("Original (Random Walk)",
+                                                                   "First Difference (White Noise)"))),
+                       ggplot2$aes(yintercept = 0), linetype = "dashed", colour = "red") +
+    ggplot2$labs(
+        title = "Effect of Differencing on Random Walk",
+        subtitle = "First difference of random walk is white noise (stationary)",
+        x = "Time",
+        y = "Value"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(size = 11, face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/differencing_example-1.png" alt="Differencing transforms non-stationary random walk to stationary white noise">
+	Differencing transforms non-stationary random walk to stationary white noise
+</Figure>
+
+---
+
+## 7.6 The AR Process: Autoregression
+
+### 7.6.1 Definition and Intuition
+
+**Prose and Intuition**
+
+An **autoregressive process of order p**, denoted AR(p), models the current value as a linear combination of the past $p$ values plus random noise. It's called "autoregressive" because we regress the series on itself:
+
+$$Y_t = c + \phi_1 Y_{t-1} + \phi_2 Y_{t-2} + \cdots + \phi_p Y_{t-p} + \varepsilon_t$$
+
+where $\varepsilon_t \sim N(0, \sigma^2)$ is white noise.
+
+**Clinical analogy**: Think of monitoring a patient's blood pressure. Today's reading depends partly on yesterday's reading (the body maintains homeostasis), but also has random variation. An AR(1) model captures this: tomorrow's BP is a fraction of today's BP plus random noise. If $\phi_1 = 0.7$, then 70% of any deviation from baseline persists to the next measurement.
+
+**Mathematical Derivation**
+
+For the AR(1) process $Y_t = c + \phi_1 Y_{t-1} + \varepsilon_t$:
+
+**Mean**: Taking expectations:
+$$\mu = \mathbb{E}[Y_t] = c + \phi_1 \mathbb{E}[Y_{t-1}] = c + \phi_1 \mu$$
+$$\mu = \frac{c}{1 - \phi_1}$$
+
+This requires $|\phi_1| < 1$ for the mean to exist (stationarity condition).
+
+**Variance**:
+$$\sigma^2_Y = \text{Var}(Y_t) = \phi_1^2 \text{Var}(Y_{t-1}) + \text{Var}(\varepsilon_t) = \phi_1^2 \sigma^2_Y + \sigma^2_\varepsilon$$
+$$\sigma^2_Y = \frac{\sigma^2_\varepsilon}{1 - \phi_1^2}$$
+
+**Autocorrelation function**:
+$$\rho(h) = \phi_1^h$$
+
+For AR(1), the ACF decays exponentially—each additional lag reduces correlation by factor $\phi_1$.
+
+**Visualisation**
+
+
+``` r
+set.seed(123)
+n <- 200
+
+# Generate AR(1) processes with different phi values
+ar_05 <- arima.sim(model = list(ar = 0.5), n = n)
+ar_09 <- arima.sim(model = list(ar = 0.9), n = n)
+ar_neg07 <- arima.sim(model = list(ar = -0.7), n = n)
+
+ar_dt <- data.table(
+    time = rep(1:n, 3),
+    value = c(as.numeric(ar_05), as.numeric(ar_09), as.numeric(ar_neg07)),
+    phi = factor(rep(c("φ = 0.5 (moderate persistence)",
+                       "φ = 0.9 (high persistence)",
+                       "φ = -0.7 (oscillating)"), each = n),
+                 levels = c("φ = 0.5 (moderate persistence)",
+                            "φ = 0.9 (high persistence)",
+                            "φ = -0.7 (oscillating)"))
+)
+
+ggplot2$ggplot(ar_dt, ggplot2$aes(x = time, y = value)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$facet_wrap(~phi, ncol = 1, scales = "free_y") +
+    ggplot2$labs(
+        title = "AR(1) Processes with Different Autoregressive Coefficients",
+        subtitle = "Higher positive φ = more persistence; negative φ = oscillation",
+        x = "Time",
+        y = "Value"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(size = 11, face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/ar_processes-1.png" alt="AR(1) processes with different coefficients show varying persistence">
+	AR(1) processes with different coefficients show varying persistence
+</Figure>
+
+### 7.6.2 ACF and PACF Signatures
+
+**Prose and Intuition**
+
+The key to identifying AR processes lies in their characteristic ACF and PACF patterns:
+
+- **ACF of AR(p)**: Decays exponentially (or oscillates if negative coefficients) but never cuts off abruptly
+- **PACF of AR(p)**: Cuts off sharply after lag $p$
+
+This makes sense: the PACF at lag $k$ measures direct correlation with $Y_{t-k}$ after removing the effects of intermediate lags. For AR(p), there's no direct influence beyond lag $p$, so PACF is zero for $h > p$.
+
+**Visualisation**
+
+
+``` r
+# Generate AR(2) process
+set.seed(42)
+ar2 <- arima.sim(model = list(ar = c(0.6, 0.3)), n = 500)
+
+# Compute ACF and PACF
+acf_ar2 <- acf(ar2, plot = FALSE, lag.max = 20)
+pacf_ar2 <- pacf(ar2, plot = FALSE, lag.max = 20)
+
+acf_dt <- data.table(
+    lag = c(as.numeric(acf_ar2$lag[-1]), as.numeric(pacf_ar2$lag)),
+    value = c(as.numeric(acf_ar2$acf[-1]), as.numeric(pacf_ar2$acf)),
+    type = factor(rep(c("ACF", "PACF"), c(length(acf_ar2$lag)-1, length(pacf_ar2$lag))),
+                  levels = c("ACF", "PACF"))
+)
+
+ci <- qnorm(0.975) / sqrt(500)
+
+ggplot2$ggplot(acf_dt, ggplot2$aes(x = lag, y = value)) +
+    ggplot2$geom_hline(yintercept = 0, colour = "grey50") +
+    ggplot2$geom_hline(yintercept = c(-ci, ci), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(xend = lag, yend = 0), colour = "#0072B2", linewidth = 0.8) +
+    ggplot2$geom_point(colour = "#0072B2", size = 2) +
+    ggplot2$facet_wrap(~type, ncol = 2) +
+    ggplot2$labs(
+        title = "ACF and PACF of AR(2) Process",
+        subtitle = "ACF decays exponentially; PACF cuts off after lag 2",
+        x = "Lag",
+        y = "Correlation"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(size = 12, face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/ar_acf_pacf-1.png" alt="AR(2) process shows exponentially decaying ACF and PACF cutoff at lag 2">
+	AR(2) process shows exponentially decaying ACF and PACF cutoff at lag 2
+</Figure>
+
+---
+
+## 7.7 The MA Process: Moving Average
+
+### 7.7.1 Definition and Intuition
+
+**Prose and Intuition**
+
+A **moving average process of order q**, denoted MA(q), models the current value as a linear combination of the current and past $q$ random shocks:
+
+$$Y_t = \mu + \varepsilon_t + \theta_1 \varepsilon_{t-1} + \theta_2 \varepsilon_{t-2} + \cdots + \theta_q \varepsilon_{t-q}$$
+
+where $\varepsilon_t \sim N(0, \sigma^2)$ is white noise.
+
+**Clinical analogy**: Consider a clinic's daily patient load. Each day has a baseline plus random variation. But Monday's unusually high load might spill into Tuesday (patients rescheduled), and vice versa. The MA process captures how past shocks continue to influence the present for a limited time.
+
+Unlike AR, where influence decays gradually, MA effects cut off sharply after $q$ lags—the system has "finite memory."
+
+**Mathematical Derivation**
+
+For the MA(1) process $Y_t = \mu + \varepsilon_t + \theta_1 \varepsilon_{t-1}$:
+
+**Mean**: $\mathbb{E}[Y_t] = \mu$ (always stationary regardless of $\theta$)
+
+**Variance**: $\text{Var}(Y_t) = \sigma^2_\varepsilon(1 + \theta_1^2)$
+
+**Autocorrelation**:
+$$\rho(1) = \frac{\theta_1}{1 + \theta_1^2}$$
+$$\rho(h) = 0 \text{ for } h > 1$$
+
+This is the defining characteristic: MA(q) has ACF that cuts off after lag $q$.
+
+**Visualisation**
+
+
+``` r
+set.seed(456)
+n <- 200
+
+# Generate MA(1) processes
+ma_pos <- arima.sim(model = list(ma = 0.8), n = n)
+ma_neg <- arima.sim(model = list(ma = -0.8), n = n)
+ma2 <- arima.sim(model = list(ma = c(0.5, 0.3)), n = n)
+
+ma_dt <- data.table(
+    time = rep(1:n, 3),
+    value = c(as.numeric(ma_pos), as.numeric(ma_neg), as.numeric(ma2)),
+    theta = factor(rep(c("MA(1): θ = 0.8", "MA(1): θ = -0.8", "MA(2): θ₁ = 0.5, θ₂ = 0.3"),
+                       each = n),
+                   levels = c("MA(1): θ = 0.8", "MA(1): θ = -0.8", "MA(2): θ₁ = 0.5, θ₂ = 0.3"))
+)
+
+ggplot2$ggplot(ma_dt, ggplot2$aes(x = time, y = value)) +
+    ggplot2$geom_line(colour = "#009E73") +
+    ggplot2$facet_wrap(~theta, ncol = 1, scales = "free_y") +
+    ggplot2$labs(
+        title = "MA Processes with Different Parameters",
+        subtitle = "MA processes have finite memory—shocks affect limited future values",
+        x = "Time",
+        y = "Value"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(size = 11, face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/ma_processes-1.png" alt="MA(1) processes with different coefficients">
+	MA(1) processes with different coefficients
+</Figure>
+
+### 7.7.2 ACF and PACF Signatures
+
+
+``` r
+# Compute ACF and PACF for MA(2)
+acf_ma2 <- acf(ma2, plot = FALSE, lag.max = 20)
+pacf_ma2 <- pacf(ma2, plot = FALSE, lag.max = 20)
+
+ma_acf_dt <- data.table(
+    lag = c(as.numeric(acf_ma2$lag[-1]), as.numeric(pacf_ma2$lag)),
+    value = c(as.numeric(acf_ma2$acf[-1]), as.numeric(pacf_ma2$acf)),
+    type = factor(rep(c("ACF", "PACF"), c(length(acf_ma2$lag)-1, length(pacf_ma2$lag))),
+                  levels = c("ACF", "PACF"))
+)
+
+ggplot2$ggplot(ma_acf_dt, ggplot2$aes(x = lag, y = value)) +
+    ggplot2$geom_hline(yintercept = 0, colour = "grey50") +
+    ggplot2$geom_hline(yintercept = c(-ci, ci), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(xend = lag, yend = 0), colour = "#009E73", linewidth = 0.8) +
+    ggplot2$geom_point(colour = "#009E73", size = 2) +
+    ggplot2$facet_wrap(~type, ncol = 2) +
+    ggplot2$labs(
+        title = "ACF and PACF of MA(2) Process",
+        subtitle = "ACF cuts off after lag 2; PACF decays exponentially (opposite of AR)",
+        x = "Lag",
+        y = "Correlation"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(size = 12, face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/ma_acf_pacf-1.png" alt="MA(2) process shows sharp ACF cutoff and exponentially decaying PACF">
+	MA(2) process shows sharp ACF cutoff and exponentially decaying PACF
+</Figure>
+
+**Summary of ACF/PACF Patterns**:
+
+| Model | ACF | PACF |
+|-------|-----|------|
+| AR(p) | Exponential decay | Cuts off after lag p |
+| MA(q) | Cuts off after lag q | Exponential decay |
+| ARMA(p,q) | Exponential decay | Exponential decay |
+
+---
+
+## 7.8 The ARIMA Model
+
+### 7.8.1 Combining AR and MA with Differencing
+
+**Prose and Intuition**
+
+ARIMA combines autoregression, differencing, and moving average into a single flexible framework:
+
+- **AR(p)**: Captures persistence and momentum
+- **I(d)**: Handles trends through differencing
+- **MA(q)**: Captures shock effects
+
+The notation ARIMA(p,d,q) specifies:
+- $p$ = order of autoregressive component
+- $d$ = order of differencing
+- $q$ = order of moving average component
+
+**Mathematical Derivation**
+
+Let $\nabla^d Y_t$ denote the $d$-th difference of $Y_t$. The ARIMA(p,d,q) model is:
+
+$$\phi(B)(1-B)^d Y_t = c + \theta(B)\varepsilon_t$$
+
+where:
+- $B$ is the backshift operator: $BY_t = Y_{t-1}$
+- $\phi(B) = 1 - \phi_1 B - \phi_2 B^2 - \cdots - \phi_p B^p$ (AR polynomial)
+- $\theta(B) = 1 + \theta_1 B + \theta_2 B^2 + \cdots + \theta_q B^q$ (MA polynomial)
+- $(1-B)^d$ is the differencing operator
+
+Expanded for ARIMA(1,1,1):
+$$Y_t - Y_{t-1} = c + \phi_1(Y_{t-1} - Y_{t-2}) + \varepsilon_t + \theta_1 \varepsilon_{t-1}$$
+
+**Common Special Cases**:
+- ARIMA(0,1,0): Random walk
+- ARIMA(0,1,1): Exponential smoothing
+- ARIMA(1,0,0): AR(1) for stationary data
+- ARIMA(0,0,1): MA(1) for stationary data
+
+### 7.8.2 The Box-Jenkins Methodology
+
+**Prose and Intuition**
+
+Box and Jenkins (1970) established a systematic approach for ARIMA modelling:
+
+1. **Identification**: Examine plots, ACF, PACF to propose candidate models
+2. **Estimation**: Fit the proposed model(s) using maximum likelihood
+3. **Diagnostic checking**: Verify residuals are white noise
+4. **Iteration**: If diagnostics fail, modify the model and repeat
+
+This iterative approach acknowledges that finding the right model requires judgement and experimentation.
+
+
+``` r
+# Visual representation of the methodology
+stages <- c("1. Plot Data", "2. Check Stationarity", "3. Difference if Needed",
+            "4. Examine ACF/PACF", "5. Propose Model", "6. Estimate Parameters",
+            "7. Check Residuals", "8. Forecast")
+
+stage_dt <- data.table(
+    x = c(1, 2, 3, 4, 1, 2, 3, 4),
+    y = c(2, 2, 2, 2, 1, 1, 1, 1),
+    label = stages,
+    phase = c(rep("Identification", 4), rep("Estimation & Diagnosis", 2),
+              rep("Validation", 1), rep("Application", 1))
+)
+
+ggplot2$ggplot(stage_dt, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_tile(ggplot2$aes(fill = phase), width = 0.9, height = 0.8, alpha = 0.3) +
+    ggplot2$geom_text(ggplot2$aes(label = label), size = 3.5) +
+    ggplot2$scale_fill_manual(values = c("Identification" = "#0072B2",
+                                         "Estimation & Diagnosis" = "#009E73",
+                                         "Validation" = "#D55E00",
+                                         "Application" = "#CC79A7")) +
+    ggplot2$labs(
+        title = "Box-Jenkins Methodology for ARIMA Modelling",
+        subtitle = "An iterative process of identification, estimation, and validation",
+        fill = "Phase"
+    ) +
+    ggplot2$theme_void() +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(size = 14, face = "bold", hjust = 0.5),
+        plot.subtitle = ggplot2$element_text(size = 11, hjust = 0.5),
+        legend.position = "bottom"
+    )
+```
+
+<Figure src="/courses/statistics-2-intermediate/boxjenkins_flow-1.png" alt="The Box-Jenkins methodology for ARIMA modelling">
+	The Box-Jenkins methodology for ARIMA modelling
+</Figure>
+
+---
+
+## 7.9 Model Identification in Practice
+
+### 7.9.1 Application to Hospital Admissions
+
+Let's apply the Box-Jenkins methodology to real data.
+
+
+``` r
+# Create time series object
+hospital[, date := as.Date(date)]
+hosp_ts <- ts(hospital$admissions, start = c(2010, 1), frequency = 12)
+
+# Time plot
+ggplot2$ggplot(hospital, ggplot2$aes(x = date, y = admissions)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$geom_smooth(method = "loess", se = FALSE, colour = "#D55E00", linetype = "dashed") +
+    ggplot2$labs(
+        title = "Monthly Hospital Admissions (2010-2019)",
+        subtitle = "Clear upward trend suggests non-stationarity",
+        x = "",
+        y = "Admissions"
+    ) +
+    ggplot2$scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+    ggplot2$theme_minimal()
+```
+
+```
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-2-intermediate/hospital_ts-1.png" alt="Hospital admissions show clear upward trend and potential seasonality">
+	Hospital admissions show clear upward trend and potential seasonality
+</Figure>
+
+
+``` r
+# Test stationarity
+adf_hosp <- tseries::adf.test(hosp_ts)
+kpss_hosp <- tseries::kpss.test(hosp_ts)
+
+cat("Stationarity Tests for Hospital Admissions:\n")
+cat("============================================\n\n")
+cat("ADF test p-value:", round(adf_hosp$p.value, 4),
+    ifelse(adf_hosp$p.value < 0.05, "(stationary)", "(NON-STATIONARY)"), "\n")
+cat("KPSS test p-value:", round(kpss_hosp$p.value, 4),
+    ifelse(kpss_hosp$p.value > 0.05, "(stationary)", "(NON-STATIONARY)"), "\n\n")
+cat("Conclusion: The series requires differencing.\n")
+
+# ACF of original
+acf_hosp <- acf(hosp_ts, plot = FALSE, lag.max = 36)
+acf_hosp_dt <- data.table(lag = as.numeric(acf_hosp$lag)[-1],
+                          acf = as.numeric(acf_hosp$acf)[-1])
+ci_hosp <- qnorm(0.975) / sqrt(length(hosp_ts))
+
+ggplot2$ggplot(acf_hosp_dt, ggplot2$aes(x = lag, y = acf)) +
+    ggplot2$geom_hline(yintercept = 0, colour = "grey50") +
+    ggplot2$geom_hline(yintercept = c(-ci_hosp, ci_hosp), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(xend = lag, yend = 0), colour = "#0072B2") +
+    ggplot2$geom_point(colour = "#0072B2", size = 2) +
+    ggplot2$labs(
+        title = "ACF of Hospital Admissions (Original Series)",
+        subtitle = "Slow decay and significant correlations at all lags indicate non-stationarity",
+        x = "Lag (months)",
+        y = "ACF"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/hospital_stationarity-1.png" alt="ACF of hospital admissions shows slow decay typical of non-stationarity">
+	ACF of hospital admissions shows slow decay typical of non-stationarity
+</Figure>
+
+```
+#> Stationarity Tests for Hospital Admissions:
+#> ============================================
+#> 
+#> ADF test p-value: 0.01 (stationary) 
+#> KPSS test p-value: 0.01 (NON-STATIONARY) 
+#> 
+#> Conclusion: The series requires differencing.
+```
+
+
+``` r
+# First difference
+hosp_diff <- diff(hosp_ts)
+
+# Test stationarity of differenced series
+adf_diff <- tseries::adf.test(hosp_diff)
+
+cat("\nAfter First Differencing:\n")
+cat("ADF test p-value:", round(adf_diff$p.value, 4),
+    ifelse(adf_diff$p.value < 0.05, "(STATIONARY)", "(non-stationary)"), "\n")
+
+# Plot differenced series
+diff_dt <- data.table(
+    time = time(hosp_diff),
+    value = as.numeric(hosp_diff)
+)
+
+ggplot2$ggplot(diff_dt, ggplot2$aes(x = time, y = value)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "red") +
+    ggplot2$labs(
+        title = "First Difference of Hospital Admissions",
+        subtitle = "Differencing removes trend, series now fluctuates around zero",
+        x = "Time",
+        y = "Change in Admissions"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+```
+#> Don't know how to automatically pick scale for object of type <ts>.
+#> Defaulting to continuous.
+```
+
+<Figure src="/courses/statistics-2-intermediate/hospital_diff-1.png" alt="First differenced hospital admissions appear stationary">
+	First differenced hospital admissions appear stationary
+</Figure>
+
+```
+#> 
+#> After First Differencing:
+#> ADF test p-value: 0.01 (STATIONARY)
+```
+
+
+``` r
+# ACF and PACF of differenced series
+acf_diff <- acf(hosp_diff, plot = FALSE, lag.max = 24)
+pacf_diff <- pacf(hosp_diff, plot = FALSE, lag.max = 24)
+
+acf_pacf_dt <- data.table(
+    lag = c(as.numeric(acf_diff$lag)[-1], as.numeric(pacf_diff$lag)),
+    value = c(as.numeric(acf_diff$acf)[-1], as.numeric(pacf_diff$acf)),
+    type = factor(rep(c("ACF", "PACF"), c(length(acf_diff$lag)-1, length(pacf_diff$lag))),
+                  levels = c("ACF", "PACF"))
+)
+
+ci_diff <- qnorm(0.975) / sqrt(length(hosp_diff))
+
+ggplot2$ggplot(acf_pacf_dt, ggplot2$aes(x = lag, y = value)) +
+    ggplot2$geom_hline(yintercept = 0, colour = "grey50") +
+    ggplot2$geom_hline(yintercept = c(-ci_diff, ci_diff), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(xend = lag, yend = 0), colour = "#009E73", linewidth = 0.8) +
+    ggplot2$geom_point(colour = "#009E73", size = 2) +
+    ggplot2$facet_wrap(~type, ncol = 2) +
+    ggplot2$labs(
+        title = "ACF and PACF of Differenced Hospital Admissions",
+        subtitle = "Significant spike at lag 1 in ACF suggests MA(1) component",
+        x = "Lag",
+        y = "Correlation"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(size = 12, face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/hospital_acf_pacf_diff-1.png" alt="ACF and PACF of differenced series suggest MA(1) or ARIMA(0,1,1)">
+	ACF and PACF of differenced series suggest MA(1) or ARIMA(0,1,1)
+</Figure>
+
+### 7.9.2 Model Estimation and Selection
+
+
+``` r
+# Fit candidate models
+model_010 <- arima(hosp_ts, order = c(0, 1, 0))  # Random walk
+model_011 <- arima(hosp_ts, order = c(0, 1, 1))  # ARIMA(0,1,1)
+model_110 <- arima(hosp_ts, order = c(1, 1, 0))  # ARIMA(1,1,0)
+model_111 <- arima(hosp_ts, order = c(1, 1, 1))  # ARIMA(1,1,1)
+
+# Compare using AIC
+models <- list(
+    "ARIMA(0,1,0)" = model_010,
+    "ARIMA(0,1,1)" = model_011,
+    "ARIMA(1,1,0)" = model_110,
+    "ARIMA(1,1,1)" = model_111
+)
+
+comparison <- data.table(
+    Model = names(models),
+    AIC = sapply(models, AIC),
+    BIC = sapply(models, BIC),
+    LogLik = sapply(models, logLik)
+)
+comparison[, AIC_rank := rank(AIC)]
+comparison[, BIC_rank := rank(BIC)]
+
+cat("Model Comparison:\n")
+cat("=================\n\n")
+print(comparison[order(AIC)])
+```
+
+```
+#> Model Comparison:
+#> =================
+#> 
+#>           Model      AIC      BIC    LogLik AIC_rank BIC_rank
+#>          <char>    <num>    <num>     <num>    <num>    <num>
+#> 1: ARIMA(1,1,0) 1253.723 1259.282 -624.8616        1        1
+#> 2: ARIMA(0,1,1) 1254.881 1260.440 -625.4406        2        2
+#> 3: ARIMA(1,1,1) 1255.541 1263.878 -624.7703        3        3
+#> 4: ARIMA(0,1,0) 1261.163 1263.942 -629.5813        4        4
+```
+
+
+``` r
+# Use auto.arima for automated selection
+if (requireNamespace("forecast", quietly = TRUE)) {
+    auto_model <- forecast::auto.arima(hosp_ts, seasonal = FALSE, stepwise = FALSE)
+
+    cat("\nAuto-selected model:\n")
+    print(auto_model)
+} else {
+    cat("\nNote: Install 'forecast' package for auto.arima functionality\n")
+    auto_model <- model_011  # Use our best manual selection
+}
+```
+
+```
+#> 
+#> Auto-selected model:
+#> Series: hosp_ts 
+#> ARIMA(3,1,2) with drift 
+#> 
+#> Coefficients:
+#>          ar1      ar2      ar3      ma1     ma2   drift
+#>       1.1714  -0.0940  -0.4088  -1.8896  0.9215  1.7299
+#> s.e.  0.0900   0.1406   0.0888   0.0589  0.0584  0.3238
+#> 
+#> sigma^2 = 1332:  log likelihood = -596.54
+#> AIC=1207.08   AICc=1208.09   BIC=1226.54
+```
+
+### 7.9.3 Diagnostic Checking
+
+**Prose and Intuition**
+
+A well-specified ARIMA model should leave behind residuals that are:
+1. **Uncorrelated** (white noise)—no remaining autocorrelation structure
+2. **Normally distributed**—for valid inference
+3. **Homoscedastic**—constant variance over time
+
+The **Ljung-Box test** formally tests whether the residuals are white noise.
+
+
+``` r
+# Extract residuals from best model
+best_model <- model_011
+resid_ts <- residuals(best_model)
+
+# Ljung-Box test
+lb_test <- Box.test(resid_ts, lag = 12, type = "Ljung-Box")
+
+cat("Ljung-Box Test for Residual Autocorrelation:\n")
+cat("=============================================\n")
+cat("Test statistic:", round(lb_test$statistic, 3), "\n")
+cat("p-value:", round(lb_test$p.value, 4), "\n")
+cat("Conclusion:", ifelse(lb_test$p.value > 0.05,
+                          "Residuals appear to be white noise (good!)",
+                          "Residuals show autocorrelation (model misspecified)"), "\n")
+
+# Diagnostic plots
+resid_dt <- data.table(
+    time = time(resid_ts),
+    residuals = as.numeric(resid_ts)
+)
+
+# Time plot of residuals
+p1 <- ggplot2$ggplot(resid_dt, ggplot2$aes(x = time, y = residuals)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "red") +
+    ggplot2$labs(title = "Residuals Over Time", x = "Time", y = "Residual") +
+    ggplot2$theme_minimal()
+
+# Histogram
+p2 <- ggplot2$ggplot(resid_dt, ggplot2$aes(x = residuals)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+                           bins = 20, fill = "#0072B2", alpha = 0.7) +
+    ggplot2$geom_density(colour = "#D55E00", linewidth = 1) +
+    ggplot2$stat_function(fun = dnorm, args = list(mean = mean(resid_dt$residuals),
+                                                    sd = sd(resid_dt$residuals)),
+                          colour = "red", linetype = "dashed") +
+    ggplot2$labs(title = "Distribution of Residuals", x = "Residual", y = "Density") +
+    ggplot2$theme_minimal()
+
+# ACF of residuals
+acf_resid <- acf(resid_ts, plot = FALSE, lag.max = 24)
+acf_resid_dt <- data.table(lag = as.numeric(acf_resid$lag)[-1],
+                           acf = as.numeric(acf_resid$acf)[-1])
+
+p3 <- ggplot2$ggplot(acf_resid_dt, ggplot2$aes(x = lag, y = acf)) +
+    ggplot2$geom_hline(yintercept = 0, colour = "grey50") +
+    ggplot2$geom_hline(yintercept = c(-ci_diff, ci_diff), linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(xend = lag, yend = 0), colour = "#0072B2") +
+    ggplot2$labs(title = "ACF of Residuals", x = "Lag", y = "ACF") +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p1, p2, p3, ncol = 1)
+```
+
+```
+#> Don't know how to automatically pick scale for object of type <ts>.
+#> Defaulting to continuous.
+```
+
+<Figure src="/courses/statistics-2-intermediate/residual_diagnostics-1.png" alt="Residual diagnostics for the ARIMA(0,1,1) model">
+	Residual diagnostics for the ARIMA(0,1,1) model
+</Figure>
+
+```
+#> Ljung-Box Test for Residual Autocorrelation:
+#> =============================================
+#> Test statistic: 57.188 
+#> p-value: 0 
+#> Conclusion: Residuals show autocorrelation (model misspecified)
+```
+
+---
+
+## 7.10 Seasonal ARIMA (SARIMA)
+
+### 7.10.1 Extending ARIMA for Seasonality
+
+**Prose and Intuition**
+
+Many biomedical time series have seasonal patterns: influenza peaks in winter, hospital admissions spike on Mondays, allergies surge in spring. The **Seasonal ARIMA** or SARIMA model extends ARIMA to handle these patterns:
+
+$$\text{SARIMA}(p,d,q) \times (P,D,Q)_s$$
+
+where:
+- $(p,d,q)$: Non-seasonal ARIMA components
+- $(P,D,Q)$: Seasonal ARIMA components
+- $s$: Seasonal period (12 for monthly, 52 for weekly, etc.)
+
+**Mathematical Derivation**
+
+The SARIMA model combines regular and seasonal operators:
+
+$$\phi(B)\Phi(B^s)(1-B)^d(1-B^s)^D Y_t = c + \theta(B)\Theta(B^s)\varepsilon_t$$
+
+where:
+- $\Phi(B^s) = 1 - \Phi_1 B^s - \cdots - \Phi_P B^{Ps}$ is the seasonal AR polynomial
+- $\Theta(B^s) = 1 + \Theta_1 B^s + \cdots + \Theta_Q B^{Qs}$ is the seasonal MA polynomial
+- $(1-B^s)^D$ is seasonal differencing
+
+For monthly data with SARIMA(1,1,1)×(1,1,1)₁₂:
+- First difference for trend: $(1-B)$
+- Seasonal difference for yearly pattern: $(1-B^{12})$
+- AR(1) for short-term persistence
+- MA(1) for short-term shocks
+- Seasonal AR(1) for year-over-year persistence
+- Seasonal MA(1) for seasonal shocks
+
+**Visualisation**
+
+
+``` r
+# Create time series
+deaths[, date := as.Date(paste(year, month, "01", sep = "-"))]
+deaths_ts <- ts(deaths$deaths, start = c(1973, 1), frequency = 12)
+
+# Plot with seasonal emphasis
+ggplot2$ggplot(deaths, ggplot2$aes(x = date, y = deaths)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$geom_point(ggplot2$aes(colour = factor(month)), size = 2) +
+    ggplot2$scale_colour_viridis_d(name = "Month", option = "C") +
+    ggplot2$labs(
+        title = "US Accidental Deaths (1973-1978)",
+        subtitle = "Clear seasonal pattern with summer peaks",
+        x = "",
+        y = "Deaths"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/sarima_deaths-1.png" alt="US accidental deaths show strong seasonal pattern requiring SARIMA">
+	US accidental deaths show strong seasonal pattern requiring SARIMA
+</Figure>
+
+
+``` r
+# Regular and seasonal differencing
+deaths_sdiff <- diff(deaths_ts, lag = 12)  # Seasonal difference
+deaths_both <- diff(deaths_sdiff)  # Then regular difference
+
+# Compare
+compare_dt <- data.table(
+    time = c(time(deaths_ts), time(deaths_sdiff), time(deaths_both)),
+    value = c(as.numeric(deaths_ts), as.numeric(deaths_sdiff), as.numeric(deaths_both)),
+    type = factor(c(rep("Original", length(deaths_ts)),
+                    rep("Seasonal Diff (d=0, D=1)", length(deaths_sdiff)),
+                    rep("Both Diffs (d=1, D=1)", length(deaths_both))),
+                  levels = c("Original", "Seasonal Diff (d=0, D=1)", "Both Diffs (d=1, D=1)"))
+)
+
+ggplot2$ggplot(compare_dt, ggplot2$aes(x = time, y = value)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$facet_wrap(~type, ncol = 1, scales = "free_y") +
+    ggplot2$labs(
+        title = "Effect of Differencing on Seasonal Data",
+        subtitle = "Seasonal differencing removes the annual pattern",
+        x = "Time",
+        y = "Value"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(size = 11, face = "bold"))
+```
+
+<Figure src="/courses/statistics-2-intermediate/sarima_seasonal_diff-1.png" alt="Seasonal differencing removes the annual cycle">
+	Seasonal differencing removes the annual cycle
+</Figure>
+
+
+``` r
+# Fit SARIMA model
+if (requireNamespace("forecast", quietly = TRUE)) {
+    sarima_auto <- forecast::auto.arima(deaths_ts, seasonal = TRUE, stepwise = FALSE)
+
+    cat("Auto-selected Seasonal ARIMA Model:\n")
+    cat("===================================\n")
+    print(sarima_auto)
+} else {
+    # Manual fit
+    sarima_manual <- arima(deaths_ts, order = c(0, 1, 1),
+                           seasonal = list(order = c(0, 1, 1), period = 12))
+    cat("Fitted SARIMA(0,1,1)×(0,1,1)₁₂:\n")
+    print(sarima_manual)
+    sarima_auto <- sarima_manual
+}
+```
+
+```
+#> Auto-selected Seasonal ARIMA Model:
+#> ===================================
+#> Series: deaths_ts 
+#> ARIMA(0,1,1)(0,1,1)[12] 
+#> 
+#> Coefficients:
+#>           ma1     sma1
+#>       -0.4303  -0.5528
+#> s.e.   0.1228   0.1784
+#> 
+#> sigma^2 = 102860:  log likelihood = -425.44
+#> AIC=856.88   AICc=857.32   BIC=863.11
+```
+
+
+``` r
+# Residual diagnostics for SARIMA
+sarima_resid <- residuals(sarima_auto)
+lb_sarima <- Box.test(sarima_resid, lag = 24, type = "Ljung-Box")
+
+cat("\nLjung-Box Test (lag 24):\n")
+cat("p-value:", round(lb_sarima$p.value, 4), "\n")
+cat("Interpretation:", ifelse(lb_sarima$p.value > 0.05,
+                               "Residuals are white noise",
+                               "Some structure remains"), "\n")
+
+# ACF of SARIMA residuals
+acf_sarima <- acf(sarima_resid, plot = FALSE, lag.max = 36)
+acf_sarima_dt <- data.table(lag = as.numeric(acf_sarima$lag)[-1],
+                             acf = as.numeric(acf_sarima$acf)[-1])
+ci_sarima <- qnorm(0.975) / sqrt(length(sarima_resid))
+
+ggplot2$ggplot(acf_sarima_dt, ggplot2$aes(x = lag, y = acf)) +
+    ggplot2$geom_hline(yintercept = 0, colour = "grey50") +
+    ggplot2$geom_hline(yintercept = c(-ci_sarima, ci_sarima),
+                       linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(xend = lag, yend = 0), colour = "#009E73") +
+    ggplot2$annotate("rect", xmin = 11.5, xmax = 12.5, ymin = -Inf, ymax = Inf,
+                     alpha = 0.2, fill = "#D55E00") +
+    ggplot2$annotate("rect", xmin = 23.5, xmax = 24.5, ymin = -Inf, ymax = Inf,
+                     alpha = 0.2, fill = "#D55E00") +
+    ggplot2$annotate("text", x = 12, y = max(acf_sarima_dt$acf),
+                     label = "Seasonal\nlags", size = 3, colour = "#D55E00") +
+    ggplot2$labs(
+        title = "ACF of SARIMA Model Residuals",
+        subtitle = "No significant autocorrelation—seasonal structure captured",
+        x = "Lag",
+        y = "ACF"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/sarima_diagnostics-1.png" alt="SARIMA model residuals appear to be white noise">
+	SARIMA model residuals appear to be white noise
+</Figure>
+
+```
+#> 
+#> Ljung-Box Test (lag 24):
+#> p-value: 0.3484 
+#> Interpretation: Residuals are white noise
+```
+
+---
+
+## 7.11 Communicating Time Series Models to Stakeholders
+
+**For Healthcare Administrators and Policy Makers**
+
+When presenting ARIMA results to stakeholders who don't have technical backgrounds:
+
+**1. Focus on the story, not the statistics**
+
+Instead of: "We fitted an ARIMA(0,1,1)×(0,1,1)₁₂ model with AIC = 847.2"
+
+Say: "We developed a forecasting model that captures both the gradual trends and seasonal patterns in hospital admissions. The model accounts for the fact that winter months consistently see higher admissions than summer months, and that admissions have been growing by about 2% annually."
+
+**2. Translate model components to business meaning**
+
+| Technical Term | Stakeholder Language |
+|----------------|---------------------|
+| d = 1 (differencing) | "We model changes in admissions rather than absolute levels, which better captures trends" |
+| Seasonal pattern | "The 'winter flu effect' that increases admissions every December-February" |
+| MA(1) component | "How quickly the hospital recovers from unexpected surges" |
+| Forecast uncertainty | "A range of likely values, not a single prediction" |
+
+**3. Present forecasts with appropriate uncertainty**
+
+
+``` r
+if (requireNamespace("forecast", quietly = TRUE)) {
+    # Generate forecast
+    fc <- forecast::forecast(sarima_auto, h = 12)
+
+    # Extract for plotting
+    fc_dt <- data.table(
+        time = as.numeric(time(fc$mean)),
+        forecast = as.numeric(fc$mean),
+        lower_80 = as.numeric(fc$lower[,1]),
+        upper_80 = as.numeric(fc$upper[,1]),
+        lower_95 = as.numeric(fc$lower[,2]),
+        upper_95 = as.numeric(fc$upper[,2])
+    )
+
+    # Historical data
+    hist_dt <- data.table(
+        time = as.numeric(time(deaths_ts)),
+        deaths = as.numeric(deaths_ts)
+    )
+
+    ggplot2$ggplot() +
+        ggplot2$geom_ribbon(data = fc_dt,
+                            ggplot2$aes(x = time, ymin = lower_95, ymax = upper_95),
+                            fill = "#0072B2", alpha = 0.2) +
+        ggplot2$geom_ribbon(data = fc_dt,
+                            ggplot2$aes(x = time, ymin = lower_80, ymax = upper_80),
+                            fill = "#0072B2", alpha = 0.3) +
+        ggplot2$geom_line(data = hist_dt, ggplot2$aes(x = time, y = deaths), colour = "#0072B2") +
+        ggplot2$geom_line(data = fc_dt, ggplot2$aes(x = time, y = forecast),
+                          colour = "#D55E00", linewidth = 1) +
+        ggplot2$geom_point(data = fc_dt, ggplot2$aes(x = time, y = forecast),
+                           colour = "#D55E00", size = 2) +
+        ggplot2$labs(
+            title = "12-Month Forecast of US Accidental Deaths",
+            subtitle = "Shaded regions show 80% and 95% prediction intervals",
+            x = "Year",
+            y = "Monthly Deaths",
+            caption = "Note: Wider intervals = more uncertainty about distant forecasts"
+        ) +
+        ggplot2$theme_minimal()
+
+    # Summary statistics
+    cat("\nForecast Summary:\n")
+    cat("=================\n\n")
+    cat("Next 12 months:\n")
+    cat("  Expected average:", round(mean(fc$mean)), "deaths/month\n")
+    cat("  Range (95% CI):", round(min(fc$lower[,2])), "to", round(max(fc$upper[,2])), "\n\n")
+    cat("Peak month (July/August): ~", round(max(fc$mean)), "deaths\n")
+    cat("Low month (February): ~", round(min(fc$mean)), "deaths\n")
+}
+```
+
+```
+#> 
+#> Forecast Summary:
+#> =================
+#> 
+#> Next 12 months:
+#>   Expected average: 9163 deaths/month
+#>   Range (95% CI): 6808 to 11987 
+#> 
+#> Peak month (July/August): ~ 10907 deaths
+#> Low month (February): ~ 7532 deaths
+```
+
+**4. Always discuss model limitations**
+
+Be transparent about what the model cannot capture:
+- **External shocks**: Pandemics, policy changes, natural disasters
+- **Structural breaks**: When patterns fundamentally change
+- **Long-term forecasts**: Uncertainty grows quickly—beyond 12-24 months, use with caution
+
+---
+
+## 7.12 Summary and Key Takeaways
+
+**Conceptual Framework**
+
+| Concept | Definition | Practical Implication |
+|---------|------------|----------------------|
+| Stationarity | Statistical properties constant over time | Required for ARIMA; achieved through differencing |
+| AR(p) | Current value depends on past p values | Captures persistence and momentum |
+| MA(q) | Current value depends on past q shocks | Captures temporary effects |
+| ARIMA(p,d,q) | Combines AR, differencing, MA | Flexible modelling for non-seasonal trends |
+| SARIMA | Adds seasonal AR and MA components | Required for seasonal data |
+
+**Model Selection Guidelines**
+
+1. **Plot the data first**—understand trend, seasonality, stationarity
+2. **Test for stationarity**—ADF and KPSS tests
+3. **Difference appropriately**—d for trend, D for seasonality
+4. **Examine ACF/PACF patterns**—identify p and q
+5. **Use information criteria**—AIC/BIC for model comparison
+6. **Check residual diagnostics**—Ljung-Box test for white noise
+7. **Validate out-of-sample**—test forecasting performance
+
+**ACF/PACF Pattern Recognition**
+
+
+``` r
+patterns <- data.table(
+    Model = c("AR(p)", "MA(q)", "ARMA(p,q)", "Non-stationary"),
+    ACF = c("Exponential decay", "Cuts off after q", "Exponential decay", "Slow decay"),
+    PACF = c("Cuts off after p", "Exponential decay", "Exponential decay", "Slow decay")
+)
+
+print(patterns)
+```
+
+```
+#>             Model               ACF              PACF
+#>            <char>            <char>            <char>
+#> 1:          AR(p) Exponential decay  Cuts off after p
+#> 2:          MA(q)  Cuts off after q Exponential decay
+#> 3:      ARMA(p,q) Exponential decay Exponential decay
+#> 4: Non-stationary        Slow decay        Slow decay
+```
+
+**R Functions Reference**
+
+| Function | Package | Purpose |
+|----------|---------|---------|
+| `arima()` | stats | Fit ARIMA models |
+| `auto.arima()` | forecast | Automatic model selection |
+| `adf.test()` | tseries | Test stationarity |
+| `kpss.test()` | tseries | Test stationarity |
+| `acf()`, `pacf()` | stats | Autocorrelation functions |
+| `Box.test()` | stats | Ljung-Box test |
+| `forecast()` | forecast | Generate forecasts |
+
+---
+
+## 7.13 Exercises
+
+1. **Influenza ARIMA**: Using the German influenza surveillance data, fit an appropriate seasonal ARIMA model. How does the seasonal pattern compare to accidental deaths?
+
+2. **Model comparison**: For the hospital admissions data, compare ARIMA(1,1,0) and ARIMA(0,1,1). Which performs better based on residual diagnostics?
+
+3. **Simulation study**: Generate 200 observations from an ARIMA(1,1,1) process with φ₁ = 0.7 and θ₁ = 0.4. Attempt to recover the parameters using `arima()`.
+
+4. **Stakeholder report**: Write a one-page summary explaining SARIMA forecasting results for a hospital administrator who needs to plan staffing for the next year.
+
+---
+
+## 7.14 References
+
+- Box, G. E. P., & Jenkins, G. M. (1970). *Time Series Analysis: Forecasting and Control*. Holden-Day.
+- Hyndman, R. J., & Athanasopoulos, G. (2021). *Forecasting: Principles and Practice* (3rd ed.). OTexts.
+- Shumway, R. H., & Stoffer, D. S. (2017). *Time Series Analysis and Its Applications* (4th ed.). Springer.
+- Cowpertwait, P. S. P., & Metcalfe, A. V. (2009). *Introductory Time Series with R*. Springer.

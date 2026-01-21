@@ -1,0 +1,493 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 1: Introduction to Statistics and Data"
+part: "Part 2: Variables and Data Collection"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, probability, data, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+
+``` r
+box::use(
+    data.table,
+    ggplot2
+)
+```
+
+## Table of Contents
+
+## 1.3 Types of Variables
+
+Variables are characteristics that vary among individuals in a study. Understanding variable types is essential because the appropriate analysis depends critically on what type of data we have. Choose the wrong analysis for your variable type and your conclusions will be meaningless at best, actively misleading at worst.
+
+### 1.3.1 Quantitative Variables
+
+**Quantitative variables** represent numerical measurements or counts. They answer "how much?" or "how many?"
+
+Quantitative variables subdivide into two types:
+
+**Continuous variables** can take any value within a range. Height, weight, blood pressure, and temperature are continuous; between any two values, infinitely many other values are possible. A patient's weight might be 72.3 kg, 72.31 kg, or 72.314159 kg, limited only by measurement precision.
+
+**Discrete variables** can take only specific values, typically integers. Number of children, number of hospitalisations, and number of mutations are discrete; you cannot have 2.7 children. Some discrete variables can take many values (age in years ranges from 0 to ~120), whilst others have few (number of arms is typically 0, 1, or 2).
+
+
+``` r
+set.seed(789)
+
+# Generate example data
+n <- 200
+
+# Continuous: body temperature in Celsius
+temperature <- rnorm(n, mean = 36.8, sd = 0.4)
+
+# Discrete: number of GP visits in past year
+gp_visits <- rpois(n, lambda = 3)
+
+# Create plot data
+continuous_data <- data.table$data.table(value = temperature, type = "Continuous (Body Temperature)")
+discrete_data <- data.table$data.table(value = gp_visits, type = "Discrete (GP Visits/Year)")
+
+# Combined standardised view
+combined_data <- rbind(
+    data.table$data.table(value = scale(temperature)[, 1], type = "Continuous: Temperature"),
+    data.table$data.table(value = scale(gp_visits)[, 1], type = "Discrete: GP Visits")
+)
+
+ggplot2$ggplot(combined_data, ggplot2$aes(x = value, fill = type)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 25,
+                   position = "identity", alpha = 0.6, colour = "white") +
+    ggplot2$facet_wrap(~type, scales = "free") +
+    ggplot2$labs(
+        title = "Continuous vs Discrete Variables",
+        subtitle = "Continuous variables have smooth distributions; discrete variables have gaps",
+        x = "Standardised Value",
+        y = "Density"
+    ) +
+    ggplot2$scale_fill_manual(values = c("#E69F00", "#56B4E9")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/continuous_vs_discrete-1.png" alt="Continuous variables take any value; discrete variables take only specific values">
+	Continuous variables take any value; discrete variables take only specific values
+</Figure>
+
+### 1.3.2 Qualitative (Categorical) Variables
+
+**Qualitative variables** (also called categorical variables) represent categories or groups rather than numerical quantities. They answer "what type?" or "which category?"
+
+Categorical variables subdivide into two types:
+
+**Nominal variables** have categories with no natural ordering. Blood type (A, B, AB, O), sex (male, female), and eye colour (brown, blue, green) are nominal. We cannot say that blood type A is "more than" or "less than" blood type B; they are simply different.
+
+**Ordinal variables** have categories with a meaningful order, but the distances between categories are not necessarily equal. Disease severity (mild, moderate, severe), education level (primary, secondary, tertiary), and pain rating scales (1 to 10) are ordinal. We know that "severe" is worse than "moderate," but we cannot say it is exactly twice as bad.
+
+
+``` r
+# Create example categorical data
+categorical_examples <- data.table$data.table(
+    variable = c(
+        rep("Blood Type (Nominal)", 4),
+        rep("Disease Severity (Ordinal)", 3)
+    ),
+    category = c(
+        "A", "B", "AB", "O",
+        "Mild", "Moderate", "Severe"
+    ),
+    count = c(
+        42, 10, 4, 44,  # Blood type frequencies
+        35, 45, 20      # Severity frequencies
+    )
+)
+
+# Ensure proper ordering for ordinal
+categorical_examples[variable == "Disease Severity (Ordinal)",
+                     category := factor(category, levels = c("Mild", "Moderate", "Severe"))]
+
+ggplot2$ggplot(categorical_examples, ggplot2$aes(x = category, y = count, fill = variable)) +
+    ggplot2$geom_bar(stat = "identity", alpha = 0.8) +
+    ggplot2$facet_wrap(~variable, scales = "free_x") +
+    ggplot2$labs(
+        title = "Nominal vs Ordinal Categorical Variables",
+        subtitle = "Blood type categories have no order; severity has a meaningful order",
+        x = "Category",
+        y = "Count"
+    ) +
+    ggplot2$scale_fill_manual(values = c("#CC79A7", "#009E73")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/categorical_variables-1.png" alt="Nominal variables have no order; ordinal variables have meaningful order">
+	Nominal variables have no order; ordinal variables have meaningful order
+</Figure>
+
+### 1.3.3 Scales of Measurement: Nominal, Ordinal, Interval, Ratio
+
+In the 1940s, psychologist Stanley Smith Stevens proposed four scales of measurement, distinguished by the mathematical operations that are meaningful for each:
+
+**Nominal scale**: Categories are labels with no order. Only equality comparisons are meaningful. (Is blood type A equal to blood type B? No.) Mathematical operations like addition or averaging are meaningless.
+
+**Ordinal scale**: Categories have a meaningful order, but differences between categories are not necessarily equal. Rankings and order statistics are meaningful. (Is severe worse than moderate? Yes. Is the difference between mild and moderate equal to the difference between moderate and severe? We cannot say.)
+
+**Interval scale**: Differences between values are meaningful and equal, but there is no true zero point. Temperature in Celsius or Fahrenheit is interval; the difference between 20°C and 30°C equals the difference between 30°C and 40°C, but 0°C does not mean "no temperature." Ratios are not meaningful (40°C is not "twice as hot" as 20°C).
+
+**Ratio scale**: Has all properties of interval scale plus a meaningful zero point. Height, weight, blood pressure, and temperature in Kelvin are ratio; zero means absence of the quantity, and ratios are meaningful (40 kg is twice as heavy as 20 kg).
+
+
+``` r
+scales_data <- data.table$data.table(
+    scale = factor(
+        c("Nominal", "Ordinal", "Interval", "Ratio"),
+        levels = c("Nominal", "Ordinal", "Interval", "Ratio")
+    ),
+    example = c("Blood type", "Pain rating", "Temperature (\u00b0C)", "Weight (kg)"),
+    equality = c("\u2713", "\u2713", "\u2713", "\u2713"),
+    order = c("\u2717", "\u2713", "\u2713", "\u2713"),
+    difference = c("\u2717", "\u2717", "\u2713", "\u2713"),
+    ratio = c("\u2717", "\u2717", "\u2717", "\u2713")
+)
+
+print(scales_data)
+
+# Visual representation
+scales_visual <- data.table$data.table(
+    scale = rep(c("Nominal", "Ordinal", "Interval", "Ratio"), each = 4),
+    operation = rep(c("Equality (=)", "Order (<, >)", "Difference (+, -)", "Ratio (\u00d7, \u00f7)"), 4),
+    meaningful = c(
+        TRUE, FALSE, FALSE, FALSE,  # Nominal
+        TRUE, TRUE, FALSE, FALSE,   # Ordinal
+        TRUE, TRUE, TRUE, FALSE,    # Interval
+        TRUE, TRUE, TRUE, TRUE      # Ratio
+    )
+)
+
+scales_visual[, scale := factor(scale, levels = c("Ratio", "Interval", "Ordinal", "Nominal"))]
+scales_visual[, operation := factor(operation, levels = c("Equality (=)", "Order (<, >)",
+                                                          "Difference (+, -)", "Ratio (\u00d7, \u00f7)"))]
+
+ggplot2$ggplot(scales_visual, ggplot2$aes(x = operation, y = scale, fill = meaningful)) +
+    ggplot2$geom_tile(colour = "white", linewidth = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = ifelse(meaningful, "\u2713", "\u2717")), size = 6) +
+    ggplot2$labs(
+        title = "Stevens' Scales of Measurement",
+        subtitle = "Each higher scale permits additional mathematical operations",
+        x = "Mathematical Operation",
+        y = "Scale Type"
+    ) +
+    ggplot2$scale_fill_manual(values = c("TRUE" = "#009E73", "FALSE" = "#D55E00"), guide = "none") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+```
+
+<Figure src="/courses/statistics-1-foundations/scales_of_measurement-1.png" alt="Four scales of measurement with progressively more mathematical operations">
+	Four scales of measurement with progressively more mathematical operations
+</Figure>
+
+```
+#>       scale          example equality  order difference  ratio
+#>      <fctr>           <char>   <char> <char>     <char> <char>
+#> 1:  Nominal       Blood type        ✓      ✗          ✗      ✗
+#> 2:  Ordinal      Pain rating        ✓      ✓          ✗      ✗
+#> 3: Interval Temperature (°C)        ✓      ✓          ✓      ✗
+#> 4:    Ratio      Weight (kg)        ✓      ✓          ✓      ✓
+```
+
+### 1.3.4 Identifying Variable Types in Practice
+
+Let us examine real variables from the NHANES dataset:
+
+
+``` r
+# Example variable classification
+nhanes_vars <- data.table$data.table(
+    variable = c("Age", "Gender", "Race1", "Education", "BMI",
+                 "SmokeNow", "Diabetes", "BPSysAve", "DiabetesAge",
+                 "nPregnancies"),
+    description = c(
+        "Age in years", "Male/Female", "Race/ethnicity",
+        "Educational attainment", "Body mass index",
+        "Currently smoking?", "Diabetes status",
+        "Systolic blood pressure", "Age at diabetes diagnosis",
+        "Number of pregnancies"
+    ),
+    type = c(
+        "Quantitative (discrete)", "Qualitative (nominal)", "Qualitative (nominal)",
+        "Qualitative (ordinal)", "Quantitative (continuous)",
+        "Qualitative (nominal)", "Qualitative (nominal)",
+        "Quantitative (continuous)", "Quantitative (discrete)",
+        "Quantitative (discrete)"
+    ),
+    scale = c(
+        "Ratio", "Nominal", "Nominal", "Ordinal", "Ratio",
+        "Nominal", "Nominal", "Ratio", "Ratio", "Ratio"
+    )
+)
+
+print(nhanes_vars)
+```
+
+```
+#>         variable               description                      type   scale
+#>           <char>                    <char>                    <char>  <char>
+#>  1:          Age              Age in years   Quantitative (discrete)   Ratio
+#>  2:       Gender               Male/Female     Qualitative (nominal) Nominal
+#>  3:        Race1            Race/ethnicity     Qualitative (nominal) Nominal
+#>  4:    Education    Educational attainment     Qualitative (ordinal) Ordinal
+#>  5:          BMI           Body mass index Quantitative (continuous)   Ratio
+#>  6:     SmokeNow        Currently smoking?     Qualitative (nominal) Nominal
+#>  7:     Diabetes           Diabetes status     Qualitative (nominal) Nominal
+#>  8:     BPSysAve   Systolic blood pressure Quantitative (continuous)   Ratio
+#>  9:  DiabetesAge Age at diabetes diagnosis   Quantitative (discrete)   Ratio
+#> 10: nPregnancies     Number of pregnancies   Quantitative (discrete)   Ratio
+```
+
+**Key considerations when classifying variables:**
+
+1. **Context matters**: Age in years is discrete, but age measured precisely would be continuous. In practice, we often treat age as continuous because it can take many values.
+
+2. **Coding is not meaning**: A variable coded as 1, 2, 3, 4 might be nominal (disease type), ordinal (severity), or continuous (actual count). The numbers themselves do not determine the variable type.
+
+3. **Derived variables**: BMI is continuous even though it is calculated from height and weight. The calculation does not change its nature.
+
+## 1.4 Data Collection Methods
+
+How data are collected determines what conclusions we can draw. The distinction between observational studies and experiments is fundamental to understanding the limits of statistical inference. Get this wrong and you will draw causal conclusions from data that cannot support them.
+
+### 1.4.1 Observational Studies
+
+In an **observational study**, researchers observe individuals without intervening or manipulating anything. They record characteristics and outcomes as they naturally occur.
+
+**Cross-sectional studies** collect data at a single point in time. A survey of blood pressure levels across the UK population is cross-sectional. These studies are efficient and provide snapshots of prevalence, but they cannot establish temporal relationships; we cannot tell whether exposure preceded outcome.
+
+**Case-control studies** start with outcomes (cases with disease, controls without) and look backward to identify exposures. If we recruit lung cancer patients (cases) and healthy controls, then compare their smoking histories, we have a case-control study. These studies are efficient for rare diseases but are susceptible to recall bias; people with disease may remember exposures differently.
+
+**Cohort studies** follow a group of individuals over time, measuring exposures at baseline and observing who develops outcomes. The Framingham Heart Study followed thousands of residents, recording cardiovascular risk factors and tracking heart disease incidence for decades. Cohort studies establish temporal sequence but are expensive, time-consuming, and susceptible to loss to follow-up.
+
+
+``` r
+design_data <- data.table$data.table(
+    design = c("Cross-sectional", "Case-control", "Cohort"),
+    time_direction = c("Snapshot", "Backward", "Forward"),
+    starts_with = c("Population sample", "Outcome (cases)", "Exposure (cohort)"),
+    strength = c("Efficient, prevalence", "Rare diseases", "Temporal sequence"),
+    limitation = c("No temporal order", "Recall bias", "Expensive, attrition")
+)
+
+print(design_data)
+```
+
+```
+#>             design time_direction       starts_with              strength
+#>             <char>         <char>            <char>                <char>
+#> 1: Cross-sectional       Snapshot Population sample Efficient, prevalence
+#> 2:    Case-control       Backward   Outcome (cases)         Rare diseases
+#> 3:          Cohort        Forward Exposure (cohort)     Temporal sequence
+#>              limitation
+#>                  <char>
+#> 1:    No temporal order
+#> 2:          Recall bias
+#> 3: Expensive, attrition
+```
+
+### 1.4.2 Experimental Studies
+
+In an **experimental study**, researchers actively intervene; they assign subjects to different conditions and observe outcomes. The defining feature is that the researcher controls who receives which treatment.
+
+The **randomised controlled trial (RCT)** is the gold standard experimental design. Participants are randomly assigned to treatment or control groups, interventions are administered, and outcomes are compared. Random assignment ensures that, on average, groups are comparable in all respects except the treatment received.
+
+
+``` r
+set.seed(101)
+
+# Simulate an RCT
+n_total <- 200
+
+# Create baseline characteristics
+rct_data <- data.table$data.table(
+    id = 1:n_total,
+    age = round(rnorm(n_total, mean = 55, sd = 10)),
+    baseline_bp = round(rnorm(n_total, mean = 145, sd = 12)),
+    smoker = rbinom(n_total, 1, prob = 0.25)
+)
+
+# Randomise to treatment
+rct_data[, treatment := sample(c("Treatment", "Control"), n_total, replace = TRUE)]
+
+# True treatment effect
+treatment_effect <- -10  # Treatment reduces BP by 10 mmHg on average
+
+# Simulate outcome
+rct_data[, outcome_bp := baseline_bp +
+             ifelse(treatment == "Treatment", treatment_effect, 0) +
+             rnorm(n_total, mean = 0, sd = 8)]
+
+# Check balance
+balance_check <- rct_data[, .(
+    mean_age = mean(age),
+    mean_baseline_bp = mean(baseline_bp),
+    prop_smoker = mean(smoker),
+    mean_outcome_bp = mean(outcome_bp),
+    n = .N
+), by = treatment]
+
+print("Balance check after randomisation:")
+print(balance_check)
+
+# Visualise outcomes
+ggplot2$ggplot(rct_data, ggplot2$aes(x = treatment, y = outcome_bp, fill = treatment)) +
+    ggplot2$geom_boxplot(alpha = 0.7) +
+    ggplot2$geom_point(position = ggplot2$position_jitter(width = 0.2), alpha = 0.3) +
+    ggplot2$labs(
+        title = "RCT Results: Blood Pressure After Treatment",
+        subtitle = "Randomisation ensures groups are comparable at baseline",
+        x = "Group",
+        y = "Systolic Blood Pressure (mmHg)"
+    ) +
+    ggplot2$scale_fill_manual(values = c("Control" = "#999999", "Treatment" = "#0072B2")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/rct_simulation-1.png" alt="Randomisation creates comparable groups on both observed and unobserved characteristics">
+	Randomisation creates comparable groups on both observed and unobserved characteristics
+</Figure>
+
+```
+#> [1] "Balance check after randomisation:"
+#>    treatment mean_age mean_baseline_bp prop_smoker mean_outcome_bp     n
+#>       <char>    <num>            <num>       <num>           <num> <int>
+#> 1:   Control 54.69307         144.2376   0.2178218        143.5921   101
+#> 2: Treatment 54.53535         145.5354   0.2424242        134.1245    99
+```
+
+### 1.4.3 The Crucial Difference: Association vs Causation
+
+**Observational studies can show association; only experiments can establish causation.**
+
+This distinction is fundamental. When we observe that coffee drinkers have lower rates of depression, we have found an association. But this does not mean coffee prevents depression. Perhaps people prone to depression drink less coffee. Perhaps a third factor (like socioeconomic status) affects both coffee consumption and depression risk.
+
+The problem is **confounding**: variables that affect both the exposure and the outcome can create spurious associations or mask real ones.
+
+
+``` r
+set.seed(202)
+
+n_obs <- 500
+
+# Confounder: socioeconomic status (0-100 scale)
+ses <- runif(n_obs, 20, 80)
+
+# Coffee consumption depends on SES
+coffee <- 0.5 + 0.02 * ses + rnorm(n_obs, 0, 0.3)
+coffee <- pmax(0, pmin(coffee, 5))  # Cups per day, bounded
+
+# Depression risk depends on SES (not coffee!)
+# Lower SES = higher depression risk
+depression_prob <- 0.5 - 0.005 * ses
+depression <- rbinom(n_obs, 1, plogis(depression_prob))
+
+confound_data <- data.table$data.table(ses, coffee, depression)
+
+# Naive analysis: coffee vs depression (ignoring SES)
+naive_result <- confound_data[, .(
+    depression_rate = mean(depression),
+    n = .N
+), by = .(coffee_group = cut(coffee, breaks = c(0, 1, 2, 3, 5)))]
+
+print("Naive analysis (ignoring confounder):")
+print(naive_result)
+
+# The naive analysis suggests coffee is protective, but this is confounding!
+# High SES -> more coffee AND less depression
+
+ggplot2$ggplot(confound_data, ggplot2$aes(x = coffee, y = depression, colour = ses)) +
+    ggplot2$geom_point(alpha = 0.5) +
+    ggplot2$geom_smooth(method = "glm", method.args = list(family = "binomial"),
+                colour = "red", se = TRUE) +
+    ggplot2$labs(
+        title = "The Confounding Problem",
+        subtitle = "Coffee appears protective, but SES (colour) drives both variables",
+        x = "Coffee Consumption (cups/day)",
+        y = "Depression (1 = Yes, 0 = No)",
+        colour = "SES"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+```
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-1-foundations/confounding_illustration-1.png" alt="Confounding creates misleading associations">
+	Confounding creates misleading associations
+</Figure>
+
+```
+#> [1] "Naive analysis (ignoring confounder):"
+#>    coffee_group depression_rate     n
+#>          <fctr>           <num> <int>
+#> 1:        (0,1]       0.6145833    96
+#> 2:        (2,3]       0.5662651    83
+#> 3:        (1,2]       0.5264798   321
+```
+
+**Why randomisation solves confounding:**
+
+In an RCT, random assignment ensures that, on average, the treatment and control groups are balanced on all characteristics, both observed and unobserved. Any confounder is equally distributed across groups. Therefore, any difference in outcomes must be due to the treatment itself.
+
+This is why RCTs are the gold standard for causal inference. When an RCT is not possible (for ethical or practical reasons), we must use observational data cautiously and employ statistical methods to adjust for known confounders.
+
+---
+
+## Communicating to Stakeholders
+
+When explaining variable types and study designs to collaborators:
+
+**On variable types:**
+> "The type of variable determines which statistical methods are appropriate. Treating an ordinal variable like pain score as if it were truly continuous can lead to misleading results. We need to match our analysis to the data."
+
+**On observational vs experimental studies:**
+> "When we observe without intervening, we can see that two things are related, but we cannot prove one causes the other. Coffee drinkers have lower depression rates, but that does not mean coffee prevents depression. They might just have higher incomes, which protects against both. Randomised trials let us make causal conclusions because random assignment ensures the groups are comparable."
+
+**On confounding:**
+> "A confounder is a hidden factor that affects both the exposure and the outcome, creating a false impression of cause and effect. In observational studies, we can never be sure we have accounted for all confounders. That is why randomised trials remain the gold standard."
+
+---
+
+## Quick Reference
+
+### Variable Type Classification
+
+| Question | If Yes | If No |
+|----------|--------|-------|
+| Is it numerical? | Quantitative | Qualitative |
+| Can it take any value in a range? | Continuous | Discrete (if quantitative) |
+| Is there a natural order? | Ordinal | Nominal (if qualitative) |
+
+### Scales of Measurement
+
+| Scale | Equality | Order | Difference | Ratio | Example |
+|-------|----------|-------|------------|-------|---------|
+| Nominal | Yes | No | No | No | Blood type |
+| Ordinal | Yes | Yes | No | No | Pain rating |
+| Interval | Yes | Yes | Yes | No | Temperature (°C) |
+| Ratio | Yes | Yes | Yes | Yes | Weight (kg) |
+
+### Study Design Summary
+
+| Design | Direction | Best For | Main Limitation |
+|--------|-----------|----------|-----------------|
+| Cross-sectional | Snapshot | Prevalence | No temporal order |
+| Case-control | Backward | Rare diseases | Recall bias |
+| Cohort | Forward | Incidence, causation | Expensive, attrition |
+| RCT | Forward | Causal inference | Ethical constraints |

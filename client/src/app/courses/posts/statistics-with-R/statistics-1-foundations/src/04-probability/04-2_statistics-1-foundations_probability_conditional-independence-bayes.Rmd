@@ -1,0 +1,1515 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 4: Probability — Foundations"
+part: "Part 2: Conditional Probability, Independence, and Bayes' Theorem"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, bayes, data, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Chapter 4: Probability — Foundations (continued)
+
+In Part 1, we established the basic language of probability: sample spaces, events, and the fundamental rules. Now we extend these concepts to conditional probability—how probabilities change when we gain information—and ultimately to Bayes' theorem, the mathematical engine for updating beliefs with evidence.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load NHANES data for medical examples
+nhanes <- fread("../../../data/primary/nhanes.csv")
+
+cat("NHANES dataset:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
+```
+
+## Table of Contents
+
+## 4.4 Conditional Probability
+
+Conditional probability answers: "Given that B occurred, what is the probability of A?" This is fundamentally different from P(A) alone because we have new information.
+
+### 4.4.1 Definition and Intuition
+
+**Prose and Intuition**
+
+Imagine you know that a randomly selected NHANES participant is female. Does this change the probability that she has diabetes? Intuitively, conditioning on information restricts our sample space to only those outcomes consistent with that information.
+
+Conditional probability is the probability of A given that we know B has occurred. We write this as P(A|B), read as "the probability of A given B."
+
+**Mathematical Derivation**
+
+The conditional probability of A given B is defined as:
+
+$$P(A|B) = \frac{P(A \cap B)}{P(B)}, \quad \text{provided } P(B) > 0$$
+
+**Intuition behind the formula:**
+- $P(A \cap B)$ is the probability that both A and B occur
+- By dividing by $P(B)$, we "rescale" to a new sample space where B is certain
+- The numerator captures outcomes where both happen; the denominator ensures probabilities sum to 1 in the restricted space
+
+**Deriving from first principles:**
+
+If we restrict attention to outcomes where B occurs, then:
+- The "new" sample space is B
+- The "new" event of interest is $A \cap B$ (outcomes in both A and B)
+- The proportion of the new sample space occupied by our event is $\frac{P(A \cap B)}{P(B)}$
+
+```{r conditional_definition, fig.cap="Conditional probability restricts the sample space"}
+# Demonstrate with NHANES: P(Diabetes | Female) vs P(Diabetes)
+
+# Calculate relevant counts
+nhanes_clean <- nhanes[!is.na(Gender) & !is.na(Diabetes)]
+n_total <- nrow(nhanes_clean)
+
+# Marginal probabilities
+n_female <- sum(nhanes_clean$Gender == "female")
+n_diabetic <- sum(nhanes_clean$Diabetes == "Yes")
+P_female <- n_female / n_total
+P_diabetic <- n_diabetic / n_total
+
+# Joint probability
+n_female_diabetic <- sum(nhanes_clean$Gender == "female" & nhanes_clean$Diabetes == "Yes")
+P_female_and_diabetic <- n_female_diabetic / n_total
+
+# Conditional probability: P(Diabetes | Female)
+P_diabetic_given_female <- P_female_and_diabetic / P_female
+
+# Also calculate P(Diabetes | Male) for comparison
+n_male <- sum(nhanes_clean$Gender == "male")
+n_male_diabetic <- sum(nhanes_clean$Gender == "male" & nhanes_clean$Diabetes == "Yes")
+P_diabetic_given_male <- (n_male_diabetic / n_total) / (n_male / n_total)
+
+cat("Conditional Probability Example: Diabetes and Gender\n")
+cat("====================================================\n\n")
+
+cat("Sample sizes:\n")
+cat("  Total participants:", n_total, "\n")
+cat("  Females:", n_female, "\n")
+cat("  People with diabetes:", n_diabetic, "\n")
+cat("  Female with diabetes:", n_female_diabetic, "\n\n")
+
+cat("Probabilities:\n")
+cat("  P(Female) =", round(P_female, 4), "\n")
+cat("  P(Diabetes) =", round(P_diabetic, 4), "\n")
+cat("  P(Female ∩ Diabetes) =", round(P_female_and_diabetic, 4), "\n\n")
+
+cat("Conditional probability formula:\n")
+cat("  P(Diabetes | Female) = P(Female ∩ Diabetes) / P(Female)\n")
+cat("                       =", round(P_female_and_diabetic, 4), "/", round(P_female, 4), "\n")
+cat("                       =", round(P_diabetic_given_female, 4), "\n\n")
+
+cat("Comparison:\n")
+cat("  P(Diabetes) =", round(P_diabetic, 4), "(unconditional)\n")
+cat("  P(Diabetes | Female) =", round(P_diabetic_given_female, 4), "\n")
+cat("  P(Diabetes | Male) =", round(P_diabetic_given_male, 4), "\n")
+
+# Visualise the restriction of sample space
+# Create a unit square visualisation
+sample_space <- data.table(
+    xmin = c(0, 0, 0.5, 0.5),
+    xmax = c(0.5, 0.5, 1, 1),
+    ymin = c(0, 0.9, 0, 0.9),
+    ymax = c(0.9, 1, 0.9, 1),
+    group = c("Female, No Diabetes", "Female, Diabetes",
+              "Male, No Diabetes", "Male, Diabetes"),
+    fill = c("Female", "Female", "Male", "Male")
+)
+
+ggplot2$ggplot(sample_space) +
+    ggplot2$geom_rect(ggplot2$aes(xmin = xmin, xmax = xmax,
+                          ymin = ymin, ymax = ymax, fill = fill),
+              colour = "black", size = 1) +
+    # Highlight the conditioning event (Female)
+    ggplot2$geom_rect(ggplot2$aes(xmin = 0, xmax = 0.5, ymin = 0, ymax = 1),
+              fill = NA, colour = "red", size = 2, linetype = "dashed") +
+    ggplot2$annotate("text", x = 0.25, y = 0.45, label = "Female\nNo Diabetes",
+             size = 4, colour = "white") +
+    ggplot2$annotate("text", x = 0.25, y = 0.95, label = "Female\nDiabetes",
+             size = 3, colour = "white") +
+    ggplot2$annotate("text", x = 0.75, y = 0.45, label = "Male\nNo Diabetes",
+             size = 4) +
+    ggplot2$annotate("text", x = 0.75, y = 0.95, label = "Male\nDiabetes",
+             size = 3) +
+    ggplot2$annotate("text", x = 0.25, y = -0.05, label = "B: Female (new sample space)",
+             colour = "red", size = 4, fontface = "bold") +
+    ggplot2$scale_fill_manual(values = c("Female" = "#D55E00", "Male" = "#56B4E9")) +
+    ggplot2$labs(
+        title = "Conditional Probability Restricts the Sample Space",
+        subtitle = "P(Diabetes | Female) focuses only on the female subset",
+        x = NULL, y = NULL
+    ) +
+    ggplot2$theme_void() +
+    ggplot2$theme(legend.position = "none")
+```
+
+### 4.4.2 The Multiplication Rule
+
+**Prose and Intuition**
+
+The definition of conditional probability can be rearranged to give us the **multiplication rule**: a formula for the probability that two events both occur.
+
+If we know P(A|B) and P(B), we can find P(A ∩ B).
+
+**Mathematical Derivation**
+
+Rearranging the conditional probability definition:
+
+$$P(A \cap B) = P(A|B) \cdot P(B)$$
+
+By symmetry, we also have:
+
+$$P(A \cap B) = P(B|A) \cdot P(A)$$
+
+This extends to chains of events:
+
+$$P(A \cap B \cap C) = P(A) \cdot P(B|A) \cdot P(C|A \cap B)$$
+
+```{r multiplication_rule, fig.cap="The multiplication rule finds joint probabilities from conditionals"}
+# Medical example: Sequential diagnostic process
+# First test is blood pressure screening, then glucose test
+
+# Suppose:
+# P(high BP) = 0.30
+# P(high glucose | high BP) = 0.25  (diabetic risk factors cluster)
+# P(high glucose | normal BP) = 0.08
+
+P_high_BP <- 0.30
+P_high_glucose_given_high_BP <- 0.25
+P_high_glucose_given_normal_BP <- 0.08
+
+# What's P(high BP AND high glucose)?
+P_high_BP_and_high_glucose <- P_high_glucose_given_high_BP * P_high_BP
+
+# What's P(normal BP AND high glucose)?
+P_normal_BP <- 1 - P_high_BP
+P_normal_BP_and_high_glucose <- P_high_glucose_given_normal_BP * P_normal_BP
+
+# Total P(high glucose) using law of total probability
+P_high_glucose <- P_high_BP_and_high_glucose + P_normal_BP_and_high_glucose
+
+cat("The Multiplication Rule: Sequential Diagnostics\n")
+cat("===============================================\n\n")
+
+cat("Known probabilities:\n")
+cat("  P(High BP) =", P_high_BP, "\n")
+cat("  P(High Glucose | High BP) =", P_high_glucose_given_high_BP, "\n")
+cat("  P(High Glucose | Normal BP) =", P_high_glucose_given_normal_BP, "\n\n")
+
+cat("Applying the multiplication rule:\n")
+cat("  P(High BP ∩ High Glucose) = P(High Glucose | High BP) × P(High BP)\n")
+cat("                            =", P_high_glucose_given_high_BP, "×", P_high_BP, "\n")
+cat("                            =", P_high_BP_and_high_glucose, "\n\n")
+
+cat("  P(Normal BP ∩ High Glucose) = P(High Glucose | Normal BP) × P(Normal BP)\n")
+cat("                              =", P_high_glucose_given_normal_BP, "×", P_normal_BP, "\n")
+cat("                              =", P_normal_BP_and_high_glucose, "\n\n")
+
+cat("Total P(High Glucose) =", P_high_glucose, "\n")
+
+# Visualise as tree diagram
+tree_labels <- data.table(
+    level = c(0, 1, 1, 2, 2, 2, 2),
+    x = c(0, -3, 3, -4.5, -1.5, 1.5, 4.5),
+    y = c(4, 2, 2, 0, 0, 0, 0),
+    label = c("Start",
+              paste0("High BP\n(", P_high_BP, ")"),
+              paste0("Normal BP\n(", P_normal_BP, ")"),
+              paste0("High Glu\n", round(P_high_BP_and_high_glucose, 3)),
+              paste0("Normal Glu\n", round(P_high_BP * (1-P_high_glucose_given_high_BP), 3)),
+              paste0("High Glu\n", round(P_normal_BP_and_high_glucose, 3)),
+              paste0("Normal Glu\n", round(P_normal_BP * (1-P_high_glucose_given_normal_BP), 3)))
+)
+
+edges <- data.table(
+    x_start = c(0, 0, -3, -3, 3, 3),
+    y_start = c(4, 4, 2, 2, 2, 2),
+    x_end = c(-3, 3, -4.5, -1.5, 1.5, 4.5),
+    y_end = c(2, 2, 0, 0, 0, 0)
+)
+
+edge_labels <- data.table(
+    x = c(-1.8, 1.8, -4, -2, 2, 4),
+    y = c(3.2, 3.2, 1.2, 1.2, 1.2, 1.2),
+    label = c("0.30", "0.70", "0.25", "0.75", "0.08", "0.92")
+)
+
+ggplot2$ggplot() +
+    ggplot2$geom_segment(data = edges,
+                 ggplot2$aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
+                 size = 1, colour = "grey40") +
+    ggplot2$geom_point(data = tree_labels, ggplot2$aes(x = x, y = y),
+               size = 18, colour = "#56B4E9") +
+    ggplot2$geom_text(data = tree_labels, ggplot2$aes(x = x, y = y, label = label),
+              size = 2.8) +
+    ggplot2$geom_text(data = edge_labels, ggplot2$aes(x = x, y = y, label = label),
+              size = 3.5, fontface = "bold") +
+    ggplot2$labs(
+        title = "Tree Diagram: Multiplication Rule in Action",
+        subtitle = "Joint probabilities are products along branches"
+    ) +
+    ggplot2$theme_void()
+```
+
+### 4.4.3 Visualising Conditional Probability
+
+**Tree Diagrams for Sequential Events**
+
+Tree diagrams are powerful tools for visualising conditional probabilities, especially when events occur in sequence.
+
+```{r tree_diagram_detailed, fig.cap="Tree diagram for a two-stage medical screening process"}
+# More complex example: Two-stage screening
+# Stage 1: Symptom screening (S+ or S-)
+# Stage 2: Blood test (T+ or T-)
+
+# Prior: Disease prevalence = 2%
+P_disease <- 0.02
+P_no_disease <- 1 - P_disease
+
+# Symptom screening
+P_symptom_pos_given_disease <- 0.85  # sensitivity for symptoms
+P_symptom_pos_given_no_disease <- 0.20  # false positive rate for symptoms
+
+# Blood test (only given if symptomatic)
+P_test_pos_given_disease <- 0.95  # test sensitivity
+P_test_pos_given_no_disease <- 0.05  # test false positive rate
+
+# Calculate all joint probabilities
+# Branch 1: Disease -> Symptomatic -> Test positive
+p1 <- P_disease * P_symptom_pos_given_disease * P_test_pos_given_disease
+
+# Branch 2: Disease -> Symptomatic -> Test negative
+p2 <- P_disease * P_symptom_pos_given_disease * (1 - P_test_pos_given_disease)
+
+# Branch 3: Disease -> Asymptomatic (no further testing)
+p3 <- P_disease * (1 - P_symptom_pos_given_disease)
+
+# Branch 4: No disease -> Symptomatic -> Test positive
+p4 <- P_no_disease * P_symptom_pos_given_no_disease * P_test_pos_given_no_disease
+
+# Branch 5: No disease -> Symptomatic -> Test negative
+p5 <- P_no_disease * P_symptom_pos_given_no_disease * (1 - P_test_pos_given_no_disease)
+
+# Branch 6: No disease -> Asymptomatic
+p6 <- P_no_disease * (1 - P_symptom_pos_given_no_disease)
+
+cat("Two-Stage Screening: Joint Probabilities\n")
+cat("========================================\n\n")
+
+cat("Stage 1 - Symptom Screening:\n")
+cat("  P(Disease) =", P_disease, "\n")
+cat("  P(Symptoms | Disease) =", P_symptom_pos_given_disease, "\n")
+cat("  P(Symptoms | No Disease) =", P_symptom_pos_given_no_disease, "\n\n")
+
+cat("Stage 2 - Blood Test (if symptomatic):\n")
+cat("  P(Test+ | Disease) =", P_test_pos_given_disease, "\n")
+cat("  P(Test+ | No Disease) =", P_test_pos_given_no_disease, "\n\n")
+
+cat("Final Outcomes (joint probabilities):\n")
+cat("  Disease → Symptoms → Test+:", round(p1, 5), "\n")
+cat("  Disease → Symptoms → Test-:", round(p2, 5), "\n")
+cat("  Disease → No Symptoms:", round(p3, 5), "\n")
+cat("  No Disease → Symptoms → Test+:", round(p4, 5), "\n")
+cat("  No Disease → Symptoms → Test-:", round(p5, 5), "\n")
+cat("  No Disease → No Symptoms:", round(p6, 5), "\n")
+cat("  Total:", round(p1 + p2 + p3 + p4 + p5 + p6, 5), "\n\n")
+
+# Key question: P(Disease | Symptoms AND Test+)
+P_positive_pathway <- p1 + p4  # Both pathways leading to positive test
+P_disease_given_both_positive <- p1 / P_positive_pathway
+
+cat("Critical Question:\n")
+cat("  P(Disease | Symptoms+ AND Test+) =", round(P_disease_given_both_positive, 4), "\n")
+cat("  This is the positive predictive value of the two-stage process.\n")
+```
+
+### 4.4.4 Medical Screening Example: Sensitivity and Specificity
+
+**Prose and Intuition**
+
+Medical tests are characterised by two conditional probabilities:
+
+- **Sensitivity** = P(Test+ | Disease): How good is the test at detecting disease?
+- **Specificity** = P(Test- | No Disease): How good is the test at ruling out disease?
+
+But patients and clinicians often want different conditional probabilities:
+
+- **Positive Predictive Value (PPV)** = P(Disease | Test+): If I test positive, do I have it?
+- **Negative Predictive Value (NPV)** = P(No Disease | Test-): If I test negative, am I clear?
+
+These are NOT the same! Converting between them requires Bayes' theorem.
+
+```{r sens_spec_demo, fig.cap="Sensitivity and specificity measure different aspects of test performance"}
+# Create a comprehensive demonstration of test characteristics
+
+# Define test and population parameters
+prevalence <- 0.05  # 5% disease prevalence
+sensitivity <- 0.90  # 90% sensitivity
+specificity <- 0.95  # 95% specificity
+
+# Population of 10,000
+n_pop <- 10000
+
+# Calculate all cells of the 2x2 table
+n_disease <- n_pop * prevalence
+n_no_disease <- n_pop - n_disease
+
+true_pos <- n_disease * sensitivity
+false_neg <- n_disease - true_pos
+true_neg <- n_no_disease * specificity
+false_pos <- n_no_disease - true_neg
+
+# Create 2x2 table
+cat("Screening 10,000 People: The 2×2 Table\n")
+cat("======================================\n\n")
+
+cat("                     Disease+    Disease-    Total\n")
+cat("Test+                  ", true_pos, "        ", false_pos, "       ", true_pos + false_pos, "\n")
+cat("Test-                  ", false_neg, "       ", true_neg, "      ", false_neg + true_neg, "\n")
+cat("Total                  ", n_disease, "       ", n_no_disease, "      ", n_pop, "\n\n")
+
+# Calculate predictive values
+PPV <- true_pos / (true_pos + false_pos)
+NPV <- true_neg / (true_neg + false_neg)
+
+cat("Test Characteristics:\n")
+cat("  Sensitivity = P(Test+ | Disease) =", sensitivity, "\n")
+cat("  Specificity = P(Test- | No Disease) =", specificity, "\n\n")
+
+cat("Predictive Values (what patients want to know):\n")
+cat("  PPV = P(Disease | Test+) =", round(PPV, 4), "\n")
+cat("  NPV = P(No Disease | Test-) =", round(NPV, 4), "\n\n")
+
+cat("Note: With 90% sensitivity and 95% specificity,\n")
+cat("      only", round(PPV * 100, 1), "% of positive tests are true positives!\n")
+
+# Visualise the 2x2 table as a heatmap
+confusion_matrix <- data.table(
+    test_result = factor(rep(c("Test+", "Test-"), 2), levels = c("Test+", "Test-")),
+    disease_status = factor(rep(c("Disease+", "Disease-"), each = 2),
+                            levels = c("Disease+", "Disease-")),
+    count = c(true_pos, false_neg, false_pos, true_neg),
+    label = c(paste0("True Positive\n", true_pos),
+              paste0("False Negative\n", false_neg),
+              paste0("False Positive\n", false_pos),
+              paste0("True Negative\n", true_neg)),
+    type = c("Correct", "Error", "Error", "Correct")
+)
+
+ggplot2$ggplot(confusion_matrix, ggplot2$aes(x = disease_status, y = test_result, fill = type)) +
+    ggplot2$geom_tile(colour = "white", size = 2) +
+    ggplot2$geom_text(ggplot2$aes(label = label), size = 5, colour = "white") +
+    ggplot2$scale_fill_manual(values = c("Correct" = "#009E73", "Error" = "#D55E00")) +
+    ggplot2$labs(
+        title = "Confusion Matrix for Diagnostic Test",
+        subtitle = paste0("Prevalence = ", prevalence * 100, "%, Sensitivity = ",
+                         sensitivity * 100, "%, Specificity = ", specificity * 100, "%"),
+        x = "True Disease Status",
+        y = "Test Result",
+        fill = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom",
+          panel.grid = ggplot2$element_blank())
+```
+
+---
+
+## 4.5 Independence
+
+Independence captures the idea that knowing one event occurred tells us nothing about another.
+
+### 4.5.1 Definition of Independence
+
+**Prose and Intuition**
+
+Two events A and B are **independent** if learning that B occurred doesn't change our probability assessment of A. Formally, P(A|B) = P(A).
+
+Substituting into the definition of conditional probability:
+$$P(A|B) = \frac{P(A \cap B)}{P(B)} = P(A)$$
+
+Rearranging gives the multiplication rule for independent events.
+
+**Mathematical Definition**
+
+Events A and B are **independent** if and only if:
+
+$$P(A \cap B) = P(A) \cdot P(B)$$
+
+Equivalently:
+- $P(A|B) = P(A)$, or
+- $P(B|A) = P(B)$
+
+```{r independence_definition, fig.cap="Testing for independence in NHANES data"}
+# Test independence of gender and diabetes in NHANES
+
+# Get counts
+gender_diabetes <- nhanes[!is.na(Gender) & !is.na(Diabetes), .N,
+                          by = .(Gender, Diabetes)]
+total <- nhanes[!is.na(Gender) & !is.na(Diabetes), .N]
+
+# Marginal probabilities
+P_female <- nhanes[!is.na(Gender), mean(Gender == "female")]
+P_diabetic <- nhanes[!is.na(Diabetes), mean(Diabetes == "Yes")]
+
+# Joint probability
+P_female_and_diabetic <- nhanes[!is.na(Gender) & !is.na(Diabetes),
+                                mean(Gender == "female" & Diabetes == "Yes")]
+
+# Test for independence
+expected_joint <- P_female * P_diabetic
+actual_joint <- P_female_and_diabetic
+
+cat("Testing Independence: Gender and Diabetes\n")
+cat("=========================================\n\n")
+
+cat("Marginal probabilities:\n")
+cat("  P(Female) =", round(P_female, 4), "\n")
+cat("  P(Diabetic) =", round(P_diabetic, 4), "\n\n")
+
+cat("If independent: P(Female ∩ Diabetic) = P(Female) × P(Diabetic)\n")
+cat("  Expected:", round(P_female, 4), "×", round(P_diabetic, 4), "=",
+    round(expected_joint, 4), "\n")
+cat("  Actual:", round(actual_joint, 4), "\n\n")
+
+cat("Difference:", round(actual_joint - expected_joint, 5), "\n\n")
+
+if (abs(actual_joint - expected_joint) < 0.01) {
+    cat("Conclusion: Events appear approximately independent\n")
+} else {
+    cat("Conclusion: Events appear NOT independent\n")
+}
+
+# Conditional probabilities
+P_diabetic_given_female <- nhanes[Gender == "female" & !is.na(Diabetes),
+                                   mean(Diabetes == "Yes")]
+P_diabetic_given_male <- nhanes[Gender == "male" & !is.na(Diabetes),
+                                 mean(Diabetes == "Yes")]
+
+cat("\nFurther evidence:\n")
+cat("  P(Diabetic | Female) =", round(P_diabetic_given_female, 4), "\n")
+cat("  P(Diabetic | Male) =", round(P_diabetic_given_male, 4), "\n")
+cat("  P(Diabetic) overall =", round(P_diabetic, 4), "\n")
+
+# Visualise
+comparison_dt <- data.table(
+    measure = factor(c("P(Diabetic)", "P(Diabetic|Female)", "P(Diabetic|Male)"),
+                     levels = c("P(Diabetic)", "P(Diabetic|Female)", "P(Diabetic|Male)")),
+    probability = c(P_diabetic, P_diabetic_given_female, P_diabetic_given_male)
+)
+
+ggplot2$ggplot(comparison_dt, ggplot2$aes(x = measure, y = probability, fill = measure)) +
+    ggplot2$geom_col(width = 0.6) +
+    ggplot2$geom_hline(yintercept = P_diabetic, linetype = "dashed", colour = "red") +
+    ggplot2$geom_text(ggplot2$aes(label = round(probability, 4)), vjust = -0.5, size = 5) +
+    ggplot2$scale_fill_manual(values = c("#56B4E9", "#D55E00", "#009E73")) +
+    ggplot2$labs(
+        title = "Testing Independence: Does Gender Affect Diabetes Probability?",
+        subtitle = "If independent, all bars would equal the red line P(Diabetic)",
+        x = NULL,
+        y = "Probability"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+### 4.5.2 Testing for Independence
+
+**Prose and Intuition**
+
+To test whether two events are independent in data, we compare the observed joint probability to what we'd expect under independence.
+
+For large samples, we can use the chi-squared test; for small samples, Fisher's exact test. Here, we focus on the conceptual comparison.
+
+```{r testing_independence}
+# Implement a simple independence test from scratch
+
+test_independence <- function(data, var1, var2) {
+    # Calculate observed and expected counts
+
+    # Contingency table
+    obs_table <- table(data[[var1]], data[[var2]])
+    n_total <- sum(obs_table)
+
+    # Row and column totals
+    row_totals <- rowSums(obs_table)
+    col_totals <- colSums(obs_table)
+
+    # Expected counts under independence
+    exp_table <- outer(row_totals, col_totals) / n_total
+
+    # Chi-squared statistic
+    chi_sq <- sum((obs_table - exp_table)^2 / exp_table)
+
+    # Degrees of freedom
+    df <- (nrow(obs_table) - 1) * (ncol(obs_table) - 1)
+
+    # P-value
+    p_value <- 1 - pchisq(chi_sq, df)
+
+    list(
+        observed = obs_table,
+        expected = round(exp_table, 1),
+        chi_squared = chi_sq,
+        df = df,
+        p_value = p_value
+    )
+}
+
+# Test Gender vs Diabetes
+result <- test_independence(nhanes[!is.na(Gender) & !is.na(Diabetes)],
+                            "Gender", "Diabetes")
+
+cat("Chi-Squared Test for Independence\n")
+cat("=================================\n\n")
+
+cat("Observed counts:\n")
+print(result$observed)
+cat("\n")
+
+cat("Expected counts (if independent):\n")
+print(result$expected)
+cat("\n")
+
+cat("Chi-squared statistic:", round(result$chi_squared, 2), "\n")
+cat("Degrees of freedom:", result$df, "\n")
+cat("P-value:", format.pval(result$p_value, digits = 4), "\n\n")
+
+if (result$p_value < 0.05) {
+    cat("Conclusion: Reject independence at α = 0.05\n")
+    cat("  Gender and Diabetes status are NOT independent.\n")
+} else {
+    cat("Conclusion: Cannot reject independence at α = 0.05\n")
+}
+```
+
+### 4.5.3 Independence vs Mutual Exclusivity
+
+**Prose and Intuition**
+
+This is one of the most common sources of confusion in probability:
+
+- **Mutually exclusive**: A and B cannot both occur; $P(A \cap B) = 0$
+- **Independent**: A and B don't affect each other; $P(A \cap B) = P(A) \cdot P(B)$
+
+These are opposites! If A and B are mutually exclusive (and both have positive probability), then they CANNOT be independent:
+
+If $P(A \cap B) = 0$ but $P(A) \cdot P(B) > 0$, the independence condition fails.
+
+Knowing that A occurred tells us B did NOT occur—that's information!
+
+```{r mutually_exclusive_vs_independent, fig.cap="Mutually exclusive events are maximally dependent, not independent"}
+# Demonstrate the difference
+
+# Example 1: Mutually exclusive events (blood types)
+cat("Example 1: Mutually Exclusive Events\n")
+cat("====================================\n")
+cat("Blood types: A and B are mutually exclusive\n")
+P_type_A <- 0.42
+P_type_B <- 0.10
+
+cat("  P(Type A) =", P_type_A, "\n")
+cat("  P(Type B) =", P_type_B, "\n")
+cat("  P(Type A ∩ Type B) = 0 (impossible to have both)\n")
+cat("  P(Type A) × P(Type B) =", P_type_A * P_type_B, "\n")
+cat("  Since 0 ≠", P_type_A * P_type_B, ", they are NOT independent.\n\n")
+
+cat("  P(Type B | Type A) = 0 (if you have A, you can't have B)\n")
+cat("  P(Type B) =", P_type_B, "\n")
+cat("  Since 0 ≠", P_type_B, ", knowing Type A changes P(Type B).\n\n")
+
+# Example 2: Independent events (coin flips)
+cat("Example 2: Independent Events\n")
+cat("=============================\n")
+cat("Two fair coin flips: First heads (H1) and Second heads (H2)\n")
+P_H1 <- 0.5
+P_H2 <- 0.5
+P_H1_and_H2 <- 0.25
+
+cat("  P(H1) =", P_H1, "\n")
+cat("  P(H2) =", P_H2, "\n")
+cat("  P(H1 ∩ H2) =", P_H1_and_H2, "\n")
+cat("  P(H1) × P(H2) =", P_H1 * P_H2, "\n")
+cat("  Since", P_H1_and_H2, "=", P_H1 * P_H2, ", they ARE independent.\n\n")
+
+cat("  P(H2 | H1) = P(H1 ∩ H2) / P(H1) =", P_H1_and_H2, "/", P_H1, "=", P_H1_and_H2/P_H1, "\n")
+cat("  P(H2) =", P_H2, "\n")
+cat("  Since", P_H1_and_H2/P_H1, "=", P_H2, ", knowing H1 doesn't change P(H2).\n")
+
+# Visualise both scenarios
+par(mfrow = c(1, 2))
+
+# Venn diagram for mutually exclusive
+theta <- seq(0, 2*pi, length.out = 100)
+r <- 1
+
+# Mutually exclusive circles (non-overlapping)
+me_data <- data.table(
+    x = c(-1.2 + r*cos(theta), 1.2 + r*cos(theta)),
+    y = c(r*sin(theta), r*sin(theta)),
+    group = rep(c("A", "B"), each = 100)
+)
+
+p1 <- ggplot2$ggplot() +
+    ggplot2$geom_polygon(data = me_data[group == "A"],
+                 ggplot2$aes(x = x, y = y), fill = "#56B4E9", alpha = 0.5) +
+    ggplot2$geom_polygon(data = me_data[group == "B"],
+                 ggplot2$aes(x = x, y = y), fill = "#D55E00", alpha = 0.5) +
+    ggplot2$annotate("text", x = -1.2, y = 0, label = "A", size = 8) +
+    ggplot2$annotate("text", x = 1.2, y = 0, label = "B", size = 8) +
+    ggplot2$annotate("text", x = 0, y = -1.8, label = "No overlap\nP(A ∩ B) = 0",
+             size = 4) +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(title = "Mutually Exclusive", subtitle = "NOT independent!") +
+    ggplot2$theme_void()
+
+# Independent events (overlapping proportionally)
+ind_data <- data.table(
+    x = c(-0.5 + r*cos(theta), 0.5 + r*cos(theta)),
+    y = c(r*sin(theta), r*sin(theta)),
+    group = rep(c("A", "B"), each = 100)
+)
+
+p2 <- ggplot2$ggplot() +
+    ggplot2$geom_polygon(data = ind_data[group == "A"],
+                 ggplot2$aes(x = x, y = y), fill = "#56B4E9", alpha = 0.5) +
+    ggplot2$geom_polygon(data = ind_data[group == "B"],
+                 ggplot2$aes(x = x, y = y), fill = "#D55E00", alpha = 0.5) +
+    ggplot2$annotate("text", x = -1, y = 0, label = "A", size = 8) +
+    ggplot2$annotate("text", x = 1, y = 0, label = "B", size = 8) +
+    ggplot2$annotate("text", x = 0, y = 0, label = "A∩B", size = 4) +
+    ggplot2$annotate("text", x = 0, y = -1.8,
+             label = "Overlap = P(A) × P(B)\nProportional to both",
+             size = 4) +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(title = "Independent", subtitle = "Knowing A doesn't change P(B)") +
+    ggplot2$theme_void()
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+### 4.5.4 Independence in Biomedical Contexts
+
+**Prose and Intuition**
+
+In biomedical research, we often assume independence when it may not hold:
+
+1. **Clinical trials**: We assume treatment assignment is independent of patient characteristics (randomisation ensures this)
+
+2. **Genetic studies**: We may assume independence of alleles at different loci, but linkage disequilibrium violates this
+
+3. **Epidemiology**: Risk factors often cluster (smoking, diet, exercise), violating independence assumptions
+
+Testing and accounting for violations of independence is crucial for valid inference.
+
+```{r independence_medical, fig.cap="Risk factors often cluster, violating independence"}
+# Demonstrate clustering of risk factors in NHANES
+
+# Define risk factors
+nhanes_risks <- nhanes[!is.na(BMI) & !is.na(BPSysAve) & !is.na(SmokeNow)]
+nhanes_risks[, obese := BMI >= 30]
+nhanes_risks[, hypertensive := BPSysAve >= 140]
+nhanes_risks[, smoker := SmokeNow == "Yes"]
+
+# Calculate marginal probabilities
+P_obese <- mean(nhanes_risks$obese)
+P_hypertensive <- mean(nhanes_risks$hypertensive)
+P_smoker <- mean(nhanes_risks$smoker, na.rm = TRUE)
+
+# Calculate joint probabilities
+P_obese_and_hypertensive <- mean(nhanes_risks$obese & nhanes_risks$hypertensive)
+P_obese_and_smoker <- mean(nhanes_risks$obese & nhanes_risks$smoker, na.rm = TRUE)
+P_hypertensive_and_smoker <- mean(nhanes_risks$hypertensive & nhanes_risks$smoker, na.rm = TRUE)
+
+# Expected under independence
+expected_obese_hypert <- P_obese * P_hypertensive
+expected_obese_smoker <- P_obese * P_smoker
+expected_hypert_smoker <- P_hypertensive * P_smoker
+
+cat("Risk Factor Clustering in NHANES\n")
+cat("================================\n\n")
+
+cat("Marginal probabilities:\n")
+cat("  P(Obese) =", round(P_obese, 4), "\n")
+cat("  P(Hypertensive) =", round(P_hypertensive, 4), "\n")
+cat("  P(Smoker) =", round(P_smoker, 4), "\n\n")
+
+cat("Testing independence:\n\n")
+
+cat("Obesity & Hypertension:\n")
+cat("  Observed P(both):", round(P_obese_and_hypertensive, 4), "\n")
+cat("  Expected if independent:", round(expected_obese_hypert, 4), "\n")
+cat("  Ratio (observed/expected):", round(P_obese_and_hypertensive/expected_obese_hypert, 2), "\n\n")
+
+cat("Obesity & Smoking:\n")
+cat("  Observed P(both):", round(P_obese_and_smoker, 4), "\n")
+cat("  Expected if independent:", round(expected_obese_smoker, 4), "\n")
+cat("  Ratio (observed/expected):", round(P_obese_and_smoker/expected_obese_smoker, 2), "\n\n")
+
+cat("Hypertension & Smoking:\n")
+cat("  Observed P(both):", round(P_hypertensive_and_smoker, 4), "\n")
+cat("  Expected if independent:", round(expected_hypert_smoker, 4), "\n")
+cat("  Ratio (observed/expected):", round(P_hypertensive_and_smoker/expected_hypert_smoker, 2), "\n")
+
+# Visualise the clustering
+cluster_dt <- data.table(
+    pair = factor(rep(c("Obesity &\nHypertension", "Obesity &\nSmoking",
+                       "Hypertension &\nSmoking"), 2),
+                  levels = c("Obesity &\nHypertension", "Obesity &\nSmoking",
+                            "Hypertension &\nSmoking")),
+    type = rep(c("Observed", "Expected if Independent"), each = 3),
+    probability = c(P_obese_and_hypertensive, P_obese_and_smoker, P_hypertensive_and_smoker,
+                   expected_obese_hypert, expected_obese_smoker, expected_hypert_smoker)
+)
+
+ggplot2$ggplot(cluster_dt, ggplot2$aes(x = pair, y = probability, fill = type)) +
+    ggplot2$geom_col(position = "dodge", width = 0.7) +
+    ggplot2$geom_text(ggplot2$aes(label = round(probability, 3)),
+              position = ggplot2$position_dodge(width = 0.7), vjust = -0.5, size = 4) +
+    ggplot2$scale_fill_manual(values = c("#D55E00", "#56B4E9")) +
+    ggplot2$labs(
+        title = "Risk Factors Cluster: Violations of Independence",
+        subtitle = "Observed joint probabilities exceed independent expectations",
+        x = NULL,
+        y = "Joint Probability",
+        fill = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 4.6 Bayes' Theorem
+
+Bayes' theorem is the mathematical rule for updating beliefs in light of new evidence. It is arguably the most important result in probability theory for applied statistics.
+
+### 4.6.1 Derivation
+
+**Prose and Intuition**
+
+We often know P(B|A)—the probability of observing evidence B if hypothesis A is true—but want P(A|B)—the probability that hypothesis A is true given that we observed evidence B.
+
+Bayes' theorem provides the bridge between these two.
+
+**Mathematical Derivation**
+
+Starting from the definition of conditional probability:
+
+$$P(A|B) = \frac{P(A \cap B)}{P(B)}$$
+
+Using the multiplication rule: $P(A \cap B) = P(B|A) \cdot P(A)$
+
+Substituting:
+
+$$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+This is **Bayes' theorem**.
+
+```{r bayes_derivation, fig.cap="Bayes' theorem connects forward and inverse probabilities"}
+# Visualise Bayes' theorem with a medical example
+# Disease prevalence = 1%
+# Test sensitivity P(+|D) = 95%
+# Test specificity P(-|~D) = 90%
+
+prevalence <- 0.01
+sensitivity <- 0.95
+specificity <- 0.90
+
+# Forward probabilities (what we know)
+P_D <- prevalence
+P_pos_given_D <- sensitivity
+P_neg_given_notD <- specificity
+P_pos_given_notD <- 1 - specificity
+
+# P(positive test) using law of total probability
+P_pos <- P_pos_given_D * P_D + P_pos_given_notD * (1 - P_D)
+
+# Bayes' theorem: P(D | +)
+P_D_given_pos <- (P_pos_given_D * P_D) / P_pos
+
+# Also calculate P(~D | +) for completeness
+P_notD_given_pos <- 1 - P_D_given_pos
+
+cat("Bayes' Theorem Derivation: Medical Diagnostics\n")
+cat("===============================================\n\n")
+
+cat("Given (forward probabilities):\n")
+cat("  P(Disease) =", P_D, "\n")
+cat("  P(+ | Disease) =", P_pos_given_D, "(sensitivity)\n")
+cat("  P(- | No Disease) =", P_neg_given_notD, "(specificity)\n")
+cat("  P(+ | No Disease) =", P_pos_given_notD, "(false positive rate)\n\n")
+
+cat("Step 1: Calculate P(+) using Law of Total Probability\n")
+cat("  P(+) = P(+ | D) × P(D) + P(+ | ~D) × P(~D)\n")
+cat("       =", P_pos_given_D, "×", P_D, "+", P_pos_given_notD, "×", 1-P_D, "\n")
+cat("       =", round(P_pos, 4), "\n\n")
+
+cat("Step 2: Apply Bayes' Theorem\n")
+cat("  P(D | +) = P(+ | D) × P(D) / P(+)\n")
+cat("           =", P_pos_given_D, "×", P_D, "/", round(P_pos, 4), "\n")
+cat("           =", round(P_D_given_pos, 4), "\n\n")
+
+cat("Interpretation:\n")
+cat("  Even with a positive test, P(Disease | +) is only",
+    round(P_D_given_pos * 100, 1), "%\n")
+cat("  This is because the disease is rare (1% prevalence).\n")
+
+# Visualise the probability flow
+flow_dt <- data.table(
+    step = factor(c("Prior\nP(Disease)", "Likelihood\nP(+|Disease)",
+                   "Evidence\nP(+)", "Posterior\nP(Disease|+)"),
+                  levels = c("Prior\nP(Disease)", "Likelihood\nP(+|Disease)",
+                            "Evidence\nP(+)", "Posterior\nP(Disease|+)")),
+    probability = c(P_D, P_pos_given_D, P_pos, P_D_given_pos),
+    type = c("Input", "Input", "Denominator", "Output")
+)
+
+ggplot2$ggplot(flow_dt, ggplot2$aes(x = step, y = probability, fill = type)) +
+    ggplot2$geom_col(width = 0.6) +
+    ggplot2$geom_text(ggplot2$aes(label = round(probability, 3)), vjust = -0.5, size = 5) +
+    ggplot2$scale_fill_manual(values = c("Denominator" = "#009E73",
+                                 "Input" = "#56B4E9",
+                                 "Output" = "#D55E00")) +
+    ggplot2$scale_y_continuous(limits = c(0, 1.1)) +
+    ggplot2$labs(
+        title = "Bayes' Theorem Components",
+        subtitle = "P(D|+) = P(+|D) × P(D) / P(+)",
+        x = NULL,
+        y = "Probability",
+        fill = "Role in formula"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 4.6.2 Components: Prior, Likelihood, Posterior, Evidence
+
+**Prose and Intuition**
+
+Bayes' theorem has a natural interpretation in terms of belief updating:
+
+$$\underbrace{P(H|E)}_{\text{Posterior}} = \frac{\overbrace{P(E|H)}^{\text{Likelihood}} \times \overbrace{P(H)}^{\text{Prior}}}{\underbrace{P(E)}_{\text{Evidence}}}$$
+
+- **Prior** P(H): Our belief in hypothesis H before seeing evidence
+- **Likelihood** P(E|H): How probable is the evidence if H is true?
+- **Evidence** P(E): Total probability of the evidence (normalising constant)
+- **Posterior** P(H|E): Our updated belief after seeing evidence
+
+```{r bayes_components, fig.cap="The components of Bayes' theorem in belief updating"}
+# Interactive demonstration of how each component affects the posterior
+
+# Vary the prior and see effect on posterior
+priors <- seq(0.001, 0.20, length.out = 50)
+sensitivity <- 0.95
+specificity <- 0.90
+
+posteriors <- numeric(length(priors))
+
+for (i in seq_along(priors)) {
+    prior <- priors[i]
+    likelihood <- sensitivity  # P(+|D)
+    false_pos_rate <- 1 - specificity  # P(+|~D)
+
+    evidence <- likelihood * prior + false_pos_rate * (1 - prior)
+    posteriors[i] <- (likelihood * prior) / evidence
+}
+
+bayes_dt <- data.table(
+    prior = priors,
+    posterior = posteriors
+)
+
+ggplot2$ggplot(bayes_dt, ggplot2$aes(x = prior, y = posterior)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.5) +
+    ggplot2$geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_vline(xintercept = 0.01, colour = "#D55E00", linetype = "dotted") +
+    ggplot2$geom_hline(yintercept = posteriors[which.min(abs(priors - 0.01))],
+               colour = "#D55E00", linetype = "dotted") +
+    ggplot2$annotate("text", x = 0.15, y = 0.3,
+             label = "Diagonal: no update\n(posterior = prior)",
+             colour = "grey50", size = 4) +
+    ggplot2$scale_x_continuous(labels = scales::percent) +
+    ggplot2$scale_y_continuous(labels = scales::percent) +
+    ggplot2$labs(
+        title = "How Prior Affects Posterior (After Positive Test)",
+        subtitle = paste0("Fixed: Sensitivity = ", sensitivity * 100,
+                         "%, Specificity = ", specificity * 100, "%"),
+        x = "Prior P(Disease)",
+        y = "Posterior P(Disease | +)"
+    ) +
+    ggplot2$theme_minimal()
+
+cat("Key insight: A positive test is more informative when disease is rare.\n")
+cat("At 1% prevalence, positive test increases probability from 1% to",
+    round(posteriors[which.min(abs(priors - 0.01))] * 100, 1), "%\n")
+cat("At 10% prevalence, positive test increases probability from 10% to",
+    round(posteriors[which.min(abs(priors - 0.10))] * 100, 1), "%\n")
+```
+
+### 4.6.3 The Base Rate Fallacy
+
+**Prose and Intuition**
+
+The **base rate fallacy** occurs when people ignore the prior probability (base rate) and focus only on the likelihood. This leads to systematic errors in probabilistic reasoning.
+
+Classic example: A 99% accurate test gives a positive result. What's the probability of disease?
+
+Most people say "99%"—but this ignores the base rate. If the disease affects only 1 in 10,000 people, then even with a positive test, the probability of disease is still low!
+
+```{r base_rate_fallacy, fig.cap="The base rate fallacy: ignoring prior probabilities"}
+# Demonstrate the base rate fallacy
+
+# Highly accurate test
+sensitivity <- 0.99
+specificity <- 0.99
+
+# Various disease prevalences
+prevalences <- c(0.5, 0.1, 0.01, 0.001, 0.0001)
+
+results <- data.table(
+    prevalence = prevalences,
+    PPV = numeric(length(prevalences)),
+    naive_estimate = sensitivity  # What people often guess
+)
+
+for (i in seq_along(prevalences)) {
+    prior <- prevalences[i]
+    P_pos <- sensitivity * prior + (1 - specificity) * (1 - prior)
+    results$PPV[i] <- (sensitivity * prior) / P_pos
+}
+
+cat("The Base Rate Fallacy\n")
+cat("=====================\n\n")
+
+cat("Test characteristics: 99% sensitivity, 99% specificity\n")
+cat("Naïve estimate: 'If I test positive, there's a 99% chance I have the disease'\n\n")
+
+cat("Reality (applying Bayes' theorem):\n\n")
+
+for (i in seq_along(prevalences)) {
+    cat(sprintf("  Prevalence = %.4f%%: P(Disease | +) = %.1f%%\n",
+                prevalences[i] * 100, results$PPV[i] * 100))
+}
+
+cat("\nConclusion: The rarer the disease, the more false positives dominate!\n")
+
+# Visualise
+ggplot2$ggplot(results, ggplot2$aes(x = factor(prevalence), y = PPV)) +
+    ggplot2$geom_col(fill = "#56B4E9", width = 0.6) +
+    ggplot2$geom_hline(yintercept = 0.99, colour = "red", linetype = "dashed", size = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(round(PPV * 100, 1), "%")),
+              vjust = -0.5, size = 5) +
+    ggplot2$annotate("text", x = 4, y = 0.95,
+             label = "Naive estimate: 99%", colour = "red", size = 4) +
+    ggplot2$scale_x_discrete(labels = paste0(prevalences * 100, "%")) +
+    ggplot2$scale_y_continuous(limits = c(0, 1.1), labels = scales::percent) +
+    ggplot2$labs(
+        title = "The Base Rate Fallacy: 99% Accurate Test",
+        subtitle = "Actual PPV depends heavily on disease prevalence",
+        x = "Disease Prevalence (Prior)",
+        y = "P(Disease | Positive Test)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 4.6.4 Diagnostic Testing: Sensitivity, Specificity, PPV, NPV
+
+**Prose and Intuition**
+
+Four key metrics characterise diagnostic tests:
+
+| Metric | Formula | Question Answered |
+|--------|---------|-------------------|
+| Sensitivity | P(+\|D) | Of those WITH disease, how many test positive? |
+| Specificity | P(-\|~D) | Of those WITHOUT disease, how many test negative? |
+| PPV | P(D\|+) | Of those who test positive, how many have disease? |
+| NPV | P(~D\|-) | Of those who test negative, how many are disease-free? |
+
+Sensitivity and specificity are fixed properties of the test. PPV and NPV depend on prevalence.
+
+```{r diagnostic_metrics, fig.cap="The four diagnostic test metrics"}
+# Implement from scratch and demonstrate
+
+diagnostic_metrics <- function(prevalence, sensitivity, specificity, n = 10000) {
+    # True disease status
+    n_disease <- round(n * prevalence)
+    n_no_disease <- n - n_disease
+
+    # Test results
+    true_pos <- round(n_disease * sensitivity)
+    false_neg <- n_disease - true_pos
+    true_neg <- round(n_no_disease * specificity)
+    false_pos <- n_no_disease - true_neg
+
+    # Metrics
+    sens <- true_pos / (true_pos + false_neg)  # Same as input (verification)
+    spec <- true_neg / (true_neg + false_pos)  # Same as input (verification)
+    ppv <- true_pos / (true_pos + false_pos)
+    npv <- true_neg / (true_neg + false_neg)
+
+    list(
+        confusion_matrix = matrix(c(true_pos, false_neg, false_pos, true_neg),
+                                  nrow = 2, byrow = TRUE,
+                                  dimnames = list(c("Test+", "Test-"),
+                                                 c("Disease+", "Disease-"))),
+        sensitivity = sens,
+        specificity = spec,
+        PPV = ppv,
+        NPV = npv
+    )
+}
+
+# Compare metrics across prevalences
+prevalences <- c(0.01, 0.05, 0.10, 0.20, 0.50)
+sensitivity <- 0.90
+specificity <- 0.95
+
+metrics_table <- data.table(
+    prevalence = prevalences,
+    sensitivity = rep(sensitivity, length(prevalences)),
+    specificity = rep(specificity, length(prevalences)),
+    PPV = numeric(length(prevalences)),
+    NPV = numeric(length(prevalences))
+)
+
+for (i in seq_along(prevalences)) {
+    result <- diagnostic_metrics(prevalences[i], sensitivity, specificity)
+    metrics_table$PPV[i] <- result$PPV
+    metrics_table$NPV[i] <- result$NPV
+}
+
+cat("Diagnostic Metrics Across Prevalences\n")
+cat("=====================================\n\n")
+
+cat("Fixed: Sensitivity = 90%, Specificity = 95%\n\n")
+
+print(metrics_table[, .(
+    `Prevalence (%)` = prevalence * 100,
+    `PPV (%)` = round(PPV * 100, 1),
+    `NPV (%)` = round(NPV * 100, 1)
+)])
+
+# Visualise
+metrics_long <- melt(metrics_table,
+                                id.vars = "prevalence",
+                                measure.vars = c("PPV", "NPV"),
+                                variable.name = "metric",
+                                value.name = "value")
+
+ggplot2$ggplot(metrics_long, ggplot2$aes(x = prevalence, y = value,
+                                 colour = metric, linetype = metric)) +
+    ggplot2$geom_line(size = 1.5) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$scale_x_continuous(labels = scales::percent) +
+    ggplot2$scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+    ggplot2$scale_colour_manual(values = c("PPV" = "#D55E00", "NPV" = "#0072B2")) +
+    ggplot2$labs(
+        title = "PPV and NPV Depend on Disease Prevalence",
+        subtitle = "Fixed: Sensitivity = 90%, Specificity = 95%",
+        x = "Disease Prevalence",
+        y = "Predictive Value",
+        colour = "Metric",
+        linetype = "Metric"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+
+cat("\nKey insight: PPV increases with prevalence; NPV decreases.\n")
+cat("In low-prevalence settings, positive tests are often false positives.\n")
+cat("In high-prevalence settings, negative tests may miss cases.\n")
+```
+
+### 4.6.5 Why Screening Rare Diseases Is Hard
+
+**Prose and Intuition**
+
+Even excellent tests fail when screening for rare conditions. This is because the absolute number of false positives (from the many healthy people) exceeds the true positives (from the few sick people).
+
+This has profound implications for mass screening programmes.
+
+```{r rare_disease_screening, fig.cap="The false positive problem in rare disease screening"}
+# Visualise the screening paradox
+
+# Screen 100,000 people for a disease with 0.1% prevalence
+n_screened <- 100000
+prevalence <- 0.001
+sensitivity <- 0.99
+specificity <- 0.99
+
+n_disease <- n_screened * prevalence  # 100
+n_no_disease <- n_screened - n_disease  # 99,900
+
+true_pos <- n_disease * sensitivity  # 99
+false_neg <- n_disease - true_pos  # 1
+true_neg <- n_no_disease * specificity  # 98,901
+false_pos <- n_no_disease - true_neg  # 999
+
+total_positive <- true_pos + false_pos  # 1,098
+ppv <- true_pos / total_positive
+
+cat("Mass Screening for Rare Disease\n")
+cat("===============================\n\n")
+
+cat("Scenario: Screen 100,000 people\n")
+cat("  Disease prevalence: 0.1%\n")
+cat("  Test sensitivity: 99%\n")
+cat("  Test specificity: 99%\n\n")
+
+cat("Results:\n")
+cat("  People with disease:", n_disease, "\n")
+cat("  People without disease:", format(n_no_disease, big.mark = ","), "\n\n")
+
+cat("  True positives:", true_pos, "\n")
+cat("  False positives:", false_pos, "\n")
+cat("  Total positive tests:", format(total_positive, big.mark = ","), "\n\n")
+
+cat("Of", format(total_positive, big.mark = ","), "positive tests:\n")
+cat("  Only", true_pos, "(", round(ppv * 100, 1), "%) actually have the disease!\n")
+cat("  The remaining", false_pos, "(", round((1-ppv) * 100, 1), "%) are false alarms.\n\n")
+
+cat("PPV =", round(ppv, 4), "despite 99% sensitivity and 99% specificity\n")
+
+# Icon array visualisation
+# Simplify to show proportions among positive tests
+
+screening_outcomes <- data.table(
+    category = c(rep("True Positive", round(true_pos/10)),
+                 rep("False Positive", round(false_pos/10))),
+    x = rep(1:ceiling(total_positive/100), each = 10)[1:ceiling(total_positive/10)],
+    y = rep(1:10, ceiling(total_positive/100))[1:ceiling(total_positive/10)]
+)
+
+# Just show first 200 icons
+screening_outcomes <- screening_outcomes[1:min(200, nrow(screening_outcomes))]
+
+ggplot2$ggplot(screening_outcomes, ggplot2$aes(x = x, y = y, colour = category)) +
+    ggplot2$geom_point(size = 4, shape = 16) +
+    ggplot2$scale_colour_manual(values = c("True Positive" = "#009E73",
+                                   "False Positive" = "#D55E00")) +
+    ggplot2$labs(
+        title = "Who Are the Positive Test Results?",
+        subtitle = paste0("Each dot represents ~5 people. ",
+                         "Green = truly has disease; Orange = false alarm"),
+        x = NULL, y = NULL,
+        colour = NULL
+    ) +
+    ggplot2$theme_void() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 4.6.6 The Law of Total Probability
+
+**Prose and Intuition**
+
+The **law of total probability** lets us calculate P(B) when we know conditional probabilities P(B|Aᵢ) across a partition of the sample space.
+
+It's the denominator in Bayes' theorem.
+
+**Mathematical Statement**
+
+If $A_1, A_2, \ldots, A_k$ form a partition of $S$ (mutually exclusive and exhaustive), then:
+
+$$P(B) = \sum_{i=1}^{k} P(B|A_i) \cdot P(A_i)$$
+
+```{r law_total_probability, fig.cap="The law of total probability partitions the sample space"}
+# Example: Overall probability of positive test across age groups
+
+# Define age group-specific disease prevalences and test characteristics
+age_groups <- c("18-39", "40-59", "60+")
+group_sizes <- c(0.35, 0.40, 0.25)  # Proportion of population
+prevalences <- c(0.02, 0.08, 0.20)  # Disease prevalence by age
+sensitivity <- 0.90
+specificity <- 0.95
+
+# Calculate P(positive test) for each group
+P_pos_given_group <- numeric(3)
+
+for (i in 1:3) {
+    P_disease_in_group <- prevalences[i]
+    P_pos_disease <- sensitivity
+    P_pos_no_disease <- 1 - specificity
+
+    P_pos_given_group[i] <- P_pos_disease * P_disease_in_group +
+                            P_pos_no_disease * (1 - P_disease_in_group)
+}
+
+# Law of total probability: P(positive) = sum P(positive | group) * P(group)
+P_positive_overall <- sum(P_pos_given_group * group_sizes)
+
+cat("Law of Total Probability Example\n")
+cat("================================\n\n")
+
+cat("Population structure:\n")
+for (i in 1:3) {
+    cat("  Age group", age_groups[i], ":", group_sizes[i] * 100, "% of population,",
+        prevalences[i] * 100, "% disease prevalence\n")
+}
+
+cat("\nP(positive test | age group):\n")
+for (i in 1:3) {
+    cat("  P(+ |", age_groups[i], ") =", round(P_pos_given_group[i], 4), "\n")
+}
+
+cat("\nApplying Law of Total Probability:\n")
+cat("P(+) = Σ P(+ | group) × P(group)\n")
+cat("     =", paste(paste0(round(P_pos_given_group, 4), " × ", group_sizes),
+                   collapse = " + "), "\n")
+cat("     =", round(P_positive_overall, 4), "\n")
+
+# Visualise the partition
+partition_dt <- data.table(
+    group = factor(age_groups, levels = age_groups),
+    proportion = group_sizes,
+    P_pos = P_pos_given_group,
+    contribution = P_pos_given_group * group_sizes
+)
+
+ggplot2$ggplot(partition_dt, ggplot2$aes(x = group, y = contribution, fill = group)) +
+    ggplot2$geom_col(width = 0.6) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0("P(+|", group, ") × P(", group, ")\n=",
+                                 round(contribution, 4))),
+              vjust = -0.2, size = 4) +
+    ggplot2$geom_hline(yintercept = P_positive_overall, linetype = "dashed",
+               colour = "red", size = 1) +
+    ggplot2$annotate("text", x = 2.5, y = P_positive_overall + 0.01,
+             label = paste("P(+) =", round(P_positive_overall, 4)),
+             colour = "red", size = 5) +
+    ggplot2$scale_fill_manual(values = c("#56B4E9", "#D55E00", "#009E73")) +
+    ggplot2$scale_y_continuous(limits = c(0, max(partition_dt$contribution) * 1.5)) +
+    ggplot2$labs(
+        title = "Law of Total Probability",
+        subtitle = "P(positive test) = Sum of contributions from each age group",
+        x = "Age Group",
+        y = "Contribution to P(+)",
+        fill = "Age Group"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining diagnostic test results to patients
+
+```{r stakeholder_communication}
+cat("Communicating Test Results: A Framework\n")
+cat("=======================================\n\n")
+
+cat("SCENARIO: Patient receives positive screening result\n")
+cat("(Disease prevalence: 1%, Sensitivity: 95%, Specificity: 90%)\n\n")
+
+# Calculate PPV
+prev <- 0.01
+sens <- 0.95
+spec <- 0.90
+P_pos <- sens * prev + (1 - spec) * (1 - prev)
+PPV <- (sens * prev) / P_pos
+
+cat("WRONG way to explain:\n")
+cat("  'The test is 95% accurate, so you probably have the disease.'\n\n")
+
+cat("CORRECT way to explain:\n")
+cat("  'Of 1,000 people like you who take this test:\n")
+cat("   - About 10 have the disease\n")
+cat("   - About 990 don't have the disease\n\n")
+cat("   Of the 10 WITH disease:\n")
+cat("   - 9-10 will test positive (true positives)\n\n")
+cat("   Of the 990 WITHOUT disease:\n")
+cat("   - About 99 will test positive (false alarms)\n\n")
+cat("   Total positive tests: about 109\n")
+cat("   Of those, only about 10 (9%) actually have the disease.'\n\n")
+
+cat("   'Your positive test means we should investigate further,\n")
+cat("    but there's about a 90% chance this is a false alarm.'\n\n")
+
+cat("PPV calculated:", round(PPV, 4), "≈", round(PPV * 100, 0), "%\n")
+```
+
+### Visual aids for probability communication
+
+```{r visual_aids, fig.cap="Icon arrays help patients understand test results"}
+# Create an icon array for 100 people
+
+set.seed(42)
+n_icons <- 100
+prevalence <- 0.10
+sensitivity <- 0.90
+specificity <- 0.80
+
+# Simulate population
+n_disease <- round(n_icons * prevalence)
+n_healthy <- n_icons - n_disease
+
+# Simulate test results
+disease_pos <- rbinom(1, n_disease, sensitivity)
+healthy_pos <- rbinom(1, n_healthy, 1 - specificity)
+
+# Create icon data
+icon_data <- data.table(
+    person = 1:n_icons,
+    has_disease = c(rep(TRUE, n_disease), rep(FALSE, n_healthy)),
+    x = rep(1:10, each = 10),
+    y = rep(10:1, 10)
+)
+
+# Assign test results
+icon_data[has_disease == TRUE, test_positive := sample(c(rep(TRUE, disease_pos),
+                                                          rep(FALSE, n_disease - disease_pos)))]
+icon_data[has_disease == FALSE, test_positive := sample(c(rep(TRUE, healthy_pos),
+                                                           rep(FALSE, n_healthy - healthy_pos)))]
+
+# Create category
+icon_data[, category := fcase(
+    has_disease & test_positive, "True Positive",
+    has_disease & !test_positive, "False Negative",
+    !has_disease & test_positive, "False Positive",
+    !has_disease & !test_positive, "True Negative"
+)]
+
+ggplot2$ggplot(icon_data, ggplot2$aes(x = x, y = y, colour = category, shape = category)) +
+    ggplot2$geom_point(size = 6) +
+    ggplot2$scale_colour_manual(values = c(
+        "True Positive" = "#009E73",
+        "False Negative" = "#E69F00",
+        "False Positive" = "#D55E00",
+        "True Negative" = "#56B4E9"
+    )) +
+    ggplot2$scale_shape_manual(values = c(
+        "True Positive" = 16,
+        "False Negative" = 17,
+        "False Positive" = 15,
+        "True Negative" = 16
+    )) +
+    ggplot2$labs(
+        title = "Understanding Your Test Result: 100 People",
+        subtitle = paste0("About ", n_disease, " have disease; ",
+                         disease_pos + healthy_pos, " test positive; ",
+                         disease_pos, " are true positives"),
+        colour = "Outcome",
+        shape = "Outcome"
+    ) +
+    ggplot2$theme_void() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## Quick Reference
+
+### Conditional Probability
+
+| Formula | Meaning |
+|---------|---------|
+| $P(A|B) = \frac{P(A \cap B)}{P(B)}$ | Probability of A given B occurred |
+| $P(A \cap B) = P(A|B) \cdot P(B)$ | Multiplication rule |
+| $P(A \cap B) = P(B|A) \cdot P(A)$ | Alternative form |
+
+### Independence
+
+| Condition | Interpretation |
+|-----------|----------------|
+| $P(A \cap B) = P(A) \cdot P(B)$ | A and B are independent |
+| $P(A|B) = P(A)$ | Knowing B doesn't change P(A) |
+| $P(B|A) = P(B)$ | Knowing A doesn't change P(B) |
+
+### Bayes' Theorem
+
+$$P(A|B) = \frac{P(B|A) \cdot P(A)}{P(B)}$$
+
+| Component | Name | Role |
+|-----------|------|------|
+| P(A) | Prior | Initial belief |
+| P(B\|A) | Likelihood | Evidence if A true |
+| P(B) | Evidence | Total probability of B |
+| P(A\|B) | Posterior | Updated belief |
+
+### Diagnostic Test Metrics
+
+| Metric | Formula | Population |
+|--------|---------|------------|
+| Sensitivity | P(+\|D) | Those with disease |
+| Specificity | P(-\|~D) | Those without disease |
+| PPV | P(D\|+) | Those testing positive |
+| NPV | P(~D\|-) | Those testing negative |
+
+### Law of Total Probability
+
+$$P(B) = \sum_{i=1}^{k} P(B|A_i) \cdot P(A_i)$$
+
+where $\{A_1, \ldots, A_k\}$ partition the sample space.
+
+### R Implementation Patterns
+
+```r
+# Conditional probability from data
+P_A_given_B <- mean(data[B == TRUE, A == TRUE])
+
+# Bayes' theorem
+posterior <- (likelihood * prior) / evidence
+
+# Law of total probability
+evidence <- sum(P_B_given_A * P_A)  # sum over all categories
+
+# Testing independence (chi-squared)
+chisq.test(table(data$A, data$B))
+```
+
+---
+
+## Exercises
+
+1. **Conditional probability**: In NHANES, what is P(Hypertension | Diabetes)? Is this different from P(Hypertension)?
+
+2. **Multiplication rule**: A two-stage screening first uses a cheap test (sensitivity 80%, specificity 70%), then a confirmatory test (sensitivity 99%, specificity 98%) only for those who test positive. What is P(both tests positive | disease)?
+
+3. **Independence**: Using NHANES, test whether smoking status is independent of age group.
+
+4. **Bayes' theorem**: A genetic test for a mutation has 98% sensitivity and 99.5% specificity. If the mutation affects 1 in 500 people, what is the probability that someone with a positive test actually carries the mutation?
+
+5. **Base rate fallacy**: Explain why airport security screening produces mostly false alarms, even with highly accurate detection systems.
+
+---
+
+## Chapter Summary
+
+This chapter extended basic probability to handle conditional relationships:
+
+1. **Conditional probability** restricts the sample space to events where B occurred, answering "Given B, what's P(A)?"
+
+2. **The multiplication rule** lets us find P(A ∩ B) from conditional probabilities
+
+3. **Independence** means knowing one event doesn't change the probability of another—the opposite of mutually exclusive
+
+4. **Bayes' theorem** inverts conditional probabilities, updating prior beliefs with evidence to get posterior probabilities
+
+5. **Diagnostic testing** illustrates how PPV and NPV depend on disease prevalence, not just test accuracy
+
+6. **The base rate fallacy** shows why accurate tests can produce many false positives when screening for rare conditions
+
+In Part 3, we complete our probability foundations with counting methods and simulation-based probability.

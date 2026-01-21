@@ -1,0 +1,557 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 5: Count Data Models"
+part: "Part 2: Negative Binomial and Zero-Inflated Models"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, negative-binomial, zero-inflation, GLM, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Part 2: Negative Binomial and Zero-Inflated Models
+
+When Poisson regression fails due to overdispersion or excess zeros, we need more flexible models. This part covers the **negative binomial** distribution for overdispersed counts and **zero-inflated** models for data with more zeros than expected.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(MASS)  # For negative binomial
+```
+
+```{r load_data, message=FALSE}
+# Load count datasets
+doctor_visits <- fread("../../../data/count/nmes1988_doctor_visits.csv")
+hospital_los <- fread("../../../data/count/arizona_hospital_los.csv")
+
+cat("Datasets loaded:\n")
+cat("  Doctor visits:", nrow(doctor_visits), "observations\n")
+cat("  Hospital LOS:", nrow(hospital_los), "observations\n")
+```
+
+---
+
+## Table of Contents
+
+## 5.8 The Negative Binomial Distribution
+
+### 5.8.1 Why Negative Binomial?
+
+**Prose and Intuition**
+
+The Poisson distribution constrains $\text{Var}(Y) = E[Y]$. Real count data often violate this, showing **overdispersion** (variance > mean). The **negative binomial** distribution adds a parameter to allow this extra variance.
+
+**Conceptual Interpretation**
+
+One way to derive the negative binomial: if the Poisson rate $\lambda$ itself varies according to a gamma distribution, the resulting count distribution is negative binomial.
+
+$$Y | \lambda \sim \text{Poisson}(\lambda)$$
+$$\lambda \sim \text{Gamma}(r, p)$$
+$$\Rightarrow Y \sim \text{NegBin}(r, p)$$
+
+This captures **unobserved heterogeneity** — different individuals have different underlying rates, even after accounting for covariates.
+
+### 5.8.2 Mathematical Definition
+
+**Probability mass function:**
+$$P(Y = k) = \binom{k + r - 1}{k} p^r (1-p)^k$$
+
+Or in the mean-dispersion parameterisation:
+$$P(Y = k) = \frac{\Gamma(k + \theta)}{\Gamma(\theta) k!} \left(\frac{\theta}{\mu + \theta}\right)^\theta \left(\frac{\mu}{\mu + \theta}\right)^k$$
+
+**Key properties:**
+- $E[Y] = \mu$
+- $\text{Var}(Y) = \mu + \frac{\mu^2}{\theta}$
+- As $\theta \to \infty$, variance approaches $\mu$ (Poisson)
+
+```{r nb_distribution, fig.cap="Negative binomial allows for overdispersion"}
+# Compare Poisson and Negative Binomial
+mu <- 5  # Same mean
+theta_values <- c(0.5, 2, 10, 1000)  # Dispersion parameters
+
+x_vals <- 0:20
+
+dist_data <- rbindlist(lapply(theta_values, function(th) {
+    data.table(
+        x = x_vals,
+        prob = dnbinom(x_vals, size = th, mu = mu),
+        Distribution = paste0("NB(θ=", th, ")")
+    )
+}))
+
+# Add Poisson for comparison
+pois_data <- data.table(
+    x = x_vals,
+    prob = dpois(x_vals, lambda = mu),
+    Distribution = "Poisson"
+)
+dist_data <- rbind(dist_data, pois_data)
+
+ggplot2$ggplot(dist_data, ggplot2$aes(x = x, y = prob, colour = Distribution)) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$labs(
+        title = "Negative Binomial vs Poisson Distributions",
+        subtitle = paste("Mean =", mu, "for all distributions; smaller θ = more overdispersion"),
+        x = "Count (k)",
+        y = "Probability P(Y = k)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "right")
+```
+
+---
+
+## 5.9 Negative Binomial Regression
+
+### 5.9.1 Model Formulation
+
+**Mathematical Definition**
+
+The negative binomial regression model:
+$$\log(\mu_i) = \boldsymbol{\beta}'\mathbf{X}_i$$
+$$Y_i \sim \text{NegBin}(\mu_i, \theta)$$
+
+Where $\theta$ is estimated from the data (unlike quasi-Poisson which just inflates SEs).
+
+### 5.9.2 Fitting in R
+
+```{r fit_negbin}
+# Fit negative binomial model
+model_nb <- glm.nb(visits ~ health + age + gender + income, data = doctor_visits)
+
+cat("Negative Binomial Regression:\n")
+cat("=============================\n\n")
+summary(model_nb)
+
+cat("\nDispersion parameter θ:", round(model_nb$theta, 3), "\n")
+cat("(Larger θ = less overdispersion; θ → ∞ approaches Poisson)\n")
+```
+
+### 5.9.3 Comparing Poisson and Negative Binomial
+
+```{r compare_pois_nb}
+# Fit Poisson for comparison
+model_pois <- glm(visits ~ health + age + gender + income,
+                  data = doctor_visits, family = poisson)
+
+cat("Model Comparison:\n")
+cat("=================\n\n")
+
+# AIC comparison
+cat("AIC:\n")
+cat("  Poisson:", round(AIC(model_pois), 1), "\n")
+cat("  Negative Binomial:", round(AIC(model_nb), 1), "\n")
+cat("  Difference:", round(AIC(model_pois) - AIC(model_nb), 1), "\n\n")
+
+# Likelihood ratio test
+ll_pois <- logLik(model_pois)
+ll_nb <- logLik(model_nb)
+lr_stat <- 2 * (as.numeric(ll_nb) - as.numeric(ll_pois))
+
+cat("Likelihood Ratio Test (Poisson vs NB):\n")
+cat("  LR statistic:", round(lr_stat, 2), "\n")
+cat("  Note: Testing θ at boundary (null is Poisson), so use mixture chi-square\n")
+cat("  p-value (approx):", format.pval(pchisq(lr_stat, df = 1, lower.tail = FALSE) / 2), "\n\n")
+
+# Compare coefficients
+cat("Coefficient Comparison:\n")
+coef_compare <- data.table(
+    Variable = names(coef(model_pois)),
+    Poisson = coef(model_pois),
+    NegBin = coef(model_nb)
+)
+print(coef_compare[, .(Variable,
+                       Poisson = round(Poisson, 4),
+                       NegBin = round(NegBin, 4))])
+```
+
+```{r se_comparison}
+# Standard error comparison
+cat("\nStandard Error Comparison:\n")
+cat("==========================\n\n")
+
+se_pois <- summary(model_pois)$coefficients[, "Std. Error"]
+se_nb <- summary(model_nb)$coefficients[, "Std. Error"]
+
+se_compare <- data.table(
+    Variable = names(se_pois),
+    SE_Poisson = se_pois,
+    SE_NegBin = se_nb,
+    Ratio = se_nb / se_pois
+)
+print(se_compare[, .(Variable,
+                     Poisson = round(SE_Poisson, 4),
+                     NegBin = round(SE_NegBin, 4),
+                     Inflation = round(Ratio, 2))])
+
+cat("\nNB standard errors are larger, reflecting proper accounting for overdispersion.\n")
+```
+
+### 5.9.4 Diagnostic Comparison
+
+```{r diagnostic_comparison, fig.cap="Comparing Poisson and NB model fit"}
+# Compare observed vs expected frequencies
+max_count <- 30
+obs_freq <- table(factor(pmin(doctor_visits$visits, max_count), levels = 0:max_count))
+
+# Expected under Poisson
+exp_pois <- sapply(0:max_count, function(k) {
+    sum(dpois(k, lambda = fitted(model_pois)))
+})
+
+# Expected under NB
+exp_nb <- sapply(0:max_count, function(k) {
+    sum(dnbinom(k, size = model_nb$theta, mu = fitted(model_nb)))
+})
+
+fit_data <- data.table(
+    count = 0:max_count,
+    observed = as.numeric(obs_freq),
+    Poisson = exp_pois,
+    NegBin = exp_nb
+)
+
+fit_long <- melt(fit_data, id.vars = c("count", "observed"),
+                 measure.vars = c("Poisson", "NegBin"),
+                 variable.name = "Model", value.name = "Expected")
+
+ggplot2$ggplot(fit_data) +
+    ggplot2$geom_col(ggplot2$aes(x = count, y = observed),
+                     fill = "grey70", alpha = 0.7) +
+    ggplot2$geom_line(data = fit_long,
+                      ggplot2$aes(x = count, y = Expected, colour = Model), size = 1.2) +
+    ggplot2$scale_colour_manual(values = c("Poisson" = "#D55E00", "NegBin" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Model Fit Comparison: Observed vs Expected Counts",
+        subtitle = "Bars = observed | Lines = expected under each model",
+        x = "Number of Visits",
+        y = "Frequency"
+    ) +
+    ggplot2$coord_cartesian(xlim = c(0, 25)) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 5.10 Zero-Inflated Models
+
+### 5.10.1 When There Are Too Many Zeros
+
+**Prose and Intuition**
+
+Sometimes data have more zeros than either Poisson or negative binomial would predict. This happens when zeros come from two processes:
+
+1. **Structural zeros**: The event can't occur (e.g., non-smokers can't have smoking-related visits)
+2. **Sampling zeros**: The event could occur but didn't (e.g., smokers who happened not to need medical care)
+
+**Zero-inflated models** explicitly model both processes.
+
+```{r excess_zeros, fig.cap="Visualising excess zeros in count data"}
+# Check for excess zeros
+obs_zeros <- sum(doctor_visits$visits == 0)
+exp_zeros_pois <- sum(dpois(0, lambda = fitted(model_pois)))
+exp_zeros_nb <- sum(dnbinom(0, size = model_nb$theta, mu = fitted(model_nb)))
+
+cat("Zero Frequency Analysis:\n")
+cat("========================\n\n")
+cat("Observed zeros:", obs_zeros, "(", round(100 * mean(doctor_visits$visits == 0), 1), "%)\n")
+cat("Expected under Poisson:", round(exp_zeros_pois), "\n")
+cat("Expected under NegBin:", round(exp_zeros_nb), "\n\n")
+
+if (obs_zeros > exp_zeros_nb * 1.2) {
+    cat("POSSIBLE ZERO INFLATION: More zeros than NegBin predicts\n")
+} else {
+    cat("Zero count consistent with NegBin model\n")
+}
+
+# Visualise
+zero_data <- data.table(
+    Category = c("Observed", "Poisson", "NegBin"),
+    Zeros = c(obs_zeros, exp_zeros_pois, exp_zeros_nb)
+)
+
+ggplot2$ggplot(zero_data, ggplot2$aes(x = Category, y = Zeros, fill = Category)) +
+    ggplot2$geom_col(alpha = 0.8) +
+    ggplot2$geom_text(ggplot2$aes(label = round(Zeros)), vjust = -0.3) +
+    ggplot2$scale_fill_manual(values = c("Observed" = "grey50", "Poisson" = "#D55E00", "NegBin" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Observed vs Expected Zero Counts",
+        x = "",
+        y = "Number of Zeros"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$guides(fill = "none")
+```
+
+### 5.10.2 Zero-Inflated Poisson (ZIP) Model
+
+**Mathematical Formulation**
+
+The ZIP model has two components:
+
+1. **Zero-inflation process**: $P(\text{structural zero}) = \pi$
+2. **Count process**: $Y | \text{not structural zero} \sim \text{Poisson}(\lambda)$
+
+Combined:
+$$P(Y = 0) = \pi + (1-\pi) e^{-\lambda}$$
+$$P(Y = k) = (1-\pi) \frac{\lambda^k e^{-\lambda}}{k!}, \quad k > 0$$
+
+Both $\pi$ and $\lambda$ can depend on covariates (via logit and log links).
+
+```{r zip_manual}
+cat("Zero-Inflated Poisson Model Concept:\n")
+cat("====================================\n\n")
+
+cat("The model combines:\n")
+cat("1. Binary process: Is this a structural zero? (logistic regression)\n")
+cat("2. Count process: If not structural zero, how many events? (Poisson regression)\n\n")
+
+cat("In R, use the 'pscl' package:\n")
+cat("  library(pscl)\n")
+cat("  model <- zeroinfl(count ~ x1 + x2 | z1 + z2, data = df)\n")
+cat("  # Predictors before | are for count part\n")
+cat("  # Predictors after | are for zero-inflation part\n\n")
+
+# Simulate ZIP data to demonstrate
+set.seed(42)
+n <- 1000
+# Binary indicator: structural zero
+pi_structural <- 0.3
+is_structural <- rbinom(n, 1, pi_structural)
+# Count for non-structural
+lambda_count <- 3
+counts_nonzero <- rpois(n, lambda_count)
+# Combined
+zip_data <- data.table(
+    y = ifelse(is_structural == 1, 0, counts_nonzero)
+)
+
+cat("Simulated ZIP Data (π = 0.3, λ = 3):\n")
+cat("  % zeros:", round(100 * mean(zip_data$y == 0), 1), "%\n")
+cat("  (Expected: π + (1-π)e^(-λ) =", round(100 * (0.3 + 0.7 * exp(-3)), 1), "%)\n")
+cat("  Mean (observed):", round(mean(zip_data$y), 2), "\n")
+cat("  Mean (expected): (1-π)λ =", round(0.7 * 3, 2), "\n")
+```
+
+### 5.10.3 Zero-Inflated Negative Binomial (ZINB)
+
+**Prose and Intuition**
+
+When data have BOTH excess zeros AND overdispersion among the non-zero counts, use the **Zero-Inflated Negative Binomial** model.
+
+```{r model_selection_flowchart}
+cat("Model Selection for Count Data:\n")
+cat("================================\n\n")
+
+cat("Decision Tree:\n")
+cat("1. Start with Poisson regression\n")
+cat("   ↓\n")
+cat("2. Check dispersion: Var/Mean > 1.5?\n")
+cat("   • NO  → Poisson may be adequate\n")
+cat("   • YES → Consider Negative Binomial\n")
+cat("   ↓\n")
+cat("3. Check zero frequency: More zeros than NegBin predicts?\n")
+cat("   • NO  → NegBin may be adequate\n")
+cat("   • YES → Consider Zero-Inflated model (ZINB)\n")
+cat("   ↓\n")
+cat("4. Compare models using AIC/BIC and Vuong test\n\n")
+
+cat("R packages:\n")
+cat("  • MASS: glm.nb() for negative binomial\n")
+cat("  • pscl: zeroinfl() and hurdle() for zero-inflated/hurdle models\n")
+```
+
+---
+
+## 5.11 Hurdle Models
+
+### 5.11.1 The Hurdle Model Concept
+
+**Prose and Intuition**
+
+A **hurdle model** is an alternative to zero-inflated models. It treats zeros and positives as coming from different processes:
+
+1. **Zero vs positive**: Binary model (logistic regression)
+2. **Count given positive**: Truncated count model (truncated Poisson or NB)
+
+The key difference from ZIP/ZINB:
+- ZIP/ZINB: Zeros can come from EITHER process
+- Hurdle: All zeros come from the binary process
+
+```{r hurdle_concept}
+cat("Hurdle Model:\n")
+cat("=============\n\n")
+
+cat("Two-part model:\n")
+cat("  Part 1: P(Y = 0) vs P(Y > 0)  - Binary (logistic)\n")
+cat("  Part 2: P(Y = k | Y > 0)      - Truncated count\n\n")
+
+cat("In R:\n")
+cat("  library(pscl)\n")
+cat("  model <- hurdle(count ~ x1 + x2 | z1 + z2, data = df)\n\n")
+
+cat("When to use hurdle vs zero-inflated:\n")
+cat("  • Hurdle: When zeros represent 'no participation'\n")
+cat("    Example: # cigarettes (0 for non-smokers)\n")
+cat("  • Zero-inflated: When zeros are a mix of types\n")
+cat("    Example: # doctor visits (0 = healthy OR unlucky)\n")
+```
+
+---
+
+## 5.12 Complete Analysis: Doctor Visits
+
+Let's perform a complete analysis comparing all models.
+
+```{r complete_analysis}
+cat("Complete Count Data Analysis: Doctor Visits\n")
+cat("============================================\n\n")
+
+# Data summary
+cat("Data Summary:\n")
+cat("  N =", nrow(doctor_visits), "\n")
+cat("  Mean visits:", round(mean(doctor_visits$visits), 2), "\n")
+cat("  Variance:", round(var(doctor_visits$visits), 2), "\n")
+cat("  Var/Mean ratio:", round(var(doctor_visits$visits) / mean(doctor_visits$visits), 2), "\n")
+cat("  % zeros:", round(100 * mean(doctor_visits$visits == 0), 1), "%\n\n")
+
+# Fit models
+model_pois <- glm(visits ~ health + age + gender + income,
+                  data = doctor_visits, family = poisson)
+model_qpois <- glm(visits ~ health + age + gender + income,
+                   data = doctor_visits, family = quasipoisson)
+model_nb <- glm.nb(visits ~ health + age + gender + income, data = doctor_visits)
+
+# AIC comparison (can't compare quasi-Poisson)
+cat("Model Fit Comparison:\n")
+aic_table <- data.table(
+    Model = c("Poisson", "Negative Binomial"),
+    LogLik = c(logLik(model_pois), logLik(model_nb)),
+    AIC = c(AIC(model_pois), AIC(model_nb)),
+    BIC = c(BIC(model_pois), BIC(model_nb))
+)
+aic_table[, Delta_AIC := AIC - min(AIC)]
+print(aic_table[, .(Model, AIC = round(AIC, 1), Delta_AIC = round(Delta_AIC, 1))])
+
+cat("\nBest model:", aic_table[which.min(AIC), Model], "\n")
+```
+
+```{r final_model, fig.cap="Rate ratios from the best-fitting model"}
+# Report from best model (NB)
+cat("\n\nFinal Model: Negative Binomial\n")
+cat("==============================\n\n")
+
+# Rate ratios with CI
+rr <- exp(coef(model_nb))
+ci <- exp(confint(model_nb))
+
+rr_final <- data.table(
+    Variable = names(rr)[-1],
+    Rate_Ratio = rr[-1],
+    CI_Lower = ci[-1, 1],
+    CI_Upper = ci[-1, 2]
+)
+
+print(rr_final[, .(Variable,
+                   RR = round(Rate_Ratio, 3),
+                   CI = paste0("(", round(CI_Lower, 3), ", ", round(CI_Upper, 3), ")"))])
+
+# Forest plot
+rr_final[, Variable := factor(Variable, levels = rev(Variable))]
+
+ggplot2$ggplot(rr_final, ggplot2$aes(x = Rate_Ratio, y = Variable)) +
+    ggplot2$geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_errorbarh(ggplot2$aes(xmin = CI_Lower, xmax = CI_Upper),
+                           height = 0.2, colour = "#0072B2") +
+    ggplot2$geom_point(size = 3, colour = "#0072B2") +
+    ggplot2$scale_x_log10() +
+    ggplot2$labs(
+        title = "Rate Ratios from Negative Binomial Model",
+        subtitle = "Doctor visits predicted by health, age, gender, and income",
+        x = "Rate Ratio (log scale)",
+        y = ""
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Model Choice and Results
+
+**For Clinical Collaborators:**
+
+"We analysed what factors influence how often people visit the doctor. We tried several statistical approaches and found that the negative binomial model fits best. This model accounts for the fact that some people visit much more often than others — there's more variation than a simple model would expect.
+
+**Key findings:**
+
+1. **Health status matters most**: Each point improvement in self-reported health reduces doctor visits by about 5%. Healthier people visit less often.
+
+2. **Age effect**: Older patients visit more frequently — about 1% more visits for each additional year of age.
+
+3. **Gender differences**: Women make about 30% more visits than men, even after accounting for health status.
+
+4. **Income**: Higher income is associated with slightly more visits, possibly reflecting better access to care.
+
+**Why did we choose this model?** The data showed much more variation than a standard Poisson model could handle. The negative binomial model properly accounts for this extra variation, giving us more reliable confidence intervals."
+
+---
+
+## Quick Reference
+
+### Model Selection Guide
+
+| Situation | Recommended Model | R Function |
+|-----------|-------------------|------------|
+| Equidispersion | Poisson | `glm(..., family=poisson)` |
+| Mild overdispersion | Quasi-Poisson | `glm(..., family=quasipoisson)` |
+| Moderate overdispersion | Negative Binomial | `MASS::glm.nb()` |
+| Excess zeros + equidispersion | ZIP | `pscl::zeroinfl(..., dist="poisson")` |
+| Excess zeros + overdispersion | ZINB | `pscl::zeroinfl(..., dist="negbin")` |
+| All zeros from one process | Hurdle | `pscl::hurdle()` |
+
+### Variance Functions
+
+| Distribution | Mean | Variance |
+|--------------|------|----------|
+| Poisson | $\mu$ | $\mu$ |
+| Quasi-Poisson | $\mu$ | $\phi\mu$ |
+| Negative Binomial | $\mu$ | $\mu + \mu^2/\theta$ |
+
+### Key Tests
+
+```r
+# Overdispersion test
+disp <- sum(residuals(model, "pearson")^2) / model$df.residual
+
+# LRT for Poisson vs NB
+pchisq(2*(logLik(model_nb) - logLik(model_pois)), df=1, lower.tail=FALSE) / 2
+
+# Vuong test for ZIP vs Poisson (requires pscl)
+library(pscl)
+vuong(zip_model, poisson_model)
+```
