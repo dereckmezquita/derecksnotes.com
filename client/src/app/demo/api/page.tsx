@@ -6,11 +6,11 @@ import { ApiStatus } from './demos/ApiStatus';
 function Page() {
     return (
         <PostArticle>
-            <h1>Hello world!</h1>
+            <h1>Demo Page</h1>
             <ApiStatus />
             <AuthDemo />
             <AuthProtectedDemo />
-            <Comments slug="test/api" title="API Test Page" />
+            <Comments slug="demo/api" title="API Demo Page" />
         </PostArticle>
     );
 }

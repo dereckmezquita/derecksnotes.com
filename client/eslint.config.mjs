@@ -15,21 +15,22 @@ const nextAndTsConfigs = compat.extends(
     'next/typescript'
 );
 
-/**
- * We can push additional "flat config" objects that override or disable rules.
- */
 const overrides = [
     {
         files: ['**/*.{ts,tsx,js,jsx}'],
         rules: {
-            // Turn off or relax the rules that are blocking your build:
-            '@typescript-eslint/no-explicit-any': 'off',
-            '@typescript-eslint/no-empty-object-type': 'off',
-            '@typescript-eslint/no-unused-vars': 'off',
-            '@typescript-eslint/no-unused-vars-experimental': 'off', // if present
-            'prefer-const': 'off',
-            '@typescript-eslint/ban-types': 'off', // sometimes is also triggered
-            '@next/next/no-img-element': 'warn' // or 'off' if you want to allow <img>
+            '@typescript-eslint/no-explicit-any': 'warn',
+            '@typescript-eslint/no-empty-object-type': 'warn',
+            '@typescript-eslint/no-unused-vars': [
+                'warn',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrorsIgnorePattern: '^_'
+                }
+            ],
+            'prefer-const': 'warn',
+            '@next/next/no-img-element': 'warn'
         }
     }
 ];

@@ -41,7 +41,7 @@ function Footer(): ReactElement {
             </FooterText>
             <FooterText>
                 v{config.version} ({config.commitSha.slice(0, 7)}) &bull;{' '}
-                {config.buildEnv} &bull; <Link href="/test/api">test api</Link>
+                {config.buildEnv} &bull; <Link href="/demo/api">demo</Link>
             </FooterText>
             <FooterText>
                 <a href="mailto:contact@derecksnotes.com">
