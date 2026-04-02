@@ -167,6 +167,19 @@ export class QuadTree {
         checkNode(this.se!);
     }
 
+    /** Iterate all nodes for custom rendering (e.g. WebGL) */
+    forEachNode(
+        callback: (bounds: Rect, hasParticles: boolean, isLeaf: boolean) => void
+    ): void {
+        callback(this.bounds, this.particles.length > 0, !this.divided);
+        if (this.divided) {
+            this.nw!.forEachNode(callback);
+            this.ne!.forEachNode(callback);
+            this.sw!.forEachNode(callback);
+            this.se!.forEachNode(callback);
+        }
+    }
+
     /** Draw the quadtree — highlights occupied leaf cells */
     draw(
         ctx: CanvasRenderingContext2D,

@@ -1,12 +1,13 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Vec2, Particle, QuadTree, Renderer } from '@/lib/physics';
+import { Vec2, Particle, QuadTree, WebGLRenderer } from '@/lib/physics';
 
 let nextId = 0;
 
 export default function NotFound() {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const glCanvasRef = useRef<HTMLCanvasElement>(null);
+    const textCanvasRef = useRef<HTMLCanvasElement>(null);
     const [gravityOn, setGravityOn] = useState(false);
     const [attractOn, setAttractOn] = useState(false);
     const [ballSize, setBallSize] = useState(12);
@@ -20,7 +21,7 @@ export default function NotFound() {
     const mouseRef = useRef({ pos: new Vec2(-1000, -1000), active: false });
     const particlesRef = useRef<Particle[]>([]);
 
-    // Hide CSS background grid — we draw our own on the canvas
+    // Hide CSS background grid
     useEffect(() => {
         document.body.style.backgroundImage = 'none';
         return () => {
@@ -45,20 +46,42 @@ export default function NotFound() {
     }, [spawnCount]);
 
     useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+        const glCanvas = glCanvasRef.current;
+        const textCanvas = textCanvasRef.current;
+        if (!glCanvas || !textCanvas) return;
+
+        const gl = glCanvas.getContext('webgl', {
+            antialias: true,
+            alpha: false
+        });
+        const textCtx = textCanvas.getContext('2d');
+        if (!gl || !textCtx) return;
+
+        let renderer: WebGLRenderer;
+        try {
+            renderer = new WebGLRenderer(gl, textCtx);
+        } catch (err) {
+            console.error('WebGL init failed:', err);
+            return;
+        }
 
         let animationId: number;
         const dpr = window.devicePixelRatio || 1;
-        const renderer = new Renderer(ctx);
 
         function resize() {
-            if (!canvas) return;
-            canvas.width = window.innerWidth * dpr;
-            canvas.height = window.innerHeight * dpr;
-            ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+            if (!glCanvas || !textCanvas) return;
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            glCanvas.width = w * dpr;
+            glCanvas.height = h * dpr;
+            glCanvas.style.width = w + 'px';
+            glCanvas.style.height = h + 'px';
+            textCanvas.width = w * dpr;
+            textCanvas.height = h * dpr;
+            textCanvas.style.width = w + 'px';
+            textCanvas.style.height = h + 'px';
+            textCtx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+            gl!.viewport(0, 0, glCanvas.width, glCanvas.height);
         }
 
         resize();
@@ -67,7 +90,6 @@ export default function NotFound() {
         const W = () => window.innerWidth;
         const H = () => window.innerHeight;
 
-        // Physics constants
         const GRAVITY = 0.1;
         const INTER_G = 0.3;
         const DAMPING = 0.85;
@@ -100,7 +122,6 @@ export default function NotFound() {
         let dragStart: Vec2 | null = null;
         let isDragging = false;
 
-        // Input handlers
         function onMouseMove(e: MouseEvent) {
             mouseRef.current.pos.set(e.clientX, e.clientY);
             mouseRef.current.active = true;
@@ -131,8 +152,7 @@ export default function NotFound() {
 
             for (let i = 0; i < count; i++) {
                 const spread = count > 1 ? (Math.random() - 0.5) * 0.3 : 0;
-                const sizeVariation =
-                    count > 1 ? r * (0.7 + Math.random() * 0.6) : r;
+                const sizeVar = count > 1 ? r * (0.7 + Math.random() * 0.6) : r;
                 particles.push(
                     new Particle({
                         id: nextId++,
@@ -143,23 +163,21 @@ export default function NotFound() {
                                   speed * (0.8 + Math.random() * 0.4)
                               )
                             : Vec2.random(1.5),
-                        radius: sizeVariation
+                        radius: sizeVar
                     })
                 );
             }
-
             dragStart = null;
             isDragging = false;
         }
 
-        canvas.addEventListener('mousemove', onMouseMove);
-        canvas.addEventListener('mousemove', onMouseMoveDrag);
-        canvas.addEventListener('mouseleave', onMouseLeave);
-        canvas.addEventListener('mousedown', onMouseDown);
-        canvas.addEventListener('mouseup', onMouseUp);
+        glCanvas.addEventListener('mousemove', onMouseMove);
+        glCanvas.addEventListener('mousemove', onMouseMoveDrag);
+        glCanvas.addEventListener('mouseleave', onMouseLeave);
+        glCanvas.addEventListener('mousedown', onMouseDown);
+        glCanvas.addEventListener('mouseup', onMouseUp);
 
         function draw() {
-            if (!ctx) return;
             const w = W(),
                 h = H();
             renderer.clear(w, h);
@@ -186,14 +204,13 @@ export default function NotFound() {
             );
             for (const p of particles) qt.insert(p);
 
-            // Inter-particle gravity (use quadtree for range query)
+            // Inter-particle gravity
             if (useAttract) {
                 for (const p of particles) {
                     const nearby = qt.queryRadius(p.pos, 300);
                     for (const other of nearby) {
-                        if (other.id > p.id) {
+                        if (other.id > p.id)
                             Particle.attract(p, other, INTER_G);
-                        }
                     }
                 }
             }
@@ -224,27 +241,21 @@ export default function NotFound() {
                 totalPE += p.mass * GRAVITY * Math.max(0, groundY - p.pos.y);
             }
 
-            // Collision detection via quadtree
             collisionCount += qt.detectCollisions(DAMPING);
 
-            // ---- RENDER (back to front) ----
+            // ---- RENDER (WebGL + text overlay) ----
 
-            // Gravitational grid — replaces CSS background grid
+            // WebGL draws (batched) — no adaptive scaling, always full quality
             renderer.drawGravitationalGrid(w, h, particles, qt, 12, 800);
-
-            // QuadTree grid — behind everything
             renderer.drawQuadTree(qt);
-
-            renderer.drawTrails(particles);
+            renderer.drawTrails(particles, 80);
             renderer.drawDimLines(particles, 90);
             renderer.drawVelocityVectors(particles);
 
-            // Mouse attractor visualization
             if (!useGravity && mouse.active) {
                 renderer.drawMouseAttractor(mouse.pos, particles, 250);
             }
 
-            // Slingshot preview
             if (dragStart && isDragging && mouse.active) {
                 renderer.drawSlingshot(
                     dragStart,
@@ -253,14 +264,18 @@ export default function NotFound() {
                 );
             }
 
-            // Particles on top
             renderer.drawParticles(particles);
-            renderer.drawAnnotations(particles, 6);
-
             if (useGravity) renderer.drawGroundLine(groundY, w);
-
             renderer.drawAxes();
             renderer.drawScaleBar(w);
+
+            // Flush all WebGL draws in two batches
+            renderer.flushLines(w, h);
+            renderer.flushCircles(w, h);
+
+            // Text overlay (Canvas 2D — only for labels)
+            renderer.drawParticleLabels(particles);
+            renderer.drawAnnotations(particles, 6);
 
             // Update readout
             const el = document.getElementById('sim-readout');
@@ -276,11 +291,11 @@ export default function NotFound() {
         return () => {
             cancelAnimationFrame(animationId);
             window.removeEventListener('resize', resize);
-            canvas.removeEventListener('mousemove', onMouseMove);
-            canvas.removeEventListener('mousemove', onMouseMoveDrag);
-            canvas.removeEventListener('mouseleave', onMouseLeave);
-            canvas.removeEventListener('mousedown', onMouseDown);
-            canvas.removeEventListener('mouseup', onMouseUp);
+            glCanvas.removeEventListener('mousemove', onMouseMove);
+            glCanvas.removeEventListener('mousemove', onMouseMoveDrag);
+            glCanvas.removeEventListener('mouseleave', onMouseLeave);
+            glCanvas.removeEventListener('mousedown', onMouseDown);
+            glCanvas.removeEventListener('mouseup', onMouseUp);
         };
     }, []);
 
@@ -292,7 +307,7 @@ export default function NotFound() {
             <style>{`
                 .sim-btn {
                     padding: 0.35rem 0.7rem;
-                    background: none;
+                    background: white;
                     border: 1.5px solid hsla(0, 0%, 70%, 1);
                     border-radius: 2px;
                     cursor: pointer;
@@ -318,8 +333,10 @@ export default function NotFound() {
                     background: hsla(22, 85%, 38%, 0.15);
                 }
             `}</style>
+
+            {/* WebGL canvas */}
             <canvas
-                ref={canvasRef}
+                ref={glCanvasRef}
                 style={{
                     position: 'fixed',
                     top: 0,
@@ -332,10 +349,25 @@ export default function NotFound() {
                 }}
             />
 
+            {/* Text overlay canvas */}
+            <canvas
+                ref={textCanvasRef}
+                style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    pointerEvents: 'none',
+                    zIndex: 51
+                }}
+            />
+
+            {/* UI controls */}
             <div
                 style={{
                     position: 'relative',
-                    zIndex: 51,
+                    zIndex: 52,
                     pointerEvents: 'none',
                     display: 'flex',
                     flexDirection: 'column',
