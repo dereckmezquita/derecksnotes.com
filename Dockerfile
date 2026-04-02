@@ -1,5 +1,5 @@
 # Build stage for client
-FROM oven/bun:1.1 AS client-builder
+FROM oven/bun:1.2 AS client-builder
 WORKDIR /app
 
 # Copy workspace config and all package.json files
@@ -29,7 +29,7 @@ WORKDIR /app/client
 RUN bun run build
 
 # Build stage for server
-FROM oven/bun:1.1 AS server-builder
+FROM oven/bun:1.2 AS server-builder
 WORKDIR /app
 
 COPY package.json bun.lock* ./
@@ -43,7 +43,7 @@ COPY shared/ shared/
 COPY server/ server/
 
 # Production image
-FROM oven/bun:1.1-slim AS production
+FROM oven/bun:1.2-slim AS production
 
 RUN apt-get update && apt-get install -y --no-install-recommends tini curl && rm -rf /var/lib/apt/lists/*
 

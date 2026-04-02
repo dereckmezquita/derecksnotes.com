@@ -45,8 +45,13 @@ export function createContentPage(section: string) {
     // ========================================================================
 
     async function generateStaticParams(): Promise<{ slug: string[] }[]> {
-        const paths = getAllContentPaths(section);
-        return paths.map((segments) => ({ slug: segments }));
+        try {
+            const paths = getAllContentPaths(section);
+            return paths.map((segments) => ({ slug: segments }));
+        } catch {
+            // Content directory may not exist during Docker build
+            return [];
+        }
     }
 
     // ========================================================================
