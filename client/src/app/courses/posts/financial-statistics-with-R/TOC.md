@@ -842,88 +842,88 @@ A complete, self-contained course. After Part I, you can build and deploy profit
 
 ### Part 1 (`08-1`): Single-Asset Mean Reversion
 
-- [ ] **8.1 Mean Reversion Foundations** — Why prices revert.
-  - [ ] 8.1.1 **Prose/Intuition** — Overreaction, liquidity provision, inventory effects; mean reversion vs random walk.
-  - [ ] 8.1.2 **Visual Evidence** — Ornstein-Uhlenbeck process simulation vs random walk.
-  - [ ] 8.1.3 **Mathematical Derivation** —
+- [x] **8.1 Mean Reversion Foundations** — Why prices revert.
+  - [x] 8.1.1 **Prose/Intuition** — Overreaction, liquidity provision, inventory effects; mean reversion vs random walk.
+  - [x] 8.1.2 **Visual Evidence** — Ornstein-Uhlenbeck process simulation vs random walk.
+  - [x] 8.1.3 **Mathematical Derivation** —
     - OU process: dp = θ(μ - p)dt + σdW.
     - Solution and stationary distribution.
     - Half-life derivation: t_{1/2} = ln(2)/θ.
     - Variance ratio test for mean reversion.
-  - [ ] 8.1.4 **Implementation & Application** — OU parameter estimation via regression; half-life calculation; identifying mean-reverting series.
-- [ ] **8.2 RSI and Bollinger Band Strategies** — Classic mean reversion.
-  - [ ] 8.2.1 **Prose/Intuition** — Extreme readings predict reversals; contrarian logic.
-  - [ ] 8.2.2 **Visual Evidence** — Entry/exit points on oscillators and bands.
-  - [ ] 8.2.3 **Mathematical Derivation** —
+  - [x] 8.1.4 **Implementation & Application** — OU parameter estimation via regression; half-life calculation; identifying mean-reverting series.
+- [x] **8.2 RSI and Bollinger Band Strategies** — Classic mean reversion.
+  - [x] 8.2.1 **Prose/Intuition** — Extreme readings predict reversals; contrarian logic.
+  - [x] 8.2.2 **Visual Evidence** — Entry/exit points on oscillators and bands.
+  - [x] 8.2.3 **Mathematical Derivation** —
     - Z-score: z = (p - μ)/σ.
     - Threshold entry derivation from OU model.
     - Expected profit per trade.
-  - [ ] 8.2.4 **Implementation & Application** — Bollinger Band mean reversion strategy; works in ranging markets, fails in trends.
-- [ ] **8.3 Short-Term Reversals** — Intraday mean reversion.
-  - [ ] 8.3.1 **Prose/Intuition** — Microstructure effects, inventory rebalancing by market makers.
-  - [ ] 8.3.2 **Visual Evidence** — Intraday return autocorrelation patterns.
-  - [ ] 8.3.3 **Mathematical Derivation** —
+  - [x] 8.2.4 **Implementation & Application** — Bollinger Band mean reversion strategy; works in ranging markets, fails in trends.
+- [x] **8.3 Short-Term Reversals** — Intraday mean reversion.
+  - [x] 8.3.1 **Prose/Intuition** — Microstructure effects, inventory rebalancing by market makers.
+  - [x] 8.3.2 **Visual Evidence** — Intraday return autocorrelation patterns.
+  - [x] 8.3.3 **Mathematical Derivation** —
     - Return reversal model: r_t = α + β × r_{t-1} + ε, β < 0.
     - Testing for reversal significance.
-  - [ ] 8.3.4 **Implementation & Application** — Short-term reversal strategy; high-frequency considerations.
-- [ ] **Quick Reference** — Mean reversion tests and thresholds.
+  - [x] 8.3.4 **Implementation & Application** — Short-term reversal strategy; high-frequency considerations.
+- [x] **Quick Reference** — Mean reversion tests and thresholds.
 
 ### Part 2 (`08-2`): Pairs Trading
 
-- [ ] **8.4 Pairs Selection** — Finding related assets.
-  - [ ] 8.4.1 **Prose/Intuition** — Economic relationships create co-movement; fundamental vs statistical pairs.
-  - [ ] 8.4.2 **Visual Evidence** — Price series of pairs, spread time series.
-  - [ ] 8.4.3 **Mathematical Derivation** —
+- [x] **8.4 Pairs Selection** — Finding related assets.
+  - [x] 8.4.1 **Prose/Intuition** — Economic relationships create co-movement; fundamental vs statistical pairs.
+  - [x] 8.4.2 **Visual Evidence** — Price series of pairs, spread time series.
+  - [x] 8.4.3 **Mathematical Derivation** —
     - Correlation vs cointegration distinction.
     - Distance method: SSD of normalised prices.
     - Minimum distance derivation.
-  - [ ] 8.4.4 **Implementation & Application** — Pairs screening; sector-based selection; distance calculation.
-- [ ] **8.5 Cointegration** — The proper statistical foundation.
-  - [ ] 8.5.1 **Prose/Intuition** — Cointegration implies mean-reverting spread; Engle-Granger framework.
-  - [ ] 8.5.2 **Visual Evidence** — Cointegrated vs merely correlated pairs comparison.
-  - [ ] 8.5.3 **Mathematical Derivation** —
+  - [x] 8.4.4 **Implementation & Application** — Pairs screening; sector-based selection; distance calculation.
+- [x] **8.5 Cointegration** — The proper statistical foundation.
+  - [x] 8.5.1 **Prose/Intuition** — Cointegration implies mean-reverting spread; Engle-Granger framework.
+  - [x] 8.5.2 **Visual Evidence** — Cointegrated vs merely correlated pairs comparison.
+  - [x] 8.5.3 **Mathematical Derivation** —
     - Engle-Granger two-step: y_t = α + βx_t + ε_t, test ε_t ~ I(0).
     - ADF test derivation and critical values.
     - Johansen test for multiple series.
     - Hedge ratio estimation (OLS vs TLS).
-  - [ ] 8.5.4 **Implementation & Application** — Cointegration testing in R; hedge ratio estimation; empirical performance.
-- [ ] **8.6 Trading the Spread** — Entry, exit, and sizing.
-  - [ ] 8.6.1 **Prose/Intuition** — Long cheap, short expensive when spread widens; market-neutral construction.
-  - [ ] 8.6.2 **Visual Evidence** — Spread z-score, entry/exit signals visualised.
-  - [ ] 8.6.3 **Mathematical Derivation** —
+  - [x] 8.5.4 **Implementation & Application** — Cointegration testing in R; hedge ratio estimation; empirical performance.
+- [x] **8.6 Trading the Spread** — Entry, exit, and sizing.
+  - [x] 8.6.1 **Prose/Intuition** — Long cheap, short expensive when spread widens; market-neutral construction.
+  - [x] 8.6.2 **Visual Evidence** — Spread z-score, entry/exit signals visualised.
+  - [x] 8.6.3 **Mathematical Derivation** —
     - Spread = y - β × x, z = (spread - μ)/σ.
     - Optimal threshold derivation from OU model.
     - Expected holding time and profit.
-  - [ ] 8.6.4 **Implementation & Application** — Pairs trading strategy with dynamic hedge ratio; rebalancing frequency; transaction cost impact.
-- [ ] **Quick Reference** — Pairs trading checklist.
+  - [x] 8.6.4 **Implementation & Application** — Pairs trading strategy with dynamic hedge ratio; rebalancing frequency; transaction cost impact.
+- [x] **Quick Reference** — Pairs trading checklist.
 
 ### Part 3 (`08-3`): Statistical Arbitrage
 
-- [ ] **8.7 Portfolio-Based Stat Arb** — Beyond pairs to baskets.
-  - [ ] 8.7.1 **Prose/Intuition** — More assets means more diversification; reducing idiosyncratic risk.
-  - [ ] 8.7.2 **Visual Evidence** — Basket spread, principal components visualised.
-  - [ ] 8.7.3 **Mathematical Derivation** —
+- [x] **8.7 Portfolio-Based Stat Arb** — Beyond pairs to baskets.
+  - [x] 8.7.1 **Prose/Intuition** — More assets means more diversification; reducing idiosyncratic risk.
+  - [x] 8.7.2 **Visual Evidence** — Basket spread, principal components visualised.
+  - [x] 8.7.3 **Mathematical Derivation** —
     - PCA: eigenvector decomposition of return covariance.
     - Eigenportfolio construction.
     - Mean-reverting combinations identification.
-  - [ ] 8.7.4 **Implementation & Application** — PCA-based statistical arbitrage; trading different eigenportfolios.
-- [ ] **8.8 ETF Arbitrage** — Trading index vs components.
-  - [ ] 8.8.1 **Prose/Intuition** — ETF price should equal NAV; arbitrage mechanism.
-  - [ ] 8.8.2 **Visual Evidence** — ETF premium/discount over time.
-  - [ ] 8.8.3 **Mathematical Derivation** —
+  - [x] 8.7.4 **Implementation & Application** — PCA-based statistical arbitrage; trading different eigenportfolios.
+- [x] **8.8 ETF Arbitrage** — Trading index vs components.
+  - [x] 8.8.1 **Prose/Intuition** — ETF price should equal NAV; arbitrage mechanism.
+  - [x] 8.8.2 **Visual Evidence** — ETF premium/discount over time.
+  - [x] 8.8.3 **Mathematical Derivation** —
     - NAV calculation.
     - Creation/redemption mechanism.
     - Arbitrage bounds derivation.
-  - [ ] 8.8.4 **Implementation & Application** — ETF arbitrage strategy; trading SPY vs basket.
-- [ ] **8.9 Risk Management for Stat Arb** — When pairs diverge.
-  - [ ] 8.9.1 **Prose/Intuition** — Pairs can permanently diverge; regime changes break relationships.
-  - [ ] 8.9.2 **Visual Evidence** — Spread blow-ups, structural break examples.
-  - [ ] 8.9.3 **Mathematical Derivation** —
+  - [x] 8.8.4 **Implementation & Application** — ETF arbitrage strategy; trading SPY vs basket.
+- [x] **8.9 Risk Management for Stat Arb** — When pairs diverge.
+  - [x] 8.9.1 **Prose/Intuition** — Pairs can permanently diverge; regime changes break relationships.
+  - [x] 8.9.2 **Visual Evidence** — Spread blow-ups, structural break examples.
+  - [x] 8.9.3 **Mathematical Derivation** —
     - Stop-loss rules formalisation.
     - Spread half-life monitoring.
     - Dynamic cointegration testing (rolling windows).
-  - [ ] 8.9.4 **Implementation & Application** — Pair break detection; stop-loss implementation; when to abandon a pair.
-- [ ] **Quick Reference** — Statistical arbitrage guidelines.
+  - [x] 8.9.4 **Implementation & Application** — Pair break detection; stop-loss implementation; when to abandon a pair.
+- [x] **Quick Reference** — Statistical arbitrage guidelines.
 
 ---
 

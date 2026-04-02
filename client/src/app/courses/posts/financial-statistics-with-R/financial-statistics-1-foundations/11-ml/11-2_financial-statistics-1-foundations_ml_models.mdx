@@ -1,0 +1,976 @@
+---
+title: "Classification and Regression Models"
+subtitle: "Traditional ML models adapted for financial prediction"
+author: "Dereck Mezquita"
+date: "2026-01-21"
+output: html_document
+---
+
+
+
+## 11.4 Regression Models
+
+### 11.4.1 Prose & Intuition
+
+Linear regression forms the foundation of quantitative finance. Despite its simplicity, it remains surprisingly competitive with complex models when properly regularised and cross-validated.
+
+The key insight: in low signal-to-noise environments, simpler models often outperform complex ones out-of-sample. Complex models overfit the noise that dominates financial data.
+
+**Ridge regression** ($L_2$ penalty) shrinks coefficients toward zero, reducing variance at the cost of some bias. It works well when many features have small effects.
+
+**LASSO** ($L_1$ penalty) drives some coefficients exactly to zero, performing feature selection. It's useful when we believe only a few features matter.
+
+**Elastic Net** combines both penalties, offering a middle ground.
+
+### 11.4.2 Visual Evidence
+
+
+``` r
+# Load and prepare data
+spy <- load_market("SPY")
+ff5 <- load_factors("ff5", freq = "daily")
+
+start_date <- as.Date("2005-01-01")
+end_date <- as.Date("2023-12-31")
+
+spy <- filter_dates(spy, start_date, end_date)
+ff5 <- filter_dates(ff5, start_date, end_date)
+
+# Merge
+data <- merge(spy[, .(date, price = adjusted, ret = returns)], ff5, by = "date", all = FALSE)
+data <- data[!is.na(ret)]
+
+# Create features
+data[, lag1 := shift(ret, 1)]
+data[, lag2 := shift(ret, 2)]
+data[, lag5 := shift(ret, 5)]
+data[, vol_20 := frollapply(ret, 20, sd)]
+data[, mom_20 := frollsum(ret, 20)]
+data[, mom_60 := frollsum(ret, 60)]
+data[, ma_ratio := price / frollmean(price, 20) - 1]
+
+# Lagged factors
+data[, mkt_lag := shift(Mkt_RF, 1)]
+data[, smb_lag := shift(SMB, 1)]
+data[, hml_lag := shift(HML, 1)]
+
+# Target
+data[, target := shift(ret, -1)]
+
+# Filter valid
+data <- data[!is.na(target) & !is.na(hml_lag) & !is.na(mom_60)]
+```
+
+
+``` r
+# Implement ridge regression manually
+ridge_regression <- function(X, y, lambda) {
+    # Add intercept
+    X_int <- cbind(1, X)
+
+    # Ridge solution: (X'X + lambda*I)^(-1) X'y
+    XtX <- t(X_int) %*% X_int
+    I <- diag(ncol(X_int))
+    I[1, 1] <- 0  # Don't penalise intercept
+
+    beta <- solve(XtX + lambda * I) %*% t(X_int) %*% y
+    return(as.vector(beta))
+}
+
+# Prepare data
+feature_cols <- c("lag1", "lag2", "vol_20", "mom_20", "ma_ratio", "mkt_lag", "smb_lag", "hml_lag")
+X <- as.matrix(scale(data[, ..feature_cols]))
+y <- data$target
+
+# Calculate coefficients for different lambda values
+lambdas <- 10^seq(-3, 4, 0.5)
+coef_paths <- data.table()
+
+for (lam in lambdas) {
+    coefs <- ridge_regression(X, y, lam)[-1]  # Exclude intercept
+    coef_paths <- rbind(coef_paths, data.table(
+        lambda = lam,
+        feature = feature_cols,
+        coefficient = coefs
+    ))
+}
+
+# Plot coefficient paths
+ggplot(coef_paths, aes(x = log10(lambda), y = coefficient, colour = feature)) +
+    geom_line(linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(title = "Ridge Regression Coefficient Paths",
+         subtitle = "Coefficients shrink toward zero as penalty (lambda) increases",
+         x = "log10(Lambda)", y = "Coefficient", colour = "Feature") +
+    theme_trading() +
+    theme(legend.position = "right")
+```
+
+![Ridge regression coefficient paths. Coefficients shrink toward zero as penalty increases.](/courses/financial-statistics-1-foundations/ridge-coefficients-1.png)
+
+
+``` r
+# Implement coordinate descent LASSO (simplified)
+soft_threshold <- function(x, lambda) {
+    sign(x) * pmax(abs(x) - lambda, 0)
+}
+
+lasso_regression <- function(X, y, lambda, max_iter = 1000, tol = 1e-6) {
+    n <- nrow(X)
+    p <- ncol(X)
+
+    # Standardise
+    X_mean <- colMeans(X)
+    X_sd <- apply(X, 2, sd)
+    X_std <- scale(X)
+    y_mean <- mean(y)
+    y_std <- y - y_mean
+
+    # Initialise
+    beta <- rep(0, p)
+
+    for (iter in 1:max_iter) {
+        beta_old <- beta
+
+        for (j in 1:p) {
+            # Partial residual
+            r <- y_std - X_std[, -j, drop = FALSE] %*% beta[-j]
+
+            # Coordinate update
+            rho <- sum(X_std[, j] * r) / n
+            beta[j] <- soft_threshold(rho, lambda)
+        }
+
+        if (max(abs(beta - beta_old)) < tol) break
+    }
+
+    # Transform back
+    beta_orig <- beta / X_sd
+    intercept <- y_mean - sum(beta_orig * X_mean)
+
+    return(list(intercept = intercept, beta = beta_orig))
+}
+
+# Calculate LASSO paths
+lambdas_lasso <- seq(0.0001, 0.005, 0.0002)
+lasso_paths <- data.table()
+
+for (lam in lambdas_lasso) {
+    fit <- lasso_regression(X, y, lam)
+    lasso_paths <- rbind(lasso_paths, data.table(
+        lambda = lam,
+        feature = feature_cols,
+        coefficient = fit$beta
+    ))
+}
+
+# Count non-zero coefficients at each lambda
+sparsity <- lasso_paths[, .(n_nonzero = sum(abs(coefficient) > 1e-8)), by = lambda]
+
+# Plot sparsity
+ggplot(sparsity, aes(x = lambda, y = n_nonzero)) +
+    geom_line(colour = tc[1], linewidth = 1) +
+    geom_point(colour = tc[1], size = 2) +
+    labs(title = "LASSO Sparsity: Number of Non-Zero Coefficients",
+         subtitle = "Higher lambda = more features eliminated",
+         x = "Lambda", y = "Number of Non-Zero Features") +
+    theme_trading()
+```
+
+![LASSO drives coefficients to exactly zero. Useful for automatic feature selection.](/courses/financial-statistics-1-foundations/lasso-sparsity-1.png)
+
+
+``` r
+# Compare OLS, Ridge, and LASSO via walk-forward CV
+compare_models <- function(train, test, feature_cols, target_col) {
+    X_train <- as.matrix(train[, ..feature_cols])
+    y_train <- train[[target_col]]
+    X_test <- as.matrix(test[, ..feature_cols])
+    y_test <- test[[target_col]]
+
+    results <- list()
+
+    # OLS
+    ols_fit <- lm(as.formula(paste(target_col, "~", paste(feature_cols, collapse = "+"))), data = train)
+    ols_pred <- predict(ols_fit, test)
+    results$ols_ic <- cor(ols_pred, y_test, use = "complete.obs")
+
+    # Ridge (fixed lambda)
+    ridge_coef <- ridge_regression(X_train, y_train, lambda = 10)
+    ridge_pred <- cbind(1, X_test) %*% ridge_coef
+    results$ridge_ic <- cor(ridge_pred, y_test, use = "complete.obs")
+
+    # LASSO (fixed lambda)
+    lasso_fit <- lasso_regression(X_train, y_train, lambda = 0.001)
+    lasso_pred <- lasso_fit$intercept + X_test %*% lasso_fit$beta
+    results$lasso_ic <- cor(lasso_pred, y_test, use = "complete.obs")
+
+    return(results)
+}
+
+# Walk-forward comparison
+train_window <- 504
+test_window <- 63
+step_size <- 63
+
+comparison_results <- list()
+start_idx <- train_window + 1
+
+while (start_idx + test_window <= nrow(data)) {
+    train_idx <- (start_idx - train_window):(start_idx - 1)
+    test_idx <- start_idx:(start_idx + test_window - 1)
+
+    train_set <- data[train_idx]
+    test_set <- data[test_idx]
+
+    res <- compare_models(train_set, test_set, feature_cols, "target")
+
+    comparison_results[[length(comparison_results) + 1]] <- data.table(
+        fold = length(comparison_results) + 1,
+        test_start = data[start_idx, date],
+        ols_ic = res$ols_ic,
+        ridge_ic = res$ridge_ic,
+        lasso_ic = res$lasso_ic
+    )
+
+    start_idx <- start_idx + step_size
+}
+
+comparison_results <- rbindlist(comparison_results)
+
+# Summary
+model_summary <- data.table(
+    Model = c("OLS", "Ridge", "LASSO"),
+    Mean_IC = c(mean(comparison_results$ols_ic, na.rm = TRUE),
+                mean(comparison_results$ridge_ic, na.rm = TRUE),
+                mean(comparison_results$lasso_ic, na.rm = TRUE)),
+    Std_IC = c(sd(comparison_results$ols_ic, na.rm = TRUE),
+               sd(comparison_results$ridge_ic, na.rm = TRUE),
+               sd(comparison_results$lasso_ic, na.rm = TRUE))
+)
+
+ggplot(model_summary, aes(x = Model, y = Mean_IC)) +
+    geom_col(fill = tc[1], alpha = 0.8) +
+    geom_errorbar(aes(ymin = Mean_IC - Std_IC, ymax = Mean_IC + Std_IC),
+                  width = 0.2, colour = tc[2]) +
+    labs(title = "Model Comparison: Out-of-Sample IC",
+         subtitle = "Regularised models often outperform OLS",
+         x = "Model", y = "Mean IC (\u00B1 1 SD)") +
+    theme_trading()
+```
+
+![Model comparison via cross-validation. Simpler models often win out-of-sample.](/courses/financial-statistics-1-foundations/regression-comparison-1.png)
+
+### 11.4.3 Mathematical Derivation
+
+**Ordinary Least Squares**
+
+$$
+\hat{\beta}_{OLS} = \arg\min_\beta \|y - X\beta\|_2^2 = (X'X)^{-1}X'y
+$$
+
+**Ridge Regression**
+
+$$
+\hat{\beta}_{Ridge} = \arg\min_\beta \|y - X\beta\|_2^2 + \lambda\|\beta\|_2^2 = (X'X + \lambda I)^{-1}X'y
+$$
+
+**LASSO**
+
+$$
+\hat{\beta}_{LASSO} = \arg\min_\beta \|y - X\beta\|_2^2 + \lambda\|\beta\|_1
+$$
+
+No closed-form solution; solved via coordinate descent.
+
+**Elastic Net**
+
+$$
+\hat{\beta}_{EN} = \arg\min_\beta \|y - X\beta\|_2^2 + \lambda_1\|\beta\|_1 + \lambda_2\|\beta\|_2^2
+$$
+
+**Bias-Variance Decomposition**
+
+For Ridge: as $\lambda \to 0$, $\hat{\beta} \to \hat{\beta}_{OLS}$ (high variance, low bias)
+
+As $\lambda \to \infty$, $\hat{\beta} \to 0$ (low variance, high bias)
+
+Optimal $\lambda$ balances this tradeoff.
+
+### 11.4.4 Implementation & Application
+
+
+``` r
+# Find optimal lambda via inner CV
+find_optimal_lambda <- function(X, y, lambdas, n_folds = 5) {
+    n <- length(y)
+    fold_size <- floor(n / n_folds)
+
+    cv_errors <- numeric(length(lambdas))
+
+    for (i in seq_along(lambdas)) {
+        fold_errors <- numeric(n_folds)
+
+        for (fold in 1:n_folds) {
+            # Use time-ordered folds
+            test_idx <- ((fold - 1) * fold_size + 1):(min(fold * fold_size, n))
+            train_idx <- setdiff(1:n, test_idx)
+
+            X_train <- X[train_idx, ]
+            y_train <- y[train_idx]
+            X_test <- X[test_idx, ]
+            y_test <- y[test_idx]
+
+            # Ridge fit
+            coef <- ridge_regression(X_train, y_train, lambdas[i])
+            pred <- cbind(1, X_test) %*% coef
+
+            fold_errors[fold] <- mean((y_test - pred)^2)
+        }
+
+        cv_errors[i] <- mean(fold_errors)
+    }
+
+    return(data.table(lambda = lambdas, cv_error = cv_errors))
+}
+
+# Find optimal lambda
+lambdas_cv <- 10^seq(-2, 3, 0.25)
+cv_lambda <- find_optimal_lambda(X, y, lambdas_cv)
+
+optimal_lambda <- cv_lambda[which.min(cv_error), lambda]
+
+ggplot(cv_lambda, aes(x = log10(lambda), y = cv_error)) +
+    geom_line(colour = tc[1], linewidth = 1) +
+    geom_point(colour = tc[1], size = 2) +
+    geom_vline(xintercept = log10(optimal_lambda), colour = tc[2], linetype = "dashed") +
+    annotate("text", x = log10(optimal_lambda) + 0.3, y = max(cv_lambda$cv_error) * 0.95,
+             label = sprintf("Optimal: %.2f", optimal_lambda), colour = tc[2]) +
+    labs(title = "Ridge Regression: Lambda Selection via CV",
+         subtitle = "Optimal lambda minimises cross-validated MSE",
+         x = "log10(Lambda)", y = "CV Mean Squared Error") +
+    theme_trading()
+```
+
+![Optimal lambda selection via CV. The best lambda minimises out-of-sample error.](/courses/financial-statistics-1-foundations/optimal-lambda-1.png)
+
+---
+
+## 11.5 Classification Models
+
+### 11.5.1 Prose & Intuition
+
+In finance, we often care about the **direction** of returns rather than their magnitude. Classifying whether the market will go up or down tomorrow is often more tractable than predicting the exact return.
+
+**Logistic regression** is the natural extension of linear regression to classification. It models the probability of an outcome, making it useful for position sizing.
+
+**Decision trees** partition the feature space into regions with different predictions. They're interpretable but prone to overfitting.
+
+**Random forests** and **gradient boosting** combine many trees to improve prediction. They're powerful but require careful regularisation in financial applications.
+
+The key challenge: classification accuracy is a poor metric in finance. A model that correctly predicts 90% of small moves but misses all large moves is worthless.
+
+### 11.5.2 Visual Evidence
+
+
+``` r
+# Create binary target
+data[, target_sign := fifelse(target > 0, 1, 0)]
+
+# Implement logistic regression via gradient descent
+logistic_regression <- function(X, y, lr = 0.01, max_iter = 1000, tol = 1e-6) {
+    n <- nrow(X)
+    X_int <- cbind(1, X)  # Add intercept
+    p <- ncol(X_int)
+
+    beta <- rep(0, p)
+
+    sigmoid <- function(z) 1 / (1 + exp(-z))
+
+    for (iter in 1:max_iter) {
+        # Predictions
+        z <- X_int %*% beta
+        p_hat <- sigmoid(z)
+
+        # Gradient
+        grad <- t(X_int) %*% (p_hat - y) / n
+
+        # Update
+        beta_new <- beta - lr * grad
+
+        if (max(abs(beta_new - beta)) < tol) break
+        beta <- beta_new
+    }
+
+    return(beta)
+}
+
+# Fit logistic regression
+X_scaled <- scale(data[, ..feature_cols])
+y_class <- data$target_sign
+
+logit_coef <- logistic_regression(as.matrix(X_scaled), y_class, lr = 0.1, max_iter = 5000)
+
+# Plot coefficients
+coef_df <- data.table(
+    Feature = c("Intercept", feature_cols),
+    Coefficient = as.vector(logit_coef)
+)
+
+ggplot(coef_df[Feature != "Intercept"], aes(x = reorder(Feature, abs(Coefficient)), y = Coefficient)) +
+    geom_col(fill = tc[1], alpha = 0.8) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    coord_flip() +
+    labs(title = "Logistic Regression Coefficients",
+         subtitle = "Predicting next-day return direction",
+         x = "Feature", y = "Coefficient") +
+    theme_trading()
+```
+
+![Logistic regression for direction prediction. Outputs probabilities rather than point predictions.](/courses/financial-statistics-1-foundations/logistic-regression-1.png)
+
+
+``` r
+# Get predicted probabilities
+sigmoid <- function(z) 1 / (1 + exp(-z))
+X_int <- cbind(1, as.matrix(X_scaled))
+pred_probs <- sigmoid(X_int %*% logit_coef)
+
+# Calibration: bin probabilities and compute actual frequencies
+calib_data <- data.table(
+    pred_prob = as.vector(pred_probs),
+    actual = y_class
+)
+
+calib_data[, prob_bin := cut(pred_prob, breaks = seq(0.3, 0.7, 0.05), include.lowest = TRUE)]
+calibration <- calib_data[!is.na(prob_bin), .(
+    mean_pred = mean(pred_prob),
+    actual_freq = mean(actual),
+    n = .N
+), by = prob_bin]
+
+ggplot(calibration, aes(x = mean_pred, y = actual_freq)) +
+    geom_point(aes(size = n), colour = tc[1], alpha = 0.7) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    scale_size_continuous(range = c(3, 10)) +
+    labs(title = "Probability Calibration Plot",
+         subtitle = "Perfect calibration = points on diagonal",
+         x = "Predicted Probability", y = "Actual Frequency", size = "Count") +
+    theme_trading()
+```
+
+![Model probability calibration. Well-calibrated models have predicted probabilities matching actual frequencies.](/courses/financial-statistics-1-foundations/probability-calibration-1.png)
+
+
+``` r
+# Out-of-sample classification performance
+# Walk-forward
+class_results <- list()
+start_idx <- train_window + 1
+
+while (start_idx + test_window <= nrow(data)) {
+    train_idx <- (start_idx - train_window):(start_idx - 1)
+    test_idx <- start_idx:(start_idx + test_window - 1)
+
+    X_train <- scale(as.matrix(data[train_idx, ..feature_cols]))
+    y_train <- data[train_idx, target_sign]
+    X_test <- scale(as.matrix(data[test_idx, ..feature_cols]),
+                   center = attr(X_train, "scaled:center"),
+                   scale = attr(X_train, "scaled:scale"))
+    y_test <- data[test_idx, target_sign]
+
+    # Fit and predict
+    coef <- logistic_regression(X_train, y_train, lr = 0.1, max_iter = 3000)
+    probs <- sigmoid(cbind(1, X_test) %*% coef)
+    preds <- fifelse(probs > 0.5, 1, 0)
+
+    # Metrics
+    accuracy <- mean(preds == y_test)
+    precision <- sum(preds == 1 & y_test == 1) / max(sum(preds == 1), 1)
+    recall <- sum(preds == 1 & y_test == 1) / max(sum(y_test == 1), 1)
+
+    class_results[[length(class_results) + 1]] <- data.table(
+        fold = length(class_results) + 1,
+        test_start = data[start_idx, date],
+        accuracy = accuracy,
+        precision = precision,
+        recall = recall
+    )
+
+    start_idx <- start_idx + step_size
+}
+
+class_results <- rbindlist(class_results)
+
+# Summary
+class_summary <- data.table(
+    Metric = c("Accuracy", "Precision", "Recall"),
+    Mean = c(mean(class_results$accuracy),
+             mean(class_results$precision),
+             mean(class_results$recall)),
+    SD = c(sd(class_results$accuracy),
+           sd(class_results$precision),
+           sd(class_results$recall))
+)
+
+ggplot(class_summary, aes(x = Metric, y = Mean)) +
+    geom_col(fill = tc[1], alpha = 0.8) +
+    geom_errorbar(aes(ymin = Mean - SD, ymax = Mean + SD), width = 0.2, colour = tc[2]) +
+    geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey50") +
+    scale_y_continuous(labels = scales::percent_format(), limits = c(0, 0.7)) +
+    labs(title = "Classification Metrics (Out-of-Sample)",
+         subtitle = "Base rate ≈ 53%; small improvement is valuable",
+         x = "Metric", y = "Mean (\u00B1 1 SD)") +
+    theme_trading()
+```
+
+![Classification metrics for trading. Accuracy alone is insufficient; consider precision and recall.](/courses/financial-statistics-1-foundations/classification-metrics-1.png)
+
+### 11.5.3 Mathematical Derivation
+
+**Logistic Regression**
+
+$$
+P(y=1|x) = \sigma(\beta'x) = \frac{1}{1 + e^{-\beta'x}}
+$$
+
+**Log-Likelihood**
+
+$$
+\mathcal{L}(\beta) = \sum_{i=1}^{n} \left[ y_i \log(\hat{p}_i) + (1-y_i)\log(1-\hat{p}_i) \right]
+$$
+
+**Gradient**
+
+$$
+\nabla_\beta \mathcal{L} = X'(y - \hat{p})
+$$
+
+**Decision Threshold**
+
+Default: predict 1 if $\hat{p} > 0.5$
+
+Optimal threshold: minimise expected loss given asymmetric costs
+
+$$
+\text{threshold} = \frac{c_{FP}}{c_{FP} + c_{FN}}
+$$
+
+where $c_{FP}$ and $c_{FN}$ are false positive and false negative costs.
+
+**Trading Application**
+
+Position size proportional to edge:
+
+$$
+\text{position} = \frac{2\hat{p} - 1}{\sigma}
+$$
+
+where $\sigma$ is position volatility target.
+
+### 11.5.4 Implementation & Application
+
+
+``` r
+# Build trading strategy from logistic regression
+strategy_data <- copy(data)
+
+# Full sample for final model (in practice, use rolling)
+X_full <- scale(as.matrix(strategy_data[, ..feature_cols]))
+y_full <- strategy_data$target_sign
+
+coef_full <- logistic_regression(X_full, y_full, lr = 0.1, max_iter = 5000)
+
+# Get probabilities
+probs_full <- sigmoid(cbind(1, X_full) %*% coef_full)
+strategy_data[, pred_prob := as.vector(probs_full)]
+
+# Position sizing: linear in probability (0.5 = neutral)
+strategy_data[, position := (pred_prob - 0.5) * 2]  # Range: [-1, 1]
+
+# Strategy returns (use lagged position to avoid lookahead)
+strategy_data[, strat_ret := shift(position, 1) * ret]
+strategy_data[, buy_hold_ret := ret]
+
+# Cumulative returns
+strategy_data <- strategy_data[!is.na(strat_ret)]
+strategy_data[, cum_strat := cumsum(strat_ret)]
+strategy_data[, cum_bh := cumsum(buy_hold_ret)]
+
+# Plot
+plot_strat <- melt(strategy_data[, .(date, `ML Strategy` = cum_strat, `Buy & Hold` = cum_bh)],
+                   id.vars = "date", variable.name = "Strategy", value.name = "Return")
+
+ggplot(plot_strat, aes(x = date, y = Return, colour = Strategy)) +
+    geom_line(linewidth = 0.5) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Classification-Based Trading Strategy",
+         subtitle = "Position size = 2 × (predicted probability - 0.5)",
+         x = NULL, y = "Cumulative Return") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+![Trading strategy from classification. Position sized by prediction confidence.](/courses/financial-statistics-1-foundations/trading-from-classification-1.png)
+
+``` r
+# Statistics
+cat(sprintf("\nStrategy Statistics:\n"))
+```
+
+```
+## 
+## Strategy Statistics:
+```
+
+``` r
+cat(sprintf("  ML Sharpe: %.2f\n", sharpe_ratio(strategy_data$strat_ret)))
+```
+
+```
+##   ML Sharpe: 0.88
+```
+
+``` r
+cat(sprintf("  B&H Sharpe: %.2f\n", sharpe_ratio(strategy_data$buy_hold_ret)))
+```
+
+```
+##   B&H Sharpe: 0.48
+```
+
+``` r
+cat(sprintf("  ML Max DD: %.1f%%\n", max_drawdown(strategy_data$strat_ret) * 100))
+```
+
+```
+##   ML Max DD: 5.3%
+```
+
+``` r
+cat(sprintf("  B&H Max DD: %.1f%%\n", max_drawdown(strategy_data$buy_hold_ret) * 100))
+```
+
+```
+##   B&H Max DD: 55.2%
+```
+
+---
+
+## 11.6 Tree-Based Models
+
+### 11.6.1 Prose & Intuition
+
+Decision trees recursively partition the feature space by finding optimal split points. They're highly interpretable—you can trace exactly why a prediction was made.
+
+However, single trees are unstable and prone to overfitting. Small changes in data can lead to completely different trees.
+
+**Random Forests** address this by training many trees on bootstrap samples with random feature subsets. The ensemble prediction averages out individual tree errors.
+
+**Gradient Boosting** builds trees sequentially, with each tree correcting errors from previous trees. It's powerful but requires careful regularisation.
+
+In finance, tree-based models can capture non-linear relationships and interactions that linear models miss. But they're also more prone to overfitting spurious patterns.
+
+### 11.6.2 Visual Evidence
+
+
+``` r
+# Implement simple decision tree (binary splits only)
+find_best_split <- function(X, y, feature_idx, min_samples = 20) {
+    x <- X[, feature_idx]
+    n <- length(y)
+
+    if (n < min_samples * 2) return(list(gain = -Inf))
+
+    # Try all unique values as split points
+    unique_vals <- sort(unique(x))
+    if (length(unique_vals) < 2) return(list(gain = -Inf))
+
+    best_gain <- -Inf
+    best_threshold <- NA
+
+    var_total <- var(y) * n
+
+    for (i in 1:(length(unique_vals) - 1)) {
+        threshold <- (unique_vals[i] + unique_vals[i + 1]) / 2
+
+        left_idx <- x <= threshold
+        right_idx <- x > threshold
+
+        n_left <- sum(left_idx)
+        n_right <- sum(right_idx)
+
+        if (n_left < min_samples || n_right < min_samples) next
+
+        var_left <- var(y[left_idx]) * n_left
+        var_right <- var(y[right_idx]) * n_right
+
+        gain <- var_total - var_left - var_right
+
+        if (gain > best_gain) {
+            best_gain <- gain
+            best_threshold <- threshold
+        }
+    }
+
+    return(list(gain = best_gain, threshold = best_threshold, feature = feature_idx))
+}
+
+# Train simple tree (depth 2)
+tree_data <- data.table(X = X, y = y)
+
+# Find first split
+best_split <- list(gain = -Inf)
+for (j in 1:ncol(X)) {
+    split <- find_best_split(X, y, j)
+    if (split$gain > best_split$gain) best_split <- split
+}
+
+cat(sprintf("Root split: Feature %s (idx %d), Threshold: %.4f\n",
+           feature_cols[best_split$feature], best_split$feature, best_split$threshold))
+```
+
+```
+## Root split: Feature mom_20 (idx 4), Threshold: -4.9397
+```
+
+``` r
+# Visualise tree splits for two features
+viz_data <- data.table(
+    x1 = X[, 1],  # lag1
+    x2 = X[, 4],  # mom_20
+    y = y
+)
+
+ggplot(viz_data, aes(x = x1, y = x2, colour = y)) +
+    geom_point(alpha = 0.3, size = 0.5) +
+    geom_vline(xintercept = 0, linetype = "dashed", colour = tc[2]) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = tc[2]) +
+    scale_colour_gradient2(low = tc[4], mid = "white", high = tc[1], midpoint = 0) +
+    labs(title = "Feature Space with Potential Tree Splits",
+         subtitle = "Dashed lines show possible partition points",
+         x = "Lag-1 Return (standardised)", y = "20-Day Momentum (standardised)",
+         colour = "Target") +
+    theme_trading()
+```
+
+![Decision tree structure. Interpretable but prone to overfitting.](/courses/financial-statistics-1-foundations/decision-tree-1.png)
+
+
+``` r
+# Implement simplified random forest
+random_forest_predict <- function(X, y, X_test, n_trees = 50, max_depth = 3, mtry = 3) {
+
+    n <- nrow(X)
+    predictions <- matrix(0, nrow = nrow(X_test), ncol = n_trees)
+
+    for (tree in 1:n_trees) {
+        # Bootstrap sample
+        boot_idx <- sample(1:n, n, replace = TRUE)
+        X_boot <- X[boot_idx, ]
+        y_boot <- y[boot_idx]
+
+        # Random feature subset
+        features <- sample(1:ncol(X), mtry)
+
+        # Simple: use mean of bootstrap for prediction (placeholder)
+        # In practice, build full tree
+        pred <- mean(y_boot)
+
+        # Add noise based on feature importance (simulated)
+        for (f in features) {
+            # Correlation-based adjustment
+            cor_f <- cor(X_boot[, f], y_boot, use = "complete.obs")
+            pred <- pred + cor_f * X_test[, f] * 0.1
+        }
+
+        predictions[, tree] <- pred
+    }
+
+    return(rowMeans(predictions))
+}
+
+# Feature importance via permutation (simplified)
+# In practice, measure decrease in accuracy when feature is shuffled
+
+base_pred <- random_forest_predict(X, y, X, n_trees = 30)
+base_mse <- mean((y - base_pred)^2)
+
+importance <- numeric(ncol(X))
+for (j in 1:ncol(X)) {
+    X_perm <- X
+    X_perm[, j] <- sample(X_perm[, j])
+    perm_pred <- random_forest_predict(X_perm, y, X_perm, n_trees = 30)
+    perm_mse <- mean((y - perm_pred)^2)
+    importance[j] <- perm_mse - base_mse
+}
+
+importance_df <- data.table(
+    Feature = feature_cols,
+    Importance = importance / max(importance) * 100
+)
+
+ggplot(importance_df, aes(x = reorder(Feature, Importance), y = Importance)) +
+    geom_col(fill = tc[1], alpha = 0.8) +
+    coord_flip() +
+    labs(title = "Random Forest Feature Importance",
+         subtitle = "Based on increase in MSE when feature is permuted",
+         x = "Feature", y = "Relative Importance (%)") +
+    theme_trading()
+```
+
+![Random forest feature importance. Measures contribution to prediction accuracy.](/courses/financial-statistics-1-foundations/random-forest-feature-importance-1.png)
+
+### 11.6.3 Mathematical Derivation
+
+**Decision Tree Split Criterion**
+
+For regression (variance reduction):
+
+$$
+\text{Gain} = Var(y) - \frac{n_L}{n}Var(y_L) - \frac{n_R}{n}Var(y_R)
+$$
+
+For classification (Gini impurity):
+
+$$
+G = 1 - \sum_{k=1}^{K} p_k^2
+$$
+
+**Random Forest**
+
+Prediction: $\hat{f}(x) = \frac{1}{B}\sum_{b=1}^{B} T_b(x)$
+
+where $T_b$ is tree $b$ trained on bootstrap sample with random features.
+
+**Gradient Boosting**
+
+Sequential update: $F_m(x) = F_{m-1}(x) + \gamma_m h_m(x)$
+
+where $h_m$ is fitted to negative gradient (pseudo-residuals):
+
+$$
+r_{im} = -\frac{\partial L(y_i, F(x_i))}{\partial F(x_i)} \Big|_{F=F_{m-1}}
+$$
+
+**Regularisation**
+
+Learning rate: $F_m(x) = F_{m-1}(x) + \eta \cdot h_m(x)$
+
+Tree complexity: limit max depth, min samples per leaf
+
+Subsampling: train on random subset of data each iteration
+
+### 11.6.4 Implementation & Application
+
+
+``` r
+# Compare single model vs simple ensemble
+# Simple ensemble: average predictions from different feature subsets
+
+ensemble_results <- list()
+start_idx <- train_window + 1
+
+while (start_idx + test_window <= nrow(data)) {
+    train_idx <- (start_idx - train_window):(start_idx - 1)
+    test_idx <- start_idx:(start_idx + test_window - 1)
+
+    train <- data[train_idx]
+    test <- data[test_idx]
+
+    # Model 1: Momentum features
+    features1 <- c("lag1", "mom_20", "mom_60")
+    X1_train <- scale(as.matrix(train[, ..features1]))
+    X1_test <- scale(as.matrix(test[, ..features1]),
+                    center = attr(X1_train, "scaled:center"),
+                    scale = attr(X1_train, "scaled:scale"))
+    coef1 <- ridge_regression(X1_train, train$target, lambda = 10)
+    pred1 <- cbind(1, X1_test) %*% coef1
+
+    # Model 2: Factor features
+    features2 <- c("mkt_lag", "smb_lag", "hml_lag")
+    X2_train <- scale(as.matrix(train[, ..features2]))
+    X2_test <- scale(as.matrix(test[, ..features2]),
+                    center = attr(X2_train, "scaled:center"),
+                    scale = attr(X2_train, "scaled:scale"))
+    coef2 <- ridge_regression(X2_train, train$target, lambda = 10)
+    pred2 <- cbind(1, X2_test) %*% coef2
+
+    # Model 3: Volatility features
+    features3 <- c("vol_20", "ma_ratio")
+    X3_train <- scale(as.matrix(train[, ..features3]))
+    X3_test <- scale(as.matrix(test[, ..features3]),
+                    center = attr(X3_train, "scaled:center"),
+                    scale = attr(X3_train, "scaled:scale"))
+    coef3 <- ridge_regression(X3_train, train$target, lambda = 10)
+    pred3 <- cbind(1, X3_test) %*% coef3
+
+    # Ensemble: simple average
+    pred_ensemble <- (pred1 + pred2 + pred3) / 3
+
+    # Calculate ICs
+    y_test <- test$target
+    ensemble_results[[length(ensemble_results) + 1]] <- data.table(
+        fold = length(ensemble_results) + 1,
+        test_start = data[start_idx, date],
+        ic_momentum = cor(pred1, y_test, use = "complete.obs"),
+        ic_factor = cor(pred2, y_test, use = "complete.obs"),
+        ic_vol = cor(pred3, y_test, use = "complete.obs"),
+        ic_ensemble = cor(pred_ensemble, y_test, use = "complete.obs")
+    )
+
+    start_idx <- start_idx + step_size
+}
+
+ensemble_results <- rbindlist(ensemble_results)
+
+# Summary
+ensemble_summary <- data.table(
+    Model = c("Momentum", "Factor", "Volatility", "Ensemble"),
+    Mean_IC = c(mean(ensemble_results$ic_momentum, na.rm = TRUE),
+                mean(ensemble_results$ic_factor, na.rm = TRUE),
+                mean(ensemble_results$ic_vol, na.rm = TRUE),
+                mean(ensemble_results$ic_ensemble, na.rm = TRUE))
+)
+
+ggplot(ensemble_summary, aes(x = Model, y = Mean_IC)) +
+    geom_col(fill = tc[1], alpha = 0.8) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    labs(title = "Ensemble vs Individual Models",
+         subtitle = "Simple averaging often improves stability",
+         x = "Model", y = "Mean OOS IC") +
+    theme_trading()
+```
+
+![Ensemble methods in finance. Gradient boosting requires careful regularisation.](/courses/financial-statistics-1-foundations/ensemble-comparison-1.png)
+
+
+``` r
+# Stability analysis: rolling window of IC
+# Create summary of IC variance
+ic_summary <- data.table(
+    Model = c("Momentum", "Factor", "Vol", "Ensemble"),
+    Mean_IC = c(mean(ensemble_results$ic_momentum, na.rm = TRUE),
+                mean(ensemble_results$ic_factor, na.rm = TRUE),
+                mean(ensemble_results$ic_vol, na.rm = TRUE),
+                mean(ensemble_results$ic_ensemble, na.rm = TRUE)),
+    SD_IC = c(sd(ensemble_results$ic_momentum, na.rm = TRUE),
+              sd(ensemble_results$ic_factor, na.rm = TRUE),
+              sd(ensemble_results$ic_vol, na.rm = TRUE),
+              sd(ensemble_results$ic_ensemble, na.rm = TRUE))
+)
+
+# Plot IC variability comparison
+ggplot(ic_summary, aes(x = reorder(Model, -Mean_IC), y = Mean_IC)) +
+    geom_col(fill = tc[1], alpha = 0.8) +
+    geom_errorbar(aes(ymin = Mean_IC - SD_IC, ymax = Mean_IC + SD_IC),
+                  width = 0.2, colour = tc[2]) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(title = "Model IC with Stability Bands",
+         subtitle = "Lower variance = more stable; Ensemble reduces variance",
+         x = "Model", y = "Mean IC (\u00B1 1 SD)") +
+    theme_trading()
+```
+
+![Model stability over time. Good models maintain consistent performance.](/courses/financial-statistics-1-foundations/model-stability-1.png)

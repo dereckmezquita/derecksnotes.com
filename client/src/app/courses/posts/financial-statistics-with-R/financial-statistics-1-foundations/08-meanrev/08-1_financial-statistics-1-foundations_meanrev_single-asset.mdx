@@ -1,0 +1,1166 @@
+---
+title: "Single-Asset Mean Reversion"
+---
+
+
+
+# Single-Asset Mean Reversion
+
+Mean reversion is the opposite philosophy from trend following. While trend followers say "the trend is your friend," mean reversion traders say "what goes up must come down." Both can be profitable—they work in different market regimes.
+
+The key question: *does this particular asset or spread actually mean-revert?* Many assets don't—stock prices can go up indefinitely (or to zero). But spreads, oscillators, and certain market conditions exhibit genuine mean-reverting behaviour.
+
+---
+
+## 8.1 Mean Reversion Foundations
+
+### 8.1.1 Prose/Intuition
+
+Mean reversion arises from several mechanisms:
+
+**Overreaction and correction:**
+- Investors overreact to news (both good and bad)
+- Prices overshoot fair value
+- Subsequent correction drives prices back
+
+**Liquidity provision:**
+- Market makers provide liquidity by trading against order flow
+- Large buy orders push prices up temporarily
+- Market makers' subsequent selling pushes prices back
+
+**Inventory effects:**
+- Dealers accumulate inventory when buying from sellers
+- To reduce inventory risk, they cut prices
+- Prices revert as inventory normalises
+
+**Fundamental constraints:**
+- Valuations have bounds (can't be negative, P/E can't be infinite)
+- Extreme valuations attract arbitrageurs
+- Prices are pulled back toward fair value
+
+Not all price series mean-revert. Stock prices are generally believed to follow random walks (or near-random walks). But *spreads* between related assets, *deviations* from fair value, and *oscillator readings* often do mean-revert.
+
+### 8.1.2 Visual Evidence
+
+
+``` r
+# Simulate random walk and OU process
+n <- 1000
+
+# Random walk: p_{t+1} = p_t + epsilon
+random_walk <- cumsum(rnorm(n, 0, 0.5))
+
+# Ornstein-Uhlenbeck: dp = theta * (mu - p) * dt + sigma * dW
+# Discretised: p_{t+1} = p_t + theta * (mu - p_t) + sigma * epsilon
+theta <- 0.1  # Mean reversion speed
+mu <- 0       # Long-term mean
+sigma <- 0.5  # Volatility
+
+ou_process <- numeric(n)
+ou_process[1] <- 0
+for (i in 2:n) {
+    ou_process[i] <- ou_process[i-1] + theta * (mu - ou_process[i-1]) + sigma * rnorm(1)
+}
+
+# Combine for plotting
+sim_dt <- data.table(
+    t = 1:n,
+    `Random Walk` = random_walk,
+    `Ornstein-Uhlenbeck` = ou_process
+)
+sim_long <- melt(sim_dt, id.vars = "t", variable.name = "Process", value.name = "Value")
+
+ggplot(sim_long, aes(x = t, y = Value, colour = Process)) +
+    geom_line(linewidth = 0.6) +
+    geom_hline(yintercept = mu, linetype = "dashed", colour = "grey50") +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Random Walk vs Ornstein-Uhlenbeck Process",
+         subtitle = sprintf("OU parameters: θ=%.2f (mean-reversion speed), μ=%.0f (long-term mean)", theta, mu),
+         x = "Time", y = "Value") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Random walk vs mean-reverting (Ornstein-Uhlenbeck) process. The random walk drifts arbitrarily; the OU process always returns toward its long-term mean.](/courses/financial-statistics-1-foundations/../figures/08-1_random-walk-vs-ou-1.png)
+
+
+``` r
+# Real data: RSI is naturally mean-reverting
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2020-01-01"), as.Date("2023-12-31"))
+
+# Calculate RSI
+calc_rsi <- function(price, n = 14) {
+    delta <- diff(price)
+    gain <- ifelse(delta > 0, delta, 0)
+    loss <- ifelse(delta < 0, -delta, 0)
+    avg_gain <- avg_loss <- numeric(length(gain))
+    avg_gain[n] <- mean(gain[1:n])
+    avg_loss[n] <- mean(loss[1:n])
+    for (i in (n + 1):length(gain)) {
+        avg_gain[i] <- (avg_gain[i - 1] * (n - 1) + gain[i]) / n
+        avg_loss[i] <- (avg_loss[i - 1] * (n - 1) + loss[i]) / n
+    }
+    rs <- avg_gain / avg_loss
+    c(NA, 100 - 100 / (1 + rs))
+}
+
+spy[, rsi := calc_rsi(adjusted, 14)]
+spy <- spy[!is.na(rsi)]
+
+# RSI mean-reversion analysis
+spy[, rsi_extreme := fifelse(rsi < 30, "Oversold", fifelse(rsi > 70, "Overbought", "Neutral"))]
+
+# Forward RSI change
+spy[, fwd_rsi_5d := shift(rsi, -5) - rsi]
+
+# Average reversion by regime
+reversion <- spy[, .(
+    `Mean 5-day RSI Change` = mean(fwd_rsi_5d, na.rm = TRUE),
+    Count = .N
+), by = rsi_extreme]
+
+cat("=== RSI Mean Reversion Analysis ===\n\n")
+```
+
+```
+## === RSI Mean Reversion Analysis ===
+```
+
+``` r
+print(reversion)
+```
+
+```
+##    rsi_extreme Mean 5-day RSI Change Count
+##         <char>                 <num> <int>
+## 1:     Neutral             0.3268436   904
+## 2:    Oversold            14.9899426    18
+## 3:  Overbought            -7.4078640    70
+```
+
+``` r
+# Plot RSI with extreme zones
+ggplot(spy, aes(x = date, y = rsi)) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 70, ymax = 100),
+              fill = tc[4], alpha = 0.1) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 0, ymax = 30),
+              fill = tc[3], alpha = 0.1) +
+    geom_line(colour = tc[1], linewidth = 0.6) +
+    geom_hline(yintercept = 50, linetype = "dashed", colour = "grey50") +
+    scale_y_continuous(limits = c(0, 100)) +
+    labs(title = "SPY RSI (14-day)",
+         subtitle = "RSI naturally mean-reverts: extreme readings tend to reverse",
+         x = NULL, y = "RSI") +
+    theme_trading()
+```
+
+![RSI naturally mean-reverts because it's bounded between 0 and 100. Extreme values tend to reverse toward 50.](/courses/financial-statistics-1-foundations/../figures/08-1_mean-reversion-real-data-1.png)
+
+### 8.1.3 Mathematical Derivation
+
+**Ornstein-Uhlenbeck Process:**
+
+The continuous-time OU process is:
+
+$$
+dp_t = \theta(\mu - p_t)dt + \sigma dW_t
+$$
+
+where:
+- $\theta > 0$ is the mean-reversion speed
+- $\mu$ is the long-term mean
+- $\sigma$ is the volatility
+- $dW_t$ is a Wiener process (Brownian motion)
+
+**Solution:**
+
+The OU process has the closed-form solution:
+
+$$
+p_t = \mu + (p_0 - \mu)e^{-\theta t} + \sigma \int_0^t e^{-\theta(t-s)} dW_s
+$$
+
+The first term shows prices converge to $\mu$ exponentially. The integral term adds random noise.
+
+**Stationary Distribution:**
+
+As $t \to \infty$, the OU process converges to a stationary normal distribution:
+
+$$
+p_\infty \sim N\left(\mu, \frac{\sigma^2}{2\theta}\right)
+$$
+
+Higher $\theta$ (faster mean reversion) means lower variance around $\mu$.
+
+**Half-Life:**
+
+The half-life is the expected time for the price to move halfway from $p_0$ to $\mu$:
+
+$$
+t_{1/2} = \frac{\ln(2)}{\theta}
+$$
+
+If $\theta = 0.1$ (per day), half-life = $\ln(2)/0.1 \approx 7$ days.
+
+**Variance Ratio Test:**
+
+The variance ratio test detects mean reversion:
+
+$$
+VR(q) = \frac{\text{Var}(r_t + r_{t+1} + ... + r_{t+q-1})}{q \times \text{Var}(r_t)}
+$$
+
+- $VR = 1$: Random walk (no predictability)
+- $VR < 1$: Mean reversion (returns negatively autocorrelated)
+- $VR > 1$: Momentum (returns positively autocorrelated)
+
+
+``` r
+# OU parameter estimation via regression
+# From dp = theta*(mu - p)*dt + sigma*dW
+# Discretised: p_{t+1} - p_t = theta*mu - theta*p_t + epsilon
+# Regress: delta_p = a + b*p_t + epsilon
+# theta = -b, mu = -a/b
+
+estimate_ou_params <- function(prices) {
+    delta_p <- diff(prices)
+    p_lag <- prices[-length(prices)]
+
+    # Regression: delta_p = a + b * p_lag
+    fit <- lm(delta_p ~ p_lag)
+
+    a <- coef(fit)[1]
+    b <- coef(fit)[2]
+
+    theta <- -b
+    mu <- -a / b
+    sigma <- sd(residuals(fit))
+    half_life <- log(2) / theta
+
+    list(theta = theta, mu = mu, sigma = sigma, half_life = half_life,
+         r_squared = summary(fit)$r.squared, b_pvalue = summary(fit)$coefficients[2, 4])
+}
+
+# Estimate for simulated OU process
+ou_params <- estimate_ou_params(ou_process)
+
+cat("=== OU Parameter Estimation (Simulated Data) ===\n\n")
+```
+
+```
+## === OU Parameter Estimation (Simulated Data) ===
+```
+
+``` r
+cat(sprintf("True theta: %.3f, Estimated: %.3f\n", theta, ou_params$theta))
+```
+
+```
+## True theta: 0.100, Estimated: 0.088
+```
+
+``` r
+cat(sprintf("True mu: %.1f, Estimated: %.3f\n", mu, ou_params$mu))
+```
+
+```
+## True mu: 0.0, Estimated: -0.029
+```
+
+``` r
+cat(sprintf("Estimated half-life: %.1f periods\n", ou_params$half_life))
+```
+
+```
+## Estimated half-life: 7.8 periods
+```
+
+``` r
+cat(sprintf("Regression R²: %.4f\n", ou_params$r_squared))
+```
+
+```
+## Regression R<U+00B2>: 0.0441
+```
+
+``` r
+cat(sprintf("Slope p-value: %.4f\n", ou_params$b_pvalue))
+```
+
+```
+## Slope p-value: 0.0000
+```
+
+``` r
+# Visualise regression
+delta_p <- diff(ou_process)
+p_lag <- ou_process[-length(ou_process)]
+
+reg_dt <- data.table(Price_Lag = p_lag, Delta_Price = delta_p)
+
+ggplot(reg_dt, aes(x = Price_Lag, y = Delta_Price)) +
+    geom_point(alpha = 0.3, colour = tc[1]) +
+    geom_smooth(method = "lm", se = TRUE, colour = tc[2], fill = tc[2], alpha = 0.2) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(title = "OU Parameter Estimation via Regression",
+         subtitle = sprintf("Slope = -θ = %.3f, Half-life = %.1f periods",
+                            -ou_params$theta, ou_params$half_life),
+         x = expression(p[t-1]), y = expression(Delta * p[t])) +
+    theme_trading()
+```
+
+![Estimating OU parameters from data. We regress price changes on price levels; the slope gives the mean-reversion speed <U+03B8>.](/courses/financial-statistics-1-foundations/../figures/08-1_ou-parameter-estimation-1.png)
+
+
+``` r
+# Variance ratio test
+calc_variance_ratio <- function(x, q_values = c(2, 5, 10, 20)) {
+    n <- length(x)
+    var_1 <- var(diff(x), na.rm = TRUE)
+
+    vr <- sapply(q_values, function(q) {
+        if (n < q + 1) return(NA)
+
+        # q-period differences
+        diffs_q <- x[(q + 1):n] - x[1:(n - q)]
+        var_q <- var(diffs_q, na.rm = TRUE)
+
+        var_q / (q * var_1)
+    })
+
+    names(vr) <- paste0("VR(", q_values, ")")
+    vr
+}
+
+# Test RSI for mean reversion
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, rsi := calc_rsi(adjusted, 14)]
+spy <- spy[!is.na(rsi)]
+
+# Variance ratios for RSI
+rsi_vr <- calc_variance_ratio(spy$rsi, c(2, 5, 10, 20, 40))
+
+# Compare to price returns
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+price_vr <- calc_variance_ratio(cumsum(spy$returns), c(2, 5, 10, 20, 40))
+
+cat("=== Variance Ratio Test ===\n\n")
+```
+
+```
+## === Variance Ratio Test ===
+```
+
+``` r
+cat("RSI (expecting VR < 1 for mean reversion):\n")
+```
+
+```
+## RSI (expecting VR < 1 for mean reversion):
+```
+
+``` r
+print(round(rsi_vr, 3))
+```
+
+```
+##  VR(2)  VR(5) VR(10) VR(20) VR(40) 
+##  0.945  0.833  0.671  0.500  0.298
+```
+
+``` r
+cat("\nCumulative Returns (expecting VR ≈ 1 for random walk):\n")
+```
+
+```
+## 
+## Cumulative Returns (expecting VR <U+2248> 1 for random walk):
+```
+
+``` r
+print(round(price_vr, 3))
+```
+
+```
+##  VR(2)  VR(5) VR(10) VR(20) VR(40) 
+##  0.895  0.872  0.811  0.788  0.667
+```
+
+``` r
+# Plot
+vr_dt <- data.table(
+    q = c(2, 5, 10, 20, 40),
+    RSI = rsi_vr,
+    Price = price_vr
+)
+vr_long <- melt(vr_dt, id.vars = "q", variable.name = "Series", value.name = "VR")
+
+ggplot(vr_long, aes(x = factor(q), y = VR, fill = Series)) +
+    geom_col(position = "dodge") +
+    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+    scale_fill_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Variance Ratio Test",
+         subtitle = "VR < 1 indicates mean reversion; VR = 1 indicates random walk",
+         x = "Holding Period (days)", y = "Variance Ratio") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Variance ratio test for mean reversion. VR < 1 indicates mean reversion; VR > 1 indicates momentum. RSI shows strong mean reversion.](/courses/financial-statistics-1-foundations/../figures/08-1_variance-ratio-test-1.png)
+
+### 8.1.4 Implementation & Application
+
+
+``` r
+# Screen multiple series for mean reversion
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, rsi := calc_rsi(adjusted, 14)]
+
+# Z-score of price vs 50-day MA
+spy[, ma_50 := frollmean(adjusted, 50)]
+spy[, ma_std := frollapply(adjusted, 50, sd)]
+spy[, z_score := (adjusted - ma_50) / ma_std]
+
+# Bollinger Band %B
+spy[, bb_middle := frollmean(adjusted, 20)]
+spy[, bb_std := frollapply(adjusted, 20, sd)]
+spy[, pct_b := (adjusted - (bb_middle - 2 * bb_std)) / (4 * bb_std)]
+
+spy <- spy[!is.na(rsi) & !is.na(z_score) & !is.na(pct_b)]
+
+# Test each series
+test_series <- list(
+    RSI = spy$rsi,
+    `Z-Score` = spy$z_score,
+    `%B` = spy$pct_b,
+    `Cum. Returns` = cumsum(spy$returns)
+)
+
+results <- data.table()
+for (name in names(test_series)) {
+    params <- estimate_ou_params(test_series[[name]])
+    results <- rbind(results, data.table(
+        Series = name,
+        Theta = params$theta,
+        `Half-Life` = params$half_life,
+        `R²` = params$r_squared,
+        `p-value` = params$b_pvalue,
+        `Mean Reverting` = params$theta > 0 & params$b_pvalue < 0.05
+    ))
+}
+
+cat("=== Mean Reversion Screening ===\n\n")
+```
+
+```
+## === Mean Reversion Screening ===
+```
+
+``` r
+print(results)
+```
+
+```
+##          Series        Theta   Half-Life    R<U+00B2>      p-value
+##          <char>        <num>       <num>        <num>        <num>
+## 1:          RSI 0.0816616491    8.488038 0.0406639238 9.551292e-22
+## 2:      Z-Score 0.0594260979   11.664020 0.0296713070 3.306821e-16
+## 3:           %B 0.1370559808    5.057402 0.0685455961 5.030519e-36
+## 4: Cum. Returns 0.0004975901 1393.008468 0.0001921273 5.144871e-01
+##    Mean Reverting
+##            <lgcl>
+## 1:           TRUE
+## 2:           TRUE
+## 3:           TRUE
+## 4:          FALSE
+```
+
+``` r
+# Highlight: series with theta > 0 and p-value < 0.05 are mean-reverting
+ggplot(results, aes(x = Series, y = `Half-Life`, fill = `Mean Reverting`)) +
+    geom_col() +
+    scale_fill_manual(values = c(tc[4], tc[3])) +
+    labs(title = "Mean Reversion Screening Results",
+         subtitle = "Green = significant mean reversion (θ > 0, p < 0.05)",
+         x = NULL, y = "Half-Life (days)") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Screening for mean-reverting series. We test multiple indicators and spreads; only those with significant negative regression slopes should be traded as mean-reverting.](/courses/financial-statistics-1-foundations/../figures/08-1_identify-mean-reverting-1.png)
+
+---
+
+## 8.2 RSI and Bollinger Band Strategies
+
+### 8.2.1 Prose/Intuition
+
+Mean reversion strategies buy when prices are "too low" and sell when "too high." But how do we define these extremes?
+
+**RSI approach:** Buy when RSI < 30 (oversold), sell when RSI > 70 (overbought). RSI naturally ranges between 0-100, making threshold selection straightforward.
+
+**Bollinger Band approach:** Buy when price touches the lower band (2σ below mean), sell at upper band. The bands adapt to volatility, widening in turbulent markets.
+
+**Z-score approach:** Standardise deviations from a moving average. Buy when z < -2, sell when z > +2. This gives probabilistic interpretation under normality assumptions.
+
+The key insight: these strategies work when the underlying price *actually mean-reverts*. In strong trends, they get destroyed—buying dips that keep dipping, selling rallies that keep rallying.
+
+### 8.2.2 Visual Evidence
+
+
+``` r
+# Bollinger Band mean reversion signals
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-06-30"))
+
+# Bollinger Bands
+spy[, bb_middle := frollmean(adjusted, 20)]
+spy[, bb_std := frollapply(adjusted, 20, sd)]
+spy[, bb_upper := bb_middle + 2 * bb_std]
+spy[, bb_lower := bb_middle - 2 * bb_std]
+
+spy <- spy[!is.na(bb_upper)]
+
+# Signals
+spy[, buy_signal := adjusted < bb_lower]
+spy[, sell_signal := adjusted > bb_upper]
+
+ggplot(spy, aes(x = date)) +
+    geom_ribbon(aes(ymin = bb_lower, ymax = bb_upper), fill = tc[2], alpha = 0.2) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    geom_line(aes(y = bb_middle), colour = tc[3], linewidth = 0.5, linetype = "dashed") +
+    geom_point(data = spy[buy_signal == TRUE], aes(y = adjusted),
+               colour = tc[3], size = 2, shape = 24, fill = tc[3]) +
+    geom_point(data = spy[sell_signal == TRUE], aes(y = adjusted),
+               colour = tc[4], size = 2, shape = 25, fill = tc[4]) +
+    labs(title = "Bollinger Band Mean Reversion Signals",
+         subtitle = "Buy at lower band (green), sell at upper band (red)",
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+```
+
+![Bollinger Band mean reversion: buy when price touches lower band, sell at upper band. Entries and exits are marked with triangles.](/courses/financial-statistics-1-foundations/../figures/08-1_bollinger-mean-reversion-signals-1.png)
+
+
+``` r
+# Z-score strategy visualisation
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-06-30"))
+
+spy[, ma_50 := frollmean(adjusted, 50)]
+spy[, ma_std := frollapply(adjusted, 50, sd)]
+spy[, z_score := (adjusted - ma_50) / ma_std]
+
+spy <- spy[!is.na(z_score)]
+
+# Plot
+p1 <- ggplot(spy, aes(x = date, y = adjusted)) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    geom_line(aes(y = ma_50), colour = tc[3], linewidth = 0.5, linetype = "dashed") +
+    labs(title = "SPY Price with 50-day MA", x = NULL, y = "Price ($)") +
+    theme_trading()
+
+p2 <- ggplot(spy, aes(x = date, y = z_score)) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = 2, ymax = 4),
+              fill = tc[4], alpha = 0.1) +
+    geom_rect(aes(xmin = min(date), xmax = max(date), ymin = -4, ymax = -2),
+              fill = tc[3], alpha = 0.1) +
+    geom_line(colour = tc[2], linewidth = 0.7) +
+    geom_hline(yintercept = c(-2, 0, 2), linetype = c("dashed", "dotted", "dashed"),
+               colour = c(tc[3], "grey50", tc[4])) +
+    labs(title = "Z-Score (Deviation from 50-day MA)",
+         subtitle = "Entry zones: z < -2 (buy) or z > 2 (sell)",
+         x = NULL, y = "Z-Score") +
+    theme_trading()
+
+print(p1)
+```
+
+![Z-score based mean reversion. Enter when |z| > 2, exit when z crosses zero. The z-score normalises deviations, making thresholds interpretable.](/courses/financial-statistics-1-foundations/../figures/08-1_zscore-entry-exit-1.png)
+
+``` r
+print(p2)
+```
+
+![Z-score based mean reversion. Enter when |z| > 2, exit when z crosses zero. The z-score normalises deviations, making thresholds interpretable.](/courses/financial-statistics-1-foundations/../figures/08-1_zscore-entry-exit-2.png)
+
+### 8.2.3 Mathematical Derivation
+
+**Z-Score Calculation:**
+
+$$
+z_t = \frac{p_t - \bar{p}_t}{\hat{\sigma}_t}
+$$
+
+where $\bar{p}_t$ is the rolling mean and $\hat{\sigma}_t$ is the rolling standard deviation.
+
+**Threshold Entry from OU Model:**
+
+For an OU process, the optimal entry threshold depends on transaction costs and mean-reversion speed.
+
+If the spread follows $dp = \theta(\mu - p)dt + \sigma dW$, the expected profit from entering at $z_{\text{entry}}$ and exiting at $z_{\text{exit}} = 0$ is:
+
+$$
+E[\text{Profit}] = z_{\text{entry}} \times \hat{\sigma} - 2c
+$$
+
+where $c$ is the one-way transaction cost. We need:
+
+$$
+z_{\text{entry}} > \frac{2c}{\hat{\sigma}}
+$$
+
+**Expected Holding Time:**
+
+For an OU process starting at $z_0$, the expected time to reach $z = 0$ is:
+
+$$
+E[T] \approx \frac{|z_0|}{\theta \times \hat{\sigma}}
+$$
+
+Higher $\theta$ (faster mean reversion) means shorter holding times.
+
+**Expected Profit per Trade:**
+
+$$
+E[\text{Profit per Trade}] = |z_{\text{entry}}| \times \hat{\sigma} - 2c
+$$
+
+The trade-off:
+- Higher threshold → fewer trades but more profit per trade
+- Lower threshold → more trades but less profit per trade (and higher transaction cost drag)
+
+
+``` r
+# Simulate mean reversion strategy with different thresholds
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+spy[, ma_50 := frollmean(adjusted, 50)]
+spy[, ma_std := frollapply(adjusted, 50, sd)]
+spy[, z_score := (adjusted - ma_50) / ma_std]
+
+spy <- spy[!is.na(z_score) & !is.na(returns)]
+
+# Test strategy with different thresholds
+test_mr_strategy <- function(data, entry_threshold, exit_threshold = 0, cost = 0.001) {
+    dt <- copy(data)
+
+    position <- 0
+    positions <- numeric(nrow(dt))
+    trades <- 0
+
+    for (i in 2:nrow(dt)) {
+        z <- dt$z_score[i - 1]
+
+        # Entry
+        if (position == 0) {
+            if (z < -entry_threshold) {
+                position <- 1
+                trades <- trades + 1
+            } else if (z > entry_threshold) {
+                position <- -1
+                trades <- trades + 1
+            }
+        }
+        # Exit
+        else if (position == 1 && z > exit_threshold) {
+            position <- 0
+            trades <- trades + 1
+        }
+        else if (position == -1 && z < -exit_threshold) {
+            position <- 0
+            trades <- trades + 1
+        }
+
+        positions[i] <- position
+    }
+
+    dt[, position := positions]
+    dt[, strat_ret := position * returns - abs(position - shift(position, 1)) * cost / 2]
+    dt <- dt[!is.na(strat_ret)]
+
+    list(
+        sharpe = sharpe_ratio(dt$strat_ret),
+        ann_ret = annualised_return(dt$strat_ret, type = "simple"),
+        trades = trades,
+        trades_per_year = trades / (nrow(dt) / 252)
+    )
+}
+
+# Test different thresholds
+thresholds <- seq(1.0, 3.0, by = 0.25)
+results <- data.table()
+
+for (thresh in thresholds) {
+    perf <- test_mr_strategy(spy, thresh, exit_threshold = 0, cost = 0.001)
+    results <- rbind(results, data.table(
+        Threshold = thresh,
+        Sharpe = perf$sharpe,
+        Ann_Return = perf$ann_ret * 100,
+        Trades_Per_Year = perf$trades_per_year
+    ))
+}
+
+cat("=== Threshold Optimisation (Z-Score Mean Reversion) ===\n\n")
+```
+
+```
+## === Threshold Optimisation (Z-Score Mean Reversion) ===
+```
+
+``` r
+print(results)
+```
+
+```
+##    Threshold      Sharpe Ann_Return Trades_Per_Year
+##        <num>       <num>      <num>           <num>
+## 1:      1.00 -0.11870885 -1.9495240       14.455285
+## 2:      1.25 -0.12526435 -2.0312945       12.406504
+## 3:      1.50 -0.02335709 -0.3755728       11.268293
+## 4:      1.75  0.02444039  0.3839998        9.902439
+## 5:      2.00  0.09113012  1.3884970        8.764228
+## 6:      2.25  0.04176323  0.5737595        5.463415
+## 7:      2.50  0.07398449  0.8959520        3.186992
+## 8:      2.75  0.17278634  2.0299470        2.504065
+## 9:      3.00  0.14141416  1.6325271        1.593496
+```
+
+``` r
+# Plot
+ggplot(results, aes(x = Threshold)) +
+    geom_line(aes(y = Sharpe), colour = tc[1], linewidth = 0.8) +
+    geom_point(aes(y = Sharpe), colour = tc[1], size = 2) +
+    labs(title = "Mean Reversion Strategy: Threshold Sensitivity",
+         subtitle = "Entry at |z| > threshold, exit at z = 0",
+         x = "Entry Threshold (z-score)", y = "Sharpe Ratio") +
+    theme_trading()
+```
+
+![Optimal entry threshold analysis. Too low a threshold generates many small-profit trades eaten by costs; too high misses opportunities.](/courses/financial-statistics-1-foundations/../figures/08-1_optimal-threshold-1.png)
+
+### 8.2.4 Implementation & Application
+
+
+``` r
+# Full Bollinger Band mean reversion strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# Bollinger Bands
+spy[, bb_middle := frollmean(adjusted, 20)]
+spy[, bb_std := frollapply(adjusted, 20, sd)]
+spy[, bb_upper := bb_middle + 2 * bb_std]
+spy[, bb_lower := bb_middle - 2 * bb_std]
+spy[, pct_b := (adjusted - bb_lower) / (bb_upper - bb_lower)]
+
+spy <- spy[!is.na(pct_b) & !is.na(returns)]
+
+# Strategy: buy when %B < 0 (below lower band), sell when %B > 1 (above upper)
+# Exit at %B = 0.5 (middle band)
+position <- 0
+positions <- numeric(nrow(spy))
+
+for (i in 2:nrow(spy)) {
+    pctb <- spy$pct_b[i - 1]
+
+    if (position == 0) {
+        if (pctb < 0) position <- 1        # Buy below lower band
+        else if (pctb > 1) position <- -1  # Short above upper band
+    } else if (position == 1 && pctb > 0.5) {
+        position <- 0  # Exit long at middle
+    } else if (position == -1 && pctb < 0.5) {
+        position <- 0  # Exit short at middle
+    }
+
+    positions[i] <- position
+}
+
+spy[, position := positions]
+spy[, strat_returns := position * returns]
+
+# Cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_mr := exp(cumsum(strat_returns))]
+
+# Statistics
+cat("=== Bollinger Band Mean Reversion Strategy ===\n")
+```
+
+```
+## === Bollinger Band Mean Reversion Strategy ===
+```
+
+``` r
+cat("Entry: %B < 0 (buy) or %B > 1 (sell)\n")
+```
+
+```
+## Entry: %B < 0 (buy) or %B > 1 (sell)
+```
+
+``` r
+cat("Exit: %B = 0.5 (middle band)\n\n")
+```
+
+```
+## Exit: %B = 0.5 (middle band)
+```
+
+``` r
+bb_stats <- data.table(
+    Strategy = c("Buy & Hold", "Bollinger MR"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(spy$returns) * 100,
+        max_drawdown(spy$strat_returns) * 100)),
+    `Time in Market` = sprintf("%.0f%%", c(
+        100, mean(spy$position != 0, na.rm = TRUE) * 100))
+)
+print(bb_stats)
+```
+
+```
+##        Strategy Ann. Return Sharpe Max Drawdown Time in Market
+##          <char>      <char> <char>       <char>         <char>
+## 1:   Buy & Hold       12.1%   0.63        33.7%           100%
+## 2: Bollinger MR        3.8%   0.26        31.6%            48%
+```
+
+``` r
+# Plot
+spy_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh, `Bollinger MR` = cum_mr)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Bollinger Band Mean Reversion Strategy",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Bollinger Band mean reversion backtest. The strategy buys at lower band and sells at upper band, with a middle-band exit.](/courses/financial-statistics-1-foundations/../figures/08-1_bollinger-mr-strategy-1.png)
+
+---
+
+## 8.3 Short-Term Reversals
+
+### 8.3.1 Prose/Intuition
+
+At very short time horizons (intraday to a few days), returns often exhibit *negative* autocorrelation—yesterday's winners underperform, yesterday's losers outperform.
+
+This "short-term reversal" effect arises from:
+- **Market making:** Dealers provide liquidity by buying when others sell (and vice versa), then unwind positions
+- **Inventory rebalancing:** Institutions rebalance after large moves
+- **Overreaction:** Traders overreact to news, then correct
+- **Bid-ask bounce:** Prices oscillate between bid and ask
+
+The effect is well-documented but often absorbed by transaction costs at retail trading frequencies. It's primarily exploited by high-frequency traders with minimal costs.
+
+### 8.3.2 Visual Evidence
+
+
+``` r
+# Return autocorrelation analysis
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+# Calculate autocorrelation at different lags
+calc_acf_manual <- function(x, max_lag = 20) {
+    n <- length(x)
+    acf_vals <- numeric(max_lag)
+
+    for (lag in 1:max_lag) {
+        x_lag <- x[(lag + 1):n]
+        x_now <- x[1:(n - lag)]
+        acf_vals[lag] <- cor(x_lag, x_now)
+    }
+
+    acf_vals
+}
+
+acf_vals <- calc_acf_manual(spy$returns, 20)
+
+acf_dt <- data.table(
+    Lag = 1:20,
+    Autocorrelation = acf_vals,
+    Significant = abs(acf_vals) > 1.96 / sqrt(nrow(spy))
+)
+
+cat("=== Daily Return Autocorrelation ===\n\n")
+```
+
+```
+## === Daily Return Autocorrelation ===
+```
+
+``` r
+cat(sprintf("Lag 1 autocorrelation: %.4f\n", acf_vals[1]))
+```
+
+```
+## Lag 1 autocorrelation: -0.1041
+```
+
+``` r
+cat(sprintf("Approximate 95%% CI: ±%.4f\n", 1.96 / sqrt(nrow(spy))))
+```
+
+```
+## Approximate 95% CI: <U+00B1>0.0330
+```
+
+``` r
+ggplot(acf_dt, aes(x = Lag, y = Autocorrelation, fill = Significant)) +
+    geom_col() +
+    geom_hline(yintercept = c(-1.96, 1.96) / sqrt(nrow(spy)),
+               linetype = "dashed", colour = tc[4]) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    scale_fill_manual(values = c(tc[2], tc[1])) +
+    labs(title = "SPY Daily Return Autocorrelation",
+         subtitle = "Negative at lag 1 suggests short-term reversal",
+         x = "Lag (days)", y = "Autocorrelation") +
+    theme_trading() +
+    theme(legend.position = "none")
+```
+
+![Daily return autocorrelation at different lags. Slightly negative autocorrelation at lag 1 suggests short-term reversal, though the effect is small.](/courses/financial-statistics-1-foundations/../figures/08-1_return-autocorrelation-1.png)
+
+
+``` r
+# Reversal analysis by move magnitude
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, prev_returns := shift(returns, 1)]
+spy <- spy[!is.na(prev_returns)]
+
+# Bucket by previous return magnitude
+spy[, prev_bucket := cut(prev_returns,
+                         breaks = quantile(prev_returns, probs = seq(0, 1, 0.2)),
+                         labels = c("Worst 20%", "Q2", "Q3", "Q4", "Best 20%"),
+                         include.lowest = TRUE)]
+
+# Average next-day return by bucket
+reversal <- spy[, .(
+    `Mean Return` = mean(returns) * 10000,  # in bps
+    Count = .N
+), by = prev_bucket]
+
+cat("=== Short-Term Reversal by Previous Return Magnitude ===\n")
+```
+
+```
+## === Short-Term Reversal by Previous Return Magnitude ===
+```
+
+``` r
+cat("Mean next-day return (bps) by previous day quintile:\n\n")
+```
+
+```
+## Mean next-day return (bps) by previous day quintile:
+```
+
+``` r
+print(reversal)
+```
+
+```
+##    prev_bucket Mean Return Count
+##         <fctr>       <num> <int>
+## 1:          Q4    8.870788   704
+## 2:          Q3    4.595838   704
+## 3:   Worst 20%   10.139331   704
+## 4:    Best 20%   -4.324299   704
+## 5:          Q2    4.779749   704
+```
+
+``` r
+ggplot(reversal, aes(x = prev_bucket, y = `Mean Return`)) +
+    geom_col(fill = tc[1]) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(title = "Short-Term Reversal Effect",
+         subtitle = "Average next-day return (bps) by previous day return quintile",
+         x = "Previous Day Return Quintile", y = "Mean Next-Day Return (bps)") +
+    theme_trading()
+```
+
+![Reversal conditional on move magnitude. Large moves tend to reverse more strongly than small moves, though the effect is noisy.](/courses/financial-statistics-1-foundations/../figures/08-1_reversal-by-magnitude-1.png)
+
+### 8.3.3 Mathematical Derivation
+
+**Return Reversal Model:**
+
+A simple reversal model:
+
+$$
+r_t = \alpha + \beta r_{t-1} + \varepsilon_t
+$$
+
+Mean reversion implies $\beta < 0$. If $\beta = -0.1$, a 1% up day predicts a -0.1% reversal.
+
+**Testing for Reversal:**
+
+We test $H_0: \beta = 0$ vs $H_1: \beta < 0$ using standard regression t-tests.
+
+The t-statistic:
+
+$$
+t = \frac{\hat{\beta}}{\text{SE}(\hat{\beta})}
+$$
+
+With thousands of observations, even tiny effects become statistically significant, so we also examine economic magnitude.
+
+**Transaction Cost Break-Even:**
+
+For the reversal strategy to profit:
+
+$$
+|\beta| \times \sigma_r > 2c
+$$
+
+where $c$ is the one-way cost. If $\beta = -0.05$, $\sigma_r = 1\%$, and $c = 0.1\%$:
+
+$$
+0.05 \times 1\% = 0.05\% < 2 \times 0.1\% = 0.2\%
+$$
+
+The reversal is too small to overcome costs.
+
+### 8.3.4 Implementation & Application
+
+
+``` r
+# Short-term reversal strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, prev_returns := shift(returns, 1)]
+spy <- spy[!is.na(prev_returns)]
+
+# Simple reversal: long after down days, short after up days
+spy[, signal := -sign(prev_returns)]
+spy[, strat_returns := signal * returns]
+
+# With transaction costs
+cost <- 0.001  # 10 bps one-way
+spy[, signal_change := abs(signal - shift(signal, 1))]
+spy[, strat_returns_cost := strat_returns - signal_change * cost / 2]
+
+# Cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_reversal := exp(cumsum(strat_returns))]
+spy[, cum_reversal_cost := exp(cumsum(strat_returns_cost))]
+
+# Statistics
+cat("=== Short-Term Reversal Strategy ===\n")
+```
+
+```
+## === Short-Term Reversal Strategy ===
+```
+
+``` r
+cat("Signal: Long after down day, short after up day\n\n")
+```
+
+```
+## Signal: Long after down day, short after up day
+```
+
+``` r
+reversal_stats <- data.table(
+    Strategy = c("Buy & Hold", "Reversal (no cost)", "Reversal (10bp cost)"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns_cost, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns),
+        sharpe_ratio(spy$strat_returns_cost)))
+)
+print(reversal_stats)
+```
+
+```
+##                Strategy Ann. Return Sharpe
+##                  <char>      <char> <char>
+## 1:           Buy & Hold       12.0%   0.63
+## 2:   Reversal (no cost)        6.1%   0.32
+## 3: Reversal (10bp cost)       -6.8%  -0.38
+```
+
+``` r
+# Plot
+spy_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh,
+                         `Reversal (no cost)` = cum_reversal,
+                         `Reversal (10bp cost)` = cum_reversal_cost)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[4])) +
+    labs(title = "Short-Term Reversal Strategy",
+         subtitle = "Transaction costs often overwhelm the small reversal effect",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+![Short-term reversal strategy: go long after down days, short after up days. Transaction costs often overwhelm the small reversal effect.](/courses/financial-statistics-1-foundations/../figures/08-1_reversal-strategy-1.png)
+
+---
+
+## Quick Reference
+
+### Mean Reversion Tests
+
+| Test | Formula | Interpretation |
+|------|---------|----------------|
+| OU Regression | $\Delta p = a + b \cdot p_{t-1}$ | $b < 0$ indicates mean reversion |
+| Variance Ratio | $\frac{\text{Var}(r_q)}{q \cdot \text{Var}(r_1)}$ | $VR < 1$ indicates mean reversion |
+| Autocorrelation | $\rho_k = \text{Corr}(r_t, r_{t-k})$ | $\rho_1 < 0$ indicates short-term reversal |
+
+### OU Process Parameters
+
+| Parameter | Formula | Interpretation |
+|-----------|---------|----------------|
+| Mean-reversion speed | $\theta = -b$ | Higher = faster reversion |
+| Long-term mean | $\mu = -a/b$ | Equilibrium level |
+| Half-life | $t_{1/2} = \ln(2)/\theta$ | Time to revert halfway |
+| Stationary variance | $\sigma^2/(2\theta)$ | Long-run volatility |
+
+### Strategy Thresholds
+
+| Approach | Entry | Exit | Notes |
+|----------|-------|------|-------|
+| RSI | RSI < 30 / > 70 | RSI = 50 | Classic levels |
+| Bollinger | Price < Lower / > Upper | Middle band | 2σ bands |
+| Z-Score | $|z| > 2$ | $z = 0$ | Standardised |
+
+### Key Insights
+
+1. **Test before trading:** Not all series mean-revert; prices often don't
+2. **Half-life matters:** Series with half-life > 30 days are hard to trade
+3. **Transaction costs kill:** Reversal effects are often smaller than costs
+4. **Regime dependence:** Mean reversion works in ranges, fails in trends
+5. **Spreads vs levels:** Spreads between related assets are more likely to mean-revert
