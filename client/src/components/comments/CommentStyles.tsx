@@ -65,28 +65,24 @@ export const CommentSubmitButton = styled.button`
 
 export const CommentCard = styled.div<{ $depth: number }>`
     border-left: ${(p) =>
-        p.$depth > 0 ? `3px solid ${p.theme.text.colour.header()}` : 'none'};
-    border-bottom: 1px solid ${(p) => p.theme.container.border.colour.primary()};
-    padding: ${(p) => p.theme.container.spacing.medium};
+        p.$depth > 0 ? `2px solid ${p.theme.text.colour.header()}` : 'none'};
+    border-bottom: ${(p) =>
+        p.$depth === 0
+            ? `1px solid ${p.theme.container.border.colour.primary()}`
+            : 'none'};
+    padding: ${(p) => p.theme.container.spacing.small} 0;
     padding-left: ${(p) =>
-        p.$depth > 0 ? p.theme.container.spacing.medium : '0'};
-    margin-left: ${(p) =>
-        p.$depth > 0 ? p.theme.container.spacing.medium : '0'};
-    background: ${(p) => p.theme.container.background.colour.card()};
-
-    &:last-child {
-        border-bottom: ${(p) =>
-            p.$depth > 0
-                ? 'none'
-                : `1px solid ${p.theme.container.border.colour.primary()}`};
-    }
+        p.$depth > 0 ? p.theme.container.spacing.small : '0'};
+    margin-left: ${(p) => (p.$depth > 0 ? '0.75rem' : '0')};
+    margin-top: ${(p) =>
+        p.$depth > 0 ? p.theme.container.spacing.xsmall : '0'};
 `;
 
 export const CommentHeader = styled.div`
     display: flex;
     align-items: center;
-    gap: ${(p) => p.theme.container.spacing.small};
-    margin-bottom: ${(p) => p.theme.container.spacing.small};
+    gap: ${(p) => p.theme.container.spacing.xsmall};
+    margin-bottom: 2px;
     font-size: ${(p) => p.theme.text.size.small};
 `;
 
@@ -162,8 +158,8 @@ export const CommentBody = styled.div`
 export const CommentActions = styled.div`
     display: flex;
     align-items: center;
-    gap: ${(p) => p.theme.container.spacing.medium};
-    margin-top: ${(p) => p.theme.container.spacing.small};
+    gap: ${(p) => p.theme.container.spacing.small};
+    margin-top: 2px;
     font-size: ${(p) => p.theme.text.size.small};
 `;
 
@@ -270,18 +266,32 @@ export const NoCommentsMessage = styled.p`
 
 export const LoadMoreButton = styled.button`
     display: block;
-    margin: ${(p) => p.theme.container.spacing.medium} auto;
-    padding: ${(p) => p.theme.container.spacing.small}
-        ${(p) => p.theme.container.spacing.large};
+    margin: ${(p) => p.theme.container.spacing.small} auto;
+    padding: 4px ${(p) => p.theme.container.spacing.medium};
     background: none;
     border: 1px solid ${(p) => p.theme.container.border.colour.primary()};
     border-radius: ${(p) => p.theme.container.border.radius};
     cursor: pointer;
     color: ${(p) => p.theme.text.colour.light_grey()};
     font-family: ${(p) => p.theme.text.font.roboto};
+    font-size: ${(p) => p.theme.text.size.small};
 
     &:hover {
         border-color: ${(p) => p.theme.text.colour.header()};
         color: ${(p) => p.theme.text.colour.header()};
+    }
+`;
+
+export const LoadMoreReplies = styled.button`
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: ${(p) => p.theme.text.colour.light_grey()};
+    font-size: ${(p) => p.theme.text.size.small};
+    padding: 2px 0;
+    margin-left: 0.75rem;
+
+    &:hover {
+        color: ${(p) => p.theme.text.colour.anchor()};
     }
 `;

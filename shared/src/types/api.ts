@@ -65,6 +65,7 @@ export interface CommentData {
     };
     replies: CommentData[];
     replyCount: number;
+    hasMoreReplies: boolean;
 }
 
 export interface CommentHistoryEntry {

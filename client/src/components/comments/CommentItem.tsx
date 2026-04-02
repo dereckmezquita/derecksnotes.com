@@ -1,6 +1,7 @@
 'use client';
 import React, { useState } from 'react';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { api } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
 import type { CommentData, CommentHistoryEntry } from '@derecksnotes/shared';
@@ -23,7 +24,8 @@ import {
     HistoryContent,
     HistoryEntry,
     HistoryMeta,
-    HistoryCloseButton
+    HistoryCloseButton,
+    LoadMoreReplies
 } from './CommentStyles';
 
 interface CommentItemProps {
@@ -44,10 +46,43 @@ function formatDate(iso: string): string {
 
 function renderMarkdown(content: string): string {
     try {
-        const result = marked.parse(content);
-        return typeof result === 'string' ? result : content;
+        const raw = marked.parse(content);
+        const html = typeof raw === 'string' ? raw : content;
+        return DOMPurify.sanitize(html, {
+            ALLOWED_TAGS: [
+                'p',
+                'br',
+                'strong',
+                'em',
+                'code',
+                'pre',
+                'blockquote',
+                'ul',
+                'ol',
+                'li',
+                'a',
+                'h1',
+                'h2',
+                'h3',
+                'h4',
+                'h5',
+                'h6',
+                'hr',
+                'del',
+                'sup',
+                'sub',
+                'table',
+                'thead',
+                'tbody',
+                'tr',
+                'th',
+                'td'
+            ],
+            ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
+            ALLOW_DATA_ATTR: false
+        });
     } catch {
-        return content;
+        return DOMPurify.sanitize(content, { ALLOWED_TAGS: [] });
     }
 }
 
@@ -65,6 +100,12 @@ export function CommentItem({
     const [showHistory, setShowHistory] = useState(false);
     const [history, setHistory] = useState<CommentHistoryEntry[]>([]);
     const [reactions, setReactions] = useState(comment.reactions);
+    const [replies, setReplies] = useState(comment.replies);
+    const [hasMoreReplies, setHasMoreReplies] = useState(
+        comment.hasMoreReplies
+    );
+    const [replyPage, setReplyPage] = useState(1);
+    const [loadingReplies, setLoadingReplies] = useState(false);
 
     const isOwner = user?.id === comment.user?.id;
 
@@ -78,7 +119,7 @@ export function CommentItem({
             }>(`/comments/${comment.id}/reactions`, { type });
             setReactions(result);
         } catch {
-            // ignore
+            /* ignore */
         }
     };
 
@@ -92,7 +133,7 @@ export function CommentItem({
             setEditing(false);
             onRefresh();
         } catch {
-            // ignore
+            /* ignore */
         } finally {
             setEditSubmitting(false);
         }
@@ -104,7 +145,7 @@ export function CommentItem({
             await api.delete(`/comments/${comment.id}`);
             onRefresh();
         } catch {
-            // ignore
+            /* ignore */
         }
     };
 
@@ -116,7 +157,26 @@ export function CommentItem({
             setHistory(data);
             setShowHistory(true);
         } catch {
-            // ignore
+            /* ignore */
+        }
+    };
+
+    const handleLoadMoreReplies = async () => {
+        setLoadingReplies(true);
+        try {
+            const nextPage = replyPage + 1;
+            const data = await api.get<{
+                replies: CommentData[];
+                total: number;
+                hasMore: boolean;
+            }>(`/comments/${comment.id}/replies?page=${nextPage}&limit=5`);
+            setReplies((prev) => [...prev, ...data.replies]);
+            setHasMoreReplies(data.hasMore);
+            setReplyPage(nextPage);
+        } catch {
+            /* ignore */
+        } finally {
+            setLoadingReplies(false);
         }
     };
 
@@ -165,7 +225,7 @@ export function CommentItem({
                             style={{
                                 display: 'flex',
                                 gap: '0.5rem',
-                                marginTop: '0.5rem'
+                                marginTop: '0.25rem'
                             }}
                         >
                             <CommentSubmitButton
@@ -241,7 +301,6 @@ export function CommentItem({
                             </svg>
                             {reactions.dislikes > 0 && reactions.dislikes}
                         </ActionButton>
-
                         {user && comment.depth < 5 && (
                             <ReplyLink onClick={() => setShowReply(!showReply)}>
                                 Reply
@@ -261,7 +320,7 @@ export function CommentItem({
                 )}
 
                 {showReply && (
-                    <div style={{ marginTop: '0.5rem' }}>
+                    <div style={{ marginTop: '0.25rem' }}>
                         <CommentForm
                             slug={slug}
                             title={title}
@@ -276,7 +335,7 @@ export function CommentItem({
                     </div>
                 )}
 
-                {comment.replies.map((reply) => (
+                {replies.map((reply) => (
                     <CommentItem
                         key={reply.id}
                         comment={reply}
@@ -285,6 +344,17 @@ export function CommentItem({
                         onRefresh={onRefresh}
                     />
                 ))}
+
+                {hasMoreReplies && (
+                    <LoadMoreReplies
+                        onClick={handleLoadMoreReplies}
+                        disabled={loadingReplies}
+                    >
+                        {loadingReplies
+                            ? 'Loading...'
+                            : `Show more replies (${comment.replyCount - replies.length} remaining)`}
+                    </LoadMoreReplies>
+                )}
             </CommentCard>
 
             {showHistory && (

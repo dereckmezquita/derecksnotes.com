@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate, optionalAuth } from '@middleware/auth';
+import { reactionLimiter } from '@middleware/rateLimit';
 import * as postService from '@services/posts';
 
 const router = Router();
@@ -9,6 +10,7 @@ const router = Router();
 router.post(
     '/react',
     authenticate(),
+    reactionLimiter,
     async (req: AuthenticatedRequest, res) => {
         const parsed = z
             .object({

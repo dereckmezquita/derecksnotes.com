@@ -2,7 +2,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate, optionalAuth } from '@middleware/auth';
-import { commentLimiter } from '@middleware/rateLimit';
+import {
+    commentLimiter,
+    reactionLimiter,
+    editLimiter
+} from '@middleware/rateLimit';
 import * as commentService from '@services/comments';
 import * as postService from '@services/posts';
 import * as authService from '@services/auth';
@@ -38,12 +42,18 @@ router.get('/', optionalAuth(), async (req: AuthenticatedRequest, res) => {
         Math.max(0, parseInt(req.query.maxDepth as string) || 3)
     );
 
+    const repliesPerLevel = Math.min(
+        20,
+        Math.max(1, parseInt(req.query.repliesPerLevel as string) || 3)
+    );
+
     const result = await commentService.getCommentsForPost(
         post.id,
         req.user?.id || null,
         page,
         limit,
-        maxDepth
+        maxDepth,
+        repliesPerLevel
     );
     res.json(result);
 });
@@ -96,29 +106,34 @@ router.post(
     }
 );
 
-router.patch('/:id', authenticate(), async (req: AuthenticatedRequest, res) => {
-    const parsed = z
-        .object({ content: z.string().min(1).max(10000) })
-        .safeParse(req.body);
-    if (!parsed.success) {
-        res.status(400).json({
-            error: 'Validation failed',
-            details: parsed.error.issues
-        });
-        return;
-    }
+router.patch(
+    '/:id',
+    authenticate(),
+    editLimiter,
+    async (req: AuthenticatedRequest, res) => {
+        const parsed = z
+            .object({ content: z.string().min(1).max(10000) })
+            .safeParse(req.body);
+        if (!parsed.success) {
+            res.status(400).json({
+                error: 'Validation failed',
+                details: parsed.error.issues
+            });
+            return;
+        }
 
-    try {
-        await commentService.editComment(
-            req.params.id,
-            req.user!.id,
-            parsed.data.content
-        );
-        res.json({ success: true });
-    } catch (error: any) {
-        res.status(400).json({ error: error.message });
+        try {
+            await commentService.editComment(
+                req.params.id,
+                req.user!.id,
+                parsed.data.content
+            );
+            res.json({ success: true });
+        } catch (error: any) {
+            res.status(400).json({ error: error.message });
+        }
     }
-});
+);
 
 router.delete(
     '/:id',
@@ -138,9 +153,29 @@ router.get('/:id/history', async (req: AuthenticatedRequest, res) => {
     res.json(history);
 });
 
+router.get(
+    '/:id/replies',
+    optionalAuth(),
+    async (req: AuthenticatedRequest, res) => {
+        const page = Math.max(1, parseInt(req.query.page as string) || 1);
+        const limit = Math.min(
+            20,
+            Math.max(1, parseInt(req.query.limit as string) || 5)
+        );
+        const result = await commentService.getRepliesForComment(
+            req.params.id,
+            req.user?.id || null,
+            page,
+            limit
+        );
+        res.json(result);
+    }
+);
+
 router.post(
     '/:id/reactions',
     authenticate(),
+    reactionLimiter,
     async (req: AuthenticatedRequest, res) => {
         const parsed = z
             .object({ type: z.enum(['like', 'dislike']) })

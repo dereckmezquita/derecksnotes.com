@@ -151,7 +151,8 @@ export async function getCommentsForPost(
     userId: string | null,
     page: number,
     limit: number,
-    maxDepth: number = 3
+    maxDepth: number = 3,
+    repliesPerLevel: number = 3
 ): Promise<{
     comments: CommentData[];
     total: number;
@@ -161,7 +162,6 @@ export async function getCommentsForPost(
 }> {
     const offset = (page - 1) * limit;
 
-    // Get top-level comments
     const topLevel = await db.query.comments.findMany({
         where: and(
             eq(schema.comments.postId, postId),
@@ -198,10 +198,17 @@ export async function getCommentsForPost(
 
     const totalCount = total[0]?.count || 0;
 
-    // Recursively load replies
     const result: CommentData[] = [];
     for (const comment of topLevel) {
-        result.push(await formatCommentTree(comment, userId, maxDepth));
+        result.push(
+            await formatCommentTree(
+                comment,
+                userId,
+                maxDepth,
+                repliesPerLevel,
+                0
+            )
+        );
     }
 
     return {
@@ -213,10 +220,74 @@ export async function getCommentsForPost(
     };
 }
 
+export async function getRepliesForComment(
+    commentId: string,
+    userId: string | null,
+    page: number,
+    limit: number,
+    maxDepth: number = 3,
+    repliesPerLevel: number = 3
+): Promise<{ replies: CommentData[]; total: number; hasMore: boolean }> {
+    const offset = (page - 1) * limit;
+
+    const childComments = await db.query.comments.findMany({
+        where: and(
+            eq(schema.comments.parentId, commentId),
+            isNull(schema.comments.deletedAt)
+        ),
+        orderBy: [asc(schema.comments.createdAt)],
+        limit,
+        offset,
+        with: {
+            user: {
+                columns: {
+                    id: true,
+                    username: true,
+                    displayName: true,
+                    avatarUrl: true
+                }
+            },
+            reactions: true
+        }
+    });
+
+    const total = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.comments)
+        .where(
+            and(
+                eq(schema.comments.parentId, commentId),
+                isNull(schema.comments.deletedAt)
+            )
+        );
+
+    const totalCount = total[0]?.count || 0;
+    const parent = await db.query.comments.findFirst({
+        where: eq(schema.comments.id, commentId)
+    });
+    const parentDepth = parent?.depth || 0;
+
+    const replies: CommentData[] = [];
+    for (const child of childComments) {
+        replies.push(
+            await formatCommentTree(
+                child,
+                userId,
+                maxDepth,
+                repliesPerLevel,
+                parentDepth + 1
+            )
+        );
+    }
+
+    return { replies, total: totalCount, hasMore: offset + limit < totalCount };
+}
+
 async function formatCommentTree(
     comment: any,
     userId: string | null,
     maxDepth: number,
+    repliesPerLevel: number,
     currentDepth: number = 0
 ): Promise<CommentData> {
     const likes =
@@ -231,14 +302,28 @@ async function formatCommentTree(
 
     let replies: CommentData[] = [];
     let replyCount = 0;
+    let hasMoreReplies = false;
 
-    if (currentDepth < maxDepth) {
+    // Always get the total count of replies
+    const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(schema.comments)
+        .where(
+            and(
+                eq(schema.comments.parentId, comment.id),
+                isNull(schema.comments.deletedAt)
+            )
+        );
+    replyCount = countResult[0]?.count || 0;
+
+    if (currentDepth < maxDepth && replyCount > 0) {
         const childComments = await db.query.comments.findMany({
             where: and(
                 eq(schema.comments.parentId, comment.id),
                 isNull(schema.comments.deletedAt)
             ),
             orderBy: [asc(schema.comments.createdAt)],
+            limit: repliesPerLevel,
             with: {
                 user: {
                     columns: {
@@ -252,28 +337,20 @@ async function formatCommentTree(
             }
         });
 
-        replyCount = childComments.length;
+        hasMoreReplies = replyCount > repliesPerLevel;
         for (const child of childComments) {
             replies.push(
                 await formatCommentTree(
                     child,
                     userId,
                     maxDepth,
+                    repliesPerLevel,
                     currentDepth + 1
                 )
             );
         }
-    } else {
-        const count = await db
-            .select({ count: sql<number>`count(*)` })
-            .from(schema.comments)
-            .where(
-                and(
-                    eq(schema.comments.parentId, comment.id),
-                    isNull(schema.comments.deletedAt)
-                )
-            );
-        replyCount = count[0]?.count || 0;
+    } else if (replyCount > 0) {
+        hasMoreReplies = true;
     }
 
     return {
@@ -287,7 +364,8 @@ async function formatCommentTree(
         user: comment.deletedAt ? null : comment.user,
         reactions: { likes, dislikes, userReaction },
         replies,
-        replyCount
+        replyCount,
+        hasMoreReplies
     };
 }
 

@@ -11,8 +11,8 @@ export function ApiStatus() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const data = await api.get('/');
-                setApiData(data);
+                const res = await fetch('/api');
+                setApiData(await res.json());
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {

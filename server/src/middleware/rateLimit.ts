@@ -23,3 +23,27 @@ export const commentLimiter = rateLimit({
     legacyHeaders: false,
     message: { error: 'Too many comments, please slow down' }
 });
+
+export const reactionLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many reactions, please slow down' }
+});
+
+export const editLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many edits, please slow down' }
+});
+
+export const profileLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many profile changes, please try again later' }
+});

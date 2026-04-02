@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { AuthenticatedRequest } from '@/types';
 import { authenticate } from '@middleware/auth';
+import { profileLimiter } from '@middleware/rateLimit';
 import * as userService from '@services/users';
 import * as authService from '@services/auth';
 
@@ -54,6 +55,7 @@ router.patch('/me', authenticate(), async (req: AuthenticatedRequest, res) => {
 router.patch(
     '/me/username',
     authenticate(),
+    profileLimiter,
     async (req: AuthenticatedRequest, res) => {
         const parsed = z
             .object({
