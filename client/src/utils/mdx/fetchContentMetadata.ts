@@ -42,7 +42,9 @@ const IGNORED_DIRS = [
 
 function isIgnoredDir(name: string): boolean {
     return (
-        isIgnoredDir(name) || name.endsWith('.ignore') || name.startsWith('.')
+        IGNORED_DIRS.includes(name) ||
+        name.endsWith('.ignore') ||
+        name.startsWith('.')
     );
 }
 
