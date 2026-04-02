@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { LoginView, RegisterView } from './views';
-import { useAuth } from '@context/AuthContext';
-import { IndicateLoading } from '@components/atomic/IndiacteLoading';
+import { useAuth } from '@/context/AuthContext';
+import { IndicateLoading } from '@/components/atomic/IndiacteLoading';
 
 type ModalView = 'login' | 'register';
 

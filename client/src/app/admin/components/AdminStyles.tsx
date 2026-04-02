@@ -1,7 +1,7 @@
 'use client';
 
 import styled, { css, keyframes } from 'styled-components';
-import { Article } from '@components/pages/posts-dictionaries';
+import { Article } from '@/components/pages/posts-dictionaries';
 
 // ============================================================================
 // ANIMATIONS

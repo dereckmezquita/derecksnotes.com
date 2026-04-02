@@ -1,5 +1,5 @@
 import React from 'react';
-import { MAX_COMMENT_DEPTH } from '@lib/constants';
+import { MAX_COMMENT_DEPTH } from '@/lib/constants';
 import { CommentItem } from './CommentItem';
 import { CommentListProps } from './types';
 import { CommentListContainer, NoCommentsMessage } from './CommentStyles';

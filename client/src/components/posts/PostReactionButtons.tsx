@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import styled from 'styled-components';
 import { toast } from 'sonner';
-import { api } from '@utils/api/api';
-import { useAuth } from '@context/AuthContext';
+import { api } from '@/utils/api/api';
+import { useAuth } from '@/context/AuthContext';
 
 // ============================================================================
 // STYLED COMPONENTS

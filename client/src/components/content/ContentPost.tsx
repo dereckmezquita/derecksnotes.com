@@ -8,16 +8,16 @@ import {
     SeriesMetadata,
     ContentNode,
     ContentCardMetadata
-} from '@utils/mdx/contentTypes';
-import { ContentSideBar } from '@components/content/ContentSideBar';
+} from '@/utils/mdx/contentTypes';
+import { ContentSideBar } from '@/components/content/ContentSideBar';
 import {
     PostContainer,
     Article,
     PostContentWrapper
-} from '@components/pages/posts-dictionaries';
-import { Comments } from '@components/comments/Comments';
-import { PostReactionButtons } from '@components/posts/PostReactionButtons';
-import { usePageView } from '@hooks/usePageView';
+} from '@/components/pages/posts-dictionaries';
+import { Comments } from '@/components/comments/Comments';
+import { PostReactionButtons } from '@/components/posts/PostReactionButtons';
+import { usePageView } from '@/hooks/usePageView';
 import { usePathname } from 'next/navigation';
 
 // ============================================================================

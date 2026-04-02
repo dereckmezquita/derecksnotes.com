@@ -6,8 +6,8 @@ import React, {
     useContext,
     useCallback
 } from 'react';
-import { api } from '@utils/api/api';
-import { HOUR } from '@lib/datetimes';
+import { api } from '@/utils/api/api';
+import { HOUR } from '@/lib/datetimes';
 import type { User, AuthError } from '@derecksnotes/shared';
 
 export type { User, AuthError };

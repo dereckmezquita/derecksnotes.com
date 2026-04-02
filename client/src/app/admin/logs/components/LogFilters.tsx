@@ -7,8 +7,8 @@ import {
     ActionBarRight,
     Button
 } from '../../components/AdminStyles';
-import SelectDropDown from '@components/atomic/SelectDropDown';
-import SearchBar from '@components/atomic/SearchBar';
+import SelectDropDown from '@/components/atomic/SelectDropDown';
+import SearchBar from '@/components/atomic/SearchBar';
 import { FilterGroup, FilterLabel, DateTimeInput } from './LogStyles';
 
 const LEVEL_OPTIONS = [

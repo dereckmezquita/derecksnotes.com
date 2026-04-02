@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { useAuth } from '@context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import styled from 'styled-components';
-import { api } from '@utils/api/api';
-import { CommentType } from '@components/comments';
+import { api } from '@/utils/api/api';
+import { CommentType } from '@/components/comments';
 import { ProfileCommentList } from '@/components/profile/ProfileCommentList';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -13,7 +13,7 @@ import {
     PostContainer,
     SideBarContainer,
     Article
-} from '@components/pages/posts-dictionaries';
+} from '@/components/pages/posts-dictionaries';
 
 // Import shared admin-style components
 import {

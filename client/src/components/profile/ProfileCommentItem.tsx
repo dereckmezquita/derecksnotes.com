@@ -3,9 +3,9 @@
 import React from 'react';
 import { marked } from 'marked';
 import styled from 'styled-components';
-import { CommentType } from '@components/comments/types';
-import { CommentItem } from '@components/comments/CommentItem';
-import { User } from '@context/AuthContext';
+import { CommentType } from '@/components/comments/types';
+import { CommentItem } from '@/components/comments/CommentItem';
+import { User } from '@/context/AuthContext';
 
 // ============================================================================
 // STYLED COMPONENTS - Only for profile-specific wrapper

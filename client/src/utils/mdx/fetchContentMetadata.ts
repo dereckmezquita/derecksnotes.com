@@ -3,8 +3,8 @@ import path from 'path';
 import matter from 'gray-matter';
 import yaml from 'js-yaml';
 
-import { DATE_YYYY_MM_DD } from '@lib/dates';
-import { ROOT_DIR_APP } from '@lib/constants.server';
+import { DATE_YYYY_MM_DD } from '@/lib/dates';
+import { ROOT_DIR_APP } from '@/lib/constants.server';
 import { extractSummaryFromMdx } from './extractMdxSummary';
 
 // Re-export types for convenience

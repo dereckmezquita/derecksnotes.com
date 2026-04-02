@@ -1,11 +1,11 @@
 import React from 'react';
-import { User } from '@context/AuthContext';
-import { CommentType } from '@components/comments/types';
+import { User } from '@/context/AuthContext';
+import { CommentType } from '@/components/comments/types';
 import { ProfileCommentItem } from './ProfileCommentItem';
 import {
     NoCommentsMessage,
     CommentListContainer
-} from '@components/comments/CommentStyles';
+} from '@/components/comments/CommentStyles';
 
 interface ProfileCommentListProps {
     comments: CommentType[];

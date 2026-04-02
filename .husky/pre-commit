@@ -2,7 +2,7 @@
 initially_staged_files=$(git diff --cached --name-only --diff-filter=ACM | tr '\n' ' ')
 
 # Run Prettier on the entire project
-npm run format
+bun run format
 
 # If there were initially staged files, re-stage only those files
 if [ -n "$initially_staged_files" ]; then

@@ -13,8 +13,8 @@ import {
     ColumnFiltersState,
     RowSelectionState
 } from '@tanstack/react-table';
-import { useAuth } from '@context/AuthContext';
-import { api } from '@utils/api/api';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/utils/api/api';
 import { toast } from 'sonner';
 import styled from 'styled-components';
 import {

@@ -7,8 +7,8 @@ import {
     SubmitButton,
     SwitchViewButton
 } from '../../forms';
-import { User } from '@context/AuthContext';
-import { IndicateStatusDot } from '@components/atomic/IndicateStatusDot';
+import { User } from '@/context/AuthContext';
+import { IndicateStatusDot } from '@/components/atomic/IndicateStatusDot';
 
 interface AuthViewProps {
     formData: any;

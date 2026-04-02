@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useCallback } from 'react';
-import { api } from '@utils/api/api';
+import { api } from '@/utils/api/api';
 
 const HEARTBEAT_INTERVAL = 15000; // 15 seconds
 

@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@context/AuthContext';
-import { api } from '@utils/api/api';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/utils/api/api';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import {

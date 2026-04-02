@@ -7,7 +7,7 @@ import React, {
     ReactNode,
     useCallback
 } from 'react';
-import { ContentCardMetadata } from '@utils/mdx/contentTypes';
+import { ContentCardMetadata } from '@/utils/mdx/contentTypes';
 
 interface BlogFilterContextType {
     posts: ContentCardMetadata[];

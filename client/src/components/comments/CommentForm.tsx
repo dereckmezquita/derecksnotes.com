@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MAX_COMMENT_LENGTH } from '@lib/constants';
+import { MAX_COMMENT_LENGTH } from '@/lib/constants';
 import { CommentFormProps } from './types';
 import {
     FormContainer,

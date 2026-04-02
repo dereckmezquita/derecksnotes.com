@@ -1,5 +1,5 @@
 import styled from 'styled-components';
-import { config } from '@lib/env';
+import { config } from '@/lib/env';
 import Link from 'next/link';
 import { ReactElement } from 'react';
 

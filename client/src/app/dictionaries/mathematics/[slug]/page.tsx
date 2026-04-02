@@ -1,19 +1,19 @@
 import fs from 'fs';
 import path from 'path';
-import { DictionaryPost } from '@components/dictionaries/DictionaryPost';
-import { APPLICATION_DEFAULT_METADATA } from '@lib/constants';
-import { ROOT_DIR_APP } from '@lib/constants.server';
-import { config } from '@lib/env';
+import { DictionaryPost } from '@/components/dictionaries/DictionaryPost';
+import { APPLICATION_DEFAULT_METADATA } from '@/lib/constants';
+import { ROOT_DIR_APP } from '@/lib/constants.server';
+import { config } from '@/lib/env';
 import {
     DefinitionMetadata,
     extractSingleDefinitionMetadata,
     fetchDefintionsMetadata
-} from '@utils/dictionaries/fetchDefinitionMetadata';
-import { accessReadFile } from '@utils/accessReadFile';
+} from '@/utils/dictionaries/fetchDefinitionMetadata';
+import { accessReadFile } from '@/utils/accessReadFile';
 import { notFound } from 'next/navigation';
-import { processMdx } from '@utils/mdx/processMdx';
+import { processMdx } from '@/utils/mdx/processMdx';
 import { Metadata } from 'next';
-import { decodeSlug } from '@utils/helpers';
+import { decodeSlug } from '@/utils/helpers';
 
 const dictionary: string = 'mathematics';
 const relDir: string = path.join('dictionaries', dictionary, 'definitions');

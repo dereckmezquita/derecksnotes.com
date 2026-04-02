@@ -2,13 +2,13 @@
 
 import React from 'react';
 import styled from 'styled-components';
-import { useAuth } from '@context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import {
     PostContainer,
     SideBarContainer
-} from '@components/pages/posts-dictionaries';
+} from '@/components/pages/posts-dictionaries';
 import {
     AdminMain,
     SidebarTitle,

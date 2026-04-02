@@ -19,7 +19,7 @@
  */
 
 import React, { createContext, useState, useContext, ReactNode } from 'react';
-import { Definition } from '@utils/dictionaries/fetchDefinitionMetadata';
+import { Definition } from '@/utils/dictionaries/fetchDefinitionMetadata';
 
 /**
  * This file implements the React Context API to manage shared state for the Dictionary component tree.

@@ -5,7 +5,7 @@ import styled from 'styled-components';
 import { FaBars, FaFilter, FaUser } from 'react-icons/fa';
 import { useBlogFilter } from '../pages/index/BlogFilterContext';
 import { AuthModal } from './modal/auth/AuthModal';
-import { useAuth } from '@context/AuthContext';
+import { useAuth } from '@/context/AuthContext';
 
 // TODO: create a type for theme; so we can have intellisense
 const minWidthMobile = (props: any) =>

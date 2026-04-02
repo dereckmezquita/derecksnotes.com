@@ -1,11 +1,11 @@
 'use client';
 import { useEffect } from 'react';
 import styled from 'styled-components';
-import { theme } from '@styles/theme';
-import { ContentCardMetadata } from '@utils/mdx/contentTypes';
+import { theme } from '@/styles/theme';
+import { ContentCardMetadata } from '@/utils/mdx/contentTypes';
 import Card from './Card';
 import { useBlogFilter } from './BlogFilterContext';
-import { TagFilter } from '@components/ui/TagFilter';
+import { TagFilter } from '@/components/ui/TagFilter';
 import { usePathname } from 'next/navigation';
 
 /**

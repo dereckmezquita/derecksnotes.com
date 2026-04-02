@@ -3,7 +3,7 @@ import { ReactElement } from 'react';
 import styled, { css } from 'styled-components';
 import Link from 'next/link';
 
-import { SiteName } from '@components/ui/Logo';
+import { SiteName } from '@/components/ui/Logo';
 
 const minWidthSnapUp = (props: any) =>
     props.theme.container.widths.min_width_snap_up;

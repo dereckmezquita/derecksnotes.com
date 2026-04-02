@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { api } from '@utils/api/api';
+import { api } from '@/utils/api/api';
 import { marked } from 'marked';
-import { MAX_COMMENT_DEPTH } from '@lib/constants';
+import { MAX_COMMENT_DEPTH } from '@/lib/constants';
 import { CommentForm } from './CommentForm';
 import { CommentList } from './CommentList';
 import {

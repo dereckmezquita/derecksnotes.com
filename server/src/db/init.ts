@@ -27,7 +27,8 @@ export async function initializeDatabase(): Promise<void> {
 
     try {
         console.log('Checking database migrations...');
-        migrate(tempDb, { migrationsFolder: './drizzle' });
+        const migrationsFolder = path.resolve(import.meta.dir, '../../drizzle');
+        migrate(tempDb, { migrationsFolder });
         console.log('Database migrations up to date.');
     } catch (error: any) {
         // If the error is about no migrations, that's fine

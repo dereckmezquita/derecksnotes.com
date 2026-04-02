@@ -9,14 +9,14 @@ import {
     ContentNode,
     ContentCardMetadata,
     SIDEBAR_DEFAULT_LIMIT
-} from '@utils/mdx/contentTypes';
+} from '@/utils/mdx/contentTypes';
 import {
     SideBarContainer,
     SideBarSiteName,
     SideBarEntriesContainer,
     SideEntryLink,
     SideBarAbout
-} from '@components/pages/posts-dictionaries';
+} from '@/components/pages/posts-dictionaries';
 
 // ============================================================================
 // Styled Components

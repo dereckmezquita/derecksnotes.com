@@ -1,4 +1,4 @@
-import { User } from '@context/AuthContext';
+import { User } from '@/context/AuthContext';
 
 export interface CommentAuthor {
     id: string;

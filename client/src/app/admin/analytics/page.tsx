@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { api } from '@utils/api/api';
+import { api } from '@/utils/api/api';
 import { toast } from 'sonner';
 import styled from 'styled-components';
 import Link from 'next/link';

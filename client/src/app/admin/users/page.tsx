@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@context/AuthContext';
-import { api } from '@utils/api/api';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/utils/api/api';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import {
@@ -33,7 +33,7 @@ import {
     PageButton,
     AccessDenied
 } from '../components/AdminStyles';
-import SearchBar from '@components/atomic/SearchBar';
+import SearchBar from '@/components/atomic/SearchBar';
 import type { AdminUser, AdminUsersResponse } from '@/types/api';
 
 export default function AdminUsersPage() {

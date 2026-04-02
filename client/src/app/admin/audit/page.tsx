@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@context/AuthContext';
-import { api } from '@utils/api/api';
+import { useAuth } from '@/context/AuthContext';
+import { api } from '@/utils/api/api';
 import type { AuditLogEntry } from '@/types/api';
 import {
     AdminHeader,
@@ -31,8 +31,8 @@ import {
     PageButton,
     AccessDenied
 } from '../components/AdminStyles';
-import SelectDropDown from '@components/atomic/SelectDropDown';
-import SearchBar from '@components/atomic/SearchBar';
+import SelectDropDown from '@/components/atomic/SelectDropDown';
+import SearchBar from '@/components/atomic/SearchBar';
 
 interface AuditLogResponse {
     logs: AuditLogEntry[];
