@@ -8,31 +8,9 @@ import React, {
 } from 'react';
 import { api } from '@utils/api/api';
 import { HOUR } from '@lib/datetimes';
+import type { User, AuthError } from '@derecksnotes/shared';
 
-/**
- * Represents a user in the system.
- * Matches the server's user response format.
- */
-export interface User {
-    id: string;
-    username: string;
-    email: string | null;
-    displayName: string | null;
-    bio: string | null;
-    avatarUrl: string | null;
-    emailVerified: boolean;
-    createdAt: string;
-    groups: string[];
-    permissions: string[];
-}
-
-/**
- * Authentication error response
- */
-export interface AuthError {
-    error: string;
-    details?: Array<{ message: string; path?: string[] }>;
-}
+export type { User, AuthError };
 
 /**
  * The shape of the authentication context.

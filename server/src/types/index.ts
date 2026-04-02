@@ -31,7 +31,7 @@ export interface UserWithGroups {
     bio: string | null;
     avatarUrl: string | null;
     emailVerified: boolean;
-    createdAt: Date;
+    createdAt: string;
     groups: string[];
     permissions: string[];
 }
@@ -78,25 +78,11 @@ export type PostReaction = typeof postReactions.$inferSelect;
 export type NewPostReaction = typeof postReactions.$inferInsert;
 
 // ============================================================================
-// API RESPONSE TYPES (for consistency across routes)
+// API RESPONSE TYPES (re-exported from shared)
 // ============================================================================
 
-export interface PaginatedResponse<T> {
-    data: T[];
-    page: number;
-    limit: number;
-    total?: number;
-    hasMore?: boolean;
-}
-
-export interface ApiSuccess<T = void> {
-    success: true;
-    data?: T;
-    message?: string;
-}
-
-export interface ApiError {
-    error: string;
-    code?: string;
-    details?: Record<string, unknown>;
-}
+export type {
+    PaginatedResponse,
+    ApiSuccess,
+    ApiError
+} from '@derecksnotes/shared';

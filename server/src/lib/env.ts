@@ -1,32 +1,23 @@
-type BuildEnv = 'local' | 'dev' | 'prod';
+import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
 
 const BUILD_ENV = (process.env.BUILD_ENV as BuildEnv) || 'local';
 
-const ENV_CONFIG = {
+const SERVER_ENV_CONFIG = {
     local: {
-        domain: 'localhost',
-        baseUrl: 'http://localhost:3000',
-        apiUrl: 'http://localhost:3000/api',
         databasePath: './data/database.sqlite',
         secureCookies: false
     },
     dev: {
-        domain: 'dev.derecksnotes.com',
-        baseUrl: 'https://dev.derecksnotes.com',
-        apiUrl: 'https://dev.derecksnotes.com/api',
         databasePath: '/app/data/database.sqlite',
         secureCookies: true
     },
     prod: {
-        domain: 'derecksnotes.com',
-        baseUrl: 'https://derecksnotes.com',
-        apiUrl: 'https://derecksnotes.com/api',
         databasePath: '/app/data/database.sqlite',
         secureCookies: true
     }
 } as const;
 
-const derived = ENV_CONFIG[BUILD_ENV];
+const derived = { ...ENV_CONFIG[BUILD_ENV], ...SERVER_ENV_CONFIG[BUILD_ENV] };
 
 export const config = {
     buildEnv: BUILD_ENV,
