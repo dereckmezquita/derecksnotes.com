@@ -17,7 +17,6 @@ import '@/styles/syntax-highlighter.scss';
 import '@/styles/footnotes.css';
 import Footer from '@/components/ui/Footer';
 import Navbar from '@/components/ui/Navbar';
-import { BlogFilterProvider } from '@/components/pages/index/BlogFilterContext';
 import { AuthProvider } from '@/context/AuthContext';
 
 import { Toaster } from 'sonner';
@@ -31,26 +30,20 @@ export default function RootLayout({
     return (
         <StyledComponentsRegistry>
             <ThemeProvider theme={theme}>
-                <BlogFilterProvider>
-                    <AuthProvider>
-                        <html lang="en">
-                            <body>
-                                <Toaster
-                                    richColors
-                                    closeButton
-                                    theme={'light'}
-                                />
-                                <GlobalStyles />
-                                <Logo />
-                                <Navbar />
-                                <main>
-                                    <ErrorBoundary>{children}</ErrorBoundary>
-                                </main>
-                                <Footer />
-                            </body>
-                        </html>
-                    </AuthProvider>
-                </BlogFilterProvider>
+                <AuthProvider>
+                    <html lang="en">
+                        <body>
+                            <Toaster richColors closeButton theme={'light'} />
+                            <GlobalStyles />
+                            <Logo />
+                            <Navbar />
+                            <main>
+                                <ErrorBoundary>{children}</ErrorBoundary>
+                            </main>
+                            <Footer />
+                        </body>
+                    </html>
+                </AuthProvider>
             </ThemeProvider>
         </StyledComponentsRegistry>
     );

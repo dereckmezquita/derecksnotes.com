@@ -2,8 +2,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FaBars, FaFilter, FaUser, FaSearch } from 'react-icons/fa';
-import { useBlogFilter } from '../pages/index/BlogFilterContext';
+import { FaBars, FaUser, FaSearch } from 'react-icons/fa';
 import { AuthModal } from './modal/auth/AuthModal';
 import { SearchSpotlight } from './SearchSpotlight';
 import { useAuth } from '@/context/AuthContext';
@@ -201,8 +200,6 @@ function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { isAuthenticated, user } = useAuth();
 
-    const { isFilterVisible, setIsFilterVisible } = useBlogFilter();
-
     // Close the auth modal when user becomes authenticated
     useEffect(() => {
         if (user) {
@@ -224,10 +221,6 @@ function Navbar() {
 
     const closeMenu = () => {
         setIsMenuOpen(false);
-    };
-
-    const toggleFilter = () => {
-        setIsFilterVisible(!isFilterVisible);
     };
 
     return (
@@ -285,9 +278,6 @@ function Navbar() {
                 )}
                 <NavRightItem onClick={() => setIsSearchOpen(true)}>
                     <FaSearch />
-                </NavRightItem>
-                <NavRightItem onClick={toggleFilter}>
-                    <FaFilter />
                 </NavRightItem>
             </ResponsiveMenu>
             <SearchSpotlight
