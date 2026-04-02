@@ -31,7 +31,9 @@ export const config = {
     apiUrl: derived.apiUrl,
     databasePath: process.env.DATABASE_PATH || serverDerived.databasePath,
     secureCookies: serverDerived.secureCookies,
-    adminUsername: process.env.ADMIN_USERNAME || null
+    adminUsername: process.env.ADMIN_USERNAME || null,
+    contentDir:
+        process.env.CONTENT_DIR || path.resolve(SERVER_DIR, '../client/src/app')
 };
 
 export const secrets = {

@@ -2,9 +2,10 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { FaBars, FaFilter, FaUser } from 'react-icons/fa';
+import { FaBars, FaFilter, FaUser, FaSearch } from 'react-icons/fa';
 import { useBlogFilter } from '../pages/index/BlogFilterContext';
 import { AuthModal } from './modal/auth/AuthModal';
+import { SearchSpotlight } from './SearchSpotlight';
 import { useAuth } from '@/context/AuthContext';
 
 // TODO: create a type for theme; so we can have intellisense
@@ -196,6 +197,7 @@ const DateTimeDisplay = styled.div`
 // either this or use dynamic from next/dynamic
 function Navbar() {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const { isAuthenticated, user } = useAuth();
 
@@ -207,6 +209,18 @@ function Navbar() {
             setIsAuthModalOpen(false);
         }
     }, [user]);
+
+    // Cmd+K / Ctrl+K to open search
+    useEffect(() => {
+        function handleKeyDown(e: KeyboardEvent) {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                setIsSearchOpen(true);
+            }
+        }
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     const closeMenu = () => {
         setIsMenuOpen(false);
@@ -269,10 +283,17 @@ function Navbar() {
                         />
                     </NavRightItem>
                 )}
+                <NavRightItem onClick={() => setIsSearchOpen(true)}>
+                    <FaSearch />
+                </NavRightItem>
                 <NavRightItem onClick={toggleFilter}>
                     <FaFilter />
                 </NavRightItem>
             </ResponsiveMenu>
+            <SearchSpotlight
+                isOpen={isSearchOpen}
+                onClose={() => setIsSearchOpen(false)}
+            />
         </NavContainer>
     );
 }

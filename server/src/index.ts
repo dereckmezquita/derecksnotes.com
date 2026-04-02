@@ -5,6 +5,7 @@ import { config } from '@lib/env';
 import { generalLimiter } from '@middleware/rateLimit';
 import v1Routes from '@routes/index';
 import { db, schema } from '@db/index';
+import { buildSearchIndex } from '@services/search';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -62,7 +63,13 @@ app.use(
     }
 );
 
-// Start
+// Build search index then start
+try {
+    buildSearchIndex();
+} catch (err) {
+    console.error('Failed to build search index:', err);
+}
+
 app.listen(config.port, () => {
     console.log(`API server running at http://localhost:${config.port}`);
     console.log(`Environment: ${config.buildEnv}`);

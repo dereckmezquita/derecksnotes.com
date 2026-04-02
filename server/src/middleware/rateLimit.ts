@@ -40,6 +40,14 @@ export const editLimiter = rateLimit({
     message: { error: 'Too many edits, please slow down' }
 });
 
+export const searchLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many search requests, please slow down' }
+});
+
 export const profileLimiter = rateLimit({
     windowMs: 60 * 60 * 1000,
     max: 5,
