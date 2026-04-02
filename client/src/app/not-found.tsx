@@ -20,6 +20,14 @@ export default function NotFound() {
     const mouseRef = useRef({ pos: new Vec2(-1000, -1000), active: false });
     const particlesRef = useRef<Particle[]>([]);
 
+    // Hide CSS background grid — we draw our own on the canvas
+    useEffect(() => {
+        document.body.style.backgroundImage = 'none';
+        return () => {
+            document.body.style.backgroundImage = '';
+        };
+    }, []);
+
     useEffect(() => {
         gravityRef.current = gravityOn;
     }, [gravityOn]);
@@ -220,6 +228,9 @@ export default function NotFound() {
             collisionCount += qt.detectCollisions(DAMPING);
 
             // ---- RENDER (back to front) ----
+
+            // Gravitational grid — replaces CSS background grid
+            renderer.drawGravitationalGrid(w, h, particles, qt, 12, 800);
 
             // QuadTree grid — behind everything
             renderer.drawQuadTree(qt);

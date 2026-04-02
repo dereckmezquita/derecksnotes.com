@@ -238,6 +238,74 @@ export class Renderer {
         this.ctx.setLineDash([]);
     }
 
+    drawGravitationalGrid(
+        w: number,
+        h: number,
+        particles: Particle[],
+        qt: QuadTree,
+        spacing: number = 12,
+        strength: number = 800
+    ): void {
+        const ctx = this.ctx;
+        const cols = Math.ceil(w / spacing) + 1;
+        const rows = Math.ceil(h / spacing) + 1;
+        const influenceRadius = 150; // only particles within this range affect grid
+
+        // Build displacement grid — use quadtree for spatial lookup
+        const displaced: Vec2[][] = [];
+        for (let row = 0; row < rows; row++) {
+            displaced[row] = [];
+            for (let col = 0; col < cols; col++) {
+                const baseX = col * spacing;
+                const baseY = row * spacing;
+                let dx = 0,
+                    dy = 0;
+
+                // Query only nearby particles via quadtree
+                const center = Vec2.from(baseX, baseY);
+                const nearby = qt.queryRadius(center, influenceRadius);
+
+                for (const p of nearby) {
+                    const diffX = p.pos.x - baseX;
+                    const diffY = p.pos.y - baseY;
+                    const distSq = diffX * diffX + diffY * diffY;
+                    const dist = Math.sqrt(distSq) + 1;
+
+                    const pull = (strength * p.mass) / (distSq + 500);
+                    const maxPull = spacing * 0.8;
+                    const clampedPull = Math.min(pull, maxPull);
+
+                    dx += (diffX / dist) * clampedPull;
+                    dy += (diffY / dist) * clampedPull;
+                }
+
+                displaced[row][col] = Vec2.from(baseX + dx, baseY + dy);
+            }
+        }
+
+        // Draw horizontal grid lines
+        ctx.strokeStyle = 'hsla(0, 0%, 85%, 0.6)';
+        ctx.lineWidth = 0.5;
+        for (let row = 0; row < rows; row++) {
+            ctx.beginPath();
+            ctx.moveTo(displaced[row][0].x, displaced[row][0].y);
+            for (let col = 1; col < cols; col++) {
+                ctx.lineTo(displaced[row][col].x, displaced[row][col].y);
+            }
+            ctx.stroke();
+        }
+
+        // Draw vertical grid lines
+        for (let col = 0; col < cols; col++) {
+            ctx.beginPath();
+            ctx.moveTo(displaced[0][col].x, displaced[0][col].y);
+            for (let row = 1; row < rows; row++) {
+                ctx.lineTo(displaced[row][col].x, displaced[row][col].y);
+            }
+            ctx.stroke();
+        }
+    }
+
     drawQuadTree(qt: QuadTree): void {
         qt.draw(
             this.ctx,
