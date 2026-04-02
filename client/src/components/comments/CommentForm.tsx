@@ -1,133 +1,110 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { MAX_COMMENT_LENGTH } from '@/lib/constants';
-import { CommentFormProps } from './types';
+'use client';
+import React, { useState } from 'react';
+import { api } from '@/utils/api';
+import { useAuth } from '@/context/AuthContext';
 import {
-    FormContainer,
-    TextArea,
-    CharacterCount,
-    ButtonsContainer,
-    SubmitButton,
-    CancelButton,
-    FormattingTips
+    CommentFormWrapper,
+    CommentTextarea,
+    CommentSubmitButton,
+    LoginPrompt
 } from './CommentStyles';
 
+interface CommentFormProps {
+    slug: string;
+    title: string;
+    parentId?: string;
+    onSubmitted: () => void;
+    onCancel?: () => void;
+    placeholder?: string;
+}
+
 export function CommentForm({
-    onSubmit,
-    initialValue = '',
-    submitLabel = 'Post Comment',
+    slug,
+    title,
+    parentId,
+    onSubmitted,
     onCancel,
-    isReply = false,
-    isEdit = false
+    placeholder = 'Write a comment... (markdown supported)'
 }: CommentFormProps) {
-    const [text, setText] = useState(initialValue);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const { user } = useAuth();
+    const [content, setContent] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
-    const charCount = text.length;
-    const isNearLimit = charCount > MAX_COMMENT_LENGTH * 0.8;
-    const isOverLimit = charCount > MAX_COMMENT_LENGTH;
+    if (!user) {
+        return <LoginPrompt>Log in to leave a comment.</LoginPrompt>;
+    }
 
-    // Focus textarea on mount for edit/reply mode
-    useEffect(() => {
-        if ((isReply || isEdit) && textareaRef.current) {
-            textareaRef.current.focus();
-            // Move cursor to end of text
-            const len = textareaRef.current.value.length;
-            textareaRef.current.setSelectionRange(len, len);
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!content.trim()) return;
+
+        setSubmitting(true);
+        setError(null);
+
+        try {
+            await api.post('/comments', {
+                slug,
+                title,
+                content: content.trim(),
+                parentId
+            });
+            setContent('');
+            onSubmitted();
+        } catch (err: any) {
+            setError(err.data?.error || 'Failed to post comment');
+        } finally {
+            setSubmitting(false);
         }
-    }, [isReply, isEdit]);
-
-    const handleSubmit = useCallback(
-        async (e: React.FormEvent) => {
-            e.preventDefault();
-
-            if (text.trim() && !isOverLimit && !isSubmitting) {
-                setIsSubmitting(true);
-                try {
-                    await onSubmit(text.trim());
-                    if (!isEdit) {
-                        setText(''); // Only clear for new comments, not edits
-                    }
-                } finally {
-                    setIsSubmitting(false);
-                }
-            }
-        },
-        [text, isOverLimit, isSubmitting, onSubmit, isEdit]
-    );
-
-    // Handle keyboard shortcuts
-    const handleKeyDown = useCallback(
-        (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-            // Cmd/Ctrl + Enter to submit
-            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                e.preventDefault();
-                handleSubmit(e);
-            }
-
-            // Escape to cancel (if cancel handler exists)
-            if (e.key === 'Escape' && onCancel) {
-                e.preventDefault();
-                onCancel();
-            }
-        },
-        [handleSubmit, onCancel]
-    );
+    };
 
     return (
-        <FormContainer $isReply={isReply} $isEdit={isEdit}>
+        <CommentFormWrapper>
             <form onSubmit={handleSubmit}>
-                <TextArea
-                    ref={textareaRef}
-                    placeholder={
-                        isReply ? 'Write a reply...' : 'Write a comment...'
-                    }
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    rows={isReply ? 3 : 4}
-                    aria-label={isReply ? 'Reply text' : 'Comment text'}
-                    aria-describedby="char-count formatting-tips"
-                    aria-invalid={isOverLimit}
+                <CommentTextarea
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder={placeholder}
+                    maxLength={10000}
+                    disabled={submitting}
                 />
-
-                <CharacterCount
-                    id="char-count"
-                    $nearLimit={isNearLimit}
-                    $overLimit={isOverLimit}
-                    role="status"
-                    aria-live="polite"
-                >
-                    {charCount}/{MAX_COMMENT_LENGTH} characters
-                    {isOverLimit && ' (over limit)'}
-                </CharacterCount>
-
-                <ButtonsContainer>
-                    <SubmitButton
-                        type="submit"
-                        disabled={!text.trim() || isOverLimit || isSubmitting}
-                        aria-busy={isSubmitting}
+                {error && (
+                    <p
+                        style={{
+                            color: '#c62828',
+                            fontSize: '0.85rem',
+                            margin: '0.25rem 0'
+                        }}
                     >
-                        {isSubmitting ? 'Submitting...' : submitLabel}
-                    </SubmitButton>
-
+                        {error}
+                    </p>
+                )}
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <CommentSubmitButton
+                        type="submit"
+                        disabled={submitting || !content.trim()}
+                    >
+                        {submitting
+                            ? 'Posting...'
+                            : parentId
+                              ? 'Reply'
+                              : 'Post Comment'}
+                    </CommentSubmitButton>
                     {onCancel && (
-                        <CancelButton type="button" onClick={onCancel}>
+                        <CommentSubmitButton
+                            type="button"
+                            onClick={onCancel}
+                            style={{
+                                background: 'transparent',
+                                color: '#999',
+                                border: '1px solid #ccc'
+                            }}
+                        >
                             Cancel
-                        </CancelButton>
+                        </CommentSubmitButton>
                     )}
-                </ButtonsContainer>
-
-                <FormattingTips id="formatting-tips">
-                    Supports Markdown: <b>**bold**</b>, <i>*italic*</i>,
-                    [link](url), `code`, ```codeblock```, `&gt;` quote, * list,
-                    ## headings
-                    <br />
-                    <small>
-                        Press <kbd>Ctrl</kbd>+<kbd>Enter</kbd> to submit
-                    </small>
-                </FormattingTips>
+                </div>
             </form>
-        </FormContainer>
+        </CommentFormWrapper>
     );
 }

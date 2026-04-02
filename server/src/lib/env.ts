@@ -1,10 +1,14 @@
+import path from 'path';
 import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
 
 const BUILD_ENV = (process.env.BUILD_ENV as BuildEnv) || 'local';
 
+// Resolve local DB path relative to the server directory (import.meta.dir)
+const SERVER_DIR = path.resolve(import.meta.dir, '../..');
+
 const SERVER_ENV_CONFIG = {
     local: {
-        databasePath: './data/database.sqlite',
+        databasePath: path.join(SERVER_DIR, 'data', 'database.sqlite'),
         secureCookies: false
     },
     dev: {
@@ -27,13 +31,11 @@ export const config = {
     apiUrl: process.env.API_URL || derived.apiUrl,
     databasePath: process.env.DATABASE_PATH || derived.databasePath,
     secureCookies: derived.secureCookies,
-    // Admin username - this user will automatically be added to admin group on login
     adminUsername: process.env.ADMIN_USERNAME || null
 };
 
 export const secrets = {
     sessionSecret: requireEnv('SESSION_SECRET')
-    // Email service can be added later (SMTP2GO, Brevo, etc.)
 };
 
 function requireEnv(name: string): string {
@@ -41,7 +43,7 @@ function requireEnv(name: string): string {
     if (!value) {
         if (BUILD_ENV === 'local') {
             console.warn(
-                `Warning: Missing ${name} - using placeholder for local dev`
+                `Warning: Missing ${name} — using placeholder for local dev`
             );
             return 'local-dev-placeholder';
         }

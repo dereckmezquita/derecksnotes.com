@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { api } from '@/utils/api/api';
+import { api } from '@/utils/api';
 import { IndicateLoading } from '@/components/atomic/IndiacteLoading';
 import { BoxContainer } from '../modules/BoxContainer';
 
@@ -11,8 +11,8 @@ export function ApiStatus() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await api.get('/');
-                setApiData(response.data);
+                const data = await api.get('/');
+                setApiData(data);
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {

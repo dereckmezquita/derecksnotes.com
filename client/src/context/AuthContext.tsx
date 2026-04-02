@@ -6,66 +6,58 @@ import React, {
     useContext,
     useCallback
 } from 'react';
-import { api } from '@/utils/api/api';
-import { HOUR } from '@/lib/datetimes';
+import { api, ApiError } from '@/utils/api';
 import type { User, AuthError } from '@derecksnotes/shared';
 
 export type { User, AuthError };
 
-/**
- * The shape of the authentication context.
- */
 interface AuthContextType {
     user: User | null;
     loading: boolean;
-    register: (userData: {
+    register: (data: {
         username: string;
         password: string;
         email?: string;
     }) => Promise<void>;
-    login: (usernameOrEmail: string, password: string) => Promise<void>;
+    login: (username: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
     changePassword: (
         currentPassword: string,
         newPassword: string
     ) => Promise<void>;
-    updateProfile: (profileData: {
+    updateProfile: (data: {
         displayName?: string;
         bio?: string;
         avatarUrl?: string | null;
     }) => Promise<void>;
+    changeUsername: (newUsername: string) => Promise<void>;
     deleteAccount: () => Promise<void>;
     isAuthenticated: () => boolean;
     isAdmin: () => boolean;
     hasPermission: (permission: string) => boolean;
     checkAuth: () => Promise<void>;
-    setUnauthenticated: () => void;
     authError: AuthError | null;
     clearAuthError: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_CHECK_INTERVAL = HOUR * 24;
+const AUTH_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
 
-/**
- * AuthProvider component that wraps the application and provides authentication context.
- */
-export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
+export const AuthProvider: React.FC<React.PropsWithChildren> = ({
     children
 }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [authError, setAuthError] = useState<AuthError | null>(null);
 
-    /**
-     * Check the current authentication status.
-     */
+    const clearAuthError = useCallback(() => setAuthError(null), []);
+
     const checkAuth = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await api.get<User>('/auth/me');
-            setUser(response.data);
+            const data = await api.get<User>('/auth/me');
+            setUser(data);
         } catch {
             setUser(null);
         } finally {
@@ -73,47 +65,25 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
         }
     }, []);
 
-    /**
-     * Set the authentication status to unauthenticated.
-     */
-    const setUnauthenticated = useCallback(() => {
-        setUser(null);
-    }, []);
-
-    /**
-     * Clear the authentication error.
-     */
-    const clearAuthError = useCallback(() => {
-        setAuthError(null);
-    }, []);
-
     useEffect(() => {
         checkAuth();
-
-        const intervalId = setInterval(checkAuth, AUTH_CHECK_INTERVAL);
-        return () => clearInterval(intervalId);
+        const interval = setInterval(checkAuth, AUTH_CHECK_INTERVAL);
+        return () => clearInterval(interval);
     }, [checkAuth]);
 
-    /**
-     * Register a new user
-     */
-    const register = async (userData: {
+    const register = async (data: {
         username: string;
         password: string;
         email?: string;
     }) => {
         setLoading(true);
         clearAuthError();
-
         try {
-            const response = await api.post<{
-                user: { id: string; username: string };
-            }>('/auth/register', userData);
-            // After registration, fetch full user data
+            await api.post('/auth/register', data);
             await checkAuth();
-        } catch (error: any) {
-            if (error.response?.data) {
-                setAuthError(error.response.data as AuthError);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                setAuthError(error.data as AuthError);
             } else {
                 setAuthError({ error: 'An unexpected error occurred' });
             }
@@ -123,23 +93,15 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
         }
     };
 
-    /**
-     * Log in a user with username or email
-     */
-    const login = async (usernameOrEmail: string, password: string) => {
+    const login = async (username: string, password: string) => {
         setLoading(true);
         clearAuthError();
-
         try {
-            await api.post('/auth/login', {
-                username: usernameOrEmail,
-                password
-            });
-            // After login, fetch full user data
+            await api.post('/auth/login', { username, password });
             await checkAuth();
-        } catch (error: any) {
-            if (error.response?.data) {
-                setAuthError(error.response.data as AuthError);
+        } catch (error) {
+            if (error instanceof ApiError) {
+                setAuthError(error.data as AuthError);
             } else {
                 setAuthError({ error: 'An unexpected error occurred' });
             }
@@ -149,154 +111,112 @@ export const AuthProvider: React.FC<React.PropsWithChildren<{}>> = ({
         }
     };
 
-    /**
-     * Log out the current user.
-     */
     const logout = async () => {
-        setLoading(true);
-        clearAuthError();
-
         try {
             await api.post('/auth/logout');
         } catch {
-            // Still clear user even if logout fails server-side
+            // Clear user even if server call fails
         } finally {
             setUser(null);
-            setLoading(false);
         }
     };
 
-    /**
-     * Change password (authenticated)
-     */
     const changePassword = async (
         currentPassword: string,
         newPassword: string
     ) => {
-        setLoading(true);
         clearAuthError();
-
         try {
             await api.post('/users/me/password', {
                 currentPassword,
                 newPassword
             });
-        } catch (error: any) {
-            if (error.response?.data) {
-                setAuthError(error.response.data as AuthError);
-            } else {
-                setAuthError({ error: 'An unexpected error occurred' });
-            }
+        } catch (error) {
+            if (error instanceof ApiError)
+                setAuthError(error.data as AuthError);
             throw error;
-        } finally {
-            setLoading(false);
         }
     };
 
-    /**
-     * Update user profile
-     */
-    const updateProfile = async (profileData: {
+    const updateProfile = async (data: {
         displayName?: string;
         bio?: string;
         avatarUrl?: string | null;
     }) => {
-        setLoading(true);
         clearAuthError();
-
         try {
-            const response = await api.patch<User>('/users/me', profileData);
-            // Update local user state with new profile data
+            await api.patch('/users/me', data);
             if (user) {
-                setUser({
-                    ...user,
-                    ...response.data
-                });
+                setUser({ ...user, ...data });
             }
-        } catch (error: any) {
-            if (error.response?.data) {
-                setAuthError(error.response.data as AuthError);
-            } else {
-                setAuthError({ error: 'An unexpected error occurred' });
-            }
+        } catch (error) {
+            if (error instanceof ApiError)
+                setAuthError(error.data as AuthError);
             throw error;
-        } finally {
-            setLoading(false);
         }
     };
 
-    /**
-     * Delete user account (soft delete)
-     */
-    const deleteAccount = async () => {
-        setLoading(true);
+    const changeUsername = async (newUsername: string) => {
         clearAuthError();
+        try {
+            await api.patch('/users/me/username', { username: newUsername });
+            if (user) {
+                setUser({ ...user, username: newUsername });
+            }
+        } catch (error) {
+            if (error instanceof ApiError)
+                setAuthError(error.data as AuthError);
+            throw error;
+        }
+    };
 
+    const deleteAccount = async () => {
+        clearAuthError();
         try {
             await api.delete('/users/me');
             setUser(null);
-        } catch (error: any) {
-            if (error.response?.data) {
-                setAuthError(error.response.data as AuthError);
-            } else {
-                setAuthError({ error: 'An unexpected error occurred' });
-            }
+        } catch (error) {
+            if (error instanceof ApiError)
+                setAuthError(error.data as AuthError);
             throw error;
-        } finally {
-            setLoading(false);
         }
     };
 
-    /**
-     * Check if user is authenticated
-     */
-    const isAuthenticated = useCallback(() => {
-        return !!user;
-    }, [user]);
-
-    /**
-     * Check if user is admin
-     */
-    const isAdmin = useCallback(() => {
-        return !!user && user.groups.includes('admin');
-    }, [user]);
-
-    /**
-     * Check if user has a specific permission
-     */
+    const isAuthenticated = useCallback(() => !!user, [user]);
+    const isAdmin = useCallback(
+        () => !!user && user.groups.includes('admin'),
+        [user]
+    );
     const hasPermission = useCallback(
-        (permission: string) => {
-            return !!user && user.permissions.includes(permission);
-        },
+        (permission: string) => !!user && user.permissions.includes(permission),
         [user]
     );
 
-    const value: AuthContextType = {
-        user,
-        loading,
-        register,
-        login,
-        logout,
-        changePassword,
-        updateProfile,
-        deleteAccount,
-        isAuthenticated,
-        isAdmin,
-        hasPermission,
-        checkAuth,
-        setUnauthenticated,
-        authError,
-        clearAuthError
-    };
-
     return (
-        <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+        <AuthContext.Provider
+            value={{
+                user,
+                loading,
+                register,
+                login,
+                logout,
+                changePassword,
+                updateProfile,
+                changeUsername,
+                deleteAccount,
+                isAuthenticated,
+                isAdmin,
+                hasPermission,
+                checkAuth,
+                authError,
+                clearAuthError
+            }}
+        >
+            {children}
+        </AuthContext.Provider>
     );
 };
 
-/**
- * Custom hook to use the authentication context.
- */
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
     if (context === undefined) {
