@@ -18,8 +18,10 @@ let nextId = 0;
 export default function NotFound() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [gravityOn, setGravityOn] = useState(false);
+    const [attractOn, setAttractOn] = useState(false);
     const [ballSize, setBallSize] = useState(12);
     const gravityRef = useRef(false);
+    const attractRef = useRef(false);
     const ballSizeRef = useRef(12);
     const mouseRef = useRef({ x: -1000, y: -1000, active: false });
     const particlesRef = useRef<Particle[]>([]);
@@ -27,6 +29,9 @@ export default function NotFound() {
     useEffect(() => {
         gravityRef.current = gravityOn;
     }, [gravityOn]);
+    useEffect(() => {
+        attractRef.current = attractOn;
+    }, [attractOn]);
     useEffect(() => {
         ballSizeRef.current = ballSize;
     }, [ballSize]);
@@ -44,8 +49,6 @@ export default function NotFound() {
             if (!canvas) return;
             canvas.width = window.innerWidth * dpr;
             canvas.height = window.innerHeight * dpr;
-            canvas.style.width = window.innerWidth + 'px';
-            canvas.style.height = window.innerHeight + 'px';
             ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
         }
 
@@ -56,6 +59,7 @@ export default function NotFound() {
         const H = () => window.innerHeight;
 
         const G = 0.1;
+        const INTER_G = 0.3;
         const damping = 0.85;
         const MOUSE_ATTRACT = 0.4;
         const TRAIL_LEN = 80;
@@ -84,37 +88,42 @@ export default function NotFound() {
         let totalKE = 0;
         let totalPE = 0;
         let collisionCount = 0;
-
         let dragStart: { x: number; y: number } | null = null;
         let isDragging = false;
 
+        function getCanvasPos(e: MouseEvent) {
+            return { x: e.clientX, y: e.clientY };
+        }
+
         function onMouseMove(e: MouseEvent) {
-            mouseRef.current.x = e.clientX;
-            mouseRef.current.y = e.clientY;
+            const pos = getCanvasPos(e);
+            mouseRef.current.x = pos.x;
+            mouseRef.current.y = pos.y;
             mouseRef.current.active = true;
         }
         function onMouseLeave() {
             mouseRef.current.active = false;
         }
         function onMouseDown(e: MouseEvent) {
-            dragStart = { x: e.clientX, y: e.clientY };
+            dragStart = getCanvasPos(e);
             isDragging = false;
         }
         function onMouseMoveDrag(e: MouseEvent) {
             if (dragStart) {
-                const dx = e.clientX - dragStart.x;
-                const dy = e.clientY - dragStart.y;
+                const pos = getCanvasPos(e);
+                const dx = pos.x - dragStart.x,
+                    dy = pos.y - dragStart.y;
                 if (Math.sqrt(dx * dx + dy * dy) > 5) isDragging = true;
             }
         }
         function onMouseUp(e: MouseEvent) {
             if (!dragStart) return;
+            const pos = getCanvasPos(e);
             const r = ballSizeRef.current;
-            const dx = dragStart.x - e.clientX;
-            const dy = dragStart.y - e.clientY;
+            const dx = dragStart.x - pos.x,
+                dy = dragStart.y - pos.y;
             const speed = Math.sqrt(dx * dx + dy * dy) * 0.08;
             const angle = Math.atan2(dy, dx);
-
             particles.push({
                 x: dragStart.x,
                 y: dragStart.y,
@@ -129,14 +138,13 @@ export default function NotFound() {
                 trail: [],
                 id: nextId++
             });
-
             dragStart = null;
             isDragging = false;
         }
 
-        window.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('mousemove', onMouseMove);
         canvas.addEventListener('mousemove', onMouseMoveDrag);
-        document.addEventListener('mouseleave', onMouseLeave);
+        canvas.addEventListener('mouseleave', onMouseLeave);
         canvas.addEventListener('mousedown', onMouseDown);
         canvas.addEventListener('mouseup', onMouseUp);
 
@@ -180,6 +188,7 @@ export default function NotFound() {
             ctx.clearRect(0, 0, w, h);
             frame++;
             const useGravity = gravityRef.current;
+            const useAttract = attractRef.current;
             const mouse = mouseRef.current;
             const N = particles.length;
 
@@ -195,6 +204,31 @@ export default function NotFound() {
             totalKE = 0;
             totalPE = 0;
             const groundY = h - 24;
+
+            // Inter-particle gravitational attraction
+            if (useAttract) {
+                for (let i = 0; i < N; i++) {
+                    for (let j = i + 1; j < N; j++) {
+                        const a = particles[i],
+                            b = particles[j];
+                        const dx = b.x - a.x,
+                            dy = b.y - a.y;
+                        const distSq = dx * dx + dy * dy;
+                        const dist = Math.sqrt(distSq) + 1;
+                        const minDist = a.r + b.r;
+                        if (dist > minDist) {
+                            const force =
+                                (INTER_G * a.mass * b.mass) / (distSq + 100);
+                            const fx = (force * dx) / dist,
+                                fy = (force * dy) / dist;
+                            a.vx += fx / a.mass;
+                            a.vy += fy / a.mass;
+                            b.vx -= fx / b.mass;
+                            b.vy -= fy / b.mass;
+                        }
+                    }
+                }
+            }
 
             for (const p of particles) {
                 p.trail.push({ x: p.x, y: p.y });
@@ -243,11 +277,11 @@ export default function NotFound() {
                     p.vy *= -damping;
                 }
 
-                const speed2 = p.vx * p.vx + p.vy * p.vy;
-                totalKE += 0.5 * p.mass * speed2;
+                totalKE += 0.5 * p.mass * (p.vx * p.vx + p.vy * p.vy);
                 totalPE += p.mass * G * Math.max(0, groundY - p.y);
             }
 
+            // Collisions
             for (let i = 0; i < N; i++) {
                 for (let j = i + 1; j < N; j++) {
                     const a = particles[i],
@@ -262,8 +296,8 @@ export default function NotFound() {
                             ny = dy / dist;
                         const relVn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
                         if (relVn > 0) {
-                            const tm = a.mass + b.mass;
-                            const imp = (2 * relVn) / tm;
+                            const tm = a.mass + b.mass,
+                                imp = (2 * relVn) / tm;
                             a.vx -= imp * b.mass * nx * damping;
                             a.vy -= imp * b.mass * ny * damping;
                             b.vx += imp * a.mass * nx * damping;
@@ -278,6 +312,8 @@ export default function NotFound() {
                 }
             }
 
+            // ---- RENDER ----
+
             // Trails
             for (const p of particles) {
                 if (p.trail.length < 2) continue;
@@ -286,7 +322,7 @@ export default function NotFound() {
                     ctx.moveTo(p.trail[i - 1].x, p.trail[i - 1].y);
                     ctx.lineTo(p.trail[i].x, p.trail[i].y);
                     ctx.strokeStyle = o((i / p.trail.length) * 0.45);
-                    ctx.lineWidth = 1;
+                    ctx.lineWidth = 1.5 + (i / p.trail.length) * 1;
                     ctx.stroke();
                 }
             }
@@ -323,15 +359,13 @@ export default function NotFound() {
                 }
             }
 
-            // Slingshot indicator while dragging
+            // Slingshot indicator
             if (dragStart && isDragging && mouse.active) {
-                const dx = dragStart.x - mouse.x;
-                const dy = dragStart.y - mouse.y;
+                const dx = dragStart.x - mouse.x,
+                    dy = dragStart.y - mouse.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 const angle = Math.atan2(dy, dx);
                 const speed = dist * 0.08;
-
-                // Line from start to current mouse (pull direction)
                 ctx.beginPath();
                 ctx.moveTo(dragStart.x, dragStart.y);
                 ctx.lineTo(mouse.x, mouse.y);
@@ -340,18 +374,15 @@ export default function NotFound() {
                 ctx.setLineDash([4, 4]);
                 ctx.stroke();
                 ctx.setLineDash([]);
-
-                // Launch direction arrow (opposite of pull)
                 const arrowLen = Math.min(dist * 0.6, 80);
-                const ax = dragStart.x + Math.cos(angle) * arrowLen;
-                const ay = dragStart.y + Math.sin(angle) * arrowLen;
+                const ax = dragStart.x + Math.cos(angle) * arrowLen,
+                    ay = dragStart.y + Math.sin(angle) * arrowLen;
                 ctx.beginPath();
                 ctx.moveTo(dragStart.x, dragStart.y);
                 ctx.lineTo(ax, ay);
                 ctx.strokeStyle = o(0.7);
                 ctx.lineWidth = 2;
                 ctx.stroke();
-                // Arrowhead
                 ctx.beginPath();
                 ctx.moveTo(ax, ay);
                 ctx.lineTo(
@@ -364,8 +395,6 @@ export default function NotFound() {
                     ay - 8 * Math.sin(angle + 0.35)
                 );
                 ctx.stroke();
-
-                // Preview circle at spawn point
                 const previewR = ballSizeRef.current;
                 ctx.beginPath();
                 ctx.arc(dragStart.x, dragStart.y, previewR, 0, Math.PI * 2);
@@ -374,8 +403,6 @@ export default function NotFound() {
                 ctx.setLineDash([3, 3]);
                 ctx.stroke();
                 ctx.setLineDash([]);
-
-                // Speed label
                 ctx.font = '11px Roboto, sans-serif';
                 ctx.fillStyle = o(0.85);
                 ctx.fillText(
@@ -442,7 +469,6 @@ export default function NotFound() {
                 ctx.strokeStyle = o(0.9);
                 ctx.lineWidth = 1.8;
                 ctx.stroke();
-
                 const cr = p.r + 5;
                 ctx.beginPath();
                 ctx.moveTo(p.x - cr, p.y);
@@ -456,7 +482,6 @@ export default function NotFound() {
                 ctx.strokeStyle = o(0.5);
                 ctx.lineWidth = 0.8;
                 ctx.stroke();
-
                 ctx.font = '10px Roboto, sans-serif';
                 ctx.fillStyle = o(0.9);
                 ctx.fillText(`P${p.id}`, p.x + cr + 3, p.y - 4);
@@ -493,27 +518,15 @@ export default function NotFound() {
                 ctx.setLineDash([]);
             }
 
-            // System readout — centered below controls
-            ctx.font = '11px Roboto, sans-serif';
-            ctx.fillStyle = gr(0.85);
+            // System readout — bottom of canvas
+            ctx.font = '10px Roboto, sans-serif';
+            ctx.fillStyle = gr(0.7);
             ctx.textAlign = 'center';
-            const ry = h * 0.5 + 195;
-            const cx = w / 2;
-            const line1 = `g = ${useGravity ? G : 0} m/s\u00B2  \u00B7  e = ${damping}  \u00B7  n = ${N}  \u00B7  t = ${(frame / 60).toFixed(1)}s  \u00B7  collisions: ${collisionCount}`;
-            const line2 = `\u03A3KE = ${totalKE.toFixed(0)} J  \u00B7  \u03A3PE = ${totalPE.toFixed(0)} J  \u00B7  E = ${(totalKE + totalPE).toFixed(0)} J`;
-            ctx.fillText(line1, cx, ry);
-            ctx.fillText(line2, cx, ry + 16);
-            if (!useGravity) {
-                ctx.fillStyle = o(0.8);
-                ctx.fillText(
-                    'ZERO-G \u00B7 MOUSE ATTRACTOR \u00B7 CLICK-DRAG TO LAUNCH',
-                    cx,
-                    ry + 32
-                );
-            }
+            const readout = `g = ${useGravity ? G : 0} m/s\u00B2  \u00B7  e = ${damping}  \u00B7  n = ${N}  \u00B7  t = ${(frame / 60).toFixed(1)}s  \u00B7  collisions: ${collisionCount}  \u00B7  \u03A3KE = ${totalKE.toFixed(0)} J  \u00B7  E = ${(totalKE + totalPE).toFixed(0)} J`;
+            ctx.fillText(readout, w / 2, h - 8);
             ctx.textAlign = 'start';
 
-            // Axes
+            // Axes (top-left)
             ctx.beginPath();
             ctx.moveTo(16, 50);
             ctx.lineTo(16, 18);
@@ -537,7 +550,7 @@ export default function NotFound() {
             ctx.fillText('y', 6, 22);
             ctx.fillText('x', 50, 54);
 
-            // Scale bar
+            // Scale bar (top-right)
             ctx.beginPath();
             ctx.moveTo(w - 62, 18);
             ctx.lineTo(w - 12, 18);
@@ -558,13 +571,27 @@ export default function NotFound() {
         return () => {
             cancelAnimationFrame(animationId);
             window.removeEventListener('resize', resize);
-            window.removeEventListener('mousemove', onMouseMove);
+            canvas.removeEventListener('mousemove', onMouseMove);
             canvas.removeEventListener('mousemove', onMouseMoveDrag);
-            document.removeEventListener('mouseleave', onMouseLeave);
+            canvas.removeEventListener('mouseleave', onMouseLeave);
             canvas.removeEventListener('mousedown', onMouseDown);
             canvas.removeEventListener('mouseup', onMouseUp);
         };
     }, []);
+
+    const btnStyle = (active: boolean) => ({
+        padding: '0.35rem 0.7rem',
+        background: 'none',
+        border: `1.5px solid ${active ? 'hsla(22, 85%, 38%, 1)' : 'hsla(0, 0%, 70%, 1)'}`,
+        borderRadius: '2px',
+        cursor: 'pointer' as const,
+        fontFamily: 'Roboto, sans-serif',
+        fontSize: '0.62rem',
+        fontWeight: 600,
+        textTransform: 'uppercase' as const,
+        letterSpacing: '0.08em',
+        color: active ? 'hsla(22, 85%, 38%, 1)' : 'hsla(0, 0%, 50%, 1)'
+    });
 
     return (
         <>
@@ -583,7 +610,7 @@ export default function NotFound() {
                 }}
             />
 
-            {/* Content below canvas — pointer-events so links still work through canvas */}
+            {/* Content — normal document flow, centered */}
             <div
                 style={{
                     position: 'relative',
@@ -593,14 +620,13 @@ export default function NotFound() {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    minHeight: '60vh',
-                    paddingTop: '15vh'
+                    padding: '6rem 1rem 4rem'
                 }}
             >
                 <h1
                     style={{
                         fontFamily: 'Arial, Helvetica, sans-serif',
-                        fontSize: '4rem',
+                        fontSize: '3.5rem',
                         fontWeight: 700,
                         margin: 0,
                         color: 'hsla(22, 85%, 38%, 1)',
@@ -613,9 +639,9 @@ export default function NotFound() {
                 <p
                     style={{
                         fontFamily: 'Roboto, sans-serif',
-                        fontSize: '1rem',
+                        fontSize: '0.95rem',
                         color: '#555',
-                        margin: '0.3rem 0 1.2rem'
+                        margin: '0.25rem 0 0.75rem'
                     }}
                 >
                     Page not found.
@@ -624,23 +650,24 @@ export default function NotFound() {
                 <div
                     style={{
                         display: 'flex',
-                        gap: '0.75rem',
+                        gap: '0.4rem',
                         alignItems: 'center',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center',
                         pointerEvents: 'auto'
                     }}
                 >
                     <Link
                         href="/"
                         style={{
-                            display: 'inline-block',
-                            padding: '0.5rem 1.6rem',
+                            padding: '0.4rem 1.3rem',
                             background: 'hsla(22, 85%, 38%, 1)',
                             color: 'white',
                             textDecoration: 'none',
                             borderRadius: '2px',
                             fontFamily: 'Roboto, sans-serif',
                             fontWeight: 700,
-                            fontSize: '0.78rem',
+                            fontSize: '0.68rem',
                             textTransform: 'uppercase',
                             letterSpacing: '0.08em'
                         }}
@@ -650,70 +677,47 @@ export default function NotFound() {
 
                     <button
                         onClick={() => setGravityOn((v) => !v)}
-                        style={{
-                            padding: '0.4rem 0.9rem',
-                            background: 'none',
-                            border: `1.5px solid ${gravityOn ? 'hsla(22, 85%, 38%, 1)' : 'hsla(0, 0%, 65%, 1)'}`,
-                            borderRadius: '2px',
-                            cursor: 'pointer',
-                            fontFamily: 'Roboto, sans-serif',
-                            fontSize: '0.7rem',
-                            fontWeight: 600,
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.08em',
-                            color: gravityOn
-                                ? 'hsla(22, 85%, 38%, 1)'
-                                : 'hsla(0, 0%, 45%, 1)'
-                        }}
+                        style={btnStyle(gravityOn)}
                     >
                         {gravityOn ? 'Gravity: ON' : 'Gravity: OFF'}
                     </button>
-                </div>
 
-                {/* Ball size slider */}
-                <div
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem',
-                        marginTop: '1rem',
-                        pointerEvents: 'auto'
-                    }}
-                >
+                    <button
+                        onClick={() => setAttractOn((v) => !v)}
+                        style={btnStyle(attractOn)}
+                    >
+                        {attractOn ? 'Attract: ON' : 'Attract: OFF'}
+                    </button>
+
                     <label
                         style={{
                             fontFamily: 'Roboto, sans-serif',
-                            fontSize: '0.65rem',
+                            fontSize: '0.58rem',
                             color: '#888',
                             textTransform: 'uppercase',
-                            letterSpacing: '0.08em'
+                            letterSpacing: '0.08em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            pointerEvents: 'auto'
                         }}
                     >
-                        Size: {ballSize}px
+                        {ballSize}px
+                        <input
+                            type="range"
+                            min="4"
+                            max="40"
+                            value={ballSize}
+                            onChange={(e) =>
+                                setBallSize(parseInt(e.target.value))
+                            }
+                            style={{
+                                width: '55px',
+                                accentColor: 'hsla(22, 85%, 38%, 1)'
+                            }}
+                        />
                     </label>
-                    <input
-                        type="range"
-                        min="4"
-                        max="40"
-                        value={ballSize}
-                        onChange={(e) => setBallSize(parseInt(e.target.value))}
-                        style={{
-                            width: '100px',
-                            accentColor: 'hsla(22, 85%, 38%, 1)'
-                        }}
-                    />
                 </div>
-
-                <p
-                    style={{
-                        fontFamily: 'Roboto, sans-serif',
-                        fontSize: '0.7rem',
-                        color: '#aaa',
-                        marginTop: '0.75rem'
-                    }}
-                >
-                    Click anywhere to add particles.
-                </p>
             </div>
         </>
     );
