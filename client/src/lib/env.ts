@@ -13,7 +13,7 @@ export const config = {
     buildEnv: BUILD_ENV,
     isProduction: BUILD_ENV === 'prod',
     commitSha: process.env.NEXT_PUBLIC_COMMIT_SHA || 'local',
-    domain: process.env.NEXT_PUBLIC_DOMAIN || derived.domain,
-    baseUrl: process.env.NEXT_PUBLIC_APP_URL || derived.baseUrl,
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || derived.apiUrl
+    domain: derived.domain,
+    baseUrl: derived.baseUrl,
+    apiUrl: derived.apiUrl
 };

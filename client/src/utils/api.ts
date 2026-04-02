@@ -46,15 +46,14 @@ async function request<T>(
         const error = new ApiError(response.status, data);
 
         // Show toast for server errors (not auth errors — those are handled by AuthContext)
+        // Never expose raw server error messages — use safe generic messages
         if (!silent && response.status !== 401) {
-            const message =
-                data?.error || `Request failed (${response.status})`;
             if (response.status === 429) {
                 toast.error('Too many requests. Please slow down.');
             } else if (response.status >= 500) {
                 toast.error('Server error. Please try again later.');
             } else if (response.status === 403) {
-                toast.error(message);
+                toast.error('You do not have permission to do that.');
             }
         }
 

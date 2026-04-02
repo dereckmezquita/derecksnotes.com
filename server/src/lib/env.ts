@@ -2,11 +2,9 @@ import path from 'path';
 import { ENV_CONFIG, type BuildEnv } from '@derecksnotes/shared';
 
 const BUILD_ENV = (process.env.BUILD_ENV as BuildEnv) || 'local';
-
-// Resolve local DB path relative to the server directory (import.meta.dir)
 const SERVER_DIR = path.resolve(import.meta.dir, '../..');
 
-const SERVER_ENV_CONFIG = {
+const SERVER_CONFIG = {
     local: {
         databasePath: path.join(SERVER_DIR, 'data', 'database.sqlite'),
         secureCookies: false
@@ -21,16 +19,18 @@ const SERVER_ENV_CONFIG = {
     }
 } as const;
 
-const derived = { ...ENV_CONFIG[BUILD_ENV], ...SERVER_ENV_CONFIG[BUILD_ENV] };
+const derived = ENV_CONFIG[BUILD_ENV];
+const serverDerived = SERVER_CONFIG[BUILD_ENV];
 
 export const config = {
     buildEnv: BUILD_ENV,
+    isProduction: BUILD_ENV === 'prod',
     port: parseInt(process.env.PORT || '3001', 10),
-    domain: process.env.DOMAIN || derived.domain,
-    baseUrl: process.env.BASE_URL || derived.baseUrl,
-    apiUrl: process.env.API_URL || derived.apiUrl,
-    databasePath: process.env.DATABASE_PATH || derived.databasePath,
-    secureCookies: derived.secureCookies,
+    domain: derived.domain,
+    baseUrl: derived.baseUrl,
+    apiUrl: derived.apiUrl,
+    databasePath: process.env.DATABASE_PATH || serverDerived.databasePath,
+    secureCookies: serverDerived.secureCookies,
     adminUsername: process.env.ADMIN_USERNAME || null
 };
 

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { BoxContainer } from '../modules/BoxContainer';
 import { AuthViews } from '@/components/ui/modal/auth/AuthViews/AuthViews';
-import { IndicateLoading } from '@/components/atomic/IndiacteLoading';
+import { IndicateLoading } from '@/components/atomic/IndicateLoading';
 import { IndicateStatusDot } from '@/components/atomic/IndicateStatusDot';
 
 export function AuthDemo() {

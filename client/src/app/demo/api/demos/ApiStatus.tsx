@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { IndicateLoading } from '@/components/atomic/IndiacteLoading';
+import { IndicateLoading } from '@/components/atomic/IndicateLoading';
 import { BoxContainer } from '../modules/BoxContainer';
 
 interface ApiInfo {
