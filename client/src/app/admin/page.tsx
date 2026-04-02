@@ -2,11 +2,13 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/utils/api';
+import { toast } from 'sonner';
 import type {
     DashboardResponse,
     AdminPendingComment,
     AdminUser,
     AuditLogEntry,
+    AnalyticsData,
     PaginatedResponse
 } from '@derecksnotes/shared';
 import {
@@ -21,9 +23,7 @@ import {
     InfoValue,
     EmptyState,
     TabBar,
-    Tab,
-    ErrorMessage,
-    Input
+    Tab
 } from '@/components/ui/PageStyles';
 import styled from 'styled-components';
 
@@ -271,30 +271,51 @@ function CommentsTab() {
     };
 
     const approve = async (id: string) => {
-        await api.post(`/admin/comments/${id}/approve`);
-        setComments((prev) => prev.filter((c) => c.id !== id));
+        try {
+            await api.post(`/admin/comments/${id}/approve`);
+            setComments((prev) => prev.filter((c) => c.id !== id));
+            toast.success('Comment approved');
+        } catch {
+            toast.error('Failed to approve');
+        }
     };
 
     const reject = async (id: string) => {
-        await api.post(`/admin/comments/${id}/reject`);
-        setComments((prev) => prev.filter((c) => c.id !== id));
+        try {
+            await api.post(`/admin/comments/${id}/reject`);
+            setComments((prev) => prev.filter((c) => c.id !== id));
+            toast.success('Comment rejected');
+        } catch {
+            toast.error('Failed to reject');
+        }
     };
 
     const bulkApprove = async () => {
-        await api.post('/admin/comments/bulk-approve', {
-            commentIds: Array.from(selected)
-        });
-        setSelected(new Set());
-        load(1);
+        if (!confirm(`Approve ${selected.size} comment(s)?`)) return;
+        try {
+            await api.post('/admin/comments/bulk-approve', {
+                commentIds: Array.from(selected)
+            });
+            toast.success(`${selected.size} comment(s) approved`);
+            setSelected(new Set());
+            load(1);
+        } catch {
+            toast.error('Failed to approve comments');
+        }
     };
 
     const bulkReject = async () => {
         if (!confirm(`Reject ${selected.size} comment(s)?`)) return;
-        await api.post('/admin/comments/bulk-reject', {
-            commentIds: Array.from(selected)
-        });
-        setSelected(new Set());
-        load(1);
+        try {
+            await api.post('/admin/comments/bulk-reject', {
+                commentIds: Array.from(selected)
+            });
+            toast.success(`${selected.size} comment(s) rejected`);
+            setSelected(new Set());
+            load(1);
+        } catch {
+            toast.error('Failed to reject comments');
+        }
     };
 
     const toggle = (id: string) => {
@@ -638,20 +659,15 @@ function AuditTab() {
 // Analytics
 // ============================================================================
 
-interface AnalyticsData {
-    commentsPerDay: Array<{ date: string; count: number }>;
-    usersPerDay: Array<{ date: string; count: number }>;
-    topCommentedPosts: Array<{ slug: string; title: string; count: number }>;
-    topLikedPosts: Array<{ slug: string; title: string; likes: number }>;
-}
-
 function AnalyticsTab() {
     const [data, setData] = useState<AnalyticsData | null>(null);
 
     useEffect(() => {
         api.get<AnalyticsData>('/admin/analytics')
             .then(setData)
-            .catch(() => {});
+            .catch(() => {
+                toast.error('Failed to load analytics');
+            });
     }, []);
 
     if (!data) return <EmptyState>Loading analytics...</EmptyState>;

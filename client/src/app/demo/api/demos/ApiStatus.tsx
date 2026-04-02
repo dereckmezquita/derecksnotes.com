@@ -1,32 +1,34 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { api } from '@/utils/api';
 import { IndicateLoading } from '@/components/atomic/IndiacteLoading';
 import { BoxContainer } from '../modules/BoxContainer';
 
+interface ApiInfo {
+    name: string;
+    version: string;
+    status: string;
+    environment: string;
+}
+
 export function ApiStatus() {
     const [loading, setLoading] = useState(true);
-    const [apiData, setApiData] = useState<any>(null);
+    const [apiData, setApiData] = useState<ApiInfo | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const res = await fetch('/api');
-                setApiData(await res.json());
-            } catch (error) {
-                console.error('Error fetching data:', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchData();
+        fetch('/api')
+            .then((res) => res.json())
+            .then((data: ApiInfo) => setApiData(data))
+            .catch(() => setError('Failed to connect to API'))
+            .finally(() => setLoading(false));
     }, []);
 
     return (
         <BoxContainer>
             {loading ? (
                 <IndicateLoading />
+            ) : error ? (
+                <p style={{ color: '#c62828' }}>{error}</p>
             ) : (
                 <pre>{JSON.stringify(apiData, null, 2)}</pre>
             )}

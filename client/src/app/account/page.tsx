@@ -2,10 +2,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { api } from '@/utils/api';
-import type { ReadHistoryEntry } from '@derecksnotes/shared';
+import type {
+    ReadHistoryEntry,
+    SessionInfo,
+    UserComment,
+    PaginatedResponse
+} from '@derecksnotes/shared';
+import { toast } from 'sonner';
 import {
     PageContainer,
-    PageTitle,
     Card,
     CardTitle,
     Label,
@@ -242,6 +247,49 @@ function ProfileTab({
 }
 
 // ============================================================================
+// Password Helpers
+// ============================================================================
+
+function isPasswordValid(password: string): boolean {
+    return (
+        password.length >= 8 &&
+        /[A-Z]/.test(password) &&
+        /[a-z]/.test(password) &&
+        /[0-9]/.test(password)
+    );
+}
+
+function PasswordStrength({ password }: { password: string }) {
+    const checks = [
+        { label: '8+ characters', pass: password.length >= 8 },
+        { label: 'Uppercase letter', pass: /[A-Z]/.test(password) },
+        { label: 'Lowercase letter', pass: /[a-z]/.test(password) },
+        { label: 'Number', pass: /[0-9]/.test(password) }
+    ];
+
+    return (
+        <div
+            style={{
+                fontSize: '0.75rem',
+                margin: '0 0 0.5rem',
+                display: 'flex',
+                gap: '0.75rem',
+                flexWrap: 'wrap'
+            }}
+        >
+            {checks.map((c) => (
+                <span
+                    key={c.label}
+                    style={{ color: c.pass ? '#0F9960' : '#999' }}
+                >
+                    {c.pass ? '\u2713' : '\u2717'} {c.label}
+                </span>
+            ))}
+        </div>
+    );
+}
+
+// ============================================================================
 // Security Tab
 // ============================================================================
 
@@ -308,12 +356,18 @@ function SecurityTab({
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Min 8 chars, 1 upper, 1 lower, 1 number"
                 />
+                {newPassword && <PasswordStrength password={newPassword} />}
                 {success && <SuccessMessage>{success}</SuccessMessage>}
                 {error && <ErrorMessage>{error}</ErrorMessage>}
                 <ButtonRow>
                     <Button
                         onClick={handleChangePassword}
-                        disabled={saving || !currentPassword || !newPassword}
+                        disabled={
+                            saving ||
+                            !currentPassword ||
+                            !newPassword ||
+                            !isPasswordValid(newPassword)
+                        }
                     >
                         {saving ? 'Changing...' : 'Change Password'}
                     </Button>
@@ -341,17 +395,24 @@ function SecurityTab({
 }
 
 function SessionList() {
-    const [sessions, setSessions] = useState<any[]>([]);
+    const [sessions, setSessions] = useState<SessionInfo[]>([]);
 
     useEffect(() => {
-        api.get<any[]>('/auth/sessions')
+        api.get<SessionInfo[]>('/auth/sessions')
             .then(setSessions)
-            .catch(() => {});
+            .catch(() => {
+                toast.error('Failed to load sessions');
+            });
     }, []);
 
     const revoke = async (id: string) => {
-        await api.delete(`/auth/sessions/${id}`);
-        setSessions((prev) => prev.filter((s) => s.id !== id));
+        try {
+            await api.delete(`/auth/sessions/${id}`);
+            setSessions((prev) => prev.filter((s) => s.id !== id));
+            toast.success('Session revoked');
+        } catch {
+            toast.error('Failed to revoke session');
+        }
     };
 
     return (
@@ -392,7 +453,7 @@ function SessionList() {
 // ============================================================================
 
 function CommentsTab() {
-    const [comments, setComments] = useState<any[]>([]);
+    const [comments, setComments] = useState<UserComment[]>([]);
     const [selected, setSelected] = useState<Set<string>>(new Set());
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(false);
@@ -402,7 +463,7 @@ function CommentsTab() {
     }, []);
 
     const loadComments = async (p: number) => {
-        const data = await api.get<{ data: any[]; hasMore: boolean }>(
+        const data = await api.get<PaginatedResponse<UserComment>>(
             `/users/me/comments?page=${p}&limit=20`
         );
         if (p === 1) setComments(data.data);
@@ -422,11 +483,16 @@ function CommentsTab() {
 
     const bulkDelete = async () => {
         if (!confirm(`Delete ${selected.size} comment(s)?`)) return;
-        await api.post('/users/me/comments/bulk-delete', {
-            commentIds: Array.from(selected)
-        });
-        setSelected(new Set());
-        loadComments(1);
+        try {
+            await api.post('/users/me/comments/bulk-delete', {
+                commentIds: Array.from(selected)
+            });
+            toast.success(`${selected.size} comment(s) deleted`);
+            setSelected(new Set());
+            loadComments(1);
+        } catch {
+            toast.error('Failed to delete comments');
+        }
     };
 
     return (
@@ -528,10 +594,9 @@ function HistoryTab() {
     }, []);
 
     const loadHistory = async (p: number) => {
-        const data = await api.get<{
-            data: ReadHistoryEntry[];
-            hasMore: boolean;
-        }>(`/users/me/read-history?page=${p}&limit=20`);
+        const data = await api.get<PaginatedResponse<ReadHistoryEntry>>(
+            `/users/me/read-history?page=${p}&limit=20`
+        );
         if (p === 1) setEntries(data.data);
         else setEntries((prev) => [...prev, ...data.data]);
         setHasMore(data.hasMore);

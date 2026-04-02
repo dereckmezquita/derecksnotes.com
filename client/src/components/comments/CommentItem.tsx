@@ -4,7 +4,12 @@ import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { api } from '@/utils/api';
 import { useAuth } from '@/context/AuthContext';
-import type { CommentData, CommentHistoryEntry } from '@derecksnotes/shared';
+import { toast } from 'sonner';
+import type {
+    CommentData,
+    CommentHistoryEntry,
+    RepliesResponse
+} from '@derecksnotes/shared';
 import { CommentForm } from './CommentForm';
 import {
     CommentCard,
@@ -98,6 +103,7 @@ export function CommentItem({
     const [editContent, setEditContent] = useState(comment.content);
     const [editSubmitting, setEditSubmitting] = useState(false);
     const [showHistory, setShowHistory] = useState(false);
+    const [historyLoading, setHistoryLoading] = useState(false);
     const [history, setHistory] = useState<CommentHistoryEntry[]>([]);
     const [reactions, setReactions] = useState(comment.reactions);
     const [replies, setReplies] = useState(comment.replies);
@@ -119,7 +125,7 @@ export function CommentItem({
             }>(`/comments/${comment.id}/reactions`, { type });
             setReactions(result);
         } catch {
-            /* ignore */
+            toast.error('Failed to react');
         }
     };
 
@@ -133,7 +139,7 @@ export function CommentItem({
             setEditing(false);
             onRefresh();
         } catch {
-            /* ignore */
+            toast.error('Failed to save edit');
         } finally {
             setEditSubmitting(false);
         }
@@ -145,11 +151,12 @@ export function CommentItem({
             await api.delete(`/comments/${comment.id}`);
             onRefresh();
         } catch {
-            /* ignore */
+            toast.error('Failed to delete comment');
         }
     };
 
     const handleShowHistory = async () => {
+        setHistoryLoading(true);
         try {
             const data = await api.get<CommentHistoryEntry[]>(
                 `/comments/${comment.id}/history`
@@ -157,7 +164,9 @@ export function CommentItem({
             setHistory(data);
             setShowHistory(true);
         } catch {
-            /* ignore */
+            toast.error('Failed to load edit history');
+        } finally {
+            setHistoryLoading(false);
         }
     };
 
@@ -165,16 +174,14 @@ export function CommentItem({
         setLoadingReplies(true);
         try {
             const nextPage = replyPage + 1;
-            const data = await api.get<{
-                replies: CommentData[];
-                total: number;
-                hasMore: boolean;
-            }>(`/comments/${comment.id}/replies?page=${nextPage}&limit=5`);
+            const data = await api.get<RepliesResponse>(
+                `/comments/${comment.id}/replies?page=${nextPage}&limit=5`
+            );
             setReplies((prev) => [...prev, ...data.replies]);
             setHasMoreReplies(data.hasMore);
             setReplyPage(nextPage);
         } catch {
-            /* ignore */
+            toast.error('Failed to load replies');
         } finally {
             setLoadingReplies(false);
         }
@@ -200,7 +207,9 @@ export function CommentItem({
                             </CommentTimestamp>
                             {comment.editedAt && (
                                 <EditedBadge onClick={handleShowHistory}>
-                                    (edited)
+                                    {historyLoading
+                                        ? '(loading...)'
+                                        : '(edited)'}
                                 </EditedBadge>
                             )}
                             {!comment.approved && (

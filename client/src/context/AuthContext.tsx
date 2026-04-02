@@ -42,7 +42,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
+const AUTH_CHECK_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours
 
 export const AuthProvider: React.FC<React.PropsWithChildren> = ({
     children

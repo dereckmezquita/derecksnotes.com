@@ -20,7 +20,7 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Middleware
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 app.use(
     cors({
@@ -48,9 +48,6 @@ app.get('/api/health', (_req, res) => {
 
 // v1 routes
 app.use('/api/v1', v1Routes);
-
-// Limit request body size
-app.use(express.json({ limit: '100kb' }));
 
 // Global error handler — never expose stack traces
 app.use(

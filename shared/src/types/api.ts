@@ -25,6 +25,66 @@ export interface ApiError {
 }
 
 // ============================================================================
+// SESSION TYPES
+// ============================================================================
+
+export interface SessionInfo {
+    id: string;
+    userAgent: string | null;
+    ipAddress: string | null;
+    createdAt: string;
+    expiresAt: string;
+    isCurrent: boolean;
+}
+
+// ============================================================================
+// USER COMMENT (for account page /me/comments)
+// ============================================================================
+
+export interface UserComment {
+    id: string;
+    content: string;
+    slug: string;
+    postTitle: string;
+    depth: number;
+    approved: boolean;
+    createdAt: string;
+    editedAt: string | null;
+    isDeleted: boolean;
+    likes: number;
+    dislikes: number;
+}
+
+// ============================================================================
+// COMMENTS LIST RESPONSE (from GET /comments?slug=...)
+// ============================================================================
+
+export interface CommentsListResponse {
+    comments: CommentData[];
+    total: number;
+    page: number;
+    limit: number;
+    hasMore: boolean;
+}
+
+export interface RepliesResponse {
+    replies: CommentData[];
+    total: number;
+    hasMore: boolean;
+}
+
+// ============================================================================
+// ANALYTICS (admin)
+// ============================================================================
+
+export interface AnalyticsData {
+    commentsPerDay: Array<{ date: string; count: number }>;
+    usersPerDay: Array<{ date: string; count: number }>;
+    topCommentedPosts: Array<{ slug: string; title: string; count: number }>;
+    topLikedPosts: Array<{ slug: string; title: string; likes: number }>;
+}
+
+// ============================================================================
 // POST TYPES
 // ============================================================================
 

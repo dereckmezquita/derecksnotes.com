@@ -5,6 +5,7 @@ import { authenticate } from '@middleware/auth';
 import { profileLimiter } from '@middleware/rateLimit';
 import * as userService from '@services/users';
 import * as authService from '@services/auth';
+import { config } from '@lib/env';
 
 const router = Router();
 
@@ -180,7 +181,7 @@ router.post(
 
             res.cookie('sessionId', session.token, {
                 httpOnly: true,
-                secure: req.secure,
+                secure: config.secureCookies,
                 sameSite: 'lax',
                 maxAge: 7 * 24 * 60 * 60 * 1000
             });

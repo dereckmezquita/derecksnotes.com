@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '@/utils/api';
-import type { CommentData } from '@derecksnotes/shared';
+import type { CommentsListResponse } from '@derecksnotes/shared';
 import { CommentForm } from './CommentForm';
 import { CommentItem } from './CommentItem';
 import {
@@ -16,16 +16,10 @@ interface CommentsProps {
     title: string;
 }
 
-interface CommentsResponse {
-    comments: CommentData[];
-    total: number;
-    page: number;
-    limit: number;
-    hasMore: boolean;
-}
-
 export function Comments({ slug, title }: CommentsProps) {
-    const [comments, setComments] = useState<CommentData[]>([]);
+    const [comments, setComments] = useState<CommentsListResponse['comments']>(
+        []
+    );
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(false);
     const [total, setTotal] = useState(0);
@@ -35,7 +29,7 @@ export function Comments({ slug, title }: CommentsProps) {
         async (pageNum: number, append: boolean = false) => {
             setLoading(true);
             try {
-                const data = await api.get<CommentsResponse>(
+                const data = await api.get<CommentsListResponse>(
                     `/comments?slug=${encodeURIComponent(slug)}&page=${pageNum}&limit=20&maxDepth=3`
                 );
                 if (append) {
