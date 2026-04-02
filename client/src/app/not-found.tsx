@@ -518,13 +518,11 @@ export default function NotFound() {
                 ctx.setLineDash([]);
             }
 
-            // System readout — bottom of canvas
-            ctx.font = '10px Roboto, sans-serif';
-            ctx.fillStyle = gr(0.7);
-            ctx.textAlign = 'center';
-            const readout = `g = ${useGravity ? G : 0} m/s\u00B2  \u00B7  e = ${damping}  \u00B7  n = ${N}  \u00B7  t = ${(frame / 60).toFixed(1)}s  \u00B7  collisions: ${collisionCount}  \u00B7  \u03A3KE = ${totalKE.toFixed(0)} J  \u00B7  E = ${(totalKE + totalPE).toFixed(0)} J`;
-            ctx.fillText(readout, w / 2, h - 8);
-            ctx.textAlign = 'start';
+            // Update readout element
+            const el = document.getElementById('sim-readout');
+            if (el) {
+                el.textContent = `g = ${useGravity ? G : 0} m/s\u00B2  \u00B7  e = ${damping}  \u00B7  n = ${N}  \u00B7  t = ${(frame / 60).toFixed(1)}s  \u00B7  collisions: ${collisionCount}  \u00B7  \u03A3KE = ${totalKE.toFixed(0)} J  \u00B7  E = ${(totalKE + totalPE).toFixed(0)} J`;
+            }
 
             // Axes (top-left)
             ctx.beginPath();
@@ -718,6 +716,18 @@ export default function NotFound() {
                         />
                     </label>
                 </div>
+
+                <p
+                    id="sim-readout"
+                    style={{
+                        fontFamily: 'Roboto, sans-serif',
+                        fontSize: '0.75rem',
+                        color: 'hsla(0, 0%, 40%, 0.85)',
+                        margin: '0.5rem 0 0',
+                        textAlign: 'center',
+                        pointerEvents: 'none'
+                    }}
+                />
             </div>
         </>
     );
