@@ -162,10 +162,16 @@ export async function getCommentsForPost(
 }> {
     const offset = (page - 1) * limit;
 
+    // Show approved comments + the requesting user's own unapproved comments
+    const visibilityFilter = userId
+        ? sql`(${schema.comments.approved} = 1 OR ${schema.comments.userId} = ${userId})`
+        : eq(schema.comments.approved, 1);
+
     const topLevel = await db.query.comments.findMany({
         where: and(
             eq(schema.comments.postId, postId),
-            isNull(schema.comments.parentId)
+            isNull(schema.comments.parentId),
+            visibilityFilter
         ),
         orderBy: [
             desc(schema.comments.pinnedAt),
@@ -192,7 +198,8 @@ export async function getCommentsForPost(
         .where(
             and(
                 eq(schema.comments.postId, postId),
-                isNull(schema.comments.parentId)
+                isNull(schema.comments.parentId),
+                visibilityFilter
             )
         );
 
@@ -230,10 +237,15 @@ export async function getRepliesForComment(
 ): Promise<{ replies: CommentData[]; total: number; hasMore: boolean }> {
     const offset = (page - 1) * limit;
 
+    const replyVisibility = userId
+        ? sql`(${schema.comments.approved} = 1 OR ${schema.comments.userId} = ${userId})`
+        : eq(schema.comments.approved, 1);
+
     const childComments = await db.query.comments.findMany({
         where: and(
             eq(schema.comments.parentId, commentId),
-            isNull(schema.comments.deletedAt)
+            isNull(schema.comments.deletedAt),
+            replyVisibility
         ),
         orderBy: [asc(schema.comments.createdAt)],
         limit,
