@@ -229,15 +229,26 @@ export const ErrorMessage = styled.p`
 `;
 
 export const TabBar = styled.div`
+    position: relative;
     display: flex;
     border-bottom: 1px solid ${(p) => p.theme.container.border.colour.primary()};
     margin-bottom: ${(p) => p.theme.container.spacing.medium};
     gap: 0;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
 
     &::-webkit-scrollbar {
         display: none;
+    }
+
+    /* Fade hint on right edge when scrollable */
+    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+
+    @media (min-width: ${(p) => p.theme.container.widths.min_width_mobile}) {
+        mask-image: none;
+        -webkit-mask-image: none;
     }
 `;
 
@@ -259,6 +270,8 @@ export const Tab = styled.button<{ $active: boolean }>`
     cursor: pointer;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+    white-space: nowrap;
+    flex-shrink: 0;
 
     &:hover {
         color: ${(p) => p.theme.text.colour.header()};

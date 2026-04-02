@@ -188,9 +188,11 @@ export const ActionButton = styled.button<{ $active?: boolean }>`
 export const ReplyLink = styled.button`
     background: none;
     border: none;
+    border-left: 1px solid ${(p) => p.theme.container.border.colour.primary()};
     cursor: pointer;
     color: ${(p) => p.theme.text.colour.light_grey()};
     font-size: ${(p) => p.theme.text.size.small};
+    padding: 0 0 0 ${(p) => p.theme.container.spacing.small};
 
     &:hover {
         color: ${(p) => p.theme.text.colour.anchor()};
