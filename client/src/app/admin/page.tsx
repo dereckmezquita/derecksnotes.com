@@ -39,6 +39,7 @@ const StatCard = styled.div`
     padding: ${(p) => p.theme.container.spacing.medium};
     border: 1px solid ${(p) => p.theme.container.border.colour.primary()};
     border-radius: ${(p) => p.theme.container.border.radius};
+    background: ${(p) => p.theme.container.background.colour.card()};
 `;
 
 const StatNumber = styled.div`
