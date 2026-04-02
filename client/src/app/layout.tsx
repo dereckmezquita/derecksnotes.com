@@ -43,7 +43,9 @@ export default function RootLayout({
                                 <GlobalStyles />
                                 <Logo />
                                 <Navbar />
-                                <ErrorBoundary>{children}</ErrorBoundary>
+                                <main>
+                                    <ErrorBoundary>{children}</ErrorBoundary>
+                                </main>
                                 <Footer />
                             </body>
                         </html>
