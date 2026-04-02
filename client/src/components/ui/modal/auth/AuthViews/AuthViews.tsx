@@ -75,8 +75,9 @@ export function AuthViews({
         } catch (error: any) {
             console.error('Error:', error);
             const errorMessage =
-                error.response?.data?.error ||
-                error.response?.data?.details?.[0]?.message ||
+                error.data?.error ||
+                error.data?.details?.[0]?.message ||
+                error.message ||
                 'An unknown error occurred';
             toast.error(`Error: ${errorMessage}`, { id: toastId });
         }

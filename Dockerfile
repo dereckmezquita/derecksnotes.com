@@ -1,64 +1,67 @@
 # Build stage for client
 FROM oven/bun:1.1 AS client-builder
-WORKDIR /app/client
-COPY client/package.json client/bun.lock* ./
+WORKDIR /app
+
+# Copy workspace config and all package.json files
+COPY package.json bun.lock* ./
+COPY client/package.json client/
+COPY server/package.json server/
+COPY shared/package.json shared/
+
+# Install all workspace dependencies
 RUN bun install --frozen-lockfile
 
-COPY client/ ./
-# Clean any stale build artefacts
-RUN rm -rf .next
+# Copy shared package source
+COPY shared/ shared/
 
-# Copy root package.json (client env.ts reads version from it)
-COPY package.json /app/package.json
-
-# Copy shared package (workspace dependency)
-COPY shared/ /app/shared/
+# Copy client source
+COPY client/ client/
+RUN rm -rf client/.next
 
 # Build arguments
 ARG BUILD_ENV=prod
 ARG COMMIT_SHA=local
 
-# Make available to Next.js build (NEXT_PUBLIC_ prefix exposes to browser)
 ENV BUILD_ENV=${BUILD_ENV}
 ENV NEXT_PUBLIC_COMMIT_SHA=${COMMIT_SHA}
 
+WORKDIR /app/client
 RUN bun run build
 
 # Build stage for server
 FROM oven/bun:1.1 AS server-builder
-WORKDIR /app/server
-COPY server/package.json server/bun.lock* ./
+WORKDIR /app
+
+COPY package.json bun.lock* ./
+COPY client/package.json client/
+COPY server/package.json server/
+COPY shared/package.json shared/
+
 RUN bun install --frozen-lockfile
 
-COPY server/ ./
-# Copy shared package
-COPY shared/ /app/shared/
+COPY shared/ shared/
+COPY server/ server/
 
 # Production image
 FROM oven/bun:1.1-slim AS production
 
-# Install tini for proper PID 1 init and curl for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends tini curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Copy the full client (includes .next build output, src, and node_modules)
-COPY --from=client-builder /app/client ./client
-
-# Copy Express server
-COPY --from=server-builder /app/server ./server
-
-# Copy shared package
-COPY --from=client-builder /app/shared ./shared
-
-# Copy root package.json
+# Copy root package.json for version reading
 COPY --from=client-builder /app/package.json ./package.json
 
-# Install production deps for server
-WORKDIR /app/server
-RUN bun install --production
+# Copy built client
+COPY --from=client-builder /app/client ./client
+COPY --from=client-builder /app/node_modules ./node_modules
 
-WORKDIR /app
+# Copy server
+COPY --from=server-builder /app/server ./server
+COPY --from=server-builder /app/node_modules ./node_modules
+
+# Copy shared
+COPY --from=client-builder /app/shared ./shared
 
 # Create data directory for SQLite
 RUN mkdir -p /app/data
@@ -66,6 +69,9 @@ RUN mkdir -p /app/data
 # Copy entrypoint script
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
+
+# Copy drizzle migrations
+COPY --from=server-builder /app/server/drizzle ./server/drizzle
 
 EXPOSE 3000 3001
 

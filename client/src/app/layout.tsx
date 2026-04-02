@@ -21,6 +21,7 @@ import { BlogFilterProvider } from '@/components/pages/index/BlogFilterContext';
 import { AuthProvider } from '@/context/AuthContext';
 
 import { Toaster } from 'sonner';
+import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 export default function RootLayout({
     children
@@ -42,7 +43,7 @@ export default function RootLayout({
                                 <GlobalStyles />
                                 <Logo />
                                 <Navbar />
-                                {children}
+                                <ErrorBoundary>{children}</ErrorBoundary>
                                 <Footer />
                             </body>
                         </html>

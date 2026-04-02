@@ -5,6 +5,11 @@ export const PageContainer = styled.div`
     margin: 0 auto;
     padding: ${(p) => p.theme.container.spacing.large}
         ${(p) => p.theme.container.spacing.medium};
+
+    @media (max-width: ${(p) => p.theme.container.widths.min_width_mobile}) {
+        padding: ${(p) => p.theme.container.spacing.medium}
+            ${(p) => p.theme.container.spacing.small};
+    }
 `;
 
 export const PageTitle = styled.h1`
@@ -110,6 +115,7 @@ export const ButtonRow = styled.div`
     display: flex;
     gap: ${(p) => p.theme.container.spacing.small};
     margin-top: ${(p) => p.theme.container.spacing.small};
+    flex-wrap: wrap;
 `;
 
 export const InfoRow = styled.div`
@@ -119,9 +125,15 @@ export const InfoRow = styled.div`
     padding: ${(p) => p.theme.container.spacing.small} 0;
     border-bottom: 1px solid ${(p) => p.theme.container.border.colour.primary()};
     font-size: ${(p) => p.theme.text.size.small};
+    gap: ${(p) => p.theme.container.spacing.small};
 
     &:last-child {
         border-bottom: none;
+    }
+
+    @media (max-width: ${(p) => p.theme.container.widths.min_width_mobile}) {
+        flex-direction: column;
+        align-items: flex-start;
     }
 `;
 
@@ -160,6 +172,12 @@ export const ProfileHeader = styled.div`
     gap: ${(p) => p.theme.container.spacing.medium};
     align-items: flex-start;
     margin-bottom: ${(p) => p.theme.container.spacing.medium};
+
+    @media (max-width: ${(p) => p.theme.container.widths.min_width_mobile}) {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
 `;
 
 export const ProfileInfo = styled.div`
@@ -215,6 +233,12 @@ export const TabBar = styled.div`
     border-bottom: 1px solid ${(p) => p.theme.container.border.colour.primary()};
     margin-bottom: ${(p) => p.theme.container.spacing.medium};
     gap: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
 `;
 
 export const Tab = styled.button<{ $active: boolean }>`

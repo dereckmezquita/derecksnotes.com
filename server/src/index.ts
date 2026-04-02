@@ -49,6 +49,22 @@ app.get('/api/health', (_req, res) => {
 // v1 routes
 app.use('/api/v1', v1Routes);
 
+// Limit request body size
+app.use(express.json({ limit: '100kb' }));
+
+// Global error handler — never expose stack traces
+app.use(
+    (
+        err: any,
+        _req: express.Request,
+        res: express.Response,
+        _next: express.NextFunction
+    ) => {
+        console.error('Unhandled error:', err);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+);
+
 // Start
 app.listen(config.port, () => {
     console.log(`API server running at http://localhost:${config.port}`);
