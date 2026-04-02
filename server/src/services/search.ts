@@ -166,7 +166,8 @@ function indexMdxFile(
         const raw = fs.readFileSync(filePath, 'utf-8');
         const { data: frontmatter, content } = matter(raw);
 
-        if (frontmatter.published === false) return;
+        // Only index explicitly published content
+        if (frontmatter.published !== true) return;
 
         const plainText = mdxToPlainText(content);
         const resolvedPath = urlPath || `/${section}/${slug}`;
@@ -192,6 +193,50 @@ function indexMdxFile(
 }
 
 // ============================================================================
+// Dictionary Scanning
+// ============================================================================
+
+function scanDictionaryDefinitions(
+    dir: string,
+    subject: string,
+    entries: IndexEntry[]
+): void {
+    if (!fs.existsSync(dir)) return;
+
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.mdx'));
+
+    for (const file of files) {
+        try {
+            const filePath = path.join(dir, file);
+            const raw = fs.readFileSync(filePath, 'utf-8');
+            const { data: frontmatter, content } = matter(raw);
+
+            if (frontmatter.published !== true) continue;
+
+            const plainText = mdxToPlainText(content);
+            const word = frontmatter.word || file.replace('.mdx', '');
+            const slug = file.replace('.mdx', '');
+
+            entries.push({
+                slug,
+                title: word.charAt(0).toUpperCase() + word.slice(1),
+                section: `dictionary-${subject}`,
+                tags: [subject, frontmatter.category || '']
+                    .filter(Boolean)
+                    .join(','),
+                date: '',
+                author: frontmatter.dataSource || '',
+                content: plainText.substring(0, 10000),
+                path: `/dictionaries/${subject}/${slug}`,
+                type: 'post'
+            });
+        } catch {
+            // skip
+        }
+    }
+}
+
+// ============================================================================
 // Index Building
 // ============================================================================
 
@@ -210,10 +255,22 @@ export function buildSearchIndex(): void {
 
     const entries: IndexEntry[] = [];
 
-    // Scan MDX content
+    // Scan MDX content (blog, courses, references)
     for (const section of SECTIONS) {
         const postsDir = path.join(config.contentDir, section, 'posts');
         scanDirectory(postsDir, section, entries);
+    }
+
+    // Scan dictionary definitions
+    const DICT_SUBJECTS = ['biology', 'chemistry', 'mathematics'];
+    for (const subject of DICT_SUBJECTS) {
+        const defsDir = path.join(
+            config.contentDir,
+            'dictionaries',
+            subject,
+            'definitions'
+        );
+        scanDictionaryDefinitions(defsDir, subject, entries);
     }
 
     // Also index comments from the database

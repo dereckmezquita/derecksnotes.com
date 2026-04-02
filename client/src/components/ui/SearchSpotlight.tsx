@@ -250,7 +250,10 @@ const SECTION_COLORS: Record<string, string> = {
     blog: 'hsla(210, 60%, 50%, 1)',
     courses: 'hsla(145, 50%, 40%, 1)',
     references: 'hsla(280, 45%, 50%, 1)',
-    comments: 'hsla(22, 70%, 50%, 1)'
+    comments: 'hsla(22, 70%, 50%, 1)',
+    'dictionary-biology': 'hsla(120, 45%, 40%, 1)',
+    'dictionary-chemistry': 'hsla(200, 55%, 45%, 1)',
+    'dictionary-mathematics': 'hsla(350, 50%, 45%, 1)'
 };
 
 function groupBySection(results: SearchResult[]): Map<string, SearchResult[]> {
