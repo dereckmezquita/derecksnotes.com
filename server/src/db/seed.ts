@@ -368,26 +368,26 @@ async function seed() {
     const posts = [
         {
             id: id(),
-            slug: 'blog/20250207_async-programming-in-r-for-js-devs',
+            slug: 'blog/20250208_async-programming-in-R-for-JS-devs',
             title: 'Async Programming in R for JS Devs',
             createdAt: daysAgo(60)
         },
         {
             id: id(),
-            slug: 'blog/20241219_bioinformatics-comprehensive-cheat-sheet',
+            slug: 'blog/20241220_bioinformatics-cheat-sheet',
             title: 'Bioinformatics Comprehensive Cheat Sheet',
             createdAt: daysAgo(45)
         },
         {
             id: id(),
-            slug: 'blog/20241213_canvases-a-canvas-for-creativity',
-            title: 'Canvases: A Canvas for Creativity',
+            slug: 'blog/20241214_new-blog-feature-canvases',
+            title: 'New Blog Feature: Canvases',
             createdAt: daysAgo(30)
         },
         {
             id: id(),
-            slug: 'courses/r-programming/01-introduction',
-            title: 'R Programming: Introduction',
+            slug: 'blog/20210730_copper-and-infectious-diseases',
+            title: 'Copper and Infectious Diseases',
             createdAt: daysAgo(50)
         },
         {

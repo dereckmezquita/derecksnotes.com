@@ -478,10 +478,7 @@ function CommentsTab() {
                                 <br />
                                 <InfoLabel>
                                     on{' '}
-                                    <a
-                                        href={`/${c.slug}`}
-                                        style={{ color: 'inherit' }}
-                                    >
+                                    <a href={`/${c.slug}`}>
                                         {c.postTitle || c.slug}
                                     </a>{' '}
                                     — {formatDate(c.createdAt)}
@@ -551,13 +548,7 @@ function HistoryTab() {
                     <InfoRow key={i}>
                         <div>
                             <InfoValue>
-                                <a
-                                    href={`/${e.postSlug}`}
-                                    style={{
-                                        color: 'inherit',
-                                        textDecoration: 'none'
-                                    }}
-                                >
+                                <a href={`/${e.postSlug}`}>
                                     {e.postTitle || e.postSlug}
                                 </a>
                             </InfoValue>
