@@ -1,17 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-
-interface Particle {
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    r: number;
-    mass: number;
-    trail: Array<{ x: number; y: number }>;
-    id: number;
-}
+import { Vec2, Particle, QuadTree, Renderer } from '@/lib/physics';
 
 let nextId = 0;
 
@@ -20,10 +10,14 @@ export default function NotFound() {
     const [gravityOn, setGravityOn] = useState(false);
     const [attractOn, setAttractOn] = useState(false);
     const [ballSize, setBallSize] = useState(12);
+    const [qtCapacity, setQtCapacity] = useState(4);
+    const [spawnCount, setSpawnCount] = useState(1);
     const gravityRef = useRef(false);
     const attractRef = useRef(false);
     const ballSizeRef = useRef(12);
-    const mouseRef = useRef({ x: -1000, y: -1000, active: false });
+    const qtCapacityRef = useRef(4);
+    const spawnCountRef = useRef(1);
+    const mouseRef = useRef({ pos: new Vec2(-1000, -1000), active: false });
     const particlesRef = useRef<Particle[]>([]);
 
     useEffect(() => {
@@ -35,6 +29,12 @@ export default function NotFound() {
     useEffect(() => {
         ballSizeRef.current = ballSize;
     }, [ballSize]);
+    useEffect(() => {
+        qtCapacityRef.current = qtCapacity;
+    }, [qtCapacity]);
+    useEffect(() => {
+        spawnCountRef.current = spawnCount;
+    }, [spawnCount]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -44,6 +44,7 @@ export default function NotFound() {
 
         let animationId: number;
         const dpr = window.devicePixelRatio || 1;
+        const renderer = new Renderer(ctx);
 
         function resize() {
             if (!canvas) return;
@@ -58,86 +59,87 @@ export default function NotFound() {
         const W = () => window.innerWidth;
         const H = () => window.innerHeight;
 
-        const G = 0.1;
+        // Physics constants
+        const GRAVITY = 0.1;
         const INTER_G = 0.3;
-        const damping = 0.85;
+        const DAMPING = 0.85;
         const MOUSE_ATTRACT = 0.4;
-        const TRAIL_LEN = 80;
-
-        const o = (a: number) => `hsla(22, 85%, 38%, ${a})`;
-        const gr = (a: number) => `hsla(0, 0%, 30%, ${a})`;
+        const INITIAL_COUNT = 14;
 
         const particles = particlesRef.current;
         if (particles.length === 0) {
-            for (let i = 0; i < 14; i++) {
+            for (let i = 0; i < INITIAL_COUNT; i++) {
                 const r = 6 + Math.random() * 16;
-                particles.push({
-                    x: 50 + Math.random() * (W() - 100),
-                    y: 30 + Math.random() * (H() * 0.6),
-                    vx: (Math.random() - 0.5) * 5,
-                    vy: (Math.random() - 0.5) * 4,
-                    r,
-                    mass: r * r,
-                    trail: [],
-                    id: nextId++
-                });
+                particles.push(
+                    new Particle({
+                        id: nextId++,
+                        pos: Vec2.from(
+                            50 + Math.random() * (W() - 100),
+                            30 + Math.random() * (H() * 0.6)
+                        ),
+                        vel: Vec2.from(
+                            (Math.random() - 0.5) * 5,
+                            (Math.random() - 0.5) * 4
+                        ),
+                        radius: r
+                    })
+                );
             }
         }
 
         let frame = 0;
-        let totalKE = 0;
-        let totalPE = 0;
         let collisionCount = 0;
-        let dragStart: { x: number; y: number } | null = null;
+        let dragStart: Vec2 | null = null;
         let isDragging = false;
 
-        function getCanvasPos(e: MouseEvent) {
-            return { x: e.clientX, y: e.clientY };
-        }
-
+        // Input handlers
         function onMouseMove(e: MouseEvent) {
-            const pos = getCanvasPos(e);
-            mouseRef.current.x = pos.x;
-            mouseRef.current.y = pos.y;
+            mouseRef.current.pos.set(e.clientX, e.clientY);
             mouseRef.current.active = true;
         }
         function onMouseLeave() {
             mouseRef.current.active = false;
         }
         function onMouseDown(e: MouseEvent) {
-            dragStart = getCanvasPos(e);
+            dragStart = Vec2.from(e.clientX, e.clientY);
             isDragging = false;
         }
         function onMouseMoveDrag(e: MouseEvent) {
-            if (dragStart) {
-                const pos = getCanvasPos(e);
-                const dx = pos.x - dragStart.x,
-                    dy = pos.y - dragStart.y;
-                if (Math.sqrt(dx * dx + dy * dy) > 5) isDragging = true;
+            if (
+                dragStart &&
+                Vec2.from(e.clientX, e.clientY).distTo(dragStart) > 5
+            ) {
+                isDragging = true;
             }
         }
         function onMouseUp(e: MouseEvent) {
             if (!dragStart) return;
-            const pos = getCanvasPos(e);
             const r = ballSizeRef.current;
-            const dx = dragStart.x - pos.x,
-                dy = dragStart.y - pos.y;
-            const speed = Math.sqrt(dx * dx + dy * dy) * 0.08;
-            const angle = Math.atan2(dy, dx);
-            particles.push({
-                x: dragStart.x,
-                y: dragStart.y,
-                vx: isDragging
-                    ? Math.cos(angle) * speed
-                    : (Math.random() - 0.5) * 3,
-                vy: isDragging
-                    ? Math.sin(angle) * speed
-                    : (Math.random() - 0.5) * 3,
-                r,
-                mass: r * r,
-                trail: [],
-                id: nextId++
-            });
+            const count = spawnCountRef.current;
+            const endPos = Vec2.from(e.clientX, e.clientY);
+            const launch = dragStart.sub(endPos);
+            const speed = launch.length() * 0.08;
+            const angle = launch.angle();
+
+            for (let i = 0; i < count; i++) {
+                const spread = count > 1 ? (Math.random() - 0.5) * 0.3 : 0;
+                const sizeVariation =
+                    count > 1 ? r * (0.7 + Math.random() * 0.6) : r;
+                particles.push(
+                    new Particle({
+                        id: nextId++,
+                        pos: dragStart.add(Vec2.random(count > 1 ? 10 : 0)),
+                        vel: isDragging
+                            ? Vec2.fromAngle(
+                                  angle + spread,
+                                  speed * (0.8 + Math.random() * 0.4)
+                              )
+                            : Vec2.random(1.5),
+                        radius: sizeVariation
+                    })
+                );
+            }
+
             dragStart = null;
             isDragging = false;
         }
@@ -148,418 +150,112 @@ export default function NotFound() {
         canvas.addEventListener('mousedown', onMouseDown);
         canvas.addEventListener('mouseup', onMouseUp);
 
-        function dimLine(
-            x1: number,
-            y1: number,
-            x2: number,
-            y2: number,
-            label: string
-        ) {
-            if (!ctx) return;
-            const dx = x2 - x1,
-                dy = y2 - y1;
-            const len = Math.sqrt(dx * dx + dy * dy);
-            if (len < 35) return;
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.strokeStyle = gr(0.2);
-            ctx.lineWidth = 0.5;
-            ctx.setLineDash([2, 3]);
-            ctx.stroke();
-            ctx.setLineDash([]);
-            const nx = -dy / len,
-                ny = dx / len;
-            ctx.beginPath();
-            ctx.moveTo(x1 + nx * 4, y1 + ny * 4);
-            ctx.lineTo(x1 - nx * 4, y1 - ny * 4);
-            ctx.moveTo(x2 + nx * 4, y2 + ny * 4);
-            ctx.lineTo(x2 - nx * 4, y2 - ny * 4);
-            ctx.stroke();
-            ctx.font = '9px Roboto, sans-serif';
-            ctx.fillStyle = gr(0.6);
-            ctx.fillText(label, (x1 + x2) / 2 + 4, (y1 + y2) / 2 - 4);
-        }
-
         function draw() {
             if (!ctx) return;
             const w = W(),
                 h = H();
-            ctx.clearRect(0, 0, w, h);
+            renderer.clear(w, h);
             frame++;
+
             const useGravity = gravityRef.current;
             const useAttract = attractRef.current;
             const mouse = mouseRef.current;
             const N = particles.length;
+            const groundY = h - 24;
+            const wind = Vec2.from(Math.sin(frame * 0.012) * 0.02, 0);
 
+            // Random perturbation
             if (frame % 90 === 0 && N > 0) {
                 const idx = Math.floor(Math.random() * N);
-                const strength = 2 + Math.random() * 3;
-                const ang = Math.random() * Math.PI * 2;
-                particles[idx].vx += Math.cos(ang) * strength;
-                particles[idx].vy += Math.sin(ang) * strength * 0.7;
+                particles[idx].applyImpulse(Vec2.random(2 + Math.random() * 3));
             }
 
-            const wind = Math.sin(frame * 0.012) * 0.02;
-            totalKE = 0;
-            totalPE = 0;
-            const groundY = h - 24;
+            // Build quadtree
+            const qt = new QuadTree(
+                { x: 0, y: 0, w, h },
+                0,
+                qtCapacityRef.current
+            );
+            for (const p of particles) qt.insert(p);
 
-            // Inter-particle gravitational attraction
+            // Inter-particle gravity (use quadtree for range query)
             if (useAttract) {
-                for (let i = 0; i < N; i++) {
-                    for (let j = i + 1; j < N; j++) {
-                        const a = particles[i],
-                            b = particles[j];
-                        const dx = b.x - a.x,
-                            dy = b.y - a.y;
-                        const distSq = dx * dx + dy * dy;
-                        const dist = Math.sqrt(distSq) + 1;
-                        const minDist = a.r + b.r;
-                        if (dist > minDist) {
-                            const force =
-                                (INTER_G * a.mass * b.mass) / (distSq + 100);
-                            const fx = (force * dx) / dist,
-                                fy = (force * dy) / dist;
-                            a.vx += fx / a.mass;
-                            a.vy += fy / a.mass;
-                            b.vx -= fx / b.mass;
-                            b.vy -= fy / b.mass;
-                        }
-                    }
-                }
-            }
-
-            for (const p of particles) {
-                p.trail.push({ x: p.x, y: p.y });
-                if (p.trail.length > TRAIL_LEN) p.trail.shift();
-
-                if (useGravity) {
-                    p.vy += G;
-                } else if (mouse.active) {
-                    const dx = mouse.x - p.x,
-                        dy = mouse.y - p.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy) + 1;
-                    const force = (MOUSE_ATTRACT * p.mass) / (dist * 0.5);
-                    const maxF = 1.5;
-                    p.vx += (Math.min(maxF, force) * dx) / dist / p.mass;
-                    p.vy += (Math.min(maxF, force) * dy) / dist / p.mass;
-                    p.vx *= 0.995;
-                    p.vy *= 0.995;
-                }
-
-                p.vx += wind;
-                p.x += p.vx;
-                p.y += p.vy;
-
-                if (p.x - p.r < 0) {
-                    p.x = p.r;
-                    p.vx *= -damping;
-                }
-                if (p.x + p.r > w) {
-                    p.x = w - p.r;
-                    p.vx *= -damping;
-                }
-                if (useGravity) {
-                    if (p.y + p.r > groundY) {
-                        p.y = groundY - p.r;
-                        p.vy *= -damping;
-                        p.vx *= 0.99;
-                    }
-                } else {
-                    if (p.y + p.r > h) {
-                        p.y = h - p.r;
-                        p.vy *= -damping;
-                    }
-                }
-                if (p.y - p.r < 0) {
-                    p.y = p.r;
-                    p.vy *= -damping;
-                }
-
-                totalKE += 0.5 * p.mass * (p.vx * p.vx + p.vy * p.vy);
-                totalPE += p.mass * G * Math.max(0, groundY - p.y);
-            }
-
-            // Collisions
-            for (let i = 0; i < N; i++) {
-                for (let j = i + 1; j < N; j++) {
-                    const a = particles[i],
-                        b = particles[j];
-                    const dx = b.x - a.x,
-                        dy = b.y - a.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    const minDist = a.r + b.r;
-                    if (dist < minDist && dist > 0) {
-                        collisionCount++;
-                        const nx = dx / dist,
-                            ny = dy / dist;
-                        const relVn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny;
-                        if (relVn > 0) {
-                            const tm = a.mass + b.mass,
-                                imp = (2 * relVn) / tm;
-                            a.vx -= imp * b.mass * nx * damping;
-                            a.vy -= imp * b.mass * ny * damping;
-                            b.vx += imp * a.mass * nx * damping;
-                            b.vy += imp * a.mass * ny * damping;
-                        }
-                        const ov = (minDist - dist) / 2;
-                        a.x -= ov * nx;
-                        a.y -= ov * ny;
-                        b.x += ov * nx;
-                        b.y += ov * ny;
-                    }
-                }
-            }
-
-            // ---- RENDER ----
-
-            // Trails
-            for (const p of particles) {
-                if (p.trail.length < 2) continue;
-                for (let i = 1; i < p.trail.length; i++) {
-                    ctx.beginPath();
-                    ctx.moveTo(p.trail[i - 1].x, p.trail[i - 1].y);
-                    ctx.lineTo(p.trail[i].x, p.trail[i].y);
-                    ctx.strokeStyle = o((i / p.trail.length) * 0.45);
-                    ctx.lineWidth = 1.5 + (i / p.trail.length) * 1;
-                    ctx.stroke();
-                }
-            }
-
-            // Mouse attractor
-            if (!useGravity && mouse.active) {
-                ctx.beginPath();
-                ctx.arc(mouse.x, mouse.y, 10, 0, Math.PI * 2);
-                ctx.strokeStyle = o(0.5);
-                ctx.lineWidth = 1.2;
-                ctx.setLineDash([3, 3]);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.beginPath();
-                ctx.moveTo(mouse.x - 6, mouse.y);
-                ctx.lineTo(mouse.x + 6, mouse.y);
-                ctx.moveTo(mouse.x, mouse.y - 6);
-                ctx.lineTo(mouse.x, mouse.y + 6);
-                ctx.strokeStyle = o(0.4);
-                ctx.lineWidth = 1;
-                ctx.stroke();
                 for (const p of particles) {
-                    const dist = Math.sqrt(
-                        (mouse.x - p.x) ** 2 + (mouse.y - p.y) ** 2
-                    );
-                    if (dist < 250) {
-                        ctx.beginPath();
-                        ctx.moveTo(p.x, p.y);
-                        ctx.lineTo(mouse.x, mouse.y);
-                        ctx.strokeStyle = o(0.07);
-                        ctx.lineWidth = 0.5;
-                        ctx.stroke();
+                    const nearby = qt.queryRadius(p.pos, 300);
+                    for (const other of nearby) {
+                        if (other.id > p.id) {
+                            Particle.attract(p, other, INTER_G);
+                        }
                     }
                 }
             }
 
-            // Slingshot indicator
-            if (dragStart && isDragging && mouse.active) {
-                const dx = dragStart.x - mouse.x,
-                    dy = dragStart.y - mouse.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                const angle = Math.atan2(dy, dx);
-                const speed = dist * 0.08;
-                ctx.beginPath();
-                ctx.moveTo(dragStart.x, dragStart.y);
-                ctx.lineTo(mouse.x, mouse.y);
-                ctx.strokeStyle = o(0.4);
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([4, 4]);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                const arrowLen = Math.min(dist * 0.6, 80);
-                const ax = dragStart.x + Math.cos(angle) * arrowLen,
-                    ay = dragStart.y + Math.sin(angle) * arrowLen;
-                ctx.beginPath();
-                ctx.moveTo(dragStart.x, dragStart.y);
-                ctx.lineTo(ax, ay);
-                ctx.strokeStyle = o(0.7);
-                ctx.lineWidth = 2;
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(ax, ay);
-                ctx.lineTo(
-                    ax - 8 * Math.cos(angle - 0.35),
-                    ay - 8 * Math.sin(angle - 0.35)
-                );
-                ctx.moveTo(ax, ay);
-                ctx.lineTo(
-                    ax - 8 * Math.cos(angle + 0.35),
-                    ay - 8 * Math.sin(angle + 0.35)
-                );
-                ctx.stroke();
-                const previewR = ballSizeRef.current;
-                ctx.beginPath();
-                ctx.arc(dragStart.x, dragStart.y, previewR, 0, Math.PI * 2);
-                ctx.strokeStyle = o(0.5);
-                ctx.lineWidth = 1.5;
-                ctx.setLineDash([3, 3]);
-                ctx.stroke();
-                ctx.setLineDash([]);
-                ctx.font = '11px Roboto, sans-serif';
-                ctx.fillStyle = o(0.85);
-                ctx.fillText(
-                    `v = ${speed.toFixed(1)}`,
-                    dragStart.x + previewR + 8,
-                    dragStart.y - 6
-                );
-                ctx.fillText(
-                    `\u03B8 = ${((angle * 180) / Math.PI).toFixed(0)}\u00B0`,
-                    dragStart.x + previewR + 8,
-                    dragStart.y + 8
-                );
-            }
+            // Update particles
+            let totalKE = 0;
+            let totalPE = 0;
 
-            // Dimension lines
-            for (let i = 0; i < N; i++) {
-                for (let j = i + 1; j < N; j++) {
-                    const dist = Math.sqrt(
-                        (particles[j].x - particles[i].x) ** 2 +
-                            (particles[j].y - particles[i].y) ** 2
+            for (const p of particles) {
+                if (useGravity) {
+                    p.vel.y += GRAVITY;
+                } else if (mouse.active) {
+                    const delta = mouse.pos.sub(p.pos);
+                    const dist = delta.length() + 1;
+                    const force = Math.min(
+                        1.5,
+                        (MOUSE_ATTRACT * p.mass) / (dist * 0.5)
                     );
-                    if (dist < 90)
-                        dimLine(
-                            particles[i].x,
-                            particles[i].y,
-                            particles[j].x,
-                            particles[j].y,
-                            `${dist.toFixed(0)}`
-                        );
+                    p.applyForce(delta.normalize().mul(force));
+                    p.vel.mulMut(0.995);
                 }
+
+                p.vel.addMut(wind);
+                p.update();
+                p.bounceWalls(w, h, DAMPING, useGravity ? groundY : undefined);
+
+                totalKE += p.kineticEnergy();
+                totalPE += p.mass * GRAVITY * Math.max(0, groundY - p.pos.y);
             }
 
-            // Velocity vectors
-            for (const p of particles) {
-                const ex = p.x + p.vx * 5,
-                    ey = p.y + p.vy * 5;
-                ctx.beginPath();
-                ctx.moveTo(p.x, p.y);
-                ctx.lineTo(ex, ey);
-                ctx.strokeStyle = o(0.75);
-                ctx.lineWidth = 1.2;
-                ctx.stroke();
-                const angle = Math.atan2(p.vy, p.vx);
-                ctx.beginPath();
-                ctx.moveTo(ex, ey);
-                ctx.lineTo(
-                    ex - 5 * Math.cos(angle - 0.4),
-                    ey - 5 * Math.sin(angle - 0.4)
+            // Collision detection via quadtree
+            collisionCount += qt.detectCollisions(DAMPING);
+
+            // ---- RENDER (back to front) ----
+
+            // QuadTree grid — behind everything
+            renderer.drawQuadTree(qt);
+
+            renderer.drawTrails(particles);
+            renderer.drawDimLines(particles, 90);
+            renderer.drawVelocityVectors(particles);
+
+            // Mouse attractor visualization
+            if (!useGravity && mouse.active) {
+                renderer.drawMouseAttractor(mouse.pos, particles, 250);
+            }
+
+            // Slingshot preview
+            if (dragStart && isDragging && mouse.active) {
+                renderer.drawSlingshot(
+                    dragStart,
+                    mouse.pos,
+                    ballSizeRef.current
                 );
-                ctx.moveTo(ex, ey);
-                ctx.lineTo(
-                    ex - 5 * Math.cos(angle + 0.4),
-                    ey - 5 * Math.sin(angle + 0.4)
-                );
-                ctx.stroke();
             }
 
-            // Particles
-            for (const p of particles) {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-                ctx.fillStyle = o(0.18);
-                ctx.fill();
-                ctx.strokeStyle = o(0.9);
-                ctx.lineWidth = 1.8;
-                ctx.stroke();
-                const cr = p.r + 5;
-                ctx.beginPath();
-                ctx.moveTo(p.x - cr, p.y);
-                ctx.lineTo(p.x - p.r * 0.35, p.y);
-                ctx.moveTo(p.x + p.r * 0.35, p.y);
-                ctx.lineTo(p.x + cr, p.y);
-                ctx.moveTo(p.x, p.y - cr);
-                ctx.lineTo(p.x, p.y - p.r * 0.35);
-                ctx.moveTo(p.x, p.y + p.r * 0.35);
-                ctx.lineTo(p.x, p.y + cr);
-                ctx.strokeStyle = o(0.5);
-                ctx.lineWidth = 0.8;
-                ctx.stroke();
-                ctx.font = '10px Roboto, sans-serif';
-                ctx.fillStyle = o(0.9);
-                ctx.fillText(`P${p.id}`, p.x + cr + 3, p.y - 4);
-                ctx.font = '9px Roboto, sans-serif';
-                ctx.fillStyle = gr(0.7);
-                ctx.fillText(`r=${p.r.toFixed(1)}`, p.x + cr + 3, p.y + 8);
-            }
+            // Particles on top
+            renderer.drawParticles(particles);
+            renderer.drawAnnotations(particles, 6);
 
-            // Annotations on first 6
-            ctx.font = '10px Roboto, sans-serif';
-            for (let i = 0; i < Math.min(6, N); i++) {
-                const p = particles[i];
-                const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy);
-                const ke = 0.5 * p.mass * speed * speed;
-                const ang = Math.atan2(p.vy, p.vx) * (180 / Math.PI);
-                const ox = p.x + p.r + 22,
-                    oy = p.y - p.r;
-                ctx.fillStyle = o(0.85);
-                ctx.fillText(`|v| = ${speed.toFixed(1)}`, ox, oy);
-                ctx.fillStyle = gr(0.75);
-                ctx.fillText(`\u03B8 = ${ang.toFixed(0)}\u00B0`, ox, oy + 12);
-                ctx.fillText(`KE = ${ke.toFixed(0)}`, ox, oy + 24);
-            }
+            if (useGravity) renderer.drawGroundLine(groundY, w);
 
-            // Ground line
-            if (useGravity) {
-                ctx.beginPath();
-                ctx.moveTo(0, groundY);
-                ctx.lineTo(w, groundY);
-                ctx.strokeStyle = gr(0.35);
-                ctx.lineWidth = 0.6;
-                ctx.setLineDash([6, 4]);
-                ctx.stroke();
-                ctx.setLineDash([]);
-            }
+            renderer.drawAxes();
+            renderer.drawScaleBar(w);
 
-            // Update readout element
+            // Update readout
             const el = document.getElementById('sim-readout');
             if (el) {
-                el.textContent = `g = ${useGravity ? G : 0} m/s\u00B2  \u00B7  e = ${damping}  \u00B7  n = ${N}  \u00B7  t = ${(frame / 60).toFixed(1)}s  \u00B7  collisions: ${collisionCount}  \u00B7  \u03A3KE = ${totalKE.toFixed(0)} J  \u00B7  E = ${(totalKE + totalPE).toFixed(0)} J`;
+                el.textContent = `g = ${useGravity ? GRAVITY : 0} m/s\u00B2  \u00B7  e = ${DAMPING}  \u00B7  n = ${N}  \u00B7  t = ${(frame / 60).toFixed(1)}s  \u00B7  collisions: ${collisionCount}  \u00B7  \u03A3KE = ${totalKE.toFixed(0)} J  \u00B7  E = ${(totalKE + totalPE).toFixed(0)} J`;
             }
-
-            // Axes (top-left)
-            ctx.beginPath();
-            ctx.moveTo(16, 50);
-            ctx.lineTo(16, 18);
-            ctx.moveTo(16, 50);
-            ctx.lineTo(48, 50);
-            ctx.strokeStyle = gr(0.55);
-            ctx.lineWidth = 0.8;
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(16, 18);
-            ctx.lineTo(13, 23);
-            ctx.moveTo(16, 18);
-            ctx.lineTo(19, 23);
-            ctx.moveTo(48, 50);
-            ctx.lineTo(43, 47);
-            ctx.moveTo(48, 50);
-            ctx.lineTo(43, 53);
-            ctx.stroke();
-            ctx.font = '10px Roboto, sans-serif';
-            ctx.fillStyle = gr(0.6);
-            ctx.fillText('y', 6, 22);
-            ctx.fillText('x', 50, 54);
-
-            // Scale bar (top-right)
-            ctx.beginPath();
-            ctx.moveTo(w - 62, 18);
-            ctx.lineTo(w - 12, 18);
-            ctx.moveTo(w - 62, 14);
-            ctx.lineTo(w - 62, 22);
-            ctx.moveTo(w - 12, 14);
-            ctx.lineTo(w - 12, 22);
-            ctx.strokeStyle = gr(0.5);
-            ctx.lineWidth = 0.8;
-            ctx.stroke();
-            ctx.fillText('50px', w - 50, 14);
 
             animationId = requestAnimationFrame(draw);
         }
@@ -577,23 +273,40 @@ export default function NotFound() {
         };
     }, []);
 
-    const btnStyle = (active: boolean) => ({
-        padding: '0.35rem 0.7rem',
-        background: 'none',
-        border: `1.5px solid ${active ? 'hsla(22, 85%, 38%, 1)' : 'hsla(0, 0%, 70%, 1)'}`,
-        borderRadius: '2px',
-        cursor: 'pointer' as const,
-        fontFamily: 'Roboto, sans-serif',
-        fontSize: '0.62rem',
-        fontWeight: 600,
-        textTransform: 'uppercase' as const,
-        letterSpacing: '0.08em',
-        color: active ? 'hsla(22, 85%, 38%, 1)' : 'hsla(0, 0%, 50%, 1)'
-    });
+    const btnClass = (active: boolean) =>
+        `sim-btn ${active ? 'sim-btn-active' : ''}`;
 
     return (
         <>
-            {/* Full-viewport canvas overlay */}
+            <style>{`
+                .sim-btn {
+                    padding: 0.35rem 0.7rem;
+                    background: none;
+                    border: 1.5px solid hsla(0, 0%, 70%, 1);
+                    border-radius: 2px;
+                    cursor: pointer;
+                    font-family: Roboto, sans-serif;
+                    font-size: 0.62rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.08em;
+                    color: hsla(0, 0%, 50%, 1);
+                    transition: all 0.15s ease;
+                }
+                .sim-btn:hover {
+                    background: hsla(22, 85%, 38%, 0.08);
+                    border-color: hsla(22, 85%, 38%, 0.6);
+                    color: hsla(22, 85%, 38%, 1);
+                }
+                .sim-btn-active {
+                    border-color: hsla(22, 85%, 38%, 1);
+                    color: hsla(22, 85%, 38%, 1);
+                    background: hsla(22, 85%, 38%, 0.06);
+                }
+                .sim-btn-active:hover {
+                    background: hsla(22, 85%, 38%, 0.15);
+                }
+            `}</style>
             <canvas
                 ref={canvasRef}
                 style={{
@@ -608,7 +321,6 @@ export default function NotFound() {
                 }}
             />
 
-            {/* Content — normal document flow, centered */}
             <div
                 style={{
                     position: 'relative',
@@ -675,46 +387,76 @@ export default function NotFound() {
 
                     <button
                         onClick={() => setGravityOn((v) => !v)}
-                        style={btnStyle(gravityOn)}
+                        className={btnClass(gravityOn)}
                     >
                         {gravityOn ? 'Gravity: ON' : 'Gravity: OFF'}
                     </button>
 
                     <button
                         onClick={() => setAttractOn((v) => !v)}
-                        style={btnStyle(attractOn)}
+                        className={btnClass(attractOn)}
                     >
                         {attractOn ? 'Attract: ON' : 'Attract: OFF'}
                     </button>
 
-                    <label
-                        style={{
-                            fontFamily: 'Roboto, sans-serif',
-                            fontSize: '0.58rem',
-                            color: '#888',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.08em',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.25rem',
-                            pointerEvents: 'auto'
-                        }}
-                    >
-                        {ballSize}px
-                        <input
-                            type="range"
-                            min="4"
-                            max="40"
-                            value={ballSize}
-                            onChange={(e) =>
-                                setBallSize(parseInt(e.target.value))
+                    {(['Size', 'Grid', 'Spawn'] as const).map((label) => {
+                        const configs = {
+                            Size: {
+                                value: ballSize,
+                                set: setBallSize,
+                                min: 4,
+                                max: 40,
+                                suffix: 'px'
+                            },
+                            Grid: {
+                                value: qtCapacity,
+                                set: setQtCapacity,
+                                min: 1,
+                                max: 16,
+                                suffix: ''
+                            },
+                            Spawn: {
+                                value: spawnCount,
+                                set: setSpawnCount,
+                                min: 1,
+                                max: 50,
+                                suffix: ''
                             }
-                            style={{
-                                width: '55px',
-                                accentColor: 'hsla(22, 85%, 38%, 1)'
-                            }}
-                        />
-                    </label>
+                        };
+                        const c = configs[label];
+                        return (
+                            <label
+                                key={label}
+                                style={{
+                                    fontFamily: 'Roboto, sans-serif',
+                                    fontSize: '0.58rem',
+                                    color: '#888',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.08em',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.2rem',
+                                    pointerEvents: 'auto'
+                                }}
+                            >
+                                {label}:{c.value}
+                                {c.suffix}
+                                <input
+                                    type="range"
+                                    min={c.min}
+                                    max={c.max}
+                                    value={c.value}
+                                    onChange={(e) =>
+                                        c.set(parseInt(e.target.value))
+                                    }
+                                    style={{
+                                        width: '45px',
+                                        accentColor: 'hsla(22, 85%, 38%, 1)'
+                                    }}
+                                />
+                            </label>
+                        );
+                    })}
                 </div>
 
                 <p
