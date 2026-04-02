@@ -47,6 +47,8 @@ const minWidthSnapUp = (props: any) =>
     props.theme.container.widths.min_width_snap_up;
 
 const NavContainer = styled.nav`
+    position: relative;
+    z-index: 60;
     background-color: ${(props) =>
         props.theme.container.background.colour.card()};
     margin: 20px auto;

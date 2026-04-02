@@ -7,6 +7,8 @@ const minWidthSnapUp = (props: any) =>
     props.theme.container.widths.min_width_snap_up;
 
 const FooterContainer = styled.footer`
+    position: relative;
+    z-index: 60;
     margin: 0px auto;
     margin-top: 30px;
     padding: 0px;
