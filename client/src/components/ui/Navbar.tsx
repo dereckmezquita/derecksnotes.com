@@ -255,7 +255,7 @@ function Navbar() {
                 </DropDownContainer>
                 <NavSpacer />
                 {isAuthenticated() ? (
-                    <NavRightItemLink href="/profile">
+                    <NavRightItemLink href="/account">
                         <FaUser />
                     </NavRightItemLink>
                 ) : (

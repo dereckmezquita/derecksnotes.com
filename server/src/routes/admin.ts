@@ -369,4 +369,80 @@ router.get(
     }
 );
 
+// Analytics
+router.get(
+    '/analytics',
+    requirePermission('admin.dashboard'),
+    async (req: AuthenticatedRequest, res) => {
+        const commentsPerDay = await db
+            .select({
+                date: sql<string>`date(${schema.comments.createdAt})`,
+                count: sql<number>`count(*)`
+            })
+            .from(schema.comments)
+            .where(
+                and(
+                    sql`${schema.comments.createdAt} >= date('now', '-30 days')`,
+                    isNull(schema.comments.deletedAt)
+                )
+            )
+            .groupBy(sql`date(${schema.comments.createdAt})`)
+            .orderBy(sql`date(${schema.comments.createdAt}) ASC`);
+
+        const usersPerDay = await db
+            .select({
+                date: sql<string>`date(${schema.users.createdAt})`,
+                count: sql<number>`count(*)`
+            })
+            .from(schema.users)
+            .where(
+                and(
+                    sql`${schema.users.createdAt} >= date('now', '-30 days')`,
+                    isNull(schema.users.deletedAt)
+                )
+            )
+            .groupBy(sql`date(${schema.users.createdAt})`)
+            .orderBy(sql`date(${schema.users.createdAt}) ASC`);
+
+        const topCommentedPosts = await db
+            .select({
+                slug: schema.posts.slug,
+                title: schema.posts.title,
+                count: sql<number>`count(${schema.comments.id})`
+            })
+            .from(schema.posts)
+            .innerJoin(
+                schema.comments,
+                eq(schema.comments.postId, schema.posts.id)
+            )
+            .where(isNull(schema.comments.deletedAt))
+            .groupBy(schema.posts.id)
+            .orderBy(sql`count(${schema.comments.id}) DESC`)
+            .limit(5);
+
+        const topLikedPosts = await db
+            .select({
+                slug: schema.posts.slug,
+                title: schema.posts.title,
+                likes: sql<number>`count(${schema.postReactions.id})`
+            })
+            .from(schema.posts)
+            .innerJoin(
+                schema.postReactions,
+                eq(schema.postReactions.postId, schema.posts.id)
+            )
+            .where(eq(schema.postReactions.type, 'like'))
+            .groupBy(schema.posts.id)
+            .orderBy(sql`count(${schema.postReactions.id}) DESC`)
+            .limit(5);
+
+        res.json({
+            commentsPerDay,
+            usersPerDay,
+            topCommentedPosts,
+            topLikedPosts
+        });
+    }
+);
+
 export default router;
