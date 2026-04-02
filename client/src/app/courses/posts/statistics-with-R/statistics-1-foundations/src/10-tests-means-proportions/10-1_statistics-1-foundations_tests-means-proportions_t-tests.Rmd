@@ -1,0 +1,890 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 10: Tests for Means and Proportions"
+part: "Part 1: T-tests for Means"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, t-test, hypothesis-testing, means, paired, inference, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    out.width = "100%",
+    collapse = FALSE, results = 'hold'
+)
+```
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+nhanes <- fread("../../../data/primary/nhanes.csv")
+```
+
+# Chapter 10: Tests for Means and Proportions
+
+Having established the logic of hypothesis testing in Chapter 9, we now apply these principles to the most common testing scenarios: comparing means and proportions. This chapter covers the t-test family in depth, along with tests for proportions.
+
+---
+
+## Table of Contents
+
+## 10.1 One-Sample T-Test
+
+### 10.1.1 The Testing Scenario
+
+The one-sample t-test addresses the question: Does the population mean differ from a specified value?
+
+**Hypotheses:**
+- $H_0: \mu = \mu_0$ (the population mean equals the hypothesised value)
+- $H_1: \mu \neq \mu_0$ (two-sided) or $H_1: \mu > \mu_0$ / $H_1: \mu < \mu_0$ (one-sided)
+
+**Assumptions:**
+1. Data are continuous
+2. Sample is randomly drawn from the population
+3. Population is normally distributed (relaxed for large n by CLT)
+4. Observations are independent
+
+### 10.1.2 The Test Statistic
+
+When the population standard deviation $\sigma$ is unknown:
+
+$$T = \frac{\bar{X} - \mu_0}{s/\sqrt{n}}$$
+
+Under $H_0$, this follows a t-distribution with $n-1$ degrees of freedom.
+
+```{r one_sample_t, fig.cap="One-sample t-test example"}
+# Example: Is mean systolic BP different from 120 mmHg?
+set.seed(42)
+bp_sample <- na.omit(nhanes$BPSys1)[1:50]
+
+# Null hypothesis value
+mu_0 <- 120
+
+# Calculate test statistic
+n <- length(bp_sample)
+x_bar <- mean(bp_sample)
+s <- sd(bp_sample)
+se <- s / sqrt(n)
+t_stat <- (x_bar - mu_0) / se
+df <- n - 1
+
+# P-value (two-sided)
+p_value <- 2 * pt(-abs(t_stat), df = df)
+
+cat("One-Sample T-Test: Systolic Blood Pressure\n")
+cat("==========================================\n\n")
+cat(sprintf("H₀: μ = %d mmHg\n", mu_0))
+cat(sprintf("H₁: μ ≠ %d mmHg (two-sided)\n\n", mu_0))
+cat(sprintf("Sample size: n = %d\n", n))
+cat(sprintf("Sample mean: x̄ = %.2f mmHg\n", x_bar))
+cat(sprintf("Sample SD: s = %.2f mmHg\n", s))
+cat(sprintf("Standard error: SE = %.2f mmHg\n\n", se))
+cat(sprintf("Test statistic: t = (%.2f - %d) / %.2f = %.3f\n",
+            x_bar, mu_0, se, t_stat))
+cat(sprintf("Degrees of freedom: df = %d\n", df))
+cat(sprintf("P-value: %.4f\n\n", p_value))
+
+if (p_value < 0.05) {
+    cat("Decision: Reject H₀ at α = 0.05\n")
+    cat(sprintf("Conclusion: Mean BP significantly differs from %d mmHg\n", mu_0))
+} else {
+    cat("Decision: Fail to reject H₀ at α = 0.05\n")
+    cat(sprintf("Conclusion: Insufficient evidence that mean BP differs from %d mmHg\n", mu_0))
+}
+
+# Verify with R's t.test
+cat("\n\nVerification with t.test():\n")
+result <- t.test(bp_sample, mu = mu_0)
+print(result)
+```
+
+### 10.1.3 One-Sample T-Test Function from Scratch
+
+```{r one_sample_scratch}
+one_sample_t_test <- function(x, mu_0 = 0, alternative = "two.sided",
+                               conf_level = 0.95) {
+    # Sample statistics
+    n <- length(x)
+    x_bar <- mean(x)
+    s <- sd(x)
+    se <- s / sqrt(n)
+    df <- n - 1
+
+    # Test statistic
+    t_stat <- (x_bar - mu_0) / se
+
+    # P-value
+    if (alternative == "two.sided") {
+        p_value <- 2 * pt(-abs(t_stat), df = df)
+    } else if (alternative == "greater") {
+        p_value <- pt(t_stat, df = df, lower.tail = FALSE)
+    } else if (alternative == "less") {
+        p_value <- pt(t_stat, df = df)
+    }
+
+    # Confidence interval
+    alpha <- 1 - conf_level
+    t_crit <- qt(1 - alpha / 2, df = df)
+    ci <- c(x_bar - t_crit * se, x_bar + t_crit * se)
+
+    # Effect size (Cohen's d)
+    d <- (x_bar - mu_0) / s
+
+    list(
+        method = "One-Sample T-Test",
+        statistic = t_stat,
+        df = df,
+        p.value = p_value,
+        estimate = x_bar,
+        null.value = mu_0,
+        alternative = alternative,
+        conf.int = ci,
+        conf.level = conf_level,
+        se = se,
+        cohens_d = d
+    )
+}
+
+# Apply to our data
+result <- one_sample_t_test(bp_sample, mu_0 = 120)
+
+cat("Custom one_sample_t_test() Results:\n")
+cat("===================================\n")
+cat(sprintf("t = %.4f, df = %d, p = %.4f\n",
+            result$statistic, result$df, result$p.value))
+cat(sprintf("95%% CI: (%.2f, %.2f)\n", result$conf.int[1], result$conf.int[2]))
+cat(sprintf("Cohen's d = %.3f\n", result$cohens_d))
+```
+
+### 10.1.4 Visualising the Test
+
+```{r one_sample_visual, fig.cap="Visualising the one-sample t-test"}
+# Create t-distribution under H0
+x_seq <- seq(-4, 4, length.out = 200)
+t_dist <- data.table(x = x_seq, y = dt(x_seq, df = df))
+
+# Critical values (two-sided, α = 0.05)
+t_crit <- qt(0.975, df = df)
+
+ggplot2$ggplot(t_dist, ggplot2$aes(x = x, y = y)) +
+    # Rejection regions
+    ggplot2$geom_area(data = t_dist[x <= -t_crit], fill = "#D55E00", alpha = 0.5) +
+    ggplot2$geom_area(data = t_dist[x >= t_crit], fill = "#D55E00", alpha = 0.5) +
+    # Distribution curve
+    ggplot2$geom_line(linewidth = 1.2) +
+    # Observed t-statistic
+    ggplot2$geom_vline(xintercept = t_stat, colour = "#009E73",
+                       linewidth = 1.5, linetype = "dashed") +
+    # Annotations
+    ggplot2$annotate("text", x = t_stat + 0.3, y = 0.3,
+                     label = sprintf("t = %.2f\np = %.4f", t_stat, p_value),
+                     colour = "#009E73", fontface = "bold", hjust = 0) +
+    ggplot2$annotate("text", x = -t_crit - 0.5, y = 0.15,
+                     label = "Reject H₀", colour = "#D55E00") +
+    ggplot2$annotate("text", x = t_crit + 0.5, y = 0.15,
+                     label = "Reject H₀", colour = "#D55E00") +
+    ggplot2$labs(
+        title = "One-Sample T-Test",
+        subtitle = sprintf("H₀: μ = %d, df = %d, α = 0.05", mu_0, df),
+        x = "t-statistic",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 10.2 Two-Sample T-Test (Independent Samples)
+
+### 10.2.1 The Testing Scenario
+
+The two-sample t-test compares means from two independent groups:
+
+**Hypotheses:**
+- $H_0: \mu_1 = \mu_2$ (no difference between group means)
+- $H_1: \mu_1 \neq \mu_2$ (two-sided)
+
+**Assumptions:**
+1. Both samples are random and independent
+2. Both populations are normally distributed (relaxed for large n)
+3. Equal variances (for pooled t-test) or unequal variances (for Welch's t-test)
+
+### 10.2.2 Pooled Variance T-Test (Equal Variances)
+
+When we assume equal population variances:
+
+$$T = \frac{\bar{X}_1 - \bar{X}_2}{s_p \sqrt{\frac{1}{n_1} + \frac{1}{n_2}}}$$
+
+Where the pooled standard deviation is:
+
+$$s_p = \sqrt{\frac{(n_1-1)s_1^2 + (n_2-1)s_2^2}{n_1 + n_2 - 2}}$$
+
+Degrees of freedom: $df = n_1 + n_2 - 2$
+
+### 10.2.3 Welch's T-Test (Unequal Variances)
+
+When variances may differ (the default in R):
+
+$$T = \frac{\bar{X}_1 - \bar{X}_2}{\sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}}$$
+
+The degrees of freedom are approximated using the Welch-Satterthwaite equation:
+
+$$df = \frac{\left(\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}\right)^2}{\frac{(s_1^2/n_1)^2}{n_1-1} + \frac{(s_2^2/n_2)^2}{n_2-1}}$$
+
+```{r two_sample_t, fig.cap="Two-sample t-test example"}
+# Example: Compare BP between males and females
+set.seed(123)
+male_bp <- na.omit(nhanes[Gender == "male", BPSys1])[1:40]
+female_bp <- na.omit(nhanes[Gender == "female", BPSys1])[1:40]
+
+# Group statistics
+n1 <- length(male_bp)
+n2 <- length(female_bp)
+x1_bar <- mean(male_bp)
+x2_bar <- mean(female_bp)
+s1 <- sd(male_bp)
+s2 <- sd(female_bp)
+
+cat("Two-Sample T-Test: Blood Pressure by Sex\n")
+cat("=========================================\n\n")
+cat(sprintf("Males: n = %d, mean = %.2f, SD = %.2f\n", n1, x1_bar, s1))
+cat(sprintf("Females: n = %d, mean = %.2f, SD = %.2f\n\n", n2, x2_bar, s2))
+
+# Pooled variance approach
+s_pooled <- sqrt(((n1 - 1) * s1^2 + (n2 - 1) * s2^2) / (n1 + n2 - 2))
+se_pooled <- s_pooled * sqrt(1/n1 + 1/n2)
+t_pooled <- (x1_bar - x2_bar) / se_pooled
+df_pooled <- n1 + n2 - 2
+p_pooled <- 2 * pt(-abs(t_pooled), df = df_pooled)
+
+cat("Pooled Variance T-Test (assumes equal variances):\n")
+cat(sprintf("  s_pooled = %.2f\n", s_pooled))
+cat(sprintf("  t = %.3f, df = %d, p = %.4f\n\n", t_pooled, df_pooled, p_pooled))
+
+# Welch's approach
+se_welch <- sqrt(s1^2/n1 + s2^2/n2)
+t_welch <- (x1_bar - x2_bar) / se_welch
+df_welch <- (s1^2/n1 + s2^2/n2)^2 /
+    ((s1^2/n1)^2/(n1-1) + (s2^2/n2)^2/(n2-1))
+p_welch <- 2 * pt(-abs(t_welch), df = df_welch)
+
+cat("Welch's T-Test (does not assume equal variances):\n")
+cat(sprintf("  t = %.3f, df = %.2f, p = %.4f\n\n", t_welch, df_welch, p_welch))
+
+# Effect size
+pooled_sd <- sqrt((s1^2 + s2^2) / 2)
+d <- (x1_bar - x2_bar) / pooled_sd
+cat(sprintf("Effect size (Cohen's d): %.3f\n", d))
+
+# Verify with R
+cat("\n\nVerification with t.test():\n")
+print(t.test(male_bp, female_bp))
+```
+
+### 10.2.4 Two-Sample T-Test Function from Scratch
+
+```{r two_sample_scratch}
+two_sample_t_test <- function(x, y, var_equal = FALSE, alternative = "two.sided",
+                               conf_level = 0.95) {
+    # Sample statistics
+    n1 <- length(x)
+    n2 <- length(y)
+    x1_bar <- mean(x)
+    x2_bar <- mean(y)
+    s1 <- sd(x)
+    s2 <- sd(y)
+    diff <- x1_bar - x2_bar
+
+    if (var_equal) {
+        # Pooled variance
+        s_pooled <- sqrt(((n1 - 1) * s1^2 + (n2 - 1) * s2^2) / (n1 + n2 - 2))
+        se <- s_pooled * sqrt(1/n1 + 1/n2)
+        df <- n1 + n2 - 2
+        method <- "Two-Sample T-Test (Pooled Variance)"
+    } else {
+        # Welch's approximation
+        se <- sqrt(s1^2/n1 + s2^2/n2)
+        df <- (s1^2/n1 + s2^2/n2)^2 /
+            ((s1^2/n1)^2/(n1-1) + (s2^2/n2)^2/(n2-1))
+        method <- "Welch's Two-Sample T-Test"
+    }
+
+    # Test statistic
+    t_stat <- diff / se
+
+    # P-value
+    if (alternative == "two.sided") {
+        p_value <- 2 * pt(-abs(t_stat), df = df)
+    } else if (alternative == "greater") {
+        p_value <- pt(t_stat, df = df, lower.tail = FALSE)
+    } else {
+        p_value <- pt(t_stat, df = df)
+    }
+
+    # Confidence interval
+    alpha <- 1 - conf_level
+    t_crit <- qt(1 - alpha / 2, df = df)
+    ci <- c(diff - t_crit * se, diff + t_crit * se)
+
+    # Effect size
+    pooled_sd <- sqrt((s1^2 + s2^2) / 2)
+    d <- diff / pooled_sd
+
+    list(
+        method = method,
+        statistic = t_stat,
+        df = df,
+        p.value = p_value,
+        estimate = c(mean_x = x1_bar, mean_y = x2_bar),
+        difference = diff,
+        null.value = 0,
+        alternative = alternative,
+        conf.int = ci,
+        conf.level = conf_level,
+        se = se,
+        cohens_d = d
+    )
+}
+
+# Apply to our data
+result_welch <- two_sample_t_test(male_bp, female_bp)
+result_pooled <- two_sample_t_test(male_bp, female_bp, var_equal = TRUE)
+
+cat("Custom two_sample_t_test() Results:\n")
+cat("===================================\n\n")
+cat("Welch's (unequal variances):\n")
+cat(sprintf("  t = %.4f, df = %.2f, p = %.4f\n",
+            result_welch$statistic, result_welch$df, result_welch$p.value))
+cat(sprintf("  95%% CI for difference: (%.2f, %.2f)\n",
+            result_welch$conf.int[1], result_welch$conf.int[2]))
+
+cat("\nPooled (equal variances):\n")
+cat(sprintf("  t = %.4f, df = %.0f, p = %.4f\n",
+            result_pooled$statistic, result_pooled$df, result_pooled$p.value))
+```
+
+### 10.2.5 Visualising Two-Group Comparison
+
+```{r two_sample_visual, fig.cap="Comparing two groups"}
+# Create data for plotting
+plot_data <- rbind(
+    data.table(bp = male_bp, group = "Male"),
+    data.table(bp = female_bp, group = "Female")
+)
+
+# Box plot with individual points
+ggplot2$ggplot(plot_data, ggplot2$aes(x = group, y = bp, fill = group)) +
+    ggplot2$geom_boxplot(alpha = 0.5, outlier.shape = NA) +
+    ggplot2$geom_jitter(width = 0.2, alpha = 0.5, size = 2) +
+    ggplot2$stat_summary(fun = mean, geom = "point", shape = 18, size = 5,
+                         colour = "red") +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "Blood Pressure by Sex",
+        subtitle = sprintf("Welch's t = %.2f, p = %.4f, d = %.2f",
+                          result_welch$statistic, result_welch$p.value,
+                          result_welch$cohens_d),
+        x = "Sex",
+        y = "Systolic Blood Pressure (mmHg)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+---
+
+## 10.3 Paired T-Test
+
+### 10.3.1 The Testing Scenario
+
+The paired t-test is used when observations come in pairs (before/after, twin studies, matched designs):
+
+**Hypotheses:**
+- $H_0: \mu_d = 0$ (mean difference is zero)
+- $H_1: \mu_d \neq 0$ (mean difference is not zero)
+
+The key insight: analyse the *differences*, not the individual values.
+
+$$T = \frac{\bar{d}}{s_d/\sqrt{n}}$$
+
+Where $\bar{d}$ is the mean of the differences and $s_d$ is their standard deviation.
+
+### 10.3.2 Why Pairing Matters
+
+Pairing controls for individual variation, making tests more powerful when pairs are correlated.
+
+```{r pairing_demo, fig.cap="Why pairing increases power"}
+set.seed(456)
+
+# Simulate paired data with correlation
+n <- 20
+subject_effect <- rnorm(n, 0, 20)  # Individual baseline variation
+before <- 100 + subject_effect + rnorm(n, 0, 5)
+after <- 100 + subject_effect + rnorm(n, -5, 5)  # True effect = -5
+
+paired_data <- data.table(
+    subject = 1:n,
+    before = before,
+    after = after,
+    difference = after - before
+)
+
+cat("Paired T-Test: Before vs After Treatment\n")
+cat("=========================================\n\n")
+
+# Paired test (correct)
+d_bar <- mean(paired_data$difference)
+s_d <- sd(paired_data$difference)
+se_paired <- s_d / sqrt(n)
+t_paired <- d_bar / se_paired
+df_paired <- n - 1
+p_paired <- 2 * pt(-abs(t_paired), df = df_paired)
+
+cat("Paired T-Test (correct analysis):\n")
+cat(sprintf("  Mean difference: %.2f\n", d_bar))
+cat(sprintf("  SD of differences: %.2f\n", s_d))
+cat(sprintf("  t = %.3f, df = %d, p = %.4f\n\n", t_paired, df_paired, p_paired))
+
+# Unpaired test (incorrect for paired data)
+result_unpaired <- t.test(before, after, paired = FALSE)
+
+cat("Two-Sample T-Test (incorrect for paired data):\n")
+cat(sprintf("  t = %.3f, df = %.1f, p = %.4f\n\n",
+            result_unpaired$statistic, result_unpaired$parameter, result_unpaired$p.value))
+
+cat("Key insight: The paired test is much more powerful because\n")
+cat("it removes between-subject variability.\n")
+cat(sprintf("\nCorrelation between before and after: r = %.3f\n",
+            cor(before, after)))
+```
+
+### 10.3.3 Paired T-Test Function from Scratch
+
+```{r paired_scratch}
+paired_t_test <- function(x, y, alternative = "two.sided", conf_level = 0.95) {
+    # Calculate differences
+    d <- x - y
+    n <- length(d)
+
+    # Test on differences (one-sample t-test on d)
+    d_bar <- mean(d)
+    s_d <- sd(d)
+    se <- s_d / sqrt(n)
+    df <- n - 1
+
+    # Test statistic
+    t_stat <- d_bar / se
+
+    # P-value
+    if (alternative == "two.sided") {
+        p_value <- 2 * pt(-abs(t_stat), df = df)
+    } else if (alternative == "greater") {
+        p_value <- pt(t_stat, df = df, lower.tail = FALSE)
+    } else {
+        p_value <- pt(t_stat, df = df)
+    }
+
+    # Confidence interval for mean difference
+    alpha <- 1 - conf_level
+    t_crit <- qt(1 - alpha / 2, df = df)
+    ci <- c(d_bar - t_crit * se, d_bar + t_crit * se)
+
+    # Effect size
+    d_effect <- d_bar / s_d
+
+    list(
+        method = "Paired T-Test",
+        statistic = t_stat,
+        df = df,
+        p.value = p_value,
+        estimate = d_bar,
+        null.value = 0,
+        alternative = alternative,
+        conf.int = ci,
+        conf.level = conf_level,
+        se = se,
+        cohens_d = d_effect,
+        correlation = cor(x, y)
+    )
+}
+
+# Apply to our data
+result <- paired_t_test(before, after)
+
+cat("Custom paired_t_test() Results:\n")
+cat("===============================\n")
+cat(sprintf("Mean difference: %.3f\n", result$estimate))
+cat(sprintf("t = %.4f, df = %d, p = %.4f\n",
+            result$statistic, result$df, result$p.value))
+cat(sprintf("95%% CI: (%.2f, %.2f)\n", result$conf.int[1], result$conf.int[2]))
+cat(sprintf("Cohen's d = %.3f\n", result$cohens_d))
+
+# Verify with R
+cat("\n\nVerification with t.test():\n")
+print(t.test(before, after, paired = TRUE))
+```
+
+### 10.3.4 Visualising Paired Data
+
+```{r paired_visual, fig.cap="Visualising paired data"}
+# Reshape data for spaghetti plot
+long_data <- rbind(
+    data.table(subject = paired_data$subject, time = "Before", value = paired_data$before),
+    data.table(subject = paired_data$subject, time = "After", value = paired_data$after)
+)
+long_data[, time := factor(time, levels = c("Before", "After"))]
+
+# Spaghetti plot
+p1 <- ggplot2$ggplot(long_data, ggplot2$aes(x = time, y = value, group = subject)) +
+    ggplot2$geom_line(alpha = 0.3) +
+    ggplot2$geom_point(ggplot2$aes(colour = time), size = 3) +
+    ggplot2$scale_colour_manual(values = c("Before" = "#0072B2", "After" = "#D55E00")) +
+    ggplot2$labs(
+        title = "Individual Trajectories",
+        x = "Timepoint",
+        y = "Value"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+
+# Histogram of differences
+p2 <- ggplot2$ggplot(paired_data, ggplot2$aes(x = difference)) +
+    ggplot2$geom_histogram(bins = 10, fill = "#009E73", colour = "white", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = mean(paired_data$difference),
+                       colour = "#D55E00", linewidth = 1.5) +
+    ggplot2$annotate("text", x = mean(paired_data$difference) + 1, y = 5,
+                     label = sprintf("Mean = %.2f", mean(paired_data$difference)),
+                     colour = "#D55E00", hjust = 0) +
+    ggplot2$labs(
+        title = "Distribution of Differences",
+        subtitle = "Dashed line = 0 (null hypothesis)",
+        x = "After - Before",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+---
+
+## 10.4 Assumptions and Diagnostics
+
+### 10.4.1 Checking Normality
+
+The t-test assumes normality of the test statistic. For small samples, check normality of the data (or differences for paired tests).
+
+```{r normality_check, fig.cap="Checking normality assumption"}
+# Create a sample to test
+test_sample <- rnorm(30, mean = 100, sd = 15)
+
+# Multiple diagnostic plots
+par(mfrow = c(2, 2))
+
+# Histogram
+hist(test_sample, main = "Histogram", xlab = "Value", col = "lightblue")
+
+# Q-Q plot
+qqnorm(test_sample)
+qqline(test_sample, col = "red")
+
+# Box plot
+boxplot(test_sample, main = "Box Plot", col = "lightgreen")
+
+# Density plot
+plot(density(test_sample), main = "Density Plot")
+curve(dnorm(x, mean = mean(test_sample), sd = sd(test_sample)),
+      add = TRUE, col = "red", lty = 2)
+
+par(mfrow = c(1, 1))
+
+# Shapiro-Wilk test
+shapiro_result <- shapiro.test(test_sample)
+cat("\nShapiro-Wilk Normality Test:\n")
+cat(sprintf("W = %.4f, p = %.4f\n", shapiro_result$statistic, shapiro_result$p.value))
+if (shapiro_result$p.value > 0.05) {
+    cat("Result: No significant departure from normality\n")
+} else {
+    cat("Result: Evidence of non-normality\n")
+}
+```
+
+### 10.4.2 Checking Equal Variances
+
+For the pooled t-test, check variance equality using Levene's or Bartlett's test.
+
+```{r variance_check}
+# Compare variances
+cat("Variance Equality Check\n")
+cat("=======================\n\n")
+cat(sprintf("Male BP variance: %.2f\n", var(male_bp)))
+cat(sprintf("Female BP variance: %.2f\n", var(female_bp)))
+cat(sprintf("Ratio: %.2f\n\n", var(male_bp) / var(female_bp)))
+
+# F-test for variance equality
+var_test <- var.test(male_bp, female_bp)
+cat("F-Test for Equal Variances:\n")
+cat(sprintf("F = %.3f, p = %.4f\n\n", var_test$statistic, var_test$p.value))
+
+if (var_test$p.value > 0.05) {
+    cat("Conclusion: No evidence of unequal variances\n")
+    cat("Pooled t-test is appropriate\n")
+} else {
+    cat("Conclusion: Evidence of unequal variances\n")
+    cat("Use Welch's t-test (the default in R)\n")
+}
+```
+
+### 10.4.3 Robustness to Violations
+
+The t-test is remarkably robust:
+- **Normality:** With n ≥ 30, the CLT ensures approximate normality of the test statistic
+- **Equal variances:** Welch's test handles unequal variances well
+- **Independence:** This assumption is critical and cannot be relaxed
+
+```{r robustness_demo, fig.cap="T-test is robust to moderate non-normality"}
+set.seed(789)
+
+# Simulate non-normal data (exponential)
+n_sim <- 5000
+p_values_normal <- numeric(n_sim)
+p_values_nonnormal <- numeric(n_sim)
+
+for (i in 1:n_sim) {
+    # Normal data, H0 true
+    x_normal <- rnorm(30, 0, 1)
+    p_values_normal[i] <- t.test(x_normal, mu = 0)$p.value
+
+    # Exponential data (shifted to mean 0), H0 true
+    x_exp <- rexp(30, 1) - 1  # Mean = 0 under H0
+    p_values_nonnormal[i] <- t.test(x_exp, mu = 0)$p.value
+}
+
+# Check Type I error rate
+cat("Type I Error Rate Check (α = 0.05)\n")
+cat("==================================\n\n")
+cat(sprintf("Normal data: %.4f (should be ≈ 0.05)\n",
+            mean(p_values_normal < 0.05)))
+cat(sprintf("Exponential data: %.4f (should be ≈ 0.05)\n",
+            mean(p_values_nonnormal < 0.05)))
+
+# Visualise p-value distributions
+pval_data <- rbind(
+    data.table(p = p_values_normal, dist = "Normal"),
+    data.table(p = p_values_nonnormal, dist = "Exponential (non-normal)")
+)
+
+ggplot2$ggplot(pval_data, ggplot2$aes(x = p, fill = dist)) +
+    ggplot2$geom_histogram(bins = 20, alpha = 0.7, position = "identity") +
+    ggplot2$facet_wrap(~dist) +
+    ggplot2$geom_hline(yintercept = n_sim / 20, linetype = "dashed", colour = "red") +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "P-value Distribution When H₀ is True",
+        subtitle = "Both should be approximately uniform (dashed line)",
+        x = "P-value",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+---
+
+## 10.5 Effect Sizes for T-Tests
+
+### 10.5.1 Cohen's d
+
+The most common effect size for comparing means:
+
+$$d = \frac{\bar{X}_1 - \bar{X}_2}{s_{\text{pooled}}}$$
+
+Where $s_{\text{pooled}} = \sqrt{\frac{(n_1-1)s_1^2 + (n_2-1)s_2^2}{n_1 + n_2 - 2}}$
+
+**Interpretation guidelines (Cohen's conventions):**
+- Small: d ≈ 0.2
+- Medium: d ≈ 0.5
+- Large: d ≈ 0.8
+
+### 10.5.2 Hedges' g (Bias-Corrected)
+
+Cohen's d is slightly biased for small samples. Hedges' g corrects this:
+
+$$g = d \times \left(1 - \frac{3}{4(n_1 + n_2) - 9}\right)$$
+
+```{r effect_sizes}
+cohens_d <- function(x, y) {
+    n1 <- length(x)
+    n2 <- length(y)
+    s_pooled <- sqrt(((n1-1)*var(x) + (n2-1)*var(y)) / (n1 + n2 - 2))
+    (mean(x) - mean(y)) / s_pooled
+}
+
+hedges_g <- function(x, y) {
+    d <- cohens_d(x, y)
+    n1 <- length(x)
+    n2 <- length(y)
+    correction <- 1 - 3 / (4*(n1 + n2) - 9)
+    d * correction
+}
+
+# Calculate for our data
+d <- cohens_d(male_bp, female_bp)
+g <- hedges_g(male_bp, female_bp)
+
+cat("Effect Size Calculations\n")
+cat("========================\n\n")
+cat(sprintf("Cohen's d = %.4f\n", d))
+cat(sprintf("Hedges' g = %.4f (bias-corrected)\n\n", g))
+
+cat("Interpretation:\n")
+cat(sprintf("  |d| = %.2f → %s effect\n", abs(d),
+            ifelse(abs(d) < 0.2, "negligible",
+                   ifelse(abs(d) < 0.5, "small",
+                          ifelse(abs(d) < 0.8, "medium", "large")))))
+```
+
+### 10.5.3 Confidence Interval for Effect Size
+
+```{r effect_size_ci}
+# Bootstrap confidence interval for Cohen's d
+bootstrap_d_ci <- function(x, y, n_boot = 2000, conf_level = 0.95) {
+    d_boot <- numeric(n_boot)
+
+    for (i in 1:n_boot) {
+        x_boot <- sample(x, length(x), replace = TRUE)
+        y_boot <- sample(y, length(y), replace = TRUE)
+        d_boot[i] <- cohens_d(x_boot, y_boot)
+    }
+
+    alpha <- 1 - conf_level
+    ci <- quantile(d_boot, c(alpha/2, 1 - alpha/2))
+
+    list(d = cohens_d(x, y), ci = ci, se = sd(d_boot))
+}
+
+set.seed(123)
+d_result <- bootstrap_d_ci(male_bp, female_bp)
+
+cat("Effect Size with 95% CI (Bootstrap)\n")
+cat("====================================\n")
+cat(sprintf("Cohen's d = %.3f\n", d_result$d))
+cat(sprintf("95%% CI: (%.3f, %.3f)\n", d_result$ci[1], d_result$ci[2]))
+cat(sprintf("SE(d) = %.3f\n", d_result$se))
+```
+
+---
+
+## 10.6 Communicating to Stakeholders
+
+### 10.6.1 Reporting T-Test Results
+
+**Comprehensive reporting includes:**
+1. Descriptive statistics for each group
+2. Test statistic and degrees of freedom
+3. P-value (exact, not just < 0.05)
+4. Confidence interval for the difference
+5. Effect size with interpretation
+
+**Example report:**
+
+```{r report_example}
+# Generate a complete report
+cat("STATISTICAL REPORT: Blood Pressure by Sex\n")
+cat("==========================================\n\n")
+
+cat("Descriptive Statistics:\n")
+cat("-----------------------\n")
+cat(sprintf("Male: M = %.1f mmHg (SD = %.1f), n = %d\n",
+            mean(male_bp), sd(male_bp), length(male_bp)))
+cat(sprintf("Female: M = %.1f mmHg (SD = %.1f), n = %d\n\n",
+            mean(female_bp), sd(female_bp), length(female_bp)))
+
+result <- t.test(male_bp, female_bp)
+d <- cohens_d(male_bp, female_bp)
+
+cat("Inferential Statistics:\n")
+cat("-----------------------\n")
+cat(sprintf("Mean difference: %.1f mmHg\n", mean(male_bp) - mean(female_bp)))
+cat(sprintf("95%% CI for difference: [%.1f, %.1f] mmHg\n",
+            result$conf.int[1], result$conf.int[2]))
+cat(sprintf("Welch's t(%.1f) = %.2f, p = %.3f\n",
+            result$parameter, result$statistic, result$p.value))
+cat(sprintf("Cohen's d = %.2f (%s effect)\n\n",
+            d, ifelse(abs(d) < 0.2, "negligible",
+                      ifelse(abs(d) < 0.5, "small",
+                             ifelse(abs(d) < 0.8, "medium", "large")))))
+
+cat("Interpretation:\n")
+cat("--------------\n")
+if (result$p.value < 0.05) {
+    cat("There was a statistically significant difference in blood pressure\n")
+    cat("between males and females. ")
+} else {
+    cat("There was no statistically significant difference in blood pressure\n")
+    cat("between males and females. ")
+}
+cat("However, the effect size suggests the practical\n")
+cat("significance is limited.\n")
+```
+
+---
+
+## 10.7 Quick Reference
+
+### 10.7.1 T-Test Summary Table
+
+| Test | Use Case | Test Statistic | df |
+|------|----------|----------------|-----|
+| One-sample | Compare sample mean to fixed value | $t = \frac{\bar{X} - \mu_0}{s/\sqrt{n}}$ | n - 1 |
+| Two-sample (pooled) | Compare two independent groups (equal var) | $t = \frac{\bar{X}_1 - \bar{X}_2}{s_p\sqrt{1/n_1 + 1/n_2}}$ | n₁ + n₂ - 2 |
+| Welch's | Compare two independent groups (unequal var) | $t = \frac{\bar{X}_1 - \bar{X}_2}{\sqrt{s_1^2/n_1 + s_2^2/n_2}}$ | Welch-Satterthwaite |
+| Paired | Compare matched pairs | $t = \frac{\bar{d}}{s_d/\sqrt{n}}$ | n - 1 |
+
+### 10.7.2 R Functions
+
+```r
+# One-sample t-test
+t.test(x, mu = mu_0, alternative = "two.sided")
+
+# Two-sample t-test (Welch's, default)
+t.test(x, y, var.equal = FALSE)
+
+# Pooled variance t-test
+t.test(x, y, var.equal = TRUE)
+
+# Paired t-test
+t.test(x, y, paired = TRUE)
+
+# Or equivalently
+t.test(x - y, mu = 0)
+```
+
+### 10.7.3 Decision Flowchart
+
+```
+Are samples independent?
+├── YES → Two groups or one?
+│   ├── ONE → One-sample t-test
+│   └── TWO → Equal variances?
+│       ├── YES/UNKNOWN → Welch's t-test (default)
+│       └── KNOWN EQUAL → Pooled t-test
+└── NO (paired/matched) → Paired t-test
+```

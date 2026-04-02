@@ -1,0 +1,607 @@
+---
+title: "Volatility Foundations"
+subtitle: "Understanding volatility as an asset class"
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+box::use(
+    ../modules/data[load_market, load_vix, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+# Helper function for merging by date
+merge_by_date <- function(dt1, dt2) {
+    merge(dt1, dt2, by = "date", all = FALSE)
+}
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = ""
+)
+
+tc <- unlist(trading_colors)
+```
+
+## 10.1 Volatility as an Asset Class
+
+### 10.1.1 Prose & Intuition
+
+Volatility is not just a risk measure—it's a tradeable asset class with its own unique characteristics. Unlike traditional assets that derive value from cash flows or ownership claims, volatility represents uncertainty itself. This distinction creates fascinating properties that sophisticated traders exploit.
+
+The key insight is that **implied volatility is almost always higher than realised volatility**. This gap—the Volatility Risk Premium (VRP)—exists because investors are willing to pay extra for protection against uncertainty. Just as insurance companies profit from the gap between premiums charged and claims paid, volatility sellers harvest this premium.
+
+However, volatility trading carries significant tail risk. When markets crash, volatility explodes, and positions that appeared profitable can face catastrophic losses. The asymmetry between slow premium collection and sudden, violent drawdowns defines the volatility trader's challenge.
+
+### 10.1.2 Visual Evidence
+
+```{r vix-overview, fig.cap="VIX historical evolution. The 'fear gauge' shows mean reversion with occasional explosive spikes during market crises."}
+# Load VIX data
+vix <- load_vix("vix")
+spy <- load_market("SPY")
+
+# Filter to common dates
+start_date <- as.Date("1993-01-01")  # SPY inception
+end_date <- as.Date("2023-12-31")
+vix <- filter_dates(vix, start_date, end_date)
+spy <- filter_dates(spy, start_date, end_date)
+
+# Merge datasets - select only needed columns from SPY
+combined <- merge_by_date(spy[, .(date, adjusted)], vix[, .(date, vix = close)])
+
+# Calculate returns
+combined[, spy_ret := c(NA, diff(log(adjusted)))]
+
+# Plot VIX history
+ggplot(combined[!is.na(vix)], aes(x = date, y = vix)) +
+    geom_line(colour = tc[1], linewidth = 0.5) +
+    geom_hline(yintercept = mean(combined$vix, na.rm = TRUE),
+               linetype = "dashed", colour = tc[2]) +
+    annotate("text", x = as.Date("2020-01-01"),
+             y = mean(combined$vix, na.rm = TRUE) + 2,
+             label = sprintf("Mean: %.1f", mean(combined$vix, na.rm = TRUE)),
+             colour = tc[2]) +
+    labs(title = "VIX Index: 30+ Years of Market Fear",
+         subtitle = "Mean-reverting but with explosive spikes during crises",
+         x = NULL, y = "VIX Level") +
+    theme_trading()
+```
+
+```{r vix-distribution, fig.cap="VIX distribution is heavily right-skewed. Typical levels cluster around 15-20, but tail events push above 40."}
+# VIX distribution
+ggplot(combined[!is.na(vix)], aes(x = vix)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 50,
+                   fill = tc[1], alpha = 0.7, colour = "white") +
+    geom_density(colour = tc[2], linewidth = 1) +
+    geom_vline(xintercept = median(combined$vix, na.rm = TRUE),
+               linetype = "dashed", colour = tc[3]) +
+    annotate("text", x = median(combined$vix, na.rm = TRUE) + 5, y = 0.08,
+             label = sprintf("Median: %.1f", median(combined$vix, na.rm = TRUE)),
+             colour = tc[3]) +
+    labs(title = "VIX Distribution: Right-Skewed with Fat Tails",
+         subtitle = "Normal conditions cluster 12-20, stress periods push >40",
+         x = "VIX Level", y = "Density") +
+    theme_trading()
+```
+
+```{r vix-spy-relationship, fig.cap="VIX and SPY move inversely. When markets fall, fear rises—often dramatically."}
+# Rolling correlation between VIX and SPY
+combined[, vix_change := c(NA, diff(log(vix)))]
+combined[, rolling_corr := frollapply(1:.N, 63, function(i) {
+    if (length(i) < 63) return(NA)
+    cor(spy_ret[i], vix_change[i], use = "complete.obs")
+})]
+
+# Scatter of returns vs VIX change
+ggplot(combined[!is.na(spy_ret) & !is.na(vix_change)],
+       aes(x = spy_ret, y = vix_change)) +
+    geom_point(alpha = 0.3, colour = tc[1]) +
+    geom_smooth(method = "lm", se = TRUE, colour = tc[2]) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    scale_x_continuous(labels = scales::percent_format()) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "VIX Changes vs SPY Returns",
+         subtitle = sprintf("Correlation: %.2f (highly negative)",
+                           cor(combined$spy_ret, combined$vix_change, use = "complete.obs")),
+         x = "SPY Daily Return", y = "VIX Daily % Change") +
+    theme_trading()
+```
+
+### 10.1.3 Mathematical Derivation
+
+**Implied vs Realised Volatility**
+
+Implied volatility ($\sigma_{IV}$) is extracted from option prices using the Black-Scholes formula. It represents the market's expectation of future volatility.
+
+Realised volatility ($\sigma_{RV}$) is computed from historical returns:
+
+$$
+\sigma_{RV} = \sqrt{\frac{252}{n} \sum_{i=1}^{n} r_i^2}
+$$
+
+assuming zero mean (which is approximately true for daily returns).
+
+**Volatility Risk Premium**
+
+$$
+VRP = \sigma_{IV} - E[\sigma_{RV}]
+$$
+
+Empirically, $VRP > 0$ on average, meaning implied volatility consistently overstates realised volatility.
+
+**VIX Calculation (Simplified)**
+
+The VIX approximates the 30-day expected variance:
+
+$$
+VIX^2 = \frac{2}{T} \sum_i \frac{\Delta K_i}{K_i^2} e^{rT} Q(K_i)
+$$
+
+where $K_i$ are strike prices, $Q(K_i)$ are OTM option prices, and $T$ is time to expiration.
+
+This model-free approach aggregates information from all available strikes.
+
+### 10.1.4 Implementation & Application
+
+```{r realised-volatility, fig.cap="Realised volatility calculation and comparison with VIX. VIX typically exceeds realised vol."}
+# Calculate various realised volatility measures
+combined[, rv_20 := frollapply(spy_ret^2, 20, function(x) sqrt(sum(x) * 252 / length(x)))]
+combined[, rv_60 := frollapply(spy_ret^2, 60, function(x) sqrt(sum(x) * 252 / length(x)))]
+
+# Convert realised vol to percentage (same units as VIX)
+combined[, rv_20_pct := rv_20 * 100]
+combined[, rv_60_pct := rv_60 * 100]
+
+# Plot VIX vs realised
+plot_data <- melt(combined[!is.na(rv_60_pct), .(date, VIX = vix, `Realised 60d` = rv_60_pct)],
+                  id.vars = "date", variable.name = "Type", value.name = "Volatility")
+
+ggplot(plot_data, aes(x = date, y = Volatility, colour = Type)) +
+    geom_line(linewidth = 0.5, alpha = 0.8) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(title = "VIX vs 60-Day Realised Volatility",
+         subtitle = "VIX (implied) typically trades above realised volatility",
+         x = NULL, y = "Volatility (%)") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+```{r vrp-calculation, fig.cap="Volatility Risk Premium over time. Positive VRP is the norm, providing a harvestable premium."}
+# Calculate VRP (forward-looking: VIX today minus realised vol over next 30 days)
+combined[, fwd_rv_30 := shift(frollapply(spy_ret^2, 30,
+                                          function(x) sqrt(sum(x) * 252 / length(x))), -30)]
+combined[, fwd_rv_30_pct := fwd_rv_30 * 100]
+combined[, vrp := vix - fwd_rv_30_pct]
+
+# Summary statistics
+vrp_stats <- combined[!is.na(vrp), .(
+    mean_vrp = mean(vrp),
+    median_vrp = median(vrp),
+    pct_positive = mean(vrp > 0) * 100,
+    sd_vrp = sd(vrp)
+)]
+
+print(vrp_stats)
+
+# Plot VRP over time
+ggplot(combined[!is.na(vrp)], aes(x = date, y = vrp)) +
+    geom_line(colour = tc[1], linewidth = 0.3) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_hline(yintercept = mean(combined$vrp, na.rm = TRUE),
+               linetype = "dashed", colour = tc[2]) +
+    annotate("text", x = as.Date("2020-01-01"),
+             y = mean(combined$vrp, na.rm = TRUE) + 3,
+             label = sprintf("Mean VRP: %.1f pts", mean(combined$vrp, na.rm = TRUE)),
+             colour = tc[2]) +
+    labs(title = "Volatility Risk Premium (VIX - Forward Realised Vol)",
+         subtitle = sprintf("Positive %.0f%% of the time", vrp_stats$pct_positive),
+         x = NULL, y = "VRP (VIX points)") +
+    theme_trading()
+```
+
+---
+
+## 10.2 VIX Mechanics and Term Structure
+
+### 10.2.1 Prose & Intuition
+
+The VIX isn't directly tradeable—it's a calculated index. To gain volatility exposure, traders use VIX futures, options, or ETPs. This creates a crucial distinction between spot VIX and tradeable instruments.
+
+The VIX term structure—the relationship between futures prices at different expirations—reveals market expectations and creates trading opportunities. When the curve is in **contango** (upward sloping), longer-dated futures trade above spot VIX. This is the normal state, reflecting the time value embedded in volatility exposure.
+
+When markets stress, the term structure inverts to **backwardation** (downward sloping). Spot VIX spikes above futures prices as near-term fear exceeds longer-term expectations. These inversions are rare but violent, and represent regime changes that volatility traders must navigate.
+
+### 10.2.2 Visual Evidence
+
+```{r term-structure-load, fig.cap="VIX term structure data showing relationship between different tenors."}
+# Load term structure data
+vix_ts <- load_vix("term_structure")
+vix_ts <- filter_dates(vix_ts, as.Date("2011-01-01"), as.Date("2023-12-31"))
+
+# Calculate term structure slope (6M vs 9D)
+vix_ts[, slope_6m_9d := VIX6M - VIX9D]
+vix_ts[, slope_3m_vix := VIX3M - VIX]
+
+# Identify contango/backwardation
+vix_ts[, regime := fifelse(slope_3m_vix > 0, "Contango", "Backwardation")]
+
+# Plot term structure over time
+plot_ts <- melt(vix_ts[, .(date, VIX9D, VIX, VIX3M, VIX6M)],
+                id.vars = "date", variable.name = "Tenor", value.name = "Level")
+
+ggplot(plot_ts, aes(x = date, y = Level, colour = Tenor)) +
+    geom_line(linewidth = 0.5, alpha = 0.8) +
+    scale_colour_manual(values = c(tc[4], tc[1], tc[2], tc[3])) +
+    labs(title = "VIX Term Structure Evolution",
+         subtitle = "Short tenors spike during crises; long tenors remain anchored",
+         x = NULL, y = "VIX Level") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+```{r contango-backwardation, fig.cap="Term structure slope identifies market regimes. Contango (positive) is normal; backwardation (negative) signals stress."}
+# Plot slope over time
+ggplot(vix_ts[!is.na(slope_3m_vix)], aes(x = date, y = slope_3m_vix, fill = regime)) +
+    geom_col(width = 1) +
+    geom_hline(yintercept = 0, colour = "white", linewidth = 1) +
+    scale_fill_manual(values = c("Contango" = tc[1], "Backwardation" = tc[4])) +
+    labs(title = "VIX Term Structure Slope (VIX3M - VIX)",
+         subtitle = "Positive = Contango (normal); Negative = Backwardation (stress)",
+         x = NULL, y = "Slope (VIX points)", fill = "Regime") +
+    theme_trading() +
+    theme(legend.position = "top")
+
+# Count regimes
+regime_stats <- vix_ts[!is.na(regime), .(
+    days = .N,
+    pct = .N / nrow(vix_ts[!is.na(regime)]) * 100
+), by = regime]
+
+print(regime_stats)
+```
+
+```{r term-structure-snapshot, fig.cap="Term structure shapes in different market conditions. Normal vs stressed environments."}
+# Select representative dates
+calm_date <- as.Date("2019-06-01")  # Low VIX period
+stress_date <- as.Date("2020-03-16")  # COVID peak
+
+# Get closest dates
+vix_ts[, date_num := as.numeric(date)]
+calm_idx <- which.min(abs(vix_ts$date_num - as.numeric(calm_date)))
+stress_idx <- which.min(abs(vix_ts$date_num - as.numeric(stress_date)))
+
+calm_row <- vix_ts[calm_idx]
+stress_row <- vix_ts[stress_idx]
+
+# Create snapshot data
+snapshot <- data.table(
+    Tenor = rep(c("9D", "30D", "3M", "6M"), 2),
+    Tenor_num = rep(c(9, 30, 90, 180), 2),
+    Condition = rep(c("Normal", "Stressed"), each = 4),
+    Level = c(calm_row$VIX9D, calm_row$VIX, calm_row$VIX3M, calm_row$VIX6M,
+              stress_row$VIX9D, stress_row$VIX, stress_row$VIX3M, stress_row$VIX6M)
+)
+
+ggplot(snapshot, aes(x = Tenor_num, y = Level, colour = Condition, group = Condition)) +
+    geom_line(linewidth = 1.5) +
+    geom_point(size = 3) +
+    scale_colour_manual(values = c("Normal" = tc[1], "Stressed" = tc[4])) +
+    scale_x_continuous(breaks = c(9, 30, 90, 180), labels = c("9D", "30D", "3M", "6M")) +
+    labs(title = "VIX Term Structure: Normal vs Stressed",
+         subtitle = sprintf("Normal: %s (VIX=%.0f); Stressed: %s (VIX=%.0f)",
+                           calm_row$date, calm_row$VIX, stress_row$date, stress_row$VIX),
+         x = "Tenor (Days)", y = "VIX Level") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+### 10.2.3 Mathematical Derivation
+
+**Term Structure and Roll Yield**
+
+For VIX futures, the relationship between spot and futures follows:
+
+$$
+F_T = VIX_t \cdot e^{(r - y)(T-t)}
+$$
+
+where $y$ is the convenience yield. In practice, VIX futures don't follow cost-of-carry because VIX isn't holdable.
+
+**Contango Roll Cost**
+
+When futures trade at premium to spot (contango), rolling positions costs:
+
+$$
+\text{Roll Cost} = \frac{F_2 - F_1}{F_1}
+$$
+
+This drag can be substantial—historically 4-6% monthly during contango.
+
+**Term Structure Slope**
+
+The slope measures term structure steepness:
+
+$$
+\text{Slope} = \frac{VIX_{\text{long}} - VIX_{\text{short}}}{VIX_{\text{short}}}
+$$
+
+High slope suggests elevated roll cost; inverted slope signals near-term stress.
+
+### 10.2.4 Implementation & Application
+
+```{r roll-yield-simulation, fig.cap="Simulated contango roll cost impact. Persistent contango erodes long volatility positions."}
+# Simulate roll cost impact
+set.seed(42)
+
+# Average contango assumptions
+monthly_roll_cost <- 0.05  # 5% monthly in contango
+days_in_month <- 21
+
+# Simulate a long VIX position with roll
+n_months <- 60
+vix_start <- 15
+
+# Path 1: Spot VIX (mean-reverting random walk)
+spot_path <- numeric(n_months * days_in_month)
+spot_path[1] <- vix_start
+for (i in 2:length(spot_path)) {
+    mean_revert <- 0.02 * (18 - spot_path[i-1])  # Pull toward 18
+    shock <- rnorm(1, 0, 0.8)
+    spot_path[i] <- max(10, spot_path[i-1] + mean_revert + shock)
+}
+
+# Path 2: Long futures position (with roll cost)
+futures_value <- numeric(n_months * days_in_month)
+futures_value[1] <- 100  # Start at 100
+daily_roll <- monthly_roll_cost / days_in_month
+
+for (i in 2:length(futures_value)) {
+    # Spot return
+    spot_ret <- (spot_path[i] - spot_path[i-1]) / spot_path[i-1]
+    # Futures return = spot return - roll cost
+    futures_ret <- spot_ret - daily_roll
+    futures_value[i] <- futures_value[i-1] * (1 + futures_ret)
+}
+
+# Create comparison
+sim_data <- data.table(
+    day = 1:length(spot_path),
+    Spot = spot_path / vix_start * 100,
+    Futures = futures_value
+)
+
+plot_sim <- melt(sim_data, id.vars = "day", variable.name = "Position", value.name = "Value")
+
+ggplot(plot_sim, aes(x = day, y = Value, colour = Position)) +
+    geom_line(linewidth = 1) +
+    scale_colour_manual(values = c(tc[1], tc[4])) +
+    geom_hline(yintercept = 100, linetype = "dashed", colour = "grey50") +
+    labs(title = "Contango Drag on Long Volatility Positions",
+         subtitle = "Simulated: 5% monthly roll cost erodes futures value vs spot",
+         x = "Trading Day", y = "Value (Indexed to 100)") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+```{r term-structure-strategy, fig.cap="Term structure signal for volatility timing. Trade direction based on term structure regime."}
+# Simple term structure strategy
+vix_ts_strat <- copy(vix_ts[!is.na(slope_3m_vix)])
+
+# Strategy: Long when backwardation, short when steep contango
+vix_ts_strat[, signal := fifelse(slope_3m_vix < 0, 1,  # Backwardation: long
+                                  fifelse(slope_3m_vix > 3, -1,  # Steep contango: short
+                                         0))]  # Neutral
+
+# Calculate returns (using VIX changes as proxy)
+vix_ts_strat[, vix_ret := c(NA, diff(log(VIX)))]
+vix_ts_strat[, strat_ret := shift(signal, 1) * vix_ret]
+
+# Cumulative returns
+vix_ts_strat[, cum_strat := cumsum(fifelse(is.na(strat_ret), 0, strat_ret))]
+vix_ts_strat[, cum_vix := cumsum(fifelse(is.na(vix_ret), 0, vix_ret))]
+
+# Plot signal over time
+ggplot(vix_ts_strat, aes(x = date, y = signal)) +
+    geom_step(colour = tc[1], linewidth = 0.5) +
+    scale_y_continuous(breaks = c(-1, 0, 1), labels = c("Short", "Neutral", "Long")) +
+    labs(title = "Term Structure Timing Signal",
+         subtitle = "Long during backwardation; Short during steep contango",
+         x = NULL, y = "Position") +
+    theme_trading()
+```
+
+---
+
+## 10.3 Volatility Mean Reversion
+
+### 10.3.1 Prose & Intuition
+
+Volatility mean-reverts more reliably than prices. This fundamental property makes volatility trading distinct from directional asset trading. When VIX spikes to 40, we're highly confident it will return to normal levels—we just don't know when or how.
+
+The mean-reversion process follows different speeds depending on the direction. VIX rises fast (in sudden spikes) but falls slowly (grinding back to normal). This asymmetry creates strategic opportunities: selling volatility after spikes captures mean reversion, while the initial spike can devastate short positions.
+
+Understanding the half-life of volatility shocks—how long they persist—is crucial for timing entries and sizing positions. Shorter half-lives suggest faster mean reversion and shorter holding periods.
+
+### 10.3.2 Visual Evidence
+
+```{r vix-mean-reversion, fig.cap="VIX mean reversion after spikes. High VIX levels predict future declines."}
+# Test mean reversion: VIX level predicts future returns
+combined[, vix_lag := shift(vix, 1)]
+combined[, vix_fwd_5d := shift(vix, -5)]
+combined[, vix_fwd_20d := shift(vix, -20)]
+
+# Calculate forward VIX returns
+combined[, vix_ret_5d := (vix_fwd_5d - vix) / vix]
+combined[, vix_ret_20d := (vix_fwd_20d - vix) / vix]
+
+# Bin VIX levels
+combined[, vix_bin := cut(vix, breaks = c(0, 15, 20, 25, 30, 40, 100),
+                          labels = c("<15", "15-20", "20-25", "25-30", "30-40", ">40"))]
+
+# Average forward return by VIX level
+mr_by_level <- combined[!is.na(vix_bin) & !is.na(vix_ret_20d), .(
+    avg_ret_5d = mean(vix_ret_5d, na.rm = TRUE),
+    avg_ret_20d = mean(vix_ret_20d, na.rm = TRUE),
+    count = .N
+), by = vix_bin]
+
+ggplot(mr_by_level, aes(x = vix_bin, y = avg_ret_20d)) +
+    geom_col(fill = tc[1], alpha = 0.8) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_text(aes(label = sprintf("n=%d", count)), vjust = -0.5, size = 3) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "VIX Mean Reversion: Forward 20-Day Returns by Level",
+         subtitle = "Higher VIX predicts larger future declines",
+         x = "Current VIX Level", y = "Average 20-Day VIX Return") +
+    theme_trading()
+```
+
+```{r half-life-estimation, fig.cap="VIX half-life estimation using AR(1) model. Volatility shocks decay with predictable half-life."}
+# Estimate AR(1) for log VIX
+combined[, log_vix := log(vix)]
+combined[, log_vix_lag := shift(log_vix, 1)]
+
+# AR(1) regression: log(VIX_t) = a + b * log(VIX_{t-1}) + e
+ar1_fit <- lm(log_vix ~ log_vix_lag, data = combined[!is.na(log_vix) & !is.na(log_vix_lag)])
+
+phi <- coef(ar1_fit)["log_vix_lag"]
+half_life <- -log(2) / log(phi)
+
+cat(sprintf("AR(1) coefficient (phi): %.4f\n", phi))
+cat(sprintf("Estimated half-life: %.1f days\n", half_life))
+
+# Impulse response function
+irf_days <- 60
+irf <- phi^(0:irf_days)
+irf_data <- data.table(day = 0:irf_days, response = irf)
+
+ggplot(irf_data, aes(x = day, y = response)) +
+    geom_line(colour = tc[1], linewidth = 1) +
+    geom_hline(yintercept = 0.5, linetype = "dashed", colour = tc[2]) +
+    geom_vline(xintercept = half_life, linetype = "dashed", colour = tc[2]) +
+    annotate("text", x = half_life + 5, y = 0.55,
+             label = sprintf("Half-life: %.0f days", half_life), colour = tc[2]) +
+    labs(title = "VIX Impulse Response Function",
+         subtitle = "Shock decays exponentially; 50% reversion in ~22 days",
+         x = "Days After Shock", y = "Remaining Impact") +
+    theme_trading()
+```
+
+### 10.3.3 Mathematical Derivation
+
+**Ornstein-Uhlenbeck Process for Volatility**
+
+Volatility is often modelled as mean-reverting:
+
+$$
+d\sigma = \kappa(\theta - \sigma)dt + \eta dW
+$$
+
+where:
+- $\kappa$ = speed of mean reversion
+- $\theta$ = long-run mean volatility
+- $\eta$ = volatility of volatility
+
+**Half-Life Calculation**
+
+For an AR(1) process $X_t = \phi X_{t-1} + \epsilon_t$:
+
+$$
+\text{Half-life} = \frac{-\ln(2)}{\ln(\phi)}
+$$
+
+For log VIX with $\phi \approx 0.97$:
+
+$$
+\text{Half-life} \approx \frac{0.693}{0.03} \approx 23 \text{ days}
+$$
+
+**Expected Future VIX**
+
+Given current VIX, expected future value:
+
+$$
+E[VIX_{t+h}] = \theta + (VIX_t - \theta) \cdot e^{-\kappa h}
+$$
+
+High VIX today implies decay toward the long-run mean.
+
+### 10.3.4 Implementation & Application
+
+```{r mean-reversion-strategy, fig.cap="Mean reversion strategy: sell VIX when elevated, buy when depressed."}
+# Define mean reversion thresholds
+vix_mean <- mean(combined$vix, na.rm = TRUE)
+vix_sd <- sd(combined$vix, na.rm = TRUE)
+
+combined[, z_score := (vix - vix_mean) / vix_sd]
+
+# Strategy: Short when z > 1.5, Long when z < -0.5
+combined[, mr_signal := fifelse(z_score > 1.5, -1,  # Short high VIX
+                                 fifelse(z_score < -0.5, 1,  # Long low VIX
+                                        0))]
+
+# Use VIX percentage change as return
+combined[, vix_pct_ret := c(NA, diff(vix)) / shift(vix, 1)]
+combined[, mr_return := shift(mr_signal, 1) * vix_pct_ret]
+
+# Cumulative returns
+combined <- combined[!is.na(mr_return)]
+combined[, cum_mr := cumsum(mr_return)]
+combined[, cum_vix := cumsum(vix_pct_ret)]
+
+# Plot strategy vs buy-and-hold VIX
+plot_mr <- melt(combined[, .(date, `MR Strategy` = cum_mr, `Long VIX` = cum_vix)],
+                id.vars = "date", variable.name = "Strategy", value.name = "Return")
+
+ggplot(plot_mr, aes(x = date, y = Return, colour = Strategy)) +
+    geom_line(linewidth = 0.5) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "VIX Mean Reversion Strategy Performance",
+         subtitle = "Short when z-score > 1.5; Long when z-score < -0.5",
+         x = NULL, y = "Cumulative Return") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+```{r mr-statistics, fig.cap="Mean reversion strategy statistics by regime. Short elevated VIX generates positive returns."}
+# Calculate statistics
+mr_stats <- combined[!is.na(mr_return) & mr_signal != 0, .(
+    avg_return = mean(mr_return) * 252,
+    hit_rate = mean(sign(mr_return) == sign(shift(mr_signal, 1))) * 100,
+    days = .N
+), by = mr_signal]
+
+mr_stats[, Position := fifelse(mr_signal == 1, "Long Low VIX", "Short High VIX")]
+
+print(mr_stats[, .(Position, days, avg_return = round(avg_return * 100, 1), hit_rate = round(hit_rate, 1))])
+
+# Distribution of returns by position
+combined[, Position := fifelse(mr_signal == 1, "Long Low VIX",
+                                fifelse(mr_signal == -1, "Short High VIX", "Flat"))]
+
+ggplot(combined[Position != "Flat"], aes(x = mr_return, fill = Position)) +
+    geom_histogram(bins = 50, alpha = 0.7, position = "identity") +
+    geom_vline(xintercept = 0, linetype = "dashed", colour = "white") +
+    scale_fill_manual(values = c(tc[1], tc[4])) +
+    scale_x_continuous(labels = scales::percent_format(), limits = c(-0.15, 0.15)) +
+    labs(title = "Daily Return Distribution by Position",
+         subtitle = "Both positions show positive skew when active",
+         x = "Daily Return", y = "Count") +
+    theme_trading() +
+    theme(legend.position = "top") +
+    facet_wrap(~Position, scales = "free_y")
+```

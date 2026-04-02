@@ -1,0 +1,538 @@
+---
+title: "Module Test - Proof of Concept"
+author: "Algorithmic Trading with R"
+date: "2026-01-21"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: show
+    theme: flatly
+---
+
+
+
+# Module Import Test
+
+This document tests that our `box::use()` module system works correctly.
+
+## Load Modules
+
+
+``` r
+# Using box::use() for modular imports
+box::use(
+    ../modules/data[
+        load_market, load_factors, load_vix, load_economic,
+        load_returns, list_market_symbols, filter_dates
+    ],
+    ../modules/stats[
+        sharpe_ratio, max_drawdown, return_summary, format_summary,
+        annualised_return, annualised_vol, rolling_vol
+    ],
+    ../modules/viz[
+        plot_cumulative_returns, plot_drawdown, plot_return_dist,
+        plot_rolling_vol, plot_multi_returns, theme_trading, trading_colors
+    ]
+)
+
+# Also load data.table and ggplot2 directly for any ad-hoc work
+library(data.table)
+library(ggplot2)
+```
+
+## Test Data Loading
+
+### Market Data
+
+
+``` r
+# Load S&P 500 data
+sp500 <- load_market("sp500")
+cat("S&P 500 data loaded:\n")
+```
+
+```
+## S&P 500 data loaded:
+```
+
+``` r
+cat("  Rows:", nrow(sp500), "\n")
+```
+
+```
+##   Rows: 9078
+```
+
+``` r
+cat("  Date range:", as.character(min(sp500$date)), "to", as.character(max(sp500$date)), "\n")
+```
+
+```
+##   Date range: 1990-01-02 to 2026-01-16
+```
+
+``` r
+cat("  Columns:", paste(names(sp500), collapse = ", "), "\n")
+```
+
+```
+##   Columns: date, open, high, low, close, volume, adjusted, returns, returns_simple
+```
+
+``` r
+# Preview
+head(sp500)
+```
+
+```
+## Key: <date>
+##          date   open   high    low  close    volume adjusted      returns
+##        <Date>  <num>  <num>  <num>  <num>     <num>    <num>        <num>
+## 1: 1990-01-02 353.40 359.69 351.98 359.69 162070000   359.69           NA
+## 2: 1990-01-03 359.69 360.59 357.89 358.76 192330000   358.76 -0.002588888
+## 3: 1990-01-04 358.76 358.76 352.89 355.67 177000000   355.67 -0.008650296
+## 4: 1990-01-05 355.67 355.67 351.35 352.20 158530000   352.20 -0.009804142
+## 5: 1990-01-08 352.20 354.24 350.54 353.79 140110000   353.79  0.004504310
+## 6: 1990-01-09 353.83 354.17 349.61 349.62 155210000   349.62 -0.011856705
+##    returns_simple
+##             <num>
+## 1:             NA
+## 2:   -0.002585539
+## 3:   -0.008612990
+## 4:   -0.009756238
+## 5:    0.004514470
+## 6:   -0.011786691
+```
+
+
+``` r
+# List available market symbols
+symbols <- list_market_symbols()
+cat("Available market symbols:", length(symbols), "\n")
+```
+
+```
+## Available market symbols: 139
+```
+
+``` r
+cat("First 20:", paste(head(symbols, 20), collapse = ", "), "\n")
+```
+
+```
+## First 20: a, aapl, abbv, abnb, abt, acgl, acn, adbe, adm, adp, adsk, aee, aep, aes, afl, agg, aig, aiz, ajg, akam
+```
+
+### Factor Data
+
+
+``` r
+# Load Fama-French 3-factor data
+ff3 <- load_factors("ff3", "daily")
+cat("FF3 factors loaded:\n")
+```
+
+```
+## FF3 factors loaded:
+```
+
+``` r
+cat("  Rows:", nrow(ff3), "\n")
+```
+
+```
+##   Rows: 26129
+```
+
+``` r
+cat("  Date range:", as.character(min(ff3$date)), "to", as.character(max(ff3$date)), "\n")
+```
+
+```
+##   Date range: 1926-07-01 to 2025-11-28
+```
+
+``` r
+cat("  Columns:", paste(names(ff3), collapse = ", "), "\n")
+```
+
+```
+##   Columns: date, Mkt_RF, SMB, HML, RF
+```
+
+``` r
+head(ff3)
+```
+
+```
+## Key: <date>
+##          date  Mkt_RF     SMB     HML    RF
+##        <Date>   <num>   <num>   <num> <num>
+## 1: 1926-07-01  0.0009 -0.0025 -0.0027 1e-04
+## 2: 1926-07-02  0.0045 -0.0033 -0.0006 1e-04
+## 3: 1926-07-06  0.0017  0.0030 -0.0039 1e-04
+## 4: 1926-07-07  0.0009 -0.0058  0.0002 1e-04
+## 5: 1926-07-08  0.0022 -0.0038  0.0019 1e-04
+## 6: 1926-07-09 -0.0071  0.0043  0.0057 1e-04
+```
+
+### VIX Term Structure
+
+
+``` r
+# Load VIX term structure
+vix_ts <- load_vix("term_structure")
+cat("VIX term structure loaded:\n")
+```
+
+```
+## VIX term structure loaded:
+```
+
+``` r
+cat("  Rows:", nrow(vix_ts), "\n")
+```
+
+```
+##   Rows: 3783
+```
+
+``` r
+cat("  Columns:", paste(names(vix_ts), collapse = ", "), "\n")
+```
+
+```
+##   Columns: date, VIX, VIX9D, VIX3M, VIX6M
+```
+
+``` r
+head(vix_ts)
+```
+
+```
+## Key: <date>
+##          date   VIX VIX9D VIX3M VIX6M
+##        <Date> <num> <num> <num> <num>
+## 1: 2011-01-03 17.61 16.04 20.62 23.40
+## 2: 2011-01-04 17.38 16.06 20.61 23.19
+## 3: 2011-01-05 17.02 15.57 20.05 22.78
+## 4: 2011-01-06 17.40 15.71 20.35 22.87
+## 5: 2011-01-07 17.14 15.01 20.29 22.92
+## 6: 2011-01-10 17.54 15.81 20.48 22.93
+```
+
+### Economic Data
+
+
+``` r
+# Load Treasury yields
+yields <- load_economic("interest_rate_term_structure")
+cat("Treasury yields loaded:\n")
+```
+
+```
+## Treasury yields loaded:
+```
+
+``` r
+cat("  Rows:", nrow(yields), "\n")
+```
+
+```
+##   Rows: 15995
+```
+
+``` r
+cat("  Columns:", paste(names(yields), collapse = ", "), "\n")
+```
+
+```
+##   Columns: date, treasury_3mo, treasury_2yr, treasury_5yr, treasury_10yr, treasury_30yr
+```
+
+``` r
+head(yields)
+```
+
+```
+## Key: <date>
+##          date treasury_3mo treasury_2yr treasury_5yr treasury_10yr
+##        <Date>        <num>        <num>        <num>         <num>
+## 1: 1962-01-02           NA           NA         3.88          4.06
+## 2: 1962-01-03           NA           NA         3.87          4.03
+## 3: 1962-01-04           NA           NA         3.86          3.99
+## 4: 1962-01-05           NA           NA         3.89          4.02
+## 5: 1962-01-08           NA           NA         3.91          4.03
+## 6: 1962-01-09           NA           NA         3.93          4.05
+##    treasury_30yr
+##            <num>
+## 1:            NA
+## 2:            NA
+## 3:            NA
+## 4:            NA
+## 5:            NA
+## 6:            NA
+```
+
+## Test Statistics Functions
+
+
+``` r
+# Calculate return statistics for S&P 500
+sp500_returns <- sp500$returns[!is.na(sp500$returns)]
+
+# Individual stats
+cat("S&P 500 Return Statistics (Daily data, 2000-present):\n")
+```
+
+```
+## S&P 500 Return Statistics (Daily data, 2000-present):
+```
+
+``` r
+cat("  Annualised Return:", round(annualised_return(sp500_returns) * 100, 2), "%\n")
+```
+
+```
+##   Annualised Return: 8.22 %
+```
+
+``` r
+cat("  Annualised Vol:", round(annualised_vol(sp500_returns) * 100, 2), "%\n")
+```
+
+```
+##   Annualised Vol: 18.06 %
+```
+
+``` r
+cat("  Sharpe Ratio:", round(sharpe_ratio(sp500_returns), 2), "\n")
+```
+
+```
+##   Sharpe Ratio: 0.45
+```
+
+``` r
+cat("  Max Drawdown:", round(max_drawdown(sp500_returns) * 100, 2), "%\n")
+```
+
+```
+##   Max Drawdown: 56.78 %
+```
+
+
+``` r
+# Full summary
+summary_stats <- return_summary(sp500_returns)
+summary_dt <- format_summary(summary_stats, "SP500")
+print(summary_dt)
+```
+
+```
+##           metric         SP500
+##           <char>         <num>
+##  1:        n_obs 9077.00000000
+##  2:   ann_return    0.08217182
+##  3:      ann_vol    0.18063592
+##  4:       sharpe    0.45490299
+##  5:      sortino    0.43114713
+##  6:       max_dd    0.56775388
+##  7:       var_95    0.01732853
+##  8:      cvar_95    0.02749529
+##  9:     skewness   -0.36531311
+## 10:     kurtosis   10.89739932
+## 11:   min_return   -0.12765220
+## 12:   max_return    0.10957197
+## 13: pct_positive    0.53696155
+```
+
+## Test Visualisation Functions
+
+### Cumulative Returns
+
+
+``` r
+# Filter to recent years for clearer visualisation
+sp500_recent <- filter_dates(sp500, "2020-01-01")
+
+plot_cumulative_returns(
+    sp500_recent,
+    title = "S&P 500 Cumulative Returns (2020-Present)"
+)
+```
+
+![plot of chunk plot-cumulative](/courses/financial-statistics-1-foundations/plot-cumulative-1.png)
+
+### Drawdown
+
+
+``` r
+plot_drawdown(
+    sp500_recent,
+    title = "S&P 500 Drawdown (2020-Present)"
+)
+```
+
+![plot of chunk plot-drawdown](/courses/financial-statistics-1-foundations/plot-drawdown-1.png)
+
+### Return Distribution
+
+
+``` r
+plot_return_dist(
+    sp500,
+    title = "S&P 500 Daily Return Distribution"
+)
+```
+
+![plot of chunk plot-distribution](/courses/financial-statistics-1-foundations/plot-distribution-1.png)
+
+### Rolling Volatility
+
+
+``` r
+plot_rolling_vol(
+    sp500_recent,
+    window = 20,
+    title = "S&P 500 20-Day Rolling Volatility"
+)
+```
+
+![plot of chunk plot-rolling-vol](/courses/financial-statistics-1-foundations/plot-rolling-vol-1.png)
+
+## Multi-Asset Comparison
+
+
+``` r
+# Load multiple asset returns
+multi_returns <- load_returns(c("spy", "qqq", "gld", "tlt"))
+multi_returns <- filter_dates(multi_returns, "2020-01-01")
+
+cat("Multi-asset returns loaded:\n")
+```
+
+```
+## Multi-asset returns loaded:
+```
+
+``` r
+cat("  Rows:", nrow(multi_returns), "\n")
+```
+
+```
+##   Rows: 1519
+```
+
+``` r
+cat("  Assets:", paste(setdiff(names(multi_returns), "date"), collapse = ", "), "\n")
+```
+
+```
+##   Assets: SPY, QQQ, GLD, TLT
+```
+
+``` r
+plot_multi_returns(
+    multi_returns,
+    title = "Multi-Asset Cumulative Returns (2020-Present)"
+)
+```
+
+![plot of chunk multi-asset](/courses/financial-statistics-1-foundations/multi-asset-1.png)
+
+## Factor Analysis Example
+
+
+``` r
+# Merge AAPL with factors
+aapl <- load_market("aapl")
+aapl_recent <- filter_dates(aapl, "2020-01-01")[, .(date, returns)]
+setnames(aapl_recent, "returns", "AAPL")
+
+ff3_recent <- filter_dates(ff3, "2020-01-01")
+
+# Merge
+aapl_factors <- merge(aapl_recent, ff3_recent, by = "date")
+aapl_factors <- aapl_factors[complete.cases(aapl_factors)]
+
+# Run regression
+model <- lm(AAPL ~ Mkt_RF + SMB + HML, data = aapl_factors)
+summary(model)
+```
+
+```
+## 
+## Call:
+## lm(formula = AAPL ~ Mkt_RF + SMB + HML, data = aapl_factors)
+## 
+## Residuals:
+##       Min        1Q    Median        3Q       Max 
+## -0.056112 -0.006003 -0.000197  0.005958  0.084677 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(>|t|)    
+## (Intercept)  0.0002555  0.0003067   0.833    0.405    
+## Mkt_RF       1.1750683  0.0234020  50.212  < 2e-16 ***
+## SMB         -0.3228720  0.0414826  -7.783 1.32e-14 ***
+## HML         -0.3351787  0.0281184 -11.920  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 0.01181 on 1482 degrees of freedom
+## Multiple R-squared:  0.6563,	Adjusted R-squared:  0.6556 
+## F-statistic: 943.2 on 3 and 1482 DF,  p-value: < 2.2e-16
+```
+
+
+``` r
+# Plot AAPL vs Market
+ggplot(aapl_factors, aes(x = Mkt_RF, y = AAPL)) +
+    geom_point(alpha = 0.3, color = trading_colors$primary) +
+    geom_smooth(method = "lm", color = trading_colors$negative, se = TRUE) +
+    geom_hline(yintercept = 0, linetype = "dashed") +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    labs(
+        title = "AAPL vs Market Factor",
+        subtitle = sprintf("Beta = %.2f", coef(model)["Mkt_RF"]),
+        x = "Market Excess Return (Mkt-RF)",
+        y = "AAPL Return"
+    ) +
+    theme_trading()
+```
+
+![plot of chunk factor-plot](/courses/financial-statistics-1-foundations/factor-plot-1.png)
+
+## VIX Term Structure Analysis
+
+
+``` r
+# Plot VIX term structure over time
+vix_long <- melt(vix_ts, id.vars = "date", variable.name = "tenor", value.name = "vix_level")
+vix_long <- vix_long[date >= "2020-01-01"]
+
+ggplot(vix_long, aes(x = date, y = vix_level, color = tenor)) +
+    geom_line(linewidth = 0.5) +
+    labs(
+        title = "VIX Term Structure Over Time",
+        subtitle = "Backwardation indicates market stress",
+        x = NULL,
+        y = "VIX Level"
+    ) +
+    theme_trading()
+```
+
+![plot of chunk vix-term-structure](/courses/financial-statistics-1-foundations/vix-term-structure-1.png)
+
+---
+
+# Summary
+
+All modules loaded and working correctly:
+
+- **data.R**: Successfully loads market, factor, VIX, and economic data
+- **stats.R**: Successfully calculates return statistics, Sharpe ratios, drawdowns
+- **viz.R**: Successfully creates visualisations with consistent theming
+
+The `box::use()` import system is working as expected. Ready to build course content!

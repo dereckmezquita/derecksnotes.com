@@ -3,7 +3,7 @@ import React from 'react';
 import { APPLICATION_DESCRIPTION } from '@lib/constants';
 import { Metadata } from 'next';
 
-import { PostMetadata, getSectionPosts } from '@utils/mdx/fetchPostsMetadata';
+import { getSectionContent } from '@utils/mdx/fetchContentMetadata';
 import { Index } from '@components/pages/index/Index';
 
 export const metadata: Metadata = {
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 async function Page() {
-    const posts: PostMetadata[] = getSectionPosts('references');
+    const posts = getSectionContent('references');
 
     return <Index posts={posts} />;
 }

@@ -1,0 +1,900 @@
+---
+title: "Time-Series Momentum"
+---
+
+```{r setup, include=FALSE}
+box::use(
+    ../modules/data[load_market, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+tc <- unlist(trading_colors)
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = "../figures/07-1_"
+)
+
+set.seed(42)
+```
+
+# Time-Series Momentum
+
+Trend following is among the oldest investment strategies. The observation that "the trend is your friend" has been known to traders for centuries. But it's only in recent decades that academics have rigorously documented *why* trends exist and *how* to exploit them systematically.
+
+Time-series momentum (TSMOM) is distinct from cross-sectional momentum. Cross-sectional momentum ranks assets relative to each other: buy winners, sell losers. TSMOM looks at each asset individually: if it's been going up, stay long; if it's been going down, stay short. Both work, but TSMOM is simpler and more intuitive.
+
+---
+
+## 7.1 The Momentum Anomaly
+
+### 7.1.1 Prose/Intuition
+
+Why do trends persist? Two broad explanations:
+
+**Behavioural explanations:**
+- **Underreaction:** Investors update beliefs slowly when new information arrives. If a company reports great earnings, the price doesn't immediately jump to fair value—it drifts there over months.
+- **Herding:** Trend followers create trends. As prices rise, more buyers enter, pushing prices higher still.
+- **Confirmation bias:** Once a trend starts, investors selectively seek information that confirms the trend, reinforcing it.
+- **Disposition effect:** Investors sell winners too early and hold losers too long, slowing price adjustment.
+
+**Risk-based explanations:**
+- Momentum returns may be compensation for crash risk—momentum strategies suffer devastating losses during reversals.
+- Momentum may be compensation for time-varying expected returns; investors demand higher returns when volatility is high.
+
+The debate continues, but the empirical evidence is clear: *trends exist across virtually all asset classes, markets, and time periods studied.*
+
+### 7.1.2 Visual Evidence
+
+```{r momentum-existence, fig.cap="Time-series momentum across different lookback periods. Positive past returns tend to predict positive future returns—the momentum effect."}
+# Demonstrate momentum effect
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2000-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+# Calculate trailing returns over different horizons
+spy[, ret_1m := frollsum(returns, 21)]   # ~1 month
+spy[, ret_3m := frollsum(returns, 63)]   # ~3 months
+spy[, ret_6m := frollsum(returns, 126)]  # ~6 months
+spy[, ret_12m := frollsum(returns, 252)] # ~12 months
+
+# Forward returns
+spy[, fwd_1m := shift(frollsum(returns, 21), -21)]
+spy <- spy[!is.na(ret_12m) & !is.na(fwd_1m)]
+
+# Analyze momentum effect
+calc_momentum_effect <- function(past_returns, future_returns) {
+    # Split into quintiles by past return
+    quintiles <- cut(past_returns,
+                     breaks = quantile(past_returns, probs = seq(0, 1, 0.2), na.rm = TRUE),
+                     labels = c("Worst", "Q2", "Q3", "Q4", "Best"),
+                     include.lowest = TRUE)
+
+    dt <- data.table(quintile = quintiles, fwd_ret = future_returns)
+    dt[, .(mean_return = mean(fwd_ret, na.rm = TRUE) * 100), by = quintile]
+}
+
+# Results for different lookbacks
+results <- rbind(
+    cbind(Lookback = "1 Month", calc_momentum_effect(spy$ret_1m, spy$fwd_1m)),
+    cbind(Lookback = "3 Month", calc_momentum_effect(spy$ret_3m, spy$fwd_1m)),
+    cbind(Lookback = "6 Month", calc_momentum_effect(spy$ret_6m, spy$fwd_1m)),
+    cbind(Lookback = "12 Month", calc_momentum_effect(spy$ret_12m, spy$fwd_1m))
+)
+
+ggplot(results, aes(x = quintile, y = mean_return, fill = Lookback)) +
+    geom_col(position = "dodge") +
+    scale_fill_manual(values = c(tc[1], tc[2], tc[3], tc[4])) +
+    labs(title = "Time-Series Momentum Effect",
+         subtitle = "Future 1-month returns by past return quintile",
+         x = "Past Return Quintile", y = "Mean Future Return (%)") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r momentum-over-time, fig.cap="Cumulative performance of a simple 12-month momentum strategy. The strategy goes long when trailing 12-month returns are positive, flat otherwise."}
+# Simple TSMOM strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2000-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+# 12-month trailing return
+spy[, ret_12m := frollsum(returns, 252)]
+
+# TSMOM signal: long if positive, flat otherwise
+spy[, tsmom_signal := fifelse(shift(ret_12m, 1) > 0, 1, 0)]
+spy[, tsmom_returns := tsmom_signal * returns]
+
+spy <- spy[!is.na(tsmom_returns)]
+
+# Cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_tsmom := exp(cumsum(tsmom_returns))]
+
+# Statistics
+cat("=== 12-Month Time-Series Momentum Strategy ===\n")
+cat("Rule: Long SPY when 12-month trailing return > 0\n\n")
+
+tsmom_stats <- data.table(
+    Strategy = c("Buy & Hold", "TSMOM (12m)"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$tsmom_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$tsmom_returns))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(spy$returns) * 100,
+        max_drawdown(spy$tsmom_returns) * 100)),
+    `Time in Market` = sprintf("%.0f%%", c(100, mean(spy$tsmom_signal, na.rm = TRUE) * 100))
+)
+print(tsmom_stats)
+
+# Plot
+spy_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh, `TSMOM 12m` = cum_tsmom)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    scale_y_log10() +
+    labs(title = "12-Month Time-Series Momentum",
+         subtitle = "TSMOM reduces drawdowns by exiting during prolonged downtrends",
+         x = NULL, y = "Growth of $1 (log scale)") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+### 7.1.3 Mathematical Derivation
+
+**Time-Series Momentum Signal:**
+
+The basic TSMOM signal uses the sign of past returns:
+
+$$
+\text{Signal}_t = \text{sign}\left(\sum_{i=t-k}^{t-1} r_i\right)
+$$
+
+where $k$ is the lookback period (typically 252 days for 12 months).
+
+**Volatility-Scaled TSMOM (Moskowitz, Ooi, Pedersen 2012):**
+
+The seminal paper on TSMOM uses volatility scaling:
+
+$$
+r^{\text{TSMOM}}_{t,t+1} = \frac{\sigma_{\text{target}}}{\hat{\sigma}_t} \times \text{sign}(r_{t-12m,t}) \times r_{t,t+1}
+$$
+
+where:
+- $\sigma_{\text{target}}$ is typically 40% annualised (for diversified portfolios)
+- $\hat{\sigma}_t$ is the realised volatility estimated at time $t$
+- $\text{sign}(r_{t-12m,t})$ is +1 for positive trailing return, -1 for negative
+
+**Why volatility scaling?**
+
+Without scaling, position sizes would be:
+- Too large in volatile assets (like crypto)
+- Too small in stable assets (like bonds)
+
+Volatility scaling equalises risk contribution across assets and time:
+
+$$
+\text{Position}_t = \frac{\sigma_{\text{target}}}{\hat{\sigma}_t}
+$$
+
+**Expected Return Under Momentum:**
+
+If returns have positive serial correlation $\rho$ at lag $k$:
+
+$$
+E[r_{t+1} | r_{t-k,t}] = \mu + \rho \cdot (r_{t-k,t} - \mu)
+$$
+
+Momentum profits arise when $\rho > 0$ (positive autocorrelation) at intermediate horizons.
+
+```{r autocorrelation-analysis, fig.cap="Return autocorrelation at different lags. Positive autocorrelation at monthly horizons supports the momentum effect; negative autocorrelation at very short horizons suggests microstructure mean-reversion."}
+# Analyze autocorrelation structure
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2000-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+# Calculate returns at different frequencies
+spy[, ret_1d := returns]
+spy[, ret_1w := frollsum(returns, 5)]
+spy[, ret_1m := frollsum(returns, 21)]
+
+# Autocorrelation function for different horizons
+calc_acf <- function(x, max_lag = 24) {
+    n <- length(x)
+    acf_vals <- numeric(max_lag)
+    for (lag in 1:max_lag) {
+        x_lag <- shift(x, lag)
+        valid <- !is.na(x_lag) & !is.na(x)
+        if (sum(valid) > 30) {
+            acf_vals[lag] <- cor(x[valid], x_lag[valid])
+        }
+    }
+    acf_vals
+}
+
+# Monthly returns, lagged by months
+monthly_acf <- calc_acf(spy$ret_1m, 24)
+
+acf_dt <- data.table(
+    Lag = 1:24,
+    Autocorrelation = monthly_acf
+)
+
+ggplot(acf_dt, aes(x = Lag, y = Autocorrelation)) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_hline(yintercept = c(-1.96, 1.96) / sqrt(nrow(spy)/21),
+               linetype = "dotted", colour = tc[4]) +
+    geom_col(fill = tc[1]) +
+    labs(title = "Monthly Return Autocorrelation",
+         subtitle = "Positive autocorrelation at short lags supports momentum",
+         x = "Lag (months)", y = "Autocorrelation") +
+    theme_trading()
+```
+
+### 7.1.4 Implementation & Application
+
+```{r tsmom-lookbacks, fig.cap="Comparing TSMOM strategies with different lookback periods. The 12-month lookback is standard, but shorter lookbacks react faster to trend changes."}
+# Compare different lookback periods
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2000-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+# Different lookback periods
+lookbacks <- c(21, 63, 126, 252)  # 1, 3, 6, 12 months
+lookback_names <- c("1 month", "3 month", "6 month", "12 month")
+
+# Calculate signals and returns for each lookback
+for (i in seq_along(lookbacks)) {
+    lb <- lookbacks[i]
+    col_ret <- paste0("ret_", lb)
+    col_sig <- paste0("sig_", lb)
+    col_strat <- paste0("strat_", lb)
+
+    spy[, (col_ret) := frollsum(returns, lb)]
+    spy[, (col_sig) := fifelse(shift(get(col_ret), 1) > 0, 1, 0)]
+    spy[, (col_strat) := get(col_sig) * returns]
+}
+
+# Remove NA period
+spy <- spy[!is.na(sig_252)]
+
+# Calculate cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_1m := exp(cumsum(strat_21))]
+spy[, cum_3m := exp(cumsum(strat_63))]
+spy[, cum_6m := exp(cumsum(strat_126))]
+spy[, cum_12m := exp(cumsum(strat_252))]
+
+# Statistics table
+cat("=== TSMOM Performance by Lookback ===\n\n")
+
+results <- data.table(
+    Strategy = c("Buy & Hold", "TSMOM 1m", "TSMOM 3m", "TSMOM 6m", "TSMOM 12m"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_21, type = "simple") * 100,
+        annualised_return(spy$strat_63, type = "simple") * 100,
+        annualised_return(spy$strat_126, type = "simple") * 100,
+        annualised_return(spy$strat_252, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_21),
+        sharpe_ratio(spy$strat_63),
+        sharpe_ratio(spy$strat_126),
+        sharpe_ratio(spy$strat_252))),
+    `Max DD` = sprintf("%.1f%%", c(
+        max_drawdown(spy$returns) * 100,
+        max_drawdown(spy$strat_21) * 100,
+        max_drawdown(spy$strat_63) * 100,
+        max_drawdown(spy$strat_126) * 100,
+        max_drawdown(spy$strat_252) * 100))
+)
+print(results)
+
+# Plot
+spy_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh, `1m` = cum_1m,
+                         `3m` = cum_3m, `6m` = cum_6m, `12m` = cum_12m)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.6) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[3], tc[4], tc[5])) +
+    scale_y_log10() +
+    labs(title = "TSMOM Performance by Lookback Period",
+         x = NULL, y = "Growth of $1 (log scale)") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r tsmom-across-assets, fig.cap="TSMOM applied across multiple assets. The strategy works in equities, bonds, and commodities—true diversification benefits."}
+# Load multiple assets
+symbols <- c("SPY", "TLT", "GLD", "USO")
+asset_names <- c("US Equities", "US Bonds", "Gold", "Oil")
+
+# Load and combine data
+all_data <- data.table()
+for (i in seq_along(symbols)) {
+    dt <- load_market(symbols[i])
+    dt <- filter_dates(dt, as.Date("2010-01-01"), as.Date("2023-12-31"))
+    dt[, returns := log(adjusted / shift(adjusted))]
+    dt[, asset := asset_names[i]]
+    dt[, symbol := symbols[i]]
+    dt <- dt[!is.na(returns), .(date, asset, symbol, returns)]
+    all_data <- rbind(all_data, dt)
+}
+
+# Calculate TSMOM for each asset
+all_data[, ret_12m := frollsum(returns, 252), by = symbol]
+all_data[, signal := fifelse(shift(ret_12m, 1) > 0, 1, 0), by = symbol]
+all_data[, tsmom_ret := signal * returns, by = symbol]
+all_data <- all_data[!is.na(signal)]
+
+# Aggregate statistics
+cat("\n=== TSMOM Across Asset Classes ===\n\n")
+
+asset_stats <- all_data[, .(
+    `Ann. Return (B&H)` = annualised_return(returns, type = "simple") * 100,
+    `Ann. Return (TSMOM)` = annualised_return(tsmom_ret, type = "simple") * 100,
+    `Sharpe (B&H)` = sharpe_ratio(returns),
+    `Sharpe (TSMOM)` = sharpe_ratio(tsmom_ret),
+    `Time in Market` = mean(signal, na.rm = TRUE) * 100
+), by = asset]
+
+asset_stats[, `:=`(
+    `Ann. Return (B&H)` = sprintf("%.1f%%", `Ann. Return (B&H)`),
+    `Ann. Return (TSMOM)` = sprintf("%.1f%%", `Ann. Return (TSMOM)`),
+    `Sharpe (B&H)` = sprintf("%.2f", `Sharpe (B&H)`),
+    `Sharpe (TSMOM)` = sprintf("%.2f", `Sharpe (TSMOM)`),
+    `Time in Market` = sprintf("%.0f%%", `Time in Market`)
+)]
+print(asset_stats)
+
+# Calculate portfolio TSMOM (equal weight)
+portfolio <- dcast(all_data, date ~ symbol, value.var = "tsmom_ret")
+portfolio[, portfolio_ret := rowMeans(.SD, na.rm = TRUE), .SDcols = symbols]
+portfolio <- portfolio[!is.na(portfolio_ret)]
+
+# Buy and hold portfolio
+bh_portfolio <- dcast(all_data, date ~ symbol, value.var = "returns")
+bh_portfolio[, bh_ret := rowMeans(.SD, na.rm = TRUE), .SDcols = symbols]
+portfolio <- merge(portfolio, bh_portfolio[, .(date, bh_ret)], by = "date")
+
+portfolio[, cum_tsmom := exp(cumsum(portfolio_ret))]
+portfolio[, cum_bh := exp(cumsum(bh_ret))]
+
+# Portfolio comparison
+cat("\n=== Diversified TSMOM Portfolio ===\n\n")
+port_stats <- data.table(
+    Strategy = c("Equal Weight B&H", "Equal Weight TSMOM"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(portfolio$bh_ret, type = "simple") * 100,
+        annualised_return(portfolio$portfolio_ret, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(portfolio$bh_ret),
+        sharpe_ratio(portfolio$portfolio_ret))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(portfolio$bh_ret) * 100,
+        max_drawdown(portfolio$portfolio_ret) * 100))
+)
+print(port_stats)
+
+# Plot portfolio
+port_long <- melt(portfolio[, .(date, `Buy & Hold` = cum_bh, `TSMOM` = cum_tsmom)],
+                  id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(port_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    labs(title = "Diversified TSMOM Portfolio",
+         subtitle = "Equal-weight SPY, TLT, GLD, USO with 12-month TSMOM",
+         x = NULL, y = "Growth of $1") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+---
+
+## 7.2 Moving Average Crossovers
+
+### 7.2.1 Prose/Intuition
+
+The moving average crossover is perhaps the most famous technical trading system. When a fast moving average crosses above a slow moving average (the "golden cross"), it signals the start of an uptrend. When it crosses below (the "death cross"), it signals a downtrend.
+
+The logic is intuitive:
+- The fast MA represents recent price behaviour
+- The slow MA represents longer-term price behaviour
+- When recent > long-term, momentum is up
+- When recent < long-term, momentum is down
+
+The system trades on *changes in trend* rather than trend continuation. This makes it slower to enter but potentially safer—you wait for confirmation before acting.
+
+### 7.2.2 Visual Evidence
+
+```{r ma-crossover-visualisation, fig.cap="Classic golden cross (50/200) on SPY. The fast MA crossing above the slow MA signals trend change. Whipsaws occur when trends reverse quickly."}
+# Visualise MA crossover signals
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2022-01-01"), as.Date("2023-12-31"))
+
+# Calculate MAs
+spy[, ma_50 := frollmean(adjusted, 50)]
+spy[, ma_200 := frollmean(adjusted, 200)]
+spy <- spy[!is.na(ma_200)]
+
+# Detect crossover points
+spy[, cross := ma_50 > ma_200]
+spy[, cross_change := cross != shift(cross)]
+spy[is.na(cross_change), cross_change := FALSE]
+
+# Mark golden and death crosses
+spy[, cross_type := NA_character_]
+spy[cross_change & cross, cross_type := "Golden Cross"]
+spy[cross_change & !cross, cross_type := "Death Cross"]
+
+ggplot(spy, aes(x = date)) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    geom_line(aes(y = ma_50), colour = tc[2], linewidth = 0.6, linetype = "dashed") +
+    geom_line(aes(y = ma_200), colour = tc[3], linewidth = 0.6, linetype = "dashed") +
+    geom_point(data = spy[cross_type == "Golden Cross"],
+               aes(y = adjusted), colour = tc[3], size = 3, shape = 24, fill = tc[3]) +
+    geom_point(data = spy[cross_type == "Death Cross"],
+               aes(y = adjusted), colour = tc[4], size = 3, shape = 25, fill = tc[4]) +
+    labs(title = "Moving Average Crossover (50/200)",
+         subtitle = "Triangles mark golden (up) and death (down) crosses",
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+```
+
+```{r ma-crossover-whipsaw, fig.cap="Whipsaws in ranging markets. When prices oscillate around the MAs, crossover signals generate frequent false signals."}
+# Show whipsaw period
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2016-06-30"))
+
+spy[, ma_50 := frollmean(adjusted, 50)]
+spy[, ma_200 := frollmean(adjusted, 200)]
+spy <- spy[!is.na(ma_200)]
+
+# Count trades
+spy[, signal := fifelse(ma_50 > ma_200, 1, -1)]
+spy[, trade := signal != shift(signal)]
+n_trades <- sum(spy$trade, na.rm = TRUE)
+
+ggplot(spy, aes(x = date)) +
+    geom_ribbon(aes(ymin = pmin(ma_50, ma_200), ymax = pmax(ma_50, ma_200)),
+                fill = tc[2], alpha = 0.2) +
+    geom_line(aes(y = adjusted), colour = tc[1], linewidth = 0.7) +
+    geom_line(aes(y = ma_50), colour = tc[2], linewidth = 0.6, linetype = "dashed") +
+    geom_line(aes(y = ma_200), colour = tc[3], linewidth = 0.6, linetype = "dashed") +
+    labs(title = "Whipsaw Period: 2015-2016",
+         subtitle = sprintf("Ranging market produced %d crossover signals", n_trades),
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+```
+
+### 7.2.3 Mathematical Derivation
+
+**MA Crossover Signal:**
+
+$$
+\text{Signal}_t = \text{sign}\left(\text{MA}^{\text{fast}}_t - \text{MA}^{\text{slow}}_t\right)
+$$
+
+where typically $\text{MA}^{\text{fast}}$ is 50-day and $\text{MA}^{\text{slow}}$ is 200-day.
+
+**Position Smoothing:**
+
+Rather than switching positions instantly at crossovers, we can smooth the transition:
+
+$$
+\text{Position}_t = \alpha \times \text{Signal}_t + (1-\alpha) \times \text{Position}_{t-1}
+$$
+
+This reduces whipsaws but delays entry/exit.
+
+**Optimal Lookback (Levine and Pedersen 2016):**
+
+The optimal lookback depends on the signal's predictive power at different horizons. For assets with strong trending behaviour, longer lookbacks work better. The authors find that for equities, 12-month lookback is near-optimal.
+
+The key insight is that the MA crossover is essentially a *filter* that determines which horizons of price history matter for predicting future returns.
+
+**EMA Crossover:**
+
+Using EMAs instead of SMAs provides faster response:
+
+$$
+\text{EMA}_t = \alpha \times P_t + (1-\alpha) \times \text{EMA}_{t-1}
+$$
+
+where $\alpha = 2/(n+1)$ for an $n$-period EMA.
+
+The EMA crossover responds more quickly to price changes because recent prices receive more weight.
+
+```{r optimal-lookback, fig.cap="Sharpe ratio surface for different fast/slow MA combinations. The 50/200 region performs well, but many combinations work similarly."}
+# Grid search for optimal MA parameters
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2000-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+# Test function
+test_ma_crossover <- function(data, fast, slow) {
+    dt <- copy(data)
+    dt[, ma_fast := frollmean(adjusted, fast)]
+    dt[, ma_slow := frollmean(adjusted, slow)]
+    dt[, signal := fifelse(ma_fast > ma_slow, 1, 0)]
+    dt[, signal := shift(signal, 1)]
+    dt[, strat_ret := signal * returns]
+    dt <- dt[!is.na(strat_ret)]
+
+    sharpe_ratio(dt$strat_ret)
+}
+
+# Grid search
+fast_periods <- seq(10, 100, by = 10)
+slow_periods <- seq(50, 250, by = 25)
+
+results <- data.table()
+for (fast in fast_periods) {
+    for (slow in slow_periods) {
+        if (fast < slow) {
+            sr <- test_ma_crossover(spy, fast, slow)
+            results <- rbind(results, data.table(Fast = fast, Slow = slow, Sharpe = sr))
+        }
+    }
+}
+
+# Heatmap
+ggplot(results, aes(x = factor(Fast), y = factor(Slow), fill = Sharpe)) +
+    geom_tile() +
+    geom_text(aes(label = sprintf("%.2f", Sharpe)), colour = "white", size = 2.5) +
+    scale_fill_gradient2(low = tc[4], mid = "grey30", high = tc[3], midpoint = 0.3) +
+    labs(title = "MA Crossover Parameter Sensitivity",
+         subtitle = "Sharpe ratio for different fast/slow combinations (SPY 2000-2023)",
+         x = "Fast MA Period", y = "Slow MA Period") +
+    theme_trading()
+```
+
+### 7.2.4 Implementation & Application
+
+```{r ma-crossover-strategy, fig.cap="Complete MA crossover strategy with 50/200 parameters. The strategy captures major trends but suffers during ranging periods."}
+# Full MA crossover implementation
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2000-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# Calculate signals
+spy[, ma_50 := frollmean(adjusted, 50)]
+spy[, ma_200 := frollmean(adjusted, 200)]
+
+# Long when fast > slow
+spy[, signal := fifelse(ma_50 > ma_200, 1, 0)]
+spy[, signal := shift(signal, 1)]
+
+# Strategy returns
+spy[, strat_returns := signal * returns]
+spy <- spy[!is.na(strat_returns)]
+
+# Calculate cumulative returns
+spy[, cum_bh := exp(cumsum(returns))]
+spy[, cum_strat := exp(cumsum(strat_returns))]
+
+# Performance metrics
+cat("=== 50/200 MA Crossover Strategy ===\n\n")
+
+# Count trades
+spy[, trade := signal != shift(signal)]
+n_trades <- sum(spy$trade, na.rm = TRUE)
+
+ma_stats <- data.table(
+    Strategy = c("Buy & Hold", "MA Crossover"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$returns, type = "simple") * 100,
+        annualised_return(spy$strat_returns, type = "simple") * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$returns),
+        sharpe_ratio(spy$strat_returns))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(spy$returns) * 100,
+        max_drawdown(spy$strat_returns) * 100)),
+    `Time in Market` = sprintf("%.0f%%", c(100, mean(spy$signal, na.rm = TRUE) * 100))
+)
+print(ma_stats)
+cat(sprintf("\nTotal trades: %d over %d years (%.1f trades/year)\n",
+            n_trades, round(nrow(spy)/252), n_trades / (nrow(spy)/252)))
+
+# Plot with drawdown
+spy[, drawdown_bh := exp(cummax(cumsum(returns))) - cum_bh]
+spy[, drawdown_strat := exp(cummax(cumsum(strat_returns))) - cum_strat]
+
+spy_long <- melt(spy[, .(date, `Buy & Hold` = cum_bh, `MA Crossover` = cum_strat)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    scale_y_log10() +
+    labs(title = "50/200 MA Crossover Strategy",
+         x = NULL, y = "Growth of $1 (log scale)") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+---
+
+## 7.3 Position Sizing for Trend Following
+
+### 7.3.1 Prose/Intuition
+
+Raw trend signals give a *direction* (long or short), but how *much* should we trade? The answer: scale by volatility.
+
+Consider two assets with identical uptrends:
+- Asset A: expected return 10%, volatility 10%
+- Asset B: expected return 10%, volatility 40%
+
+A $100 position in A has a 95% chance of being between $80 and $120 over the year. The same position in B could range from $20 to $180. The risk is completely different.
+
+Volatility scaling solves this by sizing positions inversely to volatility:
+
+$$
+\text{Position}_A = \frac{10\%}{10\%} = 100\% \text{ (full position)}
+$$
+$$
+\text{Position}_B = \frac{10\%}{40\%} = 25\% \text{ (quarter position)}
+$$
+
+Now both positions contribute the same risk to the portfolio.
+
+### 7.3.2 Visual Evidence
+
+```{r vol-scaling-comparison, fig.cap="Raw vs volatility-scaled trend following returns. Vol-scaling reduces extreme returns in both directions, producing more consistent risk-adjusted performance."}
+# Compare raw vs vol-scaled returns
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2000-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+
+# Realised volatility (20-day)
+spy[, vol := frollapply(returns, 20, sd, na.rm = TRUE) * sqrt(252)]
+
+# TSMOM signal
+spy[, ret_12m := frollsum(returns, 252)]
+spy[, signal := fifelse(shift(ret_12m, 1) > 0, 1, -1)]
+
+spy <- spy[!is.na(vol) & !is.na(signal)]
+
+# Target volatility (15% annualised)
+target_vol <- 0.15
+
+# Raw strategy (full position)
+spy[, raw_returns := signal * returns]
+
+# Vol-scaled strategy
+spy[, vol_scale := pmin(target_vol / shift(vol, 1), 2)]  # Cap at 2x leverage
+spy[, scaled_returns := vol_scale * signal * returns]
+
+# Calculate cumulative
+spy[, cum_raw := exp(cumsum(raw_returns))]
+spy[, cum_scaled := exp(cumsum(scaled_returns))]
+
+# Compare volatility of returns
+cat("=== Volatility Scaling Impact ===\n\n")
+
+vol_comparison <- data.table(
+    Strategy = c("Raw TSMOM", "Vol-Scaled TSMOM"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        annualised_return(spy$raw_returns, type = "simple") * 100,
+        annualised_return(spy$scaled_returns, type = "simple") * 100)),
+    `Realised Vol` = sprintf("%.1f%%", c(
+        sd(spy$raw_returns, na.rm = TRUE) * sqrt(252) * 100,
+        sd(spy$scaled_returns, na.rm = TRUE) * sqrt(252) * 100)),
+    Sharpe = sprintf("%.2f", c(
+        sharpe_ratio(spy$raw_returns),
+        sharpe_ratio(spy$scaled_returns))),
+    `Max Drawdown` = sprintf("%.1f%%", c(
+        max_drawdown(spy$raw_returns) * 100,
+        max_drawdown(spy$scaled_returns) * 100))
+)
+print(vol_comparison)
+
+# Plot
+spy_long <- melt(spy[, .(date, `Raw TSMOM` = cum_raw, `Vol-Scaled TSMOM` = cum_scaled)],
+                 id.vars = "date", variable.name = "Strategy", value.name = "Growth")
+
+ggplot(spy_long, aes(x = date, y = Growth, colour = Strategy)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    scale_y_log10() +
+    labs(title = "Raw vs Volatility-Scaled TSMOM",
+         subtitle = sprintf("Target volatility: %d%%", target_vol * 100),
+         x = NULL, y = "Growth of $1 (log scale)") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r vol-through-time, fig.cap="Volatility scaling through time. Position sizes are reduced during high-volatility periods (like 2008, 2020) and increased during calm periods."}
+# Show vol scaling through time
+ggplot(spy, aes(x = date)) +
+    geom_line(aes(y = vol_scale), colour = tc[1], linewidth = 0.6) +
+    geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+    labs(title = "Volatility-Based Position Scaling",
+         subtitle = "Scale < 1 means reduced position; scale > 1 means leveraged",
+         x = NULL, y = "Position Scale (× base size)") +
+    theme_trading()
+```
+
+### 7.3.3 Mathematical Derivation
+
+**Position Sizing Formula:**
+
+$$
+\text{Position}_t = \frac{\sigma_{\text{target}}}{\hat{\sigma}_t} \times \text{Signal}_t
+$$
+
+where:
+- $\sigma_{\text{target}}$ is the desired portfolio volatility (e.g., 15%)
+- $\hat{\sigma}_t$ is the estimated asset volatility at time $t$
+- $\text{Signal}_t$ is +1 (long) or -1 (short)
+
+**Volatility Estimation:**
+
+Simple rolling standard deviation:
+
+$$
+\hat{\sigma}_t = \sqrt{\frac{252}{n} \sum_{i=t-n}^{t-1} (r_i - \bar{r})^2}
+$$
+
+Or exponentially weighted:
+
+$$
+\hat{\sigma}^2_t = \lambda \hat{\sigma}^2_{t-1} + (1-\lambda) r_{t-1}^2
+$$
+
+with $\lambda \approx 0.94$ (RiskMetrics standard).
+
+**Impact on Sharpe Ratio:**
+
+If $\mu$ is the strategy's expected return and $\sigma$ is its volatility, the Sharpe ratio is:
+
+$$
+SR = \frac{\mu}{\sigma}
+$$
+
+Vol-scaling changes returns but keeps Sharpe approximately constant:
+
+$$
+SR_{\text{scaled}} = \frac{\mu \times k}{\sigma \times k} = \frac{\mu}{\sigma} = SR_{\text{raw}}
+$$
+
+The benefit is *predictable risk*, not higher Sharpe. Investors can target their desired volatility level.
+
+### 7.3.4 Implementation & Application
+
+```{r vol-scaling-implementation, fig.cap="Complete volatility-scaled trend following system. The strategy targets 40% volatility (typical for diversified managed futures), sizing each position to contribute equal risk."}
+# Complete volatility-scaled trend following system
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2000-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+# Volatility estimate (exponential weighted)
+calc_ewm_vol <- function(returns, lambda = 0.94) {
+    n <- length(returns)
+    var <- numeric(n)
+    var[1] <- returns[1]^2
+
+    for (i in 2:n) {
+        var[i] <- lambda * var[i - 1] + (1 - lambda) * returns[i - 1]^2
+    }
+
+    sqrt(var * 252)  # Annualised
+}
+
+spy[, ewm_vol := calc_ewm_vol(returns, 0.94)]
+
+# TSMOM signal
+spy[, ret_12m := frollsum(returns, 252)]
+spy[, signal := fifelse(ret_12m > 0, 1, -1)]
+
+spy <- spy[!is.na(ewm_vol) & !is.na(signal)]
+
+# Target volatility (40% for comparison with managed futures)
+target_vol <- 0.40
+
+# Position sizing with leverage cap
+spy[, position_scale := target_vol / shift(ewm_vol, 1)]
+spy[, position_scale := pmin(position_scale, 3)]  # Max 3x leverage
+spy[, position_scale := pmax(position_scale, 0.1)]  # Min 0.1x
+
+# Apply signal and scaling
+spy[, final_position := position_scale * shift(signal, 1)]
+spy[, scaled_returns := final_position * returns]
+
+spy <- spy[!is.na(scaled_returns)]
+
+# Performance
+spy[, cum_scaled := exp(cumsum(scaled_returns))]
+
+# Monthly returns for better statistics
+spy[, month := format(date, "%Y-%m")]
+monthly <- spy[, .(
+    return = sum(scaled_returns)
+), by = month]
+
+cat("=== Volatility-Scaled TSMOM (40% Target Vol) ===\n\n")
+
+# Realised statistics
+realised_vol <- sd(spy$scaled_returns, na.rm = TRUE) * sqrt(252)
+cat(sprintf("Target Volatility: %.0f%%\n", target_vol * 100))
+cat(sprintf("Realised Volatility: %.1f%%\n", realised_vol * 100))
+cat(sprintf("Annualised Return: %.1f%%\n", annualised_return(spy$scaled_returns, type = "simple") * 100))
+cat(sprintf("Sharpe Ratio: %.2f\n", sharpe_ratio(spy$scaled_returns)))
+cat(sprintf("Max Drawdown: %.1f%%\n", max_drawdown(spy$scaled_returns) * 100))
+
+# Position scale distribution
+cat("\nPosition Scale Distribution:\n")
+cat(sprintf("  Min: %.2fx\n", min(spy$position_scale, na.rm = TRUE)))
+cat(sprintf("  Mean: %.2fx\n", mean(spy$position_scale, na.rm = TRUE)))
+cat(sprintf("  Max: %.2fx\n", max(spy$position_scale, na.rm = TRUE)))
+
+# Plot cumulative returns
+ggplot(spy, aes(x = date, y = cum_scaled)) +
+    geom_line(colour = tc[1], linewidth = 0.7) +
+    scale_y_log10() +
+    labs(title = "Volatility-Scaled TSMOM (40% Target)",
+         subtitle = sprintf("Realised vol: %.0f%%, Sharpe: %.2f",
+                            realised_vol * 100, sharpe_ratio(spy$scaled_returns)),
+         x = NULL, y = "Growth of $1 (log scale)") +
+    theme_trading()
+```
+
+---
+
+## Quick Reference
+
+### Time-Series Momentum
+
+| Component | Formula | Notes |
+|-----------|---------|-------|
+| TSMOM Signal | $\text{sign}(r_{t-k,t})$ | $k$ typically 252 days (12 months) |
+| Vol-scaled TSMOM | $\frac{\sigma_{target}}{\hat{\sigma}_t} \times \text{sign}(r_{t-k,t})$ | MOP (2012) framework |
+| Position Size | $\frac{\sigma_{target}}{\hat{\sigma}_t}$ | Equalises risk across assets |
+
+### Moving Average Crossover
+
+| Component | Formula | Common Values |
+|-----------|---------|---------------|
+| Signal | $\text{sign}(MA_{fast} - MA_{slow})$ | Fast: 50, Slow: 200 |
+| Golden Cross | $MA_{fast}$ crosses above $MA_{slow}$ | Bullish signal |
+| Death Cross | $MA_{fast}$ crosses below $MA_{slow}$ | Bearish signal |
+
+### Volatility Estimation
+
+| Method | Formula | Use Case |
+|--------|---------|----------|
+| Rolling StdDev | $\sigma_t = \text{std}(r_{t-n:t-1}) \times \sqrt{252}$ | Simple, stable |
+| EWMA | $\sigma^2_t = \lambda\sigma^2_{t-1} + (1-\lambda)r^2_{t-1}$ | Responsive ($\lambda \approx 0.94$) |
+
+### Key Insights
+
+1. **Momentum exists** across all major asset classes and time periods
+2. **12-month lookback** is empirically robust for TSMOM
+3. **Volatility scaling** doesn't improve Sharpe but makes risk predictable
+4. **MA crossovers** work in trends but whipsaw in ranging markets
+5. **Diversification** across assets and signals improves risk-adjusted returns

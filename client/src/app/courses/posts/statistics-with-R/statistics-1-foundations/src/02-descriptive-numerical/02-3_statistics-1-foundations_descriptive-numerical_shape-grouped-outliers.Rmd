@@ -1,0 +1,638 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 2: Descriptive Statistics — Summarising Data Numerically"
+part: "Part 3: Shape, Grouped Data, and Outliers"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, descriptive, data, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table,
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load NHANES data for examples
+nhanes <- data.table$fread("../../../data/primary/nhanes.csv")
+bmi_clean <- nhanes[!is.na(BMI), BMI]
+bp_data <- nhanes[!is.na(BPSysAve), BPSysAve]
+```
+
+## Table of Contents
+
+## 2.4 Measures of Shape
+
+Shape describes how values are distributed around the centre.
+
+### 2.4.1 Skewness
+
+**Skewness** measures asymmetry. A distribution is:
+- **Positively skewed** (right-skewed): long tail to the right, mean > median
+- **Negatively skewed** (left-skewed): long tail to the left, mean < median
+- **Symmetric**: mean ≈ median
+
+The sample skewness formula:
+
+$$\text{Skewness} = \frac{n}{(n-1)(n-2)} \sum_{i=1}^{n} \left(\frac{x_i - \bar{x}}{s}\right)^3$$
+
+```{r skewness_from_scratch, fig.cap="Skewness measures distributional asymmetry"}
+# Implement skewness from scratch
+my_skewness <- function(x) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+    mean_x <- mean(x)
+    sd_x <- sd(x)
+
+    # Standardised values cubed
+    z_cubed <- ((x - mean_x) / sd_x)^3
+
+    # Adjustment for sample skewness
+    adjustment <- n / ((n - 1) * (n - 2))
+
+    return(adjustment * sum(z_cubed))
+}
+
+# Create datasets with different skewness
+set.seed(222)
+
+symmetric_data <- rnorm(1000, mean = 50, sd = 10)
+right_skewed_data <- rgamma(1000, shape = 2, rate = 0.1)
+left_skewed_data <- 100 - rgamma(1000, shape = 2, rate = 0.1)
+
+cat("Symmetric data: skewness =", round(my_skewness(symmetric_data), 3), "\n")
+cat("Right-skewed data: skewness =", round(my_skewness(right_skewed_data), 3), "\n")
+cat("Left-skewed data: skewness =", round(my_skewness(left_skewed_data), 3), "\n")
+
+# Real example: income is typically right-skewed
+# Simulate income data
+income_data <- rgamma(1000, shape = 2, rate = 0.00005)
+cat("\nSimulated income: skewness =", round(my_skewness(income_data), 3), "\n")
+
+# Visualise
+skew_dt <- data.table$rbindlist(list(
+    data.table$data.table(value = symmetric_data, type = "Symmetric (skew ≈ 0)"),
+    data.table$data.table(value = right_skewed_data, type = "Right-Skewed (skew > 0)"),
+    data.table$data.table(value = left_skewed_data, type = "Left-Skewed (skew < 0)")
+))
+
+skew_dt[, type := factor(type, levels = c("Left-Skewed (skew < 0)",
+                                          "Symmetric (skew ≈ 0)",
+                                          "Right-Skewed (skew > 0)"))]
+
+ggplot2$ggplot(skew_dt, ggplot2$aes(x = value, fill = type)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
+                   colour = "white", alpha = 0.7) +
+    ggplot2$geom_density(colour = "black", size = 1) +
+    ggplot2$facet_wrap(~type, scales = "free", ncol = 1) +
+    ggplot2$labs(
+        title = "Skewness: Measuring Asymmetry",
+        subtitle = "Positive skew: tail right; Negative skew: tail left; Zero: symmetric",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+### 2.4.2 Kurtosis
+
+**Kurtosis** measures the "tailedness" of a distribution: how much probability is in the tails versus the centre.
+
+- **Leptokurtic** (kurtosis > 3): heavier tails, more extreme values
+- **Mesokurtic** (kurtosis ≈ 3): normal-like tails
+- **Platykurtic** (kurtosis < 3): lighter tails, fewer extreme values
+
+The sample kurtosis formula:
+
+$$\text{Kurtosis} = \frac{n(n+1)}{(n-1)(n-2)(n-3)} \sum_{i=1}^{n} \left(\frac{x_i - \bar{x}}{s}\right)^4 - \frac{3(n-1)^2}{(n-2)(n-3)}$$
+
+Note: This gives **excess kurtosis** (normal = 0). Some formulas give raw kurtosis (normal = 3).
+
+```{r kurtosis_from_scratch, fig.cap="Kurtosis measures tail heaviness relative to normal"}
+# Implement excess kurtosis from scratch
+my_kurtosis <- function(x) {
+    x <- x[!is.na(x)]
+    n <- length(x)
+    mean_x <- mean(x)
+    sd_x <- sd(x)
+
+    # Standardised values to the fourth power
+    z_fourth <- ((x - mean_x) / sd_x)^4
+
+    # Sample kurtosis with adjustment
+    term1 <- (n * (n + 1)) / ((n - 1) * (n - 2) * (n - 3))
+    term2 <- 3 * (n - 1)^2 / ((n - 2) * (n - 3))
+
+    return(term1 * sum(z_fourth) - term2)
+}
+
+# Create datasets with different kurtosis
+set.seed(333)
+
+normal_data <- rnorm(1000)  # Kurtosis ≈ 0
+heavy_tails <- rt(1000, df = 3)  # t-distribution: heavier tails
+light_tails <- runif(1000, -2, 2)  # Uniform: lighter tails
+
+cat("Normal data: excess kurtosis =", round(my_kurtosis(normal_data), 3), "\n")
+cat("Heavy-tailed (t, df=3): excess kurtosis =", round(my_kurtosis(heavy_tails), 3), "\n")
+cat("Light-tailed (uniform): excess kurtosis =", round(my_kurtosis(light_tails), 3), "\n")
+
+# Visualise
+kurt_dt <- data.table$rbindlist(list(
+    data.table$data.table(value = normal_data, type = "Normal (mesokurtic)"),
+    data.table$data.table(value = heavy_tails, type = "Heavy tails (leptokurtic)"),
+    data.table$data.table(value = light_tails, type = "Light tails (platykurtic)")
+))
+
+# Truncate heavy tails for visualisation
+kurt_dt[type == "Heavy tails (leptokurtic)" & abs(value) > 6, value := NA]
+
+ggplot2$ggplot(kurt_dt[!is.na(value)], ggplot2$aes(x = value, fill = type)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                   colour = "white", alpha = 0.7) +
+    ggplot2$geom_density(colour = "black", size = 1) +
+    ggplot2$facet_wrap(~type, ncol = 1) +
+    ggplot2$labs(
+        title = "Kurtosis: Measuring Tail Heaviness",
+        subtitle = "Leptokurtic: more outliers; Platykurtic: fewer outliers",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+### 2.4.3 Why Shape Matters
+
+Distribution shape affects:
+
+1. **Choice of summary statistics**: Use median/IQR for skewed data; mean/SD for symmetric
+2. **Statistical tests**: Many tests assume normality; highly non-normal data may require non-parametric methods
+3. **Interpretation**: A positively skewed income distribution with mean £50,000 does not mean most people earn £50,000
+
+```{r shape_matters, fig.cap="Shape determines appropriate summary statistics"}
+# Compare summaries for symmetric vs skewed data
+set.seed(444)
+
+symmetric <- rnorm(500, mean = 100, sd = 15)
+skewed <- rgamma(500, shape = 4, rate = 0.04)  # Mean ≈ 100
+
+compare_stats <- data.table$data.table(
+    Statistic = c("Mean", "Median", "SD", "IQR", "Skewness"),
+    Symmetric = c(mean(symmetric), median(symmetric), sd(symmetric),
+                  IQR(symmetric), my_skewness(symmetric)),
+    Skewed = c(mean(skewed), median(skewed), sd(skewed),
+               IQR(skewed), my_skewness(skewed))
+)
+
+print(compare_stats[, lapply(.SD, round, 2), .SDcols = c("Symmetric", "Skewed"),
+                    by = Statistic])
+
+cat("\nFor the skewed distribution:\n")
+cat("- Mean (", round(mean(skewed), 1), ") > Median (",
+    round(median(skewed), 1), ")\n")
+cat("- Mean is pulled by the long right tail\n")
+cat("- Median is a better 'typical' value\n")
+```
+
+## 2.5 Summarising Grouped Data
+
+Often we need to compute statistics for subgroups or summarise data that arrives pre-grouped.
+
+### 2.5.1 Frequency Distributions
+
+A **frequency distribution** shows how observations are distributed across categories or bins.
+
+```{r frequency_distribution, fig.cap="Frequency distributions show how data are distributed across categories"}
+# Create frequency distribution for BMI categories
+bmi_categories <- cut(
+    bmi_clean,
+    breaks = c(0, 18.5, 25, 30, 35, 40, Inf),
+    labels = c("Underweight", "Normal", "Overweight",
+               "Obese I", "Obese II", "Obese III"),
+    right = FALSE
+)
+
+# Frequency table
+freq_table <- data.table$data.table(category = bmi_categories)[, .(
+    frequency = .N
+), by = category]
+
+freq_table[, `:=`(
+    relative_freq = frequency / sum(frequency),
+    cumulative_freq = cumsum(frequency),
+    cumulative_rel_freq = cumsum(frequency) / sum(frequency)
+)]
+
+# Order properly
+freq_table <- freq_table[order(match(category,
+    c("Underweight", "Normal", "Overweight", "Obese I", "Obese II", "Obese III")))]
+
+print(freq_table)
+
+# Visualise
+freq_table[, category := factor(category, levels = c(
+    "Underweight", "Normal", "Overweight", "Obese I", "Obese II", "Obese III"
+))]
+
+ggplot2$ggplot(freq_table, ggplot2$aes(x = category, y = frequency, fill = category)) +
+    ggplot2$geom_bar(stat = "identity", alpha = 0.8) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(round(relative_freq * 100, 1), "%")),
+              vjust = -0.5) +
+    ggplot2$labs(
+        title = "BMI Category Distribution",
+        subtitle = "Frequency distribution from NHANES data",
+        x = "BMI Category",
+        y = "Frequency"
+    ) +
+    ggplot2$scale_fill_brewer(palette = "RdYlGn", direction = -1) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+### 2.5.2 Computing Statistics from Grouped Data
+
+When we only have grouped data (class intervals and frequencies), we can estimate statistics using class midpoints.
+
+For grouped data with k classes, midpoints $m_i$, and frequencies $f_i$:
+
+**Estimated Mean:**
+$$\bar{x} \approx \frac{\sum_{i=1}^{k} f_i m_i}{\sum_{i=1}^{k} f_i}$$
+
+**Estimated Variance:**
+$$s^2 \approx \frac{\sum_{i=1}^{k} f_i (m_i - \bar{x})^2}{\sum_{i=1}^{k} f_i - 1}$$
+
+```{r grouped_statistics}
+# Create grouped data example
+# Suppose we only have this summary table:
+grouped_data <- data.table$data.table(
+    lower = c(0, 18.5, 25, 30, 35, 40),
+    upper = c(18.5, 25, 30, 35, 40, 60),
+    frequency = c(156, 2812, 2989, 1923, 1074, 755)
+)
+
+grouped_data[, midpoint := (lower + upper) / 2]
+
+# Estimate mean from grouped data
+estimated_mean <- sum(grouped_data$frequency * grouped_data$midpoint) /
+                  sum(grouped_data$frequency)
+
+# Estimate variance from grouped data
+n_total <- sum(grouped_data$frequency)
+estimated_var <- sum(grouped_data$frequency *
+                    (grouped_data$midpoint - estimated_mean)^2) / (n_total - 1)
+estimated_sd <- sqrt(estimated_var)
+
+cat("From grouped data:\n")
+cat("  Estimated mean:", round(estimated_mean, 2), "\n")
+cat("  Estimated SD:", round(estimated_sd, 2), "\n\n")
+
+cat("From raw data (for comparison):\n")
+cat("  Actual mean:", round(mean(bmi_clean), 2), "\n")
+cat("  Actual SD:", round(sd(bmi_clean), 2), "\n")
+```
+
+### 2.5.3 Efficient Grouped Summaries with data.table
+
+The data.table package excels at computing grouped statistics efficiently.
+
+```{r grouped_summaries_datatable, fig.cap="Grouped statistics reveal patterns across subgroups"}
+# Comprehensive grouped summary
+grouped_summary <- nhanes[!is.na(BMI) & !is.na(Gender) & !is.na(AgeDecade), .(
+    n = .N,
+    mean_bmi = mean(BMI),
+    sd_bmi = sd(BMI),
+    median_bmi = median(BMI),
+    iqr_bmi = IQR(BMI),
+    min_bmi = min(BMI),
+    max_bmi = max(BMI)
+), by = .(Gender, AgeDecade)]
+
+# Order by age decade
+grouped_summary <- grouped_summary[order(AgeDecade, Gender)]
+
+print(grouped_summary[, lapply(.SD, function(x) if(is.numeric(x)) round(x, 1) else x)])
+
+# Visualise means by group
+ggplot2$ggplot(grouped_summary, ggplot2$aes(x = AgeDecade, y = mean_bmi,
+                                    fill = Gender, group = Gender)) +
+    ggplot2$geom_bar(stat = "identity", position = "dodge", alpha = 0.8) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = mean_bmi - sd_bmi/sqrt(n),
+                      ymax = mean_bmi + sd_bmi/sqrt(n)),
+                  position = ggplot2$position_dodge(width = 0.9), width = 0.25) +
+    ggplot2$labs(
+        title = "Mean BMI by Age Decade and Gender",
+        subtitle = "Error bars show ± 1 standard error",
+        x = "Age Decade",
+        y = "Mean BMI (kg/m²)"
+    ) +
+    ggplot2$scale_fill_manual(values = c("female" = "#CC79A7", "male" = "#0072B2")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_text(angle = 45, hjust = 1))
+```
+
+## 2.6 Detecting Outliers
+
+Outliers are observations that lie far from the bulk of the data. They demand attention: they may indicate data errors, or they may be the most interesting observations.
+
+### 2.6.1 What Is an Outlier?
+
+An **outlier** is a data point that differs significantly from other observations. There is no single definition; context determines what counts as "significantly different."
+
+Outliers matter because they can:
+- Strongly influence mean and SD
+- Distort correlation and regression
+- Indicate data entry errors
+- Reveal important edge cases or subpopulations
+
+### 2.6.2 The IQR Rule (Tukey's Fences)
+
+The most common outlier detection method uses the IQR:
+
+- **Lower fence:** $Q_1 - 1.5 \times \text{IQR}$
+- **Upper fence:** $Q_3 + 1.5 \times \text{IQR}$
+
+Values outside these fences are potential outliers. Values beyond $Q_1 - 3 \times \text{IQR}$ or $Q_3 + 3 \times \text{IQR}$ are sometimes called "extreme outliers."
+
+```{r iqr_outliers, fig.cap="Tukey's fences identify potential outliers using the IQR rule"}
+# Implement IQR outlier detection from scratch
+detect_outliers_iqr <- function(x, k = 1.5) {
+    x <- x[!is.na(x)]
+    q1 <- quantile(x, 0.25)
+    q3 <- quantile(x, 0.75)
+    iqr <- q3 - q1
+
+    lower_fence <- q1 - k * iqr
+    upper_fence <- q3 + k * iqr
+
+    is_outlier <- x < lower_fence | x > upper_fence
+
+    list(
+        lower_fence = lower_fence,
+        upper_fence = upper_fence,
+        outliers = x[is_outlier],
+        n_outliers = sum(is_outlier),
+        proportion = mean(is_outlier)
+    )
+}
+
+# Apply to blood pressure data
+bp_outliers <- detect_outliers_iqr(bp_data)
+
+cat("IQR outlier detection for systolic BP:\n")
+cat("Lower fence:", round(bp_outliers$lower_fence, 1), "\n")
+cat("Upper fence:", round(bp_outliers$upper_fence, 1), "\n")
+cat("Number of outliers:", bp_outliers$n_outliers, "\n")
+cat("Proportion:", round(bp_outliers$proportion * 100, 2), "%\n")
+
+# Visualise with boxplot
+bp_dt <- data.table$data.table(bp = bp_data)
+bp_dt[, is_outlier := bp < bp_outliers$lower_fence | bp > bp_outliers$upper_fence]
+
+ggplot2$ggplot(bp_dt, ggplot2$aes(y = bp)) +
+    ggplot2$geom_boxplot(fill = "#56B4E9", alpha = 0.7, width = 0.4,
+                 outlier.colour = "red", outlier.shape = 1, outlier.size = 2) +
+    ggplot2$geom_hline(yintercept = c(bp_outliers$lower_fence, bp_outliers$upper_fence),
+               colour = "red", linetype = "dashed") +
+    ggplot2$annotate("text", x = 0.3, y = bp_outliers$upper_fence + 5,
+             label = paste("Upper fence:", round(bp_outliers$upper_fence, 0)),
+             colour = "red") +
+    ggplot2$annotate("text", x = 0.3, y = bp_outliers$lower_fence - 5,
+             label = paste("Lower fence:", round(bp_outliers$lower_fence, 0)),
+             colour = "red") +
+    ggplot2$labs(
+        title = "IQR Rule for Outlier Detection",
+        subtitle = "Red dashed lines show Tukey's fences; red circles are outliers",
+        y = "Systolic Blood Pressure (mmHg)"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(axis.text.x = ggplot2$element_blank(),
+          axis.title.x = ggplot2$element_blank())
+```
+
+### 2.6.3 Z-Score Method
+
+The z-score method flags observations more than k standard deviations from the mean:
+
+$$|z| = \left|\frac{x - \bar{x}}{s}\right| > k$$
+
+Common choices: k = 2 or k = 3.
+
+```{r zscore_outliers}
+# Implement z-score outlier detection
+detect_outliers_zscore <- function(x, k = 3) {
+    x <- x[!is.na(x)]
+    z <- (x - mean(x)) / sd(x)
+
+    is_outlier <- abs(z) > k
+
+    list(
+        threshold = k,
+        outliers = x[is_outlier],
+        z_scores = z[is_outlier],
+        n_outliers = sum(is_outlier),
+        proportion = mean(is_outlier)
+    )
+}
+
+# Apply to blood pressure
+bp_z_outliers <- detect_outliers_zscore(bp_data, k = 3)
+
+cat("\nZ-score outlier detection (k = 3):\n")
+cat("Number of outliers:", bp_z_outliers$n_outliers, "\n")
+cat("Proportion:", round(bp_z_outliers$proportion * 100, 2), "%\n")
+
+# Compare methods
+cat("\nComparison of methods:\n")
+cat("IQR rule:", bp_outliers$n_outliers, "outliers\n")
+cat("Z-score (k=3):", bp_z_outliers$n_outliers, "outliers\n")
+cat("Z-score (k=2):", detect_outliers_zscore(bp_data, k = 2)$n_outliers, "outliers\n")
+```
+
+**Limitation:** Both mean and SD are sensitive to outliers, so outliers can "mask" themselves.
+
+### 2.6.4 Modified Z-Score Using MAD
+
+A more robust approach uses median and MAD instead of mean and SD:
+
+$$M = \frac{0.6745(x - \text{median})}{\text{MAD}}$$
+
+Values with $|M| > 3.5$ are potential outliers.
+
+```{r modified_zscore, fig.cap="Modified z-scores using MAD are robust to outlier masking"}
+# Implement modified z-score
+detect_outliers_mad <- function(x, k = 3.5) {
+    x <- x[!is.na(x)]
+    med <- median(x)
+    mad_val <- mad(x)
+
+    # Modified z-score
+    m <- 0.6745 * (x - med) / mad_val
+
+    is_outlier <- abs(m) > k
+
+    list(
+        threshold = k,
+        outliers = x[is_outlier],
+        modified_z = m[is_outlier],
+        n_outliers = sum(is_outlier),
+        proportion = mean(is_outlier)
+    )
+}
+
+# Apply to blood pressure
+bp_mad_outliers <- detect_outliers_mad(bp_data)
+
+cat("Modified z-score outlier detection:\n")
+cat("Number of outliers:", bp_mad_outliers$n_outliers, "\n")
+cat("Proportion:", round(bp_mad_outliers$proportion * 100, 2), "%\n")
+
+# Demonstrate robustness
+set.seed(555)
+clean <- rnorm(100, mean = 50, sd = 5)
+contaminated <- c(clean, 150, 160, 170)  # Add three extreme outliers
+
+cat("\nDemonstrating masking effect:\n")
+cat("Clean data: z-score detects",
+    detect_outliers_zscore(clean, k = 3)$n_outliers, "outliers\n")
+cat("With 3 extreme outliers added:\n")
+cat("  Z-score method detects",
+    detect_outliers_zscore(contaminated, k = 3)$n_outliers, "outliers\n")
+cat("  Modified z-score detects",
+    detect_outliers_mad(contaminated)$n_outliers, "outliers\n")
+cat("\n(Z-score method missed some because outliers inflated the SD)\n")
+```
+
+### 2.6.5 Outliers in Biomedical Data
+
+In biomedical contexts, outliers require careful consideration:
+
+**Potential causes:**
+- Data entry errors (fix or exclude)
+- Equipment malfunction (exclude)
+- Non-compliance (document, may need to keep)
+- True biological extremes (keep, they are real data)
+- Different population (investigate)
+
+```{r outliers_decision, fig.cap="Decision framework for handling outliers in biomedical data"}
+# Create summary of outlier handling approaches
+outlier_decisions <- data.table$data.table(
+    Cause = c("Data entry error", "Equipment failure",
+              "Non-compliance", "Biological extreme", "Different population"),
+    Action = c("Correct if possible, else exclude",
+               "Exclude with documentation",
+               "Keep but document; sensitivity analysis",
+               "Keep (it's real data)",
+               "Investigate; may need separate analysis"),
+    Example = c("Age = 999 years", "BP = 0 mmHg",
+                "Patient skipped doses", "BMI = 55 kg/m²",
+                "Pediatric patient in adult study")
+)
+
+print(outlier_decisions)
+
+# Example: Investigating an outlier
+# Find the highest BMI values
+extreme_bmi <- nhanes[!is.na(BMI), .(BMI, Age, Gender, Diabetes, BPSysAve)]
+extreme_bmi <- extreme_bmi[order(-BMI)][1:10]
+
+cat("\nTop 10 highest BMI values in NHANES:\n")
+print(extreme_bmi)
+
+cat("\nThese are real people with extreme obesity, not errors.\n")
+cat("We should NOT automatically exclude them.\n")
+```
+
+---
+
+## Communicating to Stakeholders
+
+When explaining shape, grouped data, and outliers to collaborators:
+
+**On shape:**
+> "This distribution is right-skewed, meaning there's a long tail of high values. The mean is pulled toward that tail, so the median is a better measure of the 'typical' patient."
+
+**On grouped data:**
+> "We can compute statistics by subgroup to see patterns. For example, BMI tends to be higher in certain age groups and varies somewhat by gender."
+
+**On outliers:**
+> "We identified some unusually high values. Before deciding what to do with them, we need to investigate: are these data errors, or are they genuine extreme cases? If they're real, they may be the most important observations in our study."
+
+---
+
+## Quick Reference
+
+### Shape Measures
+
+| Measure | Interpretation | R Function |
+|---------|----------------|------------|
+| Skewness = 0 | Symmetric | `e1071::skewness(x)` |
+| Skewness > 0 | Right-skewed (tail right) | |
+| Skewness < 0 | Left-skewed (tail left) | |
+| Excess Kurtosis = 0 | Normal tails | `e1071::kurtosis(x)` |
+| Kurtosis > 0 | Heavy tails (leptokurtic) | |
+| Kurtosis < 0 | Light tails (platykurtic) | |
+
+### Outlier Detection Summary
+
+| Method | Outlier If | Best When |
+|--------|-----------|-----------|
+| IQR rule | $x < Q_1 - 1.5 \times \text{IQR}$ or $x > Q_3 + 1.5 \times \text{IQR}$ | General use |
+| Z-score | $\|z\| > 3$ | Data approximately normal |
+| Modified z-score | $\|M\| > 3.5$ | Outliers may mask each other |
+
+### Grouped Statistics with data.table
+
+```r
+# Basic grouped summary
+data[, .(
+    n = .N,
+    mean = mean(variable),
+    sd = sd(variable),
+    median = median(variable),
+    iqr = IQR(variable)
+), by = group_variable]
+```
+
+### Frequency Distribution Components
+
+| Component | Definition |
+|-----------|------------|
+| Frequency | Count in each category |
+| Relative frequency | Proportion in each category |
+| Cumulative frequency | Running total of counts |
+| Cumulative relative frequency | Running total of proportions |
+
+### When to Use Each Measure
+
+| Data Characteristic | Central Tendency | Spread |
+|--------------------|------------------|--------|
+| Symmetric, no outliers | Mean | SD |
+| Skewed | Median | IQR |
+| Outliers present | Median | IQR or MAD |
+| Comparing across scales | Mean (or median) | CV |
+| Categorical data | Mode | — |

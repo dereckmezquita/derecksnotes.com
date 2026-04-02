@@ -1,0 +1,460 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 6: Mixed-Effects Models"
+part: "Part 3: Generalised Linear Mixed Models"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, GLMM, mixed-effects, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Part 3: Generalised Linear Mixed Models
+
+What if your outcome isn't continuous? **Generalised Linear Mixed Models (GLMMs)** combine the flexibility of GLMs (for binary, count, and other non-normal outcomes) with random effects for clustered data. This part covers logistic and Poisson mixed models.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(lme4)
+library(lmerTest)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+doctor_visits <- fread("../../../data/count/nmes1988_doctor_visits.csv")
+
+cat("Datasets loaded.\n")
+```
+
+---
+
+## Table of Contents
+
+## 6.11 Introduction to GLMMs
+
+### 6.11.1 When Linear Mixed Models Aren't Enough
+
+**Prose and Intuition**
+
+Linear mixed models assume a continuous outcome with normal residuals. But biomedical data often involve:
+- **Binary outcomes**: Did the patient respond? (yes/no)
+- **Counts**: Number of adverse events per patient
+- **Ordinal outcomes**: Disease severity (mild/moderate/severe)
+
+GLMMs extend mixed models to these outcomes by combining:
+1. **GLM structure**: Link function and non-normal distribution
+2. **Random effects**: To account for clustering
+
+### 6.11.2 GLMM Formulation
+
+**Mathematical Definition**
+
+For observation $i$ in cluster $j$:
+
+$$g(E[Y_{ij}]) = \boldsymbol{\beta}'\mathbf{X}_{ij} + \mathbf{Z}_{ij}\mathbf{u}_j$$
+
+Where:
+- $g(\cdot)$: Link function (logit, log, etc.)
+- $\boldsymbol{\beta}'\mathbf{X}_{ij}$: Fixed effects
+- $\mathbf{Z}_{ij}\mathbf{u}_j$: Random effects
+- $\mathbf{u}_j \sim N(\mathbf{0}, \mathbf{G})$
+
+The key difference from linear mixed models: random effects are on the **link scale** (e.g., log-odds), not the original scale.
+
+---
+
+## 6.12 Logistic Mixed Models
+
+### 6.12.1 Multi-Site Clinical Trial Example
+
+**Prose and Intuition**
+
+Consider a multi-site clinical trial where patients are nested within hospitals. Patient outcomes (response/no response) may be correlated within hospitals due to:
+- Hospital quality differences
+- Different patient populations
+- Local treatment protocols
+
+A logistic mixed model accounts for this clustering.
+
+```{r simulate_trial, fig.cap="Simulated multi-site trial with varying hospital effects"}
+# Simulate multi-site trial data
+set.seed(42)
+n_hospitals <- 15
+n_patients_per_hospital <- 50
+
+trial_data <- data.table(
+    hospital = rep(1:n_hospitals, each = n_patients_per_hospital),
+    patient = 1:(n_hospitals * n_patients_per_hospital)
+)
+
+# Hospital random effects
+hospital_effects <- rnorm(n_hospitals, sd = 0.5)
+
+# Patient-level predictors
+trial_data[, `:=`(
+    treatment = rbinom(.N, 1, 0.5),
+    age = rnorm(.N, 50, 10),
+    severity = rbinom(.N, 1, 0.3)
+)]
+
+# Generate outcome (response)
+trial_data[, hospital_effect := hospital_effects[hospital]]
+trial_data[, log_odds := -1 + 0.8 * treatment - 0.02 * age + 0.5 * severity + hospital_effect]
+trial_data[, prob := 1 / (1 + exp(-log_odds))]
+trial_data[, response := rbinom(.N, 1, prob)]
+
+cat("Simulated Multi-Site Trial:\n")
+cat("===========================\n\n")
+cat("Hospitals:", n_hospitals, "\n")
+cat("Patients per hospital:", n_patients_per_hospital, "\n")
+cat("Total patients:", nrow(trial_data), "\n")
+cat("Overall response rate:", round(100 * mean(trial_data$response), 1), "%\n\n")
+
+# Hospital-specific response rates
+hosp_rates <- trial_data[, .(rate = mean(response), n = .N), by = hospital]
+cat("Hospital response rates range from",
+    round(100 * min(hosp_rates$rate), 1), "% to",
+    round(100 * max(hosp_rates$rate), 1), "%\n")
+
+# Visualise
+ggplot2$ggplot(hosp_rates, ggplot2$aes(x = factor(hospital), y = rate)) +
+    ggplot2$geom_col(fill = "#0072B2", alpha = 0.8) +
+    ggplot2$geom_hline(yintercept = mean(trial_data$response), colour = "#D55E00",
+                       linetype = "dashed", size = 1) +
+    ggplot2$labs(
+        title = "Response Rates by Hospital",
+        subtitle = "Dashed line = overall average",
+        x = "Hospital",
+        y = "Response Rate"
+    ) +
+    ggplot2$scale_y_continuous(labels = scales::percent_format()) +
+    ggplot2$theme_minimal()
+```
+
+### 6.12.2 Fitting Logistic Mixed Models
+
+```{r fit_logistic_mixed}
+# Standard logistic regression (ignores clustering)
+model_glm <- glm(response ~ treatment + age + severity,
+                 data = trial_data, family = binomial)
+
+# Logistic mixed model with random hospital intercept
+model_glmm <- glmer(response ~ treatment + age + severity + (1 | hospital),
+                    data = trial_data, family = binomial)
+
+cat("Logistic Mixed Model:\n")
+cat("=====================\n\n")
+summary(model_glmm)
+```
+
+### 6.12.3 Comparing GLM and GLMM
+
+```{r compare_glm_glmm}
+cat("Comparing Standard GLM vs GLMM:\n")
+cat("===============================\n\n")
+
+# Extract coefficients
+coef_glm <- coef(model_glm)
+coef_glmm <- fixef(model_glmm)
+
+# Standard errors
+se_glm <- summary(model_glm)$coefficients[, "Std. Error"]
+se_glmm <- summary(model_glmm)$coefficients[, "Std. Error"]
+
+comparison <- data.table(
+    Variable = names(coef_glm),
+    Coef_GLM = coef_glm,
+    SE_GLM = se_glm,
+    Coef_GLMM = coef_glmm,
+    SE_GLMM = se_glmm
+)
+
+print(comparison[, .(Variable,
+                     GLM = paste0(round(Coef_GLM, 3), " (", round(SE_GLM, 3), ")"),
+                     GLMM = paste0(round(Coef_GLMM, 3), " (", round(SE_GLMM, 3), ")"))])
+
+cat("\nKey observations:\n")
+cat("  - Coefficients are often similar\n")
+cat("  - SEs in GLMM may be larger (more honest)\n")
+cat("  - Treatment effect:", round(coef_glmm["treatment"], 3), "on log-odds scale\n")
+cat("  - OR for treatment:", round(exp(coef_glmm["treatment"]), 2), "\n")
+```
+
+### 6.12.4 Interpreting Random Effects
+
+```{r interpret_logistic_re}
+cat("Random Effects in Logistic GLMM:\n")
+cat("================================\n\n")
+
+# Variance component
+vc <- VarCorr(model_glmm)
+sigma_hospital <- as.numeric(attr(vc$hospital, "stddev"))
+
+cat("Hospital SD (on log-odds scale):", round(sigma_hospital, 3), "\n\n")
+
+# Convert to probability scale (approximate)
+cat("What this means:\n")
+cat("  An 'average' hospital has log-odds at the fixed effect prediction\n")
+cat("  A hospital 1 SD above average: multiply odds by exp(", round(sigma_hospital, 3), ") =",
+    round(exp(sigma_hospital), 2), "\n")
+cat("  A hospital 1 SD below average: divide odds by", round(exp(sigma_hospital), 2), "\n\n")
+
+# Hospital random effects
+re_hospital <- ranef(model_glmm)$hospital[, 1]
+cat("Range of hospital effects:\n")
+cat("  Min:", round(min(re_hospital), 3), "(OR multiplier:", round(exp(min(re_hospital)), 2), ")\n")
+cat("  Max:", round(max(re_hospital), 3), "(OR multiplier:", round(exp(max(re_hospital)), 2), ")\n")
+```
+
+---
+
+## 6.13 Poisson Mixed Models
+
+### 6.13.1 Count Data with Clustering
+
+**Prose and Intuition**
+
+When count outcomes are clustered, we need **Poisson mixed models** (or negative binomial mixed models for overdispersed data).
+
+Example: Number of adverse events per patient, with patients clustered in hospitals.
+
+```{r poisson_glmm}
+# Create clustered count data from doctor visits
+# Treat 'insurance' as a clustering variable (simplified example)
+doctor_data <- doctor_visits[, .(
+    visits = visits,
+    health = health,
+    age = age,
+    cluster = .GRP  # Create pseudo-clusters based on row groups
+), by = .(income_group = cut(income, 5))]
+
+# Actual clustering example using simulated data
+set.seed(42)
+n_clinics <- 20
+n_patients_per_clinic <- 30
+
+count_data <- data.table(
+    clinic = rep(1:n_clinics, each = n_patients_per_clinic),
+    patient = 1:(n_clinics * n_patients_per_clinic)
+)
+
+# Clinic random effects
+clinic_effects <- rnorm(n_clinics, sd = 0.3)
+
+# Patient predictors
+count_data[, `:=`(
+    chronic = rbinom(.N, 1, 0.4),
+    age = rnorm(.N, 60, 15)
+)]
+
+# Generate counts
+count_data[, clinic_effect := clinic_effects[clinic]]
+count_data[, log_rate := 1 + 0.5 * chronic + 0.01 * age + clinic_effect]
+count_data[, visits := rpois(.N, exp(log_rate))]
+
+cat("Simulated Clinic Visit Data:\n")
+cat("============================\n\n")
+cat("Mean visits:", round(mean(count_data$visits), 2), "\n")
+cat("Variance:", round(var(count_data$visits), 2), "\n")
+```
+
+```{r fit_poisson_glmm}
+# Fit Poisson GLMM
+model_pois_glmm <- glmer(visits ~ chronic + age + (1 | clinic),
+                          data = count_data, family = poisson)
+
+cat("Poisson Mixed Model:\n")
+cat("====================\n\n")
+summary(model_pois_glmm)
+
+# Rate ratios
+cat("\nRate Ratios:\n")
+fe <- fixef(model_pois_glmm)
+rr <- exp(fe)
+cat("  Chronic condition: RR =", round(rr["chronic"], 2), "\n")
+cat("  Age (per year): RR =", round(rr["age"], 3), "\n")
+```
+
+---
+
+## 6.14 Model Diagnostics for GLMMs
+
+### 6.14.1 Checking Assumptions
+
+```{r glmm_diagnostics, fig.cap="Diagnostic plots for GLMMs"}
+# For logistic GLMM
+trial_data[, pred_prob := predict(model_glmm, type = "response")]
+trial_data[, linear_pred := predict(model_glmm, type = "link")]
+
+# Binned residual plot (better for binary data)
+trial_data[, bin := cut(pred_prob, breaks = 20, labels = FALSE)]
+binned_resid <- trial_data[, .(
+    mean_pred = mean(pred_prob),
+    observed = mean(response),
+    n = .N
+), by = bin]
+binned_resid[, residual := observed - mean_pred]
+binned_resid[, se := sqrt(mean_pred * (1 - mean_pred) / n)]
+
+ggplot2$ggplot(binned_resid, ggplot2$aes(x = mean_pred, y = residual)) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = -2*se, ymax = 2*se),
+                          width = 0.01, colour = "grey70") +
+    ggplot2$geom_point(size = 3, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$labs(
+        title = "Binned Residual Plot for Logistic GLMM",
+        subtitle = "Points should fall within grey bands (±2 SE)",
+        x = "Predicted Probability",
+        y = "Observed - Predicted"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 6.14.2 Random Effects Diagnostics
+
+```{r re_diagnostics, fig.cap="Q-Q plot for random effects should show normality"}
+# Q-Q plot for random effects
+re_vals <- ranef(model_glmm)$hospital[, 1]
+
+ggplot2$ggplot(data.table(re = re_vals), ggplot2$aes(sample = re)) +
+    ggplot2$stat_qq() +
+    ggplot2$stat_qq_line(colour = "#D55E00") +
+    ggplot2$labs(
+        title = "Q-Q Plot: Hospital Random Effects",
+        x = "Theoretical Quantiles",
+        y = "Sample Quantiles"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 6.15 Complete Analysis: NHANES Example
+
+```{r nhanes_glmm, fig.cap="Diabetes risk varies across age groups (simulated clustering)"}
+# Prepare NHANES data with simulated clustering
+# (In reality, NHANES has complex survey design)
+diabetes_data <- nhanes[Age >= 18 & !is.na(Diabetes) & !is.na(BMI) & !is.na(Gender),
+                        .(diabetes = as.integer(Diabetes == "Yes"),
+                          BMI = BMI,
+                          Age = Age,
+                          Gender = Gender)]
+diabetes_data <- diabetes_data[complete.cases(diabetes_data)]
+
+# Create pseudo-clusters based on age decades
+diabetes_data[, age_group := cut(Age, breaks = seq(18, 90, by = 10), include.lowest = TRUE)]
+diabetes_data[, cluster := as.integer(age_group)]
+
+cat("NHANES Diabetes Analysis:\n")
+cat("=========================\n\n")
+cat("Observations:", nrow(diabetes_data), "\n")
+cat("Diabetes prevalence:", round(100 * mean(diabetes_data$diabetes), 1), "%\n\n")
+
+# Fit models
+model_fixed <- glm(diabetes ~ BMI + Gender, data = diabetes_data, family = binomial)
+model_mixed <- glmer(diabetes ~ BMI + Gender + (1 | cluster),
+                     data = diabetes_data, family = binomial)
+
+cat("Standard Logistic vs Mixed Model:\n")
+cat("---------------------------------\n\n")
+
+cat("Fixed effects (log-odds):\n")
+print(data.table(
+    Variable = names(fixef(model_mixed)),
+    Fixed_Only = round(coef(model_fixed), 4),
+    Mixed = round(fixef(model_mixed), 4)
+))
+
+cat("\nOdds Ratios:\n")
+or_mixed <- exp(fixef(model_mixed))
+ci_mixed <- exp(confint(model_mixed, method = "Wald", parm = "beta_"))
+cat("  BMI (per unit): OR =", round(or_mixed["BMI"], 3), "\n")
+cat("  Gender (male): OR =", round(or_mixed["Gendermale"], 3), "\n")
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining GLMMs
+
+**For Clinical Collaborators:**
+
+"We analysed treatment response across 15 hospitals using a logistic mixed model. This approach accounts for the fact that patients within the same hospital tend to have more similar outcomes.
+
+**Why this matters:**
+Hospitals differ in patient populations, care quality, and local factors. Ignoring this could give us false confidence in our treatment effect estimates.
+
+**Key findings:**
+
+1. **Treatment effect**: Patients receiving the treatment had 2.2 times the odds of responding (OR = 2.2, 95% CI: 1.6-3.0), after adjusting for age and severity.
+
+2. **Hospital variation**: The hospital random effect SD was 0.5 on the log-odds scale. This means the best hospitals had roughly 2.7× higher odds of response than the worst, even among similar patients.
+
+3. **Implications**: The treatment works across all hospitals, but some centres achieve consistently better outcomes. This suggests room for quality improvement."
+
+---
+
+## Quick Reference
+
+### GLMM Families
+
+| Outcome | Family | Link | R Command |
+|---------|--------|------|-----------|
+| Binary | Binomial | Logit | `family = binomial` |
+| Count | Poisson | Log | `family = poisson` |
+| Overdispersed count | Neg. Binomial | Log | `glmer.nb()` |
+
+### R Commands
+
+```r
+library(lme4)
+
+# Logistic mixed model
+model <- glmer(y ~ x1 + x2 + (1 | group), data = df, family = binomial)
+
+# Poisson mixed model
+model <- glmer(count ~ x1 + x2 + (1 | group), data = df, family = poisson)
+
+# Negative binomial mixed model
+model <- glmer.nb(count ~ x1 + x2 + (1 | group), data = df)
+
+# Odds/rate ratios
+exp(fixef(model))
+
+# Confidence intervals
+exp(confint(model, method = "Wald", parm = "beta_"))
+
+# Predicted probabilities
+predict(model, type = "response")
+```
+
+### Interpretation Notes
+
+- Fixed effects are on the **link scale** (log-odds, log-rate)
+- Exponentiate for odds ratios (logistic) or rate ratios (Poisson)
+- Random effects represent cluster deviations on the link scale
+- ICC for binary outcomes has special formulas (see Snijders & Bosker)

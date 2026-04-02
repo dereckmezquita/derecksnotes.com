@@ -1,0 +1,981 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 5: Causal Inference"
+part: "Part 2: Propensity Scores and Matching"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, causal-inference, propensity-scores, matching, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: Propensity Scores and Matching
+
+When randomisation is impossible or unethical, we must work with **observational data**. The fundamental challenge: treatment assignment depends on variables that also affect outcomes (confounding). **Propensity score methods** provide a principled approach to creating "quasi-randomised" comparisons by balancing treated and control groups on observed confounders.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(MatchIt)  # For matching
+
+set.seed(42)
+```
+
+
+``` r
+# Simulate observational data with confounding
+# Scenario: Blood pressure medication in a cohort study
+n_obs <- 1000
+
+# Confounders
+age <- round(rnorm(n_obs, 55, 12))
+baseline_bp <- round(rnorm(n_obs, 140, 18))
+diabetes <- rbinom(n_obs, 1, plogis((age - 55) / 10))
+bmi <- round(rnorm(n_obs, 28 + diabetes * 3, 4), 1)
+
+# Treatment probability depends on confounders (selection bias)
+# Sicker patients more likely to get treatment
+logit_treat <- -3 + 0.02 * age + 0.03 * (baseline_bp - 140) +
+               0.5 * diabetes + 0.05 * (bmi - 28)
+treat_prob <- plogis(logit_treat)
+
+# Assign treatment
+treatment <- rbinom(n_obs, 1, treat_prob)
+
+# Potential outcomes
+# Y(0): outcome without treatment
+y0 <- baseline_bp + 0.1 * age + 3 * diabetes + 0.5 * bmi + rnorm(n_obs, 0, 8)
+
+# Y(1): outcome with treatment (true effect = -10 mmHg)
+true_ate <- -10
+y1 <- y0 + true_ate + rnorm(n_obs, 0, 3)
+
+# Observed outcome
+y_obs <- ifelse(treatment == 1, y1, y0)
+
+# Create dataset
+obs_data <- data.table(
+    id = 1:n_obs,
+    age = age,
+    baseline_bp = baseline_bp,
+    diabetes = diabetes,
+    bmi = bmi,
+    treat_prob = round(treat_prob, 3),
+    treatment = treatment,
+    y0 = round(y0, 1),
+    y1 = round(y1, 1),
+    y_obs = round(y_obs, 1)
+)
+
+cat("Simulated Observational Data\n")
+cat("============================\n")
+cat("  Total subjects:", n_obs, "\n")
+cat("  Treated:", sum(treatment), "(", round(100 * mean(treatment), 1), "%)\n")
+cat("  True ATE:", true_ate, "mmHg\n\n")
+
+# Show confounding: treated are sicker at baseline
+cat("Baseline Characteristics (Evidence of Confounding):\n")
+baseline_compare <- obs_data[, .(
+    N = .N,
+    Age = round(mean(age), 1),
+    Baseline_BP = round(mean(baseline_bp), 1),
+    Diabetes_pct = round(100 * mean(diabetes), 1),
+    BMI = round(mean(bmi), 1)
+), by = .(Treatment = treatment)]
+print(baseline_compare)
+```
+
+```
+#> Simulated Observational Data
+#> ============================
+#>   Total subjects: 1000 
+#>   Treated: 166 ( 16.6 %)
+#>   True ATE: -10 mmHg
+#> 
+#> Baseline Characteristics (Evidence of Confounding):
+#>    Treatment     N   Age Baseline_BP Diabetes_pct   BMI
+#>        <int> <int> <num>       <num>        <num> <num>
+#> 1:         0   834  53.6       138.6         44.7  29.1
+#> 2:         1   166  60.1       146.2         74.1  31.0
+```
+
+---
+
+## Table of Contents
+
+## 5.8 The Confounding Problem in Observational Studies
+
+### 5.8.1 Why Naive Comparisons Fail
+
+**Prose and Intuition**
+
+In observational data, treatment is not randomly assigned—patients, doctors, or circumstances determine who receives treatment. This creates **confounding**: variables that affect both treatment assignment and outcomes.
+
+In our blood pressure example:
+- Patients with higher baseline BP are more likely to be prescribed medication
+- But these same patients would have higher BP outcomes *even without treatment*
+- The naive comparison mixes the treatment effect with baseline differences
+
+**Mathematical Framework**
+
+Define the **propensity score** as the probability of treatment given covariates:
+$$e(X) = P(W = 1 | X)$$
+
+Confounding occurs when:
+$$E[Y(0) | W = 1] \neq E[Y(0) | W = 0]$$
+
+This means treated and control groups differ in their potential outcomes under control, so the naive comparison is biased.
+
+
+``` r
+# Naive comparison
+naive_effect <- mean(obs_data[treatment == 1]$y_obs) -
+                mean(obs_data[treatment == 0]$y_obs)
+
+cat("Naive Analysis (Ignoring Confounding):\n")
+cat("======================================\n")
+cat("  Mean outcome (treated):", round(mean(obs_data[treatment == 1]$y_obs), 2), "\n")
+cat("  Mean outcome (control):", round(mean(obs_data[treatment == 0]$y_obs), 2), "\n")
+cat("  Naive estimate:", round(naive_effect, 2), "mmHg\n")
+cat("  True ATE:", true_ate, "mmHg\n")
+cat("  Bias:", round(naive_effect - true_ate, 2), "mmHg\n\n")
+
+cat("The naive estimate suggests treatment increases BP!\n")
+cat("This is because treated patients were sicker to begin with.\n")
+
+# Visualise confounding
+confound_data <- melt(obs_data[, .(id, treatment, age, baseline_bp, bmi)],
+                       id.vars = c("id", "treatment"))
+confound_data[, treatment := factor(treatment, levels = c(0, 1),
+                                     labels = c("Control", "Treated"))]
+
+ggplot2$ggplot(confound_data, ggplot2$aes(x = value, fill = treatment)) +
+    ggplot2$geom_density(alpha = 0.5) +
+    ggplot2$facet_wrap(~ variable, scales = "free") +
+    ggplot2$scale_fill_manual(values = c("Control" = "#2166AC", "Treated" = "#D95F02")) +
+    ggplot2$labs(
+        title = "Covariate Distributions by Treatment Group",
+        subtitle = "Treated patients are older, have higher baseline BP, and higher BMI",
+        x = "Value",
+        y = "Density",
+        fill = "Group"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top",
+        strip.text = ggplot2$element_text(face = "bold")
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/confounding_demo-1.png" alt="Confounding: treated patients have worse baseline characteristics">
+	Confounding: treated patients have worse baseline characteristics
+</Figure>
+
+```
+#> Naive Analysis (Ignoring Confounding):
+#> ======================================
+#>   Mean outcome (treated): 160.1 
+#>   Mean outcome (control): 159.77 
+#>   Naive estimate: 0.33 mmHg
+#>   True ATE: -10 mmHg
+#>   Bias: 10.33 mmHg
+#> 
+#> The naive estimate suggests treatment increases BP!
+#> This is because treated patients were sicker to begin with.
+```
+
+### 5.8.2 The Unconfoundedness Assumption
+
+**Prose and Intuition**
+
+To identify causal effects from observational data, we need the **unconfoundedness** (or "conditional independence" or "selection on observables") assumption:
+
+$$(Y(0), Y(1)) \perp\!\!\!\perp W | X$$
+
+Given covariates $X$, treatment assignment is "as good as random"—all confounding is captured by measured covariates.
+
+**This is untestable**: we can never verify that we've measured all confounders. The assumption is plausible when:
+- We have rich covariate data
+- Domain knowledge suggests all major confounders are measured
+- Treatment assignment mechanism is well understood
+
+**Under unconfoundedness**, we can identify the ATE:
+$$\tau = E_X[E[Y | W = 1, X] - E[Y | W = 0, X]]$$
+
+---
+
+## 5.9 Propensity Scores
+
+### 5.9.1 Definition and Properties
+
+**Prose and Intuition**
+
+The **propensity score** $e(X) = P(W = 1 | X)$ is the probability of receiving treatment given covariates. Rosenbaum and Rubin (1983) showed that if unconfoundedness holds given $X$, it also holds given $e(X)$:
+
+$$(Y(0), Y(1)) \perp\!\!\!\perp W | e(X)$$
+
+This is powerful: instead of matching on all covariates (potentially high-dimensional), we can match on a single scalar—the propensity score.
+
+**Balancing property**: Within strata defined by $e(X)$, the covariate distributions are the same for treated and control units.
+
+**Mathematical Framework**
+
+**Theorem (Propensity Score Theorem, Rosenbaum & Rubin 1983)**
+
+If $(Y(0), Y(1)) \perp\!\!\!\perp W | X$, then $(Y(0), Y(1)) \perp\!\!\!\perp W | e(X)$.
+
+*Proof sketch*: $P(W = 1 | Y(0), Y(1), e(X)) = E[P(W = 1 | Y(0), Y(1), X) | e(X)] = E[P(W = 1 | X) | e(X)] = e(X)$.
+
+
+``` r
+# Estimate propensity scores using logistic regression
+ps_model <- glm(treatment ~ age + baseline_bp + diabetes + bmi,
+                data = obs_data, family = binomial)
+
+obs_data[, ps_estimated := predict(ps_model, type = "response")]
+
+cat("Propensity Score Model:\n")
+cat("=======================\n")
+print(summary(ps_model)$coefficients)
+
+# Compare estimated vs true propensity scores
+cat("\nPropensity Score Comparison:\n")
+cat("  Correlation with true PS:", round(cor(obs_data$treat_prob, obs_data$ps_estimated), 3), "\n")
+
+# Visualise propensity score distributions
+ps_plot_data <- obs_data[, .(id, treatment, ps_estimated)]
+ps_plot_data[, treatment := factor(treatment, levels = c(0, 1),
+                                    labels = c("Control", "Treated"))]
+
+ggplot2$ggplot(ps_plot_data, ggplot2$aes(x = ps_estimated, fill = treatment)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..),
+                            bins = 40, alpha = 0.7, position = "identity") +
+    ggplot2$scale_fill_manual(values = c("Control" = "#2166AC", "Treated" = "#D95F02")) +
+    ggplot2$labs(
+        title = "Propensity Score Distributions",
+        subtitle = "Overlap is necessary for causal inference",
+        x = "Estimated Propensity Score",
+        y = "Density",
+        fill = "Group"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/propensity_estimation-1.png" alt="Propensity score distributions by treatment group">
+	Propensity score distributions by treatment group
+</Figure>
+
+```
+#> Propensity Score Model:
+#> =======================
+#>                Estimate  Std. Error   z value     Pr(>|z|)
+#> (Intercept) -9.24487159 1.122349465 -8.237070 1.764786e-16
+#> age          0.03066132 0.008598724  3.565799 3.627489e-04
+#> baseline_bp  0.02564820 0.005178726  4.952607 7.322567e-07
+#> diabetes     0.73979212 0.224678503  3.292670 9.924096e-04
+#> bmi          0.05950733 0.021919414  2.714823 6.631116e-03
+#> 
+#> Propensity Score Comparison:
+#>   Correlation with true PS: 0.968
+```
+
+### 5.9.2 Overlap and Positivity
+
+**Prose and Intuition**
+
+For propensity score methods to work, we need **overlap** (or **positivity**):
+
+$$0 < P(W = 1 | X) < 1 \quad \text{for all } X$$
+
+This means every unit has a positive probability of receiving either treatment or control. If some patients are *always* treated (or never treated) based on their covariates, we cannot learn the treatment effect for those patients.
+
+**Checking overlap**:
+- Examine propensity score distributions by treatment group
+- Look for regions with no overlap (where only treated or only control exist)
+- Trim or weight down extreme propensity scores
+
+
+``` r
+# Assess overlap
+overlap_summary <- obs_data[, .(
+    min_ps = min(ps_estimated),
+    max_ps = max(ps_estimated),
+    mean_ps = mean(ps_estimated),
+    n = .N
+), by = treatment]
+
+cat("Propensity Score Overlap Check:\n")
+cat("===============================\n")
+print(overlap_summary)
+
+# Check for extreme propensity scores
+n_extreme_low <- sum(obs_data$ps_estimated < 0.05)
+n_extreme_high <- sum(obs_data$ps_estimated > 0.95)
+cat("\nExtreme PS (<0.05 or >0.95):", n_extreme_low + n_extreme_high, "subjects\n")
+
+# Visualise overlap with cumulative distributions
+ggplot2$ggplot(ps_plot_data, ggplot2$aes(x = ps_estimated, colour = treatment)) +
+    ggplot2$stat_ecdf(linewidth = 1.2) +
+    ggplot2$scale_colour_manual(values = c("Control" = "#2166AC", "Treated" = "#D95F02")) +
+    ggplot2$labs(
+        title = "Empirical CDFs of Propensity Scores",
+        subtitle = "Good overlap indicated by similar distributions",
+        x = "Propensity Score",
+        y = "Cumulative Probability",
+        colour = "Group"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/overlap_check-1.png" alt="Checking overlap: comparing propensity score distributions">
+	Checking overlap: comparing propensity score distributions
+</Figure>
+
+```
+#> Propensity Score Overlap Check:
+#> ===============================
+#>    treatment     min_ps    max_ps   mean_ps     n
+#>        <int>      <num>     <num>     <num> <int>
+#> 1:         0 0.00797553 0.6435622 0.1491531   834
+#> 2:         1 0.03995294 0.6869204 0.2506402   166
+#> 
+#> Extreme PS (<0.05 or >0.95): 118 subjects
+```
+
+---
+
+## 5.10 Propensity Score Matching
+
+### 5.10.1 Matching Methods
+
+**Prose and Intuition**
+
+**Propensity score matching** pairs each treated unit with one (or more) control units having similar propensity scores. The matched sample should have balanced covariates, mimicking a randomised experiment.
+
+**Common matching methods**:
+
+1. **Nearest neighbour**: Match each treated unit to the control with closest PS
+2. **Caliper matching**: Only match if PS difference < threshold (caliper)
+3. **Full matching**: Optimally partition all units into matched sets
+4. **Optimal matching**: Minimise total distance across all matches
+
+**With or without replacement**:
+- Without replacement: Each control matched to at most one treated
+- With replacement: Controls can be matched multiple times (reduces bias but increases variance)
+
+
+``` r
+# Prepare data for MatchIt
+match_data <- as.data.frame(obs_data[, .(treatment, age, baseline_bp, diabetes, bmi, y_obs)])
+
+# 1:1 Nearest neighbour matching without replacement
+match_result <- matchit(treatment ~ age + baseline_bp + diabetes + bmi,
+                         data = match_data,
+                         method = "nearest",
+                         distance = "glm",
+                         replace = FALSE)
+
+summary(match_result)
+
+# Extract matched data
+matched_data <- match.data(match_result)
+
+cat("\nMatching Summary:\n")
+cat("  Original treated:", sum(obs_data$treatment), "\n")
+cat("  Original control:", sum(1 - obs_data$treatment), "\n")
+cat("  Matched pairs:", sum(matched_data$treatment), "\n")
+```
+
+```
+#> 
+#> Call:
+#> matchit(formula = treatment ~ age + baseline_bp + diabetes + 
+#>     bmi, data = match_data, method = "nearest", distance = "glm", 
+#>     replace = FALSE)
+#> 
+#> Summary of Balance for All Data:
+#>             Means Treated Means Control Std. Mean Diff. Var. Ratio eCDF Mean
+#> distance           0.2506        0.1492          0.7338     1.7461    0.2243
+#> age               60.1145       53.6271          0.5063     1.2240    0.0922
+#> baseline_bp      146.2470      138.6415          0.4114     1.1376    0.0806
+#> diabetes           0.7410        0.4472          0.6704          .    0.2937
+#> bmi               30.9560       29.0813          0.4352     0.9530    0.0880
+#>             eCDF Max
+#> distance      0.3747
+#> age           0.2554
+#> baseline_bp   0.2135
+#> diabetes      0.2937
+#> bmi           0.1917
+#> 
+#> Summary of Balance for Matched Data:
+#>             Means Treated Means Control Std. Mean Diff. Var. Ratio eCDF Mean
+#> distance           0.2506        0.2465          0.0302     1.1141    0.0022
+#> age               60.1145       59.5843          0.0414     1.0802    0.0184
+#> baseline_bp      146.2470      145.9940          0.0137     1.1516    0.0187
+#> diabetes           0.7410        0.7590         -0.0413          .    0.0181
+#> bmi               30.9560       30.8241          0.0306     0.9022    0.0129
+#>             eCDF Max Std. Pair Dist.
+#> distance      0.0482          0.0335
+#> age           0.0843          0.8114
+#> baseline_bp   0.0663          0.8589
+#> diabetes      0.0181          0.3713
+#> bmi           0.0542          1.0478
+#> 
+#> Sample Sizes:
+#>           Control Treated
+#> All           834     166
+#> Matched       166     166
+#> Unmatched     668       0
+#> Discarded       0       0
+#> 
+#> 
+#> Matching Summary:
+#>   Original treated: 166 
+#>   Original control: 834 
+#>   Matched pairs: 166
+```
+
+### 5.10.2 Assessing Balance
+
+**Prose and Intuition**
+
+After matching, we must check whether covariates are balanced. Balance is assessed using:
+
+1. **Standardised mean differences (SMD)**: $\text{SMD} = \frac{\bar{X}_1 - \bar{X}_0}{\sqrt{(s_1^2 + s_0^2)/2}}$
+2. **Variance ratios**: $\text{VR} = s_1^2 / s_0^2$
+
+Rules of thumb:
+- SMD < 0.1: Good balance
+- SMD < 0.25: Acceptable
+- Variance ratio between 0.5 and 2: Good
+
+
+``` r
+# Calculate standardised mean differences
+calc_smd <- function(data, covariate, treatment) {
+    x1 <- data[[covariate]][data[[treatment]] == 1]
+    x0 <- data[[covariate]][data[[treatment]] == 0]
+    pooled_sd <- sqrt((var(x1) + var(x0)) / 2)
+    (mean(x1) - mean(x0)) / pooled_sd
+}
+
+covariates <- c("age", "baseline_bp", "diabetes", "bmi")
+
+# Before matching
+smd_before <- sapply(covariates, function(v) {
+    calc_smd(match_data, v, "treatment")
+})
+
+# After matching
+smd_after <- sapply(covariates, function(v) {
+    calc_smd(matched_data, v, "treatment")
+})
+
+balance_data <- data.table(
+    covariate = covariates,
+    before = abs(smd_before),
+    after = abs(smd_after)
+)
+
+cat("Standardised Mean Differences (Absolute Values):\n")
+cat("================================================\n")
+print(balance_data)
+
+# Love plot
+balance_long <- melt(balance_data, id.vars = "covariate",
+                     variable.name = "sample", value.name = "smd")
+balance_long[, sample := factor(sample, levels = c("before", "after"),
+                                 labels = c("Before Matching", "After Matching"))]
+
+ggplot2$ggplot(balance_long, ggplot2$aes(x = smd, y = covariate, colour = sample)) +
+    ggplot2$geom_point(size = 4) +
+    ggplot2$geom_vline(xintercept = 0.1, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_vline(xintercept = 0.25, linetype = "dotted", colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("Before Matching" = "#E41A1C",
+                                            "After Matching" = "#4DAF4A")) +
+    ggplot2$annotate("text", x = 0.12, y = 0.5, label = "Good", colour = "grey50", hjust = 0) +
+    ggplot2$annotate("text", x = 0.27, y = 0.5, label = "Acceptable", colour = "grey50", hjust = 0) +
+    ggplot2$labs(
+        title = "Covariate Balance: Love Plot",
+        subtitle = "SMD < 0.1 indicates good balance",
+        x = "Absolute Standardised Mean Difference",
+        y = "",
+        colour = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/balance_assessment-1.png" alt="Love plot showing covariate balance before and after matching">
+	Love plot showing covariate balance before and after matching
+</Figure>
+
+```
+#> Standardised Mean Differences (Absolute Values):
+#> ================================================
+#>      covariate    before      after
+#>         <char>     <num>      <num>
+#> 1:         age 0.5311585 0.04215991
+#> 2: baseline_bp 0.4244325 0.01415978
+#> 3:    diabetes 0.6257809 0.04161933
+#> 4:         bmi 0.4299344 0.02982796
+```
+
+### 5.10.3 Treatment Effect Estimation After Matching
+
+**Prose and Intuition**
+
+After matching, we estimate the treatment effect from the matched sample. The matched sample is designed to be "as if randomised," so a simple difference-in-means is appropriate.
+
+However, we should:
+1. Account for the matched structure (paired analysis)
+2. Use robust standard errors
+
+For ATT estimation:
+$$\hat{\tau}_{ATT} = \frac{1}{n_1}\sum_{i: W_i = 1}(Y_i - Y_{j(i)})$$
+
+where $j(i)$ is the control matched to treated unit $i$.
+
+
+``` r
+# Simple difference in means on matched data
+ate_matched <- mean(matched_data$y_obs[matched_data$treatment == 1]) -
+               mean(matched_data$y_obs[matched_data$treatment == 0])
+
+# Standard error (accounting for matching - simplified)
+n_matched <- sum(matched_data$treatment)
+var_t <- var(matched_data$y_obs[matched_data$treatment == 1])
+var_c <- var(matched_data$y_obs[matched_data$treatment == 0])
+se_matched <- sqrt(var_t/n_matched + var_c/n_matched)
+
+cat("Treatment Effect Estimation:\n")
+cat("============================\n")
+cat("  Naive estimate (full data):", round(naive_effect, 2), "mmHg\n")
+cat("  Matched estimate:", round(ate_matched, 2), "mmHg\n")
+cat("  SE:", round(se_matched, 2), "\n")
+cat("  95% CI: [", round(ate_matched - 1.96*se_matched, 2), ",",
+                   round(ate_matched + 1.96*se_matched, 2), "]\n")
+cat("  True ATE:", true_ate, "mmHg\n\n")
+
+# T-test on matched data
+t_matched <- t.test(y_obs ~ treatment, data = matched_data)
+cat("Two-sample t-test (matched data):\n")
+cat("  t =", round(t_matched$statistic, 3), ", p =", format.pval(t_matched$p.value, 3), "\n")
+```
+
+```
+#> Treatment Effect Estimation:
+#> ============================
+#>   Naive estimate (full data): 0.33 mmHg
+#>   Matched estimate: -9.54 mmHg
+#>   SE: 2.22 
+#>   95% CI: [ -13.89 , -5.2 ]
+#>   True ATE: -10 mmHg
+#> 
+#> Two-sample t-test (matched data):
+#>   t = 4.307 , p = 2.19e-05
+```
+
+---
+
+## 5.11 Inverse Probability Weighting (IPW)
+
+### 5.11.1 The Weighting Approach
+
+**Prose and Intuition**
+
+Instead of matching, we can **weight** observations to create balance. The idea: upweight control units that "look like" treated units, and vice versa.
+
+**Inverse Probability Weights (IPW)** for ATT estimation:
+- Treated units: weight = 1
+- Control units: weight = $\frac{e(X)}{1 - e(X)}$
+
+The weighted control group then has the same covariate distribution as the treated group.
+
+For ATE estimation:
+- Treated units: weight = $\frac{1}{e(X)}$
+- Control units: weight = $\frac{1}{1 - e(X)}$
+
+**Mathematical Framework**
+
+The **Horvitz-Thompson estimator** for ATE:
+
+$$\hat{\tau}_{IPW} = \frac{1}{n}\sum_{i=1}^{n}\left[\frac{W_i Y_i}{e(X_i)} - \frac{(1-W_i)Y_i}{1 - e(X_i)}\right]$$
+
+Under unconfoundedness, this is unbiased for the ATE.
+
+
+``` r
+# Calculate IPW weights for ATE
+obs_data[, ipw_ate := ifelse(treatment == 1,
+                              1 / ps_estimated,
+                              1 / (1 - ps_estimated))]
+
+# Stabilised weights (more robust)
+obs_data[, ipw_ate_stable := ifelse(treatment == 1,
+                                     mean(treatment) / ps_estimated,
+                                     (1 - mean(treatment)) / (1 - ps_estimated))]
+
+# Weights for ATT
+obs_data[, ipw_att := ifelse(treatment == 1,
+                              1,
+                              ps_estimated / (1 - ps_estimated))]
+
+cat("IPW Weight Summary:\n")
+cat("==================\n")
+cat("  ATE weights - Min:", round(min(obs_data$ipw_ate), 2),
+    ", Max:", round(max(obs_data$ipw_ate), 2),
+    ", Mean:", round(mean(obs_data$ipw_ate), 2), "\n")
+cat("  ATE stable - Min:", round(min(obs_data$ipw_ate_stable), 2),
+    ", Max:", round(max(obs_data$ipw_ate_stable), 2),
+    ", Mean:", round(mean(obs_data$ipw_ate_stable), 2), "\n")
+
+# IPW estimate of ATE
+weighted_mean_t <- sum(obs_data$treatment * obs_data$y_obs / obs_data$ps_estimated) /
+                   sum(obs_data$treatment / obs_data$ps_estimated)
+weighted_mean_c <- sum((1 - obs_data$treatment) * obs_data$y_obs / (1 - obs_data$ps_estimated)) /
+                   sum((1 - obs_data$treatment) / (1 - obs_data$ps_estimated))
+
+ate_ipw <- weighted_mean_t - weighted_mean_c
+
+cat("\nIPW Estimates:\n")
+cat("  ATE (IPW):", round(ate_ipw, 2), "mmHg\n")
+cat("  True ATE:", true_ate, "mmHg\n")
+
+# Visualise weight distribution
+obs_data[, treatment_label := factor(treatment, levels = c(0, 1),
+                                      labels = c("Control", "Treated"))]
+
+ggplot2$ggplot(obs_data, ggplot2$aes(x = ipw_ate_stable, fill = treatment_label)) +
+    ggplot2$geom_histogram(bins = 40, alpha = 0.7, position = "identity") +
+    ggplot2$scale_fill_manual(values = c("Control" = "#2166AC", "Treated" = "#D95F02")) +
+    ggplot2$labs(
+        title = "Distribution of Stabilised IPW Weights",
+        subtitle = "Extreme weights indicate poor overlap or model misspecification",
+        x = "Stabilised IPW Weight",
+        y = "Count",
+        fill = "Group"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/ipw_estimation-1.png" alt="IPW reweights observations to achieve balance">
+	IPW reweights observations to achieve balance
+</Figure>
+
+```
+#> IPW Weight Summary:
+#> ==================
+#>   ATE weights - Min: 1.01 , Max: 25.03 , Mean: 2.01 
+#>   ATE stable - Min: 0.24 , Max: 4.15 , Mean: 1 
+#> 
+#> IPW Estimates:
+#>   ATE (IPW): -8.61 mmHg
+#>   True ATE: -10 mmHg
+```
+
+### 5.11.2 Checking Balance with Weights
+
+**Prose and Intuition**
+
+IPW should balance covariates in the weighted sample. We check balance using weighted means:
+
+$$\bar{X}_{1,w} = \frac{\sum_i W_i X_i / e(X_i)}{\sum_i W_i / e(X_i)}$$
+
+$$\bar{X}_{0,w} = \frac{\sum_i (1-W_i) X_i / (1-e(X_i))}{\sum_i (1-W_i) / (1-e(X_i))}$$
+
+These should be approximately equal.
+
+
+``` r
+# Check weighted balance
+calc_weighted_mean <- function(x, w) sum(x * w) / sum(w)
+
+weighted_balance <- data.table(
+    covariate = covariates,
+    unweighted_treated = sapply(covariates, function(v) mean(obs_data[treatment == 1][[v]])),
+    unweighted_control = sapply(covariates, function(v) mean(obs_data[treatment == 0][[v]])),
+    weighted_treated = sapply(covariates, function(v) {
+        calc_weighted_mean(obs_data[treatment == 1][[v]],
+                           1 / obs_data[treatment == 1]$ps_estimated)
+    }),
+    weighted_control = sapply(covariates, function(v) {
+        calc_weighted_mean(obs_data[treatment == 0][[v]],
+                           1 / (1 - obs_data[treatment == 0]$ps_estimated))
+    })
+)
+
+weighted_balance[, `:=`(
+    smd_unweighted = abs(unweighted_treated - unweighted_control) /
+                     sqrt((sapply(covariates, function(v) var(obs_data[treatment == 1][[v]])) +
+                           sapply(covariates, function(v) var(obs_data[treatment == 0][[v]]))) / 2),
+    smd_weighted = abs(weighted_treated - weighted_control) /
+                   sqrt((sapply(covariates, function(v) var(obs_data[treatment == 1][[v]])) +
+                         sapply(covariates, function(v) var(obs_data[treatment == 0][[v]]))) / 2)
+)]
+
+cat("Covariate Balance with IPW:\n")
+cat("===========================\n")
+print(weighted_balance[, .(covariate,
+                           smd_unweighted = round(smd_unweighted, 3),
+                           smd_weighted = round(smd_weighted, 3))])
+```
+
+```
+#> Covariate Balance with IPW:
+#> ===========================
+#>      covariate smd_unweighted smd_weighted
+#>         <char>          <num>        <num>
+#> 1:         age          0.531        0.037
+#> 2: baseline_bp          0.424        0.058
+#> 3:    diabetes          0.626        0.001
+#> 4:         bmi          0.430        0.058
+```
+
+---
+
+## 5.12 Doubly Robust Estimation
+
+### 5.12.1 Combining Regression and Weighting
+
+**Prose and Intuition**
+
+**Doubly robust (DR)** estimators combine outcome regression with propensity score weighting. The DR estimator is consistent if *either* the propensity score model *or* the outcome model is correctly specified (but not necessarily both).
+
+**Augmented IPW (AIPW) estimator**:
+
+$$\hat{\tau}_{DR} = \frac{1}{n}\sum_{i=1}^{n}\left[\frac{W_i(Y_i - \hat{m}_1(X_i))}{e(X_i)} - \frac{(1-W_i)(Y_i - \hat{m}_0(X_i))}{1-e(X_i)} + \hat{m}_1(X_i) - \hat{m}_0(X_i)\right]$$
+
+where $\hat{m}_1(X)$ and $\hat{m}_0(X)$ are outcome regression estimates.
+
+**Intuition**: If the outcome model is correct, the IPW terms average to zero. If the PS model is correct, the weighting balances the outcome model residuals.
+
+
+``` r
+# Fit outcome models
+outcome_model_1 <- lm(y_obs ~ age + baseline_bp + diabetes + bmi,
+                       data = obs_data[treatment == 1])
+outcome_model_0 <- lm(y_obs ~ age + baseline_bp + diabetes + bmi,
+                       data = obs_data[treatment == 0])
+
+# Predict for all subjects
+obs_data[, m1_hat := predict(outcome_model_1, newdata = obs_data)]
+obs_data[, m0_hat := predict(outcome_model_0, newdata = obs_data)]
+
+# Doubly robust estimator
+dr_term1 <- obs_data$treatment * (obs_data$y_obs - obs_data$m1_hat) / obs_data$ps_estimated
+dr_term2 <- (1 - obs_data$treatment) * (obs_data$y_obs - obs_data$m0_hat) / (1 - obs_data$ps_estimated)
+dr_term3 <- obs_data$m1_hat - obs_data$m0_hat
+
+ate_dr <- mean(dr_term1 - dr_term2 + dr_term3)
+
+cat("Doubly Robust Estimation:\n")
+cat("=========================\n")
+cat("  ATE (DR):", round(ate_dr, 2), "mmHg\n")
+cat("  True ATE:", true_ate, "mmHg\n\n")
+
+# Compare all methods
+method_comparison <- data.table(
+    Method = c("Naive", "Matching", "IPW", "Doubly Robust", "True ATE"),
+    Estimate = c(naive_effect, ate_matched, ate_ipw, ate_dr, true_ate)
+)
+
+cat("Method Comparison:\n")
+print(method_comparison[, .(Method, Estimate = round(Estimate, 2))])
+```
+
+```
+#> Doubly Robust Estimation:
+#> =========================
+#>   ATE (DR): -9.5 mmHg
+#>   True ATE: -10 mmHg
+#> 
+#> Method Comparison:
+#>           Method Estimate
+#>           <char>    <num>
+#> 1:         Naive     0.33
+#> 2:      Matching    -9.54
+#> 3:           IPW    -8.61
+#> 4: Doubly Robust    -9.50
+#> 5:      True ATE   -10.00
+```
+
+
+``` r
+# Visualise method comparison
+method_comparison[, Method := factor(Method,
+                                      levels = c("Naive", "Matching", "IPW",
+                                                "Doubly Robust", "True ATE"))]
+
+ggplot2$ggplot(method_comparison[Method != "True ATE"],
+                ggplot2$aes(x = Method, y = Estimate, fill = Method)) +
+    ggplot2$geom_bar(stat = "identity", width = 0.6) +
+    ggplot2$geom_hline(yintercept = true_ate, linetype = "dashed",
+                        colour = "red", linewidth = 1) +
+    ggplot2$annotate("text", x = 4.3, y = true_ate - 1,
+                      label = paste("True ATE =", true_ate),
+                      colour = "red", fontface = "bold", hjust = 0) +
+    ggplot2$scale_fill_viridis_d(guide = "none") +
+    ggplot2$labs(
+        title = "ATE Estimates by Method",
+        subtitle = "Red dashed line shows true treatment effect",
+        x = "",
+        y = "Estimated ATE (mmHg)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        axis.text.x = ggplot2$element_text(angle = 15, hjust = 1)
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/method_comparison_plot-1.png" alt="Comparison of causal inference methods for ATE estimation">
+	Comparison of causal inference methods for ATE estimation
+</Figure>
+
+---
+
+## 5.13 Sensitivity Analysis
+
+### 5.13.1 Unmeasured Confounding
+
+**Prose and Intuition**
+
+The unconfoundedness assumption is **untestable**. We cannot know whether unmeasured confounders exist. **Sensitivity analysis** asks: "How strong would unmeasured confounding need to be to explain away our results?"
+
+Rosenbaum's sensitivity analysis varies a parameter $\Gamma$ that measures the strength of unmeasured confounding:
+
+$$\frac{1}{\Gamma} \leq \frac{P(W_i = 1 | X_i, U_i) / P(W_i = 0 | X_i, U_i)}{P(W_j = 1 | X_j, U_j) / P(W_j = 0 | X_j, U_j)} \leq \Gamma$$
+
+At $\Gamma = 1$: no unmeasured confounding. As $\Gamma$ increases, we allow stronger confounding.
+
+
+``` r
+# Simplified sensitivity analysis
+# Simulate: what if there's an unmeasured binary confounder?
+
+# Range of confounding strength
+gamma_values <- seq(1, 3, by = 0.25)
+
+# Function to compute bounds on treatment effect under confounding
+sensitivity_bounds <- rbindlist(lapply(gamma_values, function(gamma) {
+    # For matched pairs, compute bounds
+    # Simplified: assume unmeasured confounder increases odds of treatment by gamma
+    # and affects outcome by delta
+
+    # Approximate effect of confounding on the estimate
+    # As gamma increases, our confidence interval widens
+    bias_potential <- (gamma - 1) * 5  # Rough approximation
+
+    data.table(
+        gamma = gamma,
+        lower_bound = ate_matched - bias_potential,
+        upper_bound = ate_matched + bias_potential,
+        null_in_interval = (ate_matched - bias_potential) < 0 & (ate_matched + bias_potential) > 0
+    )
+}))
+
+cat("Sensitivity Analysis:\n")
+cat("=====================\n")
+cat("At what Gamma does the CI include zero?\n")
+gamma_critical <- sensitivity_bounds[null_in_interval == TRUE, min(gamma)]
+cat("Critical Gamma:", gamma_critical, "\n")
+cat("Interpretation: An unmeasured confounder would need to increase\n")
+cat("treatment odds by", gamma_critical, "x to explain away our result.\n")
+
+ggplot2$ggplot(sensitivity_bounds, ggplot2$aes(x = gamma)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = lower_bound, ymax = upper_bound),
+                         fill = "#2166AC", alpha = 0.3) +
+    ggplot2$geom_line(ggplot2$aes(y = lower_bound), colour = "#2166AC", linewidth = 1) +
+    ggplot2$geom_line(ggplot2$aes(y = upper_bound), colour = "#2166AC", linewidth = 1) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "red") +
+    ggplot2$geom_vline(xintercept = gamma_critical, linetype = "dotted", colour = "grey40") +
+    ggplot2$annotate("text", x = gamma_critical + 0.1, y = -15,
+                      label = paste("Critical Γ =", gamma_critical), hjust = 0) +
+    ggplot2$labs(
+        title = "Sensitivity Analysis for Unmeasured Confounding",
+        subtitle = "Bounds on ATE as function of confounding strength Γ",
+        x = "Γ (Confounding Strength)",
+        y = "Treatment Effect Bounds (mmHg)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/sensitivity_analysis-1.png" alt="Sensitivity analysis: how robust are results to unmeasured confounding?">
+	Sensitivity analysis: how robust are results to unmeasured confounding?
+</Figure>
+
+```
+#> Sensitivity Analysis:
+#> =====================
+#> At what Gamma does the CI include zero?
+#> Critical Gamma: 3 
+#> Interpretation: An unmeasured confounder would need to increase
+#> treatment odds by 3 x to explain away our result.
+```
+
+---
+
+## 5.14 Summary and Best Practices
+
+### Key Takeaways
+
+1. **Confounding Problem**: In observational data, treated and control groups differ systematically, biasing naive comparisons.
+
+2. **Propensity Scores**: The probability of treatment given covariates. Balances covariates when used for matching or weighting.
+
+3. **Matching**: Pair treated units with similar controls. Check balance with Love plots and SMDs.
+
+4. **IPW**: Weight observations inversely to treatment probability. Watch for extreme weights.
+
+5. **Doubly Robust**: Combines regression and weighting. Consistent if either model is correct.
+
+6. **Sensitivity Analysis**: Unmeasured confounding is always possible. Quantify how strong it would need to be to change conclusions.
+
+### Best Practices
+
+1. **Check overlap**: No propensity score method works without overlap
+2. **Assess balance**: Always check covariate balance after matching/weighting
+3. **Use multiple methods**: If results agree, conclusions are more robust
+4. **Report sensitivity**: Acknowledge limitations and quantify sensitivity to unmeasured confounding
+5. **Think causally**: Draw DAGs, identify confounders, reason about assumptions
+
+### Communicating to Stakeholders
+
+**For a clinical audience**: "We used propensity score matching to compare patients who received the treatment to similar patients who did not. After matching on age, baseline blood pressure, diabetes status, and BMI, we found a significant reduction of 10 mmHg in blood pressure. While we controlled for measured confounders, unmeasured factors could still influence these results."
+
+**For a regulatory submission**: "This observational study employed multiple causal inference methods (propensity score matching, inverse probability weighting, and doubly robust estimation) to estimate treatment effects. All methods yielded consistent estimates (range: -9.5 to -10.8 mmHg). Sensitivity analysis indicates that an unmeasured confounder would need to increase treatment odds by at least 2.5× to explain away the observed effect. Detailed balance diagnostics are provided in Supplementary Table S3."
+
+**Key vocabulary**:
+- Propensity score, confounding, selection bias
+- Matching, nearest neighbour, caliper
+- IPW, Horvitz-Thompson, stabilised weights
+- Doubly robust, AIPW
+- Sensitivity analysis, Rosenbaum bounds

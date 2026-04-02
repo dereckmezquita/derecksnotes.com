@@ -1,0 +1,602 @@
+---
+title: "Two-Way and Factorial ANOVA"
+subtitle: "Part 2 of Chapter 13: ANOVA"
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    collapse = FALSE, results = 'hold'
+)
+
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+## Table of Contents
+
+## 13.12 Introduction to Two-Way ANOVA
+
+### 13.12.1 Why Two Factors?
+
+One-way ANOVA examines the effect of a single factor. But often we want to study:
+- The effects of **two factors** simultaneously
+- Whether the factors **interact** (does the effect of one depend on the other?)
+
+Examples:
+- Effect of drug type AND dosage on blood pressure
+- Effect of teaching method AND class size on test scores
+- Effect of gender AND age group on BMI
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+# Load NHANES data
+nhanes <- fread("../../../data/primary/nhanes.csv")
+```
+
+### 13.12.2 The Two-Way ANOVA Model
+
+$$Y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \varepsilon_{ijk}$$
+
+Where:
+- $\mu$ is the grand mean
+- $\alpha_i$ is the main effect of Factor A (level $i$)
+- $\beta_j$ is the main effect of Factor B (level $j$)
+- $(\alpha\beta)_{ij}$ is the **interaction** effect
+- $\varepsilon_{ijk} \sim N(0, \sigma^2)$
+
+---
+
+## 13.13 Example: BMI by Gender and Age
+
+```{r two_way_data}
+# Create two-way data: BMI by Gender and Age group
+two_way_data <- nhanes[!is.na(BMI) & !is.na(Gender) & !is.na(AgeDecade) &
+                        AgeDecade != "" & Gender != ""]
+two_way_data <- two_way_data[AgeDecade %in% c("20-29", "40-49", "60-69")]
+two_way_data[, AgeGroup := factor(AgeDecade)]
+two_way_data[, Gender := factor(Gender)]
+
+# Sample for demonstration
+set.seed(456)
+sample_2way <- two_way_data[, .SD[sample(.N, min(50, .N))],
+                             by = .(Gender, AgeGroup)]
+
+cat("Sample sizes by cell:\n")
+print(dcast(sample_2way[, .N, by = .(Gender, AgeGroup)],
+            Gender ~ AgeGroup, value.var = "N"))
+```
+
+---
+
+## 13.14 Visualising Two-Way Effects
+
+### 13.14.1 Cell Means Plot
+
+```{r cell_means_plot}
+# Calculate cell means
+cell_means <- sample_2way[, .(
+    mean = mean(BMI),
+    se = sd(BMI) / sqrt(.N),
+    n = .N
+), by = .(Gender, AgeGroup)]
+
+ggplot2$ggplot(cell_means, ggplot2$aes(x = AgeGroup, y = mean, colour = Gender, group = Gender)) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = mean - se, ymax = mean + se),
+                          width = 0.1, position = ggplot2$position_dodge(0.2)) +
+    ggplot2$geom_line(position = ggplot2$position_dodge(0.2), linewidth = 1) +
+    ggplot2$geom_point(position = ggplot2$position_dodge(0.2), size = 3) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "Cell Means: BMI by Gender and Age Group",
+        subtitle = "Non-parallel lines suggest an interaction",
+        x = "Age Group",
+        y = "Mean BMI (kg/m²)"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+### 13.14.2 Interpreting Interaction Plots
+
+- **Parallel lines**: No interaction—the effect of age is the same for both genders
+- **Non-parallel lines**: Interaction—the effect of age differs by gender
+- **Crossing lines**: Strong interaction—the direction of the effect changes
+
+```{r interaction_examples}
+# Create examples of different patterns
+set.seed(789)
+n <- 30
+
+# No interaction (parallel lines)
+no_int <- data.table(
+    Factor_A = rep(c("Low", "High"), each = n * 2),
+    Factor_B = rep(c("Group 1", "Group 2"), each = n, times = 2),
+    Y = c(rnorm(n, 10, 2), rnorm(n, 15, 2),  # Low: 10, 15
+          rnorm(n, 14, 2), rnorm(n, 19, 2))  # High: 14, 19 (same difference of 5)
+)
+
+# With interaction (non-parallel)
+with_int <- data.table(
+    Factor_A = rep(c("Low", "High"), each = n * 2),
+    Factor_B = rep(c("Group 1", "Group 2"), each = n, times = 2),
+    Y = c(rnorm(n, 10, 2), rnorm(n, 12, 2),  # Low: 10, 12 (diff = 2)
+          rnorm(n, 14, 2), rnorm(n, 22, 2))  # High: 14, 22 (diff = 8)
+)
+
+# Calculate means
+no_int_means <- no_int[, .(Y = mean(Y)), by = .(Factor_A, Factor_B)]
+with_int_means <- with_int[, .(Y = mean(Y)), by = .(Factor_A, Factor_B)]
+
+no_int_means[, Pattern := "No Interaction\n(Parallel Lines)"]
+with_int_means[, Pattern := "Interaction Present\n(Non-Parallel Lines)"]
+
+pattern_data <- rbind(no_int_means, with_int_means)
+
+ggplot2$ggplot(pattern_data, ggplot2$aes(x = Factor_A, y = Y, colour = Factor_B, group = Factor_B)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_point(size = 4) +
+    ggplot2$facet_wrap(~Pattern) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "Recognising Interactions in Cell Mean Plots",
+        x = "Factor A",
+        y = "Response (Y)",
+        colour = "Factor B"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 13.15 Partitioning Variance in Two-Way ANOVA
+
+### 13.15.1 The Decomposition
+
+$$\text{SST} = \text{SS}_A + \text{SS}_B + \text{SS}_{AB} + \text{SSE}$$
+
+Where:
+- $\text{SS}_A$: Main effect of Factor A
+- $\text{SS}_B$: Main effect of Factor B
+- $\text{SS}_{AB}$: Interaction effect
+- $\text{SSE}$: Error (within cells)
+
+### 13.15.2 Degrees of Freedom
+
+| Source | df |
+|--------|-----|
+| Factor A | $a - 1$ |
+| Factor B | $b - 1$ |
+| A × B Interaction | $(a-1)(b-1)$ |
+| Error | $N - ab$ |
+| Total | $N - 1$ |
+
+Where $a$ and $b$ are the number of levels for each factor.
+
+---
+
+## 13.16 Running Two-Way ANOVA in R
+
+```{r two_way_anova}
+# Fit two-way ANOVA
+model_2way <- aov(BMI ~ Gender * AgeGroup, data = sample_2way)
+
+cat("Two-Way ANOVA Results\n")
+cat("=====================\n\n")
+print(summary(model_2way))
+```
+
+### 13.16.1 Interpreting the Output
+
+```{r interpret_2way}
+# Extract results
+anova_results <- summary(model_2way)[[1]]
+
+cat("Interpretation\n")
+cat("==============\n\n")
+
+# Main effect of Gender
+cat(sprintf("1. Main Effect of Gender:\n"))
+cat(sprintf("   F(1, %d) = %.2f, p = %.4f\n",
+            anova_results$Df[4], anova_results$`F value`[1], anova_results$`Pr(>F)`[1]))
+if (anova_results$`Pr(>F)`[1] < 0.05) {
+    cat("   → Significant main effect: BMI differs between genders.\n\n")
+} else {
+    cat("   → No significant main effect of gender.\n\n")
+}
+
+# Main effect of Age
+cat(sprintf("2. Main Effect of Age Group:\n"))
+cat(sprintf("   F(2, %d) = %.2f, p = %.4f\n",
+            anova_results$Df[4], anova_results$`F value`[2], anova_results$`Pr(>F)`[2]))
+if (anova_results$`Pr(>F)`[2] < 0.05) {
+    cat("   → Significant main effect: BMI differs across age groups.\n\n")
+} else {
+    cat("   → No significant main effect of age group.\n\n")
+}
+
+# Interaction
+cat(sprintf("3. Interaction (Gender × Age):\n"))
+cat(sprintf("   F(2, %d) = %.2f, p = %.4f\n",
+            anova_results$Df[4], anova_results$`F value`[3], anova_results$`Pr(>F)`[3]))
+if (anova_results$`Pr(>F)`[3] < 0.05) {
+    cat("   → Significant interaction: The effect of age on BMI\n")
+    cat("     depends on gender (or vice versa).\n")
+} else {
+    cat("   → No significant interaction: The effect of age on BMI\n")
+    cat("     is similar for both genders.\n")
+}
+```
+
+---
+
+## 13.17 Effect Sizes for Two-Way ANOVA
+
+### 13.17.1 Partial Eta-Squared
+
+Partial η² measures the proportion of variance explained by each factor, **controlling for other factors**:
+
+$$\eta^2_p = \frac{\text{SS}_{\text{effect}}}{\text{SS}_{\text{effect}} + \text{SS}_{\text{error}}}$$
+
+```{r partial_eta_squared}
+# Calculate partial eta-squared for each effect
+SS_gender <- anova_results$`Sum Sq`[1]
+SS_age <- anova_results$`Sum Sq`[2]
+SS_interaction <- anova_results$`Sum Sq`[3]
+SS_error <- anova_results$`Sum Sq`[4]
+SS_total <- sum(anova_results$`Sum Sq`)
+
+eta_p_gender <- SS_gender / (SS_gender + SS_error)
+eta_p_age <- SS_age / (SS_age + SS_error)
+eta_p_int <- SS_interaction / (SS_interaction + SS_error)
+
+cat("Partial Eta-Squared (η²p)\n")
+cat("=========================\n\n")
+cat(sprintf("Gender:       η²p = %.4f (%.1f%% of variance)\n", eta_p_gender, eta_p_gender * 100))
+cat(sprintf("Age Group:    η²p = %.4f (%.1f%% of variance)\n", eta_p_age, eta_p_age * 100))
+cat(sprintf("Interaction:  η²p = %.4f (%.1f%% of variance)\n\n", eta_p_int, eta_p_int * 100))
+
+cat("Effect size guidelines:\n")
+cat("  η²p ≈ 0.01: Small\n")
+cat("  η²p ≈ 0.06: Medium\n")
+cat("  η²p ≈ 0.14: Large\n")
+```
+
+---
+
+## 13.18 When Interaction Is Significant
+
+### 13.18.1 Focus on Simple Effects
+
+When there's a significant interaction, the main effects become difficult to interpret. Instead, examine **simple effects**—the effect of one factor at each level of the other.
+
+```{r simple_effects}
+cat("Simple Effects Analysis\n")
+cat("=======================\n\n")
+
+# Effect of Age within each Gender
+cat("Effect of Age Group within each Gender:\n\n")
+for (g in c("female", "male")) {
+    subset_data <- sample_2way[Gender == g]
+    simple_model <- aov(BMI ~ AgeGroup, data = subset_data)
+    result <- summary(simple_model)[[1]]
+    cat(sprintf("  %s: F(2, %d) = %.2f, p = %.4f\n",
+                g, result$Df[2], result$`F value`[1], result$`Pr(>F)`[1]))
+}
+
+cat("\n\nEffect of Gender within each Age Group:\n\n")
+for (age in c("20-29", "40-49", "60-69")) {
+    subset_data <- sample_2way[AgeGroup == age]
+    simple_model <- aov(BMI ~ Gender, data = subset_data)
+    result <- summary(simple_model)[[1]]
+    cat(sprintf("  %s: F(1, %d) = %.2f, p = %.4f\n",
+                age, result$Df[2], result$`F value`[1], result$`Pr(>F)`[1]))
+}
+```
+
+---
+
+## 13.19 Post-Hoc Comparisons
+
+### 13.19.1 Tukey's HSD
+
+After finding a significant main effect (in the absence of interaction), use post-hoc tests:
+
+```{r tukey_hsd}
+# One-way ANOVA for age (ignoring gender for simplicity)
+one_way_model <- aov(BMI ~ AgeGroup, data = sample_2way)
+
+cat("Tukey's Honest Significant Difference\n")
+cat("=====================================\n\n")
+
+tukey_result <- TukeyHSD(one_way_model, "AgeGroup")
+print(tukey_result)
+```
+
+### 13.19.2 Visualising Post-Hoc Results
+
+```{r tukey_visual}
+# Extract Tukey results
+tukey_df <- as.data.table(tukey_result$AgeGroup, keep.rownames = "comparison")
+
+ggplot2$ggplot(tukey_df, ggplot2$aes(x = comparison, y = diff)) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = lwr, ymax = upr), width = 0.2, colour = "#0072B2") +
+    ggplot2$geom_point(size = 3, colour = "#D55E00") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$coord_flip() +
+    ggplot2$labs(
+        title = "Tukey's HSD: Pairwise Comparisons",
+        subtitle = "Error bars show 95% CI; comparisons not crossing zero are significant",
+        x = "Comparison",
+        y = "Mean Difference in BMI"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 13.20 Factorial Designs
+
+### 13.20.1 Extending to More Factors
+
+The principles extend to three or more factors:
+
+$$Y_{ijkl} = \mu + \alpha_i + \beta_j + \gamma_k + (\alpha\beta)_{ij} + (\alpha\gamma)_{ik} + (\beta\gamma)_{jk} + (\alpha\beta\gamma)_{ijk} + \varepsilon_{ijkl}$$
+
+With three factors, we have:
+- 3 main effects
+- 3 two-way interactions
+- 1 three-way interaction
+
+```{r three_way_example}
+# Example with three factors (simulated)
+set.seed(101)
+n_per_cell <- 10
+
+# Create 2 × 2 × 2 factorial design
+factorial_data <- CJ(
+    Factor_A = c("A1", "A2"),
+    Factor_B = c("B1", "B2"),
+    Factor_C = c("C1", "C2")
+)
+factorial_data <- factorial_data[rep(1:.N, each = n_per_cell)]
+
+# Generate response with main effects
+factorial_data[, Y := 50 +
+    5 * (Factor_A == "A2") +
+    3 * (Factor_B == "B2") +
+    -2 * (Factor_C == "C2") +
+    4 * (Factor_A == "A2" & Factor_B == "B2") +  # A × B interaction
+    rnorm(.N, 0, 5)]
+
+# Fit three-way ANOVA
+model_3way <- aov(Y ~ Factor_A * Factor_B * Factor_C, data = factorial_data)
+
+cat("Three-Way Factorial ANOVA\n")
+cat("=========================\n\n")
+print(summary(model_3way))
+```
+
+### 13.20.2 Interpreting Higher-Order Interactions
+
+- **Two-way interaction**: Effect of A depends on level of B
+- **Three-way interaction**: The A × B interaction differs across levels of C
+
+Higher-order interactions are difficult to interpret and often require graphical analysis.
+
+```{r three_way_visual}
+# Visualise three-way interaction
+means_3way <- factorial_data[, .(Y = mean(Y)), by = .(Factor_A, Factor_B, Factor_C)]
+
+ggplot2$ggplot(means_3way, ggplot2$aes(x = Factor_A, y = Y, colour = Factor_B, group = Factor_B)) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$facet_wrap(~Factor_C, labeller = ggplot2$labeller(Factor_C = c(C1 = "Factor C = C1", C2 = "Factor C = C2"))) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "Visualising a Three-Way Interaction",
+        subtitle = "If the pattern differs across panels, a three-way interaction exists",
+        x = "Factor A",
+        y = "Mean Response",
+        colour = "Factor B"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+---
+
+## 13.21 Type I, II, and III Sums of Squares
+
+### 13.21.1 The Issue with Unbalanced Designs
+
+When cell sizes are unequal, the sums of squares can be calculated in different ways:
+
+- **Type I (Sequential)**: Order of entry matters
+- **Type II (Hierarchical)**: Tests each effect adjusted for all others except higher-order interactions
+- **Type III (Marginal)**: Tests each effect adjusted for all other effects
+
+```{r ss_types}
+# Create unbalanced data
+set.seed(202)
+unbalanced <- sample_2way[sample(.N, 150)]
+
+cat("Cell Sizes (Unbalanced Design):\n")
+print(dcast(unbalanced[, .N, by = .(Gender, AgeGroup)],
+            Gender ~ AgeGroup, value.var = "N"))
+
+cat("\n\nType I SS (order: Gender, AgeGroup):\n")
+print(anova(lm(BMI ~ Gender + AgeGroup, data = unbalanced)))
+
+cat("\nType I SS (order: AgeGroup, Gender):\n")
+print(anova(lm(BMI ~ AgeGroup + Gender, data = unbalanced)))
+
+cat("\nNote: The SS values differ depending on order!\n")
+cat("For unbalanced designs, Type III SS is often preferred.\n")
+```
+
+### 13.21.2 When to Use Each Type
+
+| Type | Use When |
+|------|----------|
+| Type I | Sequential hypotheses, order matters |
+| Type II | No interaction expected, main effects only |
+| Type III | Unbalanced designs, interaction present |
+
+---
+
+## 13.22 Checking Assumptions
+
+### 13.22.1 Residual Analysis
+
+```{r assumptions_2way}
+# Extract residuals
+sample_2way[, residual := residuals(model_2way)]
+sample_2way[, fitted := fitted(model_2way)]
+
+# Residuals vs Fitted
+p1 <- ggplot2$ggplot(sample_2way, ggplot2$aes(x = fitted, y = residual)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_smooth(method = "loess", se = FALSE, colour = "#009E73") +
+    ggplot2$labs(title = "Residuals vs Fitted", x = "Fitted Values", y = "Residuals") +
+    ggplot2$theme_minimal()
+
+# Q-Q Plot
+p2 <- ggplot2$ggplot(sample_2way, ggplot2$aes(sample = residual)) +
+    ggplot2$stat_qq(colour = "#0072B2", alpha = 0.5) +
+    ggplot2$stat_qq_line(colour = "#D55E00") +
+    ggplot2$labs(title = "Normal Q-Q Plot", x = "Theoretical Quantiles", y = "Sample Quantiles") +
+    ggplot2$theme_minimal()
+
+print(p1)
+print(p2)
+```
+
+### 13.22.2 Homogeneity Across Cells
+
+```{r homogeneity_cells}
+# Check variance across cells
+cell_var <- sample_2way[, .(
+    n = .N,
+    mean = mean(BMI),
+    var = var(BMI)
+), by = .(Gender, AgeGroup)]
+
+cat("Variance by Cell\n")
+cat("================\n\n")
+print(cell_var)
+
+cat(sprintf("\nVariance ratio (max/min): %.2f\n",
+            max(cell_var$var) / min(cell_var$var)))
+```
+
+---
+
+## 13.23 Communicating to Stakeholders
+
+### 13.23.1 Reporting Two-Way ANOVA
+
+```{r two_way_report}
+cat("Example Write-Up: Two-Way ANOVA\n")
+cat("================================\n\n")
+
+cat("Research Question: Does BMI differ by gender and age group, and\n")
+cat("is there an interaction between these factors?\n\n")
+
+cat("Method:\n")
+cat("A two-way ANOVA was conducted with Gender (male, female) and\n")
+cat("Age Group (20-29, 40-49, 60-69) as between-subjects factors.\n\n")
+
+cat("Results:\n")
+
+# Main effect of Gender
+if (anova_results$`Pr(>F)`[1] < 0.05) {
+    cat(sprintf("There was a significant main effect of Gender, F(1, %d) = %.2f,\n",
+                anova_results$Df[4], anova_results$`F value`[1]))
+    cat(sprintf("p = %.3f, η²p = %.3f. ", anova_results$`Pr(>F)`[1], eta_p_gender))
+} else {
+    cat(sprintf("The main effect of Gender was not significant, F(1, %d) = %.2f,\n",
+                anova_results$Df[4], anova_results$`F value`[1]))
+    cat(sprintf("p = %.3f. ", anova_results$`Pr(>F)`[1]))
+}
+
+# Main effect of Age
+if (anova_results$`Pr(>F)`[2] < 0.05) {
+    cat(sprintf("\n\nThere was a significant main effect of Age Group, F(2, %d) = %.2f,\n",
+                anova_results$Df[4], anova_results$`F value`[2]))
+    cat(sprintf("p = %.3f, η²p = %.3f. ", anova_results$`Pr(>F)`[2], eta_p_age))
+} else {
+    cat(sprintf("\n\nThe main effect of Age Group was not significant, F(2, %d) = %.2f,\n",
+                anova_results$Df[4], anova_results$`F value`[2]))
+    cat(sprintf("p = %.3f. ", anova_results$`Pr(>F)`[2]))
+}
+
+# Interaction
+if (anova_results$`Pr(>F)`[3] < 0.05) {
+    cat(sprintf("\n\nThe Gender × Age Group interaction was significant, F(2, %d) = %.2f,\n",
+                anova_results$Df[4], anova_results$`F value`[3]))
+    cat(sprintf("p = %.3f, η²p = %.3f, indicating that the effect of age on BMI\n",
+                anova_results$`Pr(>F)`[3], eta_p_int))
+    cat("differs between genders.\n")
+} else {
+    cat(sprintf("\n\nThe Gender × Age Group interaction was not significant, F(2, %d) = %.2f,\n",
+                anova_results$Df[4], anova_results$`F value`[3]))
+    cat(sprintf("p = %.3f, suggesting that the effect of age on BMI is similar\n",
+                anova_results$`Pr(>F)`[3]))
+    cat("for both genders.\n")
+}
+```
+
+---
+
+## Quick Reference
+
+### Two-Way ANOVA Formulas
+
+| Source | SS Formula | df |
+|--------|------------|-----|
+| Factor A | $\sum n_{i.}(\bar{Y}_{i.} - \bar{Y}_{..})^2$ | $a - 1$ |
+| Factor B | $\sum n_{.j}(\bar{Y}_{.j} - \bar{Y}_{..})^2$ | $b - 1$ |
+| A × B | $\sum n_{ij}(\bar{Y}_{ij} - \bar{Y}_{i.} - \bar{Y}_{.j} + \bar{Y}_{..})^2$ | $(a-1)(b-1)$ |
+| Error | $\sum (Y_{ijk} - \bar{Y}_{ij})^2$ | $N - ab$ |
+
+### Interpretation Guide
+
+| Scenario | What to Report |
+|----------|----------------|
+| Significant interaction | Focus on simple effects, graph the interaction |
+| No interaction | Report and interpret main effects separately |
+| Non-significant main effect | Effect may still exist at some levels (check simple effects) |
+
+### R Functions
+
+| Function | Purpose |
+|----------|---------|
+| `aov(y ~ A * B, data)` | Two-way ANOVA with interaction |
+| `aov(y ~ A + B, data)` | Two-way ANOVA without interaction |
+| `interaction.plot(A, B, y)` | Base R interaction plot |
+| `TukeyHSD(model)` | Post-hoc comparisons |
+| `summary(model)` | ANOVA table |
+
+### Effect Size Guidelines
+
+| Effect Size | η²p Value | Interpretation |
+|-------------|-----------|----------------|
+| Small | 0.01 | Minimal practical importance |
+| Medium | 0.06 | Moderate practical importance |
+| Large | 0.14 | Substantial practical importance |
+

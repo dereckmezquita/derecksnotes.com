@@ -1,0 +1,771 @@
+---
+title: "Risk Management"
+---
+
+
+
+## 1. Prose: Risk Architecture and Position Management
+
+> "Risk management is not about eliminating risk—it's about ensuring that the risks you take are the ones you intended to take, sized appropriately for your edge."
+
+Moving from execution to risk management, we shift focus from *how* to enter positions to *how much* to risk and *when* to exit. This distinction is fundamental: execution quality determines transaction costs, but risk management determines survival.
+
+### The Risk Hierarchy
+
+Professional risk management operates on multiple levels:
+
+**Position Level**: Individual trade sizing based on conviction, volatility, and portfolio context. A high-conviction trade in a low-volatility asset might warrant larger sizing than a speculative position in a volatile name.
+
+**Strategy Level**: Aggregate exposure to a particular alpha source. Even if each position is appropriately sized, excessive concentration in one strategy creates hidden correlation risk.
+
+**Portfolio Level**: Total capital at risk, considering cross-strategy correlation and tail dependencies. Strategies that appear uncorrelated in normal markets may become highly correlated during stress.
+
+**Enterprise Level**: Firm-wide risk aggregation across all portfolios, accounting for operational, liquidity, and counterparty risks beyond market risk.
+
+### Why Position Limits Matter
+
+Consider a simple thought experiment: You have a strategy with 60% win rate and 1:1 risk-reward. Kelly criterion suggests betting 20% of capital per trade. But Kelly assumes:
+
+1. Accurate probability estimates
+2. No correlation between trades
+3. Infinite time horizon
+4. No psychological constraints
+
+In practice, all four assumptions fail. Position limits provide the guardrails that allow a strategy to survive the inevitable periods when these assumptions break down.
+
+---
+
+## 2. Visual Evidence: Risk Metrics in Action
+
+Let's visualize how different risk metrics behave across market regimes.
+
+
+``` r
+# Generate realistic return distributions for different regimes
+n_days <- 252 * 5  # 5 years
+
+# Normal regime returns
+normal_returns <- rnorm(n_days * 0.7, mean = 0.0004, sd = 0.01)
+
+# Stressed regime returns (fatter tails, negative skew)
+stressed_returns <- c(
+    rnorm(n_days * 0.25, mean = -0.001, sd = 0.02),
+    rnorm(n_days * 0.05, mean = -0.005, sd = 0.04)  # Crisis days
+)
+
+all_returns <- sample(c(normal_returns, stressed_returns))
+returns_dt <- data.table(
+    day = 1:length(all_returns),
+    return = all_returns
+)
+
+# Calculate rolling VaR and CVaR
+window <- 63  # Quarterly window
+n <- nrow(returns_dt)
+
+var_95 <- rep(NA_real_, n)
+cvar_95 <- rep(NA_real_, n)
+var_99 <- rep(NA_real_, n)
+cvar_99 <- rep(NA_real_, n)
+
+for (i in window:n) {
+    idx <- (i - window + 1):i
+    rets <- returns_dt$return[idx]
+
+    # VaR: quantile of losses
+    var_95[i] <- -quantile(rets, 0.05)
+    var_99[i] <- -quantile(rets, 0.01)
+
+    # CVaR: expected loss beyond VaR
+    cvar_95[i] <- -mean(rets[rets <= quantile(rets, 0.05)])
+    cvar_99[i] <- -mean(rets[rets <= quantile(rets, 0.01)])
+}
+
+returns_dt[, `:=`(
+    var_95 = var_95,
+    cvar_95 = cvar_95,
+    var_99 = var_99,
+    cvar_99 = cvar_99
+)]
+
+# Plot VaR vs CVaR comparison
+var_cvar_plot <- returns_dt[!is.na(var_95)] |>
+    melt(
+        id.vars = "day",
+        measure.vars = c("var_95", "cvar_95"),
+        variable.name = "metric",
+        value.name = "value"
+    )
+
+var_cvar_plot[, metric := factor(metric,
+    levels = c("var_95", "cvar_95"),
+    labels = c("VaR 95%", "CVaR 95%")
+)]
+
+ggplot(var_cvar_plot, aes(x = day, y = value * 100, color = metric)) +
+    geom_line(alpha = 0.8, linewidth = 0.7) +
+    scale_color_manual(values = c(tc["negative"], tc["secondary"])) +
+    labs(
+        title = "Value at Risk vs Conditional Value at Risk",
+        subtitle = "CVaR captures tail risk that VaR misses",
+        x = "Trading Day",
+        y = "Risk (% of Portfolio)",
+        color = "Metric"
+    ) +
+    theme(legend.position = "bottom")
+```
+
+![plot of chunk var-cvar-comparison](/courses/financial-statistics-1-foundations/var-cvar-comparison-1.png)
+
+The gap between VaR and CVaR widens during stress periods—precisely when tail risk matters most. CVaR (also called Expected Shortfall) answers: "Given that we've exceeded our VaR threshold, how bad is it?"
+
+
+``` r
+# Calculate cumulative returns and drawdowns
+returns_dt[, cum_return := cumprod(1 + return)]
+returns_dt[, running_max := cummax(cum_return)]
+returns_dt[, drawdown := (cum_return - running_max) / running_max]
+
+# Find drawdown periods
+returns_dt[, dd_start := drawdown < shift(drawdown, type = "lag", fill = 0)]
+
+# Create drawdown visualization
+p1 <- ggplot(returns_dt, aes(x = day)) +
+    geom_line(aes(y = cum_return), color = tc["positive"], linewidth = 0.6) +
+    geom_line(aes(y = running_max), color = tc["neutral"],
+              linetype = "dashed", linewidth = 0.4) +
+    labs(
+        title = "Cumulative Portfolio Value",
+        subtitle = "Solid line: portfolio value, Dashed line: high-water mark",
+        x = NULL,
+        y = "Portfolio Value (Indexed)"
+    )
+
+p2 <- ggplot(returns_dt, aes(x = day, y = drawdown * 100)) +
+    geom_area(fill = tc["negative"], alpha = 0.4) +
+    geom_line(color = tc["negative"], linewidth = 0.5) +
+    geom_hline(yintercept = c(-5, -10, -20),
+               linetype = "dashed", color = tc["neutral"], alpha = 0.5) +
+    labs(
+        title = "Portfolio Drawdown",
+        subtitle = "Distance from high-water mark",
+        x = "Trading Day",
+        y = "Drawdown (%)"
+    ) +
+    scale_y_continuous(limits = c(-30, 0))
+
+gridExtra::grid.arrange(p1, p2, ncol = 1)
+```
+
+![plot of chunk drawdown-analysis](/courses/financial-statistics-1-foundations/drawdown-analysis-1.png)
+
+Drawdown is the risk metric most directly tied to investor behavior. While VaR and volatility are abstractions, drawdown represents the actual pain of watching capital erode. A 20% drawdown requires a 25% gain to recover; a 50% drawdown requires 100%.
+
+
+``` r
+# Calculate rolling volatility for regime identification
+vol_window <- 21
+
+rolling_vol <- rep(NA_real_, n)
+for (i in vol_window:n) {
+    idx <- (i - vol_window + 1):i
+    rolling_vol[i] <- sd(returns_dt$return[idx]) * sqrt(252)
+}
+
+returns_dt[, rolling_vol := rolling_vol]
+
+# Classify regimes
+returns_dt[!is.na(rolling_vol), regime := cut(
+    rolling_vol,
+    breaks = c(0, 0.12, 0.20, 0.35, Inf),
+    labels = c("Low Vol", "Normal", "Elevated", "Crisis"),
+    include.lowest = TRUE
+)]
+
+# Show regime distribution and risk metrics by regime
+regime_stats <- returns_dt[!is.na(regime), .(
+    count = .N,
+    avg_return = mean(return) * 252,
+    volatility = sd(return) * sqrt(252),
+    avg_var95 = mean(var_95, na.rm = TRUE),
+    avg_cvar95 = mean(cvar_95, na.rm = TRUE),
+    max_drawdown = min(drawdown)
+), by = regime]
+
+regime_stats[, pct := count / sum(count) * 100]
+
+# Visualize regime characteristics
+regime_melt <- melt(
+    regime_stats,
+    id.vars = "regime",
+    measure.vars = c("avg_return", "volatility", "max_drawdown"),
+    variable.name = "metric",
+    value.name = "value"
+)
+
+regime_melt[, metric := factor(metric,
+    levels = c("avg_return", "volatility", "max_drawdown"),
+    labels = c("Annualized Return", "Volatility", "Max Drawdown")
+)]
+
+ggplot(regime_melt, aes(x = regime, y = value * 100, fill = regime)) +
+    geom_col(alpha = 0.8) +
+    facet_wrap(~metric, scales = "free_y") +
+    scale_fill_manual(values = c(
+        "Low Vol" = tc["positive"],
+        "Normal" = tc["neutral"],
+        "Elevated" = tc["accent"],
+        "Crisis" = tc["negative"]
+    )) +
+    labs(
+        title = "Risk Metrics Across Volatility Regimes",
+        subtitle = "Same strategy behaves very differently across regimes",
+        x = "Volatility Regime",
+        y = "Value (%)"
+    ) +
+    theme(legend.position = "none")
+```
+
+![plot of chunk risk-regime-identification](/courses/financial-statistics-1-foundations/risk-regime-identification-1.png)
+
+---
+
+## 3. Mathematical Derivation: Risk Metrics and Position Sizing
+
+### Value at Risk (VaR)
+
+VaR answers: "What is the maximum loss over a given time horizon at a given confidence level?"
+
+For a portfolio with value $V$ and return distribution $R$:
+
+$$\text{VaR}_\alpha = -V \cdot \inf\{r : P(R \leq r) \geq 1 - \alpha\}$$
+
+Under normality assumption (parametric VaR):
+
+$$\text{VaR}_\alpha = V \cdot (\mu \cdot t - z_\alpha \cdot \sigma \cdot \sqrt{t})$$
+
+Where:
+- $\mu$ = expected return
+- $\sigma$ = volatility
+- $t$ = time horizon
+- $z_\alpha$ = quantile of standard normal (1.645 for 95%, 2.326 for 99%)
+
+**Limitations of VaR**:
+1. Says nothing about magnitude of tail losses
+2. Not subadditive (portfolio VaR can exceed sum of component VaRs)
+3. Assumes stable distributions
+
+### Conditional Value at Risk (CVaR / Expected Shortfall)
+
+CVaR addresses VaR's first limitation:
+
+$$\text{CVaR}_\alpha = -E[R | R \leq -\text{VaR}_\alpha] = -\frac{1}{1-\alpha}\int_0^{1-\alpha} \text{VaR}_u \, du$$
+
+CVaR is:
+1. **Coherent**: Satisfies subadditivity (diversification reduces risk)
+2. **Tail-sensitive**: Captures severity of extreme losses
+3. **Convex**: Enables optimization
+
+### Kelly Criterion and Fractional Kelly
+
+The Kelly criterion maximizes long-term growth rate:
+
+$$f^* = \frac{p \cdot b - q}{b} = \frac{\text{Edge}}{\text{Odds}}$$
+
+Where:
+- $p$ = probability of win
+- $q = 1-p$ = probability of loss
+- $b$ = win/loss ratio
+
+For continuous returns with expected excess return $\mu$ and variance $\sigma^2$:
+
+$$f^* = \frac{\mu}{\sigma^2}$$
+
+**Fractional Kelly** uses $f = \lambda \cdot f^*$ where $\lambda \in (0.25, 0.5)$ typically:
+
+| Fraction | Growth Rate | Drawdown | Recovery Time |
+|----------|-------------|----------|---------------|
+| Full Kelly | Maximum | Severe | Long |
+| Half Kelly | 75% of max | Moderate | Medium |
+| Quarter Kelly | 44% of max | Mild | Short |
+
+### Position Sizing with Volatility Targeting
+
+Volatility targeting adjusts position size inversely to volatility:
+
+$$w_t = \frac{\sigma_{\text{target}}}{\sigma_t} \cdot w_{\text{base}}$$
+
+Where $\sigma_t$ is estimated from recent returns. This creates constant risk per trade despite varying market conditions.
+
+**Variance Drain**: High volatility strategies suffer from the arithmetic-geometric mean inequality:
+
+$$\text{Geometric Mean} \approx \mu - \frac{\sigma^2}{2}$$
+
+A strategy with 20% annual return and 40% volatility has expected growth of only 12%.
+
+---
+
+## 4. Implementation: Risk Management System
+
+
+``` r
+# Comprehensive risk management implementation
+
+#' Calculate multiple risk metrics
+#' @param returns numeric vector of returns
+#' @param confidence confidence level for VaR/CVaR
+#' @return data.table of risk metrics
+calculate_risk_metrics <- function(returns, confidence = 0.95) {
+    returns <- na.omit(returns)
+    n <- length(returns)
+
+    # Basic statistics
+    mu <- mean(returns)
+    sigma <- sd(returns)
+    skew <- mean(((returns - mu) / sigma)^3)
+    kurt <- mean(((returns - mu) / sigma)^4) - 3  # Excess kurtosis
+
+    # VaR calculations
+    alpha <- 1 - confidence
+
+    # Historical VaR
+    var_hist <- -quantile(returns, alpha)
+
+    # Parametric VaR (assumes normality)
+    var_param <- -(mu + qnorm(alpha) * sigma)
+
+    # Cornish-Fisher VaR (adjusts for skew and kurtosis)
+    z <- qnorm(alpha)
+    cf_adjustment <- z + (z^2 - 1) * skew / 6 +
+                     (z^3 - 3*z) * kurt / 24 -
+                     (2*z^3 - 5*z) * skew^2 / 36
+    var_cf <- -(mu + cf_adjustment * sigma)
+
+    # CVaR (Expected Shortfall)
+    var_threshold <- quantile(returns, alpha)
+    cvar <- -mean(returns[returns <= var_threshold])
+
+    # Drawdown analysis
+    cum_returns <- cumprod(1 + returns)
+    running_max <- cummax(cum_returns)
+    drawdowns <- (cum_returns - running_max) / running_max
+    max_dd <- min(drawdowns)
+
+    # Calmar ratio (return / max drawdown)
+    ann_return <- prod(1 + returns)^(252/n) - 1
+    calmar <- ann_return / abs(max_dd)
+
+    data.table(
+        n_obs = n,
+        mean_daily = mu,
+        volatility_daily = sigma,
+        volatility_annual = sigma * sqrt(252),
+        skewness = skew,
+        excess_kurtosis = kurt,
+        var_historical = var_hist,
+        var_parametric = var_param,
+        var_cornish_fisher = var_cf,
+        cvar = cvar,
+        cvar_var_ratio = cvar / var_hist,
+        max_drawdown = max_dd,
+        calmar_ratio = calmar
+    )
+}
+
+# Test on our simulated returns
+risk_metrics <- calculate_risk_metrics(all_returns)
+print(risk_metrics)
+```
+
+```
+##    n_obs    mean_daily volatility_daily volatility_annual   skewness
+##    <int>         <num>            <num>             <num>      <num>
+## 1:  1260 -0.0003075762       0.01616595         0.2566265 -0.4593165
+##    excess_kurtosis var_historical var_parametric var_cornish_fisher       cvar
+##              <num>          <num>          <num>              <num>      <num>
+## 1:        5.704459     0.02374604      0.0268982          0.0270838 0.03963727
+##    cvar_var_ratio max_drawdown calmar_ratio
+##             <num>        <num>        <num>
+## 1:       1.669216   -0.5861388   -0.1787018
+```
+
+
+``` r
+#' Kelly-based position sizing with constraints
+#' @param expected_return expected return of trade
+#' @param volatility volatility estimate
+#' @param kelly_fraction fraction of Kelly to use
+#' @param max_position maximum position size
+#' @return optimal position size
+kelly_position_size <- function(
+    expected_return,
+    volatility,
+    kelly_fraction = 0.25,
+    max_position = 0.20
+) {
+    # Full Kelly
+    full_kelly <- expected_return / (volatility^2)
+
+    # Apply fraction
+    fractional_kelly <- full_kelly * kelly_fraction
+
+    # Constrain
+    position <- pmin(pmax(fractional_kelly, -max_position), max_position)
+
+    data.table(
+        expected_return = expected_return,
+        volatility = volatility,
+        full_kelly = full_kelly,
+        fractional_kelly = fractional_kelly,
+        constrained_position = position
+    )
+}
+
+# Example: position sizing across different opportunity sets
+opportunities <- data.table(
+    expected_return = c(0.001, 0.003, 0.005, 0.010, 0.015),
+    volatility = c(0.02, 0.025, 0.03, 0.04, 0.05)
+)
+
+sizing_results <- opportunities[, kelly_position_size(
+    expected_return, volatility
+), by = 1:nrow(opportunities)]
+
+print(sizing_results[, .(expected_return, volatility, full_kelly,
+                         fractional_kelly, constrained_position)])
+```
+
+```
+##    expected_return volatility full_kelly fractional_kelly constrained_position
+##              <num>      <num>      <num>            <num>                <num>
+## 1:           0.001      0.020   2.500000         0.625000                  0.2
+## 2:           0.003      0.025   4.800000         1.200000                  0.2
+## 3:           0.005      0.030   5.555556         1.388889                  0.2
+## 4:           0.010      0.040   6.250000         1.562500                  0.2
+## 5:           0.015      0.050   6.000000         1.500000                  0.2
+```
+
+
+``` r
+#' Volatility targeting position adjustment
+#' @param base_weight base position weight
+#' @param current_vol current volatility estimate
+#' @param target_vol target volatility
+#' @param max_leverage maximum leverage allowed
+#' @param min_weight minimum weight (can be 0 for de-risking)
+#' @return adjusted position weight
+vol_target_adjustment <- function(
+    base_weight,
+    current_vol,
+    target_vol = 0.10,
+    max_leverage = 1.5,
+    min_weight = 0.1
+) {
+    # Calculate adjustment ratio
+    vol_ratio <- target_vol / current_vol
+
+    # Apply to base weight
+    adjusted <- base_weight * vol_ratio
+
+    # Constrain
+    constrained <- pmin(pmax(adjusted, min_weight), max_leverage)
+
+    data.table(
+        base_weight = base_weight,
+        current_vol = current_vol,
+        target_vol = target_vol,
+        vol_ratio = vol_ratio,
+        adjusted_weight = adjusted,
+        final_weight = constrained
+    )
+}
+
+# Demonstrate across volatility regimes
+vol_regimes <- data.table(
+    regime = c("Low Vol", "Normal", "Elevated", "Crisis"),
+    current_vol = c(0.08, 0.15, 0.25, 0.40)
+)
+
+vol_adjustments <- vol_regimes[, vol_target_adjustment(
+    base_weight = 1.0,
+    current_vol = current_vol,
+    target_vol = 0.15
+), by = regime]
+
+print(vol_adjustments[, .(regime, current_vol, vol_ratio, final_weight)])
+```
+
+```
+##      regime current_vol vol_ratio final_weight
+##      <char>       <num>     <num>        <num>
+## 1:  Low Vol        0.08     1.875        1.500
+## 2:   Normal        0.15     1.000        1.000
+## 3: Elevated        0.25     0.600        0.600
+## 4:   Crisis        0.40     0.375        0.375
+```
+
+
+``` r
+#' Drawdown-based position scaling
+#' @param current_dd current drawdown (negative number)
+#' @param dd_threshold_1 first threshold for scaling
+#' @param dd_threshold_2 second threshold for further scaling
+#' @param dd_max maximum tolerable drawdown (triggers stop)
+#' @return position multiplier (0 to 1)
+drawdown_position_scale <- function(
+    current_dd,
+    dd_threshold_1 = -0.05,
+    dd_threshold_2 = -0.10,
+    dd_max = -0.20
+) {
+    scale <- ifelse(
+        current_dd >= dd_threshold_1, 1.0,
+        ifelse(
+            current_dd >= dd_threshold_2, 0.75,
+            ifelse(
+                current_dd >= dd_max, 0.50,
+                0.0  # Stop trading
+            )
+        )
+    )
+
+    data.table(
+        current_dd = current_dd,
+        position_scale = scale,
+        status = ifelse(scale == 0, "STOPPED",
+                       ifelse(scale < 1, "REDUCED", "NORMAL"))
+    )
+}
+
+# Demonstrate drawdown control
+dd_scenarios <- data.table(
+    scenario = c("New High", "Minor DD", "Moderate DD", "Severe DD", "Max DD"),
+    current_dd = c(0, -0.03, -0.07, -0.15, -0.22)
+)
+
+dd_controls <- dd_scenarios[, drawdown_position_scale(current_dd), by = scenario]
+print(dd_controls)
+```
+
+```
+##       scenario current_dd position_scale  status
+##         <char>      <num>          <num>  <char>
+## 1:    New High       0.00           1.00  NORMAL
+## 2:    Minor DD      -0.03           1.00  NORMAL
+## 3: Moderate DD      -0.07           0.75 REDUCED
+## 4:   Severe DD      -0.15           0.50 REDUCED
+## 5:      Max DD      -0.22           0.00 STOPPED
+```
+
+
+``` r
+#' Comprehensive position sizing with multiple risk constraints
+#' @param signal trading signal strength (-1 to 1)
+#' @param expected_return expected return estimate
+#' @param volatility current volatility estimate
+#' @param current_dd current portfolio drawdown
+#' @param correlation correlation to existing portfolio
+#' @return final position size with all adjustments
+comprehensive_position_size <- function(
+    signal,
+    expected_return,
+    volatility,
+    current_dd = 0,
+    correlation = 0,
+    # Risk parameters
+    kelly_fraction = 0.25,
+    target_vol = 0.15,
+    max_position = 0.10,
+    max_correlation = 0.7,
+    dd_threshold = -0.10
+) {
+    # Start with signal-based direction
+    direction <- sign(signal)
+    signal_strength <- abs(signal)
+
+    # Kelly sizing
+    if (expected_return * direction > 0) {
+        kelly_size <- abs(expected_return) / (volatility^2) * kelly_fraction
+    } else {
+        kelly_size <- 0  # Don't trade against our expected return
+    }
+
+    # Vol targeting adjustment
+    vol_adjustment <- target_vol / volatility
+    vol_adjusted_size <- kelly_size * vol_adjustment
+
+    # Signal strength scaling
+    signal_scaled <- vol_adjusted_size * signal_strength
+
+    # Drawdown adjustment
+    dd_scale <- ifelse(current_dd >= -0.05, 1.0,
+                       ifelse(current_dd >= dd_threshold, 0.5, 0.25))
+    dd_adjusted <- signal_scaled * dd_scale
+
+    # Correlation penalty (reduce size for correlated positions)
+    corr_penalty <- 1 - abs(correlation) * 0.5
+    corr_adjusted <- dd_adjusted * corr_penalty
+
+    # Final constraint
+    final_size <- pmin(pmax(corr_adjusted, 0), max_position) * direction
+
+    data.table(
+        signal = signal,
+        direction = direction,
+        kelly_raw = kelly_size,
+        vol_adjusted = vol_adjusted_size,
+        signal_scaled = signal_scaled,
+        dd_adjusted = dd_adjusted,
+        corr_adjusted = corr_adjusted,
+        final_position = final_size,
+        rejection_reason = ifelse(
+            expected_return * direction <= 0, "SIGNAL_CONFLICT",
+            ifelse(abs(correlation) > max_correlation, "HIGH_CORRELATION",
+                   ifelse(current_dd < dd_threshold, "DRAWDOWN_LIMIT", "ACCEPTED"))
+        )
+    )
+}
+
+# Test across various scenarios
+test_scenarios <- data.table(
+    scenario = c("Strong Long", "Weak Long", "Stressed", "Correlated", "Conflicting"),
+    signal = c(0.8, 0.3, 0.6, 0.7, 0.5),
+    expected_return = c(0.005, 0.002, 0.004, 0.003, -0.001),
+    volatility = c(0.02, 0.015, 0.03, 0.02, 0.02),
+    current_dd = c(0, 0, -0.12, 0, 0),
+    correlation = c(0.1, 0.2, 0.1, 0.8, 0.1)
+)
+
+position_results <- test_scenarios[, {
+    result <- comprehensive_position_size(
+        signal, expected_return, volatility, current_dd, correlation
+    )
+    .(final_position = result$final_position,
+      rejection_reason = result$rejection_reason)
+}, by = scenario]
+
+print(position_results)
+```
+
+```
+##       scenario final_position rejection_reason
+##         <char>          <num>           <char>
+## 1: Strong Long            0.1         ACCEPTED
+## 2:   Weak Long            0.1         ACCEPTED
+## 3:    Stressed            0.1   DRAWDOWN_LIMIT
+## 4:  Correlated            0.1 HIGH_CORRELATION
+## 5: Conflicting            0.0  SIGNAL_CONFLICT
+```
+
+
+``` r
+# Visualize the position sizing function surface
+signal_grid <- seq(-1, 1, by = 0.1)
+vol_grid <- seq(0.01, 0.05, by = 0.005)
+
+sizing_surface <- CJ(signal = signal_grid, volatility = vol_grid)
+sizing_surface[, expected_return := signal * 0.005]  # Assume signal ~ expected return
+
+sizing_surface[, position := {
+    result <- comprehensive_position_size(
+        signal = signal,
+        expected_return = expected_return,
+        volatility = volatility
+    )
+    result$final_position
+}, by = 1:nrow(sizing_surface)]
+
+ggplot(sizing_surface, aes(x = signal, y = volatility * 100, fill = position * 100)) +
+    geom_tile() +
+    scale_fill_gradient2(
+        low = tc["negative"],
+        mid = "white",
+        high = tc["positive"],
+        midpoint = 0,
+        limits = c(-10, 10)
+    ) +
+    geom_contour(aes(z = position * 100), color = "black", alpha = 0.3) +
+    labs(
+        title = "Position Size Surface",
+        subtitle = "Position as function of signal strength and volatility",
+        x = "Signal Strength",
+        y = "Volatility (%)",
+        fill = "Position (%)"
+    )
+```
+
+![plot of chunk risk-visualization](/courses/financial-statistics-1-foundations/risk-visualization-1.png)
+
+
+``` r
+# Risk budgeting across strategies
+strategies <- data.table(
+    strategy = c("Momentum", "Mean Reversion", "Factor", "Volatility"),
+    expected_sharpe = c(0.8, 0.6, 1.0, 0.5),
+    volatility = c(0.12, 0.08, 0.10, 0.20),
+    correlation_avg = c(0.3, -0.1, 0.2, 0.0)
+)
+
+# Risk parity allocation (inverse volatility)
+strategies[, risk_parity_weight := (1/volatility) / sum(1/volatility)]
+
+# Sharpe-weighted allocation
+strategies[, sharpe_weight := (expected_sharpe/volatility) / sum(expected_sharpe/volatility)]
+
+# Equal risk contribution (simplified)
+total_vol_target <- 0.10
+strategies[, risk_contribution := volatility * risk_parity_weight]
+strategies[, erc_weight := risk_parity_weight * (total_vol_target / sum(risk_contribution))]
+
+# Visualize allocations
+alloc_melt <- melt(
+    strategies,
+    id.vars = "strategy",
+    measure.vars = c("risk_parity_weight", "sharpe_weight"),
+    variable.name = "method",
+    value.name = "weight"
+)
+
+alloc_melt[, method := factor(method,
+    levels = c("risk_parity_weight", "sharpe_weight"),
+    labels = c("Risk Parity", "Sharpe-Weighted")
+)]
+
+ggplot(alloc_melt, aes(x = strategy, y = weight * 100, fill = method)) +
+    geom_col(position = "dodge", alpha = 0.8) +
+    scale_fill_manual(values = c(tc["primary"], tc["secondary"])) +
+    labs(
+        title = "Strategy Allocation: Risk Parity vs Sharpe-Weighted",
+        subtitle = "Different objectives lead to different allocations",
+        x = "Strategy",
+        y = "Allocation (%)",
+        fill = "Method"
+    ) +
+    theme(legend.position = "bottom")
+```
+
+![plot of chunk risk-budget-allocation](/courses/financial-statistics-1-foundations/risk-budget-allocation-1.png)
+
+## Summary
+
+Risk management transforms a trading strategy from a gamble into a sustainable business:
+
+**Key Metrics**:
+- VaR tells you daily risk at a confidence level, but misses tail severity
+- CVaR captures expected loss in the tail—use this for position limits
+- Drawdown is the lived experience of risk—the metric clients care about
+- Calmar ratio (return/drawdown) measures pain-adjusted performance
+
+**Position Sizing Principles**:
+1. Start with Kelly (edge/variance) for theoretical optimal
+2. Apply fractional Kelly (25-50%) for real-world robustness
+3. Adjust for volatility to maintain consistent risk
+4. Scale down during drawdowns to preserve capital
+5. Penalize correlated positions to avoid concentration
+
+**Risk Hierarchy**:
+- Position risk < Strategy risk < Portfolio risk < Enterprise risk
+- Each level needs its own limits and monitoring
+- Correlations matter more as you aggregate up
+
+The goal is not to eliminate risk but to ensure every unit of risk taken earns adequate return. In the next section, we'll see how these risk management tools integrate into complete portfolio construction.

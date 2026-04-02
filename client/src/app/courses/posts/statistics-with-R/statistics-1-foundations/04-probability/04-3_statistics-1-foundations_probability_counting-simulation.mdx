@@ -1,0 +1,1696 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 4: Probability — Foundations"
+part: "Part 3: Counting Methods and Simulation"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, probability, combinatorics, simulation, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 4: Probability — Foundations (continued)
+
+In Parts 1 and 2, we established probability rules and conditional probability. Now we develop two essential tools: combinatorics (counting methods) for computing probabilities exactly, and simulation (Monte Carlo methods) for estimating probabilities when exact calculation is impractical.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Load NHANES data for examples
+nhanes <- fread("../../../data/primary/nhanes.csv")
+
+cat("NHANES dataset:", nrow(nhanes), "observations,", ncol(nhanes), "variables\n")
+```
+
+```
+#> NHANES dataset: 10000 observations, 76 variables
+```
+
+## Table of Contents
+
+## 4.7 Counting Methods (Combinatorics)
+
+Many probability problems reduce to counting: how many outcomes satisfy our event of interest, divided by the total number of outcomes? Combinatorics provides systematic methods for counting large sets without enumerating every element.
+
+### 4.7.1 The Multiplication Principle
+
+**Prose and Intuition**
+
+The **multiplication principle** (also called the counting principle or product rule) states: if one task can be done in $m$ ways, and a second task can be done in $n$ ways, then both tasks together can be done in $m \times n$ ways.
+
+This extends to any number of sequential tasks: multiply the number of choices at each stage.
+
+**Mathematical Statement**
+
+If there are $n_1$ ways to perform task 1, $n_2$ ways to perform task 2, ..., and $n_k$ ways to perform task $k$, then there are:
+
+$$n_1 \times n_2 \times \cdots \times n_k$$
+
+ways to perform all tasks in sequence.
+
+
+``` r
+# Example: Designing a clinical trial treatment protocol
+
+# Stage 1: Choose drug (3 options)
+drugs <- c("Drug A", "Drug B", "Drug C")
+
+# Stage 2: Choose dose level (4 options)
+doses <- c("Low", "Medium", "High", "Very High")
+
+# Stage 3: Choose duration (2 options)
+durations <- c("4 weeks", "8 weeks")
+
+n_drugs <- length(drugs)
+n_doses <- length(doses)
+n_durations <- length(durations)
+
+total_protocols <- n_drugs * n_doses * n_durations
+
+cat("Multiplication Principle: Clinical Trial Protocols\n")
+cat("==================================================\n\n")
+
+cat("Choices at each stage:\n")
+cat("  Stage 1 (Drug):", n_drugs, "options -", paste(drugs, collapse = ", "), "\n")
+cat("  Stage 2 (Dose):", n_doses, "options -", paste(doses, collapse = ", "), "\n")
+cat("  Stage 3 (Duration):", n_durations, "options -", paste(durations, collapse = ", "), "\n\n")
+
+cat("Total protocols =", n_drugs, "×", n_doses, "×", n_durations, "=", total_protocols, "\n\n")
+
+# Generate all combinations to verify
+all_protocols <- expand.grid(Drug = drugs, Dose = doses, Duration = durations)
+cat("Verification: Generating all combinations yields", nrow(all_protocols), "protocols.\n\n")
+
+# Show a sample
+cat("First 6 protocols:\n")
+print(head(all_protocols))
+
+# Visualise as tree (simplified)
+tree_dt <- data.table(
+    x = c(0, rep(c(-3, 0, 3), each = 1)),
+    y = c(4, rep(2, 3)),
+    label = c("Start", drugs)
+)
+
+ggplot2$ggplot(tree_dt, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_point(size = 15, colour = "#56B4E9") +
+    ggplot2$geom_text(ggplot2$aes(label = label), size = 3.5) +
+    ggplot2$geom_segment(data = data.table(
+        x_start = c(0, 0, 0),
+        y_start = c(4, 4, 4),
+        x_end = c(-3, 0, 3),
+        y_end = c(2, 2, 2)
+    ), ggplot2$aes(x = x_start, y = y_start, xend = x_end, yend = y_end),
+    colour = "grey50") +
+    ggplot2$annotate("text", x = -3, y = 0.5,
+             label = paste0("× ", n_doses, " doses\n× ", n_durations, " durations\n= ",
+                           n_doses * n_durations, " paths"),
+             size = 4) +
+    ggplot2$annotate("text", x = 0, y = 0.5,
+             label = paste0("× ", n_doses, " doses\n× ", n_durations, " durations\n= ",
+                           n_doses * n_durations, " paths"),
+             size = 4) +
+    ggplot2$annotate("text", x = 3, y = 0.5,
+             label = paste0("× ", n_doses, " doses\n× ", n_durations, " durations\n= ",
+                           n_doses * n_durations, " paths"),
+             size = 4) +
+    ggplot2$labs(
+        title = "Multiplication Principle: Treatment Protocol Design",
+        subtitle = paste0("3 drugs × 4 doses × 2 durations = ", total_protocols, " total protocols")
+    ) +
+    ggplot2$theme_void()
+```
+
+<Figure src="/courses/statistics-1-foundations/multiplication_principle-1.png" alt="The multiplication principle counts sequential choices">
+	The multiplication principle counts sequential choices
+</Figure>
+
+```
+#> Multiplication Principle: Clinical Trial Protocols
+#> ==================================================
+#> 
+#> Choices at each stage:
+#>   Stage 1 (Drug): 3 options - Drug A, Drug B, Drug C 
+#>   Stage 2 (Dose): 4 options - Low, Medium, High, Very High 
+#>   Stage 3 (Duration): 2 options - 4 weeks, 8 weeks 
+#> 
+#> Total protocols = 3 × 4 × 2 = 24 
+#> 
+#> Verification: Generating all combinations yields 24 protocols.
+#> 
+#> First 6 protocols:
+#>     Drug   Dose Duration
+#> 1 Drug A    Low  4 weeks
+#> 2 Drug B    Low  4 weeks
+#> 3 Drug C    Low  4 weeks
+#> 4 Drug A Medium  4 weeks
+#> 5 Drug B Medium  4 weeks
+#> 6 Drug C Medium  4 weeks
+```
+
+### 4.7.2 Permutations
+
+**Prose and Intuition**
+
+A **permutation** is an ordered arrangement. When order matters—first, second, third—we use permutations.
+
+Consider arranging 3 patients in a queue: the first position has 3 choices, the second has 2 remaining, the third has 1. By the multiplication principle: $3 \times 2 \times 1 = 6$ arrangements.
+
+**Mathematical Derivation**
+
+The number of ways to arrange $n$ distinct objects in a row is:
+
+$$n! = n \times (n-1) \times (n-2) \times \cdots \times 2 \times 1$$
+
+This is called "$n$ factorial."
+
+More generally, the number of ways to choose and arrange $r$ objects from $n$ distinct objects (order matters, no replacement) is:
+
+$$P(n, r) = \frac{n!}{(n-r)!} = n \times (n-1) \times \cdots \times (n-r+1)$$
+
+
+``` r
+# Implement factorial from scratch
+my_factorial <- function(n) {
+    if (n < 0) stop("Factorial undefined for negative numbers")
+    if (n == 0 || n == 1) return(1)
+
+    result <- 1
+    for (i in 2:n) {
+        result <- result * i
+    }
+    return(result)
+}
+
+# Implement permutation formula
+my_permutation <- function(n, r) {
+    if (r > n) return(0)
+    my_factorial(n) / my_factorial(n - r)
+}
+
+# Verify against R's built-in
+cat("Factorial Implementation\n")
+cat("========================\n\n")
+
+for (n in 0:7) {
+    cat(sprintf("  %d! = %d (built-in: %d)\n",
+                n, my_factorial(n), factorial(n)))
+}
+
+cat("\nPermutation Examples\n")
+cat("====================\n\n")
+
+# Example 1: Arrange 5 patients in a queue
+n1 <- 5
+cat("Arranging", n1, "patients in a queue:\n")
+cat("  P(5, 5) = 5! =", my_permutation(5, 5), "\n\n")
+
+# Example 2: Assign gold, silver, bronze to 3 of 10 athletes
+n2 <- 10
+r2 <- 3
+cat("Awarding gold/silver/bronze to 3 of 10 athletes:\n")
+cat("  P(10, 3) = 10! / 7! =", my_permutation(10, 3), "\n")
+cat("  Verification: 10 × 9 × 8 =", 10 * 9 * 8, "\n\n")
+
+# Example 3: DNA sequence
+# How many 4-nucleotide sequences (order matters, with replacement)?
+cat("4-nucleotide DNA sequences (with replacement):\n")
+cat("  4^4 =", 4^4, "sequences\n")
+cat("  (This is multiplication principle, not permutation)\n\n")
+
+# List all permutations for small case
+patients <- c("A", "B", "C")
+all_perms <- function(x) {
+    if (length(x) == 1) return(list(x))
+    result <- list()
+    for (i in seq_along(x)) {
+        rest_perms <- all_perms(x[-i])
+        for (perm in rest_perms) {
+            result <- c(result, list(c(x[i], perm)))
+        }
+    }
+    return(result)
+}
+
+perms <- all_perms(patients)
+cat("All permutations of 3 patients:\n")
+for (i in seq_along(perms)) {
+    cat("  ", i, ": ", paste(perms[[i]], collapse = " -> "), "\n", sep = "")
+}
+cat("Total:", length(perms), "(matches 3! =", factorial(3), ")\n")
+```
+
+```
+#> Factorial Implementation
+#> ========================
+#> 
+#>   0! = 1 (built-in: 1)
+#>   1! = 1 (built-in: 1)
+#>   2! = 2 (built-in: 2)
+#>   3! = 6 (built-in: 6)
+#>   4! = 24 (built-in: 24)
+#>   5! = 120 (built-in: 120)
+#>   6! = 720 (built-in: 720)
+#>   7! = 5040 (built-in: 5040)
+#> 
+#> Permutation Examples
+#> ====================
+#> 
+#> Arranging 5 patients in a queue:
+#>   P(5, 5) = 5! = 120 
+#> 
+#> Awarding gold/silver/bronze to 3 of 10 athletes:
+#>   P(10, 3) = 10! / 7! = 720 
+#>   Verification: 10 × 9 × 8 = 720 
+#> 
+#> 4-nucleotide DNA sequences (with replacement):
+#>   4^4 = 256 sequences
+#>   (This is multiplication principle, not permutation)
+#> 
+#> All permutations of 3 patients:
+#>   1: A -> B -> C
+#>   2: A -> C -> B
+#>   3: B -> A -> C
+#>   4: B -> C -> A
+#>   5: C -> A -> B
+#>   6: C -> B -> A
+#> Total: 6 (matches 3! = 6 )
+```
+
+### 4.7.3 Combinations
+
+**Prose and Intuition**
+
+A **combination** is an unordered selection. When order doesn't matter—we just care about which items are chosen, not the sequence—we use combinations.
+
+Choosing 3 patients from 10 for a treatment group: we don't care whether patient A was chosen first or third, only that they're in the group.
+
+**Mathematical Derivation**
+
+The number of ways to choose $r$ objects from $n$ distinct objects (order doesn't matter, no replacement) is:
+
+$$C(n, r) = \binom{n}{r} = \frac{n!}{r!(n-r)!}$$
+
+This is read as "$n$ choose $r$" and called the **binomial coefficient**.
+
+**Relationship to permutations:**
+
+$$C(n, r) = \frac{P(n, r)}{r!}$$
+
+We divide by $r!$ because permutations count each unordered group $r!$ times (once for each ordering).
+
+
+``` r
+# Implement combination formula
+my_combination <- function(n, r) {
+    if (r > n || r < 0) return(0)
+    # Use the more efficient formula to avoid large factorials
+    if (r > n - r) r <- n - r  # C(n, r) = C(n, n-r)
+
+    result <- 1
+    for (i in 1:r) {
+        result <- result * (n - r + i) / i
+    }
+    return(round(result))
+}
+
+# Verify against R's built-in choose()
+cat("Combination Implementation\n")
+cat("==========================\n\n")
+
+test_cases <- list(c(5, 2), c(10, 3), c(20, 5), c(52, 5))
+
+for (tc in test_cases) {
+    n <- tc[1]
+    r <- tc[2]
+    cat(sprintf("  C(%d, %d) = %d (built-in: %d)\n",
+                n, r, my_combination(n, r), choose(n, r)))
+}
+
+cat("\nPractical Examples\n")
+cat("==================\n\n")
+
+# Example 1: Choose 3 patients from 10 for treatment
+cat("Choosing 3 patients from 10 for treatment group:\n")
+cat("  C(10, 3) =", choose(10, 3), "\n\n")
+
+# Example 2: Choose 5 genes from 20 for a panel
+cat("Selecting 5 genes from 20 for a diagnostic panel:\n")
+cat("  C(20, 5) =", choose(20, 5), "\n\n")
+
+# Example 3: Poker hand (5 cards from 52)
+cat("Number of possible 5-card poker hands:\n")
+cat("  C(52, 5) =", format(choose(52, 5), big.mark = ","), "\n\n")
+
+# Show relationship between permutations and combinations
+cat("Relationship: C(n, r) = P(n, r) / r!\n")
+cat("  P(10, 3) =", my_permutation(10, 3), "\n")
+cat("  3! =", factorial(3), "\n")
+cat("  P(10, 3) / 3! =", my_permutation(10, 3) / factorial(3), "= C(10, 3)\n\n")
+
+# List all combinations for small case
+patients <- c("A", "B", "C", "D")
+all_combs <- combn(patients, 2, simplify = FALSE)
+cat("All combinations of 2 patients from 4:\n")
+for (i in seq_along(all_combs)) {
+    cat("  ", i, ": {", paste(all_combs[[i]], collapse = ", "), "}\n", sep = "")
+}
+cat("Total:", length(all_combs), "(matches C(4,2) =", choose(4, 2), ")\n")
+```
+
+```
+#> Combination Implementation
+#> ==========================
+#> 
+#>   C(5, 2) = 10 (built-in: 10)
+#>   C(10, 3) = 120 (built-in: 120)
+#>   C(20, 5) = 15504 (built-in: 15504)
+#>   C(52, 5) = 2598960 (built-in: 2598960)
+#> 
+#> Practical Examples
+#> ==================
+#> 
+#> Choosing 3 patients from 10 for treatment group:
+#>   C(10, 3) = 120 
+#> 
+#> Selecting 5 genes from 20 for a diagnostic panel:
+#>   C(20, 5) = 15504 
+#> 
+#> Number of possible 5-card poker hands:
+#>   C(52, 5) = 2,598,960 
+#> 
+#> Relationship: C(n, r) = P(n, r) / r!
+#>   P(10, 3) = 720 
+#>   3! = 6 
+#>   P(10, 3) / 3! = 120 = C(10, 3)
+#> 
+#> All combinations of 2 patients from 4:
+#>   1: {A, B}
+#>   2: {A, C}
+#>   3: {A, D}
+#>   4: {B, C}
+#>   5: {B, D}
+#>   6: {C, D}
+#> Total: 6 (matches C(4,2) = 6 )
+```
+
+**Visualising Pascal's Triangle**
+
+Pascal's triangle displays binomial coefficients, revealing their structure:
+
+
+``` r
+# Generate Pascal's triangle
+pascal_rows <- 10
+
+pascal_dt <- data.table(
+    n = integer(),
+    r = integer(),
+    value = integer()
+)
+
+for (n in 0:(pascal_rows - 1)) {
+    for (r in 0:n) {
+        pascal_dt <- rbindlist(list(
+            pascal_dt,
+            data.table(n = n, r = r, value = choose(n, r))
+        ))
+    }
+}
+
+# Add coordinates for triangular display
+pascal_dt[, x := r - n/2]
+pascal_dt[, y := -n]
+
+ggplot2$ggplot(pascal_dt, ggplot2$aes(x = x, y = y)) +
+    ggplot2$geom_point(size = 12, colour = "#56B4E9") +
+    ggplot2$geom_text(ggplot2$aes(label = value), size = 3.5, colour = "white") +
+    ggplot2$labs(
+        title = "Pascal's Triangle: Binomial Coefficients",
+        subtitle = "Each entry is C(row, position) = sum of two entries above it"
+    ) +
+    ggplot2$theme_void()
+```
+
+<Figure src="/courses/statistics-1-foundations/pascals_triangle-1.png" alt="Pascal&#39;s triangle shows the structure of binomial coefficients">
+	Pascal's triangle shows the structure of binomial coefficients
+</Figure>
+
+### 4.7.4 Applications in Probability
+
+**Prose and Intuition**
+
+Combinatorics powers classical probability calculations. When outcomes are equally likely:
+
+$$P(A) = \frac{\text{number of outcomes in } A}{\text{total number of outcomes}}$$
+
+Both numerator and denominator are counting problems.
+
+
+``` r
+# Example 1: Committee selection
+# From 8 doctors and 5 nurses, form a committee of 4 with exactly 2 doctors.
+
+n_doctors <- 8
+n_nurses <- 5
+committee_size <- 4
+n_doctors_required <- 2
+
+# Ways to choose 2 doctors from 8
+ways_doctors <- choose(n_doctors, n_doctors_required)
+
+# Ways to choose 2 nurses from 5 (since we need 4 total, 2 must be nurses)
+ways_nurses <- choose(n_nurses, committee_size - n_doctors_required)
+
+# Total ways to form this committee
+ways_target <- ways_doctors * ways_nurses
+
+# Total ways to form any committee of 4 from 13 people
+total_ways <- choose(n_doctors + n_nurses, committee_size)
+
+# Probability
+prob_exactly_2_doctors <- ways_target / total_ways
+
+cat("Example 1: Committee Selection\n")
+cat("==============================\n\n")
+
+cat("Select committee of 4 from 8 doctors and 5 nurses.\n")
+cat("What is P(exactly 2 doctors on committee)?\n\n")
+
+cat("Ways to choose 2 doctors from 8: C(8, 2) =", ways_doctors, "\n")
+cat("Ways to choose 2 nurses from 5: C(5, 2) =", ways_nurses, "\n")
+cat("Ways to form target committee:", ways_doctors, "×", ways_nurses, "=", ways_target, "\n\n")
+
+cat("Total ways to choose any 4 from 13: C(13, 4) =", total_ways, "\n\n")
+
+cat("P(exactly 2 doctors) =", ways_target, "/", total_ways, "=", round(prob_exactly_2_doctors, 4), "\n\n")
+
+# Example 2: Genetic inheritance (Mendelian probability)
+# Two heterozygous parents (Aa × Aa)
+# P(exactly 2 of 3 offspring are carriers, Aa)?
+
+cat("Example 2: Mendelian Genetics\n")
+cat("=============================\n\n")
+
+cat("Parents: Aa × Aa (both carriers)\n")
+cat("Offspring genotype probabilities:\n")
+cat("  P(AA) = 1/4, P(Aa) = 1/2, P(aa) = 1/4\n\n")
+
+# P(carrier) = 1/2
+p_carrier <- 0.5
+n_offspring <- 3
+k_carriers <- 2
+
+# Using binomial coefficient
+prob_2_carriers <- choose(n_offspring, k_carriers) *
+                   p_carrier^k_carriers *
+                   (1 - p_carrier)^(n_offspring - k_carriers)
+
+cat("P(exactly 2 of 3 offspring are carriers):\n")
+cat("  = C(3, 2) × (1/2)^2 × (1/2)^1\n")
+cat("  =", choose(3, 2), "× 0.25 × 0.5\n")
+cat("  =", prob_2_carriers, "\n\n")
+
+# Example 3: Quality control (hypergeometric)
+# Batch of 20 items contains 4 defective. Sample 5 without replacement.
+# P(exactly 1 defective in sample)?
+
+batch_size <- 20
+n_defective <- 4
+sample_size <- 5
+k_defective_sampled <- 1
+
+# Hypergeometric probability
+# C(defective, k) × C(non-defective, sample-k) / C(total, sample)
+ways_defective <- choose(n_defective, k_defective_sampled)
+ways_good <- choose(batch_size - n_defective, sample_size - k_defective_sampled)
+ways_total <- choose(batch_size, sample_size)
+
+prob_1_defective <- (ways_defective * ways_good) / ways_total
+
+cat("Example 3: Quality Control Sampling\n")
+cat("====================================\n\n")
+
+cat("Batch: 20 items (4 defective, 16 good)\n")
+cat("Sample 5 items without replacement.\n")
+cat("P(exactly 1 defective in sample)?\n\n")
+
+cat("Ways to choose 1 defective from 4: C(4, 1) =", ways_defective, "\n")
+cat("Ways to choose 4 good from 16: C(16, 4) =", ways_good, "\n")
+cat("Total ways to choose 5 from 20: C(20, 5) =", ways_total, "\n\n")
+
+cat("P(exactly 1 defective) =", ways_defective, "×", ways_good, "/", ways_total, "\n")
+cat("                       =", round(prob_1_defective, 4), "\n")
+
+# Verify with dhyper
+cat("\nVerification using R's dhyper():", dhyper(1, 4, 16, 5), "\n")
+```
+
+```
+#> Example 1: Committee Selection
+#> ==============================
+#> 
+#> Select committee of 4 from 8 doctors and 5 nurses.
+#> What is P(exactly 2 doctors on committee)?
+#> 
+#> Ways to choose 2 doctors from 8: C(8, 2) = 28 
+#> Ways to choose 2 nurses from 5: C(5, 2) = 10 
+#> Ways to form target committee: 28 × 10 = 280 
+#> 
+#> Total ways to choose any 4 from 13: C(13, 4) = 715 
+#> 
+#> P(exactly 2 doctors) = 280 / 715 = 0.3916 
+#> 
+#> Example 2: Mendelian Genetics
+#> =============================
+#> 
+#> Parents: Aa × Aa (both carriers)
+#> Offspring genotype probabilities:
+#>   P(AA) = 1/4, P(Aa) = 1/2, P(aa) = 1/4
+#> 
+#> P(exactly 2 of 3 offspring are carriers):
+#>   = C(3, 2) × (1/2)^2 × (1/2)^1
+#>   = 3 × 0.25 × 0.5
+#>   = 0.375 
+#> 
+#> Example 3: Quality Control Sampling
+#> ====================================
+#> 
+#> Batch: 20 items (4 defective, 16 good)
+#> Sample 5 items without replacement.
+#> P(exactly 1 defective in sample)?
+#> 
+#> Ways to choose 1 defective from 4: C(4, 1) = 4 
+#> Ways to choose 4 good from 16: C(16, 4) = 1820 
+#> Total ways to choose 5 from 20: C(20, 5) = 15504 
+#> 
+#> P(exactly 1 defective) = 4 × 1820 / 15504 
+#>                        = 0.4696 
+#> 
+#> Verification using R's dhyper(): 0.4695562
+```
+
+### 4.7.5 Implementing Counting in R
+
+**Core R Functions**
+
+
+``` r
+cat("R Functions for Combinatorics\n")
+cat("=============================\n\n")
+
+# Factorial
+cat("factorial(n) — Computes n!\n")
+cat("  factorial(5) =", factorial(5), "\n")
+cat("  factorial(10) =", format(factorial(10), big.mark = ","), "\n")
+cat("  factorial(20) =", format(factorial(20), big.mark = ",", scientific = FALSE), "\n\n")
+
+# Note: factorial grows quickly; use lfactorial for large n
+cat("lfactorial(n) — Log factorial for large n\n")
+cat("  lfactorial(100) =", round(lfactorial(100), 2), "\n")
+cat("  exp(lfactorial(100)) is too large to store!\n\n")
+
+# Combinations
+cat("choose(n, k) — Binomial coefficient C(n, k)\n")
+cat("  choose(52, 5) =", format(choose(52, 5), big.mark = ","), "\n")
+cat("  choose(100, 10) =", format(choose(100, 10), big.mark = ",", scientific = FALSE), "\n\n")
+
+# lchoose for large values
+cat("lchoose(n, k) — Log of binomial coefficient\n")
+cat("  lchoose(1000, 500) =", round(lchoose(1000, 500), 2), "\n\n")
+
+# Generate combinations
+cat("combn(x, m) — Generate all combinations\n")
+cat("  combn(1:4, 2):\n")
+print(combn(1:4, 2))
+
+# Permutations (no built-in, but can use gtools or implement)
+cat("\nImplementing permutations:\n")
+cat("  Using factorial: P(n, r) = n! / (n-r)!\n")
+cat("  P(5, 3) = factorial(5) / factorial(2) =", factorial(5) / factorial(2), "\n")
+```
+
+```
+#> R Functions for Combinatorics
+#> =============================
+#> 
+#> factorial(n) — Computes n!
+#>   factorial(5) = 120 
+#>   factorial(10) = 3,628,800 
+#>   factorial(20) = 2,432,902,008,176,640,000 
+#> 
+#> lfactorial(n) — Log factorial for large n
+#>   lfactorial(100) = 363.74 
+#>   exp(lfactorial(100)) is too large to store!
+#> 
+#> choose(n, k) — Binomial coefficient C(n, k)
+#>   choose(52, 5) = 2,598,960 
+#>   choose(100, 10) = 17,310,309,456,440 
+#> 
+#> lchoose(n, k) — Log of binomial coefficient
+#>   lchoose(1000, 500) = 689.47 
+#> 
+#> combn(x, m) — Generate all combinations
+#>   combn(1:4, 2):
+#>      [,1] [,2] [,3] [,4] [,5] [,6]
+#> [1,]    1    1    1    2    2    3
+#> [2,]    2    3    4    3    4    4
+#> 
+#> Implementing permutations:
+#>   Using factorial: P(n, r) = n! / (n-r)!
+#>   P(5, 3) = factorial(5) / factorial(2) = 60
+```
+
+**Custom Counting Functions**
+
+
+``` r
+# A collection of useful counting functions
+
+# Permutations
+permutation <- function(n, r) {
+    if (r > n) return(0)
+    factorial(n) / factorial(n - r)
+}
+
+# Permutations with repetition allowed
+permutation_rep <- function(n, r) {
+    n^r
+}
+
+# Combinations (wrapper for choose)
+combination <- function(n, r) {
+    choose(n, r)
+}
+
+# Multinomial coefficient
+# n! / (n1! × n2! × ... × nk!) where n1 + n2 + ... + nk = n
+multinomial <- function(n, groups) {
+    if (sum(groups) != n) stop("Groups must sum to n")
+    factorial(n) / prod(factorial(groups))
+}
+
+cat("Custom Counting Functions\n")
+cat("=========================\n\n")
+
+cat("Permutations (order matters, no replacement):\n")
+cat("  P(10, 3) =", permutation(10, 3), "\n\n")
+
+cat("Permutations with repetition (order matters, with replacement):\n")
+cat("  4-digit PIN using digits 0-9:", permutation_rep(10, 4), "\n\n")
+
+cat("Combinations (order doesn't matter, no replacement):\n")
+cat("  C(10, 3) =", combination(10, 3), "\n\n")
+
+cat("Multinomial coefficient:\n")
+cat("  Arranging 10 objects into groups of 4, 3, 3:\n")
+cat("  10! / (4! × 3! × 3!) =", multinomial(10, c(4, 3, 3)), "\n\n")
+
+# Application: Probability of specific poker hand
+cat("Application: Probability of a Flush in Poker\n")
+cat("--------------------------------------------\n")
+cat("A flush is 5 cards of the same suit.\n\n")
+
+# Choose 1 suit from 4
+ways_suit <- choose(4, 1)
+
+# Choose 5 cards from 13 of that suit
+ways_cards <- choose(13, 5)
+
+# Total flush hands
+total_flush <- ways_suit * ways_cards
+
+# Total possible hands
+total_hands <- choose(52, 5)
+
+# Probability (excluding straight flushes for simplicity)
+prob_flush <- total_flush / total_hands
+
+cat("Ways to choose suit: C(4, 1) =", ways_suit, "\n")
+cat("Ways to choose 5 from 13: C(13, 5) =", ways_cards, "\n")
+cat("Total flush hands:", format(total_flush, big.mark = ","), "\n")
+cat("Total possible hands:", format(total_hands, big.mark = ","), "\n")
+cat("P(flush) ≈", round(prob_flush, 5), "or about 1 in", round(1/prob_flush), "\n")
+```
+
+```
+#> Custom Counting Functions
+#> =========================
+#> 
+#> Permutations (order matters, no replacement):
+#>   P(10, 3) = 720 
+#> 
+#> Permutations with repetition (order matters, with replacement):
+#>   4-digit PIN using digits 0-9: 10000 
+#> 
+#> Combinations (order doesn't matter, no replacement):
+#>   C(10, 3) = 120 
+#> 
+#> Multinomial coefficient:
+#>   Arranging 10 objects into groups of 4, 3, 3:
+#>   10! / (4! × 3! × 3!) = 4200 
+#> 
+#> Application: Probability of a Flush in Poker
+#> --------------------------------------------
+#> A flush is 5 cards of the same suit.
+#> 
+#> Ways to choose suit: C(4, 1) = 4 
+#> Ways to choose 5 from 13: C(13, 5) = 1287 
+#> Total flush hands: 5,148 
+#> Total possible hands: 2,598,960 
+#> P(flush) ≈ 0.00198 or about 1 in 505
+```
+
+---
+
+## 4.8 Simulation-Based Probability
+
+When exact calculation is impractical—complex dependencies, continuous variables, or simply too many outcomes to enumerate—simulation provides accurate probability estimates.
+
+### 4.8.1 Monte Carlo Methods
+
+**Prose and Intuition**
+
+**Monte Carlo methods** use random sampling to approximate quantities that are difficult to compute analytically. Named after the famous casino, these methods harness randomness to solve deterministic problems.
+
+The basic idea:
+1. Simulate the random process many times
+2. Count how often the event of interest occurs
+3. Estimate probability as the proportion of occurrences
+
+By the law of large numbers, this proportion converges to the true probability.
+
+**Mathematical Justification**
+
+If we perform $n$ independent simulations and observe event $A$ occurring $n_A$ times, then:
+
+$$\hat{P}(A) = \frac{n_A}{n} \xrightarrow{n \to \infty} P(A)$$
+
+The standard error of this estimate is:
+
+$$SE = \sqrt{\frac{\hat{P}(A)(1 - \hat{P}(A))}{n}}$$
+
+
+``` r
+# Basic Monte Carlo structure
+
+monte_carlo_estimate <- function(simulate_fn, n_sims = 10000, seed = NULL) {
+    # simulate_fn: function that returns TRUE if event occurred, FALSE otherwise
+
+    if (!is.null(seed)) set.seed(seed)
+
+    # Run simulations
+    results <- replicate(n_sims, simulate_fn())
+
+    # Estimate probability
+    p_hat <- mean(results)
+
+    # Standard error
+    se <- sqrt(p_hat * (1 - p_hat) / n_sims)
+
+    # 95% confidence interval
+    ci_lower <- p_hat - 1.96 * se
+    ci_upper <- p_hat + 1.96 * se
+
+    list(
+        estimate = p_hat,
+        se = se,
+        ci = c(ci_lower, ci_upper),
+        n_sims = n_sims
+    )
+}
+
+# Example: Rolling two dice, P(sum = 7)?
+simulate_dice_sum_7 <- function() {
+    die1 <- sample(1:6, 1)
+    die2 <- sample(1:6, 1)
+    (die1 + die2) == 7
+}
+
+result <- monte_carlo_estimate(simulate_dice_sum_7, n_sims = 10000, seed = 42)
+
+# True probability
+p_true <- 6/36
+
+cat("Monte Carlo Example: P(two dice sum to 7)\n")
+cat("=========================================\n\n")
+
+cat("True probability: 6/36 =", round(p_true, 4), "\n\n")
+
+cat("Monte Carlo estimate (", result$n_sims, " simulations):\n", sep = "")
+cat("  Estimated P:", round(result$estimate, 4), "\n")
+cat("  Standard error:", round(result$se, 4), "\n")
+cat("  95% CI: [", round(result$ci[1], 4), ",", round(result$ci[2], 4), "]\n")
+
+# Show convergence
+set.seed(42)
+n_max <- 10000
+running_sum <- cumsum(replicate(n_max, simulate_dice_sum_7()))
+running_estimate <- running_sum / (1:n_max)
+
+convergence_dt <- data.table(
+    n = 1:n_max,
+    estimate = running_estimate
+)
+
+ggplot2$ggplot(convergence_dt, ggplot2$aes(x = n, y = estimate)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = p_true, colour = "red", linetype = "dashed", size = 1) +
+    ggplot2$scale_x_log10(labels = scales::comma) +
+    ggplot2$labs(
+        title = "Monte Carlo Convergence",
+        subtitle = "Estimated P(sum = 7) converges to true value as simulations increase",
+        x = "Number of Simulations (log scale)",
+        y = "Estimated Probability"
+    ) +
+    ggplot2$annotate("text", x = 5000, y = p_true + 0.01,
+             label = paste("True P =", round(p_true, 4)), colour = "red", size = 4) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/monte_carlo_intro-1.png" alt="Monte Carlo estimation of probability">
+	Monte Carlo estimation of probability
+</Figure>
+
+```
+#> Monte Carlo Example: P(two dice sum to 7)
+#> =========================================
+#> 
+#> True probability: 6/36 = 0.1667 
+#> 
+#> Monte Carlo estimate (10000 simulations):
+#>   Estimated P: 0.1565 
+#>   Standard error: 0.0036 
+#>   95% CI: [ 0.1494 , 0.1636 ]
+```
+
+### 4.8.2 Estimating Probabilities Through Simulation
+
+**The Birthday Problem**
+
+A classic problem: in a group of $n$ people, what is P(at least two share a birthday)?
+
+This is famous because the answer is counterintuitively high—50% probability with just 23 people!
+
+
+``` r
+# Simulate the birthday problem
+
+birthday_shared <- function(n_people) {
+    # Generate n random birthdays (ignore leap years)
+    birthdays <- sample(1:365, n_people, replace = TRUE)
+    # Check if any duplicates
+    length(unique(birthdays)) < n_people
+}
+
+# Estimate P(shared birthday) for various group sizes
+group_sizes <- 2:60
+n_sims <- 10000
+
+birthday_probs <- data.table(
+    n_people = group_sizes,
+    simulated = numeric(length(group_sizes)),
+    theoretical = numeric(length(group_sizes))
+)
+
+set.seed(42)
+for (i in seq_along(group_sizes)) {
+    n <- group_sizes[i]
+    birthday_probs$simulated[i] <- mean(replicate(n_sims, birthday_shared(n)))
+
+    # Theoretical: P(no shared) = 365/365 × 364/365 × ... × (365-n+1)/365
+    p_no_shared <- prod((365:(365-n+1)) / 365)
+    birthday_probs$theoretical[i] <- 1 - p_no_shared
+}
+
+cat("The Birthday Problem\n")
+cat("====================\n\n")
+
+cat("P(at least two people share a birthday) in a group of n:\n\n")
+
+key_values <- c(10, 20, 23, 30, 40, 50)
+for (n in key_values) {
+    idx <- which(birthday_probs$n_people == n)
+    cat(sprintf("  n = %2d: Simulated = %.3f, Theoretical = %.3f\n",
+                n, birthday_probs$simulated[idx], birthday_probs$theoretical[idx]))
+}
+
+cat("\nThe 50% threshold is reached at n =",
+    min(birthday_probs$n_people[birthday_probs$theoretical >= 0.5]), "\n")
+
+# Plot
+birthday_long <- melt(birthday_probs, id.vars = "n_people",
+                                 variable.name = "method", value.name = "probability")
+
+ggplot2$ggplot(birthday_long, ggplot2$aes(x = n_people, y = probability,
+                                  colour = method, linetype = method)) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$geom_hline(yintercept = 0.5, colour = "grey50", linetype = "dotted") +
+    ggplot2$geom_vline(xintercept = 23, colour = "grey50", linetype = "dotted") +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$scale_y_continuous(labels = scales::percent) +
+    ggplot2$labs(
+        title = "The Birthday Problem",
+        subtitle = "50% probability of shared birthday with just 23 people!",
+        x = "Number of People",
+        y = "P(at least two share a birthday)",
+        colour = "Method",
+        linetype = "Method"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-1-foundations/birthday_problem-1.png" alt="The birthday problem: probability of shared birthdays">
+	The birthday problem: probability of shared birthdays
+</Figure>
+
+```
+#> The Birthday Problem
+#> ====================
+#> 
+#> P(at least two people share a birthday) in a group of n:
+#> 
+#>   n = 10: Simulated = 0.121, Theoretical = 0.117
+#>   n = 20: Simulated = 0.413, Theoretical = 0.411
+#>   n = 23: Simulated = 0.501, Theoretical = 0.507
+#>   n = 30: Simulated = 0.705, Theoretical = 0.706
+#>   n = 40: Simulated = 0.892, Theoretical = 0.891
+#>   n = 50: Simulated = 0.975, Theoretical = 0.970
+#> 
+#> The 50% threshold is reached at n = 23
+```
+
+**The Monty Hall Problem**
+
+Another famous problem: You're on a game show with 3 doors. Behind one is a car; behind the others, goats. You pick a door. The host (who knows what's behind each door) opens another door revealing a goat. Should you switch?
+
+
+``` r
+# Simulate the Monty Hall problem
+
+monty_hall <- function(switch_strategy) {
+    # Place the car randomly
+    car_door <- sample(1:3, 1)
+
+    # Player picks a door
+    player_choice <- sample(1:3, 1)
+
+    # Host opens a door that:
+    # 1. Is not the player's choice
+    # 2. Does not have the car
+    available_for_host <- setdiff(1:3, c(player_choice, car_door))
+    if (length(available_for_host) == 0) {
+        # Player chose car door; host opens either remaining door
+        available_for_host <- setdiff(1:3, player_choice)
+    }
+    host_opens <- sample(available_for_host, 1)
+
+    # Player's final choice depends on strategy
+    if (switch_strategy) {
+        # Switch to the remaining unopened door
+        final_choice <- setdiff(1:3, c(player_choice, host_opens))
+    } else {
+        # Stay with original choice
+        final_choice <- player_choice
+    }
+
+    # Win if final choice is car door
+    final_choice == car_door
+}
+
+# Simulate both strategies
+set.seed(42)
+n_sims <- 10000
+
+stay_wins <- mean(replicate(n_sims, monty_hall(switch = FALSE)))
+switch_wins <- mean(replicate(n_sims, monty_hall(switch = TRUE)))
+
+cat("The Monty Hall Problem\n")
+cat("======================\n\n")
+
+cat("Simulation results (", n_sims, " games):\n\n", sep = "")
+cat("  Strategy: STAY   -> Win rate:", round(stay_wins, 3),
+    "(theoretical: 1/3 ≈ 0.333)\n")
+cat("  Strategy: SWITCH -> Win rate:", round(switch_wins, 3),
+    "(theoretical: 2/3 ≈ 0.667)\n\n")
+
+cat("Conclusion: ALWAYS SWITCH! Switching doubles your chances of winning.\n\n")
+
+cat("Intuition: When you first pick, you have 1/3 chance of being right.\n")
+cat("The host's reveal doesn't change this. If you were wrong (2/3 chance),\n")
+cat("switching gets you the car. If you were right (1/3 chance), switching loses.\n")
+
+# Visualise
+strategy_dt <- data.table(
+    strategy = factor(c("Stay", "Switch"), levels = c("Stay", "Switch")),
+    win_rate = c(stay_wins, switch_wins),
+    theoretical = c(1/3, 2/3)
+)
+
+ggplot2$ggplot(strategy_dt, ggplot2$aes(x = strategy, y = win_rate, fill = strategy)) +
+    ggplot2$geom_col(width = 0.6) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = theoretical, ymax = theoretical),
+                  width = 0.3, colour = "red", size = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(round(win_rate * 100, 1), "%")),
+              vjust = -0.5, size = 6) +
+    ggplot2$scale_fill_manual(values = c("#D55E00", "#009E73")) +
+    ggplot2$scale_y_continuous(limits = c(0, 0.8), labels = scales::percent) +
+    ggplot2$labs(
+        title = "Monty Hall Problem: Switch Wins!",
+        subtitle = "Red lines show theoretical values (1/3 and 2/3)",
+        x = "Strategy",
+        y = "Win Rate"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/monty_hall-1.png" alt="The Monty Hall problem: always switch!">
+	The Monty Hall problem: always switch!
+</Figure>
+
+```
+#> The Monty Hall Problem
+#> ======================
+#> 
+#> Simulation results (10000 games):
+#> 
+#>   Strategy: STAY   -> Win rate: 0.338 (theoretical: 1/3 ≈ 0.333)
+#>   Strategy: SWITCH -> Win rate: NA (theoretical: 2/3 ≈ 0.667)
+#> 
+#> Conclusion: ALWAYS SWITCH! Switching doubles your chances of winning.
+#> 
+#> Intuition: When you first pick, you have 1/3 chance of being right.
+#> The host's reveal doesn't change this. If you were wrong (2/3 chance),
+#> switching gets you the car. If you were right (1/3 chance), switching loses.
+```
+
+**Clinical Trial Simulation**
+
+Simulation is essential in clinical trial design for power analysis and sample size calculation.
+
+
+``` r
+# Simulate a two-arm clinical trial
+
+simulate_trial <- function(n_per_arm, true_effect, sd, alpha = 0.05) {
+    # Generate outcomes for control and treatment groups
+    control <- rnorm(n_per_arm, mean = 0, sd = sd)
+    treatment <- rnorm(n_per_arm, mean = true_effect, sd = sd)
+
+    # Two-sample t-test
+    test_result <- t.test(treatment, control)
+
+    # Return TRUE if significant (reject null)
+    test_result$p.value < alpha
+}
+
+# Estimate power for various sample sizes
+true_effect <- 0.5  # Cohen's d = 0.5 (medium effect)
+sd <- 1
+sample_sizes <- seq(10, 150, by = 10)
+n_sims <- 1000
+
+power_results <- data.table(
+    n_per_arm = sample_sizes,
+    estimated_power = numeric(length(sample_sizes))
+)
+
+set.seed(42)
+for (i in seq_along(sample_sizes)) {
+    n <- sample_sizes[i]
+    power_results$estimated_power[i] <- mean(replicate(n_sims,
+                                                        simulate_trial(n, true_effect, sd)))
+}
+
+cat("Clinical Trial Power Simulation\n")
+cat("===============================\n\n")
+
+cat("Scenario: Two-arm trial, continuous outcome\n")
+cat("  True treatment effect: Cohen's d =", true_effect, "\n")
+cat("  Standard deviation:", sd, "\n")
+cat("  Alpha level: 0.05\n\n")
+
+cat("Sample size required for 80% power:\n")
+idx_80 <- which(power_results$estimated_power >= 0.80)[1]
+cat("  Approximately n =", power_results$n_per_arm[idx_80], "per arm\n")
+cat("  (Simulated power:", round(power_results$estimated_power[idx_80], 3), ")\n\n")
+
+# Compare to theoretical (using power.t.test)
+theoretical_n <- power.t.test(delta = true_effect, sd = sd, power = 0.80,
+                              type = "two.sample")$n
+cat("Theoretical n per arm for 80% power:", ceiling(theoretical_n), "\n")
+
+# Plot power curve
+ggplot2$ggplot(power_results, ggplot2$aes(x = n_per_arm, y = estimated_power)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
+    ggplot2$geom_point(colour = "#0072B2", size = 2) +
+    ggplot2$geom_hline(yintercept = 0.80, colour = "red", linetype = "dashed") +
+    ggplot2$geom_vline(xintercept = power_results$n_per_arm[idx_80],
+               colour = "red", linetype = "dashed") +
+    ggplot2$scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+    ggplot2$labs(
+        title = "Power Curve: Two-Arm Clinical Trial",
+        subtitle = paste("Effect size d =", true_effect, "; 80% power at n ≈",
+                        power_results$n_per_arm[idx_80], "per arm"),
+        x = "Sample Size Per Arm",
+        y = "Estimated Power"
+    ) +
+    ggplot2$annotate("text", x = 120, y = 0.82, label = "80% power",
+             colour = "red", size = 4) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/clinical_simulation-1.png" alt="Simulating a clinical trial to estimate power">
+	Simulating a clinical trial to estimate power
+</Figure>
+
+```
+#> Clinical Trial Power Simulation
+#> ===============================
+#> 
+#> Scenario: Two-arm trial, continuous outcome
+#>   True treatment effect: Cohen's d = 0.5 
+#>   Standard deviation: 1 
+#>   Alpha level: 0.05
+#> 
+#> Sample size required for 80% power:
+#>   Approximately n = 70 per arm
+#>   (Simulated power: 0.844 )
+#> 
+#> Theoretical n per arm for 80% power: 64
+```
+
+### 4.8.3 The Law of Large Numbers
+
+**Prose and Intuition**
+
+The **law of large numbers** (LLN) states that as the sample size increases, the sample mean converges to the population mean. For probability estimation, this means our Monte Carlo estimate converges to the true probability.
+
+**Mathematical Statement**
+
+For i.i.d. random variables $X_1, X_2, \ldots$ with mean $\mu$:
+
+$$\bar{X}_n = \frac{1}{n}\sum_{i=1}^{n} X_i \xrightarrow{n \to \infty} \mu$$
+
+
+``` r
+# Demonstrate LLN with various distributions
+
+set.seed(42)
+n_max <- 5000
+
+# Normal distribution
+normal_samples <- rnorm(n_max, mean = 5, sd = 2)
+normal_running_mean <- cumsum(normal_samples) / (1:n_max)
+
+# Exponential distribution
+exp_samples <- rexp(n_max, rate = 0.5)  # mean = 1/rate = 2
+exp_running_mean <- cumsum(exp_samples) / (1:n_max)
+
+# Binomial (coin flips)
+binom_samples <- rbinom(n_max, 1, 0.3)  # mean = 0.3
+binom_running_mean <- cumsum(binom_samples) / (1:n_max)
+
+lln_dt <- data.table(
+    n = rep(1:n_max, 3),
+    running_mean = c(normal_running_mean, exp_running_mean, binom_running_mean),
+    distribution = rep(c("Normal(5, 2)", "Exponential(λ=0.5)", "Bernoulli(0.3)"),
+                       each = n_max),
+    true_mean = rep(c(5, 2, 0.3), each = n_max)
+)
+
+ggplot2$ggplot(lln_dt, ggplot2$aes(x = n, y = running_mean, colour = distribution)) +
+    ggplot2$geom_line(alpha = 0.7) +
+    ggplot2$geom_hline(data = unique(lln_dt[, .(distribution, true_mean)]),
+               ggplot2$aes(yintercept = true_mean, colour = distribution),
+               linetype = "dashed", size = 1) +
+    ggplot2$facet_wrap(~ distribution, scales = "free_y", ncol = 1) +
+    ggplot2$scale_x_log10(labels = scales::comma) +
+    ggplot2$labs(
+        title = "Law of Large Numbers: Convergence Across Distributions",
+        subtitle = "Sample means (solid) converge to population means (dashed)",
+        x = "Sample Size (log scale)",
+        y = "Running Mean"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/law_large_numbers-1.png" alt="The law of large numbers: sample means converge to population mean">
+	The law of large numbers: sample means converge to population mean
+</Figure>
+
+### 4.8.4 Setting Seeds for Reproducibility
+
+**Prose and Intuition**
+
+Computer-generated "random" numbers are actually **pseudo-random**: deterministic algorithms that produce sequences indistinguishable from random. Setting a **seed** initialises the algorithm, ensuring identical "random" sequences across runs.
+
+This is essential for:
+- Reproducible research
+- Debugging simulation code
+- Comparing methods on identical data
+
+
+``` r
+# Demonstrate seed behaviour
+
+cat("Setting Seeds for Reproducibility\n")
+cat("==================================\n\n")
+
+cat("Without seed: Different results each run\n")
+cat("  Run 1:", paste(round(runif(5), 3), collapse = ", "), "\n")
+cat("  Run 2:", paste(round(runif(5), 3), collapse = ", "), "\n\n")
+
+cat("With seed: Identical results each run\n")
+set.seed(123)
+cat("  Seed 123, Run 1:", paste(round(runif(5), 3), collapse = ", "), "\n")
+set.seed(123)
+cat("  Seed 123, Run 2:", paste(round(runif(5), 3), collapse = ", "), "\n\n")
+
+cat("Different seeds give different sequences:\n")
+set.seed(42)
+cat("  Seed 42:", paste(round(runif(5), 3), collapse = ", "), "\n")
+set.seed(99)
+cat("  Seed 99:", paste(round(runif(5), 3), collapse = ", "), "\n\n")
+
+# Best practice: Set seed once at start of analysis
+cat("Best Practice:\n")
+cat("  1. Set seed once at the beginning of your script\n")
+cat("  2. Use meaningful seed (e.g., date, paper ID)\n")
+cat("  3. Document your seed in methods section\n")
+cat("  4. For parallel computing, use different seeds per worker\n")
+
+# Show that sequence continues
+cat("\nNote: Seed only affects SUBSEQUENT random calls:\n")
+set.seed(42)
+first_batch <- runif(3)
+second_batch <- runif(3)  # Different from first
+cat("  First 3:", paste(round(first_batch, 3), collapse = ", "), "\n")
+cat("  Next 3:", paste(round(second_batch, 3), collapse = ", "), "\n")
+
+set.seed(42)
+combined <- runif(6)  # Same as first + second
+cat("  All 6 (same seed):", paste(round(combined, 3), collapse = ", "), "\n")
+```
+
+```
+#> Setting Seeds for Reproducibility
+#> ==================================
+#> 
+#> Without seed: Different results each run
+#>   Run 1: 0.591, 0.488, 0.927, 0.852, 0.047 
+#>   Run 2: 0.822, 0.968, 0.137, 0.662, 0.482 
+#> 
+#> With seed: Identical results each run
+#>   Seed 123, Run 1: 0.288, 0.788, 0.409, 0.883, 0.94 
+#>   Seed 123, Run 2: 0.288, 0.788, 0.409, 0.883, 0.94 
+#> 
+#> Different seeds give different sequences:
+#>   Seed 42: 0.915, 0.937, 0.286, 0.83, 0.642 
+#>   Seed 99: 0.585, 0.114, 0.684, 0.993, 0.535 
+#> 
+#> Best Practice:
+#>   1. Set seed once at the beginning of your script
+#>   2. Use meaningful seed (e.g., date, paper ID)
+#>   3. Document your seed in methods section
+#>   4. For parallel computing, use different seeds per worker
+#> 
+#> Note: Seed only affects SUBSEQUENT random calls:
+#>   First 3: 0.915, 0.937, 0.286 
+#>   Next 3: 0.83, 0.642, 0.519 
+#>   All 6 (same seed): 0.915, 0.937, 0.286, 0.83, 0.642, 0.519
+```
+
+**Reproducible Simulation Framework**
+
+
+``` r
+# A template for reproducible simulation studies
+
+run_simulation <- function(n_sims, scenario_params, seed = NULL) {
+    # Set seed for reproducibility
+    if (!is.null(seed)) set.seed(seed)
+
+    # Initialize results storage
+    results <- vector("list", n_sims)
+
+    # Run simulations
+    for (i in 1:n_sims) {
+        results[[i]] <- simulate_one(scenario_params)
+    }
+
+    # Summarize
+    rbindlist(results)
+}
+
+simulate_one <- function(params) {
+    # Example: Simulate a simple experiment
+    n <- params$sample_size
+    mu <- params$true_mean
+    sigma <- params$true_sd
+
+    sample_data <- rnorm(n, mean = mu, sd = sigma)
+
+    data.table(
+        sample_mean = mean(sample_data),
+        sample_sd = sd(sample_data),
+        ci_lower = mean(sample_data) - 1.96 * sd(sample_data) / sqrt(n),
+        ci_upper = mean(sample_data) + 1.96 * sd(sample_data) / sqrt(n),
+        covers_true = mu >= (mean(sample_data) - 1.96 * sd(sample_data) / sqrt(n)) &
+                      mu <= (mean(sample_data) + 1.96 * sd(sample_data) / sqrt(n))
+    )
+}
+
+# Run reproducible simulation
+params <- list(sample_size = 30, true_mean = 100, true_sd = 15)
+results <- run_simulation(n_sims = 1000, scenario_params = params, seed = 42)
+
+cat("Reproducible Simulation Results\n")
+cat("===============================\n\n")
+
+cat("Parameters:\n")
+cat("  True mean:", params$true_mean, "\n")
+cat("  True SD:", params$true_sd, "\n")
+cat("  Sample size:", params$sample_size, "\n\n")
+
+cat("Results from 1000 simulations:\n")
+cat("  Mean of sample means:", round(mean(results$sample_mean), 2), "\n")
+cat("  SD of sample means:", round(sd(results$sample_mean), 2), "\n")
+cat("  Theoretical SE:", round(params$true_sd / sqrt(params$sample_size), 2), "\n\n")
+
+cat("Coverage of 95% CI:", round(mean(results$covers_true), 3), "\n")
+cat("  (Should be close to 0.95)\n")
+```
+
+```
+#> Reproducible Simulation Results
+#> ===============================
+#> 
+#> Parameters:
+#>   True mean: 100 
+#>   True SD: 15 
+#>   Sample size: 30 
+#> 
+#> Results from 1000 simulations:
+#>   Mean of sample means: 99.99 
+#>   SD of sample means: 2.85 
+#>   Theoretical SE: 2.74 
+#> 
+#> Coverage of 95% CI: 0.935 
+#>   (Should be close to 0.95)
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining simulation results
+
+
+``` r
+cat("Communicating Simulation Results to Stakeholders\n")
+cat("=================================================\n\n")
+
+cat("When presenting simulation-based findings:\n\n")
+
+cat("1. EXPLAIN WHAT SIMULATION DOES\n")
+cat("   'We ran the experiment virtually 10,000 times to see what\n")
+cat("    typically happens under these conditions.'\n\n")
+
+cat("2. REPORT UNCERTAINTY\n")
+cat("   Instead of: 'The probability is 0.47'\n")
+cat("   Say: 'The probability is approximately 47% (±1%)'\n\n")
+
+cat("3. USE CONCRETE EXAMPLES\n")
+cat("   'If we treat 1,000 patients this way, we expect about\n")
+cat("    470 to respond, give or take 30.'\n\n")
+
+cat("4. VALIDATE WHEN POSSIBLE\n")
+cat("   'We compared our simulation to real data from similar\n")
+cat("    studies and found good agreement.'\n\n")
+
+cat("5. ACKNOWLEDGE ASSUMPTIONS\n")
+cat("   'These results assume patients in the trial are similar\n")
+cat("    to our target population.'\n")
+```
+
+```
+#> Communicating Simulation Results to Stakeholders
+#> =================================================
+#> 
+#> When presenting simulation-based findings:
+#> 
+#> 1. EXPLAIN WHAT SIMULATION DOES
+#>    'We ran the experiment virtually 10,000 times to see what
+#>     typically happens under these conditions.'
+#> 
+#> 2. REPORT UNCERTAINTY
+#>    Instead of: 'The probability is 0.47'
+#>    Say: 'The probability is approximately 47% (±1%)'
+#> 
+#> 3. USE CONCRETE EXAMPLES
+#>    'If we treat 1,000 patients this way, we expect about
+#>     470 to respond, give or take 30.'
+#> 
+#> 4. VALIDATE WHEN POSSIBLE
+#>    'We compared our simulation to real data from similar
+#>     studies and found good agreement.'
+#> 
+#> 5. ACKNOWLEDGE ASSUMPTIONS
+#>    'These results assume patients in the trial are similar
+#>     to our target population.'
+```
+
+### When to use simulation vs exact calculation
+
+
+``` r
+# Demonstrate when simulation excels
+
+cat("When to Use Simulation vs Exact Calculation\n")
+cat("============================================\n\n")
+
+cat("USE EXACT CALCULATION when:\n")
+cat("  - Problem is simple (dice, cards, coin flips)\n")
+cat("  - Closed-form formula exists\n")
+cat("  - Distributions are standard (binomial, normal, etc.)\n")
+cat("  - You need very high precision\n\n")
+
+cat("USE SIMULATION when:\n")
+cat("  - Problem is complex or involves many steps\n")
+cat("  - Closed-form solution is intractable\n")
+cat("  - Exploring 'what-if' scenarios\n")
+cat("  - Verifying analytical solutions\n")
+cat("  - Continuous distributions with complex boundaries\n\n")
+
+# Example: Simple problem - exact wins
+cat("Example 1: P(sum of 3 dice = 10)\n")
+cat("--------------------------------\n")
+
+# Exact enumeration
+outcomes <- expand.grid(d1 = 1:6, d2 = 1:6, d3 = 1:6)
+p_exact <- mean(rowSums(outcomes) == 10)
+
+# Simulation
+set.seed(42)
+p_sim <- mean(replicate(10000, sum(sample(1:6, 3, replace = TRUE)) == 10))
+
+cat("  Exact:", round(p_exact, 5), "\n")
+cat("  Simulation (10,000):", round(p_sim, 5), "\n")
+cat("  → Exact is easy and precise here\n\n")
+
+# Example: Complex problem - simulation wins
+cat("Example 2: First time in random walk to return to origin\n")
+cat("--------------------------------------------------------\n")
+
+first_return <- function(max_steps = 1000) {
+    position <- 0
+    for (step in 1:max_steps) {
+        position <- position + sample(c(-1, 1), 1)
+        if (position == 0) return(step)
+    }
+    return(NA)  # Didn't return within max_steps
+}
+
+set.seed(42)
+returns <- replicate(5000, first_return())
+returns <- returns[!is.na(returns)]
+
+cat("  Mean first return time:", round(mean(returns), 1), "steps\n")
+cat("  Median first return time:", median(returns), "steps\n")
+cat("  P(return within 10 steps):", round(mean(returns <= 10), 3), "\n")
+cat("  → Simulation handles this complex problem easily\n")
+```
+
+```
+#> When to Use Simulation vs Exact Calculation
+#> ============================================
+#> 
+#> USE EXACT CALCULATION when:
+#>   - Problem is simple (dice, cards, coin flips)
+#>   - Closed-form formula exists
+#>   - Distributions are standard (binomial, normal, etc.)
+#>   - You need very high precision
+#> 
+#> USE SIMULATION when:
+#>   - Problem is complex or involves many steps
+#>   - Closed-form solution is intractable
+#>   - Exploring 'what-if' scenarios
+#>   - Verifying analytical solutions
+#>   - Continuous distributions with complex boundaries
+#> 
+#> Example 1: P(sum of 3 dice = 10)
+#> --------------------------------
+#>   Exact: 0.125 
+#>   Simulation (10,000): 0.1243 
+#>   → Exact is easy and precise here
+#> 
+#> Example 2: First time in random walk to return to origin
+#> --------------------------------------------------------
+#>   Mean first return time: 27.6 steps
+#>   Median first return time: 2 steps
+#>   P(return within 10 steps): 0.766 
+#>   → Simulation handles this complex problem easily
+```
+
+---
+
+## Quick Reference
+
+### Counting Formulas
+
+| Scenario | Formula | R Function |
+|----------|---------|------------|
+| Factorial | $n!$ | `factorial(n)` |
+| Permutation (no replacement) | $P(n,r) = \frac{n!}{(n-r)!}$ | `factorial(n)/factorial(n-r)` |
+| Permutation (with replacement) | $n^r$ | `n^r` |
+| Combination | $C(n,r) = \frac{n!}{r!(n-r)!}$ | `choose(n, r)` |
+| Multinomial | $\frac{n!}{n_1! \cdots n_k!}$ | `factorial(n)/prod(factorial(groups))` |
+
+### Decision Guide: Permutation vs Combination
+
+| Question | Permutation | Combination |
+|----------|-------------|-------------|
+| Does order matter? | Yes | No |
+| Examples | Rankings, sequences, passwords | Teams, committees, samples |
+| Formula | $P(n,r)$ | $C(n,r)$ |
+| Relationship | — | $C(n,r) = P(n,r)/r!$ |
+
+### Monte Carlo Template
+
+```r
+# Basic simulation structure
+monte_carlo <- function(simulate_fn, n_sims = 10000, seed = NULL) {
+    if (!is.null(seed)) set.seed(seed)
+    results <- replicate(n_sims, simulate_fn())
+
+    list(
+        estimate = mean(results),
+        se = sqrt(mean(results) * (1 - mean(results)) / n_sims),
+        n_sims = n_sims
+    )
+}
+
+# Standard error decreases as sqrt(n)
+# For 1% precision: n ≈ 10,000
+# For 0.1% precision: n ≈ 1,000,000
+```
+
+### Reproducibility Checklist
+
+- [ ] Set seed at script start: `set.seed(42)`
+- [ ] Document seed in methods
+- [ ] Use same R version
+- [ ] Record `sessionInfo()`
+- [ ] Use version control for code
+- [ ] Consider using `{renv}` for package versions
+
+### Key Probability Results from This Chapter
+
+| Problem | Probability | Notes |
+|---------|-------------|-------|
+| Birthday problem (23 people) | ~50% | Shared birthday |
+| Birthday problem (50 people) | ~97% | Almost certain |
+| Monty Hall (stay) | 1/3 | Never optimal |
+| Monty Hall (switch) | 2/3 | Always switch |
+
+---
+
+## Exercises
+
+1. **Counting**: How many 5-letter "words" (any arrangement of letters) can be formed using the 26 letters of the alphabet if (a) letters can repeat, (b) letters cannot repeat?
+
+2. **Combinations**: A clinical trial needs to select 10 patients from a pool of 50 for a pilot study. How many possible selections are there?
+
+3. **Probability calculation**: From a deck of 52 cards, you draw 5. What is P(exactly 2 aces)?
+
+4. **Simulation**: Use Monte Carlo simulation to estimate the probability that in a random permutation of the numbers 1 through 10, no number is in its "natural" position (this is called a derangement).
+
+5. **Birthday variant**: Use simulation to estimate how many people are needed for there to be a 50% chance that at least three people share a birthday.
+
+6. **Power analysis**: Use simulation to determine the sample size needed per group to detect a mean difference of 5 units (SD = 10) with 80% power at α = 0.05 in a two-sample t-test.
+
+---
+
+## Chapter Summary
+
+This chapter completed our probability foundations with two essential toolkits:
+
+1. **Combinatorics** provides exact counting methods:
+   - The multiplication principle for sequential choices
+   - Permutations when order matters ($P(n,r)$)
+   - Combinations when order doesn't matter ($C(n,r)$)
+   - Applications to classical probability calculations
+
+2. **Monte Carlo simulation** estimates probabilities through random sampling:
+   - Converges to true probability by law of large numbers
+   - Essential for complex problems without analytical solutions
+   - Requires careful attention to reproducibility (seeds)
+   - Standard error decreases as $1/\sqrt{n}$
+
+3. **Classic problems** illustrated both approaches:
+   - Birthday problem: counterintuitive probabilities
+   - Monty Hall: conditional probability in action
+   - Clinical trial power: practical simulation application
+
+With probability foundations complete, we're ready for Chapter 5: Random Variables and Distributions, where we formalise the mathematical objects that allow us to model uncertainty systematically.
+
+---
+
+## Chapter 4 Complete Summary
+
+Across all three parts, Chapter 4 established the mathematical foundation of probability:
+
+**Part 1** introduced:
+- Three interpretations of probability (frequentist, Bayesian, axiomatic)
+- Sample spaces and events
+- Basic probability rules (complement, addition)
+
+**Part 2** developed:
+- Conditional probability and the multiplication rule
+- Independence and how to test for it
+- Bayes' theorem for updating beliefs
+- Diagnostic testing metrics (sensitivity, specificity, PPV, NPV)
+
+**Part 3** provided computational tools:
+- Combinatorics for exact probability calculation
+- Monte Carlo simulation for complex problems
+- Reproducibility practices for simulation studies
+
+These tools form the basis for all subsequent statistical inference.

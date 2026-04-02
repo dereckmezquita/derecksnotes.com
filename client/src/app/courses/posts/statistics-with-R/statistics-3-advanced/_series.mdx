@@ -1,0 +1,132 @@
+---
+title: "Statistics with R III: Advanced"
+blurb: "Statistical learning, high-dimensional data, causal inference, and computational methods"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-20"
+tags: [statistics, mathematics, machine-learning, causal-inference, bioinformatics, R, biomedical]
+published: true
+comments: true
+labels:
+    1: "Chapter"
+    2: "Part"
+---
+
+## Preface
+
+This third and final volume in the Statistics with R series ventures into the frontier of modern statistical methodology. Building on the foundational inference from Part I and the modelling framework from Part II, we now tackle the challenges of high-dimensional data, complex dependencies, and causal questions that pervade contemporary biomedical research.
+
+Modern biomedical science generates data at unprecedented scales: genome-wide association studies with millions of genetic variants, RNA sequencing measuring tens of thousands of genes, microbiome studies with thousands of taxa, and imaging studies with millions of voxels. Classical statistical methods, designed for problems where observations outnumber variables, struggle in these "large p, small n" settings. This course provides the theoretical foundations and practical tools to navigate this landscape.
+
+By the end of this course, you will have a solid understanding of:
+
+- Regularisation and penalised regression (ridge, LASSO, elastic net)
+- High-dimensional inference and false discovery rate control
+- Classification and prediction (decision trees, random forests, boosting)
+- Cross-validation and model selection in complex settings
+- Causal inference from observational data (matching, propensity scores, instrumental variables)
+- Resampling methods (bootstrap, permutation tests)
+- RNA-seq differential expression analysis
+- GWAS methodology and genetic association testing
+- Microbiome analysis and compositional data
+- Bayesian computation and hierarchical modelling
+
+## Course Outline
+
+### Chapter 1: Regularisation and Penalised Regression
+High-dimensional regression requires constraints on model complexity. We introduce ridge regression, LASSO, and elastic net, deriving their solutions and understanding bias-variance trade-offs.
+
+### Chapter 2: High-Dimensional Inference
+When testing thousands of hypotheses simultaneously, we must control false discoveries. This chapter covers multiple testing correction, false discovery rates, and empirical Bayes approaches.
+
+### Chapter 3: Classification Methods
+Beyond regression, we need methods for classification: logistic regression extensions, decision trees, random forests, and gradient boosting for clinical risk prediction and diagnosis.
+
+### Chapter 4: Cross-Validation and Model Assessment
+Proper model evaluation prevents overfitting. We cover k-fold cross-validation, bootstrap estimation, nested cross-validation, and calibration assessment for predictive models.
+
+### Chapter 5: Causal Inference from Observational Data
+Most biomedical questions are causal, yet most data are observational. We introduce the potential outcomes framework, propensity score methods, instrumental variables, and difference-in-differences.
+
+### Chapter 6: Resampling Methods
+Bootstrap and permutation methods provide distribution-free inference. We derive bootstrap confidence intervals, permutation tests, and their applications in complex settings.
+
+### Chapter 7: RNA-Seq Differential Expression Analysis
+Gene expression analysis is fundamental to molecular biology. We cover the negative binomial model, DESeq2/edgeR methodology, normalisation, and biological pathway analysis.
+
+### Chapter 8: GWAS and Genetic Association
+Genome-wide association studies identify genetic variants linked to disease. We cover SNP testing, population stratification, linkage disequilibrium, and meta-analysis of genetic studies.
+
+### Chapter 9: Microbiome Data Analysis
+Microbiome sequencing produces compositional count data with unique statistical challenges. We cover diversity metrics, differential abundance testing, and multivariate methods for community analysis.
+
+### Chapter 10: Advanced Bayesian Methods
+Building on Part II, we explore hierarchical models, Bayesian model averaging, and Stan for flexible probabilistic programming in biomedical applications.
+
+## Datasets
+
+This course uses cutting-edge biomedical and bioinformatics datasets:
+
+**Genomics and Transcriptomics:**
+- Golub leukaemia gene expression (ALL vs AML classification)
+- RNA-seq influenza response data (differential expression)
+- Simulated GWAS data (association testing methodology)
+
+**Microbiome:**
+- GlobalPatterns 16S rRNA data (human gut, soil, ocean samples)
+- Moving Pictures study (longitudinal human microbiome)
+
+**Proteomics:**
+- CPTAC spike-in data (quantitative proteomics benchmarking)
+
+**Causal Inference:**
+- LaLonde job training programme (propensity score matching)
+- Card-Krueger minimum wage study (difference-in-differences)
+- Close elections data (regression discontinuity)
+
+**Clinical:**
+- Wisconsin breast cancer diagnostic features
+- Pima Indians diabetes study
+- Cleveland heart disease data
+
+All datasets are documented in DATA.md and available in the shared `data/` directory.
+
+## Pedagogical Approach
+
+Every concept in this course follows the same **four-part teaching method** established in Parts I and II:
+
+### 1. Prose and Intuition
+
+First, we explain the concept in plain language with analogies, examples, and context. We answer: What is this? Why does it matter? When would you use it? We build intuition before introducing any formalism.
+
+### 2. Visualisation
+
+Second, we demonstrate the concept visually. Graphs, diagrams, and simulations help you *see* what's happening. Visualisation bridges the gap between intuition and mathematics.
+
+### 3. Mathematical Derivation
+
+Third, we present the formal mathematics. We don't simply state formulae — we _derive_ them. We show how the formula was discovered, why it takes the form it does, and what each component means. You will understand not just *what* to compute, but *why* the computation works.
+
+### 4. Communicating to Stakeholders
+
+At the end of important sections we include a review of what we learned and how to communicate it to stakeholders. Communication is an essential part of every statistician's job and is often overlooked in traditional statistics education.
+
+## Prerequisites
+
+This course assumes completion of Parts I and II or equivalent knowledge of:
+
+- Foundations of probability and statistical inference
+- Multiple regression and generalised linear models
+- Maximum likelihood estimation
+- Basic Bayesian inference and MCMC
+- Mixed-effects models
+- Survival analysis fundamentals
+- Proficiency in R including data.table and ggplot2
+
+Each chapter concludes with a **Quick Reference** section summarising key formulae and code, allowing the course to serve as a reference manual.
+
+## A Note on Computational Considerations
+
+Many methods in this course are computationally intensive. We balance theoretical rigour with practical implementation, providing efficient R code that scales to realistic problem sizes. Where appropriate, we discuss parallel computing and algorithmic optimisations.
+
+The methods covered here represent the current state of the art in biostatistics and bioinformatics. They form the analytical backbone of modern clinical trials, genomic studies, and precision medicine initiatives.

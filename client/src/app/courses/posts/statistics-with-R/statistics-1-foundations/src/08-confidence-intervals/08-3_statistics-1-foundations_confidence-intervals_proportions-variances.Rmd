@@ -1,0 +1,623 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 8: Confidence Intervals"
+part: "Part 3: Confidence Intervals for Proportions and Variances"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, confidence-intervals, proportions, variance, chi-square, inference, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    out.width = "100%",
+    collapse = FALSE, results = 'hold'
+)
+```
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+nhanes <- fread("../../../data/primary/nhanes.csv")
+```
+
+# Confidence Intervals for Proportions and Variances
+
+Beyond means, we often need to estimate other population parameters. This part covers confidence intervals for population proportions (from binary data) and population variances (measuring variability).
+
+---
+
+## Table of Contents
+
+## 8.11 Confidence Intervals for Proportions
+
+### 8.11.1 The Setting
+
+We observe $X$ successes in $n$ independent Bernoulli trials, each with unknown probability of success $p$. Our point estimate is:
+
+$$\hat{p} = \frac{X}{n}$$
+
+We want to construct a confidence interval for the true population proportion $p$.
+
+### 8.11.2 The Wald Interval (Normal Approximation)
+
+For large samples, the sampling distribution of $\hat{p}$ is approximately normal:
+
+$$\hat{p} \sim N\left(p, \frac{p(1-p)}{n}\right)$$
+
+The standard error is:
+
+$$SE(\hat{p}) = \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$$
+
+The **Wald interval** is:
+
+$$\hat{p} \pm z^* \cdot \sqrt{\frac{\hat{p}(1-\hat{p})}{n}}$$
+
+**Rule of thumb for adequacy:** $n\hat{p} \geq 10$ and $n(1-\hat{p}) \geq 10$
+
+```{r wald_interval, fig.cap="Wald confidence interval for proportion"}
+# Example: Proportion with high blood pressure (SBP >= 140)
+bp_data <- na.omit(nhanes$BPSys1)
+n <- length(bp_data)
+x <- sum(bp_data >= 140)
+p_hat <- x / n
+
+# Wald interval
+se_wald <- sqrt(p_hat * (1 - p_hat) / n)
+z_star <- qnorm(0.975)
+
+wald_lower <- p_hat - z_star * se_wald
+wald_upper <- p_hat + z_star * se_wald
+
+cat("Wald Interval for Proportion with High Blood Pressure\n")
+cat("======================================================\n\n")
+cat(sprintf("Sample: n = %d\n", n))
+cat(sprintf("High BP (SBP >= 140): x = %d\n", x))
+cat(sprintf("Sample proportion: p̂ = %.4f (%.1f%%)\n\n", p_hat, 100 * p_hat))
+
+cat("Checking normal approximation adequacy:\n")
+cat(sprintf("  np̂ = %.1f (should be >= 10) ✓\n", n * p_hat))
+cat(sprintf("  n(1-p̂) = %.1f (should be >= 10) ✓\n\n", n * (1 - p_hat)))
+
+cat(sprintf("Standard error: SE = √[p̂(1-p̂)/n] = %.4f\n", se_wald))
+cat(sprintf("95%% Wald interval: (%.4f, %.4f) or (%.1f%%, %.1f%%)\n",
+            wald_lower, wald_upper, 100 * wald_lower, 100 * wald_upper))
+```
+
+### 8.11.3 Problems with the Wald Interval
+
+The Wald interval has poor coverage properties, especially when:
+- $p$ is near 0 or 1
+- Sample size is small
+- The interval can extend below 0 or above 1
+
+```{r wald_problems, fig.cap="Wald interval can have poor coverage near boundaries"}
+set.seed(123)
+
+# Simulate coverage of Wald interval for extreme p
+simulate_wald_coverage <- function(p, n, n_sims = 10000) {
+    covers <- replicate(n_sims, {
+        x <- rbinom(1, n, p)
+        p_hat <- x / n
+        se <- sqrt(p_hat * (1 - p_hat) / n)
+        lower <- p_hat - 1.96 * se
+        upper <- p_hat + 1.96 * se
+        lower <= p && upper >= p
+    })
+    mean(covers)
+}
+
+# Check coverage for various p values
+p_values <- seq(0.05, 0.95, by = 0.05)
+coverage_n30 <- sapply(p_values, function(p) simulate_wald_coverage(p, 30))
+coverage_n100 <- sapply(p_values, function(p) simulate_wald_coverage(p, 100))
+
+coverage_data <- data.table(
+    p = rep(p_values, 2),
+    coverage = c(coverage_n30, coverage_n100),
+    n = rep(c("n = 30", "n = 100"), each = length(p_values))
+)
+
+ggplot2$ggplot(coverage_data, ggplot2$aes(x = p, y = coverage, colour = n)) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_hline(yintercept = 0.95, linetype = "dashed") +
+    ggplot2$annotate("text", x = 0.5, y = 0.96, label = "Nominal 95%") +
+    ggplot2$scale_y_continuous(limits = c(0.85, 1), labels = scales::percent) +
+    ggplot2$labs(
+        title = "Coverage of Wald Interval vs True p",
+        subtitle = "Coverage can drop well below 95% for extreme proportions",
+        x = "True Proportion (p)",
+        y = "Actual Coverage"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 8.11.4 The Wilson Score Interval (Recommended)
+
+The **Wilson score interval** has better coverage properties:
+
+$$\frac{\hat{p} + \frac{z^{*2}}{2n} \pm z^* \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^{*2}}{4n^2}}}{1 + \frac{z^{*2}}{n}}$$
+
+This interval:
+- Never extends below 0 or above 1
+- Has better coverage for extreme proportions
+- Is the default in many statistical packages
+
+```{r wilson_interval}
+wilson_interval <- function(x, n, conf_level = 0.95) {
+    p_hat <- x / n
+    z <- qnorm(1 - (1 - conf_level) / 2)
+    z2 <- z^2
+
+    denominator <- 1 + z2 / n
+    centre <- (p_hat + z2 / (2 * n)) / denominator
+    margin <- z * sqrt(p_hat * (1 - p_hat) / n + z2 / (4 * n^2)) / denominator
+
+    list(
+        estimate = p_hat,
+        lower = centre - margin,
+        upper = centre + margin,
+        centre = centre
+    )
+}
+
+# Compare Wald and Wilson for our example
+wilson <- wilson_interval(x, n)
+
+cat("Comparison: Wald vs Wilson Interval\n")
+cat("====================================\n\n")
+cat(sprintf("Data: x = %d successes out of n = %d\n", x, n))
+cat(sprintf("Sample proportion: p̂ = %.4f\n\n", p_hat))
+
+cat("95% Wald interval:   (%.4f, %.4f)\n", wald_lower, wald_upper)
+cat("95% Wilson interval: (%.4f, %.4f)\n", wilson$lower, wilson$upper)
+
+# Example with extreme proportion
+x_rare <- 3
+n_rare <- 100
+p_rare <- x_rare / n_rare
+
+se_rare <- sqrt(p_rare * (1 - p_rare) / n_rare)
+wald_rare_lower <- p_rare - 1.96 * se_rare
+wald_rare_upper <- p_rare + 1.96 * se_rare
+wilson_rare <- wilson_interval(x_rare, n_rare)
+
+cat("\n\nExtreme Example: Rare Event (3 successes in 100)\n")
+cat("p̂ = 0.03\n\n")
+cat(sprintf("Wald interval:   (%.4f, %.4f) — note lower bound near 0!\n",
+            max(0, wald_rare_lower), wald_rare_upper))
+cat(sprintf("Wilson interval: (%.4f, %.4f) — better behaved\n",
+            wilson_rare$lower, wilson_rare$upper))
+```
+
+### 8.11.5 The Agresti-Coull Interval
+
+A simpler alternative that performs well is the **Agresti-Coull interval** (also called the "plus-four" method):
+
+1. Add 2 successes and 2 failures to the data
+2. Use the Wald formula with $\tilde{n} = n + 4$ and $\tilde{p} = (x + 2)/(n + 4)$
+
+$$\tilde{p} \pm z^* \sqrt{\frac{\tilde{p}(1-\tilde{p})}{\tilde{n}}}$$
+
+```{r agresti_coull}
+agresti_coull_interval <- function(x, n, conf_level = 0.95) {
+    z <- qnorm(1 - (1 - conf_level) / 2)
+    n_tilde <- n + z^2
+    p_tilde <- (x + z^2 / 2) / n_tilde
+    se <- sqrt(p_tilde * (1 - p_tilde) / n_tilde)
+
+    list(
+        estimate = x / n,
+        adjusted_estimate = p_tilde,
+        lower = p_tilde - z * se,
+        upper = p_tilde + z * se
+    )
+}
+
+# Compare all three methods
+ac <- agresti_coull_interval(x, n)
+
+cat("Three Methods for Proportion CI\n")
+cat("================================\n\n")
+cat(sprintf("Data: %d/%d = %.3f\n\n", x, n, p_hat))
+cat(sprintf("Wald:          (%.4f, %.4f)\n", wald_lower, wald_upper))
+cat(sprintf("Wilson:        (%.4f, %.4f)\n", wilson$lower, wilson$upper))
+cat(sprintf("Agresti-Coull: (%.4f, %.4f)\n", ac$lower, ac$upper))
+```
+
+### 8.11.6 Using R's Built-in Functions
+
+```{r prop_test}
+# prop.test uses continuity-corrected Wilson interval by default
+result <- prop.test(x, n, conf.level = 0.95)
+
+cat("Using prop.test() for Proportion CI\n")
+cat("====================================\n\n")
+cat(sprintf("Sample proportion: %.4f\n", result$estimate))
+cat(sprintf("95%% CI: (%.4f, %.4f)\n", result$conf.int[1], result$conf.int[2]))
+
+# binom.test uses exact Clopper-Pearson interval
+exact_result <- binom.test(x, n, conf.level = 0.95)
+cat(sprintf("\nExact (Clopper-Pearson) CI: (%.4f, %.4f)\n",
+            exact_result$conf.int[1], exact_result$conf.int[2]))
+```
+
+---
+
+## 8.12 Confidence Intervals for Difference in Proportions
+
+### 8.12.1 Two Independent Proportions
+
+When comparing proportions from two independent groups:
+
+$$(\hat{p}_1 - \hat{p}_2) \pm z^* \cdot \sqrt{\frac{\hat{p}_1(1-\hat{p}_1)}{n_1} + \frac{\hat{p}_2(1-\hat{p}_2)}{n_2}}$$
+
+```{r two_proportion_ci, fig.cap="Confidence interval for difference in proportions"}
+# Compare high BP prevalence: smokers vs non-smokers
+bp_smoke <- nhanes[!is.na(BPSys1) & !is.na(SmokeNow)]
+bp_smoke[, high_bp := BPSys1 >= 140]
+bp_smoke[, smoker := SmokeNow == "Yes"]
+
+# Get counts
+smoker_data <- bp_smoke[smoker == TRUE]
+nonsmoker_data <- bp_smoke[smoker == FALSE]
+
+n1 <- nrow(smoker_data)
+x1 <- sum(smoker_data$high_bp)
+p1 <- x1 / n1
+
+n2 <- nrow(nonsmoker_data)
+x2 <- sum(nonsmoker_data$high_bp)
+p2 <- x2 / n2
+
+# Difference
+diff <- p1 - p2
+se_diff <- sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
+
+lower <- diff - 1.96 * se_diff
+upper <- diff + 1.96 * se_diff
+
+cat("Difference in Proportions: High BP by Smoking Status\n")
+cat("=====================================================\n\n")
+cat(sprintf("Smokers: %d/%d = %.3f (%.1f%%)\n", x1, n1, p1, 100 * p1))
+cat(sprintf("Non-smokers: %d/%d = %.3f (%.1f%%)\n", x2, n2, p2, 100 * p2))
+cat(sprintf("\nDifference (smokers - non-smokers): %.3f (%.1f%%)\n", diff, 100 * diff))
+cat(sprintf("Standard error: %.4f\n", se_diff))
+cat(sprintf("95%% CI for difference: (%.3f, %.3f) or (%.1f%%, %.1f%%)\n",
+            lower, upper, 100 * lower, 100 * upper))
+
+# Using prop.test
+result <- prop.test(c(x1, x2), c(n1, n2), conf.level = 0.95)
+cat(sprintf("\nVerification with prop.test(): (%.4f, %.4f)\n",
+            -diff(result$estimate), result$conf.int[1], result$conf.int[2]))
+```
+
+---
+
+## 8.13 Confidence Intervals for Variance
+
+### 8.13.1 The Chi-Square Distribution
+
+For a normal population, the sampling distribution of the sample variance is:
+
+$$\frac{(n-1)S^2}{\sigma^2} \sim \chi^2_{n-1}$$
+
+This chi-square distribution is:
+- Right-skewed (always positive)
+- Has $n-1$ degrees of freedom
+- Approaches normal as df increases
+
+```{r chi_square_dist, fig.cap="The chi-square distribution for different degrees of freedom"}
+x_vals <- seq(0, 40, length.out = 500)
+
+chi_data <- rbindlist(list(
+    data.table(x = x_vals, density = dchisq(x_vals, df = 3), df = "df = 3"),
+    data.table(x = x_vals, density = dchisq(x_vals, df = 5), df = "df = 5"),
+    data.table(x = x_vals, density = dchisq(x_vals, df = 10), df = "df = 10"),
+    data.table(x = x_vals, density = dchisq(x_vals, df = 20), df = "df = 20")
+))
+
+chi_data[, df := factor(df, levels = c("df = 3", "df = 5", "df = 10", "df = 20"))]
+
+ggplot2$ggplot(chi_data, ggplot2$aes(x = x, y = density, colour = df)) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$labs(
+        title = "Chi-Square Distribution",
+        subtitle = "Right-skewed; approaches normal as df increases",
+        x = "Value",
+        y = "Density",
+        colour = "Degrees of Freedom"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 8.13.2 Constructing the CI for Variance
+
+Since the chi-square is asymmetric, the confidence interval is not symmetric:
+
+$$\left(\frac{(n-1)S^2}{\chi^2_{1-\alpha/2}}, \frac{(n-1)S^2}{\chi^2_{\alpha/2}}\right)$$
+
+Where $\chi^2_{\alpha/2}$ and $\chi^2_{1-\alpha/2}$ are the lower and upper critical values.
+
+```{r variance_ci}
+variance_ci <- function(x, conf_level = 0.95) {
+    n <- length(x)
+    s2 <- var(x)
+    df <- n - 1
+    alpha <- 1 - conf_level
+
+    chi_lower <- qchisq(alpha / 2, df = df)
+    chi_upper <- qchisq(1 - alpha / 2, df = df)
+
+    ci_lower <- (df * s2) / chi_upper
+    ci_upper <- (df * s2) / chi_lower
+
+    list(
+        estimate = s2,
+        sd_estimate = sqrt(s2),
+        df = df,
+        lower = ci_lower,
+        upper = ci_upper,
+        sd_lower = sqrt(ci_lower),
+        sd_upper = sqrt(ci_upper)
+    )
+}
+
+# Example: Variability of blood pressure measurements
+bp_sample <- na.omit(nhanes$BPSys1)[1:50]
+
+result <- variance_ci(bp_sample)
+
+cat("Confidence Interval for Variance\n")
+cat("=================================\n\n")
+cat(sprintf("Sample: n = %d\n", length(bp_sample)))
+cat(sprintf("Sample variance: s² = %.2f\n", result$estimate))
+cat(sprintf("Sample SD: s = %.2f mmHg\n\n", result$sd_estimate))
+
+cat("95% CI for population variance:\n")
+cat(sprintf("  (%.2f, %.2f)\n\n", result$lower, result$upper))
+
+cat("95% CI for population SD:\n")
+cat(sprintf("  (%.2f, %.2f) mmHg\n", result$sd_lower, result$sd_upper))
+```
+
+### 8.13.3 Visualising the Asymmetric Interval
+
+```{r variance_ci_visual, fig.cap="CI for variance is asymmetric due to chi-square distribution"}
+# Show the chi-square and critical regions
+df <- 49  # n-1 for our sample
+chi_lower <- qchisq(0.025, df = df)
+chi_upper <- qchisq(0.975, df = df)
+
+x_vals <- seq(0, 80, length.out = 500)
+chi_density <- dchisq(x_vals, df = df)
+
+plot_df <- data.table(x = x_vals, density = chi_density)
+plot_df[, region := ifelse(x < chi_lower | x > chi_upper, "tail", "middle")]
+
+ggplot2$ggplot(plot_df, ggplot2$aes(x = x, y = density)) +
+    ggplot2$geom_area(data = plot_df[region == "middle"],
+                      fill = "#0072B2", alpha = 0.5) +
+    ggplot2$geom_area(data = plot_df[region == "tail"],
+                      fill = "#D55E00", alpha = 0.3) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_vline(xintercept = c(chi_lower, chi_upper), linetype = "dashed") +
+    ggplot2$annotate("text", x = df, y = max(chi_density) * 0.7, label = "95%") +
+    ggplot2$annotate("text", x = chi_lower, y = -0.002,
+                     label = sprintf("%.1f", chi_lower), hjust = 1) +
+    ggplot2$annotate("text", x = chi_upper, y = -0.002,
+                     label = sprintf("%.1f", chi_upper), hjust = 0) +
+    ggplot2$labs(
+        title = sprintf("Chi-Square Distribution (df = %d)", df),
+        subtitle = "Asymmetric critical values lead to asymmetric CI for variance",
+        x = expression(chi^2),
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 8.13.4 CI for Ratio of Variances
+
+When comparing variances from two independent samples, we use the F-distribution:
+
+$$\frac{S_1^2/\sigma_1^2}{S_2^2/\sigma_2^2} \sim F_{n_1-1, n_2-1}$$
+
+The confidence interval for $\sigma_1^2/\sigma_2^2$:
+
+$$\left(\frac{S_1^2}{S_2^2} \cdot \frac{1}{F_{1-\alpha/2}}, \frac{S_1^2}{S_2^2} \cdot \frac{1}{F_{\alpha/2}}\right)$$
+
+```{r variance_ratio_ci}
+# Compare variability of BP between males and females
+male_bp <- na.omit(nhanes[Gender == "male", BPSys1])[1:50]
+female_bp <- na.omit(nhanes[Gender == "female", BPSys1])[1:50]
+
+var_ratio_ci <- function(x, y, conf_level = 0.95) {
+    s1_sq <- var(x)
+    s2_sq <- var(y)
+    ratio <- s1_sq / s2_sq
+
+    df1 <- length(x) - 1
+    df2 <- length(y) - 1
+    alpha <- 1 - conf_level
+
+    f_lower <- qf(alpha / 2, df1, df2)
+    f_upper <- qf(1 - alpha / 2, df1, df2)
+
+    list(
+        var1 = s1_sq,
+        var2 = s2_sq,
+        ratio = ratio,
+        lower = ratio / f_upper,
+        upper = ratio / f_lower
+    )
+}
+
+result <- var_ratio_ci(male_bp, female_bp)
+
+cat("CI for Ratio of Variances: Male vs Female Blood Pressure\n")
+cat("=========================================================\n\n")
+cat(sprintf("Male BP variance: s₁² = %.2f\n", result$var1))
+cat(sprintf("Female BP variance: s₂² = %.2f\n", result$var2))
+cat(sprintf("Variance ratio (M/F): %.3f\n\n", result$ratio))
+cat(sprintf("95%% CI for σ₁²/σ₂²: (%.3f, %.3f)\n", result$lower, result$upper))
+
+if (result$lower <= 1 && result$upper >= 1) {
+    cat("\nThe CI includes 1, so we cannot conclude variances differ.\n")
+} else {
+    cat("\nThe CI excludes 1, suggesting the variances are different.\n")
+}
+
+# Verify with var.test
+verify <- var.test(male_bp, female_bp)
+cat(sprintf("\nVerification with var.test(): (%.3f, %.3f)\n",
+            verify$conf.int[1], verify$conf.int[2]))
+```
+
+---
+
+## 8.14 Sample Size for Proportions
+
+### 8.14.1 Formula for Margin of Error
+
+For estimating a proportion with margin of error $E$:
+
+$$n = \left(\frac{z^*}{E}\right)^2 \cdot p(1-p)$$
+
+Since $p$ is unknown before the study, we either:
+- Use $p = 0.5$ (maximally conservative)
+- Use a prior estimate from pilot data or literature
+
+```{r sample_size_proportion}
+sample_size_proportion <- function(margin, p = 0.5, conf_level = 0.95) {
+    z <- qnorm(1 - (1 - conf_level) / 2)
+    n <- (z / margin)^2 * p * (1 - p)
+    ceiling(n)
+}
+
+# Example: Survey for disease prevalence
+# Want margin of error of 3 percentage points
+# Prior studies suggest prevalence around 15%
+
+margins <- c(0.01, 0.02, 0.03, 0.05, 0.10)
+
+size_data <- data.table(
+    margin = margins,
+    `p = 0.5 (conservative)` = sapply(margins, function(m) sample_size_proportion(m, 0.5)),
+    `p = 0.15 (prior estimate)` = sapply(margins, function(m) sample_size_proportion(m, 0.15))
+)
+
+cat("Sample Size for Proportion Estimation\n")
+cat("======================================\n\n")
+print(size_data)
+cat("\nNote: Using p = 0.5 is conservative (gives largest n).\n")
+cat("If you have a prior estimate, you may need fewer subjects.\n")
+
+# Visualise
+plot_data <- melt(size_data, id.vars = "margin", variable.name = "assumption", value.name = "n")
+
+ggplot2$ggplot(plot_data, ggplot2$aes(x = margin, y = n, colour = assumption)) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$scale_x_continuous(labels = scales::percent) +
+    ggplot2$labs(
+        title = "Sample Size vs Desired Margin of Error",
+        subtitle = "For 95% CI of a proportion",
+        x = "Margin of Error",
+        y = "Required Sample Size",
+        colour = "Prior Estimate"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Proportions
+
+**Instead of:**
+> "The Wilson score 95% confidence interval for the proportion is (0.247, 0.312)."
+
+**Say:**
+> "About 28% of participants had high blood pressure. Based on our sample, we're confident the true rate in the population is between 25% and 31%."
+
+### Differences in Proportions
+
+**When the CI excludes zero:**
+> "Smokers had a 5 percentage point higher rate of high blood pressure than non-smokers (95% CI: 2% to 8% higher). This difference is statistically significant."
+
+**When the CI includes zero:**
+> "We found a 2 percentage point difference between groups, but this could be due to chance (95% CI: -1% to 5%). We cannot conclude there is a real difference."
+
+### Variances
+
+For most stakeholders, avoid discussing variance directly. Instead:
+
+> "Blood pressure readings varied by about 15 mmHg on average from person to person (95% CI: 13 to 18 mmHg)."
+
+---
+
+## Quick Reference
+
+### Proportion CI (Wilson Score — Recommended)
+
+$$\frac{\hat{p} + \frac{z^{*2}}{2n} \pm z^* \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^{*2}}{4n^2}}}{1 + \frac{z^{*2}}{n}}$$
+
+### Difference in Proportions CI
+
+$$(\hat{p}_1 - \hat{p}_2) \pm z^* \sqrt{\frac{\hat{p}_1(1-\hat{p}_1)}{n_1} + \frac{\hat{p}_2(1-\hat{p}_2)}{n_2}}$$
+
+### Variance CI
+
+$$\left(\frac{(n-1)s^2}{\chi^2_{1-\alpha/2, n-1}}, \frac{(n-1)s^2}{\chi^2_{\alpha/2, n-1}}\right)$$
+
+### Sample Size for Proportion
+
+$$n = \left(\frac{z^*}{E}\right)^2 p(1-p)$$
+
+Use $p = 0.5$ for conservative estimate.
+
+### R Functions
+
+```r
+# Proportion CI (Wilson score with continuity correction)
+prop.test(x, n, conf.level = 0.95)$conf.int
+
+# Exact (Clopper-Pearson) proportion CI
+binom.test(x, n, conf.level = 0.95)$conf.int
+
+# Two proportions
+prop.test(c(x1, x2), c(n1, n2))$conf.int
+
+# Variance ratio
+var.test(x, y, conf.level = 0.95)$conf.int
+```
+
+### Summary: Which Interval to Use?
+
+| Parameter | Recommended Method | R Function |
+|-----------|-------------------|------------|
+| Mean (σ known) | Z-interval | Manual or `BSDA::z.test()` |
+| Mean (σ unknown) | T-interval | `t.test()` |
+| Single proportion | Wilson score | `prop.test()` |
+| Difference in proportions | Wilson | `prop.test(c(x1,x2), c(n1,n2))` |
+| Single variance | Chi-square | Manual |
+| Variance ratio | F-distribution | `var.test()` |

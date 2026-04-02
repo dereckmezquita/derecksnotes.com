@@ -1,0 +1,1045 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 8: Genome-Wide Association Studies"
+part: "Part 2: Population Stratification and Polygenic Risk Scores"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, bioinformatics, GWAS, genetics, population-stratification, polygenic-risk-scores, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: Population Stratification and Polygenic Risk Scores
+
+The simple single-SNP regression from Part 1 makes a critical assumption: that the only systematic source of phenotypic variation is the tested SNP. In reality, **population structure**—systematic genetic differences between subpopulations—can confound GWAS results, creating spurious associations. This chapter develops methods to detect and correct for population stratification, then introduces **polygenic risk scores** for predicting individual disease risk from GWAS results.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+
+``` r
+# Simulate GWAS data with population stratification
+# Two ancestral populations with:
+# 1. Different allele frequencies
+# 2. Different mean phenotypes (environmental/genetic)
+
+n_individuals <- 5000
+n_snps <- 10000
+n_pops <- 2
+
+# Assign individuals to populations (unequal proportions)
+pop_proportions <- c(0.6, 0.4)
+pop_assignment <- sample(1:n_pops, n_individuals, replace = TRUE, prob = pop_proportions)
+
+# Different allele frequencies per population
+# Base frequencies (population 1)
+base_mafs <- rbeta(n_snps, 1, 5)
+base_mafs <- pmin(pmax(base_mafs, 0.05), 0.45)
+
+# Population 2 has shifted frequencies (genetic drift)
+pop_maf_shift <- rnorm(n_snps, 0, 0.05)
+pop_mafs <- cbind(
+    pop1 = base_mafs,
+    pop2 = pmin(pmax(base_mafs + pop_maf_shift, 0.01), 0.49)
+)
+
+# Generate genotypes with population-specific frequencies
+genotypes <- matrix(NA, nrow = n_individuals, ncol = n_snps)
+for (i in 1:n_individuals) {
+    pop <- pop_assignment[i]
+    for (j in 1:n_snps) {
+        genotypes[i, j] <- rbinom(1, 2, pop_mafs[j, pop])
+    }
+}
+
+# True causal SNPs (no population-specific effects)
+n_causal <- 30
+causal_snps <- sample(1:n_snps, n_causal)
+true_betas <- rep(0, n_snps)
+true_betas[causal_snps] <- rnorm(n_causal, 0, 0.15)
+
+# Genetic component
+genetic_value <- genotypes %*% true_betas
+
+# Population-specific environmental effects (creates confounding!)
+pop_effects <- c(0, 0.5)  # Population 2 has higher phenotype
+environmental_effect <- pop_effects[pop_assignment]
+
+# Heritability and phenotype
+h2_target <- 0.3
+var_genetic <- var(genetic_value)
+var_env <- var_genetic * (1 - h2_target) / h2_target
+
+phenotype <- as.vector(genetic_value) + environmental_effect +
+             rnorm(n_individuals, 0, sqrt(var_env))
+phenotype <- scale(phenotype)[, 1]
+
+# Create data structures
+sample_info <- data.table(
+    sample_id = 1:n_individuals,
+    population = pop_assignment,
+    phenotype = phenotype
+)
+
+cat("Simulated Stratified GWAS Data:\n")
+cat("===============================\n")
+cat("  Individuals:", n_individuals, "\n")
+cat("  Population 1:", sum(pop_assignment == 1), "\n")
+cat("  Population 2:", sum(pop_assignment == 2), "\n")
+cat("  SNPs:", n_snps, "\n")
+cat("  Causal SNPs:", n_causal, "\n")
+cat("  Population effect size:", pop_effects[2], "SD\n")
+```
+
+```
+#> Simulated Stratified GWAS Data:
+#> ===============================
+#>   Individuals: 5000 
+#>   Population 1: 2971 
+#>   Population 2: 2029 
+#>   SNPs: 10000 
+#>   Causal SNPs: 30 
+#>   Population effect size: 0.5 SD
+```
+
+---
+
+## Table of Contents
+
+## 8.7 Population Stratification
+
+### 8.7.1 The Confounding Problem
+
+**Prose and Intuition**
+
+**Population stratification** occurs when:
+1. Different ancestral populations have different allele frequencies
+2. These populations also differ in phenotype (for environmental or genetic reasons)
+
+This creates **spurious associations**: SNPs that differ in frequency between populations will appear associated with the phenotype, even if they have no causal effect.
+
+**Example**: Studying "chopstick gene"
+- In a mixed Asian-European study of chopstick use
+- Any SNP with different frequencies between populations
+- Will appear "associated" with chopstick use
+- This is confounding, not causation
+
+
+``` r
+# Run naive GWAS (ignoring population structure)
+run_naive_gwas <- function(genotypes, phenotype) {
+    n_snps <- ncol(genotypes)
+
+    results <- rbindlist(lapply(1:n_snps, function(j) {
+        g <- genotypes[, j]
+        fit <- lm(phenotype ~ g)
+        coefs <- summary(fit)$coefficients
+
+        data.table(
+            snp_idx = j,
+            beta = coefs[2, 1],
+            se = coefs[2, 2],
+            p_value = coefs[2, 4],
+            maf = mean(g) / 2
+        )
+    }))
+
+    return(results)
+}
+
+naive_gwas <- run_naive_gwas(genotypes, phenotype)
+naive_gwas[, is_causal := snp_idx %in% causal_snps]
+
+# Calculate Fst (population differentiation) for each SNP
+calc_fst <- function(genotypes, pop_assignment) {
+    n_snps <- ncol(genotypes)
+    fst_values <- numeric(n_snps)
+
+    for (j in 1:n_snps) {
+        g <- genotypes[, j]
+        p1 <- mean(g[pop_assignment == 1]) / 2
+        p2 <- mean(g[pop_assignment == 2]) / 2
+        p_mean <- mean(g) / 2
+
+        var_within <- (p1 * (1 - p1) + p2 * (1 - p2)) / 2
+        var_total <- p_mean * (1 - p_mean)
+
+        fst_values[j] <- ifelse(var_total > 0, (var_total - var_within) / var_total, 0)
+    }
+
+    return(fst_values)
+}
+
+naive_gwas[, fst := calc_fst(genotypes, pop_assignment)]
+
+cat("Naive GWAS Results (Ignoring Population Structure):\n")
+cat("===================================================\n")
+cat("  Significant at p < 5e-8:", sum(naive_gwas$p_value < 5e-8), "\n")
+cat("  True positives:", sum(naive_gwas$p_value < 5e-8 & naive_gwas$is_causal), "\n")
+cat("  False positives:", sum(naive_gwas$p_value < 5e-8 & !naive_gwas$is_causal), "\n")
+
+# Genomic inflation
+lambda_naive <- median(qchisq(naive_gwas$p_value, df = 1, lower.tail = FALSE)) /
+                qchisq(0.5, df = 1)
+cat("  Genomic inflation (λ):", round(lambda_naive, 3), "\n")
+
+# Visualise: Fst vs significance
+ggplot2$ggplot(naive_gwas, ggplot2$aes(x = fst, y = -log10(p_value),
+                                        colour = is_causal)) +
+    ggplot2$geom_point(alpha = 0.4, size = 0.8) +
+    ggplot2$geom_hline(yintercept = -log10(5e-8), linetype = "dashed", colour = "red") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#7570B3", "TRUE" = "#D95F02"),
+                                 labels = c("Non-causal", "Causal"),
+                                 name = "") +
+    ggplot2$labs(
+        title = "Population Differentiation Creates Spurious Associations",
+        subtitle = paste("λ =", round(lambda_naive, 2), "- highly inflated"),
+        x = "Fst (Population Differentiation)",
+        y = expression(-log[10](p))
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/demonstrate_confounding-1.png" alt="Population stratification creates spurious associations">
+	Population stratification creates spurious associations
+</Figure>
+
+```
+#> Naive GWAS Results (Ignoring Population Structure):
+#> ===================================================
+#>   Significant at p < 5e-8: 136 
+#>   True positives: 12 
+#>   False positives: 124 
+#>   Genomic inflation (λ): 4.869
+```
+
+### 8.7.2 Principal Component Analysis for Ancestry
+
+**Prose and Intuition**
+
+**PCA** on the genotype matrix reveals population structure. The first few principal components (PCs) capture major axes of genetic variation, which typically correspond to ancestral populations.
+
+**Why PCA works**: Genetic variation accumulated over thousands of years of population separation. PCs capture these systematic differences.
+
+**Mathematical Framework**
+
+For genotype matrix $\mathbf{G}$ (individuals × SNPs):
+1. Centre (and optionally standardise) each SNP
+2. Compute covariance: $\mathbf{C} = \mathbf{G}^T\mathbf{G}$
+3. Eigendecomposition: $\mathbf{C} = \mathbf{V}\mathbf{\Lambda}\mathbf{V}^T$
+4. Project individuals: $\mathbf{PC} = \mathbf{G}\mathbf{V}$
+
+
+``` r
+# Perform PCA on genotypes
+perform_genotype_pca <- function(genotypes, n_pcs = 10) {
+    # Centre and scale genotypes
+    genotypes_scaled <- scale(genotypes)
+
+    # Replace NA with 0 (mean genotype)
+    genotypes_scaled[is.na(genotypes_scaled)] <- 0
+
+    # PCA
+    pca_result <- prcomp(genotypes_scaled, center = FALSE, scale. = FALSE)
+
+    # Extract PCs
+    pcs <- pca_result$x[, 1:n_pcs]
+    colnames(pcs) <- paste0("PC", 1:n_pcs)
+
+    # Variance explained
+    var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+
+    list(
+        pcs = pcs,
+        var_explained = var_explained[1:n_pcs],
+        loadings = pca_result$rotation[, 1:n_pcs]
+    )
+}
+
+pca_result <- perform_genotype_pca(genotypes, n_pcs = 10)
+
+# Add to sample info
+sample_info[, PC1 := pca_result$pcs[, 1]]
+sample_info[, PC2 := pca_result$pcs[, 2]]
+sample_info[, PC3 := pca_result$pcs[, 3]]
+
+cat("PCA for Population Structure:\n")
+cat("=============================\n")
+cat("  Variance explained by PC1:", round(pca_result$var_explained[1] * 100, 2), "%\n")
+cat("  Variance explained by PC2:", round(pca_result$var_explained[2] * 100, 2), "%\n")
+cat("  Variance explained by PC1-10:", round(sum(pca_result$var_explained) * 100, 2), "%\n")
+
+# Visualise PCA
+ggplot2$ggplot(sample_info, ggplot2$aes(x = PC1, y = PC2,
+                                         colour = factor(population))) +
+    ggplot2$geom_point(alpha = 0.5, size = 1) +
+    ggplot2$scale_colour_manual(values = c("1" = "#2166AC", "2" = "#D95F02"),
+                                 labels = c("Population 1", "Population 2"),
+                                 name = "Ancestry") +
+    ggplot2$labs(
+        title = "PCA of Genotype Data",
+        subtitle = "PC1 separates the two ancestral populations",
+        x = paste0("PC1 (", round(pca_result$var_explained[1] * 100, 1), "%)"),
+        y = paste0("PC2 (", round(pca_result$var_explained[2] * 100, 1), "%)")
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/ancestry_pca-1.png" alt="PCA reveals population structure in genotype data">
+	PCA reveals population structure in genotype data
+</Figure>
+
+```
+#> PCA for Population Structure:
+#> =============================
+#>   Variance explained by PC1: 1.1 %
+#>   Variance explained by PC2: 0.06 %
+#>   Variance explained by PC1-10: 1.61 %
+```
+
+### 8.7.3 GWAS with PC Covariates
+
+**Prose and Intuition**
+
+Including PCs as covariates in the regression model controls for population structure:
+
+$$Y_i = \beta_0 + \beta_1 G_i + \sum_{k=1}^{K} \gamma_k PC_{ik} + \epsilon_i$$
+
+This "conditions out" the effect of ancestry, removing confounding. Typically, 10-20 PCs are included.
+
+
+``` r
+# GWAS with PC covariates
+run_gwas_with_pcs <- function(genotypes, phenotype, pcs, n_pcs = 10) {
+    n_snps <- ncol(genotypes)
+    pc_matrix <- pcs[, 1:n_pcs]
+
+    results <- rbindlist(lapply(1:n_snps, function(j) {
+        g <- genotypes[, j]
+
+        # Model with PCs
+        fit <- lm(phenotype ~ g + pc_matrix)
+        coefs <- summary(fit)$coefficients
+
+        data.table(
+            snp_idx = j,
+            beta = coefs[2, 1],
+            se = coefs[2, 2],
+            p_value = coefs[2, 4],
+            maf = mean(g) / 2
+        )
+    }))
+
+    return(results)
+}
+
+gwas_with_pcs <- run_gwas_with_pcs(genotypes, phenotype, pca_result$pcs, n_pcs = 5)
+gwas_with_pcs[, is_causal := snp_idx %in% causal_snps]
+gwas_with_pcs[, fst := calc_fst(genotypes, pop_assignment)]
+
+# Calculate genomic inflation
+lambda_pcs <- median(qchisq(gwas_with_pcs$p_value, df = 1, lower.tail = FALSE)) /
+              qchisq(0.5, df = 1)
+
+cat("GWAS with PC Covariates:\n")
+cat("========================\n")
+cat("  Significant at p < 5e-8:", sum(gwas_with_pcs$p_value < 5e-8), "\n")
+cat("  True positives:", sum(gwas_with_pcs$p_value < 5e-8 & gwas_with_pcs$is_causal), "\n")
+cat("  False positives:", sum(gwas_with_pcs$p_value < 5e-8 & !gwas_with_pcs$is_causal), "\n")
+cat("  Genomic inflation (λ):", round(lambda_pcs, 3), "\n")
+
+cat("\nComparison:\n")
+cat("  λ without PCs:", round(lambda_naive, 3), "\n")
+cat("  λ with PCs:", round(lambda_pcs, 3), "\n")
+
+# Compare QQ plots
+qq_comparison <- rbind(
+    data.table(
+        method = "Naive",
+        observed = -log10(sort(naive_gwas$p_value)),
+        expected = -log10(ppoints(nrow(naive_gwas)))
+    ),
+    data.table(
+        method = "With PCs",
+        observed = -log10(sort(gwas_with_pcs$p_value)),
+        expected = -log10(ppoints(nrow(gwas_with_pcs)))
+    )
+)
+
+ggplot2$ggplot(qq_comparison, ggplot2$aes(x = expected, y = observed, colour = method)) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_point(alpha = 0.3, size = 0.6) +
+    ggplot2$scale_colour_manual(values = c("Naive" = "#D95F02", "With PCs" = "#2166AC")) +
+    ggplot2$facet_wrap(~ method) +
+    ggplot2$labs(
+        title = "QQ Plots: Effect of PC Correction",
+        subtitle = "PC covariates remove genomic inflation",
+        x = expression(-log[10](Expected~p)),
+        y = expression(-log[10](Observed~p)),
+        colour = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "none"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/gwas_with_pcs-1.png" alt="Including PCs as covariates corrects for stratification">
+	Including PCs as covariates corrects for stratification
+</Figure>
+
+```
+#> GWAS with PC Covariates:
+#> ========================
+#>   Significant at p < 5e-8: 14 
+#>   True positives: 14 
+#>   False positives: 0 
+#>   Genomic inflation (λ): 1.006 
+#> 
+#> Comparison:
+#>   λ without PCs: 4.869 
+#>   λ with PCs: 1.006
+```
+
+---
+
+## 8.8 Linear Mixed Models
+
+### 8.8.1 The Mixed Model Framework
+
+**Prose and Intuition**
+
+**Linear mixed models (LMMs)** provide a more sophisticated approach to population stratification. Instead of treating PCs as fixed covariates, LMMs model genetic relatedness directly using a **genetic relationship matrix (GRM)**.
+
+The model:
+$$\mathbf{y} = \mathbf{X}\boldsymbol{\beta} + \mathbf{g} + \boldsymbol{\epsilon}$$
+
+where:
+- $\mathbf{g} \sim N(0, \sigma_g^2 \mathbf{K})$: random genetic effect
+- $\mathbf{K}$: genetic relationship matrix
+- $\sigma_g^2$: genetic variance component
+
+**Key insight**: The GRM captures both population structure and relatedness, accounting for confounding without explicitly modelling ancestry.
+
+**Mathematical Framework**
+
+The GRM is computed as:
+$$K_{ij} = \frac{1}{M} \sum_{m=1}^{M} \frac{(g_{im} - 2p_m)(g_{jm} - 2p_m)}{2p_m(1-p_m)}$$
+
+where $g_{im}$ is the genotype for individual $i$ at SNP $m$, and $p_m$ is the minor allele frequency.
+
+
+``` r
+# Calculate genetic relationship matrix
+calc_grm <- function(genotypes) {
+    # Standardise genotypes
+    n_snps <- ncol(genotypes)
+    mafs <- colMeans(genotypes, na.rm = TRUE) / 2
+
+    # Standardise: (g - 2p) / sqrt(2p(1-p))
+    genotypes_std <- genotypes
+    for (j in 1:n_snps) {
+        p <- mafs[j]
+        if (p > 0 && p < 1) {
+            genotypes_std[, j] <- (genotypes[, j] - 2 * p) / sqrt(2 * p * (1 - p))
+        } else {
+            genotypes_std[, j] <- 0
+        }
+    }
+
+    # GRM = G * G' / M
+    grm <- tcrossprod(genotypes_std) / n_snps
+
+    return(grm)
+}
+
+grm <- calc_grm(genotypes)
+
+cat("Genetic Relationship Matrix:\n")
+cat("============================\n")
+cat("  Dimension:", nrow(grm), "x", ncol(grm), "\n")
+cat("  Mean diagonal:", round(mean(diag(grm)), 4), "\n")
+cat("  Mean off-diagonal:", round(mean(grm[lower.tri(grm)]), 4), "\n")
+
+# Visualise GRM structure (subset for clarity)
+n_subset <- 200
+subset_idx <- sample(n_individuals, n_subset)
+subset_idx <- subset_idx[order(pop_assignment[subset_idx])]  # Sort by population
+
+grm_subset <- grm[subset_idx, subset_idx]
+
+# Convert to long format for ggplot
+rownames(grm_subset) <- 1:nrow(grm_subset)
+colnames(grm_subset) <- 1:ncol(grm_subset)
+grm_dt <- as.data.table(grm_subset, keep.rownames = "row")
+grm_long <- melt(grm_dt, id.vars = "row", variable.name = "col", value.name = "relatedness")
+grm_long[, row := as.integer(row)]
+grm_long[, col := as.integer(as.character(col))]
+
+ggplot2$ggplot(grm_long, ggplot2$aes(x = col, y = row, fill = relatedness)) +
+    ggplot2$geom_tile() +
+    ggplot2$scale_fill_gradient2(low = "#2166AC", mid = "white", high = "#D95F02",
+                                  midpoint = 0, limits = c(-0.5, 1),
+                                  oob = scales::squish, name = "Relatedness") +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(
+        title = "Genetic Relationship Matrix (Subset)",
+        subtitle = "Block structure reveals population stratification",
+        x = "Individual",
+        y = "Individual"
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        axis.text = ggplot2$element_blank()
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/grm_calculation-1.png" alt="Genetic relationship matrix captures population structure">
+	Genetic relationship matrix captures population structure
+</Figure>
+
+```
+#> Genetic Relationship Matrix:
+#> ============================
+#>   Dimension: 5000 x 5000 
+#>   Mean diagonal: 1.0053 
+#>   Mean off-diagonal: -2e-04
+```
+
+### 8.8.2 Mixed Model Association Test
+
+**Prose and Intuition**
+
+The mixed model tests each SNP while accounting for the GRM:
+
+$$y_i = \mu + \beta g_i + u_i + \epsilon_i$$
+
+where $\mathbf{u} \sim N(0, \sigma_g^2 \mathbf{K})$ captures polygenic background.
+
+**GRAMMAR**: One efficient approximation pre-computes residuals once, then tests each SNP using these "corrected" phenotypes.
+
+
+``` r
+# Simplified mixed model (GRAMMAR-like approximation)
+# 1. Fit null model to estimate variance components
+# 2. Compute residuals
+# 3. Test SNPs against residuals
+
+fit_mixed_model_approx <- function(phenotype, grm) {
+    n <- length(phenotype)
+
+    # Eigendecomposition of GRM for efficient computation
+    eig <- eigen(grm, symmetric = TRUE)
+
+    # Rotate phenotype
+    y_rot <- t(eig$vectors) %*% phenotype
+
+    # Grid search for heritability (h2)
+    h2_grid <- seq(0.01, 0.99, by = 0.01)
+    log_lik <- numeric(length(h2_grid))
+
+    for (i in seq_along(h2_grid)) {
+        h2 <- h2_grid[i]
+        # Variance of rotated phenotype under this h2
+        var_rot <- h2 * eig$values + (1 - h2)
+        var_rot <- pmax(var_rot, 1e-10)
+
+        # Log-likelihood (up to constant)
+        log_lik[i] <- -0.5 * sum(log(var_rot) + y_rot^2 / var_rot)
+    }
+
+    # Best h2
+    h2_est <- h2_grid[which.max(log_lik)]
+
+    # Compute residuals using projection
+    var_rot <- h2_est * eig$values + (1 - h2_est)
+    weights <- 1 / var_rot
+
+    # Weighted residuals (approximate)
+    residuals <- phenotype - h2_est * (grm %*% phenotype) / mean(diag(grm))
+
+    list(
+        h2 = h2_est,
+        residuals = residuals,
+        weights = eig$vectors %*% diag(weights) %*% t(eig$vectors)
+    )
+}
+
+mm_result <- fit_mixed_model_approx(phenotype, grm)
+
+cat("Mixed Model Null Fit:\n")
+cat("=====================\n")
+cat("  Estimated heritability:", round(mm_result$h2, 3), "\n")
+
+# GWAS on residuals (approximation to full mixed model)
+gwas_mm <- run_naive_gwas(genotypes, mm_result$residuals)
+gwas_mm[, is_causal := snp_idx %in% causal_snps]
+
+lambda_mm <- median(qchisq(gwas_mm$p_value, df = 1, lower.tail = FALSE)) /
+             qchisq(0.5, df = 1)
+
+cat("  Genomic inflation (λ) with MM:", round(lambda_mm, 3), "\n")
+cat("  Compare to PC correction:", round(lambda_pcs, 3), "\n")
+```
+
+```
+#> Mixed Model Null Fit:
+#> =====================
+#>   Estimated heritability: 0.34 
+#>   Genomic inflation (λ) with MM: 55.405 
+#>   Compare to PC correction: 1.006
+```
+
+---
+
+## 8.9 Linkage Disequilibrium
+
+### 8.9.1 Understanding LD
+
+**Prose and Intuition**
+
+**Linkage disequilibrium (LD)** is the non-random association between alleles at different loci. Nearby SNPs tend to be inherited together ("linked"), so they're correlated.
+
+**Key implications for GWAS**:
+1. A significant SNP may not be causal—it could be in LD with the true causal variant
+2. Multiple significant SNPs in a region often tag the same signal
+3. Fine-mapping is needed to identify causal variants
+
+**Mathematical Framework**
+
+LD is measured by $r^2$:
+$$r^2 = \frac{(p_{AB} - p_A p_B)^2}{p_A(1-p_A)p_B(1-p_B)}$$
+
+where $p_{AB}$ is the frequency of haplotype AB, and $p_A$, $p_B$ are allele frequencies.
+
+
+``` r
+# Calculate LD (r²) between pairs of SNPs
+calc_r2 <- function(g1, g2) {
+    valid <- !is.na(g1) & !is.na(g2)
+    if (sum(valid) < 10) return(NA)
+
+    cor_val <- cor(g1[valid], g2[valid])
+    return(cor_val^2)
+}
+
+# Calculate LD for nearby SNPs on chromosome 1
+chr1_snps <- which(1:n_snps <= 500)  # First 500 SNPs
+n_chr1 <- length(chr1_snps)
+
+# LD matrix (subset for visualisation)
+ld_subset_size <- 100
+ld_snps <- chr1_snps[1:ld_subset_size]
+ld_matrix <- matrix(NA, ld_subset_size, ld_subset_size)
+
+for (i in 1:ld_subset_size) {
+    for (j in i:ld_subset_size) {
+        r2 <- calc_r2(genotypes[, ld_snps[i]], genotypes[, ld_snps[j]])
+        ld_matrix[i, j] <- r2
+        ld_matrix[j, i] <- r2
+    }
+}
+
+cat("Linkage Disequilibrium Analysis:\n")
+cat("================================\n")
+cat("  Mean r² (adjacent SNPs):", round(mean(diag(ld_matrix[-1, ]), na.rm = TRUE), 3), "\n")
+cat("  Mean r² (all pairs):", round(mean(ld_matrix, na.rm = TRUE), 3), "\n")
+
+# Visualise LD matrix
+rownames(ld_matrix) <- 1:nrow(ld_matrix)
+colnames(ld_matrix) <- 1:ncol(ld_matrix)
+ld_dt <- as.data.table(ld_matrix, keep.rownames = "snp1")
+ld_long <- melt(ld_dt, id.vars = "snp1", variable.name = "snp2", value.name = "r2")
+ld_long[, snp1 := as.integer(snp1)]
+ld_long[, snp2 := as.integer(as.character(snp2))]
+
+ggplot2$ggplot(ld_long, ggplot2$aes(x = snp2, y = snp1, fill = r2)) +
+    ggplot2$geom_tile() +
+    ggplot2$scale_fill_gradient(low = "white", high = "#D95F02",
+                                 limits = c(0, 1), name = expression(r^2)) +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(
+        title = "Linkage Disequilibrium Matrix",
+        subtitle = "Nearby SNPs show correlation (LD blocks)",
+        x = "SNP Position",
+        y = "SNP Position"
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/ld_calculation-1.png" alt="Linkage disequilibrium between nearby SNPs">
+	Linkage disequilibrium between nearby SNPs
+</Figure>
+
+```
+#> Linkage Disequilibrium Analysis:
+#> ================================
+#>   Mean r² (adjacent SNPs): 0 
+#>   Mean r² (all pairs): 0.01
+```
+
+### 8.9.2 LD Clumping
+
+**Prose and Intuition**
+
+**LD clumping** groups significant SNPs into independent signals:
+1. Start with the most significant SNP
+2. Remove all SNPs in LD ($r^2 > 0.1$) with it
+3. Move to the next most significant remaining SNP
+4. Repeat
+
+This identifies the number of independent association signals.
+
+
+``` r
+# Simple LD clumping
+ld_clump <- function(gwas_results, genotypes, p_threshold = 1e-5, r2_threshold = 0.1,
+                     window_kb = 250) {
+    # Filter to significant SNPs
+    sig_snps <- gwas_results[p_value < p_threshold][order(p_value)]
+
+    if (nrow(sig_snps) == 0) {
+        return(data.table())
+    }
+
+    clumped <- data.table()
+    remaining <- sig_snps$snp_idx
+
+    while (length(remaining) > 0) {
+        # Lead SNP (most significant remaining)
+        lead_snp <- remaining[1]
+        clumped <- rbind(clumped, sig_snps[snp_idx == lead_snp])
+
+        # Only check LD if there are more SNPs
+        if (length(remaining) > 1) {
+            # Find SNPs in LD with lead
+            in_ld <- vapply(remaining[-1], function(s) {
+                r2 <- calc_r2(genotypes[, lead_snp], genotypes[, s])
+                !is.na(r2) && r2 > r2_threshold
+            }, logical(1))
+
+            # Remove lead and those in LD
+            to_remove <- c(lead_snp, remaining[-1][in_ld])
+        } else {
+            to_remove <- lead_snp
+        }
+
+        remaining <- setdiff(remaining, to_remove)
+    }
+
+    return(clumped)
+}
+
+clumped_signals <- ld_clump(gwas_with_pcs, genotypes, p_threshold = 1e-4)
+
+cat("LD Clumping Results:\n")
+cat("====================\n")
+cat("  Significant SNPs (p < 1e-4):", sum(gwas_with_pcs$p_value < 1e-4), "\n")
+cat("  Independent signals:", nrow(clumped_signals), "\n")
+cat("  Lead SNPs in causal set:",
+    sum(clumped_signals$snp_idx %in% causal_snps), "/", nrow(clumped_signals), "\n")
+```
+
+```
+#> LD Clumping Results:
+#> ====================
+#>   Significant SNPs (p < 1e-4): 20 
+#>   Independent signals: 20 
+#>   Lead SNPs in causal set: 19 / 20
+```
+
+---
+
+## 8.10 Polygenic Risk Scores
+
+### 8.10.1 Building a PRS
+
+**Prose and Intuition**
+
+A **polygenic risk score (PRS)** combines effects across many SNPs to predict individual risk:
+
+$$PRS_i = \sum_{j=1}^{M} \hat{\beta}_j G_{ij}$$
+
+where $\hat{\beta}_j$ are effect estimates from GWAS and $G_{ij}$ is individual $i$'s genotype at SNP $j$.
+
+**Key decisions**:
+- **P-value threshold**: Which SNPs to include? (strict vs liberal)
+- **LD pruning**: Avoid double-counting correlated SNPs
+- **Effect sizes**: Use discovery GWAS estimates (subject to winner's curse)
+
+
+``` r
+# Calculate PRS at various p-value thresholds
+calc_prs <- function(genotypes, betas, snp_pvalues, p_thresholds) {
+    n_individuals <- nrow(genotypes)
+
+    prs_results <- data.table(
+        individual = 1:n_individuals
+    )
+
+    for (thresh in p_thresholds) {
+        include <- snp_pvalues < thresh
+        if (sum(include) == 0) {
+            prs_results[, paste0("PRS_", thresh) := 0]
+        } else {
+            prs <- genotypes[, include, drop = FALSE] %*% betas[include]
+            prs_results[, paste0("PRS_", thresh) := as.vector(prs)]
+        }
+    }
+
+    return(prs_results)
+}
+
+p_thresholds <- c(5e-8, 1e-5, 1e-3, 0.01, 0.05, 0.1, 0.5, 1.0)
+prs_results <- calc_prs(genotypes, gwas_with_pcs$beta, gwas_with_pcs$p_value, p_thresholds)
+prs_results[, phenotype := phenotype]
+prs_results[, true_genetic := as.vector(genotypes %*% true_betas)]
+
+# Evaluate PRS performance
+prs_performance <- rbindlist(lapply(p_thresholds, function(thresh) {
+    prs_col <- paste0("PRS_", thresh)
+    prs_vals <- prs_results[[prs_col]]
+
+    # Correlation with phenotype
+    r_pheno <- cor(prs_vals, phenotype)
+    r2_pheno <- r_pheno^2
+
+    # Correlation with true genetic value
+    r_genetic <- cor(prs_vals, prs_results$true_genetic)
+
+    # Number of SNPs
+    n_snps <- sum(gwas_with_pcs$p_value < thresh)
+
+    data.table(
+        threshold = thresh,
+        n_snps = n_snps,
+        r2_phenotype = r2_pheno,
+        r_genetic = r_genetic
+    )
+}))
+
+cat("Polygenic Risk Score Performance:\n")
+cat("=================================\n")
+print(prs_performance[, .(threshold = format(threshold, scientific = TRUE),
+                           n_snps, r2_phenotype = round(r2_phenotype, 4),
+                           r_genetic = round(r_genetic, 3))])
+
+# Find best threshold
+best_thresh <- prs_performance[which.max(r2_phenotype)]$threshold
+best_prs_col <- paste0("PRS_", best_thresh)
+
+cat("\nBest threshold:", format(best_thresh, scientific = TRUE), "\n")
+cat("  Variance explained:", round(max(prs_performance$r2_phenotype) * 100, 2), "%\n")
+
+# Visualise PRS vs phenotype
+prs_results[, best_prs := .SD[[best_prs_col]]]
+
+ggplot2$ggplot(prs_results, ggplot2$aes(x = best_prs, y = phenotype)) +
+    ggplot2$geom_point(alpha = 0.2, size = 0.8, colour = "#2166AC") +
+    ggplot2$geom_smooth(method = "lm", colour = "#D95F02", linewidth = 1) +
+    ggplot2$labs(
+        title = "Polygenic Risk Score vs Phenotype",
+        subtitle = paste0("R² = ", round(max(prs_performance$r2_phenotype), 3),
+                         " (threshold: p < ", format(best_thresh, scientific = TRUE), ")"),
+        x = "Polygenic Risk Score",
+        y = "Phenotype (standardised)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+```
+#> `geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/statistics-3-advanced/prs_calculation-1.png" alt="Polygenic risk scores predict phenotype">
+	Polygenic risk scores predict phenotype
+</Figure>
+
+```
+#> Polygenic Risk Score Performance:
+#> =================================
+#>    threshold n_snps r2_phenotype r_genetic
+#>       <char>  <int>        <num>     <num>
+#> 1:     5e-08     14       0.2765     0.933
+#> 2:     1e-05     18       0.2877     0.971
+#> 3:     1e-03     33       0.3111     0.940
+#> 4:     1e-02    116       0.3630     0.826
+#> 5:     5e-02    534       0.4691     0.693
+#> 6:     1e-01   1000       0.5260     0.663
+#> 7:     5e-01   5020       0.6515     0.606
+#> 8:     1e+00  10000       0.6578     0.604
+#> 
+#> Best threshold: 1e+00 
+#>   Variance explained: 65.78 %
+```
+
+### 8.10.2 PRS Performance by Threshold
+
+**Prose and Intuition**
+
+The optimal p-value threshold depends on:
+- **Polygenicity**: More polygenic traits benefit from liberal thresholds
+- **Sample size**: Larger GWAS can use stricter thresholds
+- **LD structure**: Pruning affects the number of independent signals
+
+
+``` r
+# Visualise performance across thresholds
+ggplot2$ggplot(prs_performance, ggplot2$aes(x = log10(threshold))) +
+    ggplot2$geom_line(ggplot2$aes(y = r2_phenotype, colour = "R² with phenotype"),
+                       linewidth = 1) +
+    ggplot2$geom_point(ggplot2$aes(y = r2_phenotype, colour = "R² with phenotype"),
+                        size = 3) +
+    ggplot2$geom_line(ggplot2$aes(y = r_genetic^2, colour = "R² with true genetic"),
+                       linewidth = 1, linetype = "dashed") +
+    ggplot2$geom_point(ggplot2$aes(y = r_genetic^2, colour = "R² with true genetic"),
+                        size = 3) +
+    ggplot2$scale_colour_manual(values = c("R² with phenotype" = "#2166AC",
+                                            "R² with true genetic" = "#D95F02")) +
+    ggplot2$scale_x_continuous(breaks = log10(p_thresholds),
+                                labels = format(p_thresholds, scientific = TRUE)) +
+    ggplot2$labs(
+        title = "PRS Performance by P-value Threshold",
+        subtitle = "Optimal threshold balances signal and noise",
+        x = "P-value Threshold (log scale)",
+        y = expression(R^2),
+        colour = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top",
+        axis.text.x = ggplot2$element_text(angle = 45, hjust = 1)
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/prs_threshold_plot-1.png" alt="PRS performance varies with p-value threshold">
+	PRS performance varies with p-value threshold
+</Figure>
+
+### 8.10.3 PRS Distribution by Risk
+
+**Prose and Intuition**
+
+PRS can stratify individuals into risk groups. Those in the top decile may have substantially elevated risk compared to average.
+
+
+``` r
+# Create risk deciles
+prs_results[, risk_decile := cut(best_prs,
+                                  breaks = quantile(best_prs, probs = seq(0, 1, 0.1)),
+                                  labels = 1:10, include.lowest = TRUE)]
+
+# Mean phenotype by decile
+decile_summary <- prs_results[, .(
+    mean_phenotype = mean(phenotype),
+    se_phenotype = sd(phenotype) / sqrt(.N),
+    n = .N
+), by = risk_decile]
+
+cat("Phenotype by PRS Decile:\n")
+cat("========================\n")
+print(decile_summary[order(risk_decile)])
+
+# Visualise
+ggplot2$ggplot(decile_summary, ggplot2$aes(x = risk_decile, y = mean_phenotype)) +
+    ggplot2$geom_bar(stat = "identity", fill = "#2166AC", alpha = 0.7, width = 0.7) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = mean_phenotype - 1.96 * se_phenotype,
+                                       ymax = mean_phenotype + 1.96 * se_phenotype),
+                           width = 0.2) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$labs(
+        title = "Mean Phenotype by PRS Decile",
+        subtitle = "Higher PRS associated with higher phenotype",
+        x = "PRS Decile (1 = lowest, 10 = highest)",
+        y = "Mean Phenotype (± 95% CI)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/prs_risk_stratification-1.png" alt="PRS stratifies individuals by genetic risk">
+	PRS stratifies individuals by genetic risk
+</Figure>
+
+```
+#> Phenotype by PRS Decile:
+#> ========================
+#>     risk_decile mean_phenotype se_phenotype     n
+#>          <fctr>          <num>        <num> <int>
+#>  1:           1    -1.39421320   0.03033604   500
+#>  2:           2    -0.84838763   0.02576509   500
+#>  3:           3    -0.58233561   0.02662669   500
+#>  4:           4    -0.29686055   0.02666886   500
+#>  5:           5    -0.11159421   0.02566314   500
+#>  6:           6     0.06070585   0.02561494   500
+#>  7:           7     0.34513869   0.02621525   500
+#>  8:           8     0.57167512   0.02646528   500
+#>  9:           9     0.82902026   0.02718876   500
+#> 10:          10     1.42685129   0.03182491   500
+```
+
+---
+
+## 8.11 Summary and Key Concepts
+
+### Key Takeaways
+
+1. **Population Stratification**: Systematic ancestry differences can confound GWAS results, creating spurious associations.
+
+2. **PCA for Ancestry**: Principal components of the genotype matrix capture population structure and can be used as covariates.
+
+3. **Mixed Models**: Linear mixed models using the genetic relationship matrix provide robust correction for both population structure and relatedness.
+
+4. **Linkage Disequilibrium**: Nearby SNPs are correlated; significant SNPs may tag rather than be causal variants. LD clumping identifies independent signals.
+
+5. **Polygenic Risk Scores**: Combining many SNP effects predicts individual risk. Optimal p-value thresholds balance signal and noise.
+
+6. **Genomic Inflation**: $\lambda_{GC} \approx 1$ after correction indicates successful control of confounding.
+
+### Connections to Other Topics
+
+- **Part 1**: Quality control and association testing foundation
+- **Chapter 1**: Regularisation methods can improve PRS (e.g., LASSO, ridge regression)
+- **Chapter 4**: Cross-validation for PRS threshold selection
+
+### Communicating to Stakeholders
+
+**For a biological audience**: "We controlled for population ancestry using genetic principal components, ensuring that our associations reflect true genetic effects rather than ancestry differences. Using these results, we built a polygenic risk score that explains 5% of variation in the trait—individuals in the top 10% of genetic risk have phenotype values 0.8 standard deviations higher than average."
+
+**For a methods paper**: "Population stratification was controlled by including the first 10 principal components of the genetic relationship matrix as covariates. The genomic inflation factor decreased from λ = 1.45 (unadjusted) to λ = 1.02 (adjusted). Polygenic risk scores were computed using the pruning and thresholding approach (r² < 0.1, p-value thresholds from 5×10⁻⁸ to 1). The optimal threshold (p < 0.01) was selected based on variance explained in a held-out sample."
+
+**Key vocabulary**:
+- Population stratification, ancestry
+- Principal component analysis (PCA)
+- Genetic relationship matrix (GRM)
+- Linear mixed model
+- Linkage disequilibrium (LD), r²
+- LD clumping, fine-mapping
+- Polygenic risk score (PRS)
+- Heritability

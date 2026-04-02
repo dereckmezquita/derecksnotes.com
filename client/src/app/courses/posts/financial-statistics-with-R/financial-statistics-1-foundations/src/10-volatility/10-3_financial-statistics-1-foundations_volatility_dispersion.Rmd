@@ -1,0 +1,739 @@
+---
+title: "Dispersion and Correlation Trading"
+subtitle: "Trading the relationship between index and single-stock volatility"
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+box::use(
+    ../modules/data[load_market, load_vix, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+# Helper function for merging by date
+merge_by_date <- function(dt1, dt2) {
+    merge(dt1, dt2, by = "date", all = FALSE)
+}
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = ""
+)
+
+tc <- unlist(trading_colors)
+```
+
+## 10.7 Dispersion Trading Foundations
+
+### 10.7.1 Prose & Intuition
+
+Dispersion trading exploits the relationship between index volatility and individual stock volatilities. The key insight: an index is a portfolio of stocks, so its volatility depends on both individual stock volatilities and their correlations.
+
+When correlations are low, stocks move independently. The index—being an average—experiences lower volatility than its components. When correlations spike (typically during crises), stocks move together, and index volatility approaches the weighted average of component volatilities.
+
+The **correlation risk premium** is the tendency for implied correlation to exceed realised correlation. This creates a structural opportunity: sell index variance (expensive due to correlation premium) and buy single-stock variance (cheaper).
+
+This strategy is called **dispersion trading** because it profits when stocks "disperse" (move differently from each other) more than implied correlation suggested.
+
+### 10.7.2 Visual Evidence
+
+```{r load-multi-asset}
+# Load multiple assets to demonstrate dispersion
+spy <- load_market("SPY")
+aapl <- load_market("AAPL")
+msft <- load_market("MSFT")
+amzn <- load_market("AMZN")
+goog <- load_market("GOOG")
+nvda <- load_market("NVDA")
+
+# Filter to common dates
+start_date <- as.Date("2015-01-01")
+end_date <- as.Date("2023-12-31")
+
+spy <- filter_dates(spy, start_date, end_date)
+aapl <- filter_dates(aapl, start_date, end_date)
+msft <- filter_dates(msft, start_date, end_date)
+amzn <- filter_dates(amzn, start_date, end_date)
+goog <- filter_dates(goog, start_date, end_date)
+nvda <- filter_dates(nvda, start_date, end_date)
+
+# Merge all
+multi <- merge_by_date(spy[, .(date, spy = adjusted)],
+                       aapl[, .(date, aapl = adjusted)])
+multi <- merge_by_date(multi, msft[, .(date, msft = adjusted)])
+multi <- merge_by_date(multi, amzn[, .(date, amzn = adjusted)])
+multi <- merge_by_date(multi, goog[, .(date, goog = adjusted)])
+multi <- merge_by_date(multi, nvda[, .(date, nvda = adjusted)])
+
+# Calculate returns
+multi[, spy_ret := c(NA, diff(log(spy)))]
+multi[, aapl_ret := c(NA, diff(log(aapl)))]
+multi[, msft_ret := c(NA, diff(log(msft)))]
+multi[, amzn_ret := c(NA, diff(log(amzn)))]
+multi[, goog_ret := c(NA, diff(log(goog)))]
+multi[, nvda_ret := c(NA, diff(log(nvda)))]
+
+multi <- multi[!is.na(spy_ret)]
+```
+
+```{r rolling-correlation, fig.cap="Rolling pairwise correlations spike during crises. This explains why index vol approaches component vol in stress."}
+# Calculate rolling correlations between stocks
+calc_rolling_cor <- function(x, y, n = 63) {
+    result <- rep(NA_real_, length(x))
+    for (i in n:length(x)) {
+        idx <- (i - n + 1):i
+        result[i] <- cor(x[idx], y[idx], use = "complete.obs")
+    }
+    return(result)
+}
+
+# Pairwise correlations
+multi[, cor_aapl_msft := calc_rolling_cor(aapl_ret, msft_ret)]
+multi[, cor_aapl_amzn := calc_rolling_cor(aapl_ret, amzn_ret)]
+multi[, cor_msft_amzn := calc_rolling_cor(msft_ret, amzn_ret)]
+
+# Average correlation
+multi[, avg_corr := (cor_aapl_msft + cor_aapl_amzn + cor_msft_amzn) / 3]
+
+# Plot correlations over time
+plot_corr <- melt(multi[!is.na(avg_corr), .(date, `AAPL-MSFT` = cor_aapl_msft,
+                                             `AAPL-AMZN` = cor_aapl_amzn,
+                                             `MSFT-AMZN` = cor_msft_amzn,
+                                             Average = avg_corr)],
+                  id.vars = "date", variable.name = "Pair", value.name = "Correlation")
+
+ggplot(plot_corr[Pair == "Average"], aes(x = date, y = Correlation)) +
+    geom_line(colour = tc[1], linewidth = 0.5) +
+    geom_hline(yintercept = mean(multi$avg_corr, na.rm = TRUE),
+               linetype = "dashed", colour = tc[2]) +
+    annotate("text", x = as.Date("2023-01-01"),
+             y = mean(multi$avg_corr, na.rm = TRUE) + 0.05,
+             label = sprintf("Mean: %.2f", mean(multi$avg_corr, na.rm = TRUE)),
+             colour = tc[2]) +
+    labs(title = "Average Pairwise Correlation (63-Day Rolling)",
+         subtitle = "AAPL, MSFT, AMZN; Spikes during March 2020 crisis",
+         x = NULL, y = "Correlation") +
+    theme_trading()
+```
+
+```{r dispersion-measure, fig.cap="Dispersion measures cross-sectional return variability. High dispersion = stocks moving differently."}
+# Calculate cross-sectional dispersion
+# Dispersion = std dev of stock returns on each day
+multi[, dispersion := apply(.SD, 1, sd, na.rm = TRUE),
+      .SDcols = c("aapl_ret", "msft_ret", "amzn_ret", "goog_ret", "nvda_ret")]
+
+# Annualise
+multi[, dispersion_ann := dispersion * sqrt(252) * 100]
+
+# Rolling dispersion
+multi[, disp_20d := frollmean(dispersion_ann, 20)]
+
+# Plot dispersion
+ggplot(multi[!is.na(disp_20d)], aes(x = date, y = disp_20d)) +
+    geom_line(colour = tc[1], linewidth = 0.5) +
+    geom_hline(yintercept = median(multi$disp_20d, na.rm = TRUE),
+               linetype = "dashed", colour = tc[2]) +
+    labs(title = "Cross-Sectional Dispersion (20-Day Average)",
+         subtitle = "Higher dispersion = stocks moving independently",
+         x = NULL, y = "Dispersion (Ann. %)") +
+    theme_trading()
+```
+
+```{r correlation-dispersion-relationship, fig.cap="Correlation and dispersion move inversely. Low correlation enables high dispersion."}
+# Scatter: correlation vs dispersion
+scatter_cd <- multi[!is.na(avg_corr) & !is.na(disp_20d)]
+
+ggplot(scatter_cd, aes(x = avg_corr, y = disp_20d)) +
+    geom_point(alpha = 0.3, colour = tc[1]) +
+    geom_smooth(method = "lm", se = TRUE, colour = tc[2]) +
+    labs(title = "Correlation vs Dispersion",
+         subtitle = sprintf("Correlation: %.2f",
+                           cor(scatter_cd$avg_corr, scatter_cd$disp_20d)),
+         x = "Average Pairwise Correlation", y = "Dispersion (Ann. %)") +
+    theme_trading()
+```
+
+### 10.7.3 Mathematical Derivation
+
+**Index Variance Decomposition**
+
+For an index $I$ with weights $w_i$ and component returns $r_i$:
+
+$$
+\sigma_I^2 = \sum_i w_i^2 \sigma_i^2 + 2\sum_{i<j} w_i w_j \sigma_i \sigma_j \rho_{ij}
+$$
+
+This can be rewritten as:
+
+$$
+\sigma_I^2 = \bar{\sigma}^2 \cdot \bar{\rho}
+$$
+
+where $\bar{\sigma}^2$ is weighted average variance and $\bar{\rho}$ is average correlation.
+
+**Implied Correlation**
+
+Given index implied vol ($IV_I$) and component implied vols ($IV_i$):
+
+$$
+\rho_{impl} = \frac{IV_I^2 - \sum_i w_i^2 IV_i^2}{2 \sum_{i<j} w_i w_j IV_i IV_j}
+$$
+
+Simplified for equal weights:
+
+$$
+\rho_{impl} \approx \frac{IV_I^2}{\bar{IV}^2}
+$$
+
+**Dispersion Trade Payoff**
+
+Selling index variance and buying component variance:
+
+$$
+P\&L = N \cdot \left[ \sum_i w_i (\sigma_i^{RV})^2 - (\sigma_I^{RV})^2 \right]
+$$
+
+Profits when realised correlation is lower than implied.
+
+**Correlation Risk Premium**
+
+$$
+CRP = \rho_{impl} - E[\rho_{realised}]
+$$
+
+Empirically, $CRP > 0$, making dispersion trading systematically profitable.
+
+### 10.7.4 Implementation & Application
+
+```{r index-vs-component-vol, fig.cap="Index vs average component volatility. Diversification benefit visible in normal times."}
+# Calculate volatilities
+multi[, spy_vol := frollapply(spy_ret, 20, function(x) sd(x) * sqrt(252)) * 100]
+
+# Average component vol
+multi[, avg_stock_vol := (
+    frollapply(aapl_ret, 20, function(x) sd(x) * sqrt(252)) +
+    frollapply(msft_ret, 20, function(x) sd(x) * sqrt(252)) +
+    frollapply(amzn_ret, 20, function(x) sd(x) * sqrt(252)) +
+    frollapply(goog_ret, 20, function(x) sd(x) * sqrt(252)) +
+    frollapply(nvda_ret, 20, function(x) sd(x) * sqrt(252))
+) / 5 * 100]
+
+# Plot comparison
+plot_vol <- melt(multi[!is.na(spy_vol) & !is.na(avg_stock_vol),
+                       .(date, `SPY Vol` = spy_vol, `Avg Stock Vol` = avg_stock_vol)],
+                 id.vars = "date", variable.name = "Type", value.name = "Volatility")
+
+ggplot(plot_vol, aes(x = date, y = Volatility, colour = Type)) +
+    geom_line(linewidth = 0.5) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(title = "SPY Volatility vs Average Component Volatility",
+         subtitle = "Gap = diversification benefit; narrows during crises",
+         x = NULL, y = "20-Day Realised Vol (%)") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+```{r implied-realised-corr, fig.cap="Implied correlation proxy vs realised. Implied consistently overestimates realised correlation."}
+# Implied correlation proxy using VIX and component vols
+vix <- load_vix("vix")
+vix <- filter_dates(vix, start_date, end_date)
+
+# Merge VIX
+multi <- merge_by_date(multi, vix[, .(date, vix = close)])
+
+# Implied correlation approximation: VIX^2 / avg(stock_IV)^2
+# We'll use realised vol as IV proxy (since we don't have options data)
+multi[, implied_corr_proxy := (vix / avg_stock_vol)^2]
+multi[, implied_corr_proxy := pmin(pmax(implied_corr_proxy, 0), 1)]
+
+# Compare implied vs realised correlation
+multi[, realised_corr := avg_corr]
+
+# Plot comparison
+plot_impl_real <- melt(multi[!is.na(implied_corr_proxy) & !is.na(realised_corr),
+                             .(date, Implied = implied_corr_proxy, Realised = realised_corr)],
+                       id.vars = "date", variable.name = "Type", value.name = "Correlation")
+
+ggplot(plot_impl_real, aes(x = date, y = Correlation, colour = Type)) +
+    geom_line(linewidth = 0.5, alpha = 0.8) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(title = "Implied vs Realised Correlation (Proxy)",
+         subtitle = "Implied (from VIX) typically exceeds realised pairwise correlation",
+         x = NULL, y = "Correlation") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+```{r dispersion-strategy, fig.cap="Dispersion trading strategy simulation. Long component vol, short index vol."}
+# Dispersion trade: Long stock variance, short index variance
+# P&L = avg(stock_var) - index_var
+
+multi[, stock_var := (avg_stock_vol / 100)^2]
+multi[, index_var := (spy_vol / 100)^2]
+
+# Daily P&L proxy: change in (stock_var - index_var)
+multi[, var_spread := stock_var - index_var]
+multi[, disp_ret := c(NA, diff(var_spread)) * 10000]  # Scale for readability
+
+# Cumulative
+disp_strat <- multi[!is.na(disp_ret)]
+disp_strat[, cum_disp := cumsum(disp_ret)]
+
+ggplot(disp_strat, aes(x = date, y = cum_disp)) +
+    geom_line(colour = tc[1], linewidth = 0.5) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(title = "Dispersion Trade P&L (Simulated)",
+         subtitle = "Long stock variance, short index variance; profits from low correlation",
+         x = NULL, y = "Cumulative P&L") +
+    theme_trading()
+```
+
+---
+
+## 10.8 Correlation Swaps
+
+### 10.8.1 Prose & Intuition
+
+Correlation swaps provide pure exposure to average pairwise correlation without variance exposure. The payoff is simply the difference between realised correlation and struck correlation.
+
+Unlike dispersion trades that mix variance and correlation exposures, correlation swaps isolate the correlation component. This makes them ideal for expressing views on correlation regime changes.
+
+The challenge is replication. Unlike variance swaps (which can be replicated with options), correlation swaps require dynamic hedging of dispersion positions. This makes them predominantly over-the-counter products traded between sophisticated institutions.
+
+The correlation risk premium makes being short correlation structurally profitable, but with significant tail risk when correlations spike during crises.
+
+### 10.8.2 Visual Evidence
+
+```{r correlation-regimes, fig.cap="Correlation regime identification. Low, medium, and high correlation regimes have different implications."}
+# Define correlation regimes
+multi[, corr_regime := cut(realised_corr,
+                           breaks = c(-1, 0.3, 0.6, 1),
+                           labels = c("Low (<0.3)", "Medium (0.3-0.6)", "High (>0.6)"))]
+
+# Count days in each regime
+regime_stats <- multi[!is.na(corr_regime), .(
+    days = .N,
+    pct = .N / nrow(multi[!is.na(corr_regime)]) * 100,
+    avg_spy_vol = mean(spy_vol, na.rm = TRUE),
+    avg_disp = mean(disp_20d, na.rm = TRUE)
+), by = corr_regime]
+
+print(regime_stats)
+
+# Plot regime distribution
+ggplot(multi[!is.na(corr_regime)], aes(x = realised_corr, fill = corr_regime)) +
+    geom_histogram(bins = 50, alpha = 0.8, colour = "white") +
+    scale_fill_manual(values = c(tc[1], tc[2], tc[4])) +
+    labs(title = "Distribution of Realised Correlation",
+         subtitle = "Most time spent in medium correlation regime",
+         x = "Realised Correlation", y = "Count", fill = "Regime") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+```{r correlation-swap-payoff, fig.cap="Correlation swap payoff simulation. Fixed payout based on realised vs struck correlation."}
+# Simulate correlation swap payoffs
+set.seed(42)
+
+# Strike correlation
+strike_corr <- 0.45
+
+# Payoff scenarios
+realised_scenarios <- seq(0.1, 0.9, 0.05)
+notional <- 1000000
+
+# Payoff: (realised - strike) * notional
+payoffs <- (realised_scenarios - strike_corr) * notional
+
+corr_swap_payoff <- data.table(
+    realised = realised_scenarios,
+    payoff = payoffs
+)
+
+ggplot(corr_swap_payoff, aes(x = realised, y = payoff / 1000)) +
+    geom_col(aes(fill = payoff > 0), alpha = 0.8, width = 0.04) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    geom_vline(xintercept = strike_corr, linetype = "dashed", colour = tc[2]) +
+    annotate("text", x = strike_corr + 0.05, y = max(payoffs/1000) * 0.8,
+             label = sprintf("Strike: %.2f", strike_corr), colour = tc[2]) +
+    scale_fill_manual(values = c(tc[4], tc[1]), guide = "none") +
+    labs(title = "Correlation Swap Payoff Profile",
+         subtitle = sprintf("Strike = %.2f; Long position profits when realised > strike", strike_corr),
+         x = "Realised Correlation", y = "P&L ($000s)") +
+    theme_trading()
+```
+
+```{r correlation-persistence, fig.cap="Correlation persistence analysis. High correlation tends to persist, creating regime momentum."}
+# Autocorrelation of correlation
+acf_data <- acf(multi$realised_corr[!is.na(multi$realised_corr)], lag.max = 60, plot = FALSE)
+acf_df <- data.table(lag = 0:60, acf = acf_data$acf[1:61])
+
+ggplot(acf_df, aes(x = lag, y = acf)) +
+    geom_col(fill = tc[1], alpha = 0.7) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    geom_hline(yintercept = c(-1, 1) * 1.96 / sqrt(nrow(multi)),
+               linetype = "dashed", colour = tc[2]) +
+    labs(title = "Correlation Autocorrelation Function",
+         subtitle = "High persistence suggests correlation regime momentum",
+         x = "Lag (Days)", y = "Autocorrelation") +
+    theme_trading()
+```
+
+### 10.8.3 Mathematical Derivation
+
+**Correlation Swap Payoff**
+
+$$
+\text{Payoff} = N \times (\rho_{RV} - K_\rho)
+$$
+
+where $\rho_{RV}$ is realised correlation and $K_\rho$ is struck correlation.
+
+**Realised Correlation Calculation**
+
+For $n$ assets with returns $r_i$:
+
+$$
+\rho_{RV} = \frac{2}{n(n-1)} \sum_{i<j} \text{Corr}(r_i, r_j)
+$$
+
+computed over the measurement period.
+
+**Correlation-Variance Relationship**
+
+Index variance relates to correlation:
+
+$$
+\sigma_I^2 = \bar{\sigma}^2 \cdot [w^2 + (1-w^2) \cdot \bar{\rho}]
+$$
+
+where $w$ represents concentration. This shows:
+- When $\bar{\rho} = 0$: diversification maximized
+- When $\bar{\rho} = 1$: no diversification benefit
+
+**Fair Correlation Strike**
+
+Under risk-neutral measure:
+
+$$
+K_\rho = E^Q[\rho_{RV}] = \frac{E^Q[\sigma_I^2] - \sum_i w_i^2 E^Q[\sigma_i^2]}{2\sum_{i<j} w_i w_j E^Q[\sigma_i \sigma_j]}
+$$
+
+### 10.8.4 Implementation & Application
+
+```{r corr-swap-strategy, fig.cap="Correlation swap timing strategy. Short correlation when elevated; long when depressed."}
+# Strategy: Short correlation when high, long when low
+multi[, corr_z := (realised_corr - mean(realised_corr, na.rm = TRUE)) /
+                   sd(realised_corr, na.rm = TRUE)]
+
+multi[, corr_signal := fifelse(corr_z > 1, -1,  # Short high correlation
+                                fifelse(corr_z < -0.5, 1,  # Long low correlation
+                                       0))]
+
+# P&L from correlation change
+multi[, corr_change := c(NA, diff(realised_corr))]
+multi[, corr_strat_ret := shift(corr_signal, 1) * corr_change]
+
+# Cumulative
+corr_strat <- multi[!is.na(corr_strat_ret)]
+corr_strat[, cum_corr_strat := cumsum(corr_strat_ret)]
+
+ggplot(corr_strat, aes(x = date, y = cum_corr_strat)) +
+    geom_line(colour = tc[1], linewidth = 0.5) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(title = "Correlation Timing Strategy",
+         subtitle = "Short when z-score > 1; Long when z-score < -0.5",
+         x = NULL, y = "Cumulative P&L (Correlation Points)") +
+    theme_trading()
+
+# Statistics
+cat(sprintf("\nCorrelation Strategy Statistics:\n"))
+cat(sprintf("  Total P&L: %.3f correlation points\n", corr_strat[.N, cum_corr_strat]))
+cat(sprintf("  Sharpe (daily): %.2f\n",
+           mean(corr_strat$corr_strat_ret, na.rm = TRUE) /
+           sd(corr_strat$corr_strat_ret, na.rm = TRUE) * sqrt(252)))
+```
+
+```{r dispersion-correlation-hedge, fig.cap="Combined dispersion and correlation strategy. Hedging correlation exposure improves risk-adjusted returns."}
+# Combine dispersion and correlation strategies
+combo <- multi[!is.na(disp_ret) & !is.na(corr_strat_ret)]
+
+# Normalise returns for combination
+combo[, disp_norm := disp_ret / sd(disp_ret, na.rm = TRUE)]
+combo[, corr_norm := corr_strat_ret / sd(corr_strat_ret, na.rm = TRUE)]
+
+# Combined: 70% dispersion, 30% correlation timing
+combo[, combo_ret := 0.7 * disp_norm + 0.3 * corr_norm]
+
+# Cumulative
+combo[, cum_disp_norm := cumsum(disp_norm)]
+combo[, cum_combo := cumsum(combo_ret)]
+
+# Plot
+plot_combo <- melt(combo[, .(date, Dispersion = cum_disp_norm, Combined = cum_combo)],
+                   id.vars = "date", variable.name = "Strategy", value.name = "Return")
+
+ggplot(plot_combo, aes(x = date, y = Return, colour = Strategy)) +
+    geom_line(linewidth = 0.5) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(title = "Dispersion vs Combined Strategy",
+         subtitle = "Adding correlation timing hedges some tail risk",
+         x = NULL, y = "Cumulative Return (Normalised)") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+---
+
+## 10.9 Practical Considerations
+
+### 10.9.1 Prose & Intuition
+
+Volatility trading requires careful attention to practical implementation details. The theoretical strategies we've discussed face real-world frictions:
+
+**Execution Risk**: Volatility instruments have wide bid-ask spreads, especially during stressed markets when you most need to trade. The cost of entering and exiting positions can consume much of the theoretical premium.
+
+**Liquidity Constraints**: Options markets have limited depth, particularly for longer-dated or off-the-run strikes. Large positions can move markets against you.
+
+**Margin Requirements**: Short volatility positions require substantial margin, which can spike during crises precisely when you need liquidity most.
+
+**Model Risk**: All volatility strategies depend on models for pricing and hedging. Model assumptions (constant vol, no jumps, continuous trading) fail precisely during tail events.
+
+### 10.9.2 Visual Evidence
+
+```{r transaction-costs, fig.cap="Impact of transaction costs on VRP strategy. Reasonable costs significantly reduce returns."}
+# Simulate impact of transaction costs on VRP strategy
+vix <- load_vix("vix")
+vix <- filter_dates(vix, start_date, end_date)
+spy <- filter_dates(spy, start_date, end_date)
+
+combined <- merge_by_date(spy[, .(date, spy_ret = c(NA, diff(log(adjusted))))],
+                          vix[, .(date, vix = close)])
+combined <- combined[!is.na(spy_ret)]
+
+# VRP signal
+combined[, rv_30 := frollapply(spy_ret^2, 30, function(x) sqrt(sum(x) * 252 / length(x))) * 100]
+combined[, signal := fifelse(vix > rv_30 * 1.1, -1, 0)]
+combined[, vix_ret := c(NA, diff(log(vix)))]
+
+# Gross returns
+combined[, gross_ret := shift(signal, 1) * (-vix_ret)]
+
+# Apply different cost levels
+cost_levels <- c(0, 0.001, 0.002, 0.005)  # 0, 10, 20, 50 bps per trade
+combined[, trade := abs(signal - shift(signal, 1))]
+
+results <- lapply(cost_levels, function(cost) {
+    ret <- combined$gross_ret - combined$trade * cost
+    data.table(
+        cost_bps = cost * 10000,
+        total_ret = sum(ret, na.rm = TRUE),
+        sharpe = mean(ret, na.rm = TRUE) / sd(ret, na.rm = TRUE) * sqrt(252)
+    )
+})
+results <- rbindlist(results)
+
+print(results)
+
+# Plot returns at different cost levels
+combined[, net_ret_0 := gross_ret]
+combined[, net_ret_10 := gross_ret - trade * 0.001]
+combined[, net_ret_50 := gross_ret - trade * 0.005]
+
+combined[, cum_0 := cumsum(fifelse(is.na(net_ret_0), 0, net_ret_0))]
+combined[, cum_10 := cumsum(fifelse(is.na(net_ret_10), 0, net_ret_10))]
+combined[, cum_50 := cumsum(fifelse(is.na(net_ret_50), 0, net_ret_50))]
+
+plot_costs <- melt(combined[, .(date, `0 bps` = cum_0, `10 bps` = cum_10, `50 bps` = cum_50)],
+                   id.vars = "date", variable.name = "Cost", value.name = "Return")
+
+ggplot(plot_costs, aes(x = date, y = Return, colour = Cost)) +
+    geom_line(linewidth = 0.5) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[4])) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Transaction Cost Impact on VRP Strategy",
+         subtitle = "Higher costs erode returns; 50 bps makes strategy marginal",
+         x = NULL, y = "Cumulative Return") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+```{r regime-dependent-performance, fig.cap="Strategy performance varies by VIX regime. Understanding regime dependency is crucial."}
+# Analyse performance by VIX regime
+combined[, vix_regime := cut(vix, breaks = c(0, 15, 20, 25, 35, 100),
+                             labels = c("<15", "15-20", "20-25", "25-35", ">35"))]
+
+regime_perf <- combined[!is.na(gross_ret) & !is.na(vix_regime), .(
+    mean_ret = mean(gross_ret) * 252 * 100,
+    sharpe = mean(gross_ret) / sd(gross_ret) * sqrt(252),
+    hit_rate = mean(gross_ret > 0) * 100,
+    days = .N
+), by = vix_regime]
+
+ggplot(regime_perf, aes(x = vix_regime, y = sharpe)) +
+    geom_col(fill = tc[1], alpha = 0.8) +
+    geom_text(aes(label = sprintf("n=%d", days)), vjust = -0.5, size = 3) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    labs(title = "VRP Strategy Sharpe Ratio by VIX Regime",
+         subtitle = "Performance varies significantly; worst in crisis regimes",
+         x = "VIX Regime", y = "Sharpe Ratio") +
+    theme_trading()
+```
+
+```{r tail-risk-analysis, fig.cap="Tail risk in short volatility. Left tail is severe; right tail limited by nature of short vol."}
+# Distribution of returns with tail analysis
+gross_rets <- combined$gross_ret[!is.na(combined$gross_ret)]
+
+# Calculate tail statistics
+var_95 <- quantile(gross_rets, 0.05)
+var_99 <- quantile(gross_rets, 0.01)
+cvar_95 <- mean(gross_rets[gross_rets <= var_95])
+
+cat(sprintf("\nTail Risk Statistics:\n"))
+cat(sprintf("  5%% VaR: %.2f%%\n", var_95 * 100))
+cat(sprintf("  1%% VaR: %.2f%%\n", var_99 * 100))
+cat(sprintf("  5%% CVaR (Expected Shortfall): %.2f%%\n", cvar_95 * 100))
+
+# Plot with tail highlighting
+ggplot(data.table(ret = gross_rets), aes(x = ret)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 100,
+                   fill = tc[1], alpha = 0.7, colour = "white") +
+    geom_vline(xintercept = var_95, colour = tc[4], linewidth = 1, linetype = "dashed") +
+    geom_vline(xintercept = var_99, colour = tc[4], linewidth = 1) +
+    annotate("text", x = var_95 - 0.02, y = 30, label = "5% VaR", colour = tc[4], angle = 90) +
+    annotate("text", x = var_99 - 0.02, y = 30, label = "1% VaR", colour = tc[4], angle = 90) +
+    scale_x_continuous(labels = scales::percent_format(), limits = c(-0.15, 0.1)) +
+    labs(title = "Short Volatility Return Distribution",
+         subtitle = "Heavy left tail creates significant drawdown risk",
+         x = "Daily Return", y = "Density") +
+    theme_trading()
+```
+
+### 10.9.3 Mathematical Derivation
+
+**Transaction Cost Model**
+
+Net return after costs:
+
+$$
+r_{net} = r_{gross} - c \cdot |w_t - w_{t-1}|
+$$
+
+where $c$ is cost per unit traded and $w$ is position weight.
+
+**Break-Even Analysis**
+
+Strategy is profitable when:
+
+$$
+E[r_{gross}] > c \cdot E[|\Delta w|]
+$$
+
+Higher turnover requires higher gross returns to be profitable.
+
+**Tail Risk Measures**
+
+Value at Risk (VaR):
+
+$$
+P(r \leq -VaR_\alpha) = \alpha
+$$
+
+Conditional VaR (Expected Shortfall):
+
+$$
+CVaR_\alpha = E[r | r \leq -VaR_\alpha]
+$$
+
+For short volatility, CVaR is particularly important due to heavy left tails.
+
+**Kelly Criterion with Tail Risk**
+
+Modified Kelly for heavy tails:
+
+$$
+f^* = \frac{\mu}{\sigma^2} \times \left(1 - \frac{\kappa - 3}{6}\right)
+$$
+
+where $\kappa$ is excess kurtosis. Higher kurtosis reduces optimal allocation.
+
+### 10.9.4 Implementation & Application
+
+```{r risk-management-overlay, fig.cap="Risk-managed volatility strategy. Stop-losses and position limits improve tail behaviour."}
+# Implement risk management overlay
+combined[, position := shift(signal, 1)]
+
+# Risk rules:
+# 1. Stop-loss: exit if daily loss > 3%
+# 2. Reduce position when VIX > 30
+# 3. Maximum drawdown trigger
+
+# Running P&L for stop-loss
+combined[, running_pnl := gross_ret]
+combined[, hit_stoploss := running_pnl < -0.03]
+
+# Risk-adjusted signal
+combined[, risk_signal := fifelse(
+    hit_stoploss | shift(hit_stoploss, 1, fill = FALSE),  # Stop-loss hit
+    0,
+    fifelse(vix > 30, signal * 0.5,  # Reduce in high VIX
+            signal)
+)]
+
+# Apply risk-managed returns
+combined[, managed_ret := shift(risk_signal, 1) * (-vix_ret)]
+
+# Compare
+combined[, cum_gross := cumsum(fifelse(is.na(gross_ret), 0, gross_ret))]
+combined[, cum_managed := cumsum(fifelse(is.na(managed_ret), 0, managed_ret))]
+
+plot_risk <- melt(combined[, .(date, Unmanaged = cum_gross, `Risk-Managed` = cum_managed)],
+                  id.vars = "date", variable.name = "Strategy", value.name = "Return")
+
+ggplot(plot_risk, aes(x = date, y = Return, colour = Strategy)) +
+    geom_line(linewidth = 0.5) +
+    scale_colour_manual(values = c(tc[4], tc[1])) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Risk-Managed vs Unmanaged VRP Strategy",
+         subtitle = "Stop-loss at -3%; 50% position when VIX > 30",
+         x = NULL, y = "Cumulative Return") +
+    theme_trading() +
+    theme(legend.position = "top")
+
+# Compare statistics
+cat(sprintf("\nStrategy Comparison:\n"))
+cat(sprintf("  Unmanaged Return: %.1f%%\n", combined[.N, cum_gross] * 100))
+cat(sprintf("  Managed Return: %.1f%%\n", combined[.N, cum_managed] * 100))
+cat(sprintf("  Unmanaged Sharpe: %.2f\n", sharpe_ratio(combined$gross_ret)))
+cat(sprintf("  Managed Sharpe: %.2f\n", sharpe_ratio(combined$managed_ret)))
+cat(sprintf("  Unmanaged MaxDD: %.1f%%\n", max_drawdown(combined$gross_ret) * 100))
+cat(sprintf("  Managed MaxDD: %.1f%%\n", max_drawdown(combined$managed_ret) * 100))
+```
+
+```{r summary-statistics, fig.cap="Chapter summary: Volatility trading offers premiums with tail risks requiring active risk management."}
+# Summary table
+summary_stats <- data.table(
+    Strategy = c("VRP Harvesting", "Mean Reversion", "Dispersion", "Correlation Timing"),
+    `Ann Return` = c("8-12%", "5-10%", "6-10%", "3-6%"),
+    `Sharpe` = c("0.4-0.8", "0.3-0.6", "0.5-0.9", "0.2-0.5"),
+    `Max DD` = c("-30% to -60%", "-20% to -40%", "-25% to -45%", "-15% to -25%"),
+    `Key Risk` = c("Vol spikes", "Regime change", "Correlation spike", "Persistence")
+)
+
+# Print as formatted table
+cat("\n==== Volatility Strategy Summary ====\n\n")
+print(summary_stats)
+cat("\nNote: Returns and Sharpes are illustrative ranges; actual results vary by implementation.\n")
+```

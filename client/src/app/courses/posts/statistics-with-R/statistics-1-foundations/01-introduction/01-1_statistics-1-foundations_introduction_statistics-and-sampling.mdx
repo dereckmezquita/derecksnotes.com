@@ -1,0 +1,359 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 1: Introduction to Statistics and Data"
+part: "Part 1: Statistics and Sampling"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, probability, data, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Chapter 1: Introduction to Statistics and Data
+
+This foundational chapter establishes the vocabulary and conceptual framework for statistical thinking. We explore what statistics is, why it matters, and how to think critically about data. By the end, you will understand the fundamental distinctions that underpin all statistical work: populations versus samples, parameters versus statistics, and the various types of variables we encounter in biomedical research.
+
+
+``` r
+box::use(
+    data.table,
+    ggplot2
+)
+```
+
+## Table of Contents
+
+## 1.1 What Is Statistics?
+
+Statistics is the science of learning from data under uncertainty. At its core, statistics provides a rigorous framework for collecting, organising, analysing, and interpreting information to make informed decisions when we cannot observe everything directly. Unlike deterministic mathematics where equations yield exact answers, statistics acknowledges that real-world data contain variability, and our conclusions must account for this inherent uncertainty.
+
+### 1.1.1 Statistics as the Science of Learning from Data
+
+Consider a physician who wishes to know whether a new drug reduces blood pressure more effectively than the current standard treatment. She cannot administer the drug to every person in the world who might benefit from it. Instead, she studies a carefully selected group of patients, measures their responses, and uses statistical methods to draw conclusions about how the drug would perform in the broader population.
+
+This scenario captures the essence of statistics: we have limited data but wish to make general statements. Statistics provides the mathematical machinery to do this responsibly, quantifying how confident we should be in our conclusions and identifying what remains uncertain.
+
+
+``` r
+set.seed(42)
+
+# Simulate a population and sample
+population_size <- 10000
+sample_size <- 100
+
+# True population parameters
+true_mean <- 120
+true_sd <- 15
+
+# Generate "population" of blood pressure readings
+population <- rnorm(population_size, mean = true_mean, sd = true_sd)
+
+# Take a random sample
+sample_indices <- sample(1:population_size, sample_size)
+sample_data <- population[sample_indices]
+
+# Create visualisation data
+plot_data <- data.table$data.table(
+    value = c(population, sample_data),
+    type = c(
+        rep("Population (N = 10,000)", population_size),
+        rep("Sample (n = 100)", sample_size)
+    )
+)
+
+ggplot2$ggplot(plot_data, ggplot2$aes(x = value, fill = type)) +
+    ggplot2$geom_density(alpha = 0.6) +
+    ggplot2$geom_vline(xintercept = true_mean, linetype = "dashed", colour = "red", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = mean(sample_data), linetype = "dotted", colour = "blue", linewidth = 1) +
+    ggplot2$labs(
+        title = "The Statistical Problem: Learning About Populations from Samples",
+        subtitle = paste0(
+            "Red dashed line: true population mean (\u03bc = ", true_mean, "); ",
+            "Blue dotted line: sample mean (x\u0304 = ", round(mean(sample_data), 1), ")"
+        ),
+        x = "Systolic Blood Pressure (mmHg)",
+        y = "Density",
+        fill = "Data Source"
+    ) +
+    ggplot2$scale_fill_manual(values = c("Population (N = 10,000)" = "#E69F00", "Sample (n = 100)" = "#56B4E9")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-1-foundations/statistics_essence-1.png" alt="Statistics bridges the gap between sample observations and population truth">
+	Statistics bridges the gap between sample observations and population truth
+</Figure>
+
+The figure above illustrates the fundamental statistical problem. We observe only the sample (blue), but we wish to learn about the population (orange). The sample mean differs slightly from the population mean. This difference is not an error but a natural consequence of sampling variability. Statistics tells us how to quantify this variability and how confident we can be that our sample reflects the population.
+
+### 1.1.2 A Brief History: From Census to Modern Data Science
+
+Statistical thinking has ancient roots. The word "statistics" derives from the Latin *status*, meaning "state", reflecting its origins in governmental record-keeping. Ancient civilisations conducted censuses to count populations and levy taxes. The Babylonians collected agricultural data around 3800 BCE, and the Egyptians surveyed their population for pyramid construction.
+
+The mathematical foundations of statistics emerged in the 17th and 18th centuries. Blaise Pascal and Pierre de Fermat developed probability theory whilst corresponding about gambling problems. Jacob Bernoulli proved the law of large numbers, showing that sample proportions converge to true probabilities as sample sizes increase. Thomas Bayes formulated his famous theorem on conditional probability, though it was published posthumously.
+
+The 19th century brought statistics into scientific practice. Adolphe Quetelet applied statistical methods to human characteristics, discovering that many biological measurements follow the normal distribution. Francis Galton developed correlation and regression whilst studying heredity. Karl Pearson formalised these methods and founded the world's first university statistics department at University College London in 1911.
+
+The 20th century saw an explosion of statistical methodology. Ronald Fisher revolutionised experimental design and developed methods still central to research today: analysis of variance, maximum likelihood estimation, and the concepts underlying randomised controlled trials. Jerzy Neyman and Egon Pearson formalised hypothesis testing and confidence intervals. The second half of the century brought computational statistics, including methods that would have been impossible without computers.
+
+Today, statistics underpins nearly all empirical research. From genomics to clinical trials, from economics to machine learning, statistical thinking provides the framework for evidence-based conclusions.
+
+### 1.1.3 Descriptive vs Inferential Statistics
+
+Statistics divides into two complementary branches:
+
+**Descriptive statistics** summarises and organises data we have observed. When we calculate an average, create a histogram, or report that 60% of patients responded to treatment, we are describing our data. Descriptive statistics makes no claims beyond the data at hand; it simply characterises what we have observed.
+
+**Inferential statistics** uses sample data to draw conclusions about larger populations. When we calculate a confidence interval, test a hypothesis, or make a prediction, we are using our limited sample to make statements about the broader world. Inference requires probability theory to quantify uncertainty.
+
+
+``` r
+set.seed(123)
+
+# Generate clinical trial data
+n_treatment <- 50
+n_control <- 50
+
+treatment_response <- rbinom(n_treatment, 1, prob = 0.65)
+control_response <- rbinom(n_control, 1, prob = 0.45)
+
+trial_data <- data.table$data.table(
+    group = c(rep("Treatment", n_treatment), rep("Control", n_control)),
+    response = c(treatment_response, control_response)
+)
+
+# Descriptive statistics
+descriptive_summary <- trial_data[, .(
+    n = .N,
+    responders = sum(response),
+    proportion = mean(response)
+), by = group]
+
+# Inferential statistics: Wilson score interval for proportions
+wilson_ci <- function(x, n, conf_level = 0.95) {
+    p_hat <- x / n
+    z <- qnorm(1 - (1 - conf_level) / 2)
+
+    denom <- 1 + z^2 / n
+    centre <- (p_hat + z^2 / (2 * n)) / denom
+    margin <- z * sqrt(p_hat * (1 - p_hat) / n + z^2 / (4 * n^2)) / denom
+
+    c(lower = centre - margin, upper = centre + margin)
+}
+
+descriptive_summary[, c("ci_lower", "ci_upper") := {
+    ci <- wilson_ci(responders, n)
+    list(ci[1], ci[2])
+}, by = group]
+
+print(descriptive_summary)
+
+# Visualise
+ggplot2$ggplot(descriptive_summary, ggplot2$aes(x = group, y = proportion, fill = group)) +
+    ggplot2$geom_bar(stat = "identity", width = 0.6, alpha = 0.8) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = ci_lower, ymax = ci_upper), width = 0.2, linewidth = 1) +
+    ggplot2$geom_text(ggplot2$aes(label = paste0(round(proportion * 100, 1), "%")),
+              vjust = -0.5, size = 5) +
+    ggplot2$labs(
+        title = "Clinical Trial Results: Treatment vs Control",
+        subtitle = "Error bars show 95% confidence intervals (inferential statistics)",
+        x = "Group",
+        y = "Response Proportion",
+        caption = "Bar heights are descriptive; error bars are inferential"
+    ) +
+    ggplot2$scale_fill_manual(values = c("Control" = "#999999", "Treatment" = "#0072B2")) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/statistics-1-foundations/descriptive_vs_inferential-1.png" alt="Descriptive statistics summarises data; inferential statistics generalises to populations">
+	Descriptive statistics summarises data; inferential statistics generalises to populations
+</Figure>
+
+```
+#>        group     n responders proportion  ci_lower  ci_upper
+#>       <char> <int>      <int>      <num>     <num>     <num>
+#> 1: Treatment    50         31       0.62 0.4815045 0.7413721
+#> 2:   Control    50         21       0.42 0.2937500 0.5576656
+```
+
+In the figure above, the bar heights represent descriptive statistics; they simply report what we observed in our sample. The error bars represent inferential statistics; they tell us the range of plausible values for the true population proportion, accounting for sampling variability.
+
+### 1.1.4 The Role of Statistics in Biomedical Research
+
+Statistics is the backbone of modern biomedical research. Every clinical trial, every epidemiological study, every genomic analysis relies on statistical methods to separate signal from noise and draw valid conclusions.
+
+In **clinical trials**, statistics enables us to determine whether treatments work, how well they work, and in whom they work best. The randomised controlled trial, widely considered the gold standard for establishing causation, is a statistical invention. Statistical methods determine sample sizes, randomisation schemes, and the criteria for concluding that a treatment is effective.
+
+In **epidemiology**, statistics helps us identify risk factors for disease and quantify how strongly they associate with outcomes. Concepts like relative risk, odds ratios, and attributable risk are statistical measures that guide public health decisions.
+
+In **genomics and bioinformatics**, statistics addresses the "curse of dimensionality": the challenge of analysing thousands or millions of variables (genes) when we have relatively few samples (patients). Multiple testing corrections, false discovery rates, and machine learning methods are statistical tools essential for high-dimensional biology.
+
+In **diagnostic medicine**, statistics underpins our understanding of test accuracy. Sensitivity, specificity, positive predictive value, and negative predictive value are all statistical concepts that help clinicians interpret test results and communicate risk to patients.
+
+## 1.2 Populations and Samples
+
+The distinction between populations and samples is the foundation upon which all of statistical inference rests. Understanding this distinction, and the notation that accompanies it, is essential before proceeding further.
+
+### 1.2.1 Defining the Population of Interest
+
+A **population** is the complete collection of individuals or objects about which we wish to draw conclusions. Defining the population precisely is a critical first step that researchers often overlook.
+
+Consider a researcher studying hypertension. She might define her population as "all adults in the United Kingdom with systolic blood pressure exceeding 140 mmHg." This definition specifies who is included (adults), where they are located (UK), and what characteristic qualifies them (hypertension). The population is finite but very large, numbering millions of people.
+
+Alternatively, the population might be conceptual. A researcher studying a new drug might define the population as "all future patients who might receive this treatment." This population is infinite and hypothetical; it includes people who have not yet been born.
+
+The population definition determines to whom our conclusions apply. If we study only patients at a single hospital in London, our conclusions may not generalise to rural populations or to other countries. This limitation is not a failure of statistics but a reminder that careful population definition is essential.
+
+### 1.2.2 Why We Sample: Practical and Theoretical Reasons
+
+In nearly all situations, studying the entire population is impractical or impossible:
+
+**Cost and time**: A census of all UK hypertensive adults would require examining millions of people, which is prohibitively expensive and time-consuming for most research purposes.
+
+**Destructive testing**: In quality control, testing whether a light bulb works requires turning it on until it burns out. Testing every bulb would leave none to sell.
+
+**Infinite populations**: When the population is conceptual (future patients), we cannot possibly observe all members.
+
+**Ethical constraints**: In clinical trials, we cannot expose everyone to an experimental treatment. We study samples to determine whether broader use is warranted.
+
+The remarkable fact, proven mathematically through probability theory, is that carefully selected samples can tell us a great deal about populations. A well-designed survey of 1,000 people can accurately estimate the opinions of millions.
+
+### 1.2.3 Parameters vs Statistics: The Fundamental Distinction
+
+A **parameter** is a numerical characteristic of a population. Parameters are typically fixed but unknown; they are the quantities we wish to learn about.
+
+A **statistic** is a numerical characteristic of a sample. Statistics are calculated from our data and are therefore known, but they vary from sample to sample.
+
+This distinction is so fundamental that we use different notation:
+
+| Quantity | Parameter (Population) | Statistic (Sample) |
+|----------|------------------------|-------------------|
+| Mean | μ (mu) | x̄ (x-bar) |
+| Standard deviation | σ (sigma) | s |
+| Proportion | π (pi) or p | p̂ (p-hat) |
+| Correlation | ρ (rho) | r |
+| Regression coefficient | β (beta) | b or β̂ (beta-hat) |
+| Size | N | n |
+
+Greek letters typically denote parameters; Roman letters denote statistics. The "hat" symbol (^) indicates an estimator or estimate of a parameter.
+
+
+``` r
+set.seed(456)
+
+# True population parameter
+mu <- 100
+sigma <- 15
+
+# Draw many samples and calculate sample means
+n_samples <- 1000
+sample_size <- 30
+
+sample_means <- replicate(n_samples, {
+    sample_data <- rnorm(sample_size, mean = mu, sd = sigma)
+    mean(sample_data)
+})
+
+# Create histogram of sample means
+sampling_dist <- data.table$data.table(sample_mean = sample_means)
+
+ggplot2$ggplot(sampling_dist, ggplot2$aes(x = sample_mean)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
+                   fill = "#56B4E9", colour = "white", alpha = 0.8) +
+    ggplot2$geom_density(colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = mu, colour = "red", linetype = "dashed", linewidth = 1.2) +
+    ggplot2$labs(
+        title = "Statistics Vary; Parameters Are Fixed",
+        subtitle = paste0(
+            "Each sample of n = ", sample_size, " yields a different x\u0304. ",
+            "The true \u03bc = ", mu, " is fixed (red line)."
+        ),
+        x = "Sample Mean (x\u0304)",
+        y = "Density",
+        caption = paste0("Distribution of ", n_samples, " sample means")
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-1-foundations/parameter_vs_statistic-1.png" alt="Statistics vary from sample to sample; parameters are fixed">
+	Statistics vary from sample to sample; parameters are fixed
+</Figure>
+
+### 1.2.4 The Goal of Inference: Learning About Populations from Samples
+
+The central problem of statistics is this: we observe a sample and wish to make statements about the population. We calculate statistics and wish to learn about parameters.
+
+This presents two challenges:
+
+1. **Point estimation**: What single value best represents the unknown parameter? If our sample mean is x̄ = 98.5, is this our best guess for μ?
+
+2. **Uncertainty quantification**: How confident should we be in this estimate? Could μ plausibly be 95? 102? 150?
+
+Statistical inference provides formal methods for both tasks. Point estimators give us single "best guesses" for parameters, and interval estimators (confidence intervals) quantify plausible ranges. Hypothesis tests assess whether data are compatible with specific hypotheses about parameters.
+
+### 1.2.5 Notation Conventions
+
+Throughout this course, we adopt standard notation conventions:
+
+- **Random variables** (before data are observed) use capital letters: X, Y, Z
+- **Observed values** (after data collection) use lowercase letters: x, y, z
+- **Sample size** is denoted n (or n₁, n₂ for different groups)
+- **Population size** is denoted N
+- **Indices** typically use subscripts: xᵢ denotes the i-th observation
+- **Summation** uses sigma notation: $\sum_{i=1}^{n} x_i$ means add all observations
+
+When we write X ~ N(μ, σ²), we mean "X follows a normal distribution with mean μ and variance σ²." The tilde (~) indicates "is distributed as."
+
+---
+
+## Communicating to Stakeholders
+
+When explaining these concepts to collaborators or non-technical audiences:
+
+**On what statistics is:**
+> "Statistics is how we learn from incomplete information. We cannot study everyone, so we study a carefully chosen sample and use mathematics to understand what that sample tells us about the whole population."
+
+**On populations and samples:**
+> "Think of it this way: we cannot taste every grain of rice in the pot to know if it is done. We taste a few grains, a sample, and draw conclusions about the whole pot. Statistics tells us how confident we can be that those few grains represent the rest."
+
+**On parameters vs statistics:**
+> "A parameter is the truth we are trying to discover, but cannot observe directly. A statistic is what we calculate from our sample. The sample mean is our best estimate of the true mean, but it will not be exactly right. Statistics tells us how far off we might be."
+
+---
+
+## Quick Reference
+
+### Key Terminology
+
+| Term | Definition |
+|------|------------|
+| Population | Complete collection of individuals about which we wish to draw conclusions |
+| Sample | Subset of the population actually observed |
+| Parameter | Numerical characteristic of a population (Greek letters: μ, σ, π) |
+| Statistic | Numerical characteristic of a sample (Roman letters: x̄, s, p̂) |
+| Descriptive statistics | Methods for summarising observed data |
+| Inferential statistics | Methods for drawing conclusions about populations from samples |
+
+### Notation Conventions
+
+| Symbol | Name | Represents |
+|--------|------|------------|
+| μ | mu | Population mean |
+| σ | sigma | Population standard deviation |
+| σ² | sigma squared | Population variance |
+| π or p | pi | Population proportion |
+| ρ | rho | Population correlation |
+| β | beta | Population regression coefficient |
+| θ | theta | Generic parameter |
+| x̄ | x-bar | Sample mean |
+| s | s | Sample standard deviation |
+| p̂ | p-hat | Sample proportion |
+| n | n | Sample size |
+| N | N | Population size |

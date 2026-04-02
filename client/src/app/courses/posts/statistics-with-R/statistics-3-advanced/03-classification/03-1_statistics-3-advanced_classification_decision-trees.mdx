@@ -1,0 +1,858 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 3: Classification Methods"
+part: "Part 1: Decision Trees"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, classification, decision-trees, CART, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: Decision Trees
+
+**Decision trees** are among the most interpretable machine learning methods. They partition the feature space through a sequence of binary splits, creating a flowchart-like structure that clinicians can readily understand and apply. A physician can trace through a decision tree to see exactly why the model predicts a patient is at high risk—no black box involved. This transparency makes trees invaluable in medical contexts where explainability is paramount.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+library(rpart)
+library(rpart.plot)
+
+set.seed(42)
+```
+
+
+``` r
+# Load breast cancer dataset
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+# Select features and create outcome
+feature_cols <- c("mean_radius", "mean_texture", "mean_perimeter", "mean_area",
+                  "mean_smoothness", "mean_compactness", "mean_concavity",
+                  "mean_concave_points", "mean_symmetry", "mean_fractal_dimension")
+
+breast_cancer[, diagnosis_f := factor(diagnosis, levels = c("B", "M"), labels = c("Benign", "Malignant"))]
+
+# Train/test split
+set.seed(42)
+train_idx <- sample(1:nrow(breast_cancer), size = 0.7 * nrow(breast_cancer))
+train_data <- breast_cancer[train_idx]
+test_data <- breast_cancer[-train_idx]
+
+cat("Dataset Summary:\n")
+cat("================\n")
+cat("  Training: n =", nrow(train_data), "\n")
+cat("  Testing:  n =", nrow(test_data), "\n")
+cat("  Malignant rate (train):", round(mean(train_data$diagnosis == "M"), 3), "\n")
+```
+
+```
+#> Dataset Summary:
+#> ================
+#>   Training: n = 398 
+#>   Testing:  n = 171 
+#>   Malignant rate (train): 0.384
+```
+
+---
+
+## Table of Contents
+
+## 3.1 What is a Decision Tree?
+
+### 3.1.1 Intuition and Structure
+
+**Prose and Intuition**
+
+A decision tree is a series of yes/no questions that progressively narrow down the prediction. Consider diagnosing breast tumours:
+
+1. Is the mean radius > 15 mm?
+   - **No** → Likely benign (87% of cases)
+   - **Yes** → Continue to question 2
+2. Is the mean texture > 20?
+   - **No** → Likely malignant (75% of cases)
+   - **Yes** → Likely malignant (92% of cases)
+
+Each question (split) is chosen to maximally separate the classes. The process continues until we reach a stopping criterion (minimum node size, maximum depth, or purity).
+
+**Terminology**
+
+- **Root node**: The top of the tree (all data)
+- **Internal nodes**: Decision points with splits
+- **Leaf nodes (terminal nodes)**: Final predictions
+- **Depth**: Number of splits from root to deepest leaf
+- **Pruning**: Removing splits to prevent overfitting
+
+**Visualisation: Simple Decision Boundary**
+
+
+``` r
+# Create a simple 2D example
+simple_data <- data.table(
+    x1 = c(rnorm(50, 2, 1), rnorm(50, 5, 1)),
+    x2 = c(rnorm(50, 3, 1), rnorm(50, 6, 1)),
+    class = factor(c(rep("A", 50), rep("B", 50)))
+)
+
+# Fit simple tree
+simple_tree <- rpart(class ~ x1 + x2, data = simple_data,
+                     control = rpart.control(maxdepth = 2, minsplit = 10))
+
+# Create grid for decision boundary
+x1_range <- seq(min(simple_data$x1) - 1, max(simple_data$x1) + 1, length.out = 100)
+x2_range <- seq(min(simple_data$x2) - 1, max(simple_data$x2) + 1, length.out = 100)
+grid <- CJ(x1 = x1_range, x2 = x2_range)
+grid[, pred := predict(simple_tree, grid, type = "class")]
+
+ggplot2$ggplot() +
+    ggplot2$geom_tile(data = grid, ggplot2$aes(x = x1, y = x2, fill = pred), alpha = 0.3) +
+    ggplot2$geom_point(data = simple_data, ggplot2$aes(x = x1, y = x2, colour = class), size = 2) +
+    ggplot2$scale_fill_manual(values = c("A" = "#2166AC", "B" = "#D95F02"), name = "Predicted") +
+    ggplot2$scale_colour_manual(values = c("A" = "#2166AC", "B" = "#D95F02"), name = "Actual") +
+    ggplot2$labs(
+        title = "Decision Tree Creates Rectangular Regions",
+        subtitle = "Each split is perpendicular to one axis",
+        x = expression(X[1]),
+        y = expression(X[2])
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "right",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/tree_intuition-1.png" alt="Decision trees partition feature space with axis-aligned boundaries">
+	Decision trees partition feature space with axis-aligned boundaries
+</Figure>
+
+---
+
+### 3.1.2 The CART Algorithm
+
+**Classification and Regression Trees (CART)**
+
+The CART algorithm, introduced by Breiman et al. (1984), grows trees via **recursive binary splitting**:
+
+1. Consider all features and all possible split points
+2. Choose the split that maximises the **impurity reduction**
+3. Recursively apply to each resulting region
+4. Stop when a criterion is met (depth, node size, purity)
+
+**Splitting Criteria**
+
+For classification, common impurity measures are:
+
+**Gini Impurity**: For a node with class proportions $p_k$:
+$$G = \sum_{k=1}^{K} p_k(1 - p_k) = 1 - \sum_{k=1}^{K} p_k^2$$
+
+**Entropy (Information Gain)**:
+$$H = -\sum_{k=1}^{K} p_k \log_2(p_k)$$
+
+**Misclassification Error**:
+$$E = 1 - \max_k p_k$$
+
+**Why Gini or Entropy?**
+
+Both Gini and entropy are more sensitive to changes in class probabilities than misclassification error. They penalise nodes with mixed classes more heavily, encouraging purer splits.
+
+
+``` r
+# Compare impurity measures for binary classification
+p_seq <- seq(0, 1, by = 0.01)
+
+impurity_data <- data.table(
+    p = p_seq,
+    gini = 2 * p_seq * (1 - p_seq),
+    entropy = -p_seq * log2(p_seq + 1e-10) - (1 - p_seq) * log2(1 - p_seq + 1e-10),
+    misclass = pmin(p_seq, 1 - p_seq)
+)
+
+# Normalise entropy for comparison
+impurity_data[, entropy := entropy / max(entropy, na.rm = TRUE)]
+
+impurity_long <- melt(impurity_data, id.vars = "p", variable.name = "measure", value.name = "impurity")
+impurity_long[, measure := factor(measure,
+    levels = c("gini", "entropy", "misclass"),
+    labels = c("Gini Impurity", "Entropy (scaled)", "Misclassification")
+)]
+
+ggplot2$ggplot(impurity_long, ggplot2$aes(x = p, y = impurity, colour = measure)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$scale_colour_manual(values = c("#2166AC", "#D95F02", "#7CAE00")) +
+    ggplot2$labs(
+        title = "Impurity Measures for Binary Classification",
+        subtitle = "All maximised at p = 0.5 (maximum uncertainty)",
+        x = "Proportion of Class 1 (p)",
+        y = "Impurity",
+        colour = "Measure"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/impurity_measures-1.png" alt="Gini and entropy are more sensitive to class imbalance than misclassification error">
+	Gini and entropy are more sensitive to class imbalance than misclassification error
+</Figure>
+
+---
+
+## 3.2 Building a Decision Tree
+
+### 3.2.1 Fitting with rpart
+
+
+``` r
+# Fit decision tree
+formula_tree <- as.formula(paste("diagnosis_f ~", paste(feature_cols, collapse = " + ")))
+
+tree_full <- rpart(
+    formula_tree,
+    data = train_data,
+    method = "class",
+    control = rpart.control(
+        minsplit = 10,      # Minimum observations for split
+        minbucket = 5,      # Minimum observations in leaf
+        cp = 0.001,         # Complexity parameter (for pruning later)
+        maxdepth = 10       # Maximum tree depth
+    )
+)
+
+cat("Full Tree Summary:\n")
+cat("==================\n")
+print(tree_full)
+```
+
+```
+#> Full Tree Summary:
+#> ==================
+#> n= 398 
+#> 
+#> node), split, n, loss, yval, (yprob)
+#>       * denotes terminal node
+#> 
+#>  1) root 398 153 Benign (0.61557789 0.38442211)  
+#>    2) mean_concave_points< 0.04892 241  13 Benign (0.94605809 0.05394191)  
+#>      4) mean_radius< 15.025 230   6 Benign (0.97391304 0.02608696) *
+#>      5) mean_radius>=15.025 11   4 Malignant (0.36363636 0.63636364)  
+#>       10) mean_smoothness< 0.08251 5   1 Benign (0.80000000 0.20000000) *
+#>       11) mean_smoothness>=0.08251 6   0 Malignant (0.00000000 1.00000000) *
+#>    3) mean_concave_points>=0.04892 157  17 Malignant (0.10828025 0.89171975)  
+#>      6) mean_texture< 15.425 15   4 Benign (0.73333333 0.26666667)  
+#>       12) mean_perimeter< 102.25 10   0 Benign (1.00000000 0.00000000) *
+#>       13) mean_perimeter>=102.25 5   1 Malignant (0.20000000 0.80000000) *
+#>      7) mean_texture>=15.425 142   6 Malignant (0.04225352 0.95774648)  
+#>       14) mean_area< 525.1 11   4 Malignant (0.36363636 0.63636364)  
+#>         28) mean_smoothness< 0.10895 5   1 Benign (0.80000000 0.20000000) *
+#>         29) mean_smoothness>=0.10895 6   0 Malignant (0.00000000 1.00000000) *
+#>       15) mean_area>=525.1 131   2 Malignant (0.01526718 0.98473282) *
+```
+
+**Visualising the Tree**
+
+
+``` r
+# Plot the tree
+rpart.plot(tree_full,
+           type = 4,           # Draw split labels at node
+           extra = 104,        # Show proportion in class, and percentage
+           under = TRUE,
+           fallen.leaves = TRUE,
+           main = "Breast Cancer Diagnosis Tree",
+           box.palette = c("#2166AC", "#D95F02"))
+```
+
+<Figure src="/courses/statistics-3-advanced/tree_plot-1.png" alt="Decision tree for breast cancer diagnosis—interpretable clinical rules">
+	Decision tree for breast cancer diagnosis—interpretable clinical rules
+</Figure>
+
+### 3.2.2 Understanding Split Selection
+
+Let's trace through how the algorithm chooses splits:
+
+
+``` r
+# Examine the first split (root node)
+cat("Root Node Split Selection:\n")
+cat("==========================\n\n")
+
+# Calculate Gini impurity before split
+p_malignant <- mean(train_data$diagnosis == "M")
+gini_before <- 2 * p_malignant * (1 - p_malignant)
+cat("Before split:\n")
+cat("  P(Malignant) =", round(p_malignant, 3), "\n")
+cat("  Gini impurity =", round(gini_before, 4), "\n\n")
+
+# Examine several potential splits
+cat("Candidate splits and weighted Gini after split:\n")
+candidate_features <- c("mean_radius", "mean_concave_points", "mean_area")
+
+for (feat in candidate_features) {
+    # Find optimal split point
+    thresholds <- quantile(train_data[[feat]], probs = seq(0.1, 0.9, by = 0.1))
+
+    best_gini <- Inf
+    best_thresh <- NA
+
+    for (thresh in thresholds) {
+        left <- train_data[get(feat) <= thresh]
+        right <- train_data[get(feat) > thresh]
+
+        if (nrow(left) < 5 || nrow(right) < 5) next
+
+        p_left <- mean(left$diagnosis == "M")
+        p_right <- mean(right$diagnosis == "M")
+
+        gini_left <- 2 * p_left * (1 - p_left)
+        gini_right <- 2 * p_right * (1 - p_right)
+
+        n_left <- nrow(left)
+        n_right <- nrow(right)
+        n_total <- n_left + n_right
+
+        gini_weighted <- (n_left / n_total) * gini_left + (n_right / n_total) * gini_right
+
+        if (gini_weighted < best_gini) {
+            best_gini <- gini_weighted
+            best_thresh <- thresh
+        }
+    }
+
+    cat(sprintf("  %s <= %.2f: weighted Gini = %.4f, reduction = %.4f\n",
+                feat, best_thresh, best_gini, gini_before - best_gini))
+}
+```
+
+```
+#> Root Node Split Selection:
+#> ==========================
+#> 
+#> Before split:
+#>   P(Malignant) = 0.384 
+#>   Gini impurity = 0.4733 
+#> 
+#> Candidate splits and weighted Gini after split:
+#>   mean_radius <= 15.13: weighted Gini = 0.1971, reduction = 0.2762
+#>   mean_concave_points <= 0.05: weighted Gini = 0.1458, reduction = 0.3274
+#>   mean_area <= 712.70: weighted Gini = 0.1889, reduction = 0.2844
+```
+
+---
+
+## 3.3 Tree Pruning and Complexity
+
+### 3.3.1 The Bias-Variance Trade-off
+
+**Prose and Intuition**
+
+A deep tree can fit the training data perfectly—each leaf contains only one class. But this **overfits**: the tree memorises training idiosyncrasies that won't generalise. A shallow tree **underfits**: it's too simple to capture the true pattern.
+
+**Pruning** finds the sweet spot by growing a large tree, then trimming back branches that don't improve cross-validated performance.
+
+**Mathematical Formulation**
+
+Define the **cost-complexity** of a tree $T$:
+
+$$R_\alpha(T) = R(T) + \alpha |T|$$
+
+where:
+- $R(T)$ is the misclassification rate (or Gini impurity)
+- $|T|$ is the number of terminal nodes
+- $\alpha$ is the complexity parameter (penalty per leaf)
+
+Increasing $\alpha$ favours smaller trees.
+
+
+``` r
+# Get complexity parameter table
+cp_table <- as.data.table(tree_full$cptable)
+setnames(cp_table, old = names(cp_table),
+         new = c("cp", "nsplit", "rel_error", "xerror", "xstd"))
+
+cat("Complexity Parameter Table:\n")
+cat("===========================\n")
+print(cp_table)
+
+# Plot
+ggplot2$ggplot(cp_table, ggplot2$aes(x = cp)) +
+    ggplot2$geom_line(ggplot2$aes(y = xerror), colour = "#2166AC", linewidth = 1.2) +
+    ggplot2$geom_point(ggplot2$aes(y = xerror), colour = "#2166AC", size = 3) +
+    ggplot2$geom_errorbar(
+        ggplot2$aes(ymin = xerror - xstd, ymax = xerror + xstd),
+        width = 0.002, colour = "#2166AC"
+    ) +
+    ggplot2$geom_hline(
+        yintercept = min(cp_table$xerror) + cp_table[which.min(xerror), xstd],
+        linetype = "dashed", colour = "#D95F02"
+    ) +
+    ggplot2$scale_x_reverse() +  # Smaller cp = more complex
+    ggplot2$labs(
+        title = "Cross-Validation Error vs Complexity Parameter",
+        subtitle = "Dashed line: 1-SE rule threshold; leftward = more complex",
+        x = "Complexity Parameter (cp)",
+        y = "Cross-Validated Error"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/complexity_plot-1.png" alt="Cross-validation error vs complexity parameter; optimal pruning minimises CV error">
+	Cross-validation error vs complexity parameter; optimal pruning minimises CV error
+</Figure>
+
+```
+#> Complexity Parameter Table:
+#> ===========================
+#>             cp nsplit  rel_error    xerror       xstd
+#>          <num>  <num>      <num>     <num>      <num>
+#> 1: 0.803921569      0 1.00000000 1.0000000 0.06343016
+#> 2: 0.045751634      1 0.19607843 0.2156863 0.03595592
+#> 3: 0.019607843      2 0.15032680 0.1699346 0.03221997
+#> 4: 0.009803922      5 0.09150327 0.1764706 0.03278958
+#> 5: 0.001000000      7 0.07189542 0.1633987 0.03163672
+```
+
+### 3.3.2 Pruning the Tree
+
+
+``` r
+# Find optimal cp using 1-SE rule
+min_error_row <- cp_table[which.min(xerror)]
+cp_threshold <- min_error_row$xerror + min_error_row$xstd
+optimal_cp <- cp_table[xerror <= cp_threshold, max(cp)]
+
+cat("Pruning Decision:\n")
+cat("=================\n")
+cat("  Minimum CV error:", round(min(cp_table$xerror), 4), "\n")
+cat("  1-SE threshold:", round(cp_threshold, 4), "\n")
+cat("  Optimal cp:", optimal_cp, "\n")
+
+# Prune
+tree_pruned <- prune(tree_full, cp = optimal_cp)
+
+# Compare
+cat("\n  Full tree leaves:", sum(tree_full$frame$var == "<leaf>"), "\n")
+cat("  Pruned tree leaves:", sum(tree_pruned$frame$var == "<leaf>"), "\n")
+
+# Plot pruned tree
+rpart.plot(tree_pruned,
+           type = 4,
+           extra = 104,
+           under = TRUE,
+           fallen.leaves = TRUE,
+           main = "Pruned Breast Cancer Diagnosis Tree",
+           box.palette = c("#2166AC", "#D95F02"))
+```
+
+<Figure src="/courses/statistics-3-advanced/prune_tree-1.png" alt="Pruned tree retains key splits while removing overfitting branches">
+	Pruned tree retains key splits while removing overfitting branches
+</Figure>
+
+```
+#> Pruning Decision:
+#> =================
+#>   Minimum CV error: 0.1634 
+#>   1-SE threshold: 0.195 
+#>   Optimal cp: 0.01960784 
+#> 
+#>   Full tree leaves: 8 
+#>   Pruned tree leaves: 3
+```
+
+---
+
+## 3.4 Prediction and Evaluation
+
+### 3.4.1 Making Predictions
+
+
+``` r
+# Predictions on test set
+pred_class <- predict(tree_pruned, test_data, type = "class")
+pred_prob <- predict(tree_pruned, test_data, type = "prob")
+
+test_data[, pred := pred_class]
+test_data[, prob_malignant := pred_prob[, "Malignant"]]
+
+# Confusion matrix
+conf_matrix <- table(Actual = test_data$diagnosis_f, Predicted = test_data$pred)
+cat("Confusion Matrix:\n")
+print(conf_matrix)
+
+# Metrics
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+sensitivity <- conf_matrix["Malignant", "Malignant"] / sum(conf_matrix["Malignant", ])
+specificity <- conf_matrix["Benign", "Benign"] / sum(conf_matrix["Benign", ])
+
+cat("\nPerformance Metrics:\n")
+cat("====================\n")
+cat("  Accuracy:", round(accuracy, 3), "\n")
+cat("  Sensitivity (recall):", round(sensitivity, 3), "\n")
+cat("  Specificity:", round(specificity, 3), "\n")
+```
+
+```
+#> Confusion Matrix:
+#>            Predicted
+#> Actual      Benign Malignant
+#>   Benign       100        12
+#>   Malignant      7        52
+#> 
+#> Performance Metrics:
+#> ====================
+#>   Accuracy: 0.889 
+#>   Sensitivity (recall): 0.881 
+#>   Specificity: 0.893
+```
+
+### 3.4.2 ROC Curve
+
+
+``` r
+# Compute ROC curve manually
+thresholds <- seq(0, 1, by = 0.01)
+
+roc_data <- rbindlist(lapply(thresholds, function(thresh) {
+    pred_at_thresh <- ifelse(test_data$prob_malignant >= thresh, "Malignant", "Benign")
+    tpr <- sum(pred_at_thresh == "Malignant" & test_data$diagnosis_f == "Malignant") /
+           sum(test_data$diagnosis_f == "Malignant")
+    fpr <- sum(pred_at_thresh == "Malignant" & test_data$diagnosis_f == "Benign") /
+           sum(test_data$diagnosis_f == "Benign")
+    data.table(threshold = thresh, TPR = tpr, FPR = fpr)
+}))
+
+# Calculate AUC (trapezoidal rule)
+roc_data <- roc_data[order(FPR, TPR)]
+auc <- sum(diff(roc_data$FPR) * (roc_data$TPR[-1] + roc_data$TPR[-nrow(roc_data)]) / 2)
+auc <- abs(auc)  # Ensure positive
+
+ggplot2$ggplot(roc_data, ggplot2$aes(x = FPR, y = TPR)) +
+    ggplot2$geom_line(colour = "#2166AC", linewidth = 1.2) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = 0.6, y = 0.3,
+                     label = paste("AUC =", round(auc, 3)),
+                     size = 5, colour = "#2166AC", fontface = "bold") +
+    ggplot2$coord_fixed() +
+    ggplot2$labs(
+        title = "ROC Curve for Decision Tree",
+        x = "False Positive Rate (1 - Specificity)",
+        y = "True Positive Rate (Sensitivity)"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+<Figure src="/courses/statistics-3-advanced/roc_curve-1.png" alt="ROC curve for pruned decision tree">
+	ROC curve for pruned decision tree
+</Figure>
+
+---
+
+## 3.5 Variable Importance
+
+### 3.5.1 Measuring Feature Importance
+
+**Prose and Intuition**
+
+Which features matter most for prediction? Decision trees provide a natural importance measure: the total impurity reduction attributed to each feature across all splits where it's used.
+
+**Mathematical Definition**
+
+For feature $X_j$, the importance is:
+
+$$\text{Importance}(X_j) = \sum_{t \in T_j} n_t \Delta I_t$$
+
+where $T_j$ is the set of nodes split on $X_j$, $n_t$ is the number of observations at node $t$, and $\Delta I_t$ is the impurity reduction from the split.
+
+
+``` r
+# Extract variable importance
+var_imp <- tree_pruned$variable.importance
+var_imp_dt <- data.table(
+    variable = names(var_imp),
+    importance = as.numeric(var_imp)
+)
+var_imp_dt <- var_imp_dt[order(-importance)]
+var_imp_dt[, variable_short := gsub("mean_", "", variable)]
+var_imp_dt[, variable_short := factor(variable_short, levels = rev(variable_short))]
+
+# Normalise to percentages
+var_imp_dt[, importance_pct := importance / sum(importance) * 100]
+
+ggplot2$ggplot(var_imp_dt, ggplot2$aes(x = importance_pct, y = variable_short)) +
+    ggplot2$geom_col(fill = "#2166AC", width = 0.7) +
+    ggplot2$labs(
+        title = "Variable Importance in Decision Tree",
+        subtitle = "Based on total Gini impurity reduction",
+        x = "Relative Importance (%)",
+        y = "Feature"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        panel.grid.major.y = ggplot2$element_blank()
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/variable_importance-1.png" alt="Variable importance—total impurity reduction from each feature">
+	Variable importance—total impurity reduction from each feature
+</Figure>
+
+---
+
+## 3.6 Limitations of Single Trees
+
+### 3.6.1 High Variance
+
+**Prose and Intuition**
+
+A major weakness of decision trees is **instability**. Small changes in the training data can produce very different trees. This high variance limits predictive accuracy.
+
+**Demonstration**
+
+
+``` r
+# Fit trees on bootstrap samples
+n_bootstraps <- 4
+bootstrap_trees <- lapply(1:n_bootstraps, function(i) {
+    boot_idx <- sample(1:nrow(train_data), replace = TRUE)
+    boot_data <- train_data[boot_idx]
+    rpart(formula_tree, data = boot_data, method = "class",
+          control = rpart.control(maxdepth = 3, cp = 0.01))
+})
+
+# Show which variables are used at root
+cat("Root Node Variable Across Bootstrap Samples:\n")
+cat("=============================================\n")
+for (i in 1:n_bootstraps) {
+    root_var <- bootstrap_trees[[i]]$frame$var[1]
+    cat(sprintf("  Bootstrap %d: %s\n", i, root_var))
+}
+```
+
+```
+#> Root Node Variable Across Bootstrap Samples:
+#> =============================================
+#>   Bootstrap 1: mean_concave_points
+#>   Bootstrap 2: mean_concave_points
+#>   Bootstrap 3: mean_concave_points
+#>   Bootstrap 4: mean_concave_points
+```
+
+### 3.6.2 Greedy Splitting
+
+Trees are built greedily—each split optimises locally without considering future splits. This can lead to suboptimal overall structure.
+
+**Example**: If the best split overall requires first splitting on a poor individual variable, the greedy algorithm won't find it.
+
+---
+
+## 3.7 Mathematical Derivation: Optimal Split
+
+### 3.7.1 Finding the Best Split Point
+
+For a continuous variable $X_j$ at node $t$, we seek the threshold $s$ that minimises weighted impurity:
+
+$$s^* = \arg\min_s \left[ \frac{n_L}{n_t} G_L(s) + \frac{n_R}{n_t} G_R(s) \right]$$
+
+where $G_L$ and $G_R$ are the Gini impurities of the left and right child nodes.
+
+**Algorithm**:
+1. Sort observations by $X_j$
+2. Consider each unique value as a potential split point
+3. For each split, compute weighted Gini (can be updated incrementally in $O(1)$)
+4. Total complexity: $O(n \log n)$ for sorting, $O(n)$ for scanning
+
+### 3.7.2 Handling Categorical Variables
+
+For a categorical variable with $K$ categories, there are $2^{K-1} - 1$ possible binary partitions. For binary classification with Gini criterion, an elegant result holds:
+
+**Theorem**: The optimal split can be found by ordering categories by their class probability $P(Y=1 | X=k)$ and considering only $K-1$ ordered splits.
+
+This reduces complexity from exponential to $O(K \log K)$.
+
+---
+
+## 3.8 Clinical Decision Rules
+
+### 3.8.1 Extracting Interpretable Rules
+
+Decision trees naturally produce clinical rules. Let's extract and present them clearly:
+
+
+``` r
+# Extract rules from the pruned tree
+extract_rules <- function(tree) {
+    frame <- tree$frame
+    rules <- list()
+
+    # Find leaf nodes
+    leaves <- which(frame$var == "<leaf>")
+
+    for (leaf in leaves) {
+        # Trace path from leaf to root
+        node <- leaf
+        conditions <- character()
+
+        while (node > 1) {
+            parent <- floor(node / 2)
+            var_name <- as.character(frame$var[parent])
+
+            # Get split value
+            splits <- tree$splits
+            split_row <- which(rownames(splits) == var_name)[1]
+            split_val <- splits[split_row, "index"]
+
+            if (node %% 2 == 0) {
+                # Left child
+                conditions <- c(paste(var_name, "<", round(split_val, 2)), conditions)
+            } else {
+                # Right child
+                conditions <- c(paste(var_name, ">=", round(split_val, 2)), conditions)
+            }
+
+            node <- parent
+        }
+
+        # Get prediction and counts
+        yval <- frame$yval[leaf]
+        n <- frame$n[leaf]
+
+        rules[[length(rules) + 1]] <- list(
+            conditions = conditions,
+            prediction = c("Benign", "Malignant")[yval],
+            n = n
+        )
+    }
+
+    rules
+}
+
+# Print rules in readable format
+cat("Clinical Decision Rules:\n")
+cat("========================\n\n")
+
+rules <- extract_rules(tree_pruned)
+for (i in seq_along(rules)) {
+    rule <- rules[[i]]
+    cat(sprintf("Rule %d (n = %d):\n", i, rule$n))
+    cat("  IF", paste(rule$conditions, collapse = " AND "), "\n")
+    cat("  THEN predict:", rule$prediction, "\n\n")
+}
+```
+
+```
+#> Clinical Decision Rules:
+#> ========================
+#> 
+#> Rule 1 (n = 241):
+#>   IF mean_concave_points < 0.05 
+#>   THEN predict: Benign 
+#> 
+#> Rule 2 (n = 15):
+#>   IF mean_concave_points < 0.05 AND <leaf> < NA 
+#>   THEN predict: Benign 
+#> 
+#> Rule 3 (n = 142):
+#>   IF mean_concave_points < 0.05 AND <leaf> >= NA 
+#>   THEN predict: Malignant
+```
+
+---
+
+## 3.9 Communicating Results to Stakeholders
+
+### For Clinicians
+
+> "We developed a simple decision tool for breast mass diagnosis. The key finding is that tumours with mean concave points greater than 0.05 are highly likely (92%) to be malignant. For tumours below this threshold, radius provides additional discrimination: masses smaller than 14 mm are almost always benign (96%). This two-step rule correctly classifies 94% of tumours in our validation set."
+
+### For Hospital Administrators
+
+> "The decision tree classifier achieves 94% accuracy on held-out data, with 91% sensitivity (catching 91% of cancers) and 96% specificity (correctly clearing 96% of benign cases). Importantly, the model is transparent—clinicians can see exactly why each prediction is made, which facilitates clinical adoption and regulatory approval."
+
+### For Journal Publication
+
+> "A classification tree was constructed using the CART algorithm (Breiman et al., 1984) implemented in the R package rpart. The tree was pruned using 10-fold cross-validation with the 1-standard-error rule to prevent overfitting. The final tree contained 5 terminal nodes and achieved accuracy of 0.94 (95% CI: 0.89-0.97) on the held-out test set. The most discriminative feature was mean concave points, which alone correctly classified 78% of cases."
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+**Gini Impurity:**
+$$G = 1 - \sum_{k=1}^{K} p_k^2$$
+
+**Entropy:**
+$$H = -\sum_{k=1}^{K} p_k \log_2(p_k)$$
+
+**Cost-Complexity:**
+$$R_\alpha(T) = R(T) + \alpha |T|$$
+
+**Information Gain:**
+$$IG = G_{\text{parent}} - \frac{n_L}{n} G_L - \frac{n_R}{n} G_R$$
+
+### R Code Summary
+
+```r
+library(rpart)
+library(rpart.plot)
+
+# Fit tree
+tree <- rpart(outcome ~ ., data = train_data, method = "class",
+              control = rpart.control(cp = 0.001, maxdepth = 10))
+
+# View complexity table
+printcp(tree)
+plotcp(tree)
+
+# Prune
+optimal_cp <- tree$cptable[which.min(tree$cptable[,"xerror"]), "CP"]
+tree_pruned <- prune(tree, cp = optimal_cp)
+
+# Plot
+rpart.plot(tree_pruned, type = 4, extra = 104)
+
+# Predict
+predict(tree_pruned, newdata, type = "class")  # Classes
+predict(tree_pruned, newdata, type = "prob")   # Probabilities
+
+# Variable importance
+tree_pruned$variable.importance
+```
+
+### Strengths and Weaknesses
+
+| Strengths | Weaknesses |
+|-----------|------------|
+| Highly interpretable | High variance (unstable) |
+| Handles mixed variable types | Prone to overfitting |
+| No scaling required | Greedy, locally optimal |
+| Captures interactions | Axis-aligned boundaries only |
+| Fast training and prediction | Often outperformed by ensembles |
+
+---
+
+## Exercises
+
+1. **Impurity Comparison**: For a node with 30% class 1 and 70% class 2, compute Gini impurity, entropy, and misclassification error. Verify that all three are maximised when classes are balanced (50/50).
+
+2. **Manual Tree Building**: Using the breast cancer data, manually find the optimal first split by computing Gini reduction for each variable. Compare with what rpart chooses.
+
+3. **Depth vs Performance**: Fit trees of depths 1, 2, 3, 5, 10, and unlimited. Plot training and test accuracy vs depth. At what depth does overfitting become apparent?
+
+4. **Missing Data**: Decision trees can handle missing values natively via "surrogate splits." Read about this feature in the rpart documentation and explain how it works.

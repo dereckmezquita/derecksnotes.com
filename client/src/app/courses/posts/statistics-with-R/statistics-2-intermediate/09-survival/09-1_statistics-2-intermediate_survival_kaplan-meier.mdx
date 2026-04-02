@@ -1,0 +1,838 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 9: Survival Analysis"
+part: "Part 1: Kaplan-Meier Estimation and Log-Rank Test"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, mathematics, survival-analysis, kaplan-meier, log-rank, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 1: Kaplan-Meier Estimation and Log-Rank Test
+
+**Survival analysis** studies the time until an event occurs—death in oncology, relapse in psychiatry, device failure in cardiology, or hospital discharge in general medicine. Unlike standard regression, survival data present unique challenges: follow-up times vary, some patients never experience the event during observation, and traditional methods yield biased estimates. This chapter introduces the fundamental tools: survival and hazard functions, Kaplan-Meier estimation, and log-rank tests for group comparisons.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+# Load survival package
+library(survival)
+```
+
+
+``` r
+# Load lung cancer dataset from survival package
+data(lung)
+lung_dt <- as.data.table(lung)
+
+# Recode status: 1 = censored, 2 = dead
+lung_dt[, event := status - 1]  # Now 0 = censored, 1 = dead
+lung_dt[, sex := factor(sex, levels = c(1, 2), labels = c("Male", "Female"))]
+
+cat("Lung Cancer Dataset:\n")
+cat("====================\n")
+cat("  Patients:", nrow(lung_dt), "\n")
+cat("  Deaths:", sum(lung_dt$event), "\n")
+cat("  Censored:", sum(lung_dt$event == 0), "\n")
+cat("  Males:", sum(lung_dt$sex == "Male"), "\n")
+cat("  Females:", sum(lung_dt$sex == "Female"), "\n")
+cat("  Follow-up range:", min(lung_dt$time), "-", max(lung_dt$time), "days\n")
+```
+
+```
+#> Lung Cancer Dataset:
+#> ====================
+#>   Patients: 228 
+#>   Deaths: 165 
+#>   Censored: 63 
+#>   Males: 138 
+#>   Females: 90 
+#>   Follow-up range: 5 - 1022 days
+```
+
+---
+
+## Table of Contents
+
+## 9.1 Why Standard Methods Fail for Survival Data
+
+### 9.1.1 The Problem of Censoring
+
+**Prose and Intuition**
+
+Consider a clinical trial following cancer patients for mortality. Some patients die during the study (we observe their survival time exactly). Others are still alive at study end—we know they survived *at least* that long, but not their ultimate survival time. Still others drop out or are lost to follow-up. This is **censoring**.
+
+**Right censoring** (most common): The true event time is greater than the observed time
+- Patient still alive at study end
+- Patient withdrawn from study
+- Patient lost to follow-up
+
+If we simply ignore censored observations, we underestimate survival (biased toward shorter times).
+If we treat censored times as actual event times, we also bias results.
+
+**Visualisation**
+
+
+``` r
+# Illustrate censoring types
+set.seed(42)
+n_patients <- 10
+
+# Simulate true event times (exponential)
+true_times <- rexp(n_patients, rate = 0.01)
+
+# Study ends at day 300
+study_end <- 300
+
+# Some patients have administrative censoring (study ends)
+# Some have event observed
+observed_times <- pmin(true_times, study_end)
+event_observed <- true_times <= study_end
+
+# Add some random censoring (lost to follow-up)
+random_censor <- rbinom(n_patients, 1, 0.2) == 1
+observed_times[random_censor] <- runif(sum(random_censor), 0, observed_times[random_censor])
+event_observed[random_censor] <- FALSE
+
+patient_dt <- data.table(
+    patient = 1:n_patients,
+    true_time = true_times,
+    observed_time = observed_times,
+    event = event_observed,
+    censor_type = ifelse(event_observed, "Event Observed",
+                         ifelse(random_censor, "Lost to Follow-up", "Study End"))
+)
+
+patient_dt[, status := ifelse(event, "Event", "Censored")]
+
+# Sort by observed time
+patient_dt <- patient_dt[order(observed_time)]
+patient_dt[, patient_order := .I]
+
+ggplot2$ggplot(patient_dt, ggplot2$aes(y = factor(patient_order))) +
+    ggplot2$geom_segment(ggplot2$aes(x = 0, xend = observed_time, yend = factor(patient_order)),
+                         linewidth = 1.2, colour = "#0072B2") +
+    ggplot2$geom_point(ggplot2$aes(x = observed_time, shape = status, colour = status), size = 4) +
+    ggplot2$geom_segment(data = patient_dt[event == FALSE],
+                         ggplot2$aes(x = observed_time, xend = pmin(true_time, 400),
+                                     yend = factor(patient_order)),
+                         linetype = "dashed", alpha = 0.5, colour = "grey50") +
+    ggplot2$geom_vline(xintercept = study_end, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$annotate("text", x = study_end + 10, y = 1, label = "Study End",
+                     hjust = 0, colour = "#D55E00") +
+    ggplot2$scale_shape_manual(values = c("Event" = 16, "Censored" = 4)) +
+    ggplot2$scale_colour_manual(values = c("Event" = "#009E73", "Censored" = "#D55E00")) +
+    ggplot2$labs(
+        title = "Visualising Survival Data with Censoring",
+        subtitle = "Dashed lines show unobserved future time; X marks censored observations",
+        x = "Time (days)",
+        y = "Patient",
+        shape = "", colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/censoring_illustration-1.png" alt="Censoring occurs when we don&#39;t observe the true event time">
+	Censoring occurs when we don't observe the true event time
+</Figure>
+
+### 9.1.2 Key Assumption: Non-Informative Censoring
+
+**Prose and Intuition**
+
+For valid inference, censoring must be **non-informative**: the fact that someone is censored shouldn't tell us anything about their risk of the event.
+
+**Valid censoring examples**:
+- Study ends at a predetermined date
+- Patient moves to another city (unrelated to disease)
+- Administrative reasons
+
+**Problematic censoring examples**:
+- Patient too sick to continue (they might die soon)
+- Patient feels cured and stops coming (they might live longer)
+- Patient switches to another treatment due to side effects
+
+When censoring is informative, specialized methods are needed.
+
+---
+
+## 9.2 The Survival Function
+
+### 9.2.1 Definition and Interpretation
+
+**Prose and Intuition**
+
+The **survival function** $S(t)$ is the probability of surviving beyond time $t$:
+$$S(t) = P(T > t)$$
+
+where $T$ is the random variable representing time to event.
+
+Properties:
+- $S(0) = 1$ (everyone alive at start)
+- $S(\infty) = 0$ (everyone dies eventually)
+- $S(t)$ is non-increasing
+
+The survival function answers: "What proportion of patients survive past time $t$?"
+
+**Mathematical Derivation**
+
+The survival function relates to the cumulative distribution function $F(t) = P(T \leq t)$:
+$$S(t) = 1 - F(t)$$
+
+For continuous $T$ with density $f(t)$:
+$$S(t) = \int_t^{\infty} f(u) \, du$$
+
+Key derived quantities:
+
+**Median survival**: Time at which $S(t) = 0.5$
+
+**Mean survival**: $\mathbb{E}[T] = \int_0^{\infty} S(t) \, dt$
+
+**Restricted mean survival** (practical): $\mathbb{E}[\min(T, \tau)] = \int_0^{\tau} S(t) \, dt$
+
+### 9.2.2 The Hazard Function
+
+**Prose and Intuition**
+
+The **hazard function** (or hazard rate) $h(t)$ is the instantaneous risk of the event at time $t$, given survival up to that point:
+$$h(t) = \lim_{\Delta t \to 0} \frac{P(t \leq T < t + \Delta t | T \geq t)}{\Delta t}$$
+
+Interpretation: $h(t) \cdot \Delta t \approx$ probability of event in next small interval $\Delta t$, given survival to $t$.
+
+**Different hazard shapes tell different stories**:
+- **Constant hazard** (exponential): Risk unchanged over time
+- **Increasing hazard** (Weibull with shape > 1): Aging, wear-out
+- **Decreasing hazard** (Weibull with shape < 1): Early mortality, infant mortality
+- **Bathtub hazard**: High early risk, low middle, high late (human mortality)
+
+**Mathematical Derivation**
+
+Relationship between hazard and survival:
+$$h(t) = \frac{f(t)}{S(t)} = -\frac{d}{dt}\log S(t)$$
+
+Integrating gives the **cumulative hazard**:
+$$H(t) = \int_0^t h(u) \, du = -\log S(t)$$
+
+Therefore:
+$$S(t) = \exp(-H(t)) = \exp\left(-\int_0^t h(u) \, du\right)$$
+
+**Visualisation**
+
+
+``` r
+t_vals <- seq(0.01, 5, length.out = 200)
+
+# Different hazard functions
+hazard_dt <- data.table(
+    t = rep(t_vals, 4),
+    hazard = c(
+        rep(0.5, 200),                    # Constant (exponential)
+        0.3 * t_vals,                      # Increasing (linear)
+        0.5 / sqrt(t_vals),               # Decreasing
+        0.5 + 0.2 * (t_vals - 2.5)^2      # Bathtub
+    ),
+    type = factor(rep(c("Constant", "Increasing", "Decreasing", "Bathtub"), each = 200),
+                  levels = c("Constant", "Increasing", "Decreasing", "Bathtub"))
+)
+
+# Calculate survival from hazard
+hazard_dt[, cumhaz := cumsum(hazard) * (t_vals[2] - t_vals[1]), by = type]
+hazard_dt[, survival := exp(-cumhaz)]
+
+# Plot hazard
+p1 <- ggplot2$ggplot(hazard_dt, ggplot2$aes(x = t, y = hazard, colour = type)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$scale_colour_viridis_d(option = "C") +
+    ggplot2$labs(title = "Hazard Functions h(t)", x = "Time", y = "Hazard Rate") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+
+# Plot survival
+p2 <- ggplot2$ggplot(hazard_dt, ggplot2$aes(x = t, y = survival, colour = type)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$scale_colour_viridis_d(option = "C") +
+    ggplot2$labs(title = "Survival Functions S(t)", x = "Time", y = "Survival Probability",
+                 colour = "Hazard Type") +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+<Figure src="/courses/statistics-2-intermediate/hazard_shapes-1.png" alt="Different hazard functions imply different survival patterns">
+	Different hazard functions imply different survival patterns
+</Figure>
+
+---
+
+## 9.3 Kaplan-Meier Estimation
+
+### 9.3.1 The Product-Limit Estimator
+
+**Prose and Intuition**
+
+The **Kaplan-Meier estimator** (product-limit estimator) provides a non-parametric estimate of the survival function from censored data.
+
+The key insight: Survival to time $t$ means surviving all the intervals before $t$. If events occur at distinct times $t_1 < t_2 < \cdots < t_k$, then:
+$$\hat{S}(t) = \prod_{t_i \leq t} \left(1 - \frac{d_i}{n_i}\right)$$
+
+where:
+- $d_i$ = number of events at time $t_i$
+- $n_i$ = number at risk just before $t_i$ (haven't had event, haven't been censored yet)
+
+**Intuition**: At each event time, multiply the current survival probability by the conditional probability of surviving that moment.
+
+**Mathematical Derivation**
+
+Consider ordered event times $t_1 < t_2 < \cdots < t_k$.
+
+At time $t_i$:
+- $n_i$ patients are "at risk" (still being followed, no event yet)
+- $d_i$ patients experience the event
+- Conditional probability of surviving past $t_i$: $\hat{p}_i = \frac{n_i - d_i}{n_i} = 1 - \frac{d_i}{n_i}$
+
+The survival function estimate:
+$$\hat{S}(t) = \prod_{t_i \leq t} \hat{p}_i$$
+
+**Greenwood's formula** for standard error:
+$$\widehat{\text{Var}}(\hat{S}(t)) = \hat{S}(t)^2 \sum_{t_i \leq t} \frac{d_i}{n_i(n_i - d_i)}$$
+
+**Visualisation**
+
+
+``` r
+# Small example for illustration
+example_dt <- data.table(
+    time = c(2, 3, 4, 5, 5, 8, 8, 10, 12, 15),
+    event = c(1, 0, 1, 1, 0, 1, 1, 0, 1, 0)  # 1 = event, 0 = censored
+)
+
+# Calculate KM step by step
+event_times <- example_dt[event == 1, sort(unique(time))]
+
+km_table <- rbindlist(lapply(event_times, function(t) {
+    n_i <- sum(example_dt$time >= t)
+    d_i <- sum(example_dt$time == t & example_dt$event == 1)
+    data.table(time = t, n_at_risk = n_i, events = d_i, censored = sum(example_dt$time == t & example_dt$event == 0))
+}))
+
+km_table[, conditional_prob := (n_at_risk - events) / n_at_risk]
+km_table[, survival := cumprod(conditional_prob)]
+
+cat("Kaplan-Meier Calculation:\n")
+cat("=========================\n\n")
+print(km_table)
+
+# Create KM curve data (step function)
+km_curve <- data.table(
+    time = c(0, rep(km_table$time, each = 2), max(example_dt$time)),
+    survival = c(1, 1, rep(km_table$survival, each = 2))
+)
+km_curve <- km_curve[!duplicated(time, fromLast = TRUE)]
+
+# Fix for step function
+km_step <- rbind(
+    data.table(time = 0, survival = 1),
+    km_table[, .(time, survival)]
+)
+
+# Add previous value for step
+for (i in 2:nrow(km_step)) {
+    km_step <- rbind(km_step, data.table(time = km_step$time[i], survival = km_step$survival[i-1]))
+}
+km_step <- km_step[order(time, -survival)]
+
+# Look up survival at censored times for plotting
+censored_dt <- example_dt[event == 0]
+if (nrow(censored_dt) > 0) {
+    censored_dt[, survival_at_censor := sapply(time, function(t) {
+        s <- km_table[time <= t, survival]
+        if (length(s) == 0) 1 else tail(s, 1)
+    })]
+}
+
+ggplot2$ggplot() +
+    ggplot2$geom_step(data = km_table, ggplot2$aes(x = time, y = survival),
+                      colour = "#0072B2", linewidth = 1.2, direction = "hv") +
+    ggplot2$geom_point(data = km_table, ggplot2$aes(x = time, y = survival),
+                       colour = "#0072B2", size = 3) +
+    ggplot2$geom_point(data = censored_dt, ggplot2$aes(x = time, y = survival_at_censor),
+                       colour = "#D55E00", size = 3, shape = 4) +
+    ggplot2$geom_segment(x = 0, xend = 0, y = 1, yend = 1, colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("text", x = 0, y = 0.52, label = "Median survival", hjust = 0) +
+    ggplot2$labs(
+        title = "Kaplan-Meier Survival Curve",
+        subtitle = "Step function drops at each event time; censored observations (X) don't cause drops",
+        x = "Time",
+        y = "Survival Probability S(t)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/km_calculation-1.png" alt="Step-by-step Kaplan-Meier calculation">
+	Step-by-step Kaplan-Meier calculation
+</Figure>
+
+```
+#> Kaplan-Meier Calculation:
+#> =========================
+#> 
+#>     time n_at_risk events censored conditional_prob survival
+#>    <num>     <int>  <int>    <int>            <num>    <num>
+#> 1:     2        10      1        0        0.9000000   0.9000
+#> 2:     4         8      1        0        0.8750000   0.7875
+#> 3:     5         7      1        1        0.8571429   0.6750
+#> 4:     8         5      2        0        0.6000000   0.4050
+#> 5:    12         2      1        0        0.5000000   0.2025
+```
+
+### 9.3.2 Application to Lung Cancer Data
+
+
+``` r
+# Fit Kaplan-Meier
+km_fit <- survfit(Surv(time, event) ~ 1, data = lung_dt)
+
+# Extract KM data
+km_summary <- summary(km_fit)
+km_data <- data.table(
+    time = km_summary$time,
+    survival = km_summary$surv,
+    lower = km_summary$lower,
+    upper = km_summary$upper,
+    n_risk = km_summary$n.risk,
+    n_event = km_summary$n.event
+)
+
+cat("Kaplan-Meier Summary:\n")
+cat("=====================\n\n")
+cat("Median survival:", km_fit$median, "days\n")
+
+# Get CI for median from quantile (works for single stratum)
+q_fit <- quantile(km_fit, probs = 0.5)
+cat("95% CI for median: [", q_fit$lower, ",", q_fit$upper, "]\n\n")
+
+cat("Survival estimates at key time points:\n")
+surv_times <- c(100, 200, 365, 500)
+for (t in surv_times) {
+    s <- summary(km_fit, times = t)
+    cat(sprintf("  %d days: %.1f%% (95%% CI: %.1f%%-%.1f%%)\n",
+                t, s$surv * 100, s$lower * 100, s$upper * 100))
+}
+
+# Plot with confidence intervals
+ggplot2$ggplot(km_data, ggplot2$aes(x = time)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = lower, ymax = upper), fill = "#0072B2", alpha = 0.2) +
+    ggplot2$geom_step(ggplot2$aes(y = survival), colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_vline(xintercept = km_fit$median, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$annotate("text", x = km_fit$median + 20, y = 0.52,
+                     label = sprintf("Median = %d days", km_fit$median), hjust = 0, colour = "#D55E00") +
+    ggplot2$scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    ggplot2$labs(
+        title = "Kaplan-Meier Survival Curve for Lung Cancer",
+        subtitle = sprintf("n = %d patients, %d deaths, median survival = %d days",
+                           nrow(lung_dt), sum(lung_dt$event), km_fit$median),
+        x = "Time (days)",
+        y = "Survival Probability"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+<Figure src="/courses/statistics-2-intermediate/km_lung-1.png" alt="Kaplan-Meier survival curve for lung cancer patients">
+	Kaplan-Meier survival curve for lung cancer patients
+</Figure>
+
+```
+#> Kaplan-Meier Summary:
+#> =====================
+#> 
+#> Median survival: days
+#> 95% CI for median: [ 285 , 363 ]
+#> 
+#> Survival estimates at key time points:
+#>   100 days: 86.4% (95% CI: 82.1%-91.0%)
+#>   200 days: 68.0% (95% CI: 62.2%-74.4%)
+#>   365 days: 40.9% (95% CI: 34.5%-48.6%)
+#>   500 days: 29.3% (95% CI: 23.2%-37.1%)
+```
+
+### 9.3.3 Number at Risk Table
+
+**Prose and Intuition**
+
+A well-constructed survival plot includes a "number at risk" table below the curve, showing how many patients remain under observation at key time points. This transparency is essential for:
+- Assessing reliability of late-time estimates (few at risk → wide CIs)
+- Identifying potential bias from heavy censoring
+- Meeting reporting standards for clinical publications
+
+
+``` r
+# Create number at risk at regular intervals
+risk_times <- seq(0, max(lung_dt$time), by = 100)
+risk_table <- data.table(
+    time = risk_times,
+    n_risk = sapply(risk_times, function(t) sum(lung_dt$time >= t))
+)
+
+# Main KM plot
+p_km <- ggplot2$ggplot(km_data, ggplot2$aes(x = time)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = lower, ymax = upper), fill = "#0072B2", alpha = 0.2) +
+    ggplot2$geom_step(ggplot2$aes(y = survival), colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    ggplot2$scale_x_continuous(breaks = risk_times) +
+    ggplot2$labs(
+        title = "Kaplan-Meier Survival Curve with Number at Risk",
+        x = "",
+        y = "Survival Probability"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(plot.margin = ggplot2$unit(c(0.5, 0.5, 0, 0.5), "cm"))
+
+# Risk table
+p_risk <- ggplot2$ggplot(risk_table, ggplot2$aes(x = time, y = 1)) +
+    ggplot2$geom_text(ggplot2$aes(label = n_risk), size = 3) +
+    ggplot2$scale_x_continuous(breaks = risk_times, limits = range(km_data$time)) +
+    ggplot2$labs(x = "Time (days)", y = "") +
+    ggplot2$annotate("text", x = -50, y = 1, label = "At risk:", hjust = 1, size = 3) +
+    ggplot2$theme_void() +
+    ggplot2$theme(
+        axis.title.x = ggplot2$element_text(),
+        plot.margin = ggplot2$unit(c(0, 0.5, 0.5, 0.5), "cm")
+    )
+
+gridExtra::grid.arrange(p_km, p_risk, heights = c(4, 1))
+```
+
+<Figure src="/courses/statistics-2-intermediate/km_with_risk_table-1.png" alt="Kaplan-Meier curve with number at risk table">
+	Kaplan-Meier curve with number at risk table
+</Figure>
+
+---
+
+## 9.4 Comparing Survival Curves: The Log-Rank Test
+
+### 9.4.1 Motivation and Hypothesis
+
+**Prose and Intuition**
+
+When comparing survival between groups (e.g., treatment vs control), we need a formal test. The **log-rank test** (Mantel-Haenszel test) compares observed events to expected events under the null hypothesis of equal survival.
+
+**Null hypothesis**: $H_0: S_1(t) = S_2(t)$ for all $t$ (survival curves are identical)
+
+**Alternative**: $H_1: S_1(t) \neq S_2(t)$ for some $t$ (curves differ)
+
+**Mathematical Derivation**
+
+At each distinct event time $t_i$, construct a 2×2 table:
+
+|  | Events | No Events | Total |
+|--|--------|-----------|-------|
+| Group 1 | $d_{1i}$ | $n_{1i} - d_{1i}$ | $n_{1i}$ |
+| Group 2 | $d_{2i}$ | $n_{2i} - d_{2i}$ | $n_{2i}$ |
+| Total | $d_i$ | $n_i - d_i$ | $n_i$ |
+
+Under $H_0$, the expected number of events in Group 1 at time $t_i$:
+$$E_{1i} = \frac{n_{1i} \cdot d_i}{n_i}$$
+
+The log-rank statistic:
+$$\chi^2_{LR} = \frac{\left(\sum_i (O_{1i} - E_{1i})\right)^2}{\sum_i V_i}$$
+
+where $O_{1i} = d_{1i}$ (observed events in Group 1) and $V_i$ is the hypergeometric variance:
+$$V_i = \frac{n_{1i} n_{2i} d_i (n_i - d_i)}{n_i^2(n_i - 1)}$$
+
+Under $H_0$, $\chi^2_{LR} \sim \chi^2_1$ asymptotically.
+
+### 9.4.2 Application: Survival by Sex
+
+
+``` r
+# Fit KM by sex
+km_sex <- survfit(Surv(time, event) ~ sex, data = lung_dt)
+
+# Log-rank test
+logrank_test <- survdiff(Surv(time, event) ~ sex, data = lung_dt)
+
+cat("Log-Rank Test: Survival by Sex\n")
+cat("===============================\n\n")
+print(logrank_test)
+
+p_value <- 1 - pchisq(logrank_test$chisq, df = length(logrank_test$n) - 1)
+cat("\nChi-square statistic:", round(logrank_test$chisq, 2), "\n")
+cat("p-value:", format.pval(p_value, digits = 3), "\n")
+cat("\nConclusion:", ifelse(p_value < 0.05,
+                            "Significant difference in survival between sexes",
+                            "No significant difference"), "\n")
+
+# Extract data for plotting
+km_sex_summary <- summary(km_sex)
+km_sex_data <- data.table(
+    time = km_sex_summary$time,
+    survival = km_sex_summary$surv,
+    lower = km_sex_summary$lower,
+    upper = km_sex_summary$upper,
+    sex = km_sex_summary$strata
+)
+km_sex_data[, sex := gsub("sex=", "", sex)]
+
+# Plot
+ggplot2$ggplot(km_sex_data, ggplot2$aes(x = time, colour = sex, fill = sex)) +
+    ggplot2$geom_ribbon(ggplot2$aes(ymin = lower, ymax = upper), alpha = 0.2, colour = NA) +
+    ggplot2$geom_step(ggplot2$aes(y = survival), linewidth = 1.2) +
+    ggplot2$scale_colour_manual(values = c("Male" = "#0072B2", "Female" = "#D55E00")) +
+    ggplot2$scale_fill_manual(values = c("Male" = "#0072B2", "Female" = "#D55E00")) +
+    ggplot2$scale_y_continuous(labels = scales::percent, limits = c(0, 1)) +
+    ggplot2$labs(
+        title = "Kaplan-Meier Survival Curves by Sex",
+        subtitle = sprintf("Log-rank test: χ² = %.2f, p = %s",
+                           logrank_test$chisq, format.pval(p_value, digits = 3)),
+        x = "Time (days)",
+        y = "Survival Probability",
+        colour = "", fill = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/statistics-2-intermediate/logrank_sex-1.png" alt="Kaplan-Meier curves comparing survival by sex with log-rank test">
+	Kaplan-Meier curves comparing survival by sex with log-rank test
+</Figure>
+
+```
+#> Log-Rank Test: Survival by Sex
+#> ===============================
+#> 
+#> Call:
+#> survdiff(formula = Surv(time, event) ~ sex, data = lung_dt)
+#> 
+#>              N Observed Expected (O-E)^2/E (O-E)^2/V
+#> sex=Male   138      112     91.6      4.55      10.3
+#> sex=Female  90       53     73.4      5.68      10.3
+#> 
+#>  Chisq= 10.3  on 1 degrees of freedom, p= 0.001 
+#> 
+#> Chi-square statistic: 10.33 
+#> p-value: 0.00131 
+#> 
+#> Conclusion: Significant difference in survival between sexes
+```
+
+### 9.4.3 Median Survival Comparison
+
+
+``` r
+# Extract median survival by group
+cat("Median Survival by Sex:\n")
+cat("=======================\n\n")
+
+km_sex_summary_full <- summary(km_sex)$table
+print(round(km_sex_summary_full, 1))
+
+cat("\nInterpretation:\n")
+cat("  Female patients have better survival than males.\n")
+cat("  Median survival: Males =", round(km_sex_summary_full["sex=Male", "median"]),
+    "days vs Females =", round(km_sex_summary_full["sex=Female", "median"]), "days\n")
+```
+
+```
+#> Median Survival by Sex:
+#> =======================
+#> 
+#>            records n.max n.start events rmean se(rmean) median 0.95LCL 0.95UCL
+#> sex=Male       138   138     138    112 326.1      22.9    270     212     310
+#> sex=Female      90    90      90     53 460.6      34.7    426     348     550
+#> 
+#> Interpretation:
+#>   Female patients have better survival than males.
+#>   Median survival: Males = 270 days vs Females = 426 days
+```
+
+---
+
+## 9.5 Extensions of the Log-Rank Test
+
+### 9.5.1 Weighted Log-Rank Tests
+
+**Prose and Intuition**
+
+The standard log-rank test weights all time points equally. This is optimal when hazards are **proportional** (the ratio of hazards is constant over time).
+
+When hazards cross or differ primarily at certain times, **weighted log-rank tests** may be more powerful:
+
+| Test | Weight | Best for |
+|------|--------|----------|
+| Log-rank | $w_i = 1$ | Proportional hazards, late differences |
+| Wilcoxon (Breslow) | $w_i = n_i$ | Early differences |
+| Tarone-Ware | $w_i = \sqrt{n_i}$ | Compromise |
+| Peto-Peto | $w_i = \tilde{S}(t_i)$ | Heavy censoring |
+| Fleming-Harrington | $w_i = S(t)^p(1-S(t))^q$ | Flexible; $p,q$ chosen |
+
+
+``` r
+# Compare different weights
+cat("Weighted Log-Rank Tests:\n")
+cat("========================\n\n")
+
+# Standard log-rank (rho = 0)
+lr_standard <- survdiff(Surv(time, event) ~ sex, data = lung_dt, rho = 0)
+cat("Log-rank (rho=0):\n")
+cat("  Chi-square:", round(lr_standard$chisq, 3), ", p =", format.pval(1 - pchisq(lr_standard$chisq, 1)), "\n\n")
+
+# Peto-Peto (rho = 1)
+lr_peto <- survdiff(Surv(time, event) ~ sex, data = lung_dt, rho = 1)
+cat("Peto-Peto (rho=1):\n")
+cat("  Chi-square:", round(lr_peto$chisq, 3), ", p =", format.pval(1 - pchisq(lr_peto$chisq, 1)), "\n\n")
+
+cat("Note: rho=0 weights all times equally; rho=1 gives more weight to early times.\n")
+```
+
+```
+#> Weighted Log-Rank Tests:
+#> ========================
+#> 
+#> Log-rank (rho=0):
+#>   Chi-square: 10.327 , p = 0.0013112 
+#> 
+#> Peto-Peto (rho=1):
+#>   Chi-square: 12.714 , p = 0.0003629 
+#> 
+#> Note: rho=0 weights all times equally; rho=1 gives more weight to early times.
+```
+
+### 9.5.2 Stratified Log-Rank Test
+
+**Prose and Intuition**
+
+When comparing groups while controlling for a confounder, use the **stratified log-rank test**. It computes the test statistic within each stratum and combines them.
+
+This is analogous to a Mantel-Haenszel test for multiple 2×2 tables.
+
+
+``` r
+# Stratify by ECOG performance status
+# First, create ECOG categories
+lung_dt[, ecog_cat := factor(ifelse(ph.ecog %in% c(0, 1), "Good (0-1)", "Poor (2-3)"))]
+
+# Stratified log-rank test
+lr_strat <- survdiff(Surv(time, event) ~ sex + strata(ecog_cat), data = lung_dt[!is.na(ecog_cat)])
+
+cat("Stratified Log-Rank Test (stratified by ECOG status):\n")
+cat("=====================================================\n\n")
+print(lr_strat)
+```
+
+```
+#> Stratified Log-Rank Test (stratified by ECOG status):
+#> =====================================================
+#> 
+#> Call:
+#> survdiff(formula = Surv(time, event) ~ sex + strata(ecog_cat), 
+#>     data = lung_dt[!is.na(ecog_cat)])
+#> 
+#>              N Observed Expected (O-E)^2/E (O-E)^2/V
+#> sex=Male   138      112     91.3      4.70      10.7
+#> sex=Female  90       53     73.7      5.82      10.7
+#> 
+#>  Chisq= 10.7  on 1 degrees of freedom, p= 0.001
+```
+
+---
+
+## 9.6 Communicating Survival Analysis to Stakeholders
+
+**For Clinicians and Patients**
+
+When presenting survival analysis results:
+
+**1. Use visual aids effectively**
+
+- Always show Kaplan-Meier curves, not just p-values
+- Include confidence bands to communicate uncertainty
+- Add number at risk tables for transparency
+
+**2. Report clinically meaningful measures**
+
+Instead of: "The log-rank test was significant (p = 0.02)"
+
+Say: "Patients in the treatment group had a median survival of 12 months compared to 8 months in the control group. At 1 year, 50% of treated patients were alive versus 35% of control patients."
+
+**3. Explain censoring**
+
+- "Some patients were still alive at the end of the study, so we don't yet know their final survival time"
+- "The survival estimates become less reliable at later times when fewer patients remain under observation"
+
+**4. Contextualise the log-rank p-value**
+
+- The p-value tells us whether the difference is likely due to chance
+- It doesn't tell us whether the difference is clinically important
+- A significant difference may be small; a non-significant difference may be clinically relevant but underpowered
+
+---
+
+## 9.7 Summary and Key Takeaways
+
+**Key Concepts**
+
+| Concept | Definition | Interpretation |
+|---------|------------|----------------|
+| Survival function $S(t)$ | $P(T > t)$ | Probability of surviving past time $t$ |
+| Hazard function $h(t)$ | Instantaneous risk | Risk at time $t$ given survival to $t$ |
+| Censoring | Incomplete observation | True event time unknown |
+| Kaplan-Meier | Non-parametric $\hat{S}(t)$ | Product-limit estimator |
+| Log-rank test | Compare survival curves | $H_0$: curves are identical |
+
+**Kaplan-Meier Reporting Checklist**
+
+1. ☑ Show the survival curve with confidence bands
+2. ☑ Include number at risk at regular intervals
+3. ☑ Report median survival with 95% CI
+4. ☑ Report survival at clinically meaningful time points
+5. ☑ State number of events and censored observations
+6. ☑ Report log-rank test statistic and p-value
+
+**R Functions Reference**
+
+| Function | Package | Purpose |
+|----------|---------|---------|
+| `Surv()` | survival | Create survival object |
+| `survfit()` | survival | Fit Kaplan-Meier |
+| `survdiff()` | survival | Log-rank test |
+| `summary()` | survival | Extract KM statistics |
+| `ggsurvplot()` | survminer | Pretty KM plots |
+
+---
+
+## 9.8 Exercises
+
+1. **Censoring impact**: Using the lung cancer data, what proportion of patients are censored? How does this affect the reliability of survival estimates at 500 days?
+
+2. **Landmark analysis**: Estimate 1-year survival from the Kaplan-Meier curve. What is the 95% confidence interval?
+
+3. **Subgroup comparison**: Compare survival between patients with good (ECOG 0-1) vs poor (ECOG 2+) performance status. Report median survival and log-rank test.
+
+4. **Weighted tests**: For a dataset where treatment effects appear primarily in the first 100 days, which log-rank variant would you choose and why?
+
+5. **Stakeholder report**: Write a paragraph summarising the sex difference in lung cancer survival for a clinical audience.
+
+---
+
+## 9.9 References
+
+- Kaplan, E. L., & Meier, P. (1958). Nonparametric estimation from incomplete observations. *Journal of the American Statistical Association*, 53(282), 457-481.
+- Kleinbaum, D. G., & Klein, M. (2012). *Survival Analysis: A Self-Learning Text* (3rd ed.). Springer.
+- Collett, D. (2015). *Modelling Survival Data in Medical Research* (3rd ed.). CRC Press.
+- Clark, T. G., et al. (2003). Survival analysis part I: basic concepts and first analyses. *British Journal of Cancer*, 89(2), 232-238.
+- Therneau, T. M., & Grambsch, P. M. (2000). *Modeling Survival Data: Extending the Cox Model*. Springer.

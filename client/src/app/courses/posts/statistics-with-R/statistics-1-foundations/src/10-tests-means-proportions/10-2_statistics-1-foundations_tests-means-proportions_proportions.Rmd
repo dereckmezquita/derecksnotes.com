@@ -1,0 +1,748 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 10: Tests for Means and Proportions"
+part: "Part 2: Tests for Proportions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, proportion-test, z-test, hypothesis-testing, inference, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    out.width = "100%",
+    collapse = FALSE, results = 'hold'
+)
+```
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+nhanes <- fread("../../../data/primary/nhanes.csv")
+```
+
+# Tests for Proportions
+
+This part covers hypothesis tests for categorical data, focusing on population proportions. We develop tests for single proportions, comparisons of two proportions, and briefly introduce tests for multiple proportions.
+
+---
+
+## Table of Contents
+
+## 10.8 One-Proportion Z-Test
+
+### 10.8.1 The Testing Scenario
+
+The one-proportion z-test addresses: Does the population proportion differ from a hypothesised value?
+
+**Hypotheses:**
+- $H_0: p = p_0$ (population proportion equals the hypothesised value)
+- $H_1: p \neq p_0$ (two-sided) or $H_1: p > p_0$ / $H_1: p < p_0$
+
+**Assumptions:**
+1. Random sample from the population
+2. Independent observations
+3. Large sample: $np_0 \geq 10$ and $n(1-p_0) \geq 10$
+
+### 10.8.2 The Test Statistic
+
+Under $H_0$, the sample proportion $\hat{p} = X/n$ is approximately normal:
+
+$$Z = \frac{\hat{p} - p_0}{\sqrt{\frac{p_0(1-p_0)}{n}}}$$
+
+Note: We use $p_0$ (not $\hat{p}$) in the standard error because we're testing under the null hypothesis.
+
+```{r one_prop_test}
+# Example: Is the proportion of adults with high BP different from 30%?
+bp_data <- na.omit(nhanes$BPSys1)
+high_bp <- sum(bp_data >= 140)
+n <- length(bp_data)
+p_hat <- high_bp / n
+p_0 <- 0.30
+
+cat("One-Proportion Z-Test: Hypertension Prevalence\n")
+cat("==============================================\n\n")
+cat(sprintf("Sample: %d with high BP out of %d total\n", high_bp, n))
+cat(sprintf("Sample proportion: p̂ = %.4f\n", p_hat))
+cat(sprintf("Hypothesised proportion: p₀ = %.2f\n\n", p_0))
+
+# Check assumptions
+cat("Assumption check:\n")
+cat(sprintf("  np₀ = %.1f (should be ≥ 10)\n", n * p_0))
+cat(sprintf("  n(1-p₀) = %.1f (should be ≥ 10)\n\n", n * (1 - p_0)))
+
+# Test statistic
+se_0 <- sqrt(p_0 * (1 - p_0) / n)
+z_stat <- (p_hat - p_0) / se_0
+p_value <- 2 * pnorm(-abs(z_stat))
+
+cat(sprintf("Standard error (under H₀): SE = √[p₀(1-p₀)/n] = %.4f\n", se_0))
+cat(sprintf("Test statistic: z = (%.4f - %.2f) / %.4f = %.3f\n",
+            p_hat, p_0, se_0, z_stat))
+cat(sprintf("P-value (two-sided): %.4f\n\n", p_value))
+
+if (p_value < 0.05) {
+    cat("Decision: Reject H₀ at α = 0.05\n")
+    cat(sprintf("Conclusion: Proportion differs significantly from %.0f%%\n", p_0 * 100))
+} else {
+    cat("Decision: Fail to reject H₀ at α = 0.05\n")
+    cat(sprintf("Conclusion: No significant difference from %.0f%%\n", p_0 * 100))
+}
+```
+
+### 10.8.3 One-Proportion Test Function from Scratch
+
+```{r one_prop_scratch}
+one_prop_z_test <- function(x, n, p_0 = 0.5, alternative = "two.sided",
+                             conf_level = 0.95, correct = FALSE) {
+    # Sample proportion
+    p_hat <- x / n
+
+    # Standard error under H0
+    se_0 <- sqrt(p_0 * (1 - p_0) / n)
+
+    # Test statistic (with optional continuity correction)
+    if (correct) {
+        z_stat <- (abs(p_hat - p_0) - 0.5/n) / se_0
+        if (p_hat < p_0) z_stat <- -z_stat
+    } else {
+        z_stat <- (p_hat - p_0) / se_0
+    }
+
+    # P-value
+    if (alternative == "two.sided") {
+        p_value <- 2 * pnorm(-abs(z_stat))
+    } else if (alternative == "greater") {
+        p_value <- pnorm(z_stat, lower.tail = FALSE)
+    } else {
+        p_value <- pnorm(z_stat)
+    }
+
+    # Wilson score confidence interval for p
+    z_crit <- qnorm(1 - (1 - conf_level) / 2)
+    denom <- 1 + z_crit^2 / n
+    centre <- (p_hat + z_crit^2 / (2 * n)) / denom
+    margin <- z_crit * sqrt(p_hat * (1 - p_hat) / n + z_crit^2 / (4 * n^2)) / denom
+    ci <- c(centre - margin, centre + margin)
+
+    list(
+        method = "One-Proportion Z-Test",
+        statistic = z_stat,
+        p.value = p_value,
+        estimate = p_hat,
+        null.value = p_0,
+        alternative = alternative,
+        conf.int = ci,
+        conf.level = conf_level,
+        x = x,
+        n = n
+    )
+}
+
+# Apply to our data
+result <- one_prop_z_test(high_bp, n, p_0 = 0.30)
+
+cat("Custom one_prop_z_test() Results:\n")
+cat("=================================\n")
+cat(sprintf("z = %.4f, p = %.4f\n", result$statistic, result$p.value))
+cat(sprintf("Sample proportion: %.4f\n", result$estimate))
+cat(sprintf("95%% CI (Wilson): (%.4f, %.4f)\n", result$conf.int[1], result$conf.int[2]))
+
+# Verify with R's prop.test
+cat("\n\nVerification with prop.test():\n")
+print(prop.test(high_bp, n, p = 0.30, correct = FALSE))
+```
+
+### 10.8.4 Visualising the Test
+
+```{r one_prop_visual, fig.cap="One-proportion z-test visualisation"}
+# Null distribution
+x_seq <- seq(-4, 4, length.out = 200)
+null_dist <- data.table(x = x_seq, y = dnorm(x_seq))
+
+# Critical values
+z_crit <- qnorm(0.975)
+
+ggplot2$ggplot(null_dist, ggplot2$aes(x = x, y = y)) +
+    # Rejection regions
+    ggplot2$geom_area(data = null_dist[x <= -z_crit], fill = "#D55E00", alpha = 0.5) +
+    ggplot2$geom_area(data = null_dist[x >= z_crit], fill = "#D55E00", alpha = 0.5) +
+    # Curve
+    ggplot2$geom_line(linewidth = 1.2) +
+    # Observed z
+    ggplot2$geom_vline(xintercept = z_stat, colour = "#009E73",
+                       linewidth = 1.5, linetype = "dashed") +
+    ggplot2$annotate("text", x = z_stat + 0.3, y = 0.3,
+                     label = sprintf("z = %.2f\np = %.4f", z_stat, p_value),
+                     colour = "#009E73", fontface = "bold", hjust = 0) +
+    ggplot2$labs(
+        title = "One-Proportion Z-Test",
+        subtitle = sprintf("H₀: p = %.2f, α = 0.05", p_0),
+        x = "Z-statistic",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 10.9 Exact Binomial Test
+
+### 10.9.1 When to Use Exact Tests
+
+When the sample size is small or the normal approximation fails, use the exact binomial test:
+
+$$\text{P-value} = \sum_{k: P(X=k) \leq P(X=x)} P(X = k)$$
+
+Where $X \sim \text{Binomial}(n, p_0)$.
+
+```{r exact_test}
+# Small sample example
+# Testing if a coin is fair: 8 heads in 10 flips
+x_small <- 8
+n_small <- 10
+p_0_small <- 0.5
+
+cat("Exact Binomial Test: Coin Fairness\n")
+cat("===================================\n\n")
+cat(sprintf("Observed: %d heads in %d flips\n", x_small, n_small))
+cat(sprintf("H₀: p = %.1f (fair coin)\n\n", p_0_small))
+
+# Exact test
+exact_result <- binom.test(x_small, n_small, p = p_0_small)
+
+cat("Exact Binomial Test:\n")
+cat(sprintf("  p-value = %.4f\n", exact_result$p.value))
+cat(sprintf("  95%% CI: (%.4f, %.4f)\n\n", exact_result$conf.int[1], exact_result$conf.int[2]))
+
+# Compare to z-test (inappropriate for small n)
+z_approx <- one_prop_z_test(x_small, n_small, p_0 = p_0_small)
+cat("Z-Test (inappropriate here):\n")
+cat(sprintf("  p-value = %.4f\n", z_approx$p.value))
+cat("\nNote: Normal approximation fails when np or n(1-p) < 10\n")
+cat(sprintf("Here: np = %.1f, n(1-p) = %.1f\n", n_small * p_0_small, n_small * (1 - p_0_small)))
+```
+
+### 10.9.2 Exact Test Function from Scratch
+
+```{r exact_scratch}
+exact_binomial_test <- function(x, n, p_0 = 0.5, alternative = "two.sided") {
+    # Probability of observed value
+    p_obs <- dbinom(x, n, p_0)
+
+    # Calculate p-value
+    if (alternative == "two.sided") {
+        # Sum probabilities of all outcomes as or more extreme
+        all_probs <- dbinom(0:n, n, p_0)
+        p_value <- sum(all_probs[all_probs <= p_obs + 1e-10])
+    } else if (alternative == "greater") {
+        p_value <- pbinom(x - 1, n, p_0, lower.tail = FALSE)
+    } else {
+        p_value <- pbinom(x, n, p_0)
+    }
+
+    # Clopper-Pearson exact CI
+    alpha <- 0.05
+    if (x == 0) {
+        ci_lower <- 0
+    } else {
+        ci_lower <- qbeta(alpha / 2, x, n - x + 1)
+    }
+    if (x == n) {
+        ci_upper <- 1
+    } else {
+        ci_upper <- qbeta(1 - alpha / 2, x + 1, n - x)
+    }
+
+    list(
+        method = "Exact Binomial Test",
+        p.value = p_value,
+        estimate = x / n,
+        null.value = p_0,
+        alternative = alternative,
+        conf.int = c(ci_lower, ci_upper),
+        x = x,
+        n = n
+    )
+}
+
+# Apply
+result <- exact_binomial_test(x_small, n_small, p_0 = 0.5)
+
+cat("Custom exact_binomial_test() Results:\n")
+cat("=====================================\n")
+cat(sprintf("p-value = %.4f\n", result$p.value))
+cat(sprintf("95%% CI (Clopper-Pearson): (%.4f, %.4f)\n",
+            result$conf.int[1], result$conf.int[2]))
+```
+
+---
+
+## 10.10 Two-Proportion Z-Test
+
+### 10.10.1 The Testing Scenario
+
+Comparing proportions from two independent groups:
+
+**Hypotheses:**
+- $H_0: p_1 = p_2$ (proportions are equal)
+- $H_1: p_1 \neq p_2$ (proportions differ)
+
+**Test statistic:**
+
+$$Z = \frac{\hat{p}_1 - \hat{p}_2}{\sqrt{\hat{p}(1-\hat{p})\left(\frac{1}{n_1} + \frac{1}{n_2}\right)}}$$
+
+Where $\hat{p} = \frac{x_1 + x_2}{n_1 + n_2}$ is the pooled proportion.
+
+### 10.10.2 Example: Comparing Hypertension by Smoking Status
+
+```{r two_prop_test}
+# Compare high BP prevalence: smokers vs non-smokers
+bp_smoke <- nhanes[!is.na(BPSys1) & !is.na(SmokeNow)]
+bp_smoke[, high_bp := BPSys1 >= 140]
+bp_smoke[, smoker := SmokeNow == "Yes"]
+
+# Get data
+smokers <- bp_smoke[smoker == TRUE]
+nonsmokers <- bp_smoke[smoker == FALSE]
+
+x1 <- sum(smokers$high_bp)
+n1 <- nrow(smokers)
+p1 <- x1 / n1
+
+x2 <- sum(nonsmokers$high_bp)
+n2 <- nrow(nonsmokers)
+p2 <- x2 / n2
+
+cat("Two-Proportion Z-Test: Hypertension by Smoking Status\n")
+cat("======================================================\n\n")
+cat(sprintf("Smokers: %d/%d with high BP (%.1f%%)\n", x1, n1, 100 * p1))
+cat(sprintf("Non-smokers: %d/%d with high BP (%.1f%%)\n\n", x2, n2, 100 * p2))
+
+# Pooled proportion under H0
+p_pooled <- (x1 + x2) / (n1 + n2)
+se_pooled <- sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
+
+# Test statistic
+z_stat <- (p1 - p2) / se_pooled
+p_value <- 2 * pnorm(-abs(z_stat))
+
+cat(sprintf("Pooled proportion: p̂ = %.4f\n", p_pooled))
+cat(sprintf("Standard error: SE = %.4f\n", se_pooled))
+cat(sprintf("Test statistic: z = %.3f\n", z_stat))
+cat(sprintf("P-value (two-sided): %.4f\n\n", p_value))
+
+# Confidence interval for difference
+se_diff <- sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
+diff <- p1 - p2
+ci_diff <- c(diff - 1.96 * se_diff, diff + 1.96 * se_diff)
+cat(sprintf("Difference: %.4f\n", diff))
+cat(sprintf("95%% CI for difference: (%.4f, %.4f)\n\n", ci_diff[1], ci_diff[2]))
+
+if (p_value < 0.05) {
+    cat("Decision: Reject H₀\n")
+    cat("Conclusion: Significant difference in hypertension rates\n")
+} else {
+    cat("Decision: Fail to reject H₀\n")
+    cat("Conclusion: No significant difference in hypertension rates\n")
+}
+```
+
+### 10.10.3 Two-Proportion Test Function from Scratch
+
+```{r two_prop_scratch}
+two_prop_z_test <- function(x1, n1, x2, n2, alternative = "two.sided",
+                             conf_level = 0.95, correct = FALSE) {
+    # Sample proportions
+    p1 <- x1 / n1
+    p2 <- x2 / n2
+    diff <- p1 - p2
+
+    # Pooled proportion under H0
+    p_pooled <- (x1 + x2) / (n1 + n2)
+    se_pooled <- sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
+
+    # Test statistic
+    if (correct) {
+        # Yates' continuity correction
+        z_stat <- (abs(diff) - 0.5 * (1/n1 + 1/n2)) / se_pooled
+        if (diff < 0) z_stat <- -z_stat
+    } else {
+        z_stat <- diff / se_pooled
+    }
+
+    # P-value
+    if (alternative == "two.sided") {
+        p_value <- 2 * pnorm(-abs(z_stat))
+    } else if (alternative == "greater") {
+        p_value <- pnorm(z_stat, lower.tail = FALSE)
+    } else {
+        p_value <- pnorm(z_stat)
+    }
+
+    # CI for difference (unpooled)
+    se_diff <- sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
+    z_crit <- qnorm(1 - (1 - conf_level) / 2)
+    ci <- c(diff - z_crit * se_diff, diff + z_crit * se_diff)
+
+    list(
+        method = "Two-Proportion Z-Test",
+        statistic = z_stat,
+        p.value = p_value,
+        estimate = c(p1 = p1, p2 = p2),
+        difference = diff,
+        null.value = 0,
+        alternative = alternative,
+        conf.int = ci,
+        conf.level = conf_level
+    )
+}
+
+# Apply
+result <- two_prop_z_test(x1, n1, x2, n2)
+
+cat("Custom two_prop_z_test() Results:\n")
+cat("=================================\n")
+cat(sprintf("z = %.4f, p = %.4f\n", result$statistic, result$p.value))
+cat(sprintf("p1 = %.4f, p2 = %.4f\n", result$estimate[1], result$estimate[2]))
+cat(sprintf("Difference: %.4f\n", result$difference))
+cat(sprintf("95%% CI: (%.4f, %.4f)\n", result$conf.int[1], result$conf.int[2]))
+
+# Verify with prop.test
+cat("\n\nVerification with prop.test():\n")
+print(prop.test(c(x1, x2), c(n1, n2), correct = FALSE))
+```
+
+### 10.10.4 Visualising Two Proportions
+
+```{r two_prop_visual, fig.cap="Comparing two proportions"}
+# Create comparison data
+prop_data <- data.table(
+    group = c("Smokers", "Non-smokers"),
+    proportion = c(p1, p2),
+    n = c(n1, n2),
+    se = c(sqrt(p1 * (1 - p1) / n1), sqrt(p2 * (1 - p2) / n2))
+)
+prop_data[, `:=`(
+    lower = proportion - 1.96 * se,
+    upper = proportion + 1.96 * se
+)]
+
+ggplot2$ggplot(prop_data, ggplot2$aes(x = group, y = proportion, fill = group)) +
+    ggplot2$geom_col(alpha = 0.7, width = 0.6) +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = lower, ymax = upper),
+                          width = 0.2, linewidth = 1) +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$scale_y_continuous(labels = scales::percent_format(),
+                               limits = c(0, max(prop_data$upper) * 1.1)) +
+    ggplot2$labs(
+        title = "Hypertension Prevalence by Smoking Status",
+        subtitle = sprintf("z = %.2f, p = %.4f", z_stat, p_value),
+        x = "",
+        y = "Proportion with High BP"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "none")
+```
+
+---
+
+## 10.11 Relative Risk and Odds Ratio
+
+### 10.11.1 Beyond P-values: Effect Sizes for Proportions
+
+For two-proportion comparisons, report effect sizes:
+
+**Relative Risk (RR):**
+$$RR = \frac{p_1}{p_2}$$
+
+Interpretation: How many times more (or less) likely is the outcome in group 1?
+
+**Odds Ratio (OR):**
+$$OR = \frac{p_1/(1-p_1)}{p_2/(1-p_2)} = \frac{p_1(1-p_2)}{p_2(1-p_1)}$$
+
+Interpretation: How many times higher (or lower) are the odds in group 1?
+
+```{r effect_sizes_prop}
+# Calculate effect sizes
+rr <- p1 / p2
+or <- (p1 * (1 - p2)) / (p2 * (1 - p1))
+
+# Log transformation for CIs
+log_rr <- log(rr)
+se_log_rr <- sqrt(1/x1 - 1/n1 + 1/x2 - 1/n2)
+ci_rr <- exp(c(log_rr - 1.96 * se_log_rr, log_rr + 1.96 * se_log_rr))
+
+log_or <- log(or)
+se_log_or <- sqrt(1/x1 + 1/(n1 - x1) + 1/x2 + 1/(n2 - x2))
+ci_or <- exp(c(log_or - 1.96 * se_log_or, log_or + 1.96 * se_log_or))
+
+cat("Effect Sizes for Proportions\n")
+cat("============================\n\n")
+cat(sprintf("Risk Difference: %.4f (%.4f to %.4f)\n",
+            diff, ci_diff[1], ci_diff[2]))
+cat(sprintf("Relative Risk: %.3f (%.3f to %.3f)\n",
+            rr, ci_rr[1], ci_rr[2]))
+cat(sprintf("Odds Ratio: %.3f (%.3f to %.3f)\n\n",
+            or, ci_or[1], ci_or[2]))
+
+cat("Interpretation:\n")
+if (rr > 1) {
+    cat(sprintf("Smokers are %.1f%% more likely to have high BP\n",
+                (rr - 1) * 100))
+} else {
+    cat(sprintf("Smokers are %.1f%% less likely to have high BP\n",
+                (1 - rr) * 100))
+}
+```
+
+### 10.11.2 When to Use RR vs OR
+
+| Measure | Use When | Interpretation |
+|---------|----------|----------------|
+| Risk Difference | Baseline risk important; clinical decision-making | Absolute difference in probability |
+| Relative Risk | Cohort studies; outcome is common | Multiplicative effect on probability |
+| Odds Ratio | Case-control studies; rare outcomes; logistic regression | Multiplicative effect on odds |
+
+**Key insight:** For rare outcomes (p < 10%), OR ≈ RR.
+
+```{r rr_or_comparison}
+# Show how OR ≈ RR for rare events
+p_values <- c(0.01, 0.05, 0.10, 0.20, 0.30, 0.50)
+
+comparison <- data.table(
+    p1 = p_values * 2,  # Group 1 has double the risk
+    p2 = p_values
+)
+comparison[, `:=`(
+    RR = p1 / p2,
+    OR = (p1 * (1 - p2)) / (p2 * (1 - p1))
+)]
+
+cat("Comparison of RR and OR at Different Baseline Risks\n")
+cat("====================================================\n\n")
+cat("(Group 1 has exactly double the risk of Group 2)\n\n")
+print(comparison)
+cat("\nNote: OR approaches RR when both proportions are small.\n")
+```
+
+---
+
+## 10.12 Fisher's Exact Test
+
+### 10.12.1 When to Use Fisher's Exact Test
+
+For small samples where the chi-square approximation fails, use Fisher's exact test. It's based on the hypergeometric distribution.
+
+```{r fisher_test}
+# Small sample example: Clinical trial
+# Does a treatment improve response?
+treatment_success <- 8
+treatment_n <- 12
+control_success <- 3
+control_n <- 10
+
+# Create 2x2 table
+contingency <- matrix(c(treatment_success, treatment_n - treatment_success,
+                        control_success, control_n - control_success),
+                      nrow = 2, byrow = TRUE,
+                      dimnames = list(c("Treatment", "Control"),
+                                     c("Success", "Failure")))
+
+cat("Fisher's Exact Test: Treatment Response\n")
+cat("=======================================\n\n")
+print(contingency)
+
+# Fisher's exact test
+fisher_result <- fisher.test(contingency)
+
+cat("\n\nFisher's Exact Test Results:\n")
+cat(sprintf("Odds Ratio: %.3f\n", fisher_result$estimate))
+cat(sprintf("95%% CI: (%.3f, %.3f)\n", fisher_result$conf.int[1], fisher_result$conf.int[2]))
+cat(sprintf("P-value: %.4f\n\n", fisher_result$p.value))
+
+# Compare to chi-square (may be unreliable here)
+chi_result <- chisq.test(contingency, correct = FALSE)
+cat("Chi-square test (may be unreliable):\n")
+cat(sprintf("χ² = %.3f, p = %.4f\n", chi_result$statistic, chi_result$p.value))
+cat("\nNote: Some expected counts are < 5, so Fisher's exact test is preferred.\n")
+```
+
+---
+
+## 10.13 Sample Size for Proportion Tests
+
+### 10.13.1 One-Proportion Test
+
+For detecting a difference from a hypothesised proportion:
+
+$$n = \left(\frac{z_{1-\alpha/2}\sqrt{p_0(1-p_0)} + z_{1-\beta}\sqrt{p_1(1-p_1)}}{p_1 - p_0}\right)^2$$
+
+### 10.13.2 Two-Proportion Test
+
+For detecting a difference between two proportions:
+
+$$n = \frac{(z_{1-\alpha/2} + z_{1-\beta})^2[p_1(1-p_1) + p_2(1-p_2)]}{(p_1 - p_2)^2}$$
+
+```{r sample_size_prop}
+# Sample size calculation functions
+sample_size_one_prop <- function(p_0, p_1, alpha = 0.05, power = 0.80,
+                                  alternative = "two.sided") {
+    if (alternative == "two.sided") {
+        z_alpha <- qnorm(1 - alpha / 2)
+    } else {
+        z_alpha <- qnorm(1 - alpha)
+    }
+    z_beta <- qnorm(power)
+
+    n <- ((z_alpha * sqrt(p_0 * (1 - p_0)) +
+           z_beta * sqrt(p_1 * (1 - p_1))) / (p_1 - p_0))^2
+
+    ceiling(n)
+}
+
+sample_size_two_prop <- function(p_1, p_2, alpha = 0.05, power = 0.80,
+                                  alternative = "two.sided") {
+    if (alternative == "two.sided") {
+        z_alpha <- qnorm(1 - alpha / 2)
+    } else {
+        z_alpha <- qnorm(1 - alpha)
+    }
+    z_beta <- qnorm(power)
+
+    p_bar <- (p_1 + p_2) / 2
+    q_bar <- 1 - p_bar
+
+    n <- ((z_alpha * sqrt(2 * p_bar * q_bar) +
+           z_beta * sqrt(p_1 * (1 - p_1) + p_2 * (1 - p_2))) / (p_1 - p_2))^2
+
+    ceiling(n)
+}
+
+# Examples
+cat("Sample Size Calculations for Proportion Tests\n")
+cat("==============================================\n\n")
+
+cat("One-proportion test (detecting p = 0.35 vs H₀: p = 0.30):\n")
+n_one <- sample_size_one_prop(0.30, 0.35, power = 0.80)
+cat(sprintf("  n = %d (80%% power, α = 0.05, two-sided)\n\n", n_one))
+
+cat("Two-proportion test (detecting p₁ = 0.35 vs p₂ = 0.25):\n")
+n_two <- sample_size_two_prop(0.35, 0.25, power = 0.80)
+cat(sprintf("  n = %d per group (80%% power, α = 0.05, two-sided)\n\n", n_two))
+
+# Verify with power.prop.test
+cat("Verification with power.prop.test():\n")
+result <- power.prop.test(p1 = 0.35, p2 = 0.25, power = 0.80, sig.level = 0.05)
+cat(sprintf("  n = %.0f per group\n", ceiling(result$n)))
+```
+
+---
+
+## 10.14 Communicating to Stakeholders
+
+### 10.14.1 Reporting Proportion Tests
+
+**Complete reporting includes:**
+1. Counts and percentages in each group
+2. Difference with confidence interval
+3. Relative risk or odds ratio with CI
+4. Test statistic and p-value
+5. Interpretation in context
+
+```{r report_proportions}
+cat("STATISTICAL REPORT: Hypertension by Smoking Status\n")
+cat("===================================================\n\n")
+
+cat("Results:\n")
+cat("--------\n")
+cat(sprintf("Smokers: %d/%d (%.1f%%) had high blood pressure\n",
+            x1, n1, 100 * p1))
+cat(sprintf("Non-smokers: %d/%d (%.1f%%) had high blood pressure\n\n",
+            x2, n2, 100 * p2))
+
+cat("Statistical Analysis:\n")
+cat("--------------------\n")
+cat(sprintf("Risk difference: %.1f percentage points (95%% CI: %.1f to %.1f)\n",
+            100 * diff, 100 * ci_diff[1], 100 * ci_diff[2]))
+cat(sprintf("Relative risk: %.2f (95%% CI: %.2f to %.2f)\n",
+            rr, ci_rr[1], ci_rr[2]))
+cat(sprintf("Two-proportion z-test: z = %.2f, p = %.3f\n\n",
+            z_stat, p_value))
+
+cat("Interpretation:\n")
+cat("---------------\n")
+if (p_value < 0.05) {
+    cat("There was a statistically significant difference in hypertension\n")
+    cat("prevalence between smokers and non-smokers. ")
+} else {
+    cat("There was no statistically significant difference in hypertension\n")
+    cat("prevalence between smokers and non-smokers. ")
+}
+
+if (rr > 1.2 || rr < 0.8) {
+    cat("The relative risk suggests a clinically meaningful association.\n")
+} else {
+    cat("The effect size is relatively small.\n")
+}
+```
+
+### 10.14.2 Explaining Results to Non-Statisticians
+
+"We compared the proportion of people with high blood pressure in two groups: smokers and non-smokers. Among smokers, 25% had high blood pressure, compared to 22% among non-smokers.
+
+This 3-percentage-point difference could easily arise by chance — our statistical test gave a p-value of 0.15, which is above our threshold of 0.05. We cannot conclude that smoking affects blood pressure risk based on these data.
+
+Even if the difference were real, it would be quite small: smokers would be only 1.1 times as likely to have high blood pressure as non-smokers."
+
+---
+
+## 10.15 Quick Reference
+
+### 10.15.1 Test Summary
+
+| Test | Use Case | Test Statistic | Assumptions |
+|------|----------|----------------|-------------|
+| One-proportion z | p vs p₀ | $z = \frac{\hat{p} - p_0}{\sqrt{p_0(1-p_0)/n}}$ | np₀ ≥ 10, n(1-p₀) ≥ 10 |
+| Exact binomial | p vs p₀ (small n) | Based on Binomial(n, p₀) | None |
+| Two-proportion z | p₁ vs p₂ | $z = \frac{\hat{p}_1 - \hat{p}_2}{SE_{\text{pooled}}}$ | Large samples |
+| Fisher's exact | p₁ vs p₂ (small n) | Based on hypergeometric | None |
+
+### 10.15.2 R Functions
+
+```r
+# One-proportion test
+prop.test(x, n, p = p_0, alternative = "two.sided")
+binom.test(x, n, p = p_0)  # Exact
+
+# Two-proportion test
+prop.test(c(x1, x2), c(n1, n2))
+fisher.test(matrix(c(x1, n1-x1, x2, n2-x2), nrow = 2))  # Exact
+
+# Power and sample size
+power.prop.test(p1 = 0.3, p2 = 0.2, power = 0.80)
+```
+
+### 10.15.3 Effect Size Guidelines
+
+| Measure | Small | Medium | Large |
+|---------|-------|--------|-------|
+| Cohen's h | 0.2 | 0.5 | 0.8 |
+| Risk Difference | 0.05 | 0.10 | 0.20 |
+| Relative Risk | 1.2-1.5 | 1.5-2.0 | > 2.0 |
+| Odds Ratio | 1.5 | 2.5 | 4.0 |

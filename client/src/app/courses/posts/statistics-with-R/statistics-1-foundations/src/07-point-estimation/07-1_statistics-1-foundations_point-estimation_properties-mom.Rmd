@@ -1,0 +1,882 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 7: Point Estimation"
+part: "Part 1: Properties of Estimators and Method of Moments"
+section: "07-1"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2025-01-18
+tags: [statistics, mathematics, estimation, bias, variance, consistency, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, collapse = FALSE, results = 'hold')
+```
+
+We now turn from describing sampling distributions to the practical problem of **estimation**: using sample data to infer unknown population parameters. This chapter formalises what makes an estimator "good" and introduces two classical methods for constructing estimators.
+
+An **estimator** is a rule (a function of the data) that produces an estimate of an unknown parameter. Different estimators have different properties—some are unbiased, some are efficient, some are consistent. Understanding these properties helps us choose the best estimator for a given situation.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets for examples
+data_dir <- "../data"
+nhanes <- fread(file.path(data_dir, "primary/nhanes.csv"))
+```
+
+---
+
+## Table of Contents
+
+## 7.1 The Estimation Problem
+
+### 7.1.1 Parameters and Estimators
+
+**Definition:** A **parameter** is a fixed (but unknown) numerical characteristic of a population, denoted by Greek letters: $\mu$ (mean), $\sigma^2$ (variance), $p$ (proportion), $\lambda$ (rate), etc.
+
+**Definition:** An **estimator** is a rule for calculating an estimate from sample data. Denoted with "hats": $\hat{\mu}$, $\hat{\sigma}^2$, $\hat{p}$, $\hat{\lambda}$.
+
+**Key distinction:**
+- **Estimator:** A random variable (before data are collected)
+- **Estimate:** A specific number (after data are collected)
+
+```{r estimator_concept}
+set.seed(42)
+
+# True population parameter
+true_mu <- 100
+
+# An estimator: the sample mean function
+sample_mean_estimator <- function(x) mean(x)
+
+# Generate many samples and compute estimates
+n <- 25
+n_samples <- 1000
+
+estimates <- replicate(n_samples, {
+    sample <- rnorm(n, mean = true_mu, sd = 15)
+    sample_mean_estimator(sample)
+})
+
+cat("The Estimation Problem\n")
+cat("======================\n\n")
+cat(sprintf("True parameter: μ = %.0f\n\n", true_mu))
+cat("Estimator: X̄ = (1/n) Σ Xᵢ\n\n")
+cat(sprintf("1000 estimates from samples of n = %d:\n", n))
+cat(sprintf("  Mean of estimates: %.2f\n", mean(estimates)))
+cat(sprintf("  SD of estimates: %.2f\n", sd(estimates)))
+cat(sprintf("  Range: [%.2f, %.2f]\n", min(estimates), max(estimates)))
+```
+
+### 7.1.2 The Goal of Estimation
+
+We want estimators that are:
+
+1. **Accurate:** On average, close to the true parameter
+2. **Precise:** Low variability across samples
+3. **Reliable:** Good behaviour as sample size increases
+
+These intuitive goals lead to formal mathematical properties.
+
+---
+
+## 7.2 Properties of Estimators
+
+### 7.2.1 Bias
+
+**Definition:** The **bias** of an estimator $\hat{\theta}$ is the difference between its expected value and the true parameter:
+
+$$\text{Bias}(\hat{\theta}) = E(\hat{\theta}) - \theta$$
+
+An estimator is **unbiased** if $E(\hat{\theta}) = \theta$ for all values of $\theta$.
+
+**Examples:**
+
+- Sample mean $\bar{X}$: Unbiased for $\mu$ (proved in Chapter 6)
+- Sample variance $S^2 = \frac{1}{n-1}\sum(X_i - \bar{X})^2$: Unbiased for $\sigma^2$
+- Sample variance with $n$: $\frac{1}{n}\sum(X_i - \bar{X})^2$ is biased (underestimates $\sigma^2$)
+
+```{r bias_demo, fig.cap="Biased vs unbiased estimators of variance"}
+set.seed(123)
+
+# True variance
+true_var <- 100  # σ² = 100, so σ = 10
+
+# Compare biased and unbiased variance estimators
+sample_sizes <- c(5, 10, 25, 50, 100)
+n_sims <- 10000
+
+bias_results <- lapply(sample_sizes, function(n) {
+    # Generate samples and compute both estimators
+    biased_estimates <- replicate(n_sims, {
+        x <- rnorm(n, mean = 0, sd = sqrt(true_var))
+        sum((x - mean(x))^2) / n  # Divide by n
+    })
+
+    unbiased_estimates <- replicate(n_sims, {
+        x <- rnorm(n, mean = 0, sd = sqrt(true_var))
+        sum((x - mean(x))^2) / (n - 1)  # Divide by n-1
+    })
+
+    data.table(
+        n = n,
+        estimator = c("Biased (÷n)", "Unbiased (÷(n-1))"),
+        mean_estimate = c(mean(biased_estimates), mean(unbiased_estimates)),
+        bias = c(mean(biased_estimates) - true_var, mean(unbiased_estimates) - true_var)
+    )
+})
+
+bias_dt <- rbindlist(bias_results)
+
+cat("Bias of Variance Estimators\n")
+cat("===========================\n\n")
+cat(sprintf("True variance: σ² = %.0f\n\n", true_var))
+
+print(dcast(bias_dt, n ~ estimator, value.var = "bias")[,
+    lapply(.SD, round, 2), .SDcols = c("Biased (÷n)", "Unbiased (÷(n-1))"), by = n])
+
+cat("\nTheoretical bias of ÷n estimator: -σ²/n\n")
+cat("For σ² = 100:\n")
+for (n in sample_sizes) {
+    cat(sprintf("  n = %3d: theoretical = %.2f\n", n, -true_var/n))
+}
+
+# Visualise
+ggplot2$ggplot(bias_dt, ggplot2$aes(x = n, y = mean_estimate, colour = estimator)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$geom_hline(yintercept = true_var, linetype = "dashed", colour = "grey40") +
+    ggplot2$annotate("text", x = 80, y = true_var + 3, label = "True σ²",
+                     colour = "grey40") +
+    ggplot2$scale_colour_manual(values = c("#D55E00", "#0072B2")) +
+    ggplot2$labs(
+        title = "Bias in Variance Estimation",
+        subtitle = "The ÷n estimator consistently underestimates σ²",
+        x = "Sample Size (n)",
+        y = "Mean Estimate",
+        colour = "Estimator"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 7.2.2 Variance and Standard Error
+
+**Definition:** The **variance** of an estimator measures its spread around its expected value:
+
+$$\text{Var}(\hat{\theta}) = E\left[(\hat{\theta} - E(\hat{\theta}))^2\right]$$
+
+The **standard error** is $SE(\hat{\theta}) = \sqrt{\text{Var}(\hat{\theta})}$.
+
+Lower variance means more precise estimates. For the sample mean:
+
+$$\text{Var}(\bar{X}) = \frac{\sigma^2}{n}$$
+
+```{r variance_estimator, fig.cap="Variance of the sample mean decreases with sample size"}
+set.seed(456)
+
+# Demonstrate decreasing variance with n
+sample_sizes_var <- c(5, 10, 25, 50, 100, 200)
+true_sigma <- 15
+n_sims_var <- 5000
+
+var_demo <- lapply(sample_sizes_var, function(n) {
+    means <- replicate(n_sims_var, mean(rnorm(n, 50, true_sigma)))
+
+    data.table(
+        n = n,
+        empirical_var = var(means),
+        theoretical_var = true_sigma^2 / n,
+        empirical_se = sd(means),
+        theoretical_se = true_sigma / sqrt(n)
+    )
+})
+
+var_demo_dt <- rbindlist(var_demo)
+
+cat("Variance of Sample Mean\n")
+cat("=======================\n\n")
+
+print(var_demo_dt[, .(
+    n = n,
+    `Var(X̄) Empirical` = round(empirical_var, 2),
+    `Var(X̄) Theoretical` = round(theoretical_var, 2),
+    `SE Empirical` = round(empirical_se, 2),
+    `SE Theoretical` = round(theoretical_se, 2)
+)])
+
+# Plot
+var_long <- melt(var_demo_dt[, .(n, Empirical = empirical_var, Theoretical = theoretical_var)],
+                  id.vars = "n", variable.name = "type", value.name = "variance")
+
+ggplot2$ggplot(var_long, ggplot2$aes(x = n, y = variance, colour = type)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00")) +
+    ggplot2$labs(
+        title = "Variance of Sample Mean Decreases with Sample Size",
+        subtitle = expression(paste("Var(", bar(X), ") = ", sigma^2/n)),
+        x = "Sample Size (n)",
+        y = expression(paste("Var(", bar(X), ")")),
+        colour = "Type"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 7.2.3 Mean Squared Error
+
+**Definition:** The **mean squared error (MSE)** combines bias and variance:
+
+$$\text{MSE}(\hat{\theta}) = E\left[(\hat{\theta} - \theta)^2\right] = \text{Var}(\hat{\theta}) + [\text{Bias}(\hat{\theta})]^2$$
+
+**Proof of the decomposition:**
+
+$$\text{MSE}(\hat{\theta}) = E[(\hat{\theta} - \theta)^2]$$
+
+Adding and subtracting $E(\hat{\theta})$:
+
+$$= E[(\hat{\theta} - E(\hat{\theta}) + E(\hat{\theta}) - \theta)^2]$$
+
+Expanding:
+
+$$= E[(\hat{\theta} - E(\hat{\theta}))^2] + 2E[(\hat{\theta} - E(\hat{\theta}))(E(\hat{\theta}) - \theta)] + [E(\hat{\theta}) - \theta]^2$$
+
+The middle term is zero because $E[\hat{\theta} - E(\hat{\theta})] = 0$:
+
+$$= \text{Var}(\hat{\theta}) + [\text{Bias}(\hat{\theta})]^2$$
+
+**Key insight:** A biased estimator with low variance can have lower MSE than an unbiased estimator with high variance.
+
+```{r mse_demo, fig.cap="The bias-variance trade-off: MSE decomposes into variance plus squared bias"}
+set.seed(789)
+
+# Example: Estimating variance with different divisors
+# Using divisor d: S²_d = (1/d) Σ(Xᵢ - X̄)²
+# This is unbiased when d = n-1, but what about other values?
+
+true_var_mse <- 100
+n <- 10
+n_sims_mse <- 10000
+
+# Try different divisors
+divisors <- seq(n - 3, n + 3, by = 0.5)
+
+mse_analysis <- lapply(divisors, function(d) {
+    estimates <- replicate(n_sims_mse, {
+        x <- rnorm(n, 0, sqrt(true_var_mse))
+        sum((x - mean(x))^2) / d
+    })
+
+    bias <- mean(estimates) - true_var_mse
+    variance <- var(estimates)
+    mse <- mean((estimates - true_var_mse)^2)
+
+    data.table(
+        divisor = d,
+        bias = bias,
+        variance = variance,
+        mse = mse,
+        bias_sq_plus_var = bias^2 + variance
+    )
+})
+
+mse_dt <- rbindlist(mse_analysis)
+
+cat("Bias-Variance Trade-off\n")
+cat("=======================\n\n")
+cat(sprintf("n = %d, σ² = %.0f\n\n", n, true_var_mse))
+
+cat("Key divisors:\n")
+for (d in c(n - 1, n, n + 1)) {
+    row <- mse_dt[divisor == d]
+    cat(sprintf("  d = %d: Bias = %6.2f, Var = %7.2f, MSE = %7.2f\n",
+                d, row$bias, row$variance, row$mse))
+}
+
+# Find optimal divisor
+optimal_d <- mse_dt[which.min(mse), divisor]
+cat(sprintf("\nOptimal divisor (minimising MSE): d = %.1f\n", optimal_d))
+cat(sprintf("(Unbiased divisor is n-1 = %d)\n", n - 1))
+
+# Visualise decomposition
+mse_long <- melt(mse_dt[, .(divisor, `Bias²` = bias^2, Variance = variance, MSE = mse)],
+                  id.vars = "divisor", variable.name = "component", value.name = "value")
+
+ggplot2$ggplot(mse_dt, ggplot2$aes(x = divisor)) +
+    ggplot2$geom_area(ggplot2$aes(y = variance), fill = "#56B4E9", alpha = 0.7) +
+    ggplot2$geom_area(ggplot2$aes(y = variance + bias^2), fill = "#D55E00", alpha = 0.7) +
+    ggplot2$geom_line(ggplot2$aes(y = mse), colour = "black", linewidth = 1.2) +
+    ggplot2$geom_vline(xintercept = n - 1, linetype = "dashed", colour = "#009E73") +
+    ggplot2$geom_vline(xintercept = optimal_d, linetype = "dotted", colour = "purple") +
+    ggplot2$annotate("text", x = n - 1 - 0.5, y = max(mse_dt$mse) * 0.9,
+                     label = "Unbiased\n(d = n-1)", colour = "#009E73", hjust = 1, size = 3) +
+    ggplot2$annotate("text", x = optimal_d + 0.5, y = max(mse_dt$mse) * 0.8,
+                     label = "Min MSE", colour = "purple", hjust = 0, size = 3) +
+    ggplot2$labs(
+        title = "MSE Decomposition: Variance + Bias²",
+        subtitle = "Blue: Variance; Orange: Squared Bias; Black line: Total MSE",
+        x = "Divisor (d)",
+        y = "Mean Squared Error"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 7.2.4 Consistency
+
+**Definition:** An estimator $\hat{\theta}_n$ is **consistent** if it converges in probability to the true parameter as sample size increases:
+
+$$\hat{\theta}_n \xrightarrow{p} \theta \quad \text{as } n \to \infty$$
+
+Formally: For any $\epsilon > 0$,
+$$\lim_{n \to \infty} P(|\hat{\theta}_n - \theta| > \epsilon) = 0$$
+
+**Sufficient condition:** If $\text{Bias}(\hat{\theta}_n) \to 0$ and $\text{Var}(\hat{\theta}_n) \to 0$ as $n \to \infty$, then $\hat{\theta}_n$ is consistent.
+
+```{r consistency_demo, fig.cap="Consistent estimators converge to the true parameter as n increases"}
+set.seed(101)
+
+# Demonstrate consistency of sample mean
+true_mu_cons <- 50
+sample_sizes_cons <- c(10, 25, 50, 100, 250, 500, 1000)
+n_sims_cons <- 1000
+epsilon <- 2  # Tolerance
+
+consistency_data <- lapply(sample_sizes_cons, function(n) {
+    means <- replicate(n_sims_cons, mean(rnorm(n, true_mu_cons, 10)))
+
+    data.table(
+        n = n,
+        prob_within_epsilon = mean(abs(means - true_mu_cons) <= epsilon),
+        mean_estimate = mean(means),
+        sd_estimate = sd(means)
+    )
+})
+
+cons_dt <- rbindlist(consistency_data)
+
+cat("Consistency of Sample Mean\n")
+cat("==========================\n\n")
+cat(sprintf("True μ = %.0f, ε = %.0f\n\n", true_mu_cons, epsilon))
+
+print(cons_dt[, .(
+    n = n,
+    `P(|X̄ - μ| ≤ ε)` = round(prob_within_epsilon, 3),
+    `Mean of X̄` = round(mean_estimate, 2),
+    `SD of X̄` = round(sd_estimate, 3)
+)])
+
+# Plot
+ggplot2$ggplot(cons_dt, ggplot2$aes(x = n, y = prob_within_epsilon)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1.2) +
+    ggplot2$geom_point(size = 3, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_y_continuous(limits = c(0, 1), labels = scales::percent) +
+    ggplot2$labs(
+        title = "Consistency: P(|X̄ - μ| ≤ ε) → 1 as n → ∞",
+        subtitle = sprintf("ε = %.0f; probability approaches 1 as sample size increases", epsilon),
+        x = "Sample Size (n)",
+        y = expression(paste("P(|", bar(X), " - μ| ≤ ε)"))
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 7.2.5 Efficiency
+
+**Definition:** Among all unbiased estimators of $\theta$, the **efficient** estimator is the one with minimum variance.
+
+**Cramér-Rao Lower Bound:** For unbiased estimators, there is a theoretical lower bound on variance:
+
+$$\text{Var}(\hat{\theta}) \geq \frac{1}{nI(\theta)}$$
+
+where $I(\theta)$ is the **Fisher information** about $\theta$ contained in one observation.
+
+An estimator achieving this bound is called **efficient** or **minimum variance unbiased (MVU)**.
+
+**Example:** For estimating the mean of a normal distribution, $\bar{X}$ is efficient—no other unbiased estimator has lower variance.
+
+```{r efficiency_demo, fig.cap="Comparing efficiency: sample mean vs trimmed mean for normal data"}
+set.seed(202)
+
+# Compare sample mean (efficient for normal) vs trimmed mean
+true_mu_eff <- 100
+true_sigma_eff <- 15
+n <- 50
+n_sims_eff <- 5000
+
+# Generate samples
+sample_means <- replicate(n_sims_eff, {
+    x <- rnorm(n, true_mu_eff, true_sigma_eff)
+    mean(x)
+})
+
+trimmed_means_10 <- replicate(n_sims_eff, {
+    x <- rnorm(n, true_mu_eff, true_sigma_eff)
+    mean(x, trim = 0.10)  # 10% trimmed mean
+})
+
+trimmed_means_25 <- replicate(n_sims_eff, {
+    x <- rnorm(n, true_mu_eff, true_sigma_eff)
+    mean(x, trim = 0.25)  # 25% trimmed mean
+})
+
+medians <- replicate(n_sims_eff, {
+    x <- rnorm(n, true_mu_eff, true_sigma_eff)
+    median(x)
+})
+
+efficiency_dt <- data.table(
+    estimator = c("Sample Mean", "10% Trimmed", "25% Trimmed", "Median"),
+    mean = c(mean(sample_means), mean(trimmed_means_10),
+             mean(trimmed_means_25), mean(medians)),
+    variance = c(var(sample_means), var(trimmed_means_10),
+                 var(trimmed_means_25), var(medians)),
+    se = c(sd(sample_means), sd(trimmed_means_10),
+           sd(trimmed_means_25), sd(medians))
+)
+
+# Relative efficiency (compared to sample mean)
+efficiency_dt[, relative_efficiency := variance[1] / variance]
+
+cat("Efficiency Comparison for Normal Data\n")
+cat("=====================================\n\n")
+cat(sprintf("True μ = %.0f, σ = %.0f, n = %d\n\n", true_mu_eff, true_sigma_eff, n))
+
+print(efficiency_dt[, .(
+    Estimator = estimator,
+    Mean = round(mean, 2),
+    Variance = round(variance, 2),
+    `Rel. Eff.` = round(relative_efficiency, 3)
+)])
+
+cat("\nFor normal data, the sample mean is most efficient.\n")
+cat("Relative efficiency < 1 means higher variance (less efficient).\n")
+
+# Visualise
+eff_plot_data <- rbind(
+    data.table(estimator = "Sample Mean", value = sample_means),
+    data.table(estimator = "10% Trimmed", value = trimmed_means_10),
+    data.table(estimator = "25% Trimmed", value = trimmed_means_25),
+    data.table(estimator = "Median", value = medians)
+)
+eff_plot_data[, estimator := factor(estimator, levels = efficiency_dt$estimator)]
+
+ggplot2$ggplot(eff_plot_data, ggplot2$aes(x = value, fill = estimator)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
+                           colour = "white", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = true_mu_eff, linetype = "dashed", colour = "#D55E00") +
+    ggplot2$facet_wrap(~estimator, ncol = 2) +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#56B4E9", "#009E73", "#CC79A7")) +
+    ggplot2$labs(
+        title = "Sampling Distributions of Different Estimators",
+        subtitle = "Sample mean (most efficient for normal) has narrowest distribution",
+        x = "Estimate",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$guides(fill = "none") +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+**Note:** When data are contaminated with outliers, robust estimators like the trimmed mean or median may have better MSE despite being less efficient for normal data.
+
+---
+
+## 7.3 Method of Moments
+
+The **Method of Moments (MOM)** is a classical technique for constructing estimators. The idea is simple: equate population moments to sample moments and solve for parameters.
+
+### 7.3.1 The Basic Idea
+
+**Population moments:**
+- First moment: $\mu_1 = E(X) = \mu$
+- Second moment: $\mu_2 = E(X^2)$
+- Central second moment: $E[(X - \mu)^2] = \sigma^2$
+
+**Sample moments:**
+- First sample moment: $m_1 = \bar{X} = \frac{1}{n}\sum X_i$
+- Second sample moment: $m_2 = \frac{1}{n}\sum X_i^2$
+
+**Method:** Set $\mu_k = m_k$ for $k = 1, 2, \ldots$ and solve for parameters.
+
+### 7.3.2 MOM for Common Distributions
+
+**Example 1: Normal Distribution $N(\mu, \sigma^2)$**
+
+Two parameters require two moment equations:
+
+1. $E(X) = \mu$ → $\hat{\mu} = \bar{X}$
+2. $E(X^2) = \mu^2 + \sigma^2$ → $\bar{X^2} = \bar{X}^2 + \hat{\sigma}^2$
+
+Solving: $\hat{\sigma}^2 = \bar{X^2} - \bar{X}^2 = \frac{1}{n}\sum(X_i - \bar{X})^2$
+
+Note: This gives the *biased* variance estimator (dividing by $n$).
+
+```{r mom_normal}
+set.seed(303)
+
+# MOM estimation for normal distribution
+true_mu_mom <- 50
+true_sigma_mom <- 10
+
+# Generate a sample
+n_mom <- 100
+sample_mom <- rnorm(n_mom, true_mu_mom, true_sigma_mom)
+
+# MOM estimators
+mu_hat_mom <- mean(sample_mom)
+sigma2_hat_mom <- mean(sample_mom^2) - mean(sample_mom)^2  # This is biased
+
+# Compare with unbiased
+sigma2_hat_unbiased <- var(sample_mom)
+
+cat("MOM Estimation for Normal Distribution\n")
+cat("======================================\n\n")
+
+cat(sprintf("True parameters: μ = %.0f, σ² = %.0f\n\n", true_mu_mom, true_sigma_mom^2))
+
+cat("MOM estimates:\n")
+cat(sprintf("  μ̂ = X̄ = %.3f (true: %.0f)\n", mu_hat_mom, true_mu_mom))
+cat(sprintf("  σ̂² = (1/n)Σ(Xᵢ - X̄)² = %.3f (true: %.0f)\n\n",
+            sigma2_hat_mom, true_sigma_mom^2))
+
+cat("Comparison with unbiased variance:\n")
+cat(sprintf("  S² = (1/(n-1))Σ(Xᵢ - X̄)² = %.3f\n", sigma2_hat_unbiased))
+cat(sprintf("  Ratio (MOM/S²) = %.4f ≈ (n-1)/n = %.4f\n",
+            sigma2_hat_mom / sigma2_hat_unbiased, (n_mom - 1) / n_mom))
+```
+
+**Example 2: Exponential Distribution $\text{Exp}(\lambda)$**
+
+One parameter requires one moment equation:
+
+$E(X) = 1/\lambda$ → $\bar{X} = 1/\hat{\lambda}$ → $\hat{\lambda} = 1/\bar{X}$
+
+```{r mom_exponential, fig.cap="MOM estimation for exponential distribution"}
+set.seed(404)
+
+# MOM for exponential
+true_lambda <- 0.5  # Mean = 2
+
+# Simulate many samples
+n_exp <- 30
+n_sims_exp <- 5000
+
+lambda_hat_samples <- replicate(n_sims_exp, {
+    x <- rexp(n_exp, rate = true_lambda)
+    1 / mean(x)  # MOM estimator
+})
+
+cat("MOM Estimation for Exponential Distribution\n")
+cat("===========================================\n\n")
+
+cat(sprintf("True λ = %.1f (mean = %.1f)\n\n", true_lambda, 1/true_lambda))
+cat(sprintf("MOM estimator: λ̂ = 1/X̄\n\n"))
+
+cat("Sampling distribution of λ̂ (n = 30):\n")
+cat(sprintf("  Mean of λ̂: %.4f (true: %.1f)\n", mean(lambda_hat_samples), true_lambda))
+cat(sprintf("  SD of λ̂: %.4f\n", sd(lambda_hat_samples)))
+cat(sprintf("  Note: λ̂ is biased! E(1/X̄) ≠ 1/E(X̄)\n"))
+
+# Visualise
+exp_est_dt <- data.table(lambda_hat = lambda_hat_samples)
+
+ggplot2$ggplot(exp_est_dt, ggplot2$aes(x = lambda_hat)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                           fill = "#56B4E9", colour = "white", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = true_lambda, colour = "#D55E00",
+                       linetype = "dashed", linewidth = 1) +
+    ggplot2$geom_vline(xintercept = mean(lambda_hat_samples), colour = "#009E73",
+                       linetype = "dotted", linewidth = 1) +
+    ggplot2$annotate("text", x = true_lambda + 0.05, y = 4,
+                     label = paste0("True λ = ", true_lambda), colour = "#D55E00", hjust = 0) +
+    ggplot2$annotate("text", x = mean(lambda_hat_samples) + 0.05, y = 3.5,
+                     label = sprintf("Mean λ̂ = %.3f", mean(lambda_hat_samples)),
+                     colour = "#009E73", hjust = 0) +
+    ggplot2$labs(
+        title = "MOM Estimator for Exponential Rate",
+        subtitle = "λ̂ = 1/X̄ is slightly biased upward",
+        x = expression(hat(lambda)),
+        y = "Density"
+    ) +
+    ggplot2$coord_cartesian(xlim = c(0.2, 1.0)) +
+    ggplot2$theme_minimal()
+```
+
+**Example 3: Gamma Distribution $\text{Gamma}(\alpha, \beta)$**
+
+Two parameters require two moment equations:
+
+- $E(X) = \alpha/\beta$
+- $\text{Var}(X) = \alpha/\beta^2$
+
+Solving:
+
+$$\hat{\alpha} = \frac{\bar{X}^2}{S^2}, \quad \hat{\beta} = \frac{\bar{X}}{S^2}$$
+
+```{r mom_gamma}
+set.seed(505)
+
+# MOM for gamma distribution
+true_alpha <- 3
+true_beta <- 0.5  # Rate parameterisation: mean = α/β = 6
+
+# Generate sample
+n_gamma <- 100
+sample_gamma <- rgamma(n_gamma, shape = true_alpha, rate = true_beta)
+
+# MOM estimators
+xbar_gamma <- mean(sample_gamma)
+s2_gamma <- var(sample_gamma)
+
+alpha_hat <- xbar_gamma^2 / s2_gamma
+beta_hat <- xbar_gamma / s2_gamma
+
+cat("MOM Estimation for Gamma Distribution\n")
+cat("=====================================\n\n")
+
+cat(sprintf("True parameters: α = %.1f, β = %.1f\n", true_alpha, true_beta))
+cat(sprintf("True mean = α/β = %.1f, True variance = α/β² = %.1f\n\n",
+            true_alpha/true_beta, true_alpha/true_beta^2))
+
+cat("Sample statistics:\n")
+cat(sprintf("  X̄ = %.3f, S² = %.3f\n\n", xbar_gamma, s2_gamma))
+
+cat("MOM estimates:\n")
+cat(sprintf("  α̂ = X̄²/S² = %.3f (true: %.1f)\n", alpha_hat, true_alpha))
+cat(sprintf("  β̂ = X̄/S² = %.3f (true: %.1f)\n", beta_hat, true_beta))
+```
+
+### 7.3.3 Properties of MOM Estimators
+
+**Advantages:**
+1. Simple to derive and compute
+2. Usually consistent
+3. Good starting values for more complex methods
+
+**Disadvantages:**
+1. May not be efficient
+2. Can be biased
+3. Moments may not exist for some distributions (e.g., Cauchy)
+4. May give invalid estimates (e.g., negative variance)
+
+---
+
+## 7.4 Biomedical Application: Estimating Disease Prevalence
+
+Let's apply estimation concepts to a realistic scenario: estimating disease prevalence from a sample.
+
+```{r prevalence_application, fig.cap="Estimating diabetes prevalence from NHANES with different estimators"}
+# Estimate diabetes prevalence from NHANES
+diabetes_data <- nhanes[!is.na(Diabetes), .(is_diabetic = as.numeric(Diabetes == "Yes"))]
+
+# True prevalence in NHANES (our "population")
+true_prevalence <- mean(diabetes_data$is_diabetic)
+
+cat("Estimating Disease Prevalence\n")
+cat("=============================\n\n")
+
+cat(sprintf("NHANES 'population': n = %d\n", nrow(diabetes_data)))
+cat(sprintf("True diabetes prevalence: p = %.4f (%.2f%%)\n\n",
+            true_prevalence, true_prevalence * 100))
+
+# Simulate sampling from this population
+set.seed(606)
+sample_sizes_prev <- c(50, 100, 200, 500)
+n_sims_prev <- 2000
+
+prev_results <- lapply(sample_sizes_prev, function(n) {
+    # Sample and estimate prevalence
+    estimates <- replicate(n_sims_prev, {
+        sample_idx <- sample(nrow(diabetes_data), n, replace = FALSE)
+        mean(diabetes_data$is_diabetic[sample_idx])
+    })
+
+    data.table(
+        n = n,
+        mean_estimate = mean(estimates),
+        bias = mean(estimates) - true_prevalence,
+        variance = var(estimates),
+        se = sd(estimates),
+        theoretical_se = sqrt(true_prevalence * (1 - true_prevalence) / n),
+        mse = mean((estimates - true_prevalence)^2)
+    )
+})
+
+prev_dt <- rbindlist(prev_results)
+
+cat("Sampling properties of prevalence estimator p̂:\n\n")
+
+print(prev_dt[, .(
+    n = n,
+    `Mean p̂` = round(mean_estimate, 4),
+    Bias = round(bias, 5),
+    `SE (emp)` = round(se, 4),
+    `SE (theo)` = round(theoretical_se, 4),
+    MSE = round(mse, 6)
+)])
+
+cat("\nKey observations:\n")
+cat("  - p̂ = X̄ is unbiased (bias ≈ 0)\n")
+cat("  - SE decreases with √n\n")
+cat("  - Empirical SE matches theoretical √[p(1-p)/n]\n")
+
+# Visualise
+prev_plot_data <- lapply(sample_sizes_prev, function(n) {
+    estimates <- replicate(n_sims_prev, {
+        sample_idx <- sample(nrow(diabetes_data), n, replace = FALSE)
+        mean(diabetes_data$is_diabetic[sample_idx])
+    })
+    data.table(n = paste0("n = ", n), estimate = estimates)
+})
+
+prev_plot_dt <- rbindlist(prev_plot_data)
+prev_plot_dt[, n := factor(n, levels = paste0("n = ", sample_sizes_prev))]
+
+ggplot2$ggplot(prev_plot_dt, ggplot2$aes(x = estimate)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 40,
+                           fill = "#56B4E9", colour = "white", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = true_prevalence, colour = "#D55E00",
+                       linetype = "dashed", linewidth = 1) +
+    ggplot2$facet_wrap(~n, scales = "free_y") +
+    ggplot2$labs(
+        title = "Sampling Distribution of Prevalence Estimator",
+        subtitle = "Dashed line: true prevalence; Distributions narrow with increasing n",
+        x = "Estimated Prevalence (p̂)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Estimator Properties
+
+```{r stakeholder_estimation}
+cat("Explaining Estimation to Non-Statisticians\n")
+cat("==========================================\n\n")
+
+cat("THE CORE QUESTION:\n")
+cat("  'How do we use sample data to learn about the population?'\n\n")
+
+cat("EXPLAINING BIAS:\n")
+cat("  'An unbiased method gives the correct answer ON AVERAGE.\n")
+cat("   Like a scale that's properly calibrated — individual weighings\n")
+cat("   might be a bit off, but there's no systematic over- or under-reading.'\n\n")
+
+cat("EXPLAINING PRECISION (VARIANCE):\n")
+cat("  'Precision tells us how tightly our estimates cluster.\n")
+cat("   More data = more precision. A study with 1000 patients gives\n")
+cat("   much more precise estimates than one with 50.'\n\n")
+
+cat("EXPLAINING MSE (ACCURACY):\n")
+cat("  'Overall accuracy combines bias and precision.\n")
+cat("   A method can be slightly biased but still accurate if it's\n")
+cat("   very precise. It's like archery: tight grouping matters,\n")
+cat("   even if slightly off-centre.'\n\n")
+
+cat("EXPLAINING CONSISTENCY:\n")
+cat("  'With enough data, we can get as close to the truth as we want.\n")
+cat("   This is reassuring: bigger studies DO give better answers.'\n")
+```
+
+### Practical Implications
+
+```{r stakeholder_practical}
+cat("Practical Implications of Estimator Properties\n")
+cat("==============================================\n\n")
+
+cat("FOR STUDY DESIGN:\n")
+cat("  - Sample size affects precision (SE ∝ 1/√n)\n")
+cat("  - Quadrupling sample size halves the standard error\n")
+cat("  - Balance: larger studies are more precise but more expensive\n\n")
+
+cat("FOR INTERPRETING RESULTS:\n")
+cat("  - A single estimate is not the truth — it has uncertainty\n")
+cat("  - Report standard errors alongside estimates\n")
+cat("  - Consider both bias and precision when evaluating methods\n\n")
+
+cat("FOR CHOOSING METHODS:\n")
+cat("  - Unbiased isn't always best (consider MSE)\n")
+cat("  - Robust methods may sacrifice efficiency for safety\n")
+cat("  - Context matters: what are the costs of different errors?\n")
+```
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+**Bias:**
+$$\text{Bias}(\hat{\theta}) = E(\hat{\theta}) - \theta$$
+
+**Variance of sample mean:**
+$$\text{Var}(\bar{X}) = \frac{\sigma^2}{n}$$
+
+**MSE decomposition:**
+$$\text{MSE}(\hat{\theta}) = \text{Var}(\hat{\theta}) + [\text{Bias}(\hat{\theta})]^2$$
+
+**Consistency condition:**
+If $\text{Bias} \to 0$ and $\text{Var} \to 0$ as $n \to \infty$, then $\hat{\theta}_n$ is consistent.
+
+### Method of Moments
+
+| Distribution | Parameter(s) | MOM Estimator(s) |
+|--------------|--------------|------------------|
+| Normal | $\mu, \sigma^2$ | $\hat{\mu} = \bar{X}$, $\hat{\sigma}^2 = \frac{1}{n}\sum(X_i - \bar{X})^2$ |
+| Exponential | $\lambda$ | $\hat{\lambda} = 1/\bar{X}$ |
+| Poisson | $\lambda$ | $\hat{\lambda} = \bar{X}$ |
+| Gamma | $\alpha, \beta$ | $\hat{\alpha} = \bar{X}^2/S^2$, $\hat{\beta} = \bar{X}/S^2$ |
+
+### R Code Patterns
+
+```r
+# Bias simulation
+estimates <- replicate(n_sims, {
+    sample <- rnorm(n, mu, sigma)
+    mean(sample)  # or other estimator
+})
+bias <- mean(estimates) - true_parameter
+
+# MSE calculation
+mse <- mean((estimates - true_parameter)^2)
+# Or equivalently:
+mse <- var(estimates) + bias^2
+
+# MOM for exponential
+lambda_hat <- 1 / mean(x)
+
+# MOM for gamma
+alpha_hat <- mean(x)^2 / var(x)
+beta_hat <- mean(x) / var(x)
+```
+
+---
+
+*Next: Part 2 covers Maximum Likelihood Estimation — a more powerful method that produces optimal estimators under general conditions.*

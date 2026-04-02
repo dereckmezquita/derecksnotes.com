@@ -1,0 +1,608 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 4: Logistic Regression"
+part: "Part 1: Binary Outcomes and the Logistic Model"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, logistic-regression, GLM, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Part 1: Binary Outcomes and the Logistic Model
+
+When the response variable is **binary** (yes/no, success/failure, disease/healthy), standard linear regression fails. The logistic regression model provides an elegant solution that has become the workhorse for classification and risk prediction in biomedical research.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+breast_cancer <- fread("../../../data/bioinformatics/breast_cancer_wisconsin.csv")
+
+cat("Datasets loaded:\n")
+cat("  NHANES:", nrow(nhanes), "observations\n")
+cat("  Breast cancer:", nrow(breast_cancer), "observations\n")
+```
+
+---
+
+## Table of Contents
+
+## 4.1 The Problem with Linear Probability Models
+
+### 4.1.1 Why Linear Regression Fails
+
+**Prose and Intuition**
+
+Suppose we want to predict whether a patient has diabetes based on their BMI. The outcome is binary: diabetes (1) or no diabetes (0). What happens if we fit a simple linear regression?
+
+$$Y_i = \beta_0 + \beta_1 X_i + \varepsilon_i$$
+
+Two fundamental problems emerge:
+
+1. **Predicted probabilities outside [0,1]**: Linear models predict unbounded values. For extreme BMI values, we might predict "probability" of 1.3 or -0.2 — which are nonsensical as probabilities.
+
+2. **Non-constant variance**: If $Y \in \{0, 1\}$ and $E[Y|X] = p(X)$, then $\text{Var}(Y|X) = p(X)(1 - p(X))$. The variance depends on the mean, violating homoscedasticity.
+
+```{r linear_probability_problem, fig.cap="Linear regression produces impossible probability predictions"}
+# Create diabetes outcome
+diabetes_data <- nhanes[!is.na(Diabetes) & !is.na(BMI) & Age >= 18,
+                        .(diabetes = as.integer(Diabetes == "Yes"), BMI = BMI)]
+diabetes_data <- diabetes_data[complete.cases(diabetes_data)]
+
+# Fit linear model (Linear Probability Model)
+model_lpm <- lm(diabetes ~ BMI, data = diabetes_data)
+
+cat("Linear Probability Model: diabetes ~ BMI\n")
+cat("=========================================\n\n")
+cat("Coefficients:\n")
+cat("  Intercept:", round(coef(model_lpm)[1], 4), "\n")
+cat("  BMI:", round(coef(model_lpm)[2], 4), "\n\n")
+
+# Check predictions
+bmi_range <- data.table(BMI = seq(15, 60, by = 0.5))
+bmi_range[, pred_linear := predict(model_lpm, newdata = .SD)]
+
+cat("Problems with predictions:\n")
+cat("  At BMI = 15:", round(predict(model_lpm, newdata = data.table(BMI = 15)), 3), "\n")
+cat("  At BMI = 50:", round(predict(model_lpm, newdata = data.table(BMI = 50)), 3), "\n")
+cat("  Min prediction:", round(min(bmi_range$pred_linear), 3), "\n")
+cat("  Max prediction:", round(max(bmi_range$pred_linear), 3), "\n")
+
+# Visualise
+ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 3000))],
+               ggplot2$aes(x = BMI, y = diabetes)) +
+    ggplot2$geom_jitter(height = 0.05, alpha = 0.3, size = 1) +
+    ggplot2$geom_line(data = bmi_range, ggplot2$aes(y = pred_linear),
+                      colour = "#D55E00", size = 1.2) +
+    ggplot2$geom_hline(yintercept = c(0, 1), linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("rect", xmin = 15, xmax = 60, ymin = 1, ymax = 1.2,
+                     alpha = 0.3, fill = "#D55E00") +
+    ggplot2$annotate("rect", xmin = 15, xmax = 60, ymin = -0.2, ymax = 0,
+                     alpha = 0.3, fill = "#D55E00") +
+    ggplot2$annotate("text", x = 55, y = 1.1, label = "Impossible", colour = "#D55E00") +
+    ggplot2$annotate("text", x = 55, y = -0.1, label = "Impossible", colour = "#D55E00") +
+    ggplot2$labs(
+        title = "Linear Probability Model Fails for Binary Outcomes",
+        subtitle = "Orange shading shows impossible probability regions",
+        x = "BMI",
+        y = "Diabetes (0 = No, 1 = Yes)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 4.1.2 The Solution: Transform the Probability
+
+**Prose and Intuition**
+
+We need a function that:
+- Maps any real number to the interval $(0, 1)$
+- Is monotonic (increasing inputs give increasing outputs)
+- Has a natural interpretation
+
+The **logistic function** (also called the **sigmoid function**) provides exactly this:
+
+$$p(X) = \frac{e^{\eta}}{1 + e^{\eta}} = \frac{1}{1 + e^{-\eta}}$$
+
+where $\eta = \beta_0 + \beta_1 X$ is the linear predictor.
+
+**Key properties:**
+- As $\eta \to -\infty$, $p \to 0$
+- As $\eta \to +\infty$, $p \to 1$
+- When $\eta = 0$, $p = 0.5$
+
+```{r logistic_function, fig.cap="The logistic function maps any real number to (0,1)"}
+# Plot the logistic function
+eta_range <- data.table(eta = seq(-6, 6, by = 0.1))
+eta_range[, p := 1 / (1 + exp(-eta))]
+
+ggplot2$ggplot(eta_range, ggplot2$aes(x = eta, y = p)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
+    ggplot2$geom_hline(yintercept = c(0, 0.5, 1), linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$annotate("point", x = 0, y = 0.5, size = 4, colour = "#D55E00") +
+    ggplot2$annotate("text", x = 0.5, y = 0.55, label = "p = 0.5 when η = 0",
+                     hjust = 0, colour = "#D55E00") +
+    ggplot2$labs(
+        title = "The Logistic (Sigmoid) Function",
+        subtitle = expression(p(eta) == frac(1, 1 + e^{-eta})),
+        x = expression(eta ~ "(linear predictor)"),
+        y = "Probability p"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 4.2 The Logistic Regression Model
+
+### 4.2.1 Model Formulation
+
+**Mathematical Definition**
+
+For a binary outcome $Y_i \in \{0, 1\}$, the logistic regression model specifies:
+
+$$P(Y_i = 1 | \mathbf{X}_i) = \frac{1}{1 + e^{-\boldsymbol{\beta}'\mathbf{X}_i}}$$
+
+Equivalently, using the **logit** (log-odds) link function:
+
+$$\log\left(\frac{p_i}{1 - p_i}\right) = \boldsymbol{\beta}'\mathbf{X}_i = \beta_0 + \beta_1 X_{i1} + \cdots + \beta_p X_{ip}$$
+
+The left side is the **log-odds** or **logit** of the probability.
+
+**Why log-odds?**
+
+The **odds** of an event is:
+$$\text{odds} = \frac{p}{1-p}$$
+
+If $p = 0.8$, the odds are $0.8/0.2 = 4$. We say "4 to 1 odds" — the event is 4 times more likely to happen than not.
+
+The log-odds transform maps $(0,1)$ to $(-\infty, \infty)$, allowing us to use a linear model on the transformed scale.
+
+```{r odds_illustration, fig.cap="The relationship between probability, odds, and log-odds"}
+prob_range <- data.table(p = seq(0.01, 0.99, by = 0.01))
+prob_range[, odds := p / (1 - p)]
+prob_range[, log_odds := log(odds)]
+
+# Plot all three relationships
+p1 <- ggplot2$ggplot(prob_range, ggplot2$aes(x = p, y = odds)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1) +
+    ggplot2$geom_hline(yintercept = 1, linetype = "dashed", colour = "grey50") +
+    ggplot2$labs(title = "Odds vs Probability", x = "Probability", y = "Odds") +
+    ggplot2$coord_cartesian(ylim = c(0, 20)) +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(prob_range, ggplot2$aes(x = p, y = log_odds)) +
+    ggplot2$geom_line(colour = "#009E73", size = 1) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$labs(title = "Log-Odds vs Probability", x = "Probability", y = "Log-Odds") +
+    ggplot2$theme_minimal()
+
+print(p1)
+```
+
+```{r odds_logodds, fig.cap="Log-odds transform makes the relationship linear"}
+print(p2)
+```
+
+### 4.2.2 Fitting Logistic Regression in R
+
+```{r fit_logistic, fig.cap="Logistic regression properly constrains predictions to [0,1]"}
+# Fit logistic regression
+model_logistic <- glm(diabetes ~ BMI, data = diabetes_data, family = binomial)
+
+cat("Logistic Regression: diabetes ~ BMI\n")
+cat("====================================\n\n")
+summary(model_logistic)
+
+# Get predictions
+bmi_range[, pred_logistic := predict(model_logistic, newdata = .SD, type = "response")]
+
+cat("\nPredictions properly bounded:\n")
+cat("  At BMI = 15:", round(predict(model_logistic, newdata = data.table(BMI = 15),
+                                    type = "response"), 4), "\n")
+cat("  At BMI = 50:", round(predict(model_logistic, newdata = data.table(BMI = 50),
+                                    type = "response"), 4), "\n")
+
+# Compare models
+ggplot2$ggplot(diabetes_data[sample(.N, min(.N, 3000))],
+               ggplot2$aes(x = BMI, y = diabetes)) +
+    ggplot2$geom_jitter(height = 0.05, alpha = 0.3, size = 1) +
+    ggplot2$geom_line(data = bmi_range, ggplot2$aes(y = pred_linear, colour = "Linear"),
+                      size = 1.2) +
+    ggplot2$geom_line(data = bmi_range, ggplot2$aes(y = pred_logistic, colour = "Logistic"),
+                      size = 1.2) +
+    ggplot2$geom_hline(yintercept = c(0, 1), linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("Linear" = "#D55E00", "Logistic" = "#0072B2")) +
+    ggplot2$labs(
+        title = "Linear vs Logistic: Predicting Diabetes from BMI",
+        subtitle = "Logistic regression produces valid probability predictions",
+        x = "BMI",
+        y = "P(Diabetes)",
+        colour = "Model"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 4.3 Interpreting Logistic Regression Coefficients
+
+### 4.3.1 The Odds Ratio Interpretation
+
+**Prose and Intuition**
+
+In logistic regression, coefficients are interpreted as **log-odds ratios**. Exponentiating gives the **odds ratio (OR)**, which is the multiplicative change in odds for a one-unit increase in the predictor.
+
+**Mathematical Derivation**
+
+For a continuous predictor $X$:
+$$\log\left(\frac{p}{1-p}\right) = \beta_0 + \beta_1 X$$
+
+At $X = x$: $\log(\text{odds}_x) = \beta_0 + \beta_1 x$
+
+At $X = x + 1$: $\log(\text{odds}_{x+1}) = \beta_0 + \beta_1 (x + 1)$
+
+The difference:
+$$\log(\text{odds}_{x+1}) - \log(\text{odds}_x) = \beta_1$$
+
+Therefore:
+$$\text{OR} = \frac{\text{odds}_{x+1}}{\text{odds}_x} = e^{\beta_1}$$
+
+**Interpretation:**
+- $\text{OR} = 1$: No association
+- $\text{OR} > 1$: Higher X associated with higher odds of Y = 1
+- $\text{OR} < 1$: Higher X associated with lower odds of Y = 1
+
+```{r odds_ratio, fig.cap="Odds ratios provide the multiplicative change in odds"}
+# Extract coefficients and compute odds ratios
+coefs <- summary(model_logistic)$coefficients
+or_bmi <- exp(coef(model_logistic)["BMI"])
+ci_logit <- confint(model_logistic)
+or_ci <- exp(ci_logit["BMI", ])
+
+cat("Odds Ratio Interpretation:\n")
+cat("==========================\n\n")
+cat("Log-odds coefficient for BMI:", round(coef(model_logistic)["BMI"], 4), "\n")
+cat("Odds Ratio for BMI:", round(or_bmi, 3), "\n")
+cat("95% CI for OR:", round(or_ci[1], 3), "-", round(or_ci[2], 3), "\n\n")
+
+cat("Interpretation:\n")
+cat("For each 1-unit increase in BMI, the odds of diabetes\n")
+cat("are multiplied by", round(or_bmi, 3), "\n\n")
+
+cat("For a 5-unit increase in BMI:\n")
+cat("  Odds multiplied by", round(or_bmi^5, 2), "\n")
+cat("  (i.e., OR^5 =", round(or_bmi, 3), "^5 =", round(or_bmi^5, 2), ")\n")
+```
+
+### 4.3.2 Converting to Probability Changes
+
+**Prose and Intuition**
+
+While odds ratios are mathematically convenient, they can be hard to interpret. Sometimes we want to express the effect in terms of **probability** change. However, unlike linear regression, the probability change depends on the baseline probability.
+
+```{r probability_change, fig.cap="Probability change depends on baseline probability"}
+# Show how probability change varies with baseline
+bmi_values <- c(20, 25, 30, 35, 40)
+prob_changes <- data.table(BMI = bmi_values)
+prob_changes[, P_baseline := predict(model_logistic, newdata = .SD, type = "response")]
+prob_changes[, P_plus_5 := predict(model_logistic, newdata = data.table(BMI = BMI + 5),
+                                   type = "response")]
+prob_changes[, Prob_Change := P_plus_5 - P_baseline]
+
+cat("Probability Change for +5 BMI Units:\n")
+cat("=====================================\n\n")
+print(prob_changes[, .(BMI, P_baseline = round(P_baseline, 3),
+                       P_plus_5 = round(P_plus_5, 3),
+                       Prob_Change = round(Prob_Change, 3))])
+
+cat("\nNote: The probability increase depends on where you start!\n")
+cat("This is because the logistic curve is steepest near p = 0.5\n")
+
+# Visualise this
+ggplot2$ggplot(bmi_range, ggplot2$aes(x = BMI, y = pred_logistic)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
+    ggplot2$geom_segment(data = prob_changes,
+                         ggplot2$aes(x = BMI, xend = BMI + 5,
+                                     y = P_baseline, yend = P_plus_5),
+                         colour = "#D55E00", size = 1, arrow = ggplot2$arrow(length = ggplot2$unit(0.2, "cm"))) +
+    ggplot2$geom_point(data = prob_changes, ggplot2$aes(x = BMI, y = P_baseline),
+                       size = 3, colour = "#D55E00") +
+    ggplot2$labs(
+        title = "Probability Change is Not Constant",
+        subtitle = "Arrows show effect of +5 BMI units at different baseline values",
+        x = "BMI",
+        y = "P(Diabetes)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 4.3.3 Categorical Predictors
+
+```{r categorical_predictors}
+# Add categorical predictors
+diabetes_full <- nhanes[!is.na(Diabetes) & !is.na(BMI) & !is.na(Gender) & !is.na(Age),
+                        .(diabetes = as.integer(Diabetes == "Yes"),
+                          BMI = BMI,
+                          Gender = Gender,
+                          Age = Age,
+                          AgeGroup = cut(Age, breaks = c(18, 40, 60, Inf),
+                                        labels = c("18-39", "40-59", "60+"),
+                                        include.lowest = TRUE))]
+diabetes_full <- diabetes_full[Age >= 18 & complete.cases(diabetes_full)]
+
+# Fit model with categorical predictor
+model_cat <- glm(diabetes ~ BMI + Gender + AgeGroup, data = diabetes_full,
+                 family = binomial)
+
+cat("Logistic Regression with Categorical Predictors:\n")
+cat("=================================================\n\n")
+
+# Create odds ratio table
+or_table <- data.table(
+    Variable = names(coef(model_cat)),
+    Coefficient = coef(model_cat),
+    SE = summary(model_cat)$coefficients[, "Std. Error"],
+    OR = exp(coef(model_cat))
+)
+
+# Add confidence intervals
+ci <- confint(model_cat)
+or_table[, `:=`(
+    OR_Lower = exp(ci[, 1]),
+    OR_Upper = exp(ci[, 2])
+)]
+
+cat("Odds Ratios with 95% CI:\n")
+print(or_table[, .(Variable,
+                   OR = round(OR, 3),
+                   CI = paste0("(", round(OR_Lower, 3), ", ", round(OR_Upper, 3), ")"))])
+```
+
+```{r forest_plot, fig.cap="Forest plot visualises odds ratios and confidence intervals"}
+# Forest plot (excluding intercept)
+or_plot <- or_table[-1]  # Remove intercept
+or_plot[, Variable := factor(Variable, levels = rev(Variable))]
+
+ggplot2$ggplot(or_plot, ggplot2$aes(x = OR, y = Variable)) +
+    ggplot2$geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_errorbarh(ggplot2$aes(xmin = OR_Lower, xmax = OR_Upper),
+                           height = 0.2, colour = "#0072B2") +
+    ggplot2$geom_point(size = 3, colour = "#0072B2") +
+    ggplot2$scale_x_log10() +
+    ggplot2$labs(
+        title = "Odds Ratios for Diabetes Predictors",
+        subtitle = "Horizontal bars show 95% confidence intervals",
+        x = "Odds Ratio (log scale)",
+        y = ""
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 4.4 Multiple Logistic Regression
+
+### 4.4.1 Adding Multiple Predictors
+
+**Prose and Intuition**
+
+In multiple logistic regression, we model the log-odds as a linear combination of several predictors:
+
+$$\log\left(\frac{p_i}{1-p_i}\right) = \beta_0 + \beta_1 X_{1i} + \beta_2 X_{2i} + \cdots + \beta_p X_{pi}$$
+
+Each odds ratio is **adjusted** for the other predictors — it represents the effect of that variable holding others constant.
+
+```{r multiple_logistic, fig.cap="Multiple logistic regression with several clinical predictors"}
+# Create comprehensive model
+diabetes_model <- nhanes[!is.na(Diabetes) & Age >= 18,
+                         .(diabetes = as.integer(Diabetes == "Yes"),
+                           Age = Age,
+                           BMI = BMI,
+                           Gender = Gender,
+                           SBP = BPSysAve,
+                           TotChol = TotChol)]
+diabetes_model <- diabetes_model[complete.cases(diabetes_model)]
+
+# Fit multiple logistic regression
+model_multiple <- glm(diabetes ~ Age + BMI + Gender + SBP + TotChol,
+                      data = diabetes_model, family = binomial)
+
+cat("Multiple Logistic Regression:\n")
+cat("=============================\n\n")
+summary(model_multiple)
+
+# Odds ratios
+or_multiple <- data.table(
+    Variable = names(coef(model_multiple)),
+    OR = exp(coef(model_multiple))
+)
+ci_multiple <- confint(model_multiple)
+or_multiple[, `:=`(
+    Lower = exp(ci_multiple[, 1]),
+    Upper = exp(ci_multiple[, 2])
+)]
+
+cat("\nAdjusted Odds Ratios:\n")
+print(or_multiple[-1, .(Variable, OR = round(OR, 3),
+                        CI = paste0("(", round(Lower, 3), ", ", round(Upper, 3), ")"))])
+```
+
+### 4.4.2 Adjusted vs Unadjusted Odds Ratios
+
+```{r adjusted_vs_unadjusted}
+# Compare adjusted and unadjusted ORs
+cat("Comparing Adjusted vs Unadjusted Odds Ratios:\n")
+cat("==============================================\n\n")
+
+# Unadjusted OR for BMI
+model_unadj <- glm(diabetes ~ BMI, data = diabetes_model, family = binomial)
+or_unadj <- exp(coef(model_unadj)["BMI"])
+
+# Adjusted OR (from multiple model)
+or_adj <- exp(coef(model_multiple)["BMI"])
+
+cat("BMI and Diabetes:\n")
+cat("  Unadjusted OR:", round(or_unadj, 3), "\n")
+cat("  Adjusted OR:", round(or_adj, 3), "(controlling for Age, Gender, SBP, TotChol)\n\n")
+
+cat("Interpretation:\n")
+cat("The adjusted OR controls for confounders.\n")
+cat("If adjusted OR ≠ unadjusted OR, there may be confounding.\n")
+```
+
+---
+
+## 4.5 Breast Cancer Classification Example
+
+Let's apply logistic regression to a classic biomedical problem: classifying breast tumours as malignant or benign.
+
+```{r breast_cancer_example, fig.cap="Logistic regression for breast cancer classification"}
+# Prepare breast cancer data
+bc_data <- breast_cancer[, .(
+    diagnosis = as.integer(diagnosis == "M"),  # M = malignant = 1
+    mean_radius = mean_radius,
+    mean_texture = mean_texture,
+    mean_perimeter = mean_perimeter,
+    mean_area = mean_area,
+    mean_smoothness = mean_smoothness,
+    mean_compactness = mean_compactness,
+    mean_concavity = mean_concavity
+)]
+bc_data <- bc_data[complete.cases(bc_data)]
+
+cat("Breast Cancer Wisconsin Dataset:\n")
+cat("================================\n\n")
+cat("Total cases:", nrow(bc_data), "\n")
+cat("Malignant (1):", sum(bc_data$diagnosis), "(", round(100*mean(bc_data$diagnosis), 1), "%)\n")
+cat("Benign (0):", sum(1 - bc_data$diagnosis), "(", round(100*(1 - mean(bc_data$diagnosis)), 1), "%)\n")
+
+# Fit logistic regression with key predictors
+model_bc <- glm(diagnosis ~ mean_radius + mean_texture + mean_concavity,
+                data = bc_data, family = binomial)
+
+cat("\nLogistic Regression for Malignancy:\n")
+summary(model_bc)
+
+# Odds ratios
+or_bc <- exp(coef(model_bc))
+ci_bc <- exp(confint(model_bc))
+
+cat("\nOdds Ratios (per 1-unit increase):\n")
+for (var in names(or_bc)[-1]) {
+    cat(sprintf("  %s: OR = %.2f (95%% CI: %.2f - %.2f)\n",
+                var, or_bc[var], ci_bc[var, 1], ci_bc[var, 2]))
+}
+```
+
+```{r bc_predictions, fig.cap="Decision boundary separating benign and malignant tumours"}
+# Add predicted probabilities
+bc_data[, pred_prob := predict(model_bc, type = "response")]
+
+# Visualise separation
+ggplot2$ggplot(bc_data, ggplot2$aes(x = mean_radius, y = mean_concavity,
+                                     colour = factor(diagnosis))) +
+    ggplot2$geom_point(alpha = 0.6) +
+    ggplot2$scale_colour_manual(values = c("0" = "#0072B2", "1" = "#D55E00"),
+                                labels = c("0" = "Benign", "1" = "Malignant")) +
+    ggplot2$labs(
+        title = "Breast Tumour Classification",
+        subtitle = "Key predictors: radius and concavity",
+        x = "Mean Radius",
+        y = "Mean Concavity",
+        colour = "Diagnosis"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Logistic Regression Results
+
+**For Clinical Collaborators:**
+
+"We used logistic regression to identify which factors predict diabetes risk. Here's what we found:
+
+**Key findings:**
+1. **BMI**: For each additional BMI point, the odds of diabetes increase by about 10%. A person with BMI 35 has roughly 2.5 times the odds of diabetes compared to someone with BMI 25.
+
+2. **Age**: Older patients have substantially higher diabetes risk. Those aged 60+ have about 3 times the odds compared to those under 40.
+
+3. **These are adjusted estimates**: They account for the other factors in the model. The BMI effect is independent of age and gender.
+
+**What this means for screening:**
+We can use this model to identify high-risk patients for targeted interventions. A 50-year-old with BMI 32 has a predicted probability of diabetes around 15%, compared to 5% for a 30-year-old with BMI 22."
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+| Concept | Formula |
+|---------|---------|
+| Logistic function | $p = \frac{1}{1 + e^{-\eta}}$ |
+| Logit (log-odds) | $\text{logit}(p) = \log\left(\frac{p}{1-p}\right)$ |
+| Odds ratio | $\text{OR} = e^{\beta}$ |
+| Model | $\log\left(\frac{p}{1-p}\right) = \mathbf{X}\boldsymbol{\beta}$ |
+
+### R Commands
+
+```r
+# Fit logistic regression
+model <- glm(y ~ x1 + x2, data = df, family = binomial)
+
+# Summary
+summary(model)
+
+# Odds ratios
+exp(coef(model))
+
+# Confidence intervals for OR
+exp(confint(model))
+
+# Predicted probabilities
+predict(model, type = "response")
+
+# Predicted log-odds
+predict(model, type = "link")
+```
+
+### Interpretation Guide
+
+| OR Value | Interpretation |
+|----------|----------------|
+| OR = 1 | No association |
+| OR = 1.5 | 50% increase in odds |
+| OR = 2 | Doubled odds |
+| OR = 0.5 | 50% decrease in odds |
+| OR = 0.1 | 90% decrease in odds |

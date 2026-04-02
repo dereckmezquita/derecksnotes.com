@@ -1,0 +1,1140 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 7: RNA-Seq Analysis"
+part: "Part 3: Gene Set Enrichment Analysis"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "2026-01-19"
+tags: [statistics, bioinformatics, RNA-seq, gene-set-enrichment, pathway-analysis, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 3: Gene Set Enrichment Analysis
+
+Having identified differentially expressed genes in Part 2, we now face the interpretation challenge: **what biological processes or pathways are affected?** Individual genes rarely act in isolation—they function in coordinated pathways and networks. Gene set enrichment analysis (GSEA) provides a principled statistical framework for detecting pathway-level changes, moving from lists of genes to biological understanding.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+
+``` r
+# Simulate a realistic RNA-seq scenario with known pathway structure
+# We'll create genes that belong to defined pathways
+
+n_genes <- 5000
+n_pathways <- 50
+genes_per_pathway <- 30  # Average genes per pathway
+
+# Create gene names
+gene_names <- paste0("Gene_", 1:n_genes)
+
+# Create pathway structure
+# Each pathway contains a set of genes (some overlap allowed)
+pathways <- lapply(1:n_pathways, function(p) {
+    # Sample genes for this pathway
+    n_genes_this_pathway <- sample(20:50, 1)
+    genes <- sample(1:n_genes, n_genes_this_pathway)
+    list(
+        name = paste0("Pathway_", p),
+        genes = genes
+    )
+})
+
+# Assign biological categories to pathways
+pathway_categories <- rep(
+    c("Cell Cycle", "Metabolism", "Immune Response", "Signal Transduction", "Apoptosis"),
+    each = 10
+)
+
+# Create a gene-to-pathway mapping
+gene_pathway_map <- rbindlist(lapply(1:n_pathways, function(p) {
+    data.table(
+        gene_idx = pathways[[p]]$genes,
+        pathway = pathways[[p]]$name,
+        category = pathway_categories[p]
+    )
+}))
+
+# Simulate differential expression
+# Make some pathways truly affected
+affected_pathways <- sample(1:n_pathways, 8)  # 8 truly affected pathways
+
+# Create log fold changes
+# Genes in affected pathways have coordinated changes
+log2_fc <- rep(0, n_genes)
+true_effect <- rep(FALSE, n_genes)
+
+for (p in affected_pathways) {
+    # Genes in this pathway have correlated effects
+    pathway_genes <- pathways[[p]]$genes
+    # Effect direction (up or down regulated pathway)
+    direction <- sample(c(-1, 1), 1)
+    # Magnitude varies by gene but is correlated
+    base_effect <- direction * abs(rnorm(1, mean = 1.5, sd = 0.5))
+
+    for (g in pathway_genes) {
+        # Add noise but maintain coordination
+        gene_effect <- base_effect + rnorm(1, 0, 0.3)
+        # Combine with any existing effect (for genes in multiple pathways)
+        log2_fc[g] <- log2_fc[g] + gene_effect * 0.7
+        true_effect[g] <- TRUE
+    }
+}
+
+# Add some noise to non-pathway genes
+noise_genes <- which(!true_effect)
+log2_fc[noise_genes] <- rnorm(length(noise_genes), 0, 0.5)
+
+# Simulate p-values
+# P-values are related to effect size but with noise
+se <- runif(n_genes, 0.3, 0.8)  # Standard errors
+z_scores <- log2_fc / se
+p_values <- 2 * pnorm(-abs(z_scores))
+
+# Add some noise to p-values
+p_values <- pmin(1, pmax(1e-16, p_values * runif(n_genes, 0.5, 2)))
+
+# Create DE results table
+de_results <- data.table(
+    gene = gene_names,
+    gene_idx = 1:n_genes,
+    log2FC = log2_fc,
+    pvalue = p_values,
+    padj = p.adjust(p_values, method = "BH"),
+    is_true_de = true_effect
+)
+
+cat("Simulated RNA-seq Differential Expression:\n")
+cat("==========================================\n")
+cat("  Total genes:", n_genes, "\n")
+cat("  Pathways:", n_pathways, "\n")
+cat("  Affected pathways:", length(affected_pathways), "\n")
+cat("  True DE genes:", sum(true_effect), "\n")
+cat("  Significant genes (FDR < 0.05):", sum(de_results$padj < 0.05), "\n")
+```
+
+```
+#> Simulated RNA-seq Differential Expression:
+#> ==========================================
+#>   Total genes: 5000 
+#>   Pathways: 50 
+#>   Affected pathways: 8 
+#>   True DE genes: 275 
+#>   Significant genes (FDR < 0.05): 40
+```
+
+---
+
+## Table of Contents
+
+## 7.13 Over-Representation Analysis (ORA)
+
+### 7.13.1 The Hypergeometric Test
+
+**Prose and Intuition**
+
+**Over-representation analysis** asks: is a pathway enriched among our significant genes? Given:
+- $N$ total genes tested
+- $K$ genes in the pathway
+- $n$ significant genes
+- $k$ significant genes in the pathway
+
+If there's no association, we'd expect $k \approx n \times K/N$ genes. If $k$ is much larger, the pathway is **over-represented** among significant genes.
+
+This is a **sampling without replacement** problem, modelled by the **hypergeometric distribution**.
+
+**Mathematical Framework**
+
+The probability of observing exactly $k$ pathway genes among $n$ significant genes:
+
+$$P(X = k) = \frac{\binom{K}{k}\binom{N-K}{n-k}}{\binom{N}{n}}$$
+
+The over-representation p-value (testing for enrichment):
+
+$$p = P(X \geq k) = \sum_{i=k}^{\min(K,n)} \frac{\binom{K}{i}\binom{N-K}{n-i}}{\binom{N}{n}}$$
+
+This is implemented as `phyper(k-1, K, N-K, n, lower.tail = FALSE)` in R.
+
+
+``` r
+# Demonstrate ORA for a single pathway
+# Choose an affected pathway
+example_pathway <- affected_pathways[1]
+pathway_genes <- pathways[[example_pathway]]$genes
+
+# Parameters
+N <- n_genes  # Total genes
+K <- length(pathway_genes)  # Genes in pathway
+n <- sum(de_results$padj < 0.05)  # Significant genes
+k <- sum(de_results[gene_idx %in% pathway_genes]$padj < 0.05)  # Significant pathway genes
+
+# Hypergeometric test
+p_hyper <- phyper(k - 1, K, N - K, n, lower.tail = FALSE)
+
+# Expected by chance
+expected <- n * K / N
+
+cat("Over-Representation Analysis Example:\n")
+cat("====================================\n")
+cat("  Pathway:", pathways[[example_pathway]]$name, "(truly affected)\n")
+cat("  N (total genes):", N, "\n")
+cat("  K (genes in pathway):", K, "\n")
+cat("  n (significant genes):", n, "\n")
+cat("  k (significant in pathway):", k, "\n")
+cat("  Expected by chance:", round(expected, 1), "\n")
+cat("  Enrichment ratio:", round(k / expected, 2), "\n")
+cat("  P-value:", format(p_hyper, digits = 3), "\n")
+
+# Visualise hypergeometric distribution
+x_vals <- 0:min(K, n)
+probs <- dhyper(x_vals, K, N - K, n)
+
+hyper_data <- data.table(
+    x = x_vals,
+    probability = probs,
+    observed = x_vals >= k
+)
+
+ggplot2$ggplot(hyper_data, ggplot2$aes(x = x, y = probability, fill = observed)) +
+    ggplot2$geom_bar(stat = "identity", width = 0.8) +
+    ggplot2$geom_vline(xintercept = expected, linetype = "dashed", colour = "blue") +
+    ggplot2$geom_vline(xintercept = k, linetype = "solid", colour = "red") +
+    ggplot2$scale_fill_manual(values = c("FALSE" = "grey60", "TRUE" = "#D95F02"),
+                               labels = c("Below observed", "At or above observed")) +
+    ggplot2$annotate("text", x = expected, y = max(probs) * 0.9,
+                      label = paste("Expected:", round(expected, 1)), colour = "blue",
+                      hjust = -0.1) +
+    ggplot2$annotate("text", x = k, y = max(probs) * 0.7,
+                      label = paste("Observed:", k), colour = "red", hjust = -0.1) +
+    ggplot2$labs(
+        title = "Hypergeometric Distribution for Pathway Enrichment",
+        subtitle = paste("P-value =", format(p_hyper, digits = 3)),
+        x = "Number of Significant Genes in Pathway",
+        y = "Probability",
+        fill = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/ora_single_pathway-1.png" alt="Hypergeometric test for a single pathway">
+	Hypergeometric test for a single pathway
+</Figure>
+
+```
+#> Over-Representation Analysis Example:
+#> ====================================
+#>   Pathway: Pathway_32 (truly affected)
+#>   N (total genes): 5000 
+#>   K (genes in pathway): 46 
+#>   n (significant genes): 40 
+#>   k (significant in pathway): 5 
+#>   Expected by chance: 0.4 
+#>   Enrichment ratio: 13.59 
+#>   P-value: 2.73e-05
+```
+
+### 7.13.2 Testing All Pathways
+
+**Prose and Intuition**
+
+In practice, we test many pathways simultaneously and must correct for multiple testing. The **enrichment ratio** ($k/\text{expected}$) helps prioritise: ratios > 1 indicate over-representation, < 1 indicates under-representation.
+
+
+``` r
+# Perform ORA for all pathways
+perform_ora <- function(de_results, pathways, alpha_sig = 0.05) {
+    significant_genes <- de_results[padj < alpha_sig]$gene_idx
+    n_sig <- length(significant_genes)
+    N <- nrow(de_results)
+
+    results <- rbindlist(lapply(seq_along(pathways), function(i) {
+        pathway_genes <- pathways[[i]]$genes
+        K <- length(pathway_genes)
+
+        # Overlap
+        k <- sum(significant_genes %in% pathway_genes)
+
+        # Expected
+        expected <- n_sig * K / N
+
+        # Hypergeometric p-value (over-representation)
+        p_val <- phyper(k - 1, K, N - K, n_sig, lower.tail = FALSE)
+
+        # Also test under-representation
+        p_val_under <- phyper(k, K, N - K, n_sig, lower.tail = TRUE)
+
+        data.table(
+            pathway = pathways[[i]]$name,
+            pathway_idx = i,
+            pathway_size = K,
+            overlap = k,
+            expected = expected,
+            enrichment_ratio = ifelse(expected > 0, k / expected, NA),
+            pvalue = p_val,
+            pvalue_under = p_val_under,
+            is_truly_affected = i %in% affected_pathways
+        )
+    }))
+
+    # Multiple testing correction
+    results[, padj := p.adjust(pvalue, method = "BH")]
+    results[, padj_under := p.adjust(pvalue_under, method = "BH")]
+
+    return(results[order(pvalue)])
+}
+
+ora_results <- perform_ora(de_results, pathways)
+
+cat("Over-Representation Analysis Results:\n")
+cat("====================================\n")
+cat("  Pathways tested:", nrow(ora_results), "\n")
+cat("  Significant (FDR < 0.05):", sum(ora_results$padj < 0.05), "\n")
+cat("  True positives:", sum(ora_results$padj < 0.05 & ora_results$is_truly_affected), "\n")
+cat("  False positives:", sum(ora_results$padj < 0.05 & !ora_results$is_truly_affected), "\n")
+
+cat("\nTop 10 Enriched Pathways:\n")
+print(ora_results[1:10, .(pathway, pathway_size, overlap, expected = round(expected, 1),
+                           enrichment = round(enrichment_ratio, 2),
+                           pvalue = format(pvalue, digits = 2),
+                           padj = format(padj, digits = 2),
+                           truly_affected = is_truly_affected)])
+```
+
+```
+#> Over-Representation Analysis Results:
+#> ====================================
+#>   Pathways tested: 50 
+#>   Significant (FDR < 0.05): 3 
+#>   True positives: 3 
+#>   False positives: 0 
+#> 
+#> Top 10 Enriched Pathways:
+#>        pathway pathway_size overlap expected enrichment  pvalue    padj
+#>         <char>        <int>   <int>    <num>      <num>  <char>  <char>
+#>  1:  Pathway_1           36       9      0.3      31.25 4.1e-12 2.1e-10
+#>  2: Pathway_32           46       5      0.4      13.59 2.7e-05 6.8e-04
+#>  3: Pathway_43           31       4      0.2      16.13 9.5e-05 1.6e-03
+#>  4: Pathway_23           21       2      0.2      11.90 1.2e-02 1.5e-01
+#>  5: Pathway_21           35       2      0.3       7.14 3.1e-02 3.1e-01
+#>  6: Pathway_34           20       1      0.2       6.25 1.5e-01 1.0e+00
+#>  7: Pathway_10           31       1      0.2       4.03 2.2e-01 1.0e+00
+#>  8: Pathway_27           35       1      0.3       3.57 2.5e-01 1.0e+00
+#>  9: Pathway_35           38       1      0.3       3.29 2.6e-01 1.0e+00
+#> 10:  Pathway_2           40       1      0.3       3.12 2.8e-01 1.0e+00
+#>     truly_affected
+#>             <lgcl>
+#>  1:           TRUE
+#>  2:           TRUE
+#>  3:           TRUE
+#>  4:           TRUE
+#>  5:           TRUE
+#>  6:          FALSE
+#>  7:          FALSE
+#>  8:          FALSE
+#>  9:          FALSE
+#> 10:          FALSE
+```
+
+### 7.13.3 Limitations of ORA
+
+**Prose and Intuition**
+
+ORA has important limitations:
+
+1. **Arbitrary threshold**: Results depend on how we define "significant" genes
+2. **Equal weighting**: All significant genes contribute equally, regardless of effect size
+3. **Gene independence**: Assumes genes are independent (they're not)
+4. **Winner's curse**: Genes with extreme p-values near the threshold are unstable
+
+These limitations motivate **gene set enrichment analysis (GSEA)**, which uses all genes without a threshold.
+
+
+``` r
+# Show sensitivity to threshold choice
+thresholds <- c(0.01, 0.05, 0.10, 0.20)
+
+threshold_sensitivity <- rbindlist(lapply(thresholds, function(thresh) {
+    res <- perform_ora(de_results, pathways, alpha_sig = thresh)
+    res[, threshold := thresh]
+    res[, rank := 1:.N]
+    return(res)
+}))
+
+# How many truly affected pathways in top 10 at each threshold?
+top_10_performance <- threshold_sensitivity[rank <= 10, .(
+    true_positives = sum(is_truly_affected),
+    mean_enrichment = mean(enrichment_ratio)
+), by = threshold]
+
+cat("\nSensitivity to Threshold Choice (Top 10 Pathways):\n")
+cat("=================================================\n")
+print(top_10_performance)
+
+# Visualise threshold sensitivity
+ggplot2$ggplot(threshold_sensitivity[pathway_idx %in% affected_pathways],
+               ggplot2$aes(x = factor(threshold), y = -log10(pvalue),
+                            group = pathway, colour = pathway)) +
+    ggplot2$geom_line(alpha = 0.7, linewidth = 0.8) +
+    ggplot2$geom_point(size = 2) +
+    ggplot2$geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "grey50") +
+    ggplot2$labs(
+        title = "ORA P-values Depend on Significance Threshold",
+        subtitle = "Truly affected pathways shown",
+        x = "FDR Threshold for 'Significant' Genes",
+        y = "-log10(ORA p-value)",
+        colour = "Pathway"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "right",
+        legend.text = ggplot2$element_text(size = 8)
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/ora_threshold_sensitivity-1.png" alt="ORA results are sensitive to significance threshold">
+	ORA results are sensitive to significance threshold
+</Figure>
+
+```
+#> 
+#> Sensitivity to Threshold Choice (Top 10 Pathways):
+#> =================================================
+#>    threshold true_positives mean_enrichment
+#>        <num>          <int>           <num>
+#> 1:      0.01              5       15.980229
+#> 2:      0.05              5       10.028177
+#> 3:      0.10              6        9.689309
+#> 4:      0.20              6        7.676863
+```
+
+---
+
+## 7.14 Gene Set Enrichment Analysis (GSEA)
+
+### 7.14.1 The GSEA Algorithm
+
+**Prose and Intuition**
+
+**GSEA** (Subramanian et al., 2005) avoids the threshold problem by considering all genes ranked by their differential expression signal. The key idea: if a pathway is truly affected, its genes should cluster toward the top (or bottom) of the ranked list rather than being randomly distributed.
+
+**The GSEA procedure**:
+1. **Rank genes** by a statistic (e.g., t-statistic, log fold change × -log p-value)
+2. **Walk down the ranked list**, computing a running sum:
+   - Increase when hitting a pathway gene (proportional to gene's signal)
+   - Decrease when hitting a non-pathway gene
+3. The **enrichment score (ES)** is the maximum deviation from zero
+4. **Assess significance** via permutation
+
+**Mathematical Framework**
+
+For a gene set $S$ with $N_H$ genes, walking through $N$ total genes:
+
+$$ES(S) = \max_{1 \leq j \leq N} \left| \sum_{i=1}^{j} \delta(g_i) \right|$$
+
+where:
+$$\delta(g_i) = \begin{cases}
+\frac{|r_i|^p}{N_R} & \text{if } g_i \in S \\
+-\frac{1}{N - N_H} & \text{if } g_i \notin S
+\end{cases}$$
+
+and $N_R = \sum_{g_j \in S} |r_j|^p$ is a normalising factor, $r_i$ is the gene's ranking metric, and $p$ is a weight parameter (typically $p=1$).
+
+
+``` r
+# Implement GSEA algorithm
+calc_enrichment_score <- function(ranked_genes, pathway_genes, weight = 1) {
+    N <- length(ranked_genes)
+    N_H <- sum(ranked_genes %in% pathway_genes)
+
+    if (N_H == 0 || N_H == N) {
+        return(list(ES = 0, leading_edge = integer(0), running_sum = numeric(0)))
+    }
+
+    # Get positions and ranks
+    in_pathway <- ranked_genes %in% pathway_genes
+
+    # Weighted contribution for pathway genes
+    # Using absolute rank as weight (could use actual statistic)
+    ranks <- N:1  # Higher rank = stronger signal
+    pathway_weights <- ifelse(in_pathway, ranks^weight, 0)
+    N_R <- sum(pathway_weights)
+
+    # Running sum
+    running_sum <- numeric(N)
+    current_sum <- 0
+
+    for (i in 1:N) {
+        if (in_pathway[i]) {
+            current_sum <- current_sum + pathway_weights[i] / N_R
+        } else {
+            current_sum <- current_sum - 1 / (N - N_H)
+        }
+        running_sum[i] <- current_sum
+    }
+
+    # Enrichment score (maximum deviation)
+    ES_pos <- max(running_sum)
+    ES_neg <- min(running_sum)
+    ES <- ifelse(abs(ES_pos) > abs(ES_neg), ES_pos, ES_neg)
+
+    # Leading edge: genes contributing to the ES
+    es_position <- which.max(abs(running_sum))
+    if (ES > 0) {
+        leading_edge <- ranked_genes[1:es_position][in_pathway[1:es_position]]
+    } else {
+        leading_edge <- ranked_genes[es_position:N][in_pathway[es_position:N]]
+    }
+
+    list(
+        ES = ES,
+        leading_edge = leading_edge,
+        running_sum = running_sum,
+        ES_position = es_position
+    )
+}
+
+# Rank genes by signal strength
+de_results[, signal := -sign(log2FC) * log10(pvalue)]
+ranked_gene_idx <- de_results[order(-signal)]$gene_idx
+
+# Calculate ES for example pathway
+example_es <- calc_enrichment_score(ranked_gene_idx, pathways[[example_pathway]]$genes)
+
+cat("GSEA Example (", pathways[[example_pathway]]$name, "):\n")
+cat("Enrichment Score:", round(example_es$ES, 4), "\n")
+cat("Leading edge genes:", length(example_es$leading_edge), "\n")
+```
+
+```
+#> GSEA Example ( Pathway_32 ):
+#> Enrichment Score: -0.4532 
+#> Leading edge genes: 44
+```
+
+### 7.14.2 Visualising the Running Sum
+
+**Prose and Intuition**
+
+The **running sum plot** (or "enrichment plot") visualises how pathway genes are distributed in the ranked list. A pathway with genes concentrated at the top shows a peak early in the walk; one concentrated at the bottom shows a trough.
+
+
+``` r
+# Visualise running sum
+running_sum_data <- data.table(
+    position = 1:length(example_es$running_sum),
+    running_sum = example_es$running_sum,
+    is_pathway_gene = ranked_gene_idx %in% pathways[[example_pathway]]$genes
+)
+
+# Create enrichment plot
+p_running <- ggplot2$ggplot(running_sum_data, ggplot2$aes(x = position, y = running_sum)) +
+    ggplot2$geom_line(colour = "#2166AC", linewidth = 1) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_vline(xintercept = example_es$ES_position, linetype = "dotted",
+                        colour = "red", linewidth = 0.8) +
+    ggplot2$annotate("text", x = example_es$ES_position, y = example_es$ES,
+                      label = paste("ES =", round(example_es$ES, 3)),
+                      colour = "red", hjust = -0.1, vjust = -0.5) +
+    ggplot2$labs(
+        title = paste("GSEA Running Sum:", pathways[[example_pathway]]$name),
+        subtitle = "Peak indicates enrichment at one end of the ranked list",
+        x = "Gene Rank (by differential expression signal)",
+        y = "Running Enrichment Score"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+
+# Gene position plot (barcode)
+p_barcode <- ggplot2$ggplot(running_sum_data[is_pathway_gene == TRUE],
+                            ggplot2$aes(x = position, xend = position, y = 0, yend = 1)) +
+    ggplot2$geom_segment(colour = "black", linewidth = 0.3) +
+    ggplot2$labs(x = "", y = "Pathway\nGenes") +
+    ggplot2$theme_minimal(base_size = 10) +
+    ggplot2$theme(
+        axis.text.y = ggplot2$element_blank(),
+        axis.ticks = ggplot2$element_blank(),
+        panel.grid = ggplot2$element_blank()
+    )
+
+# Combine plots
+gridExtra::grid.arrange(p_running, p_barcode, ncol = 1, heights = c(4, 1))
+```
+
+<Figure src="/courses/statistics-3-advanced/gsea_running_sum-1.png" alt="GSEA running sum plot for an affected pathway">
+	GSEA running sum plot for an affected pathway
+</Figure>
+
+### 7.14.3 Permutation Testing for GSEA
+
+**Prose and Intuition**
+
+To assess significance, we compare the observed ES to a **null distribution** generated by permutation. There are two approaches:
+
+1. **Sample permutation**: Shuffle sample labels and recalculate DE statistics (preserves gene-gene correlations)
+2. **Gene permutation**: Randomly reassign genes to pathways (faster but ignores correlations)
+
+The p-value is the proportion of permuted ES values at least as extreme as the observed.
+
+**Mathematical Framework**
+
+For $B$ permutations with enrichment scores $ES_1^*, \ldots, ES_B^*$:
+
+$$p = \frac{\#\{|ES_b^*| \geq |ES_{obs}|\} + 1}{B + 1}$$
+
+The **Normalised Enrichment Score (NES)** accounts for pathway size:
+$$NES = \frac{ES}{\text{mean}(ES^*_{size})}$$
+
+
+``` r
+# Perform gene permutation test
+perform_gsea <- function(ranked_genes, pathways, n_perm = 1000) {
+    N <- length(ranked_genes)
+
+    results <- rbindlist(lapply(seq_along(pathways), function(i) {
+        pathway_genes <- pathways[[i]]$genes
+        pathway_size <- length(pathway_genes)
+
+        # Observed ES
+        obs <- calc_enrichment_score(ranked_genes, pathway_genes)
+        ES_obs <- obs$ES
+
+        # Null distribution by gene permutation
+        ES_null <- replicate(n_perm, {
+            random_genes <- sample(1:N, pathway_size)
+            calc_enrichment_score(ranked_genes, random_genes)$ES
+        })
+
+        # Separate positive and negative ES for NES calculation
+        if (ES_obs >= 0) {
+            ES_null_pos <- ES_null[ES_null >= 0]
+            mean_null <- mean(abs(ES_null_pos))
+            p_val <- (sum(ES_null_pos >= ES_obs) + 1) / (length(ES_null_pos) + 1)
+        } else {
+            ES_null_neg <- ES_null[ES_null < 0]
+            mean_null <- mean(abs(ES_null_neg))
+            p_val <- (sum(ES_null_neg <= ES_obs) + 1) / (length(ES_null_neg) + 1)
+        }
+
+        NES <- ES_obs / ifelse(mean_null > 0, mean_null, 1)
+
+        data.table(
+            pathway = pathways[[i]]$name,
+            pathway_idx = i,
+            pathway_size = pathway_size,
+            ES = ES_obs,
+            NES = NES,
+            pvalue = p_val,
+            leading_edge_size = length(obs$leading_edge),
+            is_truly_affected = i %in% affected_pathways
+        )
+    }))
+
+    # FDR correction
+    results[, padj := p.adjust(pvalue, method = "BH")]
+
+    return(results[order(pvalue)])
+}
+
+# Run GSEA (fewer permutations for speed)
+gsea_results <- perform_gsea(ranked_gene_idx, pathways, n_perm = 500)
+
+cat("GSEA Results:\n")
+cat("=============\n")
+cat("  Pathways tested:", nrow(gsea_results), "\n")
+cat("  Significant (FDR < 0.25):", sum(gsea_results$padj < 0.25), "\n")
+cat("  Significant (FDR < 0.05):", sum(gsea_results$padj < 0.05), "\n")
+
+cat("\nTop 10 Enriched Pathways (GSEA):\n")
+print(gsea_results[1:10, .(pathway, size = pathway_size,
+                            ES = round(ES, 3), NES = round(NES, 3),
+                            pvalue = format(pvalue, digits = 2),
+                            padj = format(padj, digits = 2),
+                            truly_affected = is_truly_affected)])
+```
+
+```
+#> GSEA Results:
+#> =============
+#>   Pathways tested: 50 
+#>   Significant (FDR < 0.25): 7 
+#>   Significant (FDR < 0.05): 7 
+#> 
+#> Top 10 Enriched Pathways (GSEA):
+#>        pathway  size    ES   NES pvalue   padj truly_affected
+#>         <char> <int> <num> <num> <char> <char>         <lgcl>
+#>  1:  Pathway_1    36 0.874 2.831  0.002  0.020           TRUE
+#>  2: Pathway_30    46 0.680 2.243  0.002  0.020           TRUE
+#>  3: Pathway_43    31 0.847 2.622  0.002  0.020           TRUE
+#>  4: Pathway_21    35 0.848 2.716  0.002  0.020           TRUE
+#>  5: Pathway_23    21 0.871 2.581  0.002  0.020           TRUE
+#>  6: Pathway_19    48 0.443 1.474  0.004  0.033          FALSE
+#>  7: Pathway_27    35 0.467 1.477  0.006  0.043          FALSE
+#>  8: Pathway_39    22 0.474 1.424  0.042  0.265          FALSE
+#>  9: Pathway_26    39 0.389 1.274  0.086  0.415          FALSE
+#> 10:  Pathway_9    30 0.404 1.263  0.086  0.415          FALSE
+```
+
+---
+
+## 7.15 Comparing ORA and GSEA
+
+### 7.15.1 Performance Comparison
+
+**Prose and Intuition**
+
+Let's compare how well ORA and GSEA recover the truly affected pathways. GSEA typically has higher power because it uses information from all genes, not just those above an arbitrary threshold.
+
+
+``` r
+# Merge results
+comparison <- merge(
+    ora_results[, .(pathway, pathway_idx, ora_rank = 1:.N, ora_pvalue = pvalue,
+                     ora_padj = padj, is_truly_affected)],
+    gsea_results[, .(pathway, gsea_rank = 1:.N, gsea_pvalue = pvalue,
+                      gsea_padj = padj, NES)],
+    by = "pathway"
+)
+
+# Calculate ranks for true positive pathways
+tp_ranks <- comparison[is_truly_affected == TRUE]
+
+cat("Performance Comparison:\n")
+cat("=======================\n")
+cat("\nRanks of Truly Affected Pathways:\n")
+print(tp_ranks[, .(pathway, ORA_rank = ora_rank, GSEA_rank = gsea_rank)])
+
+cat("\nSummary Statistics:\n")
+cat("  Mean ORA rank:", round(mean(tp_ranks$ora_rank), 1), "\n")
+cat("  Mean GSEA rank:", round(mean(tp_ranks$gsea_rank), 1), "\n")
+cat("  ORA: TPs in top 10:", sum(tp_ranks$ora_rank <= 10), "/", nrow(tp_ranks), "\n")
+cat("  GSEA: TPs in top 10:", sum(tp_ranks$gsea_rank <= 10), "/", nrow(tp_ranks), "\n")
+
+# Visualise rank comparison
+ggplot2$ggplot(comparison, ggplot2$aes(x = ora_rank, y = gsea_rank,
+                                        colour = is_truly_affected)) +
+    ggplot2$geom_point(size = 2, alpha = 0.7) +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "grey60", "TRUE" = "#D95F02"),
+                                 labels = c("Not affected", "Truly affected"),
+                                 name = "") +
+    ggplot2$labs(
+        title = "ORA vs GSEA Pathway Rankings",
+        subtitle = "Truly affected pathways should be ranked highly by both methods",
+        x = "ORA Rank",
+        y = "GSEA Rank"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "top"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/ora_vs_gsea-1.png" alt="Comparison of ORA and GSEA for detecting true pathway effects">
+	Comparison of ORA and GSEA for detecting true pathway effects
+</Figure>
+
+```
+#> Performance Comparison:
+#> =======================
+#> 
+#> Ranks of Truly Affected Pathways:
+#> Key: <pathway>
+#>       pathway ORA_rank GSEA_rank
+#>        <char>    <int>     <int>
+#> 1:  Pathway_1        1         1
+#> 2: Pathway_14       11        49
+#> 3: Pathway_21        5         4
+#> 4: Pathway_23        4         5
+#> 5:  Pathway_3       15        20
+#> 6: Pathway_30       13         2
+#> 7: Pathway_32        2        50
+#> 8: Pathway_43        3         3
+#> 
+#> Summary Statistics:
+#>   Mean ORA rank: 6.8 
+#>   Mean GSEA rank: 16.8 
+#>   ORA: TPs in top 10: 5 / 8 
+#>   GSEA: TPs in top 10: 5 / 8
+```
+
+### 7.15.2 When to Use Each Method
+
+**Prose and Intuition**
+
+**Use ORA when**:
+- You have a well-defined list of significant genes
+- Computational speed is important
+- Interpretation simplicity is valued
+
+**Use GSEA when**:
+- The threshold for "significant" genes is unclear
+- You want to detect coordinated but modest changes
+- Effect sizes vary widely across genes
+
+**Best practice**: Run both methods and look for concordance. Pathways significant in both are high-confidence findings.
+
+---
+
+## 7.16 Multiple Testing in Pathway Analysis
+
+### 7.16.1 Pathway Correlations
+
+**Prose and Intuition**
+
+Pathways **overlap**—the same gene can belong to multiple pathways. This creates dependencies that complicate multiple testing correction. Standard FDR methods assume independence; violated assumptions can lead to **over-correction** (conservative) or **under-correction** (anti-conservative).
+
+
+``` r
+# Calculate pathway overlap
+pathway_overlap_matrix <- matrix(0, n_pathways, n_pathways)
+
+for (i in 1:n_pathways) {
+    for (j in 1:n_pathways) {
+        genes_i <- pathways[[i]]$genes
+        genes_j <- pathways[[j]]$genes
+        overlap <- length(intersect(genes_i, genes_j))
+        min_size <- min(length(genes_i), length(genes_j))
+        pathway_overlap_matrix[i, j] <- overlap / min_size
+    }
+}
+
+# Visualise overlap for top pathways
+top_pathway_idx <- gsea_results[1:15]$pathway_idx
+overlap_subset <- pathway_overlap_matrix[top_pathway_idx, top_pathway_idx]
+rownames(overlap_subset) <- colnames(overlap_subset) <- paste0("P", top_pathway_idx)
+
+# Convert to long format for ggplot (using data.table properly)
+overlap_dt <- as.data.table(overlap_subset, keep.rownames = "Pathway1")
+overlap_long <- melt(overlap_dt, id.vars = "Pathway1",
+                      variable.name = "Pathway2", value.name = "Overlap")
+
+ggplot2$ggplot(overlap_long, ggplot2$aes(x = Pathway1, y = Pathway2, fill = Overlap)) +
+    ggplot2$geom_tile() +
+    ggplot2$scale_fill_gradient2(low = "white", mid = "#7570B3", high = "#1B9E77",
+                                  midpoint = 0.3, limits = c(0, 1),
+                                  name = "Jaccard\nOverlap") +
+    ggplot2$labs(
+        title = "Pathway Overlap Matrix (Top 15 Pathways)",
+        subtitle = "Overlapping pathways violate independence assumptions",
+        x = "", y = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        axis.text.x = ggplot2$element_text(angle = 45, hjust = 1)
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/pathway_overlap-1.png" alt="Pathway overlap creates dependencies in enrichment analysis">
+	Pathway overlap creates dependencies in enrichment analysis
+</Figure>
+
+### 7.16.2 Adjusting for Dependence
+
+**Prose and Intuition**
+
+Several approaches handle pathway dependencies:
+
+1. **Permutation-based FDR**: Estimate FDR directly from permuted data
+2. **Empirical Bayes**: Model the distribution of test statistics across pathways
+3. **Pathway trimming**: Remove highly redundant pathways before testing
+
+The **q-value** approach (Storey, 2002) can estimate the true proportion of null hypotheses, providing a less conservative FDR estimate.
+
+
+``` r
+# Estimate proportion of true nulls (pi0) using p-value distribution
+estimate_pi0 <- function(pvalues, lambda = 0.5) {
+    # Storey's method
+    m <- length(pvalues)
+    pi0 <- sum(pvalues > lambda) / (m * (1 - lambda))
+    min(1, pi0)
+}
+
+# Apply to GSEA p-values
+pi0_gsea <- estimate_pi0(gsea_results$pvalue)
+
+cat("Estimating True Null Proportion:\n")
+cat("================================\n")
+cat("  Estimated pi0:", round(pi0_gsea, 3), "\n")
+cat("  Expected true signals:", round((1 - pi0_gsea) * n_pathways), "\n")
+cat("  Actual true signals:", length(affected_pathways), "\n")
+
+# Calculate q-values
+calc_qvalues <- function(pvalues) {
+    m <- length(pvalues)
+    pi0 <- estimate_pi0(pvalues)
+
+    # Order p-values
+    ord <- order(pvalues)
+    pvalues_sorted <- pvalues[ord]
+
+    # Q-values
+    qvalues_sorted <- pi0 * m * pvalues_sorted / (1:m)
+
+    # Monotonicity correction
+    qvalues_sorted <- cummin(rev(qvalues_sorted))
+    qvalues_sorted <- rev(qvalues_sorted)
+    qvalues_sorted <- pmin(1, qvalues_sorted)
+
+    # Restore original order
+    qvalues <- numeric(m)
+    qvalues[ord] <- qvalues_sorted
+
+    return(qvalues)
+}
+
+gsea_results[, qvalue := calc_qvalues(pvalue)]
+
+cat("\nQ-value vs FDR Comparison:\n")
+cat("  Significant at FDR < 0.05:", sum(gsea_results$padj < 0.05), "\n")
+cat("  Significant at q < 0.05:", sum(gsea_results$qvalue < 0.05), "\n")
+```
+
+```
+#> Estimating True Null Proportion:
+#> ================================
+#>   Estimated pi0: 0.84 
+#>   Expected true signals: 8 
+#>   Actual true signals: 8 
+#> 
+#> Q-value vs FDR Comparison:
+#>   Significant at FDR < 0.05: 7 
+#>   Significant at q < 0.05: 7
+```
+
+---
+
+## 7.17 Visualising Enrichment Results
+
+### 7.17.1 Dot Plots
+
+**Prose and Intuition**
+
+**Dot plots** encode multiple dimensions: pathway name, enrichment score, statistical significance, and gene set size. They're excellent for summarising results from many pathways.
+
+
+``` r
+# Prepare data for dot plot
+plot_data <- gsea_results[1:20]
+plot_data[, pathway_short := paste0(substr(pathway, 1, 12), "...")]
+plot_data[, pathway_short := factor(pathway_short, levels = rev(pathway_short))]
+
+ggplot2$ggplot(plot_data, ggplot2$aes(x = NES, y = pathway_short)) +
+    ggplot2$geom_point(ggplot2$aes(size = pathway_size, colour = -log10(padj))) +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_gradient(low = "grey70", high = "#D95F02",
+                                   name = "-log10(FDR)") +
+    ggplot2$scale_size_continuous(range = c(2, 8), name = "Pathway Size") +
+    ggplot2$labs(
+        title = "Top 20 Enriched Pathways (GSEA)",
+        subtitle = "Size = pathway genes, colour = significance",
+        x = "Normalised Enrichment Score (NES)",
+        y = ""
+    ) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        legend.position = "right"
+    )
+```
+
+<Figure src="/courses/statistics-3-advanced/dotplot_enrichment-1.png" alt="Dot plot summarising pathway enrichment results">
+	Dot plot summarising pathway enrichment results
+</Figure>
+
+### 7.17.2 Network Visualisation
+
+**Prose and Intuition**
+
+When pathways overlap substantially, a **network visualisation** shows relationships. Nodes are pathways; edges connect pathways sharing genes. Clusters reveal functional themes.
+
+
+``` r
+# Create network for top significant pathways
+sig_pathways <- gsea_results[padj < 0.25]
+n_sig <- min(15, nrow(sig_pathways))
+
+if (n_sig > 1) {
+    sig_idx <- sig_pathways$pathway_idx[1:n_sig]
+
+    # Calculate pairwise similarity (Jaccard)
+    edge_list <- list()
+    edge_count <- 0
+    for (i in 1:(n_sig - 1)) {
+        for (j in (i + 1):n_sig) {
+            genes_i <- pathways[[sig_idx[i]]]$genes
+            genes_j <- pathways[[sig_idx[j]]]$genes
+            jaccard <- length(intersect(genes_i, genes_j)) /
+                       length(union(genes_i, genes_j))
+
+            if (jaccard > 0.05) {  # Lower threshold to ensure some edges
+                edge_count <- edge_count + 1
+                edge_list[[edge_count]] <- data.table(
+                    from = sig_pathways$pathway[i],
+                    to = sig_pathways$pathway[j],
+                    weight = jaccard
+                )
+            }
+        }
+    }
+
+    edges <- if (edge_count > 0) rbindlist(edge_list) else data.table(
+        from = character(0), to = character(0), weight = numeric(0)
+    )
+
+    # Node attributes
+    nodes <- sig_pathways[1:n_sig, .(pathway, NES, padj, pathway_size)]
+    nodes[, x := runif(.N)]
+    nodes[, y := runif(.N)]
+
+    # Simple force-directed layout (only if we have edges)
+    if (nrow(edges) > 0) {
+        for (iter in 1:50) {
+            for (k in 1:nrow(nodes)) {
+                fx <- 0
+                fy <- 0
+
+                # Repulsion from all nodes
+                for (l in 1:nrow(nodes)) {
+                    if (k != l) {
+                        dx <- nodes$x[k] - nodes$x[l]
+                        dy <- nodes$y[k] - nodes$y[l]
+                        dist <- sqrt(dx^2 + dy^2) + 0.01
+                        fx <- fx + 0.1 * dx / dist^2
+                        fy <- fy + 0.1 * dy / dist^2
+                    }
+                }
+
+                # Attraction along edges
+                for (e in seq_len(nrow(edges))) {
+                    if (edges$from[e] == nodes$pathway[k]) {
+                        other <- which(nodes$pathway == edges$to[e])
+                        if (length(other) > 0) {
+                            dx <- nodes$x[other] - nodes$x[k]
+                            dy <- nodes$y[other] - nodes$y[k]
+                            fx <- fx + edges$weight[e] * dx
+                            fy <- fy + edges$weight[e] * dy
+                        }
+                    }
+                    if (edges$to[e] == nodes$pathway[k]) {
+                        other <- which(nodes$pathway == edges$from[e])
+                        if (length(other) > 0) {
+                            dx <- nodes$x[other] - nodes$x[k]
+                            dy <- nodes$y[other] - nodes$y[k]
+                            fx <- fx + edges$weight[e] * dx
+                            fy <- fy + edges$weight[e] * dy
+                        }
+                    }
+                }
+
+                nodes$x[k] <- nodes$x[k] + 0.05 * fx
+                nodes$y[k] <- nodes$y[k] + 0.05 * fy
+            }
+        }
+
+        # Add edge positions
+        edges[, from_x := nodes$x[match(from, nodes$pathway)]]
+        edges[, from_y := nodes$y[match(from, nodes$pathway)]]
+        edges[, to_x := nodes$x[match(to, nodes$pathway)]]
+        edges[, to_y := nodes$y[match(to, nodes$pathway)]]
+    }
+
+    # Plot network
+    p_network <- ggplot2$ggplot() +
+        ggplot2$geom_point(data = nodes,
+                           ggplot2$aes(x = x, y = y, size = pathway_size,
+                                        colour = NES)) +
+        ggplot2$geom_text(data = nodes,
+                          ggplot2$aes(x = x, y = y, label = gsub("Pathway_", "P", pathway)),
+                          size = 3, vjust = -1.5) +
+        ggplot2$scale_colour_gradient2(low = "#2166AC", mid = "white", high = "#D95F02",
+                                        midpoint = 0, name = "NES") +
+        ggplot2$scale_size_continuous(range = c(3, 10), name = "Size") +
+        ggplot2$labs(
+            title = "Pathway Similarity Network",
+            subtitle = "Connected pathways share genes"
+        ) +
+        ggplot2$theme_void(base_size = 12) +
+        ggplot2$theme(
+            plot.title = ggplot2$element_text(face = "bold", hjust = 0.5),
+            plot.subtitle = ggplot2$element_text(hjust = 0.5)
+        )
+
+    # Add edges if they exist
+    if (nrow(edges) > 0) {
+        p_network <- p_network +
+            ggplot2$geom_segment(data = edges,
+                                  ggplot2$aes(x = from_x, y = from_y,
+                                               xend = to_x, yend = to_y,
+                                               alpha = weight),
+                                  colour = "grey50", linewidth = 0.5) +
+            ggplot2$scale_alpha_continuous(range = c(0.2, 0.8), name = "Similarity")
+    }
+
+    print(p_network)
+} else {
+    cat("Not enough significant pathways for network visualisation.\n")
+}
+```
+
+<Figure src="/courses/statistics-3-advanced/pathway_network-1.png" alt="Pathway similarity network (top significant pathways)">
+	Pathway similarity network (top significant pathways)
+</Figure>
+
+---
+
+## 7.18 Summary and Key Concepts
+
+### Key Takeaways
+
+1. **Gene Set Enrichment**: Instead of interpreting individual genes, pathway analysis reveals coordinated biological changes.
+
+2. **Over-Representation Analysis (ORA)**: Tests whether a pathway is enriched among significant genes using the hypergeometric test. Simple but threshold-dependent.
+
+3. **GSEA**: Uses all genes ranked by expression signal. More powerful for detecting coordinated modest changes.
+
+4. **Multiple Testing**: Pathways overlap, violating independence assumptions. Use permutation-based FDR or pathway-aware methods.
+
+5. **Visualisation**: Dot plots, running sum plots, and networks communicate different aspects of enrichment results.
+
+6. **Complementary Methods**: ORA and GSEA answer slightly different questions. Concordant results provide stronger evidence.
+
+### Connections to Other Topics
+
+- **Part 1-2**: Normalisation and DE analysis provide the input for pathway analysis
+- **Chapter 2**: Multiple testing correction concepts apply to pathway analysis
+- **Chapters 8-9**: GWAS and microbiome analysis use similar enrichment approaches
+
+### Communicating to Stakeholders
+
+**For a biological audience**: "Beyond individual genes, we asked which biological pathways are affected by treatment. Gene set enrichment analysis identified 8 pathways significantly altered (FDR < 5%), including immune response and metabolic pathways. These represent coordinated changes across many genes, suggesting treatment affects these fundamental cellular processes."
+
+**For a methods paper**: "Gene set enrichment analysis was performed using the GSEA algorithm with 1000 gene-label permutations. Gene sets were obtained from [database]. Pathway significance was assessed at FDR < 0.25 (GSEA standard) or FDR < 0.05 for over-representation analysis. To account for pathway overlap, leading edge analysis was used to identify core enrichment genes."
+
+**Key vocabulary**:
+- Over-representation analysis, hypergeometric test
+- Gene set enrichment analysis (GSEA)
+- Enrichment score (ES), normalised enrichment score (NES)
+- Leading edge
+- Pathway database (GO, KEGG, Reactome, MSigDB)
+- Gene-gene correlation, pathway overlap

@@ -1,0 +1,859 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 8: Bayesian Statistics"
+part: "Part 2: Computational Methods and MCMC"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, bayesian, mcmc, metropolis, gibbs, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Part 2: Computational Methods and MCMC
+
+While Part 1 focused on Bayesian foundations using conjugate priors with closed-form solutions, most real-world problems lack such mathematical convenience. The denominator in Bayes' theorem—the evidence $P(D) = \int f(D|\theta)\pi(\theta)d\theta$—is often an intractable integral over high-dimensional parameter spaces. This chapter introduces the computational revolution that made modern Bayesian statistics practical: **Markov Chain Monte Carlo (MCMC)** methods.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load clinical data for examples
+clinical <- fread("../../../data/medical/blood_storage.csv")
+
+# Create a dataset for Bayesian regression
+set.seed(42)
+n <- 100
+x <- rnorm(n, 50, 10)  # Age
+beta0_true <- 100  # Intercept
+beta1_true <- 0.5  # Slope
+sigma_true <- 5    # Error SD
+y <- beta0_true + beta1_true * x + rnorm(n, 0, sigma_true)  # Blood pressure
+
+bp_data <- data.table(age = x, bp = y)
+
+cat("Simulated Blood Pressure Data:\n")
+cat("  Observations:", n, "\n")
+cat("  True intercept:", beta0_true, "\n")
+cat("  True slope:", beta1_true, "\n")
+cat("  True sigma:", sigma_true, "\n")
+```
+
+---
+
+## Table of Contents
+
+## 8.10 The Computational Challenge
+
+### 8.10.1 Why Conjugate Priors Aren't Enough
+
+**Prose and Intuition**
+
+Conjugate priors give closed-form posteriors for simple models, but most realistic biomedical analyses involve:
+
+- **Multiple parameters**: Regression with many predictors, hierarchical models
+- **Non-conjugate priors**: When biological constraints require specific priors
+- **Complex likelihoods**: GLMs, survival models, mixture models
+- **Derived quantities**: Functions of parameters (e.g., odds ratios, predictions)
+
+For a model with 10 parameters, direct numerical integration would require evaluating a 10-dimensional integral—computationally prohibitive even with modern computers.
+
+**Example**: A simple linear regression with unknown intercept, slope, and error variance has 3 parameters. The posterior is:
+
+$$\pi(\beta_0, \beta_1, \sigma|D) = \frac{f(D|\beta_0, \beta_1, \sigma) \cdot \pi(\beta_0, \beta_1, \sigma)}{\int\int\int f(D|\beta_0, \beta_1, \sigma) \cdot \pi(\beta_0, \beta_1, \sigma) \, d\beta_0 \, d\beta_1 \, d\sigma}$$
+
+The triple integral in the denominator has no closed form for most prior choices.
+
+**The Solution**: Instead of calculating the posterior exactly, we **sample** from it. With enough samples, we can approximate any posterior quantity (means, intervals, probabilities) to arbitrary precision.
+
+---
+
+## 8.11 Monte Carlo Integration
+
+### 8.11.1 The Key Insight
+
+**Prose and Intuition**
+
+**Monte Carlo** methods use random sampling to approximate integrals. The fundamental insight:
+
+If we can draw samples $\theta^{(1)}, \theta^{(2)}, \ldots, \theta^{(S)}$ from the posterior $\pi(\theta|D)$, then:
+
+$$\mathbb{E}[g(\theta)|D] = \int g(\theta) \pi(\theta|D) d\theta \approx \frac{1}{S} \sum_{s=1}^{S} g(\theta^{(s)})$$
+
+This works for **any** function $g$:
+- Posterior mean: $g(\theta) = \theta$
+- Posterior variance: $g(\theta) = (\theta - \bar{\theta})^2$
+- Probability: $g(\theta) = \mathbb{I}(\theta > c)$
+- Credible intervals: Quantiles of the samples
+
+**Mathematical Derivation**
+
+By the Law of Large Numbers, as $S \to \infty$:
+$$\frac{1}{S} \sum_{s=1}^{S} g(\theta^{(s)}) \xrightarrow{a.s.} \mathbb{E}[g(\theta)|D]$$
+
+The error decreases as $O(1/\sqrt{S})$ regardless of dimension—Monte Carlo integration scales much better than grid-based integration in high dimensions.
+
+**Visualisation**
+
+```{r monte_carlo_demo, fig.cap="Monte Carlo estimation: sample mean converges to true posterior mean"}
+set.seed(123)
+
+# True posterior: Beta(23, 12) from Part 1 clinical trial example
+true_alpha <- 23
+true_beta <- 12
+
+# True posterior mean
+true_mean <- true_alpha / (true_alpha + true_beta)
+
+# Generate increasing numbers of samples
+sample_sizes <- c(10, 50, 100, 500, 1000, 5000)
+
+# Track running mean for largest sample
+max_samples <- max(sample_sizes)
+samples <- rbeta(max_samples, true_alpha, true_beta)
+running_mean <- cumsum(samples) / (1:max_samples)
+
+mc_dt <- data.table(
+    n = 1:max_samples,
+    running_mean = running_mean
+)
+
+ggplot2$ggplot(mc_dt, ggplot2$aes(x = n, y = running_mean)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 0.5) +
+    ggplot2$geom_hline(yintercept = true_mean, colour = "#D55E00", linetype = "dashed", linewidth = 1) +
+    ggplot2$annotate("text", x = max_samples * 0.8, y = true_mean + 0.01,
+                     label = sprintf("True mean = %.4f", true_mean), colour = "#D55E00") +
+    ggplot2$scale_x_log10(labels = scales::comma) +
+    ggplot2$labs(
+        title = "Monte Carlo Estimation: Convergence to True Posterior Mean",
+        subtitle = "Running average of samples converges as sample size increases",
+        x = "Number of Samples (log scale)",
+        y = "Estimated Posterior Mean"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+```{r mc_accuracy, fig.cap="Monte Carlo standard error decreases with more samples"}
+# Estimate accuracy for different sample sizes
+mc_accuracy <- rbindlist(lapply(sample_sizes, function(S) {
+    n_reps <- 1000
+    estimates <- replicate(n_reps, mean(rbeta(S, true_alpha, true_beta)))
+    data.table(
+        S = S,
+        mean_estimate = mean(estimates),
+        sd_estimate = sd(estimates),
+        theoretical_se = sqrt(true_mean * (1 - true_mean) / (true_alpha + true_beta + 1)) / sqrt(S)
+    )
+}))
+
+cat("Monte Carlo Estimation Accuracy:\n")
+cat("================================\n\n")
+print(mc_accuracy[, .(Samples = S,
+                      `Est. Mean` = round(mean_estimate, 4),
+                      `MC Std. Error` = round(sd_estimate, 4),
+                      `Theoretical SE` = round(theoretical_se, 4))])
+
+ggplot2$ggplot(mc_accuracy, ggplot2$aes(x = S, y = sd_estimate)) +
+    ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+    ggplot2$geom_point(colour = "#0072B2", size = 3) +
+    ggplot2$geom_line(ggplot2$aes(y = theoretical_se), colour = "#D55E00", linetype = "dashed") +
+    ggplot2$scale_x_log10() +
+    ggplot2$scale_y_log10() +
+    ggplot2$labs(
+        title = "Monte Carlo Standard Error vs Sample Size",
+        subtitle = "Error decreases as 1/√S (dashed line = theoretical)",
+        x = "Number of Samples (log scale)",
+        y = "Standard Error (log scale)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 8.12 Markov Chain Monte Carlo (MCMC)
+
+### 8.12.1 The Problem of Sampling from Complex Posteriors
+
+**Prose and Intuition**
+
+Monte Carlo works if we can sample from the posterior. But how do we sample from a distribution we only know up to a normalising constant?
+
+The posterior is:
+$$\pi(\theta|D) = \frac{f(D|\theta)\pi(\theta)}{\int f(D|\theta)\pi(\theta)d\theta} \propto f(D|\theta)\pi(\theta)$$
+
+We can evaluate the numerator—the **unnormalised posterior**—but not the denominator.
+
+**MCMC Solution**: Construct a Markov chain whose stationary distribution is the target posterior. After sufficient iterations, samples from the chain are (approximately) samples from the posterior.
+
+### 8.12.2 The Metropolis Algorithm
+
+**Prose and Intuition**
+
+The **Metropolis algorithm** (1953, invented for physics simulations) is the foundation of MCMC:
+
+1. Start at some initial value $\theta^{(0)}$
+2. At each step $t$:
+   - Propose a new value $\theta^* \sim q(\theta^*|\theta^{(t)})$ (proposal distribution)
+   - Calculate acceptance ratio: $r = \frac{\pi(\theta^*|D)}{\pi(\theta^{(t)}|D)} = \frac{f(D|\theta^*)\pi(\theta^*)}{f(D|\theta^{(t)})\pi(\theta^{(t)})}$
+   - Accept with probability $\min(1, r)$:
+     - If $r \geq 1$: always accept (move uphill)
+     - If $r < 1$: accept with probability $r$ (sometimes move downhill)
+3. Repeat for many iterations
+
+**Key insight**: The normalising constant cancels in the ratio! We only need the unnormalised posterior.
+
+**Mathematical Derivation**
+
+For a symmetric proposal (e.g., $\theta^* = \theta^{(t)} + \epsilon$, where $\epsilon \sim N(0, \sigma^2)$):
+
+$$r = \frac{\pi(\theta^*|D)}{\pi(\theta^{(t)}|D)} = \frac{f(D|\theta^*)\pi(\theta^*)}{f(D|\theta^{(t)})\pi(\theta^{(t)})}$$
+
+The chain satisfies **detailed balance**, ensuring the posterior is the stationary distribution:
+$$\pi(\theta|D) \cdot p(\theta \to \theta^*) = \pi(\theta^*|D) \cdot p(\theta^* \to \theta)$$
+
+**Visualisation**
+
+```{r metropolis_implementation, fig.cap="Metropolis algorithm sampling from a Beta posterior"}
+# Implement Metropolis for Beta posterior
+# (We'll pretend we can't sample directly)
+
+metropolis_beta <- function(n_iter, alpha, beta, proposal_sd = 0.1, init = 0.5) {
+    samples <- numeric(n_iter)
+    samples[1] <- init
+    accepts <- 0
+
+    for (t in 2:n_iter) {
+        current <- samples[t - 1]
+
+        # Propose (on logit scale for better mixing, then transform)
+        proposed <- current + rnorm(1, 0, proposal_sd)
+
+        # Keep in (0, 1)
+        if (proposed <= 0 | proposed >= 1) {
+            samples[t] <- current
+            next
+        }
+
+        # Log acceptance ratio (use log to avoid underflow)
+        log_r <- dbeta(proposed, alpha, beta, log = TRUE) -
+                 dbeta(current, alpha, beta, log = TRUE)
+
+        # Accept or reject
+        if (log(runif(1)) < log_r) {
+            samples[t] <- proposed
+            accepts <- accepts + 1
+        } else {
+            samples[t] <- current
+        }
+    }
+
+    list(samples = samples, acceptance_rate = accepts / (n_iter - 1))
+}
+
+set.seed(42)
+n_iter <- 10000
+
+# Run Metropolis
+result <- metropolis_beta(n_iter, true_alpha, true_beta, proposal_sd = 0.05)
+
+cat("Metropolis Algorithm Results:\n")
+cat("=============================\n\n")
+cat("True posterior: Beta(", true_alpha, ",", true_beta, ")\n")
+cat("Iterations:", n_iter, "\n")
+cat("Acceptance rate:", round(result$acceptance_rate * 100, 1), "%\n\n")
+cat("Estimated posterior mean:", round(mean(result$samples[1001:n_iter]), 4), "\n")
+cat("True posterior mean:", round(true_alpha / (true_alpha + true_beta), 4), "\n")
+
+# Visualise chain
+chain_dt <- data.table(
+    iteration = 1:n_iter,
+    theta = result$samples
+)
+
+p1 <- ggplot2$ggplot(chain_dt, ggplot2$aes(x = iteration, y = theta)) +
+    ggplot2$geom_line(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = true_alpha / (true_alpha + true_beta),
+                       colour = "#D55E00", linetype = "dashed") +
+    ggplot2$labs(title = "Trace Plot: Metropolis Chain", x = "Iteration", y = expression(theta)) +
+    ggplot2$theme_minimal()
+
+# Compare to true posterior
+p2 <- ggplot2$ggplot(chain_dt[iteration > 1000], ggplot2$aes(x = theta)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+                           bins = 50, fill = "#0072B2", alpha = 0.5) +
+    ggplot2$stat_function(fun = dbeta, args = list(shape1 = true_alpha, shape2 = true_beta),
+                          colour = "#D55E00", linewidth = 1.2) +
+    ggplot2$labs(title = "Posterior Samples vs True Posterior",
+                 subtitle = "Orange = true Beta(23,12); histogram = MCMC samples",
+                 x = expression(theta), y = "Density") +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p1, p2, ncol = 2)
+```
+
+### 8.12.3 Effect of Proposal Scale
+
+**Prose and Intuition**
+
+The proposal standard deviation controls how "big" each proposed jump is:
+- **Too small**: Chain moves slowly, takes many iterations to explore the posterior
+- **Too large**: Most proposals are rejected, chain gets stuck
+- **Just right**: Efficient exploration with acceptance rate around 20-50%
+
+```{r proposal_scale, fig.cap="Effect of proposal standard deviation on chain mixing"}
+set.seed(123)
+
+# Compare different proposal SDs
+proposal_sds <- c(0.01, 0.05, 0.3)
+
+scale_results <- rbindlist(lapply(proposal_sds, function(sd) {
+    res <- metropolis_beta(5000, true_alpha, true_beta, proposal_sd = sd)
+    data.table(
+        iteration = 1:5000,
+        theta = res$samples,
+        proposal_sd = paste0("σ = ", sd, " (accept: ", round(res$acceptance_rate * 100), "%)"),
+        acceptance_rate = res$acceptance_rate
+    )
+}))
+
+scale_results[, proposal_sd := factor(proposal_sd, levels = unique(scale_results$proposal_sd))]
+
+ggplot2$ggplot(scale_results[iteration <= 2000], ggplot2$aes(x = iteration, y = theta)) +
+    ggplot2$geom_line(alpha = 0.5, colour = "#0072B2") +
+    ggplot2$facet_wrap(~proposal_sd, ncol = 1) +
+    ggplot2$geom_hline(yintercept = true_alpha / (true_alpha + true_beta),
+                       colour = "#D55E00", linetype = "dashed") +
+    ggplot2$labs(
+        title = "Effect of Proposal Scale on MCMC Mixing",
+        subtitle = "Too small = slow exploration; too large = high rejection; optimal ≈ 20-50% acceptance",
+        x = "Iteration",
+        y = expression(theta)
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+## 8.13 MCMC Diagnostics
+
+### 8.13.1 Convergence Assessment
+
+**Prose and Intuition**
+
+Before trusting MCMC results, we must verify that the chain has **converged** to the posterior. Key diagnostics:
+
+1. **Trace plots**: Visual inspection for stationarity
+2. **Running mean plots**: Should stabilise
+3. **Autocorrelation**: High autocorrelation means inefficient sampling
+4. **R-hat (Gelman-Rubin)**: Compares within-chain to between-chain variance; should be < 1.1
+5. **Effective sample size (ESS)**: Accounts for autocorrelation; want ESS > 400
+
+**Burn-in**: Initial iterations before convergence are discarded (the "burn-in" period).
+
+```{r mcmc_diagnostics, fig.cap="MCMC diagnostics: trace, autocorrelation, and effective sample size"}
+# Run longer chain for diagnostics
+set.seed(42)
+long_chain <- metropolis_beta(20000, true_alpha, true_beta, proposal_sd = 0.05)
+
+# Discard burn-in
+burnin <- 2000
+post_samples <- long_chain$samples[(burnin + 1):20000]
+
+# Calculate diagnostics
+# Autocorrelation
+acf_values <- acf(post_samples, lag.max = 50, plot = FALSE)
+acf_dt <- data.table(
+    lag = 0:50,
+    acf = as.numeric(acf_values$acf)
+)
+
+# Effective sample size (approximation)
+ess <- length(post_samples) / (1 + 2 * sum(acf_values$acf[2:51]))
+
+# Running mean
+running_mean_dt <- data.table(
+    iteration = 1:length(post_samples),
+    running_mean = cumsum(post_samples) / (1:length(post_samples))
+)
+
+cat("MCMC Diagnostics:\n")
+cat("=================\n\n")
+cat("Total iterations:", 20000, "\n")
+cat("Burn-in:", burnin, "\n")
+cat("Post-burn-in samples:", length(post_samples), "\n")
+cat("Acceptance rate:", round(long_chain$acceptance_rate * 100, 1), "%\n\n")
+cat("Effective sample size:", round(ess), "\n")
+cat("Efficiency:", round(ess / length(post_samples) * 100, 1), "%\n")
+
+# Plots
+p1 <- ggplot2$ggplot(data.table(iteration = 1:20000, theta = long_chain$samples),
+                     ggplot2$aes(x = iteration, y = theta)) +
+    ggplot2$geom_line(alpha = 0.3, colour = "#0072B2") +
+    ggplot2$geom_vline(xintercept = burnin, colour = "red", linetype = "dashed") +
+    ggplot2$annotate("text", x = burnin + 500, y = max(long_chain$samples),
+                     label = "Burn-in", hjust = 0, colour = "red") +
+    ggplot2$labs(title = "Trace Plot", x = "Iteration", y = expression(theta)) +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(acf_dt[lag > 0], ggplot2$aes(x = lag, y = acf)) +
+    ggplot2$geom_hline(yintercept = 0, colour = "grey50") +
+    ggplot2$geom_hline(yintercept = c(-1, 1) * 1.96 / sqrt(length(post_samples)),
+                       linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(xend = lag, yend = 0), colour = "#0072B2") +
+    ggplot2$labs(title = sprintf("Autocorrelation (ESS = %d)", round(ess)),
+                 x = "Lag", y = "ACF") +
+    ggplot2$theme_minimal()
+
+p3 <- ggplot2$ggplot(running_mean_dt, ggplot2$aes(x = iteration, y = running_mean)) +
+    ggplot2$geom_line(colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = true_alpha / (true_alpha + true_beta),
+                       colour = "#D55E00", linetype = "dashed") +
+    ggplot2$labs(title = "Running Mean", x = "Iteration (post-burn-in)", y = "Mean") +
+    ggplot2$theme_minimal()
+
+gridExtra::grid.arrange(p1, p2, p3, layout_matrix = rbind(c(1, 1), c(2, 3)))
+```
+
+### 8.13.2 Multiple Chains and R-hat
+
+**Prose and Intuition**
+
+A robust convergence check runs **multiple chains** from different starting points. If chains converge to the same distribution, we have evidence of proper convergence.
+
+The **Gelman-Rubin diagnostic (R-hat)** compares variance within chains to variance between chains:
+$$\hat{R} = \sqrt{\frac{\text{Var}(\theta|\text{all chains})}{\text{Mean}(\text{Var}(\theta|\text{within chains}))}}$$
+
+If $\hat{R} \approx 1$, chains have mixed well. If $\hat{R} > 1.1$, chains haven't converged.
+
+```{r multiple_chains, fig.cap="Multiple chains from different starting points should converge"}
+set.seed(42)
+
+# Run 4 chains from different starting points
+starting_points <- c(0.1, 0.3, 0.7, 0.9)
+n_iter <- 5000
+
+chains <- lapply(seq_along(starting_points), function(i) {
+    res <- metropolis_beta(n_iter, true_alpha, true_beta, proposal_sd = 0.05, init = starting_points[i])
+    data.table(
+        iteration = 1:n_iter,
+        theta = res$samples,
+        chain = paste("Chain", i, "(start:", starting_points[i], ")")
+    )
+})
+
+all_chains <- rbindlist(chains)
+
+# Calculate R-hat (simplified version)
+burnin <- 1000
+post_chains <- all_chains[iteration > burnin]
+
+chain_means <- post_chains[, .(chain_mean = mean(theta), chain_var = var(theta)), by = chain]
+B <- var(chain_means$chain_mean) * (n_iter - burnin)  # Between-chain variance
+W <- mean(chain_means$chain_var)                       # Within-chain variance
+R_hat <- sqrt((B/W + 1))
+
+cat("\nGelman-Rubin Diagnostic:\n")
+cat("========================\n")
+cat("R-hat:", round(R_hat, 3), "\n")
+cat("Interpretation:", ifelse(R_hat < 1.1, "Chains have converged",
+                                "Chains have NOT converged - run longer"), "\n")
+
+ggplot2$ggplot(all_chains, ggplot2$aes(x = iteration, y = theta, colour = chain)) +
+    ggplot2$geom_line(alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = burnin, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_hline(yintercept = true_alpha / (true_alpha + true_beta),
+                       linetype = "dashed", colour = "black") +
+    ggplot2$scale_colour_viridis_d(option = "C") +
+    ggplot2$labs(
+        title = sprintf("Multiple Chains: R-hat = %.3f", R_hat),
+        subtitle = "All chains converge to same distribution despite different starts",
+        x = "Iteration",
+        y = expression(theta),
+        colour = ""
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 8.14 MCMC for Regression
+
+### 8.14.1 Bayesian Linear Regression by MCMC
+
+**Prose and Intuition**
+
+Let's apply MCMC to a practical problem: Bayesian linear regression for blood pressure vs age.
+
+Model:
+$$y_i = \beta_0 + \beta_1 x_i + \varepsilon_i, \quad \varepsilon_i \sim N(0, \sigma^2)$$
+
+We need to estimate three parameters: $\beta_0$, $\beta_1$, and $\sigma$.
+
+**Priors**:
+- $\beta_0 \sim N(100, 50^2)$ — intercept around 100 mmHg
+- $\beta_1 \sim N(0, 10^2)$ — slope probably small
+- $\sigma \sim \text{Half-Normal}(0, 20)$ — error SD
+
+```{r bayesian_regression_mcmc, fig.cap="MCMC for Bayesian linear regression"}
+# Metropolis for 3-parameter model
+metropolis_regression <- function(x, y, n_iter,
+                                   prior_b0_mean = 100, prior_b0_sd = 50,
+                                   prior_b1_mean = 0, prior_b1_sd = 10,
+                                   prior_sigma_scale = 20,
+                                   proposal_sd = c(2, 0.1, 0.5)) {
+    n <- length(y)
+
+    # Storage
+    samples <- matrix(NA, n_iter, 3)
+    colnames(samples) <- c("beta0", "beta1", "sigma")
+
+    # Initialise
+    samples[1, ] <- c(mean(y), 0, sd(y))
+
+    # Log posterior (unnormalised)
+    log_posterior <- function(beta0, beta1, sigma) {
+        if (sigma <= 0) return(-Inf)
+
+        # Log likelihood
+        mu <- beta0 + beta1 * x
+        ll <- sum(dnorm(y, mu, sigma, log = TRUE))
+
+        # Log priors
+        lp_b0 <- dnorm(beta0, prior_b0_mean, prior_b0_sd, log = TRUE)
+        lp_b1 <- dnorm(beta1, prior_b1_mean, prior_b1_sd, log = TRUE)
+        lp_sigma <- dnorm(sigma, 0, prior_sigma_scale, log = TRUE) + log(2)  # Half-normal
+
+        ll + lp_b0 + lp_b1 + lp_sigma
+    }
+
+    accepts <- 0
+
+    for (t in 2:n_iter) {
+        current <- samples[t - 1, ]
+
+        # Propose
+        proposed <- current + rnorm(3, 0, proposal_sd)
+
+        # Accept/reject
+        log_r <- log_posterior(proposed[1], proposed[2], proposed[3]) -
+                 log_posterior(current[1], current[2], current[3])
+
+        if (log(runif(1)) < log_r) {
+            samples[t, ] <- proposed
+            accepts <- accepts + 1
+        } else {
+            samples[t, ] <- current
+        }
+    }
+
+    list(samples = samples, acceptance_rate = accepts / (n_iter - 1))
+}
+
+set.seed(42)
+reg_result <- metropolis_regression(bp_data$age, bp_data$bp, n_iter = 20000)
+
+cat("Bayesian Regression MCMC Results:\n")
+cat("==================================\n\n")
+cat("Acceptance rate:", round(reg_result$acceptance_rate * 100, 1), "%\n\n")
+
+# Discard burn-in
+burnin <- 5000
+post_reg <- reg_result$samples[(burnin + 1):20000, ]
+
+cat("Posterior Summaries (after burn-in):\n")
+cat("------------------------------------\n")
+for (param in colnames(post_reg)) {
+    cat(sprintf("  %s: Mean = %.3f, SD = %.3f, 95%% CI = [%.3f, %.3f]\n",
+                param, mean(post_reg[, param]), sd(post_reg[, param]),
+                quantile(post_reg[, param], 0.025),
+                quantile(post_reg[, param], 0.975)))
+}
+
+cat("\nTrue values: β₀ =", beta0_true, ", β₁ =", beta1_true, ", σ =", sigma_true, "\n")
+```
+
+```{r regression_trace_plots, fig.cap="Trace plots for Bayesian regression parameters"}
+# Create trace plot data
+trace_dt <- data.table(
+    iteration = rep(1:20000, 3),
+    value = c(reg_result$samples[, 1], reg_result$samples[, 2], reg_result$samples[, 3]),
+    parameter = factor(rep(c("β₀ (Intercept)", "β₁ (Slope)", "σ (Error SD)"), each = 20000),
+                       levels = c("β₀ (Intercept)", "β₁ (Slope)", "σ (Error SD)"))
+)
+
+true_values <- data.table(
+    parameter = factor(c("β₀ (Intercept)", "β₁ (Slope)", "σ (Error SD)"),
+                       levels = c("β₀ (Intercept)", "β₁ (Slope)", "σ (Error SD)")),
+    true = c(beta0_true, beta1_true, sigma_true)
+)
+
+ggplot2$ggplot(trace_dt[iteration > burnin], ggplot2$aes(x = iteration, y = value)) +
+    ggplot2$geom_line(alpha = 0.3, colour = "#0072B2") +
+    ggplot2$geom_hline(data = true_values, ggplot2$aes(yintercept = true),
+                       colour = "#D55E00", linetype = "dashed") +
+    ggplot2$facet_wrap(~parameter, scales = "free_y", ncol = 1) +
+    ggplot2$labs(
+        title = "Trace Plots for Bayesian Regression Parameters",
+        subtitle = "Orange dashed = true values; chains show good mixing",
+        x = "Iteration",
+        y = "Parameter Value"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+```
+
+```{r regression_posterior_pairs, fig.cap="Joint posterior distribution shows parameter correlations"}
+# Pairs plot (posterior correlations)
+post_dt <- as.data.table(post_reg)
+setnames(post_dt, c("beta0", "beta1", "sigma"))
+
+# Correlation
+cor_b0_b1 <- cor(post_dt$beta0, post_dt$beta1)
+
+ggplot2$ggplot(post_dt[sample(.N, 1000)], ggplot2$aes(x = beta0, y = beta1)) +
+    ggplot2$geom_point(alpha = 0.3, colour = "#0072B2") +
+    ggplot2$geom_density_2d(colour = "#D55E00") +
+    ggplot2$geom_point(x = beta0_true, y = beta1_true, colour = "red", size = 4, shape = 4) +
+    ggplot2$labs(
+        title = "Joint Posterior: β₀ vs β₁",
+        subtitle = sprintf("Correlation = %.2f (parameters trade off)", cor_b0_b1),
+        x = expression(beta[0]~"(Intercept)"),
+        y = expression(beta[1]~"(Slope)")
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 8.14.2 Posterior Predictive Distribution
+
+**Prose and Intuition**
+
+A powerful Bayesian feature: we can propagate parameter uncertainty into **predictions**. The posterior predictive distribution for a new observation $\tilde{y}$ at $\tilde{x}$ is:
+
+$$p(\tilde{y}|\tilde{x}, D) = \int p(\tilde{y}|\tilde{x}, \theta) \pi(\theta|D) d\theta$$
+
+With MCMC samples, this becomes:
+$$p(\tilde{y}|\tilde{x}, D) \approx \frac{1}{S} \sum_{s=1}^{S} p(\tilde{y}|\tilde{x}, \theta^{(s)})$$
+
+In practice: for each posterior sample, draw a prediction, creating a distribution of predictions.
+
+```{r posterior_predictive, fig.cap="Posterior predictive distribution includes both parameter and residual uncertainty"}
+# Generate posterior predictive
+x_new <- seq(min(bp_data$age) - 5, max(bp_data$age) + 5, length.out = 50)
+n_samples <- 1000
+sample_idx <- sample(nrow(post_reg), n_samples)
+
+# For each x, get distribution of predictions
+pred_dt <- rbindlist(lapply(x_new, function(xval) {
+    b0 <- post_reg[sample_idx, "beta0"]
+    b1 <- post_reg[sample_idx, "beta1"]
+    sig <- post_reg[sample_idx, "sigma"]
+
+    # Mean prediction (no noise)
+    pred_mean <- b0 + b1 * xval
+
+    # Full prediction (with noise)
+    pred_full <- pred_mean + rnorm(n_samples, 0, sig)
+
+    data.table(
+        x = xval,
+        mean_pred = mean(pred_mean),
+        mean_lower = quantile(pred_mean, 0.025),
+        mean_upper = quantile(pred_mean, 0.975),
+        pred_lower = quantile(pred_full, 0.025),
+        pred_upper = quantile(pred_full, 0.975)
+    )
+}))
+
+ggplot2$ggplot() +
+    # Prediction interval (includes residual uncertainty)
+    ggplot2$geom_ribbon(data = pred_dt,
+                        ggplot2$aes(x = x, ymin = pred_lower, ymax = pred_upper),
+                        fill = "#0072B2", alpha = 0.15) +
+    # Credible interval for mean (parameter uncertainty only)
+    ggplot2$geom_ribbon(data = pred_dt,
+                        ggplot2$aes(x = x, ymin = mean_lower, ymax = mean_upper),
+                        fill = "#0072B2", alpha = 0.3) +
+    # Posterior mean line
+    ggplot2$geom_line(data = pred_dt, ggplot2$aes(x = x, y = mean_pred),
+                      colour = "#0072B2", linewidth = 1.2) +
+    # Data points
+    ggplot2$geom_point(data = bp_data, ggplot2$aes(x = age, y = bp), alpha = 0.5) +
+    # True line
+    ggplot2$geom_abline(intercept = beta0_true, slope = beta1_true,
+                        colour = "#D55E00", linetype = "dashed", linewidth = 1) +
+    ggplot2$labs(
+        title = "Bayesian Regression with Posterior Predictive Distribution",
+        subtitle = "Dark band = 95% CI for mean; Light band = 95% prediction interval",
+        x = "Age",
+        y = "Blood Pressure (mmHg)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 8.15 Introduction to Modern MCMC Software
+
+### 8.15.1 Stan and RStan
+
+**Prose and Intuition**
+
+While hand-coding MCMC is educational, modern practice uses sophisticated software:
+
+- **Stan**: State-of-the-art probabilistic programming language using Hamiltonian Monte Carlo (HMC)
+- **RStan**: R interface to Stan
+- **brms**: User-friendly interface using familiar R formula syntax
+- **JAGS**: Classic Gibbs sampling software
+- **rstanarm**: Pre-compiled Stan models for common analyses
+
+Stan uses **Hamiltonian Monte Carlo (HMC)**, which explores parameter space more efficiently than simple Metropolis, especially in high dimensions.
+
+```{r brms_example, eval=FALSE}
+# Example code for brms (not run due to compilation time)
+# Install with: install.packages("brms")
+
+library(brms)
+
+# Fit Bayesian regression with brms (similar syntax to lm)
+fit <- brm(
+    bp ~ age,
+    data = bp_data,
+    family = gaussian(),
+    prior = c(
+        prior(normal(100, 50), class = Intercept),
+        prior(normal(0, 10), class = b),
+        prior(exponential(1), class = sigma)
+    ),
+    chains = 4,
+    iter = 2000,
+    warmup = 1000
+)
+
+# Summary
+summary(fit)
+
+# Plot posterior
+plot(fit)
+
+# Posterior predictive check
+pp_check(fit)
+```
+
+### 8.15.2 When to Use Which Method
+
+| Method | Pros | Cons | Best For |
+|--------|------|------|----------|
+| Conjugate | Fast, exact | Limited models | Simple problems, quick answers |
+| Metropolis | Simple, general | Slow, tuning needed | Teaching, simple models |
+| Gibbs | No tuning | Requires conditionals | Hierarchical models |
+| HMC (Stan) | Fast, efficient | Compilation time | Complex models, production |
+| Approximate (INLA) | Very fast | Limited models | Spatial, latent Gaussian |
+
+---
+
+## 8.16 Communicating MCMC Results to Stakeholders
+
+**For Clinical Researchers and Administrators**
+
+When presenting Bayesian MCMC results:
+
+**1. Avoid algorithmic details**
+
+Instead of: "We ran 4 chains of 10,000 iterations with 2,000 burn-in and achieved R-hat of 1.01"
+
+Say: "We used modern statistical computing to estimate the distribution of plausible treatment effects"
+
+**2. Show the full posterior, not just summaries**
+
+- Density plots communicate uncertainty better than confidence intervals
+- Highlight clinically meaningful thresholds
+
+**3. Report probabilities, not p-values**
+
+- "There is an 87% probability the treatment is beneficial"
+- "The probability the effect exceeds the minimum clinically important difference is 62%"
+
+**4. Address computational robustness**
+
+- "Multiple independent analyses converged to the same conclusion"
+- "Results are stable under different statistical assumptions"
+
+---
+
+## 8.17 Summary and Key Takeaways
+
+**Computational Methods**
+
+| Method | Key Idea | When to Use |
+|--------|----------|-------------|
+| Monte Carlo | Sample from posterior, average functions | When you can sample directly |
+| Metropolis | Random walk with accept/reject | Simple posteriors |
+| Gibbs | Sample each parameter conditionally | When conditionals are easy |
+| HMC | Use gradient information | Complex, high-dimensional posteriors |
+
+**MCMC Diagnostics Checklist**
+
+1. ☑ **Run multiple chains** from dispersed starting points
+2. ☑ **Check trace plots** for stationarity
+3. ☑ **Calculate R-hat** — should be < 1.1
+4. ☑ **Check effective sample size** — want > 400 for most purposes
+5. ☑ **Examine autocorrelation** — lower is better
+6. ☑ **Posterior predictive checks** — do simulated data look like real data?
+
+**R Packages for Bayesian Computing**
+
+| Package | Description |
+|---------|-------------|
+| `rstan` | R interface to Stan |
+| `brms` | Formula interface to Stan |
+| `rstanarm` | Pre-compiled Stan models |
+| `rjags` | Interface to JAGS |
+| `coda` | MCMC diagnostics |
+| `bayesplot` | MCMC visualisation |
+
+---
+
+## 8.18 Exercises
+
+1. **Metropolis implementation**: Implement a Metropolis sampler for a Gamma(α, β) posterior. Verify your implementation by comparing to direct samples from `rgamma()`.
+
+2. **Proposal tuning**: For the Beta posterior example, systematically find the proposal SD that gives approximately 25% acceptance rate.
+
+3. **Regression extension**: Extend the blood pressure regression to include a quadratic term. How do the posterior summaries change?
+
+4. **Convergence diagnosis**: Intentionally run MCMC with too short a burn-in or too few iterations. What do the diagnostics look like?
+
+5. **Posterior predictive**: For the regression model, calculate the posterior probability that a 60-year-old has blood pressure above 140 mmHg.
+
+---
+
+## 8.19 References
+
+- Gelman, A., et al. (2013). *Bayesian Data Analysis* (3rd ed.). CRC Press.
+- Robert, C. P., & Casella, G. (2004). *Monte Carlo Statistical Methods* (2nd ed.). Springer.
+- Kruschke, J. K. (2015). *Doing Bayesian Data Analysis* (2nd ed.). Academic Press.
+- Carpenter, B., et al. (2017). Stan: A probabilistic programming language. *Journal of Statistical Software*, 76(1).
+- Brooks, S., et al. (2011). *Handbook of Markov Chain Monte Carlo*. CRC Press.

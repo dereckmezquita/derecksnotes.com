@@ -1,0 +1,159 @@
+---
+title: "Algorithmic Trading with R"
+chapter: "Chapter 1: Financial Data and Returns"
+part: "Part 2: The Mathematics of Returns"
+section: "01-2"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2026-01-20
+tags: [algorithmic-trading, quantitative-finance, R, statistics]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+
+
+# Part 2: The Mathematics of Returns
+
+Returns are the fundamental unit of analysis in quantitative finance. We study returns rather than prices because returns have more desirable statistical properties: they are (roughly) stationary, scale-free, and directly comparable across assets.
+
+But there are two different ways to compute returns, and the choice matters. This chapter develops the mathematics of simple and log returns, derives their properties, and establishes when to use each.
+
+---
+
+## 1.4 Simple vs Log Returns
+
+### 1.4.1 Prose/Intuition
+
+When a stock price moves from £100 to £110, we can express this gain in two mathematically distinct ways:
+
+**Simple (arithmetic) return:**
+$$r_{simple} = \frac{110 - 100}{100} = 0.10 = 10\%$$
+
+This is the intuitive definition: the percentage change in price.
+
+**Log (continuously compounded) return:**
+$$r_{log} = \ln\left(\frac{110}{100}\right) = \ln(1.10) \approx 0.0953 = 9.53\%$$
+
+The log return is smaller because it represents the continuously compounded rate that would produce the same price change.
+
+**Why do both exist?**
+
+Simple returns arose naturally in early finance: "the stock is up 10%" is a straightforward statement. Log returns come from continuous-time stochastic calculus, where prices are modelled as geometric Brownian motion:
+
+$$dS = \mu S \, dt + \sigma S \, dW$$
+
+This equation implies log returns are normally distributed (Itô's lemma), which made them mathematically convenient for option pricing and risk management.
+
+**Historical context:** Before computers, the distinction mattered less. Both converge for small returns. But as quantitative finance matured and daily returns became the standard unit of analysis, the choice became more consequential.
+
+**Which is "correct"?** Both are valid transformations of price data. The question is which is more useful for a given purpose. As we will see, they have different additivity properties, and this dictates when to use each.
+
+### 1.4.2 Visual Evidence
+
+
+``` r
+# Create comparison of simple vs log returns across range of price changes
+price_ratios <- seq(0.5, 2.0, by = 0.01)  # Price final/initial from 0.5 to 2.0
+
+returns_comparison <- data.table(
+    price_ratio = price_ratios,
+    simple = price_ratios - 1,  # (P_t - P_{t-1})/P_{t-1} = P_t/P_{t-1} - 1
+    log = log(price_ratios)      # ln(P_t/P_{t-1})
+)
+
+# Melt for plotting
+returns_long <- melt(returns_comparison, id.vars = "price_ratio",
+                     variable.name = "type", value.name = "return")
+returns_long[, type := ifelse(type == "simple", "Simple Return", "Log Return")]
+
+ggplot(returns_long, aes(x = price_ratio, y = return, colour = type)) +
+    geom_line(linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+    geom_abline(intercept = -1, slope = 1, linetype = "dotted", colour = "grey70") +
+    scale_colour_manual(values = c("Simple Return" = trading_colors$primary,
+                                    "Log Return" = trading_colors$secondary)) +
+    labs(
+        title = "Simple vs Log Returns",
+        subtitle = "Divergence increases with magnitude; they converge near zero",
+        x = "Price Ratio (P_t / P_{t-1})",
+        y = "Return",
+        colour = NULL
+    ) +
+    scale_y_continuous(labels = scales::percent, limits = c(-0.6, 1.0)) +
+    scale_x_continuous(breaks = seq(0.5, 2.0, by = 0.25)) +
+    theme_trading()
+```
+
+<Figure src="return-divergence-1.png" alt="Simple and log returns diverge for large price moves. For small daily returns, they are nearly identical.">
+	Simple and log returns diverge for large price moves. For small daily returns, they are nearly identical.
+</Figure>
+
+
+``` r
+# Zoom in on the daily return range
+small_ratios <- seq(0.95, 1.05, by = 0.001)
+
+small_returns <- data.table(
+    price_ratio = small_ratios,
+    simple = small_ratios - 1,
+    log = log(small_ratios)
+)
+
+small_long <- melt(small_returns, id.vars = "price_ratio",
+                   variable.name = "type", value.name = "return")
+small_long[, type := ifelse(type == "simple", "Simple Return", "Log Return")]
+
+ggplot(small_long, aes(x = price_ratio, y = return, colour = type)) +
+    geom_line(linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+    scale_colour_manual(values = c("Simple Return" = trading_colors$primary,
+                                    "Log Return" = trading_colors$secondary)) +
+    labs(
+        title = "Simple vs Log Returns (Daily Range)",
+        subtitle = "For typical daily moves (±5%), the difference is negligible",
+        x = "Price Ratio (P_t / P_{t-1})",
+        y = "Return",
+        colour = NULL
+    ) +
+    scale_y_continuous(labels = scales::percent) +
+    theme_trading()
+```
+
+<Figure src="small-return-approximation-1.png" alt="For typical daily returns (&lt;U+00B1&gt;5%), simple and log returns are nearly indistinguishable.">
+	For typical daily returns (&lt;U+00B1&gt;5%), simple and log returns are nearly indistinguishable.
+</Figure>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

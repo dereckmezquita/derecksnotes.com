@@ -1,0 +1,802 @@
+---
+title: "Reproducibility and the Replication Crisis"
+subtitle: "Part 3 of Chapter 15: Multiple Comparisons"
+author: "Dereck Mezquita"
+date: "2026-01-19"
+output: html_document
+---
+
+
+
+## Table of Contents
+
+## 15.16 The Replication Crisis
+
+### 15.16.1 What Happened?
+
+In recent years, science has faced a crisis: many published findings fail to replicate when independent researchers attempt to reproduce them.
+
+
+``` r
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+
+``` r
+# Replication rates from major projects
+replication_data <- data.table(
+    Field = c("Psychology (RPP 2015)", "Cancer Biology (RPCB 2021)",
+              "Economics (Camerer 2016)", "Social Sciences (SSRP 2018)"),
+    Original_Studies = c(100, 53, 18, 21),
+    Replicated = c(36, 26, 11, 13),
+    Replication_Rate = c(36, 49, 61, 62)
+)
+
+cat("Major Replication Projects\n")
+cat("==========================\n\n")
+print(replication_data)
+
+cat("\n\nKey finding: A substantial proportion of published findings\n")
+cat("do not replicate under more rigorous conditions.\n")
+```
+
+```
+## Major Replication Projects
+## ==========================
+## 
+##                          Field Original_Studies Replicated Replication_Rate
+##                         <char>            <num>      <num>            <num>
+## 1:       Psychology (RPP 2015)              100         36               36
+## 2:  Cancer Biology (RPCB 2021)               53         26               49
+## 3:    Economics (Camerer 2016)               18         11               61
+## 4: Social Sciences (SSRP 2018)               21         13               62
+## 
+## 
+## Key finding: A substantial proportion of published findings
+## do not replicate under more rigorous conditions.
+```
+
+
+``` r
+ggplot2$ggplot(replication_data, ggplot2$aes(x = reorder(Field, Replication_Rate),
+                                              y = Replication_Rate)) +
+    ggplot2$geom_col(fill = "#D55E00", alpha = 0.8) +
+    ggplot2$geom_hline(yintercept = 50, linetype = "dashed", colour = "grey50") +
+    ggplot2$coord_flip() +
+    ggplot2$labs(
+        title = "Replication Rates Across Major Projects",
+        subtitle = "Percentage of original findings that successfully replicated",
+        x = "",
+        y = "Replication Rate (%)"
+    ) +
+    ggplot2$theme_minimal(base_size = 12)
+```
+
+![plot of chunk replication_visual](/courses/statistics-1-foundations/replication_visual-1.png)
+
+### 15.16.2 Causes of the Crisis
+
+
+``` r
+causes <- data.table(
+    Cause = c("Publication Bias", "P-Hacking", "Low Power",
+              "HARKing", "Selective Reporting", "Researcher Degrees of Freedom"),
+    Description = c(
+        "Journals prefer 'positive' (p < 0.05) results",
+        "Trying different analyses until p < 0.05",
+        "Studies too small to detect real effects reliably",
+        "Hypothesising After Results are Known",
+        "Only reporting significant outcomes",
+        "Many analysis choices affect results"
+    ),
+    Solution = c(
+        "Pre-registration, registered reports",
+        "Pre-registration, transparency",
+        "Power analysis, larger samples",
+        "Pre-registration",
+        "Pre-registration, report all outcomes",
+        "Pre-registration, multiverse analysis"
+    )
+)
+
+cat("Causes of the Replication Crisis\n")
+cat("=================================\n\n")
+for (i in 1:nrow(causes)) {
+    cat(sprintf("%d. %s\n", i, causes$Cause[i]))
+    cat(sprintf("   Problem: %s\n", causes$Description[i]))
+    cat(sprintf("   Solution: %s\n\n", causes$Solution[i]))
+}
+```
+
+```
+## Causes of the Replication Crisis
+## =================================
+## 
+## 1. Publication Bias
+##    Problem: Journals prefer 'positive' (p < 0.05) results
+##    Solution: Pre-registration, registered reports
+## 
+## 2. P-Hacking
+##    Problem: Trying different analyses until p < 0.05
+##    Solution: Pre-registration, transparency
+## 
+## 3. Low Power
+##    Problem: Studies too small to detect real effects reliably
+##    Solution: Power analysis, larger samples
+## 
+## 4. HARKing
+##    Problem: Hypothesising After Results are Known
+##    Solution: Pre-registration
+## 
+## 5. Selective Reporting
+##    Problem: Only reporting significant outcomes
+##    Solution: Pre-registration, report all outcomes
+## 
+## 6. Researcher Degrees of Freedom
+##    Problem: Many analysis choices affect results
+##    Solution: Pre-registration, multiverse analysis
+```
+
+---
+
+## 15.17 P-Hacking and Researcher Degrees of Freedom
+
+### 15.17.1 What Is P-Hacking?
+
+**P-hacking** (also called "data dredging" or "fishing") refers to manipulating data or analyses until a significant result is obtained.
+
+
+``` r
+# Simulate p-hacking
+set.seed(123)
+n <- 50
+
+# Generate data with NO true effect
+x <- rnorm(n)
+y <- rnorm(n)
+extra1 <- rnorm(n)
+extra2 <- rnorm(n)
+
+# Honest analysis
+honest_result <- cor.test(x, y)
+
+# P-hacking: try different analyses
+phack_results <- list(
+    "Raw correlation" = cor.test(x, y)$p.value,
+    "Remove outliers" = cor.test(x[abs(scale(x)) < 2], y[abs(scale(x)) < 2])$p.value,
+    "Log transform x" = cor.test(log(x - min(x) + 1), y)$p.value,
+    "Control for extra1" = summary(lm(y ~ x + extra1))$coefficients[2, 4],
+    "Use extra1 as DV" = cor.test(x, extra1)$p.value,
+    "Subset: x > median" = cor.test(x[x > median(x)], y[x > median(x)])$p.value,
+    "Subset: extra2 > 0" = cor.test(x[extra2 > 0], y[extra2 > 0])$p.value
+)
+
+cat("P-Hacking Demonstration (No True Effect)\n")
+cat("=========================================\n\n")
+cat("TRUE CORRELATION: 0 (null hypothesis is true)\n\n")
+
+cat("P-values from different 'analysis choices':\n")
+for (name in names(phack_results)) {
+    sig <- ifelse(phack_results[[name]] < 0.05, "*** SIGNIFICANT", "")
+    cat(sprintf("  %-25s p = %.4f %s\n", name, phack_results[[name]], sig))
+}
+
+cat("\n\nWith enough tries, we can find 'significance' in pure noise!\n")
+```
+
+```
+## P-Hacking Demonstration (No True Effect)
+## =========================================
+## 
+## TRUE CORRELATION: 0 (null hypothesis is true)
+## 
+## P-values from different 'analysis choices':
+##   Raw correlation           p = 0.8047 
+##   Remove outliers           p = 0.9992 
+##   Log transform x           p = 0.7119 
+##   Control for extra1        p = 0.8287 
+##   Use extra1 as DV          p = 0.8410 
+##   Subset: x > median        p = 0.3684 
+##   Subset: extra2 > 0        p = 0.9191 
+## 
+## 
+## With enough tries, we can find 'significance' in pure noise!
+```
+
+### 15.17.2 The Garden of Forking Paths
+
+Every analysis involves many choices. Each choice creates a "fork" in the path:
+
+
+``` r
+choices <- data.table(
+    Stage = c("Data Collection", "Data Collection", "Data Collection",
+              "Preprocessing", "Preprocessing", "Preprocessing",
+              "Analysis", "Analysis", "Analysis"),
+    Choice = c(
+        "When to stop collecting",
+        "Which participants to exclude",
+        "Which variables to measure",
+        "How to handle missing data",
+        "Outlier treatment",
+        "Transformation of variables",
+        "Which covariates to include",
+        "Which test to use",
+        "One-tailed vs two-tailed"
+    ),
+    Options = c("2-5", "2-3", "5-10", "3-4", "2-3", "2-4", "2-10", "2-3", "2")
+)
+
+cat("Researcher Degrees of Freedom\n")
+cat("=============================\n\n")
+
+cat("Each analysis choice multiplies the number of possible analyses:\n\n")
+print(choices)
+
+# Calculate total possibilities
+min_options <- c(2, 2, 5, 3, 2, 2, 2, 2, 2)
+max_options <- c(5, 3, 10, 4, 3, 4, 10, 3, 2)
+
+cat(sprintf("\n\nMinimum combinations: %s\n", format(prod(min_options), big.mark = ",")))
+cat(sprintf("Maximum combinations: %s\n", format(prod(max_options), big.mark = ",")))
+cat("\nWith thousands of possible analyses, finding one with p < 0.05 is easy!\n")
+```
+
+```
+## Researcher Degrees of Freedom
+## =============================
+## 
+## Each analysis choice multiplies the number of possible analyses:
+## 
+##              Stage                        Choice Options
+##             <char>                        <char>  <char>
+## 1: Data Collection       When to stop collecting     2-5
+## 2: Data Collection Which participants to exclude     2-3
+## 3: Data Collection    Which variables to measure    5-10
+## 4:   Preprocessing    How to handle missing data     3-4
+## 5:   Preprocessing             Outlier treatment     2-3
+## 6:   Preprocessing   Transformation of variables     2-4
+## 7:        Analysis   Which covariates to include    2-10
+## 8:        Analysis             Which test to use     2-3
+## 9:        Analysis      One-tailed vs two-tailed       2
+## 
+## 
+## Minimum combinations: 1,920
+## Maximum combinations: 432,000
+## 
+## With thousands of possible analyses, finding one with p < 0.05 is easy!
+```
+
+---
+
+## 15.18 Simulation: Why False Positives Get Published
+
+### 15.18.1 Publication Bias in Action
+
+
+``` r
+# Simulate publication bias
+set.seed(456)
+n_studies <- 1000
+n_per_study <- 50
+true_effect <- 0  # NULL IS TRUE
+
+# Run studies
+study_results <- data.table(
+    study = 1:n_studies,
+    effect = sapply(1:n_studies, function(i) {
+        x <- rnorm(n_per_study)
+        y <- rnorm(n_per_study)  # No real effect
+        cor(x, y)
+    })
+)
+
+# Calculate p-values
+study_results[, p_value := sapply(effect, function(r) {
+    t <- r * sqrt(n_per_study - 2) / sqrt(1 - r^2)
+    2 * pt(-abs(t), df = n_per_study - 2)
+})]
+
+study_results[, significant := p_value < 0.05]
+
+# Publication filter: significant results are published
+study_results[, published := significant]
+
+cat("Publication Bias Simulation\n")
+cat("===========================\n\n")
+cat("True effect: 0 (null hypothesis is true for ALL studies)\n\n")
+
+cat(sprintf("Studies conducted: %d\n", n_studies))
+cat(sprintf("Studies 'significant' (p < 0.05): %d\n", sum(study_results$significant)))
+cat(sprintf("Studies published (only significant): %d\n\n", sum(study_results$published)))
+
+cat("Effect sizes:\n")
+cat(sprintf("  All studies (mean): %.4f (truth ≈ 0)\n", mean(study_results$effect)))
+cat(sprintf("  Published only: %.4f (inflated!)\n", mean(study_results[published == TRUE]$effect)))
+```
+
+```
+## Publication Bias Simulation
+## ===========================
+## 
+## True effect: 0 (null hypothesis is true for ALL studies)
+## 
+## Studies conducted: 1000
+## Studies 'significant' (p < 0.05): 53
+## Studies published (only significant): 53
+## 
+## Effect sizes:
+##   All studies (mean): -0.0097 (truth ≈ 0)
+##   Published only: -0.0978 (inflated!)
+```
+
+
+``` r
+ggplot2$ggplot(study_results, ggplot2$aes(x = effect, fill = published)) +
+    ggplot2$geom_histogram(bins = 40, alpha = 0.7, position = "identity") +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed", colour = "black") +
+    ggplot2$geom_vline(xintercept = mean(study_results[published == TRUE]$effect),
+                       linetype = "solid", colour = "#D55E00", linewidth = 1) +
+    ggplot2$scale_fill_manual(values = c("#0072B2", "#D55E00"),
+                               labels = c("Not Published", "Published")) +
+    ggplot2$labs(
+        title = "Publication Bias Creates Apparent Effects from Noise",
+        subtitle = "True effect = 0, but published effect appears real",
+        x = "Observed Correlation",
+        y = "Count",
+        fill = ""
+    ) +
+    ggplot2$annotate("text", x = 0.02, y = 80, label = "True Effect = 0", hjust = 0) +
+    ggplot2$annotate("text", x = mean(study_results[published == TRUE]$effect) + 0.02,
+                     y = 60, label = "Published\nMean", colour = "#D55E00", hjust = 0) +
+    ggplot2$theme_minimal(base_size = 12) +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+![plot of chunk publication_bias_visual](/courses/statistics-1-foundations/publication_bias_visual-1.png)
+
+---
+
+## 15.19 Solutions: Pre-Registration
+
+### 15.19.1 What Is Pre-Registration?
+
+**Pre-registration** means publicly committing to your hypotheses, methods, and analysis plan BEFORE collecting data.
+
+
+``` r
+cat("Pre-Registration Elements\n")
+cat("=========================\n\n")
+
+prereg_elements <- data.table(
+    Element = c("Hypotheses", "Sample Size", "Exclusion Criteria",
+                "Primary Outcome", "Analysis Plan", "Secondary Analyses"),
+    Description = c(
+        "Clearly state predictions before data collection",
+        "Justify based on power analysis",
+        "Define who/what will be excluded and why",
+        "Specify the main outcome measure",
+        "Detail the exact statistical test(s)",
+        "Distinguish exploratory from confirmatory"
+    ),
+    Why_It_Matters = c(
+        "Prevents HARKing",
+        "Prevents optional stopping",
+        "Prevents selective exclusion",
+        "Prevents outcome switching",
+        "Prevents p-hacking",
+        "Maintains proper error rates"
+    )
+)
+
+for (i in 1:nrow(prereg_elements)) {
+    cat(sprintf("%d. %s\n", i, prereg_elements$Element[i]))
+    cat(sprintf("   What: %s\n", prereg_elements$Description[i]))
+    cat(sprintf("   Why: %s\n\n", prereg_elements$Why_It_Matters[i]))
+}
+
+cat("Where to pre-register:\n")
+cat("• OSF (osf.io) - general\n")
+cat("• AsPredicted (aspredicted.org) - quick form\n")
+cat("• ClinicalTrials.gov - clinical studies\n")
+cat("• GitHub/GitLab - version control your plan\n")
+```
+
+```
+## Pre-Registration Elements
+## =========================
+## 
+## 1. Hypotheses
+##    What: Clearly state predictions before data collection
+##    Why: Prevents HARKing
+## 
+## 2. Sample Size
+##    What: Justify based on power analysis
+##    Why: Prevents optional stopping
+## 
+## 3. Exclusion Criteria
+##    What: Define who/what will be excluded and why
+##    Why: Prevents selective exclusion
+## 
+## 4. Primary Outcome
+##    What: Specify the main outcome measure
+##    Why: Prevents outcome switching
+## 
+## 5. Analysis Plan
+##    What: Detail the exact statistical test(s)
+##    Why: Prevents p-hacking
+## 
+## 6. Secondary Analyses
+##    What: Distinguish exploratory from confirmatory
+##    Why: Maintains proper error rates
+## 
+## Where to pre-register:
+## • OSF (osf.io) - general
+## • AsPredicted (aspredicted.org) - quick form
+## • ClinicalTrials.gov - clinical studies
+## • GitHub/GitLab - version control your plan
+```
+
+---
+
+## 15.20 Registered Reports
+
+### 15.20.1 Peer Review Before Data Collection
+
+**Registered Reports** take pre-registration further: the study is peer-reviewed before data collection, and accepted papers are published regardless of results.
+
+
+``` r
+cat("Traditional vs Registered Report Process\n")
+cat("========================================\n\n")
+
+cat("TRADITIONAL:\n")
+cat("  1. Conduct study\n")
+cat("  2. Analyse data (flexibility here!)\n")
+cat("  3. Write paper\n")
+cat("  4. Submit for review\n")
+cat("  5. IF significant, likely published\n")
+cat("  6. IF not significant, file drawer\n\n")
+
+cat("REGISTERED REPORT:\n")
+cat("  1. Write introduction + methods\n")
+cat("  2. Submit for Stage 1 review\n")
+cat("  3. IF approved, conduct study\n")
+cat("  4. Analyse data (as pre-specified)\n")
+cat("  5. Write results + discussion\n")
+cat("  6. Stage 2 review (guaranteed publication)\n\n")
+
+cat("Benefits:\n")
+cat("• Eliminates publication bias\n")
+cat("• Prevents p-hacking\n")
+cat("• Review focuses on importance and methods, not results\n")
+cat("• Null results get published\n")
+```
+
+```
+## Traditional vs Registered Report Process
+## ========================================
+## 
+## TRADITIONAL:
+##   1. Conduct study
+##   2. Analyse data (flexibility here!)
+##   3. Write paper
+##   4. Submit for review
+##   5. IF significant, likely published
+##   6. IF not significant, file drawer
+## 
+## REGISTERED REPORT:
+##   1. Write introduction + methods
+##   2. Submit for Stage 1 review
+##   3. IF approved, conduct study
+##   4. Analyse data (as pre-specified)
+##   5. Write results + discussion
+##   6. Stage 2 review (guaranteed publication)
+## 
+## Benefits:
+## • Eliminates publication bias
+## • Prevents p-hacking
+## • Review focuses on importance and methods, not results
+## • Null results get published
+```
+
+---
+
+## 15.21 Effect Size Focus
+
+### 15.21.1 Beyond Significance
+
+Instead of obsessing over p < 0.05, focus on:
+1. **Effect size**: How big is the effect?
+2. **Confidence interval**: What is the range of plausible values?
+3. **Practical significance**: Does it matter in the real world?
+
+
+``` r
+# Compare two studies
+set.seed(789)
+
+# Study 1: Small sample, happens to be significant
+n1 <- 30
+x1 <- rnorm(n1, 0.3, 1)
+study1 <- t.test(x1)
+
+# Study 2: Large sample, more precise estimate
+n2 <- 300
+x2 <- rnorm(n2, 0.2, 1)
+study2 <- t.test(x2)
+
+cat("Two Studies, Same Question\n")
+cat("==========================\n\n")
+
+cat("Study 1 (n = 30):\n")
+cat(sprintf("  Mean: %.3f\n", mean(x1)))
+cat(sprintf("  95%% CI: [%.3f, %.3f]\n", study1$conf.int[1], study1$conf.int[2]))
+cat(sprintf("  p-value: %.4f %s\n\n", study1$p.value,
+            ifelse(study1$p.value < 0.05, "(significant)", "(not significant)")))
+
+cat("Study 2 (n = 300):\n")
+cat(sprintf("  Mean: %.3f\n", mean(x2)))
+cat(sprintf("  95%% CI: [%.3f, %.3f]\n", study2$conf.int[1], study2$conf.int[2]))
+cat(sprintf("  p-value: %.4f %s\n\n", study2$p.value,
+            ifelse(study2$p.value < 0.05, "(significant)", "(not significant)")))
+
+cat("Which study gives better evidence about the true effect?\n")
+cat("Study 2! The narrower CI tells us more about the true value.\n")
+cat("P-values alone are misleading.\n")
+```
+
+```
+## Two Studies, Same Question
+## ==========================
+## 
+## Study 1 (n = 30):
+##   Mean: 0.019
+##   95% CI: [-0.246, 0.284]
+##   p-value: 0.8840 (not significant)
+## 
+## Study 2 (n = 300):
+##   Mean: 0.167
+##   95% CI: [0.050, 0.284]
+##   p-value: 0.0053 (significant)
+## 
+## Which study gives better evidence about the true effect?
+## Study 2! The narrower CI tells us more about the true value.
+## P-values alone are misleading.
+```
+
+---
+
+## 15.22 Communicating to Stakeholders
+
+### 15.22.1 Reproducibility Checklist
+
+
+``` r
+cat("Reproducibility Checklist for Research\n")
+cat("======================================\n\n")
+
+checklist <- data.table(
+    Stage = c(rep("Planning", 4), rep("Analysis", 3), rep("Reporting", 4)),
+    Item = c(
+        "Pre-register hypotheses and analysis plan",
+        "Conduct power analysis for sample size",
+        "Define primary vs secondary outcomes",
+        "Specify exclusion criteria in advance",
+        "Follow pre-registered analysis plan",
+        "Report all planned analyses",
+        "Clearly label exploratory analyses",
+        "Report effect sizes and confidence intervals",
+        "Share data and code",
+        "Distinguish confirmatory from exploratory",
+        "Discuss limitations honestly"
+    )
+)
+
+for (stage in unique(checklist$Stage)) {
+    cat(sprintf("\n%s:\n", stage))
+    cat(paste(rep("-", nchar(stage)), collapse = ""), "\n")
+    items <- checklist[Stage == stage]$Item
+    for (item in items) {
+        cat(sprintf("□ %s\n", item))
+    }
+}
+```
+
+```
+## Reproducibility Checklist for Research
+## ======================================
+## 
+## 
+## Planning:
+## -------- 
+## □ Pre-register hypotheses and analysis plan
+## □ Conduct power analysis for sample size
+## □ Define primary vs secondary outcomes
+## □ Specify exclusion criteria in advance
+## 
+## Analysis:
+## -------- 
+## □ Follow pre-registered analysis plan
+## □ Report all planned analyses
+## □ Clearly label exploratory analyses
+## 
+## Reporting:
+## --------- 
+## □ Report effect sizes and confidence intervals
+## □ Share data and code
+## □ Distinguish confirmatory from exploratory
+## □ Discuss limitations honestly
+```
+
+### 15.22.2 Red Flags in Published Research
+
+
+``` r
+cat("\n\nRed Flags When Reading Research\n")
+cat("================================\n\n")
+
+red_flags <- data.table(
+    Flag = c("Too many 'just significant' p-values",
+             "Effect sizes decrease with replication",
+             "No power analysis reported",
+             "Many subgroup analyses, few corrections",
+             "Outcomes changed from protocol",
+             "Large effects from small samples",
+             "HARKing (presented as confirmatory)"),
+    Why_Suspicious = c(
+        "Suggests p-hacking or selective reporting",
+        "Suggests initial overestimation",
+        "May indicate insufficient sample",
+        "Inflated false positive rate",
+        "Suggests outcome switching",
+        "Winner's curse - effects likely inflated",
+        "Confirmation bias, invalid inference"
+    )
+)
+
+for (i in 1:nrow(red_flags)) {
+    cat(sprintf("%d. %s\n", i, red_flags$Flag[i]))
+    cat(sprintf("   Concern: %s\n\n", red_flags$Why_Suspicious[i]))
+}
+```
+
+```
+## 
+## 
+## Red Flags When Reading Research
+## ================================
+## 
+## 1. Too many 'just significant' p-values
+##    Concern: Suggests p-hacking or selective reporting
+## 
+## 2. Effect sizes decrease with replication
+##    Concern: Suggests initial overestimation
+## 
+## 3. No power analysis reported
+##    Concern: May indicate insufficient sample
+## 
+## 4. Many subgroup analyses, few corrections
+##    Concern: Inflated false positive rate
+## 
+## 5. Outcomes changed from protocol
+##    Concern: Suggests outcome switching
+## 
+## 6. Large effects from small samples
+##    Concern: Winner's curse - effects likely inflated
+## 
+## 7. HARKing (presented as confirmatory)
+##    Concern: Confirmation bias, invalid inference
+```
+
+---
+
+## 15.23 Course Summary
+
+This concludes Part I: Foundations of Statistics with R. We have covered:
+
+
+``` r
+cat("Statistics with R: Part I Summary\n")
+cat("==================================\n\n")
+
+chapters <- data.table(
+    Chapter = 1:15,
+    Topic = c(
+        "Introduction to Statistics and Sampling",
+        "Descriptive Statistics",
+        "Data Visualisation",
+        "Probability",
+        "Probability Distributions",
+        "Sampling Distributions and CLT",
+        "Point Estimation",
+        "Confidence Intervals",
+        "Hypothesis Testing",
+        "Tests for Means and Proportions",
+        "Chi-Square and Non-Parametric Tests",
+        "Linear Regression",
+        "Analysis of Variance",
+        "Experimental Design",
+        "Multiple Comparisons and Reproducibility"
+    )
+)
+
+for (i in 1:nrow(chapters)) {
+    cat(sprintf("Ch %2d: %s\n", chapters$Chapter[i], chapters$Topic[i]))
+}
+
+cat("\n\nKey themes throughout:\n")
+cat("• Statistics is about quantifying uncertainty\n")
+cat("• Assumptions matter—always check them\n")
+cat("• Effect sizes and confidence intervals are more informative than p-values\n")
+cat("• Multiple testing requires adjustment\n")
+cat("• Good design prevents problems analysis cannot fix\n")
+cat("• Reproducibility is essential for scientific progress\n")
+```
+
+```
+## Statistics with R: Part I Summary
+## ==================================
+## 
+## Ch  1: Introduction to Statistics and Sampling
+## Ch  2: Descriptive Statistics
+## Ch  3: Data Visualisation
+## Ch  4: Probability
+## Ch  5: Probability Distributions
+## Ch  6: Sampling Distributions and CLT
+## Ch  7: Point Estimation
+## Ch  8: Confidence Intervals
+## Ch  9: Hypothesis Testing
+## Ch 10: Tests for Means and Proportions
+## Ch 11: Chi-Square and Non-Parametric Tests
+## Ch 12: Linear Regression
+## Ch 13: Analysis of Variance
+## Ch 14: Experimental Design
+## Ch 15: Multiple Comparisons and Reproducibility
+## 
+## 
+## Key themes throughout:
+## • Statistics is about quantifying uncertainty
+## • Assumptions matter—always check them
+## • Effect sizes and confidence intervals are more informative than p-values
+## • Multiple testing requires adjustment
+## • Good design prevents problems analysis cannot fix
+## • Reproducibility is essential for scientific progress
+```
+
+---
+
+## Quick Reference
+
+### Reproducibility Best Practices
+
+| Practice | Purpose |
+|----------|---------|
+| Pre-registration | Prevent HARKing and p-hacking |
+| Power analysis | Ensure adequate sample size |
+| Report all outcomes | Prevent selective reporting |
+| Share data/code | Enable verification |
+| Effect sizes + CIs | Go beyond significance |
+| Distinguish confirmatory/exploratory | Maintain proper error rates |
+
+### Warning Signs
+
+| Sign | Possible Issue |
+|------|----------------|
+| p = 0.049 | Possible p-hacking |
+| Huge effect, small n | Winner's curse |
+| Many tests, no correction | Inflated false positive rate |
+| Results differ from protocol | Outcome switching |
+
+### Resources
+
+| Resource | URL |
+|----------|-----|
+| OSF Pre-registration | osf.io |
+| Registered Reports | cos.io/rr |
+| CONSORT Guidelines | consort-statement.org |
+| APA Statistics Guidelines | apastyle.apa.org |
+

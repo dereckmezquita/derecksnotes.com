@@ -1,0 +1,804 @@
+---
+title: "Factor Portfolio Construction"
+---
+
+```{r setup, include=FALSE}
+box::use(
+    ../modules/data[load_market, load_factors, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+tc <- unlist(trading_colors)
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = "../figures/09-2_"
+)
+
+set.seed(42)
+```
+
+# Factor Portfolio Construction
+
+Knowing that factors exist is one thing; constructing factor portfolios is another. The details matter: how you sort, weight, and rebalance determines whether you capture the premium or lose it to costs and noise.
+
+This chapter covers the mechanics: from raw signals to tradeable portfolios.
+
+---
+
+## 9.5 Sorting and Ranking
+
+### 9.5.1 Prose/Intuition
+
+The classic factor construction method is **portfolio sorting**:
+
+1. Rank all stocks by the factor characteristic (e.g., book-to-market)
+2. Divide into quantiles (deciles, quintiles, or terciles)
+3. Go long the top quantile, short the bottom quantile
+4. Hold for a period (typically monthly), then repeat
+
+This non-parametric approach has advantages:
+- No assumptions about functional form
+- Robust to outliers
+- Easy to interpret and implement
+
+The Fama-French methodology uses 2×3 or 5×5 sorts to control for multiple characteristics simultaneously.
+
+### 9.5.2 Visual Evidence
+
+```{r univariate-sort, fig.cap="Univariate sort: ranking stocks by a single characteristic. The spread between top and bottom deciles captures the factor premium."}
+# Simulate cross-section for sorting demonstration
+n_stocks <- 500
+n_periods <- 60
+
+# Generate characteristics and returns
+sim_data <- data.table()
+
+for (t in 1:n_periods) {
+    # Characteristic (e.g., B/M)
+    characteristic <- rnorm(n_stocks)
+
+    # True premium: characteristic predicts returns
+    true_beta <- 0.03  # 3% per period spread
+
+    returns <- 0.01 + true_beta * characteristic + rnorm(n_stocks, 0, 0.08)
+
+    sim_data <- rbind(sim_data, data.table(
+        period = t,
+        stock = 1:n_stocks,
+        characteristic = characteristic,
+        returns = returns
+    ))
+}
+
+# Cross-sectional ranking
+sim_data[, char_rank := frank(characteristic, ties.method = "average") / .N, by = period]
+
+# Form deciles
+sim_data[, decile := cut(char_rank, breaks = seq(0, 1, 0.1),
+                          labels = paste0("D", 1:10), include.lowest = TRUE)]
+
+# Decile returns
+decile_returns <- sim_data[, .(
+    mean_ret = mean(returns),
+    n = .N
+), by = .(period, decile)]
+
+# Average across periods
+avg_decile <- decile_returns[, .(
+    avg_return = mean(mean_ret),
+    se = sd(mean_ret) / sqrt(.N)
+), by = decile]
+
+# Ensure proper ordering
+avg_decile[, decile_num := as.numeric(gsub("D", "", decile))]
+setorder(avg_decile, decile_num)
+
+ggplot(avg_decile, aes(x = decile, y = avg_return)) +
+    geom_col(fill = tc[1], alpha = 0.7) +
+    geom_errorbar(aes(ymin = avg_return - 1.96 * se, ymax = avg_return + 1.96 * se),
+                  width = 0.2, colour = tc[2]) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Univariate Sort: Average Returns by Decile",
+         subtitle = "Monotonic pattern indicates factor premium",
+         x = "Decile (D1 = Low, D10 = High)", y = "Average Return") +
+    theme_trading()
+```
+
+```{r monotonicity-test, fig.cap="Testing for monotonicity. A well-specified factor shows generally increasing returns across deciles."}
+# Cumulative returns by decile
+decile_wide <- dcast(decile_returns, period ~ decile, value.var = "mean_ret")
+
+# Calculate long-short
+decile_wide[, `Long-Short (D10-D1)` := D10 - D1]
+decile_wide[, cum_ls := cumprod(1 + `Long-Short (D10-D1)`) - 1]
+decile_wide[, cum_d1 := cumprod(1 + D1) - 1]
+decile_wide[, cum_d10 := cumprod(1 + D10) - 1]
+
+# Plot
+ls_long <- melt(decile_wide[, .(period, `D1 (Low)` = cum_d1, `D10 (High)` = cum_d10,
+                                 `Long-Short` = cum_ls)],
+                id.vars = "period", variable.name = "Portfolio", value.name = "Return")
+
+ggplot(ls_long, aes(x = period, y = Return, colour = Portfolio)) +
+    geom_line(linewidth = 0.7) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    scale_colour_manual(values = c(tc[4], tc[3], tc[1])) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Factor Portfolio Performance: Long vs Short vs Long-Short",
+         subtitle = "Long-short captures premium regardless of market direction",
+         x = "Period", y = "Cumulative Return") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+### 9.5.3 Mathematical Derivation
+
+**Cross-Sectional Ranking:**
+
+For characteristic $C_i$ of stock $i$:
+$$
+\text{Rank}_i = \frac{\#\{j : C_j \le C_i\}}{N}
+$$
+
+This maps any distribution to uniform [0, 1].
+
+**Quantile Breakpoints:**
+
+For $K$ quantiles, breakpoints are:
+$$
+q_k = F^{-1}\left(\frac{k}{K}\right), \quad k = 1, \ldots, K-1
+$$
+
+where $F$ is the CDF. Stocks fall into quantile $k$ if $q_{k-1} < C_i \le q_k$.
+
+**Univariate Sort:**
+
+Assign stock $i$ to portfolio $P_k$ if:
+$$
+\frac{k-1}{K} < \text{Rank}_i \le \frac{k}{K}
+$$
+
+**Bivariate Sort (Independent):**
+
+Sort independently on two characteristics, creating $K_1 \times K_2$ portfolios.
+
+Example (2×3 Fama-French):
+- Size: Small (S), Big (B) based on median NYSE market cap
+- Value: Low (L), Medium (M), High (H) based on 30th/70th percentiles of NYSE B/M
+
+6 portfolios: S/L, S/M, S/H, B/L, B/M, B/H
+
+**Bivariate Sort (Dependent):**
+
+Sort first on one characteristic, then within each group sort on the second.
+
+Example:
+1. Sort into size quintiles
+2. Within each size quintile, sort into value quintiles
+3. Creates 25 portfolios
+
+Dependent sorts control more precisely but create smaller portfolios.
+
+**Long-Short Factor Return:**
+
+$$
+f_t = \bar{r}_{t, \text{High}} - \bar{r}_{t, \text{Low}}
+$$
+
+where $\bar{r}$ is the (weighted) average return of stocks in each group.
+
+```{r bivariate-sort, fig.cap="Bivariate sort: 5×5 portfolios sorted independently on two characteristics. Allows examining interaction effects."}
+# Simulate two characteristics
+n_stocks <- 500
+n_periods <- 60
+
+bi_data <- data.table()
+
+for (t in 1:n_periods) {
+    char1 <- rnorm(n_stocks)  # e.g., Size
+    char2 <- rnorm(n_stocks)  # e.g., Value
+
+    # Both characteristics predict returns
+    returns <- 0.01 + 0.02 * char1 + 0.03 * char2 + rnorm(n_stocks, 0, 0.08)
+
+    bi_data <- rbind(bi_data, data.table(
+        period = t,
+        stock = 1:n_stocks,
+        char1 = char1,
+        char2 = char2,
+        returns = returns
+    ))
+}
+
+# Bivariate ranking (5×5)
+bi_data[, char1_quintile := cut(frank(char1) / .N, breaks = seq(0, 1, 0.2),
+                                 labels = paste0("C1_Q", 1:5), include.lowest = TRUE), by = period]
+bi_data[, char2_quintile := cut(frank(char2) / .N, breaks = seq(0, 1, 0.2),
+                                 labels = paste0("C2_Q", 1:5), include.lowest = TRUE), by = period]
+
+# 25 portfolio returns
+bi_port_returns <- bi_data[, .(mean_ret = mean(returns)),
+                            by = .(period, char1_quintile, char2_quintile)]
+
+# Average across time
+bi_avg <- bi_port_returns[, .(avg_ret = mean(mean_ret)),
+                           by = .(char1_quintile, char2_quintile)]
+
+# Extract quintile numbers
+bi_avg[, c1_num := as.numeric(gsub("C1_Q", "", char1_quintile))]
+bi_avg[, c2_num := as.numeric(gsub("C2_Q", "", char2_quintile))]
+
+# Heatmap
+ggplot(bi_avg, aes(x = factor(c1_num), y = factor(c2_num), fill = avg_ret)) +
+    geom_tile() +
+    geom_text(aes(label = sprintf("%.1f%%", avg_ret * 100)), colour = "white", size = 3) +
+    scale_fill_gradient2(low = tc[4], mid = "grey90", high = tc[3],
+                         midpoint = median(bi_avg$avg_ret),
+                         labels = scales::percent_format()) +
+    labs(title = "Bivariate Sort: 5×5 Portfolio Returns",
+         subtitle = "Both characteristics contribute to returns",
+         x = "Characteristic 1 Quintile", y = "Characteristic 2 Quintile",
+         fill = "Avg Return") +
+    theme_trading()
+```
+
+### 9.5.4 Implementation & Application
+
+```{r sorting-functions, fig.cap="Sorting implementation in R. Functions for univariate and bivariate portfolio sorts."}
+# Sorting function
+create_quantile_portfolios <- function(data, char_col, n_quantiles = 10,
+                                        weight_col = NULL) {
+    # Cross-sectional ranking
+    data[, rank := frank(get(char_col), ties.method = "average") / .N, by = period]
+
+    # Assign to quantiles
+    breaks <- seq(0, 1, 1/n_quantiles)
+    labels <- paste0("Q", 1:n_quantiles)
+    data[, portfolio := cut(rank, breaks = breaks, labels = labels, include.lowest = TRUE)]
+
+    # Calculate portfolio returns
+    if (is.null(weight_col)) {
+        # Equal weight
+        port_ret <- data[, .(port_ret = mean(returns)), by = .(period, portfolio)]
+    } else {
+        # Value weight
+        data[, weight_norm := get(weight_col) / sum(get(weight_col)), by = .(period, portfolio)]
+        port_ret <- data[, .(port_ret = sum(returns * weight_norm)), by = .(period, portfolio)]
+    }
+
+    return(port_ret)
+}
+
+# Apply to simulated data
+port_returns <- create_quantile_portfolios(sim_data, "characteristic", n_quantiles = 5)
+
+# Wide format
+port_wide <- dcast(port_returns, period ~ portfolio, value.var = "port_ret")
+port_wide[, `Long-Short` := Q5 - Q1]
+
+# Statistics
+cat("=== Quintile Portfolio Statistics ===\n\n")
+quintile_stats <- port_returns[, .(
+    `Ann. Return` = sprintf("%.1f%%", mean(port_ret) * 12 * 100),
+    `Ann. Vol` = sprintf("%.1f%%", sd(port_ret) * sqrt(12) * 100),
+    Sharpe = sprintf("%.2f", mean(port_ret) / sd(port_ret) * sqrt(12))
+), by = portfolio]
+print(quintile_stats)
+
+cat("\nLong-Short (Q5 - Q1):\n")
+cat(sprintf("Ann. Return: %.1f%%\n", mean(port_wide$`Long-Short`) * 12 * 100))
+cat(sprintf("Ann. Vol: %.1f%%\n", sd(port_wide$`Long-Short`) * sqrt(12) * 100))
+cat(sprintf("Sharpe: %.2f\n", mean(port_wide$`Long-Short`) / sd(port_wide$`Long-Short`) * sqrt(12)))
+```
+
+---
+
+## 9.6 Factor Weighting Schemes
+
+### 9.6.1 Prose/Intuition
+
+How you weight positions within a factor portfolio significantly affects performance:
+
+**Equal Weight:**
+- Each stock gets the same weight: $w_i = 1/N$
+- Pros: Simple, diversified, tilts toward small caps
+- Cons: High turnover, capacity constrained
+
+**Value Weight:**
+- Weight proportional to market cap: $w_i = \text{MCap}_i / \sum \text{MCap}$
+- Pros: Investable at scale, matches market structure
+- Cons: Concentrated in large stocks, dilutes factor exposure
+
+**Signal Weight (z-score):**
+- Weight proportional to signal strength: $w_i = z_i / \sum|z_i|$
+- Pros: Stronger factor exposure, exploits signal intensity
+- Cons: Concentrated in extreme stocks, higher turnover
+
+**Risk Parity:**
+- Weight inversely proportional to volatility: $w_i \propto 1/\sigma_i$
+- Pros: Balanced risk contribution
+- Cons: Complex, requires volatility estimates
+
+### 9.6.2 Visual Evidence
+
+```{r weighting-comparison, fig.cap="Equal vs value-weighted factor portfolios. Equal weight gives stronger factor exposure but lower capacity."}
+# Simulate with size (market cap) variation
+n_stocks <- 200
+n_periods <- 60
+
+weight_data <- data.table()
+
+for (t in 1:n_periods) {
+    # Characteristics
+    signal <- rnorm(n_stocks)
+    size <- rlnorm(n_stocks, meanlog = 5, sdlog = 1)  # Log-normal market cap
+
+    # Small stocks have higher signal-return relationship (size anomaly interaction)
+    returns <- 0.01 + 0.04 * signal * (1 / sqrt(size/mean(size))) + rnorm(n_stocks, 0, 0.08)
+
+    weight_data <- rbind(weight_data, data.table(
+        period = t,
+        stock = 1:n_stocks,
+        signal = signal,
+        size = size,
+        returns = returns
+    ))
+}
+
+# Rank by signal
+weight_data[, signal_rank := frank(signal) / .N, by = period]
+weight_data[, quintile := cut(signal_rank, breaks = seq(0, 1, 0.2),
+                               labels = paste0("Q", 1:5), include.lowest = TRUE), by = period]
+
+# Equal-weighted returns
+ew_returns <- weight_data[quintile %in% c("Q1", "Q5"), .(
+    ew_ret = mean(returns)
+), by = .(period, quintile)]
+ew_wide <- dcast(ew_returns, period ~ quintile, value.var = "ew_ret")
+ew_wide[, ew_ls := Q5 - Q1]
+
+# Value-weighted returns
+vw_returns <- weight_data[quintile %in% c("Q1", "Q5"), {
+    w <- size / sum(size)
+    .(vw_ret = sum(returns * w))
+}, by = .(period, quintile)]
+vw_wide <- dcast(vw_returns, period ~ quintile, value.var = "vw_ret")
+vw_wide[, vw_ls := Q5 - Q1]
+
+# Combine
+compare_wide <- merge(ew_wide[, .(period, EW = ew_ls)],
+                      vw_wide[, .(period, VW = vw_ls)], by = "period")
+
+compare_wide[, cum_ew := cumprod(1 + EW) - 1]
+compare_wide[, cum_vw := cumprod(1 + VW) - 1]
+
+# Plot
+compare_long <- melt(compare_wide[, .(period, `Equal Weight` = cum_ew, `Value Weight` = cum_vw)],
+                     id.vars = "period", variable.name = "Weighting", value.name = "Return")
+
+ggplot(compare_long, aes(x = period, y = Return, colour = Weighting)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Equal vs Value-Weighted Factor Portfolio",
+         subtitle = "Equal weight often captures more premium but has less capacity",
+         x = "Period", y = "Cumulative Return") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+
+# Statistics comparison
+cat("=== Weighting Scheme Comparison ===\n\n")
+weight_stats <- data.table(
+    Scheme = c("Equal Weight", "Value Weight"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        mean(compare_wide$EW) * 12 * 100,
+        mean(compare_wide$VW) * 12 * 100)),
+    `Ann. Vol` = sprintf("%.1f%%", c(
+        sd(compare_wide$EW) * sqrt(12) * 100,
+        sd(compare_wide$VW) * sqrt(12) * 100)),
+    Sharpe = sprintf("%.2f", c(
+        mean(compare_wide$EW) / sd(compare_wide$EW) * sqrt(12),
+        mean(compare_wide$VW) / sd(compare_wide$VW) * sqrt(12)))
+)
+print(weight_stats)
+```
+
+### 9.6.3 Mathematical Derivation
+
+**Equal Weight:**
+$$
+w_i = \frac{1}{N}
+$$
+
+Portfolio return: $r_p = \frac{1}{N} \sum_{i=1}^{N} r_i$
+
+**Value Weight:**
+$$
+w_i = \frac{\text{MCap}_i}{\sum_{j} \text{MCap}_j}
+$$
+
+Portfolio return: $r_p = \sum_{i} w_i r_i$
+
+**Signal Weight (z-score normalised):**
+
+First standardise the signal:
+$$
+z_i = \frac{C_i - \bar{C}}{\sigma_C}
+$$
+
+Then normalise to sum to 1 (for long) and -1 (for short):
+$$
+w_i = \frac{z_i}{\sum_{j: z_j > 0} z_j} \text{ for longs}, \quad w_i = \frac{z_i}{\sum_{j: z_j < 0} |z_j|} \text{ for shorts}
+$$
+
+**Capacity Constraint:**
+
+Maximum investable position:
+$$
+w_i \le c \times \frac{\text{ADV}_i}{AUM}
+$$
+
+where ADV = Average Daily Volume, AUM = Assets Under Management, and $c$ is a participation rate (typically 5-10%).
+
+**Turnover:**
+
+One-way turnover:
+$$
+\text{TO} = \frac{1}{2} \sum_{i} |w_{i,t} - w_{i,t-1}|
+$$
+
+Cost-adjusted return:
+$$
+r_{\text{net}} = r_{\text{gross}} - c \times \text{TO}
+$$
+
+### 9.6.4 Implementation & Application
+
+```{r signal-weighting, fig.cap="Signal-weighted (z-score) portfolio. Positions scale with signal strength for stronger factor exposure."}
+# Signal-weighted implementation
+weight_data[, z_score := (signal - mean(signal)) / sd(signal), by = period]
+
+# Calculate signal-weighted returns
+sw_returns <- weight_data[, {
+    # Long positions (z > 0)
+    long <- .SD[z_score > 0]
+    if (nrow(long) > 0) {
+        long_w <- long$z_score / sum(long$z_score)
+        long_ret <- sum(long$returns * long_w)
+    } else {
+        long_ret <- 0
+    }
+
+    # Short positions (z < 0)
+    short <- .SD[z_score < 0]
+    if (nrow(short) > 0) {
+        short_w <- abs(short$z_score) / sum(abs(short$z_score))
+        short_ret <- sum(short$returns * short_w)
+    } else {
+        short_ret <- 0
+    }
+
+    .(sw_ret = long_ret - short_ret)
+}, by = period]
+
+# Compare all three
+all_compare <- merge(
+    merge(ew_wide[, .(period, EW = ew_ls)], vw_wide[, .(period, VW = vw_ls)], by = "period"),
+    sw_returns[, .(period, SW = sw_ret)], by = "period"
+)
+
+all_compare[, cum_ew := cumprod(1 + EW) - 1]
+all_compare[, cum_vw := cumprod(1 + VW) - 1]
+all_compare[, cum_sw := cumprod(1 + SW) - 1]
+
+all_long <- melt(all_compare[, .(period, `Equal Weight` = cum_ew,
+                                  `Value Weight` = cum_vw, `Signal Weight` = cum_sw)],
+                 id.vars = "period", variable.name = "Weighting", value.name = "Return")
+
+ggplot(all_long, aes(x = period, y = Return, colour = Weighting)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[3])) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Factor Portfolio: Three Weighting Schemes",
+         subtitle = "Signal weight maximises factor exposure but may lack capacity",
+         x = "Period", y = "Cumulative Return") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+---
+
+## 9.7 Multi-Factor Portfolios
+
+### 9.7.1 Prose/Intuition
+
+Single factors are volatile. Value had a terrible 2010s; momentum crashes periodically. Combining multiple factors provides diversification.
+
+**Why Combine Factors?**
+
+1. **Lower correlation:** Factors have low correlations with each other (often near zero)
+2. **Smoother returns:** When one factor underperforms, others may compensate
+3. **Higher Sharpe:** Combined portfolio has better risk-adjusted returns than individuals
+
+**How to Combine:**
+
+1. **Portfolio mixing:** Hold separate factor portfolios, combine at portfolio level
+2. **Signal mixing:** Average signals, sort on composite score
+3. **Integrated:** Optimise weights on individual stocks subject to multiple factor constraints
+
+**Trade-offs:**
+
+- Signal mixing creates more balanced factor exposure per stock
+- Portfolio mixing is simpler and preserves factor definitions
+- Integrated approaches can have highest exposure but are complex
+
+### 9.7.2 Visual Evidence
+
+```{r multi-factor-diversification, fig.cap="Multi-factor diversification. Combining uncorrelated factors reduces volatility without sacrificing returns."}
+# Load actual factor data
+ff5 <- load_factors("ff5", freq = "daily")
+ff5 <- filter_dates(ff5, as.Date("2000-01-01"), as.Date("2023-12-31"))
+
+# Individual factors
+factors <- c("SMB", "HML", "RMW", "CMA")
+
+# Calculate correlations
+factor_cor <- cor(ff5[, ..factors], use = "complete.obs")
+
+cat("=== Factor Correlation Matrix ===\n\n")
+print(round(factor_cor, 3))
+
+# Equal-weight multi-factor
+ff5[, multi_factor := rowMeans(.SD), .SDcols = factors]
+
+# Cumulative returns
+ff5[, cum_smb := cumprod(1 + SMB) - 1]
+ff5[, cum_hml := cumprod(1 + HML) - 1]
+ff5[, cum_rmw := cumprod(1 + RMW) - 1]
+ff5[, cum_cma := cumprod(1 + CMA) - 1]
+ff5[, cum_multi := cumprod(1 + multi_factor) - 1]
+
+# Plot
+multi_long <- melt(ff5[, .(date, SMB = cum_smb, HML = cum_hml, RMW = cum_rmw,
+                            CMA = cum_cma, `Multi-Factor` = cum_multi)],
+                   id.vars = "date", variable.name = "Factor", value.name = "Return")
+
+ggplot(multi_long, aes(x = date, y = Return, colour = Factor)) +
+    geom_line(linewidth = 0.5, alpha = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[3], tc[4], "black")) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Individual Factors vs Multi-Factor Portfolio",
+         subtitle = "Combining factors smooths the return path",
+         x = NULL, y = "Cumulative Return") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r composite-signal, fig.cap="Composite signal approach: averaging z-scores across factors creates stocks with balanced factor exposure."}
+# Simulate composite signal approach
+n_stocks <- 200
+n_periods <- 60
+
+multi_data <- data.table()
+
+for (t in 1:n_periods) {
+    # Multiple characteristics
+    value_signal <- rnorm(n_stocks)
+    momentum_signal <- rnorm(n_stocks)
+    quality_signal <- rnorm(n_stocks)
+
+    # All predict returns (different premia)
+    returns <- 0.01 +
+        0.025 * value_signal +
+        0.030 * momentum_signal +
+        0.020 * quality_signal +
+        rnorm(n_stocks, 0, 0.08)
+
+    multi_data <- rbind(multi_data, data.table(
+        period = t,
+        stock = 1:n_stocks,
+        value = value_signal,
+        momentum = momentum_signal,
+        quality = quality_signal,
+        returns = returns
+    ))
+}
+
+# Standardise each signal
+multi_data[, value_z := (value - mean(value)) / sd(value), by = period]
+multi_data[, momentum_z := (momentum - mean(momentum)) / sd(momentum), by = period]
+multi_data[, quality_z := (quality - mean(quality)) / sd(quality), by = period]
+
+# Composite signal (equal weight average of z-scores)
+multi_data[, composite := (value_z + momentum_z + quality_z) / 3]
+
+# Single-factor portfolios (quintile long-short)
+calc_factor_return <- function(data, signal_col) {
+    data[, rank := frank(get(signal_col)) / .N, by = period]
+    data[, quintile := cut(rank, breaks = seq(0, 1, 0.2),
+                            labels = paste0("Q", 1:5), include.lowest = TRUE)]
+
+    returns <- data[quintile %in% c("Q1", "Q5"), .(ret = mean(returns)), by = .(period, quintile)]
+    wide <- dcast(returns, period ~ quintile, value.var = "ret")
+    wide[, ls := Q5 - Q1]
+    return(wide$ls)
+}
+
+value_ret <- calc_factor_return(copy(multi_data), "value")
+momentum_ret <- calc_factor_return(copy(multi_data), "momentum")
+quality_ret <- calc_factor_return(copy(multi_data), "quality")
+composite_ret <- calc_factor_return(copy(multi_data), "composite")
+
+# Combine
+compare_methods <- data.table(
+    period = 1:n_periods,
+    Value = value_ret,
+    Momentum = momentum_ret,
+    Quality = quality_ret,
+    Composite = composite_ret
+)
+
+# Also create "portfolio mixing" (average of three factor returns)
+compare_methods[, `Portfolio Mix` := (Value + Momentum + Quality) / 3]
+
+# Cumulative
+compare_methods[, cum_value := cumprod(1 + Value) - 1]
+compare_methods[, cum_momentum := cumprod(1 + Momentum) - 1]
+compare_methods[, cum_quality := cumprod(1 + Quality) - 1]
+compare_methods[, cum_composite := cumprod(1 + Composite) - 1]
+compare_methods[, cum_mix := cumprod(1 + `Portfolio Mix`) - 1]
+
+# Plot composite vs mix
+mix_long <- melt(compare_methods[, .(period, `Composite Signal` = cum_composite,
+                                      `Portfolio Mix` = cum_mix)],
+                 id.vars = "period", variable.name = "Method", value.name = "Return")
+
+ggplot(mix_long, aes(x = period, y = Return, colour = Method)) +
+    geom_line(linewidth = 0.7) +
+    scale_colour_manual(values = c(tc[1], tc[2])) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Multi-Factor: Composite Signal vs Portfolio Mixing",
+         subtitle = "Both methods capture diversification benefits",
+         x = "Period", y = "Cumulative Return") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+### 9.7.3 Mathematical Derivation
+
+**Composite Score (Signal Mixing):**
+
+$$
+S_i = \sum_{k=1}^{K} w_k \times \text{rank}(C_{ik})
+$$
+
+where $C_{ik}$ is stock $i$'s value of characteristic $k$, and $w_k$ are weights (often $1/K$).
+
+**Factor Orthogonalisation:**
+
+To isolate one factor's contribution, regress out other factors:
+
+$$
+\tilde{C}_{ik} = C_{ik} - \sum_{j \neq k} \beta_j C_{ij}
+$$
+
+This creates a "pure" factor signal uncorrelated with others.
+
+**Multi-Factor Alpha:**
+
+$$
+\alpha_{MF} = \bar{r} - \sum_{k=1}^{K} \hat{\beta}_k \bar{f}_k
+$$
+
+A positive multi-factor alpha means the strategy outperforms after controlling for factor exposures.
+
+**Optimal Factor Weights:**
+
+Mean-variance optimal weights:
+$$
+w^* = \frac{1}{\gamma} \Sigma^{-1} \mu
+$$
+
+where $\mu$ = expected factor returns, $\Sigma$ = factor covariance matrix, $\gamma$ = risk aversion.
+
+In practice, naive equal weights often perform as well due to estimation error.
+
+### 9.7.4 Implementation & Application
+
+```{r multi-factor-stats, fig.cap="Multi-factor portfolio statistics. Combining factors improves risk-adjusted returns."}
+# Statistics comparison
+factor_stats <- data.table(
+    Factor = c("Value", "Momentum", "Quality", "Composite", "Portfolio Mix"),
+    `Ann. Return` = sprintf("%.1f%%", c(
+        mean(compare_methods$Value) * 12 * 100,
+        mean(compare_methods$Momentum) * 12 * 100,
+        mean(compare_methods$Quality) * 12 * 100,
+        mean(compare_methods$Composite) * 12 * 100,
+        mean(compare_methods$`Portfolio Mix`) * 12 * 100)),
+    `Ann. Vol` = sprintf("%.1f%%", c(
+        sd(compare_methods$Value) * sqrt(12) * 100,
+        sd(compare_methods$Momentum) * sqrt(12) * 100,
+        sd(compare_methods$Quality) * sqrt(12) * 100,
+        sd(compare_methods$Composite) * sqrt(12) * 100,
+        sd(compare_methods$`Portfolio Mix`) * sqrt(12) * 100)),
+    Sharpe = sprintf("%.2f", c(
+        mean(compare_methods$Value) / sd(compare_methods$Value) * sqrt(12),
+        mean(compare_methods$Momentum) / sd(compare_methods$Momentum) * sqrt(12),
+        mean(compare_methods$Quality) / sd(compare_methods$Quality) * sqrt(12),
+        mean(compare_methods$Composite) / sd(compare_methods$Composite) * sqrt(12),
+        mean(compare_methods$`Portfolio Mix`) / sd(compare_methods$`Portfolio Mix`) * sqrt(12)))
+)
+
+cat("=== Multi-Factor Strategy Comparison ===\n\n")
+print(factor_stats)
+```
+
+```{r factor-contribution, fig.cap="Factor contribution analysis. Decomposing multi-factor returns by source shows diversification at work."}
+# Contribution analysis
+contrib_long <- melt(compare_methods[, .(period, Value, Momentum, Quality)],
+                     id.vars = "period", variable.name = "Factor", value.name = "Contribution")
+
+# Rolling 12-period returns
+contrib_long[, roll_ret := frollsum(Contribution, 12), by = Factor]
+
+# Area chart
+ggplot(contrib_long[!is.na(roll_ret)], aes(x = period, y = roll_ret, fill = Factor)) +
+    geom_area(position = "stack", alpha = 0.7) +
+    scale_fill_manual(values = c(tc[1], tc[2], tc[3])) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Rolling 12-Period Factor Contributions",
+         subtitle = "Different factors contribute at different times",
+         x = "Period", y = "12-Period Return Contribution") +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+---
+
+## Quick Reference
+
+### Portfolio Sorting
+
+| Type | Method | Portfolios |
+|------|--------|------------|
+| Univariate | Rank by one characteristic | N quantiles |
+| Bivariate (independent) | Rank each characteristic separately | N₁ × N₂ |
+| Bivariate (dependent) | Rank one within groups of other | N₁ × N₂ |
+
+### Weighting Schemes
+
+| Scheme | Formula | Pros | Cons |
+|--------|---------|------|------|
+| Equal | $w_i = 1/N$ | Simple, diversified | High turnover |
+| Value | $w_i = \text{MCap}_i / \Sigma$ | Scalable | Diluted exposure |
+| Signal | $w_i = z_i / \Sigma\|z\|$ | Strong exposure | Concentrated |
+
+### Multi-Factor Construction
+
+| Approach | Description | Use Case |
+|----------|-------------|----------|
+| Portfolio mix | Average factor portfolio returns | Transparency |
+| Signal mix | Composite z-score ranking | Balanced exposure |
+| Integrated | Optimise with factor constraints | Maximum efficiency |
+
+### Key Formulas
+
+| Metric | Formula |
+|--------|---------|
+| Cross-sectional rank | $\text{Rank}_i = \#\{j: C_j \le C_i\}/N$ |
+| Long-short return | $f_t = \bar{r}_{High} - \bar{r}_{Low}$ |
+| Composite score | $S_i = \sum w_k \text{rank}(C_{ik})$ |
+| Turnover | $\text{TO} = \frac{1}{2}\sum\|w_{i,t} - w_{i,t-1}\|$ |

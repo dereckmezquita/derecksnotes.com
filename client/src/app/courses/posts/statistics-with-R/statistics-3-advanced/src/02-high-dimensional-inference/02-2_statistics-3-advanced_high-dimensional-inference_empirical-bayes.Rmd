@@ -1,0 +1,817 @@
+---
+title: "Statistics with R III: Advanced"
+chapter: "Chapter 2: High-Dimensional Inference"
+part: "Part 2: Empirical Bayes Methods"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, empirical-bayes, shrinkage, limma, R, bioinformatics]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Part 2: Empirical Bayes Methods
+
+High-dimensional data present a paradox: we have thousands of parameters to estimate (one effect size per gene), but each parameter is estimated from just a few samples. Individual estimates are noisy, leading to extreme values that are mostly artefacts. **Empirical Bayes** methods resolve this paradox by recognising that the thousands of parallel estimates contain information about each other—we can "borrow strength" across genes to stabilise our inference.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+
+set.seed(42)
+```
+
+---
+
+## Table of Contents
+
+## 2.8 The Empirical Bayes Framework
+
+### 2.8.1 From Classical to Bayesian to Empirical Bayes
+
+**Prose and Intuition**
+
+Consider estimating the true effect of 10,000 genes on a disease outcome. Three paradigms:
+
+1. **Classical (frequentist)**: Estimate each gene's effect independently using maximum likelihood. Problem: with 5 samples per group, estimates are extremely noisy.
+
+2. **Bayesian**: Place a prior on effect sizes, update to posterior. Problem: where does the prior come from?
+
+3. **Empirical Bayes**: Estimate the prior from the data itself. The distribution of observed effects across all genes informs us about the likely magnitude of any single gene's effect.
+
+**The Key Insight**
+
+If 10,000 genes show estimated effects following a bell curve centred at zero, with most effects small, then an individual gene showing a huge effect is probably:
+- (a) Truly extraordinary, OR
+- (b) A noisy estimate of a more moderate true effect
+
+Empirical Bayes "shrinks" extreme estimates toward the overall mean, reducing noise while preserving genuine signals.
+
+**Visualisation: Shrinkage Toward the Mean**
+
+```{r shrinkage_intro, fig.cap="Empirical Bayes shrinks extreme estimates toward the overall mean"}
+# Simulate true effects and noisy estimates
+n_genes <- 500
+true_effects <- rnorm(n_genes, mean = 0, sd = 0.5)
+noise_sd <- 1
+observed_effects <- true_effects + rnorm(n_genes, mean = 0, sd = noise_sd)
+
+# Empirical Bayes shrinkage (James-Stein type)
+grand_mean <- mean(observed_effects)
+total_var <- var(observed_effects)
+shrinkage_factor <- max(0, 1 - (noise_sd^2 / total_var))
+eb_effects <- grand_mean + shrinkage_factor * (observed_effects - grand_mean)
+
+shrink_data <- data.table(
+    gene = 1:n_genes,
+    true_effect = true_effects,
+    observed = observed_effects,
+    eb_estimate = eb_effects
+)
+
+# Create before/after plot
+ggplot2$ggplot(shrink_data) +
+    ggplot2$geom_segment(
+        ggplot2$aes(x = observed, xend = eb_estimate, y = gene, yend = gene),
+        colour = "grey60", alpha = 0.3
+    ) +
+    ggplot2$geom_point(ggplot2$aes(x = observed, y = gene), colour = "#D95F02", alpha = 0.5, size = 1) +
+    ggplot2$geom_point(ggplot2$aes(x = eb_estimate, y = gene), colour = "#2166AC", alpha = 0.5, size = 1) +
+    ggplot2$geom_vline(xintercept = 0, linetype = "dashed") +
+    ggplot2$labs(
+        title = "Empirical Bayes Shrinkage",
+        subtitle = "Orange: observed effects; Blue: shrunk (EB) estimates; Lines show movement",
+        x = "Effect Size",
+        y = "Gene"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        plot.title = ggplot2$element_text(face = "bold"),
+        axis.text.y = ggplot2$element_blank(),
+        axis.ticks.y = ggplot2$element_blank()
+    )
+```
+
+---
+
+### 2.8.2 The Mathematical Framework
+
+**The Hierarchical Model**
+
+Empirical Bayes assumes a two-level model:
+
+**Level 1 (Sampling model)**: For each gene $g$:
+$$\hat{\theta}_g \mid \theta_g \sim N(\theta_g, \sigma_g^2)$$
+
+where $\hat{\theta}_g$ is the observed effect and $\theta_g$ is the true effect.
+
+**Level 2 (Prior on effects)**: The true effects follow a distribution:
+$$\theta_g \sim \pi(\theta)$$
+
+where $\pi$ has unknown parameters to be estimated from the data.
+
+**The Posterior**
+
+By Bayes' theorem:
+$$\theta_g \mid \hat{\theta}_g \sim \frac{f(\hat{\theta}_g \mid \theta_g) \pi(\theta_g)}{\int f(\hat{\theta}_g \mid \theta) \pi(\theta) d\theta}$$
+
+**Example: Normal Prior**
+
+If $\theta_g \sim N(0, \tau^2)$ (effects come from a normal distribution):
+
+$$\theta_g \mid \hat{\theta}_g \sim N\left(\frac{\tau^2}{\tau^2 + \sigma_g^2}\hat{\theta}_g, \frac{\tau^2 \sigma_g^2}{\tau^2 + \sigma_g^2}\right)$$
+
+The posterior mean is:
+$$E[\theta_g \mid \hat{\theta}_g] = B_g \hat{\theta}_g$$
+
+where the **shrinkage factor** $B_g = \frac{\tau^2}{\tau^2 + \sigma_g^2}$ is between 0 and 1.
+
+**Interpretation**:
+- If $\tau^2$ (variance of true effects) is large relative to $\sigma_g^2$ (noise), shrinkage is minimal
+- If noise dominates, estimates are shrunk heavily toward zero
+
+---
+
+### 2.8.3 Estimating the Prior
+
+**The Marginal Likelihood**
+
+Under the hierarchical model, the observed effects have marginal distribution:
+$$\hat{\theta}_g \sim N(0, \tau^2 + \sigma_g^2)$$
+
+We estimate $\tau^2$ by maximising the marginal likelihood across all genes:
+$$\hat{\tau}^2 = \arg\max_{\tau^2} \prod_{g=1}^{G} \frac{1}{\sqrt{2\pi(\tau^2 + \sigma_g^2)}} \exp\left(-\frac{\hat{\theta}_g^2}{2(\tau^2 + \sigma_g^2)}\right)$$
+
+This is where "empirical" Bayes differs from full Bayesian analysis: we estimate the prior from data rather than specifying it a priori.
+
+```{r estimate_tau}
+# Method of moments estimator for tau^2
+# If theta ~ N(0, tau^2) and theta_hat | theta ~ N(theta, sigma^2)
+# Then Var(theta_hat) = tau^2 + sigma^2
+# So tau^2 = Var(theta_hat) - E[sigma^2]
+
+estimate_tau_squared <- function(theta_hat, sigma_sq) {
+    total_var <- var(theta_hat)
+    mean_error_var <- mean(sigma_sq)
+    max(0, total_var - mean_error_var)
+}
+
+# Apply to our simulation
+sigma_sq <- rep(noise_sd^2, n_genes)
+tau_sq_hat <- estimate_tau_squared(observed_effects, sigma_sq)
+
+cat("Variance Decomposition:\n")
+cat("=======================\n")
+cat("  True tau^2:", 0.5^2, "\n")
+cat("  Estimated tau^2:", round(tau_sq_hat, 4), "\n")
+cat("  Noise variance:", noise_sd^2, "\n")
+cat("  Total observed variance:", round(var(observed_effects), 4), "\n")
+```
+
+---
+
+## 2.9 The James-Stein Estimator
+
+### 2.9.1 A Paradox of Shrinkage
+
+**Prose and Intuition**
+
+In 1961, Charles Stein proved a shocking result: when estimating 3 or more means simultaneously, the sample mean is **inadmissible**—there exists an estimator that is uniformly better in terms of mean squared error. This estimator shrinks toward a common mean.
+
+The paradox is that shrinking unrelated quantities (batting averages, planet sizes, stock prices) toward their grand mean improves estimation for all of them!
+
+**Mathematical Formulation**
+
+Given $k \geq 3$ independent observations $X_i \sim N(\theta_i, 1)$, the James-Stein estimator is:
+
+$$\hat{\theta}_i^{JS} = \bar{X} + \left(1 - \frac{k-2}{\sum_{i=1}^k (X_i - \bar{X})^2}\right)(X_i - \bar{X})$$
+
+Or shrinking toward zero:
+$$\hat{\theta}_i^{JS} = \left(1 - \frac{k-2}{\|X\|^2}\right)X_i$$
+
+**Why Does It Work?**
+
+The sample mean overreacts to sampling noise. Extreme observations are more likely to be noisy than to reflect extreme true values. By shrinking toward the overall pattern, we trade a small bias for a large reduction in variance.
+
+```{r james_stein, fig.cap="James-Stein estimation reduces MSE compared to sample means"}
+# Demonstrate James-Stein improvement
+n_simulations <- 1000
+k_values <- c(3, 5, 10, 20, 50, 100)
+
+js_results <- rbindlist(lapply(k_values, function(k) {
+    mse_mle <- numeric(n_simulations)
+    mse_js <- numeric(n_simulations)
+
+    for (sim in 1:n_simulations) {
+        # Generate true means
+        true_theta <- rnorm(k, 0, 1)
+
+        # Generate observations
+        x <- rnorm(k, true_theta, 1)
+
+        # MLE (sample mean)
+        theta_mle <- x
+
+        # James-Stein
+        shrinkage <- max(0, 1 - (k - 2) / sum(x^2))
+        theta_js <- shrinkage * x
+
+        # MSE
+        mse_mle[sim] <- mean((theta_mle - true_theta)^2)
+        mse_js[sim] <- mean((theta_js - true_theta)^2)
+    }
+
+    data.table(
+        k = k,
+        mse_mle = mean(mse_mle),
+        mse_js = mean(mse_js),
+        improvement = 1 - mean(mse_js) / mean(mse_mle)
+    )
+}))
+
+print(js_results)
+
+# Plot
+js_long <- melt(js_results, id.vars = "k", measure.vars = c("mse_mle", "mse_js"))
+js_long[, Estimator := fifelse(variable == "mse_mle", "MLE (sample mean)", "James-Stein")]
+
+ggplot2$ggplot(js_long, ggplot2$aes(x = k, y = value, colour = Estimator)) +
+    ggplot2$geom_line(linewidth = 1.2) +
+    ggplot2$geom_point(size = 3) +
+    ggplot2$scale_colour_manual(values = c("MLE (sample mean)" = "#D95F02", "James-Stein" = "#2166AC")) +
+    ggplot2$scale_x_log10() +
+    ggplot2$labs(
+        title = "James-Stein Dominates MLE",
+        subtitle = "Mean squared error decreases with more parameters",
+        x = "Number of parameters (k)",
+        y = "Average MSE"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+## 2.10 Empirical Bayes for Differential Expression: limma
+
+### 2.10.1 The limma Method
+
+**Prose and Intuition**
+
+In gene expression analysis, we estimate variance for each gene from just a few replicates. These variance estimates are unreliable—some genes appear highly variable (and thus non-significant) purely due to chance.
+
+The **limma** package (Smyth, 2004) uses empirical Bayes to stabilise variance estimates by borrowing strength across genes. The key insight: we can estimate a "typical" variance across all genes and shrink individual gene variances toward this prior estimate.
+
+**Mathematical Framework**
+
+For gene $g$, we observe:
+$$\hat{\sigma}_g^2 \sim \frac{\sigma_g^2 \chi^2_{d_0}}{d_0}$$
+
+where $d_0$ is the degrees of freedom.
+
+limma assumes the true variances follow a scaled inverse chi-squared prior:
+$$\frac{1}{\sigma_g^2} \sim \frac{1}{d_0 s_0^2} \chi^2_{d_0}$$
+
+The posterior for $\sigma_g^2$ is:
+$$\tilde{\sigma}_g^2 = \frac{d_0 s_0^2 + d_g \hat{\sigma}_g^2}{d_0 + d_g}$$
+
+This is a weighted average of the prior variance $s_0^2$ and the observed variance $\hat{\sigma}_g^2$.
+
+**Implementation**
+
+```{r limma_demo}
+# Simulate microarray-like data
+n_genes <- 5000
+n_control <- 4
+n_treatment <- 4
+n_total <- n_control + n_treatment
+
+# True variances (drawn from inverse chi-squared)
+d0_true <- 4
+s0_true <- 0.3
+true_variances <- d0_true * s0_true^2 / rchisq(n_genes, df = d0_true)
+
+# True effects: 90% null, 10% have effects
+true_effects <- rep(0, n_genes)
+de_genes <- sample(1:n_genes, n_genes * 0.1)
+true_effects[de_genes] <- rnorm(length(de_genes), 0, sd = 1.5)
+
+# Generate expression data
+expr_control <- matrix(rnorm(n_genes * n_control, mean = 8, sd = sqrt(true_variances)),
+                       nrow = n_genes, ncol = n_control)
+expr_treatment <- matrix(rnorm(n_genes * n_treatment, mean = 8 + true_effects, sd = sqrt(true_variances)),
+                         nrow = n_genes, ncol = n_treatment)
+expr_data <- cbind(expr_control, expr_treatment)
+
+# Compute gene-wise statistics
+gene_stats <- data.table(
+    gene = 1:n_genes,
+    true_effect = true_effects,
+    true_var = true_variances,
+    is_de = true_effects != 0
+)
+
+# Sample means and variances
+gene_stats[, mean_ctrl := rowMeans(expr_control)]
+gene_stats[, mean_treat := rowMeans(expr_treatment)]
+gene_stats[, observed_effect := mean_treat - mean_ctrl]
+
+# Pooled variance estimate (classical)
+gene_stats[, sample_var := {
+    ss_ctrl <- apply(expr_control, 1, var) * (n_control - 1)
+    ss_treat <- apply(expr_treatment, 1, var) * (n_treatment - 1)
+    (ss_ctrl + ss_treat) / (n_total - 2)
+}]
+
+cat("Gene-wise Statistics Summary:\n")
+cat("============================\n")
+cat("  Mean true variance:", round(mean(true_variances), 4), "\n")
+cat("  Mean estimated variance:", round(mean(gene_stats$sample_var), 4), "\n")
+```
+
+**Estimating Prior Parameters**
+
+```{r limma_prior}
+# Estimate prior parameters using method of moments
+# For inverse chi-squared prior: E[s^2] = d0*s0^2/(d0-2), Var[s^2] involves higher moments
+
+# Simple moment-based estimation
+log_s2 <- log(gene_stats$sample_var)
+mean_log_s2 <- mean(log_s2)
+var_log_s2 <- var(log_s2)
+
+# For inverse chi-squared: Var[log(s^2)] ~ trigamma(d0/2)
+# Solve numerically
+estimate_d0 <- function(var_log_s2) {
+    objective <- function(d0) {
+        (trigamma(d0/2) - var_log_s2)^2
+    }
+    result <- optimise(objective, interval = c(0.1, 100))
+    result$minimum
+}
+
+d0_hat <- estimate_d0(var_log_s2)
+# s0^2 estimated from mean
+s0_sq_hat <- exp(mean_log_s2 + digamma(d0_hat/2) - log(d0_hat/2))
+
+cat("Prior Parameter Estimates:\n")
+cat("=========================\n")
+cat("  True d0:", d0_true, "  Estimated d0:", round(d0_hat, 2), "\n")
+cat("  True s0^2:", s0_true^2, "  Estimated s0^2:", round(s0_sq_hat, 4), "\n")
+```
+
+**Computing Moderated Statistics**
+
+```{r moderated_t}
+# Compute moderated variance (empirical Bayes posterior)
+df_sample <- n_total - 2
+gene_stats[, moderated_var := (d0_hat * s0_sq_hat + df_sample * sample_var) / (d0_hat + df_sample)]
+
+# Compute t-statistics
+gene_stats[, t_classical := observed_effect / sqrt(sample_var * (1/n_control + 1/n_treatment))]
+gene_stats[, t_moderated := observed_effect / sqrt(moderated_var * (1/n_control + 1/n_treatment))]
+
+# Degrees of freedom for moderated t
+df_moderated <- d0_hat + df_sample
+
+# P-values
+gene_stats[, p_classical := 2 * pt(abs(t_classical), df = df_sample, lower.tail = FALSE)]
+gene_stats[, p_moderated := 2 * pt(abs(t_moderated), df = df_moderated, lower.tail = FALSE)]
+
+# Apply BH correction
+gene_stats[, q_classical := p.adjust(p_classical, method = "BH")]
+gene_stats[, q_moderated := p.adjust(p_moderated, method = "BH")]
+```
+
+**Visualisation: Variance Shrinkage**
+
+```{r variance_shrinkage, fig.cap="Empirical Bayes shrinks variance estimates toward the prior mean"}
+ggplot2$ggplot(gene_stats, ggplot2$aes(x = sample_var, y = moderated_var)) +
+    ggplot2$geom_point(alpha = 0.3, colour = "#2166AC") +
+    ggplot2$geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_hline(yintercept = s0_sq_hat, colour = "#D95F02", linetype = "dotted", linewidth = 1) +
+    ggplot2$annotate("text", x = 1.5, y = s0_sq_hat + 0.02,
+                     label = paste("Prior mean s0² =", round(s0_sq_hat, 3)),
+                     colour = "#D95F02") +
+    ggplot2$scale_x_log10() +
+    ggplot2$scale_y_log10() +
+    ggplot2$labs(
+        title = "Variance Shrinkage in Empirical Bayes",
+        subtitle = "Extreme variances shrunk toward the prior mean",
+        x = "Classical (sample) variance",
+        y = "Moderated (EB) variance"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+### 2.10.2 Performance Comparison
+
+```{r limma_performance, fig.cap="Moderated t-test achieves higher power than classical t-test"}
+# Compare detection performance
+thresholds <- c(0.01, 0.05, 0.1)
+
+performance_comparison <- rbindlist(lapply(thresholds, function(q_thresh) {
+    classical_reject <- gene_stats$q_classical < q_thresh
+    moderated_reject <- gene_stats$q_moderated < q_thresh
+
+    data.table(
+        threshold = q_thresh,
+        method = c("Classical", "Moderated"),
+        rejections = c(sum(classical_reject), sum(moderated_reject)),
+        true_positives = c(sum(classical_reject & gene_stats$is_de),
+                          sum(moderated_reject & gene_stats$is_de)),
+        false_positives = c(sum(classical_reject & !gene_stats$is_de),
+                           sum(moderated_reject & !gene_stats$is_de))
+    )
+}))
+
+performance_comparison[, power := true_positives / sum(gene_stats$is_de)]
+performance_comparison[, FDP := false_positives / pmax(rejections, 1)]
+
+print(performance_comparison)
+
+# Plot power comparison
+ggplot2$ggplot(performance_comparison, ggplot2$aes(x = factor(threshold), y = power, fill = method)) +
+    ggplot2$geom_col(position = ggplot2$position_dodge(width = 0.8), width = 0.7) +
+    ggplot2$scale_fill_manual(values = c("Classical" = "#D95F02", "Moderated" = "#2166AC")) +
+    ggplot2$labs(
+        title = "Power Comparison: Classical vs Moderated t-test",
+        subtitle = "Moderated t-test detects more true DE genes at same FDR threshold",
+        x = "FDR threshold (q-value)",
+        y = "Power (proportion of true DE genes detected)",
+        fill = "Method"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+### 2.10.3 When Does Empirical Bayes Help Most?
+
+**The Effect of Sample Size**
+
+```{r sample_size_effect, fig.cap="Empirical Bayes helps most with small sample sizes"}
+# Compare performance across sample sizes
+sample_sizes <- c(3, 5, 10, 20, 50)
+
+sample_size_results <- rbindlist(lapply(sample_sizes, function(n) {
+    # Simplified simulation
+    n_genes <- 2000
+    n_de <- 200
+
+    true_var <- rgamma(n_genes, 4, 4)
+    true_eff <- rep(0, n_genes)
+    true_eff[1:n_de] <- rnorm(n_de, 0, 1.5)
+
+    # Generate data
+    ctrl <- matrix(rnorm(n_genes * n, 0, sqrt(true_var)), nrow = n_genes)
+    treat <- matrix(rnorm(n_genes * n, true_eff, sqrt(true_var)), nrow = n_genes)
+
+    # Statistics
+    obs_eff <- rowMeans(treat) - rowMeans(ctrl)
+    var_pooled <- ((n-1)*apply(ctrl, 1, var) + (n-1)*apply(treat, 1, var)) / (2*n - 2)
+
+    # Classical
+    se_classical <- sqrt(var_pooled * 2/n)
+    t_classical <- obs_eff / se_classical
+    p_classical <- 2 * pt(abs(t_classical), df = 2*n-2, lower.tail = FALSE)
+
+    # EB estimate
+    log_var <- log(var_pooled)
+    d0_est <- max(2, 4 / var(log_var))
+    s0_est <- exp(mean(log_var))
+    var_mod <- (d0_est * s0_est + (2*n-2) * var_pooled) / (d0_est + 2*n - 2)
+
+    se_mod <- sqrt(var_mod * 2/n)
+    t_mod <- obs_eff / se_mod
+    p_mod <- 2 * pt(abs(t_mod), df = d0_est + 2*n - 2, lower.tail = FALSE)
+
+    # BH
+    q_classical <- p.adjust(p_classical, "BH")
+    q_mod <- p.adjust(p_mod, "BH")
+
+    data.table(
+        n = n,
+        power_classical = mean(q_classical[1:n_de] < 0.05),
+        power_moderated = mean(q_mod[1:n_de] < 0.05),
+        improvement = mean(q_mod[1:n_de] < 0.05) - mean(q_classical[1:n_de] < 0.05)
+    )
+}))
+
+ggplot2$ggplot(sample_size_results) +
+    ggplot2$geom_line(ggplot2$aes(x = n, y = power_classical, colour = "Classical"), linewidth = 1.2) +
+    ggplot2$geom_line(ggplot2$aes(x = n, y = power_moderated, colour = "Moderated"), linewidth = 1.2) +
+    ggplot2$geom_point(ggplot2$aes(x = n, y = power_classical, colour = "Classical"), size = 3) +
+    ggplot2$geom_point(ggplot2$aes(x = n, y = power_moderated, colour = "Moderated"), size = 3) +
+    ggplot2$scale_colour_manual(values = c("Classical" = "#D95F02", "Moderated" = "#2166AC")) +
+    ggplot2$labs(
+        title = "Power vs Sample Size",
+        subtitle = "EB moderation helps most with small samples; benefits diminish as n increases",
+        x = "Sample size per group",
+        y = "Power at FDR = 0.05",
+        colour = "Method"
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    )
+```
+
+---
+
+## 2.11 Estimating the Null Proportion (π₀)
+
+### 2.11.1 The Two-Groups Model
+
+**Prose and Intuition**
+
+In genome-wide studies, most genes are typically not differentially expressed. If we knew the proportion $\pi_0$ of truly null genes, we could:
+1. Improve FDR control (BH assumes $\pi_0 \leq 1$; knowing $\pi_0 < 1$ allows more discoveries)
+2. Estimate local FDR more accurately
+3. Assess the overall "signal richness" of an experiment
+
+**The Mixture Model**
+
+Observed p-values follow a mixture:
+$$f(p) = \pi_0 \cdot 1 + (1 - \pi_0) \cdot f_1(p)$$
+
+where $f_1(p)$ is the density of p-values under the alternative (typically concentrated near zero).
+
+### 2.11.2 Storey's q-value Method
+
+**Mathematical Derivation**
+
+For large p-values (e.g., $p > \lambda$ for some threshold $\lambda$), most are from the null:
+
+$$\hat{\pi}_0(\lambda) = \frac{\#\{p_i > \lambda\}}{m(1 - \lambda)}$$
+
+Storey (2002) proposes smoothing across multiple $\lambda$ values and extrapolating to $\lambda = 1$.
+
+```{r pi0_estimation, fig.cap="Estimating the null proportion from p-value histogram"}
+# Use simulated data from earlier (gene_stats)
+p_values <- gene_stats$p_classical
+
+# Estimate pi0 at various lambda
+lambda_grid <- seq(0.05, 0.95, by = 0.05)
+m <- length(p_values)
+
+pi0_estimates <- sapply(lambda_grid, function(lam) {
+    sum(p_values > lam) / (m * (1 - lam))
+})
+
+# Smooth and extrapolate (simple approach: use cubic spline)
+spline_fit <- smooth.spline(lambda_grid, pi0_estimates, df = 5)
+pi0_hat <- predict(spline_fit, 1)$y
+pi0_hat <- min(pi0_hat, 1)  # Cap at 1
+
+cat("Null Proportion Estimation:\n")
+cat("===========================\n")
+cat("  True pi0:", 1 - sum(gene_stats$is_de) / nrow(gene_stats), "\n")
+cat("  Estimated pi0:", round(pi0_hat, 3), "\n")
+
+# Visualise
+pi0_data <- data.table(lambda = lambda_grid, pi0 = pi0_estimates)
+
+ggplot2$ggplot(pi0_data, ggplot2$aes(x = lambda, y = pi0)) +
+    ggplot2$geom_point(colour = "#2166AC", size = 2) +
+    ggplot2$geom_smooth(method = "loess", se = FALSE, colour = "#D95F02", linewidth = 1.2) +
+    ggplot2$geom_hline(yintercept = 0.9, linetype = "dashed", colour = "grey50") +
+    ggplot2$geom_hline(yintercept = pi0_hat, linetype = "dotted", colour = "#D95F02", linewidth = 1) +
+    ggplot2$annotate("text", x = 0.3, y = 0.93, label = "True pi0 = 0.90", colour = "grey40") +
+    ggplot2$annotate("text", x = 0.3, y = pi0_hat - 0.03,
+                     label = paste("Estimated pi0 =", round(pi0_hat, 3)), colour = "#D95F02") +
+    ggplot2$labs(
+        title = "Estimation of Null Proportion (π₀)",
+        subtitle = "Points: estimates at each lambda; Curve: smoothed fit; Extrapolate to lambda = 1",
+        x = expression(lambda),
+        y = expression(hat(pi)[0](lambda))
+    ) +
+    ggplot2$coord_cartesian(ylim = c(0.7, 1.1)) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(plot.title = ggplot2$element_text(face = "bold"))
+```
+
+---
+
+### 2.11.3 Improved FDR Estimation with π₀
+
+**The Positive FDR (pFDR)**
+
+With knowledge of $\pi_0$, we can sharpen our FDR estimate. The **q-value** of a test with p-value $p$ is:
+
+$$q(p) = \min_{t \geq p} \frac{\hat{\pi}_0 \cdot t \cdot m}{\#\{p_i \leq t\}}$$
+
+Compared to BH (which implicitly assumes $\pi_0 = 1$), this identifies more discoveries while maintaining the same error rate.
+
+```{r improved_fdr}
+# Compute Storey q-values (incorporating pi0)
+compute_qvalue <- function(p, pi0 = 1) {
+    m <- length(p)
+    o <- order(p)
+    ro <- order(o)
+    p_sorted <- p[o]
+
+    q_sorted <- pi0 * m * p_sorted / seq_along(p_sorted)
+    q_sorted <- rev(cummin(rev(q_sorted)))
+    pmin(q_sorted, 1)[ro]
+}
+
+gene_stats[, q_bh := compute_qvalue(p_classical, pi0 = 1)]
+gene_stats[, q_storey := compute_qvalue(p_classical, pi0 = pi0_hat)]
+
+# Compare discoveries
+q_threshold <- 0.05
+
+cat("\nDiscovery Comparison (q < 0.05):\n")
+cat("================================\n")
+cat("  BH procedure (pi0 = 1):\n")
+cat("    Discoveries:", sum(gene_stats$q_bh < q_threshold), "\n")
+cat("    True positives:", sum(gene_stats$q_bh < q_threshold & gene_stats$is_de), "\n")
+
+cat("  Storey procedure (pi0 =", round(pi0_hat, 3), "):\n")
+cat("    Discoveries:", sum(gene_stats$q_storey < q_threshold), "\n")
+cat("    True positives:", sum(gene_stats$q_storey < q_threshold & gene_stats$is_de), "\n")
+```
+
+---
+
+## 2.12 Practical Application with limma Package
+
+### 2.12.1 Standard limma Analysis
+
+```{r limma_package, message=FALSE, warning=FALSE}
+# In practice, use the limma package
+library(limma)
+
+# Set up design matrix
+group <- factor(c(rep("Control", n_control), rep("Treatment", n_treatment)))
+design <- model.matrix(~ group)
+
+# Fit linear model
+fit <- lmFit(expr_data, design)
+
+# Apply empirical Bayes moderation
+fit_eb <- eBayes(fit)
+
+# Extract results
+limma_results <- topTable(fit_eb, coef = 2, number = Inf, sort.by = "none")
+
+# Compare with our manual implementation
+comparison_dt <- data.table(
+    gene = 1:n_genes,
+    t_manual = gene_stats$t_moderated,
+    t_limma = fit_eb$t[, 2],
+    p_manual = gene_stats$p_moderated,
+    p_limma = limma_results$P.Value
+)
+
+cat("Comparison: Manual vs limma Implementation:\n")
+cat("==========================================\n")
+cat("  Correlation of t-statistics:", round(cor(comparison_dt$t_manual, comparison_dt$t_limma), 4), "\n")
+cat("  Correlation of p-values:", round(cor(comparison_dt$p_manual, comparison_dt$p_limma), 4), "\n")
+```
+
+```{r limma_volcano, fig.cap="Volcano plot from limma analysis"}
+limma_dt <- as.data.table(limma_results)
+limma_dt[, gene := 1:n_genes]
+limma_dt[, is_de := gene_stats$is_de]
+limma_dt[, neg_log_p := -log10(P.Value)]
+limma_dt[, significant := adj.P.Val < 0.05]
+
+ggplot2$ggplot(limma_dt, ggplot2$aes(x = logFC, y = neg_log_p)) +
+    ggplot2$geom_point(ggplot2$aes(colour = interaction(significant, is_de)), alpha = 0.5, size = 1) +
+    ggplot2$scale_colour_manual(
+        values = c(
+            "FALSE.FALSE" = "grey70",
+            "FALSE.TRUE" = "grey70",
+            "TRUE.FALSE" = "#D95F02",
+            "TRUE.TRUE" = "#2166AC"
+        ),
+        labels = c("Not significant (null)", "Not significant (DE)",
+                   "Significant (false positive)", "Significant (true positive)"),
+        name = ""
+    ) +
+    ggplot2$labs(
+        title = "Volcano Plot: limma Differential Expression Analysis",
+        subtitle = "Empirical Bayes moderation improves detection of true DE genes",
+        x = "Log Fold Change",
+        y = expression(-log[10](p))
+    ) +
+    ggplot2$theme_minimal(base_size = 14) +
+    ggplot2$theme(
+        legend.position = "top",
+        plot.title = ggplot2$element_text(face = "bold")
+    ) +
+    ggplot2$guides(colour = ggplot2$guide_legend(override.aes = list(size = 3, alpha = 1), nrow = 2))
+```
+
+---
+
+## 2.13 Communicating Results to Stakeholders
+
+### For Biologists
+
+> "Standard statistical tests assume we know how variable each gene is, but with only 4 replicates per condition, our variance estimates are unreliable. The limma method solves this by recognising that most genes have similar variability. By 'borrowing information' across all 5,000 genes, we get more stable estimates for each individual gene. This increases our power to detect truly differentially expressed genes while maintaining proper false discovery control."
+
+### For Clinical Collaborators
+
+> "With small sample sizes, purely gene-by-gene analysis would flag many genes with unusually low measured variability—these are often false positives. Our empirical Bayes approach uses the average variability across all genes to temper extreme estimates. Think of it like adjusting for the 'regression to the mean' phenomenon. This gives us more reliable results that are more likely to replicate in follow-up experiments."
+
+### For Journal Publication
+
+> "Differential expression analysis was performed using the limma package (Ritchie et al., 2015), which employs empirical Bayes moderation of gene-wise variance estimates (Smyth, 2004). This approach borrows information across genes to stabilise variance estimation, improving statistical power in small-sample settings. Multiple testing correction was performed using the Benjamini-Hochberg procedure, with genes considered differentially expressed at FDR < 0.05."
+
+---
+
+## Quick Reference
+
+### Key Formulae
+
+**Empirical Bayes shrinkage (normal prior):**
+$$E[\theta \mid \hat{\theta}] = \frac{\tau^2}{\tau^2 + \sigma^2}\hat{\theta}$$
+
+**James-Stein estimator:**
+$$\hat{\theta}_i^{JS} = \left(1 - \frac{k-2}{\sum X_i^2}\right)X_i$$
+
+**Moderated variance (limma):**
+$$\tilde{s}_g^2 = \frac{d_0 s_0^2 + d_g s_g^2}{d_0 + d_g}$$
+
+**Moderated t-statistic:**
+$$\tilde{t}_g = \frac{\hat{\beta}_g}{\tilde{s}_g \sqrt{v_g}}$$
+
+with degrees of freedom $d_0 + d_g$.
+
+**Null proportion estimate:**
+$$\hat{\pi}_0(\lambda) = \frac{\#\{p_i > \lambda\}}{m(1 - \lambda)}$$
+
+### R Code Summary (limma)
+
+```r
+library(limma)
+
+# Design matrix
+group <- factor(c("Control", "Treatment", ...))
+design <- model.matrix(~ group)
+
+# Fit and moderate
+fit <- lmFit(expression_matrix, design)
+fit_eb <- eBayes(fit)
+
+# Results
+topTable(fit_eb, coef = 2, number = Inf, adjust.method = "BH")
+
+# Volcano plot
+volcanoplot(fit_eb, coef = 2)
+```
+
+### Decision Guide
+
+| Situation | Approach |
+|-----------|----------|
+| Small sample sizes (n < 5) | Always use EB moderation |
+| Microarray data | limma is gold standard |
+| RNA-seq counts | Use voom + limma or edgeR/DESeq2 |
+| Many hypotheses, moderate n | EB for power gain |
+| Large n (n > 30) | EB helps less, classical OK |
+
+---
+
+## Exercises
+
+1. **Shrinkage Simulation**: Simulate 1,000 genes with true effects from $N(0, 0.5^2)$ and noise $\sigma = 1$. Compare MSE of sample means vs. James-Stein estimator. How does the relative improvement change if you increase noise to $\sigma = 2$?
+
+2. **limma Analysis**: Using the simulated data, vary the sample size from n = 3 to n = 50 per group. At what sample size does the moderated t-test no longer meaningfully outperform the classical t-test?
+
+3. **Pi0 Estimation**: Generate p-values from a mixture where only 50% are null (strong signal scenario). Apply Storey's method. Is $\pi_0$ accurately estimated?
+
+4. **Local FDR Interpretation**: For your results, compute local FDR using the formula $\text{lfdr}(z) = \pi_0 \phi(z) / f(z)$. For a gene with $z = 3$, what is the probability it is a true positive?

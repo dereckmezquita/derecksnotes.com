@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Post } from '@components/pages/Post';
+import { DictionaryPost } from '@components/dictionaries/DictionaryPost';
 import { APPLICATION_DEFAULT_METADATA } from '@lib/constants';
 import { ROOT_DIR_APP } from '@lib/constants.server';
 import { config } from '@lib/env';
@@ -65,10 +65,10 @@ async function Page({ params }: { params: Promise<{ slug: string }> }) {
     frontmatter.url = url;
 
     return (
-        <Post
+        <DictionaryPost
             source={source}
             frontmatter={frontmatter}
-            sideBarPosts={sideBarDefintiions}
+            relatedDefinitions={sideBarDefintiions}
         />
     );
 }

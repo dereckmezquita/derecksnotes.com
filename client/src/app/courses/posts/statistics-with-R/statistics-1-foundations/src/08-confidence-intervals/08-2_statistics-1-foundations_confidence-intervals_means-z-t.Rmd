@@ -1,0 +1,693 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 8: Confidence Intervals"
+part: "Part 2: Confidence Intervals for Means"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, confidence-intervals, t-distribution, z-test, inference, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    out.width = "100%",
+    collapse = FALSE, results = 'hold'
+)
+```
+
+```{r packages}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data}
+nhanes <- fread("../../../data/primary/nhanes.csv")
+```
+
+# Confidence Intervals for Means
+
+This part focuses on constructing and interpreting confidence intervals for population means. We cover two scenarios: when the population standard deviation is known (z-interval) and when it must be estimated from the sample (t-interval). The latter is far more common in practice.
+
+---
+
+## Table of Contents
+
+## 8.6 The Z-Interval (σ Known)
+
+### 8.6.1 When σ Is Known
+
+In rare situations, we know the population standard deviation $\sigma$ from prior research or quality control specifications. For example:
+- A laboratory instrument has known measurement error
+- Historical data establishes population variability
+- The manufacturing process has documented precision
+
+When $\sigma$ is known and either:
+- The population is normal, OR
+- The sample size is large ($n \geq 30$)
+
+The sampling distribution of $\bar{X}$ is exactly or approximately normal:
+
+$$\bar{X} \sim N\left(\mu, \frac{\sigma^2}{n}\right)$$
+
+### 8.6.2 Constructing the Z-Interval
+
+The $(1-\alpha)100\%$ confidence interval for $\mu$ when $\sigma$ is known:
+
+$$\bar{X} \pm z^* \cdot \frac{\sigma}{\sqrt{n}}$$
+
+Where $z^* = z_{1-\alpha/2}$ is the critical value from the standard normal distribution.
+
+| Confidence Level | $\alpha$ | $z^*$ |
+|-----------------|----------|-------|
+| 90% | 0.10 | 1.645 |
+| 95% | 0.05 | 1.960 |
+| 99% | 0.01 | 2.576 |
+
+```{r z_interval_example}
+# Example: Quality control for blood glucose meters
+# Known measurement SD from calibration: sigma = 5 mg/dL
+
+set.seed(123)
+true_mu <- 100  # True glucose level
+sigma <- 5      # Known instrument precision
+
+# Sample of readings
+n <- 25
+readings <- rnorm(n, mean = true_mu, sd = sigma)
+x_bar <- mean(readings)
+
+# Z-interval calculations
+z_90 <- qnorm(0.95)
+z_95 <- qnorm(0.975)
+z_99 <- qnorm(0.995)
+
+se <- sigma / sqrt(n)
+
+cat("Z-Interval Example: Blood Glucose Meter Calibration\n")
+cat("====================================================\n\n")
+cat("Known: σ = 5 mg/dL (from instrument specifications)\n")
+cat(sprintf("Sample: n = %d, x̄ = %.2f mg/dL\n", n, x_bar))
+cat(sprintf("Standard Error: SE = σ/√n = %.2f mg/dL\n\n", se))
+
+cat("Confidence Intervals:\n")
+cat(sprintf("  90%% CI: %.2f ± %.3f × %.2f = (%.2f, %.2f)\n",
+            x_bar, z_90, se, x_bar - z_90 * se, x_bar + z_90 * se))
+cat(sprintf("  95%% CI: %.2f ± %.3f × %.2f = (%.2f, %.2f)\n",
+            x_bar, z_95, se, x_bar - z_95 * se, x_bar + z_95 * se))
+cat(sprintf("  99%% CI: %.2f ± %.3f × %.2f = (%.2f, %.2f)\n",
+            x_bar, z_99, se, x_bar - z_99 * se, x_bar + z_99 * se))
+```
+
+### 8.6.3 Z-Interval Function from Scratch
+
+```{r z_interval_function}
+z_interval <- function(x, sigma, conf_level = 0.95) {
+    n <- length(x)
+    x_bar <- mean(x)
+    se <- sigma / sqrt(n)
+    alpha <- 1 - conf_level
+    z_star <- qnorm(1 - alpha / 2)
+    margin <- z_star * se
+
+    result <- list(
+        estimate = x_bar,
+        sigma = sigma,
+        n = n,
+        se = se,
+        conf_level = conf_level,
+        z_star = z_star,
+        margin = margin,
+        lower = x_bar - margin,
+        upper = x_bar + margin
+    )
+
+    class(result) <- "z_interval"
+    return(result)
+}
+
+print.z_interval <- function(x, ...) {
+    cat(sprintf("%.0f%% Z-Interval for the Mean\n", 100 * x$conf_level))
+    cat(sprintf("Sample mean: %.4f\n", x$estimate))
+    cat(sprintf("Known σ: %.4f\n", x$sigma))
+    cat(sprintf("Standard error: %.4f\n", x$se))
+    cat(sprintf("Confidence interval: (%.4f, %.4f)\n", x$lower, x$upper))
+}
+
+# Test with our glucose data
+result <- z_interval(readings, sigma = 5, conf_level = 0.95)
+print(result)
+```
+
+---
+
+## 8.7 The T-Interval (σ Unknown)
+
+### 8.7.1 The Problem with Unknown σ
+
+In practice, we almost never know $\sigma$. We must estimate it from the sample using $s$, the sample standard deviation.
+
+When we replace $\sigma$ with $s$, the resulting statistic:
+
+$$T = \frac{\bar{X} - \mu}{s / \sqrt{n}}$$
+
+does NOT follow a standard normal distribution. Instead, it follows the **t-distribution** with $n - 1$ degrees of freedom.
+
+### 8.7.2 The T-Distribution
+
+The t-distribution (discovered by William Sealy Gosset, publishing under "Student") is:
+- Symmetric and bell-shaped like the normal
+- Has heavier tails than the normal
+- Approaches the normal as degrees of freedom increase
+
+The heavier tails account for the additional uncertainty from estimating $\sigma$.
+
+```{r t_distribution, fig.cap="The t-distribution has heavier tails than the normal"}
+x_vals <- seq(-4, 4, length.out = 500)
+
+dist_data <- rbindlist(list(
+    data.table(x = x_vals, density = dnorm(x_vals), Distribution = "Normal"),
+    data.table(x = x_vals, density = dt(x_vals, df = 3), Distribution = "t (df=3)"),
+    data.table(x = x_vals, density = dt(x_vals, df = 10), Distribution = "t (df=10)"),
+    data.table(x = x_vals, density = dt(x_vals, df = 30), Distribution = "t (df=30)")
+))
+
+dist_data[, Distribution := factor(Distribution,
+                                    levels = c("Normal", "t (df=30)", "t (df=10)", "t (df=3)"))]
+
+ggplot2$ggplot(dist_data, ggplot2$aes(x = x, y = density, colour = Distribution)) +
+    ggplot2$geom_line(linewidth = 1) +
+    ggplot2$scale_colour_manual(values = c("Normal" = "black",
+                                            "t (df=30)" = "#009E73",
+                                            "t (df=10)" = "#0072B2",
+                                            "t (df=3)" = "#D55E00")) +
+    ggplot2$labs(
+        title = "The T-Distribution vs Standard Normal",
+        subtitle = "Heavier tails with smaller degrees of freedom",
+        x = "Value",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 8.7.3 Critical Values for the T-Distribution
+
+The t-distribution has **degrees of freedom** (df) equal to $n - 1$ for a single sample.
+
+As df increases, $t^*$ approaches $z^*$:
+
+```{r t_vs_z_criticals}
+dfs <- c(5, 10, 20, 30, 50, 100, 1000, Inf)
+
+critical_comparison <- data.table(
+    df = dfs,
+    `t* (95%)` = sapply(dfs, function(d) if(is.infinite(d)) qnorm(0.975) else qt(0.975, d)),
+    `t* (99%)` = sapply(dfs, function(d) if(is.infinite(d)) qnorm(0.995) else qt(0.995, d))
+)
+
+cat("Critical Values: t-Distribution vs Normal\n")
+cat("==========================================\n\n")
+print(critical_comparison, digits = 4)
+cat("\nNote: df = ∞ gives the normal (z) critical values\n")
+```
+
+### 8.7.4 Constructing the T-Interval
+
+The $(1-\alpha)100\%$ confidence interval for $\mu$ when $\sigma$ is unknown:
+
+$$\bar{X} \pm t^*_{n-1} \cdot \frac{s}{\sqrt{n}}$$
+
+Where $t^*_{n-1}$ is the critical value from the t-distribution with $n-1$ degrees of freedom.
+
+```{r t_interval_example, fig.cap="T-interval for systolic blood pressure"}
+# Real example: NHANES blood pressure
+bp_sample <- na.omit(nhanes$BPSys1)[1:30]
+n <- length(bp_sample)
+x_bar <- mean(bp_sample)
+s <- sd(bp_sample)
+se <- s / sqrt(n)
+df <- n - 1
+
+# Critical values
+t_90 <- qt(0.95, df = df)
+t_95 <- qt(0.975, df = df)
+t_99 <- qt(0.995, df = df)
+
+cat("T-Interval Example: Systolic Blood Pressure\n")
+cat("============================================\n\n")
+cat(sprintf("Sample: n = %d\n", n))
+cat(sprintf("Sample mean: x̄ = %.2f mmHg\n", x_bar))
+cat(sprintf("Sample SD: s = %.2f mmHg\n", s))
+cat(sprintf("Standard Error: SE = s/√n = %.2f mmHg\n", se))
+cat(sprintf("Degrees of freedom: df = n - 1 = %d\n\n", df))
+
+cat("Confidence Intervals:\n")
+cat(sprintf("  90%% CI: (%.2f, %.2f) mmHg\n",
+            x_bar - t_90 * se, x_bar + t_90 * se))
+cat(sprintf("  95%% CI: (%.2f, %.2f) mmHg\n",
+            x_bar - t_95 * se, x_bar + t_95 * se))
+cat(sprintf("  99%% CI: (%.2f, %.2f) mmHg\n",
+            x_bar - t_99 * se, x_bar + t_99 * se))
+
+# Visualise
+ci_data <- data.table(
+    level = c("90%", "95%", "99%"),
+    lower = x_bar - c(t_90, t_95, t_99) * se,
+    upper = x_bar + c(t_90, t_95, t_99) * se
+)
+ci_data[, level := factor(level, levels = c("99%", "95%", "90%"))]
+
+ggplot2$ggplot(ci_data, ggplot2$aes(y = level)) +
+    ggplot2$geom_segment(ggplot2$aes(x = lower, xend = upper, yend = level),
+                         linewidth = 3, colour = "#0072B2") +
+    ggplot2$geom_point(ggplot2$aes(x = x_bar), size = 4, colour = "#D55E00") +
+    ggplot2$labs(
+        title = "Confidence Intervals for Mean Systolic Blood Pressure",
+        subtitle = sprintf("n = %d, x̄ = %.1f mmHg", n, x_bar),
+        x = "Blood Pressure (mmHg)",
+        y = "Confidence Level"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 8.7.5 T-Interval Function from Scratch
+
+```{r t_interval_function}
+t_interval <- function(x, conf_level = 0.95) {
+    n <- length(x)
+    x_bar <- mean(x)
+    s <- sd(x)
+    se <- s / sqrt(n)
+    df <- n - 1
+    alpha <- 1 - conf_level
+    t_star <- qt(1 - alpha / 2, df = df)
+    margin <- t_star * se
+
+    result <- list(
+        estimate = x_bar,
+        sd = s,
+        n = n,
+        se = se,
+        df = df,
+        conf_level = conf_level,
+        t_star = t_star,
+        margin = margin,
+        lower = x_bar - margin,
+        upper = x_bar + margin
+    )
+
+    class(result) <- "t_interval"
+    return(result)
+}
+
+print.t_interval <- function(x, ...) {
+    cat(sprintf("%.0f%% T-Interval for the Mean\n", 100 * x$conf_level))
+    cat(sprintf("Sample mean: %.4f\n", x$estimate))
+    cat(sprintf("Sample SD: %.4f\n", x$sd))
+    cat(sprintf("Standard error: %.4f\n", x$se))
+    cat(sprintf("Degrees of freedom: %d\n", x$df))
+    cat(sprintf("Confidence interval: (%.4f, %.4f)\n", x$lower, x$upper))
+}
+
+# Compare with R's built-in
+cat("Our function:\n")
+print(t_interval(bp_sample))
+
+cat("\n\nR's t.test():\n")
+builtin <- t.test(bp_sample)
+cat(sprintf("Sample mean: %.4f\n", builtin$estimate))
+cat(sprintf("Confidence interval: (%.4f, %.4f)\n",
+            builtin$conf.int[1], builtin$conf.int[2]))
+```
+
+---
+
+## 8.8 Comparison: Z-Interval vs T-Interval
+
+### 8.8.1 When to Use Each
+
+| Situation | Use |
+|-----------|-----|
+| σ known, normal population | Z-interval |
+| σ known, large n (≥30) | Z-interval |
+| σ unknown, normal population | T-interval |
+| σ unknown, large n (≥30) | T-interval (though Z is similar) |
+| σ unknown, small n, non-normal | Non-parametric methods |
+
+In practice, **always use the t-interval** when σ is unknown. The t-interval:
+- Is valid when σ is unknown (almost always)
+- Reduces to the z-interval as n → ∞
+- Is more conservative for small samples
+
+### 8.8.2 Visualising the Difference
+
+```{r z_vs_t_comparison, fig.cap="Z-interval underestimates uncertainty when sigma is unknown"}
+set.seed(456)
+
+# True parameters
+true_mu <- 50
+true_sigma <- 10
+
+# Small sample
+n <- 10
+sample_data <- rnorm(n, true_mu, true_sigma)
+x_bar <- mean(sample_data)
+s <- sd(sample_data)
+
+# Z-interval (pretending we know sigma)
+z_star <- qnorm(0.975)
+z_se <- true_sigma / sqrt(n)
+z_lower <- x_bar - z_star * z_se
+z_upper <- x_bar + z_star * z_se
+
+# T-interval (properly accounting for unknown sigma)
+t_star <- qt(0.975, df = n - 1)
+t_se <- s / sqrt(n)
+t_lower <- x_bar - t_star * t_se
+t_upper <- x_bar + t_star * t_se
+
+cat("Z-Interval vs T-Interval Comparison\n")
+cat("====================================\n\n")
+cat(sprintf("Sample: n = %d, x̄ = %.2f, s = %.2f\n", n, x_bar, s))
+cat(sprintf("True σ = %.2f (usually unknown!)\n\n", true_sigma))
+
+cat("If σ were known (Z-interval):\n")
+cat(sprintf("  z* = %.3f, SE = σ/√n = %.3f\n", z_star, z_se))
+cat(sprintf("  95%% CI: (%.2f, %.2f), width = %.2f\n\n",
+            z_lower, z_upper, z_upper - z_lower))
+
+cat("Since σ is estimated (T-interval):\n")
+cat(sprintf("  t* = %.3f, SE = s/√n = %.3f\n", t_star, t_se))
+cat(sprintf("  95%% CI: (%.2f, %.2f), width = %.2f\n\n",
+            t_lower, t_upper, t_upper - t_lower))
+
+cat("The t-interval is wider, properly reflecting additional uncertainty.\n")
+
+# Visualise
+comparison_data <- data.table(
+    interval = c("Z-interval\n(σ known)", "T-interval\n(σ unknown)"),
+    lower = c(z_lower, t_lower),
+    upper = c(z_upper, t_upper),
+    mean = x_bar
+)
+
+ggplot2$ggplot(comparison_data, ggplot2$aes(y = interval)) +
+    ggplot2$geom_segment(ggplot2$aes(x = lower, xend = upper, yend = interval),
+                         linewidth = 4, colour = "#0072B2") +
+    ggplot2$geom_point(ggplot2$aes(x = mean), size = 5, colour = "#D55E00") +
+    ggplot2$geom_vline(xintercept = true_mu, linetype = "dashed", colour = "red") +
+    ggplot2$annotate("text", x = true_mu, y = 0.5, label = "True μ",
+                     colour = "red", hjust = -0.1) +
+    ggplot2$labs(
+        title = "Z-Interval vs T-Interval (n = 10)",
+        subtitle = "T-interval is wider, accounting for uncertainty in estimating σ",
+        x = "Value",
+        y = ""
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 8.9 Sample Size Determination
+
+### 8.9.1 How Large a Sample Do We Need?
+
+Before conducting a study, we often want to determine the sample size needed to achieve a desired precision (margin of error).
+
+For a z-interval, the margin of error is:
+
+$$E = z^* \cdot \frac{\sigma}{\sqrt{n}}$$
+
+Solving for $n$:
+
+$$n = \left(\frac{z^* \cdot \sigma}{E}\right)^2$$
+
+### 8.9.2 Sample Size Calculation
+
+```{r sample_size_calculation}
+sample_size_for_mean <- function(sigma, margin, conf_level = 0.95) {
+    alpha <- 1 - conf_level
+    z_star <- qnorm(1 - alpha / 2)
+    n <- (z_star * sigma / margin)^2
+    ceiling(n)  # Round up to ensure we meet the requirement
+}
+
+# Example: Blood pressure study
+# We want margin of error of 3 mmHg
+# From prior studies, σ ≈ 15 mmHg
+
+sigma_bp <- 15
+margin_bp <- 3
+
+n_90 <- sample_size_for_mean(sigma_bp, margin_bp, 0.90)
+n_95 <- sample_size_for_mean(sigma_bp, margin_bp, 0.95)
+n_99 <- sample_size_for_mean(sigma_bp, margin_bp, 0.99)
+
+cat("Sample Size Determination\n")
+cat("=========================\n\n")
+cat("Goal: Estimate mean blood pressure\n")
+cat(sprintf("Required precision: margin of error = %.0f mmHg\n", margin_bp))
+cat(sprintf("Prior estimate: σ ≈ %.0f mmHg\n\n", sigma_bp))
+
+cat("Required sample sizes:\n")
+cat(sprintf("  90%% confidence: n = %d\n", n_90))
+cat(sprintf("  95%% confidence: n = %d\n", n_95))
+cat(sprintf("  99%% confidence: n = %d\n", n_99))
+
+# Show relationship between margin and sample size
+margins <- seq(1, 10, by = 0.5)
+sizes <- sapply(margins, function(m) sample_size_for_mean(sigma_bp, m, 0.95))
+
+size_data <- data.table(margin = margins, n = sizes)
+
+ggplot2$ggplot(size_data, ggplot2$aes(x = margin, y = n)) +
+    ggplot2$geom_line(linewidth = 1, colour = "#0072B2") +
+    ggplot2$geom_point(size = 2, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = 100, linetype = "dashed", colour = "gray50") +
+    ggplot2$annotate("text", x = 8, y = 120, label = "n = 100") +
+    ggplot2$labs(
+        title = "Sample Size vs Desired Margin of Error",
+        subtitle = sprintf("σ = %.0f, 95%% confidence", sigma_bp),
+        x = "Margin of Error (mmHg)",
+        y = "Required Sample Size"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 8.9.3 The Cost of Precision
+
+Halving the margin of error requires quadrupling the sample size:
+
+$$\frac{n_2}{n_1} = \left(\frac{E_1}{E_2}\right)^2$$
+
+If $E_2 = E_1/2$, then $n_2 = 4n_1$.
+
+```{r cost_of_precision}
+cat("The Cost of Precision\n")
+cat("=====================\n\n")
+
+base_margin <- 6
+base_n <- sample_size_for_mean(sigma_bp, base_margin, 0.95)
+
+precision_table <- data.table(
+    `Margin of Error` = c(6, 4, 3, 2, 1),
+    `Relative Precision` = c("1×", "1.5×", "2×", "3×", "6×")
+)
+precision_table[, `Sample Size` := sapply(`Margin of Error`,
+                                           function(m) sample_size_for_mean(sigma_bp, m, 0.95))]
+precision_table[, `Cost Multiplier` := sprintf("%.1f×", `Sample Size` / base_n)]
+
+print(precision_table)
+cat("\nDoubling precision (halving margin) costs 4× the sample size.\n")
+```
+
+---
+
+## 8.10 Confidence Intervals for Differences in Means
+
+### 8.10.1 Two Independent Samples
+
+When comparing means from two independent groups, the confidence interval for $\mu_1 - \mu_2$ is:
+
+$$(\bar{X}_1 - \bar{X}_2) \pm t^* \cdot SE_{\bar{X}_1 - \bar{X}_2}$$
+
+The standard error depends on whether we assume equal variances.
+
+**Equal variances (pooled):**
+$$SE = s_p \sqrt{\frac{1}{n_1} + \frac{1}{n_2}}$$
+
+where $s_p^2 = \frac{(n_1-1)s_1^2 + (n_2-1)s_2^2}{n_1 + n_2 - 2}$
+
+**Unequal variances (Welch):**
+$$SE = \sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}$$
+
+```{r two_sample_ci, fig.cap="Confidence interval for difference in means"}
+# Compare blood pressure by diabetes status
+bp_data <- nhanes[!is.na(BPSys1) & !is.na(Diabetes)]
+bp_data <- bp_data[Diabetes %in% c("Yes", "No")]
+
+# Sample 50 from each group for demonstration
+set.seed(123)
+diabetic <- bp_data[Diabetes == "Yes", sample(BPSys1, min(50, .N))]
+non_diabetic <- bp_data[Diabetes == "No", sample(BPSys1, min(50, .N))]
+
+# Two-sample t-test (Welch's)
+result <- t.test(diabetic, non_diabetic, conf.level = 0.95)
+
+cat("Two-Sample T-Interval: Blood Pressure by Diabetes Status\n")
+cat("=========================================================\n\n")
+cat(sprintf("Diabetic group: n = %d, mean = %.2f, SD = %.2f\n",
+            length(diabetic), mean(diabetic), sd(diabetic)))
+cat(sprintf("Non-diabetic group: n = %d, mean = %.2f, SD = %.2f\n",
+            length(non_diabetic), mean(non_diabetic), sd(non_diabetic)))
+cat(sprintf("\nDifference in means: %.2f mmHg\n", result$estimate[1] - result$estimate[2]))
+cat(sprintf("95%% CI for difference: (%.2f, %.2f) mmHg\n",
+            result$conf.int[1], result$conf.int[2]))
+
+if (result$conf.int[1] > 0) {
+    cat("\nInterpretation: The CI is entirely positive, suggesting\n")
+    cat("diabetic patients have significantly higher blood pressure.\n")
+} else if (result$conf.int[2] < 0) {
+    cat("\nInterpretation: The CI is entirely negative, suggesting\n")
+    cat("non-diabetic patients have higher blood pressure.\n")
+} else {
+    cat("\nInterpretation: The CI includes zero, so we cannot conclude\n")
+    cat("there is a significant difference in blood pressure.\n")
+}
+
+# Visualise
+group_summary <- data.table(
+    group = c("Diabetic", "Non-diabetic"),
+    mean = c(mean(diabetic), mean(non_diabetic)),
+    se = c(sd(diabetic) / sqrt(length(diabetic)),
+           sd(non_diabetic) / sqrt(length(non_diabetic)))
+)
+group_summary[, `:=`(
+    lower = mean - qt(0.975, df = 49) * se,
+    upper = mean + qt(0.975, df = 49) * se
+)]
+
+ggplot2$ggplot(group_summary, ggplot2$aes(x = group, y = mean)) +
+    ggplot2$geom_point(size = 4, colour = "#D55E00") +
+    ggplot2$geom_errorbar(ggplot2$aes(ymin = lower, ymax = upper),
+                          width = 0.2, linewidth = 1, colour = "#0072B2") +
+    ggplot2$labs(
+        title = "Mean Systolic Blood Pressure by Diabetes Status",
+        subtitle = "Error bars show 95% confidence intervals for each group mean",
+        x = "Diabetes Status",
+        y = "Systolic Blood Pressure (mmHg)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 8.10.2 Paired Samples
+
+For paired data (e.g., before/after measurements), we calculate the difference for each pair and construct a one-sample t-interval for the mean difference.
+
+$$\bar{d} \pm t^*_{n-1} \cdot \frac{s_d}{\sqrt{n}}$$
+
+where $d_i = X_{1i} - X_{2i}$ are the paired differences.
+
+```{r paired_ci}
+# Simulated paired data: blood pressure before/after treatment
+set.seed(789)
+n_pairs <- 25
+bp_before <- rnorm(n_pairs, mean = 145, sd = 12)
+bp_after <- bp_before - rnorm(n_pairs, mean = 8, sd = 5)  # Treatment effect
+
+differences <- bp_before - bp_after
+d_bar <- mean(differences)
+s_d <- sd(differences)
+se_d <- s_d / sqrt(n_pairs)
+t_star <- qt(0.975, df = n_pairs - 1)
+
+cat("Paired T-Interval: Blood Pressure Before vs After Treatment\n")
+cat("============================================================\n\n")
+cat(sprintf("Number of pairs: n = %d\n", n_pairs))
+cat(sprintf("Mean difference (before - after): %.2f mmHg\n", d_bar))
+cat(sprintf("SD of differences: %.2f mmHg\n", s_d))
+cat(sprintf("Standard error: %.2f mmHg\n\n", se_d))
+
+cat(sprintf("95%% CI for mean difference: (%.2f, %.2f) mmHg\n",
+            d_bar - t_star * se_d, d_bar + t_star * se_d))
+
+# Verify with t.test
+paired_result <- t.test(bp_before, bp_after, paired = TRUE)
+cat(sprintf("\nVerification with t.test(): (%.2f, %.2f)\n",
+            paired_result$conf.int[1], paired_result$conf.int[2]))
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Reporting Guidelines
+
+**For single means:**
+> "The mean systolic blood pressure in the sample was 122.4 mmHg (95% CI: 118.2 to 126.6 mmHg)."
+
+**For differences:**
+> "Diabetic patients had blood pressure 8.3 mmHg higher than non-diabetic patients on average (95% CI: 3.1 to 13.5 mmHg)."
+
+**For paired comparisons:**
+> "Blood pressure decreased by an average of 7.8 mmHg following treatment (95% CI: 5.2 to 10.4 mmHg reduction)."
+
+### Key Messages for Non-Statisticians
+
+1. **The interval is about the population, not the sample**: We observed 122 mmHg in our sample, but the true population average is likely somewhere between 118 and 127 mmHg.
+
+2. **Narrow intervals mean more precision**: A CI of (120, 124) is more informative than (110, 134).
+
+3. **If the CI for a difference excludes zero, the difference is statistically significant**: If comparing treatments and the CI is entirely above zero, we're confident the treatment has a positive effect.
+
+4. **Larger samples give narrower intervals**: More data means more certainty.
+
+---
+
+## Quick Reference
+
+### Z-Interval (σ known)
+
+$$\bar{X} \pm z^* \cdot \frac{\sigma}{\sqrt{n}}$$
+
+### T-Interval (σ unknown)
+
+$$\bar{X} \pm t^*_{n-1} \cdot \frac{s}{\sqrt{n}}$$
+
+### Two-Sample T-Interval
+
+$$(\bar{X}_1 - \bar{X}_2) \pm t^* \cdot \sqrt{\frac{s_1^2}{n_1} + \frac{s_2^2}{n_2}}$$
+
+### Paired T-Interval
+
+$$\bar{d} \pm t^*_{n-1} \cdot \frac{s_d}{\sqrt{n}}$$
+
+### Sample Size for Margin of Error E
+
+$$n = \left(\frac{z^* \cdot \sigma}{E}\right)^2$$
+
+### R Functions
+
+```r
+# One-sample t-interval
+t.test(x, conf.level = 0.95)$conf.int
+
+# Two-sample t-interval (Welch's)
+t.test(x, y, conf.level = 0.95)$conf.int
+
+# Paired t-interval
+t.test(x, y, paired = TRUE, conf.level = 0.95)$conf.int
+```

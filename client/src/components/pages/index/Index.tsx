@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import styled from 'styled-components';
 import { theme } from '@styles/theme';
-import { PostMetadata } from '@utils/mdx/fetchPostsMetadata';
+import { ContentCardMetadata } from '@utils/mdx/contentTypes';
 import Card from './Card';
 import { useBlogFilter } from './BlogFilterContext';
 import { TagFilter } from '@components/ui/TagFilter';
@@ -30,10 +30,10 @@ const Grid = styled.div`
 `;
 
 interface IndexProps {
-    posts: PostMetadata[];
+    posts: ContentCardMetadata[];
 }
 
-function IndexContent({ posts }: { posts: PostMetadata[] }) {
+function IndexContent({ posts }: { posts: ContentCardMetadata[] }) {
     const pathname = usePathname();
     const {
         filteredPosts,

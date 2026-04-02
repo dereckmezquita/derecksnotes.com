@@ -1,0 +1,1063 @@
+---
+title: "Risk Management and Stops"
+---
+
+```{r setup, include=FALSE}
+box::use(
+    ../modules/data[load_market, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+tc <- unlist(trading_colors)
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = "../figures/05-3_"
+)
+
+set.seed(42)
+```
+
+# Risk Management and Stops
+
+Position sizing tells you how much to risk. Risk management tells you *when to cut your losses*.
+
+The strategies we've discussed—Kelly, volatility targeting, risk parity—all assume you hold positions through their natural lifecycle. But sometimes the best decision is to exit early, accepting a loss to prevent catastrophe.
+
+Stop-losses, position limits, and drawdown controls are defensive mechanisms. They don't improve expected returns—they truncate the left tail of your distribution. Used correctly, they keep you alive long enough for your edge to manifest.
+
+---
+
+## 5.7 Stop-Loss Orders
+
+### 5.7.1 Prose/Intuition
+
+A stop-loss is simple: if the position moves against you by more than X%, you exit. No questions asked.
+
+**The behavioural case for stops:**
+
+1. **Commitment device:** Humans are bad at cutting losses. "It'll come back" is the most expensive phrase in trading.
+
+2. **Limits downside:** A 50% loss requires a 100% gain to recover. A 10% loss requires only 11%.
+
+3. **Preserves capital for future opportunities:** Better to take a small loss and redeploy capital than to sit in a loser.
+
+**The case against stops:**
+
+1. **Getting stopped out and reversed:** The market drops, triggers your stop, then immediately rallies.
+
+2. **Volatility harvesting:** Many profitable strategies require riding through drawdowns.
+
+3. **Expected cost:** Stops truncate the distribution, and you pay a premium for this insurance.
+
+The debate is empirical, not theoretical. For some strategies, stops help. For others, they destroy profitability.
+
+### 5.7.2 Visual Evidence
+
+```{r stop-loss-concept, fig.cap="Stop-loss truncates the return distribution. You trade the left tail for a spike of probability mass at the stop level."}
+# Simulate strategy returns with and without stops
+set.seed(42)
+n_sims <- 10000
+
+# Base returns: normally distributed
+base_returns <- rnorm(n_sims, mean = 0.05, sd = 0.20)
+
+# Apply stop-loss at -10%
+stop_level <- -0.10
+stopped_returns <- pmax(base_returns, stop_level)
+
+# Compare distributions
+dist_data <- rbind(
+    data.table(Returns = base_returns, Strategy = "Without Stop"),
+    data.table(Returns = stopped_returns, Strategy = "With -10% Stop")
+)
+
+ggplot(dist_data, aes(x = Returns * 100, fill = Strategy)) +
+    geom_histogram(bins = 60, alpha = 0.6, position = "identity", colour = "white", linewidth = 0.1) +
+    geom_vline(xintercept = stop_level * 100, linetype = "dashed", colour = tc[4], linewidth = 0.8) +
+    annotate("text", x = stop_level * 100 - 3, y = 800, label = "Stop Level",
+             colour = tc[4], angle = 90, size = 3.5) +
+    scale_fill_manual(values = c(tc[1], tc[3])) +
+    labs(
+        title = "Return Distribution: With and Without Stop-Loss",
+        subtitle = "Stop-loss creates a spike at the stop level and removes the left tail",
+        x = "Return (%)",
+        y = "Frequency",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r stop-loss-impact, fig.cap="The impact of stop-loss on a trending strategy. Stops can help in mean-reverting markets but often hurt trend-followers."}
+# Test stop-loss impact on a real strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, sma_50 := frollmean(adjusted, 50)]
+spy[, signal := shift(fifelse(adjusted > sma_50, 1, 0), 1)]
+spy <- spy[!is.na(signal) & !is.na(returns)]
+
+# Calculate strategy returns
+spy[, strat_returns := signal * returns]
+
+# Simulate stop-loss within each trade
+# Track entry prices and apply stops
+spy[, trade_id := cumsum(signal != shift(signal, fill = 0))]
+
+# For each trade, calculate drawdown from entry
+apply_trailing_stop <- function(returns, stop_pct = 0.05) {
+    n <- length(returns)
+    if (n == 0) return(numeric(0))
+
+    cum_ret <- cumsum(returns)
+    high_watermark <- cummax(cum_ret)
+    drawdown <- high_watermark - cum_ret
+
+    # Find first time drawdown exceeds stop
+    stopped_idx <- which(drawdown > stop_pct)[1]
+
+    if (is.na(stopped_idx)) {
+        return(returns)
+    } else {
+        stopped_returns <- returns
+        stopped_returns[stopped_idx:n] <- 0
+        stopped_returns[stopped_idx] <- -stop_pct  # Exit at stop level
+        return(stopped_returns)
+    }
+}
+
+# Apply 5% trailing stop to each long trade
+spy[, stopped_returns := {
+    if (signal[1] == 1 && .N > 0) {
+        apply_trailing_stop(strat_returns, 0.05)
+    } else {
+        strat_returns
+    }
+}, by = trade_id]
+
+# Cumulative performance
+spy[, cum_raw := exp(cumsum(strat_returns))]
+spy[, cum_stopped := exp(cumsum(stopped_returns))]
+
+perf_comparison <- melt(spy[, .(date,
+    `Without Stop` = cum_raw,
+    `With 5% Trailing Stop` = cum_stopped)],
+    id.vars = "date",
+    variable.name = "Strategy",
+    value.name = "Wealth")
+
+ggplot(perf_comparison, aes(x = date, y = Wealth, colour = Strategy)) +
+    geom_line(linewidth = 0.8) +
+    scale_y_log10(labels = scales::dollar) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(
+        title = "Momentum Strategy: With and Without Stop-Loss",
+        subtitle = "Stops can reduce drawdowns but also cut profits on trend continuation",
+        x = NULL,
+        y = "Wealth (log scale)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r stop-loss-statistics}
+# Compare statistics
+cat("=== Stop-Loss Impact on SPY Momentum ===\n\n")
+
+stats_table <- data.table(
+    Metric = c("Annual Return", "Annual Volatility", "Sharpe Ratio", "Max Drawdown"),
+    `Without Stop` = c(
+        sprintf("%.1f%%", annualised_return(spy$strat_returns, type = "simple") * 100),
+        sprintf("%.1f%%", annualised_vol(spy$strat_returns) * 100),
+        sprintf("%.2f", sharpe_ratio(spy$strat_returns)),
+        sprintf("%.1f%%", max_drawdown(spy$cum_raw) * 100)),
+    `With 5% Stop` = c(
+        sprintf("%.1f%%", annualised_return(spy$stopped_returns, type = "simple") * 100),
+        sprintf("%.1f%%", annualised_vol(spy$stopped_returns) * 100),
+        sprintf("%.2f", sharpe_ratio(spy$stopped_returns)),
+        sprintf("%.1f%%", max_drawdown(spy$cum_stopped) * 100))
+)
+
+print(stats_table)
+```
+
+### 5.7.3 Mathematical Derivation
+
+**Stop-loss as a put option:**
+
+A stop-loss at level $-s$ is economically similar to owning a put option on your position:
+
+$$P\&L_{stopped} = \max(r, -s)$$
+
+where $r$ is the return and $s$ is the stop level.
+
+This is equivalent to:
+
+$$P\&L_{stopped} = r + \max(-s - r, 0) = r + \text{Put}(-s)$$
+
+**Expected cost of stop-loss:**
+
+If returns are normally distributed with mean $\mu$ and volatility $\sigma$:
+
+$$E[\max(r, -s)] = E[r] - E[\max(-s - r, 0)]$$
+
+The second term is the expected value of a put option, which has positive value. Thus:
+
+$$E[P\&L_{stopped}] < E[P\&L_{unstopped}]$$
+
+Stops always reduce expected returns. The question is whether the reduction in risk is worth the cost.
+
+**Optimal stop placement (simplified Kaminski framework):**
+
+For a mean-reverting process with speed $\kappa$ and volatility $\sigma$, the optimal stop distance is approximately:
+
+$$s^* \propto \frac{\sigma}{\sqrt{\kappa}}$$
+
+Higher volatility → wider stops. Faster mean reversion → tighter stops.
+
+For trending strategies (momentum), optimal stops are typically very wide or non-existent, because the strategy profits from extended moves.
+
+### 5.7.4 Implementation & Application
+
+```{r stop-loss-implementation}
+# Stop-loss implementation functions
+
+# Fixed percentage stop
+apply_fixed_stop <- function(entry_price, current_prices, stop_pct) {
+    stop_price <- entry_price * (1 - stop_pct)
+    stopped <- current_prices <= stop_price
+    first_stop <- which(stopped)[1]
+
+    list(
+        triggered = !is.na(first_stop),
+        trigger_idx = first_stop,
+        exit_price = if (!is.na(first_stop)) stop_price else tail(current_prices, 1)
+    )
+}
+
+# Trailing stop
+apply_trailing_stop_detailed <- function(prices, stop_pct) {
+    n <- length(prices)
+    high_water <- numeric(n)
+    stop_price <- numeric(n)
+    triggered <- rep(FALSE, n)
+
+    high_water[1] <- prices[1]
+    stop_price[1] <- prices[1] * (1 - stop_pct)
+
+    for (i in 2:n) {
+        if (prices[i] > high_water[i - 1]) {
+            high_water[i] <- prices[i]
+            stop_price[i] <- high_water[i] * (1 - stop_pct)
+        } else {
+            high_water[i] <- high_water[i - 1]
+            stop_price[i] <- stop_price[i - 1]
+        }
+
+        if (prices[i] <= stop_price[i] && !any(triggered[1:(i-1)])) {
+            triggered[i] <- TRUE
+        }
+    }
+
+    data.table(
+        price = prices,
+        high_water = high_water,
+        stop_price = stop_price,
+        triggered = triggered
+    )
+}
+
+# Demonstrate trailing stop
+spy <- load_market("SPY")
+demo_period <- spy[date >= "2020-01-01" & date <= "2020-06-30"]
+
+trailing_result <- apply_trailing_stop_detailed(demo_period$adjusted, stop_pct = 0.08)
+demo_period[, c("high_water", "stop_price", "triggered") :=
+    .(trailing_result$high_water, trailing_result$stop_price, trailing_result$triggered)]
+
+ggplot(demo_period, aes(x = date)) +
+    geom_line(aes(y = adjusted, colour = "Price"), linewidth = 0.8) +
+    geom_line(aes(y = high_water, colour = "High Water Mark"), linetype = "dashed", linewidth = 0.5) +
+    geom_line(aes(y = stop_price, colour = "Trailing Stop (8%)"), linewidth = 0.8) +
+    geom_point(data = demo_period[triggered == TRUE],
+               aes(y = stop_price), colour = tc[4], size = 3) +
+    scale_colour_manual(values = c("Price" = tc[1], "High Water Mark" = tc[5],
+                                   "Trailing Stop (8%)" = tc[4])) +
+    labs(
+        title = "Trailing Stop-Loss During COVID Crash",
+        subtitle = "8% trailing stop would have triggered in March 2020",
+        x = NULL,
+        y = "Price ($)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r stop-level-optimization, fig.cap="Stop-loss level vs Sharpe ratio. There's often an optimal stop level, but it's strategy-dependent."}
+# Test different stop levels
+stop_levels <- seq(0.02, 0.20, by = 0.01)
+stop_analysis <- data.table()
+
+# Use full data
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, signal := shift(fifelse(adjusted > frollmean(adjusted, 50), 1, 0), 1)]
+spy <- spy[!is.na(signal) & !is.na(returns)]
+spy[, strat_returns := signal * returns]
+spy[, trade_id := cumsum(signal != shift(signal, fill = 0))]
+
+for (stop_pct in stop_levels) {
+    # Apply stop to each trade
+    spy[, temp_stopped := {
+        if (signal[1] == 1 && .N > 0) {
+            apply_trailing_stop(strat_returns, stop_pct)
+        } else {
+            strat_returns
+        }
+    }, by = trade_id]
+
+    ann_ret <- annualised_return(spy$temp_stopped, type = "simple")
+    ann_vol <- annualised_vol(spy$temp_stopped)
+    sr <- if (ann_vol > 0) ann_ret / ann_vol else 0
+
+    stop_analysis <- rbind(stop_analysis, data.table(
+        stop_level = stop_pct,
+        annual_return = ann_ret,
+        annual_vol = ann_vol,
+        sharpe = sr,
+        max_dd = max_drawdown(exp(cumsum(spy$temp_stopped)))
+    ))
+}
+
+spy[, temp_stopped := NULL]
+
+# Find optimal
+optimal_stop <- stop_analysis[which.max(sharpe)]
+
+ggplot(stop_analysis, aes(x = stop_level * 100)) +
+    geom_line(aes(y = sharpe), colour = tc[1], linewidth = 1) +
+    geom_point(data = optimal_stop, aes(y = sharpe), colour = tc[3], size = 4) +
+    geom_vline(xintercept = optimal_stop$stop_level * 100, linetype = "dashed", colour = tc[3]) +
+    annotate("text", x = optimal_stop$stop_level * 100 + 1,
+             y = optimal_stop$sharpe - 0.02,
+             label = sprintf("Optimal: %.0f%%", optimal_stop$stop_level * 100),
+             colour = tc[3], hjust = 0) +
+    labs(
+        title = "Sharpe Ratio vs Trailing Stop Level",
+        subtitle = "SPY momentum strategy",
+        x = "Trailing Stop Level (%)",
+        y = "Sharpe Ratio"
+    ) +
+    theme_trading()
+```
+
+**When to use stops:**
+
+| Strategy Type | Stop Helpful? | Why |
+|--------------|---------------|-----|
+| Mean reversion | Yes | Wrong direction = wrong thesis |
+| Momentum | Usually no | Cuts winners; trends need room |
+| Carry | Yes | Protect against regime change |
+| Volatility selling | Yes | Tail risk protection |
+| Statistical arbitrage | Maybe | Depends on convergence speed |
+
+---
+
+## 5.8 Position Limits and Leverage Constraints
+
+### 5.8.1 Prose/Intuition
+
+Position limits cap your exposure to any single bet. Leverage constraints cap your total exposure.
+
+**Why impose limits?**
+
+1. **Concentration risk:** A 50% position that drops 50% wipes out 25% of your portfolio.
+
+2. **Estimation error:** Your expected return estimates are noisy. Large positions amplify errors.
+
+3. **Liquidity:** Large positions are hard to exit quickly.
+
+4. **Regulatory requirements:** Most institutional investors have mandated limits.
+
+**LTCM as a cautionary tale:**
+
+Long-Term Capital Management held leverage of 25:1 on $4.7 billion in capital. When Russian debt markets collapsed in 1998, correlations spiked, and their "diversified" positions all moved against them simultaneously. The Federal Reserve coordinated a $3.6 billion bailout to prevent systemic contagion.
+
+### 5.8.2 Visual Evidence
+
+```{r leverage-blowup, fig.cap="Higher leverage means faster growth but also higher probability of catastrophic loss. At some point, more leverage decreases expected terminal wealth."}
+# Simulate terminal wealth under different leverage levels
+set.seed(42)
+n_years <- 10
+n_periods <- 252 * n_years
+n_sims <- 1000
+
+# Strategy: 8% annual return, 15% annual vol
+mu_daily <- 0.08 / 252
+sigma_daily <- 0.15 / sqrt(252)
+
+leverage_levels <- seq(0.5, 5, by = 0.25)
+leverage_results <- data.table()
+
+for (lev in leverage_levels) {
+    # Levered returns
+    mu_lev <- lev * mu_daily
+    sigma_lev <- lev * sigma_daily
+
+    # Simulate many paths
+    terminal_wealth <- numeric(n_sims)
+    for (sim in 1:n_sims) {
+        returns <- rnorm(n_periods, mu_lev, sigma_lev)
+        # Check for blow-up (wealth < 0)
+        cum_wealth <- exp(cumsum(returns))
+        terminal_wealth[sim] <- tail(cum_wealth, 1)
+    }
+
+    leverage_results <- rbind(leverage_results, data.table(
+        leverage = lev,
+        median_terminal = median(terminal_wealth),
+        mean_terminal = mean(terminal_wealth),
+        pct_blowup = mean(terminal_wealth < 0.1),  # Lost 90%+
+        pct_5 = quantile(terminal_wealth, 0.05)
+    ))
+}
+
+# Plot
+ggplot(leverage_results, aes(x = leverage)) +
+    geom_line(aes(y = median_terminal, colour = "Median"), linewidth = 1) +
+    geom_line(aes(y = pct_5, colour = "5th Percentile"), linewidth = 1, linetype = "dashed") +
+    geom_hline(yintercept = 1, colour = "grey50", linetype = "dotted") +
+    scale_y_log10(labels = scales::dollar) +
+    scale_colour_manual(values = c("Median" = tc[1], "5th Percentile" = tc[4])) +
+    labs(
+        title = "Terminal Wealth vs Leverage",
+        subtitle = sprintf("10-year simulation, base strategy: %.0f%% return, %.0f%% vol",
+                           mu_daily * 252 * 100, sigma_daily * sqrt(252) * 100),
+        x = "Leverage Multiple",
+        y = "Terminal Wealth (log scale)",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r concentration-risk, fig.cap="Concentration risk: even with the same expected return, concentrated portfolios have much wider outcome distributions."}
+# Demonstrate concentration risk
+set.seed(42)
+n_sims <- 5000
+annual_return <- 0.10
+annual_vol <- 0.20
+
+# Scenario 1: One position
+one_position <- rnorm(n_sims, annual_return, annual_vol)
+
+# Scenario 2: Two equal positions (uncorrelated)
+pos1 <- rnorm(n_sims, annual_return / 2, annual_vol / sqrt(2))
+pos2 <- rnorm(n_sims, annual_return / 2, annual_vol / sqrt(2))
+two_positions <- pos1 + pos2
+
+# Scenario 3: Ten equal positions (uncorrelated)
+ten_positions <- rowSums(replicate(10, rnorm(n_sims, annual_return / 10, annual_vol / sqrt(10))))
+
+concentration_data <- rbind(
+    data.table(Returns = one_position, Positions = "1 Position (100%)"),
+    data.table(Returns = two_positions, Positions = "2 Positions (50% each)"),
+    data.table(Returns = ten_positions, Positions = "10 Positions (10% each)")
+)
+
+concentration_data[, Positions := factor(Positions,
+    levels = c("1 Position (100%)", "2 Positions (50% each)", "10 Positions (10% each)"))]
+
+ggplot(concentration_data, aes(x = Returns * 100, fill = Positions)) +
+    geom_histogram(bins = 50, alpha = 0.6, colour = "white", linewidth = 0.1, position = "identity") +
+    geom_vline(xintercept = annual_return * 100, linetype = "dashed", colour = "grey30") +
+    scale_fill_manual(values = c(tc[4], tc[1], tc[3])) +
+    labs(
+        title = "Return Distribution: Concentrated vs Diversified",
+        subtitle = "Same expected return, but diversification narrows the distribution",
+        x = "Portfolio Return (%)",
+        y = "Frequency",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+### 5.8.3 Mathematical Derivation
+
+**Gross and net leverage:**
+
+For a portfolio with long weights $w_i^+$ and short weights $w_i^-$:
+
+Gross leverage: $\text{Gross} = \sum_i |w_i| = \sum_i w_i^+ + \sum_i |w_i^-|$
+
+Net exposure: $\text{Net} = \sum_i w_i = \sum_i w_i^+ - \sum_i |w_i^-|$
+
+A market-neutral fund might have:
+- Gross leverage: 200% (100% long, 100% short)
+- Net exposure: 0%
+
+**Concentration measures:**
+
+Herfindahl-Hirschman Index (HHI):
+
+$$HHI = \sum_i w_i^2$$
+
+For equal weights: $HHI = n \times (1/n)^2 = 1/n$
+
+Effective number of positions:
+
+$$N_{eff} = 1/HHI = 1/\sum_i w_i^2$$
+
+**Risk under leverage:**
+
+If underlying return has volatility $\sigma$ and we apply leverage $L$:
+
+$$\sigma_{levered} = L \times \sigma$$
+
+Maximum drawdown scales similarly:
+
+$$E[MDD_{levered}] \approx L \times E[MDD_{unlevered}]$$
+
+**Probability of ruin:**
+
+For a leveraged portfolio with drift $\mu$ and volatility $\sigma$, the probability of ever reaching wealth level $x < 1$ (starting at 1):
+
+$$P(\tau_x < \infty) = \begin{cases}
+1 & \text{if } 2\mu/\sigma^2 \leq 0 \\
+x^{2\mu/\sigma^2} & \text{if } 2\mu/\sigma^2 > 0
+\end{cases}$$
+
+With leverage $L$: $\mu_{lev} = L\mu$, $\sigma_{lev} = L\sigma$, so $2\mu_{lev}/\sigma_{lev}^2 = 2\mu/(L\sigma^2)$
+
+**Higher leverage decreases the drift-to-variance ratio, increasing ruin probability.**
+
+### 5.8.4 Implementation & Application
+
+```{r position-limits-implementation}
+# Position limit enforcement
+enforce_limits <- function(weights, max_position = 0.10, max_leverage = 1.5) {
+    # Cap individual positions
+    weights_capped <- pmin(pmax(weights, -max_position), max_position)
+
+    # Scale if gross leverage exceeded
+    gross_leverage <- sum(abs(weights_capped))
+    if (gross_leverage > max_leverage) {
+        weights_capped <- weights_capped * max_leverage / gross_leverage
+    }
+
+    # Return constrained weights
+    list(
+        original = weights,
+        constrained = weights_capped,
+        original_gross = sum(abs(weights)),
+        constrained_gross = sum(abs(weights_capped)),
+        original_hhi = sum(weights^2),
+        constrained_hhi = sum(weights_capped^2)
+    )
+}
+
+# Example
+set.seed(42)
+n_assets <- 10
+raw_weights <- runif(n_assets, 0.05, 0.40)  # Random weights
+raw_weights <- raw_weights / sum(raw_weights)  # Normalise to sum to 1
+
+constrained <- enforce_limits(raw_weights, max_position = 0.15, max_leverage = 1.0)
+
+cat("=== Position Limit Example ===\n")
+cat(sprintf("Max position: 15%%, Max leverage: 100%%\n\n"))
+
+weights_table <- data.table(
+    Asset = paste0("Asset", 1:n_assets),
+    Original = sprintf("%.1f%%", constrained$original * 100),
+    Constrained = sprintf("%.1f%%", constrained$constrained * 100)
+)
+
+print(weights_table)
+cat(sprintf("\nOriginal gross leverage: %.1f%%\n", constrained$original_gross * 100))
+cat(sprintf("Constrained gross leverage: %.1f%%\n", constrained$constrained_gross * 100))
+cat(sprintf("Original effective N: %.1f\n", 1 / constrained$original_hhi))
+cat(sprintf("Constrained effective N: %.1f\n", 1 / constrained$constrained_hhi))
+```
+
+```{r leverage-guidelines}
+# Typical institutional limits
+limits_table <- data.table(
+    `Investor Type` = c("Pension Fund", "Mutual Fund (long-only)", "Long/Short Equity HF",
+                        "Market Neutral HF", "Macro/CTA", "Risk Parity"),
+    `Max Gross` = c("100%", "100%", "200-300%", "200-400%", "500-1000%", "200-400%"),
+    `Max Single Position` = c("5-10%", "5-10%", "10-20%", "3-5%", "10-20%", "10-20%"),
+    `Net Exposure Range` = c("95-100%", "95-100%", "20-80%", "-20% to +20%", "-100% to +100%", "Varies")
+)
+
+cat("\n=== Typical Institutional Position Limits ===\n\n")
+print(limits_table)
+```
+
+---
+
+## 5.9 Drawdown Control
+
+### 5.9.1 Prose/Intuition
+
+Drawdowns matter more than volatility for most investors. A 20% volatility strategy might be tolerable, but a 50% drawdown is career-ending for most fund managers.
+
+Drawdown control dynamically reduces exposure when losses accumulate. The logic:
+
+1. **Psychological tolerance:** Investors abandon strategies at maximum pain, not maximum volatility.
+
+2. **Path dependency:** A strategy that reaches -30% drawdown is empirically more likely to continue losing.
+
+3. **Recovery time:** Large drawdowns require exponentially more time and return to recover.
+
+### 5.9.2 Visual Evidence
+
+```{r drawdown-control-concept, fig.cap="Drawdown-based position reduction: as drawdown increases, position size decreases linearly until a maximum drawdown threshold where the position is fully exited."}
+# Visualise drawdown-based sizing
+dd_levels <- seq(0, 0.25, by = 0.01)
+max_dd_allowed <- 0.20
+
+position_sizes <- pmax(1 - dd_levels / max_dd_allowed, 0)
+
+dd_sizing <- data.table(
+    Drawdown = dd_levels * 100,
+    Position_Size = position_sizes * 100
+)
+
+ggplot(dd_sizing, aes(x = Drawdown, y = Position_Size)) +
+    geom_line(colour = tc[1], linewidth = 1.2) +
+    geom_area(alpha = 0.2, fill = tc[1]) +
+    geom_vline(xintercept = max_dd_allowed * 100, linetype = "dashed", colour = tc[4]) +
+    annotate("text", x = max_dd_allowed * 100 + 1, y = 50,
+             label = "Max DD = Full Exit", colour = tc[4], hjust = 0, size = 3.5) +
+    labs(
+        title = "Drawdown-Based Position Sizing",
+        subtitle = "Position size scales down linearly as drawdown increases",
+        x = "Current Drawdown (%)",
+        y = "Position Size (% of normal)"
+    ) +
+    theme_trading()
+```
+
+```{r cppi-implementation, fig.cap="CPPI (Constant Proportion Portfolio Insurance) maintains exposure proportional to cushion above a floor value."}
+# CPPI implementation
+cppi_returns <- function(returns, floor_pct = 0.80, multiplier = 3) {
+    # floor_pct: minimum wealth level to protect (e.g., 80% = max 20% loss)
+    # multiplier: how aggressively to invest the cushion
+
+    n <- length(returns)
+    wealth <- numeric(n + 1)
+    exposure <- numeric(n)
+    cushion <- numeric(n)
+
+    wealth[1] <- 1  # Start with $1
+
+    for (t in 1:n) {
+        # Floor value
+        floor_value <- floor_pct
+
+        # Cushion: amount above floor
+        cushion[t] <- max(wealth[t] - floor_value, 0)
+
+        # Exposure: multiplier × cushion (capped at 100%)
+        exposure[t] <- min(multiplier * cushion[t] / wealth[t], 1)
+
+        # New wealth
+        wealth[t + 1] <- wealth[t] * (1 + exposure[t] * returns[t])
+    }
+
+    data.table(
+        period = 1:n,
+        wealth = wealth[-1],
+        exposure = exposure,
+        cushion = cushion
+    )
+}
+
+# Apply to SPY
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2010-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy <- spy[!is.na(returns)]
+
+cppi_result <- cppi_returns(spy$returns, floor_pct = 0.85, multiplier = 5)
+spy[, c("cppi_wealth", "cppi_exposure") := .(cppi_result$wealth, cppi_result$exposure)]
+
+# Compare to buy-and-hold
+spy[, bh_wealth := exp(cumsum(returns))]
+
+# Plot
+perf_data <- melt(spy[, .(date, `Buy & Hold` = bh_wealth, `CPPI (85% floor)` = cppi_wealth)],
+                  id.vars = "date",
+                  variable.name = "Strategy",
+                  value.name = "Wealth")
+
+ggplot(perf_data, aes(x = date, y = Wealth, colour = Strategy)) +
+    geom_line(linewidth = 0.8) +
+    geom_hline(yintercept = 0.85, linetype = "dashed", colour = tc[4]) +
+    annotate("text", x = min(spy$date) + 365, y = 0.88, label = "85% Floor",
+             colour = tc[4], size = 3.5) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(
+        title = "CPPI vs Buy & Hold",
+        subtitle = "CPPI protects downside but participates in upside",
+        x = NULL,
+        y = "Wealth",
+        colour = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r cppi-exposure-over-time, fig.cap="CPPI exposure varies dynamically. During crashes, exposure drops to protect the floor; during rallies, exposure increases."}
+ggplot(spy, aes(x = date, y = cppi_exposure * 100)) +
+    geom_line(colour = tc[1], linewidth = 0.5) +
+    geom_hline(yintercept = 100, linetype = "dashed", colour = "grey50") +
+    labs(
+        title = "CPPI Exposure Over Time",
+        subtitle = "Exposure increases after gains, decreases after losses",
+        x = NULL,
+        y = "Equity Exposure (%)"
+    ) +
+    theme_trading()
+```
+
+### 5.9.3 Mathematical Derivation
+
+**CPPI formulation:**
+
+Let:
+- $W_t$ = wealth at time $t$
+- $F$ = floor (minimum guaranteed wealth)
+- $m$ = multiplier
+- $C_t = W_t - F$ = cushion (amount above floor)
+
+Exposure at time $t$:
+
+$$E_t = m \times C_t = m \times (W_t - F)$$
+
+The investment in the risky asset:
+
+$$\text{Risky investment} = \min(E_t, W_t) = \min(m(W_t - F), W_t)$$
+
+**Wealth dynamics:**
+
+$$dW_t = E_t \times \frac{dS_t}{S_t} + (W_t - E_t) \times r \, dt$$
+
+where $S_t$ is the risky asset price and $r$ is the risk-free rate.
+
+**Floor guarantee:**
+
+Under continuous trading, CPPI guarantees $W_t \geq F$ always. The intuition: as $W_t \to F$, exposure $E_t \to 0$, so no further losses are possible.
+
+**Gap risk:**
+
+In discrete time or with jumps, the floor can be breached. If the risky asset drops by more than $1/m$ in a single period:
+
+$$W_{t+1} = W_t + E_t \times r_t = W_t + m(W_t - F) \times r_t$$
+
+If $r_t < -1/m$, then $W_{t+1} < F$.
+
+**Drawdown-based deleveraging:**
+
+An alternative formulation directly targets drawdown:
+
+$$w_t = w_0 \times \left(1 - \frac{DD_t}{DD_{max}}\right)$$
+
+where:
+- $w_0$ = base position size
+- $DD_t$ = current drawdown
+- $DD_{max}$ = maximum allowed drawdown
+
+At $DD_t = DD_{max}$, position size = 0.
+
+### 5.9.4 Implementation & Application
+
+```{r drawdown-deleveraging}
+# Drawdown-based deleveraging
+dd_deleverage <- function(returns, max_dd = 0.15, base_weight = 1.0) {
+    n <- length(returns)
+    wealth <- numeric(n + 1)
+    hwm <- numeric(n + 1)
+    dd <- numeric(n)
+    weight <- numeric(n)
+    deleveraged_returns <- numeric(n)
+
+    wealth[1] <- 1
+    hwm[1] <- 1
+
+    for (t in 1:n) {
+        # Current drawdown
+        dd[t] <- (hwm[t] - wealth[t]) / hwm[t]
+
+        # Position weight based on drawdown
+        weight[t] <- base_weight * max(1 - dd[t] / max_dd, 0)
+
+        # Calculate return
+        deleveraged_returns[t] <- weight[t] * returns[t]
+
+        # Update wealth and HWM
+        wealth[t + 1] <- wealth[t] * (1 + deleveraged_returns[t])
+        hwm[t + 1] <- max(hwm[t], wealth[t + 1])
+    }
+
+    data.table(
+        period = 1:n,
+        wealth = wealth[-1],
+        hwm = hwm[-1],
+        drawdown = dd,
+        weight = weight,
+        return = deleveraged_returns
+    )
+}
+
+# Test on momentum strategy
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, returns := log(adjusted / shift(adjusted))]
+spy[, signal := shift(fifelse(adjusted > frollmean(adjusted, 50), 1, 0), 1)]
+spy <- spy[!is.na(signal) & !is.na(returns)]
+spy[, strat_returns := signal * returns]
+
+# Apply drawdown control
+dd_result <- dd_deleverage(spy$strat_returns, max_dd = 0.10)
+spy[, c("dd_wealth", "dd_weight", "dd_returns") :=
+    .(dd_result$wealth, dd_result$weight, dd_result$return)]
+
+# Compare
+spy[, raw_wealth := exp(cumsum(strat_returns))]
+
+cat("=== Drawdown Deleveraging Results ===\n\n")
+
+stats_compare <- data.table(
+    Metric = c("Annual Return", "Annual Volatility", "Sharpe Ratio", "Max Drawdown"),
+    `Raw Strategy` = c(
+        sprintf("%.1f%%", annualised_return(spy$strat_returns, type = "simple") * 100),
+        sprintf("%.1f%%", annualised_vol(spy$strat_returns) * 100),
+        sprintf("%.2f", sharpe_ratio(spy$strat_returns)),
+        sprintf("%.1f%%", max_drawdown(spy$raw_wealth) * 100)),
+    `DD-Controlled (10% max)` = c(
+        sprintf("%.1f%%", annualised_return(spy$dd_returns, type = "simple") * 100),
+        sprintf("%.1f%%", annualised_vol(spy$dd_returns) * 100),
+        sprintf("%.2f", sharpe_ratio(spy$dd_returns)),
+        sprintf("%.1f%%", max_drawdown(spy$dd_wealth) * 100))
+)
+
+print(stats_compare)
+```
+
+```{r dd-control-visualisation, fig.cap="Drawdown control in action: position size automatically reduces during losing periods, protecting capital."}
+# Visualise
+plot_data <- melt(spy[, .(date, `Raw Strategy` = raw_wealth, `DD-Controlled` = dd_wealth)],
+                  id.vars = "date",
+                  variable.name = "Strategy",
+                  value.name = "Wealth")
+
+p1 <- ggplot(plot_data, aes(x = date, y = Wealth, colour = Strategy)) +
+    geom_line(linewidth = 0.8) +
+    scale_colour_manual(values = c(tc[1], tc[3])) +
+    labs(title = "Performance: Raw vs Drawdown-Controlled",
+         x = NULL, y = "Wealth", colour = NULL) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+
+p2 <- ggplot(spy, aes(x = date, y = dd_weight * 100)) +
+    geom_area(fill = tc[3], alpha = 0.3) +
+    geom_line(colour = tc[3], linewidth = 0.5) +
+    labs(title = "Position Weight Over Time",
+         subtitle = "Weight decreases as drawdown increases",
+         x = NULL, y = "Position Weight (%)") +
+    theme_trading()
+
+# Print both
+print(p1)
+print(p2)
+```
+
+**Combining controls:**
+
+In practice, use multiple layers of protection:
+
+```{r combined-risk-management}
+# Combined risk management framework
+risk_managed_strategy <- function(returns,
+                                   vol_target = 0.10,
+                                   max_dd = 0.15,
+                                   max_leverage = 2.0,
+                                   trailing_stop = 0.08) {
+    n <- length(returns)
+
+    # Rolling volatility (20-day)
+    vol <- rep(NA_real_, n)
+    for (i in 20:n) {
+        vol[i] <- sd(returns[(i - 19):i]) * sqrt(252)
+    }
+
+    # Initialise
+    wealth <- numeric(n + 1)
+    hwm <- numeric(n + 1)
+    managed_returns <- numeric(n)
+    final_weight <- numeric(n)
+
+    wealth[1] <- 1
+    hwm[1] <- 1
+
+    trade_entry <- 1
+    in_trade <- TRUE
+
+    for (t in 1:n) {
+        if (is.na(vol[t])) {
+            managed_returns[t] <- returns[t]
+            wealth[t + 1] <- wealth[t] * (1 + managed_returns[t])
+            hwm[t + 1] <- max(hwm[t], wealth[t + 1])
+            final_weight[t] <- 1
+            next
+        }
+
+        # 1. Vol targeting weight
+        vol_weight <- vol_target / vol[t]
+
+        # 2. Drawdown deleveraging
+        dd <- (hwm[t] - wealth[t]) / hwm[t]
+        dd_weight <- max(1 - dd / max_dd, 0)
+
+        # 3. Combine and cap
+        combined_weight <- vol_weight * dd_weight
+        combined_weight <- min(combined_weight, max_leverage)
+
+        # 4. Trailing stop check
+        if (in_trade) {
+            trade_return <- wealth[t] / wealth[trade_entry] - 1
+            trade_high <- max(wealth[trade_entry:t]) / wealth[trade_entry] - 1
+            trade_dd <- trade_high - trade_return
+
+            if (trade_dd > trailing_stop) {
+                combined_weight <- 0
+                in_trade <- FALSE
+            }
+        } else {
+            # Re-enter after recovery
+            if (wealth[t] >= hwm[t] * 0.98) {
+                in_trade <- TRUE
+                trade_entry <- t
+            }
+        }
+
+        final_weight[t] <- combined_weight
+        managed_returns[t] <- combined_weight * returns[t]
+        wealth[t + 1] <- wealth[t] * (1 + managed_returns[t])
+        hwm[t + 1] <- max(hwm[t], wealth[t + 1])
+    }
+
+    data.table(
+        period = 1:n,
+        wealth = wealth[-1],
+        weight = final_weight,
+        managed_return = managed_returns
+    )
+}
+
+# Apply combined framework
+managed_result <- risk_managed_strategy(
+    spy$strat_returns,
+    vol_target = 0.10,
+    max_dd = 0.12,
+    max_leverage = 1.5,
+    trailing_stop = 0.06
+)
+
+spy[, managed_wealth := managed_result$wealth]
+spy[, managed_weight := managed_result$weight]
+
+cat("\n=== Combined Risk Management ===\n")
+cat("Settings: 10% vol target, 12% max DD, 1.5x max leverage, 6% trailing stop\n\n")
+
+final_stats <- data.table(
+    Strategy = c("Raw", "DD-Controlled", "Full Risk-Managed"),
+    `Ann. Return` = c(
+        sprintf("%.1f%%", annualised_return(spy$strat_returns, type = "simple") * 100),
+        sprintf("%.1f%%", annualised_return(spy$dd_returns, type = "simple") * 100),
+        sprintf("%.1f%%", annualised_return(managed_result$managed_return, type = "simple") * 100)),
+    `Ann. Vol` = c(
+        sprintf("%.1f%%", annualised_vol(spy$strat_returns) * 100),
+        sprintf("%.1f%%", annualised_vol(spy$dd_returns) * 100),
+        sprintf("%.1f%%", annualised_vol(managed_result$managed_return) * 100)),
+    Sharpe = c(
+        sprintf("%.2f", sharpe_ratio(spy$strat_returns)),
+        sprintf("%.2f", sharpe_ratio(spy$dd_returns)),
+        sprintf("%.2f", sharpe_ratio(managed_result$managed_return))),
+    `Max DD` = c(
+        sprintf("%.1f%%", max_drawdown(spy$raw_wealth) * 100),
+        sprintf("%.1f%%", max_drawdown(spy$dd_wealth) * 100),
+        sprintf("%.1f%%", max_drawdown(spy$managed_wealth) * 100))
+)
+
+print(final_stats)
+```
+
+---
+
+## Quick Reference
+
+### Stop-Loss Types
+
+| Type | Description | Best For |
+|------|-------------|----------|
+| **Fixed %** | Exit at X% loss from entry | Simple trades |
+| **Trailing** | Exit at X% from highest point | Capturing trends |
+| **Volatility-adjusted** | Stop = entry - (k × ATR) | Normalised risk |
+| **Time-based** | Exit after N periods | Mean reversion |
+
+### Position Limits
+
+| Metric | Formula | Typical Limit |
+|--------|---------|---------------|
+| Gross Leverage | $\sum_i \|w_i\|$ | 100-400% |
+| Net Exposure | $\sum_i w_i$ | -20% to +100% |
+| Single Position | $\max_i \|w_i\|$ | 5-20% |
+| Effective N | $1/\sum_i w_i^2$ | >5-10 |
+
+### Drawdown Control
+
+| Method | Formula | Characteristics |
+|--------|---------|-----------------|
+| **Linear Deleveraging** | $w_t = w_0(1 - DD_t/DD_{max})$ | Simple, aggressive |
+| **CPPI** | $E_t = m(W_t - F)$ | Floor guarantee, path-dependent |
+| **VaR-based** | Scale to maintain VaR limit | Requires VaR model |
+
+### Risk Management Checklist
+
+1. **Define maximum drawdown tolerance** before trading
+2. **Set position limits** per asset and total
+3. **Choose stop-loss approach** based on strategy type
+4. **Implement drawdown controls** as circuit breakers
+5. **Monitor exposure** in real-time
+6. **Stress test** for extreme scenarios
+7. **Document and enforce** limits consistently
+
+### Recovery Mathematics
+
+| Loss | Gain Needed | Time to Recover (10%/yr) |
+|------|-------------|-------------------------|
+| 10% | 11% | ~1.1 years |
+| 20% | 25% | ~2.3 years |
+| 30% | 43% | ~3.6 years |
+| 40% | 67% | ~5.3 years |
+| 50% | 100% | ~7.3 years |
+
+**The asymmetry of losses is the fundamental argument for risk management.**

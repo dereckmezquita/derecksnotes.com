@@ -1,0 +1,916 @@
+---
+title: "Algorithmic Trading with R"
+chapter: "Chapter 3: Backtesting — Building the Engine"
+part: "Part 2: Transaction Costs"
+section: "03-2"
+coverImage: 13
+author: "Dereck Mezquita"
+date: 2026-01-21
+tags: [algorithmic-trading, quantitative-finance, R, transaction-costs, market-impact, execution]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(
+    dpi = 300,
+    fig.width = 10,
+    fig.height = 7,
+    comment = "",
+    warning = FALSE,
+    collapse = FALSE,
+    results = 'hold'
+)
+
+options(box.path = getwd())
+```
+
+# Part 2: Transaction Costs
+
+The difference between a profitable backtest and a profitable live strategy is often transaction costs. Many seemingly excellent strategies become unprofitable—or even deeply negative—once realistic costs are applied.
+
+This chapter examines the components of transaction costs: bid-ask spread, market impact, slippage, and borrowing costs for short positions. Understanding these costs is essential for realistic backtesting and for designing strategies that can survive contact with real markets.
+
+```{r load-modules, message=FALSE}
+box::use(
+    ../modules/data[load_market, load_factors, filter_dates],
+    ../modules/stats[sharpe_ratio, annualised_return, annualised_vol, max_drawdown],
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+tc <- unlist(trading_colors)
+set.seed(42)
+
+# Load data
+spy <- load_market("SPY")
+spy <- spy[date >= "2005-01-01"]
+spy[, returns := c(NA, diff(log(adjusted)))]
+spy <- spy[!is.na(returns)]
+```
+
+---
+
+## 3.4 Bid-Ask Spread
+
+The bid-ask spread is the most visible transaction cost. Every time you trade, you pay the spread—buying at the ask, selling at the bid.
+
+### 3.4.1 Prose/Intuition
+
+When you look at a stock quote, you see two prices:
+- **Bid**: The highest price someone will pay to buy (what you get if you sell)
+- **Ask**: The lowest price someone will accept to sell (what you pay if you buy)
+
+The difference is the **spread**. If a stock has a bid of £99.95 and ask of £100.05, the spread is £0.10 or 10 basis points on a £100 stock.
+
+**Why does the spread exist?**
+
+Market makers provide liquidity—they stand ready to buy or sell at any time. The spread is their compensation for:
+1. **Inventory risk**: Holding positions they don't want
+2. **Adverse selection**: Trading against informed traders
+3. **Operating costs**: Systems, connectivity, capital
+
+**Who pays the spread?**
+
+Anyone who demands immediate execution pays the spread. If you want to buy *now*, you hit the ask. If you want to sell *now*, you hit the bid. Patient traders who place limit orders *provide* liquidity and potentially earn the spread.
+
+**Factors affecting spread:**
+- **Liquidity**: More liquid stocks have tighter spreads (Apple: ~0.5 bps; small caps: 50-200 bps)
+- **Volatility**: Higher volatility → wider spreads
+- **Time of day**: Spreads wider at open and close
+- **News events**: Spreads widen around announcements
+
+### 3.4.2 Visual Evidence
+
+```{r spread-illustration, fig.cap="The bid-ask spread represents the immediate cost of trading. Crossing the spread costs half the spread each way."}
+# Illustrate bid-ask mechanics
+order_book <- data.table(
+    price = c(100.05, 100.04, 100.03, 100.02, 100.01,  # Ask levels
+              99.99, 99.98, 99.97, 99.96, 99.95),       # Bid levels
+    type = c(rep("Ask", 5), rep("Bid", 5)),
+    size = c(500, 800, 1200, 600, 300, 400, 900, 700, 500, 200)
+)
+
+ggplot(order_book, aes(x = size, y = price, fill = type)) +
+    geom_col(width = 0.002) +
+    geom_hline(yintercept = 100.00, linetype = "dashed", colour = "grey50") +
+    geom_segment(aes(x = 0, xend = 1400, y = 100.01, yend = 100.01),
+                 colour = tc[2], linewidth = 1) +
+    geom_segment(aes(x = 0, xend = 1400, y = 99.99, yend = 99.99),
+                 colour = tc[3], linewidth = 1) +
+    annotate("text", x = 1500, y = 100.01, label = "Best Ask: £100.01", hjust = 0, colour = tc[2]) +
+    annotate("text", x = 1500, y = 99.99, label = "Best Bid: £99.99", hjust = 0, colour = tc[3]) +
+    annotate("text", x = 1500, y = 100.00, label = "Mid: £100.00", hjust = 0, colour = "grey50") +
+    annotate("text", x = 700, y = 100.06, label = "Spread = 2 bps", fontface = "bold") +
+    scale_fill_manual(values = c("Ask" = tc[2], "Bid" = tc[3])) +
+    coord_flip() +
+    labs(
+        title = "Order Book Illustration",
+        subtitle = "The spread is the gap between best bid and best ask",
+        x = "Size (shares)",
+        y = "Price (£)",
+        fill = NULL
+    ) +
+    theme_trading() +
+    theme(legend.position = "bottom")
+```
+
+```{r spread-by-size, fig.cap="Spreads vary dramatically by market capitalisation. Small stocks have spreads 10-100x larger than mega-caps."}
+# Simulated spread data by market cap (representative values)
+spread_data <- data.table(
+    market_cap = c("Mega (>$200B)", "Large ($10-200B)", "Mid ($2-10B)", "Small ($300M-2B)", "Micro (<$300M)"),
+    median_spread_bps = c(1, 3, 8, 25, 100),
+    range_low = c(0.5, 1, 3, 10, 30),
+    range_high = c(2, 8, 20, 60, 300)
+)
+spread_data[, market_cap := factor(market_cap, levels = market_cap)]
+
+ggplot(spread_data, aes(x = market_cap, y = median_spread_bps)) +
+    geom_col(fill = tc[1], alpha = 0.8) +
+    geom_errorbar(aes(ymin = range_low, ymax = range_high), width = 0.3, colour = tc[2]) +
+    geom_text(aes(label = paste0(median_spread_bps, " bps")), vjust = -0.5, size = 3.5) +
+    scale_y_log10() +
+    labs(
+        title = "Bid-Ask Spread by Market Capitalisation",
+        subtitle = "Error bars show typical range; note log scale",
+        x = NULL,
+        y = "Spread (basis points, log scale)"
+    ) +
+    theme_trading()
+```
+
+### 3.4.3 Mathematical Derivation
+
+**Spread definitions:**
+
+The **quoted spread** is:
+$$\text{Spread}_{\text{quoted}} = P_{\text{ask}} - P_{\text{bid}}$$
+
+The **relative spread** (in basis points) is:
+$$\text{Spread}_{\text{relative}} = \frac{P_{\text{ask}} - P_{\text{bid}}}{P_{\text{mid}}} \times 10000$$
+
+where $P_{\text{mid}} = (P_{\text{ask}} + P_{\text{bid}}) / 2$.
+
+**Half-spread cost:**
+
+When you cross the spread, you pay half the spread relative to mid:
+$$c_{\text{half-spread}} = \frac{P_{\text{ask}} - P_{\text{mid}}}{P_{\text{mid}}} = \frac{\text{Spread}}{2 \times P_{\text{mid}}}$$
+
+**Round-trip cost:**
+
+A complete round-trip (buy then sell) costs the full spread:
+$$c_{\text{round-trip}} = 2 \times c_{\text{half-spread}} = \frac{\text{Spread}}{P_{\text{mid}}}$$
+
+**Effective spread:**
+
+The *effective spread* measures actual execution quality, computed from trade data:
+$$\text{Spread}_{\text{effective}} = 2 \times |P_{\text{trade}} - P_{\text{mid}}| \times D$$
+
+where $D = +1$ for buys and $D = -1$ for sells. This can differ from quoted spread due to price improvement or execution inside the spread.
+
+**Cost as a function of turnover:**
+
+If a strategy has annual turnover $\tau$ (sum of absolute position changes), the annual spread cost is approximately:
+$$\text{Cost}_{\text{annual}} = \tau \times \frac{\text{Spread}}{2}$$
+
+### 3.4.4 Implementation & Application
+
+```{r spread-cost-model}
+#' Calculate spread cost for a backtest
+#'
+#' @param positions Vector of positions
+#' @param spread_bps Spread in basis points
+#' @return Vector of costs at each timestamp
+calculate_spread_cost <- function(positions, spread_bps = 5) {
+    # Calculate turnover (absolute position changes)
+    turnover <- c(0, abs(diff(positions)))
+
+    # Cost = half spread × turnover
+    cost <- turnover * (spread_bps / 2 / 10000)
+
+    return(cost)
+}
+
+# Demonstrate impact of spread on different strategies
+# High-turnover strategy (daily rebalancing)
+set.seed(123)
+positions_high_turnover <- cumsum(rnorm(nrow(spy))) / 100
+positions_high_turnover <- pmin(pmax(positions_high_turnover, -1), 1)
+
+# Low-turnover strategy (monthly signal)
+positions_low_turnover <- rep(1, nrow(spy))
+positions_low_turnover[spy$returns < quantile(spy$returns, 0.1)] <- -1
+positions_low_turnover <- cumsum(c(0, diff(positions_low_turnover) != 0))
+positions_low_turnover <- fifelse(positions_low_turnover %% 2 == 0, 1, -1)
+
+# Calculate turnover
+turnover_high <- sum(abs(diff(positions_high_turnover)))
+turnover_low <- sum(abs(diff(positions_low_turnover)))
+
+# Cost impact at different spread levels
+spread_levels <- c(1, 5, 10, 25, 50)
+cost_impact <- data.table(
+    spread_bps = spread_levels,
+    high_turnover_cost = sapply(spread_levels, function(s) {
+        sum(calculate_spread_cost(positions_high_turnover, s))
+    }) * 10000,  # Convert to total bps
+    low_turnover_cost = sapply(spread_levels, function(s) {
+        sum(calculate_spread_cost(positions_low_turnover, s))
+    }) * 10000
+)
+
+cat("Turnover Analysis:\n")
+cat(sprintf("  High-turnover strategy: %.1fx annual turnover\n",
+            turnover_high / (nrow(spy) / 252)))
+cat(sprintf("  Low-turnover strategy: %.1fx annual turnover\n",
+            turnover_low / (nrow(spy) / 252)))
+
+cat("\nTotal Spread Cost (bps) over full period:\n")
+print(cost_impact)
+```
+
+```{r spread-sensitivity, fig.cap="Strategy profitability is highly sensitive to spread assumptions. A seemingly profitable strategy can become unprofitable with realistic spreads."}
+# Show how different spread assumptions affect Sharpe ratio
+# Use a simple momentum strategy as example
+spy[, mom_signal := shift(frollmean(returns, 20), 1)]
+spy[, mom_position := fifelse(mom_signal > 0, 1, -1)]
+spy[is.na(mom_position), mom_position := 0]
+
+# Calculate returns at different spread levels
+spread_test <- c(0, 2, 5, 10, 20, 30, 50)
+sharpe_by_spread <- sapply(spread_test, function(s) {
+    costs <- calculate_spread_cost(spy$mom_position, s)
+    strategy_ret <- shift(spy$mom_position, 1) * spy$returns - costs
+    strategy_ret <- strategy_ret[!is.na(strategy_ret)]
+    mean(strategy_ret) / sd(strategy_ret) * sqrt(252)
+})
+
+spread_sensitivity <- data.table(
+    spread_bps = spread_test,
+    sharpe = sharpe_by_spread
+)
+
+ggplot(spread_sensitivity, aes(x = spread_bps, y = sharpe)) +
+    geom_line(colour = tc[1], linewidth = 1) +
+    geom_point(colour = tc[1], size = 3) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 5, linetype = "dotted", colour = tc[2]) +
+    annotate("text", x = 7, y = max(sharpe_by_spread) * 0.8,
+             label = "Typical large-cap\nspread ≈ 5 bps",
+             colour = tc[2], hjust = 0, size = 3) +
+    labs(
+        title = "Sharpe Ratio Sensitivity to Spread Assumption",
+        subtitle = "Momentum strategy on S&P 500",
+        x = "Assumed Spread (bps)",
+        y = "Sharpe Ratio"
+    ) +
+    theme_trading()
+```
+
+---
+
+## 3.5 Market Impact
+
+Market impact is the price movement caused by your own trading. Large orders move prices against you—this is often the largest cost for institutional strategies.
+
+### 3.5.1 Prose/Intuition
+
+When you place a large buy order, prices tend to rise. Why?
+
+1. **Information**: Your order signals that you think the price will go up. Market makers adjust prices to protect themselves.
+
+2. **Supply/demand**: You're consuming liquidity at current prices, exhausting the order book and pushing into less favourable price levels.
+
+The key insight is that **market impact scales with order size relative to available liquidity**. Trading 1% of daily volume has minimal impact; trading 20% of daily volume can move prices significantly.
+
+**Temporary vs Permanent Impact:**
+
+- **Temporary impact**: Price displacement that reverses after your trade (you pushed through the order book)
+- **Permanent impact**: Price change that persists (information content of your trade was incorporated)
+
+For a systematic strategy, temporary impact is a cost; permanent impact is partly the alpha you're capturing.
+
+**The capacity trap:**
+
+Market impact creates a capacity constraint. A strategy that works at $10M might fail at $100M because impact costs exceed alpha. This is why:
+- Small funds can trade more strategies profitably
+- Successful strategies become less profitable as they grow
+- Capacity is a key metric for strategy evaluation
+
+### 3.5.2 Visual Evidence
+
+```{r impact-curve, fig.cap="Market impact follows a square-root law: impact scales with the square root of order size relative to volume."}
+# Illustrate the square-root impact model
+# Impact = sigma * sqrt(Q/V) where Q = order size, V = daily volume
+
+daily_vol <- 0.02  # 2% daily volatility
+participation_rates <- seq(0.01, 0.50, by = 0.01)  # 1% to 50% of daily volume
+
+impact_data <- data.table(
+    participation = participation_rates * 100,  # As percentage
+    impact_bps = daily_vol * sqrt(participation_rates) * 10000
+)
+
+ggplot(impact_data, aes(x = participation, y = impact_bps)) +
+    geom_line(colour = tc[1], linewidth = 1.2) +
+    geom_point(data = impact_data[participation %in% c(1, 5, 10, 20)],
+               colour = tc[2], size = 3) +
+    geom_hline(yintercept = 0, colour = "grey50") +
+    annotate("text", x = 5, y = impact_data[participation == 5, impact_bps] + 10,
+             label = "5% ADV → 45 bps", size = 3) +
+    annotate("text", x = 20, y = impact_data[participation == 20, impact_bps] + 10,
+             label = "20% ADV → 89 bps", size = 3) +
+    labs(
+        title = "Market Impact: Square-Root Model",
+        subtitle = "Assuming 2% daily volatility (typical large-cap stock)",
+        x = "Participation Rate (% of Daily Volume)",
+        y = "Estimated Impact (bps)"
+    ) +
+    theme_trading()
+```
+
+```{r impact-by-capacity, fig.cap="Strategy capacity is limited by market impact. The same strategy generates different Sharpes at different AUM levels."}
+# Calculate strategy performance at different capacity levels
+# Assume: $50M daily volume, 2% daily vol, 100% turnover strategy
+
+daily_volume_usd <- 50e6  # $50M daily volume
+daily_vol <- 0.02
+base_sharpe <- 1.5  # Sharpe before costs
+
+aum_levels <- seq(1e6, 50e6, by = 1e6)  # $1M to $50M
+
+# For each AUM level, calculate impact cost
+capacity_analysis <- data.table(
+    aum_mm = aum_levels / 1e6,
+    participation = aum_levels / daily_volume_usd
+)
+
+# Square-root impact
+capacity_analysis[, impact_cost := daily_vol * sqrt(participation)]
+
+# Annual impact drag (assuming 100% turnover = 252 trading days)
+capacity_analysis[, annual_impact_drag := impact_cost * 252]
+
+# Adjusted Sharpe (rough approximation)
+# Sharpe reduction ≈ impact drag / vol
+capacity_analysis[, adjusted_sharpe := base_sharpe - annual_impact_drag / (daily_vol * sqrt(252))]
+
+# Break-even capacity (where Sharpe = 0)
+breakeven_capacity <- capacity_analysis[adjusted_sharpe > 0, max(aum_mm)]
+
+ggplot(capacity_analysis, aes(x = aum_mm, y = adjusted_sharpe)) +
+    geom_line(colour = tc[1], linewidth = 1) +
+    geom_hline(yintercept = c(0, base_sharpe), linetype = c("solid", "dashed"),
+               colour = c("grey50", tc[2])) +
+    geom_vline(xintercept = breakeven_capacity, linetype = "dotted", colour = tc[3]) +
+    annotate("text", x = breakeven_capacity + 2, y = 0.5,
+             label = sprintf("Break-even\n~$%.0fM", breakeven_capacity),
+             colour = tc[3], hjust = 0, size = 3) +
+    annotate("text", x = 5, y = base_sharpe + 0.1,
+             label = "Zero-cost Sharpe", colour = tc[2], size = 3) +
+    labs(
+        title = "Strategy Capacity Analysis",
+        subtitle = "Impact costs reduce Sharpe as AUM grows",
+        x = "Assets Under Management ($M)",
+        y = "Net Sharpe Ratio"
+    ) +
+    theme_trading()
+```
+
+### 3.5.3 Mathematical Derivation
+
+**Square-root law:**
+
+The empirical "square-root law" of market impact states:
+$$\text{Impact} = \sigma \cdot \sqrt{\frac{Q}{V}}$$
+
+where:
+- $\sigma$ = daily volatility
+- $Q$ = order quantity (shares or dollars)
+- $V$ = average daily volume
+
+**Derivation intuition:**
+
+If orders arrive randomly and price changes are proportional to order flow imbalance:
+- Order flow over time $T$ is $Q$
+- Price variance scales with $T$, so price change scales with $\sqrt{T}$
+- For a given participation rate, $T \propto Q/V$
+- Therefore impact $\propto \sqrt{Q/V}$
+
+**More sophisticated models:**
+
+The Almgren-Chriss framework decomposes impact into temporary and permanent components:
+
+$$\text{Impact}_{\text{total}} = \text{Impact}_{\text{temp}} + \text{Impact}_{\text{perm}}$$
+
+**Temporary impact** (immediate price pressure):
+$$\text{Impact}_{\text{temp}} = \eta \cdot \sigma \cdot \left(\frac{V_t}{V}\right)^\gamma$$
+
+where $V_t$ is trade rate, $V$ is normal volume, and $\gamma \approx 0.5-0.7$.
+
+**Permanent impact** (information content):
+$$\text{Impact}_{\text{perm}} = \lambda \cdot \sigma \cdot \frac{Q}{V}$$
+
+The optimal execution literature derives trading schedules that minimise total cost given these impact models.
+
+**Total execution cost:**
+
+For a trade of size $Q$ at participation rate $\pi = Q/V$:
+$$\text{Cost}_{\text{total}} \approx \frac{\text{Spread}}{2} + \sigma \cdot \sqrt{\pi} \cdot k$$
+
+where $k$ is a calibration constant (typically 0.5-1.5 depending on the stock).
+
+### 3.5.4 Implementation & Application
+
+```{r impact-model}
+#' Calculate market impact cost
+#'
+#' @param order_value Value of order in dollars
+#' @param daily_volume Average daily dollar volume
+#' @param daily_volatility Daily volatility (decimal)
+#' @param impact_coefficient Calibration constant (default 1.0)
+#' @return Estimated impact as fraction of order value
+calculate_market_impact <- function(order_value, daily_volume, daily_volatility,
+                                     impact_coefficient = 1.0) {
+    # Participation rate
+    participation <- abs(order_value) / daily_volume
+
+    # Square-root impact
+    impact <- daily_volatility * sqrt(participation) * impact_coefficient
+
+    # Cap at reasonable maximum
+    impact <- pmin(impact, 0.10)  # Cap at 10%
+
+    return(impact)
+}
+
+#' Total transaction cost model
+#'
+#' @param order_value Value of order in dollars
+#' @param daily_volume Average daily dollar volume
+#' @param daily_volatility Daily volatility (decimal)
+#' @param spread_bps Bid-ask spread in basis points
+#' @param impact_coefficient Impact model calibration
+#' @return Total cost as fraction of order value
+total_transaction_cost <- function(order_value, daily_volume, daily_volatility,
+                                   spread_bps = 5, impact_coefficient = 1.0) {
+    # Spread cost (half spread for one-way)
+    spread_cost <- spread_bps / 10000 / 2
+
+    # Market impact
+    impact_cost <- calculate_market_impact(order_value, daily_volume,
+                                           daily_volatility, impact_coefficient)
+
+    total <- spread_cost + impact_cost
+    return(total)
+}
+
+# Example: Calculate costs for different order sizes
+example_params <- list(
+    daily_volume = 100e6,  # $100M daily volume
+    daily_volatility = 0.02,  # 2% daily vol
+    spread_bps = 3
+)
+
+order_sizes <- c(100e3, 500e3, 1e6, 5e6, 10e6, 25e6)
+
+cost_breakdown <- data.table(
+    order_size_mm = order_sizes / 1e6,
+    participation_pct = order_sizes / example_params$daily_volume * 100,
+    spread_cost_bps = example_params$spread_bps / 2,
+    impact_cost_bps = sapply(order_sizes, function(x) {
+        calculate_market_impact(x, example_params$daily_volume,
+                              example_params$daily_volatility) * 10000
+    })
+)
+cost_breakdown[, total_cost_bps := spread_cost_bps + impact_cost_bps]
+
+cat("Transaction Cost Breakdown:\n")
+print(cost_breakdown[, .(
+    `Order ($M)` = order_size_mm,
+    `Participation (%)` = round(participation_pct, 1),
+    `Spread (bps)` = spread_cost_bps,
+    `Impact (bps)` = round(impact_cost_bps, 1),
+    `Total (bps)` = round(total_cost_bps, 1)
+)])
+```
+
+---
+
+## 3.6 Slippage and Execution
+
+Slippage is the difference between the price when you decide to trade and the price you actually receive. It captures all the friction between signal and execution.
+
+### 3.6.1 Prose/Intuition
+
+You see a signal at 4:00 PM and decide to trade. But:
+- The market closes, you execute at tomorrow's open
+- The price moved overnight
+- Your market order fills at a worse price than you expected
+- Multiple orders compete for the same liquidity
+
+This gap between intended and realised price is **slippage**. It includes:
+1. **Delay cost**: Price movement between decision and execution
+2. **Timing cost**: Execution at unfavourable time of day
+3. **Opportunity cost**: Trades you couldn't complete
+
+**Implementation shortfall:**
+
+The standard framework for measuring execution quality is *implementation shortfall*, which compares actual portfolio returns to a "paper" portfolio that trades at decision prices with no costs.
+
+$$\text{IS} = r_{\text{paper}} - r_{\text{actual}}$$
+
+This can be decomposed into components (delay, spread, impact, timing, opportunity) to diagnose execution problems.
+
+### 3.6.2 Visual Evidence
+
+```{r slippage-decomposition, fig.cap="Implementation shortfall breaks down the gap between paper and actual performance into identifiable components."}
+# Illustrate implementation shortfall decomposition
+is_components <- data.table(
+    component = c("Delay", "Spread", "Impact", "Timing", "Opportunity"),
+    cost_bps = c(8, 3, 15, 5, 2),
+    description = c(
+        "Price moved before execution",
+        "Crossed the bid-ask spread",
+        "Order moved the market",
+        "Executed at bad time",
+        "Couldn't complete order"
+    )
+)
+is_components[, cumulative := cumsum(cost_bps)]
+is_components[, start := shift(cumulative, fill = 0)]
+
+is_components[, component := factor(component, levels = component)]
+
+ggplot(is_components, aes(x = component)) +
+    geom_rect(aes(xmin = as.numeric(component) - 0.4,
+                  xmax = as.numeric(component) + 0.4,
+                  ymin = start, ymax = cumulative),
+              fill = tc[1], alpha = 0.8) +
+    geom_text(aes(y = (start + cumulative) / 2, label = paste0(cost_bps, " bps")),
+              colour = "white", fontface = "bold") +
+    geom_hline(yintercept = sum(is_components$cost_bps), linetype = "dashed", colour = tc[2]) +
+    annotate("text", x = 5.5, y = sum(is_components$cost_bps),
+             label = sprintf("Total IS: %d bps", sum(is_components$cost_bps)),
+             hjust = 0, colour = tc[2], fontface = "bold") +
+    labs(
+        title = "Implementation Shortfall Decomposition",
+        subtitle = "Breaking down the gap between paper and actual returns",
+        x = NULL,
+        y = "Cost (basis points)"
+    ) +
+    theme_trading() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### 3.6.3 Mathematical Derivation
+
+**Implementation shortfall:**
+
+For a trade with:
+- Decision price $P_d$ (price at signal time)
+- Execution price $P_e$ (actual fill price)
+- Direction $D$ (+1 for buy, -1 for sell)
+- Quantity $Q$
+
+$$\text{IS} = D \cdot Q \cdot (P_e - P_d) / P_d$$
+
+**Decomposition:**
+
+Let $P_o$ be the price at order submission and $P_{VWAP}$ be the volume-weighted average fill price:
+
+1. **Delay cost** (decision to order):
+$$\text{Cost}_{\text{delay}} = D \cdot (P_o - P_d) / P_d$$
+
+2. **Spread cost** (crossing the spread):
+$$\text{Cost}_{\text{spread}} = \frac{\text{Spread}}{2 \cdot P_{\text{mid}}}$$
+
+3. **Impact cost** (moving the market):
+$$\text{Cost}_{\text{impact}} = D \cdot (P_{VWAP} - P_o) / P_o - \text{Cost}_{\text{spread}}$$
+
+4. **Timing cost** (intraday price movement):
+$$\text{Cost}_{\text{timing}} = D \cdot (P_{\text{close}} - P_{VWAP}) / P_{VWAP}$$
+
+5. **Opportunity cost** (unfilled portion):
+$$\text{Cost}_{\text{opportunity}} = \frac{Q_{\text{unfilled}}}{Q_{\text{total}}} \cdot D \cdot (P_{\text{final}} - P_d) / P_d$$
+
+**Total:**
+$$\text{IS} = \text{Cost}_{\text{delay}} + \text{Cost}_{\text{spread}} + \text{Cost}_{\text{impact}} + \text{Cost}_{\text{timing}} + \text{Cost}_{\text{opportunity}}$$
+
+### 3.6.4 Implementation & Application
+
+```{r slippage-model}
+#' Comprehensive slippage model for backtesting
+#'
+#' @param positions Vector of target positions
+#' @param prices Vector of prices
+#' @param volumes Vector of daily volumes
+#' @param daily_vol Daily volatility estimate
+#' @param spread_bps Spread in basis points
+#' @param delay_days Execution delay in days
+#' @param aum Total assets under management
+#' @return Vector of slippage costs
+model_slippage <- function(positions, prices, volumes, daily_vol = 0.02,
+                           spread_bps = 5, delay_days = 1, aum = 10e6) {
+    n <- length(positions)
+
+    # Calculate trade sizes
+    position_change <- c(0, diff(positions))
+    trade_value <- abs(position_change) * aum
+
+    # Components
+    # 1. Spread cost (always incurred)
+    spread_cost <- abs(position_change) * (spread_bps / 2 / 10000)
+
+    # 2. Delay cost (price moved during delay)
+    # Model as random walk: expected cost = 0, but adds uncertainty
+    if (delay_days > 0) {
+        # Use lagged price change as proxy for delay cost
+        price_change <- c(rep(0, delay_days), diff(log(prices), lag = delay_days))[1:n]
+        delay_cost <- abs(price_change) * abs(position_change) / 2  # Average direction
+    } else {
+        delay_cost <- rep(0, n)
+    }
+
+    # 3. Market impact
+    participation <- trade_value / (volumes * prices)
+    participation[is.na(participation) | is.infinite(participation)] <- 0
+    impact_cost <- daily_vol * sqrt(pmin(participation, 1)) * abs(position_change)
+
+    # Total slippage
+    total_slippage <- spread_cost + delay_cost + impact_cost
+
+    return(total_slippage)
+}
+
+# Test on momentum strategy with realistic assumptions
+spy[, volume_usd := volume * adjusted]
+
+# Assume $10M AUM
+aum <- 10e6
+spy[, slippage := model_slippage(
+    positions = mom_position,
+    prices = adjusted,
+    volumes = volume_usd,
+    daily_vol = 0.015,
+    spread_bps = 3,
+    delay_days = 1,
+    aum = aum
+)]
+
+# Compare returns with and without slippage
+spy[, ret_no_cost := shift(mom_position, 1) * returns]
+spy[, ret_with_slippage := ret_no_cost - slippage]
+
+# Summary
+no_cost_sharpe <- mean(spy$ret_no_cost, na.rm = TRUE) / sd(spy$ret_no_cost, na.rm = TRUE) * sqrt(252)
+with_slip_sharpe <- mean(spy$ret_with_slippage, na.rm = TRUE) / sd(spy$ret_with_slippage, na.rm = TRUE) * sqrt(252)
+
+cat("Slippage Impact Analysis ($10M AUM):\n")
+cat(sprintf("  Sharpe (no costs): %.2f\n", no_cost_sharpe))
+cat(sprintf("  Sharpe (with slippage): %.2f\n", with_slip_sharpe))
+cat(sprintf("  Sharpe reduction: %.2f\n", no_cost_sharpe - with_slip_sharpe))
+cat(sprintf("  Total slippage: %.0f bps\n", sum(spy$slippage, na.rm = TRUE) * 10000))
+```
+
+---
+
+## 3.7 Borrowing Costs
+
+Short selling isn't free. You must borrow shares to sell them, and lenders charge a fee. For some stocks, this cost can be substantial.
+
+### 3.7.1 Prose/Intuition
+
+When you short a stock:
+1. You borrow shares from a lender (usually through your broker)
+2. You sell those shares in the market
+3. You pay interest on the borrowed shares (the "borrow rate")
+4. Eventually you buy back shares and return them to the lender
+
+The borrow rate varies dramatically:
+- **General collateral** (easy to borrow): 0.25-0.50% annually
+- **Hard to borrow**: 5-50%+ annually
+- **Extremely hard to borrow**: Can exceed 100% annually
+
+Stocks are hard to borrow when:
+- Small float (few shares available)
+- High short interest (everyone wants to short it)
+- Recent IPO or spin-off
+- Corporate events creating uncertainty
+
+**Why borrow costs matter:**
+
+A short position in a stock with a 20% borrow rate requires 20% annual return just to break even. Many backtests ignore borrow costs entirely, dramatically overstating short-side returns.
+
+### 3.7.2 Visual Evidence
+
+```{r borrow-cost-distribution, fig.cap="Borrow costs vary dramatically. Most stocks are cheap to borrow, but a tail of stocks is extremely expensive."}
+# Simulate realistic borrow cost distribution
+set.seed(456)
+
+# Most stocks are general collateral (~0.3% borrow)
+# Some are elevated (1-5%)
+# A tail is hard to borrow (10%+)
+
+n_stocks <- 1000
+borrow_costs <- c(
+    rnorm(700, mean = 0.003, sd = 0.001),  # General collateral
+    rnorm(200, mean = 0.02, sd = 0.01),     # Elevated
+    rnorm(80, mean = 0.08, sd = 0.03),      # Hard to borrow
+    rnorm(20, mean = 0.25, sd = 0.10)       # Extremely hard
+)
+borrow_costs <- pmax(borrow_costs, 0.001)  # Floor at 10 bps
+borrow_costs <- pmin(borrow_costs, 1.0)    # Cap at 100%
+
+borrow_dt <- data.table(borrow_rate = borrow_costs * 100)
+
+ggplot(borrow_dt, aes(x = borrow_rate)) +
+    geom_histogram(bins = 50, fill = tc[1], alpha = 0.8) +
+    geom_vline(xintercept = median(borrow_costs) * 100,
+               colour = tc[2], linetype = "dashed", linewidth = 1) +
+    geom_vline(xintercept = 5, colour = tc[3], linetype = "dotted", linewidth = 1) +
+    annotate("text", x = median(borrow_costs) * 100 + 1, y = 200,
+             label = sprintf("Median: %.1f%%", median(borrow_costs) * 100),
+             colour = tc[2], hjust = 0) +
+    annotate("text", x = 6, y = 150,
+             label = "Hard to borrow\nthreshold", colour = tc[3], hjust = 0) +
+    scale_x_log10(labels = function(x) paste0(x, "%")) +
+    labs(
+        title = "Distribution of Stock Borrow Rates",
+        subtitle = "Log scale; most stocks cheap, but tail is expensive",
+        x = "Annual Borrow Rate (%, log scale)",
+        y = "Number of Stocks"
+    ) +
+    theme_trading()
+```
+
+### 3.7.3 Mathematical Derivation
+
+**Borrow cost mechanics:**
+
+If you maintain a short position of value $V$ for time $T$ (in years) at borrow rate $r_b$:
+
+$$\text{Cost}_{\text{borrow}} = V \cdot r_b \cdot T$$
+
+**Daily accrual:**
+
+For daily backtesting:
+$$\text{Cost}_{\text{daily}} = |V| \cdot \frac{r_b}{252}$$
+
+Note: Only short positions incur borrow costs. The formula uses $|V|$ where $V < 0$ indicates short.
+
+**Net short position cost:**
+
+For a strategy with gross short exposure $S$ at average borrow rate $\bar{r}_b$:
+$$\text{Annual Cost} = S \cdot \bar{r}_b$$
+
+A dollar-neutral strategy with $S = 100\%$ gross short and $\bar{r}_b = 2\%$ incurs 2% annual drag.
+
+### 3.7.4 Implementation & Application
+
+```{r borrow-cost-model}
+#' Calculate borrowing costs for short positions
+#'
+#' @param positions Vector of positions (negative = short)
+#' @param borrow_rate Annual borrow rate (decimal)
+#' @param trading_days_per_year Days per year (default 252)
+#' @return Vector of daily borrow costs
+calculate_borrow_cost <- function(positions, borrow_rate = 0.005,
+                                   trading_days_per_year = 252) {
+    # Only short positions incur borrow cost
+    short_exposure <- pmax(-positions, 0)
+
+    # Daily cost = exposure × annual rate / 252
+    daily_cost <- short_exposure * borrow_rate / trading_days_per_year
+
+    return(daily_cost)
+}
+
+# Impact of borrow costs on long-short strategy
+# Create a long-short momentum strategy
+spy[, long_signal := mom_signal > 0]
+spy[, position_long := fifelse(long_signal, 1, 0)]
+spy[, position_short := fifelse(long_signal, 0, -1)]
+spy[, position_ls := position_long + position_short]
+
+# Calculate returns at different borrow rates
+borrow_rates <- c(0, 0.005, 0.01, 0.02, 0.05, 0.10)
+
+borrow_impact <- lapply(borrow_rates, function(br) {
+    borrow_costs <- calculate_borrow_cost(spy$position_ls, br)
+    ret <- shift(spy$position_ls, 1) * spy$returns - borrow_costs
+    ret <- ret[!is.na(ret)]
+
+    data.table(
+        borrow_rate = br * 100,
+        annual_return = mean(ret) * 252 * 100,
+        sharpe = mean(ret) / sd(ret) * sqrt(252)
+    )
+})
+
+borrow_impact <- rbindlist(borrow_impact)
+
+cat("Impact of Borrow Costs on Long-Short Strategy:\n")
+print(borrow_impact[, .(
+    `Borrow Rate (%)` = borrow_rate,
+    `Annual Return (%)` = round(annual_return, 2),
+    `Sharpe Ratio` = round(sharpe, 2)
+)])
+```
+
+```{r borrow-rate-sensitivity, fig.cap="Borrow costs significantly impact long-short strategies. High borrow rates can destroy profitability."}
+ggplot(borrow_impact, aes(x = borrow_rate, y = sharpe)) +
+    geom_line(colour = tc[1], linewidth = 1) +
+    geom_point(colour = tc[1], size = 3) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = 2, linetype = "dotted", colour = tc[2]) +
+    annotate("text", x = 2.5, y = max(borrow_impact$sharpe) * 0.8,
+             label = "Typical institutional\nborrow rate ~2%",
+             colour = tc[2], hjust = 0, size = 3) +
+    labs(
+        title = "Sharpe Ratio vs Borrow Rate",
+        subtitle = "Long-short momentum strategy; short side always pays borrow",
+        x = "Annual Borrow Rate (%)",
+        y = "Sharpe Ratio"
+    ) +
+    theme_trading()
+```
+
+---
+
+## Quick Reference: Transaction Costs
+
+### Cost Components
+
+| Component | Typical Range | Scales With |
+|-----------|--------------|-------------|
+| Bid-ask spread | 1-100+ bps | Liquidity, volatility |
+| Market impact | 5-200+ bps | Order size / volume |
+| Slippage | 5-50 bps | Delay, execution quality |
+| Borrow cost | 0.25-50%+ | Short interest, float |
+
+### Key Formulas
+
+| Cost | Formula | Notes |
+|------|---------|-------|
+| Half-spread | $\text{Spread} / (2 \times P_{\text{mid}})$ | One-way cost |
+| Impact (square-root) | $\sigma \times \sqrt{Q/V}$ | $Q$ = order, $V$ = daily vol |
+| Borrow cost (daily) | $\|V_{\text{short}}\| \times r_b / 252$ | Only for shorts |
+| Total one-way | Spread/2 + Impact | Per trade |
+
+### Typical Values by Asset Class
+
+| Asset Class | Spread (bps) | Impact Model | Notes |
+|-------------|--------------|--------------|-------|
+| US Large Cap | 1-5 | 0.5 × σ × √(Q/V) | Very liquid |
+| US Small Cap | 20-100 | 1.0 × σ × √(Q/V) | Less liquid |
+| EM Equity | 20-50 | 1.5 × σ × √(Q/V) | Varies by country |
+| FX (Major) | 0.5-2 | Low | Extremely liquid |
+| Futures | 0.5-5 | Low | Exchange-traded |
+
+### R Code Snippets
+
+```r
+# Spread cost
+spread_cost <- turnover * spread_bps / 2 / 10000
+
+# Market impact (square-root model)
+participation <- order_value / daily_volume
+impact <- daily_vol * sqrt(participation)
+
+# Borrow cost (daily)
+short_exposure <- pmax(-position, 0)
+borrow_cost <- short_exposure * annual_rate / 252
+
+# Total transaction cost
+total_cost <- spread_cost + impact_cost + borrow_cost
+
+# Strategy return after costs
+net_return <- gross_return - total_cost
+```
+
+### Cost Estimation Checklist
+
+1. [ ] Spread: Use realistic estimates by asset class and market cap
+2. [ ] Impact: Scale with order size relative to volume
+3. [ ] Timing: Account for execution delay
+4. [ ] Borrow: Include for all short positions
+5. [ ] Commissions: Usually small but non-zero
+6. [ ] Financing: Cost of leverage if used

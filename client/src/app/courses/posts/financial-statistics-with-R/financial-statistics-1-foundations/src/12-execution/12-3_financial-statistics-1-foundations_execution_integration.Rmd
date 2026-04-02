@@ -1,0 +1,820 @@
+---
+title: "Portfolio Integration"
+---
+
+```{r setup, include=FALSE}
+box::use(
+    data.table[...],
+    ggplot2[...]
+)
+
+box::use(
+    ../modules/viz[theme_trading, trading_colors]
+)
+
+knitr::opts_chunk$set(
+    echo = TRUE,
+    message = FALSE,
+    warning = FALSE,
+    fig.width = 10,
+    fig.height = 6,
+    fig.path = ""
+)
+
+tc <- unlist(trading_colors)
+theme_set(theme_trading())
+
+set.seed(42)
+```
+
+## 1. Prose: From Signals to Portfolios
+
+> "A great signal poorly integrated into a portfolio is worth less than a mediocre signal well integrated. Portfolio construction is where alpha meets reality."
+
+We've covered individual components: statistical foundations, factor models, volatility trading, machine learning, execution quality, and risk management. Now we synthesize everything into a complete system. This integration is where most quantitative efforts fail—not from bad models but from poor assembly.
+
+### The Integration Challenge
+
+Consider what a portfolio manager must reconcile:
+
+**Multiple Signals**: A momentum signal says buy, a value signal says sell, and a volatility signal suggests reduce exposure. How do you combine them?
+
+**Competing Objectives**: Maximum Sharpe ratio? Minimum drawdown? Tracking error constraint? Turnover limits? These often conflict.
+
+**Implementation Reality**: Your optimal portfolio requires 50% turnover, but transaction costs make that prohibitive. The paper portfolio diverges from the live portfolio.
+
+**Regime Dependency**: The signal combination that works in trending markets fails in mean-reverting regimes. Static weights become liability.
+
+### The Complete Pipeline
+
+A production-grade system follows this flow:
+
+```
+Data → Features → Signals → Scores → Weights → Orders → Execution → P&L → Risk
+  ↑                                                                          |
+  └──────────────────────────────── Feedback Loop ───────────────────────────┘
+```
+
+Each stage has its own challenges:
+- **Data**: Quality, timing, survivorship bias
+- **Features**: Normalization, decay, non-stationarity
+- **Signals**: Combination, correlation, capacity
+- **Scores**: Ranking, z-scoring, winsorization
+- **Weights**: Optimization, constraints, robustness
+- **Orders**: Sizing, urgency, venue selection
+- **Execution**: Market impact, timing, slippage
+- **Risk**: Limits, attribution, monitoring
+
+Today we build the complete integration layer.
+
+---
+
+## 2. Visual Evidence: Signal Combination and Portfolio Evolution
+
+```{r generate-multi-signal-data}
+# Generate realistic multi-signal data
+n_days <- 252 * 3
+n_assets <- 20
+
+# Create asset returns with factor structure
+market_returns <- rnorm(n_days, mean = 0.0003, sd = 0.012)
+factor_momentum <- rnorm(n_days, mean = 0.0001, sd = 0.008)
+factor_value <- rnorm(n_days, mean = 0.0001, sd = 0.007)
+
+# Generate asset-specific returns
+asset_returns <- matrix(NA, n_days, n_assets)
+asset_betas <- runif(n_assets, 0.7, 1.3)
+asset_mom_load <- runif(n_assets, -0.5, 0.5)
+asset_val_load <- runif(n_assets, -0.5, 0.5)
+
+for (i in 1:n_assets) {
+    idio <- rnorm(n_days, 0, 0.015)
+    asset_returns[, i] <- asset_betas[i] * market_returns +
+                          asset_mom_load[i] * factor_momentum +
+                          asset_val_load[i] * factor_value +
+                          idio
+}
+
+colnames(asset_returns) <- paste0("Asset_", 1:n_assets)
+
+# Generate signals (with realistic information coefficients)
+momentum_signal <- matrix(NA, n_days, n_assets)
+value_signal <- matrix(NA, n_days, n_assets)
+volatility_signal <- matrix(NA, n_days, n_assets)
+
+lookback_mom <- 63
+lookback_vol <- 21
+
+for (i in (lookback_mom + 1):n_days) {
+    for (j in 1:n_assets) {
+        # Momentum: past returns + noise (IC ~ 0.05)
+        momentum_signal[i, j] <- mean(asset_returns[(i-lookback_mom):(i-1), j]) +
+                                  rnorm(1, 0, 0.001)
+
+        # Value: contrarian to recent moves (IC ~ 0.03)
+        value_signal[i, j] <- -mean(asset_returns[(i-21):(i-1), j]) +
+                               rnorm(1, 0, 0.001)
+
+        # Volatility: inverse vol (IC ~ 0.02)
+        vol <- sd(asset_returns[(i-lookback_vol):(i-1), j])
+        volatility_signal[i, j] <- -vol + rnorm(1, 0, 0.002)
+    }
+}
+
+# Convert to data.table for analysis
+signals_dt <- data.table(
+    day = rep(1:n_days, n_assets),
+    asset = rep(1:n_assets, each = n_days),
+    return = as.vector(asset_returns),
+    momentum = as.vector(momentum_signal),
+    value = as.vector(value_signal),
+    volatility = as.vector(volatility_signal)
+)
+signals_dt <- signals_dt[complete.cases(signals_dt)]
+```
+
+```{r signal-correlation-analysis, fig.width=10, fig.height=6}
+# Analyze signal correlations over time
+calc_ic <- function(signal, forward_return) {
+    cor(signal, forward_return, use = "complete.obs")
+}
+
+# Add forward returns
+signals_dt[, forward_return := shift(return, -1, type = "lead"), by = asset]
+
+# Calculate rolling IC for each signal
+window_ic <- 63
+unique_days <- sort(unique(signals_dt$day))
+n_unique <- length(unique_days)
+
+ic_results <- data.table()
+
+for (d_idx in window_ic:n_unique) {
+    day_range <- unique_days[(d_idx - window_ic + 1):d_idx]
+    subset_dt <- signals_dt[day %in% day_range & !is.na(forward_return)]
+
+    if (nrow(subset_dt) > 50) {
+        ic_mom <- calc_ic(subset_dt$momentum, subset_dt$forward_return)
+        ic_val <- calc_ic(subset_dt$value, subset_dt$forward_return)
+        ic_vol <- calc_ic(subset_dt$volatility, subset_dt$forward_return)
+
+        ic_results <- rbind(ic_results, data.table(
+            day = unique_days[d_idx],
+            momentum_ic = ic_mom,
+            value_ic = ic_val,
+            volatility_ic = ic_vol
+        ))
+    }
+}
+
+# Plot rolling IC
+ic_melt <- melt(
+    ic_results,
+    id.vars = "day",
+    measure.vars = c("momentum_ic", "value_ic", "volatility_ic"),
+    variable.name = "signal",
+    value.name = "ic"
+)
+
+ic_melt[, signal := factor(signal,
+    levels = c("momentum_ic", "value_ic", "volatility_ic"),
+    labels = c("Momentum", "Value", "Volatility")
+)]
+
+ggplot(ic_melt, aes(x = day, y = ic, color = signal)) +
+    geom_line(alpha = 0.6, linewidth = 0.5) +
+    geom_smooth(se = FALSE, method = "loess", span = 0.3, linewidth = 1) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = tc["neutral"]) +
+    scale_color_manual(values = c(tc["primary"], tc["secondary"], tc["accent"])) +
+    labs(
+        title = "Rolling Information Coefficient by Signal",
+        subtitle = "63-day rolling window; smoothed trend overlaid",
+        x = "Trading Day",
+        y = "Information Coefficient",
+        color = "Signal"
+    ) +
+    theme(legend.position = "bottom")
+```
+
+Signal performance varies through time. A static combination would miss the shifting value of each alpha source. Adaptive combination—adjusting weights based on recent performance—captures these dynamics.
+
+```{r signal-combination-methods, fig.width=10, fig.height=8}
+# Compare signal combination methods
+
+#' Equal weighted combination
+equal_combine <- function(signals) {
+    rowMeans(signals, na.rm = TRUE)
+}
+
+#' IC-weighted combination (using trailing IC)
+ic_weighted_combine <- function(signals, ics) {
+    # Normalize ICs to weights
+    ics_positive <- pmax(ics, 0)  # Only use positive IC signals
+    if (sum(ics_positive) == 0) ics_positive <- rep(1, length(ics))
+    weights <- ics_positive / sum(ics_positive)
+
+    rowSums(signals * matrix(weights, nrow(signals), ncol(signals), byrow = TRUE),
+            na.rm = TRUE)
+}
+
+#' Volatility-normalized then combined
+vol_normalized_combine <- function(signals) {
+    # Normalize each signal to same volatility before combining
+    normalized <- apply(signals, 2, function(x) {
+        x / sd(x, na.rm = TRUE)
+    })
+    rowMeans(normalized, na.rm = TRUE)
+}
+
+# Prepare signals matrix
+test_days <- 200:nrow(signals_dt)
+test_dt <- signals_dt[day >= min(unique_days[200])]
+
+# Create combined signals for each asset-day
+test_dt[, `:=`(
+    combined_equal = (scale(momentum)[,1] + scale(value)[,1] + scale(volatility)[,1]) / 3,
+    combined_mom_heavy = 0.5 * scale(momentum)[,1] + 0.25 * scale(value)[,1] + 0.25 * scale(volatility)[,1]
+)]
+
+# Calculate performance of each combination method
+combo_performance <- test_dt[, .(
+    equal_ic = cor(combined_equal, forward_return, use = "complete.obs"),
+    mom_heavy_ic = cor(combined_mom_heavy, forward_return, use = "complete.obs"),
+    n_obs = sum(!is.na(forward_return))
+), by = day]
+
+# Smooth for visualization
+combo_performance <- combo_performance[n_obs > 15]
+
+combo_melt <- melt(
+    combo_performance,
+    id.vars = "day",
+    measure.vars = c("equal_ic", "mom_heavy_ic"),
+    variable.name = "method",
+    value.name = "ic"
+)
+
+combo_melt[, method := factor(method,
+    levels = c("equal_ic", "mom_heavy_ic"),
+    labels = c("Equal Weight", "Momentum Heavy (50/25/25)")
+)]
+
+ggplot(combo_melt, aes(x = day, y = ic, color = method)) +
+    geom_line(alpha = 0.4, linewidth = 0.4) +
+    geom_smooth(se = FALSE, method = "loess", span = 0.3, linewidth = 1.2) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = tc["neutral"]) +
+    scale_color_manual(values = c(tc["positive"], tc["accent"])) +
+    labs(
+        title = "Combined Signal Performance: Equal vs Momentum-Heavy",
+        subtitle = "Different weighting schemes dominate at different times",
+        x = "Trading Day",
+        y = "Information Coefficient",
+        color = "Combination Method"
+    ) +
+    theme(legend.position = "bottom")
+```
+
+```{r portfolio-construction-demo, fig.width=10, fig.height=10}
+# Demonstrate complete portfolio construction pipeline
+
+# Step 1: Generate final scores (z-scored combined signal)
+signals_dt[, combined_score := scale(momentum)[,1] * 0.4 +
+                                scale(value)[,1] * 0.3 +
+                                scale(volatility)[,1] * 0.3, by = day]
+
+# Step 2: Convert scores to weights (long-short, dollar neutral)
+signals_dt[, raw_weight := combined_score / sum(abs(combined_score), na.rm = TRUE),
+           by = day]
+
+# Step 3: Apply constraints
+max_position <- 0.10
+signals_dt[, constrained_weight := pmin(pmax(raw_weight, -max_position), max_position)]
+signals_dt[, final_weight := constrained_weight / sum(abs(constrained_weight), na.rm = TRUE),
+           by = day]
+
+# Step 4: Calculate portfolio returns
+portfolio_returns <- signals_dt[!is.na(forward_return), .(
+    portfolio_return = sum(final_weight * forward_return, na.rm = TRUE),
+    long_return = sum(pmax(final_weight, 0) * forward_return, na.rm = TRUE),
+    short_return = sum(pmin(final_weight, 0) * forward_return, na.rm = TRUE),
+    turnover = sum(abs(final_weight - shift(final_weight, fill = 0)), na.rm = TRUE) / 2,
+    gross_exposure = sum(abs(final_weight), na.rm = TRUE),
+    net_exposure = sum(final_weight, na.rm = TRUE),
+    n_long = sum(final_weight > 0.001),
+    n_short = sum(final_weight < -0.001)
+), by = day]
+
+# Calculate cumulative performance
+portfolio_returns[, cum_return := cumprod(1 + portfolio_return)]
+portfolio_returns[, cum_long := cumprod(1 + long_return)]
+portfolio_returns[, cum_short := cumprod(1 + short_return)]
+
+# Plot portfolio evolution
+p1 <- ggplot(portfolio_returns, aes(x = day)) +
+    geom_line(aes(y = cum_return, color = "Total"), linewidth = 1) +
+    geom_line(aes(y = cum_long, color = "Long Leg"), linewidth = 0.7, alpha = 0.7) +
+    geom_line(aes(y = cum_short, color = "Short Leg"), linewidth = 0.7, alpha = 0.7) +
+    scale_color_manual(values = c(
+        "Total" = tc["positive"],
+        "Long Leg" = tc["primary"],
+        "Short Leg" = tc["secondary"]
+    )) +
+    labs(
+        title = "Portfolio Cumulative Returns",
+        subtitle = "Long-short factor portfolio decomposition",
+        x = NULL,
+        y = "Cumulative Return (Indexed)",
+        color = NULL
+    ) +
+    theme(legend.position = "bottom")
+
+p2 <- ggplot(portfolio_returns, aes(x = day, y = turnover * 100)) +
+    geom_line(color = tc["neutral"], alpha = 0.5) +
+    geom_smooth(color = tc["accent"], se = FALSE, method = "loess", span = 0.2) +
+    labs(
+        title = "Portfolio Turnover",
+        subtitle = "One-way turnover as % of gross exposure",
+        x = NULL,
+        y = "Turnover (%)"
+    )
+
+p3 <- ggplot(portfolio_returns, aes(x = day)) +
+    geom_line(aes(y = n_long, color = "Long"), linewidth = 0.6) +
+    geom_line(aes(y = n_short, color = "Short"), linewidth = 0.6) +
+    scale_color_manual(values = c("Long" = tc["primary"], "Short" = tc["secondary"])) +
+    labs(
+        title = "Position Count",
+        subtitle = "Number of long and short positions",
+        x = "Trading Day",
+        y = "Number of Positions",
+        color = NULL
+    ) +
+    theme(legend.position = "bottom")
+
+gridExtra::grid.arrange(p1, p2, p3, ncol = 1, heights = c(2, 1, 1))
+```
+
+---
+
+## 3. Mathematical Derivation: Optimal Portfolio Construction
+
+### Mean-Variance Optimization with Constraints
+
+The classic Markowitz problem:
+
+$$\max_w \; w^T \mu - \frac{\lambda}{2} w^T \Sigma w$$
+
+Subject to:
+- $\sum_i w_i = 0$ (dollar neutral)
+- $|w_i| \leq w_{\max}$ (position limits)
+- $\sum_i |w_i| \leq L$ (leverage constraint)
+- $|w^T \beta| \leq \beta_{\max}$ (factor exposure limits)
+
+The unconstrained solution:
+
+$$w^* = \frac{1}{\lambda} \Sigma^{-1} \mu$$
+
+With constraints, we use quadratic programming or penalized optimization.
+
+### Alpha Combination
+
+Given $K$ alpha signals with forecasts $\alpha_k$ and information coefficients $IC_k$:
+
+**Equal Weighted**:
+$$\alpha_{combined} = \frac{1}{K} \sum_{k=1}^K z(\alpha_k)$$
+
+**IC Weighted**:
+$$\alpha_{combined} = \sum_{k=1}^K \frac{IC_k}{\sum_j IC_j} z(\alpha_k)$$
+
+**Optimal (Grinold)**:
+$$\alpha_{combined} = \sigma_{\text{target}} \cdot IC_{combined} \cdot z(\alpha)$$
+
+Where $IC_{combined} = \sqrt{\sum_k IC_k^2}$ if signals are uncorrelated.
+
+### Transaction Cost Integration
+
+With linear transaction costs $c$ per unit traded, the optimization becomes:
+
+$$\max_w \; w^T \mu - \frac{\lambda}{2} w^T \Sigma w - c \cdot \|w - w_{\text{prev}}\|_1$$
+
+The $L_1$ penalty creates a "no-trade region" around current positions, trading off alpha capture against transaction costs.
+
+**Optimal Trade-Off**:
+
+Only trade when: $\text{Expected Alpha Gain} > 2 \times \text{Transaction Cost}$
+
+$$|\alpha_{new} - \alpha_{old}| > 2c$$
+
+### Risk Parity Alternative
+
+Instead of maximizing Sharpe, equalize risk contribution:
+
+$$RC_i = w_i \cdot \frac{(\Sigma w)_i}{\sqrt{w^T \Sigma w}}$$
+
+Set $RC_i = \frac{1}{N}$ total risk for all $i$. This leads to:
+
+$$w_i \propto \frac{1}{\sigma_i \cdot \sqrt{\sum_j \rho_{ij} \cdot w_j / w_i}}$$
+
+For uncorrelated assets: $w_i \propto 1/\sigma_i$ (inverse volatility).
+
+---
+
+## 4. Implementation: Production Portfolio System
+
+```{r portfolio-optimizer}
+#' Complete portfolio optimizer with constraints
+#' @param alpha vector of alpha forecasts
+#' @param covariance covariance matrix
+#' @param prev_weights previous portfolio weights
+#' @param constraints list of constraints
+#' @return optimized portfolio weights
+optimize_portfolio <- function(
+    alpha,
+    covariance,
+    prev_weights = NULL,
+    constraints = list(
+        max_position = 0.10,
+        max_leverage = 2.0,
+        dollar_neutral = TRUE,
+        turnover_penalty = 0.001
+    )
+) {
+    n <- length(alpha)
+    if (is.null(prev_weights)) prev_weights <- rep(0, n)
+
+    # Simple approach: alpha-weighted with constraints
+    # (Full QP optimization would require quadprog package)
+
+    # Step 1: Z-score alpha
+    alpha_z <- (alpha - mean(alpha)) / sd(alpha)
+
+    # Step 2: Initial weights proportional to alpha
+    raw_weights <- alpha_z / sum(abs(alpha_z))
+
+    # Step 3: Apply position limits
+    constrained <- pmin(pmax(raw_weights, -constraints$max_position),
+                        constraints$max_position)
+
+    # Step 4: Dollar neutral adjustment
+    if (constraints$dollar_neutral) {
+        long_sum <- sum(constrained[constrained > 0])
+        short_sum <- sum(constrained[constrained < 0])
+
+        # Scale to equal long/short exposure
+        target_exposure <- min(abs(long_sum), abs(short_sum))
+        if (long_sum > 0) {
+            constrained[constrained > 0] <- constrained[constrained > 0] *
+                                             (target_exposure / long_sum)
+        }
+        if (short_sum < 0) {
+            constrained[constrained < 0] <- constrained[constrained < 0] *
+                                             (target_exposure / abs(short_sum))
+        }
+    }
+
+    # Step 5: Leverage constraint
+    current_leverage <- sum(abs(constrained))
+    if (current_leverage > constraints$max_leverage) {
+        constrained <- constrained * (constraints$max_leverage / current_leverage)
+    }
+
+    # Step 6: Turnover consideration (shrink toward previous weights)
+    if (constraints$turnover_penalty > 0) {
+        blend <- 0.9  # How much to blend with prev weights
+        constrained <- blend * constrained + (1 - blend) * prev_weights
+    }
+
+    # Normalize final weights
+    final_weights <- constrained / sum(abs(constrained)) * constraints$max_leverage
+
+    # Ensure dollar neutral
+    if (constraints$dollar_neutral) {
+        final_weights <- final_weights - mean(final_weights)
+    }
+
+    data.table(
+        asset = 1:n,
+        alpha = alpha,
+        alpha_z = alpha_z,
+        raw_weight = raw_weights,
+        final_weight = final_weights,
+        position_type = ifelse(final_weights > 0.001, "Long",
+                              ifelse(final_weights < -0.001, "Short", "Flat"))
+    )
+}
+
+# Test optimizer
+test_alpha <- rnorm(20, mean = 0, sd = 0.01)
+test_cov <- diag(20) * 0.0004  # Simplified diagonal covariance
+
+opt_result <- optimize_portfolio(test_alpha, test_cov)
+print(opt_result[order(-final_weight)][1:10])
+```
+
+```{r backtest-engine}
+#' Complete backtest engine with realistic assumptions
+#' @param returns matrix of asset returns (days x assets)
+#' @param signals matrix of signals (days x assets)
+#' @param params backtest parameters
+#' @return data.table of backtest results
+backtest_portfolio <- function(
+    returns,
+    signals,
+    params = list(
+        rebalance_freq = 5,  # Days between rebalances
+        max_position = 0.10,
+        transaction_cost = 0.001,  # 10 bps per trade
+        slippage = 0.0005  # 5 bps slippage
+    )
+) {
+    n_days <- nrow(returns)
+    n_assets <- ncol(returns)
+
+    # Initialize
+    weights <- matrix(0, n_days, n_assets)
+    portfolio_value <- numeric(n_days)
+    portfolio_value[1] <- 1
+
+    daily_returns <- numeric(n_days)
+    turnover <- numeric(n_days)
+    costs <- numeric(n_days)
+
+    current_weights <- rep(0, n_assets)
+
+    for (t in 2:n_days) {
+        # Check if rebalance day
+        if ((t - 1) %% params$rebalance_freq == 0 && t > 50) {
+            # Get signal for this day
+            signal_t <- signals[t, ]
+
+            if (all(!is.na(signal_t))) {
+                # Optimize new weights
+                opt <- optimize_portfolio(
+                    alpha = signal_t,
+                    covariance = NULL,
+                    prev_weights = current_weights,
+                    constraints = list(
+                        max_position = params$max_position,
+                        max_leverage = 2.0,
+                        dollar_neutral = TRUE,
+                        turnover_penalty = 0.001
+                    )
+                )
+                target_weights <- opt$final_weight
+            } else {
+                target_weights <- current_weights
+            }
+        } else {
+            target_weights <- current_weights
+        }
+
+        # Calculate turnover
+        trade_size <- abs(target_weights - current_weights)
+        turnover[t] <- sum(trade_size) / 2
+
+        # Calculate transaction costs
+        total_cost <- sum(trade_size) * (params$transaction_cost + params$slippage)
+        costs[t] <- total_cost
+
+        # Update weights
+        current_weights <- target_weights
+        weights[t, ] <- current_weights
+
+        # Calculate returns
+        asset_returns <- returns[t, ]
+        if (any(is.na(asset_returns))) asset_returns[is.na(asset_returns)] <- 0
+
+        gross_return <- sum(current_weights * asset_returns)
+        daily_returns[t] <- gross_return - total_cost
+
+        # Update portfolio value
+        portfolio_value[t] <- portfolio_value[t-1] * (1 + daily_returns[t])
+    }
+
+    # Compile results
+    data.table(
+        day = 1:n_days,
+        portfolio_value = portfolio_value,
+        daily_return = daily_returns,
+        turnover = turnover,
+        costs = costs,
+        gross_exposure = rowSums(abs(weights)),
+        net_exposure = rowSums(weights),
+        n_positions = rowSums(abs(weights) > 0.001)
+    )
+}
+
+# Run backtest
+bt_results <- backtest_portfolio(
+    returns = asset_returns,
+    signals = momentum_signal,
+    params = list(
+        rebalance_freq = 5,
+        max_position = 0.10,
+        transaction_cost = 0.001,
+        slippage = 0.0005
+    )
+)
+
+# Calculate performance metrics
+bt_results <- bt_results[day > 50]  # Skip warmup
+bt_results[, cum_return := cumprod(1 + daily_return)]
+bt_results[, running_max := cummax(cum_return)]
+bt_results[, drawdown := (cum_return - running_max) / running_max]
+
+cat("\n=== Backtest Performance ===\n")
+cat(sprintf("Total Return: %.2f%%\n", (tail(bt_results$cum_return, 1) - 1) * 100))
+cat(sprintf("Annual Return: %.2f%%\n",
+            (tail(bt_results$cum_return, 1)^(252/nrow(bt_results)) - 1) * 100))
+cat(sprintf("Volatility: %.2f%%\n", sd(bt_results$daily_return) * sqrt(252) * 100))
+cat(sprintf("Sharpe Ratio: %.2f\n",
+            mean(bt_results$daily_return) / sd(bt_results$daily_return) * sqrt(252)))
+cat(sprintf("Max Drawdown: %.2f%%\n", min(bt_results$drawdown) * 100))
+cat(sprintf("Avg Turnover: %.2f%% per rebalance\n",
+            mean(bt_results$turnover[bt_results$turnover > 0]) * 100))
+cat(sprintf("Total Costs: %.2f%% of AUM\n", sum(bt_results$costs) * 100))
+```
+
+```{r backtest-visualization, fig.width=10, fig.height=10}
+# Visualize backtest results
+p1 <- ggplot(bt_results, aes(x = day, y = cum_return)) +
+    geom_line(color = tc["positive"], linewidth = 1) +
+    labs(
+        title = "Backtest Equity Curve",
+        subtitle = "Momentum strategy with realistic transaction costs",
+        x = NULL,
+        y = "Portfolio Value"
+    )
+
+p2 <- ggplot(bt_results, aes(x = day, y = drawdown * 100)) +
+    geom_area(fill = tc["negative"], alpha = 0.4) +
+    geom_line(color = tc["negative"], linewidth = 0.5) +
+    labs(
+        title = "Drawdown",
+        x = NULL,
+        y = "Drawdown (%)"
+    )
+
+p3 <- ggplot(bt_results[turnover > 0], aes(x = day, y = turnover * 100)) +
+    geom_col(fill = tc["neutral"], alpha = 0.5, width = 3) +
+    labs(
+        title = "Turnover (Rebalance Days Only)",
+        x = NULL,
+        y = "One-Way Turnover (%)"
+    )
+
+p4 <- ggplot(bt_results, aes(x = day, y = cumsum(costs) * 100)) +
+    geom_line(color = tc["negative"], linewidth = 0.7) +
+    labs(
+        title = "Cumulative Transaction Costs",
+        x = "Trading Day",
+        y = "Cumulative Costs (% of AUM)"
+    )
+
+gridExtra::grid.arrange(p1, p2, p3, p4, ncol = 1, heights = c(2, 1, 1, 1))
+```
+
+```{r attribution-analysis, fig.width=10, fig.height=6}
+# Performance attribution
+bt_results[, return_bucket := cut(
+    daily_return,
+    breaks = quantile(daily_return, probs = seq(0, 1, 0.2), na.rm = TRUE),
+    labels = c("Worst 20%", "20-40%", "40-60%", "60-80%", "Best 20%"),
+    include.lowest = TRUE
+)]
+
+return_dist <- bt_results[, .(
+    count = .N,
+    avg_return = mean(daily_return) * 100,
+    total_contribution = sum(daily_return) * 100
+), by = return_bucket][!is.na(return_bucket)]
+
+ggplot(return_dist, aes(x = return_bucket, y = total_contribution,
+                        fill = total_contribution > 0)) +
+    geom_col(alpha = 0.8) +
+    scale_fill_manual(values = c("TRUE" = tc["positive"], "FALSE" = tc["negative"])) +
+    labs(
+        title = "Return Attribution by Quintile",
+        subtitle = "Where do returns come from?",
+        x = "Return Quintile",
+        y = "Total Contribution (%)"
+    ) +
+    theme(legend.position = "none")
+```
+
+```{r monte-carlo-simulation, fig.width=10, fig.height=6}
+# Monte Carlo simulation of strategy outcomes
+n_simulations <- 500
+n_forward_days <- 252
+
+# Estimate strategy parameters from backtest
+mu <- mean(bt_results$daily_return)
+sigma <- sd(bt_results$daily_return)
+
+# Run simulations
+simulation_paths <- matrix(NA, n_forward_days, n_simulations)
+
+for (sim in 1:n_simulations) {
+    sim_returns <- rnorm(n_forward_days, mean = mu, sd = sigma)
+    simulation_paths[, sim] <- cumprod(1 + sim_returns)
+}
+
+# Calculate percentiles
+percentiles <- t(apply(simulation_paths, 1, quantile,
+                       probs = c(0.05, 0.25, 0.50, 0.75, 0.95)))
+colnames(percentiles) <- c("p05", "p25", "p50", "p75", "p95")
+
+sim_summary <- data.table(
+    day = 1:n_forward_days,
+    as.data.table(percentiles)
+)
+
+ggplot(sim_summary, aes(x = day)) +
+    geom_ribbon(aes(ymin = p05, ymax = p95), fill = tc["neutral"], alpha = 0.2) +
+    geom_ribbon(aes(ymin = p25, ymax = p75), fill = tc["neutral"], alpha = 0.3) +
+    geom_line(aes(y = p50), color = tc["positive"], linewidth = 1) +
+    geom_hline(yintercept = 1, linetype = "dashed", color = tc["negative"]) +
+    labs(
+        title = "Monte Carlo Forward Simulation (1 Year)",
+        subtitle = "Median path with 50% and 90% confidence intervals",
+        x = "Forward Day",
+        y = "Portfolio Value"
+    ) +
+    annotate("text", x = n_forward_days, y = sim_summary$p95[n_forward_days],
+             label = "95th %ile", hjust = 1, size = 3) +
+    annotate("text", x = n_forward_days, y = sim_summary$p50[n_forward_days],
+             label = "Median", hjust = 1, size = 3) +
+    annotate("text", x = n_forward_days, y = sim_summary$p05[n_forward_days],
+             label = "5th %ile", hjust = 1, size = 3)
+```
+
+```{r complete-system-summary}
+# Final system summary
+
+cat("\n")
+cat("╔══════════════════════════════════════════════════════════════╗\n")
+cat("║           COMPLETE PORTFOLIO SYSTEM SUMMARY                  ║\n")
+cat("╠══════════════════════════════════════════════════════════════╣\n")
+cat("║ SIGNAL GENERATION                                            ║\n")
+cat(sprintf("║   • Momentum IC: %.3f                                       ║\n",
+            mean(ic_results$momentum_ic, na.rm = TRUE)))
+cat(sprintf("║   • Value IC: %.3f                                          ║\n",
+            mean(ic_results$value_ic, na.rm = TRUE)))
+cat(sprintf("║   • Volatility IC: %.3f                                     ║\n",
+            mean(ic_results$volatility_ic, na.rm = TRUE)))
+cat("╠══════════════════════════════════════════════════════════════╣\n")
+cat("║ PORTFOLIO CONSTRUCTION                                       ║\n")
+cat("║   • Dollar neutral: Yes                                      ║\n")
+cat("║   • Max position: 10%                                        ║\n")
+cat("║   • Rebalance frequency: Weekly                              ║\n")
+cat("╠══════════════════════════════════════════════════════════════╣\n")
+cat("║ BACKTEST RESULTS                                             ║\n")
+cat(sprintf("║   • Annual Return: %.1f%%                                    ║\n",
+            (tail(bt_results$cum_return, 1)^(252/nrow(bt_results)) - 1) * 100))
+cat(sprintf("║   • Volatility: %.1f%%                                       ║\n",
+            sd(bt_results$daily_return) * sqrt(252) * 100))
+cat(sprintf("║   • Sharpe Ratio: %.2f                                       ║\n",
+            mean(bt_results$daily_return) / sd(bt_results$daily_return) * sqrt(252)))
+cat(sprintf("║   • Max Drawdown: %.1f%%                                     ║\n",
+            min(bt_results$drawdown) * 100))
+cat(sprintf("║   • Avg Turnover: %.1f%% per rebalance                       ║\n",
+            mean(bt_results$turnover[bt_results$turnover > 0]) * 100))
+cat("╠══════════════════════════════════════════════════════════════╣\n")
+cat("║ MONTE CARLO (1 Year Forward)                                 ║\n")
+cat(sprintf("║   • Median outcome: %.1fx                                    ║\n",
+            sim_summary$p50[n_forward_days]))
+cat(sprintf("║   • 5th percentile: %.2fx                                    ║\n",
+            sim_summary$p05[n_forward_days]))
+cat(sprintf("║   • 95th percentile: %.2fx                                   ║\n",
+            sim_summary$p95[n_forward_days]))
+cat("╚══════════════════════════════════════════════════════════════╝\n")
+```
+
+## Summary
+
+Portfolio integration is where statistical research becomes investable reality:
+
+**Signal Combination**:
+- Multiple weak signals combine into stronger composite
+- IC-weighted combination adapts to regime shifts
+- Correlation between signals affects combination benefit
+
+**Portfolio Construction**:
+- Mean-variance with constraints is the foundation
+- Transaction costs create no-trade regions
+- Risk parity offers robust alternative to MVO
+
+**Implementation Bridge**:
+- Paper portfolios must account for execution reality
+- Turnover drives costs; optimize for net returns
+- Monte Carlo reveals range of outcomes, not just expected
+
+**Complete Pipeline**:
+```
+Data → Features → Signals → Combination → Optimization →
+Orders → Execution → P&L → Risk Monitoring → Feedback
+```
+
+This completes our journey from statistical foundations through portfolio integration. The tools and frameworks presented provide the building blocks for systematic, quantitative investment management. The edge comes not from any single technique but from rigorous integration across the entire pipeline.
+
+Remember: in finance, the competition is fierce, the data is noisy, and yesterday's alpha is tomorrow's crowded trade. Continuous research, robust risk management, and disciplined execution separate sustainable strategies from fleeting anomalies.

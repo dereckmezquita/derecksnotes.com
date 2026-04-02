@@ -1,0 +1,1132 @@
+---
+title: "Statistics with R I: Foundations"
+chapter: "Chapter 5: Random Variables and Distributions"
+part: "Part 4: Exponential, Gamma, Beta, and Related Distributions"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, probability, distributions, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+# https://bookdown.org/yihui/rmarkdown-cookbook/hook-html5.html
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Chapter 5: Random Variables and Distributions (Part 4)
+
+This concluding part of Chapter 5 covers distributions essential for statistical inference: the **exponential** (waiting times), **gamma** (flexible positive-valued family), **beta** (probabilities on [0, 1]), and distributions arising from the normal — **chi-square**, **Student's t**, and **F** — that form the theoretical backbone of hypothesis testing.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets for examples
+nhanes <- fread("../../../data/primary/nhanes.csv")
+
+cat("NHANES dataset loaded:", nrow(nhanes), "observations\n")
+```
+
+---
+
+## Table of Contents
+
+## 5.10 The Exponential Distribution
+
+### 5.10.1 Definition and Properties
+
+**Prose and Intuition**
+
+The **exponential distribution** models the time between events in a Poisson process — waiting times, inter-arrival times, or time until failure. If events occur at a constant average rate $\lambda$, the time until the next event follows an exponential distribution.
+
+Examples:
+- Time until the next patient arrives at A&E
+- Time until a radioactive atom decays
+- Time until equipment failure (for constant failure rate)
+- Duration of a phone call
+
+The exponential is the continuous analogue of the geometric distribution: geometric counts discrete trials until first success; exponential measures continuous time until first event.
+
+**Mathematical Definition**
+
+A random variable $X$ has an **exponential distribution** with rate parameter $\lambda > 0$, written $X \sim \text{Exp}(\lambda)$, if its PDF is:
+
+$$f(x) = \lambda e^{-\lambda x} \quad \text{for } x \geq 0$$
+
+**Alternative parameterisation:** Some sources use scale parameter $\theta = 1/\lambda$ (mean):
+$$f(x) = \frac{1}{\theta} e^{-x/\theta}$$
+
+R uses the rate parameterisation by default.
+
+**CDF:**
+$$F(x) = 1 - e^{-\lambda x}$$
+
+**Quantile function:**
+$$Q(p) = -\frac{\ln(1-p)}{\lambda}$$
+
+**Mean and Variance:**
+$$E(X) = \frac{1}{\lambda}$$
+$$\text{Var}(X) = \frac{1}{\lambda^2}$$
+
+```{r exponential_dist, fig.cap="Exponential distribution for different rate parameters"}
+# Visualise exponential distributions
+
+lambda_values <- c(0.5, 1, 2, 5)
+
+x_seq <- seq(0, 5, by = 0.01)
+
+exp_dt <- rbindlist(lapply(lambda_values, function(lam) {
+    data.table(
+        x = x_seq,
+        density = dexp(x_seq, lam),
+        lambda = paste("λ =", lam, "(mean =", round(1/lam, 2), ")")
+    )
+}))
+
+cat("Exponential Distribution: X ~ Exp(λ)\n")
+cat("=====================================\n\n")
+
+cat("Properties:\n")
+for (lam in lambda_values) {
+    cat(sprintf("  λ = %.1f: E(X) = %.2f, SD(X) = %.2f\n", lam, 1/lam, 1/lam))
+}
+
+cat("\nNote: Mean = SD = 1/λ for the exponential distribution\n")
+
+ggplot2$ggplot(exp_dt, ggplot2$aes(x = x, y = density, colour = lambda)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Exponential Distribution",
+        subtitle = "Higher rate λ means shorter expected waiting time",
+        x = "x (Time)",
+        y = "f(x)",
+        colour = "Parameters"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 5.10.2 The Memoryless Property
+
+**Prose and Intuition**
+
+The exponential distribution is the only continuous distribution with the **memoryless property**:
+
+$$P(X > s + t \mid X > s) = P(X > t)$$
+
+Given that you've already waited time $s$ without an event, the probability of waiting an additional time $t$ is the same as if you'd just started waiting. The past provides no information about the future.
+
+This is realistic for processes with constant failure rate (e.g., radioactive decay) but unrealistic for processes where things wear out (e.g., mechanical parts) or become more likely over time (e.g., disease progression).
+
+**Mathematical Proof**
+
+$$P(X > s + t \mid X > s) = \frac{P(X > s + t)}{P(X > s)}$$
+$$= \frac{e^{-\lambda(s+t)}}{e^{-\lambda s}} = e^{-\lambda t} = P(X > t)$$
+
+The exponential is characterised by this property: it's the *only* continuous distribution that is memoryless.
+
+```{r memoryless_exp, fig.cap="The memoryless property: past waiting doesn't affect future probability"}
+# Demonstrate memoryless property
+
+lambda <- 1
+s <- 2
+t <- 1
+
+# P(X > s + t | X > s)
+p_x_gt_s_plus_t <- 1 - pexp(s + t, lambda)
+p_x_gt_s <- 1 - pexp(s, lambda)
+conditional <- p_x_gt_s_plus_t / p_x_gt_s
+
+# P(X > t)
+p_x_gt_t <- 1 - pexp(t, lambda)
+
+cat("Memoryless Property of Exponential Distribution\n")
+cat("================================================\n\n")
+
+cat(sprintf("λ = %.1f, s = %.1f, t = %.1f\n\n", lambda, s, t))
+
+cat("P(X > s + t | X > s) = P(additional wait > t | already waited s)\n")
+cat(sprintf("  = P(X > %.1f) / P(X > %.1f)\n", s + t, s))
+cat(sprintf("  = %.6f / %.6f\n", p_x_gt_s_plus_t, p_x_gt_s))
+cat(sprintf("  = %.6f\n\n", conditional))
+
+cat(sprintf("P(X > t) = P(X > %.1f) = %.6f\n\n", t, p_x_gt_t))
+
+cat("These are equal! The waiting 'forgets' how long you've already waited.\n")
+
+# Visualise with survival curves
+# Show that the survival curve from s to s+t has same shape as from 0 to t
+
+x_seq <- seq(0, 6, by = 0.01)
+survival <- 1 - pexp(x_seq, lambda)
+
+surv_dt <- data.table(x = x_seq, survival = survival)
+
+ggplot2$ggplot(surv_dt, ggplot2$aes(x = x, y = survival)) +
+    ggplot2$geom_line(colour = "#0072B2", size = 1.2) +
+    # Highlight the conditional region
+    ggplot2$geom_segment(ggplot2$aes(x = s, xend = s, y = 0, yend = p_x_gt_s),
+                 linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(x = s + t, xend = s + t, y = 0, yend = p_x_gt_s_plus_t),
+                 linetype = "dashed", colour = "#D55E00") +
+    ggplot2$geom_segment(ggplot2$aes(x = s, xend = s + t, y = p_x_gt_s, yend = p_x_gt_s),
+                 linetype = "dotted", colour = "#D55E00") +
+    ggplot2$annotate("text", x = s + 0.5, y = p_x_gt_s + 0.05,
+             label = sprintf("P(X > %d) = %.3f", s, p_x_gt_s),
+             colour = "#D55E00") +
+    ggplot2$labs(
+        title = "Exponential Survival Function: S(x) = P(X > x)",
+        subtitle = "Memoryless: decay rate is constant regardless of elapsed time",
+        x = "x (Time)",
+        y = "P(X > x)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 5.10.3 Applications
+
+**Waiting Time Example**
+
+```{r exp_waiting_time, fig.cap="Modelling A&E arrival times with the exponential distribution"}
+# Example: Time between A&E arrivals
+
+# Average 3 patients per hour → λ = 3, mean time = 1/3 hour = 20 minutes
+lambda <- 3  # per hour
+
+cat("A&E Arrival Times Example\n")
+cat("=========================\n\n")
+
+cat("Setting: Average of 3 arrivals per hour\n")
+cat(sprintf("  Rate: λ = %.0f per hour\n", lambda))
+cat(sprintf("  Mean time between arrivals: 1/λ = %.2f hours = %.0f minutes\n\n",
+            1/lambda, 60/lambda))
+
+# Probability calculations
+cat("Probability calculations:\n")
+cat(sprintf("  P(next arrival within 10 min) = P(X < 1/6 hour) = %.4f\n",
+            pexp(1/6, lambda)))
+cat(sprintf("  P(wait more than 30 min) = P(X > 0.5) = %.4f\n",
+            1 - pexp(0.5, lambda)))
+cat(sprintf("  Median wait time: %.2f hours = %.1f minutes\n",
+            qexp(0.5, lambda), qexp(0.5, lambda) * 60))
+
+# Simulate arrival times
+set.seed(42)
+inter_arrivals <- rexp(100, lambda)
+arrival_times <- cumsum(inter_arrivals)
+
+arrivals_dt <- data.table(
+    patient = 1:100,
+    inter_arrival = inter_arrivals * 60,  # Convert to minutes
+    arrival_time = arrival_times * 60
+)
+
+cat("\nFirst 10 inter-arrival times (minutes):\n")
+print(round(arrivals_dt$inter_arrival[1:10], 1))
+
+# Visualise
+ggplot2$ggplot(arrivals_dt, ggplot2$aes(x = inter_arrival)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 20,
+                   fill = "#56B4E9", colour = "white") +
+    ggplot2$stat_function(fun = function(x) dexp(x / 60, lambda) / 60,
+                  colour = "#D55E00", size = 1.2) +
+    ggplot2$labs(
+        title = "Distribution of Time Between A&E Arrivals",
+        subtitle = sprintf("Exponential(λ = %d/hour); most waits are short, but occasionally long", lambda),
+        x = "Time Between Arrivals (minutes)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+**Reliability and Survival Analysis**
+
+```{r exp_reliability}
+# Equipment failure times
+
+# Mean time to failure = 1000 hours
+MTTF <- 1000
+lambda <- 1 / MTTF
+
+cat("Equipment Reliability Example\n")
+cat("==============================\n\n")
+
+cat(sprintf("Mean Time To Failure (MTTF): %d hours\n", MTTF))
+cat(sprintf("Failure rate λ = 1/MTTF = %.4f per hour\n\n", lambda))
+
+# Reliability function R(t) = P(survive past t)
+times <- c(100, 500, 1000, 2000)
+cat("Reliability R(t) = P(X > t):\n")
+for (t in times) {
+    cat(sprintf("  R(%4d hours) = %.4f\n", t, 1 - pexp(t, lambda)))
+}
+
+# Hazard function (for exponential, it's constant = λ)
+cat(sprintf("\nHazard rate (failure rate): λ = %.4f per hour (constant)\n", lambda))
+cat("The exponential assumes constant hazard — no wear-out or improvement.\n")
+```
+
+---
+
+## 5.11 The Gamma Distribution
+
+### 5.11.1 Definition and Properties
+
+**Prose and Intuition**
+
+The **gamma distribution** is a flexible family for positive-valued random variables. It generalises the exponential and includes many useful special cases.
+
+The gamma arises as:
+- Time until $k$ events in a Poisson process (sum of $k$ exponentials)
+- Prior for rate parameters in Bayesian inference
+- Model for skewed positive data (income, claim sizes, reaction times)
+
+**Mathematical Definition**
+
+A random variable $X$ has a **gamma distribution** with shape parameter $\alpha > 0$ and rate parameter $\beta > 0$, written $X \sim \text{Gamma}(\alpha, \beta)$, if its PDF is:
+
+$$f(x) = \frac{\beta^\alpha}{\Gamma(\alpha)} x^{\alpha-1} e^{-\beta x} \quad \text{for } x > 0$$
+
+where $\Gamma(\alpha) = \int_0^\infty t^{\alpha-1} e^{-t} dt$ is the gamma function.
+
+For integer $\alpha = n$: $\Gamma(n) = (n-1)!$
+
+**Alternative parameterisation:** Some sources use scale $\theta = 1/\beta$ instead of rate $\beta$.
+
+**Mean and Variance:**
+$$E(X) = \frac{\alpha}{\beta}$$
+$$\text{Var}(X) = \frac{\alpha}{\beta^2}$$
+
+```{r gamma_dist, fig.cap="Gamma distribution for different shape and rate parameters"}
+# Visualise gamma distributions
+
+params <- list(
+    list(shape = 1, rate = 1, label = "α=1, β=1 (Exponential)"),
+    list(shape = 2, rate = 1, label = "α=2, β=1"),
+    list(shape = 5, rate = 1, label = "α=5, β=1"),
+    list(shape = 5, rate = 2, label = "α=5, β=2"),
+    list(shape = 0.5, rate = 1, label = "α=0.5, β=1")
+)
+
+x_seq <- seq(0.01, 15, by = 0.01)
+
+gamma_dt <- rbindlist(lapply(params, function(p) {
+    data.table(
+        x = x_seq,
+        density = dgamma(x_seq, shape = p$shape, rate = p$rate),
+        params = p$label
+    )
+}))
+
+cat("Gamma Distribution: X ~ Gamma(α, β)\n")
+cat("====================================\n\n")
+
+cat("Parameters:\n")
+cat("  α (shape): controls shape of distribution\n")
+cat("  β (rate): controls scale (higher β = more compressed)\n\n")
+
+cat("Properties:\n")
+for (p in params) {
+    mean_val <- p$shape / p$rate
+    var_val <- p$shape / p$rate^2
+    cat(sprintf("  %s: E(X) = %.2f, Var(X) = %.2f\n", p$label, mean_val, var_val))
+}
+
+ggplot2$ggplot(gamma_dt, ggplot2$aes(x = x, y = density, colour = params)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$coord_cartesian(ylim = c(0, 0.6)) +
+    ggplot2$labs(
+        title = "Gamma Distribution",
+        subtitle = "Flexible family for positive-valued data",
+        x = "x",
+        y = "f(x)",
+        colour = "Parameters"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 5.11.2 Special Cases
+
+**Exponential Distribution**
+
+When $\alpha = 1$, the gamma becomes the exponential:
+$$\text{Gamma}(1, \beta) = \text{Exp}(\beta)$$
+
+**Chi-Square Distribution**
+
+The chi-square with $\nu$ degrees of freedom is a gamma with $\alpha = \nu/2$ and $\beta = 1/2$:
+$$\chi^2(\nu) = \text{Gamma}(\nu/2, 1/2)$$
+
+**Erlang Distribution**
+
+When $\alpha$ is a positive integer, the gamma is called the Erlang distribution — the distribution of the sum of $\alpha$ independent Exp($\beta$) random variables.
+
+```{r gamma_special_cases, fig.cap="Special cases of the gamma distribution"}
+# Show special cases
+
+x_seq <- seq(0.01, 20, by = 0.01)
+
+special_dt <- data.table(
+    x = rep(x_seq, 3),
+    density = c(
+        dgamma(x_seq, 1, 2),           # Exp(2)
+        dgamma(x_seq, 5/2, 1/2),       # Chi-square(5)
+        dgamma(x_seq, 3, 1)            # Erlang(3, 1)
+    ),
+    distribution = rep(c("Gamma(1, 2) = Exp(2)",
+                        "Gamma(2.5, 0.5) = χ²(5)",
+                        "Gamma(3, 1) = Erlang(3, 1)"),
+                      each = length(x_seq))
+)
+
+cat("Special Cases of the Gamma Distribution\n")
+cat("========================================\n\n")
+
+cat("1. EXPONENTIAL: Gamma(1, β) = Exp(β)\n")
+cat("   Time until first event in Poisson process\n\n")
+
+cat("2. CHI-SQUARE: Gamma(ν/2, 1/2) = χ²(ν)\n")
+cat("   Sum of squared standard normals\n")
+cat("   Fundamental for inference about variance\n\n")
+
+cat("3. ERLANG: Gamma(k, β) with integer k\n")
+cat("   Sum of k independent Exp(β) variables\n")
+cat("   Time until kth event in Poisson process\n")
+
+ggplot2$ggplot(special_dt, ggplot2$aes(x = x, y = density, colour = distribution)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_brewer(palette = "Set2") +
+    ggplot2$labs(
+        title = "Special Cases of the Gamma Distribution",
+        subtitle = "Exponential, Chi-square, and Erlang are all gamma distributions",
+        x = "x",
+        y = "f(x)",
+        colour = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+### 5.11.3 Applications
+
+**Sum of Waiting Times**
+
+```{r gamma_waiting_times}
+# Time until 5th patient arrival (Erlang distribution)
+
+lambda <- 2  # 2 arrivals per hour
+k <- 5       # Wait for 5th arrival
+
+cat("Time Until kth Event: Erlang Distribution\n")
+cat("==========================================\n\n")
+
+cat(sprintf("Setting: Events at rate λ = %d per hour\n", lambda))
+cat(sprintf("Question: What is the distribution of time until the %dth event?\n\n", k))
+
+cat("Answer: Erlang(k, λ) = Gamma(k, λ)\n\n")
+
+mean_time <- k / lambda
+sd_time <- sqrt(k) / lambda
+
+cat(sprintf("Mean time until %dth event: %.2f hours\n", k, mean_time))
+cat(sprintf("SD: %.2f hours\n\n", sd_time))
+
+# Probabilities
+cat("Probability calculations:\n")
+cat(sprintf("  P(5th arrival within 2 hours): %.4f\n", pgamma(2, k, lambda)))
+cat(sprintf("  P(5th arrival takes > 4 hours): %.4f\n", 1 - pgamma(4, k, lambda)))
+
+# Simulate
+set.seed(42)
+n_sim <- 10000
+waiting_times <- rgamma(n_sim, k, lambda)
+
+ggplot2$ggplot(data.table(x = waiting_times), ggplot2$aes(x = x)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ..density..), bins = 50,
+                   fill = "#56B4E9", colour = "white") +
+    ggplot2$stat_function(fun = function(x) dgamma(x, k, lambda),
+                  colour = "#D55E00", size = 1.2) +
+    ggplot2$geom_vline(xintercept = mean_time, linetype = "dashed", colour = "#009E73") +
+    ggplot2$annotate("text", x = mean_time + 0.2, y = 0.5,
+             label = sprintf("Mean = %.1f hours", mean_time),
+             hjust = 0, colour = "#009E73") +
+    ggplot2$labs(
+        title = sprintf("Time Until %dth Arrival: Gamma(%d, %d)", k, k, lambda),
+        subtitle = "Erlang distribution = sum of exponential waiting times",
+        x = "Time (hours)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 5.12 The Beta Distribution
+
+### 5.12.1 Definition and Properties
+
+**Prose and Intuition**
+
+The **beta distribution** is a flexible family for random variables on the interval [0, 1]. It's ideal for modelling:
+- Probabilities and proportions
+- Percentages and fractions
+- Prior distributions in Bayesian inference for success probabilities
+
+With two shape parameters ($\alpha$ and $\beta$), the beta can take many shapes: uniform, U-shaped, J-shaped, symmetric, skewed.
+
+**Mathematical Definition**
+
+A random variable $X$ has a **beta distribution** with parameters $\alpha > 0$ and $\beta > 0$, written $X \sim \text{Beta}(\alpha, \beta)$, if its PDF is:
+
+$$f(x) = \frac{x^{\alpha-1}(1-x)^{\beta-1}}{B(\alpha, \beta)} \quad \text{for } 0 < x < 1$$
+
+where $B(\alpha, \beta) = \frac{\Gamma(\alpha)\Gamma(\beta)}{\Gamma(\alpha + \beta)}$ is the beta function.
+
+**Mean and Variance:**
+$$E(X) = \frac{\alpha}{\alpha + \beta}$$
+$$\text{Var}(X) = \frac{\alpha \beta}{(\alpha + \beta)^2 (\alpha + \beta + 1)}$$
+
+**Special cases:**
+- Beta(1, 1) = Uniform(0, 1)
+- Beta(α, α) is symmetric about 0.5
+
+```{r beta_dist, fig.cap="Beta distribution showing its flexibility for modelling proportions"}
+# Visualise beta distributions
+
+beta_params <- list(
+    list(a = 1, b = 1, label = "α=1, β=1 (Uniform)"),
+    list(a = 2, b = 2, label = "α=2, β=2 (Symmetric)"),
+    list(a = 5, b = 2, label = "α=5, β=2 (Left-skewed)"),
+    list(a = 2, b = 5, label = "α=2, β=5 (Right-skewed)"),
+    list(a = 0.5, b = 0.5, label = "α=0.5, β=0.5 (U-shaped)"),
+    list(a = 5, b = 1, label = "α=5, β=1 (J-shaped)")
+)
+
+x_seq <- seq(0.001, 0.999, by = 0.001)
+
+beta_dt <- rbindlist(lapply(beta_params, function(p) {
+    data.table(
+        x = x_seq,
+        density = dbeta(x_seq, p$a, p$b),
+        params = p$label
+    )
+}))
+
+cat("Beta Distribution: X ~ Beta(α, β)\n")
+cat("===================================\n\n")
+
+cat("Support: (0, 1) — perfect for probabilities and proportions\n\n")
+
+cat("Mean = α / (α + β)\n\n")
+
+cat("Shape interpretations:\n")
+for (p in beta_params) {
+    mean_val <- p$a / (p$a + p$b)
+    cat(sprintf("  %s: mean = %.2f\n", p$label, mean_val))
+}
+
+ggplot2$ggplot(beta_dt, ggplot2$aes(x = x, y = density, colour = params)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_brewer(palette = "Set2") +
+    ggplot2$coord_cartesian(ylim = c(0, 4)) +
+    ggplot2$labs(
+        title = "Beta Distribution: Flexible Family on [0, 1]",
+        subtitle = "Can be uniform, U-shaped, J-shaped, or unimodal (symmetric or skewed)",
+        x = "x",
+        y = "f(x)",
+        colour = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom",
+          legend.text = ggplot2$element_text(size = 8))
+```
+
+### 5.12.2 Applications
+
+**Bayesian Inference for Proportions**
+
+The beta distribution is the **conjugate prior** for the binomial likelihood. If your prior for a success probability is Beta($\alpha$, $\beta$) and you observe $k$ successes in $n$ trials, the posterior is Beta($\alpha + k$, $\beta + n - k$).
+
+```{r beta_bayesian, fig.cap="Bayesian updating: prior + data = posterior"}
+# Bayesian updating example
+
+# Prior: Beta(2, 2) - slight preference for 0.5
+alpha_prior <- 2
+beta_prior <- 2
+
+# Data: 7 successes in 10 trials
+successes <- 7
+trials <- 10
+
+# Posterior
+alpha_post <- alpha_prior + successes
+beta_post <- beta_prior + (trials - successes)
+
+cat("Bayesian Updating with Beta-Binomial Model\n")
+cat("===========================================\n\n")
+
+cat(sprintf("Prior: Beta(%d, %d)\n", alpha_prior, beta_prior))
+cat(sprintf("  Prior mean: %.2f\n\n", alpha_prior / (alpha_prior + beta_prior)))
+
+cat(sprintf("Data: %d successes in %d trials\n\n", successes, trials))
+
+cat(sprintf("Posterior: Beta(%d, %d)\n", alpha_post, beta_post))
+cat(sprintf("  Posterior mean: %.2f\n", alpha_post / (alpha_post + beta_post)))
+cat(sprintf("  (Maximum likelihood estimate: %.1f)\n\n", successes / trials))
+
+# 95% credible interval
+lower <- qbeta(0.025, alpha_post, beta_post)
+upper <- qbeta(0.975, alpha_post, beta_post)
+cat(sprintf("95%% Credible Interval: [%.3f, %.3f]\n", lower, upper))
+
+# Visualise
+x_seq <- seq(0, 1, by = 0.001)
+
+bayes_dt <- data.table(
+    x = rep(x_seq, 3),
+    density = c(
+        dbeta(x_seq, alpha_prior, beta_prior),
+        dbinom(successes, trials, x_seq) * 10,  # Scaled likelihood
+        dbeta(x_seq, alpha_post, beta_post)
+    ),
+    distribution = rep(c("Prior", "Likelihood (scaled)", "Posterior"),
+                       each = length(x_seq))
+)
+
+bayes_dt$distribution <- factor(bayes_dt$distribution,
+                                levels = c("Prior", "Likelihood (scaled)", "Posterior"))
+
+ggplot2$ggplot(bayes_dt, ggplot2$aes(x = x, y = density, colour = distribution)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$geom_vline(xintercept = successes/trials, linetype = "dashed", colour = "grey50") +
+    ggplot2$scale_colour_manual(values = c("#56B4E9", "#009E73", "#D55E00")) +
+    ggplot2$labs(
+        title = "Bayesian Updating: Prior × Likelihood ∝ Posterior",
+        subtitle = sprintf("Prior Beta(%d,%d) + %d/%d data → Posterior Beta(%d,%d)",
+                          alpha_prior, beta_prior, successes, trials,
+                          alpha_post, beta_post),
+        x = "Probability of Success",
+        y = "Density",
+        colour = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 5.13 Distributions Related to the Normal
+
+Three distributions arise from transformations of normal random variables and are fundamental to statistical inference.
+
+### 5.13.1 Chi-Square Distribution
+
+**Prose and Intuition**
+
+The **chi-square distribution** arises as the sum of squared independent standard normal variables. If $Z_1, Z_2, \ldots, Z_\nu$ are independent $N(0, 1)$, then:
+
+$$X = Z_1^2 + Z_2^2 + \cdots + Z_\nu^2 \sim \chi^2(\nu)$$
+
+The parameter $\nu$ is called the **degrees of freedom**.
+
+Chi-square is fundamental for:
+- Testing variance (is variance equal to a hypothesised value?)
+- Goodness-of-fit tests (do observed frequencies match expected?)
+- Contingency tables (are two categorical variables independent?)
+
+**Mathematical Properties**
+
+$$\chi^2(\nu) = \text{Gamma}(\nu/2, 1/2)$$
+
+$$E(X) = \nu$$
+$$\text{Var}(X) = 2\nu$$
+
+The chi-square is right-skewed, but becomes more symmetric as $\nu$ increases.
+
+```{r chi_square, fig.cap="Chi-square distribution for different degrees of freedom"}
+# Chi-square distributions
+
+df_values <- c(1, 2, 5, 10, 20)
+
+x_seq <- seq(0.01, 40, by = 0.1)
+
+chi_dt <- rbindlist(lapply(df_values, function(df) {
+    data.table(
+        x = x_seq,
+        density = dchisq(x_seq, df),
+        df = paste("ν =", df)
+    )
+}))
+
+chi_dt$df <- factor(chi_dt$df, levels = paste("ν =", df_values))
+
+cat("Chi-Square Distribution: X ~ χ²(ν)\n")
+cat("====================================\n\n")
+
+cat("Properties:\n")
+for (df in df_values) {
+    cat(sprintf("  ν = %2d: E(X) = %2d, Var(X) = %2d\n", df, df, 2 * df))
+}
+
+cat("\nNote: E(X) = ν and Var(X) = 2ν\n")
+cat("As ν → ∞, χ² approaches normal distribution\n")
+
+ggplot2$ggplot(chi_dt, ggplot2$aes(x = x, y = density, colour = df)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Chi-Square Distribution",
+        subtitle = "Sum of squared standard normals; key for variance testing",
+        x = "x",
+        y = "f(x)",
+        colour = "Degrees of Freedom"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+**Demonstration: Sum of Squared Normals**
+
+```{r chi_square_demo}
+# Verify chi-square = sum of squared normals
+
+set.seed(42)
+n_sim <- 100000
+nu <- 5
+
+# Generate chi-square directly
+X_direct <- rchisq(n_sim, nu)
+
+# Generate as sum of squared normals
+Z_matrix <- matrix(rnorm(n_sim * nu), nrow = n_sim, ncol = nu)
+X_sum <- rowSums(Z_matrix^2)
+
+cat("Verification: χ²(5) = Sum of 5 Squared Standard Normals\n")
+cat("=======================================================\n\n")
+
+cat("Direct χ²(5) generation:\n")
+cat(sprintf("  Mean: %.4f (theoretical: %d)\n", mean(X_direct), nu))
+cat(sprintf("  Var: %.4f (theoretical: %d)\n\n", var(X_direct), 2 * nu))
+
+cat("Sum of Z₁² + Z₂² + Z₃² + Z₄² + Z₅²:\n")
+cat(sprintf("  Mean: %.4f\n", mean(X_sum)))
+cat(sprintf("  Var: %.4f\n", var(X_sum)))
+```
+
+### 5.13.2 Student's t-Distribution
+
+**Prose and Intuition**
+
+The **Student's t-distribution** arises when we estimate the population mean but don't know the population standard deviation. It was discovered by William Sealy Gosset (publishing under the pseudonym "Student") while working at Guinness Brewery.
+
+If $Z \sim N(0, 1)$ and $V \sim \chi^2(\nu)$ are independent, then:
+
+$$T = \frac{Z}{\sqrt{V/\nu}} \sim t(\nu)$$
+
+In practice: when we estimate a population mean $\mu$ using sample mean $\bar{X}$ and sample standard deviation $s$:
+
+$$T = \frac{\bar{X} - \mu}{s/\sqrt{n}} \sim t(n-1)$$
+
+**Mathematical Properties**
+
+- Symmetric about 0 (like the normal)
+- Heavier tails than normal (more probability in extremes)
+- As $\nu \to \infty$, the t-distribution approaches $N(0, 1)$
+
+For $\nu > 1$: $E(T) = 0$
+For $\nu > 2$: $\text{Var}(T) = \frac{\nu}{\nu - 2}$
+
+```{r t_distribution, fig.cap="Student's t-distribution compared to the standard normal"}
+# t-distribution vs normal
+
+df_values <- c(1, 2, 5, 10, 30)
+
+x_seq <- seq(-5, 5, by = 0.01)
+
+t_dt <- rbindlist(lapply(df_values, function(df) {
+    data.table(
+        x = x_seq,
+        density = dt(x_seq, df),
+        distribution = paste("t(", df, ")", sep = "")
+    )
+}))
+
+# Add normal for comparison
+normal_dt <- data.table(
+    x = x_seq,
+    density = dnorm(x_seq),
+    distribution = "N(0, 1)"
+)
+
+t_dt <- rbindlist(list(t_dt, normal_dt))
+t_dt$distribution <- factor(t_dt$distribution,
+                            levels = c(paste0("t(", df_values, ")"), "N(0, 1)"))
+
+cat("Student's t-Distribution\n")
+cat("=========================\n\n")
+
+cat("Comparison to standard normal:\n")
+cat("  • Same symmetric bell shape\n")
+cat("  • Heavier tails (more extreme values likely)\n")
+cat("  • Approaches N(0, 1) as degrees of freedom increase\n\n")
+
+# Show tail probabilities
+cat("P(|X| > 2):\n")
+cat(sprintf("  N(0, 1): %.4f\n", 2 * pnorm(-2)))
+for (df in df_values) {
+    cat(sprintf("  t(%2d):  %.4f\n", df, 2 * pt(-2, df)))
+}
+
+ggplot2$ggplot(t_dt, ggplot2$aes(x = x, y = density, colour = distribution)) +
+    ggplot2$geom_line(size = 1) +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "Student's t-Distribution vs Standard Normal",
+        subtitle = "t has heavier tails; converges to normal as df → ∞",
+        x = "x",
+        y = "f(x)",
+        colour = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+**Why the t-Distribution Matters**
+
+```{r t_importance}
+cat("Why Use the t-Distribution?\n")
+cat("============================\n\n")
+
+cat("When we don't know σ (population SD), we estimate it with s (sample SD).\n")
+cat("This introduces additional uncertainty beyond the sampling of X̄.\n\n")
+
+cat("The t-distribution accounts for this extra uncertainty:\n")
+cat("  • With small samples, uncertainty in s is large → heavier tails\n")
+cat("  • With large samples, s → σ → t approaches normal\n\n")
+
+cat("Rule of thumb:\n")
+cat("  • n < 30: Use t-distribution\n")
+cat("  • n ≥ 30: t ≈ normal (but using t is still correct)\n")
+cat("  • n → ∞: t → normal\n")
+```
+
+### 5.13.3 F-Distribution
+
+**Prose and Intuition**
+
+The **F-distribution** arises as the ratio of two independent chi-square variables (each divided by its degrees of freedom). It's named after R.A. Fisher.
+
+If $U \sim \chi^2(\nu_1)$ and $V \sim \chi^2(\nu_2)$ are independent, then:
+
+$$F = \frac{U/\nu_1}{V/\nu_2} \sim F(\nu_1, \nu_2)$$
+
+The F-distribution is used for:
+- Comparing two variances (are they equal?)
+- ANOVA (comparing means across multiple groups)
+- Testing significance of regression models
+
+**Mathematical Properties**
+
+- Defined on $(0, \infty)$
+- Right-skewed
+- Two degrees of freedom parameters: $\nu_1$ (numerator) and $\nu_2$ (denominator)
+
+For $\nu_2 > 2$: $E(F) = \frac{\nu_2}{\nu_2 - 2}$
+
+```{r f_distribution, fig.cap="F-distribution for different degrees of freedom"}
+# F-distribution
+
+f_params <- list(
+    list(df1 = 1, df2 = 10),
+    list(df1 = 5, df2 = 10),
+    list(df1 = 10, df2 = 10),
+    list(df1 = 10, df2 = 30),
+    list(df1 = 50, df2 = 50)
+)
+
+x_seq <- seq(0.01, 5, by = 0.01)
+
+f_dt <- rbindlist(lapply(f_params, function(p) {
+    data.table(
+        x = x_seq,
+        density = df(x_seq, p$df1, p$df2),
+        params = sprintf("F(%d, %d)", p$df1, p$df2)
+    )
+}))
+
+cat("F-Distribution: F ~ F(ν₁, ν₂)\n")
+cat("==============================\n\n")
+
+cat("Ratio of two chi-squares (normalised by df)\n\n")
+
+cat("Properties:\n")
+for (p in f_params) {
+    if (p$df2 > 2) {
+        mean_val <- p$df2 / (p$df2 - 2)
+        cat(sprintf("  F(%d, %d): E(F) = %.3f\n", p$df1, p$df2, mean_val))
+    } else {
+        cat(sprintf("  F(%d, %d): E(F) undefined (df2 <= 2)\n", p$df1, p$df2))
+    }
+}
+
+ggplot2$ggplot(f_dt, ggplot2$aes(x = x, y = density, colour = params)) +
+    ggplot2$geom_line(size = 1.2) +
+    ggplot2$scale_colour_brewer(palette = "Set1") +
+    ggplot2$labs(
+        title = "F-Distribution",
+        subtitle = "Ratio of chi-squares; used in ANOVA and variance tests",
+        x = "x",
+        y = "f(x)",
+        colour = NULL
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(legend.position = "bottom")
+```
+
+---
+
+## 5.14 Choosing the Right Distribution
+
+### 5.14.1 Decision Flowchart
+
+```{r distribution_guide}
+cat("Choosing the Right Distribution: Decision Guide\n")
+cat("=================================================\n\n")
+
+cat("DISCRETE DATA (counts, categories):\n")
+cat("  ├─ Binary outcome? → Bernoulli\n")
+cat("  ├─ Count successes in n trials? → Binomial\n")
+cat("  ├─ Count events at constant rate? → Poisson\n")
+cat("  ├─ Variance > mean (overdispersion)? → Negative Binomial\n")
+cat("  ├─ Trials until first success? → Geometric\n")
+cat("  ├─ Trials until r successes? → Negative Binomial\n")
+cat("  └─ Sample from finite population? → Hypergeometric\n\n")
+
+cat("CONTINUOUS DATA (measurements):\n")
+cat("  ├─ Bounded [a, b]?\n")
+cat("  │   ├─ Equal probability? → Uniform(a, b)\n")
+cat("  │   └─ Probability/proportion on [0,1]? → Beta\n")
+cat("  ├─ Positive values only?\n")
+cat("  │   ├─ Waiting/survival time? → Exponential or Gamma\n")
+cat("  │   ├─ Time until k events? → Gamma (Erlang)\n")
+cat("  │   └─ Skewed positive data? → Gamma or Log-normal\n")
+cat("  └─ Unbounded (all reals)?\n")
+cat("      ├─ Symmetric bell-shaped? → Normal\n")
+cat("      └─ Sum of many factors? → Normal (CLT)\n\n")
+
+cat("FOR INFERENCE:\n")
+cat("  ├─ Sample mean, σ known? → Normal (Z)\n")
+cat("  ├─ Sample mean, σ unknown? → t-distribution\n")
+cat("  ├─ Sample variance? → Chi-square\n")
+cat("  ├─ Ratio of variances? → F-distribution\n")
+cat("  └─ Categorical frequencies? → Chi-square\n")
+```
+
+### 5.14.2 Visual Assessment of Fit
+
+```{r visual_assessment, fig.cap="QQ plots for assessing distributional fit"}
+# Demonstrate visual distribution assessment
+
+set.seed(42)
+
+# Generate data from different distributions
+n <- 500
+
+normal_data <- rnorm(n, 100, 15)
+skewed_data <- rgamma(n, 4, 0.1)
+heavy_tailed <- rt(n, 3) * 10 + 100
+
+# Create QQ plots against normal
+qq_normal <- data.table(
+    theoretical = qnorm(ppoints(n)),
+    sample = sort(scale(normal_data)),
+    distribution = "Normal Data"
+)
+
+qq_skewed <- data.table(
+    theoretical = qnorm(ppoints(n)),
+    sample = sort(scale(skewed_data)),
+    distribution = "Right-Skewed Data"
+)
+
+qq_heavy <- data.table(
+    theoretical = qnorm(ppoints(n)),
+    sample = sort(scale(heavy_tailed)),
+    distribution = "Heavy-Tailed Data"
+)
+
+qq_dt <- rbindlist(list(qq_normal, qq_skewed, qq_heavy))
+
+ggplot2$ggplot(qq_dt, ggplot2$aes(x = theoretical, y = sample)) +
+    ggplot2$geom_point(alpha = 0.5, colour = "#56B4E9") +
+    ggplot2$geom_abline(intercept = 0, slope = 1, colour = "#D55E00", size = 1) +
+    ggplot2$facet_wrap(~distribution) +
+    ggplot2$labs(
+        title = "QQ Plots for Distribution Assessment",
+        subtitle = "Points on the line indicate good fit to normal distribution",
+        x = "Theoretical Quantiles (Normal)",
+        y = "Sample Quantiles"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
+
+cat("\nInterpreting QQ Plots:\n")
+cat("  • Points on line: Good fit to reference distribution\n")
+cat("  • S-shaped curve: Data is skewed\n")
+cat("  • Points above/below at extremes: Heavy/light tails\n")
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Distribution Choice
+
+```{r stakeholder_dist_choice}
+cat("Explaining Distribution Choice to Stakeholders\n")
+cat("===============================================\n\n")
+
+cat("FOR CLINICAL COLLEAGUES:\n")
+cat("  'We chose the [distribution] because it matches how this type of data\n")
+cat("   typically behaves. For example:\n")
+cat("   - Waiting times are never negative and often have a long tail → Exponential\n")
+cat("   - Proportions are between 0 and 1 → Beta\n")
+cat("   - Measurements like height cluster around an average → Normal'\n\n")
+
+cat("FOR INTERPRETATION:\n")
+cat("  'The model tells us that:\n")
+cat("   - 95% of values fall between [X] and [Y]\n")
+cat("   - The average is [Z] with uncertainty ±[W]\n")
+cat("   - Seeing a value below [V] would be unusual (happens < 5% of the time)'\n\n")
+
+cat("WHEN ASSUMPTIONS DON'T HOLD:\n")
+cat("  'The standard methods assume a bell-shaped distribution. Our data is\n")
+cat("   skewed, so we used [alternative] which is more appropriate. This gives\n")
+cat("   us more reliable estimates.'\n")
+```
+
+---
+
+## Quick Reference
+
+### Exponential Distribution
+
+$$X \sim \text{Exp}(\lambda)$$
+
+| Property | Value |
+|----------|-------|
+| PDF | $f(x) = \lambda e^{-\lambda x}$ for $x \geq 0$ |
+| CDF | $F(x) = 1 - e^{-\lambda x}$ |
+| Mean | $E(X) = 1/\lambda$ |
+| Variance | $\text{Var}(X) = 1/\lambda^2$ |
+| Key property | Memoryless |
+
+**R functions:** `dexp()`, `pexp()`, `qexp()`, `rexp()`
+
+### Gamma Distribution
+
+$$X \sim \text{Gamma}(\alpha, \beta)$$
+
+| Property | Value |
+|----------|-------|
+| PDF | $f(x) = \frac{\beta^\alpha}{\Gamma(\alpha)} x^{\alpha-1} e^{-\beta x}$ |
+| Mean | $E(X) = \alpha/\beta$ |
+| Variance | $\text{Var}(X) = \alpha/\beta^2$ |
+| Special cases | Exp, Chi-square, Erlang |
+
+**R functions:** `dgamma()`, `pgamma()`, `qgamma()`, `rgamma()`
+
+### Beta Distribution
+
+$$X \sim \text{Beta}(\alpha, \beta)$$
+
+| Property | Value |
+|----------|-------|
+| PDF | $f(x) = \frac{x^{\alpha-1}(1-x)^{\beta-1}}{B(\alpha, \beta)}$ |
+| Support | $(0, 1)$ |
+| Mean | $E(X) = \alpha/(\alpha + \beta)$ |
+| Special case | Beta(1, 1) = Uniform(0, 1) |
+
+**R functions:** `dbeta()`, `pbeta()`, `qbeta()`, `rbeta()`
+
+### Distributions from the Normal
+
+| Distribution | Definition | Key Use |
+|-------------|------------|---------|
+| Chi-square $\chi^2(\nu)$ | Sum of $\nu$ squared standard normals | Variance testing |
+| Student's t $t(\nu)$ | $Z / \sqrt{V/\nu}$ | Mean testing (unknown σ) |
+| F $F(\nu_1, \nu_2)$ | Ratio of chi-squares | ANOVA, variance ratio |
+
+**R functions:**
+- Chi-square: `dchisq()`, `pchisq()`, `qchisq()`, `rchisq()`
+- t: `dt()`, `pt()`, `qt()`, `rt()`
+- F: `df()`, `pf()`, `qf()`, `rf()`
+
+### Distribution Summary Table
+
+| Distribution | Support | Parameters | Mean | Variance |
+|-------------|---------|------------|------|----------|
+| Exponential | $[0, \infty)$ | $\lambda$ (rate) | $1/\lambda$ | $1/\lambda^2$ |
+| Gamma | $(0, \infty)$ | $\alpha$, $\beta$ | $\alpha/\beta$ | $\alpha/\beta^2$ |
+| Beta | $(0, 1)$ | $\alpha$, $\beta$ | $\frac{\alpha}{\alpha+\beta}$ | complex |
+| Chi-square | $[0, \infty)$ | $\nu$ (df) | $\nu$ | $2\nu$ |
+| Student's t | $(-\infty, \infty)$ | $\nu$ (df) | 0 | $\frac{\nu}{\nu-2}$ |
+| F | $(0, \infty)$ | $\nu_1$, $\nu_2$ | $\frac{\nu_2}{\nu_2-2}$ | complex |
+
+---
+
+## Chapter 5 Summary
+
+This four-part chapter covered the major probability distributions used in statistics:
+
+**Part 1: Foundations**
+- Random variables map outcomes to numbers
+- Discrete distributions: Bernoulli (single trial), Binomial (n trials)
+
+**Part 2: Count Data**
+- Poisson (events at constant rate, mean = variance)
+- Geometric (trials until first success)
+- Negative binomial (trials until r successes, handles overdispersion)
+- Hypergeometric (sampling without replacement)
+
+**Part 3: Continuous Distributions**
+- PDF and CDF for continuous variables
+- Uniform (equal probability on interval)
+- Normal (the bell curve, 68-95-99.7 rule)
+
+**Part 4: Advanced Distributions**
+- Exponential (waiting times, memoryless property)
+- Gamma (flexible positive family, includes chi-square and Erlang)
+- Beta (proportions and probabilities on [0, 1])
+- Chi-square, t, and F distributions for inference
+
+**Key Takeaways:**
+
+1. Distribution choice depends on the data-generating process
+2. Each distribution has characteristic properties (mean, variance, shape)
+3. R provides d/p/q/r functions for all standard distributions
+4. Understanding distributions is essential for statistical inference
+
+In Chapter 6, we build on these distributions to understand **sampling distributions** and the **Central Limit Theorem** — the bridge from probability theory to statistical inference.

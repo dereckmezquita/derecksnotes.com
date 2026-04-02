@@ -1,0 +1,713 @@
+---
+title: "Statistics with R II: Intermediate"
+chapter: "Chapter 2: Regression Diagnostics and Remedies"
+part: "Part 1: Residual Analysis and Influence Measures"
+coverImage: 13
+author: "Dereck Mezquita"
+date: "`r Sys.Date()`"
+tags: [statistics, mathematics, regression, diagnostics, R, biomedical]
+published: true
+comments: true
+output:
+  html_document:
+    keep_md: true
+---
+
+```{r setup, include=FALSE}
+if (knitr::is_html_output()) knitr::knit_hooks$set(
+    plot = function(x, options) {
+        cap  <- options$fig.cap
+        as.character(htmltools::tag(
+            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+        ))
+    }
+)
+
+knitr::knit_hooks$set(optipng = knitr::hook_optipng)
+knitr::opts_chunk$set(dpi = 300, fig.width = 10, fig.height = 7, comment = "#>", warning = FALSE, collapse = FALSE, results = 'hold')
+```
+
+# Chapter 2: Regression Diagnostics and Remedies
+
+A regression model is only as good as its assumptions. In Chapter 1, we derived the OLS estimator and its properties under the classical assumptions. But how do we know if those assumptions hold? And what do we do when they don't?
+
+This chapter develops the diagnostic toolkit every analyst needs: residual plots to detect assumption violations, influence measures to identify problematic observations, and remedial strategies when problems arise.
+
+```{r packages, message=FALSE, warning=FALSE}
+box::use(
+    data.table[...],
+    ggplot2
+)
+```
+
+```{r load_data, message=FALSE}
+# Load datasets
+nhanes <- fread("../../../data/primary/nhanes.csv")
+hospital_los <- fread("../../../data/count/arizona_hospital_los.csv")
+
+# Prepare blood pressure data
+bp_data <- nhanes[!is.na(BPSysAve) & !is.na(Age) & !is.na(BMI) &
+                  !is.na(Pulse) & Age >= 18,
+                  .(SBP = BPSysAve, Age = Age, BMI = BMI, Pulse = Pulse)]
+bp_data <- bp_data[complete.cases(bp_data)]
+
+cat("Datasets loaded:\n")
+cat("  NHANES (BP data):", nrow(bp_data), "observations\n")
+cat("  Hospital LOS:", nrow(hospital_los), "observations\n")
+```
+
+---
+
+## Table of Contents
+
+## 1.1 Why Diagnostics Matter
+
+### 1.1.1 Assumptions Revisited
+
+**Prose and Intuition**
+
+The classical linear regression model assumes:
+
+1. **Linearity**: The relationship between predictors and response is linear
+2. **Independence**: Observations are independent of each other
+3. **Homoscedasticity**: Error variance is constant across all predictor values
+4. **Normality**: Errors are normally distributed
+
+When these assumptions fail:
+- **Linearity violation**: Predictions are biased; we're fitting the wrong model
+- **Independence violation**: Standard errors are wrong; inference is invalid
+- **Heteroscedasticity**: Standard errors are wrong; CIs and tests unreliable
+- **Non-normality**: For small samples, inference may be affected
+
+The good news: OLS is robust to moderate departures from normality (especially with large samples). The bad news: violations of linearity and independence are more serious.
+
+### 1.1.2 The Diagnostic Workflow
+
+```{r diagnostic_workflow}
+# Fit a model for diagnostics
+model <- lm(SBP ~ Age + BMI + Pulse, data = bp_data)
+
+cat("Diagnostic Workflow:\n")
+cat("====================\n\n")
+cat("1. Fit the model\n")
+cat("2. Examine residual plots\n")
+cat("   - Residuals vs Fitted (linearity, homoscedasticity)\n")
+cat("   - Q-Q plot (normality)\n")
+cat("   - Scale-Location plot (homoscedasticity)\n")
+cat("   - Residuals vs predictors (linearity per predictor)\n")
+cat("3. Check for influential observations\n")
+cat("   - Leverage (unusual X values)\n")
+cat("   - Standardised/studentised residuals (unusual Y values)\n")
+cat("   - Cook's distance (overall influence)\n")
+cat("4. Apply remedies if needed\n")
+cat("   - Transform variables\n")
+cat("   - Use robust methods\n")
+cat("   - Remove influential points (with caution)\n")
+```
+
+---
+
+## 1.2 Types of Residuals
+
+### 1.2.1 Raw Residuals
+
+**Mathematical Definition**
+
+The **raw residual** for observation $i$ is simply:
+$$e_i = Y_i - \hat{Y}_i$$
+
+These are the vertical distances from observations to the fitted line.
+
+**Limitation**: Raw residuals have non-constant variance even when the model is correct. Observations with high leverage have smaller residual variance.
+
+```{r raw_residuals, fig.cap="Distribution of raw residuals"}
+# Compute raw residuals
+bp_data[, residual := residuals(model)]
+bp_data[, fitted := fitted(model)]
+
+cat("Raw Residuals Summary:\n")
+cat("======================\n\n")
+cat("Mean:", round(mean(bp_data$residual), 6), "(should be ~0)\n")
+cat("SD:", round(sd(bp_data$residual), 2), "\n")
+cat("Min:", round(min(bp_data$residual), 2), "\n")
+cat("Max:", round(max(bp_data$residual), 2), "\n")
+
+# Histogram of residuals
+ggplot2$ggplot(bp_data, ggplot2$aes(x = residual)) +
+    ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
+                           bins = 50, fill = "#0072B2", alpha = 0.7) +
+    ggplot2$geom_density(colour = "#D55E00", size = 1) +
+    ggplot2$stat_function(fun = dnorm,
+                          args = list(mean = 0, sd = sd(bp_data$residual)),
+                          colour = "#009E73", size = 1, linetype = "dashed") +
+    ggplot2$labs(
+        title = "Distribution of Raw Residuals",
+        subtitle = "Orange: kernel density | Green dashed: normal distribution",
+        x = "Residual (mmHg)",
+        y = "Density"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.2.2 Standardised Residuals
+
+**Mathematical Definition**
+
+**Standardised residuals** divide by the estimated standard deviation:
+$$r_i = \frac{e_i}{s\sqrt{1 - h_{ii}}}$$
+
+where $h_{ii}$ is the leverage (diagonal of the hat matrix) and $s$ is the residual standard error.
+
+The term $(1 - h_{ii})$ adjusts for the fact that high-leverage points tend to have smaller residuals.
+
+Under the model assumptions, standardised residuals have approximately unit variance.
+
+```{r standardised_residuals, fig.cap="Standardised residuals adjust for leverage"}
+# Compute standardised residuals
+bp_data[, std_residual := rstandard(model)]
+bp_data[, leverage := hatvalues(model)]
+
+cat("Standardised Residuals:\n")
+cat("=======================\n\n")
+cat("SD of standardised residuals:", round(sd(bp_data$std_residual), 4),
+    "(should be ~1)\n")
+cat("Observations with |r| > 2:", sum(abs(bp_data$std_residual) > 2), "\n")
+cat("Observations with |r| > 3:", sum(abs(bp_data$std_residual) > 3), "\n")
+cat("Expected with |r| > 2 (normal):", round(nrow(bp_data) * 0.046), "\n")
+cat("Expected with |r| > 3 (normal):", round(nrow(bp_data) * 0.003), "\n")
+```
+
+### 1.2.3 Studentised Residuals (Externally Studentised)
+
+**Mathematical Definition**
+
+**Studentised residuals** (also called externally studentised or deleted residuals) use a leave-one-out estimate of variance:
+$$t_i = \frac{e_i}{s_{(i)}\sqrt{1 - h_{ii}}}$$
+
+where $s_{(i)}$ is the residual standard error computed *without* observation $i$.
+
+Under the null hypothesis that observation $i$ follows the model, $t_i \sim t_{n-p-2}$.
+
+This makes studentised residuals ideal for detecting outliers because each observation doesn't influence its own residual's standardisation.
+
+```{r studentised_residuals}
+# Compute studentised residuals
+bp_data[, stud_residual := rstudent(model)]
+
+cat("Studentised Residuals:\n")
+cat("======================\n\n")
+
+# Formal outlier test using Bonferroni correction
+n <- nrow(bp_data)
+p <- 3
+alpha <- 0.05
+critical_t <- qt(1 - alpha / (2 * n), df = n - p - 2)
+
+cat("Bonferroni-corrected critical value (α = 0.05):", round(critical_t, 3), "\n")
+cat("Potential outliers (|t| > critical value):",
+    sum(abs(bp_data$stud_residual) > critical_t), "\n\n")
+
+# Show the most extreme
+extreme <- bp_data[order(-abs(stud_residual))][1:5]
+cat("Five most extreme studentised residuals:\n")
+print(extreme[, .(SBP, Age, BMI, Pulse, stud_residual = round(stud_residual, 2))])
+```
+
+---
+
+## 1.3 Residual Plots
+
+### 1.3.1 Residuals vs Fitted Values
+
+**Prose and Intuition**
+
+This is the most important diagnostic plot. We plot residuals against fitted values to check:
+
+1. **Linearity**: The residuals should scatter randomly around zero. A curved pattern suggests the true relationship is nonlinear.
+
+2. **Homoscedasticity**: The vertical spread should be roughly constant. A "funnel" shape (spreading or narrowing) indicates heteroscedasticity.
+
+```{r resid_vs_fitted, fig.cap="Residuals vs fitted values plot"}
+# Residuals vs fitted
+ggplot2$ggplot(bp_data, ggplot2$aes(x = fitted, y = residual)) +
+    ggplot2$geom_point(alpha = 0.3, colour = "#666666") +
+    ggplot2$geom_hline(yintercept = 0, colour = "#D55E00", linetype = "dashed") +
+    ggplot2$geom_smooth(method = "loess", colour = "#0072B2", se = FALSE, span = 0.5) +
+    ggplot2$labs(
+        title = "Residuals vs Fitted Values",
+        subtitle = "Check: Random scatter around zero (linearity); constant spread (homoscedasticity)",
+        x = "Fitted Values (mmHg)",
+        y = "Residuals (mmHg)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.3.2 Normal Q-Q Plot
+
+**Prose and Intuition**
+
+The Q-Q plot compares the distribution of standardised residuals to a theoretical normal distribution. If residuals are normal, points fall along the diagonal line.
+
+**Interpreting deviations:**
+- **S-shape**: Heavy tails (more extreme values than normal)
+- **Inverse S-shape**: Light tails
+- **Curve upward at both ends**: Right-skewed distribution
+- **Curve downward at both ends**: Left-skewed distribution
+
+```{r qq_plot, fig.cap="Normal Q-Q plot of standardised residuals"}
+# Q-Q plot
+ggplot2$ggplot(bp_data, ggplot2$aes(sample = std_residual)) +
+    ggplot2$stat_qq(alpha = 0.3) +
+    ggplot2$stat_qq_line(colour = "#D55E00", size = 1) +
+    ggplot2$labs(
+        title = "Normal Q-Q Plot of Standardised Residuals",
+        subtitle = "Points should follow the diagonal line if residuals are normal",
+        x = "Theoretical Quantiles",
+        y = "Sample Quantiles (Standardised Residuals)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.3.3 Scale-Location Plot
+
+**Prose and Intuition**
+
+The scale-location plot shows $\sqrt{|r_i|}$ against fitted values. This plot focuses specifically on homoscedasticity.
+
+If variance is constant, the loess line should be approximately horizontal.
+
+```{r scale_location, fig.cap="Scale-location plot for homoscedasticity"}
+# Scale-location plot
+bp_data[, sqrt_abs_std_resid := sqrt(abs(std_residual))]
+
+ggplot2$ggplot(bp_data, ggplot2$aes(x = fitted, y = sqrt_abs_std_resid)) +
+    ggplot2$geom_point(alpha = 0.3, colour = "#666666") +
+    ggplot2$geom_smooth(method = "loess", colour = "#0072B2", se = FALSE, span = 0.5) +
+    ggplot2$labs(
+        title = "Scale-Location Plot",
+        subtitle = "Loess line should be horizontal if variance is constant",
+        x = "Fitted Values",
+        y = expression(sqrt("|Standardised Residuals|"))
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.3.4 Residuals vs Each Predictor
+
+**Prose and Intuition**
+
+Plotting residuals against each predictor separately can reveal:
+- Nonlinearity in that specific predictor
+- Heteroscedasticity related to that predictor
+- Omitted variable bias (if residuals correlate with a potential predictor)
+
+```{r resid_vs_predictors, fig.cap="Residuals vs individual predictors"}
+# Melt data for faceted plot
+resid_long <- melt(bp_data[, .(Age, BMI, Pulse, residual)],
+                   id.vars = "residual",
+                   variable.name = "Predictor",
+                   value.name = "Value")
+
+ggplot2$ggplot(resid_long, ggplot2$aes(x = Value, y = residual)) +
+    ggplot2$geom_point(alpha = 0.2, colour = "#666666") +
+    ggplot2$geom_hline(yintercept = 0, colour = "#D55E00", linetype = "dashed") +
+    ggplot2$geom_smooth(method = "loess", colour = "#0072B2", se = FALSE) +
+    ggplot2$facet_wrap(~Predictor, scales = "free_x") +
+    ggplot2$labs(
+        title = "Residuals vs Individual Predictors",
+        subtitle = "Check for nonlinearity specific to each predictor",
+        x = "Predictor Value",
+        y = "Residual"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+---
+
+## 1.4 Leverage and Influence
+
+### 1.4.1 Leverage (Unusual X Values)
+
+**Prose and Intuition**
+
+**Leverage** measures how unusual an observation's predictor values are. High-leverage points lie far from the centre of the predictor space and have disproportionate influence on the fitted model.
+
+**Mathematical Definition**
+
+Leverage for observation $i$ is the $i$-th diagonal element of the hat matrix:
+$$h_{ii} = \mathbf{x}_i'(\mathbf{X}'\mathbf{X})^{-1}\mathbf{x}_i$$
+
+**Properties:**
+- $0 \leq h_{ii} \leq 1$
+- $\sum h_{ii} = p + 1$ (number of parameters)
+- Average leverage = $(p+1)/n$
+
+**Rule of thumb**: $h_{ii} > 2(p+1)/n$ indicates high leverage.
+
+```{r leverage, fig.cap="Identifying high-leverage observations"}
+# Leverage analysis
+n <- nrow(bp_data)
+p <- 3  # number of predictors
+
+leverage_threshold <- 2 * (p + 1) / n
+
+cat("Leverage Analysis:\n")
+cat("==================\n\n")
+cat("Average leverage:", round((p + 1) / n, 5), "\n")
+cat("High leverage threshold (2× average):", round(leverage_threshold, 5), "\n")
+cat("High-leverage observations:", sum(bp_data$leverage > leverage_threshold), "\n")
+cat("Percentage:", round(100 * mean(bp_data$leverage > leverage_threshold), 2), "%\n")
+
+# Visualise leverage in predictor space
+bp_data[, high_leverage := leverage > leverage_threshold]
+
+ggplot2$ggplot(bp_data, ggplot2$aes(x = Age, y = BMI, colour = leverage)) +
+    ggplot2$geom_point(alpha = 0.6) +
+    ggplot2$scale_colour_viridis_c(option = "plasma") +
+    ggplot2$geom_point(data = bp_data[high_leverage == TRUE],
+                       ggplot2$aes(x = Age, y = BMI),
+                       colour = "red", shape = 1, size = 3, stroke = 1.5) +
+    ggplot2$labs(
+        title = "Leverage Values in Predictor Space",
+        subtitle = "Red circles mark high-leverage points (h > 2(p+1)/n)",
+        x = "Age (years)",
+        y = "BMI (kg/m²)",
+        colour = "Leverage"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.4.2 Outliers (Unusual Y Values)
+
+**Prose and Intuition**
+
+An **outlier** has an unusual Y value given its X values — it doesn't follow the pattern. Outliers are identified by large studentised residuals.
+
+High leverage ≠ Outlier:
+- High leverage: unusual X, may or may not have unusual Y
+- Outlier: unusual Y given X, may or may not have unusual X
+- **Influential point**: high leverage AND outlier — this is the dangerous combination
+
+```{r outliers, fig.cap="Identifying outliers by studentised residuals"}
+# Outlier analysis
+outlier_threshold <- 3  # Conservative threshold
+
+bp_data[, is_outlier := abs(stud_residual) > outlier_threshold]
+
+cat("Outlier Analysis:\n")
+cat("=================\n\n")
+cat("Threshold: |studentised residual| >", outlier_threshold, "\n")
+cat("Potential outliers:", sum(bp_data$is_outlier), "\n")
+
+# Distribution of studentised residuals with outlier regions
+ggplot2$ggplot(bp_data, ggplot2$aes(x = stud_residual)) +
+    ggplot2$geom_histogram(bins = 50, fill = "#0072B2", alpha = 0.7) +
+    ggplot2$geom_vline(xintercept = c(-outlier_threshold, outlier_threshold),
+                       colour = "#D55E00", linetype = "dashed", size = 1) +
+    ggplot2$annotate("rect", xmin = -Inf, xmax = -outlier_threshold,
+                     ymin = 0, ymax = Inf, fill = "#D55E00", alpha = 0.2) +
+    ggplot2$annotate("rect", xmin = outlier_threshold, xmax = Inf,
+                     ymin = 0, ymax = Inf, fill = "#D55E00", alpha = 0.2) +
+    ggplot2$labs(
+        title = "Distribution of Studentised Residuals",
+        subtitle = "Shaded regions indicate potential outliers (|t| > 3)",
+        x = "Studentised Residual",
+        y = "Count"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.4.3 Cook's Distance
+
+**Prose and Intuition**
+
+**Cook's distance** combines leverage and residual size to measure overall influence. It quantifies how much the fitted values would change if we removed observation $i$.
+
+**Mathematical Definition**
+
+$$D_i = \frac{(\hat{\mathbf{Y}} - \hat{\mathbf{Y}}_{(i)})' (\hat{\mathbf{Y}} - \hat{\mathbf{Y}}_{(i)})}{(p+1) s^2}$$
+
+where $\hat{\mathbf{Y}}_{(i)}$ are fitted values from the model without observation $i$.
+
+Equivalent formulation:
+$$D_i = \frac{r_i^2}{p+1} \cdot \frac{h_{ii}}{1 - h_{ii}}$$
+
+This shows Cook's distance is a product of:
+- Squared standardised residual (outlier measure)
+- Leverage ratio (leverage measure)
+
+**Guidelines:**
+- $D_i > 1$: Definitely influential
+- $D_i > 4/n$: Potentially influential (common threshold)
+- $D_i > 4/(n-p-1)$: Alternative threshold
+
+```{r cooks_distance, fig.cap="Cook's distance identifies influential points"}
+# Compute Cook's distance
+bp_data[, cooks_d := cooks.distance(model)]
+
+cooks_threshold <- 4 / n
+
+cat("Cook's Distance Analysis:\n")
+cat("=========================\n\n")
+cat("Threshold (4/n):", round(cooks_threshold, 5), "\n")
+cat("Influential observations:", sum(bp_data$cooks_d > cooks_threshold), "\n")
+cat("Max Cook's distance:", round(max(bp_data$cooks_d), 5), "\n")
+
+# Index plot of Cook's distance
+bp_data[, index := .I]
+
+ggplot2$ggplot(bp_data, ggplot2$aes(x = index, y = cooks_d)) +
+    ggplot2$geom_segment(ggplot2$aes(xend = index, yend = 0), alpha = 0.3) +
+    ggplot2$geom_point(ggplot2$aes(colour = cooks_d > cooks_threshold), size = 1) +
+    ggplot2$geom_hline(yintercept = cooks_threshold, colour = "#D55E00",
+                       linetype = "dashed", size = 1) +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#0072B2", "TRUE" = "#D55E00"),
+                                guide = "none") +
+    ggplot2$labs(
+        title = "Cook's Distance by Observation",
+        subtitle = paste("Red dashed line: threshold = 4/n =", round(cooks_threshold, 5)),
+        x = "Observation Index",
+        y = "Cook's Distance"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.4.4 Influence Plot (Bubble Plot)
+
+**Prose and Intuition**
+
+The **influence plot** combines all three measures in one visualisation:
+- X-axis: leverage ($h_{ii}$)
+- Y-axis: studentised residual
+- Bubble size: Cook's distance
+
+This plot quickly identifies the four types of unusual observations:
+1. High leverage, low residual: Influential on fit but not an outlier
+2. Low leverage, high residual: Outlier but not influential
+3. High leverage, high residual: Most dangerous — influential outlier
+4. Low leverage, low residual: Typical observation
+
+```{r influence_plot, fig.cap="Influence plot combining leverage, residuals, and Cook's distance"}
+# Influence plot
+ggplot2$ggplot(bp_data, ggplot2$aes(x = leverage, y = stud_residual)) +
+    ggplot2$geom_point(ggplot2$aes(size = cooks_d), alpha = 0.5, colour = "#0072B2") +
+    ggplot2$geom_hline(yintercept = c(-3, 0, 3), linetype = c("dashed", "solid", "dashed"),
+                       colour = c("#D55E00", "gray50", "#D55E00")) +
+    ggplot2$geom_vline(xintercept = leverage_threshold, linetype = "dashed",
+                       colour = "#E69F00") +
+    ggplot2$scale_size_continuous(range = c(0.5, 5), name = "Cook's D") +
+    ggplot2$labs(
+        title = "Influence Plot: Leverage vs Studentised Residuals",
+        subtitle = "Bubble size = Cook's distance | Dashed lines = thresholds",
+        x = "Leverage (h)",
+        y = "Studentised Residual"
+    ) +
+    ggplot2$theme_minimal() +
+    ggplot2$annotate("text", x = max(bp_data$leverage) * 0.95, y = 3.5,
+                     label = "Outlier\nthreshold", size = 3, hjust = 1) +
+    ggplot2$annotate("text", x = leverage_threshold + 0.001, y = min(bp_data$stud_residual),
+                     label = "Leverage\nthreshold", size = 3, hjust = 0, vjust = 0)
+```
+
+---
+
+## 1.5 Other Diagnostic Measures
+
+### 1.5.1 DFBETAS
+
+**Mathematical Definition**
+
+**DFBETAS** measures how much each coefficient changes when observation $i$ is removed:
+$$DFBETAS_{j,i} = \frac{\hat{\beta}_j - \hat{\beta}_{j(i)}}{s_{(i)}\sqrt{[(\mathbf{X}'\mathbf{X})^{-1}]_{jj}}}$$
+
+**Guideline**: $|DFBETAS| > 2/\sqrt{n}$ indicates influence on that coefficient.
+
+```{r dfbetas, fig.cap="DFBETAS shows influence on individual coefficients"}
+# Compute DFBETAS
+dfbetas_mat <- dfbetas(model)
+dfbetas_threshold <- 2 / sqrt(n)
+
+cat("DFBETAS Analysis:\n")
+cat("=================\n\n")
+cat("Threshold: 2/√n =", round(dfbetas_threshold, 4), "\n\n")
+
+# Count influential observations for each coefficient
+for (j in 1:ncol(dfbetas_mat)) {
+    n_influential <- sum(abs(dfbetas_mat[, j]) > dfbetas_threshold)
+    cat(colnames(dfbetas_mat)[j], ": ", n_influential, " influential observations\n", sep = "")
+}
+
+# Visualise DFBETAS for Age coefficient
+dfbetas_dt <- data.table(
+    index = 1:n,
+    DFBETAS_Age = dfbetas_mat[, "Age"],
+    DFBETAS_BMI = dfbetas_mat[, "BMI"]
+)
+
+ggplot2$ggplot(dfbetas_dt, ggplot2$aes(x = index, y = DFBETAS_Age)) +
+    ggplot2$geom_segment(ggplot2$aes(xend = index, yend = 0), alpha = 0.2) +
+    ggplot2$geom_point(ggplot2$aes(colour = abs(DFBETAS_Age) > dfbetas_threshold), size = 0.8) +
+    ggplot2$geom_hline(yintercept = c(-dfbetas_threshold, dfbetas_threshold),
+                       colour = "#D55E00", linetype = "dashed") +
+    ggplot2$scale_colour_manual(values = c("FALSE" = "#0072B2", "TRUE" = "#D55E00"),
+                                guide = "none") +
+    ggplot2$labs(
+        title = "DFBETAS for Age Coefficient",
+        subtitle = "Points outside dashed lines influence the Age coefficient",
+        x = "Observation Index",
+        y = "DFBETAS (Age)"
+    ) +
+    ggplot2$theme_minimal()
+```
+
+### 1.5.2 DFFITS
+
+**Mathematical Definition**
+
+**DFFITS** measures how much the fitted value changes when observation $i$ is removed:
+$$DFFITS_i = \frac{\hat{Y}_i - \hat{Y}_{i(i)}}{s_{(i)}\sqrt{h_{ii}}}$$
+
+**Guideline**: $|DFFITS| > 2\sqrt{(p+1)/n}$ indicates influence.
+
+```{r dffits}
+# Compute DFFITS
+dffits_vals <- dffits(model)
+dffits_threshold <- 2 * sqrt((p + 1) / n)
+
+cat("DFFITS Analysis:\n")
+cat("================\n\n")
+cat("Threshold: 2√((p+1)/n) =", round(dffits_threshold, 4), "\n")
+cat("Influential observations:", sum(abs(dffits_vals) > dffits_threshold), "\n")
+```
+
+---
+
+## 1.6 Example: Hospital Length of Stay
+
+Let's apply these diagnostics to a different dataset to see how assumption violations manifest.
+
+```{r hospital_example, fig.cap="Diagnostic analysis of hospital length of stay model"}
+# Prepare hospital data
+# Note: age75 is binary (age > 75), type1 indicates admission type
+los_data <- hospital_los[!is.na(los) & los > 0,
+                         .(los = los, age75 = age75, type1 = type1)]
+
+cat("Hospital Length of Stay Data:\n")
+cat("=============================\n\n")
+cat("n =", nrow(los_data), "\n")
+cat("LOS range:", min(los_data$los), "-", max(los_data$los), "days\n")
+cat("Age > 75:", sum(los_data$age75), "patients (", round(100*mean(los_data$age75), 1), "%)\n")
+
+# Fit model
+model_los <- lm(los ~ age75 + type1, data = los_data)
+print(summary(model_los))
+```
+
+```{r hospital_diagnostics, fig.cap="Residual plots reveal problems with the hospital LOS model"}
+# Add diagnostics to data
+los_data[, `:=`(
+    residual = residuals(model_los),
+    fitted = fitted(model_los),
+    std_residual = rstandard(model_los),
+    leverage = hatvalues(model_los),
+    cooks_d = cooks.distance(model_los)
+)]
+
+# Create diagnostic plots
+p1 <- ggplot2$ggplot(los_data, ggplot2$aes(x = fitted, y = residual)) +
+    ggplot2$geom_point(alpha = 0.3) +
+    ggplot2$geom_smooth(method = "loess", colour = "#D55E00", se = FALSE) +
+    ggplot2$geom_hline(yintercept = 0, linetype = "dashed") +
+    ggplot2$labs(title = "Residuals vs Fitted", x = "Fitted", y = "Residual") +
+    ggplot2$theme_minimal()
+
+p2 <- ggplot2$ggplot(los_data, ggplot2$aes(sample = std_residual)) +
+    ggplot2$stat_qq(alpha = 0.3) +
+    ggplot2$stat_qq_line(colour = "#D55E00") +
+    ggplot2$labs(title = "Q-Q Plot", x = "Theoretical", y = "Sample") +
+    ggplot2$theme_minimal()
+
+print(p1)
+```
+
+```{r hospital_qq, fig.cap="Q-Q plot shows severe non-normality in hospital LOS residuals"}
+print(p2)
+```
+
+```{r hospital_interpretation}
+cat("Diagnostic Interpretation:\n")
+cat("==========================\n\n")
+cat("1. RESIDUALS VS FITTED: Clear funnel shape - variance increases with fitted values\n")
+cat("   → Heteroscedasticity: standard errors are unreliable\n\n")
+cat("2. Q-Q PLOT: Severe right skew - many large positive residuals\n")
+cat("   → Non-normality: inference may be affected\n\n")
+cat("3. ROOT CAUSE: Length of stay is a count/positive variable\n")
+cat("   → Consider: log transformation, Poisson/negative binomial regression\n")
+```
+
+---
+
+## Communicating to Stakeholders
+
+### Explaining Diagnostics
+
+**For Clinical Collaborators:**
+
+"Before trusting our regression results, we need to check that the model's assumptions are reasonable. Think of it like checking a measuring instrument before using it.
+
+We found that our blood pressure model passes the diagnostic checks:
+- The relationship appears linear (no curved patterns in residuals)
+- The prediction errors are approximately normally distributed
+- No single patient is unduly influencing our results
+
+However, when we tried to model hospital length of stay, we found problems:
+- The errors get larger as length of stay increases (heteroscedasticity)
+- There are many extremely long stays that the model can't capture
+
+This suggests we need a different type of model for length of stay — one designed for count data."
+
+---
+
+## Quick Reference
+
+### Types of Residuals
+
+| Type | Formula | Use |
+|------|---------|-----|
+| Raw | $e_i = Y_i - \hat{Y}_i$ | Basic residual |
+| Standardised | $r_i = e_i / (s\sqrt{1-h_{ii}})$ | Accounts for leverage |
+| Studentised | $t_i = e_i / (s_{(i)}\sqrt{1-h_{ii}})$ | Outlier detection |
+
+### Influence Measures
+
+| Measure | Formula | Threshold |
+|---------|---------|-----------|
+| Leverage | $h_{ii}$ | $> 2(p+1)/n$ |
+| Cook's D | $D_i = \frac{r_i^2}{p+1} \cdot \frac{h_{ii}}{1-h_{ii}}$ | $> 4/n$ or $> 1$ |
+| DFBETAS | Change in $\beta_j$ | $> 2/\sqrt{n}$ |
+| DFFITS | Change in $\hat{Y}_i$ | $> 2\sqrt{(p+1)/n}$ |
+
+### R Code Patterns
+
+```r
+# Fit model
+model <- lm(Y ~ X1 + X2, data = mydata)
+
+# Residuals
+residuals(model)        # Raw
+rstandard(model)        # Standardised
+rstudent(model)         # Studentised
+
+# Influence measures
+hatvalues(model)        # Leverage
+cooks.distance(model)   # Cook's D
+dfbetas(model)          # DFBETAS
+dffits(model)           # DFFITS
+
+# Standard diagnostic plots
+par(mfrow = c(2, 2))
+plot(model)
+
+# Influence plot
+car::influencePlot(model)
+```

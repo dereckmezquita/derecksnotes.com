@@ -1,0 +1,820 @@
+---
+title: "Execution Foundations"
+subtitle: "Translating signals into profitable trades"
+author: "Dereck Mezquita"
+date: "2026-01-21"
+output: html_document
+---
+
+
+
+## 12.1 The Execution Gap
+
+### 12.1.1 Prose & Intuition
+
+The gap between backtest returns and live trading returns is called **slippage**. This gap destroys more strategies than any other factor. A backtest assumes perfect execution—buying at exactly the price you want, when you want, in the size you want. Reality is messier.
+
+**Market impact** is the price movement caused by your own trading. Large orders move prices against you. The more you trade, the worse your fills become.
+
+**Timing delay** between signal generation and order execution costs money. Markets move while you're deciding what to do.
+
+**Partial fills** occur when liquidity isn't sufficient for your order size. You might only get half your desired position at the intended price.
+
+Understanding and modelling these costs is essential for any systematic strategy. A strategy that looks profitable ignoring costs may be deeply unprofitable once execution is realistic.
+
+### 12.1.2 Visual Evidence
+
+
+``` r
+# Load market data
+spy <- load_market("SPY")
+spy <- filter_dates(spy, as.Date("2015-01-01"), as.Date("2023-12-31"))
+spy[, ret := c(NA, diff(log(adjusted)))]
+spy <- spy[!is.na(ret)]
+```
+
+
+``` r
+# Demonstrate execution gap with different cost assumptions
+set.seed(42)
+
+# Simple momentum strategy signal
+spy[, signal := fifelse(shift(ret, 1) > 0, 1, -1)]
+spy[, trade := abs(signal - shift(signal, 1))]
+
+# Gross returns (no costs)
+spy[, gross_ret := shift(signal, 1) * ret]
+
+# Net returns with different cost levels (round-trip costs in bps)
+costs <- c(0, 5, 10, 20, 50)  # bps
+
+for (cost_bps in costs) {
+    cost <- cost_bps / 10000
+    spy[, paste0("net_", cost_bps) := gross_ret - trade * cost / 2]
+}
+
+# Calculate cumulative returns
+spy[, cum_gross := cumsum(fifelse(is.na(gross_ret), 0, gross_ret))]
+spy[, cum_5 := cumsum(fifelse(is.na(net_5), 0, net_5))]
+spy[, cum_10 := cumsum(fifelse(is.na(net_10), 0, net_10))]
+spy[, cum_20 := cumsum(fifelse(is.na(net_20), 0, net_20))]
+spy[, cum_50 := cumsum(fifelse(is.na(net_50), 0, net_50))]
+
+# Plot
+plot_data <- melt(spy[, .(date, `0 bps` = cum_gross, `5 bps` = cum_5,
+                          `10 bps` = cum_10, `20 bps` = cum_20, `50 bps` = cum_50)],
+                  id.vars = "date", variable.name = "Cost", value.name = "Return")
+
+ggplot(plot_data, aes(x = date, y = Return, colour = Cost)) +
+    geom_line(linewidth = 0.5) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[3], tc[4], "grey50")) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Impact of Transaction Costs on Strategy Returns",
+         subtitle = "Simple momentum strategy; costs compound dramatically over time",
+         x = NULL, y = "Cumulative Return") +
+    theme_trading() +
+    theme(legend.position = "right")
+```
+
+![Execution gap demonstration. The difference between theoretical and realistic returns compounds over time.](/courses/financial-statistics-1-foundations/execution-gap-demo-1.png)
+
+
+``` r
+# Analyse turnover
+spy[, turnover := abs(signal - shift(signal, 1)) / 2]
+
+# Rolling turnover rate
+spy[, rolling_turnover := frollsum(turnover, 20) / 20 * 252]
+
+# Plot turnover over time
+ggplot(spy[!is.na(rolling_turnover)], aes(x = date, y = rolling_turnover)) +
+    geom_line(colour = tc[1], linewidth = 0.5) +
+    geom_hline(yintercept = mean(spy$rolling_turnover, na.rm = TRUE),
+               linetype = "dashed", colour = tc[2]) +
+    annotate("text", x = as.Date("2022-01-01"),
+             y = mean(spy$rolling_turnover, na.rm = TRUE) + 50,
+             label = sprintf("Mean: %.0fx/year", mean(spy$rolling_turnover, na.rm = TRUE)),
+             colour = tc[2]) +
+    labs(title = "Annualised Turnover Rate",
+         subtitle = "Higher turnover = more transaction costs",
+         x = NULL, y = "Annualised Turnover") +
+    theme_trading()
+```
+
+![Turnover drives costs. High-frequency rebalancing incurs more costs.](/courses/financial-statistics-1-foundations/turnover-analysis-1.png)
+
+``` r
+# Summary statistics
+cat(sprintf("Annual turnover: %.1f times\n", mean(spy$rolling_turnover, na.rm = TRUE)))
+```
+
+```
+## Annual turnover: 130.2 times
+```
+
+``` r
+cat(sprintf("Total trades: %d\n", sum(spy$trade > 0, na.rm = TRUE)))
+```
+
+```
+## Total trades: 1165
+```
+
+
+``` r
+# Calculate break-even cost
+gross_sharpe <- sharpe_ratio(spy$gross_ret)
+gross_return <- annualised_return(spy$gross_ret)
+annual_turnover <- mean(spy$rolling_turnover, na.rm = TRUE)
+
+# For each cost level, calculate net Sharpe
+cost_levels <- seq(0, 100, 5)
+cost_analysis <- data.table(
+    cost_bps = cost_levels,
+    net_return = sapply(cost_levels, function(c) {
+        cost <- c / 10000
+        net_ret <- spy$gross_ret - spy$trade * cost / 2
+        annualised_return(net_ret) * 100
+    }),
+    net_sharpe = sapply(cost_levels, function(c) {
+        cost <- c / 10000
+        net_ret <- spy$gross_ret - spy$trade * cost / 2
+        sharpe_ratio(net_ret)
+    })
+)
+
+# Find break-even cost
+break_even_idx <- which(cost_analysis$net_sharpe <= 0)[1]
+break_even_cost <- if (!is.na(break_even_idx)) cost_analysis$cost_bps[break_even_idx] else NA
+
+ggplot(cost_analysis, aes(x = cost_bps, y = net_sharpe)) +
+    geom_line(colour = tc[1], linewidth = 1) +
+    geom_point(colour = tc[1], size = 2) +
+    geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+    geom_vline(xintercept = break_even_cost, linetype = "dashed", colour = tc[4]) +
+    annotate("text", x = break_even_cost + 10, y = max(cost_analysis$net_sharpe) * 0.8,
+             label = sprintf("Break-even: %d bps", break_even_cost), colour = tc[4]) +
+    labs(title = "Sharpe Ratio vs Transaction Cost",
+         subtitle = sprintf("Strategy becomes unprofitable above %d bps round-trip", break_even_cost),
+         x = "Round-Trip Cost (bps)", y = "Net Sharpe Ratio") +
+    theme_trading()
+```
+
+![Break-even cost analysis. Strategy profitability depends on achievable execution costs.](/courses/financial-statistics-1-foundations/break-even-analysis-1.png)
+
+### 12.1.3 Mathematical Derivation
+
+**Net Return After Costs**
+
+$$
+r_{net} = r_{gross} - c \cdot \text{turnover}
+$$
+
+where $c$ is cost per unit traded and turnover is $|w_t - w_{t-1}|$.
+
+**Impact on Sharpe Ratio**
+
+$$
+SR_{net} = \frac{\mu - c \cdot \bar{T}}{\sigma}
+$$
+
+where $\bar{T}$ is average turnover. Higher turnover requires higher gross returns to maintain positive Sharpe.
+
+**Break-Even Cost**
+
+Strategy breaks even when:
+
+$$
+c_{BE} = \frac{\mu}{\bar{T}}
+$$
+
+For a strategy with 10% annual return and 10x turnover:
+
+$$
+c_{BE} = \frac{0.10}{10} = 1\% = 100 \text{ bps}
+$$
+
+**Cost Drag on Returns**
+
+Annual cost drag:
+
+$$
+\text{Cost Drag} = c \cdot T_{annual}
+$$
+
+For 20 bps costs and 50x annual turnover:
+
+$$
+\text{Cost Drag} = 0.002 \times 50 = 10\%
+$$
+
+### 12.1.4 Implementation & Application
+
+
+``` r
+# Implement more realistic cost model
+# Cost = spread + market impact
+
+estimate_cost <- function(trade_size_pct, spread_bps = 1, volatility, avg_volume) {
+    # Spread cost (always pay at least half the spread)
+    spread_cost <- spread_bps / 2
+
+    # Market impact: square root model
+    # Impact = k * sigma * sqrt(trade_size / avg_volume)
+    k <- 0.1  # Impact coefficient
+    impact <- k * volatility * sqrt(trade_size_pct / 100) * 10000
+
+    return(spread_cost + impact)
+}
+
+# Simulate costs for different trade sizes
+trade_sizes <- seq(0.1, 5, 0.1)  # Percentage of daily volume
+vol <- 0.15  # 15% annual vol
+
+cost_by_size <- data.table(
+    trade_size = trade_sizes,
+    cost_bps = sapply(trade_sizes, function(s) estimate_cost(s, spread_bps = 1, volatility = vol, avg_volume = 1))
+)
+
+ggplot(cost_by_size, aes(x = trade_size, y = cost_bps)) +
+    geom_line(colour = tc[1], linewidth = 1) +
+    geom_point(colour = tc[1], size = 2) +
+    labs(title = "Execution Cost vs Trade Size",
+         subtitle = "Market impact grows with square root of trade size",
+         x = "Trade Size (% of Daily Volume)", y = "Estimated Cost (bps)") +
+    theme_trading()
+```
+
+![Realistic cost model. Costs vary with trade size, volatility, and spread.](/courses/financial-statistics-1-foundations/cost-model-1.png)
+
+
+``` r
+# Simulate slippage with randomness
+set.seed(42)
+
+# Parameters
+n_sims <- 1000
+n_trades <- 100
+base_cost <- 5  # Base cost in bps
+cost_vol <- 3   # Volatility of cost in bps
+
+# Simulate
+sim_results <- data.table(
+    sim = rep(1:n_sims, each = n_trades),
+    trade = rep(1:n_trades, n_sims),
+    cost = rnorm(n_sims * n_trades, base_cost, cost_vol)
+)
+sim_results[, cost := pmax(cost, 0)]  # Costs can't be negative
+
+# Cumulative cost per simulation
+sim_results[, cum_cost := cumsum(cost), by = sim]
+
+# Final costs
+final_costs <- sim_results[trade == n_trades, .(total_cost = cum_cost), by = sim]
+
+# Distribution of total costs
+ggplot(final_costs, aes(x = total_cost)) +
+    geom_histogram(aes(y = after_stat(density)), bins = 50,
+                   fill = tc[1], alpha = 0.7, colour = "white") +
+    geom_vline(xintercept = mean(final_costs$total_cost), colour = tc[2],
+               linewidth = 1, linetype = "dashed") +
+    geom_vline(xintercept = quantile(final_costs$total_cost, 0.95), colour = tc[4],
+               linewidth = 1, linetype = "dashed") +
+    labs(title = sprintf("Distribution of Total Execution Costs (%d Trades)", n_trades),
+         subtitle = sprintf("Mean: %.0f bps; 95th percentile: %.0f bps",
+                           mean(final_costs$total_cost),
+                           quantile(final_costs$total_cost, 0.95)),
+         x = "Total Cost (bps)", y = "Density") +
+    theme_trading()
+```
+
+![Slippage simulation. Monte Carlo shows distribution of execution outcomes.](/courses/financial-statistics-1-foundations/slippage-simulation-1.png)
+
+---
+
+## 12.2 Market Impact Models
+
+### 12.2.1 Prose & Intuition
+
+Market impact is the price movement caused by your trading. When you buy, you push the price up; when you sell, you push it down. This is unavoidable for any strategy that trades in size.
+
+**Temporary impact** is the immediate price move that reverts after your trading. It's caused by consuming liquidity from the order book.
+
+**Permanent impact** is the price move that persists after trading. It represents information incorporated into the market price.
+
+The standard model assumes impact scales with the **square root** of trade size. This reflects the microstructure of limit order books: small trades consume only the best prices; large trades must reach deeper into the book.
+
+Understanding impact is crucial for:
+1. Estimating realistic backtest costs
+2. Optimising execution schedules
+3. Sizing positions appropriately
+
+### 12.2.2 Visual Evidence
+
+
+``` r
+# Compare different impact models
+trade_sizes <- seq(0.01, 1, 0.01)  # As fraction of daily volume
+
+# Linear model
+linear_impact <- function(x, k = 0.5) k * x
+
+# Square root model (Almgren-Chriss)
+sqrt_impact <- function(x, k = 0.5) k * sqrt(x)
+
+# Power law model
+power_impact <- function(x, k = 0.5, alpha = 0.6) k * x^alpha
+
+impact_models <- data.table(
+    size = trade_sizes,
+    Linear = linear_impact(trade_sizes),
+    `Square Root` = sqrt_impact(trade_sizes),
+    `Power Law (0.6)` = power_impact(trade_sizes)
+)
+
+plot_impact <- melt(impact_models, id.vars = "size",
+                    variable.name = "Model", value.name = "Impact")
+
+ggplot(plot_impact, aes(x = size * 100, y = Impact * 100, colour = Model)) +
+    geom_line(linewidth = 1) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[3])) +
+    labs(title = "Market Impact Models Comparison",
+         subtitle = "Impact as function of trade size (% of daily volume)",
+         x = "Trade Size (% of Daily Volume)", y = "Price Impact (%)") +
+    theme_trading() +
+    theme(legend.position = "right")
+```
+
+![Market impact models. Square root model fits empirical data well.](/courses/financial-statistics-1-foundations/impact-models-1.png)
+
+
+``` r
+# Almgren-Chriss optimal execution trajectory
+# Trade X shares over time T
+
+almgren_chriss <- function(X, T, n_periods, sigma, eta, gamma, lambda) {
+    # Parameters:
+    # X = total shares to trade
+    # T = trading horizon
+    # sigma = volatility
+    # eta = temporary impact
+    # gamma = permanent impact
+    # lambda = risk aversion
+
+    dt <- T / n_periods
+    kappa <- sqrt(lambda * sigma^2 / eta)
+
+    # Optimal trajectory
+    t <- seq(0, T, length.out = n_periods + 1)
+    x_t <- X * sinh(kappa * (T - t)) / sinh(kappa * T)
+
+    return(data.table(time = t / T, remaining = x_t / X))
+}
+
+# Different risk aversion levels
+trajectories <- rbind(
+    cbind(almgren_chriss(1000, 1, 100, 0.02, 0.001, 0.0001, 0.001), lambda = "Low (Patient)"),
+    cbind(almgren_chriss(1000, 1, 100, 0.02, 0.001, 0.0001, 0.01), lambda = "Medium"),
+    cbind(almgren_chriss(1000, 1, 100, 0.02, 0.001, 0.0001, 0.1), lambda = "High (Urgent)")
+)
+
+ggplot(trajectories, aes(x = time, y = remaining, colour = lambda)) +
+    geom_line(linewidth = 1) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[4])) +
+    scale_y_continuous(labels = scales::percent_format()) +
+    labs(title = "Almgren-Chriss Optimal Execution Trajectories",
+         subtitle = "Higher risk aversion = faster execution; lower impact = slower",
+         x = "Fraction of Trading Horizon", y = "Remaining Position",
+         colour = "Risk Aversion") +
+    theme_trading() +
+    theme(legend.position = "right")
+```
+
+![Almgren-Chriss optimal execution. Balance market impact against timing risk.](/courses/financial-statistics-1-foundations/almgren-chriss-1.png)
+
+
+``` r
+# Simulate VWAP and TWAP execution
+set.seed(42)
+
+# Intraday volume pattern (U-shaped)
+hours <- seq(9.5, 16, 0.5)  # 9:30 AM to 4:00 PM
+# More volume at open and close
+volume_pattern <- (hours - 12.75)^2 + 0.5
+volume_pattern <- volume_pattern / sum(volume_pattern)
+
+execution_schedules <- data.table(
+    hour = hours,
+    VWAP = volume_pattern,
+    TWAP = rep(1/length(hours), length(hours))
+)
+
+plot_exec <- melt(execution_schedules, id.vars = "hour",
+                  variable.name = "Schedule", value.name = "Weight")
+
+ggplot(plot_exec, aes(x = hour, y = Weight, fill = Schedule)) +
+    geom_col(position = "dodge", alpha = 0.8) +
+    scale_fill_manual(values = c(tc[1], tc[3])) +
+    scale_x_continuous(breaks = seq(10, 16, 1),
+                       labels = c("10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00")) +
+    labs(title = "VWAP vs TWAP Execution Schedules",
+         subtitle = "VWAP matches volume pattern; TWAP executes uniformly",
+         x = "Time of Day", y = "Fraction of Order") +
+    theme_trading() +
+    theme(legend.position = "top")
+```
+
+![VWAP vs TWAP execution. VWAP follows volume patterns; TWAP is uniform.](/courses/financial-statistics-1-foundations/vwap-twap-1.png)
+
+### 12.2.3 Mathematical Derivation
+
+**Square Root Market Impact**
+
+$$
+\text{Impact} = \sigma \cdot \sqrt{\frac{V_{trade}}{V_{daily}}}
+$$
+
+where $\sigma$ is daily volatility, $V_{trade}$ is trade volume, $V_{daily}$ is average daily volume.
+
+**Almgren-Chriss Model**
+
+Cost function to minimise:
+
+$$
+C(x) = \gamma \sum_k n_k + \eta \sum_k n_k^2 + \lambda \sum_k \sigma^2 x_k^2 \Delta t
+$$
+
+where:
+- $\gamma$ = permanent impact coefficient
+- $\eta$ = temporary impact coefficient
+- $\lambda$ = risk aversion parameter
+- $n_k$ = shares traded in period $k$
+- $x_k$ = remaining position
+
+**Optimal Execution Trajectory**
+
+$$
+x_t = X \cdot \frac{\sinh(\kappa(T-t))}{\sinh(\kappa T)}
+$$
+
+where $\kappa = \sqrt{\frac{\lambda \sigma^2}{\eta}}$
+
+**VWAP Tracking**
+
+$$
+\text{VWAP Error} = \frac{\sum_k p_k \cdot v_k}{\sum_k v_k} - \text{Benchmark VWAP}
+$$
+
+### 12.2.4 Implementation & Application
+
+
+``` r
+# Simulate execution with realistic market dynamics
+simulate_execution <- function(total_shares, strategy, n_periods = 10,
+                               vol = 0.02, impact_k = 0.1) {
+
+    # Initial price
+    price <- 100
+
+    # Volume profile (U-shaped)
+    volume_profile <- (1:n_periods - n_periods/2)^2 + 5
+    volume_profile <- volume_profile / sum(volume_profile)
+
+    # Execute according to strategy
+    if (strategy == "TWAP") {
+        schedule <- rep(1/n_periods, n_periods)
+    } else if (strategy == "VWAP") {
+        schedule <- volume_profile
+    } else if (strategy == "Front-loaded") {
+        schedule <- rev(1:n_periods)
+        schedule <- schedule / sum(schedule)
+    } else {
+        schedule <- rep(1/n_periods, n_periods)
+    }
+
+    shares_per_period <- total_shares * schedule
+
+    # Simulate execution
+    results <- data.table(
+        period = 1:n_periods,
+        shares = shares_per_period
+    )
+
+    results[, impact := impact_k * sqrt(shares / (total_shares / n_periods)) * vol * 100]
+    results[, price_move := rnorm(.N, 0, vol / sqrt(n_periods)) * 100]
+    results[, exec_price := 100 + cumsum(price_move) + cumsum(impact)]
+
+    results[, cost := shares * impact / total_shares]
+
+    return(list(
+        schedule = results,
+        total_cost = sum(results$cost),
+        avg_price = sum(results$exec_price * results$shares) / total_shares
+    ))
+}
+
+# Compare strategies
+set.seed(42)
+n_sims <- 100
+strategies <- c("TWAP", "VWAP", "Front-loaded")
+
+sim_costs <- lapply(strategies, function(s) {
+    costs <- sapply(1:n_sims, function(i) {
+        simulate_execution(10000, s, n_periods = 10)$total_cost
+    })
+    data.table(strategy = s, cost = costs)
+})
+sim_costs <- rbindlist(sim_costs)
+
+# Box plot of costs
+ggplot(sim_costs, aes(x = strategy, y = cost, fill = strategy)) +
+    geom_boxplot(alpha = 0.7) +
+    scale_fill_manual(values = c(tc[1], tc[2], tc[4]), guide = "none") +
+    labs(title = "Execution Cost by Strategy",
+         subtitle = "100 simulations; cost in basis points of impact",
+         x = "Strategy", y = "Total Impact Cost (bps)") +
+    theme_trading()
+```
+
+![Execution simulator. Compare different execution strategies.](/courses/financial-statistics-1-foundations/execution-simulator-1.png)
+
+
+``` r
+# Optimal trade sizing given signal strength and decay
+# Higher signal -> willing to pay more impact
+# Signal decays -> front-load execution
+
+signal_strengths <- seq(0.1, 2, 0.1)  # Signal in standard deviations
+half_lives <- c(0.5, 1, 2, 5)  # Signal half-life in days
+
+optimal_speed <- expand.grid(signal = signal_strengths, halflife = half_lives)
+optimal_speed$speed <- with(optimal_speed, signal / sqrt(halflife))
+
+optimal_dt <- as.data.table(optimal_speed)
+optimal_dt[, halflife := factor(halflife, labels = paste0(half_lives, " day"))]
+
+ggplot(optimal_dt, aes(x = signal, y = speed, colour = halflife)) +
+    geom_line(linewidth = 1) +
+    scale_colour_manual(values = c(tc[1], tc[2], tc[3], tc[4])) +
+    labs(title = "Optimal Execution Speed",
+         subtitle = "Balance signal strength against decay rate",
+         x = "Signal Strength (σ)", y = "Relative Execution Speed",
+         colour = "Signal Half-Life") +
+    theme_trading() +
+    theme(legend.position = "right")
+```
+
+![Optimal trade size. Balance signal decay against market impact.](/courses/financial-statistics-1-foundations/optimal-trade-size-1.png)
+
+---
+
+## 12.3 Transaction Cost Analysis
+
+### 12.3.1 Prose & Intuition
+
+Transaction Cost Analysis (TCA) decomposes execution costs into their components. This helps identify where costs are coming from and how to reduce them.
+
+**Implementation Shortfall** measures the difference between the decision price (when you decided to trade) and the actual execution price. It captures all costs: spread, impact, and timing.
+
+Breaking down implementation shortfall:
+1. **Delay cost**: Price move between decision and order
+2. **Trading cost**: Spread and impact during execution
+3. **Opportunity cost**: Cost of shares not executed
+
+Good TCA helps answer:
+- Are our execution algorithms performing well?
+- Which brokers provide best execution?
+- Should we trade faster or slower?
+
+### 12.3.2 Visual Evidence
+
+
+``` r
+# Simulate and decompose implementation shortfall
+set.seed(42)
+
+# Simulate a buy order
+decision_price <- 100
+order_size <- 1000
+n_fills <- 10
+
+# Simulate price movement and fills
+fills <- data.table(
+    fill_num = 1:n_fills,
+    shares = rep(order_size / n_fills, n_fills),
+    delay = cumsum(runif(n_fills, 0.01, 0.05)),  # Time in days
+    price_drift = cumsum(rnorm(n_fills, 0.01, 0.1)),  # Price drift
+    spread = runif(n_fills, 0.01, 0.03),  # Spread
+    impact = sqrt(1:n_fills / n_fills) * 0.05  # Increasing impact
+)
+
+fills[, fill_price := decision_price + price_drift + spread + impact]
+
+# Decomposition
+avg_fill <- sum(fills$fill_price * fills$shares) / order_size
+delay_cost <- fills[1, price_drift]  # Drift before first fill
+trading_cost <- avg_fill - decision_price - delay_cost
+
+# Create breakdown
+breakdown <- data.table(
+    Component = c("Decision Price", "Delay Cost", "Spread", "Impact", "Avg Fill Price"),
+    Value = c(decision_price, delay_cost, mean(fills$spread), mean(fills$impact), avg_fill)
+)
+
+# Waterfall chart
+breakdown[, cumsum_val := cumsum(c(Value[1], Value[2:4], 0))]
+breakdown[, start := c(0, cumsum_val[1:4])]
+breakdown[, end := c(cumsum_val[1:4], Value[5])]
+
+ggplot(breakdown, aes(x = Component)) +
+    geom_rect(aes(xmin = as.numeric(factor(Component)) - 0.4,
+                  xmax = as.numeric(factor(Component)) + 0.4,
+                  ymin = start, ymax = end,
+                  fill = Component)) +
+    scale_fill_manual(values = c(tc[1], tc[4], tc[3], tc[2], tc[1]), guide = "none") +
+    scale_x_discrete(limits = breakdown$Component) +
+    labs(title = "Implementation Shortfall Decomposition",
+         subtitle = sprintf("Total cost: %.2f%% (%.0f bps)",
+                           (avg_fill - decision_price) / decision_price * 100,
+                           (avg_fill - decision_price) / decision_price * 10000),
+         x = NULL, y = "Price ($)") +
+    theme_trading()
+```
+
+![Implementation shortfall decomposition. Understand where costs come from.](/courses/financial-statistics-1-foundations/implementation-shortfall-1.png)
+
+
+``` r
+# Simulate TCA metrics over time
+n_days <- 252
+set.seed(42)
+
+tca_history <- data.table(
+    date = seq.Date(as.Date("2023-01-01"), by = "day", length.out = n_days),
+    n_trades = rpois(n_days, 50),
+    avg_shortfall_bps = rnorm(n_days, 8, 3),
+    spread_cost_bps = rnorm(n_days, 2, 0.5),
+    impact_cost_bps = rnorm(n_days, 4, 2),
+    timing_cost_bps = rnorm(n_days, 2, 1.5)
+)
+
+# Ensure positive costs
+tca_history[, avg_shortfall_bps := pmax(avg_shortfall_bps, 1)]
+tca_history[, spread_cost_bps := pmax(spread_cost_bps, 0.5)]
+tca_history[, impact_cost_bps := pmax(impact_cost_bps, 0.5)]
+
+# Rolling averages
+tca_history[, rolling_shortfall := frollmean(avg_shortfall_bps, 20)]
+
+ggplot(tca_history, aes(x = date)) +
+    geom_line(aes(y = avg_shortfall_bps), colour = tc[1], alpha = 0.3) +
+    geom_line(aes(y = rolling_shortfall), colour = tc[1], linewidth = 1) +
+    geom_hline(yintercept = mean(tca_history$avg_shortfall_bps),
+               linetype = "dashed", colour = tc[2]) +
+    labs(title = "Implementation Shortfall Over Time",
+         subtitle = sprintf("Average: %.1f bps; 20-day rolling average shown",
+                           mean(tca_history$avg_shortfall_bps)),
+         x = NULL, y = "Implementation Shortfall (bps)") +
+    theme_trading()
+```
+
+![TCA monitoring. Track execution quality over time.](/courses/financial-statistics-1-foundations/tca-over-time-1.png)
+
+### 12.3.3 Mathematical Derivation
+
+**Implementation Shortfall**
+
+$$
+IS = \frac{P_{avg} - P_{decision}}{P_{decision}} \times \text{Side}
+$$
+
+where Side = 1 for buys, -1 for sells.
+
+**Decomposition**
+
+$$
+IS = \text{Delay} + \text{Trading} + \text{Opportunity}
+$$
+
+**Delay Cost**
+
+$$
+\text{Delay} = \frac{P_{arrival} - P_{decision}}{P_{decision}} \times \text{Side}
+$$
+
+**Trading Cost**
+
+$$
+\text{Trading} = \frac{P_{avg} - P_{arrival}}{P_{decision}} \times \frac{Q_{filled}}{Q_{total}} \times \text{Side}
+$$
+
+**Opportunity Cost**
+
+$$
+\text{Opportunity} = \frac{P_{close} - P_{decision}}{P_{decision}} \times \frac{Q_{unfilled}}{Q_{total}} \times \text{Side}
+$$
+
+### 12.3.4 Implementation & Application
+
+
+``` r
+# Generate TCA report
+set.seed(42)
+
+# Simulate trades by different dimensions
+brokers <- c("Broker A", "Broker B", "Broker C")
+algos <- c("VWAP", "TWAP", "IS Min")
+sizes <- c("Small (<100k)", "Medium (100k-1M)", "Large (>1M)")
+
+tca_trades <- expand.grid(
+    broker = brokers,
+    algo = algos,
+    size = sizes
+)
+
+# Add simulated costs
+tca_trades$n_trades <- sample(50:200, nrow(tca_trades), replace = TRUE)
+tca_trades$avg_cost <- rnorm(nrow(tca_trades), 8, 3) +
+    ifelse(tca_trades$size == "Large (>1M)", 5, 0) +
+    ifelse(tca_trades$broker == "Broker C", 2, 0) +
+    ifelse(tca_trades$algo == "TWAP", 1, 0)
+
+tca_trades <- as.data.table(tca_trades)
+
+# Summary by broker
+broker_summary <- tca_trades[, .(
+    avg_cost = weighted.mean(avg_cost, n_trades),
+    n_trades = sum(n_trades)
+), by = broker]
+
+ggplot(broker_summary, aes(x = reorder(broker, avg_cost), y = avg_cost, fill = broker)) +
+    geom_col(alpha = 0.8) +
+    geom_text(aes(label = sprintf("%.1f bps\nn=%d", avg_cost, n_trades)),
+              vjust = -0.5, size = 3) +
+    scale_fill_manual(values = c(tc[1], tc[2], tc[4]), guide = "none") +
+    labs(title = "Execution Cost by Broker",
+         subtitle = "Trade-weighted average implementation shortfall",
+         x = "Broker", y = "Average Cost (bps)") +
+    theme_trading()
+```
+
+![TCA report summary. Compare execution quality across dimensions.](/courses/financial-statistics-1-foundations/tca-report-1.png)
+
+``` r
+# Summary by order size
+size_summary <- tca_trades[, .(
+    avg_cost = weighted.mean(avg_cost, n_trades),
+    n_trades = sum(n_trades)
+), by = size]
+
+ggplot(size_summary, aes(x = size, y = avg_cost, fill = size)) +
+    geom_col(alpha = 0.8) +
+    geom_text(aes(label = sprintf("%.1f bps", avg_cost)), vjust = -0.5, size = 3) +
+    scale_fill_manual(values = c(tc[1], tc[2], tc[4]), guide = "none") +
+    labs(title = "Execution Cost by Order Size",
+         subtitle = "Larger orders have higher market impact",
+         x = "Order Size", y = "Average Cost (bps)") +
+    theme_trading()
+```
+
+![TCA report summary. Compare execution quality across dimensions.](/courses/financial-statistics-1-foundations/tca-report-2.png)
+
+
+``` r
+# Create execution quality metrics
+exec_metrics <- data.table(
+    Metric = c("Avg Implementation Shortfall", "Spread Capture", "Timing Alpha",
+               "Fill Rate", "Order Rejection Rate"),
+    Value = c(8.2, 0.45, -0.5, 98.5, 0.3),
+    Unit = c("bps", "fraction", "bps", "%", "%"),
+    Target = c(10, 0.5, 0, 99, 0.5),
+    Status = c("Good", "Warning", "Good", "Warning", "Good")
+)
+
+exec_metrics[, pct_of_target := Value / Target * 100]
+exec_metrics[Metric == "Avg Implementation Shortfall", pct_of_target := Target / Value * 100]
+exec_metrics[Metric == "Timing Alpha", pct_of_target := 100]
+
+# Display as table
+cat("\n=== Execution Quality Dashboard ===\n\n")
+```
+
+```
+## 
+## === Execution Quality Dashboard ===
+```
+
+``` r
+print(exec_metrics[, .(Metric, Value = sprintf("%.1f %s", Value, Unit),
+                       Target = sprintf("%.1f %s", Target, Unit), Status)])
+```
+
+```
+##                          Metric        Value       Target  Status
+##                          <char>       <char>       <char>  <char>
+## 1: Avg Implementation Shortfall      8.2 bps     10.0 bps    Good
+## 2:               Spread Capture 0.5 fraction 0.5 fraction Warning
+## 3:                 Timing Alpha     -0.5 bps      0.0 bps    Good
+## 4:                    Fill Rate       98.5 %       99.0 % Warning
+## 5:         Order Rejection Rate        0.3 %        0.5 %    Good
+```
