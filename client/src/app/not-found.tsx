@@ -85,6 +85,9 @@ export default function NotFound() {
         let totalPE = 0;
         let collisionCount = 0;
 
+        let dragStart: { x: number; y: number } | null = null;
+        let isDragging = false;
+
         function onMouseMove(e: MouseEvent) {
             mouseRef.current.x = e.clientX;
             mouseRef.current.y = e.clientY;
@@ -93,23 +96,49 @@ export default function NotFound() {
         function onMouseLeave() {
             mouseRef.current.active = false;
         }
-        function onClick(e: MouseEvent) {
+        function onMouseDown(e: MouseEvent) {
+            dragStart = { x: e.clientX, y: e.clientY };
+            isDragging = false;
+        }
+        function onMouseMoveDrag(e: MouseEvent) {
+            if (dragStart) {
+                const dx = e.clientX - dragStart.x;
+                const dy = e.clientY - dragStart.y;
+                if (Math.sqrt(dx * dx + dy * dy) > 5) isDragging = true;
+            }
+        }
+        function onMouseUp(e: MouseEvent) {
+            if (!dragStart) return;
             const r = ballSizeRef.current;
+            const dx = dragStart.x - e.clientX;
+            const dy = dragStart.y - e.clientY;
+            const speed = Math.sqrt(dx * dx + dy * dy) * 0.08;
+            const angle = Math.atan2(dy, dx);
+
             particles.push({
-                x: e.clientX,
-                y: e.clientY,
-                vx: (Math.random() - 0.5) * 4,
-                vy: (Math.random() - 0.5) * 4,
+                x: dragStart.x,
+                y: dragStart.y,
+                vx: isDragging
+                    ? Math.cos(angle) * speed
+                    : (Math.random() - 0.5) * 3,
+                vy: isDragging
+                    ? Math.sin(angle) * speed
+                    : (Math.random() - 0.5) * 3,
                 r,
                 mass: r * r,
                 trail: [],
                 id: nextId++
             });
+
+            dragStart = null;
+            isDragging = false;
         }
 
         window.addEventListener('mousemove', onMouseMove);
+        canvas.addEventListener('mousemove', onMouseMoveDrag);
         document.addEventListener('mouseleave', onMouseLeave);
-        canvas.addEventListener('click', onClick);
+        canvas.addEventListener('mousedown', onMouseDown);
+        canvas.addEventListener('mouseup', onMouseUp);
 
         function dimLine(
             x1: number,
@@ -294,6 +323,73 @@ export default function NotFound() {
                 }
             }
 
+            // Slingshot indicator while dragging
+            if (dragStart && isDragging && mouse.active) {
+                const dx = dragStart.x - mouse.x;
+                const dy = dragStart.y - mouse.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const angle = Math.atan2(dy, dx);
+                const speed = dist * 0.08;
+
+                // Line from start to current mouse (pull direction)
+                ctx.beginPath();
+                ctx.moveTo(dragStart.x, dragStart.y);
+                ctx.lineTo(mouse.x, mouse.y);
+                ctx.strokeStyle = o(0.4);
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([4, 4]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Launch direction arrow (opposite of pull)
+                const arrowLen = Math.min(dist * 0.6, 80);
+                const ax = dragStart.x + Math.cos(angle) * arrowLen;
+                const ay = dragStart.y + Math.sin(angle) * arrowLen;
+                ctx.beginPath();
+                ctx.moveTo(dragStart.x, dragStart.y);
+                ctx.lineTo(ax, ay);
+                ctx.strokeStyle = o(0.7);
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                // Arrowhead
+                ctx.beginPath();
+                ctx.moveTo(ax, ay);
+                ctx.lineTo(
+                    ax - 8 * Math.cos(angle - 0.35),
+                    ay - 8 * Math.sin(angle - 0.35)
+                );
+                ctx.moveTo(ax, ay);
+                ctx.lineTo(
+                    ax - 8 * Math.cos(angle + 0.35),
+                    ay - 8 * Math.sin(angle + 0.35)
+                );
+                ctx.stroke();
+
+                // Preview circle at spawn point
+                const previewR = ballSizeRef.current;
+                ctx.beginPath();
+                ctx.arc(dragStart.x, dragStart.y, previewR, 0, Math.PI * 2);
+                ctx.strokeStyle = o(0.5);
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([3, 3]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                // Speed label
+                ctx.font = '11px Roboto, sans-serif';
+                ctx.fillStyle = o(0.85);
+                ctx.fillText(
+                    `v = ${speed.toFixed(1)}`,
+                    dragStart.x + previewR + 8,
+                    dragStart.y - 6
+                );
+                ctx.fillText(
+                    `\u03B8 = ${((angle * 180) / Math.PI).toFixed(0)}\u00B0`,
+                    dragStart.x + previewR + 8,
+                    dragStart.y + 8
+                );
+            }
+
             // Dimension lines
             for (let i = 0; i < N; i++) {
                 for (let j = i + 1; j < N; j++) {
@@ -397,27 +493,25 @@ export default function NotFound() {
                 ctx.setLineDash([]);
             }
 
-            // System readout
-            ctx.font = '10px Roboto, sans-serif';
-            ctx.fillStyle = gr(0.75);
-            const ry = h - 8;
-            ctx.fillText(`g = ${useGravity ? G : 0} m/s\u00B2`, 8, ry);
-            ctx.fillText(`e = ${damping}`, 100, ry);
-            ctx.fillText(`n = ${N}`, 155, ry);
-            ctx.fillText(`\u03A3KE = ${totalKE.toFixed(0)} J`, 195, ry);
-            ctx.fillText(`\u03A3PE = ${totalPE.toFixed(0)} J`, 295, ry);
-            ctx.fillText(`E = ${(totalKE + totalPE).toFixed(0)} J`, 395, ry);
-            ctx.fillText(`collisions: ${collisionCount}`, 485, ry);
-            ctx.fillText(`t = ${(frame / 60).toFixed(1)}s`, w - 70, ry);
+            // System readout — centered below controls
+            ctx.font = '11px Roboto, sans-serif';
+            ctx.fillStyle = gr(0.85);
+            ctx.textAlign = 'center';
+            const ry = h * 0.5 + 195;
+            const cx = w / 2;
+            const line1 = `g = ${useGravity ? G : 0} m/s\u00B2  \u00B7  e = ${damping}  \u00B7  n = ${N}  \u00B7  t = ${(frame / 60).toFixed(1)}s  \u00B7  collisions: ${collisionCount}`;
+            const line2 = `\u03A3KE = ${totalKE.toFixed(0)} J  \u00B7  \u03A3PE = ${totalPE.toFixed(0)} J  \u00B7  E = ${(totalKE + totalPE).toFixed(0)} J`;
+            ctx.fillText(line1, cx, ry);
+            ctx.fillText(line2, cx, ry + 16);
             if (!useGravity) {
                 ctx.fillStyle = o(0.8);
-                ctx.font = '10px Roboto, sans-serif';
                 ctx.fillText(
-                    'ZERO-G \u00B7 MOUSE ATTRACTOR \u00B7 CLICK TO ADD',
-                    w / 2 - 110,
-                    ry
+                    'ZERO-G \u00B7 MOUSE ATTRACTOR \u00B7 CLICK-DRAG TO LAUNCH',
+                    cx,
+                    ry + 32
                 );
             }
+            ctx.textAlign = 'start';
 
             // Axes
             ctx.beginPath();
@@ -465,8 +559,10 @@ export default function NotFound() {
             cancelAnimationFrame(animationId);
             window.removeEventListener('resize', resize);
             window.removeEventListener('mousemove', onMouseMove);
+            canvas.removeEventListener('mousemove', onMouseMoveDrag);
             document.removeEventListener('mouseleave', onMouseLeave);
-            canvas.removeEventListener('click', onClick);
+            canvas.removeEventListener('mousedown', onMouseDown);
+            canvas.removeEventListener('mouseup', onMouseUp);
         };
     }, []);
 
