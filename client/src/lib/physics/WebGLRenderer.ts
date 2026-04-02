@@ -114,7 +114,7 @@ export class WebGLRenderer {
         this.triBuffer = gl.createBuffer()!;
 
         // Pre-allocate buffers (6 floats per vertex: x, y, r, g, b, a)
-        this.lineData = new Float32Array(600000);
+        this.lineData = new Float32Array(2400000); // ~200k lines
         this.circleData = new Float32Array(50000);
         this.triData = new Float32Array(300000); // for filled rectangles
     }
@@ -180,6 +180,81 @@ export class WebGLRenderer {
         this.circleData[i + 5] = b;
         this.circleData[i + 6] = a;
         this.circleCount++;
+    }
+
+    private addRect(
+        x: number,
+        y: number,
+        rw: number,
+        rh: number,
+        r: number,
+        g: number,
+        b: number,
+        a: number
+    ): void {
+        const i = this.triCount * 36;
+        if (i + 36 > this.triData.length) return;
+        // Two triangles
+        const verts = [
+            x,
+            y,
+            r,
+            g,
+            b,
+            a,
+            x + rw,
+            y,
+            r,
+            g,
+            b,
+            a,
+            x,
+            y + rh,
+            r,
+            g,
+            b,
+            a,
+            x + rw,
+            y,
+            r,
+            g,
+            b,
+            a,
+            x + rw,
+            y + rh,
+            r,
+            g,
+            b,
+            a,
+            x,
+            y + rh,
+            r,
+            g,
+            b,
+            a
+        ];
+        for (let j = 0; j < 36; j++) this.triData[i + j] = verts[j];
+        this.triCount++;
+    }
+
+    flushTriangles(w: number, h: number): void {
+        if (this.triCount === 0) return;
+        const gl = this.gl;
+        const p = this.lineProgram;
+        gl.useProgram(p.program);
+        gl.uniform2f(p.uniforms.uResolution, w, h);
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.triBuffer);
+        gl.bufferData(
+            gl.ARRAY_BUFFER,
+            this.triData.subarray(0, this.triCount * 36),
+            gl.DYNAMIC_DRAW
+        );
+        gl.enableVertexAttribArray(p.attrs.aPosition);
+        gl.vertexAttribPointer(p.attrs.aPosition, 2, gl.FLOAT, false, 24, 0);
+        gl.enableVertexAttribArray(p.attrs.aColor);
+        gl.vertexAttribPointer(p.attrs.aColor, 4, gl.FLOAT, false, 24, 8);
+        gl.drawArrays(gl.TRIANGLES, 0, this.triCount * 6);
+        this.triCount = 0;
     }
 
     flushLines(w: number, h: number): void {
@@ -378,21 +453,18 @@ export class WebGLRenderer {
                 a
             );
 
-            // Fill occupied leaf cells with blue shading
+            // Fill occupied leaf cells with transparent blue rectangle
             if (hasParticles && isLeaf) {
-                const step = 2;
-                for (let y = bounds.y; y < bounds.y + bounds.h; y += step) {
-                    this.addLine(
-                        bounds.x,
-                        y,
-                        bounds.x + bounds.w,
-                        y,
-                        r,
-                        g,
-                        b,
-                        0.12
-                    );
-                }
+                this.addRect(
+                    bounds.x,
+                    bounds.y,
+                    bounds.w,
+                    bounds.h,
+                    r,
+                    g,
+                    b,
+                    0.15
+                );
             }
         });
     }
@@ -423,19 +495,20 @@ export class WebGLRenderer {
     drawVelocityVectors(particles: Particle[]): void {
         const [r, g, b] = ORANGE;
         for (const p of particles) {
-            const ex = p.pos.x + p.vel.x * 5;
-            const ey = p.pos.y + p.vel.y * 5;
-            // Thicker vector line
+            // Scale factor 10 (was 5) for more visible vectors
+            const scale = 10;
+            const ex = p.pos.x + p.vel.x * scale;
+            const ey = p.pos.y + p.vel.y * scale;
             this.addLine(p.pos.x, p.pos.y, ex, ey, r, g, b, 0.8);
-            this.addLine(p.pos.x, p.pos.y + 1, ex, ey + 1, r, g, b, 0.5);
 
-            // Arrowhead
+            // Bigger arrowhead
             const angle = p.vel.angle();
+            const headLen = 8;
             this.addLine(
                 ex,
                 ey,
-                ex - 6 * Math.cos(angle - 0.4),
-                ey - 6 * Math.sin(angle - 0.4),
+                ex - headLen * Math.cos(angle - 0.4),
+                ey - headLen * Math.sin(angle - 0.4),
                 r,
                 g,
                 b,
@@ -444,7 +517,7 @@ export class WebGLRenderer {
             this.addLine(
                 ex,
                 ey,
-                ex - 6 * Math.cos(angle + 0.4),
+                ex - headLen * Math.cos(angle + 0.4),
                 ey - 6 * Math.sin(angle + 0.4),
                 r,
                 g,
@@ -457,56 +530,168 @@ export class WebGLRenderer {
     drawParticles(particles: Particle[]): void {
         const [r, g, b] = ORANGE;
         for (const p of particles) {
+            if (p.isBlackHole) {
+                const lifeRatio = p.blackHoleAge / Particle.BLACK_HOLE_LIFETIME;
+                const fade = Math.max(0.15, 1.0 - lifeRatio);
+
+                // MASSIVE accretion disk — impossible to miss
+                this.addCircle(
+                    p.pos.x,
+                    p.pos.y,
+                    150,
+                    1.0,
+                    0.4,
+                    0.0,
+                    0.2 * fade
+                );
+                this.addCircle(
+                    p.pos.x,
+                    p.pos.y,
+                    120,
+                    1.0,
+                    0.5,
+                    0.0,
+                    0.35 * fade
+                );
+                this.addCircle(
+                    p.pos.x,
+                    p.pos.y,
+                    90,
+                    1.0,
+                    0.65,
+                    0.05,
+                    0.5 * fade
+                );
+                this.addCircle(p.pos.x, p.pos.y, 60, 1.0, 0.8, 0.2, 0.7 * fade);
+                this.addCircle(
+                    p.pos.x,
+                    p.pos.y,
+                    40,
+                    1.0,
+                    0.9,
+                    0.4,
+                    0.85 * fade
+                );
+                this.addCircle(
+                    p.pos.x,
+                    p.pos.y,
+                    25,
+                    1.0,
+                    1.0,
+                    0.7,
+                    0.95 * fade
+                );
+                this.addCircle(p.pos.x, p.pos.y, 15, 1.0, 1.0, 0.9, 1.0);
+
+                // Dark core
+                this.addCircle(p.pos.x, p.pos.y, p.radius, 0.0, 0.0, 0.0, 1.0);
+
+                // MASSIVE polar jets — 500px spears of light from both poles
+                const jetLen = 500 * fade;
+                const jetW = 15;
+                for (let offset = -jetW; offset <= jetW; offset++) {
+                    const t = Math.abs(offset) / jetW;
+                    const intensity = (1.0 - t) * (1.0 - t); // quadratic falloff — very bright center
+
+                    // Top jet
+                    this.addLine(
+                        p.pos.x + offset,
+                        p.pos.y - p.radius,
+                        p.pos.x + offset * 1.5,
+                        p.pos.y - p.radius - jetLen * intensity,
+                        0.5,
+                        0.7,
+                        1.0,
+                        intensity * 0.95 * fade
+                    );
+                    // Bottom jet
+                    this.addLine(
+                        p.pos.x + offset,
+                        p.pos.y + p.radius,
+                        p.pos.x + offset * 1.5,
+                        p.pos.y + p.radius + jetLen * intensity,
+                        0.5,
+                        0.7,
+                        1.0,
+                        intensity * 0.95 * fade
+                    );
+                }
+                // Bright white inner core of jets
+                for (let offset = -4; offset <= 4; offset++) {
+                    this.addLine(
+                        p.pos.x + offset,
+                        p.pos.y - p.radius,
+                        p.pos.x + offset,
+                        p.pos.y - p.radius - jetLen * 0.7,
+                        0.9,
+                        0.95,
+                        1.0,
+                        0.95 * fade
+                    );
+                    this.addLine(
+                        p.pos.x + offset,
+                        p.pos.y + p.radius,
+                        p.pos.x + offset,
+                        p.pos.y + p.radius + jetLen * 0.7,
+                        0.9,
+                        0.95,
+                        1.0,
+                        0.95 * fade
+                    );
+                }
+
+                continue;
+            }
+
             this.addCircle(p.pos.x, p.pos.y, p.radius, r, g, b, 1.0);
 
-            // Thick crosshair lines (draw 3 parallel lines for thickness)
-            const cr = p.radius + 6;
-            const gap = p.radius * 0.35;
-            const a = 0.7;
-            for (let offset = -1; offset <= 1; offset++) {
-                // Horizontal
-                this.addLine(
-                    p.pos.x - cr,
-                    p.pos.y + offset,
-                    p.pos.x - gap,
-                    p.pos.y + offset,
-                    r,
-                    g,
-                    b,
-                    a
-                );
-                this.addLine(
-                    p.pos.x + gap,
-                    p.pos.y + offset,
-                    p.pos.x + cr,
-                    p.pos.y + offset,
-                    r,
-                    g,
-                    b,
-                    a
-                );
-                // Vertical
-                this.addLine(
-                    p.pos.x + offset,
-                    p.pos.y - cr,
-                    p.pos.x + offset,
-                    p.pos.y - gap,
-                    r,
-                    g,
-                    b,
-                    a
-                );
-                this.addLine(
-                    p.pos.x + offset,
-                    p.pos.y + gap,
-                    p.pos.x + offset,
-                    p.pos.y + cr,
-                    r,
-                    g,
-                    b,
-                    a
-                );
-            }
+            // Single-line crosshair — proportional to particle size
+            // Extends from half-radius inside the circle to radius * 0.4 outside
+            const inner = p.radius * 0.5; // goes into circle this far
+            const outer = p.radius + p.radius * 0.4; // extends outside
+            const a = 0.6;
+            // Horizontal
+            this.addLine(
+                p.pos.x - outer,
+                p.pos.y,
+                p.pos.x - inner,
+                p.pos.y,
+                r,
+                g,
+                b,
+                a
+            );
+            this.addLine(
+                p.pos.x + inner,
+                p.pos.y,
+                p.pos.x + outer,
+                p.pos.y,
+                r,
+                g,
+                b,
+                a
+            );
+            // Vertical
+            this.addLine(
+                p.pos.x,
+                p.pos.y - outer,
+                p.pos.x,
+                p.pos.y - inner,
+                r,
+                g,
+                b,
+                a
+            );
+            this.addLine(
+                p.pos.x,
+                p.pos.y + inner,
+                p.pos.x,
+                p.pos.y + outer,
+                r,
+                g,
+                b,
+                a
+            );
         }
     }
 

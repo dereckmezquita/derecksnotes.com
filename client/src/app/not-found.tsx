@@ -150,6 +150,7 @@ export default function NotFound() {
             const speed = launch.length() * 0.08;
             const angle = launch.angle();
 
+            // Spread particles over a larger area to prevent overlap chaos
             for (let i = 0; i < count; i++) {
                 const spread = count > 1 ? (Math.random() - 0.5) * 0.3 : 0;
                 const sizeVar = count > 1 ? r * (0.7 + Math.random() * 0.6) : r;
@@ -162,7 +163,7 @@ export default function NotFound() {
                                   angle + spread,
                                   speed * (0.8 + Math.random() * 0.4)
                               )
-                            : Vec2.random(1.5),
+                            : Vec2.random(3 + Math.random() * 3),
                         radius: sizeVar
                     })
                 );
@@ -241,15 +242,57 @@ export default function NotFound() {
                 totalPE += p.mass * GRAVITY * Math.max(0, groundY - p.pos.y);
             }
 
-            collisionCount += qt.detectCollisions(DAMPING);
+            // Reset overlap counts
+            for (const p of particles) p.overlapCount = 0;
+
+            // Collision detection — track absorbed particles
+            const absorbed = new Set<number>();
+            collisionCount += qt.detectCollisions(DAMPING, absorbed);
+
+            // Clear stale black hole contact trackers (particles that bounced away)
+            for (const p of particles) {
+                if (p.isBlackHole && p.contactFrames.size > 0) {
+                    // Keep only contacts that were refreshed this frame
+                    // (collide() increments, so entries > 0 are active)
+                    for (const [id, frames] of p.contactFrames) {
+                        if (absorbed.has(id)) p.contactFrames.delete(id);
+                    }
+                }
+            }
+
+            // Remove absorbed and evaporated particles, fix NaN velocities
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                // Remove absorbed particles
+                if (absorbed.has(p.id)) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                // Evaporate black holes
+                if (p.updateBlackHole()) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+                // Fix NaN/Infinity velocities (safety net)
+                if (!isFinite(p.vel.x) || !isFinite(p.vel.y)) {
+                    p.vel.x = 0;
+                    p.vel.y = 0;
+                }
+                // Cap maximum velocity
+                const maxSpeed = 30;
+                if (p.vel.lengthSq() > maxSpeed * maxSpeed) {
+                    p.vel = p.vel.normalize().mul(maxSpeed);
+                }
+            }
 
             // ---- RENDER (WebGL + text overlay) ----
 
-            // WebGL draws (batched) — no adaptive scaling, always full quality
-            renderer.drawGravitationalGrid(w, h, particles, qt, 12, 800);
+            // WebGL draws — grid recalculated every 2nd frame for performance
+            if (frame % 2 === 0 || N < 100) {
+                renderer.drawGravitationalGrid(w, h, particles, qt, 12, 800);
+            }
             renderer.drawQuadTree(qt);
             renderer.drawTrails(particles, 80);
-            renderer.drawDimLines(particles, 90);
             renderer.drawVelocityVectors(particles);
 
             if (!useGravity && mouse.active) {
@@ -269,7 +312,8 @@ export default function NotFound() {
             renderer.drawAxes();
             renderer.drawScaleBar(w);
 
-            // Flush all WebGL draws in two batches
+            // Flush all WebGL draws
+            renderer.flushTriangles(w, h); // filled rects (quadtree) first
             renderer.flushLines(w, h);
             renderer.flushCircles(w, h);
 
@@ -307,30 +351,31 @@ export default function NotFound() {
             <style>{`
                 .sim-btn {
                     padding: 0.35rem 0.7rem;
-                    background: white;
+                    background: rgba(255, 255, 255, 0.95);
                     border: 1.5px solid hsla(0, 0%, 70%, 1);
-                    border-radius: 2px;
+                    border-radius: 3px;
                     cursor: pointer;
                     font-family: Roboto, sans-serif;
                     font-size: 0.62rem;
                     font-weight: 600;
                     text-transform: uppercase;
                     letter-spacing: 0.08em;
-                    color: hsla(0, 0%, 50%, 1);
+                    color: hsla(0, 0%, 40%, 1);
                     transition: all 0.15s ease;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
                 }
                 .sim-btn:hover {
-                    background: hsla(22, 85%, 38%, 0.08);
+                    background: hsla(22, 85%, 95%, 1);
                     border-color: hsla(22, 85%, 38%, 0.6);
                     color: hsla(22, 85%, 38%, 1);
                 }
                 .sim-btn-active {
                     border-color: hsla(22, 85%, 38%, 1);
-                    color: hsla(22, 85%, 38%, 1);
-                    background: hsla(22, 85%, 38%, 0.06);
+                    color: white;
+                    background: hsla(22, 85%, 45%, 1);
                 }
                 .sim-btn-active:hover {
-                    background: hsla(22, 85%, 38%, 0.15);
+                    background: hsla(22, 85%, 40%, 1);
                 }
             `}</style>
 
@@ -447,8 +492,8 @@ export default function NotFound() {
                             Size: {
                                 value: ballSize,
                                 set: setBallSize,
-                                min: 4,
-                                max: 40,
+                                min: 1,
+                                max: 50,
                                 suffix: 'px'
                             },
                             Grid: {
@@ -462,7 +507,7 @@ export default function NotFound() {
                                 value: spawnCount,
                                 set: setSpawnCount,
                                 min: 1,
-                                max: 50,
+                                max: 100,
                                 suffix: ''
                             }
                         };

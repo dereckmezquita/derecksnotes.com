@@ -100,9 +100,12 @@ export class QuadTree {
         return found;
     }
 
-    detectCollisions(damping: number): number {
+    detectCollisions(
+        damping: number,
+        absorbed: Set<number> = new Set()
+    ): number {
         let collisions = 0;
-        this.collideInternal(damping, (count) => {
+        this.collideInternal(damping, absorbed, (count) => {
             collisions += count;
         });
         return collisions;
@@ -110,18 +113,24 @@ export class QuadTree {
 
     private collideInternal(
         damping: number,
+        absorbed: Set<number>,
         onCollision: (count: number) => void
     ): void {
         for (let i = 0; i < this.particles.length; i++) {
+            if (absorbed.has(this.particles[i].id)) continue;
             for (let j = i + 1; j < this.particles.length; j++) {
-                if (
-                    Particle.collide(
-                        this.particles[i],
-                        this.particles[j],
-                        damping
-                    )
-                ) {
+                if (absorbed.has(this.particles[j].id)) continue;
+                const result = Particle.collide(
+                    this.particles[i],
+                    this.particles[j],
+                    damping
+                );
+                if (result) {
                     onCollision(1);
+                    if (result === 'absorbed_a')
+                        absorbed.add(this.particles[i].id);
+                    if (result === 'absorbed_b')
+                        absorbed.add(this.particles[j].id);
                 }
             }
 
@@ -129,28 +138,39 @@ export class QuadTree {
                 this.checkAgainstChildren(
                     this.particles[i],
                     damping,
+                    absorbed,
                     onCollision
                 );
             }
         }
 
         if (this.divided) {
-            this.nw!.collideInternal(damping, onCollision);
-            this.ne!.collideInternal(damping, onCollision);
-            this.sw!.collideInternal(damping, onCollision);
-            this.se!.collideInternal(damping, onCollision);
+            this.nw!.collideInternal(damping, absorbed, onCollision);
+            this.ne!.collideInternal(damping, absorbed, onCollision);
+            this.sw!.collideInternal(damping, absorbed, onCollision);
+            this.se!.collideInternal(damping, absorbed, onCollision);
         }
     }
 
     private checkAgainstChildren(
         p: Particle,
         damping: number,
+        absorbed: Set<number>,
         onCollision: (count: number) => void
     ): void {
         const checkNode = (node: QuadTree) => {
             for (const other of node.particles) {
-                if (p !== other && Particle.collide(p, other, damping)) {
-                    onCollision(1);
+                if (
+                    p !== other &&
+                    !absorbed.has(p.id) &&
+                    !absorbed.has(other.id)
+                ) {
+                    const result = Particle.collide(p, other, damping);
+                    if (result) {
+                        onCollision(1);
+                        if (result === 'absorbed_a') absorbed.add(p.id);
+                        if (result === 'absorbed_b') absorbed.add(other.id);
+                    }
                 }
             }
             if (node.divided) {
