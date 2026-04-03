@@ -7,20 +7,20 @@ import { Metadata } from 'next';
 
 const dictionary: string = 'biology';
 const absDir: string = path.join(
-    ROOT_DIR_APP,
-    'dictionaries',
-    dictionary,
-    'definitions'
+  ROOT_DIR_APP,
+  'dictionaries',
+  dictionary,
+  'definitions'
 );
 
 export const metadata: Metadata = {
-    title: 'Dn | Biology Dictionary',
-    description: 'A comprehensive interactive biology dictionary.'
+  title: 'Dn | Biology Dictionary',
+  description: 'A comprehensive interactive biology dictionary.'
 };
 
 async function Page() {
-    const definitions = await fetchAllDefintions(absDir);
-    return <Dictionary dictionaryType="Biology" definitions={definitions} />;
+  const definitions = await fetchAllDefintions(absDir);
+  return <Dictionary dictionaryType="Biology" definitions={definitions} />;
 }
 
 export default Page;

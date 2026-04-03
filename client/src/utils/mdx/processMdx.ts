@@ -21,71 +21,71 @@ import { compileMDX } from 'next-mdx-remote/rsc';
 import mdxComponents from '@/components/mdx/index';
 
 const rehypePrettyCodeOptions: Partial<Options> = {
-    theme: 'github-dark-dimmed',
-    defaultLang: 'plaintext'
+  theme: 'github-dark-dimmed',
+  defaultLang: 'plaintext'
 };
 
 export async function processMdx<
-    T extends ContentFrontmatter | DefinitionMetadata
+  T extends ContentFrontmatter | DefinitionMetadata
 >(
-    markdown: string,
-    plugins?: {
-        remarkPlugins?: any[];
-        rehypePlugins?: any[];
-    }
+  markdown: string,
+  plugins?: {
+    remarkPlugins?: any[];
+    rehypePlugins?: any[];
+  }
 ): Promise<{ frontmatter: T; source: React.ReactNode }> {
-    try {
-        const { content, frontmatter } = await compileMDX<T>({
-            source: markdown,
-            components: mdxComponents,
-            options: {
-                parseFrontmatter: true,
-                // REF: https://github.com/hashicorp/next-mdx-remote/issues/356#issuecomment-1556074660
-                mdxOptions: {
-                    remarkPlugins: [
-                        remarkGfm,
-                        remarkUnwrapImages,
-                        remarkMath,
-                        remarkToc,
-                        ...(plugins?.remarkPlugins || [])
-                    ],
-                    rehypePlugins: [
-                        [rehypePrettyCode, rehypePrettyCodeOptions],
-                        rehypeSlug,
-                        rehypeMathJax,
-                        rehypeTocCollapse,
-                        rehypeExternalLinks,
-                        rehypeAddHeadingLinks,
-                        [
-                            rehypeDropCap,
-                            {
-                                float: 'left',
-                                fontSize: '4rem',
-                                fontFamily: 'Georgia, serif',
-                                lineHeight: '40px',
-                                marginRight: '0.1em',
-                                color: theme.theme_colours[5]()
-                            }
-                        ],
-                        ...(plugins?.rehypePlugins || [])
-                    ]
-                }
-            }
-        });
-
-        if ('date' in frontmatter) {
-            frontmatter.date = new Date(frontmatter.date as string)
-                .toISOString()
-                .slice(0, 10);
+  try {
+    const { content, frontmatter } = await compileMDX<T>({
+      source: markdown,
+      components: mdxComponents,
+      options: {
+        parseFrontmatter: true,
+        // REF: https://github.com/hashicorp/next-mdx-remote/issues/356#issuecomment-1556074660
+        mdxOptions: {
+          remarkPlugins: [
+            remarkGfm,
+            remarkUnwrapImages,
+            remarkMath,
+            remarkToc,
+            ...(plugins?.remarkPlugins || [])
+          ],
+          rehypePlugins: [
+            [rehypePrettyCode, rehypePrettyCodeOptions],
+            rehypeSlug,
+            rehypeMathJax,
+            rehypeTocCollapse,
+            rehypeExternalLinks,
+            rehypeAddHeadingLinks,
+            [
+              rehypeDropCap,
+              {
+                float: 'left',
+                fontSize: '4rem',
+                fontFamily: 'Georgia, serif',
+                lineHeight: '40px',
+                marginRight: '0.1em',
+                color: theme.theme_colours[5]()
+              }
+            ],
+            ...(plugins?.rehypePlugins || [])
+          ]
         }
+      }
+    });
 
-        return {
-            frontmatter: frontmatter,
-            source: content
-        };
-    } catch (err) {
-        throw new Error(
-            `MDX compilation error: ${err instanceof Error ? err.message : String(err)}\nError occurred when processing: ${markdown}`
-        );
+    if ('date' in frontmatter) {
+      frontmatter.date = new Date(frontmatter.date as string)
+        .toISOString()
+        .slice(0, 10);
     }
+
+    return {
+      frontmatter: frontmatter,
+      source: content
+    };
+  } catch (err) {
+    throw new Error(
+      `MDX compilation error: ${err instanceof Error ? err.message : String(err)}\nError occurred when processing: ${markdown}`
+    );
+  }
 }

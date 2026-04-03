@@ -23,28 +23,28 @@ import { Toaster } from 'sonner';
 import { ErrorBoundary } from '@/components/ui/ErrorBoundary';
 
 export default function RootLayout({
-    children
+  children
 }: {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }) {
-    return (
-        <StyledComponentsRegistry>
-            <ThemeProvider theme={theme}>
-                <AuthProvider>
-                    <html lang="en">
-                        <body>
-                            <Toaster richColors closeButton theme={'light'} />
-                            <GlobalStyles />
-                            <Logo />
-                            <Navbar />
-                            <main>
-                                <ErrorBoundary>{children}</ErrorBoundary>
-                            </main>
-                            <Footer />
-                        </body>
-                    </html>
-                </AuthProvider>
-            </ThemeProvider>
-        </StyledComponentsRegistry>
-    );
+  return (
+    <StyledComponentsRegistry>
+      <ThemeProvider theme={theme}>
+        <AuthProvider>
+          <html lang="en">
+            <body>
+              <Toaster richColors closeButton theme={'light'} />
+              <GlobalStyles />
+              <Logo />
+              <Navbar />
+              <main>
+                <ErrorBoundary>{children}</ErrorBoundary>
+              </main>
+              <Footer />
+            </body>
+          </html>
+        </AuthProvider>
+      </ThemeProvider>
+    </StyledComponentsRegistry>
+  );
 }

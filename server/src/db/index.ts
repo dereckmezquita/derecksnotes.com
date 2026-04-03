@@ -13,13 +13,13 @@ export const db = drizzle(sqlite, { schema });
 
 // Run migrations on startup (creates tables on fresh DB, applies new migrations on existing)
 try {
-    const migrationsFolder = path.resolve(import.meta.dir, '../../drizzle');
-    migrate(db, { migrationsFolder });
-    console.log('Database migrations applied.');
+  const migrationsFolder = path.resolve(import.meta.dir, '../../drizzle');
+  migrate(db, { migrationsFolder });
+  console.log('Database migrations applied.');
 } catch (error: any) {
-    if (!error.message?.includes('No migrations')) {
-        throw error;
-    }
+  if (!error.message?.includes('No migrations')) {
+    throw error;
+  }
 }
 
 export { schema };

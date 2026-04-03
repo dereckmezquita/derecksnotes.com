@@ -16,41 +16,41 @@ import { visit } from 'unist-util-visit';
  * @returns Plain text summary string
  */
 export function extractSummaryFromMdx(
-    content: string,
-    maxLength: number = 300
+  content: string,
+  maxLength: number = 300
 ): string {
-    try {
-        const parsedContent = remark()
-            .use(remarkGfm)
-            .use(remarkMath)
-            .use(mdx)
-            .use(strip)
-            .parse(content);
+  try {
+    const parsedContent = remark()
+      .use(remarkGfm)
+      .use(remarkMath)
+      .use(mdx)
+      .use(strip)
+      .parse(content);
 
-        const paragraphs: string[] = [];
-        visit(parsedContent, 'paragraph', (node: any) => {
-            const textContent = node.children
-                .map((child: any) => child.value?.trim() || '')
-                .join('');
+    const paragraphs: string[] = [];
+    visit(parsedContent, 'paragraph', (node: any) => {
+      const textContent = node.children
+        .map((child: any) => child.value?.trim() || '')
+        .join('');
 
-            if (textContent.trim() !== '') {
-                paragraphs.push(textContent);
-            }
-        });
+      if (textContent.trim() !== '') {
+        paragraphs.push(textContent);
+      }
+    });
 
-        const summary = remark()
-            .processSync(paragraphs.join(' '))
-            .toString()
-            .trim();
+    const summary = remark()
+      .processSync(paragraphs.join(' '))
+      .toString()
+      .trim();
 
-        if (maxLength > 0 && summary.length > maxLength) {
-            return summary.substring(0, maxLength) + '...';
-        }
-
-        return summary;
-    } catch {
-        return '';
+    if (maxLength > 0 && summary.length > maxLength) {
+      return summary.substring(0, maxLength) + '...';
     }
+
+    return summary;
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -61,15 +61,15 @@ export function extractSummaryFromMdx(
  * @returns Object with summary and frontmatter
  */
 export function stripMdx<T>(filepath: string): {
-    summary: string;
-    frontmatter: T;
+  summary: string;
+  frontmatter: T;
 } {
-    const file = fs.readFileSync(filepath, 'utf-8');
-    const { data, content } = matter(file);
-    const summary = extractSummaryFromMdx(content);
+  const file = fs.readFileSync(filepath, 'utf-8');
+  const { data, content } = matter(file);
+  const summary = extractSummaryFromMdx(content);
 
-    return {
-        summary,
-        frontmatter: data as T
-    };
+  return {
+    summary,
+    frontmatter: data as T
+  };
 }

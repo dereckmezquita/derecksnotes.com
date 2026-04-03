@@ -1,12 +1,12 @@
 import url from 'url';
 
 const urlObject = {
-    protocol: 'http',
-    hostname: 'localhost',
-    port: 3000,
-    pathname: '/pathname',
-    query: { search: 'test' },
-    hash: '#hash'
+  protocol: 'http',
+  hostname: 'localhost',
+  port: 3000,
+  pathname: '/pathname',
+  query: { search: 'test' },
+  hash: '#hash'
 };
 
 // Construct the URL

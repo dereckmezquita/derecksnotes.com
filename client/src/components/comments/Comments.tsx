@@ -5,95 +5,89 @@ import type { CommentsListResponse } from '@derecksnotes/shared';
 import { CommentForm } from './CommentForm';
 import { CommentItem } from './CommentItem';
 import {
-    CommentsSection,
-    CommentsTitle,
-    NoCommentsMessage,
-    LoadMoreButton
+  CommentsSection,
+  CommentsTitle,
+  NoCommentsMessage,
+  LoadMoreButton
 } from './CommentStyles';
 
 interface CommentsProps {
-    slug: string;
-    title: string;
+  slug: string;
+  title: string;
 }
 
 export function Comments({ slug, title }: CommentsProps) {
-    const [comments, setComments] = useState<CommentsListResponse['comments']>(
-        []
-    );
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(false);
-    const [total, setTotal] = useState(0);
-    const [loading, setLoading] = useState(true);
+  const [comments, setComments] = useState<CommentsListResponse['comments']>(
+    []
+  );
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-    const fetchComments = useCallback(
-        async (pageNum: number, append: boolean = false) => {
-            setLoading(true);
-            try {
-                const data = await api.get<CommentsListResponse>(
-                    `/comments?slug=${encodeURIComponent(slug)}&page=${pageNum}&limit=20&maxDepth=3`
-                );
-                if (append) {
-                    setComments((prev) => [...prev, ...data.comments]);
-                } else {
-                    setComments(data.comments);
-                }
-                setHasMore(data.hasMore);
-                setTotal(data.total);
-                setPage(pageNum);
-            } catch {
-                // ignore
-            } finally {
-                setLoading(false);
-            }
-        },
-        [slug]
-    );
+  const fetchComments = useCallback(
+    async (pageNum: number, append: boolean = false) => {
+      setLoading(true);
+      try {
+        const data = await api.get<CommentsListResponse>(
+          `/comments?slug=${encodeURIComponent(slug)}&page=${pageNum}&limit=20&maxDepth=3`
+        );
+        if (append) {
+          setComments((prev) => [...prev, ...data.comments]);
+        } else {
+          setComments(data.comments);
+        }
+        setHasMore(data.hasMore);
+        setTotal(data.total);
+        setPage(pageNum);
+      } catch {
+        // ignore
+      } finally {
+        setLoading(false);
+      }
+    },
+    [slug]
+  );
 
-    useEffect(() => {
-        fetchComments(1);
-    }, [fetchComments]);
+  useEffect(() => {
+    fetchComments(1);
+  }, [fetchComments]);
 
-    const handleRefresh = () => {
-        fetchComments(1);
-    };
+  const handleRefresh = () => {
+    fetchComments(1);
+  };
 
-    const handleLoadMore = () => {
-        fetchComments(page + 1, true);
-    };
+  const handleLoadMore = () => {
+    fetchComments(page + 1, true);
+  };
 
-    return (
-        <CommentsSection>
-            <CommentsTitle>
-                Comments{total > 0 ? ` (${total})` : ''}
-            </CommentsTitle>
+  return (
+    <CommentsSection>
+      <CommentsTitle>Comments{total > 0 ? ` (${total})` : ''}</CommentsTitle>
 
-            <CommentForm
-                slug={slug}
-                title={title}
-                onSubmitted={handleRefresh}
-            />
+      <CommentForm slug={slug} title={title} onSubmitted={handleRefresh} />
 
-            {comments.length === 0 && !loading ? (
-                <NoCommentsMessage>
-                    No comments yet. Be the first to comment.
-                </NoCommentsMessage>
-            ) : (
-                comments.map((comment) => (
-                    <CommentItem
-                        key={comment.id}
-                        comment={comment}
-                        slug={slug}
-                        title={title}
-                        onRefresh={handleRefresh}
-                    />
-                ))
-            )}
+      {comments.length === 0 && !loading ? (
+        <NoCommentsMessage>
+          No comments yet. Be the first to comment.
+        </NoCommentsMessage>
+      ) : (
+        comments.map((comment) => (
+          <CommentItem
+            key={comment.id}
+            comment={comment}
+            slug={slug}
+            title={title}
+            onRefresh={handleRefresh}
+          />
+        ))
+      )}
 
-            {hasMore && (
-                <LoadMoreButton onClick={handleLoadMore} disabled={loading}>
-                    {loading ? 'Loading...' : 'Load more comments'}
-                </LoadMoreButton>
-            )}
-        </CommentsSection>
-    );
+      {hasMore && (
+        <LoadMoreButton onClick={handleLoadMore} disabled={loading}>
+          {loading ? 'Loading...' : 'Load more comments'}
+        </LoadMoreButton>
+      )}
+    </CommentsSection>
+  );
 }

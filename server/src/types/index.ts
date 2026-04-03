@@ -2,12 +2,12 @@ import type { Request } from 'express';
 import type * as schema from '@db/schema';
 
 export interface AuthenticatedRequest extends Request {
-    user?: {
-        id: string;
-        username: string;
-    };
-    sessionId?: string;
-    permissions?: Set<string>;
+  user?: {
+    id: string;
+    username: string;
+  };
+  sessionId?: string;
+  permissions?: Set<string>;
 }
 
 // Drizzle inferred types

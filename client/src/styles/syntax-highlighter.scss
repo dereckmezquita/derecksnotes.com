@@ -2,95 +2,95 @@
 // https://kohan.dev/posts/markdown-reader-astro-rehype-pretty-code/
 // line numbers for block code only
 figure[data-rehype-pretty-code-figure] code {
-    counter-reset: line;
+  counter-reset: line;
 }
 
 figure[data-rehype-pretty-code-figure] pre {
-    overflow-x: auto;
+  overflow-x: auto;
 }
 
 figure[data-rehype-pretty-code-figure] code > [data-line]::before {
-    counter-increment: line;
-    content: counter(line);
+  counter-increment: line;
+  content: counter(line);
 
-    padding-right: 10px;
-    border-right: 1px dashed #e8d64d;
+  padding-right: 10px;
+  border-right: 1px dashed #e8d64d;
 
-    /* Other styling */
-    display: inline-block;
-    width: 1rem;
-    margin-right: 2rem;
-    text-align: right;
-    color: #e8d64d;
+  /* Other styling */
+  display: inline-block;
+  width: 1rem;
+  margin-right: 2rem;
+  text-align: right;
+  color: #e8d64d;
 }
 
 figure[data-rehype-pretty-code-figure]
-    code[data-line-numbers-max-digits='2']
-    > [data-line]::before {
-    width: 3rem;
+  code[data-line-numbers-max-digits='2']
+  > [data-line]::before {
+  width: 3rem;
 }
 
 figure[data-rehype-pretty-code-figure]
-    code[data-line-numbers-max-digits='3']
-    > [data-line]::before {
-    width: 3rem;
+  code[data-line-numbers-max-digits='3']
+  > [data-line]::before {
+  width: 3rem;
 }
 
 // title and block
 figure[data-rehype-pretty-code-figure] {
+  margin: 0px;
+  width: 100%;
+  pre {
     margin: 0px;
-    width: 100%;
-    pre {
-        margin: 0px;
-        margin-bottom: 10px;
-        padding: 0px;
-        border-radius: 10px;
-    }
+    margin-bottom: 10px;
+    padding: 0px;
+    border-radius: 10px;
+  }
 
-    code {
-        margin: 7px;
-        padding: 7px;
-    }
+  code {
+    margin: 7px;
+    padding: 7px;
+  }
 
-    /* stylist preferences */
-    background-color: #000000;
-    border-radius: 0.5rem;
+  /* stylist preferences */
+  background-color: #000000;
+  border-radius: 0.5rem;
 
-    // title
-    figcaption[data-rehype-pretty-code-title] {
-        margin-bottom: -7px;
-        border-radius: 10px;
-        background-color: #353535;
-        padding-left: 0.75rem;
-        padding-right: 0.75rem;
-        padding-top: 0.25rem;
-        padding-bottom: 0.25rem;
-        font-family:
-            ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-            'Liberation Mono', 'Courier New', monospace;
-        font-size: 0.85rem;
-        line-height: 1.3rem;
-        color: #e8d64d;
-    }
+  // title
+  figcaption[data-rehype-pretty-code-title] {
+    margin-bottom: -7px;
+    border-radius: 10px;
+    background-color: #353535;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+    font-family:
+      ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+      'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.3rem;
+    color: #e8d64d;
+  }
 }
 
 span[data-highlighted-line] {
-    margin-left: -7px;
-    border-left: 7px solid rgb(253 164 175 / 0.7);
-    background-color: rgb(254 205 211 / 0.1);
+  margin-left: -7px;
+  border-left: 7px solid rgb(253 164 175 / 0.7);
+  background-color: rgb(254 205 211 / 0.1);
 }
 
 // inline code
 span[data-rehype-pretty-code-figure] {
-    padding: 4px;
+  padding: 4px;
 
-    code {
-        background-color: rgb(34, 39, 46);
-        color: rgb(173, 186, 199);
-        font-family: Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-        font-size: 85%;
-        padding: 2px 4px;
-        margin: 0 2px;
-        border-radius: 4px;
-    }
+  code {
+    background-color: rgb(34, 39, 46);
+    color: rgb(173, 186, 199);
+    font-family: Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 2px 4px;
+    margin: 0 2px;
+    border-radius: 4px;
+  }
 }
