@@ -469,48 +469,76 @@ export class WebGLRenderer {
 
     // ---- Drawing methods (matching Canvas 2D Renderer API) ----
 
+    /**
+     * Density field approach: instead of querying the quadtree for each grid point,
+     * we loop over particles once and "stamp" each particle's gravitational pull
+     * onto nearby grid cells. This is O(particles × stampRadius²) instead of
+     * O(gridPoints × nearbyParticles).
+     *
+     * For 1000 particles with stampRadius=12 cells: ~1000 × 144 = 144,000 ops
+     * Old approach with 14,400 grid points × ~10 nearby: ~144,000 ops
+     * Similar count BUT no quadtree traversal, no Vec2 allocation, no sqrt per query.
+     */
     drawGravitationalGrid(
         w: number,
         h: number,
         particles: Particle[],
-        qt: QuadTree,
+        _qt: QuadTree, // kept in signature for compatibility, not used
         spacing: number = 12,
         strength: number = 800
     ): void {
         const cols = Math.ceil(w / spacing) + 1;
         const rows = Math.ceil(h / spacing) + 1;
         const influenceRadius = 150;
+        const influenceCells = Math.ceil(influenceRadius / spacing);
+        const maxPull = spacing * 0.8;
 
-        // Build displaced grid
-        const displaced: Float32Array = new Float32Array(cols * rows * 2);
+        // Force field: dx,dy displacement for each grid point
+        // Initialize to zero
+        const displaced = new Float32Array(cols * rows * 2);
 
+        // First pass: set base positions
         for (let row = 0; row < rows; row++) {
             for (let col = 0; col < cols; col++) {
-                const baseX = col * spacing;
-                const baseY = row * spacing;
-                let dx = 0,
-                    dy = 0;
+                const idx = (row * cols + col) * 2;
+                displaced[idx] = col * spacing;
+                displaced[idx + 1] = row * spacing;
+            }
+        }
 
-                const nearby = qt.queryRadius(
-                    Vec2.from(baseX, baseY),
-                    influenceRadius
-                );
-                for (const p of nearby) {
+        // Second pass: stamp each particle's influence onto nearby grid cells
+        for (const p of particles) {
+            // Which grid cell is this particle in?
+            const centerCol = Math.round(p.pos.x / spacing);
+            const centerRow = Math.round(p.pos.y / spacing);
+
+            // Stamp onto surrounding cells within influence radius
+            const minCol = Math.max(0, centerCol - influenceCells);
+            const maxCol = Math.min(cols - 1, centerCol + influenceCells);
+            const minRow = Math.max(0, centerRow - influenceCells);
+            const maxRow = Math.min(rows - 1, centerRow + influenceCells);
+
+            for (let row = minRow; row <= maxRow; row++) {
+                for (let col = minCol; col <= maxCol; col++) {
+                    const baseX = col * spacing;
+                    const baseY = row * spacing;
                     const diffX = p.pos.x - baseX;
                     const diffY = p.pos.y - baseY;
                     const distSq = diffX * diffX + diffY * diffY;
+
+                    // Skip if outside influence radius (squared comparison, no sqrt)
+                    if (distSq > influenceRadius * influenceRadius) continue;
+
                     const dist = Math.sqrt(distSq) + 1;
                     const pull = Math.min(
                         (strength * p.mass) / (distSq + 500),
-                        spacing * 0.8
+                        maxPull
                     );
-                    dx += (diffX / dist) * pull;
-                    dy += (diffY / dist) * pull;
-                }
 
-                const idx = (row * cols + col) * 2;
-                displaced[idx] = baseX + dx;
-                displaced[idx + 1] = baseY + dy;
+                    const idx = (row * cols + col) * 2;
+                    displaced[idx] += (diffX / dist) * pull;
+                    displaced[idx + 1] += (diffY / dist) * pull;
+                }
             }
         }
 
@@ -650,8 +678,8 @@ export class WebGLRenderer {
             const ex = p.pos.x + vx;
             const ey = p.pos.y + vy;
 
-            // Thick line body (2px)
-            this.addThickLine(p.pos.x, p.pos.y, ex, ey, 1, r, g, b, 0.8);
+            // Vector line — matches trail thickness
+            this.addThickLine(p.pos.x, p.pos.y, ex, ey, 1.5, r, g, b, 0.8);
 
             // Filled triangle arrowhead
             const speed = Math.sqrt(vx * vx + vy * vy);
@@ -799,9 +827,9 @@ export class WebGLRenderer {
 
             this.addCircle(p.pos.x, p.pos.y, p.radius, r, g, b, 1.0);
 
-            // Short crosshair — starts at circle edge, extends 15% beyond
-            const inner = p.radius; // starts exactly at circle edge
-            const outer = p.radius * 1.15; // extends 15% beyond
+            // Short crosshair — starts at visible ring edge, extends 15% beyond
+            const inner = p.radius * 0.88; // matches where the shader draws the ring
+            const outer = p.radius * 1.03; // extends just beyond the ring
             const a = 0.6;
             const cw = 2;
             // Horizontal arms
