@@ -512,7 +512,7 @@ A practical guideline: if the mean and median differ substantially, report *both
 | Measure | Formula | Minimises | Sensitive to Outliers? | Use When |
 |---------|---------|-----------|----------------------|----------|
 | Mean ($\bar{x}$) | $\frac{1}{n}\sum x_i$ | $\sum(x_i - c)^2$ | Yes | Data are symmetric; need for further algebra |
-| Median | Middle of sorted values | $\sum|x_i - c|$ | No | Data are skewed; outliers present |
+| Median | Middle of sorted values | $\sum\lvert x_i - c\rvert$ | No | Data are skewed; outliers present |
 | Mode | Most frequent value | -- | No | Categorical data; describing peaks |
 | Weighted Mean | $\frac{\sum w_i x_i}{\sum w_i}$ | $\sum w_i(x_i - c)^2$ | Yes | Observations have different importance |
 | Trimmed Mean | Mean of central $(1-2\alpha)$ fraction | -- | Less so | Compromise between mean and median |

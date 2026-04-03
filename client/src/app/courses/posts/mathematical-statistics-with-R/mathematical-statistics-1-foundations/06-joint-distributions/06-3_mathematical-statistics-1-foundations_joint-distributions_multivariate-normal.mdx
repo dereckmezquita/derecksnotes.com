@@ -719,12 +719,12 @@ When explaining the multivariate normal to a non-technical audience:
 
 | Property | Formula |
 |:---------|:--------|
-| **PDF** | $f(\mathbf{x}) = (2\pi)^{-p/2}|\boldsymbol{\Sigma}|^{-1/2}\exp\!\left(-\tfrac{1}{2}(\mathbf{x}-\boldsymbol{\mu})^\top\boldsymbol{\Sigma}^{-1}(\mathbf{x}-\boldsymbol{\mu})\right)$ |
+| **PDF** | $f(\mathbf{x}) = (2\pi)^{-p/2}\lvert\boldsymbol{\Sigma}\rvert^{-1/2}\exp\!\left(-\tfrac{1}{2}(\mathbf{x}-\boldsymbol{\mu})^\top\boldsymbol{\Sigma}^{-1}(\mathbf{x}-\boldsymbol{\mu})\right)$ |
 | **Mean** | $E[\mathbf{X}] = \boldsymbol{\mu}$ |
 | **Covariance** | $\text{Cov}(\mathbf{X}) = \boldsymbol{\Sigma}$ |
 | **Marginal** | $X_i \sim N(\mu_i, \sigma_{ii})$ |
-| **Conditional mean** | $\boldsymbol{\mu}_{1|2} = \boldsymbol{\mu}_1 + \boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1}(\mathbf{x}_2 - \boldsymbol{\mu}_2)$ |
-| **Conditional cov.** | $\boldsymbol{\Sigma}_{1|2} = \boldsymbol{\Sigma}_{11} - \boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1}\boldsymbol{\Sigma}_{21}$ |
+| **Conditional mean** | $\boldsymbol{\mu}_{1\mid 2} = \boldsymbol{\mu}_1 + \boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1}(\mathbf{x}_2 - \boldsymbol{\mu}_2)$ |
+| **Conditional cov.** | $\boldsymbol{\Sigma}_{1\mid 2} = \boldsymbol{\Sigma}_{11} - \boldsymbol{\Sigma}_{12}\boldsymbol{\Sigma}_{22}^{-1}\boldsymbol{\Sigma}_{21}$ |
 | **Cholesky simulation** | $\mathbf{X} = \boldsymbol{\mu} + \mathbf{L}\mathbf{Z}$, $\mathbf{Z} \sim N(\mathbf{0}, \mathbf{I})$ |
 | **Special property** | Uncorrelated $\Rightarrow$ independent (MVN only) |
 | **R functions** | `mvtnorm::rmvnorm()`, `mvtnorm::dmvnorm()` |

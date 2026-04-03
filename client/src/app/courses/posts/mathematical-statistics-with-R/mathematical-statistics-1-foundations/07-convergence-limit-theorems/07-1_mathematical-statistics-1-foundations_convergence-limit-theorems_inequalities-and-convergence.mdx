@@ -148,7 +148,7 @@ This form is often more convenient in proofs.
 
 ### 7.3.2 What Does Chebyshev Tell Us?
 
-| $k$ (number of std deviations) | Upper bound on $P(\|X - \mu\| \ge k\sigma)$ |
+| $k$ (number of std deviations) | Upper bound on $P(\lvert X - \mu\rvert \ge k\sigma)$ |
 |:---:|:---:|
 | 1 | 1.000 (trivial) |
 | 2 | 0.250 |
@@ -623,9 +623,9 @@ When explaining these ideas to a non-technical audience:
 | Inequality/Concept | Statement | Conditions |
 |:---|:---|:---|
 | **Markov** | $P(X \ge a) \le E[X]/a$ | $X \ge 0$, $a > 0$ |
-| **Chebyshev** | $P(\|X - \mu\| \ge k\sigma) \le 1/k^2$ | Finite variance |
+| **Chebyshev** | $P(\lvert X - \mu\rvert \ge k\sigma) \le 1/k^2$ | Finite variance |
 | **Jensen** | $g(E[X]) \le E[g(X)]$ | $g$ convex |
-| **Conv. in prob.** | $P(\|X_n - X\| > \epsilon) \to 0$ | For all $\epsilon > 0$ |
+| **Conv. in prob.** | $P(\lvert X_n - X\rvert > \epsilon) \to 0$ | For all $\epsilon > 0$ |
 | **Almost sure** | $P(\lim X_n = X) = 1$ | Strongest mode |
 | **Conv. in dist.** | $F_{X_n}(x) \to F_X(x)$ | At continuity points of $F_X$ |
 | **Hierarchy** | a.s. $\Rightarrow$ in prob. $\Rightarrow$ in dist. | |
