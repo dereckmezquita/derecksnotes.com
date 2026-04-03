@@ -853,24 +853,6 @@ export class WebGLRenderer {
         }
     }
 
-    drawMouseAttractor(
-        mouse: Vec2,
-        particles: Particle[],
-        range: number
-    ): void {
-        const [r, g, b] = ORANGE;
-        // Crosshair at mouse
-        this.addLine(mouse.x - 6, mouse.y, mouse.x + 6, mouse.y, r, g, b, 0.4);
-        this.addLine(mouse.x, mouse.y - 6, mouse.x, mouse.y + 6, r, g, b, 0.4);
-
-        // Lines to nearby particles
-        for (const p of particles) {
-            if (p.pos.distTo(mouse) < range) {
-                this.addLine(p.pos.x, p.pos.y, mouse.x, mouse.y, r, g, b, 0.07);
-            }
-        }
-    }
-
     drawSlingshot(start: Vec2, mouse: Vec2, previewRadius: number): void {
         const [r, g, b] = ORANGE;
         const delta = start.sub(mouse);

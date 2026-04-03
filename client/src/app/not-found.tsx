@@ -370,10 +370,6 @@ export default function NotFound() {
             renderer.drawTrails(particles, 80);
             renderer.drawVelocityVectors(particles);
 
-            if (!useGravity && mouse.active) {
-                renderer.drawMouseAttractor(mouse.pos, particles, 250);
-            }
-
             if (dragStart && isDragging && mouse.active) {
                 renderer.drawSlingshot(
                     dragStart,
