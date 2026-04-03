@@ -132,6 +132,8 @@ box::use(ggplot2)
 #' @return scalar covariance
 my_cov <- function(x, y) {
   stopifnot(length(x) == length(y))
+  complete <- complete.cases(x, y)
+  x <- x[complete]; y <- y[complete]
   n <- length(x)
   sum((x - mean(x)) * (y - mean(y))) / (n - 1)
 }
@@ -206,7 +208,8 @@ Equality holds if and only if $U = tV$ for some constant $t$, i.e., $Y = aX + b$
 #' @param y numeric vector
 #' @return scalar correlation
 my_cor <- function(x, y) {
-  my_cov(x, y) / (sd(x) * sd(y))
+  complete <- complete.cases(x, y)
+  my_cov(x, y) / (sd(x[complete]) * sd(y[complete]))
 }
 
 # Verify
@@ -338,9 +341,9 @@ ggplot2$ggplot(anscombe_data, ggplot2$aes(x = x, y = y)) +
 
 ```{r anscombe-stats}
 anscombe_data[, .(
-  mean_x = round(mean(x), 2),
-  mean_y = round(mean(y), 2),
-  cor = round(cor(x, y), 3)
+  mean_x = round(mean(as.numeric(x)), 2),
+  mean_y = round(mean(as.numeric(y)), 2),
+  cor = round(cor(as.numeric(x), as.numeric(y)), 3)
 ), by = type]
 ```
 
@@ -435,6 +438,11 @@ This is one of the most important results in probability: **the sum of independe
 data_dir <- "../../../data"
 nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
 
+# Ensure numeric columns
+for (col in c("Height", "Weight", "Age", "BMI")) {
+  if (col %in% names(nhanes)) nhanes[, (col) := as.numeric(get(col))]
+}
+
 # Keep adults with complete height and weight data
 nhanes_adults <- nhanes[Age >= 18 & !is.na(Height) & !is.na(Weight)]
 nhanes_adults[, .N]
@@ -462,7 +470,7 @@ ggplot2$ggplot(nhanes_adults, ggplot2$aes(x = Height, y = Weight)) +
 # Select numeric columns of interest
 cols <- c("Height", "Weight", "Age", "BMI")
 available <- intersect(cols, names(nhanes_adults))
-cor_mat <- cor(nhanes_adults[, ..available], use = "complete.obs")
+cor_mat <- cor(as.matrix(nhanes_adults[, ..available]), use = "complete.obs")
 round(cor_mat, 3)
 ```
 

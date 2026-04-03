@@ -159,7 +159,7 @@ x_seq <- seq(-4, 4, length.out = 500)
 density_vals <- dnorm(x_seq)
 
 df <- data.table$data.table(x = x_seq, y = density_vals)
-df[, region := fifelse(abs(x) > z_crit, "Reject H0", "Fail to reject")]
+df[, region := ifelse(abs(x) > z_crit, "Reject H0", "Fail to reject")]
 
 ggplot2$ggplot(df, ggplot2$aes(x = x, y = y)) +
   ggplot2$geom_area(
@@ -420,11 +420,11 @@ df_base <- data.table$data.table(x = x_seq, y = y_seq)
 
 # Two-sided
 z_two <- qnorm(1 - alpha / 2)
-df_base[, two_sided := fifelse(abs(x) > z_two, "Reject", "Fail to reject")]
+df_base[, two_sided := ifelse(abs(x) > z_two, "Reject", "Fail to reject")]
 
 # One-sided (right)
 z_one <- qnorm(1 - alpha)
-df_base[, one_sided := fifelse(x > z_one, "Reject", "Fail to reject")]
+df_base[, one_sided := ifelse(x > z_one, "Reject", "Fail to reject")]
 
 p1 <- ggplot2$ggplot(df_base, ggplot2$aes(x = x, y = y)) +
   ggplot2$geom_area(

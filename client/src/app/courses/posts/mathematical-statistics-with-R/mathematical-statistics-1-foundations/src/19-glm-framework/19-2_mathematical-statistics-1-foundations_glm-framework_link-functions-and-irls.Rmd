@@ -207,10 +207,10 @@ Repeat until convergence.
 Let us implement IRLS for a logistic regression (Bernoulli response, logit link) entirely from scratch, then compare with R's `glm()`.
 
 ```{r irls-scratch}
+data_dir <- "../../../data"
+
 bwt <- data.table$fread(file.path(data_dir, "classic/birthwt.csv"))
 bwt[, low := as.integer(bwt < 2500)]
-
-data_dir <- "../../../data"
 
 X <- cbind(1, bwt$lwt)
 y <- bwt$low
@@ -427,7 +427,7 @@ where $k$ is the number of estimated parameters. Lower AIC is better. Unlike the
 
 ```{r aic-comparison}
 fit_m1 <- glm(low ~ lwt, data = bwt, family = binomial)
-fit_m2 <- glm(low ~ lwt + Age, data = bwt, family = binomial)
+fit_m2 <- glm(low ~ lwt + age, data = bwt, family = binomial)
 fit_m3 <- glm(low ~ lwt + age + smoke, data = bwt, family = binomial)
 fit_m4 <- glm(low ~ lwt + smoke + ht, data = bwt, family = binomial)
 
@@ -448,6 +448,7 @@ To demonstrate that IRLS works for any exponential family member, let us fit a P
 
 ```{r poisson-glm-example}
 ships <- data.table$fread(file.path(data_dir, "count/ships_damage.csv"))
+ships <- ships[service > 0]
 
 fit_pois <- glm(incidents ~ type + log(service), data = ships, family = poisson)
 summary(fit_pois)

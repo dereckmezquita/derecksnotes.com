@@ -61,7 +61,7 @@ ggplot2$ggplot(bwt, ggplot2$aes(x = lwt, y = low)) +
   ggplot2$theme_minimal(base_size = 13)
 ```
 
-<Figure src="linear-binary-fail-1.png" alt="OLS fitted to binary data. The fitted line predicts probabilities below 0 and above 1, which is nonsensical for a binary outcome.">
+<Figure src="/courses/mathematical-statistics-1-foundations/linear-binary-fail-1.png" alt="OLS fitted to binary data. The fitted line predicts probabilities below 0 and above 1, which is nonsensical for a binary outcome.">
 	OLS fitted to binary data. The fitted line predicts probabilities below 0 and above 1, which is nonsensical for a binary outcome.
 </Figure>
 
@@ -72,14 +72,448 @@ The fitted line blasts through the floor and ceiling. At high maternal weights t
 Next, consider modelling the number of insurance claims as a function of age. Counts are non-negative integers. An OLS line will happily predict $-3.7$ claims for young policyholders.
 
 
+``` r
+ins <- data.table$fread(file.path(data_dir, "count/insurance_claims.csv"))
+
+fit_count_ols <- lm(Claims ~ Age, data = ins)
+
+ggplot2$ggplot(ins, ggplot2$aes(x = Age, y = Claims)) +
+  ggplot2$geom_jitter(
+    width = 0.3, Height = 0.1, alpha = 0.3, colour = "#0072B2", size = 1.5
+  ) +
+  ggplot2$geom_abline(
+    intercept = coef(fit_count_ols)[1],
+    slope = coef(fit_count_ols)[2],
+    colour = "#D55E00", linewidth = 1.1
+  ) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$labs(
+    x = "Age",
+    y = "Number of Claims",
+    title = "OLS fitted to count data"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/linear-count-fail-1.png" alt="OLS fitted to count data. The fitted line predicts negative counts for younger ages, which is impossible.">
+	OLS fitted to count data. The fitted line predicts negative counts for younger ages, which is impossible.
+</Figure>
+
+The pattern is clear: ordinary linear regression is the wrong tool when the response is not continuous and unbounded. We need a framework that respects the natural constraints of the data.
+
+---
+
+## 19.2 The Exponential Family of Distributions
+
+### 19.2.1 One-Parameter Canonical Form
+
+A random variable $Y$ belongs to the **one-parameter exponential family** if its density (or mass function) can be written as:
+
+$$f(y \mid \theta) = h(y) \exp\!\bigl[\eta(\theta)\, T(y) - A(\theta)\bigr]$$
+
+where:
+
+- $\theta$ is the **natural (canonical) parameter**.
+- $T(y)$ is the **sufficient statistic**.
+- $A(\theta)$ is the **log-partition function** (ensures the density integrates to 1).
+- $h(y)$ is the **base measure** (does not depend on $\theta$).
+
+When $T(y) = y$ and $\eta(\theta) = \theta$, we say the family is in **canonical form**:
+
+$$f(y \mid \theta) = h(y) \exp\!\bigl[\theta\, y - A(\theta)\bigr]$$
+
+This compact representation is the engine of the entire GLM framework. Every result we derive in this chapter flows from this single equation.
+
+### 19.2.2 Why This Form Matters
+
+The exponential family is not merely an algebraic curiosity. It has three properties that make it central to statistics:
+
+1. **Sufficient statistics exist.** The entire sample information about $\theta$ is captured by $\sum T(y_i)$.
+2. **Conjugate priors exist.** Bayesian updating is analytically tractable.
+3. **Mean and variance follow from $A(\theta)$.** We will derive this next.
+
+---
+
+## 19.3 Mean and Variance from the Log-Partition Function
+
+**Theorem.** If $Y$ belongs to the canonical exponential family $f(y \mid \theta) = h(y)\exp[\theta y - A(\theta)]$, then:
+
+$$E[Y] = A'(\theta), \qquad \text{Var}(Y) = A''(\theta).$$
+
+**Proof.** Since $\int f(y \mid \theta)\, dy = 1$, we have:
+
+$$\int h(y) \exp[\theta y - A(\theta)]\, dy = 1$$
+
+Differentiate both sides with respect to $\theta$:
+
+$$\int h(y) [y - A'(\theta)] \exp[\theta y - A(\theta)]\, dy = 0$$
+
+$$\Rightarrow \int y\, f(y \mid \theta)\, dy = A'(\theta) \cdot \int f(y \mid \theta)\, dy$$
+
+$$\Rightarrow E[Y] = A'(\theta).$$
+
+Differentiate again:
+
+$$\int h(y) \bigl\{[y - A'(\theta)]^2 - A''(\theta)\bigr\} \exp[\theta y - A(\theta)]\, dy = 0$$
+
+$$\Rightarrow E[(Y - A'(\theta))^2] = A''(\theta)$$
+
+$$\Rightarrow \text{Var}(Y) = A''(\theta). \qquad \square$$
+
+This is remarkable: the entire moment structure of an exponential family distribution is encoded in a single function $A(\theta)$.
+
+---
+
+## 19.4 Showing Classic Distributions Are Members
+
+### 19.4.1 The Normal Distribution
+
+The $N(\mu, \sigma^2)$ density (treating $\sigma^2$ as known) is:
+
+$$f(y \mid \mu) = \frac{1}{\sqrt{2\pi\sigma^2}} \exp\!\left[-\frac{(y - \mu)^2}{2\sigma^2}\right]$$
+
+Expand the square:
+
+$$= \frac{1}{\sqrt{2\pi\sigma^2}} \exp\!\left[-\frac{y^2}{2\sigma^2}\right] \exp\!\left[\frac{\mu}{\sigma^2} y - \frac{\mu^2}{2\sigma^2}\right]$$
+
+Identify the pieces:
+
+- $\theta = \mu / \sigma^2$ (canonical parameter)
+- $T(y) = y$
+- $A(\theta) = \mu^2 / (2\sigma^2) = \sigma^2 \theta^2 / 2$
+- $h(y) = (2\pi\sigma^2)^{-1/2} \exp[-y^2 / (2\sigma^2)]$
+
+Check: $A'(\theta) = \sigma^2 \theta = \mu = E[Y]$. And $A''(\theta) = \sigma^2 = \text{Var}(Y)$. Correct.
+
+### 19.4.2 The Bernoulli (Binomial with $n = 1$)
+
+$$P(Y = y \mid p) = p^y (1-p)^{1-y} = \exp\!\left[y \log\frac{p}{1-p} + \log(1-p)\right]$$
+
+- $\theta = \log[p / (1-p)]$ (the **log-odds** or **logit**)
+- $A(\theta) = -\log(1-p) = \log(1 + e^\theta)$
+- $h(y) = 1$
+
+Check: $A'(\theta) = e^\theta / (1 + e^\theta) = p = E[Y]$. And $A''(\theta) = p(1-p) = \text{Var}(Y)$. Correct.
+
+### 19.4.3 The Poisson Distribution
+
+$$P(Y = y \mid \lambda) = \frac{\lambda^y e^{-\lambda}}{y!} = \frac{1}{y!} \exp[y \log\lambda - \lambda]$$
+
+- $\theta = \log\lambda$
+- $A(\theta) = \lambda = e^\theta$
+- $h(y) = 1/y!$
+
+Check: $A'(\theta) = e^\theta = \lambda = E[Y]$. And $A''(\theta) = e^\theta = \lambda = \text{Var}(Y)$. Correct. (For Poisson, mean equals variance -- a property we shall revisit in Chapter 21.)
+
+### 19.4.4 The Gamma Distribution
+
+The Gamma density with known shape $\alpha$ and rate parameter $\beta$ is:
+
+$$f(y \mid \beta) = \frac{\beta^\alpha}{\Gamma(\alpha)} y^{\alpha - 1} e^{-\beta y}, \quad y > 0$$
+
+Rewrite:
+
+$$= \frac{y^{\alpha - 1}}{\Gamma(\alpha)} \exp[-\beta y + \alpha \log \beta]$$
+
+- $\theta = -\beta$
+- $A(\theta) = -\alpha \log(-\theta) = \alpha \log \beta$
+- $h(y) = y^{\alpha - 1} / \Gamma(\alpha)$
+
+Check: $A'(\theta) = -\alpha / \theta = \alpha / \beta = E[Y]$. And $A''(\theta) = \alpha / \theta^2 = \alpha / \beta^2 = \text{Var}(Y)$. Correct.
+
+---
+
+## 19.5 Summary Table
+
+
+``` r
+ef_table <- data.frame(
+  Distribution = c("Normal", "Bernoulli", "Poisson", "Gamma"),
+  Canonical_theta = c("mu / sigma^2", "log(p/(1-p))", "log(lambda)", "-beta"),
+  A_theta = c("sigma^2 * theta^2 / 2", "log(1 + exp(theta))", "exp(theta)", "-alpha * log(-theta)"),
+  Mean = c("mu", "p", "lambda", "alpha / beta"),
+  Variance = c("sigma^2", "p(1-p)", "lambda", "alpha / beta^2")
+)
+
+knitr::kable(ef_table, col.names = c("Distribution", "Canonical θ", "A(θ)", "E[Y]", "Var(Y)"),
+             caption = "Exponential family summary for four key distributions.")
+```
 
 
 
+Table: Exponential family summary for four key distributions.
+
+|Distribution |Canonical <U+03B8> |A(<U+03B8>)           |E[Y]         |Var(Y)         |
+|:------------|:------------------|:---------------------|:------------|:--------------|
+|Normal       |mu / sigma^2       |sigma^2 * theta^2 / 2 |mu           |sigma^2        |
+|Bernoulli    |log(p/(1-p))       |log(1 + exp(theta))   |p            |p(1-p)         |
+|Poisson      |log(lambda)        |exp(theta)            |lambda       |lambda         |
+|Gamma        |-beta              |-alpha * log(-theta)  |alpha / beta |alpha / beta^2 |
+
+---
+
+## 19.6 Visualising the Exponential Family
+
+Let us plot the densities of all four families side by side, each for several parameter values, to build intuition for how the canonical parameter shifts the distribution.
+
+
+``` r
+y_norm <- seq(-4, 8, length.out = 300)
+y_pois <- 0:20
+y_bern <- c(0, 1)
+y_gamma <- seq(0.01, 15, length.out = 300)
+
+d1 <- data.table$data.table(
+  y = rep(y_norm, 3),
+  density = c(dnorm(y_norm, 0, 1), dnorm(y_norm, 2, 1), dnorm(y_norm, 4, 1)),
+  param = rep(c("mu = 0", "mu = 2", "mu = 4"), each = length(y_norm)),
+  family = "Normal"
+)
+
+d2 <- data.table$data.table(
+  y = rep(y_pois, 3),
+  density = c(dpois(y_pois, 1), dpois(y_pois, 4), dpois(y_pois, 8)),
+  param = rep(c("lambda = 1", "lambda = 4", "lambda = 8"), each = length(y_pois)),
+  family = "Poisson"
+)
+
+d3 <- data.table$data.table(
+  y = rep(y_gamma, 3),
+  density = c(dgamma(y_gamma, 2, 1), dgamma(y_gamma, 2, 0.5), dgamma(y_gamma, 5, 1)),
+  param = rep(c("alpha=2, beta=1", "alpha=2, beta=0.5", "alpha=5, beta=1"), each = length(y_gamma)),
+  family = "Gamma"
+)
+
+d4 <- data.table$data.table(
+  y = rep(c(0, 1), 3),
+  density = c(0.8, 0.2, 0.5, 0.5, 0.2, 0.8),
+  param = rep(c("p = 0.2", "p = 0.5", "p = 0.8"), each = 2),
+  family = "Bernoulli"
+)
+
+dall <- data.table$rbindlist(list(d1, d2, d3, d4))
+
+ggplot2$ggplot(dall, ggplot2$aes(x = y, y = density, colour = param)) +
+  ggplot2$geom_line(data = dall[family %in% c("Normal", "Gamma")], linewidth = 0.9) +
+  ggplot2$geom_point(data = dall[family %in% c("Poisson", "Bernoulli")], size = 2.5) +
+  ggplot2$geom_segment(
+    data = dall[family %in% c("Poisson", "Bernoulli")],
+    ggplot2$aes(xend = y, yend = 0), linewidth = 0.5
+  ) +
+  ggplot2$facet_wrap(~ family, scales = "free") +
+  ggplot2$labs(x = "y", y = "f(y)", colour = "Parameters",
+               title = "Exponential family distributions") +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/exp-family-densities-1.png" alt="Density or mass functions for four exponential-family distributions at different parameter values. Each panel shows how the distribution shifts as the canonical parameter changes.">
+	Density or mass functions for four exponential-family distributions at different parameter values. Each panel shows how the distribution shifts as the canonical parameter changes.
+</Figure>
+
+---
+
+## 19.7 The Dispersion Parameter
+
+The full exponential dispersion family generalises the canonical form to include a **dispersion parameter** $\phi$:
+
+$$f(y \mid \theta, \phi) = h(y, \phi) \exp\!\left[\frac{\theta y - A(\theta)}{\phi}\right]$$
+
+For the Normal distribution, $\phi = \sigma^2$. For Bernoulli and Poisson, $\phi = 1$ (no dispersion parameter). For Gamma with known shape $\alpha$, $\phi = 1/\alpha$.
+
+The dispersion parameter governs the *spread* of the distribution for a given mean. When $\phi > 1$ we have **overdispersion** -- more variability than the baseline model predicts. This concept will be critical in Chapter 21 when we encounter count data with variance exceeding the mean.
+
+---
+
+## 19.8 Sufficiency and Maximum Likelihood
+
+### 19.8.1 The Log-Likelihood
+
+Given independent observations $y_1, \ldots, y_n$ from a canonical exponential family, the log-likelihood is:
+
+$$\ell(\theta) = \sum_{i=1}^n \bigl[\theta\, y_i - A(\theta)\bigr] + \sum_{i=1}^n \log h(y_i)$$
+
+The second sum does not depend on $\theta$, so the MLE depends on the data only through $\sum y_i$ -- confirming that $\sum y_i$ is a sufficient statistic.
+
+### 19.8.2 The Score and Fisher Information
+
+The score function is:
+
+$$U(\theta) = \frac{d\ell}{d\theta} = \sum_{i=1}^n [y_i - A'(\theta)] = \sum_{i=1}^n [y_i - \mu]$$
+
+Setting $U(\theta) = 0$ gives $\hat{\mu} = \bar{y}$, the sample mean -- exactly as we should expect.
+
+The Fisher information is:
+
+$$I(\theta) = -E\!\left[\frac{d^2\ell}{d\theta^2}\right] = n\, A''(\theta) = n\, \text{Var}(Y)$$
+
+This connects the curvature of the log-likelihood to the variance of the distribution -- a relationship we exploit in the IRLS algorithm of Part 2.
+
+
+``` r
+set.seed(42)
+pois_data <- rpois(50, lambda = 4)
+
+theta_grid <- seq(0.5, 2.5, length.out = 200)
+score_vals <- sapply(theta_grid, function(th) {
+  sum(pois_data) - length(pois_data) * exp(th)
+})
+
+score_dt <- data.table$data.table(theta = theta_grid, score = score_vals)
+
+ggplot2$ggplot(score_dt, ggplot2$aes(x = theta, y = score)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_vline(xintercept = log(mean(pois_data)), linetype = "dotted",
+                     colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$annotate("text", x = log(mean(pois_data)) + 0.15, y = 20,
+                   label = paste0("MLE: theta = ", round(log(mean(pois_data)), 3)),
+                   hjust = 0, colour = "#D55E00", size = 4) +
+  ggplot2$labs(
+    x = expression(theta ~ "(canonical parameter)"),
+    y = "Score U(theta)",
+    title = "Score function for Poisson data (n = 50)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/score-demo-1.png" alt="Score function for Poisson data. The zero-crossing gives the MLE. The steeper the score at the crossing, the more precise the estimate.">
+	Score function for Poisson data. The zero-crossing gives the MLE. The steeper the score at the crossing, the more precise the estimate.
+</Figure>
+
+---
+
+## 19.9 From Exponential Family to GLM: A Preview
+
+The three components of a GLM are:
+
+1. **Random component**: $Y_i$ follows an exponential family distribution.
+2. **Systematic component**: a linear predictor $\eta_i = \mathbf{x}_i^\top \boldsymbol{\beta}$.
+3. **Link function**: $g(\mu_i) = \eta_i$, connecting the mean to the linear predictor.
+
+The **canonical link** sets $g(\mu) = \theta$, the natural parameter. For Bernoulli this is the logit; for Poisson this is the log; for Normal this is the identity; for Gamma this is the reciprocal. In Part 2 we develop the link function and the iterative algorithm for fitting GLMs.
+
+---
+
+## 19.10 Building Intuition: Exponential Family as Tilted Distributions
+
+One can think of the exponential family as taking a "base" distribution $h(y)$ and *tilting* it by $\exp(\theta y)$, then renormalising via $\exp(-A(\theta))$. Increasing $\theta$ puts more weight on larger values of $y$; decreasing $\theta$ concentrates probability on smaller values.
+
+
+``` r
+y_grid <- seq(-5, 10, length.out = 400)
+base <- dnorm(y_grid, 0, 1)
+
+tilts <- c(-1, 0, 1, 2)
+tilt_dt <- data.table$rbindlist(lapply(tilts, function(th) {
+  unnorm <- base * exp(th * y_grid)
+  Z <- sum(unnorm) * diff(y_grid[1:2])
+  data.table$data.table(y = y_grid, density = unnorm / Z, theta = paste0("theta = ", th))
+}))
+
+ggplot2$ggplot(tilt_dt, ggplot2$aes(x = y, y = density, colour = theta)) +
+  ggplot2$geom_line(linewidth = 0.9) +
+  ggplot2$labs(
+    x = "y", y = "Density", colour = "Canonical parameter",
+    title = "Tilting a standard Normal base measure"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/tilting-demo-1.png" alt="The tilting interpretation of the exponential family. Starting from a base measure (grey), increasing the canonical parameter theta shifts probability mass to the right.">
+	The tilting interpretation of the exponential family. Starting from a base measure (grey), increasing the canonical parameter theta shifts probability mass to the right.
+</Figure>
+
+This perspective is useful in both GLM theory and in statistical mechanics, where the exponential family arises from maximum entropy considerations under moment constraints.
+
+---
+
+## 19.11 Verifying with Simulation
+
+Let us verify the mean-variance relationships numerically. We draw large samples from each distribution and compare sample moments to the theoretical formulae.
+
+
+``` r
+set.seed(42)
+n_sim <- 100000
+
+# Normal: mu = 3, sigma^2 = 4
+norm_samp <- rnorm(n_sim, mean = 3, sd = 2)
+
+# Bernoulli: p = 0.3
+bern_samp <- rbinom(n_sim, 1, 0.3)
+
+# Poisson: lambda = 5
+pois_samp <- rpois(n_sim, lambda = 5)
+
+# Gamma: shape = 3, rate = 2
+gam_samp <- rgamma(n_sim, shape = 3, rate = 2)
+
+verify_df <- data.frame(
+  Distribution = c("Normal(3, 4)", "Bernoulli(0.3)", "Poisson(5)", "Gamma(3, 2)"),
+  Theory_Mean = c(3, 0.3, 5, 3/2),
+  Sample_Mean = c(mean(norm_samp), mean(bern_samp), mean(pois_samp), mean(gam_samp)),
+  Theory_Var = c(4, 0.3*0.7, 5, 3/4),
+  Sample_Var = c(var(norm_samp), var(bern_samp), var(pois_samp), var(gam_samp))
+)
+
+knitr::kable(verify_df, digits = 4,
+             caption = "Theoretical vs simulated moments for exponential family distributions.")
+```
 
 
 
+Table: Theoretical vs simulated moments for exponential family distributions.
 
+|Distribution   | Theory_Mean| Sample_Mean| Theory_Var| Sample_Var|
+|:--------------|-----------:|-----------:|----------:|----------:|
+|Normal(3, 4)   |         3.0|      2.9917|       4.00|     4.0258|
+|Bernoulli(0.3) |         0.3|      0.2995|       0.21|     0.2098|
+|Poisson(5)     |         5.0|      5.0031|       5.00|     5.0008|
+|Gamma(3, 2)    |         1.5|      1.5016|       0.75|     0.7547|
 
+The agreement is excellent, as expected for $n = 100{,}000$.
 
+---
 
+## Communicating to Stakeholders
 
+When explaining the exponential family and the need for GLMs:
+
+- **Start with the failure**: show the OLS-on-binary plot. Everyone can see that predictions outside $[0, 1]$ are nonsensical. This motivates the entire framework without any algebra.
+- **Use the word "family"**: explain that Normal, Binomial, and Poisson distributions are all "members of the same family", much like different breeds of dog share a common ancestor.
+- **Emphasise the practical payoff**: "GLMs let us use the right distribution for the data -- binary outcomes get logistic regression, counts get Poisson regression -- while keeping the familiar structure of a linear model."
+- **Avoid the term "canonical parameter"** unless speaking to statisticians. Say "the natural scale" or "the transformed scale" instead.
+
+---
+
+## Quick Reference
+
+| Concept | Details |
+|:--------|:--------|
+| **Exponential family form** | $f(y \mid \theta) = h(y) \exp[\theta y - A(\theta)]$ |
+| **Mean** | $E[Y] = A'(\theta)$ |
+| **Variance** | $\text{Var}(Y) = A''(\theta)$ |
+| **Normal canonical param** | $\theta = \mu / \sigma^2$ |
+| **Bernoulli canonical param** | $\theta = \text{logit}(p) = \log[p/(1-p)]$ |
+| **Poisson canonical param** | $\theta = \log \lambda$ |
+| **Gamma canonical param** | $\theta = -\beta$ (rate) |
+| **Fisher information** | $I(\theta) = n \cdot A''(\theta)$ |
+| **Sufficiency** | MLE depends on data only through $\sum y_i$ |
+
+---
+
+## Exercises
+
+1. **Exponential distribution.** Show that the Exponential($\lambda$) distribution belongs to the exponential family. Identify $\theta$, $A(\theta)$, and $h(y)$. Verify that $A'(\theta)$ and $A''(\theta)$ give the correct mean and variance.
+
+2. **Binomial with known $n$.** Write the Binomial($n, p$) PMF in exponential family form. What is the sufficient statistic? What is the canonical parameter?
+
+3. **Geometric distribution.** Show that the Geometric($p$) distribution (number of failures before first success) is in the exponential family. Derive $E[Y]$ and $\text{Var}(Y)$ from $A(\theta)$.
+
+4. **Maximum entropy.** The exponential family arises from maximising entropy subject to a mean constraint. For the Poisson case, show that the distribution maximising $H = -\sum_{y=0}^{\infty} p(y) \log p(y)$ subject to $E[Y] = \lambda$ and $\sum p(y) = 1$ is indeed the Poisson distribution. (Hint: use Lagrange multipliers.)
+
+5. **Simulation.** Generate 10,000 samples from a Gamma(shape = 2, rate = 3) distribution. Compute the sample mean and variance. Compare with the theoretical values obtained from $A'(\theta)$ and $A''(\theta)$.
+
+6. **Non-member.** Show that the Cauchy distribution does not belong to the exponential family. Why does this matter for GLMs?

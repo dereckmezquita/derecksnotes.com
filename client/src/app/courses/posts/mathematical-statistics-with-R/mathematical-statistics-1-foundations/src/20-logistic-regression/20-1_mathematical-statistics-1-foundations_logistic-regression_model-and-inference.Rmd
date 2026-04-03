@@ -163,7 +163,7 @@ For example, the odds ratio for `smoke` tells us that the odds of low birth weig
 ```{r predicted-probs, fig.cap="Predicted probability of low birth weight as a function of mother's weight, for smoking and non-smoking mothers aged 25."}
 pred_grid <- data.table$data.table(
   lwt = rep(seq(80, 250, length.out = 200), 2),
-  Age = 25,
+  age = 25,
   smoke = rep(c(0, 1), each = 200)
 )
 pred_grid[, prob := predict(fit1, newdata = pred_grid, type = "response")]
@@ -172,7 +172,7 @@ pred_grid[, smoke_label := ifelse(smoke == 1, "Smoker", "Non-smoker")]
 ggplot2$ggplot(pred_grid, ggplot2$aes(x = lwt, y = prob, colour = smoke_label)) +
   ggplot2$geom_line(linewidth = 1.1) +
   ggplot2$geom_rug(
-    data = bwt[Age >= 23 & Age <= 27],
+    data = bwt[age >= 23 & age <= 27],
     ggplot2$aes(x = lwt, y = low, colour = ifelse(smoke == 1, "Smoker", "Non-smoker")),
     sides = "b", alpha = 0.3
   ) +

@@ -90,7 +90,7 @@ This is a **Mahalanobis-type distance**: it measures how far $\mathbf{x}_i$ is f
 data_dir <- "../../../data"
 boston <- data.table$fread(file.path(data_dir, "classic/boston.csv"))
 
-fit_boston <- lm(medv ~ lstat + rm + Age, data = boston)
+fit_boston <- lm(medv ~ lstat + rm + age, data = boston)
 
 X_mat <- model.matrix(fit_boston)
 XtX_inv <- solve(crossprod(X_mat))
@@ -467,7 +467,7 @@ ggplot2$ggplot(bc, ggplot2$aes(x = lambda, y = loglik)) +
 ### 17.16.4 Effect on Diagnostics
 
 ```{r boxcox-diagnostics, fig.cap="Q-Q plots before (left) and after (right) the log transformation. The log-transformed model shows markedly improved normality of residuals."}
-fit_log <- lm(log(medv) ~ lstat + rm + Age, data = boston)
+fit_log <- lm(log(medv) ~ lstat + rm + age, data = boston)
 
 qq_before <- data.table$data.table(
   std_resid = rstandard(fit_boston),
@@ -554,7 +554,7 @@ gridExtra::grid.arrange(p_cr1, p_cr2, ncol = 2)
 The CR plot for `lstat` shows strong curvature. Let us add a quadratic term:
 
 ```{r nonlin-fix}
-fit_quad <- lm(medv ~ lstat + I(lstat^2) + rm + Age, data = boston)
+fit_quad <- lm(medv ~ lstat + I(lstat^2) + rm + age, data = boston)
 
 c(
   R2_linear = summary(fit_boston)$r.squared,

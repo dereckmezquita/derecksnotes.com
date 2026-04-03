@@ -347,8 +347,10 @@ chisq.test(strep_mat)
 ```
 
 ```{r strep-tb-mosaic, fig.cap="Mosaic-style visualisation of the streptomycin TB trial. Tile areas are proportional to counts. The streptomycin group shows more improvement and fewer deaths."}
-strep_dt <- data.table::as.data.table(strep_mat)
-data.table::setnames(strep_dt, c("Treatment", "Outcome", "N"))
+strep_df <- as.data.frame(strep_mat)
+strep_df$Treatment <- rownames(strep_df)
+strep_dt <- data.table::melt(data.table::as.data.table(strep_df),
+  id.vars = "Treatment", variable.name = "Outcome", value.name = "N")
 strep_dt[, Outcome := factor(Outcome,
   levels = c("Improvement", "No change", "Deterioration", "Death"))]
 

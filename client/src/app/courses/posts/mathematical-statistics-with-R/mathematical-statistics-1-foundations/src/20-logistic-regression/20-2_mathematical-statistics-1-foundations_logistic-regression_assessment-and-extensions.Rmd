@@ -70,7 +70,11 @@ The confusion matrix tabulates predictions against actual values:
 
 ```{r confusion-matrix}
 data_dir <- "../../../data"
-heart <- data.table$fread(file.path(data_dir, "classic/heart_disease.csv"))
+heart <- data.table$fread(file.path(data_dir, "classic/heart_disease.csv"),
+  header = FALSE,
+  col.names = c("age", "sex", "cp", "trestbps", "chol", "fbs", "restecg",
+                "thalach", "exang", "oldpeak", "slope", "ca", "thal", "target"))
+heart[, target := as.integer(target > 0)]
 
 set.seed(42)
 n <- nrow(heart)

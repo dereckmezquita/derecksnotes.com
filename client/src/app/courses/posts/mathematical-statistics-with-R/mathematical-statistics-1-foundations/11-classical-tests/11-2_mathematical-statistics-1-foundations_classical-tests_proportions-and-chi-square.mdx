@@ -216,7 +216,7 @@ ggplot2$ggplot(binom_dt, ggplot2$aes(x = k, y = prob, fill = extreme)) +
   ggplot2$theme_minimal(base_size = 14)
 ```
 
-<Figure src="binom-exact-plot-1.png" alt="Binomial distribution under H0 (p = 0.60, n = 12). Bars in red indicate outcomes at least as extreme as the observed count of 10 successes.">
+<Figure src="/courses/mathematical-statistics-1-foundations/binom-exact-plot-1.png" alt="Binomial distribution under H0 (p = 0.60, n = 12). Bars in red indicate outcomes at least as extreme as the observed count of 10 successes.">
 	Binomial distribution under H0 (p = 0.60, n = 12). Bars in red indicate outcomes at least as extreme as the observed count of 10 successes.
 </Figure>
 
@@ -319,7 +319,7 @@ ggplot2$ggplot(die_long, ggplot2$aes(x = face, y = count, fill = type)) +
   ggplot2$theme_minimal(base_size = 14)
 ```
 
-<Figure src="gof-die-plot-1.png" alt="Observed vs expected counts for 120 rolls of a (secretly loaded) die. The visual discrepancy is modest but the chi-square test quantifies whether it exceeds chance variation.">
+<Figure src="/courses/mathematical-statistics-1-foundations/gof-die-plot-1.png" alt="Observed vs expected counts for 120 rolls of a (secretly loaded) die. The visual discrepancy is modest but the chi-square test quantifies whether it exceeds chance variation.">
 	Observed vs expected counts for 120 rolls of a (secretly loaded) die. The visual discrepancy is modest but the chi-square test quantifies whether it exceeds chance variation.
 </Figure>
 
@@ -427,10 +427,162 @@ X-squared = 10.256, df = 3, p-value = 0.01651
 ```
 
 
+``` r
+strep_df <- as.data.frame(strep_mat)
+strep_df$Treatment <- rownames(strep_df)
+strep_dt <- data.table::melt(data.table::as.data.table(strep_df),
+  id.vars = "Treatment", variable.name = "Outcome", value.name = "N")
+strep_dt[, Outcome := factor(Outcome,
+  levels = c("Improvement", "No change", "Deterioration", "Death"))]
+
+ggplot2$ggplot(strep_dt, ggplot2$aes(x = Treatment, y = N, fill = Outcome)) +
+  ggplot2$geom_col(position = "fill", width = 0.7) +
+  ggplot2$scale_fill_manual(values = c(
+    "Improvement" = "#27ae60",
+    "No change" = "#bdc3c7",
+    "Deterioration" = "#e67e22",
+    "Death" = "#e74c3c"
+  )) +
+  ggplot2$labs(
+    x = "", y = "Proportion",
+    title = "Streptomycin TB Trial: Outcome by Treatment Group",
+    subtitle = paste0(
+      "\u03c7\u00b2 = ", round(chi_sq_ind, 2),
+      ", df = ", df_ind,
+      ", p = ", round(p_value_ind, 4)
+    )
+  ) +
+  ggplot2$theme_minimal(base_size = 14)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/strep-tb-mosaic-1.png" alt="Mosaic-style visualisation of the streptomycin TB trial. Tile areas are proportional to counts. The streptomycin group shows more improvement and fewer deaths.">
+	Mosaic-style visualisation of the streptomycin TB trial. Tile areas are proportional to counts. The streptomycin group shows more improvement and fewer deaths.
+</Figure>
+
+### 11.7.4 Examining the Residuals
+
+The test statistic tells us *whether* the observed table deviates from independence; the **Pearson residuals** tell us *where*:
+
+$$r_{ij} = \frac{O_{ij} - E_{ij}}{\sqrt{E_{ij}}}.$$
+
+Large positive residuals indicate cells with more observations than expected under independence; large negative residuals indicate fewer.
 
 
+``` r
+residuals_mat <- (strep_mat - expected_mat) / sqrt(expected_mat)
+round(residuals_mat, 2)
+```
+
+```
+              Outcome
+Treatment      Improvement Deterioration Death No change
+  Streptomycin        1.51         -1.47 -0.70     -0.23
+  Control            -1.55          1.51  0.72      0.24
+```
+
+The residuals confirm what the plot suggests: the streptomycin group has substantially more improvement ($r = 2.07$) and fewer deteriorations ($r = -1.77$) than expected under independence.
+
+---
+
+## 11.8 Two-Proportion Z-Test
+
+### 11.8.1 Derivation
+
+We observe $X_1$ successes in $n_1$ trials and $X_2$ successes in $n_2$ trials. We test $H_0: p_1 = p_2$.
+
+Under $H_0$, the common proportion is estimated by the **pooled proportion** $\hat{p} = (X_1 + X_2)/(n_1 + n_2)$. The test statistic is:
+
+$$Z = \frac{\hat{p}_1 - \hat{p}_2}{\sqrt{\hat{p}(1-\hat{p})(1/n_1 + 1/n_2)}} \stackrel{\text{approx}}{\sim} N(0, 1) \quad \text{under } H_0.$$
+
+Equivalently, $Z^2 \sim \chi^2_1$, and this is precisely the chi-square test of independence applied to a $2 \times 2$ table. The two-proportion z-test and the $2 \times 2$ chi-square test are the *same test* expressed differently.
 
 
+``` r
+# From the strep trial: improvement rates
+x1 <- 28  # streptomycin improvements
+n1_s <- 55   # total streptomycin patients
+x2 <- 13  # control improvements
+n2_s <- 52   # total control patients
+
+p1_hat <- x1 / n1_s
+p2_hat <- x2 / n2_s
+p_pooled <- (x1 + x2) / (n1_s + n2_s)
+
+z_2prop <- (p1_hat - p2_hat) /
+  sqrt(p_pooled * (1 - p_pooled) * (1/n1_s + 1/n2_s))
+p_val_2prop <- 2 * pnorm(abs(z_2prop), lower.tail = FALSE)
+
+data.frame(
+  p1 = round(p1_hat, 3),
+  p2 = round(p2_hat, 3),
+  z = round(z_2prop, 4),
+  p_value = round(p_val_2prop, 4)
+)
+```
+
+```
+     p1   p2      z p_value
+1 0.509 0.25 2.7553  0.0059
+```
 
 
+``` r
+prop.test(x = c(28, 13), n = c(55, 52), correct = FALSE)
+```
 
+```
+
+	2-sample test for equality of proportions without continuity
+	correction
+
+data:  c(28, 13) out of c(55, 52)
+X-squared = 7.5915, df = 1, p-value = 0.005864
+alternative hypothesis: two.sided
+95 percent confidence interval:
+ 0.08215358 0.43602824
+sample estimates:
+   prop 1    prop 2 
+0.5090909 0.2500000 
+```
+
+Note that `prop.test()` returns a chi-square statistic which is $Z^2$. The p-values agree with our manual calculation.
+
+---
+
+## Communicating to Stakeholders
+
+When reporting chi-square or proportion tests:
+
+1. **Use counts and percentages**, not just test statistics: "51% of streptomycin patients improved, compared with 25% in the control group."
+2. **Give the absolute numbers**: "28 out of 55 vs 13 out of 52." Percentages without denominators can be misleading.
+3. **Explain independence plainly**: "We asked whether the treatment group and the patient outcome are related -- or whether they are independent, meaning the outcome would be the same regardless of which treatment was given."
+4. **Visualise**: a stacked or grouped bar chart communicates more than any p-value.
+5. **Be cautious with small expected counts**: if any $E_{ij} < 5$, mention that the chi-square approximation may be unreliable and consider Fisher's exact test.
+
+---
+
+## Quick Reference
+
+| Test | Null hypothesis | Test statistic | Null distribution | R function |
+|---|---|---|---|---|
+| Z-test for proportion | $p = p_0$ | $Z = \frac{\hat{p} - p_0}{\sqrt{p_0(1-p_0)/n}}$ | $N(0,1)$ | `prop.test()` |
+| Exact binomial | $p = p_0$ | $X$ (count) | $\text{Bin}(n, p_0)$ | `binom.test()` |
+| $\chi^2$ goodness-of-fit | $p_i = p_{i0}$ for all $i$ | $\sum \frac{(O_i-E_i)^2}{E_i}$ | $\chi^2_{k-1}$ | `chisq.test()` |
+| $\chi^2$ independence | Variables independent | $\sum \frac{(O_{ij}-E_{ij})^2}{E_{ij}}$ | $\chi^2_{(r-1)(c-1)}$ | `chisq.test()` |
+| Two-proportion Z | $p_1 = p_2$ | $Z = \frac{\hat{p}_1-\hat{p}_2}{\sqrt{\hat{p}(1-\hat{p})(1/n_1+1/n_2)}}$ | $N(0,1)$ | `prop.test()` |
+
+---
+
+## Exercises
+
+**Exercise 11.7.** A genetics experiment produces offspring in four phenotypic classes. Under a Mendelian model the expected ratios are 9:3:3:1. You observe 315, 108, 101, and 32 offspring. Conduct a chi-square goodness-of-fit test. State the degrees of freedom and interpret.
+
+**Exercise 11.8.** Show algebraically that for a $2 \times 2$ table, the chi-square test of independence is equivalent to the squared two-proportion z-test. Start with the z-statistic and show that $Z^2 = X^2$.
+
+**Exercise 11.9.** A pharmaceutical company tests a new antibiotic on 150 patients (82 cured) versus a placebo on 150 patients (64 cured). Conduct both `prop.test()` and `binom.test()` approaches. Why does the exact test not directly apply to the two-sample problem?
+
+**Exercise 11.10.** Using the penguins data, create a contingency table of `species` by `island`. Test whether species and island are independent. Examine the Pearson residuals and identify which species-island combinations are over- or under-represented.
+
+**Exercise 11.11.** A survey asks 500 people which of three political parties they support. The results are: Party A = 210, Party B = 175, Party C = 115. Test whether support is equally distributed. Then test the alternative hypothesis that the proportions are 0.40, 0.35, 0.25 respectively.
+
+**Exercise 11.12.** Explain why the chi-square test of independence uses $(r-1)(c-1)$ degrees of freedom rather than $rc - 1$. What constraints reduce the degrees of freedom, and where do they come from?

@@ -93,11 +93,11 @@ The fitted line blasts through the floor and ceiling. At high maternal weights t
 Next, consider modelling the number of insurance claims as a function of age. Counts are non-negative integers. An OLS line will happily predict $-3.7$ claims for young policyholders.
 
 ```{r linear-count-fail, fig.cap="OLS fitted to count data. The fitted line predicts negative counts for younger ages, which is impossible."}
-claims <- data.table$fread(file.path(data_dir, "count/insurance_claims.csv"))
+ins <- data.table$fread(file.path(data_dir, "count/insurance_claims.csv"))
 
-fit_count_ols <- lm(claims ~ Age, data = claims)
+fit_count_ols <- lm(Claims ~ Age, data = ins)
 
-ggplot2$ggplot(claims, ggplot2$aes(x = Age, y = claims)) +
+ggplot2$ggplot(ins, ggplot2$aes(x = Age, y = Claims)) +
   ggplot2$geom_jitter(
     width = 0.3, Height = 0.1, alpha = 0.3, colour = "#0072B2", size = 1.5
   ) +
@@ -109,7 +109,7 @@ ggplot2$ggplot(claims, ggplot2$aes(x = Age, y = claims)) +
   ggplot2$geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
   ggplot2$labs(
     x = "Age",
-    y = "Number of claims",
+    y = "Number of Claims",
     title = "OLS fitted to count data"
   ) +
   ggplot2$theme_minimal(base_size = 13)

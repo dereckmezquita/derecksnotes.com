@@ -38,6 +38,7 @@ knitr::opts_chunk$set(
 ```{r packages, include=FALSE}
 box::use(ggplot2)
 box::use(data.table)
+box::use(coda)
 ```
 
 ```{r dt-symbols, include=FALSE}
@@ -196,7 +197,7 @@ birthwt[, `:=`(
   race = factor(race, levels = c(1, 2, 3), labels = c("White", "Black", "Other"))
 )]
 
-str(birthwt[, .(low, Age, lwt, smoke, race)])
+str(birthwt[, .(low, age, lwt, smoke, race)])
 ```
 
 ```{r stan-logistic, message=FALSE, results='hide'}
@@ -382,16 +383,17 @@ Let us compare the Bayesian and frequentist logistic regressions side by side.
 fit_freq <- glm(low ~ age + lwt + smoke + race, data = birthwt, family = binomial)
 
 freq_coefs <- summary(fit_freq)$coefficients
-bayes_coefs <- summary(fit_bayes)[, c("mean", "2.5%", "97.5%")]
+bayes_summary <- as.data.frame(summary(fit_bayes))
 
-comp_params <- intersect(rownames(freq_coefs), rownames(bayes_coefs))
+# Match parameter names between frequentist and Bayesian models
+comp_params <- intersect(rownames(freq_coefs), rownames(bayes_summary))
 
 comparison <- data.table$data.table(
   Parameter = comp_params,
   Freq_Est = round(freq_coefs[comp_params, "Estimate"], 4),
   Freq_SE = round(freq_coefs[comp_params, "Std. Error"], 4),
-  Bayes_Mean = round(bayes_coefs[comp_params, "mean"], 4),
-  Bayes_SD = round(apply(posterior[, comp_params], 2, sd), 4)
+  Bayes_Mean = round(bayes_summary[comp_params, "mean"], 4),
+  Bayes_SD = round(bayes_summary[comp_params, "sd"], 4)
 )
 
 knitr::kable(comparison, caption = "Frequentist MLE vs Bayesian posterior mean for logistic regression.")

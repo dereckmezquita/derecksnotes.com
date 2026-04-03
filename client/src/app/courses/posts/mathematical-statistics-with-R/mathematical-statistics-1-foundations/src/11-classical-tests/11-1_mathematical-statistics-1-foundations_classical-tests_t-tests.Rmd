@@ -215,7 +215,7 @@ This is not an exact result -- the ratio does not follow a $t$-distribution prec
 ### 11.2.4 Penguins: Adelie vs Gentoo Flipper Length
 
 ```{r penguins-load}
-penguins <- data.table::fread(file.path(data_dir, "penguins.csv"))
+penguins <- data.table::fread(file.path(data_dir, "primary/penguins.csv"))
 penguins <- penguins[!is.na(flipper_length_mm)]
 
 # Subset to the two species of interest
@@ -394,7 +394,7 @@ ggplot2$ggplot(bp_dt, ggplot2$aes(x = time, y = bp, group = patient)) +
 Real data rarely arrive as neatly as our simulations. Let us apply the two-sample t-test to a question with genuine public-health relevance.
 
 ```{r nhanes-load}
-nhanes <- data.table::fread(file.path(data_dir, "nhanes.csv"))
+nhanes <- data.table::fread(file.path(data_dir, "primary/nhanes.csv"))
 nhanes_bmi <- nhanes[
   !is.na(BMI) & !is.na(SmokeNow) & Age >= 20,
   .(BMI, SmokeNow)

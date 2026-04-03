@@ -69,7 +69,7 @@ ggplot2$ggplot(sig_dt, ggplot2$aes(x = eta, y = probability)) +
   ggplot2$theme_minimal(base_size = 13)
 ```
 
-<Figure src="sigmoid-curve-1.png" alt="The logistic (sigmoid) function. It maps any real-valued linear predictor to a probability between 0 and 1.">
+<Figure src="/courses/mathematical-statistics-1-foundations/sigmoid-curve-1.png" alt="The logistic (sigmoid) function. It maps any real-valued linear predictor to a probability between 0 and 1.">
 	The logistic (sigmoid) function. It maps any real-valued linear predictor to a probability between 0 and 1.
 </Figure>
 
@@ -176,24 +176,506 @@ For example, the odds ratio for `smoke` tells us that the odds of low birth weig
 ### 20.3.2 Predicted Probabilities
 
 
+``` r
+pred_grid <- data.table$data.table(
+  lwt = rep(seq(80, 250, length.out = 200), 2),
+  age = 25,
+  smoke = rep(c(0, 1), each = 200)
+)
+pred_grid[, prob := predict(fit1, newdata = pred_grid, type = "response")]
+pred_grid[, smoke_label := ifelse(smoke == 1, "Smoker", "Non-smoker")]
+
+ggplot2$ggplot(pred_grid, ggplot2$aes(x = lwt, y = prob, colour = smoke_label)) +
+  ggplot2$geom_line(linewidth = 1.1) +
+  ggplot2$geom_rug(
+    data = bwt[age >= 23 & age <= 27],
+    ggplot2$aes(x = lwt, y = low, colour = ifelse(smoke == 1, "Smoker", "Non-smoker")),
+    sides = "b", alpha = 0.3
+  ) +
+  ggplot2$labs(
+    x = "Mother's weight at last menstrual period (lbs)",
+    y = "P(low birth weight)",
+    colour = "Smoking status",
+    title = "Predicted probability of low birth weight"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/predicted-probs-1.png" alt="Predicted probability of low birth weight as a function of mother&#39;s weight, for smoking and non-smoking mothers aged 25.">
+	Predicted probability of low birth weight as a function of mother's weight, for smoking and non-smoking mothers aged 25.
+</Figure>
+
+---
+
+## 20.4 Interactive: Adjust Coefficients, Watch the Sigmoid Shift
+
+<InteractivePlot
+  controls={[
+    { id: "b0", type: "range", label: "Intercept (beta_0)", min: -4, max: 4, step: 0.1, default: 0 },
+    { id: "b1", type: "range", label: "Slope (beta_1)", min: -3, max: 3, step: 0.1, default: 1 }
+  ]}
+  draw={`
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    var w = canvas.width, h = canvas.height;
+    var pad = { left: 60, right: 20, top: 40, bottom: 55 };
+    var pw = w - pad.left - pad.right;
+    var ph = h - pad.top - pad.bottom;
+
+    var b0 = params.b0, b1 = params.b1;
+
+    // Axes
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.left, pad.top);
+    ctx.lineTo(pad.left, pad.top + ph);
+    ctx.lineTo(pad.left + pw, pad.top + ph);
+    ctx.stroke();
+
+    // Axis labels
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('x (predictor)', pad.left + pw / 2, h - 8);
+    ctx.save();
+    ctx.translate(15, pad.top + ph / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('P(Y = 1)', 0, 0);
+    ctx.restore();
+
+    // Title
+    ctx.font = 'bold 14px sans-serif';
+    ctx.fillText('Logistic regression: P(Y=1) = sigmoid(b0 + b1 * x)', w / 2, 20);
+
+    // Tick marks
+    ctx.font = '11px sans-serif';
+    ctx.fillStyle = '#666';
+    var xmin = -6, xmax = 6;
+    for (var tx = -6; tx <= 6; tx += 2) {
+      var sx = pad.left + (tx - xmin) / (xmax - xmin) * pw;
+      ctx.beginPath(); ctx.moveTo(sx, pad.top + ph); ctx.lineTo(sx, pad.top + ph + 5); ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.fillText(tx.toString(), sx, pad.top + ph + 18);
+    }
+    for (var ty = 0; ty <= 1; ty += 0.25) {
+      var sy = pad.top + ph - ty * ph;
+      ctx.beginPath(); ctx.moveTo(pad.left - 5, sy); ctx.lineTo(pad.left, sy); ctx.stroke();
+      ctx.textAlign = 'right';
+      ctx.fillText(ty.toFixed(2), pad.left - 8, sy + 4);
+    }
+
+    // Reference lines
+    ctx.strokeStyle = '#ddd';
+    ctx.setLineDash([4, 4]);
+    var y05 = pad.top + ph - 0.5 * ph;
+    ctx.beginPath(); ctx.moveTo(pad.left, y05); ctx.lineTo(pad.left + pw, y05); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Sigmoid curve
+    ctx.strokeStyle = '#0072B2';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    var first = true;
+    for (var px = 0; px <= pw; px++) {
+      var x = xmin + px / pw * (xmax - xmin);
+      var eta = b0 + b1 * x;
+      var p = 1 / (1 + Math.exp(-eta));
+      var sy2 = pad.top + ph - p * ph;
+      if (first) { ctx.moveTo(pad.left + px, sy2); first = false; }
+      else { ctx.lineTo(pad.left + px, sy2); }
+    }
+    ctx.stroke();
+
+    // Mark the inflection point (where eta = 0, i.e. x = -b0/b1)
+    if (Math.abs(b1) > 0.01) {
+      var xInflect = -b0 / b1;
+      if (xInflect >= xmin && xInflect <= xmax) {
+        var sxI = pad.left + (xInflect - xmin) / (xmax - xmin) * pw;
+        ctx.fillStyle = '#D55E00';
+        ctx.beginPath();
+        ctx.arc(sxI, y05, 5, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.fillStyle = '#D55E00';
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('x* = ' + xInflect.toFixed(2), sxI + 8, y05 - 8);
+      }
+    }
+
+    // Parameter display
+    ctx.fillStyle = '#333';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('b0 = ' + b0.toFixed(1) + ', b1 = ' + b1.toFixed(1), pad.left + 10, pad.top + 20);
+  `}
+/>
+
+The interactive plot above lets you adjust the intercept $\beta_0$ and slope $\beta_1$ of a logistic regression. Watch how $\beta_0$ shifts the sigmoid left or right (it controls where $P(Y = 1) = 0.5$), while $\beta_1$ controls the steepness: a larger $|\beta_1|$ makes the transition from 0 to 1 sharper. A negative $\beta_1$ flips the curve.
+
+---
+
+## 20.5 Maximum Likelihood Estimation
+
+### 20.5.1 The Log-Likelihood
+
+For independent binary observations, the log-likelihood is:
+
+$$\ell(\boldsymbol{\beta}) = \sum_{i=1}^n \bigl[y_i \log p_i + (1 - y_i) \log(1 - p_i)\bigr]$$
+
+where $p_i = \text{logit}^{-1}(\mathbf{x}_i^\top \boldsymbol{\beta})$. This is the negative of the **binary cross-entropy** loss used in machine learning.
+
+### 20.5.2 Computing the Log-Likelihood from Scratch
+
+
+``` r
+loglik_logistic <- function(beta, X, y) {
+  eta <- X %*% beta
+  p <- 1 / (1 + exp(-eta))
+  p <- pmax(pmin(p, 1 - 1e-15), 1e-15)
+  sum(y * log(p) + (1 - y) * log(1 - p))
+}
+
+X <- model.matrix(~ lwt + age + smoke, data = bwt)
+y <- bwt$low
+
+c(
+  "Log-lik (scratch)" = loglik_logistic(coef(fit1), X, y),
+  "Log-lik (R)" = as.numeric(logLik(fit1))
+)
+```
+
+```
+Log-lik (scratch)       Log-lik (R) 
+        -111.4397         -111.4397 
+```
+
+### 20.5.3 The Log-Likelihood Surface
+
+
+``` r
+beta_hat <- coef(fit1)
+smoke_grid <- seq(-0.5, 2.5, length.out = 200)
+
+ll_vals <- sapply(smoke_grid, function(b_smoke) {
+  beta_trial <- beta_hat
+  beta_trial["smoke"] <- b_smoke
+  loglik_logistic(beta_trial, X, y)
+})
+
+ll_dt <- data.table$data.table(beta_smoke = smoke_grid, loglik = ll_vals)
+
+ggplot2$ggplot(ll_dt, ggplot2$aes(x = beta_smoke, y = loglik)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_vline(xintercept = beta_hat["smoke"], linetype = "dashed",
+                     colour = "#D55E00", linewidth = 0.8) +
+  ggplot2$annotate("text", x = beta_hat["smoke"] + 0.1, y = min(ll_vals) + 2,
+                   label = paste0("MLE = ", round(beta_hat["smoke"], 3)),
+                   hjust = 0, colour = "#D55E00") +
+  ggplot2$labs(
+    x = expression(beta[smoke]),
+    y = "Log-likelihood",
+    title = "Profile log-likelihood for the smoking coefficient"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/loglik-surface-1.png" alt="Log-likelihood as a function of the smoking coefficient, holding other parameters at their MLE values. The MLE sits at the peak.">
+	Log-likelihood as a function of the smoking coefficient, holding other parameters at their MLE values. The MLE sits at the peak.
+</Figure>
+
+---
+
+## 20.6 Wald Tests
+
+The **Wald test** for $H_0: \beta_j = 0$ uses the fact that, asymptotically:
+
+$$z_j = \frac{\hat{\beta}_j}{\text{SE}(\hat{\beta}_j)} \sim N(0, 1)$$
+
+R's `summary.glm()` reports these $z$-values and their two-sided $p$-values.
+
+
+``` r
+coef_summary <- summary(fit1)$coefficients
+knitr::kable(
+  round(coef_summary, 4),
+  caption = "Wald tests from summary(glm). The z-value is the coefficient divided by its standard error."
+)
+```
 
 
 
+Table: Wald tests from summary(glm). The z-value is the coefficient divided by its standard error.
+
+|            | Estimate| Std. Error| z value| Pr(>&#124;z&#124;)|
+|:-----------|--------:|----------:|-------:|------------------:|
+|(Intercept) |   1.3682|     1.0143|  1.3490|             0.1773|
+|lwt         |  -0.0121|     0.0061| -1.9786|             0.0479|
+|age         |  -0.0390|     0.0327| -1.1915|             0.2334|
+|smoke       |   0.6708|     0.3259|  2.0583|             0.0396|
+
+### 20.6.1 Wald Confidence Intervals
+
+The $(1 - \alpha)$ Wald CI for $\beta_j$ is:
+
+$$\hat{\beta}_j \pm z_{\alpha/2} \cdot \text{SE}(\hat{\beta}_j)$$
+
+And the CI for the odds ratio is obtained by exponentiating:
+
+$$\exp\!\bigl[\hat{\beta}_j \pm z_{\alpha/2} \cdot \text{SE}(\hat{\beta}_j)\bigr]$$
+
+
+``` r
+ci_wald <- confint.default(fit1)
+or_ci <- data.frame(
+  Predictor = rownames(ci_wald),
+  OR = round(exp(coef(fit1)), 3),
+  Lower_95 = round(exp(ci_wald[, 1]), 3),
+  Upper_95 = round(exp(ci_wald[, 2]), 3)
+)
+knitr::kable(or_ci, caption = "Odds ratios with 95% Wald confidence intervals.")
+```
 
 
 
+Table: Odds ratios with 95% Wald confidence intervals.
+
+|            |Predictor   |    OR| Lower_95| Upper_95|
+|:-----------|:-----------|-----:|--------:|--------:|
+|(Intercept) |(Intercept) | 3.928|    0.538|   28.678|
+|lwt         |lwt         | 0.988|    0.976|    1.000|
+|age         |age         | 0.962|    0.902|    1.025|
+|smoke       |smoke       | 1.956|    1.033|    3.704|
+
+---
+
+## 20.7 Likelihood Ratio Tests
+
+The **likelihood ratio test** (LRT) is generally preferred over Wald tests because it is more reliable in small samples and is invariant to reparametrisation.
+
+$$\Lambda = -2[\ell(\hat{\boldsymbol{\beta}}_{\text{reduced}}) - \ell(\hat{\boldsymbol{\beta}}_{\text{full}})] \sim \chi^2_{q}$$
+
+where $q$ is the number of parameters dropped.
+
+
+``` r
+fit_full <- glm(low ~ lwt + age + smoke + ht + ui, data = bwt, family = binomial)
+fit_no_smoke <- glm(low ~ lwt + age + ht + ui, data = bwt, family = binomial)
+
+lr_stat <- deviance(fit_no_smoke) - deviance(fit_full)
+p_lr <- pchisq(lr_stat, df = 1, lower.tail = FALSE)
+
+data.frame(
+  Test = "H0: beta_smoke = 0",
+  LR_statistic = round(lr_stat, 4),
+  df = 1,
+  p_value = round(p_lr, 4)
+)
+```
+
+```
+                Test LR_statistic df p_value
+1 H0: beta_smoke = 0       3.7025  1  0.0543
+```
+
+
+``` r
+anova(fit_no_smoke, fit_full, test = "LRT")
+```
+
+```
+Analysis of Deviance Table
+
+Model 1: low ~ lwt + age + ht + ui
+Model 2: low ~ lwt + age + smoke + ht + ui
+  Resid. Df Resid. Dev Df Deviance Pr(>Chi)  
+1       184     215.48                       
+2       183     211.78  1   3.7025  0.05433 .
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+```
+
+---
+
+## 20.8 Profile Confidence Intervals
+
+**Profile likelihood CIs** are based on inverting the LRT. They do not assume normality of the estimator and are more accurate than Wald CIs, especially when the sample is small or the parameter is near a boundary.
+
+
+``` r
+ci_profile <- confint(fit1)
+```
+
+```
+Waiting for profiling to be done...
+```
+
+``` r
+ci_compare <- data.frame(
+  Predictor = rownames(ci_profile),
+  Wald_Lower = round(confint.default(fit1)[, 1], 4),
+  Wald_Upper = round(confint.default(fit1)[, 2], 4),
+  Profile_Lower = round(ci_profile[, 1], 4),
+  Profile_Upper = round(ci_profile[, 2], 4)
+)
+knitr::kable(ci_compare, caption = "Wald vs profile likelihood 95% CIs.")
+```
 
 
 
+Table: Wald vs profile likelihood 95% CIs.
+
+|            |Predictor   | Wald_Lower| Wald_Upper| Profile_Lower| Profile_Upper|
+|:-----------|:-----------|----------:|----------:|-------------:|-------------:|
+|(Intercept) |(Intercept) |    -0.6197|     3.3561|       -0.5708|        3.4240|
+|lwt         |lwt         |    -0.0242|    -0.0001|       -0.0250|       -0.0008|
+|age         |age         |    -0.1031|     0.0251|       -0.1051|        0.0238|
+|smoke       |smoke       |     0.0321|     1.3095|        0.0327|        1.3138|
+
+The profile CIs are slightly asymmetric, reflecting the curvature of the log-likelihood. This asymmetry is real and the Wald CI misses it.
+
+---
+
+## 20.9 Multiple Predictors
 
 
+``` r
+fit_multi <- glm(low ~ lwt + age + smoke + ht + ui + race + ftv,
+                 data = bwt, family = binomial)
+summary(fit_multi)
+```
+
+```
+
+Call:
+glm(formula = low ~ lwt + age + smoke + ht + ui + race + ftv, 
+    family = binomial, data = bwt)
+
+Coefficients:
+             Estimate Std. Error z value Pr(>|z|)   
+(Intercept) -0.117505   1.263702  -0.093  0.92592   
+lwt         -0.013512   0.006547  -2.064  0.03901 * 
+age         -0.026944   0.035468  -0.760  0.44746   
+smoke        1.040777   0.391484   2.659  0.00785 **
+ht           1.851441   0.689782   2.684  0.00727 **
+ui           0.866535   0.451031   1.921  0.05470 . 
+race         0.471209   0.213123   2.211  0.02704 * 
+ftv          0.055545   0.169155   0.328  0.74263   
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 234.67  on 188  degrees of freedom
+Residual deviance: 206.72  on 181  degrees of freedom
+AIC: 222.72
+
+Number of Fisher Scoring iterations: 4
+```
 
 
+``` r
+ci_multi <- confint.default(fit_multi)
+or_multi <- data.table$data.table(
+  predictor = names(coef(fit_multi))[-1],
+  or = exp(coef(fit_multi))[-1],
+  lower = exp(ci_multi[-1, 1]),
+  upper = exp(ci_multi[-1, 2])
+)
+
+ggplot2$ggplot(or_multi, ggplot2$aes(x = or, y = reorder(predictor, or))) +
+  ggplot2$geom_vline(xintercept = 1, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_pointrange(
+    ggplot2$aes(xmin = lower, xmax = upper),
+    colour = "#0072B2", size = 0.7
+  ) +
+  ggplot2$labs(
+    x = "Odds ratio (95% CI)",
+    y = "",
+    title = "Odds ratios for low birth weight predictors"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/or-forest-1.png" alt="Odds ratios with 95% Wald CIs for the multivariate logistic regression. The dashed line at OR = 1 represents no effect.">
+	Odds ratios with 95% Wald CIs for the multivariate logistic regression. The dashed line at OR = 1 represents no effect.
+</Figure>
+
+---
+
+## 20.10 Goodness of Fit: Hosmer-Lemeshow Test
+
+The Hosmer-Lemeshow test groups observations by predicted probability and compares observed and expected counts in each group using a chi-squared statistic.
 
 
+``` r
+hosmer_lemeshow <- function(y, p_hat, g = 10) {
+  breaks <- quantile(p_hat, probs = seq(0, 1, length.out = g + 1))
+  breaks[1] <- breaks[1] - 0.001
+  group <- cut(p_hat, breaks = breaks, labels = FALSE)
 
+  obs1 <- tapply(y, group, sum)
+  n_g <- tapply(y, group, length)
+  exp1 <- tapply(p_hat, group, sum)
 
+  hl_stat <- sum((obs1 - exp1)^2 / (exp1 * (1 - exp1 / n_g)))
+  p_val <- pchisq(hl_stat, df = g - 2, lower.tail = FALSE)
+  list(statistic = hl_stat, df = g - 2, p_value = p_val)
+}
 
+hl <- hosmer_lemeshow(bwt$low, fitted(fit_multi))
+data.frame(
+  Statistic = round(hl$statistic, 3),
+  df = hl$df,
+  p_value = round(hl$p_value, 3)
+)
+```
 
+```
+  Statistic df p_value
+1     8.137  8    0.42
+```
 
+A large $p$-value suggests no evidence of poor fit (the model adequately describes the data).
 
+---
+
+## Communicating to Stakeholders
+
+When presenting logistic regression results:
+
+- **Use odds ratios, not coefficients.** Say "smoking multiplies the odds of low birth weight by 2.4" rather than "the log-odds coefficient for smoking is 0.88."
+- **Always provide confidence intervals.** An OR of 2.4 with a CI of (0.9, 6.1) tells a very different story from an OR of 2.4 with a CI of (1.8, 3.2).
+- **Show predicted probability curves.** Audiences understand probabilities far more naturally than log-odds.
+- **Clarify "holding other variables constant."** This is the most common source of misunderstanding. Emphasise that the OR for smoking compares smokers and non-smokers *who are otherwise identical*.
+
+---
+
+## Quick Reference
+
+| Concept | Details |
+|:--------|:--------|
+| **Model** | $\text{logit}(p_i) = \mathbf{x}_i^\top \boldsymbol{\beta}$ |
+| **Logistic function** | $p = 1 / (1 + e^{-\eta})$ |
+| **Odds ratio** | $\text{OR}_j = e^{\beta_j}$ |
+| **Log-likelihood** | $\sum [y_i \log p_i + (1-y_i) \log(1-p_i)]$ |
+| **Wald test** | $z = \hat{\beta}_j / \text{SE}(\hat{\beta}_j)$ |
+| **LRT** | $D_{\text{reduced}} - D_{\text{full}} \sim \chi^2$ |
+| **Profile CI** | Invert the LRT (preferred over Wald) |
+| **R syntax** | `glm(y ~ x, family = binomial)` |
+
+---
+
+## Exercises
+
+1. **Derivation.** Starting from $P(Y=1) = e^{\eta}/(1+e^{\eta})$, show that $\partial p / \partial \eta = p(1-p)$. This is the key identity for deriving the score equations.
+
+2. **Interpretation.** In a logistic regression for disease status, the coefficient for age is $\hat{\beta} = 0.03$. What is the odds ratio for a 10-year increase in age? Compute the Wald 95% CI for this odds ratio if $\text{SE}(\hat{\beta}) = 0.01$.
+
+3. **Centering.** Fit `glm(low ~ lwt + age + smoke, family = binomial)` and then fit the same model with `lwt` and `age` centred at their means. Compare the intercepts and verify that the slope coefficients are identical.
+
+4. **Wald vs LRT.** For the multivariate birthwt model, compare the Wald $p$-value for each predictor with the LRT $p$-value obtained by dropping that predictor. When do they disagree?
+
+5. **Separation.** Create a dataset with 20 observations where the two classes are perfectly separated by $x$. Fit logistic regression and observe what happens to the coefficients and standard errors. Why?
+
+6. **Profile likelihood.** For the smoking coefficient in the birthwt model, plot the profile log-likelihood manually (as we did in Section 20.5.3) and mark the profile 95% CI endpoints. Verify they match `confint()`.

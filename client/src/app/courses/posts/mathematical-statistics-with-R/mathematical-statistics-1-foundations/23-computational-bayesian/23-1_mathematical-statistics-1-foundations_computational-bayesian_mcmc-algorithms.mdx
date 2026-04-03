@@ -71,7 +71,7 @@ ggplot2$ggplot(mc_dt, ggplot2$aes(x = s, y = estimate)) +
   ggplot2$theme_minimal(base_size = 13)
 ```
 
-<Figure src="mc-integration-1.png" alt="Monte Carlo integration converges to the true posterior mean as the number of draws increases.">
+<Figure src="/courses/mathematical-statistics-1-foundations/mc-integration-1.png" alt="Monte Carlo integration converges to the true posterior mean as the number of draws increases.">
 	Monte Carlo integration converges to the true posterior mean as the number of draws increases.
 </Figure>
 
@@ -206,7 +206,7 @@ p2 <- ggplot2$ggplot(chain_dt[iteration > 5000], ggplot2$aes(x = mu)) +
 gridExtra::grid.arrange(p1, p2, ncol = 2)
 ```
 
-<Figure src="mh-trace-and-hist-1.png" alt="Metropolis-Hastings output: trace plot (left) and posterior histogram (right). The chain mixes well and concentrates around the data mean.">
+<Figure src="/courses/mathematical-statistics-1-foundations/mh-trace-and-hist-1.png" alt="Metropolis-Hastings output: trace plot (left) and posterior histogram (right). The chain mixes well and concentrates around the data mean.">
 	Metropolis-Hastings output: trace plot (left) and posterior histogram (right). The chain mixes well and concentrates around the data mean.
 </Figure>
 
@@ -248,7 +248,7 @@ ggplot2$ggplot(tuning_dt[iteration <= 2000], ggplot2$aes(x = iteration, y = mu))
   ggplot2$theme_minimal(base_size = 12)
 ```
 
-<Figure src="tuning-demo-1.png" alt="Effect of proposal scale on chain behaviour. Too narrow: slow exploration. Too wide: high rejection. A well-tuned proposal explores efficiently.">
+<Figure src="/courses/mathematical-statistics-1-foundations/tuning-demo-1.png" alt="Effect of proposal scale on chain behaviour. Too narrow: slow exploration. Too wide: high rejection. A well-tuned proposal explores efficiently.">
 	Effect of proposal scale on chain behaviour. Too narrow: slow exploration. Too wide: high rejection. A well-tuned proposal explores efficiently.
 </Figure>
 
@@ -329,7 +329,7 @@ ggplot2$ggplot(post_burn, ggplot2$aes(x = x, y = y)) +
   ggplot2$theme_minimal(base_size = 13)
 ```
 
-<Figure src="gibbs-scatter-1.png" alt="Gibbs sampler for a bivariate normal with rho = 0.8. The samples (after burn-in) reproduce the target correlation structure.">
+<Figure src="/courses/mathematical-statistics-1-foundations/gibbs-scatter-1.png" alt="Gibbs sampler for a bivariate normal with rho = 0.8. The samples (after burn-in) reproduce the target correlation structure.">
 	Gibbs sampler for a bivariate normal with rho = 0.8. The samples (after burn-in) reproduce the target correlation structure.
 </Figure>
 
@@ -348,7 +348,7 @@ ggplot2$ggplot(early, ggplot2$aes(x = x, y = y)) +
   ggplot2$theme_minimal(base_size = 13)
 ```
 
-<Figure src="gibbs-path-1.png" alt="First 50 iterations of the Gibbs sampler showing the characteristic zig-zag pattern as it alternates between updating X and Y.">
+<Figure src="/courses/mathematical-statistics-1-foundations/gibbs-path-1.png" alt="First 50 iterations of the Gibbs sampler showing the characteristic zig-zag pattern as it alternates between updating X and Y.">
 	First 50 iterations of the Gibbs sampler showing the characteristic zig-zag pattern as it alternates between updating X and Y.
 </Figure>
 
@@ -482,7 +482,7 @@ ggplot2$ggplot(burn_dt, ggplot2$aes(x = iteration, y = mu)) +
   ggplot2$theme_minimal(base_size = 13)
 ```
 
-<Figure src="burnin-demo-1.png" alt="Effect of burn-in: the chain starts far from the target and takes several hundred iterations to settle. Discarding these early iterations removes the initialisation bias.">
+<Figure src="/courses/mathematical-statistics-1-foundations/burnin-demo-1.png" alt="Effect of burn-in: the chain starts far from the target and takes several hundred iterations to settle. Discarding these early iterations removes the initialisation bias.">
 	Effect of burn-in: the chain starts far from the target and takes several hundred iterations to settle. Discarding these early iterations removes the initialisation bias.
 </Figure>
 
@@ -523,9 +523,60 @@ ggplot2$ggplot(acf_dt, ggplot2$aes(x = lag, y = acf, fill = chain)) +
   ggplot2$theme(legend.position = "top")
 ```
 
-<Figure src="autocorrelation-1.png" alt="Autocorrelation function for MCMC chains with different proposal scales. A well-tuned chain decorrelates quickly.">
+<Figure src="/courses/mathematical-statistics-1-foundations/autocorrelation-1.png" alt="Autocorrelation function for MCMC chains with different proposal scales. A well-tuned chain decorrelates quickly.">
 	Autocorrelation function for MCMC chains with different proposal scales. A well-tuned chain decorrelates quickly.
 </Figure>
 
 
+``` r
+ess_good <- coda::effectiveSize(chain_good)
+ess_narrow <- coda::effectiveSize(chain_narrow)
+sprintf("ESS (well-tuned): %.0f out of 5000", ess_good)
+sprintf("ESS (too narrow): %.0f out of 5000", ess_narrow)
+```
 
+```
+[1] "ESS (well-tuned): 972 out of 5000"
+[1] "ESS (too narrow): 97 out of 5000"
+```
+
+---
+
+## Communicating to Stakeholders
+
+- **Demystify MCMC.** "Instead of solving the equation analytically, we use a computer to draw random samples from the answer. More samples means more precision."
+- **Explain convergence.** "We ran the algorithm long enough to be confident it has settled into a stable pattern. The trace plot confirms this."
+- **Report ESS, not raw iterations.** "We ran 10,000 iterations, but because of autocorrelation the effective sample size is 3,200 -- still more than adequate."
+- **Burn-in is quality control.** "We discarded the first 2,000 iterations to remove the effect of our arbitrary starting point."
+
+---
+
+## Quick Reference
+
+| Concept | Details |
+|:--------|:--------|
+| **Monte Carlo** | $\hat{g} = \frac{1}{S}\sum g(\theta^{(s)}) \to E[g(\theta) \mid \mathbf{y}]$ |
+| **MH acceptance** | $\alpha = \min(1, \frac{\pi^* q(\theta^{(t)} \mid \theta^*)}{\pi^{(t)} q(\theta^* \mid \theta^{(t)})})$ |
+| **Random walk MH** | Symmetric proposal; $\alpha = \min(1, \pi^*/\pi^{(t)})$ |
+| **Gibbs sampling** | Update each parameter from full conditional; acceptance = 1 |
+| **Detailed balance** | $\pi(a) T(a \to b) = \pi(b) T(b \to a)$ |
+| **Burn-in** | Discard early iterations (initialisation transient) |
+| **ESS** | $S / (1 + 2\sum \rho_k)$; effective independent samples |
+| **Optimal acceptance** | ~44% for 1D; ~23% for many parameters |
+| **Thinning** | Keep every $k$-th sample; modern: prefer longer chains |
+
+---
+
+## Exercises
+
+1. **MH from scratch.** Implement the Metropolis-Hastings algorithm to sample from a $\text{Gamma}(3, 1)$ distribution using a log-normal proposal. Verify your samples match the true distribution by comparing quantiles.
+
+2. **Proposal tuning.** For the normal posterior example in Section 23.4, run the MH sampler with $\sigma_{\text{prop}} \in \{0.05, 0.5, 1.5, 5, 50\}$. Plot the acceptance rate vs $\sigma_{\text{prop}}$ and identify the optimal range.
+
+3. **Gibbs for normal.** Implement a Gibbs sampler for $\mu$ and $\sigma^2$ of a normal distribution using conjugate priors ($\mu \mid \sigma^2 \sim N(\mu_0, \sigma^2/\kappa_0)$ and $\sigma^2 \sim \text{Inv-Gamma}(\nu_0/2, \nu_0 \sigma_0^2/2)$). Apply to the `airquality` temperature data.
+
+4. **ESS comparison.** Generate 10,000 MCMC samples from a standard normal using (a) independent sampling, (b) MH with $\sigma_{\text{prop}} = 2.4$, and (c) MH with $\sigma_{\text{prop}} = 0.1$. Compute the ESS for each. How many MH samples would you need to match the ESS of 1,000 independent samples?
+
+5. **Multimodal target.** Implement MH for the mixture $0.3 \cdot N(-3, 1) + 0.7 \cdot N(3, 1)$. Does the random walk Metropolis explore both modes? Experiment with different proposal scales.
+
+6. **Gibbs for bivariate.** Modify the bivariate normal Gibbs sampler to handle $\rho = 0.99$. How does the high correlation affect mixing? Compute the ESS and compare with $\rho = 0.5$.

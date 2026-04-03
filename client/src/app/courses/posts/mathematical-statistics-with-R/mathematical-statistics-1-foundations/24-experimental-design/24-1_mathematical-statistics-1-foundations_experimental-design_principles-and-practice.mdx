@@ -87,7 +87,7 @@ ggplot2$ggplot(simpson_dt, ggplot2$aes(x = x, y = y)) +
 `geom_smooth()` using formula = 'y ~ x'
 ```
 
-<Figure src="simpsons-paradox-1.png" alt="Simpson&#39;s paradox: the overall trend (dashed) is positive, but within each group the trend is negative. Ignoring the confounding group variable reverses the apparent effect.">
+<Figure src="/courses/mathematical-statistics-1-foundations/simpsons-paradox-1.png" alt="Simpson&#39;s paradox: the overall trend (dashed) is positive, but within each group the trend is negative. Ignoring the confounding group variable reverses the apparent effect.">
 	Simpson's paradox: the overall trend (dashed) is positive, but within each group the trend is negative. Ignoring the confounding group variable reverses the apparent effect.
 </Figure>
 
@@ -230,28 +230,404 @@ where $\delta = \mu_1 - \mu_2$ is the minimum clinically important difference an
 ### 24.5.2 Power Calculations with `pwr`
 
 
+``` r
+box::use(pwr)
+
+power_result <- pwr$pwr.t.test(
+  d = 0.5,
+  sig.level = 0.05,
+  power = 0.80,
+  type = "two.sample"
+)
+
+sprintf("Required n per group: %.0f (Cohen's d = 0.5, power = 0.80)", ceiling(power_result$n))
+```
+
+```
+[1] "Required n per group: 64 (Cohen's d = 0.5, power = 0.80)"
+```
+
+
+``` r
+effect_sizes <- c(0.2, 0.5, 0.8)
+ns <- seq(5, 200, by = 5)
+
+power_list <- list()
+for (d in effect_sizes) {
+  powers <- sapply(ns, function(n) {
+    pwr$pwr.t.test(d = d, n = n, sig.level = 0.05, type = "two.sample")$power
+  })
+  power_list[[length(power_list) + 1]] <- data.table$data.table(
+    n = ns, power = powers, effect = paste0("d = ", d)
+  )
+}
+power_dt <- data.table$rbindlist(power_list)
+
+ggplot2$ggplot(power_dt, ggplot2$aes(x = n, y = power, colour = effect)) +
+  ggplot2$geom_line(linewidth = 1.1) +
+  ggplot2$geom_hline(yintercept = 0.80, linetype = "dashed", alpha = 0.5) +
+  ggplot2$labs(
+    x = "Sample size per group", y = "Power",
+    title = "Power curves for the two-sample t-test (alpha = 0.05)",
+    colour = "Effect size"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/power-curve-1.png" alt="Power curves for the two-sample t-test at different effect sizes. Larger effects require fewer subjects; small effects demand large samples.">
+	Power curves for the two-sample t-test at different effect sizes. Larger effects require fewer subjects; small effects demand large samples.
+</Figure>
+
+### 24.5.3 Power for Proportions
+
+
+``` r
+prop_power <- pwr$pwr.2p.test(
+  h = pwr$ES.h(p1 = 0.3, p2 = 0.2),
+  sig.level = 0.05,
+  power = 0.80
+)
+
+sprintf("Required n per group: %.0f (to detect 30%% vs 20%% success rate)", ceiling(prop_power$n))
+```
+
+```
+[1] "Required n per group: 292 (to detect 30% vs 20% success rate)"
+```
+
+### 24.5.4 Power for Chi-Squared Tests
+
+
+``` r
+chi_power <- pwr$pwr.chisq.test(
+  w = 0.3,
+  df = 2,
+  sig.level = 0.05,
+  power = 0.80
+)
+
+sprintf("Required n: %.0f (chi-squared, w = 0.3, df = 2)", ceiling(chi_power$N))
+```
+
+```
+[1] "Required n: 108 (chi-squared, w = 0.3, df = 2)"
+```
+
+---
+
+## 24.6 Common Pitfalls
+
+### 24.6.1 Selection Bias
+
+Subjects are not representative of the target population. Example: a trial of a new antidepressant recruits only from a single specialist clinic; results may not generalise to primary care.
+
+### 24.6.2 Survivorship Bias
+
+Analysing only the survivors creates a distorted picture. Example: studying successful companies to find common traits ignores the failed companies with the same traits.
+
+
+``` r
+set.seed(42)
+full_pop <- rnorm(1000, mean = 50, sd = 20)
+survivors <- full_pop[full_pop > 30]
+
+surv_dt <- data.table$data.table(
+  value = c(full_pop, survivors),
+  group = c(rep("Full population", length(full_pop)), rep("Survivors only", length(survivors)))
+)
+
+ggplot2$ggplot(surv_dt, ggplot2$aes(x = value, fill = group)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 40, alpha = 0.6, colour = "white", position = "identity"
+  ) +
+  ggplot2$geom_vline(xintercept = mean(full_pop), linetype = "dashed", colour = "#D55E00") +
+  ggplot2$geom_vline(xintercept = mean(survivors), linetype = "dashed", colour = "#0072B2") +
+  ggplot2$scale_fill_manual(values = c("#D55E00", "#0072B2")) +
+  ggplot2$labs(
+    x = "Value", y = "Density",
+    title = sprintf("Survivorship bias: full mean = %.1f, survivor mean = %.1f",
+                    mean(full_pop), mean(survivors)),
+    fill = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/survivorship-1.png" alt="Survivorship bias: we only observe the survivors (blue), missing the full distribution. The observed mean is biased upwards.">
+	Survivorship bias: we only observe the survivors (blue), missing the full distribution. The observed mean is biased upwards.
+</Figure>
+
+### 24.6.3 Confounding
+
+An unmeasured variable drives both the apparent cause and the effect. Randomisation eliminates confounding; observational studies must rely on statistical adjustment (imperfect).
+
+### 24.6.4 Multiple Comparisons
+
+Testing many hypotheses inflates the family-wise error rate (Chapter 12). A study that tests 20 outcomes at $\alpha = 0.05$ expects one false positive even if all null hypotheses are true.
+
+### 24.6.5 P-Hacking and the Garden of Forking Paths
+
+Researchers may (consciously or not) try multiple analyses until one yields $p < 0.05$. Pre-registration -- specifying the analysis plan before seeing the data -- is the antidote.
+
+---
+
+## 24.7 Case Study: The Streptomycin Tuberculosis Trial
+
+The 1948 British Medical Research Council trial of streptomycin for pulmonary tuberculosis is widely considered the first modern randomised controlled trial.
+
+
+``` r
+data_dir <- "../../../data"
+strep <- data.table$fread(file.path(data_dir, "medical/strep_tb.csv"))
+str(strep)
+```
+
+```
+Classes 'data.table' and 'data.frame':	107 obs. of  13 variables:
+ $ patient_id         : int  1 2 3 4 5 6 7 8 9 10 ...
+ $ arm                : chr  "Control" "Control" "Control" "Control" ...
+ $ dose_strep_g       : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ dose_PAS_g         : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ gender             : chr  "M" "F" "F" "M" ...
+ $ baseline_condition : chr  "1_Good" "1_Good" "1_Good" "1_Good" ...
+ $ baseline_temp      : chr  "1_98-98.9F" "3_100-100.9F" "1_98-98.9F" "1_98-98.9F" ...
+ $ baseline_esr       : chr  "2_11-20" "2_11-20" "3_21-50" "3_21-50" ...
+ $ baseline_cavitation: chr  "yes" "no" "no" "no" ...
+ $ strep_resistance   : chr  "1_sens_0-8" "1_sens_0-8" "1_sens_0-8" "1_sens_0-8" ...
+ $ radiologic_6m      : chr  "6_Considerable_improvement" "5_Moderate_improvement" "5_Moderate_improvement" "5_Moderate_improvement" ...
+ $ rad_num            : int  6 5 5 5 5 6 5 5 5 5 ...
+ $ improved           : logi  TRUE TRUE TRUE TRUE TRUE TRUE ...
+ - attr(*, ".internal.selfref")=<externalptr> 
+```
+
+
+``` r
+outcome_tab <- strep[, .N, by = .(arm, improved)]
+knitr::kable(outcome_tab, caption = "Outcomes in the streptomycin TB trial by treatment arm.")
+```
 
 
 
+Table: Outcomes in the streptomycin TB trial by treatment arm.
+
+|arm          |improved |  N|
+|:------------|:--------|--:|
+|Control      |TRUE     | 17|
+|Control      |FALSE    | 35|
+|Streptomycin |TRUE     | 38|
+|Streptomycin |FALSE    | 17|
+
+
+``` r
+cont_tab <- table(strep$arm, strep$improved)
+fisher_result <- fisher.test(cont_tab)
+sprintf("Fisher's exact test p-value: %.4f", fisher_result$p.value)
+sprintf("Odds ratio: %.3f (95%% CI: %.3f to %.3f)",
+        fisher_result$estimate, fisher_result$conf.int[1], fisher_result$conf.int[2])
+```
+
+```
+[1] "Fisher's exact test p-value: 0.0002"
+[1] "Odds ratio: 4.530 (95% CI: 1.896 to 11.278)"
+```
+
+**Design features of this trial:**
+
+- **Randomisation:** sealed envelopes opened only at admission.
+- **Concealment:** clinicians did not know the allocation before the patient was enrolled.
+- **Blinding:** radiographers assessing X-rays did not know treatment assignment.
+- **Pre-specified outcome:** improvement at 6 months assessed by independent radiologists.
+
+---
+
+## 24.8 Case Study: Lind's Scurvy Trial Design
+
+James Lind's 1747 trial is often cited as the first clinical trial, though its design has important limitations.
+
+
+``` r
+scurvy <- data.table$fread(file.path(data_dir, "medical/scurvy.csv"))
+
+scurvy_summary <- scurvy[, .(n = .N), by = treatment]
+knitr::kable(scurvy_summary, caption = "Lind's scurvy trial: treatment allocation.")
+```
 
 
 
+Table: Lind's scurvy trial: treatment allocation.
+
+|treatment            |  n|
+|:--------------------|--:|
+|cider                |  2|
+|dilute_sulfuric_acid |  2|
+|vinegar              |  2|
+|sea_water            |  2|
+|citrus               |  2|
+|purgative_mixture    |  2|
+
+**Design critique:**
+
+- **No randomisation.** Lind selected twelve similar patients but assigned treatments by convenience.
+- **Tiny sample.** Two per group -- far too small for any statistical test to be meaningful.
+- **No blinding.** Patients and Lind both knew the treatments.
+- **No placebo control.** "Elixir vitriol" and "cider" groups are not true placebos.
+- **Strength.** All twelve had similar severity, and treatments were administered simultaneously under identical conditions.
+
+Despite these limitations, the dramatic effect of citrus fruit was visible even with $n = 2$ per group. This illustrates that large effects can be detected even in poor designs -- but subtle effects require proper methodology.
+
+---
+
+## 24.9 Case Study: Licorice Gargle RCT
+
+A modern randomised controlled trial evaluating whether gargling with licorice solution reduces sore throat after intubation.
 
 
+``` r
+licorice <- data.table$fread(file.path(data_dir, "medical/licorice_gargle.csv"))
+str(licorice)
+```
+
+```
+Classes 'data.table' and 'data.frame':	235 obs. of  19 variables:
+ $ preOp_gender          : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ preOp_asa             : int  3 2 2 2 1 2 3 2 3 3 ...
+ $ preOp_calcBMI         : num  33 23.7 26.8 28.4 30.4 ...
+ $ preOp_age             : int  67 76 58 59 73 61 66 61 83 69 ...
+ $ preOp_mallampati      : int  2 2 2 2 1 3 1 2 1 2 ...
+ $ preOp_smoking         : int  1 2 1 1 2 1 1 1 1 3 ...
+ $ preOp_pain            : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ treat                 : int  1 1 1 1 1 1 1 1 1 1 ...
+ $ intraOp_surgerySize   : int  2 1 2 3 2 3 3 1 1 2 ...
+ $ extubation_cough      : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ pacu30min_cough       : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ pacu30min_throatPain  : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ pacu30min_swallowPain : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ pacu90min_cough       : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ pacu90min_throatPain  : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ postOp4hour_cough     : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ postOp4hour_throatPain: int  0 0 0 0 0 0 0 0 0 0 ...
+ $ pod1am_cough          : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ pod1am_throatPain     : int  0 0 0 0 0 0 0 0 0 0 ...
+ - attr(*, ".internal.selfref")=<externalptr> 
+```
 
 
+``` r
+lic_dt <- data.table$copy(licorice)
+lic_dt[, treat_label := ifelse(treat == 1, "Licorice", "Control")]
+
+ggplot2$ggplot(lic_dt[!is.na(pacu30min_throatPain)],
+               ggplot2$aes(x = treat_label, y = pacu30min_throatPain, fill = treat_label)) +
+  ggplot2$geom_boxplot(alpha = 0.7, outlier.alpha = 0.5) +
+  ggplot2$scale_fill_manual(values = c("#D55E00", "#0072B2")) +
+  ggplot2$labs(
+    x = "Treatment", y = "Sore throat pain score",
+    title = "Licorice gargle RCT: post-operative throat pain"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "none")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/licorice-analysis-1.png" alt="Sore throat severity scores by treatment group in the licorice gargle RCT. The licorice group shows lower post-operative throat pain.">
+	Sore throat severity scores by treatment group in the licorice gargle RCT. The licorice group shows lower post-operative throat pain.
+</Figure>
 
 
+``` r
+test_lic <- wilcox.test(
+  pacu30min_throatPain ~ treat,
+  data = lic_dt[!is.na(pacu30min_throatPain)]
+)
+
+sprintf("Wilcoxon rank-sum test p-value: %.4f", test_lic$p.value)
+```
+
+```
+[1] "Wilcoxon rank-sum test p-value: 0.0002"
+```
 
 
+``` r
+lic_d <- lic_dt[!is.na(pacu30min_throatPain), {
+  m <- tapply(pacu30min_throatPain, treat_label, mean)
+  s <- tapply(pacu30min_throatPain, treat_label, sd)
+  pooled_sd <- sqrt(mean(s^2))
+  list(cohens_d = abs(diff(m)) / pooled_sd, pooled_sd = pooled_sd)
+}]
 
+post_hoc_power <- pwr$pwr.t.test(
+  d = lic_d$cohens_d,
+  n = nrow(lic_dt) / 2,
+  sig.level = 0.05,
+  type = "two.sample"
+)
 
+sprintf("Observed Cohen's d: %.3f", lic_d$cohens_d)
+sprintf("Post-hoc power: %.3f", post_hoc_power$power)
+```
 
+```
+[1] "Observed Cohen's d: 0.630"
+[1] "Post-hoc power: 0.998"
+```
 
+---
 
+## 24.10 The Design Checklist
 
+Before collecting data, answer:
 
+1. **Research question.** What precisely are we testing?
+2. **Primary outcome.** One pre-specified primary endpoint.
+3. **Sample size.** Power calculation based on the minimum clinically important effect.
+4. **Randomisation scheme.** Simple, blocked, or stratified.
+5. **Blinding.** Single, double, or impossible? Justify.
+6. **Inclusion/exclusion criteria.** Who is eligible? This determines generalisability.
+7. **Analysis plan.** Pre-specify the statistical test and any adjustments.
+8. **Registration.** Register the protocol before data collection begins.
 
+---
 
+## Communicating to Stakeholders
 
+- **Randomisation is not arbitrary.** "We randomly assigned patients to groups so that the groups are comparable on all factors -- including ones we did not measure."
+- **Power calculations prevent waste.** "We calculated that 64 patients per group are needed to detect a meaningful improvement. Fewer patients would risk missing a real effect; more would be unnecessary."
+- **Blinding prevents bias.** "Neither the patients nor the doctors evaluating outcomes knew which treatment each patient received, preventing unconscious bias."
+- **Observational studies are valuable but limited.** "This study shows an association, but we cannot be certain it is causal because we could not control for all confounders."
 
+---
+
+## Quick Reference
+
+| Concept | Details |
+|:--------|:--------|
+| **Randomisation** | Ensures $(Y(0), Y(1)) \perp Z$; eliminates confounding |
+| **Blocking** | Balance within known strata (e.g., sex, site) |
+| **Stratification** | Separate randomisation within strata |
+| **Blinding** | Single (subject), double (+ assessor), triple (+ analyst) |
+| **Power** | $1 - \beta$; want $\geq 0.80$ conventionally |
+| **Sample size (t-test)** | $n = 2(z_{\alpha/2} + z_\beta)^2 \sigma^2 / \delta^2$ |
+| **`pwr` package** | `pwr.t.test()`, `pwr.2p.test()`, `pwr.chisq.test()` |
+| **Selection bias** | Non-representative sample |
+| **Survivorship bias** | Analysing only those who "survived" some filter |
+| **Confounding** | Third variable associated with both cause and effect |
+| **P-hacking** | Multiple analyses until $p < 0.05$; pre-registration prevents |
+| **Pre-registration** | Protocol specified before data collection |
+
+---
+
+## Exercises
+
+1. **Randomisation balance.** Simulate 10,000 simple randomisations of 50 subjects. For each, compute the difference in group sizes. What fraction have an imbalance worse than 60/40? Now repeat with blocked randomisation (block size 4). Compare.
+
+2. **Power calculation.** A clinical trial aims to detect a 5-point improvement in pain score (SD = 12) with 80% power at $\alpha = 0.05$. How many patients per group are needed? What happens if the true SD is 15?
+
+3. **Confounding simulation.** Generate data where $X$ (treatment) and $Z$ (confounder) are correlated ($r = 0.6$), and the outcome $Y = 0.5 Z + \epsilon$ depends only on $Z$, not on $X$. Fit a simple regression of $Y$ on $X$ and observe the spurious effect. Then fit $Y$ on $X + Z$ and verify the effect of $X$ vanishes.
+
+4. **Survivorship bias.** Generate 1000 observations from $N(0, 1)$ and keep only those with $|x| < 2$ (96% survival). Compute the variance of the survivors and compare with 1. Explain the bias.
+
+5. **Design critique.** Read the description of Lind's scurvy trial. List three specific design improvements that would strengthen the trial if it were conducted today.
+
+6. **Power for logistic regression.** Using simulation, estimate the sample size needed to detect an odds ratio of 2.0 for a binary predictor (50% prevalence) in a logistic regression with 80% power. (Hint: simulate data, fit the model, and count rejections.)

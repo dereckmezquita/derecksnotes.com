@@ -400,8 +400,8 @@ str(licorice)
 lic_dt <- data.table$copy(licorice)
 lic_dt[, treat_label := ifelse(treat == 1, "Licorice", "Control")]
 
-ggplot2$ggplot(lic_dt[!is.na(throat_pain_score)],
-               ggplot2$aes(x = treat_label, y = throat_pain_score, fill = treat_label)) +
+ggplot2$ggplot(lic_dt[!is.na(pacu30min_throatPain)],
+               ggplot2$aes(x = treat_label, y = pacu30min_throatPain, fill = treat_label)) +
   ggplot2$geom_boxplot(alpha = 0.7, outlier.alpha = 0.5) +
   ggplot2$scale_fill_manual(values = c("#D55E00", "#0072B2")) +
   ggplot2$labs(
@@ -414,17 +414,17 @@ ggplot2$ggplot(lic_dt[!is.na(throat_pain_score)],
 
 ```{r licorice-test}
 test_lic <- wilcox.test(
-  throat_pain_score ~ treat,
-  data = lic_dt[!is.na(throat_pain_score)]
+  pacu30min_throatPain ~ treat,
+  data = lic_dt[!is.na(pacu30min_throatPain)]
 )
 
 sprintf("Wilcoxon rank-sum test p-value: %.4f", test_lic$p.value)
 ```
 
 ```{r licorice-power}
-lic_d <- lic_dt[!is.na(throat_pain_score), {
-  m <- tapply(throat_pain_score, treat_label, mean)
-  s <- tapply(throat_pain_score, treat_label, sd)
+lic_d <- lic_dt[!is.na(pacu30min_throatPain), {
+  m <- tapply(pacu30min_throatPain, treat_label, mean)
+  s <- tapply(pacu30min_throatPain, treat_label, sd)
   pooled_sd <- sqrt(mean(s^2))
   list(cohens_d = abs(diff(m)) / pooled_sd, pooled_sd = pooled_sd)
 }]

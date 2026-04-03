@@ -320,7 +320,7 @@ pg[, .(.N, mean = mean(weight), sd = sd(weight)), by = group]
 ```
 
 ```{r plantgrowth-plot, fig.cap="Dried weight of plants under three conditions. Treatment 2 appears to produce heavier plants than the control and treatment 1."}
-ggplot2$ggplot(pg, ggplot2$aes(x = group, y = Weight, fill = group)) +
+ggplot2$ggplot(pg, ggplot2$aes(x = group, y = weight, fill = group)) +
   ggplot2$geom_boxplot(alpha = 0.7) +
   ggplot2$geom_jitter(width = 0.1, alpha = 0.5, size = 2) +
   ggplot2$scale_fill_manual(values = c(
@@ -360,7 +360,7 @@ The simplest approach: test each pair at level $\alpha / m$ where $m = \binom{k}
 
 ```{r bonferroni-pg}
 # All pairwise t-tests with Bonferroni correction
-pairwise.t.test(pg$Weight, pg$group, p.adjust.method = "bonferroni")
+pairwise.t.test(pg$weight, pg$group, p.adjust.method = "bonferroni")
 ```
 
 ### 18.8.3 Tukey's Honest Significant Difference (HSD)

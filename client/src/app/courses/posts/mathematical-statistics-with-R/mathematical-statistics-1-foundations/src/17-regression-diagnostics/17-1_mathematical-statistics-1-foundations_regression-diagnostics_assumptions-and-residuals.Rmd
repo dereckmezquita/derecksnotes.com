@@ -146,7 +146,7 @@ Under the assumptions, $t_i \sim t_{n-p-1}$ exactly. This gives a genuine $t$-te
 data_dir <- "../../../data"
 boston <- data.table$fread(file.path(data_dir, "classic/boston.csv"))
 
-fit_boston <- lm(medv ~ lstat + rm + Age, data = boston)
+fit_boston <- lm(medv ~ lstat + rm + age, data = boston)
 
 diag_dt <- data.table$data.table(
   obs = seq_len(nrow(boston)),
@@ -610,7 +610,7 @@ The Breusch-Pagan test regresses the squared residuals on the predictors. Under 
 
 ```{r bp-from-scratch}
 e2 <- residuals(fit_boston)^2
-bp_fit <- lm(e2 ~ lstat + rm + Age, data = boston)
+bp_fit <- lm(e2 ~ lstat + rm + age, data = boston)
 bp_stat <- nrow(boston) * summary(bp_fit)$r.squared
 bp_df <- length(coef(bp_fit)) - 1
 

@@ -140,7 +140,7 @@ ggplot2$ggplot(fp_dt, ggplot2$aes(x = m, y = prob)) +
   ggplot2$theme_minimal(base_size = 13)
 ```
 
-<Figure src="fp-accumulation-1.png" alt="Probability of at least one false positive as a function of the number of tests. Even at alpha = 0.05 per test, the family-wise error rate quickly exceeds 50% and approaches certainty.">
+<Figure src="/courses/mathematical-statistics-1-foundations/fp-accumulation-1.png" alt="Probability of at least one false positive as a function of the number of tests. Even at alpha = 0.05 per test, the family-wise error rate quickly exceeds 50% and approaches certainty.">
 	Probability of at least one false positive as a function of the number of tests. Even at alpha = 0.05 per test, the family-wise error rate quickly exceeds 50% and approaches certainty.
 </Figure>
 
@@ -185,7 +185,7 @@ ggplot2$ggplot(sig_dt, ggplot2$aes(x = test, y = p_value, fill = significant)) +
   ggplot2$theme(legend.position = "top")
 ```
 
-<Figure src="sig-by-chance-1.png" alt="Twenty independent t-tests on pure-noise data. Each group was drawn from the same N(0,1) distribution. Highlighted bars show tests that are &#39;significant&#39; at alpha = 0.05 purely by chance.">
+<Figure src="/courses/mathematical-statistics-1-foundations/sig-by-chance-1.png" alt="Twenty independent t-tests on pure-noise data. Each group was drawn from the same N(0,1) distribution. Highlighted bars show tests that are &#39;significant&#39; at alpha = 0.05 purely by chance.">
 	Twenty independent t-tests on pure-noise data. Each group was drawn from the same N(0,1) distribution. Highlighted bars show tests that are 'significant' at alpha = 0.05 purely by chance.
 </Figure>
 
@@ -483,10 +483,245 @@ nhanes_adults[, age_group := factor(age_group, levels = c("young", "middle"))]
 ```
 
 
+``` r
+# Select numeric health-related columns for testing
+test_cols <- c("Height", "Weight", "BMI", "Pulse",
+               "BPSysAve", "BPDiaAve", "BPSys1", "BPDia1",
+               "TotChol", "DirectChol", "Testosterone",
+               "Poverty", "SleepHrsNight", "HomeRooms",
+               "UrineVol1", "UrineFlow1",
+               "DaysPhysHlthBad", "DaysMentHlthBad",
+               "AlcoholDay", "AlcoholYear")
+
+# Run a t-test for each variable: young vs middle-aged
+run_test <- function(col_name, dt) {
+  grp_young <- dt[age_group == "young", get(col_name)]
+  grp_middle <- dt[age_group == "middle", get(col_name)]
+  # Remove NAs
+  grp_young <- grp_young[!is.na(grp_young)]
+  grp_middle <- grp_middle[!is.na(grp_middle)]
+  if (length(grp_young) < 5 || length(grp_middle) < 5) return(NA_real_)
+  t.test(grp_young, grp_middle)$p.value
+}
+
+nhanes_pvals <- vapply(test_cols, run_test, numeric(1), dt = nhanes_adults)
+nhanes_pvals <- nhanes_pvals[!is.na(nhanes_pvals)]
+
+nhanes_test_dt <- data.table$data.table(
+  variable = names(nhanes_pvals),
+  p_raw = nhanes_pvals
+)
+
+nhanes_test_dt[, `:=`(
+  p_bonf = p.adjust(p_raw, method = "bonferroni"),
+  p_holm = p.adjust(p_raw, method = "holm")
+)]
+
+nhanes_test_dt[, `:=`(
+  sig_raw   = p_raw < 0.05,
+  sig_bonf  = p_bonf < 0.05,
+  sig_holm  = p_holm < 0.05
+)]
+
+nhanes_test_dt[order(p_raw)]
+```
+
+```
+           variable        p_raw       p_bonf       p_holm sig_raw sig_bonf
+             <char>        <num>        <num>        <num>  <lgcl>   <lgcl>
+ 1:          BPSys1 8.116860e-98 1.623372e-96 1.623372e-96    TRUE     TRUE
+ 2:         TotChol 7.689929e-94 1.537986e-92 1.461087e-92    TRUE     TRUE
+ 3:        BPSysAve 4.852892e-93 9.705784e-92 8.735205e-92    TRUE     TRUE
+ 4:         Poverty 1.242735e-56 2.485470e-55 2.112649e-55    TRUE     TRUE
+ 5:          BPDia1 2.216632e-56 4.433264e-55 3.546611e-55    TRUE     TRUE
+ 6:       HomeRooms 1.124543e-55 2.249086e-54 1.686814e-54    TRUE     TRUE
+ 7:        BPDiaAve 4.026682e-51 8.053364e-50 5.637355e-50    TRUE     TRUE
+ 8:           Pulse 2.912653e-20 5.825306e-19 3.786449e-19    TRUE     TRUE
+ 9:      AlcoholDay 3.611603e-20 7.223207e-19 4.333924e-19    TRUE     TRUE
+10: DaysPhysHlthBad 1.177773e-17 2.355547e-16 1.295551e-16    TRUE     TRUE
+11:      DirectChol 1.131671e-15 2.263342e-14 1.131671e-14    TRUE     TRUE
+12:     AlcoholYear 3.320123e-14 6.640247e-13 2.988111e-13    TRUE     TRUE
+13:             BMI 8.767985e-10 1.753597e-08 7.014388e-09    TRUE     TRUE
+14:   SleepHrsNight 4.195088e-09 8.390176e-08 2.936562e-08    TRUE     TRUE
+15:          Weight 2.911218e-06 5.822436e-05 1.746731e-05    TRUE     TRUE
+16:       UrineVol1 4.153006e-04 8.306012e-03 2.076503e-03    TRUE     TRUE
+17:      UrineFlow1 4.616373e-03 9.232745e-02 1.846549e-02    TRUE    FALSE
+18:          Height 2.076521e-02 4.153042e-01 6.229563e-02    TRUE    FALSE
+19:    Testosterone 3.103491e-02 6.206983e-01 6.229563e-02    TRUE    FALSE
+20: DaysMentHlthBad 6.623364e-01 1.000000e+00 6.623364e-01   FALSE    FALSE
+           variable        p_raw       p_bonf       p_holm sig_raw sig_bonf
+             <char>        <num>        <num>        <num>  <lgcl>   <lgcl>
+    sig_holm
+      <lgcl>
+ 1:     TRUE
+ 2:     TRUE
+ 3:     TRUE
+ 4:     TRUE
+ 5:     TRUE
+ 6:     TRUE
+ 7:     TRUE
+ 8:     TRUE
+ 9:     TRUE
+10:     TRUE
+11:     TRUE
+12:     TRUE
+13:     TRUE
+14:     TRUE
+15:     TRUE
+16:     TRUE
+17:     TRUE
+18:    FALSE
+19:    FALSE
+20:    FALSE
+    sig_holm
+      <lgcl>
+```
 
 
+``` r
+data.table$data.table(
+  method = c("Uncorrected", "Bonferroni", "Holm"),
+  n_rejected = c(
+    sum(nhanes_test_dt$sig_raw),
+    sum(nhanes_test_dt$sig_bonf),
+    sum(nhanes_test_dt$sig_holm)
+  )
+)
+```
+
+```
+        method n_rejected
+        <char>      <int>
+1: Uncorrected         19
+2:  Bonferroni         16
+3:        Holm         17
+```
+
+With real biological differences between young and middle-aged adults, many of the 20 comparisons are genuinely significant. The Bonferroni and Holm corrections reduce the number of rejections, but the truly large effects (e.g., blood pressure, cholesterol) survive correction easily. The corrections primarily remove borderline findings that could be false positives.
+
+### 12.5.1 Visualisation of NHANES Results
 
 
+``` r
+nhanes_plot_dt <- data.table$copy(nhanes_test_dt)
+nhanes_plot_dt[, neglog_p := -log10(p_raw)]
+nhanes_plot_dt[, variable := factor(variable,
+  levels = nhanes_plot_dt[order(neglog_p)]$variable)]
+
+ggplot2$ggplot(nhanes_plot_dt,
+  ggplot2$aes(x = neglog_p, y = variable)) +
+  ggplot2$geom_point(
+    ggplot2$aes(colour = sig_bonf), size = 3
+  ) +
+  ggplot2$geom_segment(
+    ggplot2$aes(x = 0, xend = neglog_p, y = variable, yend = variable,
+                colour = sig_bonf),
+    linewidth = 0.6
+  ) +
+  ggplot2$geom_vline(
+    xintercept = -log10(0.05), linetype = "dashed",
+    colour = "#009E73", linewidth = 0.7
+  ) +
+  ggplot2$geom_vline(
+    xintercept = -log10(0.05 / nrow(nhanes_test_dt)),
+    linetype = "dashed", colour = "#D55E00", linewidth = 0.7
+  ) +
+  ggplot2$annotate("text",
+    x = -log10(0.05) + 0.3, y = 2,
+    label = "alpha == 0.05", parse = TRUE,
+    colour = "#009E73", size = 3.5
+  ) +
+  ggplot2$annotate("text",
+    x = -log10(0.05 / nrow(nhanes_test_dt)) + 0.3, y = 2,
+    label = "Bonferroni", colour = "#D55E00", size = 3.5
+  ) +
+  ggplot2$scale_colour_manual(
+    values = c("FALSE" = "#0072B2", "TRUE" = "#D55E00"),
+    labels = c("Not significant", "Significant after Bonferroni")
+  ) +
+  ggplot2$labs(
+    x = expression(-log[10](p)),
+    y = NULL,
+    title = "NHANES: 20 simultaneous health outcome tests",
+    colour = NULL
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/nhanes-forest-1.png" alt="Negative log10 p-values for 20 NHANES health outcomes comparing young vs middle-aged adults. The dashed lines show the significance thresholds before and after Bonferroni correction. Many variables cross the uncorrected threshold, but only the most robust effects survive correction.">
+	Negative log10 p-values for 20 NHANES health outcomes comparing young vs middle-aged adults. The dashed lines show the significance thresholds before and after Bonferroni correction. Many variables cross the uncorrected threshold, but only the most robust effects survive correction.
+</Figure>
+
+---
+
+## Communicating to Stakeholders
+
+When explaining multiple testing corrections to non-technical audiences:
+
+- Use an analogy: "If you roll a die 100 times, you expect to see a six about 17 times. Similarly, if you test 100 things at the 5% level, you expect about 5 false alarms even when nothing is really happening."
+- Emphasise that corrections do not destroy real findings -- they remove findings that could be due to chance: "We are raising the bar for evidence, not throwing away results."
+- Report both the number of tests conducted and the correction method: "We tested 20 health outcomes and applied the Bonferroni correction to account for the 20 simultaneous comparisons."
+- Avoid jargon like "FWER" with stakeholders. Instead say: "We controlled the chance of any false alarm to below 5%."
+- When Bonferroni seems too strict, explain: "Bonferroni is the most conservative method. If a result survives Bonferroni, you can be very confident it is real."
+
+---
+
+## Quick Reference
+
+| Concept | Formula / Rule | Notes |
+|:--------|:---------------|:------|
+| **FWER (m independent tests)** | $1 - (1-\alpha)^m$ | Exact under independence |
+| **Union bound** | $P(\bigcup A_i) \le \sum P(A_i)$ | Always valid, no independence needed |
+| **Bonferroni** | Reject if $p_i \le \alpha/m$ | Conservative; strong FWER control |
+| **Adjusted p (Bonferroni)** | $\tilde{p}_i = \min(m \cdot p_i, \; 1)$ | Compare to $\alpha$ directly |
+| **Holm step-down** | Compare $p_{(k)}$ to $\alpha/(m-k+1)$ | Uniformly more powerful than Bonferroni |
+| **R function** | `p.adjust(p, method)` | Methods: `"bonferroni"`, `"holm"`, `"BH"`, etc. |
+
+**Key insight:** Bonferroni and Holm both control FWER, but Holm is always at least as powerful. There is no reason to prefer Bonferroni over Holm unless simplicity of explanation is paramount.
+
+---
+
+## Exercises
+
+### Derivation Exercises
+
+**Exercise 12.1.** Prove that $1 - (1-\alpha)^m \ge m\alpha - \binom{m}{2}\alpha^2$ for any $0 \le \alpha \le 1$ and positive integer $m$. *(Hint: use the inclusion-exclusion principle for independent events and truncate after two terms.)*
+
+**Exercise 12.2.** Show that the Bonferroni correction is exact (i.e., FWER $= \alpha$) when $m = 1$. For $m > 1$, show that it is strictly conservative under independence -- that is, the true FWER is strictly less than $\alpha$.
+
+**Exercise 12.3.** Prove that Holm's procedure controls the FWER at level $\alpha$. *(Hint: let $H_{(1)}, \ldots, H_{(m)}$ correspond to the sorted p-values. Suppose the procedure makes at least one false rejection. The first false rejection occurs at some step $j$. At that step, the threshold is $\alpha/(m - j + 1)$ and there are at most $m - j + 1$ true nulls remaining. Apply the union bound.)*
+
+### Computation Exercises
+
+**Exercise 12.4.** A researcher tests 15 hypotheses and obtains p-values: 0.001, 0.008, 0.012, 0.023, 0.041, 0.048, 0.052, 0.078, 0.15, 0.22, 0.31, 0.42, 0.55, 0.71, 0.89. Apply the Bonferroni correction by hand. Which hypotheses are rejected at FWER $= 0.05$?
+
+**Exercise 12.5.** Apply Holm's procedure to the same 15 p-values from Exercise 12.4. Show each step of the algorithm and identify the rejected hypotheses. Confirm that Holm rejects at least as many as Bonferroni.
+
+### R Exercises
+
+**Exercise 12.6.** Write a simulation to estimate the FWER of the Bonferroni correction when the tests are positively correlated. Generate $m = 20$ test statistics from a multivariate normal with common correlation $\rho = 0.5$, compute two-sided p-values, apply Bonferroni at $\alpha = 0.05$, and record whether any false positives occur. Repeat 10,000 times. Is the FWER below 0.05?
 
 
+``` r
+set.seed(42)
+m <- 20; n_sims <- 10000; alpha <- 0.05; rho <- 0.5
+Sigma <- matrix(rho, m, m)
+diag(Sigma) <- 1
 
+any_fp <- vapply(seq_len(n_sims), function(i) {
+  z <- MASS::mvrnorm(1, mu = rep(0, m), Sigma = Sigma)
+  p <- 2 * pnorm(-abs(z))
+  any(p < alpha / m)
+}, logical(1))
+
+mean(any_fp)  # Should be <= 0.05
+```
+
+**Exercise 12.7.** Extend the NHANES analysis to compare three age groups (18--34, 35--49, 50--64) using one-way ANOVA for each variable. Apply Bonferroni and Holm corrections. Do the same variables survive?
+
+### Spot-the-Error Exercises
+
+**Exercise 12.8.** A student tests 50 hypotheses, finds 3 significant at the $\alpha = 0.05$ level, and reports: "We found 3 significant results, which is fewer than the 2.5 expected by chance, so all 3 are likely to be real." What is wrong with this reasoning?
+
+**Exercise 12.9.** A colleague applies the Bonferroni correction to 100 tests and finds nothing significant. They conclude: "There are definitely no real effects among these 100 hypotheses." What is the error? *(Hint: consider statistical power.)*

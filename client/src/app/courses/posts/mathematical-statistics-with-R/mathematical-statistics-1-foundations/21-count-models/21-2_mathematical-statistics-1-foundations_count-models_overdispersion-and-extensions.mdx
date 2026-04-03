@@ -43,61 +43,689 @@ where $X^2_P$ is the Pearson chi-squared statistic. If $\hat{\phi} \gg 1$, we ha
 ``` r
 data_dir <- "../../../data"
 pubs <- data.table$fread(file.path(data_dir, "count/biochemist_publications.csv"))
+data.table$setnames(pubs,
+  old = c("articles", "female", "married", "kids5", "phd_prestige", "mentor_articles"),
+  new = c("art", "fem", "mar", "kid5", "phd", "ment")
+)
 str(pubs)
 ```
 
 ```
 Classes 'data.table' and 'data.frame':	915 obs. of  6 variables:
- $ articles       : int  0 0 0 0 0 0 0 0 0 0 ...
- $ female         : int  1 1 0 1 1 0 1 0 1 1 ...
- $ married        : int  0 0 1 1 1 0 0 0 1 1 ...
- $ kids5          : int  0 1 0 0 0 1 1 1 0 2 ...
- $ phd_prestige   : num  3.84 3.43 1.61 3.09 4.17 2.64 2.26 2.98 3.6 3.6 ...
- $ mentor_articles: int  7 10 8 8 11 6 10 5 11 9 ...
+ $ art : int  0 0 0 0 0 0 0 0 0 0 ...
+ $ fem : int  1 1 0 1 1 0 1 0 1 1 ...
+ $ mar : int  0 0 1 1 1 0 0 0 1 1 ...
+ $ kid5: int  0 1 0 0 0 1 1 1 0 2 ...
+ $ phd : num  3.84 3.43 1.61 3.09 4.17 2.64 2.26 2.98 3.6 3.6 ...
+ $ ment: int  7 10 8 8 11 6 10 5 11 9 ...
  - attr(*, ".internal.selfref")=<externalptr> 
 ```
 
 
+``` r
+ggplot2$ggplot(pubs, ggplot2$aes(x = art)) +
+  ggplot2$geom_histogram(
+    binwidth = 1, fill = "#0072B2", colour = "white", alpha = 0.8
+  ) +
+  ggplot2$labs(
+    x = "Number of articles published",
+    y = "Frequency",
+    title = "Biochemist publications (last 3 years of PhD)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/pubs-eda-1.png" alt="Distribution of biochemist publications. Note the heavy right tail and the large number of zeros -- both signs of potential overdispersion.">
+	Distribution of biochemist publications. Note the heavy right tail and the large number of zeros -- both signs of potential overdispersion.
+</Figure>
+
+
+``` r
+c(
+  Mean = mean(pubs$art),
+  Variance = var(pubs$art),
+  Ratio = var(pubs$art) / mean(pubs$art)
+)
+```
+
+```
+    Mean Variance    Ratio 
+1.660109 3.045179 1.834325 
+```
+
+The variance is roughly 1.8 times the mean -- clear evidence of overdispersion.
+
+
+``` r
+fit_pois <- glm(art ~ fem + mar + kid5 + phd + ment, data = pubs, family = poisson)
+
+# Estimate dispersion
+pearson_X2 <- sum(residuals(fit_pois, type = "pearson")^2)
+disp_hat <- pearson_X2 / fit_pois$df.residual
+
+data.frame(
+  Pearson_X2 = round(pearson_X2, 2),
+  df = fit_pois$df.residual,
+  Dispersion = round(disp_hat, 3)
+)
+```
+
+```
+  Pearson_X2  df Dispersion
+1    1672.23 909       1.84
+```
+
+The estimated dispersion is 1.84 -- substantially greater than 1. The Poisson model's standard errors are unreliable.
+
+---
+
+## 21.6 Quasi-Poisson
+
+### 21.6.1 The Idea
+
+The simplest fix is to leave the mean model unchanged but **inflate the standard errors** by $\sqrt{\hat{\phi}}$. This is the **quasi-Poisson** approach. It does not specify a full probability model; it only specifies the mean-variance relationship:
+
+$$\text{Var}(Y_i) = \phi \cdot \mu_i$$
+
+where $\phi$ is estimated from the data.
+
+
+``` r
+fit_quasi <- glm(art ~ fem + mar + kid5 + phd + ment, data = pubs, family = quasipoisson)
+summary(fit_quasi)
+```
+
+```
+
+Call:
+glm(formula = art ~ fem + mar + kid5 + phd + ment, family = quasipoisson, 
+    data = pubs)
+
+Coefficients:
+             Estimate Std. Error t value Pr(>|t|)    
+(Intercept)  0.572717   0.150692   3.801 0.000154 ***
+fem         -0.006318   0.070910  -0.089 0.929018    
+mar          0.009968   0.073257   0.136 0.891801    
+kid5        -0.052318   0.049595  -1.055 0.291748    
+phd          0.011141   0.029723   0.375 0.707886    
+ment        -0.009398   0.012485  -0.753 0.451816    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for quasipoisson family taken to be 1.839659)
+
+    Null deviance: 1701.9  on 914  degrees of freedom
+Residual deviance: 1698.3  on 909  degrees of freedom
+AIC: NA
+
+Number of Fisher Scoring iterations: 5
+```
+
+
+``` r
+se_comparison <- data.frame(
+  Parameter = names(coef(fit_pois)),
+  SE_Poisson = round(summary(fit_pois)$coefficients[, 2], 4),
+  SE_QuasiPoisson = round(summary(fit_quasi)$coefficients[, 2], 4),
+  Inflation_Factor = round(
+    summary(fit_quasi)$coefficients[, 2] / summary(fit_pois)$coefficients[, 2], 3
+  )
+)
+knitr::kable(se_comparison,
+             caption = "Standard error comparison: Poisson vs quasi-Poisson. The inflation factor should be approximately sqrt(phi).")
+```
 
 
 
+Table: Standard error comparison: Poisson vs quasi-Poisson. The inflation factor should be approximately sqrt(phi).
+
+|            |Parameter   | SE_Poisson| SE_QuasiPoisson| Inflation_Factor|
+|:-----------|:-----------|----------:|---------------:|----------------:|
+|(Intercept) |(Intercept) |     0.1111|          0.1507|            1.356|
+|fem         |fem         |     0.0523|          0.0709|            1.356|
+|mar         |mar         |     0.0540|          0.0733|            1.356|
+|kid5        |kid5        |     0.0366|          0.0496|            1.356|
+|phd         |phd         |     0.0219|          0.0297|            1.356|
+|ment        |ment        |     0.0092|          0.0125|            1.356|
+
+The quasi-Poisson standard errors are $\sqrt{\hat{\phi}} \approx$ 1.36 times larger than the Poisson standard errors. The coefficients themselves are identical -- only the uncertainty estimates change.
+
+### 21.6.2 Limitations
+
+Quasi-Poisson does not define a full likelihood, so:
+
+- AIC is not defined (R will return `NA`).
+- You cannot use the LRT directly (use an $F$-test instead).
+- There is no distributional assumption to check.
+
+
+``` r
+fit_quasi_reduced <- glm(art ~ fem + ment, data = pubs, family = quasipoisson)
+anova(fit_quasi_reduced, fit_quasi, test = "F")
+```
+
+```
+Analysis of Deviance Table
+
+Model 1: art ~ fem + ment
+Model 2: art ~ fem + mar + kid5 + phd + ment
+  Resid. Df Resid. Dev Df Deviance      F Pr(>F)
+1       912     1700.7                          
+2       909     1698.3  3   2.3275 0.4217 0.7375
+```
+
+---
+
+## 21.7 The Negative Binomial Distribution
+
+### 21.7.1 Derivation as a Poisson-Gamma Mixture
+
+A more principled approach to overdispersion is the **negative binomial** model. It arises naturally from a hierarchical argument:
+
+1. Each individual has their own Poisson rate $\lambda_i$.
+2. These rates vary across individuals according to a Gamma distribution: $\lambda_i \sim \text{Gamma}(\theta, \theta / \mu_i)$.
+3. Marginalising over $\lambda_i$, we get:
+
+$$Y_i \mid \mu_i, \theta \sim \text{NegBin}(\mu_i, \theta)$$
+
+with PMF:
+
+$$P(Y = y) = \frac{\Gamma(y + \theta)}{\Gamma(\theta)\, y!} \left(\frac{\theta}{\theta + \mu}\right)^\theta \left(\frac{\mu}{\theta + \mu}\right)^y$$
+
+The key property is:
+
+$$E[Y] = \mu, \qquad \text{Var}(Y) = \mu + \frac{\mu^2}{\theta}$$
+
+The variance has an extra term $\mu^2 / \theta$ compared to Poisson. When $\theta \to \infty$, $\text{Var}(Y) \to \mu$ and we recover the Poisson. The parameter $\theta$ is sometimes called the **dispersion parameter** (confusingly, it measures the *inverse* of overdispersion: larger $\theta$ means less overdispersion).
+
+### 21.7.2 Visualising Poisson vs Negative Binomial
+
+
+``` r
+y_grid <- 0:20
+mu_val <- 5
+
+dist_dt <- data.table$rbindlist(list(
+  data.table$data.table(
+    y = y_grid,
+    prob = dpois(y_grid, mu_val),
+    distribution = "Poisson(5)"
+  ),
+  data.table$data.table(
+    y = y_grid,
+    prob = dnbinom(y_grid, mu = mu_val, size = 2),
+    distribution = "NegBin(mu=5, theta=2)"
+  ),
+  data.table$data.table(
+    y = y_grid,
+    prob = dnbinom(y_grid, mu = mu_val, size = 0.5),
+    distribution = "NegBin(mu=5, theta=0.5)"
+  )
+))
+
+ggplot2$ggplot(dist_dt, ggplot2$aes(x = y, y = prob, fill = distribution)) +
+  ggplot2$geom_col(position = "dodge", alpha = 0.8, colour = "white") +
+  ggplot2$labs(
+    x = "y", y = "P(Y = y)", fill = "Distribution",
+    title = "Poisson vs negative binomial (same mean)"
+  ) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/pois-vs-nb-1.png" alt="Poisson vs negative binomial distributions with the same mean. The NB has heavier tails and more probability mass at zero.">
+	Poisson vs negative binomial distributions with the same mean. The NB has heavier tails and more probability mass at zero.
+</Figure>
+
+### 21.7.3 Fitting with MASS::glm.nb()
+
+
+``` r
+fit_nb <- MASS::glm.nb(art ~ fem + mar + kid5 + phd + ment, data = pubs)
+summary(fit_nb)
+```
+
+```
+
+Call:
+MASS::glm.nb(formula = art ~ fem + mar + kid5 + phd + ment, data = pubs, 
+    init.theta = 1.961367363, link = log)
+
+Coefficients:
+             Estimate Std. Error z value Pr(>|z|)    
+(Intercept)  0.574050   0.151080   3.800 0.000145 ***
+fem         -0.008080   0.071070  -0.114 0.909483    
+mar          0.009810   0.073382   0.134 0.893656    
+kid5        -0.051507   0.049208  -1.047 0.295225    
+phd          0.010504   0.029776   0.353 0.724268    
+ment        -0.009273   0.012495  -0.742 0.458000    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+(Dispersion parameter for Negative Binomial(1.9614) family taken to be 1)
+
+    Null deviance: 1017.9  on 914  degrees of freedom
+Residual deviance: 1016.0  on 909  degrees of freedom
+AIC: 3191.9
+
+Number of Fisher Scoring iterations: 1
+
+              Theta:  1.961 
+          Std. Err.:  0.225 
+
+ 2 x log-likelihood:  -3177.908 
+```
+
+
+``` r
+comp_all <- data.frame(
+  Parameter = names(coef(fit_pois)),
+  Poisson = round(coef(fit_pois), 4),
+  QuasiPoisson = round(coef(fit_quasi), 4),
+  NegBin = round(coef(fit_nb), 4)
+)
+knitr::kable(comp_all, caption = "Coefficient estimates: Poisson, quasi-Poisson, and negative binomial.")
+```
 
 
 
+Table: Coefficient estimates: Poisson, quasi-Poisson, and negative binomial.
+
+|            |Parameter   | Poisson| QuasiPoisson|  NegBin|
+|:-----------|:-----------|-------:|------------:|-------:|
+|(Intercept) |(Intercept) |  0.5727|       0.5727|  0.5740|
+|fem         |fem         | -0.0063|      -0.0063| -0.0081|
+|mar         |mar         |  0.0100|       0.0100|  0.0098|
+|kid5        |kid5        | -0.0523|      -0.0523| -0.0515|
+|phd         |phd         |  0.0111|       0.0111|  0.0105|
+|ment        |ment        | -0.0094|      -0.0094| -0.0093|
+
+
+``` r
+se_all <- data.frame(
+  Parameter = names(coef(fit_pois)),
+  SE_Poisson = round(summary(fit_pois)$coefficients[, 2], 4),
+  SE_QuasiPoisson = round(summary(fit_quasi)$coefficients[, 2], 4),
+  SE_NegBin = round(summary(fit_nb)$coefficients[, 2], 4)
+)
+knitr::kable(se_all, caption = "Standard error comparison across three models.")
+```
 
 
 
+Table: Standard error comparison across three models.
+
+|            |Parameter   | SE_Poisson| SE_QuasiPoisson| SE_NegBin|
+|:-----------|:-----------|----------:|---------------:|---------:|
+|(Intercept) |(Intercept) |     0.1111|          0.1507|    0.1511|
+|fem         |fem         |     0.0523|          0.0709|    0.0711|
+|mar         |mar         |     0.0540|          0.0733|    0.0734|
+|kid5        |kid5        |     0.0366|          0.0496|    0.0492|
+|phd         |phd         |     0.0219|          0.0297|    0.0298|
+|ment        |ment        |     0.0092|          0.0125|    0.0125|
+
+The negative binomial coefficients differ slightly from the Poisson because the NB model uses a different likelihood. The NB standard errors are similar in magnitude to the quasi-Poisson standard errors, but the NB approach gives us a full likelihood (so AIC is defined).
+
+
+``` r
+data.frame(
+  Model = c("Poisson", "Negative binomial"),
+  AIC = round(c(AIC(fit_pois), AIC(fit_nb)), 1),
+  Deviance = round(c(deviance(fit_pois), deviance(fit_nb)), 1)
+)
+```
+
+```
+              Model    AIC Deviance
+1           Poisson 3375.4   1698.3
+2 Negative binomial 3191.9   1016.0
+```
+
+---
+
+## 21.8 Checking the Negative Binomial Fit
+
+
+``` r
+max_y <- 15
+obs_freq <- tabulate(pubs$art + 1, nbins = max_y + 1)
+
+mu_pois <- fitted(fit_pois)
+exp_pois <- sapply(0:max_y, function(k) sum(dpois(k, mu_pois)))
+
+mu_nb <- fitted(fit_nb)
+theta_nb <- fit_nb$theta
+exp_nb <- sapply(0:max_y, function(k) sum(dnbinom(k, mu = mu_nb, size = theta_nb)))
+
+freq_dt <- data.table$rbindlist(list(
+  data.table$data.table(y = 0:max_y, count = obs_freq, model = "Observed"),
+  data.table$data.table(y = 0:max_y, count = exp_pois, model = "Poisson (expected)"),
+  data.table$data.table(y = 0:max_y, count = exp_nb, model = "NegBin (expected)")
+))
+
+ggplot2$ggplot(freq_dt, ggplot2$aes(x = y, y = count, fill = model)) +
+  ggplot2$geom_col(position = "dodge", alpha = 0.8, colour = "white") +
+  ggplot2$labs(
+    x = "Number of articles",
+    y = "Frequency",
+    fill = "",
+    title = "Observed vs expected: Poisson and negative binomial"
+  ) +
+  ggplot2$scale_fill_manual(values = c("#999999", "#0072B2", "#D55E00")) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/nb-rootogram-1.png" alt="Observed vs expected frequencies under the Poisson and negative binomial models. The NB captures the excess zeros and heavy tail much better.">
+	Observed vs expected frequencies under the Poisson and negative binomial models. The NB captures the excess zeros and heavy tail much better.
+</Figure>
+
+---
+
+## 21.9 Epilepsy Data: A Longitudinal Example
+
+The epilepsy dataset records seizure counts for patients in a clinical trial.
+
+
+``` r
+epi <- data.table$fread(file.path(data_dir, "count/epilepsy_seizures.csv"))
+str(epi)
+```
+
+```
+Classes 'data.table' and 'data.frame':	236 obs. of  9 variables:
+ $ y      : int  5 3 3 3 3 5 3 3 2 4 ...
+ $ trt    : chr  "placebo" "placebo" "placebo" "placebo" ...
+ $ base   : int  11 11 11 11 11 11 11 11 6 6 ...
+ $ age    : int  31 31 31 31 30 30 30 30 25 25 ...
+ $ V4     : int  0 0 0 1 0 0 0 1 0 0 ...
+ $ subject: int  1 1 1 1 2 2 2 2 3 3 ...
+ $ period : int  1 2 3 4 1 2 3 4 1 2 ...
+ $ lbase  : num  -0.756 -0.756 -0.756 -0.756 -0.756 ...
+ $ lage   : num  0.1142 0.1142 0.1142 0.1142 0.0814 ...
+ - attr(*, ".internal.selfref")=<externalptr> 
+```
+
+
+``` r
+ggplot2$ggplot(epi, ggplot2$aes(x = y)) +
+  ggplot2$geom_histogram(
+    binwidth = 2, fill = "#0072B2", colour = "white", alpha = 0.8
+  ) +
+  ggplot2$labs(
+    x = "Seizure count",
+    y = "Frequency",
+    title = "Distribution of seizure counts"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/epilepsy-eda-1.png" alt="Distribution of seizure counts in the epilepsy data. The extreme right skew and excess zeros suggest overdispersion.">
+	Distribution of seizure counts in the epilepsy data. The extreme right skew and excess zeros suggest overdispersion.
+</Figure>
+
+
+``` r
+fit_epi_pois <- glm(y ~ trt + base + age, data = epi, family = poisson)
+fit_epi_nb <- MASS::glm.nb(y ~ trt + base + age, data = epi)
+
+epi_comp <- data.frame(
+  Model = c("Poisson", "Negative binomial"),
+  AIC = round(c(AIC(fit_epi_pois), AIC(fit_epi_nb)), 1),
+  Dispersion = round(c(
+    sum(residuals(fit_epi_pois, type = "pearson")^2) / fit_epi_pois$df.residual,
+    1  # NB accounts for overdispersion
+  ), 2),
+  theta = c(NA, round(fit_epi_nb$theta, 2))
+)
+knitr::kable(epi_comp, caption = "Poisson vs negative binomial for epilepsy data.")
+```
 
 
 
+Table: Poisson vs negative binomial for epilepsy data.
+
+|Model             |    AIC| Dispersion| theta|
+|:-----------------|------:|----------:|-----:|
+|Poisson           | 1732.5|       5.09|    NA|
+|Negative binomial | 1324.4|       1.00|   2.4|
+
+
+``` r
+rr_epi <- data.frame(
+  Parameter = names(coef(fit_epi_nb)),
+  Rate_Ratio = round(exp(coef(fit_epi_nb)), 3),
+  SE = round(summary(fit_epi_nb)$coefficients[, 2], 4),
+  p_value = round(summary(fit_epi_nb)$coefficients[, 4], 4)
+)
+knitr::kable(rr_epi, caption = "Rate ratios from the negative binomial model for seizures.")
+```
 
 
 
+Table: Rate ratios from the negative binomial model for seizures.
+
+|             |Parameter    | Rate_Ratio|     SE| p_value|
+|:------------|:------------|----------:|------:|-------:|
+|(Intercept)  |(Intercept)  |      1.717| 0.2706|  0.0457|
+|trtprogabide |trtprogabide |      0.828| 0.1017|  0.0632|
+|base         |base         |      1.027| 0.0018|  0.0000|
+|age          |age          |      1.018| 0.0082|  0.0281|
+
+---
+
+## 21.10 Zero-Inflated Models
+
+### 21.10.1 The Problem
+
+Some count datasets have more zeros than any standard count model can accommodate. For example, many scientists publish zero papers not because their Poisson rate is low, but because they are in a completely different state (e.g., they changed careers). A **zero-inflated** model captures this by mixing a point mass at zero with a count distribution:
+
+$$P(Y = 0) = \pi + (1 - \pi) \cdot P_{\text{count}}(Y = 0)$$
+$$P(Y = y) = (1 - \pi) \cdot P_{\text{count}}(Y = y), \quad y = 1, 2, \ldots$$
+
+Here $\pi$ is the probability of being a "structural zero" (someone who could never produce a positive count), and $P_{\text{count}}$ is a Poisson or negative binomial distribution for those who could.
+
+### 21.10.2 Zero-Inflated Poisson (ZIP)
+
+
+``` r
+if (requireNamespace("pscl", quietly = TRUE)) {
+  fit_zip <- pscl::zeroinfl(art ~ fem + mar + kid5 + phd + ment | ment + phd,
+                            data = pubs, dist = "poisson")
+  summary(fit_zip)
+}
+```
+
+The model has two parts:
+- **Count model** (above the `|`): predictors for the Poisson mean among "at-risk" scientists.
+- **Zero-inflation model** (after the `|`): predictors for the probability of being a structural zero.
+
+### 21.10.3 Zero-Inflated Negative Binomial (ZINB)
+
+
+``` r
+if (requireNamespace("pscl", quietly = TRUE)) {
+  fit_zinb <- pscl::zeroinfl(art ~ fem + mar + kid5 + phd + ment | ment + phd,
+                             data = pubs, dist = "negbin")
+  summary(fit_zinb)
+}
+```
+
+
+``` r
+if (requireNamespace("pscl", quietly = TRUE)) {
+  zi_comp <- data.frame(
+    Model = c("Poisson", "NegBin", "ZIP", "ZINB"),
+    AIC = round(c(
+      AIC(fit_pois),
+      AIC(fit_nb),
+      AIC(fit_zip),
+      AIC(fit_zinb)
+    ), 1),
+    LogLik = round(c(
+      logLik(fit_pois),
+      logLik(fit_nb),
+      logLik(fit_zip),
+      logLik(fit_zinb)
+    ), 1)
+  )
+  knitr::kable(zi_comp, caption = "Model comparison: standard vs zero-inflated models.")
+}
+```
+
+---
+
+## 21.11 Checking for Excess Zeros
+
+
+``` r
+n_obs <- nrow(pubs)
+n_zeros <- sum(pubs$art == 0)
+pois_zeros <- sum(dpois(0, fitted(fit_pois)))
+nb_zeros <- sum(dnbinom(0, mu = fitted(fit_nb), size = fit_nb$theta))
+
+data.frame(
+  Source = c("Observed", "Poisson (expected)", "NegBin (expected)"),
+  Zeros = round(c(n_zeros, pois_zeros, nb_zeros), 1),
+  Proportion = round(c(n_zeros, pois_zeros, nb_zeros) / n_obs, 3)
+)
+```
+
+```
+              Source Zeros Proportion
+1           Observed 275.0      0.301
+2 Poisson (expected) 174.5      0.191
+3  NegBin (expected) 275.2      0.301
+```
+
+---
+
+## 21.12 Visualising the Fit of All Models
+
+
+``` r
+max_y <- 12
+obs_f <- tabulate(pubs$art + 1, nbins = max_y + 1)
+
+# Poisson expected
+exp_p <- sapply(0:max_y, function(k) sum(dpois(k, fitted(fit_pois))))
+
+# NB expected
+exp_n <- sapply(0:max_y, function(k) sum(dnbinom(k, mu = fitted(fit_nb), size = fit_nb$theta)))
+
+all_freq <- data.table$rbindlist(list(
+  data.table$data.table(y = 0:max_y, count = obs_f, model = "Observed"),
+  data.table$data.table(y = 0:max_y, count = exp_p, model = "Poisson"),
+  data.table$data.table(y = 0:max_y, count = exp_n, model = "Neg. binomial")
+))
+
+ggplot2$ggplot(all_freq, ggplot2$aes(x = y, y = count, colour = model, group = model)) +
+  ggplot2$geom_point(size = 3) +
+  ggplot2$geom_line(linewidth = 0.8) +
+  ggplot2$labs(
+    x = "Number of articles",
+    y = "Frequency",
+    colour = "",
+    title = "Model comparison: observed vs expected frequencies"
+  ) +
+  ggplot2$scale_colour_manual(values = c("#D55E00", "#999999", "#0072B2")) +
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/all-models-fit-1.png" alt="Observed vs expected frequencies for four count models. The zero-inflated negative binomial best captures both the excess zeros and the heavy right tail.">
+	Observed vs expected frequencies for four count models. The zero-inflated negative binomial best captures both the excess zeros and the heavy right tail.
+</Figure>
+
+---
+
+## 21.13 Decision Flowchart
+
+When you encounter count data, follow this decision process:
+
+1. **Start with Poisson regression.** It is the simplest count model.
+2. **Check for overdispersion.** Compute $\hat{\phi}$. If $\hat{\phi} > 1.5$, the Poisson standard errors are unreliable.
+3. **If overdispersion is mild** ($\hat{\phi} < 3$), use **quasi-Poisson** for a quick fix.
+4. **If overdispersion is substantial** ($\hat{\phi} \ge 3$), fit a **negative binomial** model.
+5. **If there are excess zeros**, consider a **zero-inflated** model (ZIP or ZINB).
+6. **Compare models** using AIC (for NB vs Poisson) and Vuong's test (for zero-inflated vs standard).
+
+
+``` r
+decision_df <- data.frame(
+  Scenario = c(
+    "Var(Y) approx E[Y]",
+    "Mild overdispersion",
+    "Substantial overdispersion",
+    "Excess zeros"
+  ),
+  Recommended_Model = c(
+    "Poisson",
+    "Quasi-Poisson",
+    "Negative binomial",
+    "ZIP or ZINB"
+  ),
+  R_Function = c(
+    "glm(..., family = poisson)",
+    "glm(..., family = quasipoisson)",
+    "MASS::glm.nb()",
+    "pscl::zeroinfl()"
+  )
+)
+knitr::kable(decision_df, caption = "Count model selection guide.")
+```
 
 
 
+Table: Count model selection guide.
 
+|Scenario                   |Recommended_Model |R_Function                      |
+|:--------------------------|:-----------------|:-------------------------------|
+|Var(Y) approx E[Y]         |Poisson           |glm(..., family = poisson)      |
+|Mild overdispersion        |Quasi-Poisson     |glm(..., family = quasipoisson) |
+|Substantial overdispersion |Negative binomial |MASS::glm.nb()                  |
+|Excess zeros               |ZIP or ZINB       |pscl::zeroinfl()                |
 
+---
 
+## Communicating to Stakeholders
 
+When presenting count model results with overdispersion:
 
+- **Explain overdispersion simply.** "The data are more variable than the standard Poisson model expects. This means if we use the standard model, we would overstate our confidence in the results."
+- **Justify the model choice.** "We used the negative binomial model because it properly accounts for the extra variability in the data, giving us honest confidence intervals."
+- **Still report rate ratios.** The coefficient interpretation is the same regardless of the model -- only the uncertainty changes.
+- **For zero-inflation**: "Some scientists publish zero papers because they left academia, not because their productivity is low. The zero-inflated model separates these two groups."
 
+---
 
+## Quick Reference
 
+| Concept | Details |
+|:--------|:--------|
+| **Overdispersion** | $\text{Var}(Y) > E[Y]$; $\hat{\phi} = X^2_P / (n - p) > 1$ |
+| **Quasi-Poisson** | Same coefficients, inflated SE by $\sqrt{\hat{\phi}}$ |
+| **Negative binomial** | $\text{Var}(Y) = \mu + \mu^2/\theta$; Poisson-Gamma mixture |
+| **NB as $\theta \to \infty$** | Converges to Poisson |
+| **ZIP** | $P(0) = \pi + (1-\pi) e^{-\mu}$; two-component mixture |
+| **ZINB** | Zero-inflation + negative binomial count component |
+| **R: quasi-Poisson** | `glm(..., family = quasipoisson)` |
+| **R: negative binomial** | `MASS::glm.nb()` |
+| **R: zero-inflated** | `pscl::zeroinfl(..., dist = "poisson")` or `"negbin"` |
+| **Model comparison** | AIC for nested/non-nested; LRT for nested models |
 
+---
 
+## Exercises
 
+1. **Overdispersion test.** For the biochemist publications data, perform a formal test of $H_0: \phi = 1$ vs $H_1: \phi > 1$ using the Pearson chi-squared statistic divided by the degrees of freedom. State your conclusion.
 
+2. **NB derivation.** Starting from $Y \mid \lambda \sim \text{Poisson}(\lambda)$ and $\lambda \sim \text{Gamma}(\theta, \theta/\mu)$, derive the marginal distribution of $Y$ and show that $\text{Var}(Y) = \mu + \mu^2/\theta$.
 
+3. **Quasi vs NB.** Fit both quasi-Poisson and negative binomial models to the epilepsy data. Compare the standard errors. Under what circumstances would you prefer one over the other?
 
+4. **Zero-inflation detection.** For the publications data, compare the observed proportion of zeros with the expected proportion under the Poisson, NB, ZIP, and ZINB models. Which model best matches the observed zero rate?
 
+5. **Simulation: overdispersion.** Generate 500 observations from a negative binomial distribution with $\mu = 3$ and $\theta = 1$. Fit a Poisson model and observe that $\hat{\phi} \gg 1$. Then fit a NB model and verify that $\hat{\theta} \approx 1$.
 
-
-
-
-
-
-
-
-
-
+6. **Hurdle model.** A **hurdle model** treats the zero/non-zero decision separately from the positive-count distribution. Fit a hurdle Poisson model to the publications data using `pscl::hurdle()` and compare with the ZIP model using AIC.

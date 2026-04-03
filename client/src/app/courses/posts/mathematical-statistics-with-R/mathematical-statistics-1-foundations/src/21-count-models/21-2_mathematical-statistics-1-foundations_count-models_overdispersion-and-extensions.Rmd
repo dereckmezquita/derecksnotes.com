@@ -68,6 +68,10 @@ where $X^2_P$ is the Pearson chi-squared statistic. If $\hat{\phi} \gg 1$, we ha
 ```{r overdispersion-demo}
 data_dir <- "../../../data"
 pubs <- data.table$fread(file.path(data_dir, "count/biochemist_publications.csv"))
+data.table$setnames(pubs,
+  old = c("articles", "female", "married", "kids5", "phd_prestige", "mentor_articles"),
+  new = c("art", "fem", "mar", "kid5", "phd", "ment")
+)
 str(pubs)
 ```
 
@@ -309,8 +313,8 @@ ggplot2$ggplot(epi, ggplot2$aes(x = y)) +
 ```
 
 ```{r epilepsy-fit}
-fit_epi_pois <- glm(y ~ trt + base + Age, data = epi, family = poisson)
-fit_epi_nb <- MASS::glm.nb(y ~ trt + base + Age, data = epi)
+fit_epi_pois <- glm(y ~ trt + base + age, data = epi, family = poisson)
+fit_epi_nb <- MASS::glm.nb(y ~ trt + base + age, data = epi)
 
 epi_comp <- data.frame(
   Model = c("Poisson", "Negative binomial"),

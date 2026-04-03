@@ -98,7 +98,7 @@ The test statistic is simply the **ratio of the sample variances**. Values of $F
 ### 11.8.3 Cats Data: Body Weight Variance by Sex
 
 ```{r cats-load}
-cats <- data.table::fread(file.path(data_dir, "cats.csv"))
+cats <- data.table::fread(file.path(data_dir, "classic/cats.csv"))
 ```
 
 ```{r cats-summary}
@@ -414,7 +414,7 @@ When you are about to apply a classical test, work through this checklist:
 ### 11.10.3 Complete Diagnostic Panel for the Penguins Data
 
 ```{r diagnostics-penguins-load}
-penguins <- data.table::fread(file.path(data_dir, "penguins.csv"))
+penguins <- data.table::fread(file.path(data_dir, "primary/penguins.csv"))
 penguins <- penguins[!is.na(flipper_length_mm)]
 two_sp <- penguins[species %in% c("Adelie", "Gentoo")]
 ```

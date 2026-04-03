@@ -110,6 +110,8 @@ box::use(ggplot2)
 #' @return scalar covariance
 my_cov <- function(x, y) {
   stopifnot(length(x) == length(y))
+  complete <- complete.cases(x, y)
+  x <- x[complete]; y <- y[complete]
   n <- length(x)
   sum((x - mean(x)) * (y - mean(y))) / (n - 1)
 }
@@ -190,7 +192,8 @@ Equality holds if and only if $U = tV$ for some constant $t$, i.e., $Y = aX + b$
 #' @param y numeric vector
 #' @return scalar correlation
 my_cor <- function(x, y) {
-  my_cov(x, y) / (sd(x) * sd(y))
+  complete <- complete.cases(x, y)
+  my_cov(x, y) / (sd(x[complete]) * sd(y[complete]))
 }
 
 # Verify
@@ -233,7 +236,7 @@ ggplot2$ggplot(gallery, ggplot2$aes(x = X, y = Y)) +
   ggplot2$theme(strip.text = ggplot2$element_text(face = "bold"))
 ```
 
-<Figure src="correlation-gallery-1.png" alt="Scatterplots illustrating different values of the correlation coefficient. Perfect positive correlation (rho = 1) and perfect negative correlation (rho = -1) produce straight lines. As |rho| decreases, the scatter increases. At rho = 0, there is no linear pattern.">
+<Figure src="/courses/mathematical-statistics-1-foundations/correlation-gallery-1.png" alt="Scatterplots illustrating different values of the correlation coefficient. Perfect positive correlation (rho = 1) and perfect negative correlation (rho = -1) produce straight lines. As |rho| decreases, the scatter increases. At rho = 0, there is no linear pattern.">
 	Scatterplots illustrating different values of the correlation coefficient. Perfect positive correlation (rho = 1) and perfect negative correlation (rho = -1) produce straight lines. As |rho| decreases, the scatter increases. At rho = 0, there is no linear pattern.
 </Figure>
 
@@ -275,7 +278,7 @@ ggplot2$ggplot(dep_dt, ggplot2$aes(x = X, y = Y)) +
   ggplot2$theme_minimal(base_size = 13)
 ```
 
-<Figure src="uncorrelated-dependent-1.png" alt="X ~ N(0,1) and Y = X^2: a perfect functional relationship (Y is completely determined by X) yet the correlation is zero. The parabolic pattern is invisible to correlation, which only detects linear relationships.">
+<Figure src="/courses/mathematical-statistics-1-foundations/uncorrelated-dependent-1.png" alt="X ~ N(0,1) and Y = X^2: a perfect functional relationship (Y is completely determined by X) yet the correlation is zero. The parabolic pattern is invisible to correlation, which only detects linear relationships.">
 	X ~ N(0,1) and Y = X^2: a perfect functional relationship (Y is completely determined by X) yet the correlation is zero. The parabolic pattern is invisible to correlation, which only detects linear relationships.
 </Figure>
 
@@ -352,23 +355,340 @@ ggplot2$ggplot(anscombe_data, ggplot2$aes(x = x, y = y)) +
 `geom_smooth()` using formula = 'y ~ x'
 ```
 
-<Figure src="anscombe-1.png" alt="Four datasets with nearly identical means, variances, and correlations, but dramatically different structure. Only Dataset I is well-described by a linear relationship. This demonstrates that summary statistics alone are insufficient.">
+<Figure src="/courses/mathematical-statistics-1-foundations/anscombe-1.png" alt="Four datasets with nearly identical means, variances, and correlations, but dramatically different structure. Only Dataset I is well-described by a linear relationship. This demonstrates that summary statistics alone are insufficient.">
 	Four datasets with nearly identical means, variances, and correlations, but dramatically different structure. Only Dataset I is well-described by a linear relationship. This demonstrates that summary statistics alone are insufficient.
 </Figure>
 
 
+``` r
+anscombe_data[, .(
+  mean_x = round(mean(as.numeric(x)), 2),
+  mean_y = round(mean(as.numeric(y)), 2),
+  cor = round(cor(as.numeric(x), as.numeric(y)), 3)
+), by = type]
+```
+
+```
+                  type mean_x mean_y   cor
+                <char>  <num>  <num> <num>
+ 1:          I: Linear   8.89   4.55 0.859
+ 2:    6.6815647123766  12.60     NA    NA
+ 3:   6.24187323810188  12.13     NA    NA
+ 4:   7.67779994443303   5.99     NA    NA
+ 5:   4.78798034258244  14.55     NA    NA
+ 6:   7.36594923690001   7.00     NA    NA
+ 7:   7.37085398784978   9.32     NA    NA
+ 8:   7.83564895631578   7.73     NA    NA
+ 9:    7.5863863029045   8.63     NA    NA
+10:   7.70137887861339   9.56     NA    NA
+11:   8.63105822227261   9.36     NA    NA
+12:   7.91167039238081   8.92     NA    NA
+13:   7.45359706485231   9.32     NA    NA
+14:   7.86952080985233   7.54     NA    NA
+15:    7.5898193687948   7.49     NA    NA
+16:   5.81168163602922   4.02     NA    NA
+17:   8.58464979303079   7.85     NA    NA
+18:    7.2671244862333   7.46     NA    NA
+19:   1.65713166882035  17.11     NA    NA
+20:   6.37262446479581   4.91     NA    NA
+21:   8.43082744855256   9.41     NA    NA
+22:   5.87728667298283   4.52     NA    NA
+23:     6.472346391505   4.59     NA    NA
+24:   7.11347645272075   9.37     NA    NA
+25:   7.95076885199253   6.01     NA    NA
+26:   8.43238599952867   8.99     NA    NA
+27:   7.75954690298904   7.72     NA    NA
+28:   6.93656287842434   7.16     NA    NA
+29:   4.63211601006313   2.93     NA    NA
+30:    6.8915901441875   5.33     NA    NA
+31:   7.96781864942082   9.54     NA    NA
+32:   7.78575412113886  10.70     NA    NA
+33:   7.48931023774381   7.52     NA    NA
+34:   8.18440336275616   9.00     NA    NA
+35:   7.01253413377077  12.37     NA    NA
+36:   5.99450420880535  13.32     NA    NA
+37:   6.24858891381036   5.71     NA    NA
+38:   8.33798691792445   8.65     NA    NA
+39:   6.97785974446568  12.60     NA    NA
+40:    7.3832654126262   7.59     NA    NA
+41:   7.20022817683209   8.84     NA    NA
+42:    8.0958062701651   8.74     NA    NA
+43:   7.11827937606536   6.34     NA    NA
+44:   7.94833637390193   7.67     NA    NA
+45:   7.35221846644365   8.91     NA    NA
+46:   7.36625609601134   7.76     NA    NA
+47:   7.42722183351145  12.34     NA    NA
+48:   7.99366875000772   7.56     NA    NA
+49:   8.12437189863582   7.70     NA    NA
+50:   8.47055851753803  11.09     NA    NA
+51:   7.06008791239049   5.83     NA    NA
+52:       III: Outlier   9.02   4.88 0.284
+53: IV: Leverage point   8.19   4.22 0.647
+                  type mean_x mean_y   cor
+                <char>  <num>  <num> <num>
+```
+
+---
+
+## 6.8 Functions of Multiple Random Variables: The Convolution Formula
+
+### 6.8.1 The Problem
+
+Given two independent random variables $X$ and $Y$, what is the distribution of $Z = X + Y$?
+
+### 6.8.2 Discrete Convolution
+
+If $X$ and $Y$ are independent discrete random variables, the PMF of $Z = X + Y$ is:
+
+$$P(Z = z) = \sum_x P(X = x) \cdot P(Y = z - x).$$
+
+This is the **discrete convolution** of the PMFs of $X$ and $Y$.
+
+*Derivation:* By the law of total probability, summing over all ways the sum can equal $z$:
+
+$$P(Z = z) = \sum_x P(X = x, Y = z - x) = \sum_x P(X = x) \cdot P(Y = z - x)$$
+
+where the second equality uses independence.
+
+### 6.8.3 Continuous Convolution
+
+For independent continuous $X$ and $Y$ with PDFs $f_X$ and $f_Y$, the PDF of $Z = X + Y$ is:
+
+$$f_Z(z) = \int_{-\infty}^{\infty} f_X(x) \cdot f_Y(z - x) \, dx = (f_X * f_Y)(z).$$
+
+The symbol $*$ denotes convolution.
+
+### 6.8.4 Example: Sum of Two Uniforms
+
+Let $X, Y \sim \text{Uniform}(0, 1)$ independently. We derive the PDF of $Z = X + Y$.
+
+For $0 < z < 1$:
+
+$$f_Z(z) = \int_0^z 1 \cdot 1 \, dx = z.$$
+
+For $1 < z < 2$:
+
+$$f_Z(z) = \int_{z-1}^1 1 \cdot 1 \, dx = 2 - z.$$
+
+So:
+
+$$f_Z(z) = \begin{cases} z & 0 < z < 1 \\ 2 - z & 1 < z < 2 \\ 0 & \text{otherwise} \end{cases}$$
+
+This is the **triangular distribution** on $[0, 2]$ -- the same shape as the sum-of-two-dice distribution, but continuous.
+
+### 6.8.5 Simulation Verification
 
 
+``` r
+set.seed(42)
+n_sim <- 50000
+Z_sim <- runif(n_sim) + runif(n_sim)
+
+conv_dt <- data.table$data.table(Z = Z_sim)
+
+tri_pdf <- function(z) {
+  ifelse(z >= 0 & z < 1, z,
+    ifelse(z >= 1 & z <= 2, 2 - z, 0))
+}
+
+ggplot2$ggplot(conv_dt, ggplot2$aes(x = Z)) +
+  ggplot2$geom_histogram(
+    ggplot2$aes(y = ggplot2::after_stat(density)),
+    bins = 50, fill = "#0072B2", alpha = 0.6
+  ) +
+  ggplot2$stat_function(fun = tri_pdf, colour = "#D55E00", linewidth = 1.2) +
+  ggplot2$labs(
+    x = "Z = X + Y", y = "Density",
+    title = "Convolution: sum of two Uniform(0, 1) variables"
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/convolution-uniform-1.png" alt="Sum of two independent Uniform(0,1) random variables. The simulated histogram follows the theoretical triangular density (orange line), confirming the convolution formula.">
+	Sum of two independent Uniform(0,1) random variables. The simulated histogram follows the theoretical triangular density (orange line), confirming the convolution formula.
+</Figure>
+
+### 6.8.6 Example: Sum of Two Independent Normals
+
+Let $X \sim N(\mu_1, \sigma_1^2)$ and $Y \sim N(\mu_2, \sigma_2^2)$ be independent. Using the convolution integral (or, more elegantly, the MGF technique from Chapter 3), we can show:
+
+$$X + Y \sim N(\mu_1 + \mu_2, \; \sigma_1^2 + \sigma_2^2).$$
+
+This is one of the most important results in probability: **the sum of independent normals is normal**. The means add, and the variances add. We shall return to this property in Part 3 when we study the multivariate normal.
+
+---
+
+## 6.9 Applied Example: NHANES Height and Weight
 
 
+``` r
+data_dir <- "../../../data"
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+
+# Ensure numeric columns
+for (col in c("Height", "Weight", "Age", "BMI")) {
+  if (col %in% names(nhanes)) nhanes[, (col) := as.numeric(get(col))]
+}
+
+# Keep adults with complete height and weight data
+nhanes_adults <- nhanes[Age >= 18 & !is.na(Height) & !is.na(Weight)]
+nhanes_adults[, .N]
+```
+
+```
+[1] 7414
+```
+
+### 6.9.1 Scatterplot with Correlation
 
 
+``` r
+r_hw <- cor(nhanes_adults$Height, nhanes_adults$Weight)
+
+ggplot2$ggplot(nhanes_adults, ggplot2$aes(x = Height, y = Weight)) +
+  ggplot2$geom_point(alpha = 0.1, size = 0.5, colour = "#0072B2") +
+  ggplot2$geom_smooth(method = "lm", se = FALSE, colour = "#D55E00", linewidth = 1) +
+  ggplot2$labs(
+    x = "Height (cm)",
+    y = "Weight (kg)",
+    title = sprintf("Height vs. weight (r = %.3f)", r_hw)
+  ) +
+  ggplot2$theme_minimal(base_size = 13)
+```
+
+```
+`geom_smooth()` using formula = 'y ~ x'
+```
+
+<Figure src="/courses/mathematical-statistics-1-foundations/nhanes-scatter-1.png" alt="Height vs. weight for adults in NHANES. The correlation is strongly positive, reflecting the biological relationship between the two measurements. The blue line is the least-squares fit.">
+	Height vs. weight for adults in NHANES. The correlation is strongly positive, reflecting the biological relationship between the two measurements. The blue line is the least-squares fit.
+</Figure>
+
+### 6.9.2 Correlation Matrix
 
 
+``` r
+# Select numeric columns of interest
+cols <- c("Height", "Weight", "Age", "BMI")
+available <- intersect(cols, names(nhanes_adults))
+cor_mat <- cor(as.matrix(nhanes_adults[, ..available]), use = "complete.obs")
+round(cor_mat, 3)
+```
+
+```
+       Height Weight    Age    BMI
+Height  1.000  0.450 -0.160 -0.014
+Weight  0.450  1.000 -0.013  0.880
+Age    -0.160 -0.013  1.000  0.064
+BMI    -0.014  0.880  0.064  1.000
+```
+
+### 6.9.3 Verifying Our Implementation
 
 
+``` r
+c(
+  my_cov = my_cov(nhanes_adults$Height, nhanes_adults$Weight),
+  builtin_cov = cov(nhanes_adults$Height, nhanes_adults$Weight),
+  my_cor = my_cor(nhanes_adults$Height, nhanes_adults$Weight),
+  builtin_cor = cor(nhanes_adults$Height, nhanes_adults$Weight)
+)
+```
+
+```
+     my_cov builtin_cov      my_cor builtin_cor 
+ 96.7168258  96.7168258   0.4499657   0.4499657 
+```
+
+---
+
+## Communicating to Stakeholders
+
+When presenting covariance and correlation to a non-technical audience:
+
+- Never report covariance alone -- it depends on the units. Always report correlation as well: "The correlation is 0.65, meaning there is a moderately strong positive linear relationship."
+- Emphasise that correlation measures **linear** relationships: "A correlation near zero does *not* mean the variables are unrelated -- only that there is no straight-line pattern."
+- Always show a scatterplot alongside the correlation number. The Anscombe quartet demonstrates that the same correlation can arise from wildly different data patterns.
+- Use language like "as X increases, Y *tends* to increase" rather than "X causes Y to increase." Correlation does not imply causation.
+- When comparing groups, show the correlation within each group separately. An overall correlation can be misleading if the groups have different means (Simpson's paradox).
+
+---
+
+## Quick Reference
+
+| Quantity | Formula | Notes |
+|:---------|:--------|:------|
+| **Covariance** | $\text{Cov}(X,Y) = E[XY] - E[X]E[Y]$ | Units: (units of X) $\times$ (units of Y) |
+| **Correlation** | $\rho = \text{Cov}(X,Y) / (\sigma_X \sigma_Y)$ | Dimensionless, $-1 \le \rho \le 1$ |
+| **Cauchy-Schwarz** | $(E[UV])^2 \le E[U^2] E[V^2]$ | Guarantees $|\rho| \le 1$ |
+| **Var(X+Y)** | $\text{Var}(X) + \text{Var}(Y) + 2\text{Cov}(X,Y)$ | Reduces to sum of variances when independent |
+| **Discrete convolution** | $P(Z=z) = \sum_x P(X=x) P(Y=z-x)$ | For $Z = X + Y$, $X \perp Y$ |
+| **Continuous convolution** | $f_Z(z) = \int f_X(x) f_Y(z-x) dx$ | For $Z = X + Y$, $X \perp Y$ |
+| **R functions** | `cov(x,y)`, `cor(x,y)` | Sample versions with denominator $n-1$ |
+
+**Key conceptual point:** $\text{Cov}(X,Y) = 0 \;\not\!\!\!\Rightarrow\; X \perp Y$. Independence implies zero covariance, but zero covariance does **not** imply independence. Correlation captures only *linear* dependence.
+
+---
+
+## Exercises
+
+### Derivation Exercises
+
+**Exercise 6.10.** Prove the **general variance formula** for a linear combination: if $Y = \sum_{i=1}^n a_i X_i$, then
+
+$$\text{Var}(Y) = \sum_{i=1}^n a_i^2 \text{Var}(X_i) + 2 \sum_{i < j} a_i a_j \text{Cov}(X_i, X_j).$$
+
+*(Hint: expand $\text{Var}(Y) = \text{Cov}(Y, Y)$ and use bilinearity.)*
+
+**Exercise 6.11.** Prove that $\text{Cov}(X + Y, X - Y) = \text{Var}(X) - \text{Var}(Y)$. Under what condition are $X + Y$ and $X - Y$ uncorrelated?
+
+**Exercise 6.12.** Prove that if $\rho(X, Y) = 1$, then there exist constants $a > 0$ and $b$ such that $P(Y = aX + b) = 1$. *(Hint: examine when equality holds in Cauchy-Schwarz.)*
+
+### Computation Exercises
+
+**Exercise 6.13.** Let $(X, Y)$ have joint density $f(x,y) = 2$ on $0 \le y \le x \le 1$. Compute $\text{Cov}(X, Y)$ and $\rho(X, Y)$.
+
+*Steps:*
+(a) Find $E[X]$, $E[Y]$, $E[XY]$, $E[X^2]$, $E[Y^2]$.
+(b) Compute $\text{Cov}(X,Y)$, $\text{Var}(X)$, $\text{Var}(Y)$.
+(c) Compute $\rho$.
 
 
+``` r
+# Numerical verification via simulation
+set.seed(42)
+U <- runif(100000); V <- runif(100000)
+X <- pmax(U, V); Y <- pmin(U, V)
+c(EX = mean(X), EY = mean(Y), EXY = mean(X * Y),
+  cov = cov(X, Y), cor = cor(X, Y))
+```
+
+**Exercise 6.14.** Compute the correlation between $X$ and $Z = X + Y$ where $X$ and $Y$ are independent with $\text{Var}(X) = 4$ and $\text{Var}(Y) = 9$. *(Hint: use properties of covariance.)*
+
+### R Exercises
+
+**Exercise 6.15.** Using the penguins dataset, compute the correlation matrix for bill length, bill depth, flipper length, and body mass. Which pair has the strongest correlation? Does the answer change if you compute the correlation within each species separately?
+
+**Exercise 6.16.** Implement a function `my_cor_matrix(dt, cols)` that takes a data.table and a character vector of column names and returns the sample correlation matrix computed entirely from scratch (using your `my_cov` and `my_cor` functions). Verify that it matches `cor()`.
 
 
+``` r
+my_cor_matrix <- function(dt, cols) {
+  p <- length(cols)
+  mat <- matrix(NA, p, p, dimnames = list(cols, cols))
+  for (i in seq_len(p)) {
+    for (j in seq_len(p)) {
+      mat[i, j] <- my_cor(dt[[cols[i]]], dt[[cols[j]]])
+    }
+  }
+  mat
+}
+```
 
+**Exercise 6.17.** Simulate 50,000 draws from the pair $(X, Y)$ where $X \sim N(0,1)$ and $Y = \sin(X)$. Compute $\rho(X, Y)$. Plot the scatterplot. Is the correlation close to zero? Are the variables independent?
+
+### Spot-the-Error Exercises
+
+**Exercise 6.18.** A student computes $\rho(X, Y) = 0.02$ and concludes: "X and Y are independent." What is the error?
+
+**Exercise 6.19.** A colleague reports: "The covariance between height (in cm) and weight (in kg) is 85.3. After converting height to metres, the covariance became 0.853. Clearly the linear relationship got weaker." What is wrong with this reasoning? What quantity should they use instead?
