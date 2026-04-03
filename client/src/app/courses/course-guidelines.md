@@ -20,7 +20,7 @@ Build intuition before formalism. Make complex topics accessible.
 Demonstrate concepts visually using `ggplot2`. Graphs and diagrams bridge intuition and mathematics.
 
 ### 3. Mathematical Derivation
-Present formal mathematics following the French educational tradition — *derive* formulae, don't just state them:
+Present formal mathematics following the French educational tradition — *derive* formulae - do mathematical demonstrations, don't just state them:
 - How the formula was discovered
 - Why it takes the form it does
 - What each component means
@@ -39,7 +39,7 @@ After the four-part introduction, implement methods **from scratch**, then show 
 
 1. **Opening** — Brief introduction (1-2 paragraphs)
 2. **Sections** — Each follows the four-part pedagogical approach
-3. **Communicating to Stakeholders** — End-of-chapter guidance for non-specialists
+3. **Communication** — End-of-chapter guidance for non-specialists
 4. **Quick Reference** — Compact summary of formulae and code
 
 ---
@@ -47,11 +47,10 @@ After the four-part introduction, implement methods **from scratch**, then show 
 ## Language and Style
 
 ### Spelling
-**British Oxford English** throughout:
-- colour, analyse, summarise, behaviour, randomise, organisation, centre, metre
+**British Oxford English** throughout.
 
 ### Tone
-- Professional, academic, but accessible
+- Professional, academic, but accessible; think Richard Feynman
 - Build intuition before formalism
 - Avoid unnecessarily complex language
 - Use active voice where possible
@@ -66,8 +65,8 @@ After the four-part introduction, implement methods **from scratch**, then show 
 ```r
 # ALWAYS use box::use() — NEVER use library()
 box::use(
-    data.table,
-    ggplot2
+  data.table,
+  ggplot2
 )
 
 # Access with namespace prefix
@@ -76,7 +75,7 @@ ggplot2$ggplot(dt, ggplot2$aes(x = x, y = y)) + ggplot2$geom_point()
 
 # Only import individual functions when 1-3 are needed
 box::use(
-    data.table[as.data.table, .N]
+  data.table[as.data.table, .N]
 )
 ```
 
@@ -87,12 +86,14 @@ box::use(
 | `ggplot2` | Visualisation |
 | `box` | Package imports |
 
-### Coding Paradigm
+### Coding Paradigms
+- Use 2 spaces for indents
 - Old-school C-style coding preferred
 - Base R for simple operations
 - Heavy use of `data.table` for data manipulation
 - Implement functions from scratch BEFORE showing built-in versions
 - Use `Rscript` to run scripts — never use `source()`
+- Create variables with defaults then conditionally update if necessary do not use `varname <- if (...) ...`
 
 ### Reproducibility
 - Include `set.seed()` for all random examples
@@ -125,12 +126,12 @@ output:
 ````r
 ```{r setup, include=FALSE}
 if (knitr::is_html_output()) knitr::knit_hooks$set(
-    plot = function(x, options) {
-        cap  <- options$fig.cap
-        as.character(htmltools::tag(
-            "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
-        ))
-    }
+  plot = function(x, options) {
+    cap  <- options$fig.cap
+      as.character(htmltools::tag(
+      "Figure", list(src = x, alt = cap, paste("\n\t", cap, "\n", sep = ""))
+    ))
+  }
 )
 
 knitr::knit_hooks$set(optipng = knitr::hook_optipng)
