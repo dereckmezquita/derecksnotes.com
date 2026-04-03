@@ -492,212 +492,154 @@ The agreement between simulation and theory confirms our derivation.
 
 ## 10.11 Interactive: Watch Power Change
 
-<InteractivePlot>
+<InteractivePlot
+  controls={[
+    { id: "d", type: "range", label: "Effect size (d)", min: 0, max: 2, step: 0.05, default: 0.5 },
+    { id: "n", type: "range", label: "Sample size (n)", min: 5, max: 200, step: 1, default: 30 },
+    { id: "alpha", type: "range", label: "Alpha", min: 0.001, max: 0.20, step: 0.001, default: 0.05 }
+  ]}
+  draw={`
+    var W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    var d = params.d, n = params.n, alpha = params.alpha;
 
-<!--html_preserve--><div id="power-interactive-container" style="max-width:750px; margin:auto; font-family: sans-serif;">
-<div style="display:flex; gap:30px; flex-wrap:wrap; margin-bottom:15px;">
-<div>
-<label>
-Effect size (d): 
-<span id="d-display">0.50</span>
-</label>
-<br/>
-<input id="d-slider" type="range" min="0" max="2" step="0.05" value="0.5" style="width:200px;"/>
-</div>
-<div>
-<label>
-Sample size (n): 
-<span id="n-display">30</span>
-</label>
-<br/>
-<input id="n-slider" type="range" min="5" max="200" step="1" value="30" style="width:200px;"/>
-</div>
-<div>
-<label>
-Alpha: 
-<span id="a-display">0.050</span>
-</label>
-<br/>
-<input id="a-slider" type="range" min="0.001" max="0.20" step="0.001" value="0.05" style="width:200px;"/>
-</div>
-</div>
-<div id="power-readout" style="font-size:1.3em; font-weight:bold; margin-bottom:10px; color:#0072B2;">Power = ...</div>
-<canvas id="power-canvas" width="720" Height="420" style="border:1px solid #ddd; background:#fff; width:100%; max-width:720px;"></canvas>
-<script>
-    (function() {
-      var canvas = document.getElementById('power-canvas');
-      var ctx = canvas.getContext('2d');
-      var dSlider = document.getElementById('d-slider');
-      var nSlider = document.getElementById('n-slider');
-      var aSlider = document.getElementById('a-slider');
-      var dDisp = document.getElementById('d-display');
-      var nDisp = document.getElementById('n-display');
-      var aDisp = document.getElementById('a-display');
-      var readout = document.getElementById('power-readout');
+    function normalCDF(x) {
+      var t = 1 / (1 + 0.2316419 * Math.abs(x));
+      var k = 0.3989422804014327;
+      var p = k * Math.exp(-x * x / 2) *
+        (t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))));
+      return x > 0 ? 1 - p : p;
+    }
 
-      function normalCDF(x) {
-        var t = 1 / (1 + 0.2316419 * Math.abs(x));
-        var d = 0.3989422804014327;
-        var p = d * Math.exp(-x * x / 2) *
-          (t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274)))));
-        return x > 0 ? 1 - p : p;
+    function normalPDF(x, mu, sd) {
+      var z = (x - mu) / sd;
+      return Math.exp(-0.5 * z * z) / (sd * Math.sqrt(2 * Math.PI));
+    }
+
+    function qnorm(p) {
+      if (p <= 0) return -Infinity;
+      if (p >= 1) return Infinity;
+      if (p === 0.5) return 0;
+      var sign = p < 0.5 ? -1 : 1;
+      var pp = p < 0.5 ? p : 1 - p;
+      var t = Math.sqrt(-2 * Math.log(pp));
+      var c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
+      var d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
+      return sign * (t - (c0 + c1*t + c2*t*t) / (1 + d1*t + d2*t*t + d3*t*t*t));
+    }
+
+    var zc = qnorm(1 - alpha / 2);
+    var delta = d * Math.sqrt(n);
+    var power = 1 - (normalCDF(zc - delta) - normalCDF(-zc - delta));
+
+    // Title with power readout
+    ctx.fillStyle = '#0072B2'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'left';
+    ctx.fillText('Power = ' + (power * 100).toFixed(1) + '%', 60, 20);
+
+    var se = 1 / Math.sqrt(n);
+    var mu0 = 0, mu1 = d;
+    var critHi = mu0 + zc * se;
+    var critLo = mu0 - zc * se;
+
+    var xMin = Math.min(mu0 - 4*se, mu1 - 4*se);
+    var xMax = Math.max(mu0 + 4*se, mu1 + 4*se);
+
+    var pad = {l:55, r:15, t:30, b:35};
+    var pw = W - pad.l - pad.r;
+    var ph = H - pad.t - pad.b;
+
+    function toX(val) { return pad.l + (val - xMin) / (xMax - xMin) * pw; }
+    var yMax = Math.max(normalPDF(mu0, mu0, se), normalPDF(mu1, mu1, se)) * 1.1;
+    function toY(val) { return pad.t + ph - (val / yMax) * ph; }
+
+    // Beta region (under alt, between crits)
+    ctx.fillStyle = 'rgba(0, 158, 115, 0.25)';
+    ctx.beginPath();
+    ctx.moveTo(toX(critLo), toY(0));
+    for (var px = 0; px <= pw; px++) {
+      var xv = xMin + px / pw * (xMax - xMin);
+      if (xv >= critLo && xv <= critHi) {
+        ctx.lineTo(toX(xv), toY(normalPDF(xv, mu1, se)));
       }
+    }
+    ctx.lineTo(toX(critHi), toY(0));
+    ctx.closePath();
+    ctx.fill();
 
-      function normalPDF(x, mu, sd) {
-        var z = (x - mu) / sd;
-        return Math.exp(-0.5 * z * z) / (sd * Math.sqrt(2 * Math.PI));
-      }
+    // Alpha region (under null, outside crits) - right tail
+    ctx.fillStyle = 'rgba(213, 94, 0, 0.3)';
+    ctx.beginPath();
+    ctx.moveTo(toX(critHi), toY(0));
+    for (var px = 0; px <= pw; px++) {
+      var xv = xMin + px / pw * (xMax - xMin);
+      if (xv >= critHi) ctx.lineTo(toX(xv), toY(normalPDF(xv, mu0, se)));
+    }
+    ctx.lineTo(toX(xMax), toY(0));
+    ctx.closePath();
+    ctx.fill();
 
-      function qnorm(p) {
-        // Rational approximation (Abramowitz & Stegun 26.2.23)
-        if (p <= 0) return -Infinity;
-        if (p >= 1) return Infinity;
-        if (p === 0.5) return 0;
-        var sign = p < 0.5 ? -1 : 1;
-        var pp = p < 0.5 ? p : 1 - p;
-        var t = Math.sqrt(-2 * Math.log(pp));
-        var c0 = 2.515517, c1 = 0.802853, c2 = 0.010328;
-        var d1 = 1.432788, d2 = 0.189269, d3 = 0.001308;
-        return sign * (t - (c0 + c1*t + c2*t*t) / (1 + d1*t + d2*t*t + d3*t*t*t));
-      }
+    // Alpha region - left tail
+    ctx.beginPath();
+    ctx.moveTo(toX(xMin), toY(0));
+    for (var px = 0; px <= pw; px++) {
+      var xv = xMin + px / pw * (xMax - xMin);
+      if (xv <= critLo) ctx.lineTo(toX(xv), toY(normalPDF(xv, mu0, se)));
+    }
+    ctx.lineTo(toX(critLo), toY(0));
+    ctx.closePath();
+    ctx.fill();
 
-      function computePower(d, n, alpha) {
-        var zc = qnorm(1 - alpha / 2);
-        var delta = d * Math.sqrt(n);
-        return 1 - (normalCDF(zc - delta) - normalCDF(-zc - delta));
-      }
+    // Null curve
+    ctx.strokeStyle = '#0072B2'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var px = 0; px <= pw; px++) {
+      var xv = xMin + px / pw * (xMax - xMin);
+      var yv = normalPDF(xv, mu0, se);
+      if (px === 0) ctx.moveTo(toX(xv), toY(yv));
+      else ctx.lineTo(toX(xv), toY(yv));
+    }
+    ctx.stroke();
 
-      function draw() {
-        var d = parseFloat(dSlider.value);
-        var n = parseInt(nSlider.value);
-        var alpha = parseFloat(aSlider.value);
-        dDisp.textContent = d.toFixed(2);
-        nDisp.textContent = n;
-        aDisp.textContent = alpha.toFixed(3);
+    // Alt curve
+    ctx.strokeStyle = '#CC79A7'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var px = 0; px <= pw; px++) {
+      var xv = xMin + px / pw * (xMax - xMin);
+      var yv = normalPDF(xv, mu1, se);
+      if (px === 0) ctx.moveTo(toX(xv), toY(yv));
+      else ctx.lineTo(toX(xv), toY(yv));
+    }
+    ctx.stroke();
 
-        var power = computePower(d, n, alpha);
-        readout.textContent = 'Power = ' + (power * 100).toFixed(1) + '%';
+    // Critical lines
+    ctx.strokeStyle = '#666'; ctx.lineWidth = 1; ctx.setLineDash([5,5]);
+    ctx.beginPath();
+    ctx.moveTo(toX(critLo), toY(0)); ctx.lineTo(toX(critLo), toY(yMax*0.95));
+    ctx.moveTo(toX(critHi), toY(0)); ctx.lineTo(toX(critHi), toY(yMax*0.95));
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-        var W = canvas.width, H = canvas.height;
-        ctx.clearRect(0, 0, W, H);
+    // Labels
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#0072B2'; ctx.font = '13px sans-serif';
+    ctx.fillText('Null', toX(mu0) - 12, toY(normalPDF(mu0, mu0, se)) - 8);
+    ctx.fillStyle = '#CC79A7';
+    ctx.fillText('Alternative', toX(mu1) - 25, toY(normalPDF(mu1, mu1, se)) - 8);
+    ctx.fillStyle = '#D55E00'; ctx.font = '12px sans-serif';
+    ctx.fillText('\\u03B1', toX(critHi) + 5, toY(yMax * 0.4));
+    ctx.fillStyle = '#009E73';
+    ctx.fillText('\\u03B2', toX((critLo + critHi)/2) - 10, toY(normalPDF((critLo+critHi)/2, mu1, se) * 0.5));
 
-        // Plot: null and alternative distributions
-        var se = 1 / Math.sqrt(n);
-        var mu0 = 0, mu1 = d;
-        var zc = qnorm(1 - alpha / 2);
-        var critHi = mu0 + zc * se;
-        var critLo = mu0 - zc * se;
-
-        var xMin = Math.min(mu0 - 4*se, mu1 - 4*se);
-        var xMax = Math.max(mu0 + 4*se, mu1 + 4*se);
-
-        var pad = {l:55, r:15, t:15, b:35};
-        var pw = W - pad.l - pad.r;
-        var ph = H - pad.t - pad.b;
-
-        function toX(val) { return pad.l + (val - xMin) / (xMax - xMin) * pw; }
-
-        // Find y-max
-        var yMax = Math.max(normalPDF(mu0, mu0, se), normalPDF(mu1, mu1, se)) * 1.1;
-        function toY(val) { return pad.t + ph - (val / yMax) * ph; }
-
-        // Draw beta region (under alt, between crits)
-        ctx.fillStyle = 'rgba(0, 158, 115, 0.25)';
-        ctx.beginPath();
-        for (var px = 0; px <= pw; px++) {
-          var xv = xMin + px / pw * (xMax - xMin);
-          if (xv >= critLo && xv <= critHi) {
-            var yv = normalPDF(xv, mu1, se);
-            if (px === 0 || xv - (xMin + (px-1)/pw*(xMax-xMin)) > critLo - xMin) {
-              ctx.moveTo(toX(critLo), toY(0));
-            }
-            ctx.lineTo(toX(xv), toY(yv));
-          }
-        }
-        ctx.lineTo(toX(critHi), toY(0));
-        ctx.closePath();
-        ctx.fill();
-
-        // Draw alpha region (under null, outside crits)
-        ctx.fillStyle = 'rgba(213, 94, 0, 0.3)';
-        ctx.beginPath();
-        ctx.moveTo(toX(critHi), toY(0));
-        for (var px = 0; px <= pw; px++) {
-          var xv = xMin + px / pw * (xMax - xMin);
-          if (xv >= critHi) ctx.lineTo(toX(xv), toY(normalPDF(xv, mu0, se)));
-        }
-        ctx.lineTo(toX(xMax), toY(0));
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.moveTo(toX(xMin), toY(0));
-        for (var px = 0; px <= pw; px++) {
-          var xv = xMin + px / pw * (xMax - xMin);
-          if (xv <= critLo) ctx.lineTo(toX(xv), toY(normalPDF(xv, mu0, se)));
-        }
-        ctx.lineTo(toX(critLo), toY(0));
-        ctx.closePath();
-        ctx.fill();
-
-        // Null curve
-        ctx.strokeStyle = '#0072B2'; ctx.lineWidth = 2;
-        ctx.beginPath();
-        for (var px = 0; px <= pw; px++) {
-          var xv = xMin + px / pw * (xMax - xMin);
-          var yv = normalPDF(xv, mu0, se);
-          if (px === 0) ctx.moveTo(toX(xv), toY(yv));
-          else ctx.lineTo(toX(xv), toY(yv));
-        }
-        ctx.stroke();
-
-        // Alt curve
-        ctx.strokeStyle = '#CC79A7'; ctx.lineWidth = 2;
-        ctx.beginPath();
-        for (var px = 0; px <= pw; px++) {
-          var xv = xMin + px / pw * (xMax - xMin);
-          var yv = normalPDF(xv, mu1, se);
-          if (px === 0) ctx.moveTo(toX(xv), toY(yv));
-          else ctx.lineTo(toX(xv), toY(yv));
-        }
-        ctx.stroke();
-
-        // Crit lines
-        ctx.strokeStyle = '#666'; ctx.lineWidth = 1; ctx.setLineDash([5,5]);
-        ctx.beginPath();
-        ctx.moveTo(toX(critLo), toY(0)); ctx.lineTo(toX(critLo), toY(yMax*0.95));
-        ctx.moveTo(toX(critHi), toY(0)); ctx.lineTo(toX(critHi), toY(yMax*0.95));
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Labels
-        ctx.fillStyle = '#0072B2'; ctx.font = '13px sans-serif';
-        ctx.fillText('Null', toX(mu0) - 12, toY(normalPDF(mu0, mu0, se)) - 8);
-        ctx.fillStyle = '#CC79A7';
-        ctx.fillText('Alternative', toX(mu1) - 25, toY(normalPDF(mu1, mu1, se)) - 8);
-
-        ctx.fillStyle = '#D55E00'; ctx.font = '12px sans-serif';
-        ctx.fillText('alpha', toX(critHi) + 5, toY(yMax * 0.4));
-        ctx.fillStyle = '#009E73';
-        ctx.fillText('beta', toX((critLo + critHi)/2) - 10, toY(normalPDF((critLo+critHi)/2, mu1, se) * 0.5));
-
-        // Axes
-        ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l + pw, pad.t + ph);
-        ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l, pad.t);
-        ctx.stroke();
-      }
-
-      dSlider.addEventListener('input', draw);
-      nSlider.addEventListener('input', draw);
-      aSlider.addEventListener('input', draw);
-      draw();
-    })();
-  </script>
-</div><!--/html_preserve-->
-
-</InteractivePlot>
+    // Axes
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l + pw, pad.t + ph);
+    ctx.moveTo(pad.l, pad.t + ph); ctx.lineTo(pad.l, pad.t);
+    ctx.stroke();
+  `}
+  width={720}
+  height={420}
+/>
 
 Drag the sliders to see how effect size, sample size, and significance level jointly determine power. Watch the alternative distribution shift and the beta region shrink as you increase the effect size or sample size.
 

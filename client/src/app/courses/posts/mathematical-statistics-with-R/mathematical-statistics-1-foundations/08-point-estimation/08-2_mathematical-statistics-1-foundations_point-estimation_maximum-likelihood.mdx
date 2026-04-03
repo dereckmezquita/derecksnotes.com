@@ -448,85 +448,70 @@ ggplot2$ggplot(bill_dt, ggplot2$aes(x = bill_length_mm, fill = species)) +
 
 ## 8.11 Interactive: Watch the Likelihood Move
 
-<InteractivePlot>
+<InteractivePlot
+  controls={[
+    { id: "mu", type: "range", label: "μ", min: 1, max: 9, step: 0.05, default: 5 }
+  ]}
+  draw={`
+    var data = [7.7419,3.8706,5.7263,6.2657,5.8085,4.7878,8.023,4.8107,9.0368,4.8746,7.6097,9.5733,2.2223,4.4424,4.7334,6.2719,4.4315,-0.3129,0.1191,7.6402];
+    var sigma = 2;
+    var w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
 
-<!--html_preserve--><div id="lik-slider-container" style="max-width:700px; margin:auto;">
-<label>
-mu =
-<span id="mu-display">5.00</span>
-</label>
-<input id="mu-slider" type="range" min="1" max="9" step="0.05" value="5" style="width:100%;"/>
-<canvas id="lik-canvas" width="700" Height="350" style="border:1px solid #ccc; width:100%;"></canvas>
-<script>
-    (function() {
-      var data = [7.7419,3.8706,5.7263,6.2657,5.8085,4.7878,8.023,4.8107,9.0368,4.8746,7.6097,9.5733,2.2223,4.4424,4.7334,6.2719,4.4315,-0.3129,0.1191,7.6402];
-      var canvas = document.getElementById('lik-canvas');
-      var ctx = canvas.getContext('2d');
-      var slider = document.getElementById('mu-slider');
-      var display = document.getElementById('mu-display');
-      var sigma = 2;
-
-      function loglik(mu) {
-        var ll = 0;
-        for (var i = 0; i < data.length; i++) {
-          ll += -0.5 * Math.log(2 * Math.PI * sigma * sigma) -
-                0.5 * Math.pow(data[i] - mu, 2) / (sigma * sigma);
-        }
-        return ll;
+    function loglik(mu) {
+      var ll = 0;
+      for (var i = 0; i < data.length; i++) {
+        ll += -0.5 * Math.log(2 * Math.PI * sigma * sigma) -
+              0.5 * Math.pow(data[i] - mu, 2) / (sigma * sigma);
       }
+      return ll;
+    }
 
-      function draw() {
-        var w = canvas.width, h = canvas.height;
-        ctx.clearRect(0, 0, w, h);
+    var muMin = 1, muMax = 9;
+    var lls = [];
+    for (var m = muMin; m <= muMax; m += 0.05) lls.push(loglik(m));
+    var llMin = Math.min.apply(null, lls);
+    var llMax = Math.max.apply(null, lls);
 
-        var muMin = 1, muMax = 9;
-        var lls = [];
-        for (var m = muMin; m <= muMax; m += 0.05) lls.push(loglik(m));
-        var llMin = Math.min.apply(null, lls);
-        var llMax = Math.max.apply(null, lls);
+    // Draw log-likelihood curve
+    ctx.beginPath();
+    ctx.strokeStyle = '#0072B2';
+    ctx.lineWidth = 2;
+    var first = true;
+    for (var m = muMin; m <= muMax; m += 0.05) {
+      var px = (m - muMin) / (muMax - muMin) * (w - 60) + 40;
+      var py = h - 30 - (loglik(m) - llMin) / (llMax - llMin) * (h - 60);
+      if (first) { ctx.moveTo(px, py); first = false; }
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
 
-        ctx.beginPath();
-        ctx.strokeStyle = '#0072B2';
-        ctx.lineWidth = 2;
-        var first = true;
-        for (var m = muMin; m <= muMax; m += 0.05) {
-          var px = (m - muMin) / (muMax - muMin) * (w - 60) + 40;
-          var py = h - 30 - (loglik(m) - llMin) / (llMax - llMin) * (h - 60);
-          if (first) { ctx.moveTo(px, py); first = false; }
-          else ctx.lineTo(px, py);
-        }
-        ctx.stroke();
+    // Current position marker
+    var curMu = params.mu;
+    var curLL = loglik(curMu);
+    var cx = (curMu - muMin) / (muMax - muMin) * (w - 60) + 40;
+    var cy = h - 30 - (curLL - llMin) / (llMax - llMin) * (h - 60);
+    ctx.beginPath();
+    ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
+    ctx.fillStyle = '#D55E00';
+    ctx.fill();
 
-        var curMu = parseFloat(slider.value);
-        var curLL = loglik(curMu);
-        var cx = (curMu - muMin) / (muMax - muMin) * (w - 60) + 40;
-        var cy = h - 30 - (curLL - llMin) / (llMax - llMin) * (h - 60);
-        ctx.beginPath();
-        ctx.arc(cx, cy, 6, 0, 2 * Math.PI);
-        ctx.fillStyle = '#D55E00';
-        ctx.fill();
-
-        ctx.fillStyle = '#333';
-        ctx.font = '12px sans-serif';
-        ctx.fillText('mu', w / 2, h - 5);
-        ctx.save();
-        ctx.translate(12, h / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.fillText('log L(mu)', 0, 0);
-        ctx.restore();
-        ctx.fillText('ll = ' + curLL.toFixed(2), cx + 10, cy - 10);
-      }
-
-      slider.addEventListener('input', function() {
-        display.textContent = parseFloat(slider.value).toFixed(2);
-        draw();
-      });
-      draw();
-    })();
-  </script>
-</div><!--/html_preserve-->
-
-</InteractivePlot>
+    // Labels
+    ctx.fillStyle = '#333';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('\\u03BC', w / 2, h - 5);
+    ctx.save();
+    ctx.translate(12, h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('log L(\\u03BC)', 0, 0);
+    ctx.restore();
+    ctx.textAlign = 'left';
+    ctx.fillText('ll = ' + curLL.toFixed(2), cx + 10, cy - 10);
+  `}
+  width={700}
+  height={350}
+/>
 
 Move the slider to change $\mu$ and watch the log-likelihood value respond. The peak of the curve is the MLE.
 

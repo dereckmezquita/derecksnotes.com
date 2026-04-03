@@ -556,130 +556,74 @@ persp(
 
 ## 6.15 Interactive Bivariate Normal
 
-<InteractivePlot>
-const width = 600, Height = 500;
-const margin = { top: 40, right: 20, bottom: 60, left: 60 };
-const pw = width - margin.left - margin.right;
-const ph = height - margin.top - margin.bottom;
+<InteractivePlot
+  controls={[
+    { id: "rho", type: "range", label: "Correlation ρ", min: -0.95, max: 0.95, step: 0.05, default: 0.5 }
+  ]}
+  draw={`
+    var w = canvas.width, h = canvas.height;
+    var pad = { top: 40, right: 20, bottom: 60, left: 60 };
+    var pw = w - pad.left - pad.right;
+    var ph = h - pad.top - pad.bottom;
+    var rho = params.rho;
 
-// State
-let rho = 0.5;
+    ctx.clearRect(0, 0, w, h);
 
-// Canvas for density
-const canvas = document.createElement('canvas');
-canvas.width = pw;
-canvas.Height = ph;
-canvas.style.position = 'absolute';
-canvas.style.left = margin.left + 'px';
-canvas.style.top = margin.top + 'px';
-container.style.position = 'relative';
-container.style.width = width + 'px';
-container.style.Height = (height + 50) + 'px';
-container.appendChild(canvas);
-
-// SVG overlay for axes and labels
-const svgNS = 'http://www.w3.org/2000/svg';
-const svg = document.createElementNS(svgNS, 'svg');
-svg.setAttribute('width', width);
-svg.setAttribute('height', height);
-svg.style.position = 'absolute';
-svg.style.left = '0';
-svg.style.top = '0';
-svg.style.pointerEvents = 'none';
-container.appendChild(svg);
-
-// Slider
-const sliderDiv = document.createElement('div');
-sliderDiv.style.position = 'absolute';
-sliderDiv.style.top = height + 'px';
-sliderDiv.style.left = margin.left + 'px';
-sliderDiv.style.width = pw + 'px';
-sliderDiv.style.textAlign = 'center';
-sliderDiv.style.fontFamily = 'sans-serif';
-sliderDiv.innerHTML = `
-  <label>Correlation ρ = <span id="rho-val">0.50</span></label><br/>
-  <input type="range" id="rho-slider" min="-95" max="95" value="50"
-    style="width:80%"/>
-`;
-container.appendChild(sliderDiv);
-
-const slider = sliderDiv.querySelector('#rho-slider');
-const rhoLabel = sliderDiv.querySelector('#rho-val');
-
-function bvnPdf(x1, x2, r) {
-  const q = (1 / (1 - r * r)) * (x1 * x1 - 2 * r * x1 * x2 + x2 * x2);
-  return (1 / (2 * Math.PI * Math.sqrt(1 - r * r))) * Math.exp(-0.5 * q);
-}
-
-function drawDensity(r) {
-  const ctx = canvas.getContext('2d');
-  const imgData = ctx.createImageData(pw, ph);
-  const lo = -3.5, hi = 3.5;
-  let maxD = 0;
-
-  // First pass: find max density
-  for (let iy = 0; iy < ph; iy++) {
-    for (let ix = 0; ix < pw; ix++) {
-      const x1 = lo + (hi - lo) * ix / pw;
-      const x2 = hi - (hi - lo) * iy / ph;
-      const d = bvnPdf(x1, x2, r);
-      if (d > maxD) maxD = d;
+    function bvnPdf(x1, x2, r) {
+      var q = (1 / (1 - r * r)) * (x1 * x1 - 2 * r * x1 * x2 + x2 * x2);
+      return (1 / (2 * Math.PI * Math.sqrt(1 - r * r))) * Math.exp(-0.5 * q);
     }
-  }
 
-  // Second pass: render
-  for (let iy = 0; iy < ph; iy++) {
-    for (let ix = 0; ix < pw; ix++) {
-      const x1 = lo + (hi - lo) * ix / pw;
-      const x2 = hi - (hi - lo) * iy / ph;
-      const d = bvnPdf(x1, x2, r) / maxD;
-      const idx = (iy * pw + ix) * 4;
-      // Blue colour ramp
+    // Compute density heatmap
+    var lo = -3.5, hi = 3.5;
+    var maxD = 0;
+    var densities = [];
+    for (var iy = 0; iy < ph; iy++) {
+      for (var ix = 0; ix < pw; ix++) {
+        var x1 = lo + (hi - lo) * ix / pw;
+        var x2 = hi - (hi - lo) * iy / ph;
+        var d = bvnPdf(x1, x2, rho);
+        densities.push(d);
+        if (d > maxD) maxD = d;
+      }
+    }
+
+    // Render heatmap
+    var imgData = ctx.createImageData(pw, ph);
+    for (var i = 0; i < densities.length; i++) {
+      var d = densities[i] / maxD;
+      var idx = i * 4;
       imgData.data[idx] = Math.round(255 * (1 - d * 0.8));
       imgData.data[idx + 1] = Math.round(255 * (1 - d * 0.6));
       imgData.data[idx + 2] = 255;
       imgData.data[idx + 3] = 255;
     }
-  }
-  ctx.putImageData(imgData, 0, 0);
-}
+    ctx.putImageData(imgData, pad.left, pad.top);
 
-function drawAxes() {
-  while (svg.firstChild) svg.removeChild(svg.firstChild);
-  const mkText = (x, y, txt, anchor, size) => {
-    const t = document.createElementNS(svgNS, 'text');
-    t.setAttribute('x', x);
-    t.setAttribute('y', y);
-    t.setAttribute('text-anchor', anchor || 'middle');
-    t.setAttribute('font-family', 'sans-serif');
-    t.setAttribute('font-size', size || 12);
-    t.textContent = txt;
-    svg.appendChild(t);
-  };
-  mkText(margin.left + pw / 2, height - 5, 'X₁', 'middle', 14);
-  mkText(15, margin.top + ph / 2, 'X₂', 'middle', 14);
-  mkText(margin.left + pw / 2, 25, 'Bivariate Normal Density', 'middle', 16);
+    // Axes labels
+    ctx.fillStyle = '#333';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('X\\u2081', pad.left + pw / 2, h - 5);
+    ctx.fillText('X\\u2082', 15, pad.top + ph / 2);
+    ctx.font = '16px sans-serif';
+    ctx.fillText('Bivariate Normal Density (\\u03C1 = ' + rho.toFixed(2) + ')', pad.left + pw / 2, 25);
 
-  // Tick marks
-  const lo = -3.5, hi = 3.5;
-  for (let v = -3; v <= 3; v++) {
-    const px = margin.left + (v - lo) / (hi - lo) * pw;
-    mkText(px, height - margin.bottom + 18, v.toString(), 'middle', 10);
-    const py = margin.top + (hi - v) / (hi - lo) * ph;
-    mkText(margin.left - 8, py + 4, v.toString(), 'end', 10);
-  }
-}
-
-function update() {
-  rho = parseInt(slider.value) / 100;
-  rhoLabel.textContent = rho.toFixed(2);
-  drawDensity(rho);
-}
-
-slider.addEventListener('input', update);
-drawAxes();
-update();
-</InteractivePlot>
+    // Tick marks
+    ctx.font = '10px sans-serif';
+    ctx.fillStyle = '#333';
+    for (var v = -3; v <= 3; v++) {
+      var px = pad.left + (v - lo) / (hi - lo) * pw;
+      ctx.textAlign = 'center';
+      ctx.fillText(v.toString(), px, h - pad.bottom + 18);
+      var py = pad.top + (hi - v) / (hi - lo) * ph;
+      ctx.textAlign = 'right';
+      ctx.fillText(v.toString(), pad.left - 8, py + 4);
+    }
+  `}
+  width={600}
+  height={500}
+/>
 
 The interactive plot above shows the bivariate normal density as a heat map. Drag the slider to change the correlation $\rho$ and observe how the density ellipses rotate and stretch. At $\rho = 0$ the contours are circular; as $|\rho|$ increases they elongate along the diagonal.
 

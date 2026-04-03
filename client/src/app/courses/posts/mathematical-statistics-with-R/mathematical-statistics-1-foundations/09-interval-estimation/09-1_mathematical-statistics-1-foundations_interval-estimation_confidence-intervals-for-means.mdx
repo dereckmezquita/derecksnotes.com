@@ -293,116 +293,99 @@ Each horizontal line is one CI. The dashed vertical line marks $\mu = 50$. Blue 
 
 ## 9.5 Interactive: Repeated Sampling of Confidence Intervals
 
-<InteractivePlot>
+<InteractivePlot
+  controls={[
+    { id: "numCIs", type: "range", label: "Number of CIs", min: 10, max: 200, step: 10, default: 50 },
+    { id: "n", type: "range", label: "Sample size n", min: 5, max: 200, step: 5, default: 25 }
+  ]}
+  draw={`
+    var w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    var trueMu = 50, trueSigma = 10;
+    var numCIs = params.numCIs;
+    var n = params.n;
 
-<!--html_preserve--><div id="ci-interactive-container" style="max-width:750px; margin:auto;">
-<div style="display:flex; gap:15px; align-items:center; margin-bottom:10px;">
-<button id="ci-draw-btn" style="padding:8px 16px; font-size:14px; cursor:pointer;">Draw 10 CIs</button>
-<button id="ci-reset-btn" style="padding:8px 16px; font-size:14px; cursor:pointer;">Reset</button>
-<span id="ci-counter">Captured: 0 / 0 (--%)</span>
-<span> | </span>
-<label>
-n =
-<input id="ci-n-input" type="number" value="25" min="5" max="200" style="width:60px;"/>
-</label>
-</div>
-<canvas id="ci-canvas" width="750" Height="420" style="border:1px solid #ccc; width:100%;"></canvas>
-<script>
-    (function() {
-      var canvas = document.getElementById('ci-canvas');
-      var ctx = canvas.getContext('2d');
-      var btn = document.getElementById('ci-draw-btn');
-      var resetBtn = document.getElementById('ci-reset-btn');
-      var counter = document.getElementById('ci-counter');
-      var nInput = document.getElementById('ci-n-input');
-      var trueMu = 50, trueSigma = 10;
-      var intervals = [];
-      var captured = 0;
+    // Seeded PRNG for reproducibility
+    var seed = 12345;
+    function nextRand() {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    }
+    function rnorm() {
+      var u = 0, v = 0;
+      while (u === 0) u = nextRand();
+      while (v === 0) v = nextRand();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
 
-      function rnorm() {
-        var u = 0, v = 0;
-        while (u === 0) u = Math.random();
-        while (v === 0) v = Math.random();
-        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-      }
+    // Generate CIs
+    var intervals = [];
+    var captured = 0;
+    for (var j = 0; j < numCIs; j++) {
+      var samp = [];
+      for (var i = 0; i < n; i++) samp.push(trueMu + trueSigma * rnorm());
+      var xbar = samp.reduce(function(a, b){return a+b;}, 0) / n;
+      var s2 = samp.reduce(function(a, b){return a+(b-xbar)*(b-xbar);}, 0) / (n-1);
+      var se = Math.sqrt(s2 / n);
+      var t = 1.96 + 0.84 / n;
+      var lo = xbar - t * se, hi = xbar + t * se;
+      var hit = (lo <= trueMu && trueMu <= hi);
+      if (hit) captured++;
+      intervals.push({lower: lo, upper: hi, mean: xbar, hit: hit});
+    }
 
-      function draw() {
-        var w = canvas.width, h = canvas.height;
-        ctx.clearRect(0, 0, w, h);
-        var pad = 40;
-        var plotW = w - 2 * pad;
-        var plotH = h - 2 * pad;
-        var xMin = 38, xMax = 62;
+    var pad = 40;
+    var plotW = w - 2 * pad;
+    var plotH = h - 2 * pad;
+    var xMin = 38, xMax = 62;
 
-        // Axes
-        ctx.strokeStyle = '#999';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(pad, pad); ctx.lineTo(pad, h - pad);
-        ctx.lineTo(w - pad, h - pad); ctx.stroke();
+    // Axes
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(pad, pad); ctx.lineTo(pad, h - pad);
+    ctx.lineTo(w - pad, h - pad); ctx.stroke();
 
-        // True mu line
-        var muX = pad + (trueMu - xMin) / (xMax - xMin) * plotW;
-        ctx.strokeStyle = '#333';
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(muX, pad); ctx.lineTo(muX, h - pad);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = '#333'; ctx.font = '12px sans-serif';
-        ctx.fillText('mu = ' + trueMu, muX + 4, pad - 5);
+    // True mu line
+    var muX = pad + (trueMu - xMin) / (xMax - xMin) * plotW;
+    ctx.strokeStyle = '#333';
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(muX, pad); ctx.lineTo(muX, h - pad);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#333'; ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('\\u03BC = ' + trueMu, muX + 4, pad - 5);
 
-        if (intervals.length === 0) return;
-        var maxShow = Math.min(intervals.length, 50);
-        var spacing = plotH / (maxShow + 1);
-        var start = Math.max(0, intervals.length - maxShow);
+    // Draw intervals
+    var maxShow = Math.min(intervals.length, 50);
+    var spacing = plotH / (maxShow + 1);
+    var start = Math.max(0, intervals.length - maxShow);
 
-        for (var i = start; i < intervals.length; i++) {
-          var ci = intervals[i];
-          var row = i - start;
-          var y = pad + (row + 1) * spacing;
-          var x1 = pad + (ci.lower - xMin) / (xMax - xMin) * plotW;
-          var x2 = pad + (ci.upper - xMin) / (xMax - xMin) * plotW;
-          var xm = pad + (ci.mean - xMin) / (xMax - xMin) * plotW;
-          ctx.strokeStyle = ci.hit ? '#0072B2' : '#D55E00';
-          ctx.lineWidth = 1.5;
-          ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
-          ctx.beginPath(); ctx.arc(xm, y, 2.5, 0, 2 * Math.PI);
-          ctx.fillStyle = ci.hit ? '#0072B2' : '#D55E00'; ctx.fill();
-        }
-      }
+    for (var i = start; i < intervals.length; i++) {
+      var ci = intervals[i];
+      var row = i - start;
+      var y = pad + (row + 1) * spacing;
+      var x1 = pad + (ci.lower - xMin) / (xMax - xMin) * plotW;
+      var x2 = pad + (ci.upper - xMin) / (xMax - xMin) * plotW;
+      var xm = pad + (ci.mean - xMin) / (xMax - xMin) * plotW;
+      ctx.strokeStyle = ci.hit ? '#0072B2' : '#D55E00';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(xm, y, 2.5, 0, 2 * Math.PI);
+      ctx.fillStyle = ci.hit ? '#0072B2' : '#D55E00'; ctx.fill();
+    }
 
-      function addIntervals(count) {
-        var n = parseInt(nInput.value) || 25;
-        for (var j = 0; j < count; j++) {
-          var samp = [];
-          for (var i = 0; i < n; i++) samp.push(trueMu + trueSigma * rnorm());
-          var xbar = samp.reduce(function(a, b){return a+b;}, 0) / n;
-          var s2 = samp.reduce(function(a, b){return a+(b-xbar)*(b-xbar);}, 0) / (n-1);
-          var se = Math.sqrt(s2 / n);
-          var t = 1.96 + 0.84 / n;  // rough t approximation
-          var lo = xbar - t * se, hi = xbar + t * se;
-          var hit = (lo <= trueMu && trueMu <= hi);
-          if (hit) captured++;
-          intervals.push({lower: lo, upper: hi, mean: xbar, hit: hit});
-        }
-        var pct = (100 * captured / intervals.length).toFixed(1);
-        counter.textContent = 'Captured: ' + captured + ' / ' + intervals.length + ' (' + pct + '%)';
-        draw();
-      }
-
-      btn.addEventListener('click', function() { addIntervals(10); });
-      resetBtn.addEventListener('click', function() {
-        intervals = []; captured = 0;
-        counter.textContent = 'Captured: 0 / 0 (--%)';
-        draw();
-      });
-      draw();
-    })();
-  </script>
-</div><!--/html_preserve-->
-
-</InteractivePlot>
+    // Counter text
+    var pct = (100 * captured / intervals.length).toFixed(1);
+    ctx.fillStyle = '#333'; ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Captured: ' + captured + ' / ' + intervals.length + ' (' + pct + '%)', w / 2, h - 5);
+  `}
+  width={750}
+  height={420}
+/>
 
 Click **Draw 10 CIs** repeatedly to accumulate intervals. Blue intervals capture $\mu = 50$; orange intervals miss. As the total grows, the captured percentage converges to approximately 95%.
 
