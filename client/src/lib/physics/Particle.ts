@@ -10,7 +10,10 @@ export interface ParticleConfig {
 // Black hole forms when mass exceeds this
 export const BLACK_HOLE_MASS_THRESHOLD = 100000;
 export const MERGE_SPEED_THRESHOLD = 15;
-export const COMPRESSION_OVERLAP_THRESHOLD = 8;
+export let COMPRESSION_OVERLAP_THRESHOLD = 9;
+export function setCompressionOverlapThreshold(v: number): void {
+    COMPRESSION_OVERLAP_THRESHOLD = v;
+}
 
 export class Particle {
     id: number;
@@ -22,7 +25,7 @@ export class Particle {
     overlapCount: number = 0;
     age: number = 0;
     contactFrames: Map<number, number> = new Map();
-    static readonly MERGE_COOLDOWN = 300;
+    static MERGE_COOLDOWN = 330;
     static readonly BH_ABSORB_CONTACT_FRAMES = 5;
     trail: Vec2[];
 

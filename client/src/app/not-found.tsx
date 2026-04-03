@@ -6,7 +6,8 @@ import {
     Particle,
     QuadTree,
     SpatialHash,
-    WebGLRenderer
+    WebGLRenderer,
+    setCompressionOverlapThreshold
 } from '@/lib/physics';
 
 let nextId = 0;
@@ -19,13 +20,15 @@ export default function NotFound() {
     const [ballSize, setBallSize] = useState(12);
     const [qtCapacity, setQtCapacity] = useState(4);
     const [spawnCount, setSpawnCount] = useState(1);
-    const [useSpatialHash, setUseSpatialHash] = useState(false);
+    const [useSpatialHash, setUseSpatialHash] = useState(true);
+    const [mergeCooldown, setMergeCooldown] = useState(330);
+    const [overlapThreshold, setOverlapThreshold] = useState(9);
     const gravityRef = useRef(false);
     const attractRef = useRef(false);
     const ballSizeRef = useRef(12);
     const qtCapacityRef = useRef(4);
     const spawnCountRef = useRef(1);
-    const useSpatialHashRef = useRef(false);
+    const useSpatialHashRef = useRef(true);
     const mouseRef = useRef({ pos: new Vec2(-1000, -1000), active: false });
     const particlesRef = useRef<Particle[]>([]);
 
@@ -55,6 +58,12 @@ export default function NotFound() {
     useEffect(() => {
         useSpatialHashRef.current = useSpatialHash;
     }, [useSpatialHash]);
+    useEffect(() => {
+        Particle.MERGE_COOLDOWN = mergeCooldown;
+    }, [mergeCooldown]);
+    useEffect(() => {
+        setCompressionOverlapThreshold(overlapThreshold);
+    }, [overlapThreshold]);
 
     useEffect(() => {
         const glCanvas = glCanvasRef.current;
@@ -568,7 +577,6 @@ export default function NotFound() {
                         display: 'flex',
                         gap: '0.4rem',
                         alignItems: 'center',
-                        flexWrap: 'wrap',
                         justifyContent: 'center',
                         pointerEvents: 'auto'
                     }}
@@ -611,8 +619,27 @@ export default function NotFound() {
                     >
                         {useSpatialHash ? 'Hash Grid' : 'QuadTree'}
                     </button>
+                </div>
 
-                    {(['Size', 'Grid', 'Spawn'] as const).map((label) => {
+                <div
+                    style={{
+                        display: 'flex',
+                        gap: '0.6rem',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        pointerEvents: 'auto',
+                        marginTop: '0.3rem'
+                    }}
+                >
+                    {(
+                        [
+                            'Size',
+                            'Grid',
+                            'Spawn',
+                            'Cooldown',
+                            'Overlap'
+                        ] as const
+                    ).map((label) => {
                         const configs = {
                             Size: {
                                 value: ballSize,
@@ -633,6 +660,20 @@ export default function NotFound() {
                                 set: setSpawnCount,
                                 min: 1,
                                 max: 100,
+                                suffix: ''
+                            },
+                            Cooldown: {
+                                value: mergeCooldown,
+                                set: setMergeCooldown,
+                                min: 60,
+                                max: 900,
+                                suffix: 'f'
+                            },
+                            Overlap: {
+                                value: overlapThreshold,
+                                set: setOverlapThreshold,
+                                min: 3,
+                                max: 20,
                                 suffix: ''
                             }
                         };
