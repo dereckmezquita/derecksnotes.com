@@ -116,7 +116,7 @@ export class WebGLRenderer {
         // Pre-allocate buffers (6 floats per vertex: x, y, r, g, b, a)
         this.lineData = new Float32Array(2400000); // ~200k lines
         this.circleData = new Float32Array(50000);
-        this.triData = new Float32Array(300000); // for filled rectangles
+        this.triData = new Float32Array(2000000); // for thick lines, rects, arrow tips
     }
 
     clear(w: number, h: number): void {
@@ -180,6 +180,152 @@ export class WebGLRenderer {
         this.circleData[i + 5] = b;
         this.circleData[i + 6] = a;
         this.circleCount++;
+    }
+
+    /**
+     * Draw a thick line as a quad (2 triangles).
+     * Computes perpendicular offset from line direction to create width.
+     * thickness = line width in pixels
+     */
+    private addThickLine(
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
+        thickness: number,
+        r: number,
+        g: number,
+        b: number,
+        a: number
+    ): void {
+        const i = this.triCount * 36;
+        if (i + 36 > this.triData.length) return;
+
+        // Direction of line
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 0.01) return;
+
+        // Perpendicular direction (normal to line), scaled to half-thickness
+        const hw = thickness * 0.5;
+        const nx = (-dy / len) * hw; // perpendicular x
+        const ny = (dx / len) * hw; // perpendicular y
+
+        // 4 corners of the quad
+        const ax = x1 + nx,
+            ay = y1 + ny; // top-left
+        const bx = x1 - nx,
+            by = y1 - ny; // bottom-left
+        const cx = x2 + nx,
+            cy = y2 + ny; // top-right
+        const ex = x2 - nx,
+            ey = y2 - ny; // bottom-right
+
+        // Two triangles: (a, c, b) and (b, c, e)
+        const verts = [
+            ax,
+            ay,
+            r,
+            g,
+            b,
+            a,
+            cx,
+            cy,
+            r,
+            g,
+            b,
+            a,
+            bx,
+            by,
+            r,
+            g,
+            b,
+            a,
+            bx,
+            by,
+            r,
+            g,
+            b,
+            a,
+            cx,
+            cy,
+            r,
+            g,
+            b,
+            a,
+            ex,
+            ey,
+            r,
+            g,
+            b,
+            a
+        ];
+        for (let j = 0; j < 36; j++) this.triData[i + j] = verts[j];
+        this.triCount++;
+    }
+
+    /**
+     * Draw a filled triangle (3 vertices).
+     * Used for arrowhead tips on velocity vectors.
+     */
+    private addFilledTriangle(
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
+        x3: number,
+        y3: number,
+        r: number,
+        g: number,
+        b: number,
+        a: number
+    ): void {
+        const i = this.triCount * 36;
+        if (i + 36 > this.triData.length) return;
+
+        // Only 3 vertices needed but triCount expects 6-vertex blocks (2 triangles)
+        // Degenerate second triangle (all same point) — GPU discards it
+        const verts = [
+            x1,
+            y1,
+            r,
+            g,
+            b,
+            a,
+            x2,
+            y2,
+            r,
+            g,
+            b,
+            a,
+            x3,
+            y3,
+            r,
+            g,
+            b,
+            a,
+            x3,
+            y3,
+            r,
+            g,
+            b,
+            a,
+            x3,
+            y3,
+            r,
+            g,
+            b,
+            a,
+            x3,
+            y3,
+            r,
+            g,
+            b,
+            a
+        ];
+        for (let j = 0; j < 36; j++) this.triData[i + j] = verts[j];
+        this.triCount++;
     }
 
     private addRect(
@@ -478,16 +624,19 @@ export class WebGLRenderer {
             for (let i = start + 1; i < trail.length; i++) {
                 const t = (i - start) / len;
                 const alpha = t * 0.5;
-                // Draw multiple parallel lines for thickness (WebGL1 lines are 1px)
-                const x1 = trail[i - 1].x,
-                    y1 = trail[i - 1].y;
-                const x2 = trail[i].x,
-                    y2 = trail[i].y;
-                this.addLine(x1, y1, x2, y2, r, g, b, alpha);
-                if (t > 0.3) {
-                    this.addLine(x1, y1 + 1, x2, y2 + 1, r, g, b, alpha * 0.7);
-                    this.addLine(x1, y1 - 1, x2, y2 - 1, r, g, b, alpha * 0.7);
-                }
+                // Proper thick trail using triangle quads — tapers from 0.5px to 2px
+                const thickness = 0.5 + t * 1.5;
+                this.addThickLine(
+                    trail[i - 1].x,
+                    trail[i - 1].y,
+                    trail[i].x,
+                    trail[i].y,
+                    thickness,
+                    r,
+                    g,
+                    b,
+                    alpha
+                );
             }
         }
     }
@@ -495,35 +644,40 @@ export class WebGLRenderer {
     drawVelocityVectors(particles: Particle[]): void {
         const [r, g, b] = ORANGE;
         for (const p of particles) {
-            // Scale factor 10 (was 5) for more visible vectors
             const scale = 10;
-            const ex = p.pos.x + p.vel.x * scale;
-            const ey = p.pos.y + p.vel.y * scale;
-            this.addLine(p.pos.x, p.pos.y, ex, ey, r, g, b, 0.8);
+            const vx = p.vel.x * scale;
+            const vy = p.vel.y * scale;
+            const ex = p.pos.x + vx;
+            const ey = p.pos.y + vy;
 
-            // Bigger arrowhead
-            const angle = p.vel.angle();
-            const headLen = 8;
-            this.addLine(
-                ex,
-                ey,
-                ex - headLen * Math.cos(angle - 0.4),
-                ey - headLen * Math.sin(angle - 0.4),
-                r,
-                g,
-                b,
-                0.8
-            );
-            this.addLine(
-                ex,
-                ey,
-                ex - headLen * Math.cos(angle + 0.4),
-                ey - 6 * Math.sin(angle + 0.4),
-                r,
-                g,
-                b,
-                0.8
-            );
+            // Thick line body (2px)
+            this.addThickLine(p.pos.x, p.pos.y, ex, ey, 1, r, g, b, 0.8);
+
+            // Filled triangle arrowhead
+            const speed = Math.sqrt(vx * vx + vy * vy);
+            if (speed > 1) {
+                const angle = Math.atan2(vy, vx);
+                const headLen = 10;
+                const headWidth = 6;
+                // Tip of the arrow
+                const tipX = ex;
+                const tipY = ey;
+                // Two base points of the triangle
+                const baseAngle1 = angle + Math.PI - 0.4;
+                const baseAngle2 = angle + Math.PI + 0.4;
+                this.addFilledTriangle(
+                    tipX,
+                    tipY,
+                    tipX + headLen * Math.cos(baseAngle1),
+                    tipY + headLen * Math.sin(baseAngle1),
+                    tipX + headLen * Math.cos(baseAngle2),
+                    tipY + headLen * Math.sin(baseAngle2),
+                    r,
+                    g,
+                    b,
+                    0.85
+                );
+            }
         }
     }
 
@@ -645,48 +799,52 @@ export class WebGLRenderer {
 
             this.addCircle(p.pos.x, p.pos.y, p.radius, r, g, b, 1.0);
 
-            // Single-line crosshair — proportional to particle size
-            // Extends from half-radius inside the circle to radius * 0.4 outside
-            const inner = p.radius * 0.5; // goes into circle this far
-            const outer = p.radius + p.radius * 0.4; // extends outside
+            // Short crosshair — starts at circle edge, extends 15% beyond
+            const inner = p.radius; // starts exactly at circle edge
+            const outer = p.radius * 1.15; // extends 15% beyond
             const a = 0.6;
-            // Horizontal
-            this.addLine(
+            const cw = 2;
+            // Horizontal arms
+            this.addThickLine(
                 p.pos.x - outer,
                 p.pos.y,
                 p.pos.x - inner,
                 p.pos.y,
+                cw,
                 r,
                 g,
                 b,
                 a
             );
-            this.addLine(
+            this.addThickLine(
                 p.pos.x + inner,
                 p.pos.y,
                 p.pos.x + outer,
                 p.pos.y,
+                cw,
                 r,
                 g,
                 b,
                 a
             );
-            // Vertical
-            this.addLine(
+            // Vertical arms
+            this.addThickLine(
                 p.pos.x,
                 p.pos.y - outer,
                 p.pos.x,
                 p.pos.y - inner,
+                cw,
                 r,
                 g,
                 b,
                 a
             );
-            this.addLine(
+            this.addThickLine(
                 p.pos.x,
                 p.pos.y + inner,
                 p.pos.x,
                 p.pos.y + outer,
+                cw,
                 r,
                 g,
                 b,
