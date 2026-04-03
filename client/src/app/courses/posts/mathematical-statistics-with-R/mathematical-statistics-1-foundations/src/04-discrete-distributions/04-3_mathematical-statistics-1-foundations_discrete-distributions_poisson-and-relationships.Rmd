@@ -188,20 +188,20 @@ lambda <- 5
 ours <- my_dpois(k_vals, lambda)
 theirs <- dpois(k_vals, lambda)
 
-cat("Maximum absolute difference:", max(abs(ours - theirs)), "\n")
+max(abs(ours - theirs))
 ```
 
 ### 4.6.8 The Binomial-to-Poisson Convergence: Numerical Demonstration
 
 ```{r binom-to-pois-convergence}
-box::use(data.table[data.table, rbindlist])
+box::use(data.table)
 
 lambda <- 3
 k_vals <- 0:10
 
-results <- rbindlist(lapply(c(10, 30, 100, 500, 2000), function(nn) {
+results <- data.table$rbindlist(lapply(c(10, 30, 100, 500, 2000), function(nn) {
   pp <- lambda / nn
-  data.table(
+  data.table$data.table(
     k = k_vals,
     prob = dbinom(k_vals, nn, pp),
     n = nn,
@@ -210,7 +210,7 @@ results <- rbindlist(lapply(c(10, 30, 100, 500, 2000), function(nn) {
 }))
 
 # Add the Poisson limit
-pois <- data.table(
+pois <- data.table$data.table(
   k = k_vals,
   prob = dpois(k_vals, lambda),
   n = Inf,
@@ -219,173 +219,24 @@ pois <- data.table(
 
 results <- rbind(results, pois)
 
-cat("Binomial(n, lambda/n) converging to Poisson(lambda) for lambda =", lambda, "\n\n")
-cat(sprintf("%-5s", "k"))
-for (lab in unique(results$label)) cat(sprintf("%16s", lab))
-cat("\n")
-
-for (kk in k_vals) {
-  cat(sprintf("%-5d", kk))
-  row <- results[k == kk]
-  for (i in seq_len(nrow(row))) {
-    cat(sprintf("%16.6f", row$prob[i]))
-  }
-  cat("\n")
-}
+wide <- data.table$dcast(results, k ~ label, value.var = "prob")
+print(wide, digits = 6)
 ```
 
 The convergence is clear: as $n$ increases and $p = \lambda/n$ decreases, the binomial probabilities approach the Poisson probabilities.
 
-### 4.6.9 Interactive Visualisation: Binomial to Poisson
-
-The following interactive animation lets you see the binomial PMF morph into the Poisson as $n$ increases.
-
-<CanvasWithJs code={`
-// Binomial-to-Poisson convergence animation
-const W = 600, H = 400;
-const margin = { top: 50, right: 30, bottom: 60, left: 60 };
-const pw = W - margin.left - margin.right;
-const ph = H - margin.top - margin.bottom;
-
-const lambda = 5;
-const kMax = 15;
-
-// Poisson PMF
-function poisPMF(k, lam) {
-  let logP = k * Math.log(lam) - lam;
-  for (let i = 2; i <= k; i++) logP -= Math.log(i);
-  return Math.exp(logP);
-}
-
-// Binomial PMF
-function binomPMF(k, n, p) {
-  if (k > n || p <= 0 || p >= 1) return 0;
-  let logP = 0;
-  for (let i = 0; i < k; i++) logP += Math.log(n - i) - Math.log(i + 1);
-  logP += k * Math.log(p) + (n - k) * Math.log(1 - p);
-  return Math.exp(logP);
-}
-
-let nVal = 10;
-let animating = true;
-let frame = 0;
-
-function draw() {
-  ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#f8f8f8';
-  ctx.fillRect(0, 0, W, H);
-
-  const p = lambda / nVal;
-  const barW = pw / (kMax + 1) * 0.35;
-
-  // Compute max y for scaling
-  let maxY = 0;
-  for (let k = 0; k <= kMax; k++) {
-    maxY = Math.max(maxY, poisPMF(k, lambda), binomPMF(k, nVal, p));
-  }
-  maxY = Math.ceil(maxY * 20) / 20;
-
-  // Draw axes
-  ctx.strokeStyle = '#333';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(margin.left, margin.top);
-  ctx.lineTo(margin.left, H - margin.bottom);
-  ctx.lineTo(W - margin.right, H - margin.bottom);
-  ctx.stroke();
-
-  // Y-axis labels
-  ctx.fillStyle = '#333';
-  ctx.font = '11px sans-serif';
-  ctx.textAlign = 'right';
-  for (let i = 0; i <= 4; i++) {
-    const yVal = (maxY * i / 4);
-    const yPos = H - margin.bottom - (i / 4) * ph;
-    ctx.fillText(yVal.toFixed(2), margin.left - 8, yPos + 4);
-    ctx.strokeStyle = '#ddd';
-    ctx.beginPath();
-    ctx.moveTo(margin.left, yPos);
-    ctx.lineTo(W - margin.right, yPos);
-    ctx.stroke();
-  }
-
-  // Draw bars
-  for (let k = 0; k <= kMax; k++) {
-    const xCenter = margin.left + (k + 0.5) * pw / (kMax + 1);
-
-    // Poisson bar (blue, behind)
-    const poisH = (poisPMF(k, lambda) / maxY) * ph;
-    ctx.fillStyle = 'rgba(0, 114, 178, 0.35)';
-    ctx.fillRect(xCenter - barW - 1, H - margin.bottom - poisH, barW, poisH);
-    ctx.strokeStyle = 'rgba(0, 114, 178, 0.8)';
-    ctx.strokeRect(xCenter - barW - 1, H - margin.bottom - poisH, barW, poisH);
-
-    // Binomial bar (orange, front)
-    const binH = (binomPMF(k, nVal, p) / maxY) * ph;
-    ctx.fillStyle = 'rgba(213, 94, 0, 0.55)';
-    ctx.fillRect(xCenter + 1, H - margin.bottom - binH, barW, binH);
-    ctx.strokeStyle = 'rgba(213, 94, 0, 0.9)';
-    ctx.strokeRect(xCenter + 1, H - margin.bottom - binH, barW, binH);
-
-    // X label
-    ctx.fillStyle = '#333';
-    ctx.textAlign = 'center';
-    ctx.fillText(k.toString(), xCenter, H - margin.bottom + 16);
-  }
-
-  // X axis label
-  ctx.font = '13px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#333';
-  ctx.fillText('k', W / 2, H - 10);
-
-  // Title
-  ctx.font = 'bold 14px sans-serif';
-  ctx.fillText('Bin(n=' + nVal + ', p=' + (lambda/nVal).toFixed(4) + ') vs Pois(\\u03bb=' + lambda + ')', W / 2, 20);
-
-  // Legend
-  ctx.font = '12px sans-serif';
-  ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(0, 114, 178, 0.7)';
-  ctx.fillRect(W - margin.right - 150, 32, 14, 14);
-  ctx.fillStyle = '#333';
-  ctx.fillText('Poisson', W - margin.right - 130, 44);
-  ctx.fillStyle = 'rgba(213, 94, 0, 0.7)';
-  ctx.fillRect(W - margin.right - 150, 52, 14, 14);
-  ctx.fillStyle = '#333';
-  ctx.fillText('Binomial', W - margin.right - 130, 64);
-
-  // Animate n upward
-  if (animating) {
-    frame++;
-    if (frame % 8 === 0) {
-      if (nVal < 30) nVal += 1;
-      else if (nVal < 100) nVal += 5;
-      else if (nVal < 500) nVal += 25;
-      else if (nVal < 2000) nVal += 100;
-      else { animating = false; }
-    }
-    requestAnimationFrame(draw);
-  }
-}
-
-draw();
-`} width={600} height={400} />
-
-Watch as the orange binomial bars converge onto the blue Poisson bars. By $n = 500$ or so, the two distributions are virtually identical.
-
-### 4.6.10 Visualising Poisson PMFs for Various Lambda
+### 4.6.9 Visualising Poisson PMFs for Various Lambda
 
 ```{r pois-pmf-grid, fig.cap="Poisson PMFs for various values of lambda. Small lambda produces a right-skewed distribution; as lambda grows, the distribution becomes more symmetric and bell-shaped."}
-box::use(ggplot2[...])
-box::use(data.table[data.table, rbindlist])
+box::use(ggplot2)
+box::use(data.table)
 
 lambda_vals <- c(0.5, 1, 3, 5, 10, 20)
 
-pmf_data <- rbindlist(lapply(lambda_vals, function(lam) {
+pmf_data <- data.table$rbindlist(lapply(lambda_vals, function(lam) {
   k_max <- qpois(0.999, lam)
   k <- 0:k_max
-  data.table(
+  data.table$data.table(
     k = k,
     pmf = dpois(k, lam),
     label = sprintf("Pois(%.1f)", lam)
@@ -395,18 +246,18 @@ pmf_data <- rbindlist(lapply(lambda_vals, function(lam) {
 # Preserve ordering
 pmf_data[, label := factor(label, levels = sprintf("Pois(%.1f)", lambda_vals))]
 
-ggplot(pmf_data, aes(x = k, y = pmf)) +
-  geom_col(fill = "#CC79A7", width = 0.7, alpha = 0.85) +
-  facet_wrap(~label, scales = "free", ncol = 3) +
-  labs(
+ggplot2$ggplot(pmf_data, ggplot2$aes(x = k, y = pmf)) +
+  ggplot2$geom_col(fill = "#CC79A7", width = 0.7, alpha = 0.85) +
+  ggplot2$facet_wrap(~label, scales = "free", ncol = 3) +
+  ggplot2$labs(
     x = "k (number of events)",
     y = "P(X = k)",
     title = "Poisson probability mass functions"
   ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    strip.text = element_text(face = "bold"),
-    panel.grid.minor = element_blank()
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(
+    strip.text = ggplot2$element_text(face = "bold"),
+    panel.grid.minor = ggplot2$element_blank()
   )
 ```
 
@@ -416,35 +267,32 @@ Key observations:
 - As $\lambda$ increases, the distribution becomes more symmetric and approaches a bell shape (another preview of the CLT, since the Poisson is a sum of many tiny contributions).
 - The mode is approximately $\lfloor \lambda \rfloor$ (the largest integer $\le \lambda$).
 
-### 4.6.11 Real Data: Insurance Claims
+### 4.6.10 Real Data: Insurance Claims
 
 Let us examine real count data and assess whether a Poisson model fits.
 
 ```{r insurance-data, fig.cap="Observed distribution of insurance claim counts by district-group-age cell, compared to a fitted Poisson model (orange points). The Poisson captures the general shape, though there are hints of overdispersion in some cells."}
-box::use(data.table[fread, .N, .SD])
+box::use(data.table)
 
 data_dir <- "../../../data"
-claims <- fread(file.path(data_dir, "count/insurance_claims.csv"))
+claims <- data.table$fread(file.path(data_dir, "count/insurance_claims.csv"))
 
-cat("Insurance claims data:\n")
 str(claims)
-cat("\n")
 
 # Claims per cell -- treat each row as a cell
-# Compute the claim rate per policyholder
 claims[, rate := Claims / Holders]
 
-# Let us look at the distribution of raw claim counts
-cat("Summary of Claims column:\n")
 summary(claims$Claims)
-cat("\nMean:", mean(claims$Claims), "\n")
-cat("Variance:", var(claims$Claims), "\n")
-cat("Variance / Mean:", var(claims$Claims) / mean(claims$Claims), "\n")
+c(mean = mean(claims$Claims), var = var(claims$Claims),
+  "var/mean" = var(claims$Claims) / mean(claims$Claims))
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
 ```
 
 ```{r insurance-fit, fig.cap="Distribution of insurance claims compared to a Poisson model fitted by method of moments (matching the sample mean to lambda). The variance-to-mean ratio is substantially greater than 1, indicating overdispersion -- the Poisson underestimates the spread."}
-box::use(ggplot2[...])
-box::use(data.table[data.table])
+box::use(ggplot2)
 
 # Use the raw Claims counts
 lambda_hat <- mean(claims$Claims)
@@ -457,7 +305,7 @@ obs_freq[, prop := N / sum(N)]
 k_range <- 0:max(claims$Claims)
 pois_probs <- dpois(k_range, lambda_hat)
 
-theory <- data.table(Claims = k_range, theoretical = pois_probs)
+theory <- data.table$data.table(Claims = k_range, theoretical = pois_probs)
 comparison <- merge(obs_freq, theory, by = "Claims", all = TRUE)
 comparison[is.na(prop), prop := 0]
 
@@ -465,38 +313,32 @@ comparison[is.na(prop), prop := 0]
 k_show <- min(60, max(claims$Claims))
 comp_show <- comparison[Claims <= k_show]
 
-ggplot(comp_show) +
-  geom_col(aes(x = Claims, y = prop), fill = "#0072B2", alpha = 0.6, width = 0.8) +
-  geom_point(aes(x = Claims, y = theoretical), colour = "#D55E00", size = 2) +
-  labs(
+ggplot2$ggplot(comp_show) +
+  ggplot2$geom_col(ggplot2$aes(x = Claims, y = prop), fill = "#0072B2", alpha = 0.6, width = 0.8) +
+  ggplot2$geom_point(ggplot2$aes(x = Claims, y = theoretical), colour = "#D55E00", size = 2) +
+  ggplot2$labs(
     x = "Number of claims",
     y = "Proportion / Probability",
     title = sprintf("Observed claims (bars) vs. Poisson(%.1f) model (orange)", lambda_hat)
   ) +
-  theme_minimal(base_size = 13)
+  ggplot2$theme_minimal(base_size = 13)
 ```
 
 The variance-to-mean ratio being well above 1 signals **overdispersion** -- a common feature of real count data that we shall address in later chapters with the negative binomial distribution.
 
-### 4.6.12 Epilepsy Seizure Counts
+### 4.6.11 Epilepsy Seizure Counts
 
 ```{r epilepsy-data}
-box::use(data.table[fread, .N])
+seizures <- data.table$fread(file.path(data_dir, "count/epilepsy_seizures.csv"))
 
-seizures <- fread(file.path(data_dir, "count/epilepsy_seizures.csv"))
-
-cat("Epilepsy seizure data:\n")
 str(seizures)
-cat("\nSummary of seizure counts (y column):\n")
 summary(seizures$y)
-cat("\nMean:", mean(seizures$y), "\n")
-cat("Variance:", var(seizures$y), "\n")
-cat("Variance / Mean:", var(seizures$y) / mean(seizures$y), "\n")
+c(mean = mean(seizures$y), var = var(seizures$y),
+  "var/mean" = var(seizures$y) / mean(seizures$y))
 ```
 
 ```{r epilepsy-fit, fig.cap="Distribution of epilepsy seizure counts per patient-period compared to a fitted Poisson model. The heavy right tail and large variance-to-mean ratio indicate substantial overdispersion -- the Poisson is too narrow."}
-box::use(ggplot2[...])
-box::use(data.table[data.table])
+box::use(ggplot2)
 
 lambda_hat <- mean(seizures$y)
 
@@ -504,7 +346,7 @@ obs_freq <- seizures[, .N, by = y][order(y)]
 obs_freq[, prop := N / sum(N)]
 
 k_range <- 0:max(seizures$y)
-theory <- data.table(y = k_range, theoretical = dpois(k_range, lambda_hat))
+theory <- data.table$data.table(y = k_range, theoretical = dpois(k_range, lambda_hat))
 
 comp <- merge(obs_freq, theory, by = "y", all = TRUE)
 comp[is.na(prop), prop := 0]
@@ -513,15 +355,15 @@ comp[is.na(prop), prop := 0]
 k_show <- min(40, max(seizures$y))
 comp_show <- comp[y <= k_show]
 
-ggplot(comp_show) +
-  geom_col(aes(x = y, y = prop), fill = "#009E73", alpha = 0.6, width = 0.8) +
-  geom_point(aes(x = y, y = theoretical), colour = "#D55E00", size = 2) +
-  labs(
+ggplot2$ggplot(comp_show) +
+  ggplot2$geom_col(ggplot2$aes(x = y, y = prop), fill = "#009E73", alpha = 0.6, width = 0.8) +
+  ggplot2$geom_point(ggplot2$aes(x = y, y = theoretical), colour = "#D55E00", size = 2) +
+  ggplot2$labs(
     x = "Number of seizures",
     y = "Proportion / Probability",
     title = sprintf("Observed seizures (bars) vs. Poisson(%.1f) model (orange)", lambda_hat)
   ) +
-  theme_minimal(base_size = 13)
+  ggplot2$theme_minimal(base_size = 13)
 ```
 
 In both datasets, the Poisson model captures the general shape but fails to account for the excess variability. This motivates more flexible count models (negative binomial, zero-inflated Poisson) that we will study in later chapters.
@@ -560,8 +402,8 @@ The discrete distributions we have studied are not isolated -- they form an inte
 ### 4.7.3 Family Comparison Plot
 
 ```{r family-comparison, fig.cap="All six discrete distributions plotted together for comparable parameter choices. Each distribution has a distinctive shape reflecting its underlying assumptions."}
-box::use(ggplot2[...])
-box::use(data.table[data.table, rbindlist])
+box::use(ggplot2)
+box::use(data.table)
 
 # Comparable parameters
 k_bern <- 0:1
@@ -571,18 +413,18 @@ k_negbin <- 3:25
 k_hyper <- 0:15
 k_pois <- 0:20
 
-family_data <- rbindlist(list(
-  data.table(k = k_bern, pmf = dbinom(k_bern, 1, 0.4),
+family_data <- data.table$rbindlist(list(
+  data.table$data.table(k = k_bern, pmf = dbinom(k_bern, 1, 0.4),
              dist = "Bernoulli(0.4)"),
-  data.table(k = k_binom, pmf = dbinom(k_binom, 20, 0.4),
+  data.table$data.table(k = k_binom, pmf = dbinom(k_binom, 20, 0.4),
              dist = "Binomial(20, 0.4)"),
-  data.table(k = k_geom, pmf = dgeom(k_geom - 1, 0.3),
+  data.table$data.table(k = k_geom, pmf = dgeom(k_geom - 1, 0.3),
              dist = "Geometric(0.3)"),
-  data.table(k = k_negbin, pmf = dnbinom(k_negbin - 3, size = 3, prob = 0.3),
+  data.table$data.table(k = k_negbin, pmf = dnbinom(k_negbin - 3, size = 3, prob = 0.3),
              dist = "NegBin(3, 0.3)"),
-  data.table(k = k_hyper, pmf = dhyper(k_hyper, m = 30, n = 70, k = 15),
+  data.table$data.table(k = k_hyper, pmf = dhyper(k_hyper, m = 30, n = 70, k = 15),
              dist = "Hypergeometric(100,30,15)"),
-  data.table(k = k_pois, pmf = dpois(k_pois, 8),
+  data.table$data.table(k = k_pois, pmf = dpois(k_pois, 8),
              dist = "Poisson(8)")
 ))
 
@@ -595,20 +437,20 @@ dist_colours <- c(
   "Poisson(8)" = "#56B4E9"
 )
 
-ggplot(family_data, aes(x = k, y = pmf, fill = dist)) +
-  geom_col(alpha = 0.8, width = 0.7) +
-  facet_wrap(~dist, scales = "free", ncol = 3) +
-  scale_fill_manual(values = dist_colours) +
-  labs(
+ggplot2$ggplot(family_data, ggplot2$aes(x = k, y = pmf, fill = dist)) +
+  ggplot2$geom_col(alpha = 0.8, width = 0.7) +
+  ggplot2$facet_wrap(~dist, scales = "free", ncol = 3) +
+  ggplot2$scale_fill_manual(values = dist_colours) +
+  ggplot2$labs(
     x = "k",
     y = "P(X = k)",
     title = "The family of discrete distributions"
   ) +
-  theme_minimal(base_size = 13) +
-  theme(
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(
     legend.position = "none",
-    strip.text = element_text(face = "bold"),
-    panel.grid.minor = element_blank()
+    strip.text = ggplot2$element_text(face = "bold"),
+    panel.grid.minor = ggplot2$element_blank()
   )
 ```
 
@@ -617,7 +459,6 @@ ggplot(family_data, aes(x = k, y = pmf, fill = dist)) +
 Let us build a utility function that, given a distribution name and parameters, returns a `data.table` with the PMF and CDF values.
 
 ```{r dist-utility}
-box::use(data.table[data.table])
 
 #' Compute PMF and CDF for a named discrete distribution
 #' @param dist character: one of "bernoulli", "binomial", "geometric",
@@ -653,19 +494,15 @@ discrete_dist <- function(dist, params, k_range = NULL) {
     poisson = dpois(k_range, params$lambda)
   )
 
-  data.table(
+  data.table$data.table(
     k = k_range,
     pmf = pmf,
     cdf = cumsum(pmf)
   )
 }
 
-# Examples
-cat("Binomial(10, 0.3):\n")
-print(discrete_dist("binomial", list(n = 10, p = 0.3)))
-
-cat("\nPoisson(4):\n")
-print(discrete_dist("poisson", list(lambda = 4)))
+discrete_dist("binomial", list(n = 10, p = 0.3))
+discrete_dist("poisson", list(lambda = 4))
 ```
 
 ---

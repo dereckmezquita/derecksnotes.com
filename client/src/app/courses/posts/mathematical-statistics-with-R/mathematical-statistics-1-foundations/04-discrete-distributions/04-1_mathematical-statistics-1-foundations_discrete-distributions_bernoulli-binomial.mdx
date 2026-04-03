@@ -114,19 +114,17 @@ set.seed(42)
 n_sim <- 10000
 bern_sims <- rbinom(n_sim, size = 1, prob = 0.3)
 
-cat("Theoretical E[X] = 0.3\n")
-cat("Simulated  E[X] =", mean(bern_sims), "\n\n")
-
-cat("Theoretical Var(X) = 0.3 * 0.7 =", 0.3 * 0.7, "\n")
-cat("Simulated  Var(X) =", var(bern_sims), "\n")
+data.frame(
+  quantity = c("E[X]", "Var(X)"),
+  theoretical = c(0.3, 0.3 * 0.7),
+  simulated = c(mean(bern_sims), var(bern_sims))
+)
 ```
 
 ```
-Theoretical E[X] = 0.3
-Simulated  E[X] = 0.3021 
-
-Theoretical Var(X) = 0.3 * 0.7 = 0.21 
-Simulated  Var(X) = 0.2108567 
+  quantity theoretical simulated
+1     E[X]        0.30 0.3021000
+2   Var(X)        0.21 0.2108567
 ```
 
 The agreement between theory and simulation is excellent, as we would expect with 10,000 trials.
@@ -277,11 +275,11 @@ p <- 0.3
 ours <- my_dbinom(k_vals, n, p)
 theirs <- dbinom(k_vals, n, p)
 
-cat("Maximum absolute difference:", max(abs(ours - theirs)), "\n")
+max(abs(ours - theirs))
 ```
 
 ```
-Maximum absolute difference: 1.665335e-16 
+[1] 1.665335e-16
 ```
 
 The difference is at the level of floating-point precision -- our implementation is correct.
@@ -319,37 +317,37 @@ The naming convention `d/p/q/r` + distribution name applies to every distributio
 
 
 ``` r
-box::use(ggplot2[...])
-box::use(data.table[data.table, rbindlist])
+box::use(ggplot2)
+box::use(data.table)
 
-params <- data.table(
+params <- data.table$data.table(
   n = c(10, 10, 10, 20, 20, 50),
   p = c(0.1, 0.5, 0.8, 0.3, 0.7, 0.3)
 )
 
-pmf_data <- rbindlist(lapply(seq_len(nrow(params)), function(i) {
+pmf_data <- data.table$rbindlist(lapply(seq_len(nrow(params)), function(i) {
   nn <- params$n[i]
   pp <- params$p[i]
   k <- 0:nn
-  data.table(
+  data.table$data.table(
     k = k,
     pmf = dbinom(k, nn, pp),
     label = sprintf("Bin(%d, %.1f)", nn, pp)
   )
 }))
 
-ggplot(pmf_data, aes(x = k, y = pmf)) +
-  geom_col(fill = "#0072B2", width = 0.7, alpha = 0.85) +
-  facet_wrap(~label, scales = "free", ncol = 3) +
-  labs(
+ggplot2$ggplot(pmf_data, ggplot2$aes(x = k, y = pmf)) +
+  ggplot2$geom_col(fill = "#0072B2", width = 0.7, alpha = 0.85) +
+  ggplot2$facet_wrap(~label, scales = "free", ncol = 3) +
+  ggplot2$labs(
     x = "k (number of successes)",
     y = "P(X = k)",
     title = "Binomial probability mass functions"
   ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    strip.text = element_text(face = "bold"),
-    panel.grid.minor = element_blank()
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(
+    strip.text = ggplot2$element_text(face = "bold"),
+    panel.grid.minor = ggplot2$element_blank()
   )
 ```
 
@@ -368,6 +366,8 @@ Key observations from the figure:
 Let us simulate 10,000 draws from $\text{Bin}(20, 0.35)$ and compare the observed frequencies to the theoretical PMF.
 
 
+
+
 ``` r
 set.seed(42)
 n <- 20
@@ -377,28 +377,28 @@ n_sim <- 10000
 sims <- rbinom(n_sim, size = n, prob = p)
 
 # Observed proportions
-obs <- data.table(k = sims)[, .(observed = .N / n_sim), by = k]
+obs <- data.table$data.table(k = sims)[, .(observed = .N / n_sim), by = k]
 
 # Theoretical PMF
-theory <- data.table(k = 0:n, theoretical = dbinom(0:n, n, p))
+theory <- data.table$data.table(k = 0:n, theoretical = dbinom(0:n, n, p))
 
 # Merge
 comparison <- merge(theory, obs, by = "k", all.x = TRUE)
 comparison[is.na(observed), observed := 0]
 
-ggplot(comparison) +
-  geom_col(aes(x = k, y = observed), fill = "#0072B2", alpha = 0.6, width = 0.7) +
-  geom_point(aes(x = k, y = theoretical), colour = "#D55E00", size = 3) +
-  geom_segment(
-    aes(x = k, xend = k, y = 0, yend = theoretical),
+ggplot2$ggplot(comparison) +
+  ggplot2$geom_col(ggplot2$aes(x = k, y = observed), fill = "#0072B2", alpha = 0.6, width = 0.7) +
+  ggplot2$geom_point(ggplot2$aes(x = k, y = theoretical), colour = "#D55E00", size = 3) +
+  ggplot2$geom_segment(
+    ggplot2$aes(x = k, xend = k, y = 0, yend = theoretical),
     colour = "#D55E00", linewidth = 0.5
   ) +
-  labs(
+  ggplot2$labs(
     x = "k (number of successes)",
     y = "Proportion / Probability",
     title = sprintf("Simulated (bars) vs. theoretical (orange) for Bin(%d, %.2f)", n, p)
   ) +
-  theme_minimal(base_size = 13)
+  ggplot2$theme_minimal(base_size = 13)
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/binom-simulation-1.png" alt="Simulated vs. theoretical binomial distribution. The histogram bars show the proportion of simulated values, while the orange points show the theoretical PMF. With 10,000 draws, the agreement is excellent.">
@@ -407,19 +407,17 @@ ggplot(comparison) +
 
 
 ``` r
-cat("Theoretical E[X] =", n * p, "\n")
-cat("Simulated   E[X] =", mean(sims), "\n\n")
-
-cat("Theoretical Var(X) =", n * p * (1 - p), "\n")
-cat("Simulated   Var(X) =", var(sims), "\n")
+data.frame(
+  quantity = c("E[X]", "Var(X)"),
+  theoretical = c(n * p, n * p * (1 - p)),
+  simulated = c(mean(sims), var(sims))
+)
 ```
 
 ```
-Theoretical E[X] = 7 
-Simulated   E[X] = 6.9918 
-
-Theoretical Var(X) = 4.55 
-Simulated   Var(X) = 4.636796 
+  quantity theoretical simulated
+1     E[X]        7.00  6.991800
+2   Var(X)        4.55  4.636796
 ```
 
 ### 4.2.13 A Real-World Example: Quality Control
@@ -435,20 +433,14 @@ Suppose a factory produces electronic components with a defect rate of 2%. An in
 n <- 100
 p <- 0.02
 
-# (a) P(X = 0)
-cat("P(X = 0) =", dbinom(0, n, p), "\n")
-
-# (b) P(X = 2)
-cat("P(X = 2) =", dbinom(2, n, p), "\n")
-
-# (c) P(X > 5) = 1 - P(X <= 5)
-cat("P(X > 5) =", 1 - pbinom(5, n, p), "\n")
+c("P(X = 0)" = dbinom(0, n, p),
+  "P(X = 2)" = dbinom(2, n, p),
+  "P(X > 5)" = 1 - pbinom(5, n, p))
 ```
 
 ```
-P(X = 0) = 0.1326196 
-P(X = 2) = 0.2734139 
-P(X > 5) = 0.01548364 
+  P(X = 0)   P(X = 2)   P(X > 5) 
+0.13261956 0.27341391 0.01548364 
 ```
 
 The probability of finding more than 5 defective components out of 100 is quite small (about 1.5%) -- which is reassuring. If an inspector *did* find 6 or more defects, this would be strong evidence that the true defect rate is higher than 2%.
@@ -467,18 +459,18 @@ n <- 20
 p <- 0.4
 k <- 0:n
 
-cdf_data <- data.table(k = k, cdf = pbinom(k, n, p))
+cdf_data <- data.table$data.table(k = k, cdf = pbinom(k, n, p))
 
-ggplot(cdf_data, aes(x = k, y = cdf)) +
-  geom_step(colour = "#0072B2", linewidth = 1) +
-  geom_point(colour = "#0072B2", size = 2.5) +
-  labs(
+ggplot2$ggplot(cdf_data, ggplot2$aes(x = k, y = cdf)) +
+  ggplot2$geom_step(colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_point(colour = "#0072B2", size = 2.5) +
+  ggplot2$labs(
     x = "k",
     y = "P(X <= k)",
     title = sprintf("CDF of Bin(%d, %.1f)", n, p)
   ) +
-  scale_y_continuous(limits = c(0, 1)) +
-  theme_minimal(base_size = 13)
+  ggplot2$scale_y_continuous(limits = c(0, 1)) +
+  ggplot2$theme_minimal(base_size = 13)
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/binom-cdf-1.png" alt="CDF of Bin(20, 0.4). The step function jumps at each integer, reflecting the discrete nature of the distribution.">

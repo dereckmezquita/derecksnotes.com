@@ -117,41 +117,46 @@ n <- 100000
 
 # Normal distribution: skewness = 0, kurtosis = 3
 x_norm <- rnorm(n)
-cat("--- Standard Normal ---\n")
-cat(sprintf("Skewness:        %.4f (theoretical: 0)\n", my_skewness(x_norm)))
-cat(sprintf("Kurtosis:        %.4f (theoretical: 3)\n", my_kurtosis(x_norm)))
-cat(sprintf("Excess kurtosis: %.4f (theoretical: 0)\n\n", my_kurtosis(x_norm) - 3))
+# Normal distribution: skewness = 0, kurtosis = 3
+data.frame(
+  distribution = c("Normal", "Normal", "Normal"),
+  measure = c("Skewness", "Kurtosis", "Excess kurtosis"),
+  simulated = round(c(my_skewness(x_norm), my_kurtosis(x_norm), my_kurtosis(x_norm) - 3), 4),
+  theoretical = c(0, 3, 0)
+)
 
 # Exponential distribution: skewness = 2, kurtosis = 9
 x_exp <- rexp(n, rate = 1)
-cat("--- Exponential(1) ---\n")
-cat(sprintf("Skewness:        %.4f (theoretical: 2)\n", my_skewness(x_exp)))
-cat(sprintf("Kurtosis:        %.4f (theoretical: 9)\n", my_kurtosis(x_exp)))
-cat(sprintf("Excess kurtosis: %.4f (theoretical: 6)\n\n", my_kurtosis(x_exp) - 3))
+data.frame(
+  distribution = c("Exp(1)", "Exp(1)", "Exp(1)"),
+  measure = c("Skewness", "Kurtosis", "Excess kurtosis"),
+  simulated = round(c(my_skewness(x_exp), my_kurtosis(x_exp), my_kurtosis(x_exp) - 3), 4),
+  theoretical = c(2, 9, 6)
+)
 
 # Uniform distribution: skewness = 0, kurtosis = 1.8
 x_unif <- runif(n)
-cat("--- Uniform(0,1) ---\n")
-cat(sprintf("Skewness:        %.4f (theoretical: 0)\n", my_skewness(x_unif)))
-cat(sprintf("Kurtosis:        %.4f (theoretical: 1.8)\n", my_kurtosis(x_unif)))
-cat(sprintf("Excess kurtosis: %.4f (theoretical: -1.2)\n", my_kurtosis(x_unif) - 3))
+data.frame(
+  distribution = c("Unif(0,1)", "Unif(0,1)", "Unif(0,1)"),
+  measure = c("Skewness", "Kurtosis", "Excess kurtosis"),
+  simulated = round(c(my_skewness(x_unif), my_kurtosis(x_unif), my_kurtosis(x_unif) - 3), 4),
+  theoretical = c(0, 1.8, -1.2)
+)
 ```
 
 ```
---- Standard Normal ---
-Skewness:        -0.0025 (theoretical: 0)
-Kurtosis:        2.9770 (theoretical: 3)
-Excess kurtosis: -0.0230 (theoretical: 0)
-
---- Exponential(1) ---
-Skewness:        2.0357 (theoretical: 2)
-Kurtosis:        9.0704 (theoretical: 9)
-Excess kurtosis: 6.0704 (theoretical: 6)
-
---- Uniform(0,1) ---
-Skewness:        -0.0073 (theoretical: 0)
-Kurtosis:        1.8038 (theoretical: 1.8)
-Excess kurtosis: -1.1962 (theoretical: -1.2)
+  distribution         measure simulated theoretical
+1       Normal        Skewness   -0.0025           0
+2       Normal        Kurtosis    2.9770           3
+3       Normal Excess kurtosis   -0.0230           0
+  distribution         measure simulated theoretical
+1       Exp(1)        Skewness    2.0357           2
+2       Exp(1)        Kurtosis    9.0704           9
+3       Exp(1) Excess kurtosis    6.0704           6
+  distribution         measure simulated theoretical
+1    Unif(0,1)        Skewness   -0.0073         0.0
+2    Unif(0,1)        Kurtosis    1.8038         1.8
+3    Unif(0,1) Excess kurtosis   -1.1962        -1.2
 ```
 
 ### Visualising Skewness and Kurtosis
@@ -159,14 +164,14 @@ Excess kurtosis: -1.1962 (theoretical: -1.2)
 
 ``` r
 set.seed(42)
-box::use(ggplot2[...])
+box::use(ggplot2)
 box::use(patchwork[...])
-box::use(data.table[data.table])
+box::use(data.table)
 
 # --- Skewness panel ---
 x_seq <- seq(-4, 8, length.out = 1000)
 
-df_skew <- data.table(
+df_skew <- data.table$data.table(
   x = rep(x_seq, 3),
   density = c(
     dnorm(x_seq, 0, 1),
@@ -181,18 +186,18 @@ df_skew <- data.table(
 neg_skew_density <- dgamma(-x_seq + 6, shape = 4, rate = 2)
 df_skew$density[(2 * length(x_seq) + 1):(3 * length(x_seq))] <- neg_skew_density
 
-p_skew <- ggplot(df_skew, aes(x = x, y = density, colour = type)) +
-  geom_line(linewidth = 1) +
-  scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
-  labs(x = "x", y = "Density", title = "Distributions with different skewness",
+p_skew <- ggplot2$ggplot(df_skew, ggplot2$aes(x = x, y = density, colour = type)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  ggplot2$labs(x = "x", y = "Density", title = "Distributions with different skewness",
     colour = NULL) +
-  theme_minimal(base_size = 13) +
-  theme(legend.position = "bottom")
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
 
 # --- Kurtosis panel ---
 x_seq2 <- seq(-6, 6, length.out = 1000)
 
-df_kurt <- data.table(
+df_kurt <- data.table$data.table(
   x = rep(x_seq2, 3),
   density = c(
     dnorm(x_seq2, 0, 1),
@@ -203,13 +208,13 @@ df_kurt <- data.table(
     "Uniform (platykurtic)"), each = length(x_seq2))
 )
 
-p_kurt <- ggplot(df_kurt, aes(x = x, y = density, colour = type)) +
-  geom_line(linewidth = 1) +
-  scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
-  labs(x = "x", y = "Density", title = "Distributions with different kurtosis",
+p_kurt <- ggplot2$ggplot(df_kurt, ggplot2$aes(x = x, y = density, colour = type)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  ggplot2$labs(x = "x", y = "Density", title = "Distributions with different kurtosis",
     colour = NULL) +
-  theme_minimal(base_size = 13) +
-  theme(legend.position = "bottom")
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "bottom")
 
 p_skew / p_kurt
 ```
@@ -389,31 +394,25 @@ This is the standard result: for a Binomial$(n, p)$ random variable, $E[X] = np$
 # Verify numerically for Binomial(10, 0.3)
 n <- 10; p <- 0.3
 
-# Theoretical
-cat(sprintf("Binomial(%d, %.1f):\n", n, p))
-cat(sprintf("  E[X]   = np = %.4f\n", n * p))
-cat(sprintf("  Var(X) = np(1-p) = %.4f\n", n * p * (1 - p)))
-
 # Via numerical differentiation of the MGF
 mgf_binom <- function(t) (1 - p + p * exp(t))^n
 
-# First derivative at 0 (numerical approximation)
 h <- 1e-6
 e_x_num <- (mgf_binom(h) - mgf_binom(-h)) / (2 * h)
-cat(sprintf("  E[X]   via MGF numerical derivative = %.4f\n", e_x_num))
-
-# Second derivative at 0
 e_x2_num <- (mgf_binom(h) - 2 * mgf_binom(0) + mgf_binom(-h)) / h^2
 var_num <- e_x2_num - e_x_num^2
-cat(sprintf("  Var(X) via MGF numerical derivative = %.4f\n", var_num))
+
+data.frame(
+  quantity = c("E[X]", "Var(X)"),
+  theoretical = round(c(n * p, n * p * (1 - p)), 4),
+  via_MGF = round(c(e_x_num, var_num), 4)
+)
 ```
 
 ```
-Binomial(10, 0.3):
-  E[X]   = np = 3.0000
-  Var(X) = np(1-p) = 2.1000
-  E[X]   via MGF numerical derivative = 3.0000
-  Var(X) via MGF numerical derivative = 2.0999
+  quantity theoretical via_MGF
+1     E[X]         3.0  3.0000
+2   Var(X)         2.1  2.0999
 ```
 
 ### Key Property: MGF of a Sum of Independent RVs
@@ -450,33 +449,33 @@ $$
 
 ``` r
 set.seed(42)
-box::use(ggplot2[...])
-box::use(data.table[data.table, rbindlist])
+box::use(ggplot2)
+box::use(data.table)
 
 # MGFs for Bernoulli with different p
 t_seq <- seq(-2, 2, length.out = 300)
 p_vals <- c(0.2, 0.5, 0.8)
 
 df_list <- lapply(p_vals, function(p) {
-  data.table(
+  data.table$data.table(
     t = t_seq,
     mgf = 1 - p + p * exp(t_seq),
     p = paste0("p = ", p)
   )
 })
-df_mgf <- rbindlist(df_list)
+df_mgf <- data.table$rbindlist(df_list)
 
-ggplot(df_mgf, aes(x = t, y = mgf, colour = p)) +
-  geom_line(linewidth = 1) +
-  scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
-  labs(
+ggplot2$ggplot(df_mgf, ggplot2$aes(x = t, y = mgf, colour = p)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73")) +
+  ggplot2$labs(
     x = "t",
     y = expression(M[X](t)),
     title = "MGF of Bernoulli(p) for different p",
     colour = NULL
   ) +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "bottom")
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "bottom")
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/mgf-numerical-1.png" alt="Moment generating functions for Bernoulli random variables with different success probabilities. Each curve is M(t) = 1 - p + p*exp(t).">
@@ -487,33 +486,33 @@ All curves pass through $M_X(0) = 1$ (since $E[e^{0 \cdot X}] = E[1] = 1$). The 
 
 
 ``` r
-box::use(ggplot2[...])
-box::use(data.table[data.table, rbindlist])
+box::use(ggplot2)
+box::use(data.table)
 
 t_seq <- seq(-1, 1, length.out = 300)
 n_vals <- c(1, 5, 10, 20)
 p <- 0.5
 
 df_list <- lapply(n_vals, function(n) {
-  data.table(
+  data.table$data.table(
     t = t_seq,
     mgf = (1 - p + p * exp(t_seq))^n,
     n = paste0("n = ", n)
   )
 })
-df_mgf <- rbindlist(df_list)
+df_mgf <- data.table$rbindlist(df_list)
 
-ggplot(df_mgf, aes(x = t, y = mgf, colour = n)) +
-  geom_line(linewidth = 1) +
-  scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73", "#CC79A7")) +
-  labs(
+ggplot2$ggplot(df_mgf, ggplot2$aes(x = t, y = mgf, colour = n)) +
+  ggplot2$geom_line(linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c("#0072B2", "#D55E00", "#009E73", "#CC79A7")) +
+  ggplot2$labs(
     x = "t",
     y = expression(M[X](t)),
     title = "MGF of Binomial(n, 0.5) for different n",
     colour = NULL
   ) +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "bottom")
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "bottom")
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/mgf-binomial-plot-1.png" alt="MGFs for Binomial(n, 0.5) random variables with different n. As n increases, the MGF grows more rapidly, reflecting the larger mean and wider distribution.">
@@ -537,22 +536,20 @@ samples <- rbinom(n_sim, size = n_binom, prob = p_binom)
 # Evaluate MGF at several values of t
 t_vals <- c(-1, -0.5, 0, 0.5, 1)
 
-cat("Binomial(10, 0.3) MGF — theoretical vs. simulated:\n")
-for (t in t_vals) {
-  theoretical <- (1 - p_binom + p_binom * exp(t))^n_binom
-  simulated <- mean(exp(t * samples))
-  cat(sprintf("  M(%.1f): theoretical = %.6f, simulated = %.6f, diff = %.6f\n",
-    t, theoretical, simulated, abs(theoretical - simulated)))
-}
+data.frame(
+  t = t_vals,
+  theoretical = vapply(t_vals, function(t) (1 - p_binom + p_binom * exp(t))^n_binom, numeric(1)),
+  simulated = vapply(t_vals, function(t) mean(exp(t * samples)), numeric(1))
+)
 ```
 
 ```
-Binomial(10, 0.3) MGF <U+2014> theoretical vs. simulated:
-  M(-1.0): theoretical = 0.122124, simulated = 0.122578, diff = 0.000454
-  M(-0.5): theoretical = 0.284764, simulated = 0.284887, diff = 0.000123
-  M(0.0): theoretical = 1.000000, simulated = 1.000000, diff = 0.000000
-  M(0.5): theoretical = 5.919495, simulated = 5.943944, diff = 0.024449
-  M(1.0): theoretical = 63.902100, simulated = 64.708984, diff = 0.806884
+     t theoretical  simulated
+1 -1.0   0.1221239  0.1225782
+2 -0.5   0.2847639  0.2848867
+3  0.0   1.0000000  1.0000000
+4  0.5   5.9194950  5.9439439
+5  1.0  63.9020996 64.7089836
 ```
 
 The simulated values are very close to the theoretical ones, confirming that $M_X(t) = E[e^{tX}]$ can be reliably estimated from data.

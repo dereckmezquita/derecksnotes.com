@@ -17,6 +17,8 @@ output:
 
 
 
+
+
 ## 1.5 Visualising Distributions
 
 Numbers summarise; pictures reveal. A well-chosen plot can instantly expose patterns that no table of summary statistics can convey -- multimodality, outliers, gaps, clusters, and asymmetry all leap out from a good visualisation. This section develops the core graphical toolkit for displaying the distribution of a single variable.
@@ -27,10 +29,10 @@ A **histogram** divides the range of data into contiguous intervals (called **bi
 
 
 ``` r
-ggplot(penguins[!is.na(flipper_length_mm)], aes(x = flipper_length_mm)) +
-  geom_histogram(bins = 20, fill = "steelblue", colour = "white") +
-  labs(x = "Flipper Length (mm)", y = "Count") +
-  theme_minimal(base_size = 14)
+ggplot2$ggplot(penguins[!is.na(flipper_length_mm)], ggplot2$aes(x = flipper_length_mm)) +
+  ggplot2$geom_histogram(bins = 20, fill = "steelblue", colour = "white") +
+  ggplot2$labs(x = "Flipper Length (mm)", y = "Count") +
+  ggplot2$theme_minimal(base_size = 14)
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/histogram-basic-1.png" alt="Histogram of penguin flipper length with 20 bins. The bimodal shape is clearly visible, reflecting the mix of smaller (Adelie, Chinstrap) and larger (Gentoo) species.">
@@ -43,22 +45,22 @@ The appearance of a histogram depends critically on the choice of **binwidth** (
 
 
 ``` r
-p1 <- ggplot(penguins[!is.na(flipper_length_mm)], aes(x = flipper_length_mm)) +
-  geom_histogram(bins = 5, fill = "steelblue", colour = "white") +
-  labs(x = "Flipper Length (mm)", y = "Count", title = "5 bins") +
-  theme_minimal(base_size = 12)
+p1 <- ggplot2$ggplot(penguins[!is.na(flipper_length_mm)], ggplot2$aes(x = flipper_length_mm)) +
+  ggplot2$geom_histogram(bins = 5, fill = "steelblue", colour = "white") +
+  ggplot2$labs(x = "Flipper Length (mm)", y = "Count", title = "5 bins") +
+  ggplot2$theme_minimal(base_size = 12)
 
-p2 <- ggplot(penguins[!is.na(flipper_length_mm)], aes(x = flipper_length_mm)) +
-  geom_histogram(bins = 15, fill = "steelblue", colour = "white") +
-  labs(x = "Flipper Length (mm)", y = "Count", title = "15 bins") +
-  theme_minimal(base_size = 12)
+p2 <- ggplot2$ggplot(penguins[!is.na(flipper_length_mm)], ggplot2$aes(x = flipper_length_mm)) +
+  ggplot2$geom_histogram(bins = 15, fill = "steelblue", colour = "white") +
+  ggplot2$labs(x = "Flipper Length (mm)", y = "Count", title = "15 bins") +
+  ggplot2$theme_minimal(base_size = 12)
 
-p3 <- ggplot(penguins[!is.na(flipper_length_mm)], aes(x = flipper_length_mm)) +
-  geom_histogram(bins = 60, fill = "steelblue", colour = "white") +
-  labs(x = "Flipper Length (mm)", y = "Count", title = "60 bins") +
-  theme_minimal(base_size = 12)
+p3 <- ggplot2$ggplot(penguins[!is.na(flipper_length_mm)], ggplot2$aes(x = flipper_length_mm)) +
+  ggplot2$geom_histogram(bins = 60, fill = "steelblue", colour = "white") +
+  ggplot2$labs(x = "Flipper Length (mm)", y = "Count", title = "60 bins") +
+  ggplot2$theme_minimal(base_size = 12)
 
-gridExtra::grid.arrange(p1, p2, p3, ncol = 3)
+grid.arrange(p1, p2, p3, ncol = 3)
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/histogram-binwidth-1.png" alt="The same data (penguin flipper length) shown with three different binwidths. With 5 bins (left), we lose the bimodal structure. With 15 bins (centre), the two modes are clear. With 60 bins (right), the picture becomes noisy. Choosing a good binwidth is a balance between smoothness and fidelity.">
@@ -77,16 +79,16 @@ $$\hat{f}(x) = \frac{1}{nh}\sum_{i=1}^{n}K\!\left(\frac{x - x_i}{h}\right)$$
 
 where $K$ is a kernel function (typically a Gaussian bell curve), $h$ is the **bandwidth** (a smoothing parameter analogous to the binwidth in a histogram), and $n$ is the sample size. The bandwidth $h$ controls the trade-off between smoothness and fidelity: a small $h$ produces a wiggly curve; a large $h$ produces an overly smooth one.
 
-For our purposes, the details of kernel selection and bandwidth optimisation are not critical -- R's `density()` function and ggplot2's `geom_density()` use sensible defaults. What matters is the interpretation: the area under the density curve between two values $a$ and $b$ approximates the proportion of observations falling in $[a, b]$.
+For our purposes, the details of kernel selection and bandwidth optimisation are not critical -- R's `density()` function and ggplot2's `ggplot2$geom_density()` use sensible defaults. What matters is the interpretation: the area under the density curve between two values $a$ and $b$ approximates the proportion of observations falling in $[a, b]$.
 
 
 ``` r
-ggplot(penguins[!is.na(body_mass_g)], aes(x = body_mass_g, fill = species)) +
-  geom_density(alpha = 0.5, colour = "grey30") +
-  scale_fill_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
-  labs(x = "Body Mass (g)", y = "Density", fill = "Species") +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "top")
+ggplot2$ggplot(penguins[!is.na(body_mass_g)], ggplot2$aes(x = body_mass_g, fill = species)) +
+  ggplot2$geom_density(alpha = 0.5, colour = "grey30") +
+  ggplot2$scale_fill_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  ggplot2$labs(x = "Body Mass (g)", y = "Density", fill = "Species") +
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "top")
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/density-plot-1.png" alt="Kernel density estimates of penguin body mass by species. The three species have distinct mass distributions, with Gentoo penguins being substantially heavier. Density plots make it easy to compare distribution shapes across groups.">
@@ -107,12 +109,12 @@ The factor 1.5 is a convention, not a law. For a normal distribution, approximat
 
 
 ``` r
-ggplot(penguins[!is.na(flipper_length_mm)], aes(x = species, y = flipper_length_mm, fill = species)) +
-  geom_boxplot(width = 0.5, outlier.shape = 21, outlier.size = 2) +
-  scale_fill_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
-  labs(x = "Species", y = "Flipper Length (mm)") +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "none")
+ggplot2$ggplot(penguins[!is.na(flipper_length_mm)], ggplot2$aes(x = species, y = flipper_length_mm, fill = species)) +
+  ggplot2$geom_boxplot(width = 0.5, outlier.shape = 21, outlier.size = 2) +
+  ggplot2$scale_fill_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  ggplot2$labs(x = "Species", y = "Flipper Length (mm)") +
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "none")
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/boxplot-1.png" alt="Boxplots of penguin flipper length by species. The boxes show the IQR, the thick line is the median, whiskers extend to the most extreme non-outlier points, and individual dots mark outliers beyond the fences.">
@@ -127,13 +129,13 @@ A **violin plot** combines the information of a boxplot with a kernel density es
 
 
 ``` r
-ggplot(penguins[!is.na(body_mass_g)], aes(x = species, y = body_mass_g, fill = species)) +
-  geom_violin(alpha = 0.7, colour = "grey30") +
-  geom_boxplot(width = 0.15, fill = "white", outlier.shape = NA) +
-  scale_fill_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
-  labs(x = "Species", y = "Body Mass (g)") +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "none")
+ggplot2$ggplot(penguins[!is.na(body_mass_g)], ggplot2$aes(x = species, y = body_mass_g, fill = species)) +
+  ggplot2$geom_violin(alpha = 0.7, colour = "grey30") +
+  ggplot2$geom_boxplot(width = 0.15, fill = "white", outlier.shape = NA) +
+  ggplot2$scale_fill_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  ggplot2$labs(x = "Species", y = "Body Mass (g)") +
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "none")
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/violin-plot-1.png" alt="Violin plots of penguin body mass by species, with embedded boxplots. Violin plots reveal distributional features (bimodality, skewness) that boxplots hide. Note the slight bimodality within Adelie and Gentoo, likely reflecting sex differences.">
@@ -193,16 +195,16 @@ Built-in ecdf at 200: 0.5672515
 
 
 ``` r
-ggplot(penguins[!is.na(flipper_length_mm)], aes(x = flipper_length_mm, colour = species)) +
-  stat_ecdf(linewidth = 0.9) +
-  scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey50") +
-  annotate("text", x = 170, y = 0.52, label = "Median (50th percentile)",
+ggplot2$ggplot(penguins[!is.na(flipper_length_mm)], ggplot2$aes(x = flipper_length_mm, colour = species)) +
+  ggplot2$stat_ecdf(linewidth = 0.9) +
+  ggplot2$scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  ggplot2$geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey50") +
+  ggplot2$annotate("text", x = 170, y = 0.52, label = "Median (50th percentile)",
            colour = "grey50", size = 4, hjust = 0) +
-  labs(x = "Flipper Length (mm)", y = "Cumulative Proportion",
+  ggplot2$labs(x = "Flipper Length (mm)", y = "Cumulative Proportion",
        colour = "Species") +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "top")
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "top")
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/ecdf-plot-1.png" alt="Empirical CDFs of penguin flipper length by species. The horizontal distance between curves at any proportion shows the difference in quantiles. The vertical distance at any flipper length shows the difference in proportions. Gentoo penguins&#39; curve is shifted to the right, confirming their larger flippers.">
@@ -223,14 +225,14 @@ A **scatterplot** displays pairs of observations $(x_i, y_i)$ as points in a two
 
 
 ``` r
-ggplot(penguins[!is.na(bill_length_mm) & !is.na(bill_depth_mm)],
-       aes(x = bill_length_mm, y = bill_depth_mm)) +
-  geom_point(aes(colour = species, shape = species), size = 2.5, alpha = 0.7) +
-  scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
-  labs(x = "Bill Length (mm)", y = "Bill Depth (mm)",
+ggplot2$ggplot(penguins[!is.na(bill_length_mm) & !is.na(bill_depth_mm)],
+       ggplot2$aes(x = bill_length_mm, y = bill_depth_mm)) +
+  ggplot2$geom_point(ggplot2$aes(colour = species, shape = species), size = 2.5, alpha = 0.7) +
+  ggplot2$scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  ggplot2$labs(x = "Bill Length (mm)", y = "Bill Depth (mm)",
        colour = "Species", shape = "Species") +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "top")
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "top")
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/scatterplot-basic-1.png" alt="Scatterplot of penguin bill length versus bill depth, coloured by species. The overall cloud appears to show a negative trend, but within each species, the trend is positive. This is Simpson&#39;s paradox.">
@@ -333,29 +335,29 @@ Within every species, the correlation is positive (typically $r \approx 0.6$--$0
 
 
 ``` r
-p_overall <- ggplot(penguins_complete,
-                    aes(x = bill_length_mm, y = bill_depth_mm)) +
-  geom_point(colour = "grey50", alpha = 0.5, size = 2) +
-  geom_smooth(method = "lm", se = FALSE, colour = "black",
+p_overall <- ggplot2$ggplot(penguins_complete,
+                    ggplot2$aes(x = bill_length_mm, y = bill_depth_mm)) +
+  ggplot2$geom_point(colour = "grey50", alpha = 0.5, size = 2) +
+  ggplot2$geom_smooth(method = "lm", se = FALSE, colour = "black",
               linetype = "dashed", linewidth = 1) +
-  labs(x = "Bill Length (mm)", y = "Bill Depth (mm)",
+  ggplot2$labs(x = "Bill Length (mm)", y = "Bill Depth (mm)",
        title = "Overall (pooled)") +
-  annotate("text", x = 55, y = 21,
+  ggplot2$annotate("text", x = 55, y = 21,
            label = paste0("r = ", round(cor(penguins_complete$bill_length_mm,
                                             penguins_complete$bill_depth_mm), 3)),
            size = 5) +
-  theme_minimal(base_size = 13)
+  ggplot2$theme_minimal(base_size = 13)
 
-p_species <- ggplot(penguins_complete,
-                    aes(x = bill_length_mm, y = bill_depth_mm,
+p_species <- ggplot2$ggplot(penguins_complete,
+                    ggplot2$aes(x = bill_length_mm, y = bill_depth_mm,
                         colour = species, fill = species)) +
-  geom_point(alpha = 0.5, size = 2) +
-  geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
-  scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
-  labs(x = "Bill Length (mm)", y = "Bill Depth (mm)",
+  ggplot2$geom_point(alpha = 0.5, size = 2) +
+  ggplot2$geom_smooth(method = "lm", se = FALSE, linewidth = 1) +
+  ggplot2$scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  ggplot2$labs(x = "Bill Length (mm)", y = "Bill Depth (mm)",
        title = "By species", colour = "Species") +
-  theme_minimal(base_size = 13) +
-  theme(legend.position = "top")
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(legend.position = "top")
 
 gridExtra::grid.arrange(p_overall, p_species, ncol = 2)
 ```
@@ -379,15 +381,15 @@ One of the most effective strategies for revealing structure in grouped data is 
 
 
 ``` r
-ggplot(penguins_complete,
-       aes(x = bill_length_mm, y = bill_depth_mm)) +
-  geom_point(aes(colour = species), alpha = 0.6, size = 2) +
-  geom_smooth(method = "lm", se = TRUE, colour = "black", linewidth = 0.8) +
-  scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
-  facet_wrap(~species, scales = "free") +
-  labs(x = "Bill Length (mm)", y = "Bill Depth (mm)") +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "none")
+ggplot2$ggplot(penguins_complete,
+       ggplot2$aes(x = bill_length_mm, y = bill_depth_mm)) +
+  ggplot2$geom_point(ggplot2$aes(colour = species), alpha = 0.6, size = 2) +
+  ggplot2$geom_smooth(method = "lm", se = TRUE, colour = "black", linewidth = 0.8) +
+  ggplot2$scale_colour_manual(values = c(Adelie = "#FF6F00", Chinstrap = "#C51B7D", Gentoo = "#1B7837")) +
+  ggplot2$facet_wrap(~species, scales = "free") +
+  ggplot2$labs(x = "Bill Length (mm)", y = "Bill Depth (mm)") +
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "none")
 ```
 
 ```
@@ -445,11 +447,11 @@ dt_panels <- data.table::rbindlist(list(
     panel = paste0("Sinusoidal (r = ", round(cor(x4, y4), 3), ")"))
 ))
 
-ggplot(dt_panels, aes(x = x, y = y)) +
-  geom_point(alpha = 0.5, size = 1.5, colour = "steelblue") +
-  facet_wrap(~panel, scales = "free", ncol = 2) +
-  labs(x = "x", y = "y") +
-  theme_minimal(base_size = 13)
+ggplot2$ggplot(dt_panels, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_point(alpha = 0.5, size = 1.5, colour = "steelblue") +
+  ggplot2$facet_wrap(~panel, scales = "free", ncol = 2) +
+  ggplot2$labs(x = "x", y = "y") +
+  ggplot2$theme_minimal(base_size = 13)
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/cor-limitations-1.png" alt="Four datasets with the same Pearson correlation (r approximately 0) but very different relationships. Top-left: no relationship. Top-right: perfect quadratic relationship. Bottom-left: two clusters. Bottom-right: a perfect nonlinear (sinusoidal) relationship. Pearson&#39;s r misses all of these.">
@@ -514,12 +516,12 @@ When presenting visualisations to non-statisticians:
 
 | Plot Type | Shows | When to Use | Key ggplot2 Layer |
 |-----------|-------|-------------|-------------------|
-| Histogram | Distribution of one variable | First look at any numerical variable | `geom_histogram()` |
-| Density plot | Smoothed distribution | Comparing groups; continuous data | `geom_density()` |
-| Boxplot | Five-number summary + outliers | Comparing groups; detecting outliers | `geom_boxplot()` |
-| Violin plot | Full density + summary | When shape matters more than summary stats | `geom_violin()` |
-| ECDF | Cumulative distribution | Precise quantile reading; goodness of fit | `stat_ecdf()` |
-| Scatterplot | Relationship between two variables | Bivariate numerical data | `geom_point()` |
+| Histogram | Distribution of one variable | First look at any numerical variable | `ggplot2$geom_histogram()` |
+| Density plot | Smoothed distribution | Comparing groups; continuous data | `ggplot2$geom_density()` |
+| Boxplot | Five-number summary + outliers | Comparing groups; detecting outliers | `ggplot2$geom_boxplot()` |
+| Violin plot | Full density + summary | When shape matters more than summary stats | `ggplot2$geom_violin()` |
+| ECDF | Cumulative distribution | Precise quantile reading; goodness of fit | `ggplot2$stat_ecdf()` |
+| Scatterplot | Relationship between two variables | Bivariate numerical data | `ggplot2$geom_point()` |
 
 **Key R functions:**
 

@@ -25,12 +25,14 @@ We work with two real datasets throughout this chapter: the **Palmer Penguins** 
 
 
 ``` r
-box::use(data.table[fread, .N, .SD])
+box::use(data.table)
 
 data_dir <- "../../../data"
-penguins <- fread(file.path(data_dir, "primary/penguins.csv"))
-nhanes <- fread(file.path(data_dir, "primary/nhanes.csv"))
+penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
 ```
+
+
 
 ---
 
@@ -51,26 +53,20 @@ Let us examine some categorical variables in the penguins dataset:
 
 ``` r
 # Species is nominal -- three categories with no inherent ordering
-cat("Species values:\n")
 unique(penguins$species)
 
-cat("\nIsland values:\n")
 unique(penguins$island)
 
-cat("\nSex values:\n")
 unique(penguins$sex)
 ```
 
 ```
-Species values:
 [1] "Adelie"    "Gentoo"    "Chinstrap"
-
-Island values:
 [1] "Torgersen" "Biscoe"    "Dream"    
-
-Sex values:
 [1] "male"   "female" ""      
 ```
+
+The output shows the distinct values for each categorical variable: three species (Adelie, Gentoo, Chinstrap), three islands (Torgersen, Biscoe, Dream), and two sexes (male, female) plus missing values.
 
 We can count observations within each category using `data.table`:
 
@@ -138,18 +134,20 @@ Classes 'data.table' and 'data.frame':	344 obs. of  8 variables:
 
 ``` r
 # R's internal type representations
-cat("bill_length_mm type:", typeof(penguins$bill_length_mm), "\n")
-cat("bill_length_mm class:", class(penguins$bill_length_mm), "\n")
-cat("body_mass_g type:", typeof(penguins$body_mass_g), "\n")
-cat("body_mass_g class:", class(penguins$body_mass_g), "\n")
+typeof(penguins$bill_length_mm)
+class(penguins$bill_length_mm)
+typeof(penguins$body_mass_g)
+class(penguins$body_mass_g)
 ```
 
 ```
-bill_length_mm type: double 
-bill_length_mm class: numeric 
-body_mass_g type: integer 
-body_mass_g class: integer 
+[1] "double"
+[1] "numeric"
+[1] "integer"
+[1] "integer"
 ```
+
+The `bill_length_mm` column is stored as `double` (double-precision floating point) and has class `numeric`. The `body_mass_g` column is stored as `integer`.
 
 R stores numbers internally as either `integer` or `double` (double-precision floating point). The `class()` function tells you how R treats the variable; the `typeof()` function tells you how it is stored in memory. For statistical purposes, what matters most is whether the variable is conceptually discrete or continuous.
 
@@ -218,15 +216,15 @@ my_mean <- function(x) {
 }
 
 # Test on penguin body mass
-cat("Loop version:", my_mean_loop(penguins$body_mass_g), "\n")
-cat("Vectorised version:", my_mean(penguins$body_mass_g), "\n")
-cat("Built-in mean():", mean(penguins$body_mass_g, na.rm = TRUE), "\n")
+my_mean_loop(penguins$body_mass_g)
+my_mean(penguins$body_mass_g)
+mean(penguins$body_mass_g, na.rm = TRUE)
 ```
 
 ```
-Loop version: 4201.754 
-Vectorised version: 4201.754 
-Built-in mean(): 4201.754 
+[1] 4201.754
+[1] 4201.754
+[1] 4201.754
 ```
 
 All three return the same result. The vectorised version is preferred in R because it is both more concise and faster (R's `sum()` is implemented in C).
@@ -239,23 +237,23 @@ Let us see this effect with real data. The NHANES dataset contains household inc
 
 
 ``` r
-box::use(ggplot2[...])
+box::use(ggplot2)
 
 # BMI data from NHANES -- right-skewed
 bmi <- nhanes$BMI[!is.na(nhanes$BMI)]
 
-cat("Mean BMI:", my_mean(bmi), "\n")
-cat("Median BMI:", median(bmi), "\n")
-cat("Difference:", my_mean(bmi) - median(bmi), "\n")
+my_mean(bmi)
+median(bmi)
+my_mean(bmi) - median(bmi)
 ```
 
 ```
-Mean BMI: 26.66014 
-Median BMI: 25.98 
-Difference: 0.680136 
+[1] 26.66014
+[1] 25.98
+[1] 0.680136
 ```
 
-The mean is slightly larger than the median, which is characteristic of right-skewed data. The long right tail (very high BMI values) pulls the mean upward.
+The mean BMI is slightly larger than the median, which is characteristic of right-skewed data. The long right tail (very high BMI values) pulls the mean upward.
 
 ### 1.2.2 The Median
 
@@ -291,13 +289,13 @@ my_median <- function(x) {
 }
 
 # Test on penguin flipper length
-cat("Our median:", my_median(penguins$flipper_length_mm), "\n")
-cat("Built-in median():", median(penguins$flipper_length_mm, na.rm = TRUE), "\n")
+my_median(penguins$flipper_length_mm)
+median(penguins$flipper_length_mm, na.rm = TRUE)
 ```
 
 ```
-Our median: 197 
-Built-in median(): 197 
+[1] 197
+[1] 197
 ```
 
 #### Mean vs. median: a diagnostic
@@ -336,15 +334,15 @@ my_mode <- function(x) {
 }
 
 # Mode of species (categorical)
-cat("Modal species:", my_mode(penguins$species), "\n")
+my_mode(penguins$species)
 
 # Mode of body mass (discrete-ish, rounded to nearest gram)
-cat("Modal body mass:", my_mode(penguins$body_mass_g), "g\n")
+my_mode(penguins$body_mass_g)
 ```
 
 ```
-Modal species: Adelie 
-Modal body mass: 3800 g
+[1] "Adelie"
+[1] 3800
 ```
 
 Note that R does not provide a built-in function for the statistical mode. The base R function `mode()` returns the *storage mode* of an object (e.g., "numeric", "character") -- a completely different concept. This is a common source of confusion for beginners.
@@ -355,8 +353,6 @@ Let us visualise all three measures of central tendency on two different distrib
 
 
 ``` r
-box::use(ggplot2[...])
-
 # Symmetric-ish: penguin flipper length
 fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
 fl_mean <- my_mean(fl)
@@ -375,31 +371,31 @@ bmi_dens <- density(bmi)
 bmi_mode <- bmi_dens$x[which.max(bmi_dens$y)]
 
 # Build combined data for faceted plot
-dt_fl <- data.table::data.table(value = fl, dataset = "Penguin Flipper Length (mm)")
-dt_bmi <- data.table::data.table(value = bmi, dataset = "NHANES BMI")
-dt_combined <- data.table::rbindlist(list(dt_fl, dt_bmi))
+dt_fl <- data.table$data.table(value = fl, dataset = "Penguin Flipper Length (mm)")
+dt_bmi <- data.table$data.table(value = bmi, dataset = "NHANES BMI")
+dt_combined <- data.table$rbindlist(list(dt_fl, dt_bmi))
 
 # Summary lines
-summary_lines <- data.table::data.table(
+summary_lines <- data.table$data.table(
   dataset = rep(c("Penguin Flipper Length (mm)", "NHANES BMI"), each = 3),
   measure = rep(c("Mean", "Median", "Mode"), 2),
   value = c(fl_mean, fl_median, fl_mode, bmi_mean, bmi_median, bmi_mode)
 )
 
-ggplot(dt_combined, aes(x = value)) +
-  geom_histogram(aes(y = after_stat(density)), bins = 35,
+ggplot2$ggplot(dt_combined, ggplot2$aes(x = value)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)), bins = 35,
                  fill = "grey80", colour = "grey50") +
-  geom_density(linewidth = 0.8, colour = "black") +
-  geom_vline(data = summary_lines,
-             aes(xintercept = value, colour = measure, linetype = measure),
+  ggplot2$geom_density(linewidth = 0.8, colour = "black") +
+  ggplot2$geom_vline(data = summary_lines,
+             ggplot2$aes(xintercept = value, colour = measure, linetype = measure),
              linewidth = 1) +
-  scale_colour_manual(values = c(Mean = "#E41A1C", Median = "#377EB8", Mode = "#4DAF4A")) +
-  scale_linetype_manual(values = c(Mean = "solid", Median = "dashed", Mode = "dotted")) +
-  facet_wrap(~dataset, scales = "free", ncol = 1) +
-  labs(x = "Value", y = "Density",
+  ggplot2$scale_colour_manual(values = c(Mean = "#E41A1C", Median = "#377EB8", Mode = "#4DAF4A")) +
+  ggplot2$scale_linetype_manual(values = c(Mean = "solid", Median = "dashed", Mode = "dotted")) +
+  ggplot2$facet_wrap(~dataset, scales = "free", ncol = 1) +
+  ggplot2$labs(x = "Value", y = "Density",
        colour = "Measure", linetype = "Measure") +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "top")
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "top")
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/compare-central-tendency-1.png" alt="Comparing mean, median, and mode on symmetric (penguin flipper length) and right-skewed (NHANES BMI) distributions. On symmetric data, all three measures nearly coincide. On skewed data, they separate, with the mean pulled toward the tail.">
@@ -434,8 +430,8 @@ species_means <- penguins[!is.na(body_mass_g), .(
 print(species_means)
 
 # Weighted mean (weighted by sample size) should equal the overall mean
-cat("\nWeighted mean:", my_weighted_mean(species_means$mean_mass, species_means$n), "\n")
-cat("Overall mean:", mean(penguins$body_mass_g, na.rm = TRUE), "\n")
+my_weighted_mean(species_means$mean_mass, species_means$n)
+mean(penguins$body_mass_g, na.rm = TRUE)
 ```
 
 ```
@@ -444,9 +440,8 @@ cat("Overall mean:", mean(penguins$body_mass_g, na.rm = TRUE), "\n")
 1:    Adelie  3700.662   151
 2:    Gentoo  5076.016   123
 3: Chinstrap  3733.088    68
-
-Weighted mean: 4201.754 
-Overall mean: 4201.754 
+[1] 4201.754
+[1] 4201.754
 ```
 
 The weighted mean of group means, weighted by group sizes, equals the overall mean. This seemingly obvious fact is actually quite important -- it fails when groups have different variances and we use different weighting schemes, a topic we revisit in Chapter 18 (Analysis of Variance).
@@ -472,21 +467,26 @@ my_trimmed_mean <- function(x, trim = 0.1) {
 
 # Compare trimming fractions on BMI
 bmi <- nhanes$BMI[!is.na(nhanes$BMI)]
-cat("0% trimmed (ordinary mean):", my_trimmed_mean(bmi, 0.00), "\n")
-cat("5% trimmed:", my_trimmed_mean(bmi, 0.05), "\n")
-cat("10% trimmed:", my_trimmed_mean(bmi, 0.10), "\n")
-cat("25% trimmed:", my_trimmed_mean(bmi, 0.25), "\n")
-cat("50% trimmed (= median):", my_trimmed_mean(bmi, 0.50), "\n")
-cat("Built-in 10% trimmed:", mean(bmi, trim = 0.10), "\n")
+
+trims <- c(0.00, 0.05, 0.10, 0.25, 0.50)
+data.table$data.table(
+  trim_fraction = trims,
+  trimmed_mean = vapply(trims, function(t) my_trimmed_mean(bmi, t), numeric(1))
+)
+
+# Verify against built-in
+mean(bmi, trim = 0.10)
 ```
 
 ```
-0% trimmed (ordinary mean): 26.66014 
-5% trimmed: 26.28988 
-10% trimmed: 26.17938 
-25% trimmed: 26.06726 
-50% trimmed (= median): 25.98 
-Built-in 10% trimmed: 26.17938 
+   trim_fraction trimmed_mean
+           <num>        <num>
+1:          0.00     26.66014
+2:          0.05     26.28988
+3:          0.10     26.17938
+4:          0.25     26.06726
+5:          0.50     25.98000
+[1] 26.17938
 ```
 
 As we trim more, the result moves from the mean toward the median. Trimmed means are **robust** -- they are less affected by outliers than the ordinary mean. We shall formalise the concept of robustness in Chapter 13 (Nonparametric Methods).

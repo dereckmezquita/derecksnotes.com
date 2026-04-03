@@ -61,28 +61,23 @@ my_expected_value <- function(values, probs) {
 }
 
 # Expected value of a fair die
-die_ev <- my_expected_value(1:6, rep(1/6, 6))
-cat(sprintf("E[X] for a fair die = %.4f\n", die_ev))
+my_expected_value(1:6, rep(1/6, 6))
 
 # Expected value of number of heads in 3 coin flips
-heads_ev <- my_expected_value(0:3, c(1/8, 3/8, 3/8, 1/8))
-cat(sprintf("E[X] for heads in 3 flips = %.4f\n", heads_ev))
+my_expected_value(0:3, c(1/8, 3/8, 3/8, 1/8))
 
-# Expected value using the continuous definition
 # E[X] for Uniform(0, 1): should be 0.5
-ev_uniform <- integrate(function(x) x * dunif(x), lower = 0, upper = 1)
-cat(sprintf("E[X] for Uniform(0,1) = %.4f\n", ev_uniform$value))
+integrate(function(x) x * dunif(x), lower = 0, upper = 1)
 
 # E[X] for Exponential(rate = 2): should be 1/2 = 0.5
-ev_exp <- integrate(function(x) x * dexp(x, rate = 2), lower = 0, upper = Inf)
-cat(sprintf("E[X] for Exponential(rate=2) = %.4f\n", ev_exp$value))
+integrate(function(x) x * dexp(x, rate = 2), lower = 0, upper = Inf)
 ```
 
 ```
-E[X] for a fair die = 3.5000
-E[X] for heads in 3 flips = 1.5000
-E[X] for Uniform(0,1) = 0.5000
-E[X] for Exponential(rate=2) = 0.5000
+[1] 3.5
+[1] 1.5
+0.5 with absolute error < 5.6e-15
+0.5 with absolute error < 8.6e-06
 ```
 
 ### Simulation: Convergence of the Running Mean
@@ -92,7 +87,7 @@ The **Law of Large Numbers** (which we shall prove rigorously in Chapter 7) guar
 
 ``` r
 set.seed(42)
-box::use(ggplot2[...])
+box::use(ggplot2)
 
 n <- 5000
 rolls <- sample(1:6, size = n, replace = TRUE)
@@ -100,17 +95,17 @@ running_mean <- cumsum(rolls) / seq_len(n)
 
 df <- data.frame(n = seq_len(n), running_mean = running_mean)
 
-ggplot(df, aes(x = n, y = running_mean)) +
-  geom_line(colour = "#0072B2", linewidth = 0.4) +
-  geom_hline(yintercept = 3.5, linetype = "dashed", colour = "red",
+ggplot2$ggplot(df, ggplot2$aes(x = n, y = running_mean)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 0.4) +
+  ggplot2$geom_hline(yintercept = 3.5, linetype = "dashed", colour = "red",
     linewidth = 0.8) +
-  scale_x_log10() +
-  labs(
+  ggplot2$scale_x_log10() +
+  ggplot2$labs(
     x = "Number of rolls (log scale)",
     y = "Running mean",
     title = "Running mean of die rolls converging to E[X] = 3.5"
   ) +
-  theme_minimal(base_size = 14)
+  ggplot2$theme_minimal(base_size = 14)
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/running-mean-convergence-1.png" alt="The running mean of simulated die rolls converges to E[X] = 3.5 (dashed line) as the number of rolls increases. The convergence is not monotone &lt;U+2014&gt; it oscillates around the target but the oscillations shrink.">
@@ -183,20 +178,19 @@ n <- 100000
 x <- rnorm(n, mean = 3, sd = 1)
 y <- x + rnorm(n, mean = 0, sd = 0.5)  # Y depends on X!
 
-cat(sprintf("E[X] (simulated)     = %.4f\n", mean(x)))
-cat(sprintf("E[Y] (simulated)     = %.4f\n", mean(y)))
-cat(sprintf("E[X] + E[Y]         = %.4f\n", mean(x) + mean(y)))
-cat(sprintf("E[X + Y] (simulated) = %.4f\n", mean(x + y)))
-cat(sprintf("\nCorrelation(X, Y)    = %.4f  (strongly correlated!)\n", cor(x, y)))
+mean(x)              # E[X]
+mean(y)              # E[Y]
+mean(x) + mean(y)    # E[X] + E[Y]
+mean(x + y)          # E[X + Y] -- should match the line above
+cor(x, y)            # strongly correlated!
 ```
 
 ```
-E[X] (simulated)     = 2.9959
-E[Y] (simulated)     = 2.9951
-E[X] + E[Y]         = 5.9910
-E[X + Y] (simulated) = 5.9910
-
-Correlation(X, Y)    = 0.8943  (strongly correlated!)
+[1] 2.995874
+[1] 2.995129
+[1] 5.991003
+[1] 5.991003
+[1] 0.8943382
 ```
 
 Despite the strong correlation, $E[X + Y]$ equals $E[X] + E[Y]$ to within simulation noise. Independence is irrelevant for this result.
@@ -241,30 +235,26 @@ In the last step, we used the fact that as $y$ ranges over all values of $g$ and
 
 ``` r
 # LOTUS example: E[X^2] for a fair die
-# Direct: compute using the PMF of X
 die_vals <- 1:6
 die_probs <- rep(1/6, 6)
 
 # Using LOTUS: E[X^2] = sum(x^2 * p(x))
-e_x_squared <- sum(die_vals^2 * die_probs)
-cat(sprintf("E[X^2] via LOTUS = %.4f\n", e_x_squared))
+sum(die_vals^2 * die_probs)
 
 # Verify by simulation
 set.seed(42)
 sim_vals <- sample(1:6, size = 100000, replace = TRUE)
-cat(sprintf("E[X^2] via simulation = %.4f\n", mean(sim_vals^2)))
+mean(sim_vals^2)
 
 # LOTUS for a continuous RV: E[X^2] for Standard Normal
 # Theoretical: E[X^2] = Var(X) + (E[X])^2 = 1 + 0 = 1
-e_x2_norm <- integrate(function(x) x^2 * dnorm(x), lower = -Inf, upper = Inf)
-cat(sprintf("\nE[X^2] for N(0,1) via LOTUS = %.4f (exact: 1)\n", e_x2_norm$value))
+integrate(function(x) x^2 * dnorm(x), lower = -Inf, upper = Inf)
 ```
 
 ```
-E[X^2] via LOTUS = 15.1667
-E[X^2] via simulation = 15.1062
-
-E[X^2] for N(0,1) via LOTUS = 1.0000 (exact: 1)
+[1] 15.16667
+[1] 15.10624
+1 with absolute error < 1.2e-07
 ```
 
 ---
@@ -339,22 +329,19 @@ my_variance_rv <- function(values, probs) {
   e_x2 - mu^2                              # Var(X) = E[X^2] - (E[X])^2
 }
 
-# Variance of a fair die
+# Variance of a fair die (exact: (6^2 - 1)/12 = 2.9167)
 die_var <- my_variance_rv(1:6, rep(1/6, 6))
-cat(sprintf("Var(X) for a fair die = %.4f\n", die_var))
-cat(sprintf("Exact: (6^2 - 1)/12 = %.4f\n", (36 - 1) / 12))
+die_var
 
 # Variance of number of heads in 3 fair coin flips
-# Binomial(3, 0.5): Var = n*p*(1-p) = 3*0.5*0.5 = 0.75
+# Binomial(3, 0.5): Var = n*p*(1-p) = 0.75
 heads_var <- my_variance_rv(0:3, c(1/8, 3/8, 3/8, 1/8))
-cat(sprintf("\nVar(X) for heads in 3 flips = %.4f (exact: 0.75)\n", heads_var))
+heads_var
 ```
 
 ```
-Var(X) for a fair die = 2.9167
-Exact: (6^2 - 1)/12 = 2.9167
-
-Var(X) for heads in 3 flips = 0.7500 (exact: 0.75)
+[1] 2.916667
+[1] 0.75
 ```
 
 ### Standard Deviation
@@ -369,13 +356,13 @@ The standard deviation has the same units as $X$, which makes it more interpreta
 
 
 ``` r
-cat(sprintf("SD of a fair die = %.4f\n", sqrt(die_var)))
-cat(sprintf("SD of heads in 3 flips = %.4f\n", sqrt(heads_var)))
+sqrt(die_var)     # SD of a fair die
+sqrt(heads_var)   # SD of heads in 3 flips
 ```
 
 ```
-SD of a fair die = 1.7078
-SD of heads in 3 flips = 0.8660
+[1] 1.707825
+[1] 0.8660254
 ```
 
 ### Properties of Variance: Proofs
@@ -413,7 +400,7 @@ $(\Rightarrow)$ Suppose $\text{Var}(X) = 0$, i.e., $E[(X - \mu)^2] = 0$. Now $(X
 
 ``` r
 set.seed(42)
-box::use(ggplot2[...])
+box::use(ggplot2)
 
 n_experiments <- 10000
 sample_size <- 50
@@ -425,20 +412,20 @@ sample_vars <- replicate(n_experiments, {
   var(draws)  # R's var() uses Bessel's correction (divides by n-1)
 })
 
-cat(sprintf("Theoretical Var(X) = %.4f\n", theoretical_var))
-cat(sprintf("Mean of sample variances = %.4f\n", mean(sample_vars)))
+theoretical_var
+mean(sample_vars)
 
-ggplot(data.frame(v = sample_vars), aes(x = v)) +
-  geom_histogram(aes(y = after_stat(density)),
+ggplot2$ggplot(data.frame(v = sample_vars), ggplot2$aes(x = v)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)),
     bins = 50, fill = "#0072B2", alpha = 0.7) +
-  geom_vline(xintercept = theoretical_var,
+  ggplot2$geom_vline(xintercept = theoretical_var,
     linetype = "dashed", colour = "red", linewidth = 1) +
-  labs(
+  ggplot2$labs(
     x = "Sample variance",
     y = "Density",
     title = sprintf("Distribution of sample variances (n = %d per experiment)", sample_size)
   ) +
-  theme_minimal(base_size = 14)
+  ggplot2$theme_minimal(base_size = 14)
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/variance-simulation-1.png" alt="Distribution of sample variances from repeated experiments. Each experiment draws 50 observations from a fair die. The theoretical variance (35/12) is shown as a dashed red line.">
@@ -446,8 +433,8 @@ ggplot(data.frame(v = sample_vars), aes(x = v)) +
 </Figure>
 
 ```
-Theoretical Var(X) = 2.9167
-Mean of sample variances = 2.9210
+[1] 2.916667
+[1] 2.920991
 ```
 
 The mean of the sample variances (using Bessel's correction) matches the theoretical variance $35/12 \approx 2.917$. This confirms that $s^2 = \frac{1}{n-1}\sum(x_i - \bar{x})^2$ is an unbiased estimator of $\text{Var}(X)$ — precisely the connection to Chapter 1's discussion of why we divide by $n - 1$.
@@ -519,24 +506,19 @@ n <- 100000
 x <- runif(n, -1, 1)
 y <- x^2
 
-cat(sprintf("E[X]  = %.4f (should be ~0)\n", mean(x)))
-cat(sprintf("E[Y]  = %.4f (should be ~1/3)\n", mean(y)))
-cat(sprintf("E[XY] = %.4f (should be ~0)\n", mean(x * y)))
-cat(sprintf("Cov(X,Y) = %.6f (should be ~0)\n", cov(x, y)))
-cat(sprintf("Cor(X,Y) = %.6f\n\n", cor(x, y)))
-cat("Yet Y is COMPLETELY determined by X (Y = X^2).\n")
-cat("Uncorrelated does NOT mean independent.\n")
+mean(x)        # ~0
+mean(y)        # ~1/3
+mean(x * y)    # ~0
+cov(x, y)      # ~0
+cor(x, y)      # ~0
 ```
 
 ```
-E[X]  = 0.0014 (should be ~0)
-E[Y]  = 0.3353 (should be ~1/3)
-E[XY] = 0.0006 (should be ~0)
-Cov(X,Y) = 0.000093 (should be ~0)
-Cor(X,Y) = 0.000535
-
-Yet Y is COMPLETELY determined by X (Y = X^2).
-Uncorrelated does NOT mean independent.
+[1] 0.001415593
+[1] 0.3352586
+[1] 0.0005671913
+[1] 9.260252e-05
+[1] 0.00053462
 ```
 
 $X$ and $Y = X^2$ are perfectly dependent — knowing $X$ tells you $Y$ exactly — yet their covariance is zero. The covariance only detects *linear* relationships.
@@ -578,41 +560,26 @@ n <- 100000
 x1 <- rnorm(n, mean = 5, sd = 2)
 y1 <- rnorm(n, mean = 3, sd = 1)
 
-cat("--- Independent X, Y ---\n")
-cat(sprintf("Var(X)             = %.4f\n", var(x1)))
-cat(sprintf("Var(Y)             = %.4f\n", var(y1)))
-cat(sprintf("Var(X) + Var(Y)    = %.4f\n", var(x1) + var(y1)))
-cat(sprintf("Var(X + Y)         = %.4f\n", var(x1 + y1)))
-cat(sprintf("2*Cov(X,Y)         = %.4f (approximately 0)\n\n", 2 * cov(x1, y1)))
+# Independent case: Var(X+Y) should equal Var(X) + Var(Y)
+c(Var_X = var(x1), Var_Y = var(y1),
+  sum = var(x1) + var(y1), Var_XpY = var(x1 + y1),
+  two_cov = 2 * cov(x1, y1))
 
 # Case 2: Positively correlated X, Y
 x2 <- rnorm(n, mean = 5, sd = 2)
 y2 <- 0.8 * x2 + rnorm(n, mean = 0, sd = 1)
 
-cat("--- Positively correlated X, Y ---\n")
-cat(sprintf("Var(X)             = %.4f\n", var(x2)))
-cat(sprintf("Var(Y)             = %.4f\n", var(y2)))
-cat(sprintf("Var(X) + Var(Y)    = %.4f\n", var(x2) + var(y2)))
-cat(sprintf("2*Cov(X,Y)         = %.4f\n", 2 * cov(x2, y2)))
-cat(sprintf("Var(X)+Var(Y)+2Cov = %.4f\n", var(x2) + var(y2) + 2 * cov(x2, y2)))
-cat(sprintf("Var(X + Y)         = %.4f\n", var(x2 + y2)))
+# Correlated case: Var(X+Y) = Var(X) + Var(Y) + 2*Cov(X,Y)
+c(Var_X = var(x2), Var_Y = var(y2),
+  sum_plus_2cov = var(x2) + var(y2) + 2 * cov(x2, y2),
+  Var_XpY = var(x2 + y2))
 ```
 
 ```
---- Independent X, Y ---
-Var(X)             = 4.0258
-Var(Y)             = 1.0046
-Var(X) + Var(Y)    = 5.0304
-Var(X + Y)         = 5.0189
-2*Cov(X,Y)         = -0.0115 (approximately 0)
-
---- Positively correlated X, Y ---
-Var(X)             = 4.0009
-Var(Y)             = 3.5566
-Var(X) + Var(Y)    = 7.5576
-2*Cov(X,Y)         = 6.4035
-Var(X)+Var(Y)+2Cov = 13.9610
-Var(X + Y)         = 13.9610
+      Var_X       Var_Y         sum     Var_XpY     two_cov 
+ 4.02583785  1.00459446  5.03043231  5.01893544 -0.01149687 
+        Var_X         Var_Y sum_plus_2cov       Var_XpY 
+     4.000942      3.556618     13.961043     13.961043 
 ```
 
 ### Correlation

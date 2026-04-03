@@ -96,47 +96,49 @@ This is sometimes called the **chain rule of probability** (not to be confused w
 Let us compute conditional probabilities from real data. We will use the NHANES dataset.
 
 ```{r conditional-nhanes}
-box::use(data.table[fread, .N, .SD])
+box::use(data.table)
 
 data_dir <- "../../../data"
-nhanes <- fread(file.path(data_dir, "primary/nhanes.csv"))
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
 
-# Let's inspect what columns we have
-cat("Columns:", paste(names(nhanes), collapse = ", "), "\n")
-cat("Rows:", nrow(nhanes), "\n")
+names(nhanes)
+nrow(nhanes)
+```
+
+```{r dt-symbols, include=FALSE}
+.N <- data.table::.N
 ```
 
 ```{r conditional-diabetes-bmi}
-box::use(data.table[...])
-
 # Compute P(Diabetes | BMI > 30)
 # First, create indicator variables
-nhanes[, obese := fifelse(BMI > 30, TRUE, FALSE)]
+nhanes[, obese := data.table$fifelse(BMI > 30, TRUE, FALSE)]
 
 # P(Diabetes)
 p_diabetes <- nhanes[Diabetes == "Yes", .N] / nrow(nhanes)
-cat("P(Diabetes) =", round(p_diabetes, 4), "\n")
 
 # P(Obese)
 p_obese <- nhanes[obese == TRUE, .N] / nrow(nhanes)
-cat("P(Obese, BMI > 30) =", round(p_obese, 4), "\n")
 
 # P(Diabetes AND Obese)
 p_both <- nhanes[Diabetes == "Yes" & obese == TRUE, .N] / nrow(nhanes)
-cat("P(Diabetes AND Obese) =", round(p_both, 4), "\n")
 
 # P(Diabetes | Obese) = P(Diabetes AND Obese) / P(Obese)
 p_diabetes_given_obese <- p_both / p_obese
-cat("P(Diabetes | Obese) =", round(p_diabetes_given_obese, 4), "\n\n")
 
 # Compare: P(Diabetes | Not Obese)
 p_not_obese <- 1 - p_obese
 p_diabetes_and_not_obese <- nhanes[Diabetes == "Yes" & obese == FALSE, .N] / nrow(nhanes)
 p_diabetes_given_not_obese <- p_diabetes_and_not_obese / p_not_obese
-cat("P(Diabetes | Not Obese) =", round(p_diabetes_given_not_obese, 4), "\n")
 
-cat("\nObesity increases diabetes risk by a factor of",
-    round(p_diabetes_given_obese / p_diabetes_given_not_obese, 2), "\n")
+round(c(
+  "P(Diabetes)" = p_diabetes,
+  "P(Obese)" = p_obese,
+  "P(D & Obese)" = p_both,
+  "P(D | Obese)" = p_diabetes_given_obese,
+  "P(D | Not Obese)" = p_diabetes_given_not_obese,
+  "Risk ratio" = p_diabetes_given_obese / p_diabetes_given_not_obese
+), 4)
 ```
 
 ### Verifying with Simulation
@@ -151,8 +153,7 @@ rolls <- sample(1:6, size = n_sim, replace = TRUE)
 # P(6 | even)
 even_rolls <- rolls[rolls %% 2 == 0]
 p_six_given_even <- mean(even_rolls == 6)
-cat("Simulated P(6 | even) =", round(p_six_given_even, 4),
-    " (theoretical: 1/3 =", round(1/3, 4), ")\n")
+c(simulated = round(p_six_given_even, 4), theoretical = round(1/3, 4))
 
 # P(sum >= 10 | first die is 5) for two dice
 die1 <- sample(1:6, size = n_sim, replace = TRUE)
@@ -162,153 +163,8 @@ total <- die1 + die2
 # Filter to cases where die1 = 5
 given_5 <- total[die1 == 5]
 p_ge10_given_5 <- mean(given_5 >= 10)
-cat("Simulated P(sum >= 10 | die1 = 5) =", round(p_ge10_given_5, 4),
-    " (theoretical: 2/6 =", round(2/6, 4), ")\n")
+c(simulated = round(p_ge10_given_5, 4), theoretical = round(2/6, 4))
 ```
-
-### JavaScript Animation: Conditioning Shrinks the Sample Space
-
-The following animation shows two overlapping events $A$ and $B$. When we condition on $B$, everything outside $B$ fades away, and the remaining area is rescaled so that $P(B \mid B) = 1$. The proportion of $B$ occupied by $A \cap B$ is precisely $P(A \mid B)$.
-
-<CanvasWithJs code={`
-const w = canvas.width;
-const h = canvas.height;
-
-// State
-let conditioned = false;
-let alpha = 0;
-let animating = false;
-
-const cx_a = w * 0.38;
-const cx_b = w * 0.62;
-const cy = h * 0.48;
-const r = Math.min(w, h) * 0.22;
-
-function draw() {
-  ctx.clearRect(0, 0, w, h);
-
-  // Title
-  ctx.fillStyle = '#333';
-  ctx.font = 'bold 16px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(conditioned || animating ?
-    'Conditioned on B: sample space shrinks' :
-    'Full sample space Ω — click to condition on B', w / 2, 25);
-
-  // Background (Omega) — fades when conditioning
-  const bgAlpha = 1 - alpha * 0.7;
-  ctx.fillStyle = 'rgba(240, 240, 240, ' + bgAlpha + ')';
-  ctx.fillRect(20, 40, w - 40, h - 80);
-  ctx.strokeStyle = 'rgba(51, 51, 51, ' + bgAlpha + ')';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(20, 40, w - 40, h - 80);
-
-  // Omega label fades
-  ctx.fillStyle = 'rgba(51, 51, 51, ' + bgAlpha + ')';
-  ctx.font = '14px serif';
-  ctx.textAlign = 'left';
-  ctx.fillText('Ω', 30, 60);
-
-  // Draw A circle (fades outside B when conditioning)
-  // First: the part of A outside B
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx_a, cy, r, 0, 2 * Math.PI);
-  ctx.clip();
-  // Exclude B region
-  ctx.beginPath();
-  ctx.rect(0, 0, w, h);
-  ctx.arc(cx_b, cy, r, 0, 2 * Math.PI, true);
-  ctx.fillStyle = 'rgba(0, 114, 178, ' + (0.3 * (1 - alpha)) + ')';
-  ctx.fill();
-  ctx.restore();
-
-  // Draw the A ∩ B region (stays visible, gets brighter)
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx_a, cy, r, 0, 2 * Math.PI);
-  ctx.clip();
-  ctx.beginPath();
-  ctx.arc(cx_b, cy, r, 0, 2 * Math.PI);
-  const overlapAlpha = 0.3 + alpha * 0.35;
-  ctx.fillStyle = 'rgba(230, 159, 0, ' + overlapAlpha + ')';
-  ctx.fill();
-  ctx.restore();
-
-  // Draw B region (outside A) — stays visible
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx_b, cy, r, 0, 2 * Math.PI);
-  ctx.clip();
-  ctx.beginPath();
-  ctx.rect(0, 0, w, h);
-  ctx.arc(cx_a, cy, r, 0, 2 * Math.PI, true);
-  const bOnlyAlpha = 0.3 + alpha * 0.1;
-  ctx.fillStyle = 'rgba(213, 94, 0, ' + bOnlyAlpha + ')';
-  ctx.fill();
-  ctx.restore();
-
-  // Circle outlines
-  const aOutlineAlpha = 1 - alpha * 0.6;
-  ctx.beginPath();
-  ctx.arc(cx_a, cy, r, 0, 2 * Math.PI);
-  ctx.strokeStyle = 'rgba(0, 114, 178, ' + aOutlineAlpha + ')';
-  ctx.lineWidth = 2.5;
-  ctx.stroke();
-
-  ctx.beginPath();
-  ctx.arc(cx_b, cy, r, 0, 2 * Math.PI);
-  ctx.strokeStyle = '#D55E00';
-  ctx.lineWidth = conditioned ? 3.5 : 2.5;
-  ctx.stroke();
-
-  // Labels
-  ctx.font = 'bold 20px serif';
-  ctx.textAlign = 'center';
-  ctx.fillStyle = 'rgba(0, 114, 178, ' + aOutlineAlpha + ')';
-  ctx.fillText('A', cx_a - r * 0.55, cy);
-  ctx.fillStyle = '#D55E00';
-  ctx.fillText('B', cx_b + r * 0.4, cy);
-
-  // Overlap label
-  ctx.font = '16px serif';
-  ctx.fillStyle = '#8B4513';
-  ctx.fillText('A ∩ B', (cx_a + cx_b) / 2, cy - 5);
-
-  // Probability annotation
-  ctx.font = '14px sans-serif';
-  ctx.fillStyle = '#333';
-  ctx.textAlign = 'left';
-  if (conditioned || alpha > 0.5) {
-    ctx.fillText('P(A|B) = P(A ∩ B) / P(B)', 30, h - 30);
-    ctx.fillText('The orange region is now all that matters', 30, h - 12);
-  } else {
-    ctx.fillText('P(A) = blue area / total area', 30, h - 30);
-    ctx.fillText('Click anywhere to condition on B', 30, h - 12);
-  }
-}
-
-function animate() {
-  if (!animating) return;
-  const target = conditioned ? 1 : 0;
-  const speed = 0.04;
-  alpha += (target - alpha) * speed;
-  if (Math.abs(alpha - target) < 0.005) {
-    alpha = target;
-    animating = false;
-  }
-  draw();
-  if (animating) requestAnimationFrame(animate);
-}
-
-canvas.addEventListener('click', function() {
-  conditioned = !conditioned;
-  animating = true;
-  animate();
-});
-
-draw();
-`} width={600} height={400} />
 
 ### Common Trap 1: The Base Rate Fallacy
 
@@ -382,7 +238,7 @@ cat(sprintf("P(Disease | Positive) = %d / %d = %.4f\n",
 ```
 
 ```{r base-rate-plot, fig.cap="The base rate fallacy visualised: among all positive tests, only a tiny fraction are true positives because the disease is rare."}
-box::use(ggplot2[...])
+box::use(ggplot2)
 
 df_test <- data.frame(
   category = c("True Positive\n(sick, test+)",
@@ -394,23 +250,23 @@ df_test <- data.frame(
   truth = c("Diseased", "Healthy", "Healthy", "Diseased")
 )
 
-ggplot(df_test, aes(x = category, y = count, fill = interaction(group, truth))) +
-  geom_col(width = 0.7) +
-  scale_fill_manual(values = c(
+ggplot2$ggplot(df_test, ggplot2$aes(x = category, y = count, fill = interaction(group, truth))) +
+  ggplot2$geom_col(width = 0.7) +
+  ggplot2$scale_fill_manual(values = c(
     "Positive test.Diseased" = "#D55E00",
     "Positive test.Healthy" = "#E69F00",
     "Negative test.Healthy" = "#0072B2",
     "Negative test.Diseased" = "#56B4E9"
   )) +
-  scale_y_continuous(labels = scales::comma) +
-  labs(
+  ggplot2$scale_y_continuous(labels = scales::comma) +
+  ggplot2$labs(
     x = NULL, y = "Number of people",
     title = "Base rate fallacy: testing 100,000 people",
     subtitle = "Prevalence = 0.1%, Sensitivity = 99%, Specificity = 95%",
     fill = NULL
   ) +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "none")
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "none")
 ```
 
 The lesson: **always consider the base rate** (the prevalence). A test's positive predictive value depends critically on how common the condition is.
@@ -464,11 +320,7 @@ defect_rates <- c(0.02, 0.03, 0.05)
 
 # Law of total probability
 p_defect <- sum(shares * defect_rates)
-cat("P(defect) =", shares[1], "×", defect_rates[1], "+",
-    shares[2], "×", defect_rates[2], "+",
-    shares[3], "×", defect_rates[3], "\n")
-cat("         =", p_defect, "\n")
-cat("Overall defect rate:", p_defect * 100, "%\n")
+p_defect
 ```
 
 ---
@@ -550,21 +402,15 @@ C <- omega$coin1 != omega$coin2  # {HT, TH}
 
 P <- function(event) sum(omega$prob[event])
 
-cat("P(A) =", P(A), "\n")
-cat("P(B) =", P(B), "\n")
-cat("P(C) =", P(C), "\n\n")
+c(P_A = P(A), P_B = P(B), P_C = P(C))
 
 # Check pairwise independence
-cat("P(A ∩ B) =", P(A & B), " vs P(A)P(B) =", P(A) * P(B), "\n")
-cat("P(A ∩ C) =", P(A & C), " vs P(A)P(C) =", P(A) * P(C), "\n")
-cat("P(B ∩ C) =", P(B & C), " vs P(B)P(C) =", P(B) * P(C), "\n\n")
+c("P(A&B)" = P(A & B), "P(A)P(B)" = P(A) * P(B))
+c("P(A&C)" = P(A & C), "P(A)P(C)" = P(A) * P(C))
+c("P(B&C)" = P(B & C), "P(B)P(C)" = P(B) * P(C))
 
 # Check mutual independence (all three)
-cat("P(A ∩ B ∩ C) =", P(A & B & C),
-    " vs P(A)P(B)P(C) =", P(A) * P(B) * P(C), "\n")
-
-cat("\nPairwise independent? YES (all three pairs match)\n")
-cat("Mutually independent? NO (triple intersection is 0, not 1/8)\n")
+c("P(A&B&C)" = P(A & B & C), "P(A)P(B)P(C)" = P(A) * P(B) * P(C))
 ```
 
 The events are pairwise independent — each pair satisfies $P(A_i \cap A_j) = P(A_i) P(A_j)$. But $P(A \cap B \cap C) = 0$ (you cannot have both coins heads *and* different faces), while $P(A)P(B)P(C) = 1/8$. So they are *not* mutually independent.
@@ -574,13 +420,12 @@ The events are pairwise independent — each pair satisfies $P(A_i \cap A_j) = P
 Let us check whether certain variables in NHANES appear to be independent.
 
 ```{r independence-nhanes}
-box::use(data.table[fread, .N])
+box::use(data.table)
 
 data_dir <- "../../../data"
-nhanes <- fread(file.path(data_dir, "primary/nhanes.csv"))
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
 
 # Are Gender and Diabetes independent?
-# P(Diabetes | Male) vs P(Diabetes | Female) vs P(Diabetes)
 nhanes_complete <- nhanes[!is.na(Diabetes) & !is.na(Gender)]
 
 p_diabetes <- nhanes_complete[Diabetes == "Yes", .N] / nrow(nhanes_complete)
@@ -589,19 +434,15 @@ p_diabetes_male <- nhanes_complete[Diabetes == "Yes" & Gender == "male", .N] /
 p_diabetes_female <- nhanes_complete[Diabetes == "Yes" & Gender == "female", .N] /
   nhanes_complete[Gender == "female", .N]
 
-cat("P(Diabetes)          =", round(p_diabetes, 4), "\n")
-cat("P(Diabetes | Male)   =", round(p_diabetes_male, 4), "\n")
-cat("P(Diabetes | Female) =", round(p_diabetes_female, 4), "\n\n")
-
-if (abs(p_diabetes_male - p_diabetes) < 0.01) {
-  cat("Gender and Diabetes appear roughly independent\n")
-} else {
-  cat("Gender and Diabetes appear NOT independent\n")
-}
+round(c(
+  "P(Diabetes)" = p_diabetes,
+  "P(Diabetes | Male)" = p_diabetes_male,
+  "P(Diabetes | Female)" = p_diabetes_female
+), 4)
 ```
 
 ```{r independence-visual, fig.cap="Comparing conditional and unconditional diabetes rates across gender. If independence held, all bars would be the same height."}
-box::use(ggplot2[...])
+box::use(ggplot2)
 
 # Build a summary table
 groups <- c("Overall", "Male", "Female")
@@ -612,18 +453,18 @@ df_rates <- data.frame(
   rate = rates
 )
 
-ggplot(df_rates, aes(x = group, y = rate, fill = group)) +
-  geom_col(width = 0.6) +
-  geom_hline(yintercept = p_diabetes, linetype = "dashed", colour = "grey40") +
-  scale_fill_manual(values = c("#56B4E9", "#0072B2", "#D55E00")) +
-  scale_y_continuous(labels = scales::percent_format()) +
-  labs(
+ggplot2$ggplot(df_rates, ggplot2$aes(x = group, y = rate, fill = group)) +
+  ggplot2$geom_col(width = 0.6) +
+  ggplot2$geom_hline(yintercept = p_diabetes, linetype = "dashed", colour = "grey40") +
+  ggplot2$scale_fill_manual(values = c("#56B4E9", "#0072B2", "#D55E00")) +
+  ggplot2$scale_y_continuous(labels = scales::percent_format()) +
+  ggplot2$labs(
     x = NULL, y = "Diabetes rate",
     title = "Testing independence: Gender and Diabetes",
     subtitle = "Dashed line = overall rate. Independence would mean all bars at the dashed line."
   ) +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "none")
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "none")
 ```
 
 ### Common Misconception: Independence Does Not Mean Mutually Exclusive
@@ -656,12 +497,8 @@ rolls <- sample(1:6, size = n_sim, replace = TRUE)
 # Mutually exclusive: A = "roll 1" and B = "roll 2"
 A_me <- rolls == 1
 B_me <- rolls == 2
-cat("Mutually exclusive example (A = roll 1, B = roll 2):\n")
-cat("  P(A) =", round(mean(A_me), 4), "\n")
-cat("  P(B) =", round(mean(B_me), 4), "\n")
-cat("  P(A ∩ B) =", mean(A_me & B_me), "  (mutually exclusive: exactly 0)\n")
-cat("  P(A)P(B) =", round(mean(A_me) * mean(B_me), 6), "  (not 0!)\n")
-cat("  Independent? NO\n\n")
+round(c(P_A = mean(A_me), P_B = mean(B_me),
+  "P(A&B)" = mean(A_me & B_me), "P(A)P(B)" = mean(A_me) * mean(B_me)), 6)
 
 # Independent: A = "die1 is even", B = "die2 >= 4" (two independent dice)
 die1 <- sample(1:6, size = n_sim, replace = TRUE)
@@ -669,12 +506,8 @@ die2 <- sample(1:6, size = n_sim, replace = TRUE)
 A_ind <- die1 %% 2 == 0
 B_ind <- die2 >= 4
 
-cat("Independent example (two separate dice):\n")
-cat("  P(A) =", round(mean(A_ind), 4), "\n")
-cat("  P(B) =", round(mean(B_ind), 4), "\n")
-cat("  P(A ∩ B) =", round(mean(A_ind & B_ind), 4), "\n")
-cat("  P(A)P(B) =", round(mean(A_ind) * mean(B_ind), 4), "\n")
-cat("  Independent? YES (approximately)\n")
+round(c(P_A = mean(A_ind), P_B = mean(B_ind),
+  "P(A&B)" = mean(A_ind & B_ind), "P(A)P(B)" = mean(A_ind) * mean(B_ind)), 4)
 ```
 
 ---

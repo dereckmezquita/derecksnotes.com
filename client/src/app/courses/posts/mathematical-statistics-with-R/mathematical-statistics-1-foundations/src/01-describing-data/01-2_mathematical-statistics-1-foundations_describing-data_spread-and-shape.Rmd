@@ -36,12 +36,18 @@ knitr::opts_chunk$set(
 ```
 
 ```{r load-data, include=FALSE}
-box::use(data.table[fread, .N, .SD])
-box::use(ggplot2[...])
+box::use(data.table)
+box::use(ggplot2)
 
 data_dir <- "../../../data"
-penguins <- fread(file.path(data_dir, "primary/penguins.csv"))
-nhanes <- fread(file.path(data_dir, "primary/nhanes.csv"))
+penguins <- data.table$fread(file.path(data_dir, "primary/penguins.csv"))
+nhanes <- data.table$fread(file.path(data_dir, "primary/nhanes.csv"))
+```
+
+```{r dt-symbols, include=FALSE}
+# data.table special symbols must be in the calling environment
+.N <- data.table::.N
+.SD <- data.table::.SD
 ```
 
 ## 1.3 Measures of Spread
@@ -63,8 +69,8 @@ my_range <- function(x) {
 }
 
 fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
-cat("Flipper length range:", my_range(fl), "mm\n")
-cat("Built-in range():", diff(range(fl)), "mm\n")
+my_range(fl)
+diff(range(fl))
 ```
 
 The range has a serious drawback: it depends on only two observations (the extremes) and is therefore highly sensitive to outliers. A single anomalous measurement can inflate the range dramatically. Moreover, the range tends to grow as the sample size increases -- with more data, we are more likely to encounter extreme values. For these reasons, the range is useful as a quick sanity check but rarely serves as a primary measure of spread.
@@ -123,9 +129,9 @@ my_var <- function(x) {
 
 fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
 
-cat("Population variance (divide by n):", my_var_population(fl), "\n")
-cat("Sample variance (divide by n-1):", my_var(fl), "\n")
-cat("Built-in var():", var(fl), "\n")
+my_var_population(fl)
+my_var(fl)
+var(fl)
 ```
 
 R's built-in `var()` uses $n - 1$ (Bessel's correction), matching our `my_var()`.
@@ -195,26 +201,25 @@ for (sim in seq_len(n_sims)) {
   bessel_vars[sim] <- sq_devs / (n - 1)
 }
 
-cat("True variance:", true_var, "\n")
-cat("Mean of naive estimator (n):", mean(naive_vars), "\n")
-cat("Mean of Bessel estimator (n-1):", mean(bessel_vars), "\n")
-cat("Ratio naive/true:", mean(naive_vars) / true_var, " (should be (n-1)/n =", (n - 1) / n, ")\n")
+mean(naive_vars)
+mean(bessel_vars)
+mean(naive_vars) / true_var
 
-dt_sim <- data.table::data.table(
+dt_sim <- data.table$data.table(
   value = c(naive_vars, bessel_vars),
   estimator = rep(c("Naive (divide by n)", "Bessel (divide by n-1)"), each = n_sims)
 )
 
-ggplot(dt_sim, aes(x = value, fill = estimator)) +
-  geom_histogram(bins = 60, alpha = 0.6, position = "identity") +
-  geom_vline(xintercept = true_var, linewidth = 1.2, linetype = "dashed") +
-  scale_fill_manual(values = c("#E41A1C", "#377EB8")) +
-  labs(x = "Estimated Variance", y = "Count",
+ggplot2$ggplot(dt_sim, ggplot2$aes(x = value, fill = estimator)) +
+  ggplot2$geom_histogram(bins = 60, alpha = 0.6, position = "identity") +
+  ggplot2$geom_vline(xintercept = true_var, linewidth = 1.2, linetype = "dashed") +
+  ggplot2$scale_fill_manual(values = c("#E41A1C", "#377EB8")) +
+  ggplot2$labs(x = "Estimated Variance", y = "Count",
        fill = "Estimator") +
-  annotate("text", x = true_var + 0.05, y = n_sims * 0.04,
+  ggplot2$annotate("text", x = true_var + 0.05, y = n_sims * 0.04,
            label = "True variance = 1", hjust = 0, size = 5) +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "top")
+  ggplot2$theme_minimal(base_size = 14) +
+  ggplot2$theme(legend.position = "top")
 ```
 
 The histogram confirms our derivation: the Bessel-corrected estimator centres on 1, while the naive estimator centres slightly below 1.
@@ -231,8 +236,8 @@ my_sd <- function(x) {
 }
 
 fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
-cat("Our SD:", my_sd(fl), "mm\n")
-cat("Built-in sd():", sd(fl), "mm\n")
+my_sd(fl)
+sd(fl)
 ```
 
 **Interpretation.** Informally, the standard deviation tells you "how far a typical observation is from the mean." For bell-shaped (roughly normal) distributions, approximately 68% of observations fall within one standard deviation of the mean, and about 95% fall within two standard deviations. We shall make this precise when we study the normal distribution in Chapter 5.
@@ -272,10 +277,10 @@ my_iqr <- function(x) {
 }
 
 fl <- penguins$flipper_length_mm[!is.na(penguins$flipper_length_mm)]
-cat("Q1:", my_quantile(fl, 0.25), "\n")
-cat("Q3:", my_quantile(fl, 0.75), "\n")
-cat("Our IQR:", my_iqr(fl), "\n")
-cat("Built-in IQR():", IQR(fl), "\n")
+my_quantile(fl, 0.25)
+my_quantile(fl, 0.75)
+my_iqr(fl)
+IQR(fl)
 ```
 
 ### 1.3.5 Visualising Spread
@@ -291,35 +296,35 @@ fl_q3 <- quantile(fl, 0.75)
 fl_min <- min(fl)
 fl_max <- max(fl)
 
-ggplot(data.frame(x = fl), aes(x = x)) +
+ggplot2$ggplot(data.frame(x = fl), ggplot2$aes(x = x)) +
   # Range
-  annotate("segment", x = fl_min, xend = fl_max, y = -0.001, yend = -0.001,
+  ggplot2$annotate("segment", x = fl_min, xend = fl_max, y = -0.001, yend = -0.001,
            linewidth = 1, colour = "grey50",
            arrow = grid::arrow(ends = "both", length = grid::unit(0.1, "inches"))) +
-  annotate("text", x = (fl_min + fl_max) / 2, y = -0.002,
+  ggplot2$annotate("text", x = (fl_min + fl_max) / 2, y = -0.002,
            label = paste0("Range = ", fl_max - fl_min, " mm"), size = 4) +
   # IQR band
-  annotate("rect", xmin = fl_q1, xmax = fl_q3, ymin = 0, ymax = Inf,
+  ggplot2$annotate("rect", xmin = fl_q1, xmax = fl_q3, ymin = 0, ymax = Inf,
            fill = "#377EB8", alpha = 0.15) +
   # SD band
-  annotate("rect", xmin = fl_mean - fl_sd, xmax = fl_mean + fl_sd,
+  ggplot2$annotate("rect", xmin = fl_mean - fl_sd, xmax = fl_mean + fl_sd,
            ymin = 0, ymax = Inf,
            fill = "#E41A1C", alpha = 0.15) +
-  geom_histogram(aes(y = after_stat(density)), bins = 30,
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)), bins = 30,
                  fill = "grey80", colour = "grey50") +
-  geom_density(linewidth = 0.8) +
-  geom_vline(xintercept = fl_mean, linewidth = 1, colour = "#E41A1C") +
-  annotate("text", x = fl_mean + 1, y = 0.035, label = "Mean", colour = "#E41A1C",
+  ggplot2$geom_density(linewidth = 0.8) +
+  ggplot2$geom_vline(xintercept = fl_mean, linewidth = 1, colour = "#E41A1C") +
+  ggplot2$annotate("text", x = fl_mean + 1, y = 0.035, label = "Mean", colour = "#E41A1C",
            hjust = 0, size = 4.5) +
-  annotate("text", x = fl_q1 - 1, y = 0.032,
+  ggplot2$annotate("text", x = fl_q1 - 1, y = 0.032,
            label = paste0("Q1 = ", fl_q1), hjust = 1, colour = "#377EB8", size = 4) +
-  annotate("text", x = fl_q3 + 1, y = 0.032,
+  ggplot2$annotate("text", x = fl_q3 + 1, y = 0.032,
            label = paste0("Q3 = ", fl_q3), hjust = 0, colour = "#377EB8", size = 4) +
-  labs(x = "Flipper Length (mm)", y = "Density",
+  ggplot2$labs(x = "Flipper Length (mm)", y = "Density",
        subtitle = paste0("Red band: mean +/- 1 SD (", round(fl_mean - fl_sd, 1),
                          " to ", round(fl_mean + fl_sd, 1),
                          "). Blue band: IQR (", fl_q1, " to ", fl_q3, ").")) +
-  theme_minimal(base_size = 14)
+  ggplot2$theme_minimal(base_size = 14)
 ```
 
 Notice the bimodal (two-humped) shape. This is **not** a property of the individual species; rather, it arises because we are pooling data from species with different typical flipper lengths. The Gentoo penguins (larger species) form the right hump, while Adelie and Chinstrap penguins form the left hump. This is an important lesson: always consider whether your data might be a **mixture** of distinct groups.
@@ -338,9 +343,9 @@ my_cv <- function(x) {
   (sd(x) / mean(x)) * 100
 }
 
-cat("CV of flipper length:", round(my_cv(penguins$flipper_length_mm), 2), "%\n")
-cat("CV of body mass:", round(my_cv(penguins$body_mass_g), 2), "%\n")
-cat("CV of bill length:", round(my_cv(penguins$bill_length_mm), 2), "%\n")
+round(my_cv(penguins$flipper_length_mm), 2)
+round(my_cv(penguins$body_mass_g), 2)
+round(my_cv(penguins$bill_length_mm), 2)
 ```
 
 Body mass is more variable (relative to its mean) than flipper length. This makes biological sense: body mass depends on nutrition and fat reserves (which fluctuate), while flipper length is a skeletal measurement (which is more constrained).
@@ -394,8 +399,8 @@ my_skewness <- function(x, adjusted = FALSE) {
 bmi <- nhanes$BMI[!is.na(nhanes$BMI)]
 height <- nhanes$Height[!is.na(nhanes$Height)]
 
-cat("Skewness of BMI:", round(my_skewness(bmi), 4), "(right-skewed)\n")
-cat("Skewness of Height:", round(my_skewness(height), 4), "(approximately symmetric)\n")
+round(my_skewness(bmi), 4)
+round(my_skewness(height), 4)
 ```
 
 BMI shows clear right skewness (positive value), which accords with what we know: there is a lower bound on BMI (you cannot have zero body mass), but no hard upper bound -- a few individuals have very high BMI values. Height, by contrast, is close to zero, indicating approximate symmetry.
@@ -435,8 +440,8 @@ my_kurtosis <- function(x, excess = TRUE) {
   k
 }
 
-cat("Excess kurtosis of BMI:", round(my_kurtosis(bmi), 4), "\n")
-cat("Excess kurtosis of Height:", round(my_kurtosis(height), 4), "\n")
+round(my_kurtosis(bmi), 4)
+round(my_kurtosis(height), 4)
 ```
 
 BMI has positive excess kurtosis -- its tails are heavier than a normal distribution. This means that extreme BMI values (very low or very high) are more common than a normal distribution would predict. Height has kurtosis closer to zero, suggesting its tails are roughly consistent with normality.
@@ -444,19 +449,19 @@ BMI has positive excess kurtosis -- its tails are heavier than a normal distribu
 ### 1.4.3 Visualising Skewness and Kurtosis
 
 ```{r shape-comparison, fig.cap="Comparing the shape of two NHANES variables. BMI (left) is right-skewed with heavy tails. Height (right) is approximately symmetric with near-normal tails. The dashed curve overlays a normal distribution with matching mean and standard deviation for reference."}
-dt_bmi <- data.table::data.table(value = bmi, variable = "BMI")
-dt_height <- data.table::data.table(value = height, variable = "Height (cm)")
-dt_shape <- data.table::rbindlist(list(dt_bmi, dt_height))
+dt_bmi <- data.table$data.table(value = bmi, variable = "BMI")
+dt_height <- data.table$data.table(value = height, variable = "Height (cm)")
+dt_shape <- data.table$rbindlist(list(dt_bmi, dt_height))
 
 # Compute normal reference curves
-norm_curves <- data.table::rbindlist(lapply(
+norm_curves <- data.table$rbindlist(lapply(
   list(
     list(vals = bmi, name = "BMI"),
     list(vals = height, name = "Height (cm)")
   ),
   function(item) {
     xseq <- seq(min(item$vals), max(item$vals), length.out = 300)
-    data.table::data.table(
+    data.table$data.table(
       x = xseq,
       y = dnorm(xseq, mean = mean(item$vals), sd = sd(item$vals)),
       variable = item$name
@@ -465,7 +470,7 @@ norm_curves <- data.table::rbindlist(lapply(
 ))
 
 # Summary annotations
-shape_labels <- data.table::data.table(
+shape_labels <- data.table$data.table(
   variable = c("BMI", "Height (cm)"),
   label = c(
     paste0("Skew = ", round(my_skewness(bmi), 2), "\nKurt = ", round(my_kurtosis(bmi), 2)),
@@ -475,18 +480,18 @@ shape_labels <- data.table::data.table(
   y = c(0.04, 0.03)
 )
 
-ggplot(dt_shape, aes(x = value)) +
-  geom_histogram(aes(y = after_stat(density)), bins = 50,
+ggplot2$ggplot(dt_shape, ggplot2$aes(x = value)) +
+  ggplot2$geom_histogram(ggplot2$aes(y = ggplot2::after_stat(density)), bins = 50,
                  fill = "grey80", colour = "grey50") +
-  geom_density(linewidth = 0.8, colour = "black") +
-  geom_line(data = norm_curves, aes(x = x, y = y),
+  ggplot2$geom_density(linewidth = 0.8, colour = "black") +
+  ggplot2$geom_line(data = norm_curves, ggplot2$aes(x = x, y = y),
             linetype = "dashed", colour = "#E41A1C", linewidth = 0.8) +
-  geom_text(data = shape_labels, aes(x = x, y = y, label = label),
+  ggplot2$geom_text(data = shape_labels, ggplot2$aes(x = x, y = y, label = label),
             hjust = 1, size = 4.5, colour = "#377EB8") +
-  facet_wrap(~variable, scales = "free", ncol = 2) +
-  labs(x = "Value", y = "Density",
+  ggplot2$facet_wrap(~variable, scales = "free", ncol = 2) +
+  ggplot2$labs(x = "Value", y = "Density",
        subtitle = "Solid black: kernel density. Dashed red: normal reference.") +
-  theme_minimal(base_size = 14)
+  ggplot2$theme_minimal(base_size = 14)
 ```
 
 The dashed red curve shows what the data *would* look like if they were normally distributed with the same mean and standard deviation. For height, the fit is reasonable. For BMI, the asymmetry and heavy right tail are clearly visible.

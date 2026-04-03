@@ -61,7 +61,7 @@ Let us make this concrete. Consider rolling a fair die. The sample space is $\Om
 
 ```{r dice-rv, fig.cap="Simulated realisations of a random variable: recording the face value of a fair die over 1000 rolls."}
 set.seed(42)
-box::use(ggplot2[...])
+box::use(ggplot2)
 
 # Simulate 1000 rolls of a fair die
 n_rolls <- 1000
@@ -74,16 +74,16 @@ names(rv_table) <- c("x", "count")
 rv_table$x <- as.integer(as.character(rv_table$x))
 rv_table$relative_freq <- rv_table$count / n_rolls
 
-ggplot(rv_table, aes(x = x, y = relative_freq)) +
-  geom_col(fill = "#0072B2", width = 0.6) +
-  geom_hline(yintercept = 1/6, linetype = "dashed", colour = "red", linewidth = 0.8) +
-  scale_y_continuous(limits = c(0, 0.25)) +
-  labs(
+ggplot2$ggplot(rv_table, ggplot2$aes(x = x, y = relative_freq)) +
+  ggplot2$geom_col(fill = "#0072B2", width = 0.6) +
+  ggplot2$geom_hline(yintercept = 1/6, linetype = "dashed", colour = "red", linewidth = 0.8) +
+  ggplot2$scale_y_continuous(limits = c(0, 0.25)) +
+  ggplot2$labs(
     x = "x (face value)",
     y = "Relative frequency",
     title = "Simulated relative frequencies vs. theoretical probability (dashed)"
   ) +
-  theme_minimal(base_size = 14)
+  ggplot2$theme_minimal(base_size = 14)
 ```
 
 Each bar shows how often each value appeared. The dashed red line at $1/6 \approx 0.167$ is the theoretical probability. With 1000 rolls, the relative frequencies are close but not exactly $1/6$ — this is the distinction between probability (a theoretical quantity) and relative frequency (an empirical quantity).
@@ -112,18 +112,12 @@ omega <- expand.grid(
 # The random variable X counts the number of heads
 omega$X <- rowSums(omega == "H")
 
-cat("All outcomes and their X values:\n")
-for (i in seq_len(nrow(omega))) {
-  cat(sprintf("  %s%s%s -> X = %d\n",
-    omega$flip1[i], omega$flip2[i], omega$flip3[i], omega$X[i]))
-}
+# All outcomes and their X values
+omega
 
-cat("\nProbability distribution of X:\n")
+# Probability distribution of X
 x_table <- table(omega$X)
-for (val in names(x_table)) {
-  cat(sprintf("  P(X = %s) = %d/8 = %.4f\n",
-    val, x_table[val], x_table[val] / 8))
-}
+x_table / 8
 ```
 
 Notice that $P(X = 0) = 1/8$, $P(X = 1) = 3/8$, $P(X = 2) = 3/8$, and $P(X = 3) = 1/8$. These are binomial coefficients: $\binom{3}{k}/2^3$.
@@ -178,23 +172,17 @@ my_pmf <- function(values, probs, x) {
 die_values <- 1:6
 die_probs <- rep(1/6, 6)
 
-cat("PMF of a fair die:\n")
-for (v in 1:6) {
-  cat(sprintf("  P(X = %d) = %.4f\n", v, my_pmf(die_values, die_probs, v)))
-}
+# PMF of a fair die
+sapply(1:6, function(v) my_pmf(die_values, die_probs, v))
 
 # PMF for number of heads in 3 coin flips
 heads_values <- 0:3
 heads_probs <- c(1/8, 3/8, 3/8, 1/8)
 
-cat("\nPMF for number of heads in 3 flips:\n")
-for (v in 0:3) {
-  cat(sprintf("  P(X = %d) = %.4f\n", v, my_pmf(heads_values, heads_probs, v)))
-}
+sapply(0:3, function(v) my_pmf(heads_values, heads_probs, v))
 
-# Query a value not in the support
-cat(sprintf("\nP(X = 5) for the coin flip RV: %.4f (correct — not in support)\n",
-  my_pmf(heads_values, heads_probs, 5)))
+# Query a value not in the support -- returns 0
+my_pmf(heads_values, heads_probs, 5)
 ```
 
 ### The Cumulative Distribution Function (CDF)
@@ -240,17 +228,14 @@ my_cdf_discrete <- function(values, probs, x) {
 }
 
 # CDF of a fair die
-cat("CDF of a fair die:\n")
-for (v in 0:7) {
-  cat(sprintf("  F(%d) = P(X <= %d) = %.4f\n",
-    v, v, my_cdf_discrete(die_values, die_probs, v)))
-}
+sapply(0:7, function(v) my_cdf_discrete(die_values, die_probs, v))
 ```
 
 ### Visualising PMF and CDF
 
 ```{r pmf-cdf-discrete-plot, fig.cap="PMF (left) and CDF (right) for the number of heads in three fair coin flips. The PMF is a bar plot; the CDF is a step function.", fig.width=12, fig.height=5}
-box::use(ggplot2[...])
+box::use(ggplot2)
+box::use(patchwork)
 
 x_vals <- 0:3
 pmf_vals <- c(1/8, 3/8, 3/8, 1/8)
@@ -261,40 +246,39 @@ cdf_vals <- cumsum(pmf_vals)
 df_pmf <- data.frame(x = x_vals, pmf = pmf_vals)
 df_cdf <- data.frame(x = x_vals, cdf = cdf_vals)
 
-p1 <- ggplot(df_pmf, aes(x = x, y = pmf)) +
-  geom_col(fill = "#0072B2", width = 0.5) +
-  scale_x_continuous(breaks = 0:3) +
-  scale_y_continuous(limits = c(0, 0.5)) +
-  labs(x = "x", y = "p(x)", title = "PMF") +
-  theme_minimal(base_size = 14)
+p1 <- ggplot2$ggplot(df_pmf, ggplot2$aes(x = x, y = pmf)) +
+  ggplot2$geom_col(fill = "#0072B2", width = 0.5) +
+  ggplot2$scale_x_continuous(breaks = 0:3) +
+  ggplot2$scale_y_continuous(limits = c(0, 0.5)) +
+  ggplot2$labs(x = "x", y = "p(x)", title = "PMF") +
+  ggplot2$theme_minimal(base_size = 14)
 
 # Step function for CDF using segments for each step
-p2 <- ggplot() +
+p2 <- ggplot2$ggplot() +
   # Horizontal segments
-  geom_segment(
+  ggplot2$geom_segment(
     data = data.frame(
       x_start = c(-0.5, x_vals),
       x_end = c(x_vals, 3.5),
       y = c(0, cdf_vals)
     ),
-    aes(x = x_start, xend = x_end, y = y, yend = y),
+    ggplot2$aes(x = x_start, xend = x_end, y = y, yend = y),
     linewidth = 0.8, colour = "#D55E00"
   ) +
   # Closed circles at jump destinations
-  geom_point(data = df_cdf, aes(x = x, y = cdf),
+  ggplot2$geom_point(data = df_cdf, ggplot2$aes(x = x, y = cdf),
     size = 3, colour = "#D55E00") +
   # Open circles at jump origins
-  geom_point(
+  ggplot2$geom_point(
     data = data.frame(x = x_vals, cdf = c(0, cdf_vals[-length(cdf_vals)])),
-    aes(x = x, y = cdf),
+    ggplot2$aes(x = x, y = cdf),
     size = 3, colour = "#D55E00", shape = 1
   ) +
-  scale_x_continuous(breaks = 0:3) +
-  scale_y_continuous(limits = c(0, 1.05)) +
-  labs(x = "x", y = "F(x)", title = "CDF (step function)") +
-  theme_minimal(base_size = 14)
+  ggplot2$scale_x_continuous(breaks = 0:3) +
+  ggplot2$scale_y_continuous(limits = c(0, 1.05)) +
+  ggplot2$labs(x = "x", y = "F(x)", title = "CDF (step function)") +
+  ggplot2$theme_minimal(base_size = 14)
 
-box::use(patchwork[...])
 p1 + p2
 ```
 
@@ -328,20 +312,15 @@ This is not a calculus course. You need only enough intuition to read the defini
 
 ```{r integration-demo}
 # R's integrate() function computes definite integrals numerically
-# Example 1: integral of x^2 from 0 to 1 (should be 1/3)
-result1 <- integrate(function(x) x^2, lower = 0, upper = 1)
-cat(sprintf("integral of x^2 from 0 to 1 = %.6f (exact: 1/3 = %.6f)\n",
-  result1$value, 1/3))
 
-# Example 2: integral of exp(-x) from 0 to infinity (should be 1)
-result2 <- integrate(function(x) exp(-x), lower = 0, upper = Inf)
-cat(sprintf("integral of exp(-x) from 0 to Inf = %.6f (exact: 1)\n",
-  result2$value))
+# integral of x^2 from 0 to 1 (should be 1/3)
+integrate(function(x) x^2, lower = 0, upper = 1)
 
-# Example 3: integral of dnorm(x) from -Inf to Inf (should be 1)
-result3 <- integrate(dnorm, lower = -Inf, upper = Inf)
-cat(sprintf("integral of standard normal PDF from -Inf to Inf = %.6f\n",
-  result3$value))
+# integral of exp(-x) from 0 to infinity (should be 1)
+integrate(function(x) exp(-x), lower = 0, upper = Inf)
+
+# integral of dnorm(x) from -Inf to Inf (should be 1)
+integrate(dnorm, lower = -Inf, upper = Inf)
 ```
 
 ### The Probability Density Function (PDF)
@@ -407,24 +386,21 @@ my_uniform_cdf <- function(x, a = 0, b = 1) {
   ifelse(x < a, 0, ifelse(x > b, 1, (x - a) / (b - a)))
 }
 
-# Verify normalisation
-norm_check <- integrate(my_uniform_pdf, lower = -Inf, upper = Inf)
-cat(sprintf("Integral of Uniform(0,1) PDF = %.6f (should be 1)\n",
-  norm_check$value))
+# Verify normalisation (should be 1)
+integrate(my_uniform_pdf, lower = -Inf, upper = Inf)
 
-# Compute P(0.3 <= X <= 0.7)
-prob_interval <- integrate(my_uniform_pdf, lower = 0.3, upper = 0.7)
-cat(sprintf("P(0.3 <= X <= 0.7) = %.6f (exact: 0.4)\n", prob_interval$value))
+# Compute P(0.3 <= X <= 0.7) (exact: 0.4)
+integrate(my_uniform_pdf, lower = 0.3, upper = 0.7)
 
 # Equivalently via CDF
-cat(sprintf("F(0.7) - F(0.3) = %.6f\n",
-  my_uniform_cdf(0.7) - my_uniform_cdf(0.3)))
+my_uniform_cdf(0.7) - my_uniform_cdf(0.3)
 ```
 
 ### Visualising PDF and CDF
 
 ```{r pdf-cdf-continuous-plot, fig.cap="PDF (left) and CDF (right) for the Uniform(0,1) distribution. The shaded region in the PDF corresponds to P(0.3 <= X <= 0.7) = 0.4.", fig.width=12, fig.height=5}
-box::use(ggplot2[...])
+box::use(ggplot2)
+box::use(patchwork)
 
 x_seq <- seq(-0.5, 1.5, length.out = 500)
 
@@ -440,37 +416,36 @@ shade_df <- data.frame(
   pdf = my_uniform_pdf(seq(0.3, 0.7, length.out = 100))
 )
 
-p1 <- ggplot(df, aes(x = x, y = pdf)) +
-  geom_area(data = shade_df, aes(x = x, y = pdf),
+p1 <- ggplot2$ggplot(df, ggplot2$aes(x = x, y = pdf)) +
+  ggplot2$geom_area(data = shade_df, ggplot2$aes(x = x, y = pdf),
     fill = "#0072B2", alpha = 0.3) +
-  geom_line(linewidth = 1, colour = "#0072B2") +
-  annotate("text", x = 0.5, y = 0.5,
+  ggplot2$geom_line(linewidth = 1, colour = "#0072B2") +
+  ggplot2$annotate("text", x = 0.5, y = 0.5,
     label = "P(0.3 <= X <= 0.7) = 0.4", size = 4) +
-  labs(x = "x", y = "f(x)", title = "PDF") +
-  theme_minimal(base_size = 14)
+  ggplot2$labs(x = "x", y = "f(x)", title = "PDF") +
+  ggplot2$theme_minimal(base_size = 14)
 
-p2 <- ggplot(df, aes(x = x, y = cdf)) +
-  geom_line(linewidth = 1, colour = "#D55E00") +
-  geom_segment(aes(x = 0.3, xend = 0.3, y = 0, yend = 0.3),
+p2 <- ggplot2$ggplot(df, ggplot2$aes(x = x, y = cdf)) +
+  ggplot2$geom_line(linewidth = 1, colour = "#D55E00") +
+  ggplot2$geom_segment(ggplot2$aes(x = 0.3, xend = 0.3, y = 0, yend = 0.3),
     linetype = "dashed", colour = "grey50") +
-  geom_segment(aes(x = 0.7, xend = 0.7, y = 0, yend = 0.7),
+  ggplot2$geom_segment(ggplot2$aes(x = 0.7, xend = 0.7, y = 0, yend = 0.7),
     linetype = "dashed", colour = "grey50") +
-  geom_segment(aes(x = -0.5, xend = 0.3, y = 0.3, yend = 0.3),
+  ggplot2$geom_segment(ggplot2$aes(x = -0.5, xend = 0.3, y = 0.3, yend = 0.3),
     linetype = "dashed", colour = "grey50") +
-  geom_segment(aes(x = -0.5, xend = 0.7, y = 0.7, yend = 0.7),
+  ggplot2$geom_segment(ggplot2$aes(x = -0.5, xend = 0.7, y = 0.7, yend = 0.7),
     linetype = "dashed", colour = "grey50") +
-  labs(x = "x", y = "F(x)", title = "CDF") +
-  theme_minimal(base_size = 14)
+  ggplot2$labs(x = "x", y = "F(x)", title = "CDF") +
+  ggplot2$theme_minimal(base_size = 14)
 
-box::use(patchwork[...])
 p1 + p2
 ```
 
 ### Comparing Discrete and Continuous
 
 ```{r discrete-vs-continuous, fig.cap="Discrete (top) vs. continuous (bottom) random variables. Discrete RVs have bar-plot PMFs and step-function CDFs. Continuous RVs have smooth PDFs and smooth CDFs.", fig.width=12, fig.height=9}
-box::use(ggplot2[...])
-box::use(patchwork[...])
+box::use(ggplot2)
+box::use(patchwork)
 
 # --- Discrete: Binomial(5, 0.4) ---
 n <- 5; prob <- 0.4
@@ -481,25 +456,25 @@ cdf_disc <- pbinom(x_disc, n, prob)
 df_disc_pmf <- data.frame(x = x_disc, y = pmf_disc)
 df_disc_cdf <- data.frame(x = x_disc, y = cdf_disc)
 
-p_disc_pmf <- ggplot(df_disc_pmf, aes(x = x, y = y)) +
-  geom_col(fill = "#0072B2", width = 0.5) +
-  labs(x = "x", y = "p(x)", title = "Discrete PMF: Binomial(5, 0.4)") +
-  theme_minimal(base_size = 13)
+p_disc_pmf <- ggplot2$ggplot(df_disc_pmf, ggplot2$aes(x = x, y = y)) +
+  ggplot2$geom_col(fill = "#0072B2", width = 0.5) +
+  ggplot2$labs(x = "x", y = "p(x)", title = "Discrete PMF: Binomial(5, 0.4)") +
+  ggplot2$theme_minimal(base_size = 13)
 
-p_disc_cdf <- ggplot() +
-  geom_segment(
+p_disc_cdf <- ggplot2$ggplot() +
+  ggplot2$geom_segment(
     data = data.frame(
       x_start = c(-0.5, x_disc),
       x_end = c(x_disc, n + 0.5),
       y = c(0, cdf_disc)
     ),
-    aes(x = x_start, xend = x_end, y = y, yend = y),
+    ggplot2$aes(x = x_start, xend = x_end, y = y, yend = y),
     linewidth = 0.8, colour = "#D55E00"
   ) +
-  geom_point(data = df_disc_cdf, aes(x = x, y = y),
+  ggplot2$geom_point(data = df_disc_cdf, ggplot2$aes(x = x, y = y),
     size = 2.5, colour = "#D55E00") +
-  labs(x = "x", y = "F(x)", title = "Discrete CDF (step function)") +
-  theme_minimal(base_size = 13)
+  ggplot2$labs(x = "x", y = "F(x)", title = "Discrete CDF (step function)") +
+  ggplot2$theme_minimal(base_size = 13)
 
 # --- Continuous: Normal(2, 1) ---
 x_cont <- seq(-2, 6, length.out = 500)
@@ -509,15 +484,15 @@ df_cont <- data.frame(
   cdf = pnorm(x_cont, mean = 2, sd = 1)
 )
 
-p_cont_pdf <- ggplot(df_cont, aes(x = x, y = pdf)) +
-  geom_line(linewidth = 1, colour = "#0072B2") +
-  labs(x = "x", y = "f(x)", title = "Continuous PDF: Normal(2, 1)") +
-  theme_minimal(base_size = 13)
+p_cont_pdf <- ggplot2$ggplot(df_cont, ggplot2$aes(x = x, y = pdf)) +
+  ggplot2$geom_line(linewidth = 1, colour = "#0072B2") +
+  ggplot2$labs(x = "x", y = "f(x)", title = "Continuous PDF: Normal(2, 1)") +
+  ggplot2$theme_minimal(base_size = 13)
 
-p_cont_cdf <- ggplot(df_cont, aes(x = x, y = cdf)) +
-  geom_line(linewidth = 1, colour = "#D55E00") +
-  labs(x = "x", y = "F(x)", title = "Continuous CDF (smooth)") +
-  theme_minimal(base_size = 13)
+p_cont_cdf <- ggplot2$ggplot(df_cont, ggplot2$aes(x = x, y = cdf)) +
+  ggplot2$geom_line(linewidth = 1, colour = "#D55E00") +
+  ggplot2$labs(x = "x", y = "F(x)", title = "Continuous CDF (smooth)") +
+  ggplot2$theme_minimal(base_size = 13)
 
 (p_disc_pmf | p_disc_cdf) / (p_cont_pdf | p_cont_cdf)
 ```
@@ -545,25 +520,23 @@ R provides quantile functions for every built-in distribution, named with the `q
 ```{r quantile-demo}
 # Standard normal: what value has 95% of the distribution below it?
 q95 <- qnorm(0.95)
-cat(sprintf("Normal quantile Q(0.95) = %.4f\n", q95))
-cat(sprintf("Verify: P(X <= %.4f) = %.4f\n", q95, pnorm(q95)))
+q95
+pnorm(q95)  # verify: should be 0.95
 
 # Median of an Exponential(rate = 2)
 med <- qexp(0.5, rate = 2)
-cat(sprintf("\nExponential(rate=2) median = %.4f\n", med))
-cat(sprintf("Verify: P(X <= %.4f) = %.4f\n", med, pexp(med, rate = 2)))
+med
+pexp(med, rate = 2)  # verify: should be 0.5
 
 # Quartiles of a Chi-squared(df = 5)
-quartiles <- qchisq(c(0.25, 0.50, 0.75), df = 5)
-cat(sprintf("\nChi-squared(df=5) quartiles: Q1=%.3f, Q2=%.3f, Q3=%.3f\n",
-  quartiles[1], quartiles[2], quartiles[3]))
+qchisq(c(0.25, 0.50, 0.75), df = 5)
 ```
 
 ### Visualising the CDF-Quantile Relationship
 
 ```{r cdf-quantile-relationship, fig.cap="The quantile function Q(p) is the inverse of the CDF F(x). To find Q(0.75), draw a horizontal line at 0.75 on the CDF and read off the x-value.", fig.width=10, fig.height=5}
-box::use(ggplot2[...])
-box::use(patchwork[...])
+box::use(ggplot2)
+box::use(patchwork)
 
 x_seq <- seq(-3, 3, length.out = 500)
 p_seq <- seq(0.001, 0.999, length.out = 500)
@@ -578,28 +551,28 @@ df <- data.frame(
 # CDF plot with annotation for p = 0.75
 q75 <- qnorm(0.75)
 
-p1 <- ggplot(df, aes(x = x, y = cdf)) +
-  geom_line(linewidth = 1, colour = "#0072B2") +
-  geom_segment(aes(x = -3, xend = q75, y = 0.75, yend = 0.75),
+p1 <- ggplot2$ggplot(df, ggplot2$aes(x = x, y = cdf)) +
+  ggplot2$geom_line(linewidth = 1, colour = "#0072B2") +
+  ggplot2$geom_segment(ggplot2$aes(x = -3, xend = q75, y = 0.75, yend = 0.75),
     linetype = "dashed", colour = "red") +
-  geom_segment(aes(x = q75, xend = q75, y = 0, yend = 0.75),
+  ggplot2$geom_segment(ggplot2$aes(x = q75, xend = q75, y = 0, yend = 0.75),
     linetype = "dashed", colour = "red") +
-  geom_point(aes(x = q75, y = 0.75), colour = "red", size = 3) +
-  annotate("text", x = q75 + 0.3, y = 0.5,
+  ggplot2$geom_point(ggplot2$aes(x = q75, y = 0.75), colour = "red", size = 3) +
+  ggplot2$annotate("text", x = q75 + 0.3, y = 0.5,
     label = sprintf("Q(0.75) = %.2f", q75), size = 4, hjust = 0) +
-  labs(x = "x", y = "F(x) = P(X <= x)", title = "CDF: F(x)") +
-  theme_minimal(base_size = 14)
+  ggplot2$labs(x = "x", y = "F(x) = P(X <= x)", title = "CDF: F(x)") +
+  ggplot2$theme_minimal(base_size = 14)
 
 # Quantile function plot
-p2 <- ggplot(df, aes(x = p, y = quantile)) +
-  geom_line(linewidth = 1, colour = "#D55E00") +
-  geom_segment(aes(x = 0.75, xend = 0.75, y = -3, yend = q75),
+p2 <- ggplot2$ggplot(df, ggplot2$aes(x = p, y = quantile)) +
+  ggplot2$geom_line(linewidth = 1, colour = "#D55E00") +
+  ggplot2$geom_segment(ggplot2$aes(x = 0.75, xend = 0.75, y = -3, yend = q75),
     linetype = "dashed", colour = "red") +
-  geom_segment(aes(x = 0, xend = 0.75, y = q75, yend = q75),
+  ggplot2$geom_segment(ggplot2$aes(x = 0, xend = 0.75, y = q75, yend = q75),
     linetype = "dashed", colour = "red") +
-  geom_point(aes(x = 0.75, y = q75), colour = "red", size = 3) +
-  labs(x = "p", y = "Q(p)", title = "Quantile function: Q(p)") +
-  theme_minimal(base_size = 14)
+  ggplot2$geom_point(ggplot2$aes(x = 0.75, y = q75), colour = "red", size = 3) +
+  ggplot2$labs(x = "p", y = "Q(p)", title = "Quantile function: Q(p)") +
+  ggplot2$theme_minimal(base_size = 14)
 
 p1 + p2
 ```
@@ -621,12 +594,12 @@ This pattern holds for `binom`, `pois`, `unif`, `exp`, `gamma`, `chisq`, `t`, `f
 
 ```{r four-functions}
 # The four normal distribution functions
-cat("dnorm(0) =", dnorm(0), "  (density at x = 0)\n")
-cat("pnorm(0) =", pnorm(0), "  (CDF at x = 0)\n")
-cat("qnorm(0.975) =", qnorm(0.975), "  (97.5th percentile)\n")
+dnorm(0)       # density at x = 0
+pnorm(0)       # CDF at x = 0
+qnorm(0.975)   # 97.5th percentile
 
 set.seed(42)
-cat("rnorm(5) =", round(rnorm(5), 3), "  (5 random draws)\n")
+rnorm(5)        # 5 random draws
 ```
 
 ---

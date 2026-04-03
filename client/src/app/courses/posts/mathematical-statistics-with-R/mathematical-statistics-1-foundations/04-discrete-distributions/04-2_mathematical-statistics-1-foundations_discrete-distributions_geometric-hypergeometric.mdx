@@ -138,11 +138,11 @@ p <- 0.3
 ours <- my_dgeom(k_vals, p)
 theirs <- dgeom(k_vals - 1, p)  # R counts failures, we count trials
 
-cat("Maximum absolute difference:", max(abs(ours - theirs)), "\n")
+max(abs(ours - theirs))
 ```
 
 ```
-Maximum absolute difference: 5.551115e-17 
+[1] 5.551115e-17
 ```
 
 **Important convention note:** R's `dgeom(x, prob)` parametrises the geometric distribution as the number of **failures** before the first success ($x = 0, 1, 2, \ldots$), whereas our definition counts the **trial number** of the first success ($k = 1, 2, 3, \ldots$). If $X$ is our variable and $Y$ is R's, then $Y = X - 1$. Always check the documentation!
@@ -167,49 +167,49 @@ conditional <- mean(geom_sims[geom_sims > 5] > 15)
 # Theoretical P(X > 10) = (1-p)^10
 theoretical <- (1 - p)^10
 
-cat("P(X > 10)          =", prob_gt_10, "  [theoretical:", theoretical, "]\n")
-cat("P(X > 15 | X > 5)  =", conditional, "  [theoretical:", theoretical, "]\n")
-cat("\nThey should be equal (memoryless property).\n")
+round(c(
+  "P(X > 10)" = prob_gt_10,
+  "P(X > 15 | X > 5)" = conditional,
+  theoretical = theoretical
+), 4)
 ```
 
 ```
-P(X > 10)          = 0.10868   [theoretical: 0.1073742 ]
-P(X > 15 | X > 5)  = 0.1088881   [theoretical: 0.1073742 ]
-
-They should be equal (memoryless property).
+        P(X > 10) P(X > 15 | X > 5)       theoretical 
+           0.1087            0.1089            0.1074 
 ```
 
 ### 4.3.9 Visualising the Geometric PMF
 
 
 ``` r
-box::use(ggplot2[...])
-box::use(data.table[data.table, rbindlist])
+box::use(ggplot2)
+box::use(data.table)
 
 p_vals <- c(0.1, 0.3, 0.5, 0.8)
 
-pmf_data <- rbindlist(lapply(p_vals, function(pp) {
+pmf_data <- data.table$rbindlist(lapply(p_vals, function(pp) {
   k_max <- qgeom(0.995, pp) + 2  # Show up to 99.5th percentile
   k <- 1:(k_max + 1)
-  data.table(
+  data.table$data.table(
     k = k,
     pmf = (1 - pp)^(k - 1) * pp,
     label = sprintf("Geom(%.1f)", pp)
   )
 }))
 
-ggplot(pmf_data, aes(x = k, y = pmf)) +
-  geom_col(fill = "#009E73", width = 0.7, alpha = 0.85) +
-  facet_wrap(~label, scales = "free", ncol = 2) +
-  labs(
+ggplot2$ggplot(pmf_data, ggplot2$aes(x = k, y = pmf)) +
+  ggplot2$geom_col(fill = "#009E73", width = 0.7, alpha = 0.85) +
+  ggplot2$facet_wrap(~label, scales = "free", ncol = 2) +
+  ggplot2$labs(
     x = "k (trial of first success)",
     y = "P(X = k)",
     title = "Geometric probability mass functions"
   ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    strip.text = element_text(face = "bold"),
-    panel.grid.minor = element_blank()
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(
+    strip.text = ggplot2$element_text(face = "bold"),
+    panel.grid.minor = ggplot2$element_blank()
   )
 ```
 
@@ -274,11 +274,11 @@ p <- 0.25
 geom_pmf <- (1 - p)^(k_vals - 1) * p
 negbin_pmf <- my_dnegbin(k_vals, r = 1, p = p)
 
-cat("Max |Geom - NegBin(r=1)|:", max(abs(geom_pmf - negbin_pmf)), "\n")
+max(abs(geom_pmf - negbin_pmf))
 ```
 
 ```
-Max |Geom - NegBin(r=1)|: 0 
+[1] 0
 ```
 
 **R's parametrisation.** R's `dnbinom(x, size, prob)` uses a different convention: `x` is the number of **failures** before the `size`-th success (not the total number of trials). If our variable is $X$ (total trials until $r$-th success), then R's variable is $Y = X - r$ (failures before $r$-th success). So `dnbinom(k - r, size = r, prob = p)` should match our `my_dnegbin(k, r, p)`.
@@ -293,49 +293,49 @@ k_vals <- r:25
 ours <- my_dnegbin(k_vals, r, p)
 theirs <- dnbinom(k_vals - r, size = r, prob = p)
 
-cat("Max absolute difference:", max(abs(ours - theirs)), "\n")
+max(abs(ours - theirs))
 ```
 
 ```
-Max absolute difference: 5.551115e-17 
+[1] 5.551115e-17
 ```
 
 ### 4.4.5 Visualising the Negative Binomial
 
 
 ``` r
-box::use(ggplot2[...])
-box::use(data.table[data.table, rbindlist])
+box::use(ggplot2)
+box::use(data.table)
 
-params <- data.table(
+params <- data.table$data.table(
   r = c(1, 3, 5, 10),
   p = c(0.3, 0.3, 0.3, 0.3)
 )
 
-pmf_data <- rbindlist(lapply(seq_len(nrow(params)), function(i) {
+pmf_data <- data.table$rbindlist(lapply(seq_len(nrow(params)), function(i) {
   rr <- params$r[i]
   pp <- params$p[i]
   k_max <- qnbinom(0.995, size = rr, prob = pp) + rr + 1
   k <- rr:k_max
-  data.table(
+  data.table$data.table(
     k = k,
     pmf = my_dnegbin(k, rr, pp),
     label = sprintf("NegBin(r=%d, p=%.1f)", rr, pp)
   )
 }))
 
-ggplot(pmf_data, aes(x = k, y = pmf)) +
-  geom_col(fill = "#E69F00", width = 0.7, alpha = 0.85) +
-  facet_wrap(~label, scales = "free", ncol = 2) +
-  labs(
+ggplot2$ggplot(pmf_data, ggplot2$aes(x = k, y = pmf)) +
+  ggplot2$geom_col(fill = "#E69F00", width = 0.7, alpha = 0.85) +
+  ggplot2$facet_wrap(~label, scales = "free", ncol = 2) +
+  ggplot2$labs(
     x = "k (trial of r-th success)",
     y = "P(X = k)",
     title = "Negative binomial probability mass functions"
   ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    strip.text = element_text(face = "bold"),
-    panel.grid.minor = element_blank()
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(
+    strip.text = ggplot2$element_text(face = "bold"),
+    panel.grid.minor = ggplot2$element_blank()
   )
 ```
 
@@ -417,11 +417,11 @@ k_vals <- max(0, n - (N - K)):min(n, K)
 ours <- my_dhyper(k_vals, N, K, n)
 theirs <- dhyper(k_vals, m = K, n = N - K, k = n)
 
-cat("Maximum absolute difference:", max(abs(ours - theirs)), "\n")
+max(abs(ours - theirs))
 ```
 
 ```
-Maximum absolute difference: 1.110223e-16 
+[1] 1.110223e-16
 ```
 
 Note R's function signature `dhyper(x, m, n, k)` where `m` = number of successes in population, `n` = number of failures in population, and `k` = sample size. This is unfortunately confusing because `n` means something different from our $n$.
@@ -432,20 +432,20 @@ The binomial is the "with replacement" version of the hypergeometric. When the p
 
 
 ``` r
-box::use(ggplot2[...])
-box::use(data.table[data.table, rbindlist])
+box::use(ggplot2)
+box::use(data.table)
 
 p <- 0.3  # K/N ratio
 n <- 10
 
 N_vals <- c(20, 50, 100, 500)
 
-comparison_data <- rbindlist(lapply(N_vals, function(NN) {
+comparison_data <- data.table$rbindlist(lapply(N_vals, function(NN) {
   KK <- round(NN * p)
   k_min <- max(0, n - (NN - KK))
   k_max <- min(n, KK)
   k <- k_min:k_max
-  data.table(
+  data.table$data.table(
     k = k,
     hyper = dhyper(k, m = KK, n = NN - KK, k = n),
     binom = dbinom(k, size = n, prob = KK / NN),
@@ -453,19 +453,19 @@ comparison_data <- rbindlist(lapply(N_vals, function(NN) {
   )
 }))
 
-ggplot(comparison_data) +
-  geom_col(aes(x = k, y = hyper), fill = "#0072B2", alpha = 0.6, width = 0.7) +
-  geom_point(aes(x = k, y = binom), colour = "#D55E00", size = 2.5) +
-  facet_wrap(~label, scales = "free_y", ncol = 2) +
-  labs(
+ggplot2$ggplot(comparison_data) +
+  ggplot2$geom_col(ggplot2$aes(x = k, y = hyper), fill = "#0072B2", alpha = 0.6, width = 0.7) +
+  ggplot2$geom_point(ggplot2$aes(x = k, y = binom), colour = "#D55E00", size = 2.5) +
+  ggplot2$facet_wrap(~label, scales = "free_y", ncol = 2) +
+  ggplot2$labs(
     x = "k (successes in sample)",
     y = "Probability",
     title = "Hypergeometric (bars) vs. Binomial (points) as N increases"
   ) +
-  theme_minimal(base_size = 13) +
-  theme(
-    strip.text = element_text(face = "bold"),
-    panel.grid.minor = element_blank()
+  ggplot2$theme_minimal(base_size = 13) +
+  ggplot2$theme(
+    strip.text = ggplot2$element_text(face = "bold"),
+    panel.grid.minor = ggplot2$element_blank()
   )
 ```
 
@@ -482,25 +482,28 @@ p <- 0.3
 n <- 10
 k <- 3
 
-cat("Hypergeometric P(X = 3) for various N:\n\n")
-for (NN in c(20, 50, 100, 500, 1000, 10000)) {
-  KK <- round(NN * p)
-  hyp <- dhyper(k, m = KK, n = NN - KK, k = n)
-  bin <- dbinom(k, size = n, prob = KK / NN)
-  cat(sprintf("  N = %5d:  Hyper = %.6f,  Binom = %.6f,  |diff| = %.2e\n",
-              NN, hyp, bin, abs(hyp - bin)))
-}
+N_vals <- c(20, 50, 100, 500, 1000, 10000)
+data.frame(
+  N = N_vals,
+  hyper = vapply(N_vals, function(NN) {
+    KK <- round(NN * p)
+    dhyper(k, m = KK, n = NN - KK, k = n)
+  }, numeric(1)),
+  binom = vapply(N_vals, function(NN) {
+    KK <- round(NN * p)
+    dbinom(k, size = n, prob = KK / NN)
+  }, numeric(1))
+)
 ```
 
 ```
-Hypergeometric P(X = 3) for various N:
-
-  N =    20:  Hyper = 0.371517,  Binom = 0.266828,  |diff| = 1.05e-01
-  N =    50:  Hyper = 0.297856,  Binom = 0.266828,  |diff| = 3.10e-02
-  N =   100:  Hyper = 0.281163,  Binom = 0.266828,  |diff| = 1.43e-02
-  N =   500:  Hyper = 0.269533,  Binom = 0.266828,  |diff| = 2.71e-03
-  N =  1000:  Hyper = 0.268171,  Binom = 0.266828,  |diff| = 1.34e-03
-  N = 10000:  Hyper = 0.266961,  Binom = 0.266828,  |diff| = 1.34e-04
+      N     hyper     binom
+1    20 0.3715170 0.2668279
+2    50 0.2978557 0.2668279
+3   100 0.2811634 0.2668279
+4   500 0.2695335 0.2668279
+5  1000 0.2681713 0.2668279
+6 10000 0.2669614 0.2668279
 ```
 
 ### 4.5.7 Real-World Example: Quality Control
@@ -513,33 +516,28 @@ N <- 200   # total boards
 K <- 15    # defective
 n <- 20    # sample size
 
-# P(X = 2)
-cat("P(exactly 2 defective) =", dhyper(2, m = K, n = N - K, k = n), "\n")
-
-# P(X >= 3) = 1 - P(X <= 2)
-cat("P(3 or more defective) =", 1 - phyper(2, m = K, n = N - K, k = n), "\n")
-
-# Compare with binomial approximation
 p <- K / N
-cat("\nBinomial approximation:\n")
-cat("P(exactly 2 defective) =", dbinom(2, n, p), "\n")
-cat("P(3 or more defective) =", 1 - pbinom(2, n, p), "\n")
 
-cat("\nSample fraction n/N =", n / N, "-- within 5% rule, so binomial is reasonable.\n")
+data.frame(
+  quantity = c("P(X = 2)", "P(X >= 3)"),
+  hypergeometric = c(dhyper(2, m = K, n = N - K, k = n),
+                     1 - phyper(2, m = K, n = N - K, k = n)),
+  binomial_approx = c(dbinom(2, n, p), 1 - pbinom(2, n, p))
+)
+
+n / N  # sample fraction -- within 5% rule
 ```
 
 ```
-P(exactly 2 defective) = 0.2786638 
-P(3 or more defective) = 0.1778229 
-
-Binomial approximation:
-P(exactly 2 defective) = 0.2626802 
-P(3 or more defective) = 0.1859986 
-
-Sample fraction n/N = 0.1 -- within 5% rule, so binomial is reasonable.
+   quantity hypergeometric binomial_approx
+1  P(X = 2)      0.2786638       0.2626802
+2 P(X >= 3)      0.1778229       0.1859986
+[1] 0.1
 ```
 
 ### 4.5.8 Simulation
+
+
 
 
 ``` r
@@ -547,27 +545,27 @@ set.seed(42)
 n_sim <- 10000
 sims <- rhyper(n_sim, m = K, n = N - K, k = n)
 
-obs <- data.table(k = sims)[, .(observed = .N / n_sim), by = k]
-theory <- data.table(
+obs <- data.table$data.table(k = sims)[, .(observed = .N / n_sim), by = k]
+theory <- data.table$data.table(
   k = 0:min(n, K),
   theoretical = dhyper(0:min(n, K), m = K, n = N - K, k = n)
 )
 comparison <- merge(theory, obs, by = "k", all.x = TRUE)
 comparison[is.na(observed), observed := 0]
 
-ggplot(comparison) +
-  geom_col(aes(x = k, y = observed), fill = "#009E73", alpha = 0.6, width = 0.7) +
-  geom_point(aes(x = k, y = theoretical), colour = "#D55E00", size = 3) +
-  geom_segment(
-    aes(x = k, xend = k, y = 0, yend = theoretical),
+ggplot2$ggplot(comparison) +
+  ggplot2$geom_col(ggplot2$aes(x = k, y = observed), fill = "#009E73", alpha = 0.6, width = 0.7) +
+  ggplot2$geom_point(ggplot2$aes(x = k, y = theoretical), colour = "#D55E00", size = 3) +
+  ggplot2$geom_segment(
+    ggplot2$aes(x = k, xend = k, y = 0, yend = theoretical),
     colour = "#D55E00", linewidth = 0.5
   ) +
-  labs(
+  ggplot2$labs(
     x = "k (defective items found)",
     y = "Proportion / Probability",
     title = "Simulated (bars) vs. theoretical (orange) hypergeometric"
   ) +
-  theme_minimal(base_size = 13)
+  ggplot2$theme_minimal(base_size = 13)
 ```
 
 <Figure src="/courses/mathematical-statistics-1-foundations/hyper-sim-1.png" alt="Simulated hypergeometric draws compared to the theoretical PMF. We draw 20 items from a population of 200 containing 15 successes, repeating 10,000 times.">

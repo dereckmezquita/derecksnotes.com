@@ -62,23 +62,23 @@ n_flips <- 10000L
 flips <- sample(c(0L, 1L), size = n_flips, replace = TRUE)
 cumulative_prop <- cumsum(flips) / seq_len(n_flips)
 
-box::use(ggplot2[...])
+box::use(ggplot2)
 
 df <- data.frame(
   flip = seq_len(n_flips),
   proportion = cumulative_prop
 )
 
-ggplot(df, aes(x = flip, y = proportion)) +
-  geom_line(colour = "#0072B2", linewidth = 0.4) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey40") +
-  scale_x_log10(labels = scales::comma) +
-  labs(
+ggplot2$ggplot(df, ggplot2$aes(x = flip, y = proportion)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 0.4) +
+  ggplot2$geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey40") +
+  ggplot2$scale_x_log10(labels = scales::comma) +
+  ggplot2$labs(
     x = "Number of flips (log scale)",
     y = "Proportion of heads",
     title = "Frequentist convergence: coin flips"
   ) +
-  theme_minimal(base_size = 14)
+  ggplot2$theme_minimal(base_size = 14)
 ```
 
 Notice how the line is volatile for small $n$ but settles down as $n$ grows. This is the **law of large numbers** at work — we will prove it rigorously in Chapter 7.
@@ -176,18 +176,16 @@ Let us enumerate some sample spaces in R.
 ```{r sample-spaces}
 # Single fair die
 die <- 1:6
-cat("Die sample space:", die, "\n")
+die
 
 # Two dice: sample space has 36 outcomes
 two_dice <- expand.grid(die1 = 1:6, die2 = 1:6)
-cat("Two dice: ", nrow(two_dice), " outcomes\n")
+nrow(two_dice)
 
 # Event: sum equals 7
 event_sum7 <- two_dice[two_dice$die1 + two_dice$die2 == 7, ]
-cat("Outcomes where sum = 7:\n")
-print(event_sum7)
-cat("P(sum = 7) =", nrow(event_sum7), "/", nrow(two_dice), "=",
-    nrow(event_sum7) / nrow(two_dice), "\n")
+event_sum7
+nrow(event_sum7) / nrow(two_dice)
 ```
 
 ```{r card-deck}
@@ -195,17 +193,15 @@ cat("P(sum = 7) =", nrow(event_sum7), "/", nrow(two_dice), "=",
 suits <- c("Hearts", "Diamonds", "Clubs", "Spades")
 ranks <- c("A", 2:10, "J", "Q", "K")
 deck <- expand.grid(rank = ranks, suit = suits, stringsAsFactors = FALSE)
-cat("Deck size:", nrow(deck), "\n")
+nrow(deck)
 
 # Event: drawing a heart
 hearts <- deck[deck$suit == "Hearts", ]
-cat("P(Heart) =", nrow(hearts), "/", nrow(deck), "=",
-    nrow(hearts) / nrow(deck), "\n")
+nrow(hearts) / nrow(deck)
 
 # Event: drawing a face card (J, Q, K)
 face_cards <- deck[deck$rank %in% c("J", "Q", "K"), ]
-cat("P(Face card) =", nrow(face_cards), "/", nrow(deck), "=",
-    nrow(face_cards) / nrow(deck), "\n")
+nrow(face_cards) / nrow(deck)
 ```
 
 ---
@@ -333,9 +329,7 @@ B <- rolls >= 4                # {4, 5, 6}
 # Complement rule: P(A^c) should equal 1 - P(A)
 p_A <- mean(A)
 p_Ac <- mean(!A)
-cat("P(A) =", round(p_A, 4), "\n")
-cat("P(A^c) =", round(p_Ac, 4), "\n")
-cat("P(A) + P(A^c) =", round(p_A + p_Ac, 4), " (should be 1)\n\n")
+round(c(P_A = p_A, P_Ac = p_Ac, sum = p_A + p_Ac), 4)
 
 # Inclusion-exclusion: P(A ∪ B) = P(A) + P(B) - P(A ∩ B)
 p_B <- mean(B)
@@ -343,80 +337,10 @@ p_AandB <- mean(A & B)
 p_AorB <- mean(A | B)
 p_AorB_formula <- p_A + p_B - p_AandB
 
-cat("P(A ∪ B) simulated  =", round(p_AorB, 4), "\n")
-cat("P(A) + P(B) - P(A∩B) =", round(p_AorB_formula, 4), "\n")
-cat("Theoretical P(A ∪ B) = 5/6 =", round(5/6, 4), "\n")
+round(c(simulated = p_AorB, formula = p_AorB_formula, theoretical = 5/6), 4)
 ```
 
 The simulated values closely match the theoretical values, as expected.
-
-<CanvasWithJs code={`
-// Venn diagram illustrating union, intersection, complement
-const w = canvas.width;
-const h = canvas.height;
-ctx.clearRect(0, 0, w, h);
-
-// Background (universal set)
-ctx.fillStyle = '#f0f0f0';
-ctx.fillRect(20, 20, w - 40, h - 40);
-ctx.strokeStyle = '#333';
-ctx.lineWidth = 2;
-ctx.strokeRect(20, 20, w - 40, h - 40);
-ctx.fillStyle = '#333';
-ctx.font = '16px serif';
-ctx.fillText('Ω (Universal set)', 30, 50);
-
-// Circle A
-const cx_a = w * 0.38;
-const cx_b = w * 0.62;
-const cy = h * 0.5;
-const r = Math.min(w, h) * 0.22;
-
-// Draw A ∩ B region first (overlap)
-ctx.save();
-ctx.beginPath();
-ctx.arc(cx_a, cy, r, 0, 2 * Math.PI);
-ctx.clip();
-ctx.beginPath();
-ctx.arc(cx_b, cy, r, 0, 2 * Math.PI);
-ctx.fillStyle = 'rgba(230, 159, 0, 0.5)';
-ctx.fill();
-ctx.restore();
-
-// Draw A (not overlap)
-ctx.beginPath();
-ctx.arc(cx_a, cy, r, 0, 2 * Math.PI);
-ctx.fillStyle = 'rgba(0, 114, 178, 0.3)';
-ctx.fill();
-ctx.strokeStyle = '#0072B2';
-ctx.lineWidth = 2.5;
-ctx.stroke();
-
-// Draw B (not overlap)
-ctx.beginPath();
-ctx.arc(cx_b, cy, r, 0, 2 * Math.PI);
-ctx.fillStyle = 'rgba(213, 94, 0, 0.3)';
-ctx.fill();
-ctx.strokeStyle = '#D55E00';
-ctx.lineWidth = 2.5;
-ctx.stroke();
-
-// Labels
-ctx.fillStyle = '#0072B2';
-ctx.font = 'bold 22px serif';
-ctx.fillText('A', cx_a - r * 0.6, cy + 5);
-ctx.fillStyle = '#D55E00';
-ctx.fillText('B', cx_b + r * 0.35, cy + 5);
-ctx.fillStyle = '#8B4513';
-ctx.font = '18px serif';
-ctx.fillText('A ∩ B', (cx_a + cx_b) / 2 - 22, cy + 5);
-
-// Legend
-ctx.fillStyle = '#333';
-ctx.font = '14px serif';
-ctx.fillText('Blue = A, Red = B, Orange overlap = A ∩ B', 30, h - 35);
-ctx.fillText('A ∪ B = everything coloured', 30, h - 15);
-`} width={600} height={400} />
 
 ---
 
@@ -443,8 +367,7 @@ In plain English: if you have 3 shirts and 4 pairs of trousers, you have $3 \tim
 n_letters <- 26
 n_digits <- 10
 n_plates <- n_letters^3 * n_digits^4
-cat("Number of licence plates (3 letters + 4 digits):",
-    format(n_plates, big.mark = ","), "\n")
+format(n_plates, big.mark = ",")
 ```
 
 #### Permutations
@@ -505,13 +428,9 @@ my_choose <- function(n, k) {
 }
 
 # Verify against built-in functions
-cat("my_factorial(10) =", my_factorial(10), "\n")
-cat("factorial(10)    =", factorial(10), "\n\n")
-
-cat("my_choose(52, 5) =", my_choose(52, 5), "\n")
-cat("choose(52, 5)    =", choose(52, 5), "\n\n")
-
-cat("my_permutations(10, 3) =", my_permutations(10, 3), "\n")
+c(ours = my_factorial(10), builtin = factorial(10))
+c(ours = my_choose(52, 5), builtin = choose(52, 5))
+my_permutations(10, 3)
 ```
 
 ### Worked Example: Lottery Odds
@@ -524,9 +443,8 @@ $$
 
 ```{r lottery}
 total_combinations <- choose(49, 6)
-cat("Total lottery combinations:", format(total_combinations, big.mark = ","), "\n")
-cat("Probability of jackpot: 1 /", format(total_combinations, big.mark = ","),
-    "=", signif(1 / total_combinations, 4), "\n")
+format(total_combinations, big.mark = ",")
+signif(1 / total_combinations, 4)
 ```
 
 ### Worked Example: Poker Hands
@@ -535,26 +453,23 @@ A poker hand is 5 cards from a standard 52-card deck. Let us compute the probabi
 
 ```{r poker}
 total_hands <- choose(52, 5)
-cat("Total 5-card hands:", format(total_hands, big.mark = ","), "\n\n")
+format(total_hands, big.mark = ",")
 
 # Four of a kind: choose the rank (13 ways), choose which 4 suits (1 way),
 # choose the 5th card from remaining 48
 four_of_a_kind <- 13 * choose(4, 4) * 48
-cat("Four of a kind:", four_of_a_kind, "\n")
-cat("P(four of a kind) =", signif(four_of_a_kind / total_hands, 4), "\n\n")
+signif(four_of_a_kind / total_hands, 4)
 
 # Flush: all 5 cards same suit, minus straight flushes
 # Choose suit (4), choose 5 ranks from 13
 flush_all <- 4 * choose(13, 5)
 straight_flush <- 40  # 10 per suit × 4 suits
 flush_only <- flush_all - straight_flush
-cat("Flush (not straight flush):", flush_only, "\n")
-cat("P(flush) =", signif(flush_only / total_hands, 4), "\n\n")
+signif(flush_only / total_hands, 4)
 
 # Full house: three of one rank, two of another
 full_house <- 13 * choose(4, 3) * 12 * choose(4, 2)
-cat("Full house:", full_house, "\n")
-cat("P(full house) =", signif(full_house / total_hands, 4), "\n")
+signif(full_house / total_hands, 4)
 ```
 
 ### The Birthday Problem
@@ -622,125 +537,29 @@ print(comparison)
 ```
 
 ```{r birthday-plot, fig.cap="The birthday problem: probability that at least two people in a group of n share a birthday. The 50% threshold is crossed at n = 23."}
-box::use(ggplot2[...])
+box::use(ggplot2)
 
 n_vals <- 2:80
 probs <- vapply(n_vals, birthday_prob, numeric(1))
 
 df_birthday <- data.frame(n = n_vals, prob = probs)
 
-ggplot(df_birthday, aes(x = n, y = prob)) +
-  geom_line(colour = "#0072B2", linewidth = 1) +
-  geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey50") +
-  geom_vline(xintercept = 23, linetype = "dotted", colour = "#D55E00") +
-  annotate("text", x = 26, y = 0.45, label = "n = 23", colour = "#D55E00",
+ggplot2$ggplot(df_birthday, ggplot2$aes(x = n, y = prob)) +
+  ggplot2$geom_line(colour = "#0072B2", linewidth = 1) +
+  ggplot2$geom_hline(yintercept = 0.5, linetype = "dashed", colour = "grey50") +
+  ggplot2$geom_vline(xintercept = 23, linetype = "dotted", colour = "#D55E00") +
+  ggplot2$annotate("text", x = 26, y = 0.45, label = "n = 23", colour = "#D55E00",
            hjust = 0, size = 5) +
-  scale_y_continuous(labels = scales::percent_format()) +
-  labs(
+  ggplot2$scale_y_continuous(labels = scales::percent_format()) +
+  ggplot2$labs(
     x = "Number of people in the room",
     y = "P(at least one shared birthday)",
     title = "The Birthday Problem"
   ) +
-  theme_minimal(base_size = 14)
+  ggplot2$theme_minimal(base_size = 14)
 ```
 
 Why is the answer so low? The key insight is that we are not asking whether someone shares *your* birthday — we are asking whether *any* pair matches. With 23 people there are $\binom{23}{2} = 253$ distinct pairs, each a potential match.
-
-<CanvasWithJs code={`
-// Birthday problem interactive visualisation
-const w = canvas.width;
-const h = canvas.height;
-ctx.clearRect(0, 0, w, h);
-
-// Compute birthday probability
-function birthdayProb(n) {
-  if (n > 365) return 1;
-  let p = 1;
-  for (let i = 0; i < n; i++) {
-    p *= (365 - i) / 365;
-  }
-  return 1 - p;
-}
-
-// Draw axes
-const margin = { top: 40, right: 30, bottom: 50, left: 60 };
-const plotW = w - margin.left - margin.right;
-const plotH = h - margin.top - margin.bottom;
-
-ctx.strokeStyle = '#333';
-ctx.lineWidth = 1.5;
-ctx.beginPath();
-ctx.moveTo(margin.left, margin.top);
-ctx.lineTo(margin.left, margin.top + plotH);
-ctx.lineTo(margin.left + plotW, margin.top + plotH);
-ctx.stroke();
-
-// Plot the curve
-ctx.beginPath();
-ctx.strokeStyle = '#0072B2';
-ctx.lineWidth = 2.5;
-for (let n = 2; n <= 80; n++) {
-  const x = margin.left + ((n - 2) / 78) * plotW;
-  const y = margin.top + plotH - birthdayProb(n) * plotH;
-  if (n === 2) ctx.moveTo(x, y);
-  else ctx.lineTo(x, y);
-}
-ctx.stroke();
-
-// 50% line
-ctx.beginPath();
-ctx.strokeStyle = '#999';
-ctx.lineWidth = 1;
-ctx.setLineDash([6, 4]);
-const y50 = margin.top + plotH * 0.5;
-ctx.moveTo(margin.left, y50);
-ctx.lineTo(margin.left + plotW, y50);
-ctx.stroke();
-ctx.setLineDash([]);
-
-// n = 23 vertical line
-const x23 = margin.left + ((23 - 2) / 78) * plotW;
-ctx.beginPath();
-ctx.strokeStyle = '#D55E00';
-ctx.lineWidth = 1.5;
-ctx.setLineDash([4, 4]);
-ctx.moveTo(x23, margin.top);
-ctx.lineTo(x23, margin.top + plotH);
-ctx.stroke();
-ctx.setLineDash([]);
-
-// Labels
-ctx.fillStyle = '#333';
-ctx.font = '14px sans-serif';
-ctx.textAlign = 'center';
-ctx.fillText('Number of people', margin.left + plotW / 2, h - 8);
-ctx.save();
-ctx.translate(15, margin.top + plotH / 2);
-ctx.rotate(-Math.PI / 2);
-ctx.fillText('P(shared birthday)', 0, 0);
-ctx.restore();
-
-ctx.font = 'bold 16px sans-serif';
-ctx.fillText('The Birthday Problem', w / 2, 25);
-
-ctx.font = '12px sans-serif';
-ctx.fillStyle = '#D55E00';
-ctx.textAlign = 'left';
-ctx.fillText('n = 23 → 50.7%', x23 + 8, margin.top + 20);
-
-// Tick labels
-ctx.fillStyle = '#333';
-ctx.textAlign = 'center';
-for (let n of [10, 20, 30, 40, 50, 60, 70, 80]) {
-  const x = margin.left + ((n - 2) / 78) * plotW;
-  ctx.fillText(n.toString(), x, margin.top + plotH + 18);
-}
-ctx.textAlign = 'right';
-for (let p of [0, 0.25, 0.5, 0.75, 1]) {
-  const y = margin.top + plotH - p * plotH;
-  ctx.fillText((p * 100) + '%', margin.left - 8, y + 4);
-}
-`} width={600} height={400} />
 
 ---
 
