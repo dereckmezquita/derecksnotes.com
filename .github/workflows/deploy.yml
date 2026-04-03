@@ -11,6 +11,10 @@ on:
         options:
           - dev
           - prod
+      ref:
+        description: 'Branch or tag to deploy (leave empty for current branch)'
+        required: false
+        default: ''
   release:
     types: [published]
 
@@ -18,127 +22,129 @@ concurrency:
   group: deploy-${{ github.event.inputs.environment || 'prod' }}
   cancel-in-progress: false
 
-env:
-  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/derecksnotes
-
 jobs:
-  build_and_push:
-    name: Build and push Docker image
-    runs-on: ubuntu-latest
-    outputs:
-      environment: ${{ steps.set-env.outputs.environment }}
-      image_tag: ${{ steps.set-env.outputs.image_tag }}
-    steps:
-      - name: Set environment
-        id: set-env
-        run: |
-          if [ "${{ github.event_name }}" = "release" ]; then
-            echo "environment=prod" >> $GITHUB_OUTPUT
-            echo "image_tag=prod" >> $GITHUB_OUTPUT
-          else
-            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
-            echo "image_tag=${{ inputs.environment }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ steps.set-env.outputs.image_tag }}
-            ${{ github.event_name == 'release' && format('{0}:{1}', env.IMAGE_NAME, github.event.release.tag_name) || '' }}
-          build-args: |
-            BUILD_ENV=${{ steps.set-env.outputs.environment }}
-            COMMIT_SHA=${{ github.sha }}
-
   deploy:
-    name: Deploy to Linode
-    needs: build_and_push
+    name: Deploy to ${{ github.event.inputs.environment || 'prod' }}
     runs-on: ubuntu-latest
-    env:
-      ENV: ${{ needs.build_and_push.outputs.environment }}
-      TAG: ${{ needs.build_and_push.outputs.image_tag }}
     steps:
       - name: Set deployment variables
         id: vars
         run: |
-          if [ "${{ env.ENV }}" = "prod" ]; then
+          # Determine environment
+          if [ "${{ github.event_name }}" = "release" ]; then
+            ENV="prod"
+            DEPLOY_REF="${{ github.event.release.tag_name }}"
+          else
+            ENV="${{ inputs.environment }}"
+            DEPLOY_REF="${{ inputs.ref || github.ref_name }}"
+          fi
+
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "deploy_ref=$DEPLOY_REF" >> $GITHUB_OUTPUT
+          echo "commit_sha=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+          if [ "$ENV" = "prod" ]; then
+            echo "repo_dir=/opt/derecksnotes/prod" >> $GITHUB_OUTPUT
             echo "container_name=prod_derecksnotes" >> $GITHUB_OUTPUT
-            echo "work_dir=/root/prod_docker-compose-derecksnotes/" >> $GITHUB_OUTPUT
             echo "port_client=3000" >> $GITHUB_OUTPUT
             echo "port_server=3001" >> $GITHUB_OUTPUT
             echo "data_path=/var/www/derecksnotes.com/data" >> $GITHUB_OUTPUT
             echo "public_path=/var/www/derecksnotes.com/public" >> $GITHUB_OUTPUT
           else
+            echo "repo_dir=/opt/derecksnotes/dev" >> $GITHUB_OUTPUT
             echo "container_name=dev_derecksnotes" >> $GITHUB_OUTPUT
-            echo "work_dir=/root/dev_docker-compose-derecksnotes/" >> $GITHUB_OUTPUT
             echo "port_client=3010" >> $GITHUB_OUTPUT
             echo "port_server=3011" >> $GITHUB_OUTPUT
             echo "data_path=/var/www/dev.derecksnotes.com/data" >> $GITHUB_OUTPUT
             echo "public_path=/var/www/dev.derecksnotes.com/public" >> $GITHUB_OUTPUT
           fi
 
-      - name: Checkout code for docker-compose
-        uses: actions/checkout@v4
-        with:
-          sparse-checkout: docker-compose.yml
-          sparse-checkout-cone-mode: false
-
-      - name: Copy docker-compose.yml to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.REMOTE_HOST }}
-          username: ${{ secrets.REMOTE_USERNAME }}
-          password: ${{ secrets.REMOTE_PASSWORD }}
-          port: ${{ secrets.REMOTE_PORT }}
-          source: docker-compose.yml
-          target: ${{ steps.vars.outputs.work_dir }}
-
-      - name: Deploy to remote server
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USERNAME }}
           password: ${{ secrets.REMOTE_PASSWORD }}
           port: ${{ secrets.REMOTE_PORT }}
-          command_timeout: 20m
+          command_timeout: 30m
           script: |
-            mkdir -p ${{ steps.vars.outputs.work_dir }}
-            cd ${{ steps.vars.outputs.work_dir }}
+            set -e
 
-            # Create .env file with deployment configuration
-            cat > .env << EOF
-            IMAGE_NAME=${{ env.IMAGE_NAME }}:${{ env.TAG }}
-            CONTAINER_NAME=${{ steps.vars.outputs.container_name }}
-            PORT_CLIENT=${{ steps.vars.outputs.port_client }}
-            PORT_SERVER=${{ steps.vars.outputs.port_server }}
-            BUILD_ENV=${{ env.ENV }}
-            SESSION_SECRET=${{ secrets.SESSION_SECRET }}
-            ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }}
-            DATA_PATH=${{ steps.vars.outputs.data_path }}
-            PUBLIC_PATH=${{ steps.vars.outputs.public_path }}
-            EOF
+            REPO_DIR="${{ steps.vars.outputs.repo_dir }}"
+            DEPLOY_REF="${{ steps.vars.outputs.deploy_ref }}"
+            REPO_URL="https://github.com/dereckmezquita/derecksnotes.com.git"
 
-            # Ensure data directory exists
-            mkdir -p ${{ steps.vars.outputs.data_path }}
+            echo "=== Deploying ${{ steps.vars.outputs.environment }} ==="
+            echo "Ref: ${DEPLOY_REF}"
+            echo "Dir: ${REPO_DIR}"
 
-            # Pull and deploy
-            docker pull ${{ env.IMAGE_NAME }}:${{ env.TAG }}
-            docker container prune -f
-            docker rm -f ${{ steps.vars.outputs.container_name }} || true
-            docker compose --project-name derecksnotes-${{ env.ENV }} down || true
-            docker compose --project-name derecksnotes-${{ env.ENV }} up -d
+            # ---- Clone or pull ----
+
+            if [ ! -d "${REPO_DIR}/.git" ]; then
+              echo "First deploy — cloning repo..."
+              mkdir -p "$(dirname "$REPO_DIR")"
+              git clone "$REPO_URL" "$REPO_DIR"
+            fi
+
+            cd "$REPO_DIR"
+
+            echo "Fetching latest..."
+            git fetch --all --tags --prune
+
+            echo "Checking out: ${DEPLOY_REF}"
+            git checkout "$DEPLOY_REF"
+
+            # If on a branch (not a detached tag), pull latest
+            if git symbolic-ref -q HEAD >/dev/null 2>&1; then
+              git pull origin "$DEPLOY_REF"
+            fi
+
+            # ---- Write .env ----
+
+            echo "Writing .env..."
+            printf '%s\n' \
+              "IMAGE_NAME=derecksnotes" \
+              "CONTAINER_NAME=${{ steps.vars.outputs.container_name }}" \
+              "PORT_CLIENT=${{ steps.vars.outputs.port_client }}" \
+              "PORT_SERVER=${{ steps.vars.outputs.port_server }}" \
+              "BUILD_ENV=${{ steps.vars.outputs.environment }}" \
+              "COMMIT_SHA=${{ steps.vars.outputs.commit_sha }}" \
+              "SESSION_SECRET=${{ secrets.SESSION_SECRET }}" \
+              "ADMIN_USERNAME=${{ secrets.ADMIN_USERNAME }}" \
+              "DATA_PATH=${{ steps.vars.outputs.data_path }}" \
+              "PUBLIC_PATH=${{ steps.vars.outputs.public_path }}" \
+              > .env
+
+            chmod 600 .env
+
+            # ---- Ensure directories exist ----
+
+            mkdir -p "${{ steps.vars.outputs.data_path }}"
+            mkdir -p "${{ steps.vars.outputs.public_path }}"
+
+            # ---- Build and deploy ----
+
+            echo "Building Docker image..."
+            docker compose build
+
+            echo "Starting containers..."
+            docker compose down || true
+            docker compose up -d
+
+            # ---- Health check ----
+
+            echo "Waiting for startup..."
+            sleep 15
+
+            if curl -sf http://localhost:${{ steps.vars.outputs.port_server }}/api/health; then
+              echo ""
+              echo "=== Deploy successful ==="
+            else
+              echo ""
+              echo "Warning: Health check failed. Check logs with:"
+              echo "  cd ${REPO_DIR} && docker compose logs"
+            fi
+
+            # ---- Cleanup old images ----
+
+            docker image prune -f 2>/dev/null || true
