@@ -129,6 +129,13 @@ export default function NotFound() {
         let totalKE = 0;
         let totalPE = 0;
 
+        // FPS + physics rate tracking
+        let fpsFrameCount = 0;
+        let physicsStepCount = 0;
+        let fpsLastSample = performance.now();
+        let displayFps = 0;
+        let displayPps = 0; // physics per second
+
         function onMouseMove(e: MouseEvent) {
             mouseRef.current.pos.set(e.clientX, e.clientY);
             mouseRef.current.active = true;
@@ -192,12 +199,23 @@ export default function NotFound() {
 
             // Fixed timestep accumulator
             const now = performance.now();
-            const elapsed = Math.min(now - lastTime, 100); // cap at 100ms to prevent spiral of death
+            const elapsed = Math.min(now - lastTime, 100);
             lastTime = now;
             accumulator += elapsed;
+            fpsFrameCount++;
 
-            // Run physics at fixed 60Hz — may run 0, 1, or multiple steps per render frame
+            // Sample FPS + PPS every second
+            if (now - fpsLastSample >= 1000) {
+                displayFps = fpsFrameCount;
+                displayPps = physicsStepCount;
+                fpsFrameCount = 0;
+                physicsStepCount = 0;
+                fpsLastSample = now;
+            }
+
+            // Run physics at fixed 60Hz
             while (accumulator >= PHYSICS_DT) {
+                physicsStepCount++;
                 accumulator -= PHYSICS_DT;
                 frame++;
 
@@ -206,8 +224,6 @@ export default function NotFound() {
                 const mouse = mouseRef.current;
                 const N = particles.length;
                 const groundY = h - 24;
-                const wind = Vec2.from(Math.sin(frame * 0.012) * 0.02, 0);
-
                 // Random perturbation
                 if (frame % 90 === 0 && N > 0) {
                     const idx = Math.floor(Math.random() * N);
@@ -239,21 +255,31 @@ export default function NotFound() {
                 totalKE = 0;
                 totalPE = 0;
 
+                // Wind as raw numbers (avoid creating Vec2 every frame)
+                const windX = Math.sin(frame * 0.012) * 0.02;
+
                 for (const p of particles) {
                     if (useGravity) {
                         p.vel.y += GRAVITY;
                     } else if (mouse.active) {
-                        const delta = mouse.pos.sub(p.pos);
-                        const dist = delta.length() + 1;
+                        // Mouse attraction — inline math, zero allocations
+                        // Equivalent to: delta = mouse - pos; force = delta.normalize() * strength
+                        const dx = mouse.pos.x - p.pos.x;
+                        const dy = mouse.pos.y - p.pos.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy) + 1;
                         const force = Math.min(
                             1.5,
                             (MOUSE_ATTRACT * p.mass) / (dist * 0.5)
                         );
-                        p.applyForce(delta.normalize().mul(force));
-                        p.vel.mulMut(0.995);
+                        // applyForce inline: vel += (direction * force) / mass
+                        p.vel.x += ((dx / dist) * force) / p.mass;
+                        p.vel.y += ((dy / dist) * force) / p.mass;
+                        // Slight damping in zero-g
+                        p.vel.x *= 0.995;
+                        p.vel.y *= 0.995;
                     }
 
-                    p.vel.addMut(wind);
+                    p.vel.x += windX;
                     p.update();
                     p.bounceWalls(
                         w,
@@ -303,10 +329,13 @@ export default function NotFound() {
                         p.vel.x = 0;
                         p.vel.y = 0;
                     }
-                    // Cap maximum velocity
+                    // Cap maximum velocity — inline, no Vec2 allocation
                     const maxSpeed = 30;
-                    if (p.vel.lengthSq() > maxSpeed * maxSpeed) {
-                        p.vel = p.vel.normalize().mul(maxSpeed);
+                    const speedSq = p.vel.x * p.vel.x + p.vel.y * p.vel.y;
+                    if (speedSq > maxSpeed * maxSpeed) {
+                        const scale = maxSpeed / Math.sqrt(speedSq);
+                        p.vel.x *= scale;
+                        p.vel.y *= scale;
                     }
                 }
             } // end fixed timestep while loop
@@ -370,7 +399,7 @@ export default function NotFound() {
             // Update readout
             const el = document.getElementById('sim-readout');
             if (el) {
-                el.textContent = `g = ${useGravity ? GRAVITY : 0} m/s\u00B2  \u00B7  e = ${DAMPING}  \u00B7  n = ${N}  \u00B7  t = ${(frame / 60).toFixed(1)}s  \u00B7  collisions: ${collisionCount}  \u00B7  \u03A3KE = ${totalKE.toFixed(0)} J  \u00B7  E = ${(totalKE + totalPE).toFixed(0)} J`;
+                el.textContent = `${displayFps} FPS  \u00B7  ${displayPps} PPS  \u00B7  n = ${N}  \u00B7  t = ${(frame / 60).toFixed(1)}s  \u00B7  collisions: ${collisionCount}  \u00B7  \u03A3KE = ${totalKE.toFixed(0)} J  \u00B7  E = ${(totalKE + totalPE).toFixed(0)} J`;
             }
 
             animationId = requestAnimationFrame(draw);

@@ -7,27 +7,30 @@ export interface ParticleConfig {
     radius: number;
 }
 
-// Black hole forms when a single particle accumulates this much mass through merging
 // Black hole forms when mass exceeds this
 export const BLACK_HOLE_MASS_THRESHOLD = 100000;
 export const MERGE_SPEED_THRESHOLD = 15;
-export const COMPRESSION_OVERLAP_THRESHOLD = 8; // need 8+ overlapping particles to merge
+export const COMPRESSION_OVERLAP_THRESHOLD = 8;
 
 export class Particle {
     id: number;
-    pos: Vec2;
-    vel: Vec2;
+    pos: Vec2; // position — still a Vec2 for convenience in non-hot paths (rendering, spawning)
+    vel: Vec2; // velocity — same, Vec2 for API but accessed as .x/.y in hot paths
     radius: number;
     mass: number;
     isBlackHole: boolean = false;
-    overlapCount: number = 0; // number of overlapping particles this frame
-    age: number = 0; // frames since creation
-    contactFrames: Map<number, number> = new Map(); // track continuous contact with other particles
-    static readonly MERGE_COOLDOWN = 300; // can't merge for first 5 seconds
-    static readonly BH_ABSORB_CONTACT_FRAMES = 5; // need 5 continuous frames of contact to absorb
+    overlapCount: number = 0;
+    age: number = 0;
+    contactFrames: Map<number, number> = new Map();
+    static readonly MERGE_COOLDOWN = 300;
+    static readonly BH_ABSORB_CONTACT_FRAMES = 5;
     trail: Vec2[];
 
     private static readonly MAX_TRAIL = 80;
+
+    blackHoleAge: number = 0;
+    static readonly BLACK_HOLE_LIFETIME = 1800;
+    static readonly BLACK_HOLE_RADIUS = 5;
 
     constructor(config: ParticleConfig) {
         this.id = config.id;
@@ -38,10 +41,16 @@ export class Particle {
         this.trail = [];
     }
 
+    // ---- Hot path methods: all use inline x,y math, zero allocations ----
+
     update(): void {
-        this.trail.push(this.pos.clone());
+        // Trail push — still creates a Vec2 for storage, but this is O(1) per frame
+        this.trail.push(new Vec2(this.pos.x, this.pos.y));
         if (this.trail.length > Particle.MAX_TRAIL) this.trail.shift();
-        this.pos.addMut(this.vel);
+
+        // Position += velocity (inline, no Vec2 allocation)
+        this.pos.x += this.vel.x;
+        this.pos.y += this.vel.y;
         this.age++;
     }
 
@@ -49,29 +58,40 @@ export class Particle {
         return this.age > Particle.MERGE_COOLDOWN;
     }
 
+    // Apply force as (fx, fy) — inline version, no Vec2 created
+    // Equivalent to: vel += force / mass
+    applyForceXY(fx: number, fy: number): void {
+        this.vel.x += fx / this.mass;
+        this.vel.y += fy / this.mass;
+    }
+
+    // Keep Vec2 version for non-hot paths (spawning, perturbation)
     applyForce(force: Vec2): void {
-        this.vel.addMut(force.div(this.mass));
+        this.vel.x += force.x / this.mass;
+        this.vel.y += force.y / this.mass;
     }
 
     applyImpulse(impulse: Vec2): void {
-        this.vel.addMut(impulse);
+        this.vel.x += impulse.x;
+        this.vel.y += impulse.y;
     }
 
-    blackHoleAge: number = 0; // frames since becoming a black hole
-    static readonly BLACK_HOLE_LIFETIME = 1800; // ~30 seconds at 60fps
-    static readonly BLACK_HOLE_RADIUS = 5; // very small collision radius
-
-    /** Absorb another particle — merge mass and momentum */
+    // Absorb another particle — conservation of momentum, inline math
+    // Equivalent to: vel = (vel * mass + other.vel * other.mass) / totalMass
     absorb(other: Particle): void {
         const totalMass = this.mass + other.mass;
-        this.vel = this.vel
-            .mul(this.mass)
-            .add(other.vel.mul(other.mass))
-            .div(totalMass);
+
+        // Momentum conservation: new_vel = (m1*v1 + m2*v2) / (m1+m2)
+        const newVx =
+            (this.vel.x * this.mass + other.vel.x * other.mass) / totalMass;
+        const newVy =
+            (this.vel.y * this.mass + other.vel.y * other.mass) / totalMass;
+        this.vel.x = newVx;
+        this.vel.y = newVy;
+
         this.mass = totalMass;
 
         if (this.isBlackHole) {
-            // Black holes stay small — collision radius fixed
             this.radius = Particle.BLACK_HOLE_RADIUS;
         } else {
             this.radius = Math.min(80, Math.pow(this.mass, 1 / 3) * 1.5);
@@ -87,30 +107,29 @@ export class Particle {
         }
     }
 
-    /** Returns true if this black hole has evaporated */
     updateBlackHole(): boolean {
         if (!this.isBlackHole) return false;
         this.blackHoleAge++;
-
-        // Evaporate: lose mass over time (Hawking radiation)
-        const lifeRatio = this.blackHoleAge / Particle.BLACK_HOLE_LIFETIME;
-        if (lifeRatio >= 1.0) {
-            return true; // evaporated — should be removed
-        }
-
-        // Shrink mass as it evaporates
+        if (this.blackHoleAge / Particle.BLACK_HOLE_LIFETIME >= 1.0)
+            return true;
         this.mass *= 0.998;
         return false;
     }
 
+    // Kinetic energy — inline, no allocations
     kineticEnergy(): number {
-        return 0.5 * this.mass * this.vel.lengthSq();
+        return (
+            0.5 *
+            this.mass *
+            (this.vel.x * this.vel.x + this.vel.y * this.vel.y)
+        );
     }
 
     speed(): number {
-        return this.vel.length();
+        return Math.sqrt(this.vel.x * this.vel.x + this.vel.y * this.vel.y);
     }
 
+    // Wall bouncing — already inline (no Vec2 ops), kept as-is
     bounceWalls(
         width: number,
         height: number,
@@ -129,7 +148,6 @@ export class Particle {
             this.pos.y = this.radius;
             this.vel.y *= -damping;
         }
-
         const floor = groundY ?? height;
         if (this.pos.y + this.radius > floor) {
             this.pos.y = floor - this.radius;
@@ -139,25 +157,42 @@ export class Particle {
     }
 
     /**
-     * Returns: false (no collision), 'bounce', 'absorbed_b' (a ate b), 'absorbed_a' (b ate a)
+     * Collision detection + response — FULLY INLINED, zero Vec2 allocations
+     *
+     * What this does (in Vec2 terms):
+     *   delta = b.pos - a.pos          → dx, dy
+     *   dist = delta.length()          → Math.sqrt(dx*dx + dy*dy)
+     *   normal = delta / dist          → nx, ny (unit vector from a to b)
+     *   relVel = a.vel - b.vel         → rvx, rvy
+     *   relVn = relVel.dot(normal)     → rvx*nx + rvy*ny (relative speed along collision axis)
+     *   impulse = 2 * relVn / totalMass
+     *   a.vel -= normal * impulse * b.mass * damping
+     *   b.vel += normal * impulse * a.mass * damping
+     *   separate by overlap/2 along normal
      */
     static collide(
         a: Particle,
         b: Particle,
         damping: number
     ): false | 'bounce' | 'absorbed_a' | 'absorbed_b' {
-        const delta = b.pos.sub(a.pos);
-        const dist = delta.length();
+        // delta = b.pos - a.pos (direction from a to b)
+        const dx = b.pos.x - a.pos.x;
+        const dy = b.pos.y - a.pos.y;
+
+        // dist = length of delta
+        const distSq = dx * dx + dy * dy;
         const minDist = a.radius + b.radius;
 
-        if (dist >= minDist || dist === 0) return false;
+        // Early exit: no collision if distance > sum of radii
+        // Using squared distance avoids sqrt when no collision
+        if (distSq >= minDist * minDist || distSq === 0) return false;
 
-        // Black hole absorption — requires 5 continuous frames of direct contact
+        const dist = Math.sqrt(distSq);
+
+        // --- Black hole absorption (requires 5 frames continuous contact) ---
         if (a.isBlackHole || b.isBlackHole) {
             const bh = a.isBlackHole ? a : b;
             const other = a.isBlackHole ? b : a;
-
-            // Track continuous contact frames
             const frames = (bh.contactFrames.get(other.id) || 0) + 1;
             bh.contactFrames.set(other.id, frames);
 
@@ -166,17 +201,12 @@ export class Particle {
                 bh.contactFrames.delete(other.id);
                 return a.isBlackHole ? 'absorbed_b' : 'absorbed_a';
             }
-
-            // Still in contact but not long enough — bounce normally
-            // (fall through to elastic collision below)
         }
 
-        // Track overlap for compression detection
+        // --- Compression merging (8+ overlapping particles) ---
         a.overlapCount++;
         b.overlapCount++;
 
-        // Compression merging — particles squeezed by 8+ neighbors merge
-        // Both particles must be past the cooldown period
         if (
             (a.overlapCount >= COMPRESSION_OVERLAP_THRESHOLD ||
                 b.overlapCount >= COMPRESSION_OVERLAP_THRESHOLD) &&
@@ -192,48 +222,90 @@ export class Particle {
             }
         }
 
-        // High-speed impact merging (commented out — keeping for future use)
-        // const relSpeed = a.vel.sub(b.vel).length();
-        // if (relSpeed > MERGE_SPEED_THRESHOLD && a.canMerge() && b.canMerge()) {
-        //     if (a.mass >= b.mass) { a.absorb(b); return 'absorbed_b'; }
-        //     else { b.absorb(a); return 'absorbed_a'; }
-        // }
+        // --- Normal elastic collision ---
 
-        // Normal elastic collision
-        const normal = delta.div(dist);
-        const relVel = a.vel.sub(b.vel);
-        const relVn = relVel.dot(normal);
+        // normal = delta / dist (unit vector pointing from a to b)
+        const nx = dx / dist;
+        const ny = dy / dist;
 
+        // relVel = a.vel - b.vel (relative velocity)
+        const rvx = a.vel.x - b.vel.x;
+        const rvy = a.vel.y - b.vel.y;
+
+        // relVn = relVel dot normal (relative speed along collision axis)
+        const relVn = rvx * nx + rvy * ny;
+
+        // Only resolve if particles are moving toward each other
         if (relVn > 0) {
             const totalMass = a.mass + b.mass;
             const impulse = (2 * relVn) / totalMass;
-            a.vel.subMut(normal.mul(impulse * b.mass * damping));
-            b.vel.addMut(normal.mul(impulse * a.mass * damping));
+
+            // a.vel -= normal * (impulse * b.mass * damping)
+            const impA = impulse * b.mass * damping;
+            a.vel.x -= nx * impA;
+            a.vel.y -= ny * impA;
+
+            // b.vel += normal * (impulse * a.mass * damping)
+            const impB = impulse * a.mass * damping;
+            b.vel.x += nx * impB;
+            b.vel.y += ny * impB;
         }
 
-        const overlap = (minDist - dist) / 2;
-        a.pos.subMut(normal.mul(overlap));
-        b.pos.addMut(normal.mul(overlap));
+        // Separate overlapping particles by pushing each apart along normal
+        const overlap = (minDist - dist) * 0.5;
+        a.pos.x -= nx * overlap;
+        a.pos.y -= ny * overlap;
+        b.pos.x += nx * overlap;
+        b.pos.y += ny * overlap;
 
         return 'bounce';
     }
 
+    /**
+     * Gravitational attraction — FULLY INLINED
+     *
+     * What this does (in Vec2 terms):
+     *   delta = b.pos - a.pos
+     *   force = G * a.mass * b.mass / (distSq + softening)
+     *   forceVec = delta.normalize() * force
+     *   a.vel += forceVec / a.mass   (accelerate a toward b)
+     *   b.vel -= forceVec / b.mass   (accelerate b toward a)
+     */
     static attract(a: Particle, b: Particle, G: number): void {
-        const delta = b.pos.sub(a.pos);
-        const distSq = delta.lengthSq();
+        // delta = b.pos - a.pos
+        const dx = b.pos.x - a.pos.x;
+        const dy = b.pos.y - a.pos.y;
+
+        // squared distance + softening factor (prevents division by zero)
+        const distSq = dx * dx + dy * dy;
         const dist = Math.sqrt(distSq) + 1;
         const minDist = a.radius + b.radius;
 
+        // Don't attract if overlapping (collision handles that)
         if (dist <= minDist) return;
 
-        const force = Math.min((G * a.mass * b.mass) / (distSq + 100), 50); // cap force
-        const forceVec = delta.div(dist).mul(force);
+        // force magnitude, capped at 50 to prevent extreme accelerations
+        const force = Math.min((G * a.mass * b.mass) / (distSq + 100), 50);
 
-        const accA = forceVec.div(a.mass);
-        const accB = forceVec.div(b.mass);
+        // forceVec = (dx/dist, dy/dist) * force  (force along the line between particles)
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
 
-        // Clamp acceleration to prevent NaN/Infinity
-        if (accA.lengthSq() < 100) a.vel.addMut(accA);
-        if (accB.lengthSq() < 100) b.vel.subMut(accB);
+        // acceleration = force / mass, capped to prevent NaN
+        // a accelerates toward b: a.vel += forceVec / a.mass
+        const ax = fx / a.mass;
+        const ay = fy / a.mass;
+        if (ax * ax + ay * ay < 100) {
+            a.vel.x += ax;
+            a.vel.y += ay;
+        }
+
+        // b accelerates toward a: b.vel -= forceVec / b.mass
+        const bx = fx / b.mass;
+        const by = fy / b.mass;
+        if (bx * bx + by * by < 100) {
+            b.vel.x -= bx;
+            b.vel.y -= by;
+        }
     }
 }
