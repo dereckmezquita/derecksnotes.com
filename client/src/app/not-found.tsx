@@ -1,7 +1,13 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Vec2, Particle, QuadTree, WebGLRenderer } from '@/lib/physics';
+import {
+    Vec2,
+    Particle,
+    QuadTree,
+    SpatialHash,
+    WebGLRenderer
+} from '@/lib/physics';
 
 let nextId = 0;
 
@@ -13,11 +19,13 @@ export default function NotFound() {
     const [ballSize, setBallSize] = useState(12);
     const [qtCapacity, setQtCapacity] = useState(4);
     const [spawnCount, setSpawnCount] = useState(1);
+    const [useSpatialHash, setUseSpatialHash] = useState(false);
     const gravityRef = useRef(false);
     const attractRef = useRef(false);
     const ballSizeRef = useRef(12);
     const qtCapacityRef = useRef(4);
     const spawnCountRef = useRef(1);
+    const useSpatialHashRef = useRef(false);
     const mouseRef = useRef({ pos: new Vec2(-1000, -1000), active: false });
     const particlesRef = useRef<Particle[]>([]);
 
@@ -44,6 +52,9 @@ export default function NotFound() {
     useEffect(() => {
         spawnCountRef.current = spawnCount;
     }, [spawnCount]);
+    useEffect(() => {
+        useSpatialHashRef.current = useSpatialHash;
+    }, [useSpatialHash]);
 
     useEffect(() => {
         const glCanvas = glCanvasRef.current;
@@ -232,21 +243,40 @@ export default function NotFound() {
                     );
                 }
 
-                // Build quadtree
-                const qt = new QuadTree(
-                    { x: 0, y: 0, w, h },
-                    0,
-                    qtCapacityRef.current
-                );
-                for (const p of particles) qt.insert(p);
+                // Build spatial index (QuadTree or SpatialHash)
+                const useHash = useSpatialHashRef.current;
+                let qt: QuadTree | null = null;
+                let sh: SpatialHash | null = null;
+
+                if (useHash) {
+                    sh = new SpatialHash(w, h, 80);
+                    for (const p of particles) sh.insert(p);
+                } else {
+                    qt = new QuadTree(
+                        { x: 0, y: 0, w, h },
+                        0,
+                        qtCapacityRef.current
+                    );
+                    for (const p of particles) qt.insert(p);
+                }
 
                 // Inter-particle gravity
                 if (useAttract) {
-                    for (const p of particles) {
-                        const nearby = qt.queryRadius(p.pos, 300);
-                        for (const other of nearby) {
-                            if (other.id > p.id)
-                                Particle.attract(p, other, INTER_G);
+                    if (useHash) {
+                        for (const p of particles) {
+                            const nearby = sh!.queryRadius(p.pos, 300);
+                            for (const other of nearby) {
+                                if (other.id > p.id)
+                                    Particle.attract(p, other, INTER_G);
+                            }
+                        }
+                    } else {
+                        for (const p of particles) {
+                            const nearby = qt!.queryRadius(p.pos, 300);
+                            for (const other of nearby) {
+                                if (other.id > p.id)
+                                    Particle.attract(p, other, INTER_G);
+                            }
                         }
                     }
                 }
@@ -298,7 +328,11 @@ export default function NotFound() {
 
                 // Collision detection — track absorbed particles
                 const absorbed = new Set<number>();
-                collisionCount += qt.detectCollisions(DAMPING, absorbed);
+                if (useHash) {
+                    collisionCount += sh!.detectCollisions(DAMPING, absorbed);
+                } else {
+                    collisionCount += qt!.detectCollisions(DAMPING, absorbed);
+                }
 
                 // Clear stale black hole contact trackers (particles that bounced away)
                 for (const p of particles) {
@@ -347,13 +381,22 @@ export default function NotFound() {
             const useGravity = gravityRef.current;
             const mouse = mouseRef.current;
 
-            // Build quadtree for rendering
-            const renderQt = new QuadTree(
-                { x: 0, y: 0, w, h },
-                0,
-                qtCapacityRef.current
-            );
-            for (const p of particles) renderQt.insert(p);
+            // Build spatial index for rendering
+            const useHash = useSpatialHashRef.current;
+            let renderQt: QuadTree | null = null;
+            let renderSh: SpatialHash | null = null;
+
+            if (useHash) {
+                renderSh = new SpatialHash(w, h, 80);
+                for (const p of particles) renderSh.insert(p);
+            } else {
+                renderQt = new QuadTree(
+                    { x: 0, y: 0, w, h },
+                    0,
+                    qtCapacityRef.current
+                );
+                for (const p of particles) renderQt.insert(p);
+            }
 
             // WebGL draws — grid recalculated every 2nd frame for performance
             if (frame % 2 === 0 || N < 100) {
@@ -361,12 +404,16 @@ export default function NotFound() {
                     w,
                     h,
                     particles,
-                    renderQt,
+                    useHash ? null : renderQt!,
                     12,
                     800
                 );
             }
-            renderer.drawQuadTree(renderQt);
+            if (useHash) {
+                renderer.drawSpatialHash(renderSh!);
+            } else {
+                renderer.drawQuadTree(renderQt!);
+            }
             renderer.drawTrails(particles, 80);
             renderer.drawVelocityVectors(particles);
 
@@ -556,6 +603,13 @@ export default function NotFound() {
                         className={btnClass(attractOn)}
                     >
                         {attractOn ? 'Attract: ON' : 'Attract: OFF'}
+                    </button>
+
+                    <button
+                        onClick={() => setUseSpatialHash((v) => !v)}
+                        className={btnClass(useSpatialHash)}
+                    >
+                        {useSpatialHash ? 'Hash Grid' : 'QuadTree'}
                     </button>
 
                     {(['Size', 'Grid', 'Spawn'] as const).map((label) => {

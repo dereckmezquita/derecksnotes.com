@@ -1,6 +1,7 @@
 import { Vec2 } from './Vec2';
 import { Particle } from './Particle';
 import { QuadTree } from './QuadTree';
+import { SpatialHash } from './SpatialHash';
 import {
     LINE_VERTEX,
     LINE_FRAGMENT,
@@ -483,7 +484,7 @@ export class WebGLRenderer {
         w: number,
         h: number,
         particles: Particle[],
-        _qt: QuadTree, // kept in signature for compatibility, not used
+        _qt: QuadTree | null, // kept in signature for compatibility, not used
         spacing: number = 12,
         strength: number = 800
     ): void {
@@ -640,6 +641,33 @@ export class WebGLRenderer {
                     0.15
                 );
             }
+        });
+    }
+
+    drawSpatialHash(hash: SpatialHash): void {
+        const cs = hash.getCellSize();
+        const cols = hash.getCols();
+        const rows = hash.getRows();
+
+        // Draw grid lines (faint)
+        for (let c = 0; c <= cols; c++) {
+            const x = c * cs;
+            this.addLine(x, 0, x, rows * cs, 0.75, 0.75, 0.75, 0.2);
+        }
+        for (let r = 0; r <= rows; r++) {
+            const y = r * cs;
+            this.addLine(0, y, cols * cs, y, 0.75, 0.75, 0.75, 0.2);
+        }
+
+        // Heatmap fill — color intensity scales with particle count
+        hash.forEachCell(({ x, y, w, h, count }) => {
+            // Interpolate from cool blue (1 particle) to warm orange (8+)
+            const t = Math.min(count / 8, 1);
+            const r = 0.47 + t * 0.25; // blue → orange-ish
+            const g = 0.6 - t * 0.2;
+            const b = 0.72 - t * 0.5;
+            const a = 0.1 + t * 0.2;
+            this.addRect(x, y, w, h, r, g, b, a);
         });
     }
 
